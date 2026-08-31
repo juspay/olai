@@ -18,20 +18,24 @@ import {
   BOOTSTRAP,
   type ContributedKind,
   canonicalDate,
+  type Declared,
   declarationsOf,
   declaringOf,
   isDigitRun,
   isPathShaped,
+  type KindVocabulary,
   NO_KINDS,
   NO_TYPING,
   offsetIn,
   PATH_BASES,
   PROP_KINDS,
+  type PropType,
   sameTyping,
   storedValue,
   type Typed,
   unfitHeld,
   variantsOf,
+  withClaims,
   wrongDeclaration,
   wrongValue,
 } from "./typing.ts"
@@ -79,7 +83,7 @@ const derived = derive(nodesOfFiles(FILES))
 const DOCUMENTS: ReadonlySet<string> = new Set(["briefs/pdb.md", "docs/format.md"])
 
 const typed: Typed = {
-  declarations: declarationsOf(derived),
+  declarations: declarationsOf(derived, NO_KINDS),
   derived,
   documents: DOCUMENTS,
   kinds: NO_KINDS,
@@ -106,10 +110,10 @@ const stored = (key: string, value: string): string =>
 
 test("a directory with no Properties.olai declares nothing, and every key is text", () => {
   const bare = derive(nodesOfFiles({ "a.olai": `{"id":"one","ord":"a0","title":"one"}` }))
-  expect(declarationsOf(bare)).toEqual(NO_TYPING)
+  expect(declarationsOf(bare, NO_KINDS)).toEqual(NO_TYPING)
   expect(
     wrongValue(
-      { declarations: declarationsOf(bare), derived: bare, documents: new Set(), kinds: NO_KINDS },
+      { declarations: declarationsOf(bare, NO_KINDS), derived: bare, documents: new Set(), kinds: NO_KINDS },
       "a.olai",
       "dispatched",
       "2026-08-25 10:06 (sweep queue #5)",
@@ -155,13 +159,13 @@ test("the variants are IDS, and a title is not one", () => {
 })
 
 test("two readings of one vault DECLARE the same thing, and a moved declaration does not", () => {
-  expect(sameTyping(typed.declarations, declarationsOf(derive(nodesOfFiles(FILES))))).toBe(true)
+  expect(sameTyping(typed.declarations, declarationsOf(derive(nodesOfFiles(FILES)), NO_KINDS))).toBe(true)
   const moved = derive(nodesOfFiles({
     ...FILES,
     "_olai/Properties.olai": FILES["_olai/Properties.olai"]
       .replace(`"type":"date"`, `"type":"int"`),
   }))
-  expect(sameTyping(typed.declarations, declarationsOf(moved))).toBe(false)
+  expect(sameTyping(typed.declarations, declarationsOf(moved, NO_KINDS))).toBe(false)
 })
 
 // ── the seven kinds ────────────────────────────────────────────────────
@@ -242,7 +246,7 @@ test("a DANGLING ref value is flagged the way a dangling edge is — with a did-
       .join("\n"),
   }))
   const after: Typed = {
-    declarations: declarationsOf(without),
+    declarations: declarationsOf(without, NO_KINDS),
     derived: without,
     documents: DOCUMENTS,
     kinds: NO_KINDS,
@@ -396,7 +400,7 @@ test("unfitHeld names every existing value that would not fit a newly declared k
     ].join("\n"),
   }))
   const typed: Typed = {
-    declarations: declarationsOf(derived),
+    declarations: declarationsOf(derived, NO_KINDS),
     derived,
     documents: new Set(["briefs/pdb.md"]),
     kinds: NO_KINDS,
@@ -427,7 +431,7 @@ test("unfitHeld keeps a list's members beside the joined display string", () => 
       `{"id":"lane","ord":"a0","title":"a lane","custom":{"merge":["auto","nope"]}}`,
   }))
   const typed: Typed = {
-    declarations: declarationsOf(derived),
+    declarations: declarationsOf(derived, NO_KINDS),
     derived,
     documents: new Set(),
     kinds: NO_KINDS,
@@ -458,8 +462,8 @@ test("a vault cannot declare `type`, `under` or `base` — the recursion stops i
       `{"id":"prop-type","ord":"a8","title":"type","custom":{"type":"int"}}\n` +
       `{"id":"prop-base","ord":"a9","title":"base","custom":{"type":"text"}}`,
   }))
-  expect(declarationsOf(claiming).has("type")).toBe(false)
-  expect(declarationsOf(claiming).has("base")).toBe(false)
+  expect(declarationsOf(claiming, NO_KINDS).has("type")).toBe(false)
+  expect(declarationsOf(claiming, NO_KINDS).has("base")).toBe(false)
 })
 
 test("a declaration the reading cannot make is skipped rather than guessed at", () => {
@@ -488,9 +492,9 @@ test("a declaration the reading cannot make is skipped rather than guessed at", 
   // What that buys is the word itself, which is what `sameTyping` compares;
   // what it costs is nothing, since the three claims below are exactly the
   // ones the skip used to make.
-  expect([...declarationsOf(bent).keys()]).toEqual(["unknown", "twice"])
-  expect(declarationsOf(bent).get("twice")?.type).toEqual({ kind: "int" })
-  expect(declarationsOf(bent).get("unknown")?.type)
+  expect([...declarationsOf(bent, NO_KINDS).keys()]).toEqual(["unknown", "twice"])
+  expect(declarationsOf(bent, NO_KINDS).get("twice")?.type).toEqual({ kind: "int" })
+  expect(declarationsOf(bent, NO_KINDS).get("unknown")?.type)
     .toEqual({ kind: "contributed", word: "colour" })
 })
 
@@ -501,7 +505,7 @@ test("a contributed kind nobody answers for judges no value, and is still report
     "a.olai": `{"id":"one","ord":"a0","title":"one","custom":{"unknown":"anything at all"}}`,
   }))
   const typed: Typed = {
-    declarations: declarationsOf(bent),
+    declarations: declarationsOf(bent, NO_KINDS),
     derived: bent,
     documents: new Set(),
     kinds: NO_KINDS,
@@ -533,7 +537,7 @@ test("a kind this build knows is a legal declaration, and holds its values to th
   expect(wrongDeclaration(bent, bent.byId.get("p")!, new Set(), KINDS)).toBeUndefined()
   const held = (kinds: typeof KINDS): string | undefined =>
     wrongValue(
-      { declarations: declarationsOf(bent), derived: bent, documents: new Set(), kinds },
+      { declarations: declarationsOf(bent, NO_KINDS), derived: bent, documents: new Set(), kinds },
       "a.olai",
       "pty",
       "a uuid, and a remark",
@@ -549,7 +553,7 @@ test("sameTyping tells one contributed word from another, so a retype re-asks ev
     declarationsOf(derive(nodesOfFiles({
       "_olai/Properties.olai":
         `{"id":"p","ord":"a0","title":"pty","custom":{"type":"${word}"}}`,
-    })))
+    })), NO_KINDS)
   expect(sameTyping(of("sprocket"), of("sprocket"))).toBe(true)
   // The QUIETEST breakage this file has: both read `contributed`, and a
   // comparison that stopped at the arm would keep approving values against a
@@ -571,7 +575,7 @@ test("a MIRROR cannot be where a ref's variants live", () => {
       `{"id":"p","ord":"a0","title":"agent","custom":{"type":"ref","under":"a-mirror"}}`,
   }))
   // The key is NOT declared, so no value of it is refused for the wrong reason.
-  expect(declarationsOf(bent).has("agent")).toBe(false)
+  expect(declarationsOf(bent, NO_KINDS).has("agent")).toBe(false)
   // ...and the declarations file itself is what says so.
   expect(wrongDeclaration(bent, bent.byId.get("p")!, new Set(), NO_KINDS)?.said)
     .toContain("is a mirror — a second placement rather than a node of its own")
@@ -592,7 +596,7 @@ test("a ref's variants are capped in the sentence, and the did-you-mean is not",
     "r.olai": [`{"id":"roster","ord":"a0","title":"the agents"}`, ...many].join("\n"),
   }))
   const said = wrongValue(
-    { declarations: declarationsOf(big), derived: big, documents: new Set(), kinds: NO_KINDS },
+    { declarations: declarationsOf(big, NO_KINDS), derived: big, documents: new Set(), kinds: NO_KINDS },
     "a.olai",
     "agent",
     "agent-29x",
@@ -623,7 +627,7 @@ test("the declarations are read in LINE order, which is the order a duplicate is
       `{"id":"p-second","ord":"a0","title":"pr","custom":{"type":"date"}}`,
     ].join("\n"),
   }))
-  expect(declarationsOf(crossed).get("pr")).toEqual({ type: { kind: "int" }, at: "p-first" })
+  expect(declarationsOf(crossed, NO_KINDS).get("pr")).toEqual({ type: { kind: "int" }, at: "p-first" })
 })
 
 test("a key declared twice differing only in case is one key declared twice", () => {
@@ -633,7 +637,107 @@ test("a key declared twice differing only in case is one key declared twice", ()
       `{"id":"p2","ord":"a1","title":"Merge","custom":{"type":"date"}}`,
     ].join("\n"),
   }))
-  expect([...declarationsOf(twice).keys()]).toEqual(["merge"])
+  expect([...declarationsOf(twice, NO_KINDS).keys()]).toEqual(["merge"])
   expect(wrongDeclaration(twice, twice.byId.get("p2")!, new Set(["merge"]), NO_KINDS)?.said)
     .toContain("a property key is folded for case")
+})
+
+/**
+ * THE FOLD, AS DATA — `withClaims`, which is the one place precedence lives.
+ *
+ * Two layers reach every reader of declarations in this tree as ONE map: a
+ * vault's rows in `_olai/Properties.olai`, and the key an enabled plugin claims
+ * by convention. These cases are about the precedence between them and nothing
+ * else, so they hand the function two plain values rather than deriving either
+ * from a set — the arithmetic is the subject, and a fixture vault would put a
+ * parse between the reader and it.
+ */
+const SPROCKET_KIND: ContributedKind = {
+  kind: "widget-sprocket",
+  takes: "`widget-sprocket` (a sprocket id)",
+  admits: () => true,
+  claims: "widget-sprocket",
+}
+
+/** A serve running one plugin, which is the only shape that matters here: the
+ *  fold reads `enabled` and nothing else. */
+const RUNNING: KindVocabulary = {
+  built: new Map([[SPROCKET_KIND.kind, SPROCKET_KIND]]),
+  enabled: new Map([[SPROCKET_KIND.kind, SPROCKET_KIND]]),
+}
+
+const declaredAs = (kind: PropType["kind"], word?: string): Declared => ({
+  type: word === undefined ? { kind } as PropType : { kind: "contributed", word },
+  at: "somewhere",
+})
+
+test("the claim declares the key it names, in a vault that said nothing", () => {
+  const folded = withClaims(NO_TYPING, RUNNING)
+  expect(folded.get("widget-sprocket")?.type).toEqual({
+    kind: "contributed",
+    word: "widget-sprocket",
+  })
+  // NO NODE, and that is the honest answer rather than a placeholder: there is
+  // no row, so there is nothing for a finding to point at. `./rules.ts` already
+  // draws nothing when the id names no node.
+  expect(folded.get("widget-sprocket")?.at).toBe("")
+})
+
+test("A VAULT ROW WINS, and wins by SAYING SOMETHING ELSE as well as by agreeing", () => {
+  // The precedence, in the direction that matters: a board that declares the
+  // claimed key `path` has said what it means, and the plugin's default does not
+  // argue. A default that overruled the person would be a flag on the machine
+  // deciding what somebody's file holds.
+  const said = new Map([["widget-sprocket", declaredAs("path")]])
+  expect(withClaims(said, RUNNING).get("widget-sprocket")?.type).toEqual({ kind: "path" })
+  // ...and agreeing changes nothing, which is the boring half and is what makes
+  // a migrated vault and an unmigrated one one code path.
+  const agrees = new Map([["widget-sprocket", declaredAs("contributed", "widget-sprocket")]])
+  expect(withClaims(agrees, RUNNING).get("widget-sprocket")?.type).toEqual({
+    kind: "contributed",
+    word: "widget-sprocket",
+  })
+})
+
+test("every OTHER row survives the fold untouched — this adds, it does not replace", () => {
+  const said = new Map([
+    ["brief", declaredAs("doc")],
+    ["records", declaredAs("int")],
+  ])
+  const folded = withClaims(said, RUNNING)
+  expect([...folded.keys()].sort()).toEqual(["brief", "records", "widget-sprocket"])
+  expect(folded.get("brief")?.type).toEqual({ kind: "doc" })
+})
+
+test("a DISABLED plugin claims nothing — the fold rides `enabled`, so enablement is the switch", () => {
+  // Byte-identical to a vault that never heard of the plugin, which is the
+  // whole of what a disabled plugin is everywhere else in this system. It needed
+  // no new rule to be true here: built ≠ enabled already was one.
+  const off: KindVocabulary = { built: RUNNING.built, enabled: new Map() }
+  expect(withClaims(NO_TYPING, off)).toBe(NO_TYPING)
+  expect([...withClaims(new Map([["brief", declaredAs("doc")]]), off).keys()]).toEqual(["brief"])
+})
+
+test("a kind that claims no key adds none, which is a whole kind", () => {
+  const quiet: ContributedKind = { kind: "widget-quiet", takes: "`widget-quiet`", admits: () => true }
+  const kinds: KindVocabulary = {
+    built: new Map([[quiet.kind, quiet]]),
+    enabled: new Map([[quiet.kind, quiet]]),
+  }
+  expect(withClaims(NO_TYPING, kinds)).toBe(NO_TYPING)
+})
+
+test("the claimed key is FOLDED like every other, so `Terminal` and `terminal` are one key", () => {
+  // The reconciliation every reader of this map makes (`keyOf`), made on the way
+  // in — otherwise a plugin that claimed a capitalised word and a vault that
+  // wrote a lower-case one would be talking about two keys and the vault would
+  // stop winning.
+  const shouty: ContributedKind = { ...SPROCKET_KIND, claims: "Widget-Sprocket" }
+  const kinds: KindVocabulary = {
+    built: new Map([[shouty.kind, shouty]]),
+    enabled: new Map([[shouty.kind, shouty]]),
+  }
+  const said = new Map([["widget-sprocket", declaredAs("path")]])
+  expect([...withClaims(said, kinds).keys()]).toEqual(["widget-sprocket"])
+  expect(withClaims(said, kinds).get("widget-sprocket")?.type).toEqual({ kind: "path" })
 })

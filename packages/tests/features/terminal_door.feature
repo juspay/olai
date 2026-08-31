@@ -74,6 +74,22 @@ Feature: The `terminal` property is a DOOR
     And the terminal on "old-implement" says "no longer in the fleet"
     And there should be no page errors
 
+  @scratch:lanes @padi:lanes
+  Scenario: An enabled plugin declares its own key — nothing to edit, nothing written
+    # THE DEFAULT, and the whole of it: `kolu-terminal` is the key kolu claims by
+    # convention, so a lane carrying one wears the door with NO row in
+    # `_olai/Properties.olai` about it — and olai wrote nothing to this vault to
+    # make that true.
+    #
+    # The name carries `kolu-` on purpose, and the second assertion is why: a
+    # column somebody calls `terminal-of-mine` is theirs, holding a real fleet id,
+    # and turning a plugin on may not reinterpret it. A plugin can only ever
+    # auto-declare a key carrying its own name.
+    Given I open the outline "lanes.olai"
+    Then the terminal row on "claimed-implement" is working
+    And "claimed-mine" wears no terminal door at all
+    And there should be no page errors
+
   @scratch:lanes @padi:lanes @plugins:odu
   Scenario: A serve that did not compose kolu is the machine that never had it
     # THE DISABLED STATE, and it is not the same picture as the one below. There

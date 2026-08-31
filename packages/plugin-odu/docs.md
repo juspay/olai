@@ -53,15 +53,23 @@ When a run you were watching settles, its chip stays and says what it came to: `
 
 Two facts, both on the board:
 
-1. **the key is declared a `worktree`** — one row in `_olai/Properties.olai`:
+1. **the lane carries an `odu-worktree`** — and on an enabled odu that is the whole of it. Nothing to declare, no file to edit, and olai never writes your vault:
 
    ```jsonl
-   {"id":"prop-worktree","ord":"aC","title":"worktree","custom":{"type":"worktree"}}
+   {"id":"lane","ord":"a0","title":"the seam","custom":{"odu-worktree":".worktrees/live-properties"}}
    ```
 
-   A vault that declares nothing is not probed at all, and that is the rule rather than an accident: this hands a path to a socket dial in somebody's checkout, and only the vault can say which of its keys is one.
+   `odu-worktree` is a **kind** this plugin contributes ([format.md](../format.md)), and an enabled odu claims the key of the same name. The name carries `odu-` on purpose: a column *you* call `worktree` is yours — and this one hands a path to a socket dial in somebody's checkout, so a plugin taking over a column by being switched on is exactly what must not happen.
 
-   **It used to be `path`, and `path` was not enough.** `brief` is a `path` too, on the very same rows, so the licence had to be joined to the key NAME `worktree` to mean anything — which gave a door to any vault that happened to use the word and none to a board whose column is called `checkout`. `worktree` is a kind `@olai/plugin-odu` contributes ([format.md](../format.md)), and the walk finds its keys by that declaration. A board that declared `path` gets no chip now; the repair is the word in that one row.
+   **Want the short key?** One row in `_olai/Properties.olai` says which of *your* columns is this kind, and a vault row always wins:
+
+   ```jsonl
+   {"id":"prop-worktree","ord":"aC","title":"worktree","custom":{"type":"odu-worktree"}}
+   ```
+
+   Your key, the plugin's kind, your file. A column called `checkout` works the same way, and declaring `odu-worktree` as `text` takes the chip away.
+
+   **It used to be `path`, and `path` was not enough.** `brief` is a `path` too, on the very same rows, so the licence had to be joined to the key NAME `worktree` to mean anything — which gave a chip to any vault that happened to use the word and none to a board whose column is called `checkout`. What decides now is the DECLARATION — yours, or the plugin's claim where you said nothing — and never the spelling. **A board that declared its `worktree` column a plain `path` gets no chip**; that is a row saying what it means, and the repair is the kind in that one row.
 
 2. **the lane says which repository it is in.** A `worktree` value like `.worktrees/live-properties` is relative and does not name its repo — the same six characters are a directory under three of them. So the repository comes from the lane's own `pr-url` (`https://github.com/juspay/odu/pull/94` → `odu`), and the checkout is `<repos root>/<repo>`, where the repos root is **the directory your served vault sits in** — your board and the repositories it boards are checkouts side by side. A machine laid out otherwise says so once, in `OLAI_REPOS_DIR`.
 

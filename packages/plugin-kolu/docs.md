@@ -18,17 +18,29 @@ Beside the connection pill in the header is the readout for the link, and it has
 
 The third is why the readout is not a boolean. *Start kolu* and *these two builds disagree* have opposite fixes, and a skew reported as absent would send a reader to start a kolu that is already running.
 
-## The `terminal` property is a door
+## The `kolu-terminal` property is a door
 
-This is one of olai's **live properties** — a property whose value is a name the board decided on, and whose face goes and finds out what that name currently is. It was the first, and [live-properties.md](../live-properties.md) is the seam itself — what turns one on, and its second tenant ([odu](odu.md): a `worktree` that has a CI run going in it). Nothing below is special to kolu except the clothes, and the clothes are the one thing worth reading twice: a `terminal` OWNS ITS ROW, because a terminal somebody wrote down is worth a row whether or not anything is happening in it.
+This is one of olai's **live properties** — a property whose value is a name the board decided on, and whose face goes and finds out what that name currently is. It was the first, and [live-properties.md](../live-properties.md) is the seam itself — what turns one on, and its second tenant ([odu](odu.md): a checkout that has a CI run going in it). Nothing below is special to kolu except the clothes, and the clothes are the one thing worth reading twice: a terminal OWNS ITS ROW, because a terminal somebody wrote down is worth a row whether or not anything is happening in it.
 
-Give a node a `terminal` property whose value is a kolu terminal's id — the whole uuid, or the eight-character prefix a board usually writes — and **declare that key a `terminal`**, which is one row in `_olai/Properties.olai`:
+**Give a node a `kolu-terminal` property whose value is a kolu terminal's id** — the whole uuid, or the eight-character prefix a board usually writes — and that is the whole of it. Nothing to declare, no file to edit, and olai never writes your vault:
 
 ```jsonl
-{"id":"prop-terminal","ord":"a0","title":"terminal","custom":{"type":"terminal"}}
+{"id":"step","ord":"a0","title":"implement","custom":{"kolu-terminal":"303dc985"}}
 ```
 
-**That row is what turns the door on**, and a vault without it draws nothing. `terminal` is a kind `@olai/plugin-kolu` contributes ([format.md](../format.md)), and the walk that decides who owns which fleet row finds its keys by that DECLARATION rather than by the key's name — so a column called `pty` gets the door the day its row says the kind, and a property somebody happened to call `terminal` in a vault that says nothing does not. It used to be enough to name the key; that was name-matching, and it could not tell two path-shaped keys apart when somebody needed it to.
+`kolu-terminal` is a **kind** this plugin contributes ([format.md](../format.md)), and an enabled kolu claims the key of the same name. The name carries `kolu-` on purpose: a column *you* call `terminal` is yours, and turning a plugin on can never take it over.
+
+**Want the short key?** One row in `_olai/Properties.olai` says which of *your* columns is this kind, and a vault row always wins:
+
+```jsonl
+{"id":"prop-terminal","ord":"a0","title":"terminal","custom":{"type":"kolu-terminal"}}
+```
+
+Your key, the plugin's kind, your file. A column called `pty` works the same way. And a row can take the door AWAY — declare `kolu-terminal` as `text` and it goes dark, because you said what that column means.
+
+What decides is always the DECLARATION — the vault's row, or the plugin's claim where the vault said nothing — and never the key's spelling. It used to be the spelling; that was name-matching, and it could not tell two path-shaped keys apart when somebody needed it to.
+
+With a value in place, the property draws **kolu's own Dock row**:
 
 With the row in place, the property draws **kolu's own Dock row**:
 

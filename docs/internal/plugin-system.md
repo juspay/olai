@@ -83,7 +83,8 @@ Skim the table; the sections after it give one example each.
 | **member** | one thing on a surface: a cell, a collection, a stream, a procedure |
 | **face** | *who* may see which members — `browser`, `agent`. Default-deny |
 | **probe** | "is this tool on this host?" — asked once per chat session |
-| **kind** | a word a plugin teaches the vault's vocabulary: `terminal`, `worktree` |
+| **kind** | a word a plugin teaches the vault's vocabulary. Contributed BARE (`terminal`) and composed by the registry with the plugin's name (`kolu-terminal`) |
+| **claim** | the key a kind declares by convention — its own composed word, so enabling a plugin turns its faces on with no file to edit |
 | **dressing** | what a live property *wears* in the browser: a chip, a pane, a block |
 | **chrome** | what a plugin hangs in the app's header bar |
 | **mount** | the plugin's own half of the tab — one subscription per tab |
@@ -150,29 +151,76 @@ A plugin with no probe is a whole plugin. odu has none.
 ### kind
 
 `@olai/format` owns seven property kinds — `text`, `date`, `int`, `path`, `doc`,
-`ref`, `node` — and none of them is a terminal. So a plugin **contributes** one:
+`ref`, `node` — and none of them is a terminal. So a plugin **contributes** one,
+as a **bare word**:
 
 ```ts
 export const kinds = [{
-  kind: "worktree",
-  takes: "`worktree` (a path to a checkout, no whitespace)",  // the refusal's words
-  admits: isPathShaped,                                       // does this value fit
+  kind: "worktree",                      // BARE — the registry prefixes it
+  takes: `\`${WORKTREE_TYPE}\` (a path to a checkout, no whitespace)`,
+  admits: isPathShaped,                  // does this value fit
 }] as const
 ```
 
-A vault opts in by declaring a key, in the one file where it declares everything
-else about its keys:
+**The registry composes it with the plugin's name**, exactly as the framework
+composes a member into a wire tag:
+
+```
+  a plugin contributes …    a vault declares …
+  ─────────────────────     ────────────────────
+  kolu:  terminal      →    kolu-terminal
+  odu:   worktree      →    odu-worktree
+```
+
+That prefix buys two things. Two plugins cannot collide on a word, because two
+plugin names cannot. And — the reason the human ruled it — **a plugin's built-in
+declaration can only ever claim a key carrying its own name**, so enabling one
+can never take over a column you have been using for something of your own.
+
+### the two layers of a declaration
+
+A key is declared by whichever of these speaks, and the first one wins:
+
+```
+  1. THE VAULT'S ROW        _olai/Properties.olai       ← always wins
+  2. THE PLUGIN'S CLAIM     the kind's own word          ← where the vault said nothing
+```
+
+So an **enabled plugin declares its own key for you**. A lane carrying
+`kolu-terminal 303dc985` gets the door with nothing declared anywhere, and
+**olai never writes your vault** to make that true. Turning the plugin on is the
+whole of turning the face on.
+
+And a row of yours always beats it — which is how you move a kind onto a short
+key, and how you take a face away again:
 
 ```jsonl
 _olai/Properties.olai
-{"id":"prop-worktree","ord":"aC","title":"worktree","custom":{"type":"worktree"}}
+{"id":"prop-terminal","ord":"a0","title":"terminal","custom":{"type":"kolu-terminal"}}
 ```
 
-**Why a kind and not the key's name.** `brief` and `worktree` are both declared
-`path`, on the very same rows, and only one of them names a checkout to dial a
-socket in. A shape cannot tell them apart. The vault can, and it says so in one
-row.
+Your key, the plugin's kind, your file.
 
+The fold is **one function** (`@olai/format`'s `withClaims`) and precedence
+exists nowhere else. It rides the **enabled** table, so a disabled plugin's
+claims vanish with its kinds — no new rule needed for `--plugins`. And no
+consumer learns there are two sources: the validator, the write gate, the
+licence consult and the dressing table all keep taking *the declarations* as one
+value.
+
+**Why a kind and not the key's name.** `brief` and a checkout column are both
+declared `path`, on the very same rows, and only one of them names a checkout to
+dial a socket in. A shape cannot tell them apart. A declaration can.
+
+`@olai/format` imports no plugin. The kind table travels **as data**, handed down
+from the composition root, and the format's own union grows exactly one arm:
+
+```ts
+type PropType = … | { kind: "contributed"; word: string }
+```
+
+which keeps its five kind-enumerating places exhaustive. A contributed kind cannot
+quietly stop being handled, because it is an arm the compiler counts.
 `@olai/format` imports no plugin. The kind table travels **as data**, handed down
 from the composition root, and the format's own union grows exactly one arm:
 
@@ -336,11 +384,11 @@ This split matters and is easy to get backwards:
 
 | Question | Judged against | Why |
 | --- | --- | --- |
-| Is `{"type":"terminal"}` a legal declaration? | **BUILT** | a file's verdict may not depend on a flag it cannot see |
+| Is `{"type":"kolu-terminal"}` a legal declaration? | **BUILT** | a file's verdict may not depend on a flag it cannot see |
 | Does this value fit the kind? | **ENABLED** | `admits` is a promise only a plugin that is *here* can make |
 | May this value's face draw? | **ENABLED** | see §7 |
 
-So `{"type":"terminal"}` is a clean row on a machine running `--plugins=odu`, and
+So `{"type":"kolu-terminal"}` is a clean row on a machine running `--plugins=odu`, and
 `{"type":"banana"}` is a broken file either way.
 
 ---
@@ -354,9 +402,11 @@ The difficulty: **a vault's declarations deliberately never travel to a browser*
 look at `_olai/Properties.olai` and decide anything.
 
 ```
-  ┌─ THE VAULT ────────────────────────────────────────────────────────┐
-  │ _olai/Properties.olai   {"title":"pty","custom":{"type":"terminal"}}│
-  │ lanes.olai              {"title":"implement","custom":{"pty":"c56"}}│
+  ┌─ THE DECLARATIONS, FOLDED ─────────────────────────────────────────┐
+  │ the plugin's claim   kolu-terminal → kolu-terminal   (a default)   │
+  │ the vault's row      pty           → kolu-terminal   (and it wins) │
+  │ ── the record ─────────────────────────────────────────────────────│
+  │ lanes.olai   {"title":"implement","custom":{"pty":"c56b6183"}}     │
   └────────────────────────────┬───────────────────────────────────────┘
                                │
   ┌─ THE SERVER ───────────────▼───────────────────────────────────────┐
@@ -401,9 +451,21 @@ agreed only while a vault happened to name its key after the kind. A vault
 declaring `terminal` on a column called `pty` was walked, probed, gated — and drew
 nothing at all.
 
-> **The rule, stated once:** the declaration licenses the face. Never the key's
-> name, and there is deliberately **no fallback** to the key's name — a fallback
-> would be the same defect kept alive under a second name.
+> **The rule, stated once:** the declaration licenses the face — and a
+> declaration is *the vault's row, or the enabled plugin's claim where the vault
+> said nothing*, in that order. Never the key's spelling, and there is
+> deliberately **no fallback** to it: a fallback would be the same defect kept
+> alive under a second name. The claim is not one, because it is a declaration
+> like any other and because a plugin can only ever claim a key carrying its own
+> name.
+
+One more thing the consult refuses: a value that does not **fit** the kind gets
+no word. That is what makes a built-in claim safe to switch on — enabling a
+plugin declares keys in vaults nobody migrated, and some of them hold prose
+written before the plugin existed. Those stay exactly what they were: plain, no
+door, no face, with the validator's own finding beside them. And no shape guess
+either, which is this arm agreeing with every other declared one rather than a
+second rule.
 
 ### The other licence
 
@@ -444,6 +506,7 @@ guess costs:
                       no handler                no tab half mounted
                       no expose row             no dressing licensed
                       no surface/kolu/ at all   its kinds validate as plain text
+                      no claimed key            (so no built-in declaration)
 ```
 
 The outline it would have owned is an ordinary outline. The properties it would

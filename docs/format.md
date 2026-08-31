@@ -110,13 +110,15 @@ dispatched  2026-08-25 10:06 (sweep queue #5; the slot freed by #387's merge)
 **...and an eighth arm, for the kinds a PLUGIN contributes.** `terminal` is not one of the seven and neither is `worktree`, and `@olai/format` may not learn either word. So a plugin declares its own kind, the composition root hands the format the table as data, and a vault declares it in `_olai/Properties.olai` like anything else:
 
 ```jsonl
-{"id":"prop-terminal","ord":"a6","title":"terminal","custom":{"type":"terminal"}}
-{"id":"prop-worktree","ord":"a7","title":"worktree","custom":{"type":"worktree"}}
+{"id":"prop-terminal","ord":"a6","title":"terminal","custom":{"type":"kolu-terminal"}}
+{"id":"prop-worktree","ord":"a7","title":"worktree","custom":{"type":"odu-worktree"}}
 ```
 
-**THE DECLARATION IS THE LICENCE, and it is the only one.** A key declared `terminal` gets the Dock row and the live pane ([plugins/kolu.md](plugins/kolu.md)); a key declared `worktree` is a directory olai will look for a CI run in ([plugins/odu.md](plugins/odu.md)). Both are LIVE PROPERTIES and the seam is one ([live-properties.md](live-properties.md)). Neither is licensed by the key's NAME any more, and there is deliberately no fallback to it: `brief` and `worktree` are both path-shaped, and a shape cannot tell a document from a checkout — which is why declaring `path` no longer buys either face. **A vault that declares nothing gets neither**, where a property happening to be called `terminal` used to be enough; the repair is one row. And a key called `checkout` or `pty` gets the face the day its row says the kind, which is the other half of the same change.
+**THE DECLARATION IS THE LICENCE, and it comes from one of two places.** A key declared `kolu-terminal` gets the Dock row and the live pane ([plugins/kolu.md](plugins/kolu.md)); a key declared `odu-worktree` is a directory olai will look for a CI run in ([plugins/odu.md](plugins/odu.md)). Both are LIVE PROPERTIES and the seam is one ([live-properties.md](live-properties.md)).
 
-**A kind whose plugin this serve is not running validates as plain text** — the value is still a name, nothing breaks, and it wears no face, which is the state every vault that never heard of the plugin is already in. The DECLARATION is still legal, though: a `type` is refused against every kind this BINARY was built with, so `{"type":"terminal"}` is a clean row on a machine running `--plugins=odu` and `{"type":"banana"}` is a broken file either way. A file's verdict may not depend on a flag it cannot see.
+**An enabled plugin declares its own key for you**, so a row carrying `kolu-terminal 303dc985` works out of the box and olai writes nothing to your vault to make it. The claimed key is always the kind's own word, which carries the plugin's name — a column *you* call `terminal` can never be taken over by turning a plugin on. **A row of yours always wins**, which is how you move a kind onto a short key (`{"title":"terminal","custom":{"type":"kolu-terminal"}}`) and how you take a face away again (declare it `text`).
+
+Neither is licensed by the key's NAME, and there is deliberately no fallback to it: `brief` and a checkout column are both path-shaped, and a shape cannot tell a document from a checkout — which is why declaring `path` buys neither face.
 
 **There is deliberately no `sum` — an enum IS a ref.** The variants are nodes, so adding one is adding a child rather than editing a pipe-separated string inside a property, which is exactly the sloppiness this refuses. A roster that happens to live elsewhere (`{"type":"ref","under":"agents-roster"}`) is the same mechanism pointed at a different place, and it stays data: add a node under the roster and the sum grows, with no declaration to edit.
 

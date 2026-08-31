@@ -310,7 +310,7 @@ export const incrementally = (
   // vault actually types ({@link ./rules.ts}'s `reportDeclarations` argues why
   // that rule is not narrowed at all).
   reportDeclarations(derived, kinds, errors)
-  const typing = declarationsOf(derived)
+  const typing = declarationsOf(derived, kinds)
   // ...and the VALUES, which are the touched records unless something a value
   // could be pointing AT stopped being legal. Two ways that happens, and fact 2
   // is what makes them the only two: every untouched record was found clean, so

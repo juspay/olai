@@ -39,7 +39,7 @@
  * is worth stating plainly because it is not where a reader would first look
  * for it. A `worktree` value is a decision-shaped name; what turns it into a
  * path olai will join `.ci/odu.sock` onto is the vault's own declaration —
- * `{"title":"worktree","custom":{"type":"worktree"}}`. A vault that declares
+ * `{"title":"worktree","custom":{"type":"odu-worktree"}}`. A vault that declares
  * the key something else, or a vault that declares nothing at all, gets NO
  * PROBE.
  *
@@ -80,7 +80,7 @@ import {
 import type { WorktreeNode } from "@olai/odu-client"
 import { PR_URL_KEY } from "@olai/odu-client/wire"
 
-import { WORKTREE_KIND } from "./kinds.ts"
+import { ownKinds, WORKTREE_TYPE } from "./kinds.ts"
 
 /**
  * Every node carrying a key this vault declares a `worktree`.
@@ -115,11 +115,11 @@ import { WORKTREE_KIND } from "./kinds.ts"
  * second gate.
  */
 export function* worktreesIn(derived: Derived): Generator<WorktreeNode> {
-  const declarations = declarationsOf(derived)
-  if (!declaresKind(declarations, WORKTREE_KIND)) return
+  const declarations = declarationsOf(derived, ownKinds)
+  if (!declaresKind(declarations, WORKTREE_TYPE)) return
   for (const located of derived.nodes) {
     if (!isRegular(located)) continue
-    const value = textDeclaredAs(declarations, located.node, WORKTREE_KIND)
+    const value = textDeclaredAs(declarations, located.node, WORKTREE_TYPE)
     if (value === undefined) continue
     yield {
       node: located.node.id,

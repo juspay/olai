@@ -78,7 +78,7 @@ const READ: Reading = readingOfVault(VAULT)
 /** The three facts the consult is asked of, built the way the page's own
  *  projection builds them — so what this suite asks is what a tab is served. */
 const vault: Vault = {
-  declarations: declarationsOf(READ.derived),
+  declarations: declarationsOf(READ.derived, NO_KINDS),
   declares: (id) => nodeNamed(READ.derived, id) !== undefined,
   serves: (file) => READ.set.documents.some((face) => face.path === file),
   documents: (file) => markdownPaths(READ.set).has(file),
@@ -393,7 +393,7 @@ test("the page ships a LICENCE per claimed value, and the vault it was read from
       ["a.olai", [
         `{"id":"top","ord":"a0","title":"the rows"}`,
         `{"id":"one","parent":"top","ord":"a0","title":"one",` +
-          `"custom":{"pty":"widget-3","brief":"notes.md","sprocket":"widget-9"}}`,
+          `"custom":{"pty":"c56b6183","brief":"notes.md","sprocket":"deadbeef"}}`,
       ].join("\n")],
     ]),
   )
@@ -401,7 +401,7 @@ test("the page ships a LICENCE per claimed value, and the vault it was read from
   const running = { built: new Map([["sprocket", SPROCKET]]), enabled: new Map([["sprocket", SPROCKET]]) }
   const page = pageOf(read, at, running)
   expect(page.licences).toEqual([
-    { from: "a.olai", prop: "pty", value: "widget-3", word: "sprocket" },
+    { from: "a.olai", prop: "pty", value: "c56b6183", word: "sprocket" },
   ])
   // The two that are NOT claimed say so by being absent: a declared `text`, and
   // a key spelled as the kind itself that the vault never declared. The second
@@ -413,7 +413,7 @@ test("the page ships a LICENCE per claimed value, and the vault it was read from
   // ...and the vocabulary still does not travel: what a reader of this payload
   // learns is that ONE value is claimed by one word. It cannot learn which keys
   // the vault declares, what `brief` was declared as, or that `sprocket` is a
-  // kind at all rather than the name of the thing `widget-3` is.
+  // kind at all rather than the name of the thing `c56b6183` is.
   expect([...fieldsIn(page.licences)].sort()).toEqual(["from", "prop", "value", "word"])
   expect([...Object.keys(Licence.fields)].sort()).toEqual(["from", "prop", "value", "word"])
 })
@@ -433,7 +433,7 @@ test("a contributed kind draws no door of the app's own, and reads as text where
     ]),
   )
   const asking = (enabled: boolean): Vault => ({
-    declarations: declarationsOf(read.derived),
+    declarations: declarationsOf(read.derived, NO_KINDS),
     declares: () => false,
     serves: () => false,
     documents: () => false,
@@ -456,11 +456,11 @@ test("...and the WORD is the consult's other answer, on the key the vault actual
   const read = readingOfVault(
     new Map<string, string>([
       ["_olai/Properties.olai", `{"id":"p","ord":"a0","title":"pty","custom":{"type":"sprocket"}}`],
-      ["a.olai", `{"id":"one","ord":"a0","title":"one","custom":{"pty":"widget-3"}}`],
+      ["a.olai", `{"id":"one","ord":"a0","title":"one","custom":{"pty":"c56b6183"}}`],
     ]),
   )
   const asking = (enabled: boolean): Vault => ({
-    declarations: declarationsOf(read.derived),
+    declarations: declarationsOf(read.derived, NO_KINDS),
     declares: () => false,
     serves: () => false,
     documents: () => false,
@@ -469,16 +469,28 @@ test("...and the WORD is the consult's other answer, on the key the vault actual
       enabled: enabled ? new Map([["sprocket", SPROCKET]]) : new Map(),
     },
   })
-  expect(consult(asking(true), "a.olai", "pty", "widget-3"))
+  expect(consult(asking(true), "a.olai", "pty", "c56b6183"))
     .toEqual({ opens: null, word: "sprocket" })
   // A KIND NOBODY ANSWERS FOR LICENCES NOTHING, which is the same absent state a
   // machine that never had the plugin is in — and it is the arm a `--plugins=`
   // serve takes for every value of every contributed kind.
-  expect(consult(asking(false), "a.olai", "pty", "widget-3"))
+  expect(consult(asking(false), "a.olai", "pty", "c56b6183"))
     .toEqual({ opens: null, word: null })
   // ...and a key the vault declared nothing about carries no word however it is
   // spelled, including when it is spelled as the kind itself.
-  expect(consult(asking(true), "a.olai", "sprocket", "widget-3"))
+  expect(consult(asking(true), "a.olai", "sprocket", "c56b6183"))
+    .toEqual({ opens: null, word: null })
+  // A VALUE THAT DOES NOT FIT LICENSES NOTHING, which is what makes a BUILT-IN
+  // declaration safe to switch on: enabling a plugin declares keys in vaults
+  // nobody migrated, and some of them are holding prose written before the
+  // plugin existed. A face on those would be the plugin asserting something
+  // about a value it cannot answer for, so the value stays exactly what it was —
+  // plain, no door, no face — with the validator's own finding beside it.
+  //
+  // AND NO GUESS EITHER, which is this arm agreeing with every other declared
+  // one rather than a second rule: a key that has a declaration never falls back
+  // to reading its value's shape.
+  expect(consult(asking(true), "a.olai", "pty", "a note about it"))
     .toEqual({ opens: null, word: null })
   // Every other arm answers `word: null`, which is what makes the field a
   // licence rather than a second name for the declared type. A `date` is the

@@ -68,6 +68,7 @@ import { surface } from "./wire.ts"
  *  {@link ./kinds.ts} for the word, and `@olai/plugins`' `server.ts` for why
  *  the table is assembled here rather than off the manifest. */
 export { kinds } from "./kinds.ts"
+import { ownKinds } from "./kinds.ts"
 
 /** The wire half, re-exported so a composition root reads ONE entry per plugin
  *  — and so the sibling key the surface is composed under and the key its deps
@@ -275,7 +276,7 @@ export const serve = (services: Services): {
      */
     revision: (revision) => {
       file = conventionServed(koluFileIn, revision.value.set, revision, file)
-      declaring = declarationsOf(revision.value.derived)
+      declaring = declarationsOf(revision.value.derived, ownKinds)
       half.revision(revision.value.derived.nodes, file.file ?? null)
     },
     /** The store has NEVER published — the vault's kolu verdict goes out with

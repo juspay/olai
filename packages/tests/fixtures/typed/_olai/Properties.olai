@@ -5,4 +5,4 @@
 {"id":"auto","parent":"prop-merge","ord":"a0","title":"automatic"}
 {"id":"human","parent":"prop-merge","ord":"a1","title":"the human merges"}
 {"id":"prop-records","ord":"a4","title":"records","custom":{"type":"int"}}
-{"id":"prop-worktree","ord":"a5","title":"worktree","custom":{"type":"worktree"}}
+{"id":"prop-worktree","ord":"a5","title":"worktree","custom":{"type":"odu-worktree"}}

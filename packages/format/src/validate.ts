@@ -394,7 +394,7 @@ const wholly = (
   // one convention over — so it is built here rather than inside a rule that
   // would build it per record, and it LEAVES in the ledger so the next
   // validation can tell a vocabulary that moved from one that did not.
-  const declarations = declarationsOf(derived)
+  const declarations = declarationsOf(derived, kinds)
   const typed: Typed = { declarations, derived, documents: known, kinds }
   reportDuplicateIds(all, derived, errors)
   reportParents(all, derived, errors)

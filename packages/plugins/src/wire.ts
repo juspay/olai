@@ -19,6 +19,7 @@ export {
   enabled,
   exposeMapsOf,
   isEnabled,
+  kindWordOf,
   PLUGIN_NAMES,
   type PluginWire,
   surfacesOf,

@@ -476,9 +476,28 @@ const declaredly = (
       // appear and disappear with a flag on the machine. It carries no word for
       // the same reason: an absent plugin licences no face, which is the same
       // absent state a machine that never had the tool is already in.
-      return vault.kinds.enabled.has(declared.type.word)
-        ? { opens: null, word: declared.type.word }
-        : opening(guessed(vault, from, value))
+      //
+      // ...AND THE VALUE HAS TO FIT, which is the arm that makes a BUILT-IN
+      // declaration safe to turn on. A plugin claims the key it owns by
+      // convention (`./typing.ts`'s `withClaims`), so enabling one declares keys
+      // in vaults nobody migrated — and some of those keys are holding prose
+      // somebody wrote before the plugin existed. A face on those would be the
+      // plugin asserting something about a value it cannot answer for. So a
+      // misfit value is what it always was: plain text, no door and no face,
+      // with the validator's own finding beside it in the one sentence the
+      // plugin wrote for it ({@link PropKind.takes}).
+      //
+      // NO GUESS EITHER, and that is this arm agreeing with every other declared
+      // one rather than a second rule: `date`, `ref` and `doc` all answer
+      // `null` for a value that does not fit what the key was declared to hold,
+      // because a declaration is a stronger warrant than a shape and a key that
+      // has one never falls back to guessing.
+      //
+      // The consult cannot tell a claimed key from a written one and must not:
+      // one fold, one value, and no consumer learns there are two layers.
+      const claiming = vault.kinds.enabled.get(declared.type.word)
+      if (claiming === undefined) return opening(guessed(vault, from, value))
+      return claiming.admits(value) ? { opens: null, word: declared.type.word } : NOTHING
   }
 }
 

@@ -323,7 +323,7 @@ export interface Scope extends Reading {
 export const typedIn = (at: Reading, kinds: KindVocabulary): Typed => {
   let documents: ReadonlySet<string> | undefined
   return {
-    declarations: declarationsOf(at.derived),
+    declarations: declarationsOf(at.derived, kinds),
     derived: at.derived,
     // CARRIED, NEVER READ HERE. Which words a plugin taught this vault is the
     // composition root's fact and not a reading of the set at all, so it comes

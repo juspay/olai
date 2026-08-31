@@ -9,26 +9,40 @@
  * is the proof that a shape cannot tell them apart. The vault says which is
  * which, in the one place it says everything else about its keys.
  *
- * ## THE KIND IS THE ONE WORD, and `WORKTREE_KEY` is not it
+ * ## TWO LAYERS, AND THE VAULT IS THE OUTER ONE
  *
- * `WORKTREE_KEY` is what `@olai/odu-client` calls a COLUMN. This is the word a
- * VAULT DECLARES, and everything that decides whether a value is a checkout
- * follows it: the walk ({@link ./worktrees.ts}), the value gate, and — since the
- * page began carrying the licence per drawn value — the browser's dressing table
- * too ({@link ./plugin.ts}'s `dressings`, keyed by `WORKTREE_KIND`). So a column
- * called `checkout` gets the probe and the chip the day its row says
- * `{"type":"worktree"}`, and a `worktree` in a vault that declares nothing gets
- * neither. That is the behaviour change and it is the point: handing a path to a
- * socket dial in a directory nobody asked about is the highest bar in this
- * package, and only a declaration clears it.
+ * What decides whether a value names a checkout is a DECLARATION — never a
+ * key's spelling — and a declaration comes from either of two places, folded
+ * once (`@olai/format`'s `withClaims`):
  *
- * FOR ONE PR WINDOW THE BROWSER FOLLOWED THE KEY, because a vault's declarations
- * deliberately do not travel to a tab (juspay/olai#395), so the probe and the
- * chip agreed only while a vault named its column after the kind — this file's
- * header said as much. `@olai/format`'s `Licence` closed it: the same consult
- * that answers what a value NAMES answers what claims it. A later edit that
- * believed the old paragraph would re-introduce the name-matching this kind
- * exists to end.
+ *   1. **the vault's row** in `_olai/Properties.olai`, which always wins; and
+ *   2. **this kind's `claims`**, the key odu owns by convention, which applies
+ *      to a vault that has said nothing about that key.
+ *
+ * So an enabled odu draws its chip out of the box, and a board whose column is
+ * called `checkout` writes one row and gets it there instead. A board that
+ * declares `worktree` a plain `path` — which is what one real board says — has
+ * said what it means, and the chip goes dark. Nothing ever writes anybody's
+ * vault.
+ *
+ * That last case is worth sitting with, because it is the highest bar in this
+ * package: what a `worktree` licences is a SOCKET DIAL in a directory nobody
+ * asked about. A claim gets that bar cleared by an operator turning odu on,
+ * which is a decision somebody made on purpose about this host; a vault can
+ * always take it back with one row.
+ *
+ * `WORKTREE_KEY` is `@olai/odu-client`'s name for the COLUMN. The claim above
+ * IS that constant, so the key odu conventionally owns and the key odu's client
+ * reads cannot become two words. What it is not is the KIND: the kind is the
+ * word a declaration writes, and everything that judges a value follows it —
+ * the walk ({@link ./worktrees.ts}), the value gate, and the browser's dressing
+ * table.
+ *
+ * FOR ONE PR WINDOW THE BROWSER FOLLOWED THE KEY, because a vault's
+ * declarations deliberately do not travel to a tab (juspay/olai#395), so the
+ * probe and the chip agreed only while a vault named its column after the kind.
+ * `@olai/format`'s `Licence` closed it: the same consult that answers what a
+ * value NAMES answers what claims it.
  *
  * ## The shape is the FORMAT'S
  *
@@ -41,13 +55,40 @@
 
 import { isPathShaped } from "@olai/format"
 
-/** The word a declaration writes: `{"title":"worktree","custom":{"type":"worktree"}}`. */
+import { name } from "./wire.ts"
+
+/** The BARE word this plugin contributes. The registry prefixes it with this
+ *  plugin's name, so what a vault actually writes is {@link WORKTREE_TYPE}. */
 export const WORKTREE_KIND = "worktree"
 
-/** The contribution, as `@olai/plugins`' registry reads it — reached on the
- *  server door, where the validator and the write planner are. */
+/** ...and the word a DECLARATION writes:
+ *  `{"title":"worktree","custom":{"type":"odu-worktree"}}`. The same
+ *  composition `@olai/plugins`' `kindWordOf` makes at the registry, spelled a
+ *  second time because this package's own walk reads declarations and a plugin
+ *  may not import that package. `@olai/plugins`' `kinds.test.ts` holds the two
+ *  equal. */
+export const WORKTREE_TYPE = `${name}-${WORKTREE_KIND}`
+
+/** The contribution, as `@olai/plugins`' registry reads it — spent by the
+ *  validator, by the write planner, and by the fold that decides what a key is
+ *  declared as. `claims` is the built-in declaration; the header argues both
+ *  layers and which one wins. */
 export const kinds = [{
   kind: WORKTREE_KIND,
-  takes: "`worktree` (a path to a checkout, no whitespace)",
+  takes: `\`${WORKTREE_TYPE}\` (a path to a checkout, no whitespace)`,
   admits: isPathShaped,
 }] as const
+
+/** THIS PLUGIN'S OWN VOCABULARY, as `@olai/format` takes one — for the walk in
+ *  this package, which reads the vault's declarations and must see the claim
+ *  above folded in exactly as every other reader does.
+ *
+ *  BOTH HALVES ARE THE SAME TABLE, and that is honest rather than a shortcut:
+ *  the walk runs only on a serve that composed this plugin, so its own kind is
+ *  enabled by construction. What it must NOT do is spell the precedence itself —
+ *  it hands this to the shared fold and gets back one map, like every consumer
+ *  in the tree. */
+const OWN = new Map(
+  kinds.map((one) => [WORKTREE_TYPE, { ...one, kind: WORKTREE_TYPE, claims: WORKTREE_TYPE }]),
+)
+export const ownKinds = { built: OWN, enabled: OWN }

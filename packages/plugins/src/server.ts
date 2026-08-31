@@ -58,7 +58,7 @@ import * as kolu from "@olai/plugin-kolu/server"
 import * as odu from "@olai/plugin-odu/server"
 
 import type { PluginServer, PluginServices, Probed, PropKind } from "./plugin.ts"
-import type { PluginWire } from "./surfaces.ts"
+import { kindWordOf, type PluginWire } from "./surfaces.ts"
 
 /** The halves of the contract, re-exported so this door is the whole of what a
  *  composition root imports: what core hands every plugin, what it gets back,
@@ -228,7 +228,7 @@ export const probesOf = (
  *  need", rather than one for the list and another for the test that narrows
  *  it. They are declared in `./surfaces.ts` because the question is about
  *  NAMES and the wire door answers it too. */
-export { enabled, isEnabled, PLUGIN_NAMES } from "./surfaces.ts"
+export { enabled, isEnabled, kindWordOf, PLUGIN_NAMES } from "./surfaces.ts"
 
 export const SERVERS = [kolu, odu] as const satisfies ReadonlyArray<PluginServerHalf<never>>
 
@@ -241,7 +241,7 @@ export const SERVERS = [kolu, odu] as const satisfies ReadonlyArray<PluginServer
  * root passes {@link SERVERS} for what the BINARY was built with and
  * `enabled(SERVERS, pin)` for what this SERVE runs, and the distance between
  * them is what `--plugins` means. A DECLARATION is refused against the first —
- * so `{"type":"terminal"}` is a legal row on a machine running only odu, and a
+ * so `{"type":"kolu-terminal"}` is a legal row on a machine running only odu, and a
  * file's verdict does not depend on a flag it cannot see — and a VALUE is held
  * to the second, because {@link PropKind.admits} is a promise only a plugin
  * that is here can make (`@olai/format`'s `KindVocabulary` argues both).
@@ -262,29 +262,54 @@ export const kindsOf = (
   built: ReadonlyArray<{ readonly name: string; readonly kinds?: ReadonlyArray<PropKind> }>,
   running: ReadonlyArray<{ readonly name: string; readonly kinds?: ReadonlyArray<PropKind> }>,
 ): {
-  readonly built: ReadonlyMap<string, PropKind>
-  readonly enabled: ReadonlyMap<string, PropKind>
+  readonly built: ReadonlyMap<string, ComposedKind>
+  readonly enabled: ReadonlyMap<string, ComposedKind>
 } => ({ built: tableOf(built), enabled: tableOf(running) })
 
-/** One list of plugins as one table by word — see {@link kindsOf} for why a
- *  second claim on a word is a throw rather than a last-writer-wins overwrite. */
+/** ONE PLUGIN'S KIND, COMPOSED — its word prefixed with the plugin's name, and
+ *  the KEY it claims by convention, which is that same word. What the format
+ *  reads is this rather than the bare row a plugin wrote. */
+export interface ComposedKind extends PropKind {
+  readonly claims: string
+}
+
+/**
+ * One list of plugins as one table, COMPOSED — the words a vault may declare,
+ * each carrying the name of the plugin that answers for it.
+ *
+ * A plugin contributes a BARE word and this is where it gets its prefix
+ * ({@link kindWordOf}): kolu contributes `terminal` and a vault declares
+ * `kolu-terminal`. It is the same move the wire makes one member over, for the
+ * same two reasons — see {@link kindsOf}'s header — and the COUNT is here for
+ * `mergeDisjointGroups`' reason: the assembly underneath is a `Map.set`, so a
+ * dropped word would be one plugin's `admits` quietly judging another's values
+ * with nothing red anywhere. Prefixing makes that unreachable; the count is
+ * what makes it a fact rather than a belief, and the message names BOTH
+ * plugins because the useful half of a collision report is which two claimed it.
+ *
+ * `claims` IS THE COMPOSED WORD, and that equality is the whole of what a
+ * built-in declaration is: enabling kolu declares the key `kolu-terminal` and
+ * can never declare anything else. A vault's own `terminal` column is
+ * untouchable by a flag on the machine.
+ */
 const tableOf = (
   plugins: ReadonlyArray<{ readonly name: string; readonly kinds?: ReadonlyArray<PropKind> }>,
-): ReadonlyMap<string, PropKind> => {
-  const table = new Map<string, PropKind>()
+): ReadonlyMap<string, ComposedKind> => {
+  const table = new Map<string, ComposedKind>()
   const by = new Map<string, string>()
   for (const plugin of plugins) {
     for (const kind of plugin.kinds ?? []) {
-      const already = by.get(kind.kind)
+      const word = kindWordOf(plugin.name, kind.kind)
+      const already = by.get(word)
       if (already !== undefined) {
         throw new Error(
           `plugins: "${already}" and "${plugin.name}" both contribute the property `
-            + `kind "${kind.kind}" — a vault declaring it would be judged by whichever `
+            + `kind "${word}" — a vault declaring it would be judged by whichever `
             + `was composed last, which the assembly resolves silently.`,
         )
       }
-      by.set(kind.kind, plugin.name)
-      table.set(kind.kind, kind)
+      by.set(word, plugin.name)
+      table.set(word, { ...kind, kind: word, claims: word })
     }
   }
   return table

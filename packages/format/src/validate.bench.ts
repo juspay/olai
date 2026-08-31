@@ -225,7 +225,7 @@ const whole = (set: OutlineSet, view: Derived): ReadonlyArray<OutlineError> => {
   const errors: Array<OutlineError> = []
   const all = view.nodes
   const known = markdownPaths(set)
-  const declarations = declarationsOf(view)
+  const declarations = declarationsOf(view, NO_KINDS)
   const typed: Typed = { declarations, derived: view, documents: known, kinds: NO_KINDS }
   reportDuplicateIds(all, view, errors)
   reportParents(all, view, errors)
@@ -258,7 +258,7 @@ const row = (what: string, edits: ReadonlyArray<Edit>): void => {
   let ledger: Ledger = {
     errors: whole(set, view),
     known: markdownPaths(set),
-    typing: declarationsOf(view),
+    typing: declarationsOf(view, NO_KINDS),
   }
   if (ledger.errors.length > 0) {
     throw new Error(
@@ -318,7 +318,7 @@ const row = (what: string, edits: ReadonlyArray<Edit>): void => {
           `  incremental: ${other.join(" | ") || "(accepted)"}`,
       )
     }
-    ledger = { errors: said, known: markdownPaths(set), typing: declarationsOf(view) }
+    ledger = { errors: said, known: markdownPaths(set), typing: declarationsOf(view, NO_KINDS) }
   }
   const many = edits.length
   console.log(

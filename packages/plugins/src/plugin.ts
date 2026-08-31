@@ -165,7 +165,7 @@ export interface Probed {
  * The table core assembles out of these has two halves, and the distance
  * between them is what `--plugins` means one more time ({@link ./server.ts}'s
  * `kindsOf`). A DECLARATION is refused against every kind this BINARY was built
- * with, so `{"type":"terminal"}` is a legal row on a serve running only odu and
+ * with, so `{"type":"kolu-terminal"}` is a legal row on a serve running only odu and
  * `{"type":"banana"}` is refused naming every legal word; a VALUE is held to
  * the kinds this serve is RUNNING, because {@link PropKind.admits} is a promise
  * only a plugin that is here can make. A file's verdict may not depend on a
@@ -183,12 +183,31 @@ export interface Probed {
  * up is keyed by ({@link Dressing}): the WORD, never the property key.
  */
 export interface PropKind {
-  /** The word a declaration writes, and the word a dressing is licensed by. */
+  /**
+   * THE BARE WORD THIS PLUGIN CONTRIBUTES — `terminal`, not `kolu-terminal`.
+   *
+   * The registry PREFIXES it with the plugin's name ({@link ./surfaces.ts}'s
+   * `kindWordOf`), so what a vault declares is `kolu-terminal` and what the
+   * page's licence carries is the same. It is the move the wire already makes
+   * with a member — a plugin declares `fleet` and the framework composes
+   * `surface/kolu/fleet/get` — and it buys the same two things here:
+   *
+   *   - two plugins cannot collide on a word, because two names cannot; and
+   *   - a plugin's BUILT-IN declaration can only ever claim a key carrying its
+   *     own name, so enabling one can never take over a column somebody has
+   *     been using for something of their own.
+   *
+   * A plugin writes the bare word once and the composition happens where the
+   * registry is. What each plugin does spell for itself is a copy of that
+   * composition for its own vault walk — it may not import this package — and
+   * `./kinds.test.ts` holds the two spellings equal.
+   */
   readonly kind: string
-  /** What the clause naming this kind says in a refusal — `` `terminal` (a
+  /** What the clause naming this kind says in a refusal — `` `kolu-terminal` (a
    *  padi terminal id)``. The plugin's own words, spent at BOTH doors (the
    *  live write's refusal and the broken file's error), because a person
-   *  moving between them must read one sentence. */
+   *  moving between them must read one sentence. It names the COMPOSED word,
+   *  because that is the one a person has to type. */
   readonly takes: string
   /** Whether a value fits. `false` is refused at the plan and reported by the
    *  validator, in one sentence, {@link PropKind.takes}'. */
@@ -425,9 +444,16 @@ export type PropBlock = (context: BlockContext) => JSX.Element
  * only which question the answer is to.
  */
 export interface Dressing {
-  /** The KIND this dressing is looked up by — this plugin's own constant, the
-   *  same one its {@link PropKind} declares and its server walks by, and never
-   *  a literal at the call site. */
+  /** The BARE KIND this dressing is looked up by — this plugin's own constant,
+   *  the same one its {@link PropKind} contributes, and never a literal at the
+   *  call site.
+   *
+   *  BARE, like the kind: the app composes it with the plugin's name when it
+   *  registers (`@olai/web`'s `live/dressings.ts`, through the registry's own
+   *  `kindWordOf`), so the table is keyed by the word a declaration writes and
+   *  the page's licence carries. A manifest spelling its own prefix would be a
+   *  second copy of the one rule that makes plugin-owned names unable to
+   *  collide or capture. */
   readonly kind: string
   readonly Chip?: PropChip
   readonly Pane?: PropPane

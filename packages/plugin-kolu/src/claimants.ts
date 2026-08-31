@@ -24,7 +24,7 @@
  * that — and `brief` and `worktree`, both `path`, were indistinguishable to
  * anything that wanted to tell two keys apart. The key is found by DECLARED
  * KIND now (`@olai/format`'s `textDeclaredAs`): a row in
- * `_olai/Properties.olai` saying `{"title":"terminal","custom":{"type":"terminal"}}`
+ * `_olai/Properties.olai` saying `{"title":"terminal","custom":{"type":"kolu-terminal"}}`
  * is what makes the door, and a column called `pty` carrying that same
  * declaration gets it too.
  *
@@ -62,7 +62,7 @@ import {
 } from "@olai/format"
 import type { Claimant } from "@olai/kolu-client"
 
-import { TERMINAL_KIND } from "./kinds.ts"
+import { TERMINAL_TYPE } from "./kinds.ts"
 
 /**
  * Every node carrying a property this vault declares a `terminal`.
@@ -80,10 +80,10 @@ export function* claimantsIn(
   declarations: PropDeclarations,
   nodes: ReadonlyArray<Located>,
 ): Generator<Claimant> {
-  if (!declaresKind(declarations, TERMINAL_KIND)) return
+  if (!declaresKind(declarations, TERMINAL_TYPE)) return
   for (const located of nodes) {
     if (!isRegular(located)) continue
-    const terminal = textDeclaredAs(declarations, located.node, TERMINAL_KIND)
+    const terminal = textDeclaredAs(declarations, located.node, TERMINAL_TYPE)
     if (terminal === undefined) continue
     yield {
       id: located.node.id,

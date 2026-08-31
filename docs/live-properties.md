@@ -15,19 +15,51 @@ This page is the seam itself, and it is generic: what a live property is, what t
 
 They are the same mechanism wearing different clothes, and a third kind of living thing later is a third set of clothes rather than a third mechanism.
 
-## What turns one on is a DECLARATION, never the key's name
+## What turns one on is ENABLING THE PLUGIN — and a vault can always say otherwise
 
-The rows above name **kinds**, not keys. The key a vault hangs each on is the vault's own: one row in `_olai/Properties.olai` says which of your columns is which kind, and everything follows that row.
+Turn an integration on and its faces work. There is no file to edit first, and
+**olai never writes your vault** to make it so.
+
+The rows above name **kinds**, not keys. Each plugin claims one key by
+convention — the kind's own word, which carries the plugin's name:
+
+| plugin | kind, and the key it claims | wears |
+| --- | --- | --- |
+| kolu | `kolu-terminal` | the terminal door |
+| odu | `odu-worktree` | the CI chip |
+
+So a lane row carrying `kolu-terminal 303dc985` gets the door with nothing
+declared anywhere. That is the default, and it is the whole of the default.
+
+**The names carry the plugin's own name on purpose.** A column *you* call
+`terminal` is yours, and enabling a plugin can never take it over — which is why
+the built-in claim is `kolu-terminal` and not `terminal`.
+
+### ...and one row moves it to whatever key you like
+
+`_olai/Properties.olai` says which of *your* columns is which kind, and it always
+wins:
 
 ```jsonl
-{"id":"prop-terminal","ord":"a0","title":"terminal","custom":{"type":"terminal"}}
-{"id":"prop-worktree","ord":"aC","title":"worktree","custom":{"type":"worktree"}}
+{"id":"prop-terminal","ord":"a0","title":"terminal","custom":{"type":"kolu-terminal"}}
+{"id":"prop-worktree","ord":"aC","title":"worktree","custom":{"type":"odu-worktree"}}
 ```
 
-So a column called `pty` gets the terminal door the day its row says `terminal`, a column called `checkout` gets the CI chip the day its row says `worktree`, and **a vault that declares nothing gets neither** — where a property happening to be spelled `terminal` used to be enough. The repair is always the same one row ([format.md](format.md#what-a-declared-value-names)).
+That is the short-key version: your key, the plugin's kind, your file. A column
+called `pty` gets the terminal door the same way. And a row can take a face
+AWAY — declare `kolu-terminal` as `text` and the door goes dark, because you
+said what that column means and a default does not argue.
 
-**It used to be enough to name the key, and that was not enough.** Name-matching cannot tell two path-shaped columns apart: `brief` and `worktree` are both declared `path`, they sit on the very same rows, and only one of them names a checkout to dial a socket in. Declaring `path` therefore buys neither face now, and there is deliberately **no fallback to the key's name** beside the declaration — a fallback would be the same defect kept alive under a second name. This hands a value to a probe on your machine, and only the vault can say which of its keys is one.
+Two layers, one rule: **the vault wins, and the claim applies where the vault
+said nothing.**
 
+**It used to be enough to name the key, and that was not enough.** Name-matching
+cannot tell two path-shaped columns apart: `brief` and a checkout column are both
+declared `path`, they sit on the very same rows, and only one of them names a
+checkout to dial a socket in. Declaring `path` therefore buys neither face, and
+there is deliberately **no fallback to the key's name** — a fallback would be the
+same defect kept alive under a second name. What replaced it is the two layers
+above, and neither of them reads a key's spelling.
 ## Two shapes, and the difference is whether the thing is worth a row when nothing is happening
 
 **A block OWNS ITS ROW.** A `terminal` somebody wrote down is worth a row whether or not anything is going on in it — there is always something to say, including *this terminal is no longer in the fleet*.
@@ -48,4 +80,4 @@ The chip's press opens a **pane** beneath the property run — one at a time per
 
 Live properties come from plugins, and a serve can be run without one (`--plugins` — [running.md](running.md)). A kind whose plugin is not running validates as **plain text**: the value is still a name, the file is still fine, nothing breaks, and it wears no face. That is exactly the state a vault that declared nothing is already in.
 
-A DECLARATION is judged differently from a VALUE, and the difference is worth knowing before you go looking for a bug: `{"type":"terminal"}` is a clean row on a serve running only odu, because a file's verdict may not depend on a flag on the machine reading it. Only the FACE is missing.
+A DECLARATION is judged differently from a VALUE, and the difference is worth knowing before you go looking for a bug: `{"type":"kolu-terminal"}` is a clean row on a serve running only odu, because a file's verdict may not depend on a flag on the machine reading it. Only the FACE is missing.

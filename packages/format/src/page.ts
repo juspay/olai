@@ -443,7 +443,7 @@ const answersFor = (
     // compared face by face, so a record edit does not move them
     // ({@link ./tape.ts}). What this page then depends on is the declarations
     // file's own records, which is exactly what its answers depend on.
-    declarations: declarationsIn(at.derived, propertiesIn(served)),
+    declarations: declarationsIn(at.derived, propertiesIn(served), kinds),
     // ...AND WHAT THE WORDS IN IT MEAN, which is the one fact in this value
     // that is not a reading of the set at all: which kinds a plugin taught
     // this vault is the composition root's to say, and it is handed the whole

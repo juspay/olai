@@ -46,6 +46,35 @@ export interface PluginWire {
  *  is accepted — the boundary is the value, not the loading. */
 export const WIRES = [kolu, odu] as const
 
+/**
+ * A PLUGIN-OWNED WORD, PREFIXED WITH THE PLUGIN'S NAME — the one composition,
+ * and the reason plugin-owned names cannot collide or capture.
+ *
+ * kolu contributes the bare kind `terminal` and a vault declares
+ * `kolu-terminal`. It is the same move the wire makes with a member — a plugin
+ * declares `fleet` and the framework composes `surface/kolu/fleet/get` — and it
+ * is here for the same two reasons:
+ *
+ *   - **collisions become unreachable.** Two plugins that both contribute
+ *     `terminal` compose to two different words. The assembly counts anyway
+ *     (`./server.ts`'s `tableOf`), because a proof nobody re-checks is the class
+ *     of thing this repo keeps turning into a test.
+ *   - **and so does CAPTURE**, which is the sharper one and is why the human
+ *     ruled it. A plugin's built-in declaration claims the key equal to its own
+ *     composed word, so enabling kolu can only ever declare `kolu-terminal`. A
+ *     person's own `terminal` column is not something a flag on the machine can
+ *     take over — and a board that WANTS the short key writes one row saying so
+ *     (`{"title":"terminal","custom":{"type":"kolu-terminal"}}`), which is the
+ *     user's key, the plugin's kind, and the user's own file.
+ *
+ * ON THE WIRE DOOR because all three doors compose one: the server assembles the
+ * vocabulary, the browser registers the dressings, and neither may spell the
+ * rule for itself. A plugin cannot read it — no plugin imports this package —
+ * so each spells its own composed word from its own `name` for its own walk, and
+ * `./kinds.test.ts` holds the two spellings equal.
+ */
+export const kindWordOf = (plugin: string, kind: string): string => `${plugin}-${kind}`
+
 /** Every plugin's name, in registry order — the words `--plugins` takes, the
  *  rows preferences draws, and what "all of them" comes to when nobody said. */
 export const PLUGIN_NAMES: ReadonlyArray<string> = WIRES.map((wire) => wire.name)

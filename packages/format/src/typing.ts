@@ -277,6 +277,33 @@ export interface ContributedKind {
   /** Does this value fit. `false` is refused at the plan and reported by the
    *  validator, in one sentence, {@link ContributedKind.takes}'. */
   readonly admits: (value: string) => boolean
+  /**
+   * THE KEY THIS KIND CLAIMS BY CONVENTION — the built-in declaration, so a
+   * person who turns a plugin on gets its faces without editing a file.
+   *
+   * A vault that says nothing about `terminal` is DECLARING it this kind, and
+   * that is the whole of what this field buys: the alternative was every user
+   * hand-writing a row in `_olai/Properties.olai` before an enabled plugin
+   * would draw anything, which the human rejected as the model. **Nothing ever
+   * writes a user's vault**; the default is data, read at the same moment the
+   * rows are.
+   *
+   * IT IS THE PLUGIN'S OWN FACT and sits beside its kind for that reason: which
+   * key an appliance conventionally owns is exactly as much the plugin's
+   * business as which word it teaches. This package still knows neither — a
+   * claim arrives here as a string on a table handed down, like everything else
+   * about a contributed kind.
+   *
+   * THE VAULT ALWAYS WINS ({@link withClaims}), including winning by declaring
+   * the key something else entirely: a board that writes `{"type":"path"}` on
+   * its `worktree` column has said what it means, and the plugin's claim does
+   * not argue. That is the one precedence rule in the system and it is spelled
+   * once.
+   *
+   * Absent is a kind that claims no key — a whole kind, and the state of any
+   * word a vault is expected to hang wherever it likes.
+   */
+  readonly claims?: string
 }
 
 /**
@@ -641,12 +668,20 @@ export const BOOTSTRAP: ReadonlyMap<string, Grounded> = new Map<string, Grounded
  * A MIRROR IS NOT A DECLARATION and is left out, because a placement carries no
  * title of its own — there is no key to name.
  */
-export const declarationsOf = (derived: Derived): PropDeclarations => {
+export const declarationsOf = (
+  derived: Derived,
+  kinds: KindVocabulary,
+): PropDeclarations => {
   const held = DECLARED.get(derived)
-  if (held !== undefined) return held
-  const read = declaringIn(derived)
-  DECLARED.set(derived, read)
-  return read
+  // THE VOCABULARY IS PART OF THE ANSWER now ({@link withClaims}), so it is part
+  // of what the memo may reuse. It is one value for the life of a serve — the
+  // composition root assembles it once — so the identity check is a hit every
+  // time in production and a correctness guard in a bench that hands two
+  // different tables to one revision.
+  if (held !== undefined && held.kinds === kinds) return held.declarations
+  const declarations = declaringIn(derived, kinds)
+  DECLARED.set(derived, { kinds, declarations })
+  return declarations
 }
 
 /**
@@ -662,12 +697,15 @@ export const declarationsOf = (derived: Derived): PropDeclarations => {
  * itself is small; the `propertiesIn` in front of it is `O(files)`, and that
  * one was worth not paying a hundred times for a hundred-op batch.
  */
-const DECLARED = new WeakMap<Derived, PropDeclarations>()
+const DECLARED = new WeakMap<
+  Derived,
+  { readonly kinds: KindVocabulary; readonly declarations: PropDeclarations }
+>()
 
 /** The walk itself — {@link declarationsOf} with the memo taken off, and the
  *  convention still asked of the derivation's own file list. */
-const declaringIn = (derived: Derived): PropDeclarations =>
-  declarationsIn(derived, propertiesIn(derived.byFile.keys()))
+const declaringIn = (derived: Derived, kinds: KindVocabulary): PropDeclarations =>
+  declarationsIn(derived, propertiesIn(derived.byFile.keys()), kinds)
 
 /**
  * THE SAME READING WHEN THE CALLER ALREADY KNOWS WHICH FILE DECLARES — the
@@ -690,8 +728,9 @@ const declaringIn = (derived: Derived): PropDeclarations =>
 export const declarationsIn = (
   derived: Derived,
   file: string | undefined,
+  kinds: KindVocabulary,
 ): PropDeclarations => {
-  if (file === undefined) return NO_TYPING
+  if (file === undefined) return withClaims(NO_TYPING, kinds)
   const declarations = new Map<string, Declared>()
   for (const located of declaringIn0(derived, file)) {
     const key = keyOf(located.node.title)
@@ -700,7 +739,71 @@ export const declarationsIn = (
     if (type === undefined) continue
     declarations.set(key, { type, at: located.node.id })
   }
-  return declarations
+  return withClaims(declarations, kinds)
+}
+
+/**
+ * THE TWO LAYERS, FOLDED — and the ONE place precedence is decided.
+ *
+ * A vault's `_olai/Properties.olai` is one source of declarations. An enabled
+ * plugin's {@link ContributedKind.claims} is the other: the key it owns by
+ * convention, declared for a vault that has said nothing about it, so turning a
+ * plugin on is the whole of turning its faces on. Nothing writes anybody's
+ * vault to do it.
+ *
+ * **THE VAULT WINS**, always, and in both directions:
+ *
+ *   - a row that declares the claimed key the SAME kind changes nothing;
+ *   - a row that declares it something else — `{"type":"path"}` on `worktree`,
+ *     which is what one real board says — wins, and the plugin's face goes
+ *     dark. That is a vault stating what it means, and a default that argued
+ *     back would be the plugin overruling the person.
+ *
+ * WHY IT IS ONE FUNCTION. Precedence is the kind of rule that gets restated: a
+ * second reader that folded the other way, or forgot a layer, would be two
+ * answers to "what is this key" — the bug family {@link ./meaning.ts}'s header
+ * is a list of, arrived at from a new direction. Every reader in the tree gets
+ * declarations through {@link declarationsOf} or this function, so there is one
+ * fold and no consumer can tell which layer a row came from. That is the point:
+ * the validator, the write gate, the licence consult and the dressing table all
+ * keep taking THE DECLARATIONS as one value.
+ *
+ * IT RIDES `enabled`, NOT `built`, and that is what makes a disabled plugin
+ * free. A serve running `--plugins=odu` has no `terminal` kind in `enabled`, so
+ * no claim, so the key is undeclared — byte-identical to a vault that never
+ * heard of kolu. Built ≠ enabled needed no new rule to say so.
+ *
+ * THE KEY IS FOLDED on the way in ({@link keyOf}, the same reconciliation every
+ * other reader of this map makes), so a plugin that claims `Terminal` and a
+ * vault that writes `terminal` are talking about one key rather than two.
+ *
+ * TWO PLUGINS CLAIMING ONE KEY is refused where the vocabulary is ASSEMBLED
+ * (`@olai/plugins`' `kindsOf`), beside the refusal for two plugins claiming one
+ * word — not here. This is a pure fold over a table somebody else has already
+ * proved well-formed, and a fold that also validated would be a second sentence
+ * about one mistake, in a function tests call with tables they built themselves.
+ */
+export const withClaims = (
+  vault: PropDeclarations,
+  kinds: KindVocabulary,
+): PropDeclarations => {
+  const claimed: Array<readonly [string, Declared]> = []
+  for (const kind of kinds.enabled.values()) {
+    if (kind.claims === undefined) continue
+    const key = keyOf(kind.claims)
+    if (key === undefined) continue
+    // `at` is EMPTY, and it is the honest answer rather than a placeholder:
+    // there is no node, because there is no row. The one reader that spends it
+    // looks the id up in the set and draws nothing when it finds nothing
+    // (`./rules.ts`'s `judgedFrom`, which already has that arm for a
+    // declaration whose node has since been removed), so a finding about a
+    // claimed key is its own sentence with no "declared here" to follow.
+    claimed.push([key, { type: { kind: "contributed", word: kind.kind }, at: "" }])
+  }
+  // The claims go in FIRST and every vault row lands on top. Spelled as one
+  // `Map` construction rather than a copy-then-overwrite because that IS the
+  // precedence — reading it any other way requires reading two statements.
+  return claimed.length === 0 ? vault : new Map([...claimed, ...vault])
 }
 
 /**

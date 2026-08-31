@@ -45,6 +45,8 @@
  * moving it onto the table would take.
  */
 
+import { kindWordOf } from "@olai/plugins"
+
 import { ROSTER } from "../plugins/roster.ts"
 
 import { registerLive } from "./seam.ts"
@@ -54,6 +56,12 @@ for (const plugin of ROSTER) {
   // plugin — the absent arm of every hook on a manifest is the state a machine
   // without the tool already shows, so there is nothing to guard against here.
   for (const dressing of plugin.dressings ?? []) {
-    registerLive(dressing.kind, dressing, plugin.name)
+    // COMPOSED HERE, by the registry's own function, because a manifest writes
+    // its plugin's BARE word and what a declaration says — and therefore what
+    // the page's licence carries — is that word prefixed with the plugin's name
+    // (`@olai/plugins`' `kindWordOf`). This app composing the prefix for itself
+    // would be a second copy of the one rule that makes plugin-owned names
+    // unable to collide with each other or to capture a person's own column.
+    registerLive(kindWordOf(plugin.name, dressing.kind), dressing, plugin.name)
   }
 }

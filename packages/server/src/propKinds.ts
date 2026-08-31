@@ -16,7 +16,7 @@
  *
  * `built` is every kind this BINARY knows how to mean and is what a
  * DECLARATION is refused against; `enabled` is what this SERVE is running and
- * is what a VALUE is held to. So a vault that says `{"type":"terminal"}` while
+ * is what a VALUE is held to. So a vault that says `{"type":"kolu-terminal"}` while
  * this process runs `--plugins=odu` has written a legal row — its values are
  * plain text, wearing no face, which is the state every vault that never heard
  * of kolu is already in — where `{"type":"banana"}` is a broken declarations

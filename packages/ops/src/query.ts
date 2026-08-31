@@ -56,6 +56,7 @@ import {
   isMirror,
   isProjectable,
   type KindVocabulary,
+  NO_KINDS,
   isRegular,
   LEGAL_FIELDS,
   type LocatedRegular,
@@ -319,6 +320,14 @@ export const search = (
    * long-lived things are opened.
    */
   index?: Index | undefined,
+  /** WHICH CONTRIBUTED KINDS THIS SERVE RUNS, because the declarations are two
+   *  layers now — a vault's rows over an enabled plugin's claimed keys
+   *  (`@olai/format`'s `withClaims`). Optional, and the default is a serve
+   *  running none: an `olai surface` read answers the grammar the same way it
+   *  always did, and a caller that HAS a vocabulary must hand it over or the
+   *  box that lists hits and the box that narrows a page would disagree about
+   *  one key. */
+  kinds: KindVocabulary = NO_KINDS,
 ): SearchAnswer => {
   // THE VAULT'S OWN VOCABULARY, handed to the grammar — which is what makes
   // `prop:records=190..200` a span rather than an equality against the eight
@@ -326,7 +335,7 @@ export const search = (
   // Read per ask, off the reading this search is answered from, so a
   // declaration written a moment ago is in force for the next query; it is one
   // small file's top level, which is the same cost the shelf's reading is.
-  const filter = parseFilter(query.text, now, declarationsOf(at.derived))
+  const filter = parseFilter(query.text, now, declarationsOf(at.derived, kinds))
   // A query the grammar could not read answers with no hits AND WITH THE
   // REASON. An empty one answers with no hits and nothing to say — there is no
   // question to have refused.
@@ -478,8 +487,11 @@ export const narrowing = (
   /** What the grammar's relative words count from — {@link search}'s own
    *  argument, and the same clock. */
   now: string,
+  /** ...and the contributed kinds this serve runs, for {@link search}'s reason
+   *  exactly: one grammar, read off one folded set of declarations. */
+  kinds: KindVocabulary = NO_KINDS,
 ): NarrowingAnswer =>
-  narrowingOf(at, request, now)
+  narrowingOf(at, request, now, kinds)
 
 // ── which ids the set declares ─────────────────────────────────────────
 
