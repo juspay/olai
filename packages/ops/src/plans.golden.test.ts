@@ -126,9 +126,9 @@ const answered = (outcome: ReturnType<typeof plan>): unknown =>
 const run = (): ReadonlyArray<{ readonly what: string; readonly said: unknown }> => {
   const texts: Record<string, string> = { ...OUTLINES }
   const bodies = new Map<string, string>()
-  const bare: Array<string> = []
+  const bare = new Set<string>()
   for (const document of DOCUMENTS) {
-    if (typeof document === "string") bare.push(document)
+    if (typeof document === "string") bare.add(document)
     else bodies.set(document[0], document[1])
   }
   const reading = () =>
@@ -148,13 +148,21 @@ const run = (): ReadonlyArray<{ readonly what: string; readonly said: unknown }>
     if (Result.isFailure(made)) continue
     for (const file of made.success.files) texts[file.file] = serializeOutline(file.nodes)
     for (const document of made.success.documents ?? []) bodies.set(document.file, document.text)
-    // A removal leaves the run the way the write would leave the set: both
-    // briefs of a path gone, so a step after it plans against the world the
-    // script really said (`delete`'s own rows are the same walk as `create`'s,
-    // read from the other end).
+    // A removal leaves the run the way the write would leave the set: every
+    // corpus of a path gone — outlines, bodied documents, bare paths — so a
+    // step after it plans against the world the script really said (`delete`'s
+    // own rows are the same walk as `create`'s, read from the other end). The
+    // three absences are one equality: the same hole one list over cannot be
+    // spelled without the tuple moving.
     for (const path of made.success.removed ?? []) {
       delete texts[path]
       bodies.delete(path)
+      bare.delete(path)
+      expect([path in texts, bodies.has(path), bare.has(path)]).toEqual([
+        false,
+        false,
+        false,
+      ])
     }
     at = scoping(reading(), context, NO_KINDS)
   }
