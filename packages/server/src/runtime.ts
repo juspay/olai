@@ -74,6 +74,7 @@ import {
   type Convention,
   conventionRecorded,
   conventionServed,
+  documentAt,
   type InboxHeld,
   inboxHeldIn,
   inboxIn,
@@ -524,7 +525,22 @@ export const rosterOf = (
     built: PLUGIN_NAMES.map((name) => {
       const running = isEnabled(offered.names ?? null, name)
       const wake = running ? halves.find((one) => one.name === name)?.wake : undefined
-      return { name, running, ...(wake === undefined ? {} : { wake }) }
+      return {
+        name,
+        running,
+        // THE THREE THE STRIP DRAWS, named one at a time rather than spread
+        // whole — and the omission is the point. `wake.gone` is the sentence a
+        // conversation is told when its file stops being served, and it is
+        // DELIVERED rather than drawn: it belongs in the transcript, through
+        // the door below, and a browser holding a copy of it would be a browser
+        // holding a message it has no occasion to write. So the wire carries
+        // what a picker is made of and nothing else, which is also why the
+        // roster's own schema (`@olai/surface`'s `BuiltPlugin`) never grew a
+        // fourth key.
+        ...(wake === undefined ? {} : {
+          wake: { subject: wake.subject, from: wake.from, waiting: wake.waiting },
+        }),
+      }
     }),
     pinned: offered.names ?? null,
   }
@@ -1034,6 +1050,118 @@ export const bind = (
     const composedWake = new Set(
       composed.filter((one) => one.plugin.wake !== undefined).map((one) => one.plugin.name),
     )
+    /**
+     * ...AND THE SENTENCE EACH OF THEM DECLARED FOR A SCOPE THAT BROKE, keyed
+     * by the one word this file knows about a plugin.
+     *
+     * A TABLE OF STRINGS THE PLUGIN WROTE, which is the only kind of table core
+     * is allowed to keep about words: nothing here is composed, joined,
+     * abbreviated or interpolated into. The whole of what this file does with a
+     * value out of it is hand it back through
+     * {@link Chat.doorFor}'s `deliver`.
+     *
+     * A name with no entry gets nothing said — a pick stored against a plugin
+     * this serve did not compose, which is a row the strip already declines to
+     * draw (`@olai/web`'s `wake.ts`). There is no half here to ring it and no
+     * words to ring it with, so the row is marked and nobody is told, which is
+     * the honest arm rather than core reaching for a sentence of its own.
+     */
+    const goneSaid = new Map(
+      composed.flatMap(({ plugin }) =>
+        plugin.wake === undefined ? [] : [[plugin.name, plugin.wake.gone] as const]
+      ),
+    )
+    /**
+     * A SCOPE WHOSE FILE STOPPED BEING SERVED — found here, said by the plugin,
+     * once.
+     *
+     * ## Why core is the one that detects
+     *
+     * Core owns both halves of the question and no plugin owns either: the
+     * SERVED SET is this connector's own revision, and the PICKS are
+     * `@olai/chat`'s record. A doorbell asked to notice its own file had gone
+     * would be a doorbell deriving from a file it cannot find, which is
+     * precisely the state that produces no signal at all — that is the defect,
+     * not a place to fix it ({@link Chat.faults} tells the whole story).
+     *
+     * ## `documentAt`, and not `derived.byFile`
+     *
+     * "Still served" is asked of the SET, which is every file the directory
+     * holds a place for. `byFile` groups PARSED RECORDS, so a file that is
+     * present and EMPTY — or present and torn — has no entry in it, and a scope
+     * pointed at one would read as gone: a person who emptied their lane file
+     * for a minute would be told their doorbell had broken, and told again
+     * never, because the flag is a once. The set is the honest source and it is
+     * the same disagreement {@link conventionServed} and `conventionRecorded`
+     * are two doors for one member above.
+     *
+     * A BINARY SEARCH PER PICK, and no walk. `documentAt` searches the set's
+     * own path-ordered list, and the picks are a few dozen at most — so the
+     * question costs the SCOPES rather than the DIRECTORY, which is what makes
+     * it affordable on a hook that fires for every keystroke that lands in an
+     * outline. Handing `@olai/chat` a set of missing paths instead would have
+     * meant walking the directory here to build one.
+     *
+     * ## ON ITS OWN FIBER, and what that costs
+     *
+     * The mark is a filesystem write and this connector is synchronous, so the
+     * work is forked under this fiber's services ({@link ring}, for the reason
+     * it exists). What that means is that the mark lands SHORTLY after the
+     * revision that made it true, not during it — so a plugin deriving on this
+     * same revision still sees the scope on its door for one pass. That costs
+     * nothing: the file is not in the revision, so a derivation over it finds
+     * nothing to say. From the next revision the row is off the door entirely
+     * ({@link Chat.doorFor}).
+     */
+    const faulted = chat === null ? (): void => {} : (snapshot: VaultRevision): void => {
+      ring(Effect.flatMap(
+        chat.faults(
+          (file) => documentAt(snapshot.value.set, file) !== undefined,
+          // A ROW WHOSE TENANT CANNOT SPEAK IS NOT MARKED. `goneSaid` holds a
+          // sentence only for a plugin this serve COMPOSED and that declared
+          // one, so a serve run without a tenant leaves its rows alone rather
+          // than burning their one signal unheard.
+          (plugin) => goneSaid.has(plugin),
+        ),
+        (fell) =>
+          Effect.forEach(fell, (row) => {
+            const words = goneSaid.get(row.plugin)
+            if (words === undefined) return Effect.void
+            // A THUNK, ASKED WHEN THE WORDS GO IN, which is the whole reason
+            // `deliver` takes one: this body may wait out a running turn, or
+            // wait for somebody to open the conversation at all, and by then
+            // the file may be back. A scope that healed is on its plugin's door
+            // again, so its absence from that list is what "still broken" means
+            // — and answering `null` keeps the sentence out of the transcript
+            // rather than telling a person their doorbell is broken over a
+            // strip that is already drawing it fine.
+            //
+            // The other two ways this row can stop deserving the sentence —
+            // somebody cleared the doorbell, or pointed it elsewhere — need
+            // nothing here: every scope write takes back what that doorbell was
+            // holding (`@olai/chat`'s `Holding.dropped`), so the body is gone
+            // before it can be asked.
+            const healed = (): boolean =>
+              chat.doorFor(row.plugin).scopes().some((one) =>
+                one.agent === row.agent && one.session === row.session && one.file === row.file
+              )
+            const still = (): string | null => healed() ? null : words
+            // NO COALESCING KEY. A held body with one replaces the last body
+            // under it, which is right for a digest that re-derives itself and
+            // wrong for this: two faults on one conversation are two separate
+            // things that happened, and the second must not swallow the first.
+            // This is the arm `@olai/chat`'s `deliveries.ts` describes as a
+            // sentence about a moment that cannot be re-derived.
+            // THE PAIR AND NOT THE ROW. A delivery is addressed to a
+            // conversation, and handing the whole scope over would put this
+            // plugin's own `plugin` and `file` columns on an address — the
+            // caller's question answered a second time, in the one place the
+            // keying is the safety property.
+            return chat.doorFor(row.plugin)
+              .deliver({ agent: row.agent, session: row.session }, still)
+          }, { discard: true }),
+      ))
+    }
     /** ...and the same two facts as the value a browser draws its read-only
      *  rows off — every plugin this binary HAS, which of them this serve RUNS,
      *  and whether anybody typed the flag. Read off the registry rather than
@@ -1308,6 +1436,21 @@ export const bind = (
                   // and zero frames, and the sockets are the sweeps' business
                   // on their own clocks.
                   for (const { half } of composed) half.revision(snapshot)
+                  // ...AND THE PICKS THIS REVISION BROKE, which is core's own
+                  // reading of the same snapshot and the one thing above that
+                  // is not a plugin's. It is HERE, on the revision hook, for
+                  // the reason every line in this block is: a revision is
+                  // exactly when a file can have stopped being served, and a
+                  // second clock asking the same question would be a second
+                  // answer to what the directory says ({@link faulted}).
+                  //
+                  // NOT ON THE `null` ARM ABOVE. A store with no snapshot has
+                  // never loaded, and marking every scope in the directory
+                  // broken because this process cannot see the disk yet would
+                  // be a fault storm at boot about files that are all still
+                  // there. What that arm says is that nobody may vouch for a
+                  // derived claim, and this is a derived claim.
+                  faulted(snapshot)
                   // Written last, which is NOT the order they arrive in: a cell
                   // publishes on this stack while the collection's frame is
                   // coalesced into one delta on a microtask, so the manifest

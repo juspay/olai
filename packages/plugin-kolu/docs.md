@@ -104,7 +104,7 @@ A chat conversation can be **scoped to one `.olai` file**, and then olai rings i
 **Two meanings, derived, never configured:**
 
 - the terminal is claimed and the claiming step is **`doing`** — somebody is on that lane right now and it has stopped, so a report or a block is owed: **a wake**, which starts a turn if the agent is idle and queues behind whatever you typed if it is not;
-- the terminal is claimed and the claiming step is **`todo`** — the lane is open but nobody is on it, so it is lawfully parked: **a digest**, which opens `terminal activity, for the record` and says in its own words that it is a note and not a call;
+- the terminal is claimed and the claiming step is **`todo`** — the lane is open but nobody is on it, so it is lawfully parked: **a digest**, whose head says the terminal went quiet and that nothing under it is being worked, and closes *A note, not a call*;
 - the terminal is **unclaimed** — silence, and silence means no message at all. olai does not report what it decided not to ring about.
 
 **The two meanings differ in their WORDS, and in nothing else.** There is one delivery path and there is no quieter arm on it: a digest reaches the agent exactly as a wake does — a turn of its own where the agent is idle, held to the turn boundary where a turn is running, held until somebody opens the conversation where nobody is in it. What the meaning decides is the sentence olai writes, and the key that sentence is coalesced under: one key per meaning, so a burst under one meaning collapses to its newest body and can never overwrite the other meaning's — and where both are waiting when a turn ends, they arrive together, each whole. This page used to promise a digest that did not wake the agent; no quieter arm was ever built and there is nowhere in the mechanics to put one. What a person who wants a parked lane to stay quiet changes is the filter file — by finishing that lane, or by pointing the conversation at a board it is not on.
@@ -114,6 +114,25 @@ A chat conversation can be **scoped to one `.olai` file**, and then olai rings i
 **One line drawn, the rest a press away.** What the panel shows is a plain sentence — *kolu — the fdo-residuals author is idle: it has finished, or it needs you.* — and the account behind it carries the terminal, who it is, the state it is held at, the step that claims it and the file the whole set was read off. The fold is the discipline a tool row already keeps, and the split is between READERS rather than between messages: the agent is handed the whole body as the message text, because it needs the ids to act; you get the sentence, and the ids when you ask for them. The account names the claiming node's id in backticks, so it is **pressable** — a wake links back to the board row it was derived from, which is the row you would edit to stop it.
 
 **Events that pile up while a turn runs arrive as one message.** Each body is a fresh derivation of what is standing — every claimed terminal held *right now* under that meaning — so the one that lands names everything the ones before it would have, and nothing is lost by combining them. The strip counts what is waiting (`3 fleet events waiting`) so it is never holding words out of sight.
+
+**A floor under the silence.** The doorbell's last message is not about the fleet at all. If a scoped conversation hears nothing for a whole `heartbeat` window — the same knob in `_olai/Kolu.olai` that paces the pill, and there is no second dial for this — olai puts one message in it saying the watch is running, with the readings that make that claim checkable:
+
+```
+The kolu watcher is alive: 30 minutes with nothing to say about the 4 terminals lanes.olai claims.
+
+… (the attribution line, and what a heartbeat is) …
+
+— the filter file: lanes.olai.
+— terminals it claims right now: 4.
+— last watcher event: 2026-08-31 14:01 UTC, 31 minutes ago.
+— watching since 2026-08-30 19:03 UTC, 19 hours 29 minutes so far.
+```
+
+**Four facts rather than "still here",** because *still here* is exactly what a wedged watcher would go on saying: a timer that still fires proves the interval is armed and nothing else. These four are things you can disagree with. A count of 0 all afternoon on a board with four live lanes is a conversation scoped to the wrong file. A last event older than the uptime is a watcher seeing a fleet that never moves. A *watching since* that resets every window is a server somebody keeps restarting. Every one of them is read at the moment the message goes in, so a heartbeat that waited through a turn reports the board as it is when you read it.
+
+**It is a floor and not a metronome.** Any wake or digest delivered to that conversation resets the window, so a busy day produces no heartbeat at all and a quiet one produces exactly one per window. It rides the same delivery path as everything else — a turn of its own where the agent is idle, held to the boundary where a turn is running — which is the whole point: a proof of life that only landed when the agent happened to be running would prove nothing about the hours it was not.
+
+**A heartbeat is never a fault report.** It only ever means *the watch is running and had nothing to say*. A scope olai cannot watch is not beaten for at all — that case says so in words of its own — so the two can never be confused for each other, and clearing the file on the strip stops the heartbeats with everything else.
 
 ## When there is nothing to see
 

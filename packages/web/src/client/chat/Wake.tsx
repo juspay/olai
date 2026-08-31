@@ -45,6 +45,30 @@
  * make core the author of everything around the hole — and it is what lets a
  * third plugin grow a doorbell without a line of this file moving.
  *
+ * ## AND THE ONE STATE WHERE THE CONTROL SAYS SOMETHING IS WRONG
+ *
+ * A person picks `lanes.olai`; somebody renames it. The doorbell derives per
+ * revision and finds no such file, so it derives nothing — forever — and the
+ * conversation goes quiet in a way that reads exactly like a subject with
+ * nothing to report. The row draws the fault instead of a live answer
+ * ({@link ../../../../surface/src/chat.ts}'s `Wake.gone`), because a picker
+ * still naming a file nothing will ever read is the control asserting something
+ * untrue, and because after this the panel is the only place the difference
+ * between quiet and broken is visible at all.
+ *
+ * THE WORDS IN THAT LINE ARE CORE'S, which is the sole exception to the
+ * paragraph above and does not weaken it. Core is saying that a file IT STORES
+ * is one it can no longer find — a fact about core's own record, in core's own
+ * vocabulary, with nothing in it about what the plugin watches. The sentence
+ * the CONVERSATION got is the plugin's, delivered once through the door
+ * (`@olai/plugins`' `PluginServerHalf.wake.gone`), and this file does not
+ * repeat a word of it.
+ *
+ * AND THE GESTURE STILL WORKS. The picker is drawn, open-able and pressable in
+ * that state, because picking another file is the fix — a control that reported
+ * itself broken and then refused the one gesture that mends it would be worse
+ * than the fault it reported.
+ *
  * ## THE PICKER IS THE CHATS PICKER'S MODEL, and now its receptacle
  *
  * A `QUIET_PILL` trigger, a list hung from the strip's own box rather than from
@@ -205,6 +229,32 @@ function Line(props: {
         <span class="min-w-0 truncate text-muted">{props.ringer.from}</span>
       </Show>
       <Picker ringer={props.ringer} onPick={(file) => props.onScope(file)} />
+      {/* THE FAULT, and it is drawn BESIDE the picker rather than instead of
+          it. The file this doorbell was pointed at is not served any more, so
+          nothing will ever ring here again — and the silence that follows is
+          indistinguishable from the silence of a subject with nothing to
+          report, which is the whole reason this line exists. The trigger is
+          still pressable, because the fix is picking another file and a control
+          that told somebody it was broken and then refused the gesture that
+          mends it would be worse than the fault.
+
+          THESE WORDS ARE CORE'S, which is the one place on this strip that is
+          true, and the boundary is exact: core is describing A FILE IT STORES
+          AND CANNOT FIND, which is a fact about core's own record. What the
+          CONVERSATION was told is the plugin's own sentence, delivered once
+          (`@olai/plugins`' `PluginServerHalf.wake.gone`), and no word of it is
+          repeated here. */}
+      <Show when={props.ringer.gone}>
+        <span
+          class="shrink-0 text-alarm"
+          data-testid={TESTID.chatWakeGone}
+          // The path that went missing, as DATA — a scenario reads the state
+          // rather than the sentence, the way the count beside it does.
+          data-file={props.ringer.file ?? ""}
+        >
+          gone — pick another file
+        </span>
+      </Show>
       {/* THE WAY BACK OFF, and only where there is something to turn off. The
           same verb with no file rather than a second one: there is one fact
           here and it has an empty value. */}
@@ -289,7 +339,12 @@ function Picker(props: {
       <button
         ref={picker.setTrigger}
         type="button"
-        class={`${QUIET_PILL} max-w-[16rem] truncate`}
+        // THE TRIGGER STOPS LOOKING LIKE A LIVE ANSWER when the file it names
+        // is not served any more. It goes on wearing the path — that is what
+        // somebody has to recognise to know which file went — but it stops
+        // reading as the quiet statement of fact the other states are. Still
+        // pressable, because picking another file is the fix.
+        class={`${QUIET_PILL} max-w-[16rem] truncate${props.ringer.gone ? " text-alarm" : ""}`}
         data-testid={TESTID.chatWakePicker}
         // WHOSE doorbell and WHAT it is pointed at, as data: the words in this
         // line are the plugin's sentence, and the state a scenario asserts must

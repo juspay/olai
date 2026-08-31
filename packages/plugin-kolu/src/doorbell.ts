@@ -70,6 +70,30 @@
  * dispatch, 2026-08-31): a doorbell that also reports what it decided not to
  * ring about is a doorbell nobody can leave on.
  *
+ * ## AND A FLOOR ON SILENCE, which is not a third meaning
+ *
+ * The two meanings are the whole of what a fleet event can mean. The
+ * HEARTBEAT ({@link makeHeartbeat}) is not one of them and never becomes one:
+ * it names no terminal, it is not derived from an event, and nothing about it
+ * is a report on the fleet. It exists because the orchestrator's own hand-run
+ * fleet watch is retired in this landing, which leaves SILENCE as the only
+ * thing supervision has to go on — and quiet-and-fine and quiet-because-broken
+ * must never look alike.
+ *
+ * So a conversation that heard nothing for a whole watch window is told, in
+ * evidence rather than in reassurance: which file it is scoped to, how many
+ * terminals that file derives right now, when the watcher last saw an event,
+ * and how long it has been watching. "Still here" proves nothing; those four
+ * are what let a reader tell a live watcher from a wedged one.
+ *
+ * It is a FLOOR AND NOT A METRONOME — any wake or digest that lands in the
+ * window resets it, so a busy day never sees a heartbeat at all — and it is
+ * emphatically NOT the thing that reports a fault. A scope whose file has gone
+ * is not listed by core's `scopes()` at all, so it is never beaten for; a
+ * heartbeat that also said "and by the way your scope is broken" would be two
+ * signals in one sentence, and the one a person needs most would arrive
+ * dressed as the one they learn to ignore.
+ *
  * ## THIS MODULE OWNS NO STANDING SET, and that is a ruling rather than an economy
  *
  * There is no cache of claimed ids here, and nothing watches for changes.
@@ -93,6 +117,19 @@
  * `./doorbell.test.ts` pins it rather than trusting this paragraph: a claim
  * added between two events is seen by the second, and an older revision handed
  * back answers what IT says.
+ *
+ * THE ONE `let` IN THIS FILE IS THE HEARTBEAT'S, and it is admissible for a
+ * reason that has to be stated rather than assumed. {@link makeHeartbeat}
+ * remembers which conversations THIS PROCESS delivered words into since the
+ * last beat, and when it last saw an event. Those are facts about ITS OWN
+ * ACTIONS — nothing else in the world can contradict them, and no source has to
+ * be caught changing them — where the forbidden set was a copy of DERIVED
+ * TRUTH, which the vault moves underneath. The rule is not "hold no state", it
+ * is "hold no second answer to a question the vault already answers", and the
+ * count in a heartbeat's own sentence is derived at send time exactly like
+ * every other number here. The ledger is bounded by construction too: it is
+ * cleared whole on every beat, so a conversation nobody has scoped since
+ * yesterday is not in it.
  *
  * ## THE BODY IS A FRESH DERIVATION, and that is what makes coalescing safe
  *
@@ -363,6 +400,15 @@ const claiming = (
     // walk instead of the process.
     if (reached.has(child.node.id)) continue
     const under = claiming(declarations, derived, child, reached, claims, owner)
+    // LAST ONE WINS ACROSS SIBLINGS, and that is a tie-break rather than a rule
+    // about depth. `deepest` is strictly-under, so two siblings both being
+    // worked are two answers and this takes the LATER in document order — the
+    // lower row on the board, which is the one a person scrolling reads last and
+    // the one a lane's own order puts nearest the work in hand. Neither is
+    // wrong, and the sentence names one step; what matters is that the pick is
+    // STATED rather than emergent, so a reader is not left deducing it from a
+    // loop. Depth still beats breadth: a deeper `doing` returned by any child
+    // replaces a shallower one, because each child answers with its own deepest.
     if (under !== undefined) deepest = under
   }
   // THE CARRYING NODE MUST ITSELF BE UN-DONE, and this is the same predicate the
@@ -731,8 +777,337 @@ const namingOf = (one: Standing): string => {
   return role === "" ? `${label} terminal` : `${label} ${role}`
 }
 
-/** A standing row as the essence names it: who it is, or the id when the fleet
- *  row has neither a repo nor a label to be named by. */
-const nameOf = (one: Standing): string =>
-  one.who.trim() === "" ? `\`${one.terminal}\`` : one.who
+// ── THE HEARTBEAT — a floor on silence ────────────────────────────────────
+
+/**
+ * HOW MANY TERMINALS ONE FILTER FILE DERIVES RIGHT NOW — the heartbeat's one
+ * derived fact, and the only number in it.
+ *
+ * It is {@link claimedIn} counted, so it moves the moment the board does and
+ * cannot disagree with what a wake would name: same walk, same licence, same
+ * un-done rule. Two records that copied one value are ONE terminal, which is
+ * why the count is over the distinct VALUES rather than over the claims.
+ *
+ * ## Why it is not joined to the live fleet
+ *
+ * {@link claimingIn} would resolve those values against the roster and answer
+ * how many are actually THERE, and that is deliberately a different question
+ * from this one. A heartbeat is a statement about the WATCH — this file, this
+ * derivation, this process — and joining it to padi would quietly make it a
+ * statement about the link as well: the count would collapse to zero the
+ * moment a socket dropped, and the message a person had learned to read as
+ * "quiet and fine" would become the message that tells them their fleet is
+ * gone. That is the fault signal's sentence and not this one's; the two must
+ * never be confusable, which is a boundary kept here by not asking.
+ */
+export const terminalsIn = (
+  declarations: PropDeclarations,
+  derived: Derived,
+  file: string,
+): number => new Set(claimedIn(declarations, derived, file).map((claim) => claim.value)).size
+
+/** ONE CONVERSATION, as core addresses one — the pair `Deliveries.deliver`
+ *  takes, spelled here because the ledger below is keyed by it. */
+export interface Conversation {
+  readonly agent: string
+  readonly session: string
+}
+
+/** ...and one SCOPED conversation, as core's `scopes()` lists it: the same
+ *  pair plus the file the person picked. A scope that has gone — a cleared
+ *  control, or a file the watcher can no longer read — is simply absent from
+ *  that list, which is the whole of how this module learns to stop. */
+export interface Scoped extends Conversation {
+  readonly file: string
+}
+
+/**
+ * THE FOUR FACTS, plus the frame they are read in — everything
+ * {@link heartbeatBody} says, gathered at the moment it says it.
+ */
+export interface Vitals {
+  /** Which file this conversation is scoped to, as core listed it NOW. */
+  readonly file: string
+  /** {@link terminalsIn}, off the current revision. */
+  readonly terminals: number
+  /** The watcher's own stamp on the last ATTENTION event this doorbell saw,
+   *  or `null` for none since the process started watching. */
+  readonly lastEvent: string | null
+  /** When this process began watching. */
+  readonly since: string
+  /** The watch window in force — the `heartbeat` knob, as the beat that
+   *  woke this carried it. */
+  readonly everyMs: number
+  /** Now, on the caller's clock, at the moment the words go in. */
+  readonly now: string
+}
+
+/**
+ * THE HEARTBEAT'S OWN SENTENCE — evidence, and deliberately not reassurance.
+ *
+ * ## Why four facts and not "still here"
+ *
+ * A watcher that says "still watching" every half hour teaches a person to
+ * stop reading it, and it is also the one thing a wedged watcher would go on
+ * saying: a timer that still fires proves the interval is armed and nothing
+ * else. So the message is the four readings that a person can actually
+ * disagree with — the file, the count it derives, the last event, the uptime.
+ * A count that has been 0 all afternoon on a board with four live lanes is a
+ * scope pointed at the wrong file; a last-event that is older than the uptime
+ * is a watcher seeing a fleet that never moves; a "watching since" that resets
+ * every window is a process being restarted under somebody. None of those is a
+ * sentence this module could write, and all of them are readings a person can
+ * take off these four lines.
+ *
+ * ## Its shape is the wake's, on purpose
+ *
+ * Same first-line essence, same attribution line, same `— ` lead-ins, same
+ * closing exit ({@link bodyFor} argues each of them). A reader who has learned
+ * one of these messages has learned all of them, and the differences between
+ * them are then differences of CONTENT rather than of layout — which is the
+ * only way a person can be expected to notice that this one is not a wake.
+ *
+ * IT SAYS WHAT IT IS NOT. The closing line states that a heartbeat is never a
+ * fault report, because the whole value of a floor on silence is destroyed the
+ * day somebody reads a quiet one as an all-clear about their scope. A scope the
+ * watcher cannot read is not beaten for at all ({@link makeHeartbeat}), and it
+ * says so in words of its own.
+ */
+export const heartbeatBody = (vitals: Vitals): string => {
+  const window = spanOf(vitals.everyMs)
+  const claims = vitals.terminals === 1
+    ? `the one terminal ${vitals.file} claims`
+    : `the ${vitals.terminals} terminals ${vitals.file} claims`
+  const head = vitals.terminals === 0
+    ? `The kolu watcher is alive: ${window} with nothing to say, and ${vitals.file} claims no terminals at all right now.`
+    : `The kolu watcher is alive: ${window} with nothing to say about ${claims}.`
+  return [
+    head,
+    "",
+    `Written by olai's kolu watcher at ${stampOf(vitals.now)}, not by a person.`,
+    "",
+    `No wake and no digest has gone into this conversation for ${window}, which is the whole watch window — so this is the watcher proving it is running, and not a report about anything that happened. These four readings are what tell a live watcher from a wedged one, and every one of them was taken at the moment this message went in:`,
+    "",
+    `— the filter file: ${vitals.file}.`,
+    `— terminals it claims right now: ${vitals.terminals}.`,
+    `— last watcher event: ${eventLine(vitals)}`,
+    `— watching since ${stampOf(vitals.since)}${suffixed(vitals.since, vitals.now, "so far")}.`,
+    "",
+    `Quiet is quiet: any wake or digest delivered here resets the window, so a busy one is silent. This is never a fault report — a scope this watcher cannot read says so in its own words — and clearing the file on this conversation's wake control stops it.`,
+  ].join("\n")
+}
+
+/** The last-event line, which has a NONE arm rather than a blank: "no event
+ *  yet" is one of the readings this message exists to carry — a watcher that
+ *  has been up for six hours and seen nothing is either a very quiet fleet or
+ *  a mirror that never moved, and a person who knows their own afternoon can
+ *  tell which. */
+const eventLine = (vitals: Vitals): string =>
+  vitals.lastEvent === null
+    ? "none at all since it started watching."
+    : `${stampOf(vitals.lastEvent)}${suffixed(vitals.lastEvent, vitals.now, "ago")}.`
+
+/** MS in the units a person says them in. */
+const SECOND = 1_000
+const MINUTE = 60_000
+const HOUR = 3_600_000
+const DAY = 86_400_000
+
+const plural = (count: number, word: string): string =>
+  `${count} ${word}${count === 1 ? "" : "s"}`
+
+/** Two units at most, and the smaller dropped when it is zero: "5 hours",
+ *  "5 hours 20 minutes", never "5 hours 0 minutes". A third unit is precision
+ *  nobody reads in a sentence about how long something has been quiet. */
+const pairOf = (
+  big: number,
+  bigWord: string,
+  small: number,
+  smallWord: string,
+): string => small === 0 ? plural(big, bigWord) : `${plural(big, bigWord)} ${plural(small, smallWord)}`
+
+/**
+ * A SPAN OF MS, in words — the one duration spelling in this file, so the
+ * window, the age of the last event and the uptime cannot come out in three
+ * grammars.
+ *
+ * A span this runtime cannot make sense of — a negative one, from two stamps
+ * taken across a clock that moved — says so vaguely rather than confidently:
+ * "less than a second" is wrong by less than the skew that produced it, where
+ * "-3 minutes" would be a number a reader tries to interpret.
+ */
+const spanOf = (ms: number): string => {
+  if (!Number.isFinite(ms) || ms < SECOND) return "less than a second"
+  if (ms < MINUTE) return plural(Math.floor(ms / SECOND), "second")
+  if (ms < HOUR) return plural(Math.floor(ms / MINUTE), "minute")
+  if (ms < DAY) return pairOf(Math.floor(ms / HOUR), "hour", Math.floor(ms % HOUR / MINUTE), "minute")
+  return pairOf(Math.floor(ms / DAY), "day", Math.floor(ms % DAY / HOUR), "hour")
+}
+
+/**
+ * THE DISTANCE BETWEEN TWO STAMPS, appended to the earlier one and given the
+ * word that says which direction it is read in — `ago` for a moment that
+ * passed, `so far` for a clock still running.
+ *
+ * It appends NOTHING AT ALL where either stamp is a word this runtime cannot
+ * read. {@link stampOf} passes such a stamp through verbatim rather than
+ * guessing at it, and this keeps the same bargain one clause along: a time in
+ * somebody else's spelling beats a confident subtraction of two things that
+ * were never both dates.
+ */
+const suffixed = (from: string, to: string, word: string): string => {
+  const at = new Date(from).getTime()
+  const now = new Date(to).getTime()
+  if (Number.isNaN(at) || Number.isNaN(now)) return ""
+  return `, ${spanOf(now - at)} ${word}`
+}
+
+/**
+ * THE DOORBELL'S HEARTBEAT — the drive loop for a floor on silence.
+ *
+ * ## What a beat does, in one breath
+ *
+ * The watcher already beats every `heartbeat` ms and has since the pill was
+ * drawn ({@link ../../kolu-client/src/watch.ts}'s `pulse`). This rides THAT
+ * beat: on each one, every scoped conversation that heard nothing since the
+ * previous beat is delivered the four facts, and every conversation that heard
+ * something is passed over and its window reset. There is no second timer and
+ * no second knob — a heartbeat cadence a person could set apart from the one
+ * they already set would be two answers to one question, and the second of
+ * them would be the one nobody knew about.
+ *
+ * ## THE WINDOW IS MEASURED IN BEATS, not in milliseconds
+ *
+ * `delivered` is the whole ledger: a conversation is in {@link spoken} when
+ * words of this plugin's actually entered it, and the set is cleared at the
+ * end of every beat. So "in the window" means "since the previous beat", which
+ * needs no arithmetic, no second clock and no stamp to compare — and it cannot
+ * drift against the interval the watcher is actually running, because it IS
+ * that interval. See the header on why a ledger of this process's own actions
+ * is not the standing set the header forbids.
+ *
+ * IT IS MARKED WHERE THE WORDS GO IN, not where the delivery was handed over,
+ * and that is `./server.ts`'s to call from inside its own thunk. A body that
+ * was coalesced away, or that derived to `null` because everything settled
+ * while it waited, never reached anybody — and a window it silenced would be a
+ * heartbeat lost to a message nobody got.
+ *
+ * ## What it refuses to beat for
+ *
+ * A conversation core no longer lists. `scopes()` is asked afresh on every
+ * beat AND again inside every thunk, so a cleared control stops the next
+ * heartbeat and also kills one already waiting on a turn — and a scope whose
+ * FILE has gone is not in that list either, which is how the boundary with the
+ * fault signal is kept by construction rather than by a check here. This
+ * module has no gone-detection of its own and must never grow one: if
+ * `scopes()` lists it, it is watched.
+ *
+ * A vault that has not been read. `terminals` answers `null` before the first
+ * revision and after an `unloaded`, and a heartbeat then would be four facts
+ * with a hole where the derived one goes. Asked BEFORE the delivery so a
+ * process with no vault costs core no slot, and asked AGAIN in the thunk
+ * because the store can stop publishing while a message waits.
+ *
+ * A count of ZERO is not one of those refusals. A file that claims nothing is
+ * a scope pointed at the wrong file or a board somebody emptied, and this
+ * message is the only place either of those would ever be said out loud.
+ */
+export interface Heartbeat {
+  /** An ATTENTION event reached the doorbell — the last-seen stamp, and
+   *  nothing else. The watcher's own `at` rather than a fresh clock read: it
+   *  is the moment the event was stamped, and a second reading of a second
+   *  clock would date the same fact twice.
+   *
+   *  A BEAT IS NOT AN EVENT and must never be stamped here. It comes off the
+   *  same timer this loop rides, so a heartbeat that counted its own beat
+   *  would report "last event: just now" forever and would be the one fact in
+   *  the message that could never fail. */
+  readonly saw: (at: string) => void
+  /** A wake or a digest's words ENTERED this conversation: its window is
+   *  reset, and it is passed over on the next beat. */
+  readonly delivered: (to: Conversation) => void
+  /** THE WATCHER BEAT, carrying the cadence in force. */
+  readonly beat: (everyMs: number) => void
+}
+
+export const makeHeartbeat = (deps: {
+  /** Core's scoped conversations, asked afresh — never held. */
+  readonly scopes: () => ReadonlyArray<Scoped>
+  /** Core's delivery door, write-only, taking the words as a THUNK. */
+  readonly deliver: (
+    to: Conversation,
+    say: () => string | null,
+    options?: { readonly coalesce?: string },
+  ) => void
+  /** {@link terminalsIn} against the CURRENT revision, or `null` where there
+   *  is no revision to derive off. The caller's closure, because the vault is
+   *  the caller's — this module is handed the number and never the store. */
+  readonly terminals: (file: string) => number | null
+  readonly now: () => string
+  /** The coalesce key, minted by the caller under its own plugin name — ONE
+   *  word for every heartbeat, because core files a held slot under the pair
+   *  of the plugin and the key per conversation. It is fixed for the two
+   *  meanings' own reason: two beats through one busy turn are one message,
+   *  and the newest body is a fresh derivation that says everything the one it
+   *  replaced would have. */
+  readonly coalesce: string
+}): Heartbeat => {
+  /** WHEN THIS PROCESS BEGAN WATCHING — read once, here, because this
+   *  constructor runs in the same breath as the watcher's own
+   *  ({@link ../../kolu-client/src/index.ts}'s `koluHalf`). A restart re-dates
+   *  it, which is exactly the fact a reader wants: an uptime that keeps
+   *  resetting is a process somebody keeps killing. */
+  const since = deps.now()
+  let lastEvent: string | null = null
+  /** THE LEDGER: conversations this plugin's words entered since the previous
+   *  beat. Cleared whole at the end of every beat, which is both the window's
+   *  reset and its bound. */
+  const spoken = new Set<string>()
+  const keyOf = (to: Conversation): string => `${to.agent} ${to.session}`
+  return {
+    saw: (at) => {
+      lastEvent = at
+    },
+    delivered: (to) => {
+      spoken.add(keyOf(to))
+    },
+    beat: (everyMs) => {
+      for (const scope of deps.scopes()) {
+        if (spoken.has(keyOf(scope))) continue
+        if (deps.terminals(scope.file) === null) continue
+        const to = { agent: scope.agent, session: scope.session }
+        deps.deliver(
+          to,
+          // ASKED AT THE MOMENT THE WORDS GO IN, exactly as a wake's body is
+          // (`./server.ts`'s `said` argues the whole of it): core holds a
+          // delivery through a running turn, and a heartbeat that reported the
+          // count as it was when the beat fired would be a message whose one
+          // derived fact is the one thing in it that is out of date. The FILE
+          // is re-read here too — a person who re-scoped mid-turn gets a
+          // heartbeat about the file they are on now, or none at all.
+          () => {
+            const now = deps.scopes().find((one) => keyOf(one) === keyOf(scope))
+            if (now === undefined) return null
+            const terminals = deps.terminals(now.file)
+            if (terminals === null) return null
+            return heartbeatBody({
+              file: now.file,
+              terminals,
+              lastEvent,
+              since,
+              everyMs,
+              now: deps.now(),
+            })
+          },
+          { coalesce: deps.coalesce },
+        )
+      }
+      // ONE LINE, AFTER THE WALK: the window closes for everybody at once,
+      // which is what makes "since the previous beat" a fact about the beats
+      // rather than about each conversation's own arithmetic.
+      spoken.clear()
+    },
+  }
+}
+
 

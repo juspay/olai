@@ -163,12 +163,16 @@ export interface PluginServerHalf<Revision> extends PluginWire {
    *
    * The strip row reads `<subject> · <from> <the picker>`, and with nothing
    * picked it reads `<subject> · off`. Core owns the row, the picker and the
-   * numeral; it composes no clause of its own, which is why this is three
-   * strings and not one. A single sentence with a hole in it would make core the
-   * author of everything around the hole, and the four ways a wake could be
-   * described have nothing in common but that they are wakes — the same argument
-   * {@link probe}'s `missing.why` makes one hook over, and the third time this
-   * tree has spent it.
+   * numeral; it composes no clause of its own, which is why the drawn half of
+   * this is three strings and not one. A single sentence with a hole in it
+   * would make core the author of everything around the hole, and the four ways
+   * a wake could be described have nothing in common but that they are wakes —
+   * the same argument {@link probe}'s `missing.why` makes one hook over, and the
+   * third time this tree has spent it.
+   *
+   * The FOURTH field is the same rule read from the other end: {@link wake.gone}
+   * is drawn nowhere, so it is one whole sentence rather than pieces, and core
+   * carries it into a conversation without joining anything to it.
    *
    * SUBJECT FIRST. What is being woken ON is the subject, and the file is the
    * FILTER over it — a control that led with the file would be describing its own
@@ -198,6 +202,50 @@ export interface PluginServerHalf<Revision> extends PluginWire {
      *  numbers — core supplies the numeral and joins them, and that is the whole
      *  of core's authorship on the strip. */
     readonly waiting: { readonly one: string; readonly many: string }
+    /**
+     * ...AND WHAT A CONVERSATION IS TOLD WHEN THE FILE IT WOKE ON STOPS BEING
+     * SERVED — one WHOLE sentence, because there is no control to draw between
+     * its halves.
+     *
+     * ## Why this one is not in pieces when the three above are
+     *
+     * The three above are pieces because core draws a PICKER between them: the
+     * row is `<subject> · <from> <the picker>`, and core owns the arrangement.
+     * This is not drawn anywhere. It is a MESSAGE, put into a conversation
+     * through the door core already built for this plugin, and a message is
+     * whole authored paragraphs or it is core writing prose
+     * (`@olai/chat`'s `deliveries.ts`, whose `joined` joins them and composes
+     * none). So core carries this string and delivers it: no lead-in, no
+     * count, no naming of the file, no abbreviation.
+     *
+     * It NAMES NO FILE for that reason, which is the one thing a reader will
+     * notice is missing. Core knows the path — it stores it — but a sentence
+     * with core's hole punched in it is the shape this whole field exists to
+     * refuse, and the person reading is looking at a strip that draws the path
+     * beside the words. What the sentence has to say is what the plugin knows
+     * and core does not: that nothing is being watched now.
+     *
+     * ## Why it is REQUIRED where {@link PluginServerHalf.wake} itself is not
+     *
+     * A plugin that wakes nobody declares no `wake` at all and is a whole
+     * plugin. A plugin that DOES wake has scoped conversations, and a scoped
+     * conversation's file can be renamed out from under it — so there is no
+     * plugin for which this is inapplicable, and an optional field would be a
+     * plugin that rings and then, on the one day it matters, says nothing.
+     *
+     * ## IT USED TO BE NOTHING AT ALL, and the silence was the defect
+     *
+     * A person scopes a conversation to `lanes.olai`; somebody renames the
+     * file. The doorbell's derivation is a pure function of the revision and
+     * finds no such file, so it derives nothing — forever — while the strip
+     * goes on drawing the control as ON. That silence is byte for byte the
+     * silence of a fleet with nothing standing, on every channel there is, and
+     * this PR retires the hand-run fleet watch that was the second opinion. A
+     * quiet doorbell and a broken one must not look alike, so the broken one
+     * says so, once, in the conversation it stopped ringing
+     * (`@olai/chat`'s `Chat.faults`).
+     */
+    readonly gone: string
   }
 }
 

@@ -1616,6 +1616,32 @@ export const Wake = Schema.Struct({
    * (`./plugins.ts`' `wake.waiting`). Core supplies no word for what is waiting.
    */
   waiting: Schema.Int,
+  /**
+   * THE FILE THIS DOORBELL WAS POINTED AT IS NO LONGER SERVED — renamed, moved
+   * or deleted out from under a scope somebody set.
+   *
+   * The control must stop drawing as ON, and that is the whole of what this
+   * field is for. A doorbell whose file has gone derives nothing forever, so
+   * the conversation goes quiet in a way that is indistinguishable from a
+   * conversation with nothing to report — and a picker still saying `lanes.olai`
+   * over that silence is the panel asserting something untrue.
+   *
+   * CORE'S OWN VOCABULARY, and the one place around this feature where that is
+   * so. Everything else on the strip is the plugin's words arriving as data,
+   * because a sentence about somebody's terminals is a sentence core cannot
+   * write. This is not about terminals: it is about A FILE CORE STORES AND NO
+   * LONGER FINDS, which is core's fact about core's own record, and there is no
+   * plugin better placed to say it. What the plugin says is the sentence that
+   * goes into the CONVERSATION (`@olai/plugins`' `PluginServerHalf.wake.gone`),
+   * and core carries that one verbatim.
+   *
+   * A BOOLEAN AND NOT AN OPTIONAL KEY, though the record behind it writes
+   * `true`-or-absent (`@olai/chat`'s `Scoped.gone`): a face draws one of two
+   * things, and an absent key would be a third state for it to have an opinion
+   * about. It rides here rather than on the `plugins` cell for the reason
+   * `file` and `waiting` do — it moves per conversation, not per serve.
+   */
+  gone: Schema.Boolean,
 })
 export type Wake = typeof Wake.Type
 

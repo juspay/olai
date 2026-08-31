@@ -181,6 +181,31 @@ export interface KoluDeps<N> {
    * matter to somebody else.
    */
   readonly rang?: (event: KoluEvent) => void
+  /**
+   * THE HEARTBEAT'S TAP, and the same boundary once more — the watcher's own
+   * beat, handed to whoever wants to prove liveness with it.
+   *
+   * It rides the beat that already exists ({@link ./watch.ts}'s `pulse`,
+   * armed at `heartbeatMs`) rather than minting a second one: a second timer
+   * would be a second cadence, and the day the two disagreed there would be no
+   * way to say which one the vault's `heartbeat` knob had meant. What is on the
+   * other end of this — `@olai/plugin-kolu`'s doorbell, delivering four derived
+   * facts into a conversation that has heard nothing for a window — is not this
+   * package's business, exactly as {@link KoluDeps.rang}'s reader is not.
+   *
+   * ONLY THE CADENCE CROSSES, and the beat's own `at` deliberately does not.
+   * `WatchSink.beat` carries the stamp because the PILL draws it — the pill is
+   * about the last beat, so the last beat's clock is its subject. The doorbell's
+   * words are composed at the moment they enter a conversation, which is a turn
+   * or an hour later, and they stamp themselves then; a beat's `at` crossing
+   * here would be a time the message it ends up in is not about. What the
+   * cadence buys is the one thing the reader cannot derive: how long the silence
+   * it is about actually was.
+   *
+   * OPTIONAL, like {@link KoluDeps.rang} beside it: a face that proves nothing
+   * to nobody passes nothing and pays nothing.
+   */
+  readonly beating?: (everyMs: number) => void
   /** Routine narration, at debug: on a machine with no kolu this is a line
    *  every few seconds and it is not news. */
   readonly say: (line: string) => void
@@ -434,9 +459,16 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
         deps.rang?.(event)
       },
       evict: (id) => deps.events()?.remove(id),
+      // THE HEARTBEAT'S TAP RIDES THE PILL'S OWN BREATH, which is the `rang`
+      // arm's argument one member up: the beat a tab draws its recency from
+      // and the beat a conversation's floor-on-silence is measured by are ONE
+      // beat, in one statement, and can never be two cadences. Its absence is
+      // the ordinary case (`?.`) — see `KoluDeps.beating` for why only the
+      // cadence crosses and the stamp does not.
       beat: (at, everyMs) => {
         pulse = { at, everyMs }
         deps.pulse()?.set(pulse)
+        deps.beating?.(everyMs)
       },
     },
     { now: () => Date.now() },

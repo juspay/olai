@@ -204,8 +204,10 @@ export interface Holding {
 
 /** The map key. One string rather than a nested map, because every question
  *  here is asked about the whole pair and never about an agent's conversations
- *  as a group. ` ` cannot occur in either half. */
-const keyOf = (to: Addressed): string => `${to.agent} ${to.session}`
+ *  as a group. `\0` cannot occur in either half, and it is written as an
+ *  ESCAPE rather than as the byte: a literal NUL makes this file read as BINARY
+ *  to review tooling, which is how a reviewer stops being able to see it. */
+const keyOf = (to: Addressed): string => `${to.agent}\0${to.session}`
 
 export const holding = (): Holding => {
   /** Insertion-ordered, which is what makes the conversation cap's eviction a

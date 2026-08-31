@@ -21,6 +21,7 @@
 import { describe, expect, it } from "bun:test"
 import { Effect, Fiber, Stream } from "effect"
 
+import { koluHalf } from "./index.ts"
 import { type Dial, SPEAKS } from "./link.ts"
 import { makeMirror } from "./mirror.ts"
 import { DEFAULT_WATCH, makeWatch, type WatchConfig } from "./watch.ts"
@@ -537,5 +538,63 @@ describe("the watcher's chain through the mirror", () => {
     expect(fired()[0]?.row?.state).toBe("awaiting")
     await Effect.runPromise(Fiber.interrupt(fiber))
     watch.stop()
+  })
+})
+
+/**
+ * THE BEAT'S SECOND READER — the tap `@olai/plugin-kolu`'s doorbell hangs its
+ * floor-under-silence on.
+ *
+ * The pill has always drawn the beat; what is new is that a conversation's
+ * quiet is now measured in the SAME beats, through `KoluDeps.beating`. These
+ * two cases are about that seam rather than about the watcher's pacing: that
+ * the tap rides the beat the sink already publishes, and that it carries the
+ * cadence IN FORCE rather than the one the process booted on — a doorbell told
+ * "thirty minutes" while the vault now says one would report a silence half an
+ * hour longer than the one it is actually about.
+ *
+ * WHY NOT A SECOND TIMER, which is the alternative this closes: a heartbeat
+ * armed one package up would be a second cadence beside the `heartbeat` knob,
+ * and the day the two disagreed there would be no way to say which one the
+ * person who edited the vault had meant.
+ */
+describe("the beat's doorbell tap", () => {
+  /** A LINKLESS half — no dial, no fleet, no surface. The watcher is built for
+   *  every face (`./index.ts` says why), so the beat is the one thing that
+   *  happens on a machine with no kolu at all, which is exactly the case a
+   *  floor under silence has to survive. */
+  const halfBeating = (knob: () => number, beats: Array<number>) =>
+    koluHalf<never>({
+      options: null,
+      fleet: () => undefined,
+      events: () => undefined,
+      pulse: () => undefined,
+      claimants: () => [],
+      config: () => ({ config: { ...DEFAULT_WATCH, heartbeatMs: knob() }, malformed: [] }),
+      beating: (everyMs) => {
+        beats.push(everyMs)
+      },
+      say: () => {},
+      warn: () => {},
+    })
+
+  it("beats once at boot, with the cadence the defaults name", () => {
+    const beats: Array<number> = []
+    halfBeating(() => DEFAULT_WATCH.heartbeatMs, beats)
+    expect(beats).toEqual([DEFAULT_WATCH.heartbeatMs])
+  })
+
+  it("carries the cadence a knob move put in force, and a keystroke is not a beat", () => {
+    const beats: Array<number> = []
+    let knob = DEFAULT_WATCH.heartbeatMs
+    const half = halfBeating(() => knob, beats)
+    knob = 60_000
+    half.revision([], null)
+    expect(beats).toEqual([DEFAULT_WATCH.heartbeatMs, 60_000])
+    // The vault re-derives on every keystroke; only a MOVED knob re-arms, which
+    // is this module's own echo-guard seen from the doorbell's end. Without it a
+    // busy vault would beat per keystroke and no window would ever be quiet.
+    half.revision([], null)
+    expect(beats.length).toBe(2)
   })
 })

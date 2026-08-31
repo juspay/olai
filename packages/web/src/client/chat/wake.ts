@@ -98,6 +98,21 @@ export interface Ringer {
    * plugin has.
    */
   readonly held: string | null
+  /**
+   * THE FILE IT WAS POINTED AT IS NOT SERVED ANY MORE — renamed, moved or
+   * deleted while the doorbell was on it.
+   *
+   * A row in this state draws the fault instead of a live picker
+   * ({@link ./Wake.tsx}), because the alternative is a control that says
+   * `lanes.olai` over a conversation nothing will ever ring again — and the
+   * silence underneath it is indistinguishable from the silence of a subject
+   * with nothing to report. The conversation has already been told, once, in
+   * the plugin's own words; this is the standing fact the strip keeps showing.
+   *
+   * `false` for a row nobody scoped, which is the ordinary case: a doorbell
+   * that is off is not a doorbell that is broken.
+   */
+  readonly gone: boolean
 }
 
 /**
@@ -138,6 +153,10 @@ export const ringersOf = (
       from: wake.from,
       file: mine?.file ?? null,
       waiting,
+      // OFF IS NOT BROKEN. A row with no pick behind it carries `false`,
+      // because there is no file for a fault to be about — the fault is a fact
+      // about a scope, and a conversation nobody scoped has none.
+      gone: mine?.gone ?? false,
       held: waiting > 0
         ? `${waiting} ${waiting === 1 ? wake.waiting.one : wake.waiting.many}`
         : null,

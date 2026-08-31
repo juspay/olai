@@ -688,15 +688,22 @@ test("a wake sentence reaches the roster, and never for a plugin this serve left
   if (first === undefined || second === undefined) {
     throw new Error("this build has fewer than two plugins to tell apart")
   }
-  const wake = {
+  const drawn = {
     subject: "wake on terminal activity",
     from: "terminals from",
     waiting: { one: "waiting sentence", many: "waiting sentences" },
   }
+  /** ... and the fourth field, which is NOT drawn: the whole sentence a
+   *  conversation is told when its file stops being served. It is delivered
+   *  into the transcript, and a browser has no occasion to write it. */
+  const wake = { ...drawn, gone: "the file you woke on is not here any more" }
   const halves = [{ name: first, wake }, { name: second }]
 
   const all = rosterOf({ env: {}, now: () => STARTED, served: "/tmp" }, halves)
-  expect(all.built.find((row) => row.name === first)?.wake).toEqual(wake)
+  // THE THREE THE PICKER IS MADE OF, and not the fourth. A roster that carried
+  // the delivered sentence would be putting a message on the wire for a reader
+  // that never sends one — and the wire's own schema has no key for it.
+  expect(all.built.find((row) => row.name === first)?.wake).toEqual(drawn)
   // A plugin that wakes nobody declares none, which is a whole plugin and the
   // ordinary case — absent rather than an empty sentence.
   expect(all.built.find((row) => row.name === second)?.wake).toBeUndefined()
@@ -796,6 +803,10 @@ const RINGING = {
   subject: "wake on something",
   from: "the somethings of",
   waiting: { one: "sentence", many: "sentences" },
+  /** ... and the fourth, which the fault cases below DO read a word of, because
+   *  what they are about is that core carries it verbatim: this string, and
+   *  nothing joined to it, is what reaches the conversation. */
+  gone: "the file this doorbell watched is not here any more, and nothing is being watched",
 }
 
 /**
@@ -815,7 +826,13 @@ const halfCalled = (name: string, wake?: typeof RINGING) => {
     ...(wake === undefined ? {} : { wake }),
     serve: (services: PluginServices) => {
       door = services.deliveries
-      return { deps: {} }
+      // THE TWO REVISION HOOKS ARE NO-OPS AND MUST STILL BE HERE. Core calls
+      // both on every published revision, so a double without them is a double
+      // that kills the connector the moment a case makes a revision happen —
+      // which is exactly what the fault cases below do, and which nothing else
+      // in this file does. What a half MAKES of a revision is its own bench;
+      // what this file owns is that core drives it.
+      return { deps: {}, revision: () => {}, unloaded: () => {} }
     },
     /** The door this half was handed. THROWS rather than answering an empty
      *  one, because a case that reaches for it before anything composed this
@@ -897,15 +914,25 @@ interface Rung {
  * will be handed it, and an unbounded queue holds nothing a scope would have to
  * close.
  */
-const chatKeeping = (rows: ReadonlyArray<Scoped>): {
+const chatKeeping = (kept: ReadonlyArray<Scoped>): {
   readonly chat: Chat
   /** Every triple the gate let through, in order. */
   readonly picked: ReadonlyArray<Picked>
   /** ...and the next body that reached the chat, with the name CORE stamped on
    *  it rather than any the caller offered. */
   readonly rang: Effect.Effect<Rung>
+  /** How many are waiting RIGHT NOW, for the cases whose claim is that
+   *  something was NOT said. Only ever asked after a take that acts as the
+   *  barrier: a delivery is forked, so an empty queue on its own says "not
+   *  yet" as readily as it says "never". */
+  readonly waiting: Effect.Effect<number>
 } => {
   const picked: Array<Picked> = []
+  /** THE TABLE MOVES, because `faults` is a WRITE and the cases about it are
+   *  about what it wrote: the mark, the once-ness, and the row leaving the
+   *  plugin's door. The rule in miniature — `@olai/chat`'s bench drives the
+   *  real record, and what this file owns is who asks and whose words go in. */
+  let rows: ReadonlyArray<Scoped> = kept
   const rang = Effect.runSync(Queue.unbounded<Rung>())
   /** Every member no gate here reaches. A DEATH rather than a refusal: a case
    *  that called one would be asking about something this file does not own,
@@ -932,19 +959,44 @@ const chatKeeping = (rows: ReadonlyArray<Scoped>): {
     // `runtime.ts` asks for a door by name and bridges it — never that it does
     // the keying itself, which is the thing that moved out of that file.
     doorFor: (plugin: string) => ({
+      // ... AND A ROW WHOSE FILE IS GONE IS NOT ON IT, which is the real
+      // chat's own filter and is load-bearing for the fault cases: it is what
+      // the thunk below reads to decide whether the sentence is still owed.
       scopes: () =>
         rows
-          .filter((row) => row.plugin === plugin)
+          .filter((row) => row.plugin === plugin && row.gone !== true)
           .map(({ agent, file, session }) => ({ agent, file, session })),
       deliver: (to: { readonly agent: string; readonly session: string }, say: () => string | null) =>
-        Queue.offer(rang, { to, body: say() ?? "", from: plugin }),
+        Effect.suspend(() => {
+          // THE THUNK IS ASKED HERE, at the moment the words would enter the
+          // conversation — `null` is a body that has lost its subject and is
+          // simply not said, which is the arm the fault's own thunk takes when
+          // the file has come back in the meantime.
+          const body = say()
+          return body === null ? Effect.void : Queue.offer(rang, { to, body, from: plugin })
+        }),
     }),
     scope: (to, plugin, file) =>
       Effect.sync(() => {
         picked.push({ to, plugin, file })
       }),
+    faults: (served) =>
+      Effect.sync(() => {
+        const fell: Array<Scoped> = []
+        rows = rows.map((row) => {
+          const here = served(row.file)
+          if (here === (row.gone !== true)) return row
+          if (here) {
+            return { agent: row.agent, session: row.session, plugin: row.plugin, file: row.file }
+          }
+          const broken: Scoped = { ...row, gone: true }
+          fell.push(broken)
+          return broken
+        })
+        return fell
+      }),
   }
-  return { chat, picked, rang: Queue.take(rang) }
+  return { chat, picked, rang: Queue.take(rang), waiting: Queue.size(rang) }
 }
 
 /** The scope verb off a bound runtime — the browser's own door onto the gate,
@@ -1082,7 +1134,15 @@ test("each plugin's door carries only its own conversations, and rings under onl
   ])
   return withDoubles([ringer, other], () =>
     withRuntime(
-      { "a.olai": OUTLINE },
+      // BOTH PICKED FILES ARE REALLY SERVED, which this case needs to say
+      // nothing about and would otherwise be quietly about: a scope whose file
+      // this directory does not hold is marked broken on the first revision and
+      // leaves its plugin's door, which is a different case entirely (below).
+      // What is under test here is the KEYING, so the files are ordinary ones.
+      {
+        "ringer.olai": `{"id":"r","ord":"a0","title":"r"}\n`,
+        "other.olai": `{"id":"o","ord":"a0","title":"o"}\n`,
+      },
       () =>
         Effect.gen(function*() {
           // ONE ROW EACH, and it is the row that names this plugin. The `plugin`
@@ -1129,4 +1189,105 @@ test("a plugin composed into a chatless serve is handed a door onto nothing", ()
         // that it is callable and returns.
         expect(ringer.door().deliver(TALKING, () => "into the void")).toBeUndefined()
       }), { plugins: [ringer.name] }))
+})
+
+/**
+ * ...AND THE SCOPE WHOSE FILE STOPPED BEING SERVED — who notices, and whose
+ * words the conversation gets.
+ *
+ * ## The defect these two cases are the absence of
+ *
+ * A person scopes a conversation to `lanes.olai`; somebody renames the file.
+ * The plugin derives per revision over a file that is not there, so it derives
+ * nothing — forever — while the strip goes on drawing the control as ON. The
+ * conversation is silent in exactly the way a conversation with nothing to
+ * report is silent, and this PR retires the hand-run fleet watch that was the
+ * second opinion. QUIET-AND-FINE AND QUIET-BECAUSE-BROKEN MUST NOT LOOK ALIKE.
+ *
+ * ## What is under test HERE, and what is not
+ *
+ * The COMPOSITION, which is this file's whole subject: that core is what asks
+ * the question (it holds the revision and the picks; the doorbell holds neither
+ * once its file is gone), and that what reaches the conversation is the string
+ * the PLUGIN DECLARED, byte for byte, with nothing joined to it. The once-ness,
+ * the persistence and the healing are `@olai/chat`'s bench, over the real
+ * record.
+ *
+ * ## THE SERVED SET, AND NOT THE DERIVATION'S `byFile`
+ *
+ * `documentAt` over the snapshot's SET is what answers "is this path still
+ * served", and the second case is why. `byFile` groups PARSED RECORDS, so a
+ * file that is present and empty — or present and torn — has no entry in it: a
+ * scope pointed at one would read as gone, and a person who emptied their lane
+ * file for a minute would be told their doorbell had broken, once, and never
+ * told otherwise. That is the same disagreement `conventionServed` and
+ * `conventionRecorded` are two doors for, decided the same way and for the same
+ * reason.
+ */
+
+test("a scope whose file is not served is told, in the plugin's own words and nobody else's", () => {
+  const ringer = halfCalled("ringer", RINGING)
+  const other = halfCalled("other", RINGING)
+  // Two picks in one conversation: one on a file this directory serves, one on
+  // a file it does not. Only the second is a fault — and the rows are in this
+  // order, so a delivery for the healthy one would arrive FIRST. That is what
+  // makes the silence readable off the queue rather than off a timer.
+  const it = chatKeeping([scoped(ringer.name, "a.olai"), scoped(other.name, "lanes.olai")])
+  return withDoubles([ringer, other], () =>
+    withRuntime(
+      { "a.olai": OUTLINE },
+      () =>
+        Effect.gen(function*() {
+
+          // WHAT THE CONVERSATION GOT: the declared sentence, whole. Core knows
+          // the path and does not put it in — a sentence with core's hole
+          // punched in it is the shape the whole `wake` split refuses.
+          expect(yield* it.rang).toEqual({
+            to: TALKING,
+            body: RINGING.gone,
+            from: other.name,
+          })
+          // ... and the healthy pick was not mentioned, which is the half that
+          // says this is a fault and not a heartbeat.
+          expect(yield* it.waiting).toBe(0)
+          // THE BROKEN ROW IS OFF ITS PLUGIN'S DOOR, and the healthy one is
+          // still on its own. There is nothing to watch, so the doorbell does
+          // not ring for it — and neither does anything else a plugin does per
+          // scope, which is how "alive and quiet" is kept apart from "watching
+          // nothing" by construction.
+          expect(other.door().scopes()).toEqual([])
+          expect(ringer.door().scopes()).toEqual([{ ...TALKING, file: "a.olai" }])
+        }),
+      { chat: it.chat, plugins: [ringer.name, other.name] },
+    ))
+})
+
+test("a file that is served and EMPTY is not a file that is gone", () => {
+  // The honest source of truth is the SET, which holds a place for every served
+  // file including the ones that hold no records. A reading off the derivation's
+  // `byFile` would call this one missing — and the person who emptied it for a
+  // minute would be told, once and never corrected, that their doorbell had
+  // broken.
+  //
+  // THE SECOND PICK IS THE BARRIER. A delivery is forked, so an empty queue
+  // proves nothing on its own; a pick on a file that really is missing gives
+  // this case something to WAIT for, and the empty file's row sits ahead of it,
+  // so a delivery for it would have to arrive first.
+  const ringer = halfCalled("ringer", RINGING)
+  const other = halfCalled("other", RINGING)
+  const it = chatKeeping([scoped(ringer.name, "empty.olai"), scoped(other.name, "lanes.olai")])
+  return withDoubles([ringer, other], () =>
+    withRuntime(
+      { "a.olai": OUTLINE, "empty.olai": "" },
+      () =>
+        Effect.gen(function*() {
+          expect((yield* it.rang).from).toBe(other.name)
+          expect(yield* it.waiting).toBe(0)
+          // ... and the empty file's scope is still on the door, where the
+          // plugin can go on watching a file somebody is in the middle of
+          // rewriting.
+          expect(ringer.door().scopes()).toEqual([{ ...TALKING, file: "empty.olai" }])
+        }),
+      { chat: it.chat, plugins: [ringer.name, other.name] },
+    ))
 })

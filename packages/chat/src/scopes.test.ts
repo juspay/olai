@@ -34,6 +34,10 @@ import { join } from "node:path"
 
 import { forDirectory, ROWS } from "./scopes.ts"
 
+/** Every plugin can be told, which is the ordinary serve — the arm where one
+ *  cannot is `a tenant this serve did not compose` below. */
+const TELLABLE = (): boolean => true
+
 let state = ""
 const was = process.env["XDG_STATE_HOME"]
 
@@ -324,5 +328,162 @@ describe("what a write says it removed", () => {
     // taken back.
     expect(left.map((row) => row.session)).toEqual(["sess-0"])
     expect(scopes.rows().some((row) => row.session === "sess-0")).toBe(false)
+  })
+})
+
+/**
+ * A PICK WHOSE FILE STOPPED BEING SERVED, across a restart — the half of the
+ * fault that only the disk can answer for.
+ *
+ * The rule itself (mark on the edge, unmark when it comes back, answer with
+ * only what just broke) is asserted here rather than only against the chat's
+ * stand-in, because the property that makes it worth having is a property of
+ * the RECORD: "the conversation is told once, and not again after a restart"
+ * cannot be driven through anything in memory. So every case below crosses a
+ * second `forDirectory` over the same directory, which is what a next boot is.
+ *
+ * `served` is a predicate over a set of names, which is the shape the member
+ * takes: the caller holds a revision and can answer for one path in a binary
+ * search, and materialising the list of what went missing would mean walking a
+ * directory per revision.
+ */
+describe("a pick whose file stopped being served", () => {
+  const ALL_THERE = () => true
+  const RENAMED = (file: string): boolean => file !== "Fleet.olai"
+
+  test("nothing is answered, and nothing is written, while the file is there", async () => {
+    const scopes = await run(forDirectory(HERE))
+    await run(scopes.set(IN, "kolu", "Fleet.olai"))
+    const written = readFileSync(only(), "utf8")
+    expect(await run(scopes.faults(ALL_THERE, TELLABLE))).toEqual([])
+    // A revision in which nothing moved is every revision anybody publishes,
+    // and it must not put a filesystem write behind each of them.
+    expect(readFileSync(only(), "utf8")).toBe(written)
+  })
+
+  test("the edge is answered once, and the mark is on the disk", async () => {
+    const scopes = await run(forDirectory(HERE))
+    await run(scopes.set(IN, "kolu", "Fleet.olai"))
+    const fell = await run(scopes.faults(RENAMED, TELLABLE))
+    expect(fell.map((row) => row.file)).toEqual(["Fleet.olai"])
+    expect(scopes.rows()[0]?.gone).toBe(true)
+    // ... and again on the same missing file says nothing more. One rename is
+    // one sentence, not one per revision for as long as it stays renamed.
+    expect(await run(scopes.faults(RENAMED, TELLABLE))).toEqual([])
+  })
+
+  test("A RESTART SAYS NOTHING, because the record remembers it was said", async () => {
+    // THE CASE THIS FIELD EXISTS FOR. Without a persisted mark the next boot
+    // reads the pick, finds the file still missing, and tells the conversation
+    // again — every boot, forever, about a fault somebody was told about days
+    // ago. Driven through a SECOND STORE over the same directory, because the
+    // next boot is a different process and the closure is not the point.
+    await run((await run(forDirectory(HERE))).set(IN, "kolu", "Fleet.olai"))
+    await run((await run(forDirectory(HERE))).faults(RENAMED, TELLABLE))
+    const restarted = await run(forDirectory(HERE))
+    expect(restarted.rows()[0]?.gone).toBe(true)
+    expect(await run(restarted.faults(RENAMED, TELLABLE))).toEqual([])
+  })
+
+  test("the file coming back unmarks it, and the record is the bytes it was", async () => {
+    const scopes = await run(forDirectory(HERE))
+    await run(scopes.set(IN, "kolu", "Fleet.olai"))
+    const untroubled = readFileSync(only(), "utf8")
+    await run(scopes.faults(RENAMED, TELLABLE))
+    // A HEALED TABLE IS AN UNTROUBLED TABLE. Written back without the key
+    // rather than with a `false`, so there is no third state on the disk and a
+    // row an older olai wrote reads the same as a row this one healed.
+    expect(await run(scopes.faults(ALL_THERE, TELLABLE))).toEqual([])
+    expect(readFileSync(only(), "utf8")).toBe(untroubled)
+    expect((await run(forDirectory(HERE))).rows()[0]?.gone).toBeUndefined()
+  })
+
+  test("... and it can break again afterwards, which is a second thing that happened", async () => {
+    const scopes = await run(forDirectory(HERE))
+    await run(scopes.set(IN, "kolu", "Fleet.olai"))
+    await run(scopes.faults(RENAMED, TELLABLE))
+    await run(scopes.faults(ALL_THERE, TELLABLE))
+    expect((await run(scopes.faults(RENAMED, TELLABLE))).map((row) => row.file)).toEqual(["Fleet.olai"])
+  })
+
+  test("a re-pick clears the mark, so the new file gets its own fault", async () => {
+    // A person who has just pointed this doorbell somewhere is owed the next
+    // fault on the NEW file; carrying the old file's mark across would swallow
+    // it silently.
+    const scopes = await run(forDirectory(HERE))
+    await run(scopes.set(IN, "kolu", "Fleet.olai"))
+    await run(scopes.faults(RENAMED, TELLABLE))
+    await run(scopes.set(IN, "kolu", "Other.olai"))
+    expect(scopes.rows()[0]?.gone).toBeUndefined()
+    expect((await run(scopes.faults((file) => file !== "Other.olai", () => true))).map((row) => row.file))
+      .toEqual(["Other.olai"])
+  })
+
+  test("only the rows whose own file went are marked", async () => {
+    const scopes = await run(forDirectory(HERE))
+    await run(scopes.set(IN, "kolu", "Fleet.olai"))
+    await run(scopes.set(IN, "odu", "Runs.olai"))
+    const fell = await run(scopes.faults(RENAMED, TELLABLE))
+    expect(fell.map((row) => row.plugin)).toEqual(["kolu"])
+    expect(scopes.rows().map((row) => row.gone)).toEqual([true, undefined])
+  })
+
+  test("a tenant this serve did not compose leaves its row untouched, mark and all", async () => {
+    // The mark IS the saying: a serve running `--plugins` without this row's
+    // tenant can still see the file went, but nothing would say so — and
+    // marking it would spend the one signal on a serve with no doorbell to
+    // lose. Turn that plugin back on and the row must still be tellable.
+    const scopes = await run(forDirectory(HERE))
+    await run(scopes.set(IN, "kolu", "Fleet.olai"))
+    const silent = (): boolean => false
+    expect(await run(scopes.faults(RENAMED, silent))).toEqual([])
+    expect(scopes.rows().map((row) => row.gone)).toEqual([undefined])
+    // ... and with the tenant back, the fault is still owed and still said.
+    const fell = await run(scopes.faults(RENAMED, TELLABLE))
+    expect(fell.map((row) => row.file)).toEqual(["Fleet.olai"])
+  })
+
+  test("a fault is not a TOUCH, so it does not move a row's place in the eviction order", async () => {
+    // The array's order means "least recently touched" and nothing else. A
+    // rename somebody did in another window is not somebody touching their
+    // doorbell, and a fault that walked a row to the back would evict a pick
+    // whose conversation was genuinely older.
+    const scopes = await run(forDirectory(HERE))
+    await run(scopes.set({ agent: "claude", session: "a" }, "kolu", "Fleet.olai"))
+    await run(scopes.set({ agent: "claude", session: "b" }, "kolu", "Other.olai"))
+    await run(scopes.faults(RENAMED, TELLABLE))
+    expect(scopes.rows().map((row) => row.session)).toEqual(["a", "b"])
+  })
+
+  test("a record that will not take the mark leaves the mirror where it was", async () => {
+    // The record is the authority, for a sharper reason than a pick's: a mirror
+    // that moved under a failed write would have the fault marked in memory and
+    // not on disk, so the sentence goes out now AND again after the next
+    // restart. Failing whole leaves the same edge for the next revision.
+    const scopes = await run(forDirectory(HERE))
+    await run(scopes.set(IN, "kolu", "Fleet.olai"))
+    chmodSync(home(), 0o500)
+    try {
+      const refused = await outcome(scopes.faults(RENAMED, TELLABLE))
+      expect(refused._tag).toBe("Failure")
+      expect(scopes.rows()[0]?.gone).toBeUndefined()
+    } finally {
+      chmodSync(home(), 0o700)
+    }
+  })
+
+  test("a mark that will not parse reads as an unmarked row, and the pick survives", async () => {
+    // The flag is not load-bearing: a row with a damaged `gone` still names a
+    // conversation, a doorbell and a file perfectly well, and dropping it would
+    // turn somebody's doorbell off over a byte that means "we already said
+    // something about this".
+    const scopes = await run(forDirectory(HERE))
+    await run(scopes.set(IN, "kolu", "Fleet.olai"))
+    const held = JSON.parse(readFileSync(only(), "utf8")) as { scopes: Array<Record<string, unknown>> }
+    held.scopes[0]!["gone"] = "yes"
+    writeFileSync(only(), JSON.stringify(held))
+    const restarted = await run(forDirectory(HERE))
+    expect(restarted.rows().map((row) => row.file)).toEqual(["Fleet.olai"])
+    expect(restarted.rows()[0]?.gone).toBeUndefined()
   })
 })

@@ -1,6 +1,7 @@
 /**
  * WHAT THE STRIP'S DOORBELL CONTROL SAYS, in kolu's own words — three
- * strings and not one sentence, because core draws the control between them.
+ * strings and not one sentence, because core draws the control between them,
+ * and beside them ONE whole sentence for the one moment nothing is drawn.
  *
  * ## Why the plugin owns every word and core owns none
  *
@@ -21,6 +22,30 @@
  * to somebody who wants to know what it does — and the mechanism is not even
  * the interesting half: the file is a filter a person swaps, while "terminal
  * activity" is what the doorbell IS.
+ *
+ * ## ...AND THE FOURTH, which is a MESSAGE and not a piece of a control
+ *
+ * {@link wake.gone} is what a conversation is told when the file it woke on
+ * stops being served. Nothing draws it: core hands it to the same door kolu's
+ * own bodies go through, whole, with no lead-in and no numeral
+ * (`@olai/plugins`' `PluginServerHalf.wake.gone` argues why it is one string
+ * where the others are three). So it is written the way {@link ./doorbell.ts}
+ * writes a body rather than the way the three above are written — a plain first
+ * line a glance can read, the attribution under it, and then what a person has
+ * to do about it.
+ *
+ * IT NAMES NO FILE, and that is not an omission core would fill in. Core knows
+ * the path and refuses to punch a hole in somebody else's sentence for it; the
+ * strip is drawing that path two inches away, marked broken. What only kolu can
+ * say is the half that costs: that no terminal is being watched for this
+ * conversation any more.
+ *
+ * AND IT MUST NOT READ AS A HEARTBEAT. The other sentence a quiet conversation
+ * can receive says the watcher is alive and the fleet is quiet; this one says
+ * the watcher is watching nothing. Confusing them is the whole failure this
+ * field exists to prevent — a silence that is fine and a silence that is broken
+ * are indistinguishable on every other channel — so the words below deny the
+ * other reading outright rather than leaving a reader to infer it.
  *
  * ## Why it is a module of its own
  *
@@ -53,4 +78,23 @@ export const wake = {
    *  fresh derivation of everything standing, so calling them "messages"
    *  would promise five messages where one will arrive. */
   waiting: { one: "fleet event waiting", many: "fleet events waiting" },
+  /**
+   * ... and the one whole sentence, for the moment the file goes away. See the
+   * header: no picker around it, no file named in it, and it says both halves
+   * — the file is gone AND nothing is being watched — because a reader told
+   * only the first half would reasonably assume the watcher carried on.
+   *
+   * The third paragraph is the denial. "Not a quiet fleet" is there so that
+   * this can never be read as the reassurance a heartbeat gives, and the last
+   * clause is the way out, because a machine-sent message that cannot be acted
+   * on from inside its own text is a message a person resents
+   * ({@link ./doorbell.ts} spends the same rule on its closing line).
+   */
+  gone: [
+    "The file this conversation's terminal wake was pointed at is no longer in the served directory — renamed, moved, or deleted.",
+    "",
+    "Written by olai's kolu watcher, not by a person.",
+    "",
+    "No terminals are being watched for this conversation any more. Nothing is claimed, nothing will be derived, and nothing is being held back — this is not a quiet fleet, it is a doorbell with no file behind it. Point the wake control at a file that exists and it starts again.",
+  ].join("\n"),
 }

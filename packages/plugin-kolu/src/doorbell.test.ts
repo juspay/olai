@@ -16,15 +16,34 @@
  * meaning WAKE; anything else un-done meaning digest; and unclaimed meaning
  * SILENCE — spelled `null`, because the dispatch dropped the drift arm and
  * there is nothing else for that case to be.
+ *
+ * ...AND THE FLOOR UNDER ALL OF IT, last: the heartbeat. Those cases run the
+ * real drive loop against a fake core — a scope list a test can move and a
+ * `deliver` that HOLDS the thunk the way core holds a body through a running
+ * turn — because every claim worth making about a heartbeat is a claim about
+ * WHEN it is composed. What they pin is the four the human named: a window
+ * with a delivery in it says nothing, an empty one says exactly one thing, the
+ * facts are read at the moment the words go in and not when the beat fired,
+ * and a scope core does not list is never beaten for at all.
  */
 
-import { declarationsOf } from "@olai/format"
+import { type Derived, declarationsOf } from "@olai/format"
 import { readingOf, setOf } from "@olai/format/testlib"
 import type { FleetTerminal, KoluEvent } from "@olai/kolu-client/wire"
 import { UNOWNED } from "@olai/kolu-client/wire"
 import { expect, test } from "bun:test"
 
-import { bodyFor, claimedIn, claimingIn, classify, standingIn } from "./doorbell.ts"
+import {
+  bodyFor,
+  claimedIn,
+  claimingIn,
+  classify,
+  type Conversation,
+  makeHeartbeat,
+  type Scoped,
+  standingIn,
+  terminalsIn,
+} from "./doorbell.ts"
 import { ownKinds, TERMINAL_TYPE } from "./kinds.ts"
 
 // ── The vault, as `./claimants.test.ts` builds one ────────────────────────
@@ -774,4 +793,323 @@ test("a clock this runtime cannot read passes through VERBATIM", () => {
   expect(bodyFor("wake", standing, "lanes.olai", "half past four")).toContain(
     "at half past four,",
   )
+})
+
+// ── THE FLOOR UNDER SILENCE ───────────────────────────────────────────────
+
+/** THE WATCH WINDOW, as the vault's own default spells it: half an hour. It
+ *  arrives at the loop on the beat that fires under it — there is no second
+ *  knob, so a test that invented one would be testing a mechanism that does
+ *  not exist. */
+const WINDOW = 1_800_000
+
+/** ONE SCOPED SEAT — a conversation, and the file somebody pointed it at. */
+const SEAT: Scoped = { agent: "olai", session: "s-1", file: "lanes.olai" }
+
+/** A board with one un-done claim on it, and the same board grown a second. */
+const ONE_CLAIM = {
+  ...DECLARED,
+  "lanes.olai": marked("lane", "review: grok", "doing", { terminal: "11111111" }),
+}
+const TWO_CLAIMS = {
+  ...DECLARED,
+  "lanes.olai": [
+    marked("lane", "review: grok", "doing", { terminal: "11111111" }),
+    marked("lane-b", "review: pi", "todo", { terminal: "22222222" }),
+  ].join("\n"),
+}
+
+/**
+ * THE HEARTBEAT'S BENCH — the real drive loop, against a core that HOLDS.
+ *
+ * `deliver` does not ask for the words: it keeps the thunk, exactly as core
+ * keeps a body through a running turn or until somebody opens the
+ * conversation, and the test asks for them at the moment it wants to know what
+ * they would have said. That is the only way a claim about SEND TIME can be
+ * tested at all — a fake that composed on the spot would agree with every
+ * implementation, including the one that reads its facts when the beat fires.
+ *
+ * The vault and the scope list are both movable for the same reason: what this
+ * loop promises is that it re-reads them, so a bench that could not move them
+ * underneath it would prove nothing.
+ */
+const bench = (files: Record<string, string>) => {
+  let clock = Date.parse("2026-08-31T09:00:00.000Z")
+  let vault: Derived | null = readingOf(setOf(files)).derived
+  let scoped: ReadonlyArray<Scoped> = []
+  const held: Array<
+    { to: Conversation; say: () => string | null; coalesce: string | undefined }
+  > = []
+  const heart = makeHeartbeat({
+    scopes: () => scoped,
+    deliver: (to, say, options) => {
+      held.push({ to, say, coalesce: options?.coalesce })
+    },
+    // The REAL derivation, over whatever vault the test last set — the
+    // server's own closure, which is one `undefined` check and this call.
+    terminals: (file) =>
+      vault === null ? null : terminalsIn(declarationsOf(vault, ownKinds), vault, file),
+    now: () => new Date(clock).toISOString(),
+    coalesce: "kolu:heartbeat",
+  })
+  return {
+    heart,
+    held,
+    scope: (...next: ReadonlyArray<Scoped>) => {
+      scoped = next
+    },
+    board: (next: Record<string, string>) => {
+      vault = readingOf(setOf(next)).derived
+    },
+    /** The store stopped publishing — `server.ts`'s `unloaded`. */
+    unload: () => {
+      vault = null
+    },
+    after: (ms: number) => {
+      clock += ms
+    },
+    /** WHAT ACTUALLY ENTERED THE CONVERSATIONS: core drops a `null` body
+     *  rather than shortening it, so a held delivery that derives to nothing
+     *  is not a message and does not count as one here either. */
+    words: () =>
+      held.map((one) => one.say()).filter((body): body is string => body !== null),
+  }
+}
+
+test("an EMPTY WINDOW produces exactly one heartbeat, and it carries the four facts", () => {
+  const it = bench(ONE_CLAIM)
+  it.scope(SEAT)
+  it.after(WINDOW)
+  it.heart.beat(WINDOW)
+  expect(it.held.length).toBe(1)
+  expect(it.held[0]?.to).toEqual({ agent: "olai", session: "s-1" })
+  // Held under one key per conversation, so two beats through one busy turn
+  // arrive as one message — lossless, because the body is a fresh derivation.
+  expect(it.held[0]?.coalesce).toBe("kolu:heartbeat")
+  const body = it.words()[0] ?? ""
+  // THE FOUR FACTS, and they are the point: "still here" would be true of a
+  // wedged watcher too, so what it says is what a reader can disagree with.
+  expect(body).toContain("— the filter file: lanes.olai.")
+  expect(body).toContain("— terminals it claims right now: 1.")
+  expect(body).toContain("— last watcher event: none at all since it started watching.")
+  expect(body).toContain("— watching since 2026-08-31 09:00 UTC, 30 minutes so far.")
+  // The head is the one line the fold shows, and it says the window and the
+  // subject rather than "still here".
+  expect(body.split("\n")[0]).toBe(
+    "The kolu watcher is alive: 30 minutes with nothing to say about the one terminal lanes.olai claims.",
+  )
+  // The attribution rule the wake bodies keep, for its reason: a replayed
+  // conversation rebuilds the text and nothing else.
+  expect(body).toContain("Written by olai's kolu watcher at 2026-08-31 09:30 UTC, not by a person.")
+  // ...and it says what it is NOT, because a quiet heartbeat read as an
+  // all-clear about a broken scope is the one way this feature could hurt.
+  expect(body).toContain("This is never a fault report")
+})
+
+test("a WINDOW WITH A DELIVERY IN IT produces no heartbeat at all", () => {
+  // THE FLOOR, NOT THE METRONOME: a wake or a digest that reached this
+  // conversation already proved everything a heartbeat would have.
+  const it = bench(ONE_CLAIM)
+  it.scope(SEAT)
+  it.heart.delivered(SEAT)
+  it.after(WINDOW)
+  it.heart.beat(WINDOW)
+  expect(it.held.length).toBe(0)
+  // ...and the window closed with the beat: the NEXT one heard nothing, so it
+  // beats. The ledger is per beat, not per hour — nothing here compares two
+  // stamps, so nothing here can drift against the interval it is measuring.
+  it.after(WINDOW)
+  it.heart.beat(WINDOW)
+  expect(it.held.length).toBe(1)
+})
+
+test("a busy day never sees a heartbeat at all", () => {
+  const it = bench(ONE_CLAIM)
+  it.scope(SEAT)
+  for (let window = 0; window < 6; window += 1) {
+    it.heart.delivered(SEAT)
+    it.after(WINDOW)
+    it.heart.beat(WINDOW)
+  }
+  expect(it.held.length).toBe(0)
+})
+
+test("...and one seat's traffic does not silence another seat's floor", () => {
+  const other: Scoped = { agent: "olai", session: "s-2", file: "lanes.olai" }
+  const it = bench(ONE_CLAIM)
+  it.scope(SEAT, other)
+  it.heart.delivered(SEAT)
+  it.after(WINDOW)
+  it.heart.beat(WINDOW)
+  expect(it.held.map((one) => one.to.session)).toEqual(["s-2"])
+})
+
+test("the facts are derived at SEND TIME, not when the beat fired", () => {
+  // The rule `said` keeps for a wake body, spent on the one number a heartbeat
+  // carries: core holds a delivery through a running turn, and a count read
+  // when the beat fired is the one fact in the message that would be stale by
+  // the time anybody read it.
+  const it = bench(ONE_CLAIM)
+  it.scope(SEAT)
+  it.after(WINDOW)
+  it.heart.beat(WINDOW)
+  // The board moves while the message waits — a dispatch somebody wrote
+  // mid-turn — and so does the clock, and so does the last event.
+  it.board(TWO_CLAIMS)
+  it.after(600_000)
+  it.heart.saw("2026-08-31T09:35:00.000Z")
+  const body = it.words()[0] ?? ""
+  expect(body).toContain("— terminals it claims right now: 2.")
+  expect(body).toContain("— last watcher event: 2026-08-31 09:35 UTC, 5 minutes ago.")
+  expect(body).toContain("— watching since 2026-08-31 09:00 UTC, 40 minutes so far.")
+  expect(body.split("\n")[0]).toContain("the 2 terminals lanes.olai claims")
+})
+
+test("...and the count follows the board back down, because nothing is remembered", () => {
+  const it = bench(TWO_CLAIMS)
+  it.scope(SEAT)
+  it.after(WINDOW)
+  it.heart.beat(WINDOW)
+  // A lane folded while the message waited: the sentence describes now.
+  it.board(ONE_CLAIM)
+  expect(it.words()[0] ?? "").toContain("— terminals it claims right now: 1.")
+})
+
+test("a scope core does not list is never beaten for — the fault's boundary, kept by construction", () => {
+  // THE ONE THING A HEARTBEAT MUST NEVER BE is the message that tells somebody
+  // their scope is broken. A scope whose file has gone is not in `scopes()` at
+  // all, so this loop cannot beat for it and has no gone-detection of its own
+  // to grow one. Quiet-and-fine and quiet-because-broken are two messages, and
+  // this is only ever the first.
+  const it = bench(ONE_CLAIM)
+  it.scope()
+  it.after(WINDOW)
+  it.heart.beat(WINDOW)
+  expect(it.held.length).toBe(0)
+})
+
+test("...and a scope that goes while the heartbeat waits is dropped rather than delivered", () => {
+  const it = bench(ONE_CLAIM)
+  it.scope(SEAT)
+  it.after(WINDOW)
+  it.heart.beat(WINDOW)
+  expect(it.held.length).toBe(1)
+  // Somebody cleared the control — or the file went — during the turn the
+  // message was waiting on. `scopes()` is asked again inside the thunk, so the
+  // words are never composed.
+  it.scope()
+  expect(it.held[0]?.say()).toBeNull()
+  expect(it.words()).toEqual([])
+})
+
+test("...and a re-scoped seat is beaten about the file it is on NOW", () => {
+  const it = bench({
+    ...DECLARED,
+    "lanes.olai": marked("lane", "review: grok", "doing", { terminal: "11111111" }),
+    "board.olai": [
+      marked("a", "one", "doing", { terminal: "22222222" }),
+      marked("b", "two", "todo", { terminal: "33333333" }),
+    ].join("\n"),
+  })
+  it.scope(SEAT)
+  it.after(WINDOW)
+  it.heart.beat(WINDOW)
+  it.scope({ ...SEAT, file: "board.olai" })
+  const body = it.words()[0] ?? ""
+  expect(body).toContain("— the filter file: board.olai.")
+  expect(body).toContain("— terminals it claims right now: 2.")
+})
+
+test("a vault nobody has published is not beaten for, and neither is a disowned one", () => {
+  const it = bench(ONE_CLAIM)
+  it.scope(SEAT)
+  it.unload()
+  it.after(WINDOW)
+  it.heart.beat(WINDOW)
+  // Not a slot in core and not a row: four facts with a hole where the derived
+  // one goes is not a heartbeat.
+  expect(it.held.length).toBe(0)
+})
+
+test("...and a store that stops publishing while the heartbeat waits drops it too", () => {
+  const it = bench(ONE_CLAIM)
+  it.scope(SEAT)
+  it.after(WINDOW)
+  it.heart.beat(WINDOW)
+  it.unload()
+  expect(it.held[0]?.say()).toBeNull()
+})
+
+test("a file that claims NOTHING is still beaten for — the zero is the evidence", () => {
+  // A scope pointed at the wrong file, or a board somebody emptied. This
+  // message is the only place either of those would ever be said out loud, so
+  // a count of zero is a reason to send rather than a reason to skip.
+  const it = bench({ ...DECLARED, "lanes.olai": marked("lane", "shipped", "done") })
+  it.scope(SEAT)
+  it.after(WINDOW)
+  it.heart.beat(WINDOW)
+  const body = it.words()[0] ?? ""
+  expect(body.split("\n")[0]).toBe(
+    "The kolu watcher is alive: 30 minutes with nothing to say, and lanes.olai claims no terminals at all right now.",
+  )
+  expect(body).toContain("— terminals it claims right now: 0.")
+})
+
+test("the BEAT is not an event — a heartbeat never dates itself as one", () => {
+  // The beat and this loop come off one timer, so a beat stamped as an event
+  // would make "last watcher event" say "just now" forever: the one fact in
+  // the message that could never fail, and therefore the one worth nothing.
+  const it = bench(ONE_CLAIM)
+  it.scope(SEAT)
+  it.after(WINDOW)
+  it.heart.beat(WINDOW)
+  it.after(WINDOW)
+  it.heart.beat(WINDOW)
+  expect(it.words()[0] ?? "").toContain(
+    "— last watcher event: none at all since it started watching.",
+  )
+})
+
+test("two records copying one value are ONE terminal, and the fleet is not asked", () => {
+  // The count is over the distinct VALUES the file wrote. Joining it to the
+  // live roster would make a heartbeat a statement about the padi link — the
+  // count would collapse to zero the moment a socket dropped, and the message
+  // a person reads as "quiet and fine" would become the one that tells them
+  // their fleet is gone. That is the fault's sentence, never this one's.
+  const it = bench({
+    ...DECLARED,
+    "lanes.olai": [
+      marked("a", "the lane", "doing", { terminal: "11111111" }),
+      marked("b", "a copy of the lane", "todo", { terminal: "11111111" }),
+    ].join("\n"),
+  })
+  it.scope(SEAT)
+  it.after(WINDOW)
+  it.heart.beat(WINDOW)
+  expect(it.words()[0] ?? "").toContain("— terminals it claims right now: 1.")
+})
+
+test("NOTHING IN A HEARTBEAT IS MARKDOWN either, and it says how to stop it", () => {
+  const it = bench(ONE_CLAIM)
+  it.scope(SEAT)
+  it.after(WINDOW)
+  it.heart.beat(WINDOW)
+  const body = it.words()[0] ?? ""
+  expect(body).not.toContain("**")
+  expect(body).not.toContain("- ")
+  expect(body.split("\n").some((line) => line.startsWith("#"))).toBe(false)
+  expect(body).toContain("clearing the file on this conversation's wake control stops it")
+})
+
+test("a long watch is said in two units, and a clock nobody can read is not subtracted", () => {
+  const it = bench(ONE_CLAIM)
+  it.scope(SEAT)
+  it.after(5 * 3_600_000 + 20 * 60_000)
+  it.heart.saw("half past four")
+  it.heart.beat(WINDOW)
+  const body = it.words()[0] ?? ""
+  expect(body).toContain("— watching since 2026-08-31 09:00 UTC, 5 hours 20 minutes so far.")
+  // The stamp passes through verbatim and nothing is subtracted from it — the
+  // bargain `stampOf` already keeps, one clause along.
+  expect(body).toContain("— last watcher event: half past four.")
 })

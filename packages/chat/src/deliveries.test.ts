@@ -41,6 +41,10 @@ import { SLOTS } from "./deliveries.ts"
 import type { Scoped, Scopes } from "./scopes.ts"
 import { MemoryFailure } from "./memory.ts"
 
+/** Every plugin can be told, which is the ordinary serve — the arm where one
+ *  cannot is `a tenant this serve did not compose` below. */
+const TELLABLE = (): boolean => true
+
 const FIXTURE = join(import.meta.dirname, "fixtures", "doorbell-agent.ts")
 
 /**
@@ -109,6 +113,9 @@ const until = async (what: string, ready: () => boolean, ms = 8_000): Promise<vo
 const scoping = (rows: ReadonlyArray<Scoped>): Scopes => ({
   rows: () => rows,
   set: () => Effect.succeed([]),
+  /** Nothing ever breaks in a read-only table: the fault member's own cases
+   *  are below, over a table that moves. */
+  faults: () => Effect.succeed([]),
 })
 
 const SCOPED = scoping([{
@@ -199,9 +206,9 @@ describe("an agent mid-turn", () => {
       expect(rung(chat)).toEqual([])
       // ... and the strip says one is waiting, because the alternative to
       // holding words out of sight is not dropping them, it is showing them.
-      expect(chat.state().wake).toEqual([{ name: KOLU, file: "Fleet.olai", waiting: 1 }])
+      expect(chat.state().wake).toEqual([{ name: KOLU, file: "Fleet.olai", waiting: 1, gone: false }])
       await until("the turn boundary to let it in", () => rung(chat).length === 1)
-      expect(chat.state().wake).toEqual([{ name: KOLU, file: "Fleet.olai", waiting: 0 }])
+      expect(chat.state().wake).toEqual([{ name: KOLU, file: "Fleet.olai", waiting: 0, gone: false }])
     })
   }, 20_000)
 
@@ -371,43 +378,84 @@ describe("a body that waited", () => {
       expect(rung(chat)[0]?.text).toBe("the standing one")
     })
   }, 20_000)
+
+  test("a settled batch does not strand the NEXT plugin's behind it", async () => {
+    // pi's finding, and the reason it is worth fixing while it is cheap: a batch
+    // that has entirely settled writes no row, no row is no turn, and no turn is
+    // no next boundary. The second plugin's words would sit held until something
+    // unrelated produced one — which on a quiet conversation is never.
+    const chat = await panel()
+    await closing(chat, async () => {
+      await holding(chat)
+      let settled = false
+      await run(chat.doorFor(KOLU).deliver(open(chat), () => settled ? null : "kolu's"))
+      await run(chat.doorFor("odu").deliver(open(chat), () => "somebody else's"))
+      settled = true
+      await until("the turn boundary", () => rung(chat).length === 1)
+      expect(rung(chat)[0]?.text).toBe("somebody else's")
+      expect(rung(chat)[0]?.rang).toBe("odu")
+    })
+  }, 20_000)
 })
 
-describe("a doorbell somebody turned off", () => {
-  /** A scope table that really moves, which is what a CLEAR needs: the read-only
-   *  {@link scoping} above cannot stop answering, and the point of this arm is
-   *  what happens when it does. */
-  const movable = (): Scopes => {
-    let rows: ReadonlyArray<Scoped> = [{
-      agent: "opencode",
-      session: "sess-1",
-      plugin: KOLU,
-      file: "Fleet.olai",
-    }]
-    return {
-      rows: () => rows,
-      set: (to, plugin, file) =>
-        Effect.sync(() => {
-          const without = rows.filter((row) =>
-            !(row.agent === to.agent && row.session === to.session && row.plugin === plugin)
-          )
-          rows = file === null
-            ? without
-            : [...without, { ...to, plugin, file }]
-          // The rows this write removed and did not put back — the real store
-          // answers with these so a caller can take back what their doorbells
-          // were holding.
-          return without.filter((row) => !rows.includes(row))
-        }),
-    }
+/**
+ * A scope table that really MOVES, which is what a clear needs and what a fault
+ * needs: the read-only {@link scoping} above cannot stop answering, and both of
+ * the arms below are about what happens when it does.
+ *
+ * `faults` here is the real record's rule in miniature — mark on the false→true
+ * edge, unmark when the file is back, answer with only what just broke — and it
+ * is a stand-in for the WRITE and never for the rule: `scopes.test.ts` drives
+ * the same rule through the disk, which is where "a restart says nothing" can
+ * be asked at all.
+ */
+const movable = (): Scopes => {
+  let rows: ReadonlyArray<Scoped> = [{
+    agent: "opencode",
+    session: "sess-1",
+    plugin: KOLU,
+    file: "Fleet.olai",
+  }]
+  return {
+    rows: () => rows,
+    set: (to, plugin, file) =>
+      Effect.sync(() => {
+        const without = rows.filter((row) =>
+          !(row.agent === to.agent && row.session === to.session && row.plugin === plugin)
+        )
+        rows = file === null
+          ? without
+          : [...without, { ...to, plugin, file }]
+        // The rows this write removed and did not put back — the real store
+        // answers with these so a caller can take back what their doorbells
+        // were holding.
+        return without.filter((row) => !rows.includes(row))
+      }),
+    faults: (served) =>
+      Effect.sync(() => {
+        const fell: Array<Scoped> = []
+        rows = rows.map((row) => {
+          const here = served(row.file)
+          if (here === (row.gone !== true)) return row
+          if (here) {
+            return { agent: row.agent, session: row.session, plugin: row.plugin, file: row.file }
+          }
+          const broken: Scoped = { ...row, gone: true }
+          fell.push(broken)
+          return broken
+        })
+        return fell
+      }),
   }
+}
 
+describe("a doorbell somebody turned off", () => {
   test("takes back what it is still holding, rather than letting it in later", async () => {
     const chat = await panel({ scoping: movable() })
     await closing(chat, async () => {
       await holding(chat)
       await run(chat.doorFor(KOLU).deliver(open(chat), () => RANG))
-      expect(chat.state().wake).toEqual([{ name: KOLU, file: "Fleet.olai", waiting: 1 }])
+      expect(chat.state().wake).toEqual([{ name: KOLU, file: "Fleet.olai", waiting: 1, gone: false }])
       // The gesture, made on seeing that count — the clear and the count are
       // drawn on one line, so this is the ordinary way to press it and not a
       // contrived race.
@@ -446,7 +494,7 @@ describe("a doorbell somebody turned off", () => {
       // saying it watches a different one — and the plugin does not re-derive
       // it, because the terminals it named need not be claimed in the new file.
       await run(chat.scope(open(chat), KOLU, "Other.olai"))
-      expect(chat.state().wake).toEqual([{ name: KOLU, file: "Other.olai", waiting: 0 }])
+      expect(chat.state().wake).toEqual([{ name: KOLU, file: "Other.olai", waiting: 0, gone: false }])
       await run(chat.send("say:done", [], []))
       await until("the second turn to finish", () => chat.state().status === "idle")
       expect(rung(chat)).toEqual([])
@@ -462,6 +510,7 @@ describe("a doorbell somebody turned off", () => {
     const refusing: Scopes = {
       rows: () => rows,
       set: () => Effect.fail(new MemoryFailure({ why: "the state home is read-only" })),
+      faults: () => Effect.fail(new MemoryFailure({ why: "the state home is read-only" })),
     }
     const chat = await panel({ scoping: refusing })
     await closing(chat, async () => {
@@ -502,4 +551,143 @@ describe("the interruption a person has not spent", () => {
       expect(rung(chat)[0]?.queued).toBeUndefined()
     })
   }, 25_000)
+})
+
+/**
+ * THE DOORBELL WHOSE FILE STOPPED BEING SERVED — the one arm where silence
+ * would otherwise be the whole story.
+ *
+ * A person scopes a conversation to a file; somebody renames it. The plugin
+ * derives per revision over a file that is not there, so it derives nothing,
+ * forever — and the conversation is quiet in exactly the way a conversation
+ * with nothing to report is quiet. This PR retires the hand-run fleet watch
+ * that was the second opinion, so after it lands SILENCE is all supervision
+ * has: quiet-and-fine and quiet-because-broken must not look alike.
+ *
+ * WHAT IS UNDER TEST HERE is the chat's half of that — the once-ness, the
+ * strip, and the door going empty. The DISK's half (a restart with the flag
+ * already written says nothing) is `scopes.test.ts`', driven through the real
+ * record rather than through a stand-in, and the composition — who detects,
+ * whose words go in — is `@olai/server`'s.
+ *
+ * `served` below is a plain predicate over a set of names, which is the shape
+ * the member takes and the reason it takes it: the caller holds a revision and
+ * can answer for one path, and building the list of what went missing would
+ * mean walking a directory per revision.
+ */
+describe("a doorbell whose file is no longer served", () => {
+  /** Everything is where it was. The answer on every revision but two. */
+  const ALL_THERE = () => true
+  /** ... and the rename: `Fleet.olai` is gone and nothing else is. */
+  const RENAMED = (file: string): boolean => file !== "Fleet.olai"
+
+  test("the conversation is told once, and a second revision says nothing more", async () => {
+    const chat = await panel({ scoping: movable() })
+    await closing(chat, async () => {
+      // Nothing has broken yet, so nothing is answered and the row is whole.
+      expect(await run(chat.faults(ALL_THERE, TELLABLE))).toEqual([])
+      expect(chat.state().wake).toEqual([
+        { name: KOLU, file: "Fleet.olai", waiting: 0, gone: false },
+      ])
+
+      // THE EDGE. What comes back is the row, for the caller to say the
+      // plugin's own sentence over — this end composes nothing.
+      const fell = await run(chat.faults(RENAMED, TELLABLE))
+      expect(fell.map((row) => ({ plugin: row.plugin, file: row.file, gone: row.gone })))
+        .toEqual([{ plugin: KOLU, file: "Fleet.olai", gone: true }])
+
+      // ... and every revision after it, with the file still missing, answers
+      // with nothing. This is the whole of "once": a rename is one sentence,
+      // not one per keystroke somebody types into an unrelated outline.
+      expect(await run(chat.faults(RENAMED, TELLABLE))).toEqual([])
+      expect(await run(chat.faults(RENAMED, TELLABLE))).toEqual([])
+    })
+  }, 20_000)
+
+  test("the strip carries the fault, so the control can stop drawing as on", async () => {
+    const chat = await panel({ scoping: movable() })
+    await closing(chat, async () => {
+      await run(chat.faults(RENAMED, TELLABLE))
+      // The file is still named — that is what somebody has to recognise to
+      // know which one went — and the row now says it is broken beside it.
+      expect(chat.state().wake).toEqual([
+        { name: KOLU, file: "Fleet.olai", waiting: 0, gone: true },
+      ])
+    })
+  }, 20_000)
+
+  test("a gone scope is not on its plugin's door", async () => {
+    const chat = await panel({ scoping: movable() })
+    await closing(chat, async () => {
+      expect(chat.doorFor(KOLU).scopes()).toEqual([
+        { agent: "opencode", session: "sess-1", file: "Fleet.olai" },
+      ])
+      await run(chat.faults(RENAMED, TELLABLE))
+      // THE BOUNDARY BETWEEN THE TWO SIGNALS, kept by construction. There is
+      // no file, so there is nothing to derive — and anything else a plugin
+      // does per scope stops with it, a heartbeat saying "alive and quiet"
+      // most of all: that sentence about a doorbell watching nothing is the
+      // confusion this whole feature exists to prevent.
+      expect(chat.doorFor(KOLU).scopes()).toEqual([])
+    })
+  }, 20_000)
+
+  test("the file coming back unmarks it, and says nothing about the recovery", async () => {
+    const chat = await panel({ scoping: movable() })
+    await closing(chat, async () => {
+      await run(chat.faults(RENAMED, TELLABLE))
+      expect(chat.doorFor(KOLU).scopes()).toEqual([])
+
+      // ONE SIGNAL PER FAULT. The scope heals, the door lists it again and the
+      // strip stops drawing it broken — and nothing comes back for a caller to
+      // put into the conversation, because "it is fine again" is a thing the
+      // control shows rather than a thing worth interrupting somebody for.
+      expect(await run(chat.faults(ALL_THERE, TELLABLE))).toEqual([])
+      expect(chat.doorFor(KOLU).scopes()).toEqual([
+        { agent: "opencode", session: "sess-1", file: "Fleet.olai" },
+      ])
+      expect(chat.state().wake).toEqual([
+        { name: KOLU, file: "Fleet.olai", waiting: 0, gone: false },
+      ])
+
+      // ... and it can break a second time, which is a second thing that
+      // happened and gets its own answer.
+      expect((await run(chat.faults(RENAMED, TELLABLE))).length).toBe(1)
+    })
+  }, 20_000)
+
+  test("a record that will not take the mark says nothing and stays unmarked", async () => {
+    // Nobody is standing at the screen for a revision, so this is the boot
+    // read's arm rather than `scope`'s refusal — and nothing is marked, so the
+    // same edge is still there for the next revision to find.
+    let rows: ReadonlyArray<Scoped> = [{
+      agent: "opencode",
+      session: "sess-1",
+      plugin: KOLU,
+      file: "Fleet.olai",
+    }]
+    const refusing: Scopes = {
+      rows: () => rows,
+      set: () => Effect.fail(new MemoryFailure({ why: "the state home is read-only" })),
+      faults: () => Effect.fail(new MemoryFailure({ why: "the state home is read-only" })),
+    }
+    const chat = await panel({ scoping: refusing })
+    await closing(chat, async () => {
+      expect(await run(chat.faults(RENAMED, TELLABLE))).toEqual([])
+      expect(rows[0]?.gone).toBeUndefined()
+      expect(chat.state().wake).toEqual([
+        { name: KOLU, file: "Fleet.olai", waiting: 0, gone: false },
+      ])
+    })
+  }, 20_000)
+
+  test("a panel that keeps no doorbells answers with nothing rather than refusing", async () => {
+    // A serve composed without plugins has no picks to break, and a caller
+    // driving this off every revision has nowhere to put a refusal for a
+    // question that was never applicable.
+    const chat = await panel()
+    await closing(chat, async () => {
+      expect(await run(chat.faults(RENAMED, TELLABLE))).toEqual([])
+    })
+  }, 20_000)
 })

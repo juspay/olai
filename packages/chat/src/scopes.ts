@@ -20,6 +20,17 @@
  * disk: saved events survive a conversation's SESSION GAPS, and a restart is
  * not a session gap.
  *
+ * ## ...and ONE derived fact, which is here because "once" needs a memory
+ *
+ * {@link Scoped.gone} is the exception to the paragraph above and proves its
+ * rule. It is not a pick and not a held body: it records that a conversation
+ * HAS ALREADY BEEN TOLD its file stopped being served. Whether the file is
+ * there is re-derived from every published revision and never read off this
+ * record ({@link Scopes.faults}); what is written down is the SAYING, because
+ * "exactly once, and not again after a restart" is a fact about messages sent
+ * and nothing can reconstruct it. A serve that forgot it would say the same
+ * thing on every boot for as long as the file stayed renamed.
+ *
  * ## The key is the TRIPLE, and the conversation half of it is the pair
  *
  * A conversation is `(agent, session)`, because a session id means nothing to
@@ -146,6 +157,42 @@ export interface Scoped {
    *  uses. What it MEANS is the plugin's business; core stores it and hands it
    *  back. */
   readonly file: string
+  /**
+   * THE FILE THIS ROW NAMES IS NOT SERVED ANY MORE — set once, on the
+   * transition, and cleared the moment it comes back ({@link Scopes.faults}).
+   *
+   * ## Why it is on the ROW and written to the disk
+   *
+   * Two properties have to hold at once and only a persisted flag has both.
+   * ONCE: a conversation is told its doorbell broke exactly one time, not once
+   * per revision for as long as the file stays missing — so something has to
+   * remember it was already said, and the false→true edge is the only place
+   * that decision can be made. AND ACROSS A RESTART: a serve that came back
+   * would otherwise re-read the picks, find the file still missing, and say it
+   * again — every boot, forever, about a fault the person was told about days
+   * ago. Written down, the boot reads a row that is already marked and says
+   * nothing while the strip goes on drawing it broken.
+   *
+   * An in-memory set held beside the table gives the first and not the second,
+   * which is the arrangement it is worth naming as refused: it is the one that
+   * turns a rename into a message per restart.
+   *
+   * ## `true` OR ABSENT, and never `false`
+   *
+   * There is no third state, and a row that is fine carries no key: a healed
+   * scope is written back without one rather than with a `false`, so the record
+   * on disk is the same bytes it was before the fault. `undefined` is what
+   * every row written by an olai that predates this field reads as, which is
+   * exactly right — an unmarked row is one nothing has been said about, and the
+   * first revision after the boot decides.
+   *
+   * WHAT IT IS NOT is a cache of derived truth. It records that a MESSAGE WAS
+   * SENT; whether the file is served is re-derived from the revision every
+   * time, by the caller, and this flag is only ever compared against that fresh
+   * answer. A flag that were consulted INSTEAD of the revision would be the
+   * Monitor's frozen ignore-list reborn.
+   */
+  readonly gone?: true
 }
 
 /**
@@ -184,6 +231,59 @@ export interface Scopes {
     to: { readonly agent: string; readonly session: string },
     plugin: string,
     file: string | null,
+  ) => Effect.Effect<ReadonlyArray<Scoped>, MemoryFailure>
+  /**
+   * WHICH ROWS' FILES ARE STILL THERE — judged against the revision the caller
+   * is holding, marked, persisted, and answered with the ones that JUST BROKE
+   * ({@link Scoped.gone}).
+   *
+   * ## A PREDICATE, and never a set of missing paths
+   *
+   * The question is asked once per published revision, so what it costs is what
+   * a revision costs. A caller that had to hand over the paths that went
+   * missing would first have to know which files are scoped — a second member
+   * on this interface, or a walk of the served directory to diff against — and
+   * both of those are per-revision work proportional to the DIRECTORY. The rows
+   * are the small side: at most {@link ROWS} of them, and the caller's answer
+   * for one path is a binary search over the set it already has in hand
+   * (`@olai/format`'s `documentAt`). So the walk is over the picks and the
+   * membership test comes in, which is `conventions.ts`' whole argument one
+   * package over, spent here for the same reason.
+   *
+   * IT IS ASKED OF EVERY ROW, INCLUDING THE MARKED ONES, and that is what makes
+   * healing work at all: a row that has been told it is gone must still be
+   * tested, because the file coming back is the event that clears it.
+   *
+   * ## What comes back, and what does not
+   *
+   * ONLY the rows that crossed from fine to gone on this call — the false→true
+   * edge, which is the caller's cue to say something once. A row that was
+   * already marked and is still missing is not in the answer, so a second
+   * revision with the file still absent says nothing more. A row that HEALED is
+   * not in the answer either: the scope resumes and nobody is told, because one
+   * fault is one signal and "it came back" is a thing the strip shows rather
+   * than a thing worth interrupting a conversation for.
+   *
+   * ## Nothing moved is no write
+   *
+   * A revision in which every scoped file is where it was — which is every
+   * revision anybody ever publishes — touches no disk and returns the empty
+   * array. The alternative, writing the table back per revision, would put a
+   * filesystem write on the path of every keystroke that lands in an outline.
+   *
+   * A WRITE THAT FAILS LEAVES THE MIRROR ALONE, exactly as {@link Scopes.set}
+   * does and for a sharper reason here: the mirror moving under a failed write
+   * would mean the flag is set in memory and not on disk, so the message is
+   * said now AND said again after the next restart. Failing whole means the
+   * next revision tries the same edge again, which is the arm that can only
+   * cost a delay.
+   */
+  readonly faults: (
+    served: (file: string) => boolean,
+    /** Whether a fault on this plugin's row can be SAID — a plugin this serve did
+     *  not compose, or one declaring no words for it, answers `false` and its
+     *  rows are left untouched. The mark is the saying; see the walk. */
+    sayable: (plugin: string) => boolean,
   ) => Effect.Effect<ReadonlyArray<Scoped>, MemoryFailure>
 }
 
@@ -225,7 +325,13 @@ const picks = (held: Record<string, unknown>): ReadonlyArray<Scoped> => {
     const plugin = word(one["plugin"])
     const file = word(one["file"])
     if (agent === null || session === null || plugin === null || file === null) continue
-    rows.push({ agent, session, plugin, file })
+    // THE FAULT IS NOT LOAD-BEARING, so it is read where the four above are
+    // REQUIRED: a row whose `gone` will not parse is a row that names a
+    // conversation, a doorbell and a file perfectly well, and dropping it would
+    // turn a person's doorbell off over a byte that means "we already said
+    // something about this". Anything but a literal `true` reads as an unmarked
+    // row, which is the state the next revision decides for itself.
+    rows.push({ agent, session, plugin, file, ...(one["gone"] === true ? { gone: true } : {}) })
   }
   return rows
 }
@@ -288,8 +394,14 @@ export const forDirectory = (spelling: string): Effect.Effect<Scopes> =>
           // FILTER OUT, THEN RE-APPEND, and the second half is the touch: a
           // re-pick leaves the front of the array and arrives at the back, so
           // the positions stay in touched-oldest-first order for
-          // {@link capped} to read. This is the only writer, so that is the
-          // whole of the invariant ({@link Scoped}).
+          // {@link capped} to read. This is the only writer of the ORDER, so
+          // that is the whole of the invariant ({@link Scoped}).
+          //
+          // The row is built FRESH, which is where a re-pick loses any
+          // {@link Scoped.gone} the old one carried — and that is the answer
+          // rather than an accident of the literal. A person who has just
+          // pointed this doorbell somewhere is owed the next fault on the new
+          // file, and carrying the old file's mark across would swallow it.
           const next = file === null
             ? without
             : capped([...without, { agent: to.agent, session: to.session, plugin, file }])
@@ -317,6 +429,70 @@ export const forDirectory = (spelling: string): Effect.Effect<Scopes> =>
           // doorbell went quiet — which is exactly the case a caller that could
           // only see `file === null` used to miss.
           return before.filter((row) => !next.includes(row))
+        })),
+      /**
+       * THE PICKS, JUDGED AGAINST A REVISION — see {@link Scopes.faults} for
+       * what this answers with and why the argument is a predicate.
+       *
+       * UNDER THE SAME PERMIT as {@link Scopes.set}, and it is the same
+       * read-modify-write over the same variable: this reads `rows`, builds a
+       * `next` from it and assigns it back, so a pick landing in between would
+       * be a pick that vanishes when this assigns — the exact interleaving the
+       * permit was written for, arriving now from a second writer.
+       *
+       * POSITIONS ARE UNTOUCHED. A `map` writes each row where it stood, so a
+       * file going missing is not a TOUCH and cannot walk a conversation to the
+       * back of the eviction queue. Nobody made a gesture here; the array's
+       * order means "least recently touched", and a rename somebody did in
+       * another window is not somebody touching their doorbell
+       * ({@link Scoped}).
+       */
+      faults: (served, sayable) =>
+        writing.withPermit(Effect.gen(function*() {
+          const before = rows
+          /** The false→true edges, and only those — the caller's cue to say
+           *  something once. */
+          const fell: Array<Scoped> = []
+          let moved = false
+          const next = before.map((row) => {
+            // A ROW NOBODY CAN BE TOLD ABOUT IS LEFT ALONE ENTIRELY, mark and
+            // all. A serve running `--plugins` without this row's tenant can
+            // still SEE the file went — but nothing would say so, and marking it
+            // would spend the one signal on a serve with no doorbell to lose:
+            // turn that plugin back on and the row is already marked, so the
+            // conversation is never told. The mark and the saying are one act
+            // and this is what keeps them one.
+            if (!sayable(row.plugin)) return row
+            const here = served(row.file)
+            const marked = row.gone === true
+            if (here !== marked) return row
+            moved = true
+            if (here) {
+              // IT CAME BACK. Written back without the key rather than with a
+              // `false`, so a healed table is the same bytes an untroubled one
+              // is ({@link Scoped}) — and nothing is said, because one fault is
+              // one signal and the strip is where "it is fine again" shows.
+              return { agent: row.agent, session: row.session, plugin: row.plugin, file: row.file }
+            }
+            const broken: Scoped = { ...row, gone: true }
+            fell.push(broken)
+            return broken
+          })
+          // NOTHING MOVED IS NO WRITE, which is every revision but the two this
+          // member exists for. A table written back per revision would put a
+          // filesystem write behind every keystroke that lands in an outline.
+          if (!moved) return []
+          // THE RECORD FIRST AND THE MIRROR ONLY IF IT LANDED, for
+          // {@link Scopes.set}'s reason sharpened: a mirror that moved under a
+          // failed write would have the fault marked in memory and not on disk,
+          // so the sentence would go out now AND again after the next restart.
+          // Failing whole leaves the same edge for the next revision to find.
+          yield* Effect.mapError(
+            writeHeld(at, { cwd, scopes: next }),
+            (failure) => new MemoryFailure(failure),
+          )
+          rows = next
+          return fell
         })),
     }
   })

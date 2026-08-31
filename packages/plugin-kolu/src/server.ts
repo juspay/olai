@@ -63,7 +63,17 @@ import type { KoluEvent } from "@olai/kolu-client/wire"
 
 import { claimantsIn } from "./claimants.ts"
 import { koluFileIn, watchConfigIn } from "./config.ts"
-import { bodyFor, claimedIn, claimingIn, classify, type Meaning, standingIn } from "./doorbell.ts"
+import {
+  bodyFor,
+  claimedIn,
+  claimingIn,
+  classify,
+  type Heartbeat,
+  makeHeartbeat,
+  type Meaning,
+  standingIn,
+  terminalsIn,
+} from "./doorbell.ts"
 import { name, surface } from "./wire.ts"
 
 /** The kinds this plugin teaches a vault, reached on this door — see
@@ -243,6 +253,26 @@ export const serve = (services: Services): {
    *  `runtime.ts` were, with core no longer in the middle of it. */
   let ctx: Ctx | undefined
 
+  /**
+   * WHETHER THE WATCH HAS BEGUN — one boolean, and it is the boot beat's gate
+   * rather than a state machine.
+   *
+   * The watcher pulses ONCE from inside its own constructor
+   * ({@link ../../kolu-client/src/watch.ts}'s `rearmHeartbeat`, which the header
+   * there says arms and beats in one breath), so the first beat arrives while
+   * `koluHalf` is still returning — before `half`, before `heart`, before every
+   * `const` below this line exists. Calling into any of them there is a
+   * reference to a binding in its own temporal dead zone, which is a crash in a
+   * constructor rather than a bug with a symptom.
+   *
+   * SWALLOWING IT IS ALSO THE SEMANTICS, which is why this is a gate and not a
+   * deferral: the first WINDOW is the first full interval this process watches,
+   * and a boot beat is the start of it rather than the end of one. A heartbeat
+   * there would report an uptime of nothing and a fleet nobody has mirrored
+   * yet — four facts about a watcher that has not watched.
+   */
+  let begun = false
+
   const half = koluHalf<Located>({
     options: {
       env: services.env,
@@ -281,6 +311,14 @@ export const serve = (services: Services): {
     // written inline, because it reads `half` and `half` is what this call
     // returns.
     rang: (event) => ring(event),
+    // THE HEARTBEAT'S TAP, and the doorbell's OTHER drive — the same watcher
+    // beat the pill draws its recency from, spent on the floor under silence
+    // ({@link ./doorbell.ts}'s `makeHeartbeat`). One beat, two readers, no
+    // second timer and no second knob: the cadence a person set for the pill
+    // is the window a conversation's quiet is measured in, by construction.
+    beating: (everyMs) => {
+      if (begun) beats(everyMs)
+    },
     // Chatter, at debug: on a machine with no kolu this is a line every few
     // seconds and it is not news. What IS news — a connect, a skew, a link that
     // dropped — is the same channel, because the alternative is this module
@@ -408,6 +446,13 @@ export const serve = (services: Services): {
     // ordinary case on a quiet machine costs a comparison instead of a walk
     // per scope.
     if (event.row === null) return
+    // ...AND THE ONE THING THE HEARTBEAT KEEPS OF IT: when this doorbell last
+    // saw the fleet ask for somebody. Stamped BEFORE the vault gate below,
+    // because it is a fact about the WATCHER and not about the vault — a
+    // process whose store has stopped publishing is still seeing events, and a
+    // heartbeat that said otherwise would blame the wrong half. The event's own
+    // `at` rather than a fresh clock read: one moment, one stamp.
+    heart.saw(event.at)
     const at = derived
     if (at === undefined) return
     try {
@@ -493,7 +538,17 @@ export const serve = (services: Services): {
           // said happened, happened. What is re-derived is who it is still
           // true of, and a set that has entirely settled answers `null`, which
           // drops the message rather than shortening it.
-          () => said(scope.file, meaning),
+          () => {
+            const body = said(scope.file, meaning)
+            // AND THE WINDOW RESETS HERE, where the words actually go in
+            // rather than where the delivery was handed over. A body core
+            // coalesced away, or one that derived to `null` because the fleet
+            // settled while it waited, never reached anybody — and a window it
+            // silenced would be a heartbeat lost to a message nobody got
+            // ({@link ./doorbell.ts}'s `makeHeartbeat` argues the ledger).
+            if (body !== null) heart.delivered(scope)
+            return body
+          },
           { coalesce: `${name}:${meaning}` },
         )
       }
@@ -503,6 +558,63 @@ export const serve = (services: Services): {
       )
     }
   }
+
+  /**
+   * HOW MANY TERMINALS ONE SCOPED FILE DERIVES, against the revision in force —
+   * the heartbeat's one derived fact, and the only thing that module is handed
+   * about the vault.
+   *
+   * `null` where there is no revision to derive off: before the first one, and
+   * after an `unloaded` disowned the last. It is {@link ring}'s own first gate
+   * in the shape a number-returning closure can spell it, and it is why a
+   * heartbeat cannot go out with a hole where its count belongs.
+   */
+  const terminals = (file: string): number | null => {
+    const at = derived
+    return at === undefined ? null : terminalsIn(declaring, at, file)
+  }
+
+  /**
+   * THE FLOOR UNDER SILENCE — the doorbell's second drive, and the reason the
+   * orchestrator can retire its own hand-run fleet watch.
+   *
+   * Everything it decides is {@link ./doorbell.ts}'s ({@link makeHeartbeat});
+   * what is composed here is the four seams it needs — core's scope list, core's
+   * delivery door, the derivation above, and this half's clock. The key is
+   * minted under this plugin's own name for {@link ring}'s stated reason: core
+   * files a held slot under the PAIR of the plugin and the word, so the prefix
+   * buys legibility in a dump and nothing else.
+   */
+  const heart: Heartbeat = makeHeartbeat({
+    scopes: () => services.deliveries.scopes(),
+    deliver: (to, say, options) => services.deliveries.deliver(to, say, options),
+    terminals,
+    now: services.now,
+    coalesce: `${name}:heartbeat`,
+  })
+
+  /**
+   * ONE BEAT, RUNG THROUGH — and it cannot throw into a timer either.
+   *
+   * {@link ring}'s last paragraph, applied to the other clock: this runs from
+   * `pulse`, which is a `setInterval` callback inside the watcher, so an
+   * exception escaping here would take the process down with no evidence and
+   * stop every hold's timer on the way out. A heartbeat that failed is worth a
+   * line on the owner's channel, and worth exactly one.
+   */
+  const beats = (everyMs: number): void => {
+    try {
+      heart.beat(everyMs)
+    } catch (thrown) {
+      services.warn(
+        `kolu: the doorbell could not beat for this watch window — ${String(thrown)}`,
+      )
+    }
+  }
+
+  // THE GATE OPENS LAST, once every binding the beat reaches through exists —
+  // see `begun` above for why the watcher's own boot pulse must find it shut.
+  begun = true
 
   return {
     /**

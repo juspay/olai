@@ -96,6 +96,7 @@ import {
   CHAT_OFF,
   type ChatEntry,
   type ChatState,
+  type Wake,
   type NodeContext,
   type OpFailure,
   type Listed,
@@ -113,7 +114,7 @@ import type { AgentEvent } from "./events.ts"
 import * as Listings from "./listings.ts"
 import * as Memory from "./memory.ts"
 import type { Probe } from "./probes.ts"
-import type { Scopes } from "./scopes.ts"
+import type { Scoped, Scopes } from "./scopes.ts"
 import { type Change, says, Transcript } from "./transcript.ts"
 import { type Turn, Turns } from "./turns.ts"
 import { sameWatching, watching } from "./watching.ts"
@@ -284,9 +285,21 @@ export interface Chat {
    * second place a plugin roster had to be kept.
    */
   readonly doorFor: (plugin: string) => {
-    /** The conversations THIS plugin's doorbell was pointed at, each with the
-     *  file a person picked. SYNCHRONOUS, because the blob it feeds is built in
-     *  a plain `.map` and read from a watcher sink with no Effect around it. */
+    /**
+     * The conversations THIS plugin's doorbell was pointed at, each with the
+     * file a person picked. SYNCHRONOUS, because the blob it feeds is built in
+     * a plain `.map` and read from a watcher sink with no Effect around it.
+     *
+     * A ROW WHOSE FILE IS GONE IS NOT ON THIS LIST ({@link Chat.faults}), and
+     * that omission is the boundary between the two things a quiet conversation
+     * can mean, kept by construction rather than by care. There is no file, so
+     * there is nothing to derive and nothing to ring about; and anything else a
+     * plugin does per scope — a heartbeat saying it is alive and the subject is
+     * quiet, most of all — must not fire for a conversation whose scope is
+     * broken, because "alive and quiet" and "watching nothing" are the two
+     * sentences this whole feature exists to keep apart. Neither end has to
+     * remember that: the row is simply not here.
+     */
     readonly scopes: () => ReadonlyArray<{
       readonly agent: string
       readonly session: string
@@ -327,6 +340,66 @@ export interface Chat {
     plugin: string,
     file: string | null,
   ) => Effect.Effect<void, OpFailure>
+  /**
+   * WHICH SCOPED FILES ARE STILL SERVED — asked of every published revision,
+   * and answered with the conversations whose doorbell JUST BROKE.
+   *
+   * ## The defect this exists to make impossible
+   *
+   * A person scopes a conversation to `lanes.olai`. Somebody renames the file.
+   * The doorbell derives per revision and walks a file that is not there, so it
+   * derives nothing — forever — while the strip goes on drawing the control as
+   * ON. Nothing is wrong anywhere a person can see, and the conversation is
+   * silent in exactly the way a conversation with nothing to report is silent.
+   * QUIET-AND-FINE AND QUIET-BECAUSE-BROKEN MUST NOT LOOK ALIKE, and after the
+   * hand-run fleet watch is retired this is the only thing standing between
+   * them.
+   *
+   * ## WHO DETECTS AND WHO SPEAKS
+   *
+   * Core detects, because core owns the file and the table: the served set is a
+   * fact about the vault, and the pick is a row in this package's own record.
+   * Core says NOTHING, because a sentence about somebody's terminals is a
+   * sentence core may not compose — what goes into the conversation is the
+   * string the plugin DECLARED (`@olai/plugins`' `PluginServerHalf.wake.gone`),
+   * carried verbatim through the door {@link Chat.doorFor} already hands out.
+   * This member is the join between those two and composes nothing itself.
+   *
+   * ## A PREDICATE rather than the paths that went missing
+   *
+   * The caller holds a revision and can answer "is this path served" in a
+   * binary search; it cannot hand over a list of what went missing without
+   * either a second member here or a walk of the whole directory per revision.
+   * The picks are the small side — at most a few dozen — so the walk is over
+   * them and the membership test comes in. That is `@olai/format`'s
+   * `conventions.ts` argument, spent here for its reason rather than copied.
+   *
+   * ## Exactly once, and quiet on the way back
+   *
+   * What comes back is the false→true edge only ({@link ./scopes.ts}'s
+   * `Scoped.gone`): a second revision with the file still missing answers with
+   * nothing, and a restart with the flag already on the record answers with
+   * nothing, so a rename is one sentence rather than one per revision or one
+   * per boot. A file that COMES BACK unmarks the row, the plugin's door starts
+   * listing it again, and nobody is told — one signal per fault, and the strip
+   * is where the recovery shows.
+   *
+   * ## It cannot fail, because nobody is standing at the screen
+   *
+   * The caller is a revision connector, not a gesture. A record that will not
+   * take the mark is one warning and no rows — the discipline the boot read
+   * keeps ({@link ./scopes.ts}) and the exact opposite of {@link Chat.scope},
+   * which refuses because somebody is waiting to hear whether their pick stuck.
+   * Nothing is marked when the write fails, so the same edge is still there for
+   * the next revision to find.
+   */
+  readonly faults: (
+    served: (file: string) => boolean,
+    /** Whether a fault on this plugin's row can be SAID. A row nobody can be
+     *  told about is left unmarked, so the one signal is not spent by a serve
+     *  that has no doorbell to lose. */
+    sayable: (plugin: string) => boolean,
+  ) => Effect.Effect<ReadonlyArray<Scoped>>
   /** Told by the MCP layer about a write it refused, so the panel can draw the
    *  refusal rather than the agent's account of it. */
   readonly recordRefusal: (
@@ -339,6 +412,30 @@ export interface Chat {
   readonly stop: Effect.Effect<void>
 }
 
+
+/**
+ * TWO WAKE READINGS, THE SAME OR NOT — the guard on a publish that would
+ * otherwise ride every revision in the vault.
+ *
+ * Four scalar fields over at most a few rows, compared in order, because the
+ * rows come out of one walk over one table and their order is that table's.
+ * `sameWatching` beside it keeps the same discipline for the same reason: the
+ * chat cell declares no `equals`, so a `move` with nothing new in it is a whole
+ * `ChatState` on the wire of every open tab.
+ */
+const sameWake = (
+  a: ReadonlyArray<Wake>,
+  b: ReadonlyArray<Wake>,
+): boolean =>
+  a.length === b.length
+  && a.every((row, at) => {
+    const was = b[at]
+    return was !== undefined
+      && row.name === was.name
+      && row.file === was.file
+      && row.waiting === was.waiting
+      && row.gone === was.gone
+  })
 /**
  * How long an agent may say NOTHING after a cancel before the panel says so.
  *
@@ -846,7 +943,17 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         // cell declares `arrayKey: "name"`, which reaches every array at every
         // depth and merges by POSITION any whose elements do not carry it
         // ({@link ../../surface/src/index.ts}).
-        .map((row) => ({ name: row.plugin, file: row.file, waiting: counted.get(row.plugin) ?? 0 }))
+        .map((row) => ({
+          name: row.plugin,
+          file: row.file,
+          waiting: counted.get(row.plugin) ?? 0,
+          // THE FAULT TRAVELS, so the control can stop drawing as enabled
+          // ({@link Chat.faults}). A BOOLEAN on the wire where the record
+          // carries `true`-or-absent: the wire is a decoded value a browser
+          // reads per frame, and an optional key there would be a third state
+          // for a face to have an opinion about.
+          gone: row.gone === true,
+        }))
     }
 
     /** The agent's events, as rows and as state. The one place the vocabulary
@@ -1900,9 +2007,25 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      */
     const offer = (
       to: Deliveries.Addressed,
-      body: string,
+      /**
+       * The words, ASKED HERE and nowhere earlier — past the identity check,
+       * past `turns.busy`, under both permits, at the last instant before the
+       * row is written.
+       *
+       * IT USED TO BE A STRING the caller had already composed, and the caller
+       * had no way to know whether it would be handed over: a body composed for
+       * a conversation whose turn was running came back `"held"` and was thrown
+       * away, to be composed again at the boundary. A plugin counting its own
+       * deliveries therefore counted asks that never landed — which is a
+       * heartbeat's window silenced by a message nobody got
+       * ({@link ../../plugin-kolu/src/doorbell.ts}'s ledger). Asking here makes
+       * "the thunk was asked" and "the words went in" the same event, which is
+       * what {@link ../../plugins/src/plugin.ts}'s `Deliveries.deliver` has
+       * always claimed.
+       */
+      say: () => string | null,
       from: string,
-    ): Effect.Effect<"handed" | "held"> =>
+    ): Effect.Effect<"handed" | "held" | "nothing"> =>
       opening.withPermit(Effect.gen(function*() {
         const at = talking
         // NOT THIS PANEL'S CONVERSATION — no agent bound, none open, or one
@@ -1915,6 +2038,11 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         ) return "held"
         return yield* sending.withPermit(Effect.gen(function*() {
           if (turns.busy) return "held" as const
+          const body = say()
+          // NOTHING LEFT TO SAY. The subject settled while the body waited, so
+          // there is no row — and the caller drops the slots rather than asking
+          // again forever.
+          if (body === null) return "nothing" as const
           // MARKED, and marked by core from the registry binding: the plugin
           // never supplies its own name ({@link ../../surface/src/chat.ts}'s
           // `rang`).
@@ -1944,26 +2072,35 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      */
     const flush = (to: Deliveries.Addressed): Effect.Effect<void> =>
       Effect.gen(function*() {
-        const waiting = held.waiting(to)
-        const oldest = waiting[0]
-        if (oldest === undefined) return
-        const mine = waiting.filter((slot) => slot.from === oldest.from)
-        // ASKED HERE, which is the last moment before the words are in the
-        // conversation — see {@link ./deliveries.ts}'s `joined`. A body that
-        // waited through a turn is about a world that has had a turn to move,
-        // and a plugin whose subject has entirely gone answers with nothing.
-        const body = Deliveries.joined(mine)
-        if (body === null) {
-          // NOTHING LEFT TO SAY, so nothing is written — and the slots go, or
-          // the next boundary would ask them again and get the same silence.
+        // A LOOP, because a batch that has entirely settled writes no row — and
+        // no row is no turn, and no turn is no next boundary. One plugin's
+        // bodies going quiet would otherwise strand a SECOND plugin's behind
+        // them until something unrelated produced a boundary, which on a quiet
+        // conversation is never. Latent while one tenant rings; the day a second
+        // one delivers it is a message that never arrives.
+        for (;;) {
+          const waiting = held.waiting(to)
+          const oldest = waiting[0]
+          if (oldest === undefined) return
+          const mine = waiting.filter((slot) => slot.from === oldest.from)
+          // THE WORDS ARE NOT ASKED FOR HERE. {@link offer} asks them, past its
+          // own two permits, at the instant before the row is written — so a
+          // batch whose turn is still running is not composed and thrown away,
+          // and a plugin counting its own deliveries never counts an ask that
+          // did not land.
+          const arm = yield* offer(to, () => Deliveries.joined(mine), oldest.from)
+          if (arm === "held") return
+          // `"handed"` wrote a row; `"nothing"` found every body settled and
+          // wrote none. Both take the slots — the second so the next pass does
+          // not ask them again and get the same silence — and both keep the
+          // strip's count honest.
           held.took(to, mine)
           move({ wake: wakeOf() })
-          return
+          // ONE ROW PER BOUNDARY, but a batch that said nothing is not a row:
+          // where it settled, the loop goes on to the plugin behind it rather
+          // than waiting for a boundary this pass never produced.
+          if (arm === "handed") return
         }
-        const arm = yield* offer(to, body, oldest.from)
-        if (arm === "held") return
-        held.took(to, mine)
-        move({ wake: wakeOf() })
       })
 
     /**
@@ -2376,7 +2513,14 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       doorFor: (plugin) => ({
         scopes: () =>
           (options.scoping?.rows() ?? [])
-            .filter((row) => row.plugin === plugin)
+            // ... AND NOT A ROW WHOSE FILE IS GONE. There is nothing to watch,
+            // so there is nothing for this plugin to derive — and everything a
+            // plugin does PER SCOPE stops with it, which is the point: a
+            // heartbeat that fired for a broken scope would be the panel saying
+            // "alive and quiet" about a doorbell that is watching nothing. The
+            // filter is how those two are kept apart by construction rather
+            // than by every caller remembering ({@link Chat.faults}).
+            .filter((row) => row.plugin === plugin && row.gone !== true)
             // The `plugin` column goes on the way out: a door is already
             // ABOUT one plugin, so carrying its name back to it would be the
             // caller's own question answered a second time.
@@ -2445,6 +2589,52 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           // and arrive from a doorbell its strip now draws as off.
           for (const row of left) held.dropped(row, row.plugin)
           move({ wake: wakeOf() })
+        }),
+      /**
+       * A revision, judged against the picks. See {@link Chat.faults} for what
+       * it is for; what is here is the three things this package owns about it.
+       *
+       * IT ANSWERS EMPTY FOR A PANEL WITH NO SCOPE TABLE, rather than refusing:
+       * a serve composed without plugins has no picks to break, and a caller
+       * driving this off every revision has nowhere to put a refusal for a
+       * question that was never applicable.
+       *
+       * A WRITE THAT FAILS IS A WARNING AND NO ROWS. Nobody is standing at the
+       * screen — this is a revision and not a gesture — so it takes the boot
+       * read's arm and not {@link Chat.scope}'s. Nothing is marked when the
+       * write fails ({@link ./scopes.ts}), so the same edge is still there next
+       * revision and the only cost is a delay.
+       *
+       * ...AND THE STRIP IS REPUBLISHED, through the one publisher every other
+       * chat verb publishes through: {@link wakeOf} reads the same rows this
+       * just marked, so the control stops drawing as enabled in the same frame
+       * the sentence goes out. Unconditionally, and not only when something
+       * fell — a HEALED row moves the cell too, and it is the arm with nothing
+       * else to announce it.
+       */
+      faults: (served, sayable) =>
+        Effect.gen(function*() {
+          const scoping = options.scoping ?? null
+          if (scoping === null) return []
+          const fell = yield* Effect.result(scoping.faults(served, sayable))
+          if (fell._tag === "Failure") {
+            yield* Effect.logWarning(
+              `a doorbell's file is no longer served and the record would not take the mark ` +
+                `(${fell.failure.why}) — the conversation is not told yet, and the next ` +
+                `revision tries again`,
+            )
+            return []
+          }
+          // ONLY WHEN THE ROWS ACTUALLY MOVED, and this guard is not an economy.
+          // This runs on EVERY published revision — every keystroke somebody
+          // saves anywhere in the vault — and the chat cell declares no
+          // `equals`, so an unconditional `move` here would ship a whole
+          // `ChatState` (roster, commands, servers, usage, watching, wake) to
+          // every open tab on every revision, for a value that is the same
+          // value. `watched()` above keeps the same discipline for the same
+          // reason.
+          if (!sameWake(wakeOf(), state.wake)) move({ wake: wakeOf() })
+          return fell.success
         }),
       recordRefusal: (tool: string, failure: OpFailure) =>
         Effect.sync(() => {

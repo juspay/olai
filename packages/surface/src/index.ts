@@ -1579,6 +1579,7 @@ export {
   Usage,
   UsageFailure,
   UserEntry,
+  Wake,
   Watched,
   Watching,
   whyNot,
