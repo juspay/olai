@@ -98,9 +98,13 @@ typecheck: install
 # The list grew with `reactivity-after-the-flip`, whose subjects are memos and
 # effects over a store — and "a memo re-ran" is the very claim a server-resolved
 # run cannot make, so each of these would PASS having recomputed nothing.
-# `names.ts` is the table every title resolver reads (PR 2) and `doors.ts` is
+# `names.ts` is the table every title resolver reads (PR 2), `doors.ts` is
 # its twin one question over — what the property values a page draws NAME, which
-# every chip of every row looks up — `Tree.tsx` is what
+# every chip of every row looks up — and `licences.ts` is the third of them:
+# which of those values a running plugin's contributed KIND claims, which is what
+# a live face is looked up by and is the more expensive one to re-run for
+# nothing (a terminal door's whole subscription, not a chip's text) —
+# `Tree.tsx` is what
 # one frame costs every row of the page (PR 6, over the real store merge),
 # `directory.ts`'s broken map has to hold its identity across a frame,
 # `chat/last.ts` is about which rows an effect subscribes to (PR 4),
@@ -122,6 +126,7 @@ test: install
       ./packages/web/src/client/fold/refiling.browsertest.ts \
       ./packages/web/src/client/names.browsertest.ts \
       ./packages/web/src/client/doors.browsertest.ts \
+      ./packages/web/src/client/licences.browsertest.ts \
       ./packages/web/src/client/Tree.browsertest.ts \
       ./packages/web/src/client/directory.browsertest.ts \
       ./packages/web/src/client/chat/last.browsertest.ts \

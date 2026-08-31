@@ -20,7 +20,7 @@
 import { writeWrappedValue } from "@kolu/surface/solid"
 import { createStore } from "solid-js/store"
 
-import type { Door, Named, PageReading, Row } from "@olai/format"
+import type { Door, Licence, Named, PageReading, Row } from "@olai/format"
 
 /** Where every fixture here lives — one file, because none of these suites is
  *  about which file a row came out of. */
@@ -55,15 +55,19 @@ export const named = (id: string, title: string): Named => ({ id, title, file: F
  *  a table derived from the rows would be a second, wrong answer to what a row
  *  is called (a name is keyed by NODE id; a row by its place). The doors table
  *  is explicit for its reason exactly — what a property value NAMES is the
- *  set's answer, not one derivable from a row. */
+ *  set's answer, not one derivable from a row — and the LICENCES table beside
+ *  it is the same kind of fact one question over: which contributed word claims
+ *  a value, which no reading of a row up here could say either. */
 export const page = (
   rows: ReadonlyArray<Row>,
   names: ReadonlyArray<Named> = [],
   doors: ReadonlyArray<Door> = [],
+  licences: ReadonlyArray<Licence> = [],
 ): PageReading => ({
   shows: { kind: "outline", file: FILE, rows },
   names,
   doors,
+  licences,
 })
 
 /**

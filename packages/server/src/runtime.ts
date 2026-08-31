@@ -285,7 +285,7 @@ export interface Wiring {
    * now, and absence is the sharper of the two answers: a member that is not
    * there cannot be read as a member that is there and empty, and the
    * framework's composition expresses it for free (`@olai/plugins`'
-   * `compose.ts`). A machine that simply is not running the tool still gets
+   * `composition.test.ts`). A machine that simply is not running the tool still gets
    * the hollow arm, because that is what the appliance's own half answers when
    * its dial finds nothing.
    *

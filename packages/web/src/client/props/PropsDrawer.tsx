@@ -166,7 +166,7 @@ import "../live/dressings.ts"
 import { Handle } from "./handle.tsx"
 import { type ClosedBy, type Editing, leavingCommits, openedOn, sending, writes } from "./editor.ts"
 import { Link } from "../router.tsx"
-import { useDoors, useNames } from "../reading.tsx"
+import { useDoors, useLicences, useNames } from "../reading.tsx"
 import type { Said } from "../saying.ts"
 import { createSaying } from "../saying.ts"
 import { SaidLine } from "../SaidLine.tsx"
@@ -325,11 +325,25 @@ export function PropsDrawer(props: {
    * which is what stops each new dressing from growing its own.
    */
   const running = createRunning()
-  // THE LICENCE IS REACTIVE, which is why it is read here rather than captured:
-  // the roster arrives on a cell after the wire is up, so a tab draws the
-  // built-in default for an instant and then whatever the serve said. A
-  // predicate captured once would pin the first answer.
-  const laid = createMemo(() => layOut(props.entries, editing()?.key, running()))
+  // BOTH LICENCES ARE REACTIVE, which is why they are read inside the memo
+  // rather than captured. The roster arrives on a cell after the wire is up, so
+  // a tab draws the built-in default for an instant and then whatever the serve
+  // said; the page's answers arrive on the page's own frames. A predicate
+  // captured once would pin the first answer of either.
+  //
+  // THE PAGE'S LICENCE ASKS ABOUT A VALUE and the roster's asks about a PLUGIN —
+  // `./live/seam.ts` says why a face wants both. `props.from` is spent here, the
+  // same fact `doorOf` spends one memo up, so the seam never learns that a page
+  // has files in it.
+  const licences = useLicences()
+  const laid = createMemo(() =>
+    layOut(
+      props.entries,
+      editing()?.key,
+      running(),
+      (key, value) => licences()(props.from, key, value),
+    )
+  )
 
   /** Shut whichever editor is open, from either door. */
   const close = (): void => {

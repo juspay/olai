@@ -447,8 +447,8 @@ export type {
  * ({@link ./page.ts}) and every search answer ({@link ./searching.ts}) — while
  * the vault it is asked of stays on this side, which is the whole arrangement.
  */
-export { Door, Meaning, meaningOf } from "./meaning.ts"
-export type { Vault as MeaningVault } from "./meaning.ts"
+export { consult, Door, Licence, Meaning, meaningOf } from "./meaning.ts"
+export type { Consulted, Vault as MeaningVault } from "./meaning.ts"
 export { PROPERTIES, propertiesIn } from "./node.ts"
 
 export {

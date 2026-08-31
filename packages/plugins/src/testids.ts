@@ -36,7 +36,7 @@
  * COLLISION would be the thing that breaks it — two plugins claiming one key —
  * and it would resolve silently in favour of whichever was spread last. That is
  * not left to luck: {@link PLUGIN_TESTID} is asserted disjoint in
- * `./testids.test.ts`, which is the same move `fuseGroups` makes about wire tags
+ * `./testids.test.ts`, which is the same move `mergeDisjointGroups` makes about wire tags
  * one module over and for the identical reason.
  */
 

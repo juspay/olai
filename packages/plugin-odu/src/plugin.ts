@@ -20,11 +20,10 @@
  * this paragraph.
  */
 
-import { WORKTREE_KEY } from "@olai/odu-client/wire"
-
 import { CiChip } from "./browser/CiChip.tsx"
 import { OduMount } from "./browser/mount.tsx"
 import { RunMatrix } from "./browser/RunMatrix.tsx"
+import { WORKTREE_KIND } from "./kinds.ts"
 import { faces, name, surface } from "./wire.ts"
 
 export const plugin = {
@@ -41,15 +40,19 @@ export const plugin = {
    * a wrapping line, so what the press opens hangs under the run as the seam's
    * `Pane` rather than inside the chip.
    *
-   * Against `WORKTREE_KEY` — `@olai/odu-client`'s own constant — and never the
-   * string `"worktree"`: a literal here would be a second spelling free to
-   * drift from the one the browser's own components read.
+   * IT IS THIS PLUGIN'S KIND ({@link ./kinds.ts}'s `WORKTREE_KIND`), which is
+   * the same word the walk that licences the probe follows and the same word
+   * the value gate holds a declaration to — one spelling, one authority, and
+   * the chip and the dial cannot come apart.
    *
-   * IT IS THE PROPERTY KEY AND NOT THIS PLUGIN'S KIND ({@link ./kinds.ts}).
-   * The walk that licences the probe follows the declared KIND; a tab cannot,
-   * because declarations do not travel to one — so a vault declaring
-   * `worktree` on a key called something else is probed and draws no chip,
-   * which is stated here rather than papered over.
+   * IT WAS THE PROPERTY KEY for one PR window, and that was a defect rather
+   * than a simplification: a tab could not key on a declared kind, because
+   * declarations do not travel to one, so a vault declaring `worktree` on a key
+   * called `checkout` was probed and drew no chip. The close is the page
+   * carrying the LICENCE as an answer per drawn value (`@olai/format`'s
+   * `Licence`), so the lookup is by the word after all — never by the key, and
+   * never by `WORKTREE_KEY`, which is what `@olai/odu-client` calls the column
+   * and is no business of this line's.
    *
    * IT USED TO REGISTER ITSELF, from a `client/live/odu-ci/index.ts` inside
    * `@olai/web` that called the seam's `registerLive` at module load, and the
@@ -62,7 +65,7 @@ export const plugin = {
    * dressing) and makes the list of what is live in olai one walk over one
    * registry.
    */
-  dressings: [{ kind: WORKTREE_KEY, Chip: CiChip, Pane: RunMatrix }],
+  dressings: [{ kind: WORKTREE_KIND, Chip: CiChip, Pane: RunMatrix }],
   /** THE TAB'S CI HALF — one subscription however many chips draw
    *  (`./browser/mount.tsx`). It used to be two lines in the app's own
    *  composition root, and the second of them spelled `cells.ci`. */

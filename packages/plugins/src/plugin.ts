@@ -19,7 +19,7 @@
  * `...oduMembers.cells` is two lines that say exactly what is in the spec — and
  * a registry is one line that does not. The trade is bought back by the
  * framework's own composition, which was here the whole time
- * ({@link ./compose.ts}): a plugin declares a WHOLE SURFACE in its own package
+ * ({@link ./composition.test.ts}): a plugin declares a WHOLE SURFACE in its own package
  * and core composes it as a SIBLING under the plugin's name, so what reaches
  * the wire is `surface/kolu/fleet/get` — computed by
  * `composeSurfaceContracts` and by nothing olai wrote. The composed group
@@ -177,8 +177,9 @@ export interface Probed {
  * spent by the validator and the write planner, which is a process that renders
  * nothing, and a manifest carries this plugin's SolidJS faces. The browser
  * needs none of it — a vault's declarations deliberately do not travel
- * (`@olai/format`'s `meaning.ts`), which is exactly why the dressing table one
- * floor up is still keyed by the property KEY and says so ({@link Dressing}).
+ * (`@olai/format`'s `meaning.ts`). What the browser gets instead is the same
+ * consult's ANSWER per drawn value, which is what the dressing table one floor
+ * up is keyed by ({@link Dressing}): the WORD, never the property key.
  */
 export interface PropKind {
   /** The word a declaration writes, and the word a dressing is licensed by. */
@@ -421,29 +422,32 @@ export type PropBlock = (context: BlockContext) => JSX.Element
  * Every field is optional and a dressing with none of them is a property that
  * draws exactly as it always did.
  *
- * ## What the word IS today, said plainly rather than aspirationally
+ * ## The word is the KIND, at both ends
  *
- * {@link PropKind} IS NOW THE SERVER'S ANSWER and is still not this field's.
- * The vault walks and the value gate follow a DECLARED KIND ({@link
- * PropKind}) — that half landed — and the browser cannot, for the reason it
- * never could: a vault's declarations deliberately do not travel (the tab
- * receives ANSWERS — `@olai/format`'s `meaning.ts` argues why the question is
- * settled where the set is), and no member on the wire carries the licence
- * yet. Shipping one would put a declaration on the page stream, which is the
- * decision that survives untouched.
+ * It is {@link PropKind}'s word — the same one the vault walks and the value
+ * gate follow, and the same one a declaration writes. One spelling, one
+ * authority, so a plugin's face and its probe cannot come apart.
  *
- * So the word a plugin writes HERE is still the property KEY and the seam still
- * looks a property up by it. That is recorded rather than papered over, and it
- * is now a knowable gap rather than a pending one: a vault whose `terminal`
- * KIND is declared on a key called something else is walked and probed, and
- * draws no chip. Closing it is a member that carries the licence per drawn
- * value, and the day it lands this field's meaning changes in ONE place — here
- * — rather than at every registration.
+ * IT WAS THE PROPERTY KEY for one PR window, and the reason is worth keeping
+ * because it was a good reason that produced a bad shape. A vault's
+ * declarations deliberately do not travel to a tab (`@olai/format`'s
+ * `meaning.ts` argues why the question is settled where the set is), so the
+ * browser had nothing but the key to look a face up by — and the two halves
+ * therefore agreed only while a vault happened to name its key after the kind.
+ * A vault declaring `terminal` on a key called `pty` was walked, probed and
+ * gated, and drew nothing.
+ *
+ * What closed it is neither a declaration on the wire nor a member on a
+ * plugin's surface: the page's own consult mints an ANSWER PER DRAWN VALUE —
+ * `from`, `prop`, `value` → the word, when a running plugin's kind claims it —
+ * beside the doors table it is a twin of (`@olai/format`'s `Licence`). The tab
+ * still receives answers and still cannot re-derive a rule; what changed is
+ * only which question the answer is to.
  */
 export interface Dressing {
-  /** The word this dressing is looked up by — see the header for what it is
-   *  today and what it becomes. Never a literal at the call site: it is the
-   *  plugin's own constant, the same one its server probes by. */
+  /** The KIND this dressing is looked up by — this plugin's own constant, the
+   *  same one its {@link PropKind} declares and its server walks by, and never
+   *  a literal at the call site. */
   readonly kind: string
   readonly Chip?: PropChip
   readonly Pane?: PropPane

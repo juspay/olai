@@ -44,8 +44,8 @@
  * watchdog probes and which one the `pid` handshake reads: both addressed
  * `Object.keys(surfaces)[0]`, the FIRST SIBLING. Core could not go in that map
  * — its tags are `surface/<member>/<verb>` and must stay that way (an MCP
- * client writes them, the suite asserts them, `@olai/plugins`' `compose.ts`
- * argues the whole composition on it) — so the probe target was a PLUGIN, and a
+ * client writes them, the suite asserts them, and `@olai/plugins`'
+ * `composition.test.ts` pins it) — so the probe target was a PLUGIN, and a
  * serve that did not run that plugin answered its `system/identity` with
  * "Unknown request tag", emptying the `pid` echo. An empty echo is precisely
  * the dead stale-tab handshake olai#61 is about, and `--plugins=odu` would have

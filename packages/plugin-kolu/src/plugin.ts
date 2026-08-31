@@ -19,11 +19,11 @@
  * this paragraph.
  */
 
-import { TERMINAL_KEY } from "@olai/kolu-client/wire"
 import { TerminalBlock } from "@olai/kolu-ui"
 
 import { KoluMount } from "./browser/mount.tsx"
 import { Padi } from "./browser/Padi.tsx"
+import { TERMINAL_KIND } from "./kinds.ts"
 import { faces, name, surface } from "./wire.ts"
 
 export const plugin = {
@@ -43,19 +43,20 @@ export const plugin = {
    * The COMPONENT is `@olai/kolu-ui`'s, behind a package wall, because it
    * renders kolu's row and mounts kolu's emulator and that is an appliance's
    * implementation. What is decided HERE is the one thing that is olai's: that
-   * this key wears that face.
+   * this kind wears that face.
    *
-   * Against `TERMINAL_KEY` — `@olai/kolu-client`'s own exported constant —
-   * never the string `"terminal"`: a literal would be a second spelling free to
-   * drift from the one the browser's own components read.
+   * IT IS THIS PLUGIN'S KIND ({@link ./kinds.ts}'s `TERMINAL_KIND`), which is
+   * the same word the server's walk and the value gate follow — one spelling,
+   * one authority, and the face and the probe cannot come apart.
    *
-   * IT IS THE PROPERTY KEY AND NOT THIS PLUGIN'S KIND ({@link ./kinds.ts}),
-   * and the two are no longer the same question. The server's walk follows the
-   * declared KIND; a tab cannot, because a vault's declarations do not travel
-   * to one. So a vault that declares `terminal` on a key called something else
-   * is walked and probed and draws no row — named here rather than papered
-   * over, and closed by a wire member that carries the licence per drawn
-   * value.
+   * IT WAS THE PROPERTY KEY for one PR window, and that was a defect rather
+   * than a simplification: a tab could not key on a declared kind, because a
+   * vault's declarations do not travel to one, so a vault that declared
+   * `terminal` on a key called `pty` was walked, probed and gated and drew no
+   * row. The close is the page carrying the LICENCE as an answer per drawn
+   * value (`@olai/format`'s `Licence`), so the browser's lookup is by the word
+   * after all — never by the key, and never by `TERMINAL_KEY`, which is what
+   * `@olai/kolu-client` calls the column and is no business of this line's.
    *
    * IT USED TO REGISTER ITSELF, from a `client/live/kolu-terminal/index.ts`
    * inside `@olai/web` that called the seam's `registerLive` at module load,
@@ -68,7 +69,7 @@ export const plugin = {
    * dressing) and makes the list of what is live in olai one walk over one
    * registry.
    */
-  dressings: [{ kind: TERMINAL_KEY, Block: TerminalBlock }],
+  dressings: [{ kind: TERMINAL_KIND, Block: TerminalBlock }],
   /** THE PADI PILL, in the app's chrome row — the third standing promise beside
    *  the connection and the Commit pill (`./browser/Padi.tsx`). It hangs no
    *  DRAWER of its own on the manifest: the feed is what this readout's press

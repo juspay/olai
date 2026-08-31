@@ -70,36 +70,39 @@
  * take. Its ladders are also what the app hands a plugin's live face across
  * (`../plugins/furniture.tsx`), so one register serves both sides of the wall.
  *
- * ## Keyed on the KEY, and this is now an ANSWER rather than a promise
+ * ## Keyed on the declared KIND, which the page ANSWERS for
  *
- * The old header said this table would key on the declared KIND "the day typed
- * properties land". Typed properties landed, and the honest answer turned out
- * to be different, so it is written here rather than left as a debt somebody
- * would keep re-reading.
+ * The table's key is the WORD a plugin taught the vault — `terminal`,
+ * `worktree` — and never the property key a value happens to sit under. That is
+ * what the server has always followed: `@olai/plugin-odu`'s `worktrees.ts`
+ * probes only the keys a vault declared its own `worktree` KIND, where the
+ * licence used to settle for the format's `path` and could therefore not tell
+ * `brief` from a checkout. So the promise a dressing rests on is one the vault
+ * made rather than one a component assumed.
  *
- * A BROWSER CANNOT KEY ON A DECLARED TYPE, because a vault's declarations
- * deliberately do not travel (juspay/olai#395 — the tab receives ANSWERS, and
- * `@olai/format`'s `meaning.ts` argues why the question is settled where the
- * set is). Keying this table on a type would mean shipping the declarations to
- * every tab, which is the one decision that design made and did not want back.
+ * IT USED TO BE THE PROPERTY KEY, and that was a real defect rather than a
+ * simplification. A BROWSER CANNOT KEY ON A DECLARED TYPE — a vault's
+ * declarations deliberately do not travel (juspay/olai#395 — the tab receives
+ * ANSWERS, and `@olai/format`'s `meaning.ts` argues why the question is settled
+ * where the set is) — so this table settled for the one thing a tab had, and
+ * the two halves agreed only while a vault named its key after the kind. A
+ * vault declaring `terminal` on a key called `pty` was walked, probed and gated
+ * on the server and drew NOTHING here.
  *
- * So the seam is split along the line the architecture already draws. THE KEY
- * SELECTS the face, here, in the browser. THE DECLARED KIND LICENCES it, on
- * the server, where the declarations are: `@olai/plugin-odu`'s `worktrees.ts`
- * probes only the keys a vault has declared its own `worktree` KIND — a word
- * that plugin contributes, where the licence used to settle for the format's
- * `path` and could therefore not tell `brief` from a checkout. So the promise a
- * dressing rests on is one the vault made rather than one a component assumed.
- * A vault that declares nothing gets no CI cell, the chip has nothing to say,
- * and it draws as the path it always was.
+ * What closed it is not a declaration on the wire and not a wire member: the
+ * page's own consult mints an ANSWER PER DRAWN VALUE — `from`, `prop`, `value` →
+ * the word, when a running plugin's kind claims it — and it rides beside the
+ * doors table it is a twin of (`@olai/format`'s `Licence`, `../licences.ts`).
+ * The tab still receives answers and still cannot re-derive a rule; #395 is
+ * untouched. What changed is only which question the answer is to.
  *
- * THE TWO HALVES CAN NOW MISS EACH OTHER, in one direction and knowably: a
- * vault that declares the KIND on a key called something else is probed on the
- * server and finds no dressing here, because this table has only the key to go
- * on. That is the residue of the same #395 decision rather than a second
- * defect, and what closes it is a wire member carrying the licence per drawn
- * value — at which point this table keys on the kind and the plugins' own
- * `Dressing.kind` stops being a property key.
+ * SO THERE ARE TWO LICENCES AND THEY ASK DIFFERENT THINGS, both spent in
+ * {@link dressingFor}. The page's says THIS VALUE is claimed by that word, which
+ * is a fact about the vault. The roster's ({@link Running}) says THIS SERVE is
+ * running the plugin that owns the face, which is a fact about the process. They
+ * agree in every ordinary case — both fall out of `--plugins` — and they arrive
+ * on different frames, so the second is what keeps a face off the page in the
+ * instant before a roster lands.
  *
  * ## Three rules a dressing must satisfy, and they are the chip's own
  *
@@ -214,27 +217,25 @@ export interface Dressing {
  */
 const DRESSINGS = new Map<string, { readonly dressing: Dressing; readonly plugin: string }>()
 
-/** Dress a property key. Called once per dressing, at module load, from the
+/** Dress a contributed KIND. Called once per dressing, at module load, from the
  *  module that owns the app's table (`./dressings.ts`) — never from the
  *  component itself: a self-registrant would put an appliance in charge of the
  *  app's table, and the import direction would be a lie told by an `import "…"`
  *  with no binding.
  *
- *  THE KEY IS THE PLUGIN'S OWN CONSTANT, arriving on its manifest — the
- *  property KEY, which is not what that plugin's SERVER follows any more: the
- *  vault walks and the value gate follow a declared KIND, and a tab cannot,
- *  because declarations do not travel to one (juspay/olai#395). A vault that
- *  declares the kind on a key called something else is probed and draws
- *  nothing here, which is the knowable gap a wire member carrying the licence
- *  would close. It used to be re-exported from here, as
- *  `TERMINAL_KEY` and `WORKTREE_KEY` off `@olai/surface`, so a registration
- *  could read in one line; that re-export is gone with the registrations, and
- *  the reason is the direction rather than tidiness. Those constants belong to
- *  the appliance slices that declare them, this package may not name a plugin,
- *  and a general seam holding two tenants' property keys was the last place
- *  core spelled one. */
-export const registerLive = (key: string, dressing: Dressing, plugin: string): void => {
-  DRESSINGS.set(key, { dressing, plugin })
+ *  THE WORD IS THE PLUGIN'S OWN CONSTANT, arriving on its manifest — the same
+ *  one its `kinds` table declares and its server walk follows, which is the
+ *  whole of the fix: one spelling, one authority. It was the property KEY for
+ *  one PR window, because a tab had nothing else, and the two halves silently
+ *  disagreed for any vault that named a key something other than the kind.
+ *  Before that it was re-exported from here, as `TERMINAL_KEY` and
+ *  `WORKTREE_KEY` off `@olai/surface`, so a registration could read in one line;
+ *  that re-export is gone with the registrations, and the reason is the
+ *  direction rather than tidiness — this package may not name a plugin, and a
+ *  general seam holding two tenants' words was the last place core spelled
+ *  one. */
+export const registerLive = (word: string, dressing: Dressing, plugin: string): void => {
+  DRESSINGS.set(word, { dressing, plugin })
 }
 
 /**
@@ -262,13 +263,44 @@ export type Running = (plugin: string) => boolean
  *  flashing every face off and on. */
 export const ALL_RUNNING: Running = () => true
 
-/** The dressing for one entry, or `undefined` where it draws as a plain chip.
- *  The three rules are here rather than in the drawer so every future dressing
- *  gets them without restating them. */
-export const dressingFor = (entry: Entry, running: Running): Dressing | undefined => {
+/**
+ * WHAT WORD CLAIMS A VALUE ON THIS PAGE — the page's own answer, narrowed to the
+ * one file this run is drawn from.
+ *
+ * The full table is keyed by the TRIPLE (`../licences.ts`), because the file a
+ * value was written in is part of its identity. A run is all from one file, so
+ * what the drawer hands down is that lookup with its `from` already spent —
+ * which keeps this module from having to know that a page has files in it at
+ * all.
+ */
+export type Licensed = (key: string, value: string) => string | undefined
+
+/** What a run with no answers draws: nothing wears a face. The state a page
+ *  whose reading has not arrived is in, and the state every value in a vault
+ *  that declares nothing stays in. */
+export const NOTHING_CLAIMED: Licensed = () => undefined
+
+/**
+ * The dressing for one entry, or `undefined` where it draws as a plain chip.
+ *
+ * FOUR RULES, here rather than in the drawer so every future dressing gets them
+ * without restating them: the three the header lists, plus the licence — which
+ * is really two questions of two authorities, and the header says why both.
+ */
+export const dressingFor = (
+  entry: Entry,
+  running: Running,
+  licensed: Licensed,
+): Dressing | undefined => {
   if (entry.system) return undefined
-  if (entry.values.length !== 1) return undefined
-  const held = DRESSINGS.get(entry.key)
+  // The single value is read out here rather than asked for twice: it is the
+  // rule ("one value, or the run of text it always was") and it is also what the
+  // licence is looked up by, and those had better be the same value.
+  const [value, ...rest] = entry.values
+  if (value === undefined || rest.length > 0) return undefined
+  const word = licensed(entry.key, value)
+  if (word === undefined) return undefined
+  const held = DRESSINGS.get(word)
   if (held === undefined) return undefined
   return running(held.plugin) ? held.dressing : undefined
 }
@@ -307,11 +339,14 @@ export const layOut = (
   entries: ReadonlyArray<Entry>,
   editing: string | undefined,
   running: Running,
+  licensed: Licensed,
 ): Laid => {
   const run: Laid["run"][number][] = []
   const blocks: { entry: Entry; block: PropBlock }[] = []
   for (const entry of entries) {
-    const dressing = entry.key === editing ? undefined : dressingFor(entry, running)
+    const dressing = entry.key === editing
+      ? undefined
+      : dressingFor(entry, running, licensed)
     if (dressing?.Block !== undefined) blocks.push({ entry, block: dressing.Block })
     else run.push({ entry, chip: dressing?.Chip, pane: dressing?.Pane })
   }

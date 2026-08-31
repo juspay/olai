@@ -5,7 +5,7 @@
  * resolves a collision silently in favour of whichever was written last. A
  * silent collision here is a scenario asserting on the wrong package's element —
  * green, and about nothing. So the disjointness is COUNTED, which is the same
- * move `./compose.ts`'s `fuseGroups` makes about wire tags and for the identical
+ * move the framework's `mergeDisjointGroups` makes about wire tags and for the identical
  * reason: a proof that rests on an argument nobody re-checks is the class of
  * thing this repo keeps turning into a test.
  *

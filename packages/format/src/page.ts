@@ -65,10 +65,28 @@
  * where the set is and its ANSWERS travel ({@link PageReading.doors}), exactly
  * as resolved names do.
  *
+ * ## ...and the LICENCES table beside THAT, which is the same walk's other half
+ *
+ * A value may also be CLAIMED — by a word a plugin taught this vault, declared
+ * on the key it sits under, on a serve that is running the plugin that answers
+ * for it. That conjunction is what licences a live FACE (a terminal door, a CI
+ * chip), and it was the last thing in olai a browser decided for itself: the
+ * dressing table was looked up by the property KEY, because the key is all a
+ * tab has, while the server's walk and value gate followed the declared KIND.
+ * A vault declaring `terminal` on a key called `pty` was therefore probed,
+ * gated, and drawn as nothing.
+ *
+ * So the WORD travels, as {@link PageReading.licences}, minted by the very same
+ * consult that mints the doors ({@link answersFor} — one walk, one dedupe, two
+ * tables). It is an answer about one drawn value and not the declaration it was
+ * read from, which is what makes it the same kind of thing as a name and a door
+ * rather than a hole in the paragraph below.
+ *
  * WHAT DOES NOT TRAVEL is the vocabulary itself. A declarations cell beside the
  * page was the refused alternative and #395's exclusion survives untouched: the
- * tab receives what each value turned out to name, never the rules that decided
- * it, so nothing up there can re-derive an answer and disagree.
+ * tab receives what each value turned out to name and what claims it, never the
+ * rules that decided either, so nothing up there can re-derive an answer and
+ * disagree.
  */
 
 import { Schema } from "effect"
@@ -81,7 +99,7 @@ import { dailyNotesOn, DayGroup, datedOn } from "./dates.ts"
 import { type Derived, type InTheWay, nodeNamed, nodesOf, Row, rowsOf } from "./derive.ts"
 import type { Face } from "./document.ts"
 import { bodyKind, FileKind, fileKind } from "./kinds.ts"
-import { Door, meaningOf, type Vault } from "./meaning.ts"
+import { consult, Door, Licence, type Vault } from "./meaning.ts"
 import { ID_SHAPE, isPutAway, isTrashed, type LocatedRegular, propertiesIn } from "./node.ts"
 import { markdownPaths } from "./rules.ts"
 import { BrokenFile } from "./set.ts"
@@ -272,9 +290,16 @@ export const PageReading = Schema.Struct({
   names: Schema.Array(Named),
   /** Every property value this page draws that NAMES something, and what it
    *  names — see the doors paragraph at the top of this module and
-   *  {@link doorsFor}. A value that names nothing is absent, which the drawing
+   *  {@link answersFor}. A value that names nothing is absent, which the drawing
    *  side reads as "the text it always was". */
   doors: Schema.Array(Door),
+  /** ...and every property value this page draws that a RUNNING plugin's
+   *  contributed kind CLAIMS, with the word it claims it under — the licence a
+   *  live face is looked up by. Same walk, same dedupe, same discipline: an
+   *  answer about one drawn value and never the declaration behind it. A value
+   *  nothing claims is absent, which the drawing side reads as "this wears no
+   *  face". */
+  licences: Schema.Array(Licence),
 })
 export type PageReading = typeof PageReading.Type
 
@@ -342,7 +367,7 @@ export const pageOf = (
   // second walk deciding which ids to resolve could disagree with the one that
   // decided which values are doors, and the disagreement would read as a ref
   // chip that fell back to its id for no reason a reader could see.
-  const doors = doorsFor(at, shows, kinds)
+  const { doors, licences } = answersFor(at, shows, kinds)
   return {
     shows,
     names: namesFor(
@@ -352,12 +377,21 @@ export const pageOf = (
       doors,
     ),
     doors,
+    licences,
   }
 }
 
 /**
- * WHAT EVERY PROPERTY VALUE ON THIS PAGE NAMES — the projection, once per
- * revision, on the page's own pulse.
+ * WHAT EVERY PROPERTY VALUE ON THIS PAGE NAMES, AND WHAT CLAIMS IT — the
+ * projection, once per revision, on the page's own pulse.
+ *
+ * TWO TABLES OUT OF ONE WALK, and they are one walk on purpose rather than for
+ * economy. The value's declaration decides both answers ({@link ./meaning.ts}'s
+ * `consult`), so a second walk asking the second question is a second reading
+ * of one rule — which is the bug family this whole seam was built to end, and
+ * the licence was its most recent member. What the sharing costs is nothing:
+ * the dedupe is per TRIPLE, so both tables are deduped by one `asked` set and a
+ * value is consulted exactly once however many rows carry it.
  *
  * ONE WALK, and it is `drawnIn` — the same one the names table spends. That is
  * deliberately a SUPERSET of the records that draw chips (a zoom's crumbs and
@@ -387,11 +421,11 @@ export const pageOf = (
  * convention is found in, which is what lets the declarations be read off ONE
  * file's records rather than off a walk of every file's.
  */
-const doorsFor = (
+const answersFor = (
   at: Reading,
   shows: Shown,
   kinds: KindVocabulary,
-): ReadonlyArray<Door> => {
+): { readonly doors: ReadonlyArray<Door>; readonly licences: ReadonlyArray<Licence> } => {
   const served = new Set<string>(at.set.documents.map((face) => face.path))
   // ...AND THE `.md` HALF OF IT, which is a second set and has to be: a `doc`
   // value promises to name a served DOCUMENT, and the gate holds it to exactly
@@ -425,6 +459,7 @@ const doorsFor = (
     documents: (file) => documents.has(file),
   }
   const doors: Array<Door> = []
+  const licences: Array<Licence> = []
   const asked = new Set<string>()
   const ask = (from: string, custom: Custom): void => {
     for (const [key, held] of Object.entries(custom)) {
@@ -437,14 +472,18 @@ const doorsFor = (
         const triple = `${from}\u0000${key}\u0000${value}`
         if (asked.has(triple)) continue
         asked.add(triple)
-        const opens = meaningOf(vault, from, key, value)
+        // ONE CONSULT, both answers. They are never both present — a claimed
+        // value opens nothing, which `meaning.ts`'s `contributed` arm argues —
+        // so this reads as two independent pushes rather than as a branch.
+        const { opens, word } = consult(vault, from, key, value)
         if (opens !== null) doors.push({ from, prop: key, value, opens })
+        if (word !== null) licences.push({ from, prop: key, value, word })
       }
     }
   }
   for (const node of drawnIn(shows)) ask(node.file, customOf(node.node))
   if (shows.kind === "document") ask(shows.file, shows.props)
-  return doors
+  return { doors, licences }
 }
 
 /** The OUTLINES' paths, in path order — what the trash reads and what the front

@@ -1,15 +1,24 @@
 /**
- * WHAT A PROPERTY VALUE NAMES — one question, one answer, asked where the set
- * is.
+ * WHAT A PROPERTY VALUE NAMES, AND WHAT CLAIMS IT — one consult, two answers,
+ * asked where the set is.
  *
  * `custom` is the one open field on a record and olai gives no key in it a
  * meaning ({@link ./custom.ts}); that is the format's rule and it does not
  * move. But a vault that DECLARES its keys ({@link ./typing.ts}) has said
  * something about the values under them, and a lane node saying
  * `brief briefs/tp.md` and `agent grok` is pointing at two things this
- * directory actually holds. So this module asks one question of one value —
- * *does this name something the app can open, and what* — and everything that
- * draws a chip spends the answer.
+ * directory actually holds. So this module asks of one value — *does this name
+ * something the app can open, and what* — and everything that draws a chip
+ * spends the answer.
+ *
+ * It asks a SECOND thing at the same moment, because the same reading of the
+ * same declaration decides it: *is this value claimed by a word a plugin
+ * taught this vault, and which*. That is what licences a LIVE FACE — a
+ * terminal door, a CI chip — and {@link Consulted} is the pair. The two are
+ * together rather than beside each other for the reason the whole of the next
+ * section is about: two readings of one declaration is exactly the family of
+ * bug this module was built to end, and the licence had quietly become the
+ * newest member of it.
  *
  * ## The bug family this exists to close
  *
@@ -28,6 +37,15 @@
  *     typed spec's own display rule, half-drawn.
  *   - **A declared `doc` taught the display nothing.** A value the gate had
  *     already resolved was guessed at again a layer up.
+ *
+ * A FOURTH JOINED THEM and was closed the same way (the seventh
+ * lowy-electricity sitting, 2026-08-30). A plugin's live FACE was licensed by
+ * the property KEY in the browser while its walk and its value gate followed
+ * the declared KIND on the server, so a vault declaring `terminal` on a key it
+ * calls `pty` was probed, gated and drawn — as nothing. Same shape as the three
+ * above: one question, two authorities, agreeing only by coincidence of
+ * spelling. Same close: the consult answers it, once, and what ships is the
+ * answer.
  *
  * ## Two arms, one consult
  *
@@ -176,6 +194,42 @@ export const Door = Schema.Struct({
 export type Door = typeof Door.Type
 
 /**
+ * ONE ROW OF THE LICENCES TABLE, which is {@link Door}'s twin and travels
+ * beside it: the same triple, and the WORD a running plugin's kind claims that
+ * value under.
+ *
+ * A SEPARATE TABLE and not a field on a door, because the two sets are
+ * disjoint by construction: a value a contributed kind claims opens nothing
+ * (`meaning.ts`'s `contributed` arm says why), so every licence row would be a
+ * door with a `null` in the field the doors table exists to carry.
+ *
+ * WHAT TRAVELS IS AN ANSWER ABOUT ONE DRAWN VALUE, which is the whole of how
+ * this keeps juspay/olai#395 intact. The declarations do not ship and cannot be
+ * reconstructed from this: a page carries the word for the values it draws and
+ * says nothing about which keys the vault declared, what else it declared them
+ * as, or what a value not on this page would answer. It is the same shape and
+ * the same discipline as the names and doors tables it rides with — the tab
+ * receives answers, never the question.
+ *
+ * `prop` and not `key`, for {@link Door}'s wire reason exactly: a field of that
+ * name would make the page stream's merge treat this as a KEYED array.
+ *
+ * ONLY CLAIMED VALUES ARE CARRIED. A value nothing claims is absent, and the
+ * drawing side reads absence as "this wears no face", which is nearly every
+ * value in nearly every vault.
+ */
+export const Licence = Schema.Struct({
+  from: Schema.String,
+  prop: Schema.String,
+  value: Schema.String,
+  /** The contributed KIND — the word a plugin taught this vault and a
+   *  declaration wrote (`{"custom":{"type":"terminal"}}`), never the property
+   *  key the value happens to sit under. */
+  word: Schema.String,
+})
+export type Licence = typeof Licence.Type
+
+/**
  * The three facts about the vault this consult cannot answer for itself.
  *
  * Handed IN rather than read off a reading, for the reason the door rule this
@@ -234,8 +288,58 @@ export interface Vault {
 }
 
 /**
+ * BOTH ANSWERS ONE VALUE HAS, from ONE consult.
+ *
+ * A value carries two facts that the same reading decides, and this type is
+ * where they stopped being decided twice:
+ *
+ *   - **`opens`** — what it NAMES, or `null`, which is the answer nearly every
+ *     value in every vault gets ({@link Meaning}).
+ *   - **`word`** — the CONTRIBUTED KIND that claims it, or `null`. A plugin
+ *     teaches this vault a word ({@link ./typing.ts}'s `contributed` arm), the
+ *     vault declares a key under it, and this serve is running the plugin that
+ *     answers for it: that conjunction is what a live FACE is licensed by, and
+ *     it is exactly the conjunction the `contributed` arm already had to reach
+ *     in order to answer `opens`.
+ *
+ * The two are never both set, which is not a coincidence and is not enforced:
+ * a claimed value opens nothing here BECAUSE what it names is a terminal in
+ * somebody's fleet or a checkout on somebody's disk, which is none of the four
+ * places a {@link Meaning} can send anybody.
+ */
+export interface Consulted {
+  readonly opens: Meaning | null
+  readonly word: string | null
+}
+
+/** An answer with no contributed word on it — every arm but one. Spelled once
+ *  so the seven arms that have nothing to say about kinds say it identically. */
+const opening = (opens: Meaning | null): Consulted => ({ opens, word: null })
+
+/** Neither answer: the empty value, which is not drawn at all. */
+const NOTHING: Consulted = { opens: null, word: null }
+
+/**
  * WHAT THIS VALUE NAMES, under this key, written in this file — or `null`,
  * which is the answer for nearly every value in every vault.
+ *
+ * The door half of {@link consult}, which is what nearly every caller wants and
+ * is what this function has always been. Kept as its own name rather than left
+ * to `.opens` at each call site: "what does this value name" is a question with
+ * a good name, and a projection of a two-field answer is a cheaper thing to
+ * read than a second question about the field.
+ */
+export const meaningOf = (
+  vault: Vault,
+  from: string,
+  key: string,
+  value: string,
+): Meaning | null => consult(vault, from, key, value).opens
+
+/**
+ * THE ONE CONSULT — what this value names AND what word claims it, decided
+ * together because they are decided by the same reading of the same
+ * declaration.
  *
  * `from` is the file the value was WRITTEN in: the outline holding the record,
  * or the document whose frontmatter this is.
@@ -245,19 +349,33 @@ export interface Vault {
  * own, exactly as the gate checks a list member by member. Drawing one member
  * as a door and another as text because they arrived joined would be the
  * display inventing a difference the record does not have.
+ *
+ * ## Why the WORD is answered here and not asked separately
+ *
+ * Because the alternative was the defect. The browser's dressing table used to
+ * be keyed on the property KEY — the only thing a tab has, since declarations
+ * deliberately do not travel to one (juspay/olai#395) — while the server
+ * followed the declared KIND. So a vault declaring `terminal` on a key it calls
+ * `pty` was walked, probed and gated on the server and drew NOTHING in the tab:
+ * two authorities on one question, agreeing only while the vault happened to
+ * name its key after the kind. The close is not a second wire member and not a
+ * declaration on the wire — it is this consult answering the second half too,
+ * so what ships is an ANSWER per drawn value, exactly as a door is.
  */
-export const meaningOf = (
+export const consult = (
   vault: Vault,
   from: string,
   key: string,
   value: string,
-): Meaning | null => {
-  if (value === "") return null
+): Consulted => {
+  if (value === "") return NOTHING
   const declared = declaredFor(vault.declarations, key)
   // AN UNDECLARED KEY AND A DECLARED `text` READ THE SAME WAY, and the header
   // argues why: neither one says the value names nothing, and the board's own
   // `pr-url` is the second kind holding a URL.
-  if (declared === undefined || declared.type.kind === "text") return guessed(vault, from, value)
+  if (declared === undefined || declared.type.kind === "text") {
+    return opening(guessed(vault, from, value))
+  }
   return declaredly(vault, declared, from, value)
 }
 
@@ -275,22 +393,22 @@ const declaredly = (
   declared: Declared,
   from: string,
   value: string,
-): Meaning | null => {
+): Consulted => {
   switch (declared.type.kind) {
     case "text":
       // Answered by the caller, which is where the reason is written. Kept as
       // an arm rather than a `default` so the switch stays exhaustive.
-      return guessed(vault, from, value)
+      return opening(guessed(vault, from, value))
     case "date":
       // The declaration and the shape agree here and always will — a `date`
       // key holds what the format calls a date, and {@link dayIn} is what that
       // means. What the declaration adds is the refusal: a `date` key holding
       // prose opens nothing, where a guess would have kept looking.
-      return dayIn(value)
+      return opening(dayIn(value))
     case "int":
       // A number names nothing this app can open. Said as an arm rather than
       // left to fall through, because "193 is not a door" is a decision.
-      return null
+      return NOTHING
     case "ref":
     case "node":
       // A REFERENCE, and the id is the value: the door is the node, and the
@@ -302,7 +420,7 @@ const declaredly = (
       // SPELLING, and `doc` below says the opposite about EXISTENCE: which arms
       // may part from the gate is decided by what each kind promised, and only
       // `doc` promised that its value names something.
-      return vault.declares(value) ? { kind: "node", id: value, titled: true } : null
+      return opening(vault.declares(value) ? { kind: "node", id: value, titled: true } : null)
     case "doc": {
       // THE GATE'S OWN EXPRESSION, OVER THE GATE'S OWN CORPUS. `doc` is the one
       // kind that PROMISES its value names a served document, so this arm is
@@ -316,7 +434,7 @@ const declaredly = (
       // live door — a wrong door on a finding, which is this module's founding
       // rule broken by the module built to keep it.
       const file = resolvedDoc(declared, from, value)
-      return file !== undefined && vault.documents(file) ? { kind: "document", file } : null
+      return file !== undefined && vault.documents(file) ? opening({ kind: "document", file }) : NOTHING
     }
     case "path":
       // A SHAPE AND NOTHING MORE is what this kind promised, so the gate asked
@@ -331,7 +449,7 @@ const declaredly = (
       // — opens exactly when the file is actually there. That asymmetry with
       // the arm above is the argued call: two arms of one consult may differ
       // about what they PROMISE, and may not differ about the same promise.
-      return servedFrom(vault, declared, from, value)
+      return opening(servedFrom(vault, declared, from, value))
     case "contributed":
       // A WORD A PLUGIN TAUGHT THIS VAULT, and the one registry entry decides
       // both halves of it. A kind this serve IS running has claimed the value:
@@ -341,15 +459,26 @@ const declaredly = (
       // no door, and inventing one out of the value's SHAPE is the guess this
       // module's declared arm exists to refuse.
       //
+      // ...AND THE WORD IS THE ANSWER'S OTHER HALF, minted at exactly this
+      // line and nowhere else. "The plugin's own face is what draws it" was a
+      // sentence in this comment and nothing in the program: the tab had only
+      // the property KEY to look a face up by, so the face and the licence
+      // agreed only while a vault named its key after the kind. The word
+      // travels now — as an ANSWER about one drawn value, never as the
+      // declaration it was read from — and the face is looked up by it
+      // (`@olai/web`'s `live/seam.ts`).
+      //
       // A kind NOBODY is answering for reads exactly as an undeclared key
       // does, which is the sharper half: a `--plugins` that left the plugin out
       // must leave the vault in the state it was in before it ever heard of it
       // — the value is still a name, and a URL somebody wrote under a retired
       // kind still opens. Answering `null` here instead would make a door
-      // appear and disappear with a flag on the machine.
+      // appear and disappear with a flag on the machine. It carries no word for
+      // the same reason: an absent plugin licences no face, which is the same
+      // absent state a machine that never had the tool is already in.
       return vault.kinds.enabled.has(declared.type.word)
-        ? null
-        : guessed(vault, from, value)
+        ? { opens: null, word: declared.type.word }
+        : opening(guessed(vault, from, value))
   }
 }
 

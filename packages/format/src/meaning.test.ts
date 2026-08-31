@@ -14,7 +14,7 @@ import { expect, test } from "bun:test"
 
 import { addressOf } from "./address.ts"
 import { readingOfVault } from "./scope.testlib.ts"
-import { Door, type Meaning, meaningOf, type Vault } from "./meaning.ts"
+import { consult, Door, Licence, type Meaning, meaningOf, type Vault } from "./meaning.ts"
 import { pageOf } from "./page.ts"
 import { nodeNamed } from "./derive.ts"
 import {
@@ -347,7 +347,7 @@ test("no declaration shape rides the page — the tab receives answers, not the 
   // The DOORS half alone, since the rest of a page is rows and a row carries a
   // record's own `custom` verbatim — where a vault that declared `type` on an
   // ordinary node is entitled to have the word on screen.
-  const carried = fieldsIn(page.doors)
+  const carried = fieldsIn([...page.doors, ...page.licences])
   // THE WHOLE VOCABULARY, as a closed set rather than a list of words to
   // avoid. A fence written as "none of these three appear" passes for a field
   // named anything else — and a field named anything else is exactly how a
@@ -379,6 +379,45 @@ test("no declaration shape rides the page — the tab receives answers, not the 
   expect(page.doors.length).toBeGreaterThan(0)
 })
 
+test("the page ships a LICENCE per claimed value, and the vault it was read from stays off the wire", () => {
+  // THE CLOSE, end to end. The vault declares `pty` a `sprocket` — a key named
+  // nothing like the kind, which is the whole case a key-matching browser could
+  // not draw — and the page answers with the WORD for exactly the values it
+  // draws.
+  const read = readingOfVault(
+    new Map<string, string>([
+      ["_olai/Properties.olai", [
+        `{"id":"p","ord":"a0","title":"pty","custom":{"type":"sprocket"}}`,
+        `{"id":"q","ord":"a1","title":"brief","custom":{"type":"text"}}`,
+      ].join("\n")],
+      ["a.olai", [
+        `{"id":"top","ord":"a0","title":"the rows"}`,
+        `{"id":"one","parent":"top","ord":"a0","title":"one",` +
+          `"custom":{"pty":"widget-3","brief":"notes.md","sprocket":"widget-9"}}`,
+      ].join("\n")],
+    ]),
+  )
+  const at = { kind: "at", address: addressOf("a.olai", null)! } as const
+  const running = { built: new Map([["sprocket", SPROCKET]]), enabled: new Map([["sprocket", SPROCKET]]) }
+  const page = pageOf(read, at, running)
+  expect(page.licences).toEqual([
+    { from: "a.olai", prop: "pty", value: "widget-3", word: "sprocket" },
+  ])
+  // The two that are NOT claimed say so by being absent: a declared `text`, and
+  // a key spelled as the kind itself that the vault never declared. The second
+  // is the behaviour a reader notices, and it is the point.
+  expect(page.licences.map((one) => one.prop)).not.toContain("sprocket")
+  // A SERVE THAT IS NOT RUNNING THE PLUGIN LICENCES NOTHING — the same table,
+  // empty, which is what a `--plugins=` tab draws every face off.
+  expect(pageOf(read, at, { built: running.built, enabled: new Map() }).licences).toEqual([])
+  // ...and the vocabulary still does not travel: what a reader of this payload
+  // learns is that ONE value is claimed by one word. It cannot learn which keys
+  // the vault declares, what `brief` was declared as, or that `sprocket` is a
+  // kind at all rather than the name of the thing `widget-3` is.
+  expect([...fieldsIn(page.licences)].sort()).toEqual(["from", "prop", "value", "word"])
+  expect([...Object.keys(Licence.fields)].sort()).toEqual(["from", "prop", "value", "word"])
+})
+
 test("a contributed kind draws no door of the app's own, and reads as text where nobody answers for it", () => {
   // ONE REGISTRY ENTRY, TWO QUESTIONS OF IT. The gate asks whether the value
   // fits; this asks whether anybody is answering for the word at all — and a
@@ -406,6 +445,46 @@ test("a contributed kind draws no door of the app's own, and reads as text where
   expect(meaningOf(asking(true), "a.olai", "pty", "https://example.com/x")).toBeNull()
   expect(meaningOf(asking(false), "a.olai", "pty", "https://example.com/x"))
     .toEqual({ kind: "away", href: "https://example.com/x" })
+})
+
+test("...and the WORD is the consult's other answer, on the key the vault actually declared", () => {
+  // THE LICENCE, and the whole of why it is minted here rather than asked
+  // separately: the same declaration decides both halves, and the browser used
+  // to decide this half for itself off the property KEY. The key here is `pty`
+  // and the kind is `sprocket`, so nothing in this case would work by name
+  // matching — which is exactly the vault that drew nothing before.
+  const read = readingOfVault(
+    new Map<string, string>([
+      ["_olai/Properties.olai", `{"id":"p","ord":"a0","title":"pty","custom":{"type":"sprocket"}}`],
+      ["a.olai", `{"id":"one","ord":"a0","title":"one","custom":{"pty":"widget-3"}}`],
+    ]),
+  )
+  const asking = (enabled: boolean): Vault => ({
+    declarations: declarationsOf(read.derived),
+    declares: () => false,
+    serves: () => false,
+    documents: () => false,
+    kinds: {
+      built: new Map([["sprocket", SPROCKET]]),
+      enabled: enabled ? new Map([["sprocket", SPROCKET]]) : new Map(),
+    },
+  })
+  expect(consult(asking(true), "a.olai", "pty", "widget-3"))
+    .toEqual({ opens: null, word: "sprocket" })
+  // A KIND NOBODY ANSWERS FOR LICENCES NOTHING, which is the same absent state a
+  // machine that never had the plugin is in — and it is the arm a `--plugins=`
+  // serve takes for every value of every contributed kind.
+  expect(consult(asking(false), "a.olai", "pty", "widget-3"))
+    .toEqual({ opens: null, word: null })
+  // ...and a key the vault declared nothing about carries no word however it is
+  // spelled, including when it is spelled as the kind itself.
+  expect(consult(asking(true), "a.olai", "sprocket", "widget-3"))
+    .toEqual({ opens: null, word: null })
+  // Every other arm answers `word: null`, which is what makes the field a
+  // licence rather than a second name for the declared type. A `date` is the
+  // sharpest of them: it is declared, it opens a door, and it claims nothing.
+  expect(consult(asking(true), "a.olai", "undeclared", "2026-08-30"))
+    .toEqual({ opens: { kind: "day", date: "2026-08-30" }, word: null })
 })
 
 /** One plugin's entry, as the composition root assembles one. */

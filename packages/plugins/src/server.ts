@@ -227,7 +227,7 @@ export const SERVERS = [kolu, odu] as const satisfies ReadonlyArray<PluginServer
  * that is here can make (`@olai/format`'s `KindVocabulary` argues both).
  *
  * TWO PLUGINS MAY NOT CLAIM ONE WORD, and the check is here for
- * {@link ./compose.ts}'s `fuseGroups` reason exactly: the assembly underneath
+ * the framework's `mergeDisjointGroups` reason exactly: the assembly underneath
  * is a `Map.set`, so a collision would resolve silently in favour of whichever
  * was written last — one plugin's `admits` quietly judging another plugin's
  * values, with nothing red anywhere. The wire has `assertTagSegment` to make
