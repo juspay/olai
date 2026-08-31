@@ -25,6 +25,7 @@ import { setFolded } from "./fold/memory.ts"
 import { createFoldReading } from "./fold/reading.ts"
 import { aim, failedSays, missedSays, shutAlong } from "./fold/landing.ts"
 import { Editable } from "./edit/Editable.tsx"
+import { DeleteFile } from "./file/DeleteFile.tsx"
 import { StartLine } from "./edit/StartLine.tsx"
 import { useNarrowed } from "./filter/narrowed.tsx"
 import { unfiltered } from "./filter/why.ts"
@@ -337,6 +338,15 @@ export function OutlinePage(props: {
             at={{ kind: "first", file: props.file }}
             label="This outline is empty — write its first line."
           />
+          {/* …OR RETIRE IT. The same emptiness that offers a first line is
+              the only condition under which the op may take the FILE — an
+              outline with records has no delete affordance anywhere in this
+              app, by design (`./file/DeleteFile.tsx` argues the door's
+              rule), so the two branches of one truth sit on one page: where
+              an arrow would suggest one, the other is one press away. */}
+          <div class="mt-2">
+            <DeleteFile file={props.file} />
+          </div>
         </Show>
       </Editable>
     </>

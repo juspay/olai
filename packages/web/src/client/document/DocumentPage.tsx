@@ -72,6 +72,7 @@ import { bodyKind, type Custom } from "@olai/format"
 import { createSignal, Show } from "solid-js"
 import { Dynamic } from "solid-js/web"
 
+import { DeleteFile } from "../file/DeleteFile.tsx"
 import { customEntries } from "../props/drawer.ts"
 import { PropsDrawer } from "../props/PropsDrawer.tsx"
 import { TESTID } from "../testids.ts"
@@ -147,16 +148,27 @@ function OneDocument(props: { readonly file: string; readonly custom: Custom }) 
           <h1 class="m-0 font-mono text-sm tracking-tight text-muted">{props.file}</h1>
           {/* The control and the draft it opens read ONE value, so a page cannot
               offer an editor it has nothing to open: `served()` is both the
-              condition here and the baseline below. */}
+              condition here and the baseline below. The delete beside it reads
+              the SAME condition — a file this page can EDIT is exactly a file
+              the op's guards can judge (outlines get theirs beside Start, one
+              page over), so neither control exists without the other. */}
           <Show when={isServed(served()) && !editing()}>
-            <button
-              type="button"
-              class="cursor-pointer rounded border border-rule bg-transparent px-2 py-0.5 text-[0.8125rem] text-muted hover:bg-rule/60 hover:text-ink"
-              data-testid={TESTID.documentEdit}
-              onClick={() => setEditing(true)}
-            >
-              Edit
-            </button>
+            {/* flex-1 + justify-end so the QUESTION banding the delete
+                draws on the row's own width beside the pills rather than
+                squashing them. The sibling door (OutlinePage's emptied
+                outline) has no such row and stacks one line over the pills —
+                the sentence is the same, the rooms differ. */}
+            <span class="flex flex-1 items-baseline justify-end gap-2">
+              <button
+                type="button"
+                class="cursor-pointer rounded border border-rule bg-transparent px-2 py-0.5 text-[0.8125rem] text-muted hover:bg-rule/60 hover:text-ink"
+                data-testid={TESTID.documentEdit}
+                onClick={() => setEditing(true)}
+              >
+                Edit
+              </button>
+              <DeleteFile file={props.file} />
+            </span>
           </Show>
         </div>
         {/* THE RECORD, as the same run a node's own page draws — under the

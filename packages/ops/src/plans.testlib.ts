@@ -393,4 +393,29 @@ export const SCRIPT: ReadonlyArray<Step> = [
   { what: "doing again — a fresh round stamped over the bank", op: { op: "doing", id: "season" } },
   { what: "done again — the second round adds in", op: { op: "done", id: "season" } },
   { what: "a bare undo leaves the work banked", op: { op: "done", id: "season", undo: true } },
+  // THE FILE GOES (`delete`, appended): one answer — a document the script
+  // itself minted above, so the write is judged against the world the
+  // script's own rows made — and its three most human refusals: the SAME
+  // file asked twice; the unit's own rule read of the corpus; and the kinds
+  // olai only SHOWS (`house.olai`, `notes/page.html` are both as recorded).
+  // The walk the refusal asks the refusal's walk to read, `namingDocument` —
+  // the document a `doc`-key sets is exercised in `./plan.test.ts`, where
+  // the PROPERTIES are that test's own corpus's and no row above has to
+  // move for them.
+  {
+    what: "delete the document the script minted",
+    op: { op: "delete", file: "notes/next.md" },
+  },
+  {
+    what: "delete it again — refused with the near miss",
+    op: { op: "delete", file: "notes/next.md" },
+  },
+  {
+    what: "delete an outline holding records — refused, naming them",
+    op: { op: "delete", file: "house.olai" },
+  },
+  {
+    what: "delete a page of the kinds olai only shows — refused",
+    op: { op: "delete", file: "notes/page.html" },
+  },
 ]

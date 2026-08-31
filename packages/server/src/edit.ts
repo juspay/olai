@@ -315,15 +315,23 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
       )
       return Result.succeed({ op: "create-doc", file })
     }
-    // THE ONE DELETE, and the one that resolves the MOST: what the browser
-    // sends is "empty the Trash" and nothing else, because which archives this
-    // directory holds — and which of them have anything in them — are facts
-    // about the SET (`../../surface/src/edit.ts` argues it, and it is quick
-    // capture's argument one page over). Read here, against the reading the
-    // write is judged on, so a pile that arrived since the tab last drew the
-    // page goes with the rest instead of being quietly left behind.
+    // THE ONE DELETE OF RECORDS, and the one that resolves the MOST: what
+    // the browser sends is "empty the Trash" and nothing else, because which
+    // archives this directory holds — and which of them have anything in
+    // them — are facts about the SET (`../../surface/src/edit.ts` argues
+    // it, and it is quick capture's argument one page over). Read here,
+    // against the reading the write is judged on, so a pile that arrived
+    // since the tab last drew the page goes with the rest instead of being
+    // quietly left behind.
     case "emptyTrash":
       return emptyTrashRequest(at, edit)
+    // AND THE ONE DELETE OF FILES, which resolves the LEAST: the path is the
+    // whole edit, so the op is the edit, unchanged — a guard the planner
+    // refuses here is one it would refuse the same way for an agent, and a
+    // word spelled differently for a person would be the deviation this file
+    // is built never to commit.
+    case "fileDelete":
+      return Result.succeed({ op: "delete", file: edit.file })
   }
 }
 
@@ -894,15 +902,16 @@ export const inverseOf = (
     case "add":
     // A capture is an `add` a person did not choose the place for, so it is
     // taken back the same way — the row goes, by the same narrowed un-create.
-    // What a ⌘Z does NOT do is unmint an inbox this capture created: no face
-    // removes a file (`docNew` below says the same), so what is left is an
+    // What a ⌘Z does NOT do is unmint an inbox this capture created: `docNew`
+    // below says why an un-create is not a delete, and what is left is an
     // empty inbox behind the sidebar's Inbox entry — a thing a reader can see
-    // and delete rather than a file quietly appearing and disappearing.
+    // and delete (the file page's own gesture) rather than a file quietly
+    // appearing and disappearing.
     case "capture":
     // A pin is a capture onto the shelf, so ⌘Z is the same un-create: the pin's
     // row goes and the reader's page does not move. A shelf this pin MINTED is
     // left standing, exactly as a minted inbox is and for the reason written
-    // there — no face removes a file.
+    // there.
     case "pin":
       return [{ verb: "remove", id: applied }]
     // Both are the same question — where does this row sit right now — asked
@@ -1056,12 +1065,13 @@ export const inverseOf = (
     // take back this tab's own words and somebody else's land as a refusal.
     case "doc":
       return documentTextOf(at, edit)
-    // Nothing takes a minted file back: there is no document removal on ANY
-    // face, which is an equal absence rather than a deviation — the shape
-    // `parity-unarchive` was in until #147 gave the archive its way out, and
-    // the same argument applies here. So the un-create cannot be spelled, and
-    // the entry says so by answering nothing rather than by leaving a ⌘Z that
-    // quietly does nothing.
+    // Nothing takes a minted file back — STILL, now that `fileDelete`
+    // exists. An un-create would be the one delete nobody ever MEANT: a ⌘Z
+    // must undo what a person just did, and a person who just minted a file
+    // meant the MINT — its inverse would delete a file this tab never
+    // showed them, `doc` fields and all, the very shape the delete arm
+    // refuses for anything else. So the entry answers nothing rather than
+    // leaving a ⌘Z that quietly reaches around the planner's own guards.
     case "docNew":
     case "docDay":
     // A minted OUTLINE is the same answer for the same reason, and it is the
@@ -1071,6 +1081,12 @@ export const inverseOf = (
     // which is a thing a reader can see, rather than a file quietly appearing
     // and disappearing.
     case "outlineNew":
+      return []
+    // A DELETED file has no inverse at all — the restore is git's, exactly
+    // as it is for `emptyTrash` above: stash the commit the write waits on,
+    // or nothing. What this list answers about it is the absence, spelled
+    // the same way so a reader knows it was considered.
+    case "fileDelete":
       return []
   }
 }

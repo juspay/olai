@@ -28,6 +28,11 @@ Feature: Documents become writable
   one copy per worker (`@share-scratch`); the corpus is restored between
   scenarios.
 
+  And the door that removes one is the same door's, one verb along: **Delete…**
+  sits beside **Edit** on a document page and beside the start control of an
+  emptied outline, asks once in the file's own path, and is refused in the
+  ops layer's own words when the guards say no.
+
   @scratch:good
   Scenario: A document becomes editable, and the edit is the file
     Given I open the document "finishes.md"
@@ -268,3 +273,67 @@ Feature: Documents become writable
     Then the + day note button is shown
     When I press + day note
     Then the day-note mint is refused saying "not a day"
+
+  @scratch:good
+  Scenario: A document's page deletes it, behind one question in its own path
+    # The delete sits where the Edit sits: a document that can be edited can
+    # be deleted, and the door is the same reader's page. The question names
+    # the PATH — a file's name is its address — and the second press is the
+    # write.
+    Given I open the document "notes/palette.md"
+    And I mark the page
+    Then the file's delete is offered
+    When I press Delete file
+    Then the deletion asks "Delete notes/palette.md? Nothing in olai puts it back — it leaves the directory the way every other write does, so what survives is whatever git has already recorded."
+    # Cancel first, so the door and the way out of it are one scenario's: a
+    # question that cannot be dropped is one nobody should have been asked.
+    And I cancel deleting the file
+    When I press Delete file
+    And I confirm deleting the file
+    Then the main pane says there is no document "notes/palette.md"
+    And the document link "notes/palette.md" is hidden
+    And there should be no page errors
+
+  @scratch:good
+  Scenario: A document still named by a `doc` is refused, naming the record that names it
+    # `install` attaches finishes.md, so the file may not go — the refusal is
+    # the planner's, under the control, exactly as an agent's `delete_file`
+    # gets it.
+    Given I open the document "finishes.md"
+    And I mark the page
+    When I press Delete file
+    And I confirm deleting the file
+    Then the deletion is refused saying "`finishes.md` is still named by `install` (`doc`, house.olai:4) — deleting the file would leave that pointing at nothing. Re-point it, or delete the naming record first."
+    And the document link "finishes.md" is shown
+    And there should be no page errors
+
+  @scratch:good
+  Scenario: An outline holding records never offers the verb — the affordance IS a summary of the gate
+    # `DeleteFile.tsx`'s door rule, as a scenario rather than as a comment:
+    # any outline that still names a record drafts its first line instead of a
+    # delete, and nothing about that is a filter on the set — it IS the gate's
+    # own ruling, drawn early so a reader never learns it twice.
+    Given I open the app
+    And I mark the page
+    When I open the outline "house.olai"
+    Then the file's delete is not offered
+    And there should be no page errors
+
+  @scratch:good
+  Scenario: An empty outline's page retires it too, from the same truth that offers its first line
+    # A new outline's page is the empty-outline page: Start and Delete sit on
+    # one condition — an outline with records has no delete affordance
+    # anywhere in the app — so the control draws exactly where a first line
+    # would otherwise be, and its write and Start's are both the ops layer's.
+    Given I open the app
+    And I mark the page
+    When I create the outline "scratch" from the sidebar
+    Then the outline list links to "scratch.olai"
+    When I open the empty outline "scratch.olai"
+    Then the file's delete is offered
+    When I press Delete file
+    Then the deletion asks "Delete scratch.olai? Nothing in olai puts it back — it leaves the directory the way every other write does, so what survives is whatever git has already recorded."
+    When I confirm deleting the file
+    Then the outline list does not link to "scratch.olai"
+    And the main pane says there is no outline "scratch.olai"
+    And there should be no page errors

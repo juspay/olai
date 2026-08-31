@@ -28,6 +28,7 @@ import {
   implicatedBy,
   isMirror,
   isRegular,
+  markdownIn,
   type OutlineError,
   type OutlineSet,
   NO_KINDS,
@@ -1211,6 +1212,62 @@ test("concurrent ops all land, each re-derived from the set the last one left", 
  * refusal that lands where a reader can see it. The quiet window that makes
  * those commits unasked-for is `./pending.test.ts`.
  */
+describe("delete, against a real directory", () => {
+  test("the file goes — from the disk, from the set the next read answers, and `gone` is what the reply calls it", () =>
+    withOps({ "house.olai": HOUSE, "ideas.md": "# Ideas\n" }, (fixture) =>
+      Effect.gen(function*() {
+        const applied = yield* run(fixture, { op: "delete", file: "ideas.md" })
+        expect(applied).toMatchObject({
+          id: "ideas.md",
+          title: "ideas.md",
+          file: "ideas.md",
+          rev: 2,
+          summary: "delete: ideas.md",
+          sort: "gone",
+        })
+        // One revision, one publication: THE GATE'S claim, at the place the
+        // claim is made. The disk holds the path no longer, and the set the
+        // read gate hands anybody — the same value a `list_documents` call
+        // answers with — holds it no longer either.
+        expect(fixture.read("ideas.md")).toBeNull()
+        expect((yield* Effect.map(fixture.store.read("cheap"), (aged) => aged.snapshot))?.rev).toBe(2)
+        const set = yield* fixture.set()
+        expect(markdownIn(set).map((document) => document.path)).toEqual([])
+      })))
+
+  test("...and it is an honest refusal the second time — nothing silently widened", () =>
+    withOps({ "house.olai": HOUSE, "ideas.md": "# Ideas\n" }, (fixture) =>
+      Effect.gen(function*() {
+        yield* run(fixture, { op: "delete", file: "ideas.md" })
+        const refusal = yield* Effect.flip(fixture.ops.run({ op: "delete", file: "ideas.md" }, "mcp"))
+        expect(refusal._tag).toBe("NotFoundFailure")
+        expect(refusal.message).toContain(`\`ideas.md\` is not a file under the served directory`)
+      })))
+
+  test("an outline with records is refused naming them, and the disk holds BOTH afterwards — the refusal costs nothing", () =>
+    withOps({ "house.olai": HOUSE, "ideas.md": "# Ideas\n" }, (fixture) =>
+      Effect.gen(function*() {
+        const refusal = yield* Effect.flip(fixture.ops.run({ op: "delete", file: "house.olai" }, "mcp"))
+        expect(refusal._tag).toBe("UsageFailure")
+        expect(refusal.message).toContain("house.olai")
+        expect(refusal.message).toContain("`order`")
+        // NOTHING IS WRITTEN is the promise the refusal makes, and the two
+        // files untouched are its proof: the refusal was judged in the
+        // planner and never reached a staged byte.
+        expect(fixture.read("house.olai")).toBe(HOUSE)
+        expect(fixture.read("ideas.md")).toBe("# Ideas\n")
+      })))
+
+  test("a `.html` the directory shows is refused the same way — never the near-miss the `.md` one space away would be", () =>
+    withOps({ "house.olai": HOUSE, "notes.md": "# notes\n", "report.html": "<h1>x</h1>\n" }, (fixture) =>
+      Effect.gen(function*() {
+        const refusal = yield* Effect.flip(fixture.ops.run({ op: "delete", file: "report.html" }, "mcp"))
+        expect(refusal._tag).toBe("UsageFailure")
+        expect(refusal.message).toContain("hypertext")
+        expect(fixture.read("report.html")).toBe("<h1>x</h1>\n")
+      })))
+})
+
 describe("the git seam", () => {
   /** Everything waiting, committed, or the test dies naming what git said —
    *  the sweep this layer makes for the button, the tool and the window

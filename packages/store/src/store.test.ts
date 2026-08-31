@@ -1032,6 +1032,82 @@ test("a write over bytes the stamps never saw change is refused, not landed", ()
       expect(after?.rev).toBeGreaterThan(before?.rev ?? 0)
     })))
 
+// ── the fifth change kind: a removal ─────────────────────────────────
+//
+// `Change.contents: null` — the file goes. What these assert is that the
+// removal is JUDGED like a rewrite (the candidate drops the file before the
+// codec is asked), that the publication SEES it go (the probe diff's
+// `removed` arm, which is what the commit's own `forget` would hide), and
+// that the disk is the only other thing paying attention.
+
+test("a removal commit unlinks the file, and the revision says `removed`", () =>
+  withStore({ "a.txt": "alpha", "b.txt": "beta" }, ({ read, store }) =>
+    Effect.gen(function*() {
+      const before = yield* snapshotOf(store)
+      const committed = yield* store.commit({
+        baseRev: before?.rev ?? 0,
+        changes: [{ path: "b.txt", contents: null }],
+      })
+      expect(Result.isSuccess(committed)).toBe(true)
+      // THE DISK first — this is the claim the verb it serves makes::
+      expect(read("b.txt")).toBeNull()
+      expect(read("a.txt")).toBe("alpha")
+      const after = yield* snapshotOf(store)
+      expect(after?.rev).toBe((before?.rev ?? 0) + 1)
+      expect(after?.removed).toEqual(["b.txt"])
+      expect(after?.value.text["b.txt"]).toBeUndefined()
+      // … and a SECOND commit naming the same removal is a StaleWrite cue for
+      // the caller's re-plan — "re-derive and ask again", exactly as a lost
+      // race is: the rev moved, and the plan made of the older snapshot is
+      // about a file nobody serves now.
+      const second = yield* Effect.flip(store.commit({
+        baseRev: before?.rev ?? 0,
+        changes: [{ path: "b.txt", contents: null }],
+      }))
+      expect(second._tag).toBe("StaleWrite")
+      // …but the STALE part is the rev, and only the rev: the disk's unlink
+      // promises an OUTCOME, so the same removal ASKED AT THE PRESENT rev of a
+      // thing that is already gone is a quiet landing, not a failure — and a
+      // landing with nothing to land: no staged bytes, no unlink to make
+      // thereby (the promise-keeping), and THE REV UNMOVED, which is what a
+      // subscriber can see: a delta the probe never finds is a publication
+      // nobody makes.
+      const askAgain = yield* store.commit({
+        baseRev: after?.rev ?? 0,
+        changes: [{ path: "b.txt", contents: null }],
+      })
+      expect(Result.isSuccess(askAgain)).toBe(true)
+      const afterAgain = yield* snapshotOf(store)
+      expect(afterAgain?.rev).toBe(after?.rev)
+    })))
+
+test("a set the codec would not publish for the removal is a refusal, not an unlink", () =>
+  withStore({ "a.txt": "alpha", "b.txt": "beta" }, ({ read, store }) =>
+    Effect.gen(function*() {
+      // b.txt is the per-file degradation: judged WITHOUT it the set is clean,
+      // and the codec our fixture is refuses nothing there — this codec's
+      // `stopping` refuses when the write's own paths are implicated
+      // ({@link codec}), so the removal of a broken file is judged the way a
+      // rewrite of it is, and it is refused exactly when a codec says so.
+      const before = yield* snapshotOf(store)
+      const committed = yield* store.commit({
+        baseRev: before?.rev ?? 0,
+        changes: [
+          { path: "a.txt", contents: "alpha, still" },
+          { path: "b.txt", contents: null },
+        ],
+      })
+      expect(Result.isSuccess(committed)).toBe(true)
+      // Both landed, atomically-orderly: the write first, the unlink after
+      // (`disk.remove` follows the publishes), so a reader of the disk never
+      // sees the write's file stale beside the removal's.
+      expect(read("a.txt")).toBe("alpha, still")
+      expect(read("b.txt")).toBeNull()
+      const after = yield* snapshotOf(store)
+      expect(after?.changed).toEqual(["a.txt"])
+      expect(after?.removed).toEqual(["b.txt"])
+    })))
+
 test("the same write, asked again, lands ON the bytes it was refused over", () =>
   withStore({ "a.txt": "alpha" }, ({ read, root, store }) =>
     Effect.gen(function*() {

@@ -116,12 +116,18 @@
  * only overwrite what IT wrote, so somebody else's words are refused rather
  * than replaced.
  *
- * THERE IS EXACTLY ONE DELETE, AND IT IS NOT AIMED AT A ROW. `emptyTrash` is
- * it: everything in the Trash, gone for good, behind a confirm that names how
- * many rows go and says plainly that nothing puts them back. It names no node,
- * reaches no live outline, and can only touch records somebody already moved to
- * the Trash and can still see — a bin being emptied rather than a branch being
- * erased.
+ * THERE ARE TWO DELETES, AND NEITHER IS AIMED AT A ROW. `emptyTrash` is
+ * the first: everything in the Trash, gone for good, behind a confirm that
+ * names how many rows go and says plainly that nothing puts them back. It
+ * names no node, reaches no live outline, and can only touch records somebody
+ * already moved to the Trash and can still see — a bin being emptied rather
+ * than a branch being erased. `fileDelete` is the second, and its unit is a
+ * FILE: a document whole, or an outline emptied of records, gone for good
+ * behind the same kind of confirm. Both are refused rather than widened when
+ * they would take something a person cannot see — a record still in an
+ * outline, a document a `doc` still names — so what either deletes is what
+ * the person was reading when they said yes, and neither has an inverse
+ * (git's story, said where these arms are declared).
  *
  * NEITHER REMOVAL BESIDE IT IS ONE. `remove` is the un-create — the inverse of
  * an `add`, bound to no key, narrowed by the resolver to a node with nothing
@@ -921,6 +927,29 @@ export const Edit = Schema.Union([
    */
   Schema.Struct({
     verb: Schema.Literal("outlineNew"),
+    file: Schema.String,
+  }),
+  /**
+   * DELETE THIS FILE — the document page's and the empty outline's one
+   * destructive gesture, and the second delete this surface has.
+   *
+   * The path, and NOTHING else: the guards are the op's, and they are the
+   * whole story. A document goes whole and outright; an outline goes only
+   * when it holds no records; and both are refused — naming what to settle
+   * first — rather than widened, because deleting what a person cannot see
+   * is the failure this arm exists not to have. See the arm an undo speaks
+   * of nowhere here: THIS ONE HAS NO INVERSE, and that is the design
+   * statement `@olai/server`'s `inverseOf` spells next to it — an un-delete
+   * is git's, exactly as it is for `emptyTrash`, and the confirm that
+   * reaches it says so in words rather than discovering it after.
+   *
+   * THE CONFIRM LIVES IN THE CLIENT and asks its own question with the file
+   * in it (`@olai/web`'s `file/DeleteFile.tsx`), exactly as `emptyTrash`'s
+   * does: the surface carries the verb, and the certainty is a person-level
+   * fact, asked where the person is.
+   */
+  Schema.Struct({
+    verb: Schema.Literal("fileDelete"),
     file: Schema.String,
   }),
 

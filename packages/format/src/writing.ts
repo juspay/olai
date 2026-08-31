@@ -732,8 +732,11 @@ export const UntrashRequest = Schema.Struct({
 })
 
 /**
- * THE TRASH, EMPTIED — the one write in this vocabulary that destroys rather
- * than moves, and the only one the trash has ever had.
+ * THE TRASH, EMPTIED — one of the two writes in this vocabulary that destroys
+ * rather than moves, and the only one the trash has ever had. The other is
+ * {@link DeleteRequest}, and the pair is one sentence: RECORDS are destroyed
+ * by emptying the one pile that holds them, FILES by the verb that names one —
+ * and neither is the other's business.
  *
  * `trash` made a trash rather than a shredder, and `untrash` made it one
  * you can reach back into; what neither of them gave anybody is a way to stop
@@ -887,6 +890,63 @@ export const CreateDocumentRequest = Schema.Struct({
       description: "What the document is born holding. Absent creates it empty.",
     }),
   ),
+})
+
+/**
+ * DELETE ONE FILE — a document (`.md`) or an outline (`.olai`) holding no
+ * records.
+ *
+ * The fourth unit the vocabulary has, and the second write that destroys.
+ * `empty` EMPTIES the trash's RECORDS and leaves the file; this removes the
+ * FILE — the path leaves the served directory, the sidebar and every live
+ * collection on the write's own revision, and nothing spells it back. That
+ * pair is the whole of the two verbs' coexistence: records have a trash
+ * because a record's undo story lives in the SET (an `untrash` puts it back
+ * with its scaffold of titles); a file's undo story is git's, since it is the
+ * same gate and the same commit door every write takes — so the bytes are
+ * recoverable to exactly the extent git had already recorded them, and no
+ * further. A file-level trash would be a fifth directory convention with a
+ * listing, a restore verb and a new answer to "what does a pin into it mean";
+ * the smaller machine is recoverability said HONESTLY, which is what
+ * {@link EmptyRequest} already practices and what the tool's own description
+ * says again, because the description is the agent's only manual.
+ *
+ * **THE GUARDS, and each is the refusal a load would otherwise hand a stranger
+ * LATER.** An outline still carrying RECORDS is refused, naming them — this is
+ * a delete, not a move: `trash_node` is how a node leaves an outline, and what
+ * empties one is nobody's verb to guess. A document still NAMED — a `doc`
+ * field, or a value of a `doc`-declared property — is refused, naming the
+ * records that name it: deleting under them would break THEIR files, which is
+ * the `missing-doc` / `bad-prop` ruling the validator would reach anyway, said
+ * before any bytes are staged rather than after. And a file the SET holds no
+ * contents for — an outline its lines did not parse, a document that would not
+ * read — is refused with the validator's own rows: deleting from a set that is
+ * missing the file's contents would be dropping bytes nobody has seen.
+ *
+ * **WHAT IS NOT SAID.** Pins, shelf rows and markdown links into the path go
+ * dead as honest dead rows — format.md's Pins documents exactly that cost of
+ * path identity, and re-pinning is the fix. A `path`-typed property promises a
+ * shape and nothing else, so a value naming the path is no longer true and no
+ * longer refused. A `doc`-typed property IS a promise the value names a served
+ * document — that one the guards above hold.
+ *
+ * AND THE FOUR SHOW KINDS STAY OUT. A `.html`, a `.csv`, a picture, a `.pdf`:
+ * olai draws them and never writes one — no create verb, no editor — and a
+ * delete would be the largest write of all aimed at the files it never
+ * touched. They belong to whatever put them there.
+ */
+export const DeleteRequest = Schema.Struct({
+  op: Schema.Literal("delete"),
+  file: Schema.String.annotate({
+    description:
+      "Path of the file to delete, exactly as the served set lists it — a `.md` document " +
+      "(any content) or an `.olai` outline holding NO records. Refused, naming what to " +
+      "settle first, for a path the set does not hold, an outline still carrying records, " +
+      "a document a `doc` field or a `doc`-declared property still names, a file the set " +
+      "could not load, and any of the kinds olai only shows (`.html`, `.csv`, pictures, " +
+      "`.pdf`). The delete is not undoable in olai: what survives is whatever git had " +
+      "already recorded.",
+  }),
 })
 
 /**
@@ -1153,15 +1213,15 @@ const arm = <F extends Schema.Struct.Fields>(schema: Schema.Struct<F>): Schema.S
  * {@link arm} takes off is the PROSE and nothing else, so the two still decode
  * identically and are still one declaration.
  *
- * **WHAT IS LEFT OUT, and why it is exactly four.** The file ops —
- * `create_outline`, `create_document`, `write_document` — are the writes whose
- * subject is a FILE rather than a node, and the tool surface's own sentence is
- * that everything there is about nodes. Each is already atomic over the thing it
- * makes (a `create` with a seed that is refused leaves no file behind; a
- * document is one text, whole), so a batch buys them nothing but a way to make a
- * mistyped path part of somebody else's transaction. `apply` itself is the
- * fourth, for a plainer reason: a batch of batches is one flat batch with an
- * index nobody can name.
+ * **WHAT IS LEFT OUT, and why it is exactly five.** The file ops —
+ * `create_outline`, `create_document`, `write_document`, `delete_file` — are
+ * the writes whose subject is a FILE rather than a node, and the tool
+ * surface's own sentence is that everything there is about nodes. Each is
+ * already atomic over the thing it makes (a `create` with a seed that is
+ * refused leaves no file behind; a document is one text, whole), so a batch
+ * buys them nothing but a way to make a mistyped path part of somebody else's
+ * transaction. `apply` itself is the fifth, for a plainer reason: a batch of
+ * batches is one flat batch with an index nobody can name.
  *
  * `update` IS in, and that is the pair working: a batch of `update`s is the
  * shape "reconcile these five lanes" actually has.
@@ -1290,6 +1350,7 @@ export const WriteRequest = Schema.Union([
   AfterRequest,
   WriteDocumentRequest,
   CreateDocumentRequest,
+  DeleteRequest,
   UpdateRequest,
   ApplyRequest,
 ])

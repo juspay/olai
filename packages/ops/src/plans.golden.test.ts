@@ -64,7 +64,7 @@ import { expect, test } from "bun:test"
 import { Result } from "effect"
 
 import { readingOf, setOf, steady } from "./fixtures.testlib.ts"
-import { plan, scoping } from "./plan.ts"
+import { plan, scoping, VERBS } from "./plan.ts"
 import { BROKEN, DOCUMENTS, OUTLINES, SCRIPT } from "./plans.testlib.ts"
 
 const FIXTURE = path.join(import.meta.dir, "plans.golden.json")
@@ -148,6 +148,14 @@ const run = (): ReadonlyArray<{ readonly what: string; readonly said: unknown }>
     if (Result.isFailure(made)) continue
     for (const file of made.success.files) texts[file.file] = serializeOutline(file.nodes)
     for (const document of made.success.documents ?? []) bodies.set(document.file, document.text)
+    // A removal leaves the run the way the write would leave the set: both
+    // briefs of a path gone, so a step after it plans against the world the
+    // script really said (`delete`'s own rows are the same walk as `create`'s,
+    // read from the other end).
+    for (const path of made.success.removed ?? []) {
+      delete texts[path]
+      bodies.delete(path)
+    }
     at = scoping(reading(), context, NO_KINDS)
   }
   return said
@@ -188,42 +196,15 @@ test("every op of the script answers what it answered before the decomplect", ()
 /**
  * THE SCRIPT COVERS THE VOCABULARY, asserted rather than believed: a verb the
  * planner grows and the script never asks about is a verb this gate says
- * nothing about, and the failure would be silence.
- *
- * The marks are four ops and one planner, so the check is over the OP names the
- * script sends rather than over the table — what must be true is that no verb
- * an agent can send is missing from the run.
+ * nothing about, and the failure would be silence — and once really was, the
+ * day `delete` made the planner and not the script, for exactly the line this
+ * test used to hold: a list kept HERE of what the planner's TABLE already
+ * knows ({@link ./plan.ts}'s `VERBS`). So the table reads itself; nothing in
+ * this file names a verb.
  */
 test("the script asks every op kind, and asks each of them on both sides of its gate", () => {
   const asked = new Set(SCRIPT.map((step) => step.op.op))
-  expect([...asked].sort()).toEqual([
-    "add",
-    "after",
-    "apply",
-    "cancelled",
-    "create",
-    "create-doc",
-    "date",
-    "desc",
-    "doc",
-    "doing",
-    "done",
-    "duplicate",
-    "empty",
-    "merge",
-    "mirror",
-    "move",
-    "prop",
-    "repeat",
-    "see",
-    "split",
-    "title",
-    "todo",
-    "trash",
-    "unmirror",
-    "untrash",
-    "update",
-  ])
+  expect([...asked].sort()).toEqual([...VERBS].sort())
   // AND EVERY VERB ON BOTH SIDES OF ITS GATE, per verb rather than as a total.
   // A count was what this said first, and a count is satisfied by a script that
   // refuses twenty times with one verb — which is how the header above came to

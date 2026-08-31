@@ -116,6 +116,13 @@ export interface Disk {
   /** Best-effort removal of a staged file that will never be published. A miss
    *  is not a failure — the point is to leave no litter, not to prove it. */
   readonly discard: (staged: string) => Effect.Effect<void>
+  /** THE DELETE ARM of the write gate: `path` is gone, or the call fails.
+   *  Untracked unlike a publish — there is no temp whose rename could remove,
+   *  so the single unlink IS the atomic step, and the caller (the gate) puts
+   *  it AFTER the last publish so a failure leaves the staged writes landed
+   *  and the deletes still named in hand. The probe diff reports the file
+   *  `removed` next run, exactly the diff a `git rm` has always produced. */
+  readonly remove: (path: string) => Effect.Effect<void, PlatformFailure>
   /** Absolute, platform-spelled — for a consumer that has to hand a path to
    *  something outside this process (the post-publish hook shelling out to
    *  git). Nothing inside the store uses it. */
@@ -422,7 +429,22 @@ export const make = (
 
     const discard = (path: string) => Effect.ignore(fs.remove(absolute(path)))
 
-    return { listing, survey, read, watch, stage, publish, discard, resolve: absolute }
+    // The one destructive member, and it is EVERYTHING AT ONCE rather than a
+    // stage-then-publish pair like a write is: there is no temp file whose
+    // rename could unlink, so the single `remove` IS the atomic step. Called
+    // only from the write gate, after the commit's staged writes have landed.
+    //
+    // `force`: the caller's ask is OUTCOME-shaped — "this path is gone" — so
+    // a path that reached the answer first (an editor's own delete raced the
+    // gate's permit window) is that outcome's arrival, not the call's
+    // failure: what the gate promised stands, and the probe reports the diff
+    // it will read on the next look either way.
+    const remove = (path: string) =>
+      fs.remove(absolute(path), { force: true }).pipe(
+        Effect.mapError((cause) => new PlatformFailure({ path, cause })),
+      )
+
+    return { listing, survey, read, watch, stage, publish, discard, remove, resolve: absolute }
   })
 
 /**
