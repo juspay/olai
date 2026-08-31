@@ -18,6 +18,8 @@ import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 import type { Page } from "playwright";
 
+import { fileKind } from "@olai/format";
+
 import {
   ALERT_SOUND_KEY,
   ALERTS_KEY,
@@ -35,6 +37,7 @@ import {
   APP_HEADER,
   attr,
   HYDRATION_TIMEOUT,
+  PANE,
   POLL_TIMEOUT,
   PREFS_CHOICE,
   PREFS_HINT,
@@ -279,6 +282,36 @@ const pickDone = async (
 const DONE_FLIP = attr("data-testid", TESTID.doneFlip);
 const FOCUSED_PANE = attr("data-pane-focused", "true");
 
+/** The outline a pane's `data-href` names, or nothing — `/` is the first
+ *  outline and does not spell a file; a node permalink does not either.
+ *  Asked of `fileKind`, not of a spelled suffix: kinds.test.ts is the
+ *  fence, and the registry is the one place that list exists. */
+const outlineNamedBy = (href: string | null): string | undefined => {
+  if (href === null || href === "") return undefined;
+  const path = decodeURIComponent(href.split("?")[0] ?? "").replace(
+    /^\//,
+    "",
+  );
+  return fileKind(path) === "outline" ? path : undefined;
+};
+
+/** The flip of the ADDRESSED page, not a held previous one.
+ *
+ *  `/` lands on the first outline; a later open keeps that tree on screen
+ *  until the named file arrives (`createReading`'s swap). The flip is drawn
+ *  from the held reading, so a wait on any done-flip prefs-choice matches
+ *  the previous page and the press (or the Then) is lost when the swap
+ *  remounts it. */
+const flipOfAddressed = async (page: Page) => {
+  const href = await page
+    .locator(`${PANE}${FOCUSED_PANE}`)
+    .getAttribute("data-href");
+  const named = outlineNamedBy(href);
+  return named === undefined
+    ? page.locator(`${FOCUSED_PANE} ${DONE_FLIP}`)
+    : page.locator(`${FOCUSED_PANE} ${DONE_FLIP}${attr("data-file", named)}`);
+};
+
 /** One segment of the flip beside the FOCUSED pane's filter: this page's own
  *  say. Its value-space is the override map's — `shown` / `hidden` — where
  *  the panel's segments answer in the row's own `visible` / `hidden`
@@ -287,19 +320,16 @@ const flipDone = async (
   page: Page,
   word: "shown" | "hidden",
 ): Promise<void> => {
-  const pick = page
-    .locator(`${FOCUSED_PANE} ${DONE_FLIP}`)
-    .locator(`${PREFS_CHOICE}${attr("data-value", word)}`);
+  const flip = await flipOfAddressed(page);
+  const pick = flip.locator(`${PREFS_CHOICE}${attr("data-value", word)}`);
   await pick.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await pick.click();
   // Scored to THE SEGMENT PRESSED: either the press landed (the segment
   // that was not in force now is) or the ask was a deliberate no-op (the
   // in-force side already carries it — at pace the same selector, at no
   // cost — a no-op IS the read a press makes of this strip now.
-  await page
-    .locator(
-      `${FOCUSED_PANE} ${DONE_FLIP} ${PREFS_CHOICE}${attr("data-value", word)}[aria-pressed="true"]`,
-    )
+  await flip
+    .locator(`${PREFS_CHOICE}${attr("data-value", word)}[aria-pressed="true"]`)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 };
 
@@ -309,24 +339,26 @@ Then(
     if (word !== "shown" && word !== "hidden") {
       throw new Error(`Done is "shown" or "hidden", not "${word}"`);
     }
-    await this.page
+    const flip = await flipOfAddressed(this.page);
+    await flip
       .locator(
-        `${FOCUSED_PANE} ${DONE_FLIP} ` +
-          `${PREFS_CHOICE}${attr("data-value", word)}[aria-pressed="true"]`,
+        `${PREFS_CHOICE}${attr("data-value", word)}[aria-pressed="true"]`,
       )
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
 );
 
 Then("the Done flip is this page's own", async function (this: OlaiWorld) {
-  await this.page
-    .locator(`${FOCUSED_PANE} ${DONE_FLIP}${attr("data-own", "true")}`)
+  const flip = await flipOfAddressed(this.page);
+  await flip
+    .and(this.page.locator(`${DONE_FLIP}${attr("data-own", "true")}`))
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
 Then("the Done flip is the panel's answer", async function (this: OlaiWorld) {
-  await this.page
-    .locator(`${FOCUSED_PANE} ${DONE_FLIP}:not(${attr("data-own", "true")})`)
+  const flip = await flipOfAddressed(this.page);
+  await flip
+    .and(this.page.locator(`${DONE_FLIP}:not(${attr("data-own", "true")})`))
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
@@ -385,9 +417,8 @@ When("I show the done nodes", async function (this: OlaiWorld) {
  *  back to the panel, and that is deliberately a door one CLUTTER-free
  *  second near a strip cannot miss (client/filter/DoneFlip.tsx). */
 When("I hand the page's Done pick back to the panel", async function (this: OlaiWorld) {
-  await this.page
-    .locator(`${FOCUSED_PANE} ${DONE_FLIP} ${attr("data-testid", TESTID.doneRelease)}`)
-    .click();
+  const flip = await flipOfAddressed(this.page);
+  await flip.locator(attr("data-testid", TESTID.doneRelease)).click();
 });
 
 /**
