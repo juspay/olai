@@ -78,7 +78,7 @@ export const exactOf = (seconds: number): string => {
   const minutes = Math.floor(s / 60)
   const hours = Math.floor(minutes / 60)
   if (hours >= 24) parts.push(`${Math.floor(hours / 24)}d`)
-  if (hours % 24 !== 0 || (hours >= 1 && hours < 24)) parts.push(`${hours % 24}h`)
+  if (hours % 24 !== 0) parts.push(`${hours % 24}h`)
   if (minutes % 60 !== 0 || hours === 0) parts.push(`${minutes % 60}m`)
   if (s % 60 !== 0 || minutes === 0) parts.push(`${s % 60}s`)
   return parts.join(" ")
@@ -219,6 +219,11 @@ export interface WindowedRound {
  * to name a shape the record cannot be in. Ends OUT OF ORDER are not a
  * fourth: {@link spanOf} clamps them to the zero the settle itself would
  * have counted, and the round stands.
+ *
+ * It sits here because the story is its only teller today; the day a
+ * second reader wants the window — a server render, an MCP answer — the
+ * record's shape is @olai/format's to read, and this is `tookOf`'s
+ * sibling there.
  */
 export const roundOf = (
   started: string | undefined,

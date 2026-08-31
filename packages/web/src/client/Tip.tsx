@@ -97,7 +97,7 @@ export function Tip(props: {
     // past it, and the box wraps to THAT floor before the clamp ever
     // slides it (the wrap never un-winds). Parked at the edge, the read is
     // the wide box the words ask for, and it is THAT box the clamp may
-    // have to move — never a floor-standed one.
+    // have to move — never a width-starved one.
     tip.style.left = "0px"
     const box = tip.getBoundingClientRect()
     const left = clampedLeft(want.left, box.width, window.innerWidth)
