@@ -116,7 +116,6 @@ const SCOPED = scoping([{
   session: "sess-1",
   plugin: KOLU,
   file: "Fleet.olai",
-  at: "2026-08-31T09:00:00.000Z",
 }])
 
 /** The machine-marked rows, in the order the transcript holds them. */
@@ -174,7 +173,7 @@ describe("an idle agent", () => {
   test("takes a doorbell's words as a turn of their own, marked", async () => {
     const chat = await panel()
     await closing(chat, async () => {
-      await run(chat.doorFor(KOLU).deliver(open(chat), RANG))
+      await run(chat.doorFor(KOLU).deliver(open(chat), () => RANG))
       await until("the machine's row", () => rung(chat).length === 1)
       const row = rung(chat)[0]
       expect(row?.text).toBe(RANG)
@@ -193,7 +192,7 @@ describe("an agent mid-turn", () => {
     const chat = await panel({ scoping: SCOPED })
     await closing(chat, async () => {
       await holding(chat)
-      await run(chat.doorFor(KOLU).deliver(open(chat), RANG))
+      await run(chat.doorFor(KOLU).deliver(open(chat), () => RANG))
       // Nothing is in the conversation, which is the whole difference from a
       // mid-turn hand-off: the words are not at the agent and the transcript
       // does not pretend they are.
@@ -210,9 +209,9 @@ describe("an agent mid-turn", () => {
     const chat = await panel()
     await closing(chat, async () => {
       await holding(chat)
-      await run(chat.doorFor(KOLU).deliver(open(chat), "first"))
-      await run(chat.doorFor(KOLU).deliver(open(chat), "second"))
-      await run(chat.doorFor(KOLU).deliver(open(chat), "third"))
+      await run(chat.doorFor(KOLU).deliver(open(chat), () => "first"))
+      await run(chat.doorFor(KOLU).deliver(open(chat), () => "second"))
+      await run(chat.doorFor(KOLU).deliver(open(chat), () => "third"))
       await until("the turn boundary", () => rung(chat).length === 1)
       // Whole plugin-authored paragraphs, joined and nothing else: core adds no
       // lead-in, no count and no word of its own.
@@ -224,9 +223,9 @@ describe("an agent mid-turn", () => {
     const chat = await panel()
     await closing(chat, async () => {
       await holding(chat)
-      await run(chat.doorFor(KOLU).deliver(open(chat), "digest v1", { coalesce: "digest" }))
-      await run(chat.doorFor(KOLU).deliver(open(chat), "a wake"))
-      await run(chat.doorFor(KOLU).deliver(open(chat), "digest v2", { coalesce: "digest" }))
+      await run(chat.doorFor(KOLU).deliver(open(chat), () => "digest v1", { coalesce: "digest" }))
+      await run(chat.doorFor(KOLU).deliver(open(chat), () => "a wake"))
+      await run(chat.doorFor(KOLU).deliver(open(chat), () => "digest v2", { coalesce: "digest" }))
       await until("the turn boundary", () => rung(chat).length === 1)
       // v2 lands where v1 was rather than at the back — which is what makes a
       // plugin's own order survive its own coalescing.
@@ -238,8 +237,8 @@ describe("an agent mid-turn", () => {
     const chat = await panel()
     await closing(chat, async () => {
       await holding(chat)
-      await run(chat.doorFor(KOLU).deliver(open(chat), "the same words"))
-      await run(chat.doorFor(KOLU).deliver(open(chat), "the same words"))
+      await run(chat.doorFor(KOLU).deliver(open(chat), () => "the same words"))
+      await run(chat.doorFor(KOLU).deliver(open(chat), () => "the same words"))
       await until("the turn boundary", () => rung(chat).length === 1)
       expect(rung(chat)[0]?.text).toBe("the same words\n\nthe same words")
     })
@@ -250,7 +249,7 @@ describe("an agent mid-turn", () => {
     await closing(chat, async () => {
       await run(chat.send("wait:1500", [], []))
       for (let n = 0; n <= SLOTS; n++) {
-        await run(chat.doorFor(KOLU).deliver(open(chat), `body ${n}`))
+        await run(chat.doorFor(KOLU).deliver(open(chat), () => `body ${n}`))
       }
       await until("the turn boundary", () => rung(chat).length === 1)
       const text = rung(chat)[0]?.text ?? ""
@@ -269,7 +268,7 @@ describe("a cancel", () => {
     const chat = await panel()
     await closing(chat, async () => {
       await run(chat.send("wait:8000", [], []))
-      await run(chat.doorFor(KOLU).deliver(open(chat), RANG))
+      await run(chat.doorFor(KOLU).deliver(open(chat), () => RANG))
       expect(rung(chat)).toEqual([])
       // `send` answers when the turn is OWNED, not when the prompt is on the
       // wire — `begin` forks and `agent.prompt` is the first line inside the
@@ -291,7 +290,7 @@ describe("a conversation nobody is in", () => {
       // The panel has no agent bound and no conversation open. The fixture
       // mints `sess-1` for the first `session/new`, which is what the boot
       // below asks for.
-      await run(chat.doorFor(KOLU).deliver({ agent: "opencode", session: "sess-1" }, RANG))
+      await run(chat.doorFor(KOLU).deliver({ agent: "opencode", session: "sess-1" }, () => RANG))
       expect(rung(chat)).toEqual([])
       await run(chat.start)
       await until("the boot's conversation", () => chat.state().session !== null)
@@ -306,7 +305,7 @@ describe("a conversation nobody is in", () => {
       expect(chat.state().session?.id).toBe("sess-1")
       // Addressed to a conversation that does not exist yet: this panel's
       // agent, and the session its NEXT `+ new` will mint.
-      await run(chat.doorFor(KOLU).deliver({ agent: "opencode", session: "sess-2" }, RANG))
+      await run(chat.doorFor(KOLU).deliver({ agent: "opencode", session: "sess-2" }, () => RANG))
       expect(rung(chat)).toEqual([])
       await run(chat.newSession("opencode"))
       await until("the new conversation", () => chat.state().session?.id === "sess-2")
@@ -320,13 +319,59 @@ describe("a conversation nobody is in", () => {
     await closing(chat, async () => {
       // Same session id, wrong agent — which means nothing at all, and is why
       // a conversation is the pair.
-      await run(chat.doorFor(KOLU).deliver({ agent: "claude", session: "sess-1" }, RANG))
+      await run(chat.doorFor(KOLU).deliver({ agent: "claude", session: "sess-1" }, () => RANG))
       await Effect.runPromise(Effect.sleep("300 millis"))
       expect(rung(chat)).toEqual([])
     })
   }, 20_000)
 })
 
+
+
+describe("a body that waited", () => {
+  test("is composed at the moment it goes in, not when it was drafted", async () => {
+    const chat = await panel()
+    await closing(chat, async () => {
+      await holding(chat)
+      let world = "two terminals are waiting"
+      await run(chat.doorFor(KOLU).deliver(open(chat), () => world))
+      // The world moves while the message queues behind the running turn.
+      world = "one terminal is waiting"
+      await until("the turn boundary to let it in", () => rung(chat).length === 1)
+      // What the agent reads is true when it is READ, not when it was drafted.
+      expect(rung(chat)[0]?.text).toBe("one terminal is waiting")
+    })
+  }, 20_000)
+
+  test("and a subject that has entirely gone drops the whole message", async () => {
+    const chat = await panel()
+    await closing(chat, async () => {
+      await holding(chat)
+      let gone = false
+      await run(chat.doorFor(KOLU).deliver(open(chat), () => gone ? null : "still true"))
+      expect(chat.state().wake).toEqual([])
+      // Both named terminals killed and the lane merged-and-done while it
+      // queued: not a shorter message, no message.
+      gone = true
+      await run(chat.send("say:done", [], []))
+      await until("the second turn to finish", () => chat.state().status === "idle")
+      expect(rung(chat)).toEqual([])
+    })
+  }, 20_000)
+
+  test("... and only the ones that have gone drop, where several were coalescing", async () => {
+    const chat = await panel()
+    await closing(chat, async () => {
+      await holding(chat)
+      let settled = false
+      await run(chat.doorFor(KOLU).deliver(open(chat), () => settled ? null : "the settled one"))
+      await run(chat.doorFor(KOLU).deliver(open(chat), () => "the standing one"))
+      settled = true
+      await until("the turn boundary", () => rung(chat).length === 1)
+      expect(rung(chat)[0]?.text).toBe("the standing one")
+    })
+  }, 20_000)
+})
 
 describe("a doorbell somebody turned off", () => {
   /** A scope table that really moves, which is what a CLEAR needs: the read-only
@@ -338,7 +383,6 @@ describe("a doorbell somebody turned off", () => {
       session: "sess-1",
       plugin: KOLU,
       file: "Fleet.olai",
-      at: "2026-08-31T09:00:00.000Z",
     }]
     return {
       rows: () => rows,
@@ -349,7 +393,7 @@ describe("a doorbell somebody turned off", () => {
           )
           rows = file === null
             ? without
-            : [...without, { ...to, plugin, file, at: "2026-08-31T09:01:00.000Z" }]
+            : [...without, { ...to, plugin, file }]
           // The rows this write removed and did not put back — the real store
           // answers with these so a caller can take back what their doorbells
           // were holding.
@@ -362,7 +406,7 @@ describe("a doorbell somebody turned off", () => {
     const chat = await panel({ scoping: movable() })
     await closing(chat, async () => {
       await holding(chat)
-      await run(chat.doorFor(KOLU).deliver(open(chat), RANG))
+      await run(chat.doorFor(KOLU).deliver(open(chat), () => RANG))
       expect(chat.state().wake).toEqual([{ name: KOLU, file: "Fleet.olai", waiting: 1 }])
       // The gesture, made on seeing that count — the clear and the count are
       // drawn on one line, so this is the ordinary way to press it and not a
@@ -383,8 +427,8 @@ describe("a doorbell somebody turned off", () => {
     const chat = await panel({ scoping: movable() })
     await closing(chat, async () => {
       await holding(chat)
-      await run(chat.doorFor(KOLU).deliver(open(chat), "kolu's"))
-      await run(chat.doorFor("odu").deliver(open(chat), "somebody else's"))
+      await run(chat.doorFor(KOLU).deliver(open(chat), () => "kolu's"))
+      await run(chat.doorFor("odu").deliver(open(chat), () => "somebody else's"))
       await run(chat.scope(open(chat), KOLU, null))
       await until("the turn boundary", () => rung(chat).length === 1)
       expect(rung(chat)[0]?.text).toBe("somebody else's")
@@ -396,7 +440,7 @@ describe("a doorbell somebody turned off", () => {
     const chat = await panel({ scoping: movable() })
     await closing(chat, async () => {
       await holding(chat)
-      await run(chat.doorFor(KOLU).deliver(open(chat), RANG))
+      await run(chat.doorFor(KOLU).deliver(open(chat), () => RANG))
       // The same gesture as a clear, one option along in the picker. The body
       // names the file it was derived from, so it would land under a control
       // saying it watches a different one — and the plugin does not re-derive
@@ -442,7 +486,7 @@ describe("the interruption a person has not spent", () => {
       await until("the handshake", () => talking()?.steers === true)
 
       await run(chat.send("wait:1200", [], []))
-      await run(chat.doorFor(KOLU).deliver(open(chat), RANG))
+      await run(chat.doorFor(KOLU).deliver(open(chat), () => RANG))
 
       // BOTH HALVES, and they are one fact seen twice. The words are not in the
       // conversation — so they did not go out alongside the running turn — and

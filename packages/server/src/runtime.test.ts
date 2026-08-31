@@ -862,7 +862,7 @@ const TALKING = { agent: "claude", session: "s-1" }
 
 /** One kept pick, as the record hands it back. `at` is there for the cap's
  *  eviction order and nothing here reads it. */
-const scoped = (plugin: string, file: string): Scoped => ({ ...TALKING, plugin, file, at: STARTED })
+const scoped = (plugin: string, file: string): Scoped => ({ ...TALKING, plugin, file })
 
 /** What a pick and a ring look like once they have crossed. */
 interface Picked {
@@ -936,8 +936,8 @@ const chatKeeping = (rows: ReadonlyArray<Scoped>): {
         rows
           .filter((row) => row.plugin === plugin)
           .map(({ agent, file, session }) => ({ agent, file, session })),
-      deliver: (to: { readonly agent: string; readonly session: string }, body: string) =>
-        Queue.offer(rang, { to, body, from: plugin }),
+      deliver: (to: { readonly agent: string; readonly session: string }, say: () => string | null) =>
+        Queue.offer(rang, { to, body: say() ?? "", from: plugin }),
     }),
     scope: (to, plugin, file) =>
       Effect.sync(() => {
@@ -1091,8 +1091,8 @@ test("each plugin's door carries only its own conversations, and rings under onl
           expect(ringer.door().scopes()).toEqual([{ ...TALKING, file: "ringer.olai" }])
           expect(other.door().scopes()).toEqual([{ ...TALKING, file: "other.olai" }])
 
-          ringer.door().deliver(TALKING, "the ringer's sentence")
-          other.door().deliver(TALKING, "the other's sentence")
+          ringer.door().deliver(TALKING, () => "the ringer's sentence")
+          other.door().deliver(TALKING, () => "the other's sentence")
 
           expect(yield* it.rang).toEqual({
             to: TALKING,
@@ -1127,6 +1127,6 @@ test("a plugin composed into a chatless serve is handed a door onto nothing", ()
         // ...and the write end answers `void` rather than refusing, because a
         // watcher's sink has nowhere to put a refusal. Nothing to assert but
         // that it is callable and returns.
-        expect(ringer.door().deliver(TALKING, "into the void")).toBeUndefined()
+        expect(ringer.door().deliver(TALKING, () => "into the void")).toBeUndefined()
       }), { plugins: [ringer.name] }))
 })

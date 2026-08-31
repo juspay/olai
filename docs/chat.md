@@ -4,6 +4,18 @@ Open the panel in the corner and tell the agent what you want. Ask it to check s
 
 What you type sits on the right, in a tinted bubble. What the agent answers sits on the left, as prose. The two used to share one shape — a faint box on the human's words — and a glance could not tell them apart.
 
+## Who is talking
+
+**Every stretch of messages is named, with a face and a name over it.** There are three parties in this panel — you, the agent, and any plugin allowed to ring this conversation — and shape alone stopped being enough to tell them apart the moment there was a third. So each *run* of one party's messages opens with a small line saying whose it is.
+
+**It is once per run, not once per message.** An answer that is a paragraph, four tool calls and another paragraph is one turn by one party, and it is named once. Your next message starts a new run and is named again.
+
+**Your face is your own picture**, resolved the same way the picture in the top-right corner is: whatever your proxy sent, else the operator's avatar template, else the gravatar of a real email claim — and the plain silhouette when none of those had one, which is a face like any other and not a failure. On a serve with no login in front of it the line simply says *you*.
+
+**The agent's face is its mark** — the same one the header and the picker draw, so the agent in the title bar and the agent in the transcript are visibly one thing. An agent olai has no mark for gets a plain generic one and its full name beside it; it never borrows another agent's.
+
+**A plugin's face comes from the plugin.** Olai does not draw it and does not keep a table of them — the mark ships with the plugin, so the day a new one delivers a sentence into a conversation it arrives wearing its own face and olai is not changed at all. A plugin that ships none gets a plain generic one and its name in full.
+
 ## Which agent
 
 The panel speaks [ACP](https://agentclientprotocol.com), and it talks to whichever agents this machine has. It finds them itself: the pinned Claude Code adapter, which comes with olai — `nix run`, the packaged binary and `just serve` all bake it in, so there is nothing to install and nothing to configure — an **opencode** on the server's own PATH, and **pi**, whose adapter is pinned and shipped like the Claude Code one but whose agent is found the way opencode is: a `pi` on the server's agent search path is the machine saying it has one, and without it there is no pi row.
@@ -466,6 +478,10 @@ wake on terminal activity · terminals from  [ lanes.olai ▾ ]   3 fleet events
 **The file is the whole of the scope, and what it MEANS is the plugin's business.** olai never opens it. kolu reads the terminals your board's un-done rows claim and tells this conversation when one of them has stopped and is waiting on a person — see [kolu's own page](plugins/kolu.md) for exactly what it says and when. Pick the board you are working from and you hear about the lanes on it; pick nothing and you hear nothing. That also means picking a *different* file is how you go quiet about one board without going quiet about the tool.
 
 **A message a machine sent looks like one.** It is in the same lane your own messages are in — that is the lane a prompt goes out on — but it is drawn as the full column on the left, never the tinted bubble on the right that means *you said this*, and it opens by naming who is speaking and when. That opening line is not decoration: a conversation you resume later is rebuilt out of the agent's own store, which carries the words and not the mark, so the sentence has to say for itself who wrote it. There is no *send again* under it either — what it says is how something STOOD when it rang, and re-sending that an hour later would be re-sending a claim that has stopped being true. Whatever rang will ring again.
+
+**And it is one line until you ask for the rest.** A doorbell's account can run to several paragraphs — which terminal, which step it is claiming, what the claim was derived from, what else is waiting, and how to make it stop — and all of that unasked, in the middle of a conversation, is a wall. So the row draws the plugin's own opening line with a small ▸ in front of it; press that and the account opens under it. Hovering the line shows the account too, as a second way in rather than the only one. The agent is handed the whole thing either way — it has to act on the ids in it — so what folds is what you are shown, and nothing else.
+
+**Ids in it are pressable, the same as ids the agent names.** When a plugin writes a node's id in backticks — the lane it is ringing about, say — that name is a reference: press it and you are shown the node, exactly as [pressing one in the agent's own prose](#pointing-back-at-a-node) does. That is the reason the line's text is not itself a button any more: the ▸ opens the row, the id goes to the node, and nothing has two meanings. Nothing else in a machine's sentence is interpreted — no headings, no lists, no links — because those words also have to read correctly when you resume the conversation later and the panel no longer knows a machine wrote them.
 
 **It waits for the turn to end rather than joining it.** If the agent is working when a plugin rings, the sentence is held and the count on the strip says how many are waiting — because the alternative to holding words out of sight is not dropping them, it is showing them. It arrives whole at the boundary, however that turn ended, cancelled included. This is not a queue behind the composer: what you type is never held anywhere, and a message that goes out while a turn runs still goes out. It is the machine that waits, and the reason it waits is that an agent interrupted by a message nobody typed would spend an interruption you were saving.
 

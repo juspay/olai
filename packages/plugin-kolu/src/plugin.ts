@@ -21,6 +21,7 @@
 
 import { TerminalBlock } from "@olai/kolu-ui"
 
+import { KoluMark } from "./browser/Mark.tsx"
 import { KoluMount } from "./browser/mount.tsx"
 import { Padi } from "./browser/Padi.tsx"
 import { TERMINAL_KIND } from "./kinds.ts"
@@ -81,4 +82,20 @@ export const plugin = {
    *  app's own composition root, and the day kolu's members became a sibling
    *  that line would have had to spell this plugin's name. */
   mount: KoluMount,
+  /**
+   * KOLU'S FACE IN A TRANSCRIPT (`./browser/Mark.tsx`) — the mark over a
+   * sentence the doorbell delivered into somebody's conversation.
+   *
+   * It is here rather than in the panel for the reason every other browser
+   * face is: core may know this plugin's NAME as data and nothing else, so the
+   * panel looks a mark up by the name it already stamped on the row and the
+   * shape itself is contributed from the tenant that owns it. The day odu
+   * delivers anything, it fills the same field with its own and core is not
+   * edited at all.
+   *
+   * It is NOT the doorbell's mark. The doorbell is one door kolu speaks
+   * through; the face says which appliance is speaking, which is the question
+   * a reader of a transcript actually has.
+   */
+  mark: KoluMark,
 } as const

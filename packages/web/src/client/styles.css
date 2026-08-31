@@ -683,20 +683,31 @@ mark.olai-hit {
   text-decoration: underline;
 }
 
-/* An id the agent named, made pressable (`chat/refs.ts`). It is a `<code>` in
- * rendered markdown — markup this codebase did not author and cannot put a
- * class on — which is the whole reason this rule is here rather than in a
- * component. What it adds to the chip a code span already is: the accent, so it
- * reads as a reference rather than as a quoted string, and a pointer. The
- * background stays the code chip's, because that is what it IS — an id the
- * agent wrote in backticks — and a second look would claim this panel had
- * rewritten the sentence. */
-.olai-md code[data-node-ref] {
+/* An id somebody named, made pressable (`chat/refs.ts`). What it adds to the
+ * chip a code span already is: the accent, so it reads as a reference rather
+ * than as a quoted string, and a pointer. The background stays the code chip's,
+ * because that is what it IS — an id written in backticks — and a second look
+ * would claim this panel had rewritten the sentence.
+ *
+ * A RULE RATHER THAN A CLASS, and that reason survived the selector losing its
+ * `.olai-md` scope: `data-node-ref` is written by a DOM pass after the element
+ * is drawn, so "is this span a reference" is not a question any component knows
+ * the answer to at render time — no `classList` can express it, in authored
+ * markup or otherwise.
+ *
+ * UNSCOPED, because the pass has two subjects now. It began over the agent's
+ * rendered markdown, which is markup this codebase does not author; a machine's
+ * row is QUOTED rather than rendered and draws its own backticked runs
+ * (`chat/Quoted.tsx`), and those spans are the same reference wearing the same
+ * mark. Two rules keyed on where the span happens to live would be two answers
+ * to "what does a pressable id look like", free to drift — and the one that
+ * drifted would be the row nobody was editing. */
+code[data-node-ref] {
   color: var(--color-accent);
   cursor: pointer;
 }
 
-.olai-md code[data-node-ref]:hover {
+code[data-node-ref]:hover {
   text-decoration: underline;
 }
 

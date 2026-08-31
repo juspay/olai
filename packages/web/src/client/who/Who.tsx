@@ -14,6 +14,17 @@
  * what it was handed and knows nothing about headers or templates; when
  * the answer is none, the same silhouette anonymous wears stands in, and
  * the person is still `yes` (they have a login, and now often a name).
+ *
+ * THE ASK IS THE TAB'S rather than this chip's ({@link ./mine.ts}). It used
+ * to be `createWho()` called here, which was right while the header was the
+ * only reader; the transcript now names the person over each run of their
+ * messages ({@link ../chat/Speaker.tsx}), and a resource per face would be
+ * one `who.get` per run of a conversation for an answer that does not move
+ * for the life of the socket.
+ *
+ * THE SILHOUETTE moved out for the same reason ({@link ./UserIcon.tsx}): the
+ * ladder's bottom rung is drawn in two places now, and two traced outlines
+ * of one shape is the drift nobody can see.
  */
 
 import { Match, Show, Switch, type JSX } from "solid-js"
@@ -22,15 +33,17 @@ import { LAYER } from "../layer.ts"
 import { ICON_BUTTON } from "../readout.ts"
 import { TESTID } from "../testids.ts"
 import { Tip } from "../Tip.tsx"
-import { createWho, type Who as Person } from "./asking.ts"
+import type { Who as Person } from "./asking.ts"
+import { whoAmI } from "./mine.ts"
 import { saying } from "./saying.ts"
+import { UserIcon } from "./UserIcon.tsx"
 
 /** The four faces the slot can draw. Closed so a typo is a missing
  *  `Match` rather than a chip that draws nothing. */
 export type Face = "asking" | "none" | "yes" | "error"
 
 export function Who() {
-  const asking = createWho()
+  const asking = whoAmI()
   const person = () => asking.who()
   const face = (): Face => {
     if (!asking.heard()) return "asking"
@@ -46,17 +59,17 @@ export function Who() {
       <Switch>
         <Match when={face() === "asking"}>
           <Icon label="asking who is looking" dim>
-            <UserIcon />
+            <UserIcon class="size-4" />
           </Icon>
         </Match>
         <Match when={face() === "none"}>
           <Icon label="anonymous">
-            <UserIcon />
+            <UserIcon class="size-4" />
           </Icon>
         </Match>
         <Match when={face() === "error"}>
           <Icon label="could not tell who is looking" alarm>
-            <UserIcon />
+            <UserIcon class="size-4" />
           </Icon>
         </Match>
         <Match when={person()}>
@@ -87,25 +100,6 @@ function Icon(props: {
   )
 }
 
-/** Outline user, same stroke language as {@link ../Leaf.tsx}. */
-function UserIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      class="size-4"
-      aria-hidden="true"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="1.7"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-    >
-      <circle cx="12" cy="8" r="3.25" />
-      <path d="M5.5 19.2c1.3-3.2 3.6-4.7 6.5-4.7s5.2 1.5 6.5 4.7" />
-    </svg>
-  )
-}
-
 /** A person: their picture when the server resolved one, and the same
  *  silhouette as anonymous when it did not — a person with no picture is
  *  still a person, which is what the tooltip and `data-who` say. */
@@ -118,7 +112,7 @@ function Chip(props: { readonly person: Person }) {
         }`}
         aria-label={saying(props.person)}
       >
-        <Show when={props.person.picture} fallback={<UserIcon />}>
+        <Show when={props.person.picture} fallback={<UserIcon class="size-4" />}>
           {(src) => (
             <img
               src={src()}

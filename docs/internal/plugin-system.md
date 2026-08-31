@@ -88,6 +88,7 @@ Skim the table; the sections after it give one example each.
 | **dressing** | what a live property *wears* in the browser: a chip, a pane, a block |
 | **chrome** | what a plugin hangs in the app's header bar |
 | **mount** | the plugin's own half of the tab — one subscription per tab |
+| **mark** | the plugin's FACE — the glyph over a sentence it delivered into a conversation |
 | **doorbell** (`deliveries`) | the write-only door a plugin speaks INTO a conversation through: which conversations opted in to it, and one verb that puts a whole sentence in one |
 | **wake** | the plugin's own words for the control a person points that doorbell with — three pieces, and core composes none of them |
 | **roster** | which plugins this build has, and which this serve runs |
@@ -259,6 +260,26 @@ components the plugin owns; the app hands them its own *furniture* (the clock, t
 pill's geometry, a popover, a link to a served file) so a plugin never imports
 `@olai/web`, which would be a cycle.
 
+### mark
+
+`mark` is the third browser hook and the smallest: the shapes drawn over a sentence
+this plugin delivered into somebody's conversation. The chat panel names the
+speaker of every run of messages — the person, the agent, or a plugin — and looks a
+plugin's face up by the `rang` name core already stamped on the row.
+
+It takes **no argument at all**, where `chrome` takes the furniture: a mark is a
+glyph at the size of the line it sits on, so there is nothing for the app to hand
+over. It answers with the SHAPES — a `<g>` of paths in a `0 0 16 16` box, drawn in
+`currentColor` — and the app owns the `<svg>` around them, because the marks are
+read as a column and a plugin that owned the size could make its row look unlike
+every row around it.
+
+It is a manifest field rather than a table in the panel for the fence's reason: no
+general package spells a plugin's name in code (`fence.test.ts`, claim 9), so the
+day a third tenant delivers a sentence it arrives wearing its own face and core is
+not edited. A plugin that hangs none is drawn with a plain generic and named in
+full — never another plugin's shape.
+
 ### doorbell and wake
 
 The other direction. `probe` and `chrome` are the app asking a plugin something;
@@ -350,7 +371,7 @@ lines**, not one.
                         └──────────────────────────────────────────┘
 
                         ┌──────────────────────────────────────────┐
-   @olai/plugins        │  + dressings · chrome · mount            │
+   @olai/plugins        │  + dressings · chrome · mount · mark     │
    ─────────────────▶   │  SolidJS, and behind one face            │
    read by: the browser │  a terminal emulator                     │
                         └──────────────────────────────────────────┘
@@ -599,7 +620,7 @@ The whole checklist. Nothing outside `packages/` changes.
    a conversation. Declare `wake` or the strip draws no picker for you and
    `chat.scope` refuses your name — which is the gate working, not a bug.
 3. **`packages/plugin-<name>/src/plugin.ts`** — the manifest: the wire half plus
-   `dressings`, `chrome`, `mount`. Browser graph.
+   `dressings`, `chrome`, `mount`, `mark`. Browser graph.
 4. **`packages/plugin-<name>/docs.md`** — the user page, plus a symlink at
    `docs/plugins/<name>.md` and a line in `docs/index.md`.
 5. **Three lines in `packages/plugins/`** — one in `surfaces.ts`, one in

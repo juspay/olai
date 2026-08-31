@@ -63,7 +63,7 @@ import type { KoluEvent } from "@olai/kolu-client/wire"
 
 import { claimantsIn } from "./claimants.ts"
 import { koluFileIn, watchConfigIn } from "./config.ts"
-import { bodyFor, claimedIn, claimingIn, classify, standingIn } from "./doorbell.ts"
+import { bodyFor, claimedIn, claimingIn, classify, type Meaning, standingIn } from "./doorbell.ts"
 import { name, surface } from "./wire.ts"
 
 /** The kinds this plugin teaches a vault, reached on this door — see
@@ -167,7 +167,8 @@ export interface Deliveries {
    *  accumulated. */
   readonly deliver: (
     to: { readonly agent: string; readonly session: string },
-    body: string,
+    /** Asked at the moment the words go in, never before — see {@link said}. */
+    say: () => string | null,
     options?: { readonly coalesce?: string },
   ) => void
 }
@@ -322,13 +323,50 @@ export const serve = (services: Services): {
    *  happens — but the honest answer costs one comparison. */
   let derived: Derived | undefined
 
-  /**
+    /**
+   * THE WORDS, DERIVED AFRESH AT THE MOMENT THEY ENTER A CONVERSATION.
+   *
+   * ## Why this is not the ring's own answer
+   *
+   * `ring` composes a body once, to learn whether there is anything to say at
+   * all. That body is NOT what goes in: core holds a delivery through a running
+   * turn, or until somebody opens the conversation, and the fleet moves while it
+   * waits. The human found one arriving about two terminals that had been killed
+   * and a lane that had been merged and closed in the gap — a message asserting a
+   * world that had closed while it queued.
+   *
+   * So core is handed a CLOSURE (`@olai/plugins`' `Deliveries.deliver`) and calls
+   * it last thing. This reads `derived` and `half.rows()` at CALL time — the
+   * store's current revision and the live fleet, never the values the ring tick
+   * closed over. It is {@link ./doorbell.ts}'s no-standing-set rule spent on the
+   * delivery moment rather than the derivation one, and for the same reason: an
+   * answer kept from before is a second copy of a truth that has already changed.
+   *
+   * A SET THAT HAS ENTIRELY SETTLED ANSWERS `null`, and core drops the message
+   * rather than shortening it. Rows that settled individually simply are not in
+   * the sentence — `claimedIn` skips a node that is done and `standingIn` skips a
+   * terminal the fleet no longer holds, so the drop needs no arm of its own.
+   *
+   * THE MEANING IS NOT RE-DECIDED. What the event said happened, happened; what
+   * is asked again is who it is still true of.
+   */
+  const said = (file: string, meaning: Meaning): string | null => {
+    const at = derived
+    if (at === undefined) return null
+    const rows = half.rows()
+    const claiming = claimingIn(claimedIn(declaring, at, file), [...rows.keys()])
+    const standing = standingIn(claiming, rows, meaning)
+    return standing.length === 0 ? null : bodyFor(meaning, standing, file, services.now())
+  }
+
+/**
    * ONE WATCHER EVENT, RUNG THROUGH — the doorbell's whole drive loop.
    *
    * PER FILE, and delivered PER CONVERSATION, which are not the same count:
    * two seats may filter by two boards and mean two different things by one
    * terminal moving, so the derivation cannot be hoisted out of the loop —
-   * but two seats on the SAME board are one answer, so it is memoised by file
+   * but two seats on the SAME board with the SAME meaning are one answer all
+   * the way to the sentence, so both the claims walk and the body are memoised
    * for the life of this call and dropped with it. The rows and their id list
    * are one reading of one map however many scopes there are.
    *
@@ -392,20 +430,70 @@ export const serve = (services: Services): {
         perFile.set(file, fresh)
         return fresh
       }
+      // ...AND ONE SENTENCE PER (FILE, MEANING), which is the same argument
+      // carried to its end. The walk above is not the only thing two seats on
+      // one board share: the standing they derive is a function of the file's
+      // claims and the meaning alone, and so is the multi-paragraph body built
+      // from it. Keying the memo on the file ALONE closed half the redundancy
+      // and left the expensive half open — the string. The pair is the whole
+      // key because a `wake` and a `digest` over one file are two different
+      // subsets and two different sentences, and nothing else about a scope
+      // enters either: the conversation is only ever the ADDRESS the body is
+      // sent to.
+      //
+      // `null` is a MEMOISED SILENCE rather than a miss — a file that has
+      // nobody standing for this meaning must not be walked again per seat —
+      // and it is why this map is read with `has` rather than by testing the
+      // value.
+      //
+      // Minted per event and dropped with it, exactly as `perFile` is. Neither
+      // survives the tick, so nothing here can serve a sentence about a fleet
+      // that has moved on, and the plugin still holds nothing between ticks.
+      const perSaid = new Map<string, string | null>()
+      const bodyIn = (
+        file: string,
+        meaning: Meaning,
+        claiming: ReturnType<typeof claimingIn>,
+      ): string | null => {
+        const key = `${meaning}:${file}`
+        if (perSaid.has(key)) return perSaid.get(key) ?? null
+        const standing = standingIn(claiming, rows, meaning)
+        // The event's own terminal is held by construction, so this is empty
+        // only where the row moved between the emit and this walk. A sentence
+        // about nobody is worse than no sentence.
+        const fresh = standing.length === 0 ? null : bodyFor(meaning, standing, file, now)
+        perSaid.set(key, fresh)
+        return fresh
+      }
       for (const scope of services.deliveries.scopes()) {
         const claiming = claimingFor(scope.file)
         const meaning = classify(event, claiming)
         // SILENCE IS NO CALL AT ALL. Not a quieter body, not a warning about
         // an unclaimed terminal — the dispatch dropped that arm on purpose.
         if (meaning === null) continue
-        const standing = standingIn(claiming, rows, meaning)
-        // The event's own terminal is held by construction, so this is empty
-        // only where the row moved between the emit and this walk. A sentence
-        // about nobody is worse than no sentence.
-        if (standing.length === 0) continue
+        // Asked ONCE here, against the revision the event arrived on, so a
+        // ring that has nothing to say costs no slot in core and no row.
+        if (bodyIn(scope.file, meaning, claiming) === null) continue
         services.deliveries.deliver(
           { agent: scope.agent, session: scope.session },
-          bodyFor(meaning, standing, scope.file, now),
+          // ... AND ASKED AGAIN AT THE MOMENT IT GOES IN, which is what this
+          // closure is for. A body can wait through a running turn or until
+          // somebody opens the conversation, and the fleet moves while it
+          // waits: the human found a delivery arriving about two terminals
+          // that had been killed and a lane merged and closed in the gap.
+          //
+          // It reads `derived` and `half.rows()` AT CALL TIME, never the
+          // values this tick closed over — the same no-standing-set rule
+          // {@link ./doorbell.ts}'s header states, spent on the delivery
+          // moment rather than the derivation one. The per-event memo above is
+          // deliberately not consulted here: it is this tick's answer, and
+          // this closure's whole job is to not give this tick's answer.
+          //
+          // The MEANING is the event's and is not re-decided — what the event
+          // said happened, happened. What is re-derived is who it is still
+          // true of, and a set that has entirely settled answers `null`, which
+          // drops the message rather than shortening it.
+          () => said(scope.file, meaning),
           { coalesce: `${name}:${meaning}` },
         )
       }
@@ -459,11 +547,35 @@ export const serve = (services: Services): {
       derived = revision.value.derived
       half.revision(revision.value.derived.nodes, file.file ?? null)
     },
-    /** The store has NEVER published — the vault's kolu verdict goes out with
-     *  the canvas: yesterday's wrench, aimed at a file this serve can no longer
-     *  say it read, is a claim the store cannot vouch for. The watch knobs are
-     *  NOT touched — their timers hold their last hand-off while the mirror,
-     *  equally starved, has nothing new for them to gate. */
-    unloaded: () => half.unloaded(),
+    /**
+     * The store has NEVER published — the vault's kolu verdict goes out with
+     * the canvas: yesterday's wrench, aimed at a file this serve can no longer
+     * say it read, is a claim the store cannot vouch for. The watch knobs are
+     * NOT touched — their timers hold their last hand-off while the mirror,
+     * equally starved, has nothing new for them to gate.
+     *
+     * ## The two `let`s go with it, and the DOORBELL is why
+     *
+     * {@link ring} runs on the WATCHER's clock rather than on a revision, so
+     * `derived` and `file` are exactly the pair a fleet event arriving after a
+     * disown would be joined against. Leaving them set means the doorbell
+     * keeps walking a vault the store has explicitly stopped vouching for and
+     * ringing somebody about claims read out of it — the same stale wrench the
+     * paragraph above refuses, arriving by the one door that does not go
+     * through the mirror. `undefined` is the doorbell's own first gate
+     * ({@link ring} returns on it), so clearing it is how the walk is told.
+     *
+     * IT USED TO CLEAR NEITHER, and only called through to the half. The
+     * comment claimed the verdict went out with the canvas and the code did
+     * not: a serve whose store stopped publishing pinned the last whole
+     * `Derived` — nodes, `byId`, `byFile`, `children`, `status` — for the life
+     * of the process, with the disowned-vault doorbell walk as the only thing
+     * that would ever read it again.
+     */
+    unloaded: () => {
+      derived = undefined
+      file = undefined
+      half.unloaded()
+    },
   }
 }

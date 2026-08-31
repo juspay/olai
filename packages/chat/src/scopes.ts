@@ -93,7 +93,7 @@
 import { canonical, fileFor, readHeld, writeHeld } from "@olai/state"
 import { Effect, Semaphore } from "effect"
 
-import { MemoryFailure } from "./memory.ts"
+import { MemoryFailure, word } from "./memory.ts"
 
 /** The `kind` these files live under in the state home — the second
  *  subdirectory, beside `chat`'s. */
@@ -111,12 +111,31 @@ const WAKE = "wake"
 export const ROWS = 32
 
 /**
- * ONE PICK: whose doorbell, in which conversation, on which file, and when.
+ * ONE PICK: whose doorbell, in which conversation, on which file.
  *
- * `at` is ISO-8601 and is here for the cap's eviction order alone — nothing
- * draws it and nothing compares it to a clock. It is written down rather than
- * derived from position because the file is rewritten whole on every `set` and
- * position would be an ordering nothing guarantees on the way back in.
+ * ## THE ARRAY IS THE ORDER, and there is no second copy of it
+ *
+ * The rows are held touched-oldest-first, and that is a fact the writers keep
+ * rather than one a field records. `set` is the only writer: it filters the
+ * touched row out and re-APPENDS it at the end, so a fresh pick and a re-pick
+ * both land last and a clear only removes. The order the array is in is
+ * therefore exactly "least recently touched, first" — which is the one
+ * question {@link capped} has to answer — and it survives the round trip
+ * because the record is a JSON array and `JSON.parse` hands an array's
+ * elements back in the order they were written. {@link picks} walks that array
+ * once, `push`ing as it goes, and never sorts.
+ *
+ * IT USED TO CARRY A STAMP. An `at` field, ISO-8601, written on every `set`
+ * and read by nothing but the cap's eviction order — nothing drew it and
+ * nothing ever compared it to a clock. The header on it argued that position
+ * "would be an ordering nothing guarantees on the way back in", and that is
+ * simply not true of a JSON array: order is the one thing an array does
+ * guarantee. So the stamp was a second encoding of a fact the positions
+ * already carried, kept in sync by hand, and `capped` paid a
+ * map/sort/slice/map/Set/filter to recover an ordering it was handed. A row
+ * written by an olai that had not stamped one needed a fallback on top of
+ * that. The positions are the order now, and there is nothing left to
+ * disagree with them.
  */
 export interface Scoped {
   readonly agent: string
@@ -127,7 +146,6 @@ export interface Scoped {
    *  uses. What it MEANS is the plugin's business; core stores it and hands it
    *  back. */
   readonly file: string
-  readonly at: string
 }
 
 /**
@@ -166,7 +184,6 @@ export interface Scopes {
     to: { readonly agent: string; readonly session: string },
     plugin: string,
     file: string | null,
-    at: string,
   ) => Effect.Effect<ReadonlyArray<Scoped>, MemoryFailure>
 }
 
@@ -175,11 +192,6 @@ export interface Scopes {
 interface Written {
   readonly scopes?: unknown
 }
-
-/** A non-empty string, or `null` for everything else — including an absent
- *  field, which is what a row damaged in transit looks like. */
-const word = (value: unknown): string | null =>
-  typeof value === "string" && value !== "" ? value : null
 
 /**
  * What a read makes of the rows.
@@ -190,6 +202,16 @@ const word = (value: unknown): string | null =>
  * doorbells. Refusing the whole file over one would turn every doorbell in the
  * directory off, which is the louder failure and the wrong one: the picks that
  * are still legible are still what a person asked for.
+ *
+ * The per-field rule is {@link ./memory.ts}'s `word`, which is the SAME
+ * function the other record reads by rather than a copy of it: leniency is one
+ * decision this package makes about its own files, and it used to be spelled
+ * here a second time, character for character.
+ *
+ * ORDER IS PRESERVED, and that is load-bearing rather than incidental — see
+ * {@link Scoped}. The rows come back in the order they were written, because a
+ * JSON array parses back in the order it was written, and that order is
+ * "touched oldest first", which is the whole of what {@link capped} needs.
  */
 const picks = (held: Record<string, unknown>): ReadonlyArray<Scoped> => {
   const written = (held as Written).scopes
@@ -202,37 +224,29 @@ const picks = (held: Record<string, unknown>): ReadonlyArray<Scoped> => {
     const session = word(one["session"])
     const plugin = word(one["plugin"])
     const file = word(one["file"])
-    const at = word(one["at"])
     if (agent === null || session === null || plugin === null || file === null) continue
-    // A row written by an olai that did not stamp one sorts oldest, which is
-    // the safe direction: the cap evicts it before anything somebody has
-    // touched since.
-    rows.push({ agent, session, plugin, file, at: at ?? "" })
+    rows.push({ agent, session, plugin, file })
   }
   return rows
 }
 
 /**
- * The CAP applied — the {@link ROWS} most recently touched, in the order they
- * were held.
+ * The CAP applied — the {@link ROWS} most recently touched, which is the
+ * {@link ROWS} at the END.
  *
- * Order is preserved rather than sorted, because the array's order is what
- * `rows()` hands out and re-sorting it on every write would make the strip's
- * source of truth a thing that moves for reasons nobody asked about.
+ * A TAIL SLICE AND NOTHING ELSE, because the array is already in the order
+ * this question is about ({@link Scoped} argues why it stays that way). The
+ * oldest touch is at index zero, so dropping from the front is the eviction,
+ * and what is left is still in the order `rows()` hands out — the strip's
+ * source of truth does not move for reasons nobody asked about.
+ *
+ * Why not sort? Because there is nothing to sort BY that the positions do not
+ * already say, and a sort would only be as good as whatever second copy of the
+ * order it was reading. That is what this used to do, and {@link Scoped}
+ * records what the second copy was.
  */
-const capped = (rows: ReadonlyArray<Scoped>): ReadonlyArray<Scoped> => {
-  if (rows.length <= ROWS) return rows
-  const kept = new Set(
-    [...rows]
-      .map((row, index) => ({ row, index }))
-      // Newest first, and a tie goes to the one held later — two picks stamped
-      // in the same millisecond are ordered by the only other fact there is.
-      .sort((a, b) => a.row.at === b.row.at ? b.index - a.index : (a.row.at < b.row.at ? 1 : -1))
-      .slice(0, ROWS)
-      .map((one) => one.row),
-  )
-  return rows.filter((row) => kept.has(row))
-}
+const capped = (rows: ReadonlyArray<Scoped>): ReadonlyArray<Scoped> =>
+  rows.length <= ROWS ? rows : rows.slice(rows.length - ROWS)
 
 export const forDirectory = (spelling: string): Effect.Effect<Scopes> =>
   Effect.gen(function*() {
@@ -262,7 +276,7 @@ export const forDirectory = (spelling: string): Effect.Effect<Scopes> =>
 
     return {
       rows: () => rows,
-      set: (to, plugin, file, when) =>
+      set: (to, plugin, file) =>
         writing.withPermit(Effect.gen(function*() {
           // The table as it stands, held so the answer below can be computed
           // against it: `without` has already dropped the row being replaced,
@@ -271,9 +285,14 @@ export const forDirectory = (spelling: string): Effect.Effect<Scopes> =>
           const without = before.filter((row) =>
             !(row.agent === to.agent && row.session === to.session && row.plugin === plugin)
           )
+          // FILTER OUT, THEN RE-APPEND, and the second half is the touch: a
+          // re-pick leaves the front of the array and arrives at the back, so
+          // the positions stay in touched-oldest-first order for
+          // {@link capped} to read. This is the only writer, so that is the
+          // whole of the invariant ({@link Scoped}).
           const next = file === null
             ? without
-            : capped([...without, { agent: to.agent, session: to.session, plugin, file, at: when }])
+            : capped([...without, { agent: to.agent, session: to.session, plugin, file }])
           // THE RECORD FIRST, AND THE MIRROR ONLY IF IT LANDED. The two are one
           // fact in two places and this is the whole of what keeps them one: a
           // write that fails is a pick that did not stick, and a mirror that

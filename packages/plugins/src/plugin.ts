@@ -490,6 +490,63 @@ export interface Chrome {
 export type ChromeFace = (props: { readonly app: AppFurniture }) => JSX.Element
 
 /**
+ * THE PLUGIN'S OWN FACE — the mark drawn beside a sentence this plugin put into
+ * somebody's conversation.
+ *
+ * A plugin may write into a person's chat lane ({@link Deliveries}), and the
+ * panel draws such a row as a THIRD speaker beside the human and the agent.
+ * Every speaker in that transcript is named by a mark, and this is where a
+ * plugin's comes from: the plugin, and nowhere else.
+ *
+ * ## Why the manifest rather than a table in core
+ *
+ * `./fence.test.ts` holds it as an equality per package — no general package
+ * spells a plugin's name in code — so a `MARKS = { … }` in the panel is not a
+ * shortcut somebody tidies later, it is red the day it is written. That fence
+ * is not pedantry here: what a tenant looks like is a drawing decision about
+ * that tenant, made where somebody knows what it IS, and a core table of them
+ * is a core file edited every time a plugin core has never heard of ships.
+ *
+ * ## Why it is not a wire member
+ *
+ * The wire door ({@link ./surfaces.ts}) carries a plugin's NAME and its schema
+ * so a process that renders nothing can read them; a mark is SolidJS and could
+ * not cross it if anybody wanted it to. It does not need to. The browser holds
+ * the manifests directly (`@olai/web`'s `plugins/roster.ts` widens the
+ * registry) and looks the mark up by the name core already stamped on the row
+ * — one walk over one registry, which is what every other browser hook here
+ * already is.
+ *
+ * ## Why no argument at all, where {@link ChromeFace} takes the furniture
+ *
+ * A chrome slot wears the bar's geometry and therefore has to be handed it. A
+ * mark is a glyph at the size of the line it sits on: it takes that line's
+ * colour through `currentColor` and its box from the element the panel draws it
+ * inside, so there is nothing for the app to hand over. A parameter offered
+ * against a future need would be a contract core then has to keep — and the
+ * alternative costs nothing, since a plugin that later needs data reads its own
+ * half through the mount it already has ({@link PluginMount}).
+ *
+ * ## What it answers with: the SHAPES, inside a `0 0 16 16` box
+ *
+ * Not a whole `<svg>`, and this is the one part of the contract worth spelling.
+ * The marks in a transcript are read as a COLUMN — the person, the agent, the
+ * plugin, one under another — so they must be one size and one stroke weight,
+ * and a plugin that answered with its own `<svg>` would own the two attributes
+ * that decide both. So the app draws the element and the plugin fills it: a
+ * `<g>` of paths in a sixteen-unit square, `currentColor` throughout, which is
+ * exactly the shape `@olai/web`'s own `chat/AgentMark.tsx` gives every agent's.
+ * A plugin wanting a different size is asking for its row to look unlike the
+ * rows around it, which is a request the panel should refuse.
+ *
+ * A plugin that contributes none is drawn with a plain generic, which is the
+ * same bargain an agent olai has no shape for already gets — and never another
+ * plugin's mark, which would teach a reader something false the first time a
+ * third tenant arrived.
+ */
+export type PluginMark = () => JSX.Element
+
+/**
  * THE TAB'S OWN HALF OF THIS PLUGIN, mounted once around the page.
  *
  * A plugin's faces are LEAVES — a chip drawn per row, a pill in a bar — and a
@@ -680,7 +737,32 @@ export interface Deliveries {
    */
   readonly deliver: (
     to: { readonly agent: string; readonly session: string },
-    body: string,
+    /**
+     * THE WORDS, COMPOSED AT THE MOMENT THEY ENTER THE CONVERSATION — not when
+     * this was called.
+     *
+     * ## Why a thunk and not a string
+     *
+     * A body can WAIT: through a running turn, or until somebody opens the
+     * conversation, which may be hours. A string handed over at ring time is a
+     * claim about the world drafted then and read now, and the world moves — a
+     * delivery was found arriving about two terminals that had been killed and
+     * a lane that had been merged and closed while it queued. A message the
+     * agent reads has to be true when it is READ, which is the same was-clause
+     * honesty the board's own writes keep.
+     *
+     * So core asks for the words at the last possible moment and the plugin
+     * derives afresh. It is the no-standing-set rule spent one floor over: a
+     * plugin holding its own answer between the drafting and the delivery would
+     * be keeping a second copy of a truth that had already changed.
+     *
+     * `null` DROPS THE DELIVERY. A body whose subject has entirely gone — every
+     * terminal it was about settled while it waited — is not a shorter message,
+     * it is no message, and a plugin says so by answering with nothing. Where
+     * several bodies were coalescing into one, only the ones that still answer
+     * are joined; if none does, no row is written at all.
+     */
+    say: () => string | null,
     options?: {
       /**
        * MESSAGES SHARING A KEY, WHILE STILL UNDELIVERED, REPLACE EACH OTHER —
@@ -901,6 +983,11 @@ export interface OlaiPlugin extends PluginWire {
    *  leaves draw ({@link PluginMount}). Absent on a plugin with nothing to
    *  hold, which is a plugin whose faces are all pure. */
   readonly mount?: PluginMount
+  /** WHAT IT LOOKS LIKE WHEN IT SPEAKS — the mark over a sentence this plugin
+   *  delivered into a conversation ({@link PluginMark}). Typed for
+   *  {@link Dressing}'s reason: the app draws it. Absent on a plugin that
+   *  delivers nothing, and on one content to wear the generic. */
+  readonly mark?: PluginMark
 }
 
 /** Solid's element type, re-exported so a plugin's component fields have a

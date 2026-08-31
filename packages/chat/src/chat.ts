@@ -113,7 +113,7 @@ import type { AgentEvent } from "./events.ts"
 import * as Listings from "./listings.ts"
 import * as Memory from "./memory.ts"
 import type { Probe } from "./probes.ts"
-import type { Scoped, Scopes } from "./scopes.ts"
+import type { Scopes } from "./scopes.ts"
 import { type Change, says, Transcript } from "./transcript.ts"
 import { type Turn, Turns } from "./turns.ts"
 import { sameWatching, watching } from "./watching.ts"
@@ -309,7 +309,7 @@ export interface Chat {
      */
     readonly deliver: (
       to: { readonly agent: string; readonly session: string },
-      body: string,
+      say: () => string | null,
       options?: {
         /** Bodies sharing a key, WHILE STILL HELD, replace each other in place —
          *  see {@link ./deliveries.ts}. A body with no key never replaces. */
@@ -1948,7 +1948,19 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         const oldest = waiting[0]
         if (oldest === undefined) return
         const mine = waiting.filter((slot) => slot.from === oldest.from)
-        const arm = yield* offer(to, Deliveries.joined(mine), oldest.from)
+        // ASKED HERE, which is the last moment before the words are in the
+        // conversation — see {@link ./deliveries.ts}'s `joined`. A body that
+        // waited through a turn is about a world that has had a turn to move,
+        // and a plugin whose subject has entirely gone answers with nothing.
+        const body = Deliveries.joined(mine)
+        if (body === null) {
+          // NOTHING LEFT TO SAY, so nothing is written — and the slots go, or
+          // the next boundary would ask them again and get the same silence.
+          held.took(to, mine)
+          move({ wake: wakeOf() })
+          return
+        }
+        const arm = yield* offer(to, body, oldest.from)
         if (arm === "held") return
         held.took(to, mine)
         move({ wake: wakeOf() })
@@ -1978,16 +1990,33 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      */
     const deliverTo = (
       to: Deliveries.Addressed,
-      body: string,
+      say: () => string | null,
       from: string,
       how?: { readonly coalesce?: string },
     ): Effect.Effect<void> =>
       Effect.gen(function*() {
-        held.hold(to, from, body, how?.coalesce)
+        held.hold(to, from, say, how?.coalesce)
         // The strip's count moves the moment the body is held, which is the
         // panel's own rule: the alternative to holding words out of sight is
         // not dropping them, it is showing that they are waiting.
-        move({ wake: wakeOf() })
+        //
+        // ONLY WHEN THE COUNT THIS PANEL DRAWS IS THE ONE THAT MOVED.
+        // {@link wakeOf} projects over the conversation this panel is IN, and
+        // filters the picks to that pair — so a body held for any OTHER
+        // conversation recomputes an array identical to the one already on the
+        // cell. That is the COMMON case rather than an edge one: the whole
+        // point of holding is that a doorbell rings conversations nobody is
+        // sitting in. The chat cell declares no `equals`, so every `move` ships
+        // a whole `ChatState` frame to every open tab, and a frame that says
+        // nothing is still a frame every tab decodes.
+        //
+        // The flush below covers the other direction: when a body really does
+        // land, the count it was raising comes back down and {@link flush}
+        // publishes that itself.
+        const here = conversationOf()
+        if (here !== null && here.agent === to.agent && here.session === to.session) {
+          move({ wake: wakeOf() })
+        }
         yield* flush(to)
       })
 
@@ -2352,7 +2381,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             // ABOUT one plugin, so carrying its name back to it would be the
             // caller's own question answered a second time.
             .map(({ agent, file, session }) => ({ agent, file, session })),
-        deliver: (to, body, how) => deliverTo(to, body, plugin, how),
+        deliver: (to, say, how) => deliverTo(to, say, plugin, how),
       }),
       /**
        * A person pointed a doorbell at a file — or took it off one.
@@ -2405,11 +2434,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           // came too late costs a sentence nobody can account for.
           held.dropped(to, plugin)
           const left = yield* Effect.mapError(
-            // The CLOCK is read here rather than injected, for the reason
-            // `listings.ts` reads one: what the stamp orders is an eviction on
-            // this machine, and nothing draws it or compares it to anything a
-            // test would have to own.
-            scoping.set(to, plugin, file, new Date().toISOString()),
+            scoping.set(to, plugin, file),
             (failure) => new BusyFailure({ reason: failure.why }),
           )
           // ... AND SO DOES A WRITE THAT PUSHED SOMEBODY ELSE OUT. The cap

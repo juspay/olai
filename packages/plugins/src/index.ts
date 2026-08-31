@@ -84,6 +84,7 @@ export type {
   NotHere,
   OlaiPlugin,
   PillLook,
+  PluginMark,
   PluginMount,
   PluginServer,
   PluginServices,

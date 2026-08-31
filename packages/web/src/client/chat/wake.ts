@@ -26,9 +26,21 @@
  * The roster carries a row per plugin the BUILD has, running or not, and a
  * picker offered for one this serve did not compose would store a pick nothing
  * will ever read: the half that rings is not on the wire at all. So `running`
- * gates the row here as well as on the server that copies `wake` onto it — the
- * server's gate is what keeps the pick from being stored, and this one is what
- * keeps it from being offered.
+ * gates the row here as well as on the server that copies `wake` onto it.
+ *
+ * TODAY THE SERVER'S GATE MAKES THIS ONE REDUNDANT, and it is kept anyway. The
+ * only producer of a `PluginRoster` attaches `wake` exclusively to a row it has
+ * already found to be running (`../../../../server/src/runtime.ts`'s
+ * `rosterOf`), so no frame this module has ever been handed can reach the
+ * `!plugin.running` half. What the guard defends is not that function: it is
+ * the WIRE. This is a decoded value that arrived from somewhere, and a decoder
+ * proves the shape of a row and never the agreement between two of its fields
+ * — so a row that says *not running* and carries a sentence anyway is
+ * well-typed, and drawing a picker off it is the exact bug the gate on the
+ * server exists to prevent. A reader gating on the producer's current
+ * discipline would be a reader depending on a module it does not own and cannot
+ * see, and the day that discipline changes is the day nothing here fails.
+ * Cheap, local, and true of what arrives rather than of who sent it.
  *
  * ## AND `off` IS A ROW, not an absence
  *

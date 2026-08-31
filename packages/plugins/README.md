@@ -20,6 +20,7 @@ That residue is not sloppiness. It is the part that genuinely was **olai's own j
 | `dressings` | what a live property wears in the browser — a chip beside the value, the pane it opens, or a block that owns a row. Looked up by the declared **kind**, the same word `PropKind` contributes: the page carries the licence as an answer per drawn value, so the browser follows the declaration without one ever travelling |
 | `chrome` | a header readout in the app's bar, and the drawer its press opens |
 | `mount` | the tab's own half, wrapped around the page once — one subscription however many leaves draw |
+| `mark` | the plugin's FACE: the shapes drawn over a sentence it delivered into a conversation. The chat panel names the speaker of every run of messages and looks this up by the name core stamped on the row, so a plugin arrives wearing its own face and no general package holds a table of them. Takes no argument at all — a mark is a glyph at the size of the line it sits on — and answers with a `<g>` in a `0 0 16 16` box, because the marks are read as a column and the app owns the size |
 
 Everything but the name, the surface and its faces is optional, and the absent arm of each is the state a machine without the tool already shows.
 

@@ -607,7 +607,7 @@ export const bind = (
      *  promise. What it SAYS is {@link ./report.ts}'s. */
     const say: Emit = yield* emitter
     /**
-     * ... and the same capture for the one thing that is not a log line: a
+     * ... and A SECOND NAME FOR IT, for the one thing that is not a log line: a
      * doorbell's delivery ({@link doorFor}).
      *
      * `Emit` names its argument a line because logging is what every other
@@ -617,8 +617,15 @@ export const bind = (
      * a callback with no fiber under it. Its own name here, rather than
      * spelling `say` at the call site, because a reader who finds `say` around
      * a turn being started would be right to wonder what was being said.
+     *
+     * THE SAME CAPTURE, DELIBERATELY, and not a second `yield* emitter`.
+     * Nothing runs between the two lines — no `annotateLogs`, no scope change —
+     * so a second capture closes over an identical context: two variables that
+     * must agree, with nothing making them, and a silent divergence waiting for
+     * whoever adds an annotation above and reasonably assumes it reaches both.
+     * With one capture and an alias it does.
      */
-    const ring: Emit = yield* emitter
+    const ring: Emit = say
     /**
      * WHO IS TOLD THE DIRECTORY MOVED — the pulse the two date streams re-read
      * on, published once per revision by the connector below.
@@ -965,7 +972,7 @@ export const bind = (
         const door = chat.doorFor(who)
         return {
           scopes: door.scopes,
-          deliver: (to, body, options) => {
+          deliver: (to, say, options) => {
             // FORKED UNDER THIS FIBER'S SERVICES, and not with a bare
             // `Effect.runFork`. A doorbell's `deliver` is called from a
             // watcher's sink, which is a plain callback with no fiber under it
@@ -977,7 +984,7 @@ export const bind = (
             // arrive in a different shape than the same line from a person's
             // send. One conversation would keep two journals, told apart by who
             // started the turn.
-            ring(door.deliver(to, body, options))
+            ring(door.deliver(to, say, options))
           },
         }
       }

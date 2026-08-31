@@ -232,6 +232,13 @@ function Shelf(props: {
                       door={null}
                       says={null}
                       open={false}
+                      // AND NO FACE EITHER, for the reason the lane above it
+                      // carries no label: every row in this shelf is the one
+                      // agent's, and that agent is named once in the shelf's
+                      // own head. A face per run in here would repeat it down
+                      // the shelf's whole length — which is the same repetition
+                      // the lane already declines, one drawing over.
+                      speaker={null}
                     />
                   )}
                 </Show>

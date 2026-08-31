@@ -1171,6 +1171,24 @@ export const TESTID = {
    *  name. `data-mark` says which one was drawn — the agent's own, or the
    *  generic one an agent olai has no mark for gets. */
   chatAgentMark: "chat-agent-mark",
+  /** WHO IS TALKING, over the first row of their run in the transcript — a mark
+   *  and a name ({@link ./chat/Speaker.tsx}). `data-speaker` is which of the
+   *  three parties (`human`, `agent`, `plugin`) and `data-speaker-name` is what
+   *  the panel called them, so a scenario can assert that a plugin's doorbell
+   *  is not drawn as the person whose lane it travelled down without reading a
+   *  picture or a glyph.
+   *
+   *  ONCE PER RUN, deliberately: a face is drawn where a speaker's stretch of
+   *  rows BEGINS, so a scenario counting these is counting turns rather than
+   *  messages ({@link ./chat/speakers.ts} holds the rule). Absent from the
+   *  shelf that previews one agent's calls, where the head already names it. */
+  chatSpeaker: "chat-speaker",
+  /** A PLUGIN's mark, on such a face. Its own id beside `chatAgentMark` because
+   *  the two come from different places and only one of them is olai's: this
+   *  shape is contributed by the plugin's own manifest (`@olai/plugins`'
+   *  `PluginMark`). `data-mark` says which was drawn — the plugin's own, by
+   *  name, or the `generic` a plugin that hangs none gets. */
+  chatPluginMark: "chat-plugin-mark",
   /** The picker: which agent this conversation is with. Drawn in the
    *  transcript's place when the panel is asking, and over it when `+ new`
    *  does the asking. */
@@ -1283,14 +1301,22 @@ export const TESTID = {
    *  wording, which is the plugin's to change. Absent, deliberately, on a body
    *  that carries no such line: nothing here composes one. It is also the
    *  FOLDED FACE of the row — the one line drawn before anybody presses — and
-   *  sits inside `chatRangFold`, which is the control. */
+   *  sits BESIDE `chatRangFold` rather than inside it: the line is a line, and
+   *  the chevron at its head is the control. It may carry a pressable id of its
+   *  own, which is why (ruled, human 2026-08-31). */
   chatRangByline: "chat-rang-byline",
-  /** The control that opens a machine's row, and shuts it again — the essence
-   *  line itself, pressable, carrying `aria-expanded` the way `chatToolFold`
-   *  does ({@link ./chat/rang.ts} for why the row folds at all). ABSENT on a
-   *  body with no essence line to fold to: that row is one paragraph and
-   *  already whole, and a control that hides words behind a label nobody wrote
-   *  is the one thing this fold must not become. */
+  /** The control that opens a machine's row, and shuts it again — a disclosure
+   *  chevron at the head of the essence line, carrying `aria-expanded` the way
+   *  `chatToolFold` does ({@link ./chat/rang.ts} for why the row folds at all).
+   *
+   *  IT USED TO BE THE WHOLE LINE, and stopped being one when a plugin began
+   *  naming the node it rang about in that line: a reference inside a button is
+   *  a press with two meanings. So the id is pressable and the chevron is the
+   *  fold, which is what a scenario now presses to open the row.
+   *
+   *  ABSENT on a body with no essence line to fold to: that row is one
+   *  paragraph and already whole, and a control that hides words behind a label
+   *  nobody wrote is the one thing this fold must not become. */
   chatRangFold: "chat-rang-fold",
   /** What the fold holds back: the account under the essence line — the
    *  terminal id, the derivation, the standing set, the how-to-stop line. Not

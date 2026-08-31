@@ -1063,17 +1063,10 @@ export const CHAT_WAKE = selector(TESTID.chatWake);
  *  it are the plugin's own sentence and a scenario asserting those would be
  *  asserting somebody else's vocabulary. */
 export const CHAT_WAKE_PICKER = selector(TESTID.chatWakePicker);
-/** The file list it opens, the box that narrows it, and one offered file
+/** In the file list it opens: the box that narrows it, and one offered file
  *  (`data-file` is the path a press scopes this conversation to). */
-export const CHAT_WAKE_LIST = selector(TESTID.chatWakeList);
 export const CHAT_WAKE_QUERY = selector(TESTID.chatWakeQuery);
 export const CHAT_WAKE_FILE = selector(TESTID.chatWakeFile);
-/** The way back off — the same verb with no file. */
-export const CHAT_WAKE_CLEAR = selector(TESTID.chatWakeClear);
-/** How many of that plugin's sentences this end is holding and has not let in
- *  yet; `data-waiting` is the numeral, which is the only part of that line core
- *  wrote. */
-export const CHAT_WAKE_WAITING = selector(TESTID.chatWakeWaiting);
 export const CHAT_DIFF = selector(TESTID.chatDiff);
 export const CHAT_DIFF_LINE = selector(TESTID.chatDiffLine);
 export const CHAT_DIFF_GUTTER = selector(TESTID.chatDiffGutter);

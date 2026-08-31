@@ -124,10 +124,10 @@
  */
 
 import {
+  countedChildren,
   declaresKind,
   type Derived,
   follow,
-  isRegular,
   type LocatedRegular,
   type PropDeclarations,
   type Settled,
@@ -174,6 +174,16 @@ export interface Claim {
    *  off THAT node rather than off the claim's own: a lane is marked `doing`
    *  while anybody is anywhere in it, which is not the question. */
   readonly mark: Unfinished
+  /** THE NODE THAT CARRIES THE CLAIM — the record the `kolu-terminal` value is
+   *  written on, by its own id.
+   *
+   *  It is here so the sentence can NAME it in backticks and the panel can make
+   *  it pressable: the set declares this id, so the transcript's ordinary
+   *  id-lookup turns it into a link back to the board row the wake was derived
+   *  from. The carrying node and not the owning step, because a person pressing
+   *  through wants the row the terminal is written on — the one they would edit
+   *  to stop it. */
+  readonly node: string
 }
 
 /** One claimed terminal that is HELD right now, ready to be a line. */
@@ -188,8 +198,13 @@ export interface Standing {
   readonly state: string
   /** The owning step's title, blank where that node has none. */
   readonly step: string
-  /** The owning step's mark, which is what put it under this meaning. */
+  /** The owning step.s mark, which is what put it under this meaning. */
   readonly mark: Unfinished
+  /** The claiming record's id, for the pressable reference — see {@link Claim.node}. */
+  readonly node: string
+  /** The terminal's own label, without the repo — what the plain head names it
+   *  by, where {@link Standing.who} is the fuller spelling the account uses. */
+  readonly label: string
 }
 
 /**
@@ -258,11 +273,19 @@ export const claimedIn = (
   if (!declaresKind(declarations, TERMINAL_TYPE)) return []
   const inside = derived.byFile.get(file)
   if (inside === undefined) return []
-  const claims: Array<Claim> = []
-  /** One record may be reachable from two rows of the file — a lane and a
-   *  mirror of it, or two mirrors of one target. The terminal is claimed once
-   *  either way, and a set is cheaper than deduplicating the sentence. */
-  const seen = new Set<string>()
+  const claims: Array<Ranked> = []
+  /**
+   * EVERY NODE THIS WALK HAS REACHED, and it is what makes the whole thing one
+   * pass instead of N.
+   *
+   * `byFile` is every record written in the file, not its top-level rows — so a
+   * lane, its authors and their steps are all in `inside`, and a descent from
+   * each would walk the same subtree once per un-done ancestor above it. One
+   * record may also be reached twice honestly: a lane and a mirror of it, or
+   * two mirrors of one target. Both are the same question, and the answer for a
+   * node does not depend on which way in it was found.
+   */
+  const reached = new Set<string>()
   for (const located of inside) {
     // UN-DONE, asked of the list rather than of `done`: a cancelled step is
     // work nobody owes, and an ABSENT mark is a bullet somebody wrote, not a
@@ -274,75 +297,130 @@ export const claimedIn = (
     // read a property off. It is not an error here — the vault says so
     // loudly enough elsewhere — it is simply a placement claiming nothing.
     if (found.kind !== "found") continue
-    for (const carrying of subtree(derived, found.shows)) {
-      if (seen.has(carrying.node.id)) continue
-      const value = textDeclaredAs(declarations, carrying.node, TERMINAL_TYPE)
-      if (value === undefined || value.trim() === "") continue
-      seen.add(carrying.node.id)
-      claims.push({ value, ...workingIn(derived, carrying) })
-    }
+    if (reached.has(found.shows.node.id)) continue
+    claiming(declarations, derived, found.shows, reached, claims, undefined)
   }
-  return claims
+  // DOCUMENT ORDER RESTORED, which is the order a person reads the board in and
+  // therefore the order the sentence's lines come out in.
+  return claims.sort((a, b) => a.rank - b.rank).map(({ rank: _rank, ...claim }) => claim)
 }
 
-/** One record and everything under it, the placement's own order, depth first.
- *  A generator because nearly every subtree claims nothing and a walk that
- *  allocated a list per lane would allocate one per lane. */
-function* subtree(derived: Derived, at: LocatedRegular): Generator<LocatedRegular> {
-  yield at
-  for (const child of derived.children.get(at.node.id) ?? []) {
-    if (!isRegular(child)) continue
-    yield* subtree(derived, child)
-  }
+/** A claim with the walk's own arrival number on it — see the push below. It
+ *  never leaves this module: {@link claimedIn} sorts by it and drops it. */
+interface Ranked extends Claim {
+  readonly rank: number
 }
 
 /**
- * THE STEP A TERMINAL'S WORK IS AT, and the mark that decides its meaning —
- * the deepest `doing` node STRICTLY UNDER the one that claims it, or the
- * claiming node itself when there is none.
+ * ONE POST-ORDER PASS: collect this node's claim, and answer its parent with
+ * the deepest node being worked at or under it.
  *
- * ## Strictly under, and that word is the whole of the parked-author fix
+ * ## Why the two questions are one walk
  *
- * A node that CONTAINS steps is not a step. The board marks a lane `doing`
- * while somebody is anywhere in it, so a claiming node's own mark answers "is
- * this lane live", which is not the question — the question is whether the work
- * THIS terminal is on is being worked. An author whose own steps are all done
- * sits under a lane that is still `doing` because a reviewer is going; reading
- * the author's mark says a report is owed, and nobody owes one.
+ * The claim and its meaning are asked of the same subtree — what terminal does
+ * this node carry, and what work is going on beneath it — so asking them apart
+ * meant descending twice: once to find the carrying nodes and again, per
+ * carrying node, to find its owning step. Nested claims paid it again per
+ * level. Post-order answers both on the way back up: a node learns what is
+ * happening below it from the children it has already visited, and hands the
+ * same answer to its own parent.
  *
- * So a claiming node with children is judged by them and never by itself. A
- * LEAF is the other arm and keeps its own mark, because for a leaf there is
- * nothing below to be the work — that is the ordinary step-level claim, and it
- * is the arm the old walk got right.
- *
- * DEEPEST rather than nearest, because a step with sub-steps is a step whose
- * real work is below it: "implement" being `doing` over "write the failing
- * test" being `doing` is one fact, and the useful half is the lower one.
+ * WHAT IT RETURNS is "the deepest node being worked AT OR UNDER me", which is
+ * exactly what a parent needs and is NOT what this node decides its own claim
+ * by — that one is strictly-under, and it is `deepest` before this node adds
+ * itself. The distinction is the parked-author rule ({@link Claim.mark}): a
+ * node that contains steps is not a step, and a lane is marked `doing` while
+ * anybody is anywhere in it.
  */
-const workingIn = (
+const claiming = (
+  declarations: PropDeclarations,
   derived: Derived,
   at: LocatedRegular,
-): { readonly step: string; readonly mark: Unfinished } => {
+  reached: Set<string>,
+  claims: Array<Ranked>,
+  /** The claim that owns the walk this node is inside — see `owner` below. */
+  mine: string | undefined,
+): LocatedRegular | undefined => {
+  const rank = reached.size
+  reached.add(at.node.id)
+  const said = textDeclaredAs(declarations, at.node, TERMINAL_TYPE)
+  const claimed = said !== undefined && said.trim() !== "" ? said : undefined
+  /** WHOSE WORK THIS SUBTREE IS: this node's own claim where it has one, and
+   *  otherwise the nearest ancestor's. Read BEFORE the descent, because it is
+   *  what the descent is judged against. */
+  const owner = claimed ?? mine
+  /** The deepest node being worked STRICTLY under this one, once the loop has
+   *  run — which is what this node's own claim is judged by. */
   let deepest: LocatedRegular | undefined
   let leaf = true
-  const walk = (node: LocatedRegular, below: boolean): void => {
-    if (below && derived.status.get(node.node.id) === "doing") deepest = node
-    for (const child of derived.children.get(node.node.id) ?? []) {
-      if (!isRegular(child)) continue
-      if (!below) leaf = false
-      walk(child, true)
-    }
+  for (const child of countedChildren(derived, at.node.id)) {
+    leaf = false
+    // A CYCLE STOP, and unreachable in a well-formed set: `children` is built
+    // from `parent`, so a node has one parent and a descent visits it once.
+    // The reach that really happens is across ROOTS — a mirror target that is
+    // also a row of this file, or two mirrors of one target — and the outer
+    // loop catches that one. This is here so a malformed parent chain ends the
+    // walk instead of the process.
+    if (reached.has(child.node.id)) continue
+    const under = claiming(declarations, derived, child, reached, claims, owner)
+    if (under !== undefined) deepest = under
   }
-  walk(at, false)
+  // THE CARRYING NODE MUST ITSELF BE UN-DONE, and this is the same predicate the
+  // outer loop asks of the file's rows — asked again here because the outer loop
+  // only ever saw the row, and the claim can be anywhere under it.
+  //
+  // IT WAS ASKED ONLY OF THE ROW, and the human found it on a live board: a
+  // review step folded half an hour earlier still rang, because the lane above
+  // it was open and nothing re-asked the step. A settled node's claim is as
+  // silent as a settled lane's — `done` and `cancelled` both end the wait, and
+  // an unmarked bullet is a thing somebody wrote rather than work somebody owes.
+  if (claimed !== undefined && unfinished(derived.status.get(at.node.id))) {
+    // RANKED BY WHEN THE WALK REACHED IT, which is document order: `reached`
+    // is added to on the way DOWN, and the outer loop feeds it the file's rows
+    // in line order. The push cannot be, because a node's own claim is not
+    // decided until its children have answered — so the order is recorded here
+    // and restored once, at the end.
+    claims.push({ rank, value: claimed, node: at.node.id, ...owning(derived, at, deepest, leaf) })
+  }
+  // ANOTHER TERMINAL'S CLAIMED STEP IS NEVER YOUR OWING STEP, and this line is
+  // the whole of that rule. A node carrying a claim of its own is that
+  // terminal's territory, it and everything under it — so it answers its
+  // ancestors with nothing, whatever is going on inside it.
+  //
+  // IT USED TO ANSWER ANYWAY, and the human found it on a live board: a lane
+  // claimed by an author whose own work was done drew a WAKE saying "its step
+  // "review: pi" is doing — a report is owed", when that step is the pi
+  // REVIEWER'S, carrying the reviewer's own terminal. The author owed nothing;
+  // somebody else was working. Excluding a claimed subtree leaves the author
+  // with nothing being worked, which is the digest the ruled table asks for.
+  if (claimed !== undefined && claimed !== mine) return undefined
+  if (deepest !== undefined) return deepest
+  return derived.status.get(at.node.id) === "doing" ? at : undefined
+}
+
+/**
+ * THE STEP A TERMINAL'S WORK IS AT, and the mark that decides its meaning.
+ *
+ * A LEAF keeps its own mark, because for a leaf there is nothing below to be
+ * the work — that is the ordinary step-level claim. A node with children is
+ * judged by them and never by itself: the board marks a lane `doing` while
+ * somebody is anywhere in it, so its own mark answers "is this lane live",
+ * which is not the question. An author whose own steps are all done sits under
+ * a lane still marked `doing` because a reviewer is going; reading the author's
+ * mark says a report is owed, and nobody owes one.
+ */
+const owning = (
+  derived: Derived,
+  at: LocatedRegular,
+  deepest: LocatedRegular | undefined,
+  leaf: boolean,
+): { readonly step: string; readonly mark: Unfinished } => {
   if (deepest !== undefined) return { step: deepest.node.title, mark: "doing" }
-  if (leaf) {
-    const own = derived.status.get(at.node.id)
-    return { step: at.node.title, mark: unfinished(own) ? own : "todo" }
-  }
-  // A container with nothing being worked under it: open, and nobody on it.
-  // `todo` is the honest mark for that and the one {@link meaningOf} sends to
-  // the digest.
-  return { step: at.node.title, mark: "todo" }
+  const own = leaf ? derived.status.get(at.node.id) : undefined
+  // A container with nothing being worked under it, or a leaf nobody marked:
+  // open, and nobody on it. `todo` is the honest mark for that and the one
+  // {@link meaningOf} sends to the digest.
+  return { step: at.node.title, mark: unfinished(own) ? own : "todo" }
 }
 
 /**
@@ -443,19 +521,25 @@ export const standingIn = (
       state: held.bucket,
       step: claim.step,
       mark: claim.mark,
+      node: claim.node,
+      label: row.label,
     })
   }
   return standing
 }
 
 /**
- * ONE STAMP a person reads, off the caller's clock.
+ * ONE STAMP a person reads, off the caller's clock — for the ACCOUNT, which is
+ * where a reader reconstructing an afternoon wants the date as well.
  *
- * MINUTES AND UTC, spelled out: the server's clock is what stamped it and
- * pretending otherwise would be inventing a timezone for a reader whose own
- * is unknown here. A clock this runtime cannot parse passes through VERBATIM
- * — a sentence in somebody else's spelling beats a sentence with the wrong
- * time in it.
+ * The server's clock is what stamped it, and pretending otherwise would be
+ * inventing a timezone for a reader whose own is unknown here. A clock this
+ * runtime cannot parse passes through VERBATIM: a time in somebody else's
+ * spelling beats a wrong one in ours.
+ *
+ * IT IS NOT IN THE HEAD. The transcript stamps every row it draws, so a clock
+ * on the drawn line would be the same fact twice — and the head is the one line
+ * a glance gets, which is too little room to spend on a fact already on screen.
  */
 const stampOf = (now: string): string => {
   const at = new Date(now)
@@ -463,14 +547,35 @@ const stampOf = (now: string): string => {
   return `${at.toISOString().slice(0, 16).replace("T", " ")} UTC`
 }
 
-/** One standing terminal, as its own line. See the header on why the id is in
- *  backticks and the lead-in is a plain em dash: nothing renders this. */
+/**
+ * ONE STANDING TERMINAL, as its own line of the account — and the one place a
+ * person can press through to the board.
+ *
+ * The CLAIMING NODE'S ID rides here in backticks ({@link Standing.node}). The
+ * set declares it, so the transcript's ordinary id-lookup makes it a link to the
+ * row the wake was derived from — the row somebody would edit to stop it. That
+ * costs no new mechanism and invents no syntax: an id in a code span is the
+ * convention every olai tool already writes and the panel already reads.
+ *
+ * See the header on why the ids are in backticks and the lead-in is a plain em
+ * dash rather than a list marker: nothing renders this.
+ */
 const lineOf = (one: Standing): string => {
   const who = one.who === "" ? "" : ` (${one.who})`
-  const step = one.step.trim() === ""
-    ? `the node that claims it is \`${one.mark}\``
-    : `its step "${one.step.trim()}" is \`${one.mark}\``
-  return `— \`${one.terminal}\`${who} is held at \`${one.state}\`; ${step}.`
+  // NO MARK IS ASSERTED ON THE DIGEST ARM, and that is a correction rather than
+  // a wording choice. `Standing.mark` is a DERIVED verdict — a container with
+  // nothing being worked under it reads `todo` however the board marked the
+  // container itself — so printing it as the step's mark told a person the board
+  // said something it did not. The wake arm may still say `doing`, because there
+  // the mark is a node's own and was read off it.
+  const step = one.mark === "doing"
+    ? one.step.trim() === ""
+      ? "the node that claims it is `doing`"
+      : `its step "${one.step.trim()}" is \`doing\``
+    : one.step.trim() === ""
+    ? "nothing under the node that claims it is being worked"
+    : `nothing under "${one.step.trim()}" is being worked`
+  return `— \`${one.terminal}\`${who} is held at \`${one.state}\`; ${step}, on \`${one.node}\`.`
 }
 
 /**
@@ -518,9 +623,9 @@ export const bodyFor = (
       many ? "they are" : "it is"
     } lawfully parked, so this is a note and not a call:`
   return [
-    essenceOf(meaning, standing, now),
+    essenceOf(meaning, standing),
     "",
-    "Written by olai's kolu watcher, not by a person.",
+    `Written by olai's kolu watcher at ${stampOf(now)}, not by a person.`,
     "",
     opening,
     "",
@@ -531,46 +636,77 @@ export const bodyFor = (
 }
 
 /**
- * THE FIRST LINE, AND THE ONLY ONE MOST READERS SEE — who moved, what it
- * means, and when, short enough for a glance.
+ * THE HEAD — a PLAIN SENTENCE, in words a reader who was not there understands.
  *
- * ## Why the sentence carries its own summary
+ * ## Why the identifiers are not here
  *
- * The panel FOLDS a machine message to its first line and puts the rest behind
- * an expand, the way a tool row already folds (the human, 2026-08-31: "distinct
- * is not enough — it must also be CONCISE, with the details on hover"). A wall
- * of paragraph in the transcript is a wall nobody reads, and the reader who
- * wants the terminal id is one press away.
+ * This is the only line the transcript draws until somebody opens the fold, and
+ * the person reading it has just been interrupted. `kolu wake · olai·fdo-residuals
+ * author (grok) — trivial pair waiting — a report is owed · 19:38` is a line you
+ * have to already know the system to parse: five facts, four middots and no verb.
+ * What a person needs first is WHAT HAPPENED. The ids, the marks, the derivation
+ * and the standing-set note are all still written — one press away, in the
+ * account below — and the AGENT gets the whole thing as the message text either
+ * way. Only the drawn head changed.
  *
- * So the fold needs a line worth being folded TO, and that line is authored
- * HERE. Core draws the fold and composes none of it — the alternative, core
- * summarising a plugin's paragraph into a headline, is core writing the
- * plugin's words with none of what it would take to write them well.
+ * It is the manifest's oldest rule spent where it finally bites: the plugin
+ * writes whole sentences, because the four ways a wake could be described have
+ * nothing in common but that they are wakes, and core summarising one would be
+ * core writing words it cannot write well.
  *
- * THE AGENT IS NOT THE AUDIENCE OF THE FOLD. It receives the whole body as the
- * message text — the ids, the marks, the derivation and the how-to-stop line —
- * because it needs them to act. The fold is a fact about drawing, and the two
- * audiences split cleanly there.
+ * ## What it still has to carry
  *
- * IT OPENS WITH `kolu`, which is the attribution rule this body has to keep
- * whatever its shape: core's `rang` mark does not survive a session replay
- * ({@link ../../surface/src/chat.ts}), so a body that did not name its author
- * would replay as words in the person's mouth. The old first line spent a whole
- * line on that alone; this one does it in a word and says something too.
+ * `kolu` opens it, and that is not decoration: core's `rang` mark does not
+ * survive a session replay ({@link ../../surface/src/chat.ts}), so a body that
+ * did not name its author would come back from a resumed session as words in
+ * the person's mouth.
+ *
+ * NO TIME. The transcript stamps every row it draws, so a clock here is the same
+ * fact twice — and the account below carries the full stamp for a reader
+ * reconstructing an afternoon.
  */
-const essenceOf = (
-  meaning: Meaning,
-  standing: ReadonlyArray<Standing>,
-  now: string,
-): string => {
-  const weight = meaning === "wake" ? "a report is owed" : "lawfully parked"
-  // WHO MOVED, and for several it is a count rather than a list: a line that
-  // grew with the standing set would stop being one line, which is the whole
-  // property being bought here.
-  const who = standing.length === 1 && standing[0] !== undefined
-    ? `${nameOf(standing[0])} ${standing[0].state}`
-    : `${standing.length} terminals waiting`
-  return `kolu ${meaning} · ${who} — ${weight} · ${clockOf(now)}`
+const essenceOf = (meaning: Meaning, standing: ReadonlyArray<Standing>): string => {
+  const one = standing.length === 1 ? standing[0] : undefined
+  if (meaning === "wake") {
+    return one === undefined
+      ? `kolu — ${standing.length} terminals are idle: they have finished, or they need you.`
+      : `kolu — the ${namingOf(one)} is idle: it has finished, or it needs you.`
+  }
+  return one === undefined
+    ? `kolu — ${standing.length} terminals went quiet, and nobody is on their steps. A note, not a call.`
+    : `kolu — the ${namingOf(one)} went quiet, and nobody is on its step. A note, not a call.`
+}
+
+/**
+ * WHAT TO CALL ONE TERMINAL in a plain sentence — its label and the step it is
+ * on, which together read as a thing a person recognises ("the fdo-residuals
+ * author").
+ *
+ * The LABEL rather than {@link Standing.who}'s `repo·label`: the repo is the
+ * same one for every row on a board somebody is watching, so it is noise in the
+ * head and a fact in the account. Where a row has neither label nor step there
+ * is nothing to name it by but its id, and the sentence says so rather than
+ * leaving a hole.
+ *
+ * ## The step joins the name only when it READS as a role
+ *
+ * "the fdo-residuals author" is how a person says it; "the done-flip-flake
+ * reproduce + fix + open PR" is not. A board writes both — a step title is a
+ * role on some rows and a whole sentence on others — and the difference is
+ * length, so that is what is asked. Three words is the bar, and it is a prose
+ * rule with a stated bar rather than a guess: a short title is a name for
+ * somebody's job and reads inside a sentence, a long one is already a sentence
+ * and would need its own. The long one is not lost — the account names it a
+ * press away, which is where every other identifier went.
+ */
+const ROLE_WORDS = 3
+
+const namingOf = (one: Standing): string => {
+  const label = one.label.trim()
+  const step = one.step.trim()
+  const role = step !== "" && step.split(/\s+/).length <= ROLE_WORDS ? step : ""
+  if (label === "") return role === "" ? `\`${one.terminal}\` terminal` : role
+  return role === "" ? `${label} terminal` : `${label} ${role}`
 }
 
 /** A standing row as the essence names it: who it is, or the id when the fleet
@@ -578,10 +714,3 @@ const essenceOf = (
 const nameOf = (one: Standing): string =>
   one.who.trim() === "" ? `\`${one.terminal}\`` : one.who
 
-/** Just the clock, for the one line — the full stamp is on the line below it,
- *  where a reader who is reconstructing an afternoon wants the date too. */
-const clockOf = (now: string): string => {
-  const at = stampOf(now)
-  const clock = /(\d\d:\d\d)/.exec(at)
-  return clock?.[1] ?? at
-}
