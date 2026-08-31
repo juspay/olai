@@ -36,7 +36,7 @@
  *
  * Beside those, a plugin contributes property KINDS the format takes as data
  * and never imports, DRESSINGS licensed by declared kind, a CHROME slot or
- * two, an OWNED FILE in the vault, a RUNTIME HALF it assembles itself, a PROBE
+ * two, a RUNTIME HALF it assembles itself, a PROBE
  * — which answers with the MCP server a chat session is handed AND the WHOLE
  * SENTENCE about the one it did not get, both off one reading, core displaying
  * and never composing either.
@@ -82,7 +82,6 @@ export type {
   JSX,
   NotHere,
   OlaiPlugin,
-  OwnedFile,
   PillLook,
   PluginMount,
   PluginServer,

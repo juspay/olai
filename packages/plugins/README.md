@@ -47,7 +47,7 @@ A third party adding a plugin therefore rebuilds olai. Accepted: the boundary is
 
 ## Three doors by graph, and two by name
 
-Three lists because three **graphs**, and a third plugin is three lines rather than one. That is a real cost and it buys the only thing that matters here: nothing lands on a graph that has no use for it.
+Three lists because three **graphs**, and a third plugin is three lines rather than one. That is a real cost and it buys the only thing that matters here: nothing lands on a graph that has no use for it. The cost has a **lid** ([`src/rosters.test.ts`](src/rosters.test.ts)): the three lists must hold the same plugins in the same order, because a plugin added to two of them is a compile error nowhere — each walk spends ONE list, so what you get is a surface that composes whose kinds never reach the validator, or a probe that runs on a serve that never dialled it.
 
 | door | who opens it | what it may carry |
 | --- | --- | --- |

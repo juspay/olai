@@ -63,6 +63,7 @@
  */
 
 import type { JSX } from "solid-js"
+import type { PluginWire } from "./surfaces.ts"
 
 /**
  * AN MCP SERVER TO SPAWN, in olai's terms — `@olai/chat` renders it into what
@@ -192,27 +193,6 @@ export interface PropKind {
   /** Whether a value fits. `false` is refused at the plan and reported by the
    *  validator, in one sentence, {@link PropKind.takes}'. */
   readonly admits: (value: string) => boolean
-}
-
-/**
- * A FILE IN THE VAULT THIS PLUGIN OWNS, by convention — `_olai/Kolu.olai`.
- *
- * The basename is the plugin's; FINDING it among the served outline paths is
- * generic and stays in the server, so a config that parses to nothing still
- * has the wrench that opens it. What the file MEANS is the plugin's again:
- * `read` is handed the nodes that file contributed and answers whatever the
- * plugin's own half wants, which core carries and never inspects.
- *
- * A plugin that is disabled contributes no owned file, and the outline it
- * would have claimed is an ordinary outline — parsed, listed, editable, and
- * meaning nothing in particular. That is the absent state, and it is the state
- * every vault that has never heard of the plugin is already in.
- */
-export interface OwnedFile<Node, Reading> {
-  /** Case-folded at the caller's end — `"kolu.olai"`, which is what
-   *  `_olai/Kolu.olai` reads as. */
-  readonly basename: string
-  readonly read: (nodes: ReadonlyArray<Node>, file: string | null) => Reading
 }
 
 /**
@@ -642,144 +622,102 @@ export interface PluginServer<Revision> {
 }
 
 /**
- * ONE PLUGIN.
+ * ONE PLUGIN, as the BROWSER and the registry see it.
  *
- * Read top to bottom this is the whole surface between core and an appliance:
- * a name, what it puts on the wire, what it probes for, what it runs, what it
- * hands an agent, what it owns in the vault, what it says when it fails, what
- * it teaches the format, and what it draws. Nothing else crosses, and the
- * fence proves it (`packages/plugins/src/fence.test.ts`). Its USER PAGE is not
- * on the list and deliberately not a field: the page's address is the NAME,
- * and {@link OlaiPlugin.name} argues why a manifest is the one place that
- * cannot hold it.
+ * Read top to bottom this is the whole surface between core and an appliance's
+ * FACES: a name, what it puts on the wire, which face may see which of its
+ * members, what its kinds wear, what it hangs in the chrome, and what it mounts
+ * around the page. Nothing else crosses this door, and the fence proves it
+ * (`packages/plugins/src/fence.test.ts`).
  *
- * The interface is deliberately roomier than its two tenants need, and the
- * room is not speculation: a chat AGENT — today a second hardcoded roster in
- * `@olai/chat`'s `agents/` — is a probe whose answer carries its own failure
- * sentence, plus a per-conversation attach, which is this shape with most of
- * the fields empty.
- * Ruled: design for it, migrate later. The roster is untouched here.
+ * ## It extends {@link PluginWire}, because a plugin is ONE identity
  *
- * The shapes are deliberately `unknown` where core never inspects them: a
- * runtime half's deps, a dressing's components, a chrome slot's props and an
- * owned file's reading are the plugin's own, carried and handed back. What
- * core knows is a plugin's NAME — which is the sibling key, and therefore the
- * one word it needs — and never what is behind it.
+ * The same three fields the wire door reads, declared once and inherited here
+ * exactly as {@link PluginServerHalf} inherits them one file over. That is the
+ * type catching up with the graphs: there are three doors onto a plugin because
+ * there are three GRAPHS (`./wire.ts`, `./server.ts`, and this one), and a
+ * reader could be forgiven for taking three doors for three plugins. They are
+ * one, keyed by one word, and the interfaces now say so.
+ *
+ * ## WHAT IS NOT HERE, and where it went
+ *
+ * A server half, a probe and a kind table used to be declared here as `unknown`
+ * — hooks the manifest NAMED while their values lived on `./server.ts`. That
+ * was a ghost of a field: it could not be read (its type says nothing), it
+ * could not be written (nothing type-checks against `unknown`), and it invited
+ * a reader to look for a value the door does not carry. They are declared once
+ * now, on {@link PluginServerHalf}, where their graph is.
+ *
+ * Two more are simply GONE. `ownedFile` was a shape with no consumer: which
+ * basename a plugin claims by convention turned out to be the plugin's own
+ * business, and the carry runs inside the plugin that owns it (`@olai/server`'s
+ * `runtime.ts` records the move). `testDrivers` had a population of zero — a
+ * field designed for a caller that never arrived, which is the one thing an
+ * interface may not carry on the strength of an argument.
+ *
+ * ## The room that IS deliberate
+ *
+ * Every field below but the two inherited ones is optional, and that is not a
+ * staging convenience: the ABSENT arm of every hook is the state a machine
+ * without the tool already shows, and that state already had to work. The
+ * interface is also roomier than its two tenants need, and the room is not
+ * speculation either — a chat AGENT (today a second hardcoded roster in
+ * `@olai/chat`'s `agents/`) is a probe whose answer carries its own failure
+ * sentence plus a per-conversation attach, which is this shape with most of the
+ * fields empty. Ruled: design for it, migrate later. The roster is untouched
+ * here.
+ *
+ * ## THE USER PAGE is the NAME, and is deliberately not a field
+ *
+ * A plugin's user docs live at `packages/plugin-<name>/docs.md`, which LOOKS
+ * like the shape `@olai/server`'s `main.ts` ruled against — *"a page beside a
+ * binary is a page that goes stale, and the one thing a person always has to
+ * hand is `--help`"* (ruled, human 2026-08-23) — so the counter-case is argued
+ * here rather than left implied.
+ *
+ * What that ruling refuses is a SECOND ACCOUNT. The CLI already accounts for
+ * itself: `--help` is composed from the tool list and cannot describe a verb the
+ * binary does not have, so a prose page standing beside it is a second telling
+ * with nothing holding the two together. A plugin has no `--help`. `docs.md` is
+ * its ONLY account, and the ruling's premise is absent rather than overridden.
+ *
+ * What the premise DOES apply to is DISTANCE, and that is what puts the page in
+ * the plugin's package instead of in `docs/`: the terminal block, the sentences
+ * an absent padi is owed and the words a run matrix prints are that package's,
+ * changed in that package's diffs, and a page two directories away is one nobody
+ * editing them has open.
+ *
+ * It is still SERVED, because `just serve` serves `docs/` as a vault and a path
+ * outside it is not served at all — a link to one draws as text rather than as a
+ * door. So `docs/plugins/<name>.md` is a SYMLINK onto the plugin's own
+ * `docs.md`: one file with two names, the served page and the page beside the
+ * code the same bytes, and drift not a thing that can happen. A COPY under
+ * `docs/` was the alternative and loses on the ruling's own argument — two
+ * files, and the one nobody has open is the one that is read; a GENERATOR that
+ * wrote the copy loses too, since there is none in this tree and a checked-in
+ * artefact of one is stale for as long as nobody runs it.
+ *
+ * And there is no `docs` FIELD, which replaces an earlier reading. A
+ * `{slug, title, gloss}` on the manifest was the first shape and it was wrong
+ * twice over. The slug was a second spelling of the NAME. And the other two
+ * could not be read by anything that would spend them: the index is a general
+ * page and the sweep that keeps it honest is a general sweep, and BOTH sit
+ * where a manifest cannot be reached — this door carries SolidJS components and
+ * a terminal emulator, and importing it from a process that renders nothing does
+ * not merely cost bytes, it kills the boot (`@olai/server`'s `pluginPolicy.ts`
+ * carries that hazard on the import that looked innocent; a `bun test` at the
+ * root dies the same way, on `react/jsx-dev-runtime`). What a general reader CAN
+ * have is {@link ./surfaces.ts}' `PLUGIN_NAMES`, on the browser-safe door —
+ * which is the name, and which is the whole address. So the page's existence and
+ * its reachability are held by a sweep over the tree rather than by a field:
+ * `packages/tests/plugin_docs.test.ts`, which is the stronger claim anyway — a
+ * field can be filled in beside a page that was never written.
  */
-export interface OlaiPlugin {
-  /**
-   * THE SIBLING KEY, and with it the preferences row, the word the `--plugins`
-   * flag takes, and THE ADDRESS OF THIS PLUGIN'S USER PAGE. One spelling of it
-   * — and because the key is the wire prefix, the name and every tag it
-   * appears in cannot drift apart.
-   *
-   * ## The page is `packages/plugin-<name>/docs.md`, and it is not a field
-   *
-   * A plugin's user docs live in the plugin's own package, which LOOKS like the
-   * shape `@olai/server`'s `main.ts` ruled against — *"a page beside a binary
-   * is a page that goes stale, and the one thing a person always has to hand is
-   * `--help`"* (ruled, human 2026-08-23) — so the counter-case is argued here
-   * rather than left implied.
-   *
-   * What that ruling refuses is a SECOND ACCOUNT. The CLI already accounts for
-   * itself: `--help` is composed from the tool list and cannot describe a verb
-   * the binary does not have, so a prose page standing beside it is a second
-   * telling with nothing holding the two together. A plugin has no `--help`.
-   * `docs.md` is its ONLY account, and the ruling's premise is absent rather
-   * than overridden.
-   *
-   * What the premise DOES apply to is DISTANCE, and that is what puts the page
-   * here instead of in `docs/`: the terminal block, the sentences an absent
-   * padi is owed and the words a run matrix prints are this package's, changed
-   * in this package's diffs, and a page two directories away is one nobody
-   * editing them has open.
-   *
-   * It is still SERVED, because `just serve` serves `docs/` as a vault and a
-   * path outside it is not served at all — a link to one draws as text rather
-   * than as a door. So `docs/plugins/<name>.md` is a SYMLINK onto the plugin's
-   * own `docs.md`: one file with two names, the served page and the page beside
-   * the code the same bytes, and drift not a thing that can happen. A COPY
-   * under `docs/` was the alternative and loses on the ruling's own argument —
-   * two files, and the one nobody has open is the one that is read; a GENERATOR
-   * that wrote the copy loses too, since there is none in this tree and a
-   * checked-in artefact of one is stale for as long as nobody runs it.
-   *
-   * ## Why there is no `docs` FIELD, which replaces an earlier reading
-   *
-   * A `{slug, title, gloss}` on the manifest was the first shape and it was
-   * wrong twice over. The slug was a second spelling of THIS FIELD. And the
-   * other two could not be read by anything that would spend them: the index is
-   * a general page and the sweep that keeps it honest is a general sweep, and
-   * BOTH sit where a manifest cannot be reached — the manifest door carries
-   * SolidJS components and a terminal emulator, and importing it from a process
-   * that renders nothing does not merely cost bytes, it kills the boot
-   * (`@olai/server`'s `pluginPolicy.ts` carries that hazard on the import that
-   * looked innocent; a `bun test` at the root dies the same way, on
-   * `react/jsx-dev-runtime`). What a general reader CAN have is
-   * {@link ./surfaces.ts}' `PLUGIN_NAMES`, on the browser-safe door — which is
-   * this field, and which is the whole address.
-   *
-   * So the page's existence and its reachability are held by a sweep over the
-   * tree rather than by a field: `packages/tests/plugin_docs.test.ts`, which is
-   * the stronger claim anyway — a field can be filled in beside a page that was
-   * never written.
-   */
-  readonly name: string
-  /** THIS PLUGIN'S OWN SURFACE — a whole one, declared in the plugin's own
-   *  package with the plugin's own member names on it. Core composes it as a
-   *  SIBLING under {@link OlaiPlugin.name}, so what reaches the wire is
-   *  `surface/<name>/<member>/<verb>` and nothing in a general package
-   *  computed that address. */
-  readonly surface: { readonly spec: unknown }
-  /** WHICH FACE sees which of its members, keyed by face name — this plugin's
-   *  own `ExposeMap`, written against its own spec. A per-appliance decision
-   *  that used to be a hand-written row in a general package's expose map,
-   *  which is a table somebody had to remember to add to; a member missing
-   *  from it is a member no face serves. A face a plugin never mentions is
-   *  DENIED IN FULL, which is what `exposeFaces` does with an absent map and
-   *  is what a plugin declining a face means. */
-  readonly faces: Readonly<Record<string, Readonly<Record<string, unknown>>>>
-  /** The property kinds it teaches the vault's vocabulary — declared as
-   *  {@link PropKind} and REACHED on the server door, where the validator and
-   *  the write planner are ({@link PluginServerHalf}'s `kinds`). `unknown`
-   *  here for {@link OlaiPlugin.probe}'s reason exactly: the value lives on the
-   *  door whose graph spends it, and the manifest names the hook. */
-  readonly kinds?: unknown
-  /** The subscription machinery the server forks, deps injected — reached
-   *  through the plugin's `./server` door rather than through this manifest,
-   *  so a composition root that wants a runtime does not pull the plugin's
-   *  browser faces onto its graph ({@link PluginServer}, and
-   *  {@link ./server.ts}, which is this package's own third door). */
-  readonly runtimeHalf?: unknown
-  /**
-   * FIND THE TOOL, and say what a session is owed when it is not here — on the
-   * `./server` door for {@link OlaiPlugin.runtimeHalf}'s reason and one that is
-   * sharper: a probe STARTS A SUBPROCESS, and this manifest is the door the
-   * browser opens ({@link ./server.ts} argues the split). It is declared on
-   * `PluginServerHalf.probe` and reached there.
-   *
-   * ONE field where there were three. It replaces a `probe` beside an
-   * `mcpServer` beside a `failures` table, and each of the two it absorbed was
-   * wrong in its own way rather than merely redundant. A server BESIDE a probe
-   * is two readings of one moment, which is the invariant {@link Probed} exists
-   * to hold: a caller that asked once for the entry to hand over and again for
-   * the sentence would start somebody's daemon twice per conversation and could
-   * answer the two questions about two different instants. And a
-   * `Record<tag, string>` of failure sentences cannot hold the sentences that
-   * exist: three of kolu's five carry a deadline, a cause or the daemon's own
-   * refusal, none of which is knowable before the failing, so a table core
-   * looked a tag up in would leave core composing what it may not compose.
-   *
-   * Absence is a STATE, not an error, and a plugin with no probe at all is a
-   * whole plugin — odu is one.
-   */
-  readonly probe?: unknown
-  /** The vault file this plugin owns by convention. */
-  readonly ownedFile?: OwnedFile<never, unknown>
-  /** What its kinds wear in the browser. Typed, unlike the fields above, and
-   *  that is the difference between a value core CARRIES and one core DRAWS:
-   *  the app mounts these faces, so the shape it mounts them against is a
-   *  contract rather than an opaque blob ({@link Dressing}). */
+export interface OlaiPlugin extends PluginWire {
+  /** What its kinds wear in the browser. TYPED, where the server door's hooks
+   *  are opaque, and that is the difference between a value core CARRIES and
+   *  one core DRAWS: the app mounts these faces, so the shape it mounts them
+   *  against is a contract rather than a blob ({@link Dressing}). */
   readonly dressings?: ReadonlyArray<Dressing>
   /** What it hangs in the app's chrome. Typed for {@link Dressing}'s reason. */
   readonly chrome?: Chrome
@@ -787,8 +725,6 @@ export interface OlaiPlugin {
    *  leaves draw ({@link PluginMount}). Absent on a plugin with nothing to
    *  hold, which is a plugin whose faces are all pure. */
   readonly mount?: PluginMount
-  /** What a scenario needs to drive it — the fake, the tags, the fixtures. */
-  readonly testDrivers?: unknown
 }
 
 /** Solid's element type, re-exported so a plugin's component fields have a

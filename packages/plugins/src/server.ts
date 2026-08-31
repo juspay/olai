@@ -103,6 +103,24 @@ export interface PluginServerHalf<Revision> extends PluginWire {
    * one. That is the ABSENT arm, and it is the state every machine without the
    * tool is already in.
    *
+   * ONE FIELD WHERE THERE WERE THREE. It replaces a `probe` beside an
+   * `mcpServer` beside a `failures` table, and each of the two it absorbed was
+   * wrong in its own way rather than merely redundant. A server BESIDE a probe
+   * is two readings of one moment, which is the invariant {@link Probed} exists
+   * to hold: a caller that asked once for the entry to hand over and again for
+   * the sentence would start somebody's daemon twice per conversation and could
+   * answer the two questions about two different instants. And a
+   * `Record<tag, string>` of failure sentences cannot hold the sentences that
+   * exist: three of kolu's five carry a deadline, a cause or the daemon's own
+   * refusal, none of which is knowable before the failing, so a table core
+   * looked a tag up in would leave core composing what it may not compose.
+   *
+   * IT IS ON THIS DOOR AND NOT ON THE MANIFEST, and the reason is sharper than
+   * {@link kinds}': a probe STARTS A SUBPROCESS, and the manifest is the door a
+   * BROWSER opens. It was named there as an `unknown` for one PR window — a
+   * ghost of a field, unreadable and unwritable — and naming a hook whose value
+   * is elsewhere turned out to buy nothing but a place to look for it.
+   *
    * IT TAKES THE ENVIRONMENT AND NOT {@link PluginServices}, which is the one
    * place this door narrows what it offers, and the narrowing is a fact about
    * WHEN rather than a second vocabulary. A runtime half is made once, when the
@@ -129,8 +147,10 @@ export interface PluginServerHalf<Revision> extends PluginWire {
    * kind table through the manifest would put a UI runtime on the graph of the
    * thing that judges files.
    *
-   * The browser is not missing anything by that: declarations do not travel, so
-   * the dressing table one floor up is keyed by the property KEY and says so
+   * The browser is not missing anything by that, and it gets the WORD without
+   * the vocabulary: declarations do not travel, so the page carries the licence
+   * as an ANSWER per drawn value (`@olai/format`'s `Licence`) and the dressing
+   * table one floor up is keyed by the same word this table is
    * ({@link ./plugin.ts}'s `Dressing`).
    *
    * Absent is a plugin that teaches no word, which is a whole plugin.
