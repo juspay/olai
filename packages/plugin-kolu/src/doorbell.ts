@@ -804,7 +804,37 @@ export const terminalsIn = (
   declarations: PropDeclarations,
   derived: Derived,
   file: string,
-): number => new Set(claimedIn(declarations, derived, file).map((claim) => claim.value)).size
+): number => {
+  const said = new Set(claimedIn(declarations, derived, file).map((claim) => claim.value))
+  // A PREFIX AND THE ID IT NAMES ARE ONE TERMINAL, not two. The board writes
+  // eight characters far more often than a whole uuid, and one file may carry
+  // both spellings — a lane row abbreviating what a step row wrote out. Counting
+  // the strings would report two terminals where a person can see one, which is
+  // the one number in this message somebody might act on.
+  //
+  // FOLDED WITHIN THE VALUES rather than resolved against the live fleet, which
+  // is the same restraint the rest of this function keeps: the count answers
+  // "what does this file claim", and a fleet joined here would answer "what is
+  // padi holding" — so a dropped link would report a file that had emptied
+  // rather than a watcher that had lost its socket. That is the opposite of what
+  // a heartbeat is for.
+  //
+  // An AMBIGUOUS prefix — one that opens two different ids — folds away and
+  // leaves both of them counted, which is right twice over: it is two terminals,
+  // and the derivation already refuses such a value ownership of either.
+  let held = 0
+  for (const value of said) {
+    let folded = false
+    for (const other of said) {
+      if (other !== value && other.startsWith(value)) {
+        folded = true
+        break
+      }
+    }
+    if (!folded) held++
+  }
+  return held
+}
 
 /** ONE CONVERSATION, as core addresses one — the pair `Deliveries.deliver`
  *  takes, spelled here because the ledger below is keyed by it. */
@@ -1063,7 +1093,12 @@ export const makeHeartbeat = (deps: {
    *  beat. Cleared whole at the end of every beat, which is both the window's
    *  reset and its bound. */
   const spoken = new Set<string>()
-  const keyOf = (to: Conversation): string => `${to.agent} ${to.session}`
+  /** The ledger's key. `\0` as an ESCAPE and never as the byte: a literal NUL
+   *  makes this file read as BINARY to grep and to review tooling, which is how
+   *  a reviewer stops being able to see it at all. `../../chat/src/deliveries.ts`
+   *  learned that one round earlier and this file re-learned it — the separator
+   *  is right, the spelling was not. */
+  const keyOf = (to: Conversation): string => `${to.agent}\0${to.session}`
   return {
     saw: (at) => {
       lastEvent = at

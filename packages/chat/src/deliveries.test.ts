@@ -336,6 +336,54 @@ describe("a conversation nobody is in", () => {
 
 
 describe("a body that waited", () => {
+
+  test("a HELD offer never asks for the words, so nothing can count a delivery that did not land", async () => {
+    // THE BUG CLASS THIS PINS, which is worth stating because it is the one
+    // that lies in the direction of "all is well". `flush` used to ask each
+    // body's thunk BEFORE `offer` decided whether it could be handed over. A
+    // body composed for a conversation whose turn was running came back
+    // "held" and was thrown away — but the plugin had already been asked, and a
+    // plugin that counts its own deliveries (kolu's heartbeat keeps exactly
+    // such a ledger) had counted one that never reached anybody. A window of
+    // real silence was then reported as a window with news in it.
+    //
+    // COUNTED, not merely observed: the claim is that the thunk is asked ONCE
+    // and only where the words go in, and a count is the only assertion that
+    // can tell "asked once" from "asked twice and discarded once".
+    const chat = await panel()
+    await closing(chat, async () => {
+      await holding(chat)
+      let asked = 0
+      await run(chat.doorFor(KOLU).deliver(open(chat), () => {
+        asked++
+        return "the words"
+      }))
+      // Held behind the running turn: nothing on screen, and NOBODY ASKED.
+      expect(rung(chat)).toEqual([])
+      expect(asked).toBe(0)
+      await until("the turn boundary to let it in", () => rung(chat).length === 1)
+      // ... and asked exactly once, at the boundary, where the row was written.
+      expect(asked).toBe(1)
+      expect(rung(chat)[0]?.text).toBe("the words")
+    })
+  }, 20_000)
+
+  test("... and a conversation nobody is in is not asked either, until somebody opens it", async () => {
+    // The same claim on the third arm: a body waiting for a session cannot be
+    // composed against a world nobody has looked at yet.
+    const chat = await panel({ start: false })
+    await closing(chat, async () => {
+      let asked = 0
+      await run(chat.doorFor(KOLU).deliver({ agent: "opencode", session: "sess-1" }, () => {
+        asked++
+        return RANG
+      }))
+      expect(asked).toBe(0)
+      await run(chat.start)
+      await until("the conversation to open and take it", () => rung(chat).length === 1)
+      expect(asked).toBe(1)
+    })
+  }, 20_000)
   test("is composed at the moment it goes in, not when it was drafted", async () => {
     const chat = await panel()
     await closing(chat, async () => {

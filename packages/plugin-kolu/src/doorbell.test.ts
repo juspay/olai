@@ -1113,3 +1113,46 @@ test("a long watch is said in two units, and a clock nobody can read is not subt
   // bargain `stampOf` already keeps, one clause along.
   expect(body).toContain("— last watcher event: half past four.")
 })
+
+test("a prefix and the id it names count as ONE terminal, not two", () => {
+  // The board writes eight characters far more often than a whole uuid, and one
+  // file may carry both spellings — a lane row abbreviating what a step row
+  // wrote out. Counting the strings would tell a person two terminals where
+  // they can see one, and the count is the one number in a heartbeat somebody
+  // might act on.
+  const vault = readingOf(setOf({
+    "_olai/Properties.olai": declaring(),
+    "lanes.olai": [
+      marked("lane", "the second doorbell", "doing", { terminal: "54fe62f9" }),
+      under("step", "lane", "a0", "reproduce", "doing", {
+        terminal: "54fe62f9-aaaa-4bbb-8ccc-ddddddddddd0",
+      }),
+    ].join("\n"),
+  })).derived
+  expect(terminalsIn(declarationsOf(vault, ownKinds), vault, "lanes.olai")).toBe(1)
+})
+
+test("... and two whole ids sharing a prefix are still two", () => {
+  const vault = readingOf(setOf({
+    "_olai/Properties.olai": declaring(),
+    "lanes.olai": [
+      marked("a", "review: grok", "doing", { terminal: "54fe62f9-aaaa-4bbb-8ccc-ddddddddddd0" }),
+      marked("b", "review: pi", "doing", { terminal: "54fe62f9-bbbb-4bbb-8ccc-ddddddddddd1" }),
+    ].join("\n"),
+  })).derived
+  expect(terminalsIn(declarationsOf(vault, ownKinds), vault, "lanes.olai")).toBe(2)
+})
+
+test("... and an AMBIGUOUS prefix folds away, leaving the two it could not choose between", () => {
+  const vault = readingOf(setOf({
+    "_olai/Properties.olai": declaring(),
+    "lanes.olai": [
+      marked("lane", "the second doorbell", "doing", { terminal: "54fe" }),
+      marked("a", "review: grok", "doing", { terminal: "54fe62f9-aaaa-4bbb-8ccc-ddddddddddd0" }),
+      marked("b", "review: pi", "doing", { terminal: "54fe62f9-bbbb-4bbb-8ccc-ddddddddddd1" }),
+    ].join("\n"),
+  })).derived
+  // Right twice over: it IS two terminals, and the derivation already refuses
+  // an ambiguous value ownership of either.
+  expect(terminalsIn(declarationsOf(vault, ownKinds), vault, "lanes.olai")).toBe(2)
+})
