@@ -115,12 +115,16 @@ Given(
     const link = this.outlineLink(file);
     await link.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     await link.click();
-    // The tree is the app's answer to the click; waiting for it here means
-    // every later step starts from a rendered outline rather than racing it.
+    // A ROW OF THIS FILE, not any outline-tree. `/` is the first outline
+    // (`Daily/2026-08.olai` in the good corpus); createReading HOLDS that
+    // tree while the named outline is in flight, so waiting for the
+    // container matches the previous page. One rAF is vsync, not the swap
+    // — darwin + parallel workers loses that window (#445's row-jump), and
+    // the next step's Done flip is then the held page's prefs-choice.
     await this.page
-      .locator(OUTLINE_TREE)
+      .locator(`${OUTLINE_TREE} ${attr("data-file", file)}`)
+      .first()
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    await this.waitForFrame();
   },
 );
 

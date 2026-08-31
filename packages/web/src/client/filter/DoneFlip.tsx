@@ -71,6 +71,7 @@ export function DoneFlip(props: { readonly file: string }) {
       aria-label={said()}
       class="inline-flex items-center gap-1"
       data-testid={TESTID.doneFlip}
+      data-file={props.file}
       data-own={own() ? "true" : undefined}
       title={said()}
     >
