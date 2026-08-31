@@ -1,6 +1,6 @@
 /**
- * The one connection — olai's own surface, and every plugin's beside it, over
- * ONE wire.
+ * The one connection — olai's own surface as the ROOT, and every plugin's
+ * beside it as a SIBLING, over ONE wire.
  *
  * TOP-LEVEL AWAIT, deliberately: the dial is an Effect and building the
  * protocol's fibers cannot be run synchronously. Awaiting it here, once, keeps
@@ -10,23 +10,22 @@
  *
  * This is the only file in the client that knows a websocket exists.
  *
- * THREE things come off it and ALL THREE are read here, which is the whole
- * point: this module used to keep `.client` and drop the rest, and a page that
+ * FOUR things come off the seam and ALL FOUR are read here, which is the whole
+ * point: this module used to keep the client and drop the rest, and a page that
  * cannot say whether it is connected is a page that lies when it is not
  * (juspay/kolu#2133 made the terminal state a required option because of it).
+ * `core` is olai's own client, `clients` is one per sibling, `readout` is the
+ * five states an indicator needs — `connecting`, `live`, `degraded`,
+ * `reconnecting`, `retired` — and `retired` is the handler the seam requires,
+ * which cannot be left out and is answered below.
  *
- *   - `readout` is the five states an indicator needs — `connecting`, `live`,
- *     `degraded`, `reconnecting`, `retired` — the wire's own four folded with
- *     the subscription-health fact, so `live` is a claim about what reaches
- *     this page rather than about a socket. It is exported, rendered, and
- *     asserted on.
- *   - `retired` is the handler the seam requires. It cannot be left out, and it
- *     is answered below.
- *   - and now the PLUGIN CLIENTS, one per sibling, handed to each plugin's own
- *     mount and never opened here.
+ * `live` there is a claim about what reaches THIS PAGE rather than about a
+ * socket: the seam folds the wire's own status with every enrolled
+ * subscription's health, the root's included, so a dead `manifest` cell under a
+ * green light is not a state this readout can be in.
  *
- * The stale-tab handshake itself is not wired here at all: the socket probes
- * the reserved `system/identity` member on every open and echoes the server's
+ * The stale-tab handshake is not wired here at all: the socket probes the
+ * reserved `system/identity` member on every open and echoes the server's
  * process id back as `?pid` on the next dial, so the server can recognise a tab
  * that outlived it. That used to be an app's job — an `echo` to feed through a
  * lifecycle's `onProcessId` — and dropping it was exactly how this page came to
@@ -34,49 +33,47 @@
  *
  * ────────────────────────────────────────────────────────────────────────────
  *
- * ## WHY THIS ASSEMBLES THE WIRE RATHER THAN CALLING A TURNKEY SEAM
+ * ## THIS FILE USED TO BE THE SEAM. It is now a CALL to one.
  *
- * The framework has two turnkey seams and olai used one of them (`connectSurface`)
- * until the plugins grew surfaces of their own. Neither fits what this page now
- * dials, and the reasons are worth stating because "we hand-rolled it" is
- * normally the wrong answer:
+ * For one PR window olai assembled its own wire — `createSurfaceSocket` →
+ * `createLiveSignal` → `surfaceClients` → `surfaceClientsHealth` →
+ * `createSurfaceReadout`, and the WATCHDOG the turnkey seams exist to stop an
+ * app forgetting — because neither seam could express what this page dials.
+ * `connectSurface` takes ONE surface. `connectSurfaces` took the sibling map
+ * and derived everything from it, including which reserved member the half-open
+ * watchdog probes and which one the `pid` handshake reads: both addressed
+ * `Object.keys(surfaces)[0]`, the FIRST SIBLING. Core could not go in that map
+ * — its tags are `surface/<member>/<verb>` and must stay that way (an MCP
+ * client writes them, the suite asserts them, `@olai/plugins`' `compose.ts`
+ * argues the whole composition on it) — so the probe target was a PLUGIN, and a
+ * serve that did not run that plugin answered its `system/identity` with
+ * "Unknown request tag", emptying the `pid` echo. An empty echo is precisely
+ * the dead stale-tab handshake olai#61 is about, and `--plugins=odu` would have
+ * quietly reintroduced it.
  *
- *   - **`connectSurface` takes ONE surface and builds the wire over its group
- *     alone**, so a sibling's tag would not be dispatchable at all — Effect RPC
- *     looks a call's tag up in the group the client was built over.
- *   - **`connectSurfaces` takes the sibling map and derives everything from
- *     it**, including which reserved member the half-open watchdog probes and
- *     which one the `pid` handshake reads: both address `Object.keys(surfaces)[0]`,
- *     the FIRST SIBLING. Core cannot go in that map — its tags are
- *     `surface/<member>/<verb>` and must stay that way (an MCP client writes
- *     them, the suite asserts them, `@olai/plugins`' `compose.ts` argues the
- *     whole fusion on it) — so the first sibling is a PLUGIN, and a serve that
- *     did not run that plugin answers its `system/identity` with "Unknown
- *     request tag". The wire survives (the framework logs a warning) and the
- *     watchdog survives (its settle treats a rejection as a completed
- *     round-trip, which is the correct reading), but the `pid` echo goes
- *     EMPTY — and an empty echo is precisely the dead stale-tab handshake
- *     olai#61 is about. `--plugins=odu` would have quietly reintroduced it.
+ * That hand-assembly was the acceptance test carried with an upstream ask, and
+ * the ask landed: juspay/kolu#2222 grew a ROOT SLOT on the same seam — a `core`
+ * beside `surfaces`, THREADED rather than minted, so a wire without one behaves
+ * exactly as it did. With a root the framework derives the two reserved
+ * round-trips from the ROOT's bare tags (the path `createSurfaceSocket` and
+ * `createLiveSignal` already implemented by omitting `siblingKey`), folds the
+ * root into the health fact under the caller's own word, and stops refusing an
+ * empty sibling map — because a wire that carries only its root is an ordinary
+ * wire. Every reason this file gave for assembling by hand is now a line of the
+ * framework, so the assembly is gone and what is left below is DECISIONS.
  *
- * So the wire is built the way the framework documents a consumer building one
- * — `createSurfaceSocket` → `createLiveSignal` → `surfaceClient` — which is
- * sanctioned rather than smuggled: `@kolu/surface/solid` names "a hand-built
- * `createLiveSignal` + `surfaceClient`" as the third caller of
- * `createSurfaceReadout`, and `createLiveSignal` stays the SINGLE minter of the
- * branded handle a client requires, so there is no green-over-dead lie to
- * forge. What this file must not skip is the WATCHDOG, which is the step the
- * turnkey seams exist to stop an app forgetting — it is wired below, and it
- * probes CORE's reserved member, which every serve carries whatever `--plugins`
- * says.
+ * ## What is left here, and why each line is a decision rather than a mechanic
  *
- * ## THE GROUP IS FUSED, by the same function the server fuses with
- *
- * `fuseGroups` is `@olai/plugins`' own, and the server's composition root calls
- * it on the other side of this socket. One function, two ends: the browser
- * cannot come to disagree with the server about what "core plus the siblings"
- * means, and the disjointness proof (a core tag has three segments, a sibling's
- * has four, and the merge underneath is a silent last-writer-wins `Map.set`)
- * is COUNTED rather than argued, once, in that module.
+ *   - **`retired`** — what happens to this tab when the server replaces itself.
+ *     Required by the seam with no default, so a wire that compiles has been
+ *     asked.
+ *   - **the word `"olai"`** — what a degraded readout calls this app's own
+ *     floor. The framework has no name for an app's floor and does not invent
+ *     one.
+ *   - **the SIBLING MAP**, read off the registry — which plugins this page
+ *     dials, argued below.
+ *   - **`clientFor`'s widening** — the one place a literal-keyed bundle is
+ *     addressed by a name that is data.
  *
  * ## WHICH PLUGINS THIS PAGE DIALS: every one the BUILD has
  *
@@ -119,8 +116,8 @@
  * design, because a failure is the fiber's exit and no frame can follow one.
  *
  * The consequence is the one that matters, and it is a DEGRADATION rather than
- * a lie: the subscription is enrolled, so `health()` carries its standing error
- * and the readout below folds to **`degraded`**, naming the member that stopped
+ * a lie: the subscription is enrolled, so the health fold carries its standing
+ * error and the readout goes **`degraded`**, naming the member that stopped
  * (`kolu/link`, `odu/ci`). A serve running fewer plugins than its browser was
  * built with therefore shows amber saying exactly which sibling went quiet — it
  * does not freeze (`./connection/reaching.ts` rules `degraded` reachable, on
@@ -130,27 +127,17 @@
  * ## ...WHICH IS ALSO WHY THERE IS NO EMPTY-MAP BRANCH
  *
  * `--plugins=` with no plugins is a real, supported state (`@olai/server`'s
- * `pluginPolicy.ts`), and `connectSurfaces` refuses an empty `surfaces` map
- * outright — "there is no sibling whose reserved `system/live` member the
- * half-open watchdog can probe". That refusal is correct for THAT seam and does
- * not reach this one: the watchdog here probes core, so a build with no plugins
- * composes an empty sibling group, fuses to core's own, and mints an empty
- * client record. ONE path, no branch, and the degenerate case is the same code
- * as every other.
+ * `pluginPolicy.ts`). It used to be the case this file could not hand to the
+ * turnkey seam at all — `connectSurfaces` refused an empty `surfaces` map,
+ * because there was then no sibling whose reserved `system/live` the watchdog
+ * could probe. With a root on the wire that refusal shrank to "nothing at all
+ * was passed", which this call can never be: core is always here. ONE path, no
+ * branch, and the degenerate case is the same code as every other.
  */
 
-import { composeSurfaceContracts } from "@kolu/surface/define"
-import {
-  createLiveSignal,
-  createSurfaceReadout,
-  surfaceClient,
-  type SurfaceClients,
-  surfaceClients,
-  surfaceClientsHealth,
-} from "@kolu/surface/solid"
 import { surfaceWsUrl } from "@kolu/surface-app"
-import { createSurfaceSocket } from "@kolu/surface-app/connect"
-import { fuseGroups, surfacesOf, WIRES } from "@olai/plugins/wire"
+import { connectSurfaces } from "@kolu/surface-app/solid"
+import { surfacesOf, WIRES } from "@olai/plugins/wire"
 import { surface } from "@olai/surface"
 
 /**
@@ -158,10 +145,10 @@ import { surface } from "@olai/surface"
  *
  * `surfacesOf` answers a `Record<string, …>` because `@olai/plugins` declines to
  * depend on `@kolu/surface` — its `PluginWire` says a surface is `{ spec }` and
- * no more. That erasure is right there and wrong here: the framework's client
- * bundle is typed PER KEY off each sibling's own spec, and a widened record
- * would hand every plugin's mount an `unknown` that no `satisfies` could ever
- * catch drifting.
+ * no more. That erasure is right there and wrong here: the seam's client bundle
+ * is typed PER KEY off each sibling's own spec, and a widened record would hand
+ * every plugin's mount an `unknown` that no `satisfies` could ever catch
+ * drifting.
  *
  * So the shape is recovered from `WIRES` — a tuple (`as const`) whose entries
  * carry a literal `name` and a concrete surface — by a mapped type over that
@@ -175,28 +162,43 @@ type PluginSurfaces = {
 
 const SIBLINGS = surfacesOf(WIRES) as PluginSurfaces
 
-/** Every plugin's tags at `surface/<name>/<member>/<verb>`, computed by the
- *  framework and by nothing olai wrote. */
-const composed = composeSurfaceContracts(SIBLINGS)
+/**
+ * The word a degraded readout calls olai's own floor.
+ *
+ * It is a LABEL and never a tag segment — the root's members keep their bare
+ * `surface/<member>/<verb>`, which is the whole difference between a root and a
+ * sibling — so it reaches a reader and nothing else. `surfaceClientsHealth`
+ * prefixes every stopped subscription with it (`olai/manifest`), which is what
+ * makes a degraded readout say WHICH HALF went quiet rather than only that
+ * something did. The framework has no name for an app's own floor and declines
+ * to invent one, so it crosses as an argument; it must not be a plugin's name,
+ * and the seam refuses at construction if it is.
+ */
+const CORE = "olai"
 
-const socket = await createSurfaceSocket({
-  // No `url` derivation of our own: `surfaceWsUrl(location.origin)` is the ONE
-  // scheme-swap and path both legs share (juspay/kolu#2165). This file used to
-  // hand-roll both halves; a derivation that is never a choice is no longer a
-  // question this wire is asked. It is spelled here rather than defaulted
-  // because only the turnkey seam defaults it, and this wire is assembled.
+/**
+ * THE DIAL — one call, the whole wire.
+ *
+ * The watchdog, the `pid` echo, the counted group merge over the root and every
+ * sibling, the per-sibling clients, the health fold and the readout are all the
+ * seam's, wired by construction. What crosses is the four decisions the header
+ * lists and nothing else.
+ */
+const wire = await connectSurfaces({
+  // `surfaceWsUrl(location.origin)` is the ONE scheme-swap and path both legs
+  // share (juspay/kolu#2165). It is spelled rather than defaulted because this
+  // seam requires it where its single-surface twin defaults it — a small
+  // asymmetry, and a line is cheaper than an upstream round for it.
   url: surfaceWsUrl(location.origin),
-  // Core's own group, unprefixed, with every sibling's fused onto it — see the
-  // header on why the fusion is `@olai/plugins`' function and not a merge.
-  group: fuseGroups(surface.group, composed.group),
-  // NO `siblingKey`, which is the load-bearing omission: the reserved
-  // `system/identity` the `pid` echo reads then sits at the bare
-  // `surface/system/identity` — CORE's, which every serve carries. Naming a
-  // sibling here would tie the stale-tab handshake to a plugin that may not be
-  // running. The header argues it in full.
-  //
+  // OLAI'S OWN SURFACE AS THE ROOT — unprefixed, so its tags are unchanged and
+  // the two reserved round-trips address them. That is what makes them
+  // trustworthy on a wire whose SIBLING set varies per serve: core is on every
+  // serve this page can reach, which is what makes it the root.
+  core: { surface, name: CORE },
+  surfaces: SIBLINGS,
   // What happens when the server retires this wire. Required by the seam, with
-  // no default, so a wire that compiles has been asked what happens when it dies.
+  // no default, so a wire that compiles has been asked what happens when it
+  // dies.
   //
   // What a READER sees is not wired from here: the indicator and the reload
   // screen ride `readout()`, so the retirement has ONE source and the dot and
@@ -210,27 +212,8 @@ const socket = await createSurfaceSocket({
     ),
 })
 
-/**
- * THE ONE WATCHDOG, over the one wire.
- *
- * It is the step the turnkey seams exist to stop an app forgetting, and this
- * file assembles its own wire, so it is spelled here rather than inherited: a
- * socket that is OPEN and silently half-open (laptop sleep, Wi-Fi roam, a NAT
- * evicting an idle connection) fires neither `close` nor `error`, and without a
- * probe the link sits open forever while every stream hangs.
- *
- * `createLiveSignal` is also the single, unforgeable minter of the branded
- * handle `surfaceClient` requires — hand it the WHOLE link and client and probe
- * share one dispatch by construction, which is what makes "green means the page
- * is reading" a fact rather than a hope.
- *
- * No `siblingKey`, for the socket's reason one call up: the probe addresses
- * `surface/system/live`, core's, which is served whatever `--plugins` says.
- */
-const transport = createLiveSignal(socket.link, {})
-
 /** OLAI'S OWN CLIENT, unprefixed — the members every page reads. */
-export const olai = surfaceClient(surface, transport)
+export const olai = wire.core
 
 /**
  * ...and ONE CLIENT PER SIBLING, each typed by that plugin's own spec.
@@ -238,11 +221,12 @@ export const olai = surfaceClient(surface, transport)
  * Handed straight to that plugin's mount and never opened here: what is behind
  * a sibling key is the plugin's business, and this module knows the key because
  * the key is the one word core has ({@link PluginSurfaces}).
+ *
+ * Do NOT fold this record for a health fact — it is the SIBLINGS ONLY, and a
+ * fold over it would be green over a dead root. {@link connectionReadout} is
+ * the fold, and the root is in it.
  */
-export const pluginClients: SurfaceClients<PluginSurfaces> = surfaceClients(
-  transport,
-  SIBLINGS,
-)
+export const pluginClients = wire.clients
 
 /**
  * ...and the same bundle addressed by a NAME READ OFF THE REGISTRY, which is
@@ -270,38 +254,17 @@ export const clientFor = (name: string): unknown =>
   (pluginClients as Readonly<Record<string, unknown>>)[name]
 
 /**
- * EVERY CLIENT'S HEALTH, folded as one fact — and this fold is the reason the
- * readout is rebuilt here rather than taken off a seam.
- *
- * `surfaceClientsHealth` AND-reduces the shared wire's `live` with every
- * enrolled subscription's `pending`/`error`, prefixing each sub's name with the
- * client's key so a degraded readout says WHICH half went quiet. Core is in the
- * record under its own name for exactly that: a fold over the plugins alone
- * would leave every one of olai's own subscriptions outside the fact, and a
- * dead `manifest` cell under a green light is the precise lie this readout was
- * introduced to prevent — the page sitting on a dead server looking healthy that
- * the header of this file is about.
- *
- * The key is a WORD IN THE READOUT, not an address: it prefixes the names of
- * whatever stopped (`olai/manifest`), which is what makes "which half" legible
- * to a reader of the degraded detail.
- */
-const CORE = "olai"
-
-const health = () => surfaceClientsHealth({ ...pluginClients, [CORE]: olai })
-
-/**
  * What the connection is doing — `connecting` / `live` / `degraded` /
  * `reconnecting` / `retired`, with `needsReload` and, when degraded, the names
  * of the subscriptions that stopped. Read it: an indicator nobody renders is
  * the bug this module had. `./connection/status.ts` says what each of the five
  * looks like, and nothing else about them.
  *
- * `createSurfaceReadout` is the framework's own fold and is memoized with its
- * own root, because this module runs outside any reactive owner — the same
- * function both turnkey seams call, over the two facts assembled above.
+ * The fold is the seam's, over the wire's status and every client's
+ * subscriptions — the SIBLINGS and the root, the latter under {@link CORE}.
+ * Core being in it is the point: a fold over the plugins alone would leave
+ * every one of olai's own subscriptions outside the fact, and a dead `manifest`
+ * cell under a green light is the precise lie this readout was introduced to
+ * prevent.
  */
-export const connectionReadout = createSurfaceReadout(
-  transport.status,
-  health,
-).readout
+export const connectionReadout = wire.readout

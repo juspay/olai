@@ -28,8 +28,11 @@
  * SIBLING under the name — the framework's own `composeSurfaceContracts` —
  * so a member declared `fleet` in `@olai/plugin-kolu` reaches the wire as
  * `surface/kolu/fleet/get` with no name arithmetic in any general package.
- * Core's own surface is untouched and its tags are unchanged: the two are
- * FUSED rather than merged into one spec ({@link ./compose.ts}).
+ * Core's own surface is untouched and its tags are unchanged: it rides the same
+ * wire as its ROOT, which is a shape the framework carries end to end —
+ * `mergeDisjointGroups` on the serve side, `exposeRootedFaces` at the gate,
+ * `connectSurfaces`' `core` slot in the browser (juspay/kolu#2222). Nothing in
+ * this package composes anything; it says WHAT there is to compose.
  *
  * Beside those, a plugin contributes property KINDS the format takes as data
  * and never imports, DRESSINGS licensed by declared kind, a CHROME slot or
@@ -93,7 +96,6 @@ export type {
   StdioServer,
 } from "./plugin.ts"
 
-export { fuseFaces, fuseGroups, fuseHandlers } from "./compose.ts"
 export {
   enabled,
   exposeMapsOf,

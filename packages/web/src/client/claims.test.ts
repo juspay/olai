@@ -70,26 +70,22 @@ const filesSpelling = (pattern: RegExp): ReadonlyArray<string> =>
 // equality rather than "nothing else" keeps the sweep honest, because a
 // pattern that rotted would report an empty list here instead of passing.
 //
-// THE CALL CHANGED and the claim did not, which is why the pattern moved with
-// it rather than the test being dropped. It hunted `connectSurface(` while the
-// client dialled one surface; the client now dials olai's own AND every
-// plugin's over one wire, which the turnkey seam cannot express (wire.ts's
-// header argues why at length — the seam derives the reserved probes from the
-// FIRST SIBLING, and core cannot be one). What is dialled is a socket either
-// way, so the socket's constructor is the honest thing to count.
-test("only wire.ts dials: the socket is constructed exactly once in the client", () => {
-  expect(filesSpelling(/createSurfaceSocket\s*\(/)).toEqual(["wire.ts"])
-})
-
-// ...and its other half, which is new and is the reason the pattern above had
-// to be chosen carefully: a wire assembled by hand is a wire that can forget
-// the WATCHDOG, which is the one step the turnkey seams exist to supply. A
-// socket with no `createLiveSignal` over it is a page that sits on a silently
-// half-open link forever with every stream hanging and the indicator green —
-// the exact lie the readout was introduced to prevent. So the mint is counted
-// in the same file, as an equality, beside the dial it must accompany.
-test("...and the watchdog is minted in the same file, over that socket", () => {
-  expect(filesSpelling(/createLiveSignal\s*\(/)).toEqual(["wire.ts"])
+// THE CALL HAS CHANGED TWICE and the claim has not, which is why the pattern
+// moved with it rather than the test being dropped. It hunted `connectSurface(`
+// while the client dialled one surface; when the plugins grew surfaces of their
+// own it hunted the socket constructor and the watchdog's mint, because the
+// turnkey seam derived its reserved probes from the FIRST SIBLING and core
+// cannot be one, so the wire was assembled here by hand. juspay/kolu#2222 gave
+// that seam a ROOT SLOT and the assembly is gone — one call again, and this is
+// once more a count of the seam rather than of the socket underneath it.
+//
+// The other half of that claim — that NO file in olai spells the four
+// primitives the assembly used to chain, nor the two fusion helpers
+// `@olai/plugins` used to export — is repo-wide and lives where those helpers
+// did: `@olai/plugins`' `mechanics.test.ts`, which carries the falsifier the
+// upstream ask travelled with. A client-only sweep could not have made it.
+test("only wire.ts dials: the seam is called exactly once in the client", () => {
+  expect(filesSpelling(/connectSurfaces\s*\(/)).toEqual(["wire.ts"])
 })
 
 // names.ts's claim — the table is derived ONCE, beside the reading

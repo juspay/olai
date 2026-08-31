@@ -9,13 +9,12 @@
  * daemon's whole contract on the browser's, which is exactly what
  * `@olai/kolu-client/wire`'s own fence exists to prevent one floor down.
  *
- * So this entry re-exports the sibling map, the two filters and the fusion
- * helpers, and the graph behind it reaches each plugin's `./wire` subpath and
+ * So this entry re-exports the sibling map and the two filters, and the graph
+ * behind it reaches each plugin's `./wire` subpath and
  * stops. `./fence.test.ts` walks that closure and asserts it rather than
  * trusting this paragraph.
  */
 
-export { fuseFaces, fuseGroups, fuseHandlers } from "./compose.ts"
 export {
   enabled,
   exposeMapsOf,

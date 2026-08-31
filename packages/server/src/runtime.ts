@@ -115,8 +115,9 @@ import {
 } from "@olai/surface"
 import { customText, isRegular, type Located, type Reading, UsageFailure } from "@olai/format"
 import type { Snapshot } from "@olai/store"
-import { surfaceTag } from "@kolu/surface/define"
+import { mergeDisjointGroups, surfaceTag } from "@kolu/surface/define"
 import {
+  assertHandlersMatchGroup,
   emptyHandlers,
   type ImplementSurfaceDeps,
   implementSurface,
@@ -135,9 +136,9 @@ import { cadence } from "@olai/chat"
 /**
  * THE ONLY PLACE THIS FILE MEETS AN APPLIANCE, and it meets none of them by
  * name. What arrives is a LIST — every plugin this binary was built with, each
- * carrying a sibling key, a whole surface of its own and a server half — plus
- * the two helpers that fuse a sibling bundle onto olai's own surface without
- * either side learning about the other.
+ * carrying a sibling key, a whole surface of its own and a server half. Fusing
+ * that bundle onto olai's own surface is the FRAMEWORK's, not this package's:
+ * `mergeDisjointGroups` is the counted merge and it lives one import up.
  *
  * `@olai/plugins/server` and not `@olai/plugins`: the manifests carry a
  * plugin's CHROME and its DRESSINGS, which are SolidJS components and, behind
@@ -152,7 +153,7 @@ import {
   enabled,
   SERVERS,
 } from "@olai/plugins/server"
-import { fuseGroups, fuseHandlers, isEnabled, PLUGIN_NAMES, surfacesOf } from "@olai/plugins/wire"
+import { isEnabled, PLUGIN_NAMES, surfacesOf } from "@olai/plugins/wire"
 
 import type { Cadence, Change, Chat } from "@olai/chat"
 import { type Emit, emitter } from "@olai/log"
@@ -1717,9 +1718,25 @@ export const bind = (
       half.published?.(bundle.ctx[plugin.name])
     }
 
-    /** OLAI'S TAGS AND EVERY SIBLING'S, in one group — see the return below for
-     *  why the merge is counted rather than trusted. */
-    const fused = fuseGroups(runtime.group, bundle.group)
+    /** OLAI'S TAGS AND EVERY SIBLING'S, in one group — the framework's own
+     *  COUNTED merge, labelled by the two halves so a collision names which of
+     *  them claimed the tag rather than only the loser. See the return below
+     *  for why the count matters at all. */
+    const fused = mergeDisjointGroups({ core: runtime.group, plugins: bundle.group })
+
+    /**
+     * ...and the two handler records as one, proved against that group.
+     *
+     * A spread, because the merge above has just established that the two tag
+     * sets are disjoint and a handler record is keyed by nothing but tags. What
+     * the spread is not trusted about is the RESULT: `assertHandlersMatchGroup`
+     * is the framework's own door and it names both directions — a tag with no
+     * handler, and a handler at a tag the group never minted — so a route set
+     * that drifted is a boot refusal naming the tags rather than a member that
+     * answers nothing with nobody told.
+     */
+    const handlers: SurfaceHandlers = { ...runtime.handlers, ...bundle.handlers }
+    assertHandlersMatchGroup(fused, handlers, "plugins")
 
     return {
       /**
@@ -1735,11 +1752,14 @@ export const bind = (
        *
        * THE FUSION IS SAFE BY CONSTRUCTION and proved anyway. A core tag has
        * three segments and a sibling tag has four, and the framework forbids a
-       * `/` inside any name, so the two sets cannot intersect; `fuseGroups`
-       * counts them and `fuseHandlers` re-proves the route set against the
-       * fused group, because a merge underneath is a last-writer-wins
+       * `/` inside any name, so the two sets cannot intersect —
+       * `mergeDisjointGroups` claims every tag before merging and says so
+       * anyway, because `RpcGroup.merge` underneath is a last-writer-wins
        * `Map.set` and a silently dropped tag is a member that answers nothing
-       * with nobody told (`@olai/plugins`' `compose.ts`).
+       * with nobody told. It is the same proof the BROWSER's seam runs on the
+       * other side of the socket (`connectSurfaces`, one function), which is
+       * what keeps the two ends from coming to disagree about what "core plus
+       * the siblings" means.
        *
        * SUPERVISION HAS ONE TERMINAL SOURCE and it is olai's. `done` is what a
        * serving site treats as structural death (`./fault.ts`), and the
@@ -1754,7 +1774,7 @@ export const bind = (
        */
       bound: {
         group: fused,
-        handlers: fuseHandlers(fused, runtime.handlers, bundle.handlers),
+        handlers,
         ...superviseTerminalSource(bundle, runtime),
       },
       // Built from the SAME list the composition above walked, which is the

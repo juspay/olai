@@ -56,12 +56,11 @@
 import { surface } from "@olai/surface"
 import {
   type ExposeMap,
-  exposeFace,
-  exposeFaces,
+  exposeRootedFaces,
   type FaceExposure,
 } from "@kolu/surface/expose"
 import type { SurfaceMap } from "@kolu/surface/server"
-import { exposeMapsOf, fuseFaces, type PluginWire, surfacesOf } from "@olai/plugins/wire"
+import { exposeMapsOf, type PluginWire, surfacesOf } from "@olai/plugins/wire"
 
 /**
  * The MCP adapter's allowlist — what an agent may SEE.
@@ -430,14 +429,24 @@ const AGENT_KEY = "agent"
  *
  * ## What each half is
  *
- * Core's is `exposeFace` over olai's own map, unchanged and unchangeable by any
- * plugin. The sibling half is `exposeFaces` over the composed bundle, which is
- * where the per-plugin decision actually lives: each plugin's map is written in
- * its own package against its own spec, so its keys are compiler-checked and
- * `"a.b"` cannot mean two things depending on whether `a` is a namespace or a
- * sibling. {@link fuseFaces} unions the two, which the framework mints no
- * constructor for and documents as a supported spelling
- * (`@olai/plugins`' `compose.ts` argues it).
+ * ONE CONSTRUCTOR takes both. `exposeRootedFaces` is the third member of the
+ * family — `exposeFace` for a standalone surface, `exposeFaces` for a sibling
+ * bundle, this one for a ROOT beside siblings — and it is what olai's shape has
+ * always been: core keeps its unprefixed tags and the plugins compose around
+ * them. The root's map is olai's own, unchanged and unchangeable by any plugin;
+ * the per-plugin decision lives in each plugin's own map, written in its own
+ * package against its own spec, so its keys are compiler-checked and `"a.b"`
+ * cannot mean two things depending on whether `a` is a namespace or a sibling.
+ *
+ * This used to be two exposures unioned by hand, and the seam was cut wrong in
+ * a way nothing downstream could catch: a set union of two `FaceExposure`s
+ * carries an unwritten precondition — that the two groups are DISJOINT — and
+ * when they are not, the union silently keeps one copy of the shared tag, the
+ * universe still set-equals a group merged just as carelessly, `restrictHandlers`
+ * sees nothing wrong, and the face serves one member under the other's policy.
+ * The constructor establishes the disjointness instead (the SAME counted merge
+ * the serve path runs) and refuses a root that is not standalone. Both were
+ * true here by construction; neither was proved.
  *
  * ## The AGENT face gets no plugin maps, and that is DATA
  *
@@ -476,13 +485,7 @@ export const facesOf = (
   const mapsFor = (face: string) =>
     exposeMapsOf(plugins, face) as unknown as Record<string, ExposeMap<never>>
   return {
-    browser: fuseFaces(
-      exposeFace(surface, BROWSER),
-      exposeFaces(siblings, mapsFor(BROWSER_KEY)),
-    ),
-    agent: fuseFaces(
-      exposeFace(surface, AGENT),
-      exposeFaces(siblings, mapsFor(AGENT_KEY)),
-    ),
+    browser: exposeRootedFaces(surface, BROWSER, siblings, mapsFor(BROWSER_KEY)),
+    agent: exposeRootedFaces(surface, AGENT, siblings, mapsFor(AGENT_KEY)),
   }
 }
