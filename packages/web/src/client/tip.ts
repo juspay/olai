@@ -17,7 +17,7 @@
 import { createSignal } from "solid-js"
 
 /** How close to the window's edge a tip may come. */
-export const MARGIN = 8
+const MARGIN = 8
 
 /** How far below the anchor — or the header, if the anchor sits inside it —
  *  a tip starts. */
@@ -59,12 +59,12 @@ export const clampedTop = (anchorBottom: number, floor: number): number =>
  * the asked top, unless that would run the tip's bottom past the window's
  * bottom margin — then it is LIFTED until the bottom sits at the margin.
  *
- * The lift never crosses the floor {@link clampedTop} enforced at the ask:
- * an anchor inside the header asks below the bar's bottom edge, because the
- * bar and its coral rule stack ABOVE the page layer — a tip lifted past
- * that edge would be painted through, not merely covered. A tip taller
- * than the room between the floor and the margin keeps the floor and
- * overflows: no lift can help it, and pinning it would lie about both.
+ * The lift never parks above the bar's floor PLUS the gap the ask itself
+ * was given ({@link clampedTop}'s spacing is the least a re-placement owes
+ * it), nor above the same top margin the sides keep. A tip taller than the
+ * room between that pin and the bottom margin keeps the pin and
+ * overflows: no lift can help it, and parking higher would lie about
+ * both ends.
  *
  * This is arithmetic of one axis — a bottom cannot be clamped before the
  * height exists, and the height is the caller's to read off the drawn box,
@@ -75,10 +75,14 @@ export const liftedTop = (
   tipHeight: number,
   viewportHeight: number,
   floor: number,
-): number =>
-  top + tipHeight + MARGIN > viewportHeight
-    ? Math.max(floor, viewportHeight - tipHeight - MARGIN)
+): number => {
+  // Bar below or no bar at all: without one the floor arg is zero, and
+  // the margin is the pin.
+  const pin = Math.max(floor + TIP_GAP, MARGIN)
+  return top + tipHeight + MARGIN > viewportHeight
+    ? Math.max(pin, viewportHeight - tipHeight - MARGIN)
     : top
+}
 
 // ── one tip, ever ──────────────────────────────────────────────────────
 

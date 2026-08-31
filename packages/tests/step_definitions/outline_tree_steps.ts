@@ -325,8 +325,11 @@ Then(
         // The hover is RE-ASKED on every try, not trusted from before the
         // wait: a scroll — a fragment's reveal, an agent landing under the
         // pointer — retracts an opened tip by design (Tip.tsx: the pane
-        // scrolling IS the leave), and no event says so. The gesture must
-        // live inside the poll, the way the saatchi walk's retry did.
+        // scrolling IS the leave), and no event says so. And the pointer
+        // is moved AWAY first: a tip opens on `mouseenter` alone, and a
+        // hover() over the point the pointer already rests fires none —
+        // without the away the retry asks nothing and can never recover.
+        await this.page.mouse.move(40, 40);
         await chip.hover();
         // EXACTLY one tip, and the story in it — the doubled-tooltip catch
         // navigation_steps.ts keeps: every TEXT assertion passed while two

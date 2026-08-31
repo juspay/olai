@@ -37,12 +37,18 @@ import { LAYER } from "./layer.ts"
 import { TESTID } from "./testids.ts"
 import { clampedLeft, clampedTop, hideTip, liftedTop, showTip, takeTip, tipShowing } from "./tip.ts"
 
+/**
+ * Where the tip ASKS to be — never where it landed: `place` writes the
+ * RESOLVED position onto the drawn tip's style alone and never back into
+ * this, so a re-place on new words re-derives from the anchor's truth
+ * instead of drifting off its own last answer.
+ */
 interface At {
   readonly left: number
   readonly top: number
   /** The bar's bottom edge, or 0 when there is none — the lift
-   *  (`./tip.ts`'s `liftedTop`) may never cross it, so it is carried with
-   *  the ask: a RE-ask on new words must answer with the same floor. */
+   *  (`./tip.ts`'s `liftedTop`) adds its own gap on top, so it is carried
+   *  with the ask: a RE-ask on new words must answer with the same floor. */
   readonly floor: number
 }
 
@@ -50,7 +56,11 @@ export function Tip(props: {
   /** What the tip says. The control it wraps says the same thing in its
    *  `aria-label`, so this is never the only copy. */
   readonly text: string
-  /** The control being explained. */
+  /** The control being explained. It MUST be the wrapper's first element
+   *  child: the tip's rectangle is read off exactly that (the wrapper is
+   *  `display: contents` and has no box of its own). Companions that are
+   *  not the control — an sr-only echo — come AFTER it, as the ⏱ chip's
+   *  copy does. */
   readonly children: JSX.Element
   /**
    * Which of the page's stack this tip rides. Defaults to the page: a tip
@@ -109,8 +119,6 @@ export function Tip(props: {
     // a fact: `./tip.ts`'s table, clampedLeft's sibling — under the last
     // row of a page it is a LIFT, and it never crosses the bar's floor.
     const top = liftedTop(want.top, box.height, window.innerHeight, want.floor)
-    if (left !== want.left || top !== want.top)
-      setAt((was) => (was === undefined ? was : { ...was, left, top }))
     tip.style.left = `${left}px`
     tip.style.top = `${top}px`
   }

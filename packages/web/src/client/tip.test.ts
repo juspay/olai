@@ -51,11 +51,18 @@ test("even a one-line tip in the last pixels is lifted the few it needs", () => 
 
 // The bar hides nothing: the anchor sits INSIDE the header (the bar's
 // bottom edge is the floor), and a story taller than the room beneath it
-// is lifted no further than the floor — never under the bar itself, where
-// the coral rule would cut the first line. The extra hangs off the bottom,
-// which is exactly what a reader sees and can scroll out of.
+// is lifted no further than the floor plus the ask's own gap — never
+// under the bar itself, where the coral rule would cut the first line.
+// The extra hangs off the bottom, which is exactly what a reader sees and
+// can scroll out of.
 test("a lift never crosses the bar's floor", () => {
-  expect(liftedTop(48, 730, 760, 40)).toBe(40)
+  expect(liftedTop(48, 730, 760, 40)).toBe(40 + 4)
+})
+
+// No bar at all — a patient's page down the tree: the pin is the same
+// margin the sides keep, because zero is no floor to stand on.
+test("with no bar, the top pin is the margin itself", () => {
+  expect(liftedTop(100, 780, 760, 0)).toBe(8)
 })
 
 // ── one tip, ever ──────────────────────────────────────────────────────
