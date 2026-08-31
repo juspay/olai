@@ -34,6 +34,7 @@ import {
   OUTLINE_TREE,
   POLL_TIMEOUT,
   TAG,
+  TIP,
   TOGGLE,
   TOOK,
   ZOOM,
@@ -312,14 +313,26 @@ Then(
       async () => /^\d+$/.test((await chip.getAttribute("data-took")) ?? ""),
       `the node "${id}" wears a settled took chip (data-took of whole seconds)`,
     );
-    // And the hover says the exact figure, in words, off the same attr —
-    // whole seconds while it is under a minute, which every scenario here
-    // keeps its span, so `took 7s` is the shape the tooltip is held to.
+    // And the HOVER, which is the app's own tip now (the platform's `title`
+    // ran off the window's right edge — web/src/client/Tip.tsx says why the
+    // move). Every scenario here settles one round inside the minute, so the
+    // tip's one line is the figure off the same attr plus the window the
+    // record carried: `took 7s — the one round: <started> → <settled>`.
     const seconds = parseInt((await chip.getAttribute("data-took")) ?? "-1", 10);
     assert.ok(seconds >= 0 && seconds < 60, `"${id}"'s took attr is ${seconds}s`);
+    await chip.hover();
     await this.waitUntil(
-      async () => (await chip.getAttribute("title")) === `took ${seconds}s`,
-      `the node "${id}"'s chip hovers the exact figure ("took ${seconds}s")`,
+      async () => {
+        const said = await this.page
+          .locator(TIP)
+          .innerText()
+          .catch(() => "");
+        return (
+          said.startsWith(`took ${seconds}s — the one round: `) &&
+          said.includes(" → ")
+        );
+      },
+      `the node "${id}"'s chip hovers the whole story ("took ${seconds}s — the one round: … → …")`,
     );
   },
 );

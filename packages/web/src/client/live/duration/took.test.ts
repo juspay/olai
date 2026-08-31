@@ -18,7 +18,14 @@
 import { describe, expect, test } from "bun:test"
 
 import { DAY, HOUR, MINUTE, SECOND } from "../../clock.ts"
-import { exactOf, liveOf, tickingOf, wordsOf } from "./took.ts"
+import {
+  exactOf,
+  liveOf,
+  liveStoryOf,
+  settledStoryOf,
+  tickingOf,
+  wordsOf,
+} from "./took.ts"
 
 describe("the settled words", () => {
   test("coarse, and coarser as the span grows", () => {
@@ -99,5 +106,119 @@ describe("the banked sum", () => {
     // The wire's instant out-running the browser is a skew to clamp, not a
     // debt the counted rounds should repay.
     expect(liveOf(600, AT, AT - 30 * SECOND)).toBe(600 * SECOND)
+  })
+})
+
+describe("the live chip's story", () => {
+  const AT = Date.parse("2026-08-29T09:50:00-04:00")
+  const STARTED = "2026-08-29T09:50:00-04:00"
+
+  test("a single round reads naturally — close to the tip's old words", () => {
+    expect(liveStoryOf(undefined, STARTED, AT + 47 * SECOND))
+      .toEqual(["round 1, under way since 2026-08-29T09:50:00-04:00"])
+    // A bank of zero reads the same: a same-second round closed is no
+    // earlier story to tell.
+    expect(liveStoryOf(0, STARTED, AT + 47 * SECOND))
+      .toEqual(["round 1, under way since 2026-08-29T09:50:00-04:00"])
+  })
+
+  test("a banked row enumerates the rounds the bank distinguishes, in order", () => {
+    expect(liveStoryOf(600, STARTED, AT + 252 * SECOND)).toEqual([
+      "10m already banked over the rounds before this one",
+      "this round under way again since 2026-08-29T09:50:00-04:00 — 4m 12s so far",
+      "14m 12s worked in all — the pauses between the rounds never counted",
+    ])
+  })
+
+  // The bank's own rounding, the settle's: the tip claims the figure the
+  // settle will bank, never the floor of it the face shows for one more
+  // second.
+  test("the live span rounds the way the bank does", () => {
+    expect(liveStoryOf(600, STARTED, AT + (240 * SECOND + 700)))
+      .toContain("this round under way again since 2026-08-29T09:50:00-04:00 — 4m 1s so far")
+  })
+
+  test("a start ahead of this clock reads an honest zero of it", () => {
+    expect(liveStoryOf(600, STARTED, AT - 30 * SECOND)).toEqual([
+      "10m already banked over the rounds before this one",
+      "this round under way again since 2026-08-29T09:50:00-04:00 — 0s so far",
+      "10m worked in all — the pauses between the rounds never counted",
+    ])
+  })
+
+  // The chip's arm matched on a parseable start before this ran, so this is
+  // belt for a hand-written record: the words, and no invented span.
+  test("an unreadable instant is said, never subtracted", () => {
+    expect(liveStoryOf(600, "next monday-ish", AT))
+      .toEqual(["round 1, under way since next monday-ish"])
+  })
+})
+
+describe("the settled chip's story", () => {
+  const STARTED = "2026-08-29T09:52:00-04:00"
+  const SETTLED = "2026-08-29T12:26:44-04:00"
+
+  test("the single round: took, and the window that is also the wall", () => {
+    expect(settledStoryOf({ took: 9284, banked: undefined, started: STARTED, settled: SETTLED }))
+      .toEqual([
+        "took 2h 34m 44s — round 1: 2026-08-29T09:52:00-04:00 → 2026-08-29T12:26:44-04:00",
+      ])
+  })
+
+  test("one banked round reads the same shape — the window answers the wall", () => {
+    expect(settledStoryOf({ took: 9284, banked: 9284, started: STARTED, settled: SETTLED }))
+      .toEqual([
+        "took 2h 34m 44s — the one round: 2026-08-29T09:52:00-04:00 → 2026-08-29T12:26:44-04:00",
+      ])
+  })
+
+  test("several rounds split the bank from the windowed one, in order", () => {
+    // `lane-lrd-address` of the roadmap vault, verbatim: the earlier rounds
+    // closed 51m 23s into the bank, the last one windowed by the pair.
+    expect(
+      settledStoryOf({
+        took: 4869,
+        banked: 4869,
+        started: "2026-08-30T12:02:37-04:00",
+        settled: "2026-08-30T12:32:23-04:00",
+      }),
+    ).toEqual([
+      "took 1h 21m 9s — the pauses between the rounds never counted",
+      "the rounds before the last banked 51m 23s of it",
+      "the last ran 29m 46s: 2026-08-30T12:02:37-04:00 → 2026-08-30T12:32:23-04:00",
+    ])
+  })
+
+  test("a bank whose windows are all gone says the sum, never invents one", () => {
+    expect(settledStoryOf({ took: 4869, banked: 4869, started: undefined, settled: SETTLED }))
+      .toEqual([
+        "took 1h 21m 9s — rounds banked where each closed, the pauses between them never counted",
+      ])
+    // …and the settle may hold `true`: the close was never an instant.
+    expect(settledStoryOf({ took: 4869, banked: 4869, started: STARTED, settled: true }))
+      .toEqual([
+        "took 1h 21m 9s — rounds banked where each closed, the pauses between them never counted",
+      ])
+    // …but a hand-written ZERO bank with no window is even that claim shy of
+    // what it can prove, so the tip holds to the one derived figure.
+    expect(settledStoryOf({ took: 0, banked: 0, started: undefined, settled: SETTLED }))
+      .toEqual(["took 0s"])
+  })
+
+  // The windowed round outrunning the bank is a record a hand wrote: the
+  // lump is floored at zero, so the tip reads as the one-round shape and
+  // never a negative figure.
+  test("a record whose window outruns its bank claims no lump", () => {
+    expect(settledStoryOf({ took: 600, banked: 300, started: STARTED, settled: SETTLED }))
+      .toEqual([
+        "took 10m — the one round: 2026-08-29T09:52:00-04:00 → 2026-08-29T12:26:44-04:00",
+      ])
+  })
+
+  test("an honest zero is a story too", () => {
+    expect(settledStoryOf({ took: 0, banked: 0, started: STARTED, settled: STARTED }))
+      .toEqual([
+        "took 0s — the one round: 2026-08-29T09:52:00-04:00 → 2026-08-29T09:52:00-04:00",
+      ])
   })
 })

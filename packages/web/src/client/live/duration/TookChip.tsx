@@ -1,6 +1,7 @@
 /**
  * The ⏱ chip at a row's far hand: how long the work TOOK, or how long it has
- * been GOING.
+ * been GOING — the face deliberately concise, the HOVER telling the whole
+ * story.
  *
  * THE TWO STATES THE ROW CAN BE IN, drawn differently because they read
  * differently (`projects/olai/prototypes/timing-mock.html`, ruled):
@@ -31,6 +32,15 @@
  * `storedMarker` of the shown record, so a caller-passed status would be one
  * fact spelled twice, and a mirror's target is already followed either way).
  *
+ * THE HOVER IS THIS APP's OWN TIP, never the platform's `title` — the same
+ * move the waiting glyph and the uptime pill made: the chip hugs the row's
+ * RIGHT edge, which is the exact place a platform tooltip runs off the
+ * window (`../../Tip.tsx` is the tip built for it), and the story below is
+ * more than a sentence. The visually-hidden copy says the same words, so
+ * the hover is never the only telling (`./took.ts`'s `liveStoryOf` /
+ * `settledStoryOf` — the rounds the record still windows, in order, the
+ * bank where it can only sum them).
+ *
  * ONE TRUTHINESS PIT, pin-sharp: a row set doing and settled inside the same
  * second has a span of `0` — a real one, and the prototype says the chip
  * wears it ("a `0s` does appear — honest places read zero"). `<Match
@@ -51,7 +61,8 @@ import { Match, Switch } from "solid-js"
 
 import { instantOf } from "../../clock.ts"
 import { TESTID } from "../../testids.ts"
-import { createNow, exactOf, liveOf, tickingOf, wordsOf } from "./took.ts"
+import { Tip } from "../../Tip.tsx"
+import { createNow, liveOf, liveStoryOf, settledStoryOf, tickingOf, wordsOf } from "./took.ts"
 
 /** The quiet register both halves of the chip share — the ¶-counter's own:
  *  mono, reading-size, muted. */
@@ -76,18 +87,19 @@ const GOING = `${CHIP} text-accent bg-accent/10 tabular-nums`
 function GoingChip(props: { readonly started: string; readonly worked: number | undefined }) {
   const now = createNow(() => props.started)
   const banked = () => props.worked ?? 0
+  const story = () => liveStoryOf(props.worked, props.started, now()).join("\n")
   return (
-    <span
-      class={GOING}
-      data-testid={TESTID.took}
-      data-status="doing"
-      data-started={props.started}
-      title={banked() > 0
-        ? `${exactOf(banked())} already banked — under way again since ${props.started}`
-        : `under way since ${props.started}`}
-    >
-      ⏱ {tickingOf(liveOf(banked(), instantOf(props.started) ?? now(), now()))}
-    </span>
+    <Tip text={story()}>
+      <span
+        class={GOING}
+        data-testid={TESTID.took}
+        data-status="doing"
+        data-started={props.started}
+      >
+        ⏱ {tickingOf(liveOf(banked(), instantOf(props.started) ?? now(), now()))}
+        <span class="sr-only">{story()}</span>
+      </span>
+    </Tip>
   )
 }
 
@@ -121,17 +133,31 @@ export function TookChip(props: {
             landing under this page moves the seconds UNDER the wrapper — a
             destructured read would be this client's own promise (the page
             follows the files without a reload) quietly dropped. */}
-        {(chip) => (
-          <span
-            class={SETTLED}
-            data-testid={TESTID.took}
-            data-status={storedMarker(props.node)}
-            data-took={chip().seconds}
-            title={`took ${exactOf(chip().seconds)}`}
-          >
-            ⏱ {wordsOf(chip().seconds)}
-          </span>
-        )}
+        {(chip) => {
+          const story = () => {
+            const mark = storedMarker(props.node)
+            return settledStoryOf({
+              took: chip().seconds,
+              banked: props.node.worked,
+              started: props.node.started,
+              settled:
+                (mark === "done" || mark === "cancelled" ? props.node[mark] : undefined) ?? true,
+            }).join("\n")
+          }
+          return (
+            <Tip text={story()}>
+              <span
+                class={SETTLED}
+                data-testid={TESTID.took}
+                data-status={storedMarker(props.node)}
+                data-took={chip().seconds}
+              >
+                ⏱ {wordsOf(chip().seconds)}
+                <span class="sr-only">{story()}</span>
+              </span>
+            </Tip>
+          )
+        }}
       </Match>
     </Switch>
   )

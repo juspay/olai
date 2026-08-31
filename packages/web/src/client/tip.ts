@@ -17,7 +17,7 @@
 import { createSignal } from "solid-js"
 
 /** How close to the window's edge a tip may come. */
-const MARGIN = 8
+export const MARGIN = 8
 
 /** How far below the anchor — or the header, if the anchor sits inside it —
  *  a tip starts. */

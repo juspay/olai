@@ -30,12 +30,12 @@
  * is a fact about the text and the window rather than one we can be told.
  */
 
-import { createSignal, type JSX, onCleanup, onMount, Show } from "solid-js"
+import { createEffect, createSignal, type JSX, onCleanup, onMount, Show } from "solid-js"
 import { Portal } from "solid-js/web"
 
 import { LAYER } from "./layer.ts"
 import { TESTID } from "./testids.ts"
-import { clampedLeft, clampedTop, hideTip, showTip, takeTip, tipShowing } from "./tip.ts"
+import { clampedLeft, clampedTop, hideTip, MARGIN, showTip, takeTip, tipShowing } from "./tip.ts"
 
 interface At {
   readonly left: number
@@ -89,9 +89,29 @@ export function Tip(props: {
   onCleanup(hide)
 
   const place = (tip: HTMLDivElement): void => {
+    const want = at()
+    if (want === undefined) return
+    // Read the TRUE box by parking it at the window's edge for the read:
+    // where the tip first draws — under a control that hugs the window's
+    // right edge — the box's own room is only what was left of the window
+    // past it, and the box wraps to THAT floor before the clamp ever
+    // slides it (the wrap never un-winds). Parked at the edge, the read is
+    // the wide box the words ask for, and it is THAT box the clamp may
+    // have to move — never a floor-standed one.
+    tip.style.left = "0px"
     const box = tip.getBoundingClientRect()
-    const left = clampedLeft(box.left, box.width, window.innerWidth)
-    if (left !== box.left) setAt((was) => was === undefined ? was : { ...was, left })
+    const left = clampedLeft(want.left, box.width, window.innerWidth)
+    // And the window's floor is the second clamp of the same clamp: a
+    // multi-line story hung under the LAST row of a page falls past the
+    // scrollable bottom entirely — flip the tip over its anchor rather
+    // than half-paint it.
+    const top = box.height + MARGIN + want.top > window.innerHeight
+      ? Math.max(MARGIN, window.innerHeight - MARGIN - box.height)
+      : want.top
+    if (left !== want.left || top !== want.top)
+      setAt((was) => (was === undefined ? was : { ...was, left, top }))
+    tip.style.left = `${left}px`
+    tip.style.top = `${top}px`
   }
 
   /** The tip itself, in a portal at the end of the document. Its own component
@@ -111,11 +131,23 @@ export function Tip(props: {
       window.addEventListener("scroll", hide, { capture: true, passive: true })
       onCleanup(() => window.removeEventListener("scroll", hide, true))
     })
+    // The clamp was measured for the text AS DRAWN. A tip that MOVES — the
+    // ⏱ chip's story ticks — can widen past the edge it was measured
+    // against, so a change in the words asks the clamp again; the run's own
+    // effect wrote the new text ahead of this one (creation order), so the
+    // rectangle read here is already the widened one.
+    createEffect(() => {
+      props.text
+      if (tip !== undefined) place(tip)
+    })
 
     return (
       <div
         ref={tip}
-        class={`pointer-events-none fixed ${props.layer ?? LAYER.page} max-w-[min(24rem,calc(100vw-1rem))] rounded-sm border border-rule/70 bg-panel px-2 py-1 text-xs text-ink shadow-sm`}
+        // `whitespace-pre-line` rather than plain wrapping: a story told in
+        // LINES (the ⏱ chip's rounds, one per line) must not collapse into
+        // one run — and a text without newlines is drawn exactly as before.
+        class={`pointer-events-none fixed ${props.layer ?? LAYER.page} max-w-[min(24rem,calc(100vw-1rem))] rounded-sm border border-rule/70 bg-panel px-2 py-1 text-xs whitespace-pre-line text-ink shadow-sm`}
         style={{ left: `${drawn.at.left}px`, top: `${drawn.at.top}px` }}
         data-testid={TESTID.tip}
         role="presentation"
