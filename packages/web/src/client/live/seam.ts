@@ -96,13 +96,21 @@
  * The tab still receives answers and still cannot re-derive a rule; #395 is
  * untouched. What changed is only which question the answer is to.
  *
- * SO THERE ARE TWO LICENCES AND THEY ASK DIFFERENT THINGS, both spent in
- * {@link dressingFor}. The page's says THIS VALUE is claimed by that word, which
- * is a fact about the vault. The roster's ({@link Running}) says THIS SERVE is
- * running the plugin that owns the face, which is a fact about the process. They
- * agree in every ordinary case — both fall out of `--plugins` — and they arrive
- * on different frames, so the second is what keeps a face off the page in the
- * instant before a roster lands.
+ * SO THERE ARE TWO LICENCES AND THEY ASK ABOUT TWO DIFFERENT PLUGINS, both
+ * spent in {@link dressingFor}. The page's says THIS VALUE is claimed by that
+ * word, which is a fact about the vault and about whoever CONTRIBUTED the kind.
+ * The roster's ({@link Running}) says this serve is running whoever REGISTERED
+ * the face.
+ *
+ * Those are the same plugin for both of today's dressings, and it would be easy
+ * to read the second as redundant — a word can only be claimed by a kind whose
+ * plugin is enabled, so the page's answer already implies a running plugin.
+ * That reasoning is wrong by one step: nothing says a dressing is registered by
+ * the plugin that taught the vault the word. A plugin may dress another's kind
+ * (the vocabulary is a table core assembles, not a private field), and then the
+ * word is claimed while the face's owner is off. The roster is what answers that
+ * one, and it is also what keeps a face off the page in the instant before a
+ * roster has landed — the two answers arrive on different frames.
  *
  * ## Three rules a dressing must satisfy, and they are the chip's own
  *
@@ -274,11 +282,6 @@ export const ALL_RUNNING: Running = () => true
  * all.
  */
 export type Licensed = (key: string, value: string) => string | undefined
-
-/** What a run with no answers draws: nothing wears a face. The state a page
- *  whose reading has not arrived is in, and the state every value in a vault
- *  that declares nothing stays in. */
-export const NOTHING_CLAIMED: Licensed = () => undefined
 
 /**
  * The dressing for one entry, or `undefined` where it draws as a plain chip.

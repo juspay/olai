@@ -27,14 +27,17 @@
 
 import { createMemo } from "solid-js"
 
-import type { Running } from "../live/seam.ts"
+import { ALL_RUNNING, type Running } from "../live/seam.ts"
 import { olai } from "../wire.ts"
 
 export const createRunning = (): (() => Running) => {
   const roster = olai.cells.plugins.use()
   return createMemo<Running>(() => {
     const held = roster.value()
-    if (held === undefined) return () => true
+    // The seam names this answer and says why it is the generous one; a second
+    // `() => true` spelled here would be the same decision with nowhere to
+    // argue it.
+    if (held === undefined) return ALL_RUNNING
     // A name the roster does not carry is a plugin this SERVE has never heard
     // of, which a tab can reach only by being newer than the server it dialled.
     // It draws — the same generosity the pre-roster answer shows, and for the

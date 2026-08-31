@@ -43,6 +43,25 @@ Feature: The `terminal` property is a DOOR
     And there should be no page errors
 
   @scratch:lanes @padi:lanes
+  Scenario: The DECLARATION opens the door, and the key's name opens nothing
+    # What licenses this face is one row in `_olai/Properties.olai` saying which
+    # of your columns holds a terminal — never the fact that a column happens to
+    # be spelled `terminal`. The board here calls its column `pty` and declares
+    # it, so it wears kolu's row like any other; the column beside it holds a
+    # terminal id that is really in the fleet and is declared nothing, so it is
+    # the text somebody wrote and no more.
+    #
+    # This is the half that could not be drawn at all until the page began
+    # carrying the licence per value. The server followed the declared KIND and
+    # the tab followed the key, so the two agreed only for a vault that named its
+    # column after the kind — and this fixture's `pty` row was walked, probed and
+    # gated while drawing nothing.
+    Given I open the outline "lanes.olai"
+    Then the terminal row on "named-implement" is working
+    And "named-review" wears no terminal door at all
+    And there should be no page errors
+
+  @scratch:lanes @padi:lanes
   Scenario: A terminal the fleet no longer holds says so, and is not drawn as idle
     # The property is still a true record of where the work happened. A gray
     # live row would claim the terminal is sitting there doing nothing, which is a

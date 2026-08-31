@@ -102,6 +102,29 @@ Then(
 );
 
 Then(
+  "{string} wears no terminal door at all",
+  async function (this: OlaiWorld, id: string) {
+    // THE ABSENT STATE, and it is not "has no row": a block with no row is a
+    // door that LOOKED and found nothing, which is a sentence on the page. This
+    // is the state of a property nothing licensed — no block, no sentence, the
+    // plain chip every undressed property has always drawn.
+    //
+    // Asserted by waiting for the node's own props to be on screen FIRST, so a
+    // count of zero cannot pass on a row that had not drawn yet. That is the
+    // failure a bare count would have here, and it would pass forever.
+    await this.node(id)
+      .locator(`[data-testid="prop"]`)
+      .first()
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.equal(
+      await this.node(id).locator(BLOCK).count(),
+      0,
+      `${id} should wear no terminal door — nothing licensed one`,
+    );
+  },
+);
+
+Then(
   "the terminal on {string} shows the stored value",
   async function (this: OlaiWorld, id: string) {
     // The record's own id, on the page beside the row. Two statements, not one:

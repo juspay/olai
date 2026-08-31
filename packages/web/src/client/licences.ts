@@ -3,11 +3,38 @@
  * about when it moves.
  *
  * `./names.ts` and `./doors.ts`'s third sibling, and deliberately their twin:
- * the same shape, the same memo, the same comparator argument, the same triple.
- * What differs is only what is being looked up — an id's title, a value's
- * meaning, and here the WORD a running plugin's contributed kind claims a value
- * under. All three are tables rather than questions the browser asks for one
- * reason: the tab holds a page, not a vault (`@olai/format`'s `meaning.ts`).
+ * the same shape, the same memo, the same comparator argument. What differs is
+ * only what is being looked up — an id's title, a value's meaning, and here the
+ * WORD a running plugin's contributed kind claims a value under. All three are
+ * tables rather than questions the browser asks for one reason: the tab holds a
+ * page, not a vault (`@olai/format`'s `meaning.ts`).
+ *
+ * ## THREE OF THEM, AND STILL THREE MODULES — asked, and answered
+ *
+ * Two of a shape is a coincidence and three is a pattern, so this is where the
+ * question gets answered rather than restated: no, they do not collapse into
+ * one `createTable(rows, key, same)`.
+ *
+ * What is actually shared is the SKELETON — copy, memo with an `equals`, build a
+ * `Map`, return a lookup — which is about eight lines. What is not shared is
+ * every part of it that does any work: the COPY differs per shape (a door's
+ * answer is a nested tagged struct and has to be spread; a licence is four flat
+ * strings; a name is three), the COMPARATOR differs for the same reason and is
+ * the one piece with a real argument in it, and the KEY differs — `./names.ts`
+ * is keyed by a bare node id, where these two are keyed by the triple. A helper
+ * over that is eight lines of skeleton parameterised by three functions and a
+ * type, which is not fewer moving parts than three plain modules; it is the same
+ * parts with a layer of indirection over them and one place to break all three.
+ *
+ * ## The triple is each table's OWN key, not a shared one
+ *
+ * {@link at} below looks identical to `./doors.ts`'s and is deliberately not
+ * imported from it. Each of these tables writes and reads its own `Map` with its
+ * own encoding, so the two never meet: changing one's separator is invisible to
+ * the other, exactly as `@olai/format`'s projection says of the spelling IT uses
+ * for the same triple ("the wire carries the three fields APART, so this
+ * spelling is this walk's own"). What travels is three fields; how a reader keys
+ * them is the reader's.
  *
  * ## What the word is FOR, and why it could not be the key
  *
@@ -50,9 +77,10 @@ import { type Accessor, createMemo } from "solid-js"
  *  plain chip it always did. */
 export type Licences = (from: string, key: string, value: string) => string | undefined
 
-/** THE TRIPLE, joined on a character no path, key or value can hold — the same
- *  spelling `./doors.ts` uses one table over, and for the same reason: a value
- *  is somebody's prose and may carry any separator a reader would think of. */
+/** THE TRIPLE, joined on a character no path, key or value can hold — a value
+ *  is somebody's prose and may carry any separator a reader would think of,
+ *  which is why this one is not a separator anybody would think of. This
+ *  table's own encoding; see the header for why it is not `./doors.ts`'s. */
 const at = (from: string, key: string, value: string): string =>
   `${from}\u0000${key}\u0000${value}`
 

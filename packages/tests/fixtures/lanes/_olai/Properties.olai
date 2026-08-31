@@ -1,1 +1,2 @@
 {"id":"prop-terminal","ord":"a0","title":"terminal","custom":{"type":"terminal"}}
+{"id":"prop-pty","ord":"a1","title":"pty","custom":{"type":"terminal"}}

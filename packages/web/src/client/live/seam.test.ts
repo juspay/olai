@@ -163,10 +163,11 @@ describe("laying a drawer out", () => {
 
   it("a face whose plugin this serve is not running draws as a plain chip", () => {
     // THE SECOND LICENCE, and it is the whole of what `--plugins` means in a
-    // browser. The page's answer is about a VALUE; this one is about a PLUGIN,
-    // and it arrives on its own frame — a tab registers what the BUILD has,
-    // because import time is all it has, and asks at the DRAW whether the serve
-    // composed that plugin.
+    // browser. It is also the case that proves the two are not one question
+    // said twice: the page HAS claimed this value, so whoever contributed the
+    // word is running — and the plugin that registered the FACE is not. A tab
+    // registers what the BUILD has, because import time is all it has, and asks
+    // at the DRAW whether the serve composed the plugin whose face it is about.
     //
     // The failure this pins is not "a face is missing" — it is a face DRAWING ITS
     // OWN nothing-here arm, which is a row complaining about a daemon somebody
