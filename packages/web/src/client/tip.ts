@@ -53,6 +53,37 @@ export const clampedLeft = (
 export const clampedTop = (anchorBottom: number, floor: number): number =>
   Math.max(anchorBottom, floor) + TIP_GAP
 
+/**
+ * The top edge to RE-place a tip at once it has drawn and its height is a
+ * fact ({@link clampedTop} answers the ask before the height is known):
+ * the asked top, unless that would run the tip's bottom past the window's
+ * bottom margin — then it is LIFTED until the bottom sits at the margin.
+ *
+ * The lift never parks above the bar's floor PLUS the gap the ask itself
+ * was given ({@link clampedTop}'s spacing is the least a re-placement owes
+ * it), nor above the same top margin the sides keep. A tip taller than the
+ * room between that pin and the bottom margin keeps the pin and
+ * overflows: no lift can help it, and parking higher would lie about
+ * both ends.
+ *
+ * This is arithmetic of one axis — a bottom cannot be clamped before the
+ * height exists, and the height is the caller's to read off the drawn box,
+ * the same fact-of-the-text-sharing {@link clampedLeft} declares.
+ */
+export const liftedTop = (
+  top: number,
+  tipHeight: number,
+  viewportHeight: number,
+  floor: number,
+): number => {
+  // Bar below or no bar at all: without one the floor arg is zero, and
+  // the margin is the pin.
+  const pin = Math.max(floor + TIP_GAP, MARGIN)
+  return top + tipHeight + MARGIN > viewportHeight
+    ? Math.max(pin, viewportHeight - tipHeight - MARGIN)
+    : top
+}
+
 // ── one tip, ever ──────────────────────────────────────────────────────
 
 /**
