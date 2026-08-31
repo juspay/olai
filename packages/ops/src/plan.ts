@@ -5575,7 +5575,7 @@ const planDelete = (scope: Scope, request: Extract<Request, { op: "delete" }>): 
     return Result.fail(
       new UsageFailure({
         reason:
-          `\`${request.file}\` is a ${kind} — olai only SHOWS files of this kind ` +
+          `\`${request.file}\` is ${kind === "image" ? "an" : "a"} ${kind} — olai only SHOWS files of this kind ` +
           `and never writes one, and that extends to removing one: it belongs to ` +
           `whatever put it there`,
       }),

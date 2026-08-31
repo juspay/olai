@@ -5046,15 +5046,17 @@ describe("delete", () => {
   })
 
   test("a file olai only SHOWS stays out — it is that file's writer's, never ours", () => {
-    const set = setOf({ "house.olai": DOCS_REFS }, ["report.html", "flat.md"])
+    const set = setOf({ "house.olai": DOCS_REFS }, ["report.html", "flat.md", "art/shot.png"])
     const failure = refused(set, { op: "delete", file: "report.html" })
     expect(failure._tag).toBe("UsageFailure")
     expect(failure.message).toContain("only SHOWS")
     // NAMED BY KIND, which is the registry's own word (`hypertext`) — the
     // one thing the sentence must never offer is a DIFFERENT file, so what it
     // says instead is whose this one is.
-    expect(failure.message).toContain("hypertext")
+    expect(failure.message).toContain("is a hypertext")
     expect(failure.message).toContain("whatever put it there")
+    // …and AN when the word begins with one: `image` is the vowel-led kind.
+    expect(refused(set, { op: "delete", file: "art/shot.png" }).message).toContain("is an image")
   })
 
   test("a file the set could not read is refused with the validator's own words", () => {
