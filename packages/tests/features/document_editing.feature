@@ -314,7 +314,6 @@ Feature: Documents become writable
     # delete, and nothing about that is a filter on the set — it IS the gate's
     # own ruling, drawn early so a reader never learns it twice.
     Given I open the app
-    And I mark the page
     When I open the outline "house.olai"
     Then the file's delete is not offered
     And there should be no page errors
