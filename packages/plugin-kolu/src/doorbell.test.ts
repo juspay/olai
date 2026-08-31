@@ -471,8 +471,30 @@ test("... and the account names it, in backticks, beside the terminal it is abou
   }, fleetOf(row("11111111", "waiting", "trivial-pair", "olai")), "wake")
   const body = bodyFor("wake", standing, "lanes.olai", "2026-08-31T14:32:07.001Z")
   expect(body).toContain("on `lane-sd`.")
-  // ... and NOT in the head, which is the plain sentence a glance reads.
-  expect(body.split("\n")[0]).not.toContain("lane-sd")
+  // ... AND IN THE HEAD, which is the line the fold shows: pressing through to
+  // the board was the thing a person wanted to do from the collapsed row, and a
+  // link that only appeared once the fold was open sat behind the very fold it
+  // was the reason to open.
+  expect(body.split("\n")[0]).toContain("on `lane-sd`")
+})
+
+test("... and the head links NOTHING where it names a count, because it would be picking for the reader", () => {
+  const standing = standingFor({
+    ...DECLARED,
+    "lanes.olai": [
+      marked("lane-a", "review: grok", "doing", { terminal: "11111111" }),
+      marked("lane-b", "review: pi", "doing", { terminal: "22222222" }),
+    ].join("\n"),
+  }, fleetOf(
+    row("11111111", "waiting", "one", "olai"),
+    row("22222222", "waiting", "two", "olai"),
+  ), "wake")
+  const head = bodyFor("wake", standing, "lanes.olai", "2026-08-31T14:32:07.001Z").split("\n")[0]
+  expect(head).toBe("kolu — 2 terminals are idle: they have finished, or they need you.")
+  // Which of the two a single link went to would move with the board. The
+  // account names both, each with its own reference — that is what the fold is
+  // for, and it is one press away.
+  expect(head).not.toContain("`")
 })
 
 test("a PREFIX resolves — the board writes eight characters, the fleet holds uuids", () => {
@@ -645,7 +667,9 @@ test("the FIRST LINE is the essence — what the panel folds to, and it names it
   // A PLAIN SENTENCE: what happened, in words a reader who was not there
   // understands. The step is long enough to be a sentence of its own, so the
   // name falls back to the label and the step waits in the account.
-  expect(first).toBe("kolu — the done-flip-flake terminal is idle: it has finished, or it needs you.")
+  expect(first).toBe(
+    "kolu — the done-flip-flake terminal is idle on `step`: it has finished, or it needs you.",
+  )
   // ... and it opens with `kolu`, which is the attribution the REPLAY rule
   // needs: the row's `rang` mark is rebuilt away by a resumed session, so a
   // body that did not name its author would replay as words in a person's
@@ -701,7 +725,7 @@ test("the digest body says PARKED rather than owed, and counts what it names", (
   }, fleetOf(row("11111111", "waiting"), row("22222222", "waiting")), "digest")
   const body = bodyFor("digest", standing, "lanes.olai", "2026-08-31T14:32:07.001Z")
   expect(body.split("\n")[0]).toBe(
-    "kolu — 2 terminals went quiet, and nobody is on their steps. A note, not a call.",
+    "kolu — 2 terminals went quiet, and nothing under them is being worked. A note, not a call.",
   )
   expect(body).toContain("2 terminals claimed by lanes.olai are waiting on a person")
   expect(body).toContain("they are lawfully parked, so this is a note and not a call")

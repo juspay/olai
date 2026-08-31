@@ -33,8 +33,10 @@ import {
   attr,
   CHAT_ENTRY,
   CHAT_MINE,
+  CHAT_PLUGIN_MARK,
   CHAT_RANG,
   CHAT_RANG_BODY,
+  CHAT_RANG_BYLINE,
   CHAT_RANG_FOLD,
   CHAT_RESEND,
   CHAT_INPUT,
@@ -42,6 +44,7 @@ import {
   CHAT_WAKE_FILE,
   CHAT_WAKE_PICKER,
   CHAT_WAKE_QUERY,
+  NODE_REF_ANY,
   POLL_TIMEOUT,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
@@ -162,6 +165,62 @@ const rungRow = (world: OlaiWorld): Locator =>
  * than about CSS: a row painted away is one a screen reader still walks, and a
  * step that asked about visibility could not tell the two apart.
  */
+
+
+/**
+ * IT IS KOLU'S OWN LOGO, and that is a stronger claim than "kolu contributed a
+ * mark" — which is why this asserts a GRADIENT rather than the `data-mark`
+ * attribute.
+ *
+ * `data-mark="kolu"` was already true of the hand-drawn glyph this replaced:
+ * two abstract panes in `currentColor`, invented in olai because inventing one
+ * was easy. A scenario asserting the attribute would have passed against the
+ * very defect the human found by looking. The pinned asset is three rainbow
+ * bars built out of `<linearGradient>`s, and a drawn approximation has none —
+ * so the gradient is the cheapest thing on the page that can only be there if
+ * the bytes really came from kolu's own `favicon.svg` through the pin.
+ */
+Then(
+  "that sentence wears {string}'s own logo",
+  async function (this: OlaiWorld, plugin: string) {
+    // NOT INSIDE THE ROW. A mark sits on the strip that opens a speaker's RUN,
+    // above the first of their messages and beside none of the rest — the
+    // group-level rule the transcript keeps for all three faces. So it is found
+    // by the name it stamps rather than by walking up from the row.
+    const mark = this.page.locator(`${CHAT_PLUGIN_MARK}${attr("data-mark", plugin)}`);
+    await this.waitUntil(
+      async () => (await mark.locator("linearGradient").count()) >= 1,
+      "the machine's row to wear a mark built from the pinned brand asset",
+    );
+    assert.equal(
+      await mark.count(),
+      1,
+      `no mark stamped ${plugin} — the panel fell back to its generic glyph, so the ` +
+        "plugin's own never reached it",
+    );
+  },
+);
+/**
+ * THE COLLAPSED LINE IS PRESSABLE, which is the half a fold could have taken
+ * away.
+ *
+ * The account behind the fold names every claim with its own reference, and
+ * that was where the link lived first — behind the very fold it was the reason
+ * to open. Asserted on the HEAD, before anything is pressed, and asserted as
+ * "a reference is here" rather than as an id: which node the board claims from
+ * is the fixture's business, and a scenario that spelled it would be asserting
+ * the plugin's derivation rather than the panel's promise.
+ */
+Then(
+  "that sentence can be pressed through to the board",
+  async function (this: OlaiWorld) {
+    await this.waitUntil(
+      async () =>
+        (await rungRow(this).first().locator(`${CHAT_RANG_BYLINE} ${NODE_REF_ANY}`).count()) >= 1,
+      "the machine's head line to carry a pressable node reference",
+    );
+  },
+);
 Then(
   "that sentence is one line, with its account folded away",
   async function (this: OlaiWorld) {

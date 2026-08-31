@@ -664,17 +664,32 @@ export const bodyFor = (
  * NO TIME. The transcript stamps every row it draws, so a clock here is the same
  * fact twice — and the account below carries the full stamp for a reader
  * reconstructing an afternoon.
+ *
+ * ## THE HEAD CARRIES THE ONE PRESSABLE REFERENCE
+ *
+ * The claiming node's id rides here in backticks, not only in the account. The
+ * fold is one line until somebody opens it, and pressing through to the board
+ * was the thing a person wanted to do FROM that line — an id that only appeared
+ * once the fold was open was a link behind the very fold it was the reason to
+ * open. The set declares the id, so the transcript's ordinary lookup makes it a
+ * link; nothing here knows that, and nothing here has to.
+ *
+ * THE HEAD LINKS ONLY WHEN IT NAMES ONE THING. Where several terminals stand
+ * the head says a count and links nothing, because a head that pressed through
+ * to one of five would be picking for the reader — and which one it picked
+ * would move with the board. The account below names every one of them, each
+ * with its own reference, which is what the fold is for.
  */
 const essenceOf = (meaning: Meaning, standing: ReadonlyArray<Standing>): string => {
   const one = standing.length === 1 ? standing[0] : undefined
   if (meaning === "wake") {
     return one === undefined
       ? `kolu — ${standing.length} terminals are idle: they have finished, or they need you.`
-      : `kolu — the ${namingOf(one)} is idle: it has finished, or it needs you.`
+      : `kolu — the ${namingOf(one)} is idle on \`${one.node}\`: it has finished, or it needs you.`
   }
   return one === undefined
-    ? `kolu — ${standing.length} terminals went quiet, and nobody is on their steps. A note, not a call.`
-    : `kolu — the ${namingOf(one)} went quiet, and nobody is on its step. A note, not a call.`
+    ? `kolu — ${standing.length} terminals went quiet, and nothing under them is being worked. A note, not a call.`
+    : `kolu — the ${namingOf(one)} went quiet on \`${one.node}\`, and nothing under it is being worked. A note, not a call.`
 }
 
 /**

@@ -537,12 +537,59 @@ export type ChromeFace = (props: { readonly app: AppFurniture }) => JSX.Element
  * `<g>` of paths in a sixteen-unit square, `currentColor` throughout, which is
  * exactly the shape `@olai/web`'s own `chat/AgentMark.tsx` gives every agent's.
  * A plugin wanting a different size is asking for its row to look unlike the
- * rows around it, which is a request the panel should refuse.
+ * rows around it, which is a request the panel should refuse. Both halves of
+ * that sentence are the DEFAULT rather than the whole rule, and the three
+ * paragraphs below say exactly where each bends and what it costs — the size
+ * and the weight are the two things that never do.
  *
  * A plugin that contributes none is drawn with a plain generic, which is the
  * same bargain an agent olai has no shape for already gets — and never another
  * plugin's mark, which would teach a reader something false the first time a
  * third tenant arrived.
+ *
+ * ### The sixteen-unit square is CORE'S VIEWPORT, not the plugin's coordinates
+ *
+ * A mark whose shapes are an EXISTING ASSET rather than a drawing made for this
+ * column will have a coordinate system of its own, and it is permitted one: the
+ * `<g>` may open a nested viewport inside itself.
+ *
+ * ```tsx
+ * <g>
+ *   <svg x="0" y="0" width="100%" height="100%"
+ *        viewBox={MARK_VIEWBOX} preserveAspectRatio="xMidYMid meet"
+ *        innerHTML={…} />
+ * </g>
+ * ```
+ *
+ * That is a granted permission with its bound written into it rather than a
+ * loophole the first real asset routed around. `width="100%"`/`height="100%"`
+ * resolve against whatever viewport core established, so the plugin still never
+ * spells `16`, and `preserveAspectRatio="xMidYMid meet"` centres and fits the
+ * artwork without distorting it. The `<g>` stays, because that is what this type
+ * returns and what `<Dynamic>` renders: a plugin still does not get to be the
+ * outer `<svg>`, and still cannot touch the two attributes that decide the
+ * column's size and weight.
+ *
+ * ### `currentColor` is the DEFAULT, not the rule
+ *
+ * It stays the rule for a DRAWN mark — the generic and any hand-drawn glyph take
+ * nothing and inherit the ink of the line they sit on, which is what makes them
+ * legible in every theme with no palette of their own. A mark that IS a brand
+ * asset carries its own palette, and the plugin is the only place that knows it
+ * has one. The cost travels with the permission: such a mark will not dim with
+ * a muted row, will not invert with the theme, and may carry a shadow tuned for
+ * the background its own designer had in mind.
+ *
+ * ### A mark that declares an `id` owns its uniqueness, PER INSTANCE
+ *
+ * SVG ids are global to the DOM DOCUMENT and `url(#…)` resolves against the
+ * document, so a plugin shipping `id="lift"` has claimed that word from every
+ * other element on the page — and the mark is drawn once per rung row, so two
+ * rows are two claims. Core cannot namespace it: computing an address out of a
+ * plugin's name is precisely what `./fence.test.ts` exists to refuse, in the
+ * very file whose reason for existing is that core learns nothing about a
+ * tenant. So the uniqueness is the plugin's, held by the plugin's own build and
+ * minted at its own render (`createUniqueId`).
  */
 export type PluginMark = () => JSX.Element
 

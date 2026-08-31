@@ -1157,6 +1157,13 @@ export const CHAT_RANG = selector(TESTID.chatRang);
  *  tool row already keeps, and the reason a delivery is not a paragraph wall in
  *  the middle of a conversation. The AGENT is handed the whole body either way;
  *  the fold is a fact about a reader's eye. */
+/** The MARK over a machine's row — whose face is talking. `data-mark` is the
+ *  plugin's own name where the plugin contributed one, and `generic` where it
+ *  did not. */
+export const CHAT_PLUGIN_MARK = selector(TESTID.chatPluginMark);
+/** The head a machine's row is folded TO — the plain sentence a glance reads,
+ *  and where the one pressable reference lives. */
+export const CHAT_RANG_BYLINE = selector(TESTID.chatRangByline);
 export const CHAT_RANG_FOLD = selector(TESTID.chatRangFold);
 /** What the fold holds back — the ids, the marks, the derivation. NOT IN THE
  *  PAGE until the row is open, which is what lets a scenario assert the fold

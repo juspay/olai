@@ -5,6 +5,7 @@ let
   odu = import ./nix/odu.nix { inherit pkgs; };
   pins = import ./npins;
   olaiFonts = import ./packages/fonts { inherit pkgs; };
+  koluMark = import ./packages/plugin-kolu { inherit pkgs; };
 in
 pkgs.mkShell {
   name = "olai-shell";
@@ -71,6 +72,20 @@ pkgs.mkShell {
     # the repo, and no woff2_compress in this shell — the derivation brings its
     # own. The packaged build (default.nix) sets the same one variable.
     OLAI_FONTS_DIR = "${olaiFonts}";
+
+    # KOLU'S OWN MARK, already a TypeScript module. The plugin's own
+    # `packages/plugin-kolu/default.nix` reads the pinned kolu's
+    # `packages/client/favicon.svg` — the same pin the @kolu/* sources above
+    # come from — and writes `mark.generated.ts`; `just install` copies that
+    # one file into `packages/plugin-kolu/src/browser/`, beside the component
+    # that draws it, exactly as the hydrate calls copy the sources. A logo is
+    # updated by bumping the pin and nothing else.
+    #
+    # Read by the justfile and by the packaged build's install phase, and by NO
+    # TypeScript: no file under `packages/*/src` names this variable, which is
+    # what keeps the arrangement clear of the plugin fence rather than a
+    # word-boundary technicality.
+    OLAI_KOLU_MARK_DIR = "${koluMark}";
   };
 
   # nodejs is knotted through here rather than ambient: the acp/ pin's

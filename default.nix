@@ -21,6 +21,15 @@ let
   # what the client build needs to be told about fonts.
   olai-fonts = import ./packages/fonts { inherit pkgs; };
 
+  # kolu's own logo, out of the same kolu pin the sources hydrate from, already
+  # a TypeScript module — @olai/plugin-kolu owns both the component and the
+  # derivation that feeds it, so this is the whole of what the build needs to
+  # be told about a tenant's mark. `nix build .#kolu-mark` is also the one
+  # command that answers "what does the pin currently say the logo is", which
+  # matters because the generated file is gitignored and a pin bump therefore
+  # shows no diff of its own.
+  kolu-mark = import ./packages/plugin-kolu { inherit pkgs; };
+
   src = pkgs.lib.fileset.toSource {
     root = ./.;
     fileset = pkgs.lib.fileset.unions [
@@ -71,9 +80,16 @@ let
     # ...and `@odu/run-client` beside them, through the SAME script: the copier
     # takes (src, dest) pairs and knows nothing about which repo a source came
     # from, which is why odu needs no second one (nix/odu.nix).
+    # ...and kolu's MARK on a third line, which is the same errand for an asset
+    # rather than for sources. It must run here rather than in buildPhase
+    # because `bun packages/web/src/build.ts` bundles it as a module: the
+    # generated file is gitignored and `fileset.toSource` above takes tracked
+    # content only, so it is never in the store copy of the tree and a packaged
+    # build is structurally incapable of shipping a stale working-tree logo.
     postBunNodeModulesInstallPhase = ''
       sh ${kolu.hydrateScript} ${kolu.hydrateArgs}
       sh ${kolu.hydrateScript} ${odu.hydrateArgs}
+      install -m 644 ${kolu-mark}/mark.generated.ts packages/plugin-kolu/src/browser/mark.generated.ts
     '';
 
     buildPhase = ''
@@ -133,5 +149,5 @@ let
   '';
 in
 {
-  inherit olai olai-client olai-fonts base acp-agent;
+  inherit olai olai-client olai-fonts kolu-mark base acp-agent;
 }

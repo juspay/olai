@@ -23,3 +23,8 @@ node_modules
 /PR-REVIEW.md
 
 /.claude/settings.local.json
+
+# kolu's own mark, as a TypeScript module: GENERATED from the pinned kolu's
+# packages/client/favicon.svg by packages/plugin-kolu/default.nix, and copied
+# into place by `just install` (the nix build regenerates it in its sandbox).
+/packages/plugin-kolu/src/browser/mark.generated.ts

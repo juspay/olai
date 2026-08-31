@@ -47,6 +47,9 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
     And the watch is told to report a held terminal at once
     Then the chat shows a sentence no person typed
     And that sentence was rung by "kolu"
+    # ... and says so by its face, before a word is read: the mark is kolu's own
+    # logo, arriving through the same pin every @kolu/* source in this tree does.
+    And that sentence wears "kolu"'s own logo
     And that sentence is not one of my own messages
     And that sentence offers no way to send it again
     # THE DELIVERY'S OWN PROMISE, asserted before anybody presses anything: the
@@ -60,6 +63,9 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
     # tool row already keeps them. The AGENT was handed the whole body either
     # way — the fold is a fact about a reader's eye and not about the wire.
     And that sentence is one line, with its account folded away
+    # ... and that line is pressable BEFORE the fold: the board row the wake was
+    # derived from is the thing a person reaches for from the collapsed message.
+    And that sentence can be pressed through to the board
     When I open that sentence
     Then that sentence names the terminal "22222222-2222-4222-8222-222222222222"
     And there should be no page errors
