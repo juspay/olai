@@ -4,11 +4,11 @@
 
 **This is read-only.** olai launches nothing, cancels nothing, reruns nothing and writes nothing to the board. Starting a run, classifying what came out of one, and letting a merge gate read the verdict are later phases; this page describes only what is here.
 
-This is one of olai's **live properties** — a property whose value is a name the board decided on, and whose face goes and finds out what that name currently is ([live-properties.md](../live-properties.md), which is the seam itself and names its other tenant, [kolu](kolu.md)). Nothing on this page is special to odu except the clothes, and the clothes are the one thing worth reading twice: a `terminal` OWNS ITS ROW, and a `worktree` does not. A worktree is a path on a lane row, quiet by default, and its CI face is a **chip beside the value** that appears only while there is something to say. A board with no CI running looks exactly as it did.
+This is one of olai's **live properties** — a property whose value is a name the board decided on, and whose face goes and finds out what that name currently is ([live-properties.md](../live-properties.md), which is the seam itself and names its other tenant, [kolu](kolu.md)). Nothing on this page is special to odu except the clothes, and the clothes are the one thing worth reading twice: a terminal OWNS ITS ROW, and a checkout does not. A checkout is a path on a lane row, quiet by default, and its CI face is a **chip beside the value** that appears only while there is something to say. A board with no CI running looks exactly as it did.
 
 ## The chip
 
-Give a lane a `worktree` property, and declare that key a `worktree` (see [below](#what-turns-it-on)). While a run is going in that checkout, the property's line gains a chip:
+Give a lane an `odu-worktree` property (or your own column, declared — see [below](#what-turns-it-on)). While a run is going in that checkout, the property's line gains a chip:
 
 ```
 agent  claude-opus    brief  briefs/live-properties.md    worktree  .worktrees/live-properties    ci · e2e 2:10 · 8/10 ok

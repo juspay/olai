@@ -35,29 +35,34 @@
  *
  * ## THE DECLARATION LICENCES THE PROBE
  *
- * This is where typed properties do work in the live-properties seam, and it
- * is worth stating plainly because it is not where a reader would first look
- * for it. A `worktree` value is a decision-shaped name; what turns it into a
- * path olai will join `.ci/odu.sock` onto is the vault's own declaration —
- * `{"title":"worktree","custom":{"type":"odu-worktree"}}`. A vault that declares
- * the key something else, or a vault that declares nothing at all, gets NO
- * PROBE.
+ * ...and this is the sharpest instance of that rule in the tree, which is worth
+ * stating plainly because it is not where a reader would first look for it.
+ *
+ * A `worktree` value is a decision-shaped name; what turns it into a path olai
+ * will join `.ci/odu.sock` onto is a DECLARATION, and a declaration
+ * comes from either of two places, folded once and in this order
+ * (`@olai/format`'s `withClaims`): the VAULT'S OWN ROW
+ * (`{"title":"worktree","custom":{"type":"odu-worktree"}}`), which always wins,
+ * and the key this kind CLAIMS by convention, which is its own composed word.
+ *
+ * So a lane carrying `odu-worktree` is probed with nothing declared anywhere,
+ * and olai never writes anybody's vault to make that true. A vault that declares
+ * the claimed key something else gets NO PROBE — that is a row saying what it
+ * means — and a key of somebody's own called `worktree` is never captured by
+ * switching odu on, which matters more here than anywhere else in this tree:
+ * what a declaration licenses is a SOCKET DIAL in a directory nobody offered.
  *
  * IT USED TO ASK FOR `path`, AND THAT WAS NOT ENOUGH. `brief` is a `path` too,
  * on the very same rows, and a shape cannot tell a checkout from a document —
- * so the licence had to be joined to a hardcoded KEY NAME to mean anything, and
- * a key called `checkout` could not have it at all. This plugin contributes the
- * kind `worktree` now ({@link ./kinds.ts}) and the walk finds its keys by that
- * DECLARATION, so the vault names which of its path-shaped keys is a checkout
- * — which is the fact, said once, where it says everything else about its keys.
+ * which is why this kind exists at all rather than the key staying `path`.
  *
- * That the SELECTION of a browser face is still by key while the LICENCE is by
- * declared kind is the seam's own division and is argued where the table is
+ * IT IS ASKED HERE AND NOT IN THE BROWSER
  * (`@olai/web`'s `live/seam.ts`): declarations do not travel to a browser
  * (juspay/olai#395), so the tab cannot key on one — but the server holds them,
  * and this is the one question that has to be asked where they are.
  *
- * An UNDECLARED key is not probed, and it is the same rule the terminal door
+ * A key NOTHING declares — neither the vault nor a claim — is not probed, and
+ * it is the same rule the terminal door
  * beside it now keeps (`@olai/plugin-kolu`'s `claimants.ts`, which used to
  * keep a lower one). What still differs is the RISK rather than the bar: that
  * walk looks a value up in a fleet, where a wrong one finds nothing and the

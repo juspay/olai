@@ -36,25 +36,22 @@
 # that will not typecheck here is a blocker rather than a nuisance. That is the
 # whole reason this arrangement is worth its cost, and it is unchanged.
 #
-# THE PIN IS FROZEN AT AN UNMERGED HEAD, which is the second state this pin has
-# been in and not its first. It tracked kolu master until the ROOTED BUNDLE
-# arrived — `mergeDisjointGroups` and `exposeRootedFaces` on `@kolu/surface`,
-# and `connectSurfaces`' `core` slot on `@kolu/surface-app` (juspay/kolu#2222)
-# — which is the capability olai asked for and the one this tree's client seam
-# is now built on.
+# THE PIN TRACKS MASTER, which is the third state it has been in and is the one
+# it started in. It tracked master until the ROOTED BUNDLE arrived —
+# `mergeDisjointGroups` and `exposeRootedFaces` on `@kolu/surface`, and
+# `connectSurfaces`' `core` slot on `@kolu/surface-app` (juspay/kolu#2222) —
+# which is the capability olai asked for and the one this tree's client seam is
+# built on. That work was UNMERGED for a window, so the pin was frozen at an
+# exact sha on the `rooted-bundle` branch (the odu#94 precedent next door): a
+# branch whose head can still move under a merge, a rebase or an amendment is a
+# pin that would change what `@olai/web` compiles against with no diff to show
+# for it.
 #
-# UNMERGED is the whole of the condition, and it is deliberately not "still a
-# draft": whether a PR is marked draft is a label somebody flips, and this pin
-# does not care about labels. What it cares about is that `rooted-bundle` is a
-# branch whose head can still move — under a merge, a rebase, or an amendment —
-# and a pin that moved with it would change what `@olai/web` compiles against
-# with no diff to show for it. So the pin follows the odu#94 precedent next door
-# exactly: that branch, an EXACT sha, and `frozen: true`, so `just update-pins`
-# walks every other pin forward and leaves this one alone.
-#
-# RE-PIN AT FOLD. When #2222 merges, the reason expires with it: unfreeze, point
-# `branch` back at `master`, and the pin becomes an ordinary tracking one again.
-# Nothing else in this file changes — the seeds are the same six either way.
+# #2222 MERGED (squashed onto master as `5077c7f9`), and the reason expired with
+# it exactly as the note here said it would: the branch is gone with the squash,
+# the pin is unfrozen, and `just update-pins` walks it forward with everything
+# else. `npins/sources.json` records the revision either way, so what this tree
+# compiled against is always in the diff.
 #
 # NOTE THE ATTR RENAME. Members are `kolu-surface`, not `kolu-src-surface`:
 # the slug is kolu's now, and a consumer inventing its own would be one more

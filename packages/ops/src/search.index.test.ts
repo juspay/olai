@@ -104,7 +104,7 @@ const same = (
   Effect.gen(function*() {
     const snapshot = yield* Effect.map(store.read("cheap"), (aged) => aged.snapshot)
     if (snapshot === null) throw new Error("the fixture directory never loaded")
-    const walked = Query.search(snapshot.value, request, STAMP)
+    const walked = Query.search(snapshot.value, request, STAMP, NO_KINDS)
     const indexed = yield* Effect.orDie(ops.search(request))
     expect(indexed).toEqual(walked)
     return walked

@@ -163,7 +163,15 @@ const PAGE: Question<PageRequest, PageReading> = {
 }
 
 const NARROWING: Question<NarrowingRequest, NarrowingAnswer> = {
-  answer: (at, request, now) => Query.narrowing(at, request, now()),
+  // THE VOCABULARY IS PART OF THE GRAMMAR, not just of the gate. `prop:` reads
+  // what a key is DECLARED as to decide whether a value is a span or an
+  // equality, and a declaration is two layers now — a vault's rows over an
+  // enabled plugin's claimed keys. Answered without it, a range on an
+  // auto-declared key would refuse as undeclared while the write gate judged it
+  // by the claim: the box that narrows a page and the file that is written
+  // disagreeing about one word, which is the family this whole seam is a list
+  // of.
+  answer: (at, request, now, kinds) => Query.narrowing(at, request, now(), kinds),
   same: sameNarrowing,
 }
 

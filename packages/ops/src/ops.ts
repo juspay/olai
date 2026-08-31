@@ -822,7 +822,7 @@ export const make = (options: Options): Ops => {
     // each envelope ({@link ./tools.ts}'s `asking`), so the answer an agent
     // gets through a surface procedure and the answer a local tool call gets
     // are the same statement rather than two that agree.
-    ...asking(read, context.now, index),
+    ...asking(read, context.now, kinds, index),
     // The BROWSER's half of the same matcher, over the same gated read — and
     // over the WHOLE reading rather than the derivation alone, for `page`'s
     // reason: what a query selects is asked of one page, and which page an

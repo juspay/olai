@@ -101,9 +101,14 @@ export const admitsTerminal = (value: string): boolean => /^[0-9a-fA-F-]+$/.test
  * get a face an enabled plugin already knows how to draw, and **nothing ever
  * writes anybody's vault**.
  *
- * It is `TERMINAL_KEY` and not a literal: the key kolu conventionally owns is
- * `@olai/kolu-client`'s own constant, the one the fleet's arithmetic reads, so
- * the claim and the column cannot drift into two words.
+ * THE CLAIMED KEY IS THE COMPOSED WORD ITSELF, and it is not a choice this
+ * plugin gets to make: `@olai/plugins`' `kindsOf` sets `claims` equal to the
+ * word it just composed. That equality is what makes a built-in declaration
+ * safe — enabling kolu can only ever declare `kolu-terminal`, so a column
+ * somebody else calls `terminal` is untouchable by a flag on the machine.
+ *
+ * It is deliberately NOT `TERMINAL_KEY`, which is what `@olai/kolu-client` calls
+ * the fleet's own column and is no business of a declaration's.
  *
  * A VAULT ROW ALWAYS WINS over this, including a row that declares the key
  * something else and takes the door away (`@olai/format`'s `withClaims`, which

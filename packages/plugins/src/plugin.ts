@@ -150,11 +150,17 @@ export interface Probed {
  * vocabulary is a PARAMETER and the server hands it this table as data, which
  * is the same move `KoluDeps` makes with the vault walks.
  *
- * WHAT THAT COSTS A VAULT is stated rather than softened: a directory that
- * declares nothing gets no terminal door and no CI chip, where a property
- * happening to be called `terminal` used to be enough. The key is one row in
- * `_olai/Properties.olai`, and a name-matching fallback beside the declaration
- * would be the very defect this replaces, kept alive under a second name.
+ * WHAT THAT COSTS A VAULT IS NOTHING, and the two layers are why. A kind
+ * claims the key equal to its own composed word ({@link ./server.ts}'s
+ * `kindsOf`), so an enabled plugin declares `kolu-terminal` / `odu-worktree` for
+ * a vault that has said nothing about them — and olai never writes anybody's
+ * vault to do it. A row of the vault's own always wins, which is how a kind
+ * moves onto a short key and how a face is taken away again.
+ *
+ * There is still deliberately NO FALLBACK to the key's NAME, which is a
+ * different thing from the claim and is worth keeping apart: a fallback would
+ * read a key's spelling and guess, where the claim is a DECLARATION like any
+ * other — one a plugin can only ever make about a key carrying its own name.
  *
  * A kind whose plugin is DISABLED validates as plain text. The value is still
  * a name, nothing breaks, and it wears no face — which is exactly the state a

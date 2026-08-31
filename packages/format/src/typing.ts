@@ -685,8 +685,18 @@ export const declarationsOf = (
 }
 
 /**
- * ONE READING PER VIEW, and it is a memo rather than a cache: a `Derived` is
- * one revision of the set, so what that set declares cannot move under it.
+ * ONE READING PER VIEW AND VOCABULARY, and it is a memo rather than a cache: a
+ * `Derived` is one revision of the set, so what that set declares cannot move
+ * under it — and since a declaration is two layers now ({@link withClaims}), the
+ * table it was folded with is part of the answer and therefore part of the key.
+ *
+ * IT IS ONE ENTRY, NOT A TABLE PER VOCABULARY, which is the honest shape rather
+ * than a limitation to apologise for: a serve assembles its vocabulary once at
+ * the composition root and never again, so the identity check below is a hit
+ * every time in production. What it is FOR is a bench that hands two different
+ * tables to one revision — there the entry is replaced rather than shared, which
+ * costs a re-walk and answers correctly, where a memo keyed on the view alone
+ * would answer the second caller with the first one's fold.
  *
  * A `WeakMap` for the reason `./validate.ts`'s ledger table is one, and that is
  * the only other table in this package keyed by a view: a revision nobody kept

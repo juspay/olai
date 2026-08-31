@@ -42,8 +42,6 @@ What decides is always the DECLARATION — the vault's row, or the plugin's clai
 
 With a value in place, the property draws **kolu's own Dock row**:
 
-With the row in place, the property draws **kolu's own Dock row**:
-
 ```
 ┌─ terminal  1a2b3c4d ─────────────────────────┐
 │  ●   terminal-door                     4m    │

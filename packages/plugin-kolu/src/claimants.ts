@@ -25,23 +25,23 @@
  * anything that wanted to tell two keys apart. The key is found by DECLARED
  * KIND now (`@olai/format`'s `textDeclaredAs`): a row in
  * `_olai/Properties.olai` saying `{"title":"terminal","custom":{"type":"kolu-terminal"}}`
- * is what makes the door, and a column called `pty` carrying that same
- * declaration gets it too.
+ * is what makes the door on that key, and a column called `pty` carrying that
+ * same declaration gets it too.
  *
- * WHAT THAT COSTS IS SAID PLAINLY rather than softened: a vault that declares
- * nothing gets no door where it used to get one, and the repair is one row. There
- * is deliberately NO FALLBACK to the key's name beside the declaration — a
- * fallback is the name-matching defect kept alive under a second name, and it
- * would put both answers back in the codebase for the next reader to pick
- * between.
+ * A DECLARATION COMES FROM EITHER OF TWO PLACES, folded once and in this order
+ * (`@olai/format`'s `withClaims`): the VAULT'S OWN ROW, which always wins, and
+ * the key this kind CLAIMS by convention, which is its own composed word. So a
+ * lane carrying `kolu-terminal` wears the door with nothing declared anywhere —
+ * enabling kolu is the whole of turning it on — and olai never writes anybody's
+ * vault to make that true. A row of the vault's own moves it to a short key, and
+ * a row can take it away again.
  *
- * It is now the SAME bar the walk one appliance over asks of itself
- * (`@olai/plugin-odu`'s `worktrees.ts`), where it used to be a lower one, and
- * the two are still different in what they RISK: that walk hands a path to a
- * socket dial in somebody's checkout, and this one looks a value up in a fleet
- * somebody else is keeping, where a wrong value finds nothing and the block says
- * so in words. Both are licensed by a declaration anyway, because the vault is
- * the only thing that knows which of its keys means what.
+ * There is still deliberately NO FALLBACK to the key's NAME, and a claim is not
+ * one: a fallback reads a key's spelling and guesses, where a claim is a
+ * DECLARATION like any other — one this plugin can only ever make about a key
+ * carrying its own name, so a column somebody else calls `terminal` is never
+ * captured by switching kolu on. Both layers are declarations, because the vault
+ * is the only thing that knows which of its keys means what.
  *
  * ## Why the declarations arrive as an argument
  *

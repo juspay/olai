@@ -72,8 +72,41 @@ export const WIRES = [kolu, odu] as const
  * rule for itself. A plugin cannot read it — no plugin imports this package —
  * so each spells its own composed word from its own `name` for its own walk, and
  * `./kinds.test.ts` holds the two spellings equal.
+ *
+ * THE SEPARATOR IS FORBIDDEN INSIDE EITHER HALF, which is what makes the
+ * composition injective and the collision unreachable rather than merely
+ * counted — see the refusals in the body.
  */
-export const kindWordOf = (plugin: string, kind: string): string => `${plugin}-${kind}`
+export const KIND_SEPARATOR = "-"
+
+export const kindWordOf = (plugin: string, kind: string): string => {
+  // THE SEGMENTS MAY NOT CARRY THE SEPARATOR, which is `assertTagSegment`'s
+  // rule on the wire and is here for the identical reason: without it the
+  // composition is AMBIGUOUS, and ambiguity is what makes a collision possible
+  // at all. `kindWordOf("ab", "c-d")` and `kindWordOf("ab-c", "d")` both compose
+  // to `ab-c-d`, so two plugins whose names genuinely differ could still land on
+  // one word — the count in `./server.ts` would catch it, but a refusal about a
+  // word neither author wrote is a refusal nobody can act on.
+  //
+  // Refused HERE rather than counted downstream, so the composition is INJECTIVE
+  // and the collision is unreachable rather than merely reported. A plugin name
+  // is already held to this by the wire (a name is a sibling key, and
+  // `assertTagSegment` forbids a `/` in one); a kind word had nothing of the
+  // sort, and this is it.
+  for (const [what, segment] of [["plugin name", plugin], ["kind", kind]] as const) {
+    if (segment.length === 0) {
+      throw new Error(`plugins: a ${what} may not be empty — it is half of a composed kind word.`)
+    }
+    if (segment.includes(KIND_SEPARATOR)) {
+      throw new Error(
+        `plugins: the ${what} "${segment}" carries "${KIND_SEPARATOR}", which is the ` +
+          "separator a kind word is composed with — two halves that may carry it compose " +
+          "ambiguously, and two different plugins could land on one word.",
+      )
+    }
+  }
+  return `${plugin}${KIND_SEPARATOR}${kind}`
+}
 
 /** Every plugin's name, in registry order — the words `--plugins` takes, the
  *  rows preferences draws, and what "all of them" comes to when nobody said. */

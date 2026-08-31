@@ -77,13 +77,37 @@ test("a plugin that teaches no word contributes nothing, which is a whole plugin
   expect(kindsOf([{ name: "quiet" }], [{ name: "quiet" }]).built.size).toBe(0)
 })
 
-test("two plugins composing one word is a throw, naming both", () => {
-  // Prefixing makes this UNREACHABLE for two plugins with different names,
-  // which is the point of prefixing — so the case has to be built out of two
-  // entries that compose to one word, and the only way to do that is two
-  // plugins filed under one name. That is exactly what the assembly must not
-  // resolve silently: the underlying `Map.set` would let one plugin's `admits`
-  // judge the other's values with nothing red anywhere.
+test("THE COMPOSITION IS INJECTIVE — the separator is refused inside either half", () => {
+  // grok's round-3 finding, and the reason a count is not enough on its own:
+  // `ab` + `c-d` and `ab-c` + `d` both spell `ab-c-d`, so two plugins whose
+  // NAMES genuinely differ could still land on one word. The assembly would
+  // catch it and refuse — naming a word neither author wrote, which is a
+  // refusal nobody can act on.
+  //
+  // So the ambiguity is refused where it is created, exactly as
+  // `assertTagSegment` refuses a `/` inside a sibling key on the wire. With the
+  // separator gone from both halves the composition is injective, and the
+  // collision below is unreachable rather than merely reported.
+  expect(() => kindWordOf("ab", "c-d")).toThrow(/carries "-"/)
+  expect(() => kindWordOf("ab-c", "d")).toThrow(/carries "-"/)
+  // The message says WHICH half, because the two are fixed in different files.
+  expect(() => kindWordOf("ab-c", "d")).toThrow(/plugin name/)
+  expect(() => kindWordOf("ab", "c-d")).toThrow(/kind/)
+  // An empty half composes a word with a bare separator on one end, which names
+  // nothing and would be a legal `type` for a vault to write.
+  expect(() => kindWordOf("", "terminal")).toThrow(/may not be empty/)
+  expect(() => kindWordOf("kolu", "")).toThrow(/may not be empty/)
+  // ...and the ordinary composition still is one, which is what keeps the four
+  // refusals above from being a function that refuses everything.
+  expect(kindWordOf("kolu", "terminal")).toBe("kolu-terminal")
+})
+
+test("...so the only reachable collision is one NAME twice, and it is a throw naming both", () => {
+  // With the halves fenced, two DIFFERENT plugin names cannot compose to one
+  // word — that is what injective means, and it is the claim the case above
+  // establishes. What is left is two entries filed under one name, which the
+  // assembly must not resolve silently: the underlying `Map.set` would let one
+  // plugin's `admits` judge the other's values with nothing red anywhere.
   const twin = { name: "kolu", kinds: [kind("terminal")] }
   expect(() => kindsOf([KOLU, twin], [])).toThrow(/"kolu" and "kolu"/)
   expect(() => kindsOf([KOLU, twin], [])).toThrow(/kolu-terminal/)
@@ -91,6 +115,11 @@ test("two plugins composing one word is a throw, naming both", () => {
   // from the other side, which is the reachable half on a well-formed registry.
   const twice = { name: "odu", kinds: [kind("worktree"), kind("worktree")] }
   expect(() => kindsOf([twice], [])).toThrow(/odu-worktree/)
+  // A REGISTRY WITH A BAD SEGMENT NEVER GETS AS FAR AS THE COUNT, which is the
+  // difference between the two cases: the composition refuses first, at the
+  // half its author can fix.
+  const hyphenated = { name: "ab-c", kinds: [kind("d")] }
+  expect(() => kindsOf([hyphenated], [])).toThrow(/carries "-"/)
 })
 
 /**

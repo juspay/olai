@@ -8,10 +8,10 @@ This page is the seam itself, and it is generic: what a live property is, what t
 
 ## What is live today
 
-| the kind | what it wears | whose page |
+| the kind, and the key it claims | what it wears | whose page |
 | --- | --- | --- |
-| `terminal` | kolu's own Dock row, and the live read-only pane it opens | [plugins/kolu.md](plugins/kolu.md) |
-| `worktree` | a CI chip while a run is going in that checkout, and the run matrix it opens | [plugins/odu.md](plugins/odu.md) |
+| `kolu-terminal` | kolu's own Dock row, and the live read-only pane it opens | [plugins/kolu.md](plugins/kolu.md) |
+| `odu-worktree` | a CI chip while a run is going in that checkout, and the run matrix it opens | [plugins/odu.md](plugins/odu.md) |
 
 They are the same mechanism wearing different clothes, and a third kind of living thing later is a third set of clothes rather than a third mechanism.
 

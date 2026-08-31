@@ -221,15 +221,6 @@ type PropType = … | { kind: "contributed"; word: string }
 
 which keeps its five kind-enumerating places exhaustive. A contributed kind cannot
 quietly stop being handled, because it is an arm the compiler counts.
-`@olai/format` imports no plugin. The kind table travels **as data**, handed down
-from the composition root, and the format's own union grows exactly one arm:
-
-```ts
-type PropType = … | { kind: "contributed"; word: string }
-```
-
-which keeps its five kind-enumerating places exhaustive. A contributed kind cannot
-quietly stop being handled, because it is an arm the compiler counts.
 
 ### dressing
 

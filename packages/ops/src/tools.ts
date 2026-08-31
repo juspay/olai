@@ -109,6 +109,7 @@ import {
   type WriteRequest as Request,
   type WriteResult as Applied,
 } from "@olai/format"
+import { type KindVocabulary, NO_KINDS } from "@olai/format"
 import type { Index } from "@olai/index"
 
 import * as Query from "./query.ts"
@@ -264,6 +265,14 @@ export const asking = (
    *  here for the clock's reason exactly: this is a table over ONE served
    *  directory, and the layer that owns a directory's long-lived things is the
    *  one that builds this envelope. Absent is a working search that walks. */
+  /** WHAT A PLUGIN TAUGHT THIS VAULT, for the one question here whose GRAMMAR
+   *  reads a declaration: `prop:` decides between a span and an equality by what
+   *  a key is declared as, and a declaration is two layers now — a vault's rows
+   *  over an enabled plugin's claimed keys.
+   *
+   *  REQUIRED, and before the optional index for that reason: defaulted, this
+   *  site forgot it for a round, and the two doors onto one query parted. */
+  kinds: KindVocabulary,
   index?: Index | undefined,
 ): Asking => ({
   outlines: Effect.map(read, (at) => ({
@@ -288,7 +297,7 @@ export const asking = (
   // path that is not an outline is a refusal carrying the closest one that is.
   subtree: (request) =>
     Effect.flatMap(read, (at) => Effect.fromResult(Query.subtree(at, request))),
-  search: (request) => Effect.map(read, (at) => Query.search(at, request, now(), index)),
+  search: (request) => Effect.map(read, (at) => Query.search(at, request, now(), kinds, index)),
   documents: Effect.map(read, (at) => ({ documents: Query.documents(at.set) })),
   // THE OTHER READ THAT CAN REFUSE FROM THE WALK ITSELF. Four of the six answer
   // from the snapshot alone, so their envelope is a `map` and the failure

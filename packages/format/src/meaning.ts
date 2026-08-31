@@ -223,8 +223,8 @@ export const Licence = Schema.Struct({
   prop: Schema.String,
   value: Schema.String,
   /** The contributed KIND — the word a plugin taught this vault and a
-   *  declaration wrote (`{"custom":{"type":"terminal"}}`), never the property
-   *  key the value happens to sit under. */
+   *  declaration wrote (`{"custom":{"type":"kolu-terminal"}}`), never the
+   *  property key the value happens to sit under. */
   word: Schema.String,
 })
 export type Licence = typeof Licence.Type

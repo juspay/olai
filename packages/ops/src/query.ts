@@ -319,15 +319,18 @@ export const search = (
    * lifetime is `./ops.ts`'s `make`, which is where a directory's other
    * long-lived things are opened.
    */
-  index?: Index | undefined,
-  /** WHICH CONTRIBUTED KINDS THIS SERVE RUNS, because the declarations are two
+  /** WHICH CONTRIBUTED KINDS THIS SERVE RUNS, because a declaration is two
    *  layers now — a vault's rows over an enabled plugin's claimed keys
-   *  (`@olai/format`'s `withClaims`). Optional, and the default is a serve
-   *  running none: an `olai surface` read answers the grammar the same way it
-   *  always did, and a caller that HAS a vocabulary must hand it over or the
-   *  box that lists hits and the box that narrows a page would disagree about
-   *  one key. */
-  kinds: KindVocabulary = NO_KINDS,
+   *  (`@olai/format`'s `withClaims`) — and `prop:` reads what a key is
+   *  declared as to decide between a span and an equality.
+   *
+   *  REQUIRED, and it sits BEFORE the optional index for that reason rather than
+   *  for tidiness: it was defaulted for one review round, and both call sites in
+   *  this package promptly forgot it — a range on an auto-declared key refusing
+   *  as undeclared while the write gate judged it by the claim. A default that
+   *  answers a DIFFERENT question is not a convenience. */
+  kinds: KindVocabulary,
+  index?: Index | undefined,
 ): SearchAnswer => {
   // THE VAULT'S OWN VOCABULARY, handed to the grammar — which is what makes
   // `prop:records=190..200` a span rather than an equality against the eight
@@ -489,7 +492,7 @@ export const narrowing = (
   now: string,
   /** ...and the contributed kinds this serve runs, for {@link search}'s reason
    *  exactly: one grammar, read off one folded set of declarations. */
-  kinds: KindVocabulary = NO_KINDS,
+  kinds: KindVocabulary,
 ): NarrowingAnswer =>
   narrowingOf(at, request, now, kinds)
 
