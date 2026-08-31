@@ -5,11 +5,17 @@
  * prefixes (seventy-eight of its bare values) and padi keys its fleet by the
  * whole uuid, so an exact lookup answered `undefined` and the chip drew the
  * hollow "no longer in the fleet" face over a terminal that was working.
+ *
+ * The second describe is the file's other fold, `whoOf`, and it is here for
+ * the reason it exists at all: the blank-label case was a live defect in TWO
+ * spellings of one rule and had to be repaired in both at once. There is one
+ * spelling now, so there is one place that pins it — for the doorbell's
+ * sentence and the events feed's WHO column both.
  */
 
 import { describe, expect, it } from "bun:test"
 
-import { resolveTerminal } from "./terminals.ts"
+import { resolveTerminal, whoOf } from "./terminals.ts"
 
 /** The fleet, as padi keys it. */
 const FLEET = [
@@ -70,5 +76,38 @@ describe("a terminal value", () => {
     for (const value of ["cb9dcd13", "", "anything"]) {
       expect(resolveTerminal(value, [])).toEqual({ kind: "none" })
     }
+  })
+})
+
+describe("who a row is", () => {
+  it("joins repo and label in kolu's own spelling", () => {
+    expect(whoOf("olai", "kolu-events-feed")).toBe("olai·kolu-events-feed")
+    // The disambiguation the label alone cannot do: two checkouts, one word.
+    expect(whoOf("nixos-config", "master")).toBe("nixos-config·master")
+  })
+
+  it("is the label alone where nobody named a repo", () => {
+    expect(whoOf(null, "the lane the evidence rides")).toBe("the lane the evidence rides")
+  })
+
+  it("DROPS THE JOINER for a blank label, rather than dangling one", () => {
+    // THE DEFECT THAT TOOK TWO REPAIRS. The wire types `label` as a plain
+    // string, so a terminal with no intent line and no branch folded to
+    // `olai·` — a name ending in a joiner with nothing joined to it, in a
+    // doorbell sentence a person reads. Whitespace is the same case: a label
+    // of spaces is a label of nothing.
+    expect(whoOf("olai", "")).toBe("olai")
+    expect(whoOf("olai", "  ")).toBe("olai")
+  })
+
+  it("names nothing at all when the row has neither", () => {
+    // The caller's business, not this fold's: the doorbell's line drops the
+    // parenthesis and the terminal id carries the sentence alone.
+    expect(whoOf(null, "")).toBe("")
+    expect(whoOf(null, "  ")).toBe("")
+  })
+
+  it("trims a label the way it is drawn", () => {
+    expect(whoOf("olai", " panel-step ")).toBe("olai·panel-step")
   })
 })

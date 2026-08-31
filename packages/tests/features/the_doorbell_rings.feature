@@ -47,9 +47,19 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
     And the watch is told to report a held terminal at once
     Then the chat shows a sentence no person typed
     And that sentence was rung by "kolu"
-    And that sentence names the terminal "22222222-2222-4222-8222-222222222222"
     And that sentence is not one of my own messages
     And that sentence offers no way to send it again
+    # THE DELIVERY'S OWN PROMISE, asserted before anybody presses anything: the
+    # words arrived and the composer did not move. Everything below this line is
+    # about a gesture a person made on purpose, and a press taking the caret is
+    # what a press is supposed to do.
     And the chat input still holds "half a thought"
     And the chat input still has the caret
+    # FOLDED, which is the other half of the face. A delivery is one line a
+    # glance absorbs; the ids and the derivation are a press away, the way a
+    # tool row already keeps them. The AGENT was handed the whole body either
+    # way — the fold is a fact about a reader's eye and not about the wire.
+    And that sentence is one line, with its account folded away
+    When I open that sentence
+    Then that sentence names the terminal "22222222-2222-4222-8222-222222222222"
     And there should be no page errors

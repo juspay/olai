@@ -57,14 +57,42 @@
  *
  * ## TWO MEANINGS AND A SILENCE, derived and never configured
  *
- * Claimed, and the claiming step is `doing`: a person is working that lane
- * right now and the terminal has stopped — a report or a block is owed, so
- * WAKE. Claimed, and the step is `todo`: the lane is open but nobody is on
- * it, so the terminal is lawfully parked and a digest line is the honest
- * weight. Unclaimed: SILENCE, and silence means NO CALL AT ALL — there is no
- * "drift" arm, no warning, no line anywhere. That was ruled out on purpose
- * (the dispatch, 2026-08-31): a doorbell that also reports what it decided
- * not to ring about is a doorbell nobody can leave on.
+ * The subject of both is THE TERMINAL'S OWN STEP — the deepest node being
+ * worked at or under the record that claims it ({@link workingIn}), never the
+ * lane the claim happens to sit in.
+ *
+ * Claimed, and that step is `doing`: somebody is on that work right now and
+ * the terminal has stopped — a report or a block is owed, so WAKE. Claimed,
+ * and nothing under the claim is being worked: it is open with nobody on it,
+ * so the terminal is lawfully parked and a digest line is the honest weight.
+ * Unclaimed: SILENCE, and silence means NO CALL AT ALL — there is no "drift"
+ * arm, no warning, no line anywhere. That was ruled out on purpose (the
+ * dispatch, 2026-08-31): a doorbell that also reports what it decided not to
+ * ring about is a doorbell nobody can leave on.
+ *
+ * ## THIS MODULE OWNS NO STANDING SET, and that is a ruling rather than an economy
+ *
+ * There is no cache of claimed ids here, and nothing watches for changes.
+ * Every export is a pure function of the revision it is handed:
+ * `derive(scope file, revision) -> the claimed set`, walked per event.
+ *
+ * The store's parsed, revisioned vault IS the maintained in-memory copy, and a
+ * doorbell-private set beside it would be the Monitor's frozen `--ignore` list
+ * reborn one floor down — a second copy of the truth, plus the standing duty to
+ * catch every source that changes it. That duty is exactly what failed twice in
+ * one day and exactly what this PR exists to end; re-acquiring it inside the
+ * thing that replaced it would be the whole feature undone quietly.
+ *
+ * It costs nothing worth counting. Events are rare — a terminal has to go quiet
+ * and stay quiet — and the walk is microseconds over an index the derivation
+ * already keeps. `server.ts`'s `ring` memoises per FILE for the length of ONE
+ * event, because a person with three seats on one board would otherwise pay
+ * three identical walks; that map is minted per event and dropped with it,
+ * which is the only lifetime any of this has.
+ *
+ * `./doorbell.test.ts` pins it rather than trusting this paragraph: a claim
+ * added between two events is seen by the second, and an older revision handed
+ * back answers what IT says.
  *
  * ## THE BODY IS A FRESH DERIVATION, and that is what makes coalescing safe
  *
@@ -99,6 +127,8 @@ import {
   declaresKind,
   type Derived,
   follow,
+  isRegular,
+  type LocatedRegular,
   type PropDeclarations,
   type Settled,
   type Status,
@@ -106,7 +136,7 @@ import {
   unfinished,
 } from "@olai/format"
 import { heldStateOf } from "@olai/kolu-client"
-import { type FleetTerminal, type KoluEvent, resolveTerminal } from "@olai/kolu-client/wire"
+import { type FleetTerminal, type KoluEvent, resolveTerminal, whoOf } from "@olai/kolu-client/wire"
 
 import { TERMINAL_TYPE } from "./kinds.ts"
 
@@ -135,10 +165,14 @@ type Unfinished = Exclude<Status, Settled>
 export interface Claim {
   /** The `kolu-terminal` value, verbatim. */
   readonly value: string
-  /** The claiming record's title, for the sentence. Blank where the record
-   *  has none, which {@link bodyFor} draws around rather than filling in. */
+  /** The OWNING STEP's title — the deepest node being worked at or under the
+   *  record that claims this terminal ({@link workingIn}), which is the word a
+   *  person wants and is very often not the claiming record's own. Blank where
+   *  that node has no title, which {@link bodyFor} draws around. */
   readonly step: string
-  /** Its stored mark — the one thing that decides the meaning. */
+  /** The owning step's mark — the one thing that decides the meaning, and read
+   *  off THAT node rather than off the claim's own: a lane is marked `doing`
+   *  while anybody is anywhere in it, which is not the question. */
   readonly mark: Unfinished
 }
 
@@ -147,31 +181,70 @@ export interface Standing {
   /** The live fleet id — resolved, never the value the file wrote. */
   readonly terminal: string
   /** Who it is, in kolu's own `repo·label` spelling, or `""` where the row
-   *  has neither. */
+   *  has neither — `@olai/kolu-client/wire`'s `whoOf`, the one fold both this
+   *  sentence and the browser's feed name a row with. */
   readonly who: string
   /** The held bucket, as kolu spells it: `awaiting` or `waiting`. */
   readonly state: string
-  /** The claiming record's title, blank where it has none. */
+  /** The owning step's title, blank where that node has none. */
   readonly step: string
-  /** Its stored mark, which is what put it under this meaning. */
+  /** The owning step's mark, which is what put it under this meaning. */
   readonly mark: Unfinished
 }
 
 /**
- * EVERY CLAIM ONE FILTER FILE MAKES — the `kolu-terminal` values on its
- * un-done records, with mirrors followed to the records that carry them.
+ * EVERY CLAIM ONE FILTER FILE MAKES — the `kolu-terminal` values reachable
+ * from its un-done records, and for each the step that terminal's OWN work is
+ * at.
  *
  * `byFile` rather than a filter over `derived.nodes`, because the derivation
  * already keeps that index in LINE order and the file's own order is the
  * order a person reads the board in — which is the order the sentence's lines
  * come out in, further down.
  *
- * THE MARK IS ASKED OF THE PLACEMENT AND THE VALUE OF THE TARGET, and that
- * split is the mirror rule in one line: `Derived.status` already resolves a
- * mirror to whatever its target stores, so the placement's own id answers the
- * done-ness question; the PROPERTY, though, lives on the target, and a mirror
- * carries none of its own. Asking one record both questions would be wrong in
- * one direction or the other.
+ * ## THREE THINGS THIS WALK GOT WRONG, all of them the same mistake
+ *
+ * It used to anchor on the RECORD IN THE FILE: it read the placement's own
+ * mark, took the property off whatever `follow` resolved to, and stopped
+ * there. The human dogfooded it against a live board on 2026-08-31 and the
+ * three failures that came back were one defect seen from three sides — the
+ * anchor is not the row in the file, it is the node that CARRIES the terminal.
+ *
+ * **The subtree was never walked.** A lane that reaches this file as a MIRROR
+ * resolves to its target, and the terminals of a split lane are claimed on the
+ * target's STEPS — a reviewer per step — not on the target itself. Following
+ * the mirror and reading only the record it lands on finds nothing, so a
+ * mirrored lane's steps never rang at all. `follow` gets us to the target; the
+ * walk has to keep going DOWN from there ({@link Derived.children}).
+ *
+ * **The meaning read the wrong node's mark.** The ruled table is about the
+ * TERMINAL'S OWN step — "its own step is `doing` and it goes quiet" — and the
+ * placement's mark is the LANE's. An author whose own steps are all done, in a
+ * lane where somebody else's step is still `doing`, is lawfully parked and owes
+ * nobody anything; it drew a WAKE saying a report was owed, which is the one
+ * arm the human ruled out of the digest.
+ *
+ * **The step it named was the claim's, not the work's.** A terminal claimed at
+ * LANE level is the ordinary shape, and naming the lane back to somebody who is
+ * looking at the lane says nothing. What they want is the step the agent is
+ * actually on.
+ *
+ * ## So: the carrying node, and the deepest `doing` under it
+ *
+ * For each un-done record in the file, `follow` to what it shows and walk that
+ * subtree. Every node carrying a declared `kolu-terminal` value is a claim, and
+ * ITS OWN subtree decides the claim — the deepest `doing` node in it, or the
+ * carrying node itself when nothing under it is doing.
+ *
+ * That one rule answers all three. A step-level claim under a mirrored lane is
+ * found because the walk descends. A parked author reads its own steps and they
+ * are done, so it is a digest. A lane-level claim reads the lane's steps and
+ * names the one somebody is on. And it degenerates correctly: a claim on a leaf
+ * step is its own owning step, which is what the old walk did right.
+ *
+ * DEEPEST rather than first, because a step with sub-steps is a step whose real
+ * work is below it — "implement" being `doing` over "write the test" being
+ * `doing` is one fact, and the useful half is the lower one.
  *
  * A LICENCE FIRST, so a vault that declares no terminal key pays one walk of
  * its declarations rather than one per record — {@link ./claimants.ts}'s own
@@ -186,22 +259,90 @@ export const claimedIn = (
   const inside = derived.byFile.get(file)
   if (inside === undefined) return []
   const claims: Array<Claim> = []
+  /** One record may be reachable from two rows of the file — a lane and a
+   *  mirror of it, or two mirrors of one target. The terminal is claimed once
+   *  either way, and a set is cheaper than deduplicating the sentence. */
+  const seen = new Set<string>()
   for (const located of inside) {
-    const mark = derived.status.get(located.node.id)
     // UN-DONE, asked of the list rather than of `done`: a cancelled step is
     // work nobody owes, and an ABSENT mark is a bullet somebody wrote, not a
-    // task somebody is on.
-    if (!unfinished(mark)) continue
+    // task somebody is on. Asked of the PLACEMENT, whose `status` already
+    // resolves a mirror to whatever its target stores.
+    if (!unfinished(derived.status.get(located.node.id))) continue
     const found = follow(derived, located)
     // A dangling or circular mirror shows no record, so there is nothing to
     // read a property off. It is not an error here — the vault says so
     // loudly enough elsewhere — it is simply a placement claiming nothing.
     if (found.kind !== "found") continue
-    const value = textDeclaredAs(declarations, found.shows.node, TERMINAL_TYPE)
-    if (value === undefined || value.trim() === "") continue
-    claims.push({ value, step: found.shows.node.title, mark })
+    for (const carrying of subtree(derived, found.shows)) {
+      if (seen.has(carrying.node.id)) continue
+      const value = textDeclaredAs(declarations, carrying.node, TERMINAL_TYPE)
+      if (value === undefined || value.trim() === "") continue
+      seen.add(carrying.node.id)
+      claims.push({ value, ...workingIn(derived, carrying) })
+    }
   }
   return claims
+}
+
+/** One record and everything under it, the placement's own order, depth first.
+ *  A generator because nearly every subtree claims nothing and a walk that
+ *  allocated a list per lane would allocate one per lane. */
+function* subtree(derived: Derived, at: LocatedRegular): Generator<LocatedRegular> {
+  yield at
+  for (const child of derived.children.get(at.node.id) ?? []) {
+    if (!isRegular(child)) continue
+    yield* subtree(derived, child)
+  }
+}
+
+/**
+ * THE STEP A TERMINAL'S WORK IS AT, and the mark that decides its meaning —
+ * the deepest `doing` node STRICTLY UNDER the one that claims it, or the
+ * claiming node itself when there is none.
+ *
+ * ## Strictly under, and that word is the whole of the parked-author fix
+ *
+ * A node that CONTAINS steps is not a step. The board marks a lane `doing`
+ * while somebody is anywhere in it, so a claiming node's own mark answers "is
+ * this lane live", which is not the question — the question is whether the work
+ * THIS terminal is on is being worked. An author whose own steps are all done
+ * sits under a lane that is still `doing` because a reviewer is going; reading
+ * the author's mark says a report is owed, and nobody owes one.
+ *
+ * So a claiming node with children is judged by them and never by itself. A
+ * LEAF is the other arm and keeps its own mark, because for a leaf there is
+ * nothing below to be the work — that is the ordinary step-level claim, and it
+ * is the arm the old walk got right.
+ *
+ * DEEPEST rather than nearest, because a step with sub-steps is a step whose
+ * real work is below it: "implement" being `doing` over "write the failing
+ * test" being `doing` is one fact, and the useful half is the lower one.
+ */
+const workingIn = (
+  derived: Derived,
+  at: LocatedRegular,
+): { readonly step: string; readonly mark: Unfinished } => {
+  let deepest: LocatedRegular | undefined
+  let leaf = true
+  const walk = (node: LocatedRegular, below: boolean): void => {
+    if (below && derived.status.get(node.node.id) === "doing") deepest = node
+    for (const child of derived.children.get(node.node.id) ?? []) {
+      if (!isRegular(child)) continue
+      if (!below) leaf = false
+      walk(child, true)
+    }
+  }
+  walk(at, false)
+  if (deepest !== undefined) return { step: deepest.node.title, mark: "doing" }
+  if (leaf) {
+    const own = derived.status.get(at.node.id)
+    return { step: at.node.title, mark: unfinished(own) ? own : "todo" }
+  }
+  // A container with nothing being worked under it: open, and nobody on it.
+  // `todo` is the honest mark for that and the one {@link meaningOf} sends to
+  // the digest.
+  return { step: at.node.title, mark: "todo" }
 }
 
 /**
@@ -298,50 +439,13 @@ export const standingIn = (
     if (held === null) continue
     standing.push({
       terminal,
-      who: whoOf(row),
+      who: whoOf(row.repo, row.label),
       state: held.bucket,
       step: claim.step,
       mark: claim.mark,
     })
   }
   return standing
-}
-
-/**
- * WHO A ROW IS, in kolu's own `repo·branch` spelling — the Dock's own grouping
- * answer, and the one disambiguator that works when three terminals all label
- * themselves `master`.
- *
- * ## Spelled twice, because a package wall stands between the two
- *
- * `@olai/kolu-ui`'s `repoPrefix` (`src/padi/events.ts`) folds this same clause
- * for the events feed, and it is not imported here: that package's doors are
- * the browser socket, its testids and a stylesheet, so reaching the fold would
- * pull SolidJS and an emulator onto the graph of a process that renders
- * nothing — the hazard `@olai/plugin-kolu`'s own `./server` door exists to
- * keep out, and the one `@olai/plugins`' `fence.test.ts` walks each closure
- * for. So there are two spellings of one rule by construction, and what is
- * owed in place of the import is that they answer IDENTICALLY for the same
- * row, which is said in both headers rather than in neither.
- *
- * ## The blank label is where they used to part
- *
- * A terminal with no intent line and no branch carries `label: ""` — the wire
- * types it as a plain string and nothing guarantees a word — and this arm
- * answered `olai` while the browser's answered `olai·`, a name ending in a
- * joiner with nothing joined to it, in a sentence a person reads rather than
- * in a debug dump. Both drop the separator now, and `./doorbell.test.ts` pins
- * this side of it.
- *
- * WHY NOT ONE FUNCTION IN `@olai/kolu-client/wire`, which both ends already
- * import: because that package is the DIAL and the vocabulary, and this is a
- * choice about how olai NAMES a row to a person — the same judgement-about-kolu
- * this whole module is, and kolu's own wire is not where olai's wording goes.
- */
-const whoOf = (row: FleetTerminal): string => {
-  const label = row.label.trim()
-  if (row.repo === null) return label
-  return label === "" ? row.repo : `${row.repo}·${label}`
 }
 
 /**
@@ -414,9 +518,8 @@ export const bodyFor = (
       many ? "they are" : "it is"
     } lawfully parked, so this is a note and not a call:`
   return [
-    `olai · kolu · ${
-      meaning === "wake" ? "wake on terminal activity" : "terminal activity, for the record"
-    } · ${stampOf(now)}`,
+    essenceOf(meaning, standing, now),
+    "",
     "Written by olai's kolu watcher, not by a person.",
     "",
     opening,
@@ -425,4 +528,60 @@ export const bodyFor = (
     "",
     `These are read off the un-done nodes of ${file}, mirrors followed to their targets. It is the whole standing set and not only the terminal that moved just now; clearing the file on this conversation's wake control stops it.`,
   ].join("\n")
+}
+
+/**
+ * THE FIRST LINE, AND THE ONLY ONE MOST READERS SEE — who moved, what it
+ * means, and when, short enough for a glance.
+ *
+ * ## Why the sentence carries its own summary
+ *
+ * The panel FOLDS a machine message to its first line and puts the rest behind
+ * an expand, the way a tool row already folds (the human, 2026-08-31: "distinct
+ * is not enough — it must also be CONCISE, with the details on hover"). A wall
+ * of paragraph in the transcript is a wall nobody reads, and the reader who
+ * wants the terminal id is one press away.
+ *
+ * So the fold needs a line worth being folded TO, and that line is authored
+ * HERE. Core draws the fold and composes none of it — the alternative, core
+ * summarising a plugin's paragraph into a headline, is core writing the
+ * plugin's words with none of what it would take to write them well.
+ *
+ * THE AGENT IS NOT THE AUDIENCE OF THE FOLD. It receives the whole body as the
+ * message text — the ids, the marks, the derivation and the how-to-stop line —
+ * because it needs them to act. The fold is a fact about drawing, and the two
+ * audiences split cleanly there.
+ *
+ * IT OPENS WITH `kolu`, which is the attribution rule this body has to keep
+ * whatever its shape: core's `rang` mark does not survive a session replay
+ * ({@link ../../surface/src/chat.ts}), so a body that did not name its author
+ * would replay as words in the person's mouth. The old first line spent a whole
+ * line on that alone; this one does it in a word and says something too.
+ */
+const essenceOf = (
+  meaning: Meaning,
+  standing: ReadonlyArray<Standing>,
+  now: string,
+): string => {
+  const weight = meaning === "wake" ? "a report is owed" : "lawfully parked"
+  // WHO MOVED, and for several it is a count rather than a list: a line that
+  // grew with the standing set would stop being one line, which is the whole
+  // property being bought here.
+  const who = standing.length === 1 && standing[0] !== undefined
+    ? `${nameOf(standing[0])} ${standing[0].state}`
+    : `${standing.length} terminals waiting`
+  return `kolu ${meaning} · ${who} — ${weight} · ${clockOf(now)}`
+}
+
+/** A standing row as the essence names it: who it is, or the id when the fleet
+ *  row has neither a repo nor a label to be named by. */
+const nameOf = (one: Standing): string =>
+  one.who.trim() === "" ? `\`${one.terminal}\`` : one.who
+
+/** Just the clock, for the one line — the full stamp is on the line below it,
+ *  where a reader who is reconstructing an afternoon wants the date too. */
+const clockOf = (now: string): string => {
+  const at = stampOf(now)
+  const clock = /(\d\d:\d\d)/.exec(at)
+  return clock?.[1] ?? at
 }

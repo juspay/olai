@@ -34,13 +34,15 @@
  *
  * That is not a preference: `@kolu/padi-client` would put the daemon's whole
  * contract on the browser's bundle graph, and `solid-js` would put a UI runtime
- * in the server's. `scripts/check-kolu-deps.sh` asserts it rather than trusting
- * this paragraph.
+ * in the server's. `../../plugins/src/fence.test.ts` walks this door's
+ * closure and asserts it rather than trusting this paragraph — it absorbed the
+ * sweep `scripts/check-kolu-deps.sh` used to make, which is now
+ * `check-hydrated-deps.sh` and asks about manifests rather than imports.
  */
 
 
 export * from "./kolu.ts"
-export { type Resolved, resolveTerminal } from "./terminals.ts"
+export { type Resolved, resolveTerminal, whoOf } from "./terminals.ts"
 
 // The member declarations need the vocabulary above, and one schema of their own.
 import { Schema } from "effect"

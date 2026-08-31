@@ -34,13 +34,25 @@
  *
  * ## Behind ONE permit, and that is not tidiness
  *
- * `@olai/state`'s writer stages per PROCESS (`<file>.<pid>.tmp`), not per call.
- * Two writes overlapping in one process — two tabs, a double-click on the
- * picker — race: A writes the stage, B overwrites it, A renames it onto the
- * destination and B's rename fails ENOENT, so B reports a failure for a pick
- * whose bytes never landed. {@link ./memory.ts} is safe from that only because
- * `agent.ts` holds a semaphore around its one writer. This file inherits the
- * PERMIT and not just the file format.
+ * `set` IS A READ-MODIFY-WRITE OVER THE MIRROR, and that is what the permit is
+ * for. It reads `rows` as `before`, filters the replaced row out as `without`,
+ * builds `next` from it, and assigns `next` back — four steps over one variable
+ * this module is the only holder of. Two of them interleaved lose a pick and
+ * nothing on disk can help: A and B each read the same `before`, each builds a
+ * `next` carrying its own row and not the other's, and whichever assigns last
+ * is the table — so a person who turned two doorbells on in one gesture apiece
+ * finds one of them off, and the answer `set` hands back names rows that left a
+ * table that no longer exists. The permit makes the four steps one step, which
+ * is the only thing that makes the mirror and the file one fact.
+ *
+ * It also used to be justified by a second hazard, and THAT HALF IS NOW CLOSED
+ * AT THE LEAF: `@olai/state`'s writer staged per PROCESS (`<file>.<pid>.tmp`)
+ * rather than per call, so two overlapping writes raced through one staged
+ * file and the loser reported a failure for bytes that had landed. It stages
+ * per CALL now, and this file no longer inherits a rule from the file format.
+ * A reader who sees that fixed must not take the permit with it: the
+ * read-modify-write above is this module's own, it is over memory rather than
+ * over a file, and no staging name has ever had anything to say about it.
  *
  * ## Capped by COUNT, and never pruned against what an agent lists
  *

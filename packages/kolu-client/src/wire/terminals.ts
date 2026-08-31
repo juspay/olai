@@ -43,6 +43,12 @@
  * this" is how a chip comes to show a green dot for a terminal whose snapshot
  * answers "no such terminal" — so there is one, here, beside the vocabulary
  * both ends already share.
+ *
+ * That same argument is what put {@link whoOf} at the foot of this file. It
+ * answers the OTHER question both ends ask of one row — not *which terminal is
+ * this* but *who do we call it* — and it was spelled twice, on two sides of a
+ * package wall, until the drift a second spelling promises finally arrived.
+ * Its own header tells that story.
  */
 
 /** What a value turned out to name. */
@@ -89,4 +95,60 @@ export const resolveTerminal = (value: string, ids: Iterable<string>): Resolved 
   }
   if (count === 1 && found !== undefined) return { kind: "one", id: found }
   return count === 0 ? NONE : { kind: "many", count }
+}
+
+/**
+ * WHO A ROW IS — kolu's own `repo·branch` spelling, folded once for both ends.
+ *
+ * The label alone is not an address. Three terminals on three checkouts of the
+ * same project all label themselves `master`, and a sentence naming one of
+ * them names all three; the repo is the disambiguator, and `·` is the joiner
+ * kolu's own Dock writes between them. Everything olai says ABOUT a row to a
+ * person — the doorbell's plain-text line, the events feed's WHO column — says
+ * this name.
+ *
+ * ## Two scalars rather than a row
+ *
+ * The two callers hold two different rows: {@link ./kolu.ts}'s `FleetTerminal`
+ * on the server's side, and the FROZEN pip inside a `KoluEvent` on the
+ * browser's. Both carry `repo` and `label`, and neither carries anything else
+ * this fold reads — so the narrow signature is precisely what lets one
+ * function serve both. A row-shaped parameter would have needed a structural
+ * type meaning "the two fields" anyway, at the cost of a name for it and of a
+ * fold that looks like it might read a third.
+ *
+ * ## The blank label is where the two spellings parted
+ *
+ * A terminal with no intent line and no branch carries `label: ""` — the wire
+ * types it as a plain string and nothing guarantees a word — so a fold that
+ * always joins answers `olai·`, a name ending in a joiner with nothing joined
+ * to it, in a sentence a person reads rather than in a debug dump. The blank
+ * drops the separator and the repo stands alone; {@link ./terminals.test.ts}
+ * pins that once, for both ends.
+ *
+ * IT USED TO BE SPELLED TWICE, one spelling on each side of a package wall:
+ * `@olai/plugin-kolu`'s `doorbell.ts` composed the clause into its sentence,
+ * `@olai/kolu-ui`'s `padi/events.ts` folded it for the feed, and each header
+ * promised the reader that the two answered identically for the same row.
+ * They did not. The blank-label case above was live in BOTH and had to be
+ * repaired in BOTH, in lockstep, inside one diff — which is the whole of what
+ * a promise between two headers cannot do, and what one function does by
+ * having nothing left to disagree with.
+ *
+ * WHY HERE, rather than in either caller. The standing argument against was
+ * that this package is the DIAL and the vocabulary while `repo·label` is
+ * olai's judgement about how to NAME a row — and it loses twice over: the
+ * spelling is not olai's invention but kolu's Dock's, and a wording that MUST
+ * be identical in two processes is a fact about the wire between them rather
+ * than a preference either end holds alone. The mechanics agree with the
+ * reading: `@olai/plugin-kolu`'s server door may not reach a SolidJS package
+ * and a browser may not reach a `node:` one, so the only floor a shared fold
+ * can stand on is the one below both. It is a pure string fold and adds
+ * nothing to this entry's closure, which is what the fence argued in
+ * {@link ./index.ts} demands of everything that lands here.
+ */
+export const whoOf = (repo: string | null, label: string): string => {
+  const named = label.trim()
+  if (repo === null) return named
+  return named === "" ? repo : `${repo}·${named}`
 }

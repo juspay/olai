@@ -219,6 +219,12 @@ export const readHeld = (
       ),
   )
 
+/** How many records this process has staged — the tail of a staged file's
+ *  name, so two overlapping writes to one destination stage through two files
+ *  and only one of them is ever renamed away. See {@link writeHeld}: it has to
+ *  differ from the other names in the air right now, and nothing more. */
+let staging = 0
+
 /**
  * ... and writing one down, staged beside its destination and renamed onto it.
  *
@@ -230,6 +236,46 @@ export const readHeld = (
  * `undefined` is how `JSON.stringify` spells a field that is not there, which
  * is what a half nobody has chosen IS on disk — so a caller passes `undefined`
  * rather than inventing a null.
+ *
+ * ## The staged name is unique per CALL, and that is the whole of a defect
+ *
+ * ONE PROCESS CAN HAVE TWO OF THESE IN THE AIR AT ONCE — two tabs on one
+ * panel, a double-click on a picker, a boot fiber and a protocol callback
+ * writing the same record — and two calls sharing one staged name do not lose a
+ * byte, they LIE. A writes the stage; B overwrites it; A renames it onto the
+ * destination; B's rename then fails ENOENT, so B reports a failure to the
+ * person who just made the gesture for bytes that are on the disk. A refusal
+ * over a write that landed is the worst answer available here, because it is
+ * the one a caller acts on: {@link StateFailure} is the channel that tells
+ * somebody their pick did not stick, and the record it names says it did.
+ * {@link staging} makes the name a call's own; the pid stays in front of it, so
+ * a leftover still names the process that left it, and two olai servers over
+ * one home never meet in the same file. `@olai/store`'s `disk.ts` stages by pid
+ * and counter for exactly this reason.
+ *
+ * NOT a `mkdtemp` per call and not a random suffix: the only writers that can
+ * collide on this name are calls inside THIS process — every other process is
+ * already held off by its own pid — so a counter that never repeats within a
+ * process is the whole requirement, at no syscall and no entropy. And not a
+ * lock file, which is a second thing on disk to leave behind and to clean up
+ * after a kill, to buy an ordering nobody here wants: these two writes are
+ * genuinely concurrent and either may win.
+ *
+ * The `rm` on the failure path is unchanged and is still exactly right — with a
+ * name per call it removes the file this call wrote and cannot reach into
+ * another call's.
+ *
+ * IT USED TO BE `<file>.<pid>.tmp`, one name per destination per process, and
+ * the hazard was patched TWICE ABOVE before it was closed here: `@olai/chat`'s
+ * `agent.ts` put a semaphore around the one writer of its memory note, and
+ * `scopes.ts` took a second one on the strength of the same reading. A leaf
+ * that is only correct while every tenant remembers to queue is a leaf that is
+ * wrong on the next tenant — nothing in this file's types says a caller owes it
+ * a permit, and the second tenant learnt the rule by reading the first. So the
+ * fix belongs at the name. The permits above stay, because each has a job of
+ * its own that no staging name provides: `scopes.ts` reads, modifies and writes
+ * an in-memory mirror and would lose a pick without one, and `agent.ts` orders
+ * two writes that must land in the order they were made.
  */
 export const writeHeld = (
   at: string,
@@ -238,7 +284,7 @@ export const writeHeld = (
   Effect.tryPromise({
     try: async () => {
       await mkdir(dirname(at), { recursive: true, mode: 0o700 })
-      const staged = `${at}.${process.pid}.tmp`
+      const staged = `${at}.${process.pid}.${++staging}.tmp`
       try {
         await writeFile(staged, `${JSON.stringify(held)}\n`, { mode: 0o600 })
         await rename(staged, at)

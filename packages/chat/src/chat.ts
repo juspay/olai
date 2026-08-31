@@ -257,41 +257,66 @@ export interface Chat {
     answers: ReadonlyArray<AskAnswer> | null,
   ) => Effect.Effect<void, OpFailure>
   /**
-   * ONE MACHINE-MARKED MESSAGE INTO ONE CONVERSATION — the whole of what a
-   * plugin's doorbell reaches through (`@olai/plugins`' `Deliveries`).
+   * THE DOOR ONE PLUGIN'S DOORBELL REACHES THROUGH — its own conversations, and
+   * the one write-only verb into them (`@olai/plugins`' `Deliveries`).
    *
-   * WRITE-ONLY AND IT CANNOT FAIL. There is no arm here a caller would answer
-   * differently: a body that could not be handed over is HELD, and a body held
-   * is not a failure — it is the second of three arms and the ordinary one
-   * while a turn is running. The caller is a watcher sink with nowhere to put a
-   * refusal, which is why {@link Chat.send}'s vocabulary is deliberately not
-   * borrowed here.
+   * ## Why a door per plugin, and not the two members it replaced
    *
-   * `from` is stamped BY THE COMPOSITION ROOT and not by the plugin: the door
-   * each plugin is handed closes over its own name, so one plugin cannot sign
-   * another's name onto a row that reaches the agent. It becomes the row's
-   * `rang` ({@link ../../surface/src/chat.ts}).
+   * This used to be `scopes()` (every pick, whole) beside `deliverTo(to, body,
+   * from, …)` (the name passed in), with the composition root filtering one and
+   * supplying the other. Both halves of that were the same mistake said twice:
+   * the root was doing the KEYING, in another package, for an interface whose
+   * whole safety property is that the keying happens somewhere a plugin cannot
+   * reach. What a plugin is handed is now readable off this package's own
+   * exports rather than only by reading a composition root.
    *
-   * THREE ARMS, decided in one step ({@link Chat.deliverTo}'s implementation):
-   * this panel's own conversation with an idle agent takes it as a turn; a
-   * running turn HOLDS it until the turn boundary; a conversation nobody is in
-   * holds it until somebody opens it. Which arm it took is not reported back.
+   * THE NAME IS CLOSED OVER AND NEVER TAKEN FROM THE CALLER, which is the
+   * anti-spoofing property stated where it is now enforced. A plugin cannot ask
+   * for another's conversations, because the filter is behind this closure; and
+   * it cannot sign another's name onto a row that reaches the agent, because
+   * `deliver` has no argument for one. It becomes the row's `rang`
+   * ({@link ../../surface/src/chat.ts}).
+   *
+   * It answers for a plugin this panel has never heard of the way it answers
+   * for one nobody scoped: an empty list and a `deliver` that holds. There is no
+   * registry here and deliberately none — core knows a plugin's name and
+   * nothing else about it, and a door that refused an unknown name would be a
+   * second place a plugin roster had to be kept.
    */
-  readonly deliverTo: (
-    to: { readonly agent: string; readonly session: string },
-    body: string,
-    from: string,
-    options?: {
-      /** Bodies sharing a key, WHILE STILL HELD, replace each other in place —
-       *  see {@link ./deliveries.ts}. A body with no key never replaces. */
-      readonly coalesce?: string
-    },
-  ) => Effect.Effect<void>
-  /** Every doorbell a person has turned on, whole — the composition root
-   *  filters it per plugin on its way out ({@link ./scopes.ts}). SYNCHRONOUS,
-   *  because the blob it feeds is built in a plain `.map` and read from a sink
-   *  with no Effect around it. */
-  readonly scopes: () => ReadonlyArray<Scoped>
+  readonly doorFor: (plugin: string) => {
+    /** The conversations THIS plugin's doorbell was pointed at, each with the
+     *  file a person picked. SYNCHRONOUS, because the blob it feeds is built in
+     *  a plain `.map` and read from a watcher sink with no Effect around it. */
+    readonly scopes: () => ReadonlyArray<{
+      readonly agent: string
+      readonly session: string
+      readonly file: string
+    }>
+    /**
+     * ONE MACHINE-MARKED MESSAGE INTO ONE CONVERSATION.
+     *
+     * WRITE-ONLY AND IT CANNOT FAIL. There is no arm here a caller would answer
+     * differently: a body that could not be handed over is HELD, and a body
+     * held is not a failure — it is the second of three arms and the ordinary
+     * one while a turn is running. The caller is a watcher sink with nowhere to
+     * put a refusal, which is why {@link Chat.send}'s vocabulary is deliberately
+     * not borrowed here.
+     *
+     * THREE ARMS, decided in one step: this panel's own conversation with an
+     * idle agent takes it as a turn; a running turn HOLDS it until the turn
+     * boundary; a conversation nobody is in holds it until somebody opens it.
+     * Which arm it took is not reported back.
+     */
+    readonly deliver: (
+      to: { readonly agent: string; readonly session: string },
+      body: string,
+      options?: {
+        /** Bodies sharing a key, WHILE STILL HELD, replace each other in place —
+         *  see {@link ./deliveries.ts}. A body with no key never replaces. */
+        readonly coalesce?: string
+      },
+    ) => Effect.Effect<void>
+  }
   /** THIS conversation wakes on THAT file, for that plugin's doorbell — or, with
    *  `file: null`, on nothing. The one write behind the strip's scope control.
    *  Refuses when this chat keeps no scopes at all, and when the record will not
@@ -1557,6 +1582,21 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * delivery like a steer is: a turn that never started because the agent was
      * not there took nobody's message anywhere, and the words deserve the same
      * account of themselves ({@link undeliverable}).
+     *
+     * ## ENTER IT HOLDING `sending`, and that is a precondition rather than a habit
+     *
+     * The first thing this reads is `turns.busy`, and on `true` it LATCHES
+     * {@link queuedHere} — permanently, for the life of the conversation. That
+     * read is only stable while nothing else may call `turns.open`, which is
+     * exactly what the {@link sending} permit buys: both callers ({@link
+     * deliver} and {@link offer}) hold it across their own decision and this
+     * call, so no turn can appear between the two.
+     *
+     * A THIRD CALLER THAT DID NOT WOULD SPEND SOMEBODY'S INTERRUPT, silently
+     * and for good, on a turn that was not running when it looked. It is
+     * written here rather than only at the callers because that is where a
+     * third one would read, and because the cost of getting it wrong is a
+     * control that never comes back rather than an error anybody sees.
      */
     const begin = (
       at: Bound,
@@ -2300,8 +2340,20 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               ),
           )),
 
-      deliverTo,
-      scopes: () => options.scoping?.rows() ?? [],
+      // ONE CLOSURE PER PLUGIN, and the name is in it rather than in an
+      // argument — see {@link Chat.doorFor}. Both halves of the keying live
+      // here, in the module that owns the mark, so neither is a thing a
+      // composition root does on the way past.
+      doorFor: (plugin) => ({
+        scopes: () =>
+          (options.scoping?.rows() ?? [])
+            .filter((row) => row.plugin === plugin)
+            // The `plugin` column goes on the way out: a door is already
+            // ABOUT one plugin, so carrying its name back to it would be the
+            // caller's own question answered a second time.
+            .map(({ agent, file, session }) => ({ agent, file, session })),
+        deliver: (to, body, how) => deliverTo(to, body, plugin, how),
+      }),
       /**
        * A person pointed a doorbell at a file — or took it off one.
        *

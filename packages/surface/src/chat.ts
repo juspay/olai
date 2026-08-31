@@ -568,13 +568,34 @@ export const UserEntry = Schema.Struct({
    * machine's sentence would re-send a derivation that has since stopped being
    * true, and the thing that derived it rings again by itself.
    *
-   * A NAME AND NOT A FLAG, because "a machine" is not who rang — a person
-   * reading a conversation two plugins can reach needs to know which door it
-   * came through, and the browser needs a word to look a face up by. This file
-   * spells no plugin: the value is walked out of the registry at the composition
-   * root, the way `../plugins.ts`' roster names are, and the plugin that rings
-   * never supplies it — a caller-asserted name is a name one plugin could sign
-   * another's row with.
+   * A NAME AND NOT A FLAG — though what the browser DRAWS off it is only its
+   * presence. The browser's `chat/Entry.tsx` keeps one edge and one column for
+   * a machine's sentence, the same for every plugin, and every behavioural read
+   * of this over there is `rang === undefined`: there is no per-plugin face and
+   * no table to look a name up in. The only consumer of the VALUE is the
+   * `data-rang-by` attribute stamped beside those words.
+   *
+   * ## AND THAT ATTRIBUTE IS WHAT THE STRING BUYS
+   *
+   * A conversation two plugins can BOTH reach is one where "a machine rang"
+   * does not say which — so the way to claim which door it came through is a
+   * test reading `data-rang-by` for the name core stamped, asserting no
+   * syllable of either plugin's own wording, which is the plugin's to change
+   * whenever it likes. A Boolean would leave those two rows indistinguishable,
+   * and telling them apart is the premise of the whole capability. The String
+   * is also the stable key a per-plugin face would be drawn off, should one
+   * ever be wanted — but it is not owed one to earn its place.
+   *
+   * NOT DRAWN AS A NAME ABOVE THE WORDS, which looks like the obvious use of
+   * it: `@olai/plugins`' `Deliveries.deliver` REQUIRES the body to open with
+   * the plugin's own attribution, so a core-drawn name over it would put two
+   * attributions on one row saying the same thing in two voices — and the core
+   * one is the half that vanishes on the replay below.
+   *
+   * This file spells no plugin: the value is walked out of the registry at the
+   * composition root, the way `../plugins.ts`' roster names are, and the plugin
+   * that rings never supplies it — a caller-asserted name is a name one plugin
+   * could sign another's row with.
    *
    * Absent on every message a person typed, which is nearly all of them, and
    * absent rather than `false` for `queued`'s reason: the writer only ever

@@ -1276,6 +1276,28 @@ export const TESTID = {
    *  the row comes back out of message chunks with no mark on it and the
    *  sentence's own opening line is the whole of the attribution. */
   chatRang: "chat-rang",
+  /** The label a machine's row opens with: the attribution line the PLUGIN
+   *  wrote, drawn as a byline rather than as the first line of the paragraph
+   *  ({@link ./chat/byline.ts}). Its own id so a scenario can assert the face
+   *  is there — a name over the words — without asserting the plugin's
+   *  wording, which is the plugin's to change. Absent, deliberately, on a body
+   *  that carries no such line: nothing here composes one. It is also the
+   *  FOLDED FACE of the row — the one line drawn before anybody presses — and
+   *  sits inside `chatRangFold`, which is the control. */
+  chatRangByline: "chat-rang-byline",
+  /** The control that opens a machine's row, and shuts it again — the essence
+   *  line itself, pressable, carrying `aria-expanded` the way `chatToolFold`
+   *  does ({@link ./chat/rang.ts} for why the row folds at all). ABSENT on a
+   *  body with no essence line to fold to: that row is one paragraph and
+   *  already whole, and a control that hides words behind a label nobody wrote
+   *  is the one thing this fold must not become. */
+  chatRangFold: "chat-rang-fold",
+  /** What the fold holds back: the account under the essence line — the
+   *  terminal id, the derivation, the standing set, the how-to-stop line. Not
+   *  in the page until the row is open, which is what lets a scenario assert
+   *  the FOLD (gone, then there after the press) without asserting a single
+   *  word the plugin wrote. Always present on a row that does not fold. */
+  chatRangBody: "chat-rang-body",
   /** One row. `data-kind` is which of the six it is, and `data-entry-id` is
    *  its transcript key — which is what a lane names when it says which agent
    *  a call was made inside (`chatLane`), so it is a handle scenarios reach

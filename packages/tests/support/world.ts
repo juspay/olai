@@ -1159,6 +1159,16 @@ export const CHAT_MINE = selector(TESTID.chatMine);
  *  asking "did I say this" is never handed a machine's words. `data-rang-by` is
  *  which plugin rang. */
 export const CHAT_RANG = selector(TESTID.chatRang);
+/** ... FOLDED to one line, and the control that opens it. A machine's row draws
+ *  its essence line and nothing else until somebody asks — the discipline a
+ *  tool row already keeps, and the reason a delivery is not a paragraph wall in
+ *  the middle of a conversation. The AGENT is handed the whole body either way;
+ *  the fold is a fact about a reader's eye. */
+export const CHAT_RANG_FOLD = selector(TESTID.chatRangFold);
+/** What the fold holds back — the ids, the marks, the derivation. NOT IN THE
+ *  PAGE until the row is open, which is what lets a scenario assert the fold
+ *  without asserting a word the plugin wrote. */
+export const CHAT_RANG_BODY = selector(TESTID.chatRangBody);
 /** A node named in the panel and pressable, by the id it points at. One
  *  selector for all three shapes — a chip, the node an olai write was about,
  *  and an id the agent wrote in its own prose — because they are one

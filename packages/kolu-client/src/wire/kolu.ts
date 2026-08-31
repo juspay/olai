@@ -62,8 +62,9 @@
  * press opens. Every one of those used to sit in a general package under a
  * kolu-shaped filename, and none of them names a `@kolu/*` package —
  * everything reaches kolu through this one and `@olai/kolu-ui`, which is what
- * `scripts/check-kolu-deps.sh`'s fourth assertion holds as a fact rather than
- * a habit.
+ * `../../plugins/src/fence.test.ts` holds it as a fact rather than a habit —
+ * it absorbed the assertion `scripts/check-kolu-deps.sh` used to make, and the
+ * script that kept the name asks about manifests now, not imports.
  */
 
 import { PrInfoSchema } from "anyforge/schemas"

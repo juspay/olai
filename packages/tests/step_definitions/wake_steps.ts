@@ -34,6 +34,8 @@ import {
   CHAT_ENTRY,
   CHAT_MINE,
   CHAT_RANG,
+  CHAT_RANG_BODY,
+  CHAT_RANG_FOLD,
   CHAT_RESEND,
   CHAT_INPUT,
   CHAT_WAKE,
@@ -150,6 +152,38 @@ When("the watch is told to report a held terminal at once", function (this: Olai
 const rungRow = (world: OlaiWorld): Locator =>
   world.page.locator(CHAT_ENTRY).filter({ has: world.page.locator(CHAT_RANG) });
 
+
+/**
+ * ONE LINE, AND THE REST BEHIND A PRESS — the fold, asserted without asserting
+ * a word the plugin wrote.
+ *
+ * The body's testid is ABSENT from the page while the row is folded (a `<Show>`
+ * and not a `hidden`), which is what makes this a claim about the fold rather
+ * than about CSS: a row painted away is one a screen reader still walks, and a
+ * step that asked about visibility could not tell the two apart.
+ */
+Then(
+  "that sentence is one line, with its account folded away",
+  async function (this: OlaiWorld) {
+    await this.waitUntil(
+      async () => (await rungRow(this).first().locator(CHAT_RANG_FOLD).count()) === 1,
+      "the machine's row to draw a fold control",
+    );
+    assert.equal(
+      await rungRow(this).first().locator(CHAT_RANG_BODY).count(),
+      0,
+      "a machine's row draws its account before anybody asked for it",
+    );
+  },
+);
+
+When("I open that sentence", async function (this: OlaiWorld) {
+  await rungRow(this).first().locator(CHAT_RANG_FOLD).click();
+  await this.waitUntil(
+    async () => (await rungRow(this).first().locator(CHAT_RANG_BODY).count()) === 1,
+    "the machine's account to come out of the fold",
+  );
+});
 Then("the chat shows a sentence no person typed", async function (this: OlaiWorld) {
   await this.page
     .locator(CHAT_RANG)

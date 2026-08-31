@@ -927,12 +927,22 @@ const chatKeeping = (rows: ReadonlyArray<Scoped>): {
     recordRefusal: () => Effect.void,
     start: Effect.void,
     stop: Effect.void,
-    scopes: () => rows,
+    // ONE DOOR PER PLUGIN, the way the real chat hands them out: the filter and
+    // the stamp are both inside the closure, so what this stub proves is that
+    // `runtime.ts` asks for a door by name and bridges it — never that it does
+    // the keying itself, which is the thing that moved out of that file.
+    doorFor: (plugin: string) => ({
+      scopes: () =>
+        rows
+          .filter((row) => row.plugin === plugin)
+          .map(({ agent, file, session }) => ({ agent, file, session })),
+      deliver: (to: { readonly agent: string; readonly session: string }, body: string) =>
+        Queue.offer(rang, { to, body, from: plugin }),
+    }),
     scope: (to, plugin, file) =>
       Effect.sync(() => {
         picked.push({ to, plugin, file })
       }),
-    deliverTo: (to, body, from) => Queue.offer(rang, { to, body, from }),
   }
   return { chat, picked, rang: Queue.take(rang) }
 }

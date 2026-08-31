@@ -952,32 +952,35 @@ export const bind = (
      * failure, and a promise nobody has a reason to catch is an unhandled
      * rejection in somebody's server log.
      *
-     * The plugin's NAME is stamped here and never taken from the caller. That is
-     * what keeps the row's mark "data walked out of the registry" rather than a
-     * word one plugin could sign another's row with.
+     * WHAT IS LEFT HERE is the one thing that genuinely belongs to a
+     * composition root: the bridge from an Effect to a sink that has no fiber
+     * under it. The KEYING moved to `@olai/chat`'s `doorFor`, where the mark it
+     * protects is written — this file used to filter the rows and pass the name
+     * as an argument, which put the anti-spoofing property in a different
+     * package from the thing it is a property of.
      */
     const doorFor = chat === null
       ? (): PluginServices["deliveries"] => NO_DOOR
-      : (who: string): PluginServices["deliveries"] => ({
-        scopes: () =>
-          chat.scopes()
-            .filter((row) => row.plugin === who)
-            .map(({ agent, session, file }) => ({ agent, session, file })),
-        deliver: (to, body, options) => {
-          // FORKED UNDER THIS FIBER'S SERVICES, and not with a bare
-          // `Effect.runFork`. A doorbell's `deliver` is called from a watcher's
-          // sink, which is a plain callback with no fiber under it — the exact
-          // situation `@olai/log`'s `emit.ts` was written for, and its argument
-          // carries here unchanged: an empty context is the DEFAULT logger at
-          // the DEFAULT level, so every line the delivery's own turn emits
-          // (`../../chat/src/agent.ts`'s `prompt sent`, `turn ended`) would
-          // escape an `OLAI_LOG_LEVEL` the operator typed and arrive in a
-          // different shape than the same line from a person's send. One
-          // conversation would keep two journals, told apart by who started
-          // the turn.
-          ring(chat.deliverTo(to, body, who, options))
-        },
-      })
+      : (who: string): PluginServices["deliveries"] => {
+        const door = chat.doorFor(who)
+        return {
+          scopes: door.scopes,
+          deliver: (to, body, options) => {
+            // FORKED UNDER THIS FIBER'S SERVICES, and not with a bare
+            // `Effect.runFork`. A doorbell's `deliver` is called from a
+            // watcher's sink, which is a plain callback with no fiber under it
+            // — the exact situation `@olai/log`'s `emit.ts` was written for,
+            // and its argument carries here unchanged: an empty context is the
+            // DEFAULT logger at the DEFAULT level, so every line the delivery's
+            // own turn emits (`../../chat/src/agent.ts`'s `prompt sent`, `turn
+            // ended`) would escape an `OLAI_LOG_LEVEL` the operator typed and
+            // arrive in a different shape than the same line from a person's
+            // send. One conversation would keep two journals, told apart by who
+            // started the turn.
+            ring(door.deliver(to, body, options))
+          },
+        }
+      }
     const composed: ReadonlyArray<{
       readonly plugin: PluginServerHalf<VaultRevision>
       readonly half: PluginServer<VaultRevision>
@@ -997,10 +1000,30 @@ export const bind = (
         deliveries: doorFor(plugin.name),
       }),
     }))
-    /** WHICH COMPOSED PLUGINS RING AT ALL — the names whose halves declare a
-     *  wake sentence. A scope written for anybody else would be a row nothing
-     *  will ever read, so the member that writes one refuses it. Built off the
-     *  same list the composition above walked. */
+    /**
+     * WHICH COMPOSED PLUGINS RING AT ALL — the names whose halves declare a
+     * wake sentence. A scope written for anybody else would be a row nothing
+     * will ever read, so the member that writes one refuses it.
+     *
+     * ## Off `composed`, and NOT off the roster below, which was tried
+     *
+     * The two gate opposite ends of one interaction — the browser decides
+     * whether to OFFER a picker off the roster's rows, this decides whether to
+     * ACCEPT the pick — so deriving them once looks like the obvious tightening.
+     * It is the wrong one, and the reason is which REGISTRY each is keyed by.
+     * {@link rosterOf} builds its rows from `PLUGIN_NAMES`, the WIRE door; this
+     * is built from `SERVERS`, the server door. Routing the gate through the
+     * roster would make a doorbell depend on the plugin also being on the wire
+     * door — so a plugin composed here but missing there would lose its
+     * doorbell silently, which is a worse failure than the drift the change was
+     * meant to prevent.
+     *
+     * What keeps the two honest is not a local re-derivation but
+     * `@olai/plugins`' own bench: `rosters.test.ts` holds that the three doors
+     * list the same plugins in the same order, which is a stronger guarantee
+     * than either end could give itself, and the one place a fourth plugin gets
+     * it wrong.
+     */
     const composedWake = new Set(
       composed.filter((one) => one.plugin.wake !== undefined).map((one) => one.plugin.name),
     )

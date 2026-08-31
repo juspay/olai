@@ -138,6 +138,158 @@ test("a MIRROR resolves to the target that carries the property", () => {
   ).toEqual([{ value: "11111111", step: "implement", mark: "doing" }])
 })
 
+/** A record with a PARENT and its own ord — what the three cases below need
+ *  and the plain helpers above deliberately do not carry, because a subtree is
+ *  the one thing the walk used not to have. */
+const under = (
+  id: string,
+  parent: string,
+  ord: string,
+  title: string,
+  mark: string | null,
+  fields: Record<string, string> = {},
+): string =>
+  `{"id":${JSON.stringify(id)},"parent":${JSON.stringify(parent)},"ord":${JSON.stringify(ord)},"title":${
+    JSON.stringify(title)
+  }${mark === null ? "" : `,${JSON.stringify(mark)}:"2026-08-31T09:00:00.000Z"`}${
+    Object.keys(fields).length === 0 ? "" : `,"custom":${JSON.stringify(fields)}`
+  }}`
+
+// ── THE THREE THE HUMAN FOUND ON A LIVE BOARD, 2026-08-31 ──────────────────
+// Each was the same defect from a different side: the walk anchored on the row
+// in the file rather than on the node that CARRIES the terminal.
+
+test("a step-level claim under a MIRRORED lane rings — the walk goes down, not just across", () => {
+  // The reviewer-split shape, and the one that rang for nobody: the board holds
+  // a mirror, the lane lives elsewhere, and the terminals are on the lane's
+  // STEPS. Following the mirror and reading only what it lands on finds a lane
+  // that claims nothing at all.
+  expect(
+    claimsOf({
+      "_olai/Properties.olai": declaring(),
+      "lanes.olai": `{"id":"m","ord":"a0","mirror":"lane"}`,
+      "work.olai": [
+        marked("lane", "the second doorbell", "doing"),
+        under("rev-a", "lane", "a0", "review: grok", "doing", { terminal: "11111111" }),
+        under("rev-b", "lane", "a1", "review: pi", "todo", { terminal: "22222222" }),
+      ].join("\n"),
+    }, "lanes.olai"),
+  ).toEqual([
+    { value: "11111111", step: "review: grok", mark: "doing" },
+    { value: "22222222", step: "review: pi", mark: "todo" },
+  ])
+})
+
+test("a LAWFULLY PARKED author is a digest, whatever the rest of the lane is doing", () => {
+  // The one that was wrong in the direction that matters. The author's own
+  // steps are done; somebody else's step is `doing`. Reading the LANE's mark
+  // says "a report or a block is owed" to a person who owes nothing — the arm
+  // the ruled table sends to the digest, and the arm a wake must never take.
+  expect(
+    claimsOf({
+      "_olai/Properties.olai": declaring(),
+      "lanes.olai": [
+        marked("lane", "the second doorbell", "doing"),
+        under("author", "lane", "a0", "author", "doing", { terminal: "11111111" }),
+        under("impl", "author", "a0", "implement + open PR", "done"),
+        under("refactor", "author", "a1", "refactor passes", "done"),
+        under("rev", "lane", "a1", "review: grok", "doing", { terminal: "22222222" }),
+      ].join("\n"),
+    }, "lanes.olai"),
+  ).toEqual([
+    // Its own subtree is finished, so nothing under it is being worked. The
+    // lane above is still `doing` because the reviewer is going, and reading
+    // THAT is what said a report was owed. A container is judged by its
+    // children: open, nobody on it, a digest line.
+    { value: "11111111", step: "author", mark: "todo" },
+    { value: "22222222", step: "review: grok", mark: "doing" },
+  ])
+})
+
+test("a LANE-LEVEL claim names the deepest step somebody is on, not the lane", () => {
+  // What a person reading the lane already knows is the lane. What they want is
+  // the step the agent is actually at — and DEEPEST, because a step with
+  // sub-steps is a step whose real work is below it.
+  expect(
+    claimsOf({
+      "_olai/Properties.olai": declaring(),
+      "lanes.olai": [
+        marked("lane", "the second doorbell", "doing", { terminal: "11111111" }),
+        under("impl", "lane", "a0", "implement + open PR", "doing"),
+        under("inner", "impl", "a0", "write the failing test", "doing"),
+        under("later", "lane", "a1", "refactor passes", "todo"),
+      ].join("\n"),
+    }, "lanes.olai"),
+  ).toEqual([{ value: "11111111", step: "write the failing test", mark: "doing" }])
+})
+
+test("... and names itself when nothing under it is being worked", () => {
+  expect(
+    claimsOf({
+      "_olai/Properties.olai": declaring(),
+      "lanes.olai": [
+        marked("lane", "the second doorbell", "todo", { terminal: "11111111" }),
+        under("impl", "lane", "a0", "implement + open PR", "todo"),
+      ].join("\n"),
+    }, "lanes.olai"),
+  ).toEqual([{ value: "11111111", step: "the second doorbell", mark: "todo" }])
+})
+
+test("one record reached twice — a lane and a mirror of it — is claimed once", () => {
+  expect(
+    claimsOf({
+      "_olai/Properties.olai": declaring(),
+      "lanes.olai": [
+        marked("lane", "the second doorbell", "doing", { terminal: "11111111" }),
+        `{"id":"m","ord":"a1","mirror":"lane"}`,
+      ].join("\n"),
+    }, "lanes.olai"),
+  ).toEqual([{ value: "11111111", step: "the second doorbell", mark: "doing" }])
+})
+
+
+test("a claim added between two events is seen by the second — the derivation owns no set", () => {
+  // THE RULING THIS PINS (the human, 2026-08-31): the doorbell keeps NO
+  // standing set of its own — no cache of claimed ids, no change-watching. It
+  // derives per event against the store's current revision, and the store's
+  // parsed vault IS the maintained copy. A doorbell-private set would be the
+  // Monitor's frozen `--ignore` list reborn one floor down: a second copy of
+  // the truth, plus the duty to catch every source that changes it, which is
+  // the disease this whole PR exists to kill.
+  //
+  // The property lives HERE because {@link claimedIn} takes the revision as an
+  // argument and returns a fresh answer — `server.ts`'s `ring` reads the
+  // latest one per event and its per-file memo is minted per event and dropped
+  // with it, so there is nowhere for an answer to survive a tick.
+  const before = {
+    "_olai/Properties.olai": declaring(),
+    "lanes.olai": marked("a", "review: grok", "doing", { terminal: "11111111" }),
+  }
+  const after = {
+    "_olai/Properties.olai": declaring(),
+    "lanes.olai": [
+      marked("a", "review: grok", "doing", { terminal: "11111111" }),
+      // The dispatch a person just wrote, mid-flight.
+      `{"id":"b","ord":"a1","title":"review: pi","doing":"2026-08-31T09:00:00.000Z","custom":{"terminal":"22222222"}}`,
+    ].join("\n"),
+  }
+  expect(claimsOf(before, "lanes.olai")).toEqual([
+    { value: "11111111", step: "review: grok", mark: "doing" },
+  ])
+  // The SECOND event, against the revision the store now holds: the new claim
+  // rings, with no restart and nothing subscribed to.
+  expect(claimsOf(after, "lanes.olai")).toEqual([
+    { value: "11111111", step: "review: grok", mark: "doing" },
+    { value: "22222222", step: "review: pi", mark: "doing" },
+  ])
+  // ... and nothing accumulated on the way: handed the older revision again it
+  // answers what that revision says, which a cache could not do.
+  expect(claimsOf(before, "lanes.olai")).toEqual([
+    { value: "11111111", step: "review: grok", mark: "doing" },
+  ])
+})
+
+
 test("a CANCELLED step is not un-done — `!== \"done\"` would have claimed it", () => {
   // The trap the fourth mark left everywhere: two marks END the wait, and a
   // cancelled step is work nobody owes. A doorbell that rang for one would be
@@ -359,7 +511,7 @@ test("the two meanings PARTITION the standing set — neither body names the oth
   expect(standingFor(files, fleet, "digest").map((one) => one.terminal)).toEqual(["22222222"])
 })
 
-test("the ATTRIBUTION and the time open the body — the row's mark does not survive a replay", () => {
+test("the FIRST LINE is the essence — what the panel folds to, and it names its author", () => {
   const standing = standingFor({
     ...DECLARED,
     "lanes.olai": marked("step", "reproduce + fix + open PR", "doing", {
@@ -367,9 +519,33 @@ test("the ATTRIBUTION and the time open the body — the row's mark does not sur
     }),
   }, fleetOf(row("54fe62f9", "waiting", "done-flip-flake", "olai")), "wake")
   const body = bodyFor("wake", standing, "lanes.olai", "2026-08-31T14:32:07.001Z")
-  const [first, second] = body.split("\n")
-  expect(first).toBe("olai · kolu · wake on terminal activity · 2026-08-31 14:32 UTC")
-  expect(second).toBe("Written by olai's kolu watcher, not by a person.")
+  const [first, blank, third] = body.split("\n")
+  // Who moved, what it means, when — short enough for a glance, because this
+  // is the only line the transcript draws until somebody expands it.
+  expect(first).toBe("kolu wake · olai·done-flip-flake waiting — a report is owed · 14:32")
+  // ... and it opens with `kolu`, which is the attribution the REPLAY rule
+  // needs: the row's `rang` mark is rebuilt away by a resumed session, so a
+  // body that did not name its author would replay as words in a person's
+  // mouth.
+  expect(first?.startsWith("kolu ")).toBe(true)
+  // The fold is at the blank line, so everything below is detail.
+  expect(blank).toBe("")
+  expect(third).toBe("Written by olai's kolu watcher, not by a person.")
+})
+
+test("... and the essence COUNTS rather than lists, so one line stays one line", () => {
+  const standing = standingFor({
+    ...DECLARED,
+    "lanes.olai": [
+      marked("a", "review: grok", "doing", { terminal: "11111111" }),
+      marked("b", "review: pi", "doing", { terminal: "22222222" }),
+    ].join("\n"),
+  }, fleetOf(
+    row("11111111", "waiting", "one", "olai"),
+    row("22222222", "waiting", "two", "olai"),
+  ), "wake")
+  const body = bodyFor("wake", standing, "lanes.olai", "2026-08-31T14:32:07.001Z")
+  expect(body.split("\n")[0]).toBe("kolu wake · 2 terminals waiting — a report is owed · 14:32")
 })
 
 test("the wake body names the terminal, who it is, its state and the doing step", () => {
@@ -399,9 +575,7 @@ test("the digest body says PARKED rather than owed, and counts what it names", (
     ].join("\n"),
   }, fleetOf(row("11111111", "waiting"), row("22222222", "waiting")), "digest")
   const body = bodyFor("digest", standing, "lanes.olai", "2026-08-31T14:32:07.001Z")
-  expect(body.split("\n")[0]).toBe(
-    "olai · kolu · terminal activity, for the record · 2026-08-31 14:32 UTC",
-  )
+  expect(body.split("\n")[0]).toBe("kolu digest · 2 terminals waiting — lawfully parked · 14:32")
   expect(body).toContain("2 terminals claimed by lanes.olai are waiting on a person")
   expect(body).toContain("they are lawfully parked, so this is a note and not a call")
   expect(body).toContain("`11111111`")
@@ -427,19 +601,6 @@ test("a row with no repo and no label is named by its id alone", () => {
   expect(bodyFor("wake", standing, "lanes.olai", "2026-08-31T14:32:07.001Z")).toContain(
     "— `11111111` is held at `waiting`;",
   )
-})
-
-test("a row with a repo and NO label is named by the repo alone — no dangling joiner", () => {
-  // The one case the browser's own fold (`@olai/kolu-ui`'s `repoPrefix`) and
-  // this one used to answer differently: `olai·`, a name ending in a joiner
-  // with nothing joined to it. Both drop it now — see `whoOf`.
-  const standing = standingFor({
-    ...DECLARED,
-    "lanes.olai": marked("step", "reproduce", "doing", { terminal: "11111111" }),
-  }, fleetOf(row("11111111", "waiting", "  ", "olai")), "wake")
-  const body = bodyFor("wake", standing, "lanes.olai", "2026-08-31T14:32:07.001Z")
-  expect(body).toContain("— `11111111` (olai) is held at `waiting`;")
-  expect(body).not.toContain("olai·")
 })
 
 test("an untitled claiming node is drawn around rather than filled in", () => {

@@ -61,6 +61,8 @@ import { createEffect, createMemo, Match, Show, Switch } from "solid-js"
 
 
 import { Attachments } from "./Attachments.tsx"
+import { isUnfolded, toggleFold } from "./folds.ts"
+import { rangRow } from "./rang.ts"
 import { ContextChips } from "./ContextChips.tsx"
 import { markdownReady } from "../markdown/chunk.ts"
 import { Markdown } from "../markdown/Markdown.tsx"
@@ -137,18 +139,51 @@ const bubbleOf = (fate: Delivery | undefined): string =>
  * nobody typed (`@olai/surface`'s `UserEntry.rang`, and `./Wake.tsx` for where
  * a person allowed it).
  *
- * FULL WIDTH AND LEFT-ALIGNED, which is the whole of the distinction and is
- * drawn rather than labelled: the right-hand accent bubble means *you said
+ * FULL WIDTH AND LEFT-ALIGNED, which is the first half of the distinction and
+ * is drawn rather than labelled: the right-hand accent bubble means *you said
  * this*, and a plugin's sentence wearing it would put words in a person's
- * mouth. Quiet — the panel's rule for a standing fact rather than an alarm —
- * because nothing is wrong: something happened that somebody asked to be told
- * about.
+ * mouth.
+ *
+ * THE OTHER HALF IS A FACE OF ITS OWN, and it is the half that was missing.
+ * Full width alone was a faint `bg-rule/20` box, which is what the panel puts
+ * under nothing in particular — near enough to the human bubble that a reader
+ * had to READ THE WORDS to find out who had spoken, which is the one question
+ * a row should answer before it is read. So: its own ground, a 3px edge down
+ * the left, and the plugin's own name over the words ({@link ./byline.ts}). A
+ * THIRD face beside the two the panel already has, never a variant of either.
+ *
+ * `pill` for the ground and `ink` for the edge, which is this palette's
+ * vocabulary rather than a colour picked to look different. `pill` is a filled
+ * surface and a lightness step of paper (`../theme/palettes.ts`), so it lifts
+ * off the transcript's `desk` in every theme, light or dark, without borrowing
+ * a status hue; `ink` is the FRAME's own colour, and the frame is exactly what
+ * spoke — the machinery around the conversation rather than either party in
+ * it. Not `accent`: that is the human bubble's, and the whole point is not to
+ * be it. Not `alarm` or `doing` either — nothing is wrong and nothing is in
+ * flight; something happened that somebody asked to be told about. And not the
+ * prototype's violet, tempting as a fourth hue is: a colour outside the table
+ * is a colour ten palettes have no answer for and no contrast test can hold
+ * (`../theme/contrast.test.ts`), which is how a face ends up unreadable on the
+ * one theme nobody tried it in.
+ *
+ * AND IT IS ONE LINE UNTIL SOMEBODY ASKS FOR MORE, which is the other half of
+ * distinct: a face nobody can miss, holding ten lines of terminal ids and
+ * derivation, is a wall in the middle of the conversation — and the reader who
+ * wanted the ids is one press from them. So the row folds to the plugin's own
+ * essence line, with the account behind an expand, exactly as a tool row folds
+ * ({@link ./ToolFrame.tsx}). {@link ./rang.ts} carries that rule and the reason
+ * the seam is the plugin's line rather than a summary composed here — and the
+ * reason the AGENT is not folded to: it is handed the whole body on the wire,
+ * because it needs the ids to act on them.
  *
  * A FATE STILL EDGES IT, off the table above: a delivery that did not land is
- * the same fact about a machine's words as about a person's, and the one
- * difference is the button, which is the row's and not this table's.
+ * the same fact about a machine's words as about a person's, and it takes the
+ * ground over — what became of the words outranks who said them, for as long
+ * as it is true. The BYLINE stays either way, because who spoke is true
+ * whatever happened to it. The one difference from a person's row is the
+ * button, which is the row's and not this table's.
  */
-const RANG = "border border-rule/70 bg-rule/20"
+const RANG = "border-l-[3px] border-ink bg-pill"
 
 /** The edge a machine's sentence takes — its own quiet one, or the fate's,
  *  which is the same table the human bubble reads. Its own function beside
@@ -156,6 +191,32 @@ const RANG = "border border-rule/70 bg-rule/20"
  *  no-fate arm, and a boolean parameter would be two rules in one signature. */
 const rangBubbleOf = (fate: Delivery | undefined): string =>
   fate === undefined ? RANG : FACE[fate].bubble
+
+/**
+ * WHAT THE FOLD HOLDS BACK — a plugin's account, drawn the one way a machine's
+ * words may be drawn.
+ *
+ * Its own component because it is drawn from TWO places and must be the same
+ * paragraph in both: under an opened fold, and on a row that has no fold to
+ * open ({@link ./rang.ts}). Two copies of this markup would be two answers to
+ * "how does a doorbell's body look", free to drift — and the arm that would
+ * drift is the unfoldable one, which is precisely the arm nobody is looking at
+ * while they work on the interesting one.
+ *
+ * QUOTED, NOT RENDERED, and that is the row's oldest rule rather than a
+ * shortcut taken here: the mark that says a plugin said this does not survive a
+ * replay (`@olai/surface`'s `UserEntry.rang`), so a body markdown-rendered only
+ * while the mark is live would come back as raw backticks and bullets the first
+ * time somebody resumed the conversation. Words that must read correctly
+ * unrendered anyway are better rendered once, honestly, than twice, differently
+ * — and the fold changed nothing about that: it changed WHEN these words are on
+ * screen, never what they are.
+ */
+function RangBody(props: { readonly said: string }) {
+  return (
+    <p class="whitespace-pre-wrap" data-testid={TESTID.chatRangBody}>{props.said}</p>
+  )
+}
 
 /** The two shapes a `user` row's column takes. Yours is a bubble as wide as its
  *  words, over on the right; a machine's is the full column, because it is a
@@ -275,6 +336,14 @@ export function Entry(props: {
            * also why nothing here renders it as markdown: a body that reads
            * correctly only when this component draws it would be a body that
            * reads wrongly the moment somebody resumes the conversation.
+           *
+           * WHICH IS ALSO WHERE THE BYLINE COMES FROM. The name over the
+           * words is that same opening line, lifted out of the body and set
+           * as a label ({@link ./byline.ts}) — not a caption composed here
+           * from `rang`, which would be a name that disappears on the replay
+           * and leave the paragraph unsigned in a person's own lane. One
+           * attribution on the row, written by the half that will still be
+           * there tomorrow, drawn twice as loudly while the mark is live.
            */
           const rang = () => user().rang
           return (
@@ -315,17 +384,89 @@ export function Entry(props: {
                   </p>
                 }
               >
-                {(who) => (
-                  <p
-                    class={`w-full whitespace-pre-wrap rounded px-2 py-1.5 text-sm text-ink ${
-                      rangBubbleOf(user().delivery)
-                    }`}
-                    data-testid={TESTID.chatRang}
-                    data-rang-by={who}
-                  >
-                    {user().text}
-                  </p>
-                )}
+                {(who) => {
+                  /** The essence line the plugin put at the top of its own
+                   *  sentence, what is left under it, and whether that rest is
+                   *  on screen ({@link ./rang.ts}, over {@link ./byline.ts}'s
+                   *  split).
+                   *
+                   *  A MEMO, and one that exists only on a machine's row: it
+                   *  is asked inside this arm rather than beside `rang` above
+                   *  for the reason `due` and `declared` are asked off `kind`
+                   *  — a panel of human messages should not each be holding a
+                   *  split of a body that has no byline in it to find. The
+                   *  memo earns its keep twice over now that the fold is in
+                   *  it: {@link ./folds.ts} is ONE signal for every folded
+                   *  thing on screen, so any fold anywhere re-runs this, and
+                   *  the memo is what stops that reaching the paragraph —
+                   *  {@link ./Diff.tsx} holds the same line for the same
+                   *  reason. */
+                  const said = createMemo(() =>
+                    rangRow(user().text, isUnfolded(user().id))
+                  )
+                  return (
+                    <div
+                      class={`w-full rounded py-1.5 pl-3 pr-2 text-sm text-ink ${
+                        rangBubbleOf(user().delivery)
+                      }`}
+                      data-testid={TESTID.chatRang}
+                      data-rang-by={who}
+                      data-unfolded={said().open}
+                    >
+                      {/* WHO SPOKE AND WHAT MOVED, in one line, and it is the
+                          only line until somebody asks for more. A label
+                          rather than a line of the paragraph: small, mono,
+                          uppercase and muted, which is the same chrome the
+                          queued strip and the delivery line are drawn in, so
+                          the panel has one voice for "this is about the
+                          message" and another for the message. The words are
+                          the PLUGIN's, unedited and un-rendered; only their
+                          weight on the page is this component's.
+
+                          A BUTTON, because the line is now the fold's face as
+                          well as the row's name — the tool row's own shape
+                          ({@link ./ToolFrame.tsx}): the whole opening line is
+                          the control, it carries `aria-expanded`, and it is a
+                          real button so it is tabbed to and pressed with a
+                          key. `title` puts the held-back account under the
+                          pointer as well, which is what the ask asked for —
+                          but as a SECOND way in and never the only one, since
+                          a hover is a thing a keyboard and a touchscreen do
+                          not have.
+
+                          A `span`, laid out as a block, rather than the `p`
+                          this used to be: a paragraph is flow content and a
+                          button may hold none, and a browser handed one
+                          closes the button early — which would leave the
+                          fold's own name outside the control that carries
+                          it. */}
+                      <Show
+                        when={said().folds}
+                        fallback={<RangBody said={said().body} />}
+                      >
+                        <button
+                          type="button"
+                          class="mb-0.5 block w-full text-left font-mono text-[0.6875rem] uppercase tracking-wider text-muted hover:text-ink"
+                          data-testid={TESTID.chatRangFold}
+                          aria-expanded={said().open}
+                          title={said().open ? undefined : said().body}
+                          onClick={() => toggleFold(user().id)}
+                        >
+                          <span data-testid={TESTID.chatRangByline}>
+                            {said().byline}
+                          </span>
+                        </button>
+                        {/* NOT `hidden`, but absent: a body kept in the page
+                            and painted away is a body a screen reader still
+                            walks and a scenario still finds, which is the
+                            whole of what the fold was for. */}
+                        <Show when={said().open}>
+                          <RangBody said={said().body} />
+                        </Show>
+                      </Show>
+                    </div>
+                  )
+                }}
               </Show>
             </Show>
             {/* IT DID NOT LAND — and the words are still here, which is the

@@ -84,9 +84,20 @@ import { olai } from "../wire.ts"
 import type { Chat } from "./state.ts"
 import { type Ringer, ringersOf } from "./wake.ts"
 
-/** How many files the list offers at once. The same bound the composer's `@`
- *  list keeps and for its reason: a list longer than a glance is a list nobody
- *  reads to the end, and what narrows it is the box above it. */
+/** How many files the list offers at once — THE FILE LIST'S OWN BOUND, and
+ *  deliberately larger than the composer's. The `@` list caps at eight
+ *  (`../search/nodes.ts`'s `LIMIT`), but those eight are a budget SHARED
+ *  between node rows and file rows: `./naming.ts` does the arithmetic, and a
+ *  file half there is only ever the part of eight the node half left. This
+ *  strip offers files and nothing else, so the same underlying reason — a list
+ *  longer than a glance is a list nobody reads to the end, and what narrows it
+ *  is the box above it — lands on a larger number when the whole glance is one
+ *  kind of row.
+ *
+ *  Not an import of that constant, which would read as tidier and is the wrong
+ *  coupling: the eight moves when the composer's SHARING arithmetic wants it
+ *  to, and a shortlist with no node half to share with would then be resized
+ *  by an argument it is not part of. */
 const LIMIT = 12
 
 /** WHICH conversation a pick belongs to — the pair the verb takes, or nothing,
