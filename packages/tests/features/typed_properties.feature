@@ -209,11 +209,14 @@ Feature: A property key that declares its type
     And "roadmap/board.olai" holds the node "board-lane" with "agent" set to "grok"
     And there should be no page errors
 
-  Scenario: A `path` that points outside this directory draws no door
+  Scenario: A kind a PLUGIN contributed draws no door of the app's own
     # The wrong-door-is-worse-than-no-door rule, now said by the vault rather
-    # than guessed at: `worktree` is declared `path`, which may point anywhere —
-    # at a directory on the machine the orchestrator runs on, say — so a chip
-    # that offered to open it would be offering a page that does not exist.
+    # than guessed at. `worktree` is declared `worktree` — a kind
+    # `@olai/plugin-odu` contributes, not one of the format's seven — so its
+    # value names a checkout on the machine the orchestrator runs on, which is
+    # not one of the four places this app can send anybody. A chip that offered
+    # to open it would be offering a page that does not exist, and the plugin's
+    # own face is what draws such a value.
     Given I open the address "/roadmap/board.olai"
     Then the node "board-lane" shows the property "worktree" holding ".worktrees/board"
     And the property "worktree" on "board-lane" is not a link

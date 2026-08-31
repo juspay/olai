@@ -37,6 +37,7 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { openDirectory } from "../directory.ts"
+import { propKinds } from "../propKinds.ts"
 import { watchFault } from "../fault.ts"
 import { hostname } from "../hostname.ts"
 import { bind, gitWiring, writerAt } from "../runtime.ts"
@@ -91,7 +92,7 @@ interface Face {
 const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
   Effect.gen(function*() {
     const root = served()
-    const { store } = yield* openDirectory(root)
+    const { store } = yield* openDirectory(root, propKinds(null))
     // A real ops layer with commits OFF: this face is about READING, and `off`
     // is the one mode that asks git nothing at all. The edit procedures are
     // bound to it too and this face exposes none of them, so what they cost
@@ -104,13 +105,14 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
       writer: "mcp",
       hostname: hostname(),
       startedAt: "2026-08-29T09:31:00.000Z",
-      // NO PADI. Every runtime in this file is a reader — a bound face, an MCP
-      // route — and none of them is about the terminal door; dialing whatever
-      // daemon happens to be on the machine running the suite would make these
-      // tests depend on it. `null` is the OFF setting, and what it produces is
-      // the same `absent` cell a laptop without kolu has.
-      kolu: null,
-      odu: null,
+      // NO PLUGINS. Every runtime in this file is a reader — a bound face, an
+      // MCP route — and none of them is about a terminal door or a CI chip;
+      // dialing whatever daemons happen to be on the machine running the suite
+      // would make these tests depend on them. `null` is the OFF setting, and
+      // what it produces is a surface with no `surface/<name>/` on it at all:
+      // an empty sibling record composes to no tag, no handler and no expose
+      // row, so olai's own group is byte for byte what it always was.
+      plugins: null,
       git: gitWiring(
         ops,
         fixedPolicy({ commit: "off", push: null }),
@@ -128,7 +130,13 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
 
     const [clientSide, serverSide] = InMemoryTransport.createLinkedPair()
-    yield* serveFace({ client: () => clientOver(wired.bound.handlers), transport: serverSide })
+    yield* serveFace({
+      // The group AND the face, from the one call that composed both: an
+      // exposure describes a group as a set equality, so a gate built from a
+      // second reading of which plugins are on refuses to bind.
+      client: () => clientOver(wired.bound, wired.faces.agent),
+      transport: serverSide,
+    })
 
     const client = new Client({ name: "face.test", version: "0" })
     yield* Effect.promise(() => client.connect(clientSide))

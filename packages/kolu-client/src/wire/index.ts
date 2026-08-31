@@ -88,7 +88,7 @@ export const koluMembers = {
      * `since` meaning "has been like this since" — a re-dial that found the
      * same padi publishes nothing.
      */
-    kolu: {
+    link: {
       schema: KoluLink,
       default: KOLU_UNDIALED,
       verbs: ["get"],

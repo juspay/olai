@@ -66,9 +66,7 @@ import { SHEET, SHELL_LONE, SHELL_SPLIT } from "./layout/sheet.ts"
 import { createRouter, RouterProvider } from "./router.tsx"
 import { runAsync } from "./run.ts"
 import { ServedProvider } from "./served.tsx"
-import { KoluUi } from "@olai/kolu-ui"
-import { RunsProvider } from "./live/odu-ci/index.ts"
-import { createRecencyNow } from "./props/recency.ts"
+import { PluginsMounted } from "./plugins/Mounted.tsx"
 import { Preferences } from "./settings/Preferences.tsx"
 import { Sidebar } from "./Sidebar.tsx"
 import { TodayProvider } from "./today.tsx"
@@ -316,29 +314,26 @@ export default function App() {
       <AirProvider value={air}>
       <OpensProvider opens={(path, at) => opensAt(directory.paths(), path, at)}>
       <ServedProvider paths={directory.paths()} head={directory.head}>
-      {/* THE FLEET, subscribed ONCE for the tab — the terminal door's rung 1
-          (`./props/fleet.tsx`). It sits here, inside the served provider and
-          around the page, for the same reason that one does: its reader is a
-          LEAF DRAWN PER ROW (a property chip), and a subscription per chip is
-          what this arrangement exists to refuse. `read` is the snapshot verb,
-          bound to the surface procedure once and reached through the context
-          rather than threaded through five component signatures. */}
-      {/* THE BROWSER'S KOLU HALF, mounted whole — `./props/KoluUi.tsx`.
-          It used to be four kolu-named surface members bound by hand right
-          here, with a paragraph explaining a pane's re-attach semantics to a
-          reader of the app's composition root. Which members exist and how
-          they are bound is the appliance's business now; what the app supplies
-          is the composed client and a clock, because the wire is the app's to
-          compose and the cadence is the app's to choose. */}
-      <KoluUi client={olai} now={createRecencyNow()}>
-      {/* THE TAB'S CI HALF, one subscription, around the page — the
-          live-properties seam's SECOND tenant (`./ci/runs.tsx`). It sits
-          exactly where the fleet does and for exactly the same reason: its
-          reader is a leaf drawn per row (a `worktree` chip), and a
-          subscription per chip is what this arrangement exists to refuse.
-          Unlike the kolu half it needs no socket of its own and no clock from
-          here — a cell, and the chips that tick bring their own. */}
-      <RunsProvider runs={olai.cells.ci.use().value}>
+      {/* EVERY PLUGIN'S TAB HALF, around the page — one line, and this file
+          names no tenant (`./plugins/Mounted.tsx`).
+
+          It used to be two providers here, each with a paragraph explaining an
+          appliance to a reader of the app's composition root, and each holding
+          one of that appliance's own surface members: a kolu half bound to the
+          composed client, and a CI half bound to `cells.ci`. Both sat where
+          they did for one reason and it is still the reason each of them sits
+          inside its own package now — its reader is a LEAF DRAWN PER ROW (a
+          property chip), and a subscription per chip is what this arrangement
+          exists to refuse, so a plugin subscribes ONCE, here, and hands every
+          leaf an accessor.
+
+          What the app supplies is the plugin's own client, addressed by the
+          one word core has about it, and the app's own FURNITURE — the clock,
+          the bar's geometry, the popover, a door onto a file — because the
+          wire is the app's to compose and the cadence is the app's to choose.
+          Which members exist and how they are bound is each appliance's
+          business, and this file no longer contains a word of it. */}
+      <PluginsMounted>
       {/* ABOVE THE CHAT PANEL, not only around the page: today is a fact about
           the TAB (`./clock.ts`), and the panel reads it too — the `@` list's
           node half is matched by the format's own grammar, whose relative words
@@ -461,8 +456,7 @@ export default function App() {
         </div>
       </div>
       </TodayProvider>
-      </RunsProvider>
-      </KoluUi>
+      </PluginsMounted>
       </ServedProvider>
       </OpensProvider>
       </AirProvider>

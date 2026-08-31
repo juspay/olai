@@ -20,12 +20,13 @@
 
 import { DEFAULT_IDENTITY_CONFIG, DEFAULT_IDENTITY_HEADERS } from "@olai/identity"
 import {
-  codec,
+  codecFor,
   fixedPolicy,
   make as makeOps,
   type Store as OutlineStore,
   TOOLS,
 } from "@olai/ops"
+import { NO_KINDS } from "@olai/format"
 import * as Store from "@olai/store"
 import { expect, test } from "bun:test"
 import { Effect, Option, SubscriptionRef } from "effect"
@@ -42,6 +43,11 @@ import { bind, gitWiring, writerAt } from "../runtime.ts"
 import { clientOver, serveFace } from "./face.ts"
 import { currentLogin, fromLoopback, MCP_PATH, mcpAllowed, mcpTransport } from "./route.ts"
 import { bespokeFrom } from "./tools.ts"
+
+/** The codec this suite validates through — the vocabulary of a build that
+ *  composed no plugin, which is what these fixtures declare nothing about
+ *  (`@olai/ops`' `codecFor`, and `@olai/format`'s `NO_KINDS`). */
+const codec = codecFor(NO_KINDS)
 
 const HOUSE = `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}\n`
 
@@ -81,13 +87,14 @@ const withRoute = <A>(
       writer: "mcp",
       hostname: hostname(),
       startedAt: "2026-08-29T09:31:00.000Z",
-      // NO PADI. Every runtime in this file is a reader — a bound face, an MCP
-      // route — and none of them is about the terminal door; dialing whatever
-      // daemon happens to be on the machine running the suite would make these
-      // tests depend on it. `null` is the OFF setting, and what it produces is
-      // the same `absent` cell a laptop without kolu has.
-      kolu: null,
-      odu: null,
+      // NO PLUGINS. Every runtime in this file is a reader — a bound face, an
+      // MCP route — and none of them is about a terminal door or a CI chip;
+      // dialing whatever daemons happen to be on the machine running the suite
+      // would make these tests depend on them. `null` is the OFF setting, and
+      // what it produces is a surface with no `surface/<name>/` on it at all:
+      // an empty sibling record composes to no tag, no handler and no expose
+      // row, so olai's own group is byte for byte what it always was.
+      plugins: null,
       git: gitWiring(
         ops,
         fixedPolicy({ commit: "off", push: null }),
@@ -99,7 +106,11 @@ const withRoute = <A>(
 
     const transport = mcpTransport()
     yield* serveFace({
-      client: () => clientOver(writerAt(wired.bound, ops, "mcp")),
+      client: () =>
+        clientOver(
+          { group: wired.bound.group, handlers: writerAt(wired.bound, ops, "mcp") },
+          wired.faces.agent,
+        ),
       tools: bespokeFrom(TOOLS, {
         login: currentLogin,
         root,
@@ -116,6 +127,7 @@ const withRoute = <A>(
     // to present a valid one could not get it.
     const base = yield* Effect.orDie(listen({
       bound: wired.bound,
+      expose: wired.faces.browser,
       clientDist: root,
       root,
       hostname: hostname(),

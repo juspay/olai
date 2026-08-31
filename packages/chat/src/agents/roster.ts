@@ -55,8 +55,9 @@
  *     exists because olai's PATH is not your shell's: run as a systemd user
  *     service (the home-manager unit) it inherits neither your profile nor your
  *     login shell, so an `opencode` you can run in a terminal is not
- *     necessarily one this process can see — the same trap `kolu` detection
- *     already documents from the other side ({@link ../kolu.ts}). Set, it
+ *     necessarily one this process can see — the same trap an optional
+ *     server's probe documents from the other side ({@link ../probes.ts}, and
+ *     the plugin whose probe it is). Set, it
  *     REPLACES the search path rather than adding to it, so it can also say
  *     "look nowhere": the empty string finds no agent, which is what the e2e
  *     suite spawns a server with when a scenario is not about the roster.

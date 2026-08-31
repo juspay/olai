@@ -344,7 +344,7 @@ const WS_PATH = "/rpc/ws"
 /**
  * A real olai server, and a real websocket dialled at it the way a tab does.
  *
- * The whole stack: `serve` binds the listener, which is where `BROWSER_FACE` is
+ * The whole stack: `serve` binds the listener, which is where the browser face is
  * applied, and `createSurfaceSocket` is the same dial `@olai/web` makes — `ws`
  * standing in for the browser's `WebSocket`, which is the only substitution.
  * So what is under test is the gate as DEPLOYED, not a map compared with

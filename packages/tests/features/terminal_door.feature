@@ -43,6 +43,25 @@ Feature: The `terminal` property is a DOOR
     And there should be no page errors
 
   @scratch:lanes @padi:lanes
+  Scenario: The DECLARATION opens the door, and the key's name opens nothing
+    # What licenses this face is one row in `_olai/Properties.olai` saying which
+    # of your columns holds a terminal — never the fact that a column happens to
+    # be spelled `terminal`. The board here calls its column `pty` and declares
+    # it, so it wears kolu's row like any other; the column beside it holds a
+    # terminal id that is really in the fleet and is declared nothing, so it is
+    # the text somebody wrote and no more.
+    #
+    # This is the half that could not be drawn at all until the page began
+    # carrying the licence per value. The server followed the declared KIND and
+    # the tab followed the key, so the two agreed only for a vault that named its
+    # column after the kind — and this fixture's `pty` row was walked, probed and
+    # gated while drawing nothing.
+    Given I open the outline "lanes.olai"
+    Then the terminal row on "named-implement" is working
+    And "named-review" wears no terminal door at all
+    And there should be no page errors
+
+  @scratch:lanes @padi:lanes
   Scenario: A terminal the fleet no longer holds says so, and is not drawn as idle
     # The property is still a true record of where the work happened. A gray
     # live row would claim the terminal is sitting there doing nothing, which is a
@@ -53,6 +72,50 @@ Feature: The `terminal` property is a DOOR
     And I show the done nodes
     Then the terminal on "old-implement" has no row
     And the terminal on "old-implement" says "no longer in the fleet"
+    And there should be no page errors
+
+  @scratch:lanes @padi:lanes
+  Scenario: An enabled plugin declares its own key — nothing to edit, nothing written
+    # THE DEFAULT, and the whole of it: `kolu-terminal` is the key kolu claims by
+    # convention, so a lane carrying one wears the door with NO row in
+    # `_olai/Properties.olai` about it — and olai wrote nothing to this vault to
+    # make that true.
+    #
+    # The name carries `kolu-` on purpose, and the second assertion is why: a
+    # column somebody calls `terminal-of-mine` is theirs, holding a real fleet id,
+    # and turning a plugin on may not reinterpret it. A plugin can only ever
+    # auto-declare a key carrying its own name.
+    Given I open the outline "lanes.olai"
+    Then the terminal row on "claimed-implement" is working
+    And "claimed-mine" wears no terminal door at all
+    And there should be no page errors
+
+  @scratch:lanes @padi:lanes @plugins:odu
+  Scenario: A serve that did not compose kolu is the machine that never had it
+    # THE DISABLED STATE, and it is not the same picture as the one below. There
+    # a padi is missing and the page says so, which is news. Here an operator
+    # ran `--plugins=odu`, and a page that complained about a daemon somebody
+    # deliberately turned off would be reporting on a decision rather than on a
+    # fact. So: no door, no pill, and nothing amber.
+    #
+    # The padi in this scenario is REAL and RUNNING — the `@padi:` tag beside
+    # the `@plugins:` one is deliberate. What is absent is absent because the
+    # SERVE did not compose the plugin, not because there was nothing to reach.
+    #
+    # `the connection is "live"` is the assertion the whole thing turns on. A
+    # tab registers what the BUILD has, so it would subscribe kolu's five
+    # members over a wire that carries none of them — and an unknown tag is a
+    # TERMINAL failure, so the readout would sit at `degraded` naming
+    # `kolu/link` for the life of the page. Nothing subscribes until the roster
+    # says the plugin is on (`web/src/client/plugins/Mounted.tsx`), and this is
+    # what says so.
+    Given I open the outline "lanes.olai"
+    Then "door-implement" wears no terminal door at all
+    And the padi indicator is not drawn at all
+    And the connection is "live"
+    # ...and the vault is untouched underneath: the value is still on the row,
+    # still greppable, drawn as the text it always was.
+    And the terminal on "door-implement" shows no door but keeps its value
     And there should be no page errors
 
   @scratch:lanes

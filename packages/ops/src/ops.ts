@@ -33,6 +33,8 @@ import {
   type DatedRequest,
   type HomesAnswer,
   type HomesRequest,
+  type KindVocabulary,
+  NO_KINDS,
   type MovingAnswer,
   type MovingRequest,
   type NamedAnswer,
@@ -106,6 +108,22 @@ export interface Options {
    *  instant a mark is stamped with are the only two things about an op that
    *  are not a function of the snapshot. */
   readonly context?: Context
+  /**
+   * WHICH PROPERTY KINDS A PLUGIN TAUGHT THIS VAULT, and which of them this
+   * serve is answering for — `@olai/format`'s `KindVocabulary`, handed down
+   * as data.
+   *
+   * It is an OPTION rather than an import for the reason every plugin fact in
+   * this layer is: `@olai/ops` names no plugin, the registry that knows them
+   * is above, and what crosses is a table. Both halves of it are spent here —
+   * the BUILT one refuses a declaration naming no word this binary knows, and
+   * the ENABLED one holds a value to a kind somebody is actually answering for
+   * ({@link @olai/format}'s `typing.ts`).
+   *
+   * Absent is `NO_KINDS`, which is not a fallback but the serve `--plugins=`
+   * composes and the state every test in this package is in.
+   */
+  readonly kinds?: KindVocabulary
   /**
    * Told about every write this layer REFUSED.
    *
@@ -443,6 +461,7 @@ const aboutFiles = (findings: ReadonlyArray<OutlineError>): ReadonlyArray<string
   ].sort(byPath)
 
 export const make = (options: Options): Ops => {
+  const kinds = options.kinds ?? NO_KINDS
   const context: Context = options.context ?? {
     mint: () => Math.random().toString(36).slice(2, 10),
     // The clock, read through the format's own minting: a mark is stamped with
@@ -484,7 +503,7 @@ export const make = (options: Options): Ops => {
    * directories builds two without saying so, and a test that builds an `Ops`
    * gets the shared path rather than a path only production takes.
    */
-  const views = standing(context.now)
+  const views = standing(context.now, kinds)
 
   const commits = makeCommits({
     store: options.store,
@@ -588,7 +607,7 @@ export const make = (options: Options): Ops => {
           })
         }
 
-        const planned = plan(scoping(snapshot.value, context), request)
+        const planned = plan(scoping(snapshot.value, context, kinds), request)
         if (Result.isFailure(planned)) {
           /**
            * THE SAME REFUSAL, ONE DOOR EARLIER. Since brokenness is per
@@ -803,7 +822,7 @@ export const make = (options: Options): Ops => {
     // each envelope ({@link ./tools.ts}'s `asking`), so the answer an agent
     // gets through a surface procedure and the answer a local tool call gets
     // are the same statement rather than two that agree.
-    ...asking(read, context.now, index),
+    ...asking(read, context.now, kinds, index),
     // The BROWSER's half of the same matcher, over the same gated read — and
     // over the WHOLE reading rather than the derivation alone, for `page`'s
     // reason: what a query selects is asked of one page, and which page an

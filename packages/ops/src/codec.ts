@@ -20,6 +20,7 @@ import {
   bodyKind,
   type Document,
   fileKind,
+  type KindVocabulary,
   nodesIn,
   parseOutline,
   type Reading,
@@ -32,7 +33,26 @@ import {
 import type { Codec } from "@olai/store"
 import { Result } from "effect"
 
-export const codec: Codec<Document, Reading, Verdict> = {
+/**
+ * THE CODEC THIS SERVE VALIDATES WITH — a function of the plugin vocabulary,
+ * where it used to be one value.
+ *
+ * A FUNCTION AND NOT A CONST, because a contributed kind is a fact about the
+ * BUILD and the FLAG rather than about the format: which words beyond the
+ * format's seven a declaration may name, and which of them hold a value to
+ * anything, is what `@olai/plugins` composes and what `--plugins` narrows
+ * (`@olai/format`'s `KindVocabulary`). It arrives here because this is the one
+ * place the store's judgement meets the format's, and it goes no further than
+ * the `validate` call below.
+ *
+ * A MODULE-LEVEL DEFAULT WAS THE ALTERNATIVE AND IS WHY THIS TAKES AN
+ * ARGUMENT: a `codec` const with an empty vocabulary would have kept every
+ * existing call site unchanged and made the composition root's forgetting
+ * SILENT — a serve running kolu, validating every vault as though it had never
+ * heard of a terminal, with nothing red anywhere. There is no such value to
+ * reach for now, so the root has to answer.
+ */
+export const codecFor = (kinds: KindVocabulary): Codec<Document, Reading, Verdict> => ({
   match: (path) => fileKind(path) !== null,
 
   /** A file whose content the set does not KEEP decodes to its path and
@@ -121,6 +141,7 @@ export const codec: Codec<Document, Reading, Verdict> = {
           removes: since.removed,
         },
       },
+      kinds,
     ),
 
   /** The store's own failure — the directory would not be listed, a file would
@@ -197,4 +218,4 @@ export const codec: Codec<Document, Reading, Verdict> = {
     Result.isFailure(outcome)
       ? outcome.failure
       : stopping(outcome.success.set, paths, standing.set),
-}
+})

@@ -52,7 +52,7 @@ describe("which permissions are answered without asking", () => {
     // such a wire: its own settings govern its tools, not an answering
     // request on ACP, so the refusal answer stands where it stood — the
     // claim is the refusal, not the shape the tool reached pi by.
-    expect(allowedWithoutAsking("olai_set_done", ["olai", "kolu"], []))
+    expect(allowedWithoutAsking("olai_set_done", ["olai", "alpha"], []))
       .toBeNull()
     expect(allowedWithoutAsking("mcp__olai__set_done", ["olai"], [])).toBeNull()
     // A call nobody named.

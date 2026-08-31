@@ -56,14 +56,18 @@
  *     crosses.
  *
  * What is left outside them is not kolu implementation but olai's own
- * judgement ABOUT kolu, and it is worth naming so the distinction survives:
- * `@olai/server`'s `claimants.ts` walks the vault for who OWNS a terminal
- * (outline records, injected into the dial rather than known by it);
- * `@olai/chat`'s `kolu.ts` decides what an absent kolu MEANS, in five English
- * sentences only chat can write, over the probe it reaches through
- * `@olai/kolu-client/detect`; `@olai/web` owns the pill, the block table and
- * the cadence. None of those import kolu, and `scripts/check-kolu-deps.sh`'s
- * fourth assertion is what makes that a fact rather than a habit.
+ * judgement ABOUT kolu, and it has a package of its own now:
+ * `@olai/plugin-kolu`. It walks the vault for who OWNS a terminal
+ * (`claimants.ts` — outline records, injected into the dial rather than known
+ * by it) and for what `_olai/Kolu.olai` says (`config.ts`); it decides what an
+ * absent kolu MEANS, in five English sentences, over the probe it reaches
+ * through `@olai/kolu-client/detect` (`probe.ts`, which was `@olai/chat`'s
+ * until the plugin wall went up); and it owns the padi pill and the feed its
+ * press opens. Every one of those used to sit in a general package under a
+ * kolu-shaped filename, and none of them names a `@kolu/*` package —
+ * everything reaches kolu through this one and `@olai/kolu-ui`, which is what
+ * `scripts/check-kolu-deps.sh`'s fourth assertion holds as a fact rather than
+ * a habit.
  */
 
 import { type Accessor, createContext, createMemo, type JSX, useContext } from "solid-js"
@@ -79,9 +83,9 @@ import type {
   Snapshot,
   TerminalFrame,
   WatchPulse,
-} from "@olai/surface"
+} from "@olai/kolu-client/wire"
 import { after, type Held, seeded } from "./held.ts"
-import { KOLU_UNDIALED, NO_MUTES, SnapshotRefused } from "@olai/surface"
+import { KOLU_UNDIALED, NO_MUTES, SnapshotRefused } from "@olai/kolu-client/wire"
 
 /** Take a snapshot of one terminal. The answer is the text or the refusal —
  *  never a throw, because both are things the pane draws. */
@@ -101,11 +105,12 @@ export type WatchTerminal = (
 export interface Fleet {
   readonly link: Accessor<KoluLink>
   /** THE PILL'S LIVENESS READ — the beat, or `undefined` while the wire
-   *  has not arrived, or `null` until the watcher has stamped once (see
-   *  `@olai/surface`'s `pulse` cell). */
+   *  has not arrived, or `null` until the watcher has stamped once (the
+   *  surface's `pulse` cell, mounted at
+   *  `packages/plugin-kolu/src/wire.ts`). */
   readonly pulse: Accessor<WatchPulse | null | undefined>
-  /** THE DRAWER'S FOOT — who is silenced, and which file says so
-   *  (`@olai/surface`'s `mutes` cell). Wire-truth: the vault walk's
+  /** THE DRAWER'S FOOT — who is silenced, and which file says so (the
+   *  surface's `mutes` cell). Wire-truth: the vault walk's
    *  display half, live as the file is edited. The empty reading is the
    *  defaults': no file, nobody named. */
   readonly mutes: Accessor<KoluMutes>
@@ -155,11 +160,11 @@ const FleetContext = createContext<Fleet>()
  */
 export interface FleetSources {
   readonly link: Accessor<KoluLink | undefined>
-  /** The wire's `pulse` cell's value — the watcher's last stamp, so the
-   *  pill can read liveness on its own cadence. */
+  /** The wire's `pulse` cell's value — the watcher's last
+   *  stamp, so the pill can read liveness on its own cadence. */
   readonly pulse: Accessor<WatchPulse | null | undefined>
-  /** The wire's `mutes` cell's value — the vault walk's display half,
-   *  re-answered on every revision. */
+  /** The wire's `mutes` cell's value — the vault walk's
+   *  display half, re-answered on every revision. */
   readonly mutes: Accessor<KoluMutes | undefined>
   readonly fold: CollectionFold<string, FleetTerminal>
   /** THE LOG the server is keeping — the events collection's fold, fed by the

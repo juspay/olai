@@ -101,41 +101,59 @@ import type {
 import {
   type Applied,
   CHAT_OFF,
-  type FleetTerminal,
-  KOLU_UNDIALED,
-  type KoluLink,
   type ChatState,
   type Edit,
   GIT_OFF,
   type GitState,
   LOADED,
   type Manifest,
+  NO_ROSTER,
   type OpFailure,
+  type PluginRoster,
   surface,
-  SnapshotRefused,
   type Who,
 } from "@olai/surface"
-import { customText, isRegular, type Located, UsageFailure } from "@olai/format"
-import { surfaceTag } from "@kolu/surface/define"
+import { customText, isRegular, type Located, type Reading, UsageFailure } from "@olai/format"
+import type { Snapshot } from "@olai/store"
+import { mergeDisjointGroups, surfaceTag } from "@kolu/surface/define"
 import {
+  assertHandlersMatchGroup,
   emptyHandlers,
   type ImplementSurfaceDeps,
   implementSurface,
+  implementSurfaces,
   inMemoryChannel,
   inMemoryStore,
   type SurfaceHandler,
   type SurfaceHandlers,
+  type SurfaceMap,
+  superviseTerminalSource,
   type SurfaceRuntime,
 } from "@kolu/surface/server"
 import { Duration, Effect, Result, type Scope, Stream, SubscriptionRef } from "effect"
 
 import { cadence } from "@olai/chat"
-import { type Dial, koluHalf, type KoluHalf, SEED } from "@olai/kolu-client"
-import { type DialRun, oduHalf } from "@olai/odu-client"
-
-import { claimantsIn } from "./claimants.ts"
-import { worktreesIn } from "./worktrees.ts"
-import { koluFileIn, watchConfigIn } from "./koluConfig.ts"
+/**
+ * THE ONLY PLACE THIS FILE MEETS AN APPLIANCE, and it meets none of them by
+ * name. What arrives is a LIST — every plugin this binary was built with, each
+ * carrying a sibling key, a whole surface of its own and a server half. Fusing
+ * that bundle onto olai's own surface is the FRAMEWORK's, not this package's:
+ * `mergeDisjointGroups` is the counted merge and it lives one import up.
+ *
+ * `@olai/plugins/server` and not `@olai/plugins`: the manifests carry a
+ * plugin's CHROME and its DRESSINGS, which are SolidJS components and, behind
+ * one of them, a terminal emulator — and this process renders nothing. The
+ * three doors are three graphs; `@olai/plugins`' own manifest argues it and
+ * its `fence.test.ts` walks each closure rather than trusting the argument.
+ */
+import {
+  type PluginServer,
+  type PluginServerHalf,
+  type PluginServices,
+  enabled,
+  SERVERS,
+} from "@olai/plugins/server"
+import { isEnabled, PLUGIN_NAMES, surfacesOf } from "@olai/plugins/wire"
 
 import type { Cadence, Change, Chat } from "@olai/chat"
 import { type Emit, emitter } from "@olai/log"
@@ -148,12 +166,42 @@ import {
   type Published,
   publishedOf,
 } from "./published.ts"
+import { facesOf } from "./faces.ts"
 import { CurrentWho } from "./identity.ts"
 import { readFailed } from "./report.ts"
 
-/** What a transport needs, and nothing else. `ctx` is the write face, which
- *  belongs to the bindings below rather than to whoever serves them. */
+/**
+ * What a transport needs, and nothing else. `ctx` is the write face, which
+ * belongs to the bindings below rather than to whoever serves them.
+ *
+ * Still named off olai's OWN surface, and that stays exactly true of the two
+ * fields a transport reads: `group` and `handlers` are erased of the spec
+ * (`SurfaceRuntimeHandle` types them as a flat `RpcGroup` and a tag-keyed
+ * record), so the fused pair {@link bind} returns is the same shape whether or
+ * not a plugin contributed a tag to it. What the annotation is worth is the
+ * lifetime pair beside them, which is olai's runtime's — see the supervision
+ * paragraph on the return.
+ */
 export type Bound = Omit<SurfaceRuntime<typeof surface.spec>, "ctx">
+
+/**
+ * ONE PUBLISHED REVISION, as a plugin's server half is handed it — the store's
+ * own snapshot, whole.
+ *
+ * Named here because this is where the two vocabularies meet: `@olai/plugins`
+ * types its revision hook PARAMETRICALLY and never names a vault record (its
+ * manifest declines `@olai/format` on purpose — the format is downstairs, and a
+ * floor package that imported it would be the plugin interface learning what an
+ * outline is), so the concrete reading is pinned at the composition root, which
+ * is the only place it exists.
+ *
+ * THE RICHER of what the tenants ask for, deliberately: each narrows it in its
+ * own signature to the part it reads, which is a claim the compiler checks —
+ * and the annotation on {@link bind}'s plugin list is what proves every built
+ * plugin can be driven by this reading, so a plugin that asked for something the
+ * store does not publish fails here, naming the list.
+ */
+type VaultRevision = Snapshot<Reading>
 
 /** How often the two git cells are recomputed with nothing having asked. Same
  *  argument as the store's backstop: a watcher is a latency optimisation and
@@ -203,49 +251,97 @@ export interface Wiring {
   readonly startedAt: string
   readonly store: Store
   /**
-   * THE PADI LINK, or `null` for a runtime that is not to have one.
+   * THE PLUGINS, all of them, or `null` for a runtime that is to have none.
    *
-   * A whole half of this interface for two fields, and both are here for the
-   * reason every other seam here is handed in rather than read: `env` is what
-   * `$PADI_SOCKET` is read out of, and `now` is the clock `since` is stamped
-   * from — a test that asserts either needs to own it, and a composition root
-   * is where a process reaches for the real one.
+   * ## One field where there were two named ones
    *
-   * `null` is the OFF setting and it is what `olai surface` and the headless
-   * faces take: a one-shot CLI read has no use for a standing socket to
-   * somebody's daemon, and dialing one would be a process that touched kolu on
-   * its way to printing a node. The cell stays at its seed, which is `absent`,
-   * and every chip goes hollow — which is the true answer for that process.
+   * This slot held ONE NAMED FIELD PER APPLIANCE — an environment, a clock and
+   * an injectable dial; an environment, the served directory and an injectable
+   * dial. Two records with the nouns changed, on the interface of the package
+   * that must not know either noun, and each of them the reason an
+   * appliance-named constructor was called forty lines further down. What both
+   * were actually asking for is one list — what the process can see, what time
+   * it is, which directory this is about, and a seam for a test — so that is
+   * the list, and a third plugin is composed without a line of it moving. Each
+   * half is assembled where the judgement about it lives, which is that
+   * plugin's own `./server` door, and what this file does with the result is
+   * ITERATE.
+   *
+   * ## What `null` means, which is stronger than what it used to
+   *
+   * `null` is the OFF setting and it is what `olai surface`, the headless
+   * faces and every test in this package take: a one-shot CLI read has no use
+   * for a standing socket to somebody's daemon, and dialing one would be a
+   * process that touched an appliance on its way to printing a node.
+   *
+   * What it composes to is NOTHING — an empty sibling record, so
+   * `implementSurfaces` mints no tag, no handler and no expose row, and the
+   * wire carries no `surface/<name>/` at all. That is a change from what the
+   * two named slots meant: they made every contributed member PRESENT and
+   * hollow — a cell at its seed, an empty collection, a read that refused in
+   * words — which is one code path for "this laptop is not running the tool"
+   * and "this process has no business dialing", and was the right answer while
+   * those members were part of core's own spec. They are a sibling surface
+   * now, and absence is the sharper of the two answers: a member that is not
+   * there cannot be read as a member that is there and empty, and the
+   * framework's composition expresses it for free (`@olai/plugins`'
+   * `composition.test.ts`). A machine that simply is not running the tool still gets
+   * the hollow arm, because that is what the appliance's own half answers when
+   * its dial finds nothing.
+   *
+   * A FILTER over the built-in set — the `--plugins` flag `@olai/plugins`'
+   * `enabled` is written for — is the same shape one step in, and is
+   * deliberately not invented here: it filters the record this field turns
+   * into, and there is nowhere on this interface for it to be a second
+   * mechanism.
    */
-  readonly kolu: {
+  readonly plugins: {
+    /** WHAT THE PROCESS CAN SEE — the variables an appliance's rendezvous is
+     *  decided from, whichever they are. Handed in rather than read for the
+     *  reason every other seam here is: a test that asserts a rendezvous has
+     *  to own it, and a composition root is where a process reaches for the
+     *  real environment. */
     readonly env: Record<string, string | undefined>
+    /** THE CLOCK, as ISO-8601 — what a plugin stamps a "since" from, so a test
+     *  that asserts "connected · just now" owns the instant it rendered from.
+     *  Deliberately not {@link Wiring.startedAt}'s twin: that one is a single
+     *  mint for the whole serve, and this is read per stamp. */
     readonly now: () => string
-    /** The dial, injectable for `/orchestrator`'s reason: a fake padi in
-     *  a test, and a countable one for the one-connection claim. */
-    readonly dial?: Dial
-  } | null
-  /**
-   * THE CI PROBE, or `null` for a runtime that is not to have one.
-   *
-   * `wiring.kolu`'s half, one appliance over, and `null` means the same thing
-   * for the same reason: a one-shot CLI read and the agent's face have no
-   * business dialing unix sockets in other people's checkouts on their way to
-   * printing a node, so the `ci` cell stays at `NO_RUNS` and every chip draws
-   * nothing — which is the true answer for those processes and is also the
-   * answer on a machine that simply has no CI running.
-   *
-   * `served` is the directory this runtime SERVES, and it is here rather than
-   * read from the store because it is half of where a relative `worktree`
-   * resolves to (`@olai/odu-client`'s `resolve.ts`, which argues the whole
-   * rule and is the named gap this phase was asked to design).
-   */
-  readonly odu: {
-    readonly env: Record<string, string | undefined>
+    /** THE DIRECTORY THIS RUNTIME SERVES. Here rather than read from the store
+     *  because it is half of where a relative path in a property resolves to —
+     *  the whole rule is argued in the appliance package that resolves one —
+     *  and because it is a fact about the SERVE rather than about any one
+     *  revision. */
     readonly served: string
-    /** The dial, injectable for `Dial`'s reason one field up: a fake
-     *  coordinator on a real unix socket is how the watch is exercised
-     *  without a CI run on the machine running the suite. */
-    readonly dial?: DialRun
+    /**
+     * THE TEST SEAM — one injectable per plugin, keyed by the plugin's name.
+     *
+     * A fake daemon in a test, standing on a real unix socket: the thing a
+     * scenario puts up so the suite does not depend on whichever daemons
+     * happen to be running on the machine. Keyed and OPAQUE, which is
+     * the whole of what core can honestly say about it — typing a plugin's own
+     * double would mean knowing what that plugin talks to, and each narrows
+     * its own at its own edge.
+     *
+     * A name with no entry gets none, which is the ordinary case: a real serve
+     * passes nothing here at all.
+     */
+    readonly dials?: Readonly<Record<string, unknown>>
+    /**
+     * WHICH of the built-in plugins this serve runs — `null` for nobody
+     * having said, which means all of them (`../pluginPolicy.ts`).
+     *
+     * A list rather than a flag per plugin, and `null` rather than the full
+     * list, for the reason the git pin keeps the same distinction one setting
+     * over: a browser draws the row read-only and has to say whether a person
+     * TYPED this policy or got the built-in default, and a value that had
+     * already expanded could not tell those apart.
+     *
+     * What a name left out of it comes to is total absence — no sibling
+     * composed, no tag served, no expose row granted — which is the state this
+     * runtime has always had for an appliance it could not reach.
+     */
+    readonly names?: ReadonlyArray<string> | null
   } | null
   /** Absent when no ACP agent is configured: the cell stays `off` and the
    *  procedures answer that they are. A directory is readable whether or not
@@ -374,6 +470,46 @@ const writing = (ops: Ops, writer: Writer) => ({
   git: { commit: (request: CommitRequest) => ops.commit(request, writer) },
 })
 
+/**
+ * WHICH PLUGINS THIS BUILD HAS AND WHICH THIS SERVE RUNS, as the one value a
+ * browser draws its read-only rows off ({@link Wiring.plugins} in, the
+ * `plugins` cell out).
+ *
+ * NOT READ OFF WHAT WAS COMPOSED, and that is the whole feature rather than a
+ * shortcut taken here: a composed list is the plugins that are ON, and the
+ * preferences panel draws a row per plugin the BUILD has and says of each
+ * whether it runs. A plugin left out is absent from every structure this
+ * runtime holds — that is what `--plugins` means — so the row that says so has
+ * to come from the registry. `PLUGIN_NAMES` is that list and `isEnabled` is the
+ * same question `enabled` answers as a filter, asked about one name
+ * (`@olai/plugins`' `surfaces.ts`).
+ *
+ * `pinned` TRAVELS UNEXPANDED — `null` for a flag nobody gave, which means all
+ * of them — because the line under the row names a given flag and otherwise
+ * says the built-in default, and a value that had already expanded could not
+ * tell those two apart. The git pin keeps the same distinction one setting
+ * over, and `./pluginPolicy.ts` argues it where the flag is read.
+ *
+ * NO PLUGIN SLOT ANSWERS {@link NO_ROSTER}: such a runtime composes no sibling
+ * surface at all — `olai surface`, the headless faces, every test in this
+ * package — so there is nothing for a roster to be about. Listing the build's
+ * plugins as `running: false` there would be this file inventing a policy
+ * nobody set, and asserting it is why this reading is exported rather than
+ * inlined at its one call site.
+ *
+ * Through `@olai/plugins/wire` and not the root, for the reason the import at
+ * the top of this file gives: the manifests carry SolidJS components, and this
+ * process renders nothing.
+ */
+export const rosterOf = (offered: Wiring["plugins"]): PluginRoster =>
+  offered === null ? NO_ROSTER : {
+    built: PLUGIN_NAMES.map((name) => ({
+      name,
+      running: isEnabled(offered.names ?? null, name),
+    })),
+    pinned: offered.names ?? null,
+  }
+
 /** One of those, as `implementSurface` wants it. A bound member is called with
  *  the bare input (`bind(ns, verb, (input) => handler({ input, ctx }))`), and
  *  the declaration below is called with `{ input, ctx }` — so the two shapes
@@ -422,7 +558,22 @@ export const writerAt = (
 export const bind = (
   wiring: Wiring,
 ): Effect.Effect<
-  { readonly bound: Bound; readonly publish: Publishers },
+  {
+    readonly bound: Bound
+    readonly publish: Publishers
+    /**
+     * THE TWO WIRE FACES, over exactly the surface this call composed.
+     *
+     * They come back from HERE rather than being read off `./faces.ts` at each
+     * serving site, and the reason is a boot crash rather than a convenience:
+     * `restrictHandlers` demands an exposure's universe EQUAL the served
+     * group's tags, so a face built from a different reading of "which plugins
+     * are on" refuses to bind, naming every tag it cannot account for. One
+     * reading, one group, one face — the equality is then a proof rather than a
+     * thing to keep true.
+     */
+    readonly faces: ReturnType<typeof facesOf>
+  },
   never,
   Scope.Scope
 > =>
@@ -672,6 +823,13 @@ export const bind = (
      * from. One carrier over one of the two lists would be one of the two
      * readings quietly answering about the other.
      *
+     * A THIRD carrier stood here, for a file a PLUGIN owns by convention. It
+     * is gone from this file and not from the product: which basename a plugin
+     * claims is the plugin's, so the carry runs inside the plugin that owns it,
+     * on the same `conventionServed` this file uses for its own two. A general
+     * package holding one appliance's convention was the residue the plugin
+     * wall absorbs.
+     *
      * WHETHER THE PATH SET MOVED IS ASKED OF THE SNAPSHOT'S OWN DELTA — the
      * `changed` / `removed` the store publishes beside the value, which is
      * the same pair the projection below slices a revision by. A comparison of
@@ -692,120 +850,71 @@ export const bind = (
      */
     let shelfFile: Convention | undefined
     let inboxFile: Convention | undefined
-    let koluFile: Convention | undefined
-
     /**
-     * THE KOLU HALF — the padi link, the fleet it keeps, and the one screen
-     * read, assembled in `@olai/kolu-client` — the package where every line
-     * that knows kolu exists lives.
+     * THE PLUGINS' SERVER HALVES, one per composed plugin, assembled by
+     * ITERATING.
      *
-     * MADE EAGERLY, STARTED LAZILY. Making it is free and gives the collection
-     * and the procedure something to read before anything has dialed — so a
-     * page that loads while the link is still coming up draws an empty fleet
-     * and a hollow chip rather than crashing on a null. STARTING it is the
-     * `kolu` cell's connector, which the framework runs when the surface BINDS:
-     * the same place the git sweep is forked, for the same reason — a standing
-     * fact about this machine is the runtime's to keep, not the first
-     * subscriber's to pay for.
+     * ## What this replaces, and why the replacement is shorter than one of them
      *
-     * ## The two packages — the map, so a grep for `kolu` is not a reconstruction
+     * There were two blocks here: a call to one appliance's own half-
+     * constructor, naming three of that appliance's members, with two vault
+     * walks imported from appliance-shaped filenames in this package and two
+     * log channels; and beside it the same block for the second appliance with
+     * the nouns changed. That the second was the first with the nouns changed
+     * was this file's own complaint about itself, and it is not answered by
+     * making the two differ — it is answered by neither of them being here.
+     * Each plugin assembles its own half in its own package, out of the SAME
+     * blob, and this file names no appliance, no member and no constructor.
      *
-     * It was FIVE homes, and the list lived in five headers because a reader who
-     * grepped `kolu` landed on whichever came first and had to assemble the rest.
-     * The sixth Löwy sitting ended that arrangement rather than documenting it
-     * better (`https://github.com/juspay/oss.olai/blob/main/projects/olai/lowy-electricity/debate-2026-08-27.md`), on the human's ruling:
-     * *"all of Kolu stuff should be encapsulated out, as a package or more
-     * packages, so the non-kolu packages part of Olai doesn't contain Kolu
-     * implementation"* — and *"a directory wall can be broken easily by importing;
-     * package walls cannot."*
+     * ## What crosses
      *
-     *   - **`@olai/kolu-client`** — THE DIAL and the wire. The only package that
-     *     speaks padi: one socket per server, the standing mirror, the projection
-     *     into olai's own shapes. Four doors beside the root — `./wire` (the
-     *     vocabulary and the four surface members, which `@olai/surface` spreads
-     *     into its spec and re-exports), `./detect` (the spawn-time probe's
-     *     surface), `./testlib` (the fake padi and its lifecycle) and `./drivers`
-     *     (the two padi-dialing evidence scripts).
-     *   - **`@olai/kolu-ui`** — EVERYTHING BROWSER. The Dock row on a `terminal`
-     *     property, the live pane, the re-attach policy, the fleet the tab holds
-     *     once, and the words the header readout says. Its socket is `KoluUi` —
-     *     the app hands over its composed client and a clock, and nothing else
-     *     crosses.
+     * Everything a plugin gets is on that blob: the environment, the clock, the
+     * served directory, two log channels, and — keyed by the plugin's own name,
+     * which is the one word core knows about it — whatever a test injected.
+     * What comes back is a `deps` this file hands `implementSurfaces` without
+     * opening, an optional hand-back for the sibling's own write face, and two
+     * hooks a revision drives.
      *
-     * What is left outside them is not kolu implementation but olai's own
-     * judgement ABOUT kolu, and it is worth naming so the distinction survives:
-     * `@olai/server`'s `claimants.ts` walks the vault for who OWNS a terminal
-     * (outline records, injected into the dial rather than known by it);
-     * `@olai/chat`'s `kolu.ts` decides what an absent kolu MEANS, in five English
-     * sentences only chat can write, over the probe it reaches through
-     * `@olai/kolu-client/detect`; `@olai/web` owns the pill, the block table and
-     * the cadence. None of those import kolu, and `scripts/check-kolu-deps.sh`'s
-     * fourth assertion is what makes that a fact rather than a habit.
+     * MADE EAGERLY, STARTED LAZILY, which is each half's own arrangement and is
+     * unchanged by the move: making one is free and gives its members something
+     * to answer with before anything has dialed, and STARTING it is a cell's
+     * connector, which the framework runs when the surface BINDS. One dial per
+     * process however many tabs are open — the git sweep's arrangement, applied
+     * to a socket instead of a repository.
+     *
+     * ## The two log LEVELS are this file's, and the sentences are not
+     *
+     * `say` is the emitter this function already holds. Routine narration goes
+     * at `debug`, because on a machine that is not running the tool it is a line
+     * every few seconds and it is not news; what the OWNER must read goes at
+     * `warning`, because the default console level is `info` and a malformed
+     * value in somebody's vault sitting behind `OLAI_LOG_LEVEL=debug` is a
+     * sentence nobody is told. WHICH of its own sentences go where is the
+     * plugin's decision; which channel each level IS, is this file's.
      */
-    const kolu = koluHalf({
-      options: wiring.kolu,
-      fleet: () => published?.collections.fleet,
-      events: () => published?.collections.events,
-      pulse: () => published?.cells.pulse,
-      // THE VAULT WALKS, passed in — the ruling's own words. `claimants.ts`
-      // stays here whole because it reads outline records, which is a thing
-      // the package that dials padi must not learn; what crosses is four
-      // strings per claim. `koluConfig.ts` is the second of the kind, for
-      // the watcher's knobs: what crosses is the derived intervals, the
-      // mute VALUES verbatim, the malformed lines to say, and — the events
-      // drawer's foot — the mutes' TITLES beside the file that was read.
-      claimants: claimantsIn,
-      config: watchConfigIn,
-      // Chatter, at debug: on a machine with no kolu this is a line every few
-      // seconds and it is not news. What IS news — a connect, a skew, a link
-      // that dropped — is the same channel, because the alternative is this
-      // module deciding which of padi's sentences matter.
-      say: (line) => say(Effect.logDebug(line)),
-      // What the OWNER must read: a malformed `_olai/Kolu.olai` value, an
-      // ambiguous mute — the sentences whose promise lives in `docs/kolu.md`.
-      // Rare by latch (one line per new shape or value), and the default
-      // console level is `info`, so the channel is `warning`, not `debug`.
-      warn: (line) => say(Effect.logWarning(line)),
-    })
-
-    /**
-     * THE ODU HALF — the live-properties seam's SECOND TENANT, and the whole
-     * of what it costs this file.
-     *
-     * Made eagerly and started lazily, exactly as the kolu half above is and
-     * for the same two reasons: making it gives the `ci` cell something to
-     * answer with before anything has been probed, and STARTING it is the
-     * cell's connector, which the framework runs when the surface BINDS — so
-     * one server sweeps for CI runs however many tabs are open, and a page
-     * that loads mid-sweep reads the rows the watcher already has.
-     *
-     * THE VAULT WALK is passed in, the way `claimants` and `watchConfig` are
-     * and by the same ruling: which nodes name a worktree, and whether the
-     * vault typed that key a path at all, are readings of outline records —
-     * things the package that dials odu must not learn. `./worktrees.ts` stays
-     * here whole and what crosses is four strings per node.
-     *
-     * That this block is the kolu block above with the nouns changed is the
-     * phase's own claim, so it is worth not dressing it up: a second living
-     * property needed a named spread, a cell with a connector, an injected
-     * walk and a dressing in the browser's table — every one of them a
-     * mechanism that was already here.
-     */
-    const odu = oduHalf({
-      options: wiring.odu,
-      worktrees: worktreesIn,
-      // Chatter, at debug: on a machine with no CI running this is a line
-      // every few seconds and it is not news — which on this appliance is
-      // even more true than on kolu's, because a checkout with no live run
-      // is the ORDINARY state of every checkout.
-      say: (line) => say(Effect.logDebug(line)),
-      // What the OWNER must read: a dial that failed for a reason that is not
-      // absence — a socket somebody IS serving that refused us, a path a
-      // broken checkout left behind. Rare by construction, and the one thing
-      // here a person can act on.
-      warn: (line) => say(Effect.logWarning(line)),
-    })
-
+    const offered = wiring.plugins
+    const composed: ReadonlyArray<{
+      readonly plugin: PluginServerHalf<VaultRevision>
+      readonly half: PluginServer<VaultRevision>
+    }> = offered === null ? [] : enabled<PluginServerHalf<VaultRevision>>(SERVERS, offered.names ?? null).map((plugin) => ({
+      plugin,
+      half: plugin.serve({
+        env: offered.env,
+        now: offered.now,
+        served: offered.served,
+        say: (line) => say(Effect.logDebug(line)),
+        warn: (line) => say(Effect.logWarning(line)),
+        // Opaque, and keyed by the only word this file knows about the plugin
+        // it is for. A name with no entry gets none, which is every real serve.
+        dial: offered.dials?.[plugin.name],
+      }),
+    }))
+    /** ...and the same two facts as the value a browser draws its read-only
+     *  rows off — every plugin this binary HAS, which of them this serve RUNS,
+     *  and whether anybody typed the flag. Read off the registry rather than
+     *  off `composed` above, which is a list of the ones that are on;
+     *  {@link rosterOf} argues why that difference is the feature. */
+    const roster = rosterOf(offered)
     /**
      * EVERY CONNECTOR BELOW READS `store.reads`, and every frame on it is a
      * pair: the set, and how old it is (`@olai/store`'s `Aged`). These take
@@ -832,6 +941,20 @@ export const bind = (
         },
         chat: {
           store: inMemoryStore<ChatState>(chat === null ? CHAT_OFF : chat.state()),
+        },
+        /**
+         * WHICH PLUGINS THIS BUILD HAS AND WHICH THIS SERVE RUNS — seeded, and
+         * that is the whole connector.
+         *
+         * NO `connect`, and it is the one cell on this surface that will never
+         * need one: the flag is read once, at the composition root, before this
+         * runtime exists. A connector here would be a subscription to a value
+         * that cannot move, and the day one is added is the day something can
+         * turn a plugin on without restarting — which `../pluginPolicy.ts`
+         * deliberately refuses to make possible.
+         */
+        plugins: {
+          store: inMemoryStore<PluginRoster>(roster),
         },
         /**
          * What git is doing for this directory at all — one half of what the
@@ -976,33 +1099,6 @@ export const bind = (
                 }),
             ),
         },
-        /**
-         * WHETHER THERE IS A PADI — and the connector that makes it true.
-         *
-         * The cell's connector is where the standing link is FORKED, which is
-         * the whole of the one-connection claim: the framework runs a connector
-         * when the surface binds, so the dial happens once per process and a
-         * hundred tabs subscribing to `fleet` cost nothing but a map read each.
-         * It is the git sweep's arrangement (`pending`, above) applied to a
-         * socket instead of a repository — a standing fact about this machine,
-         * kept by the runtime, not paid for by the first reader.
-         *
-         * A runtime with no kolu half never forks anything and the cell stays
-         * at its seed, which is `absent` — the true answer for a headless face
-         * that has no business holding a socket open.
-         */
-        ...kolu.handlers.cells,
-        /**
-         * ...and the CI half's one cell, spread beside it — where the SWEEP is
-         * forked, for the reason the line above gives about the dial: one
-         * probe per process, however many tabs, because a connector runs when
-         * the surface binds and not when a browser subscribes.
-         *
-         * A runtime with no odu half never sweeps anything and the cell stays
-         * at `NO_RUNS`, which is the true answer both for a headless face and
-         * for a machine with nothing running.
-         */
-        ...odu.handlers.cells,
         /** The whole directory binding, because one revision is one write of
          *  everything it moved: for each collection the entries that changed
          *  and the keys that went, and then the facts that belong to no file.
@@ -1016,15 +1112,14 @@ export const bind = (
               ({ snapshot }) =>
                 Effect.sync(() => {
                   if (snapshot === null) {
-                    // No published set at all: the vault's kolu verdict
-                    // goes out with the canvas — yesterday's mutes line
-                    // and the wrench's door beside it are superscript
-                    // claims the store can no longer vouch for.
-                    kolu.unloaded()
-                    // ...and the worktrees with it: a set of CI runs derived from a
-                    // vault the server can no longer see is yesterday's
-                    // reading, and the sockets follow on the next sweep.
-                    odu.unloaded()
+                    // No published set at all: every plugin's reading OF THE
+                    // VAULT goes out with the canvas. What each of them makes
+                    // of that is its own — a mutes line and the wrench beside
+                    // it, a set of worktrees the next sweep acts on — and this
+                    // file neither knows nor composes it; what it knows is that
+                    // a claim derived from a directory the store can no longer
+                    // see is a claim nobody may vouch for.
+                    for (const { half } of composed) half.unloaded()
                     return cell.set(null)
                   }
                   // THE PROJECTION CONSUMES WHAT IT IS HANDED, so these two
@@ -1060,42 +1155,31 @@ export const bind = (
                   // so a reader who subscribed before the file existed is
                   // handed the body the announce frame above could not carry.
                   bodies.unread(revision.unread)
-                  // WHO CLAIMS WHICH TERMINAL, re-derived on the same
-                  // statement. The overlay is a reading of the set — a node
-                  // carrying a `terminal` property — so a revision is exactly
-                  // when it can have moved, and deriving it anywhere else would
-                  // be a second answer to what the vault says.
+                  // EVERY PLUGIN'S READING OF THE VAULT, re-derived on the same
+                  // statement, and this file does not know what any of them
+                  // reads. A revision is exactly when a reading of the SET can
+                  // have moved — who claims which terminal, which nodes name a
+                  // worktree, whatever the third one asks — and deriving one
+                  // anywhere else would be a second answer to what the vault
+                  // says.
                   //
-                  // It walks every node and publishes almost nothing: the
-                  // mirror compares each row's owner before it upserts, so a
-                  // keystroke that landed in a note costs one walk and zero
-                  // frames. What it costs on the revision a `terminal` property
-                  // is actually written is one frame for that terminal's row.
-                  kolu.revision(
-                    snapshot.value.derived.nodes,
-                    // The read the findings are attributed to, asked of the
-                    // SERVED outlines the way the inbox asks (`served`, not
-                    // `recorded`: a file the codec tore apart still names
-                    // itself, and the foot's wrench over it must not fall
-                    // away WITH the nodes).
-                    (koluFile = conventionServed(
-                      koluFileIn,
-                      snapshot.value.set,
-                      snapshot,
-                      koluFile,
-                    )).file ?? null,
-                  )
-                  // ...and WHICH NODES NAME A WORKTREE, off the same statement
-                  // and for the same reason. It is handed the whole derivation
-                  // rather than the node list above it, because the walk asks
-                  // TWO things of one reading — the records, and whether this
-                  // vault declares `worktree` a `path` at all
-                  // (`./worktrees.ts` argues why the declaration is what
-                  // LICENCES a probe).
-                  // Storing the answer is all it does: dialing is the sweep's,
-                  // on its own clock, so a keystroke costs one walk and no
-                  // sockets.
-                  odu.revision(snapshot.value.derived)
+                  // WHAT IS HANDED OVER IS THE WHOLE PUBLISHED SNAPSHOT, which
+                  // is the richer of what the two tenants ask for and is not a
+                  // convenience: one hands its own walk the node list and the
+                  // served file its own convention names, the other hands its
+                  // walk the whole derivation because the question it asks
+                  // includes what the vault DECLARES. Each narrows the argument
+                  // in its own signature, which is a claim the compiler checks;
+                  // a hook per plugin here would be this file knowing what each
+                  // of them reads.
+                  //
+                  // IT COSTS ALMOST NOTHING ON ALMOST EVERY REVISION, and that
+                  // is the plugins' own arrangement rather than a promise made
+                  // here: each of these walks compares before it publishes, so
+                  // a keystroke that landed in a note costs one walk per plugin
+                  // and zero frames, and the sockets are the sweeps' business
+                  // on their own clocks.
+                  for (const { half } of composed) half.revision(snapshot)
                   // Written last, which is NOT the order they arrive in: a cell
                   // publishes on this stack while the collection's frame is
                   // coalesced into one delta on a microtask, so the manifest
@@ -1277,24 +1361,6 @@ export const bind = (
           upsert: () => {},
           remove: () => {},
         },
-        /**
-         * THE FLEET, as the mirror keeps it.
-         *
-         * `readAll` is the mirror's own map rather than a copy of it — the two
-         * directory collections' arrangement, for their reason: a fresh
-         * subscription's snapshot and the deltas an open one is watching are
-         * two readings of one map, so a tab that arrives mid-stream cannot be
-         * seeded from a moment the deltas have already moved past.
-         *
-         * EMPTY when there is no mirror, and empty is not the same claim as
-         * `absent` — which is exactly why the cell above exists and why a chip
-         * reads that one for its hollow. A fleet of nothing is what a machine
-         * running kolu with no terminals open also has.
-         *
-         * Read-only on the wire: creating and killing terminals are padi verbs,
-         * and the day olai calls them it is the driver calling them, not a tab.
-         */
-        ...kolu.handlers.collections,
       },
       /**
        * A poll-shape stream is three things and the framework wires them into
@@ -1347,29 +1413,6 @@ export const bind = (
        * watching, and it is never silence.
        */
       streams: {
-        /**
-         * ONE OPEN PANE'S TERMINAL — the relay, and the wall's one load-bearing
-         * line.
-         *
-         * `source` rather than the `read` + `install` pair every member above
-         * uses, because those re-READ a value when a pulse says it moved and
-         * this is a PUSH of bytes that exist only in flight: a terminal's output
-         * has no current value to re-read, and a frame missed between two pulses
-         * is a hole in a screen.
-         *
-         * The subscription is the SERVER'S. `@olai/kolu-client` holds padi's
-         * `terminalAttach` on the one connection the fleet already rides, and
-         * what reaches a browser is this member's frames — so ten tabs watching
-         * one terminal are ten subscribers here, ten attaches there, and ONE
-         * CONNECTION, and no browser has ever heard of a unix socket. The attach
-         * is per pane by design: it is a WRITE that carries the grid it wants, so
-         * two panes at two sizes cannot share one (`kolu-client/mirror.ts` — last
-         * attach wins, and the loser adopts rather than fights). What this member
-         * saves is the DIAL, which is the thing that was ever scarce — the same
-         * arrangement the fleet has, and the whole reason a live pane does not
-         * cost the wall.
-         */
-        ...kolu.handlers.streams,
         dated: {
           read: (input) => Effect.runPromise(wiring.ops.dated(input)),
           install: (_input, onEvent) => revisions.consume({ onEvent, onError: NEVER }),
@@ -1579,19 +1622,6 @@ export const bind = (
          * REQUIREMENT and nothing else (kolu's own `Viewer` seam, same
          * shape).
          */
-        /**
-         * ONE READ OF ONE SCREEN — the snapshot pane's whole server half.
-         *
-         * Straight through to `@olai/kolu-client`, which owns the arithmetic
-         * (a count back from the end, not padi's absolute window) and both
-         * refusals. Nothing is decided here, and that is the point of the
-         * package: the day padi's screen verb changes shape, this line does
-         * not.
-         *
-         * The clock is the wiring's, like the link's `since`, so a test that
-         * asserts what "snapshot · just now" was rendered from owns it.
-         */
-        ...kolu.handlers.procedures,
         who: {
           get: (() =>
             CurrentWho.use((who) => Effect.succeed(who))) as unknown as () => Effect.Effect<
@@ -1623,6 +1653,13 @@ export const bind = (
     // `ctx` is the WRITE face and it stays here: the transport gets `Bound`,
     // which is the runtime with `ctx` taken off, so nothing that serves a
     // socket can also publish into the surface.
+    //
+    // CORE STAYS STANDALONE and this line is byte-unchanged, which is the
+    // whole shape of the composition below. `implementSurface` mints
+    // `surface/<member>/<verb>` exactly as it always did — an MCP client's
+    // URIs, every tag assertion in the suite and every accessor in the browser
+    // address the same words after this phase as before it — and the plugins
+    // arrive BESIDE it rather than around it.
     const runtime = implementSurface(surface, deps)
 
     // From here on an entry write PUBLISHES as well as landing in the
@@ -1632,9 +1669,78 @@ export const bind = (
     // built from what this function returns.
     published = runtime.ctx
 
+    /**
+     * ...AND EVERY PLUGIN'S SURFACE, COMPOSED AS SIBLINGS over the same
+     * transport.
+     *
+     * `implementSurfaces` takes a keyed map of STANDALONE surfaces and re-walks
+     * each one at `surface/<key>/`, so a member a plugin declared `fleet`
+     * reaches the wire as `surface/<that plugin's name>/fleet/get` — computed
+     * by the framework, out of the plugin's own name, with no name arithmetic
+     * anywhere in olai.
+     * The SIBLING KEY is the plugin's name and it has one spelling: the surface
+     * and the deps are keyed off the same word (`@olai/plugins`' `server.ts`),
+     * so the two cannot be filed apart.
+     *
+     * THE RECORD IS BUILT BY WALKING, which is why the two casts are here and
+     * why they are the honest spelling rather than a gap. The framework's
+     * `SurfaceMap` and `SurfaceDepsFor` are exact for a LITERAL map — each
+     * value pinning its own spec, each key's deps checked against it — and this
+     * record's keys are runtime data read off a registry. What the exactness
+     * buys is kept where it can be: each plugin annotates its own deps against
+     * its OWN spec inside its own package, so a member it mis-shaped is a type
+     * error in that plugin's file, and `assertHandlersMatchGroup` inside
+     * `implementSurfaces` proves the route set at boot in both directions.
+     *
+     * THE EMPTY RECORD IS A REAL CASE and it is the one every headless face
+     * takes: `{}` composes to a group with no requests and a handler record
+     * with none, which the fusion below then adds to olai's own surface and
+     * changes nothing about it. That is what "this process runs no plugins"
+     * means, and it costs no mechanism — it is data the composition already
+     * takes (`@olai/plugins`' `composition.test.ts` holds it).
+     */
+    const bundle = implementSurfaces(
+      surfacesOf(composed.map((one) => one.plugin)) as unknown as SurfaceMap,
+      {},
+      Object.fromEntries(
+        composed.map((one) => [one.plugin.name, one.half.deps]),
+      ) as never,
+    )
+
+    // ...and each half is handed back its OWN write face, addressed by the one
+    // word this file knows about it. This is not the read-back the three
+    // `fleet: () => published?.collections.fleet` closures were: those were
+    // core reaching into ITS OWN ctx for another package's members, by name,
+    // three times. `implementSurfaces` returns a ctx PER SIBLING, so what
+    // crosses here is one opaque value that is already the plugin's, and the
+    // plugin narrows it to a type this file could not spell.
+    for (const { plugin, half } of composed) {
+      half.published?.(bundle.ctx[plugin.name])
+    }
+
+    /** OLAI'S TAGS AND EVERY SIBLING'S, in one group — the framework's own
+     *  COUNTED merge, labelled by the two halves so a collision names which of
+     *  them claimed the tag rather than only the loser. See the return below
+     *  for why the count matters at all. */
+    const fused = mergeDisjointGroups({ core: runtime.group, plugins: bundle.group })
+
+    /**
+     * ...and the two handler records as one, proved against that group.
+     *
+     * A spread, because the merge above has just established that the two tag
+     * sets are disjoint and a handler record is keyed by nothing but tags. What
+     * the spread is not trusted about is the RESULT: `assertHandlersMatchGroup`
+     * is the framework's own door and it names both directions — a tag with no
+     * handler, and a handler at a tag the group never minted — so a route set
+     * that drifted is a boot refusal naming the tags rather than a member that
+     * answers nothing with nobody told.
+     */
+    const handlers: SurfaceHandlers = { ...runtime.handlers, ...bundle.handlers }
+    assertHandlersMatchGroup(fused, handlers, "plugins")
+
     return {
       /**
-       * The runtime as it was minted, with nothing wrapped around it.
+       * OLAI'S OWN RUNTIME AND THE PLUGIN BUNDLE, as one thing to serve.
        *
        * "Who holds this key" used to be added HERE, by re-writing the documents
        * collection's `get` handler after the fact, because the framework had no
@@ -1643,8 +1749,37 @@ export const bind = (
        * over this record (`./faces.ts`) and `writerAt` rebuilds it by copying
        * the values, so every face inherits the hold BY CONSTRUCTION rather than
        * by this wrap having run before the filtering did.
+       *
+       * THE FUSION IS SAFE BY CONSTRUCTION and proved anyway. A core tag has
+       * three segments and a sibling tag has four, and the framework forbids a
+       * `/` inside any name, so the two sets cannot intersect —
+       * `mergeDisjointGroups` claims every tag before merging and says so
+       * anyway, because `RpcGroup.merge` underneath is a last-writer-wins
+       * `Map.set` and a silently dropped tag is a member that answers nothing
+       * with nobody told. It is the same proof the BROWSER's seam runs on the
+       * other side of the socket (`connectSurfaces`, one function), which is
+       * what keeps the two ends from coming to disagree about what "core plus
+       * the siblings" means.
+       *
+       * SUPERVISION HAS ONE TERMINAL SOURCE and it is olai's. `done` is what a
+       * serving site treats as structural death (`./fault.ts`), and the
+       * question this arrangement has to answer is which of two runtimes gets
+       * to settle it. Core does: this process exists to serve a directory, so
+       * its runtime ending is this process ending, and the bundle is PASSIVE —
+       * only a genuine fault in a plugin's own source reaches `done` before
+       * close, which is right, because a plugin whose connector died is
+       * structural damage too. `close` tears the terminal source down fully
+       * first and then releases the passive one, which is the framework's own
+       * combinator and not a done/close fold written here.
        */
-      bound: runtime,
+      bound: {
+        group: fused,
+        handlers,
+        ...superviseTerminalSource(bundle, runtime),
+      },
+      // Built from the SAME list the composition above walked, which is the
+      // whole of why they are here — see the field's own note.
+      faces: facesOf(composed.map((one) => one.plugin)),
       publish: {
         state: (state) => runtime.ctx.cells.chat.set(state),
         // Through the CADENCE, never straight onto the collection: a row that

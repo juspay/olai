@@ -23,6 +23,7 @@
  */
 
 import { expect, test } from "bun:test"
+import { NO_KINDS } from "@olai/format"
 
 import {
   corpusOf,
@@ -93,8 +94,8 @@ test("the shared arm actually shared, and the rebuilding arm actually did not", 
   // every equality above by doing all the work twice. The counts are read off
   // the answers by identity from outside the module, so they are a measurement
   // rather than something `standing.ts` says about itself.
-  const rebuilt = watching(rebuilding(() => FIXED), REVISIONS, TABS)
-  const answered = watching(standing(() => FIXED), REVISIONS, TABS)
+  const rebuilt = watching(rebuilding(() => FIXED, NO_KINDS), REVISIONS, TABS)
+  const answered = watching(standing(() => FIXED, NO_KINDS), REVISIONS, TABS)
   expect(rebuilt.shared).toBe(0)
   expect(rebuilt.carried).toBe(0)
   expect(answered.shared).toBeGreaterThan(0)

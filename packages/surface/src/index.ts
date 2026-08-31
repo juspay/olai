@@ -124,8 +124,8 @@
  *     which is the one question left in the app that is about the vault and not
  *     about any page.
  *
- * FOUR MEMBERS DECLARE WHAT IDENTIFIES A ROW — `page` by `key`, `pins` by
- * `id`, `pending` by `path`, `chat` by `name` — and that is the one thing about
+ * FIVE MEMBERS DECLARE WHAT IDENTIFIES A ROW — `page` by `key`, `pins` by
+ * `id`, `pending` by `path`, `chat` and `plugins` by `name` — and that is the one thing about
  * this spec that is not about the wire at all. `arrayKey` is read where a
  * browser MERGES a frame into its store (`@kolu/surface`'s `writeValue.ts`,
  * juspay/kolu#2190): undeclared, a frame replaces every element of every array
@@ -135,7 +135,12 @@
  * identical frame notifies nothing and a reorder moves the objects a keyed view
  * follows. It is one field per member, reaching every array at every depth;
  * arrays whose elements do not carry it merge by POSITION, which is silent on a
- * repeated frame just the same. The members that declare NOTHING each say why
+ * repeated frame just the same. `plugins` is the odd one in that list, and it
+ * declares on purpose: it is minted once per serve, so no frame of it ever
+ * repeats and the merge has nothing to decide today — but a plugin row IS its
+ * name (no two plugins may share one, which is `@olai/plugins`' own fence), and
+ * a member that later grew a second frame would otherwise start replacing every
+ * row silently. The members that declare NOTHING each say why
  * where they are declared, and three of them share one reason worth stating
  * here: `outlines`, `heads` and `transcript` are read through the batched
  * `deltas` delivery, which replaces each named leaf WHOLE rather than merging
@@ -221,15 +226,10 @@ import { editProcedures } from "./edit.ts"
 import { opsProcedures } from "./ops.ts"
 import { DatedAnswer, DatedRequest, Owed, OwedRequest } from "./dates.ts"
 import { MovingAnswer, MovingRequest, PageReading, PageRequest } from "./page.ts"
-/** KOLU'S SLICE, contributed rather than declared here — Design B, the sixth
- *  sitting. The four members spread into their own sections below; the types
- *  are re-exported at the tail, so a consumer still reads them off the composed
- *  spec and no import outside this package changed. */
-import { koluMembers } from "@olai/kolu-client/wire"
-import { oduMembers } from "@olai/odu-client/wire"
 import { App } from "./app.ts"
 import { NarrowingAnswer, NarrowingRequest } from "./narrowing.ts"
 import { SearchAnswer, SearchRequest } from "./search.ts"
+import { NO_ROSTER, PluginRoster } from "./plugins.ts"
 import { Who } from "./who.ts"
 
 /**
@@ -557,8 +557,6 @@ const sameSet = (a: Manifest, b: Manifest): boolean => (a === null) === (b === n
 
 export const surface = defineSurface({
   cells: {
-    ...koluMembers.cells,
-    ...oduMembers.cells,
     // Wire-read-only: the server is the only writer, and a write verb it never
     // serves would crash surface's boot walk.
     errors: {
@@ -776,10 +774,40 @@ export const surface = defineSurface({
       verbs: ["get"],
       equals: sameInboxHeld,
     },
+    /**
+     * WHICH PLUGINS THIS BUILD HAS, and which this SERVE runs — see
+     * {@link PluginRoster}.
+     *
+     * A CELL for the reason the two above it are: one value about the served
+     * INSTANCE rather than about any file in it. It is the sharpest case of it
+     * on this spec — the flag is read once, at the composition root, so this
+     * moves at most once per serve and carries no connector and no `equals`.
+     *
+     * Wire-read-only, and here that is more than the usual: `--plugins` is
+     * CLI/nix ONLY, so there is no verb a browser could call and no settings
+     * file for one to write. The panel draws the rows FROZEN and names the
+     * flag, which is the arrangement the two git rows already live under.
+     *
+     * CORE'S OWN MEMBER, about plugins, which is not the contradiction it
+     * looks like: a plugin that is off composes no surface at all, so the
+     * member that would answer "am I running" is missing in exactly the case
+     * the answer is interesting. {@link ./plugins.ts} argues it, and argues
+     * why core still spells no plugin's name — the names are data walked out
+     * of this cell.
+     */
+    plugins: {
+      schema: PluginRoster,
+      default: NO_ROSTER,
+      verbs: ["get"],
+      /** A ROW IS ITS `name`, and the fence one package over is what makes
+       *  that an identity rather than a hope: no two plugins may share a name
+       *  (`@olai/plugins`' `fence.test.ts`), because the name is the sibling
+       *  key every one of its tags is composed under. */
+      arrayKey: "name",
+    },
 
   },
   collections: {
-    ...koluMembers.collections,
     /**
      * The served directory, one entry per outline file.
      *
@@ -950,7 +978,6 @@ export const surface = defineSurface({
    * neither is an answer anything without a screen can act on.
    */
   streams: {
-    ...koluMembers.streams,
     /** Which days of one month have something on them — see `@olai/format`'s
      *  `DatedRequest` / `DatedAnswer`, and the `sameDated` beside them, which
      *  the server binds as this member's `isEqual` and is what keeps a revision
@@ -1059,7 +1086,6 @@ export const surface = defineSurface({
     },
   },
   procedures: {
-    ...koluMembers.procedures,
     chat: {
       /** Prompt the agent. Answers as soon as the turn is ACCEPTED, not when
        *  it ends: what the panel draws comes back on the transcript, so every
@@ -1536,6 +1562,12 @@ export { WHO_PATH, Who } from "./who.ts"
  *  itself with. See {@link ./app.ts}. */
 export { App, appName } from "./app.ts"
 
+/** Which plugins this build has and which this serve runs — the `plugins` cell
+ *  whole, its seed, and one row of it. See {@link ./plugins.ts}: the server
+ *  MINTS this out of the flag and the registry, and the preferences panel is
+ *  the only thing that reads it. */
+export { BuiltPlugin, NO_ROSTER, PluginRoster } from "./plugins.ts"
+
 /** Where the hashed browser bundle lives, and what the bundler names a split
  *  chunk in it — see {@link ./bundle.ts}. One spelling, both halves of the
  *  serve, and the two suites that hold a chunk up. */
@@ -1625,58 +1657,3 @@ export {
   isAttachable,
   MAX_ATTACHMENT_BYTES,
 } from "./attach.ts"
-
-/** THE KOLU HALF — the padi link, the fleet it mirrors, the pane's frames and
- *  the one snapshot read a chip makes.
- *
- *  RE-EXPORTED FROM `@olai/kolu-client/wire`, which is where these shapes live
- *  now: the sixth sitting ruled everything kolu-named out of the non-kolu
- *  packages, spec included, and this is the one package the browser always
- *  bundles. The re-export is the whole reason no consumer had to rewrite an
- *  import — the composed spec still answers for its own members, which is what
- *  a composed spec is for. */
-export {
-  FleetOwner,
-  FleetTerminal,
-  KoluEvent,
-  KOLU_UNDIALED,
-  KOLU_UNPULSED,
-  KoluLink,
-  KoluMutes,
-  KoluStatus,
-  NO_MUTES,
-  type Resolved,
-  resolveTerminal,
-  sameKolu,
-  sameMutes,
-  Snapshot,
-  SnapshotRefused,
-  SnapshotRequest,
-  TerminalAttach,
-  TerminalFrame,
-  TERMINAL_KEY,
-  UNOWNED,
-  type WatchPulse,
-} from "@olai/kolu-client/wire"
-
-/** THE ODU HALF — the CI runs the vault's worktree-naming nodes are living
- *  through.
- *
- *  RE-EXPORTED FROM `@olai/odu-client/wire` for the kolu slice's reason,
- *  word for word: nothing appliance-named lives in the package every browser
- *  bundles, and the composed spec still answers for its own members so no
- *  consumer rewrites an import. It is the live-properties seam's second
- *  tenant, and the fact that this block is a copy of the one above with two
- *  words changed is the phase's whole claim. */
-export {
-  CiRun,
-  CiRuns,
-  NO_RUNS,
-  PR_URL_KEY,
-  RunCell,
-  type RunTally,
-  sameCi,
-  tallyOf,
-  verdictOf,
-  WORKTREE_KEY,
-} from "@olai/odu-client/wire"

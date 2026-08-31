@@ -111,6 +111,7 @@ import * as Context from "./context.ts"
 import type { AgentEvent } from "./events.ts"
 import * as Listings from "./listings.ts"
 import * as Memory from "./memory.ts"
+import type { Probe } from "./probes.ts"
 import { type Change, says, Transcript } from "./transcript.ts"
 import { type Turn, Turns } from "./turns.ts"
 import { sameWatching, watching } from "./watching.ts"
@@ -138,6 +139,12 @@ export interface Options {
    *  because its address is not known until the listener has bound and the
    *  session is opened after that. */
   readonly tools: () => AcpAgent.ToolServer | null
+  /** The OPTIONAL servers to look for, once per conversation — whatever else
+   *  this host turns out to be running ({@link ./probes.ts}). Handed in whole
+   *  and carried through to {@link ./agent.ts} untouched: what is on the list is
+   *  the composition root's business, and omitting it is a chat that asks this
+   *  machine nothing. */
+  readonly probes?: ReadonlyArray<Probe>
   /** Publish the state cell. Called on every change; the surface dedups. */
   readonly onState: (state: ChatState) => void
   /** Publish transcript changes — ALL THREE of the things one carries: rows
@@ -419,6 +426,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         env: row.adapter.env,
         cwd: options.cwd,
         tools: options.tools,
+        probes: options.probes,
         memory,
         onEvent,
       })

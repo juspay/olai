@@ -300,10 +300,35 @@ a key changes the whole namespace" looks like from a test suite.
 | an `int` | `records` — 189, 193, 200, and a 1000 that a string comparison would put inside `190..200`. NOT `pr`, deliberately: olai's own vault declares `pr-url` as text (the human, 2026-08-25), and a fixture teaching the opposite about the same word would be the one place in this repository that disagrees with the board it ships beside. |
 | a `date`, both stored widths | `dispatched` — an instant on `props`, a bare day on `chips` |
 | a `doc` | `brief` on `props`, naming `briefs/tp.md` |
-| a `path` | `worktree` on `props` |
-| an UNDECLARED key on a typed board | `terminal` on `far` — prose, legal, untouched |
+| a `path` | none — `brief` is the `doc` beside it, and the `path` this fixture used to carry became the kind below |
+| a kind a PLUGIN contributed | `worktree` on `props`, declared `{"type":"worktree"}` — `@olai/plugin-odu`'s word, which is what licences the CI probe and the chip. Declared `path` it would be indistinguishable from `brief`, which is the defect the kind exists to end |
+| an UNDECLARED key on a typed board | `terminal` on `far` — prose, legal, untouched. Deliberately NOT declared here: `terminal` is `@olai/plugin-kolu`'s kind, and this corpus is about the format's own vocabulary |
 
 The set validates as it stands, which is the point: a declaration never lands on
 a board with violations (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/typed-properties.md's
 clean-then-declare), so a fixture that shipped one would be a fixture nobody
 could serve.
+
+## `lanes/` — a board whose steps name terminals
+
+Four lane steps in three states, each carrying a `terminal`, and one line of
+`_olai/Properties.olai` that makes them mean anything:
+
+```jsonl
+{"id":"prop-terminal","ord":"a0","title":"terminal","custom":{"type":"terminal"}}
+```
+
+**That row is load-bearing and its absence is silent.** `terminal` is a kind
+`@olai/plugin-kolu` contributes, and the ownership walk finds its key by that
+DECLARATION rather than by the key's name (`claimants.ts`) — so a `lanes/`
+without this file draws no Dock row on any step, says nothing about why, and
+every scenario in `terminal_door.feature` and `the_feed_shows_its_mutes.feature`
+fails on an empty page. It used to work without one, which is exactly the
+name-matching the kind replaced: a property somebody happened to call `terminal`
+got a door in a vault that had said nothing at all.
+
+The VALUES are ids and prefixes of them (`11111111`, and one whole uuid),
+because the fleet resolves a prefix and the block says so when one names
+several. They are hex, which is what that kind admits — a value with a remark
+stapled to it is refused, and `typed/`'s `far` is where that mistake is kept, on
+a key deliberately left undeclared.

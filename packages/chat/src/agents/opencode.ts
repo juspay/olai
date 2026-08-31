@@ -82,7 +82,8 @@ export const toolNameOf = (toolCallId: string): string | null => {
  *
  * The Claude leg's rule in opencode's spelling, and nothing more: the tool is
  * named, the name begins `<server>_` for one of the MCP servers WE handed this
- * session — olai's mediated ops, kolu's terminals — and the request offers an
+ * session — olai's mediated ops, plus whatever optional server answered this
+ * session's probe — and the request offers an
  * allow-flavoured option. Any of those three missing and a person is asked.
  *
  * `_` IS A WEAK SEPARATOR and that is the whole of the risk here. `mcp__x__y`
@@ -90,7 +91,8 @@ export const toolNameOf = (toolCallId: string): string | null => {
  * called `olai_something` are told apart by nothing but the server's name, so a
  * session handed a server called `bash` would bypass a builtin `bash_…`. Three
  * things bound it, and they are why the rule is written as narrowly as it is:
- * the server names are OLAI'S OWN (it hands over `olai` and `kolu`, never a
+ * the server names are OLAI'S OWN (it hands over `olai` and whatever a probe
+ * answered with, never a
  * name a person or an agent chose), the prefix is required to be followed by
  * something (`startsWith(`${server}_`)` on the bare server name would match the
  * server name itself), and the match is a PREFIX rather than a contains. A

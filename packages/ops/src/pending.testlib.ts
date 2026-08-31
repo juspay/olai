@@ -27,15 +27,21 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { NodeServices } from "@effect/platform-node"
+import { NO_KINDS } from "@olai/format"
 import * as Store from "@olai/store"
 import { Effect } from "effect"
 
-import { codec } from "./codec.ts"
+import { codecFor } from "./codec.ts"
 import { type Counted, counting, forgetful } from "./committed.testlib.ts"
 import { remembering } from "./committed.ts"
 import type { Store as OutlineStore } from "./deps.ts"
 import { GIT_IDENT, GIT_IDENT_KEYS, gitIn, repoAt } from "./fixtures.testlib.ts"
 import { type Committing, fixedPolicy, make } from "./pending.ts"
+
+/** The codec this suite validates through — the vocabulary of a build that
+ *  composed no plugin, which is what every test in this package runs under
+ *  ({@link ./codec.ts}'s `codecFor`, and `@olai/format`'s `NO_KINDS`). */
+const codec = codecFor(NO_KINDS)
 
 /** One line of an outline, so a corpus and a keystroke are written the same
  *  way. */

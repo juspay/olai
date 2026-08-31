@@ -79,7 +79,7 @@ export const assembling = (from: Scope): Folding => {
     // The TYPING is fresh on both arms and so is not what this differential is
     // about: it is a map read off the view each op leaves, which is exactly what
     // the sequencer does with it too.
-    at = { ...next, context: at.context, asked: askedOf(next.set), typed: typedIn(next) }
+    at = { ...next, context: at.context, asked: askedOf(next.set), typed: typedIn(next, at.typed.kinds) }
     return Result.succeed(at)
   }
 }

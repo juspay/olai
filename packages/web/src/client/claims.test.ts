@@ -69,8 +69,23 @@ const filesSpelling = (pattern: RegExp): ReadonlyArray<string> =>
 // websocket exists" — tested as the CALL: exactly one file dials. Asserting
 // equality rather than "nothing else" keeps the sweep honest, because a
 // pattern that rotted would report an empty list here instead of passing.
-test("only wire.ts dials: connectSurface( is called exactly once in the client", () => {
-  expect(filesSpelling(/connectSurface\s*\(/)).toEqual(["wire.ts"])
+//
+// THE CALL HAS CHANGED TWICE and the claim has not, which is why the pattern
+// moved with it rather than the test being dropped. It hunted `connectSurface(`
+// while the client dialled one surface; when the plugins grew surfaces of their
+// own it hunted the socket constructor and the watchdog's mint, because the
+// turnkey seam derived its reserved probes from the FIRST SIBLING and core
+// cannot be one, so the wire was assembled here by hand. juspay/kolu#2222 gave
+// that seam a ROOT SLOT and the assembly is gone — one call again, and this is
+// once more a count of the seam rather than of the socket underneath it.
+//
+// The other half of that claim — that NO file in olai spells the four
+// primitives the assembly used to chain, nor the two fusion helpers
+// `@olai/plugins` used to export — is repo-wide and lives where those helpers
+// did: `@olai/plugins`' `mechanics.test.ts`, which carries the falsifier the
+// upstream ask travelled with. A client-only sweep could not have made it.
+test("only wire.ts dials: the seam is called exactly once in the client", () => {
+  expect(filesSpelling(/connectSurfaces\s*\(/)).toEqual(["wire.ts"])
 })
 
 // names.ts's claim — the table is derived ONCE, beside the reading
@@ -298,17 +313,21 @@ test("a row's handle is marked in the gesture that owns it and the cell that wea
 // job rather than a third opinion about the wire. A production file other than
 // the frame uttering a status is a face deciding for itself what ACP meant.
 //
-// ONE ENTRY IS A DIFFERENT VOCABULARY sharing a word, and it is listed rather
-// than worked around: odu names a CI node that has not begun `pending` too, so
-// `live/odu-ci/words.test.ts` spells it as the fixture of the thing under
-// test. What
-// this sweep claims is about PRODUCTION faces and ACP's closed set; a bench
-// naming its own subject's vocabulary is what a bench does. The two production
-// files that DID reach for a neighbouring vocabulary's word were reworded
-// instead — `live/odu-ci/words.ts` says "the run is up" where the connection
-// readout
-// owns the one-word spelling, and the CI chip's attribute is `data-state`
-// where `SaidLine.tsx` owns `data-tone`.
+// ONE ENTRY USED TO BE A DIFFERENT VOCABULARY sharing a word, and its
+// departure is worth a line rather than a silent deletion. odu names a CI node
+// that has not begun `pending` too, so the CI chip's own bench spelled it as
+// the fixture of the thing under test, and it was listed here because what this
+// sweep claims is about PRODUCTION faces and ACP's closed set — a bench naming
+// its own subject's vocabulary is what a bench does. That bench is
+// `@olai/plugin-odu`'s now and this sweep reads only this client's tree, so the
+// row is gone with the file.
+//
+// The judgements it recorded did NOT leave with it, and both were about
+// PRODUCTION faces: the CI words say "the run is up" where the connection
+// readout owns the one-word spelling, and the CI chip's attribute is
+// `data-state` where `SaidLine.tsx` owns `data-tone`. Those are held where
+// they are now spelled — in that package, against that package's faces — which
+// is the same split the testids took and for the same reason.
 test("a tool call's status is spelled where it is meant and where it is drawn", () => {
   const statuses = /["'`](pending|in_progress)["'`]/
   expect(filesSpelling(statuses)).toEqual([
@@ -321,7 +340,6 @@ test("a tool call's status is spelled where it is meant and where it is drawn", 
     path.join("chat", "rail.test.ts"),
     path.join("chat", "rows.testlib.ts"),
     path.join("chat", "spawn.test.ts"),
-    path.join("live", "odu-ci", "words.test.ts"),
   ])
 })
 

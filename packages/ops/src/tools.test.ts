@@ -58,6 +58,7 @@ import {
 } from "@olai/format"
 import { expect, test } from "bun:test"
 import { Effect, Schema } from "effect"
+import { NO_KINDS } from "@olai/format"
 
 import { readingOf, setOf, steady } from "./fixtures.testlib.ts"
 import { act, asking, read, TOOLS, write } from "./tools.ts"
@@ -103,7 +104,7 @@ const at = (): Reading => readingOf(EVERYTHING())
  * exactly as the per-call `at()` this replaced did. Nothing here can fail —
  * the read is a fixture — so every answer is `runSync`-able.
  */
-const ASKING = asking(Effect.sync(at), steady().now)
+const ASKING = asking(Effect.sync(at), steady().now, NO_KINDS)
 
 /** One read, answered. The tools' own effects never fail over a fixture that
  *  loaded, so the failure channel is discharged here rather than threaded

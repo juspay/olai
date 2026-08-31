@@ -80,14 +80,18 @@
  *     crosses.
  *
  * What is left outside them is not kolu implementation but olai's own
- * judgement ABOUT kolu, and it is worth naming so the distinction survives:
- * `@olai/server`'s `claimants.ts` walks the vault for who OWNS a terminal
- * (outline records, injected into the dial rather than known by it);
- * `@olai/chat`'s `kolu.ts` decides what an absent kolu MEANS, in five English
- * sentences only chat can write, over the probe it reaches through
- * `@olai/kolu-client/detect`; `@olai/web` owns the pill, the block table and
- * the cadence. None of those import kolu, and `scripts/check-kolu-deps.sh`'s
- * fourth assertion is what makes that a fact rather than a habit.
+ * judgement ABOUT kolu, and it has a package of its own now:
+ * `@olai/plugin-kolu`. It walks the vault for who OWNS a terminal
+ * (`claimants.ts` — outline records, injected into the dial rather than known
+ * by it) and for what `_olai/Kolu.olai` says (`config.ts`); it decides what an
+ * absent kolu MEANS, in five English sentences, over the probe it reaches
+ * through `@olai/kolu-client/detect` (`probe.ts`, which was `@olai/chat`'s
+ * until the plugin wall went up); and it owns the padi pill and the feed its
+ * press opens. Every one of those used to sit in a general package under a
+ * kolu-shaped filename, and none of them names a `@kolu/*` package —
+ * everything reaches kolu through this one and `@olai/kolu-ui`, which is what
+ * `scripts/check-kolu-deps.sh`'s fourth assertion holds as a fact rather than
+ * a habit.
  */
 
 import { type CellStore, inMemoryStore } from "@kolu/surface/server"
@@ -268,7 +272,12 @@ export type VaultNode = unknown
 /** The five member handlers, in the shape `defineSurface`'s sections take. */
 export interface KoluHandlers {
   readonly cells: {
-    readonly kolu: {
+    /** WHETHER THERE IS A PADI — named `link` and not `kolu`, which is the
+     *  package saying what the cell HOLDS rather than whose package it is in.
+     *  A member named for its own appliance reads `surface/kolu/kolu/get` once
+     *  core composes this surface as a sibling — the word twice and the thing
+     *  once — and the value is a `KoluLink`. */
+    readonly link: {
       readonly store: CellStore<KoluLink>
       readonly connect: (cell: { set: (value: KoluLink) => void }) => Effect.Effect<void>
     }
@@ -281,7 +290,7 @@ export interface KoluHandlers {
     /** Who is silenced, and which file says so — the drawer's foot, the
      *  vault walk's display half. Read-only on the wire: a mute is an
      *  EDIT to the config outline, never a browser's write. The
-     *  `connect` is the publish's household door — the `kolu` cell's
+     *  `connect` is the publish's household door — the `link` cell's
      *  own reasons one member up. */
     readonly mutes: {
       readonly store: CellStore<KoluMutes>
@@ -607,14 +616,14 @@ const handlersOf = (verbs: {
   ) => Stream.Stream<TerminalFrame>
 }): KoluHandlers => ({
   cells: {
-    kolu: {
+    link: {
       // The face's own store, seeded `absent`: the true answer for a headless
       // face that has no business holding a socket open.
       store: inMemoryStore<KoluLink>(SEED),
       connect: verbs.connect,
     },
     pulse: {
-      // Wire-read-only, like `kolu`: a beat is something the server
+      // Wire-read-only, like `link`: a beat is something the server
       // records, never a value a tab could set. The store's getter is the
       // LAST stamped beat; the setter walks a hollow arm on purpose.
       store: { get: verbs.pulse, set: () => {} },

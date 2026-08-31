@@ -62,6 +62,7 @@ import {
 } from "solid-js"
 
 import { createDoors, type Doors } from "./doors.ts"
+import { createLicences, type Licences } from "./licences.ts"
 import { createNames, type Names } from "./names.ts"
 import { olai } from "./wire.ts"
 
@@ -172,6 +173,14 @@ export interface Reading {
    */
   readonly doors: Accessor<Doors>
   /**
+   * ...and which of them a running plugin's contributed KIND claims —
+   * `./licences.ts`'s table, derived here for the same reason its two siblings
+   * are. It is what a live FACE is looked up by (`./live/seam.ts`), where the
+   * dressing table used to settle for the property key because the key was all
+   * a tab had.
+   */
+  readonly licences: Accessor<Licences>
+  /**
    * WHICH QUESTION the page in hand is an answer TO — `null` before the first
    * one, and the PREVIOUS address for as long as {@link page} is holding one.
    *
@@ -277,6 +286,7 @@ export const createReading = (
     at,
     names: createNames(page),
     doors: createDoors(page),
+    licences: createLicences(page),
     about: () => held()?.about ?? null,
   }
 }
@@ -285,6 +295,7 @@ const ReadingContext = createContext<Accessor<PageReading | undefined>>()
 const FramesContext = createContext<Accessor<number>>()
 const NamesContext = createContext<Accessor<Names>>()
 const DoorsContext = createContext<Accessor<Doors>>()
+const LicencesContext = createContext<Accessor<Licences>>()
 
 export function ReadingProvider(props: {
   readonly reading: Reading
@@ -295,7 +306,9 @@ export function ReadingProvider(props: {
       <FramesContext.Provider value={props.reading.at}>
         <NamesContext.Provider value={props.reading.names}>
           <DoorsContext.Provider value={props.reading.doors}>
-            {props.children}
+            <LicencesContext.Provider value={props.reading.licences}>
+              {props.children}
+            </LicencesContext.Provider>
           </DoorsContext.Provider>
         </NamesContext.Provider>
       </FramesContext.Provider>
@@ -348,6 +361,15 @@ export const useDoors = (): Accessor<Doors> => {
   const doors = useContext(DoorsContext)
   if (doors === undefined) throw new Error("a door lookup outside <ReadingProvider>")
   return doors
+}
+
+/** ...and which of this page's property values a contributed kind claims, for
+ *  the drawer that dresses them. Its two siblings' shape, its two siblings'
+ *  throw, and the rule about when the table may move is `./licences.ts`'s. */
+export const useLicences = (): Accessor<Licences> => {
+  const licences = useContext(LicencesContext)
+  if (licences === undefined) throw new Error("a licence lookup outside <ReadingProvider>")
+  return licences
 }
 
 /** Every open pane's reading, for the chrome that has to agree with the focused

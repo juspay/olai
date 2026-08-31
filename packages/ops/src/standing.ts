@@ -100,6 +100,7 @@
 import {
   type DatedAnswer,
   type DatedRequest,
+  type KindVocabulary,
   type MovingAnswer,
   type MovingRequest,
   type NarrowingAnswer,
@@ -133,7 +134,16 @@ import * as Query from "./query.ts"
  * this module had already decided was not news.
  */
 interface Question<I, A> {
-  readonly answer: (at: Reading, input: I, now: () => string) => A
+  /** `kinds` is what a plugin taught this vault ({@link @olai/format}'s
+   *  `KindVocabulary`) — a fact about the PROCESS rather than the revision, so
+   *  it is handed to every question and read by the one that words an answer
+   *  about a declared value ({@link PAGE}). */
+  readonly answer: (
+    at: Reading,
+    input: I,
+    now: () => string,
+    kinds: KindVocabulary,
+  ) => A
   readonly same: (a: A, b: A) => boolean
 }
 
@@ -148,12 +158,20 @@ const OWED: Question<OwedRequest, Owed> = {
 }
 
 const PAGE: Question<PageRequest, PageReading> = {
-  answer: (at, request) => Query.page(at, request),
+  answer: (at, request, _now, kinds) => Query.page(at, request, kinds),
   same: samePageReading,
 }
 
 const NARROWING: Question<NarrowingRequest, NarrowingAnswer> = {
-  answer: (at, request, now) => Query.narrowing(at, request, now()),
+  // THE VOCABULARY IS PART OF THE GRAMMAR, not just of the gate. `prop:` reads
+  // what a key is DECLARED as to decide whether a value is a span or an
+  // equality, and a declaration is two layers now — a vault's rows over an
+  // enabled plugin's claimed keys. Answered without it, a range on an
+  // auto-declared key would refuse as undeclared while the write gate judged it
+  // by the claim: the box that narrows a page and the file that is written
+  // disagreeing about one word, which is the family this whole seam is a list
+  // of.
+  answer: (at, request, now, kinds) => Query.narrowing(at, request, now(), kinds),
   same: sameNarrowing,
 }
 
@@ -208,7 +226,7 @@ interface Held {
  * is the composition root's to decide, and a second `new Date()` down here
  * would be a clock a test could not move.
  */
-export const standing = (now: () => string): Standing => {
+export const standing = (now: () => string, kinds: KindVocabulary): Standing => {
   /** The revision every live answer is at — `null` until the first ask. */
   let at: Reading | null = null
   let live = new Map<string, Held>()
@@ -258,7 +276,7 @@ export const standing = (now: () => string): Standing => {
     }
 
     const taped = taping(reading)
-    const fresh = question.answer(taped.reading, input, now)
+    const fresh = question.answer(taped.reading, input, now, kinds)
     const answer = before !== undefined && before.askers > 1 &&
         question.same(before.answer as A, fresh)
       ? before.answer as A
@@ -288,12 +306,12 @@ export const standing = (now: () => string): Standing => {
  * too, so the figure a reader re-runs is a pair rather than one laptop's
  * milliseconds.
  */
-export const rebuilding = (now: () => string): Standing => ({
-  dated: (at, request) => DATED.answer(at, request, now),
-  owed: (at, request) => OWED.answer(at, request, now),
-  page: (at, request) => PAGE.answer(at, request, now),
-  narrowing: (at, request) => NARROWING.answer(at, request, now),
-  moving: (at, request) => MOVING.answer(at, request, now),
+export const rebuilding = (now: () => string, kinds: KindVocabulary): Standing => ({
+  dated: (at, request) => DATED.answer(at, request, now, kinds),
+  owed: (at, request) => OWED.answer(at, request, now, kinds),
+  page: (at, request) => PAGE.answer(at, request, now, kinds),
+  narrowing: (at, request) => NARROWING.answer(at, request, now, kinds),
+  moving: (at, request) => MOVING.answer(at, request, now, kinds),
 })
 
 /** Whether two answers to one member say the same thing — the schema

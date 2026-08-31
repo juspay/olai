@@ -1336,8 +1336,9 @@ export type Command = typeof Command.Type
  *   - `unattached` — olai handed it over and the agent says it did NOT attach.
  *     Its `why` is the agent's own word for it.
  *   - `missing` — olai could not hand it over at all, because its own probe
- *     said no. `why` is that probe's sentence — the whole of `mcp-fail-visible`
- *     (`../../chat/src/kolu.ts`).
+ *     said no. `why` is that probe's sentence, carried WHOLE — the whole of
+ *     `mcp-fail-visible` (`../../chat/src/probes.ts` asks; the plugin whose
+ *     tool it is writes the words).
  *
  * POSITIVE RECOGNITION, which is the rule the legs already read permissions by
  * (`../../chat/src/agents/leg.ts`): `connected` is claimed only where an agent
@@ -1403,10 +1404,12 @@ export type ServerStanding = typeof ServerStanding.Type
  * The standing's `why` is the SERVER'S OWN SENTENCE wherever there is one — a
  * JSON-RPC error message, an exec failure's reason, the agent's own status word
  * — with the probe's framing around it and nothing invented. That is the
- * field's whole value: "kolu did not attach" names the symptom every failure
- * shares and is the one thing that never helped anybody, and the four ways of
- * failing a probe want four different things done about them
- * (`../../chat/src/kolu.ts`).
+ * field's whole value: "it did not attach" names the symptom every failure
+ * shares and is the one thing that never helped anybody, and the ways of
+ * failing a probe want different things done about them. Which is why no
+ * general package composes this sentence: the words are the plugin's whose
+ * tool would not answer (`../../plugin-kolu/src/probe.ts` is the one that
+ * exists), and chat and this wire carry them through untouched.
  *
  * `where` is where the server IS: the absolute file that was probed or would
  * be spawned, or the URL of one reached over http. It is here because the
@@ -1418,7 +1421,7 @@ export type ServerStanding = typeof ServerStanding.Type
  *
  * `null` is the one failure that never reached a file, and it is the reason
  * that field is nullable at all: an environment that names a padi with no
- * `kolu` on PATH to reach it (`../../chat/src/kolu.ts`). #140 shipped `where`
+ * `kolu` on PATH to reach it (`../../plugin-kolu/src/probe.ts`). #140 shipped `where`
  * required on the argument that a server olai can find is one it found on PATH
  * — true of every reason that comes back from a spawn, and not of the one that
  * never got to spawn anything. The absence IS the finding there, so it is spelt

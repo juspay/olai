@@ -55,6 +55,8 @@ import {
   type HomesRequest,
   isMirror,
   isProjectable,
+  type KindVocabulary,
+  NO_KINDS,
   isRegular,
   LEGAL_FIELDS,
   type LocatedRegular,
@@ -317,6 +319,17 @@ export const search = (
    * lifetime is `./ops.ts`'s `make`, which is where a directory's other
    * long-lived things are opened.
    */
+  /** WHICH CONTRIBUTED KINDS THIS SERVE RUNS, because a declaration is two
+   *  layers now — a vault's rows over an enabled plugin's claimed keys
+   *  (`@olai/format`'s `withClaims`) — and `prop:` reads what a key is
+   *  declared as to decide between a span and an equality.
+   *
+   *  REQUIRED, and it sits BEFORE the optional index for that reason rather than
+   *  for tidiness: it was defaulted for one review round, and both call sites in
+   *  this package promptly forgot it — a range on an auto-declared key refusing
+   *  as undeclared while the write gate judged it by the claim. A default that
+   *  answers a DIFFERENT question is not a convenience. */
+  kinds: KindVocabulary,
   index?: Index | undefined,
 ): SearchAnswer => {
   // THE VAULT'S OWN VOCABULARY, handed to the grammar — which is what makes
@@ -325,7 +338,7 @@ export const search = (
   // Read per ask, off the reading this search is answered from, so a
   // declaration written a moment ago is in force for the next query; it is one
   // small file's top level, which is the same cost the shelf's reading is.
-  const filter = parseFilter(query.text, now, declarationsOf(at.derived))
+  const filter = parseFilter(query.text, now, declarationsOf(at.derived, kinds))
   // A query the grammar could not read answers with no hits AND WITH THE
   // REASON. An empty one answers with no hits and nothing to say — there is no
   // question to have refused.
@@ -477,8 +490,11 @@ export const narrowing = (
   /** What the grammar's relative words count from — {@link search}'s own
    *  argument, and the same clock. */
   now: string,
+  /** ...and the contributed kinds this serve runs, for {@link search}'s reason
+   *  exactly: one grammar, read off one folded set of declarations. */
+  kinds: KindVocabulary,
 ): NarrowingAnswer =>
-  narrowingOf(at, request, now)
+  narrowingOf(at, request, now, kinds)
 
 // ── which ids the set declares ─────────────────────────────────────────
 
@@ -688,8 +704,11 @@ export const owed = (derived: Derived, request: OwedRequest): Owed =>
  * revision's set with another's view — which is the reason those three travel
  * together at all.
  */
-export const page = (at: Reading, request: PageRequest): PageReading =>
-  pageOf(at, request)
+export const page = (
+  at: Reading,
+  request: PageRequest,
+  kinds: KindVocabulary,
+): PageReading => pageOf(at, request, kinds)
 
 /**
  * WHETHER A ROW CAN GO WHERE SOMEBODY IS POINTING — the move picker's preview

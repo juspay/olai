@@ -15,7 +15,7 @@
 # `terminal-themes`) vendorable, which is what let this file finally become the
 # seed list it always wanted to be. An unknown seed is a loud error rather than
 # a quiet nothing, and the closure walk IS the sibling-closure check that
-# `scripts/check-kolu-deps.sh` used to perform by hand.
+# `scripts/check-hydrated-deps.sh`'s ancestor used to perform by hand.
 #
 # WHAT IS STILL OLAI'S, and it is exactly two things:
 #
@@ -35,6 +35,23 @@
 # also why every one of them is compiled by olai's own `tsc` and why a source
 # that will not typecheck here is a blocker rather than a nuisance. That is the
 # whole reason this arrangement is worth its cost, and it is unchanged.
+#
+# THE PIN TRACKS MASTER, which is the third state it has been in and is the one
+# it started in. It tracked master until the ROOTED BUNDLE arrived —
+# `mergeDisjointGroups` and `exposeRootedFaces` on `@kolu/surface`, and
+# `connectSurfaces`' `core` slot on `@kolu/surface-app` (juspay/kolu#2222) —
+# which is the capability olai asked for and the one this tree's client seam is
+# built on. That work was UNMERGED for a window, so the pin was frozen at an
+# exact sha on the `rooted-bundle` branch (the odu#94 precedent next door): a
+# branch whose head can still move under a merge, a rebase or an amendment is a
+# pin that would change what `@olai/web` compiles against with no diff to show
+# for it.
+#
+# #2222 MERGED (squashed onto master as `5077c7f9`), and the reason expired with
+# it exactly as the note here said it would: the branch is gone with the squash,
+# the pin is unfrozen, and `just update-pins` walks it forward with everything
+# else. `npins/sources.json` records the revision either way, so what this tree
+# compiled against is always in the diff.
 #
 # NOTE THE ATTR RENAME. Members are `kolu-surface`, not `kolu-src-surface`:
 # the slug is kolu's now, and a consumer inventing its own would be one more

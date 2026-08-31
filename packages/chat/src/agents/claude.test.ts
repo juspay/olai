@@ -36,9 +36,12 @@ import {
   toolNameIn,
 } from "./claude.ts"
 
-/** The servers a session is handed: olai's own, and kolu's when the host has
- *  one. `given` in `agent.ts` is exactly this list of names. */
-const GIVEN = ["olai", "kolu"]
+/** The servers a session is handed: olai's own, and an optional one when a
+ *  probe answered — called `alpha`, because this package may not spell an
+ *  appliance even in a fixture. What is being exercised is the tool-name
+ *  grammar `mcp__<server>__<tool>`, and any server name does that.
+ *  `given` in `agent.ts` is exactly this list of names. */
+const GIVEN = ["olai", "alpha"]
 
 /**
  * The adapter's plan-mode exit, as it builds it: `auto` FIRST and
@@ -67,7 +70,7 @@ const TOOL_CALL: ReadonlyArray<PermissionOption> = [
 describe("which permissions are answered without asking", () => {
   test("a call to a server we handed this session is allowed", () => {
     expect(allowedWithoutAsking("mcp__olai__set_done", GIVEN, TOOL_CALL)).toBe("allow")
-    expect(allowedWithoutAsking("mcp__kolu__terminal_read", GIVEN, TOOL_CALL)).toBe("allow")
+    expect(allowedWithoutAsking("mcp__alpha__terminal_read", GIVEN, TOOL_CALL)).toBe("allow")
   })
 
   test("the plan-mode exit is a person's, whatever its first option offers", () => {
@@ -93,7 +96,7 @@ describe("which permissions are answered without asking", () => {
     // for itself — none of those were olai's to mediate.
     expect(allowedWithoutAsking("mcp__github__create_pr", GIVEN, TOOL_CALL)).toBeNull()
     expect(allowedWithoutAsking("mcp__olai__set_done", [], TOOL_CALL)).toBeNull()
-    expect(allowedWithoutAsking("mcp__olai__set_done", ["kolu"], TOOL_CALL)).toBeNull()
+    expect(allowedWithoutAsking("mcp__olai__set_done", ["alpha"], TOOL_CALL)).toBeNull()
   })
 
   test("the separator is part of the name, so a longer server name is not ours", () => {
@@ -673,11 +676,11 @@ describe("which of this conversation's servers the agent attached", () => {
     expect(
       liveServersIn(init([
         { name: "olai", status: "connected" },
-        { name: "kolu", status: "connected" },
+        { name: "alpha", status: "connected" },
       ])),
     ).toEqual([
       { name: "olai", attached: true, said: "connected" },
-      { name: "kolu", attached: true, said: "connected" },
+      { name: "alpha", attached: true, said: "connected" },
     ])
   })
 
@@ -691,12 +694,12 @@ describe("which of this conversation's servers the agent attached", () => {
     // to find out that their server wants signing in rather than that it broke.
     expect(
       liveServersIn(init([
-        { name: "kolu", status: "needs-auth" },
+        { name: "alpha", status: "needs-auth" },
         { name: "deepwiki", status: "failed" },
         { name: "later", status: "a word no version has sent yet" },
       ])),
     ).toEqual([
-      { name: "kolu", attached: false, said: "needs-auth" },
+      { name: "alpha", attached: false, said: "needs-auth" },
       { name: "deepwiki", attached: false, said: "failed" },
       { name: "later", attached: false, said: "a word no version has sent yet" },
     ])
@@ -744,7 +747,7 @@ describe("which of this conversation's servers the agent attached", () => {
     // agent reporting on a list with nothing in it. An absent field is the
     // first.
     expect(liveServersIn(init(undefined))).toBeNull()
-    expect(liveServersIn(init("olai, kolu"))).toBeNull()
+    expect(liveServersIn(init("olai, alpha"))).toBeNull()
     expect(liveServersIn({ sessionId: "s1" })).toBeNull()
     expect(liveServersIn(null)).toBeNull()
     expect(liveServersIn(undefined)).toBeNull()
@@ -762,11 +765,11 @@ describe("which of this conversation's servers the agent attached", () => {
         { name: "olai", status: "connected" },
         { status: "connected" },
         { name: "", status: "connected" },
-        { name: "kolu" },
-        { name: "kolu", status: "" },
-        { name: "kolu", status: 7 },
+        { name: "alpha" },
+        { name: "alpha", status: "" },
+        { name: "alpha", status: 7 },
         null,
-        "kolu",
+        "alpha",
       ])),
     ).toEqual([{ name: "olai", attached: true, said: "connected" }])
   })

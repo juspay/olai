@@ -23,10 +23,10 @@
     "@olai/state": "workspace:*",
     "@olai/surface": "workspace:*",
     "effect": "4.0.0-rc.112",
-    "zod": "^4.0.0",
-    "@olai/kolu-client": "workspace:*"
+    "zod": "^4.0.0"
   },
-  "//devDependencies": "@types/node is for the Node stream types `pipes.ts` still names (the ACP transport, residue on top of `@olai/child`) and for the `ChildProcess` type `kolu.ts` still names — `@kolu/detect`'s probe takes Node's own, which is why that import lives on.",
+  "//kolu": "@olai/kolu-client is GONE from this list, and its absence is the whole of what the plugin wall bought here. This package used to carry a `kolu.ts` — the judgement half of a probe, and five English sentences about one appliance's ways of failing — inside a package whose subject is one conversation with one ACP agent. It is @olai/plugin-kolu's now; what is left is the SHAPE of the question (src/probes.ts), a list the composition root fills, and nothing on this manifest names an appliance.",
+  "//devDependencies": "@types/node is for the Node stream types `pipes.ts` still names — the ACP transport, residue on top of `@olai/child`.",
   "devDependencies": {
     "@types/node": "^22.0.0"
   }

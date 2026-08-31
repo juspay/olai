@@ -98,9 +98,13 @@ typecheck: install
 # The list grew with `reactivity-after-the-flip`, whose subjects are memos and
 # effects over a store — and "a memo re-ran" is the very claim a server-resolved
 # run cannot make, so each of these would PASS having recomputed nothing.
-# `names.ts` is the table every title resolver reads (PR 2) and `doors.ts` is
+# `names.ts` is the table every title resolver reads (PR 2), `doors.ts` is
 # its twin one question over — what the property values a page draws NAME, which
-# every chip of every row looks up — `Tree.tsx` is what
+# every chip of every row looks up — and `licences.ts` is the third of them:
+# which of those values a running plugin's contributed KIND claims, which is what
+# a live face is looked up by and is the more expensive one to re-run for
+# nothing (a terminal door's whole subscription, not a chip's text) —
+# `Tree.tsx` is what
 # one frame costs every row of the page (PR 6, over the real store merge),
 # `directory.ts`'s broken map has to hold its identity across a frame,
 # `chat/last.ts` is about which rows an effect subscribes to (PR 4),
@@ -122,6 +126,7 @@ test: install
       ./packages/web/src/client/fold/refiling.browsertest.ts \
       ./packages/web/src/client/names.browsertest.ts \
       ./packages/web/src/client/doors.browsertest.ts \
+      ./packages/web/src/client/licences.browsertest.ts \
       ./packages/web/src/client/Tree.browsertest.ts \
       ./packages/web/src/client/directory.browsertest.ts \
       ./packages/web/src/client/chat/last.browsertest.ts \
@@ -131,19 +136,44 @@ test: install
       ./packages/kolu-ui/src/props/held.browsertest.ts
 
 # Every dependency the hydrated @kolu/* sources declare, checked against the
-# root package.json (bunfig.toml explains why they have to be there). Reads
-# the pinned sources in the store and this repo's manifests, never
-# node_modules — so it does not wait on `install` and fails fast.
+# root package.json, every workspace manifest and the root `overrides` block
+# (bunfig.toml explains why they have to be there). Reads the pinned sources in
+# the store and this repo's manifests, never node_modules — so it does not wait
+# on `install` and fails fast.
+#
+# ONE SCRIPT, TWO LEGS, and the leg NAMES ARE UNCHANGED on purpose: `check`
+# below carries [metadata("ci")] and odu expands its dependency list into the
+# lane graph, so renaming one of these would rename a CI node for no gain. What
+# changed is underneath — `check-kolu-deps.sh` and `check-odu-deps.sh` were the
+# same script with the nouns swapped (the second one's own header asked to be
+# generalised and named the arguments), and they are now one
+# `check-hydrated-deps.sh` invoked once per pin. Still two legs, because the two
+# pins are two repositories that move independently and a reader who lands on a
+# red leg should already know which one it is about.
+#
+# WHAT THESE LEGS NO LONGER DO: the import fence. Which package may name
+# `@kolu/padi-client` or `@odu/*`, and the `/wire` entries staying
+# schemas-and-types, moved to `packages/plugins/src/fence.test.ts` — a `bun test`
+# under the `test` leg. Two reasons, both about the old shape rather than about
+# tidiness: every one of those greps ended `rg … 2>/dev/null || true` and
+# `ripgrep` is not in shell.nix's package list, so on a machine with no ambient
+# one the fence passed GREEN having never run; and they swept `packages/*/src`,
+# which misses `packages/tests` — the one member with no `src/` — where four
+# product-tier `@kolu/*` imports sat with `just check` green. The cost is that
+# the fence now waits on `install` where these legs do not; what it buys is a
+# fence that cannot silently not-run, and a confinement table DERIVED from the
+# plugin registry instead of hand-copied per script.
 kolu-deps:
-    {{ nix_shell }} sh -c 'sh scripts/check-kolu-deps.sh'
+    {{ nix_shell }} sh -c 'sh scripts/check-hydrated-deps.sh kolu "$OLAI_KOLU_EXTERNALS"'
 
-# The same two questions about odu's one hydrated package: does olai's root
-# satisfy what `@odu/run-client` declares, and is it imported anywhere but the
-# package that exists to hold it. Its own leg rather than a fifth arm of
-# `kolu-deps`, because the two pins move independently and a reader who lands
-# on a red leg should already know which repo it is about.
+# The same three questions about odu's one hydrated package, asked by the same
+# script. It gets two assertions it never had — every workspace manifest, and
+# the root `overrides` block — which is not a widening for its own sake:
+# `@odu/run-client` declares `effect` at this tree's pinned version, and an
+# override is how bun SILENTLY REWRITES one, so an unchecked one there makes
+# every manifest's honesty cosmetic in exactly the way it already did for kolu.
 odu-deps:
-    {{ nix_shell }} sh -c 'sh scripts/check-odu-deps.sh'
+    {{ nix_shell }} sh -c 'sh scripts/check-hydrated-deps.sh @odu/run-client "$OLAI_ODU_MANIFEST"'
 
 # Build the browser bundle into packages/web/dist. The nix build runs this
 # same script in its own sandbox (default.nix), so there is one bundler and not

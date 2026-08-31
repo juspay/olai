@@ -3,6 +3,7 @@ import { expect, test } from "bun:test"
 import { Schema, SchemaAST } from "effect"
 
 import { DEFAULT_POLICY, NO_PIN } from "@olai/format"
+import { keyings, type Keying } from "./keyings.testlib.ts"
 
 import {
   ASSET_PREFIX,
@@ -10,6 +11,8 @@ import {
   type GitState,
   LOADED,
   Manifest,
+  NO_ROSTER,
+  PluginRoster,
   surface,
   WHO_PATH,
 } from "./index.ts"
@@ -160,118 +163,6 @@ test("a document entry without refused decodes as not refused", () => {
 
 // ── what identifies a row ──────────────────────────────────────────────
 
-/**
- * WHICH ARRAYS A DECLARED `arrayKey` ACTUALLY KEYS — read off the member's own
- * schema, so a rename has to come to the declaration.
- *
- * The declaration and the field it names live in two places, and a rename of
- * one silently orphans the other: an `arrayKey` no element carries reads as "no
- * identity declared" at the merge, so every row of that member goes back to
- * being REPLACED per frame with nothing red anywhere — which is the audit's
- * 2.11, the finding this pin bump is about, quietly coming back.
- *
- * A PER-SITE GUARD, which is the pattern kolu ships beside its own declaration
- * (`packages/common/src/surface.test.ts`, "names a field the forward schema
- * actually carries") and the reason juspay/kolu#2190 ships no boot-time check:
- * a walk that ran at construction would have to survive every codec an app can
- * write — recursive, `suspend`ed, hand-built — and a FALSE boot crash on a
- * legitimate declaration is worse than the mis-declaration it catches. In a
- * test the walk is safe, because the schemas it walks are named one by one.
- *
- * It checks the harder half too, which kolu's docstrings state and no code
- * enforces: the field must be REQUIRED and NON-NULLABLE. `reconcile` decides
- * keyed-versus-positional for a whole array from its FIRST element's value, so
- * an optional key lets whichever row happens to be first decide for every other
- * row in that frame — which cannot corrupt anything and silently drops that
- * frame back to the undeclared behaviour, which is the whole thing the
- * declaration was for.
- */
-type Keying = "keyed" | "positional" | "mixed"
-
-/** Every array inside a schema, and whether `field` identifies its elements:
- *  `keyed` (every arm carries it, required and non-nullable), `positional`
- *  (no arm carries it — merged by index, which is silent on a repeated frame
- *  just the same), or `mixed`, which is the one nobody may ship.
- *
- *  Over `SchemaAST`, which `effect` exports with the union and the narrowing
- *  guards already on it — there is nothing here to hand-roll but the question. */
-const keyings = (
-  schema: { readonly ast: SchemaAST.AST },
-  field: string,
-): ReadonlyMap<string, Keying> => {
-  const found = new Map<string, Keying>()
-  const seen = new Set<SchemaAST.AST>()
-
-  /** Through a `suspend` and into a union's arms — the shapes an element can be
-   *  spelled as before it is an object with fields. */
-  const arms = (ast: SchemaAST.AST): ReadonlyArray<SchemaAST.AST> =>
-    SchemaAST.isSuspend(ast)
-      ? arms(ast.thunk())
-      : SchemaAST.isUnion(ast)
-      ? ast.types.flatMap(arms)
-      : [ast]
-
-  const carries = (arm: SchemaAST.AST): boolean => {
-    if (!SchemaAST.isObjects(arm)) return false
-    const property = arm.propertySignatures.find((one) => one.name === field)
-    if (property === undefined) return false
-    // Required and non-nullable, both asked of the property's own type through
-    // the module that owns the answer: optionality moved off the node between
-    // effect 3 and 4, and reading `context.isOptional` by hand is a guard that
-    // would quietly start saying "not optional" the next time it moves.
-    if (SchemaAST.isOptional(property.type)) return false
-    return !arms(property.type).some(SchemaAST.isNull)
-  }
-
-  const walk = (ast: SchemaAST.AST, path: string): void => {
-    // A row's `children` is the same array wherever it is reached from, and it
-    // holds rows, so the walk would not otherwise end.
-    if (seen.has(ast)) return
-    seen.add(ast)
-    if (SchemaAST.isSuspend(ast)) return walk(ast.thunk(), path)
-    if (SchemaAST.isUnion(ast)) {
-      for (const one of ast.types) walk(one, path)
-      return
-    }
-    if (SchemaAST.isArrays(ast)) {
-      const elements = [...ast.elements, ...ast.rest]
-      const objects = elements.flatMap(arms).filter(SchemaAST.isObjects)
-      if (objects.length > 0) {
-        const carrying = objects.filter(carries).length
-        found.set(
-          path,
-          carrying === 0 ? "positional" : carrying === objects.length ? "keyed" : "mixed",
-        )
-      }
-      for (const one of elements) walk(one, `${path}[]`)
-      return
-    }
-    if (SchemaAST.isObjects(ast)) {
-      for (const property of ast.propertySignatures) {
-        const name = String(property.name)
-        walk(property.type, path === "" ? name : `${path}.${name}`)
-      }
-    }
-  }
-
-  walk(schema.ast, "")
-  return found
-}
-
-/**
- * EVERY MEMBER, and the schema whose arrays its key would govern — read off the
- * spec rather than written down beside it.
- *
- * The docstring above says the hazard is "a declaration and the field it names
- * live in two places". A guard that imported four schemas by hand and named four
- * members by hand would be a third place, with the same failure: point `pins` at
- * a different schema and the check goes on passing against the old one, and add
- * a member tomorrow with a key its value does not carry and nothing is red.
- *
- * `arrayKey` is read through a widening because the spec is a LITERAL: a member
- * that does not spell the field has no such property to name, so the question
- * has to be asked of the value.
- */
 const MEMBERS: ReadonlyArray<{
   readonly name: string
   readonly arrayKey: string | undefined
@@ -308,10 +199,20 @@ const keyingsOf = (name: string): ReadonlyMap<string, Keying> => {
 
 test("every declaration names a field its own schema carries, and no other member declares", () => {
   const declaring = MEMBERS.filter((one) => one.arrayKey !== undefined)
-  // THE WHOLE LIST, asserted as a list: this is what says the four below are
-  // every one there is, so a fifth member arriving with a declaration cannot
-  // slip past a suite that only knows four names. The members that declare
-  // NOTHING declare nothing on purpose and each says why where it is declared —
+  // THE WHOLE LIST, asserted as a list: this is what says the five below are
+  // every one there is, so a sixth member arriving with a declaration cannot
+  // slip past a suite that only knows five names.
+  //
+  // CORE'S OWN MEMBERS, and only those. `cells.ci` was on this list until the
+  // extraction, and it is not a member this spec declares any more: a plugin
+  // brings a whole surface of its own and core composes it as a sibling, so
+  // odu's cell is declared — and its two array depths held — in
+  // `@olai/plugin-odu`'s own suite, against the schema it actually ships. The
+  // walk both suites spend is one walk, published through this package's
+  // `./testlib` door, so there is no second opinion about it.
+  //
+  // The members that declare NOTHING declare nothing on purpose and each says
+  // why where it is declared —
   // `errors` has no field that identifies a row, and `outlines`, `heads` and
   // `transcript` are read through the batched `deltas` delivery, which replaces
   // each named leaf whole rather than merging, so there is no merge for a key to
@@ -320,9 +221,9 @@ test("every declaration names a field its own schema carries, and no other membe
   // `inbox` and `moving` carry no array of objects at all.
   expect(declaring.map((one) => `${one.name} → ${one.arrayKey}`).sort()).toEqual([
     "cells.chat → name",
-    "cells.ci → id",
     "cells.pending → path",
     "cells.pins → id",
+    "cells.plugins → name",
     "streams.page → key",
   ])
   for (const one of declaring) {
@@ -404,28 +305,49 @@ test("the pending cell is keyed by the one name its two row lists share", () => 
   expect(keyings(pending.value, "file").get("changes")).toBe("keyed")
 })
 
-test("the ci cell's key reaches BOTH its arrays — the runs, and the nodes inside each", () => {
-  expect(surface.spec.cells.ci.arrayKey).toBe("id")
-  const found = keyingsOf("cells.ci")
-  // One field name, every array at every depth: a run is identified by the
-  // board's own `worktree` value and a node by odu's `<namepath>@<platform>`,
-  // and both are spelled `id` precisely so one declaration governs both. A
-  // coordinator republishes its whole pipeline on every node transition, and
-  // an unkeyed inner array would wake every row of a lanes outline for each.
-  expect(found.get("runs")).toBe("keyed")
-  expect(found.get("runs[].cells")).toBe("keyed")
-  // The two string lists are not in this walk at all — it reads arrays of
-  // OBJECTS, which is where identity is a question. A lane roster and a
-  // scheduling order are sequences of words, and merging them by position is
-  // the only thing they could mean.
-  expect([...found.keys()].sort()).toEqual(["runs", "runs[].cells"])
-})
-
 test("the chat cell is keyed by the field both of its lists carry", () => {
   expect(surface.spec.cells.chat.arrayKey).toBe("name")
   const found = keyingsOf("cells.chat")
   expect(found.get("commands")).toBe("keyed")
   expect(found.get("servers")).toBe("keyed")
+})
+
+// ── which plugins this build has, and which this serve runs ────────────
+
+// The roster is minted once per serve, so no frame of it repeats and the merge
+// has nothing to decide today. It declares anyway, and this is what says the
+// declaration reaches the array it is about: a plugin row IS its `name`, which
+// is the sibling key every one of that plugin's tags is composed under.
+test("the plugin roster is keyed by the one word core knows about a plugin", () => {
+  expect(surface.spec.cells.plugins.arrayKey).toBe("name")
+  expect(keyingsOf("cells.plugins").get("built")).toBe("keyed")
+})
+
+/**
+ * WHAT A PAGE HOLDS BEFORE IT HAS HEARD, and it is deliberately not "every
+ * plugin, off".
+ *
+ * A seed listing the build's plugins as `running: false` would flash "kolu is
+ * off" at a serve that is running kolu, on the panel whose whole job is saying
+ * which are on — the same mistake `GIT_OFF` avoids by seeding the git cell with
+ * the setting face rather than the fault. An empty roster draws no rows at all,
+ * which is also exactly what a runtime composing no plugins publishes.
+ */
+test("a page that has heard nothing has no plugin rows and no flag to name", () => {
+  expect(surface.spec.cells.plugins.default).toEqual(NO_ROSTER)
+  expect(NO_ROSTER.built).toEqual([])
+  // `null` is nobody having said, which is NOT the empty list: `--plugins=` is
+  // somebody saying none out loud, and the row's line says two different things.
+  expect(NO_ROSTER.pinned).toBeNull()
+  expect(Schema.is(PluginRoster)(NO_ROSTER)).toBe(true)
+  expect(Schema.is(PluginRoster)({ built: [], pinned: [] })).toBe(true)
+})
+
+// A plugin's enablement is CLI/nix only — no settings file, no browser toggle —
+// so there is no verb for a tab to call, the way there is none for `--commit`.
+test("the plugin roster is read-only on the wire", () => {
+  expect(tags).toContain("surface/plugins/get")
+  expect(surface.group.requests.has("surface/plugins/set")).toBe(false)
 })
 
 // The walk itself, since three tests above rest on it reading a schema

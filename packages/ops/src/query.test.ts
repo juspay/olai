@@ -25,6 +25,7 @@ import {
   type OutlineSet,
   type PageRequest,
   Projected,
+  NO_KINDS,
   PROJECTABLE,
   type ProjectedRoots,
   type ProjectedSubtree,
@@ -227,11 +228,11 @@ test("a node's read carries `started`, `worked` and the derived `took` — and t
 
 describe("the edges a node carries", () => {
   test("a search hit carries `after` and `see`, and omits what is not there", () => {
-    const hits = search(reading(), { text: "header" }, TODAY).hits
+    const hits = search(reading(), { text: "header" }, TODAY, NO_KINDS).hits
     expect(hits[0]).toMatchObject({ id: "sticky", after: ["git"], see: ["git"] })
     // A node that points nowhere does not pretend to: absence is how the
     // format spells an empty list, and an answer follows the format.
-    const other = search(reading(), { text: "indicators" }, TODAY).hits[0]
+    const other = search(reading(), { text: "indicators" }, TODAY, NO_KINDS).hits[0]
     expect(other).toMatchObject({ id: "git" })
     expect(other).not.toHaveProperty("after")
     expect(other).not.toHaveProperty("see")
@@ -256,14 +257,14 @@ describe("the edges a node carries", () => {
    * past a value it did not read off the node.
    */
   test("`is:blocked` reaches an agent as the derivation the page draws", () => {
-    expect(nodeHits(search(reading(), { text: "is:blocked" }, TODAY)).map((hit) => hit.id))
+    expect(nodeHits(search(reading(), { text: "is:blocked" }, TODAY, NO_KINDS)).map((hit) => hit.id))
       .toEqual(["sticky"])
     // And the negation through the same door. Named rather than enumerated:
     // what the clause has to get right is that `sticky` LEAVES and `git` —
     // unfinished work with nothing in its way, the blocker itself — stays. A
     // list of every other node in the fixture would break for reasons that
     // have nothing to do with blockedness.
-    const free = search(reading(), { text: "-is:blocked" }, TODAY).hits.filter(isNodeHit).map((hit) => hit.id)
+    const free = search(reading(), { text: "-is:blocked" }, TODAY, NO_KINDS).hits.filter(isNodeHit).map((hit) => hit.id)
     expect(free).not.toContain("sticky")
     expect(free).toContain("git")
   })
@@ -359,13 +360,13 @@ describe("the properties a node carries", () => {
    *  hit then carries is `foundOf`'s answer either way. What the second half
    *  pins is the round trip the field exists to remove, not a second branch. */
   test("a search hit answers the map, verbatim and uncut — found by word or by property", () => {
-    expect(search(reading(), { text: "indicators" }, TODAY).hits[0]).toMatchObject({
+    expect(search(reading(), { text: "indicators" }, TODAY, NO_KINDS).hits[0]).toMatchObject({
       id: "git",
       custom: { pr: "https://github.com/juspay/olai/pull/176", agent: "claude-opus" },
     })
     // The orchestration board's own query: select by the agent, and the answer
     // already holds the PR.
-    const byProp = nodeHits(search(reading(), { text: "prop:agent=claude-opus" }, TODAY))
+    const byProp = nodeHits(search(reading(), { text: "prop:agent=claude-opus" }, TODAY, NO_KINDS))
     expect(byProp.map((hit) => hit.id)).toEqual(["git"])
     expect(byProp[0]?.custom?.["pr"]).toBe("https://github.com/juspay/olai/pull/176")
   })
@@ -379,22 +380,22 @@ describe("the properties a node carries", () => {
    * whichever a precedence rule nobody asked for preferred.
    */
   test("a hit says which property carried it, beside which field carried the words", () => {
-    const [byProp] = nodeHits(search(reading(), { text: "prop:agent=claude-opus" }, TODAY))
+    const [byProp] = nodeHits(search(reading(), { text: "prop:agent=claude-opus" }, TODAY, NO_KINDS))
     expect(byProp?.matchedProps).toEqual(["agent"])
     // No words in that query, so no field carried it — and `matched` still
     // means exactly what it meant.
     expect(byProp).not.toHaveProperty("matched")
 
-    const [both] = nodeHits(search(reading(), { text: "indicators prop:pr" }, TODAY))
+    const [both] = nodeHits(search(reading(), { text: "indicators prop:pr" }, TODAY, NO_KINDS))
     expect(both).toMatchObject({ id: "git", matched: "title", matchedProps: ["pr"] })
   })
 
   test("a query that named no property leaves the field off entirely", () => {
-    expect(search(reading(), { text: "indicators" }, TODAY).hits[0]).not.toHaveProperty("matchedProps")
+    expect(search(reading(), { text: "indicators" }, TODAY, NO_KINDS).hits[0]).not.toHaveProperty("matchedProps")
   })
 
   test("a hit for a node carrying none says nothing, as its read does", () => {
-    const hit = search(reading(), { text: "header" }, TODAY).hits[0]
+    const hit = search(reading(), { text: "header" }, TODAY, NO_KINDS).hits[0]
     expect(hit).toMatchObject({ id: "sticky" })
     expect(hit).not.toHaveProperty("custom")
   })
@@ -427,15 +428,15 @@ describe("the properties a node carries", () => {
       "roadmap.olai": `{"id":"lane","ord":"a0","title":"a lane","custom":{"pr":"","agent":"claude-opus"}}`,
     }))
     // The key `prop:` refuses is the key the answer leaves out…
-    expect(search(lane, { text: "prop:pr" }, TODAY).hits).toEqual([])
-    expect(nodeHits(search(lane, { text: "lane" }, TODAY))[0]?.custom)
+    expect(search(lane, { text: "prop:pr" }, TODAY, NO_KINDS).hits).toEqual([])
+    expect(nodeHits(search(lane, { text: "lane" }, TODAY, NO_KINDS))[0]?.custom)
       .toEqual({ agent: "claude-opus" })
     // …and a map with nothing but such keys is no map at all, exactly as it is
     // no `custom` field on disk.
     const bare = readingOf(setOf({
       "roadmap.olai": `{"id":"bare","ord":"a0","title":"a bare lane","custom":{"pr":""}}`,
     }))
-    expect(search(bare, { text: "lane" }, TODAY).hits[0]).not.toHaveProperty("custom")
+    expect(search(bare, { text: "lane" }, TODAY, NO_KINDS).hits[0]).not.toHaveProperty("custom")
     expect(read(bare.derived, "bare")).not.toHaveProperty("custom")
   })
 
@@ -451,7 +452,7 @@ describe("the properties a node carries", () => {
         JSON.stringify(long)
       }}}`,
     })
-    expect(nodeHits(search(readingOf(set), { text: "lane" }, TODAY))[0]?.custom)
+    expect(nodeHits(search(readingOf(set), { text: "lane" }, TODAY, NO_KINDS))[0]?.custom)
       .toEqual({ pr: long })
   })
 
@@ -474,7 +475,7 @@ describe("the properties a node carries", () => {
         ["brief.md", "# Brief\n"],
       ],
     ))
-    const [hit] = search(vault, { text: "prop:agent=claude-opus" }, TODAY).hits
+    const [hit] = search(vault, { text: "prop:agent=claude-opus" }, TODAY, NO_KINDS).hits
     expect(hit).toMatchObject({
       at: { kind: "document", path: "notes/plan.md" },
       title: "The plan",
@@ -490,7 +491,7 @@ describe("the properties a node carries", () => {
     expect(Object.keys((hit as { props: object }).props)).toEqual(["agent", "pr"])
     // A document with no block says nothing, exactly as a node with no map
     // does — absence has one spelling here too.
-    const [plain] = search(vault, { text: "brief" }, TODAY).hits
+    const [plain] = search(vault, { text: "brief" }, TODAY, NO_KINDS).hits
     expect(plain).toMatchObject({ at: { kind: "document", path: "brief.md" } })
     expect(plain).not.toHaveProperty("props")
     expect(plain).not.toHaveProperty("matchedProps")
@@ -620,7 +621,7 @@ describe("placements", () => {
   test("a search never answers with a placement", () => {
     // A hit for a mirror would be the same node twice, once at a place no
     // write lands.
-    expect(search(reading(), { text: "git" }, TODAY).hits.filter(isNodeHit).map((hit) => hit.id))
+    expect(search(reading(), { text: "git" }, TODAY, NO_KINDS).hits.filter(isNodeHit).map((hit) => hit.id))
       .not.toContain("now-git")
   })
 })
@@ -642,9 +643,9 @@ describe("the parent a node sits under", () => {
   })
 
   test("a search hit carries it too — the same field, one `foundOf`", () => {
-    expect(nodeHits(search(reading(), { text: "indicators" }, TODAY))[0])
+    expect(nodeHits(search(reading(), { text: "indicators" }, TODAY, NO_KINDS))[0])
       .toMatchObject({ id: "git", parent: "bugs" })
-    expect(nodeHits(search(reading(), { text: "Bugs" }, TODAY))[0])
+    expect(nodeHits(search(reading(), { text: "Bugs" }, TODAY, NO_KINDS))[0])
       .not.toHaveProperty("parent")
   })
 
@@ -982,24 +983,24 @@ describe("the caller shapes the rows", () => {
  */
 describe("the notes a query asks for", () => {
   test("a hit carries `desc` when the query asked, and never otherwise", () => {
-    const [asked] = nodeHits(search(reading(), { text: "indicators", withDesc: true }, TODAY))
+    const [asked] = nodeHits(search(reading(), { text: "indicators", withDesc: true }, TODAY, NO_KINDS))
     expect(asked).toMatchObject({
       id: "git",
       desc: "the pill and the readout answer the same question",
     })
     // …and the same node, same query, without the flag.
-    expect(nodeHits(search(reading(), { text: "indicators" }, TODAY))[0])
+    expect(nodeHits(search(reading(), { text: "indicators" }, TODAY, NO_KINDS))[0])
       .not.toHaveProperty("desc")
     // Off is what an absent flag means, said out loud rather than inferred from
     // the line above: `false` and absent are one answer.
-    expect(nodeHits(search(reading(), { text: "indicators", withDesc: false }, TODAY))[0])
+    expect(nodeHits(search(reading(), { text: "indicators", withDesc: false }, TODAY, NO_KINDS))[0])
       .not.toHaveProperty("desc")
   })
 
   test("a node with no note says nothing, asked or not", () => {
     // The format's own rule for absence, and it means a caller can read `desc`
     // the same way whether it asked or not — absent is absent.
-    expect(nodeHits(search(reading(), { text: "header", withDesc: true }, TODAY))[0])
+    expect(nodeHits(search(reading(), { text: "header", withDesc: true }, TODAY, NO_KINDS))[0])
       .not.toHaveProperty("desc")
   })
 
@@ -1019,7 +1020,7 @@ describe("the notes a query asks for", () => {
         desc: long,
       }),
     })
-    expect(nodeHits(search(readingOf(set), { text: "pill", withDesc: true }, TODAY))[0]?.desc)
+    expect(nodeHits(search(readingOf(set), { text: "pill", withDesc: true }, TODAY, NO_KINDS))[0]?.desc)
       .toBe(long)
   })
 
@@ -1030,7 +1031,7 @@ describe("the notes a query asks for", () => {
       { "bugs.olai": `{"id":"one","ord":"a0","title":"a bug"}` },
       [["notes/bug.md", "# a bug\n\nthe prose lives here\n"]],
     )
-    const [hit] = search(readingOf(set), { text: "bug", withDesc: true }, TODAY).hits
+    const [hit] = search(readingOf(set), { text: "bug", withDesc: true }, TODAY, NO_KINDS).hits
       .filter((one) => one.at.kind === "document")
     expect(hit).toMatchObject({ at: { kind: "document", path: "notes/bug.md" } })
     expect(hit).not.toHaveProperty("desc")
@@ -1250,7 +1251,7 @@ describe("the tags a node carries", () => {
   test("a tag is found by its name and by its written form", () => {
     const set = readingOf(TAGGED())
     for (const text of ["alice", "@alice", "#alice"]) {
-      expect(nodeHits(search(set, { text }, TODAY)).map((hit) => hit.id)).toEqual(["call"])
+      expect(nodeHits(search(set, { text }, TODAY, NO_KINDS)).map((hit) => hit.id)).toEqual(["call"])
     }
   })
 })
@@ -1279,7 +1280,7 @@ describe("a query is words and operators", () => {
     })
 
   const ids = (query: Parameters<typeof search>[1]): ReadonlyArray<string> =>
-    search(readingOf(WORK()), query, TODAY).hits.filter(isNodeHit).map((hit) => hit.id)
+    search(readingOf(WORK()), query, TODAY, NO_KINDS).hits.filter(isNodeHit).map((hit) => hit.id)
 
   test("an operator gates the words, and the two compose", () => {
     expect(ids({ text: "is:done" })).toEqual(["book", "paint"])
@@ -1330,12 +1331,12 @@ describe("a query is words and operators", () => {
   // of the four faces read their refusals from: an unclosed quote and a joiner
   // with nothing on one side of it are told the same way `is:open` is.
   test("an unclosed quote and a dangling `OR` carry their reasons too", () => {
-    expect(search(readingOf(WORK()), { text: `"book the` }, TODAY).refusals)
+    expect(search(readingOf(WORK()), { text: `"book the` }, TODAY, NO_KINDS).refusals)
       .toEqual([{
         token: `"book the`,
         reason: `a quote nothing closes — a phrase runs from one " to the next`,
       }])
-    expect(search(readingOf(WORK()), { text: "trip OR" }, TODAY).refusals)
+    expect(search(readingOf(WORK()), { text: "trip OR" }, TODAY, NO_KINDS).refusals)
       .toEqual([{
         token: "OR",
         reason: "OR joins the token before it to the token after it — one of them is missing",
@@ -1348,24 +1349,24 @@ describe("a query is words and operators", () => {
   // failure the refusals were written to prevent. Three of the four doors read
   // it from here.
   test("a refused query carries the reason to whoever asked", () => {
-    const answer = search(readingOf(WORK()), { text: "is:open trip" }, TODAY)
+    const answer = search(readingOf(WORK()), { text: "is:open trip" }, TODAY, NO_KINDS)
     expect(answer.refusals).toEqual([{
       token: "is:open",
       reason: "is: takes one of done, cancelled, doing, todo, marked, blocked, mirrored, trashed",
     }])
     // As TYPED — an agent that echoed the folded token back to a person would
     // be quoting them wrongly.
-    expect(search(readingOf(WORK()), { text: "is:OPEN" }, TODAY).refusals?.[0]?.token)
+    expect(search(readingOf(WORK()), { text: "is:OPEN" }, TODAY, NO_KINDS).refusals?.[0]?.token)
       .toBe("is:OPEN")
   })
 
   // An empty query and a refused one both answer with no hits, and only one of
   // them has anything to say about it: there is no question to have refused.
   test("a query nobody typed carries no refusal", () => {
-    const answer = search(readingOf(WORK()), { text: "  " }, TODAY)
+    const answer = search(readingOf(WORK()), { text: "  " }, TODAY, NO_KINDS)
     expect(answer).toEqual({ hits: [], total: 0 })
     expect(answer).not.toHaveProperty("refusals")
-    expect(search(readingOf(WORK()), { text: "trip" }, TODAY)).not.toHaveProperty("refusals")
+    expect(search(readingOf(WORK()), { text: "trip" }, TODAY, NO_KINDS)).not.toHaveProperty("refusals")
   })
 
   test("the archive is out of it unless the query says so", () => {
@@ -1380,9 +1381,9 @@ describe("a query is words and operators", () => {
   })
 
   test("a hit says which field carried the words — and says nothing when none did", () => {
-    expect(search(readingOf(WORK()), { text: "flights" }, TODAY).hits[0])
+    expect(search(readingOf(WORK()), { text: "flights" }, TODAY, NO_KINDS).hits[0])
       .toMatchObject({ id: "book", matched: "title" })
-    const marked = search(readingOf(WORK()), { text: "is:todo" }, TODAY).hits[0]
+    const marked = search(readingOf(WORK()), { text: "is:todo" }, TODAY, NO_KINDS).hits[0]
     expect(marked).toMatchObject({ id: "pack" })
     expect(marked).not.toHaveProperty("matched")
   })
@@ -1390,7 +1391,7 @@ describe("a query is words and operators", () => {
   test("a finished node still loses ties, and the total is still uncapped", () => {
     // `book` and `paint` both match on their title; `book` is written first
     // and both are done, so order is the file's and the count is honest.
-    const answer = search(readingOf(WORK()), { text: "is:done", limit: 1 }, TODAY)
+    const answer = search(readingOf(WORK()), { text: "is:done", limit: 1 }, TODAY, NO_KINDS)
     expect(answer.hits.filter(isNodeHit).map((hit) => hit.id)).toEqual(["book"])
     expect(answer.total).toBe(2)
   })
@@ -1501,7 +1502,7 @@ describe("a document listing's sizes are a recompute from the body", () => {
     agree(set)
     const made = planned(set, { op: "doc", file: "note.md", text: next })
     const folded = succeeded(
-      folding(scoping(readingOf(set), steady()))(made),
+      folding(scoping(readingOf(set), steady(), NO_KINDS))(made),
       "`write_document` to apply",
     )
     agree(folded.set)
@@ -1589,7 +1590,7 @@ describe("which nodes of a page a query selects", () => {
   }
 
   const asked = (page: PageRequest, text: string): NarrowingAnswer =>
-    narrowing(readingOf(PILE()), { page, text }, TODAY)
+    narrowing(readingOf(PILE()), { page, text }, TODAY, NO_KINDS)
 
   const ids = (text: string, page: PageRequest = AT_HOUSE): ReadonlyArray<string> =>
     asked(page, text).matches.map((one) => one.id)
@@ -1624,7 +1625,7 @@ describe("which nodes of a page a query selects", () => {
     // in the page's order and looks each one up here, and the day this starts
     // ranking is the day a filtered outline reorders itself under a cursor.
     expect(ids("door")).toEqual(["order", "hinges", "tiles"])
-    expect(nodeHits(search(readingOf(PILE()), { text: "door" }, TODAY)).map((hit) => hit.id))
+    expect(nodeHits(search(readingOf(PILE()), { text: "door" }, TODAY, NO_KINDS)).map((hit) => hit.id))
       .toEqual(["order", "tiles", "shed", "hinges"])
   })
 

@@ -37,8 +37,8 @@
  * is no row to draw. That is prose, and prose is what a block has room for.
  */
 
-import { resolveTerminal } from "@olai/surface"
-import type { FleetTerminal, KoluLink } from "@olai/surface"
+import { resolveTerminal } from "@olai/kolu-client/wire"
+import type { FleetTerminal, KoluLink } from "@olai/kolu-client/wire"
 
 /** What one `terminal` value reads as: the row, or the reason there is none. */
 export interface TerminalReading {

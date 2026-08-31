@@ -6,3 +6,9 @@
 {"id":"quiet-implement","parent":"lane-quiet","ord":"a0","title":"implement + open PR","done":"2026-08-24","custom":{"agent":"claude","terminal":"33333333"}}
 {"id":"lane-old","parent":"lanes","ord":"a2","title":"a lane that finished"}
 {"id":"old-implement","parent":"lane-old","ord":"a0","title":"implement + open PR","done":"2026-08-20","custom":{"agent":"claude","terminal":"44444444"}}
+{"id":"lane-named","parent":"lanes","ord":"a3","title":"a lane whose column is not called `terminal`"}
+{"id":"named-implement","parent":"lane-named","ord":"a0","title":"implement + open PR","doing":true,"custom":{"agent":"claude","pty":"11111111"}}
+{"id":"named-review","parent":"lane-named","ord":"a1","title":"review: grok","todo":true,"custom":{"agent":"grok","where":"22222222-2222-4222-8222-222222222222"}}
+{"id":"lane-claimed","parent":"lanes","ord":"a4","title":"a lane that declared nothing at all"}
+{"id":"claimed-implement","parent":"lane-claimed","ord":"a0","title":"implement + open PR","doing":true,"custom":{"agent":"claude","kolu-terminal":"11111111"}}
+{"id":"claimed-mine","parent":"lane-claimed","ord":"a1","title":"a column of my own","todo":true,"custom":{"agent":"grok","terminal-of-mine":"22222222-2222-4222-8222-222222222222"}}

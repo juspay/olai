@@ -43,58 +43,74 @@
  *
  * Nothing here is named for one dressing, which is the property the whole
  * design was chosen for: a third living thing later — a deploy, a saatchi
- * session — is a folder beside this file and a line in `./dressings.ts`, and
- * zero new mechanism.
+ * session — is a `dressings` line on a third plugin's manifest and ZERO new
+ * mechanism, in this file or in any other of this app's.
  *
- * ## THE SEAM IMPORTS NO DRESSING, and the directory says which are which
+ * ## THE SEAM IMPORTS NO DRESSING, and now it cannot
  *
- * This file is a table, a lay-out and three interfaces. Beside it is one
- * FOLDER PER DRESSING, each named for what it IS and each registering itself
- * (the human's ruling on #433):
+ * This file is a table, a lay-out and three interfaces, and it reaches no face
+ * at all. That rule is unchanged and the way it is KEPT has got stronger: the
+ * two dressings this app installs are not folders beside this one any more, they
+ * are packages (`@olai/plugin-kolu`, `@olai/plugin-odu`), and this package may
+ * not name one — `packages/plugins/src/fence.test.ts` holds that as an equality
+ * per package rather than as a habit. So the direction is physics here rather
+ * than discipline.
  *
- *   - `./kolu-terminal/` — the terminal door. One line, because the component
- *     is `@olai/kolu-ui`'s: that one stays behind a package wall since it
- *     renders kolu's own row and mounts kolu's emulator.
- *   - `./odu-ci/` — the CI chip and the run matrix, with their words, their
- *     per-node ink and the one subscription a tab holds. A folder rather than
- *     a package because it imports nothing of odu: a wall there would confine
- *     nothing.
- *   - `./duration/` — the ⏱ chip, and the one that registers NOTHING. It is a
- *     live face by every other measure (an instant that crossed the wire once,
- *     ticked by the reader's own clock) and it has no property key to hang
- *     off: a span is DERIVED from a record's own fields, so there is no entry
- *     for `dressingFor` to look up and the row draws it instead. Its own
- *     header argues that, and what moving it onto this table would take.
+ * `./dressings.ts` is still the ONE module that names them all, imported for its
+ * effect by the drawer, and it names them the way a general package is allowed
+ * to: by WALKING THE REGISTRY. Its own header argues the reversal from the two
+ * side-effect imports it replaced, and what that buys.
  *
- * So the directory has three folders and the table has two tenants, and that
- * is the honest shape rather than a table stretched to make three. What keeps
- * the direction clean is that nothing here imports any of them — `./dressings.ts`
- * is the one module that names them, imported for its effect by the drawer.
+ * One folder does remain beside this file, and it is the one that registers
+ * NOTHING: `./duration/`, the ⏱ chip. It is a live face by every other measure
+ * (an instant that crossed the wire once, ticked by the reader's own clock) and
+ * it has no property key to hang off — a span is DERIVED from a record's own
+ * fields, so there is no entry for `dressingFor` to look up and the row draws it
+ * instead. Its own header argues that, and what moving it onto this table would
+ * take. Its ladders are also what the app hands a plugin's live face across
+ * (`../plugins/furniture.tsx`), so one register serves both sides of the wall.
  *
- * ## Keyed on the KEY, and this is now an ANSWER rather than a promise
+ * ## Keyed on the declared KIND, which the page ANSWERS for
  *
- * The old header said this table would key on the declared KIND "the day typed
- * properties land". Typed properties landed, and the honest answer turned out
- * to be different, so it is written here rather than left as a debt somebody
- * would keep re-reading.
+ * The table's key is the WORD a plugin taught the vault — `terminal`,
+ * `worktree` — and never the property key a value happens to sit under. That is
+ * what the server has always followed: `@olai/plugin-odu`'s `worktrees.ts`
+ * probes only the keys a vault declared its own `worktree` KIND, where the
+ * licence used to settle for the format's `path` and could therefore not tell
+ * `brief` from a checkout. So the promise a dressing rests on is one the vault
+ * made rather than one a component assumed.
  *
- * A BROWSER CANNOT KEY ON A DECLARED TYPE, because a vault's declarations
- * deliberately do not travel (juspay/olai#395 — the tab receives ANSWERS, and
- * `@olai/format`'s `meaning.ts` argues why the question is settled where the
- * set is). Keying this table on a type would mean shipping the declarations to
- * every tab, which is the one decision that design made and did not want back.
+ * IT USED TO BE THE PROPERTY KEY, and that was a real defect rather than a
+ * simplification. A BROWSER CANNOT KEY ON A DECLARED TYPE — a vault's
+ * declarations deliberately do not travel (juspay/olai#395 — the tab receives
+ * ANSWERS, and `@olai/format`'s `meaning.ts` argues why the question is settled
+ * where the set is) — so this table settled for the one thing a tab had, and
+ * the two halves agreed only while a vault named its key after the kind. A
+ * vault declaring `terminal` on a key called `pty` was walked, probed and gated
+ * on the server and drew NOTHING here.
  *
- * And keying on the type would be the wrong question anyway. `brief` and
- * `worktree` are both declared `path`, and only one of them names a checkout
- * to probe for a run — a face selected by type alone would dress both.
+ * What closed it is not a declaration on the wire and not a wire member: the
+ * page's own consult mints an ANSWER PER DRAWN VALUE — `from`, `prop`, `value` →
+ * the word, when a running plugin's kind claims it — and it rides beside the
+ * doors table it is a twin of (`@olai/format`'s `Licence`, `../licences.ts`).
+ * The tab still receives answers and still cannot re-derive a rule; #395 is
+ * untouched. What changed is only which question the answer is to.
  *
- * So the seam is split along the line the architecture already draws. THE KEY
- * SELECTS the face, here, in the browser. THE DECLARED TYPE LICENCES it, on
- * the server, where the declarations are: `@olai/server`'s `worktrees.ts` probes a
- * `worktree` only in a vault that has declared that key a `path`, so the
- * promise a dressing rests on is one the vault made rather than one a
- * component assumed. A vault that declares nothing gets no CI cell, the chip
- * has nothing to say, and it draws as the path it always was.
+ * SO THERE ARE TWO LICENCES AND THEY ASK ABOUT TWO DIFFERENT PLUGINS, both
+ * spent in {@link dressingFor}. The page's says THIS VALUE is claimed by that
+ * word, which is a fact about the vault and about whoever CONTRIBUTED the kind.
+ * The roster's ({@link Running}) says this serve is running whoever REGISTERED
+ * the face.
+ *
+ * Those are the same plugin for both of today's dressings, and it would be easy
+ * to read the second as redundant — a word can only be claimed by a kind whose
+ * plugin is enabled, so the page's answer already implies a running plugin.
+ * That reasoning is wrong by one step: nothing says a dressing is registered by
+ * the plugin that taught the vault the word. A plugin may dress another's kind
+ * (the vocabulary is a table core assembles, not a private field), and then the
+ * word is claimed while the face's owner is off. The roster is what answers that
+ * one, and it is also what keeps a face off the page in the instant before a
+ * roster has landed — the two answers arrive on different frames.
  *
  * ## Three rules a dressing must satisfy, and they are the chip's own
  *
@@ -124,8 +140,6 @@
 
 import type { JSX } from "solid-js"
 
-import { TERMINAL_KEY, WORKTREE_KEY } from "@olai/surface"
-
 import type { Entry } from "../props/drawer.ts"
 
 /**
@@ -135,7 +149,7 @@ import type { Entry } from "../props/drawer.ts"
  * or the wire would be a face the drawer has to know something about, and the
  * point of the seam is that it does not. Everything else a face needs it reads
  * from a context of its own — which is what `@olai/kolu-ui`'s `fleet.tsx` and
- * `./odu-ci/runs.tsx` already are.
+ * `@olai/plugin-odu`'s `runs.tsx` already are.
  */
 export interface BlockContext {
   readonly entry: Entry
@@ -209,31 +223,89 @@ export interface Dressing {
  * and a component — the drawer is closed to modification and open to
  * extension, which is the whole of what a dressing table buys.
  */
-const DRESSINGS = new Map<string, Dressing>()
+const DRESSINGS = new Map<string, { readonly dressing: Dressing; readonly plugin: string }>()
 
-/** Dress a property key. Called once per dressing, at module load, from the
- *  module that owns the app's table — never from the component itself: a
- *  self-registrant would put an appliance in charge of the app's table, and
- *  the import direction would be a lie told by an `import "…"` with no
- *  binding. */
-export const registerLive = (key: string, dressing: Dressing): void => {
-  DRESSINGS.set(key, dressing)
+/** Dress a contributed KIND. Called once per dressing, at module load, from the
+ *  module that owns the app's table (`./dressings.ts`) — never from the
+ *  component itself: a self-registrant would put an appliance in charge of the
+ *  app's table, and the import direction would be a lie told by an `import "…"`
+ *  with no binding.
+ *
+ *  THE WORD IS THE PLUGIN'S OWN CONSTANT, arriving on its manifest — the same
+ *  one its `kinds` table declares and its server walk follows, which is the
+ *  whole of the fix: one spelling, one authority. It was the property KEY for
+ *  one PR window, because a tab had nothing else, and the two halves silently
+ *  disagreed for any vault that named a key something other than the kind.
+ *  Before that it was re-exported from here, as `TERMINAL_KEY` and
+ *  `WORKTREE_KEY` off `@olai/surface`, so a registration could read in one line;
+ *  that re-export is gone with the registrations, and the reason is the
+ *  direction rather than tidiness — this package may not name a plugin, and a
+ *  general seam holding two tenants' words was the last place core spelled
+ *  one. */
+export const registerLive = (word: string, dressing: Dressing, plugin: string): void => {
+  DRESSINGS.set(word, { dressing, plugin })
 }
 
-/** The two keys the app dresses, re-exported so a registration reads in one
- *  line and each constant still has one home — `@olai/surface`, composed out
- *  of the appliance slice that owns it. Never the strings `"terminal"` and
- *  `"worktree"` here: a literal would be a second spelling waiting to drift
- *  from the one the server probes by. */
-export { TERMINAL_KEY, WORKTREE_KEY }
+/**
+ * IS THE PLUGIN THAT OWNS THIS FACE ACTUALLY RUNNING — asked at DRAW, not at
+ * registration, and the difference is the whole of what `--plugins` means in a
+ * browser.
+ *
+ * A tab registers what the BUILD has, because that is all it can know at import
+ * time: the enabled set is a fact about the SERVE, and it arrives on a cell
+ * after the wire is up (`../wire.ts` argues why the browser does not wait for
+ * it). So registration is the build's and the LICENCE is the serve's, and this
+ * is where the second one is spent.
+ *
+ * Without it a disabled plugin's face still draws — in its own "nothing here"
+ * arm, which is a row that says there is no daemon rather than the plain chip
+ * an undressed property has always drawn. That is not the absent state; it is a
+ * complaint about a tool the operator deliberately turned off, and it took a
+ * screenshot of a serve with `--plugins=` to see it.
+ */
+export type Running = (plugin: string) => boolean
 
-/** The dressing for one entry, or `undefined` where it draws as a plain chip.
- *  The three rules are here rather than in the drawer so every future dressing
- *  gets them without restating them. */
-export const dressingFor = (entry: Entry): Dressing | undefined => {
+/** What a page with no roster yet answers: everything the build has. It is the
+ *  same answer the built-in default gives, so a tab that has not yet heard from
+ *  the server draws what it will keep drawing in the ordinary case rather than
+ *  flashing every face off and on. */
+export const ALL_RUNNING: Running = () => true
+
+/**
+ * WHAT WORD CLAIMS A VALUE ON THIS PAGE — the page's own answer, narrowed to the
+ * one file this run is drawn from.
+ *
+ * The full table is keyed by the TRIPLE (`../licences.ts`), because the file a
+ * value was written in is part of its identity. A run is all from one file, so
+ * what the drawer hands down is that lookup with its `from` already spent —
+ * which keeps this module from having to know that a page has files in it at
+ * all.
+ */
+export type Licensed = (key: string, value: string) => string | undefined
+
+/**
+ * The dressing for one entry, or `undefined` where it draws as a plain chip.
+ *
+ * FOUR RULES, here rather than in the drawer so every future dressing gets them
+ * without restating them: the three the header lists, plus the licence — which
+ * is really two questions of two authorities, and the header says why both.
+ */
+export const dressingFor = (
+  entry: Entry,
+  running: Running,
+  licensed: Licensed,
+): Dressing | undefined => {
   if (entry.system) return undefined
-  if (entry.values.length !== 1) return undefined
-  return DRESSINGS.get(entry.key)
+  // The single value is read out here rather than asked for twice: it is the
+  // rule ("one value, or the run of text it always was") and it is also what the
+  // licence is looked up by, and those had better be the same value.
+  const [value, ...rest] = entry.values
+  if (value === undefined || rest.length > 0) return undefined
+  const word = licensed(entry.key, value)
+  if (word === undefined) return undefined
+  const held = DRESSINGS.get(word)
+  if (held === undefined) return undefined
+  return running(held.plugin) ? held.dressing : undefined
 }
 
 /** One entry, ready to draw: the entry and whatever it wears. */
@@ -268,12 +340,16 @@ export interface Laid {
  */
 export const layOut = (
   entries: ReadonlyArray<Entry>,
-  editing?: string,
+  editing: string | undefined,
+  running: Running,
+  licensed: Licensed,
 ): Laid => {
   const run: Laid["run"][number][] = []
   const blocks: { entry: Entry; block: PropBlock }[] = []
   for (const entry of entries) {
-    const dressing = entry.key === editing ? undefined : dressingFor(entry)
+    const dressing = entry.key === editing
+      ? undefined
+      : dressingFor(entry, running, licensed)
     if (dressing?.Block !== undefined) blocks.push({ entry, block: dressing.Block })
     else run.push({ entry, chip: dressing?.Chip, pane: dressing?.Pane })
   }

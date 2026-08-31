@@ -35,6 +35,14 @@ import {
   TESTID,
   type TestId,
 } from "@olai/web/testlib";
+// ...and the PLUGINS' half of the same table. The ids split by RENDERER — a
+// scenario asserting on the padi pill is asserting on `@olai/plugin-kolu`'s
+// output, not on the app's — and they route through the registry because
+// `packages/plugins/src/fence.test.ts` holds, as an equality per package, that
+// nothing outside it names a plugin. The door is NAMES ONLY, which is what
+// keeps a component (and behind kolu's, a terminal emulator) off the graph of a
+// process with no browser in it.
+import { PLUGIN_TESTID } from "@olai/plugins/testids";
 import { listenHeaderProxy, type HeaderProxy } from "./headerProxy.ts";
 import type { LivePadi } from "@olai/kolu-client/testlib";
 import {
@@ -707,10 +715,10 @@ export const AGENDA_EMPTY = selector(TESTID.agendaEmpty);
 export const AGENDA_LINK = selector(TESTID.agendaLink);
 /** The Padi readout's drawer: what recently wanted attention, and under it
  *  the foot — the mutes' line and the wrench onto the config. */
-export const PADI_FEED = selector(TESTID.padiFeed);
-export const PADI_FEED_FOOT = selector(TESTID.padiFeedFoot);
-export const PADI_FEED_MUTES = selector(TESTID.padiFeedMutes);
-export const PADI_FEED_WRENCH = selector(TESTID.padiFeedWrench);
+export const PADI_FEED = selector(PLUGIN_TESTID.padiFeed);
+export const PADI_FEED_FOOT = selector(PLUGIN_TESTID.padiFeedFoot);
+export const PADI_FEED_MUTES = selector(PLUGIN_TESTID.padiFeedMutes);
+export const PADI_FEED_WRENCH = selector(PLUGIN_TESTID.padiFeedWrench);
 /** What that entry REPORTS, wrapped round the link: `data-owed` is the face it
  *  wears (`overdue` / `today` / `quiet`) and `data-overdue` / `data-today` are
  *  the two counts, whichever of them is on screen. */
@@ -835,7 +843,7 @@ export const APP_CHROME_CONTROLS: ReadonlyArray<string> = [
   // row that reports on the repository. Chrome that is orthogonal grows the
   // list by one; chrome that answers a question already answered is what the
   // list exists to stop, and this is the first kind.
-  TESTID.padi,
+  PLUGIN_TESTID.padi,
   TESTID.commitPill,
   // How long THIS process has been the one answering — furniture, beside
   // the committed pill, the same register. Added as the deliberate edit
@@ -1747,6 +1755,13 @@ export class OlaiWorld extends World {
    *  same reason as `gitMode`: a restart has to reproduce the first boot, and
    *  this decides what every browser's preferences panel is allowed to do. */
   gitPin: { commit?: string; push?: string } = {};
+  /** WHICH INTEGRATIONS this scenario's server composed — the `--plugins` value
+   *  a `@plugins:` tag asked for, `""` for none, and `undefined` for the flag
+   *  nobody gave (every integration this build has). Held for `gitPin`'s reason:
+   *  a restart has to reproduce the first boot, and a server that came back
+   *  running a different set is a different server. */
+  pluginPin: string | undefined = undefined;
+
   /** The avatar URL template this scenario's server was started with
    *  (`@avatar-template`), or `undefined` for the ordinary server, which has
    *  none and pictures people from the rungs below it. Carried for the same

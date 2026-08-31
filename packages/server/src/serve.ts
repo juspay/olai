@@ -28,11 +28,13 @@ import { AGENT_ENV, roster, whyNoAgent } from "@olai/chat"
 import type { GitPin } from "@olai/format"
 import type { IdentityConfig } from "@olai/identity"
 import { fixedPolicy, make as makeOps, TOOLS } from "@olai/ops"
+import { enabled, probesOf, SERVERS } from "@olai/plugins/server"
 import { Effect, SubscriptionRef } from "effect"
 import { randomBytes } from "node:crypto"
 
 import * as Chat from "@olai/chat"
 import { openDirectory } from "./directory.ts"
+import { propKinds } from "./propKinds.ts"
 import { watchFault } from "./fault.ts"
 import { hostname } from "./hostname.ts"
 import { listen } from "./listener.ts"
@@ -61,6 +63,10 @@ export interface ServeOptions {
    *  is that composed with the built-in defaults (`@olai/ops`' `fixedPolicy`);
    *  what every browser draws read-only is the instance's policy. */
   readonly pin: GitPin
+  /** WHICH built-in integrations to run — `null` for nobody having said,
+   *  which means all of them. `./pluginPolicy.ts` argues why omission stays
+   *  distinguishable from the default typed out loud. */
+  readonly plugins: ReadonlyArray<string> | null
 }
 
 /**
@@ -76,7 +82,18 @@ export interface ServeOptions {
  */
 export const serve = (options: ServeOptions) =>
   Effect.gen(function*() {
-    const { root, store } = yield* openDirectory(options.root)
+    /**
+     * WHAT THE PLUGINS TEACH THIS VAULT'S VOCABULARY, before anything reads a
+     * file — because the store validates through it and the write planner
+     * refuses through it ({@link ./propKinds.ts}).
+     *
+     * FIRST, and that ordering is the one thing worth noticing here: a codec
+     * built without it would judge the boot's own load against a vocabulary
+     * that has never heard of a terminal, and every value under a contributed
+     * kind would be text until something re-validated.
+     */
+    const kinds = propKinds(options.plugins)
+    const { root, store } = yield* openDirectory(options.root, kinds)
 
     // The chat publishes through the surface, and the surface is seeded from
     // the chat. One mutable slot resolves that, and it is safe because nothing
@@ -129,6 +146,11 @@ export const serve = (options: ServeOptions) =>
       store,
       root,
       policy,
+      // THE SAME TABLE THE STORE VALIDATES WITH, so a value a page draws, a
+      // value the validator reports and a value `set_prop` refuses are one
+      // question asked three times. Two tables here would be the bug family
+      // `@olai/format`'s `meaning.ts` is a list of, rebuilt at the root.
+      kinds,
       onSettled: () => {
         Effect.runSync(SubscriptionRef.update(settled, (count) => count + 1))
       },
@@ -160,6 +182,26 @@ export const serve = (options: ServeOptions) =>
       roster: installed,
       cwd: root,
       tools: () => tools,
+      /**
+       * ...AND WHATEVER ELSE THIS HOST IS RUNNING, asked once per conversation.
+       *
+       * The one place the two halves meet: `@olai/chat` declares the SHAPE of
+       * the question — is your tool here, and what am I owed if it is not — and
+       * each plugin answers it in its own package, in its own words. This line
+       * is where a drift between the two spellings is a type error, which is
+       * why neither of them imports the other.
+       *
+       * FILTERED BY THE PIN, so a plugin left out of `--plugins` never probes,
+       * exactly as the registry says an absent plugin means. `process.env` is
+       * read HERE for the reason everything else on this page is: a composition
+       * root is where a process reaches for the real environment, and a probe
+       * has to see what a session's own spawn will resolve against.
+       *
+       * Through `@olai/plugins/server` and not the root, for `./pluginPolicy.ts`'s
+       * reason: the manifests carry SolidJS faces, and the first `.tsx` this
+       * process evaluates kills the boot.
+       */
+      probes: probesOf(enabled(SERVERS, options.plugins), process.env),
       onState: (state) => publishing().state(state),
       onTranscript: (change) => publishing().transcript(change),
     })
@@ -193,24 +235,28 @@ export const serve = (options: ServeOptions) =>
       hostname: theMachine,
       startedAt,
       git: gitWiring(ops, policy, settled),
-      // THE PADI LINK, and this is the one place a process reaches for the
-      // real environment and the real clock. `olai web` is the face the
-      // terminal door is drawn on, so it is the face that dials; the headless
-      // and one-shot faces below pass `null` and every chip there goes hollow,
-      // which is the true answer for a process that has no business holding a
-      // socket to somebody's daemon open.
-      kolu: { env: process.env, now: () => new Date().toISOString() },
-      // ...AND THE CI PROBE, on the same terms and for the same reason. `olai
-      // web` is the face the live-properties seam is drawn on, so it is the
-      // face that sweeps; the headless and one-shot faces below pass `null`
-      // and their `ci` cell stays empty.
+      // THE PLUGINS, and this is the one place a process reaches for the real
+      // environment and the real clock on their behalf. `olai web` is the face
+      // every plugin's door is drawn on, so it is the face that composes them;
+      // the headless and one-shot faces pass `null` and carry no
+      // `surface/<name>/` on the wire at all, which is the true answer for a
+      // process that has no business dialing somebody's daemon on its way to
+      // printing a node.
       //
-      // `root` is the served directory, and it is half of where a relative
-      // `worktree` resolves to — the other half is `$OLAI_REPOS_DIR` when a
-      // machine's checkouts do not sit beside its vault. Both are read HERE,
-      // once, because a composition root is where a process reaches for the
-      // real environment (`@olai/odu-client`'s `resolve.ts` argues the rule).
-      odu: { env: process.env, served: root },
+      // `root` is the served directory, and it is half of where a relative path
+      // in a property resolves to; the other half is in the environment beside
+      // it, for the machine whose checkouts do not sit beside its vault. Both
+      // are read HERE, once, because a composition root is where a process
+      // reaches for the real environment — the rule for what a relative path
+      // resolves AGAINST is argued in the appliance package that resolves one.
+      //
+      // NO `dials`: the injectables are a test's, and this is the product.
+      plugins: {
+        env: process.env,
+        now: () => new Date().toISOString(),
+        served: root,
+        names: options.plugins,
+      },
     })
     publish = wired.publish
 
@@ -234,7 +280,10 @@ export const serve = (options: ServeOptions) =>
     const transport = mcpTransport()
     // Built ONCE and handed back on every ask: this face has no transport to
     // drop, so re-dialling would only re-run the gate over the same handlers.
-    const panel = clientOver(writerAt(wired.bound, ops, "chat-agent"))
+    const panel = clientOver(
+      { group: wired.bound.group, handlers: writerAt(wired.bound, ops, "chat-agent") },
+      wired.faces.agent,
+    )
     yield* serveFace({
       client: () => panel,
       /**
@@ -300,6 +349,10 @@ export const serve = (options: ServeOptions) =>
       listen({
         ...options,
         bound: wired.bound,
+        // The face for the group on the line above, from the one call that
+        // composed both (`./runtime.ts`'s `bind`) — a second reading of which
+        // plugins are on is the boot refusal `restrictHandlers` exists to raise.
+        expose: wired.faces.browser,
         hostname: theMachine,
         mcp: { transport, token, identity: options.identity },
         // `POST /olai/resync` — force a re-read of the disk. Waits for

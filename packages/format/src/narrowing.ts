@@ -51,7 +51,7 @@ import { Schema } from "effect"
 
 import type { Derived, Row } from "./derive.ts"
 import { type Filter, parseFilter, selecting, shownRecord } from "./filter.ts"
-import { declarationsOf } from "./typing.ts"
+import { declarationsOf, type KindVocabulary } from "./typing.ts"
 import { isTrashed, type LocatedRegular } from "./node.ts"
 import { narrowableIn, PageRequest, type Shown, shownOf } from "./page.ts"
 import { MatchedNode } from "./searching.ts"
@@ -147,6 +147,13 @@ export const narrowingOf = (
   /** What the grammar's relative words count from — the same clock
    *  `search_nodes` is answered on. */
   now: string,
+  /** ...and what the WORDS in that vocabulary mean — the contributed kinds this
+   *  serve runs, which is a fact about the process and not about the set. It is
+   *  here because the declarations are folded from two layers now (a vault's
+   *  rows over an enabled plugin's claimed keys, `@olai/format`'s
+   *  `withClaims`), and a grammar that read only one of them would answer
+   *  `prop:` differently from the gate about the same key. */
+  kinds: KindVocabulary,
 ): NarrowingAnswer => ({
   text: request.text,
   matches: narrowedIn(
@@ -156,7 +163,7 @@ export const narrowingOf = (
     // (`@olai/ops`' `query.ts`): the box that narrows a page and the box that
     // lists hits read one grammar, so a typed span means the same thing in both
     // or the app disagrees with itself in front of the reader.
-    parseFilter(request.text, now, declarationsOf(at.derived)),
+    parseFilter(request.text, now, declarationsOf(at.derived, kinds)),
   ),
 })
 

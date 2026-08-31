@@ -16,7 +16,7 @@ import {
   shownRecord,
 } from "./filter.ts"
 import { nodesOfFiles, seeded } from "./fixtures.testlib.ts"
-import { declarationsOf } from "./typing.ts"
+import { declarationsOf, NO_KINDS } from "./typing.ts"
 import { isPutAway } from "./node.ts"
 
 /** One corpus, standing in for a directory: marks, dates, notes, edges, tags,
@@ -2130,7 +2130,7 @@ const BOARD = {
 }
 
 const board = derive(nodesOfFiles(BOARD))
-const typing = declarationsOf(board)
+const typing = declarationsOf(board, NO_KINDS)
 
 /** What a query selects on the board, WITH the vault's vocabulary in hand —
  *  which is what every door that matches has (`@olai/ops`' `query.ts`). */
@@ -2273,7 +2273,7 @@ const generated = derive(nodesOfFiles({
     `{"id":"${lane.id}","ord":"a${at}","title":"lane ${at}","custom":{"pr":"${lane.pr}","dispatched":"${lane.dispatched}"}}`
   ).join("\n"),
 }))
-const generatedTyping = declarationsOf(generated)
+const generatedTyping = declarationsOf(generated, NO_KINDS)
 
 test("an int span selects exactly the lanes whose number is in it", () => {
   for (let round = 0; round < 60; round++) {

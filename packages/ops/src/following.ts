@@ -195,7 +195,15 @@ export const folding = (from: Scope): Folding => {
     // it is a map read off the view this op would leave, and a batch whose
     // first op declares a key has to be judged by its second against that
     // declaration ({@link ../plan.ts}'s `typedIn`).
-    at = { ...next, context: at.context, asked: asked ?? base, typed: typedIn(next) }
+    at = {
+      ...next,
+      context: at.context,
+      asked: asked ?? base,
+      // The VOCABULARY is carried, where the typing is rebuilt: what a plugin
+      // taught this vault is a fact about the process and no write can move it,
+      // so it comes off the scope this batch started with.
+      typed: typedIn(next, at.typed.kinds),
+    }
     return Result.succeed(at)
   }
 }

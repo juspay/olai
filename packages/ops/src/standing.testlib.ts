@@ -74,8 +74,10 @@ import {
   bodyKind,
   type BrokenFile,
   type Document,
+  type KindVocabulary,
   type MovingRequest,
   type NarrowingRequest,
+  NO_KINDS,
   type OutlineError,
   type PageRequest,
   parseOutline,
@@ -88,7 +90,7 @@ import {
 import { seeded } from "@olai/format/testlib"
 import { Result } from "effect"
 
-import { codec } from "./codec.ts"
+import { codecFor } from "./codec.ts"
 import { type Asked, rebuilding, sameAnswer, type Standing, standing } from "./standing.ts"
 
 // ── the corpus: a vault, and a vocabulary of revisions ─────────────────
@@ -536,7 +538,7 @@ const published = (
   changed: ReadonlyArray<string>,
   removed: ReadonlyArray<string>,
 ): Result.Result<Reading, Verdict> =>
-  codec.validate(
+  codecFor(NO_KINDS).validate(
     decoded,
     previous === undefined ? undefined : { value: previous, changed, removed },
   )
@@ -706,12 +708,12 @@ export const differential = (
   revisions: ReadonlyArray<Revision>,
   tabs: ReadonlyArray<Tab>,
   { shared = standing, now = () => FIXED }: {
-    readonly shared?: (now: () => string) => Standing
+    readonly shared?: (now: () => string, kinds: KindVocabulary) => Standing
     readonly now?: () => string
   } = {},
 ): Report => {
-  const rebuilt = watching(rebuilding(now), revisions, tabs)
-  const answered = watching(shared(now), revisions, tabs)
+  const rebuilt = watching(rebuilding(now, NO_KINDS), revisions, tabs)
+  const answered = watching(shared(now, NO_KINDS), revisions, tabs)
   const divergences: Array<string> = []
   const frames: Array<string> = []
   let asks = 0
@@ -796,7 +798,7 @@ export const negativeSpace = (
   questions: ReadonlyArray<Question>,
   now: () => string = () => FIXED,
 ): Negative => {
-  const rebuild = rebuilding(now)
+  const rebuild = rebuilding(now, NO_KINDS)
   const wrong: Array<string> = []
   let asked_ = 0
   let held = 0
@@ -864,7 +866,7 @@ const reusing = (
   holds: () => boolean,
   never = false,
 ): Standing => {
-  const rebuild = rebuilding(now)
+  const rebuild = rebuilding(now, NO_KINDS)
   const answers = new Map<string, unknown>()
   const ask = (which: Asked, at: Reading, request: unknown, run: () => unknown): unknown => {
     const key = `${which} ${JSON.stringify(request)}`
@@ -887,7 +889,7 @@ const reusing = (
 /** {@link crossed}'s shape: the real wiring with the question's KEY narrowed to
  *  its member, so two requests collide. */
 const keyed = (now: () => string, key: (which: Asked) => string): Standing => {
-  const rebuild = rebuilding(now)
+  const rebuild = rebuilding(now, NO_KINDS)
   const answers = new Map<string, { reading: Reading; answer: unknown }>()
   const ask = (which: Asked, at: Reading, run: () => unknown): unknown => {
     const held = answers.get(key(which))

@@ -32,7 +32,7 @@
  * closure. An op still does not know it is being called over a wire.
  */
 
-export { codec } from "./codec.ts"
+export { codecFor } from "./codec.ts"
 export type { Store } from "./deps.ts"
 export { make, type Ops, type Options } from "./ops.ts"
 /** The two refusals a caller ABOVE this layer meets too, about an id: one the

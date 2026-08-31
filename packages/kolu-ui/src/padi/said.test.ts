@@ -18,7 +18,7 @@
 
 import { expect, test } from "bun:test"
 
-import type { KoluLink, WatchPulse } from "@olai/surface"
+import type { KoluLink, WatchPulse } from "@olai/kolu-client/wire"
 
 import { beatOf, padiSaid } from "./said.ts"
 

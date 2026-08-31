@@ -26,17 +26,29 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { NodeServices } from "@effect/platform-node"
-import { bytesOf, markdownIn, type SearchAnswer, type SearchRequest, type WriteRequest } from "@olai/format"
+import {
+  bytesOf,
+  markdownIn,
+  NO_KINDS,
+  type SearchAnswer,
+  type SearchRequest,
+  type WriteRequest,
+} from "@olai/format"
 import * as StoreModule from "@olai/store"
 import { expect, test } from "bun:test"
 import { Effect, SubscriptionRef } from "effect"
 
-import { codec } from "./codec.ts"
+import { codecFor } from "./codec.ts"
 import type { Store } from "./deps.ts"
 import { fixedPolicy } from "./pending.ts"
 import { STAMP, steady } from "./fixtures.testlib.ts"
 import * as Ops from "./ops.ts"
 import * as Query from "./query.ts"
+
+/** The codec this suite validates through — the vocabulary of a build that
+ *  composed no plugin, which is what every test in this package runs under
+ *  ({@link ./codec.ts}'s `codecFor`, and `@olai/format`'s `NO_KINDS`). */
+const codec = codecFor(NO_KINDS)
 
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel #home"}`,
@@ -92,7 +104,7 @@ const same = (
   Effect.gen(function*() {
     const snapshot = yield* Effect.map(store.read("cheap"), (aged) => aged.snapshot)
     if (snapshot === null) throw new Error("the fixture directory never loaded")
-    const walked = Query.search(snapshot.value, request, STAMP)
+    const walked = Query.search(snapshot.value, request, STAMP, NO_KINDS)
     const indexed = yield* Effect.orDie(ops.search(request))
     expect(indexed).toEqual(walked)
     return walked

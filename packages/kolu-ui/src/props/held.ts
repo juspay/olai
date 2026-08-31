@@ -12,7 +12,7 @@
  * re-runs for a frame that said nothing about it.
  */
 
-import type { FleetTerminal } from "@olai/surface"
+import type { FleetTerminal } from "@olai/kolu-client/wire"
 
 /**
  * The rows, and a number that moves when they do.

@@ -28,10 +28,17 @@
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
-import { type FailureKind, inboxHeldOf, type OutlineSet, outlinePaths, verdictOf } from "@olai/format"
+import {
+  type FailureKind,
+  inboxHeldOf,
+  NO_KINDS,
+  type OutlineSet,
+  outlinePaths,
+  verdictOf,
+} from "@olai/format"
 import { readingOf, recordsOf } from "@olai/format/testlib"
 import {
-  codec,
+  codecFor,
   fixedPolicy,
   make as makeOps,
   type Store as OutlineStore,
@@ -51,6 +58,11 @@ import { hostname } from "../hostname.ts"
 import { bind, gitWiring, writerAt } from "../runtime.ts"
 import { clientOver, serveFace } from "./face.ts"
 import { bespokeFrom } from "./tools.ts"
+
+/** The codec this suite validates through — the vocabulary of a build that
+ *  composed no plugin, which is what these fixtures declare nothing about
+ *  (`@olai/ops`' `codecFor`, and `@olai/format`'s `NO_KINDS`). */
+const codec = codecFor(NO_KINDS)
 
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
@@ -160,13 +172,14 @@ const withTools = <A>(
       writer: "mcp",
       hostname: hostname(),
       startedAt: "2026-08-29T09:31:00.000Z",
-      // NO PADI. Every runtime in this file is a reader — a bound face, an MCP
-      // route — and none of them is about the terminal door; dialing whatever
-      // daemon happens to be on the machine running the suite would make these
-      // tests depend on it. `null` is the OFF setting, and what it produces is
-      // the same `absent` cell a laptop without kolu has.
-      kolu: null,
-      odu: null,
+      // NO PLUGINS. Every runtime in this file is a reader — a bound face, an
+      // MCP route — and none of them is about a terminal door or a CI chip;
+      // dialing whatever daemons happen to be on the machine running the suite
+      // would make these tests depend on them. `null` is the OFF setting, and
+      // what it produces is a surface with no `surface/<name>/` on it at all:
+      // an empty sibling record composes to no tag, no handler and no expose
+      // row, so olai's own group is byte for byte what it always was.
+      plugins: null,
       git: gitWiring(
         ops,
         fixedPolicy({ commit: "off", push: null }),
@@ -178,7 +191,11 @@ const withTools = <A>(
 
     const [clientSide, serverSide] = InMemoryTransport.createLinkedPair()
     yield* serveFace({
-      client: () => clientOver(writerAt(wired.bound, ops, "mcp")),
+      client: () =>
+        clientOver(
+          { group: wired.bound.group, handlers: writerAt(wired.bound, ops, "mcp") },
+          wired.faces.agent,
+        ),
       tools: bespokeFrom(TOOLS, {
         login: () => login,
         root,

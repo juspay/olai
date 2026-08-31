@@ -36,7 +36,7 @@
  */
 
 import { recencyText } from "@kolu/solid-dockrow/rowValues"
-import type { KoluLink, WatchPulse } from "@olai/surface"
+import type { KoluLink, WatchPulse } from "@olai/kolu-client/wire"
 
 /**
  * THE BEAT'S REGISTER, in one word — the fold the pill paints itself with,

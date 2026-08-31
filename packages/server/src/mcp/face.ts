@@ -43,7 +43,10 @@ import type { Server } from "@modelcontextprotocol/sdk/server/index.js"
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js"
 import { Effect, type Scope } from "effect"
 
-import { AGENT_FACE, MCP } from "../faces.ts"
+import type { FaceExposure } from "@kolu/surface/expose"
+
+import { MCP } from "../faces.ts"
+import type { Bound } from "../runtime.ts"
 
 // ── The client, typed ────────────────────────────────────────────────────
 
@@ -118,11 +121,27 @@ export const clientOn = (dispatch: SurfaceDispatch): OlaiSurfaceClient =>
  *  would reach members a browser is refused — or the other way around —
  *  and a tool that worked in a terminal would fail on a directory that
  *  happened to have a browser open on it. It costs nothing: the adapter is
- *  the only caller, and it asks for what the map already grants. */
-export const clientOver = (handlers: SurfaceHandlers): OlaiSurfaceClient =>
+ *  the only caller, and it asks for what the map already grants.
+ *
+ *  IT TAKES THE GROUP AND THE FACE rather than reading either off `@olai/surface`
+ *  and `../faces.ts`, and it has to: what this process serves is olai's surface
+ *  FUSED with whichever plugin siblings it composed, and `restrictHandlers`
+ *  proves an exposure describes the group it is applied to as a set EQUALITY —
+ *  so a gate built from olai's own surface over a fused record refuses at boot,
+ *  naming every sibling tag it cannot account for. That is the right failure and
+ *  the reason both halves arrive together from the one place that composed them
+ *  (`../runtime.ts`'s `bind`, which returns the faces beside the group).
+ *
+ *  The TYPED face above it stays olai's own spec, and that is not an
+ *  inconsistency: what an agent calls through this client is core's members, and
+ *  a plugin's are denied by the face it is gated with. */
+export const clientOver = (
+  bound: Pick<Bound, "group" | "handlers">,
+  face: FaceExposure,
+): OlaiSurfaceClient =>
   clientOn(
     directDispatch({
-      handlers: restrictHandlers(surface.group, handlers, AGENT_FACE),
+      handlers: restrictHandlers(bound.group, bound.handlers, face),
     }),
   )
 

@@ -37,7 +37,7 @@
 
 import { narrowAgentState, recencyText } from "@kolu/solid-dockrow/rowValues"
 
-import type { KoluEvent } from "@olai/surface"
+import type { KoluEvent } from "@olai/kolu-client/wire"
 
 /** One line of the feed, folded. The rendering takes it whole. */
 export interface EventLine {

@@ -25,6 +25,7 @@
 
 import { expect, test } from "bun:test"
 import { Schema } from "effect"
+import { NO_KINDS } from "./typing.ts"
 
 import { addressOf } from "./address.ts"
 import { type Agenda, keepingOwed, owedIn } from "./agenda.ts"
@@ -300,7 +301,7 @@ test("the answer carries the words it answers, and survives the wire", () => {
   const answer = narrowingOf(READING, {
     page: at("house.olai"),
     text: "door",
-  }, TODAY)
+  }, TODAY, NO_KINDS)
   expect(answer.text).toBe("door")
   const encoded = Schema.encodeUnknownSync(NarrowingAnswer)(answer)
   const back = Schema.decodeUnknownSync(NarrowingAnswer)(JSON.parse(JSON.stringify(encoded)))
@@ -312,7 +313,7 @@ test("two answers that select the same nodes for the same reasons are the same",
   // What keeps a revision that moved no match off the wire — the whole of the
   // fix, in the line the server binds as this member's `isEqual`.
   const ask = (text: string) =>
-    narrowingOf(READING, { page: at("house.olai"), text }, TODAY)
+    narrowingOf(READING, { page: at("house.olai"), text }, TODAY, NO_KINDS)
   expect(sameNarrowing(ask("door"), ask("door"))).toBe(true)
   expect(sameNarrowing(ask("door"), ask("hinges"))).toBe(false)
 })

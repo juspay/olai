@@ -9,7 +9,7 @@
  * one tool and opposite events.
  */
 
-import type { OutlineSet, Sort, WriteRequest as Request } from "@olai/format"
+import { NO_KINDS, type OutlineSet, type Sort, type WriteRequest as Request } from "@olai/format"
 import { describe, expect, test } from "bun:test"
 import { Result } from "effect"
 
@@ -30,7 +30,7 @@ const house = (): OutlineSet => setOf({ "house.olai": KITCHEN })
  *  it was about. */
 const sorting = (set: OutlineSet, request: Request): Sort | undefined => {
   const at = readingOf(set)
-  const planned = plan(scoping(at, steady()), request)
+  const planned = plan(scoping(at, steady(), NO_KINDS), request)
   if (Result.isFailure(planned)) {
     throw new Error(
       `expected \`${request.op}\` to plan, and it refused: ${planned.failure.message}`,

@@ -34,7 +34,7 @@ import { StatePip } from "@kolu/solid-statepip"
 import { RowLabel } from "@kolu/solid-dockrow"
 import { narrowRowVocab } from "@kolu/solid-dockrow/rowValues"
 
-import type { KoluEvent } from "@olai/surface"
+import type { KoluEvent } from "@olai/kolu-client/wire"
 
 import { eventLine } from "../padi/events.ts"
 import { padiSaid } from "../padi/said.ts"

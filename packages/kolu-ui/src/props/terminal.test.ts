@@ -10,7 +10,7 @@
  */
 
 import { describe, expect, it } from "bun:test"
-import type { FleetTerminal, KoluLink } from "@olai/surface"
+import type { FleetTerminal, KoluLink } from "@olai/kolu-client/wire"
 import { isPipGlyphId, isPipVariant, rowRecency } from "@kolu/solid-dockrow/rowValues"
 
 import { readingOf } from "./terminal.ts"

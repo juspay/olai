@@ -81,12 +81,19 @@ export const spawnFingerprint = (opts: {
    * unique per scenario by construction.
    */
   readonly padiSocket?: string;
+  /** WHICH INTEGRATIONS this server composed (`--plugins`), if the scenario
+   *  said. Part of the key for the padi socket's reason one field up: a server
+   *  running fewer plugins serves a different WIRE — the disabled one's members
+   *  are not on it — so a scenario that wants the full set may not reuse one,
+   *  and a scenario that wants one off may not be handed a server running it. */
+  readonly plugins?: string;
 }): string =>
+
   `stored=${opts.stored ? 1 : 0},agent=${opts.agent ? 1 : 0},opencode=${
     opts.opencode ? 1 : 0
   },pi=${opts.pi ? 1 : 0},kolu=${opts.kolu ? 1 : 0},git=${opts.git ?? "off"}` +
   `,commit=${opts.pin?.commit ?? "-"},push=${opts.pin?.push ?? "-"},avatar=${opts.avatar ?? "-"}` +
-  `,padi=${opts.padiSocket ?? "-"}`;
+  `,padi=${opts.padiSocket ?? "-"},plugins=${opts.plugins ?? "-"}`;
 
 /** Cucumber numbers workers from 0. Unset means this process is the only
  *  one — a serial run, or a unit test. Used to name the per-worker temp
