@@ -62,7 +62,7 @@ import { Match, Switch } from "solid-js"
 import { instantOf } from "../../clock.ts"
 import { TESTID } from "../../testids.ts"
 import { Tip } from "../../Tip.tsx"
-import { createNow, liveOf, liveStoryOf, settledStoryOf, tickingOf, wordsOf } from "./took.ts"
+import { createNow, liveOf, liveStoryOf, roundOf, settledStoryOf, tickingOf, wordsOf } from "./took.ts"
 
 /** The quiet register both halves of the chip share — the ¶-counter's own:
  *  mono, reading-size, muted. */
@@ -139,9 +139,14 @@ export function TookChip(props: {
             return settledStoryOf({
               took: chip().seconds,
               banked: props.node.worked,
-              started: props.node.started,
-              settled:
-                (mark === "done" || mark === "cancelled" ? props.node[mark] : undefined) ?? true,
+              // The record's own shape is read once, at this edge — the
+              // undated `true`, a buried stamp, an unreadable end all land
+              // as NO round (`./took.ts`'s roundOf), never as a word in a
+              // sentence.
+              round: roundOf(
+                props.node.started,
+                mark === "done" || mark === "cancelled" ? props.node[mark] : undefined,
+              ),
             }).join("\n")
           }
           return (

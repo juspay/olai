@@ -34,7 +34,7 @@ import type { Accessor } from "solid-js"
 
 import { spanOf } from "@olai/format"
 
-import { createTwoSpeed, HOUR, instantOf, SECOND } from "../../clock.ts"
+import { createTwoSpeed, HOUR, SECOND } from "../../clock.ts"
 
 /**
  * A SETTLED span in the chip's own words — the coarsest that still tell the
@@ -170,21 +170,20 @@ export const createNow = (
  *
  * `started` is the wire's instant, KNOWN parseable — the chip's own arm
  * matched on exactly that before this ever ran, so an unreadable one here
- * says the words and no span rather than nothing at all. The live span and
- * the in-all total use the bank's own rounding ({@link spanOf}'s): the
- * figure the tip claims is the one the settle will bank, never the floor
- * of it the face's own tick is showing for one more second.
+ * says the words and no span rather than nothing at all. The live span
+ * asks {@link spanOf}'s OWN question, `now` standing in for the settling
+ * instant: the figure the tip claims is by construction the one the settle
+ * will bank, never the floor of it the face's own tick is showing for one
+ * more second.
  */
 export const liveStoryOf = (
   bankedSeconds: number | undefined,
   started: string,
   now: number,
 ): ReadonlyArray<string> => {
-  const startedAt = instantOf(started)
-  if (startedAt === null) return [`round 1, under way since ${started}`]
   const banked = bankedSeconds ?? 0
-  const round = Math.max(0, Math.round((now - startedAt) / 1000))
-  if (banked <= 0) return [`round 1, under way since ${started}`]
+  const round = spanOf(started, new Date(now).toISOString())
+  if (round === undefined || banked <= 0) return [`round 1, under way since ${started}`]
   return [
     `${exactOf(banked)} already banked over the rounds before this one`,
     `this round under way again since ${started} — ${exactOf(round)} so far`,
@@ -193,39 +192,74 @@ export const liveStoryOf = (
 }
 
 /**
+ * The one round a settled record still WINDOWS, parsed: both instants and
+ * the span between them — {@link roundOf}'s answer, or `undefined` where no
+ * honest round remains.
+ */
+export interface WindowedRound {
+  readonly started: string
+  readonly settled: string
+  /** Whole seconds between the two ends — {@link spanOf}'s own figure, so
+   *  this window and the bank are always the same arithmetic. */
+  readonly span: number
+}
+
+/**
+ * The record's raw settle shape read ONCE, at the record's edge, into the
+ * round the story can tell — or `undefined`, three honest ways:
+ *
+ *   - the stamp is GONE — a hand or a merge buried `started` under a later
+ *     write, or none was ever stored;
+ *   - the close was never an instant: the settling mark holds the undated
+ *     `true` of work finished before olai stamped anything — or there is no
+ *     settling mark at all;
+ *   - an end will not read as an instant — a record someone wrote by hand.
+ *
+ * Each is a refusal to invent a window, and the story downstream never has
+ * to name a shape the record cannot be in. Ends OUT OF ORDER are not a
+ * fourth: {@link spanOf} clamps them to the zero the settle itself would
+ * have counted, and the round stands.
+ */
+export const roundOf = (
+  started: string | undefined,
+  settled: string | true | undefined,
+): WindowedRound | undefined => {
+  if (started === undefined || typeof settled !== "string") return undefined
+  const span = spanOf(started, settled)
+  return span === undefined ? undefined : { started, settled, span }
+}
+
+/**
  * A SETTLED chip's tip: `took` first — the total is the figure the chip's
  * face already coarsens, and it heads the story the way it headed the bare
  * tip before — then the split the bank makes possible.
  *
- * `settled` is the settling mark's own value, which can be the undated
- * `true` of work finished before olai stamped anything: then the close is
- * no instant and there is no window to show even when a stamp survives.
- * When the bank outruns the one windowed round there is a LUMP to say —
- * `worked` minus it — and a hand-written record can outrun the bank the
- * other way too, so the lump is asked with a floor of zero and no
- * reconciliation is ever claimed.
+ * `round` arrives PARSED ({@link roundOf}) — the window the record still
+ * names, or `undefined` where no honest round remains. When the bank
+ * outruns the one windowed round there is a LUMP to say — `worked` minus
+ * the window — and a hand-written record can outrun the bank the other way
+ * too, so the lump is asked with a floor of zero and no reconciliation is
+ * ever claimed. A total with NEITHER a bank nor a round is one the chip
+ * could never have drawn (its `took` derives from exactly those), so that
+ * arm says the figure and no more.
  */
 export const settledStoryOf = (args: {
   /** The derived total, whole seconds — `tookOf`'s own answer. */
   readonly took: number
   /** The record's own `worked` — absent when no round has ever closed. */
   readonly banked: number | undefined
-  /** The record's own `started` — the window's only living end. */
-  readonly started: string | undefined
-  /** The settling instant, or `true` on a settle before instants. */
-  readonly settled: string | true
+  /** The round the record still windows, parsed — or gone. */
+  readonly round: WindowedRound | undefined
 }): ReadonlyArray<string> => {
-  const { took, banked, started, settled } = args
-  const window =
-    started !== undefined && typeof settled === "string"
-      ? spanOf(started, settled)
-      : undefined
+  const { took, banked, round } = args
   if (banked === undefined) {
     // The slimmer arm of `tookOf` — the span IS the one window, and the
     // chip only drew because there was one to take.
-    return [`took ${exactOf(took)} — round 1: ${started} → ${settled}`]
+    return round === undefined
+      ? [`took ${exactOf(took)}`]
+      : [`took ${exactOf(took)} — round 1: ${round.started} → ${round.settled}`]
   }
-  if (window === undefined) {
+  if (round === undefined) {
     // Every round's window is gone (the stamp was buried, or the close
     // was never an instant): the bank is all of it, and the tip says so
     // rather than adding a figure the record cannot back. A hand-written
@@ -236,14 +270,14 @@ export const settledStoryOf = (args: {
       `took ${exactOf(took)} — rounds banked where each closed, the pauses between them never counted`,
     ]
   }
-  const lump = Math.max(0, banked - window)
+  const lump = Math.max(0, banked - round.span)
   if (lump === 0) {
     // The one banked round: its window and the wall are one subtraction.
-    return [`took ${exactOf(took)} — the one round: ${started} → ${settled}`]
+    return [`took ${exactOf(took)} — the one round: ${round.started} → ${round.settled}`]
   }
   return [
     `took ${exactOf(took)} — the pauses between the rounds never counted`,
     `the rounds before the last banked ${exactOf(lump)} of it`,
-    `the last ran ${exactOf(window)}: ${started} → ${settled}`,
+    `the last ran ${exactOf(round.span)}: ${round.started} → ${round.settled}`,
   ]
 }

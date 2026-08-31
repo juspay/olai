@@ -12,7 +12,9 @@
  * What is NOT here: whether there is a span to say at all. That is derived
  * with the set (@olai/format's `tookOf`, whose cases — the jump, the running
  * row, the instant-free settle, the bank — are its own test), and this
- * file's ladders are handed a number.
+ * file's ladders are handed a number. What IS here is that answer's
+ * story-side half: `roundOf`, the one place the record's raw marks become
+ * a round the story can tell — or none.
  */
 
 import { describe, expect, test } from "bun:test"
@@ -22,6 +24,7 @@ import {
   exactOf,
   liveOf,
   liveStoryOf,
+  roundOf,
   settledStoryOf,
   tickingOf,
   wordsOf,
@@ -154,19 +157,55 @@ describe("the live chip's story", () => {
   })
 })
 
-describe("the settled chip's story", () => {
+describe("the round the record still windows", () => {
   const STARTED = "2026-08-29T09:52:00-04:00"
   const SETTLED = "2026-08-29T12:26:44-04:00"
 
+  test("both ends read: the pair, and the span between them", () => {
+    expect(roundOf(STARTED, SETTLED))
+      .toEqual({ started: STARTED, settled: SETTLED, span: 9284 })
+    // Ends out of order are the settle's own clamp: a real zero, never a
+    // negative the bank could not have counted.
+    expect(roundOf(SETTLED, STARTED))
+      .toEqual({ started: SETTLED, settled: STARTED, span: 0 })
+  })
+
+  test("no round is said as no round — the three honest absences", () => {
+    // The stamp was buried.
+    expect(roundOf(undefined, SETTLED)).toBeUndefined()
+    // The close was never an instant: work finished before olai stamped
+    // anything settles to `true`, and never marked at all settles to
+    // nothing.
+    expect(roundOf(STARTED, true)).toBeUndefined()
+    expect(roundOf(STARTED, undefined)).toBeUndefined()
+    // A hand wrote one of the ends.
+    expect(roundOf("tuesday-ish", SETTLED)).toBeUndefined()
+  })
+})
+
+describe("the settled chip's story", () => {
+  const STARTED = "2026-08-29T09:52:00-04:00"
+  const SETTLED = "2026-08-29T12:26:44-04:00"
+  // 2h 34m 44s between the two instants — roundOf's figure, handed in the
+  // way the chip hands it.
+  const ROUND = { started: STARTED, settled: SETTLED, span: 9284 }
+
   test("the single round: took, and the window that is also the wall", () => {
-    expect(settledStoryOf({ took: 9284, banked: undefined, started: STARTED, settled: SETTLED }))
+    expect(settledStoryOf({ took: 9284, banked: undefined, round: ROUND }))
       .toEqual([
         "took 2h 34m 44s — round 1: 2026-08-29T09:52:00-04:00 → 2026-08-29T12:26:44-04:00",
       ])
   })
 
+  test("neither a bank nor a round says the figure and no more", () => {
+    // A story the chip itself could never have drawn — its `took` derives
+    // from exactly those two — but the function invents no window for it.
+    expect(settledStoryOf({ took: 7, banked: undefined, round: undefined }))
+      .toEqual(["took 7s"])
+  })
+
   test("one banked round reads the same shape — the window answers the wall", () => {
-    expect(settledStoryOf({ took: 9284, banked: 9284, started: STARTED, settled: SETTLED }))
+    expect(settledStoryOf({ took: 9284, banked: 9284, round: ROUND }))
       .toEqual([
         "took 2h 34m 44s — the one round: 2026-08-29T09:52:00-04:00 → 2026-08-29T12:26:44-04:00",
       ])
@@ -179,8 +218,11 @@ describe("the settled chip's story", () => {
       settledStoryOf({
         took: 4869,
         banked: 4869,
-        started: "2026-08-30T12:02:37-04:00",
-        settled: "2026-08-30T12:32:23-04:00",
+        round: {
+          started: "2026-08-30T12:02:37-04:00",
+          settled: "2026-08-30T12:32:23-04:00",
+          span: 1786, // 29m 46s — and the lump is the remaining 51m 23s.
+        },
       }),
     ).toEqual([
       "took 1h 21m 9s — the pauses between the rounds never counted",
@@ -190,18 +232,16 @@ describe("the settled chip's story", () => {
   })
 
   test("a bank whose windows are all gone says the sum, never invents one", () => {
-    expect(settledStoryOf({ took: 4869, banked: 4869, started: undefined, settled: SETTLED }))
-      .toEqual([
-        "took 1h 21m 9s — rounds banked where each closed, the pauses between them never counted",
-      ])
-    // …and the settle may hold `true`: the close was never an instant.
-    expect(settledStoryOf({ took: 4869, banked: 4869, started: STARTED, settled: true }))
+    // The stamp buried, or the close never an instant — either reading of
+    // the record arrives here as the same `undefined` (roundOf's cases are
+    // its own table above).
+    expect(settledStoryOf({ took: 4869, banked: 4869, round: undefined }))
       .toEqual([
         "took 1h 21m 9s — rounds banked where each closed, the pauses between them never counted",
       ])
     // …but a hand-written ZERO bank with no window is even that claim shy of
     // what it can prove, so the tip holds to the one derived figure.
-    expect(settledStoryOf({ took: 0, banked: 0, started: undefined, settled: SETTLED }))
+    expect(settledStoryOf({ took: 0, banked: 0, round: undefined }))
       .toEqual(["took 0s"])
   })
 
@@ -209,16 +249,17 @@ describe("the settled chip's story", () => {
   // lump is floored at zero, so the tip reads as the one-round shape and
   // never a negative figure.
   test("a record whose window outruns its bank claims no lump", () => {
-    expect(settledStoryOf({ took: 600, banked: 300, started: STARTED, settled: SETTLED }))
+    expect(settledStoryOf({ took: 600, banked: 300, round: ROUND }))
       .toEqual([
         "took 10m — the one round: 2026-08-29T09:52:00-04:00 → 2026-08-29T12:26:44-04:00",
       ])
   })
 
   test("an honest zero is a story too", () => {
-    expect(settledStoryOf({ took: 0, banked: 0, started: STARTED, settled: STARTED }))
-      .toEqual([
-        "took 0s — the one round: 2026-08-29T09:52:00-04:00 → 2026-08-29T09:52:00-04:00",
-      ])
+    expect(
+      settledStoryOf({ took: 0, banked: 0, round: { started: STARTED, settled: STARTED, span: 0 } }),
+    ).toEqual([
+      "took 0s — the one round: 2026-08-29T09:52:00-04:00 → 2026-08-29T09:52:00-04:00",
+    ])
   })
 })
