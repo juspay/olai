@@ -36,6 +36,22 @@
 # that will not typecheck here is a blocker rather than a nuisance. That is the
 # whole reason this arrangement is worth its cost, and it is unchanged.
 #
+# THE PIN IS FROZEN AT A DRAFT, which is the second state this pin has been in
+# and not its first. It tracked kolu master until the ROOTED BUNDLE arrived —
+# `mergeDisjointGroups` and `exposeRootedFaces` on `@kolu/surface`, and
+# `connectSurfaces`' `core` slot on `@kolu/surface-app` (juspay/kolu#2222) —
+# which is the capability olai asked for and the one this tree's client seam is
+# now built on. #2222 is still a DRAFT, so the pin follows the odu#94 precedent
+# next door exactly: branch `rooted-bundle`, an EXACT sha, and `frozen: true` so
+# `just update-pins` walks every other pin forward and leaves this one alone. A
+# draft's branch head moves under a merge that has not happened yet, and a pin
+# that moved under this tree would change what `@olai/web` compiles against
+# without a diff to show for it.
+#
+# RE-PIN AT FOLD. When #2222 merges, the reason expires with it: unfreeze, point
+# `branch` back at `master`, and the pin becomes an ordinary tracking one again.
+# Nothing else in this file changes — the seeds are the same six either way.
+#
 # NOTE THE ATTR RENAME. Members are `kolu-surface`, not `kolu-src-surface`:
 # the slug is kolu's now, and a consumer inventing its own would be one more
 # thing to keep in step.
