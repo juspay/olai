@@ -278,4 +278,53 @@ describe("a record that cannot be trusted", () => {
       chmodSync(state, 0o700)
     }
   })
+
+  test("... and leaves the mirror where the person was told it stayed", async () => {
+    // THE RECORD IS THE AUTHORITY. The mirror is what a plugin reads, so a
+    // mirror that had moved under a refused write would be a doorbell RINGING
+    // for a pick the person was just told did not take — and the strip would
+    // not even draw the row, because nothing republished it.
+    if (typeof process.getuid === "function" && process.getuid() === 0) return
+    const scopes = await run(forDirectory(HERE))
+    await run(scopes.set(IN, "kolu", "Fleet.olai", AT))
+    // The RECORD.s own directory, not the state home: the first pick already
+    // made it, so a home that merely refuses `mkdir` would let this write through.
+    chmodSync(home(), 0o500)
+    try {
+      expect(Result.isFailure(await outcome(scopes.set(IN, "kolu", "Other.olai", LATER)))).toBe(true)
+    } finally {
+      chmodSync(home(), 0o700)
+    }
+    expect(scopes.rows().map((row) => row.file)).toEqual(["Fleet.olai"])
+  })
+})
+
+describe("what a write says it removed", () => {
+  test("a write answers with the rows it removed, so a caller can take their doorbells back", async () => {
+    const scopes = await run(forDirectory(HERE))
+    // A fresh pick removes nothing.
+    expect(await run(scopes.set(IN, "kolu", "Fleet.olai", AT))).toEqual([])
+    // Re-pointing removes the row it replaced — the caller holds bodies derived
+    // from the OLD file and has to hear that it is gone.
+    const moved = await run(scopes.set(IN, "kolu", "Other.olai", LATER))
+    expect(moved.map((row) => row.file)).toEqual(["Fleet.olai"])
+    // ... and so does a clear.
+    const cleared = await run(scopes.set(IN, "kolu", null, LATER))
+    expect(cleared.map((row) => row.file)).toEqual(["Other.olai"])
+  })
+
+  test("an EVICTED row is reported too, which is the one nobody made a gesture about", async () => {
+    const scopes = await run(forDirectory(HERE))
+    // Fill the table, oldest first so the cap has an unambiguous victim.
+    for (let n = 0; n < ROWS; n++) {
+      const when = `2026-08-31T09:${String(n).padStart(2, "0")}:00.000Z`
+      await run(scopes.set({ agent: "claude", session: `sess-${n}` }, "kolu", `File-${n}.olai`, when))
+    }
+    const left = await run(scopes.set({ agent: "claude", session: "sess-new" }, "kolu", "New.olai", LATER))
+    // The least recently touched one, and only it. A person never touched that
+    // conversation, so this report is the only way its held bodies are ever
+    // taken back.
+    expect(left.map((row) => row.session)).toEqual(["sess-0"])
+    expect(scopes.rows().some((row) => row.session === "sess-0")).toBe(false)
+  })
 })

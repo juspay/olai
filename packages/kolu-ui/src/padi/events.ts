@@ -65,12 +65,27 @@ export interface EventLine {
   readonly about: string | null
 }
 
-/** The WHO fold, separately named: `repo · label` in the Dock's own
- *  spelling, or the label alone. A lab R following another row whose word
- *  is exactly the same (`master`, twice) was never disambiguated without
- *  this. */
-export const repoPrefix = (repo: string | null, label: string): string =>
-  repo === null ? label : `${repo}·${label}`
+/**
+ * The WHO fold, separately named: `repo · label` in the Dock's own spelling,
+ * or the label alone. A lab R following another row whose word is exactly the
+ * same (`master`, twice) was never disambiguated without this.
+ *
+ * A BLANK LABEL DROPS THE SEPARATOR, and it is the label rather than the repo
+ * that has to be asked about: the wire types `label` as a plain string, so a
+ * terminal with no intent line and no branch folded to `olai·` — a name ending
+ * in a joiner with nothing joined to it.
+ *
+ * THE SAME RULE IS SPELLED A SECOND TIME on the other side of a package wall,
+ * in `@olai/plugin-kolu`'s `doorbell.ts`, which composes this clause into a
+ * plain-text sentence inside a process that renders nothing and therefore
+ * cannot import this module. That header argues the wall; what matters here is
+ * that the two answer identically for the same row, this case included.
+ */
+export const repoPrefix = (repo: string | null, label: string): string => {
+  const named = label.trim()
+  if (repo === null) return named
+  return named === "" ? repo : `${repo}·${named}`
+}
 
 /** The state's own word, narrowed by kolu rather than spelled: the label
  *  a known state carries (`awaiting_user` reads "awaiting input"); an

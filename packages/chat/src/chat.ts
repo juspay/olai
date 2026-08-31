@@ -559,6 +559,24 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * dropped on {@link AgentEvent}'s `sessionOver` rather than on anything
      * about the agent.
      *
+     * AND A TURN A DOORBELL STARTED IS A TURN LIKE ANY OTHER, which is the one
+     * thing this paragraph gained with the second doorbell and the one a reader
+     * would otherwise get wrong. {@link offer} is shaped so a doorbell's OWN
+     * body is never the message that queues — it declines to hand anything over
+     * while a turn is running, and `deliveries.test.ts` pins that. What it
+     * cannot do is stop a doorbell's turn from being the turn a PERSON then
+     * types behind: the boundary flush starts one at an agent that has just
+     * gone idle, and a message sent into it queues and spends the latch exactly
+     * as it would behind anybody else's turn.
+     *
+     * That is not a leak to be plugged, and the shape that would plug it is the
+     * wrong one: the adapter is poisoned by a session having HELD a queued
+     * prompt at all, so a conversation that went on advertising the control
+     * because the turn in front was a machine's would be offering an
+     * interruption that hangs it. What is owed is saying so — a person who
+     * scoped this conversation opted it into machine-started turns, and `+ new`
+     * is how the control comes back.
+     *
      * It goes when the adapter is fixed and the pin moves, and not before.
      */
     let queuedHere = false
@@ -2313,7 +2331,28 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               reason: "this panel keeps no doorbells: no plugin here rings a conversation",
             })
           }
-          yield* Effect.mapError(
+          // A SCOPE WRITE DISOWNS WHAT THE OLD SCOPE WAS HOLDING — every scope
+          // write, and this is the whole rule rather than a case.
+          //
+          // A CLEAR is the obvious half: a sentence arriving because it was
+          // queued before the clear would be the control lying about itself,
+          // and {@link wakeOf} hangs the count on the very row the write
+          // removes, so the warning goes in the same frame the words stop being
+          // visible. A RE-POINT disowns them for a sharper reason: the body
+          // names the file it was derived from, so it would land under a
+          // control that says it is watching a different one — and the plugin
+          // will not re-derive it, because the terminals it named need not be
+          // claimed in the new file at all.
+          //
+          // FIRST, BEFORE THE WRITE, because the write is filesystem I/O and a
+          // turn ending in that window would flush a body the person has
+          // already disowned. Dropping early is safe in the one direction it
+          // can be wrong: a held body is a fresh derivation of what is standing
+          // ({@link ./deliveries.ts}), so a drop under a write that then fails
+          // costs a re-derivation on the plugin's next tick, where a drop that
+          // came too late costs a sentence nobody can account for.
+          held.dropped(to, plugin)
+          const left = yield* Effect.mapError(
             // The CLOCK is read here rather than injected, for the reason
             // `listings.ts` reads one: what the stamp orders is an eviction on
             // this machine, and nothing draws it or compares it to anything a
@@ -2321,20 +2360,13 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             scoping.set(to, plugin, file, new Date().toISOString()),
             (failure) => new BusyFailure({ reason: failure.why }),
           )
-          // ... AND A CLEAR TAKES BACK WHAT IS STILL WAITING, which is the
-          // half a record on its own does not cover. Dropping the row stops
-          // the NEXT ring; anything this plugin was already holding for this
-          // conversation would otherwise go in at the next turn boundary —
-          // under a strip that has just redrawn itself as `off`, and with the
-          // count that would have warned about it gone in the same frame
-          // ({@link wakeOf} hangs the numeral on the row this write removes).
-          // A control that said `off` while a sentence it disowns was still on
-          // its way in would be the one thing this whole panel refuses: words
-          // held somewhere a person cannot see.
-          //
-          // BEFORE `move`, so no frame is published in which the count is
-          // still drawn over bodies that are already gone.
-          if (file === null) held.dropped(to, plugin)
+          // ... AND SO DOES A WRITE THAT PUSHED SOMEBODY ELSE OUT. The cap
+          // evicts the least recently touched row, and that row's conversation
+          // is one nobody is looking at — so it is the one case where a
+          // doorbell can go quiet with no gesture behind it, and the bodies it
+          // was holding would otherwise sit until that conversation next opened
+          // and arrive from a doorbell its strip now draws as off.
+          for (const row of left) held.dropped(row, row.plugin)
           move({ wake: wakeOf() })
         }),
       recordRefusal: (tool: string, failure: OpFailure) =>

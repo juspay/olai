@@ -690,8 +690,36 @@ export interface Deliveries {
        * It is what lets a plugin send a fresh whole sentence per event and have
        * a person read ONE message rather than five. Composing the combined
        * sentence stays the plugin's authorship; holding exactly one stays core's
-       * mechanics. A body sent with no key never replaces anything, which is the
-       * arm a wake takes.
+       * mechanics.
+       *
+       * ## THE KEY IS SCOPED TO THE PLUGIN, and a plugin never spells that
+       *
+       * Core files a held slot under the PAIR `(plugin, coalesce)` — `@olai/chat`'s
+       * `holding` mints the identity out of both — so a key is chosen among this
+       * plugin's OWN messages and nothing else. Two plugins that both say `digest`
+       * are two subjects with two slots, and neither can swallow the other's
+       * sentence; a word as ordinary as that one is safe to pick without
+       * consulting anybody. It is the same pairing that makes the held-slot cap
+       * and the turn-it-off drop per plugin rather than per conversation, and a
+       * caller that spells its own name into the key is repeating what core
+       * already did rather than earning anything by it.
+       *
+       * ## AND NO KEY IS A REAL ARM, but not the one a doorbell takes
+       *
+       * A body sent with no key is filed under a fresh identity of core's own: it
+       * never replaces and is never replaced. That arm is for a plugin whose
+       * sentences are each about a DIFFERENT thing, where the newer one does not
+       * contain the older and replacing would lose what the first said. A plugin
+       * whose body is a fresh derivation of standing state is in the other case
+       * and should key BOTH its meanings — the newest sentence already says
+       * everything its predecessor said, so replacing costs nothing and reading
+       * five near-identical messages costs a person something.
+       *
+       * IT USED TO say a wake takes the no-key arm, from a draft in which a body
+       * was an account of one event rather than of everything standing. The only
+       * caller has keyed both of its meanings since, and this line agreeing with
+       * it is the difference between a doc a caller can follow and one it
+       * contradicts.
        */
       readonly coalesce?: string
     },

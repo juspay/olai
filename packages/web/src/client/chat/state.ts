@@ -235,14 +235,23 @@ export interface Chat {
    * that pair is read at the CLICK ({@link ./Wake.tsx}), which is the moment the
    * person meant.
    *
-   * The plugin leads because it is the subject — whose doorbell — and the file
-   * is last because it is the value being set. One verb and not a `clear`
-   * beside a `set`: there is one fact here and it has an empty value.
+   * THE ORDER IS THE WIRE'S — `agent`, `session`, `plugin`, `file`, exactly the
+   * member's own field order one hop down and the order `@olai/chat`'s own
+   * `scope` takes them in (the pair, then the plugin, then the file). Three
+   * adjacent strings is a signature where the compiler cannot help: any
+   * permutation type-checks, and a caller that swapped two would store a pick
+   * under a plugin name nothing rings and a conversation nobody has. IT USED TO
+   * lead with the plugin, on the argument that the subject belongs first — a
+   * good sentence and a second order for one tuple, which is the whole of what
+   * makes such a swap silent.
+   *
+   * One verb and not a `clear` beside a `set`: there is one fact here and it
+   * has an empty value.
    */
   readonly scope: (
-    plugin: string,
     agent: string,
     session: string,
+    plugin: string,
     file: string | null,
   ) => void
 }
@@ -494,7 +503,7 @@ export const createChat = (): Chat => {
     // doorbell at a file opens nothing, so the panel has nothing to say from
     // the click — what it did shows up as the strip's own row changing, which
     // is where somebody who just picked a file is already looking.
-    scope: (plugin, agent, session, file) =>
+    scope: (agent, session, plugin, file) =>
       verb(olai.procedures.chat.scope({ agent, session, plugin, file })),
     reopen: () => opens(olai.procedures.chat.reopen()),
     answer: (id, answers, done) =>

@@ -18,10 +18,15 @@
  * the live lanes — and it makes silence the default: a fresh conversation has
  * no file, so it has no doorbell, and nobody is opted in by a serve.
  *
- * It also replaced the mute list that used to live in `_olai/Kolu.olai`
- * (2026-08-31). A mute could only ever say "never, for everybody"; a filter
- * file says "not for this seat", which is the thing people actually wanted,
- * and two silence mechanisms aimed at one fleet is one too many.
+ * The mute list that used to live in `_olai/Kolu.olai` went in the same
+ * landing (2026-08-31), and it is worth being exact about what that was and
+ * was not: a mute silenced the events FEED, for everybody, whatever anybody
+ * was doing — and the feed has no silence control now, because it says
+ * everything it sees. What this file's filter silences is the DOORBELL, per
+ * conversation. The two are different surfaces, so this is not a replacement
+ * so much as the weaker of two silences going and the useful one arriving:
+ * "never, for everybody" was a setting people kept forgetting to un-set, and
+ * it was a frozen copy of a list the watcher had to be re-armed against.
  *
  * ## FOUR RULES THE WALK KEEPS, each of them a defect somewhere else
  *
@@ -302,11 +307,37 @@ export const standingIn = (
   return standing
 }
 
-/** Who a row IS, in kolu's own `repo·branch` spelling — the Dock's own
- *  grouping answer, and the one disambiguator that works when three terminals
- *  all label themselves `master`. Spelled here in three lines rather than
- *  imported, because the import would be `@olai/kolu-ui` and this file runs in
- *  a process that renders nothing. */
+/**
+ * WHO A ROW IS, in kolu's own `repo·branch` spelling — the Dock's own grouping
+ * answer, and the one disambiguator that works when three terminals all label
+ * themselves `master`.
+ *
+ * ## Spelled twice, because a package wall stands between the two
+ *
+ * `@olai/kolu-ui`'s `repoPrefix` (`src/padi/events.ts`) folds this same clause
+ * for the events feed, and it is not imported here: that package's doors are
+ * the browser socket, its testids and a stylesheet, so reaching the fold would
+ * pull SolidJS and an emulator onto the graph of a process that renders
+ * nothing — the hazard `@olai/plugin-kolu`'s own `./server` door exists to
+ * keep out, and the one `@olai/plugins`' `fence.test.ts` walks each closure
+ * for. So there are two spellings of one rule by construction, and what is
+ * owed in place of the import is that they answer IDENTICALLY for the same
+ * row, which is said in both headers rather than in neither.
+ *
+ * ## The blank label is where they used to part
+ *
+ * A terminal with no intent line and no branch carries `label: ""` — the wire
+ * types it as a plain string and nothing guarantees a word — and this arm
+ * answered `olai` while the browser's answered `olai·`, a name ending in a
+ * joiner with nothing joined to it, in a sentence a person reads rather than
+ * in a debug dump. Both drop the separator now, and `./doorbell.test.ts` pins
+ * this side of it.
+ *
+ * WHY NOT ONE FUNCTION IN `@olai/kolu-client/wire`, which both ends already
+ * import: because that package is the DIAL and the vocabulary, and this is a
+ * choice about how olai NAMES a row to a person — the same judgement-about-kolu
+ * this whole module is, and kolu's own wire is not where olai's wording goes.
+ */
 const whoOf = (row: FleetTerminal): string => {
   const label = row.label.trim()
   if (row.repo === null) return label

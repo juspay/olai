@@ -429,6 +429,19 @@ test("a row with no repo and no label is named by its id alone", () => {
   )
 })
 
+test("a row with a repo and NO label is named by the repo alone — no dangling joiner", () => {
+  // The one case the browser's own fold (`@olai/kolu-ui`'s `repoPrefix`) and
+  // this one used to answer differently: `olai·`, a name ending in a joiner
+  // with nothing joined to it. Both drop it now — see `whoOf`.
+  const standing = standingFor({
+    ...DECLARED,
+    "lanes.olai": marked("step", "reproduce", "doing", { terminal: "11111111" }),
+  }, fleetOf(row("11111111", "waiting", "  ", "olai")), "wake")
+  const body = bodyFor("wake", standing, "lanes.olai", "2026-08-31T14:32:07.001Z")
+  expect(body).toContain("— `11111111` (olai) is held at `waiting`;")
+  expect(body).not.toContain("olai·")
+})
+
 test("an untitled claiming node is drawn around rather than filled in", () => {
   const standing = standingFor({
     ...DECLARED,

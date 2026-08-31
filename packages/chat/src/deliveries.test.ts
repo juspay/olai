@@ -39,6 +39,7 @@ import type { Installed } from "./agents/roster.ts"
 import { type Chat, make as makeChat } from "./chat.ts"
 import { SLOTS } from "./deliveries.ts"
 import type { Scoped, Scopes } from "./scopes.ts"
+import { MemoryFailure } from "./memory.ts"
 
 const FIXTURE = join(import.meta.dirname, "fixtures", "doorbell-agent.ts")
 
@@ -107,7 +108,7 @@ const until = async (what: string, ready: () => boolean, ms = 8_000): Promise<vo
  *  over. Writing one is `scopes.test.ts`'s subject. */
 const scoping = (rows: ReadonlyArray<Scoped>): Scopes => ({
   rows: () => rows,
-  set: () => Effect.void,
+  set: () => Effect.succeed([]),
 })
 
 const SCOPED = scoping([{
@@ -147,6 +148,19 @@ const panel = async (
 /** WHICH conversation the panel is in, as a delivery is addressed. */
 const open = (chat: Chat) => ({ agent: "opencode", session: chat.state().session?.id ?? "" })
 
+/** Send something the fixture holds, and WAIT UNTIL THE TURN IS RUNNING.
+ *
+ *  The wait is the point, not politeness: `send` returns once the prompt is on
+ *  the wire, and `begin` forks the fiber that flips `turns.busy`. A delivery
+ *  made in that gap finds an idle agent and is handed over as a turn of its
+ *  OWN — which is correct behaviour and the wrong precondition for every test
+ *  below, each of which is about what happens to a body that arrives while a
+ *  turn is already running. */
+const holding = async (chat: Chat): Promise<void> => {
+  await run(chat.send("wait:900", [], []))
+  await until("the turn to be running", () => chat.state().status === "thinking")
+}
+
 const closing = async (chat: Chat, body: () => Promise<void>): Promise<void> => {
   try {
     await body()
@@ -178,7 +192,7 @@ describe("an agent mid-turn", () => {
   test("HOLDS the words, and no row exists yet", async () => {
     const chat = await panel({ scoping: SCOPED })
     await closing(chat, async () => {
-      await run(chat.send("wait:900", [], []))
+      await holding(chat)
       await run(chat.deliverTo(open(chat), RANG, KOLU))
       // Nothing is in the conversation, which is the whole difference from a
       // mid-turn hand-off: the words are not at the agent and the transcript
@@ -195,7 +209,7 @@ describe("an agent mid-turn", () => {
   test("lets in ONE row, the bodies joined by a blank line in arrival order", async () => {
     const chat = await panel()
     await closing(chat, async () => {
-      await run(chat.send("wait:900", [], []))
+      await holding(chat)
       await run(chat.deliverTo(open(chat), "first", KOLU))
       await run(chat.deliverTo(open(chat), "second", KOLU))
       await run(chat.deliverTo(open(chat), "third", KOLU))
@@ -209,7 +223,7 @@ describe("an agent mid-turn", () => {
   test("a second body under the same key REPLACES in place and keeps its position", async () => {
     const chat = await panel()
     await closing(chat, async () => {
-      await run(chat.send("wait:900", [], []))
+      await holding(chat)
       await run(chat.deliverTo(open(chat), "digest v1", KOLU, { coalesce: "digest" }))
       await run(chat.deliverTo(open(chat), "a wake", KOLU))
       await run(chat.deliverTo(open(chat), "digest v2", KOLU, { coalesce: "digest" }))
@@ -223,7 +237,7 @@ describe("an agent mid-turn", () => {
   test("a body with no key never replaces, even one word for word the same", async () => {
     const chat = await panel()
     await closing(chat, async () => {
-      await run(chat.send("wait:900", [], []))
+      await holding(chat)
       await run(chat.deliverTo(open(chat), "the same words", KOLU))
       await run(chat.deliverTo(open(chat), "the same words", KOLU))
       await until("the turn boundary", () => rung(chat).length === 1)
@@ -336,6 +350,10 @@ describe("a doorbell somebody turned off", () => {
           rows = file === null
             ? without
             : [...without, { ...to, plugin, file, at: "2026-08-31T09:01:00.000Z" }]
+          // The rows this write removed and did not put back — the real store
+          // answers with these so a caller can take back what their doorbells
+          // were holding.
+          return without.filter((row) => !rows.includes(row))
         }),
     }
   }
@@ -343,7 +361,7 @@ describe("a doorbell somebody turned off", () => {
   test("takes back what it is still holding, rather than letting it in later", async () => {
     const chat = await panel({ scoping: movable() })
     await closing(chat, async () => {
-      await run(chat.send("wait:900", [], []))
+      await holding(chat)
       await run(chat.deliverTo(open(chat), RANG, KOLU))
       expect(chat.state().wake).toEqual([{ name: KOLU, file: "Fleet.olai", waiting: 1 }])
       // The gesture, made on seeing that count — the clear and the count are
@@ -364,13 +382,49 @@ describe("a doorbell somebody turned off", () => {
   test("takes back only its OWN, because one conversation may have two", async () => {
     const chat = await panel({ scoping: movable() })
     await closing(chat, async () => {
-      await run(chat.send("wait:900", [], []))
+      await holding(chat)
       await run(chat.deliverTo(open(chat), "kolu's", KOLU))
       await run(chat.deliverTo(open(chat), "somebody else's", "odu"))
       await run(chat.scope(open(chat), KOLU, null))
       await until("the turn boundary", () => rung(chat).length === 1)
       expect(rung(chat)[0]?.text).toBe("somebody else's")
       expect(rung(chat)[0]?.rang).toBe("odu")
+    })
+  }, 20_000)
+
+  test("takes back what it holds when the pick MOVES, not only when it is cleared", async () => {
+    const chat = await panel({ scoping: movable() })
+    await closing(chat, async () => {
+      await holding(chat)
+      await run(chat.deliverTo(open(chat), RANG, KOLU))
+      // The same gesture as a clear, one option along in the picker. The body
+      // names the file it was derived from, so it would land under a control
+      // saying it watches a different one — and the plugin does not re-derive
+      // it, because the terminals it named need not be claimed in the new file.
+      await run(chat.scope(open(chat), KOLU, "Other.olai"))
+      expect(chat.state().wake).toEqual([{ name: KOLU, file: "Other.olai", waiting: 0 }])
+      await run(chat.send("say:done", [], []))
+      await until("the second turn to finish", () => chat.state().status === "idle")
+      expect(rung(chat)).toEqual([])
+    })
+  }, 20_000)
+
+  test("a refused write leaves the pick where the person was told it stayed", async () => {
+    // The record is the authority: a write that fails is a pick that did not
+    // stick, and the MIRROR is what the plugin reads — so a mirror that moved
+    // under a refused write would be a doorbell ringing for a row the strip
+    // never said was on.
+    let rows: ReadonlyArray<Scoped> = []
+    const refusing: Scopes = {
+      rows: () => rows,
+      set: () => Effect.fail(new MemoryFailure({ why: "the state home is read-only" })),
+    }
+    const chat = await panel({ scoping: refusing })
+    await closing(chat, async () => {
+      const outcome = await Effect.runPromise(Effect.result(chat.scope(open(chat), KOLU, "Fleet.olai")))
+      expect(outcome._tag).toBe("Failure")
+      expect(rows).toEqual([])
+      expect(chat.state().wake).toEqual([])
     })
   }, 20_000)
 })

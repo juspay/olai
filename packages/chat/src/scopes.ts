@@ -132,23 +132,30 @@ export interface Scopes {
   readonly rows: () => ReadonlyArray<Scoped>
   /**
    * Set or CLEAR one — `file: null` clears, which is how a doorbell is turned
-   * off.
+   * off — and answer with the rows that LEFT the table.
    *
    * Not a second verb beside a `forget`, because there is one fact here and it
    * has an empty value: two doors onto one row would be a question about which
    * of them a fresh pick goes through.
    *
-   * The mirror moves FIRST and the record is written under the same permit, so
-   * a caller that comes straight back for {@link Scopes.rows} sees its own
-   * write whether or not the disk has caught up — and a failure to write is
-   * still told, because it is the NEXT boot that would be wrong.
+   * THE RECORD IS THE AUTHORITY AND THE MIRROR FOLLOWS IT. The write happens
+   * first and the mirror moves only if it landed, so a refusal a caller is
+   * handed means nothing stuck anywhere — the plugin reads the mirror, and a
+   * mirror that had moved under a refused write would be a doorbell ringing for
+   * a pick the person was just told did not take.
+   *
+   * WHAT COMES BACK is every row this write removed and did not put back: the
+   * one it replaced or cleared, plus any the cap evicted. A caller holding
+   * anything on those rows' behalf has to hear about it — that is the whole
+   * reason this is not `void`, and an eviction is the arm a caller could not
+   * work out for itself.
    */
   readonly set: (
     to: { readonly agent: string; readonly session: string },
     plugin: string,
     file: string | null,
     at: string,
-  ) => Effect.Effect<void, MemoryFailure>
+  ) => Effect.Effect<ReadonlyArray<Scoped>, MemoryFailure>
 }
 
 /** What one of these files looks like written. The rows are read leniently
@@ -245,17 +252,40 @@ export const forDirectory = (spelling: string): Effect.Effect<Scopes> =>
       rows: () => rows,
       set: (to, plugin, file, when) =>
         writing.withPermit(Effect.gen(function*() {
-          const without = rows.filter((row) =>
+          // The table as it stands, held so the answer below can be computed
+          // against it: `without` has already dropped the row being replaced,
+          // so it is not the thing to compare against.
+          const before = rows
+          const without = before.filter((row) =>
             !(row.agent === to.agent && row.session === to.session && row.plugin === plugin)
           )
           const next = file === null
             ? without
             : capped([...without, { agent: to.agent, session: to.session, plugin, file, at: when }])
-          rows = next
+          // THE RECORD FIRST, AND THE MIRROR ONLY IF IT LANDED. The two are one
+          // fact in two places and this is the whole of what keeps them one: a
+          // write that fails is a pick that did not stick, and a mirror that
+          // had already moved would be a doorbell RINGING for a row the person
+          // was just told was refused — the plugin reads the mirror, not the
+          // disk, so it would start delivering into a conversation whose strip
+          // never said it was on.
+          //
+          // IT USED TO ASSIGN FIRST, on the reading that the permit made the
+          // interleaving unobservable. The permit does keep two WRITES apart;
+          // what it cannot do is take back a value a failed write left behind,
+          // and the caller is told `failed` either way.
           yield* Effect.mapError(
             writeHeld(at, { cwd, scopes: next }),
             (failure) => new MemoryFailure(failure),
           )
+          rows = next
+          // ... AND WHO LEFT THE TABLE, so the caller can take back what those
+          // rows' doorbells were holding. A clear and a re-point are the rows
+          // the caller already knows about; an EVICTION is not, and a person
+          // who never touched that conversation has no way to learn its
+          // doorbell went quiet — which is exactly the case a caller that could
+          // only see `file === null` used to miss.
+          return before.filter((row) => !next.includes(row))
         })),
     }
   })

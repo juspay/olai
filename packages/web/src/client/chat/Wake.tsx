@@ -132,7 +132,7 @@ export function Wake(props: { readonly chat: Chat }) {
   const scope = (plugin: string, file: string | null): void => {
     const at = to()
     if (at === undefined) return
-    props.chat.scope(plugin, at.agent, at.session, file)
+    props.chat.scope(at.agent, at.session, plugin, file)
   }
   return (
     <Show when={rows().length > 0 && to() !== undefined}>

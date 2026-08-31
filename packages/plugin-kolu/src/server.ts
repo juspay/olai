@@ -160,8 +160,11 @@ export interface Deliveries {
   /** One machine-marked message into one conversation. Fire-and-forget, like
    *  {@link Services.say} and {@link Services.warn} beside it and for their
    *  reason. `coalesce` names the slot an UNDELIVERED body may be replaced
-   *  in — see {@link ./doorbell.ts} on why a fixed key per meaning is lossless
-   *  here and would not be for a plugin that accumulated. */
+   *  in — a slot core files under the PAIR of this plugin and the word, so the
+   *  word is chosen among this plugin's own messages and no neighbour's key
+   *  can collide with it. See {@link ./doorbell.ts} on why a fixed key per
+   *  meaning is lossless here and would not be for a plugin that
+   *  accumulated. */
   readonly deliver: (
     to: { readonly agent: string; readonly session: string },
     body: string,
@@ -339,10 +342,20 @@ export const serve = (services: Services): {
    * with the next one under the same key, so a burst while a turn runs
    * arrives as ONE message — and that is lossless only because the body is a
    * fresh derivation of standing state rather than an accumulation, which is
-   * the claim `bodyFor` is written to keep. The key carries this plugin's
-   * name because core's held-slot table is keyed by CONVERSATION and not by
-   * plugin: two plugins that both said `"wake"` would replace each other's
-   * words.
+   * the claim `bodyFor` is written to keep. BOTH meanings are keyed, which is
+   * the whole of the arm this plugin uses: a wake is a derivation exactly as a
+   * digest is, so the newest one already says everything its predecessor said
+   * and there is nothing for the un-keyed arm to protect.
+   *
+   * THE NAME IN THE KEY IS THIS PLUGIN TALKING TO ITSELF, and not a guard
+   * against a neighbour. Core files a held slot under the PAIR of the plugin
+   * and the key (`@olai/plugins`' `Deliveries.deliver` says so, and
+   * `@olai/chat`'s `holding` is where the pair is minted), so `"wake"` on its
+   * own could not be swallowed by another plugin saying `"wake"` — the prefix
+   * buys legibility in a dump and nothing else. IT USED TO SAY the opposite,
+   * that core keyed by conversation alone and the name was what kept two
+   * plugins apart; a reader who believed it would have carried the name into a
+   * key where it mattered rather than where it merely reads well.
    *
    * AND IT CANNOT THROW INTO A TIMER. This runs from `emitHold`, which is a
    * `setTimeout` callback in the watcher — an exception escaping here would

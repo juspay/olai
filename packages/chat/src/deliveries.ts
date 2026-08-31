@@ -37,8 +37,12 @@
  * alone. Two plugins that both call their coalescing key `digest` are two
  * plugins with two subjects, and one silently swallowing the other's sentence
  * is the bug this pairing is the absence of. A body sent with NO key gets a
- * fresh unique one, so it never replaces and is never replaced — which is the
- * arm a wake takes.
+ * fresh unique one, so it never replaces and is never replaced — a real arm,
+ * and one no doorbell takes today: kolu keys BOTH its meanings, because each
+ * of its bodies is a fresh derivation of everything standing under that
+ * meaning rather than an account of one event, so replacing is lossless and
+ * arriving five times over is the thing worth avoiding. The no-key arm is for
+ * a sentence that is about a moment and cannot be re-derived.
  *
  * ## Memory only, and it says so here rather than only in the PR
  *
@@ -110,13 +114,13 @@ export const SLOTS = 32
  * an agent's session list is not proof of anything, so the only safe eviction
  * is the one that costs no probe.
  */
-export const CONVERSATIONS = 32
+const CONVERSATIONS = 32
 
 /**
  * THE HELD BODIES — put one in, read what is waiting, take what was handed
  * over.
  *
- * Four verbs and no `flush`: draining is a DECISION about a live agent and a
+ * Five verbs and no `flush`: draining is a DECISION about a live agent and a
  * running turn, and it belongs where those are known. What this holds is a
  * list, and the only thing it decides is where a body goes in it.
  */
@@ -232,7 +236,11 @@ export const holding = (): Holding => {
       const drop = slots.findIndex((one) => one.from === from)
       if (drop !== -1) slots.splice(drop, 1)
     },
-    waiting: (to) => held.get(keyOf(to)) ?? [],
+    // A COPY. The list behind this is the one `hold` mutates in place, so a
+    // caller that kept the result across an await and handed it back would be
+    // handing back whatever landed in between — and `took`'s identity filter
+    // would take the very slots it exists to leave alone.
+    waiting: (to) => [...(held.get(keyOf(to)) ?? [])],
     took: (to, taken) => {
       const key = keyOf(to)
       const slots = held.get(key)

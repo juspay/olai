@@ -113,6 +113,12 @@ export const ringersOf = (
     const wake = plugin.wake
     if (!plugin.running || wake === undefined) continue
     const mine = picked.get(plugin.name)
+    // NO PICK IS ZERO HELD, and that is true of the server rather than assumed
+    // here: `waiting` is a field of a scope row, so a count with no pick would
+    // have nowhere to be drawn — and it cannot arise, because every write to a
+    // scope (a clear, a re-point, the cap evicting one) takes back the bodies
+    // that scope was holding (`@olai/chat`'s `Holding.dropped`). A held body
+    // therefore always has a row to be counted on.
     const waiting = mine?.waiting ?? 0
     rows.push({
       name: plugin.name,
