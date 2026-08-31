@@ -343,14 +343,16 @@ Then(
 );
 
 Then("the Done flip is this page's own", async function (this: OlaiWorld) {
-  await this.page
-    .locator(`${FOCUSED_PANE} ${DONE_FLIP}${attr("data-own", "true")}`)
+  const flip = await flipOfAddressed(this.page);
+  await flip
+    .and(this.page.locator(`${DONE_FLIP}${attr("data-own", "true")}`))
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
 Then("the Done flip is the panel's answer", async function (this: OlaiWorld) {
-  await this.page
-    .locator(`${FOCUSED_PANE} ${DONE_FLIP}:not(${attr("data-own", "true")})`)
+  const flip = await flipOfAddressed(this.page);
+  await flip
+    .and(this.page.locator(`${DONE_FLIP}:not(${attr("data-own", "true")})`))
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
@@ -409,9 +411,8 @@ When("I show the done nodes", async function (this: OlaiWorld) {
  *  back to the panel, and that is deliberately a door one CLUTTER-free
  *  second near a strip cannot miss (client/filter/DoneFlip.tsx). */
 When("I hand the page's Done pick back to the panel", async function (this: OlaiWorld) {
-  await this.page
-    .locator(`${FOCUSED_PANE} ${DONE_FLIP} ${attr("data-testid", TESTID.doneRelease)}`)
-    .click();
+  const flip = await flipOfAddressed(this.page);
+  await flip.locator(attr("data-testid", TESTID.doneRelease)).click();
 });
 
 /**

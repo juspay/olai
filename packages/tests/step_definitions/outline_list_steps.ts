@@ -90,11 +90,17 @@ Then(
   },
 );
 
+/** A row of THIS file — the swap, not any outline-tree still held from the
+ *  page before. Shared by the click and the open so they cannot drift. */
+const treeOf = (world: OlaiWorld, file: string) =>
+  world.page.locator(`${OUTLINE_TREE} ${attr("data-file", file)}`).first();
+
 /** The same click one kind over from "I click the document": the entry in the
  *  tree, pressed from wherever the reader already is. Its sibling below opens
  *  the app first, which is what makes it a `Given`; this one is a gesture on a
  *  page that is already up, and the difference is the whole subject of
- *  `features/the_chrome_holds_still.feature`. */
+ *  `features/the_chrome_holds_still.feature`. The wait after the click is the
+ *  swap, same as the Given — not a rAF. */
 When(
   "I click the outline {string}",
   async function (this: OlaiWorld, file: string) {
@@ -102,7 +108,10 @@ When(
     const link = this.outlineLink(file);
     await link.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     await link.click();
-    await this.waitForFrame();
+    await treeOf(this, file).waitFor({
+      state: "visible",
+      timeout: POLL_TIMEOUT,
+    });
   },
 );
 
@@ -121,10 +130,10 @@ Given(
     // container matches the previous page. One rAF is vsync, not the swap
     // — darwin + parallel workers loses that window (#445's row-jump), and
     // the next step's Done flip is then the held page's prefs-choice.
-    await this.page
-      .locator(`${OUTLINE_TREE} ${attr("data-file", file)}`)
-      .first()
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await treeOf(this, file).waitFor({
+      state: "visible",
+      timeout: POLL_TIMEOUT,
+    });
   },
 );
 
