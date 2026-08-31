@@ -490,7 +490,7 @@ test("... and the head links NOTHING where it names a count, because it would be
     row("22222222", "waiting", "two", "olai"),
   ), "wake")
   const head = bodyFor("wake", standing, "lanes.olai", "2026-08-31T14:32:07.001Z").split("\n")[0]
-  expect(head).toBe("kolu — 2 terminals are idle: they have finished, or they need you.")
+  expect(head).toBe("2 terminals are idle: they have finished, or they need you.")
   // Which of the two a single link went to would move with the board. The
   // account names both, each with its own reference — that is what the fold is
   // for, and it is one press away.
@@ -653,7 +653,7 @@ test("the two meanings PARTITION the standing set — neither body names the oth
   expect(standingFor(files, fleet, "digest").map((one) => one.terminal)).toEqual(["22222222"])
 })
 
-test("the FIRST LINE is the essence — what the panel folds to, and it names its author", () => {
+test("the FIRST LINE is the essence — the plain sentence the panel folds to", () => {
   const standing = standingFor({
     ...DECLARED,
     "lanes.olai": marked("step", "reproduce + fix + open PR", "doing", {
@@ -662,21 +662,23 @@ test("the FIRST LINE is the essence — what the panel folds to, and it names it
   }, fleetOf(row("54fe62f9", "waiting", "done-flip-flake", "olai")), "wake")
   const body = bodyFor("wake", standing, "lanes.olai", "2026-08-31T14:32:07.001Z")
   const [first, blank, third] = body.split("\n")
-  // Who moved, what it means, when — short enough for a glance, because this
-  // is the only line the transcript draws until somebody expands it.
-  // A PLAIN SENTENCE: what happened, in words a reader who was not there
-  // understands. The step is long enough to be a sentence of its own, so the
-  // name falls back to the label and the step waits in the account.
+  // WHAT HAPPENED, in words a reader who was not there understands — this is the
+  // only line the transcript draws until somebody expands it. The step here is
+  // long enough to be a sentence of its own, so the name falls back to the label
+  // and the step waits in the account.
   expect(first).toBe(
-    "kolu — the done-flip-flake terminal is idle on `step`: it has finished, or it needs you.",
+    "The done-flip-flake terminal is idle on `step`: it has finished, or it needs you.",
   )
-  // ... and it opens with `kolu`, which is the attribution the REPLAY rule
-  // needs: the row's `rang` mark is rebuilt away by a resumed session, so a
-  // body that did not name its author would replay as words in a person's
-  // mouth.
-  expect(first?.startsWith("kolu ")).toBe(true)
+  // ... AND IT DOES NOT NAME ITS AUTHOR, which is the correction. The panel
+  // draws a mark and a byline above the row, so a head that said `kolu` spent
+  // the one line a glance gets on a question already answered twice above it.
+  expect(first).not.toContain("kolu")
   // The fold is at the blank line, so everything below is detail.
   expect(blank).toBe("")
+  // ... and the REPLAY rule is kept one line down rather than dropped: a resumed
+  // conversation is rebuilt out of message chunks carrying text and no keys, so
+  // the body has to say who wrote it SOMEWHERE — and anywhere in the body
+  // satisfies that, because a replay rebuilds the whole of it.
   expect(third).toBe("Written by olai's kolu watcher at 2026-08-31 14:32 UTC, not by a person.")
 })
 
@@ -693,7 +695,7 @@ test("... and the essence COUNTS rather than lists, so one line stays one line",
   ), "wake")
   const body = bodyFor("wake", standing, "lanes.olai", "2026-08-31T14:32:07.001Z")
   expect(body.split("\n")[0]).toBe(
-    "kolu — 2 terminals are idle: they have finished, or they need you.",
+    "2 terminals are idle: they have finished, or they need you.",
   )
 })
 
@@ -725,7 +727,7 @@ test("the digest body says PARKED rather than owed, and counts what it names", (
   }, fleetOf(row("11111111", "waiting"), row("22222222", "waiting")), "digest")
   const body = bodyFor("digest", standing, "lanes.olai", "2026-08-31T14:32:07.001Z")
   expect(body.split("\n")[0]).toBe(
-    "kolu — 2 terminals went quiet, and nothing under them is being worked. A note, not a call.",
+    "2 terminals went quiet, and nothing under them is being worked. A note, not a call.",
   )
   expect(body).toContain("2 terminals claimed by lanes.olai are waiting on a person")
   expect(body).toContain("they are lawfully parked, so this is a note and not a call")

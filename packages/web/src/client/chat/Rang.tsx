@@ -286,7 +286,12 @@ export function Rang(props: {
         >
           <button
             type="button"
-            class="shrink-0 rounded-sm leading-4 hover:text-ink focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            // `cursor-pointer`, and it is not decoration: a chevron the mouse
+            // does not acknowledge is a control most people never find. The
+            // panel says pressable the same way everywhere — `Reference.tsx`'s
+            // node chip and `styles.css`'s `code[data-node-ref]` both carry it —
+            // and this is the transcript's third pressable thing joining them.
+            class="shrink-0 cursor-pointer rounded-sm leading-4 hover:text-ink focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-accent"
             data-testid={TESTID.chatRangFold}
             aria-expanded={said().open}
             aria-label={said().open ? "hide the account" : "show the account"}

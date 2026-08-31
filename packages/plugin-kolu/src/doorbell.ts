@@ -654,15 +654,22 @@ export const bodyFor = (
  * nothing in common but that they are wakes, and core summarising one would be
  * core writing words it cannot write well.
  *
- * ## What it still has to carry
+ * ## WHOSE IT IS, and why this line no longer says
  *
- * `kolu` opens it, and that is not decoration: core's `rang` mark does not
- * survive a session replay ({@link ../../surface/src/chat.ts}), so a body that
- * did not name its author would come back from a resumed session as words in
- * the person's mouth.
+ * It opened with `kolu` for one round, on the rule that a body must name its own
+ * author because core's `rang` mark does not survive a session replay
+ * ({@link ../../surface/src/chat.ts}). THE RULE STANDS AND THE PLACE WAS WRONG:
+ * the panel draws a mark and a byline above the row, so a head that also said
+ * `kolu` spent the scarcest words in the message — the one line a glance gets —
+ * on a question already answered twice above it.
  *
- * NO TIME. The transcript stamps every row it draws, so a clock here is the same
- * fact twice — and the account below carries the full stamp for a reader
+ * The attribution did not go anywhere. It is the line below this one, *Written
+ * by olai's kolu watcher at <time>, not by a person*, which is IN THE BODY and
+ * therefore in the text a replay rebuilds. A resumed conversation still names the
+ * author; a live one no longer says it three times.
+ *
+ * NO TIME HERE either, and for that economy: the transcript stamps every row it
+ * draws, and the full stamp is on that attribution line for a reader
  * reconstructing an afternoon.
  *
  * ## THE HEAD CARRIES THE ONE PRESSABLE REFERENCE
@@ -684,12 +691,12 @@ const essenceOf = (meaning: Meaning, standing: ReadonlyArray<Standing>): string 
   const one = standing.length === 1 ? standing[0] : undefined
   if (meaning === "wake") {
     return one === undefined
-      ? `kolu — ${standing.length} terminals are idle: they have finished, or they need you.`
-      : `kolu — the ${namingOf(one)} is idle on \`${one.node}\`: it has finished, or it needs you.`
+      ? `${standing.length} terminals are idle: they have finished, or they need you.`
+      : `The ${namingOf(one)} is idle on \`${one.node}\`: it has finished, or it needs you.`
   }
   return one === undefined
-    ? `kolu — ${standing.length} terminals went quiet, and nothing under them is being worked. A note, not a call.`
-    : `kolu — the ${namingOf(one)} went quiet on \`${one.node}\`, and nothing under it is being worked. A note, not a call.`
+    ? `${standing.length} terminals went quiet, and nothing under them is being worked. A note, not a call.`
+    : `The ${namingOf(one)} went quiet on \`${one.node}\`, and nothing under it is being worked. A note, not a call.`
 }
 
 /**

@@ -45,15 +45,17 @@
  * make core the author of everything around the hole — and it is what lets a
  * third plugin grow a doorbell without a line of this file moving.
  *
- * ## THE PICKER IS THE CHATS PICKER'S MODEL, reused whole
+ * ## THE PICKER IS THE CHATS PICKER'S MODEL, and now its receptacle
  *
  * A `QUIET_PILL` trigger, a list hung from the strip's own box rather than from
  * the button (a narrow list `right-0` of a small pill runs off the left of a
- * phone sheet), ONE union signal for the whole state machine, `dismissOn` for a
- * pointer outside and Escape, and `aria-expanded` — {@link ./Sessions.tsx}
- * argues every one of those in place. What it adds is a filter box, because the
- * two lists are not the same size: an agent's stored conversations are tens, and
- * a served directory is thousands.
+ * phone sheet), `aria-expanded` — {@link ./Sessions.tsx} argues those in place.
+ * The state machine underneath is not argued twice: one union signal, the
+ * client's one dismissal for a pointer outside and Escape, and the caret back on
+ * the pill when a press is what shut it, all of them
+ * {@link ../inlinePicker.ts}'s. What this adds is a filter box, because the two
+ * lists are not the same size: an agent's stored conversations are tens, and a
+ * served directory is thousands.
  *
  * The files come from the directory this serve is already handing every reader
  * (`../served.tsx`), matched by the one matcher the composer's `@` list uses
@@ -72,10 +74,10 @@
  */
 
 import { agentIn, NO_ROSTER, type PluginRoster } from "@olai/surface"
-import { createMemo, createSignal, For, Index, onCleanup, Show } from "solid-js"
+import { createMemo, For, Index, Show } from "solid-js"
 
-import { dismissOn } from "../dismiss.ts"
 import { dirOf, folded, matchFiles, nameOf } from "../file/matching.ts"
+import { createInlinePicker } from "../inlinePicker.ts"
 import { WITHIN } from "../layer.ts"
 import { QUIET_PILL } from "../pill.ts"
 import { useServed } from "../served.tsx"
@@ -241,18 +243,6 @@ function Line(props: {
 }
 
 /**
- * The picker's state machine, which is ONE signal because it is one fact: the
- * list is shut, or it is up over whatever has been typed at it.
- *
- * Written as an `open` boolean beside a `query` string, "a query while shut" is
- * a state the type admits and the code has to remember not to be in — and the
- * remembering is what goes wrong: a list reopened still narrowed by what
- * somebody typed at it a conversation ago, with the box that says so scrolled
- * out of view. Shutting is one assignment and it cannot leave anything behind.
- */
-type Up = { readonly _tag: "shut" } | { readonly _tag: "open"; readonly query: string }
-
-/**
  * THE CONTROL: what is picked, and the list that changes it.
  *
  * The trigger wears the file's own NAME rather than its path, with the whole
@@ -271,50 +261,18 @@ function Picker(props: {
   /** Every served file, as the whole app has them (`../served.tsx`) — the chat
    *  panel is drawn inside that provider, so this costs no new plumbing. */
   const files = useServed()
-  const [up, setUp] = createSignal<Up>({ _tag: "shut" })
-  /** Is the list up? The union's own "not shut", asked in ONE place — the
-   *  dismissal, the toggle, the `aria-expanded` and the `<Show>` are four
-   *  askings of one question. */
-  const open = () => up()._tag !== "shut"
-  const typed = () => {
-    const state = up()
-    return state._tag === "open" ? state.query : ""
-  }
-
-  /** Two roots, because the list is a sibling of the button rather than a child
-   *  of it: a click-away that knew only the list would read a press of the
-   *  trigger as a press outside — shutting on the pointerdown and reopening on
-   *  that same press's click. */
-  let trigger: HTMLButtonElement | undefined
-  let list: HTMLDivElement | undefined
-
-  /** Put it away. Only that — where the caret goes is the two callers', which
-   *  is `../dismiss.ts`'s own division: it hands the caret back for the key and
-   *  leaves it alone for a press. */
-  const shut = (): void => {
-    setUp({ _tag: "shut" })
-  }
-
-  dismissOn({ open, root: () => list, trigger: () => trigger, dismiss: shut })
-
-  const toggle = (): void => {
-    if (open()) {
-      shut()
-      // A press of the trigger while the list is up is a dismissal a keyboard
-      // can reach, so the caret goes back the way Escape's does — spelled here
-      // because no dismissal can see this press: it lands on the trigger, which
-      // is INSIDE as far as `dismissOn` is concerned.
-      trigger?.focus()
-      return
-    }
-    setUp({ _tag: "open", query: "" })
-  }
+  /** Up over WHAT HAS BEEN TYPED at it, which is this picker's whole payload
+   *  ({@link ../inlinePicker.ts}) — and it opens over nothing typed, so a list
+   *  reopened is never still narrowed by a search somebody made a conversation
+   *  ago. */
+  const picker = createInlinePicker<string>({ opening: () => "" })
+  const typed = () => picker.showing() ?? ""
 
   /** The files on offer, best first. Computed only while the list is up: this
    *  is a pass over the whole directory, and a strip drawn on every conversation
    *  must not be doing one for a list nobody opened. */
   const offered = createMemo((): ReadonlyArray<string> => {
-    if (!open()) return []
+    if (!picker.open()) return []
     return matchFiles(folded(files()), typed(), LIMIT).map((file) => file.path)
   })
 
@@ -329,7 +287,7 @@ function Picker(props: {
   return (
     <>
       <button
-        ref={trigger}
+        ref={picker.setTrigger}
         type="button"
         class={`${QUIET_PILL} max-w-[16rem] truncate`}
         data-testid={TESTID.chatWakePicker}
@@ -339,24 +297,15 @@ function Picker(props: {
         data-plugin={props.ringer.name}
         data-file={props.ringer.file ?? "off"}
         title={props.ringer.file ?? undefined}
-        aria-expanded={open()}
-        onClick={toggle}
+        aria-expanded={picker.open()}
+        onClick={picker.toggle}
       >
         {said()}
       </button>
 
-      <Show when={open()}>
+      <Show when={picker.open()}>
         <div
-          ref={(element) => {
-            list = element
-            // Solid never calls a ref with `undefined`, and this one lives
-            // inside the `<Show>` — so the disposal is what says the list is
-            // gone. Without it a shut picker keeps its detached box, and
-            // `root()` answers with an element no longer on the page.
-            onCleanup(() => {
-              list = undefined
-            })
-          }}
+          ref={picker.setList}
           // Hung from the STRIP (`relative` on the section above), not from
           // this button: a narrow list `right-0` of a small pill runs off the
           // left of a phone sheet. `inset-x-3 top-full` is the strip's own box,
@@ -371,7 +320,7 @@ function Picker(props: {
             data-testid={TESTID.chatWakeQuery}
             placeholder="file"
             value={typed()}
-            onInput={(event) => setUp({ _tag: "open", query: event.currentTarget.value })}
+            onInput={(event) => picker.show(event.currentTarget.value)}
           />
           <ul class="list-none">
             <Show
@@ -387,7 +336,7 @@ function Picker(props: {
                       data-testid={TESTID.chatWakeFile}
                       data-file={path}
                       onClick={() => {
-                        shut()
+                        picker.shut()
                         props.onPick(path)
                       }}
                     >

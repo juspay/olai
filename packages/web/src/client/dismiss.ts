@@ -6,9 +6,10 @@
  * `./note/expand.ts`, and the `•••` menu, which had a fourth. They agreed about
  * almost everything and drifted where they did not: one grew Escape, one never
  * had it, and one got its click-away wrong in a way nothing could see. That is
- * the argument for one spelling of it. The chat's session picker
- * (`chat/Sessions.tsx`) is the fifth caller and the odd one: it had no copy,
- * because it answered neither gesture at all.
+ * the argument for one spelling of it. The fifth caller is the chat's two
+ * inline pickers, through one receptacle of their own (`./inlinePicker.ts`) —
+ * and the first of them is the odd one in this list: it had no copy, because it
+ * answered neither gesture at all.
  *
  * WHICH panel a gesture is for, when more than one is up, is `./topmost.ts` —
  * one stack, and only the last thing opened answers. Every caller here is on it

@@ -775,12 +775,19 @@ export interface Deliveries {
    * sink with nowhere to put a failure, and a rejected promise nobody has a
    * reason to catch is an unhandled rejection in somebody's server log.
    *
-   * THE BODY MUST OPEN WITH ITS OWN ATTRIBUTION, and this is the one thing this
-   * door asks of the words. Core marks the row, and the mark is a live
-   * affordance the browser draws a face from — but a conversation resumed from
-   * the agent's own store rebuilds its rows out of message chunks, and the mark
-   * is not among them. So the SENTENCE has to say who is speaking, or a replayed
-   * transcript puts the plugin's words in the person's mouth.
+   * THE BODY MUST CARRY ITS OWN ATTRIBUTION, and this is the one thing this door
+   * asks of the words. Core marks the row, and the mark is a live affordance the
+   * browser draws a face from — but a conversation resumed from the agent's own
+   * store rebuilds its rows out of message chunks, and the mark is not among
+   * them. So the WORDS have to say who is speaking, or a replayed transcript
+   * puts the plugin's words in the person's mouth.
+   *
+   * CARRY, not OPEN, and the difference is one a round of use taught. The rule
+   * said the first line, and the panel draws a mark and a byline above the row —
+   * so a first line that named its author spent the one line a glance gets on a
+   * question already answered twice above it. Anywhere in the body satisfies the
+   * replay, because a replay rebuilds the whole text; the first line is the one
+   * a reader gets for free, and it is better spent saying what happened.
    */
   readonly deliver: (
     to: { readonly agent: string; readonly session: string },

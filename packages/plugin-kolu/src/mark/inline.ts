@@ -141,7 +141,29 @@ export const inlineMark = (
   // not markup this draws, and its text is free-form — an upstream note like
   // "see #4312" would otherwise reach step (g)'s reference sweep, which reads
   // a `#` as a claim about an id, and fail the build over prose.
-  body = body.replace(/<!--[\s\S]*?-->/g, "")
+  //
+  // ## A FIXPOINT, AND THEN A REFUSAL — because one pass is not a strip
+  //
+  // Removing a match SPLICES what is on either side of it, and two halves can
+  // close up into a delimiter that was not there before: `<!-<!-- -->-` is one
+  // match, and taking it leaves `<!--`. A single pass therefore hands the rest
+  // of this function a string it has already declared clean, which is the
+  // shape CodeQL's `js/incomplete-multi-character-sanitization` names and is
+  // right to — what survives here is inlined into somebody's transcript.
+  //
+  // So: strip until the string stops changing, and then REFUSE if either
+  // delimiter is still standing. The refusal is the half that matters. A
+  // fixpoint alone would still be a claim about a grammar this does not parse;
+  // an asset that carries comment syntax after one is exactly the thing this
+  // file already refuses everywhere else ({@link refuse} at step (d)), and it
+  // has never been a thing a favicon needs.
+  for (let before = ""; before !== body;) {
+    before = body
+    body = body.replace(/<!--[\s\S]*?-->/g, "")
+  }
+  if (/<!--|-->/.test(body)) {
+    refuse(source, "still carries comment syntax after the comments were taken out")
+  }
 
   // ... and then `<title>`/`<desc>`, outright, before anything looks at ids.
   body = body

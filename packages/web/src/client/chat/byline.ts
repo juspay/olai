@@ -10,8 +10,8 @@
  * ## Why not core's own byline
  *
  * Because core's mark does not survive a replay. `@olai/plugins`' `Deliveries.deliver`
- * says it in its own words and requires the body to open with its own
- * attribution: the browser is handed `rang` while the conversation is live, but
+ * says it in its own words and requires the body to CARRY its own attribution:
+ * the browser is handed `rang` while the conversation is live, but
  * a conversation rebuilt from the agent's store comes back out of message
  * chunks that carry text and no keys. A byline this client minted from `rang`
  * would therefore be a byline that VANISHES the first time somebody resumes the
@@ -23,10 +23,11 @@
  * ## One rule, not two
  *
  * The byline is the first line; the body is everything after it, minus one
- * blank line if the plugin left one. kolu's bodies are an attribution line, a
- * blank line, then the account — so that arm is the ordinary one — but a body
- * whose second line is already prose splits the same way rather than falling
- * through to a special case. Two rules keyed on whether a blank line happens to
+ * blank line if the plugin left one. kolu's bodies are a plain sentence saying
+ * what happened, a blank line, then the account whose own first line names the
+ * watcher that wrote it — so that arm is the ordinary one — but a body whose
+ * second line is already prose splits the same way rather than falling through
+ * to a special case. Two rules keyed on whether a blank line happens to
  * be there would be two answers to "where does the label end", free to
  * disagree about a body nobody anticipated.
  *

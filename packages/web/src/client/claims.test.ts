@@ -497,10 +497,12 @@ test("nothing outside the menu's chunk imports the menu's chunk", () => {
 // a quote (grok's review of this pin found that) — and the bundler cannot cut
 // on it either. A variable and a template are the same refusal: computed is
 // computed. And the SPELLERS are named, so the sweep cannot pass vacuously the
-// day both chunks fold back into the entry: the two fetch doors, the
-// browsertest's own literal (a test baking its module in), and
-// `layout/Rail.tsx`'s erased TYPE import — the stripper lifts comments, not
-// types, and TypeScript already forces THAT specifier to be a literal.
+// day both chunks fold back into the entry: the two fetch doors, two tests
+// baking their own subject in (the browsertest's literal, and
+// `inlinePicker.test.ts`, which has to stub `dismiss.ts` before the subject
+// that imports it is loaded), and `layout/Rail.tsx`'s erased TYPE import — the
+// stripper lifts comments, not types, and TypeScript already forces THAT
+// specifier to be a literal.
 test("every dynamic import() the client spells takes a literal the bundler can read", () => {
   // The opener, then the one shape the bundler can read: a complete quoted
   // specifier — escapes allowed, the other quote allowed inside — followed by
@@ -515,6 +517,7 @@ test("every dynamic import() the client spells takes a literal the bundler can r
   expect(offenders).toEqual([])
   expect(filesSpelling(/\bimport\s*\(/)).toEqual([
     path.join("chat", "declared.browsertest.ts"),
+    "inlinePicker.test.ts",
     path.join("layout", "Rail.tsx"),
     path.join("markdown", "chunk.ts"),
     path.join("menu", "chunk.ts"),

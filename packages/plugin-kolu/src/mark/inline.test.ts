@@ -144,3 +144,26 @@ test("... and so is a `#` in text content", () => {
   const out = inlineMark(doc(`<text>step #1</text><rect fill="#14B8A6"/>`), SRC)
   expect(out.body).toContain("step #1")
 })
+
+test("a SPLICED comment cannot survive the strip — the fixpoint closes it", () => {
+  // Removing one match splices what is on either side of it, and two halves can
+  // close up into a delimiter that was not there before. `<!-<!-- -->-` is one
+  // match; taking it leaves `<!--`, which a single pass would hand on as
+  // "clean". This is the shape CodeQL's incomplete-multi-character-sanitization
+  // rule names, and what survives here is inlined into somebody's transcript.
+  const spliced = `<!-<!-- -->- still a comment --><rect fill="#F59E0B"/>`
+  const out = inlineMark(doc(spliced), SRC)
+  expect(out.body).not.toContain("<!--")
+  expect(out.body).not.toContain("-->")
+  expect(out.body).toContain(`fill="#F59E0B"`)
+})
+
+test("... and a delimiter left standing after the fixpoint is REFUSED, never passed through", () => {
+  // An unterminated `<!--` is not a comment this can take out, so it is not a
+  // thing this quietly ships: the file refuses what it cannot honour, and comment
+  // syntax surviving a fixpoint strip is exactly that.
+  expect(() =>
+    inlineMark(doc(`<rect fill="#F59E0B"/><!-- never closed`), SRC)
+  ).toThrow(/comment syntax/)
+  expect(() => inlineMark(doc(`<rect fill="#F59E0B"/>--><g/>`), SRC)).toThrow(/comment syntax/)
+})
