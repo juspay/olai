@@ -164,6 +164,26 @@ test("... and a delimiter left standing after the fixpoint is REFUSED, never pas
   // syntax surviving a fixpoint strip is exactly that.
   expect(() =>
     inlineMark(doc(`<rect fill="#F59E0B"/><!-- never closed`), SRC)
-  ).toThrow(/comment syntax/)
-  expect(() => inlineMark(doc(`<rect fill="#F59E0B"/>--><g/>`), SRC)).toThrow(/comment syntax/)
+  ).toThrow(/<!/)
+  expect(() => inlineMark(doc(`<rect fill="#F59E0B"/>--><g/>`), SRC)).toThrow(/-->/)
+})
+
+test("`--!>` closes a comment too, so the strip takes the whole of it", () => {
+  // HTML's comment-end-bang state accepts `--!>`. A strip that knew only `-->`
+  // would walk past this and leave the comment — and its free-form text — in
+  // the markup that goes into a transcript.
+  const out = inlineMark(doc(`<!-- see #4312 --!><rect fill="#F59E0B"/>`), SRC)
+  expect(out.body).not.toContain("4312")
+  expect(out.body).not.toContain("--!>")
+  expect(out.body).toContain(`fill="#F59E0B"`)
+})
+
+test("a DECLARATION or a processing instruction is refused, whatever kind it is", () => {
+  // The refusal is deliberately broader than the strip: `<!` and `<?` cover
+  // comments, CDATA, doctypes and PIs together, rather than enumerating a
+  // grammar this file does not parse. None of them is a thing a favicon needs.
+  expect(() => inlineMark(doc(`<![CDATA[ x ]]><rect fill="#F59E0B"/>`), SRC)).toThrow(/<!/)
+  expect(() => inlineMark(doc(`<?xml-stylesheet href="x"?><rect fill="#F59E0B"/>`), SRC)).toThrow(/<\?/)
+  expect(() => inlineMark(doc(`<rect fill="#F59E0B"/><!-- never closed`), SRC)).toThrow(/<!/)
+  expect(() => inlineMark(doc(`<rect fill="#F59E0B"/>--!><g/>`), SRC)).toThrow(/--!>/)
 })

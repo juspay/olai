@@ -151,18 +151,25 @@ export const inlineMark = (
   // shape CodeQL's `js/incomplete-multi-character-sanitization` names and is
   // right to — what survives here is inlined into somebody's transcript.
   //
-  // So: strip until the string stops changing, and then REFUSE if either
-  // delimiter is still standing. The refusal is the half that matters. A
-  // fixpoint alone would still be a claim about a grammar this does not parse;
-  // an asset that carries comment syntax after one is exactly the thing this
-  // file already refuses everywhere else ({@link refuse} at step (d)), and it
-  // has never been a thing a favicon needs.
+  // ... AND `--!>` CLOSES A COMMENT TOO, which is the second thing CodeQL was
+  // right about. HTML's comment-end-bang state accepts it, so a strip that knew
+  // only `-->` would walk past `<!-- x --!>` and leave the whole of it standing.
+  //
+  // So: strip until the string stops changing, and then REFUSE anything left
+  // that opens a declaration or a processing instruction, or that dangles a
+  // comment close. The refusal is the half that matters, and it is deliberately
+  // broader than the strip: `<!` and `<?` cover comments, CDATA, doctypes and
+  // PIs together rather than enumerating a grammar this does not parse. An
+  // asset carrying any of them after a fixpoint strip is exactly the thing this
+  // file refuses everywhere else ({@link refuse} at step (d)), and none of them
+  // has ever been a thing a favicon needs.
   for (let before = ""; before !== body;) {
     before = body
-    body = body.replace(/<!--[\s\S]*?-->/g, "")
+    body = body.replace(/<!--[\s\S]*?--!?>/g, "")
   }
-  if (/<!--|-->/.test(body)) {
-    refuse(source, "still carries comment syntax after the comments were taken out")
+  const bogus = /<[!?]|--!?>/.exec(body)
+  if (bogus !== null) {
+    refuse(source, `still carries ${bogus[0]} after the comments were taken out`)
   }
 
   // ... and then `<title>`/`<desc>`, outright, before anything looks at ids.
