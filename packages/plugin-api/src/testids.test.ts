@@ -17,17 +17,33 @@
 
 import { describe, expect, test } from "bun:test"
 
-import { TESTID as kolu } from "olai-plugin-kolu/testids"
-import { TESTID as odu } from "olai-plugin-odu/testids"
-
+import { PLUGIN_NAMES } from "./surfaces.ts"
 import { PLUGIN_TESTID } from "./testids.ts"
 
-/** The tables, in the order `./testids.ts` spreads them. A third plugin is a
- *  line here, which is the cost the registry's three lists already pay. */
-const TABLES: ReadonlyArray<readonly [string, Readonly<Record<string, string>>]> = [
-  ["kolu", kolu],
-  ["odu", odu],
-]
+/**
+ * THE TABLES, DERIVED FROM THE ROSTER rather than written beside it.
+ *
+ * It was two hand-written rows, and the cost was a shape the count below cannot
+ * see: a third plugin added to `./testids.ts` but not here is caught only while
+ * it contributes a key nothing else has — a table that fully ALIASES existing
+ * keys slips both halves, because the merged object is no longer than the two
+ * this file knows about. The roster is the thing that decides which plugins
+ * exist; reading it is what makes this file follow the registry the way every
+ * other list in this package does.
+ *
+ * A DYNAMIC IMPORT, because the door's address is composed from the name — the
+ * same composition `olai-plugin-<name>` is everywhere else in this package —
+ * and a static import cannot be. It is top-level `await` in a test module,
+ * which bun runs directly; nothing bundles this file.
+ */
+const TABLES: ReadonlyArray<readonly [string, Readonly<Record<string, string>>]> = await Promise.all(
+  PLUGIN_NAMES.map(async (name) => {
+    const door = (await import(`olai-plugin-${name}/testids`)) as {
+      TESTID: Readonly<Record<string, string>>
+    }
+    return [name, door.TESTID] as const
+  }),
+)
 
 describe("the plugins' testids are disjoint", () => {
   test("the sweep is actually reading both tables", () => {

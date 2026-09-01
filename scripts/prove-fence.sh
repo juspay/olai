@@ -274,10 +274,29 @@ else
 fi
 
 # run <n> <what should go red> <command…> — the mutation is the rest of the argv.
+# run <n> <what should go red> <the claim that must say so> <command…>
+#
+# THE THIRD ARGUMENT IS THE POINT. A mutation is not "caught" because the suite
+# went red — it is caught because THE CLAIM IT NAMES refused it. Counting any
+# `(fail)` line was the scorer's last hole and both reviewers found it: mutation
+# 7, 8 and 10 evaluate a plugin's `./server` live through `kinds.test.ts`, so a
+# load error there that happened to print some other claim's failure would have
+# minted a catch, and the attribution was left for a human to read off `head -4`.
+#
+# The expectation is a `grep -E` alternation, so a mutation that legitimately
+# trips more than one claim can name the ones it is ABOUT. What it may not do is
+# trip a different claim and still count.
+#
+# This also subsumes the old third verdict rather than sitting beside it: "no
+# claim named it at all" is the case where the expectation matched nothing,
+# which is the same question asked once. The two are still REPORTED apart,
+# because "the suite died" and "a different claim refused it" send a reader to
+# different places.
 run() {
   n=$1
   what=$2
-  shift 2
+  expect=$3
+  shift 3
   if [ -n "$only" ]; then
     case " $only " in *" $n "*) ;; *) return 0 ;; esac
   fi
@@ -290,19 +309,19 @@ run() {
     echo "      GREEN — THE FENCE DID NOT SEE IT"
     failed=$((failed + 1))
   else
-    # WHICH claim went red, and a red with no claim behind it is a THIRD verdict
-    # rather than a pass. A mutation that broke module RESOLUTION, or a `bun`
-    # that is not there, or an OOM, makes the suite exit non-zero having asserted
-    # nothing — and counting that as "the fence caught it" is the falsifier
-    # reproducing, in itself, the exact failure it was written to detect. A
-    # mutation may legitimately trip more than one claim; what it may not do is
-    # trip none and still be scored.
     said=$(printf '%s' "$out" | sed -n 's/^(fail) //p' | sed 's/ \[[0-9.]*ms\]$//' | head -4)
-    if [ -n "$said" ]; then
+    if [ -z "$said" ]; then
+      # A mutation that broke module RESOLUTION, or a `bun` that is not there,
+      # or an OOM: the suite exited non-zero having asserted nothing, which is
+      # the falsifier reproducing the exact failure it was written to detect.
+      echo "      RED, BUT NO CLAIM NAMED IT — the suite died rather than refused"
+      unnamed=$((unnamed + 1))
+    elif printf '%s\n' "$said" | grep -Eq "$expect"; then
       printf '%s\n' "$said" | sed 's/^/      red: /'
       passed=$((passed + 1))
     else
-      echo "      RED, BUT NO CLAIM NAMED IT — the suite died rather than refused"
+      echo "      RED, BUT NOT BY THE CLAIM IT NAMES — expected /$expect/, got:"
+      printf '%s\n' "$said" | sed 's/^/            /'
       unnamed=$((unnamed + 1))
     fi
   fi
@@ -316,9 +335,11 @@ run() {
 # the door split exists to prevent.
 
 run 1 "a general package IMPORTS a plugin" \
+  'outside packages/plugin-api imports a plugin' \
   append "$general_src" "import \"$name_a/wire\""
 
 run 2 "a general package DECLARES a plugin in its manifest" \
+  'declares a plugin in its manifest' \
   declare_dep "$general" "$name_a"
 
 # The two DIRECTION mutations go in the manifest module rather than in `./wire`,
@@ -330,33 +351,43 @@ run 2 "a general package DECLARES a plugin in its manifest" \
 # `rosters.test.ts` reads its three rosters as TEXT), so a defect there is
 # caught by the sweep and NAMED by it.
 run 3 "a plugin imports the REGISTRY back (the cycle)" \
+  'imports neither another plugin nor the registry' \
   append "$plugin_a/src/plugin.ts" "import \"$registry_name\""
 
 run 4 "a plugin imports ANOTHER plugin" \
+  'imports neither another plugin nor the registry' \
   append "$plugin_a/src/plugin.ts" "import \"$name_b/wire\""
 
 run 5 "the WIRE door pulls a UI runtime onto the server's graph" \
+  'UI runtime, an appliance' \
   append "$plugin_a/src/wire.ts" 'import "solid-js"'
 
 run 6 "the WIRE door pulls the vault's format" \
+  'UI runtime, an appliance' \
   append "$plugin_b/src/wire.ts" 'import "@olai/format"'
 
 run 7 "the SERVER door pulls an emulator" \
+  'UI runtime or a component library' \
   append "$plugin_a/src/server.ts" 'import "@xterm/xterm"'
 
 run 8 "the SERVER door pulls a COMPONENT (the .tsx claim)" \
+  'no file on it is a component at all' \
   append "$plugin_b/src/server.ts" 'import "./browser/mount.tsx"'
 
 run 9 "a general package names an appliance's PRODUCT TIER" \
+  'outside a tenant names a hydrated specifier' \
   append "$general_src" 'import "@kolu/padi-client"'
 
 run 10 "one tenant names the OTHER appliance's tier" \
+  'no tenant names another appliance' \
   append "$other_dial" 'import "@kolu/padi-client"'
 
 run 11 "a general package SPELLS a plugin's name in code" \
+  "outside the registry and the plugin's own tenant spells it" \
   append "$general_src" 'export const koluHalf = () => null'
 
 run 12 "a general package reaches a plugin's SHEET (the CSS grammar)" \
+  'outside packages/plugin-api imports a plugin' \
   append "$sheet" "@import \"$name_a/all.css\";"
 
 # ONE DIRECTION of an equality, and the other is not mutated here: moving a
@@ -364,13 +395,18 @@ run 12 "a general package reaches a plugin's SHEET (the CSS grammar)" \
 # resolution before a claim can speak and would read as "red, but no claim
 # named it". The assertion is a set equality, so the same line holds both ways;
 # what this proves is that the line is not vacuous.
-run 13 "a package that is not a plugin sits IN the tenant container" impostor
+run 13 "a package that is not a plugin sits IN the tenant container" \
+  'lives in it, and nothing else does' \
+  impostor
 
 run 14 "a wire MECHANIC the framework performs comes back" \
+  'calls a wire mechanic the framework performs' \
   append "$general_src" 'export const again = () => fuseGroups({})'
 
-run 15 "the turnkey SEAM stops being called" unname_the_seam
+run 15 "the turnkey SEAM stops being called" \
+  'the seam that performs them is called, exactly once' \
+  unname_the_seam
 echo
 echo "$passed of $((passed + failed + unnamed)) mutations were caught."
-[ "$unnamed" -eq 0 ] || echo "$unnamed went red with no claim naming it, which is not a catch." >&2
+[ "$unnamed" -eq 0 ] || echo "$unnamed went red without the claim it names, which is not a catch." >&2
 [ "$failed" -eq 0 ] && [ "$unnamed" -eq 0 ] || exit 1

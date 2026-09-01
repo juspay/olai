@@ -92,7 +92,7 @@
  * this file is the nine claims and their reasons. `mechanics.test.ts` reads
  * the same walk, which is what it stopped carrying its own copy of.
  *
- * The corpus comes off the root manifest.s own `workspaces` globs rather than
+ * The corpus comes off the root manifest's own `workspaces` globs rather than
  * a one-level `readdir`, and the difference is not academic: the tenants nest
  * under `packages/plugins/` now, and a one-level walk would have gone on
  * reporting `[]` from every general package while never opening either plugin.

@@ -92,15 +92,60 @@ const sourcesUnder = (dir: string): ReadonlyArray<string> =>
       : []
   })
 
-/** The whole tree, read ONCE: every `.ts` in every package — the package, not
- *  its `src`, so a scripted agent in `tests/agent/` counts — keyed by package
- *  name. */
+/**
+ * EVERY WORKSPACE MEMBER, as its directory relative to `packages/` — so a
+ * top-level member is `web` and a nested tenant is `plugins/olai-plugin-kolu`.
+ *
+ * Read off the ROOT MANIFEST'S OWN `workspaces` globs, because a one-level
+ * `readdirSync(PACKAGES)` stopped being the same set the day the tenants moved
+ * under `packages/plugins/`. It was not a silent skip — `sourcesUnder` recurses,
+ * so both tenants' files were still opened and every claim below still saw them
+ * — it was a MISATTRIBUTION: they were keyed under a package named `plugins`
+ * that does not exist, and `olai-plugin-kolu` and `olai-plugin-odu` were not
+ * keys at all. A failure here would have named a phantom.
+ *
+ * This is the third reading of that field in the tree, and it has to be its
+ * own: `@olai/plugin-api`'s `tree.testlib.ts` answers the same question, and
+ * THIS FILE'S FIRST CLAIM is that `@olai/acp` imports no `@olai` sibling —
+ * reaching for it is the thing this test exists to fail. What is shared is the
+ * RULE, not the code: refuse a glob shape this reading cannot expand, and
+ * refuse one that matched nothing, because a corpus that came back short is a
+ * sweep that did not run.
+ */
+const MEMBERS: ReadonlyArray<string> = (() => {
+  const root = path.join(PACKAGES, "..")
+  const manifest = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")) as {
+    workspaces?: ReadonlyArray<string>
+  }
+  const globs = manifest.workspaces
+  if (globs === undefined || globs.length === 0) {
+    throw new Error("acp: the root manifest declares no `workspaces`, so there is no tree to read")
+  }
+  const found = globs.flatMap((glob) => {
+    if (!glob.startsWith("packages/")) {
+      throw new Error(`acp: the workspaces glob ${JSON.stringify(glob)} names nothing under packages/`)
+    }
+    const members = [...new Bun.Glob(`${glob}/package.json`).scanSync({ cwd: root })]
+      .map((one) => path.relative("packages", path.dirname(one)))
+    if (members.length === 0) {
+      throw new Error(
+        `acp: the workspaces glob ${JSON.stringify(glob)} matched no package — a corpus that ` +
+          "came back short is a sweep that did not run.",
+      )
+    }
+    return members
+  })
+  return [...new Set(found)].sort()
+})()
+
+/** The whole tree, read ONCE: every `.ts` in every member — the package, not
+ *  its `src`, so a scripted agent in `tests/agent/` counts — keyed by the
+ *  member's directory. */
 const tree: ReadonlyMap<string, ReadonlyArray<Source>> = new Map(
-  readdirSync(PACKAGES, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((pkg) => [
-      pkg.name,
-      sourcesUnder(path.join(PACKAGES, pkg.name))
+  MEMBERS
+    .map((member) => [
+      member as string,
+      sourcesUnder(path.join(PACKAGES, member))
         .map((file): Source => {
           // A scripted agent opens with a shebang, which the transpiler
           // refuses; the line holds no import, so dropping it loses nothing.
