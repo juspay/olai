@@ -59,7 +59,7 @@
  * directory was absent. The registry is what ships.
  *
  * And it lives here because `@olai/tests` is the only package above all the
- * others (support/sweep.ts' header, and ../plugins/src/fence.test.ts' closing
+ * others (support/sweep.ts' header, and ../plugin-api/src/fence.test.ts' closing
  * paragraph): a sweep over `docs/` from inside `@olai/plugin-api` would be a
  * package reading the repository it is a part of.
  */

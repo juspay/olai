@@ -12,11 +12,15 @@
  * browser half a module directory of this plugin, and a package has one
  * `./testids` entry the way it has one name.
  *
- * The merge is a spread and the collision is refused where every other one is:
- * `@olai/plugin-api`'s `testids.test.ts` asserts the plugins' tables disjoint,
- * and two modules of one plugin land in one object here before that ever runs —
- * so a key spelled twice inside this package is a duplicate-key error on the
- * literal below rather than a value that silently wins.
+ * The merge is a SPREAD, and a spread resolves a collision SILENTLY in favour of
+ * whichever was written last — the explicit keys below win over `...ui` with no
+ * diagnostic anywhere, because TypeScript's duplicate-key error fires only for
+ * two literal keys in ONE literal. Before the fold these were two packages and
+ * both were rows in `@olai/plugin-api`'s disjointness sweep; that sweep now sees
+ * kolu's POST-MERGE object, so a key lost here is gone before it runs and its
+ * own count compares the survivors with the survivors. The guarantee the package
+ * wall used to carry is `./testids.test.ts` beside this file: the same two
+ * halves — no shared KEY, no shared VALUE — one floor down.
  *
  * ## NAMES ONLY, and that is a graph claim rather than a style one
  *
@@ -46,7 +50,7 @@ export const TESTID = {
   padi: "padi",
   /** THE FEED the pill's press opens — the box of `./ui/`'s
    *  `EventsFeed`. THE PANEL'S OWN HANDLE only: the rows are the appliance's and
-   *  are asserted through `./ui/testids.ts`, spread into the table below. */
+   *  are asserted through `./ui/testids.ts`, spread into the table below (`...ui` is its first line). */
   padiFeed: "padi-feed",
   /** THE FEED'S FOOT — the drawer's last line, which is the wrench onto the
    *  config and nothing else (`./browser/Feed.tsx`). Present only when there

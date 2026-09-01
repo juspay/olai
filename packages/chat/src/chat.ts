@@ -2020,7 +2020,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
        * heartbeat's window silenced by a message nobody got
        * ({@link ../../plugin-kolu/src/doorbell.ts}'s ledger). Asking here makes
        * "the thunk was asked" and "the words went in" the same event, which is
-       * what {@link ../../plugins/src/plugin.ts}'s `Deliveries.deliver` has
+       * what {@link ../../plugin-api/src/plugin.ts}'s `Deliveries.deliver` has
        * always claimed.
        */
       say: () => string | null,

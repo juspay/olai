@@ -47,19 +47,24 @@
  * with a manifest, and it is the same test now that the manifest is gone.
  */
 
+/**
+ * THE DOOR, and it is a door onto a DIRECTORY now rather than onto a package —
+ * which is why it names five things instead of the eleven `@olai/kolu-ui`
+ * published. Six of those were a package's API and nothing in this repository
+ * ever read them; a barrel advertising twice the surface anything consumes is
+ * the second identity the fold was for, one grammar over. What is here is what
+ * `../browser/` and `../plugin.ts` actually reach for, and a sixth is one line
+ * on the day something needs one.
+ */
 export { KoluUi } from "./props/KoluUi.tsx"
 export type { KoluClient } from "./props/KoluUi.tsx"
 export { TerminalBlock } from "./props/TerminalDoor.tsx"
 export { padiSaid } from "./padi/said.ts"
-export type { Said } from "./padi/said.ts"
 
 /** THE FEED — what recently wanted attention, as a log. The Padi pill's
  *  press opens it: the panel chrome is the app's, and this is the content. */
-export { EventsFeed, EventRow } from "./props/EventsFeed.tsx"
-export { eventLine } from "./padi/events.ts"
-export type { EventLine } from "./padi/events.ts"
+export { EventsFeed } from "./props/EventsFeed.tsx"
 
 /** The fleet context, for the chrome readout that reads the link beside the
- *  pill — the one thing outside this package that needs the fleet itself. */
+ *  pill — the one thing outside this directory that needs the fleet itself. */
 export { useFleet } from "./props/fleet.tsx"
-export type { Fleet } from "./props/fleet.tsx"

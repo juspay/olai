@@ -2,7 +2,7 @@
  * WHAT A DOORBELL SAID THAT IS NOT AT THE AGENT YET — the held bodies, in
  * arrival order, per conversation.
  *
- * A plugin can put a sentence into a conversation ({@link ../../plugins/src/plugin.ts}'s
+ * A plugin can put a sentence into a conversation ({@link ../../plugin-api/src/plugin.ts}'s
  * `Deliveries`), and there are two moments at which core cannot hand one over:
  * a turn is running, or nobody is in that conversation at all. This module is
  * what core holds in between, and it is the whole of what core holds — the

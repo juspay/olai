@@ -128,13 +128,35 @@ const PACKAGES = path.join(import.meta.dirname, "..", "..")
  *  out of. */
 const REPO = path.join(PACKAGES, "..")
 
+/** ONE READ PER MANIFEST, and the memo is not an optimisation for its own sake:
+ *  the graph walk below asks this the same question hundreds of times —
+ *  `kolu-client`'s manifest is opened forty-one times in a run without it, once
+ *  per specifier that resolves into it. A second read could answer differently
+ *  only if something rewrote the file mid-run, which is a thing no claim here
+ *  does and none should. */
+const MANIFESTS = new Map<string, Record<string, unknown> | undefined>()
 const manifestAt = (dir: string): Record<string, unknown> | undefined => {
+  if (MANIFESTS.has(dir)) return MANIFESTS.get(dir)
+  let read: Record<string, unknown> | undefined
   try {
-    return JSON.parse(readFileSync(path.join(dir, "package.json"), "utf8")) as Record<string, unknown>
+    read = JSON.parse(readFileSync(path.join(dir, "package.json"), "utf8")) as Record<string, unknown>
   } catch {
-    return undefined
+    read = undefined
   }
+  MANIFESTS.set(dir, read)
+  return read
 }
+
+/** ...and what one declares, in the three blocks that all mean the same thing
+ *  to a wall: a dependency, a devDependency and a peer are three reasons to
+ *  resolve a specifier and one answer about which side of a boundary a package
+ *  stands on. */
+const dependencyNames = (manifest: Record<string, unknown> | undefined): ReadonlyArray<string> =>
+  Object.keys({
+    ...(manifest?.["dependencies"] as Record<string, string> | undefined),
+    ...(manifest?.["devDependencies"] as Record<string, string> | undefined),
+    ...(manifest?.["peerDependencies"] as Record<string, string> | undefined),
+  })
 
 /**
  * EVERY WORKSPACE MEMBER, as its directory relative to `packages/` — so a
@@ -319,25 +341,8 @@ const tree: ReadonlyMap<string, ReadonlyArray<Named>> = new Map(
  *  reading of a source can see: `workspace:*` is how a dependency is really
  *  declared, and a package that dropped the import but kept the line is a
  *  package still standing on the wrong side of the wall. */
-const declaredBy = (pkg: string): ReadonlyArray<string> => {
-  const manifest = path.join(PACKAGES, pkg, "package.json")
-  let text: string
-  try {
-    text = readFileSync(manifest, "utf8")
-  } catch {
-    return []
-  }
-  const json = JSON.parse(text) as {
-    dependencies?: Record<string, string>
-    devDependencies?: Record<string, string>
-    peerDependencies?: Record<string, string>
-  }
-  return Object.keys({
-    ...json.dependencies,
-    ...json.devDependencies,
-    ...json.peerDependencies,
-  }).filter(namesAPlugin)
-}
+const declaredBy = (pkg: string): ReadonlyArray<string> =>
+  dependencyNames(manifestAt(path.join(PACKAGES, pkg))).filter(namesAPlugin)
 
 const packages = [...tree.keys()].sort()
 
@@ -370,12 +375,8 @@ const resolveWorkspace = (spec: string): string | undefined => {
   const member = MEMBER_OF_PACKAGE.get(packageOf(spec))
   if (member === undefined) return undefined
   const dir = path.join(PACKAGES, member)
-  let manifest: { exports?: Record<string, string>; main?: string }
-  try {
-    manifest = JSON.parse(readFileSync(path.join(dir, "package.json"), "utf8")) as typeof manifest
-  } catch {
-    return undefined
-  }
+  const manifest = manifestAt(dir) as { exports?: Record<string, string>; main?: string } | undefined
+  if (manifest === undefined) return undefined
   const subpath = spec.slice(packageOf(spec).length)
   const door = subpath === "" ? "." : `.${subpath}`
   const target = manifest.exports?.[door] ?? (door === "." ? manifest.main : undefined)
@@ -395,10 +396,20 @@ const transpilers = {
   ts: new Bun.Transpiler({ loader: "ts" }),
   tsx: new Bun.Transpiler({ loader: "tsx" }),
 } as const
-const runtimeImportsOf = (file: string, text: string): ReadonlyArray<string> =>
-  transpilers[file.endsWith(".tsx") ? "tsx" : "ts"]
+/** ...memoised by FILE, for {@link manifestAt}'s reason one grammar over: the
+ *  three door walks below overlap heavily — most of `@olai/format`'s modules
+ *  are on all of them — so without this each shared module is transpiled once
+ *  per entry rather than once. */
+const IMPORTS = new Map<string, ReadonlyArray<string>>()
+const runtimeImportsOf = (file: string, text: string): ReadonlyArray<string> => {
+  const held = IMPORTS.get(file)
+  if (held !== undefined) return held
+  const found = transpilers[file.endsWith(".tsx") ? "tsx" : "ts"]
     .scanImports(text)
-    .map((found) => found.path)
+    .map((one) => one.path)
+  IMPORTS.set(file, found)
+  return found
+}
 
 /**
  * THE GRAPH ONE DOOR OPENS, in the two readings the claims below need.
@@ -466,8 +477,45 @@ const FORBIDDEN = [
   /^@odu\//,
 ] as const
 
+/**
+ * NO DOOR CARRIES A COMPONENT, and this is that claim once rather than per door.
+ *
+ * The two confinement lists above and below are SPECIFIER lists, and the
+ * appliance fold showed what they cannot see: `NOT_ON_A_SERVER` used to name
+ * `@olai/kolu-ui`, a whole package of browser faces, and that package is a
+ * module directory of its tenant now. A relative `../ui/index.ts` is not a
+ * specifier any confinement list can carry, and a per-directory rule inside
+ * somebody's package would be this fence inventing a layout convention and then
+ * enforcing its own invention.
+ *
+ * So the claim is made about the FILE the walk landed in, with the instrument
+ * the tree already uses to mean *this renders*: `.tsx` is JSX, JSX is a
+ * component, and Bun's default JSX runtime is React's — which is the boot death
+ * this whole door split was written after (`Cannot find module
+ * 'react/jsx-dev-runtime'`). It needs no list and no directory name, and it is
+ * STRICTLY WIDER than the entry it replaces: it catches a face in any package
+ * and any folder, including one nobody has written yet.
+ *
+ * BOTH DOORS, not just the server's, and the wire door is the sharper case
+ * rather than the redundant one. `jsx: preserve` with `jsxImportSource:
+ * solid-js` means a face that imports only its siblings carries no `solid-js`
+ * specifier at all, so `scanImports` sees nothing a list could match — and the
+ * wire door is the one EVERY listener pulls in statically, the server's process
+ * included. A general instrument wired to one of the two doors it applies to is
+ * a special case wearing a mechanism's clothes.
+ */
+const componentsOn = (door: { files: ReadonlyArray<string> }): ReadonlyArray<string> =>
+  door.files.filter((file) => file.endsWith(".tsx"))
+
+/** The two doors, walked ONCE each. `graphFrom`'s whole argument is that one
+ *  traversal answers both readings; walking the same entry again per test would
+ *  be the argument undercut by its own callers, and the file re-read three
+ *  times over. */
+const WIRE_DOOR = graphFrom(path.join(PACKAGES, REGISTRY, "src", "wire.ts"))
+const SERVER_DOOR = graphFrom(path.join(PACKAGES, REGISTRY, "src", "server.ts"))
+
 describe("the wire door stays a wire door", () => {
-  const reached = walkFrom(path.join(PACKAGES, REGISTRY, "src", "wire.ts"))
+  const reached = WIRE_DOOR.reached
 
   test("the walk actually crossed into both plugins", () => {
     // Not vacuous: a resolver that answered `undefined` for every workspace
@@ -484,6 +532,10 @@ describe("the wire door stays a wire door", () => {
       .filter((one) => FORBIDDEN.some((rule) => rule.test(one.spec)))
       .map((one) => `${one.file}: ${one.spec}`)
     expect([...new Set(bad)].sort()).toEqual([])
+  })
+
+  test("...and no file on it is a component at all", () => {
+    expect(componentsOn(WIRE_DOOR)).toEqual([])
   })
 })
 
@@ -516,8 +568,9 @@ const NOT_ON_A_SERVER = [
   /^@kolu\/terminal-themes(\/|$)/,
 ] as const
 
+
 describe("the server door pulls no browser face", () => {
-  const reached = walkFrom(path.join(PACKAGES, REGISTRY, "src", "server.ts"))
+  const reached = SERVER_DOOR.reached
 
   test("the walk actually crossed into both plugins' server halves", () => {
     // Not vacuous, for the wire door's reason: a resolver that answered
@@ -537,38 +590,20 @@ describe("the server door pulls no browser face", () => {
   })
 
   test("...and no file on it is a component at all", () => {
-    // THE SAME CLAIM AS A PATH RATHER THAN AS A SPECIFIER, and it is here
-    // because the appliance fold took the specifier away. The list above used
-    // to name `@olai/kolu-ui`, which was a whole package of browser faces; that
-    // package is a module directory of its tenant now, and a relative
-    // `../ui/index.ts` is not a specifier any confinement list can carry —
-    // per-directory rules inside somebody's package would be this fence
-    // inventing a layout convention and enforcing its own invention.
-    //
-    // So the claim is made about the FILE the walk landed in instead, and the
-    // instrument is the one the tree already uses to mean "this renders":
-    // `.tsx` is JSX, JSX is a component, and Bun's default JSX runtime is
-    // React's — which is the boot death this whole door split was written after
-    // (`Cannot find module 'react/jsx-dev-runtime'`). It needs no list, it
-    // needs no directory name, and it is STRICTLY WIDER than the entry it
-    // replaces: it catches a face in any package and any folder, including one
-    // nobody has written yet.
-    const rendering = graphFrom(path.join(PACKAGES, REGISTRY, "src", "server.ts")).files
-      .filter((file) => file.endsWith(".tsx"))
-    expect(rendering).toEqual([])
+    expect(componentsOn(SERVER_DOOR)).toEqual([])
   })
 
-  test("...and that reading is not vacuous either", () => {
-    // The leaf walk is a second traversal, so it gets its own floor: a version
-    // of it that resolved nothing would report no components by reporting no
-    // files. The MANIFEST door is where the components legitimately are, so the
-    // same reading over that entry is the positive control — it must find some.
-    expect(graphFrom(path.join(PACKAGES, REGISTRY, "src", "server.ts")).files.length)
-      .toBeGreaterThan(10)
-    expect(
-      graphFrom(path.join(PACKAGES, REGISTRY, "src", "index.ts")).files.filter((f) => f.endsWith(".tsx"))
-        .length,
-    ).toBeGreaterThan(0)
+  test("...and the LEAF reading is not vacuous", () => {
+    // `componentsOn` is the only claim in this file that reads the files a walk
+    // VISITED rather than the specifiers it evaluated, so it gets its own
+    // floor: a version of that reading which resolved nothing would report no
+    // components by reporting no files at all. The MANIFEST door is where the
+    // components legitimately are, so the same reading over that entry is the
+    // positive control — it must find some.
+    expect(SERVER_DOOR.files.length).toBeGreaterThan(10)
+    expect(WIRE_DOOR.files.length).toBeGreaterThan(5)
+    expect(componentsOn(graphFrom(path.join(PACKAGES, REGISTRY, "src", "index.ts"))).length)
+      .toBeGreaterThan(0)
   })
 
   test("it DOES reach each appliance's client, which is the point of the door", () => {
@@ -609,7 +644,18 @@ describe("the server door pulls no browser face", () => {
  */
 describe("packages/plugins is the tenant container, and holds nothing else", () => {
   test("every plugin the registry names lives in it, and nothing else does", () => {
-    const inside = MEMBERS.filter((member) => path.dirname(member) === CONTAINER).sort()
+    // THE FILESYSTEM, not `MEMBERS`, and the difference is the whole claim.
+    // `MEMBERS` only admits a directory that HAS a `package.json`, so a reading
+    // taken from it would be blind to exactly the case worth catching: a loose
+    // `packages/plugins/shared/` of `.ts` files is not a member, so it would be
+    // invisible here AND absent from `tree` — which means claims 1, 6 and 8
+    // would all pass over its sources without ever opening them. That is the
+    // corpus quietly shrinking, at the one directory this claim was added to
+    // protect.
+    const inside = readdirSync(path.join(PACKAGES, CONTAINER), { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => path.join(CONTAINER, entry.name))
+      .sort()
     expect(inside).toEqual([...PLUGIN_DIRS].sort())
     // ...and the container is not itself a package: a `package.json` beside the
     // tenants would put a member at `packages/plugins`, which is the name this
@@ -660,22 +706,32 @@ describe("only the registry knows a plugin's name", () => {
   })
 
   test("a plugin imports neither another plugin nor the registry", () => {
-    for (const dir of PLUGIN_DIRS) {
-      const own = `@olai/${dir}`
+    for (const { dir, pkg } of TENANTS_OF) {
+      // ITS OWN NAME comes off the record rather than being spelled out of the
+      // directory. It used to be `@olai/${dir}`, which was the tenant's real
+      // package name only while a tenant was `packages/plugin-<name>` and
+      // scoped — after the fold that arithmetic composes
+      // `@olai/plugins/olai-plugin-kolu`, which is not a specifier anything can
+      // produce, so the exclusion silently stopped excluding: a tenant that
+      // reached its own package by name would be reported as importing a
+      // FOREIGN plugin. Which is exactly the shape the tenancy claim's own
+      // header cites — "a plugin package grew a testlib that served its own
+      // appliance's real surface" — so the wrong failure would arrive on the
+      // day the right one was meant to be forgiven.
       const foreign = tree.get(dir)?.flatMap((s) =>
-        s.plugins.filter((p) => p !== own && !p.startsWith(`${own}/`)).map((p) => `${s.file}: ${p}`)
+        s.plugins.filter((p) => p !== pkg && !p.startsWith(`${pkg}/`)).map((p) => `${s.file}: ${p}`)
       ) ?? []
       expect(foreign, dir).toEqual([])
       // The registry imports every plugin, so a plugin importing it back is
       // the cycle the manifests decline to express. Held over the sources too,
       // because a type-only import is a cycle a bundler forgives and a reader
-      // does not.
-      const back = tree.get(dir)?.flatMap((s) => {
-        const text = readFileSync(path.join(PACKAGES, s.file), "utf8")
-        return specifiersOf(text)
+      // does not — which is why this reads `specs` (the positional grammar,
+      // which sees a type-only import) rather than the walk's `scanImports`.
+      const back = tree.get(dir)?.flatMap((s) =>
+        s.specs
           .filter((spec) => spec === "@olai/plugin-api" || spec.startsWith("@olai/plugin-api/"))
           .map((spec) => `${s.file}: ${spec}`)
-      }) ?? []
+      ) ?? []
       expect(back, dir).toEqual([])
     }
   })
@@ -713,14 +769,17 @@ describe("only the renderer opens the manifest door", () => {
   test("no package but the browser imports `@olai/plugin-api` itself", () => {
     for (const pkg of packages) {
       if (pkg === REGISTRY || pkg === RENDERER) continue
-      const reached = tree.get(pkg)?.flatMap((s) => {
-        const text = readFileSync(path.join(PACKAGES, s.file), "utf8")
-        const found = s.file.endsWith(".css") ? cssImportsOf(text) : specifiersOf(text)
-        // The BARE specifier alone. A subpath is the supported reach and is
-        // deliberately not matched — a claim that caught `@olai/plugin-api/wire`
-        // would forbid the door this whole split exists to offer.
-        return found.filter((spec) => spec === "@olai/plugin-api").map(() => s.file)
-      }) ?? []
+      // The BARE specifier alone. A subpath is the supported reach and is
+      // deliberately not matched — a claim that caught `@olai/plugin-api/wire`
+      // would forbid the door this whole split exists to offer.
+      //
+      // Read off `Named.specs`, which is the corpus read ONCE at module scope in
+      // whichever grammar each file has. Re-reading here to ask a second
+      // question of the same text is what that field's own comment forbids, and
+      // it is the most expensive thing in this file when it happens.
+      const reached = tree.get(pkg)?.flatMap((s) =>
+        s.specs.filter((spec) => spec === "@olai/plugin-api").map(() => s.file)
+      ) ?? []
       expect(reached, pkg).toEqual([])
     }
   })
@@ -827,13 +886,6 @@ describe("a plugin is a sibling, and core computes none of its addresses", () =>
  *     a tier boundary rather than a confinement table, which is why it survives
  *     as a rule while both lists became derivations.
  */
-
-const dependencyNames = (manifest: Record<string, unknown> | undefined): ReadonlyArray<string> =>
-  Object.keys({
-    ...(manifest?.["dependencies"] as Record<string, string> | undefined),
-    ...(manifest?.["devDependencies"] as Record<string, string> | undefined),
-    ...(manifest?.["peerDependencies"] as Record<string, string> | undefined),
-  })
 
 /** What the ROOT declares — `dependencies` and `devDependencies` both, because
  *  either one puts a package where the whole tree can reach it. */

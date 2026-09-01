@@ -25,13 +25,13 @@
 #
 # ## Everything it touches is DERIVED
 #
-# Not one path below is typed. The registry is the member holding
-# `fence.test.ts`; the plugins are the members the registry DECLARES, which is
-# the roster read where the fence itself reads it; a general package is one that
-# is neither. That is what lets the
-# same script run against the tree before a packaging move and the tree after
-# it and mean the same thing — which is the only way its two runs are
-# comparable, and the whole reason the derivation is worth the twenty lines.
+# The three things a packaging move MOVES are derived, and that is what lets the
+# same script run against the tree before one and the tree after it and mean the
+# same thing — which is the only way its two runs are comparable. The registry is
+# the member holding `fence.test.ts`; the plugins are the members the registry
+# DECLARES, which is the roster read where the fence itself reads it; the
+# container is the directory a tenant lives in. Three paths ARE typed and the
+# block that sets them says why each was chosen rather than computed.
 #
 # ## The restore is the part to be careful about
 #
@@ -87,20 +87,32 @@ name_a=$(jq -r .name "$plugin_a/package.json")
 name_b=$(jq -r .name "$plugin_b/package.json")
 registry_name=$(jq -r .name "$registry/package.json")
 
-# A GENERAL PACKAGE to vandalise, and the one every claim is about: the
-# composition root, which is where each of these defects historically WAS.
+# THE CONTAINER, derived from where a tenant lives rather than typed — so
+# mutation 13's impostor lands beside the plugins on this tree and beside the
+# packages on a tree from before the fold, which is what "the same script means
+# the same thing on both" has to mean for the one mutation that is ABOUT the
+# fold.
+container=$(dirname "$plugin_a")
+
+# ...and THREE PATHS THAT ARE TYPED, which the header's "derived" is about the
+# registry and the plugins rather than about these. Each is chosen rather than
+# computed, on purpose: `packages/server` is the composition root, which is
+# where every one of these defects historically WAS; `styles.css` is the app's
+# one sheet, which is the grammar a TypeScript reading is blind to; and
+# `odu-client` is the SECOND appliance's dial, which is the only way to write
+# the cross-tenant mutation. A derived "first member that is neither registry
+# nor plugin" would pick alphabetically and mean nothing. The guard below is
+# what keeps a typed path from becoming a silent skip.
 general=packages/server
 general_src=$general/src/main.ts
-# ...and the renderer, for the grammar a TypeScript reading is blind to.
 sheet=packages/web/src/client/styles.css
-# ...and the second appliance's dial, for the cross-tenant claim.
 other_dial=packages/odu-client/src/index.ts
 
-for path in "$registry" "$plugin_a" "$plugin_b" "$general_src" "$sheet" "$other_dial"; do
-  [ -e "$path" ] || { echo "prove-fence: derived path $path does not exist" >&2; exit 1; }
-done
 [ -n "$plugin_b" ] || { echo "prove-fence: fewer than two plugins found" >&2; exit 1; }
 case "$plugins" in *"$registry"*) echo "prove-fence: the registry came back as a plugin" >&2; exit 1 ;; esac
+for path in "$registry" "$plugin_a" "$plugin_b" "$general_src" "$sheet" "$other_dial" "$container"; do
+  [ -e "$path" ] || { echo "prove-fence: derived path $path does not exist" >&2; exit 1; }
+done
 
 echo "registry : $registry ($registry_name)"
 echo "plugins  : $plugin_a ($name_a), $plugin_b ($name_b)"
@@ -118,9 +130,19 @@ restore() {
   # (every `node_modules`, the generated mark) is left alone, and the clean-tree
   # precondition at the top is what makes "untracked in here" mean "this script
   # put it there".
-  git clean -fdq packages/plugins 2>/dev/null || true
+  git clean -fdq "$container" 2>/dev/null || true
 }
 trap 'restore' EXIT INT TERM
+
+# THE MUTATION ITSELF, as arguments rather than as a heredoc. It was a heredoc
+# read into `body=$(cat)` and run through `eval`, and the cost was double
+# expansion: every `$` a mutation wanted at RUN time had to be escaped against
+# the here-document's own pass, which is a trap laid for whoever writes the
+# sixteenth. Arguments are expanded once, by the shell, where they are written.
+#
+# Run in THIS shell rather than a subshell: `hold` records what to put back in a
+# variable, and a subshell would take that record with it — leaving every
+# mutation applied and every later one reading a tree several defects deep.
 
 # Remember a file, so the trap can put it back however this exits.
 hold() {
@@ -128,26 +150,50 @@ hold() {
   touched="$touched $1"
 }
 
+# APPEND ONE LINE to a tracked file — which is what twelve of the fifteen
+# mutations are, because an import is a line and that is the whole of how these
+# defects get in.
+append() {
+  hold "$1"
+  printf '\n%s\n' "$2" >> "$1"
+}
+
+# ...and the three that are not an appended line.
+declare_dep() {
+  hold "$1/package.json"
+  jq --arg n "$2" '.dependencies[$n] = "workspace:*"' "$1/package.json" > "$1/package.json.tmp"
+  mv "$1/package.json.tmp" "$1/package.json"
+}
+
+impostor() {
+  mkdir -p "$container/impostor"
+  echo '{ "name": "@olai/impostor", "version": "0.1.0", "private": true }' \
+    > "$container/impostor/package.json"
+}
+
+unname_the_seam() {
+  seam=$(grep -rl 'connectSurfaces(' --include='*.ts' packages | sort | head -1)
+  hold "$seam"
+  sed -i 's/connectSurfaces(/connectSurfacesByHand(/' "$seam"
+}
+
 only=${*:-}
 passed=0
 failed=0
 
-# run <n> <what should go red> — the mutation is on stdin, applied by `sh`.
+# run <n> <what should go red> <command…> — the mutation is the rest of the argv.
 run() {
   n=$1
   what=$2
-  body=$(cat)
+  shift 2
   if [ -n "$only" ]; then
     case " $only " in *" $n "*) ;; *) return 0 ;; esac
   fi
   printf '%2s. %s\n' "$n" "$what"
-  # NOT a subshell: `hold` records what to put back in a variable, and a
-  # subshell would take that record with it — leaving every mutation applied and
-  # every later one reading a tree three defects deep.
-  eval "$body"
-  # The WHOLE package, not one file: a mutation that took a claim red by
-  # taking the module out of the corpus would be a false pass, and the other
-  # tests in there are what notices.
+  "$@"
+  # The WHOLE package, not one file: a mutation that took a claim red by taking
+  # the module out of the corpus would be a false pass, and the other tests in
+  # there are what notices.
   if out=$(bun test "$registry" 2>&1); then
     echo "      GREEN — THE FENCE DID NOT SEE IT"
     failed=$((failed + 1))
@@ -174,16 +220,11 @@ run() {
 # the shape that was actually in this tree before the extraction, or the shape
 # the door split exists to prevent.
 
-run 1 "a general package IMPORTS a plugin" <<EOF
-hold "$general_src"
-printf '\nimport "%s/wire"\n' "$name_a" >> "$general_src"
-EOF
+run 1 "a general package IMPORTS a plugin" \
+  append "$general_src" "import \"$name_a/wire\""
 
-run 2 "a general package DECLARES a plugin in its manifest" <<EOF
-hold "$general/package.json"
-jq --arg n "$name_a" '.dependencies[\$n] = "workspace:*"' "$general/package.json" > "$general/package.json.tmp"
-mv "$general/package.json.tmp" "$general/package.json"
-EOF
+run 2 "a general package DECLARES a plugin in its manifest" \
+  declare_dep "$general" "$name_a"
 
 # The two DIRECTION mutations go in the manifest module rather than in `./wire`,
 # and the reason is worth reading: `fence.test.ts` IMPORTS `./surfaces.ts`,
@@ -193,72 +234,47 @@ EOF
 # which no test in the registry imports (that is the whole reason
 # `rosters.test.ts` reads its three rosters as TEXT), so a defect there is
 # caught by the sweep and NAMED by it.
-run 3 "a plugin imports the REGISTRY back (the cycle)" <<EOF
-hold "$plugin_a/src/plugin.ts"
-printf '\nimport "%s"\n' "$registry_name" >> "$plugin_a/src/plugin.ts"
-EOF
+run 3 "a plugin imports the REGISTRY back (the cycle)" \
+  append "$plugin_a/src/plugin.ts" "import \"$registry_name\""
 
-run 4 "a plugin imports ANOTHER plugin" <<EOF
-hold "$plugin_a/src/plugin.ts"
-printf '\nimport "%s/wire"\n' "$name_b" >> "$plugin_a/src/plugin.ts"
-EOF
+run 4 "a plugin imports ANOTHER plugin" \
+  append "$plugin_a/src/plugin.ts" "import \"$name_b/wire\""
 
-run 5 "the WIRE door pulls a UI runtime onto the server's graph" <<EOF
-hold "$plugin_a/src/wire.ts"
-printf '\nimport "solid-js"\n' >> "$plugin_a/src/wire.ts"
-EOF
+run 5 "the WIRE door pulls a UI runtime onto the server's graph" \
+  append "$plugin_a/src/wire.ts" 'import "solid-js"'
 
-run 6 "the WIRE door pulls the vault's format" <<EOF
-hold "$plugin_b/src/wire.ts"
-printf '\nimport "@olai/format"\n' >> "$plugin_b/src/wire.ts"
-EOF
+run 6 "the WIRE door pulls the vault's format" \
+  append "$plugin_b/src/wire.ts" 'import "@olai/format"'
 
-run 7 "the SERVER door pulls an emulator" <<EOF
-hold "$plugin_a/src/server.ts"
-printf '\nimport "@xterm/xterm"\n' >> "$plugin_a/src/server.ts"
-EOF
+run 7 "the SERVER door pulls an emulator" \
+  append "$plugin_a/src/server.ts" 'import "@xterm/xterm"'
 
-run 8 "the SERVER door pulls a COMPONENT (the .tsx claim)" <<EOF
-hold "$plugin_b/src/server.ts"
-printf '\nimport "./browser/mount.tsx"\n' >> "$plugin_b/src/server.ts"
-EOF
+run 8 "the SERVER door pulls a COMPONENT (the .tsx claim)" \
+  append "$plugin_b/src/server.ts" 'import "./browser/mount.tsx"'
 
-run 9 "a general package names an appliance's PRODUCT TIER" <<EOF
-hold "$general_src"
-printf '\nimport "@kolu/padi-client"\n' >> "$general_src"
-EOF
+run 9 "a general package names an appliance's PRODUCT TIER" \
+  append "$general_src" 'import "@kolu/padi-client"'
 
-run 10 "one tenant names the OTHER appliance's tier" <<EOF
-hold "$other_dial"
-printf '\nimport "@kolu/padi-client"\n' >> "$other_dial"
-EOF
+run 10 "one tenant names the OTHER appliance's tier" \
+  append "$other_dial" 'import "@kolu/padi-client"'
 
-run 11 "a general package SPELLS a plugin's name in code" <<EOF
-hold "$general_src"
-printf '\nexport const koluHalf = () => null\n' >> "$general_src"
-EOF
+run 11 "a general package SPELLS a plugin's name in code" \
+  append "$general_src" 'export const koluHalf = () => null'
 
-run 12 "a general package reaches a plugin's SHEET (the CSS grammar)" <<EOF
-hold "$sheet"
-printf '\n@import "%s/all.css";\n' "$name_a" >> "$sheet"
-EOF
+run 12 "a general package reaches a plugin's SHEET (the CSS grammar)" \
+  append "$sheet" "@import \"$name_a/all.css\";"
 
-run 13 "a package that is not a plugin sits IN the tenant container" <<EOF
-mkdir -p packages/plugins/impostor
-echo '{ "name": "@olai/impostor", "version": "0.1.0", "private": true }' > packages/plugins/impostor/package.json
-EOF
+# ONE DIRECTION of an equality, and the other is not mutated here: moving a
+# plugin OUT of the container is a directory move, which breaks module
+# resolution before a claim can speak and would read as "red, but no claim
+# named it". The assertion is a set equality, so the same line holds both ways;
+# what this proves is that the line is not vacuous.
+run 13 "a package that is not a plugin sits IN the tenant container" impostor
 
-run 14 "a wire MECHANIC the framework performs comes back" <<EOF
-hold "$general_src"
-printf '\nexport const again = () => fuseGroups({})\n' >> "$general_src"
-EOF
+run 14 "a wire MECHANIC the framework performs comes back" \
+  append "$general_src" 'export const again = () => fuseGroups({})'
 
-run 15 "the turnkey SEAM stops being called" <<EOF
-seam=\$(grep -rl 'connectSurfaces(' --include='*.ts' packages | sort | head -1)
-hold "\$seam"
-sed -i 's/connectSurfaces(/connectSurfacesByHand(/' "\$seam"
-EOF
-
+run 15 "the turnkey SEAM stops being called" unname_the_seam
 echo
 echo "$passed of $((passed + failed)) mutations were caught."
 [ "$failed" -eq 0 ] || exit 1
