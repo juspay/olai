@@ -22,11 +22,11 @@
 #
 # The output is a DIRECTORY holding one file, so `OLAI_*_MARK_DIR` stays one
 # variable if a tenant ever ships a second asset.
-{
-  pkgs,
-  svg,
-  revision,
-  from,
+{ pkgs
+, svg
+, revision
+, from
+,
 }:
 let
   gen = pkgs.lib.fileset.toSource {
