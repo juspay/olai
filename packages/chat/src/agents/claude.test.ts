@@ -820,17 +820,19 @@ describe("the leg", () => {
       "<result>I have thorough coverage now.\n\n# Findings\n</result>\n" +
       "</task-notification>"
     expect(taskNotificationIn(xml, undefined)).toEqual({
-      toolUseId: "toolu_014mD8gkPSCXNL6gF11GK7hv",
-      task: "a4015bf2ba1fa514d",
-      result: "I have thorough coverage now.\n\n# Findings\n",
+      onto: {
+        toolUseId: "toolu_014mD8gkPSCXNL6gF11GK7hv",
+        task: "a4015bf2ba1fa514d",
+        result: "I have thorough coverage now.\n\n# Findings\n",
+      },
     })
     expect(
       taskNotificationIn("hello", { claudeCode: { origin: { kind: "task-notification" } } }),
-    ).toEqual({ toolUseId: "", task: "", result: "" })
+    ).toEqual({ onto: null })
     expect(taskNotificationIn("hello", { claudeCode: { origin: { kind: "human" } } }))
       .toBeNull()
     expect(taskNotificationIn("hello", undefined)).toBeNull()
-    expect(CLAUDE.taskNotification(xml, undefined)?.toolUseId)
+    expect(CLAUDE.taskNotification(xml, undefined)?.onto?.toolUseId)
       .toBe("toolu_014mD8gkPSCXNL6gF11GK7hv")
   })
 

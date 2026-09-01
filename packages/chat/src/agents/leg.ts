@@ -168,12 +168,23 @@ export interface Spawn {
  * recognise one: the origin is the discriminator the session stream carries,
  * and the XML is what actually arrives on ACP when the adapter forwards the
  * injected user message. An agent that has no such turns answers `null`.
+ *
+ * THREE STATES, not two fields that happen to be empty. `null` from the
+ * reader is a person speaking. `{ onto: null }` is still a notification —
+ * it must not become a user bubble — but it named no spawning call or no
+ * task, so it has no row to file the report under. `{ onto: { … } }` is
+ * the one that files. Empty strings for the two ids would have been two
+ * jobs whose combinations include a half-filed report.
  */
-export interface TaskNotice {
-  readonly toolUseId: string
-  readonly task: string
-  readonly result: string
-}
+export type TaskNotice =
+  | {
+    readonly onto: {
+      readonly toolUseId: string
+      readonly task: string
+      readonly result: string
+    }
+  }
+  | { readonly onto: null }
 
 /**
  * ... and what it says about the BACKGROUND TASK a call armed — a monitor, a

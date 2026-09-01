@@ -694,10 +694,10 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             "_meta" in update ? (update as { readonly _meta?: Meta })._meta : undefined,
           )
           if (notice !== null) {
-            if (notice.toolUseId !== "" && notice.task !== "") {
+            if (notice.onto !== null) {
               emit({
                 _tag: "tool",
-                id: notice.toolUseId,
+                id: notice.onto.toolUseId,
                 title: undefined,
                 status: undefined,
                 detail: undefined,
@@ -707,7 +707,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
                 locations: undefined,
                 parent: undefined,
                 spawned: undefined,
-                armed: { task: notice.task, report: notice.result },
+                armed: { task: notice.onto.task, report: notice.onto.result },
               })
             }
             return

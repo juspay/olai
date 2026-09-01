@@ -258,8 +258,8 @@ export const spawnedIn = (meta: Meta, input: unknown): Spawn | null => {
  *
  * A payload that is neither is `null`, which is a person speaking. A
  * payload that is one but names no spawning call or no task is still a
- * notification (empty ids): it must not become a user bubble, and it has
- * no row to file the report under.
+ * notification (`onto: null`): it must not become a user bubble, and it
+ * has no row to file the report under.
  */
 export const taskNotificationIn = (text: string, meta: Meta): TaskNotice | null => {
   const kind = wordIn(fieldIn(claudeIn(meta), "origin"), "kind")
@@ -269,7 +269,9 @@ export const taskNotificationIn = (text: string, meta: Meta): TaskNotice | null 
   const toolUseId = (xml.match(/<tool-use-id>([^<]*)<\/tool-use-id>/u)?.[1] ?? "").trim()
   const task = (xml.match(/<task-id>([^<]*)<\/task-id>/u)?.[1] ?? "").trim()
   const result = xml.match(/<result>([\s\S]*)<\/result>/u)?.[1] ?? ""
-  return { toolUseId, task, result }
+  return toolUseId === "" || task === ""
+    ? { onto: null }
+    : { onto: { toolUseId, task, result } }
 }
 
 // ── which call ARMED A BACKGROUND TASK ─────────────────────────────────
