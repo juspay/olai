@@ -50,9 +50,8 @@ import {
   type PropDeclarations,
 } from "@olai/format"
 import { type DialRun, oduHalf, type RunNotice } from "@olai/odu-client"
-import { identityOf } from "@olai/odu-client/wire"
 
-import { bodyFor, claimedIn, claimingIn, countsFor } from "./doorbell.ts"
+import { bodyFor, claimedIn, claimingIn, coalesceOf, countsFor } from "./doorbell.ts"
 import { ownKinds } from "./kinds.ts"
 import { surface } from "./wire.ts"
 import { worktreesIn } from "./worktrees.ts"
@@ -65,7 +64,6 @@ export { kinds } from "./kinds.ts"
 /** The wire half, re-exported for the reason `olai-plugin-kolu`'s server door
  *  re-exports it: one entry per plugin, and one spelling of the key. */
 export { faces, name, surface } from "./wire.ts"
-import { name } from "./wire.ts"
 
 /** IS ODU'S `mcp` HERE, asked per conversation — {@link ./probe.ts}: the
  *  division is odu-supplies-the-evidence / olai-the-judgement, exactly as
@@ -265,7 +263,7 @@ export const serve = (services: Services): {
           { agent: scope.agent, session: scope.session },
           // ASKED AGAIN AT THE MOMENT IT GOES IN — see {@link said}.
           () => said(scope.file, notice),
-          { coalesce: `${name}:${notice.kind}:${identityOf(notice.run)}` },
+          { coalesce: coalesceOf(notice) },
         )
       }
     } catch (thrown) {

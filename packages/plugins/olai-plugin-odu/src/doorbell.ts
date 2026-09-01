@@ -93,8 +93,10 @@ import {
 } from "@olai/format"
 import { durableLogPath, type RunNotice } from "@olai/odu-client"
 import { type CiRun, identityOf, type RunTally, tallyOf, verdictOf } from "@olai/odu-client/wire"
+import { nodeRef } from "@olai/plugin-kit/ref"
 
 import { WORKTREE_TYPE } from "./kinds.ts"
+import { name } from "./wire.ts"
 
 /**
  * ONE CLAIM a filter file makes on a run, as the vault wrote it.
@@ -218,25 +220,28 @@ const countsOf = (counts: RunTally, soFar: boolean): string => {
 
 /**
  * THE HEAD — one plain sentence, in words a reader who was not there
- * understands, with the claiming node's id carried in backticks so the row
- * is one press away.
+ * understands, with the claiming node's id in the HEAD so the row is one
+ * press away — {@link nodeRef}, the same spelling kolu's head uses, so a
+ * collapsed line is a link and not a link behind the fold it is the reason
+ * to open.
  */
 const essenceOf = (
   notice: RunNotice,
   claim: Claim,
   counts: RunTally,
 ): string => {
+  const on = `on ${nodeRef(claim.node)}`
   if (notice.kind === "first-red") {
-    return `${cap(laneOf(claim))}'s CI went red: \`${notice.cell.id}\` is the first red node of this run${
+    return `${cap(laneOf(claim))}'s CI went red ${on}: \`${notice.cell.id}\` is the first red node of this run${
       countsOf(counts, true)
     }.`
   }
   const tally = tallyOf(notice.run.cells)
   const verdict = verdictOf(tally)
   const tail = countsOf(tally, false)
-  if (verdict === "ok") return `${cap(laneOf(claim))}'s CI came out green${tail}.`
-  if (verdict === "red") return `${cap(laneOf(claim))}'s CI came out red${tail}.`
-  return `${cap(laneOf(claim))}'s CI ended without deciding${tail}.`
+  if (verdict === "ok") return `${cap(laneOf(claim))}'s CI came out green ${on}${tail}.`
+  if (verdict === "red") return `${cap(laneOf(claim))}'s CI came out red ${on}${tail}.`
+  return `${cap(laneOf(claim))}'s CI ended without deciding ${on}${tail}.`
 }
 
 const cap = (sentence: string): string => sentence.slice(0, 1).toUpperCase() + sentence.slice(1)
@@ -315,7 +320,7 @@ export function bodyFor(
   if (notice.kind === "first-red") {
     lines.push(
       "",
-      `The run is \`${which}\`, live in ${run.at}. ${cap(laneOf(claim))} claims it — the un-done row \`${claim.node}\` of ${claim.file} names its checkout — and \`${notice.cell.id}\` (${notice.cell.name} on ${notice.cell.platform}) is the first of its nodes to go red.`,
+      `The run is \`${which}\`, live in ${run.at}. ${cap(laneOf(claim))} claims it — the un-done row ${nodeRef(claim.node)} of ${claim.file} names its checkout — and \`${notice.cell.id}\` (${notice.cell.name} on ${notice.cell.platform}) is the first of its nodes to go red.`,
       "",
       `This lands once per hold. When the run settles, one more account follows: the verdict, the final counts, and the log path of every failed recipe. Clearing the file on this conversation's wake control stops both.`,
     )
@@ -339,7 +344,13 @@ export function bodyFor(
  *  body carries inside its own second paragraph, broken out so both say it
  *  once. */
 const claimLine = (claim: Claim): string =>
-  ` ${cap(laneOf(claim))} claims it — the un-done row \`${claim.node}\` of ${claim.file} names its checkout.`
+  ` ${cap(laneOf(claim))} claims it — the un-done row ${nodeRef(claim.node)} of ${claim.file} names its checkout.`
+
+/** The slot an undelivered body is filed under — per KIND AND PER RUN, so two
+ *  sequential settles of one lane through one busy turn are two subjects.
+ *  `identityOf` degenerates to the bare name only for a run odu never stamped. */
+export const coalesceOf = (notice: RunNotice): string =>
+  `${name}:${notice.kind}:${identityOf(notice.run)}`
 
 /** What a delivery-time re-derivation asks of the row list, and nothing
  *  else — kept as its own tiny type so `server.ts`'s thunk reads as what it

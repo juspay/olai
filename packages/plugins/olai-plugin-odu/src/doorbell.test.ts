@@ -23,7 +23,7 @@ import type { RunNotice } from "@olai/odu-client"
 import type { CiRun } from "@olai/odu-client/wire"
 import { expect, test } from "bun:test"
 
-import { bodyFor, claimedIn, claimingIn, countsFor, type Claim } from "./doorbell.ts"
+import { bodyFor, claimedIn, claimingIn, coalesceOf, countsFor, type Claim } from "./doorbell.ts"
 import { ownKinds, WORKTREE_TYPE } from "./kinds.ts"
 
 // ── The vault, as the neighbouring suites build one ──────────────────────
@@ -249,6 +249,7 @@ test("first-red names the lane, the node, and the counts so far", () => {
     ok: 8,
     red: 1,
   })
+  expect(said.split("\n")[0]).toContain("The e2e lane's CI went red on `lane-a`")
   expect(said).toContain("The e2e lane's CI went red")
   // The lane's own title VERBATIM, once — the wrap that would spell
   // "the the e2e lane lane" is the regression this pin keeps out.
@@ -282,7 +283,8 @@ test("a mirrored claim's sentence names the TARGET's file, not the filter", () =
 
 test("a settle with a green verdict comes out green, and names a rerun flake by name", () => {
   const said = bodyFor(settled({}, ["e2e@x86_64-linux"]), CLAIM, "2026-09-02T11:20:00.000Z")
-  expect(said).toContain("came out green — 4/4 ok.")
+  expect(said.split("\n")[0]).toContain("came out green on `lane-a` — 4/4 ok.")
+  expect(said).toContain("came out green on `lane-a` — 4/4 ok.")
   // The flake is named as WHAT the hold observed, not why.
   expect(said).toContain("`e2e@x86_64-linux` went red earlier in this run and went green on a rerun")
 })
@@ -293,7 +295,7 @@ test("a settle with a red verdict names each failed recipe WITH its log path", (
     // the paint moves WITH the word, the way a real frame's fold would have it.
     cells: RED_CELLS.map((cell) => repainted(cell, cell.red || cell.status === "running" ? "failed" : "ok")),
   }), CLAIM, "2026-09-02T11:20:00.000Z")
-  expect(said).toContain("came out red — 2/4 ok, 2 red.")
+  expect(said.split("\n")[0]).toContain("came out red on `lane-a` — 2/4 ok, 2 red.")
   expect(said).toContain("`e2e@x86_64-linux`: failed — the log is at /home/x/code/odu/.worktrees/a/.ci/8f8fe56/x86_64-linux/e2e.log.")
   expect(said).toContain("`fmt-check@aarch64-darwin`: failed — the log is at /home/x/code/odu/.worktrees/a/.ci/8f8fe56/aarch64-darwin/fmt-check.log.")
 })
@@ -305,6 +307,7 @@ test("a run that settled without deciding says `ended` — never `red`, and neve
   // and conflating the two is the one mis-report this doorbell exists not
   // to make).
   const said = bodyFor(settled({ cells: RED_CELLS.filter((cell) => !cell.red) }), CLAIM, "2026-09-02T11:20:00.000Z")
+  expect(said.split("\n")[0]).toContain("ended without deciding on `lane-a`")
   expect(said).toContain("ended without deciding")
 })
 
@@ -332,4 +335,19 @@ test("an unclaimed run rings nothing — silence, and silence means no call at a
   // absence of a delivery here (that is `server.ts`'s loop's word), it is
   // that there is no fourth arm in this module at all.
   expect(claimingIn(claimsOf(BOARD, "lanes.olai")).has(".worktrees/never-heard")).toBe(false)
+})
+
+test("the coalesce key is per kind per run, not per worktree", () => {
+  // CiRun.id is the worktree value. Keying on it would collapse two sequential
+  // settles of one lane into one account. identityOf is the fold; it
+  // degenerates to the bare name only for a run odu never stamped.
+  const red = firstRed()
+  expect(coalesceOf(red)).toBe("odu:first-red:ci 8f8fe56#2")
+  expect(coalesceOf(firstRed())).toBe(coalesceOf(red))
+  const later = firstRed()
+  expect(coalesceOf({ ...later, run: row({ seq: 3, cells: RED_CELLS }) })).toBe(
+    "odu:first-red:ci 8f8fe56#3",
+  )
+  expect(coalesceOf(settled())).toBe("odu:settled:ci 8f8fe56#2")
+  expect(coalesceOf(settled({ sha7: "" }))).toBe("odu:settled:ci")
 })
