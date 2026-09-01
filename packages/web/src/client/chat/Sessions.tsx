@@ -49,31 +49,19 @@
  * mistake was to press `chats` again — and a reader who had moved on to the
  * transcript underneath was left with a list over it that nothing they tried
  * would take away. That is a missing affordance rather than a fourth copy of an
- * existing one, and it is filled by the client's one dismissal (`../dismiss.ts`)
- * on the same terms as the header's popovers: the pointer, the key, the topmost
- * panel only (`../topmost.ts`) — and the caret back on `chats` when a keyboard
- * asked, because Escape from a list that has the focus would otherwise land on
- * `<body>`.
- *
- * BOTH ROOTS are handed over, which is the same bug the Commit pill had one
- * layer up: the list is a sibling of the button rather than a child of it, so a
- * click-away that knew only the list would read a press of `chats` as a press
- * outside — shutting on the pointerdown, and reopened by that same press's
- * click. Pressing it a second time would do nothing at all.
+ * existing one, and what fills it is the open/shut machine this picker shares
+ * with the wake strip's ({@link ../inlinePicker.ts}), which reaches the client's
+ * one dismissal (`../dismiss.ts`) on the same terms as the header's popovers:
+ * the pointer, the key, the topmost panel only (`../topmost.ts`), the caret back
+ * on `chats` when a keyboard asked — because Escape from a list that has the
+ * focus would otherwise land on `<body>` — and both roots handed over, since the
+ * list is a sibling of the button rather than a child of it. Each of those is
+ * argued where it now lives; what is left here is the list itself.
  */
 
-import {
-  createMemo,
-  createSignal,
-  For,
-  Match,
-  onCleanup,
-  Show,
-  Switch,
-  untrack,
-} from "solid-js"
+import { createMemo, For, Match, Show, Switch, untrack } from "solid-js"
 
-import { dismissOn } from "../dismiss.ts"
+import { createInlinePicker } from "../inlinePicker.ts"
 import { AgentMark } from "./AgentMark.tsx"
 import { type Grouped, groupedByAgent, nameOf } from "./grouped.ts"
 import { Refusal } from "./Refusal.tsx"
@@ -85,13 +73,14 @@ import { whenOf } from "./when.ts"
 import type { OpFailure, SessionInfo, Unreachable } from "@olai/surface"
 
 /**
- * The picker is a small state machine, and it is ONE signal because it is one
- * fact: shut, asking, or whichever answer came back.
+ * WHAT THE LIST IS UP OVER, which is the open arm of the picker's own state
+ * machine — {@link ../inlinePicker.ts} holds the shut arm and every way between
+ * the two, so what is spelled here is only the three things there are to draw:
+ * the ask in flight, and the answer's own two.
  *
- * Spread over an `open` boolean, an `asking` boolean and a list, three of the
- * eight combinations are unreachable and nothing says so — "asking while shut"
- * and "a list while asking" are states the type would admit and the code would
- * have to remember not to enter.
+ * ONE VALUE and not an `asking` boolean beside a list, for the reason the arm it
+ * hangs off is one: "a list while asking" is a state a pair of fields would
+ * admit and the code would have to remember not to enter.
  *
  * The answer's own two arms ({@link Sessions}) are spliced in whole rather than
  * flattened to a list, which is the fix this file carries: a refusal used to
@@ -107,54 +96,24 @@ import type { OpFailure, SessionInfo, Unreachable } from "@olai/surface"
  * scenario can drive from a browser (a dropped socket, a server that went) and
  * which must still not be drawn as an empty list.
  */
-type Picker = { readonly _tag: "shut" } | { readonly _tag: "asking" } | Answer
+type Showing = { readonly _tag: "asking" } | Answer
 
 export function Sessions(props: { readonly chat: Chat }) {
-  const [picker, setPicker] = createSignal<Picker>({ _tag: "shut" })
-
-  /** Is the list up? The union's own "not shut", read off in ONE place — the
-   *  dismissal, the toggle, the `aria-expanded` and the `<Show>` are four
-   *  askings of one question, and a fourth arm of {@link Picker} would
-   *  otherwise be four sites to find. */
-  const up = () => picker()._tag !== "shut"
-
-  /** The `chats` button and the list it opens — two roots, because the list is
-   *  hung from the header rather than nested in the button. */
-  let trigger: HTMLButtonElement | undefined
-  let list: HTMLUListElement | undefined
-
-  /** Put it away. Only that — where the caret goes is the two callers', and
-   *  they are the only two there can be: a dismissal (`../dismiss.ts` hands it
-   *  back for the key and leaves it alone for the press) and the button
-   *  pressing itself. A `restoreFocus` boolean here would be a second spelling
-   *  of a rule that already has one, selected by a flag at each call. */
-  const shut = (): void => {
-    setPicker({ _tag: "shut" })
-  }
-
-  // A pointer outside it and Escape, in this client's one spelling of them.
-  // Handing over the `chats` button is the whole of what this takes: it is
-  // both what is not "outside", and where the caret goes back when a key asked
-  // (`../dismiss.ts`).
-  dismissOn({ open: up, root: () => list, trigger: () => trigger, dismiss: shut })
-
-  const toggle = () => {
-    if (up()) {
-      shut()
-      // A press of the button while the list is up is a dismissal a keyboard
-      // can reach, so the caret goes back the way Escape's does — spelled out
-      // here because no dismissal can see this press: it lands on the trigger,
-      // which is INSIDE as far as `dismissOn` is concerned.
-      trigger?.focus()
-      return
-    }
-    setPicker({ _tag: "asking" })
-    void props.chat.sessions().then((answer) => {
-      // Ignore an answer that arrived after the popover was shut: the reader
-      // moved on, and re-opening it asks again.
-      if (picker()._tag === "asking") setPicker(answer)
-    })
-  }
+  /** The payload is named rather than inferred: `opening` answers with only one
+   *  of the three arms, and a picker inferred from it would be one the answer
+   *  could never be shown. */
+  const picker = createInlinePicker<Showing>({
+    // It opens ASKING and the asking begins with it, so there is no frame in
+    // which the list is up over nothing.
+    opening: () => {
+      void props.chat.sessions().then((answer) => {
+        // Ignore an answer that arrived after the popover was shut: the reader
+        // moved on, and re-opening it asks again.
+        if (picker.showing()?._tag === "asking") picker.show(answer)
+      })
+      return { _tag: "asking" }
+    },
+  })
 
   /** Which conversation the panel is IN. A memo, not a plain read: three
    *  things per row ask it, and each of those would otherwise be its own
@@ -176,8 +135,8 @@ export function Sessions(props: { readonly chat: Chat }) {
    * every time it opens, so there is nothing to lose by not following it.
    */
   const groups = createMemo((): ReadonlyArray<Grouped> => {
-    const answer = picker()
-    return answer._tag === "listed"
+    const answer = picker.showing()
+    return answer?._tag === "listed"
       ? groupedByAgent(answer.sessions, untrack(() => props.chat.state().roster))
       : []
   })
@@ -189,8 +148,8 @@ export function Sessions(props: { readonly chat: Chat }) {
    *  the answer is asked afresh every time the list opens, which is the
    *  only time the links move. */
   const byId = createMemo((): ReadonlyMap<string, SessionInfo> => {
-    const answer = picker()
-    if (answer._tag !== "listed") return new Map()
+    const answer = picker.showing()
+    if (answer?._tag !== "listed") return new Map()
     return new Map(answer.sessions.map((session) => [`${session.agent}/${session.id}`, session]))
   })
 
@@ -203,8 +162,8 @@ export function Sessions(props: { readonly chat: Chat }) {
    *  instead of them: one broken agent must not take the other's conversations
    *  off the screen, which is the bug the fan-out is the fix for. */
   const unreachable = (): ReadonlyArray<Unreachable> => {
-    const answer = picker()
-    return answer._tag === "listed" ? answer.unreachable : []
+    const answer = picker.showing()
+    return answer?._tag === "listed" ? answer.unreachable : []
   }
 
   /** What a person reads for that agent ({@link ./grouped.ts}). */
@@ -214,29 +173,19 @@ export function Sessions(props: { readonly chat: Chat }) {
   return (
     <>
       <button
-        ref={trigger}
+        ref={picker.setTrigger}
         type="button"
         class={QUIET_PILL}
         data-testid={TESTID.chatSessions}
-        aria-expanded={up()}
-        onClick={toggle}
+        aria-expanded={picker.open()}
+        onClick={picker.toggle}
       >
         chats
       </button>
 
-      <Show when={up()}>
+      <Show when={picker.open()}>
         <ul
-          ref={(el) => {
-            list = el
-            // Solid never calls a ref with `undefined`, and this one lives
-            // inside the `<Show>` — so the disposal is what says the list is
-            // gone. Without it a shut picker keeps its detached `<ul>` and
-            // every row that was in it, and `root()` answers with an element
-            // that is no longer on the page.
-            onCleanup(() => {
-              list = undefined
-            })
-          }}
+          ref={picker.setList}
           // Hung from the HEADER (`relative` on `Header.tsx`), not from this
           // button: a `w-80` list `right-0` of `chats` runs off the left of a
           // phone sheet — titles clipped to their last letters, the list
@@ -257,14 +206,14 @@ export function Sessions(props: { readonly chat: Chat }) {
           <Switch
             fallback={<li class="px-2 py-1 text-xs text-muted">asking the agent…</li>}
           >
-            <Match when={refusedIn(picker())}>
+            <Match when={refusedIn(picker.showing())}>
               {(failure) => (
                 <li class="px-2 py-1" data-testid={TESTID.chatSessionsRefused}>
                   <Refusal failure={failure()} />
                 </li>
               )}
             </Match>
-            <Match when={picker()._tag === "listed"}>
+            <Match when={picker.showing()?._tag === "listed"}>
               <Show
                 when={groups().length > 0 || unreachable().length > 0}
                 fallback={
@@ -298,7 +247,7 @@ export function Sessions(props: { readonly chat: Chat }) {
                                 : byId().get(`${session.agent}/${session.supersededBy}`)}
                               current={session.id === current()}
                               onPick={() => {
-                                setPicker({ _tag: "shut" })
+                                picker.shut()
                                 // WITH the agent the row carries: this may be
                                 // the one the panel is not talking to, and the
                                 // id means nothing to the other.
@@ -411,6 +360,7 @@ function Row(props: {
   )
 }
 
-/** Why there is no list, when that is the answer. */
-const refusedIn = (picker: Picker): OpFailure | undefined =>
-  picker._tag === "refused" ? picker.failure : undefined
+/** Why there is no list, when that is the answer — and nothing at all while the
+ *  list is shut, which is what `undefined` is doing in the argument. */
+const refusedIn = (showing: Showing | undefined): OpFailure | undefined =>
+  showing?._tag === "refused" ? showing.failure : undefined

@@ -34,13 +34,15 @@
  *
  * That is not a preference: `@kolu/padi-client` would put the daemon's whole
  * contract on the browser's bundle graph, and `solid-js` would put a UI runtime
- * in the server's. `scripts/check-kolu-deps.sh` asserts it rather than trusting
- * this paragraph.
+ * in the server's. `../../plugins/src/fence.test.ts` walks this door's
+ * closure and asserts it rather than trusting this paragraph — it absorbed the
+ * sweep `scripts/check-kolu-deps.sh` used to make, which is now
+ * `check-hydrated-deps.sh` and asks about manifests rather than imports.
  */
 
 
 export * from "./kolu.ts"
-export { type Resolved, resolveTerminal } from "./terminals.ts"
+export { type Resolved, resolveTerminal, whoOf } from "./terminals.ts"
 
 // The member declarations need the vocabulary above, and one schema of their own.
 import { Schema } from "effect"
@@ -49,11 +51,11 @@ import {
   KOLU_UNDIALED,
   KOLU_UNPULSED,
   KoluEvent,
+  KoluKnobs,
   KoluLink,
-  KoluMutes,
-  NO_MUTES,
+  NO_KNOBS,
+  sameKnobs,
   sameKolu,
-  sameMutes,
   Snapshot,
   SnapshotRefused,
   SnapshotRequest,
@@ -111,27 +113,29 @@ export const koluMembers = {
       verbs: ["get"],
     },
     /**
-     * WHO IS MUTED, and the file that says so ({ ./kolu.ts}'s
-     * `KoluMutes`): the events drawer's foot reads the whole of it off
-     * this one cell — the line (`2 muted · …`) and the page the wrench
-     * opens.
+     * WHICH FILE DECIDES THE WATCH ({ ./kolu.ts}'s `KoluKnobs`): the page
+     * the events drawer's wrench opens, and the whole of what its foot
+     * reads.
      *
      * Re-answered on every vault revision, the way the `pins` cell one
-     * spec over is and for its reason: the reading is a walk of the same
-     * records the watcher itself reads for its VALUES, so the file a
-     * person edits is the file the drawer shows — rename a mute and the
-     * line moves on the frame the revision publishes. `equals` is what
-     * keeps that from costing anything: almost every revision has nothing
-     * new to say about who is silenced.
+     * spec over is and for its reason: the reading is the convention's own
+     * walk over the SERVED paths, so a file that arrives, moves or is
+     * renamed moves the wrench on the frame the revision publishes.
+     * `equals` is what keeps that from costing anything: almost every
+     * revision has nothing new to say about which file decided.
      *
-     * Wire-read-only: a mute is written by EDITING the vault's own
+     * IT WAS `mutes` UNTIL THE SECOND DOORBELL and carried a mute list
+     * beside the file; see the schema's own block for why that half went
+     * and this half could not.
+     *
+     * Wire-read-only: the knobs are written by EDITING the vault's own
      * config outline, never through this wire.
      */
-    mutes: {
-      schema: KoluMutes,
-      default: NO_MUTES,
+    knobs: {
+      schema: KoluKnobs,
+      default: NO_KNOBS,
       verbs: ["get"],
-      equals: sameMutes,
+      equals: sameKnobs,
     },
   },
   collections: {

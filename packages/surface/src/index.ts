@@ -1259,6 +1259,56 @@ export const surface = defineSurface({
         input: Schema.Struct({ id: Schema.String }),
         error: ChatFailure,
       },
+      /**
+       * THIS CONVERSATION WAKES ON THAT FILE, for that plugin's doorbell — or,
+       * with `file: null`, on nothing.
+       *
+       * The one verb behind the strip's scope control. Core stores the triple,
+       * draws the row and draws the picker; a running plugin says what the wake
+       * IS (`../plugins.ts`' `wake`) and, having been given the conversations, is
+       * the only thing that ever rings.
+       *
+       * MANUAL, AND PER CONVERSATION. There is no serve-level default and no way
+       * to arrive at one: a conversation nobody has scoped has no row, and the
+       * strip says the doorbell is off. That is a ruling and not a starting
+       * position — a machine that woke a conversation nobody pointed at a file
+       * would be the old background watch with a better address.
+       *
+       * ... AND IT IS THE BROWSER'S ALONE. `@olai/server`'s `faces.ts` names it
+       * on `BROWSER` and deliberately nowhere else, so an agent cannot set what
+       * wakes it. That is the whole of "no agent-settable op" and it is physics
+       * rather than a promise: `faces.test.ts` pins the agent face as an exact
+       * set, so a row added there is a red suite.
+       */
+      scope: {
+        input: Schema.Struct({
+          /** WHICH conversation, as the exact pair {@link loadSession} takes.
+           *  A session id means nothing to the wrong agent, and the panel's own
+           *  session can move under a picker somebody left open — a boot opens
+           *  one with no verb called at all — so a scope that meant "whichever
+           *  one is in front of me" would sometimes attach a person's pick to a
+           *  conversation they were not looking at. */
+          agent: Schema.String,
+          session: Schema.String,
+          /** WHOSE doorbell — one of the roster's built names, as DATA. This
+           *  file spells no plugin; the value came off `../plugins.ts`' rows,
+           *  which came off the registry. Refused when this serve composed no
+           *  such plugin, or when the one it names declares no wake — the same
+           *  refusal {@link chooseAgent} gives an id this machine does not have.
+           */
+          plugin: Schema.String,
+          /** The file to filter by — root-relative and `/`-spelled, the one
+           *  spelling every path member here uses. What it MEANS is the
+           *  plugin's business and core never opens it.
+           *
+           *  `null` CLEARS the scope, and is how a doorbell is turned off. Not a
+           *  second verb, because there is one fact here and it has an empty
+           *  value: a `forget` beside a `set` would be two ways to write one
+           *  row and a question about which of them a fresh pick goes through. */
+          file: Schema.NullOr(Schema.String),
+        }),
+        error: ChatFailure,
+      },
     },
     /** What a KEYBOARD may do — one procedure over the browser's own closed
      *  union of edits, each landing as one op through the same write gate the
@@ -1529,6 +1579,7 @@ export {
   Usage,
   UsageFailure,
   UserEntry,
+  Wake,
   Watched,
   Watching,
   whyNot,

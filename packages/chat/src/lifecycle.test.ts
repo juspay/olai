@@ -13,6 +13,7 @@ import { join } from "node:path"
 import { collector, findSaid, type Logged } from "@olai/log/testlib"
 
 import { type Agent, make } from "./agent.ts"
+import type { Leg } from "./agents/leg.ts"
 import { OPENCODE } from "./agents/opencode.ts"
 import type { Installed } from "./agents/roster.ts"
 import { make as makeChat } from "./chat.ts"
@@ -253,5 +254,71 @@ describe("a message that queues behind a running turn", () => {
     expect(queued?.level).toBe("Info")
     expect(queued?.annotations.agent).toBe("opencode")
     expect(queued?.annotations.session).toBe("sess-1")
+  }, 15_000)
+
+  /**
+   * ... AND IT TAKES THE INTERRUPTION WITH IT, for the rest of this
+   * conversation's life.
+   *
+   * The pinned adapter leaves a steered turn unanswered forever in any session
+   * that has once held a queued prompt, so `chat.ts` withdraws the gesture the
+   * first time a message goes out alongside a running turn — and says out loud
+   * that the cost is not small.
+   *
+   * This is the TWIN of `deliveries.test.ts`'s "a doorbell does not spend the
+   * interruption a person has not spent", and it is here so that the assertion
+   * over there means something: a bit that stayed `true` is worth exactly as
+   * much as the proof that something can turn it `false`. A PERSON's mid-turn
+   * message can. A machine's must not.
+   */
+  test("... and the interruption goes with it, which is what a doorbell must not do", async () => {
+    // The leg matters and nothing else about it does: `Talking.steers` is
+    // `advertises.steers && !queuedHere`, so an agent that offers no
+    // interruption cannot show one being withdrawn. Nothing here ever steers.
+    const leg: Leg = {
+      ...OPENCODE,
+      steering: {
+        method: "_session/steering",
+        meta: undefined,
+        timeout: "30 seconds",
+        taken: () => true,
+        advertised: () => true,
+      },
+    }
+    const row: Installed = {
+      id: "opencode",
+      name: "opencode",
+      adapter: { command: process.execPath, args: [FIXTURE] },
+      leg,
+    }
+    const chat = await Effect.runPromise(makeChat({
+      roster: [row],
+      cwd,
+      tools: () => null,
+      onState: () => {},
+      onTranscript: () => {},
+    }))
+    /** The agent's own row on the cell, or `null` while the panel is asking. */
+    const talking = () => {
+      const who = chat.state().talking
+      return who !== null && who.kind === "agent" ? who : null
+    }
+    try {
+      await Effect.runPromise(chat.start)
+      const deadline = Date.now() + 8_000
+      while (Date.now() < deadline && talking()?.steers !== true) {
+        await Effect.runPromise(Effect.sleep("20 millis"))
+      }
+      expect(talking()?.steers).toBe(true)
+
+      await Effect.runPromise(chat.send("queue-wait", [], []))
+      await Effect.runPromise(chat.send("hi", [], []))
+      // Gone, and gone for good: `queuedHere` is cleared only by the session
+      // ending, because it is the SESSION the adapter poisons.
+      expect(talking()?.steers).toBe(false)
+    } finally {
+      await Effect.runPromise(chat.stop)
+      await Effect.runPromise(Effect.sleep("40 millis"))
+    }
   }, 15_000)
 })

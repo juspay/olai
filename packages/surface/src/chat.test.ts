@@ -62,6 +62,7 @@ const ChatEntryFlat = Schema.Struct({
   attachments: Schema.optionalKey(Schema.Array(Schema.String)),
   queued: Schema.optionalKey(Schema.Boolean),
   delivery: Schema.optionalKey(Delivery),
+  rang: Schema.optionalKey(Schema.String),
 })
 
 const encodeFlat = Schema.encodeUnknownSync(ChatEntryFlat)
@@ -126,6 +127,22 @@ const REPRESENTATIVE: ReadonlyArray<{ name: string; entry: ChatEntry }> = [
       kind: "user",
       text: "and check the other one",
       queued: true,
+    },
+  },
+  {
+    // A plugin's doorbell put this one there. It goes out down the person's
+    // lane and carries the same delivery vocabulary, which is why it is a
+    // `user` row and not a seventh kind — so the encoding proof needs a
+    // representative that actually carries the mark rather than one that would
+    // pass whatever the union did with an absent field.
+    name: "user (rung by a machine)",
+    entry: {
+      id: "user:4",
+      seq: 12,
+      since: SINCE,
+      kind: "user",
+      text: "olai · kolu · two terminals waiting · 14:32",
+      rang: "kolu",
     },
   },
   {

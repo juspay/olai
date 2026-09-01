@@ -2,9 +2,14 @@
  * The watch's VAULT HALF, at its own bench: every case below is the
  * `watchConfigIn` walk or the `koluFileIn` finder, and the fixtures are
  * the read half's own JSONL so each record is checked by the parser the
- * product itself reads. Which ids a mute actually silences is the
- * watcher's (`watch.test.ts`) — these ask WHICH the vault claims, and
- * what the vault itself names the file.
+ * product itself reads.
+ *
+ * IT HAD A MUTES HALF TOO — nine cases over a `mutes` node's children, the
+ * values the timers gated on and the titles the drawer's foot read. They
+ * went with the second doorbell (2026-08-31), which took the mute list out
+ * of `_olai/Kolu.olai` altogether: a conversation's wake FILTER FILE is the
+ * silence control now. What is left is the knobs and the convention, and
+ * both are pinned whole.
  */
 
 import { DEFAULT_WATCH } from "@olai/kolu-client"
@@ -54,33 +59,25 @@ test("the finder names nothing a korrekt file does not answer to", () => {
   expect(koluFileIn(["mocca.olai", "_olai/Pins.olai"])).toBeUndefined()
 })
 
-test("a set with no `kolu.olai` says the defaults, and names no file", () => {
+test("a set with no `kolu.olai` says the defaults", () => {
   const reading = setOf({
     "_olai/Pins.olai": `{"id":"p","ord":"a0","title":"the shelf everyone's reading"}`,
   })
   expect(reading.config).toEqual(DEFAULT_WATCH)
   expect(reading.malformed).toEqual([])
-  expect(reading.mutes).toEqual({ file: null, entries: [] })
 })
 
-// ── The wrenches' door stays when the inside is torn ─────────────────────
+// ── The wrench's door stays when the inside is torn ─────────────────────
 
-test("a config that parses to nothing still names its file — the wrench stays", () => {
+test("a config that parses to nothing reads the defaults — the wrench is the caller's", () => {
   // An unparsed `_olai/Kolu.olai` contributes no records: this is the
-  // walk's empty-inside answer (the codec's broken half answers above,
-  // and each is whole without the other — the connector hands the two
-  // pieces and the file in separately).
+  // walk's empty-inside answer. WHICH file it was is deliberately not this
+  // walk's to answer — the caller found it off the served PATHS and keeps
+  // its own answer, which is what lets the drawer's wrench draw over a file
+  // whose nodes the codec withheld.
   const reading = setOf({ "_olai/Kolu.olai": "" })
   expect(reading.config).toEqual(DEFAULT_WATCH)
-  expect(reading.mutes).toEqual({ file: "_olai/Kolu.olai", entries: [] })
-})
-
-test("a `watch`-only config names its file with no mutes", () => {
-  const reading = setOf({
-    "_olai/Kolu.olai": [rec("watch", { nag: "10m" })].join("\n"),
-  })
-  expect(reading.config.nagMs).toEqual(10 * 60_000)
-  expect(reading.mutes).toEqual({ file: "_olai/Kolu.olai", entries: [] })
+  expect(reading.malformed).toEqual([])
 })
 
 test("the knobs' defaults stand where the file says nothing", () => {
@@ -102,7 +99,6 @@ test("the three durations parse the vault's grammar", () => {
     heldForMs: 30_000,
     nagMs: 600_000,
     heartbeatMs: 1_800_000,
-    muted: [],
   })
   expect(reading.malformed).toEqual([])
 })
@@ -144,56 +140,6 @@ test("a duration past the timer ceiling is the malformed half rather than a knob
   expect(reading.malformed[0]).toMatch(/is not a duration/)
 })
 
-// ── Mutes ────────────────────────────────────────────────────────────────
-
-test("`mutes`' children answer value AND title, in the outline's order", () => {
-  const reading = setOf({
-    "_olai/Kolu.olai":
-      `{"id":"m","ord":"a0","title":"mutes"}\n` +
-      `{"id":"c1","parent":"m","ord":"a1","title":"the grok terminal","custom":{"terminal":"22222222"}}\n` +
-      `{"id":"c2","parent":"m","ord":"a0","title":"the pi terminal","custom":{"terminal":"5c5824d5"}}\n`,
-  })
-  // The VALUES too follow the outline's order — byOrd, the derivation's
-  // own sibling order — so the gate and the line are the same list.
-  expect(reading.config.muted).toEqual(["5c5824d5", "22222222"])
-  expect(reading.mutes).toEqual({
-    file: "_olai/Kolu.olai",
-    entries: [
-      { value: "5c5824d5", title: "the pi terminal" },
-      { value: "22222222", title: "the grok terminal" },
-    ],
-  })
-})
-
-test("an untitled mute is named by the value it mutes", () => {
-  const reading = setOf({
-    "_olai/Kolu.olai":
-      `{"id":"m","ord":"a0","title":"mutes"}\n` +
-      `{"id":"c1","parent":"m","ord":"a0","title":" ","custom":{"terminal":"5c5824d5"}}\n`,
-  })
-  expect(reading.mutes.entries).toEqual([
-    { value: "5c5824d5", title: "5c5824d5" },
-  ])
-})
-
-test("no `mutes` node mutes nobody", () => {
-  const reading = setOf({
-    "_olai/Kolu.olai": [rec("watch", { nag: "10m" })].join("\n"),
-  })
-  expect(reading.config.muted).toEqual([])
-  expect(reading.mutes).toEqual({ file: "_olai/Kolu.olai", entries: [] })
-})
-
-test("a mute child without `terminal` is no mute", () => {
-  const reading = setOf({
-    "_olai/Kolu.olai":
-      `{"id":"m","ord":"a0","title":"mutes"}\n` +
-      `{"id":"c1","parent":"m","ord":"a0","title":"some note"}\n`,
-  })
-  expect(reading.config.muted).toEqual([])
-  expect(reading.mutes.entries).toEqual([])
-})
-
 // ── ONE file decides — including a silent one ─────────────────────────────
 
 test("nodes hanging in another file answer on their own, as not the file's", () => {
@@ -202,7 +148,6 @@ test("nodes hanging in another file answer on their own, as not the file's", () 
     "mocca.olai": [rec("watch", { nag: "10m" })].join("\n"),
   })
   expect(reading.config).toEqual(DEFAULT_WATCH)
-  expect(reading.mutes).toEqual({ file: null, entries: [] })
 })
 
 test("the deepest duplicate loses by convention while sharing the name", () => {
@@ -217,15 +162,17 @@ test("the convention is by NAME, the way the shelf's is: a silent front-runner d
   // The one behaviour this PR changed on purpose and the rule every
   // convention file already keeps (`inboxIn`, `pinsIn`): a root
   // `Kolu.olai` of notes DECIDES — it is the shallowest file holding the
-  // name — so the knobs say defaults, the mutes say nobody, and the
-  // wrench lands on the ROOT file. The reader's note file is not vetoed
-  // by a correctly-shaped config sitting deeper: the answer is the name,
-  // and a reader keeping one there finds it, not a layout the code knew
-  // to skip. Before `koluFileIn` the walk dodged the silent one, silently.
+  // name — so the knobs say defaults, and the wrench lands on the ROOT
+  // file. The reader's note file is not vetoed by a correctly-shaped
+  // config sitting deeper: the answer is the name, and a reader keeping
+  // one there finds it, not a layout the code knew to skip. Before
+  // `koluFileIn` the walk dodged the silent one, silently.
+  expect(
+    koluFileIn(["Kolu.olai", "_olai/Kolu.olai"]),
+  ).toBe("Kolu.olai")
   const reading = setOf({
     "Kolu.olai": `{"id":"k","ord":"a0","title":"kolu notes"}`,
     "_olai/Kolu.olai": [rec("watch", { nag: "1m" })].join("\n"),
   })
   expect(reading.config).toEqual(DEFAULT_WATCH)
-  expect(reading.mutes).toEqual({ file: "Kolu.olai", entries: [] })
 })

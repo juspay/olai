@@ -1,0 +1,498 @@
+/**
+ * WHICH CONVERSATIONS A PERSON POINTED A DOORBELL AT, and at which file —
+ * remembered across a restart.
+ *
+ * The second per-directory record this package keeps, beside the one that
+ * remembers which conversation the panel was in ({@link ./memory.ts}). It holds
+ * a row per (conversation, plugin) somebody picked a file for, and it is the
+ * whole of what turns a doorbell on: there is no serve-level default, nothing
+ * an agent can call, and no row a fresh conversation starts with. A doorbell is
+ * off until a person picks, and this is where the pick lands.
+ *
+ * ## The picks, and never the messages
+ *
+ * A held body does not come through here and never will
+ * ({@link ./deliveries.ts} says the same thing from the other side). A pick is
+ * a decision somebody made that nothing else can reconstruct; a held body is a
+ * derivation of state that is still true, and whatever derived it rings again
+ * on its next tick. So a restart comes back knowing which doorbells are on and
+ * holding nothing, which is exactly the human's third ruling read from the
+ * disk: saved events survive a conversation's SESSION GAPS, and a restart is
+ * not a session gap.
+ *
+ * ## ...and ONE derived fact, which is here because "once" needs a memory
+ *
+ * {@link Scoped.gone} is the exception to the paragraph above and proves its
+ * rule. It is not a pick and not a held body: it records that a conversation
+ * HAS ALREADY BEEN TOLD its file stopped being served. Whether the file is
+ * there is re-derived from every published revision and never read off this
+ * record ({@link Scopes.faults}); what is written down is the SAYING, because
+ * "exactly once, and not again after a restart" is a fact about messages sent
+ * and nothing can reconstruct it. A serve that forgot it would say the same
+ * thing on every boot for as long as the file stayed renamed.
+ *
+ * ## The key is the TRIPLE, and the conversation half of it is the pair
+ *
+ * A conversation is `(agent, session)`, because a session id means nothing to
+ * the wrong agent — core's own identity for the thing, already spelled at
+ * {@link ./memory.ts} and in `@olai/surface`'s `SessionInfo`, rather than a
+ * second one minted here. The third column is the PLUGIN, and it is what makes
+ * `Deliveries.scopes()` answerable per plugin: an unkeyed table would hand one
+ * plugin the conversations a person scoped to another.
+ *
+ * `plugin` is an OPAQUE STRING to this file, exactly as `dial` is a key core
+ * does not interpret. This package learns no appliance word from it.
+ *
+ * ## Behind ONE permit, and that is not tidiness
+ *
+ * `set` IS A READ-MODIFY-WRITE OVER THE MIRROR, and that is what the permit is
+ * for. It reads `rows` as `before`, filters the replaced row out as `without`,
+ * builds `next` from it, and assigns `next` back — four steps over one variable
+ * this module is the only holder of. Two of them interleaved lose a pick and
+ * nothing on disk can help: A and B each read the same `before`, each builds a
+ * `next` carrying its own row and not the other's, and whichever assigns last
+ * is the table — so a person who turned two doorbells on in one gesture apiece
+ * finds one of them off, and the answer `set` hands back names rows that left a
+ * table that no longer exists. The permit makes the four steps one step, which
+ * is the only thing that makes the mirror and the file one fact.
+ *
+ * It also used to be justified by a second hazard, and THAT HALF IS NOW CLOSED
+ * AT THE LEAF: `@olai/state`'s writer staged per PROCESS (`<file>.<pid>.tmp`)
+ * rather than per call, so two overlapping writes raced through one staged
+ * file and the loser reported a failure for bytes that had landed. It stages
+ * per CALL now, and this file no longer inherits a rule from the file format.
+ * A reader who sees that fixed must not take the permit with it: the
+ * read-modify-write above is this module's own, it is over memory rather than
+ * over a file, and no staging name has ever had anything to say about it.
+ *
+ * ## Capped by COUNT, and never pruned against what an agent lists
+ *
+ * Thirty-two rows, least-recently-touched evicted. The obvious alternative —
+ * drop rows whose session no longer appears in an agent's `session/list` — is
+ * refused: that call is PAGED ({@link ./agent.ts}), so membership is not proof
+ * of absence, and a wrong prune silently deletes a live scope somebody set. A
+ * count cap costs no probe and cannot be wrong about a conversation it has
+ * never asked about.
+ *
+ * A conversation can still become unreachable — `adopt` demotes a remembered
+ * one an agent stops listing, and the strip only draws the OPEN conversation's
+ * row — so a stranded scope is possible and the cap is what eventually clears
+ * it. That is stated rather than hidden.
+ *
+ * ## What it does with a failure
+ *
+ * A read at boot that fails is an EMPTY MIRROR and one warning, never a refusal
+ * to serve: the discipline {@link ./memory.ts}'s header sets and
+ * {@link ./chat.ts} already keeps for the note it reads at boot. A WRITE that
+ * fails is told to the person who just made the gesture, because a pick that
+ * did not stick is a thing they need told — so `set` fails and the member above
+ * it refuses.
+ *
+ * ## Two things this deliberately is not
+ *
+ * **Not a sidecar on the memory note.** `remember` builds a fresh
+ * `{cwd, agent, session, model}` literal over a plain `JSON.stringify`, so an
+ * extra key written beside it dies on the next conversation entered. Two
+ * records means two files, which is what `@olai/state`'s `Kind` is a closed
+ * union of.
+ *
+ * **Not a second failure vocabulary.** {@link ./memory.ts}'s `MemoryFailure` is
+ * this package's word for "a kept record would not read or write", and this is
+ * a second kept record rather than a second kind of problem.
+ */
+
+import { canonical, fileFor, readHeld, writeHeld } from "@olai/state"
+import { Effect, Semaphore } from "effect"
+
+import { MemoryFailure, word } from "./memory.ts"
+
+/** The `kind` these files live under in the state home — the second
+ *  subdirectory, beside `chat`'s. */
+const WAKE = "wake"
+
+/**
+ * How many picks are kept, across every conversation this directory has.
+ *
+ * See the header for why this is a count rather than a liveness question.
+ * Thirty-two is far past a single-user panel's working set — the picks that
+ * matter are for conversations somebody still opens — and it is the number
+ * {@link ./deliveries.ts} bounds its own two axes by, so there is one number to
+ * argue about rather than three.
+ */
+export const ROWS = 32
+
+/**
+ * ONE PICK: whose doorbell, in which conversation, on which file.
+ *
+ * ## THE ARRAY IS THE ORDER, and there is no second copy of it
+ *
+ * The rows are held touched-oldest-first, and that is a fact the writers keep
+ * rather than one a field records. `set` is the only writer: it filters the
+ * touched row out and re-APPENDS it at the end, so a fresh pick and a re-pick
+ * both land last and a clear only removes. The order the array is in is
+ * therefore exactly "least recently touched, first" — which is the one
+ * question {@link capped} has to answer — and it survives the round trip
+ * because the record is a JSON array and `JSON.parse` hands an array's
+ * elements back in the order they were written. {@link picks} walks that array
+ * once, `push`ing as it goes, and never sorts.
+ *
+ * IT USED TO CARRY A STAMP. An `at` field, ISO-8601, written on every `set`
+ * and read by nothing but the cap's eviction order — nothing drew it and
+ * nothing ever compared it to a clock. The header on it argued that position
+ * "would be an ordering nothing guarantees on the way back in", and that is
+ * simply not true of a JSON array: order is the one thing an array does
+ * guarantee. So the stamp was a second encoding of a fact the positions
+ * already carried, kept in sync by hand, and `capped` paid a
+ * map/sort/slice/map/Set/filter to recover an ordering it was handed. A row
+ * written by an olai that had not stamped one needed a fallback on top of
+ * that. The positions are the order now, and there is nothing left to
+ * disagree with them.
+ */
+export interface Scoped {
+  readonly agent: string
+  readonly session: string
+  /** One of the roster's built plugin names, as DATA. This file spells none. */
+  readonly plugin: string
+  /** Root-relative and `/`-spelled, the one spelling every path on this wire
+   *  uses. What it MEANS is the plugin's business; core stores it and hands it
+   *  back. */
+  readonly file: string
+  /**
+   * THE FILE THIS ROW NAMES IS NOT SERVED ANY MORE — set once, on the
+   * transition, and cleared the moment it comes back ({@link Scopes.faults}).
+   *
+   * ## Why it is on the ROW and written to the disk
+   *
+   * Two properties have to hold at once and only a persisted flag has both.
+   * ONCE: a conversation is told its doorbell broke exactly one time, not once
+   * per revision for as long as the file stays missing — so something has to
+   * remember it was already said, and the false→true edge is the only place
+   * that decision can be made. AND ACROSS A RESTART: a serve that came back
+   * would otherwise re-read the picks, find the file still missing, and say it
+   * again — every boot, forever, about a fault the person was told about days
+   * ago. Written down, the boot reads a row that is already marked and says
+   * nothing while the strip goes on drawing it broken.
+   *
+   * An in-memory set held beside the table gives the first and not the second,
+   * which is the arrangement it is worth naming as refused: it is the one that
+   * turns a rename into a message per restart.
+   *
+   * ## `true` OR ABSENT, and never `false`
+   *
+   * There is no third state, and a row that is fine carries no key: a healed
+   * scope is written back without one rather than with a `false`, so the record
+   * on disk is the same bytes it was before the fault. `undefined` is what
+   * every row written by an olai that predates this field reads as, which is
+   * exactly right — an unmarked row is one nothing has been said about, and the
+   * first revision after the boot decides.
+   *
+   * WHAT IT IS NOT is a cache of derived truth. It records that a MESSAGE WAS
+   * SENT; whether the file is served is re-derived from the revision every
+   * time, by the caller, and this flag is only ever compared against that fresh
+   * answer. A flag that were consulted INSTEAD of the revision would be the
+   * Monitor's frozen ignore-list reborn.
+   */
+  readonly gone?: true
+}
+
+/**
+ * The table, and the two things anybody does with it.
+ *
+ * A MIRROR plus a write, rather than a read per question, and that shape is
+ * forced from above: `Deliveries.scopes()` is SYNCHRONOUS — the composition
+ * root builds that blob inside a plain `.map`, and the caller is a watcher sink
+ * with no Effect around it — so the in-memory copy is the one that answers and
+ * the disk copy follows the write rather than leading the read.
+ */
+export interface Scopes {
+  /** Every pick, in the order they are held. */
+  readonly rows: () => ReadonlyArray<Scoped>
+  /**
+   * Set or CLEAR one — `file: null` clears, which is how a doorbell is turned
+   * off — and answer with the rows that LEFT the table.
+   *
+   * Not a second verb beside a `forget`, because there is one fact here and it
+   * has an empty value: two doors onto one row would be a question about which
+   * of them a fresh pick goes through.
+   *
+   * THE RECORD IS THE AUTHORITY AND THE MIRROR FOLLOWS IT. The write happens
+   * first and the mirror moves only if it landed, so a refusal a caller is
+   * handed means nothing stuck anywhere — the plugin reads the mirror, and a
+   * mirror that had moved under a refused write would be a doorbell ringing for
+   * a pick the person was just told did not take.
+   *
+   * WHAT COMES BACK is every row this write removed and did not put back: the
+   * one it replaced or cleared, plus any the cap evicted. A caller holding
+   * anything on those rows' behalf has to hear about it — that is the whole
+   * reason this is not `void`, and an eviction is the arm a caller could not
+   * work out for itself.
+   */
+  readonly set: (
+    to: { readonly agent: string; readonly session: string },
+    plugin: string,
+    file: string | null,
+  ) => Effect.Effect<ReadonlyArray<Scoped>, MemoryFailure>
+  /**
+   * WHICH ROWS' FILES ARE STILL THERE — judged against the revision the caller
+   * is holding, marked, persisted, and answered with the ones that JUST BROKE
+   * ({@link Scoped.gone}).
+   *
+   * ## A PREDICATE, and never a set of missing paths
+   *
+   * The question is asked once per published revision, so what it costs is what
+   * a revision costs. A caller that had to hand over the paths that went
+   * missing would first have to know which files are scoped — a second member
+   * on this interface, or a walk of the served directory to diff against — and
+   * both of those are per-revision work proportional to the DIRECTORY. The rows
+   * are the small side: at most {@link ROWS} of them, and the caller's answer
+   * for one path is a binary search over the set it already has in hand
+   * (`@olai/format`'s `documentAt`). So the walk is over the picks and the
+   * membership test comes in, which is `conventions.ts`' whole argument one
+   * package over, spent here for the same reason.
+   *
+   * IT IS ASKED OF EVERY ROW, INCLUDING THE MARKED ONES, and that is what makes
+   * healing work at all: a row that has been told it is gone must still be
+   * tested, because the file coming back is the event that clears it.
+   *
+   * ## What comes back, and what does not
+   *
+   * ONLY the rows that crossed from fine to gone on this call — the false→true
+   * edge, which is the caller's cue to say something once. A row that was
+   * already marked and is still missing is not in the answer, so a second
+   * revision with the file still absent says nothing more. A row that HEALED is
+   * not in the answer either: the scope resumes and nobody is told, because one
+   * fault is one signal and "it came back" is a thing the strip shows rather
+   * than a thing worth interrupting a conversation for.
+   *
+   * ## Nothing moved is no write
+   *
+   * A revision in which every scoped file is where it was — which is every
+   * revision anybody ever publishes — touches no disk and returns the empty
+   * array. The alternative, writing the table back per revision, would put a
+   * filesystem write on the path of every keystroke that lands in an outline.
+   *
+   * A WRITE THAT FAILS LEAVES THE MIRROR ALONE, exactly as {@link Scopes.set}
+   * does and for a sharper reason here: the mirror moving under a failed write
+   * would mean the flag is set in memory and not on disk, so the message is
+   * said now AND said again after the next restart. Failing whole means the
+   * next revision tries the same edge again, which is the arm that can only
+   * cost a delay.
+   */
+  readonly faults: (
+    served: (file: string) => boolean,
+    /** Whether a fault on this plugin's row can be SAID — a plugin this serve did
+     *  not compose, or one declaring no words for it, answers `false` and its
+     *  rows are left untouched. The mark is the saying; see the walk. */
+    sayable: (plugin: string) => boolean,
+  ) => Effect.Effect<ReadonlyArray<Scoped>, MemoryFailure>
+}
+
+/** What one of these files looks like written. The rows are read leniently
+ *  (see {@link picks}); the `cwd` guard is `@olai/state`'s. */
+interface Written {
+  readonly scopes?: unknown
+}
+
+/**
+ * What a read makes of the rows.
+ *
+ * LENIENT PER ROW rather than all-or-nothing: every field of a pick is
+ * load-bearing — a row missing any of them names no conversation, no doorbell
+ * or no file — so a damaged row is DROPPED and the rest still open their
+ * doorbells. Refusing the whole file over one would turn every doorbell in the
+ * directory off, which is the louder failure and the wrong one: the picks that
+ * are still legible are still what a person asked for.
+ *
+ * The per-field rule is {@link ./memory.ts}'s `word`, which is the SAME
+ * function the other record reads by rather than a copy of it: leniency is one
+ * decision this package makes about its own files, and it used to be spelled
+ * here a second time, character for character.
+ *
+ * ORDER IS PRESERVED, and that is load-bearing rather than incidental — see
+ * {@link Scoped}. The rows come back in the order they were written, because a
+ * JSON array parses back in the order it was written, and that order is
+ * "touched oldest first", which is the whole of what {@link capped} needs.
+ */
+const picks = (held: Record<string, unknown>): ReadonlyArray<Scoped> => {
+  const written = (held as Written).scopes
+  if (!Array.isArray(written)) return []
+  const rows: Array<Scoped> = []
+  for (const row of written as ReadonlyArray<unknown>) {
+    if (typeof row !== "object" || row === null) continue
+    const one = row as Record<string, unknown>
+    const agent = word(one["agent"])
+    const session = word(one["session"])
+    const plugin = word(one["plugin"])
+    const file = word(one["file"])
+    if (agent === null || session === null || plugin === null || file === null) continue
+    // THE FAULT IS NOT LOAD-BEARING, so it is read where the four above are
+    // REQUIRED: a row whose `gone` will not parse is a row that names a
+    // conversation, a doorbell and a file perfectly well, and dropping it would
+    // turn a person's doorbell off over a byte that means "we already said
+    // something about this". Anything but a literal `true` reads as an unmarked
+    // row, which is the state the next revision decides for itself.
+    rows.push({ agent, session, plugin, file, ...(one["gone"] === true ? { gone: true } : {}) })
+  }
+  return rows
+}
+
+/**
+ * The CAP applied — the {@link ROWS} most recently touched, which is the
+ * {@link ROWS} at the END.
+ *
+ * A TAIL SLICE AND NOTHING ELSE, because the array is already in the order
+ * this question is about ({@link Scoped} argues why it stays that way). The
+ * oldest touch is at index zero, so dropping from the front is the eviction,
+ * and what is left is still in the order `rows()` hands out — the strip's
+ * source of truth does not move for reasons nobody asked about.
+ *
+ * Why not sort? Because there is nothing to sort BY that the positions do not
+ * already say, and a sort would only be as good as whatever second copy of the
+ * order it was reading. That is what this used to do, and {@link Scoped}
+ * records what the second copy was.
+ */
+const capped = (rows: ReadonlyArray<Scoped>): ReadonlyArray<Scoped> =>
+  rows.length <= ROWS ? rows : rows.slice(rows.length - ROWS)
+
+export const forDirectory = (spelling: string): Effect.Effect<Scopes> =>
+  Effect.gen(function*() {
+    // ONE spelling from here down, and it is `@olai/state`'s — the same
+    // resolution {@link ./memory.ts} names its own file by, so a vault reached
+    // through a symlink is one directory to both of this package's records.
+    const cwd = canonical(spelling)
+    const at = fileFor(WAKE, cwd)
+    /** See the header: `@olai/state`'s staging file is per PROCESS, so two
+     *  overlapping writes in this one would race through it. */
+    const writing = yield* Semaphore.make(1)
+
+    // AN EMPTY MIRROR AND ONE WARNING, never a refusal to serve: nobody is
+    // standing at the screen when a boot reads this, and a directory whose
+    // doorbells cannot be read is a directory whose doorbells are off until
+    // somebody picks again. The write is the opposite case and refuses.
+    const read = yield* Effect.result(readHeld(at, cwd))
+    let rows: ReadonlyArray<Scoped> = []
+    if (read._tag === "Failure") {
+      yield* Effect.logWarning(
+        `the doorbells this directory had on could not be read (${read.failure.why}) — ` +
+          `they are off until somebody picks again`,
+      )
+    } else if (read.success !== null) {
+      rows = picks(read.success)
+    }
+
+    return {
+      rows: () => rows,
+      set: (to, plugin, file) =>
+        writing.withPermit(Effect.gen(function*() {
+          // The table as it stands, held so the answer below can be computed
+          // against it: `without` has already dropped the row being replaced,
+          // so it is not the thing to compare against.
+          const before = rows
+          const without = before.filter((row) =>
+            !(row.agent === to.agent && row.session === to.session && row.plugin === plugin)
+          )
+          // FILTER OUT, THEN RE-APPEND, and the second half is the touch: a
+          // re-pick leaves the front of the array and arrives at the back, so
+          // the positions stay in touched-oldest-first order for
+          // {@link capped} to read. This is the only writer of the ORDER, so
+          // that is the whole of the invariant ({@link Scoped}).
+          //
+          // The row is built FRESH, which is where a re-pick loses any
+          // {@link Scoped.gone} the old one carried — and that is the answer
+          // rather than an accident of the literal. A person who has just
+          // pointed this doorbell somewhere is owed the next fault on the new
+          // file, and carrying the old file's mark across would swallow it.
+          const next = file === null
+            ? without
+            : capped([...without, { agent: to.agent, session: to.session, plugin, file }])
+          // THE RECORD FIRST, AND THE MIRROR ONLY IF IT LANDED. The two are one
+          // fact in two places and this is the whole of what keeps them one: a
+          // write that fails is a pick that did not stick, and a mirror that
+          // had already moved would be a doorbell RINGING for a row the person
+          // was just told was refused — the plugin reads the mirror, not the
+          // disk, so it would start delivering into a conversation whose strip
+          // never said it was on.
+          //
+          // IT USED TO ASSIGN FIRST, on the reading that the permit made the
+          // interleaving unobservable. The permit does keep two WRITES apart;
+          // what it cannot do is take back a value a failed write left behind,
+          // and the caller is told `failed` either way.
+          yield* Effect.mapError(
+            writeHeld(at, { cwd, scopes: next }),
+            (failure) => new MemoryFailure(failure),
+          )
+          rows = next
+          // ... AND WHO LEFT THE TABLE, so the caller can take back what those
+          // rows' doorbells were holding. A clear and a re-point are the rows
+          // the caller already knows about; an EVICTION is not, and a person
+          // who never touched that conversation has no way to learn its
+          // doorbell went quiet — which is exactly the case a caller that could
+          // only see `file === null` used to miss.
+          return before.filter((row) => !next.includes(row))
+        })),
+      /**
+       * THE PICKS, JUDGED AGAINST A REVISION — see {@link Scopes.faults} for
+       * what this answers with and why the argument is a predicate.
+       *
+       * UNDER THE SAME PERMIT as {@link Scopes.set}, and it is the same
+       * read-modify-write over the same variable: this reads `rows`, builds a
+       * `next` from it and assigns it back, so a pick landing in between would
+       * be a pick that vanishes when this assigns — the exact interleaving the
+       * permit was written for, arriving now from a second writer.
+       *
+       * POSITIONS ARE UNTOUCHED. A `map` writes each row where it stood, so a
+       * file going missing is not a TOUCH and cannot walk a conversation to the
+       * back of the eviction queue. Nobody made a gesture here; the array's
+       * order means "least recently touched", and a rename somebody did in
+       * another window is not somebody touching their doorbell
+       * ({@link Scoped}).
+       */
+      faults: (served, sayable) =>
+        writing.withPermit(Effect.gen(function*() {
+          const before = rows
+          /** The false→true edges, and only those — the caller's cue to say
+           *  something once. */
+          const fell: Array<Scoped> = []
+          let moved = false
+          const next = before.map((row) => {
+            // A ROW NOBODY CAN BE TOLD ABOUT IS LEFT ALONE ENTIRELY, mark and
+            // all. A serve running `--plugins` without this row's tenant can
+            // still SEE the file went — but nothing would say so, and marking it
+            // would spend the one signal on a serve with no doorbell to lose:
+            // turn that plugin back on and the row is already marked, so the
+            // conversation is never told. The mark and the saying are one act
+            // and this is what keeps them one.
+            if (!sayable(row.plugin)) return row
+            const here = served(row.file)
+            const marked = row.gone === true
+            if (here !== marked) return row
+            moved = true
+            if (here) {
+              // IT CAME BACK. Written back without the key rather than with a
+              // `false`, so a healed table is the same bytes an untroubled one
+              // is ({@link Scoped}) — and nothing is said, because one fault is
+              // one signal and the strip is where "it is fine again" shows.
+              return { agent: row.agent, session: row.session, plugin: row.plugin, file: row.file }
+            }
+            const broken: Scoped = { ...row, gone: true }
+            fell.push(broken)
+            return broken
+          })
+          // NOTHING MOVED IS NO WRITE, which is every revision but the two this
+          // member exists for. A table written back per revision would put a
+          // filesystem write behind every keystroke that lands in an outline.
+          if (!moved) return []
+          // THE RECORD FIRST AND THE MIRROR ONLY IF IT LANDED, for
+          // {@link Scopes.set}'s reason sharpened: a mirror that moved under a
+          // failed write would have the fault marked in memory and not on disk,
+          // so the sentence would go out now AND again after the next restart.
+          // Failing whole leaves the same edge for the next revision to find.
+          yield* Effect.mapError(
+            writeHeld(at, { cwd, scopes: next }),
+            (failure) => new MemoryFailure(failure),
+          )
+          rows = next
+          return fell
+        })),
+    }
+  })

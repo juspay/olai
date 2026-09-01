@@ -322,10 +322,10 @@ Four lane steps in three states, each carrying a `terminal`, and one line of
 `@olai/plugin-kolu` contributes, and the ownership walk finds its key by that
 DECLARATION rather than by the key's name (`claimants.ts`) — so a `lanes/`
 without this file draws no Dock row on any step, says nothing about why, and
-every scenario in `terminal_door.feature` and `the_feed_shows_its_mutes.feature`
-fails on an empty page. It used to work without one, which is exactly the
-name-matching the kind replaced: a property somebody happened to call `terminal`
-got a door in a vault that had said nothing at all.
+every scenario in `terminal_door.feature` fails on an empty page. It used to work
+without one, which is exactly the name-matching the kind replaced: a property
+somebody happened to call `terminal` got a door in a vault that had said nothing
+at all.
 
 The VALUES are ids and prefixes of them (`11111111`, and one whole uuid),
 because the fleet resolves a prefix and the block says so when one names

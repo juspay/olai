@@ -1,10 +1,16 @@
 /**
  * WHICH of the served directory's files a query means.
  *
- * ## One matcher, one caller left
+ * ## One matcher, two callers
  *
  * The chat composer's `@` list, where a word after the sigil names a file to
- * put in a message (`../chat/naming.ts`). It had a second — the DOCUMENT ROWS
+ * put in a message (`../chat/naming.ts`), and the strip's WAKE picker, where a
+ * person picks the outline a doorbell filters by (`../chat/Wake.tsx`). The
+ * second arrived with the doorbell and asks this the same question the composer
+ * does — which of the served files a typed word means — which is why it takes
+ * the matcher rather than a second one shaped like it.
+ *
+ * It had another before either — the DOCUMENT ROWS
  * the ⌘K palette and the header box drew — and that one left when a search
  * started answering with documents (`@olai/format`'s `matchingDocuments`): the
  * two doors ride the server's one index now, which matches a document's title,

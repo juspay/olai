@@ -558,6 +558,56 @@ export const UserEntry = Schema.Struct({
    * so the row stops advertising a failure that has stopped being true.
    */
   delivery: Schema.optionalKey(Delivery),
+  /**
+   * A MACHINE SAID THIS, AND WHICH ONE — the plugin's `name`, as data.
+   *
+   * A plugin can put a sentence into a conversation (`@olai/plugins`'
+   * `Deliveries`), and a row it put there is not a row a person typed. The mark
+   * is what lets the browser draw it with a face of its own rather than in the
+   * human's bubble, and what takes the *send again* press off it: re-sending a
+   * machine's sentence would re-send a derivation that has since stopped being
+   * true, and the thing that derived it rings again by itself.
+   *
+   * A NAME AND NOT A FLAG — though what the browser DRAWS off it is only its
+   * presence. The browser's `chat/Entry.tsx` keeps one edge and one column for
+   * a machine's sentence, the same for every plugin, and every behavioural read
+   * of this over there is `rang === undefined`: there is no per-plugin face and
+   * no table to look a name up in. The only consumer of the VALUE is the
+   * `data-rang-by` attribute stamped beside those words.
+   *
+   * ## AND THAT ATTRIBUTE IS WHAT THE STRING BUYS
+   *
+   * A conversation two plugins can BOTH reach is one where "a machine rang"
+   * does not say which — so the way to claim which door it came through is a
+   * test reading `data-rang-by` for the name core stamped, asserting no
+   * syllable of either plugin's own wording, which is the plugin's to change
+   * whenever it likes. A Boolean would leave those two rows indistinguishable,
+   * and telling them apart is the premise of the whole capability. The String
+   * is also the stable key a per-plugin face would be drawn off, should one
+   * ever be wanted — but it is not owed one to earn its place.
+   *
+   * NOT DRAWN AS A NAME ABOVE THE WORDS, which looks like the obvious use of
+   * it: `@olai/plugins`' `Deliveries.deliver` REQUIRES the body to open with
+   * the plugin's own attribution, so a core-drawn name over it would put two
+   * attributions on one row saying the same thing in two voices — and the core
+   * one is the half that vanishes on the replay below.
+   *
+   * This file spells no plugin: the value is walked out of the registry at the
+   * composition root, the way `../plugins.ts`' roster names are, and the plugin
+   * that rings never supplies it — a caller-asserted name is a name one plugin
+   * could sign another's row with.
+   *
+   * Absent on every message a person typed, which is nearly all of them, and
+   * absent rather than `false` for `queued`'s reason: the writer only ever
+   * writes a name.
+   *
+   * IT DOES NOT SURVIVE A REPLAY, and that is a limit rather than a defect to
+   * fix here. A conversation resumed from the agent's own store is rebuilt out
+   * of message chunks, which carry text and nothing else — so the mark is a LIVE
+   * affordance, and the durable account is the sentence itself, which
+   * `Deliveries.deliver` requires to open with its own attribution.
+   */
+  rang: Schema.optionalKey(Schema.String),
 })
 export type UserEntry = typeof UserEntry.Type
 
@@ -1523,6 +1573,78 @@ export const Unopened = Schema.Struct({
    *  opening ANY conversation: a fresh one, or a boot that chose for itself. */
   what: Schema.NullOr(Schema.String),
 })
+
+/**
+ * ONE DOORBELL THIS CONVERSATION HAS ON — whose, on which file, and how much it
+ * is holding.
+ *
+ * The moving half of the strip's scope control. The STATIC half — what the wake
+ * is on, and what the file is called in the plugin's own words — rides the
+ * `plugins` cell instead (`./plugins.ts`), because it is compiled in and moves
+ * at most once per serve, and putting it here would republish a sentence that
+ * never changes on every frame of every conversation.
+ */
+export const Wake = Schema.Struct({
+  /**
+   * WHOSE doorbell — one of the roster's built plugin names, as DATA. This file
+   * spells no plugin's name; the value is walked out of the registry at the
+   * composition root, exactly as `./plugins.ts`' rows are.
+   *
+   * It is `name` and not `plugin`, and that is not a style choice: this cell
+   * declares `arrayKey: "name"` (`./index.ts`), which reaches EVERY array at
+   * every depth and merges by POSITION any whose elements do not carry it. An
+   * element field called anything else would make two frames' rows silently
+   * swap identity when a person scoped a second plugin.
+   */
+  name: Schema.String,
+  /** The file a person picked to filter by — root-relative and `/`-spelled, the
+   *  one spelling every path on this wire uses. What it MEANS is the plugin's
+   *  business; core stores it, draws it and hands it back. */
+  file: Schema.String,
+  /**
+   * How many of this plugin's sentences this end is holding for this
+   * conversation, and has not let in yet.
+   *
+   * Zero nearly always. It is nonzero while a turn is running — a doorbell's
+   * message waits for the turn boundary rather than joining the turn, so that it
+   * cannot spend the interruption a person has not spent — and while nobody is
+   * in the conversation at all. The strip draws it because the panel's own rule
+   * is that the alternative to holding words out of sight is not dropping them,
+   * it is showing them.
+   *
+   * The NUMERAL is core's; the NOUN is the plugin's, and comes off the roster
+   * (`./plugins.ts`' `wake.waiting`). Core supplies no word for what is waiting.
+   */
+  waiting: Schema.Int,
+  /**
+   * THE FILE THIS DOORBELL WAS POINTED AT IS NO LONGER SERVED — renamed, moved
+   * or deleted out from under a scope somebody set.
+   *
+   * The control must stop drawing as ON, and that is the whole of what this
+   * field is for. A doorbell whose file has gone derives nothing forever, so
+   * the conversation goes quiet in a way that is indistinguishable from a
+   * conversation with nothing to report — and a picker still saying `lanes.olai`
+   * over that silence is the panel asserting something untrue.
+   *
+   * CORE'S OWN VOCABULARY, and the one place around this feature where that is
+   * so. Everything else on the strip is the plugin's words arriving as data,
+   * because a sentence about somebody's terminals is a sentence core cannot
+   * write. This is not about terminals: it is about A FILE CORE STORES AND NO
+   * LONGER FINDS, which is core's fact about core's own record, and there is no
+   * plugin better placed to say it. What the plugin says is the sentence that
+   * goes into the CONVERSATION (`@olai/plugins`' `PluginServerHalf.wake.gone`),
+   * and core carries that one verbatim.
+   *
+   * A BOOLEAN AND NOT AN OPTIONAL KEY, though the record behind it writes
+   * `true`-or-absent (`@olai/chat`'s `Scoped.gone`): a face draws one of two
+   * things, and an absent key would be a third state for it to have an opinion
+   * about. It rides here rather than on the `plugins` cell for the reason
+   * `file` and `waiting` do — it moves per conversation, not per serve.
+   */
+  gone: Schema.Boolean,
+})
+export type Wake = typeof Wake.Type
+
 export type Unopened = typeof Unopened.Type
 
 /**
@@ -1712,6 +1834,22 @@ export const ChatState = Schema.Struct({
    * whole of what the conversation can reach.
    */
   servers: Schema.Array(ChatServer),
+  /**
+   * WHAT THIS CONVERSATION WAKES ON — one row per plugin whose doorbell a
+   * person pointed at a file, and how many of its sentences this end is holding.
+   *
+   * See {@link Wake}. Empty is the doorbell OFF, which is not a degenerate case
+   * to skip past: it is the state every conversation starts in and the state
+   * nearly all of them stay in. There is no serve-level default and nothing an
+   * agent can call to add a row — a person picks, and until they do the strip
+   * says so.
+   *
+   * IT GOES WITH THE CONVERSATION, and is cleared when one ends rather than
+   * carried across. A panel between sessions has no conversation to be scoped,
+   * and drawing the last one's file over the next one would be the inheritance
+   * the human ruled out: a new conversation subscribes from its own start.
+   */
+  wake: Schema.Array(Wake),
 })
 export type ChatState = typeof ChatState.Type
 
@@ -1732,6 +1870,7 @@ export const CHAT_OFF: ChatState = {
   trouble: null,
   unopened: null,
   servers: [],
+  wake: [],
 }
 
 /** Why a chat verb said no. `OpFailure`'s four kinds already cover it — `busy`

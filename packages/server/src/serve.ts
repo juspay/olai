@@ -202,6 +202,24 @@ export const serve = (options: ServeOptions) =>
        * process evaluates kills the boot.
        */
       probes: probesOf(enabled(SERVERS, options.plugins), process.env),
+      /**
+       * ... AND WHICH CONVERSATIONS SOMEBODY POINTED A PLUGIN'S DOORBELL AT.
+       *
+       * Built HERE, beside the chat, because `root` is in hand and a
+       * `StateFailure` can be answered — the record is read once, at boot, and a
+       * directory whose picks will not read comes up with its doorbells off and
+       * one warning rather than not at all.
+       *
+       * NOT in `bind`: that call's error channel is `never`, and the served
+       * directory only exists inside its nullable plugins block, while the
+       * member that writes a pick is on every face it binds.
+       *
+       * INSIDE THIS TERNARY, so a machine with no ACP agent on PATH builds no
+       * store at all — no read, no write, and no way for a boot without an agent
+       * to touch somebody's picks. The empty-roster arm is `null` all the way
+       * down.
+       */
+      scoping: yield* Chat.scopesIn(root),
       onState: (state) => publishing().state(state),
       onTranscript: (change) => publishing().transcript(change),
     })

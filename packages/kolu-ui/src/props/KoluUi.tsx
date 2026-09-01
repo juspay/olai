@@ -78,8 +78,8 @@ import type { Effect, Stream } from "effect"
 import type {
   FleetTerminal,
   KoluEvent,
+  KoluKnobs,
   KoluLink,
-  KoluMutes,
   Snapshot,
   TerminalFrame,
   WatchPulse,
@@ -114,9 +114,9 @@ export interface KoluClient {
     readonly pulse: {
       use: () => { readonly value: Accessor<WatchPulse | null | undefined> }
     }
-    /** The drawer's foot — who is muted, and which file says so. */
-    readonly mutes: {
-      use: () => { readonly value: Accessor<KoluMutes | undefined> }
+    /** The drawer's foot — which file decides the watch. */
+    readonly knobs: {
+      use: () => { readonly value: Accessor<KoluKnobs | undefined> }
     }
   }
   readonly collections: {
@@ -163,7 +163,7 @@ export function KoluUi(props: {
       sources={{
         link: props.client.cells.link.use().value,
         pulse: props.client.cells.pulse.use().value,
-        mutes: props.client.cells.mutes.use().value,
+        knobs: props.client.cells.knobs.use().value,
         fold: props.client.collections.fleet.use().fold as never,
         events: props.client.collections.events.use().fold as never,
         read: readingScreen(props.client.procedures.screen.text),

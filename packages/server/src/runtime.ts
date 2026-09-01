@@ -74,6 +74,7 @@ import {
   type Convention,
   conventionRecorded,
   conventionServed,
+  documentAt,
   type InboxHeld,
   inboxHeldIn,
   inboxIn,
@@ -501,12 +502,46 @@ const writing = (ops: Ops, writer: Writer) => ({
  * the top of this file gives: the manifests carry SolidJS components, and this
  * process renders nothing.
  */
-export const rosterOf = (offered: Wiring["plugins"]): PluginRoster =>
+export const rosterOf = (
+  offered: Wiring["plugins"],
+  /**
+   * The BUILD's server halves, for the one thing a row carries that the
+   * registry's names cannot answer: what this plugin's doorbell WAKES ON, in
+   * the plugin's own words (`@olai/plugins`' `PluginServerHalf.wake`).
+   *
+   * OPTIONAL and empty by default, because the four callers that only ever
+   * asked "which plugins does this build have" are asking a question the
+   * sentence has nothing to do with — and because a required parameter here
+   * would make every one of them name a list to get an answer they already had.
+   *
+   * ONLY ON A ROW THAT IS RUNNING, and that gate is the point rather than a
+   * tidiness: this roster carries a row per BUILT plugin, running or not, so a
+   * picker offered for a plugin this serve did not compose would store a pick
+   * nothing will ever read.
+   */
+  halves: ReadonlyArray<Pick<PluginServerHalf<never>, "name" | "wake">> = [],
+): PluginRoster =>
   offered === null ? NO_ROSTER : {
-    built: PLUGIN_NAMES.map((name) => ({
-      name,
-      running: isEnabled(offered.names ?? null, name),
-    })),
+    built: PLUGIN_NAMES.map((name) => {
+      const running = isEnabled(offered.names ?? null, name)
+      const wake = running ? halves.find((one) => one.name === name)?.wake : undefined
+      return {
+        name,
+        running,
+        // THE THREE THE STRIP DRAWS, named one at a time rather than spread
+        // whole — and the omission is the point. `wake.gone` is the sentence a
+        // conversation is told when its file stops being served, and it is
+        // DELIVERED rather than drawn: it belongs in the transcript, through
+        // the door below, and a browser holding a copy of it would be a browser
+        // holding a message it has no occasion to write. So the wire carries
+        // what a picker is made of and nothing else, which is also why the
+        // roster's own schema (`@olai/surface`'s `BuiltPlugin`) never grew a
+        // fourth key.
+        ...(wake === undefined ? {} : {
+          wake: { subject: wake.subject, from: wake.from, waiting: wake.waiting },
+        }),
+      }
+    }),
     pinned: offered.names ?? null,
   }
 
@@ -587,6 +622,26 @@ export const bind = (
      *  outside an Effect — a stream's re-read, which the framework calls on a
      *  promise. What it SAYS is {@link ./report.ts}'s. */
     const say: Emit = yield* emitter
+    /**
+     * ... and A SECOND NAME FOR IT, for the one thing that is not a log line: a
+     * doorbell's delivery ({@link doorFor}).
+     *
+     * `Emit` names its argument a line because logging is what every other
+     * caller does with it, but what it IS is "run this Effect later, under the
+     * services this fiber has" — and a delivery reaching core from a plugin's
+     * watcher sink is in precisely the position `emit.ts`'s header describes:
+     * a callback with no fiber under it. Its own name here, rather than
+     * spelling `say` at the call site, because a reader who finds `say` around
+     * a turn being started would be right to wonder what was being said.
+     *
+     * THE SAME CAPTURE, DELIBERATELY, and not a second `yield* emitter`.
+     * Nothing runs between the two lines — no `annotateLogs`, no scope change —
+     * so a second capture closes over an identical context: two variables that
+     * must agree, with nothing making them, and a silent divergence waiting for
+     * whoever adds an annotation above and reasonably assumes it reaches both.
+     * With one capture and an alias it does.
+     */
+    const ring: Emit = say
     /**
      * WHO IS TOLD THE DIRECTORY MOVED — the pulse the two date streams re-read
      * on, published once per revision by the connector below.
@@ -893,6 +948,62 @@ export const bind = (
      * plugin's decision; which channel each level IS, is this file's.
      */
     const offered = wiring.plugins
+    /**
+     * THE DOOR A MACHINE WITH NO AGENT GETS — and it touches nothing.
+     *
+     * Named rather than inlined because what it says is a claim: a serve with
+     * no chat has no scope store either (`@olai/chat` owns that table, so
+     * `chat === null` means it was never constructed), which makes "a boot with
+     * the agent merely off PATH cannot evict a person's picks" true by
+     * construction rather than by care. `scopes()` answers the empty list
+     * forever, which is the honest machine-without-the-tool state, and `deliver`
+     * returns `void` because there is no failure channel on a verb that cannot
+     * fail.
+     */
+    const NO_DOOR: PluginServices["deliveries"] = { scopes: () => [], deliver: () => {} }
+    /**
+     * ... and the real one, PER PLUGIN.
+     *
+     * Keyed by the only word this file knows about the plugin it is for, which
+     * is `dial`'s arrangement one field over and the second of its kind. An
+     * unkeyed door would hand one plugin the conversations a person scoped to
+     * another — the ownership triple's middle column exists for exactly that.
+     *
+     * `deliver` bridges a SYNCHRONOUS plugin verb onto an Effect member with one
+     * `runFork`, which is the bridge this file already makes for the two log
+     * emitters above it: the caller is a watcher sink with nowhere to put a
+     * failure, and a promise nobody has a reason to catch is an unhandled
+     * rejection in somebody's server log.
+     *
+     * WHAT IS LEFT HERE is the one thing that genuinely belongs to a
+     * composition root: the bridge from an Effect to a sink that has no fiber
+     * under it. The KEYING moved to `@olai/chat`'s `doorFor`, where the mark it
+     * protects is written — this file used to filter the rows and pass the name
+     * as an argument, which put the anti-spoofing property in a different
+     * package from the thing it is a property of.
+     */
+    const doorFor = chat === null
+      ? (): PluginServices["deliveries"] => NO_DOOR
+      : (who: string): PluginServices["deliveries"] => {
+        const door = chat.doorFor(who)
+        return {
+          scopes: door.scopes,
+          deliver: (to, say, options) => {
+            // FORKED UNDER THIS FIBER'S SERVICES, and not with a bare
+            // `Effect.runFork`. A doorbell's `deliver` is called from a
+            // watcher's sink, which is a plain callback with no fiber under it
+            // — the exact situation `@olai/log`'s `emit.ts` was written for,
+            // and its argument carries here unchanged: an empty context is the
+            // DEFAULT logger at the DEFAULT level, so every line the delivery's
+            // own turn emits (`../../chat/src/agent.ts`'s `prompt sent`, `turn
+            // ended`) would escape an `OLAI_LOG_LEVEL` the operator typed and
+            // arrive in a different shape than the same line from a person's
+            // send. One conversation would keep two journals, told apart by who
+            // started the turn.
+            ring(door.deliver(to, say, options))
+          },
+        }
+      }
     const composed: ReadonlyArray<{
       readonly plugin: PluginServerHalf<VaultRevision>
       readonly half: PluginServer<VaultRevision>
@@ -907,14 +1018,159 @@ export const bind = (
         // Opaque, and keyed by the only word this file knows about the plugin
         // it is for. A name with no entry gets none, which is every real serve.
         dial: offered.dials?.[plugin.name],
+        // ... and the doorbell's door, keyed the same way and for a sharper
+        // version of the same reason — see {@link doorFor}.
+        deliveries: doorFor(plugin.name),
       }),
     }))
+    /**
+     * WHICH COMPOSED PLUGINS RING AT ALL — the names whose halves declare a
+     * wake sentence. A scope written for anybody else would be a row nothing
+     * will ever read, so the member that writes one refuses it.
+     *
+     * ## Off `composed`, and NOT off the roster below, which was tried
+     *
+     * The two gate opposite ends of one interaction — the browser decides
+     * whether to OFFER a picker off the roster's rows, this decides whether to
+     * ACCEPT the pick — so deriving them once looks like the obvious tightening.
+     * It is the wrong one, and the reason is which REGISTRY each is keyed by.
+     * {@link rosterOf} builds its rows from `PLUGIN_NAMES`, the WIRE door; this
+     * is built from `SERVERS`, the server door. Routing the gate through the
+     * roster would make a doorbell depend on the plugin also being on the wire
+     * door — so a plugin composed here but missing there would lose its
+     * doorbell silently, which is a worse failure than the drift the change was
+     * meant to prevent.
+     *
+     * What keeps the two honest is not a local re-derivation but
+     * `@olai/plugins`' own bench: `rosters.test.ts` holds that the three doors
+     * list the same plugins in the same order, which is a stronger guarantee
+     * than either end could give itself, and the one place a fourth plugin gets
+     * it wrong.
+     */
+    const composedWake = new Set(
+      composed.filter((one) => one.plugin.wake !== undefined).map((one) => one.plugin.name),
+    )
+    /**
+     * ...AND THE SENTENCE EACH OF THEM DECLARED FOR A SCOPE THAT BROKE, keyed
+     * by the one word this file knows about a plugin.
+     *
+     * A TABLE OF STRINGS THE PLUGIN WROTE, which is the only kind of table core
+     * is allowed to keep about words: nothing here is composed, joined,
+     * abbreviated or interpolated into. The whole of what this file does with a
+     * value out of it is hand it back through
+     * {@link Chat.doorFor}'s `deliver`.
+     *
+     * A name with no entry gets nothing said — a pick stored against a plugin
+     * this serve did not compose, which is a row the strip already declines to
+     * draw (`@olai/web`'s `wake.ts`). There is no half here to ring it and no
+     * words to ring it with, so the row is marked and nobody is told, which is
+     * the honest arm rather than core reaching for a sentence of its own.
+     */
+    const goneSaid = new Map(
+      composed.flatMap(({ plugin }) =>
+        plugin.wake === undefined ? [] : [[plugin.name, plugin.wake.gone] as const]
+      ),
+    )
+    /**
+     * A SCOPE WHOSE FILE STOPPED BEING SERVED — found here, said by the plugin,
+     * once.
+     *
+     * ## Why core is the one that detects
+     *
+     * Core owns both halves of the question and no plugin owns either: the
+     * SERVED SET is this connector's own revision, and the PICKS are
+     * `@olai/chat`'s record. A doorbell asked to notice its own file had gone
+     * would be a doorbell deriving from a file it cannot find, which is
+     * precisely the state that produces no signal at all — that is the defect,
+     * not a place to fix it ({@link Chat.faults} tells the whole story).
+     *
+     * ## `documentAt`, and not `derived.byFile`
+     *
+     * "Still served" is asked of the SET, which is every file the directory
+     * holds a place for. `byFile` groups PARSED RECORDS, so a file that is
+     * present and EMPTY — or present and torn — has no entry in it, and a scope
+     * pointed at one would read as gone: a person who emptied their lane file
+     * for a minute would be told their doorbell had broken, and told again
+     * never, because the flag is a once. The set is the honest source and it is
+     * the same disagreement {@link conventionServed} and `conventionRecorded`
+     * are two doors for one member above.
+     *
+     * A BINARY SEARCH PER PICK, and no walk. `documentAt` searches the set's
+     * own path-ordered list, and the picks are a few dozen at most — so the
+     * question costs the SCOPES rather than the DIRECTORY, which is what makes
+     * it affordable on a hook that fires for every keystroke that lands in an
+     * outline. Handing `@olai/chat` a set of missing paths instead would have
+     * meant walking the directory here to build one.
+     *
+     * ## ON ITS OWN FIBER, and what that costs
+     *
+     * The mark is a filesystem write and this connector is synchronous, so the
+     * work is forked under this fiber's services ({@link ring}, for the reason
+     * it exists). What that means is that the mark lands SHORTLY after the
+     * revision that made it true, not during it — so a plugin deriving on this
+     * same revision still sees the scope on its door for one pass. That costs
+     * nothing: the file is not in the revision, so a derivation over it finds
+     * nothing to say. From the next revision the row is off the door entirely
+     * ({@link Chat.doorFor}).
+     */
+    const faulted = chat === null ? (): void => {} : (snapshot: VaultRevision): void => {
+      ring(Effect.flatMap(
+        chat.faults(
+          (file) => documentAt(snapshot.value.set, file) !== undefined,
+          // A ROW WHOSE TENANT CANNOT SPEAK IS NOT MARKED. `goneSaid` holds a
+          // sentence only for a plugin this serve COMPOSED and that declared
+          // one, so a serve run without a tenant leaves its rows alone rather
+          // than burning their one signal unheard.
+          (plugin) => goneSaid.has(plugin),
+        ),
+        (fell) =>
+          Effect.forEach(fell, (row) => {
+            const words = goneSaid.get(row.plugin)
+            if (words === undefined) return Effect.void
+            // A THUNK, ASKED WHEN THE WORDS GO IN, which is the whole reason
+            // `deliver` takes one: this body may wait out a running turn, or
+            // wait for somebody to open the conversation at all, and by then
+            // the file may be back. A scope that healed is on its plugin's door
+            // again, so its absence from that list is what "still broken" means
+            // — and answering `null` keeps the sentence out of the transcript
+            // rather than telling a person their doorbell is broken over a
+            // strip that is already drawing it fine.
+            //
+            // The other two ways this row can stop deserving the sentence —
+            // somebody cleared the doorbell, or pointed it elsewhere — need
+            // nothing here: every scope write takes back what that doorbell was
+            // holding (`@olai/chat`'s `Holding.dropped`), so the body is gone
+            // before it can be asked.
+            const healed = (): boolean =>
+              chat.doorFor(row.plugin).scopes().some((one) =>
+                one.agent === row.agent && one.session === row.session && one.file === row.file
+              )
+            const still = (): string | null => healed() ? null : words
+            // NO COALESCING KEY. A held body with one replaces the last body
+            // under it, which is right for a digest that re-derives itself and
+            // wrong for this: two faults on one conversation are two separate
+            // things that happened, and the second must not swallow the first.
+            // This is the arm `@olai/chat`'s `deliveries.ts` describes as a
+            // sentence about a moment that cannot be re-derived.
+            // THE PAIR AND NOT THE ROW. A delivery is addressed to a
+            // conversation, and handing the whole scope over would put this
+            // plugin's own `plugin` and `file` columns on an address — the
+            // caller's question answered a second time, in the one place the
+            // keying is the safety property.
+            return chat.doorFor(row.plugin)
+              .deliver({ agent: row.agent, session: row.session }, still)
+          }, { discard: true }),
+      ))
+    }
     /** ...and the same two facts as the value a browser draws its read-only
      *  rows off — every plugin this binary HAS, which of them this serve RUNS,
      *  and whether anybody typed the flag. Read off the registry rather than
      *  off `composed` above, which is a list of the ones that are on;
-     *  {@link rosterOf} argues why that difference is the feature. */
-    const roster = rosterOf(offered)
+     *  {@link rosterOf} argues why that difference is the feature.
+     *
+     *  The BUILD's halves go with it, because the doorbell's sentence is
+     *  compiled in and the row that draws a picker has to carry it. */
+    const roster = rosterOf(offered, SERVERS)
     /**
      * EVERY CONNECTOR BELOW READS `store.reads`, and every frame on it is a
      * pair: the set, and how old it is (`@olai/store`'s `Aged`). These take
@@ -1114,8 +1370,8 @@ export const bind = (
                   if (snapshot === null) {
                     // No published set at all: every plugin's reading OF THE
                     // VAULT goes out with the canvas. What each of them makes
-                    // of that is its own — a mutes line and the wrench beside
-                    // it, a set of worktrees the next sweep acts on — and this
+                    // of that is its own — a wrench onto the watch's config, a
+                    // set of worktrees the next sweep acts on — and this
                     // file neither knows nor composes it; what it knows is that
                     // a claim derived from a directory the store can no longer
                     // see is a claim nobody may vouch for.
@@ -1180,6 +1436,21 @@ export const bind = (
                   // and zero frames, and the sockets are the sweeps' business
                   // on their own clocks.
                   for (const { half } of composed) half.revision(snapshot)
+                  // ...AND THE PICKS THIS REVISION BROKE, which is core's own
+                  // reading of the same snapshot and the one thing above that
+                  // is not a plugin's. It is HERE, on the revision hook, for
+                  // the reason every line in this block is: a revision is
+                  // exactly when a file can have stopped being served, and a
+                  // second clock asking the same question would be a second
+                  // answer to what the directory says ({@link faulted}).
+                  //
+                  // NOT ON THE `null` ARM ABOVE. A store with no snapshot has
+                  // never loaded, and marking every scope in the directory
+                  // broken because this process cannot see the disk yet would
+                  // be a fault storm at boot about files that are all still
+                  // there. What that arm says is that nobody may vouch for a
+                  // derived claim, and this is a derived claim.
+                  faulted(snapshot)
                   // Written last, which is NOT the order they arrive in: a cell
                   // publishes on this stack while the collection's frame is
                   // coalesced into one delta on a microtask, so the manifest
@@ -1522,6 +1793,31 @@ export const bind = (
           sessions: () => withChat((open) => open.sessions),
           answer: ({ input }) => withChat((open) => open.answer(input.id, input.answers)),
           decline: ({ input }) => withChat((open) => open.answer(input.id, null)),
+          // WHOSE doorbell is checked HERE and nowhere below, because this is
+          // the only place that has the composed list: a name this serve did not
+          // compose, or one whose half declares no wake, would store a pick
+          // nothing will ever read. Refused in words, the same treatment
+          // `chooseAgent` gives an agent id this machine does not have — a stale
+          // tab is not a fault.
+          //
+          // The conversation goes straight through as the pair the chat's own
+          // verb takes. What this end must NOT do is substitute "whichever
+          // conversation is open": the panel's session can move under a picker
+          // somebody left open, and the chat is where that race is answered.
+          scope: ({ input }) =>
+            withChat((open) =>
+              composedWake.has(input.plugin)
+                ? open.scope(
+                  { agent: input.agent, session: input.session },
+                  input.plugin,
+                  input.file,
+                )
+                : Effect.fail(
+                  new UsageFailure({
+                    reason: `no plugin called \`${input.plugin}\` rings a conversation here`,
+                  }),
+                )
+            ),
         },
         // One verb, over the union the wire declares — so a verb added there
         // is answered by `requestFor` or it does not compile, and there is no

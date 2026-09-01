@@ -16,6 +16,15 @@
  * the same one titles and notes follow — the stored text is never touched, and
  * `#` at the start of a line somebody typed is a `#`, not a heading.
  *
+ * A SENTENCE A MACHINE PUT HERE is quoted too ({@link ./Rang.tsx} draws it,
+ * for the reason {@link ./ToolFrame.tsx} is its own file), and the reason goes
+ * one step further than the rule: the mark that says a plugin said it does not
+ * survive a replay (`@olai/surface`'s `UserEntry.rang`), so a body rendered
+ * only while that mark is on the row would come back as raw backticks and
+ * bullets the first time somebody resumed the conversation. Words that must
+ * read correctly unrendered anyway are better rendered once, honestly, than
+ * twice, differently.
+ *
  * The SAME pipeline a note and a document go through ({@link ../markdown/}),
  * not one of its own: an agent writing a fenced diff into the panel and a
  * person writing one into a note are doing the same thing, and a second
@@ -54,6 +63,7 @@ import { createEffect, createMemo, Match, Show, Switch } from "solid-js"
 
 
 import { Attachments } from "./Attachments.tsx"
+import { Rang } from "./Rang.tsx"
 import { ContextChips } from "./ContextChips.tsx"
 import { markdownReady } from "../markdown/chunk.ts"
 import { Markdown } from "../markdown/Markdown.tsx"
@@ -119,11 +129,24 @@ const FACE: Record<Delivery, {
  *  it", and nothing became of an ordinary message. */
 const SENT = "border border-accent/30 bg-accent/10"
 
+/** The edge a FATE puts on a bubble, or nothing where the message simply went.
+ *  Asked separately from {@link bubbleOf} because the two faces a `user` row can
+ *  take share the fate and differ on the default: a person's words fall back to
+ *  {@link SENT}, a machine's to its own quiet edge ({@link ./Rang.tsx}, which is
+ *  handed this answer rather than reading the table itself). */
+const fatedOf = (fate: Delivery | undefined): string | undefined =>
+  fate === undefined ? undefined : FACE[fate].bubble
+
 /** The edge a message's bubble takes, fate or none. A function of the row and
  *  nothing else, so it sits out here with the table it reads rather than being
  *  minted per component. */
-const bubbleOf = (fate: Delivery | undefined): string =>
-  fate === undefined ? SENT : FACE[fate].bubble
+const bubbleOf = (fate: Delivery | undefined): string => fatedOf(fate) ?? SENT
+
+/** The two shapes a `user` row's column takes. Yours is a bubble as wide as its
+ *  words, over on the right; a machine's is the full column, because it is a
+ *  paragraph rather than a remark and reads as one. */
+const MINE_COLUMN = "ml-auto flex w-fit max-w-[85%] flex-col items-end"
+const RANG_COLUMN = "flex w-full flex-col items-start"
 
 /** What the agent said is not in a file, so there is no path to name — and the
  *  empty string resolves against the served directory itself, which is where
@@ -219,13 +242,43 @@ export function Entry(props: {
     >
       <Switch>
         <Match when={ofKind("user")}>
-          {(user) => (
+          {(user) => {
+          /**
+           * WHO SAID IT — a person, or a plugin's doorbell
+           * (`@olai/surface`'s `UserEntry.rang`, and `./Wake.tsx` for where
+           * somebody allowed it). A machine's sentence travels down the
+           * human's lane, because that is the lane a prompt goes out on and
+           * the one every word about its fate is already written for — so the
+           * row it lands in is a `user` row, and the mark is the whole of what
+           * says otherwise. What that mark BUYS — the third face, and the fold
+           * in it — is {@link ./Rang.tsx}; this arm only picks.
+           *
+           * IT DOES NOT SURVIVE A REPLAY: a conversation rebuilt from the
+           * agent's own store comes back out of message chunks, which carry
+           * text and no keys. So the face it picks is a LIVE affordance and the
+           * durable attribution is the sentence itself, which
+           * `Deliveries.deliver` requires to open with its own — which is
+           * also why nothing here renders it as markdown: a body that reads
+           * correctly only when this component draws it would be a body that
+           * reads wrongly the moment somebody resumes the conversation.
+           *
+           * WHICH IS ALSO WHERE THE BYLINE COMES FROM. The name over the
+           * words is that same opening line, lifted out of the body and set
+           * as a label ({@link ./byline.ts}) — not a caption composed here
+           * from `rang`, which would be a name that disappears on the replay
+           * and leave the paragraph unsigned in a person's own lane. One
+           * attribution on the row, written by the half that will still be
+           * there tomorrow, drawn twice as loudly while the mark is live.
+           */
+          const rang = () => user().rang
+          return (
           /* What you said sits apart from what the agent said: on the right,
               in an accent-tinted bubble. A faint `bg-rule/60` box on a
               full-width line was the only cue before, and it read as another
               agent paragraph. The chips and pictures ride with the words,
-              because they went with the message. */
-          <div class="ml-auto flex w-fit max-w-[85%] flex-col items-end">
+              because they went with the message. A machine's sentence takes
+              the other shape — the full column, on the left. */
+          <div class={rang() === undefined ? MINE_COLUMN : RANG_COLUMN}>
             {/* What the message was ABOUT, above what it said — the order the
                 composer had them in, and the order they were meant in: the node
                 is the subject and the words are what was asked about it. Still
@@ -237,14 +290,29 @@ export function Entry(props: {
                 screenshot from being an empty grey box with a chip under it. */}
             <Attachments names={user().attachments ?? []} />
             <Show when={user().text !== ""}>
-              <p
-                class={`whitespace-pre-wrap rounded px-2 py-1.5 text-sm text-ink ${
-                  bubbleOf(user().delivery)
-                }`}
-                data-testid={TESTID.chatMine}
+              {/* ONE SET OF WORDS, TWO FACES. `chatMine` stays on the human
+                  bubble alone — a scenario asking "did I say this" must not be
+                  handed a sentence a plugin said — and the machine's carries
+                  the name of whichever door it came through, as data, since a
+                  conversation two plugins can reach needs to say which rang. */}
+              <Show
+                when={rang()}
+                keyed
+                fallback={
+                  <p
+                    class={`whitespace-pre-wrap rounded px-2 py-1.5 text-sm text-ink ${
+                      bubbleOf(user().delivery)
+                    }`}
+                    data-testid={TESTID.chatMine}
+                  >
+                    {user().text}
+                  </p>
+                }
               >
-                {user().text}
-              </p>
+                {(who) => (
+                  <Rang entry={user()} by={who} fated={fatedOf(user().delivery)} />
+                )}
+              </Show>
             </Show>
             {/* IT DID NOT LAND — and the words are still here, which is the
                 whole of the promise. The bubble goes dashed and edged rather
@@ -300,7 +368,16 @@ export function Entry(props: {
                       with `not sent` beside it, and wearing `QUIET_PILL`'s
                       `text-xs`/`px-2 py-1` would make one control in that line
                       a size larger than the words it belongs to. */}
-                  <Show when={fate === "refused"}>
+                  {/* ... AND NEVER ON A ROW A MACHINE SAID. The fate line
+                      above still draws — what became of the words is as true
+                      of a plugin's sentence as of a person's — but the press
+                      is the human's alone: a doorbell's body is a DERIVATION
+                      of how something stood when it rang, and sending it again
+                      later would re-send a claim that has since stopped being
+                      true. Nothing is lost by that, which is the half that
+                      makes it safe rather than merely careful: the thing that
+                      derived it rings again by itself on its next tick. */}
+                  <Show when={fate === "refused" && rang() === undefined}>
                     <button
                       type="button"
                       class="rounded border border-rule px-1.5 py-0.5 font-mono text-[0.6875rem] text-muted hover:text-ink"
@@ -314,7 +391,8 @@ export function Entry(props: {
               )}
             </Show>
           </div>
-          )}
+          )
+          }}
         </Match>
 
         <Match when={ofKind("agent")}>

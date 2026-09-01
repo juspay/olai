@@ -84,6 +84,7 @@
  * lands somewhere else is the reader.
  */
 
+import { agentIn } from "@olai/surface"
 import { createEffect, createMemo, For, on, onCleanup, onMount, Show } from "solid-js"
 
 import { SaidLine } from "../SaidLine.tsx"
@@ -100,6 +101,8 @@ import { railOf, sameRail } from "./rail.ts"
 import { nodeRefIn } from "./refs.ts"
 import { Refusal } from "./Refusal.tsx"
 import { Row } from "./Row.tsx"
+import { facedAt } from "./speakers.ts"
+import type { Faced } from "./Speaker.tsx"
 import { sentOf, whoOf } from "./spawn.ts"
 import type { Chat } from "./state.ts"
 
@@ -295,6 +298,30 @@ export function Transcript(props: { readonly chat: Chat }) {
     return sentOf(frame) ?? frame?.text
   }
 
+  /**
+   * WHICH AGENT this conversation is with — asked ONCE for the list, so that the
+   * faces down it ({@link ./Speaker.tsx}) can be told without every faced row
+   * subscribing to the chat cell for itself.
+   *
+   * That cell moves several times a turn, and the agent bound to a conversation
+   * moves once, at the start of it. A read inside each row's own memo would put
+   * every stretch of the transcript on the cell's clock for an answer that had
+   * not changed — which is the shape {@link ./elapsing.tsx} and the row list's
+   * own folds both exist to refuse.
+   *
+   * ITS OWN EQUALITY, because `agentIn` reads a row out of the roster and a
+   * fresh state is free to hand back a fresh object saying the same thing: a
+   * memo over one stops nothing by default, and what is downstream of this is
+   * an object per faced row and the attributes under it. `null` and `undefined`
+   * are folded into one absence here, since a face has nothing to say about
+   * which of them it is.
+   */
+  const agent = createMemo(
+    () => agentIn(props.chat.state()) ?? undefined,
+    undefined,
+    { equals: (one, other) => one?.id === other?.id && one?.name === other?.name },
+  )
+
   return (
     <div
       class="olai-scroll min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-3 py-2 text-ink"
@@ -408,6 +435,23 @@ export function Transcript(props: { readonly chat: Chat }) {
               if (whoOf(entry()) === null) return 0
               return props.chat.lanes().get(key)?.length ?? 0
             })
+            /** WHOSE FACE GOES OVER THIS ROW, or `null` for one inside a run
+             *  ({@link ./speakers.ts}) — the same shape `lane` has, off the
+             *  same two entries, and for the same reason: whether a row is the
+             *  FIRST of its speaker's is a fact about the row above it.
+             *
+             *  Its own memo rather than folded into `lane`, though both read
+             *  `entry()` and `above()`: what comes out here is a fresh object
+             *  whenever it is computed, so joining them would tie the lane's
+             *  attributes to this one's re-runs and the other way about. The
+             *  AGENT is read off the session rather than off the row, which is
+             *  where it lives — through the list's own `agent` memo above, so
+             *  a conversation's faced rows share one subscription to a cell
+             *  that moves several times a turn rather than taking one each. */
+            const speaker = createMemo((): Faced | null => {
+              const party = facedAt(entry(), above())
+              return party === null ? null : { party, agent: agent() }
+            })
             return (
               <Show when={entry()}>
                 {(row) => (
@@ -419,6 +463,7 @@ export function Transcript(props: { readonly chat: Chat }) {
                     door={calls() > 0 ? () => togglePreview(key) : null}
                     says={doorOf(entry(), calls())}
                     open={isPreviewing(key)}
+                    speaker={speaker()}
                   />
                 )}
               </Show>

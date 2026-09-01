@@ -21,7 +21,7 @@
  *
  * ## The semantics, in one breath
  *
- * For every un-muted terminal whose row enters a held bucket — `awaiting`
+ * For every terminal whose row enters a held bucket — `awaiting`
  * or `waiting`, the two that need a person
  * (`@kolu/terminal-vocab`'s WATCH_DEFAULT_STATES, spelled out so that the
  * fold's home need not be imported for one set) — start a hold clocked from
@@ -57,8 +57,16 @@
  * has no business knowing what one is (`./index.ts`'s header): the server
  * walks the vault (`@olai/server`'s `koluConfig.ts`, beside `claimants.ts`)
  * and hands over the derived config — malformed values already defaulted
- * and named. This module takes intervals and mute values, compares them,
- * reconfigures, and owns the timers.
+ * and named. This module takes the intervals, compares them, reconfigures,
+ * and owns the timers.
+ *
+ * THE SILENCE HALF. There was a mute list here — `WatchConfig.muted`, values
+ * resolved against the live roster per observation, holds killed under it. It
+ * went with the second doorbell (2026-08-31): what a person wants quiet is
+ * decided by the wake FILTER FILE a conversation is scoped to, one package up,
+ * and a second silence aimed at the same fleet from the same config file is one
+ * mechanism too many. What is left here is a watcher that says everything it
+ * sees and lets its readers choose.
  *
  * PERSISTENCE. The ring is a standing thing per server — `WATCH_RING`
  * events, newest kept, snapshot-then-deltas on the wire. A server restart
@@ -69,7 +77,7 @@
  * ## The timers, and how they die
  *
  * Every timer a terminal owns lives on its hold; every release path —
- * bucket left, muted, row removed, watcher stopped — runs through
+ * bucket left, row removed, watcher stopped — runs through
  * `releaseHold`, so a nag cannot fire into a state that already ended. The
  * one timer that is not a hold's is the heartbeat's interval, and
  * `stop` clears it.
@@ -78,7 +86,7 @@
 import { narrowAgentState } from "@kolu/solid-dockrow/rowValues"
 import { agentBucket, WATCH_DEFAULT_STATES } from "@kolu/terminal-vocab/agentProjection"
 
-import { type FleetTerminal, type KoluEvent, resolveTerminal } from "./wire/index.ts"
+import type { FleetTerminal, KoluEvent } from "./wire/index.ts"
 
 // ── The config, as the vault walk hands it over ──────────────────────────
 
@@ -90,11 +98,6 @@ export interface WatchConfig {
   readonly heldForMs: number
   readonly nagMs: number
   readonly heartbeatMs: number
-  /** Mute values, VERBATIM from the `mutes` node's children — full ids or
-   *  the prefix spelling the board actually writes. Resolution is this
-   *  module's to do per observation, against the fleet's CURRENT id set,
-   *  because the roster only exists here. */
-  readonly muted: ReadonlyArray<string>
 }
 
 /** The knobs when `_olai/Kolu.olai` is absent, torn or quiet — the brief's
@@ -103,7 +106,6 @@ export const DEFAULT_WATCH: WatchConfig = {
   heldForMs: 60_000,
   nagMs: 600_000,
   heartbeatMs: 1_800_000,
-  muted: [],
 }
 
 /** The ring's cap — the brief's `~200`. */
@@ -119,7 +121,12 @@ const HELD_BUCKETS: ReadonlySet<string> = new Set(WATCH_DEFAULT_STATES)
 
 /** What the watcher emits. `emit`/`evict` are the events collection's two
  *  verbs — a fresh row, and the row the ring dropped — so `./index.ts`
- *  closes over this and nothing else. */
+ *  closes over this and nothing else.
+ *
+ *  THREE VERBS AND NO `say`. There was a fourth — the ambiguous-mute
+ *  sentence, which was the only thing this module ever had to tell an
+ *  owner. The mutes went (see the header) and the channel went with them:
+ *  a watcher that says everything it sees has nothing to warn about. */
 export interface WatchSink {
   readonly emit: (event: KoluEvent) => void
   /** Fired ONLY on a ring eviction: events are never edited, only dropped. */
@@ -127,15 +134,6 @@ export interface WatchSink {
   /** The beat: the watcher is alive. Attentive value (`at` + the cadence it
    *  was stamped under) rides beside it, which is the pill's whole read. */
   readonly beat: (at: string, everyMs: number) => void
-  readonly say: (line: string) => void
-  /** The fold's sayable half: the mute VALUES that resolve to one live id
-   *  each, told once per fold the watcher takes (observation, fleet-move,
-   *  reconfigure — the same places the hold gate reads it, so the tell and
-   *  the gate are one answer). The foot the events drawer draws names
-   *  exactly this set; a value that resolves to nobody or several says
-   *  nothing, and its silence is the console's sentence above, not a line
-   *  that would lie about the drawer's own events. */
-  readonly mutedVerdicts: (resolved: ReadonlySet<string>) => void
 }
 
 export interface Watch {
@@ -210,14 +208,29 @@ interface Hold {
  * The ONE fold in this file, and there is exactly one of it: `observe`'s
  * gate asks this and nothing else.
  */
-interface HeldState {
+export interface HeldState {
   /** The bucket the hold is about — one of `HELD_BUCKETS`. */
   readonly bucket: string
   /** The state the row spelled, as the narrowed LITERAL — the same word the
    *  wire's verbatim contract already promises. */
   readonly spelled: string
 }
-const heldStateOf = (row: FleetTerminal): HeldState | null => {
+/**
+ * EXPORTED FOR THE ONE READER THAT MUST NOT RE-DERIVE IT — the doorbell in
+ * `@olai/plugin-kolu`, which composes a sentence naming every claimed
+ * terminal that is HELD RIGHT NOW and reads that off the live fleet rows
+ * (`KoluHalf.rows()`) rather than off any memory of its own.
+ *
+ * A SECOND SPELLING WOULD BE A SECOND ANSWER. The buckets are
+ * `@kolu/terminal-vocab`'s, reached through `narrowAgentState` and
+ * `agentBucket`, and `@olai/plugin-kolu` does not depend on either — nor
+ * should it: which words a padi build spells is exactly the knowledge the
+ * package wall keeps on this side. So the fold crosses as a FUNCTION, the
+ * way {@link ../fleet.ts}'s `Claimant` crosses as four strings, and the
+ * doorbell's answer about what is held and the watcher's gate on the same
+ * question cannot come apart.
+ */
+export const heldStateOf = (row: FleetTerminal): HeldState | null => {
   const narrowed = narrowAgentState(row.agentState)
   if (narrowed.state === undefined) return null
   const bucket = agentBucket(narrowed.state)
@@ -237,9 +250,6 @@ export const makeWatch = (
    *  flap (see the `suspend` doc). No timer lives here — one is armed at
    *  resume or at the hold's death, and `stop()` clears them. */
   const suspended = new Map<string, Hold>()
-  /** The fleet's id SET as the mirror knows it, kept for one job: prefix
-   *  resolution of the mute values. */
-  const seen = new Set<string>()
   /** The ring. Insertion-ordered Map, capped at `WATCH_RING` — a Map key
    *  iteration order is insertion order, and the eviction asks the first
    *  key. */
@@ -248,68 +258,6 @@ export const makeWatch = (
    *  order and are unique per shot. */
   let seq = 0
   let heartbeatTimer: ReturnType<typeof setInterval> | undefined
-
-  /** The mute fold, resolved ONCE per use: one `mutes × fleet` walk,
-   *  which on a running machine is four times thirty — against the row
-   *  walk it rode in on, nothing. Its two consumers (the hold gate and the
-   *  ambiguity says) read THE one resolution, so a value can never be
-   *  silenced-to and said about in the same breath. The ids it can name
-   *  are only those the mirror has ever handed over this observation
-   *  life; a muted prefix naming nothing stays inert — the fail-open rule. */
-  interface MuteFold {
-    /** The live ids the list silences. */
-    readonly silenced: Set<string>
-    /** The config VALUES that resolve to exactly one live id each — who
-     *  the watcher can SAY it silenced. A value naming nobody or several
-     *  does not enter, for the same reason it silences nobody below: the
-     *  drawer's foot names this set and nothing else, so a line can never
-     *  claim a terminal is silenced while its events arrive above it. */
-    readonly resolved: Set<string>
-    /** The values that name MORE than one live terminal — inert, and said. */
-    readonly ambiguous: ReadonlyArray<{ readonly value: string; readonly count: number }>
-  }
-  const foldMutes = (): MuteFold => {
-    const silenced = new Set<string>()
-    const resolved = new Set<string>()
-    const ambiguous: Array<{ readonly value: string; readonly count: number }> = []
-    for (const value of config.muted) {
-      const verdict = resolveTerminal(value, seen)
-      if (verdict.kind === "one") {
-        silenced.add(verdict.id)
-        resolved.add(value)
-      } else if (verdict.kind === "many") {
-        ambiguous.push({ value, count: verdict.count })
-      }
-    }
-    return { silenced, resolved, ambiguous }
-  }
-
-  /** The ambiguous values of a mute fold, said ONCE per value rather than
-   *  per fold — an ambiguous mute silences nobody (the events keep
-   *  coming), and the only door the owner has to know is this line — the
-   *  CLI's refusal, made a sentence. */
-  const saidAmbiguous = new Set<string>()
-  const sayAmbiguousMutes = (fold: MuteFold): void => {
-    for (const { value, count } of fold.ambiguous) {
-      if (!saidAmbiguous.has(value)) {
-        saidAmbiguous.add(value)
-        sink.say(
-          `kolu: the mute \`${value}\` names ${count} terminals — write more of the id.`,
-        )
-      }
-    }
-  }
-
-  /** The fold's OTHER mouth — the same one answer, published for whoever
-   *  displays the mutes (the drawer's foot, through the cell). One touch
-   *  per fold rather than one consumer per face, for the fold's own case:
-   *  a value becoming resolvable or losing it re-publishes from THE fold
-   *  the hold gate just read, so the line and the gate can never disagree
-   *  about who is silenced this breath. */
-  const announce = (fold: MuteFold): void => {
-    sayAmbiguousMutes(fold)
-    sink.mutedVerdicts(fold.resolved)
-  }
 
   /** One event onto the ring, evicting the oldest while the cap is full. */
   const push = (event: KoluEvent): void => {
@@ -436,25 +384,17 @@ export const makeWatch = (
 
   return {
     observe: (id, row) => {
-      seen.add(id)
-      // The prefix table moves when the FLEET moves, not only when the file
-      // does — a terminal ARRIVING can be what makes one prefix ambiguous —
-      // so the mute fold is taken once per observation, and both readers
-      // read the one answer. `sayAmbiguousMutes` holds the once-per-VALUE
-      // half itself.
-      const fold = foldMutes()
-      announce(fold)
       const state = heldStateOf(row)
       // FIRST: an id whose fleet fell out from under it is a resume, not a
       // reopen — the daemon's own `since` does not move on a reconnect, and
-      // neither does ours. Same bucket, still un-muted: the hold returns
-      // with the timer re-armed off its own clock. A different bucket is
-      // what `observe` always takes it for: one hold closes and another
-      // opens, herein falling through to it as usual.
+      // neither does ours. Same bucket: the hold returns with the timer
+      // re-armed off its own clock. A different bucket is what `observe`
+      // always takes it for: one hold closes and another opens, herein
+      // falling through to it as usual.
       const suspendedHold = suspended.get(id)
       if (suspendedHold !== undefined) {
         suspended.delete(id)
-        if (state !== null && state.bucket === suspendedHold.state && !fold.silenced.has(id)) {
+        if (state !== null && state.bucket === suspendedHold.state) {
           suspendedHold.row = row
           holds.set(id, suspendedHold)
           rearmHold(suspendedHold)
@@ -463,7 +403,7 @@ export const makeWatch = (
         releaseHold(suspendedHold)
       }
       const previous = holds.get(id)
-      if (state === null || fold.silenced.has(id)) {
+      if (state === null) {
         if (previous !== undefined) releaseHold(previous)
         return
       }
@@ -492,7 +432,6 @@ export const makeWatch = (
       hold.holdTimer = setTimeout(() => fireTransition(hold), config.heldForMs)
     },
     remove: (id) => {
-      seen.delete(id)
       const hold = holds.get(id)
       if (hold !== undefined) releaseHold(hold)
       const gone = suspended.get(id)
@@ -500,15 +439,6 @@ export const makeWatch = (
         suspended.delete(id)
         releaseHold(gone)
       }
-      // A fleet move is a mute-fold move, on LEAVING as much as on
-      // arriving: a prefix that was ambiguous two rows back might be an
-      // address now, and the newly-silenced hold should not nag its lone
-      // remaining row before the next upsert.
-      const fold = foldMutes()
-      for (const singing of [...holds.values()]) {
-        if (fold.silenced.has(singing.id)) releaseHold(singing)
-      }
-      announce(fold)
     },
     suspend: (id) => {
       const hold = holds.get(id)
@@ -531,15 +461,6 @@ export const makeWatch = (
       const nagMoved = next.nagMs !== config.nagMs
       const heartbeatMoved = next.heartbeatMs !== config.heartbeatMs
       config = next
-      // A terminal muted under the NEW list loses its hold NOW — the
-      // event it was about to fire is exactly the event the vault just
-      // said nobody wants. Suspended holds are released through the same
-      // door: the flap is not an excuse from the list.
-      const fold = foldMutes()
-      for (const hold of [...holds.values(), ...suspended.values()]) {
-        if (fold.silenced.has(hold.id)) releaseHold(hold)
-      }
-      announce(fold)
       if (heartbeatMoved) rearmHeartbeat()
       if (!heldForMoved && !nagMoved) return
       // Re-pace, ONE pass, through the one re-arm fold: each hold asks the

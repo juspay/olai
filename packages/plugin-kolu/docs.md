@@ -77,21 +77,62 @@ The watch is the SERVER's — one watcher, one ring of the last roughly two hund
 
 The liveness lives on the PILL instead, which is where the feed's own bar already was: `watcher pulse 2m ago` in the hover while it is healthy (the fold's first register, `fresh`), and — crossed past **2 × the vault's `heartbeat` knob** — the pill's loud amber face: the chip's dot hollow, its border and ring warming, and its words naming it as `watcher quiet 47m` until the next beat. That double-cadence is the pill's own margin: the fold counts the beat's stamp against `everyMs` right beside the pulse's record, so a tab answering on its own clock need never guess the vault's cadence. A padi link flapping under olai fires nothing: a fleet emptied because the socket went is a fleet PAUSED, not a closing one — the holds keep their own clocks through it, and a `since` survives a reconnect the way padi's own daemon runs it.
 
-Where a terminal asks is the only thing a held state cannot tell: you WANT it to ask somewhere. **Mute the fleet one at a time** in `_olai/Kolu.olai`, the same file the watch reads its cadence from:
+**The watch's pacing lives in `_olai/Kolu.olai`**, the file the drawer's wrench opens:
 
 ```
-{"id":"watch","ord":"a0","title":"watch","custom":{"held-for":"60s"}}
-{"id":"mutes","ord":"a1","title":"mutes"}
-{"id":"one","parent":"mutes","ord":"a0","title":"a side shell nobody watches","custom":{"terminal":"5c5824d5"}}
+{"id":"watch","ord":"a0","title":"watch","custom":{"held-for":"60s","nag":"10m","heartbeat":"30m"}}
 ```
 
-The file is normal outline records. **Which file decides is a question about the name alone, the way the shelf's and the inbox's are**: the shallowest outline basenamed `kolu.olai` (case folded, `_olai/Kolu.olai` the chosen form) — a file that holds neither node still decides, so a root `Kolu.olai` of notes shadows one parked deeper, knobs defaulting until it moves. The watch node carries the knobs — `held-for` (the pause that holds a terminal's state out of the feed), `nag` (how often an unanswered one is said again) and `heartbeat` — written as `<n>s`, `<n>m` or `<n>h`; an absent value defaults, and a malformed one defaults **and is said on the server's console at warning level**, so a typing mistake is never silent. The grammar is padi's own: `held-for` may be `0` — the report the INSTANT a state lands, which padi's watch flags also allow — but the other two never are, because a nag every 0 ms is the spin padi's own schema refuses, and both cap at the ~24.8-day timer bound. The mutes are children of a `mutes` node holding one `terminal` property each — full id or a unique prefix of one. Edits land live: the watch reads its knobs on every vault revision, so the file a person is *editing* is the file a person is **already being watched by**.
-
-An ambiguous prefix — one that names two open terminals — silences neither, and says so: write more of the id.
+The file is normal outline records. **Which file decides is a question about the name alone, the way the shelf's and the inbox's are**: the shallowest outline basenamed `kolu.olai` (case folded, `_olai/Kolu.olai` the chosen form) — a file that holds no `watch` node still decides, so a root `Kolu.olai` of notes shadows one parked deeper, knobs defaulting until it moves. The watch node carries the knobs — `held-for` (the pause that holds a terminal's state out of the feed), `nag` (how often an unanswered one is said again) and `heartbeat` — written as `<n>s`, `<n>m` or `<n>h`; an absent value defaults, and a malformed one defaults **and is said on the server's console at warning level**, so a typing mistake is never silent. The grammar is padi's own: `held-for` may be `0` — the report the INSTANT a state lands, which padi's watch flags also allow — but the other two never are, because a nag every 0 ms is the spin padi's own schema refuses, and both cap at the ~24.8-day timer bound. Edits land live: the watch reads its knobs on every vault revision, so the file a person is *editing* is the file a person is **already being watched by**.
 
 The file is yours, not installed: without it the watch runs its defaults (sixty seconds, ten minutes, half an hour).
 
-**The drawer says who it silences — and only who it silences.** Under the events, the drawer's foot is two things: a muted line — `2 muted · nixos-config grok, nixos-config pi`, the mutes' own titles rather than prefixes a reader has to resolve — and a wrench that lands on `_olai/Kolu.olai` as an ordinary outline page. A title is on the line exactly while the watcher can say its quiet is held: it names a value resolving to one live terminal. A mute naming nobody (a terminal that shut) drops off rather than claim a quiet the events above would contradict; an ambiguous prefix keeps its console sentence and never the line; and with no padi at all the watcher silences nobody, so nobody is named. Naming the file is a different question, answered off the outline PATHS: a config that parses to nothing still draws the wrench, because the wrench is how a person would go and fix it. Nobody muteable is the wrench alone, never a "0 muted"; no file at all is no foot at all, because the defaults have no page to open, and the line is live to the edit, answerable the moment the outline is, rather than at the next inspection.
+**There is no mute list any more, and the feed has no silence control at all now.** The file used to carry a `mutes` node whose children named terminals the watch was to keep quiet about, and the drawer's foot named them back. Both went with the second doorbell, and what went with them was the only way there ever was to quiet THIS surface: the watch says everything it sees — every held terminal in the fleet, for every reader of the page — and `_olai/Kolu.olai` decides the pacing and nothing else.
+
+**What arrived is a control over a different surface**, which is why the two are a trade rather than a swap. The wake filter file a conversation is scoped to (below) decides which terminals wake THAT CONVERSATION; it says nothing about the events drawer, which goes on drawing the whole fleet. A mute was one machine-wide *never, for everybody* over a log a person chooses to open; a filter file is one person's answer, per conversation, over a message that arrives unasked. The second is the one worth having and the second is what the doorbell needed — but a reader who wanted the drawer itself quieter has nothing to reach for, and that is the cost, named here rather than left to be discovered.
+
+**The drawer's foot is the door onto that file.** Under the events sits a wrench that lands on `_olai/Kolu.olai` as an ordinary outline page. Naming the file is answered off the outline PATHS rather than off its records: a config that parses to nothing still draws the wrench, because the wrench is how a person would go and fix it. No file at all is no foot at all, because the defaults have no page to open.
+
+## The second doorbell — a conversation woken by the fleet
+
+A chat conversation can be **scoped to one `.olai` file**, and then olai rings it when a terminal that file claims stops and waits for a person. The control is on the chat panel's strip: `wake on terminal activity · terminals from <a file> ▾`, with a picker over the served outlines and a clear beside it. **Nothing is scoped by default** — a fresh conversation, or one you cleared, has the doorbell off until somebody picks a file, and there is no serve-wide setting that turns it on for you.
+
+**The file is the FILTER, and the subject is the fleet.** Which terminals a scoped conversation hears about is exactly this: the `kolu-terminal` values on that file's **un-done** nodes, with mirrors resolving to their targets. That makes the day board (`lanes.olai`) the natural filter — it already holds precisely the live lanes — and it means a lane you finish stops ringing without anybody switching anything off. A second conversation may filter by a different file and become its own seat.
+
+**Un-done means un-done**: a `done` step and a `cancelled` step both end the wait, and a plain bullet nobody marked is not a task. The value is read by the **declared kind** and never by a key's spelling, so a board whose column is `pty` is heard and a column you have been calling `terminal` since before kolu is not. A value that is a prefix of two live terminals claims neither.
+
+**Two meanings, derived, never configured:**
+
+- the terminal is claimed and the claiming step is **`doing`** — somebody is on that lane right now and it has stopped, so a report or a block is owed: **a wake**, which starts a turn if the agent is idle and queues behind whatever you typed if it is not;
+- the terminal is claimed and the claiming step is **`todo`** — the lane is open but nobody is on it, so it is lawfully parked: **a digest**, whose head says the terminal went quiet and that nothing under it is being worked, and closes *A note, not a call*;
+- the terminal is **unclaimed** — silence, and silence means no message at all. olai does not report what it decided not to ring about.
+
+**The two meanings differ in their WORDS, and in nothing else.** There is one delivery path and there is no quieter arm on it: a digest reaches the agent exactly as a wake does — a turn of its own where the agent is idle, held to the turn boundary where a turn is running, held until somebody opens the conversation where nobody is in it. What the meaning decides is the sentence olai writes, and the key that sentence is coalesced under: one key per meaning, so a burst under one meaning collapses to its newest body and can never overwrite the other meaning's — and where both are waiting when a turn ends, they arrive together, each whole. This page used to promise a digest that did not wake the agent; no quieter arm was ever built and there is nowhere in the mechanics to put one. What a person who wants a parked lane to stay quiet changes is the filter file — by finishing that lane, or by pointing the conversation at a board it is not on.
+
+**The message is olai's, and it says so.** It arrives as a message in the conversation with a face of its own — never in your composer, which is yours the whole time and is never typed into, focused or cleared. It opens by naming itself, because a conversation resumed from the agent's own store rebuilds its rows out of message chunks, and a sentence that did not say who was speaking would replay as words in your mouth.
+
+**One line drawn, the rest a press away.** What the panel shows is a plain sentence — *kolu — the fdo-residuals author is idle: it has finished, or it needs you.* — and the account behind it carries the terminal, who it is, the state it is held at, the step that claims it and the file the whole set was read off. The fold is the discipline a tool row already keeps, and the split is between READERS rather than between messages: the agent is handed the whole body as the message text, because it needs the ids to act; you get the sentence, and the ids when you ask for them. The account names the claiming node's id in backticks, so it is **pressable** — a wake links back to the board row it was derived from, which is the row you would edit to stop it.
+
+**Events that pile up while a turn runs arrive as one message.** Each body is a fresh derivation of what is standing — every claimed terminal held *right now* under that meaning — so the one that lands names everything the ones before it would have, and nothing is lost by combining them. The strip counts what is waiting (`3 fleet events waiting`) so it is never holding words out of sight.
+
+**A floor under the silence.** The doorbell's last message is not about the fleet at all. If a scoped conversation hears nothing for a whole `heartbeat` window — the same knob in `_olai/Kolu.olai` that paces the pill, and there is no second dial for this — olai puts one message in it saying the watch is running, with the readings that make that claim checkable:
+
+```
+The kolu watcher is alive: 30 minutes with nothing to say about the 4 terminals lanes.olai claims.
+
+… (the attribution line, and what a heartbeat is) …
+
+— the filter file: lanes.olai.
+— terminals it claims right now: 4.
+— last watcher event: 2026-08-31 14:01 UTC, 31 minutes ago.
+— watching since 2026-08-30 19:03 UTC, 19 hours 29 minutes so far.
+```
+
+**Four facts rather than "still here",** because *still here* is exactly what a wedged watcher would go on saying: a timer that still fires proves the interval is armed and nothing else. These four are things you can disagree with. A count of 0 all afternoon on a board with four live lanes is a conversation scoped to the wrong file. A last event older than the uptime is a watcher seeing a fleet that never moves. A *watching since* that resets every window is a server somebody keeps restarting. Every one of them is read at the moment the message goes in, so a heartbeat that waited through a turn reports the board as it is when you read it.
+
+**It is a floor and not a metronome.** Any wake or digest delivered to that conversation resets the window, so a busy day produces no heartbeat at all and a quiet one produces exactly one per window. It rides the same delivery path as everything else — a turn of its own where the agent is idle, held to the boundary where a turn is running — which is the whole point: a proof of life that only landed when the agent happened to be running would prove nothing about the hours it was not.
+
+**A heartbeat is never a fault report.** It only ever means *the watch is running and had nothing to say*. A scope olai cannot watch is not beaten for at all — that case says so in words of its own — so the two can never be confused for each other, and clearing the file on the strip stops the heartbeats with everything else.
 
 ## When there is nothing to see
 

@@ -122,6 +122,35 @@ test("what is written comes back, under a home that did not exist", () =>
     expect(fs.readdirSync(path.dirname(at))).toEqual([path.basename(at)])
   }))
 
+/**
+ * TWO WRITES IN THE AIR AT ONCE, which is what a staged name per PROCESS used
+ * to turn into a lie.
+ *
+ * A and B stage, one of them renames first, and the other's rename found
+ * nothing there — so a caller was told its write failed for bytes that had
+ * landed. Both must succeed, and the file must hold ONE OF THE TWO WHOLE:
+ * either is a correct answer here, since the two are genuinely concurrent and
+ * nothing orders them; a mixture of the two is not.
+ */
+test("two writes at once both land, and the file holds one of them whole", () =>
+  withState(async ({ root }) => {
+    const at = fileFor("chat", root)
+    // Long enough that a shared stage would show as a torn record rather than
+    // one that happened to be the same length as the other.
+    const a = "a".repeat(4096)
+    const b = "b".repeat(4096)
+    await Effect.runPromise(Effect.all(
+      [writeHeld(at, { cwd: root, session: a }), writeHeld(at, { cwd: root, session: b })],
+      { concurrency: "unbounded" },
+    ))
+    // A read that got a mixture would not parse, so arriving here at all is
+    // half the claim; which of the two it is, is nobody's to say.
+    const held = await Effect.runPromise(readHeld(at, root))
+    expect([a, b]).toContain(held?.["session"] as string)
+    // ... and neither call left its stage behind.
+    expect(fs.readdirSync(path.dirname(at))).toEqual([path.basename(at)])
+  }))
+
 /** A file about some OTHER directory is not this one's. Not damage either — a
  *  digest collision, or a state home somebody copied — so the honest answer is
  *  that nothing here says. */

@@ -490,6 +490,110 @@ export interface Chrome {
 export type ChromeFace = (props: { readonly app: AppFurniture }) => JSX.Element
 
 /**
+ * THE PLUGIN'S OWN FACE — the mark drawn beside a sentence this plugin put into
+ * somebody's conversation.
+ *
+ * A plugin may write into a person's chat lane ({@link Deliveries}), and the
+ * panel draws such a row as a THIRD speaker beside the human and the agent.
+ * Every speaker in that transcript is named by a mark, and this is where a
+ * plugin's comes from: the plugin, and nowhere else.
+ *
+ * ## Why the manifest rather than a table in core
+ *
+ * `./fence.test.ts` holds it as an equality per package — no general package
+ * spells a plugin's name in code — so a `MARKS = { … }` in the panel is not a
+ * shortcut somebody tidies later, it is red the day it is written. That fence
+ * is not pedantry here: what a tenant looks like is a drawing decision about
+ * that tenant, made where somebody knows what it IS, and a core table of them
+ * is a core file edited every time a plugin core has never heard of ships.
+ *
+ * ## Why it is not a wire member
+ *
+ * The wire door ({@link ./surfaces.ts}) carries a plugin's NAME and its schema
+ * so a process that renders nothing can read them; a mark is SolidJS and could
+ * not cross it if anybody wanted it to. It does not need to. The browser holds
+ * the manifests directly (`@olai/web`'s `plugins/roster.ts` widens the
+ * registry) and looks the mark up by the name core already stamped on the row
+ * — one walk over one registry, which is what every other browser hook here
+ * already is.
+ *
+ * ## Why no argument at all, where {@link ChromeFace} takes the furniture
+ *
+ * A chrome slot wears the bar's geometry and therefore has to be handed it. A
+ * mark is a glyph at the size of the line it sits on: it takes that line's
+ * colour through `currentColor` and its box from the element the panel draws it
+ * inside, so there is nothing for the app to hand over. A parameter offered
+ * against a future need would be a contract core then has to keep — and the
+ * alternative costs nothing, since a plugin that later needs data reads its own
+ * half through the mount it already has ({@link PluginMount}).
+ *
+ * ## What it answers with: the SHAPES, inside a `0 0 16 16` box
+ *
+ * Not a whole `<svg>`, and this is the one part of the contract worth spelling.
+ * The marks in a transcript are read as a COLUMN — the person, the agent, the
+ * plugin, one under another — so they must be one size and one stroke weight,
+ * and a plugin that answered with its own `<svg>` would own the two attributes
+ * that decide both. So the app draws the element and the plugin fills it: a
+ * `<g>` of paths in a sixteen-unit square, `currentColor` throughout, which is
+ * exactly the shape `@olai/web`'s own `chat/AgentMark.tsx` gives every agent's.
+ * A plugin wanting a different size is asking for its row to look unlike the
+ * rows around it, which is a request the panel should refuse. Both halves of
+ * that sentence are the DEFAULT rather than the whole rule, and the three
+ * paragraphs below say exactly where each bends and what it costs — the size
+ * and the weight are the two things that never do.
+ *
+ * A plugin that contributes none is drawn with a plain generic, which is the
+ * same bargain an agent olai has no shape for already gets — and never another
+ * plugin's mark, which would teach a reader something false the first time a
+ * third tenant arrived.
+ *
+ * ### The sixteen-unit square is CORE'S VIEWPORT, not the plugin's coordinates
+ *
+ * A mark whose shapes are an EXISTING ASSET rather than a drawing made for this
+ * column will have a coordinate system of its own, and it is permitted one: the
+ * `<g>` may open a nested viewport inside itself.
+ *
+ * ```tsx
+ * <g>
+ *   <svg x="0" y="0" width="100%" height="100%"
+ *        viewBox={MARK_VIEWBOX} preserveAspectRatio="xMidYMid meet"
+ *        innerHTML={…} />
+ * </g>
+ * ```
+ *
+ * That is a granted permission with its bound written into it rather than a
+ * loophole the first real asset routed around. `width="100%"`/`height="100%"`
+ * resolve against whatever viewport core established, so the plugin still never
+ * spells `16`, and `preserveAspectRatio="xMidYMid meet"` centres and fits the
+ * artwork without distorting it. The `<g>` stays, because that is what this type
+ * returns and what `<Dynamic>` renders: a plugin still does not get to be the
+ * outer `<svg>`, and still cannot touch the two attributes that decide the
+ * column's size and weight.
+ *
+ * ### `currentColor` is the DEFAULT, not the rule
+ *
+ * It stays the rule for a DRAWN mark — the generic and any hand-drawn glyph take
+ * nothing and inherit the ink of the line they sit on, which is what makes them
+ * legible in every theme with no palette of their own. A mark that IS a brand
+ * asset carries its own palette, and the plugin is the only place that knows it
+ * has one. The cost travels with the permission: such a mark will not dim with
+ * a muted row, will not invert with the theme, and may carry a shadow tuned for
+ * the background its own designer had in mind.
+ *
+ * ### A mark that declares an `id` owns its uniqueness, PER INSTANCE
+ *
+ * SVG ids are global to the DOM DOCUMENT and `url(#…)` resolves against the
+ * document, so a plugin shipping `id="lift"` has claimed that word from every
+ * other element on the page — and the mark is drawn once per rung row, so two
+ * rows are two claims. Core cannot namespace it: computing an address out of a
+ * plugin's name is precisely what `./fence.test.ts` exists to refuse, in the
+ * very file whose reason for existing is that core learns nothing about a
+ * tenant. So the uniqueness is the plugin's, held by the plugin's own build and
+ * minted at its own render (`createUniqueId`).
+ */
+export type PluginMark = () => JSX.Element
+
+/**
  * THE TAB'S OWN HALF OF THIS PLUGIN, mounted once around the page.
  *
  * A plugin's faces are LEAVES — a chip drawn per row, a pill in a bar — and a
@@ -580,6 +684,182 @@ export interface PluginServices {
    * only one a test ever fills.
    */
   readonly dial?: unknown
+  /**
+   * THE DOORBELL'S DOOR — which conversations opted into THIS plugin's wakes,
+   * and the one write-only verb that reaches them ({@link Deliveries}).
+   *
+   * The second field on this blob built PER PLUGIN rather than handed out whole
+   * ({@link dial} is the first), and for that one's reason turned around: a door
+   * keyed by nobody would hand one plugin the conversations a person scoped to
+   * another. The key is the plugin's `name`, which is the one word core knows,
+   * and the composition root closes over it exactly where it already closes over
+   * it for `dial` — so this is not a second lookup, it is the same one.
+   *
+   * REQUIRED, unlike `dial`, and the difference is about what CAN be absent. A
+   * real serve legitimately dials nothing; there is no serve where the door is
+   * missing. What varies is whether anybody walked through it — a machine with
+   * no agent installed answers `scopes()` with the empty list forever, which is
+   * the honest machine-without-the-tool state and needs no failure channel on a
+   * verb that cannot fail.
+   */
+  readonly deliveries: Deliveries
+}
+
+/**
+ * ONE GENERIC CAPABILITY: DELIVER A MESSAGE INTO A CONVERSATION — the whole of
+ * what core grows so that a plugin can ring a doorbell.
+ *
+ * ## It speaks conversations and files, and it will never speak anything else
+ *
+ * There is no terminal here, no fleet, no board and no watcher — and that is the
+ * fence rather than an accident of today's one caller: the door is generic or it
+ * does not land. A plugin says WHO to reach and WHAT to say; core knows how a
+ * conversation takes a message and knows nothing about why this one was worth
+ * sending. The same bar the rest of this file keeps, one capability later: core
+ * may know a plugin's name, and may not know anything else about it.
+ *
+ * ## Two bare strings and not a `Conversation`
+ *
+ * A conversation is the PAIR `(agent, session)`, because a session id means
+ * nothing to the wrong agent — core's own identity for the thing, spelled the
+ * way `@olai/chat`'s note already spells it rather than minted a second time.
+ * It is two fields here rather than a type imported from `@olai/surface` because
+ * this package declares no dependency on the wire and says so on purpose in its
+ * manifest; a schema pulled in to name a pair of strings would be that wall
+ * coming down for a pair of strings.
+ *
+ * ## WRITE-ONLY, and that is the load-bearing half
+ *
+ * There is no `read`, no `transcript`, no `history`, and there is no arm of this
+ * interface where one could be added without saying so in the type. A plugin can
+ * put a sentence INTO a conversation and can never learn what is in one — not
+ * what a person typed, not what the agent answered, not whether anybody read it.
+ * A capability that could do both would be the appliance reading the human's
+ * mail, and no amount of care at the call site takes that back afterwards.
+ */
+export interface Deliveries {
+  /**
+   * THE CONVERSATIONS THAT OPTED INTO THIS PLUGIN'S WAKES, each with the file a
+   * person picked to filter by.
+   *
+   * SYNCHRONOUS, and that shapes what is behind it: the composition root builds
+   * this blob inside a plain `.map`, and the caller is a watcher sink with no
+   * Effect around it. So core mirrors the table in memory and the disk copy
+   * follows the write rather than leading the read.
+   *
+   * The list is the WHOLE of the scope. A conversation is on it because somebody
+   * picked a file for it, and it leaves when somebody clears it: there is no
+   * serve-level default, and no way for an AGENT to add one — the member that
+   * writes this is drawn for the browser and refused to the agent face, which is
+   * where that reads as physics rather than as a promise. A fresh conversation's
+   * doorbell is off, and the only thing that turns it on is a person.
+   */
+  readonly scopes: () => ReadonlyArray<{
+    readonly agent: string
+    readonly session: string
+    readonly file: string
+  }>
+  /**
+   * ONE MACHINE-MARKED MESSAGE INTO ONE CONVERSATION. Core owns the mechanics;
+   * the plugin owns every word.
+   *
+   * WHAT CORE DOES WITH IT, in three arms: a conversation this panel is in whose
+   * agent is idle takes it as a turn; one whose agent is mid-turn HOLDS it and
+   * lets it in at the turn boundary, behind whatever the human queued first; a
+   * conversation nobody is in holds it until somebody opens it, and it arrives
+   * as that session's first message. Which arm a body took is not reported back,
+   * because there is no arm a plugin would answer differently.
+   *
+   * FIRE AND FORGET, like {@link PluginServices.say} and
+   * {@link PluginServices.warn} beside it, and for their reason: the caller is a
+   * sink with nowhere to put a failure, and a rejected promise nobody has a
+   * reason to catch is an unhandled rejection in somebody's server log.
+   *
+   * THE BODY MUST CARRY ITS OWN ATTRIBUTION, and this is the one thing this door
+   * asks of the words. Core marks the row, and the mark is a live affordance the
+   * browser draws a face from — but a conversation resumed from the agent's own
+   * store rebuilds its rows out of message chunks, and the mark is not among
+   * them. So the WORDS have to say who is speaking, or a replayed transcript
+   * puts the plugin's words in the person's mouth.
+   *
+   * CARRY, not OPEN, and the difference is one a round of use taught. The rule
+   * said the first line, and the panel draws a mark and a byline above the row —
+   * so a first line that named its author spent the one line a glance gets on a
+   * question already answered twice above it. Anywhere in the body satisfies the
+   * replay, because a replay rebuilds the whole text; the first line is the one
+   * a reader gets for free, and it is better spent saying what happened.
+   */
+  readonly deliver: (
+    to: { readonly agent: string; readonly session: string },
+    /**
+     * THE WORDS, COMPOSED AT THE MOMENT THEY ENTER THE CONVERSATION — not when
+     * this was called.
+     *
+     * ## Why a thunk and not a string
+     *
+     * A body can WAIT: through a running turn, or until somebody opens the
+     * conversation, which may be hours. A string handed over at ring time is a
+     * claim about the world drafted then and read now, and the world moves — a
+     * delivery was found arriving about two terminals that had been killed and
+     * a lane that had been merged and closed while it queued. A message the
+     * agent reads has to be true when it is READ, which is the same was-clause
+     * honesty the board's own writes keep.
+     *
+     * So core asks for the words at the last possible moment and the plugin
+     * derives afresh. It is the no-standing-set rule spent one floor over: a
+     * plugin holding its own answer between the drafting and the delivery would
+     * be keeping a second copy of a truth that had already changed.
+     *
+     * `null` DROPS THE DELIVERY. A body whose subject has entirely gone — every
+     * terminal it was about settled while it waited — is not a shorter message,
+     * it is no message, and a plugin says so by answering with nothing. Where
+     * several bodies were coalescing into one, only the ones that still answer
+     * are joined; if none does, no row is written at all.
+     */
+    say: () => string | null,
+    options?: {
+      /**
+       * MESSAGES SHARING A KEY, WHILE STILL UNDELIVERED, REPLACE EACH OTHER —
+       * in place, so the one that lands keeps the position the first one took
+       * and arrival order survives the replacing.
+       *
+       * It is what lets a plugin send a fresh whole sentence per event and have
+       * a person read ONE message rather than five. Composing the combined
+       * sentence stays the plugin's authorship; holding exactly one stays core's
+       * mechanics.
+       *
+       * ## THE KEY IS SCOPED TO THE PLUGIN, and a plugin never spells that
+       *
+       * Core files a held slot under the PAIR `(plugin, coalesce)` — `@olai/chat`'s
+       * `holding` mints the identity out of both — so a key is chosen among this
+       * plugin's OWN messages and nothing else. Two plugins that both say `digest`
+       * are two subjects with two slots, and neither can swallow the other's
+       * sentence; a word as ordinary as that one is safe to pick without
+       * consulting anybody. It is the same pairing that makes the held-slot cap
+       * and the turn-it-off drop per plugin rather than per conversation, and a
+       * caller that spells its own name into the key is repeating what core
+       * already did rather than earning anything by it.
+       *
+       * ## AND NO KEY IS A REAL ARM, but not the one a doorbell takes
+       *
+       * A body sent with no key is filed under a fresh identity of core's own: it
+       * never replaces and is never replaced. That arm is for a plugin whose
+       * sentences are each about a DIFFERENT thing, where the newer one does not
+       * contain the older and replacing would lose what the first said. A plugin
+       * whose body is a fresh derivation of standing state is in the other case
+       * and should key BOTH its meanings — the newest sentence already says
+       * everything its predecessor said, so replacing costs nothing and reading
+       * five near-identical messages costs a person something.
+       *
+       * IT USED TO say a wake takes the no-key arm, from a draft in which a body
+       * was an account of one event rather than of everything standing. The only
+       * caller has keyed both of its meanings since, and this line agreeing with
+       * it is the difference between a doc a caller can follow and one it
+       * contradicts.
+       */
+      readonly coalesce?: string
+    },
+  ) => void
 }
 
 /**
@@ -757,6 +1037,11 @@ export interface OlaiPlugin extends PluginWire {
    *  leaves draw ({@link PluginMount}). Absent on a plugin with nothing to
    *  hold, which is a plugin whose faces are all pure. */
   readonly mount?: PluginMount
+  /** WHAT IT LOOKS LIKE WHEN IT SPEAKS — the mark over a sentence this plugin
+   *  delivered into a conversation ({@link PluginMark}). Typed for
+   *  {@link Dressing}'s reason: the app draws it. Absent on a plugin that
+   *  delivers nothing, and on one content to wear the generic. */
+  readonly mark?: PluginMark
 }
 
 /** Solid's element type, re-exported so a plugin's component fields have a

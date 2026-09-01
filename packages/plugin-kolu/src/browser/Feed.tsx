@@ -16,19 +16,25 @@
  *
  * ## And under the log, the FOOT
  *
- * The drawer's last line is not an event: it is WHO THE WATCH CANNOT SAY and the
- * door onto the file that decides it. Two facts off the wire's `mutes` cell —
- * the mutes' own titles, and the `_olai/Kolu.olai` the convention read — so the
- * wrench's navigation is the opening of a page that exists and never a special
- * case. The register is the log's own: the seat is the foot's, the words are the
- * muted ink the rows already speak — a door drawn loud is an affordance reading
- * as an alarm, and a muted terminal is not news.
+ * The drawer's last line is not an event: it is the door onto the file that
+ * decides how the watch is paced. One fact off the wire's `knobs` cell — the
+ * `_olai/Kolu.olai` the convention read — so the wrench's navigation is the
+ * opening of a page that exists and never a special case. The register is the
+ * log's own: the seat is the foot's, the ink is the muted ink the rows already
+ * speak — a door drawn loud is an affordance reading as an alarm, and a config
+ * file is not news.
  *
- * The line NAMES, it does not count zero: nobody muted is the wrench alone,
- * because "0 muted" is noise about a noise that is not there. And DRAWN ONLY
- * WHEN THERE IS A CONFIG: a vault no `Kolu.olai` decides anything for runs the
- * watcher's defaults, and defaults have no page to open — the drawer is the log
- * alone (the events stay on top; config and status sit at the bottom).
+ * IT SAID WHO WAS SILENCED, TOO, until the second doorbell (2026-08-31): a
+ * `2 muted · …` line off the same cell, naming the mutes the watcher's fold
+ * could vouch for. The mute list left `_olai/Kolu.olai` with that PR — a
+ * conversation's wake FILTER FILE is the silence control now, and two silences
+ * aimed at one fleet was one too many — so the line went and the wrench stayed.
+ * The foot is one door and no words.
+ *
+ * DRAWN ONLY WHEN THERE IS A CONFIG: a vault no `Kolu.olai` decides anything
+ * for runs the watcher's defaults, and defaults have no page to open — the
+ * drawer is then the log alone (the events stay on top; the config door sits at
+ * the bottom).
  */
 
 import { Show } from "solid-js"
@@ -40,10 +46,10 @@ import type { KoluApp } from "./app.ts"
 
 /**
  * THE FOOT — see the header. Read off the fleet context the drawer's rows
- * already read from (`@olai/kolu-ui`'s `fleet` holds the cell's fold): the vault
- * walk answers on the same frame the timers get their knobs from, so the line
- * here and the watcher's gate can never disagree about who is silenced — rename
- * a mute in the file and the name here moves with the revision, exactly as a
+ * already read from (`@olai/kolu-ui`'s `fleet` holds the cell's value): the
+ * convention answers on the same frame the timers get their knobs from, so the
+ * door here and the file the watch is actually paced by can never be two files
+ * — move `Kolu.olai` and the wrench moves with the revision, exactly as a
  * threshold edit moves the watch.
  */
 function FeedFoot(props: {
@@ -53,23 +59,14 @@ function FeedFoot(props: {
   readonly onLeave: () => void
 }) {
   const fleet = useFleet()
-  const mutes = () => fleet.mutes()
+  const knobs = () => fleet.knobs()
   return (
-    <Show when={mutes().file}>
+    <Show when={knobs().file}>
       {(file) => (
         <footer
           class="mt-1 flex items-baseline gap-2 border-t border-paper/15 pt-2"
           data-testid={TESTID.padiFeedFoot}
         >
-          <Show when={mutes().names.length > 0}>
-            <span
-              class="min-w-0 flex-1 truncate text-[0.6875rem] text-muted"
-              data-testid={TESTID.padiFeedMutes}
-              title={mutes().names.join(", ")}
-            >
-              {`${mutes().names.length} muted · ${mutes().names.join(", ")}`}
-            </span>
-          </Show>
           {/* A plain press closes the drawer without handing the caret to the
               trigger (the dismissal's day job): the page the wrench opens is
               where the reader goes. A click held with ANY modifier aims the
@@ -93,7 +90,7 @@ function FeedFoot(props: {
               class="ml-auto flex shrink-0 items-center rounded p-0.5 text-muted hover:bg-paper/10 hover:text-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               testid={TESTID.padiFeedWrench}
               label={`open the watch's config in ${file()}`}
-              title={`${file()} — the watch's thresholds and mutes, an outline like any other`}
+              title={`${file()} — the watch's thresholds, an outline like any other`}
             >
               {/* A wrench, drawn here in the app's own stroked hand: the door
                   onto the watch's knobs, an affordance rather than an alarm. */}

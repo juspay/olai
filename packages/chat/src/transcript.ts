@@ -445,13 +445,28 @@ export class Transcript {
   }
 
   /**
-   * What a person said — a row like any other, ANSWERING WITH ITS KEY.
+   * What went out down the person's lane — a row like any other, ANSWERING
+   * WITH ITS KEY.
    *
    * The one caller that has to keep a key. Every other entry is written and
    * forgotten, but a user message can turn out to be undeliverable after it
    * has been drawn ({@link refused}), and a retry that lands has to find the
    * same row again — so the key comes back here rather than being fished out
    * of the change or re-derived from a counter kept somewhere else.
+   *
+   * NEARLY ALWAYS A PERSON, and sometimes a plugin's doorbell — which comes
+   * through this same door, marked (`../../surface/src/chat.ts`'s `rang`), and
+   * needs no door of its own. `RowPatch<"user">` already admits the field, and
+   * what makes THIS the right door rather than a seventh kind is the delivery
+   * vocabulary below: {@link #waiting} and {@link #mark} both answer EMPTY
+   * unless the row is a `user` one, so a machine-marked body going out down the
+   * human's lane really can say it is queued and really can say it did not
+   * land. A seventh kind would deliver fine and then be mute about its own fate.
+   *
+   * The mark rides through every one of those marks untouched, because
+   * {@link contentOf}'s default arm keeps the key and {@link minted}'s spreads
+   * it — so `queued`, `taken`, `refused` and `sent` preserve it with no line of
+   * this file naming it.
    *
    * It is the same door as {@link add} with the key kept ({@link #row}), and
    * not a second way to write a row: two minting paths would be two answers to

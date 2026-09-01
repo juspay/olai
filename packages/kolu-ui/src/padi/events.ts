@@ -32,12 +32,19 @@
  * not know, that fold keeps it too, and the sentence names it rather than
  * a neighbour.
  *
+ * The WHO column is not this module's either, and it is the one that had to
+ * LEAVE: `@olai/kolu-client/wire`'s `whoOf` folds `repo·label` in the Dock's
+ * own spelling, and it is the same fold `@olai/plugin-kolu`'s doorbell names
+ * a row with in a plain-text sentence. It was spelled here as well until the
+ * two spellings drifted; that function's header carries the story.
+ *
  * The ONLY thing this module computes itself is the three sentences' shape.
  */
 
 import { narrowAgentState, recencyText } from "@kolu/solid-dockrow/rowValues"
 
 import type { KoluEvent } from "@olai/kolu-client/wire"
+import { whoOf } from "@olai/kolu-client/wire"
 
 /** One line of the feed, folded. The rendering takes it whole. */
 export interface EventLine {
@@ -47,8 +54,8 @@ export interface EventLine {
   /** THE WHO line, as the drawer writes it: `repo · label` when the frozen
    *  row carries a repo (kolu's own `repo·branch` spelling, the Dock's
    *  grouping answer in one breath), the plain label where nobody ever
-   *  named one — the drawer never reads `label` raw. Blank on a
-   *  heartbeat. */
+   *  named one — the drawer never reads `label` raw, it reads
+   *  `@olai/kolu-client/wire`'s `whoOf`. Blank on a heartbeat. */
   readonly who: string
   /** The frozen label — the intent line, else the branch, blank on a
    *  heartbeat. */
@@ -64,13 +71,6 @@ export interface EventLine {
    *  full id, so a row's title can say what it could not fit. */
   readonly about: string | null
 }
-
-/** The WHO fold, separately named: `repo · label` in the Dock's own
- *  spelling, or the label alone. A lab R following another row whose word
- *  is exactly the same (`master`, twice) was never disambiguated without
- *  this. */
-export const repoPrefix = (repo: string | null, label: string): string =>
-  repo === null ? label : `${repo}·${label}`
 
 /** The state's own word, narrowed by kolu rather than spelled: the label
  *  a known state carries (`awaiting_user` reads "awaiting input"); an
@@ -114,7 +114,7 @@ export const eventLine = (event: KoluEvent, now: number): EventLine => {
     : `has been ${word} for ${held}`
   return {
     asking: row.pip.asking,
-    who: repoPrefix(row.repo, row.label),
+    who: whoOf(row.repo, row.label),
     label: row.label,
     labelColor: row.labelColor,
     words,

@@ -89,6 +89,23 @@ const MARKS: { readonly [id: string]: () => JSX.Element } = {
 }
 
 /**
+ * HOW BIG A MARK IS in this panel, wherever it is drawn and whoever it is of.
+ *
+ * One constant because the marks are now read as a COLUMN — the person, the
+ * agent, a plugin, one under another down a transcript ({@link ./Speaker.tsx})
+ * — and a column whose glyphs are two sizes reads as two kinds of thing. It
+ * began as this file's own class list, which was fine while an agent's was the
+ * only mark there was; a second and a third copy of `size-3.5` is how one of
+ * them ends up a pixel out with nothing to catch it.
+ *
+ * `shrink-0` is part of the answer rather than a caller's decoration: every
+ * line a mark sits on has a truncating name beside it, and a mark that gave way
+ * to a long one would be a face squashed to nothing exactly where the name is
+ * least readable.
+ */
+export const MARK = "size-3.5 shrink-0"
+
+/**
  * The mark for one agent, at the size of the line it sits on.
  *
  * `aria-hidden`, always: the agent's NAME is beside it everywhere this is
@@ -100,7 +117,7 @@ export function AgentMark(props: { readonly id: string }) {
   return (
     <svg
       viewBox="0 0 16 16"
-      class="size-3.5 shrink-0"
+      class={MARK}
       aria-hidden="true"
       data-testid={TESTID.chatAgentMark}
       data-mark={known() === undefined ? "generic" : props.id}

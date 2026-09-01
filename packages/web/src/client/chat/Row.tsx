@@ -12,13 +12,15 @@
  * touched. Spelled twice they would agree by coincidence.
  *
  * WHAT IT DOES NOT DECIDE is which lane a row is in, whether the lane says its
- * name, or what the live rail underneath says. Those are rules
- * ({@link ./lanes.ts}, {@link ./rail.ts}) and their INPUTS are facts about a
- * LIST — the row above, the frame that spawned this one — which is exactly what
- * a row cannot see. So they are computed by whichever list is drawing and
- * handed in. That is also what lets the shelf differ where it should: every row
- * in it belongs to the one agent the shelf is already named after, so it hands
- * in a lane with no label rather than repeating that name down its own length.
+ * name, WHOSE FACE goes over it, or what the live rail underneath says. Those
+ * are rules ({@link ./lanes.ts}, {@link ./speakers.ts}, {@link ./rail.ts}) and
+ * their INPUTS are facts about a LIST — the row above, the frame that spawned
+ * this one, which agent the session is with — which is exactly what a row
+ * cannot see. So they are computed by whichever list is drawing and handed in.
+ * That is also what lets the shelf differ where it should: every row in it
+ * belongs to the one agent the shelf is already named after, so it hands in a
+ * lane with no label — and no face at all — rather than repeating that name
+ * down its own length.
  *
  * THE GAP UNDER THE ROW is here for the reason it left `./Entry.tsx`: a rail
  * has to be able to cross it. Padding, not a margin — a border is drawn around
@@ -37,6 +39,7 @@ import type { Lane } from "./lanes.ts"
 import { RAIL } from "./lanes.ts"
 import { LIVE_DOT } from "./live.ts"
 import type { Rail } from "./rail.ts"
+import { type Faced, Speaker } from "./Speaker.tsx"
 import type { Chat } from "./state.ts"
 
 export function Row(props: {
@@ -57,6 +60,13 @@ export function Row(props: {
    *  one thing a door has to say about itself: pressing it again puts it away.
    */
   readonly open: boolean
+  /** WHOSE RUN STARTS HERE, or `null` for a row inside one — which is most
+   *  rows ({@link ./Speaker.tsx}, over {@link ./speakers.ts}'s rule).
+   *
+   *  Handed in for the lane's reason and it is the same reason: whether this
+   *  row is the FIRST of its speaker's is a fact about the row above it, which
+   *  is a fact about the LIST, and a row cannot see one. */
+  readonly speaker: Faced | null
 }) {
   return (
     <div
@@ -70,6 +80,16 @@ export function Row(props: {
       data-testid={props.lane === null ? undefined : TESTID.chatLane}
       data-lane={props.lane?.parent}
     >
+      {/* WHO IS TALKING, once where their run begins — above the words rather
+          than beside them, and above the LANE's own label rather than under it,
+          because the two say different things and the outer one goes first. A
+          face names the PARTY (a person, the agent, a plugin); a lane label
+          names which agent inside a fan-out a question came from, which is a
+          division of the agent's own side and reads as one under the agent's
+          face. */}
+      <Show when={props.speaker}>
+        {(faced) => <Speaker party={faced().party} agent={faced().agent} />}
+      </Show>
       {/* Once per stretch of one agent's work, not once per call it makes —
           see `./lanes.ts`. In the column that is now only ever a question,
           which is the one row that always names its lane; in the shelf it is

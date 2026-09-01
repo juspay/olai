@@ -31,17 +31,21 @@
  * conversation is attached to it, and the chips land in the composer inside.
  * The body only — the header is session controls, and a file cannot go there.
  *
- * Between those two sit the two STRIPS. {@link Roster} names the MCP servers
+ * Between those two sit the three STRIPS. {@link Roster} names the MCP servers
  * this conversation has and says which of them the agent reported attaching;
- * {@link Watching} names the background tasks it still has out. Both are
- * OUTSIDE the no-agent fallback and outside the drop target on purpose: they
- * are facts about the session rather than parts of the conversation, and they
- * belong where the header's other facts are — above the scroll, and never
- * carried away by it. The roster draws on every conversation and none at all
- * where there is no conversation (which is where #140's strip drew only on a
- * broken one); the tasks strip draws only while something is running, because
- * nearly every conversation runs nothing and a line saying so would be
- * furniture on every panel in the app.
+ * {@link Watching} names the background tasks it still has out; {@link Wake}
+ * says what it LISTENS for — which plugin may ring this conversation, and about
+ * which file. All three are OUTSIDE the no-agent fallback and outside the drop
+ * target on purpose: they are facts about the session rather than parts of the
+ * conversation, and they belong where the header's other facts are — above the
+ * scroll, and never carried away by it. The roster draws on every conversation
+ * and none at all where there is no conversation (which is where #140's strip
+ * drew only on a broken one); the tasks strip draws only while something is
+ * running, because nearly every conversation runs nothing and a line saying so
+ * would be furniture on every panel in the app; and the wake strip draws
+ * wherever a running plugin has a doorbell to be pointed at something, since a
+ * control that appeared only once it had been used would be a control nobody
+ * finds.
  */
 
 import { createEffect, createMemo, createSignal, Match, on, Show, Switch } from "solid-js"
@@ -75,6 +79,7 @@ import { Minimized } from "./Minimized.tsx"
 import { Preview } from "./Preview.tsx"
 import { previewing } from "./previewing.ts"
 import { Roster } from "./Roster.tsx"
+import { Wake } from "./Wake.tsx"
 import { Watching } from "./Watching.tsx"
 import { Busy } from "./Busy.tsx"
 import { NoAgent } from "./NoAgent.tsx"
@@ -270,6 +275,17 @@ function Face(props: { readonly chat: Chat }) {
           conversation HAS, which is true for its whole life, and this is what
           it is DOING, which is true for minutes at a time. */}
       <Watching chat={props.chat} />
+      {/* ... and what it LISTENS for ({@link ./Wake.tsx}), last of the three
+          for the same argument that ordered the first two: the servers are
+          true for the conversation's whole life, what is running is true for
+          minutes at a time, and what it wakes on is true until somebody
+          changes it — the longest life goes furthest from the header, so the
+          strips above it move under a reader as rarely as possible. A fourth
+          sibling here rather than a line inside the strip above, because that
+          one unmounts whenever nothing is running: a control put there would
+          be missing on nearly every conversation, which is exactly when
+          somebody goes looking for it. */}
+      <Wake chat={props.chat} />
       <Switch fallback={<Body chat={props.chat} />}>
         <Match when={face().kind === "no-agent"}>
           <NoAgent />

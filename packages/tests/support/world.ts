@@ -714,10 +714,9 @@ export const AGENDA_EMPTY = selector(TESTID.agendaEmpty);
 /** The way to it from the directory column, above the month. */
 export const AGENDA_LINK = selector(TESTID.agendaLink);
 /** The Padi readout's drawer: what recently wanted attention, and under it
- *  the foot — the mutes' line and the wrench onto the config. */
+ *  the foot — the wrench onto the watch's config. */
 export const PADI_FEED = selector(PLUGIN_TESTID.padiFeed);
 export const PADI_FEED_FOOT = selector(PLUGIN_TESTID.padiFeedFoot);
-export const PADI_FEED_MUTES = selector(PLUGIN_TESTID.padiFeedMutes);
 export const PADI_FEED_WRENCH = selector(PLUGIN_TESTID.padiFeedWrench);
 /** What that entry REPORTS, wrapped round the link: `data-owed` is the face it
  *  wears (`overdue` / `today` / `quiet`) and `data-overdue` / `data-today` are
@@ -1055,6 +1054,19 @@ export const CHAT_WATCHING_TASK = selector(TESTID.chatWatchingTask);
 export const CHAT_WATCHING_FOR = selector(TESTID.chatWatchingFor);
 export const CHAT_ARMED_ENDED = selector(TESTID.chatArmedEnded);
 export const CHAT_ARMED_STILL = selector(TESTID.chatArmedStill);
+/** THE STRIP UNDER THOSE: what this conversation WAKES ON. One line per
+ *  running plugin that declares a doorbell, and the file a person pointed it
+ *  at. Absent where there is no conversation to be scoped. */
+export const CHAT_WAKE = selector(TESTID.chatWake);
+/** One plugin's control on it. `data-plugin` is whose doorbell and `data-file`
+ *  is the path or the word `off` — the STATE AS DATA, because the words around
+ *  it are the plugin's own sentence and a scenario asserting those would be
+ *  asserting somebody else's vocabulary. */
+export const CHAT_WAKE_PICKER = selector(TESTID.chatWakePicker);
+/** In the file list it opens: the box that narrows it, and one offered file
+ *  (`data-file` is the path a press scopes this conversation to). */
+export const CHAT_WAKE_QUERY = selector(TESTID.chatWakeQuery);
+export const CHAT_WAKE_FILE = selector(TESTID.chatWakeFile);
 export const CHAT_DIFF = selector(TESTID.chatDiff);
 export const CHAT_DIFF_LINE = selector(TESTID.chatDiffLine);
 export const CHAT_DIFF_GUTTER = selector(TESTID.chatDiffGutter);
@@ -1133,6 +1145,30 @@ export const CHAT_SAID = selector(TESTID.chatSaid);
  *  asks whether the human's words sat apart from the agent's finds them here,
  *  never by filtering the transcript for a string both speakers might use. */
 export const CHAT_MINE = selector(TESTID.chatMine);
+/** ... and the third speaker in that lane: a sentence a PLUGIN put there
+ *  through the doorbell somebody scoped this conversation to. It is a `user`
+ *  row like `CHAT_MINE` and deliberately not drawn as one — the full column, on
+ *  the left, never the accent bubble that means *you said this* — so a scenario
+ *  asking "did I say this" is never handed a machine's words. `data-rang-by` is
+ *  which plugin rang. */
+export const CHAT_RANG = selector(TESTID.chatRang);
+/** ... FOLDED to one line, and the control that opens it. A machine's row draws
+ *  its essence line and nothing else until somebody asks — the discipline a
+ *  tool row already keeps, and the reason a delivery is not a paragraph wall in
+ *  the middle of a conversation. The AGENT is handed the whole body either way;
+ *  the fold is a fact about a reader's eye. */
+/** The MARK over a machine's row — whose face is talking. `data-mark` is the
+ *  plugin's own name where the plugin contributed one, and `generic` where it
+ *  did not. */
+export const CHAT_PLUGIN_MARK = selector(TESTID.chatPluginMark);
+/** The head a machine's row is folded TO — the plain sentence a glance reads,
+ *  and where the one pressable reference lives. */
+export const CHAT_RANG_BYLINE = selector(TESTID.chatRangByline);
+export const CHAT_RANG_FOLD = selector(TESTID.chatRangFold);
+/** What the fold holds back — the ids, the marks, the derivation. NOT IN THE
+ *  PAGE until the row is open, which is what lets a scenario assert the fold
+ *  without asserting a word the plugin wrote. */
+export const CHAT_RANG_BODY = selector(TESTID.chatRangBody);
 /** A node named in the panel and pressable, by the id it points at. One
  *  selector for all three shapes — a chip, the node an olai write was about,
  *  and an id the agent wrote in its own prose — because they are one

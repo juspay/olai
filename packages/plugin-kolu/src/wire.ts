@@ -65,7 +65,7 @@ export const surface = defineSurface({
   cells: {
     link: koluMembers.cells.link,
     pulse: koluMembers.cells.pulse,
-    mutes: koluMembers.cells.mutes,
+    knobs: koluMembers.cells.knobs,
   },
   collections: {
     fleet: koluMembers.collections.fleet,
@@ -114,7 +114,7 @@ export const faces = {
   browser: {
     link: "resource",
     pulse: "resource",
-    mutes: "resource",
+    knobs: "resource",
     fleet: "resource",
     events: "resource",
     terminal: "resource",

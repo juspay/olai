@@ -1188,6 +1188,24 @@ export const TESTID = {
    *  name. `data-mark` says which one was drawn — the agent's own, or the
    *  generic one an agent olai has no mark for gets. */
   chatAgentMark: "chat-agent-mark",
+  /** WHO IS TALKING, over the first row of their run in the transcript — a mark
+   *  and a name ({@link ./chat/Speaker.tsx}). `data-speaker` is which of the
+   *  three parties (`human`, `agent`, `plugin`) and `data-speaker-name` is what
+   *  the panel called them, so a scenario can assert that a plugin's doorbell
+   *  is not drawn as the person whose lane it travelled down without reading a
+   *  picture or a glyph.
+   *
+   *  ONCE PER RUN, deliberately: a face is drawn where a speaker's stretch of
+   *  rows BEGINS, so a scenario counting these is counting turns rather than
+   *  messages ({@link ./chat/speakers.ts} holds the rule). Absent from the
+   *  shelf that previews one agent's calls, where the head already names it. */
+  chatSpeaker: "chat-speaker",
+  /** A PLUGIN's mark, on such a face. Its own id beside `chatAgentMark` because
+   *  the two come from different places and only one of them is olai's: this
+   *  shape is contributed by the plugin's own manifest (`@olai/plugins`'
+   *  `PluginMark`). `data-mark` says which was drawn — the plugin's own, by
+   *  name, or the `generic` a plugin that hangs none gets. */
+  chatPluginMark: "chat-plugin-mark",
   /** The picker: which agent this conversation is with. Drawn in the
    *  transcript's place when the panel is asking, and over it when `+ new`
    *  does the asking. */
@@ -1283,6 +1301,46 @@ export const TESTID = {
    *  `chatSaid`: they are two different things on the page, and a scenario
    *  that asks "did I say this" should not have to filter the agent's prose. */
   chatMine: "chat-mine",
+  /** What a MACHINE said in the human's lane — a plugin's doorbell putting a
+   *  sentence into the conversation (`@olai/plugins`' `Deliveries`). It is a
+   *  `user` row like `chatMine` and deliberately not drawn as one: full width
+   *  and left-aligned, with `data-rang-by` naming which plugin rang. It carries
+   *  no `chatResend`, ever — re-sending a derivation that has stopped being true
+   *  is the one outcome the doorbell exists to prevent, and the thing that
+   *  derived it rings again by itself. Absent on a replayed conversation, where
+   *  the row comes back out of message chunks with no mark on it and the
+   *  sentence's own opening line is the whole of the attribution. */
+  chatRang: "chat-rang",
+  /** The label a machine's row opens with: the attribution line the PLUGIN
+   *  wrote, drawn as a byline rather than as the first line of the paragraph
+   *  ({@link ./chat/byline.ts}). Its own id so a scenario can assert the face
+   *  is there — a name over the words — without asserting the plugin's
+   *  wording, which is the plugin's to change. Absent, deliberately, on a body
+   *  that carries no such line: nothing here composes one. It is also the
+   *  FOLDED FACE of the row — the one line drawn before anybody presses — and
+   *  sits BESIDE `chatRangFold` rather than inside it: the line is a line, and
+   *  the chevron at its head is the control. It may carry a pressable id of its
+   *  own, which is why (ruled, human 2026-08-31). */
+  chatRangByline: "chat-rang-byline",
+  /** The control that opens a machine's row, and shuts it again — a disclosure
+   *  chevron at the head of the essence line, carrying `aria-expanded` the way
+   *  `chatToolFold` does ({@link ./chat/rang.ts} for why the row folds at all).
+   *
+   *  IT USED TO BE THE WHOLE LINE, and stopped being one when a plugin began
+   *  naming the node it rang about in that line: a reference inside a button is
+   *  a press with two meanings. So the id is pressable and the chevron is the
+   *  fold, which is what a scenario now presses to open the row.
+   *
+   *  ABSENT on a body with no essence line to fold to: that row is one
+   *  paragraph and already whole, and a control that hides words behind a label
+   *  nobody wrote is the one thing this fold must not become. */
+  chatRangFold: "chat-rang-fold",
+  /** What the fold holds back: the account under the essence line — the
+   *  terminal id, the derivation, the standing set, the how-to-stop line. Not
+   *  in the page until the row is open, which is what lets a scenario assert
+   *  the FOLD (gone, then there after the press) without asserting a single
+   *  word the plugin wrote. Always present on a row that does not fold. */
+  chatRangBody: "chat-rang-body",
   /** One row. `data-kind` is which of the six it is, and `data-entry-id` is
    *  its transcript key — which is what a lane names when it says which agent
    *  a call was made inside (`chatLane`), so it is a handle scenarios reach
@@ -1405,6 +1463,48 @@ export const TESTID = {
    *  uses. It names the DURATION alone, so what a scenario reads back is the
    *  number rather than the sentence around it. */
   chatWatchingFor: "chat-watching-for",
+  /** THE STRIP under that one: what this conversation WAKES ON. One line per
+   *  running plugin that declares a doorbell (`@olai/surface`'s `BuiltPlugin`'s
+   *  `wake`), saying in that plugin's own words what the wake is on and which
+   *  file a person pointed it at. Absent where there is no conversation to be
+   *  scoped, which is the roster strip's own rule. */
+  chatWake: "chat-wake",
+  /** One plugin's control on it: the trigger that opens the file list, wearing
+   *  the picked file's name or `off`. `data-plugin` is WHOSE doorbell and
+   *  `data-file` is the file or `off` — the state as DATA, because the words
+   *  around it are the plugin's sentence and a scenario asserting those would be
+   *  asserting somebody else's vocabulary. `aria-expanded` says whether the list
+   *  is up. */
+  chatWakePicker: "chat-wake-picker",
+  /** The list it opens, hung from the strip's own box. */
+  chatWakeList: "chat-wake-list",
+  /** Where a person types to narrow that list, which a vault of any size needs
+   *  and the chats picker does not (an agent's conversations are tens; a
+   *  directory's files are thousands). */
+  chatWakeQuery: "chat-wake-query",
+  /** One offered file in it; `data-file` is the path a press would scope this
+   *  conversation to. */
+  chatWakeFile: "chat-wake-file",
+  /** ... and the way back OFF, which is the same verb with no file. Drawn only
+   *  where there is something to clear, because a doorbell that is already off
+   *  has nothing to turn off. */
+  chatWakeClear: "chat-wake-clear",
+  /** How many of that plugin's sentences this end is holding for this
+   *  conversation and has not let in yet. Drawn only while it is holding
+   *  something — the panel's rule is that the alternative to holding words out
+   *  of sight is not dropping them, it is showing them. The NUMERAL is core's,
+   *  in `data-waiting`; the noun beside it is the plugin's own word for what is
+   *  waiting, so a scenario reads the count and not the sentence. */
+  chatWakeWaiting: "chat-wake-waiting",
+  /** THE FAULT: the file this doorbell was pointed at is not served any more,
+   *  so the row draws this instead of a live picker. Its presence IS the fault
+   *  — quiet-and-fine and quiet-because-broken are indistinguishable on every
+   *  other channel, and a picker still naming a file nothing will ever read
+   *  would be the control asserting something untrue. `data-file` is the path
+   *  that went missing, so a scenario reads the state as data rather than out
+   *  of the sentence beside it. The way to fix it — picking another file — is
+   *  still on the row ({@link chatWakePicker}). */
+  chatWakeGone: "chat-wake-gone",
   /** ... and how that task ENDED, in the harness's own word — `completed`,
    *  `failed`, `killed`, `stopped`, of which ACP's own status can spell only
    *  two. Drawn only once the task has ended, which is what makes its presence

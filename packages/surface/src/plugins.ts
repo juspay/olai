@@ -64,6 +64,35 @@ export const BuiltPlugin = Schema.Struct({
    *  drawn, its probe ran, and a property declared with its kind is held to it.
    *  `false` is total absence rather than a degraded arm. */
   running: Schema.Boolean,
+  /**
+   * THE DOORBELL'S SENTENCE, when this plugin can wake a conversation — the
+   * plugin's own words, travelling as data.
+   *
+   * The strip draws `<subject> · <from> <the file picker>`, and `<subject> · off`
+   * where nothing is picked. Core writes no clause of it, which is why it is
+   * three strings and not one: a sentence with a hole in it would make core the
+   * author of everything around the hole.
+   *
+   * OPTIONAL, and that is load-bearing rather than tidy. A required field here
+   * fails DECODE for a new tab talking to an older server, and the roster's
+   * failed arm is what the browser's subscribe licence is read out of — so one
+   * missing key would take every plugin's mount down, not just this one's.
+   * Absent is also the ordinary state: a plugin that wakes nobody declares none,
+   * and odu is one.
+   *
+   * ONLY ON A ROW THAT IS RUNNING. The roster carries a row per BUILT plugin,
+   * and a picker offered for a plugin this serve did not compose would store a
+   * pick that nothing will ever read.
+   */
+  wake: Schema.optionalKey(Schema.Struct({
+    /** What the wake is ON — the subject, and it leads. */
+    subject: Schema.String,
+    /** What the file IS, as the lead-in to the picker. */
+    from: Schema.String,
+    /** What this plugin's held sentences are called, in both numbers. Core has
+     *  the count and supplies no word for what is being counted. */
+    waiting: Schema.Struct({ one: Schema.String, many: Schema.String }),
+  })),
 })
 export type BuiltPlugin = typeof BuiltPlugin.Type
 

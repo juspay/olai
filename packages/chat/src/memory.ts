@@ -202,9 +202,24 @@ const parsed = (
   })
 }
 
-/** A non-empty string, or `null` for everything else — including an absent
- *  field, which is what "nothing says" is on disk. */
-const word = (value: unknown): string | null =>
+/**
+ * A non-empty string, or `null` for everything else — including an absent
+ * field, which is what "nothing says" is on disk.
+ *
+ * THE LENIENCY RULE BOTH OF THIS PACKAGE'S RECORDS READ BY, and that is why it
+ * is exported rather than kept to this file. The note here and the picks in
+ * {@link ./scopes.ts} are the two things olai writes down per directory, and
+ * both of them come back field by field: neither refuses a whole file over one
+ * unreadable value, so both need one answer to "what counts as a legible field
+ * on the way in". One function is that answer.
+ *
+ * IT USED TO BE TWO — this one, and a character-for-character copy in
+ * {@link ./scopes.ts} — which meant a change to leniency made in either place
+ * left the other record still admitting rows under the old rule, silently and
+ * in the direction nobody would look. There is nothing to be gained by two
+ * spellings of one predicate in one package.
+ */
+export const word = (value: unknown): string | null =>
   typeof value === "string" && value !== "" ? value : null
 
 export const forDirectory = (spelling: string): Memory => {

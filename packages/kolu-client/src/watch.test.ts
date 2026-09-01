@@ -21,6 +21,7 @@
 import { describe, expect, it } from "bun:test"
 import { Effect, Fiber, Stream } from "effect"
 
+import { koluHalf } from "./index.ts"
 import { type Dial, SPEAKS } from "./link.ts"
 import { makeMirror } from "./mirror.ts"
 import { DEFAULT_WATCH, makeWatch, type WatchConfig } from "./watch.ts"
@@ -37,7 +38,6 @@ const tiny = (extra?: Partial<WatchConfig>): WatchConfig => ({
   heldForMs: 40,
   nagMs: 110,
   heartbeatMs: 60_000,
-  muted: [],
   ...extra,
 })
 
@@ -85,21 +85,21 @@ const row = (id: string, agentState: string | null, label = ""): FleetTerminal =
  */
 const collected = () => {
   const sets: Array<string> = []
+  /** The MIRROR's channel, not the watcher's: the sink lost its `say` with
+   *  the ambiguous-mute sentence, and the one case below that drives the
+   *  chain still has to give `makeMirror` somewhere to talk. */
   const said: Array<string> = []
   const sets_full: Array<KoluEvent> = []
   const ring = new Map<string, KoluEvent>()
   /** Every beat as it landed on the sink: the pill's recency, which LIVES
    *  here since the beat came out of the ring (see `./watch.ts`'s header). */
   const beats: Array<{ at: string; everyMs: number }> = []
-  /** Every verdict the fold pronounced — who the watcher could SAY its
-   *  mutes silenced, each time the question was retaken. */
-  const verdicts: Array<ReadonlySet<string>> = []
   return {
     sets,
     said,
+    say: (line: string) => said.push(line),
     events: sets_full,
     beats,
-    verdicts,
     ring: () => new Map(ring),
     sink: {
       emit: (event: KoluEvent) => {
@@ -107,16 +107,11 @@ const collected = () => {
         sets_full.push(event)
         ring.set(event.id, event)
       },
-      say: (line: string) =>
-        said.push(line),
       evict: (id: string) => {
         ring.delete(id)
       },
       beat: (at: string, everyMs: number) => {
         beats.push({ at, everyMs })
-      },
-      mutedVerdicts: (resolved: ReadonlySet<string>) => {
-        verdicts.push(resolved)
       },
     },
   }
@@ -216,68 +211,6 @@ describe("the attention watcher", () => {
     await sleep(60)
     expect(seen.events.filter((e) => e.kind === "transition").length).toBe(2)
     expect(seen.events.at(-1)?.row?.state).toBe("awaiting")
-    watch.stop()
-  })
-
-  it("one mute value silences its terminal, and only that one", async () => {
-    const seen = collected()
-    const watch = makeWatch(seen.sink, { now: () => Date.now() })
-    watch.reconfigure(tiny({ muted: ["t1"] }))
-
-    watch.observe("t1", row("t1", "awaiting_user"))
-    watch.observe("t2", row("t2", "awaiting_user"))
-    await sleep(80)
-    const fired = seen.events.filter((e) => e.kind === "transition")
-    expect(fired.length).toBe(1)
-    expect(fired[0]?.row?.terminal).toBe("t2")
-    // …and the fold told the SAME answer to its display reader: t1, and
-    // not t2.
-    expect([...(seen.verdicts.at(-1) ?? [])]).toEqual(["t1"])
-
-    // UNMUTE, mid-life: `reconfigure` is the file's own watcher's door. The
-    // same t1 enters again under a lightened list, and it is told.
-    watch.observe("t1", row("t1", "thinking"))
-    watch.reconfigure(tiny())
-    watch.observe("t1", row("t1", "awaiting_user"))
-    await sleep(80)
-    expect(seen.events.filter((e) => e.kind === "transition").map((e) => e.row?.terminal))
-      .toEqual(["t2", "t1"])
-    expect([...(seen.verdicts.at(-1) ?? [])]).toEqual([])
-    watch.stop()
-  })
-
-  it("kills a hold the moment an edit mutes it", async () => {
-    const seen = collected()
-    const watch = makeWatch(seen.sink, { now: () => Date.now() })
-    watch.reconfigure(tiny())
-
-    watch.observe("t1", row("t1", "awaiting_user"))
-    await sleep(20)
-    watch.reconfigure(tiny({ muted: ["t1"] }))
-    await sleep(60)
-    expect(seen.events.filter((e) => e.kind === "transition").length).toBe(0)
-    watch.stop()
-  })
-
-  it("an AMBIGUOUS mute silences nobody under BOTH candidates it names, and says why once", async () => {
-    const seen = collected()
-    const watch = makeWatch(seen.sink, { now: () => Date.now() })
-    // THE ORDER IS THE POINT: both terminals are ALREADY live when the edit
-    // lands, so `t` names two ids at the moment of the ask — padi's refusal,
-    // made a sentence. (Had the file been read when only t1 was around, the
-    // prefix would have meant t1, and t1 would be the one muted — the values
-    // are resolved against the LIVE roster, per observation.)
-    watch.observe("t1", row("t1", "awaiting_user"))
-    watch.observe("t2", row("t2", "awaiting_user"))
-    watch.reconfigure(tiny({ muted: ["t"] }))
-    await sleep(80)
-    expect(seen.events.filter((e) => e.kind === "transition").length).toBe(2)
-    expect(
-      seen.said.filter((line) => line.includes("names 2 terminals")).length,
-    ).toBe(1)
-    // …and the display reader is told NOBODY is silenced — the foot above
-    // the events must not claim a quiet the events contradict.
-    expect([...(seen.verdicts.at(-1) ?? [])]).toEqual([])
     watch.stop()
   })
 
@@ -422,27 +355,6 @@ describe("the attention watcher", () => {
     await sleep(120)
     expect(seen.events.length).toBe(atStop)
   })
-
-  it("a close an unsettled prefix re-asks the mute fold", async () => {
-    const seen = collected()
-    const watch = makeWatch(seen.sink, { now: () => Date.now() })
-    watch.reconfigure(tiny())
-    // BOTH ids live, the prefix `t` names two: the mute silences nobody
-    // (padi's own verdict once a mutes' answer is two) — both fire.
-    watch.observe("t1", row("t1", "awaiting_user"))
-    watch.observe("t2", row("t2", "awaiting_user"))
-    watch.reconfigure(tiny({ muted: ["t"] }))
-    await sleep(70)
-    expect(seen.events.filter((e) => e.kind === "transition").length).toBe(2)
-
-    // THE fleet moves one more time — t2 closes — and the ride out should
-    // not leave the answer at ambient: `t` names one now, so the hold dies
-    // without a first nag packing the ring past its target.
-    watch.remove("t2")
-    await sleep(180)
-    expect(seen.events.filter((e) => e.kind === "nag").length).toBe(0)
-    watch.stop()
-  })
 })
 
 describe("a link drop is not a closing fleet", () => {
@@ -519,25 +431,6 @@ describe("a link drop is not a closing fleet", () => {
     expect(seen.events.filter((e) => e.kind === "transition").length).toBe(2)
     watch.stop()
   })
-
-  it("an edit saying a suspended hold is to die is obeyed at the flap", async () => {
-    const seen = collected()
-    const watch = makeWatch(seen.sink, { now: () => Date.now() })
-    watch.reconfigure(tiny())
-    watch.observe("t1", row("t1", "awaiting_user"))
-    await sleep(70)
-    expect(seen.events.filter((e) => e.kind === "transition").length).toBe(1)
-
-    watch.suspend("t1")
-    watch.reconfigure(tiny({ muted: ["t1"] }))
-    // The return of the muted id is another plain observation — the gate
-    // folds it and no arm is set: through a nag window and some, the ring
-    // gets no nag.
-    watch.observe("t1", row("t1", "awaiting_user"))
-    await sleep(180)
-    expect(seen.events.filter((e) => e.kind === "nag").length).toBe(0)
-    watch.stop()
-  })
 })
 
 // ── Over the mirror's own records ─────────────────────────────────────────
@@ -609,7 +502,7 @@ describe("the watcher's chain through the mirror", () => {
         upsert: (id: string, row: FleetTerminal) => watch.observe(id, row),
         remove: (id: string) => watch.remove(id),
         clearedRow: (id: string) => watch.suspend(id),
-        say: seen.sink.say,
+        say: seen.say,
       },
       {
         env: {},
@@ -645,5 +538,63 @@ describe("the watcher's chain through the mirror", () => {
     expect(fired()[0]?.row?.state).toBe("awaiting")
     await Effect.runPromise(Fiber.interrupt(fiber))
     watch.stop()
+  })
+})
+
+/**
+ * THE BEAT'S SECOND READER — the tap `@olai/plugin-kolu`'s doorbell hangs its
+ * floor-under-silence on.
+ *
+ * The pill has always drawn the beat; what is new is that a conversation's
+ * quiet is now measured in the SAME beats, through `KoluDeps.beating`. These
+ * two cases are about that seam rather than about the watcher's pacing: that
+ * the tap rides the beat the sink already publishes, and that it carries the
+ * cadence IN FORCE rather than the one the process booted on — a doorbell told
+ * "thirty minutes" while the vault now says one would report a silence half an
+ * hour longer than the one it is actually about.
+ *
+ * WHY NOT A SECOND TIMER, which is the alternative this closes: a heartbeat
+ * armed one package up would be a second cadence beside the `heartbeat` knob,
+ * and the day the two disagreed there would be no way to say which one the
+ * person who edited the vault had meant.
+ */
+describe("the beat's doorbell tap", () => {
+  /** A LINKLESS half — no dial, no fleet, no surface. The watcher is built for
+   *  every face (`./index.ts` says why), so the beat is the one thing that
+   *  happens on a machine with no kolu at all, which is exactly the case a
+   *  floor under silence has to survive. */
+  const halfBeating = (knob: () => number, beats: Array<number>) =>
+    koluHalf<never>({
+      options: null,
+      fleet: () => undefined,
+      events: () => undefined,
+      pulse: () => undefined,
+      claimants: () => [],
+      config: () => ({ config: { ...DEFAULT_WATCH, heartbeatMs: knob() }, malformed: [] }),
+      beating: (everyMs) => {
+        beats.push(everyMs)
+      },
+      say: () => {},
+      warn: () => {},
+    })
+
+  it("beats once at boot, with the cadence the defaults name", () => {
+    const beats: Array<number> = []
+    halfBeating(() => DEFAULT_WATCH.heartbeatMs, beats)
+    expect(beats).toEqual([DEFAULT_WATCH.heartbeatMs])
+  })
+
+  it("carries the cadence a knob move put in force, and a keystroke is not a beat", () => {
+    const beats: Array<number> = []
+    let knob = DEFAULT_WATCH.heartbeatMs
+    const half = halfBeating(() => knob, beats)
+    knob = 60_000
+    half.revision([], null)
+    expect(beats).toEqual([DEFAULT_WATCH.heartbeatMs, 60_000])
+    // The vault re-derives on every keystroke; only a MOVED knob re-arms, which
+    // is this module's own echo-guard seen from the doorbell's end. Without it a
+    // busy vault would beat per keystroke and no window would ever be quiet.
+    half.revision([], null)
+    expect(beats.length).toBe(2)
   })
 })
