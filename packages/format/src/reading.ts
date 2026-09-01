@@ -448,7 +448,8 @@ export type DocumentBody = typeof DocumentBody.Type
  * review finding (how `worked` arrived nameless).
  *
  * What is NOT nameable, and why. `id` rides every row already; `children`,
- * `truncated` and `path` are the walk's or the derivation's, not the record's;
+ * `truncated`, `placed` and `path` are the walk's or the derivation's, not
+ * the record's;
  * `doc` and `blocks` are record fields the read vocabulary has never answered
  * — `blocks` is sugar that `after` answers for, and a capture-time document
  * attachment is `read_document`'s subject. And `file`/`line` were always a
@@ -646,16 +647,32 @@ export type Placement = typeof Placement.Type
  * placements, so without this half an agent can retire an entry it already
  * knows about and can never ask what is on the list at all.
  *
- * `shows` is the node itself, situated the way every other answer here situates
- * one — id, title, mark, `file:line`, ancestry — because that is what the list
- * is FOR: the reader wants the items, and the placement id is what lets it take
- * one off.
+ * `shows` is the node itself, situated the way every other full answer here
+ * situates one — id, title, mark, `file:line`, ancestry — because that is
+ * what the list is FOR: the reader wants the items, and the placement id is
+ * what lets it take one off. This is `read_node`'s `placed`, and the walk's
+ * when no `fields` were named. The projected walk's pair is
+ * {@link ProjectedPlaced}: same entry, `shows` shaped like the row, so a
+ * caller of this declaration is never told `title` may be absent.
  */
 export const Placed = Schema.Struct({
   ...Placement.fields,
   shows: Found,
 })
 export type Placed = typeof Placed.Type
+
+/**
+ * {@link Placed} when the walk named `fields` — the same entry, `shows` the
+ * same projection as the row. The split is {@link Subtree} /
+ * {@link ProjectedSubtree}'s: one declaration that unioned the two arms
+ * would tell `read_node` that `shows.title` may be absent, which it never
+ * is.
+ */
+export const ProjectedPlaced = Schema.Struct({
+  ...Placement.fields,
+  shows: Projected,
+})
+export type ProjectedPlaced = typeof ProjectedPlaced.Type
 
 /**
  * One record that REFERS to a node, and how — a {@link Found} like every other
@@ -926,8 +943,10 @@ export const SubtreeRequest = Schema.Struct({
   /**
    * The same `fields` as a node read's, but here every row is the read:
    * there is no "one node in full" beside a walk, so the root is shaped like
-   * any other row. `children` and `truncated` are the walk's own structure,
-   * not fields — they ride regardless.
+   * any other row. `children`, `truncated` and `placed` ride as the walk's
+   * own keys, not fields — a projection cannot drop the naming. The ROWS
+   * inside `children`, and `shows` inside `placed`, still obey the dial;
+   * `truncated` is a flag and has no payload to shape.
    */
   fields: FieldsRequest,
 })
@@ -949,6 +968,12 @@ export interface Subtree extends Found {
   readonly date?: string | undefined
   readonly desc?: string | undefined
   readonly children: ReadonlyArray<Subtree>
+  /** The placements UNDER this node, named and never walked — {@link
+   *  Detail.placed}'s very shape and very rule, carried onto every row so a
+   *  node whose children are all mirrors answers with what is on it rather
+   *  than with an empty `children`. Absent when none sit here, which is
+   *  nearly every row. */
+  readonly placed?: ReadonlyArray<Placed>
   /** True when the walk stopped at the depth it was given and this node has
    *  children it did not descend into. Said out loud, because a subtree that
    *  quietly ended would read as a leaf. */
@@ -960,18 +985,22 @@ export const Subtree = Schema.Struct({
   date: RegularNode.fields.date,
   desc: RegularNode.fields.desc,
   children: Schema.Array(Schema.suspend((): Schema.Codec<Subtree> => Subtree)),
+  placed: Schema.optionalKey(Schema.Array(Placed)),
   truncated: Schema.optionalKey(Schema.Literal(true)),
 })
 
 /**
  * The walk's rows when the request named `fields` — {@link Projected}, with
- * the walk's own structure carried verbatim.
+ * the walk's own keys carried, and `shows` shaped like the row.
  *
  * The interface-and-suspend spelling is {@link Subtree}'s, for its reason:
  * this is an answer, advertised to nobody, so the recursion is honest.
  */
 export interface ProjectedSubtree extends Projected {
   readonly children: ReadonlyArray<ProjectedSubtree>
+  /** The placements under this node — the KEY is structure, so the dial
+   *  cannot drop the naming; `shows` is the same projection this row is. */
+  readonly placed?: ReadonlyArray<ProjectedPlaced>
   /** True when the walk stopped at the depth it was given and this node has
    *  children it did not descend into — the full walk's own flag, carried
    *  unchanged: it is shape, not a record field, so `fields` has nothing to
@@ -984,6 +1013,7 @@ export const ProjectedSubtree = Schema.Struct({
   children: Schema.Array(
     Schema.suspend((): Schema.Codec<ProjectedSubtree> => ProjectedSubtree),
   ),
+  placed: Schema.optionalKey(Schema.Array(ProjectedPlaced)),
   truncated: Schema.optionalKey(Schema.Literal(true)),
 })
 
@@ -996,6 +1026,10 @@ export const ProjectedSubtree = Schema.Struct({
 export const ProjectedRoots = Schema.Struct({
   file: Schema.String,
   roots: Schema.Array(ProjectedSubtree),
+  /** Top-level placements of the file, named and never rooted — the same
+   *  list a node-walk hangs on the row, here on the answer, because a file
+   *  is not a node. `shows` is shaped with the roots. */
+  placed: Schema.optionalKey(Schema.Array(ProjectedPlaced)),
 })
 export type ProjectedRoots = typeof ProjectedRoots.Type
 
@@ -1041,8 +1075,13 @@ export type NodeAnswer = typeof NodeAnswer.Type
  *
  * A MIRROR AT THE TOP LEVEL IS NOT A ROOT, which is the walk's own rule read
  * one level up: `read_subtree` does not walk placements, and {@link
- * OutlineSummary}'s `roots` does not name one either. The node a placement
- * shows lives somewhere, and where it lives is where this read answers it.
+ * OutlineSummary}'s `roots` does not name one either. Placements UNDER a
+ * node are named on its row ({@link Subtree.placed}); placements at the top
+ * of a file are named here, on the answer, because a file is not a node and
+ * `{file, roots}` is the row that can carry them. Still not a root — still
+ * not walked. A file whose top level is all mirrors answers `roots: []`
+ * with `placed` saying what is on it, which is the same silence-vs-naming
+ * the node walk already makes.
  *
  * The `file` rides back for {@link DocumentBody}'s reason: an agent holding
  * several reads in flight needs each answer to say which file it is about, and
@@ -1051,6 +1090,9 @@ export type NodeAnswer = typeof NodeAnswer.Type
 export const OutlineRoots = Schema.Struct({
   file: Schema.String,
   roots: Schema.Array(Subtree),
+  /** Top-level placements of the file — named here because a file is not a
+   *  node. Absent when the file holds none at its top level. */
+  placed: Schema.optionalKey(Schema.Array(Placed)),
 })
 export type OutlineRoots = typeof OutlineRoots.Type
 

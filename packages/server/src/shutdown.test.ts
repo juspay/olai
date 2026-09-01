@@ -12,6 +12,12 @@
  * signaled death from `systemctl stop`. The line has to come from this process,
  * on this signal, before the unwind.
  *
+ * WHO this server dies with — the kernel's parent-death signal, and the
+ * daemonising wrapper it must NOT die with — is `./dieWithParent.test.ts`,
+ * which holds both outcomes side by side. One of them used to be a test here;
+ * a signal arriving on the kernel's behalf is a different subject from what
+ * this process does with a signal somebody sent it.
+ *
  * The websocket is not incidental. `server.close` waits for every open
  * connection, an idle server has none, and so a server nobody had opened
  * stopped instantly for as long as anyone tested it that way. One connected
@@ -20,9 +26,6 @@
 
 import { expect, test } from "bun:test"
 import { spawn } from "node:child_process"
-import * as fs from "node:fs"
-import * as os from "node:os"
-import * as path from "node:path"
 
 import { startWeb } from "./child.testlib.ts"
 import { served } from "./serve.testlib.ts"
@@ -159,96 +162,3 @@ test("a SIGTERM from anyone but the supervisor is refused and named; the server 
   }
 }, BOUND_MS * 4)
 
-test("olai web dies when its parent dies — BY THE GUARD'S HONOR, not by any side effect", async () => {
-  // `prctl(PR_SET_PDEATHSIG)`: SIGKILL of cucumber used to reparent every
-  // detached server to init. A wrapper process is the parent here; killing
-  // it must take the server with it. Under the guard that death is a
-  // POLICY decision: the kernel's signal arrives with the dying parent's
-  // pid (measured: SI_USER from the parent itself, never si_pid 0), and
-  // this test asserts the child's journal HONORS it — the line is the
-  // contract, the corpse alone is not: a refusal line written into a pipe
-  // whose reader just died would also kill the child (EPIPE), and did
-  // precisely that while the first draft's premise was wrong, fake-green
-  // here. So the child logs to a FILE the wrapper cannot take with it,
-  // and the assertion names both the honoring and the death.
-  if (process.platform !== "linux") return
-  const root = served()
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "olai-parent-"))
-  const wrapper = path.join(tmp, "parent.mjs")
-  const childLog = path.join(tmp, "child.log")
-  fs.writeFileSync(
-    wrapper,
-    `import { spawn } from "node:child_process";
-import * as fs from "node:fs";
-const logFd = fs.openSync(process.env.CHILD_LOG, "w");
-const child = spawn(process.execPath, process.argv.slice(2), {
-  stdio: ["ignore", logFd, logFd],
-  env: process.env,
-});
-process.stdout.write("child=" + child.pid + "\\n");
-setInterval(() => {}, 1 << 30);
-`,
-  )
-  const dist = fs.mkdtempSync(path.join(os.tmpdir(), "olai-parent-dist-"))
-  fs.writeFileSync(path.join(dist, "index.html"), "<!doctype html>\n")
-  const runtime = fs.mkdtempSync(path.join(os.tmpdir(), "olai-parent-run-"))
-  const parent = spawn(
-    process.execPath,
-    [wrapper, path.join(import.meta.dirname, "main.ts"), "web", root, "--no-commit"],
-    {
-      env: {
-        ...process.env,
-        CHILD_LOG: childLog,
-        OLAI_DIST_DIR: dist,
-        OLAI_ACP_AGENT: "",
-        OLAI_LOG: "logfmt",
-        XDG_RUNTIME_DIR: runtime,
-      },
-      stdio: ["ignore", "pipe", "pipe"],
-    },
-  )
-  let said = ""
-  parent.stdout?.setEncoding("utf8")
-  parent.stderr?.setEncoding("utf8")
-  parent.stdout?.on("data", (chunk: string) => {
-    said += chunk
-  })
-  parent.stderr?.on("data", (chunk: string) => {
-    said += chunk
-  })
-  try {
-    const started = Date.now()
-    while (!said.includes("child=") && Date.now() - started < BOUND_MS) {
-      await Bun.sleep(25)
-    }
-    const childPid = Number(/^child=(\d+)$/m.exec(said)?.[1])
-    expect(childPid).toBeGreaterThan(0)
-    const wrapperPid = parent.pid
-    expect(wrapperPid).toBeGreaterThan(0)
-
-    await until(BOUND_MS, "the child's guard to arm", () =>
-      fs.existsSync(childLog) && fs.readFileSync(childLog, "utf8").includes("SIGTERM guard armed"))
-
-    parent.kill("SIGKILL")
-    await until(
-      BOUND_MS,
-      "the kernel's parent-death signal to be honored",
-      () => fs.readFileSync(childLog, "utf8").includes(`honoring SIGTERM from pid ${wrapperPid}`),
-    )
-    await until(BOUND_MS, "the child to exit", () => {
-      try {
-        process.kill(childPid, 0)
-        return false
-      } catch {
-        return true
-      }
-    })
-    const journal = fs.readFileSync(childLog, "utf8")
-    // (the wrapper reaped before the drain read its cmdline is the
-    // ordinary case — pid and uid, recorded at send time, must carry it)
-    expect(journal).toContain(`honoring SIGTERM from pid ${wrapperPid} uid ${process.getuid?.()}`)
-    expect(journal).toContain("olai web: received SIGTERM")
-  } finally {
-    parent.kill("SIGKILL")
-  }
-}, BOUND_MS * 3)
