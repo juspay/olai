@@ -823,7 +823,7 @@ describe("the leg", () => {
       onto: {
         toolUseId: "toolu_014mD8gkPSCXNL6gF11GK7hv",
         task: "a4015bf2ba1fa514d",
-        result: "I have thorough coverage now.\n\n# Findings\n",
+        report: "I have thorough coverage now.\n\n# Findings\n",
       },
     })
     expect(

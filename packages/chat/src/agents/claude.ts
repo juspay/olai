@@ -268,10 +268,10 @@ export const taskNotificationIn = (text: string, meta: Meta): TaskNotice | null 
   if (kind !== "task-notification" && !wrapped) return null
   const toolUseId = (xml.match(/<tool-use-id>([^<]*)<\/tool-use-id>/u)?.[1] ?? "").trim()
   const task = (xml.match(/<task-id>([^<]*)<\/task-id>/u)?.[1] ?? "").trim()
-  const result = xml.match(/<result>([\s\S]*)<\/result>/u)?.[1] ?? ""
+  const report = xml.match(/<result>([\s\S]*)<\/result>/u)?.[1] ?? ""
   return toolUseId === "" || task === ""
     ? { onto: null }
-    : { onto: { toolUseId, task, result } }
+    : { onto: { toolUseId, task, report } }
 }
 
 // ── which call ARMED A BACKGROUND TASK ─────────────────────────────────

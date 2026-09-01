@@ -707,7 +707,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
                 locations: undefined,
                 parent: undefined,
                 spawned: undefined,
-                armed: { task: notice.onto.task, report: notice.onto.result },
+                armed: { task: notice.onto.task, report: notice.onto.report },
               })
             }
             return

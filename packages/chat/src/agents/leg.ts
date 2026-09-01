@@ -181,7 +181,7 @@ export type TaskNotice =
     readonly onto: {
       readonly toolUseId: string
       readonly task: string
-      readonly result: string
+      readonly report: string
     }
   }
   | { readonly onto: null }
