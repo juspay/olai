@@ -92,7 +92,7 @@ export { type DialRun, type RunNotice, type WorktreeNode } from "./runs.ts"
  * `worktrees` is THE VAULT WALK, injected — the `claimants` arrangement one
  * appliance over, and the same boundary for the same reason. Which nodes carry
  * a `worktree` is a reading of outline records, so it belongs to whoever holds
- * the vault (`@olai/server`'s `worktrees.ts`), and what crosses is four strings
+ * the vault (`olai-plugin-odu`'s `worktrees.ts`), and what crosses is four strings
  * per node ({@link WorktreeNode}). The interfaces here are PARAMETRIC in the
  * node type,
  * which is the same claim the compiler can check: a package generic in `N`
@@ -148,7 +148,7 @@ export interface OduHalf<N> {
    *
    * One value rather than the node LIST `@olai/kolu-client` takes, because the
    * walk it feeds reads two things off one reading — the records, and what the
-   * vault DECLARES about the key (`@olai/server`'s `worktrees.ts` argues why the
+   * vault DECLARES about the key (`olai-plugin-odu`'s `worktrees.ts` argues why the
    * second one gates the probe). Both are the server's to hold and neither is
    * this package's to look at, which the type says: `N` is never read here.
    *

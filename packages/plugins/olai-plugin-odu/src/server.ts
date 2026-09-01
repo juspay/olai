@@ -293,10 +293,8 @@ export const serve = (services: Services): {
     // appliance over: what crosses is the watch's own frozen notice, and what
     // this side does with it — join it against the `worktree` values a scoped
     // file's un-done nodes claim — is a walk over outline records that
-    // `@olai/odu-client` must not be able to spell. Deferred through {@link
-    // ring} rather than written inline, because the notices can fire before
-    // this call has returned and `half` is what it returns.
-    rang: (notice) => ring(notice),
+    // `@olai/odu-client` must not be able to spell.
+    rang: ring,
     // Chatter, at debug: on a machine with no CI running this is a line every
     // few seconds and it is not news — which on this appliance is even more true
     // than on kolu's, because a checkout with no live run is the ORDINARY state

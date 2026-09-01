@@ -63,7 +63,7 @@ export const REPOS_DIR = "OLAI_REPOS_DIR"
 
 /** What a node must carry for this to answer: the path it wrote, and the URL
  *  that says which repository it is in. Both are strings off the record —
- *  `@olai/server`'s vault walk hands them over ({@link ./worktrees.ts}), so
+ *  `olai-plugin-odu`'s vault walk hands them over (`worktrees.ts`), so
  *  this module never learns what an outline node is. */
 export interface Worktree {
   /** The `worktree` property's value, verbatim. */

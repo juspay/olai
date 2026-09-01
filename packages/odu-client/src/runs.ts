@@ -103,7 +103,7 @@ const SWEEP = Duration.seconds(3)
  * {@link Worktree} plus the two strings a log line names it with.
  *
  * What crosses is FOUR STRINGS and no record: the walk over the vault belongs
- * to whoever holds the vault (`@olai/server`'s `worktrees.ts`), which is the
+ * to whoever holds the vault (`olai-plugin-odu`'s `worktrees.ts`), which is the
  * boundary this package's header draws and `@olai/kolu-client`'s `Claimant`
  * draws one appliance over.
  *
@@ -302,6 +302,15 @@ export const makeWatch = (deps: WatchDeps): Watch => {
       let state: PipelineState = EMPTY_STATE
       let header: RunHeader = EMPTY_HEADER
       /**
+       * THE HOLD'S OWN RECORD of red: which node ids ANY frame so far carried
+       *  in the red column. First-red is the set going from empty to not —
+       *  one record, not a set plus a boolean beside it. Per hold and
+       *  discarded with it, so a NEW run in this checkout starts the counting
+       *  over — once per run is once per socket's life, and that is the only
+       *  unit odu has for it.
+       */
+      const reddened = new Set<string>()
+      /**
        * THE BOARD IS THE AUTHORITY, checked on every write and not only on the
        * sweep's clock.
        *
@@ -318,24 +327,16 @@ export const makeWatch = (deps: WatchDeps): Watch => {
        * It compares the PLACE and not just the key, for the reason {@link held}
        * gives: one `worktree` string can name two checkouts across a re-add,
        * and a hold on the old one may not write a row about the new.
+       *
+       * Named `apply` because `settle` is the run ending — the notice this
+       * hold rings when the socket goes. This is one frame becoming a row.
        */
-      /**
-       * THE HOLD'S OWN RECORD of red: which node ids ANY frame so far carried
-       *  in the red column. First-red is the set going from empty to not —
-       *  one record, not a set plus a boolean beside it. Per hold and
-       *  discarded with it, so a NEW run in this checkout starts the counting
-       *  over — once per run is once per socket's life, and that is the only
-       *  unit odu has for it.
-       */
-      const reddened = new Set<string>()
-      const settle = (): void => {
+      const apply = (): void => {
         if (wanted.get(watched.id)?.at !== watched.at) return
         const row = runOf(watched, state, header)
         rows.set(watched.id, row)
         publish()
         let first: RunCell | undefined
-        // First-red is "the set was empty and this frame is not" — one
-        // record, not a set plus a boolean beside it.
         const seen = reddened.size > 0
         for (const cell of row.cells) {
           if (!cell.red) continue
@@ -352,7 +353,7 @@ export const makeWatch = (deps: WatchDeps): Watch => {
       // Published BEFORE the first frame: a coordinator that is up but has not
       // stamped a header yet is a run in `unstarted`, and drawing nothing for
       // it would make the chip appear late by however long provisioning takes.
-      settle()
+      apply()
       yield* Effect.ensuring(
         // RACED, not sequenced: either subscription ending means the socket is
         // gone, and `Effect.all` with `concurrency: "unbounded"` and
@@ -365,7 +366,7 @@ export const makeWatch = (deps: WatchDeps): Watch => {
             (frame) =>
               Effect.sync(() => {
                 state = frame
-                settle()
+                apply()
               }),
           ),
           Stream.runForEach(
@@ -373,7 +374,7 @@ export const makeWatch = (deps: WatchDeps): Watch => {
             (frame) =>
               Effect.sync(() => {
                 header = frame
-                settle()
+                apply()
               }),
           ),
         ).pipe(
