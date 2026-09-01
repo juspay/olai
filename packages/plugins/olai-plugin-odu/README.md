@@ -1,6 +1,6 @@
 # olai-plugin-odu — the CI tenant
 
-olai's own judgement **about odu**, in the one place that is neither odu nor core. [`@olai/odu-client`](../../odu-client/README.md) is how olai *reaches* odu — the sweep, the dial, the hold over a live run, the projection into olai's shapes. This package is everything downstream of that which still says the word: what the reading is called on the wire, what a person is shown when a checkout has a run in it, and — as the rest of this PR lands — where the remaining judgements about odu are made. [`@olai/plugin-api`](../../plugin-api/README.md) is the door both tenants come through; this is the smaller of the two behind it.
+olai's own judgement **about odu**, in the one place that is neither odu nor core. [`@olai/odu-client`](../../odu-client/README.md) is how olai *reaches* odu — the sweep, the dial, the hold over a live run, the projection into olai's shapes. This package is everything downstream of that which still says the word: what the reading is called on the wire, what a person is shown when a checkout has a run in it, which runs a scoped conversation is woken for, and whether odu's own MCP is here. [`@olai/plugin-api`](../../plugin-api/README.md) is the door both tenants come through; this is the smaller of the two behind it.
 
 ## The wall below this one does not move
 
@@ -58,9 +58,8 @@ Two doors come with it and neither is a graph: `./testids` is names only, so a s
 
 ## What is not here yet
 
-This commit lands the **name, the member and the faces**. The rest of the tenant arrives in later commits of this same PR:
+The name, the member, the faces, the doorbell, the probe and the failure sentences have landed: [`src/server.ts`](src/server.ts) calls `oduHalf`, [`src/doorbell.ts`](src/doorbell.ts) joins a scoped file's claims against the watcher's two notices, [`src/probe.ts`](src/probe.ts) asks whether `odu mcp` is here, and [`src/wake.ts`](src/wake.ts) is the two sentences a scope that cannot be watched says. What this package still does not do:
 
-- **The probe and the failure sentences.** Nothing in this package yet answers *is odu here* or *what do I say when it is not*. The runtime half has landed: [`src/server.ts`](src/server.ts) calls `oduHalf` and `@olai/server` names neither it nor odu.
 - **Run events reaching the feed.** Odu publishes enough to say a run changed state; no event of odu's reaches the board today, from here or from anywhere.
 - **An owned file.** Odu owns no outline in the vault, and nothing here wants one: what a run is doing is odu's to say and olai reads it, so there is no configuration for a directory to carry.
 

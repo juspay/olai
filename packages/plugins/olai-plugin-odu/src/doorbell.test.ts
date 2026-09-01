@@ -150,7 +150,7 @@ const settled = (
   reddened,
 })
 
-const CLAIM: Claim = { value: ".worktrees/a", node: "lane-a", title: "the e2e lane" }
+const CLAIM: Claim = { value: ".worktrees/a", node: "lane-a", title: "the e2e lane", file: "lanes.olai" }
 
 // ── The claimed set ──────────────────────────────────────────────────────
 
@@ -170,7 +170,12 @@ test("a mirrored lane claims through its TARGET", () => {
       marked("lane-a", "the e2e lane", "doing", { worktree: ".worktrees/a" }),
     ].join("\n"),
   }, "lanes.olai")
-  expect(claims).toEqual([{ value: ".worktrees/a", node: "lane-a", title: "the e2e lane" }])
+  expect(claims).toEqual([{
+    value: ".worktrees/a",
+    node: "lane-a",
+    title: "the e2e lane",
+    file: "projects/the-thing/Records.olai",
+  }])
 })
 
 test("a DONE lane claims nothing — finishing the lane turns the doorbell off", () => {
@@ -200,7 +205,7 @@ test("nothing declared ANYWHERE: the plugin's OWN key carries the claim", () => 
   // so a vault that has said nothing at all is heard on it.
   expect(claimsOf({
     "lanes.olai": marked("lane-a", "the e2e lane", "doing", { "odu-worktree": ".worktrees/a" }),
-  }, "lanes.olai")).toEqual([{ value: ".worktrees/a", node: "lane-a", title: "the e2e lane" }])
+  }, "lanes.olai")).toEqual([{ value: ".worktrees/a", node: "lane-a", title: "the e2e lane", file: "lanes.olai" }])
 })
 
 test("an UNDECLARED column claims nothing — the licence is the declaration", () => {
@@ -231,14 +236,14 @@ test("two rows naming ONE checkout coalesce into one claim, first writer wins", 
       marked("lane-b", "a copied row", "doing", { worktree: ".worktrees/a" }),
     ].join("\n"),
   }, "lanes.olai")
-  expect(claims).toEqual([{ value: ".worktrees/a", node: "lane-a", title: "the e2e lane" }])
+  expect(claims).toEqual([{ value: ".worktrees/a", node: "lane-a", title: "the e2e lane", file: "lanes.olai" }])
   expect(claimingIn(claims).get(".worktrees/a")?.node).toBe("lane-a")
 })
 
 // ── The sentences ────────────────────────────────────────────────────────
 
 test("first-red names the lane, the node, and the counts so far", () => {
-  const said = bodyFor(firstRed(), CLAIM, "lanes.olai", "2026-09-02T11:20:00.000Z", {
+  const said = bodyFor(firstRed(), CLAIM, "2026-09-02T11:20:00.000Z", {
     total: 10,
     settled: 4,
     ok: 8,
@@ -253,12 +258,30 @@ test("first-red names the lane, the node, and the counts so far", () => {
   expect(said).toContain("live in /home/x/code/odu/.worktrees/a")
   expect(said).toContain("`lane-a`")
   expect(said).toContain("lanes.olai")
+  expect(said).toContain("once per hold")
   expect(said).toContain("Written by olai's odu watcher at 2026-09-02 11:20 UTC, not by a person.")
   expect(said).toContain("Clearing the file on this conversation's wake control stops both.")
 })
 
+test("a mirrored claim's sentence names the TARGET's file, not the filter", () => {
+  const claim: Claim = {
+    value: ".worktrees/a",
+    node: "lane-a",
+    title: "the e2e lane",
+    file: "projects/the-thing/Records.olai",
+  }
+  const said = bodyFor(firstRed(), claim, "2026-09-02T11:20:00.000Z", {
+    total: 10,
+    settled: 4,
+    ok: 8,
+    red: 1,
+  })
+  expect(said).toContain("`lane-a` of projects/the-thing/Records.olai")
+  expect(said).not.toContain("lanes.olai")
+})
+
 test("a settle with a green verdict comes out green, and names a rerun flake by name", () => {
-  const said = bodyFor(settled({}, ["e2e@x86_64-linux"]), CLAIM, "lanes.olai", "2026-09-02T11:20:00.000Z")
+  const said = bodyFor(settled({}, ["e2e@x86_64-linux"]), CLAIM, "2026-09-02T11:20:00.000Z")
   expect(said).toContain("came out green — 4/4 ok.")
   // The flake is named as WHAT the hold observed, not why.
   expect(said).toContain("`e2e@x86_64-linux` went red earlier in this run and went green on a rerun")
@@ -269,7 +292,7 @@ test("a settle with a red verdict names each failed recipe WITH its log path", (
     // The two still going when the first red landed both failed in the end;
     // the paint moves WITH the word, the way a real frame's fold would have it.
     cells: RED_CELLS.map((cell) => repainted(cell, cell.red || cell.status === "running" ? "failed" : "ok")),
-  }), CLAIM, "lanes.olai", "2026-09-02T11:20:00.000Z")
+  }), CLAIM, "2026-09-02T11:20:00.000Z")
   expect(said).toContain("came out red — 2/4 ok, 2 red.")
   expect(said).toContain("`e2e@x86_64-linux`: failed — the log is at /home/x/code/odu/.worktrees/a/.ci/8f8fe56/x86_64-linux/e2e.log.")
   expect(said).toContain("`fmt-check@aarch64-darwin`: failed — the log is at /home/x/code/odu/.worktrees/a/.ci/8f8fe56/aarch64-darwin/fmt-check.log.")
@@ -281,7 +304,7 @@ test("a run that settled without deciding says `ended` — never `red`, and neve
   // the chip's own bench assures (odu's `errored` is for INFRASTRUCTURE,
   // and conflating the two is the one mis-report this doorbell exists not
   // to make).
-  const said = bodyFor(settled({ cells: RED_CELLS.filter((cell) => !cell.red) }), CLAIM, "lanes.olai", "2026-09-02T11:20:00.000Z")
+  const said = bodyFor(settled({ cells: RED_CELLS.filter((cell) => !cell.red) }), CLAIM, "2026-09-02T11:20:00.000Z")
   expect(said).toContain("ended without deciding")
 })
 

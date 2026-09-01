@@ -750,12 +750,19 @@ let externals = new Map<string, {
 
 interface External {
   readonly ask: (method: string, params?: Record<string, unknown>) => Promise<Record<string, unknown>>
+  readonly drop: () => void
 }
 
 /** The attach, memoised — `null` is the memoised FAILURE, so one broken
  *  spawn is one roster word (`attachment`) and one sentence per turn that
- *  asks, never a second child. */
+ *  asks, never a second child. Cleared with the session: a stale spawn
+ *  must not ride `openSession`'s externals reset. */
 const attached2 = new Map<string, External | null>()
+
+const dropAttached = (): void => {
+  for (const held of attached2.values()) held?.drop()
+  attached2.clear()
+}
 
 const externalOf = async (name: string): Promise<External | null> => {
   const held = attached2.get(name)
@@ -765,6 +772,7 @@ const externalOf = async (name: string): Promise<External | null> => {
     attached2.set(name, null)
     return null
   }
+  let drop: (() => void) | undefined
   try {
     const child = spawn(
       entry.command,
@@ -780,6 +788,8 @@ const externalOf = async (name: string): Promise<External | null> => {
         } as Record<string, string>,
       },
     )
+    const reap = (): void => { child.kill() }
+    drop = reap
     if (child.stdin === null || child.stdout === null) throw new Error("no pipes")
     let next = 0
     const pending = new Map<number, (message: Record<string, unknown>) => void>()
@@ -824,10 +834,11 @@ const externalOf = async (name: string): Promise<External | null> => {
       clientInfo: { name: "fake-acp-agent", version: "0.0.0" },
     })
     child.stdin.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n")
-    const external: External = { ask }
+    const external: External = { ask, drop: reap }
     attached2.set(name, external)
     return external
   } catch (thrown) {
+    drop?.()
     attached2.set(name, null)
     attachment.set(name, "failed")
     noise(`external ${name}: attach failed — ${String(thrown)}`)
@@ -2377,7 +2388,9 @@ const openSession = (params: Record<string, unknown>): void => {
   }
   // The STDIO entries, kept whole against the day a turn asks for one —
   // spawning one is lazy ({@link externalOf}), so this is a listing and not
-  // a process tree per conversation.
+  // a process tree per conversation. A new session replaces the last: reap
+  // any child the previous listing spawned, or a stale attach rides this reset.
+  dropAttached()
   externals = new Map(
     given
       .filter((server) => server.type === undefined && typeof server.command === "string")

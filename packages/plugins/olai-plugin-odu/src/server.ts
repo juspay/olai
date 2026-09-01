@@ -50,6 +50,7 @@ import {
   type PropDeclarations,
 } from "@olai/format"
 import { type DialRun, oduHalf, type RunNotice } from "@olai/odu-client"
+import { identityOf } from "@olai/odu-client/wire"
 
 import { bodyFor, claimedIn, claimingIn, countsFor } from "./doorbell.ts"
 import { ownKinds } from "./kinds.ts"
@@ -221,9 +222,9 @@ export const serve = (services: Services): {
     const claim = claimingIn(claimedIn(declaring, at, file)).get(notice.run.id)
     if (claim === undefined) return null
     if (notice.kind === "first-red") {
-      return bodyFor(notice, claim, file, services.now(), countsFor(half.rows(), notice))
+      return bodyFor(notice, claim, services.now(), countsFor(half.rows(), notice))
     }
-    return bodyFor(notice, claim, file, services.now())
+    return bodyFor(notice, claim, services.now())
   }
 
   /**
@@ -264,7 +265,7 @@ export const serve = (services: Services): {
           { agent: scope.agent, session: scope.session },
           // ASKED AGAIN AT THE MOMENT IT GOES IN — see {@link said}.
           () => said(scope.file, notice),
-          { coalesce: `${name}:${notice.kind}:${notice.run.id}` },
+          { coalesce: `${name}:${notice.kind}:${identityOf(notice.run)}` },
         )
       }
     } catch (thrown) {

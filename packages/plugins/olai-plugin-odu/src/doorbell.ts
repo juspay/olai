@@ -16,7 +16,7 @@
  * Kolu's doorbell derives a MEANING from the claiming step's mark, because it
  * must never wake anybody over a lawfully parked terminal. odu's doorbell
  * owes no such table: the two notices are already the two ruled kinds (the
- * dispatch, 2026-09-01 — first-red, once per run; and settle), and a
+ * dispatch, 2026-09-01 — first-red, once per hold; and settle), and a
  * *claimed* run going red is owed a wake whatever the lane is doing. So the
  * join has one question in it: does this file's claimed set name this run's
  * worktree? Everything else is the sentence.
@@ -51,7 +51,8 @@
  *
  * Core replaces an undelivered body with the next one under the same key, so
  * keying is what makes a queued wake honest. The keys are per KIND AND PER
- * RUN (`<kind>:<worktree value>`): two runs settling through one busy turn
+ * RUN (`identityOf`, which degenerates to the bare name only for a run odu
+ * never stamped): two sequential settles of one lane through one busy turn
  * are two subjects, and collapsing one into the other would lose what the
  * first said — the exact arm of core's `deliver` contract that a fresh
  * derivation never needs. A RED spell and then another on the same run
@@ -113,6 +114,11 @@ export interface Claim {
    *  pressable in the sentence: the row somebody would edit to make this
    *  wake stop. */
   readonly node: string
+  /** The file that CARRIES the row. A claim that arrived through a mirror
+   *  still names the target's id; this is the target's file, not the filter
+   *  the conversation scoped. The id stays pressable either way; the prose
+   *  has to point at where the row actually lives. */
+  readonly file: string
 }
 
 /**
@@ -152,7 +158,7 @@ export const claimedIn = (
     const said = textDeclaredAs(declarations, at.node, WORKTREE_TYPE)
     if (said !== undefined && said.trim() !== "" && !seen.has(said) && unfinished(derived.status.get(at.node.id))) {
       seen.add(said)
-      claims.push({ value: said, node: at.node.id, title: at.node.title })
+      claims.push({ value: said, node: at.node.id, title: at.node.title, file: at.file })
     }
     for (const child of countedChildren(derived, at.node.id)) descend(child)
   }
@@ -288,20 +294,17 @@ const reranLines = (notice: Extract<RunNotice, { kind: "settled" }>): ReadonlyAr
 export function bodyFor(
   notice: Extract<RunNotice, { kind: "first-red" }>,
   claim: Claim,
-  file: string,
   stamp: string,
   counts: RunTally,
 ): string
 export function bodyFor(
   notice: Extract<RunNotice, { kind: "settled" }>,
   claim: Claim,
-  file: string,
   stamp: string,
 ): string
 export function bodyFor(
   notice: RunNotice,
   claim: Claim,
-  file: string,
   stamp: string,
   counts?: RunTally,
 ): string {
@@ -312,22 +315,22 @@ export function bodyFor(
   if (notice.kind === "first-red") {
     lines.push(
       "",
-      `The run is \`${which}\`, live in ${run.at}. ${cap(laneOf(claim))} claims it — the un-done row \`${claim.node}\` of ${file} names its checkout — and \`${notice.cell.id}\` (${notice.cell.name} on ${notice.cell.platform}) is the first of its nodes to go red.`,
+      `The run is \`${which}\`, live in ${run.at}. ${cap(laneOf(claim))} claims it — the un-done row \`${claim.node}\` of ${claim.file} names its checkout — and \`${notice.cell.id}\` (${notice.cell.name} on ${notice.cell.platform}) is the first of its nodes to go red.`,
       "",
-      `This lands once per run. When the run settles, one more account follows: the verdict, the final counts, and the log path of every failed recipe. Clearing the file on this conversation's wake control stops both.`,
+      `This lands once per hold. When the run settles, one more account follows: the verdict, the final counts, and the log path of every failed recipe. Clearing the file on this conversation's wake control stops both.`,
     )
     return lines.join("\n")
   }
   lines.push(
     "",
-    `The run is \`${which}\`, settled in ${run.at}.${claimLine(claim, file)}`,
+    `The run is \`${which}\`, settled in ${run.at}.${claimLine(claim)}`,
   )
   if (printed.red > 0) lines.push("", ...failedLines(run))
   const reran = reranLines(notice)
   if (reran.length > 0) lines.push("", ...reran)
   lines.push(
     "",
-    "These land once per run: again on the lane's next run, when it first goes red and when it settles. Clearing the file on this conversation's wake control stops both.",
+    "These land once per hold. The lane's next run rings again when it first goes red and when it settles. Clearing the file on this conversation's wake control stops both.",
   )
   return lines.join("\n")
 }
@@ -335,8 +338,8 @@ export function bodyFor(
 /** The provenance clause of a settle account — the same clause the first-red
  *  body carries inside its own second paragraph, broken out so both say it
  *  once. */
-const claimLine = (claim: Claim, file: string): string =>
-  ` ${cap(laneOf(claim))} claims it — the un-done row \`${claim.node}\` of ${file} names its checkout.`
+const claimLine = (claim: Claim): string =>
+  ` ${cap(laneOf(claim))} claims it — the un-done row \`${claim.node}\` of ${claim.file} names its checkout.`
 
 /** What a delivery-time re-derivation asks of the row list, and nothing
  *  else — kept as its own tiny type so `server.ts`'s thunk reads as what it
