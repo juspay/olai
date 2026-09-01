@@ -37,6 +37,11 @@ serve:
     # ANSWERS, the recipe passes through, EMPTY IS OFF — the recipe itself
     # decides nothing. A pi row needs both halves handed in: OLAI_ACP_PI for
     # the adapter, the `pi` on OLAI_AGENT_PATH for the probe.
+    # THE CALL ANSWERS: AGENT/PI_AGENT from the environment, else a seed file
+    # in HOME (the same shape as olai-commit / olai-plugins). Empty is off.
+    if [[ -z "${AGENT:-}" && -f "$HOME/olai-acp-agent" ]]; then
+        AGENT="$(cat "$HOME/olai-acp-agent")"
+    fi
     export OLAI_ACP_AGENT="${AGENT:-}"
     export OLAI_ACP_PI="${PI_AGENT:-}"
     export OLAI_AGENT_PATH="${OLAI_AGENT_PATH:-}"

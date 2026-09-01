@@ -34,6 +34,7 @@
  *     bun tasks.ts
  *   KIND=bash bun tasks.ts        # a background shell, whose ending carries an exit code
  *   KIND=resume bun tasks.ts      # a subagent, reported, and then sent more work
+ *   KIND=agent bun tasks.ts       # an async Agent, whose completion is a task-notification
  *   RAW=1 bun tasks.ts            # every SDK message the adapter forwarded, too
  *
  * `KIND=monitor` (the default) arms a `Monitor` that ticks a few times and
@@ -92,6 +93,12 @@ const PROMPTS: Record<string, ReadonlyArray<string>> = {
     "Use SendMessage to send that SAME subagent a follow-up: run `echo tick-two` with the " +
     "Bash tool and reply with the word TWO. Do NOT spawn a new agent with the Agent tool. " +
     "When it answers, reply with just the word RESUMED and end your turn.",
+  ],
+  agent: [
+    'Use the Agent tool exactly once, with description "count the ticks" and subagent_type ' +
+    "general-purpose, and give it this task: reply with the word ONE and a markdown heading " +
+    "# Findings, then stop. Run it in the background (do not wait for it). Then reply with " +
+    "just the word ARMED and end your turn. Do not call any other tool.",
   ],
 }
 
@@ -158,6 +165,19 @@ const heard = (message: Record<string, unknown>): void => {
   if (method === "session/update") {
     const update = (params["update"] ?? {}) as Record<string, unknown>
     if (typeof update["sessionUpdate"] !== "string") return
+    if (update["sessionUpdate"] === "user_message_chunk") {
+      const content = update["content"] as { text?: string } | undefined
+      const text = typeof content?.text === "string" ? content.text : ""
+      const origin = ((update["_meta"] ?? {}) as { claudeCode?: { origin?: { kind?: string } } })
+        .claudeCode?.origin?.kind
+      if (text.includes("<task-notification>") || origin === "task-notification") {
+        say(
+          "ACP  user_message_chunk  TASK-NOTIFICATION FORWARDED AS USER SPEECH",
+          text.slice(0, 160),
+        )
+      }
+      return
+    }
     if (!update["sessionUpdate"].startsWith("tool_call")) return
     const claude = ((update["_meta"] ?? {}) as Record<string, unknown>)["claudeCode"] as
       | Record<string, unknown>

@@ -162,6 +162,21 @@ Added here, and not in #941:
   bookend and carries no summary, so it settles the call and the
   `task_notification` beside it refines the same call with the sentence —
   which is ACP's own upsert rule rather than a second mechanism;
+- **an async agent's REPORT is not a person speaking.** The harness injects
+  the completion as a user-role turn (`origin.kind: "task-notification"`, a
+  `<task-notification>` XML block carrying the whole result). Unpatched, and
+  patched until this, that turn is forwarded as `user_message_chunk`, so the
+  panel drew the report RAW in the column. The patch reads the discriminator
+  (`origin.kind`, falling back to the XML wrapper **only when origin is
+  missing** — a replay of an older store — and only when the trimmed
+  payload starts and ends with the tags, so a human prompt the pin stamps
+  `origin: human` is never this, even if they pasted the XML) and files
+  the `<result>` onto the spawning call as
+  `_meta.claudeCode.backgroundTask.report` instead — the same stamp the
+  ending already uses, not a second field. Live and on `session/load`.
+  Measured by `packages/tests/tasks.ts` `KIND=agent`: a forwarded
+  task-notification prints `TASK-NOTIFICATION FORWARDED AS USER SPEECH`,
+  and the day one does, that line is how anybody finds out;
 - **a task's SECOND LIFE** (`reopenBackgroundTask`, `taskOrigins`), which is
   a subagent's: an agent that has reported can be sent more work, and the
   harness starts the SAME task again. Measured against this pin
@@ -386,8 +401,9 @@ up to two lines from where its context said it belonged, and one reviewer's
 both mattered. The fix for a move is to re-apply the edits against the new
 `dist/acp-agent.js` — the anchors in `background-tasks-visible.patch` are
 all in `toAcpNotifications`' tool-result branch, in the session-state
-literal, and in the SDK-message switch's `task_*` cases (the `task_started`
-case now decides between reopening and registering); the anchors in `session-list-info.patch` are
+literal, in the SDK-message switch's `task_*` cases (the `task_started`
+case now decides between reopening and registering), and in the live
+consumer and `replaySessionHistory` user-message paths (`taskNotificationUpdate`); the anchors in `session-list-info.patch` are
 `listSessions` and the module surface above it — or to drop a patch
 upstream has landed, and say so here.
 

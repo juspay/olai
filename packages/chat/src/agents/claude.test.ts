@@ -29,6 +29,7 @@ import {
   parentToolUseIn,
   QUEUES_WHEN_BUSY,
   spawnedIn,
+  taskNotificationIn,
   STEER_METHOD,
   STEER_WHEN_IDLE,
   STEERING_ADVERTISED,
@@ -583,6 +584,23 @@ describe("which call armed a background task", () => {
     ).toEqual({ task: "t" })
   })
 
+  test("a later frame can file the report on the same stamp the ending uses", () => {
+    // The report is the other half of a task-notification. It is not a spawn
+    // fact — the spawn's door is the `subagent` flag, and this frame does not
+    // carry one — and inventing a second `_meta` field for it would be the
+    // vocabulary the rest of this file already has, respelt.
+    expect(
+      backgroundTaskIn({
+        claudeCode: { backgroundTask: { taskId: "a4015bf2ba1fa514d", report: "there are three notes." } },
+      }),
+    ).toEqual({ task: "a4015bf2ba1fa514d", report: "there are three notes." })
+    expect(
+      backgroundTaskIn({
+        claudeCode: { backgroundTask: { taskId: "t", report: "" } },
+      }),
+    ).toEqual({ task: "t" })
+  })
+
   test("a tool's OWN answer cannot arm a call", () => {
     // The reading a future reader will reach for, and the reason it is not
     // here: `taskId` is a name the `Monitor` tool gives one of its results and
@@ -790,6 +808,38 @@ describe("the leg", () => {
     expect(CLAUDE.backgroundTask({ claudeCode: { backgroundTask: { taskId: "t1" } } }))
       .toEqual({ task: "t1" })
     expect(CLAUDE.backgroundTask({ claudeCode: { toolName: "Bash" } })).toBeNull()
+  })
+
+  test("a task-notification is not a person speaking", () => {
+    const xml =
+      "<task-notification>\n" +
+      "<task-id>a4015bf2ba1fa514d</task-id>\n" +
+      "<tool-use-id>toolu_014mD8gkPSCXNL6gF11GK7hv</tool-use-id>\n" +
+      "<status>completed</status>\n" +
+      "<summary>Agent \"Explore Spaces chat internals\" finished</summary>\n" +
+      "<result>I have thorough coverage now.\n\n# Findings\n</result>\n" +
+      "</task-notification>"
+    expect(taskNotificationIn(xml, undefined)).toEqual({
+      onto: {
+        toolUseId: "toolu_014mD8gkPSCXNL6gF11GK7hv",
+        task: "a4015bf2ba1fa514d",
+        report: "I have thorough coverage now.\n\n# Findings\n",
+      },
+    })
+    expect(
+      taskNotificationIn("hello", { claudeCode: { origin: { kind: "task-notification" } } }),
+    ).toEqual({ onto: null })
+    expect(taskNotificationIn("hello", { claudeCode: { origin: { kind: "human" } } }))
+      .toBeNull()
+    expect(taskNotificationIn("hello", undefined)).toBeNull()
+    // A person who pasted the wrapper is still a person: origin human wins,
+    // and a quote of the tags inside a larger message is not the whole payload.
+    expect(taskNotificationIn(xml, { claudeCode: { origin: { kind: "human" } } }))
+      .toBeNull()
+    expect(taskNotificationIn(`see this:\n${xml}\nthanks`, undefined)).toBeNull()
+    expect(taskNotificationIn(`${xml}\ntrailing`, undefined)).toBeNull()
+    expect(CLAUDE.taskNotification(xml, undefined)?.onto?.toolUseId)
+      .toBe("toolu_014mD8gkPSCXNL6gF11GK7hv")
   })
 
   test("has a bypass mode to ask for, and a way to steer a running turn", () => {
