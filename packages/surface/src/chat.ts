@@ -1618,33 +1618,50 @@ export const Wake = Schema.Struct({
    */
   waiting: Schema.Int,
   /**
-   * THE FILE THIS DOORBELL WAS POINTED AT IS NO LONGER SERVED — renamed, moved
-   * or deleted out from under a scope somebody set.
+   * THIS DOORBELL IS NOT WATCHING THE FILE IT NAMES, and which of the two ways
+   * that can be true — or `null`, which is every ordinary row.
    *
    * The control must stop drawing as ON, and that is the whole of what this
-   * field is for. A doorbell whose file has gone derives nothing forever, so
+   * field is for. A doorbell that derives nothing derives nothing FOREVER, so
    * the conversation goes quiet in a way that is indistinguishable from a
    * conversation with nothing to report — and a picker still saying `lanes.olai`
    * over that silence is the panel asserting something untrue.
    *
+   * TWO CAUSES, because a person has a different thing to do about each and the
+   * strip is where they look:
+   *
+   *   - `gone` — the file was renamed, moved or deleted out from under a scope
+   *     somebody set. It is not in the served set at all.
+   *   - `unwatchable` — the file is right there, and its KIND is not one this
+   *     plugin's doorbell can derive anything from (`./plugins.ts`'s
+   *     `BuiltPlugin.wake.kinds`). A `.md` under a wake that reads nodes is the
+   *     case this arm was added for: the picker used to offer one.
+   *
    * CORE'S OWN VOCABULARY, and the one place around this feature where that is
    * so. Everything else on the strip is the plugin's words arriving as data,
    * because a sentence about somebody's terminals is a sentence core cannot
-   * write. This is not about terminals: it is about A FILE CORE STORES AND NO
-   * LONGER FINDS, which is core's fact about core's own record, and there is no
-   * plugin better placed to say it. What the plugin says is the sentence that
-   * goes into the CONVERSATION (`@olai/plugin-api`'s `PluginServerHalf.wake.gone`),
-   * and core carries that one verbatim.
+   * write. Neither of these is about terminals: one is A FILE CORE STORES AND
+   * NO LONGER FINDS and the other is A FILE CORE STORES AGAINST A DECLARATION
+   * IT WAS HANDED — core's facts about core's own record, and there is no
+   * plugin better placed to say either. What the plugin says is the sentence
+   * that goes into the CONVERSATION (`@olai/plugin-api`'s
+   * `PluginServerHalf.wake.faults`), and core carries whichever
+   * one applies verbatim.
    *
-   * A BOOLEAN AND NOT AN OPTIONAL KEY, though the record behind it writes
-   * `true`-or-absent (`@olai/chat`'s `Scoped.gone`): a face draws one of two
-   * things, and an absent key would be a third state for it to have an opinion
+   * NULLABLE AND NOT AN OPTIONAL KEY, though the record behind it writes the
+   * word-or-absent (`@olai/chat`'s `Scoped.fault`): a face draws one of three
+   * things, and an absent key would be a fourth state for it to have an opinion
    * about. It rides here rather than on the `plugins` cell for the reason
    * `file` and `waiting` do — it moves per conversation, not per serve.
    */
-  gone: Schema.Boolean,
+  fault: Schema.NullOr(Schema.Literals(["gone", "unwatchable"])),
 })
 export type Wake = typeof Wake.Type
+
+/** WHY a doorbell is not watching — {@link Wake.fault}'s own union, named so
+ *  that the browser's join and the record that persists it are one word rather
+ *  than three spellings of two literals. */
+export type WakeFault = NonNullable<Wake["fault"]>
 
 export type Unopened = typeof Unopened.Type
 

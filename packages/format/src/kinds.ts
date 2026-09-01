@@ -230,6 +230,45 @@ export type BodyKind = {
 }[FileKind]
 
 /**
+ * ...AND ITS COMPLEMENT: the kinds whose content is a TREE OF RECORDS — the
+ * files something can WALK, as against the files it can only show.
+ *
+ * One entry today, which is why it is a derivation and not the word `"outline"`
+ * written down. The table is what decides: a second record-holding kind widens
+ * this union and narrows {@link BodyKind} in the same edit, and neither has to
+ * be remembered.
+ *
+ * ## Its reader, and the near miss it exists to catch
+ *
+ * A plugin's doorbell declares WHICH KINDS OF FILE it can be pointed at
+ * (`@olai/plugin-api`'s `PluginServerHalf.wake.kinds`), and a doorbell that
+ * derives its watched set by WALKING a file's records — kolu reads the terminals
+ * a board's un-done nodes claim — can only ever name kinds from this union. Its
+ * declaration is annotated with it, and the annotation is the whole guard: the
+ * words travel to the picker as plain strings, so nothing downstream can tell a
+ * kind that cannot work from one that can.
+ *
+ * {@link FileKind} IS NOT THAT GUARD, and the difference is the defect this
+ * union was added for. `FileKind` catches `"hologram"` — a word the registry
+ * does not claim — and passes `"document"`, which is a word it does claim and a
+ * file that holds no records at all. A doorbell declaring one would be offered
+ * `.md` files by the picker, would derive the empty set from whichever was
+ * picked, and would be beaten for by a heartbeat reporting a live watch: the
+ * exact screenshot defect (the human, 2026-09-01) that the declaration was added
+ * to close, reachable with the type checker happy. Bounded to this union it is
+ * the same class of error as `"hologram"`, caught in the plugin that wrote it.
+ *
+ * CORE STILL CANNOT KNOW whether a doorbell can walk a kind, and does not: a
+ * plugin that really does read a document's prose declares `"document"` and is
+ * right to. What this union says is narrower and checkable — that a plugin which
+ * walks RECORDS may not name a kind that has none — and it says it where the
+ * plugin writes it down rather than where core reads it.
+ */
+export type NodeKind = {
+  [K in FileKind]: (typeof FILE_KINDS)[K]["holds"] extends "nodes" ? K : never
+}[FileKind]
+
+/**
  * The bodied kinds whose content is TEXT — the files something in this process
  * may read as a string.
  *

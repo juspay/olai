@@ -229,7 +229,7 @@ export {
   textKind,
   unkept,
 } from "./kinds.ts"
-export type { BodyKind, FileKind, TextKind, UnkeptKind } from "./kinds.ts"
+export type { BodyKind, FileKind, NodeKind, TextKind, UnkeptKind } from "./kinds.ts"
 export type { Split } from "./address.ts"
 /** WHAT A PLACE IS CALLED — `[document]#[element]`, the one grammar every
  *  feature that has to name something trades in

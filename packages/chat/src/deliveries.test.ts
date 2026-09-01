@@ -38,7 +38,7 @@ import type { Leg } from "./agents/leg.ts"
 import type { Installed } from "./agents/roster.ts"
 import { type Chat, make as makeChat } from "./chat.ts"
 import { SLOTS } from "./deliveries.ts"
-import type { Scoped, Scopes } from "./scopes.ts"
+import type { Faulted, Scoped, Scopes } from "./scopes.ts"
 import { MemoryFailure } from "./memory.ts"
 
 /** Every plugin can be told, which is the ordinary serve — the arm where one
@@ -206,9 +206,9 @@ describe("an agent mid-turn", () => {
       expect(rung(chat)).toEqual([])
       // ... and the strip says one is waiting, because the alternative to
       // holding words out of sight is not dropping them, it is showing them.
-      expect(chat.state().wake).toEqual([{ name: KOLU, file: "Fleet.olai", waiting: 1, gone: false }])
+      expect(chat.state().wake).toEqual([{ name: KOLU, file: "Fleet.olai", waiting: 1, fault: null }])
       await until("the turn boundary to let it in", () => rung(chat).length === 1)
-      expect(chat.state().wake).toEqual([{ name: KOLU, file: "Fleet.olai", waiting: 0, gone: false }])
+      expect(chat.state().wake).toEqual([{ name: KOLU, file: "Fleet.olai", waiting: 0, fault: null }])
     })
   }, 20_000)
 
@@ -479,17 +479,17 @@ const movable = (): Scopes => {
         // were holding.
         return without.filter((row) => !rows.includes(row))
       }),
-    faults: (served) =>
+    faults: (judge) =>
       Effect.sync(() => {
-        const fell: Array<Scoped> = []
+        const fell: Array<Faulted> = []
         rows = rows.map((row) => {
-          const here = served(row.file)
-          if (here === (row.gone !== true)) return row
-          if (here) {
+          const wrong = judge(row.plugin, row.file)
+          if (wrong === (row.fault ?? null)) return row
+          if (wrong === null) {
             return { agent: row.agent, session: row.session, plugin: row.plugin, file: row.file }
           }
-          const broken: Scoped = { ...row, gone: true }
-          fell.push(broken)
+          const broken: Faulted = { ...row, fault: wrong }
+          if (row.fault === undefined) fell.push(broken)
           return broken
         })
         return fell
@@ -503,7 +503,7 @@ describe("a doorbell somebody turned off", () => {
     await closing(chat, async () => {
       await holding(chat)
       await run(chat.doorFor(KOLU).deliver(open(chat), () => RANG))
-      expect(chat.state().wake).toEqual([{ name: KOLU, file: "Fleet.olai", waiting: 1, gone: false }])
+      expect(chat.state().wake).toEqual([{ name: KOLU, file: "Fleet.olai", waiting: 1, fault: null }])
       // The gesture, made on seeing that count — the clear and the count are
       // drawn on one line, so this is the ordinary way to press it and not a
       // contrived race.
@@ -542,7 +542,7 @@ describe("a doorbell somebody turned off", () => {
       // saying it watches a different one — and the plugin does not re-derive
       // it, because the terminals it named need not be claimed in the new file.
       await run(chat.scope(open(chat), KOLU, "Other.olai"))
-      expect(chat.state().wake).toEqual([{ name: KOLU, file: "Other.olai", waiting: 0, gone: false }])
+      expect(chat.state().wake).toEqual([{ name: KOLU, file: "Other.olai", waiting: 0, fault: null }])
       await run(chat.send("say:done", [], []))
       await until("the second turn to finish", () => chat.state().status === "idle")
       expect(rung(chat)).toEqual([])
@@ -618,31 +618,43 @@ describe("the interruption a person has not spent", () => {
  * record rather than through a stand-in, and the composition — who detects,
  * whose words go in — is `@olai/server`'s.
  *
- * `served` below is a plain predicate over a set of names, which is the shape
- * the member takes and the reason it takes it: the caller holds a revision and
- * can answer for one path, and building the list of what went missing would
- * mean walking a directory per revision.
+ * The judgement below is a plain function over a plugin and a path, which is
+ * the shape the member takes and the reason it takes it: the caller holds a
+ * revision and the kinds each doorbell declared, and building the list of what
+ * broke would mean walking a directory per revision.
+ *
+ * THE SECOND CAUSE rides the same arm: a file that is served and is not a kind
+ * that doorbell reads — a `.md` under a wake that derives from nodes, which the
+ * picker used to offer. It is one signal, one row off the door and one sentence
+ * (a different one), and the only thing that differs is which sentence the
+ * caller reaches for.
  */
-describe("a doorbell whose file is no longer served", () => {
-  /** Everything is where it was. The answer on every revision but two. */
-  const ALL_THERE = () => true
+describe("a doorbell that is not watching what it names", () => {
+  /** Everything is where it was and readable. The answer on every revision but
+   *  two. */
+  const ALL_WELL = () => null
   /** ... and the rename: `Fleet.olai` is gone and nothing else is. */
-  const RENAMED = (file: string): boolean => file !== "Fleet.olai"
+  const RENAMED = (_plugin: string, file: string): "gone" | null =>
+    file === "Fleet.olai" ? "gone" : null
+  /** ... and the pick that was never watchable in the first place. */
+  const WRONG_KIND = (_plugin: string, file: string): "unwatchable" | null =>
+    file === "Fleet.olai" ? "unwatchable" : null
 
   test("the conversation is told once, and a second revision says nothing more", async () => {
     const chat = await panel({ scoping: movable() })
     await closing(chat, async () => {
       // Nothing has broken yet, so nothing is answered and the row is whole.
-      expect(await run(chat.faults(ALL_THERE, TELLABLE))).toEqual([])
+      expect(await run(chat.faults(ALL_WELL, TELLABLE))).toEqual([])
       expect(chat.state().wake).toEqual([
-        { name: KOLU, file: "Fleet.olai", waiting: 0, gone: false },
+        { name: KOLU, file: "Fleet.olai", waiting: 0, fault: null },
       ])
 
-      // THE EDGE. What comes back is the row, for the caller to say the
-      // plugin's own sentence over — this end composes nothing.
+      // THE EDGE. What comes back is the row AND the cause, for the caller to
+      // say the plugin's own sentence for that cause over — this end composes
+      // nothing and chooses nothing.
       const fell = await run(chat.faults(RENAMED, TELLABLE))
-      expect(fell.map((row) => ({ plugin: row.plugin, file: row.file, gone: row.gone })))
-        .toEqual([{ plugin: KOLU, file: "Fleet.olai", gone: true }])
+      expect(fell.map((row) => ({ plugin: row.plugin, file: row.file, fault: row.fault })))
+        .toEqual([{ plugin: KOLU, file: "Fleet.olai", fault: "gone" }])
 
       // ... and every revision after it, with the file still missing, answers
       // with nothing. This is the whole of "once": a rename is one sentence,
@@ -659,12 +671,12 @@ describe("a doorbell whose file is no longer served", () => {
       // The file is still named — that is what somebody has to recognise to
       // know which one went — and the row now says it is broken beside it.
       expect(chat.state().wake).toEqual([
-        { name: KOLU, file: "Fleet.olai", waiting: 0, gone: true },
+        { name: KOLU, file: "Fleet.olai", waiting: 0, fault: "gone" },
       ])
     })
   }, 20_000)
 
-  test("a gone scope is not on its plugin's door", async () => {
+  test("a faulted scope is not on its plugin's door", async () => {
     const chat = await panel({ scoping: movable() })
     await closing(chat, async () => {
       expect(chat.doorFor(KOLU).scopes()).toEqual([
@@ -690,12 +702,12 @@ describe("a doorbell whose file is no longer served", () => {
       // strip stops drawing it broken — and nothing comes back for a caller to
       // put into the conversation, because "it is fine again" is a thing the
       // control shows rather than a thing worth interrupting somebody for.
-      expect(await run(chat.faults(ALL_THERE, TELLABLE))).toEqual([])
+      expect(await run(chat.faults(ALL_WELL, TELLABLE))).toEqual([])
       expect(chat.doorFor(KOLU).scopes()).toEqual([
         { agent: "opencode", session: "sess-1", file: "Fleet.olai" },
       ])
       expect(chat.state().wake).toEqual([
-        { name: KOLU, file: "Fleet.olai", waiting: 0, gone: false },
+        { name: KOLU, file: "Fleet.olai", waiting: 0, fault: null },
       ])
 
       // ... and it can break a second time, which is a second thing that
@@ -722,10 +734,30 @@ describe("a doorbell whose file is no longer served", () => {
     const chat = await panel({ scoping: refusing })
     await closing(chat, async () => {
       expect(await run(chat.faults(RENAMED, TELLABLE))).toEqual([])
-      expect(rows[0]?.gone).toBeUndefined()
+      expect(rows[0]?.fault).toBeUndefined()
       expect(chat.state().wake).toEqual([
-        { name: KOLU, file: "Fleet.olai", waiting: 0, gone: false },
+        { name: KOLU, file: "Fleet.olai", waiting: 0, fault: null },
       ])
+    })
+  }, 20_000)
+
+  test("A PICK THAT WAS NEVER WATCHABLE breaks the same way, and says its own sentence", async () => {
+    // The picker offers only the kinds a doorbell declared, so this state can
+    // only come off the disk — a pick stored before that filter, a stale tab, a
+    // hand-edited record. It must reach the same three places a rename does:
+    // the answer, the strip, and the door.
+    const chat = await panel({ scoping: movable() })
+    await closing(chat, async () => {
+      const fell = await run(chat.faults(WRONG_KIND, TELLABLE))
+      expect(fell.map((row) => row.fault)).toEqual(["unwatchable"])
+      // The strip carries the CAUSE, because the two lines it draws differ.
+      expect(chat.state().wake).toEqual([
+        { name: KOLU, file: "Fleet.olai", waiting: 0, fault: "unwatchable" },
+      ])
+      // ... and the door is empty, which is what keeps a heartbeat from
+      // reporting a live watch over a conversation watching nothing.
+      expect(chat.doorFor(KOLU).scopes()).toEqual([])
+      expect(await run(chat.faults(WRONG_KIND, TELLABLE))).toEqual([])
     })
   }, 20_000)
 
