@@ -1283,13 +1283,6 @@ export const subtree = (
 
   const walk = (located: LocatedRegular, left: number): Subtree => {
     const children = countedChildren(at.derived, located.node.id)
-    // NAMED, never descended into — the same list `read_node`'s `placed`
-    // answers, so a node whose children are ALL placements (a day board, a
-    // Now list) reads as what is on it rather than as empty. Listed at the
-    // depth floor exactly as at any other level: a placement is unwalked,
-    // so it costs the floor nothing, and the row carries it whatever the
-    // row's shape — it is the walk's structure, like `children` and
-    // `truncated`, and neither dial below touches structure.
     const placed = placedUnder(at.derived, located.node.id)
     return {
       ...foundOf(at.derived, located),
