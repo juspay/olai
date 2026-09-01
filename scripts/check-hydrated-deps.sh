@@ -137,15 +137,23 @@ fi
 # which is not a widening for its own sake: `@odu/run-client` declares `effect`
 # at the same version, so a drifting manifest is the same two-instances failure
 # read off a different pin.
-# TWO GLOBS, because the tenants nest: `packages/plugins/` is the plugin
-# container and holds no package of its own, so `packages/*/package.json` would
-# walk every member but the two that wrap an appliance — which are precisely the
-# ones most likely to name a pinned external, and would have drifted here in
-# silence. The pair matches the root manifest's own `workspaces` field; a third
-# glob added there is a third line here. `nullglob` is not assumed: an
-# unmatched pattern stays literal in POSIX sh, and the `-f` guard below is what
-# makes that a skip rather than a `jq` reading a file called `*`.
-for manifest in "$root"/packages/*/package.json "$root"/packages/plugins/*/package.json; do
+#
+# EVERY WORKSPACE MEMBER, off the root manifest's own `workspaces` globs rather
+# than off a glob written here. It was `packages/*/package.json`, which was the
+# same set only while every member sat at the top — and the day the tenants moved
+# into `packages/plugins/` it would have walked every member but the two that
+# wrap an appliance, which are precisely the ones most likely to name a pinned
+# external. It would have drifted here in silence, which is the failure mode
+# this whole script exists against.
+#
+# A SECOND GLOB beside the first would have fixed that day and left the next one
+# to find. Reading the field `bun install` itself installs from cannot go stale:
+# a member this loop cannot see is a member that is not in the tree at all.
+#
+# `nullglob` is not assumed — an unmatched pattern stays literal in POSIX sh —
+# so the `-f` guard is what makes that a skip rather than a `jq` reading a file
+# called `*`.
+for manifest in $(jq -r '.workspaces[]' "$root/package.json" | sed "s|^|$root/|; s|\$|/package.json|"); do
   [ -f "$manifest" ] || continue
   drift=$(
     printf '%s' "$wanted" | jq -r --slurpfile pkg "$manifest" --arg label "$label" '
