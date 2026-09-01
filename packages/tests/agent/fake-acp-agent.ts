@@ -80,8 +80,11 @@
  *                two outings
  *   subagent notify  spawn ONE async agent, end the turn, and on release
  *                inject a `<task-notification>` user chunk the way the
- *                harness does — the report belongs in the spawn's fold, not
- *                in the column as a person speaking
+ *                harness does — the leftover door, for a forwarded chunk
+ *                the patched pin never actually sends
+ *   subagent report  the same spawn, but the report arrives the way the
+ *                SHIPPED pin files it: a `tool_call_update` carrying
+ *                `_meta.claudeCode.backgroundTask.report`, no user chunk
  *   subagent crash  the same, and then FALL OVER while it is still out —
  *                which leaves a `pending` Agent call nothing will ever
  *                complete, on rows a dead agent's panel deliberately keeps
@@ -2091,6 +2094,89 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
                 "</task-notification>",
             },
             _meta: { claudeCode: { origin: { kind: "task-notification" } } },
+          },
+        })
+      })
+      reply(id, { stopReason: "end_turn" })
+      return
+    }
+
+    // THE SHIPPED PATH: the patched pin swallows the user-role turn and
+    // files the `<result>` as `_meta.claudeCode.backgroundTask.report` on
+    // a `tool_call_update`. No adapter emits origin on a user chunk
+    // (`toAcpNotifications` stamps messageId / parentToolUseId only), so
+    // a fixture that only stamped origin was testing the leftover door.
+    if (argument === "report") {
+      const agent = `agent-${++nextMcpId}`
+      const task = "a4015bf2ba1fa514d"
+      const description = "count the ticks"
+      spawn(agent, description, "Explore")
+      notify("session/update", {
+        sessionId,
+        update: {
+          sessionUpdate: "tool_call_update",
+          toolCallId: agent,
+          status: "in_progress",
+          _meta: {
+            claudeCode: {
+              toolName: "Agent",
+              subagent: true,
+              backgroundTask: { taskId: task, taskType: "local_agent", description },
+            },
+          },
+        },
+      })
+      say("sent an agent out; I will keep working.")
+      void released().then(() => {
+        const ended = {
+          taskId: task,
+          taskType: "local_agent",
+          description,
+          status: "completed",
+        }
+        notify("session/update", {
+          sessionId,
+          update: {
+            sessionUpdate: "tool_call_update",
+            toolCallId: agent,
+            status: "completed",
+            _meta: {
+              claudeCode: { toolName: "Agent", taskStatus: "completed", backgroundTask: ended },
+            },
+          },
+        })
+        const summary = `Agent "${description}" finished`
+        notify("session/update", {
+          sessionId,
+          update: {
+            sessionUpdate: "tool_call_update",
+            toolCallId: agent,
+            status: "completed",
+            _meta: {
+              claudeCode: {
+                toolName: "Agent",
+                taskStatus: "completed",
+                backgroundTask: { ...ended, summary },
+              },
+            },
+            content: [{ type: "content", content: { type: "text", text: summary } }],
+          },
+        })
+        notify("session/update", {
+          sessionId,
+          update: {
+            sessionUpdate: "tool_call_update",
+            toolCallId: agent,
+            _meta: {
+              claudeCode: {
+                backgroundTask: {
+                  taskId: task,
+                  report:
+                    "I have thorough coverage now. Here is the factual report.\n\n" +
+                    "# Findings\n\nThere are three notes.\n",
+                },
+              },
+            },
           },
         })
       })

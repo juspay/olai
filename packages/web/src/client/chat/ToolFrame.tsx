@@ -183,7 +183,7 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
   const body = () =>
     props.entry.detail !== undefined
     || (!ended() && props.entry.progress !== undefined)
-    || props.entry.armed?.report !== undefined
+    || Boolean(props.entry.armed?.report)
 
   return (
     <div

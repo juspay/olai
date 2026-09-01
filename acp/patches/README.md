@@ -167,13 +167,16 @@ Added here, and not in #941:
   `<task-notification>` XML block carrying the whole result). Unpatched, and
   patched until this, that turn is forwarded as `user_message_chunk`, so the
   panel drew the report RAW in the column. The patch reads the discriminator
-  (`origin.kind`, falling back to the XML wrapper when origin is missing —
-  a replay of an older store) and files the `<result>` onto the spawning
-  call as `_meta.claudeCode.backgroundTask.report` instead — the same
-  stamp the ending already uses, not a second field. Live and on
-  `session/load`. Measured by `packages/tests/tasks.ts` `KIND=agent`: a
-  forwarded task-notification prints `TASK-NOTIFICATION FORWARDED AS USER
-  SPEECH`, and the day one does, that line is how anybody finds out;
+  (`origin.kind`, falling back to the XML wrapper **only when origin is
+  missing** — a replay of an older store — and only when the trimmed
+  payload starts and ends with the tags, so a human prompt the pin stamps
+  `origin: human` is never this, even if they pasted the XML) and files
+  the `<result>` onto the spawning call as
+  `_meta.claudeCode.backgroundTask.report` instead — the same stamp the
+  ending already uses, not a second field. Live and on `session/load`.
+  Measured by `packages/tests/tasks.ts` `KIND=agent`: a forwarded
+  task-notification prints `TASK-NOTIFICATION FORWARDED AS USER SPEECH`,
+  and the day one does, that line is how anybody finds out;
 - **a task's SECOND LIFE** (`reopenBackgroundTask`, `taskOrigins`), which is
   a subagent's: an agent that has reported can be sent more work, and the
   harness starts the SAME task again. Measured against this pin

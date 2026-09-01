@@ -832,6 +832,12 @@ describe("the leg", () => {
     expect(taskNotificationIn("hello", { claudeCode: { origin: { kind: "human" } } }))
       .toBeNull()
     expect(taskNotificationIn("hello", undefined)).toBeNull()
+    // A person who pasted the wrapper is still a person: origin human wins,
+    // and a quote of the tags inside a larger message is not the whole payload.
+    expect(taskNotificationIn(xml, { claudeCode: { origin: { kind: "human" } } }))
+      .toBeNull()
+    expect(taskNotificationIn(`see this:\n${xml}\nthanks`, undefined)).toBeNull()
+    expect(taskNotificationIn(`${xml}\ntrailing`, undefined)).toBeNull()
     expect(CLAUDE.taskNotification(xml, undefined)?.onto?.toolUseId)
       .toBe("toolu_014mD8gkPSCXNL6gF11GK7hv")
   })

@@ -411,10 +411,10 @@
 + * olai patch (background-tasks-visible): a harness-injected task-notification
 + * is not a person speaking.
 + *
-+ * The discriminator is `origin.kind === "task-notification"` on the SDK user
-+ * message (the session JSONL already stamps it). The `<task-notification>`
-+ * wrapper is the same event when origin is missing — a replay of an older
-+ * store, or a runtime that drops origin on getSessionMessages.
++ * The discriminator is `origin.kind === "task-notification"`. The wrapper is
++ * a fallback ONLY when origin is missing, and only when the trimmed payload
++ * starts and ends with the tags. A human prompt is stamped `origin: human`
++ * and is never this, even if they pasted the XML.
 + *
 + * Returns null if this is ordinary user speech (forward as usual). Returns
 + * `{ update: null }` to swallow a notification that names no spawning call.
@@ -433,15 +433,15 @@
 +        : Array.isArray(raw)
 +            ? raw.map((block) => typeof block?.text === "string" ? block.text : "").join("")
 +            : "";
-+    const wrapped = typeof text === "string" &&
-+        text.includes("<task-notification>") &&
-+        text.includes("</task-notification>");
-+    if (origin !== "task-notification" && !wrapped) {
++    const xml = typeof text === "string" ? text.trim() : "";
++    const wrapped = xml.startsWith("<task-notification>") &&
++        xml.endsWith("</task-notification>");
++    if (origin !== "task-notification" && !(origin === undefined && wrapped)) {
 +        return null;
 +    }
-+    const toolUseId = (text.match(/<tool-use-id>([^<]*)<\/tool-use-id>/) || [])[1];
-+    const taskId = (text.match(/<task-id>([^<]*)<\/task-id>/) || [])[1];
-+    const resultMatch = text.match(/<result>([\s\S]*)<\/result>/);
++    const toolUseId = (xml.match(/<tool-use-id>([^<]*)<\/tool-use-id>/) || [])[1];
++    const taskId = (xml.match(/<task-id>([^<]*)<\/task-id>/) || [])[1];
++    const resultMatch = xml.match(/<result>([\s\S]*)<\/result>/);
 +    const result = resultMatch ? resultMatch[1] : "";
 +    if (typeof toolUseId !== "string" || toolUseId.trim() === "" ||
 +        typeof taskId !== "string" || taskId.trim() === "") {

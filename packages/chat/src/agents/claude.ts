@@ -247,14 +247,19 @@ export const spawnedIn = (meta: Meta, input: unknown): Spawn | null => {
  * Whether this user-message text is a harness-injected task-notification,
  * and if so the spawning call it belongs to and the report it carries.
  *
- * TWO DOORS, either enough:
+ * TWO DOORS, and they are the adapter patch's two doors:
  *
- *   - **`origin.kind: "task-notification"`** in `_meta.claudeCode` — the
- *     discriminator the session JSONL already stamps, forwarded onto ACP
- *     when the adapter keeps the chunk (or when a fixture stamps it);
- *   - **the `<task-notification>` wrapper** — what the injected user turn
- *     actually contains, and what arrives on ACP when the adapter forwards
- *     the message without the origin.
+ *   - **`origin.kind: "task-notification"`** — the discriminator the
+ *     session JSONL already stamps. No ACP `user_message_chunk` carries
+ *     it (the pin's `toAcpNotifications` stamps `messageId` /
+ *     `parentToolUseId` and nothing else); a leftover chunk that has it
+ *     was a fixture. A patched pin never forwards the chunk at all.
+ *   - **the `<task-notification>` wrapper**, only when origin is
+ *     **missing**, and only when the trimmed payload starts and ends
+ *     with the tags — a replay of an older store, or a leftover the
+ *     adapter forwarded without origin. Origin present and not a
+ *     task-notification is a person speaking, even if they pasted the
+ *     XML (the pin stamps every prompt `origin: { kind: "human" }`).
  *
  * A payload that is neither is `null`, which is a person speaking. A
  * payload that is one but names no spawning call or no task is still a
@@ -264,8 +269,8 @@ export const spawnedIn = (meta: Meta, input: unknown): Spawn | null => {
 export const taskNotificationIn = (text: string, meta: Meta): TaskNotice | null => {
   const kind = wordIn(fieldIn(claudeIn(meta), "origin"), "kind")
   const xml = text.trim()
-  const wrapped = xml.startsWith("<task-notification>") && xml.includes("</task-notification>")
-  if (kind !== "task-notification" && !wrapped) return null
+  const wrapped = xml.startsWith("<task-notification>") && xml.endsWith("</task-notification>")
+  if (kind !== "task-notification" && !(kind === null && wrapped)) return null
   const toolUseId = (xml.match(/<tool-use-id>([^<]*)<\/tool-use-id>/u)?.[1] ?? "").trim()
   const task = (xml.match(/<task-id>([^<]*)<\/task-id>/u)?.[1] ?? "").trim()
   const report = xml.match(/<result>([\s\S]*)<\/result>/u)?.[1] ?? ""

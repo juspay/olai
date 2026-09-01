@@ -712,23 +712,30 @@ describe("an agent that was sent out", () => {
   })
 
   test("A REOPENED CALL'S TASK HAS NOT ENDED, whatever the last outing said", () => {
-    // The sharpest of the three facts an outing owns, and the one that is not
+    // The sharpest of the four facts an outing owns, and the one that is not
     // about drawing at all. `armed.ended` is what takes a call OUT of the
     // stranding exemption (`isTaskOut`), so an async agent still carrying its
     // first outing's ending is an agent whose face the next turn boundary
     // takes straight back off — the bug this whole change exists to end,
-    // arriving one layer underneath it.
+    // arriving one layer underneath it. `armed.report` is the same family:
+    // outing #1's prose in the fold of outing #2 is "here is what the agent
+    // found" while it is still out finding it.
     const transcript = new Transcript()
     transcript.tool("toolu_01AGENT", { ...sent, armed: { task: "bu13xz2ie" } })
     transcript.tool("toolu_01AGENT", {
       status: "completed",
-      armed: { task: "bu13xz2ie", ended: "completed" },
+      armed: {
+        task: "bu13xz2ie",
+        ended: "completed",
+        report: "outing one found three notes.",
+      },
     })
     transcript.tool("toolu_01AGENT", { status: "in_progress" })
 
     const out = asKind(rows(transcript)[0], "tool")
     // Everything else the harness said about the task is as true of this outing
-    // as of the last, and is still on the row.
+    // as of the last, and is still on the row. The last outing's ending and
+    // its report are not.
     expect(out?.armed).toEqual({ task: "bu13xz2ie" })
     expect(out?.status).toBe("in_progress")
 
@@ -740,10 +747,18 @@ describe("an agent that was sent out", () => {
     // stopped being a task.
     transcript.tool("toolu_01AGENT", {
       status: "completed",
-      armed: { task: "bu13xz2ie", ended: "completed" },
+      armed: {
+        task: "bu13xz2ie",
+        ended: "completed",
+        report: "outing two pushed the branch.",
+      },
     })
     expect(asKind(rows(transcript)[0], "tool")?.armed)
-      .toEqual({ task: "bu13xz2ie", ended: "completed" })
+      .toEqual({
+        task: "bu13xz2ie",
+        ended: "completed",
+        report: "outing two pushed the branch.",
+      })
   })
 
   test("... so a turn ending under a RESUMED async agent leaves it alone", () => {

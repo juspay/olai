@@ -707,8 +707,15 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
                 locations: undefined,
                 parent: undefined,
                 spawned: undefined,
-                armed: { task: notice.onto.task, report: notice.onto.report },
+                armed: {
+                  task: notice.onto.task,
+                  ...(notice.onto.report === "" ? {} : { report: notice.onto.report }),
+                },
               })
+            } else {
+              say(Effect.logDebug(
+                "task-notification named no spawning call or no task; swallowed, no row",
+              ))
             }
             return
           }
