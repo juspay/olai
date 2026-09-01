@@ -53,11 +53,16 @@
  *   4. Arming AFTER the parent has died delivers nothing, ever — the race is
  *      real, and only a check after the arm closes it.
  *
- * The mechanism is `bun:ffi` over libc because the runtime exposes neither
- * call, and it is best-effort in the same breath as #355: a machine without
- * the syscall still serves. What is no longer silent is a caller who ASKED
- * and did not get it — that one says so on stderr, because the harness's
- * cleanup floor is gone and only the reaper is left holding it.
+ * ONE call goes through `bun:ffi`: `prctl`, which the runtime does not expose.
+ * The parent is read as `process.ppid`, which it does — and which is a LIVE
+ * read rather than a value captured at start (measured: it tracks libc's
+ * `getppid()` exactly across a reparent, both moving from the spawner's pid to
+ * 1 in the same 100ms beat). A second FFI symbol for a number the runtime
+ * hands over is a second thing that can fail to load on the way to the same
+ * answer. It stays best-effort in the same breath as #355 — a machine without
+ * the syscall still serves — but a caller who ASKED and did not get it is no
+ * longer told nothing: that one says so on stderr, because the cleanup floor
+ * it was promised is gone and only the reaper is left holding it.
  */
 
 import { dlopen, FFIType } from "bun:ffi"
@@ -121,17 +126,22 @@ export const dieWithParent = (env: NodeJS.ProcessEnv = process.env): void => {
   // warned — the platform is the answer, and every spawn site here runs on
   // both.
   if (process.platform !== "linux") return
+  // The sonames, glibc's then musl's — the same list `./flock.ts` keeps for the
+  // same loader, in a PLATFORM table that also answers where errno lives and
+  // what EWOULDBLOCK is. Not imported from there: reaching into the lock module
+  // for a string would put this file's boot on that one's graph for a reason
+  // that has nothing to do with locking. The day a third platform arrives, that
+  // table is the fuller answer and this list is two lines to move.
   for (const name of ["libc.so.6", "libc.so"] as const) {
     try {
       const lib = dlopen(name, {
         prctl: { args: [FFIType.i32, FFIType.i32], returns: FFIType.i32 },
-        getppid: { args: [], returns: FFIType.i32 },
       })
       lib.symbols.prctl(PR_SET_PDEATHSIG, SIGTERM)
       // The race the arm above cannot cover: a parent that died first is a
       // signal that was already not sent. Asked AFTER the arm, so a parent
       // dying in between is caught by one or the other and not missed by both.
-      if (lib.symbols.getppid() !== policy.parent) process.kill(process.pid, "SIGTERM")
+      if (process.ppid !== policy.parent) process.kill(process.pid, "SIGTERM")
       return
     } catch {
       // try the next soname
