@@ -45,6 +45,7 @@ import {
   terminalsIn,
 } from "./doorbell.ts"
 import { ownKinds, TERMINAL_TYPE } from "./kinds.ts"
+import { listed, tracing } from "./trace.ts"
 
 // ── The vault, as `./claimants.test.ts` builds one ────────────────────────
 
@@ -386,6 +387,98 @@ test("... and so does a CANCELLED one, and an unmarked bullet somebody wrote", (
       ].join("\n"),
     }, "lanes.olai"),
   ).toEqual([])
+})
+
+// ── THE ONE THE HUMAN FOUND ON A LIVE BOARD, 2026-09-01 ────────────────────
+
+test("a lane MINTED AS A BULLET and claimed later rings — an UNMARKED CONTAINER is judged by what is under it", () => {
+  // THE P1 (`doorbell-missing-claim`, whose RCA is on the board): one lane on a
+  // busy day board drew no wake and no nag for 26 minutes while its agent sat
+  // `waiting` and the nag knob was on. Four other lanes on the SAME board, in
+  // the SAME conversation, rang 5 and 7 times through that window — so it was
+  // never the queue, the scope or the knobs. It was the SET: the terminal was
+  // not in it.
+  //
+  // WHAT MADE IT DIFFERENT, and it is one field. Every other row of that board
+  // carried a mark. This lane's node had been FILED FIRST — a bug somebody
+  // wrote down — and the dispatch grafted the `terminal` and the eleven steps
+  // onto the node that was already there without ever marking the node itself.
+  // A lane minted whole by its own dispatch arrives WITH a mark; a lane grown
+  // onto a bullet does not, and nobody notices, because the board draws it from
+  // its children either way.
+  //
+  // The walk then asked the CARRYING NODE for an unfinished mark of its own,
+  // found none, and dropped the lane and its whole subtree before descending —
+  // the same mistake this module's header already names three times over ("the
+  // meaning read the wrong node's mark"), left standing on the un-done gate. A
+  // container is judged by its children and never by itself: that is the ruled
+  // sentence, and this is the gate that did not obey it.
+  const filed = {
+    "_olai/Properties.olai": declaring(),
+    "lanes.olai": `{"id":"m","ord":"a0","mirror":"tns"}`,
+    "bugs.olai": rec("tns", "PR: task notifications stop spilling raw"),
+  }
+  // A bullet somebody filed, claiming nothing — and nothing should ring for it.
+  // That is the leaf case one test up, and it does not move.
+  expect(claimsOf(filed, "lanes.olai")).toEqual([])
+
+  // THE DISPATCH, as a LATER write onto the node already on the board: the
+  // claim and the steps arrive, and the node's own row is never marked.
+  const dispatched = {
+    "_olai/Properties.olai": declaring(),
+    "lanes.olai": `{"id":"m","ord":"a0","mirror":"tns"}`,
+    "bugs.olai": [
+      rec("tns", "PR: task notifications stop spilling raw", { terminal: "11e565c0" }),
+      under("impl", "tns", "a0", "implement + open PR", "done"),
+      under("refactor", "tns", "a1", "refactor passes", "doing"),
+    ].join("\n"),
+  }
+  // Somebody is on `refactor passes` right now and the terminal the node above
+  // it claims is held. That is a WAKE, and the set has to carry it.
+  expect(claimsOf(dispatched, "lanes.olai")).toEqual([
+    { value: "11e565c0", step: "refactor passes", mark: "doing" },
+  ])
+})
+
+test("... and an unmarked container whose work has all SETTLED still claims nothing", () => {
+  // The fence on the case above, and the reason the gate is LIVE rather than
+  // not-settled: a bullet is judged by its children, so a bullet whose children
+  // have all finished is as silent as the leaf bullet is. A gate spelled
+  // "anything that is not `done`" would ring every closed lane on a board
+  // somebody kept — which is `unfinished`'s own documented trap, one level up.
+  expect(
+    claimsOf({
+      "_olai/Properties.olai": declaring(),
+      "lanes.olai": [
+        rec("tns", "PR: task notifications stop spilling raw", { terminal: "11e565c0" }),
+        under("impl", "tns", "a0", "implement + open PR", "done"),
+        under("dropped", "tns", "a1", "refactor passes", "cancelled"),
+      ].join("\n"),
+    }, "lanes.olai"),
+  ).toEqual([])
+})
+
+test("... and an unmarked lane whose only live step is ANOTHER terminal's is a digest, not a disappearance", () => {
+  // The two rules meeting. `live` says the lane still holds work; the
+  // claimed-subtree fence says that work is the REVIEWER'S and can never be the
+  // lane's owing step. So the lane is present and parked — which is exactly
+  // what a lane marked `doing` in this shape already answers, and the point is
+  // that it does not depend on whether anybody remembered to mark it.
+  //
+  // A fence that swallowed `live` as well as `deepest` would delete the lane
+  // from the set instead, which is this file's own P1 again one rule down.
+  expect(
+    claimsOf({
+      "_olai/Properties.olai": declaring(),
+      "lanes.olai": [
+        rec("tns", "PR: task notifications stop spilling raw", { terminal: "11e565c0" }),
+        under("rev", "tns", "a0", "review: claude-opus", "doing", { terminal: "384f5360" }),
+      ].join("\n"),
+    }, "lanes.olai"),
+  ).toEqual([
+    { value: "11e565c0", step: "PR: task notifications stop spilling raw", mark: "todo" },
+    { value: "384f5360", step: "review: claude-opus", mark: "doing" },
+  ])
 })
 
 test("the digest line asserts NO mark, because the one it has is a verdict", () => {
@@ -840,7 +933,14 @@ const bench = (files: Record<string, string>) => {
   const held: Array<
     { to: Conversation; say: () => string | null; coalesce: string | undefined }
   > = []
+  /** EVERY LINE THE BEAT WROTE, in order — the real tracer over a collector,
+   *  because what a `Trace` is for is being read, and a test that handed it a
+   *  no-op would pin the calls and not the words. */
+  const lines: Array<string> = []
   const heart = makeHeartbeat({
+    trace: tracing((line) => {
+      lines.push(line)
+    }),
     scopes: () => scoped,
     deliver: (to, say, options) => {
       held.push({ to, say, coalesce: options?.coalesce })
@@ -871,6 +971,7 @@ const bench = (files: Record<string, string>) => {
     /** WHAT ACTUALLY ENTERED THE CONVERSATIONS: core drops a `null` body
      *  rather than shortening it, so a held delivery that derives to nothing
      *  is not a message and does not count as one here either. */
+    lines,
     words: () =>
       held.map((one) => one.say()).filter((body): body is string => body !== null),
   }
@@ -1055,6 +1156,52 @@ test("a file that claims NOTHING is still beaten for — the zero is the evidenc
   expect(body).toContain("— terminals it claims right now: 0.")
 })
 
+
+// ── WHAT THE BEAT SAID IT DID ──────────────────────────────────────────────
+
+test("a beat says what it did — the head, then one line per conversation it decided about", () => {
+  // THE EVIDENCE HALF of `doorbell-missing-claim`. A conversation hearing
+  // nothing is the ordinary case, so "quiet" is never evidence on its own: a
+  // beat that passed everybody over and a beat that never fired are the same
+  // nothing from outside, and one of them is a wedged watcher. These lines are
+  // the only place that difference is written down.
+  const it = bench(ONE_CLAIM)
+  it.scope(SEAT)
+  it.after(WINDOW)
+  it.heart.beat(WINDOW)
+  expect(it.lines[0]).toBe(
+    "kolu doorbell beat every=1800000 scopes=1 spoken=0 lastEvent=none",
+  )
+  expect(it.lines[1]).toBe("kolu doorbell beating file=lanes.olai agent=olai session=s-1")
+  // ...and the count is said at SEND time, not at beat time, which is where the
+  // body reads it — so the line and the sentence can never disagree.
+  expect(it.lines).not.toContain("kolu doorbell beat-said file=lanes.olai agent=olai terminals=1")
+  it.words()
+  expect(it.lines.at(-1)).toBe("kolu doorbell beat-said file=lanes.olai agent=olai terminals=1")
+})
+
+test("... and a conversation passed over says WHICH of the two reasons it was", () => {
+  // The two are not the same fault and must never read alike: one is a busy
+  // window doing exactly what the floor is for, the other is a store that has
+  // stopped publishing and a doorbell that can derive nothing at all.
+  const it = bench(ONE_CLAIM)
+  it.scope(SEAT)
+  it.heart.delivered({ agent: "olai", session: "s-1" })
+  it.heart.beat(WINDOW)
+  expect(it.lines).toContain(
+    "kolu doorbell beat-passed file=lanes.olai agent=olai why=spoke-this-window",
+  )
+  expect(it.held.length).toBe(0)
+
+  const starved = bench(ONE_CLAIM)
+  starved.scope(SEAT)
+  starved.unload()
+  starved.heart.beat(WINDOW)
+  expect(starved.lines).toContain(
+    "kolu doorbell beat-passed file=lanes.olai agent=olai why=no-revision",
+  )
+  expect(starved.held.length).toBe(0)
+})
 test("the BEAT is not an event — a heartbeat never dates itself as one", () => {
   // The beat and this loop come off one timer, so a beat stamped as an event
   // would make "last watcher event" say "just now" forever: the one fact in

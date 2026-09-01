@@ -30,11 +30,26 @@
  *
  * ## FOUR RULES THE WALK KEEPS, each of them a defect somewhere else
  *
- * **UN-DONE IS NOT `!== "done"`.** The marks are `done | cancelled | doing |
- * todo` and TWO of them end the wait, so a comparison against `done` alone
- * reads a cancelled step as work somebody still owes. And `Derived.status` is
- * PARTIAL — a node with no mark is a bullet, not a todo — so the question is
- * asked with `@olai/format`'s own `unfinished`, which answers both halves.
+ * **SETTLED IS THE ONLY SILENCE, and it is not `!== "done"`.** The marks are
+ * `done | cancelled | doing | todo` and TWO of them end the wait, so a
+ * comparison against `done` alone reads a cancelled step as work somebody still
+ * owes. Those two are what stops the walk; nothing else does.
+ *
+ * ...AND AN UNMARKED NODE IS NOT ONE OF THEM. `Derived.status` is PARTIAL, so a
+ * node nobody marked answers `undefined` — which is not a verdict but the
+ * absence of one, and the two are decided differently. A LEAF with no mark is a
+ * line somebody wrote rather than a task somebody is on, and it claims nothing.
+ * A CONTAINER with no mark is judged by what is under it, exactly as its
+ * MEANING already is ({@link owning}): a lane whose node was filed before its
+ * dispatch, and grew its claim and its steps in a later write, wears no mark of
+ * its own and is as live as the `doing` step inside it.
+ *
+ * The gate used to ask `unfinished` — which folds the unmarked in with the
+ * settled and drops both — and that was `doorbell-missing-claim` (P1,
+ * 2026-09-01): one lane on a busy day board drew no wake, no nag and no place
+ * in the heartbeat's count for 26 minutes with its agent sitting `waiting`,
+ * while four lanes beside it in the same conversation rang. One absent field
+ * decided it, invisibly, and nothing about the board said that lane differed.
  *
  * **MIRRORS RESOLVE TO THEIR TARGETS,** which is why this is a SECOND walk
  * and not a mirror arm grown on {@link ./claimants.ts}. That walk skips
@@ -156,6 +171,22 @@
  * or not anything styles them, the lead-ins are a plain `— ` rather than a
  * list marker, and there is not a `**` in the file.
  *
+ * ## AND IT SAYS WHAT IT DID, which the first landing did not
+ *
+ * Every seam here and in {@link ./server.ts} writes one line per moment on the
+ * owner's debug channel ({@link ./trace.ts}): the event that arrived, the set
+ * one file derived, what that meant to each scoped conversation, what was
+ * handed to core and what actually went in, and the beat under all of it.
+ *
+ * IT IS PART OF THE FEATURE AND NOT INSTRUMENTATION AROUND IT. A doorbell's
+ * failure mode is a call that does not happen, which is byte-for-byte identical
+ * to its ordinary quiet operation — so a doorbell with no account of itself is
+ * one that cannot be told from a broken one, and `doorbell-missing-claim` was
+ * diagnosed by counting messages by hand out of a chat transcript because that
+ * transcript was the only record there was. Silence stays silence to the
+ * CONVERSATION, which was ruled and is not reopened; what changed is that it is
+ * no longer silence to the owner.
+ *
  * Every claim above is held by `./doorbell.test.ts` over whole vaults through
  * the real parser, rather than by this paragraph.
  */
@@ -168,6 +199,7 @@ import {
   type LocatedRegular,
   type PropDeclarations,
   type Settled,
+  settles,
   type Status,
   textDeclaredAs,
   unfinished,
@@ -176,6 +208,7 @@ import { heldStateOf } from "@olai/kolu-client"
 import { type FleetTerminal, type KoluEvent, resolveTerminal, whoOf } from "@olai/kolu-client/wire"
 
 import { TERMINAL_TYPE } from "./kinds.ts"
+import type { Trace } from "./trace.ts"
 
 /**
  * WHAT A WAKE MEANS, and there are exactly two of them.
@@ -190,6 +223,20 @@ export type Meaning = "wake" | "digest"
  *  `@olai/format`'s own exclusion, so a fifth mark cannot arrive here without
  *  arriving there first. */
 type Unfinished = Exclude<Status, Settled>
+
+/**
+ * DOES THIS MARK END THE WAIT — asked of `Derived.status`'s PARTIAL answer,
+ * which is the whole reason this is a function and not `settles` called
+ * directly.
+ *
+ * `settles` takes a `Status`; the index answers `Status | undefined`, and the
+ * unmarked case is the one every gate here has to get right. It is NOT
+ * `!unfinished(mark)`: those two differ on exactly the unmarked node —
+ * `unfinished` reads it as "not work", this reads it as "not finished" — and
+ * the difference is the P1 {@link claiming} carries. A row nobody has ruled on
+ * has not settled; it has not been ruled on, and what is under it decides.
+ */
+const settled = (mark: Status | undefined): boolean => mark !== undefined && settles(mark)
 
 /**
  * ONE CLAIM the filter file makes, as the vault wrote it.
@@ -324,11 +371,24 @@ export const claimedIn = (
    */
   const reached = new Set<string>()
   for (const located of inside) {
-    // UN-DONE, asked of the list rather than of `done`: a cancelled step is
-    // work nobody owes, and an ABSENT mark is a bullet somebody wrote, not a
-    // task somebody is on. Asked of the PLACEMENT, whose `status` already
-    // resolves a mirror to whatever its target stores.
-    if (!unfinished(derived.status.get(located.node.id))) continue
+    // SETTLED ENDS THE WALK, and nothing else does. `done` and `cancelled`
+    // both end the wait, so a row wearing either is silent and so is
+    // everything under it. An ABSENT mark is NOT that: it is a row nobody has
+    // ruled on, and what is under it decides ({@link claiming}'s `live`).
+    // Asked of the PLACEMENT, whose `status` already resolves a mirror to
+    // whatever its target stores.
+    //
+    // IT USED TO ASK `unfinished` HERE, which folds the unmarked rows in with
+    // the settled ones and drops both — and that is the P1 the human found on
+    // 2026-09-01. A lane whose node was FILED FIRST and grew its claim and its
+    // steps in a later write is a live lane wearing no mark of its own: the
+    // gate dropped it and its whole subtree before descending, so its terminal
+    // was absent from the ringing set and it drew no wake and no nag for 26
+    // minutes while four lanes beside it on the same board rang. `unfinished`
+    // is the right question of a MARK and the wrong one of a PLACE, for the
+    // same reason this walk already reads the owning step's mark rather than
+    // the lane's: a container is judged by its children and never by itself.
+    if (settled(derived.status.get(located.node.id))) continue
     const found = follow(derived, located)
     // A dangling or circular mirror shows no record, so there is nothing to
     // read a property off. It is not an error here — the vault says so
@@ -349,8 +409,33 @@ interface Ranked extends Claim {
 }
 
 /**
+ * WHAT A NODE ANSWERS ITS PARENT WITH — two facts, because the walk decides two
+ * things and they are not the same question.
+ */
+interface Under {
+  /** The deepest node being worked AT OR UNDER this one, or `undefined` where
+   *  nobody is on anything here. It is what names a wake's step. */
+  readonly deepest: LocatedRegular | undefined
+  /**
+   * Whether there is unfinished work AT OR UNDER this one — this node's own
+   * mark where it has one, or any descendant's where it does not.
+   *
+   * IT IS NOT "`deepest !== undefined`". A subtree of `todo` steps is live and
+   * nobody is on it, which is the digest arm's whole subject; a subtree where
+   * every step has settled is finished, and finished is silent. One is about
+   * who is working, the other about whether there is work — and collapsing them
+   * would make every parked author disappear or every closed lane ring.
+   */
+  readonly live: boolean
+}
+
+/** Nothing here: what a settled node, and a node the walk has already reached,
+ *  answer with. */
+const NOTHING_UNDER: Under = { deepest: undefined, live: false }
+
+/**
  * ONE POST-ORDER PASS: collect this node's claim, and answer its parent with
- * the deepest node being worked at or under it.
+ * what is going on at or under it ({@link Under}).
  *
  * ## Why the two questions are one walk
  *
@@ -362,12 +447,39 @@ interface Ranked extends Claim {
  * happening below it from the children it has already visited, and hands the
  * same answer to its own parent.
  *
- * WHAT IT RETURNS is "the deepest node being worked AT OR UNDER me", which is
- * exactly what a parent needs and is NOT what this node decides its own claim
- * by — that one is strictly-under, and it is `deepest` before this node adds
- * itself. The distinction is the parked-author rule ({@link Claim.mark}): a
- * node that contains steps is not a step, and a lane is marked `doing` while
- * anybody is anywhere in it.
+ * `deepest` is "the deepest node being worked AT OR UNDER me", which is exactly
+ * what a parent needs and is NOT what this node decides its own claim by — that
+ * one is strictly-under, and it is `deepest` before this node adds itself. The
+ * distinction is the parked-author rule ({@link Claim.mark}): a node that
+ * contains steps is not a step, and a lane is marked `doing` while anybody is
+ * anywhere in it.
+ *
+ * ## WHETHER A CLAIM COUNTS IS `live`, and it used to be the node's own mark
+ *
+ * A claim is somebody's business while there is unfinished work at or under the
+ * node carrying it. For a LEAF that is its own mark and nothing else, which is
+ * the ordinary step-level claim and the same answer as before: an unmarked leaf
+ * is a line somebody wrote, not a task somebody is on, and it claims nothing.
+ * For a CONTAINER it is the subtree, because a container is judged by its
+ * children and never by itself — the sentence {@link owning} has always kept
+ * about the MEANING, kept here about EXISTENCE too.
+ *
+ * THE P1 THIS FIXES (`doorbell-missing-claim`, 2026-09-01) is the second half
+ * of that sentence going missing. The gate asked the carrying node for an
+ * unfinished mark OF ITS OWN, so a lane whose node had been filed as a bullet
+ * before its dispatch — the claim and the eleven steps grafted on later, the
+ * node's own row never marked — was not in the set at all. It drew no wake, no
+ * nag and no place in the heartbeat's count for 26 minutes with an agent
+ * sitting `waiting`, while four lanes beside it on the same board, in the same
+ * conversation, rang. Nothing about the board said that lane was different; one
+ * absent field did, invisibly.
+ *
+ * WHAT DOES NOT CHANGE is the settling end of it. A `done` or `cancelled` node
+ * is silent and stops the walk, exactly as before and for the reason the header
+ * gives: two marks end the wait, and a review step folded half an hour ago owes
+ * nobody anything. The widening is only over the UNMARKED, which was never a
+ * verdict — and it is a widening that a subtree can still refuse, which is what
+ * keeps a closed lane closed.
  */
 const claiming = (
   declarations: PropDeclarations,
@@ -377,7 +489,17 @@ const claiming = (
   claims: Array<Ranked>,
   /** The claim that owns the walk this node is inside — see `owner` below. */
   mine: string | undefined,
-): LocatedRegular | undefined => {
+): Under => {
+  const own = derived.status.get(at.node.id)
+  // A SETTLED NODE IS THE END OF THIS BRANCH — no claim of its own, nothing
+  // said about what is under it, and no descent. The same predicate the outer
+  // loop asks of the file's rows, asked again here because that loop only ever
+  // saw the row and a claim can be anywhere under it.
+  //
+  // IT WAS ASKED ONLY OF THE ROW, and the human found it on a live board: a
+  // review step folded half an hour earlier still rang, because the lane above
+  // it was open and nothing re-asked the step.
+  if (settled(own)) return NOTHING_UNDER
   const rank = reached.size
   reached.add(at.node.id)
   const said = textDeclaredAs(declarations, at.node, TERMINAL_TYPE)
@@ -389,6 +511,11 @@ const claiming = (
   /** The deepest node being worked STRICTLY under this one, once the loop has
    *  run — which is what this node's own claim is judged by. */
   let deepest: LocatedRegular | undefined
+  /** ...and whether there is any unfinished work under it at all, which is what
+   *  decides whether the claim is anybody's business. Seeded with this node's
+   *  OWN mark, so a leaf answers by itself and a container is answered by the
+   *  loop below — the two halves of {@link Under.live}. */
+  let live = unfinished(own)
   let leaf = true
   for (const child of countedChildren(derived, at.node.id)) {
     leaf = false
@@ -409,18 +536,16 @@ const claiming = (
     // STATED rather than emergent, so a reader is not left deducing it from a
     // loop. Depth still beats breadth: a deeper `doing` returned by any child
     // replaces a shallower one, because each child answers with its own deepest.
-    if (under !== undefined) deepest = under
+    if (under.deepest !== undefined) deepest = under.deepest
+    // ...AND ANY ONE OF THEM MAKES THIS NODE LIVE. Unlike `deepest` this is an
+    // OR and never a pick: the question is whether the subtree holds work, and
+    // one unfinished step is the whole answer however many settled ones sit
+    // beside it.
+    if (under.live) live = true
   }
-  // THE CARRYING NODE MUST ITSELF BE UN-DONE, and this is the same predicate the
-  // outer loop asks of the file's rows — asked again here because the outer loop
-  // only ever saw the row, and the claim can be anywhere under it.
-  //
-  // IT WAS ASKED ONLY OF THE ROW, and the human found it on a live board: a
-  // review step folded half an hour earlier still rang, because the lane above
-  // it was open and nothing re-asked the step. A settled node's claim is as
-  // silent as a settled lane's — `done` and `cancelled` both end the wait, and
-  // an unmarked bullet is a thing somebody wrote rather than work somebody owes.
-  if (claimed !== undefined && unfinished(derived.status.get(at.node.id))) {
+  // A CLAIM COUNTS WHILE ITS SUBTREE IS LIVE — see the header on this function
+  // for the P1 that was, and for why this is not the node's own mark.
+  if (claimed !== undefined && live) {
     // RANKED BY WHEN THE WALK REACHED IT, which is document order: `reached`
     // is added to on the way DOWN, and the outer loop feeds it the file's rows
     // in line order. The push cannot be, because a node's own claim is not
@@ -431,7 +556,7 @@ const claiming = (
   // ANOTHER TERMINAL'S CLAIMED STEP IS NEVER YOUR OWING STEP, and this line is
   // the whole of that rule. A node carrying a claim of its own is that
   // terminal's territory, it and everything under it — so it answers its
-  // ancestors with nothing, whatever is going on inside it.
+  // ancestors with no STEP, whatever is going on inside it.
   //
   // IT USED TO ANSWER ANYWAY, and the human found it on a live board: a lane
   // claimed by an author whose own work was done drew a WAKE saying "its step
@@ -439,9 +564,17 @@ const claiming = (
   // REVIEWER'S, carrying the reviewer's own terminal. The author owed nothing;
   // somebody else was working. Excluding a claimed subtree leaves the author
   // with nothing being worked, which is the digest the ruled table asks for.
-  if (claimed !== undefined && claimed !== mine) return undefined
-  if (deepest !== undefined) return deepest
-  return derived.status.get(at.node.id) === "doing" ? at : undefined
+  //
+  // `live` CROSSES THE FENCE AND `deepest` DOES NOT, which is the one asymmetry
+  // here and is the same distinction {@link Under.live} draws. The fence is
+  // about WHOSE WORK a step is; it is not about whether the lane still holds
+  // any. An author parked over a reviewer's live step is exactly the digest the
+  // ruled table asks for — present, and saying nobody is on it — and a fence
+  // that swallowed `live` too would delete it from the set instead, which is
+  // this file's own bug over again one rule down.
+  if (claimed !== undefined && claimed !== mine) return { deepest: undefined, live }
+  if (deepest !== undefined) return { deepest, live }
+  return { deepest: own === "doing" ? at : undefined, live }
 }
 
 /**
@@ -1081,6 +1214,16 @@ export const makeHeartbeat = (deps: {
    *  and the newest body is a fresh derivation that says everything the one it
    *  replaced would have. */
   readonly coalesce: string
+  /**
+   * WHAT THE BEAT DID, on the owner's debug channel ({@link ./trace.ts}).
+   *
+   * The floor under silence needs an account of its own for the reason the
+   * floor exists: a conversation hearing nothing is the ordinary case, so
+   * "quiet" is never evidence, and a beat that passed everybody over and a beat
+   * that never fired are the SAME NOTHING from the outside. These lines are the
+   * difference between them.
+   */
+  readonly trace: Trace
 }): Heartbeat => {
   /** WHEN THIS PROCESS BEGAN WATCHING — read once, here, because this
    *  constructor runs in the same breath as the watcher's own
@@ -1088,6 +1231,10 @@ export const makeHeartbeat = (deps: {
    *  it, which is exactly the fact a reader wants: an uptime that keeps
    *  resetting is a process somebody keeps killing. */
   const since = deps.now()
+  /** The tracer, read once out of the deps — every line below is one call, and
+   *  `deps.trace(...)` at each of them would be the only noise in a body whose
+   *  whole subject is what it decided. */
+  const trace = deps.trace
   let lastEvent: string | null = null
   /** THE LEDGER: conversations this plugin's words entered since the previous
    *  beat. Cleared whole at the end of every beat, which is both the window's
@@ -1107,10 +1254,30 @@ export const makeHeartbeat = (deps: {
       spoken.add(keyOf(to))
     },
     beat: (everyMs) => {
-      for (const scope of deps.scopes()) {
-        if (spoken.has(keyOf(scope))) continue
-        if (deps.terminals(scope.file) === null) continue
+      const scopes = deps.scopes()
+      // THE HEAD OF THE BEAT, before the walk decides anything: the cadence in
+      // force, how many conversations core lists, and how many of them this
+      // window already spoke into. A heartbeat is the FLOOR under silence, so
+      // the one thing a reader cannot otherwise tell is whether a quiet window
+      // was a beat that passed everybody over or a beat that never fired — and
+      // those are a healthy day and a wedged watcher.
+      trace("beat", {
+        every: everyMs,
+        scopes: scopes.length,
+        spoken: spoken.size,
+        lastEvent,
+      })
+      for (const scope of scopes) {
+        if (spoken.has(keyOf(scope))) {
+          trace("beat-passed", { file: scope.file, agent: scope.agent, why: "spoke-this-window" })
+          continue
+        }
+        if (deps.terminals(scope.file) === null) {
+          trace("beat-passed", { file: scope.file, agent: scope.agent, why: "no-revision" })
+          continue
+        }
         const to = { agent: scope.agent, session: scope.session }
+        trace("beating", { file: scope.file, agent: scope.agent, session: scope.session })
         deps.deliver(
           to,
           // ASKED AT THE MOMENT THE WORDS GO IN, exactly as a wake's body is
@@ -1122,9 +1289,16 @@ export const makeHeartbeat = (deps: {
           // heartbeat about the file they are on now, or none at all.
           () => {
             const now = deps.scopes().find((one) => keyOf(one) === keyOf(scope))
-            if (now === undefined) return null
+            if (now === undefined) {
+              trace("beat-dropped", { agent: scope.agent, why: "unscoped-since" })
+              return null
+            }
             const terminals = deps.terminals(now.file)
-            if (terminals === null) return null
+            if (terminals === null) {
+              trace("beat-dropped", { file: now.file, agent: scope.agent, why: "no-revision" })
+              return null
+            }
+            trace("beat-said", { file: now.file, agent: scope.agent, terminals })
             return heartbeatBody({
               file: now.file,
               terminals,
