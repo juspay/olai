@@ -27,7 +27,7 @@ import {
 } from "@olai/ops"
 import type { App, DocumentEntry, Head, Manifest, PluginRoster, Shelf } from "@olai/surface"
 import { CHAT_OFF, NO_ROSTER } from "@olai/surface"
-import type { Chat, Scoped } from "@olai/chat"
+import type { Chat, Faulted, Scoped } from "@olai/chat"
 import { PLUGIN_NAMES } from "@olai/plugin-api/wire"
 import * as pluginsDoor from "@olai/plugin-api/server"
 import type { PluginServices } from "@olai/plugin-api/server"
@@ -696,13 +696,15 @@ test("a wake sentence reaches the roster, and never for a plugin this serve left
     // matters: it is what the list is made of, and core cannot work it out.
     kinds: ["outline"] as const,
   }
-  /** ... and the two fields that are NOT: the whole sentences a conversation is
-   *  told when its doorbell stops watching. They are delivered into the
-   *  transcript, and a browser has no occasion to write either. */
+  /** ... and the member that is NOT: a whole sentence per way this doorbell can
+   *  stop watching. They are delivered into the transcript, and a browser has no
+   *  occasion to write any of them. */
   const wake = {
     ...drawn,
-    gone: "the file you woke on is not here any more",
-    unwatchable: "the file you woke on is not one this can read",
+    faults: {
+      gone: "the file you woke on is not here any more",
+      unwatchable: "the file you woke on is not one this can read",
+    },
   }
   const halves = [{ name: first, wake }, { name: second }]
 
@@ -813,13 +815,16 @@ const RINGING = {
   /** WHICH FILES it can be pointed at — read by the fault cases below, which
    *  are what decides whether a stored pick is watchable at all. */
   kinds: ["outline"] as const,
-  /** ... and the two sentences, which the fault cases DO read a word of,
-   *  because what they are about is that core carries the right one verbatim:
-   *  this string, and nothing joined to it, is what reaches the conversation. */
-  gone: "the file this doorbell watched is not here any more, and nothing is being watched",
-  /** ... and the other cause, whose whole point is that it is NOT the sentence
-   *  above: the file is served, and holds nothing this doorbell can read. */
-  unwatchable: "the file this doorbell is pointed at is not one it can read, and nothing is being watched",
+  /** ... and the sentences, which the fault cases DO read a word of, because
+   *  what they are about is that core INDEXES this table by the cause and
+   *  carries the answer verbatim: that string, and nothing joined to it, is what
+   *  reaches the conversation. The two differ so that a case asserting one is
+   *  asserting the lookup and not merely the delivery. */
+  faults: {
+    gone: "the file this doorbell watched is not here any more, and nothing is being watched",
+    unwatchable:
+      "the file this doorbell is pointed at is not one it can read, and nothing is being watched",
+  },
 }
 
 /**
@@ -995,14 +1000,14 @@ const chatKeeping = (kept: ReadonlyArray<Scoped>): {
       }),
     faults: (judge) =>
       Effect.sync(() => {
-        const fell: Array<Scoped> = []
+        const fell: Array<Faulted> = []
         rows = rows.map((row) => {
           const wrong = judge(row.plugin, row.file)
           if (wrong === (row.fault ?? null)) return row
           if (wrong === null) {
             return { agent: row.agent, session: row.session, plugin: row.plugin, file: row.file }
           }
-          const broken: Scoped = { ...row, fault: wrong }
+          const broken: Faulted = { ...row, fault: wrong }
           if (row.fault === undefined) fell.push(broken)
           return broken
         })
@@ -1257,7 +1262,7 @@ test("a scope whose file is not served is told, in the plugin's own words and no
           // punched in it is the shape the whole `wake` split refuses.
           expect(yield* it.rang).toEqual({
             to: TALKING,
-            body: RINGING.gone,
+            body: RINGING.faults.gone,
             from: other.name,
           })
           // ... and the healthy pick was not mentioned, which is the half that
@@ -1335,7 +1340,7 @@ test("a scope on a served file its doorbell cannot read is told, in the OTHER de
         Effect.gen(function*() {
           expect(yield* it.rang).toEqual({
             to: TALKING,
-            body: RINGING.unwatchable,
+            body: RINGING.faults.unwatchable,
             from: other.name,
           })
           expect(yield* it.waiting).toBe(0)

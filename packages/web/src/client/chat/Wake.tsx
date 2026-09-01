@@ -62,8 +62,8 @@
  * handed — facts about core's own record, in core's own vocabulary, with
  * nothing in either about what the plugin watches. The sentence the
  * CONVERSATION got is the plugin's own for that cause, delivered once through
- * the door (`@olai/plugin-api`'s `PluginServerHalf.wake.gone` and
- * `.unwatchable`), and this file does not repeat a word of either.
+ * the door (`@olai/plugin-api`'s `PluginServerHalf.wake.faults`), and this file
+ * does not repeat a word of any of them.
  *
  * AND THE GESTURE STILL WORKS. The picker is drawn, open-able and pressable in
  * that state, because picking another file is the fix — a control that reported
@@ -109,7 +109,7 @@
  * strip is absent altogether when there is no pair to read.
  */
 
-import { agentIn, NO_ROSTER, type PluginRoster } from "@olai/surface"
+import { agentIn, NO_ROSTER, type PluginRoster, type WakeFault } from "@olai/surface"
 import { createMemo, For, Index, Show } from "solid-js"
 
 import { dirOf, folded, matchFiles, nameOf } from "../file/matching.ts"
@@ -138,6 +138,26 @@ import { type Ringer, ringersOf } from "./wake.ts"
  *  to, and a shortlist with no node half to share with would then be resized
  *  by an argument it is not part of. */
 const LIMIT = 12
+
+/**
+ * WHAT THE STRIP SAYS ABOUT A DOORBELL THAT IS NOT WATCHING, per cause — core's
+ * own words, and the only ones on this strip that are.
+ *
+ * A `Record` over the union rather than a ternary, for the reason the plugin's
+ * own sentences are one too (`@olai/plugin-api`'s `PluginServerHalf.wake.faults`):
+ * a third cause goes red here naming the line it owes, where an else-arm would
+ * quietly draw `gone` over something that is not gone.
+ *
+ * NEITHER NAMES A KIND. "not an outline" would need core to decide how to say
+ * somebody else's list of kind words as nouns, with articles and in both
+ * numbers; what core can say without composing anybody's sentence is that this
+ * doorbell cannot watch this file — which is the whole of what it knows and the
+ * whole of what has to be done about it.
+ */
+const SAID: Record<WakeFault, string> = {
+  gone: "gone — pick another file",
+  unwatchable: "not one this can watch — pick another file",
+}
 
 /** WHICH conversation a pick belongs to — the pair the verb takes, or nothing,
  *  which is the whole of why the strip is absent. */
@@ -252,22 +272,13 @@ function Line(props: {
           and then refused the gesture that mends it would be worse than the
           fault.
 
-          TWO CAUSES AND TWO LINES, because a person has a different thing to do
-          about each: a file that went is one to find or re-pick, and a file
-          that is there and cannot be read is one to replace with an outline.
-          The words for both are CORE'S, which is the one place on this strip
-          that is true, and the boundary is exact: core is describing A FILE IT
-          STORES — one it cannot find, or one it is holding against a
-          declaration it was handed. What the CONVERSATION was told is the
-          plugin's own sentence, delivered once (`@olai/plugin-api`'s
-          `PluginServerHalf.wake.gone` and `.unwatchable`), and no word of either
-          is repeated here.
-
-          IT NAMES NO KIND. "not an outline" would need core to decide how to
-          say a kind word as a noun, in both numbers and with an article, for a
-          list that is the plugin's; what core can say without composing
-          anybody's sentence is that this doorbell cannot watch this file, which
-          is the whole of what it knows and the whole of what has to be done. */}
+          A LINE PER CAUSE, because a person has a different thing to do about
+          each: a file that went is one to find or re-pick, and a file that is
+          there and cannot be read is one to replace. The words are core's and
+          the argument for them is where they are written ({@link SAID}); what
+          the CONVERSATION was told is the plugin's own sentence for that cause,
+          delivered once (`@olai/plugin-api`'s `PluginServerHalf.wake.faults`),
+          and no word of any of them is repeated here. */}
       <Show when={props.ringer.fault} keyed>
         {(fault) => (
           <span
@@ -278,9 +289,7 @@ function Line(props: {
             data-fault={fault}
             data-file={props.ringer.file ?? ""}
           >
-            {fault === "gone"
-              ? "gone — pick another file"
-              : "not one this can watch — pick another file"}
+            {SAID[fault]}
           </span>
         )}
       </Show>

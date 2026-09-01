@@ -38,7 +38,7 @@ import type { Leg } from "./agents/leg.ts"
 import type { Installed } from "./agents/roster.ts"
 import { type Chat, make as makeChat } from "./chat.ts"
 import { SLOTS } from "./deliveries.ts"
-import type { Scoped, Scopes } from "./scopes.ts"
+import type { Faulted, Scoped, Scopes } from "./scopes.ts"
 import { MemoryFailure } from "./memory.ts"
 
 /** Every plugin can be told, which is the ordinary serve — the arm where one
@@ -481,14 +481,14 @@ const movable = (): Scopes => {
       }),
     faults: (judge) =>
       Effect.sync(() => {
-        const fell: Array<Scoped> = []
+        const fell: Array<Faulted> = []
         rows = rows.map((row) => {
           const wrong = judge(row.plugin, row.file)
           if (wrong === (row.fault ?? null)) return row
           if (wrong === null) {
             return { agent: row.agent, session: row.session, plugin: row.plugin, file: row.file }
           }
-          const broken: Scoped = { ...row, fault: wrong }
+          const broken: Faulted = { ...row, fault: wrong }
           if (row.fault === undefined) fell.push(broken)
           return broken
         })

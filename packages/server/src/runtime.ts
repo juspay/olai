@@ -533,12 +533,11 @@ export const rosterOf = (
         // whole — and the omission is the point. The three strings the strip
         // draws, plus the KINDS the picker may offer, because that is the one
         // fact core cannot work out for itself about which files a doorbell
-        // could ever watch. What is left behind are `wake.gone` and
-        // `wake.unwatchable`, the two sentences a conversation is told when its
-        // doorbell stops watching: those are DELIVERED rather than drawn — they
-        // belong in the transcript, through the door below — and a browser
-        // holding a copy of either would be a browser holding a message it has
-        // no occasion to write.
+        // could ever watch. What is left behind is `wake.faults`, a sentence per
+        // way a doorbell can stop watching: those are DELIVERED rather than
+        // drawn — they belong in the transcript, through the door below — and a
+        // browser holding a copy of one would be a browser holding a message it
+        // has no occasion to write.
         ...(wake === undefined ? {} : {
           wake: {
             subject: wake.subject,
@@ -1171,11 +1170,14 @@ export const bind = (
           Effect.forEach(fell, (row) => {
             const wake = rings.get(row.plugin)
             if (wake === undefined) return Effect.void
-            // WHICH SENTENCE, decided by the cause the walk recorded on the row
-            // (`@olai/chat`'s `Scoped.fault`) — the two are the plugin's own
-            // words for the two things that can have happened, and core picks
-            // between them rather than writing either.
-            const words = row.fault === "unwatchable" ? wake.unwatchable : wake.gone
+            // WHICH SENTENCE, INDEXED BY THE CAUSE the walk recorded on the row
+            // (`@olai/chat`'s `Scoped.fault`) — never chosen between arms here.
+            // The declaration is keyed by the fault's own word, so this line
+            // cannot answer for a cause nobody wrote a sentence for: a third one
+            // is a type error in every plugin that rings, where a ternary would
+            // have fallen through and told somebody their file was renamed while
+            // it sat in front of them.
+            const words = wake.faults[row.fault]
             // A THUNK, ASKED WHEN THE WORDS GO IN, which is the whole reason
             // `deliver` takes one: this body may wait out a running turn, or
             // wait for somebody to open the conversation at all, and by then

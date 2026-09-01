@@ -224,6 +224,23 @@ export interface Scoped {
 export type Fault = "gone" | "unwatchable"
 
 /**
+ * A ROW THAT IS FAULTED, with the cause KNOWN — what {@link Scopes.faults}
+ * answers with, and the shape a caller needs to say anything at all.
+ *
+ * {@link Scoped.fault} is optional because most rows are fine; a row in this
+ * answer never is, by construction — it is the fine→faulted edge. Spelling that
+ * as a type rather than leaving the caller to assert it is what makes the
+ * sentence lookup at the other end TOTAL: the composition root indexes the
+ * plugin's declaration by this word (`@olai/plugin-api`'s
+ * `PluginServerHalf.wake.faults`), and an optional one would have made that
+ * either a non-null assertion or a ternary with an else-arm that answers for
+ * causes nobody wrote a sentence for.
+ */
+export interface Faulted extends Scoped {
+  readonly fault: Fault
+}
+
+/**
  * The table, and the two things anybody does with it.
  *
  * A MIRROR plus a write, rather than a read per question, and that shape is
@@ -327,7 +344,7 @@ export interface Scopes {
      *  not compose, or one declaring no words for it, answers `false` and its
      *  rows are left untouched. The mark is the saying; see the walk. */
     sayable: (plugin: string) => boolean,
-  ) => Effect.Effect<ReadonlyArray<Scoped>, MemoryFailure>
+  ) => Effect.Effect<ReadonlyArray<Faulted>, MemoryFailure>
 }
 
 /** What one of these files looks like written. The rows are read leniently
@@ -510,8 +527,9 @@ export const forDirectory = (spelling: string): Effect.Effect<Scopes> =>
         writing.withPermit(Effect.gen(function*() {
           const before = rows
           /** The fine→faulted edges, and only those — the caller's cue to say
-           *  something once. */
-          const fell: Array<Scoped> = []
+           *  something once. Each carries its cause, because the caller reaches
+           *  for a sentence with it ({@link Faulted}). */
+          const fell: Array<Faulted> = []
           let moved = false
           const next = before.map((row) => {
             // A ROW NOBODY CAN BE TOLD ABOUT IS LEFT ALONE ENTIRELY, mark and
@@ -538,7 +556,7 @@ export const forDirectory = (spelling: string): Effect.Effect<Scopes> =>
               // one signal and the strip is where "it is fine again" shows.
               return { agent: row.agent, session: row.session, plugin: row.plugin, file: row.file }
             }
-            const broken: Scoped = { ...row, fault: wrong }
+            const broken: Faulted = { ...row, fault: wrong }
             // ONE SIGNAL PER FAULT AND NOT PER CAUSE. A row already marked is a
             // conversation that has already been told its doorbell is watching
             // nothing; the cause moving under it — a `.md` that was scoped and

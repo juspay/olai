@@ -170,9 +170,10 @@ export interface PluginServerHalf<Revision> extends PluginWire {
    * the same argument {@link probe}'s `missing.why` makes one hook over, and the
    * third time this tree has spent it.
    *
-   * The FOURTH field is the same rule read from the other end: {@link wake.gone}
-   * is drawn nowhere, so it is one whole sentence rather than pieces, and core
-   * carries it into a conversation without joining anything to it.
+   * {@link wake.faults} is the same rule read from the other end: none of those
+   * is drawn anywhere, so each is one whole sentence rather than pieces, and
+   * core carries the one the cause names into a conversation without joining
+   * anything to it.
    *
    * SUBJECT FIRST. What is being woken ON is the subject, and the file is the
    * FILTER over it — a control that led with the file would be describing its own
@@ -240,9 +241,26 @@ export interface PluginServerHalf<Revision> extends PluginWire {
      */
     readonly kinds: readonly [string, ...Array<string>]
     /**
-     * ...AND WHAT A CONVERSATION IS TOLD WHEN THE FILE IT WOKE ON STOPS BEING
-     * SERVED — one WHOLE sentence, because there is no control to draw between
-     * its halves.
+     * WHAT A CONVERSATION IS TOLD WHEN THIS DOORBELL STOPS WATCHING — one WHOLE
+     * sentence per WAY THAT CAN HAPPEN, keyed by the way's own word.
+     *
+     * ## A TABLE AND NOT TWO FIELDS, which is the difference between a wrong
+     * sentence and a compile error
+     *
+     * Core does not choose between these; it INDEXES them, by the cause its own
+     * walk recorded on the row (`@olai/chat`'s `Scoped.fault`, which travels as
+     * `@olai/surface`'s `Wake.fault`). That is the whole reason the keys are the
+     * cause's own words rather than two prose-shaped names: a third way for a
+     * doorbell to stop watching adds a member to that union, and every plugin's
+     * declaration goes red naming the sentence it now owes — where a pair of
+     * sibling fields and a ternary at the composition root would fall through to
+     * whichever one the else-arm happened to hold, and tell somebody their file
+     * had been renamed while it sat in front of them. It is `@olai/format`'s own
+     * discipline for its kind table, spent one package up: the registry decides,
+     * the surfaces owe an answer per row, and the type checker names the debt.
+     *
+     * ## Whole sentences, because there is no control to draw between their
+     * halves
      *
      * ## Why this one is not in pieces when the three above are
      *
@@ -262,13 +280,15 @@ export interface PluginServerHalf<Revision> extends PluginWire {
      * beside the words. What the sentence has to say is what the plugin knows
      * and core does not: that nothing is being watched now.
      *
-     * ## Why it is REQUIRED where {@link PluginServerHalf.wake} itself is not
+     * ## Why the TABLE is required where {@link PluginServerHalf.wake} itself is
+     * not
      *
      * A plugin that wakes nobody declares no `wake` at all and is a whole
-     * plugin. A plugin that DOES wake has scoped conversations, and a scoped
-     * conversation's file can be renamed out from under it — so there is no
-     * plugin for which this is inapplicable, and an optional field would be a
-     * plugin that rings and then, on the one day it matters, says nothing.
+     * plugin. A plugin that DOES wake has scoped conversations; a scoped
+     * conversation's file can be renamed out from under it, and a stored pick
+     * can name any path at all — so there is no plugin for which either row is
+     * inapplicable, and an optional one would be a plugin that rings and then,
+     * on the one day it matters, says nothing.
      *
      * ## IT USED TO BE NOTHING AT ALL, and the silence was the defect
      *
@@ -282,35 +302,34 @@ export interface PluginServerHalf<Revision> extends PluginWire {
      * says so, once, in the conversation it stopped ringing
      * (`@olai/chat`'s `Chat.faults`).
      */
-    readonly gone: string
-    /**
-     * ...AND WHAT IT IS TOLD WHEN THE FILE IS RIGHT THERE AND IS NOT A KIND
-     * THIS WAKE CAN WATCH — {@link kinds}' other half, on the same terms as
-     * {@link gone} and for the same reason.
-     *
-     * ## Two causes, two sentences, and never one sentence with an *or* in it
-     *
-     * The consequence is identical — nothing is watched, nothing is derived, and
-     * the row leaves this plugin's door so that no heartbeat can go on claiming
-     * a live watch over it — but WHAT HAPPENED is not, and a person reading
-     * either one has a different thing to do about it. A single sentence
-     * covering both would say *renamed, or moved, or deleted, or not an
-     * outline* on every rename for ever, which is the message paying, in the
-     * common case, for a state that only a stored pick can be in.
-     *
-     * ## How a conversation gets into this state at all, now the picker cannot
-     *
-     * The picker offers only {@link kinds}, so nothing a person presses today
-     * can reach it. What can: a pick stored before that filter existed (the
-     * `2026-09-01.md` in the human's screenshot), a tab left open from an older
-     * serve, and a record edited by hand. All three are a row on disk that
-     * outlives a picker-only fix, which is why this is a fault the serve
-     * DERIVES per revision rather than a refusal at the write.
-     *
-     * REQUIRED for {@link gone}'s reason exactly: a plugin that rings has stored
-     * picks, and a stored pick can name any path at all.
-     */
-    readonly unwatchable: string
+    readonly faults: {
+      /** THE FILE IS NOT SERVED ANY MORE — renamed, moved or deleted while the
+       *  doorbell was on it. The common one, and the one this whole fault path
+       *  was first built for. */
+      readonly gone: string
+      /**
+       * ...AND THE FILE IS RIGHT THERE AND IS NOT A KIND THIS WAKE CAN WATCH —
+       * {@link kinds}' other half.
+       *
+       * TWO SENTENCES AND NEVER ONE WITH AN *or* IN IT. The consequence is
+       * identical — nothing is watched, nothing is derived, and the row leaves
+       * this plugin's door so that no heartbeat can go on claiming a live watch
+       * over it — but WHAT HAPPENED is not, and a person reading either one has
+       * a different thing to do about it. A single sentence covering both would
+       * say *renamed, or moved, or deleted, or not an outline* on every rename
+       * for ever: the message paying, in the common case, for a state that only
+       * a stored pick can be in.
+       *
+       * HOW A CONVERSATION GETS INTO IT AT ALL, now the picker cannot. The
+       * picker offers only {@link kinds}, so nothing a person presses today can
+       * reach this. What can: a pick stored before that filter existed (the
+       * `2026-09-01.md` in the human's screenshot), a tab left open from an
+       * older serve, and a record edited by hand. All three are a row on disk
+       * that outlives a picker-only fix, which is why this is a fault the serve
+       * DERIVES per revision rather than a refusal at the write.
+       */
+      readonly unwatchable: string
+    }
   }
 }
 

@@ -114,7 +114,7 @@ import type { AgentEvent } from "./events.ts"
 import * as Listings from "./listings.ts"
 import * as Memory from "./memory.ts"
 import type { Probe } from "./probes.ts"
-import type { Fault, Scoped, Scopes } from "./scopes.ts"
+import type { Fault, Faulted, Scopes } from "./scopes.ts"
 import { type Change, says, Transcript } from "./transcript.ts"
 import { type Turn, Turns } from "./turns.ts"
 import { sameWatching, watching } from "./watching.ts"
@@ -375,7 +375,7 @@ export interface Chat {
    * in this package's own record. Core says NOTHING, because a sentence about
    * somebody's terminals is a sentence core may not compose — what goes into
    * the conversation is the string the plugin DECLARED for that cause
-   * (`@olai/plugin-api`'s `PluginServerHalf.wake.gone` and `.unwatchable`),
+   * (`@olai/plugin-api`'s `PluginServerHalf.wake.faults`),
    * carried verbatim through the door {@link Chat.doorFor} already hands out.
    * This member is the join between those two and composes nothing itself.
    *
@@ -416,7 +416,7 @@ export interface Chat {
      *  told about is left unmarked, so the one signal is not spent by a serve
      *  that has no doorbell to lose. */
     sayable: (plugin: string) => boolean,
-  ) => Effect.Effect<ReadonlyArray<Scoped>>
+  ) => Effect.Effect<ReadonlyArray<Faulted>>
   /** Told by the MCP layer about a write it refused, so the panel can draw the
    *  refusal rather than the agent's account of it. */
   readonly recordRefusal: (

@@ -1644,7 +1644,7 @@ export const Wake = Schema.Struct({
    * IT WAS HANDED — core's facts about core's own record, and there is no
    * plugin better placed to say either. What the plugin says is the sentence
    * that goes into the CONVERSATION (`@olai/plugin-api`'s
-   * `PluginServerHalf.wake.gone` and `.unwatchable`), and core carries whichever
+   * `PluginServerHalf.wake.faults`), and core carries whichever
    * one applies verbatim.
    *
    * NULLABLE AND NOT AN OPTIONAL KEY, though the record behind it writes the

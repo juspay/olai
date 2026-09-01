@@ -1,8 +1,8 @@
 /**
  * WHAT THE STRIP'S DOORBELL CONTROL SAYS, in kolu's own words — three
  * strings and not one sentence, because core draws the control between them,
- * and beside them the KINDS of file this wake can be pointed at and TWO whole
- * sentences for the two moments nothing is drawn.
+ * and beside them the KINDS of file this wake can be pointed at and a whole
+ * sentence per way this doorbell can stop watching.
  *
  * ## Why the plugin owns every word and core owns none
  *
@@ -41,23 +41,28 @@
  * `.olai`, because a suffix is a string two packages can disagree about and a
  * KIND is the registry's single answer.
  *
- * ## ...AND THE TWO MESSAGES, which are not pieces of a control
+ * ## ...AND THE MESSAGES, which are not pieces of a control
  *
- * {@link wake.gone} is what a conversation is told when the file it woke on
- * stops being served, and {@link wake.unwatchable} is what it is told when that
- * file is right there and is not something kolu can read a claim out of. They
- * are two sentences because they are two different things to have happened and
- * two different things to do about it, even though the cost is one: no wake, no
- * digest, and — because core drops the row off this plugin's door either way —
- * no heartbeat pretending otherwise.
+ * {@link wake.faults} is a sentence per WAY this doorbell can stop watching,
+ * keyed by the way's own word: `gone` for the file that stops being served, and
+ * `unwatchable` for the file that is right there and is not something kolu can
+ * read a claim out of. They are two sentences because they are two different
+ * things to have happened and two different things to do about it, even though
+ * the cost is one: no wake, no digest, and — because core drops the row off this
+ * plugin's door either way — no heartbeat pretending otherwise.
  *
- * Nothing draws either: core hands each to the same door kolu's
- * own bodies go through, whole, with no lead-in and no numeral
- * (`@olai/plugin-api`'s `PluginServerHalf.wake.gone` argues why it is one string
- * where the others are three). So it is written the way {@link ./doorbell.ts}
- * writes a body rather than the way the three above are written — a plain first
- * line a glance can read, the attribution under it, and then what a person has
- * to do about it.
+ * A TABLE rather than two fields, because core INDEXES it by the cause its own
+ * walk recorded rather than choosing between arms: a third way for a doorbell to
+ * stop watching goes red HERE, naming the sentence this plugin now owes, where a
+ * ternary at the composition root would quietly hand somebody the `gone` one.
+ *
+ * Nothing draws any of them: core hands whichever applies to the same door
+ * kolu's own bodies go through, whole, with no lead-in and no numeral
+ * (`@olai/plugin-api`'s `PluginServerHalf.wake.faults` argues why each is one
+ * string where the drawn three are pieces). So they are written the way
+ * {@link ./doorbell.ts} writes a body rather than the way the three above are
+ * written — a plain first line a glance can read, the attribution under it, and
+ * then what a person has to do about it.
  *
  * NEITHER NAMES A FILE, and that is not an omission core would fill in. Core
  * knows the path and refuses to punch a hole in somebody else's sentence for
@@ -130,51 +135,58 @@ export const wake = {
    *  for why the word rather than the suffix. */
   kinds: KINDS,
   /**
-   * ... and the first whole sentence, for the moment the file goes away. See
-   * the header: no picker around it, no file named in it, and it says both
-   * halves
+   * ... and the sentences, one per way this doorbell can stop watching, keyed by
+   * the way's own word. Core INDEXES this by the cause it recorded rather than
+   * choosing between arms, which is what makes a third cause a compile error
+   * here instead of a wrong sentence there (`@olai/plugin-api`'s
+   * `PluginServerHalf.wake.faults`).
+   */
+  faults: {
+    /**
+     * THE FILE WENT. See the header: no picker around it, no file named in it,
+     * and it says both halves
    * — the file is gone AND nothing is being watched — because a reader told
    * only the first half would reasonably assume the watcher carried on.
    *
-   * The third paragraph is the denial. "Not a quiet fleet" is there so that
-   * this can never be read as the reassurance a heartbeat gives, and the last
-   * clause is the way out, because a machine-sent message that cannot be acted
-   * on from inside its own text is a message a person resents
-   * ({@link ./doorbell.ts} spends the same rule on its closing line).
-   */
-  gone: [
-    "The file this conversation's terminal wake was pointed at is no longer in the served directory — renamed, moved, or deleted.",
-    "",
-    "Written by olai's kolu watcher, not by a person.",
-    "",
-    "No terminals are being watched for this conversation any more. Nothing is claimed, nothing will be derived, and nothing is being held back — this is not a quiet fleet, it is a doorbell with no file behind it. Point the wake control at a file that exists and it starts again.",
-  ].join("\n"),
-  /**
-   * ... and the second, for the file that is right there and has nothing kolu
-   * can read.
-   *
-   * The SAME THREE PARTS as {@link wake.gone} — the first line a glance can
-   * read, the attribution, the denial and the way out — because a person may
-   * receive either of them and must not have to learn two shapes of message.
-   * What differs is the middle clause of the first line, which is the only
-   * thing that actually differs: the file is there, and it holds no nodes, so
-   * there is nothing on it that could ever claim a terminal.
-   *
-   * IT SAYS WHY IN THE MECHANISM'S OWN TERMS — "no nodes", "claim" — rather
-   * than "wrong kind of file", because a person who reads only that the pick
-   * was wrong has been told nothing they can act on, and the whole of what is
-   * wrong with a document here is a fact about how this doorbell derives.
-   *
-   * A conversation can only be in this state from a pick made before the picker
-   * filtered (`@olai/plugin-api`'s `PluginServerHalf.wake.kinds`), a tab left
-   * open from an older serve, or a record edited by hand — so it is rare and it
-   * is nobody's mistake to be scolded for. The last clause says what to press.
-   */
-  unwatchable: [
-    "The file this conversation's terminal wake is pointed at is not an outline — it is served, and it holds no nodes, so nothing in it can claim a terminal.",
-    "",
-    "Written by olai's kolu watcher, not by a person.",
-    "",
-    "No terminals are being watched for this conversation. Nothing is claimed, nothing will be derived, and nothing is being held back — this is not a quiet fleet, it is a doorbell pointed at a file that can never carry a claim. Point the wake control at an outline and it starts.",
-  ].join("\n"),
+     * The third paragraph is the denial. "Not a quiet fleet" is there so that
+     * this can never be read as the reassurance a heartbeat gives, and the last
+     * clause is the way out, because a machine-sent message that cannot be acted
+     * on from inside its own text is a message a person resents
+     * ({@link ./doorbell.ts} spends the same rule on its closing line).
+     */
+    gone: [
+      "The file this conversation's terminal wake was pointed at is no longer in the served directory — renamed, moved, or deleted.",
+      "",
+      "Written by olai's kolu watcher, not by a person.",
+      "",
+      "No terminals are being watched for this conversation any more. Nothing is claimed, nothing will be derived, and nothing is being held back — this is not a quiet fleet, it is a doorbell with no file behind it. Point the wake control at a file that exists and it starts again.",
+    ].join("\n"),
+    /**
+     * ... and THE FILE IS THERE AND HAS NOTHING KOLU CAN READ.
+     *
+     * The SAME THREE PARTS as {@link wake.faults.gone} — the first line a glance
+     * can read, the attribution, the denial and the way out — because a person
+     * may receive either of them and must not have to learn two shapes of
+     * message. What differs is the middle clause of the first line, which is the
+     * only thing that actually differs: the file is there, and it holds no
+     * nodes, so there is nothing on it that could ever claim a terminal.
+     *
+     * IT SAYS WHY IN THE MECHANISM'S OWN TERMS — "no nodes", "claim" — rather
+     * than "wrong kind of file", because a person who reads only that the pick
+     * was wrong has been told nothing they can act on, and the whole of what is
+     * wrong with a document here is a fact about how this doorbell derives.
+     *
+     * A conversation can only be in this state from a pick made before the
+     * picker filtered ({@link wake.kinds}), a tab left open from an older serve,
+     * or a record edited by hand — so it is rare and it is nobody's mistake to
+     * be scolded for. The last clause says what to press.
+     */
+    unwatchable: [
+      "The file this conversation's terminal wake is pointed at is not an outline — it is served, and it holds no nodes, so nothing in it can claim a terminal.",
+      "",
+      "Written by olai's kolu watcher, not by a person.",
+      "",
+      "No terminals are being watched for this conversation. Nothing is claimed, nothing will be derived, and nothing is being held back — this is not a quiet fleet, it is a doorbell pointed at a file that can never carry a claim. Point the wake control at an outline and it starts.",
+    ].join("\n"),
+  },
 }
