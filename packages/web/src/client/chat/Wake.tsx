@@ -112,7 +112,7 @@
 import { agentIn, NO_ROSTER, type PluginRoster, type WakeFault } from "@olai/surface"
 import { createMemo, For, Index, Show } from "solid-js"
 
-import { dirOf, folded, matchFiles, nameOf } from "../file/matching.ts"
+import { dirOf, folded, type Folded, matchFiles, nameOf } from "../file/matching.ts"
 import { createInlinePicker } from "../inlinePicker.ts"
 import { WITHIN } from "../layer.ts"
 import { QUIET_PILL } from "../pill.ts"
@@ -158,6 +158,10 @@ const SAID: Record<WakeFault, string> = {
   gone: "gone — pick another file",
   unwatchable: "not one this can watch — pick another file",
 }
+
+/** No file at all — the one array a shut picker answers with, minted once so a
+ *  memo that has nothing to offer hands back the value it handed back last. */
+const NONE: ReadonlyArray<Folded> = []
 
 /** WHICH conversation a pick belongs to — the pair the verb takes, or nothing,
  *  which is the whole of why the strip is absent. */
@@ -357,22 +361,38 @@ function Picker(props: {
   const typed = () => picker.showing() ?? ""
 
   /**
-   * The files on offer, best first — and ONLY the ones this doorbell could
-   * actually be pointed at ({@link ./scopable.ts}).
+   * WHICH SERVED FILES THIS DOORBELL COULD BE POINTED AT — the whole directory
+   * narrowed once, and NOT once per keystroke ({@link ./scopable.ts}).
    *
-   * Computed only while the list is up: this is a pass over the whole
-   * directory, and a strip drawn on every conversation must not be doing one
-   * for a list nobody opened. The narrowing rides the SAME pass rather than a
-   * memo of its own, and over the FOLDED entries rather than the paths, so the
-   * vault's fold is still taken once per version of the directory and never per
-   * keystroke (`../file/matching.ts` keeps it).
+   * A memo of its own, above the matcher, because the two move on different
+   * clocks: what is OFFERABLE changes when the directory does (or when a serve
+   * with different plugins is started), and what MATCHES changes on every
+   * character typed at it. Folded into the matching pass it was a vault-sized
+   * predicate walk and a vault-sized array per keystroke — the exact shape
+   * `../file/matching.ts` keeps its fold in a `WeakMap` to avoid — and it also
+   * cost {@link matchFiles} its early exit, which stops the moment the best
+   * bucket can fill the list.
+   *
+   * IT READS `open()` TOO, so the pass still happens only while the list is up:
+   * a strip is drawn on every conversation and nearly none of them ever opens
+   * this. That makes it once per opening rather than once per version of the
+   * directory, which is the cheaper of the two errors — a memo that narrowed
+   * eagerly would walk the vault for a control nobody pressed.
+   *
+   * Over the FOLDED entries rather than the paths, so the fold itself is still
+   * taken once per version of the directory and shared with the `@` list.
    */
-  const offered = createMemo((): ReadonlyArray<string> => {
-    if (!picker.open()) return []
+  const offerable = createMemo((): ReadonlyArray<Folded> => {
+    if (!picker.open()) return NONE
     const kinds = props.ringer.kinds
-    const can = folded(files()).filter((file) => scopable(kinds, file.path))
-    return matchFiles(can, typed(), LIMIT).map((file) => file.path)
+    return folded(files()).filter((file) => scopable(kinds, file.path))
   })
+
+  /** ... and those of them the query means, best first. Nothing but the typing
+   *  moves this now. */
+  const offered = createMemo((): ReadonlyArray<string> =>
+    matchFiles(offerable(), typed(), LIMIT).map((file) => file.path)
+  )
 
   /** Whether this doorbell is not watching what it names — either cause, since
    *  the trigger draws the same way for both and the LINE beside it is where

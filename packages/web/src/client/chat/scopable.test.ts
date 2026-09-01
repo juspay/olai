@@ -32,7 +32,8 @@ const OUTLINES: ReadonlyArray<string> = ["outline"]
 
 /**
  * A served directory with one file of every kind the registry claims, one it
- * claims nothing about, the trash, a leftover archive and the three mints.
+ * claims nothing about, the trash, two leftover archives and the four `_olai/`
+ * files olai mints for itself.
  *
  * The paths are what a directory really hands the browser (`../served.tsx`):
  * root-relative, `/`-spelled, archives included.
@@ -115,10 +116,12 @@ describe("what is not offered, though it is an outline", () => {
     expect(offered()).not.toContain("old/Archive.olai")
   })
 
-  test("and the files olai named for itself, which will never carry a lane", () => {
+  test("and the files olai named for itself, which are nobody's board", () => {
     // A shelf of mirrors, the property declarations, the watcher's own knobs,
     // the inbox: outlines every one, and a list of five where two are
-    // meaningful is nearly as bad as one that offers a `.md`.
+    // meaningful is nearly as bad as one that offers a `.md`. The trash is in
+    // this sweep too and is out for the OTHER reason — it is put away — which
+    // is why the two exclusions stay two (`./scopable.ts`).
     for (const path of SERVED.filter((one) => one.startsWith("_olai/"))) {
       expect(offered()).not.toContain(path)
     }
