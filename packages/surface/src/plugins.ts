@@ -43,6 +43,7 @@
  * this or of the panel moving.
  */
 
+import { fileKind } from "@olai/format"
 import { Schema } from "effect"
 
 /**
@@ -162,6 +163,41 @@ export const PluginRoster = Schema.Struct({
   pinned: Schema.NullOr(Schema.Array(Schema.String)),
 })
 export type PluginRoster = typeof PluginRoster.Type
+
+/**
+ * WHETHER A DOORBELL DECLARING `kinds` CAN WATCH `file` — the one reading of
+ * {@link BuiltPlugin}'s `wake.kinds`, and the whole of what either end does
+ * with that member.
+ *
+ * ## Why it is one function and not two agreeing ones
+ *
+ * TWO ends ask it, about the same declaration, and they must agree or the
+ * feature inverts: the browser asks it to decide what the picker OFFERS
+ * (`@olai/web`'s `chat/scopable.ts`), and the serve asks it per revision to
+ * decide whether a STORED pick is a fault (`@olai/server`'s `runtime.ts`, over
+ * `@olai/chat`'s `Chat.faults`). Spelled twice, the day they drift is the day
+ * the picker offers a file the serve faults on the instant somebody presses it
+ * — a control that hands out its own error. Neither of those packages can
+ * import the other; this is the member they share, so the reading lives beside
+ * the field it reads.
+ *
+ * ## What it does with a word it does not know
+ *
+ * Nothing, and that is the answer to both ways a word can be strange. The kinds
+ * travel as plain strings, so a serve may name one this build's registry never
+ * heard of, and a browser may be handed no list at all ({@link BuiltPlugin}
+ * argues both). Either way `fileKind`'s answer is not in the list and no file
+ * is watchable — a picker that offers nothing, which is visible and local,
+ * rather than one that offers everything, which is the defect this whole
+ * mechanism exists to close.
+ *
+ * A path no kind claims at all — a `README`, a `.ts` — takes the same arm
+ * without one of its own: it is in no plugin's list because it is in no list.
+ */
+export const watchable = (kinds: ReadonlyArray<string>, file: string): boolean => {
+  const kind = fileKind(file)
+  return kind !== null && kinds.includes(kind)
+}
 
 /**
  * NO ROSTER: no plugin to say anything about, and nobody having said anything.

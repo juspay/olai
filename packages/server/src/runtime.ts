@@ -75,7 +75,6 @@ import {
   conventionRecorded,
   conventionServed,
   documentAt,
-  fileKind,
   type InboxHeld,
   inboxHeldIn,
   inboxIn,
@@ -113,6 +112,7 @@ import {
   type OpFailure,
   type PluginRoster,
   surface,
+  watchable,
   type Who,
 } from "@olai/surface"
 import { customText, isRegular, type Located, type Reading, UsageFailure } from "@olai/format"
@@ -1150,14 +1150,16 @@ export const bind = (
         chat.faults(
           (plugin, file) => {
             if (documentAt(snapshot.value.set, file) === undefined) return "gone"
-            // THE DECLARATION, COMPARED AGAINST THE REGISTRY, and core reading
-            // neither for meaning: the plugin said which kinds it watches and
-            // `@olai/format` says what this file is. A plugin with no entry is
-            // not judged at all — `sayable` has already left its rows alone.
+            // THE DECLARATION, ASKED THE WAY THE PICKER ASKS IT — `watchable` is
+            // the wire member's own reading (`@olai/surface`'s `plugins.ts`),
+            // and it is shared rather than spelled here because these two are
+            // the ends that must agree: a serve judging by a rule of its own
+            // would fault on a pick the browser had just offered. A plugin with
+            // no entry is not judged at all — `sayable` has already left its
+            // rows alone.
             const kinds = rings.get(plugin)?.kinds
             if (kinds === undefined) return null
-            const kind = fileKind(file)
-            return kind !== null && kinds.includes(kind) ? null : "unwatchable"
+            return watchable(kinds, file) ? null : "unwatchable"
           },
           // A ROW WHOSE TENANT CANNOT SPEAK IS NOT MARKED. `rings` holds a
           // declaration only for a plugin this serve COMPOSED and that made

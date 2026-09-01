@@ -13,12 +13,19 @@
  * claims, so a kind added to `@olai/format` without a thought about this picker
  * lands here as a row that has to be argued about rather than as a `.pdf`
  * quietly on offer.
+ *
+ * IT DRIVES BOTH HALVES OF ONE MECHANISM, and the import list says which is
+ * whose: `watchable` is the plugin's declaration read by `@olai/surface`, and
+ * it is the same function the serve judges a STORED pick with — so the cases
+ * below about kinds are cases about the fault as much as about the list.
+ * `scopable` is core's curation on top of it, and it is this directory's own.
  */
 
 import { FILE_KINDS } from "@olai/format"
+import { watchable } from "@olai/surface"
 import { describe, expect, test } from "bun:test"
 
-import { scopable, watchable } from "./scopable.ts"
+import { scopable } from "./scopable.ts"
 
 /** What kolu declares, and the only list any of this is asked with today. */
 const OUTLINES: ReadonlyArray<string> = ["outline"]
@@ -50,7 +57,7 @@ const SERVED: ReadonlyArray<string> = [
 ]
 
 const offered = (kinds: ReadonlyArray<string> = OUTLINES): ReadonlyArray<string> =>
-  SERVED.filter((path) => scopable(path, kinds))
+  SERVED.filter((path) => scopable(kinds, path))
 
 describe("the picker offers only what the doorbell could watch", () => {
   test("the reader's own outlines, and nothing else in the directory", () => {
@@ -62,19 +69,19 @@ describe("the picker offers only what the doorbell could watch", () => {
     // It has no nodes, so a conversation scoped to it watches nothing for ever
     // while the heartbeat reports a live watcher.
     expect(offered()).not.toContain("2026-09-01.md")
-    expect(watchable("2026-09-01.md", OUTLINES)).toBe(false)
+    expect(watchable(OUTLINES, "2026-09-01.md")).toBe(false)
   })
 
   test("nor is any other bodied kind the registry claims", () => {
     for (const path of ["saved.html", "rows.csv", "shot.png", "paper.pdf"]) {
-      expect(watchable(path, OUTLINES)).toBe(false)
+      expect(watchable(OUTLINES, path)).toBe(false)
     }
   })
 
   test("nor a file no kind claims at all", () => {
     // It is in no plugin's list because it is in no list: `fileKind` answers
     // `null` and there is no arm for it to fall through.
-    expect(watchable("README", OUTLINES)).toBe(false)
+    expect(watchable(OUTLINES, "README")).toBe(false)
   })
 
   test("the KIND decides and the suffix does not — every kind the registry has", () => {
@@ -82,8 +89,8 @@ describe("the picker offers only what the doorbell could watch", () => {
     // is what makes this the plugin's ruling rather than a hard-coded `.olai`.
     for (const [kind, claim] of Object.entries(FILE_KINDS)) {
       const path = `held/one${claim.exts[0]}`
-      expect(watchable(path, [kind])).toBe(true)
-      expect(watchable(path, OUTLINES)).toBe(kind === "outline")
+      expect(watchable([kind], path)).toBe(true)
+      expect(watchable(OUTLINES, path)).toBe(kind === "outline")
     }
   })
 
@@ -121,7 +128,7 @@ describe("what is not offered, though it is an outline", () => {
     // Not offered is a curation of a list; the fault a stored pick is judged by
     // is the kind rule alone. A conversation already scoped to the trash goes
     // on deriving exactly what it always derived and is told nothing.
-    expect(watchable("_olai/Trash.olai", OUTLINES)).toBe(true)
-    expect(watchable("_olai/Pins.olai", OUTLINES)).toBe(true)
+    expect(watchable(OUTLINES, "_olai/Trash.olai")).toBe(true)
+    expect(watchable(OUTLINES, "_olai/Pins.olai")).toBe(true)
   })
 })

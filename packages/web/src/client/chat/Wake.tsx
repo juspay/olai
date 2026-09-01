@@ -45,24 +45,25 @@
  * make core the author of everything around the hole — and it is what lets a
  * third plugin grow a doorbell without a line of this file moving.
  *
- * ## AND THE ONE STATE WHERE THE CONTROL SAYS SOMETHING IS WRONG
+ * ## AND THE TWO STATES WHERE THE CONTROL SAYS SOMETHING IS WRONG
  *
- * A person picks `lanes.olai`; somebody renames it. The doorbell derives per
- * revision and finds no such file, so it derives nothing — forever — and the
- * conversation goes quiet in a way that reads exactly like a subject with
- * nothing to report. The row draws the fault instead of a live answer
- * ({@link ../../../../surface/src/chat.ts}'s `Wake.gone`), because a picker
- * still naming a file nothing will ever read is the control asserting something
- * untrue, and because after this the panel is the only place the difference
- * between quiet and broken is visible at all.
+ * A person picks `lanes.olai`; somebody renames it. Or the file is right there
+ * and is not a kind this doorbell can read. Either way it derives nothing —
+ * forever — and the conversation goes quiet in a way that reads exactly like a
+ * subject with nothing to report. The row draws the fault instead of a live
+ * answer ({@link ../../../../surface/src/chat.ts}'s `Wake.fault`), because a
+ * picker still naming a file nothing will ever read is the control asserting
+ * something untrue, and because after this the panel is the only place the
+ * difference between quiet and broken is visible at all.
  *
- * THE WORDS IN THAT LINE ARE CORE'S, which is the sole exception to the
+ * THE WORDS IN THOSE LINES ARE CORE'S, which is the sole exception to the
  * paragraph above and does not weaken it. Core is saying that a file IT STORES
- * is one it can no longer find — a fact about core's own record, in core's own
- * vocabulary, with nothing in it about what the plugin watches. The sentence
- * the CONVERSATION got is the plugin's, delivered once through the door
- * (`@olai/plugin-api`'s `PluginServerHalf.wake.gone`), and this file does not
- * repeat a word of it.
+ * is one it cannot find, or one it is holding against a declaration it was
+ * handed — facts about core's own record, in core's own vocabulary, with
+ * nothing in either about what the plugin watches. The sentence the
+ * CONVERSATION got is the plugin's own for that cause, delivered once through
+ * the door (`@olai/plugin-api`'s `PluginServerHalf.wake.gone` and
+ * `.unwatchable`), and this file does not repeat a word of either.
  *
  * AND THE GESTURE STILL WORKS. The picker is drawn, open-able and pressable in
  * that state, because picking another file is the fix — a control that reported
@@ -360,7 +361,7 @@ function Picker(props: {
   const offered = createMemo((): ReadonlyArray<string> => {
     if (!picker.open()) return []
     const kinds = props.ringer.kinds
-    const can = folded(files()).filter((file) => scopable(file.path, kinds))
+    const can = folded(files()).filter((file) => scopable(kinds, file.path))
     return matchFiles(can, typed(), LIMIT).map((file) => file.path)
   })
 

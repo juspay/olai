@@ -1,6 +1,6 @@
 /**
- * WHICH SERVED FILES A DOORBELL MAY BE POINTED AT — the wake picker's offered
- * set, as one rule over paths.
+ * WHICH SERVED FILES THE WAKE PICKER OFFERS — core's half of the ruling, over
+ * the plugin's.
  *
  * ## The defect this is
  *
@@ -13,52 +13,30 @@
  * that is wholly unsupervised — the exact confusion the heartbeat was built to
  * prevent, handed to them by the control.
  *
- * ## TWO RULES, and they belong to two different people
+ * ## TWO QUESTIONS, and only the second is this file's
  *
- * **The KIND is the plugin's**, and it arrives as data: `wake.kinds` off the
- * roster (`@olai/surface`'s `BuiltPlugin`), compared against the registry's
- * answer for a path (`@olai/format`'s `fileKind`). Core does not know what a
- * wake file MEANS — it never opens one — so it may not decide which kinds can
- * carry a filter, and it no longer has to: the plugin says.
+ * **CAN this doorbell watch that file** is the plugin's, and it is answered
+ * where the declaration it reads lives: `@olai/surface`'s `watchable`, over
+ * `wake.kinds`. It is not re-spelled here, because the SERVE asks the same
+ * question of a stored pick per revision (`@olai/chat`'s `Chat.faults`) and the
+ * day the two spellings drift is the day this picker offers a file the serve
+ * faults on the moment somebody presses it.
  *
- * NOT A SUFFIX. `path.endsWith(".olai")` would be a second answer to a question
- * `kinds.ts` settles, spelled in a picker, free to drift the day a kind is
- * renamed with every one of its own tests still green. The registry is asked
- * per path instead, which is the same table the store walked the directory with.
- *
- * **WHICH of those files to OFFER is core's**, because what is left is a
- * question about core's own files rather than about the plugin's subject:
- *
- *   - what is PUT AWAY is not offered (`@olai/format`'s `isPutAway`) — the one
- *     `_olai/Trash.olai` and the leftover `Archive.olai`s. A trashed lane's
- *     claim is HISTORY: the records are real and the walk would really derive
- *     terminals from them, which is worse than deriving nothing, because a
- *     doorbell would then ring about work somebody deliberately put away;
- *   - and neither are the files OLAI NAMED FOR ITSELF (`inOlaiDir`) —
- *     `_olai/Pins.olai`, `_olai/Properties.olai`, `_olai/Kolu.olai`,
- *     `_olai/Inbox.olai`. They are outlines and they will never be a board: one
- *     is a shelf of mirrors, one declares property kinds, one holds a watcher's
- *     knobs. A list of five where two are meaningful is nearly as bad as one
- *     that offers a `.md`, and this is the second reader of a rule the sidebar
- *     already keeps for the same reason it keeps it — those rows are olai's, and
- *     the tree is the reader's.
- *
- * EVERYTHING ELSE IS OFFERED, and that is the honest end of the ruling rather
- * than a place the filtering stopped. Which of a person's outlines carries a
- * lane is a thing the picker cannot know and must not guess: a board is
- * `lanes.olai` on one machine and `work/today.olai` on the next, and a picker
- * that tried to rank them would be wrong in a way nobody could correct.
+ * **WOULD anybody's board be that file** is core's, and it is the whole of what
+ * is below. Core cannot know what a wake file MEANS — it never opens one — but
+ * it knows which files are ITS OWN, and that is enough to keep a list of five
+ * where two are meaningful from being nearly as bad as one that offers a `.md`.
  *
  * ## What is NOT offered is not thereby REFUSED
  *
- * This is a curation of a list, and the only thing that can be a FAULT is a
- * scope that cannot work at all — the kind rule, judged per revision by the
- * serve (`@olai/chat`'s `Chat.faults`). A conversation somebody scoped to
- * `_olai/Trash.olai` before this landed goes on deriving exactly what it always
- * derived and is told nothing: the pick is odd, and it is not broken, and core
- * does not interrupt a person about a control that is doing what they asked. So
- * the two rules are separate here on purpose, and only {@link watchable} is
- * spent on both sides.
+ * The list is a CURATION and the fault is a CORRECTNESS rule, and only the
+ * first is below. A conversation somebody scoped to `_olai/Trash.olai` before
+ * this landed goes on deriving exactly what it always derived and is told
+ * nothing: the pick is odd, it is not broken, and core does not interrupt a
+ * person about a control that is doing what they asked. That is why
+ * {@link scopable} is this module's only export and {@link watchable} is
+ * imported rather than re-exported — the two questions have two answers and one
+ * of them is nobody's business here.
  *
  * A module rather than a memo in the component, for `./busy.ts`'s reason: what
  * a picker offers is exactly the kind of thing a suite should be able to state
@@ -66,29 +44,66 @@
  * anybody should have to check that a document is not on offer.
  */
 
-import { fileKind, inOlaiDir, isPutAway } from "@olai/format"
+import { inOlaiDir, isPutAway } from "@olai/format"
+import { watchable } from "@olai/surface"
 
 /**
- * Whether a doorbell declaring `kinds` could watch `path` AT ALL — the kind
- * rule alone, which is the one a stored pick is judged by.
+ * A FILE THE READER KEEPS THEIR OWN WORK IN — everything the directory serves
+ * except what was put away and what olai made for itself.
  *
- * A path no kind claims — a `README`, a `.ts`, a file this app is not part of —
- * answers `false`, which needs no arm of its own: it is in no plugin's list
- * because it is in no list.
+ * ## TWO PREDICATES FOR TWO REASONS, and they are not one rule wearing two
+ * names
+ *
+ * It is tempting to read them as one — *outlines that will never carry a lane*
+ * — and that reading is false of the first: `_olai/Trash.olai` is full of lanes
+ * that DID carry one, records and `kolu-terminal` props and all. That is
+ * exactly why it is excluded rather than harmless. So:
+ *
+ *   - **`isPutAway` — the records are not LIVE.** The one trash and the
+ *     leftover `Archive.olai`s. A trashed lane's claim is history, and the walk
+ *     would really derive terminals from it, which is worse than deriving
+ *     nothing: the doorbell would ring about work somebody deliberately put
+ *     away. `@olai/format` already names this disjunction for the half-dozen
+ *     readings of the live set that ask it.
+ *   - **`inOlaiDir` — the file is OLAI'S, not the reader's corpus.**
+ *     `_olai/Pins.olai` is a shelf of mirrors, `_olai/Properties.olai` declares
+ *     property kinds, `_olai/Kolu.olai` holds a watcher's knobs,
+ *     `_olai/Inbox.olai` is where a capture lands. Outlines every one, and none
+ *     of them is a board anybody keeps.
+ *
+ * ## And the sidebar is the evidence that they must stay two
+ *
+ * `../Sidebar.tsx` asks a question one word away from this one — it seats the
+ * `_olai/` rows and the Trash apart from the tree — and it deliberately keeps
+ * the leftover `Archive.olai`s IN the tree, because a person may want to open
+ * one and hand-move what is in it. This module deliberately keeps them OUT,
+ * because opening a file is not pointing a doorbell at it. A single named rule
+ * for "the reader's own corpus" would have to be wrong for one of the two, and
+ * a third case wanting a third predicate is the honest cost of that: the third
+ * one will be a third REASON, and a reason deserves a name. The rule for
+ * collapsing them is `isPutAway`'s own — a disjunction earns a name when no
+ * reading has ever wanted one half without the other, and here the second
+ * reading wants exactly that.
+ *
+ * NOT EXPORTED. It is half of one answer, and the answer is {@link scopable};
+ * a caller reaching for this alone would be a second opinion about what the
+ * picker offers.
  */
-export const watchable = (path: string, kinds: ReadonlyArray<string>): boolean => {
-  const kind = fileKind(path)
-  return kind !== null && kinds.includes(kind)
-}
+const readersOwn = (path: string): boolean => !isPutAway(path) && !inOlaiDir(path)
 
 /**
- * ... and whether the picker OFFERS it: watchable, and one of the reader's own
- * files rather than one of olai's or one that was put away.
+ * ... and the two together: the files this doorbell could be pointed at.
  *
  * Asked per path per open, and per keystroke through the fold the matcher keeps
- * ({@link ./Wake.tsx}). All three questions are a constant-time answer over the
- * name — the registry compares suffixes, and the other two compare a prefix and
- * a basename against constants — so a vault of any size costs one pass.
+ * ({@link ./Wake.tsx}). Both halves are a constant-time answer over the name —
+ * the registry compares suffixes, and the exclusions compare a prefix and a
+ * basename against constants — so a vault of any size costs one pass.
+ *
+ * EVERYTHING ELSE IS OFFERED, and that is the honest end of the ruling rather
+ * than the place the filtering stopped. Which of a person's outlines carries a
+ * lane is a thing the picker cannot know and must not guess: a board is
+ * `lanes.olai` on one machine and `work/today.olai` on the next, and a picker
+ * that tried to rank them would be wrong in a way nobody could correct.
  */
-export const scopable = (path: string, kinds: ReadonlyArray<string>): boolean =>
-  watchable(path, kinds) && !isPutAway(path) && !inOlaiDir(path)
+export const scopable = (kinds: ReadonlyArray<string>, path: string): boolean =>
+  watchable(kinds, path) && readersOwn(path)

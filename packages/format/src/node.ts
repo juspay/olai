@@ -711,12 +711,16 @@ const OLAI_PREFIX = `${OLAI_DIR}/`
  * A predicate rather than a `startsWith` at whichever face happens to ask, for
  * the reason {@link isTrashed} is one: it is a statement about what a served
  * file IS, and a second spelling of `_olai/` is a second answer about one
- * directory. It has exactly one reader today and that is on purpose — the
- * sidebar, which keeps the reader's own corpus and the vault's own files in
- * their own seats (`@olai/web`'s `Sidebar.tsx`): the tree is the corpus, and
- * the quiet group at the column's foot is the `_olai/` rows' home. It is a
+ * directory. Its readers are the two faces that have to seat olai's own files
+ * apart from the reader's, and both are DRAWINGS: the sidebar, which keeps the
+ * corpus in the tree and the `_olai/` rows in the quiet group at the column's
+ * foot (`@olai/web`'s `Sidebar.tsx`), and the wake picker, which offers the
+ * boards somebody keeps and not the shelf, the property declarations or a
+ * watcher's knobs (`@olai/web`'s `chat/scopable.ts`, which argues why that is
+ * still a drawing rule: what it leaves off a list it does not refuse). It is a
  * DRAWING rule and nothing more: search, the agents, `list_outlines`, the
- * trash page and the shelf read the same set either way.
+ * trash page and the shelf read the same set either way, and so does the
+ * doorbell once a file has been picked.
  *
  * The ROOT `_olai/`, exactly, because that is the only one {@link mintedInto}
  * writes. A `notes/_olai/` is a directory somebody made inside their own

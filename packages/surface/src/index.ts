@@ -1617,8 +1617,12 @@ export { App, appName } from "./app.ts"
 /** Which plugins this build has and which this serve runs — the `plugins` cell
  *  whole, its seed, and one row of it. See {@link ./plugins.ts}: the server
  *  MINTS this out of the flag and the registry, and the preferences panel is
- *  the only thing that reads it. */
-export { BuiltPlugin, NO_ROSTER, PluginRoster } from "./plugins.ts"
+ *  the only thing that reads it.
+ *
+ *  `watchable` is the one reading of a row's `wake.kinds`, and it is exported
+ *  because the two ends that ask it — the browser's picker and the serve's
+ *  per-revision fault — must agree and cannot see each other. */
+export { BuiltPlugin, NO_ROSTER, PluginRoster, watchable } from "./plugins.ts"
 
 /** Where the hashed browser bundle lives, and what the bundler names a split
  *  chunk in it — see {@link ./bundle.ts}. One spelling, both halves of the
