@@ -19,6 +19,7 @@ import {
   canonical,
   digestOf,
   fileFor,
+  fileForHold,
   readHeld,
   runtimeHome,
   stateHome,
@@ -101,10 +102,16 @@ test("a kind is a subdirectory of the state home, and the digest names the file"
     expect(fileFor("chat", root)).toBe(
       path.join(home, "olai", "chat", `${digestOf(root)}.json`),
     )
-    expect(fileFor("mirror", root)).toBe(
-      path.join(home, "olai", "mirror", `${digestOf(root)}.json`),
+    expect(fileForHold("example", root)).toBe(
+      path.join(home, "olai", "hold", `${digestOf(root)}.example.json`),
     )
   }))
+
+test("a plugin name that is not a filename is refused", () => {
+  expect(() => fileForHold("../escape", "/tmp")).toThrow(/not a filename/)
+  expect(() => fileForHold("a/b", "/tmp")).toThrow(/not a filename/)
+  expect(() => fileForHold("", "/tmp")).toThrow(/not a filename/)
+})
 
 test("nothing written down is `null` rather than a failure", () =>
   withState(async ({ root }) => {

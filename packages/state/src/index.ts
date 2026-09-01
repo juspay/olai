@@ -18,9 +18,10 @@
  *     clears it.
  *   - the STATE home is for something that SHOULD survive a restart and means
  *     nothing to anybody else — which conversation the chat panel was in
- *     (`@olai/chat`'s `memory.ts`), and which doorbell each conversation
- *     picked (`@olai/chat`'s `scopes.ts`), and the outbound-mirror's threads
- *     and queue. After git left this package the state home has three KINDS —
+ *     (`@olai/chat`'s `memory.ts`), which doorbell each conversation picked
+ *     (`@olai/chat`'s `scopes.ts`), and a plugin's hold (threads, a queue)
+ *     handed through core as `PluginServices.held`. After git left this
+ *     package the state home has two {@link Kind}s plus a per-plugin hold —
  *     {@link Kind} says why the split is by what each record survives.
  *
  * ONE FILE PER SERVED DIRECTORY under either, named by a DIGEST of the path
@@ -46,8 +47,9 @@
  *
  * It was written more than once before it was one, which is the bar: the lock's
  * runtime home and digest, and the chat panel's state home and digest. A git
- * policy used to live here too and no longer does — chat is the remaining
- * tenant. `@olai/chat`'s `memory.ts` named this module before it existed
+ * policy used to live here too and no longer does — chat and a plugin's hold
+ * are the remaining tenants, the hold reached through core so this leaf
+ * stays out of every plugin. `@olai/chat`'s `memory.ts` named this module before it existed
  * ("not a receptacle for where this machine keeps olai's state, though that is
  * what it would be at population two") and it is a LEAF for the same reason
  * `@olai/git` is: it knows about a filesystem and nothing about outlines, git,
@@ -147,16 +149,19 @@ export class StateFailure extends Data.TaggedError("StateFailure")<{
  * told it could not reach, and nothing but a type can say so. It also makes
  * "what does olai keep about a directory" answerable by reading one line.
  *
- * Three kinds, and the split between them is what each SURVIVES rather than
- * what each is about. `chat` is the panel's last conversation — one record,
- * rewritten whenever the panel opens one. `wake` is which conversations a
- * person pointed a plugin's doorbell at, and on which file; it holds the picks
- * and never the messages, because a held message is a derivation of state that
- * is still true and is rung again by whatever derives it. `mirror` is the
- * outbound-mirror's thread map and queued digests for one vault — machine
- * state about a channel, not content in it.
+ * Two kinds named here, and a third named by {@link fileForHold}. The split
+ * between them is what each SURVIVES rather than what each is about. `chat`
+ * is the panel's last conversation — one record, rewritten whenever the panel
+ * opens one. `wake` is which conversations a person pointed a plugin's
+ * doorbell at, and on which file; it holds the picks and never the messages,
+ * because a held message is a derivation of state that is still true and is
+ * rung again by whatever derives it. A plugin's hold is a small record that
+ * plugin keeps about this serve — one file per plugin per vault — and it is
+ * reached through core, not by the plugin naming this package. A plugin that
+ * imported this leaf would become the sole reacher and this package would
+ * silently join that tenant's exemption set.
  */
-export type Kind = "chat" | "wake" | "mirror"
+export type Kind = "chat" | "wake"
 
 /** Where one kind of remembered thing lives for one served directory — a
  *  subdirectory of the state home, and the digest under it. Takes the
@@ -164,6 +169,21 @@ export type Kind = "chat" | "wake" | "mirror"
  *  it goes inside the file too. */
 export const fileFor = (kind: Kind, cwd: string): string =>
   join(stateHome(), kind, `${digestOf(cwd)}.json`)
+
+/**
+ * Where one plugin's hold lives for one served directory.
+ *
+ * THE PLUGIN'S NAME IS A FILENAME, not a path: a slash or a `..` would
+ * escape the hold directory. Refused here rather than sanitised, because a
+ * name that is not a filename is a registry bug, not a spelling to tidy.
+ * This leaf does not name any plugin.
+ */
+export const fileForHold = (plugin: string, cwd: string): string => {
+  if (plugin.length === 0 || /[^\w.-]/.test(plugin)) {
+    throw new Error(`hold: plugin name ${JSON.stringify(plugin)} is not a filename`)
+  }
+  return join(stateHome(), "hold", `${digestOf(cwd)}.${plugin}.json`)
+}
 
 /** What every record here carries beside its own fields — see the header for
  *  why the path is written inside the file it is named after. */

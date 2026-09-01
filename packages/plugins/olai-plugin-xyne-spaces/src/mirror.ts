@@ -113,6 +113,7 @@ export interface HeldSnapshot {
   readonly lastLane: string
   readonly threads: ReadonlyArray<readonly [string, Thread]>
   readonly queue: ReadonlyArray<Outbound>
+  readonly droppedTotal: number
 }
 
 export interface MirrorDeps {
@@ -162,6 +163,7 @@ export const makeMirror = (deps: MirrorDeps): Mirror => {
     for (const [lane, thread] of loaded.threads) threads.set(lane, thread)
     queue.push(...loaded.queue)
     lastLane = loaded.lastLane
+    droppedTotal = loaded.droppedTotal
   }
 
   const persist = (): void => {
@@ -170,6 +172,7 @@ export const makeMirror = (deps: MirrorDeps): Mirror => {
       lastLane,
       threads: [...threads.entries()],
       queue: [...queue],
+      droppedTotal,
     })
   }
 
@@ -240,9 +243,10 @@ export const makeMirror = (deps: MirrorDeps): Mirror => {
     retry = setTimeout(() => {
       retry = undefined
       if (inFlight !== undefined) {
-        void inFlight.then(() => {
+        const again = (): void => {
           if (queue.length > 0) schedule()
-        })
+        }
+        void inFlight.then(again, again)
         return
       }
       void drainAndRecover()
@@ -286,6 +290,25 @@ export const makeMirror = (deps: MirrorDeps): Mirror => {
     persist()
   }
 
+  /** A live send rides the same in-flight as drainLoop, so a retry timer
+   *  that fires after the queue emptied cannot `succeed` while this send
+   *  is still in the air and about to fail. */
+  const sendWhileDraining = async (item: Outbound): Promise<Verdict> => {
+    if (inFlight !== undefined) {
+      await inFlight
+      return sendWhileDraining(item)
+    }
+    let verdict: Verdict = "retry"
+    inFlight = (async () => {
+      verdict = await send(item)
+      return verdict === "ok" ? 1 : 0
+    })().finally(() => {
+      inFlight = undefined
+    })
+    await inFlight
+    return verdict
+  }
+
   const enqueue = async (item: Outbound): Promise<void> => {
     const drained = await drain()
     if (queue.length > 0) {
@@ -303,7 +326,7 @@ export const makeMirror = (deps: MirrorDeps): Mirror => {
       schedule()
       return
     }
-    const verdict = await send(item)
+    const verdict = await sendWhileDraining(item)
     if (verdict === "ok") {
       succeed(drained)
       persist()

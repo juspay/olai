@@ -631,17 +631,19 @@ export type PluginMount = (props: {
  * a NAMED SLOT is, and naming one is the thing a general package must stop
  * doing. What the two actually asked for was the same list: **what the process
  * can see** (the environment), **what time it is**, **which directory this
- * serve is about**, **two log channels**, and **a way for a test to hand the
- * dial a fake**. So that is the list, spelled once, and a third plugin is
- * handed it without core learning a word.
+ * serve is about**, **two log channels**, **a way for a test to hand the
+ * dial a fake**, and **a small record this plugin keeps about this serve**.
+ * So that is the list, spelled once, and a third plugin is handed it without
+ * core learning a word.
  *
  * Every field is here because one of the tenants would otherwise have had
  * to be asked for it separately, and none is here for a plugin that does not
  * exist: `served` is odu's today (half of where a relative `worktree`
- * resolves) and `now` is kolu's (what a link's `since` is stamped from), and
- * each is offered to both because "which directory" and "what time is it" are
- * questions about the SERVE and not about an appliance. A plugin reads what it
- * needs and its own signature says which — see {@link PluginServer}.
+ * resolves), `now` is kolu's (what a link's `since` is stamped from), and
+ * `held` is spaces' (the thread map and the outbound queue). Each is offered
+ * to every plugin because those are questions about the SERVE and not about
+ * an appliance. A plugin reads what it needs and its own signature says
+ * which — see {@link PluginServer}.
  *
  * ## Why a composition root hands these in rather than a plugin reading them
  *
@@ -720,6 +722,34 @@ export interface PluginServices {
    * machine-without-the-tool state.
    */
   readonly watching: Watching
+  /**
+   * A SMALL RECORD THIS PLUGIN KEEPS about this serve, in the state home —
+   * not the vault.
+   *
+   * Core owns the file (`@olai/state`, keyed by this plugin's `name` the way
+   * {@link deliveries} is). What the record SAYS is the plugin's. `load` is
+   * the last snapshot that landed, or `null` on a first serve and on a file
+   * that would not parse (core has already warned). `save` is fire-and-forget
+   * and ORDERED: successive snapshots of one in-memory state land in the
+   * order they were handed over, so a drain that persisted `queue:[B]` and
+   * then `queue:[]` cannot have the empty lose the rename race to the
+   * earlier one and come back on the next boot as a digest already posted.
+   *
+   * REQUIRED like {@link deliveries}: there is no serve where the home is
+   * missing. A machine that cannot write the file warns; the plugin is not
+   * asked to care.
+   */
+  readonly held: PluginHeld
+}
+
+/**
+ * THE HELD DOOR — one opaque record per plugin per vault.
+ *
+ * Core does not open it. The plugin parses what it wrote.
+ */
+export interface PluginHeld {
+  readonly load: () => Record<string, unknown> | null
+  readonly save: (value: Record<string, unknown>) => void
 }
 
 /**

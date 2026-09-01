@@ -30,7 +30,7 @@ import {
   spacesFileIn,
   type SpacesReading,
 } from "./config.ts"
-import { loadHold, saveHold } from "./hold.ts"
+import { recordOf, snapshotOf } from "./hold.ts"
 import { laneOf, makeMirror, skipHeartbeat, type Mirror } from "./mirror.ts"
 import {
   name,
@@ -46,7 +46,8 @@ export { faces, name, surface } from "./wire.ts"
  * `watching` is the new door this tenant exists to spend: conversation
  * events, pushed, with human messages simply not among them. `deliveries`
  * is the fault path the other way — a refused post is said ONCE into the
- * bound conversation. `dial` is a fake `fetch`, for the suite.
+ * bound conversation. `held` is the thread map and the outbound queue,
+ * core's file in the state home. `dial` is a fake `fetch`, for the suite.
  */
 export interface Services {
   readonly env: Record<string, string | undefined>
@@ -57,6 +58,15 @@ export interface Services {
   readonly dial?: unknown
   readonly deliveries: Deliveries
   readonly watching: Watching
+  /** Re-declared STRUCTURALLY — `@olai/plugin-api`'s `PluginHeld`. Core owns
+   *  the file and orders the writes; this half parses what it wrote. */
+  readonly held: Held
+}
+
+/** Re-declared STRUCTURALLY — `@olai/plugin-api`'s `PluginHeld`. */
+export interface Held {
+  readonly load: () => Record<string, unknown> | null
+  readonly save: (value: Record<string, unknown>) => void
 }
 
 /** Re-declared STRUCTURALLY — `@olai/plugin-api`'s `Deliveries`. This package
@@ -197,27 +207,15 @@ export const serve = (services: Services): {
     if (channel === undefined) return null
     if (mirror !== undefined) return mirror
     const client = makeClient(env.url, env.token, services.dial as Dial | undefined)
-    const loaded = loadHold(services.served)
-    if ("error" in loaded) services.warn(`spaces: ${loaded.error}`)
+    const loaded = snapshotOf(services.held.load())
     mirror = makeMirror({
       client,
       channel,
       now: services.now,
       onRecovered: () => paint(connected()),
       hold: {
-        load: () => "ok" in loaded && loaded.ok.channel === channel ? loaded.ok : undefined,
-        save: (held) => {
-          void Effect.runPromise(saveHold(services.served, held)).then(
-            undefined,
-            (error: unknown) => {
-              services.warn(
-                `spaces: hold could not be written (${
-                  error instanceof Error ? error.message : String(error)
-                })`,
-              )
-            },
-          )
-        },
+        load: () => loaded !== undefined && loaded.channel === channel ? loaded : undefined,
+        save: (held) => services.held.save(recordOf(held)),
       },
       deliverFault: (body, coalesce) => {
         if (coalesce === "fault") {

@@ -164,6 +164,7 @@ import type { Cadence, Change, Chat } from "@olai/chat"
 import { type Emit, emitter } from "@olai/log"
 import * as Bodies from "./bodies.ts"
 import { contextFor } from "./context.ts"
+import { heldFor } from "./held.ts"
 import { inverseOf, reresolves, requestFor } from "./edit.ts"
 import { runResolved } from "./resolving.ts"
 import {
@@ -1061,6 +1062,10 @@ export const bind = (
         // version of the same reason — see {@link doorFor}.
         deliveries: doorFor(plugin.name),
         watching,
+        // The hold, keyed the same way: core owns the file in the state
+        // home so `@olai/state` stays out of every tenant, and the writes
+        // are chained so the last snapshot handed over is the one that lands.
+        held: heldFor(plugin.name, offered.served, (line) => say(Effect.logWarning(line))),
       }),
     }))
     /**

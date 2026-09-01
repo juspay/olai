@@ -28,6 +28,16 @@ const waitFor = async (n: () => number, want: number): Promise<void> => {
   throw new Error(`wanted ${want} events, got ${n()}`)
 }
 
+const memoryHeld = (): Services["held"] => {
+  let record: Record<string, unknown> | null = null
+  return {
+    load: () => record,
+    save: (value) => {
+      record = value
+    },
+  }
+}
+
 const bus = (): {
   readonly watching: Services["watching"]
   readonly emit: (event: ConversationSeen) => void
@@ -82,6 +92,7 @@ test("a doorbell in the bound conversation posts; a heartbeat and this plugin's 
         },
       },
       watching,
+      held: memoryHeld(),
     })
     bind(half)
     emit({
@@ -133,6 +144,7 @@ test("a conversation the bind does not name is not mirrored", async () => {
       warn: () => {},
       deliveries: { scopes: () => [], deliver: () => {} },
       watching,
+      held: memoryHeld(),
     })
     bind(half)
     emit({
@@ -163,6 +175,7 @@ test("no env is honestly absent — nothing is posted", async () => {
       warn: () => {},
       deliveries: { scopes: () => [], deliver: () => {} },
       watching,
+      held: memoryHeld(),
     })
     bind(half)
     emit({

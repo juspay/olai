@@ -28,7 +28,7 @@ One channel per team, one orchestrator. The bind is a node in `_olai/Spaces.olai
 {"id":"digest","ord":"a1","title":"digest","custom":{"trim":"500"}}
 ```
 
-`channel` is required; without it nothing posts. `agent` and `session` are optional — omit both to bind every conversation this serve is in, omit only `session` to bind every session of that agent. A bind that names an agent this serve is not talking to is said once on the server's console. `trim` is the character cap (Unicode code points) for **both** orchestrator replies and doorbell digests (default 500). A malformed trim defaults **and is said on the server's console at warning level**.
+`channel` is required; without it nothing posts. `agent` and `session` are optional — omit both to bind every conversation this serve is in, omit only `session` to bind every session of that agent. A bind that names an agent this serve is not talking to is ignored — that is the working case. `trim` is the character cap (Unicode code points) for **both** orchestrator replies and doorbell digests (default 500). A malformed trim defaults **and is said on the server's console at warning level**.
 
 olai never writes this file. Turning the plugin on without a bind is a connected pill that posts nothing.
 
@@ -44,7 +44,7 @@ olai never writes this file. Turning the plugin on without a bind is a connected
 
 A kolu heartbeat ("the watcher is alive") is not a digest and does not post. Human messages never mirror.
 
-**One thread per bound conversation.** The thread key is the olai `(agent, session)` pair that already rides the watching event — not a title parsed out of the digest. The conversation's first digest opens the Spaces thread; later digests reply into it. Lane threads and the outbound queue are persisted in the state home (`@olai/state`'s `mirror` kind — the same home as the doorbell's wake scopes), so a restart opens the same thread and still has the queued digests. Olai never writes `Spaces.olai`.
+**One thread per bound conversation.** The thread key is the olai `(agent, session)` pair that already rides the watching event — not a title parsed out of the digest. The conversation's first digest opens the Spaces thread; later digests reply into it. Lane threads and the outbound queue are persisted through `PluginServices.held` — core owns the file in the state home (one hold per plugin per vault), the plugin parses the snapshot, and successive writes land in the order they were made. A restart opens the same thread and still has the queued digests. Olai never writes `Spaces.olai`.
 
 **Orchestrator replies and doorbell bodies, trimmed**: each is capped at the first ~500 Unicode code points with an ellipsis, and an open code fence the cut would have left is closed. Working-notes still produce the ephemeral signal below rather than a stored wall of fragments.
 
