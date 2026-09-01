@@ -355,12 +355,12 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
   })
 }
 
-// Die with the parent that ASKED for it — the e2e harness, the
-// process-boundary unit tests, the shell drivers — and with nobody else. The
-// gate is the spawn shape (`OLAI_DIE_WITH_PARENT`), never `getppid()`: a
-// daemonising wrapper exits by design, and a server that read PID 1 as
-// "orphaned" killed itself mid-recording on 2026-08-23. `./dieWithParent.ts`
-// carries the whole argument and the kernel facts it rests on.
+// Die with the one process this one was TIED to, and with nobody else — the
+// tie being a pid the spawner stamped on the environment
+// (`OLAI_DIE_WITH_PARENT`), never `getppid()`: a daemonising wrapper exits by
+// design, and a server that read PID 1 as "orphaned" killed itself
+// mid-recording on 2026-08-23. `./dieWithParent.ts` carries the tie's four
+// moments and the kernel facts they rest on.
 dieWithParent()
 
 // The sink is stdout: a person watching a server looks there, and nothing else
