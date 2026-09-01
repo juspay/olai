@@ -147,14 +147,18 @@ export class StateFailure extends Data.TaggedError("StateFailure")<{
  * told it could not reach, and nothing but a type can say so. It also makes
  * "what does olai keep about a directory" answerable by reading one line.
  *
- * Two tenants, and the split between them is what each SURVIVES rather than
+ * Three tenants, and the split between them is what each SURVIVES rather than
  * what each is about. `chat` is the panel's last conversation — one record,
  * rewritten whenever the panel opens one. `wake` is which conversations a
  * person pointed a plugin's doorbell at, and on which file; it holds the picks
  * and never the messages, because a held message is a derivation of state that
- * is still true and is rung again by whatever derives it.
+ * is still true and is rung again by whatever derives it. `agents` is which
+ * conversation each NODE AGENT is bound to — the pointer that makes a node's
+ * subtree the memory of a session, and which is per-machine for the reason the
+ * note above it is: a session id means nothing on the other laptop, while the
+ * `agent` property that creates the node agent is board-durable and travels.
  */
-export type Kind = "chat" | "wake"
+export type Kind = "chat" | "wake" | "agents"
 
 /** Where one kind of remembered thing lives for one served directory — a
  *  subdirectory of the state home, and the digest under it. Takes the

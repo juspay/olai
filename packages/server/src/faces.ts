@@ -200,6 +200,16 @@ export const MCP: ExposeMap<typeof surface.spec> = {
  * agent asking what the inbox holds asks `list_outlines` and is answered with
  * the nodes. A badge is a paint instruction for a door somebody is looking at.
  *
+ * `agents` is that same kind of reading again, and the one that is HALF a
+ * reading: the roster is the query `prop:agent` over the set, joined with which
+ * conversation this MACHINE has bound to each of those nodes
+ * (`./agents.ts`). The vault half an agent already has — `prop:agent` is a
+ * query it can type into `search_nodes`, and it is answered with the NODES,
+ * which is the thing it can act on. The binding half is per-machine chrome for
+ * a column somebody is looking at, and an agent offered it would be offered
+ * session ids belonging to a panel it is not in. So: the browser's, like the
+ * shelf and the badge beside it.
+ *
  * It satisfies the cost rule the way `pending` does rather than trivially: the
  * value is O(what somebody PINNED), which is a curated short list — it is
  * exactly the rows the sidebar draws, so a shelf too big for this member is a
@@ -256,6 +266,7 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   heads: "resource",
   pins: "resource",
   inbox: "resource",
+  agents: "resource",
   transcript: "resource",
   // ...and the pieces of the row still being said, which is the same
   // conversation delivered cheaply and belongs to exactly the face the

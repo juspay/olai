@@ -21,6 +21,12 @@
  *     on a clock ({@link ./cadence.ts}). Exported for the same reason `Change`
  *     is: the composition root is what owns a socket, so the cadence has to be
  *     nameable there.
+ *   - {@link bindingsIn} is the sixth and is here for {@link scopesIn}'s reason
+ *     read one question over: WHICH CONVERSATION each node agent is bound to is
+ *     half of an answer whose other half is the vault, and the composition root
+ *     is the only thing that holds both ({@link ./agents.ts}). It is built there
+ *     and handed to {@link make} as `Options.binding`, with the vault's half
+ *     arriving as `Options.charge`.
  *   - {@link scopesIn} is the fifth, and it is here for the third of those
  *     reasons: WHICH conversations a person pointed a plugin's doorbell at is
  *     a record about a plugin, and the composition root is the only thing that
@@ -38,6 +44,7 @@
  */
 
 export { type Adapter, AGENT_ENV, whyNoAgent } from "./adapter.ts"
+export { type Bindings, type Bound, forDirectory as bindingsIn } from "./agents.ts"
 export { type Installed, roster } from "./agents/roster.ts"
 export { type Chat, make, type Options, type ToolServer } from "./chat.ts"
 export type { Probe, Probed, StdioServer } from "./probes.ts"

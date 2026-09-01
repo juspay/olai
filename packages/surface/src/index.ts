@@ -222,6 +222,7 @@ import {
   SessionInfo,
   Unreachable,
 } from "./chat.ts"
+import { Agents, NO_AGENT_ROSTER, sameAgentRoster } from "./agents.ts"
 import { editProcedures } from "./edit.ts"
 import { opsProcedures } from "./ops.ts"
 import { DatedAnswer, DatedRequest, Owed, OwedRequest } from "./dates.ts"
@@ -804,6 +805,45 @@ export const surface = defineSurface({
        *  (`@olai/plugin-api`'s `fence.test.ts`), because the name is the sibling
        *  key every one of its tags is composed under. */
       arrayKey: "name",
+    },
+    /**
+     * THE AGENTS ROSTER — one row per node carrying an `agent` property, with
+     * the conversation this machine has bound to it ({@link ./agents.ts}).
+     *
+     * A CELL, and for `pins`' reason word for word: it is a reading of the
+     * whole vault that depends on nobody's question. What differs from the
+     * shelf is what MOVES it — two things rather than one. A published revision
+     * moves it (a node gains the property, is renamed, grows a child), and so
+     * does a conversation opening, because the last line a bound agent said and
+     * whether it has been taught are per-session facts the chat writes. Both
+     * arrive through this cell's connector at the composition root
+     * (`@olai/server`'s `runtime.ts`), which is the one place both halves are in
+     * hand.
+     *
+     * `equals` is what makes the second of those affordable: the chat cell moves
+     * several times a turn and nearly none of those frames say anything new
+     * about a roster of three rows.
+     *
+     * WIRE-READ-ONLY, and here that is two different reasons rather than the
+     * usual one. The vault half is a file-shaped member like every other: an
+     * `agent` property is written by the ops layer, and the row follows. The
+     * BINDING half has no verb at all yet — bindings are hand-written in this
+     * phase (the assign gesture is the next one's), so there is nothing for a
+     * browser to call and nothing for one to be refused.
+     */
+    agents: {
+      schema: Agents,
+      default: NO_AGENT_ROSTER,
+      verbs: ["get"],
+      equals: sameAgentRoster,
+      /** A ROW IS ITS NODE'S `id`, which is exactly what identity means here:
+       *  the node is the durable thing and the session is cattle, so a row
+       *  whose session was swapped is the same row with a new binding rather
+       *  than a new row. Without a key, a frame that moved one agent's last
+       *  line replaced every other row of the sidebar — and the sidebar keys
+       *  the roster by this same id (`agents/Agents.tsx`), so a rename moves
+       *  the row it renames. */
+      arrayKey: "id",
     },
 
   },
@@ -1663,6 +1703,14 @@ export { HomesAnswer, HomesRequest } from "@olai/format"
  *  re-exported by nobody, for the same reason). */
 export { NO_PINS, Shelf } from "@olai/format"
 export type { Pinned } from "@olai/format"
+
+/** THE AGENTS ROSTER as the `agents` cell carries it — see {@link ./agents.ts}.
+ *  `sameAgentRoster` does NOT come through this door, for `sameShelf`'s reason:
+ *  a cell declares its `equals` in the spec above, which is the only place that
+ *  answer is spent. `AGENT_PROP` does, because the browser draws the property's
+ *  own name where it explains what put a row on this roster. */
+export { AGENT_PROP } from "@olai/format"
+export { Agents, NO_AGENT_ROSTER, NodeAgentRow } from "./agents.ts"
 
 /** HOW FULL THE INBOX IS as the `inbox` cell carries it — the floor's
  *  shape, re-exported for the shelf's reason. `sameInboxHeld` does NOT

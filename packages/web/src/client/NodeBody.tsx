@@ -75,6 +75,7 @@
 import { customOf, docOf, type LocatedRegular } from "@olai/format"
 import { createMemo, Show } from "solid-js"
 
+import { AgentDoor } from "./agents/Door.tsx"
 import { DocRef } from "./document/DocRef.tsx"
 import { excerptOf } from "./note/excerpt.ts"
 import { NoteLine } from "./note/Line.tsx"
@@ -184,6 +185,14 @@ export function NodeBody(props: {
             onAddingEnd={props.onAddingPropEnd}
           />
 
+          {/* THE DOOR, where this node carries an `agent` property — under the
+              run, on the live-properties seam's shape and deliberately not
+              through it (`./agents/Door.tsx` argues why core's own property may
+              not be a plugin's kind). It draws NOTHING on every other row,
+              which is nearly every row, and what it costs one of those is a
+              lookup in a roster of a handful. */}
+          <AgentDoor node={props.shows.node.id} />
+
           {/* CLOSED: one clamped dim line under the title, which is either the
               top of the note (`Cozy`) or the window a filter found this row
               through — whatever the density says, because a reader who has
@@ -260,6 +269,9 @@ export function NodeBody(props: {
         adding={props.addingProp}
         onAddingEnd={props.onAddingPropEnd}
       />
+      {/* ... and on the node's OWN page too, under the same facts: a page about
+          one node is the page its agent's door most belongs on. */}
+      <AgentDoor node={props.shows.node.id} />
       <Show when={props.shows.node.desc}>
         {(desc) => (
           <Note

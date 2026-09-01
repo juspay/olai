@@ -2,6 +2,25 @@
  * The panel's header: which conversation, which model, and the ways to change
  * session.
  *
+ * ## THE NODE COMES FIRST, where there is one
+ *
+ * A conversation bound to a node agent is named by the NODE — its title, drawn
+ * where the session's title used to be, and pressable onto the row it is
+ * written on. That is the ruling read straight off what a node agent IS: the
+ * node is durable and its subtree is the agent's memory, while the session is
+ * cattle that can be thrown away and recreated. Naming the transcript over the
+ * thing that outlives it would put the disposable half of the pair in the one
+ * line a person reads to find out who they are talking to.
+ *
+ * The agent and the model keep the second line, unchanged and in that order,
+ * which is what makes this a re-founding rather than a replacement: WHO the
+ * node agent is comes first, WHAT it is running on comes second, and both were
+ * already the header's own precedence one rung down.
+ *
+ * Every conversation NO node claims is the header exactly as it was — the
+ * session's title, or *new conversation* — because that is what it is: a chat,
+ * not somebody's agent.
+ *
  * WHO comes before WHAT IT RUNS ON, in that line, because it is the coarser
  * fact: a conversation is bound to one agent for its life (ruled 2026-08-21),
  * and the mark is there to be glanced at rather than read
@@ -55,7 +74,11 @@ import { createMemo, Show } from "solid-js"
 
 import { agentIn, type ChatState } from "@olai/surface"
 
+import { useAgents } from "../agents/answered.tsx"
+import { rowOf } from "../agents/focus.ts"
+import { memoryOf } from "../agents/roster.ts"
 import { QUIET_PILL } from "../pill.ts"
+import { Link } from "../router.tsx"
 import { TESTID } from "../testids.ts"
 import { AgentMark } from "./AgentMark.tsx"
 import { type Busy, busyIn } from "./busy.ts"
@@ -72,21 +95,65 @@ export function Header(props: {
   readonly onNew: () => void
 }) {
   const state = () => props.chat.state()
+  const roster = useAgents()
   /** What the panel is busy with ({@link ./busy.ts}), asked once: two slots on
    *  this line read it, and it is the same answer for both. */
   const doing = createMemo(() => busyIn(state()))
+  /**
+   * THE NODE AGENT this conversation belongs to, or `undefined` — which is
+   * nearly every conversation, and every conversation there was before node
+   * agents existed.
+   *
+   * TWO CELLS AND A LOOKUP, never a copy on one of them: the chat cell says
+   * WHICH node ({@link ChatState.bound}), decided by the server off the same
+   * record the roster's bindings came from, and the roster says what that node
+   * is CALLED and how big its subtree is. A title carried on both would be one
+   * fact on one wire in two places, free to disagree by a frame in exactly the
+   * line a person reads to find out who they are talking to.
+   *
+   * A row that is not there is a node the set has stopped declaring — the
+   * property came off, or the record was trashed — and the header falls back to
+   * naming the conversation, which is what it has always done.
+   */
+  const node = createMemo(() => {
+    const at = state().bound
+    return at === null ? undefined : roster().find((row) => row.id === at)
+  })
 
   return (
     <header class="relative flex shrink-0 items-center gap-2 border-b border-rule/70 px-3 py-2">
       <div class="min-w-0 flex-1">
-        <div
-          class="truncate text-sm font-semibold"
-          data-testid={TESTID.chatTitle}
+        {/* THE NODE FIRST, where this conversation belongs to one. A node agent
+            IS a node: its title is the agent's name, its subtree is what the
+            agent knows, and the conversation is cattle — so the durable thing
+            is what the header names, and the session's own title is a fact
+            about a transcript that will be thrown away. Pressable, because
+            "where does this agent keep its memory" is a question you answer by
+            going and looking at it. */}
+        <Show
+          when={node()}
+          fallback={
+            <div
+              class="truncate text-sm font-semibold"
+              data-testid={TESTID.chatTitle}
+            >
+              {state().status === "off"
+                ? "agent"
+                : state().session?.title ?? "new conversation"}
+            </div>
+          }
         >
-          {state().status === "off"
-            ? "agent"
-            : state().session?.title ?? "new conversation"}
-        </div>
+          {(agent) => (
+            <Link
+              route={rowOf(agent())}
+              class="block truncate text-sm font-semibold text-accent decoration-dotted underline-offset-2 hover:underline"
+              testid={TESTID.chatNode}
+              title={`${agent().title} — memory: this subtree (${memoryOf(agent())})`}
+            >
+              {agent().title}
+            </Link>
+          )}
+        </Show>
         <div class="flex items-center gap-2 truncate font-mono text-[0.6875rem] text-muted">
           {/* WHO, before what it runs on. Drawn from the moment an agent is
               bound, which is before the conversation opens — the panel is

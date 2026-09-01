@@ -1048,6 +1048,17 @@ export { NO_PINS, pinTargetIn, sameShelf, Shelf, shelfIn, shelfOf } from "./shel
 export type { Pinned } from "./shelf.ts"
 
 /**
+ * THE NODE AGENTS OF A SET — the roster, which is the query `prop:agent`
+ * answered where the set is ({@link ./agents.ts}).
+ *
+ * `AGENT_PROP` is public for the one reader that has to quote the property back
+ * rather than find rows by it (`@olai/chat`'s teaching), and `NodeAgent` for the
+ * one that widens it with the per-machine half a vault cannot know
+ * (`@olai/surface`).
+ */
+export { AGENT_PROP, agentsOf, NO_AGENTS, NodeAgent, NodeAgents, sameAgents } from "./agents.ts"
+
+/**
  * THE INBOX CONVENTION (./inbox.ts), read both ways.
  *
  * WHAT A CAPTURE BECOMES — `captureInto`, the one request a captured line is,

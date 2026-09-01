@@ -1,6 +1,11 @@
 {"id":"lanes","ord":"a0","title":"the lanes"}
-{"id":"lane-plugins","parent":"lanes","ord":"a0","title":"the plugin system","custom":{"pr-url":"https://github.com/juspay/olai/pull/447","worktree":".worktrees/plugin-system"}}
-{"id":"plugins-implement","parent":"lane-plugins","ord":"a0","title":"implement + open PR","doing":true,"custom":{"agent":"claude","terminal":"11111111"}}
-{"id":"plugins-review","parent":"lane-plugins","ord":"a1","title":"review: grok","todo":true,"custom":{"agent":"grok"}}
-{"id":"lane-quiet","parent":"lanes","ord":"a1","title":"a lane with nothing running"}
-{"id":"quiet-implement","parent":"lane-quiet","ord":"a0","title":"implement + open PR","done":"2026-08-24","custom":{"agent":"claude","terminal":"33333333"}}
+{"id":"lane-plugins","parent":"lanes","ord":"a0","title":"The plugin system","custom":{"agent":"claude","pr-url":"https://github.com/juspay/olai/pull/447","worktree":".worktrees/plugin-system"}}
+{"id":"plugins-implement","parent":"lane-plugins","ord":"a0","title":"implement + open PR","doing":true,"custom":{"terminal":"11111111"}}
+{"id":"plugins-review","parent":"lane-plugins","ord":"a1","title":"review: grok","todo":true}
+{"id":"lane-spaces","parent":"lanes","ord":"a1","title":"Xyne Spaces — the org OS","custom":{"agent":"grok — the kimi implementor","repo":"xyne-spaces"}}
+{"id":"spaces-mirror","parent":"lane-spaces","ord":"a0","title":"PR: the fleet reports into team chat","doing":true}
+{"id":"spaces-steer","parent":"lane-spaces","ord":"a1","title":"PR: the channel steers the fleet","todo":true}
+{"id":"spaces-layer3","parent":"lane-spaces","ord":"a2","title":"the layer-3 design is ratified","done":"2026-08-30"}
+{"id":"spaces-tz","parent":"lane-spaces","ord":"a3","title":"digest timestamps: whose timezone?","todo":true}
+{"id":"lane-quiet","parent":"lanes","ord":"a2","title":"Odu — the CI family","custom":{"agent":"opus"}}
+{"id":"quiet-implement","parent":"lane-quiet","ord":"a0","title":"implement + open PR","done":"2026-08-24","custom":{"terminal":"33333333"}}

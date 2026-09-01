@@ -18,6 +18,15 @@
  * draws nothing when there are no pins, so a directory that has never used one
  * has the column it always had.
  *
+ * WITH THE JOURNAL'S TWO QUESTIONS, and above the month, sits the AGENTS
+ * roster (./agents/Agents.tsx): one row per node carrying an `agent` property,
+ * with what it is doing and what is waiting on you. It is up there rather than
+ * beside the shelf because it is NEWS in exactly the sense the agenda's alarm
+ * and the inbox's count are — something waiting that a person has to act on —
+ * and the 2026-08-19 ruling below is precisely about what may not come ahead of
+ * those. Like the shelf it draws nothing at all where there is none, so a
+ * directory that has never made a node agent has the column it always had.
+ *
  * Desktop: a resizable column when open, replaced by the icon rail when
  * minimized (./layout/Rail.tsx). Mobile: a slide-over drawer with scrim under
  * the header — not the old capped close-on-any-tap sheet. The column is the
@@ -128,6 +137,7 @@ import {
 
 import type { InboxHeld, Owed } from "@olai/surface"
 
+import { Agents } from "./agents/Agents.tsx"
 import { markOf, unchanged } from "./agenda/owed.ts"
 import { NewDocument } from "./document/NewDocument.tsx"
 import { NewOutline } from "./outline/NewOutline.tsx"
@@ -360,6 +370,16 @@ export function Sidebar(props: {
               />
             )}
           </Show>
+          {/* THE AGENTS ROSTER, with the journal's two questions rather than
+              with the reader's own short list below them — the query
+              `prop:agent`, drawn (`./agents/Agents.tsx`, which argues the
+              placement). A row reading *needs you* is the same kind of fact as
+              the agenda's alarm and the inbox's count, and the shelf's own
+              2026-08-19 ruling is exactly about what may NOT come ahead of
+              those. It draws nothing at all in a directory with no node agent,
+              which is every directory that has not made one — so the column's
+              budget is untouched where the feature is unused. */}
+          <Agents />
           {props.children}
 
           {/* THE SHELF, between the month and the files — which is where a

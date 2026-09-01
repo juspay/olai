@@ -100,6 +100,7 @@ import type {
   Writer,
 } from "@olai/format"
 import {
+  type Agents,
   type Applied,
   CHAT_OFF,
   type ChatState,
@@ -108,6 +109,7 @@ import {
   type GitState,
   LOADED,
   type Manifest,
+  NO_AGENT_ROSTER,
   NO_ROSTER,
   type OpFailure,
   type PluginRoster,
@@ -159,6 +161,7 @@ import { isEnabled, PLUGIN_NAMES, surfacesOf } from "@olai/plugin-api/wire"
 
 import type { Cadence, Change, Chat } from "@olai/chat"
 import { type Emit, emitter } from "@olai/log"
+import type { Roster } from "./agents.ts"
 import * as Bodies from "./bodies.ts"
 import { contextFor } from "./context.ts"
 import { inverseOf, reresolves, requestFor } from "./edit.ts"
@@ -349,6 +352,21 @@ export interface Wiring {
    *  procedures answer that they are. A directory is readable whether or not
    *  an agent is installed. */
   readonly chat: Chat | null
+  /**
+   * THE NODE AGENTS' CARRIER — the vault's half of the roster, which this
+   * runtime WRITES on every published revision and reads back to fill the cell
+   * ({@link ./agents.ts}).
+   *
+   * Handed in rather than built here because the CHAT is built before this
+   * runtime is, and the chat asks it a question of its own: what a node agent
+   * is, for the standing instruction it teaches a session. One carrier, two
+   * readers, composed where both are in hand.
+   *
+   * Absent — like {@link Wiring.chat}, and usually with it — is a runtime that
+   * publishes an empty roster: no vault reading is taken, so the cell says
+   * there are no node agents, which is what a directory with none says.
+   */
+  readonly agents?: Roster | null
   /** The one writer. The edit procedures are the browser's door to it, and
    *  they hold nothing of their own: what a keystroke MEANT is resolved
    *  against this layer's own reading (`./edit.ts`) and run as one op. */
@@ -768,6 +786,27 @@ export const bind = (
      *  without changing one byte on disk, so no revision will ever say so. */
     let pendingCell: { set: (value: Pending) => void } | null = null
     let gitCell: { set: (value: GitState) => void } | null = null
+    /** The AGENTS cell, held for the same reason and one stronger: its second
+     *  clock is the chat, which reaches this file as a callback rather than as
+     *  a stream ({@link republishAgents}). */
+    let agentsCell: { set: (value: Agents) => void } | null = null
+
+    /**
+     * THE ROSTER, ASSEMBLED AND PUBLISHED — the one place the two halves are
+     * put together, called from both of the clocks that move either
+     * ({@link ./agents.ts}).
+     *
+     * Nothing at all before the cell's connector has run, and nothing at all
+     * for a serve with no carrier: a chat frame arriving before the first
+     * revision has no vault reading to join against, and publishing an empty
+     * roster for it would be a sidebar that flickered empty on the first turn.
+     */
+    const republishAgents = (): void => {
+      const cell = agentsCell
+      const carrier = wiring.agents
+      if (cell === null || carrier === undefined || carrier === null) return
+      cell.set(carrier.rowsWith(chat === null ? [] : chat.bindings()))
+    }
 
     /**
      * Both git cells, from one round of questions.
@@ -1248,6 +1287,48 @@ export const bind = (
         },
         chat: {
           store: inMemoryStore<ChatState>(chat === null ? CHAT_OFF : chat.state()),
+        },
+        /**
+         * THE AGENTS ROSTER, re-assembled whenever EITHER of its halves moves —
+         * the one cell on this surface with two clocks.
+         *
+         * A published revision moves the vault's half: a node gains the `agent`
+         * property, is renamed, or grows a child. A CHAT FRAME moves the
+         * machine's half: a conversation opens, an agent's last line is written
+         * down, a session is taught. Both go through {@link republishAgents},
+         * which is the whole reason it is a named closure rather than two
+         * bodies — two assemblers over one carrier would be two answers to what
+         * the roster is, and the one that disagreed would be the one nobody was
+         * looking at.
+         *
+         * The chat's clock is not a subscription: `publish.state` below is
+         * already the one door every chat frame comes through, so the roster is
+         * republished from there rather than by watching the cell this runtime
+         * itself writes. A cell that watched its own sibling would be a loop
+         * waiting to be closed by somebody adding a line to the wrong place.
+         *
+         * A revision that moved no node agent, and a chat frame that moved no
+         * binding, write the same value — which the cell's `equals` swallows
+         * (`@olai/surface`'s spec). The chat cell moves several times a turn, so
+         * that equality is what makes hanging this off it affordable at all.
+         *
+         * NO CARRIER IS NO ROSTER, which is a serve with no ACP agent: nothing
+         * reads the vault for a feature whose other half cannot exist, and the
+         * sidebar draws no section — the same thing a directory with no `agent`
+         * property anywhere draws.
+         */
+        agents: {
+          store: inMemoryStore<Agents>(NO_AGENT_ROSTER),
+          connect: (cell) =>
+            Stream.runForEach(
+              wiring.store.reads,
+              ({ snapshot }) =>
+                Effect.sync(() => {
+                  agentsCell = cell
+                  wiring.agents?.seen(snapshot === null ? null : snapshot.value.derived)
+                  republishAgents()
+                }),
+            ),
         },
         /**
          * WHICH PLUGINS THIS BUILD HAS AND WHICH THIS SERVE RUNS — seeded, and
@@ -2128,7 +2209,16 @@ export const bind = (
       // whole of why they are here — see the field's own note.
       faces: facesOf(composed.map((one) => one.plugin)),
       publish: {
-        state: (state) => runtime.ctx.cells.chat.set(state),
+        state: (state) => {
+          runtime.ctx.cells.chat.set(state)
+          // ... AND THE ROSTER WITH IT, because this is the one door every chat
+          // frame comes through and the bindings move behind exactly these
+          // frames: a session opening, a contract taught, a line written down
+          // at the end of a turn. The cell's `equals` is what makes it free on
+          // the frames that moved nothing, which is nearly all of them
+          // ({@link republishAgents}).
+          republishAgents()
+        },
         // Through the CADENCE, never straight onto the collection: a row that
         // grows reaches the wire as pieces on a clock rather than as itself
         // once per token (`transcript-stream-quadratic`). What comes back out

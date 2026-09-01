@@ -959,6 +959,11 @@ const chatKeeping = (kept: ReadonlyArray<Scoped>): {
   const chat: Chat = {
     entries: () => new Map(),
     state: () => CHAT_OFF,
+    // No node agent is bound in a case about doorbells, and an empty table is
+    // the honest answer rather than a death: the roster cell asks this on every
+    // revision these cases publish, and a stub that died on it would fail the
+    // wiring rather than the rule under test.
+    bindings: () => [],
     send: () => elsewhere,
     attach: () => elsewhere,
     resend: () => elsewhere,
