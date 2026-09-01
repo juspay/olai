@@ -57,6 +57,14 @@ olai_port_free() {
 # worktree — the one thing a driver has to be pointed at, and the one thing that
 # makes `root` a knob rather than a constant.
 #
+# `OLAI_DIE_WITH_PARENT=$` ties the server to THIS shell: a server arms the
+# kernel's parent-death signal only for a spawner that tied it, and a driver
+# killed before its `kill "$OLAI_SERVER"` would otherwise leave one serving a
+# working tree nobody is looking at. The tie is the asking shell's pid, which
+# is the backgrounded server's real parent. A wrapper that means to exit and
+# leave a server running simply does not tie (`@olai/server`'s
+# `src/dieWithParent.ts` has the argument).
+#
 # `PORT` if set is passed through as `--port`; unset is 0, which is the
 # default and the right one.
 olai_serve() {
@@ -73,6 +81,7 @@ olai_serve() {
   unset OLAI_URL
   OLAI_DIST_DIR="$root/packages/web/dist" OLAI_ACP_AGENT="${AGENT:-}" \
     OLAI_AGENT_PATH= \
+    OLAI_DIE_WITH_PARENT=$$ \
     bun "$root/packages/server/src/main.ts" web "$vault" --port "$port" \
     > "$log" 2>&1 &
   OLAI_SERVER=$!
