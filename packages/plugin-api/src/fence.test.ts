@@ -207,13 +207,36 @@ const REGISTRY = MEMBER_OF_PACKAGE.get("@olai/plugin-api") ??
   (() => {
     throw new Error("fence: `@olai/plugin-api` is not a workspace member, so there is no registry to fence")
   })()
-const PLUGIN_PACKAGES = PLUGIN_NAMES.map((name) => `olai-plugin-${name}`)
-const PLUGIN_DIRS = PLUGIN_PACKAGES.map((pkg) =>
-  MEMBER_OF_PACKAGE.get(pkg) ??
-    (() => {
+
+/**
+ * ONE PLUGIN, ONE RECORD — its name, the package it is published as, and the
+ * member directory it lives in.
+ *
+ * Three parallel arrays indexed together is how the first draft of this read,
+ * and it is worth naming why that was wrong rather than merely long: every
+ * claim below asks about ONE plugin, and a parallel-array reading spells that
+ * as `PLUGIN_DIRS[index] ?? ""` — an index the type system cannot check and an
+ * empty-string fallback that would turn a derivation failure into a claim
+ * quietly made about the empty path. The record cannot be misaligned, and the
+ * throw is where the failure belongs.
+ *
+ * `olai-plugin-<name>` is the one piece of arithmetic here, and it is the
+ * ecosystem's: a tenant is named the way a plugin written outside this tree
+ * would be, so the name says what the thing is.
+ */
+const TENANTS_OF: ReadonlyArray<{ name: string; pkg: string; dir: string }> = PLUGIN_NAMES.map(
+  (name) => {
+    const pkg = `olai-plugin-${name}`
+    const dir = MEMBER_OF_PACKAGE.get(pkg)
+    if (dir === undefined) {
       throw new Error(`fence: the registry names \`${pkg}\`, which is no workspace member`)
-    })()
+    }
+    return { name, pkg, dir }
+  },
 )
+
+const PLUGIN_PACKAGES = TENANTS_OF.map((one) => one.pkg)
+const PLUGIN_DIRS = TENANTS_OF.map((one) => one.dir)
 
 /** WHERE A TENANT LIVES, as a directory rather than a preference:
  *  `packages/plugins/` is the plugin container and holds nothing else. Held as
@@ -377,8 +400,26 @@ const runtimeImportsOf = (file: string, text: string): ReadonlyArray<string> =>
     .scanImports(text)
     .map((found) => found.path)
 
-/** Every module the door reaches, and every specifier each of them evaluates. */
-const walkFrom = (entry: string): ReadonlyArray<{ file: string; spec: string }> => {
+/**
+ * THE GRAPH ONE DOOR OPENS, in the two readings the claims below need.
+ *
+ * `reached` is the PAIRS — which file evaluated which specifier — and is what a
+ * confinement list is checked against: the failure it prints is a file and the
+ * thing it reached for, which is what somebody has to go and change.
+ *
+ * `files` is every MODULE VISITED, leaves included, and it is a different set
+ * rather than a projection of the first: a module that imports nothing of its
+ * own is visited and contributes no pair at all. That is right for "what does
+ * this graph reach for" and wrong for "what is ON this graph" — and a component
+ * with no imports is exactly the shape that falls through the gap.
+ *
+ * One traversal answers both, because two would be two chances to disagree
+ * about what the graph is.
+ */
+const graphFrom = (entry: string): {
+  reached: ReadonlyArray<{ file: string; spec: string }>
+  files: ReadonlyArray<string>
+} => {
   const seen = new Set<string>()
   const reached: Array<{ file: string; spec: string }> = []
   const visit = (file: string): void => {
@@ -400,35 +441,12 @@ const walkFrom = (entry: string): ReadonlyArray<{ file: string; spec: string }> 
     }
   }
   visit(entry)
-  return reached
+  return { reached, files: [...seen].map((file) => path.relative(PACKAGES, file)).sort() }
 }
 
-/** ...and every module it reaches, INCLUDING THE LEAVES. {@link walkFrom}
- *  answers pairs, so a module that imports nothing of its own is visited and
- *  records nothing — which is right for "what does this graph reach for" and
- *  wrong for "what is ON this graph". A component with no imports is exactly
- *  that shape, so the claim about what a server may not evaluate reads this. */
-const filesFrom = (entry: string): ReadonlyArray<string> => {
-  const seen = new Set<string>()
-  const visit = (file: string): void => {
-    if (seen.has(file)) return
-    seen.add(file)
-    let text: string
-    try {
-      text = readFileSync(file, "utf8")
-    } catch {
-      return
-    }
-    for (const spec of runtimeImportsOf(file, text)) {
-      const next = spec.startsWith(".")
-        ? path.normalize(path.join(path.dirname(file), spec))
-        : resolveWorkspace(spec)
-      if (next !== undefined) visit(next)
-    }
-  }
-  visit(entry)
-  return [...seen].map((file) => path.relative(PACKAGES, file)).sort()
-}
+/** The pairs alone, which is what most callers here want. */
+const walkFrom = (entry: string): ReadonlyArray<{ file: string; spec: string }> =>
+  graphFrom(entry).reached
 
 /** What must not be on the graph of the door every listener pulls in, and why
  *  each: `solid-js` is a UI runtime and the SERVER reads this; a padi or odu
@@ -455,9 +473,9 @@ describe("the wire door stays a wire door", () => {
     // Not vacuous: a resolver that answered `undefined` for every workspace
     // specifier would walk one file and pass every claim below.
     const files = new Set(reached.map((one) => one.file))
-    for (const [index, name] of PLUGIN_NAMES.entries()) {
-      const member = PLUGIN_DIRS[index] ?? ""
-      expect([...files].some((f) => f.startsWith(`${member}${path.sep}`)), name).toBe(true)
+    for (const tenant of TENANTS_OF) {
+      expect([...files].some((f) => f.startsWith(`${tenant.dir}${path.sep}`)), tenant.name)
+        .toBe(true)
     }
   })
 
@@ -505,9 +523,9 @@ describe("the server door pulls no browser face", () => {
     // Not vacuous, for the wire door's reason: a resolver that answered
     // `undefined` for every workspace specifier would walk one file and pass.
     const files = new Set(reached.map((one) => one.file))
-    for (const [index, name] of PLUGIN_NAMES.entries()) {
-      const member = PLUGIN_DIRS[index] ?? ""
-      expect([...files].some((f) => f === path.join(member, "src", "server.ts")), name).toBe(true)
+    for (const tenant of TENANTS_OF) {
+      expect([...files].some((f) => f === path.join(tenant.dir, "src", "server.ts")), tenant.name)
+        .toBe(true)
     }
   })
 
@@ -535,7 +553,7 @@ describe("the server door pulls no browser face", () => {
     // needs no directory name, and it is STRICTLY WIDER than the entry it
     // replaces: it catches a face in any package and any folder, including one
     // nobody has written yet.
-    const rendering = filesFrom(path.join(PACKAGES, REGISTRY, "src", "server.ts"))
+    const rendering = graphFrom(path.join(PACKAGES, REGISTRY, "src", "server.ts")).files
       .filter((file) => file.endsWith(".tsx"))
     expect(rendering).toEqual([])
   })
@@ -545,10 +563,10 @@ describe("the server door pulls no browser face", () => {
     // of it that resolved nothing would report no components by reporting no
     // files. The MANIFEST door is where the components legitimately are, so the
     // same reading over that entry is the positive control — it must find some.
-    expect(filesFrom(path.join(PACKAGES, REGISTRY, "src", "server.ts")).length)
+    expect(graphFrom(path.join(PACKAGES, REGISTRY, "src", "server.ts")).files.length)
       .toBeGreaterThan(10)
     expect(
-      filesFrom(path.join(PACKAGES, REGISTRY, "src", "index.ts")).filter((f) => f.endsWith(".tsx"))
+      graphFrom(path.join(PACKAGES, REGISTRY, "src", "index.ts")).files.filter((f) => f.endsWith(".tsx"))
         .length,
     ).toBeGreaterThan(0)
   })
@@ -887,10 +905,9 @@ const reachedBy = (entries: ReadonlyArray<string>): ReadonlySet<string> => {
 }
 
 const CLOSURES: ReadonlyMap<string, ReadonlySet<string>> = new Map(
-  PLUGIN_NAMES.map((name, index) => {
-    const member = PLUGIN_DIRS[index] ?? ""
-    const reached = new Set(reachedBy(codeDoorsOf(path.join(PACKAGES, member))))
-    reached.add(member)
+  TENANTS_OF.map(({ name, dir }) => {
+    const reached = new Set(reachedBy(codeDoorsOf(path.join(PACKAGES, dir))))
+    reached.add(dir)
     return [name, reached] as const
   }),
 )
@@ -955,9 +972,8 @@ describe("an appliance's product tier stays inside its tenant", () => {
     // walk that resolved nothing, a `node_modules` that was never hydrated, and
     // a plugin with no tenant of its own. Any of them would make every claim
     // below pass over an empty set.
-    for (const [index, name] of PLUGIN_NAMES.entries()) {
-      const tenant = TENANTS.get(name) ?? new Set()
-      expect([...tenant].sort(), name).toContain(PLUGIN_DIRS[index] ?? "")
+    for (const { name, dir } of TENANTS_OF) {
+      expect([...(TENANTS.get(name) ?? new Set())].sort(), name).toContain(dir)
       expect([name, (TIERS.get(name) ?? new Set()).size > 0]).toEqual([name, true])
     }
     // ...and the two together are not one set wearing two names.

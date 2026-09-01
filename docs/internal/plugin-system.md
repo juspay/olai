@@ -612,6 +612,16 @@ as.
 
 The whole checklist. Nothing outside `packages/` changes.
 
+0. **`packages/plugins/olai-plugin-<name>/package.json`** — the package is called
+   `olai-plugin-<name>`, unscoped, and the directory is called the same thing.
+   `@olai/*` is the scope for the packages that ARE olai; a tenant is olai's
+   judgement about somebody else's appliance, which is the closest thing in this
+   tree to a plugin written outside it, so it is named the way one would be. It
+   goes in `packages/plugins/` and nowhere else — that directory is the tenant
+   container, held to the registry's own roster in both directions by
+   `fence.test.ts`'s ninth claim. It may declare its appliance's client, the
+   vault's format and SolidJS; it may not declare `@olai/plugin-api`, which
+   imports it.
 1. **`packages/plugins/olai-plugin-<name>/src/wire.ts`** — `name`, a `defineSurface`, and the
    `faces` map. This file may not import SolidJS, an appliance client, or a
    `node:` builtin.
@@ -644,7 +654,8 @@ names the file.
 
 | File | Holds |
 | --- | --- |
-| `packages/plugin-api/src/fence.test.ts` | no general package **imports** a plugin (four grammars: imports, `scanImports`, CSS `@import`, manifests) — and no general package **spells** one in production code |
+| `packages/plugin-api/src/fence.test.ts` | no general package **imports** a plugin (four grammars: imports, `scanImports`, CSS `@import`, manifests) — no general package **spells** one in production code — and `packages/plugins/` holds the tenants and nothing else, both directions |
+| `scripts/prove-fence.sh` | the fence and the mechanics lint go RED when they should. Not a `just check` leg: it mutates tracked files and puts them back, and `check` runs its legs in parallel. Run it when the fence CHANGES — a sweep's one failure mode is going quiet, and a fence that stopped running looks exactly like a fence that is holding |
 | `packages/plugin-api/src/mechanics.test.ts` | olai names no wire mechanic the framework performs |
 | `packages/plugin-api/src/rosters.test.ts` | the three doors list the same plugins, in the same order |
 | `packages/plugin-api/src/composition.test.ts` | an empty roster composes, and core's tags do not move |
