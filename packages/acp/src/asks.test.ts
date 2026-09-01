@@ -2,10 +2,10 @@
  * The projection, over values.
  *
  * These are the payloads a real agent sends, written out by hand from the
- * pinned adapter's own `dist/elicitation.js` (0.66.0) — a single-select with an
- * "Other" box, a multi-select, and the plan-mode permission request whose first
- * allow-flavoured option silently switched the session's permission mode for as
- * long as the panel answered these by machine.
+ * adapter's own `dist/elicitation.js` (captured at 0.66.0) — a single-select
+ * with an "Other" box, a multi-select, and the plan-mode permission request
+ * whose first allow-flavoured option silently switched the session's permission
+ * mode for as long as the panel answered these by machine.
  *
  * Nothing here needs a subprocess, which is the point of {@link ./asks.ts}
  * being pure: what a form LOOKS like for a question nobody has asked yet is a
@@ -211,9 +211,9 @@ describe("a question, as a form", () => {
 
 describe("a permission request, as the same form", () => {
   /**
-   * The adapter's plan-mode exit, as 0.66.0 builds it: four options, `auto`
-   * FIRST and allow-flavoured — which is exactly the one a client answering by
-   * machine picked, and the reason this whole path exists.
+   * The adapter's plan-mode exit, as it built it at that capture: four
+   * options, `auto` FIRST and allow-flavoured — which is exactly the one a
+   * client answering by machine picked, and the reason this whole path exists.
    *
    * The real list is filtered against the session's available modes, and gains
    * a leading `bypassPermissions` where the adapter allows it, so a session can

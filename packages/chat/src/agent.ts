@@ -962,7 +962,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *
      * The adapter stamps `sessionId` on every raw message it forwards
      * (`extNotification("_claude/sdkMessage", { sessionId, message })`,
-     * unconditionally, 0.66.0), and everything one carries is a fact about that
+     * unconditionally, 0.70.0), and everything one carries is a fact about that
      * one conversation. Mostly this is already fenced — the panel holds one
      * conversation at a time and `leaving()` drops what is keyed to the last —
      * but the residue is real and narrow: an `init` in flight from a session
@@ -1566,10 +1566,10 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *
      * THE BUG THIS IS (`chat-model-reverts-on-restart`): a person switches the
      * chat with `/model`, olai is redeployed, and the same conversation comes
-     * back on the model the container pins. Nothing in the panel had gone
-     * wrong — the agent really is running that model, and the header really is
-     * naming what it was told. The pin outranks the conversation at the agent's
-     * end: the pinned adapter (0.66.0) resolves a session's model as env, then
+     * back on the model the container pins. Nothing in the panel had gone wrong
+     * — the agent really is running that model, and the header really is naming
+     * what it was told. The pin outranks the conversation at the agent's end:
+     * the adapter (captured at 0.66.0) resolves a session's model as env, then
      * `settings.json`, then the resumed transcript, and for a RESUMED session
      * it deliberately re-asserts the first two over the third with `setModel`,
      * because "a resumed session lands on the transcript's model regardless of

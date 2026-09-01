@@ -434,12 +434,12 @@ const storedSessions = () =>
  * The picker, shaped the way the real adapter's is.
  *
  * Two rows spelled as ids, and three ALIASES — which is the shape that matters
- * and the one this file used to be missing. The pinned adapter (0.66.0) offers
- * `default`, `opus[1m]`, `sonnet`, `haiku`: bare family words, while the live
- * model it reports on the wire is a concrete API id like `claude-sonnet-5`.
- * With only id-spelled rows here, a panel that could not bridge the two
- * vocabularies passed every scenario in this suite and named a raw id in front
- * of the person who filed the bug.
+ * and the one this file used to be missing. The adapter (captured at 0.66.0)
+ * offers `default`, `opus[1m]`, `sonnet`, `haiku`: bare family words, while
+ * the live model it reports on the wire is a concrete API id like
+ * `claude-sonnet-5`. With only id-spelled rows here, a panel that could not
+ * bridge the two vocabularies passed every scenario in this suite and named a
+ * raw id in front of the person who filed the bug.
  *
  * `opus[1m]` is here for the OTHER direction — the one a review constructed
  * against the real adapter. It is a row that states a context lane, and a live
@@ -451,7 +451,7 @@ const storedSessions = () =>
  * client may SET it (`session/set_config_option`) and because a boot resets it:
  * `fake-model-1` is this agent's `settings.json` pin, asserted over whatever the
  * last turn ran, on `session/new` and `session/load` alike. That is the shape
- * the real adapter has (0.66.0: env, then settings, then the resumed
+ * the real adapter has (0.70.0: env, then settings, then the resumed
  * transcript — and the first two are re-asserted over the third on resume), and
  * it is the whole of what makes `chat-model-reverts-on-restart` reproducible
  * here.
@@ -546,7 +546,7 @@ const EDITED = {
  * PostToolUse hook fires with the tool's real answer, and that one is built by
  * walking `structuredPatch` — **one `diff` block per hunk, every one of them
  * carrying the same `path`** (`toolUpdateFromDiffToolResponse`, adapter
- * 0.66.0). So an edit that landed in three places arrives as three blocks under
+ * 0.70.0). So an edit that landed in three places arrives as three blocks under
  * one name, and a panel that treats a path as a block's identity has three rows
  * claiming to be the same row.
  *
@@ -1689,7 +1689,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   // tool's own `old_string` against its `new_string`. Then the adapter's
   // PostToolUse hook fires with the tool's real answer and walks
   // `structuredPatch`, pushing one block PER HUNK — every one of them carrying
-  // the same `path` (`toolUpdateFromDiffToolResponse`, adapter 0.66.0). An edit
+  // the same `path` (`toolUpdateFromDiffToolResponse`, adapter 0.70.0). An edit
   // with `replace_all`, or one that simply touches several parts of a file, is
   // shape, and it is the commonest shape a coding agent produces.
   //
@@ -1750,7 +1750,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   // tool calls on the same feed as the main agent's — there is no second
   // stream and no `sessionUpdate` of its own — and stamps each one with the
   // `Agent` call it came out of, in `_meta.claudeCode.parentToolUseId`
-  // (`liveBackgroundTasks`, adapter 0.66.0). Everything a panel can know about
+  // (`liveBackgroundTasks`, adapter 0.70.0). Everything a panel can know about
   // who did what is that one field, so this turn sends exactly what the real
   // one does and nothing more.
   //
@@ -1792,7 +1792,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     }
     /** A SPAWN, as the adapter builds one. `subagent: true` rides beside the
      *  tool name on every frame it makes for an `Agent`/`Task` call
-     *  (`claudeCodeMetaFromToolUse`, 0.66.0) and is the only thing on the wire
+     *  (`claudeCodeMetaFromToolUse`, 0.70.0) and is the only thing on the wire
      *  that says an agent was sent out BEFORE the agent has done anything —
      *  the parent stamp below cannot be sent until it has. The arguments are
      *  the `Agent` tool's own (`AgentInput`): a short description, the prompt,
@@ -1903,7 +1903,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
             title: "run a command",
             // WHERE A PERMISSION REQUEST SAYS IT, and the difference from the
             // elicitation above: the adapter stamps the attribution onto the
-            // request itself, beside the tool name (0.66.0, `canUseTool`).
+            // request itself, beside the tool name (0.70.0, `canUseTool`).
             _meta: { claudeCode: { toolName: "Bash", parentToolUseId: agent } },
           },
           options: [

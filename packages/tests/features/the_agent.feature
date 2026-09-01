@@ -1070,12 +1070,15 @@ Feature: Talking to the agent
   @scratch:chat
   Scenario: Once this conversation has queued, the interruption is withdrawn
     # A GUARD AROUND SOMEBODY ELSE'S DEFECT, and the one thing in this feature
-    # that is not a rule of olai's own. The pinned adapter (0.66.0) leaves a
-    # turn's `session/prompt` unanswered forever if a steer is injected into
-    # any turn of a session that has ever held a QUEUED one — the steered words
-    # run and stream, and only a cancel ends the turn. Reproduced on the wire
-    # with no olai in it; before this feature it was unreachable, because
-    # nothing ever sent a mid-turn prompt on this leg.
+    # that is not a rule of olai's own. The pinned adapter leaves a turn's
+    # `session/prompt` unanswered forever if a steer is injected into any turn
+    # of a session that has ever held a QUEUED one — the steered words run and
+    # stream, and only a cancel ends the turn. Reproduced on the wire with no
+    # olai in it; before this feature it was unreachable, because nothing ever
+    # sent a mid-turn prompt on this leg. Which pins that has been measured
+    # against, and the second trigger this latch does NOT cover, are in
+    # `acp/patches/README.md` — named here rather than restated, because a
+    # version number in a scenario is one more copy to re-check per bump.
     #
     # So the panel stops offering what it cannot make end. The cost is real and
     # is the ruling: after one message typed during a turn, this conversation

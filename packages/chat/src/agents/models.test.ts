@@ -3,7 +3,7 @@
  *
  * ACP's own `configOptions` and both agents' use of it ({@link ./models.ts}) —
  * so this is not one adapter's test even though the payloads in it are one
- * adapter's: the Claude Code adapter (0.66.0) is where the awkward cases live,
+ * adapter's: the Claude Code adapter is where the awkward cases live,
  * because it is the one whose picker offers ALIASES for the ids its CLI
  * reports. Opencode's picker offers the ids themselves and matches at the first
  * tier, which is the boring case a rule should also get right.
@@ -96,9 +96,9 @@ describe("which config option is the model, and what it calls its values", () =>
 })
 
 describe("what the agent calls the model it is running", () => {
-  /** The picker the pinned adapter (0.66.0) actually sent, captured off the
-   *  wire. Every value in it is an ALIAS — this is the whole reason the lookup
-   *  needs a rule rather than a `Map.get`. */
+  /** The picker the adapter actually sent, captured off the wire at 0.66.0.
+   *  Every value in it is an ALIAS — this is the whole reason the lookup needs
+   *  a rule rather than a `Map.get`. */
   const OFFERED = new Map([
     ["default", "Default (recommended)"],
     ["opus[1m]", "Opus (1M context)"],

@@ -59,6 +59,9 @@ packages/tests/
 ├── tasks.ts                 # what the PINNED ADAPTER says about a background
 │                            #   task — a driver, not a lane: it needs a real
 │                            #   agent, which is the point of it
+├── panel-live.ts            # ... and what the PANEL does with it: the same
+│                            #   real agent, driven through a real browser.
+│                            #   The driver a pin bump is not finished without
 └── fixtures/                # the served directories (see fixtures/README.md)
 ```
 
@@ -161,6 +164,22 @@ KIND=bash bash tasks.sh        # a background shell that exits 3
 It exists because `chat-background-tasks-visible` rests on two claims about somebody else's process, and both are the kind a later reader re-decides by assuming. The first is that the adapter as released completes such a call at LAUNCH, which is why olai patches its pin (`acp/patches/README.md`) and which stops being true the day upstream lands its own fix — the timeline is where that shows up. The second is that the task's own EVENTS are on no wire underneath: a monitor's every line reaches the model and the task's output file and no SDK message carries one, so the panel draws the task's life rather than its events. The driver CHECKS that rather than asserting it — a harness frame carrying the monitor's output prints a line saying so, and the day one does, that line is how anybody finds out. The model's own frames are excluded from that check on purpose: the agent is woken per event and says *tick-1 received*, which is the agent's prose and not the task's stream.
 
 It needs a real, authenticated `claude`, so it is a thing a person runs and never a lane — the promises live in `features/the_agent.feature` and in the unit tests, driven by the scripted agent's `watch` verb.
+
+## Driving the panel against the agent olai actually ships
+
+```bash
+just build-client
+nix develop .#e2e -c bash
+cd packages/tests
+bash panel-live.sh
+```
+
+`panel-live.ts` / `panel-live.sh` are the fifth driver, and the one a PIN BUMP is not finished without. `tasks.ts` above drives the adapter with no olai in it because what it measures is somebody else's process; this one measures the half that answer cannot reach — what the PANEL does with what the adapter sends. It opens the app, sends real turns, and asserts the behaviours the panel is steered through: sending and its answer, the model line and the context fraction, the interrupt while a conversation may still have one, the queue and the withdrawal that follows it, cancel, a background task's clock and its death notice with the harness's own word on it, a subagent's rail and the shelf its calls are read in, and the conversation picker.
+
+The reason it exists rather than being a scenario is the same reason `tasks.ts` does, one layer up: every scenario in `features/` drives a SCRIPTED agent, because a turn has to be deterministic before it can be asserted — and the cost of that discipline is that no scenario has ever seen the real adapter. A pin bump is exactly when that bill comes due, and this is what pays it.
+
+ORDER IS THE DRIVER'S OWN SUBJECT and not a convenience. The interrupt is asserted before anything has queued and before any `Monitor` has been armed, because each of those leaves the pinned adapter unable to settle a steered turn — both triggers, and what was measured about each, are in [`acp/patches/README.md`](../../acp/patches/README.md). Run the same assertions in the other order and the driver hangs, which is the panel hanging: that is how the second trigger was found.
+
 ## Measuring what a session costs the wire
 
 ```bash

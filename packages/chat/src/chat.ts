@@ -659,13 +659,21 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      *
      * IT WITHDRAWS THE INTERRUPTION, and it is the one place in this file that
      * works around somebody else's defect rather than stating a rule of its
-     * own. The pinned adapter (0.66.0) leaves a turn's `session/prompt`
-     * unanswered forever if a `_session/steering` is injected into any turn of
-     * a session that has once held a queued one — the steered words run and
-     * stream, and only a cancel ends the turn. Verified on the wire with no
-     * olai in it: fresh sessions steer cleanly, one sequential turn steers
-     * cleanly, two steer cleanly, and one QUEUED turn earlier in the session
-     * poisons every steer after it.
+     * own. The pinned adapter leaves a turn's `session/prompt` unanswered
+     * forever if a `_session/steering` is injected into any turn of a session
+     * that has once held a queued one — the steered words run and stream, and
+     * only a cancel ends the turn. Verified on the wire with no olai in it:
+     * fresh sessions steer cleanly, one sequential turn steers cleanly, two
+     * steer cleanly, and one QUEUED turn earlier in the session poisons every
+     * steer after it.
+     *
+     * AND IT IS NOT THE WHOLE OF THE DEFECT. A session in which a turn armed
+     * a `Monitor` hangs the same way with nothing ever queued, so this latch
+     * is still OPEN — `queuedHere` false, the interruption still offered. Widening it is a
+     * change to what the panel OFFERS rather than a fact about the adapter,
+     * so it waits on a ruling. The measurement — every history tried, both
+     * pins, and the pristine run that says whose bug it is — is written once,
+     * in `acp/patches/README.md`, because it is a fact about the pin.
      *
      * Before this PR the combination was unreachable — olai never sent a
      * mid-turn `session/prompt` on this leg — so the queue is what makes it
@@ -699,7 +707,10 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * scoped this conversation opted it into machine-started turns, and `+ new`
      * is how the control comes back.
      *
-     * It goes when the adapter is fixed and the pin moves, and not before.
+     * It goes when the adapter is FIXED, which is not the same as when the
+     * pin moves: the 0.66.0 → 0.70.0 bump moved it four releases and #1039
+     * is still open. `acp/patches/README.md` is where each bump records
+     * whether it re-measured this.
      */
     let queuedHere = false
 
