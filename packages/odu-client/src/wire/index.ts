@@ -147,6 +147,19 @@ export interface RunTally {
   readonly red: number
 }
 
+/**
+ * THE RUN'S OWN NAME FOR ITSELF — odu's `<name> <sha7>#<seq>+dirty` spelling,
+ * folded ONCE because three faces say it: the chip's hover, the matrix's
+ * head, and the wake a conversation gets. A verdict without the run it
+ * describes is the ambiguity this spelling was introduced to end
+ * (juspay/odu#49); two foldings of it is how the ambiguity comes back
+ * wearing two costumes.
+ */
+export const identityOf = (run: CiRun): string =>
+  run.sha7 === ""
+    ? run.name
+    : `${run.name} ${run.sha7}${run.seq === null ? "" : `#${run.seq}`}${run.dirty ? "+dirty" : ""}`
+
 /** The tally, counted. */
 export const tallyOf = (cells: ReadonlyArray<RunCell>): RunTally => {
   let settled = 0

@@ -80,8 +80,8 @@ export const BuiltPlugin = Schema.Struct({
    * fails DECODE for a new tab talking to an older server, and the roster's
    * failed arm is what the browser's subscribe licence is read out of — so one
    * missing key would take every plugin's mount down, not just this one's.
-   * Absent is also the ordinary state: a plugin that wakes nobody declares none,
-   * and odu is one.
+   * Absent is also the ordinary state: a plugin that wakes nobody declares
+   * none.
    *
    * ONLY ON A ROW THAT IS RUNNING. The roster carries a row per BUILT plugin,
    * and a picker offered for a plugin this serve did not compose would store a

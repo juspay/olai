@@ -147,12 +147,20 @@
         "solid-js": "^1.9.0",
       },
     },
+    "packages/plugin-kit": {
+      "name": "@olai/plugin-kit",
+      "version": "0.1.0",
+      "dependencies": {
+        "solid-js": "^1.9.0",
+      },
+    },
     "packages/plugins/olai-plugin-kolu": {
       "name": "olai-plugin-kolu",
       "version": "0.1.0",
       "dependencies": {
         "@olai/format": "workspace:*",
         "@olai/kolu-client": "workspace:*",
+        "@olai/plugin-kit": "workspace:*",
         "@xterm/addon-fit": "^0.11.0",
         "@xterm/xterm": "^6.0.0",
         "effect": "4.0.0-rc.112",
@@ -168,6 +176,7 @@
       "dependencies": {
         "@olai/format": "workspace:*",
         "@olai/odu-client": "workspace:*",
+        "@olai/plugin-kit": "workspace:*",
         "solid-js": "^1.9.0",
       },
       "devDependencies": {
@@ -475,6 +484,8 @@
     "@olai/ops": ["@olai/ops@workspace:packages/ops"],
 
     "@olai/plugin-api": ["@olai/plugin-api@workspace:packages/plugin-api"],
+
+    "@olai/plugin-kit": ["@olai/plugin-kit@workspace:packages/plugin-kit"],
 
     "@olai/server": ["@olai/server@workspace:packages/server"],
 

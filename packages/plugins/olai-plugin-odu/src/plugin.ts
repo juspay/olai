@@ -21,6 +21,7 @@
  */
 
 import { CiChip } from "./browser/CiChip.tsx"
+import { OduMark } from "./browser/Mark.tsx"
 import { OduMount } from "./browser/mount.tsx"
 import { RunMatrix } from "./browser/RunMatrix.tsx"
 import { WORKTREE_KIND } from "./kinds.ts"
@@ -70,4 +71,18 @@ export const plugin = {
    *  (`./browser/mount.tsx`). It used to be two lines in the app's own
    *  composition root, and the second of them spelled `cells.ci`. */
   mount: OduMount,
+  /**
+   * ODU'S FACE IN A TRANSCRIPT (`./browser/Mark.tsx`) — the mark over a
+   * sentence the doorbell delivered into somebody's conversation.
+   *
+   * It is here rather than in the panel for the reason every other browser
+   * face is: core may know this plugin's NAME as data and nothing else, so
+   * the panel looks a mark up by the name it already stamped on the row and
+   * the shape itself is contributed from the tenant that owns it.
+   *
+   * The bytes are odu's own `logo.svg`, through the npins odu pin, via
+   * `@olai/plugin-kit`. The generic plug is the fallback for a plugin that
+   * hangs none, not this tenant's face.
+   */
+  mark: OduMark,
 } as const

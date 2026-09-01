@@ -1,6 +1,6 @@
 # olai-plugin-odu — the CI tenant
 
-olai's own judgement **about odu**, in the one place that is neither odu nor core. [`@olai/odu-client`](../../odu-client/README.md) is how olai *reaches* odu — the sweep, the dial, the hold over a live run, the projection into olai's shapes. This package is everything downstream of that which still says the word: what the reading is called on the wire, what a person is shown when a checkout has a run in it, and — as the rest of this PR lands — where the remaining judgements about odu are made. [`@olai/plugin-api`](../../plugin-api/README.md) is the door both tenants come through; this is the smaller of the two behind it.
+olai's own judgement **about odu**, in the one place that is neither odu nor core. [`@olai/odu-client`](../../odu-client/README.md) is how olai *reaches* odu — the sweep, the dial, the hold over a live run, the projection into olai's shapes. This package is everything downstream of that which still says the word: what the reading is called on the wire, what a person is shown when a checkout has a run in it, which runs a scoped conversation is woken for, and whether odu's own MCP is here. [`@olai/plugin-api`](../../plugin-api/README.md) is the door both tenants come through; this is the smaller of the two behind it.
 
 ## The wall below this one does not move
 
@@ -50,7 +50,7 @@ This package imports `@olai/plugin-api` nowhere. The manifest in [`src/plugin.ts
 
 `src/browser/` is where the argument above stops being an argument. The CI chip a live `worktree` wears, the run matrix its press opens, the words a run comes to, the per-node ink and the one subscription a tab holds are all here, and `@olai/web` no longer spells `odu`, `worktree`, `ci-chip` or `cells.ci` anywhere.
 
-The chip and the matrix are the manifest's `dressings`, registered by the app from the registry rather than by a folder that reached into the app's table; `mount.tsx` is the tab's own half, which reads `cells.ci` — a member name the app used to spell in its `App` — off THIS plugin's sibling client.
+The chip and the matrix are the manifest's `dressings`, registered by the app from the registry rather than by a folder that reached into the app's table; `mount.tsx` is the tab's own half, which reads `cells.ci` — a member name the app used to spell in its `App` — off THIS plugin's sibling client. **Odu's MARK** (`Mark.tsx`) is the face over a sentence the doorbell delivered: odu's own `logo.svg`, through the npins odu pin, via [`@olai/plugin-kit`](../../plugin-kit/README.md). The generic plug is the fallback for a plugin that hangs none, not this tenant's face. The claiming node's id rides in the wake's head in backticks (`nodeRef`), so a collapsed line is a link to the lane row.
 
 **Nothing here imports `@olai/web`**, which would be a cycle: the app mounts every plugin. What the faces need of it — the two-speed clock a running node ticks on, and the duration REGISTER it ticks in, which is one ladder for the pomodoro pill, the uptime chip and this — arrives as a VALUE, declared structurally in [`src/browser/app.ts`](src/browser/app.ts) and read through a context the mount puts up. A chip that spelled its own ladder would be a second vocabulary on a page whose whole point is that a ticking number looks the same wherever it appears.
 
@@ -58,9 +58,8 @@ Two doors come with it and neither is a graph: `./testids` is names only, so a s
 
 ## What is not here yet
 
-This commit lands the **name, the member and the faces**. The rest of the tenant arrives in later commits of this same PR:
+The name, the member, the faces, the doorbell, the probe and the failure sentences have landed: [`src/server.ts`](src/server.ts) calls `oduHalf`, [`src/doorbell.ts`](src/doorbell.ts) joins a scoped file's claims against the watcher's two notices, [`src/probe.ts`](src/probe.ts) asks whether `odu mcp` is here, and [`src/wake.ts`](src/wake.ts) is the two sentences a scope that cannot be watched says. What this package still does not do:
 
-- **The probe and the failure sentences.** Nothing in this package yet answers *is odu here* or *what do I say when it is not*. The runtime half has landed: [`src/server.ts`](src/server.ts) calls `oduHalf` and `@olai/server` names neither it nor odu.
 - **Run events reaching the feed.** Odu publishes enough to say a run changed state; no event of odu's reaches the board today, from here or from anywhere.
 - **An owned file.** Odu owns no outline in the vault, and nothing here wants one: what a run is doing is odu's to say and olai reads it, so there is no configuration for a directory to carry.
 

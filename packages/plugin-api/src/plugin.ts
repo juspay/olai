@@ -1040,7 +1040,9 @@ export interface OlaiPlugin extends PluginWire {
   /** WHAT IT LOOKS LIKE WHEN IT SPEAKS — the mark over a sentence this plugin
    *  delivered into a conversation ({@link PluginMark}). Typed for
    *  {@link Dressing}'s reason: the app draws it. Absent on a plugin that
-   *  delivers nothing, and on one content to wear the generic. */
+   *  delivers nothing, and on one content to wear the generic. The nested
+   *  viewport and the pressable-id spelling are `@olai/plugin-kit`'s, so a
+   *  tenant that fills this field is not inventing a second face grammar. */
   readonly mark?: PluginMark
 }
 

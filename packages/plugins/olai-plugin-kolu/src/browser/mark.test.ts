@@ -4,13 +4,11 @@
  *
  * `./mark.generated.ts` is written by {@link ../../default.nix} out of the
  * pinned kolu's `packages/client/favicon.svg` and copied into place by
- * `just install`. It has EXACTLY the lifecycle of the vendored `@kolu/*`
- * sources — same pin, same recipe, same absence — so a tree on which
- * `just install` has never run already fails everywhere and this file adds no
- * new way to be broken. What it does add is the one window that is genuinely
- * new: a tree installed BEFORE this change and not re-installed after, where
- * the runtime's own message would be `Cannot find module './mark.generated.ts'`
- * — a path with no cause attached to it.
+ * `just install`. The transform is `@olai/plugin-kit`'s; this file holds the
+ * pin-bump invariants over what actually got generated for THIS tenant. It
+ * has EXACTLY the lifecycle of the vendored `@kolu/*` sources — same pin,
+ * same recipe, same absence — so a tree on which `just install` has never
+ * run already fails everywhere and this file adds no new way to be broken.
  *
  * So the guard runs FIRST, before any import of the generated module, and says
  * what `@olai/web`'s font step says when `OLAI_FONTS_DIR` is unset: the named
@@ -46,7 +44,7 @@ const guard = (): void => {
   if (!existsSync(GENERATED)) {
     throw new Error(
       "packages/plugins/olai-plugin-kolu/src/browser/mark.generated.ts is absent. It is GENERATED from " +
-        "the pinned kolu's packages/client/favicon.svg by packages/plugins/olai-plugin-kolu/default.nix " +
+        "the pinned kolu's packages/client/favicon.svg by packages/plugin-kit/default.nix " +
         "and copied into place by 'just install' — run 'just install'.",
     )
   }
