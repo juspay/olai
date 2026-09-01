@@ -202,7 +202,6 @@ import {
   settles,
   type Status,
   textDeclaredAs,
-  unfinished,
 } from "@olai/format"
 import { heldStateOf } from "@olai/kolu-client"
 import { type FleetTerminal, type KoluEvent, resolveTerminal, whoOf } from "@olai/kolu-client/wire"
@@ -235,8 +234,32 @@ type Unfinished = Exclude<Status, Settled>
  * `unfinished` reads it as "not work", this reads it as "not finished" — and
  * the difference is the P1 {@link claiming} carries. A row nobody has ruled on
  * has not settled; it has not been ruled on, and what is under it decides.
+ *
+ * A TYPE GUARD, so the narrowing does the arguing: past a `settled` gate a mark
+ * is `Unfinished | undefined` BY TYPE, and a reader downstream never has to
+ * re-establish it. {@link claiming} used to re-ask `unfinished` of a mark it had
+ * already gated, which is a runtime proof of a compile-time fact — and the one
+ * that reads as a live case a reader must think about.
  */
-const settled = (mark: Status | undefined): boolean => mark !== undefined && settles(mark)
+const settled = (mark: Status | undefined): mark is Settled => mark !== undefined && settles(mark)
+
+/**
+ * THE TERMINAL THIS NODE CLAIMS, or nothing — the licensed read and the
+ * blank-value rule, folded into the one question the walk actually asks.
+ *
+ * A BLANK IS NOT A CLAIM. A property somebody added and left empty, or cleared
+ * without removing, names no terminal — and `resolveTerminal` would answer an
+ * empty string as a prefix of every id in the fleet, which is the one value that
+ * must never reach it. The walk used to spell this as two locals, `said` and
+ * `claimed`, the second restating the first with the rule in between.
+ */
+const claimedOn = (
+  declarations: PropDeclarations,
+  at: LocatedRegular,
+): string | undefined => {
+  const said = textDeclaredAs(declarations, at.node, TERMINAL_TYPE)
+  return said !== undefined && said.trim() !== "" ? said : undefined
+}
 
 /**
  * ONE CLAIM the filter file makes, as the vault wrote it.
@@ -371,24 +394,20 @@ export const claimedIn = (
    */
   const reached = new Set<string>()
   for (const located of inside) {
-    // SETTLED ENDS THE WALK, and nothing else does. `done` and `cancelled`
-    // both end the wait, so a row wearing either is silent and so is
-    // everything under it. An ABSENT mark is NOT that: it is a row nobody has
-    // ruled on, and what is under it decides ({@link claiming}'s `live`).
-    // Asked of the PLACEMENT, whose `status` already resolves a mirror to
-    // whatever its target stores.
+    // NO MARK IS ASKED HERE, and that is the point. Whether a node is silent —
+    // settled — and whether its claim counts are ONE rule, and {@link claiming}
+    // owns it: this loop's only job is to name the roots to descend from.
     //
-    // IT USED TO ASK `unfinished` HERE, which folds the unmarked rows in with
-    // the settled ones and drops both — and that is the P1 the human found on
-    // 2026-09-01. A lane whose node was FILED FIRST and grew its claim and its
-    // steps in a later write is a live lane wearing no mark of its own: the
-    // gate dropped it and its whole subtree before descending, so its terminal
-    // was absent from the ringing set and it drew no wake and no nag for 26
-    // minutes while four lanes beside it on the same board rang. `unfinished`
-    // is the right question of a MARK and the wrong one of a PLACE, for the
-    // same reason this walk already reads the owning step's mark rather than
-    // the lane's: a container is judged by its children and never by itself.
-    if (settled(derived.status.get(located.node.id))) continue
+    // IT USED TO ASK, and the answer was always the same one `claiming` was
+    // about to reach: `Derived.status` resolves a placement to what it SHOWS,
+    // so a mirror's mark IS its target's, and the gate here and the gate there
+    // could not disagree. What it bought was skipping a `follow` on a settled
+    // row; what it cost was one rule spelled in two places, each with its own
+    // paragraph about which node it was asked of — and a rule spelled twice is
+    // a rule that can be fixed once. That is not a hypothetical here: this gate
+    // and its twin were the SAME defect (`doorbell-missing-claim`), and the
+    // half-fix that repaired only one of them would have passed every test the
+    // other one owns.
     const found = follow(derived, located)
     // A dangling or circular mirror shows no record, so there is nothing to
     // read a property off. It is not an error here — the vault says so
@@ -429,8 +448,9 @@ interface Under {
   readonly live: boolean
 }
 
-/** Nothing here: what a settled node, and a node the walk has already reached,
- *  answer with. */
+/** Nothing here — what a SETTLED node answers with, and the only thing that
+ *  does: an already-reached node never reaches this function at all, it is
+ *  short-circuited by the descent. */
 const NOTHING_UNDER: Under = { deepest: undefined, live: false }
 
 /**
@@ -490,20 +510,21 @@ const claiming = (
   /** The claim that owns the walk this node is inside — see `owner` below. */
   mine: string | undefined,
 ): Under => {
+  /** THIS NODE'S OWN MARK — `Unfinished | undefined` past the gate below, which
+   *  is the whole reason {@link settled} is a type guard: everything downstream
+   *  reads this without re-establishing what it is. */
   const own = derived.status.get(at.node.id)
   // A SETTLED NODE IS THE END OF THIS BRANCH — no claim of its own, nothing
-  // said about what is under it, and no descent. The same predicate the outer
-  // loop asks of the file's rows, asked again here because that loop only ever
-  // saw the row and a claim can be anywhere under it.
+  // said about what is under it, and no descent. THE ONLY PLACE THIS IS ASKED,
+  // for the reason the outer loop states where it used to ask too.
   //
-  // IT WAS ASKED ONLY OF THE ROW, and the human found it on a live board: a
-  // review step folded half an hour earlier still rang, because the lane above
-  // it was open and nothing re-asked the step.
+  // The human found it on a live board: a review step folded half an hour
+  // earlier still rang, because the lane above it was open and nothing re-asked
+  // the step. `done` and `cancelled` both end the wait, and both end it here.
   if (settled(own)) return NOTHING_UNDER
   const rank = reached.size
   reached.add(at.node.id)
-  const said = textDeclaredAs(declarations, at.node, TERMINAL_TYPE)
-  const claimed = said !== undefined && said.trim() !== "" ? said : undefined
+  const claimed = claimedOn(declarations, at)
   /** WHOSE WORK THIS SUBTREE IS: this node's own claim where it has one, and
    *  otherwise the nearest ancestor's. Read BEFORE the descent, because it is
    *  what the descent is judged against. */
@@ -513,9 +534,10 @@ const claiming = (
   let deepest: LocatedRegular | undefined
   /** ...and whether there is any unfinished work under it at all, which is what
    *  decides whether the claim is anybody's business. Seeded with this node's
-   *  OWN mark, so a leaf answers by itself and a container is answered by the
-   *  loop below — the two halves of {@link Under.live}. */
-  let live = unfinished(own)
+   *  OWN mark — which is unfinished or absent and can be nothing else here — so
+   *  a leaf answers by itself and a container is answered by the loop below:
+   *  the two halves of {@link Under.live}. */
+  let live = own !== undefined
   let leaf = true
   for (const child of countedChildren(derived, at.node.id)) {
     leaf = false
@@ -551,56 +573,81 @@ const claiming = (
     // in line order. The push cannot be, because a node's own claim is not
     // decided until its children have answered — so the order is recorded here
     // and restored once, at the end.
-    claims.push({ rank, value: claimed, node: at.node.id, ...owning(derived, at, deepest, leaf) })
+    //
+    // THE STEP-MARK IS DECIDED HERE rather than inside {@link owning}, because
+    // this is where `leaf` is known: a node that CONTAINS steps is not itself a
+    // step, so it has no mark AS ONE, and `undefined` is that. `owning` used to
+    // be handed the whole `Derived` and a boolean so it could re-read a mark
+    // this scope already holds — three arguments to reconstruct one fact.
+    claims.push({
+      rank,
+      value: claimed,
+      node: at.node.id,
+      ...owning(at, deepest, leaf ? own : undefined),
+    })
   }
-  // ANOTHER TERMINAL'S CLAIMED STEP IS NEVER YOUR OWING STEP, and this line is
-  // the whole of that rule. A node carrying a claim of its own is that
-  // terminal's territory, it and everything under it — so it answers its
-  // ancestors with no STEP, whatever is going on inside it.
-  //
-  // IT USED TO ANSWER ANYWAY, and the human found it on a live board: a lane
-  // claimed by an author whose own work was done drew a WAKE saying "its step
-  // "review: pi" is doing — a report is owed", when that step is the pi
-  // REVIEWER'S, carrying the reviewer's own terminal. The author owed nothing;
-  // somebody else was working. Excluding a claimed subtree leaves the author
-  // with nothing being worked, which is the digest the ruled table asks for.
-  //
-  // `live` CROSSES THE FENCE AND `deepest` DOES NOT, which is the one asymmetry
-  // here and is the same distinction {@link Under.live} draws. The fence is
-  // about WHOSE WORK a step is; it is not about whether the lane still holds
-  // any. An author parked over a reviewer's live step is exactly the digest the
-  // ruled table asks for — present, and saying nobody is on it — and a fence
-  // that swallowed `live` too would delete it from the set instead, which is
-  // this file's own bug over again one rule down.
-  if (claimed !== undefined && claimed !== mine) return { deepest: undefined, live }
-  if (deepest !== undefined) return { deepest, live }
-  return { deepest: own === "doing" ? at : undefined, live }
+  // WHAT THIS NODE HANDS ITS PARENT — `live` unchanged and unconditional, and
+  // one of three answers about the STEP. The three used to be three returns,
+  // each re-stating `live`; that they never varied it is the fact worth reading
+  // off the shape, because it is exactly the asymmetry the fence below turns on.
+  return {
+    live,
+    // ANOTHER TERMINAL'S CLAIMED STEP IS NEVER YOUR OWING STEP, and this arm is
+    // the whole of that rule. A node carrying a claim of its own is that
+    // terminal's territory, it and everything under it — so it answers its
+    // ancestors with no STEP, whatever is going on inside it.
+    //
+    // IT USED TO ANSWER ANYWAY, and the human found it on a live board: a lane
+    // claimed by an author whose own work was done drew a WAKE saying "its step
+    // "review: pi" is doing — a report is owed", when that step is the pi
+    // REVIEWER'S, carrying the reviewer's own terminal. The author owed nothing;
+    // somebody else was working. Excluding a claimed subtree leaves the author
+    // with nothing being worked, which is the digest the ruled table asks for.
+    //
+    // THE FENCE TOUCHES THE STEP AND NEVER `live`, which is why the two are
+    // separate fields at all ({@link Under.live}). The fence is about WHOSE
+    // WORK a step is; it is not about whether the lane still holds any. An
+    // author parked over a reviewer's live step is exactly the digest the ruled
+    // table asks for — present, and saying nobody is on it — where a fence that
+    // swallowed `live` too would delete it from the set, which is this file's
+    // own P1 again one rule down.
+    deepest: claimed !== undefined && claimed !== mine
+      ? undefined
+      // ...OR THE DEEPEST WORK, and this node itself where it is marked
+      // `doing` and nothing under it is. UNCHANGED by this pass, deliberately:
+      // a CONTAINER marked `doing` hands itself up here, which sits oddly
+      // beside the parked-author rule the claim side keeps — but that is a
+      // question about the semantics and not about the shape, and a refactor
+      // is the wrong place to answer it.
+      : deepest ?? (own === "doing" ? at : undefined),
+  }
 }
 
 /**
- * THE STEP A TERMINAL'S WORK IS AT, and the mark that decides its meaning.
+ * THE STEP A TERMINAL'S WORK IS AT, and the mark that decides its meaning —
+ * TWO FACTS READ OFF WHAT THE WALK ALREADY KNOWS, and nothing looked up again.
  *
- * A LEAF keeps its own mark, because for a leaf there is nothing below to be
- * the work — that is the ordinary step-level claim. A node with children is
- * judged by them and never by itself: the board marks a lane `doing` while
- * somebody is anywhere in it, so its own mark answers "is this lane live",
- * which is not the question. An author whose own steps are all done sits under
- * a lane still marked `doing` because a reviewer is going; reading the author's
- * mark says a report is owed, and nobody owes one.
+ * Somebody is on something under this claim: that node, and `doing`. Nobody is:
+ * this node, and its mark AS A STEP — which is its own where it is a leaf and
+ * nothing where it has children, because a node that CONTAINS steps is not one.
+ * The caller decides that (it is where `leaf` is known) and hands it over; this
+ * took the whole `Derived` and a boolean to re-read a mark the caller was
+ * already holding, which is three arguments spent reconstructing one fact.
+ *
+ * `todo` for the absent case is the honest mark and the one {@link meaningOf}
+ * sends to the digest: open, and nobody on it. An author whose own steps are
+ * all done sits under a lane still marked `doing` because a reviewer is going —
+ * reading the LANE's mark there says a report is owed, and nobody owes one.
  */
 const owning = (
-  derived: Derived,
   at: LocatedRegular,
   deepest: LocatedRegular | undefined,
-  leaf: boolean,
-): { readonly step: string; readonly mark: Unfinished } => {
-  if (deepest !== undefined) return { step: deepest.node.title, mark: "doing" }
-  const own = leaf ? derived.status.get(at.node.id) : undefined
-  // A container with nothing being worked under it, or a leaf nobody marked:
-  // open, and nobody on it. `todo` is the honest mark for that and the one
-  // {@link meaningOf} sends to the digest.
-  return { step: at.node.title, mark: unfinished(own) ? own : "todo" }
-}
+  /** This node's mark as a STEP — see above, and {@link claiming}'s push. */
+  step: Unfinished | undefined,
+): { readonly step: string; readonly mark: Unfinished } =>
+  deepest !== undefined
+    ? { step: deepest.node.title, mark: "doing" }
+    : { step: at.node.title, mark: step ?? "todo" }
 
 /**
  * THE CLAIMS, JOINED TO THE LIVE FLEET — one entry per fleet id somebody in
