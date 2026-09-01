@@ -232,6 +232,7 @@ import {
 } from "@olai/format"
 import { heldStateOf } from "@olai/kolu-client"
 import { type FleetTerminal, type KoluEvent, resolveTerminal, whoOf } from "@olai/kolu-client/wire"
+import { nodeRef } from "@olai/plugin-kit/ref"
 
 import { TERMINAL_TYPE } from "./kinds.ts"
 import { listed, type Trace } from "./trace.ts"
@@ -957,7 +958,7 @@ const lineOf = (one: Standing): string => {
     : one.step.trim() === ""
     ? "nothing under the node that claims it is being worked"
     : `nothing under "${one.step.trim()}" is being worked`
-  return `— \`${one.terminal}\`${who} is held at \`${one.state}\`; ${step}, on \`${one.node}\`.`
+  return `— \`${one.terminal}\`${who} is held at \`${one.state}\`; ${step}, on ${nodeRef(one.node)}.`
 }
 
 /**
@@ -1074,11 +1075,11 @@ const essenceOf = (meaning: Meaning, standing: ReadonlyArray<Standing>): string 
   if (meaning === "wake") {
     return one === undefined
       ? `${standing.length} terminals are idle: they have finished, or they need you.`
-      : `The ${namingOf(one)} is idle on \`${one.node}\`: it has finished, or it needs you.`
+      : `The ${namingOf(one)} is idle on ${nodeRef(one.node)}: it has finished, or it needs you.`
   }
   return one === undefined
     ? `${standing.length} terminals went quiet, and nothing under them is being worked. A note, not a call.`
-    : `The ${namingOf(one)} went quiet on \`${one.node}\`, and nothing under it is being worked. A note, not a call.`
+    : `The ${namingOf(one)} went quiet on ${nodeRef(one.node)}, and nothing under it is being worked. A note, not a call.`
 }
 
 /**

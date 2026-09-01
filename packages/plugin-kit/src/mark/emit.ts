@@ -2,10 +2,12 @@
  * THE GENERATOR, run by `../../default.nix` and by nothing else — bytes in, one
  * TypeScript module out.
  *
- * Six lines of argv handling around {@link ./inline.ts}, kept apart from it so
- * the transform stays a pure function a test can ask questions of and the IO
- * stays where the derivation can see it fail. The two arguments are the pinned
- * favicon's store path and the kolu revision `npins/sources.json` records.
+ * Argv around {@link ./inline.ts}, kept apart from it so the transform stays a
+ * pure function a test can ask questions of and the IO stays where the
+ * derivation can see it fail. The three arguments are the pinned file's store
+ * path, the revision `npins/sources.json` records, and a short name for the
+ * source (`juspay/kolu packages/client/favicon.svg`, `juspay/odu logo.svg`) so
+ * the generated header is readable without a store path.
  *
  * ## Why the revision is in the header, and why this emits `.ts` and not `.json`
  *
@@ -22,16 +24,17 @@ import { inlineMark, MARK_TOKEN } from "./inline.ts"
 
 const path = process.argv[2]
 const revision = process.argv[3]
-if (path === undefined || revision === undefined) {
-  throw new Error("usage: emit.ts <favicon.svg> <kolu revision> — packages/plugins/olai-plugin-kolu/default.nix passes both")
+const from = process.argv[4]
+if (path === undefined || revision === undefined || from === undefined) {
+  throw new Error("usage: emit.ts <logo.svg> <revision> <from> — packages/plugin-kit/default.nix passes all three")
 }
 
 const { viewBox, body } = inlineMark(await Bun.file(path).text(), path)
 
 process.stdout.write(
   [
-    `// GENERATED from juspay/kolu packages/client/favicon.svg at revision ${revision} (npins/sources.json).`,
-    "// Do not edit; do not commit. packages/plugins/olai-plugin-kolu/default.nix writes it.",
+    `// GENERATED from ${from} at revision ${revision} (npins/sources.json).`,
+    "// Do not edit; do not commit. packages/plugin-kit/default.nix writes it.",
     "",
     `export const MARK_VIEWBOX = ${JSON.stringify(viewBox)}`,
     `export const MARK_TOKEN = ${JSON.stringify(MARK_TOKEN)}`,

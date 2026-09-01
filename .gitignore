@@ -24,7 +24,8 @@ node_modules
 
 /.claude/settings.local.json
 
-# kolu's own mark, as a TypeScript module: GENERATED from the pinned kolu's
-# packages/client/favicon.svg by packages/plugins/olai-plugin-kolu/default.nix, and copied
-# into place by `just install` (the nix build regenerates it in its sandbox).
+# A tenant's own mark, as a TypeScript module: GENERATED from that tenant's
+# npins pin by packages/plugin-kit/default.nix, and copied into place by
+# `just install` (the nix build regenerates it in its sandbox).
 /packages/plugins/olai-plugin-kolu/src/browser/mark.generated.ts
+/packages/plugins/olai-plugin-odu/src/browser/mark.generated.ts

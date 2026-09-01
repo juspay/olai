@@ -99,10 +99,10 @@ export interface PluginServerHalf<Revision> extends PluginWire {
    * IS THIS PLUGIN'S TOOL ON THIS HOST — asked per chat session, and answered
    * with both halves at once ({@link Probed}).
    *
-   * Optional, and a plugin without one is a whole plugin: odu has nothing to
-   * hand a chat session, so it declares no probe and no session ever waits on
-   * one. That is the ABSENT arm, and it is the state every machine without the
-   * tool is already in.
+   * Optional, and a plugin without one is a whole plugin: a plugin with
+   * nothing to hand a chat session declares none and no session ever waits
+   * on one. That is the ABSENT arm, and it is the state every machine
+   * without the tool is already in.
    *
    * ONE FIELD WHERE THERE WERE THREE. It replaces a `probe` beside an
    * `mcpServer` beside a `failures` table, and each of the two it absorbed was
@@ -190,9 +190,9 @@ export interface PluginServerHalf<Revision> extends PluginWire {
    * — and a composition root that reached a manifest would put a UI runtime on
    * the graph of a process that renders nothing.
    *
-   * Absent is a plugin that wakes nobody, which is a whole plugin. odu is one:
-   * no strip row, no picker, no doorbell, which is the state every machine
-   * without the tool is already in.
+   * Absent is a plugin that wakes nobody, which is a whole plugin: no strip
+   * row, no picker, no doorbell — the state every machine without the tool
+   * is already in.
    */
   readonly wake?: {
     /** What the wake is ON. "wake on terminal activity". */

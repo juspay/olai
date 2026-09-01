@@ -201,6 +201,7 @@ export const PI: Leg = {
   parentToolUse: () => null,
   spawned: () => null,
   backgroundTask: () => null,
+  taskNotification: () => null,
   // `session/list` rows are the protocol's four fields and no corner — the
   // picker says nothing beyond them, never a zero.
   listedIn: () => null,

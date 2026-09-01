@@ -150,7 +150,9 @@ never composes it — the four ways a padi fails and the four ways a coordinator
 does have nothing in common but that they failed, and a sentence built out of that
 shared nothing is a debug line on a screen.
 
-A plugin with no probe is a whole plugin. odu has none.
+A plugin with no probe is a whole plugin: the absent arm is a machine that
+simply does not have the tool, and that state already had to work. Both
+tenants here have one.
 
 ### kind
 

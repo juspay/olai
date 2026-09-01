@@ -6,6 +6,7 @@ let
   pins = import ./npins;
   olaiFonts = import ./packages/fonts { inherit pkgs; };
   koluMark = import ./packages/plugins/olai-plugin-kolu { inherit pkgs; };
+  oduMark = import ./packages/plugins/olai-plugin-odu { inherit pkgs; };
 in
 pkgs.mkShell {
   name = "olai-shell";
@@ -86,6 +87,12 @@ pkgs.mkShell {
     # what keeps the arrangement clear of the plugin fence rather than a
     # word-boundary technicality.
     OLAI_KOLU_MARK_DIR = "${koluMark}";
+
+    # ODU'S OWN MARK, the same errand one tenant over: the plugin's
+    # `default.nix` names `logo.svg` on the npins odu pin, and
+    # `packages/plugin-kit/default.nix` writes `mark.generated.ts`. Bumping
+    # the pin is the whole of updating the logo.
+    OLAI_ODU_MARK_DIR = "${oduMark}";
   };
 
   # nodejs is knotted through here rather than ambient: the acp/ pin's

@@ -295,6 +295,23 @@ export const Armed = Schema.Struct({
    * bargain {@link ChatServer}'s `said` strikes with an MCP server's status.
    */
   ended: Schema.optionalKey(Schema.String),
+  /**
+   * The agent's REPORT, once the outing has handed one back.
+   *
+   * A subagent's own prose never enters this conversation's column — the
+   * ruling in `docs/chat.md`. The one place those words appear is the fold
+   * of the call that armed the task. An async completion arrives as a
+   * harness-injected user turn (`origin.kind: "task-notification"`) carrying
+   * the whole report as XML; that turn is not a person speaking, and this
+   * field is where the report is filed instead — on the task, next to how
+   * it ended, which is the vocabulary the wire already uses
+   * (`backgroundTask` on the pinned adapter).
+   *
+   * ABSENT until the agent has reported, like {@link Armed.ended}, and sticky
+   * across frames for the same reason: a later status-only update must not
+   * take the report back off the row.
+   */
+  report: Schema.optionalKey(Schema.String),
 })
 export type Armed = typeof Armed.Type
 
