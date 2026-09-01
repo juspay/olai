@@ -34,10 +34,8 @@ export function Uptime() {
   }
   return (
     // The TESTID is always in the desktop cluster, even before `app.get`
-    // has answered: the chrome inventory (`APP_CHROME_CONTROLS`) is an
-    // exact list, and a chip that mounts a frame later is a flake on
-    // "the header shows one git indicator". The PILL itself waits — an
-    // empty oval is not furniture.
+    // has answered: a chip that mounts a frame later is a missing testid
+    // in the row. The PILL itself waits — an empty oval is not furniture.
     <span data-testid={TESTID.uptime} data-started={startedAt()} class="contents">
       <Show when={says() !== ""}>
         <Tip text={said()} layer={LAYER.over}>

@@ -22,6 +22,8 @@ import {
   COMMIT_PILL,
   CONNECTION,
   HEADER_SEARCH_OPEN,
+  PADI_PILL,
+  SPACES_PILL,
   NODE_GUTTER,
   NODE_TITLE,
   OUTLINE_LIST,
@@ -198,6 +200,8 @@ Then("the app chrome is inside the header", async function (this: OlaiWorld) {
   const header = await this.box(this.page.locator(APP_HEADER), "the app header");
   const pills = [
     { name: "connection", sel: CONNECTION },
+    { name: "padi pill", sel: PADI_PILL },
+    { name: "spaces pill", sel: SPACES_PILL },
     { name: "commit pill", sel: COMMIT_PILL },
     { name: "agent toggle", sel: CHAT_TOGGLE },
     { name: "preferences trigger", sel: PREFS_TRIGGER },
@@ -234,6 +238,8 @@ Then("the phone header is identity and search", async function (this: OlaiWorld)
   );
   const pills = [
     { name: "connection", sel: CONNECTION },
+    { name: "padi pill", sel: PADI_PILL },
+    { name: "spaces pill", sel: SPACES_PILL },
     { name: "commit pill", sel: COMMIT_PILL },
     { name: "uptime", sel: UPTIME },
     { name: "agent toggle", sel: CHAT_TOGGLE },
