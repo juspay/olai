@@ -447,7 +447,13 @@ const workerCopyOf = (corpus: string): string => {
  *  real work tree; XDG/HOME written under it would show up as uncommitted
  *  files and flip the Commit pill from `never` to `waiting`. `After`
  *  deletes the sibling with the tree. */
-const scratchState = (root: string): string => `${root}.xdg`;
+/** WHERE A SCRATCH SERVER'S OWN FILES GO — beside the copy, never inside it:
+ *  a `@git:repo` work tree must not gain olai's state.
+ *
+ *  EXPORTED for {@link stateHomeIn}'s reason, one join out: a step that has to
+ *  write into a serve's state before its boot reads it needs the harness's own
+ *  answer rather than a copy of this spelling. */
+export const scratchState = (root: string): string => `${root}.xdg`;
 
 // ── the server under test ──────────────────────────────────────────────
 

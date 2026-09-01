@@ -39,7 +39,6 @@ test("the VAULT leads: every node agent is a row, bound or not", () => {
       memory: 14,
       session: { agent: "claude", id: "sess-1" },
       said: { text: "the mirror lane is in flight", at: "2026-09-01T16:41:00Z" },
-      taught: true,
     },
     {
       id: "odu",
@@ -49,7 +48,6 @@ test("the VAULT leads: every node agent is a row, bound or not", () => {
       memory: 3,
       session: null,
       said: null,
-      taught: false,
     },
   ])
 })
@@ -63,7 +61,7 @@ test("a binding whose node has gone is not a row — never a phantom to press", 
 test("no bindings at all is every node agent unbound, which is the ordinary state", () => {
   const rows = joined(AGENTS, [])
   expect(rows).toHaveLength(2)
-  expect(rows.every((row) => row.session === null && row.said === null && !row.taught)).toBe(true)
+  expect(rows.every((row) => row.session === null && row.said === null)).toBe(true)
 })
 
 test("a directory with no node agent has no roster, whatever is bound", () => {
@@ -75,9 +73,7 @@ test("a node bound twice takes the FIRST row — the second is the mistake", () 
   expect(joined(AGENTS, [BOUND, again])[0]?.session).toEqual({ agent: "claude", id: "sess-1" })
 })
 
-test("the two facts olai writes back travel as null rather than as absent keys", () => {
+test("the fact olai writes back travels as null rather than as an absent key", () => {
   const bare: Bound = { node: "spaces", agent: "claude", session: "sess-1" }
-  const row = joined(AGENTS, [bare])[0]
-  expect(row?.said).toBe(null)
-  expect(row?.taught).toBe(false)
+  expect(joined(AGENTS, [bare])[0]?.said).toBe(null)
 })

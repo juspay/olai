@@ -111,13 +111,19 @@ export const joined = (
     return {
       ...agent,
       session: bound === undefined ? null : { agent: bound.agent, id: bound.session },
-      // The two facts olai writes back, both `null`-on-the-wire where the
-      // record carries an absent key: the wire is a decoded value a browser
-      // reads per frame, and an optional key there would be one more state for
-      // a face to have an opinion about — the same line `Wake.fault` is drawn
-      // on one cell over.
+      // The one fact olai writes back that a face draws, `null`-on-the-wire
+      // where the record carries an absent key: the wire is a decoded value a
+      // browser reads per frame, and an optional key there would be one more
+      // state for a face to have an opinion about — the same line `Wake.fault`
+      // is drawn on one cell over.
+      //
+      // `taught` is NOT here, and its absence is the rule this file keeps for
+      // every other member: nothing draws it. It was on the wire so that a
+      // scenario could assert a second message teaches nothing — but the
+      // scenario asserts that where a person would see it, in the TRANSCRIPT
+      // (`packages/tests/features/node_agents.feature`), which is the stronger
+      // claim and needs no field. A member no face names is served to nobody.
       said: bound?.said ?? null,
-      taught: bound?.taught === true,
     }
   })
 }

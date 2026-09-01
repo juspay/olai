@@ -1012,10 +1012,19 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * CHANGING know the answer before `state.session` does, and would otherwise
      * read the conversation before last.
      *
-     * READ OFF THE TABLE EVERY TIME rather than held beside the state, because
-     * the table is a file somebody edits by hand in this phase — bind a node
-     * while the panel is open and the next frame says so, with nothing to
-     * invalidate.
+     * READ OFF THE TABLE EVERY TIME rather than held beside the state, so
+     * there is nothing here to invalidate — but read off the MIRROR, which is
+     * a different claim and the honest one.
+     *
+     * A HAND-EDIT LANDS AT THE NEXT START. The mirror is loaded once, at boot
+     * ({@link ./agents.ts}), and nothing watches the file; this member is also
+     * only recomputed when a session opens or ends. So the one binding gesture
+     * this phase has — editing the record — takes effect on the next serve,
+     * which docs/chat.md says out loud rather than leaving somebody to find out
+     * by waiting. What re-reading here buys is narrower and still worth having:
+     * a session that opens later in the SAME serve is answered against
+     * whatever the mirror holds now, including the rows olai has written back
+     * into it.
      */
     const boundTo = (
       to: Deliveries.Addressed | null = conversationOf(),
@@ -1051,17 +1060,25 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     }
 
     /**
-     * ... and remembering that it went, so the next message does not say it
-     * again.
+     * ... and SAYING that it went, and remembering it — the two halves of "the
+     * contract is out", together, because they are one event and used to be
+     * able to disagree.
      *
-     * MARKED ONLY WHERE THE MESSAGE WAS TAKEN, which is what the row's own
-     * delivery mark answers: a prompt that never reached an agent taught it
-     * nothing, and a session marked taught over one would go the rest of its
-     * life believing it had been told. What this cannot see is a turn that
-     * fails LATER — the agent had the words and died on them — and that is the
-     * honest limit of a synchronous check: the words went, so the contract went
-     * with them, and whether the agent finished reading is not a thing anything
-     * here can answer.
+     * SAID AND MARKED ONLY WHERE THE MESSAGE WAS TAKEN, which is what the row's
+     * own delivery mark answers. A prompt that never reached an agent taught it
+     * nothing: a session marked taught over one would go the rest of its life
+     * believing it had been told, and a NOTICE left standing over one is a
+     * conversation visibly quoting a contract the agent never heard. What this
+     * cannot see is a turn that fails LATER — the agent had the words and died
+     * on them — and that is the honest limit of a synchronous check: the words
+     * went, so the contract went with them, and whether the agent finished
+     * reading is not a thing anything here can answer.
+     *
+     * THE NOTICE IS VERBATIM and never a summary: two spellings of one
+     * instruction is a panel claiming a contract that is not the one that went
+     * out, so the row carries the same value the prompt was built from. A
+     * NOTICE, because that is what it is — olai's own words about this
+     * conversation, in the row kind every other sentence of olai's takes.
      *
      * THE CONVERSATION IS HANDED IN, and it is the one the LINES were built
      * for ({@link Teaching}) rather than whichever one the panel is in by the
@@ -1070,24 +1087,29 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * that matters — a session swapped under a send — where it would mark a
      * conversation taught that never heard a word.
      *
-     * FORKED AND DETACHED, because it is a disk write behind a gesture that has
-     * already been answered — and its failure is a LOG rather than a refusal
-     * ({@link ./agents.ts}): the cost of losing it is one contract taught twice,
-     * which is not worth taking a send away from somebody over.
+     * THE WRITE IS FORKED AND DETACHED and the saying is not: the row belongs
+     * in the transcript now, in this send's own order, while the disk write is
+     * behind a gesture that has already been answered — and its failure is a
+     * LOG rather than a refusal ({@link ./agents.ts}), because the cost of
+     * losing it is one contract taught twice, which is not worth taking a send
+     * away from somebody over.
      */
-    const taught = (to: Deliveries.Addressed, key: string): Effect.Effect<void> =>
+    const contracted = (teach: Teaching, key: string): Effect.Effect<void> =>
       Effect.gen(function*() {
         const binding = options.binding
         if (binding === undefined || binding === null) return
         const row = transcript.entries().get(key)
         if (row === undefined || row.kind !== "user" || row.delivery !== undefined) return
-        const done = yield* Effect.result(binding.teach(to))
-        if (done._tag === "Failure") {
-          yield* Effect.logWarning(
-            `a node agent was taught its contract and it could not be written down ` +
-              `(${done.failure.why}) — the next message in this session will say it again`,
-          )
-        }
+        publish(transcript.add("notice", teach.lines.join("\n")))
+        yield* Effect.forkDetach(Effect.gen(function*() {
+          const done = yield* Effect.result(binding.teach(teach.to))
+          if (done._tag === "Failure") {
+            yield* Effect.logWarning(
+              `a node agent was taught its contract and it could not be written down ` +
+                `(${done.failure.why}) — the next message in this session will say it again`,
+            )
+          }
+        }))
       })
 
     /**
@@ -1105,11 +1127,14 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         const binding = options.binding
         if (to === null || binding === undefined || binding === null) return
         if (binding.at(to) === undefined) return
-        const text = lastSaid(transcript.entries())
-        if (text === null) return
-        const done = yield* Effect.result(
-          binding.said(to, { text, at: new Date().toISOString() }),
-        )
+        // THE LINE AND ITS OWN INSTANT, both off the row ({@link ./heard.ts}).
+        // The clock is deliberately not read here: this runs at EVERY turn
+        // boundary, and a turn that added no prose re-offers the line before
+        // it — so a stamp taken now would say *just now* about words from an
+        // hour ago, on the one member whose name is what olai HEARD.
+        const said = lastSaid(transcript.entries())
+        if (said === null) return
+        const done = yield* Effect.result(binding.said(to, said))
         if (done._tag === "Failure") {
           yield* Effect.logWarning(
             `what a node agent last said could not be written down ` +
@@ -1701,31 +1726,38 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         // opened has no business queueing behind somebody else's filesystem.
         yield* Effect.forEach(attachments, files.claim, { concurrency: "unbounded" })
 
-        // WHAT A NODE AGENT IS TOLD, if this conversation belongs to one and
-        // has not been told yet. Asked BEFORE the prompt is built, because it
-        // is one more thing riding under the message on the same seam the
-        // attachments and the armed nodes ride ({@link ./prompt.ts}).
-        const teach = teaching()
-        const prompt = Attachments.promptWith(
-          Context.promptWith(annotated(said, teach?.lines ?? []), context),
-          attachments,
-        )
         // BEHIND WHATEVER IS OPENING A CONVERSATION ({@link opening}), which is
         // what makes "the words are on screen from the moment you send them"
         // and "a replay empties the transcript" stop contradicting each other.
         // The permit covers the ROW as well as the delivery, deliberately: a
         // row written before the replay is a row the replay takes away.
         yield* opening.withPermit(Effect.gen(function*() {
-          // WHAT THE AGENT IS BEING TOLD, IN THE TRANSCRIPT, above the message
-          // it rides under — the visible half of the channel ruling
-          // ({@link ./teaching.ts}). VERBATIM and never a summary of it: two
-          // spellings of one instruction is a panel claiming a contract that
-          // is not the one that went out, and the lines are the same value the
-          // prompt above was built from.
+          // WHAT A NODE AGENT IS TOLD, if this conversation belongs to one and
+          // has not been told yet — INSIDE the permit, with the delivery it
+          // rides under.
           //
-          // A NOTICE, because that is what it is: olai's own words about this
-          // conversation, in the row kind every other sentence of olai's takes.
-          if (teach !== null) publish(transcript.add("notice", teach.lines.join("\n")))
+          // It was asked outside, and that was the one thing on this path that
+          // had no business being: a send that PARKS on the permit while a
+          // session switch completes is an ordinary event with two tabs open,
+          // and the contract addressed before the wait was delivered into the
+          // conversation that arrived after it. Both halves went wrong at once
+          // — the notice, the row and the prompt landed in the NEW conversation
+          // carrying the OLD one's node, and the mark was written onto the old
+          // binding, which then spent the rest of its life believing it had
+          // been taught. That is exactly what {@link Teaching} pairs the lines
+          // with a conversation to prevent; the pair held from build to mark
+          // and was broken between build and DELIVER.
+          //
+          // Nothing is lost by moving it: `teaching()` is two synchronous
+          // in-memory reads and `annotated` is pure. `files.claim` above is the
+          // only thing on this path that earned its place outside — each claim
+          // is a `realpath`, and a conversation being opened has no business
+          // queueing behind somebody else's filesystem.
+          const teach = teaching()
+          const prompt = Attachments.promptWith(
+            Context.promptWith(annotated(said, teach?.lines ?? []), context),
+            attachments,
+          )
           // The user's own message goes in FIRST and from the server, so both
           // tabs see it and a send that fails does not leave one behind. What
           // the ROW carries is the file NAMES: the tmp path is for the agent,
@@ -1742,11 +1774,20 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           })
           publish(row.change)
           yield* deliver(row.key, prompt, steer)
-          // ... and the contract is written down as delivered, but only if the
-          // message it rode under was taken ({@link taught}). Inside the permit
-          // because the row it reads is this send's, and forked because it is a
-          // disk write nobody is waiting on.
-          if (teach !== null) yield* Effect.forkDetach(taught(teach.to, row.key))
+          // ... AND THE CONTRACT IS SAID AND MARKED, both halves together and
+          // both only where the message it rode under was TAKEN
+          // ({@link contracted}).
+          //
+          // AFTER the delivery rather than before the row, which is two
+          // corrections in one. A send the agent refused used to leave the
+          // notice standing — a conversation visibly quoting a contract the
+          // agent never took, with the mark rightly withheld beside it, so the
+          // transcript and the record said different things. And the ORDER is
+          // truer this way round: the lines ride UNDER the person's words in
+          // the prompt ({@link ./prompt.ts}'s `annotated`), so a notice under
+          // the message is what actually went out, where one above it was the
+          // panel arranging the message for the reader.
+          if (teach !== null) yield* contracted(teach, row.key)
         }))
       })
 

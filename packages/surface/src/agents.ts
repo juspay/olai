@@ -86,12 +86,6 @@ export const NodeAgentRow = Schema.Struct({
     /** ISO 8601 — the door says how long ago off the reader's own clock. */
     at: Schema.String,
   })),
-  /** This conversation has already been told its contract
-   *  (`@olai/chat`'s `teaching.ts`). Drawn nowhere; it is on the wire because a
-   *  scenario has to be able to assert that a second message does not teach
-   *  again, and asserting it off a state file would be asserting against a path
-   *  rather than against the behaviour. */
-  taught: Schema.Boolean,
 })
 export type NodeAgentRow = typeof NodeAgentRow.Type
 

@@ -80,3 +80,48 @@ Feature: A node with an `agent` property IS an agent
     # about most of them.
     Given I open the outline "garden.olai"
     Then the agents roster is not drawn
+
+  # ── the keystone: what an agent-associated session is told ────────────
+
+  @scratch:lanes
+  Scenario: An agent-associated session is taught its contract, once
+    # The rule the whole record exists for. A binding is hand-written in this
+    # phase and read at BOOT, so the scenario writes one and restarts — which
+    # is also the honest shape of the only binding gesture there is.
+    Given I open the outline "lanes.olai"
+    And the node "door-implement" is bound to this directory's conversation
+    When the server stops
+    And the server starts again on the same port
+    And I open the app
+    And the agent panel is open
+    Then the agent "door-implement" stands "idle"
+    When I ask the agent "what is blocking the connector?"
+    Then the agent was told its contract 1 time
+    And the contract names "implement + open PR" and its subtree
+    # ... and the second message says nothing. This is the assertion the
+    # `taught` record is kept for: nothing in the transcript carries the rule,
+    # so a session that was not written down would hear it again here.
+    When I ask the agent "and now?"
+    Then the agent was told its contract 1 time
+
+  @scratch:lanes
+  Scenario: ... and a restart does not say it again
+    # The other half of "written down": the record outlives the process, so a
+    # serve that came back would otherwise re-teach on every boot — forever,
+    # about something the agent was told days ago.
+    Given I open the outline "lanes.olai"
+    And the node "door-implement" is bound to this directory's conversation
+    When the server stops
+    And the server starts again on the same port
+    And I open the app
+    And the agent panel is open
+    And I ask the agent "what is blocking the connector?"
+    Then the agent was told its contract 1 time
+    When the server stops
+    And the server starts again on the same port
+    And I open the app
+    And the agent panel is open
+    And I ask the agent "still there?"
+    # The conversation was resumed, so the replay brings the old rows back —
+    # and no new contract with them.
+    Then the agent was told its contract 1 time

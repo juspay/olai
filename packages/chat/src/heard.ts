@@ -33,6 +33,24 @@
  *   - a USER row is the person's, and a refusal is a failure that has its own
  *     face in the panel.
  *
+ * ## The instant is the ROW'S, and never the moment this was asked
+ *
+ * A door draws *7m ago* off this stamp, so what it has to mean is WHEN THE
+ * WORDS WERE SAID. Reading the clock at the turn boundary looked like the same
+ * thing and is not: this is asked at EVERY turn boundary, and a turn that adds
+ * no prose of its own re-offers the line before it — so the clock would stamp
+ * a sentence from an hour ago as *just now*, on the one feature whose whole
+ * claim is that it says what olai heard. The row carries the instant it was
+ * written ({@link ChatEntry}'s `since`); that is the answer.
+ *
+ * IT IS STILL "WHILE OLAI WAS WATCHING", and the resume case is where that
+ * qualification does its work: a replay re-mints the stored rows, so a resumed
+ * conversation's old prose carries a `since` of the resume rather than of the
+ * day it was said. What keeps the door honest across that is the RECORD, which
+ * treats unchanged prose as nothing to write ({@link ./agents.ts}'s `said`) —
+ * so a resumed session keeps the stamp it already had until the agent actually
+ * says something new.
+ *
  * ## And what it does to the words
  *
  * The FIRST non-empty line, clipped. An answer is a paragraph and a door is a
@@ -47,6 +65,8 @@
  */
 
 import type { ChatEntry } from "@olai/surface"
+
+import type { Said } from "./agents.ts"
 
 /**
  * How much of a line is kept.
@@ -76,11 +96,12 @@ export const KEPT = 200
  * reason. The two readings answer identically: a blank last row keeps the line
  * before it either way.
  */
-export const lastSaid = (entries: ReadonlyMap<string, ChatEntry>): string | null => {
-  let held: string | null = null
+export const lastSaid = (entries: ReadonlyMap<string, ChatEntry>): Said | null => {
+  let held: Said | null = null
   for (const row of entries.values()) {
     if (row.kind !== "agent") continue
-    held = firstLine(row.text) ?? held
+    const line = firstLine(row.text)
+    if (line !== null) held = { text: line, at: row.since }
   }
   return held
 }

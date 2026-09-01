@@ -562,19 +562,26 @@ The `agent` property is durable and travels with the vault. **Which conversation
 
 **You write that file by hand for now.** There is no assign gesture, no picker and no *Unassigned* entry — those are the next phase, where existing chats get moved over one row at a time. The file is read leniently, because a person types it: a row that does not name a node, an agent and a session is dropped and the rest of the file stands, and a file that will not parse at all leaves every node agent drawing as *no session bound* with a warning in the log rather than a server that will not serve. Nothing is ever evicted from it — the rows are yours.
 
+**An edit takes effect at the next start.** The file is read once, when olai boots, and nothing watches it — so write a binding, then restart the serve. Two things follow from the same fact and are worth knowing before you meet them:
+
+- **a `/clear` leaves the binding pointing at the conversation you left.** Starting a fresh session does not re-point anything: the node goes on naming the old one, and the roster row draws *asleep* over a conversation nobody is in until you edit the record. Sessions are cattle in the sense that matters — the agent loses nothing, because the subtree is the memory — but in this phase the *pointer* is not cattle, and moving it is a hand's work.
+- **a binding whose node has gone is simply not on the roster.** Trash the node, or take the `agent` property off it, and the row disappears rather than becoming a door onto a record that is not there.
+
+Both are the assign gesture's absence, which is the next phase.
+
 A vault served from two machines is **one node agent with a session on each**, and the subtree is what keeps them coherent. That is the design working rather than a gap in it.
 
 Olai writes two things back into that file and nothing else: that a session has been **taught** its contract (below), and the last line it was **heard** to say.
 
 ### An agent-associated session is taught what it is
 
-The whole thing rests on the agent actually writing into its subtree, so olai tells it to. **The first message you send in an agent-associated session carries a standing instruction under it** — the same seam [attachments and armed nodes](#naming-a-file-or-a-node) ride, so it is a blank line and two lines under what you typed — and the same two lines are drawn in the transcript, verbatim, as a notice above your message. What they say: which node this conversation belongs to, that the node's subtree is its memory and how much of it there is, and that **the transcript is history** — the session can be thrown away, and the next one must be able to read that subtree and know everything this one knew.
+The whole thing rests on the agent actually writing into its subtree, so olai tells it to. **The first message you send in an agent-associated session carries a standing instruction under it** — the same seam [attachments and armed nodes](#naming-a-file-or-a-node) ride, so it is a blank line and two lines under what you typed — and the same two lines are drawn in the transcript, verbatim, as a notice UNDER your message — which is where they actually went, since olai's additions ride under what you typed rather than over it. What they say: which node this conversation belongs to, that the node's subtree is its memory and how much of it there is, and that **the transcript is history** — the session can be thrown away, and the next one must be able to read that subtree and know everything this one knew.
 
 **A first-turn preamble rather than a system prompt**, and the choice is worth stating because the alternative sounds better than it is. ACP carries no system prompt — there is no field for one on either leg — so getting one would mean patching the pinned adapter and having the feature simply not exist on opencode and on pi. A preamble is also **in the transcript**, where you can read what your agent was told, and it **costs no turn of its own**: a node agent nobody talks to costs nothing, and the lines go out with the first thing you say.
 
 **Once per session, and it is written down.** A second message does not say it again, and neither does a restart. A *fresh* session is untaught — which is the point, since the transcript is exactly what does not carry the contract.
 
-Two honest limits. The contract is marked as delivered only where the message it rode under was actually taken by the agent; a turn that fails afterwards is not something anything here can see. And a node the set no longer declares — the property came off, the record was trashed — teaches nothing at all, because telling an agent its memory is a node that is not there is worse than telling it nothing.
+Two honest limits. The notice and the mark go together, and only where the message they rode under was actually TAKEN by the agent — a send the agent refused says nothing and marks nothing, so the transcript never quotes a contract that did not go out. What neither can see is a turn that fails afterwards: the words went, so the contract went with them, and whether the agent finished reading is not something this end can answer. And a node the set no longer declares — the property came off, the record was trashed — teaches nothing at all, because telling an agent its memory is a node that is not there is worse than telling it nothing.
 
 ### What is not here yet, and in what order it comes
 

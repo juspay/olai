@@ -158,10 +158,22 @@ export interface Bindings {
   /**
    * ... and write down the last line this conversation's agent said.
    *
-   * A no-op for a conversation no node claims, and for a line identical to the
-   * one already written — an agent that answers with the same sentence twice
-   * writes the disk once, and a panel that is merely re-reporting does not
-   * write at all.
+   * A no-op for a conversation no node claims, and for a line whose WORDS are
+   * already the ones written down — whatever instant comes with them.
+   *
+   * ON THE TEXT ALONE, and the stamp deliberately does not get a vote. This is
+   * offered at every turn boundary, and a turn that adds no prose of its own
+   * re-offers the line before it; a resumed conversation re-offers it with a
+   * fresh instant besides, because a replay re-mints the rows it replays
+   * ({@link ./heard.ts}). Writing on either would move the door's *7m ago*
+   * forward over words that are days old — which is the one thing a feature
+   * called "what olai heard" must not do.
+   *
+   * WHAT IT COSTS is an agent that repeats itself word for word in a later
+   * turn: the door goes on showing the earlier instant. That is the safe
+   * direction — understating how fresh a line is, never overstating it — and
+   * the alternative cannot be told apart from the resume case by anything this
+   * end holds.
    */
   readonly said: (
     to: Conversing,
@@ -290,7 +302,7 @@ export const forDirectory = (spelling: string): Effect.Effect<Bindings> =>
       teach: (to) => replace(to, (row) => (row.taught === true ? undefined : { ...row, taught: true })),
       said: (to, said) =>
         replace(to, (row) =>
-          row.said?.text === said.text && row.said.at === said.at
+          row.said?.text === said.text
             ? undefined
             : { ...row, said }),
     }

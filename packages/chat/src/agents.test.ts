@@ -215,4 +215,17 @@ describe("what olai writes back", () => {
     // write of olai's must not reorder it.
     expect(bindings.rows().map((row) => row.node)).toEqual(["spaces", "odu"])
   })
+
+  test("the same WORDS with a fresher instant write nothing — a resume must not age them forward", async () => {
+    // A replay re-mints the rows it replays, so a resumed conversation offers
+    // its old prose with a new instant beside it. Writing on that would move
+    // the door's *7m ago* forward over words that are days old.
+    handWritten(HERE, [{ node: "spaces", agent: "claude", session: "sess-1" }])
+    const bindings = await run(forDirectory(HERE))
+    await run(bindings.said(IN, { text: "still working", at: "2026-09-01T16:41:00Z" }))
+    const after = written(HERE)
+    await run(bindings.said(IN, { text: "still working", at: "2026-09-02T09:00:00Z" }))
+    expect(written(HERE)).toEqual(after)
+    expect(bindings.at(IN)?.said?.at).toBe("2026-09-01T16:41:00Z")
+  })
 })
