@@ -138,4 +138,3 @@ diff -u --label a/dist/index.js --label b/dist/index.js \
 mkdir -p "$work/check/dist" && cp "$work/pkg/package/dist/index.js" "$work/check/dist/index.js"
 (cd "$work/check" && patch -p1 -F0 --dry-run -d . < "$out" >/dev/null)
 echo "$out regenerated (anchored splice, diff-computed hunks; $(grep -c '^+' "$out") additions)"
-echo "$out regenerated (anchored splice, diff-computed hunks; $(grep -c '^+' "$out") additions)"

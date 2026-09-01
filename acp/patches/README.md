@@ -444,10 +444,16 @@ follows — because "re-applied" is the answer a habit gives too.
 ### The steering hang has a second trigger, and the guard does not cover it
 
 **THE ONE PLACE THIS IS WRITTEN DOWN.** It is a fact about the pinned adapter,
-so it lives with the pin; `packages/chat`'s `queuedHere`, `docs/chat.md` and
+so it lives with the pin; `packages/chat`'s `queuedHere` and
 `packages/tests/panel-live.ts` each say what it costs THEM and point here for
 the measurement. Six copies of one measurement is five that go stale at the
 next bump.
+
+`docs/chat.md` is the exception and deliberately so: it says what a person
+SEES and how to recover, in a document that cites no source path anywhere in
+it. Nothing there is a measurement, so there is nothing there to go stale —
+which is the same rule, kept by having no copy rather than by pointing at
+this one.
 
 [claude-agent-acp#1039](https://github.com/agentclientprotocol/claude-agent-acp/issues/1039)
 — a `_session/steering` into a session that has once held a QUEUED prompt
