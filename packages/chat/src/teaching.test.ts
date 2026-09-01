@@ -16,6 +16,7 @@ const SPACES = {
   id: "spaces",
   title: "Xyne Spaces — the org OS",
   file: "lanes.olai",
+  engine: "grok",
   memory: 14,
 }
 
@@ -50,7 +51,7 @@ test("one row is `1 row`", () => {
 
 test("it is TWO lines, so the standing law reads the same under every agent", () => {
   const one = teachingFor(SPACES)
-  const other = teachingFor({ id: "odu", title: "Odu", file: "ci.olai", memory: 14 })
+  const other = teachingFor({ id: "odu", title: "Odu", file: "ci.olai", engine: "opus", memory: 14 })
   expect(one).toHaveLength(2)
   // The first line differs — it is about this node — and the second does not.
   expect(one[0]).not.toBe(other[0])

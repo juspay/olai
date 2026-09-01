@@ -72,11 +72,11 @@
 
 import { createMemo, Show } from "solid-js"
 
+import { memoryOf } from "@olai/format"
 import { agentIn, type ChatState } from "@olai/surface"
 
 import { useAgents } from "../agents/answered.tsx"
 import { rowOf } from "../agents/focus.ts"
-import { memoryOf } from "../agents/roster.ts"
 import { QUIET_PILL } from "../pill.ts"
 import { Link } from "../router.tsx"
 import { TESTID } from "../testids.ts"

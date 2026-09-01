@@ -200,8 +200,3 @@ const standingOf = (row: NodeAgentRow, chat: ChatState, live: boolean): Standing
   return doing.kind === "starting" ? "waking" : doing.kind === "waiting" ? "needs-you" : "working"
 }
 
-/** How big a node agent's memory is, in words — the same count the standing
- *  instruction says in a sentence (`@olai/chat`'s `teaching.ts`), worded here
- *  for a chip. */
-export const memoryOf = (row: Pick<NodeAgentRow, "memory">): string =>
-  row.memory === 1 ? "1 row" : `${row.memory} rows`

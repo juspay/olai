@@ -102,7 +102,7 @@ import {
   type Listed,
   type Talking,
 } from "@olai/surface"
-import { BusyFailure, UsageFailure } from "@olai/format"
+import { BusyFailure, type NodeAgent, UsageFailure } from "@olai/format"
 import { Effect, Fiber, Semaphore } from "effect"
 
 import * as AcpAgent from "./agent.ts"
@@ -118,7 +118,7 @@ import * as Memory from "./memory.ts"
 import { annotated } from "./prompt.ts"
 import type { Probe } from "./probes.ts"
 import type { Fault, Faulted, Scopes } from "./scopes.ts"
-import { type Charge, teachingFor } from "./teaching.ts"
+import { teachingFor } from "./teaching.ts"
 import { type Change, says, Transcript } from "./transcript.ts"
 import { type Turn, Turns } from "./turns.ts"
 import { sameWatching, watching } from "./watching.ts"
@@ -190,7 +190,8 @@ export interface Options {
   readonly binding?: Bindings | null
   /**
    * WHAT A BOUND NODE IS — its title, its file and how much is under it, asked
-   * of whoever holds the vault ({@link ./teaching.ts}'s `Charge`).
+   * of whoever holds the vault — the vault's OWN reading of a node agent
+   * (`@olai/format`'s {@link NodeAgent}), never a shape this package declares.
    *
    * A THUNK for {@link Options.tools}' reason and one more: the answer moves on
    * every published revision — the node is renamed, its subtree grows — and a
@@ -199,7 +200,7 @@ export interface Options {
    * nothing is taught: telling an agent its memory is a node that is not there
    * is worse than telling it nothing.
    */
-  readonly charge?: (node: string) => Charge | null
+  readonly charge?: (node: string) => NodeAgent | null
   /** Publish the state cell. Called on every change; the surface dedups. */
   readonly onState: (state: ChatState) => void
   /** Publish transcript changes — ALL THREE of the things one carries: rows

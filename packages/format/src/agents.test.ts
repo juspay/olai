@@ -11,7 +11,7 @@
 
 import { expect, test } from "bun:test"
 
-import { agentsOf, NO_AGENTS, sameAgents } from "./agents.ts"
+import { agentsOf, memoryOf, NO_AGENTS, sameAgents } from "./agents.ts"
 import { derive } from "./derive.ts"
 import { recordsOf, setOf } from "./fixtures.testlib.ts"
 
@@ -126,4 +126,10 @@ test("a row GROWING its subtree is a reading that differs — memory is live", (
     agentsOf(setWith({ "lanes.olai": LANES })),
     agentsOf(setWith({ "lanes.olai": grown })),
   )).toBe(false)
+})
+
+test("how big a memory is, in words — and one row is not `1 rows`", () => {
+  expect(memoryOf({ memory: 14 })).toBe("14 rows")
+  expect(memoryOf({ memory: 1 })).toBe("1 row")
+  expect(memoryOf({ memory: 0 })).toBe("0 rows")
 })

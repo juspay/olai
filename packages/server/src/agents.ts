@@ -40,19 +40,9 @@
  * a directory.
  */
 
-import { agentsOf, type Derived, NO_AGENTS, type NodeAgents } from "@olai/format"
+import { agentsOf, type Derived, NO_AGENTS, type NodeAgent, type NodeAgents } from "@olai/format"
 import type { Bound } from "@olai/chat"
 import { type Agents, NO_AGENT_ROSTER } from "@olai/surface"
-
-/** What a node agent IS, for the standing instruction its session is given —
- *  `@olai/chat`'s `Charge`, spelled structurally rather than imported, because
- *  what this hands over is a row of the vault's own reading. */
-export interface Charge {
-  readonly id: string
-  readonly title: string
-  readonly file: string
-  readonly memory: number
-}
 
 export interface Roster {
   /**
@@ -67,7 +57,7 @@ export interface Roster {
   /** What the set says this node agent is, or `null` for a node it does not
    *  declare — a binding pointing at a record that has been trashed, or one
    *  whose property has come off. */
-  readonly charge: (node: string) => Charge | null
+  readonly charge: (node: string) => NodeAgent | null
   /** The rows the cell carries: the vault's half, joined with the bindings
    *  handed in. */
   readonly rowsWith: (bindings: ReadonlyArray<Bound>) => Agents

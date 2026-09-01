@@ -57,6 +57,8 @@ import { Show } from "solid-js"
 import { SaidLine } from "../SaidLine.tsx"
 import { createSaying } from "../saying.ts"
 import { TESTID } from "../testids.ts"
+import { memoryOf } from "@olai/format"
+
 import { DOT } from "../readout.ts"
 // HOW LONG AGO, REACHED AND NOT RE-SPELLED. `agoOf` is the commit pill's by
 // history and by nothing else — it is pure arithmetic over an ISO stamp and a
@@ -70,7 +72,7 @@ import { DOT } from "../readout.ts"
 import { agoOf, createNow } from "../commit/ago.ts"
 import { useAgents } from "./answered.tsx"
 import { focus } from "./focus.ts"
-import { LOOK, memoryOf, type Row } from "./roster.ts"
+import { LOOK, type Row } from "./roster.ts"
 
 export function AgentDoor(props: { readonly node: string }) {
   // ONE LOOKUP, and that is the whole of what a row does here. This component

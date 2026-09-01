@@ -101,6 +101,22 @@ export const NodeAgent = Schema.Struct({
 })
 export type NodeAgent = typeof NodeAgent.Type
 
+/**
+ * HOW BIG A NODE AGENT'S MEMORY IS, in words — `14 rows`, `1 row`.
+ *
+ * BESIDE THE FIELD rather than at either reader, and that is the whole reason
+ * it is here: three surfaces say this number out loud — the roster row and the
+ * door in the browser, and the standing instruction an agent is taught
+ * (`@olai/chat`'s `teaching.ts`) — and they were two spellings of one plural,
+ * in two packages, agreeing by hand. A count with two spellings is a count that
+ * will one day be `1 rows` in exactly one of them.
+ *
+ * OVER THE FIELD and not over the whole row, so the one caller that has a
+ * number rather than a node agent can still ask.
+ */
+export const memoryOf = (agent: Pick<NodeAgent, "memory">): string =>
+  agent.memory === 1 ? "1 row" : `${agent.memory} rows`
+
 /** Every node agent of a set, in corpus order. */
 export const NodeAgents = Schema.Array(NodeAgent)
 export type NodeAgents = typeof NodeAgents.Type

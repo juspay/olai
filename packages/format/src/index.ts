@@ -1056,7 +1056,15 @@ export type { Pinned } from "./shelf.ts"
  * one that widens it with the per-machine half a vault cannot know
  * (`@olai/surface`).
  */
-export { AGENT_PROP, agentsOf, NO_AGENTS, NodeAgent, NodeAgents, sameAgents } from "./agents.ts"
+export {
+  AGENT_PROP,
+  agentsOf,
+  memoryOf,
+  NO_AGENTS,
+  NodeAgent,
+  NodeAgents,
+  sameAgents,
+} from "./agents.ts"
 
 /**
  * THE INBOX CONVENTION (./inbox.ts), read both ways.

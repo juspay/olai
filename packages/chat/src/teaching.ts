@@ -59,23 +59,14 @@
  * pointed at the node, so quoting it here would be the second copy this whole
  * design exists to avoid.
  *
- * PURE, over four facts about a node, so what an agent is told is decided in a
- * unit test rather than by starting one.
+ * PURE, over a {@link NodeAgent}, so what an agent is told is decided in a unit
+ * test rather than by starting one. It takes the vault's own reading of a node
+ * agent rather than a shape of this file's — the four facts the words need ARE
+ * that reading's four fields, and a `Charge` declared here was that row spelled
+ * a second time in a package that cannot check it against the first.
  */
 
-/** The node this conversation belongs to, as much of it as the words need. */
-export interface Charge {
-  /** The node's own id — what a `read_subtree` takes, and the one spelling
-   *  that survives the node moving between files. */
-  readonly id: string
-  /** Its title, which is the agent's NAME. */
-  readonly title: string
-  /** The outline it is written in, so the id is findable by a person too. */
-  readonly file: string
-  /** How many records are under it — how much there is to read. Zero is a real
-   *  answer and is said as one ({@link teachingFor}). */
-  readonly memory: number
-}
+import { memoryOf, type NodeAgent } from "@olai/format"
 
 /**
  * WHAT THE AGENT IS TOLD, as the lines {@link ./prompt.ts}'s `annotated` puts
@@ -91,13 +82,9 @@ export interface Charge {
  * writing, where a line claiming a memory of zero rows would read as a memory
  * that failed to load.
  */
-export const teachingFor = (charge: Charge): ReadonlyArray<string> => [
-  `[olai] This conversation is the node agent for “${charge.title}” — the node \`${charge.id}\` in \`${charge.file}\`.`,
+export const teachingFor = (agent: NodeAgent): ReadonlyArray<string> => [
+  `[olai] This conversation is the node agent for “${agent.title}” — the node \`${agent.id}\` in \`${agent.file}\`.`,
   `[olai] That node's SUBTREE is your memory (${
-    charge.memory === 0 ? "nothing under it yet" : rows(charge.memory)
+    agent.memory === 0 ? "nothing under it yet" : memoryOf(agent)
   }): read it to find out what you already know, and write standing facts back into it as you learn them. This transcript is HISTORY, not memory — the session can be thrown away and recreated at any time, and the next one must be able to read that subtree and know everything this one knew.`,
 ]
-
-/** `1 row` / `n rows` — the same count the roster and the door draw, worded
- *  here for a sentence rather than for a chip. */
-const rows = (memory: number): string => (memory === 1 ? "1 row" : `${memory} rows`)

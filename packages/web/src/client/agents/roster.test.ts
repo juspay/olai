@@ -12,7 +12,7 @@ import { expect, test } from "bun:test"
 
 import { CHAT_OFF, type Agents, type ChatState } from "@olai/surface"
 
-import { memoryOf, rowsOf } from "./roster.ts"
+import { rowsOf } from "./roster.ts"
 
 const SPACES = {
   id: "spaces",
@@ -109,10 +109,4 @@ test("the rows are the roster's own, in its order, with its facts untouched", ()
 
 test("an empty roster draws nothing at all", () => {
   expect(rowsOf([], panel({ status: "idle" }))).toEqual([])
-})
-
-test("how big a memory is, in words — and one row is not `1 rows`", () => {
-  expect(memoryOf({ memory: 14 })).toBe("14 rows")
-  expect(memoryOf({ memory: 1 })).toBe("1 row")
-  expect(memoryOf({ memory: 0 })).toBe("0 rows")
 })
