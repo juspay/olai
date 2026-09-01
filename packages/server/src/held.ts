@@ -15,12 +15,22 @@ import { Effect } from "effect"
 import { readFileSync } from "node:fs"
 
 import type { PluginHeld } from "@olai/plugin-api/server"
-import { canonical, fileForHold, writeHeld } from "@olai/state"
+import {
+  canonical,
+  fileForHold,
+  writeHeld,
+  type Held,
+  type StateFailure,
+} from "@olai/state"
 
 export const heldFor = (
   plugin: string,
   served: string,
   warn: (line: string) => void,
+  write: (
+    at: string,
+    held: Held & Record<string, unknown>,
+  ) => Effect.Effect<void, StateFailure> = writeHeld,
 ): PluginHeld => {
   const cwd = canonical(served)
   const at = fileForHold(plugin, cwd)
@@ -48,7 +58,7 @@ export const heldFor = (
     save: (value) => {
       const held = { cwd, ...value }
       saving = saving.then(() =>
-        Effect.runPromise(writeHeld(at, held)).then(undefined, (error: unknown) => {
+        Effect.runPromise(write(at, held)).then(undefined, (error: unknown) => {
           warn(
             `plugin ${plugin}: hold could not be written (${
               error instanceof Error ? error.message : String(error)

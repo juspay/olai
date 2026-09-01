@@ -4,11 +4,12 @@
  */
 
 import { expect, test } from "bun:test"
+import { Effect } from "effect"
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
-import { canonical, fileForHold } from "@olai/state"
+import { canonical, fileForHold, writeHeld } from "@olai/state"
 
 import { heldFor } from "./held.ts"
 
@@ -57,10 +58,22 @@ test("an unreadable hold warns and answers null", () =>
 
 test("successive saves land in order: the last snapshot is the one that stays", () =>
   withHome(async ({ served }) => {
-    const held = heldFor("example", served, () => {})
+    // The first snapshot is SLOW to rename. Without the chain it would finish
+    // last and overwrite 2 and 3 — which is the round-3 race. With the chain
+    // the slow write still goes first, then 2, then 3, and 3 is what stays.
+    const order: Array<number> = []
+    const held = heldFor("example", served, () => {}, (at, value) =>
+      Effect.gen(function* () {
+        const n = value["n"]
+        if (n === 1) yield* Effect.sleep("40 millis")
+        if (typeof n === "number") order.push(n)
+        yield* writeHeld(at, value)
+      }))
     held.save({ n: 1, queue: ["A"] })
     held.save({ n: 2, queue: ["B"] })
     held.save({ n: 3, queue: [] })
-    await waitFor(() => held.load()?.["n"] === 3)
+    await waitFor(() => order.length === 3)
+    expect(order).toEqual([1, 2, 3])
+    expect(held.load()?.["n"]).toBe(3)
     expect(held.load()?.["queue"]).toEqual([])
   }))

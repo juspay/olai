@@ -236,17 +236,27 @@ export const makeMirror = (deps: MirrorDeps): Mirror => {
     return "ok"
   }
 
-  let inFlight: Promise<number> | undefined
+  /** ONE PERMIT, TWO FIELDS. `draining` is drainLoop's posted count.
+   *  `sending` is a live send occupying the same permit so the timer
+   *  defers — its 0/1 is not a queued count, and `drain()` never returns
+   *  it. Unreachable today that a caller would mix them (events are
+   *  serialized by the server chain, the timer defers before it reaches
+   *  drain), but one Promise<number> for both was a trap for the next edit. */
+  let draining: Promise<number> | undefined
+  let sending: Promise<void> | undefined
+
+  const busy = (): Promise<unknown> | undefined => draining ?? sending
 
   const schedule = (): void => {
     if (retry !== undefined || queue.length === 0) return
     retry = setTimeout(() => {
       retry = undefined
-      if (inFlight !== undefined) {
+      const held = busy()
+      if (held !== undefined) {
         const again = (): void => {
           if (queue.length > 0) schedule()
         }
-        void inFlight.then(again, again)
+        void held.then(again, again)
         return
       }
       void drainAndRecover()
@@ -277,11 +287,13 @@ export const makeMirror = (deps: MirrorDeps): Mirror => {
   }
 
   const drain = async (): Promise<number> => {
-    if (inFlight !== undefined) return inFlight
-    inFlight = drainLoop().finally(() => {
-      inFlight = undefined
+    if (draining !== undefined) return draining
+    if (sending !== undefined) await sending
+    if (draining !== undefined) return draining
+    draining = drainLoop().finally(() => {
+      draining = undefined
     })
-    return inFlight
+    return draining
   }
 
   const drainAndRecover = async (): Promise<void> => {
@@ -290,22 +302,22 @@ export const makeMirror = (deps: MirrorDeps): Mirror => {
     persist()
   }
 
-  /** A live send rides the same in-flight as drainLoop, so a retry timer
-   *  that fires after the queue emptied cannot `succeed` while this send
-   *  is still in the air and about to fail. */
+  /** A live send occupies `sending` so a retry timer that fires after the
+   *  queue emptied cannot `succeed` while this send is still in the air
+   *  and about to fail. */
   const sendWhileDraining = async (item: Outbound): Promise<Verdict> => {
-    if (inFlight !== undefined) {
-      await inFlight
-      return sendWhileDraining(item)
+    for (;;) {
+      const held = busy()
+      if (held === undefined) break
+      await held
     }
     let verdict: Verdict = "retry"
-    inFlight = (async () => {
+    sending = (async () => {
       verdict = await send(item)
-      return verdict === "ok" ? 1 : 0
     })().finally(() => {
-      inFlight = undefined
+      sending = undefined
     })
-    await inFlight
+    await sending
     return verdict
   }
 

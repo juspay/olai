@@ -56,6 +56,7 @@ A refused post is said **once** into the olai conversation (the doorbell fault p
 
 ## What it is not
 
+- **At-least-once on a crash.** The hold is ordered, not atomic with the send: a kill between a post landing and its persist leaves the hold naming a digest already sent, and the next serve posts it again.
 - **No inbound.** A message in the Spaces channel, an @mention, a DM, a slash command or a button click does not reach this olai. That is phase 2.
 - **No live test in CI.** The suite pins request shapes against a fake Spaces. Deploying against the real instance is the human's, before merge.
 - **No picker.** The prototypes showed a channel picker on the chat strip; this slice ships the config-file bind above.
