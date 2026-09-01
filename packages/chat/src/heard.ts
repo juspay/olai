@@ -66,28 +66,44 @@ export const KEPT = 200
  *
  * IN INSERTION ORDER, which is the transcript's own: rows are minted in the
  * order they happen and a `Map` hands them back that way, so the last match is
- * the latest. Walked backwards, because the answer is nearly always the last
- * row or close to it.
+ * the latest.
+ *
+ * WALKED FORWARD, KEEPING THE LAST, and not backwards — because a map can only
+ * be stepped from the front, so walking it the other way means copying every
+ * row of the conversation into an array first. This is asked at every turn
+ * boundary, of a transcript that grows all session; the counter beside it
+ * ({@link ./chat.ts}'s `asking`) walks the same map the same way for the same
+ * reason. The two readings answer identically: a blank last row keeps the line
+ * before it either way.
  */
 export const lastSaid = (entries: ReadonlyMap<string, ChatEntry>): string | null => {
-  const rows = [...entries.values()]
-  for (let at = rows.length - 1; at >= 0; at--) {
-    const row = rows[at]
-    if (row === undefined || row.kind !== "agent") continue
-    const line = firstLine(row.text)
-    if (line !== null) return line
+  let held: string | null = null
+  for (const row of entries.values()) {
+    if (row.kind !== "agent") continue
+    held = firstLine(row.text) ?? held
   }
-  return null
+  return held
 }
 
-/** The first line with anything on it, clipped to {@link KEPT} — or `null` for
- *  prose that is all whitespace, which is a turn that drew a row and said
- *  nothing in it. */
+/**
+ * The first line with anything on it, clipped to {@link KEPT} — or `null` for
+ * prose that is all whitespace, which is a turn that drew a row and said
+ * nothing in it.
+ *
+ * SCANNED RATHER THAN SPLIT, which is `@olai/format`'s own `firstLine`
+ * argument word for word: `split("\n")` allocates every line of a paragraph to
+ * throw all but the first away, and what this is handed is a whole answer.
+ * Its rules are a document's — frontmatter off, heading marks off — so this is
+ * its scan rather than a call to it.
+ */
 const firstLine = (text: string): string | null => {
-  for (const line of text.split("\n")) {
-    const said = line.trim()
-    if (said === "") continue
-    return said.length <= KEPT ? said : `${said.slice(0, KEPT).trimEnd()}…`
+  let at = 0
+  while (at < text.length) {
+    const end = text.indexOf("\n", at)
+    const said = (end === -1 ? text.slice(at) : text.slice(at, end)).trim()
+    if (said !== "") return said.length <= KEPT ? said : `${said.slice(0, KEPT).trimEnd()}…`
+    if (end === -1) break
+    at = end + 1
   }
   return null
 }

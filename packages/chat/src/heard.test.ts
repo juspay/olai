@@ -78,3 +78,12 @@ test("a line that just fits is not given an ellipsis it did not earn", () => {
   const exact = "y".repeat(KEPT)
   expect(lastSaid(rows({ kind: "agent", text: exact }))).toBe(exact)
 })
+
+test("a blank LAST row keeps the line before it, which is the walk's own claim", () => {
+  // Walking forward and keeping the last non-blank answers the same thing
+  // walking backwards did — without copying the transcript to do it.
+  expect(lastSaid(rows(
+    { kind: "agent", text: "the mirror lane is in flight" },
+    { kind: "agent", text: "  \n " },
+  ))).toBe("the mirror lane is in flight")
+})
