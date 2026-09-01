@@ -235,9 +235,11 @@ export interface PluginServerHalf<Revision> extends PluginWire {
      * NON-EMPTY, because a wake that admits no kind is a control nobody could
      * ever point at anything: the picker would draw, open, and offer nothing.
      * The words are plain strings HERE — this package declares no dependency on
-     * the format, the way it declares none on the wire — and a plugin that can
-     * see `@olai/format` is expected to type its own list against `FileKind`, as
-     * kolu's does.
+     * the format, the way it declares none on the wire. A plugin that can see
+     * `@olai/format` types its own list against the union that matches what it
+     * walks. Kolu's is `NodeKind`, the record-holding kinds: `FileKind` is every
+     * kind the registry claims, documents included, and that is the bound this
+     * field's first cut offered and this round retired.
      */
     readonly kinds: readonly [string, ...Array<string>]
     /**
