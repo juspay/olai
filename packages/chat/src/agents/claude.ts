@@ -44,6 +44,7 @@ import {
   type Meta,
   type Reported,
   type Spawn,
+  type TaskNotice,
 } from "./leg.ts"
 
 // ── which permissions are answered without asking ──────────────────────
@@ -240,6 +241,44 @@ export const spawnedIn = (meta: Meta, input: unknown): Spawn | null => {
   }
 }
 
+// ── a task-notification is not a person speaking ───────────────────────
+
+/**
+ * Whether this user-message text is a harness-injected task-notification,
+ * and if so the spawning call it belongs to and the report it carries.
+ *
+ * TWO DOORS, and they are the adapter patch's two doors:
+ *
+ *   - **`origin.kind: "task-notification"`** — the discriminator the
+ *     session JSONL already stamps. No ACP `user_message_chunk` carries
+ *     it (the pin's `toAcpNotifications` stamps `messageId` /
+ *     `parentToolUseId` and nothing else); a leftover chunk that has it
+ *     was a fixture. A patched pin never forwards the chunk at all.
+ *   - **the `<task-notification>` wrapper**, only when origin is
+ *     **missing**, and only when the trimmed payload starts and ends
+ *     with the tags — a replay of an older store, or a leftover the
+ *     adapter forwarded without origin. Origin present and not a
+ *     task-notification is a person speaking, even if they pasted the
+ *     XML (the pin stamps every prompt `origin: { kind: "human" }`).
+ *
+ * A payload that is neither is `null`, which is a person speaking. A
+ * payload that is one but names no spawning call or no task is still a
+ * notification (`onto: null`): it must not become a user bubble, and it
+ * has no row to file the report under.
+ */
+export const taskNotificationIn = (text: string, meta: Meta): TaskNotice | null => {
+  const kind = wordIn(fieldIn(claudeIn(meta), "origin"), "kind")
+  const xml = text.trim()
+  const wrapped = xml.startsWith("<task-notification>") && xml.endsWith("</task-notification>")
+  if (kind !== "task-notification" && !(kind === null && wrapped)) return null
+  const toolUseId = (xml.match(/<tool-use-id>([^<]*)<\/tool-use-id>/u)?.[1] ?? "").trim()
+  const task = (xml.match(/<task-id>([^<]*)<\/task-id>/u)?.[1] ?? "").trim()
+  const report = xml.match(/<result>([\s\S]*)<\/result>/u)?.[1] ?? ""
+  return toolUseId === "" || task === ""
+    ? { onto: null }
+    : { onto: { toolUseId, task, report } }
+}
+
 // ── which call ARMED A BACKGROUND TASK ─────────────────────────────────
 
 /**
@@ -289,10 +328,16 @@ export const backgroundTaskIn = (meta: Meta): Background | null => {
   // monitor somebody STOPPED is not a monitor that failed, so the word
   // travels beside the status rather than being re-derived from it.
   const ended = wordIn(task, "status")
+  // THE REPORT, the other half of a task-notification. The harness's
+  // summary is `ended`'s sentence; this is the subagent's own prose, filed
+  // on the same stamp rather than on a second `_meta` field the rest of
+  // this vocabulary does not have.
+  const report = wordIn(task, "report")
   return {
     task: id,
     ...(description === null ? {} : { description }),
     ...(ended === null ? {} : { ended }),
+    ...(report === null ? {} : { report }),
   }
 }
 
@@ -323,13 +368,16 @@ export const backgroundTaskIn = (meta: Meta): Background | null => {
  *     one day; it is a shape nothing in this repo has ever seen arrive, and a
  *     row that renders a payload nobody has observed is a row that is wrong the
  *     first time it is right.
- *   - **the subagent's own PROSE**. The adapter strips a subagent's text and
- *     thinking blocks from the feed unless the client declares
- *     `subagent-transcript` in its `initialize` capabilities
+ *   - **the subagent's own PROSE while it runs**. The adapter strips a
+ *     subagent's text and thinking blocks from the feed unless the client
+ *     declares `subagent-transcript` in its `initialize` capabilities
  *     (`supportsSubagentTranscript`) — so olai, which does not, cannot receive
  *     it and cannot have it leak into the main agent's voice either. Drawing a
  *     subagent's narration is a feature with a switch to throw, not a `_meta`
- *     to read, and it is not this one.
+ *     to read, and it is not this one. The REPORT it hands back at the end
+ *     is the exception `docs/chat.md` names, and it rides
+ *     {@link backgroundTaskIn}'s `report` — the task's own stamp — not a
+ *     second field.
  */
 
 /** One OBJECT-valued field of an object, or `undefined` for anything else — a
@@ -693,6 +741,7 @@ export const CLAUDE: Leg = {
   parentToolUse: parentToolUseIn,
   spawned: spawnedIn,
   backgroundTask: backgroundTaskIn,
+  taskNotification: taskNotificationIn,
   listedIn,
   // No doubling on this wire: the adapter's `session/new` answers with a
   // session id and `configOptions` and never announces a chunk in advance.

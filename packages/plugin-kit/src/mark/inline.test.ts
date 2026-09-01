@@ -1,14 +1,14 @@
 /**
  * THE TRANSFORM AT ITS OWN BENCH — synthetic SVGs only, and deliberately not a
- * copy of kolu's real one.
+ * copy of a tenant's real one.
  *
  * The real bytes are asserted over by the derivation that reads them
  * ({@link ../../default.nix} runs {@link ./emit.ts} on the store path) and by
- * {@link ../browser/mark.test.ts}, which holds the pin-bump invariants over
- * what actually got generated. A fixture copy here would be the vendored asset
- * this whole design exists to refuse, one directory removed — and it would go
- * stale the first time kolu redrew its logo, which is precisely the day these
- * cases would need to be true.
+ * each tenant's `browser/mark.test.ts`, which holds the pin-bump invariants
+ * over what actually got generated. A fixture copy here would be the vendored
+ * asset this whole design exists to refuse, one directory removed — and it
+ * would go stale the first time a tenant redrew its logo, which is precisely
+ * the day these cases would need to be true.
  *
  * So what is asked here is the FUNCTION: that it tokenises what it says it
  * tokenises, drops what it says it drops, and refuses each construct by name.
@@ -22,7 +22,7 @@ import { inlineMark, MARK_TOKEN } from "./inline.ts"
 const doc = (body: string, viewBox = "70 108 372 340"): string =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" role="img">${body}</svg>`
 
-const SRC = "/nix/store/fake-source/packages/client/favicon.svg"
+const SRC = "/nix/store/fake-source/logo.svg"
 
 test("the viewBox travels out and the root tag does not", () => {
   const { viewBox, body } = inlineMark(doc(`<rect x="1" y="2" width="3" height="4"/>`), SRC)

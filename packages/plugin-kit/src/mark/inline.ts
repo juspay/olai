@@ -1,16 +1,14 @@
 /**
- * SOMEBODY ELSE'S BRAND ASSET, READ AS INPUT — the code review of kolu's mark
- * that a pin bump would otherwise never force.
+ * SOMEBODY ELSE'S BRAND ASSET, READ AS INPUT — the code review of a tenant's
+ * mark that a pin bump would otherwise never force.
  *
- * kolu's logo is `packages/client/favicon.svg` in juspay/kolu, and it reaches
- * this plugin through the npins kolu pin — the same pinned source every
- * `@kolu/*` module comes from — never as a copy pasted into this tree and never
- * as a fetch from a running page. `../../default.nix` realises it, runs
- * `./emit.ts` over it with the pinned bun, and writes the module
- * `src/browser/mark.generated.ts` that {@link ../browser/Mark.tsx} draws. This
- * file is the whole of the transform in between, and it is a PURE FUNCTION —
- * no IO, no imports — for one reason: it is the only part of that path a test
- * can ask questions of.
+ * A tenant's logo reaches olai through that tenant's npins pin — never as a
+ * copy pasted into this tree and never as a fetch from a running page.
+ * {@link ../../default.nix} realises it, runs `./emit.ts` over it with the
+ * pinned bun, and writes the module a plugin's `Mark.tsx` draws through
+ * {@link ../Mark.tsx}. This file is the whole of the transform in between,
+ * and it is a PURE FUNCTION — no IO, no imports — for one reason: it is the
+ * only part of that path a test can ask questions of.
  *
  * ## Why a function here rather than sed in the derivation's shell
  *
@@ -24,24 +22,23 @@
  *
  * ## The two things the input does that a `<g>` in a sixteen-unit box may not
  *
- * kolu's favicon has a `viewBox` of its own (`70 108 372 340`, not core's
- * `0 0 16 16`) and it DECLARES IDS — `topStep`, `middleStep`, `baseStep`,
- * `lift`, `title`, `desc` — which every `url(#…)` in it resolves against. SVG
+ * A real logo has a `viewBox` of its own (not core's `0 0 16 16`) and it
+ * DECLARES IDS, which every `url(#…)` in it resolves against. SVG
  * ids are global to the DOM DOCUMENT, not to the element that declares them, so
  * a mark drawn on two rungs of one transcript would put two `lift`s on the page
  * and hand the word `lift` to whatever else on it wanted it. So: the viewBox
  * travels out of here as its own constant, for the nested viewport
- * {@link ../browser/Mark.tsx} opens, and every id — declaration and reference
+ * {@link ../Mark.tsx} opens, and every id — declaration and reference
  * together — is rewritten to carry {@link MARK_TOKEN}, which the browser half
  * swaps for a per-instance id at render.
  *
  * ## Step (g) is why this survives a pin bump rather than merely working today
  *
- * Steps (b)–(f) are a rewrite over the grammar kolu's mark uses NOW. Step (g)
+ * Steps (b)–(f) are a rewrite over the grammar a brand asset uses NOW. Step (g)
  * re-scans the OUTPUT and asserts the rewrite was total — every id tokenised,
  * none lost, no `#`-reference left untokenised that is not a hex colour, and
- * something still drawn. So a favicon that grows a construct this rewrite does
- * not cover (a `<style>` block keyed on `#topStep`, a `mask` written some other
+ * something still drawn. So a logo that grows a construct this rewrite does
+ * not cover (a `<style>` block keyed on an id, a `mask` written some other
  * way) fails the BUILD, naming the fragment, rather than shipping a logo
  * painted black. That is `@olai/web`'s `preloadPipeline` instinct — no such
  * chunk means throw, never carry on — pointed at somebody else's artwork.
@@ -54,19 +51,19 @@
  * in a component is a blank glyph, and a blank glyph is exactly the silent
  * empty mark this whole arrangement was chosen to make impossible.
  *
- * IT USED TO be a hand-drawn glyph — two abstract panes and a prompt chevron in
- * `currentColor`, drawn in this repository because drawing one was easy and
- * because a fetched face is a face a panel can be short of. It was the wrong
- * answer to the right worry: it was not kolu's mark, so a reader who learned it
- * learned something false, and it could not follow kolu's own mark anywhere.
- * The pin is what makes "no fetch" and "really theirs" the same answer.
+ * IT USED TO be a hand-drawn glyph, invented in a tenant because inventing
+ * one was easy and because a fetched face is a face a panel can be short of.
+ * It was the wrong answer to the right worry: it was not the appliance's
+ * mark, so a reader who learned it learned something false, and it could not
+ * follow the appliance's own mark anywhere. The pin is what makes "no fetch"
+ * and "really theirs" the same answer.
  */
 
 /** The stand-in every id in the emitted body carries, in place of a real
- *  prefix. {@link ../browser/Mark.tsx} replaces it with `createUniqueId()` per
- *  instance, which is what makes two kolu rows on one page legal DOM rather
- *  than merely lucky. Exported so the substitution and the emission cannot
- *  drift apart into two spellings of one string. */
+ *  prefix. {@link ../Mark.tsx} replaces it with `createUniqueId()` per
+ *  instance, which is what makes two rows of the same tenant on one page
+ *  legal DOM rather than merely lucky. Exported so the substitution and the
+ *  emission cannot drift apart into two spellings of one string. */
 export const MARK_TOKEN = "__MARK__"
 
 /** What a mark id may look like once the asset declares it: an XML-ish name,
@@ -100,7 +97,7 @@ function refuse(source: string, what: string): never {
 }
 
 /**
- * kolu's favicon, as the two constants the browser half needs.
+ * A tenant's logo, as the two constants the browser half needs.
  *
  * `source` is the path the bytes came from — a `/nix/store/…` path when the
  * derivation runs this — and it prefixes EVERY throw, because the one question
@@ -162,7 +159,7 @@ export const inlineMark = (
   // PIs together rather than enumerating a grammar this does not parse. An
   // asset carrying any of them after a fixpoint strip is exactly the thing this
   // file refuses everywhere else ({@link refuse} at step (d)), and none of them
-  // has ever been a thing a favicon needs.
+  // has ever been a thing a logo needs.
   for (let before = ""; before !== body;) {
     before = body
     body = body.replace(/<!--[\s\S]*?--!?>/g, "")
@@ -180,7 +177,7 @@ export const inlineMark = (
     .replace(/<desc\b[^>]*>[\s\S]*?<\/desc>/g, "")
 
   // (d) The refusals. Each is a construct this rewrite cannot honour, and each
-  // is a construct a favicon has no business carrying into a chat transcript.
+  // is a construct a logo has no business carrying into a chat transcript.
   // `<style>` is here for the rewrite's sake rather than for safety's: its
   // selectors reference ids by a grammar step (f) cannot see.
   if (/<script\b/i.test(body)) refuse(source, "contains a <script> element")

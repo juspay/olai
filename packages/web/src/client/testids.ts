@@ -1400,6 +1400,10 @@ export const TESTID = {
   /** What a call is SAYING as it runs — the protocol's incremental content,
    *  drawn above the arguments because it is the live half. */
   chatToolProgress: "chat-tool-progress",
+  /** A spawned agent's REPORT, in the fold of the call that sent it out.
+   *  The one place that agent's own words appear; they never occupy the
+   *  column. */
+  chatToolReport: "chat-tool-report",
   /** Where it is working: the follow-along file locations, on the line. */
   chatToolLocations: "chat-tool-locations",
   /** HOW LONG it has been running, on the same line — drawn only once a call

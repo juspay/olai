@@ -319,6 +319,8 @@ That is the ruling, and it came from a real turn: five survey agents and a monit
 
 **The call that sent the agent out stays exactly where it was.** It is the main agent's own call — it is the record of what happened — so it keeps its place in the conversation, its title, its ending, and the agent's report in its fold. Scrolling back to it a week later still tells the story.
 
+That report is how an async agent comes back, too. The harness injects the completion as a user-role turn — a `<task-notification>` block, stamped `origin.kind: "task-notification"` in the session stream — so the main agent can be woken with the result. That turn is not a message you typed and it is not the main agent answering: the report is filed in the spawning row's fold, the ending is the one-row news at the bottom in the harness's own words, and none of the XML occupies the column.
+
 ```
 · read every note                        ↳ Explore
 │ ● working…
@@ -431,6 +433,10 @@ Dropping is aimed at the whole panel rather than at the box: while you are dragg
 
 If the machine is running [kolu](https://kolu.dev) — terminals for coding agents — the panel's agent gets kolu's terminals too, and there is nothing to set up: every new conversation looks for the padi daemon this host answers on, and hands the session `kolu mcp` when one is there. It is looked for rather than assumed: olai starts the `kolu` it found and asks it to read something only a running daemon can answer, because a `kolu` on a PATH is not always the one this host is running, and a wrong build will start perfectly well and know nothing.
 
+## odu
+
+If the machine has an answering [odu](https://github.com/juspay/odu), the panel's agent gets CI its own way: every new conversation resolves `odu` on the server's PATH, starts it, and hands the session `odu mcp` when it answers — the run verbs (`run`, `node_rerun`, `node_cancel`, `wait_for_settle`, `lease`/`release`) and odu's own resources, with no olai-invented verb among them. It is looked for rather than assumed, and the probe asks the one question only the right build answers: those verbs must take a per-call `checkout`, because a conversation spans every lane on its board while the server itself is spawned in one directory. An answer without them gets the sentence, not the tools. [odu's own page](plugins/odu.md#the-chat-panels-odu) has the whole of it, including which half of the face stays parked in the server's own directory; [odu's PR #97](https://github.com/juspay/odu/pull/97) is the checkout-targeting shape this asks for.
+
 ## Which tool servers a conversation has
 
 **The panel answers it, so you never have to ask the model.** Under the header, where the session title and the model already are, is the list of MCP servers this conversation was handed:
@@ -449,7 +455,7 @@ Ask an agent which MCP servers it has and you are asking the worst-informed thin
 
 ## When a tool server does not arrive
 
-**A server that fails to attach is on screen, not in a log.** If there is a `kolu` on this host's PATH and it would not answer, the panel says so under the roster — the name, and the reason the probe or the server itself gave:
+**A server that fails to attach is on screen, not in a log.** If there is a tool a conversation would have been handed — kolu's `kolu`, odu's `odu` — on this host's PATH and it would not answer, the panel says so under the roster — the name, and the reason the probe or the server itself gave:
 
 ```
 ● kolu is missing from this conversation
@@ -473,13 +479,14 @@ An agent's report never overrules the probe. If this host's `kolu` would not ans
 
 ```
 wake on terminal activity · terminals from  [ lanes.olai ▾ ]   3 fleet events waiting
+wake on CI runs · runs from  [ lanes.olai ▾ ]
 ```
 
 **Off is the state you start in, and it is drawn rather than hidden.** No serve turns this on for you, no setting does, and no agent can — the verb behind the picker is the browser's alone. A new conversation, and one you cleared, wakes on nothing until you pick a file, and the row says `off` so that the control is somewhere you can find it before you have ever used it. `clear` is the way back, and it is the same one fact with an empty value rather than a second switch.
 
 **The picker offers the files that could actually be a scope, and that is fewer than the directory holds.** A plugin says which KINDS of file its doorbell can be pointed at — kolu says outlines, because what it reads is the terminals a file's un-done rows claim and only an outline has rows — so a document is not on the list. It used to be: a `.md` sat between the outlines, and a conversation pointed at one heard nothing for ever while the heartbeat below went on saying the watch was running, which is the one thing that must never happen. Beyond the kind, the list is the outlines *you* keep: what is in the Trash and any leftover `Archive.olai` are left out, because a lane you put away claiming a terminal is history rather than live work, and so are the files olai made for itself under `_olai/` — the shelf, the property declarations, the inbox, kolu's own knobs — which are outlines that will never carry a lane. Everything else you have is offered, in full, because which of your outlines is a board is not something olai can know and it will not guess.
 
-**The file is the whole of the scope, and what it MEANS is the plugin's business.** olai never opens it. kolu reads the terminals your board's un-done rows claim and tells this conversation when one of them has stopped and is waiting on a person — see [kolu's own page](plugins/kolu.md) for exactly what it says and when. Pick the board you are working from and you hear about the lanes on it; pick nothing and you hear nothing. That also means picking a *different* file is how you go quiet about one board without going quiet about the tool.
+**The file is the whole of the scope, and what it MEANS is the plugin's business.** olai never opens it. kolu reads the terminals your board's un-done rows claim and tells this conversation when one of them has stopped and is waiting on a person — see [kolu's own page](plugins/kolu.md) for exactly what it says and when. odu reads the `odu-worktree` values on those same un-done rows and rings when a claimed run first goes red, and again when it settles — [odu's own page](plugins/odu.md#the-ci-doorbell). Pick the board you are working from and you hear about the lanes on it; pick nothing and you hear nothing. That also means picking a *different* file is how you go quiet about one board without going quiet about the tool.
 
 **A message a machine sent looks like one.** It is in the same lane your own messages are in — that is the lane a prompt goes out on — but it is drawn as the full column on the left, never the tinted bubble on the right that means *you said this*, and it opens by naming who is speaking and when. That opening line is not decoration: a conversation you resume later is rebuilt out of the agent's own store, which carries the words and not the mark, so the sentence has to say for itself who wrote it. There is no *send again* under it either — what it says is how something STOOD when it rang, and re-sending that an hour later would be re-sending a claim that has stopped being true. Whatever rang will ring again.
 

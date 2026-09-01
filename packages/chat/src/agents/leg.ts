@@ -161,22 +161,50 @@ export interface Spawn {
 }
 
 /**
+ * A harness-injected task-notification turn — not a person speaking.
+ *
+ * Claude Code stamps these `origin.kind: "task-notification"` and wraps the
+ * subagent's report in `<task-notification>` XML. Either half is enough to
+ * recognise one: the origin is the discriminator the session stream carries,
+ * and the XML is what actually arrives on ACP when the adapter forwards the
+ * injected user message. An agent that has no such turns answers `null`.
+ *
+ * THREE STATES, not two fields that happen to be empty. `null` from the
+ * reader is a person speaking. `{ onto: null }` is still a notification —
+ * it must not become a user bubble — but it named no spawning call or no
+ * task, so it has no row to file the report under. `{ onto: { … } }` is
+ * the one that files. Empty strings for the two ids would have been two
+ * jobs whose combinations include a half-filed report.
+ */
+export type TaskNotice =
+  | {
+    readonly onto: {
+      readonly toolUseId: string
+      readonly task: string
+      readonly report: string
+    }
+  }
+  | { readonly onto: null }
+
+/**
  * ... and what it says about the BACKGROUND TASK a call armed — a monitor, a
  * background shell, an agent sent out to outlive this turn. Structural for
  * {@link Spawn}'s reason.
  *
  * `task` is the only field that is always there, because it is the only one
  * every frame about a task carries: the harness says everything else under
- * that id. The other two are said by whichever frame knows them — the frame
+ * that id. The others are said by whichever frame knows them — the frame
  * that ARMS the call names the description it was armed with, the frame that
- * SETTLES it names how it ended — so a leg answers about the frame in front of
- * it and never accumulates. Holding a row together across frames is
+ * SETTLES it names how it ended, the task-notification that follows names
+ * the report — so a leg answers about the frame in front of it and never
+ * accumulates. Holding a row together across frames is
  * {@link ../transcript.ts}'s job and nobody else's.
  */
 export interface Background {
   readonly task: string
   readonly description?: string
   readonly ended?: string
+  readonly report?: string
 }
 
 /**
@@ -309,6 +337,16 @@ export interface Leg {
    *  background work is drawn as it always was: a call that completed at the
    *  moment it started. */
   readonly backgroundTask: (meta: Meta) => Background | null
+
+  /**
+   * Whether this chunk of a user message is a TASK-NOTIFICATION rather than
+   * a person speaking — see {@link TaskNotice}.
+   *
+   * `null` is the losing direction this can afford: an unrecognised payload
+   * is drawn as a user bubble, which is what the panel used to do with every
+   * one of these. A false positive would swallow a message somebody typed.
+   */
+  readonly taskNotification: (text: string, meta: Meta) => TaskNotice | null
 
   /**
    * The two facts a `session/list` entry carries about ITS conversation, off

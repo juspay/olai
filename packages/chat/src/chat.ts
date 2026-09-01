@@ -103,6 +103,7 @@ import {
   type Talking,
 } from "@olai/surface"
 import { BusyFailure, type NodeAgent, UsageFailure } from "@olai/format"
+import { emitter } from "@olai/log"
 import { Effect, Fiber, Semaphore } from "effect"
 
 import * as AcpAgent from "./agent.ts"
@@ -682,6 +683,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * act on. One writer per field, and the write is the agent's.
      */
     const memory = Memory.forDirectory(options.cwd)
+    const tell = yield* Effect.annotateLogs(emitter, { surface: "chat" })
 
     /** One agent, built from the roster row that named it. The handler is
      *  passed in because the two are mutually referential: the agent needs
@@ -1214,21 +1216,30 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           // the chunks accumulate the way the agent's own prose does.
           publish(transcript.userSaid(event.text))
           return
-        case "tool":
-          publish(
-            transcript.tool(event.id, {
-              title: event.title,
-              status: event.status,
-              detail: event.detail,
-              progress: event.progress,
-              diffs: event.diffs,
-              wrote: event.wrote,
-              locations: event.locations,
-              parent: event.parent,
-              spawned: event.spawned,
-              armed: event.armed,
-            }),
-          )
+        case "tool": {
+          const change = transcript.tool(event.id, {
+            title: event.title,
+            status: event.status,
+            detail: event.detail,
+            progress: event.progress,
+            diffs: event.diffs,
+            wrote: event.wrote,
+            locations: event.locations,
+            parent: event.parent,
+            spawned: event.spawned,
+            armed: event.armed,
+          })
+          if (
+            !says(change)
+            && event.armed?.report !== undefined
+            && event.title === undefined
+            && event.status === undefined
+          ) {
+            tell(Effect.logDebug(
+              `task-notification for ${event.id} has no announced row; report dropped`,
+            ))
+          }
+          publish(change)
           // A tool frame is the only frame that can arm a background task, send
           // an agent out, or report the end of either — and only a frame that
           // says something about one of the three fields the list is made of can
@@ -1248,6 +1259,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             || event.status !== undefined
           ) watched()
           return
+        }
         case "asked":
           publish(transcript.ask(event.id, event.message, event.fields, event.parent))
           move({ asking: asking() })
