@@ -429,12 +429,13 @@ export const serve = (services: Services): {
    *
    * ## Why this is not the ring's own answer
    *
-   * `ring` composes a body once, to learn whether there is anything to say at
-   * all. That body is NOT what goes in: core holds a delivery through a running
-   * turn, or until somebody opens the conversation, and the fleet moves while it
-   * waits. The human found one arriving about two terminals that had been killed
-   * and a lane that had been merged and closed in the gap — a message asserting a
-   * world that had closed while it queued.
+   * `ring` asks only whether there is anybody to say this to — a COUNT, not a
+   * sentence, and it composes none. The words are composed HERE, last thing,
+   * because core holds a delivery through a running turn or until somebody
+   * opens the conversation, and the fleet moves while it waits. The human found
+   * one arriving about two terminals that had been killed and a lane that had
+   * been merged and closed in the gap — a message asserting a world that had
+   * closed while it queued.
    *
    * So core is handed a CLOSURE (`@olai/plugin-api`'s `Deliveries.deliver`) and calls
    * it last thing. This reads `derived` and `half.rows()` at CALL time — the
@@ -485,9 +486,12 @@ export const serve = (services: Services): {
    * two seats may filter by two boards and mean two different things by one
    * terminal moving, so the derivation cannot be hoisted out of the loop —
    * but two seats on the SAME board with the SAME meaning are one answer all
-   * the way to the sentence, so both the claims walk and the body are memoised
-   * for the life of this call and dropped with it. The rows and their id list
-   * are one reading of one map however many scopes there are.
+   * the way to the count that decides whether anybody is told at all, so both
+   * the claims walk and that count are memoised for the life of this call and
+   * dropped with it. The rows and their id list are one reading of one map
+   * however many scopes there are. THE SENTENCE is not memoised and is not
+   * composed here at all — it is `said`'s, at the delivery moment, off a fresh
+   * derivation.
    *
    * THE VALUES ARE RESOLVED AGAINST THE LIVE ROSTER (`half.rows()`) and never
    * against the event, which carries padi's whole id: the board writes
@@ -554,10 +558,7 @@ export const serve = (services: Services): {
     try {
       const rows = half.rows()
       const fleet = [...rows.keys()]
-      // ONE STAMP FOR THE WHOLE EVENT, so two conversations woken by one
-      // terminal are not told two different times about it.
-      const now = services.now()
-      // ...AND ONE WALK PER FILE. The derivation is per FILE and the scope is
+      // ONE WALK PER FILE. The derivation is per FILE and the scope is
       // per CONVERSATION, which are not the same cardinality: a person with
       // three seats on one board would otherwise pay three identical walks
       // per event. Minted per event and dropped with it — this plugin holds
@@ -576,39 +577,37 @@ export const serve = (services: Services): {
         perFile.set(file, fresh)
         return fresh
       }
-      // ...AND ONE SENTENCE PER (FILE, MEANING), which is the same argument
-      // carried to its end. The walk above is not the only thing two seats on
-      // one board share: the standing they derive is a function of the file's
-      // claims and the meaning alone, and so is the multi-paragraph body built
-      // from it. Keying the memo on the file ALONE closed half the redundancy
-      // and left the expensive half open — the string. The pair is the whole
-      // key because a `wake` and a `digest` over one file are two different
-      // subsets and two different sentences, and nothing else about a scope
-      // enters either: the conversation is only ever the ADDRESS the body is
-      // sent to.
+      // ...AND ONE COUNT PER (FILE, MEANING), which is the same argument carried
+      // to its end. The walk above is not the only thing two seats on one board
+      // share: what STANDS under a meaning is a function of the file's claims
+      // and the meaning alone, and nothing else about a scope enters it — the
+      // conversation is only ever the ADDRESS the words are sent to.
       //
-      // `null` is a MEMOISED SILENCE rather than a miss — a file that has
-      // nobody standing for this meaning must not be walked again per seat —
-      // and it is why this map is read with `has` rather than by testing the
-      // value.
+      // A COUNT, AND NOT A SENTENCE. This asked `bodyFor` for the whole
+      // multi-paragraph body and then tested it for `null`, throwing the string
+      // away every time: the body that actually goes in is composed by `said`
+      // at delivery, off a fresh derivation, which is the entire point of the
+      // closure below. So the memo was keyed on "the expensive half" and the
+      // expensive half was never used — one composed sentence per (file,
+      // meaning) per event, built to be discarded. The question here has always
+      // been "is there anybody to say this to", and that is a length.
       //
       // Minted per event and dropped with it, exactly as `perFile` is. Neither
-      // survives the tick, so nothing here can serve a sentence about a fleet
-      // that has moved on, and the plugin still holds nothing between ticks.
-      const perSaid = new Map<string, string | null>()
-      const bodyIn = (
+      // survives the tick, so the plugin still holds nothing between ticks.
+      const perStanding = new Map<string, number>()
+      const standingFor = (
         file: string,
         meaning: Meaning,
         claiming: ReturnType<typeof claimingIn>,
-      ): string | null => {
+      ): number => {
         const key = `${meaning}:${file}`
-        if (perSaid.has(key)) return perSaid.get(key) ?? null
-        const standing = standingIn(claiming, rows, meaning)
-        // The event's own terminal is held by construction, so this is empty
+        const held = perStanding.get(key)
+        if (held !== undefined) return held
+        // The event's own terminal is held by construction, so this is zero
         // only where the row moved between the emit and this walk. A sentence
         // about nobody is worse than no sentence.
-        const fresh = standing.length === 0 ? null : bodyFor(meaning, standing, file, now)
-        perSaid.set(key, fresh)
+        const fresh = standingIn(claiming, rows, meaning).length
+        perStanding.set(key, fresh)
         return fresh
       }
       const scopes = services.deliveries.scopes()
@@ -637,8 +636,16 @@ export const serve = (services: Services): {
         if (meaning === null) continue
         // Asked ONCE here, against the revision the event arrived on, so a
         // ring that has nothing to say costs no slot in core and no row.
-        if (bodyIn(scope.file, meaning, claiming) === null) {
-          trace("withheld", { file: scope.file, meaning, why: "nobody-standing" })
+        // Asked ONCE here, against the revision the event arrived on, so a
+        // ring that has nothing to say costs no slot in core and no row.
+        //
+        // `dropped`, THE SAME WORD THE DELIVERY MOMENT USES, because it is the
+        // same fact — nobody is standing — and the only difference is WHEN it
+        // was asked. This said `withheld` here and `dropped` there, which is two
+        // names for one thing and a reader left wondering which of the two they
+        // were looking at. The seam a line came from is already in the line.
+        if (standingFor(scope.file, meaning, claiming) === 0) {
+          trace("dropped", { file: scope.file, meaning, why: "nobody-standing" })
           continue
         }
         trace("delivering", {
