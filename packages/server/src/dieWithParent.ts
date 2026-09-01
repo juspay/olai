@@ -53,8 +53,15 @@
  *     is an argument against `getppid()` rather than a load on this design,
  *     which behaves the same either way.)
  *
- * The residual is pid reuse inside the milliseconds between the spawn and the
- * arm, which would have to land on this exact number to be wrong.
+ * There is NO pid-reuse residual, and an earlier draft of this comment said
+ * there was — both reviews of #455 caught it independently, and the narrower
+ * truth follows from the two measurements above. A process only ever changes
+ * parent by being reparented, and reparenting lands on a pre-existing reaper:
+ * init, or the nearest living subreaper ancestor. A process that recycled the
+ * told pid is neither, so it cannot BECOME this process's parent and cannot
+ * make `process.ppid === tie.parent` true again. What is left is a spawner
+ * that stamps a pid which is not its own — a caller mistake, and a loud one:
+ * the server stops at boot instead of serving untied.
  *
  * Measured with them, on this project's Linux (7.1.5, bun 1.4.0):
  * `PR_SET_PDEATHSIG` fires on the death of the parent that was there when it
@@ -81,8 +88,9 @@
  * hands over is a second thing that can fail to load on the way to the same
  * answer. It stays best-effort in the same breath as #355 — a machine without
  * the syscall still serves — but a caller who ASKED and did not get it is no
- * longer told nothing: that one says so on stderr, because the cleanup floor
- * it was promised is gone and only the reaper is left holding it.
+ * longer told nothing: BOTH the library that would not load and the arm the
+ * kernel refused say so on stderr, because either way the cleanup floor that
+ * caller was promised is gone and only the reaper is left holding it.
  */
 
 import { dlopen, FFIType } from "bun:ffi"
@@ -152,9 +160,21 @@ export const dieWithParent = (env: NodeJS.ProcessEnv = process.env): void => {
       const lib = dlopen(name, {
         prctl: { args: [FFIType.i32, FFIType.i32], returns: FFIType.i32 },
       })
-      lib.symbols.prctl(PR_SET_PDEATHSIG, SIGTERM)
+      const armed = lib.symbols.prctl(PR_SET_PDEATHSIG, SIGTERM)
+      if (armed !== 0) {
+        // A failed ARM, as distinct from a failed load — practically
+        // unreachable with these two constants on a kernel that has the call,
+        // and silent until now, which made the promise below untrue for the
+        // one caller it was written for.
+        process.stderr.write(
+          `olai: tied to pid ${tie.parent} (${DIE_WITH_PARENT}), but ` +
+            `prctl(PR_SET_PDEATHSIG) returned ${armed} — nothing will tell this ` +
+            `process when that parent dies\n`,
+        )
+      }
       // Read back AFTER the arm, so a parent dying in between is caught by one
-      // or the other and missed by neither.
+      // or the other and missed by neither. It runs even when the arm was
+      // refused: this half needs nothing of the kernel but an honest ppid.
       if (process.ppid !== tie.parent) process.kill(process.pid, "SIGTERM")
       return
     } catch {

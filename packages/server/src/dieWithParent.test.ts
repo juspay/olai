@@ -112,6 +112,13 @@ const saidBy = (proc: ReturnType<typeof spawn>): (() => string) => {
  * hit while its first premise was wrong, fake-green). The child's file
  * descriptor is its own, so the wrapper's death does not close it.
  *
+ * `SUBREAPER` is an optional ancestor for the one leg that needs the kernel
+ * arranged differently: it sets `PR_SET_CHILD_SUBREAPER` and then stays up,
+ * so an orphaned descendant reparents to IT rather than to init. It prints
+ * `prctl=` so the leg can refuse to pass on an arm that did not take — a
+ * subreaper that failed to arm is the ordinary machine, where the leg would
+ * pass for the wrong reason.
+ *
  * `KID` is the mechanism on its own — no server, no ports, nothing to boot —
  * so the three mechanism legs are about the guard and not about a server that
  * also has a guard. Its `mode` is WHEN it honors the tie: `now` is the
@@ -121,10 +128,11 @@ const saidBy = (proc: ReturnType<typeof spawn>): (() => string) => {
  * rather than reading `process.ppid` at start, because by the time a kid under
  * a wrapper that exits has booted, that read is already 1.
  */
-const [WRAPPER, KID] = ((): readonly [string, string] => {
+const [WRAPPER, KID, SUBREAPER] = ((): readonly [string, string, string] => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "olai-tie-"))
   const wrapper = path.join(dir, "wrapper.ts")
   const kid = path.join(dir, "kid.ts")
+  const subreaper = path.join(dir, "subreaper.ts")
   const guard = JSON.stringify(path.join(import.meta.dirname, "dieWithParent.ts"))
   fs.writeFileSync(
     wrapper,
@@ -136,8 +144,11 @@ const logFd = fs.openSync(process.env.CHILD_LOG, "w")
 const env = { ...process.env, SPAWNER: String(process.pid) }
 // The tie is the WRAPPER's own pid: one asserted by anyone but the direct
 // parent names a process that is not one. Unstamped, the child is untied —
-// the daemonising case.
+// the daemonising case. A TIE that is a NUMBER stamps that pid instead, which
+// is the state the race leaves behind (tied to a process that is not my
+// parent) staged without the race.
 if (env.TIE === "yes") env[DIE_WITH_PARENT] = String(process.pid)
+else if (env.TIE !== undefined) env[DIE_WITH_PARENT] = env.TIE
 delete env.TIE
 const child = spawn(process.execPath, process.argv.slice(2), {
   stdio: ["ignore", logFd, logFd],
@@ -145,7 +156,7 @@ const child = spawn(process.execPath, process.argv.slice(2), {
   env,
 })
 child.unref()
-process.stdout.write("child=" + child.pid + "\\n")
+process.stdout.write("wrapper=" + process.pid + " child=" + child.pid + "\\n")
 if (process.env.WRAPPER_EXITS === "yes") process.exit(0)
 setInterval(() => {}, 1 << 30)
 `,
@@ -187,12 +198,38 @@ else {
 }
 `,
   )
-  return [wrapper, kid] as const
+  fs.writeFileSync(
+    subreaper,
+    `import { dlopen, FFIType } from "bun:ffi"
+import { spawn } from "node:child_process"
+
+// PR_SET_CHILD_SUBREAPER = 36. Orphaned DESCENDANTS reparent here rather than
+// to init — a session manager, a supervisor, \`systemd-run --user --scope\`.
+const lib = dlopen("libc.so.6", {
+  prctl: { args: [FFIType.i32, FFIType.i32], returns: FFIType.i32 },
+  waitpid: { args: [FFIType.i32, FFIType.ptr, FFIType.i32], returns: FFIType.i32 },
+})
+process.stdout.write("subreaper=" + process.pid + " prctl=" + lib.symbols.prctl(36, 1) + "\\n")
+spawn(process.execPath, process.argv.slice(2), { stdio: "inherit", env: process.env })
+// Stays up, because a reaper that exits is not one — and REAPS, because a
+// subreaper that adopts without reaping leaves the adopted corpse in the
+// table as a zombie, and a zombie answers signal 0 exactly like a live
+// process. \`waitpid(-1, &status, WNOHANG)\` until it says nobody is waiting;
+// the runtime only reaps the children it started itself.
+const status = new Int32Array(1)
+setInterval(() => {
+  while (lib.symbols.waitpid(-1, status, 1) > 0);
+}, 20)
+`,
+  )
+  return [wrapper, kid, subreaper] as const
 })()
 
 interface Run {
   readonly wrapperPid: number
   readonly childPid: number
+  /** The `PR_SET_CHILD_SUBREAPER` ancestor, when the leg asked for one. */
+  readonly reaperPid: number | undefined
   /** Everything the child wrote to either channel, from a file the wrapper's
    *  death cannot take with it. */
   readonly log: () => string
@@ -209,40 +246,65 @@ interface Run {
  */
 const launch = async (options: {
   readonly argv: ReadonlyArray<string>
-  readonly tied: boolean
+  /** `true` ties the child to the wrapper; a NUMBER ties it to that pid
+   *  instead; `false` leaves it untied. */
+  readonly tied: boolean | number
   readonly after: "exit" | "stay"
   readonly env?: NodeJS.ProcessEnv
+  /** Put a `PR_SET_CHILD_SUBREAPER` ancestor in front of the wrapper. */
+  readonly under?: "subreaper"
 }): Promise<Run> => {
   const logPath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "olai-tie-run-")), "child.log")
-  const wrapper = spawn(process.execPath, [WRAPPER, ...options.argv], {
-    stdio: ["ignore", "pipe", "pipe"],
-    env: {
-      ...process.env,
-      ...options.env,
-      CHILD_LOG: logPath,
-      WRAPPER_EXITS: options.after === "exit" ? "yes" : "no",
-      ...(options.tied ? { TIE: "yes" } : {}),
+  const top = spawn(
+    process.execPath,
+    options.under === "subreaper"
+      ? [SUBREAPER, WRAPPER, ...options.argv]
+      : [WRAPPER, ...options.argv],
+    {
+      stdio: ["ignore", "pipe", "pipe"],
+      env: {
+        ...process.env,
+        ...options.env,
+        CHILD_LOG: logPath,
+        WRAPPER_EXITS: options.after === "exit" ? "yes" : "no",
+        ...(options.tied === false
+          ? {}
+          : { TIE: options.tied === true ? "yes" : String(options.tied) }),
+      },
     },
-  })
-  const said = saidBy(wrapper)
+  )
+  const said = saidBy(top)
   const log = (): string => (fs.existsSync(logPath) ? fs.readFileSync(logPath, "utf8") : "")
   await until(
     BOUND_MS,
-    () => `the wrapper to name its child (it said: ${said()})`,
-    () => /child=\d+/.test(said()),
+    () => `the wrapper to name itself and its child (it said: ${said()})`,
+    () => /wrapper=\d+ child=\d+/.test(said()),
   )
+  // Off the wrapper's OWN line rather than off this spawn, so both are right
+  // whichever process this one actually started.
+  const wrapperPid = Number(/wrapper=(\d+)/.exec(said())?.[1])
   const childPid = Number(/child=(\d+)/.exec(said())?.[1])
-  expect(childPid).toBeGreaterThan(0)
-  const wrapperPid = wrapper.pid as number
   expect(wrapperPid).toBeGreaterThan(0)
+  expect(childPid).toBeGreaterThan(0)
+  let reaperPid: number | undefined
+  if (options.under === "subreaper") {
+    const armed = /subreaper=(\d+) prctl=(-?\d+)/.exec(said())
+    // A subreaper that did not arm is an ordinary process, and the leg that
+    // asked for one would then pass for the wrong reason.
+    expect(armed?.[2]).toBe("0")
+    reaperPid = Number(armed?.[1])
+    expect(reaperPid).toBe(top.pid as number)
+  }
   return {
     wrapperPid,
     childPid,
+    reaperPid,
     log,
     said,
     stop: () => {
       reap(childPid)
       reap(wrapperPid)
+      reap(top.pid as number)
     },
   }
 }
@@ -268,6 +330,15 @@ const webLeg = (): { readonly argv: ReadonlyArray<string>; readonly env: NodeJS.
 }
 
 test("the tie is a pid or it is nothing, and nothing is read into silence", () => {
+  // THE SPELLING IS THE CONTRACT, pinned on the owner's side. Two spawners
+  // sit behind a dependency wall that forbids importing this constant and
+  // spell the name as a literal — `packages/tests/support/hooks.ts` and
+  // `support/serve.sh`. Renaming `DIE_WITH_PARENT` breaks
+  // `./child.testlib.ts` at compile time and lets those two drift SILENTLY:
+  // every harness server would come up untied, #355's leak would return, and
+  // nothing anywhere would go red — the evidence would be `/tmp` filling up
+  // a week later. This line is where a rename fails loudly instead.
+  expect(DIE_WITH_PARENT).toBe("OLAI_DIE_WITH_PARENT")
   expect(parentTie({})).toEqual({ parent: null })
   expect(parentTie({ [DIE_WITH_PARENT]: "" })).toEqual({ parent: null })
   expect(parentTie({ [DIE_WITH_PARENT]: "4321" })).toEqual({ parent: 4321 })
@@ -301,8 +372,11 @@ test("PIN: an UNTIED process survives its spawner exiting", async () => {
       () => run.log().includes("honored"),
     )
     // Reparented, and it knows: the very condition the old check called death.
-    expect(run.log()).toMatch(/orphaned ppid=\d+/)
-    expect(run.log()).not.toContain(`orphaned ppid=${run.wrapperPid}`)
+    // Read as a NUMBER — `ppid=1` is a prefix of `ppid=1234`, so a substring
+    // assertion here would pass on the wrong pid.
+    const orphanedAt = Number(/orphaned ppid=(\d+)/.exec(run.log())?.[1])
+    expect(orphanedAt).toBeGreaterThan(0)
+    expect(orphanedAt).not.toBe(run.wrapperPid)
     await Bun.sleep(SURVIVE_MS)
     expect(run.log()).not.toContain("SIGTERM")
     expect(alive(run.childPid)).toBe(true)
@@ -365,6 +439,83 @@ test("PIN: the race — tied to a spawner that is already gone, and it stops any
     run.stop()
   }
 }, BOUND_MS * 3)
+
+test("PIN: the same race under a PR_SET_CHILD_SUBREAPER ancestor, where PID 1 never comes", async () => {
+  // THE CLAIM THAT CHOSE THE DESIGN, and until now the only one the suite
+  // took on trust. Gating #355's `getppid() === 1` on the spawn shape — the
+  // smaller fix — would pass every other leg in this file on this machine,
+  // because an orphan here lands on init and the two rules agree. They do not
+  // agree under a subreaper: an orphaned descendant reparents to the nearest
+  // living subreaper ancestor, so `getppid()` never reads 1 and the smaller
+  // fix would sit through the very race it was written for. A session
+  // manager, a supervisor and `systemd-run --user --scope` are all that
+  // ancestor, so this is not an exotic machine — it is a user session.
+  //
+  // The leg arranges one: a grandparent that arms PR_SET_CHILD_SUBREAPER and
+  // stays up, a wrapper that ties the kid to itself and exits, and a kid that
+  // waits to be orphaned before it honors the tie. The assertion is BOTH
+  // halves — that the orphan landed on the subreaper and not on 1 (so the old
+  // rule could not have fired), and that the kid stopped anyway (so the tie
+  // did).
+  if (process.platform !== "linux") return
+  const run = await launch({
+    argv: kidArgv("after-orphan"),
+    tied: true,
+    after: "exit",
+    under: "subreaper",
+  })
+  try {
+    await until(BOUND_MS, "the wrapper to exit", () => gone(run.wrapperPid))
+    await until(
+      BOUND_MS,
+      () => `the kid to stop itself (log:\n${run.log()})`,
+      () => run.log().includes("SIGTERM"),
+    )
+    const orphanedAt = Number(/orphaned ppid=(\d+)/.exec(run.log())?.[1])
+    // `Number` rather than a cast: an absent reaper pid becomes NaN and fails
+    // here, which is the right answer for a leg that asked for a subreaper.
+    expect(orphanedAt).toBe(Number(run.reaperPid))
+    expect(orphanedAt).not.toBe(1)
+    expect(run.log()).toContain(`tied-to=${run.wrapperPid}`)
+    await until(BOUND_MS, "the kid to exit", () => gone(run.childPid))
+  } finally {
+    run.stop()
+  }
+}, BOUND_MS * 3)
+
+test("PIN: a TIED olai web whose tie is not its parent stops, and never serves", async () => {
+  // THE CHECKED MOMENT IN THE PRODUCT. Every leg above ends in a kid that
+  // exits from its own SIGTERM handler, so they show the signal was
+  // DELIVERED and nothing about what this binary does with one: `main.ts`
+  // has a SIGTERM listener registered before the guard runs that only writes
+  // a line, and `@olai/sigterm`'s SELF arm — the one that exists to honor
+  // this very kill — is installed later, inside the `web` handler. So the
+  // self-TERM lands in a disposition no test here owned.
+  //
+  // Staged WITHOUT the race so that only the check can be what stops it: the
+  // wrapper stays alive (its child's PDEATHSIG is armed against a process
+  // that does not die, so the kernel sends nothing for the length of this
+  // test) and ties the server to pid 1 instead of to itself — which is the
+  // state the race leaves behind, a tie to a process that is not my parent.
+  // The last assertion is the one that makes it airtight: the wrapper is
+  // still alive when the server is gone.
+  if (process.platform !== "linux") return
+  const run = await launch({ ...webLeg(), tied: 1, after: "stay" })
+  try {
+    await until(
+      BOUND_MS,
+      () => `the server to stop itself (log:\n${run.log()})`,
+      () => gone(run.childPid),
+    )
+    // Through the real disposition — `main.ts`'s own listener says so — and
+    // before it ever bound.
+    expect(run.log()).toContain("olai web: received SIGTERM")
+    expect(run.log()).not.toContain("message=serving")
+    expect(alive(run.wrapperPid)).toBe(true)
+  } finally {
+    run.stop()
+  }
+}, BOUND_MS * 4)
 
 test("PIN: a wrapper-started olai web outlives the wrapper, and goes on serving", async () => {
   // THE LANE'S BAR, at the product: a daemonising wrapper's whole job is to
