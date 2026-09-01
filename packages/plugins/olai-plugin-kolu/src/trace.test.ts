@@ -75,10 +75,11 @@ test("a list rides as one bare token, and an empty one is `none`", () => {
     ringing: listed(["11e565c0@tns", "4b5a3fb6@odu-doorbell"]),
     unmatched: listed([]),
   })
-  // `·` rather than a comma, so the token stays bare and the `grep` that is the
-  // whole point survives: quoting the list to keep a comma would cost it.
+  // A COMMA, and the token stays BARE: logfmt quotes on a space, a quote or an
+  // `=`, and a comma is none of the three — so `grep` reaches straight through
+  // the list without the separator having to be exotic to earn it.
   expect(it.lines[0]).toBe(
-    "kolu doorbell derived file=lanes.olai ringing=11e565c0@tns·4b5a3fb6@odu-doorbell"
+    "kolu doorbell derived file=lanes.olai ringing=11e565c0@tns,4b5a3fb6@odu-doorbell"
       + " unmatched=none",
   )
 })

@@ -1,50 +1,52 @@
 /**
- * WHAT THE DOORBELL DID, in one line per moment — the evidence half of
- * `doorbell-missing-claim`, and the reason that P1 took an afternoon and a
- * census of a chat transcript to find instead of one `grep`.
+ * WHAT THE DOORBELL DID, in one line per moment.
  *
- * ## Why this exists at all
+ * WHY there is an account at all is {@link ./doorbell.ts}'s header, where the
+ * incident that bought it is already told once: a doorbell's failure mode is a
+ * call that does not happen, which is byte-for-byte identical to its ordinary
+ * quiet operation. This module owns the FORMAT and nothing else.
  *
- * The doorbell was SILENT ABOUT ITSELF. It walked a vault, decided a meaning,
- * composed a sentence and handed it to core, and the only line it ever wrote
- * was the `catch` at the edge of {@link ./server.ts}'s `ring` — which fires
- * when the walk THROWS and never when it merely answers nothing. So the whole
- * failure mode this feature actually has (a terminal that is not in the set)
- * looks exactly like the whole success mode it is designed for (a terminal
- * nobody scoped): no call, no line, nothing.
+ * ## It is logfmt, and it is not a format of ours
  *
- * On 2026-09-01 a lane sat `waiting` for 26 minutes with the nag knob on and
- * drew nothing. Ruling out the queue, the scope, the knobs, the link and the
- * mirror took a per-terminal delivery census counted BY HAND out of a chat
- * transcript, because that transcript was the only record of what the doorbell
- * had done. One `derived` line naming the ringing set would have said it in one
- * glance: the terminal was not in it.
+ * `@olai/log`'s machine face is [logfmt](https://brandur.org/logfmt) — Effect's
+ * own `formatLogFmt`, one line per event, every value a `key=value` pair, quoted
+ * only when it has to be. That sink's header is explicit that a bespoke renderer
+ * would be one more thing to keep consistent with everything else the tree says,
+ * and it is right. So these lines are logfmt too: a `kolu doorbell` line and an
+ * annotated core line quote by the same rule and parse by the same reader.
  *
- * ## The shape, and why it is `key=value` rather than prose
+ * WHAT IT IS NOT is `Effect.annotateLogs`, which is how a package inside the
+ * Effect world says exactly this and would leave no rendering here to get
+ * wrong. A plugin cannot reach it: `PluginServices.say` is `(line: string) =>
+ * void` — core narrows the Effect away before a plugin ever sees the channel
+ * ({@link @olai/plugin-api}'s `PluginServer`). Widening that door is the real
+ * fix and it is a change to core's plugin contract, which is why the rendering
+ * is HERE and says so, rather than being quietly re-invented as if there were
+ * no better shape.
+ *
+ * ## One formatter, one moment vocabulary
  *
  * A moment and its facts. The moment is one word so a reader can filter to one
- * seam (`derived`, `classified`, `delivered`); the facts are `key=value` so the
- * answer to "which terminals were in the set at 21:42" is a `grep` and a look
- * rather than a paragraph to read. It is deliberately NOT JSON: these lines
- * share a log with Effect's own rendering and a person reads them at a
- * terminal, where one dense line beats a pretty-printed object every time.
+ * seam (`derived`, `classified`, `delivered`); the facts are `key=value` so
+ * "which terminals were in the set at 21:42" is a `grep` and a look.
  *
- * ONE FORMATTER for every call site, which is this module's whole reason to be
- * a module. Five seams composing their own sentences is five spellings of the
- * same fact and no way to `grep` across them — the same rule this package keeps
- * about `heldStateOf` and about `meaningOf`, kept about the thing that says what
- * happened.
+ * ONE FORMATTER for every call site, which is this module's whole reason to
+ * exist as one: five seams composing their own sentences is five spellings of
+ * one fact and no way to `grep` across them — the rule this package already
+ * keeps about `heldStateOf` and about `meaningOf`, kept about the thing that
+ * says what happened. The same rule binds the MOMENT WORDS, which is why one
+ * finding gets one word however many seams reach it.
  *
  * ## It is DEBUG, and that is a decision rather than a default
  *
  * `PluginServices.say` is `Effect.logDebug` and the instance's default level is
- * `info`, so none of this is on until somebody sets `OLAI_LOG_LEVEL=debug`. It
- * is the right level: a doorbell that narrated every event at `info` would be a
- * running commentary on a machine where nothing is wrong, and the one line that
- * mattered would arrive dressed as the ones a reader has learned to skip. What
- * matters is that the evidence EXISTS to be turned on, which it did not. The
- * owner's channel (`warn`) stays for what an owner must read without asking —
- * a malformed knob, a walk that threw — and this adds nothing to it.
+ * `info`, so none of this is on until somebody sets `OLAI_LOG_LEVEL=debug`. A
+ * doorbell that narrated every event at `info` would be a running commentary on
+ * a machine where nothing is wrong, and the one line that mattered would arrive
+ * dressed as the ones a reader has learned to skip. What matters is that the
+ * evidence EXISTS to be turned on, which it did not. The owner's channel
+ * (`warn`) keeps what an owner must read without asking — a malformed knob, a
+ * walk that threw — and this adds nothing to it.
  */
 
 /** One fact's value, as a caller has it to hand — a count, a word, a list, or
@@ -68,14 +70,11 @@ export type Trace = (moment: string, facts: Readonly<Record<string, Fact>>) => v
 const PREFIX = "kolu doorbell"
 
 /**
- * A value as one token.
+ * A value as one logfmt token — bare unless it holds a space, a quote or an
+ * `=`, and `JSON.stringify` when it does, which is that escape exactly.
  *
- * QUOTED ONLY WHEN IT HAS TO BE, through `JSON.stringify`, which is both the
- * escape and the test: a bare token is what a reader wants and what a `grep`
- * for `terminal=11e565c0` finds, so a file path (no spaces) stays bare and a
- * title (which may hold anything at all) gets quotes. The EMPTY string is
- * quoted too, because `key=` at the end of a line is indistinguishable from a
- * key whose value was lost.
+ * The EMPTY string is quoted too: `key=` at the end of a line is
+ * indistinguishable from a key whose value was lost.
  */
 const tokenOf = (fact: Fact): string => {
   if (fact === null) return "none"
@@ -101,15 +100,21 @@ export const tracing = (say: (line: string) => void): Trace => (moment, facts) =
  * A LIST OF THINGS AS ONE FACT — the ringing set, the values that matched
  * nobody, the scopes passed over.
  *
- * `·` rather than a comma, so the token stays bare through {@link tokenOf} and
- * a reader can still see where one entry ends: a comma is what a person's eye
- * expects to be able to split on, and quoting the whole list to keep it would
- * cost the `grep` that is the point. EMPTY IS `none`, the same word an absent
- * fact gets, because "the set was empty" and "there was no set" read the same
- * to somebody scanning and differ only in a way the surrounding line already
- * says.
+ * A COMMA, because logfmt does not care about one: a comma is not a space, a
+ * quote or an `=`, so the joined value stays a bare token and `grep` reaches
+ * straight through it. This used to join on `·` under a paragraph arguing that
+ * a comma would force quoting — which it does not, so the separator was a
+ * convention invented to dodge a rule it never triggered. It was also a
+ * separator this package had already spent: `repo·label` is kolu's own
+ * spelling for a terminal's name ({@link @olai/kolu-client/wire}'s `whoOf`),
+ * and one glyph meaning two things inside one line is the ambiguity a
+ * separator exists to prevent.
+ *
+ * EMPTY IS `none`, the same word an absent fact gets: "the set was empty" and
+ * "there was no set" read alike to somebody scanning, and the surrounding line
+ * already says which.
  */
 export const listed = (entries: Iterable<string>): Fact => {
   const all = [...entries]
-  return all.length === 0 ? null : all.join("·")
+  return all.length === 0 ? null : all.join(",")
 }

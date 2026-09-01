@@ -148,11 +148,11 @@ Every line is `kolu doorbell <moment> key=value …`, so one moment is one `grep
 
 ```
 kolu doorbell event kind=nag at=2026-09-01T21:52:52.107Z terminal=11e565c0 state=waiting
-kolu doorbell derived file=orchestrator/lanes.olai claims=9 ringing=11e565c0@task-notification-spill·4b5a3fb6@odu-doorbell unmatched=none fleet=11
+kolu doorbell derived file=orchestrator/lanes.olai claims=9 ringing=11e565c0@task-notification-spill,4b5a3fb6@odu-doorbell unmatched=none fleet=11
 kolu doorbell scopes terminal=11e565c0 scoped=1 files=orchestrator/lanes.olai
 kolu doorbell classified terminal=11e565c0 file=orchestrator/lanes.olai agent=olai session=s-1 meaning=wake
 kolu doorbell delivering file=orchestrator/lanes.olai meaning=wake agent=olai session=s-1 coalesce=kolu:wake
-kolu doorbell said file=orchestrator/lanes.olai meaning=wake standing=2 terminals=11e565c0·4b5a3fb6
+kolu doorbell said file=orchestrator/lanes.olai meaning=wake standing=2 terminals=11e565c0,4b5a3fb6
 kolu doorbell delivered file=orchestrator/lanes.olai meaning=wake agent=olai session=s-1 said=true
 ```
 
