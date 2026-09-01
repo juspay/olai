@@ -45,7 +45,7 @@
  *     into its spec and re-exports), `./detect` (the spawn-time probe's
  *     surface), `./testlib` (the fake padi and its lifecycle) and `./drivers`
  *     (the two padi-dialing evidence scripts).
- *   - **`olai-plugin-kolu`'s `src/ui/`** — EVERYTHING BROWSER. The Dock row on a
+ *   - **`olai-plugin-kolu`'s `src/appliance/`** — EVERYTHING BROWSER. The Dock row on a
  *     `terminal` property, the live pane, the re-attach policy, the fleet the
  *     tab holds once, and the words the header readout says. Its socket is
  *     `KoluUi` — the app hands over its composed client and a clock, and

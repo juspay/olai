@@ -128,7 +128,7 @@ export const resolveTerminal = (value: string, ids: Iterable<string>): Resolved 
  *
  * IT USED TO BE SPELLED TWICE, one spelling on each side of a package wall:
  * `olai-plugin-kolu`'s `doorbell.ts` composed the clause into its sentence,
- * `olai-plugin-kolu`'s `ui/padi/events.ts` folded it for the feed, and each header
+ * `olai-plugin-kolu`'s `appliance/padi/events.ts` folded it for the feed, and each header
  * promised the reader that the two answered identically for the same row.
  * They did not. The blank-label case above was live in BOTH and had to be
  * repaired in BOTH, in lockstep, inside one diff — which is the whole of what

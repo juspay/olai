@@ -12,14 +12,14 @@
  * ## The browser half arrives through here, which is why this file has a graph
  *
  * `./wire.ts` is a schema and a name and could be read by a daemon. THIS module
- * reaches `./browser/` and `./ui/`, and therefore SolidJS and, behind
+ * reaches `./browser/` and `./appliance/`, and therefore SolidJS and, behind
  * one of these faces, a terminal emulator. That is the whole reason
  * `olai-plugin-kolu` exports three code entries rather than one, and
  * `packages/plugin-api/src/fence.test.ts` walks each closure rather than trusting
  * this paragraph.
  */
 
-import { TerminalBlock } from "./ui/index.ts"
+import { TerminalBlock } from "./appliance/index.ts"
 
 import { KoluMark } from "./browser/Mark.tsx"
 import { KoluMount } from "./browser/mount.tsx"
@@ -41,7 +41,7 @@ export const plugin = {
    * no quiet state to be quiet about — where the CI face one appliance over is
    * a chip that draws nothing most of the time.
    *
-   * The COMPONENT is `./ui/`'s, behind a module boundary, because it
+   * The COMPONENT is `./appliance/`'s, behind a module boundary, because it
    * renders kolu's row and mounts kolu's emulator and that is an appliance's
    * implementation. What is decided HERE is the one thing that is olai's: that
    * this kind wears that face.

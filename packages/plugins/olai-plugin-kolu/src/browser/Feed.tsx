@@ -1,7 +1,7 @@
 /**
  * WHAT RECENTLY WANTED ATTENTION — the contents of the drawer off the Padi pill.
  *
- * THE ROWS ARE THE APPLIANCE'S (`../ui/`'s `EventsFeed`) and THE BOX IS
+ * THE ROWS ARE THE APPLIANCE'S (`../appliance/`'s `EventsFeed`) and THE BOX IS
  * THE APP'S (`./app.ts`'s `Panel` — portalled, placed against the pill, layered,
  * and holding one half of the bar's focus cycle). What is left for this file is
  * the part that is neither: the heading, and the FOOT.
@@ -39,14 +39,14 @@
 
 import { Show } from "solid-js"
 
-import { EventsFeed, useFleet } from "../ui/index.ts"
+import { EventsFeed, useFleet } from "../appliance/index.ts"
 
 import { TESTID } from "../testids.ts"
 import type { KoluApp } from "./app.ts"
 
 /**
  * THE FOOT — see the header. Read off the fleet context the drawer's rows
- * already read from (`../ui/`'s `fleet` holds the cell's value): the
+ * already read from (`../appliance/`'s `fleet` holds the cell's value): the
  * convention answers on the same frame the timers get their knobs from, so the
  * door here and the file the watch is actually paced by can never be two files
  * — move `Kolu.olai` and the wrench moves with the revision, exactly as a

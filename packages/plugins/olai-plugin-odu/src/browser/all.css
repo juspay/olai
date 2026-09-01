@@ -11,7 +11,7 @@
  *
  * So the sheet carries a `@source` relative to THIS directory and nothing else,
  * and a consumer imports one line and knows nothing about where any of it
- * landed. That is `olai-plugin-kolu`'s `ui/props/all.css` one appliance over — its
+ * landed. That is `olai-plugin-kolu`'s `appliance/props/all.css` one appliance over — its
  * header argues the pattern in full and names the round upstream that taught it
  * ("a package that ships a stylesheet has to carry its own prerequisites and
  * point Tailwind at ITSELF").

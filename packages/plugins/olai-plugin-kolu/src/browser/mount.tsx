@@ -10,7 +10,7 @@
  *
  * ## What comes through, and what deliberately does not
  *
- * `../ui/`'s `KoluUi` is unchanged and does the work: it binds the three
+ * `../appliance/`'s `KoluUi` is unchanged and does the work: it binds the three
  * cells, the two collections, the screen read and the pane's un-enrolled stream,
  * and its own header argues each. What this module adds is the two things that
  * are not the appliance's:
@@ -39,8 +39,8 @@
 
 import type { JSX } from "solid-js"
 
-import { KoluUi } from "../ui/index.ts"
-import type { KoluClient } from "../ui/index.ts"
+import { KoluUi } from "../appliance/index.ts"
+import type { KoluClient } from "../appliance/index.ts"
 
 import type { KoluApp } from "./app.ts"
 

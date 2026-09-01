@@ -7,29 +7,28 @@
  * held what KOLU draws (the Dock row, the pane, the events list) and this module
  * held what OLAI draws about kolu (the padi pill and the drawer its press
  * opens). The line is still exactly right and it is still drawn — the two tables
- * are two modules, `./ui/testids.ts` and this one — but it is no longer a
+ * are two modules, `./appliance/testids.ts` and this one — but it is no longer a
  * PACKAGE line, so it is no longer two doors. The appliance fold made kolu's
  * browser half a module directory of this plugin, and a package has one
  * `./testids` entry the way it has one name.
  *
  * The merge is a SPREAD, and a spread resolves a collision SILENTLY in favour of
- * whichever was written last — the explicit keys below win over `...ui` with no
+ * whichever was written last — the explicit keys below win over `...appliance` with no
  * diagnostic anywhere, because TypeScript's duplicate-key error fires only for
  * two literal keys in ONE literal. Before the fold these were two packages and
  * both were rows in `@olai/plugin-api`'s disjointness sweep; that sweep now sees
  * kolu's POST-MERGE object, so a key lost here is gone before it runs and its
  * own count compares the survivors with the survivors. The guarantee the package
- * wall used to carry is `./testids.test.ts` beside this file, and it asks the
- * question with no derived value in it: every id `./ui/testids.ts` declares is
- * the id THIS table carries, and no two keys here share a value. Its header
- * records the draft that reconstructed the other half by subtraction and could
- * therefore never fail — worth reading before touching either.
+ * wall used to carry is the pair of TYPE-LEVEL assertions below, which make a
+ * collision a compile error naming the key or the value rather than a claim
+ * anybody has to keep green. Two earlier drafts got this wrong and both are
+ * recorded there, because the ways they were wrong are the interesting part.
  *
  * ## NAMES ONLY, and that is a graph claim rather than a style one
  *
  * Neither module imports anything but the other, and neither may: `packages/tests`
  * runs under a cucumber process with no browser in it, and a testid door that
- * pulled a component would put SolidJS — and, behind `./ui/`, a terminal
+ * pulled a component would put SolidJS — and, behind `./appliance/`, a terminal
  * emulator — on the graph of a suite that only wanted a string. That package's
  * own import sweep is what holds it, at the other end.
  *
@@ -41,19 +40,21 @@
  * timeout that says nothing about why. Declaring them once and importing them on
  * both sides makes a rename a type error.
  */
-import { TESTID as ui } from "./ui/testids.ts"
+import { TESTID as appliance } from "./appliance/testids.ts"
 
-export const TESTID = {
-  ...ui,
+/** WHAT OLAI DRAWS ABOUT KOLU — the chrome half, named rather than written
+ *  straight into the merge, so the composition below has two values to be
+ *  disjoint ABOUT. It is not exported: the door is `TESTID`. */
+const CHROME = {
   /** WHETHER THIS OLAI CAN SEE KOLU'S TERMINALS — the third chrome readout,
    *  beside the connection and the Commit pill (`./browser/Padi.tsx`).
    *  `data-padi` is the closed set `connected` / `absent` / `skew`. Always drawn
    *  on desktop: an indicator that appears only when something is wrong cannot
    *  be trusted when it is absent. */
   padi: "padi",
-  /** THE FEED the pill's press opens — the box of `./ui/`'s
+  /** THE FEED the pill's press opens — the box of `./appliance/`'s
    *  `EventsFeed`. THE PANEL'S OWN HANDLE only: the rows are the appliance's and
-   *  are asserted through `./ui/testids.ts`, spread into the table below (`...ui` is its first line). */
+   *  are asserted through `./appliance/testids.ts`, spread into the table below (`...appliance` is its first line). */
   padiFeed: "padi-feed",
   /** THE FEED'S FOOT — the drawer's last line, which is the wrench onto the
    *  config and nothing else (`./browser/Feed.tsx`). Present only when there
@@ -70,3 +71,56 @@ export const TESTID = {
    *  the watch's thresholds are one press away as an ordinary outline page. */
   padiFeedWrench: "padi-feed-wrench",
 } as const
+
+/**
+ * THE MERGE, WITH THE COLLISION MADE UNREPRESENTABLE RATHER THAN CHECKED.
+ *
+ * A spread resolves a collision silently in favour of whichever was written
+ * last, and TypeScript's duplicate-key diagnostic fires only for two literal
+ * keys in ONE literal — so `{ ...appliance, ...CHROME }` can drop an id with no
+ * diagnostic anywhere. That was prose first, then a test beside this file that
+ * could not fail (its header records why), then a pair of module-scope throws.
+ *
+ * The throws are gone because the compiler turned out to be able to make the
+ * claim itself: both halves are `as const`, so their VALUES are literal unions,
+ * and asking whether the two unions share a member is a type-level question with
+ * a type-level answer. The runtime value check written first was in fact DEAD
+ * CODE, and `tsc` said so in as many words — *"This comparison appears to be
+ * unintentional because the types '"terminal-block" | … ' and '"padi" | …' have
+ * no overlap."* An assertion the compiler can prove vacuous is one it can also
+ * prove, so it is stated as a type.
+ *
+ * Each assertion is a value whose TYPE is `true` while the intersection is
+ * empty, and is the offending member otherwise — so a collision is a compile
+ * error that NAMES the key or the value, on the line below, in every
+ * `just typecheck` and every editor, forever. It costs no runtime code, ships
+ * nothing to the browser, and needs no test: a claim `tsc` refuses cannot be
+ * exercised at runtime, and its falsifier is a planting run against `tsc`.
+ *
+ * ONE LIMIT, MEASURED RATHER THAN ASSUMED, because the first draft of this
+ * paragraph claimed the opposite and was wrong. The KEY assertion survives an
+ * `as const` being dropped from either half — keys stay literal in an object
+ * type regardless — and a planted collision still fails `tsc` naming the key.
+ * The VALUE assertion does NOT: without `as const` the values widen to `string`,
+ * and `Extract<string, "padi" | …>` is `never`, so the intersection is empty for
+ * the wrong reason and a planted value collision compiles clean. Both were
+ * checked by planting, in all four combinations. `as const` on both halves is
+ * therefore load-bearing for the value half, which is what these two words are
+ * doing here rather than being style.
+ */
+type SharedKey = Extract<keyof typeof appliance, keyof typeof CHROME>
+type SharedValue = Extract<
+  (typeof appliance)[keyof typeof appliance],
+  (typeof CHROME)[keyof typeof CHROME]
+>
+
+/** No key is declared by both halves — a spread would drop one silently. */
+const _noSharedKey: [SharedKey] extends [never] ? true : SharedKey = true
+/** No value is worn by both — one `[data-testid=…]` may name one component. */
+const _noSharedValue: [SharedValue] extends [never] ? true : SharedValue = true
+void _noSharedKey
+void _noSharedValue
+
+/** THE DOOR: both halves, in one table. The `as const` is load-bearing rather
+ *  than habitual — see the value assertion's measured limit above. */
+export const TESTID = { ...appliance, ...CHROME } as const

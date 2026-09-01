@@ -54,24 +54,15 @@ fi
 
 # ── the tree, derived ────────────────────────────────────────────────────────
 
-# Every workspace member, as a path, read off the root manifest's own globs.
-#
-# `if` RATHER THAN `&&`, in all three derivations below, and the reason is a bug
-# this script hit on itself. Under `set -e` a failing AND-list is a failing
-# COMMAND, so `[ -f x ] && echo x` as the last statement of a loop body kills the
-# subshell as soon as the last iteration's test is false — before any trailing
-# `true` can run. The whole substitution then returns 1 and takes the parent with
-# it, silently, with no output at all. It went unnoticed until adding
-# `packages/plugins/README.md` changed which entry the `packages/plugins/*` glob
-# visits last: a directory-shaped name with no manifest behind it, and the run
-# died before printing a line. An `if` is not an AND-list and does not trip it.
-members=$(
-  jq -r '.workspaces[]' package.json | while read -r glob; do
-    for dir in $glob; do
-      if [ -f "$dir/package.json" ]; then echo "$dir"; fi
-    done
-  done
-)
+# Every workspace member, from the one script that expands the field. This used
+# to be its own `jq | while read` loop with no empty-glob guard — the third
+# expansion of one fact, and the one that would have reported a short list in
+# silence while its two siblings threw. `scripts/workspace-members.sh` is the
+# shared rule; what stays independent here is the REGISTRY and the PLUGINS
+# below, which are re-derived from different sources than the fence uses on
+# purpose, because a harness that re-derived from the fence's own arithmetic
+# would prove nothing.
+members=$(sh "$root/scripts/workspace-members.sh" "$root")
 
 # THE REGISTRY: the member that owns the fence.
 registry=$(for m in $members; do if [ -f "$m/src/fence.test.ts" ]; then echo "$m"; fi; done)

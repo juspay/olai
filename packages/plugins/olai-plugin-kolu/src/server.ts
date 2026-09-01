@@ -19,7 +19,7 @@
  * taste. `./wire` is what every listener statically pulls in and may carry no
  * UI runtime and no padi. The ROOT is the manifest, and the manifest is where
  * this plugin's browser faces hang — the Dock row, the live pane, the header
- * readout, all of them `./ui/`'s and all of them SolidJS. A server that
+ * readout, all of them `./appliance/`'s and all of them SolidJS. A server that
  * reached the runtime half through the manifest would pull a UI runtime and an
  * emulator onto the graph of a process that renders nothing, which is the exact
  * hazard `@olai/kolu-client/wire`'s own fence was written for one floor down.

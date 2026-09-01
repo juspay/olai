@@ -672,9 +672,11 @@ names the file.
 | `packages/plugin-api/src/fence.test.ts` | no general package **imports** a plugin (four grammars: imports, `scanImports`, CSS `@import`, manifests) — no general package **spells** one in production code — and `packages/plugins/` holds the tenants and nothing else, both directions |
 | `scripts/prove-fence.sh` | the fence and the mechanics lint go RED when they should. Not a `just check` leg: it mutates tracked files and puts them back, and `check` runs its legs in parallel. Run it when the fence CHANGES — a sweep's one failure mode is going quiet, and a fence that stopped running looks exactly like a fence that is holding |
 | `packages/plugin-api/src/mechanics.test.ts` | olai names no wire mechanic the framework performs |
+| `packages/plugin-api/src/tree.testlib.ts` | not a claim — the READING both of the above stand on (workspace members, manifests, sources, the module graph). Split out so the two files above are their claims and nothing else, and so the source walk is written once |
 | `packages/plugin-api/src/rosters.test.ts` | the three doors list the same plugins, in the same order |
 | `packages/plugin-api/src/composition.test.ts` | an empty roster composes, and core's tags do not move |
-| `packages/plugin-api/src/testids.test.ts` | two plugins' testid tables are disjoint |
+| `packages/plugin-api/src/testids.test.ts` | two plugins’ testid tables are disjoint — and one layer further out, `packages/web/src/client/testids.test.ts` holds the app’s own table disjoint from theirs, which is the seam `selector()` actually spends |
+| `packages/plugins/olai-plugin-kolu/src/testids.ts` | a tenant’s two testid halves share no key and no value — a TYPE-level assertion, so a collision is a `tsc` error naming the offender rather than a test somebody keeps green |
 | `packages/tests/plugin_docs.test.ts` | every plugin's docs page exists, is served, and is linked |
 | `packages/server/src/faces.test.ts` | `chat.scope` is named on the **browser** face and nowhere else — the agent face is pinned as an exact set, so an agent-settable doorbell is a red suite rather than a rule somebody has to remember |
 | `packages/server/src/runtime.test.ts` | a `wake` sentence reaches the roster only for a plugin this serve is RUNNING, so no picker is offered for a doorbell nothing would ring |

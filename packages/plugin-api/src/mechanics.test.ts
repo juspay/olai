@@ -54,12 +54,13 @@
  * `connectSurfaces` itself.
  */
 
-import { readdirSync, readFileSync } from "node:fs"
+import { readFileSync } from "node:fs"
 import * as path from "node:path"
 
 import { expect, test } from "bun:test"
 
-const PACKAGES = path.join(import.meta.dirname, "..", "..")
+import { MEMBERS, PACKAGES, sourcesUnder } from "./tree.testlib.ts"
+
 
 /** This file, which quotes every name it forbids. Excluded by PATH rather than
  *  by a comment-stripping pass, because a sweep clever enough to know which of
@@ -87,20 +88,20 @@ const MECHANICS: ReadonlyArray<string> = [
   "fuseFaces",
 ]
 
-const sourcesUnder = (dir: string): ReadonlyArray<string> =>
-  readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    const full = path.join(dir, entry.name)
-    if (entry.isDirectory()) return entry.name === "node_modules" ? [] : sourcesUnder(full)
-    return entry.isFile() && /\.tsx?$/.test(entry.name) ? [full] : []
-  })
-
-/** Every package's own sources, root-relative, so a failure reads as a path
- *  somebody can open. */
-const SOURCES: ReadonlyArray<{ file: string; code: string }> = readdirSync(PACKAGES, {
-  withFileTypes: true,
-})
-  .filter((entry) => entry.isDirectory())
-  .flatMap((pkg) => sourcesUnder(path.join(PACKAGES, pkg.name)))
+/** Every MEMBER's own sources, root-relative, so a failure reads as a path
+ *  somebody can open.
+ *
+ *  The walk and the member list are `./tree.testlib.ts`'s. This file used to
+ *  carry its own copy of both — the same recursion, the same `node_modules`
+ *  argument, written twice in one package with no wall between them — beside a
+ *  one-level `readdirSync(PACKAGES)` which the appliance fold's nesting turned
+ *  into a reading that keys a tenant's files under `plugins` rather than under
+ *  its package. Sharing a READER is not sharing a CLAIM: the six names below
+ *  and the equality they are held to are this file's alone, which is what its
+ *  header means by owing the proof. */
+const SOURCES: ReadonlyArray<{ file: string; code: string }> = MEMBERS
+  .flatMap((member) => sourcesUnder(path.join(PACKAGES, member)))
+  .filter((full) => /\.tsx?$/.test(full))
   .map((full) => ({ file: path.relative(PACKAGES, full), code: readFileSync(full, "utf8") }))
   .filter((one) => one.file !== SELF)
 

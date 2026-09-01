@@ -6,7 +6,7 @@ olai's own judgement **about odu**, in the one place that is neither odu nor cor
 
 `@odu/*` is imported in exactly one package and it is not this one. `@olai/odu-client` resolves a `worktree` value into a checkout, dials `.ci/odu.sock`, holds the two cells odu publishes per run, and folds odu's own `STATUS_META` where that table actually lives — so a change to odu's contract is a change **there** and stops. `packages/plugin-api/src/fence.test.ts` asserts it with zero exceptions, deriving the tenant from the registry rather than carrying a list — which is what admits a plugin package that legitimately names its own appliance. What crosses into here is olai's vocabulary — a `CiRun`, a `RunCell` — and nothing of odu's.
 
-That is worth stating plainly because this package's `solid-js` dependency invites the opposite guess. It is here because this package OWNS its browser faces: odu has no separate face directory the way kolu has [`src/ui/`](../olai-plugin-kolu/src/ui/), and it needs none — nothing it draws reaches odu's product tier, so there is no second wall for a second package to be. One package, three code doors, and the appliance still confined a floor below.
+That is worth stating plainly because this package's `solid-js` dependency invites the opposite guess. It is here because this package OWNS its browser faces: odu has no separate face directory the way kolu has [`src/appliance/`](../olai-plugin-kolu/src/ui/), and it needs none — nothing it draws reaches odu's product tier, so there is no second wall for a second package to be. One package, three code doors, and the appliance still confined a floor below.
 
 ## One cell, and one cell is a whole surface
 

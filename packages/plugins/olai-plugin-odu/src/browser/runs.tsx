@@ -1,7 +1,7 @@
 /**
  * THE CI RUNS, as this tab holds them — ONE subscription, however many chips.
  *
- * `olai-plugin-kolu`'s `ui/props/fleet.tsx` one appliance over, and the economy is the
+ * `olai-plugin-kolu`'s `appliance/props/fleet.tsx` one appliance over, and the economy is the
  * same: an outline can carry a `worktree` property on a dozen rows, and every
  * one of them wants to know whether its checkout is mid-run. That costs one
  * subscription per TAB and one probe per SERVER — so a chip must not

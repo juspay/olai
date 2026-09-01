@@ -20,7 +20,7 @@
  * classes and NOTHING errors — not a missing style, a component with no box, no
  * ink and no spacing. Each plugin's sheet therefore carries a `@source` relative
  * to its own directory (and, where its faces sit on somebody else's components,
- * that package's sheet ahead of it), which is `olai-plugin-kolu`'s `ui/props/all.css`
+ * that package's sheet ahead of it), which is `olai-plugin-kolu`'s `appliance/props/all.css`
  * one floor down and the rule its header states: a package that ships a
  * stylesheet carries its own prerequisites and points Tailwind at ITSELF.
  *

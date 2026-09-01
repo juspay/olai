@@ -148,7 +148,7 @@ import type { Entry } from "../props/drawer.ts"
  * The ENTRY and one verb, deliberately: a face that needed the node, the page
  * or the wire would be a face the drawer has to know something about, and the
  * point of the seam is that it does not. Everything else a face needs it reads
- * from a context of its own — which is what `olai-plugin-kolu`'s `ui/props/fleet.tsx` and
+ * from a context of its own — which is what `olai-plugin-kolu`'s `appliance/props/fleet.tsx` and
  * `olai-plugin-odu`'s `runs.tsx` already are.
  */
 export interface BlockContext {

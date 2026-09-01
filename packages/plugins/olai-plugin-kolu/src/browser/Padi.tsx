@@ -46,7 +46,7 @@
 
 import { Show } from "solid-js"
 
-import { padiSaid, useFleet } from "../ui/index.ts"
+import { padiSaid, useFleet } from "../appliance/index.ts"
 
 import { TESTID } from "../testids.ts"
 import type { KoluApp } from "./app.ts"

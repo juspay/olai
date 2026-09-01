@@ -2,7 +2,7 @@
  * THE CI FACES' TEST IDS — this plugin's half of olai's testid table.
  *
  * They split along the RENDERER split, which is the only line that makes sense
- * and is `olai-plugin-kolu`'s own (`src/ui/testids.ts` one appliance over, whose header
+ * and is `olai-plugin-kolu`'s own (`src/appliance/testids.ts` one appliance over, whose header
  * argues it first): a scenario asserting on the CI chip is asserting on THIS
  * package's output, and an id it could only reach through `@olai/web` would be a
  * suite reading one package's DOM through another package's door.

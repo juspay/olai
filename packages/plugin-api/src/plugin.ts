@@ -46,7 +46,7 @@
  * makes with the surface's `Status` — *"typed as the surface's own shape,
  * which `@olai/ops` declares structurally: the two drifting is a type error
  * here rather than a mapping to maintain"* — and the same one
- * `olai-plugin-kolu`'s `ui/props/block.ts` already makes with the drawer's entry.
+ * `olai-plugin-kolu`'s `appliance/props/block.ts` already makes with the drawer's entry.
  *
  * A structural fit is a weaker guarantee than an annotation in exactly one
  * way: a typo in a member name is named at the registry rather than at the
@@ -250,7 +250,7 @@ export interface PropKind {
  *
  * No plugin imports this file — {@link OlaiPlugin}'s header argues the direction
  * — so a plugin re-declares the parts of the furniture it reads, exactly as
- * `olai-plugin-kolu`'s `ui/props/block.ts` already does with the drawer's entry. That is a
+ * `olai-plugin-kolu`'s `appliance/props/block.ts` already does with the drawer's entry. That is a
  * STRONGER agreement than a shared import rather than a weaker one: a plugin's
  * own declaration names exactly what it touches, function parameters are
  * contravariant, and so a plugin asking for something the app does not hand over
@@ -600,7 +600,7 @@ export type PluginMark = () => JSX.Element
  * subscription per leaf is what a shell mount exists to refuse: an outline can
  * carry a `worktree` on a dozen rows and a `terminal` on forty. So the plugin
  * subscribes ONCE, here, and hands every leaf an accessor over the answer, which
- * is the arrangement `olai-plugin-kolu`'s `ui/props/fleet.tsx` and `@olai/web`'s `served.tsx`
+ * is the arrangement `olai-plugin-kolu`'s `appliance/props/fleet.tsx` and `@olai/web`'s `served.tsx`
  * both already are.
  *
  * `client` is this plugin's OWN sibling client, typed by its OWN spec — the

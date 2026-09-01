@@ -9,7 +9,7 @@
  * — the direction argued at length in that package's `plugin.ts` and held by its
  * `fence.test.ts` rather than by a reviewer's memory. The agreement is proved at
  * the registry's `satisfies` instead, which is the same pin `olai-plugin-kolu`'s
- * `ui/props/block.ts` already keeps with the drawer's entry and `@olai/ops` keeps with
+ * `appliance/props/block.ts` already keeps with the drawer's entry and `@olai/ops` keeps with
  * the surface's `Status`.
  *
  * ## Why this is the STRONGER agreement, not a concession

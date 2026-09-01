@@ -142,7 +142,7 @@ test: install
       ./packages/web/src/client/chat/attention/asked.browsertest.ts \
       ./packages/web/src/client/chat/attention/elsewhere.browsertest.ts \
       ./packages/web/src/client/chat/declared.browsertest.ts \
-      ./packages/plugins/olai-plugin-kolu/src/ui/props/held.browsertest.ts
+      ./packages/plugins/olai-plugin-kolu/src/appliance/props/held.browsertest.ts
 
 # Every dependency the hydrated @kolu/* sources declare, checked against the
 # root package.json, every workspace manifest and the root `overrides` block

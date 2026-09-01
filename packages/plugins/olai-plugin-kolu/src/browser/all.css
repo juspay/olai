@@ -10,7 +10,7 @@
  *
  * ## Why the appliance's sheet is chained rather than left to the consumer
  *
- * `../ui/props/all.css` carries the Dock row's sheet, the emulator's layout and
+ * `../appliance/props/all.css` carries the Dock row's sheet, the emulator's layout and
  * a `@source` at ITS OWN directory, and its header states the rule this file
  * inherits: *a sheet has to carry its own prerequisites and point Tailwind at
  * ITSELF, because a consumer that has to know the order and the scan paths is a
@@ -31,7 +31,7 @@
  * dials every plugin the BUILD has (`@olai/web`'s `client/wire.ts` argues it in
  * full), and what a serve leaves out is a sibling whose members are simply not
  * there. */
-@import "../ui/props/all.css";
+@import "../appliance/props/all.css";
 
 /* THE SCAN PATH, relative to this file and nothing else — what keeps these
  * faces' utilities alive wherever the directory ends up. */

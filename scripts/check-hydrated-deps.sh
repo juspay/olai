@@ -138,54 +138,18 @@ fi
 # at the same version, so a drifting manifest is the same two-instances failure
 # read off a different pin.
 #
-# EVERY WORKSPACE MEMBER, off the root manifest's own `workspaces` globs rather
-# than off a glob written here. It was `packages/*/package.json`, which was the
-# same set only while every member sat at the top — and the day the tenants moved
-# into `packages/plugins/` it would have walked every member but the two that
-# wrap an appliance, which are precisely the ones most likely to name a pinned
-# external. It would have drifted here in silence, which is the failure mode
-# this whole script exists against.
-#
-# A SECOND GLOB beside the first would have fixed that day and left the next one
-# to find. Reading the field `bun install` itself installs from cannot go stale:
-# a member this loop cannot see is a member that is not in the tree at all.
-#
-# `nullglob` is not assumed — an unmatched pattern stays literal in POSIX sh —
-# so the `-f` guard is what makes that a skip rather than a `jq` reading a file
-# called `*`.
-# ...AND A GLOB THAT EXPANDS TO NOTHING IS A REFUSAL, not a skip. `nullglob` is
-# not assumed — an unmatched pattern stays literal in POSIX sh — so without this
-# the `-f` guard turns "that directory is not there" into "there were no
-# manifests to check", green. That is the failure mode this whole script is
-# written against, and `packages/plugin-api/src/fence.test.ts` makes the same
-# ruling about the same field one language over: a corpus that came back short
-# is a check that did not run.
-#
-# The globs are read with `while read` rather than `for glob in $(jq …)`,
-# because an unquoted command substitution is PATHNAME-EXPANDED as well as
-# word-split: `packages/*` would be expanded by the `for` list itself and the
-# loop would iterate over the members instead of over the globs. The inner loop
-# is where expansion is wanted, and it is the only place it happens.
-members=""
-while IFS= read -r glob; do
-  [ -n "$glob" ] || continue
-  found=""
-  for manifest in "$root"/$glob/package.json; do
-    [ -f "$manifest" ] || continue
-    found="$found $manifest"
-  done
-  if [ -z "$found" ]; then
-    echo "check-hydrated-deps: the workspaces glob '$glob' matched no package.json." >&2
-    echo "  A glob that installs nothing is a typo or a missing directory, and either" >&2
-    echo "  way this check would pass by not looking." >&2
-    exit 1
-  fi
-  members="$members $found"
-done <<GLOBS
-$(jq -r '.workspaces[]' "$root/package.json")
-GLOBS
+# EVERY WORKSPACE MEMBER, from the one script that expands the field. It was a
+# glob written here, which was the same set only while every member sat at the
+# top of `packages/` — and the day the tenants nested it would have walked every
+# member but the two that wrap an appliance, which are precisely the ones most
+# likely to name a pinned external. A second glob beside the first would have
+# fixed that day and left the next one to find; `scripts/workspace-members.sh`
+# reads the field `bun install` itself installs from, and refuses a glob that
+# matched nothing rather than reporting a short list.
+members=$(sh "$root/scripts/workspace-members.sh" "$root")
 
-for manifest in $members; do
+for member in $members; do
+  manifest="$root/$member/package.json"
   drift=$(
     printf '%s' "$wanted" | jq -r --slurpfile pkg "$manifest" --arg label "$label" '
       to_entries[]
