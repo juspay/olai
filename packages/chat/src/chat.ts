@@ -559,6 +559,21 @@ interface Undelivered {
 }
 
 /**
+ * A CONTRACT ABOUT TO GO OUT: the lines, and the conversation they are for.
+ *
+ * ONE VALUE rather than two facts a send holds side by side, and the pairing is
+ * the whole of what it buys: the lines are built from one read of the binding
+ * table, and the mark written down afterwards has to be about the conversation
+ * that read named — not about whichever one the panel is in a beat later. Two
+ * separate reads is exactly how a session swapped mid-send would leave a
+ * conversation marked taught that never heard a word.
+ */
+interface Teaching {
+  readonly to: Deliveries.Addressed
+  readonly lines: ReadonlyArray<string>
+}
+
+/**
  * WHAT EACH KIND OF FRAME IS EVIDENCE OF — the one table two questions are
  * answered from.
  *
@@ -1018,14 +1033,21 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * not declare — which is a binding pointing at a record that has been
      * trashed or has lost its property, and where telling an agent its memory
      * is a node that is not there would be worse than telling it nothing.
+     *
+     * THE ANSWER CARRIES THE CONVERSATION IT IS FOR, which is what makes it one
+     * value rather than two facts a send has to keep in step: the lines and
+     * "whose contract these are" are decided in the same breath, off one read
+     * of the table, and the mark that goes to disk afterwards is written
+     * against THAT conversation rather than against whichever one the panel has
+     * come to be in ({@link taught}).
      */
-    const teaching = (): ReadonlyArray<string> => {
+    const teaching = (): Teaching | null => {
       const to = conversationOf()
-      if (to === null) return []
+      if (to === null) return null
       const row = options.binding?.at(to)
-      if (row === undefined || row.taught === true) return []
-      const charge = options.charge?.(row.node) ?? null
-      return charge === null ? [] : teachingFor(charge)
+      if (row === undefined || row.taught === true) return null
+      const node = options.charge?.(row.node) ?? null
+      return node === null ? null : { to, lines: teachingFor(node) }
     }
 
     /**
@@ -1041,16 +1063,22 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * with them, and whether the agent finished reading is not a thing anything
      * here can answer.
      *
+     * THE CONVERSATION IS HANDED IN, and it is the one the LINES were built
+     * for ({@link Teaching}) rather than whichever one the panel is in by the
+     * time this runs. Re-reading it here would be a second answer to "who was
+     * taught" a beat after the first, and the two differ in exactly the case
+     * that matters — a session swapped under a send — where it would mark a
+     * conversation taught that never heard a word.
+     *
      * FORKED AND DETACHED, because it is a disk write behind a gesture that has
      * already been answered — and its failure is a LOG rather than a refusal
      * ({@link ./agents.ts}): the cost of losing it is one contract taught twice,
      * which is not worth taking a send away from somebody over.
      */
-    const taught = (key: string): Effect.Effect<void> =>
+    const taught = (to: Deliveries.Addressed, key: string): Effect.Effect<void> =>
       Effect.gen(function*() {
-        const to = conversationOf()
         const binding = options.binding
-        if (to === null || binding === undefined || binding === null) return
+        if (binding === undefined || binding === null) return
         const row = transcript.entries().get(key)
         if (row === undefined || row.kind !== "user" || row.delivery !== undefined) return
         const done = yield* Effect.result(binding.teach(to))
@@ -1679,7 +1707,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         // attachments and the armed nodes ride ({@link ./prompt.ts}).
         const teach = teaching()
         const prompt = Attachments.promptWith(
-          Context.promptWith(annotated(said, teach), context),
+          Context.promptWith(annotated(said, teach?.lines ?? []), context),
           attachments,
         )
         // BEHIND WHATEVER IS OPENING A CONVERSATION ({@link opening}), which is
@@ -1697,7 +1725,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           //
           // A NOTICE, because that is what it is: olai's own words about this
           // conversation, in the row kind every other sentence of olai's takes.
-          if (teach.length > 0) publish(transcript.add("notice", teach.join("\n")))
+          if (teach !== null) publish(transcript.add("notice", teach.lines.join("\n")))
           // The user's own message goes in FIRST and from the server, so both
           // tabs see it and a send that fails does not leave one behind. What
           // the ROW carries is the file NAMES: the tmp path is for the agent,
@@ -1718,7 +1746,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           // message it rode under was taken ({@link taught}). Inside the permit
           // because the row it reads is this send's, and forked because it is a
           // disk write nobody is waiting on.
-          if (teach.length > 0) yield* Effect.forkDetach(taught(row.key))
+          if (teach !== null) yield* Effect.forkDetach(taught(teach.to, row.key))
         }))
       })
 

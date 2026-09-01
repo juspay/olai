@@ -54,12 +54,11 @@
 
 import { Show } from "solid-js"
 
-import { SaidLine } from "../SaidLine.tsx"
-import { createSaying } from "../saying.ts"
-import { TESTID } from "../testids.ts"
 import { memoryOf } from "@olai/format"
 
 import { DOT } from "../readout.ts"
+import { SaidLine } from "../SaidLine.tsx"
+import { TESTID } from "../testids.ts"
 // HOW LONG AGO, REACHED AND NOT RE-SPELLED. `agoOf` is the commit pill's by
 // history and by nothing else — it is pure arithmetic over an ISO stamp and a
 // clock, with its own table of cases — and a second phrasing of *2m ago* in
@@ -71,7 +70,7 @@ import { DOT } from "../readout.ts"
 // `../saying.ts` and `../refusals.tsx`.
 import { agoOf, createNow } from "../commit/ago.ts"
 import { useAgents } from "./answered.tsx"
-import { focus } from "./focus.ts"
+import { createFocus, type Focus } from "./focus.ts"
 import { LOOK, type Row } from "./roster.ts"
 
 export function AgentDoor(props: { readonly node: string }) {
@@ -81,26 +80,21 @@ export function AgentDoor(props: { readonly node: string }) {
   // once and joined once for the whole app (`./answered.tsx`, which argues what
   // joining per row cost).
   const roster = useAgents()
-  const saying = createSaying()
+  // THE GESTURE AND ITS LINE, held HERE rather than inside the door: the line
+  // has to outlive the row it was about (`./focus.ts`), and this wrapper is
+  // what stays mounted when the roster's frame replaces that row.
+  const focus = createFocus()
 
   return (
     <Show when={roster.at(props.node)}>
-      {(agent) => <Door agent={agent()} saying={saying} />}
+      {(agent) => <Door agent={agent()} focus={focus} />}
     </Show>
   )
 }
 
-function Door(props: {
-  readonly agent: Row
-  readonly saying: ReturnType<typeof createSaying>
-}) {
+function Door(props: { readonly agent: Row; readonly focus: Focus }) {
   const look = () => LOOK[props.agent.standing]
   const now = createNow()
-  const open = () => {
-    props.saying.say(undefined)
-    focus(props.agent, (failure) =>
-      props.saying.say({ tone: "alarm", text: failure.message, kind: failure._tag }))
-  }
 
   return (
     <div class="mb-1.5 ml-6 max-w-[44rem]">
@@ -118,11 +112,11 @@ function Door(props: {
           role: "button",
           tabindex: 0,
           title: `open this agent in the panel — ${look().detail}`,
-          onClick: () => open(),
+          onClick: () => props.focus.open(props.agent),
           onKeyDown: (event: KeyboardEvent) => {
             if (event.key !== "Enter" && event.key !== " ") return
             event.preventDefault()
-            open()
+            props.focus.open(props.agent)
           },
         })}
       >
@@ -171,7 +165,7 @@ function Door(props: {
           )}
         </Show>
       </div>
-      <Show when={props.saying.said()}>
+      <Show when={props.focus.said()}>
         {(line) => (
           <SaidLine
             said={line()}

@@ -53,11 +53,9 @@ import { CHIP_QUIET } from "../layout/chip.ts"
 import { REGION, REGION_LABEL } from "../layout/entry.ts"
 import { DOT } from "../readout.ts"
 import { SaidLine } from "../SaidLine.tsx"
-import { createSaying } from "../saying.ts"
 import { TESTID } from "../testids.ts"
-import { useRouter } from "../router.tsx"
 import { useAgents } from "./answered.tsx"
-import { focus, rowOf } from "./focus.ts"
+import { createFocus } from "./focus.ts"
 import { LOOK, type Row } from "./roster.ts"
 
 export function Agents() {
@@ -65,16 +63,10 @@ export function Agents() {
   // this column and every door on the page are reading one answer rather than
   // each folding the same two cells for itself.
   const { rows } = useAgents()
-  const router = useRouter()
-  const saying = createSaying()
-
-  /** *Take me to this agent* — its node, and its conversation
-   *  ({@link ./focus.ts}, which argues why one press means both). */
-  const press = (row: Row) => {
-    saying.say(undefined)
-    router.go(rowOf(row))
-    focus(row, (failure) => saying.say({ tone: "alarm", text: failure.message, kind: failure._tag }))
-  }
+  /** *Take me to this agent* — its node, and its conversation — and whatever
+   *  that press had to say ({@link ./focus.ts}, which argues why one press
+   *  means both and owns the wording of a refusal). */
+  const focus = createFocus()
 
   return (
     <Show when={rows().length > 0}>
@@ -89,7 +81,7 @@ export function Agents() {
               what identity means here: the node is durable and the session is
               cattle, so a row whose session was swapped is the same row. */}
           <Key each={rows()} by="id">
-            {(row) => <AgentRow row={row()} onPress={() => press(row())} />}
+            {(row) => <AgentRow row={row()} onPress={() => focus.press(row())} />}
           </Key>
         </ul>
         {/* WHY NOTHING HAPPENED, where a press was refused — a binding naming a
@@ -97,7 +89,7 @@ export function Agents() {
             person can only fix by editing the record, so they have to be able
             to read it. On the SECTION rather than on the row, because the row
             it belongs to may have been replaced by the frame that answered. */}
-        <Show when={saying.said()}>
+        <Show when={focus.said()}>
           {(said) => (
             <SaidLine
               said={said()}
