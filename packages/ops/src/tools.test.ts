@@ -298,7 +298,7 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
     text: "# Finishes\n\nDoors: matte.\n",
   })
 
-  const [cut, whole, outline, outlineCut, absent, lean] = of("read_subtree")
+  const [cut, whole, outline, outlineCut, absent, lean, shaped, shapedOutline] = of("read_subtree")
   expect((cut?.["children"] as ReadonlyArray<Subtree>)[1])
     .toMatchObject({ id: "sand", truncated: true })
   expect(whole).not.toHaveProperty("truncated")
@@ -309,9 +309,8 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
   expect(lean).not.toHaveProperty("desc")
   expect((lean?.["children"] as ReadonlyArray<Subtree>).map((child) => child.id))
     .toEqual(["paint", "sand"])
-  // The whole outline: both of this fixture's top-level roots, and NOT the
-  // placement sitting between them — a mirror is a second view of a node that
-  // lives elsewhere, and elsewhere is where this read answers it.
+  // The whole outline: the fixture's one top-level root, and NOT the
+  // placement sitting beside it as a root — named on the answer instead.
   expect(outline?.["file"]).toBe("house.olai")
   expect((outline?.["roots"] as ReadonlyArray<Subtree>).map((root) => root.id))
     .toEqual(["house"])
@@ -319,6 +318,23 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
   // is not a shape nothing produces.
   expect((outlineCut?.["roots"] as ReadonlyArray<Subtree>)[0]?.children[1])
     .toMatchObject({ id: "sand", truncated: true })
+
+  // And `placed` rides a walk row across every shape the walk answers in —
+  // named, never walked, so a board of mirrors is an answer and not a blank.
+  // Reached here on the default walk, the lean one and BOTH shaped arms, so
+  // the new field's decode above is vacuous on none of them: a walk shape
+  // that forgot to declare it would strip it where the wire is.
+  const placedIds = (row: Record<string, unknown> | undefined): ReadonlyArray<string> =>
+    ((row?.["placed"] ?? []) as ReadonlyArray<Placed>).map((entry) => entry.id)
+  expect(placedIds(whole)).toEqual(["in-house"])
+  expect(placedIds(lean)).toEqual(["in-house"])
+  expect(placedIds(shaped)).toEqual(["in-house"])
+  expect(placedIds((outline?.["roots"] as ReadonlyArray<Record<string, unknown>>)[0]))
+    .toEqual(["in-house"])
+  expect(placedIds((shapedOutline?.["roots"] as ReadonlyArray<Record<string, unknown>>)[0]))
+    .toEqual(["in-house"])
+  expect(placedIds(outline)).toEqual(["loose"])
+  expect(placedIds(shapedOutline)).toEqual(["loose"])
 
   // `placed` carries the node each row SHOWS, situated — the half of a mirror
   // a curated list is read with.

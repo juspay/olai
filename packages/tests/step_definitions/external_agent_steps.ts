@@ -353,11 +353,16 @@ const claimShape = (
   // by the caller.
   structure: "walk" | "references",
 ): void => {
-  // The row's allowed keys: the structure the WALK owns (id / children /
-  // truncated) plus exactly the named fields. The union across rows must be
-  // the whole projection — a walk that SHAPED but forgot a field is a
-  // subtler silence than one that never shaped at all.
-  const allowed = new Set(["id", "children", "truncated", ...fields]);
+  // The row's allowed keys: `id`, plus the walk's own keys when this is a
+  // walk (`children` / `truncated` / `placed`), plus exactly the named
+  // fields. A reference row (`read_node`'s children) owes none of the
+  // walk's keys. The union across rows must be the whole projection — a
+  // walk that SHAPED but forgot a field is a subtler silence than one that
+  // never shaped at all.
+  const structureKeys = structure === "walk"
+    ? new Set(["children", "truncated", "placed"])
+    : new Set<string>();
+  const allowed = new Set(["id", ...structureKeys, ...fields]);
   const seen = new Set<string>();
   for (const row of rows) {
     for (const key of Object.keys(row)) {
@@ -365,7 +370,9 @@ const claimShape = (
         allowed.has(key),
         `a shaped row carried "${key}", which was not named: ${JSON.stringify(row)}`,
       );
-      if (key !== "id" && key !== "children" && key !== "truncated") seen.add(key);
+      if (key !== "id" && !structureKeys.has(key)) {
+        seen.add(key);
+      }
     }
     assert.strictEqual(typeof row["id"], "string", "every row is still an id first");
     if (structure === "walk") {
@@ -552,6 +559,25 @@ Then(
     assert.deepStrictEqual(
       roots.map((root) => root.title),
       expected.split(",").map((one) => one.trim()),
+    );
+  },
+);
+
+Then(
+  "the terminal agent was handed the placements {string}",
+  function (this: OlaiWorld, expected: string) {
+    const answer = this.toolAnswer ?? {};
+    assert.notStrictEqual(
+      answer["isError"],
+      true,
+      `the read was refused: ${JSON.stringify(answer["structuredContent"])}`,
+    );
+    const placed = (structuredOf(this)["placed"] ?? []) as ReadonlyArray<
+      { readonly id: string }
+    >;
+    assert.deepStrictEqual(
+      placed.map((entry) => entry.id),
+      expected === "" ? [] : expected.split(",").map((one) => one.trim()),
     );
   },
 );

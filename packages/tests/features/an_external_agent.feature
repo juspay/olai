@@ -191,8 +191,10 @@ Feature: An agent olai did not start
     When the terminal agent reads the whole outline "house.olai"
     # Two roots and no third: the placement occupies a place in the file and is
     # not something the file HOLDS, which is the same rule that keeps the walk
-    # from descending into one.
+    # from descending into one. Named on the answer, so the file is not silence
+    # about the line the agent just wrote.
     Then the terminal agent was handed the roots "kitchen remodel #home, sort the bills"
+    And the terminal agent was handed the placements "now-order"
     And there should be no page errors
 
   Scenario: A terminal shapes the walk to its question, and a bad name is refused
