@@ -94,6 +94,7 @@ import {
   rankedTogether,
   type Placed,
   type Placement,
+  type ProjectedPlaced,
   PROJECTABLE,
   type Projectable,
   type Projected,
@@ -103,7 +104,7 @@ import {
   type Reading,
   type Reference,
   ranked,
-  rootsOf,
+  siblingsOf,
   type SearchAnswer,
   type SearchHit,
   type SearchRequest,
@@ -1082,9 +1083,29 @@ const referrersOf = (derived: Derived, id: string): ReadonlyArray<Reference> =>
  * nothing. A set with a broken chain is one the validator has already condemned;
  * a reader that invented an entry for it would be answering with a node that is
  * not there.
+ *
+ * TWO readers, one mapping: {@link detail} carries it as the node read's
+ * `placed` (always fully situated — that read's dial shapes the child list
+ * alone), and `subtree`'s walks hang the same list on every row that has
+ * one, with `shows` shaped when the walk named `fields`. The FILE arm hangs
+ * it on the answer itself, over the file's top-level siblings — a file is
+ * not a node, so `{file, roots, placed}` is the row.
  */
-const placedUnder = (derived: Derived, id: string): ReadonlyArray<Placed> =>
-  (derived.children.get(id) ?? []).flatMap((child) => {
+function placedAmong(
+  derived: Derived,
+  siblings: ReturnType<typeof siblingsOf>,
+): ReadonlyArray<Placed>
+function placedAmong(
+  derived: Derived,
+  siblings: ReturnType<typeof siblingsOf>,
+  wants: Wants,
+): ReadonlyArray<ProjectedPlaced>
+function placedAmong(
+  derived: Derived,
+  siblings: ReturnType<typeof siblingsOf>,
+  wants?: Wants,
+): ReadonlyArray<Placed> | ReadonlyArray<ProjectedPlaced> {
+  return siblings.flatMap((child) => {
     if (!isMirror(child.node)) return []
     const found = follow(derived, child)
     if (found.kind !== "found") return []
@@ -1093,9 +1114,32 @@ const placedUnder = (derived: Derived, id: string): ReadonlyArray<Placed> =>
       file: child.file,
       line: child.line,
       ...(child.node.parent === undefined ? {} : { parent: child.node.parent }),
-      shows: foundOf(derived, found.shows),
+      shows: wants === undefined
+        ? foundOf(derived, found.shows)
+        : shapedOf(derived, found.shows, wants),
     }]
   })
+}
+
+function placedUnder(
+  derived: Derived,
+  id: string,
+): ReadonlyArray<Placed>
+function placedUnder(
+  derived: Derived,
+  id: string,
+  wants: Wants,
+): ReadonlyArray<ProjectedPlaced>
+function placedUnder(
+  derived: Derived,
+  id: string,
+  wants?: Wants,
+): ReadonlyArray<Placed> | ReadonlyArray<ProjectedPlaced> {
+  const siblings = derived.children.get(id) ?? []
+  return wants === undefined
+    ? placedAmong(derived, siblings)
+    : placedAmong(derived, siblings, wants)
+}
 
 /**
  * The mirrors that show this node, in file-then-line order.
@@ -1278,6 +1322,7 @@ export const subtree = (
 
   const walk = (located: LocatedRegular, left: number): Subtree => {
     const children = countedChildren(at.derived, located.node.id)
+    const placed = placedUnder(at.derived, located.node.id)
     return {
       ...foundOf(at.derived, located),
       ...(located.node.date === undefined ? {} : { date: located.node.date }),
@@ -1285,20 +1330,27 @@ export const subtree = (
         ? { desc: located.node.desc }
         : {}),
       children: left <= 0 ? [] : children.map((child) => walk(child, left - 1)),
+      ...(placed.length === 0 ? {} : { placed }),
       ...(left <= 0 && children.length > 0 ? { truncated: true as const } : {}),
     }
   }
-  // `walk`'s other shape: the caller named the rows. The ROWS change and the
-  // WALK does not — same depth dial, same counted children, same `truncated`
-  // — because those are the walk's own structure, and `fields` has nothing to
-  // say about structure. `wants` rides as an argument rather than closed
-  // over: the outer binding is `Wants | undefined` for the unasked case, and
-  // a closure over it would reask the question the fork below has answered.
+  // `walk`'s other shape: the caller named the rows. The KEYS of the walk
+  // do not change — same depth dial, same counted children, same `placed`
+  // list, same `truncated` — because those are the walk's own structure.
+  // What each child ROW carries, and what each `placed` entry's `shows`
+  // carries, still obeys `wants`: `children` content has always gone back
+  // through this walk, and `shows` does too, so a two-field walk does not
+  // re-import the situating the dial exists to drop. `wants` rides as an
+  // argument rather than closed over: the outer binding is `Wants |
+  // undefined` for the unasked case, and a closure over it would reask the
+  // question the fork below has answered.
   const shapedWalk = (wants: Wants, located: LocatedRegular, left: number): ProjectedSubtree => {
     const children = countedChildren(at.derived, located.node.id)
+    const placed = placedUnder(at.derived, located.node.id, wants)
     return {
       ...shapedOf(at.derived, located, wants),
       children: left <= 0 ? [] : children.map((child) => shapedWalk(wants, child, left - 1)),
+      ...(placed.length === 0 ? {} : { placed }),
       ...(left <= 0 && children.length > 0 ? { truncated: true as const } : {}),
     }
   }
@@ -1322,16 +1374,26 @@ export const subtree = (
   if (Result.isFailure(outline)) return Result.fail(outline.failure)
   const broken = brokenIn(at.set, arm.file)
   if (broken !== undefined) return Result.fail(notLoaded(arm.file, broken))
-  // The roots a READER sees: `@olai/format`'s own reading of an outline's
-  // top level, `ord`-sorted, placements dropped for the reason the walk
-  // never descends into one — a mirror is a second view of a node that
-  // lives elsewhere, and elsewhere is where this read answers it.
-  const roots = rootsOf(at.derived, arm.file)
-  return Result.succeed(
-    wants === undefined
-      ? { file: arm.file, roots: roots.map((root) => walk(root, depth)) }
-      : { file: arm.file, roots: roots.map((root) => shapedWalk(wants, root, depth)) },
-  )
+  // The top level, once: `siblingsOf` is the file's own records in `ord`
+  // order, mirrors included. Regulars are the roots the walk descends;
+  // mirrors are named on the answer as `placed`. Two calls would walk and
+  // sort the same row twice, one line apart.
+  const top = siblingsOf(at.derived, arm.file, undefined)
+  const roots = top.filter(isRegular)
+  if (wants === undefined) {
+    const placed = placedAmong(at.derived, top)
+    return Result.succeed({
+      file: arm.file,
+      roots: roots.map((root) => walk(root, depth)),
+      ...(placed.length === 0 ? {} : { placed }),
+    })
+  }
+  const placed = placedAmong(at.derived, top, wants)
+  return Result.succeed({
+    file: arm.file,
+    roots: roots.map((root) => shapedWalk(wants, root, depth)),
+    ...(placed.length === 0 ? {} : { placed }),
+  })
 }
 
 // ── the directory ──────────────────────────────────────────────────────
