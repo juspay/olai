@@ -36,6 +36,7 @@ import { expect, test } from "bun:test"
 import {
   bodyFor,
   claimedIn,
+  ringingIn,
   claimingIn,
   classify,
   type Conversation,
@@ -43,8 +44,11 @@ import {
   type Scoped,
   standingIn,
   terminalsIn,
+  walkedIn,
+  whyOut,
 } from "./doorbell.ts"
 import { ownKinds, TERMINAL_TYPE } from "./kinds.ts"
+import { listed, tracing } from "./trace.ts"
 
 // ── The vault, as `./claimants.test.ts` builds one ────────────────────────
 
@@ -388,6 +392,169 @@ test("... and so does a CANCELLED one, and an unmarked bullet somebody wrote", (
   ).toEqual([])
 })
 
+// ── THE ONE THE HUMAN FOUND ON A LIVE BOARD, 2026-09-01 ────────────────────
+
+test("a lane MINTED AS A BULLET and claimed later rings — an UNMARKED CONTAINER is judged by what is under it", () => {
+  // THE P1 (`doorbell-missing-claim`, whose RCA is on the board): one lane on a
+  // busy day board drew no wake and no nag for 26 minutes while its agent sat
+  // `waiting` and the nag knob was on. Four other lanes on the SAME board, in
+  // the SAME conversation, rang 5 and 7 times through that window — so it was
+  // never the queue, the scope or the knobs. It was the SET: the terminal was
+  // not in it.
+  //
+  // WHAT MADE IT DIFFERENT, and it is one field. Every other row of that board
+  // carried a mark. This lane's node had been FILED FIRST — a bug somebody
+  // wrote down — and the dispatch grafted the `terminal` and the eleven steps
+  // onto the node that was already there without ever marking the node itself.
+  // A lane minted whole by its own dispatch arrives WITH a mark; a lane grown
+  // onto a bullet does not, and nobody notices, because the board draws it from
+  // its children either way.
+  //
+  // The walk then asked the CARRYING NODE for an unfinished mark of its own,
+  // found none, and dropped the lane and its whole subtree before descending —
+  // the same mistake this module's header already names three times over ("the
+  // meaning read the wrong node's mark"), left standing on the un-done gate. A
+  // container is judged by its children and never by itself: that is the ruled
+  // sentence, and this is the gate that did not obey it.
+  const filed = {
+    "_olai/Properties.olai": declaring(),
+    "lanes.olai": `{"id":"m","ord":"a0","mirror":"tns"}`,
+    "bugs.olai": rec("tns", "PR: task notifications stop spilling raw"),
+  }
+  // A bullet somebody filed, claiming nothing — and nothing should ring for it.
+  // That is the leaf case one test up, and it does not move.
+  expect(claimsOf(filed, "lanes.olai")).toEqual([])
+
+  // THE DISPATCH, as a LATER write onto the node already on the board: the
+  // claim and the steps arrive, and the node's own row is never marked.
+  const dispatched = {
+    "_olai/Properties.olai": declaring(),
+    "lanes.olai": `{"id":"m","ord":"a0","mirror":"tns"}`,
+    "bugs.olai": [
+      rec("tns", "PR: task notifications stop spilling raw", { terminal: "11e565c0" }),
+      under("impl", "tns", "a0", "implement + open PR", "done"),
+      under("refactor", "tns", "a1", "refactor passes", "doing"),
+    ].join("\n"),
+  }
+  // Somebody is on `refactor passes` right now and the terminal the node above
+  // it claims is held. That is a WAKE, and the set has to carry it.
+  expect(claimsOf(dispatched, "lanes.olai")).toEqual([
+    { value: "11e565c0", step: "refactor passes", mark: "doing" },
+  ])
+})
+
+test("... and an unmarked container whose work has all SETTLED still claims nothing", () => {
+  // The fence on the case above, and the reason the gate is LIVE rather than
+  // not-settled: a bullet is judged by its children, so a bullet whose children
+  // have all finished is as silent as the leaf bullet is. A gate spelled
+  // "anything that is not `done`" would ring every closed lane on a board
+  // somebody kept — which is `unfinished`'s own documented trap, one level up.
+  expect(
+    claimsOf({
+      "_olai/Properties.olai": declaring(),
+      "lanes.olai": [
+        rec("tns", "PR: task notifications stop spilling raw", { terminal: "11e565c0" }),
+        under("impl", "tns", "a0", "implement + open PR", "done"),
+        under("dropped", "tns", "a1", "refactor passes", "cancelled"),
+      ].join("\n"),
+    }, "lanes.olai"),
+  ).toEqual([])
+})
+
+test("THE RESIDUAL: a bullet given ONLY a terminal, before its steps land, is still silent", () => {
+  // THE NEXT HOLE OF THE SAME SHAPE, pinned HERE so that widening it later
+  // cannot mistake itself for a regression of the P1 two tests up.
+  //
+  // The P1 was an unmarked CONTAINER judged by its own mark instead of by its
+  // children. This is the same vault one step earlier: the dispatch has written
+  // the `kolu-terminal` onto the bullet and the eleven steps have not landed
+  // yet — so the carrier is an unmarked LEAF, `live` is false, and the terminal
+  // is not in the ringing set. A one-node lane is the same shape permanently.
+  //
+  // IT IS NOT A BUG THIS TEST IS ASKING SOMEBODY TO FIX. The leaf rule is a
+  // real sentence — a bullet with nothing under it is a line somebody wrote,
+  // not work somebody owes — and ringing every unmarked claimed leaf would
+  // wake people about rows they jotted. What this pins is that the silence is
+  // DECIDED rather than inherited: the residual is named, the walk says
+  // `unmarked-leaf` about it out loud (below), and a future widening is a
+  // deliberate change to this expectation and not a bug fix that happens to
+  // pass because nothing was watching.
+  const graftedClaimOnly = {
+    "_olai/Properties.olai": declaring(),
+    "lanes.olai": `{"id":"m","ord":"a0","mirror":"tns"}`,
+    "bugs.olai": rec("tns", "PR: task notifications stop spilling raw", {
+      terminal: "11e565c0",
+    }),
+  }
+  expect(claimsOf(graftedClaimOnly, "lanes.olai")).toEqual([])
+
+  // ...AND THE WALK SAYS WHICH GATE, by its own word for this one. That is what
+  // keeps it a decision: an operator who wonders why a lane went quiet reads
+  // `unmarked-leaf` rather than an absence they have to reconstruct.
+  const at = readingOf(setOf(graftedClaimOnly)).derived
+  expect(walkedIn(declarationsOf(at, ownKinds), at, "lanes.olai").excluded).toEqual([
+    { value: "11e565c0", node: "tns", why: "unmarked-leaf" },
+  ])
+
+  // The moment one step lands and is being worked, it rings — which is the P1
+  // test, and the line between the two is exactly one child.
+  expect(
+    claimsOf({
+      ...graftedClaimOnly,
+      "bugs.olai": [
+        rec("tns", "PR: task notifications stop spilling raw", { terminal: "11e565c0" }),
+        under("impl", "tns", "a0", "implement + open PR", "doing"),
+      ].join("\n"),
+    }, "lanes.olai"),
+  ).toEqual([{ value: "11e565c0", step: "implement + open PR", mark: "doing" }])
+})
+
+test("the walk names the OTHER two gates too — settled, and live-but-nobody-under", () => {
+  // The three `Why` words, over one vault, so the vocabulary is pinned where it
+  // is decided rather than only where it is printed.
+  const at = readingOf(setOf({
+    "_olai/Properties.olai": declaring(),
+    "lanes.olai": [
+      marked("closed", "a lane somebody folded", "done", { terminal: "aaaaaaaa" }),
+      rec("spent", "a lane whose steps all settled", { terminal: "bbbbbbbb" }),
+      under("gone", "spent", "a0", "implement", "done"),
+      rec("jotted", "a bullet with a terminal on it", { terminal: "cccccccc" }),
+      marked("live", "a lane somebody is on", "doing", { terminal: "dddddddd" }),
+    ].join("\n"),
+  })).derived
+  const walked = walkedIn(declarationsOf(at, ownKinds), at, "lanes.olai")
+  expect(walked.excluded).toEqual([
+    { value: "aaaaaaaa", node: "closed", why: "settled" },
+    { value: "bbbbbbbb", node: "spent", why: "not-live" },
+    { value: "cccccccc", node: "jotted", why: "unmarked-leaf" },
+  ])
+  // ...and the one that is none of the three is the one that rings.
+  expect(walked.claimed.map((claim) => claim.value)).toEqual(["dddddddd"])
+})
+
+test("... and an unmarked lane whose only live step is ANOTHER terminal's is a digest, not a disappearance", () => {
+  // The two rules meeting. `live` says the lane still holds work; the
+  // claimed-subtree fence says that work is the REVIEWER'S and can never be the
+  // lane's owing step. So the lane is present and parked — which is exactly
+  // what a lane marked `doing` in this shape already answers, and the point is
+  // that it does not depend on whether anybody remembered to mark it.
+  //
+  // A fence that swallowed `live` as well as `deepest` would delete the lane
+  // from the set instead, which is this file's own P1 again one rule down.
+  expect(
+    claimsOf({
+      "_olai/Properties.olai": declaring(),
+      "lanes.olai": [
+        rec("tns", "PR: task notifications stop spilling raw", { terminal: "11e565c0" }),
+        under("rev", "tns", "a0", "review: claude-opus", "doing", { terminal: "384f5360" }),
+      ].join("\n"),
+    }, "lanes.olai"),
+  ).toEqual([
+    { value: "11e565c0", step: "PR: task notifications stop spilling raw", mark: "todo" },
+    { value: "384f5360", step: "review: claude-opus", mark: "doing" },
+  ])
+})
+
 test("the digest line asserts NO mark, because the one it has is a verdict", () => {
   // `Standing.mark` is derived — a container with nothing being worked under it
   // reads `todo` however the board marked the container itself. Printing that
@@ -417,9 +584,18 @@ test("a CANCELLED step is not un-done — `!== \"done\"` would have claimed it",
   ).toEqual([])
 })
 
-test("an ABSENT mark is not a todo — `status` is partial, and a bullet is not work", () => {
+test("an ABSENT mark on a LEAF is not a todo — a bullet with nothing under it is not work", () => {
   // A node nobody marked is a line somebody wrote, not a task somebody is on.
-  // The walk asks `unfinished`, which answers `false` for `undefined`.
+  //
+  // THE PREDICATE IS NOT `unfinished` ANY MORE, and this comment used to say it
+  // was. The walk asks `settled` — which an unmarked node is not — and then
+  // whether anything at or under the node is LIVE. For a leaf that is its own
+  // mark and nothing else, so the answer here is unchanged; but a reader who
+  // believed the old sentence would think the P1's dropped predicate was still
+  // in force, and go looking for it.
+  //
+  // WHAT THIS PINS IS THE LEAF RULE, not the mark rule: the same bullet with a
+  // `doing` step under it DOES claim, which is the case two tests up.
   expect(
     claimsOf({
       "_olai/Properties.olai": declaring(),
@@ -795,6 +971,105 @@ test("a clock this runtime cannot read passes through VERBATIM", () => {
   )
 })
 
+// ── THE LOGGING HALF'S OWN REPRODUCE-RED-FIRST ────────────────────────────
+//
+// `ringingIn` is the seam that emits the `derived` line this PR exists to add,
+// and it sat inside `serve`'s closure where no test could reach it without a
+// `koluHalf`, a surface and a ctx. Nothing pinned that the line NAMES the set
+// rather than counting it — and an edit that logged `ringing: claiming.size`
+// would have shipped green and left the next P1 of this shape exactly as
+// undiagnosable as this one was. It needs none of that scaffolding: a
+// `Derived`, a file, the fleet's ids and a channel are all values.
+
+/** The tracer over a collector, and the walk driven the way `ring` drives it. */
+const rangOver = (files: Record<string, string>, file: string, fleet: ReadonlyArray<string>) => {
+  const lines: Array<string> = []
+  const at = readingOf(setOf(files)).derived
+  const ringing = ringingIn(
+    declarationsOf(at, ownKinds),
+    at,
+    file,
+    fleet,
+    tracing((line) => {
+      lines.push(line)
+    }),
+  )
+  return { ringing, lines }
+}
+
+/** The P1's own vault, before and after the dispatch grafted onto the bullet. */
+const P1_FILED = {
+  "_olai/Properties.olai": declaring(),
+  "lanes.olai": `{"id":"m","ord":"a0","mirror":"tns"}`,
+  "bugs.olai": rec("tns", "PR: task notifications stop spilling raw", { terminal: "11e565c0" }),
+}
+const P1_GRAFTED = {
+  ...P1_FILED,
+  "bugs.olai": [
+    rec("tns", "PR: task notifications stop spilling raw", { terminal: "11e565c0" }),
+    under("impl", "tns", "a0", "implement + open PR", "done"),
+    under("refactor", "tns", "a1", "refactor passes", "doing"),
+  ].join("\n"),
+}
+
+test("the `derived` line NAMES the ringing set — a count would not have found this bug", () => {
+  const it = rangOver(P1_GRAFTED, "lanes.olai", ["11e565c0aaaa", "4b5a3fb6bbbb"])
+  // THE LOAD-BEARING FIELD. `ringing` carries the fleet id AND the board row
+  // that claims it, so a reader goes to the row rather than to a uuid — and,
+  // far more importantly, an ABSENCE is legible, because it is legible only
+  // against the set it is absent from.
+  expect(it.lines[0]).toBe(
+    "kolu doorbell derived file=lanes.olai claims=1 ringing=11e565c0aaaa@tns"
+      + " unmatched=none excluded=none fleet=2",
+  )
+  expect([...it.ringing.claiming.keys()]).toEqual(["11e565c0aaaa"])
+})
+
+test("... and the SAME vault before the graft names the gate instead", () => {
+  // The bullet has its terminal and no steps: nothing rings, and the line says
+  // which gate rather than leaving a reader to reconstruct an absence.
+  const it = rangOver(P1_FILED, "lanes.olai", ["11e565c0aaaa", "4b5a3fb6bbbb"])
+  expect(it.lines[0]).toBe(
+    "kolu doorbell derived file=lanes.olai claims=0 ringing=none"
+      + " unmatched=none excluded=11e565c0@tns:unmarked-leaf fleet=2",
+  )
+})
+
+test("the silence says WHICH gate — every `Why`, plus unmatched and unclaimed", () => {
+  // What `classified why=` prints, asked of the function that decides it. The
+  // RCA was "absent from the set"; the next one of this shape should be a grep.
+  const grafted = rangOver(P1_GRAFTED, "lanes.olai", ["11e565c0aaaa"]).ringing
+  // In the set: the caller does not ask, because there is no silence to explain.
+  expect(grafted.claiming.has("11e565c0aaaa")).toBe(true)
+
+  const filed = rangOver(P1_FILED, "lanes.olai", ["11e565c0aaaa"]).ringing
+  expect(whyOut("11e565c0aaaa", filed)).toBe("unmarked-leaf")
+
+  // A lane somebody folded, and a lane whose steps all settled.
+  const settled = rangOver({
+    "_olai/Properties.olai": declaring(),
+    "lanes.olai": [
+      marked("closed", "folded", "done", { terminal: "aaaaaaaa" }),
+      rec("spent", "spent", { terminal: "bbbbbbbb" }),
+      under("gone", "spent", "a0", "implement", "done"),
+    ].join("\n"),
+  }, "lanes.olai", ["aaaaaaaaffff", "bbbbbbbbffff"]).ringing
+  expect(whyOut("aaaaaaaaffff", settled)).toBe("settled")
+  expect(whyOut("bbbbbbbbffff", settled)).toBe("not-live")
+
+  // A prefix that opens two live terminals claims neither — the claim is live
+  // and it is the JOIN that refused, which is a different answer entirely.
+  const ambiguous = rangOver({
+    "_olai/Properties.olai": declaring(),
+    "lanes.olai": marked("lane", "review: grok", "doing", { terminal: "11" }),
+  }, "lanes.olai", ["1111aaaa", "1122bbbb"]).ringing
+  expect(whyOut("1111aaaa", ambiguous)).toBe("unmatched")
+
+  // ...and a terminal nobody in this file ever named, which is the ordinary
+  // case and the doorbell working.
+  expect(whyOut("99999999", grafted)).toBe("unclaimed")
+})
+
 // ── THE FLOOR UNDER SILENCE ───────────────────────────────────────────────
 
 /** THE WATCH WINDOW, as the vault's own default spells it: half an hour. It
@@ -840,7 +1115,14 @@ const bench = (files: Record<string, string>) => {
   const held: Array<
     { to: Conversation; say: () => string | null; coalesce: string | undefined }
   > = []
+  /** EVERY LINE THE BEAT WROTE, in order — the real tracer over a collector,
+   *  because what a `Trace` is for is being read, and a test that handed it a
+   *  no-op would pin the calls and not the words. */
+  const lines: Array<string> = []
   const heart = makeHeartbeat({
+    trace: tracing((line) => {
+      lines.push(line)
+    }),
     scopes: () => scoped,
     deliver: (to, say, options) => {
       held.push({ to, say, coalesce: options?.coalesce })
@@ -871,6 +1153,7 @@ const bench = (files: Record<string, string>) => {
     /** WHAT ACTUALLY ENTERED THE CONVERSATIONS: core drops a `null` body
      *  rather than shortening it, so a held delivery that derives to nothing
      *  is not a message and does not count as one here either. */
+    lines,
     words: () =>
       held.map((one) => one.say()).filter((body): body is string => body !== null),
   }
@@ -1055,6 +1338,52 @@ test("a file that claims NOTHING is still beaten for — the zero is the evidenc
   expect(body).toContain("— terminals it claims right now: 0.")
 })
 
+
+// ── WHAT THE BEAT SAID IT DID ──────────────────────────────────────────────
+
+test("a beat says what it did — the head, then one line per conversation it decided about", () => {
+  // THE EVIDENCE HALF of `doorbell-missing-claim`. A conversation hearing
+  // nothing is the ordinary case, so "quiet" is never evidence on its own: a
+  // beat that passed everybody over and a beat that never fired are the same
+  // nothing from outside, and one of them is a wedged watcher. These lines are
+  // the only place that difference is written down.
+  const it = bench(ONE_CLAIM)
+  it.scope(SEAT)
+  it.after(WINDOW)
+  it.heart.beat(WINDOW)
+  expect(it.lines[0]).toBe(
+    "kolu doorbell beat every=1800000 scopes=1 spoken=0 lastEvent=none",
+  )
+  expect(it.lines[1]).toBe("kolu doorbell beating file=lanes.olai agent=olai session=s-1")
+  // ...and the count is said at SEND time, not at beat time, which is where the
+  // body reads it — so the line and the sentence can never disagree.
+  expect(it.lines).not.toContain("kolu doorbell beat-said file=lanes.olai agent=olai terminals=1")
+  it.words()
+  expect(it.lines.at(-1)).toBe("kolu doorbell beat-said file=lanes.olai agent=olai terminals=1")
+})
+
+test("... and a conversation passed over says WHICH of the two reasons it was", () => {
+  // The two are not the same fault and must never read alike: one is a busy
+  // window doing exactly what the floor is for, the other is a store that has
+  // stopped publishing and a doorbell that can derive nothing at all.
+  const it = bench(ONE_CLAIM)
+  it.scope(SEAT)
+  it.heart.delivered({ agent: "olai", session: "s-1" })
+  it.heart.beat(WINDOW)
+  expect(it.lines).toContain(
+    "kolu doorbell beat-passed file=lanes.olai agent=olai why=spoke-this-window",
+  )
+  expect(it.held.length).toBe(0)
+
+  const starved = bench(ONE_CLAIM)
+  starved.scope(SEAT)
+  starved.unload()
+  starved.heart.beat(WINDOW)
+  expect(starved.lines).toContain(
+    "kolu doorbell beat-passed file=lanes.olai agent=olai why=no-revision",
+  )
+  expect(starved.held.length).toBe(0)
+})
 test("the BEAT is not an event — a heartbeat never dates itself as one", () => {
   // The beat and this loop come off one timer, so a beat stamped as an event
   // would make "last watcher event" say "just now" forever: the one fact in
