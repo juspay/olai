@@ -20,8 +20,8 @@
  *
  * ## Three doors means three lists, and that is the cost of the split
  *
- * {@link WIRES}, `PLUGINS` and {@link SERVERS} each enumerate the same two
- * plugins, so a third one is three lines rather than one. That is worth naming
+ * {@link WIRES}, `PLUGINS` and {@link SERVERS} each enumerate the same
+ * plugins, so a fourth one is three lines rather than one. That is worth naming
  * as a cost rather than presenting as a design: a single list would be one edit,
  * and it is not available, because the three lists are what the three GRAPHS
  * are. A registry that named every plugin once and re-exported the halves would
@@ -387,7 +387,7 @@ export const probesOf = (
   })
 
 /**
- * WHAT THIS BINARY CAN SERVE — the same two plugins {@link WIRES} lists, with
+ * WHAT THIS BINARY CAN SERVE — the same plugins {@link WIRES} lists, with
  * their runtime halves on them.
  *
  * `satisfies` against `PluginServerHalf<never>` and not against a concrete

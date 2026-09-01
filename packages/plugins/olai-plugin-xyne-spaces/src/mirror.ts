@@ -28,7 +28,7 @@ export type DigestKind = "dispatched" | "review" | "ci" | "merged" | "stuck" | "
 
 export interface Thread {
   readonly conversationId: string
-  ciMessageId: string | undefined
+  readonly ciMessageId: string | undefined
 }
 
 export type Outbound =
@@ -156,14 +156,10 @@ export const makeMirror = (deps: MirrorDeps): Mirror => {
       fail(result.refused.why)
       return false
     }
-    if (thread === undefined) {
-      threads.set(item.lane, {
-        conversationId: result.posted.conversationId,
-        ciMessageId: item.kind === "ci" ? result.posted.messageId : undefined,
-      })
-    } else if (item.kind === "ci") {
-      thread.ciMessageId = result.posted.messageId
-    }
+    threads.set(item.lane, {
+      conversationId: thread?.conversationId ?? result.posted.conversationId,
+      ciMessageId: item.kind === "ci" ? result.posted.messageId : thread?.ciMessageId,
+    })
     lastLane = item.lane
     return true
   }
@@ -218,7 +214,7 @@ export const makeMirror = (deps: MirrorDeps): Mirror => {
         status,
         sessionId,
       })
-      if (!result.ok && result.refused !== undefined) fail(result.refused.why)
+      if (!result.ok) fail(result.refused.why)
     },
     threads: () => threads,
     queued: () => queue,

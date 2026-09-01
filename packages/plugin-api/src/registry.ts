@@ -44,8 +44,8 @@ import type { OlaiPlugin } from "./plugin.ts"
  * express ({@link ./plugin.ts}'s header argues the direction in full). A
  * plugin that stopped fitting is a type error on THIS line, naming the plugin.
  *
- * The manifests fill in as the sweep reaches them. Today both tenants
- * contribute their name and their members, which is a whole plugin — every
+ * The manifests fill in as the sweep reaches them. Today every tenant
+ * contributes its name and its members, which is a whole plugin — every
  * other field is optional, and the absent arm of each is the state a machine
  * without the tool already shows.
  */

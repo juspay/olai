@@ -37,10 +37,9 @@ export type PostResult =
   | { readonly ok: true; readonly posted: Posted }
   | { readonly ok: false; readonly refused: Refused }
 
-export interface ProgressResult {
-  readonly ok: boolean
-  readonly refused?: Refused
-}
+export type ProgressResult =
+  | { readonly ok: true }
+  | { readonly ok: false; readonly refused: Refused }
 
 export interface SpacesClient {
   readonly postMessage: (body: {

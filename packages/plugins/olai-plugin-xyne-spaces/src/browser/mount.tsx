@@ -9,6 +9,7 @@ import type { Accessor, JSX } from "solid-js"
 
 import type { SpacesLink } from "../wire.ts"
 
+import type { SpacesApp } from "./app.ts"
 import { LinkProvider } from "./link.tsx"
 
 export interface SpacesClient {
@@ -21,7 +22,7 @@ export interface SpacesClient {
 
 export function SpacesMount(props: {
   readonly client: unknown
-  readonly app: unknown
+  readonly app: SpacesApp
   readonly children: JSX.Element
 }): JSX.Element {
   const client = props.client as SpacesClient

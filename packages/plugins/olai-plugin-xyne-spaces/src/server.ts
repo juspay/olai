@@ -128,12 +128,13 @@ const linkFromEnv = (
       },
     }
   }
+  const origin = originOf(url)
   return {
-    url: originOf(url),
+    url: origin,
     token,
     link: {
       status: "connected",
-      where: originOf(url),
+      where: origin,
       told: true,
       why: null,
       since: now,
@@ -148,9 +149,7 @@ export const serve = (services: Services): {
   readonly unloaded: () => void
 } => {
   const env = linkFromEnv(services.env, services.now())
-  let current: SpacesLink = env.link.since === ""
-    ? { ...env.link, since: services.now() }
-    : env.link
+  let current: SpacesLink = env.link
   let linkCell: { set: (value: SpacesLink) => void } | undefined
   let file: Convention | undefined
   let reading: SpacesReading = { bind: null, trim: DEFAULT_TRIM, malformed: [] }
@@ -204,7 +203,7 @@ export const serve = (services: Services): {
     if (!boundTo(reading.bind, event.agent, event.session)) return
     lastBound = { agent: event.agent, session: event.session }
     const held = ensureMirror()
-    if (held === undefined || held === null) return
+    if (held === null) return
 
     if (event.kind === "delivered") {
       if (event.from === name) return

@@ -1,6 +1,6 @@
 /**
  * WHAT A PLUGIN IS, as a type — the whole of what core knows about kolu, odu,
- * and whatever the third one turns out to be.
+ * and xyne-spaces.
  *
  * ## Why there is an interface at all, which reverses a ruling
  *
@@ -9,10 +9,12 @@
  * owns that axis, and there is no second foreign slice anywhere in git or the
  * roadmap — a plug-in system with a population of one is speculative
  * generality."* That was true when it was written and it is not true now. The
- * population is two — odu arrived (#433) and grew a cell, a dressing, a vault
+ * population is three — odu arrived (#433) and grew a cell, a dressing, a vault
  * walk and a probe of its own, every one of them the kolu block with the nouns
- * changed, which `@olai/server`'s runtime says about itself. A second tenant is
- * not speculation; it is the evidence the first ruling asked for.
+ * changed; xyne-spaces arrived as the outbound mirror, with no appliance-client
+ * package one floor down. A second tenant is not speculation; it is the
+ * evidence the first ruling asked for, and a third is the same evidence spent
+ * again.
  *
  * What the reversal costs is named here rather than left for a reader to find:
  * the named spread was LEGIBLE — `...koluMembers.cells` beside
@@ -469,9 +471,10 @@ export interface Dressing {
 /**
  * THE APP'S CHROME, and what a plugin hangs in it.
  *
- * Two slots and no more: a HEADER readout (kolu's padi pill) and the DRAWER
- * its press opens (the events feed). A plugin that hangs neither is not a
- * lesser plugin — odu has neither.
+ * Two slots and no more: a HEADER readout (kolu's padi pill, spaces' link
+ * pill) and the DRAWER a press opens (kolu's events feed). A plugin that hangs
+ * neither is not a lesser plugin — odu has neither. Spaces hangs a Header with
+ * no Drawer: a readout that opened nothing would be a control that lied.
  *
  * ONE ARGUMENT, and it is the furniture ({@link AppFurniture}). A slot that took
  * the plugin's own data as props would be the app reading a plugin's members to
@@ -632,7 +635,7 @@ export type PluginMount = (props: {
  * dial a fake**. So that is the list, spelled once, and a third plugin is
  * handed it without core learning a word.
  *
- * Every field is here because one of the two tenants would otherwise have had
+ * Every field is here because one of the tenants would otherwise have had
  * to be asked for it separately, and none is here for a plugin that does not
  * exist: `served` is odu's today (half of where a relative `worktree`
  * resolves) and `now` is kolu's (what a link's `since` is stamped from), and
@@ -1026,7 +1029,7 @@ export interface PluginServer<Revision> {
  * Every field below but the two inherited ones is optional, and that is not a
  * staging convenience: the ABSENT arm of every hook is the state a machine
  * without the tool already shows, and that state already had to work. The
- * interface is also roomier than its two tenants need, and the room is not
+ * interface is also roomier than its tenants need, and the room is not
  * speculation either — a chat AGENT (today a second hardcoded roster in
  * `@olai/chat`'s `agents/`) is a probe whose answer carries its own failure
  * sentence plus a per-conversation attach, which is this shape with most of the
