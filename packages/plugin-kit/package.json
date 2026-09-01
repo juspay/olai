@@ -1,0 +1,21 @@
+{
+  "name": "@olai/plugin-kit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "//exports": "TWO doors, because two graphs. The root is the brand mark — a SolidJS `<g>` that opens a nested viewport around a generated body — reached from a plugin's MANIFEST, which already carries SolidJS. `./ref` is the doorbell's one spelling of a pressable node, reached from a plugin's `./server`, which may not pull a UI runtime. `src/mark/emit.ts` is not a door at all: Nix runs it by path.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./ref": "./src/ref.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "//": "WHAT A PLUGIN'S FACE IN A CONVERSATION IS MADE OF, without knowing which plugin. A tenant declares the pin path of its logo and the node id it is ringing about; this package is the mechanism, said once. It is a SIBLING of `@olai/plugin-api` rather than a door of it: that package imports every plugin, so a plugin importing it is a cycle the manifests cannot express. A third plugin imports this and is not browbeaten to copy a first tenant's internals.",
+  "//dependencies": "`solid-js` is a runtime dependency of the ROOT door only — `BrandMark` is a component. `./ref` imports nothing. No `@olai/plugin-api` (cycle), no plugin (fence claim 2 the other way), no appliance (this package is general: both tenants reach it, so it is general by the fence's own construction).",
+  "dependencies": {
+    "solid-js": "^1.9.0"
+  }
+}

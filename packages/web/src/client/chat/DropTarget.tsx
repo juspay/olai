@@ -69,7 +69,12 @@ export function DropTarget(props: {
 
   return (
     <div
-      class="relative flex min-h-0 min-w-0 flex-1 flex-col"
+      // `overflow-y-auto` is the scrollport a phone half-sheet needs when the
+      // strips above (a second doorbell, a chip) leave this shorter than the
+      // composer: without it the camera sits outside the viewport and neither
+      // a finger nor Playwright can reach it. The transcript still scrolls
+      // itself.
+      class="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto"
       onDragEnter={(event) => {
         if (carrying(event)) setDepth((inside) => inside + 1)
       }}

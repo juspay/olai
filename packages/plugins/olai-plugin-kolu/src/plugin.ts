@@ -95,7 +95,9 @@ export const plugin = {
    *
    * It is NOT the doorbell's mark. The doorbell is one door kolu speaks
    * through; the face says which appliance is speaking, which is the question
-   * a reader of a transcript actually has.
+   * a reader of a transcript actually has. The nested viewport and the
+   * pressable-id spelling are `@olai/plugin-kit`'s, shared with every other
+   * tenant that fills this field.
    */
   mark: KoluMark,
 } as const

@@ -21,14 +21,14 @@ let
   # what the client build needs to be told about fonts.
   olai-fonts = import ./packages/fonts { inherit pkgs; };
 
-  # kolu's own logo, out of the same kolu pin the sources hydrate from, already
-  # a TypeScript module — olai-plugin-kolu owns both the component and the
-  # derivation that feeds it, so this is the whole of what the build needs to
-  # be told about a tenant's mark. `nix build .#kolu-mark` is also the one
-  # command that answers "what does the pin currently say the logo is", which
+  # Each tenant's own logo, out of that tenant's pin, already a TypeScript
+  # module — `@olai/plugin-kit` is the transform, the plugin's `default.nix`
+  # names the file. `nix build .#kolu-mark` / `.#odu-mark` is the command
+  # that answers "what does the pin currently say the logo is", which
   # matters because the generated file is gitignored and a pin bump therefore
   # shows no diff of its own.
   kolu-mark = import ./packages/plugins/olai-plugin-kolu { inherit pkgs; };
+  odu-mark = import ./packages/plugins/olai-plugin-odu { inherit pkgs; };
 
   src = pkgs.lib.fileset.toSource {
     root = ./.;
@@ -90,6 +90,7 @@ let
       sh ${kolu.hydrateScript} ${kolu.hydrateArgs}
       sh ${kolu.hydrateScript} ${odu.hydrateArgs}
       install -m 644 ${kolu-mark}/mark.generated.ts packages/plugins/olai-plugin-kolu/src/browser/mark.generated.ts
+      install -m 644 ${odu-mark}/mark.generated.ts packages/plugins/olai-plugin-odu/src/browser/mark.generated.ts
     '';
 
     buildPhase = ''
@@ -149,5 +150,5 @@ let
   '';
 in
 {
-  inherit olai olai-client olai-fonts kolu-mark base acp-agent;
+  inherit olai olai-client olai-fonts kolu-mark odu-mark base acp-agent;
 }

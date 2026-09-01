@@ -57,6 +57,7 @@
 
 import {
   type CiRun,
+  identityOf,
   type RunCell,
   type RunTally,
   tallyOf,
@@ -134,9 +135,7 @@ const toneOf = (run: CiRun, tally: RunTally, verdict: string | null): CiTone => 
  * the ambiguity that spelling was introduced to end (juspay/odu#49).
  */
 const titleOf = (run: CiRun): string => {
-  const which = run.sha7 === ""
-    ? run.name
-    : `${run.name} ${run.sha7}${run.seq === null ? "" : `#${run.seq}`}${run.dirty ? "+dirty" : ""}`
+  const which = identityOf(run)
   const lanes = run.lanes.length === 0 ? "" : ` · ${run.lanes.join(" ")}`
   // Prose rather than a word, and deliberately: `@olai/web`'s connection
   // readout owns a closed set that includes the obvious one-word spelling, and

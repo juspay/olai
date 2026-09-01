@@ -52,48 +52,46 @@ import type { OlaiWorld } from "../support/world.ts";
 // ── the control ────────────────────────────────────────────────────────
 
 /**
- * THE ONE DOORBELL ON THIS CONVERSATION.
+ * ONE PLUGIN'S DOORBELL ON THIS CONVERSATION.
  *
- * The strip draws a line per running plugin that declares a wake, and today
- * exactly one does. Asserting that here rather than reaching for `.first()` is
- * the difference between a step that keeps being about kolu's doorbell and one
- * that quietly starts asserting about whichever plugin grew a second: the count
- * is part of what the scenario means, so a second row fails loudly and names the
- * fix instead of passing against the wrong row.
+ * The strip draws a line per running plugin that declares a wake. Two do, as
+ * of odu's doorbell — so a step that counted to one and reached for `.first()`
+ * would be asserting about whichever plugin the registry listed first. The
+ * picker already stamps `data-plugin`; the step names whose.
  */
-const theOnlyPicker = async (world: OlaiWorld): Promise<Locator> => {
+const thePicker = async (world: OlaiWorld, plugin: string): Promise<Locator> => {
   const strip = world.page.locator(CHAT_WAKE);
   await strip.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  const pickers = world.page.locator(CHAT_WAKE_PICKER);
-  const drawn = await pickers.count();
-  assert.strictEqual(
-    drawn,
-    1,
-    "this scenario is written against a conversation with one doorbell on it. " +
-      "A second plugin declaring a wake is not a failure of the feature — it " +
-      "means this step has to say WHOSE doorbell it is pointing.",
-  );
-  return pickers.first();
+  const picker = world.page.locator(`${CHAT_WAKE_PICKER}${attr("data-plugin", plugin)}`);
+  await picker.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  return picker;
 };
 
 /** What that control is pointed at, as data: a path, or the word `off`. The
  *  words around it are the plugin's own sentence, and a scenario asserting
  *  those would be asserting somebody else's vocabulary. */
-const pointedAt = async (world: OlaiWorld, expected: string): Promise<void> => {
+const pointedAt = async (
+  world: OlaiWorld,
+  plugin: string,
+  expected: string,
+): Promise<void> => {
   await world.expectAttribute(
-    CHAT_WAKE_PICKER,
+    `${CHAT_WAKE_PICKER}${attr("data-plugin", plugin)}`,
     "data-file",
     expected,
-    "this conversation's wake control",
+    `${plugin}'s wake control`,
   );
 };
 
 /** The ruling's own default, drawn rather than hidden: nobody is opted in by a
  *  serve, so a fresh conversation says `off` and offers the way to change it. */
-Then("this conversation wakes on nothing", async function (this: OlaiWorld) {
-  await theOnlyPicker(this);
-  await pointedAt(this, "off");
-});
+Then(
+  "this conversation's {string} wake is on nothing",
+  async function (this: OlaiWorld, plugin: string) {
+    await thePicker(this, plugin);
+    await pointedAt(this, plugin, "off");
+  },
+);
 
 /**
  * PICK A FILE, the way a person does: open the list, narrow it, press the row.
@@ -104,9 +102,9 @@ Then("this conversation wakes on nothing", async function (this: OlaiWorld) {
  * rather than about the pick.
  */
 When(
-  "I point this conversation's wake at {string}",
-  async function (this: OlaiWorld, file: string) {
-    await this.press(await theOnlyPicker(this));
+  "I point this conversation's {string} wake at {string}",
+  async function (this: OlaiWorld, plugin: string, file: string) {
+    await this.press(await thePicker(this, plugin));
     const query = this.page.locator(CHAT_WAKE_QUERY);
     await query.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await query.fill(file);
@@ -118,9 +116,9 @@ When(
  *  wrote it, published it, and this tab redrew from that — so this is the round
  *  trip and not the press's own optimism. */
 Then(
-  "this conversation wakes on {string}",
-  async function (this: OlaiWorld, file: string) {
-    await pointedAt(this, file);
+  "this conversation's {string} wake is on {string}",
+  async function (this: OlaiWorld, plugin: string, file: string) {
+    await pointedAt(this, plugin, file);
   },
 );
 

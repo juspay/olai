@@ -1,13 +1,24 @@
 /**
- * ODU'S SERVER HALF — the CI probe, assembled where the judgement about it
- * lives.
+ * ODU'S SERVER HALF — the CI probe and the doorbell it rings, assembled where
+ * the judgement about them lives.
  *
  * It is `olai-plugin-kolu`'s `server.ts` one appliance over, deliberately the
- * same shape and deliberately smaller: one cell, one vault walk, one sweep. That
+ * same shape and deliberately smaller: one cell, one vault walk, one sweep,
+ * and the two notices the sweep turns into deliveries ({@link ring}). That
  * this module and kolu's are the same block with the nouns changed was the
  * phase's own complaint about `runtime.ts`, and the answer is not to make the
  * two files different — it is that neither of them is in a general package any
  * more, and a THIRD tenant writes its own without core growing a line.
+ *
+ * WHAT THE DOORBELL HERE DELIBERATELY LACKS is a heartbeat: kolu's rides its
+ * watcher's own beat, and odu's sweep is a poll for ABSENCES — a checkout
+ * with no socket is the ordinary state, not evidence of life. There is no
+ * third timer and no third knob because there is nothing honest for one to
+ * say; the floor under this doorbell's silence is the two fault sentences
+ * ({@link ./wake.ts}) and the picker's clear. Everything else is the kolu
+ * shape verbatim: same scope mechanism, same thunk rules (a claim gone by
+ * delivery is no message; counts read at delivery), same silence for
+ * unclaimed subjects.
  *
  * ## Why the server half is its own door
  *
@@ -32,9 +43,16 @@
  */
 
 import type { ImplementSurfaceDeps } from "@kolu/surface/server"
-import type { Derived } from "@olai/format"
-import { type DialRun, oduHalf } from "@olai/odu-client"
+import {
+  declarationsOf,
+  type Derived,
+  NO_TYPING,
+  type PropDeclarations,
+} from "@olai/format"
+import { type DialRun, oduHalf, type RunNotice } from "@olai/odu-client"
 
+import { bodyFor, claimedIn, claimingIn, coalesceOf, countsFor } from "./doorbell.ts"
+import { ownKinds } from "./kinds.ts"
 import { surface } from "./wire.ts"
 import { worktreesIn } from "./worktrees.ts"
 
@@ -47,27 +65,83 @@ export { kinds } from "./kinds.ts"
  *  re-exports it: one entry per plugin, and one spelling of the key. */
 export { faces, name, surface } from "./wire.ts"
 
+/** IS ODU'S `mcp` HERE, asked per conversation — {@link ./probe.ts}: the
+ *  division is odu-supplies-the-evidence / olai-the-judgement, exactly as
+ *  kolu's one appliance over, and it is on this door for the same reason: a
+ *  probe starts a subprocess, and the manifest is a door the browser opens. */
+export { probe } from "./probe.ts"
+
+/**
+ * WHAT THE STRIP'S DOORBELL CONTROL SAYS, on this door rather than inside
+ * {@link serve} for the reason `olai-plugin-kolu`'s server.ts argues one
+ * appliance over: it is DECLARATION and not behaviour — core refuses a scope
+ * for a plugin declaring no wake, and asks that question of the enabled
+ * halves long before any of them has served anything. {@link ./wake.ts}
+ * argues the words themselves, including why odu's half has no heartbeat.
+ */
+export { wake } from "./wake.ts"
+
 /**
  * WHAT THIS HALF ASKS CORE FOR, out of what core offers every plugin.
  *
  * `env` and `served` are what the repos root is decided from
  * (`@olai/odu-client`'s `resolve.ts`) — a relative `worktree` resolves against
  * the served directory unless `$OLAI_REPOS_DIR` says otherwise, and a test that
- * asserts the resolution has to own both. `now` is deliberately absent: nothing
- * here is stamped with a time, and a parameter is contravariant, so leaving it
- * off is a claim rather than an omission — kolu's half one appliance over asks
- * for it and this one does not.
+ * asserts the resolution has to own both.
  *
  * `dial` arrives opaque and is narrowed below, for the reason kolu's is: core
  * cannot type a plugin's own fake coordinator without learning what the plugin
  * talks to.
+ *
+ * `now` is asked for where kolu's half one appliance over asks for it too: a
+ * wake's attribution carries a stamp, composed at the moment the words go in.
  */
 export interface Services {
   readonly env: Record<string, string | undefined>
   readonly served: string
+  readonly now: () => string
   readonly say: (line: string) => void
   readonly warn: (line: string) => void
   readonly dial?: unknown
+  readonly deliveries: Deliveries
+}
+
+/**
+ * THE DOORBELL'S DOOR, re-declared STRUCTURALLY — `@olai/plugin-api`'s
+ * `Deliveries`, spelled here for the cycle reason `olai-plugin-kolu`'s own
+ * re-declaration (the file this module is one appliance over from) argues at
+ * length: the registry imports THIS package, so an import back would be a
+ * shape the manifests could not express, and the registry's `satisfies` is
+ * where the two spellings are held to one.
+ *
+ * TWO MEMBERS, AND ONE OF THEM CANNOT READ: `deliver` puts a sentence INTO a
+ * conversation and there is no verb for getting one back out. That is core's
+ * fence rather than this plugin's restraint, and re-declaring it faithfully
+ * is how this side says it accepts it.
+ */
+export interface Deliveries {
+  /** The conversations somebody scoped to this plugin, each with the file
+   *  they picked to filter by. Synchronous, because the caller is a watcher
+   *  sink with no Effect around it. Empty forever on a machine nobody scoped,
+   *  which is the honest state and needs no failure channel. */
+  readonly scopes: () => ReadonlyArray<{
+    readonly agent: string
+    readonly session: string
+    readonly file: string
+  }>
+  /** One machine-marked message into one conversation. Fire-and-forget, like
+   *  {@link Services.say} and {@link Services.warn} beside it and for their
+   *  reason. `coalesce` names the slot an UNDELIVERED body may be replaced
+   *  in — a slot core files under the PAIR of this plugin and the word. See
+   *  {@link ./doorbell.ts} on why the word is per kind AND per run here:
+   *  two runs settling through one busy turn are two subjects, and a fresh
+   *  derivation is what makes replacement under one key lossless. */
+  readonly deliver: (
+    to: { readonly agent: string; readonly session: string },
+    /** Asked at the moment the words go in, never before — see {@link said}. */
+    say: () => string | null,
+    options?: { readonly coalesce?: string },
+  ) => void
 }
 
 /**
@@ -110,6 +184,95 @@ export const serve = (services: Services): {
   readonly revision: (revision: VaultRevision) => void
   readonly unloaded: () => void
 } => {
+  /** THE READING THE DOORBELL JOINS AGAINST, held across revisions.
+   *
+   *  `undefined` BEFORE THE FIRST ONE is the truth about it and the doorbell's
+   *  own first gate: nothing has been read, so no file claims anything, so a
+   *  notice arriving before the vault rings nobody. The sweep runs on seconds;
+   *  the first revision lands in the boot, which is before any run a person
+   *  would start can settle. */
+  let derived: Derived | undefined
+
+  /** ...AND WHAT THAT REVISION DECLARES, for {@link ./doorbell.ts}'s licence
+   *  — the same `let` kolu's half one appliance over keeps, and
+   *  `declarationsOf`'s WeakMap memo is what makes setting it per revision a
+   *  pointer read on the revisions the declarations file did not move on. */
+  let declaring: PropDeclarations = NO_TYPING
+
+  /**
+   * THE WORDS, DERIVED AFRESH AT THE MOMENT THEY ENTER A CONVERSATION.
+   *
+   * Core holds a delivery through a running turn, or until somebody opens the
+   * conversation, and BOTH the vault and the runs move while it waits —
+   * `olai-plugin-kolu`'s `said` argues the incident behind the arrangement
+   * (a message asserting a world that had closed while it queued), and odu's
+   * arm of it is the one {@link ./doorbell.ts}'s header spells: the CLAIM is
+   * asked again of the revision in force (a lane finished while its wake
+   * queued is a wake nobody owes — `null` drops the delivery), and a
+   * first-red's counts are the LIVE row's own where the row is still this
+   * run's, never the values the notice's frame closed over. The settle
+   * notice's counts are its own final account and are deliberately NOT
+   * re-read: the last frame is the story it has to tell.
+   */
+  const said = (file: string, notice: RunNotice): string | null => {
+    const at = derived
+    if (at === undefined) return null
+    const claim = claimingIn(claimedIn(declaring, at, file)).get(notice.run.id)
+    if (claim === undefined) return null
+    if (notice.kind === "first-red") {
+      return bodyFor(notice, claim, services.now(), countsFor(half.rows(), notice))
+    }
+    return bodyFor(notice, claim, services.now())
+  }
+
+  /**
+   * ONE RUN NOTICE, RUNG THROUGH — the doorbell's whole drive loop.
+   *
+   * Per notice, per conversation, joined by VALUE: a run's id IS the
+   * `worktree` value the board wrote (`@olai/odu-client`'s `CiRun`), so the
+   * join needs no roster resolution — the asymmetry with kolu's half one
+   * appliance over, which resolves eight-character prefixes against a live
+   * fleet. One claims walk per FILE per notice, memoised for the length of
+   * this call and dropped with it ({@link ./doorbell.ts}: this module owns no
+   * standing set).
+   *
+   * SILENCE IS NO CALL AT ALL: a run no scoped file's un-done nodes name
+   * rings nobody, not even a quieter body.
+   *
+   * AND IT CANNOT THROW INTO A WATCHER'S SINK: this runs from a hold fiber
+   * inside the sweep — an exception escaping here rides a stream's failure
+   * channel out, not a caller's catch. The whole walk is caught once, at this
+   * package's edge, and said on the owner's channel: a doorbell that failed
+   * is worth a line, and it is worth exactly one.
+   */
+  const ring = (notice: RunNotice): void => {
+    const at = derived
+    if (at === undefined) return
+    try {
+      const perFile = new Map<string, ReturnType<typeof claimingIn>>()
+      const claimingFor = (file: string) => {
+        const held = perFile.get(file)
+        if (held !== undefined) return held
+        const fresh = claimingIn(claimedIn(declaring, at, file))
+        perFile.set(file, fresh)
+        return fresh
+      }
+      for (const scope of services.deliveries.scopes()) {
+        if (claimingFor(scope.file).get(notice.run.id) === undefined) continue
+        services.deliveries.deliver(
+          { agent: scope.agent, session: scope.session },
+          // ASKED AGAIN AT THE MOMENT IT GOES IN — see {@link said}.
+          () => said(scope.file, notice),
+          { coalesce: coalesceOf(notice) },
+        )
+      }
+    } catch (thrown) {
+      services.warn(
+        `odu: the doorbell could not ring for this run notice — ${String(thrown)}`,
+      )
+    }
+  }
+
   const half = oduHalf<Derived>({
     options: {
       env: services.env,
@@ -125,6 +288,12 @@ export const serve = (services: Services): {
     // one, are readings of outline records — things the package that dials odu
     // must not learn. What crosses is four strings per node.
     worktrees: worktreesIn,
+    // THE DOORBELL'S TAP, and the same boundary kolu's `rang` keeps one
+    // appliance over: what crosses is the watch's own frozen notice, and what
+    // this side does with it — join it against the `worktree` values a scoped
+    // file's un-done nodes claim — is a walk over outline records that
+    // `@olai/odu-client` must not be able to spell.
+    rang: ring,
     // Chatter, at debug: on a machine with no CI running this is a line every
     // few seconds and it is not news — which on this appliance is even more true
     // than on kolu's, because a checkout with no live run is the ORDINARY state
@@ -150,13 +319,28 @@ export const serve = (services: Services): {
      *  no-op rather than omitted so the two tenants read alike at the one place
      *  they genuinely differ. */
     published: () => {},
-    /** A VAULT REVISION LANDED. Storing the answer is all it does: dialing is
+    /** A VAULT REVISION LANDED. Holding the answer is all it does: dialing is
      *  the sweep's, on its own clock, so a keystroke costs one walk and no
-     *  sockets. */
-    revision: (revision) => half.revision(revision.value.derived),
+     *  sockets. Two `let`s ride along, and they are the DOORBELL's ammunition:
+     *  the derivation itself, for the claims walk, and its declarations, for
+     *  the licence ({@link ring} runs on the watcher's clock, not on this
+     *  hook's — a notice arrives between revisions, and the vault it is
+     *  joined against has to be the last one that landed). */
+    revision: (revision) => {
+      declaring = declarationsOf(revision.value.derived, ownKinds)
+      derived = revision.value.derived
+      half.revision(revision.value.derived)
+    },
     /** The store has NEVER published — a set of CI runs derived from a vault the
-     *  server can no longer see is yesterday's reading, so the worktrees reset to
-     *  none and the sockets follow on the next sweep. */
-    unloaded: () => half.unloaded(),
+     *  server can no longer see is yesterday's reading, so the worktrees reset
+     *  to none and the sockets follow on the next sweep. The doorbell's two
+     *  `let`s go with it: {@link ring} runs on the watcher's clock rather than
+     *  on a revision, so a notice arriving after a disown must find the vault
+     *  gate shut rather than joining against a disowned reading. */
+    unloaded: () => {
+      declaring = NO_TYPING
+      derived = undefined
+      half.unloaded()
+    },
   }
 }
