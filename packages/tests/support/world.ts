@@ -1756,6 +1756,13 @@ export class OlaiWorld extends World {
    *  `@no-agent`, which is how the panel's no-agent state is reached. Carried
    *  for the same reason: a restart has to reproduce the first boot. */
   hasAgent = true;
+
+  /** WHICH NODE this scenario's directory has a node agent bound for, from its
+   *  `@bind:<node>` tag — `undefined` for every scenario that asked for none,
+   *  which is nearly all of them. Carried on the world for `hasAgent`'s reason:
+   *  a restart mid-scenario has to reproduce the first boot, and this record is
+   *  read at boot and nowhere else. */
+  boundNode: string | undefined = undefined;
   /** Whether this scenario's host is running kolu (`@kolu`), so its sessions
    *  are handed kolu's terminals as well as olai's own tools. Carried for the
    *  same reason again: a restart has to reproduce the first boot. */

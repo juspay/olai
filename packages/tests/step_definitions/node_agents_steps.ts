@@ -20,17 +20,11 @@
  */
 
 import assert from "node:assert/strict";
-import { mkdirSync, writeFileSync } from "node:fs";
-import path from "node:path";
+import { Then, When } from "@cucumber/cucumber";
 
-import { Given, Then, When } from "@cucumber/cucumber";
-
-import { canonical, fileFor } from "@olai/state";
 import { selector, TESTID } from "@olai/web/testlib";
 
 import { attr } from "../support/selectors.ts";
-import { scratchState } from "../support/hooks.ts";
-import { stateHomeIn } from "../support/workers.ts";
 import { CHAT_ENTRY, CHAT_TRANSCRIPT, POLL_TIMEOUT } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
@@ -141,67 +135,7 @@ When("I press the agent {string}", async function (this: OlaiWorld, node: string
   await this.press(rowFor(this, node));
 });
 
-// ── the binding, and the contract that rides on it ─────────────────────
-
-/**
- * WHERE OLAI KEEPS THIS MACHINE'S BINDINGS, asked of the package that decides
- * it (`@olai/state`) rather than spelled here.
- *
- * The path is a digest of the served directory's realpath under a per-kind
- * subdirectory, and a second spelling of that rule is the silent drift this
- * suite's dependency note is about: a copy would go on writing a file nothing
- * reads, and the scenario would fail thirty seconds later as a timeout with
- * nothing to say about why. WHERE that home is, is the harness's own two joins
- * and they are asked too (`support/hooks.ts`'s `scratchState`, beside the copy
- * rather than inside it, and `support/workers.ts`'s `stateHomeIn`) — a copy of
- * either was exactly this step failing silently the first time it ran.
- */
-const bindingsAt = (world: OlaiWorld): string => {
-  const home = stateHomeIn(scratchState(world.scratch()));
-  const was = process.env["XDG_STATE_HOME"];
-  // `fileFor` reads the variable at CALL time, which is the seam that lets a
-  // step ask it about a serve other than this process — set for the one call,
-  // and put back, because this process has an XDG state of its own.
-  process.env["XDG_STATE_HOME"] = home;
-  try {
-    return fileFor("agents", canonical(world.scratch()));
-  } finally {
-    if (was === undefined) delete process.env["XDG_STATE_HOME"];
-    else process.env["XDG_STATE_HOME"] = was;
-  }
-};
-
-/**
- * BIND A NODE TO THE CONVERSATION THE PANEL IS IN — by hand, which is the only
- * way one is bound in this phase and therefore the way a person's directory
- * reaches this code at all.
- *
- * The session id is the scripted agent's own, which it answers with on every
- * `session/new` (`agent/fake-acp-agent.ts`). Named here rather than read off
- * the panel because it is the fixture's contract with this suite, the way
- * `fake-stored-old` already is.
- *
- * IT IS WRITTEN BEFORE A RESTART, always: the record is read once, at boot
- * (`@olai/chat`'s `agents.ts`), so a binding hand-edited under a running serve
- * takes effect at the next start — which is a fact about this phase that
- * docs/chat.md says out loud, and this step is where the suite depends on it.
- */
-Given(
-  "the node {string} is bound to this directory's conversation",
-  function (this: OlaiWorld, node: string) {
-    const at = bindingsAt(this);
-    mkdirSync(path.dirname(at), { recursive: true, mode: 0o700 });
-    writeFileSync(
-      at,
-      `${
-        JSON.stringify({
-          cwd: canonical(this.scratch()),
-          bound: [{ node, agent: "claude", session: "fake-session-1" }],
-        })
-      }\n`,
-    );
-  },
-);
+// ── the contract that rides on a binding ───────────────────────────────
 
 /** Every notice in which olai has told an agent what it is — counted over the
  *  NOTICE's own words rather than over the transcript's text, since a person

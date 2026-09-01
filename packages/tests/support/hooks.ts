@@ -50,6 +50,7 @@ import { installReaper, killProcessGroup, reap } from "./reaper.ts";
 
 import { After, AfterAll, Before, BeforeAll, Status } from "@cucumber/cucumber";
 import { findLogfmt } from "@olai/log/testlib";
+import { canonical, fileFor } from "@olai/state";
 import { chromium } from "playwright";
 import type { Browser } from "playwright";
 
@@ -78,6 +79,7 @@ import {
   isolateEnv,
   releasePort,
   spawnFingerprint,
+  stateHomeIn,
   workerId,
 } from "./workers.ts";
 
@@ -253,6 +255,24 @@ const PAINTS_TAG = "@markdown-paints";
  *  the whole rule), while a restart after one has been PICKED comes back to the
  *  picked one — and to the newest again only once the picked one is gone. */
 const STORED_TAG = "@agent-stored";
+
+/**
+ * `@bind:<node>` — THIS DIRECTORY HAS A NODE AGENT BOUND to the conversation
+ * its serve will open.
+ *
+ * A fixture fact rather than a step, because of WHEN it has to be true: the
+ * node-agent binding record is read once, at BOOT (`@olai/chat`'s `agents.ts`),
+ * and there is no gesture that writes one in this phase — so a scenario cannot
+ * arrange it after the server is up, and a scenario that restarted to arrange
+ * it would be testing the restart. The tag writes the record into the serve's
+ * own state home before it starts, which is the shape a person's directory is
+ * in when they open olai.
+ *
+ * The session it names is the scripted agent's own, which it answers with on
+ * every `session/new` (`agent/fake-acp-agent.ts`) — the fixture's contract with
+ * this suite, the way `fake-stored-old` already is.
+ */
+const BIND_TAG = /^@bind:([\w-]+)$/;
 
 /** `@no-agent`: this scenario's server is started with NO agent, which is the
  *  one state a person should never reach by following a documented launch path
@@ -455,6 +475,43 @@ const workerCopyOf = (corpus: string): string => {
  *  answer rather than a copy of this spelling. */
 export const scratchState = (root: string): string => `${root}.xdg`;
 
+/**
+ * WRITE ONE NODE-AGENT BINDING into a serve's state home, before it boots.
+ *
+ * The record `@olai/chat`'s `agents.ts` reads, in the shape a person writes by
+ * hand — which is the only shape there is in this phase. Composed out of
+ * `@olai/state`'s own answers rather than a second spelling of where olai keeps
+ * things: a copy would write a file nothing reads, and the scenario would fail
+ * as a timeout with nothing to say about why.
+ */
+const bindNodeAgent = (root: string, node: string): void => {
+  const was = process.env.XDG_STATE_HOME;
+  // `fileFor` reads the variable at call time, which is the seam that lets this
+  // process name a path for a serve that is not itself.
+  process.env.XDG_STATE_HOME = stateHomeIn(scratchState(root));
+  try {
+    const at = fileFor("agents", canonical(root));
+    fs.mkdirSync(path.dirname(at), { recursive: true, mode: 0o700 });
+    fs.writeFileSync(
+      at,
+      `${
+        JSON.stringify({
+          cwd: canonical(root),
+          bound: [{ node, agent: "claude", session: FAKE_SESSION }],
+        })
+      }\n`,
+    );
+  } finally {
+    if (was === undefined) delete process.env.XDG_STATE_HOME;
+    else process.env.XDG_STATE_HOME = was;
+  }
+};
+
+/** The conversation the scripted agent answers `session/new` with, every time
+ *  (`agent/fake-acp-agent.ts`). Named here because a binding written before the
+ *  boot has to name the session that boot will open. */
+const FAKE_SESSION = "fake-session-1";
+
 // ── the server under test ──────────────────────────────────────────────
 
 /** WHO owns the server process, and WHERE it is. Two decisions, so two
@@ -556,6 +613,9 @@ interface Spawn {
    *  restarting the server under an open page needs the SAME address. */
   readonly port?: number;
   readonly stored?: boolean;
+  /** A node id this directory has a node agent bound for, before the boot that
+   *  reads it ({@link BIND_TAG}). */
+  readonly bind?: string;
   /** `false` starts the server with no agent at all. */
   readonly agent?: boolean;
   /** `true` makes the scratch copy a repository — see {@link GIT_TAG}. */
@@ -880,6 +940,11 @@ export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
       pi: world.hasPi,
       kolu: world.hasKolu,
       stateRoot: scratchState(world.scratch()),
+      // ... and the same binding, for the same sentence: the record is read at
+      // BOOT, so a restart that came back without it would be a different
+      // directory rather than the same one restarted. It is already on the
+      // disk from the first boot; naming it here keeps the fingerprint honest.
+      ...(world.boundNode === undefined ? {} : { bind: world.boundNode }),
       ...(world.gitMode === undefined ? {} : { git: world.gitMode }),
       // ... and the same git POLICY, for the same reason: a restart that came
       // back unpinned would hand the open page its preferences back, which is a
@@ -991,6 +1056,9 @@ const scratchServerFor = async (
   try {
     fs.cpSync(fixtureDir(corpus), root, { recursive: true });
     if (spawnOptions.git === "repo") makeRepository(root);
+    // BEFORE THE BOOT, because that is the only moment it can be true: the
+    // binding record is read once, at start ({@link BIND_TAG}).
+    if (spawnOptions.bind !== undefined) bindNodeAgent(root, spawnOptions.bind);
     const server = await startServerChild(
       active.bin,
       root,
@@ -1227,6 +1295,12 @@ Before(
       (tag) => tag.name === OPENCODE_TAG,
     );
     this.hasPi = scenario.pickle.tags.some((tag) => tag.name === PI_TAG);
+    // WHICH NODE this directory has a node agent bound for, before its serve
+    // boots ({@link BIND_TAG}). On the world for `hasAgent`'s reason: a restart
+    // mid-scenario has to reproduce this boot.
+    this.boundNode = scenario.pickle.tags
+      .map((tag) => BIND_TAG.exec(tag.name)?.[1])
+      .find((node): node is string => node !== undefined);
     // On the world rather than in a local, because a restart mid-scenario has
     // to reproduce this boot (`startOwnServer`).
     this.avatarTemplate = scenario.pickle.tags.some(
@@ -1339,6 +1413,7 @@ Before(
         ...(this.gitMode === undefined ? {} : { git: this.gitMode }),
         ...(pinned ? { pin: this.gitPin } : {}),
         ...(this.pluginPin === undefined ? {} : { plugins: this.pluginPin }),
+        ...(this.boundNode === undefined ? {} : { bind: this.boundNode }),
       };
       const ownCopy = async (): Promise<void> => {
         const own = await scratchServerFor(asked.corpus, spawnOptions);
