@@ -271,9 +271,10 @@ test("the tie is a pid or it is nothing, and nothing is read into silence", () =
   expect(parentTie({})).toEqual({ parent: null })
   expect(parentTie({ [DIE_WITH_PARENT]: "" })).toEqual({ parent: null })
   expect(parentTie({ [DIE_WITH_PARENT]: "4321" })).toEqual({ parent: 4321 })
-  // A tie to pid 1 is legitimate — a container's entry point is PID 1 and may
-  // spawn a server it means to keep — which is why the tie is a pid and never
-  // a yes whose "1" would collide with it.
+  // A tie to pid 1 is legitimate, which is why the tie is a pid and never a
+  // yes whose "1" would collide with it. (The case for it — a container's
+  // entry point is PID 1 and may spawn a server it means to keep — is
+  // REASONED and not measured; no container was stood up for it.)
   expect(parentTie({ [DIE_WITH_PARENT]: "1" })).toEqual({ parent: 1 })
   // Anything that is not a pid is a caller mistake, and the answer to a
   // mistake is to NOT die: a complaint, and no tie.

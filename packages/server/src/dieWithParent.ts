@@ -46,9 +46,12 @@
  *     that check was written for is the case it misses there. This is the
  *     whole reason the tie is a PID rather than a yes: *not my parent any
  *     more* is the same sentence whichever of the two a machine has, and it
- *     needs no guess about which. (A tie to pid `1` is meanwhile legitimate —
- *     a container's entry point is PID 1 and may spawn a server it means to
- *     keep — which a yes spelled `1` could not have said.)
+ *     needs no guess about which. (A tie to pid `1` is meanwhile legitimate,
+ *     which a yes spelled `1` could not have said: a container's entry point
+ *     is PID 1 and may spawn a server it means to keep. That last one is
+ *     REASONED and not measured — no container was stood up for it — and it
+ *     is an argument against `getppid()` rather than a load on this design,
+ *     which behaves the same either way.)
  *
  * The residual is pid reuse inside the milliseconds between the spawn and the
  * arm, which would have to land on this exact number to be wrong.
