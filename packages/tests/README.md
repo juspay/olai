@@ -157,6 +157,7 @@ nix develop -c bash
 cd packages/tests
 bash tasks.sh                  # a Monitor that ticks and ends
 KIND=bash bash tasks.sh        # a background shell that exits 3
+KIND=agent bash tasks.sh       # an async Agent; a forwarded task-notification prints
 ```
 
 `tasks.ts` / `tasks.sh` are the fourth driver here and the only one that talks to no olai at all: it drives the PINNED ADAPTER directly, arms one real background task, and prints what reaches an ACP client beside what the CLI underneath it actually sent.

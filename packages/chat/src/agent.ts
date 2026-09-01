@@ -106,7 +106,7 @@ import { emitter, reasonOf } from "@olai/log"
 import type { AskAnswer, ChatServer } from "@olai/surface"
 import { Data, type Duration, Effect, Semaphore } from "effect"
 
-import type { Leg } from "./agents/leg.ts"
+import type { Leg, Meta } from "./agents/leg.ts"
 import {
   MODEL_CONFIG,
   modelNameIn,
@@ -681,8 +681,38 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           return
         }
         case "user_message_chunk": {
-          if (!replaying) return
           const text = textOf(update.content)
+          // A TASK-NOTIFICATION is not a person speaking. The harness injects
+          // the subagent's report as a user-role turn (`origin.kind:
+          // "task-notification"`); drawing it as a bubble puts the report in
+          // the column, unrendered, which is the contract `docs/chat.md`
+          // forbids. The report belongs in the spawning row's fold. Looked at
+          // LIVE as well as on replay: the injected turn is not one olai sent,
+          // so the "we already drew what we typed" skip does not apply.
+          const notice = options.leg.taskNotification(
+            text,
+            "_meta" in update ? (update as { readonly _meta?: Meta })._meta : undefined,
+          )
+          if (notice !== null) {
+            if (notice.toolUseId !== "") {
+              emit({
+                _tag: "tool",
+                id: notice.toolUseId,
+                title: undefined,
+                status: undefined,
+                detail: undefined,
+                progress: undefined,
+                diffs: undefined,
+                wrote: undefined,
+                locations: undefined,
+                parent: undefined,
+                spawned: { report: notice.result },
+                armed: undefined,
+              })
+            }
+            return
+          }
+          if (!replaying) return
           if (text !== "") emit({ _tag: "userSaid", text })
           return
         }

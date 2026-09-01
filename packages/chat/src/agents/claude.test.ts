@@ -29,6 +29,7 @@ import {
   parentToolUseIn,
   QUEUES_WHEN_BUSY,
   spawnedIn,
+  taskNotificationIn,
   STEER_METHOD,
   STEER_WHEN_IDLE,
   STEERING_ADVERTISED,
@@ -459,6 +460,20 @@ describe("which call started an agent", () => {
     expect(spawnedIn(SPAWN, { description: 7 })).toEqual({})
   })
 
+  test("a later frame can file the agent's report without repeating the flag", () => {
+    // The completion of an async agent is not the spawn's announcement: the
+    // adapter stamps `subagentReport` onto the spawning call and does not
+    // repeat `subagent: true`. Requiring the flag there would drop the report.
+    expect(
+      spawnedIn({ claudeCode: { subagentReport: "there are three notes." } }, undefined),
+    ).toEqual({ report: "there are three notes." })
+    expect(spawnedIn(SPAWN, ASKED)).toEqual({
+      kind: "Explore",
+      said: "explore the outline",
+    })
+    expect(spawnedIn({ claudeCode: { subagentReport: "" } }, undefined)).toBeNull()
+  })
+
   test("a spawn's own response cannot name the agent either", () => {
     // The flag opens the door and the ARGUMENTS are what is read through it.
     // A flagged frame carrying a `subagentType` and no `subagent_type` is a
@@ -790,6 +805,29 @@ describe("the leg", () => {
     expect(CLAUDE.backgroundTask({ claudeCode: { backgroundTask: { taskId: "t1" } } }))
       .toEqual({ task: "t1" })
     expect(CLAUDE.backgroundTask({ claudeCode: { toolName: "Bash" } })).toBeNull()
+  })
+
+  test("a task-notification is not a person speaking", () => {
+    const xml =
+      "<task-notification>\n" +
+      "<task-id>a4015bf2ba1fa514d</task-id>\n" +
+      "<tool-use-id>toolu_014mD8gkPSCXNL6gF11GK7hv</tool-use-id>\n" +
+      "<status>completed</status>\n" +
+      "<summary>Agent \"Explore Spaces chat internals\" finished</summary>\n" +
+      "<result>I have thorough coverage now.\n\n# Findings\n</result>\n" +
+      "</task-notification>"
+    expect(taskNotificationIn(xml, undefined)).toEqual({
+      toolUseId: "toolu_014mD8gkPSCXNL6gF11GK7hv",
+      result: "I have thorough coverage now.\n\n# Findings\n",
+    })
+    expect(
+      taskNotificationIn("hello", { claudeCode: { origin: { kind: "task-notification" } } }),
+    ).toEqual({ toolUseId: "", result: "" })
+    expect(taskNotificationIn("hello", { claudeCode: { origin: { kind: "human" } } }))
+      .toBeNull()
+    expect(taskNotificationIn("hello", undefined)).toBeNull()
+    expect(CLAUDE.taskNotification(xml, undefined)?.toolUseId)
+      .toBe("toolu_014mD8gkPSCXNL6gF11GK7hv")
   })
 
   test("has a bypass mode to ask for, and a way to steer a running turn", () => {

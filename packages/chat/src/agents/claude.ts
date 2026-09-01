@@ -44,6 +44,7 @@ import {
   type Meta,
   type Reported,
   type Spawn,
+  type TaskNotice,
 } from "./leg.ts"
 
 // ── which permissions are answered without asking ──────────────────────
@@ -202,10 +203,15 @@ export const parentToolUseIn = (meta: Meta): string | null =>
  * and none of them knows what a transcript is.
  */
 export const spawnedIn = (meta: Meta, input: unknown): Spawn | null => {
-  // THE FLAG IS THE ONLY THING THAT OPENS THIS DOOR. Everything below is read
-  // off a frame the adapter itself said was an Agent call, and a frame that
-  // does not say so is answered `null` however suggestively it is shaped.
-  if (claudeIn(meta)?.["subagent"] !== true) return null
+  // THE FLAG IS THE ONLY THING THAT OPENS THIS DOOR — except the report, which
+  // arrives on a later frame that is not the spawn's announcement. An async
+  // agent's completion is stamped `subagentReport` onto the spawning call
+  // (`acp/patches/README.md`) without repeating `subagent: true`, and requiring
+  // the flag there would drop the one place those words are allowed to live.
+  const report = wordIn(claudeIn(meta), "subagentReport")
+  if (claudeIn(meta)?.["subagent"] !== true) {
+    return report === null ? null : { report }
+  }
   // ... and then the kind, off the `Agent` tool's own arguments. `rawInput` is
   // the tool's payload rather than the adapter's word, which is exactly why it
   // may not be read on its own: `subagent_type` is a name ONE tool gives one
@@ -237,7 +243,38 @@ export const spawnedIn = (meta: Meta, input: unknown): Spawn | null => {
   return {
     ...(typeof asked === "string" && asked !== "" ? { kind: asked } : {}),
     ...(typeof said === "string" && said !== "" ? { said } : {}),
+    ...(report === null ? {} : { report }),
   }
+}
+
+// ── a task-notification is not a person speaking ───────────────────────
+
+/**
+ * Whether this user-message text is a harness-injected task-notification,
+ * and if so the spawning call it belongs to and the report it carries.
+ *
+ * TWO DOORS, either enough:
+ *
+ *   - **`origin.kind: "task-notification"`** in `_meta.claudeCode` — the
+ *     discriminator the session JSONL already stamps, forwarded onto ACP
+ *     when the adapter keeps the chunk (or when a fixture stamps it);
+ *   - **the `<task-notification>` wrapper** — what the injected user turn
+ *     actually contains, and what arrives on ACP when the adapter forwards
+ *     the message without the origin.
+ *
+ * A payload that is neither is `null`, which is a person speaking. A
+ * payload that is one but names no `tool-use-id` is still a notification
+ * (`toolUseId` empty): it must not become a user bubble, and it has no
+ * row to file the report under.
+ */
+export const taskNotificationIn = (text: string, meta: Meta): TaskNotice | null => {
+  const kind = wordIn(fieldIn(claudeIn(meta), "origin"), "kind")
+  const xml = text.trim()
+  const wrapped = xml.startsWith("<task-notification>") && xml.includes("</task-notification>")
+  if (kind !== "task-notification" && !wrapped) return null
+  const toolUseId = (xml.match(/<tool-use-id>([^<]*)<\/tool-use-id>/u)?.[1] ?? "").trim()
+  const result = xml.match(/<result>([\s\S]*)<\/result>/u)?.[1] ?? ""
+  return { toolUseId, result }
 }
 
 // ── which call ARMED A BACKGROUND TASK ─────────────────────────────────
@@ -693,6 +730,7 @@ export const CLAUDE: Leg = {
   parentToolUse: parentToolUseIn,
   spawned: spawnedIn,
   backgroundTask: backgroundTaskIn,
+  taskNotification: taskNotificationIn,
   listedIn,
   // No doubling on this wire: the adapter's `session/new` answers with a
   // session id and `configOptions` and never announces a chunk in advance.

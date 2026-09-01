@@ -158,6 +158,23 @@ export const allowingOurs = (
 export interface Spawn {
   readonly kind?: string
   readonly said?: string
+  /** The agent's own report, once it has handed one back — see
+   *  {@link @olai/surface}'s `Spawned.report`. */
+  readonly report?: string
+}
+
+/**
+ * A harness-injected task-notification turn — not a person speaking.
+ *
+ * Claude Code stamps these `origin.kind: "task-notification"` and wraps the
+ * subagent's report in `<task-notification>` XML. Either half is enough to
+ * recognise one: the origin is the discriminator the session stream carries,
+ * and the XML is what actually arrives on ACP when the adapter forwards the
+ * injected user message. An agent that has no such turns answers `null`.
+ */
+export interface TaskNotice {
+  readonly toolUseId: string
+  readonly result: string
 }
 
 /**
@@ -309,6 +326,16 @@ export interface Leg {
    *  background work is drawn as it always was: a call that completed at the
    *  moment it started. */
   readonly backgroundTask: (meta: Meta) => Background | null
+
+  /**
+   * Whether this chunk of a user message is a TASK-NOTIFICATION rather than
+   * a person speaking — see {@link TaskNotice}.
+   *
+   * `null` is the losing direction this can afford: an unrecognised payload
+   * is drawn as a user bubble, which is what the panel used to do with every
+   * one of these. A false positive would swallow a message somebody typed.
+   */
+  readonly taskNotification: (text: string, meta: Meta) => TaskNotice | null
 
   /**
    * The two facts a `session/list` entry carries about ITS conversation, off

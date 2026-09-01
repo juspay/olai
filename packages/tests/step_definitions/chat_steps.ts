@@ -120,6 +120,7 @@ import {
   CHAT_TOOL_FOLD,
   CHAT_TOOL_LOCATIONS,
   CHAT_TOOL_PROGRESS,
+  CHAT_TOOL_REPORT,
   CHAT_TRANSCRIPT,
   CHAT_TROUBLE,
   CHAT_UNOPENED,
@@ -485,6 +486,20 @@ Then(
   "the chat shows my message {string}",
   async function (this: OlaiWorld, text: string) {
     await myMessage(this, text).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+Then(
+  "the chat does not show my message {string}",
+  async function (this: OlaiWorld, text: string) {
+    // A task-notification is not a person speaking. The report it carries
+    // may still be on screen — in the spawn's fold — so this is the human
+    // bubble alone (`chatMine`), not "the page does not contain these words".
+    assert.strictEqual(
+      await myMessage(this, text).count(),
+      0,
+      `"${text}" is in a message bubble as if a person typed it`,
+    );
   },
 );
 
@@ -1184,6 +1199,18 @@ const heldTool = (world: OlaiWorld) => world.page.locator(CHAT_TOOL).first();
 When("I unfold the tool call", async function (this: OlaiWorld) {
   await heldTool(this).locator(CHAT_TOOL_FOLD).click();
 });
+
+Then(
+  "the spawn's fold carries {string}",
+  async function (this: OlaiWorld, said: string) {
+    const report = heldTool(this).locator(CHAT_TOOL_REPORT);
+    await report.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.ok(
+      (await report.innerText()).includes(said),
+      `the spawn's fold does not carry "${said}"`,
+    );
+  },
+);
 
 Then(
   "the tool call is reporting {string}",

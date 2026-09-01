@@ -846,6 +846,22 @@ export class Transcript {
     const key = toolKey(id)
     const current = this.#entries.get(key)
     const held = current?.kind === "tool" ? current : undefined
+    // A REPORT with no row to file it under. An async agent's
+    // task-notification names the spawning call; if that call was never
+    // announced here, inventing a row for the report would be a call nobody
+    // made. The notification is still swallowed (the caller does not write a
+    // user bubble); the report just has nowhere to live.
+    if (
+      held === undefined
+      && move.title === undefined
+      && move.status === undefined
+      && move.armed === undefined
+      && move.detail === undefined
+      && move.progress === undefined
+      && move.spawned?.report !== undefined
+    ) {
+      return EMPTY
+    }
     const status = move.status ?? held?.status ?? "pending"
     // A CALL THAT WAS OVER AND IS RUNNING AGAIN — a call going round a SECOND
     // time, which is the one transition here that is about the row's LIFE

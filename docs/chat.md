@@ -319,6 +319,8 @@ That is the ruling, and it came from a real turn: five survey agents and a monit
 
 **The call that sent the agent out stays exactly where it was.** It is the main agent's own call — it is the record of what happened — so it keeps its place in the conversation, its title, its ending, and the agent's report in its fold. Scrolling back to it a week later still tells the story.
 
+That report is how an async agent comes back, too. The harness injects the completion as a user-role turn — a `<task-notification>` block, stamped `origin.kind: "task-notification"` in the session stream — so the main agent can be woken with the result. That turn is not a message you typed and it is not the main agent answering: the report is filed in the spawning row's fold, the ending is the one-row news at the bottom in the harness's own words, and none of the XML occupies the column.
+
 ```
 · read every note                        ↳ Explore
 │ ● working…
