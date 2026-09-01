@@ -3,7 +3,7 @@
  *
  * ACP's own `configOptions` and both agents' use of it ({@link ./models.ts}) —
  * so this is not one adapter's test even though the payloads in it are one
- * adapter's: the Claude Code adapter (0.66.0) is where the awkward cases live,
+ * adapter's: the Claude Code adapter is where the awkward cases live,
  * because it is the one whose picker offers ALIASES for the ids its CLI
  * reports. Opencode's picker offers the ids themselves and matches at the first
  * tier, which is the boring case a rule should also get right.

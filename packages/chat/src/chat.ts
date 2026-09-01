@@ -669,7 +669,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      *
      * AND IT IS NOT THE WHOLE OF THE DEFECT. A session in which a turn armed
      * a `Monitor` hangs the same way with nothing ever queued, so this latch
-     * is still shut and the interruption is still offered. Widening it is a
+     * is still OPEN — `queuedHere` false, the interruption still offered. Widening it is a
      * change to what the panel OFFERS rather than a fact about the adapter,
      * so it waits on a ruling. The measurement — every history tried, both
      * pins, and the pristine run that says whose bug it is — is written once,

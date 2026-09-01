@@ -428,8 +428,11 @@ follows — because "re-applied" is the answer a habit gives too.
   surface above it are untouched upstream, and #1052 is unanswered.
 - **The two things that are NOT hunk context, checked rather than assumed.**
   `message.timestamp` still arrives: a live `session/list` against a real
-  directory with a `/clear` pair answered `messageCount: 3` and
-  `supersededBy: <the heir>`, which is the pairing running end to end. And
+  directory with a `/clear` pair answered `messageCount: 4` on the heir and
+  `messageCount: 3` plus `supersededBy: <the heir>` on the predecessor. The
+  `supersededBy` is the half that proves the passthrough — `clearOpenedAtOf`
+  is the only producer of `clearedAt` and `pairSupersessions` skips a row
+  without one, so a dropped timestamp is a link that silently never appears. And
   the background-task vocabulary still holds: `packages/tests/tasks.ts` was
   run against the built pin for all three kinds — a `Monitor` (armed
   `in_progress`, settled `completed` with the harness's summary), a
@@ -437,9 +440,24 @@ follows — because "re-applied" is the answer a habit gives too.
   resumed subagent (`KIND=resume`: same `task_id`, a different `tool_use_id`,
   the SPAWNING call reopened `in_progress` and closed again, quietly, because
   its launch was synchronous).
+- **THE LAYER UNDER THE ADAPTER, which no diff of `dist/acp-agent.js` can
+  see.** The lockfile moves `@anthropic-ai/claude-agent-sdk` 0.3.220 → 0.3.232
+  along with the adapter, and every "the dist diff contains no `task_` line"
+  argument above is blind to it: the vocabulary those patches read is the
+  SDK's, not the adapter's. Closed in review (pi) and re-checked here:
+  `SDKTaskStartedMessage`, `...Updated`, `...Notification` (with its
+  `summary` — the exit-code sentence's channel), `...Progress` and
+  `SDKBackgroundTasksChangedMessage` are byte-identical between the two, and
+  `timestamp: e.timestamp` is still in the `SessionMessage` mapper of both
+  while the declared type still omits it. **The undocumented passthrough is
+  alive in the library that owns it**, which is a stronger statement than one
+  live run. A future bump owes this layer its own look: the lockfile can move
+  it without the adapter's dist changing a line.
 - **What the panel does with all of it** is `packages/tests/panel-live.ts`,
-  the driver added with this bump: 26 assertions through a real browser panel
-  against the real adapter, all passing.
+  the driver added with this bump: 25 claims printed on a passing run, through
+  a real browser panel against the real adapter, all passing. (There are 26
+  `ok(` sites; the twenty-sixth is the hang-stop inside `idle`, which prints
+  only when a turn never ends.)
 
 ### The steering hang has a second trigger, and the guard does not cover it
 
@@ -450,10 +468,12 @@ the measurement. Six copies of one measurement is five that go stale at the
 next bump.
 
 `docs/chat.md` is the exception and deliberately so: it says what a person
-SEES and how to recover, in a document that cites no source path anywhere in
-it. Nothing there is a measurement, so there is nothing there to go stale —
-which is the same rule, kept by having no copy rather than by pointing at
-this one.
+SEES and how to recover, and KEEPS NO MEASUREMENT — so there is nothing there
+to go stale. That is the same rule kept by having no copy rather than by
+pointing at this one, and it is the whole of what the rule needs. (It does
+cite this file, at the paragraph about what the wire carries; an earlier draft
+of this sentence claimed it cited no source at all, which was false and is
+exactly the kind of claim this section exists to stop.)
 
 [claude-agent-acp#1039](https://github.com/agentclientprotocol/claude-agent-acp/issues/1039)
 — a `_session/steering` into a session that has once held a QUEUED prompt
@@ -464,15 +484,34 @@ the same way, with nothing ever queued** — so the latch is still open and the
 panel still offers the interruption that will hang it.
 
 Measured with the issue's own reproduction script, varying only the session's
-history before the steer:
+history before the steer. **What the script controls is the history TURN, not
+the task's liveness**: it waits for the arming prompt to return, and a task
+armed in that turn may or may not still be running when the steer lands. The
+rows say which reading each one was taken under, because "a task is running"
+and "a task once existed in this session" are different claims and only one of
+them is what a latch would have to be shaped around.
 
 | the session before the steer | 0.66.0 | 0.70.0 | pristine 0.70.0, patches lifted off |
 |---|---|---|---|
 | fresh, or four plain turns | settles | settles | — |
 | one turn that spawned a subagent | settles | settles | — |
-| one turn that ran a background `Bash` | settles | settles | — |
-| one turn that armed a `Monitor` | **hangs** | **hangs** | **hangs** |
+| one turn that ran a background `Bash`, liveness uncontrolled | settles | settles | — |
+| ...and one **still running** at the steer (`sleep 900`) | — | settles | — |
+| one turn that armed a `Monitor`, liveness uncontrolled | **hangs** | **hangs** | **hangs** |
 | one queued turn (#1039 as filed) | **hangs** | **hangs** | — |
+
+The still-running `Bash` row is not this lane's: it was measured in review
+(pi, 2026-09-01) against the pinned store binary — the call visibly
+`in_progress`, the steer landing 13.7s into the second turn, the steered
+prompt settling `end_turn` at 15.3s. It matters because it is the row the
+ruling actually needs: the negative holds on the liveness reading a latch
+would be shaped around, not only on a finished task.
+
+**STILL UNMEASURED, and it is the ruling's question rather than this PR's:**
+the `Monitor` row under the same control — a watch that has DIED but was once
+armed. `chat.ts`'s latch reads session-permanent; `docs/chat.md` describes the
+live-watch case. Those are different guards, and which one the defect actually
+needs is what nobody has measured yet.
 
 The pristine column is the one that decides whose bug it is: **upstream's**,
 and older than this pin — not the bump's and not these patches'. The

@@ -48,7 +48,7 @@ export const isUnfolded = (id: string): boolean => unfolded().has(id)
  * That last one is not a corner case. An `Edit` is reported twice, and the
  * second report is built by the adapter out of the patch the tool actually
  * made — one `diff` block per HUNK, every one of them carrying the same path
- * (`toolUpdateFromDiffToolResponse`, adapter 0.66.0). So an edit that landed in
+ * (`toolUpdateFromDiffToolResponse`, adapter 0.70.0). So an edit that landed in
  * three places arrives as three blocks under one name, and a key made of the
  * call and the path alone called all three of them the same thing.
  *

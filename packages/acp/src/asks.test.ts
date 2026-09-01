@@ -211,9 +211,9 @@ describe("a question, as a form", () => {
 
 describe("a permission request, as the same form", () => {
   /**
-   * The adapter's plan-mode exit, as 0.66.0 builds it: four options, `auto`
-   * FIRST and allow-flavoured — which is exactly the one a client answering by
-   * machine picked, and the reason this whole path exists.
+   * The adapter's plan-mode exit, as it built it at that capture: four
+   * options, `auto` FIRST and allow-flavoured — which is exactly the one a
+   * client answering by machine picked, and the reason this whole path exists.
    *
    * The real list is filtered against the session's available modes, and gains
    * a leading `bypassPermissions` where the adapter allows it, so a session can
