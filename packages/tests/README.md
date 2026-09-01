@@ -178,7 +178,7 @@ bash panel-live.sh
 
 The reason it exists rather than being a scenario is the same reason `tasks.ts` does, one layer up: every scenario in `features/` drives a SCRIPTED agent, because a turn has to be deterministic before it can be asserted — and the cost of that discipline is that no scenario has ever seen the real adapter. A pin bump is exactly when that bill comes due, and this is what pays it.
 
-ORDER IS THE DRIVER'S OWN SUBJECT and not a convenience. The interrupt is asserted before anything has queued and before any `Monitor` has been armed, because each of those leaves the adapter unable to settle a steered turn ([claude-agent-acp#1039](https://github.com/agentclientprotocol/claude-agent-acp/issues/1039) for the queue, which olai guards against; a `Monitor` for the second, which it does not yet — measured at the 0.70.0 bump against a pristine adapter, so upstream's and not the pin's). Run the same assertions in the other order and the driver hangs — which is the panel hanging, which is the thing worth knowing.
+ORDER IS THE DRIVER'S OWN SUBJECT and not a convenience. The interrupt is asserted before anything has queued and before any `Monitor` has been armed, because each of those leaves the pinned adapter unable to settle a steered turn — both triggers, and what was measured about each, are in [`acp/patches/README.md`](../../acp/patches/README.md). Run the same assertions in the other order and the driver hangs, which is the panel hanging: that is how the second trigger was found.
 
 ## Measuring what a session costs the wire
 

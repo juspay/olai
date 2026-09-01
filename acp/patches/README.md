@@ -440,3 +440,38 @@ follows — because "re-applied" is the answer a habit gives too.
 - **What the panel does with all of it** is `packages/tests/panel-live.ts`,
   the driver added with this bump: 23 assertions through a real browser panel
   against the real adapter, all passing.
+
+### The steering hang has a second trigger, and the guard does not cover it
+
+**THE ONE PLACE THIS IS WRITTEN DOWN.** It is a fact about the pinned adapter,
+so it lives with the pin; `packages/chat`'s `queuedHere`, `docs/chat.md` and
+`packages/tests/panel-live.ts` each say what it costs THEM and point here for
+the measurement. Six copies of one measurement is five that go stale at the
+next bump.
+
+[claude-agent-acp#1039](https://github.com/agentclientprotocol/claude-agent-acp/issues/1039)
+— a `_session/steering` into a session that has once held a QUEUED prompt
+leaves that turn's `session/prompt` unanswered forever — is what olai's
+`queuedHere` latch guards (`packages/chat/src/chat.ts`). Found while proving
+the panel on this bump: **a session in which a turn armed a `Monitor` hangs
+the same way, with nothing ever queued** — so the latch is still open and the
+panel still offers the interruption that will hang it.
+
+Measured with the issue's own reproduction script, varying only the session's
+history before the steer:
+
+| the session before the steer | 0.66.0 | 0.70.0 | pristine 0.70.0, patches lifted off |
+|---|---|---|---|
+| fresh, or four plain turns | settles | settles | — |
+| one turn that spawned a subagent | settles | settles | — |
+| one turn that ran a background `Bash` | settles | settles | — |
+| one turn that armed a `Monitor` | **hangs** | **hangs** | **hangs** |
+| one queued turn (#1039 as filed) | **hangs** | **hangs** | — |
+
+The pristine column is the one that decides whose bug it is: **upstream's**,
+and older than this pin — not the bump's and not these patches'. The
+background-`Bash` row is why the latch was not simply widened to "a task was
+armed": the trigger is narrower than that, and a guess at its shape would cost
+the interruption in conversations that never needed to lose it. Widening it
+changes what the panel OFFERS, which is a ruling rather than a bump; it is in
+the human's queue.

@@ -1311,9 +1311,10 @@ export const Talking = Schema.Union([
      *   - **and this CONVERSATION has not yet held a message behind a running
      *     turn.** That half is a guard around somebody else's defect rather
      *     than a property of anything here: the pinned Claude Code adapter
-     *     (0.70.0) leaves a turn's `session/prompt` unanswered forever if it
-     *     steers one in a session that has ever queued, so the panel would sit
-     *     on *working…* until somebody pressed cancel. Ruled in by the human
+     *     leaves a turn's `session/prompt` unanswered forever if it steers
+     *     one in a session that has ever queued, so the panel would sit on
+     *     *working…* until somebody pressed cancel (`queuedHere` in
+     *     `@olai/chat`'s `chat.ts` is where that is argued out). Ruled in by the human
      *     against a known cost — after one message typed during a turn, this
      *     conversation has no interruption left — and it lifts when the pinned
      *     adapter does, since `+ new` and opening a stored conversation both
