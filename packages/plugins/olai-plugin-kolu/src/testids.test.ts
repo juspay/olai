@@ -1,88 +1,85 @@
 /**
- * THAT THIS TENANT'S TWO TABLES ARE DISJOINT — the same claim
- * `@olai/plugin-api`'s `testids.test.ts` makes about two PLUGINS, made here
- * about the two MODULES one plugin merges.
+ * THAT THE MERGE BEHIND `./testids` LOSES NOTHING — the guarantee the package
+ * wall used to carry, put back as a test.
  *
- * ## Why it is needed, and why the appliance fold is what needed it
+ * ## What the fold took away
  *
- * Before the fold, `./ui/testids.ts` was a whole package's `./testids` door and
- * `./testids.ts` was another, so both were rows in the registry's `TABLES` and
- * the disjointness sweep up there covered both. The fold made them two modules
- * of one package with one door, and kolu's entry in that sweep is now the
- * POST-MERGE object — so a key lost in the spread is gone before the walk one
- * floor up ever sees it, and its count (`Object.keys(PLUGIN_TESTID).length ===
- * seen.size`) counts the survivors against the survivors.
+ * Before the appliance fold, `./ui/testids.ts` was one package's `./testids`
+ * door and `../testids.ts` was another's, so both were rows in
+ * `@olai/plugin-api`'s `testids.test.ts` and its disjointness sweep covered
+ * both. The fold made them two modules of one package with ONE door, and
+ * kolu's row in that sweep is now the POST-MERGE object — so a key lost in the
+ * spread is gone before the walk one floor up ever runs, and that file's count
+ * (`Object.keys(PLUGIN_TESTID).length === seen.size`) compares the survivors
+ * with the survivors.
  *
- * The first draft of the merged door claimed the compiler covered this: *"a key
- * spelled twice inside this package is a duplicate-key error on the literal
- * below."* It is not. `{ ...ui, padi: "padi" }` is a spread followed by an
- * explicit key — legal TypeScript, and the explicit key silently wins.
- * TypeScript's duplicate-key diagnostic fires only for two LITERAL keys in one
- * literal. So the guarantee the package wall used to carry went into prose, and
- * this file is it put back as a test.
+ * ## Two drafts of this file were wrong, and the second one is worth recording
  *
- * ## Why a local mirror rather than a shared walk
+ * The first was PROSE: the door's header claimed a key spelled twice would be
+ * "a duplicate-key error on the literal below". It is not — `{ ...ui, padi: … }`
+ * is a legal spread override and the explicit key silently wins, because
+ * TypeScript's duplicate-key diagnostic fires only for two literal keys in ONE
+ * literal.
+ *
+ * The second was a TEST THAT COULD NOT FAIL. It reconstructed the chrome half
+ * by SUBTRACTION — the keys of the merged object that are not in `ui` — and
+ * then asked whether the two halves shared a key. They never can: a key both
+ * halves declare is in `ui`, so the subtraction removes it from the other side,
+ * and the clash list is empty by construction. Its count check was blind for
+ * the same reason — the merged object is short by exactly one key and the
+ * derived half is short by exactly one key, so the two sides agree. Planted
+ * against a real collision, both assertions reported clean while `ui`'s value
+ * was gone.
+ *
+ * A derived second value cannot witness what the derivation dropped. So this
+ * file asks the question with no derived value in it at all:
+ *
+ *   1. EVERY id `./ui/testids.ts` declares is the id the DOOR carries. That is
+ *      the invariant "the spread lost nothing", stated directly. An overriding
+ *      key makes the door disagree with `ui` on that key, and it goes red
+ *      naming it.
+ *   2. NO TWO KEYS in the door share a VALUE. One `[data-testid=…]` may name
+ *      one component; two keys resolving to one selector is the failure the
+ *      keys were separated to prevent, and it is the half that survives even
+ *      when nothing was lost.
+ *
+ * ## Why a local file rather than a row in the sweep upstairs
  *
  * `@olai/plugin-api` imports this package; this package may not import it back,
  * which is the cycle the manifests decline to express and the fence holds as an
- * equality. So the instrument cannot be shared downward, and the choice is
- * between forty lines of walk in a testlib nobody else would use and this — the
- * same two halves, over two tables, in the package that owns them.
- *
- * BOTH HALVES, for the reason the sweep upstairs gives: two modules must not
- * share a KEY (the spread would drop one) and must not share a VALUE either
- * (two keys resolving to one `[data-testid=…]` is a selector that matches two
- * different components, which is the failure the keys were separated to
- * prevent).
+ * equality per package. The instrument cannot be shared downward, and the ui
+ * half has no package door to be a row through. Two assertions in the package
+ * that owns both halves is the whole of the alternative.
  */
 
-import { describe, expect, test } from "bun:test"
+import { expect, test } from "bun:test"
 
-import { TESTID as merged } from "./testids.ts"
+import { TESTID as door } from "./testids.ts"
 import { TESTID as ui } from "./ui/testids.ts"
 
-/** What `./testids.ts` spreads, and what it declares itself — the second read
- *  off the merged object by SUBTRACTION, because the module has no other name
- *  for its own half and inventing one would be a third place a key is written. */
-const own: Readonly<Record<string, string>> = Object.fromEntries(
-  Object.entries(merged).filter(([key]) => !(key in ui)),
-)
+test("the reading is not vacuous", () => {
+  // An empty `ui` would make the first claim below a walk over nothing, and a
+  // door that WAS `ui` would make it a comparison of one value with itself.
+  expect(Object.keys(ui).length).toBeGreaterThan(0)
+  expect(Object.keys(door).length).toBeGreaterThan(Object.keys(ui).length)
+})
 
-const TABLES: ReadonlyArray<readonly [string, Readonly<Record<string, string>>]> = [
-  ["ui", ui],
-  ["browser", own],
-]
+test("every id the ui half declares is the id the door carries", () => {
+  // Pairs rather than a bare equality, so a failure names the KEY as well as
+  // the two values — which is what somebody has to go and look at.
+  const lost = Object.entries(ui)
+    .filter(([key, id]) => (door as Record<string, string>)[key] !== id)
+    .map(([key, id]) => `${key}: ui says "${id}", the door says "${(door as Record<string, string>)[key]}"`)
+  expect(lost).toEqual([])
+})
 
-describe("this tenant's testid tables are disjoint", () => {
-  test("the sweep is actually reading both tables", () => {
-    // Not vacuous: an empty table would pass every claim below. And `own` is a
-    // subtraction, so an `ui` that swallowed the whole merged object would
-    // leave it empty — which this is the floor against.
-    for (const [name, table] of TABLES) {
-      expect(Object.keys(table).length, name).toBeGreaterThan(0)
-    }
-  })
-
-  test("no key is spelled in both — a spread would drop one silently", () => {
-    const clashes = Object.keys(ui).filter((key) => key in own)
-    expect(clashes).toEqual([])
-    // ...and the merge kept every one of them, which is the same fact said as a
-    // count rather than as a walk. This is what the SUBTRACTION above cannot
-    // catch on its own: a key `ui` and this module both declare lands in `ui`'s
-    // half by definition, so the count is what notices one went missing.
-    expect(Object.keys(merged).length).toBe(Object.keys(ui).length + Object.keys(own).length)
-  })
-
-  test("no value is spelled in both — one selector may name one component", () => {
-    const seen = new Map<string, string>()
-    const clashes: Array<string> = []
-    for (const [name, table] of TABLES) {
-      for (const [key, id] of Object.entries(table)) {
-        const first = seen.get(id)
-        if (first !== undefined) clashes.push(`"${id}": ${first} and ${name}/${key}`)
-        else seen.set(id, `${name}/${key}`)
-      }
-    }
-    expect(clashes).toEqual([])
-  })
+test("no two keys in the door share a value", () => {
+  const seen = new Map<string, string>()
+  const clashes: Array<string> = []
+  for (const [key, id] of Object.entries(door)) {
+    const first = seen.get(id)
+    if (first !== undefined) clashes.push(`"${id}": ${first} and ${key}`)
+    else seen.set(id, key)
+  }
+  expect(clashes).toEqual([])
 })

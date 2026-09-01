@@ -153,8 +153,39 @@ fi
 # `nullglob` is not assumed — an unmatched pattern stays literal in POSIX sh —
 # so the `-f` guard is what makes that a skip rather than a `jq` reading a file
 # called `*`.
-for manifest in $(jq -r '.workspaces[]' "$root/package.json" | sed "s|^|$root/|; s|\$|/package.json|"); do
-  [ -f "$manifest" ] || continue
+# ...AND A GLOB THAT EXPANDS TO NOTHING IS A REFUSAL, not a skip. `nullglob` is
+# not assumed — an unmatched pattern stays literal in POSIX sh — so without this
+# the `-f` guard turns "that directory is not there" into "there were no
+# manifests to check", green. That is the failure mode this whole script is
+# written against, and `packages/plugin-api/src/fence.test.ts` makes the same
+# ruling about the same field one language over: a corpus that came back short
+# is a check that did not run.
+#
+# The globs are read with `while read` rather than `for glob in $(jq …)`,
+# because an unquoted command substitution is PATHNAME-EXPANDED as well as
+# word-split: `packages/*` would be expanded by the `for` list itself and the
+# loop would iterate over the members instead of over the globs. The inner loop
+# is where expansion is wanted, and it is the only place it happens.
+members=""
+while IFS= read -r glob; do
+  [ -n "$glob" ] || continue
+  found=""
+  for manifest in "$root"/$glob/package.json; do
+    [ -f "$manifest" ] || continue
+    found="$found $manifest"
+  done
+  if [ -z "$found" ]; then
+    echo "check-hydrated-deps: the workspaces glob '$glob' matched no package.json." >&2
+    echo "  A glob that installs nothing is a typo or a missing directory, and either" >&2
+    echo "  way this check would pass by not looking." >&2
+    exit 1
+  fi
+  members="$members $found"
+done <<GLOBS
+$(jq -r '.workspaces[]' "$root/package.json")
+GLOBS
+
+for manifest in $members; do
   drift=$(
     printf '%s' "$wanted" | jq -r --slurpfile pkg "$manifest" --arg label "$label" '
       to_entries[]

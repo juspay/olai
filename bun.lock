@@ -155,6 +155,7 @@
         "@olai/kolu-client": "workspace:*",
         "@xterm/addon-fit": "^0.11.0",
         "@xterm/xterm": "^6.0.0",
+        "effect": "4.0.0-rc.112",
         "solid-js": "^1.9.0",
       },
       "devDependencies": {

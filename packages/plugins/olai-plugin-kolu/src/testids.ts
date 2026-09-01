@@ -19,8 +19,11 @@
  * both were rows in `@olai/plugin-api`'s disjointness sweep; that sweep now sees
  * kolu's POST-MERGE object, so a key lost here is gone before it runs and its
  * own count compares the survivors with the survivors. The guarantee the package
- * wall used to carry is `./testids.test.ts` beside this file: the same two
- * halves — no shared KEY, no shared VALUE — one floor down.
+ * wall used to carry is `./testids.test.ts` beside this file, and it asks the
+ * question with no derived value in it: every id `./ui/testids.ts` declares is
+ * the id THIS table carries, and no two keys here share a value. Its header
+ * records the draft that reconstructed the other half by subtraction and could
+ * therefore never fail — worth reading before touching either.
  *
  * ## NAMES ONLY, and that is a graph claim rather than a style one
  *

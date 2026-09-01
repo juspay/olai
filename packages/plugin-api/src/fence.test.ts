@@ -137,11 +137,25 @@ const REPO = path.join(PACKAGES, "..")
 const MANIFESTS = new Map<string, Record<string, unknown> | undefined>()
 const manifestAt = (dir: string): Record<string, unknown> | undefined => {
   if (MANIFESTS.has(dir)) return MANIFESTS.get(dir)
+  const file = path.join(dir, "package.json")
   let read: Record<string, unknown> | undefined
-  try {
-    read = JSON.parse(readFileSync(path.join(dir, "package.json"), "utf8")) as Record<string, unknown>
-  } catch {
+  if (!existsSync(file)) {
+    // THE ONE HONEST ABSENCE: there is no manifest here. Every caller reads
+    // that as "not a package", which is what it is.
     read = undefined
+  } else {
+    try {
+      read = JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>
+    } catch (cause) {
+      // A MANIFEST THAT IS THERE AND WILL NOT PARSE IS NOT AN ABSENCE, and
+      // answering `undefined` for it made this a two-job value whose second job
+      // was silent: the member stays in `MEMBERS` (which only asks whether the
+      // file exists) so `tree` walks its sources, and drops out of
+      // `MEMBER_OF_PACKAGE` so its whole subgraph leaves every door walk. Two
+      // readings of one tree then disagree about whether that package is there,
+      // with nothing red anywhere.
+      throw new Error(`fence: ${path.relative(REPO, file)} did not parse — ${String(cause)}`)
+    }
   }
   MANIFESTS.set(dir, read)
   return read
@@ -151,6 +165,36 @@ const manifestAt = (dir: string): Record<string, unknown> | undefined => {
  *  to a wall: a dependency, a devDependency and a peer are three reasons to
  *  resolve a specifier and one answer about which side of a boundary a package
  *  stands on. */
+/** A manifest's `exports` map, PARSED rather than cast. npm legally allows a
+ *  conditional object (`{"./wire": {"import": "…"}}`) and a wildcard; this
+ *  reading knows neither, and the difference between "knows neither" and
+ *  "silently drops both" is a door that leaves a tenant's closure with nothing
+ *  red — in the one file whose thesis is that a corpus may not quietly shrink.
+ *  So a shape this cannot read is a THROW, which is the ruling {@link MEMBERS}
+ *  already makes about an unrecognised workspaces glob. */
+const doorsOf = (manifest: Record<string, unknown>): Readonly<Record<string, string>> => {
+  const exports = manifest["exports"]
+  if (exports === undefined) return {}
+  if (typeof exports !== "object" || exports === null || Array.isArray(exports)) {
+    throw new Error("fence: an `exports` field that is not a map is a shape this reading does not know")
+  }
+  for (const [door, target] of Object.entries(exports)) {
+    if (typeof target !== "string") {
+      throw new Error(
+        `fence: the \`${door}\` door resolves to a ${typeof target} rather than a path — a ` +
+          "conditional or wildcard export is a shape this reading does not know, and dropping it " +
+          "would shrink a tenant's closure with nothing red.",
+      )
+    }
+  }
+  return exports as Readonly<Record<string, string>>
+}
+
+const mainOf = (manifest: Record<string, unknown>): string | undefined => {
+  const main = manifest["main"]
+  return typeof main === "string" ? main : undefined
+}
+
 const dependencyNames = (manifest: Record<string, unknown> | undefined): ReadonlyArray<string> =>
   Object.keys({
     ...(manifest?.["dependencies"] as Record<string, string> | undefined),
@@ -171,9 +215,16 @@ const dependencyNames = (manifest: Record<string, unknown> | undefined): Readonl
  * globs are what bun installs from, so a member this reading cannot see is a
  * member that is not in the tree at all.
  *
- * A glob shape this cannot read is a THROW rather than a skip, for the same
- * reason: a third pattern silently returning nothing would shrink the corpus,
- * and every claim below is an equality over it.
+ * THE EXPANSION IS THE RUNTIME'S (`Bun.Glob`), not this file's reading of the
+ * pattern. The first draft hand-rolled it — a `readdirSync` behind a check that
+ * each glob ended `/*` — and the hand-roll could read exactly one shape, so a
+ * root that grew a `packages/**` would have been a THROW rather than a reading.
+ * The throw was the right outcome for a hand-roll that could not read the shape;
+ * it is not needed by a reading that can read every shape bun installs from.
+ *
+ * What IS still a throw: a glob outside `packages/`, and a glob that matched
+ * NOTHING. Both are a corpus quietly short of members, and every claim below is
+ * an equality over that corpus — which is the fence passing by not running.
  */
 const MEMBERS: ReadonlyArray<string> = (() => {
   const globs = manifestAt(REPO)?.["workspaces"]
@@ -181,16 +232,31 @@ const MEMBERS: ReadonlyArray<string> = (() => {
     throw new Error("fence: the root manifest declares no `workspaces`, so there is no tree to read")
   }
   const found = (globs as ReadonlyArray<unknown>).flatMap((glob) => {
-    if (typeof glob !== "string" || !glob.startsWith("packages/") || !glob.endsWith("/*")) {
+    if (typeof glob !== "string" || !glob.startsWith("packages/")) {
       throw new Error(
-        `fence: the workspaces glob ${JSON.stringify(glob)} is a shape this reading does not ` +
-          "know, and guessing at one would shrink the corpus every claim here is an equality over.",
+        `fence: the workspaces glob ${JSON.stringify(glob)} does not name anything under ` +
+          "`packages/`, and guessing at it would shrink the corpus every claim here is an " +
+          "equality over.",
       )
     }
-    const under = path.join(REPO, glob.slice(0, -2))
-    return readdirSync(under, { withFileTypes: true })
-      .filter((entry) => entry.isDirectory() && existsSync(path.join(under, entry.name, "package.json")))
-      .map((entry) => path.relative(PACKAGES, path.join(under, entry.name)))
+    // THE RUNTIME'S OWN GLOB, rather than this file interpreting the pattern.
+    // It was a `readdirSync` behind a check that the glob ended `/*`, which is
+    // a hand-roll that could read exactly one shape and threw on the rest — so
+    // the day the root grew a `packages/**` the corpus would have been a throw
+    // rather than a reading, and the throw was the good outcome only because
+    // the alternative hand-roll was a silent skip. `Bun.Glob` reads every shape
+    // bun installs from, which is the only reading that cannot disagree with
+    // the field it is derived from.
+    const members = [...new Bun.Glob(`${glob}/package.json`).scanSync({ cwd: REPO })]
+      .map((found) => path.relative("packages", path.dirname(found)))
+    if (members.length === 0) {
+      throw new Error(
+        `fence: the workspaces glob ${JSON.stringify(glob)} matched no package at all. A glob ` +
+          "that installs nothing is either a typo or a directory that is not there, and both " +
+          "are a corpus this file's equalities would pass over in silence.",
+      )
+    }
+    return members
   })
   return [...new Set(found)].sort()
 })()
@@ -285,33 +351,43 @@ const cssImportsOf = (text: string): ReadonlyArray<string> =>
   [...text.matchAll(/^\s*@import\s+["']([^"']+)["']/gm)]
     .flatMap((match) => (match[1] === undefined ? [] : [match[1]]))
 
-/** Every source under one package, skipping `node_modules` BEFORE descending.
+/** Every source under one package.
  *
- *  Refusing the DIRECTORY rather than its files, which is `@olai/acp`'s fix
- *  for its own `ELOOP`: a workspace `node_modules` is full of symlinks back to
- *  sibling packages, each with a `node_modules` of its own, so a walk that
- *  filters the results has already gone in. */
+ *  `Bun.Glob` does not follow a symlinked DIRECTORY, which is the whole of why
+ *  this used to be a hand-rolled walk: it refused `node_modules` before
+ *  descending, because a workspace `node_modules` is full of symlinks back to
+ *  sibling packages, each with a `node_modules` of its own, and a walk that
+ *  filtered the results had already gone in (`@olai/acp`'s own `ELOOP`). The
+ *  runtime declines to follow them, so the hazard does not arise and the prune
+ *  has nothing left to prune — checked rather than assumed, against the two
+ *  packages with the largest trees: `packages/web` answers 608 files and
+ *  `packages/tests` 109, neither with a single `node_modules` entry. */
 const sourcesUnder = (dir: string): ReadonlyArray<string> =>
-  readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    if (entry.isDirectory()) {
-      return entry.name === "node_modules" ? [] : sourcesUnder(path.join(dir, entry.name))
-    }
-    return entry.isFile() && /\.(tsx?|css)$/.test(entry.name)
-      ? [path.join(dir, entry.name)]
-      : []
-  })
+  [...new Bun.Glob("**/*.{ts,tsx,css}").scanSync({ cwd: dir })]
+    .map((found) => path.join(dir, found))
+    .sort()
 
 interface Named {
   /** Root-relative, so a failure reads as a path somebody can open. */
   readonly file: string
-  /** Every specifier this file reaches for at all, by whichever grammar its
-   *  suffix has. Kept beside the filtered answer because the tenancy claims at
-   *  the bottom of this file ask a DIFFERENT question of the same reading, and
-   *  reading every source twice to ask it would be the corpus walked twice. */
+  /** WHICH READER PRODUCED `specs`, carried rather than re-derived. It was
+   *  recoverable only by testing the extension again, which three separate
+   *  sites did — and `specs` means a different thing per grammar, so a consumer
+   *  that guessed wrong would be asking a CSS reading a TypeScript question.
+   *  The fact travels with the value. */
+  readonly grammar: "css" | "tsx" | "ts"
+  /** Every specifier this file reaches for at all, by that grammar. Kept beside
+   *  the filtered answer because the tenancy claims at the bottom of this file
+   *  ask a DIFFERENT question of the same reading, and reading every source
+   *  twice to ask it would be the corpus walked twice. */
   readonly specs: ReadonlyArray<string>
   /** Every plugin specifier this file reaches for, by any of the three doors. */
   readonly plugins: ReadonlyArray<string>
 }
+
+/** The grammar a path is read in, decided ONCE. */
+const grammarOf = (file: string): Named["grammar"] =>
+  file.endsWith(".css") ? "css" : file.endsWith(".tsx") ? "tsx" : "ts"
 
 /** Does this specifier name a plugin package — the bare name or a subpath
  *  under it. A claim that matched only the bare name would be green under
@@ -327,9 +403,11 @@ const tree: ReadonlyMap<string, ReadonlyArray<Named>> = new Map(
       sourcesUnder(path.join(PACKAGES, member)).map((file): Named => {
         // A scripted agent opens with a shebang; the line holds no import.
         const text = readFileSync(file, "utf8").replace(/^#![^\n]*\n/, "")
-        const found = file.endsWith(".css") ? cssImportsOf(text) : specifiersOf(text)
+        const grammar = grammarOf(file)
+        const found = grammar === "css" ? cssImportsOf(text) : specifiersOf(text)
         return {
           file: path.relative(PACKAGES, file),
+          grammar,
           specs: found,
           plugins: found.filter(namesAPlugin),
         }
@@ -360,27 +438,60 @@ const packages = [...tree.keys()].sort()
 // → each plugin's `./wire` → each appliance client's `./wire`, and what the
 // claim is about is where it STOPS.
 
-/** What a workspace specifier resolves to, read off the named package's own
- *  `exports` map rather than guessed — a subpath is a door a manifest opened,
- *  and resolving it by string arithmetic would be this test inventing a second
- *  module resolver. `undefined` for anything that is not a workspace sibling,
- *  which is where the walk stops. */
-const resolveWorkspace = (spec: string): string | undefined => {
+/**
+ * WHERE A WORKSPACE SPECIFIER LANDS — and the answer is DISCRIMINATED, because
+ * "the walk stops here" and "the walk could not go on" are two different facts
+ * and only one of them is allowed.
+ *
+ * It was one `string | undefined`, and the `undefined` was doing three jobs:
+ * the specifier LEAVES the workspace (the legitimate terminus — `effect`,
+ * `node:fs`, a `@kolu/*` from the pin), the named member's manifest could not
+ * be READ, and the manifest opens NO SUCH DOOR. A caller that cannot tell them
+ * apart reads all three as "the graph ends here", and the last two are exactly
+ * what a packaging move breaks — this branch moved every door in the tree. The
+ * fence's own header names "a resolver that answered `undefined` and walked one
+ * file" as the failure mode it exists against; a three-job `undefined` is that
+ * failure mode with a type signature.
+ *
+ * So the dependent fact — a resolved path — exists only on the arm that grounds
+ * it, and `unresolved` is held to `[]` beside every other equality in this file.
+ *
+ * The door is read off the named package's own `exports` map rather than
+ * guessed. NOT because string arithmetic would be "a second module resolver" —
+ * that was the old comment's reason and it is backwards. The RUNTIME resolver
+ * was tried and refuses this question: `Bun.resolveSync("@olai/format",
+ * packages/plugin-api/src)` throws, because the isolated linker gives a member
+ * only the siblings its own manifest declares, and this walk crosses from the
+ * registry THROUGH a tenant INTO packages the registry never declares. That is
+ * the whole point of the walk, and it is a question the resolver is right to
+ * refuse and this file is right to ask. Standing on `Bun.resolveSync` or on a
+ * `Bun.build` metafile would make every such crossing an unresolved edge and
+ * every purity claim pass over the truncated graph.
+ */
+type Landing =
+  | { readonly kind: "external" }
+  | { readonly kind: "module"; readonly path: string }
+  | { readonly kind: "unresolved"; readonly why: string }
+
+const resolveWorkspace = (spec: string): Landing => {
   // WHICH MEMBER a specifier names is a lookup rather than a pattern, because
   // the two families of workspace name do not share one: core is `@olai/<x>`
   // and a tenant is the unscoped `olai-plugin-<x>` its directory is called.
-  // A regex over the first family alone would answer `undefined` for every
+  // A regex over the first family alone would answer "external" for every
   // plugin door, which is not a walk that stops — it is a walk that never
   // starts, and every purity claim below would pass over one file.
   const member = MEMBER_OF_PACKAGE.get(packageOf(spec))
-  if (member === undefined) return undefined
+  if (member === undefined) return { kind: "external" }
   const dir = path.join(PACKAGES, member)
-  const manifest = manifestAt(dir) as { exports?: Record<string, string>; main?: string } | undefined
-  if (manifest === undefined) return undefined
+  const manifest = manifestAt(dir)
+  if (manifest === undefined) return { kind: "unresolved", why: `${member} has no readable manifest` }
   const subpath = spec.slice(packageOf(spec).length)
   const door = subpath === "" ? "." : `.${subpath}`
-  const target = manifest.exports?.[door] ?? (door === "." ? manifest.main : undefined)
-  return target === undefined ? undefined : path.join(dir, target)
+  const target = doorsOf(manifest)[door] ?? (door === "." ? mainOf(manifest) : undefined)
+  if (target === undefined) {
+    return { kind: "unresolved", why: `${member} opens no ${door} door` }
+  }
+  return { kind: "module", path: path.join(dir, target) }
 }
 
 /** One transpiler per grammar — the `ts` loader refuses JSX. The walk reads
@@ -396,20 +507,10 @@ const transpilers = {
   ts: new Bun.Transpiler({ loader: "ts" }),
   tsx: new Bun.Transpiler({ loader: "tsx" }),
 } as const
-/** ...memoised by FILE, for {@link manifestAt}'s reason one grammar over: the
- *  three door walks below overlap heavily — most of `@olai/format`'s modules
- *  are on all of them — so without this each shared module is transpiled once
- *  per entry rather than once. */
-const IMPORTS = new Map<string, ReadonlyArray<string>>()
-const runtimeImportsOf = (file: string, text: string): ReadonlyArray<string> => {
-  const held = IMPORTS.get(file)
-  if (held !== undefined) return held
-  const found = transpilers[file.endsWith(".tsx") ? "tsx" : "ts"]
+const runtimeImportsOf = (file: string, text: string): ReadonlyArray<string> =>
+  transpilers[grammarOf(file) === "tsx" ? "tsx" : "ts"]
     .scanImports(text)
     .map((one) => one.path)
-  IMPORTS.set(file, found)
-  return found
-}
 
 /**
  * THE GRAPH ONE DOOR OPENS, in the two readings the claims below need.
@@ -424,15 +525,54 @@ const runtimeImportsOf = (file: string, text: string): ReadonlyArray<string> => 
  * this graph reach for" and wrong for "what is ON this graph" — and a component
  * with no imports is exactly the shape that falls through the gap.
  *
- * One traversal answers both, because two would be two chances to disagree
- * about what the graph is.
+ * `unresolved` is the third, and it is what keeps the other two honest. A pair
+ * is pushed for EVERY specifier, including one the walk could not follow, while
+ * `files` grows only where it could — so the two read honest alone and lie
+ * together: a walk in which every workspace specifier failed to resolve reports
+ * a `reached` naming all of them and a `files` of one module, and each then
+ * passes its own floor. The confinement claims are satisfied by an empty graph;
+ * `it DOES reach each appliance client` is satisfied by the PAIR, which records
+ * that the specifier was reached FOR rather than that it was entered. The
+ * precondition — these two mean something only where resolution succeeded — is
+ * not left to arm order: it is a list, and every door holds it to `[]`.
+ *
+ * One traversal answers all three, because three would be three chances to
+ * disagree about what the graph is.
  */
+/**
+ * ...memoised for the WALK ALONE, keyed by the absolute path it visits.
+ *
+ * The three door entries reach overlapping graphs — most of `@olai/format`'s
+ * modules are on all of them — so without this each shared module is transpiled
+ * once per entry rather than once.
+ *
+ * It is private to the walk rather than wrapped around `runtimeImportsOf`, and
+ * the difference is a correctness one rather than a scoping preference. That
+ * function has a second caller (claim 8's `codeOf`), which hands it a
+ * PACKAGES-RELATIVE path and a SHEBANG-STRIPPED text — a different key and a
+ * different input for the same file. A memo keyed on the path alone would be a
+ * place with two writers that agree only by the accident that one spells its
+ * paths absolute and the other relative, and the first shebang-carrying module
+ * either walk visited would make it answer one caller with the other's reading.
+ * A cache is a mutable place; this one has exactly one writer.
+ */
+const WALKED = new Map<string, ReadonlyArray<string>>()
+const importsOfModule = (file: string, text: string): ReadonlyArray<string> => {
+  const held = WALKED.get(file)
+  if (held !== undefined) return held
+  const found = runtimeImportsOf(file, text)
+  WALKED.set(file, found)
+  return found
+}
+
 const graphFrom = (entry: string): {
   reached: ReadonlyArray<{ file: string; spec: string }>
   files: ReadonlyArray<string>
+  unresolved: ReadonlyArray<string>
 } => {
   const seen = new Set<string>()
   const reached: Array<{ file: string; spec: string }> = []
+  const unresolved: Array<string> = []
   const visit = (file: string): void => {
     if (seen.has(file)) return
     seen.add(file)
@@ -440,19 +580,30 @@ const graphFrom = (entry: string): {
     try {
       text = readFileSync(file, "utf8")
     } catch {
+      // Reached but unreadable, which is not a terminus either: a module the
+      // walk was sent to and could not open is a hole in the graph, and it is
+      // recorded rather than returned from.
+      unresolved.push(`${path.relative(PACKAGES, file)}: could not be read`)
       return
     }
-    for (const spec of runtimeImportsOf(file, text)) {
+    for (const spec of importsOfModule(file, text)) {
       const rel = path.relative(PACKAGES, file)
       reached.push({ file: rel, spec })
-      const next = spec.startsWith(".")
-        ? path.normalize(path.join(path.dirname(file), spec))
-        : resolveWorkspace(spec)
-      if (next !== undefined) visit(next)
+      if (spec.startsWith(".")) {
+        visit(path.normalize(path.join(path.dirname(file), spec)))
+        continue
+      }
+      const landing = resolveWorkspace(spec)
+      if (landing.kind === "module") visit(landing.path)
+      else if (landing.kind === "unresolved") unresolved.push(`${rel}: ${spec} — ${landing.why}`)
     }
   }
   visit(entry)
-  return { reached, files: [...seen].map((file) => path.relative(PACKAGES, file)).sort() }
+  return {
+    reached,
+    files: [...seen].map((file) => path.relative(PACKAGES, file)).sort(),
+    unresolved: [...new Set(unresolved)].sort(),
+  }
 }
 
 /** The pairs alone, which is what most callers here want. */
@@ -527,6 +678,15 @@ describe("the wire door stays a wire door", () => {
     }
   })
 
+  test("the walk resolved every edge it followed", () => {
+    // THE PRECONDITION UNDER BOTH CLAIMS BELOW, and an equality like every
+    // other one in this file. A specifier this walk could not follow is a hole
+    // in the graph, and a graph with holes satisfies a confinement list by
+    // being empty — which is the fence passing by not running, one traversal
+    // down. `external` is the legitimate terminus and is not in this list.
+    expect(WIRE_DOOR.unresolved).toEqual([])
+  })
+
   test("nothing on it is a UI runtime, an appliance's client, or the format", () => {
     const bad = reached
       .filter((one) => FORBIDDEN.some((rule) => rule.test(one.spec)))
@@ -580,6 +740,11 @@ describe("the server door pulls no browser face", () => {
       expect([...files].some((f) => f === path.join(tenant.dir, "src", "server.ts")), tenant.name)
         .toBe(true)
     }
+  })
+
+  test("the walk resolved every edge it followed", () => {
+    // The wire door's reason, one door over.
+    expect(SERVER_DOOR.unresolved).toEqual([])
   })
 
   test("nothing on it is a UI runtime or a component library", () => {
@@ -1019,17 +1184,44 @@ const DEBT: Readonly<Record<string, ReadonlyArray<string>>> = {
 }
 
 describe("an appliance's product tier stays inside its tenant", () => {
-  test("the tenants and their tiers were actually computed", () => {
-    // THE FLOOR, and it guards three ways of being vacuously green: a closure
-    // walk that resolved nothing, a `node_modules` that was never hydrated, and
-    // a plugin with no tenant of its own. Any of them would make every claim
-    // below pass over an empty set.
-    for (const { name, dir } of TENANTS_OF) {
-      expect([...(TENANTS.get(name) ?? new Set())].sort(), name).toContain(dir)
+  test("the tenants are exactly what is written down here", () => {
+    // AN EQUALITY, NOT A FLOOR, and the difference is the whole of what a
+    // tenant set decides. Three claims SKIP every tenant member — the hydrated
+    // specifier equality, the manifest one beside it, and claim 8's name sweep
+    // — so `TENANT_MEMBERS` is an exemption set. A floor guards it against
+    // being empty and guards nothing at all against it GROWING: the day
+    // `olai-plugin-odu` stops walking a vault, `@olai/format` is reached from
+    // one plugin only, becomes kolu's tenant member, and is silently exempted
+    // from all three — widened by an ordinary one-line import inside a plugin,
+    // which is the one place a reviewer would not look for it.
+    //
+    // The derivation stays; what is added is that a change to it has to be
+    // WRITTEN DOWN. The same move {@link DEBT} makes and for the same reason:
+    // red the day it grows, and red again the day it shrinks.
+    expect(
+      Object.fromEntries([...TENANTS].map(([name, members]) => [name, [...members].sort()])),
+    ).toEqual({
+      kolu: ["kolu-client", "plugins/olai-plugin-kolu"],
+      odu: ["odu-client", "plugins/olai-plugin-odu"],
+    })
+    // ...and each tenant has a TIER, which is the other way this derivation
+    // comes back empty: a `node_modules` that was never hydrated.
+    for (const { name } of TENANTS_OF) {
       expect([name, (TIERS.get(name) ?? new Set()).size > 0]).toEqual([name, true])
     }
-    // ...and the two together are not one set wearing two names.
-    expect(TENANT_MEMBERS.size).toBeGreaterThan(PLUGIN_NAMES.length)
+  })
+
+  test("every DEBT key is a package, and none of them is exempt anyway", () => {
+    // A recorded breach is consulted only on the arm the loops below reach, and
+    // `if (TENANT_MEMBERS.has(pkg)) continue` runs FIRST. So a `DEBT` key that
+    // became a tenant member would be forgiven in silence — the one outcome
+    // "held as an equality rather than as an exception" was written to prevent
+    // — and a key naming a package that no longer exists is a debt nobody can
+    // pay and nothing reports.
+    for (const pkg of Object.keys(DEBT)) {
+      expect([pkg, packages.includes(pkg)]).toEqual([pkg, true])
+      expect([pkg, TENANT_MEMBERS.has(pkg)]).toEqual([pkg, false])
+    }
   })
 
   test("no package outside a tenant names a hydrated specifier", () => {
@@ -1146,7 +1338,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
    *  readings this claim is about, both taken with the same parser. */
   const codeOf = (file: string): string => {
     const text = readFileSync(path.join(PACKAGES, file), "utf8").replace(/^#![^\n]*\n/, "")
-    const which = file.endsWith(".tsx") ? "tsx" : "ts"
+    const which = grammarOf(file) === "tsx" ? "tsx" : "ts"
     let js: string
     try {
       js = transpilers[which].transformSync(text)
@@ -1191,7 +1383,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     [...tree].map(([pkg, named]) => [
       pkg,
       named
-        .filter((one) => /\.tsx?$/.test(one.file) && !isBench(one.file))
+        .filter((one) => one.grammar !== "css" && !isBench(one.file))
         .map((one) => ({ file: one.file, code: codeOf(one.file) })),
     ]),
   )

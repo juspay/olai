@@ -36,7 +36,7 @@ face. What was missing was a *place to put a judgement about an appliance that i
 neither the appliance nor the core*.
 
 `packages/plugin-api/` is that place, and it is the only one — and the tenants that
-stand on it live one directory over, in `packages/plugins/`.
+stand on it live one directory over, in [`packages/plugins/`](../../packages/plugins/README.md).
 
 > **The bar:** a general package may know a plugin's **name**. It may not know
 > anything else about it — not a member, not a key, not a constructor.
@@ -276,7 +276,7 @@ read as a column and a plugin that owned the size could make its row look unlike
 every row around it.
 
 It is a manifest field rather than a table in the panel for the fence's reason: no
-general package spells a plugin's name in code (`fence.test.ts`, claim 9), so the
+general package spells a plugin's name in code (`fence.test.ts`, claim 8), so the
 day a third tenant delivers a sentence it arrives wearing its own face and core is
 not edited. A plugin that hangs none is drawn with a plain generic and named in
 full — never another plugin's shape.
@@ -610,7 +610,9 @@ as.
 
 ## 9. Adding a plugin
 
-The whole checklist. Nothing outside `packages/` changes.
+The whole checklist. Two of its artifacts live outside `packages/` (a symlink and
+a docs line, step 4) and no GENERAL package changes at all, which is the claim
+that matters.
 
 0. **`packages/plugins/olai-plugin-<name>/package.json`** — the package is called
    `olai-plugin-<name>`, unscoped, and the directory is called the same thing.
@@ -618,24 +620,37 @@ The whole checklist. Nothing outside `packages/` changes.
    judgement about somebody else's appliance, which is the closest thing in this
    tree to a plugin written outside it, so it is named the way one would be. It
    goes in `packages/plugins/` and nowhere else — that directory is the tenant
-   container, held to the registry's own roster in both directions by
-   `fence.test.ts`'s ninth claim. It may declare its appliance's client, the
-   vault's format and SolidJS; it may not declare `@olai/plugin-api`, which
-   imports it.
-1. **`packages/plugins/olai-plugin-<name>/src/wire.ts`** — `name`, a `defineSurface`, and the
-   `faces` map. This file may not import SolidJS, an appliance client, or a
-   `node:` builtin.
-2. **`packages/plugins/olai-plugin-<name>/src/server.ts`** — `serve()`, and optionally
-   `probe()`, `kinds` and `wake`. This is where the appliance's client is called,
-   and where `services.deliveries` is rung if the plugin has anything to say into
-   a conversation. Declare `wake` or the strip draws no picker for you and
-   `chat.scope` refuses your name — which is the gate working, not a bug.
-3. **`packages/plugins/olai-plugin-<name>/src/plugin.ts`** — the manifest: the wire half plus
-   `dressings`, `chrome`, `mount`, `mark`. Browser graph.
-4. **`packages/plugins/olai-plugin-<name>/docs.md`** — the user page, plus a symlink at
-   `docs/plugins/<name>.md` and a line in `docs/index.md`.
-5. **Three lines in `packages/plugin-api/`** — one in `surfaces.ts`, one in
-   `server.ts`, one in `registry.ts`.
+   container, held to the registry's roster in both directions by
+   `fence.test.ts`'s ninth claim. Copy either tenant's manifest for the shape:
+   `main`, `types`, a `typecheck` script, and an `exports` map of five entries
+   (`.`, `./wire`, `./server`, `./testids`, `./all.css`). Declare your
+   appliance's client, `@olai/format` if you walk the vault, `solid-js` if you
+   draw, and **everything else your own sources import** — the isolated linker
+   gives a member exactly what its manifest names, and `effect` resolving by
+   walking up to the root is a hole rather than a shortcut. Never declare
+   `@olai/plugin-api`, which imports you.
+1. **`packages/plugins/olai-plugin-<name>/src/wire.ts`** — `name`, a
+   `defineSurface`, and the `faces` map. This file may not import SolidJS, an
+   appliance client, or a `node:` builtin.
+2. **`packages/plugins/olai-plugin-<name>/src/server.ts`** — `serve()`, and
+   optionally `probe()`, `kinds` and `wake`. This is where the appliance's
+   client is called, and where `services.deliveries` is rung if the plugin has
+   anything to say into a conversation. Declare `wake` or the strip draws no
+   picker for you and `chat.scope` refuses your name — which is the gate
+   working, not a bug.
+3. **`packages/plugins/olai-plugin-<name>/src/plugin.ts`** — the manifest: the
+   wire half plus `dressings`, `chrome`, `mount`, `mark`. Browser graph.
+4. **`packages/plugins/olai-plugin-<name>/docs.md`** — the user page, plus a
+   symlink at `docs/plugins/<name>.md` and a line in `docs/index.md`.
+   `packages/tests/plugin_docs.test.ts` fails if you skip either.
+5. **Six edits in `packages/plugin-api/`**, not three — each roster is an
+   `import` line AND an array entry, and three files beside them:
+   `surfaces.ts`'s `WIRES`, `server.ts`'s `SERVERS`, `registry.ts`'s `PLUGINS`,
+   `testids.ts`'s spread into `PLUGIN_TESTID`, one `@import` in `src/all.css`
+   (a face outside the scan path renders with **no layout while nothing
+   errors**), and `package.json`'s `dependencies` — without which the three
+   roster imports do not resolve at all.
+
 
 Then run `bun test packages/plugin-api` and let the fence tell you what you got
 wrong. It will be specific.
