@@ -2,21 +2,22 @@
  * WHO a server dies with — and who it does not.
  *
  * #355 armed `PR_SET_PDEATHSIG` in every server it started and paired it with
- * `getppid() === 1` for the race that arm cannot cover. The second
- * half read every daemonised process as an orphan, so a server whose wrapper
- * exited on purpose killed itself while healthy (2026-08-23, mid-recording).
- * A server is TIED to its spawner now — by pid, and only when that spawner
- * asked — and this file is the pair of outcomes the tie exists to keep apart:
+ * `getppid() === 1` for the race that arm cannot cover. The second half read
+ * every daemonised process as an orphan, so a server whose wrapper exited on
+ * purpose killed itself while healthy (2026-08-23, mid-recording). A server is
+ * TIED to its spawner now — by pid, and only when that spawner asked — and
+ * this file is the pair of outcomes the tie exists to keep apart:
  *
  *   - TIED, and the parent dies     → the server stops (#355's floor, kept)
  *   - UNTIED, and the wrapper exits → the server keeps serving (the fix)
  *
- * Both are here, in one file, on the same wrapper: the ONLY difference
- * between the two real-server legs at the bottom is whether the wrapper tied
- * the server to itself, and a reader can see that by looking at them side by
- * side. The death half moved here from `shutdown.test.ts`, which is about
- * what a SIGNAL does to this process; this is about who is allowed to make
- * the kernel send one.
+ * ONE wrapper drives all five process legs, and it takes exactly two switches:
+ * whether it TIES the child to itself, and whether it EXITS or waits to be
+ * killed. So the difference between any two legs below is one of those two
+ * switches and nothing else — which is the design stated as a test rather than
+ * as a comment. The death half moved here from `shutdown.test.ts`, which is
+ * about what a SIGNAL does to this process; this is about who is allowed to
+ * make the kernel send one.
  *
  * These are child processes because that is the only place the property
  * exists. A parent's death is not observable in the runner that would have to
@@ -38,18 +39,26 @@ import { served } from "./serve.testlib.ts"
  *  "never". */
 const BOUND_MS = 10_000
 
-/** How long a process that should NOT have died is watched before it counts
- *  as having survived. Long enough to cover the self-TERM, which #355's check
+/** How long a process that should NOT have died is watched before it counts as
+ *  having survived. Long enough to cover the self-TERM, which #355's check
  *  delivers in the same tick as the arm — a survivor that was going to die is
  *  dead many times over by here. */
 const SURVIVE_MS = 1_500
 
-/** Poll until `predicate` holds or `ms` runs out — the failure names what
- *  never happened rather than what the runner clocked. */
-const until = async (ms: number, what: string, predicate: () => boolean): Promise<void> => {
+/** Poll until `predicate` holds or `ms` runs out — the failure names what never
+ *  happened rather than what the runner clocked. `what` may be a thunk, and is
+ *  read at the THROW: a message interpolated at the call would quote the empty
+ *  box the wait was about to fill. */
+const until = async (
+  ms: number,
+  what: string | (() => string),
+  predicate: () => boolean,
+): Promise<void> => {
   const deadline = Date.now() + ms
   while (!predicate()) {
-    if (Date.now() > deadline) throw new Error(`${what} never happened within ${ms}ms`)
+    if (Date.now() > deadline) {
+      throw new Error(`${typeof what === "function" ? what() : what} never happened within ${ms}ms`)
+    }
     await Bun.sleep(20)
   }
 }
@@ -65,6 +74,17 @@ const alive = (pid: number): boolean => {
 }
 
 const gone = (pid: number): boolean => !alive(pid)
+
+/** EXPLICIT PID, and always this file's own: every leg leaves a process no
+ *  wrapper is left to collect. ESRCH is the ordinary case — the leg under test
+ *  is often the thing that killed it. */
+const reap = (pid: number): void => {
+  try {
+    process.kill(pid, "SIGKILL")
+  } catch {
+    // already gone
+  }
+}
 
 /** Everything a helper said, both channels, from spawn — the box a later
  *  assertion reads is the one the wait filled. */
@@ -84,33 +104,62 @@ const saidBy = (proc: ReturnType<typeof spawn>): (() => string) => {
 /**
  * The two helper scripts, written once for the file.
  *
- * `kid.ts` is the mechanism on its own — no server, no ports, nothing to boot
- * — so the three mechanism legs below are about the guard and not about a
- * server that also has a guard. It logs to a FILE: its pipes belong to a
- * wrapper that is about to die, and a write into a dead pipe is an EPIPE that
- * would kill the child for the wrong reason (the hazard `shutdown.test.ts`
- * hit while its first premise was wrong, fake-green).
+ * `WRAPPER` spawns whatever argv it is handed, names the child's pid on its
+ * stdout, and then either exits (a daemonising wrapper) or waits to be killed
+ * (a runner). It hands the child a LOG FILE rather than a pipe, because its
+ * pipes die with it and a write into a dead pipe is an EPIPE that would kill
+ * the child for a reason nothing here is about (the hazard `shutdown.test.ts`
+ * hit while its first premise was wrong, fake-green). The child's file
+ * descriptor is its own, so the wrapper's death does not close it.
  *
- * `mode` is WHEN it honors the tie: `now` is the ordinary spawn,
- * `after-orphan` waits until its parent is gone first, which is #355's race
- * made deterministic rather than left to whether the wrapper's exit won.
+ * `KID` is the mechanism on its own — no server, no ports, nothing to boot —
+ * so the three mechanism legs are about the guard and not about a server that
+ * also has a guard. Its `mode` is WHEN it honors the tie: `now` is the
+ * ordinary spawn, `after-orphan` waits until its parent is gone first, which
+ * is #355's race made deterministic rather than left to whether the wrapper's
+ * exit won. It is TOLD who spawned it (`SPAWNER`, stamped by the wrapper)
+ * rather than reading `process.ppid` at start, because by the time a kid under
+ * a wrapper that exits has booted, that read is already 1.
  */
-const helpers = (() => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "olai-diewith-"))
-  const kid = path.join(dir, "kid.ts")
+const [WRAPPER, KID] = ((): readonly [string, string] => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "olai-tie-"))
   const wrapper = path.join(dir, "wrapper.ts")
+  const kid = path.join(dir, "kid.ts")
   const guard = JSON.stringify(path.join(import.meta.dirname, "dieWithParent.ts"))
+  fs.writeFileSync(
+    wrapper,
+    `import { spawn } from "node:child_process"
+import * as fs from "node:fs"
+import { DIE_WITH_PARENT } from ${guard}
+
+const logFd = fs.openSync(process.env.CHILD_LOG, "w")
+const env = { ...process.env, SPAWNER: String(process.pid) }
+// The tie is the WRAPPER's own pid: one asserted by anyone but the direct
+// parent names a process that is not one. Unstamped, the child is untied —
+// the daemonising case.
+if (env.TIE === "yes") env[DIE_WITH_PARENT] = String(process.pid)
+delete env.TIE
+const child = spawn(process.execPath, process.argv.slice(2), {
+  stdio: ["ignore", logFd, logFd],
+  detached: true,
+  env,
+})
+child.unref()
+process.stdout.write("child=" + child.pid + "\\n")
+if (process.env.WRAPPER_EXITS === "yes") process.exit(0)
+setInterval(() => {}, 1 << 30)
+`,
+  )
   fs.writeFileSync(
     kid,
     `import * as fs from "node:fs"
 import { DIE_WITH_PARENT, dieWithParent } from ${guard}
 
-const [log, mode, spawner] = process.argv.slice(2)
-const lines = []
-const say = (line) => {
-  lines.push(line)
-  fs.writeFileSync(log, lines.join("\\n") + "\\n")
-}
+const mode = process.argv[2]
+const spawner = Number(process.env.SPAWNER)
+// fd 1 directly: the wrapper pointed it at a file, and an unflushed buffer
+// would read from out here exactly like a process that never got there.
+const say = (line) => fs.writeSync(1, line + "\\n")
 process.on("SIGTERM", () => {
   say("SIGTERM")
   process.exit(0)
@@ -130,7 +179,7 @@ const honor = () => {
 if (mode === "now") honor()
 else {
   const watching = setInterval(() => {
-    if (process.ppid === Number(spawner)) return
+    if (process.ppid === spawner) return
     clearInterval(watching)
     say("orphaned ppid=" + process.ppid)
     honor()
@@ -138,65 +187,83 @@ else {
 }
 `,
   )
-  fs.writeFileSync(
-    wrapper,
-    `import { spawn } from "node:child_process"
-import { DIE_WITH_PARENT } from ${guard}
-
-const [kid, log, mode, after] = process.argv.slice(2)
-const env = { ...process.env }
-// The TIE is the wrapper's own pid, which is the spawned process's real
-// parent — stamped here rather than by the test, because a tie asserted by
-// anyone but the direct parent names a process that is not one.
-if (env.TIE_THE_KID === "yes") env[DIE_WITH_PARENT] = String(process.pid)
-delete env.TIE_THE_KID
-const child = spawn(process.execPath, [kid, log, mode, String(process.pid)], {
-  detached: true,
-  stdio: "ignore",
-  env,
-})
-child.unref()
-process.stdout.write("kid=" + child.pid + "\\n")
-// A DAEMONISING wrapper exits and leaves the child running; a runner stays up
-// to be killed. One script, because the difference between the two cases has
-// to be this and nothing else.
-if (after === "exit") process.exit(0)
-setInterval(() => {}, 1 << 30)
-`,
-  )
-  return { kid, wrapper, dir }
+  return [wrapper, kid] as const
 })()
 
-/** Start a wrapper, and come back with its pid, the kid's, and the kid's log.
- *  `tied` is whether the wrapper ties the kid to itself. */
+interface Run {
+  readonly wrapperPid: number
+  readonly childPid: number
+  /** Everything the child wrote to either channel, from a file the wrapper's
+   *  death cannot take with it. */
+  readonly log: () => string
+  /** What the WRAPPER said — the `child=` line, and anything it died of. */
+  readonly said: () => string
+  readonly stop: () => void
+}
+
+/**
+ * Run one leg: a wrapper on `argv`, with the two switches.
+ *
+ * The wait is the `child=` line, so a caller is handed a pid rather than a
+ * regex and a mutable slot to park it in.
+ */
 const launch = async (options: {
-  readonly mode: "now" | "after-orphan"
+  readonly argv: ReadonlyArray<string>
   readonly tied: boolean
   readonly after: "exit" | "stay"
-}): Promise<{
-  readonly wrapperPid: number
-  readonly kidPid: number
-  readonly log: () => string
-  readonly said: () => string
-}> => {
-  const logPath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "olai-diewith-run-")), "kid.log")
-  const wrapper = spawn(
-    process.execPath,
-    [helpers.wrapper, helpers.kid, logPath, options.mode, options.after],
-    {
-      stdio: ["ignore", "pipe", "pipe"],
-      env: { ...process.env, ...(options.tied ? { TIE_THE_KID: "yes" } : {}) },
+  readonly env?: NodeJS.ProcessEnv
+}): Promise<Run> => {
+  const logPath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "olai-tie-run-")), "child.log")
+  const wrapper = spawn(process.execPath, [WRAPPER, ...options.argv], {
+    stdio: ["ignore", "pipe", "pipe"],
+    env: {
+      ...process.env,
+      ...options.env,
+      CHILD_LOG: logPath,
+      WRAPPER_EXITS: options.after === "exit" ? "yes" : "no",
+      ...(options.tied ? { TIE: "yes" } : {}),
     },
-  )
+  })
   const said = saidBy(wrapper)
-  await until(BOUND_MS, `the wrapper to name its child (said: ${said()})`, () => /kid=\d+/.test(said()))
-  const kidPid = Number(/kid=(\d+)/.exec(said())?.[1])
-  expect(kidPid).toBeGreaterThan(0)
+  const log = (): string => (fs.existsSync(logPath) ? fs.readFileSync(logPath, "utf8") : "")
+  await until(
+    BOUND_MS,
+    () => `the wrapper to name its child (it said: ${said()})`,
+    () => /child=\d+/.test(said()),
+  )
+  const childPid = Number(/child=(\d+)/.exec(said())?.[1])
+  expect(childPid).toBeGreaterThan(0)
+  const wrapperPid = wrapper.pid as number
+  expect(wrapperPid).toBeGreaterThan(0)
   return {
-    wrapperPid: wrapper.pid as number,
-    kidPid,
-    log: () => (fs.existsSync(logPath) ? fs.readFileSync(logPath, "utf8") : ""),
+    wrapperPid,
+    childPid,
+    log,
     said,
+    stop: () => {
+      reap(childPid)
+      reap(wrapperPid)
+    },
+  }
+}
+
+/** The mechanism leg's argv. */
+const kidArgv = (mode: "now" | "after-orphan"): ReadonlyArray<string> => [KID, mode]
+
+/** The real server's argv, and the environment a boot of it needs: a stand-in
+ *  bundle, no agent, logfmt so the serving line is readable, and a runtime
+ *  directory of its own so the one-brain lock lands beside this test. */
+const webLeg = (): { readonly argv: ReadonlyArray<string>; readonly env: NodeJS.ProcessEnv } => {
+  const dist = fs.mkdtempSync(path.join(os.tmpdir(), "olai-tie-dist-"))
+  fs.writeFileSync(path.join(dist, "index.html"), "<!doctype html>\n")
+  return {
+    argv: [path.join(import.meta.dirname, "main.ts"), "web", served(), "--no-commit"],
+    env: {
+      OLAI_DIST_DIR: dist,
+      OLAI_ACP_AGENT: "",
+      OLAI_LOG: "logfmt",
+      XDG_RUNTIME_DIR: fs.mkdtempSync(path.join(os.tmpdir(), "olai-tie-runtime-")),
+    },
   }
 }
 
@@ -218,67 +285,57 @@ test("the tie is a pid or it is nothing, and nothing is read into silence", () =
 })
 
 test("PIN: an UNTIED process survives its spawner exiting", async () => {
-  // THE REGRESSION, at the mechanism. Today's check is `getppid() === 1`, so
+  // THE REGRESSION, at the mechanism. #355's check is `getppid() === 1`, so
   // this process — reparented to init by a wrapper that exited on purpose —
   // used to send itself SIGTERM the moment it armed. It is the daemonising
   // shape: `olai web &` from a script that returns, a recorder that starts a
   // server and gets out of the way, anything double-forked.
   if (process.platform !== "linux") return
-  const run = await launch({ mode: "after-orphan", tied: false, after: "exit" })
+  const run = await launch({ argv: kidArgv("after-orphan"), tied: false, after: "exit" })
   try {
     await until(BOUND_MS, "the wrapper to exit", () => gone(run.wrapperPid))
-    await until(BOUND_MS, `the kid to reach the guard after being orphaned (log:\n${run.log()})`, () =>
-      run.log().includes("honored"))
+    await until(
+      BOUND_MS,
+      () => `the kid to reach the guard after being orphaned (log:\n${run.log()})`,
+      () => run.log().includes("honored"),
+    )
     // Reparented, and it knows: the very condition the old check called death.
     expect(run.log()).toMatch(/orphaned ppid=\d+/)
     expect(run.log()).not.toContain(`orphaned ppid=${run.wrapperPid}`)
     await Bun.sleep(SURVIVE_MS)
     expect(run.log()).not.toContain("SIGTERM")
-    expect(alive(run.kidPid)).toBe(true)
+    expect(alive(run.childPid)).toBe(true)
     // Alive is not enough — a stopped process is also in the table. It is
     // still RUNNING, which is what the beats say.
-    const beats = run.log().match(/beat=\d+/g) ?? []
-    expect(beats.length).toBeGreaterThan(5)
+    expect((run.log().match(/beat=\d+/g) ?? []).length).toBeGreaterThan(5)
   } finally {
-    try {
-      process.kill(run.kidPid, "SIGKILL")
-    } catch {
-      // already gone
-    }
-    try {
-      process.kill(run.wrapperPid, "SIGKILL")
-    } catch {
-      // already gone
-    }
+    run.stop()
   }
 }, BOUND_MS * 3)
 
 test("PIN: a TIED process dies with the spawner it was tied to", async () => {
   // #355's floor, unchanged: the kernel's parent-death signal, armed because
   // the spawner tied this process to itself. This is the e2e harness's case —
-  // cucumber SIGKILLed by odu's timeout — and it is the same wrapper as the
-  // leg above with the tie stamped.
+  // cucumber SIGKILLed by odu's timeout — and it is the leg above with the
+  // other setting of both switches.
   if (process.platform !== "linux") return
-  const run = await launch({ mode: "now", tied: true, after: "stay" })
+  const run = await launch({ argv: kidArgv("now"), tied: true, after: "stay" })
   try {
-    await until(BOUND_MS, `the kid to honor its tie (log:\n${run.log()})`, () =>
-      run.log().includes("honored"))
+    await until(
+      BOUND_MS,
+      () => `the kid to honor its tie (log:\n${run.log()})`,
+      () => run.log().includes("honored"),
+    )
     expect(run.log()).toContain(`tied-to=${run.wrapperPid}`)
     process.kill(run.wrapperPid, "SIGKILL")
-    await until(BOUND_MS, `the kid to be signalled (log:\n${run.log()})`, () =>
-      run.log().includes("SIGTERM"))
-    await until(BOUND_MS, "the kid to exit", () => gone(run.kidPid))
+    await until(
+      BOUND_MS,
+      () => `the kid to be signalled (log:\n${run.log()})`,
+      () => run.log().includes("SIGTERM"),
+    )
+    await until(BOUND_MS, "the kid to exit", () => gone(run.childPid))
   } finally {
-    try {
-      process.kill(run.kidPid, "SIGKILL")
-    } catch {
-      // already gone
-    }
-    try {
-      process.kill(run.wrapperPid, "SIGKILL")
-    } catch {
-      // already gone
-    }
+    run.stop()
   }
 }, BOUND_MS * 3)
 
@@ -293,102 +350,20 @@ test("PIN: the race — tied to a spawner that is already gone, and it stops any
   //
   // Same timing as the survival leg above; the tie is the whole difference.
   if (process.platform !== "linux") return
-  const run = await launch({ mode: "after-orphan", tied: true, after: "exit" })
+  const run = await launch({ argv: kidArgv("after-orphan"), tied: true, after: "exit" })
   try {
     await until(BOUND_MS, "the wrapper to exit", () => gone(run.wrapperPid))
-    await until(BOUND_MS, `the kid to stop itself (log:\n${run.log()})`, () =>
-      run.log().includes("SIGTERM"))
+    await until(
+      BOUND_MS,
+      () => `the kid to stop itself (log:\n${run.log()})`,
+      () => run.log().includes("SIGTERM"),
+    )
     expect(run.log()).toContain(`tied-to=${run.wrapperPid}`)
-    await until(BOUND_MS, "the kid to exit", () => gone(run.kidPid))
+    await until(BOUND_MS, "the kid to exit", () => gone(run.childPid))
   } finally {
-    try {
-      process.kill(run.kidPid, "SIGKILL")
-    } catch {
-      // already gone
-    }
+    run.stop()
   }
 }, BOUND_MS * 3)
-
-/**
- * The real thing, twice: `olai web` under a wrapper that exits, and under a
- * wrapper that is killed.
- *
- * A wrapper that writes the child's pid, hands it a LOG FILE (its own pipes
- * die with it, and a write into a dead pipe is an EPIPE that would kill the
- * server for a reason nothing here is about), and then either exits or waits
- * to be killed.
- */
-const webWrapper = (() => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "olai-web-wrapper-"))
-  const file = path.join(dir, "wrapper.ts")
-  fs.writeFileSync(
-    file,
-    `import { spawn } from "node:child_process"
-import * as fs from "node:fs"
-import { DIE_WITH_PARENT } from ${JSON.stringify(path.join(import.meta.dirname, "dieWithParent.ts"))}
-
-const logFd = fs.openSync(process.env.CHILD_LOG, "w")
-const env = { ...process.env }
-// The wrapper's OWN pid: a tie asserted by anyone but the direct parent
-// names a process that is not one. Absent, and the server is untied — the
-// daemonising case.
-if (env.TIE_THE_KID === "yes") env[DIE_WITH_PARENT] = String(process.pid)
-delete env.TIE_THE_KID
-const child = spawn(process.execPath, process.argv.slice(2), {
-  stdio: ["ignore", logFd, logFd],
-  detached: true,
-  env,
-})
-child.unref()
-process.stdout.write("child=" + child.pid + "\\n")
-// Exit and leave it running (a daemonising wrapper), or stay up to be killed
-// (a runner). The difference between the two legs below is this and the tie,
-// and nothing else.
-if (process.env.WRAPPER_EXITS === "yes") process.exit(0)
-setInterval(() => {}, 1 << 30)
-`,
-  )
-  return file
-})()
-
-/** A dist, a runtime dir and a log, per server. */
-const webRun = (tie: "tied" | "untied", wrapperExits: boolean): {
-  readonly wrapper: ReturnType<typeof spawn>
-  readonly said: () => string
-  readonly log: () => string
-} => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "olai-web-parent-"))
-  const childLog = path.join(tmp, "child.log")
-  const dist = path.join(tmp, "dist")
-  fs.mkdirSync(dist)
-  fs.writeFileSync(path.join(dist, "index.html"), "<!doctype html>\n")
-  const wrapper = spawn(
-    process.execPath,
-    [webWrapper, path.join(import.meta.dirname, "main.ts"), "web", served(), "--no-commit"],
-    {
-      env: {
-        ...process.env,
-        CHILD_LOG: childLog,
-        WRAPPER_EXITS: wrapperExits ? "yes" : "no",
-        OLAI_DIST_DIR: dist,
-        OLAI_ACP_AGENT: "",
-        OLAI_LOG: "logfmt",
-        XDG_RUNTIME_DIR: fs.mkdtempSync(path.join(os.tmpdir(), "olai-web-parent-run-")),
-        // The wrapper ties the server to its OWN pid, so this is a request
-        // to tie rather than the tie itself: a pid computed here would name
-        // the TEST RUNNER, which is the server's grandparent and not its
-        // parent.
-        ...(tie === "tied" ? { TIE_THE_KID: "yes" } : {}),
-      },
-      stdio: ["ignore", "pipe", "pipe"],
-    },
-  )
-  return {
-    wrapper,
-    said: saidBy(wrapper),
-    log: () => (fs.existsSync(childLog) ? fs.readFileSync(childLog, "utf8") : ""),
-  }
-}
 
 test("PIN: a wrapper-started olai web outlives the wrapper, and goes on serving", async () => {
   // THE LANE'S BAR, at the product: a daemonising wrapper's whole job is to
@@ -398,45 +373,33 @@ test("PIN: a wrapper-started olai web outlives the wrapper, and goes on serving"
   // is gone, no tie was stamped, and the server answers an HTTP request
   // afterwards.
   if (process.platform !== "linux") return
-  const run = webRun("untied", true)
-  let childPid = 0
+  const run = await launch({ ...webLeg(), tied: false, after: "exit" })
   try {
-    await until(BOUND_MS, `the wrapper to name its child (said: ${run.said()})`, () =>
-      /child=\d+/.test(run.said()))
-    childPid = Number(/child=(\d+)/.exec(run.said())?.[1])
-    expect(childPid).toBeGreaterThan(0)
-    const wrapperPid = run.wrapper.pid as number
-    await until(BOUND_MS, `the server to bind (log:\n${run.log()})`, () =>
-      /message=serving/.test(run.log()))
+    await until(
+      BOUND_MS,
+      () => `the server to bind (log:\n${run.log()})`,
+      () => /message=serving/.test(run.log()),
+    )
     const url = /url=(http:\/\/[^\s]+)/.exec(run.log())?.[1] ?? ""
     expect(url).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/)
 
-    await until(BOUND_MS, "the wrapper to exit", () => gone(wrapperPid))
+    await until(BOUND_MS, "the wrapper to exit", () => gone(run.wrapperPid))
     // Orphaned — the state the old check called death — and left alone.
     await Bun.sleep(SURVIVE_MS)
-    expect(alive(childPid)).toBe(true)
+    expect(alive(run.childPid)).toBe(true)
     expect(run.log()).not.toContain("received SIGTERM")
     // Alive is not serving. The request is the property.
     const page = await fetch(url)
     expect(page.status).toBe(200)
   } finally {
-    // EXPLICIT PID, and this test's own: the wrapper is gone, so nothing else
-    // will collect this one.
-    if (childPid > 0) {
-      try {
-        process.kill(childPid, "SIGKILL")
-      } catch {
-        // already gone
-      }
-    }
-    run.wrapper.kill("SIGKILL")
+    run.stop()
   }
 }, BOUND_MS * 4)
 
 test("olai web dies when its parent dies — BY THE GUARD'S HONOR, not by any side effect", async () => {
   // `prctl(PR_SET_PDEATHSIG)`: SIGKILL of cucumber used to reparent every
-  // detached server to init. A wrapper process is the parent here, it tied
-  // the server to itself (the one difference from the leg above), and killing it
+  // detached server to init. A wrapper process is the parent here, it tied the
+  // server to itself (the one difference from the leg above), and killing it
   // must take the server with it. Under the guard that death is a policy
   // decision: the kernel's signal arrives with the dying parent's pid
   // (measured: SI_USER from the parent itself, never si_pid 0), and this test
@@ -447,38 +410,27 @@ test("olai web dies when its parent dies — BY THE GUARD'S HONOR, not by any si
   // FILE the wrapper cannot take with it, and the assertion names both the
   // honoring and the death.
   if (process.platform !== "linux") return
-  const run = webRun("tied", false)
-  let childPid = 0
+  const run = await launch({ ...webLeg(), tied: true, after: "stay" })
   try {
-    await until(BOUND_MS, `the wrapper to name its child (said: ${run.said()})`, () =>
-      /child=\d+/.test(run.said()))
-    childPid = Number(/child=(\d+)/.exec(run.said())?.[1])
-    expect(childPid).toBeGreaterThan(0)
-    const wrapperPid = run.wrapper.pid as number
-    expect(wrapperPid).toBeGreaterThan(0)
-
-    await until(BOUND_MS, "the child's guard to arm", () => run.log().includes("SIGTERM guard armed"))
-
-    run.wrapper.kill("SIGKILL")
     await until(
       BOUND_MS,
-      "the kernel's parent-death signal to be honored",
-      () => run.log().includes(`honoring SIGTERM from pid ${wrapperPid}`),
+      () => `the child's guard to arm (log:\n${run.log()})`,
+      () => run.log().includes("SIGTERM guard armed"),
     )
-    await until(BOUND_MS, "the child to exit", () => gone(childPid))
-    const journal = run.log()
-    // (the wrapper reaped before the drain read its cmdline is the
-    // ordinary case — pid and uid, recorded at send time, must carry it)
-    expect(journal).toContain(`honoring SIGTERM from pid ${wrapperPid} uid ${process.getuid?.()}`)
-    expect(journal).toContain("olai web: received SIGTERM")
+    process.kill(run.wrapperPid, "SIGKILL")
+    await until(
+      BOUND_MS,
+      () => `the kernel's parent-death signal to be honored (log:\n${run.log()})`,
+      () => run.log().includes(`honoring SIGTERM from pid ${run.wrapperPid}`),
+    )
+    await until(BOUND_MS, "the child to exit", () => gone(run.childPid))
+    // (the wrapper reaped before the drain read its cmdline is the ordinary
+    // case — pid and uid, recorded at send time, must carry it)
+    expect(run.log()).toContain(
+      `honoring SIGTERM from pid ${run.wrapperPid} uid ${process.getuid?.()}`,
+    )
+    expect(run.log()).toContain("olai web: received SIGTERM")
   } finally {
-    if (childPid > 0) {
-      try {
-        process.kill(childPid, "SIGKILL")
-      } catch {
-        // already gone
-      }
-    }
-    run.wrapper.kill("SIGKILL")
+    run.stop()
   }
 }, BOUND_MS * 4)
