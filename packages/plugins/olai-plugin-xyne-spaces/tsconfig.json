@@ -1,4 +1,8 @@
 {
+  // Per-package `tsc --noEmit` anchor. Shared options live in
+  // ../../../tsconfig.base.json — one directory further out than a top-level
+  // member's, because the tenants nest under `packages/plugins/`. Each member
+  // only points tsc at its own src.
   "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": "src"

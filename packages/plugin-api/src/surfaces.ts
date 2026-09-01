@@ -48,16 +48,22 @@ export interface PluginWire {
 export const WIRES = [kolu, odu, spaces] as const
 
 /**
- * A hyphenated sibling key cannot be the local binding (`spaces`), so the
- * name has to appear as DATA for the registry's own spelling hunt
- * (`./fence.test.ts` claim 8's floor: the registry must be seen to spell
- * every plugin). The throw is the load: a rename of `./wire`'s `name` that
- * left the import path behind would otherwise be a silent drift.
+ * THE NAME AS DATA, beside the import. Claim 8's floor is that the registry
+ * must be seen to SPELL every plugin — import specifiers are stripped before
+ * the hunt, so a local binding is not a spelling, and a hyphenated name cannot
+ * be a binding at all. One table, every plugin: a rename of `./wire`'s `name`
+ * that left this list behind is a throw rather than a silent drift, hyphenated
+ * or not. `WIRES` stays a list of bindings because `./rosters.test.ts` reads
+ * that list as source.
  */
-if (spaces.name !== "xyne-spaces") {
-  throw new Error(
-    `plugins: olai-plugin-xyne-spaces wire.name is "${spaces.name}", not "xyne-spaces"`,
-  )
+for (const [wire, expected] of [
+  [kolu, "kolu"],
+  [odu, "odu"],
+  [spaces, "xyne-spaces"],
+] as const) {
+  if (wire.name !== expected) {
+    throw new Error(`plugins: ${expected} wire.name is "${wire.name}", not "${expected}"`)
+  }
 }
 
 /**

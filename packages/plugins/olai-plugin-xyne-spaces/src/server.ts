@@ -199,6 +199,18 @@ export const serve = (services: Services): {
     return mirror
   }
 
+  const recover = (held: Mirror): void => {
+    if (!held.faulted() && current.status === "fault") {
+      paint({
+        status: "connected",
+        where: env.url ?? current.where,
+        told: true,
+        why: null,
+        since: services.now(),
+      })
+    }
+  }
+
   const onSeen = (event: ConversationSeen): void => {
     if (!boundTo(reading.bind, event.agent, event.session)) return
     lastBound = { agent: event.agent, session: event.session }
@@ -210,30 +222,14 @@ export const serve = (services: Services): {
       if (skipHeartbeat(event.body)) return
       serial(async () => {
         await held.postDigest(event.body)
-        if (!held.faulted() && current.status === "fault") {
-          paint({
-            status: "connected",
-            where: env.url ?? current.where,
-            told: true,
-            why: null,
-            since: services.now(),
-          })
-        }
+        recover(held)
       })
       return
     }
     if (event.kind === "replied") {
       serial(async () => {
         await held.postReply(event.text, reading.trim)
-        if (!held.faulted() && current.status === "fault") {
-          paint({
-            status: "connected",
-            where: env.url ?? current.where,
-            told: true,
-            why: null,
-            since: services.now(),
-          })
-        }
+        recover(held)
       })
       return
     }

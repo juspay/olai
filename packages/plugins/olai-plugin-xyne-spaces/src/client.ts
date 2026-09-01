@@ -110,6 +110,16 @@ export const makeClient = (
     return { status, why: error }
   }
 
+  const postedCall = async (
+    path: string,
+    body: Record<string, unknown>,
+  ): Promise<PostResult> => {
+    const { status, json } = await call(path, body)
+    const posted = postedOf(json)
+    if (status >= 200 && status < 300 && posted !== null) return { ok: true, posted }
+    return { ok: false, refused: refusedOf(status, json) }
+  }
+
   return {
     postMessage: async (body) => {
       const payload: Record<string, unknown> = {
@@ -117,20 +127,13 @@ export const makeClient = (
         markdownText: body.markdownText,
       }
       if (body.conversationId !== undefined) payload.conversationId = body.conversationId
-      const { status, json } = await call("/postMessage", payload)
-      const posted = postedOf(json)
-      if (status >= 200 && status < 300 && posted !== null) return { ok: true, posted }
-      return { ok: false, refused: refusedOf(status, json) }
+      return postedCall("/postMessage", payload)
     },
-    updateMessage: async (body) => {
-      const { status, json } = await call("/updateMessage", {
+    updateMessage: async (body) =>
+      postedCall("/updateMessage", {
         messageId: body.messageId,
         markdownText: body.markdownText,
-      })
-      const posted = postedOf(json)
-      if (status >= 200 && status < 300 && posted !== null) return { ok: true, posted }
-      return { ok: false, refused: refusedOf(status, json) }
-    },
+      }),
     agentProgress: async (body) => {
       const payload: Record<string, unknown> = {
         conversationId: body.conversationId,

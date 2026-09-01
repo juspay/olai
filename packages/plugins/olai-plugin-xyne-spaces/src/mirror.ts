@@ -122,6 +122,11 @@ export const makeMirror = (deps: MirrorDeps): Mirror => {
   let saidFault = false
   let lastLane = "general"
 
+  const laneFor = (text: string): string => {
+    const lane = laneOf(text)
+    return lane === "general" && lastLane !== "general" ? lastLane : lane
+  }
+
   const fail = (why: string): void => {
     if (saidFault) return
     saidFault = true
@@ -191,7 +196,7 @@ export const makeMirror = (deps: MirrorDeps): Mirror => {
   return {
     postDigest: async (text) => {
       const kind = classify(text)
-      const lane = laneOf(text) === "general" && lastLane !== "general" ? lastLane : laneOf(text)
+      const lane = laneFor(text)
       const thread = threads.get(lane)
       if (kind === "ci" && thread?.ciMessageId !== undefined) {
         await enqueue({ op: "update", messageId: thread.ciMessageId, text })
@@ -202,7 +207,7 @@ export const makeMirror = (deps: MirrorDeps): Mirror => {
     postReply: async (text, cap) => {
       const trimmed = trimTo(text, cap)
       const kind = classify(text)
-      const lane = laneOf(text) === "general" && lastLane !== "general" ? lastLane : laneOf(text)
+      const lane = laneFor(text)
       await enqueue({ op: "post", lane, kind, text: trimmed })
     },
     progress: async (status, sessionId) => {
