@@ -39,7 +39,10 @@
  * ONE ENTRY, and it will stay one until something in this package can derive a
  * claim out of prose. It is spelled as `@olai/format`'s own word rather than as
  * `.olai`, because a suffix is a string two packages can disagree about and a
- * KIND is the registry's single answer.
+ * KIND is the registry's single answer — and it is bounded to the kinds that
+ * HOLD RECORDS rather than to every kind there is, because `document` is a word
+ * the registry claims and a file this doorbell can no more walk than a picture
+ * ({@link KINDS} argues it, and {@link ./wake.test.ts} holds it).
  *
  * ## ...AND THE MESSAGES, which are not pieces of a control
  *
@@ -94,12 +97,13 @@
  * plugin declares them at all — `@olai/server`'s roster copies `wake` onto a
  * row only for a plugin that is RUNNING, and its own bench asserts that
  * rather than trusting this paragraph. The KINDS are held harder than prose
- * can be: they are typed against `@olai/format`'s own union below, so a word
- * the registry does not claim is a type error here rather than a picker that
- * offers nothing on somebody else's machine.
+ * can be: they are typed against the registry's RECORD-HOLDING union below, so
+ * both ways of getting them wrong — a word the registry never had, and a word
+ * it has for a file with no nodes in it — are a type error here rather than a
+ * picker that offers the wrong files on somebody else's machine.
  */
 
-import type { FileKind } from "@olai/format"
+import type { NodeKind } from "@olai/format"
 
 /**
  * THE KIND OF FILE A KOLU WAKE CAN BE POINTED AT — one, and it is the outline.
@@ -111,11 +115,33 @@ import type { FileKind } from "@olai/format"
  * answer to a question `@olai/format`'s `kinds.ts` settles, and the failure it
  * buys is silent: a picker that offers nothing at all.
  *
+ * ## `NodeKind` AND NOT `FileKind`, which is the whole of what the annotation
+ * is worth
+ *
+ * `FileKind` is every kind the registry claims, documents included — so it
+ * catches `"hologram"`, a word that names no file, and passes `"document"`,
+ * which names the very files this lane exists to keep off the picker. A future
+ * hand adding one here would type-check GREEN and rebuild the defect whole: the
+ * picker would offer `.md` files, {@link ./doorbell.ts} would walk one and find
+ * no nodes to carry a claim, and the heartbeat would go on reporting a live
+ * watch over the empty set. The door this PR closed, with the key left in it.
+ *
+ * {@link NodeKind} is the registry's record-holding kinds — the complement of
+ * `BodyKind`, derived from the same `holds` column — so naming a bodied kind
+ * here is the same class of error as naming a word the table never had, and
+ * `./wake.test.ts` fails the build if it ever stops being.
+ *
+ * IT IS KOLU'S BOUND AND NOT CORE'S, and the distinction is exact: core cannot
+ * know whether a doorbell can walk a kind and never asks. THIS annotation can,
+ * because this package knows what it reads — the `kolu-terminal` values on a
+ * file's un-done NODES — and a plugin that really did read a document's prose
+ * would annotate its own list differently and be right to.
+ *
  * A named constant rather than a member written inline, so this annotation
  * exists to be checked — a literal inside the object below would widen to
  * `string` against {@link PluginServerHalf}'s own field and check nothing.
  */
-const KINDS: readonly [FileKind, ...Array<FileKind>] = ["outline"]
+const KINDS: readonly [NodeKind, ...Array<NodeKind>] = ["outline"]
 
 /** kolu's doorbell, as the strip says it. See the header for why the drawn half
  *  is three pieces and why the subject leads. */
