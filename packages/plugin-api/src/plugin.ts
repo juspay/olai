@@ -703,6 +703,60 @@ export interface PluginServices {
    * verb that cannot fail.
    */
   readonly deliveries: Deliveries
+  /**
+   * CONVERSATION EVENTS, PUSHED — doorbells that landed, agent replies that
+   * settled, turns that started or ended ({@link Watching}).
+   *
+   * A plugin that mirrors a conversation never reads one. Core pushes what
+   * happened, and human messages are simply not among the events. WRITE-ONLY
+   * `deliveries` stays write-only; this is a second door, the other direction,
+   * still not a transcript.
+   *
+   * REQUIRED like {@link deliveries}: there is no serve where the bus is
+   * missing. A machine with no chat never fires, which is the honest
+   * machine-without-the-tool state.
+   */
+  readonly watching: Watching
+}
+
+/**
+ * WHAT HAPPENED IN A CONVERSATION, as a plugin that mirrors one is told.
+ *
+ * Three kinds, and none of them is a human message. `delivered` is a doorbell
+ * that actually went into the conversation (the thunk answered, the row was
+ * written). `replied` is an orchestrator turn that settled, with the full
+ * reply. `turn` is the ephemeral working signal, start and end.
+ */
+export type ConversationSeen =
+  | {
+    readonly kind: "delivered"
+    readonly from: string
+    readonly agent: string
+    readonly session: string
+    readonly body: string
+  }
+  | {
+    readonly kind: "replied"
+    readonly agent: string
+    readonly session: string
+    readonly text: string
+  }
+  | {
+    readonly kind: "turn"
+    readonly agent: string
+    readonly session: string
+    readonly status: "working" | "done"
+  }
+
+/**
+ * THE WATCHING BUS — subscribe to {@link ConversationSeen}, get an unsubscribe.
+ *
+ * Fire-and-forget on the plugin's side: the handler is a sink, like
+ * {@link Deliveries.deliver}. Core does not wait for whatever the plugin
+ * does with the event.
+ */
+export interface Watching {
+  readonly subscribe: (handler: (event: ConversationSeen) => void) => () => void
 }
 
 /**

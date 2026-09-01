@@ -30,6 +30,7 @@
 
 import { plugin as kolu } from "olai-plugin-kolu"
 import { plugin as odu } from "olai-plugin-odu"
+import { plugin as spaces } from "olai-plugin-xyne-spaces"
 
 import type { OlaiPlugin } from "./plugin.ts"
 
@@ -48,4 +49,4 @@ import type { OlaiPlugin } from "./plugin.ts"
  * other field is optional, and the absent arm of each is the state a machine
  * without the tool already shows.
  */
-export const PLUGINS = [kolu, odu] as const satisfies ReadonlyArray<OlaiPlugin>
+export const PLUGINS = [kolu, odu, spaces] as const satisfies ReadonlyArray<OlaiPlugin>

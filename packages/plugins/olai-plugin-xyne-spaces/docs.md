@@ -1,0 +1,61 @@
+# Spaces integration
+
+[Xyne Spaces](https://github.com/xynehq/xyne) is the org's team chat. If this olai has been pointed at a Spaces app, the orchestrator's conversation **mirrors into a bound channel** — doorbell digests, trimmed orchestrator replies, and a live "working…" signal while a turn runs. Nothing comes back the other way.
+
+**This is watch-only.** Mentions, DMs, slash commands and buttons are later phases. Humans talking in the channel are not answered, and human messages in olai never mirror. This page describes only what is here.
+
+## The connection
+
+Two facts, and they live in different places because one is a secret:
+
+- **`$OLAI_SPACES_URL`** and **`$OLAI_SPACES_TOKEN`** in the environment — the Spaces origin and the installed app's JWT. The human reuses the existing "kolu" Spaces app, so the bot's name in-channel is kolu. That is accepted. These are secrets; they are never written to the vault.
+- **`_olai/Spaces.olai`** — the conversation→channel binding and the digest knobs. An ordinary outline, found by basename the way `_olai/Kolu.olai` is (shallowest `spaces.olai`, `_olai/Spaces.olai` the chosen form).
+
+No env → the plugin is honestly **absent**, not broken. Beside the connection pill in the header is a readout with three states rather than two:
+
+- `● spaces` — both env vars are set and the last post (if any) was accepted;
+- `● no spaces`, dim — nothing is configured, and the tip names **where olai looked** (`OLAI_SPACES_URL` / `OLAI_SPACES_TOKEN`);
+- `● spaces fault` in the alarm colour — the env is present and a post was refused, and the tip names **which**.
+
+The third is why the readout is not a boolean. *Set the token* and *the token was rejected* have opposite fixes, and a fault reported as absent would send a reader to configure an app that is already there.
+
+## The binding
+
+One channel per team, one orchestrator. The bind is a node in `_olai/Spaces.olai`, not a picker in the chat panel:
+
+```
+{"id":"mirror","ord":"a0","title":"mirror","custom":{"channel":"<spaces-channel-id>","agent":"claude","session":"<session-id>"}}
+{"id":"digest","ord":"a1","title":"digest","custom":{"trim":"500"}}
+```
+
+`channel` is required; without it nothing posts. `agent` and `session` are optional — omit both to bind every conversation this serve is in, omit only `session` to bind every session of that agent. `trim` is the orchestrator-reply cap in characters (default 500). A malformed trim defaults **and is said on the server's console at warning level**.
+
+olai never writes this file. Turning the plugin on without a bind is a connected pill that posts nothing.
+
+## What mirrors
+
+**Doorbell digests**, at digest level (~5–8 messages per PR, never the firehose):
+
+- lane dispatched
+- review verdict (MUST / SHOULD / NIT counts)
+- CI result — posted once, then **edited in place** on first-red → final, never posted twice
+- merged, with the timings line
+- anything stuck / needing a human
+
+A kolu heartbeat ("the watcher is alive") is not a digest and does not post. Human messages never mirror.
+
+**One thread per lane.** The lane's first digest opens the thread; later digests reply into it.
+
+**Orchestrator replies, trimmed**: each orchestrator reply mirrors as its first ~500 characters with an ellipsis and nothing more. Working-notes still produce the ephemeral signal below rather than a stored wall of fragments.
+
+**`agentProgress`** while the orchestrator runs a turn — the ephemeral "working…" signal in the lane thread, not a stored message. It ends when the turn does.
+
+## Failure honesty
+
+A refused post is said **once** into the olai conversation (the doorbell fault pattern), not once per message. Digests queue and post in order on recovery. The pill stays on `spaces fault` until a post is accepted again.
+
+## What it is not
+
+- **No inbound.** A message in the Spaces channel, an @mention, a DM, a slash command or a button click does not reach this olai. That is phase 2.
+- **No live test in CI.** The suite pins request shapes against a fake Spaces. Deploying against the real instance is the human's, before merge.
+- **No picker.** The prototypes showed a channel picker on the chat strip; this slice ships the config-file bind above.

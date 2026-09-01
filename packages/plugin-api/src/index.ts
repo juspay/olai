@@ -79,6 +79,7 @@ export type {
   ChipContext,
   Chrome,
   ChromeFace,
+  ConversationSeen,
   Deliveries,
   Dressing,
   FileLink,
@@ -97,6 +98,7 @@ export type {
   PropKind,
   PropPane,
   StdioServer,
+  Watching,
 } from "./plugin.ts"
 
 export {

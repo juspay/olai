@@ -101,6 +101,7 @@ import type {
 } from "@olai/format"
 import {
   type Applied,
+  type ChatEntry,
   CHAT_OFF,
   type ChatState,
   type Edit,
@@ -149,9 +150,11 @@ import { cadence } from "@olai/chat"
  * its `fence.test.ts` walks each closure rather than trusting the argument.
  */
 import {
+  type ConversationSeen,
   type PluginServer,
   type PluginServerHalf,
   type PluginServices,
+  type Watching,
   enabled,
   SERVERS,
 } from "@olai/plugin-api/server"
@@ -968,6 +971,28 @@ export const bind = (
      */
     const NO_DOOR: PluginServices["deliveries"] = { scopes: () => [], deliver: () => {} }
     /**
+     * THE WATCHING BUS — conversation events, pushed to every plugin that
+     * subscribed. Human messages are not among them. Built once per bind so
+     * a plugin that served before the first transcript frame still hears it.
+     */
+    const watchers = new Set<(event: ConversationSeen) => void>()
+    const watching: Watching = {
+      subscribe: (handler) => {
+        watchers.add(handler)
+        return () => {
+          watchers.delete(handler)
+        }
+      },
+    }
+    const seen = (event: ConversationSeen): void => {
+      for (const handler of watchers) handler(event)
+    }
+    const whoOf = (state: ChatState): { agent: string; session: string } | null =>
+      state.session !== null && state.talking?.kind === "agent"
+        ? { agent: state.talking.id, session: state.session.id }
+        : null
+    let lastStatus: ChatState["status"] | undefined
+    /**
      * ... and the real one, PER PLUGIN.
      *
      * Keyed by the only word this file knows about the plugin it is for, which
@@ -1027,6 +1052,7 @@ export const bind = (
         // ... and the doorbell's door, keyed the same way and for a sharper
         // version of the same reason — see {@link doorFor}.
         deliveries: doorFor(plugin.name),
+        watching,
       }),
     }))
     /**
@@ -2128,13 +2154,43 @@ export const bind = (
       // whole of why they are here — see the field's own note.
       faces: facesOf(composed.map((one) => one.plugin)),
       publish: {
-        state: (state) => runtime.ctx.cells.chat.set(state),
+        state: (state) => {
+          runtime.ctx.cells.chat.set(state)
+          const who = whoOf(state)
+          if (who !== null) {
+            if (state.status === "thinking" && lastStatus !== "thinking") {
+              seen({ kind: "turn", ...who, status: "working" })
+            }
+            if (lastStatus === "thinking" && state.status !== "thinking") {
+              seen({ kind: "turn", ...who, status: "done" })
+              const last = [...(chat?.entries().values() ?? [])]
+                .filter((entry): entry is Extract<ChatEntry, { kind: "agent" }> =>
+                  entry.kind === "agent"
+                )
+                .sort((a, b) => a.seq - b.seq)
+                .at(-1)
+              if (last !== undefined && last.text !== "") {
+                seen({ kind: "replied", ...who, text: last.text })
+              }
+            }
+          }
+          lastStatus = state.status
+        },
         // Through the CADENCE, never straight onto the collection: a row that
         // grows reaches the wire as pieces on a clock rather than as itself
         // once per token (`transcript-stream-quadratic`). What comes back out
         // is a frame, and {@link apply} writes it in the one order that
         // never shows a paragraph getting shorter.
-        transcript: (change) => saying.publish(change),
+        transcript: (change) => {
+          saying.publish(change)
+          const who = chat === null ? null : whoOf(chat.state())
+          if (who === null) return
+          for (const [, entry] of change.upserts) {
+            if (entry.kind === "user" && entry.rang !== undefined && entry.text !== "") {
+              seen({ kind: "delivered", from: entry.rang, ...who, body: entry.text })
+            }
+          }
+        },
       },
     }
   })

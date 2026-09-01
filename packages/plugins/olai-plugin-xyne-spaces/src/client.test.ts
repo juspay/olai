@@ -1,0 +1,111 @@
+/**
+ * The dial, pinned against a fake Spaces: auth header, postMessage body,
+ * thread reply, updateMessage, agentProgress.
+ */
+
+import { expect, test } from "bun:test"
+
+import { makeClient } from "./client.ts"
+import { listen } from "./testlib/fake-spaces.ts"
+
+test("postMessage sends Bearer auth, channelId, markdownText; omits conversationId on the opener", async () => {
+  const spaces = await listen()
+  try {
+    const client = makeClient(spaces.url, "jwt-token", undefined)
+    const result = await client.postMessage({
+      channelId: "ch-team",
+      markdownText: "Lane dispatched: **x**",
+    })
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.posted.conversationId).toBe("conv-1")
+      expect(result.posted.messageId).toBe("msg-1")
+    }
+    expect(spaces.requests).toHaveLength(1)
+    const req = spaces.requests[0]
+    expect(req?.method).toBe("POST")
+    expect(req?.path).toBe("/api/apps/chat/postMessage")
+    expect(req?.authorization).toBe("Bearer jwt-token")
+    expect(req?.body).toEqual({
+      channelId: "ch-team",
+      markdownText: "Lane dispatched: **x**",
+    })
+  } finally {
+    spaces.close()
+  }
+})
+
+test("a thread reply carries conversationId", async () => {
+  const spaces = await listen()
+  try {
+    const client = makeClient(spaces.url, "jwt-token", undefined)
+    await client.postMessage({
+      channelId: "ch-team",
+      markdownText: "later",
+      conversationId: "conv-held",
+    })
+    expect(spaces.requests[0]?.body).toEqual({
+      channelId: "ch-team",
+      markdownText: "later",
+      conversationId: "conv-held",
+    })
+  } finally {
+    spaces.close()
+  }
+})
+
+test("updateMessage edits in place by messageId", async () => {
+  const spaces = await listen()
+  try {
+    const client = makeClient(spaces.url, "jwt-token", undefined)
+    await client.updateMessage({ messageId: "msg-9", markdownText: "CI settled green" })
+    expect(spaces.requests[0]?.path).toBe("/api/apps/chat/updateMessage")
+    expect(spaces.requests[0]?.authorization).toBe("Bearer jwt-token")
+    expect(spaces.requests[0]?.body).toEqual({
+      messageId: "msg-9",
+      markdownText: "CI settled green",
+    })
+  } finally {
+    spaces.close()
+  }
+})
+
+test("agentProgress is ephemeral working/done with the app token", async () => {
+  const spaces = await listen()
+  try {
+    const client = makeClient(spaces.url, "jwt-token", undefined)
+    await client.agentProgress({
+      conversationId: "conv-1",
+      channelId: "ch-team",
+      status: "working",
+      sessionId: "s-1",
+    })
+    expect(spaces.requests[0]?.path).toBe("/api/apps/chat/agentProgress")
+    expect(spaces.requests[0]?.authorization).toBe("Bearer jwt-token")
+    expect(spaces.requests[0]?.body).toEqual({
+      conversationId: "conv-1",
+      channelId: "ch-team",
+      status: "working",
+      agentSlug: "olai",
+      sessionId: "s-1",
+    })
+  } finally {
+    spaces.close()
+  }
+})
+
+test("a 401 is a refused post, not a thrown error", async () => {
+  const spaces = await listen()
+  try {
+    const client = makeClient(spaces.url, "jwt-token", undefined)
+    spaces.failNext(401, "Authentication failed")
+    const result = await client.postMessage({ channelId: "ch", markdownText: "x" })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.refused.status).toBe(401)
+      expect(result.refused.why).toBe("Authentication failed")
+    }
+  } finally {
+    spaces.close()
+  }
+})

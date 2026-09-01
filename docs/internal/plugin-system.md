@@ -65,7 +65,7 @@ a cycle. The fit is proved at the registry instead:
 
 ```ts
 // packages/plugin-api/src/registry.ts
-export const PLUGINS = [kolu, odu] as const satisfies ReadonlyArray<OlaiPlugin>
+export const PLUGINS = [kolu, odu, spaces] as const satisfies ReadonlyArray<OlaiPlugin>
 ```
 
 A plugin that stops fitting is a type error on **that line**, naming the plugin.

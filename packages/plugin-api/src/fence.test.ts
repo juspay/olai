@@ -833,12 +833,22 @@ describe("an appliance's product tier stays inside its tenant", () => {
     ).toEqual({
       kolu: ["kolu-client", "plugins/olai-plugin-kolu"],
       odu: ["odu-client", "plugins/olai-plugin-odu"],
+      "xyne-spaces": ["plugins/olai-plugin-xyne-spaces"],
     })
-    // ...and each tenant has a TIER, which is the other way this derivation
-    // comes back empty: a `node_modules` that was never hydrated.
-    for (const { name } of TENANTS_OF) {
-      expect([name, (TIERS.get(name) ?? new Set()).size > 0]).toEqual([name, true])
-    }
+    // ...and each APPLIANCE tenant has a TIER, which is the other way this
+    // derivation comes back empty: a `node_modules` that was never hydrated.
+    // A plugin that talks HTTP and hydrates nothing (Spaces) is a whole
+    // plugin; an empty tier there is the truth, not a missed pin.
+    expect(
+      Object.fromEntries([...TENANTS_OF].map(({ name }) => [
+        name,
+        (TIERS.get(name) ?? new Set()).size > 0,
+      ])),
+    ).toEqual({
+      kolu: true,
+      odu: true,
+      "xyne-spaces": false,
+    })
   })
 
   test("every DEBT key is a package, and none of them is exempt anyway", () => {

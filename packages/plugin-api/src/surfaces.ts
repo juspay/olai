@@ -28,6 +28,7 @@
 
 import * as kolu from "olai-plugin-kolu/wire"
 import * as odu from "olai-plugin-odu/wire"
+import * as spaces from "olai-plugin-xyne-spaces/wire"
 
 /** One plugin's wire half — its sibling key, its surface, and which of its
  *  members each face may see. The three things a composition root needs and
@@ -44,7 +45,20 @@ export interface PluginWire {
  *  widened array would take their key types with it. A third party adding a
  *  plugin rebuilds olai; that is the one thing compiled-in cannot do, and it
  *  is accepted — the boundary is the value, not the loading. */
-export const WIRES = [kolu, odu] as const
+export const WIRES = [kolu, odu, spaces] as const
+
+/**
+ * A hyphenated sibling key cannot be the local binding (`spaces`), so the
+ * name has to appear as DATA for the registry's own spelling hunt
+ * (`./fence.test.ts` claim 8's floor: the registry must be seen to spell
+ * every plugin). The throw is the load: a rename of `./wire`'s `name` that
+ * left the import path behind would otherwise be a silent drift.
+ */
+if (spaces.name !== "xyne-spaces") {
+  throw new Error(
+    `plugins: olai-plugin-xyne-spaces wire.name is "${spaces.name}", not "xyne-spaces"`,
+  )
+}
 
 /**
  * A PLUGIN-OWNED WORD, PREFIXED WITH THE PLUGIN'S NAME — the one composition,

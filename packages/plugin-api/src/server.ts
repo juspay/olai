@@ -56,6 +56,7 @@
 
 import * as kolu from "olai-plugin-kolu/server"
 import * as odu from "olai-plugin-odu/server"
+import * as spaces from "olai-plugin-xyne-spaces/server"
 
 import type { PluginServer, PluginServices, Probed, PropKind } from "./plugin.ts"
 import { kindWordOf, type PluginWire } from "./surfaces.ts"
@@ -66,6 +67,7 @@ import { kindWordOf, type PluginWire } from "./surfaces.ts"
  *  the interface, because they are part of what a plugin IS and not part of how
  *  it is reached. */
 export type {
+  ConversationSeen,
   Deliveries,
   NotHere,
   PluginServer,
@@ -73,6 +75,7 @@ export type {
   Probed,
   PropKind,
   StdioServer,
+  Watching,
 } from "./plugin.ts"
 
 /**
@@ -407,7 +410,7 @@ export const probesOf = (
  *  NAMES and the wire door answers it too. */
 export { enabled, isEnabled, kindWordOf, PLUGIN_NAMES } from "./surfaces.ts"
 
-export const SERVERS = [kolu, odu] as const satisfies ReadonlyArray<PluginServerHalf<never>>
+export const SERVERS = [kolu, odu, spaces] as const satisfies ReadonlyArray<PluginServerHalf<never>>
 
 /**
  * THE KIND VOCABULARY, ASSEMBLED — the two maps `@olai/format` takes, out of

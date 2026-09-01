@@ -224,7 +224,7 @@ Theme, typeface, size, note density and finished work are untouched by any of th
 
 ## Which integrations this serve runs
 
-olai talks to two things that are not olai — kolu ([plugins/kolu.md](plugins/kolu.md)) and odu ([plugins/odu.md](plugins/odu.md)) — and `--plugins` says which of them this serve is running.
+olai talks to three things that are not olai — kolu ([plugins/kolu.md](plugins/kolu.md)), odu ([plugins/odu.md](plugins/odu.md)), and Xyne Spaces ([plugins/xyne-spaces.md](plugins/xyne-spaces.md)) — and `--plugins` says which of them this serve is running.
 
 ```
 olai web ~/outlines --plugins=odu     # odu only

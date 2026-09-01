@@ -1,6 +1,6 @@
 {
   "name": "@olai/plugin-api",
-  "//name": "IT WAS `@olai/plugins`, in `packages/plugins/`, and the rename is what made room for the tenants. `packages/plugins/` is the tenant CONTAINER now — one directory holding `olai-plugin-kolu` and `olai-plugin-odu` and nothing else — so the interface could not stay in it: this is the one package a plugin may not import, and a directory that held both the fence's subject and the thing it fences reads as a contradiction in the workspace globs and in the fence's own graph walk. `plugin-api` is what the thing is: the interface a manifest is written against, plus the registry that is the one place either tenant's name is spelled.",
+  "//name": "IT WAS `@olai/plugins`, in `packages/plugins/`, and the rename is what made room for the tenants. `packages/plugins/` is the tenant CONTAINER now — one directory holding `olai-plugin-kolu`, `olai-plugin-odu` and `olai-plugin-xyne-spaces` and nothing else — so the interface could not stay in it: this is the one package a plugin may not import, and a directory that held both the fence's subject and the thing it fences reads as a contradiction in the workspace globs and in the fence's own graph walk. `plugin-api` is what the thing is: the interface a manifest is written against, plus the registry that is the one place either tenant's name is spelled.",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -17,11 +17,12 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
-  "//": "THE ONLY PLACE CORE MEETS PLUGINS — see src/plugin.ts, which argues the interface, and src/registry.ts, which argues why the registry is a source file rather than a data structure. What this manifest is FOR is the direction: `olai-plugin-kolu` and `olai-plugin-odu` are named HERE and nowhere else in the tree, and a general package that named one would be refused by src/fence.test.ts before a reviewer had to notice.",
-  "//dependencies": "The two plugins, and the two things an interface over browser faces cannot avoid. `effect` is for the schemas a contributed member is declared in; `solid-js` is TYPES ONLY — `JSX.Element` is the return of every face a dressing or a chrome slot names, and a type import puts no runtime on any graph. NO `@olai/surface`, deliberately and structurally: surface depends on THIS package, so a dependency back would be the cycle the whole arrangement is shaped to make unrepresentable. NO `@olai/format` for the same reason one floor over — the kind table travels as DATA, handed down by the server, and a floor package that imported the vocabulary would be the format learning what a terminal is.",
+  "//": "THE ONLY PLACE CORE MEETS PLUGINS — see src/plugin.ts, which argues the interface, and src/registry.ts, which argues why the registry is a source file rather than a data structure. What this manifest is FOR is the direction: `olai-plugin-kolu`, `olai-plugin-odu` and `olai-plugin-xyne-spaces` are named HERE and nowhere else in the tree, and a general package that named one would be refused by src/fence.test.ts before a reviewer had to notice.",
+  "//dependencies": "The three plugins, and the two things an interface over browser faces cannot avoid. `effect` is for the schemas a contributed member is declared in; `solid-js` is TYPES ONLY — `JSX.Element` is the return of every face a dressing or a chrome slot names, and a type import puts no runtime on any graph. NO `@olai/surface`, deliberately and structurally: surface depends on THIS package, so a dependency back would be the cycle the whole arrangement is shaped to make unrepresentable. NO `@olai/format` for the same reason one floor over — the kind table travels as DATA, handed down by the server, and a floor package that imported the vocabulary would be the format learning what a terminal is.",
   "dependencies": {
     "olai-plugin-kolu": "workspace:*",
     "olai-plugin-odu": "workspace:*",
+    "olai-plugin-xyne-spaces": "workspace:*",
     "effect": "4.0.0-rc.112",
     "solid-js": "^1.9.0"
   }

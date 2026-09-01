@@ -42,6 +42,7 @@
 
 import { TESTID as kolu } from "olai-plugin-kolu/testids"
 import { TESTID as odu } from "olai-plugin-odu/testids"
+import { TESTID as spaces } from "olai-plugin-xyne-spaces/testids"
 
 /**
  * THE COLLISION, MADE UNREPRESENTABLE — the middle layer of the three, using
@@ -61,15 +62,24 @@ import { TESTID as odu } from "olai-plugin-odu/testids"
  * uses about this table and its own.
  */
 type Assert<T extends true> = T
-type SharedPluginId = Extract<
+type SharedKoluOdu = Extract<
   (typeof kolu)[keyof typeof kolu],
   (typeof odu)[keyof typeof odu]
 >
+type SharedKoluSpaces = Extract<
+  (typeof kolu)[keyof typeof kolu],
+  (typeof spaces)[keyof typeof spaces]
+>
+type SharedOduSpaces = Extract<
+  (typeof odu)[keyof typeof odu],
+  (typeof spaces)[keyof typeof spaces]
+>
+type SharedPluginId = SharedKoluOdu | SharedKoluSpaces | SharedOduSpaces
 type _NoSharedPluginId = Assert<[SharedPluginId] extends [never] ? true : SharedPluginId>
 
 /** Every plugin's ids, flat. See the header on the merge and what proves it
  *  safe. */
-export const PLUGIN_TESTID = { ...kolu, ...odu } as const
+export const PLUGIN_TESTID = { ...kolu, ...odu, ...spaces } as const
 
 /** One of them, as a closed union — so `@olai/web`'s `selector` takes an id
  *  from either table and a typo is still a type error rather than a selector
