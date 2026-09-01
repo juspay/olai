@@ -361,6 +361,7 @@
   "@olai/odu-client" = copyPathToStore ./packages/odu-client;
   "@olai/ops" = copyPathToStore ./packages/ops;
   "@olai/plugin-api" = copyPathToStore ./packages/plugin-api;
+  "@olai/plugin-kit" = copyPathToStore ./packages/plugin-kit;
   "@olai/server" = copyPathToStore ./packages/server;
   "@olai/sigterm" = copyPathToStore ./packages/sigterm;
   "@olai/state" = copyPathToStore ./packages/state;
