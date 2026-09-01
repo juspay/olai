@@ -94,6 +94,7 @@ import {
   rankedTogether,
   type Placed,
   type Placement,
+  type ProjectedPlaced,
   PROJECTABLE,
   type Projectable,
   type Projected,
@@ -103,7 +104,6 @@ import {
   type Reading,
   type Reference,
   ranked,
-  rootsOf,
   siblingsOf,
   type SearchAnswer,
   type SearchHit,
@@ -1091,12 +1091,21 @@ const referrersOf = (derived: Derived, id: string): ReadonlyArray<Reference> =>
  * it on the answer itself, over the file's top-level siblings — a file is
  * not a node, so `{file, roots, placed}` is the row.
  */
-const placedAmong = (
+function placedAmong(
+  derived: Derived,
+  siblings: ReturnType<typeof siblingsOf>,
+): ReadonlyArray<Placed>
+function placedAmong(
+  derived: Derived,
+  siblings: ReturnType<typeof siblingsOf>,
+  wants: Wants,
+): ReadonlyArray<ProjectedPlaced>
+function placedAmong(
   derived: Derived,
   siblings: ReturnType<typeof siblingsOf>,
   wants?: Wants,
-): ReadonlyArray<Placed> =>
-  siblings.flatMap((child) => {
+): ReadonlyArray<Placed> | ReadonlyArray<ProjectedPlaced> {
+  return siblings.flatMap((child) => {
     if (!isMirror(child.node)) return []
     const found = follow(derived, child)
     if (found.kind !== "found") return []
@@ -1110,20 +1119,27 @@ const placedAmong = (
         : shapedOf(derived, found.shows, wants),
     }]
   })
+}
 
-const placedUnder = (
+function placedUnder(
+  derived: Derived,
+  id: string,
+): ReadonlyArray<Placed>
+function placedUnder(
+  derived: Derived,
+  id: string,
+  wants: Wants,
+): ReadonlyArray<ProjectedPlaced>
+function placedUnder(
   derived: Derived,
   id: string,
   wants?: Wants,
-): ReadonlyArray<Placed> =>
-  placedAmong(derived, derived.children.get(id) ?? [], wants)
-
-const placedIn = (
-  derived: Derived,
-  file: string,
-  wants?: Wants,
-): ReadonlyArray<Placed> =>
-  placedAmong(derived, siblingsOf(derived, file, undefined), wants)
+): ReadonlyArray<Placed> | ReadonlyArray<ProjectedPlaced> {
+  const siblings = derived.children.get(id) ?? []
+  return wants === undefined
+    ? placedAmong(derived, siblings)
+    : placedAmong(derived, siblings, wants)
+}
 
 /**
  * The mirrors that show this node, in file-then-line order.
@@ -1358,26 +1374,26 @@ export const subtree = (
   if (Result.isFailure(outline)) return Result.fail(outline.failure)
   const broken = brokenIn(at.set, arm.file)
   if (broken !== undefined) return Result.fail(notLoaded(arm.file, broken))
-  // The roots a READER sees: `@olai/format`'s own reading of an outline's
-  // top level, `ord`-sorted, placements dropped for the reason the walk
-  // never descends into one — a mirror is a second view of a node that
-  // lives elsewhere. Named on the answer as `placed`, the same list a
-  // node-walk hangs on the row: `{file, roots}` is the row a file has.
-  const roots = rootsOf(at.derived, arm.file)
-  const placed = placedIn(at.derived, arm.file, wants)
-  return Result.succeed(
-    wants === undefined
-      ? {
-          file: arm.file,
-          roots: roots.map((root) => walk(root, depth)),
-          ...(placed.length === 0 ? {} : { placed }),
-        }
-      : {
-          file: arm.file,
-          roots: roots.map((root) => shapedWalk(wants, root, depth)),
-          ...(placed.length === 0 ? {} : { placed }),
-        },
-  )
+  // The top level, once: `siblingsOf` is the file's own records in `ord`
+  // order, mirrors included. Regulars are the roots the walk descends;
+  // mirrors are named on the answer as `placed`. Two calls would walk and
+  // sort the same row twice, one line apart.
+  const top = siblingsOf(at.derived, arm.file, undefined)
+  const roots = top.filter(isRegular)
+  if (wants === undefined) {
+    const placed = placedAmong(at.derived, top)
+    return Result.succeed({
+      file: arm.file,
+      roots: roots.map((root) => walk(root, depth)),
+      ...(placed.length === 0 ? {} : { placed }),
+    })
+  }
+  const placed = placedAmong(at.derived, top, wants)
+  return Result.succeed({
+    file: arm.file,
+    roots: roots.map((root) => shapedWalk(wants, root, depth)),
+    ...(placed.length === 0 ? {} : { placed }),
+  })
 }
 
 // ── the directory ──────────────────────────────────────────────────────
