@@ -117,7 +117,7 @@ export function Header(props: {
    */
   const node = createMemo(() => {
     const at = state().bound
-    return at === null ? undefined : roster().find((row) => row.id === at)
+    return at === null ? undefined : roster.at(at)
   })
 
   return (

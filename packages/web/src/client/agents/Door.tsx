@@ -52,12 +52,11 @@
  * to find out — so it is drawn as the row it is.
  */
 
-import { createMemo, Show } from "solid-js"
+import { Show } from "solid-js"
 
 import { SaidLine } from "../SaidLine.tsx"
 import { createSaying } from "../saying.ts"
 import { TESTID } from "../testids.ts"
-import { createChatState } from "../chat/state.ts"
 import { DOT } from "../readout.ts"
 // HOW LONG AGO, REACHED AND NOT RE-SPELLED. `agoOf` is the commit pill's by
 // history and by nothing else — it is pure arithmetic over an ISO stamp and a
@@ -71,24 +70,19 @@ import { DOT } from "../readout.ts"
 import { agoOf, createNow } from "../commit/ago.ts"
 import { useAgents } from "./answered.tsx"
 import { focus } from "./focus.ts"
-import { LOOK, memoryOf, type Row, rowsOf } from "./roster.ts"
+import { LOOK, memoryOf, type Row } from "./roster.ts"
 
 export function AgentDoor(props: { readonly node: string }) {
+  // ONE LOOKUP, and that is the whole of what a row does here. This component
+  // is mounted for EVERY node of the outline and answers nothing on nearly all
+  // of them, so what it may cost is a map read: the two cells are subscribed
+  // once and joined once for the whole app (`./answered.tsx`, which argues what
+  // joining per row cost).
   const roster = useAgents()
-  const chat = createChatState()
   const saying = createSaying()
 
-  // ONE ROW OR NONE, and the lookup is what makes this drawable per outline row
-  // without every row of a thousand-row page carrying a subscription of its
-  // own: the roster is one cell held once for the whole app
-  // (`./answered.tsx`), and a row asks it a question the size of the roster —
-  // which is a handful of node agents, never the directory.
-  const row = createMemo((): Row | undefined =>
-    rowsOf(roster(), chat()).find((one) => one.id === props.node)
-  )
-
   return (
-    <Show when={row()}>
+    <Show when={roster.at(props.node)}>
       {(agent) => <Door agent={agent()} saying={saying} />}
     </Show>
   )

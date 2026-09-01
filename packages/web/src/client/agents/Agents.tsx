@@ -47,7 +47,7 @@
  */
 
 import { Key } from "@solid-primitives/keyed"
-import { createMemo, Show } from "solid-js"
+import { Show } from "solid-js"
 
 import { CHIP_QUIET } from "../layout/chip.ts"
 import { REGION, REGION_LABEL } from "../layout/entry.ts"
@@ -56,25 +56,17 @@ import { SaidLine } from "../SaidLine.tsx"
 import { createSaying } from "../saying.ts"
 import { TESTID } from "../testids.ts"
 import { useRouter } from "../router.tsx"
-import { createChatState } from "../chat/state.ts"
 import { useAgents } from "./answered.tsx"
 import { focus, rowOf } from "./focus.ts"
-import { LOOK, type Row, rowsOf } from "./roster.ts"
+import { LOOK, type Row } from "./roster.ts"
 
 export function Agents() {
-  const roster = useAgents()
-  // THE CELL AND NOT THE PANEL. `createChatState` subscribes the small cell and
-  // deliberately not the transcript (`../chat/state.ts`) — a column that folded
-  // the conversation per frame to paint three dots would be paying the panel's
-  // whole cost for the panel's chrome.
-  const chat = createChatState()
+  // THE JOIN IS THE PROVIDER'S, once for the whole app (`./answered.tsx`), so
+  // this column and every door on the page are reading one answer rather than
+  // each folding the same two cells for itself.
+  const { rows } = useAgents()
   const router = useRouter()
   const saying = createSaying()
-
-  // A MEMO over the two answers, so the join runs when either MOVES rather than
-  // whenever this column redraws — and so `<Key>` below diffs one list rather
-  // than a fresh one per frame.
-  const rows = createMemo(() => rowsOf(roster(), chat()))
 
   /** *Take me to this agent* — its node, and its conversation
    *  ({@link ./focus.ts}, which argues why one press means both). */
