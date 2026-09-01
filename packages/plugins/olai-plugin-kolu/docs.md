@@ -101,7 +101,7 @@ A chat conversation can be **scoped to one `.olai` file**, and then olai rings i
 
 **Un-done means UN-SETTLED**: a `done` step and a `cancelled` step both end the wait, and either one silences the node and everything under it. Nothing else does. The value is read by the **declared kind** and never by a key's spelling, so a board whose column is `pty` is heard and a column you have been calling `terminal` since before kolu is not. A value that is a prefix of two live terminals claims neither.
 
-**A row nobody marked is judged by what is under it.** A plain bullet with nothing beneath it is a line somebody wrote rather than work somebody owes, and it claims nothing — but a bullet with a live step under it is a live lane, and it rings. That distinction is the whole of a bug this used to have (`doorbell-missing-claim`, 2026-09-01): a lane whose node had been **filed before its dispatch** — the terminal and the steps grafted onto a row that was already on the board, and the row itself never marked — was dropped from the set entirely. It drew no wake, no nag, and no place in the heartbeat's count for 26 minutes with its agent sitting `waiting`, while four lanes beside it on the same board rang. Nothing about that board said the lane was different. If you keep a board this way, you do not have to remember to mark the lane itself; its steps are enough.
+**A row nobody marked is judged by what is under it.** A plain bullet with nothing beneath it is a line somebody wrote rather than work somebody owes, and it claims nothing — but a bullet with a live step under it is a live lane, and it rings. That distinction is the whole of a bug this used to have (`doorbell-missing-claim`, 2026-09-01): a lane whose node had been **filed before its dispatch** — the terminal and the steps grafted onto a row that was already on the board, and the row itself never marked — was dropped from the set entirely. It drew no wake, no nag, and no place in the heartbeat's count for 26 minutes with its agent sitting `waiting`, while four lanes beside it on the same board rang. Nothing about that board said the lane was different. If you keep a board this way, you do not have to remember to mark the lane itself; its steps are enough — but it does need STEPS: a bullet given only its `kolu-terminal`, with nothing under it yet, still claims nothing, and the trace says `unmarked-leaf` when you ask it why.
 
 **Two meanings, derived, never configured:**
 
@@ -145,18 +145,33 @@ OLAI_LOG_LEVEL=debug
 ```
 
 Every line is `kolu doorbell <moment> key=value …`, so one moment is one `grep`:
-
 ```
 kolu doorbell event kind=nag at=2026-09-01T21:52:52.107Z terminal=11e565c0 state=waiting
-kolu doorbell derived file=orchestrator/lanes.olai claims=9 ringing=11e565c0@task-notification-spill,4b5a3fb6@odu-doorbell unmatched=none fleet=11
+kolu doorbell derived file=orchestrator/lanes.olai claims=9 ringing=11e565c0@task-notification-spill,4b5a3fb6@odu-doorbell unmatched=none excluded=7cf67c42@no-file-delete-op:settled fleet=11
 kolu doorbell scopes terminal=11e565c0 scoped=1 files=orchestrator/lanes.olai
-kolu doorbell classified terminal=11e565c0 file=orchestrator/lanes.olai agent=olai session=s-1 meaning=wake
+kolu doorbell classified terminal=11e565c0 file=orchestrator/lanes.olai agent=olai session=s-1 meaning=wake why=none
 kolu doorbell delivering file=orchestrator/lanes.olai meaning=wake agent=olai session=s-1 coalesce=kolu:wake
 kolu doorbell said file=orchestrator/lanes.olai meaning=wake standing=2 terminals=11e565c0,4b5a3fb6
 kolu doorbell delivered file=orchestrator/lanes.olai meaning=wake agent=olai session=s-1 said=true
 ```
 
 The moments are `event` (a watcher `transition`, `nag` or beat reached the doorbell), `derived` (one file's ringing set — **named**, not counted, because the fact worth reading is usually an *absence* and an absence is only legible against a list), `scopes`, `classified` (including `meaning=none`, which is the silence), `delivering` / `said` / `delivered` / `dropped`, and the beat's own `beat`, `beating`, `beat-passed`, `beat-said` and `beat-dropped`. Every `dropped` carries a `why` — and it is one word rather than two, because a set that has nobody standing is the same fact whether the ring asked before handing the delivery over or the closure asked at the moment the words would have gone in.
+
+### Why a terminal is not in the set
+
+The `derived` line names three populations, not one: what **rings**, what was `unmatched` (a live claim whose value named no single fleet id — an ambiguous prefix, a terminal that has shut, or a second row copying a property the first row already won), and what was `excluded` by the walk, each as `value@node:why`. A `classified` line whose `meaning=none` carries the same answer for the terminal the event was about:
+
+| `why=` | what it means |
+|---|---|
+| `settled` | the claiming row is `done` or `cancelled` — the wait ended, for it and for everything under it |
+| `not-live` | the row is open, and every step under it has settled |
+| `unmarked-leaf` | the row carries a terminal, has no mark and has nothing under it — a bullet somebody wrote |
+| `unmatched` | a live claim names it, and the join refused (see above) |
+| `unclaimed` | nothing this walk reached names it — usually a terminal nobody scoped this file for, which is the doorbell working |
+
+**`unmarked-leaf` is the one to know about**, because it is a real silence you can hit by accident: a lane filed as a bullet and given only its `kolu-terminal`, before its steps land, claims nothing. A bullet with a live step under it *does* ring — that is the `doorbell-missing-claim` fix — but a bullet on its own is a line somebody wrote rather than work somebody owes, and olai will not wake you about it. If a lane is quiet and this is the reason, the fix is on the board: give it a step, or mark the row.
+
+**`unclaimed` is narrow on purpose.** The walk stops at a `done` or `cancelled` row without descending, so a claim *underneath* a settled ancestor is never looked at and reads as `unclaimed` rather than by its own gate — the settled ancestor is in the `excluded` list saying so. That matters most on a day board, where the file holds a mirror and the lane's steps live in another file, so the descent is the only way in.
 
 **Silence to the conversation is unchanged.** olai still never rings anybody about a terminal it decided not to ring about — that was ruled and is not reopened. What changed is that the decision is no longer invisible to *you*. The `derived` line above is the one that would have ended `doorbell-missing-claim` in a glance: the terminal was simply not in `ringing`.
 

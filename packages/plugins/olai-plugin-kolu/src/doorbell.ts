@@ -51,6 +51,33 @@
  * while four lanes beside it in the same conversation rang. One absent field
  * decided it, invisibly, and nothing about the board said that lane differed.
  *
+ * ...AND ONE HOLE OF THAT SHAPE IS STILL OPEN, which is said here rather than
+ * left to be rediscovered. An unmarked node with NO CHILDREN is not live, so an
+ * unmarked LEAF that carries a claim is silent — which is a lane filed as a
+ * bullet and given only a terminal, before its steps land, and a one-node lane
+ * permanently. It is the P1's own sibling one level down, and it is left
+ * standing ON PURPOSE: the leaf rule is a real sentence (a bullet with nothing
+ * under it is a line somebody wrote, not work somebody owes), and ringing every
+ * unmarked claimed leaf would wake people about rows they jotted.
+ *
+ * WHAT MAKES IT A DECISION RATHER THAN A COINCIDENCE is that it is pinned and
+ * named. `./doorbell.test.ts` holds the mint-then-graft-WITHOUT-children case
+ * beside the P1's own, so a future widening is a deliberate change to a stated
+ * expectation and not a bug fix that passes because nothing was watching; and
+ * the walk says `unmarked-leaf` about it out loud ({@link Why}), so an operator
+ * reads the gate instead of reconstructing an absence.
+ *
+ * A SETTLED NODE ENDS ITS BRANCH WITHOUT ENTERING `reached`, and that is worth
+ * one sentence here because it bounds what the diagnostic can say. `done` and
+ * `cancelled` end the wait for everything beneath them, so the walk returns at
+ * the verdict without descending — and in the ordinary day-board shape, where
+ * the file holds a MIRROR of a lane whose steps live in another file entirely,
+ * the descent is the only way in. Those steps are then unreachable rather than
+ * merely unclaimed. Two format facts keep that from being theoretical:
+ * `set_cancelled` is not gated on the branch beneath it, and a git merge can
+ * leave unfinished work under a `done` node. {@link Walked} says what the walk
+ * therefore refuses to claim about a carrier it never looked at.
+ *
  * **MIRRORS RESOLVE TO THEIR TARGETS,** which is why this is a SECOND walk
  * and not a mirror arm grown on {@link ./claimants.ts}. That walk skips
  * mirrors on the argument that the target is in the same walk — true of a
@@ -207,7 +234,7 @@ import { heldStateOf } from "@olai/kolu-client"
 import { type FleetTerminal, type KoluEvent, resolveTerminal, whoOf } from "@olai/kolu-client/wire"
 
 import { TERMINAL_TYPE } from "./kinds.ts"
-import type { Trace } from "./trace.ts"
+import { listed, type Trace } from "./trace.ts"
 
 /**
  * WHAT A WAKE MEANS, and there are exactly two of them.
@@ -314,10 +341,86 @@ export interface Standing {
   readonly label: string
 }
 
+
 /**
- * EVERY CLAIM ONE FILTER FILE MAKES — the `kolu-terminal` values reachable
- * from its un-done records, and for each the step that terminal's OWN work is
- * at.
+ * WHY A CARRIER IS NOT IN THE RINGING SET — the walk's own verdict on a node
+ * that names a terminal and did not become a claim.
+ *
+ * THREE WORDS AND NOT FOUR, because these are exactly the decisions this walk
+ * makes. What it does NOT say is anything about a carrier it never reached:
+ * see {@link Walked.excluded} for the one shape that hides in, and why chasing
+ * it would cost the gate its whole point.
+ */
+export type Why =
+  /** The carrying node wears `done` or `cancelled`. The wait is over, and it
+   *  ended for everything under the node as well. */
+  | "settled"
+  /** The carrying node has no mark and nothing under it — a bullet somebody
+   *  wrote. Named apart from `not-live` although the walk decides them by one
+   *  predicate, because it is the ONE residual of `doorbell-missing-claim`
+   *  still standing, and a reader who meets it deserves the word rather than a
+   *  general answer that happens to cover it ({@link claiming}'s header). */
+  | "unmarked-leaf"
+  /** The carrying node is unsettled and has children, and every one of them
+   *  has settled. The lane is finished without anybody having said so on the
+   *  row itself. */
+  | "not-live"
+
+/** ONE CARRIER THE WALK LEFT OUT, as it was written and where. */
+export interface Excluded {
+  /** The `kolu-terminal` value, verbatim — the same spelling {@link Claim}
+   *  carries, so a reader joins the two lists by eye. */
+  readonly value: string
+  /** The node that carries it, by id. */
+  readonly node: string
+  readonly why: Why
+}
+
+/**
+ * ONE WALK'S WHOLE ANSWER: what rings, and what was left out of it.
+ *
+ * ## WHAT `excluded` CANNOT SAY, stated because a diagnostic that overclaims is
+ * worse than one that is narrow
+ *
+ * A carrier under a SETTLED ancestor is never reached, so it is not in this
+ * list. {@link claiming} returns at the verdict without descending and without
+ * adding the node to `reached` — which is right, because `done` and `cancelled`
+ * end the wait for everything beneath them, and it is the whole economy of the
+ * gate — but it means the walk cannot name what it did not look at.
+ *
+ * THAT MATTERS MOST IN THE ORDINARY DAY-BOARD SHAPE, where the file holds a
+ * MIRROR of a lane and the lane's steps live in another file entirely. Those
+ * steps are not records of the filter file, so the only way in is the descent;
+ * stop at the lane and they are unreachable, not merely unclaimed. A terminal
+ * in that position reads as `unclaimed` at the classification, and the settled
+ * ancestor is in this list saying why the branch ended.
+ *
+ * Two format facts sharpen it rather than making it a doorbell bug: `set_cancelled`
+ * is not gated on the branch beneath it, and a git merge can leave unfinished
+ * work under a `done` node. So a settled ancestor over live steps is reachable
+ * in practice — and the honest answer, that the walk stopped at a verdict, is
+ * exactly what this list gives.
+ */
+export interface Walked {
+  readonly claimed: ReadonlyArray<Claim>
+  readonly excluded: ReadonlyArray<Excluded>
+}
+
+/** A file that declares no terminal kind, or holds no records at all. */
+const NOTHING_WALKED: Walked = { claimed: [], excluded: [] }
+/**
+ * EVERY CLAIM ONE FILTER FILE MAKES — the `kolu-terminal` values reachable from
+ * its unsettled records, and for each the step that terminal's OWN work is at —
+ * AND, beside them, the carriers this walk deliberately left OUT and why.
+ *
+ * BOTH HALVES COME OFF ONE PASS, and the second exists because the first is a
+ * silence. A terminal that is not in the ringing set produces no call and no
+ * line, which is byte-for-byte what a terminal nobody scoped produces; the RCA
+ * this walk carries was "absent from the set", and the next one of its shape
+ * would have been "absent, and I still do not know which gate". {@link Excluded}
+ * is that gate, named at the moment the walk decides it — which is the only
+ * place the answer exists without asking the vault a second question and
+ * risking a second answer.
  *
  * `byFile` rather than a filter over `derived.nodes`, because the derivation
  * already keeps that index in LINE order and the file's own order is the
@@ -372,15 +475,16 @@ export interface Standing {
  * its declarations rather than one per record — {@link ./claimants.ts}'s own
  * economy, and the same door.
  */
-export const claimedIn = (
+export const walkedIn = (
   declarations: PropDeclarations,
   derived: Derived,
   file: string,
-): ReadonlyArray<Claim> => {
-  if (!declaresKind(declarations, TERMINAL_TYPE)) return []
+): Walked => {
+  if (!declaresKind(declarations, TERMINAL_TYPE)) return NOTHING_WALKED
   const inside = derived.byFile.get(file)
-  if (inside === undefined) return []
+  if (inside === undefined) return NOTHING_WALKED
   const claims: Array<Ranked> = []
+  const excluded: Array<Excluded> = []
   /**
    * EVERY NODE THIS WALK HAS REACHED, and it is what makes the whole thing one
    * pass instead of N.
@@ -414,12 +518,32 @@ export const claimedIn = (
     // loudly enough elsewhere — it is simply a placement claiming nothing.
     if (found.kind !== "found") continue
     if (reached.has(found.shows.node.id)) continue
-    claiming(declarations, derived, found.shows, reached, claims, undefined)
+    claiming(declarations, derived, found.shows, reached, claims, excluded, undefined)
   }
-  // DOCUMENT ORDER RESTORED, which is the order a person reads the board in and
-  // therefore the order the sentence's lines come out in.
-  return claims.sort((a, b) => a.rank - b.rank).map(({ rank: _rank, ...claim }) => claim)
+  return {
+    // DOCUMENT ORDER RESTORED, which is the order a person reads the board in
+    // and therefore the order the sentence's lines come out in.
+    claimed: claims.sort((a, b) => a.rank - b.rank).map(({ rank: _rank, ...claim }) => claim),
+    // The exclusions are NOT re-ordered. They are a diagnostic and their order
+    // is the walk's, which is the order a reader following the descent expects
+    // — where the claims' order is the BOARD's, because it is what a person
+    // reads back in a sentence.
+    excluded,
+  }
 }
+
+/**
+ * THE RINGING HALF ALONE — what everything but the diagnostic wants.
+ *
+ * {@link walkedIn}'s claims, and never a second walk: the two answers come off
+ * one pass for the reason the module keeps about every other pair here, which
+ * is that a second walk is a second chance to disagree.
+ */
+export const claimedIn = (
+  declarations: PropDeclarations,
+  derived: Derived,
+  file: string,
+): ReadonlyArray<Claim> => walkedIn(declarations, derived, file).claimed
 
 /** A claim with the walk's own arrival number on it — see the push below. It
  *  never leaves this module: {@link claimedIn} sorts by it and drops it. */
@@ -507,6 +631,11 @@ const claiming = (
   at: LocatedRegular,
   reached: Set<string>,
   claims: Array<Ranked>,
+  /** ...and the carriers left OUT, with the verdict that left them there
+   *  ({@link Excluded}). Filled on the way down and up exactly as `claims` is:
+   *  one pass answers both, because the two are the same decision seen from its
+   *  two sides. */
+  excluded: Array<Excluded>,
   /** The claim that owns the walk this node is inside — see `owner` below. */
   mine: string | undefined,
 ): Under => {
@@ -514,6 +643,12 @@ const claiming = (
    *  is the whole reason {@link settled} is a type guard: everything downstream
    *  reads this without re-establishing what it is. */
   const own = derived.status.get(at.node.id)
+  /** ...AND THE TERMINAL IT NAMES, read BEFORE the settled gate so that a
+   *  carrier the gate is about to silence can still say so. That is one map
+   *  read per settled node per walk, and it is what buys `why=settled` at the
+   *  classification: a lane somebody closed is the commonest honest answer to
+   *  "why did this not ring", and the walk is the only place that knows it. */
+  const claimed = claimedOn(declarations, at)
   // A SETTLED NODE IS THE END OF THIS BRANCH — no claim of its own, nothing
   // said about what is under it, and no descent. THE ONLY PLACE THIS IS ASKED,
   // for the reason the outer loop states where it used to ask too.
@@ -521,10 +656,16 @@ const claiming = (
   // The human found it on a live board: a review step folded half an hour
   // earlier still rang, because the lane above it was open and nothing re-asked
   // the step. `done` and `cancelled` both end the wait, and both end it here.
-  if (settled(own)) return NOTHING_UNDER
+  //
+  // AND IT DOES NOT ADD TO `reached`, which is what makes the branch's own
+  // descendants unreachable rather than merely unclaimed — {@link Walked} says
+  // what that costs a reader and why it is still right.
+  if (settled(own)) {
+    if (claimed !== undefined) excluded.push({ value: claimed, node: at.node.id, why: "settled" })
+    return NOTHING_UNDER
+  }
   const rank = reached.size
   reached.add(at.node.id)
-  const claimed = claimedOn(declarations, at)
   /** WHOSE WORK THIS SUBTREE IS: this node's own claim where it has one, and
    *  otherwise the nearest ancestor's. Read BEFORE the descent, because it is
    *  what the descent is judged against. */
@@ -548,7 +689,7 @@ const claiming = (
     // loop catches that one. This is here so a malformed parent chain ends the
     // walk instead of the process.
     if (reached.has(child.node.id)) continue
-    const under = claiming(declarations, derived, child, reached, claims, owner)
+    const under = claiming(declarations, derived, child, reached, claims, excluded, owner)
     // LAST ONE WINS ACROSS SIBLINGS, and that is a tie-break rather than a rule
     // about depth. `deepest` is strictly-under, so two siblings both being
     // worked are two answers and this takes the LATER in document order — the
@@ -584,6 +725,21 @@ const claiming = (
       value: claimed,
       node: at.node.id,
       ...owning(at, deepest, leaf ? own : undefined),
+    })
+  } else if (claimed !== undefined) {
+    // ...AND WHERE IT DOES NOT, THE WALK SAYS SO. Unsettled (the gate above
+    // returned) and not live: either a bullet with nothing under it, or a node
+    // whose children have all settled.
+    //
+    // THE TWO ARE ONE PREDICATE AND TWO WORDS, deliberately. `unmarked-leaf` is
+    // the residual of `doorbell-missing-claim` still standing — a lane filed as
+    // a bullet and given ONLY a terminal, before its steps land, is silent — and
+    // a reader who meets it in a log deserves that word rather than a general
+    // one that happens to cover it. {@link Why} carries the argument.
+    excluded.push({
+      value: claimed,
+      node: at.node.id,
+      why: leaf && own === undefined ? "unmarked-leaf" : "not-live",
     })
   }
   // WHAT THIS NODE HANDS ITS PARENT — `live` unchanged and unconditional, and
@@ -958,6 +1114,108 @@ const namingOf = (one: Standing): string => {
 }
 
 // ── THE HEARTBEAT — a floor on silence ────────────────────────────────────
+
+
+/**
+ * ONE FILE'S RINGING SET, DERIVED AND SAID OUT LOUD — the seam both drives
+ * reach the walk through, and the line that would have ended
+ * `doorbell-missing-claim` in one glance.
+ *
+ * ## Why this lives HERE and not in the serve that calls it
+ *
+ * It was a closure inside `./server.ts`'s `serve`, which meant the one line
+ * this whole logging half exists to emit could not be reached by a test without
+ * standing up `koluHalf`, a surface and a ctx. Nothing pinned that `derived`
+ * names the set rather than counting it — and an edit that logged
+ * `ringing: claiming.size` would have shipped green and left the next P1 of
+ * this shape exactly as undiagnosable as this one was.
+ *
+ * It needs none of that. A `Derived`, a file, the fleet's ids and a channel:
+ * every argument is a value, so `./doorbell.test.ts` drives it over a whole
+ * vault through the real parser exactly as it drives the walk underneath.
+ *
+ * ## WHAT IT NAMES is the whole answer and all three of its halves
+ *
+ * How many claims the file makes; which fleet ids those RESOLVED to, each with
+ * the board row that carries it, so a reader goes straight to the row rather
+ * than to a uuid; which live claims matched NOBODY; and which carriers the walk
+ * left OUT, each with the verdict that left it there.
+ *
+ * THE ABSENCE IS THE READABLE FACT, which is why `ringing` is a list and not a
+ * count. The RCA was "absent from the set", and an absence is only legible
+ * against the set it is absent from. `excluded` is the other half of the same
+ * lesson: the next RCA of this shape would have been "absent, and I still do
+ * not know which gate", and this is the gate.
+ */
+export const ringingIn = (
+  declarations: PropDeclarations,
+  derived: Derived,
+  file: string,
+  fleet: ReadonlyArray<string>,
+  trace: Trace,
+): Ringing => {
+  const { claimed, excluded } = walkedIn(declarations, derived, file)
+  const claiming = claimingIn(claimed, fleet)
+  // The claims that WON a fleet id, by identity — `claimingIn` hands back the
+  // very objects it was given, so this is a pointer set and never a re-walk.
+  const matched = new Set(claiming.values())
+  const unmatched = claimed.filter((claim) => !matched.has(claim))
+  trace("derived", {
+    file,
+    claims: claimed.length,
+    ringing: listed([...claiming].map(([id, claim]) => `${id}@${claim.node}`)),
+    unmatched: listed(unmatched.map((claim) => `${claim.value}@${claim.node}`)),
+    excluded: listed(excluded.map((one) => `${one.value}@${one.node}:${one.why}`)),
+    fleet: fleet.length,
+  })
+  return { claiming, unmatched, excluded }
+}
+
+/** {@link ringingIn}'s answer: who rings, and the two ways somebody does not. */
+export interface Ringing {
+  readonly claiming: ReadonlyMap<string, Claim>
+  /** Live claims whose value named no single fleet id — an ambiguous prefix, a
+   *  terminal that has shut, or a second row copying a property the first row
+   *  already won. */
+  readonly unmatched: ReadonlyArray<Claim>
+  readonly excluded: ReadonlyArray<Excluded>
+}
+
+/**
+ * WHY THIS TERMINAL IS NOT BEING RUNG FOR — the word that goes on a
+ * `classified` line when the meaning is silence.
+ *
+ * SILENCE IS STILL SILENCE TO THE CONVERSATION. This is the owner's channel and
+ * changes nothing about what a person is told; what it changes is that the
+ * decision stops being invisible. `meaning=none` named the event's terminal and
+ * not which gate had dropped it, and "absent from the set" was exactly the RCA
+ * that took an afternoon — the next one should be a `grep`.
+ *
+ * THE VALUE IS MATCHED BY PREFIX, not by equality, because that is how the
+ * board writes one: a row saying `11e565c0` is naming a whole uuid it has
+ * abbreviated, and `resolveTerminal` is the function that knows it. Asked here
+ * of the values that did NOT resolve, which is the one population that function
+ * has already refused — so this is a reading of the refusal rather than a second
+ * attempt at the join.
+ */
+export const whyOut = (
+  terminal: string,
+  ringing: Ringing,
+): Why | "unmatched" | "unclaimed" => {
+  for (const claim of ringing.unmatched) {
+    if (terminal.startsWith(claim.value)) return "unmatched"
+  }
+  for (const one of ringing.excluded) {
+    if (terminal.startsWith(one.value)) return one.why
+  }
+  // NOTHING IN THIS FILE NAMES IT, as far as the walk reached — and that last
+  // clause is the honest one. A carrier under a settled ancestor was never
+  // looked at, so it reads as `unclaimed` here while the ancestor sits in
+  // `excluded` saying `settled`; {@link Walked} argues why the walk stops there
+  // and what it costs. The ordinary case is simply a terminal nobody scoped
+  // this file for, which is the doorbell working.
+  return "unclaimed"
+}
 
 /**
  * HOW MANY TERMINALS ONE FILTER FILE DERIVES RIGHT NOW — the heartbeat's one

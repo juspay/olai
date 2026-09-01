@@ -76,14 +76,15 @@ import { claimantsIn } from "./claimants.ts"
 import { koluFileIn, watchConfigIn } from "./config.ts"
 import {
   bodyFor,
-  claimedIn,
-  claimingIn,
   classify,
   type Heartbeat,
   makeHeartbeat,
   type Meaning,
+  type Ringing,
+  ringingIn,
   standingIn,
   terminalsIn,
+  whyOut,
 } from "./doorbell.ts"
 import { listed, type Trace, tracing } from "./trace.ts"
 import { name, surface } from "./wire.ts"
@@ -383,46 +384,6 @@ export const serve = (services: Services): {
    */
   const trace: Trace = tracing(services.say)
 
-  /**
-   * ONE FILE'S RINGING SET, derived and SAID OUT LOUD — the single seam both
-   * drives reach the walk through, and the line that would have ended
-   * `doorbell-missing-claim` in one glance.
-   *
-   * WHAT IT NAMES is the whole answer and both of its halves: how many claims
-   * the file makes, which fleet ids those RESOLVED to (each with the board row
-   * that carries it, so a reader goes straight to the row rather than to a
-   * uuid), and which claims matched NOBODY — a prefix that opens two terminals,
-   * a value naming a terminal that has shut, or a second row copying a property
-   * the first row already won. Those three are indistinguishable in the set and
-   * they are the three ways a lane goes quiet without anything failing.
-   *
-   * The absence of a terminal from `ringing` is the fact the P1 turned on, and
-   * an absence is only readable against a list — which is why this line names
-   * the set rather than counting it.
-   */
-  const ringingIn = (
-    at: Derived,
-    file: string,
-    fleet: ReadonlyArray<string>,
-  ): ReturnType<typeof claimingIn> => {
-    const claims = claimedIn(declaring, at, file)
-    const claiming = claimingIn(claims, fleet)
-    // The claims that WON a fleet id, by identity — `claimingIn` hands back the
-    // very objects it was given, so this is a pointer set and never a re-walk.
-    const matched = new Set(claiming.values())
-    trace("derived", {
-      file,
-      claims: claims.length,
-      ringing: listed([...claiming].map(([id, claim]) => `${id}@${claim.node}`)),
-      unmatched: listed(
-        claims
-          .filter((claim) => !matched.has(claim))
-          .map((claim) => `${claim.value}@${claim.node}`),
-      ),
-      fleet: fleet.length,
-    })
-    return claiming
-  }
 
     /**
    * THE WORDS, DERIVED AFRESH AT THE MOMENT THEY ENTER A CONVERSATION.
@@ -464,8 +425,8 @@ export const serve = (services: Services): {
       return null
     }
     const rows = half.rows()
-    const claiming = ringingIn(at, file, [...rows.keys()])
-    const standing = standingIn(claiming, rows, meaning)
+    const ringing = ringingIn(declaring, at, file, [...rows.keys()], trace)
+    const standing = standingIn(ringing.claiming, rows, meaning)
     if (standing.length === 0) {
       trace("dropped", { file, meaning, why: "nobody-standing" })
       return null
@@ -569,11 +530,11 @@ export const serve = (services: Services): {
       // out loud, so a `derived` line per seat on one board would report three
       // walks where the plugin did one, and a reader counting lines would be
       // reading the log's own shape rather than the doorbell's.
-      const perFile = new Map<string, ReturnType<typeof claimingIn>>()
-      const claimingFor = (file: string) => {
+      const perFile = new Map<string, Ringing>()
+      const ringingFor = (file: string): Ringing => {
         const held = perFile.get(file)
         if (held !== undefined) return held
-        const fresh = ringingIn(at, file, fleet)
+        const fresh = ringingIn(declaring, at, file, fleet, trace)
         perFile.set(file, fresh)
         return fresh
       }
@@ -598,7 +559,7 @@ export const serve = (services: Services): {
       const standingFor = (
         file: string,
         meaning: Meaning,
-        claiming: ReturnType<typeof claimingIn>,
+        claiming: Ringing["claiming"],
       ): number => {
         const key = `${meaning}:${file}`
         const held = perStanding.get(key)
@@ -617,8 +578,8 @@ export const serve = (services: Services): {
         files: listed(new Set(scopes.map((scope) => scope.file))),
       })
       for (const scope of scopes) {
-        const claiming = claimingFor(scope.file)
-        const meaning = classify(event, claiming)
+        const ringing = ringingFor(scope.file)
+        const meaning = classify(event, ringing.claiming)
         // THE ONE LINE THE P1 WOULD HAVE BEEN FOUND BY, beside `derived` above.
         // SILENCE IS NO CALL AT ALL — not a quieter body, not a warning about
         // an unclaimed terminal; the dispatch dropped that arm on purpose, and
@@ -626,16 +587,21 @@ export const serve = (services: Services): {
         // that had fallen out of the set indistinguishable from a lane nobody
         // scoped, and that distinction is the whole diagnosis. So the silence
         // is said HERE, on the debug channel, and not to the conversation.
+        //
+        // ...AND IT SAYS WHICH GATE, which is the half that was missing. The
+        // RCA this feature carries was "absent from the set"; the next one of
+        // its shape would have been "absent, and I still do not know why", and
+        // the reason is the readable fact. `why` rides only on the silent arm —
+        // a wake and a digest are already their own explanation.
         trace("classified", {
           terminal: event.row.terminal,
           file: scope.file,
           agent: scope.agent,
           session: scope.session,
           meaning: meaning ?? "none",
+          why: meaning === null ? whyOut(event.row.terminal, ringing) : null,
         })
         if (meaning === null) continue
-        // Asked ONCE here, against the revision the event arrived on, so a
-        // ring that has nothing to say costs no slot in core and no row.
         // Asked ONCE here, against the revision the event arrived on, so a
         // ring that has nothing to say costs no slot in core and no row.
         //
@@ -644,7 +610,7 @@ export const serve = (services: Services): {
         // was asked. This said `withheld` here and `dropped` there, which is two
         // names for one thing and a reader left wondering which of the two they
         // were looking at. The seam a line came from is already in the line.
-        if (standingFor(scope.file, meaning, claiming) === 0) {
+        if (standingFor(scope.file, meaning, ringing.claiming) === 0) {
           trace("dropped", { file: scope.file, meaning, why: "nobody-standing" })
           continue
         }
