@@ -7,8 +7,9 @@
  * the node, its engine, its memory, and which conversation it is bound to — and
  * the `chat` cell carries what the ONE open conversation is doing. Neither says
  * how an agent stands, because that is a fact about the pair; this module is
- * where the pair is read, once, for both faces that draw it (the sidebar's
- * roster and the door on the outline row).
+ * the RULE for reading that pair. WHERE it is read is `./answered.tsx` — once,
+ * for the whole app — and that division is the point: the rule is pure and has
+ * a suite, and the subscription that spends it is one.
  *
  * A MODULE for `../chat/busy.ts`'s reason, which is this directory's whole
  * shape: it is a small precedence over two values that arrive on a wire, and

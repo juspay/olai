@@ -3,11 +3,28 @@
  * what it last said.
  *
  * The kolu Dock-row pattern, pointed at a node agent instead of a terminal
- * (docs/plugins/kolu.md): a state pip, a name, the standing facts, a recency,
- * and one line of annotation under them. That shape is borrowed deliberately —
- * a reader who has learnt what a terminal's row means on a lane board should
- * not have to learn a second vocabulary for the agent sitting on the row above
- * it.
+ * (docs/plugins/kolu.md): a state pip, the standing facts, a recency, and one
+ * line of annotation under them. That shape is borrowed deliberately — a reader
+ * who has learnt what a terminal's row means on a lane board should not have to
+ * learn a second vocabulary for the agent sitting on the row above it.
+ *
+ * ## The PATTERN and not the component, which is a fence rather than a choice
+ *
+ * kolu's row IS a component — `@kolu/solid-dockrow`, with `@kolu/solid-statepip`
+ * for the pip — and this file may not name either. Those are PRODUCT-TIER
+ * imports, confined by `packages/plugin-api/src/fence.test.ts` to the two
+ * packages that are kolu's tenancy (`@olai/kolu-client` and
+ * `olai-plugin-kolu`), which is the whole arrangement that lets a serve run
+ * without kolu at all. A core face reaching for kolu's row would put an
+ * appliance's package on the critical path of a directory that has never heard
+ * of one.
+ *
+ * So what is shared is what CORE owns and both wear: `../readout.ts`'s `Look`
+ * and `DOT` — a mark, two or three words, and a sentence behind them — which
+ * the connection dot and the Commit pill already are ({@link ./roster.ts}'s
+ * `LOOK`). The costume that would have been a third one is not; the geometry
+ * that stays this file's is the box and the second line, because those are
+ * about a property run rather than about a readout.
  *
  * A BLOCK and not a chip, on the live-properties seam's own rule
  * (docs/live-properties.md): a chip appears only while there is something to
@@ -34,9 +51,10 @@
  *
  * ## What it says, and what it does not
  *
- * The four standing facts, in one line: how it stands, its engine, whether it
- * has a session, and HOW BIG ITS MEMORY IS — which is the number this whole
- * design turns on, because the subtree is what a fresh session would read.
+ * The standing facts, in one line: how it stands — which is also whether it has
+ * a session at all, since *no session bound* is one of the seven — its engine,
+ * and HOW BIG ITS MEMORY IS, which is the number this whole design turns on,
+ * because the subtree is what a fresh session would read.
  *
  * And under them, ONE LINE of the agent's latest message — with the
  * qualification drawn rather than implied: this is what olai HEARD, written
