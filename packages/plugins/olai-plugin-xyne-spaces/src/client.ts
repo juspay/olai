@@ -71,7 +71,11 @@ export interface Dial {
 
 const CHAT = "/api/apps/chat"
 
-export const originOf = (url: string): string => url.replace(/\/+$/, "")
+export const originOf = (url: string): string => {
+  let end = url.length
+  while (end > 0 && url[end - 1] === "/") end -= 1
+  return end === url.length ? url : url.slice(0, end)
+}
 
 export const makeClient = (
   origin: string,

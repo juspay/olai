@@ -5,8 +5,15 @@
 
 import { expect, test } from "bun:test"
 
-import { makeClient } from "./client.ts"
+import { makeClient, originOf } from "./client.ts"
 import { listen } from "./testlib/fake-spaces.ts"
+
+test("originOf drops trailing slashes without a regex", () => {
+  expect(originOf("https://spaces.example")).toBe("https://spaces.example")
+  expect(originOf("https://spaces.example/")).toBe("https://spaces.example")
+  expect(originOf("https://spaces.example///")).toBe("https://spaces.example")
+  expect(originOf("")).toBe("")
+})
 
 test("postMessage sends Bearer auth, channelId, markdownText; omits conversationId on the opener", async () => {
   const spaces = await listen()
