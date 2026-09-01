@@ -618,6 +618,65 @@ describe("placements", () => {
     expect(read(at(), "bugs")).not.toHaveProperty("placed")
   })
 
+  /**
+   * THE WALK NAMES WHAT IT WILL NOT DESCEND — `read_subtree`'s answer to a
+   * board of mirrors, in the very shape the node read pins above.
+   *
+   * The case this was filed from (2026-08-27, and again 2026-08-31): a day
+   * board's children are ALL placements, and `read_subtree(day-root)`
+   * answered `children: []` — the practical answer to "what is on this
+   * board" was silence, and an orchestrator read it as the board wiped.
+   * `now` is exactly that node, and the whole claim is that the walk says
+   * NOW where the node read always has.
+   */
+  test("a node whose children are all placements no longer reads as empty", () => {
+    // At the cheapest ask there is — `depth: 0` bottoms out AT the board
+    // itself, and a placement is named rather than descended into, so the
+    // naming costs the depth dial nothing.
+    const board = nodeOf(walked(reading(), { id: "now", depth: 0 }))
+    // Nothing is WALKED: `children` is what hangs off a node, and a board of
+    // mirrors hangs nothing off itself. The emptiness was never the lie —
+    // the silence beside it was. And a board is not `truncated`: the walk
+    // stopped at a leaf here, because a placement is nowhere it ever goes.
+    expect(board.children).toEqual([])
+    expect(board).not.toHaveProperty("truncated")
+    // …and nothing is SILENT: both entries, named — the placement's own id,
+    // and the node's own id and title. A chain is followed to the node at
+    // its end, exactly as the node read's answer has it.
+    expect(board.placed?.map((entry) => [entry.id, entry.shows.id, entry.shows.title]))
+      .toEqual([
+        ["now-sticky", "sticky", "the header scrolls away"],
+        ["now-git", "git", "two git indicators"],
+      ])
+    // UNWALKED, which is the distinction the design rests on: an entry
+    // carries the NODE, never the node's rows — `children` is a walk row's
+    // field, and a `placed` entry is not a walk row.
+    for (const entry of board.placed ?? []) {
+      expect(entry).not.toHaveProperty("children")
+    }
+  })
+
+  test("the note dial and the row projection leave the naming alone", () => {
+    // `withDesc: false` drops prose, not structure: the placements ride.
+    const lean = nodeOf(walked(reading(), { id: "now", depth: 0, withDesc: false }))
+    expect(lean.placed?.map((entry) => entry.id)).toEqual(["now-sticky", "now-git"])
+    // And `fields` shapes RECORD fields: `placed` is the walk's structure,
+    // like `children` and `truncated` — a projection that cut it would read
+    // this board as empty, which is the silence the listing exists to end.
+    const shaped = nodeOf(walked(reading(), { id: "now", depth: 0, fields: ["title"] }))
+    expect(shaped).toMatchObject({ id: "now", title: "Now" })
+    expect(shaped.placed?.map((entry) => entry.shows.id)).toEqual(["sticky", "git"])
+  })
+
+  test("the file arm names them too — every root is the same walk", () => {
+    const roots = outlineOf(walked(reading(), { file: "roadmap.olai" })).roots
+    expect(roots.find((root) => root.id === "now")?.placed?.map((entry) => entry.id))
+      .toEqual(["now-sticky", "now-git"])
+    // …and a node with none is answered with none — absence, never an empty
+    // list, the same spelling of nothing the node read uses.
+    expect(roots.find((root) => root.id === "bugs")).not.toHaveProperty("placed")
+  })
+
   test("a search never answers with a placement", () => {
     // A hit for a mirror would be the same node twice, once at a place no
     // write lands.
@@ -945,15 +1004,16 @@ describe("the caller shapes the rows", () => {
       desc: "the forensics",
     })
     // …and the KEY SET is pinned against the schemas, not against a third
-    // hand-typed list: a default walk row is a {@link Found} plus the four
-    // the walk itself adds (`date`, the live note, `children`, `truncated`),
-    // and nothing FORWARD — the day a walk row carries a key that is
-    // neither, the row definition here has drifted in someone's darkness.
+    // hand-typed list: a default walk row is a {@link Found} plus the five
+    // the walk itself adds (`date`, the live note, `children`, `placed`,
+    // `truncated`), and nothing FORWARD — the day a walk row carries a key
+    // that is neither, the row definition here has drifted in someone's
+    // darkness.
     const checkKeys = (row: object) => {
       for (const key of Object.keys(row)) {
         expect(
           key in Found.fields || key === "date" || key === "desc" ||
-            key === "children" || key === "truncated",
+            key === "children" || key === "placed" || key === "truncated",
         ).toEqual(true)
       }
     }

@@ -926,8 +926,8 @@ export const SubtreeRequest = Schema.Struct({
   /**
    * The same `fields` as a node read's, but here every row is the read:
    * there is no "one node in full" beside a walk, so the root is shaped like
-   * any other row. `children` and `truncated` are the walk's own structure,
-   * not fields — they ride regardless.
+   * any other row. `children`, `truncated` and `placed` are the walk's own
+   * structure, not fields — they ride regardless.
    */
   fields: FieldsRequest,
 })
@@ -949,6 +949,12 @@ export interface Subtree extends Found {
   readonly date?: string | undefined
   readonly desc?: string | undefined
   readonly children: ReadonlyArray<Subtree>
+  /** The placements UNDER this node, named and never walked — {@link
+   *  Detail.placed}'s very shape and very rule, carried onto every row so a
+   *  node whose children are all mirrors answers with what is on it rather
+   *  than with an empty `children`. Absent when none sit here, which is
+   *  nearly every row. */
+  readonly placed?: ReadonlyArray<Placed>
   /** True when the walk stopped at the depth it was given and this node has
    *  children it did not descend into. Said out loud, because a subtree that
    *  quietly ended would read as a leaf. */
@@ -960,6 +966,7 @@ export const Subtree = Schema.Struct({
   date: RegularNode.fields.date,
   desc: RegularNode.fields.desc,
   children: Schema.Array(Schema.suspend((): Schema.Codec<Subtree> => Subtree)),
+  placed: Schema.optionalKey(Schema.Array(Placed)),
   truncated: Schema.optionalKey(Schema.Literal(true)),
 })
 
@@ -972,6 +979,11 @@ export const Subtree = Schema.Struct({
  */
 export interface ProjectedSubtree extends Projected {
   readonly children: ReadonlyArray<ProjectedSubtree>
+  /** The placements under this node, exactly as the full row's — structure,
+   *  not a record field, so the dial has nothing to say about it: a walk
+   *  that shaped `placed` away would read a board of mirrors as empty, which
+   *  is the silence this listing exists to end. */
+  readonly placed?: ReadonlyArray<Placed>
   /** True when the walk stopped at the depth it was given and this node has
    *  children it did not descend into — the full walk's own flag, carried
    *  unchanged: it is shape, not a record field, so `fields` has nothing to
@@ -984,6 +996,7 @@ export const ProjectedSubtree = Schema.Struct({
   children: Schema.Array(
     Schema.suspend((): Schema.Codec<ProjectedSubtree> => ProjectedSubtree),
   ),
+  placed: Schema.optionalKey(Schema.Array(Placed)),
   truncated: Schema.optionalKey(Schema.Literal(true)),
 })
 
@@ -1041,8 +1054,11 @@ export type NodeAnswer = typeof NodeAnswer.Type
  *
  * A MIRROR AT THE TOP LEVEL IS NOT A ROOT, which is the walk's own rule read
  * one level up: `read_subtree` does not walk placements, and {@link
- * OutlineSummary}'s `roots` does not name one either. The node a placement
- * shows lives somewhere, and where it lives is where this read answers it.
+ * OutlineSummary}'s `roots` does not name one either. Placements UNDER a
+ * node are now named on its row ({@link Subtree.placed}); the top level of
+ * a file is under no node, so there is no row to name this one on — the
+ * node it shows answers with every place it stands, as {@link
+ * Detail.mirrors}, and this read answers the node where it lives.
  *
  * The `file` rides back for {@link DocumentBody}'s reason: an agent holding
  * several reads in flight needs each answer to say which file it is about, and

@@ -354,10 +354,11 @@ const claimShape = (
   structure: "walk" | "references",
 ): void => {
   // The row's allowed keys: the structure the WALK owns (id / children /
-  // truncated) plus exactly the named fields. The union across rows must be
-  // the whole projection — a walk that SHAPED but forgot a field is a
-  // subtler silence than one that never shaped at all.
-  const allowed = new Set(["id", "children", "truncated", ...fields]);
+  // truncated / the placements named as `placed`) plus exactly the named
+  // fields. The union across rows must be the whole projection — a walk that
+  // SHAPED but forgot a field is a subtler silence than one that never
+  // shaped at all.
+  const allowed = new Set(["id", "children", "truncated", "placed", ...fields]);
   const seen = new Set<string>();
   for (const row of rows) {
     for (const key of Object.keys(row)) {
@@ -365,7 +366,9 @@ const claimShape = (
         allowed.has(key),
         `a shaped row carried "${key}", which was not named: ${JSON.stringify(row)}`,
       );
-      if (key !== "id" && key !== "children" && key !== "truncated") seen.add(key);
+      if (key !== "id" && key !== "children" && key !== "truncated" && key !== "placed") {
+        seen.add(key);
+      }
     }
     assert.strictEqual(typeof row["id"], "string", "every row is still an id first");
     if (structure === "walk") {

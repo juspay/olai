@@ -1082,6 +1082,11 @@ const referrersOf = (derived: Derived, id: string): ReadonlyArray<Reference> =>
  * nothing. A set with a broken chain is one the validator has already condemned;
  * a reader that invented an entry for it would be answering with a node that is
  * not there.
+ *
+ * TWO readers, one answer: {@link detail} carries it as the node read's
+ * `placed`, and `subtree`'s walks put the same list on every row that has
+ * one — the naming a walk owes a placement it will not descend into, in the
+ * one shape both reads agree on.
  */
 const placedUnder = (derived: Derived, id: string): ReadonlyArray<Placed> =>
   (derived.children.get(id) ?? []).flatMap((child) => {
@@ -1278,6 +1283,14 @@ export const subtree = (
 
   const walk = (located: LocatedRegular, left: number): Subtree => {
     const children = countedChildren(at.derived, located.node.id)
+    // NAMED, never descended into — the same list `read_node`'s `placed`
+    // answers, so a node whose children are ALL placements (a day board, a
+    // Now list) reads as what is on it rather than as empty. Listed at the
+    // depth floor exactly as at any other level: a placement is unwalked,
+    // so it costs the floor nothing, and the row carries it whatever the
+    // row's shape — it is the walk's structure, like `children` and
+    // `truncated`, and neither dial below touches structure.
+    const placed = placedUnder(at.derived, located.node.id)
     return {
       ...foundOf(at.derived, located),
       ...(located.node.date === undefined ? {} : { date: located.node.date }),
@@ -1285,20 +1298,24 @@ export const subtree = (
         ? { desc: located.node.desc }
         : {}),
       children: left <= 0 ? [] : children.map((child) => walk(child, left - 1)),
+      ...(placed.length === 0 ? {} : { placed }),
       ...(left <= 0 && children.length > 0 ? { truncated: true as const } : {}),
     }
   }
   // `walk`'s other shape: the caller named the rows. The ROWS change and the
-  // WALK does not — same depth dial, same counted children, same `truncated`
-  // — because those are the walk's own structure, and `fields` has nothing to
-  // say about structure. `wants` rides as an argument rather than closed
-  // over: the outer binding is `Wants | undefined` for the unasked case, and
-  // a closure over it would reask the question the fork below has answered.
+  // WALK does not — same depth dial, same counted children, same `placed`,
+  // same `truncated` — because those are the walk's own structure, and
+  // `fields` has nothing to say about structure. `wants` rides as an argument
+  // rather than closed over: the outer binding is `Wants | undefined` for the
+  // unasked case, and a closure over it would reask the question the fork
+  // below has answered.
   const shapedWalk = (wants: Wants, located: LocatedRegular, left: number): ProjectedSubtree => {
     const children = countedChildren(at.derived, located.node.id)
+    const placed = placedUnder(at.derived, located.node.id)
     return {
       ...shapedOf(at.derived, located, wants),
       children: left <= 0 ? [] : children.map((child) => shapedWalk(wants, child, left - 1)),
+      ...(placed.length === 0 ? {} : { placed }),
       ...(left <= 0 && children.length > 0 ? { truncated: true as const } : {}),
     }
   }
@@ -1325,7 +1342,9 @@ export const subtree = (
   // The roots a READER sees: `@olai/format`'s own reading of an outline's
   // top level, `ord`-sorted, placements dropped for the reason the walk
   // never descends into one — a mirror is a second view of a node that
-  // lives elsewhere, and elsewhere is where this read answers it.
+  // lives elsewhere. Under a node a placement IS named now, on its row's
+  // `placed`; the top level of a file has no row to name one on, so the
+  // drop here stands, and `OutlineRoots` says so in its own words.
   const roots = rootsOf(at.derived, arm.file)
   return Result.succeed(
     wants === undefined
