@@ -438,7 +438,7 @@ follows — because "re-applied" is the answer a habit gives too.
   the SPAWNING call reopened `in_progress` and closed again, quietly, because
   its launch was synchronous).
 - **What the panel does with all of it** is `packages/tests/panel-live.ts`,
-  the driver added with this bump: 23 assertions through a real browser panel
+  the driver added with this bump: 26 assertions through a real browser panel
   against the real adapter, all passing.
 
 ### The steering hang has a second trigger, and the guard does not cover it
