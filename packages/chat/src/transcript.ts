@@ -847,18 +847,20 @@ export class Transcript {
     const current = this.#entries.get(key)
     const held = current?.kind === "tool" ? current : undefined
     // A REPORT with no row to file it under. An async agent's
-    // task-notification names the spawning call; if that call was never
-    // announced here, inventing a row for the report would be a call nobody
-    // made. The notification is still swallowed (the caller does not write a
-    // user bubble); the report just has nowhere to live.
+    // task-notification names the call that armed the task; if that call
+    // was never announced here, inventing a row for the report would be a
+    // call nobody made. The notification is still swallowed (the caller
+    // does not write a user bubble); the report just has nowhere to live.
     if (
       held === undefined
       && move.title === undefined
       && move.status === undefined
-      && move.armed === undefined
       && move.detail === undefined
       && move.progress === undefined
-      && move.spawned?.report !== undefined
+      && move.spawned === undefined
+      && move.armed?.report !== undefined
+      && move.armed.ended === undefined
+      && move.armed.description === undefined
     ) {
       return EMPTY
     }

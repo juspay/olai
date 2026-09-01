@@ -183,7 +183,7 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
   const body = () =>
     props.entry.detail !== undefined
     || (!ended() && props.entry.progress !== undefined)
-    || props.entry.spawned?.report !== undefined
+    || props.entry.armed?.report !== undefined
 
   return (
     <div
@@ -412,12 +412,14 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
         <Show when={!ended() && props.entry.progress}>
           {(progress) => <Saying said={progress()} tall={true} />}
         </Show>
-        {/* THE AGENT'S REPORT, in this fold and nowhere else. An async
+        {/* THE TASK'S REPORT, in this fold and nowhere else. An async
             completion injects the report as a user-role turn; that turn is
             not drawn. These words are the one place the subagent is allowed
-            to speak in this conversation (`docs/chat.md`). Markdown, because
-            they are prose, the same pipeline as the main agent's answer. */}
-        <Show when={props.entry.spawned?.report}>
+            to speak in this conversation (`docs/chat.md`), and they ride
+            the task — `armed.report` — which is the vocabulary the ending
+            already uses. Markdown, because they are prose, the same
+            pipeline as the main agent's answer. */}
+        <Show when={props.entry.armed?.report}>
           {(report) => (
             <Markdown
               source={report()}

@@ -203,15 +203,10 @@ export const parentToolUseIn = (meta: Meta): string | null =>
  * and none of them knows what a transcript is.
  */
 export const spawnedIn = (meta: Meta, input: unknown): Spawn | null => {
-  // THE FLAG IS THE ONLY THING THAT OPENS THIS DOOR — except the report, which
-  // arrives on a later frame that is not the spawn's announcement. An async
-  // agent's completion is stamped `subagentReport` onto the spawning call
-  // (`acp/patches/README.md`) without repeating `subagent: true`, and requiring
-  // the flag there would drop the one place those words are allowed to live.
-  const report = wordIn(claudeIn(meta), "subagentReport")
-  if (claudeIn(meta)?.["subagent"] !== true) {
-    return report === null ? null : { report }
-  }
+  // THE FLAG IS THE ONLY THING THAT OPENS THIS DOOR. Everything below is read
+  // off a frame the adapter itself said was an Agent call, and a frame that
+  // does not say so is answered `null` however suggestively it is shaped.
+  if (claudeIn(meta)?.["subagent"] !== true) return null
   // ... and then the kind, off the `Agent` tool's own arguments. `rawInput` is
   // the tool's payload rather than the adapter's word, which is exactly why it
   // may not be read on its own: `subagent_type` is a name ONE tool gives one
@@ -243,7 +238,6 @@ export const spawnedIn = (meta: Meta, input: unknown): Spawn | null => {
   return {
     ...(typeof asked === "string" && asked !== "" ? { kind: asked } : {}),
     ...(typeof said === "string" && said !== "" ? { said } : {}),
-    ...(report === null ? {} : { report }),
   }
 }
 
@@ -263,9 +257,9 @@ export const spawnedIn = (meta: Meta, input: unknown): Spawn | null => {
  *     the message without the origin.
  *
  * A payload that is neither is `null`, which is a person speaking. A
- * payload that is one but names no `tool-use-id` is still a notification
- * (`toolUseId` empty): it must not become a user bubble, and it has no
- * row to file the report under.
+ * payload that is one but names no spawning call or no task is still a
+ * notification (empty ids): it must not become a user bubble, and it has
+ * no row to file the report under.
  */
 export const taskNotificationIn = (text: string, meta: Meta): TaskNotice | null => {
   const kind = wordIn(fieldIn(claudeIn(meta), "origin"), "kind")
@@ -273,8 +267,9 @@ export const taskNotificationIn = (text: string, meta: Meta): TaskNotice | null 
   const wrapped = xml.startsWith("<task-notification>") && xml.includes("</task-notification>")
   if (kind !== "task-notification" && !wrapped) return null
   const toolUseId = (xml.match(/<tool-use-id>([^<]*)<\/tool-use-id>/u)?.[1] ?? "").trim()
+  const task = (xml.match(/<task-id>([^<]*)<\/task-id>/u)?.[1] ?? "").trim()
   const result = xml.match(/<result>([\s\S]*)<\/result>/u)?.[1] ?? ""
-  return { toolUseId, result }
+  return { toolUseId, task, result }
 }
 
 // ── which call ARMED A BACKGROUND TASK ─────────────────────────────────
@@ -326,10 +321,16 @@ export const backgroundTaskIn = (meta: Meta): Background | null => {
   // monitor somebody STOPPED is not a monitor that failed, so the word
   // travels beside the status rather than being re-derived from it.
   const ended = wordIn(task, "status")
+  // THE REPORT, the other half of a task-notification. The harness's
+  // summary is `ended`'s sentence; this is the subagent's own prose, filed
+  // on the same stamp rather than on a second `_meta` field the rest of
+  // this vocabulary does not have.
+  const report = wordIn(task, "report")
   return {
     task: id,
     ...(description === null ? {} : { description }),
     ...(ended === null ? {} : { ended }),
+    ...(report === null ? {} : { report }),
   }
 }
 
@@ -360,13 +361,16 @@ export const backgroundTaskIn = (meta: Meta): Background | null => {
  *     one day; it is a shape nothing in this repo has ever seen arrive, and a
  *     row that renders a payload nobody has observed is a row that is wrong the
  *     first time it is right.
- *   - **the subagent's own PROSE**. The adapter strips a subagent's text and
- *     thinking blocks from the feed unless the client declares
- *     `subagent-transcript` in its `initialize` capabilities
+ *   - **the subagent's own PROSE while it runs**. The adapter strips a
+ *     subagent's text and thinking blocks from the feed unless the client
+ *     declares `subagent-transcript` in its `initialize` capabilities
  *     (`supportsSubagentTranscript`) — so olai, which does not, cannot receive
  *     it and cannot have it leak into the main agent's voice either. Drawing a
  *     subagent's narration is a feature with a switch to throw, not a `_meta`
- *     to read, and it is not this one.
+ *     to read, and it is not this one. The REPORT it hands back at the end
+ *     is the exception `docs/chat.md` names, and it rides
+ *     {@link backgroundTaskIn}'s `report` — the task's own stamp — not a
+ *     second field.
  */
 
 /** One OBJECT-valued field of an object, or `undefined` for anything else — a

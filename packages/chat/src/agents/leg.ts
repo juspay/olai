@@ -158,9 +158,6 @@ export const allowingOurs = (
 export interface Spawn {
   readonly kind?: string
   readonly said?: string
-  /** The agent's own report, once it has handed one back — see
-   *  {@link @olai/surface}'s `Spawned.report`. */
-  readonly report?: string
 }
 
 /**
@@ -174,6 +171,7 @@ export interface Spawn {
  */
 export interface TaskNotice {
   readonly toolUseId: string
+  readonly task: string
   readonly result: string
 }
 
@@ -184,16 +182,18 @@ export interface TaskNotice {
  *
  * `task` is the only field that is always there, because it is the only one
  * every frame about a task carries: the harness says everything else under
- * that id. The other two are said by whichever frame knows them — the frame
+ * that id. The others are said by whichever frame knows them — the frame
  * that ARMS the call names the description it was armed with, the frame that
- * SETTLES it names how it ended — so a leg answers about the frame in front of
- * it and never accumulates. Holding a row together across frames is
+ * SETTLES it names how it ended, the task-notification that follows names
+ * the report — so a leg answers about the frame in front of it and never
+ * accumulates. Holding a row together across frames is
  * {@link ../transcript.ts}'s job and nobody else's.
  */
 export interface Background {
   readonly task: string
   readonly description?: string
   readonly ended?: string
+  readonly report?: string
 }
 
 /**

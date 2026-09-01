@@ -417,23 +417,26 @@ describe("tool calls", () => {
     expect(asKind(rows(transcript)[0], "tool")?.spawned).toBeUndefined()
   })
 
-  test("a spawn's report lands in the row and stays there", () => {
-    // The report arrives on a later frame than the spawn — an async agent's
+  test("a task's report lands on the arming and stays there", () => {
+    // The report arrives on a later frame than the arming — an async agent's
     // task-notification, after the turn that sent it out has ended — and a
-    // status-only update after that must not take it back off.
+    // status-only update after that must not take it back off. It rides
+    // `armed`, which is the vocabulary the ending already uses.
     const transcript = new Transcript()
     transcript.tool("toolu_01AGENT", {
       title: "Task",
       status: "in_progress",
       spawned: { said: "count the ticks" },
+      armed: { task: "a4015bf2ba1fa514d", description: "count the ticks" },
     })
     transcript.tool("toolu_01AGENT", {
-      spawned: { report: "I have thorough coverage now.\n\n# Findings\n" },
+      armed: { task: "a4015bf2ba1fa514d", report: "I have thorough coverage now.\n\n# Findings\n" },
     })
     transcript.tool("toolu_01AGENT", { status: "completed" })
 
-    expect(asKind(rows(transcript)[0], "tool")?.spawned).toEqual({
-      said: "count the ticks",
+    expect(asKind(rows(transcript)[0], "tool")?.armed).toEqual({
+      task: "a4015bf2ba1fa514d",
+      description: "count the ticks",
       report: "I have thorough coverage now.\n\n# Findings\n",
     })
   })
@@ -441,7 +444,7 @@ describe("tool calls", () => {
   test("a report for a call that was never announced writes no row", () => {
     const transcript = new Transcript()
     const change = transcript.tool("toolu_01GHOST", {
-      spawned: { report: "nobody sent this agent out" },
+      armed: { task: "ghost", report: "nobody sent this agent out" },
     })
     expect(change.upserts).toEqual([])
     expect(rows(transcript)).toEqual([])

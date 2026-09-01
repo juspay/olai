@@ -169,7 +169,8 @@ Added here, and not in #941:
   panel drew the report RAW in the column. The patch reads the discriminator
   (`origin.kind`, falling back to the XML wrapper when origin is missing —
   a replay of an older store) and files the `<result>` onto the spawning
-  call as `_meta.claudeCode.subagentReport` instead. Live and on
+  call as `_meta.claudeCode.backgroundTask.report` instead — the same
+  stamp the ending already uses, not a second field. Live and on
   `session/load`. Measured by `packages/tests/tasks.ts` `KIND=agent`: a
   forwarded task-notification prints `TASK-NOTIFICATION FORWARDED AS USER
   SPEECH`, and the day one does, that line is how anybody finds out;

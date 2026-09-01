@@ -460,20 +460,6 @@ describe("which call started an agent", () => {
     expect(spawnedIn(SPAWN, { description: 7 })).toEqual({})
   })
 
-  test("a later frame can file the agent's report without repeating the flag", () => {
-    // The completion of an async agent is not the spawn's announcement: the
-    // adapter stamps `subagentReport` onto the spawning call and does not
-    // repeat `subagent: true`. Requiring the flag there would drop the report.
-    expect(
-      spawnedIn({ claudeCode: { subagentReport: "there are three notes." } }, undefined),
-    ).toEqual({ report: "there are three notes." })
-    expect(spawnedIn(SPAWN, ASKED)).toEqual({
-      kind: "Explore",
-      said: "explore the outline",
-    })
-    expect(spawnedIn({ claudeCode: { subagentReport: "" } }, undefined)).toBeNull()
-  })
-
   test("a spawn's own response cannot name the agent either", () => {
     // The flag opens the door and the ARGUMENTS are what is read through it.
     // A flagged frame carrying a `subagentType` and no `subagent_type` is a
@@ -594,6 +580,23 @@ describe("which call armed a background task", () => {
     expect(
       backgroundTaskIn({
         claudeCode: { backgroundTask: { taskId: "t", description: "", status: null } },
+      }),
+    ).toEqual({ task: "t" })
+  })
+
+  test("a later frame can file the report on the same stamp the ending uses", () => {
+    // The report is the other half of a task-notification. It is not a spawn
+    // fact — the spawn's door is the `subagent` flag, and this frame does not
+    // carry one — and inventing a second `_meta` field for it would be the
+    // vocabulary the rest of this file already has, respelt.
+    expect(
+      backgroundTaskIn({
+        claudeCode: { backgroundTask: { taskId: "a4015bf2ba1fa514d", report: "there are three notes." } },
+      }),
+    ).toEqual({ task: "a4015bf2ba1fa514d", report: "there are three notes." })
+    expect(
+      backgroundTaskIn({
+        claudeCode: { backgroundTask: { taskId: "t", report: "" } },
       }),
     ).toEqual({ task: "t" })
   })
@@ -818,11 +821,12 @@ describe("the leg", () => {
       "</task-notification>"
     expect(taskNotificationIn(xml, undefined)).toEqual({
       toolUseId: "toolu_014mD8gkPSCXNL6gF11GK7hv",
+      task: "a4015bf2ba1fa514d",
       result: "I have thorough coverage now.\n\n# Findings\n",
     })
     expect(
       taskNotificationIn("hello", { claudeCode: { origin: { kind: "task-notification" } } }),
-    ).toEqual({ toolUseId: "", result: "" })
+    ).toEqual({ toolUseId: "", task: "", result: "" })
     expect(taskNotificationIn("hello", { claudeCode: { origin: { kind: "human" } } }))
       .toBeNull()
     expect(taskNotificationIn("hello", undefined)).toBeNull()

@@ -195,10 +195,6 @@ const heard = (message: Record<string, unknown>): void => {
         claude?.["subagent"] === true ? "  subagent" : ""
       }${parent === undefined ? "" : `  parent=${String(parent)}`}${
         task === undefined ? "" : `  backgroundTask=${JSON.stringify(task)}`
-      }${
-        claude?.["subagentReport"] === undefined
-          ? ""
-          : `  subagentReport=${JSON.stringify(String(claude["subagentReport"]).slice(0, 80))}`
       }`,
     )
     return

@@ -404,7 +404,7 @@
              emittedAssistantText: false,
              owedTrailingIdles: 0,
              messageIdToUuid: new Map(),
-@@ -6377,6 +6713,95 @@
+@@ -6377,6 +6713,98 @@
      return byToolUseId;
  }
  /**
@@ -419,7 +419,8 @@
 + * Returns null if this is ordinary user speech (forward as usual). Returns
 + * `{ update: null }` to swallow a notification that names no spawning call.
 + * Otherwise a `tool_call_update` that files the `<result>` under that call
-+ * as `_meta.claudeCode.subagentReport`.
++ * as `_meta.claudeCode.backgroundTask.report` — the same stamp the ending
++ * already uses.
 + */
 +export function taskNotificationUpdate(sessionId, message) {
 +    if (message.type !== "user") {
@@ -439,9 +440,11 @@
 +        return null;
 +    }
 +    const toolUseId = (text.match(/<tool-use-id>([^<]*)<\/tool-use-id>/) || [])[1];
++    const taskId = (text.match(/<task-id>([^<]*)<\/task-id>/) || [])[1];
 +    const resultMatch = text.match(/<result>([\s\S]*)<\/result>/);
 +    const result = resultMatch ? resultMatch[1] : "";
-+    if (typeof toolUseId !== "string" || toolUseId.trim() === "") {
++    if (typeof toolUseId !== "string" || toolUseId.trim() === "" ||
++        typeof taskId !== "string" || taskId.trim() === "") {
 +        return { sessionId, update: null };
 +    }
 +    return {
@@ -449,7 +452,7 @@
 +        update: {
 +            sessionUpdate: "tool_call_update",
 +            toolCallId: toolUseId.trim(),
-+            _meta: { claudeCode: { subagentReport: result } },
++            _meta: { claudeCode: { backgroundTask: { taskId: taskId.trim(), report: result } } },
 +        },
 +    };
 +}
@@ -500,7 +503,7 @@
   * Convert an SDKAssistantMessage (Claude) to a SessionNotification (ACP).
   * Only handles text, image, and thinking chunks for now.
   */
-@@ -6575,7 +7000,26 @@
+@@ -6575,7 +7003,26 @@
              case "text_editor_code_execution_tool_result":
              case "mcp_tool_result": {
                  const wasEmitted = options?.emittedToolCalls?.has(chunk.tool_use_id) === true;
@@ -528,7 +531,7 @@
                  // Why this is_error result carries harness prose instead of tool
                  // output (user-rejected / interrupted / …), when the SDK said so.
                  // Spread into the claudeCode meta of every update emitted below; the
-@@ -6583,6 +7027,66 @@
+@@ -6583,6 +7030,66 @@
                  // carry `toolName`, which is unknown there).
                  const nonExecution = toolResultMeta?.get(chunk.tool_use_id);
                  const toolUse = toolUseCache[chunk.tool_use_id];
