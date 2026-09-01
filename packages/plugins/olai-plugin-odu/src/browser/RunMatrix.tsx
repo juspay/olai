@@ -31,7 +31,7 @@
 
 import { For, Show } from "solid-js"
 
-import type { CiRun, RunCell } from "@olai/odu-client/wire"
+import { type CiRun, identityOf, type RunCell } from "@olai/odu-client/wire"
 
 import type { BlockContext, OduClocks } from "./app.ts"
 import { useClocks } from "./clocks.tsx"
@@ -80,11 +80,8 @@ function Matrix(props: { readonly run: CiRun }) {
   // makes that a fact rather than a habit.
   const now = clocks.createTicking(clocks.SECOND)
   const head = () => {
-    const run = props.run
-    const which = run.sha7 === "" ? run.name : `${run.name} ${run.sha7}${
-      run.seq === null ? "" : `#${run.seq}`
-    }${run.dirty ? "+dirty" : ""}`
-    return run.live ? which : `${which} · the socket is gone`
+    const which = identityOf(props.run)
+    return props.run.live ? which : `${which} · the socket is gone`
   }
   return (
     <div

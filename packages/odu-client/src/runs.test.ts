@@ -18,7 +18,7 @@ import type { PipelineState, RunHeader } from "@odu/run-client/surface"
 import { Effect, Stream } from "effect"
 import { expect, test } from "bun:test"
 
-import { type DialRun, makeWatch, type WatchDeps, type WorktreeNode } from "./runs.ts"
+import { type DialRun, makeWatch, type RunNotice, type WatchDeps, type WorktreeNode } from "./runs.ts"
 import { type CiRun, tallyOf, verdictOf } from "./wire/index.ts"
 
 const ROOT = "/home/x/code"
@@ -61,17 +61,21 @@ const held = <A>(frame: A, ends: Promise<void> | null): Stream.Stream<A> =>
 interface Bench {
   readonly published: Array<ReadonlyArray<CiRun>>
   readonly warned: Array<string>
+  readonly noticed: Array<RunNotice>
   readonly deps: WatchDeps
 }
 
 const bench = (dial: DialRun): Bench => {
   const published: Array<ReadonlyArray<CiRun>> = []
   const warned: Array<string> = []
+  const noticed: Array<RunNotice> = []
   return {
     published,
     warned,
+    noticed,
     deps: {
       publish: (runs) => published.push(runs),
+      rang: (notice) => noticed.push(notice),
       say: () => {},
       warn: (line) => warned.push(line),
       reposRoot: ROOT,
@@ -91,6 +95,37 @@ const state = (): PipelineState => ({
   sha7: "8f8fe56",
   order: ["e2e@p"],
   nodes: { "e2e@p": { ...pendingNode({ id: "e2e@p", name: "e2e", command: "just e2e", needs: [] }), status: "ok" } },
+})
+
+/** A node of a run the bench drives — one status word flipped on a pending
+ *  seed. `red` and the two paint fields ride odu's own table, which the
+ *  projection folds per frame, so a seeded STATUSWORD is the whole input. */
+const node = (id: string, name: string, status: PipelineState["nodes"][string]["status"]): PipelineState["nodes"][string] => ({
+  ...pendingNode({ id, name, command: `just ${name}`, needs: [] }),
+  status,
+})
+
+/** A three-node run in one frame, one of them red. */
+const redState = (): PipelineState => ({
+  ...EMPTY_STATE,
+  name: "ci",
+  sha7: "8f8fe56",
+  order: ["a@p", "b@p", "c@p"],
+  nodes: {
+    "a@p": node("a@p", "typecheck", "ok"),
+    "b@p": node("b@p", "e2e", "failed"),
+    "c@p": node("c@p", "fmt-check", "running"),
+  },
+})
+
+/** The same three, now all settled ok — the state a rerun greens into. */
+const greenState = (): PipelineState => ({
+  ...redState(),
+  nodes: {
+    "a@p": node("a@p", "typecheck", "ok"),
+    "b@p": node("b@p", "e2e", "ok"),
+    "c@p": node("c@p", "fmt-check", "ok"),
+  },
 })
 
 const header = (): RunHeader => ({ ...EMPTY_HEADER, startedAt: 1_000 })
@@ -336,6 +371,166 @@ test("two lanes naming ONE checkout are one run — the second claim is the mist
       yield* settle
       expect(dials).toBe(1)
       expect(watch.rows()).toHaveLength(1)
+    })),
+  )
+})
+
+// ── The two notices a hold rings ─────────────────────────────────────────
+
+test("a frame carrying NO red says nothing", () => {
+  const it = bench(coordinator(state(), header(), null))
+  const watch = makeWatch(it.deps)
+  watch.reclaim([named()])
+  return Effect.runPromise(
+    Effect.scoped(Effect.gen(function*() {
+      yield* watch.sweep
+      yield* settle
+      expect(it.noticed).toEqual([])
+    })),
+  )
+})
+
+test("the moment a frame carries red, FIRST-RED rings — once per run, never per red node", () => {
+  // The second frame carries a SECOND red node and the notice does not fire
+  // again: the chip's ink and the wake read the same rule, and a run has one
+  // moment of going red.
+  let push = (): void => {}
+  const frames = new Promise<void>((resolve) => {
+    push = () => resolve()
+  })
+  const secondRed = (): PipelineState => ({
+    ...redState(),
+    nodes: {
+      ...redState().nodes,
+      "c@p": node("c@p", "fmt-check", "errored"),
+    },
+  })
+  const it = bench(async () => ({
+    client: {
+      surface: {
+        nodes: {
+          get: () =>
+            Stream.concat(
+              Stream.make(redState()),
+              Stream.concat(
+                Stream.fromEffect(Effect.promise(() => frames)).pipe(Stream.drain),
+                Stream.concat(Stream.make(secondRed()), Stream.never),
+              ),
+            ),
+        },
+        header: { get: () => Stream.concat(Stream.make(header()), Stream.never) },
+      },
+    },
+    close: async () => {},
+  }) as never)
+  const watch = makeWatch(it.deps)
+  watch.reclaim([named()])
+  return Effect.runPromise(
+    Effect.scoped(Effect.gen(function*() {
+      yield* watch.sweep
+      yield* settle
+      expect(it.noticed).toHaveLength(1)
+      const first = it.noticed[0]
+      expect(first?.kind).toBe("first-red")
+      if (first?.kind !== "first-red") return
+      // The first red node in the run's OWN order, and the row as of that
+      // frame — live, with the counts the frame carried.
+      expect(first.cell.id).toBe("b@p")
+      expect(first.run.live).toBe(true)
+      expect(tallyOf(first.run.cells).red).toBe(1)
+      push()
+      yield* settle
+      expect(it.noticed).toHaveLength(1)
+    })),
+  )
+})
+
+test("a run ALREADY red when olai first dialed says so on the first frame", () => {
+  // Pre-existence is not a pardon: the fleet watcher holds a terminal that
+  // was awaiting when olai booted to the same rule.
+  const it = bench(coordinator(redState(), header(), null))
+  const watch = makeWatch(it.deps)
+  watch.reclaim([named()])
+  return Effect.runPromise(
+    Effect.scoped(Effect.gen(function*() {
+      yield* watch.sweep
+      yield* settle
+      expect(it.noticed).toHaveLength(1)
+      expect(it.noticed[0]?.kind).toBe("first-red")
+    })),
+  )
+})
+
+test("SETTLED rings where the row is stamped, carrying every node the hold EVER saw red", () => {
+  // The run reddened and then — after a rerun — went green: the final frame
+  // is clean, and the notice still names `b@p`, because that is the hold's
+  // own record and not an inference anybody ran afterwards.
+  let push = (): void => {}
+  const frames = new Promise<void>((resolve) => {
+    push = () => resolve()
+  })
+  let settled = (): void => {}
+  const ends = new Promise<void>((resolve) => {
+    settled = () => resolve()
+  })
+  const it = bench(async () => ({
+    client: {
+      surface: {
+        nodes: {
+          get: () =>
+            Stream.concat(
+              Stream.make(redState()),
+              Stream.concat(
+                Stream.fromEffect(Effect.promise(() => frames)).pipe(Stream.drain),
+                Stream.concat(
+                  Stream.make(greenState()),
+                  Stream.fromEffect(Effect.promise(() => ends)).pipe(Stream.drain),
+                ),
+              ),
+            ),
+        },
+        header: { get: () => Stream.concat(Stream.make(header()), Stream.never) },
+      },
+    },
+    close: async () => {},
+  }) as never)
+  const watch = makeWatch(it.deps)
+  watch.reclaim([named()])
+  return Effect.runPromise(
+    Effect.scoped(Effect.gen(function*() {
+      yield* watch.sweep
+      yield* settle
+      push()
+      yield* settle
+      settled()
+      yield* settle
+      const settled_ = it.noticed.find((one) => one.kind === "settled")
+      expect(settled_?.kind).toBe("settled")
+      if (settled_?.kind !== "settled") return
+      expect(settled_.run.live).toBe(false)
+      expect(verdictOf(tallyOf(settled_.run.cells))).toBe("ok")
+      expect(settled_.reddened).toEqual(["b@p"])
+      // ...and the whole stream of notices for this run: first-red, settled.
+      expect(it.noticed.map((one) => one.kind)).toEqual(["first-red", "settled"])
+    })),
+  )
+})
+
+test("a run the board DROPPED mid-run rings nothing — not even settled", () => {
+  // The frame writes and both emission sites sit behind the same `wanted`
+  // guard: a lane the vault dropped is quiet on every channel at once.
+  const it = bench(coordinator(redState(), header(), null))
+  const watch = makeWatch(it.deps)
+  watch.reclaim([named()])
+  return Effect.runPromise(
+    Effect.scoped(Effect.gen(function*() {
+      yield* watch.sweep
+      // Unboard BEFORE the first frame lands: the hold is forked but has not
+      // seen one, so even first-red is the vault's own silence.
+      watch.reclaim([])
+      yield* settle
+      expect(it.noticed).toEqual([])
+      expect(watch.rows()).toEqual([])
     })),
   )
 })

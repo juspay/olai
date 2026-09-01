@@ -37,9 +37,9 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
     And the agent panel is open
     # The default, and it is a ruling rather than an oversight: nobody is opted
     # in by a serve, so the control is drawn saying so.
-    Then this conversation wakes on nothing
-    When I point this conversation's wake at "lanes.olai"
-    Then this conversation wakes on "lanes.olai"
+    Then this conversation's "kolu" wake is on nothing
+    When I point this conversation's "kolu" wake at "lanes.olai"
+    Then this conversation's "kolu" wake is on "lanes.olai"
     # Half a thought in the box, unsent. Everything after this line is also a
     # claim about these words: the doorbell rides the wire a send rides and
     # never the composer.
