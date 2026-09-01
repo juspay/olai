@@ -2,7 +2,7 @@
  * WHAT A DOORBELL SAID THAT IS NOT AT THE AGENT YET — the held bodies, in
  * arrival order, per conversation.
  *
- * A plugin can put a sentence into a conversation ({@link ../../plugins/src/plugin.ts}'s
+ * A plugin can put a sentence into a conversation ({@link ../../plugin-api/src/plugin.ts}'s
  * `Deliveries`), and there are two moments at which core cannot hand one over:
  * a turn is running, or nobody is in that conversation at all. This module is
  * what core holds in between, and it is the whole of what core holds — the
@@ -98,7 +98,7 @@ export interface Slot {
    *  of the coalescing pair that keeps two plugins' `digest`s apart. */
   readonly from: string
   /** The plugin's words, asked for at the moment they go in — see
-   *  `@olai/plugins`' `Deliveries.deliver` for why this is not a string. */
+   *  `@olai/plugin-api`'s `Deliveries.deliver` for why this is not a string. */
   readonly say: () => string | null
   readonly under: string | undefined
 }
@@ -321,7 +321,7 @@ export const holding = (): Holding => {
  * something to say.
  *
  * Each slot is asked at the moment the row is written, which is the whole point
- * of holding a thunk rather than a string (`@olai/plugins`' `Deliveries.deliver`
+ * of holding a thunk rather than a string (`@olai/plugin-api`'s `Deliveries.deliver`
  * argues it): a body that waited through a turn is about a world that has had a
  * turn to move. A slot that answers `null` has lost its subject and is simply
  * not in the message; if none of them answers, there is no message, and

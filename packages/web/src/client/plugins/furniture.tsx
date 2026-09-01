@@ -22,7 +22,7 @@
  *
  * The rejected alternative is worth naming because it is the obvious one: let a
  * plugin import `@olai/web` for the dozen names it wants. It is a CYCLE (this
- * package mounts every plugin) and `@olai/plugins`' own fence would refuse it
+ * package mounts every plugin) and `@olai/plugin-api`'s own fence would refuse it
  * before a reviewer had to notice — but the reason it would be wrong even if the
  * graph allowed it is the one above.
  *
@@ -57,7 +57,7 @@
 import { Show } from "solid-js"
 import { Portal } from "solid-js/web"
 
-import type { AppFurniture, AppPopover, FileLink } from "@olai/plugins"
+import type { AppFurniture, AppPopover, FileLink } from "@olai/plugin-api"
 
 import { styleOf } from "../anchor.ts"
 import { createTicking, MINUTE, SECOND } from "../clock.ts"

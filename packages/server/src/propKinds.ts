@@ -25,7 +25,7 @@
  *
  * ## Through `/server` and not the root
  *
- * `@olai/plugins`' root is the MANIFESTS, and a manifest carries a plugin's
+ * `@olai/plugin-api`'s root is the MANIFESTS, and a manifest carries a plugin's
  * SolidJS faces — reaching it from a process that renders nothing does not
  * merely cost bytes, it KILLS THE BOOT (`./pluginPolicy.ts` carries the whole
  * incident on the same import). The kinds hang on the SERVER door for exactly
@@ -34,14 +34,14 @@
  */
 
 import type { KindVocabulary } from "@olai/format"
-import { enabled, kindsOf, SERVERS } from "@olai/plugins/server"
+import { enabled, kindsOf, SERVERS } from "@olai/plugin-api/server"
 
 /**
  * The vocabulary, for a serve pinned by `--plugins` — `null` being nobody
  * having said, which means every plugin this binary was built with
  * (`./pluginPolicy.ts`).
  *
- * The return type is `@olai/format`'s and the value is `@olai/plugins`', which
+ * The return type is `@olai/format`'s and the value is `@olai/plugin-api`'s, which
  * is this line's whole job: neither package names the other, the two shapes are
  * declared structurally at each end, and the agreement is a type error HERE if
  * it ever stops holding. It is the arrangement the registry's own `satisfies`

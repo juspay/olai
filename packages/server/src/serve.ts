@@ -28,7 +28,7 @@ import { AGENT_ENV, roster, whyNoAgent } from "@olai/chat"
 import type { GitPin } from "@olai/format"
 import type { IdentityConfig } from "@olai/identity"
 import { fixedPolicy, make as makeOps, TOOLS } from "@olai/ops"
-import { enabled, probesOf, SERVERS } from "@olai/plugins/server"
+import { enabled, probesOf, SERVERS } from "@olai/plugin-api/server"
 import { Effect, SubscriptionRef } from "effect"
 import { randomBytes } from "node:crypto"
 
@@ -197,7 +197,7 @@ export const serve = (options: ServeOptions) =>
        * root is where a process reaches for the real environment, and a probe
        * has to see what a session's own spawn will resolve against.
        *
-       * Through `@olai/plugins/server` and not the root, for `./pluginPolicy.ts`'s
+       * Through `@olai/plugin-api/server` and not the root, for `./pluginPolicy.ts`'s
        * reason: the manifests carry SolidJS faces, and the first `.tsx` this
        * process evaluates kills the boot.
        */

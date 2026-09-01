@@ -1,0 +1,38 @@
+/* THIS PLUGIN'S SHEET — the appliance's chain, plus a `@source` at these faces.
+ *
+ * THE FAILURE IS SILENT, which is why this file exists rather than a note in a
+ * README. `@olai/web`'s `styles.css` carries `@source "./"` — the app's own tree
+ * — and Tailwind emits ONLY the utilities it can SEE. The pill and the feed's
+ * foot spell `truncate`, `text-[0.6875rem]`, `border-paper/15`, `size-3` and a
+ * dozen more; the day they left `client/padi/` for this package, nothing pointed
+ * at them any more. Not a missing style: a pill with no box and a wrench with no
+ * size, and no compiler saying a word about it.
+ *
+ * ## Why the appliance's sheet is chained rather than left to the consumer
+ *
+ * `../appliance/props/all.css` carries the Dock row's sheet, the emulator's layout and
+ * a `@source` at ITS OWN directory, and its header states the rule this file
+ * inherits: *a sheet has to carry its own prerequisites and point Tailwind at
+ * ITSELF, because a consumer that has to know the order and the scan paths is a
+ * consumer holding facts about somebody else's directory layout.* It was
+ * `@olai/kolu-ui/all.css` until the appliance fold; the chain is the same one
+ * link shorter, and it still has to be a chain rather than one merged sheet —
+ * `@source` is RELATIVE to the file it is written in, so a single sheet naming
+ * two face directories would be one file holding the other's layout, which is
+ * the rule above read backwards. This plugin's own faces sit above the ui's, so
+ * this sheet names that one and the app names only this — one line at each
+ * level, and nobody upstairs knows where any of it landed.
+ *
+ * The chain has one consequence worth stating out loud: the appliance's sheet
+ * arrives with the PLUGIN now, not with the app. A serve with kolu disabled
+ * still ships those bytes, because a stylesheet is built once for the bundle and
+ * `--plugins` is a decision the SERVE makes. That is the honest cost of
+ * compiled-in plugins and it is the same one the wire already pays — the browser
+ * dials every plugin the BUILD has (`@olai/web`'s `client/wire.ts` argues it in
+ * full), and what a serve leaves out is a sibling whose members are simply not
+ * there. */
+@import "../appliance/props/all.css";
+
+/* THE SCAN PATH, relative to this file and nothing else — what keeps these
+ * faces' utilities alive wherever the directory ends up. */
+@source "./";

@@ -5,11 +5,11 @@
  * row with the plugin's NAME and nothing else (`@olai/surface`'s
  * `UserEntry.rang`). The panel draws such a row as a speaker in its own right
  * and every speaker there wears a mark — so this is the lookup from that name
- * to the shapes the plugin contributed (`@olai/plugins`' `PluginMark`).
+ * to the shapes the plugin contributed (`@olai/plugin-api`'s `PluginMark`).
  *
  * ## Why a lookup and not a table
  *
- * Because a table would have this file spelling "kolu", and `@olai/plugins`'
+ * Because a table would have this file spelling "kolu", and `@olai/plugin-api`'s
  * `fence.test.ts` holds as an equality per package that no general package does
  * — which is not a formality: a mark is a drawing decision about a tenant, made
  * where somebody knows what the tenant IS, and a table here would be a core
@@ -38,7 +38,7 @@
  * ({@link ../chat/PluginMark.tsx}).
  */
 
-import type { PluginMark } from "@olai/plugins"
+import type { PluginMark } from "@olai/plugin-api"
 
 import { ROSTER } from "./roster.ts"
 

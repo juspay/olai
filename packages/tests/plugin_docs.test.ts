@@ -5,7 +5,7 @@
  * ## What is being kept honest, and why prose alone could not
  *
  * A plugin's user docs live in the plugin's own package
- * (`packages/plugin-<name>/docs.md`), and `@olai/plugins`' `OlaiPlugin.name`
+ * (`packages/plugins/olai-plugin-<name>/docs.md`), and `@olai/plugin-api`'s `OlaiPlugin.name`
  * argues that placement against the standing ruling it looks like a breach of
  * — *"a page beside a binary is a page that goes stale"* (`@olai/server`'s
  * `main.ts`, ruled human 2026-08-23). The counter-case is that a plugin has no
@@ -37,7 +37,7 @@
  *
  * ## …so a plugin's page is authored at its SERVED address
  *
- * A page written in `packages/plugin-<name>/` is READ at `docs/plugins/`, so
+ * A page written in `packages/plugins/olai-plugin-<name>/` is READ at `docs/plugins/`, so
  * its relative links are the served set's (`../format.md`, and a sibling
  * plugin as `odu.md`). That is the real cost of the symlink, and it is checked
  * here rather than left to be discovered — which is more than any other page
@@ -45,7 +45,7 @@
  *
  * ## Why the WIRE door, and why the population is not read off the tree
  *
- * `PLUGIN_NAMES` comes from `@olai/plugins/wire`, and the subpath is
+ * `PLUGIN_NAMES` comes from `@olai/plugin-api/wire`, and the subpath is
  * load-bearing exactly as it is at `@olai/server`'s `pluginPolicy.ts`: the
  * ROOT door is the manifests, a manifest carries SolidJS faces and a terminal
  * emulator behind one of them, and importing it from a process that renders
@@ -59,8 +59,8 @@
  * directory was absent. The registry is what ships.
  *
  * And it lives here because `@olai/tests` is the only package above all the
- * others (support/sweep.ts' header, and ../plugins/src/fence.test.ts' closing
- * paragraph): a sweep over `docs/` from inside `@olai/plugins` would be a
+ * others (support/sweep.ts' header, and ../plugin-api/src/fence.test.ts' closing
+ * paragraph): a sweep over `docs/` from inside `@olai/plugin-api` would be a
  * package reading the repository it is a part of.
  */
 
@@ -69,15 +69,16 @@ import * as path from "node:path";
 
 import { expect, test } from "bun:test";
 
-import { PLUGIN_NAMES } from "@olai/plugins/wire";
+import { PLUGIN_NAMES } from "@olai/plugin-api/wire";
 
 import { ROOT } from "./support/sweep.ts";
 
 /** Where a plugin's page is AUTHORED, and where it is SERVED. The two are one
  *  file; these are its two names. Both are computed from the plugin's name,
- *  which IS the page's address (`@olai/plugins`' `OlaiPlugin.name`), so
+ *  which IS the page's address (`@olai/plugin-api`'s `OlaiPlugin.name`), so
  *  nothing here spells a tenant. */
-const authored = (name: string): string => path.join("packages", `plugin-${name}`, "docs.md");
+const authored = (name: string): string =>
+  path.join("packages", "plugins", `olai-plugin-${name}`, "docs.md");
 const served = (name: string): string => path.join("docs", "plugins", `${name}.md`);
 
 const at = (file: string): string => path.join(ROOT, file);

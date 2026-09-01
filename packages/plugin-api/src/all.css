@@ -1,0 +1,37 @@
+/* THE PLUGINS' SHEETS — the fourth door, and the one no reading of a `.ts`
+ * file can see.
+ *
+ * ## Why the app cannot import them directly
+ *
+ * `./fence.test.ts` holds ONE claim as an equality per package: no package
+ * outside this one names a plugin, and it reads a `.css` file's `@import` as
+ * well as a module's specifiers, precisely because a stylesheet is a door. So
+ * `@olai/web`'s `styles.css` importing `olai-plugin-odu/all.css` would be the
+ * app spelling a plugin's name — the same violation as an `import`, in the one
+ * grammar a TypeScript reading is blind to.
+ *
+ * The registry is where a plugin's name is allowed to be written, so the chain
+ * routes through here. The app imports ONE line and knows about no tenant.
+ *
+ * ## Why a `@source` per plugin is not optional
+ *
+ * Tailwind emits only the utilities it can SEE, and `@olai/web`'s `styles.css`
+ * points at the app's own tree. A face that moved out of that tree emits NO
+ * classes and NOTHING errors — not a missing style, a component with no box, no
+ * ink and no spacing. Each plugin's sheet therefore carries a `@source` relative
+ * to its own directory (and, where its faces sit on somebody else's components,
+ * that package's sheet ahead of it), which is `olai-plugin-kolu`'s `appliance/props/all.css`
+ * one floor down and the rule its header states: a package that ships a
+ * stylesheet carries its own prerequisites and points Tailwind at ITSELF.
+ *
+ * ## Every BUILT plugin, not every ENABLED one
+ *
+ * `--plugins` is a decision the SERVE makes and a stylesheet is built once for
+ * the bundle, so a serve with a plugin switched off still ships its classes.
+ * That is the honest cost of compiled-in plugins and it is the same one the wire
+ * already pays — the browser dials every plugin the BUILD has, and what a serve
+ * leaves out is a sibling whose members are simply not there (`@olai/web`'s
+ * `client/wire.ts` argues that in full). Unused utility classes are bytes;
+ * a face drawn with none of them is a bug. */
+@import "olai-plugin-kolu/all.css";
+@import "olai-plugin-odu/all.css";

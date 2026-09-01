@@ -20,7 +20,7 @@
  * The fake serves padi's REAL surface over a real unix socket — it imports
  * `@kolu/padi-client/surface` and `@kolu/surface-daemon/control-core`. Those
  * are product-tier imports, and the sixth sitting's fence confines the product
- * tier to this package and `@olai/kolu-ui` with ZERO exceptions. A fake that
+ * tier to this package and to `olai-plugin-kolu`, its tenant, with ZERO exceptions. A fake that
  * lived in the suite would have been the fence's one permanent hole, and a hole
  * a reviewer has to remember is not a wall.
  *

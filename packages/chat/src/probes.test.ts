@@ -11,7 +11,7 @@
  *
  * The rendering case came from `kolu.test.ts`, which asserted `mcpServersOf`
  * from a file that was otherwise entirely about detecting one appliance. The
- * probe moved to `@olai/plugin-kolu`; the rendering belongs to whoever owns
+ * probe moved to `olai-plugin-kolu`; the rendering belongs to whoever owns
  * `mcpServersOf`, which is this package.
  */
 

@@ -17,7 +17,7 @@
 
 import { expect, test } from "bun:test"
 
-import { PLUGIN_NAMES } from "@olai/plugins/wire"
+import { PLUGIN_NAMES } from "@olai/plugin-api/wire"
 
 import { pluginsPin, pluginsSaid } from "./pluginPolicy.ts"
 
@@ -42,7 +42,7 @@ test("a list is the names in it, however a person spaced them", () => {
 
 test("a name this build does not have is refused, with the ones it does", () => {
   // The ONE place an unknown name is answered, and it is where a person typed
-  // it. `@olai/plugins`' own `enabled` deliberately refuses nothing.
+  // it. `@olai/plugin-api`'s own `enabled` deliberately refuses nothing.
   expect(() => pluginsPin("nope")).toThrow(/nope/)
   for (const name of PLUGIN_NAMES) {
     expect(() => pluginsPin("nope")).toThrow(new RegExp(name))

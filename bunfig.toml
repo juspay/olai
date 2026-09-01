@@ -10,7 +10,7 @@
 # dependencies at the root, and only those. That is the invariant to protect:
 # a hydrated package importing something the root package.json does not
 # declare resolves nothing. It is checked rather than remembered
-# (scripts/check-kolu-deps.sh, a `just check` leg), and the fix when it fires
+# (scripts/check-hydrated-deps.sh, the `kolu-deps` and `odu-deps` legs of `just check`), and the fix when it fires
 # is to declare the dependency here, never to switch linkers.
 #
 # Hoisted is the other way to feed hydrated sources — it is what srid/drishti

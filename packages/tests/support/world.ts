@@ -36,13 +36,13 @@ import {
   type TestId,
 } from "@olai/web/testlib";
 // ...and the PLUGINS' half of the same table. The ids split by RENDERER — a
-// scenario asserting on the padi pill is asserting on `@olai/plugin-kolu`'s
+// scenario asserting on the padi pill is asserting on `olai-plugin-kolu`'s
 // output, not on the app's — and they route through the registry because
-// `packages/plugins/src/fence.test.ts` holds, as an equality per package, that
+// `packages/plugin-api/src/fence.test.ts` holds, as an equality per package, that
 // nothing outside it names a plugin. The door is NAMES ONLY, which is what
 // keeps a component (and behind kolu's, a terminal emulator) off the graph of a
 // process with no browser in it.
-import { PLUGIN_TESTID } from "@olai/plugins/testids";
+import { PLUGIN_TESTID } from "@olai/plugin-api/testids";
 import { listenHeaderProxy, type HeaderProxy } from "./headerProxy.ts";
 import type { LivePadi } from "@olai/kolu-client/testlib";
 import {

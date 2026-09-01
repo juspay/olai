@@ -217,13 +217,13 @@ export interface HeldState {
 }
 /**
  * EXPORTED FOR THE ONE READER THAT MUST NOT RE-DERIVE IT — the doorbell in
- * `@olai/plugin-kolu`, which composes a sentence naming every claimed
+ * `olai-plugin-kolu`, which composes a sentence naming every claimed
  * terminal that is HELD RIGHT NOW and reads that off the live fleet rows
  * (`KoluHalf.rows()`) rather than off any memory of its own.
  *
  * A SECOND SPELLING WOULD BE A SECOND ANSWER. The buckets are
  * `@kolu/terminal-vocab`'s, reached through `narrowAgentState` and
- * `agentBucket`, and `@olai/plugin-kolu` does not depend on either — nor
+ * `agentBucket`, and `olai-plugin-kolu` does not depend on either — nor
  * should it: which words a padi build spells is exactly the knowledge the
  * package wall keeps on this side. So the fold crosses as a FUNCTION, the
  * way {@link ../fleet.ts}'s `Claimant` crosses as four strings, and the

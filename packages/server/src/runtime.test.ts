@@ -28,9 +28,9 @@ import {
 import type { App, DocumentEntry, Head, Manifest, PluginRoster, Shelf } from "@olai/surface"
 import { CHAT_OFF, NO_ROSTER } from "@olai/surface"
 import type { Chat, Scoped } from "@olai/chat"
-import { PLUGIN_NAMES } from "@olai/plugins/wire"
-import * as pluginsDoor from "@olai/plugins/server"
-import type { PluginServices } from "@olai/plugins/server"
+import { PLUGIN_NAMES } from "@olai/plugin-api/wire"
+import * as pluginsDoor from "@olai/plugin-api/server"
+import type { PluginServices } from "@olai/plugin-api/server"
 import type { CollectionDeltasMsg } from "@kolu/surface/define"
 import { defineSurface } from "@kolu/surface/define"
 import { NO_KINDS } from "@olai/format"
@@ -767,7 +767,7 @@ test("the roster is served on the plugins cell", () =>
  *
  * ## The halves are DOUBLES, and the registry is put back
  *
- * A composition root reads its halves off `@olai/plugins`' compiled-in
+ * A composition root reads its halves off `@olai/plugin-api`'s compiled-in
  * registry, so a case that wants a plugin declaring a wake beside one that
  * declares none has to say what the registry holds for the length of one boot.
  * Composing the BUILD's real halves is what the harness above already says no
@@ -790,7 +790,7 @@ const REGISTRY = { ...pluginsDoor }
 
 /** A whole surface with nothing on it. What a double contributes to the fused
  *  group, and it is a real state rather than a convenience: an empty sibling
- *  composes to no tag, no handler and no expose row (`@olai/plugins`'
+ *  composes to no tag, no handler and no expose row (`@olai/plugin-api`'s
  *  `composition.test.ts` holds it), so a runtime composed with these is byte
  *  for byte the runtime every other case in this file boots. */
 const NOTHING = defineSurface({})
@@ -865,11 +865,11 @@ const withDoubles = async <A>(
   halves: ReadonlyArray<ReturnType<typeof halfCalled>>,
   body: () => Promise<A>,
 ): Promise<A> => {
-  mock.module("@olai/plugins/server", () => ({ ...REGISTRY, SERVERS: halves }))
+  mock.module("@olai/plugin-api/server", () => ({ ...REGISTRY, SERVERS: halves }))
   try {
     return await body()
   } finally {
-    mock.module("@olai/plugins/server", () => REGISTRY)
+    mock.module("@olai/plugin-api/server", () => REGISTRY)
   }
 }
 

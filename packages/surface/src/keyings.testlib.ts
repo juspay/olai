@@ -4,7 +4,7 @@
  *
  * PUBLISHED AS A TESTLIB, and the reason is the plugin extraction: a member's
  * `arrayKey` is a claim about the SCHEMA that member carries, and members are
- * declared in the package that owns them now — `@olai/plugin-odu`'s `ci` cell
+ * declared in the package that owns them now — `olai-plugin-odu`'s `ci` cell
  * declares `id` and reaches two array depths with it. That claim has to be
  * holdable where the member is, and the alternative was each plugin growing its
  * own copy of a fifty-line AST walk: a second opinion about the very thing

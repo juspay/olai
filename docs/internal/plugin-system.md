@@ -5,8 +5,8 @@ core learning any of their names.*
 
 This page is for people working on olai. It is a tour, not a specification: the
 authoritative arguments live in the code, mostly in
-[`packages/plugins/src/plugin.ts`](../../packages/plugins/src/plugin.ts) and its
-[README](../../packages/plugins/README.md). If you only read one thing, read
+[`packages/plugin-api/src/plugin.ts`](../../packages/plugin-api/src/plugin.ts) and its
+[README](../../packages/plugin-api/README.md). If you only read one thing, read
 **Vocabulary** and **How a live property gets its face**.
 
 ---
@@ -35,7 +35,8 @@ what an absent padi means, which vault file is kolu's, which property wears whic
 face. What was missing was a *place to put a judgement about an appliance that is
 neither the appliance nor the core*.
 
-`packages/plugins/` is that place, and it is the only one.
+`packages/plugin-api/` is that place, and it is the only one — and the tenants that
+stand on it live one directory over, in [`packages/plugins/`](../../packages/plugins/README.md).
 
 > **The bar:** a general package may know a plugin's **name**. It may not know
 > anything else about it — not a member, not a key, not a constructor.
@@ -48,7 +49,7 @@ A plugin is a **value**. Its first field is a `name`; its second is a whole
 `surface` of its own. Everything else is optional.
 
 ```ts
-// packages/plugin-odu/src/plugin.ts  (abridged)
+// packages/plugins/olai-plugin-odu/src/plugin.ts  (abridged)
 export const plugin = {
   name,                                   // "odu"
   surface,                                // a whole surface, declared here
@@ -59,11 +60,11 @@ export const plugin = {
 ```
 
 Core never writes `: OlaiPlugin` on that object, and the plugin never imports
-`@olai/plugins`. The registry imports every plugin, so a dependency back would be
+`@olai/plugin-api`. The registry imports every plugin, so a dependency back would be
 a cycle. The fit is proved at the registry instead:
 
 ```ts
-// packages/plugins/src/registry.ts
+// packages/plugin-api/src/registry.ts
 export const PLUGINS = [kolu, odu] as const satisfies ReadonlyArray<OlaiPlugin>
 ```
 
@@ -275,7 +276,7 @@ read as a column and a plugin that owned the size could make its row look unlike
 every row around it.
 
 It is a manifest field rather than a table in the panel for the fence's reason: no
-general package spells a plugin's name in code (`fence.test.ts`, claim 9), so the
+general package spells a plugin's name in code (`fence.test.ts`, claim 8), so the
 day a third tenant delivers a sentence it arrives wearing its own face and core is
 not edited. A plugin that hangs none is drawn with a plain generic and named in
 full — never another plugin's shape.
@@ -351,27 +352,27 @@ can read it without dialling anything.
 
 ## 4. Three doors, because three graphs
 
-`@olai/plugins` has three code entry points, and a plugin has three to match.
+`@olai/plugin-api` has three code entry points, and a plugin has three to match.
 This is the one place the design costs something: a third plugin is **three
 lines**, not one.
 
 ```
                         ┌──────────────────────────────────────────┐
-   @olai/plugins/wire   │  name · surface · faces                  │
+   @olai/plugin-api/wire   │  name · surface · faces                  │
    ─────────────────▶   │  no SolidJS, no appliance client         │
    read by: the server's│  no node: builtins                       │
    composition root AND └──────────────────────────────────────────┘
    the browser's wire
 
                         ┌──────────────────────────────────────────┐
-   @olai/plugins/server │  + serve() · probe() · kinds · wake      │
+   @olai/plugin-api/server │  + serve() · probe() · kinds · wake      │
    ─────────────────▶   │  MAY pull the appliance's client,        │
    read by: a server    │  @olai/format, node: builtins            │
    process              │  may NOT pull a browser face             │
                         └──────────────────────────────────────────┘
 
                         ┌──────────────────────────────────────────┐
-   @olai/plugins        │  + dressings · chrome · mount · mark     │
+   @olai/plugin-api        │  + dressings · chrome · mount · mark     │
    ─────────────────▶   │  SolidJS, and behind one face            │
    read by: the browser │  a terminal emulator                     │
                         └──────────────────────────────────────────┘
@@ -387,7 +388,7 @@ stylesheet, and `./testids` merges each plugin's names-only testid table.
 
 The three rosters (`WIRES`, `SERVERS`, `PLUGINS`) must hold the same plugins in
 the same order —
-[`rosters.test.ts`](../../packages/plugins/src/rosters.test.ts) is the lid, because
+[`rosters.test.ts`](../../packages/plugin-api/src/rosters.test.ts) is the lid, because
 a plugin added to two of them is a compile error nowhere.
 
 ---
@@ -421,7 +422,7 @@ This whole shape is the framework's, end to end (juspay/kolu#2222):
 | browser dials | `connectSurfaces({ core, surfaces })` — **one call**, watchdog included |
 
 olai spelled all three by hand for one PR window and now spells none of them.
-[`mechanics.test.ts`](../../packages/plugins/src/mechanics.test.ts) is the standing
+[`mechanics.test.ts`](../../packages/plugin-api/src/mechanics.test.ts) is the standing
 lint that it stays that way.
 
 ---
@@ -609,24 +610,49 @@ as.
 
 ## 9. Adding a plugin
 
-The whole checklist. Nothing outside `packages/` changes.
+The whole checklist. Two of its artifacts live outside `packages/` (a symlink and
+a docs line, step 4) and no GENERAL package changes at all, which is the claim
+that matters.
 
-1. **`packages/plugin-<name>/src/wire.ts`** — `name`, a `defineSurface`, and the
-   `faces` map. This file may not import SolidJS, an appliance client, or a
-   `node:` builtin.
-2. **`packages/plugin-<name>/src/server.ts`** — `serve()`, and optionally
-   `probe()`, `kinds` and `wake`. This is where the appliance's client is called,
-   and where `services.deliveries` is rung if the plugin has anything to say into
-   a conversation. Declare `wake` or the strip draws no picker for you and
-   `chat.scope` refuses your name — which is the gate working, not a bug.
-3. **`packages/plugin-<name>/src/plugin.ts`** — the manifest: the wire half plus
-   `dressings`, `chrome`, `mount`, `mark`. Browser graph.
-4. **`packages/plugin-<name>/docs.md`** — the user page, plus a symlink at
-   `docs/plugins/<name>.md` and a line in `docs/index.md`.
-5. **Three lines in `packages/plugins/`** — one in `surfaces.ts`, one in
-   `server.ts`, one in `registry.ts`.
+0. **`packages/plugins/olai-plugin-<name>/package.json`** — the package is called
+   `olai-plugin-<name>`, unscoped, and the directory is called the same thing.
+   `@olai/*` is the scope for the packages that ARE olai; a tenant is olai's
+   judgement about somebody else's appliance, which is the closest thing in this
+   tree to a plugin written outside it, so it is named the way one would be. It
+   goes in `packages/plugins/` and nowhere else — that directory is the tenant
+   container, held to the registry's roster in both directions by
+   `fence.test.ts`'s ninth claim. Copy either tenant's manifest for the shape:
+   `main`, `types`, a `typecheck` script, and an `exports` map of five entries
+   (`.`, `./wire`, `./server`, `./testids`, `./all.css`). Declare your
+   appliance's client, `@olai/format` if you walk the vault, `solid-js` if you
+   draw, and **everything else your own sources import** — the isolated linker
+   gives a member exactly what its manifest names, and `effect` resolving by
+   walking up to the root is a hole rather than a shortcut. Never declare
+   `@olai/plugin-api`, which imports you.
+1. **`packages/plugins/olai-plugin-<name>/src/wire.ts`** — `name`, a
+   `defineSurface`, and the `faces` map. This file may not import SolidJS, an
+   appliance client, or a `node:` builtin.
+2. **`packages/plugins/olai-plugin-<name>/src/server.ts`** — `serve()`, and
+   optionally `probe()`, `kinds` and `wake`. This is where the appliance's
+   client is called, and where `services.deliveries` is rung if the plugin has
+   anything to say into a conversation. Declare `wake` or the strip draws no
+   picker for you and `chat.scope` refuses your name — which is the gate
+   working, not a bug.
+3. **`packages/plugins/olai-plugin-<name>/src/plugin.ts`** — the manifest: the
+   wire half plus `dressings`, `chrome`, `mount`, `mark`. Browser graph.
+4. **`packages/plugins/olai-plugin-<name>/docs.md`** — the user page, plus a
+   symlink at `docs/plugins/<name>.md` and a line in `docs/index.md`.
+   `packages/tests/plugin_docs.test.ts` fails if you skip either.
+5. **Six edits in `packages/plugin-api/`**, not three — each roster is an
+   `import` line AND an array entry, and three files beside them:
+   `surfaces.ts`'s `WIRES`, `server.ts`'s `SERVERS`, `registry.ts`'s `PLUGINS`,
+   `testids.ts`'s spread into `PLUGIN_TESTID`, one `@import` in `src/all.css`
+   (a face outside the scan path renders with **no layout while nothing
+   errors**), and `package.json`'s `dependencies` — without which the three
+   roster imports do not resolve at all.
 
-Then run `bun test packages/plugins` and let the fence tell you what you got
+
+Then run `bun test packages/plugin-api` and let the fence tell you what you got
 wrong. It will be specific.
 
 Everything in steps 1–3 but the name and the surface is **optional**. A plugin
@@ -643,11 +669,15 @@ names the file.
 
 | File | Holds |
 | --- | --- |
-| `packages/plugins/src/fence.test.ts` | no general package **imports** a plugin (four grammars: imports, `scanImports`, CSS `@import`, manifests) — and no general package **spells** one in production code |
-| `packages/plugins/src/mechanics.test.ts` | olai names no wire mechanic the framework performs |
-| `packages/plugins/src/rosters.test.ts` | the three doors list the same plugins, in the same order |
-| `packages/plugins/src/composition.test.ts` | an empty roster composes, and core's tags do not move |
-| `packages/plugins/src/testids.test.ts` | two plugins' testid tables are disjoint |
+| `packages/plugin-api/src/fence.test.ts` | no general package **imports** a plugin (four grammars: imports, `scanImports`, CSS `@import`, manifests) — no general package **spells** one in production code — and `packages/plugins/` holds the tenants and nothing else, both directions |
+| `scripts/prove-fence.sh` | the fence and the mechanics lint go RED when they should. Not a `just check` leg: it mutates tracked files and puts them back, and `check` runs its legs in parallel. Run it when the fence CHANGES — a sweep's one failure mode is going quiet, and a fence that stopped running looks exactly like a fence that is holding |
+| `packages/plugin-api/src/mechanics.test.ts` | olai names no wire mechanic the framework performs |
+| `packages/plugin-api/src/tree.testlib.ts` | not a claim — the READING both of the above stand on (workspace members, manifests, sources, the module graph). Split out so the two files above are their claims and nothing else, and so the source walk is written once |
+| `packages/plugin-api/src/rosters.test.ts` | the three doors list the same plugins, in the same order |
+| `packages/plugin-api/src/composition.test.ts` | an empty roster composes, and core's tags do not move |
+| `packages/plugin-api/src/testids.test.ts` | two plugins’ testid tables are disjoint — and one layer further out, `packages/web/src/client/testids.test.ts` holds the app’s own table disjoint from theirs, which is the seam `selector()` actually spends |
+| `packages/plugins/olai-plugin-kolu/src/testids.ts` | a tenant’s two testid halves share no key and no value — a TYPE-level assertion, so a collision is a `tsc` error naming the offender rather than a test somebody keeps green |
+| `packages/plugins/olai-plugin-kolu/src/faces.test.ts` | the tenant’s own two face directories stay apart — `src/browser/` names no part of the appliance’s tier, and `src/appliance/` names none of the vault’s vocabulary, which is the wall `@olai/kolu-ui`’s manifest kept before the fold. In the TENANT, not in the fence: a per-directory rule up there would be the fence inventing a layout convention and enforcing its own invention |
 | `packages/tests/plugin_docs.test.ts` | every plugin's docs page exists, is served, and is linked |
 | `packages/server/src/faces.test.ts` | `chat.scope` is named on the **browser** face and nowhere else — the agent face is pinned as an exact set, so an agent-settable doorbell is a red suite rather than a rule somebody has to remember |
 | `packages/server/src/runtime.test.ts` | a `wake` sentence reaches the roster only for a plugin this serve is RUNNING, so no picker is offered for a doorbell nothing would ring |
@@ -658,7 +688,7 @@ names the file.
 
 ## See also
 
-- [`packages/plugins/README.md`](../../packages/plugins/README.md) — the same
+- [`packages/plugin-api/README.md`](../../packages/plugin-api/README.md) — the same
   subject at implementation depth.
 - [architecture.md](../architecture.md) — how every package fits, plugins included.
 - [live-properties.md](../live-properties.md) — the user-facing half of §7.

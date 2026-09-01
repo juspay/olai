@@ -18,7 +18,7 @@
  * is core spelling a plugin's member. Neither is allowed and neither is
  * necessary: the app hands each plugin ITS OWN CLIENT, addressed by the one
  * word core has, and what is behind the word is that plugin's business
- * (`@olai/plugins`' `PluginMount`).
+ * (`@olai/plugin-api`'s `PluginMount`).
  *
  * ## A FOLD, not a list
  *
@@ -147,7 +147,7 @@ const chainOver = (
       if (Mount === undefined) return inner
       // The client is addressed by the plugin's NAME, which is the sibling key
       // the framework composed its members under and the only word this package
-      // has about it. It is handed over opaque: `@olai/plugins` types it
+      // has about it. It is handed over opaque: `@olai/plugin-api` types it
       // `unknown` and the plugin narrows it once, at its own edge.
       return () => (
         <Mount client={clientFor(plugin.name)} app={FURNITURE}>

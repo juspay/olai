@@ -4,7 +4,7 @@
  *
  * A plugin can ring this conversation's doorbell: when something it watches
  * happens, it puts a whole sentence into the transcript the way a person does
- * (`@olai/plugins`' `Deliveries`, and {@link ./Entry.tsx} for what one looks
+ * (`@olai/plugin-api`'s `Deliveries`, and {@link ./Entry.tsx} for what one looks
  * like when it lands). WHICH conversation it may ring, and about what, is a
  * person's answer and nobody else's — this is where they give it.
  *
@@ -61,7 +61,7 @@
  * is one it can no longer find — a fact about core's own record, in core's own
  * vocabulary, with nothing in it about what the plugin watches. The sentence
  * the CONVERSATION got is the plugin's, delivered once through the door
- * (`@olai/plugins`' `PluginServerHalf.wake.gone`), and this file does not
+ * (`@olai/plugin-api`'s `PluginServerHalf.wake.gone`), and this file does not
  * repeat a word of it.
  *
  * AND THE GESTURE STILL WORKS. The picker is drawn, open-able and pressable in
@@ -242,7 +242,7 @@ function Line(props: {
           true, and the boundary is exact: core is describing A FILE IT STORES
           AND CANNOT FIND, which is a fact about core's own record. What the
           CONVERSATION was told is the plugin's own sentence, delivered once
-          (`@olai/plugins`' `PluginServerHalf.wake.gone`), and no word of it is
+          (`@olai/plugin-api`'s `PluginServerHalf.wake.gone`), and no word of it is
           repeated here. */}
       <Show when={props.ringer.gone}>
         <span

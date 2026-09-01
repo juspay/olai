@@ -51,8 +51,8 @@
  * This file is a table, a lay-out and three interfaces, and it reaches no face
  * at all. That rule is unchanged and the way it is KEPT has got stronger: the
  * two dressings this app installs are not folders beside this one any more, they
- * are packages (`@olai/plugin-kolu`, `@olai/plugin-odu`), and this package may
- * not name one — `packages/plugins/src/fence.test.ts` holds that as an equality
+ * are packages (`olai-plugin-kolu`, `olai-plugin-odu`), and this package may
+ * not name one — `packages/plugin-api/src/fence.test.ts` holds that as an equality
  * per package rather than as a habit. So the direction is physics here rather
  * than discipline.
  *
@@ -74,7 +74,7 @@
  *
  * The table's key is the WORD a plugin taught the vault — `terminal`,
  * `worktree` — and never the property key a value happens to sit under. That is
- * what the server has always followed: `@olai/plugin-odu`'s `worktrees.ts`
+ * what the server has always followed: `olai-plugin-odu`'s `worktrees.ts`
  * probes only the keys a vault declared its own `worktree` KIND, where the
  * licence used to settle for the format's `path` and could therefore not tell
  * `brief` from a checkout. So the promise a dressing rests on is one the vault
@@ -148,8 +148,8 @@ import type { Entry } from "../props/drawer.ts"
  * The ENTRY and one verb, deliberately: a face that needed the node, the page
  * or the wire would be a face the drawer has to know something about, and the
  * point of the seam is that it does not. Everything else a face needs it reads
- * from a context of its own — which is what `@olai/kolu-ui`'s `fleet.tsx` and
- * `@olai/plugin-odu`'s `runs.tsx` already are.
+ * from a context of its own — which is what `olai-plugin-kolu`'s `appliance/props/fleet.tsx` and
+ * `olai-plugin-odu`'s `runs.tsx` already are.
  */
 export interface BlockContext {
   readonly entry: Entry
@@ -161,7 +161,7 @@ export interface BlockContext {
    *
    * A face must wear the fact line every property wears —
    * `[data-testid="prop"][data-key=…]` with the drawer's handle on it — and
-   * faces live in other packages now (`@olai/kolu-ui`'s terminal door is the
+   * faces live in other packages now (`olai-plugin-kolu`'s terminal door is the
    * first). A face that spelled `"prop"` itself would be a second spelling of
    * this drawer's contract, free to drift the day the drawer changed it, with
    * the drawer's own suite still green because the face it broke is somewhere

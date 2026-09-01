@@ -301,8 +301,8 @@ a key changes the whole namespace" looks like from a test suite.
 | a `date`, both stored widths | `dispatched` — an instant on `props`, a bare day on `chips` |
 | a `doc` | `brief` on `props`, naming `briefs/tp.md` |
 | a `path` | none — `brief` is the `doc` beside it, and the `path` this fixture used to carry became the kind below |
-| a kind a PLUGIN contributed | `worktree` on `props`, declared `{"type":"worktree"}` — `@olai/plugin-odu`'s word, which is what licences the CI probe and the chip. Declared `path` it would be indistinguishable from `brief`, which is the defect the kind exists to end |
-| an UNDECLARED key on a typed board | `terminal` on `far` — prose, legal, untouched. Deliberately NOT declared here: `terminal` is `@olai/plugin-kolu`'s kind, and this corpus is about the format's own vocabulary |
+| a kind a PLUGIN contributed | `worktree` on `props`, declared `{"type":"worktree"}` — `olai-plugin-odu`'s word, which is what licences the CI probe and the chip. Declared `path` it would be indistinguishable from `brief`, which is the defect the kind exists to end |
+| an UNDECLARED key on a typed board | `terminal` on `far` — prose, legal, untouched. Deliberately NOT declared here: `terminal` is `olai-plugin-kolu`'s kind, and this corpus is about the format's own vocabulary |
 
 The set validates as it stands, which is the point: a declaration never lands on
 a board with violations (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/typed-properties.md's
@@ -319,7 +319,7 @@ Four lane steps in three states, each carrying a `terminal`, and one line of
 ```
 
 **That row is load-bearing and its absence is silent.** `terminal` is a kind
-`@olai/plugin-kolu` contributes, and the ownership walk finds its key by that
+`olai-plugin-kolu` contributes, and the ownership walk finds its key by that
 DECLARATION rather than by the key's name (`claimants.ts`) — so a `lanes/`
 without this file draws no Dock row on any step, says nothing about why, and
 every scenario in `terminal_door.feature` fails on an empty page. It used to work

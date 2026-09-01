@@ -542,7 +542,7 @@ describe("the watcher's chain through the mirror", () => {
 })
 
 /**
- * THE BEAT'S SECOND READER — the tap `@olai/plugin-kolu`'s doorbell hangs its
+ * THE BEAT'S SECOND READER — the tap `olai-plugin-kolu`'s doorbell hangs its
  * floor-under-silence on.
  *
  * The pill has always drawn the beat; what is new is that a conversation's

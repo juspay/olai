@@ -5,7 +5,7 @@
  *
  * ## Why this is CORE'S member and not a plugin's
  *
- * A disabled plugin is ABSENT FROM THE RECORD (`@olai/plugins`' README): no
+ * A disabled plugin is ABSENT FROM THE RECORD (`@olai/plugin-api`'s README): no
  * sibling surface is composed, no tag is minted, no handler is bound, no expose
  * row is granted, and the wire carries no `surface/<name>/` at all. So the one
  * member that could answer *is kolu running* is the member kolu does not have
@@ -37,7 +37,7 @@
  *
  * The names are DATA. They arrive from the registry at the composition root and
  * travel as strings; this file — a general one — declares that there ARE names
- * and knows none of them, which is the same fence `@olai/plugins`'
+ * and knows none of them, which is the same fence `@olai/plugin-api`'s
  * `fence.test.ts` holds as an equality per package. A row is drawn by walking
  * what the cell carries, so a third plugin reaches the panel without a line of
  * this or of the panel moving.
@@ -58,7 +58,7 @@ import { Schema } from "effect"
 export const BuiltPlugin = Schema.Struct({
   /** The plugin's `name` — the namespace, the docs slug, the word `--plugins`
    *  takes and the label the row wears. One spelling, and this is it travelling
-   *  (`@olai/plugins`' `plugin.ts`). */
+   *  (`@olai/plugin-api`'s `plugin.ts`). */
   name: Schema.String,
   /** Whether THIS serve composed it: its surface is on the wire, its faces are
    *  drawn, its probe ran, and a property declared with its kind is held to it.
@@ -101,7 +101,7 @@ export type BuiltPlugin = typeof BuiltPlugin.Type
  * operator said.
  *
  * Registry order rather than sorted, because the registry is a source file
- * (`@olai/plugins`' `surfaces.ts`) and the order a build lists its plugins in is
+ * (`@olai/plugin-api`'s `surfaces.ts`) and the order a build lists its plugins in is
  * the order `--help` names them in — a panel that re-sorted would put the rows
  * in an order nothing else in the product uses.
  */

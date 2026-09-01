@@ -12,8 +12,8 @@
  * `import "./odu-ci/index.ts"` — each reaching a folder inside this package that
  * called `registerLive` at load. The argument written on those folders was that
  * they were "the app's own tree, registering the app's own table", and that was
- * exactly true while they were. They are packages now (`@olai/plugin-kolu`,
- * `@olai/plugin-odu`), and the same sentence points the other way: a plugin
+ * exactly true while they were. They are packages now (`olai-plugin-kolu`,
+ * `olai-plugin-odu`), and the same sentence points the other way: a plugin
  * reaching into this app's table would be the import direction the whole
  * extraction exists to make impossible, and a side-effect import with no binding
  * would be that direction told as a lie by an `import "…"`.
@@ -25,8 +25,8 @@
  *     over one registry rather than a set of imports somebody has to remember to
  *     add to — and a plugin that grew a dressing needs no edit here at all.
  *   - **no general package names a tenant.** This file spells neither `kolu` nor
- *     `odu` nor `terminal` nor `worktree`; `@olai/plugins` is the only package
- *     allowed to, and `packages/plugins/src/fence.test.ts` holds that as an
+ *     `odu` nor `terminal` nor `worktree`; `@olai/plugin-api` is the only package
+ *     allowed to, and `packages/plugin-api/src/fence.test.ts` holds that as an
  *     equality rather than as a habit.
  *   - **a DISABLED plugin is still registered here, and that is correct.**
  *     `--plugins` is a fact about the SERVE and this runs at import time in a
@@ -45,7 +45,7 @@
  * moving it onto the table would take.
  */
 
-import { kindWordOf } from "@olai/plugins"
+import { kindWordOf } from "@olai/plugin-api"
 
 import { ROSTER } from "../plugins/roster.ts"
 
@@ -59,7 +59,7 @@ for (const plugin of ROSTER) {
     // COMPOSED HERE, by the registry's own function, because a manifest writes
     // its plugin's BARE word and what a declaration says — and therefore what
     // the page's licence carries — is that word prefixed with the plugin's name
-    // (`@olai/plugins`' `kindWordOf`). This app composing the prefix for itself
+    // (`@olai/plugin-api`'s `kindWordOf`). This app composing the prefix for itself
     // would be a second copy of the one rule that makes plugin-owned names
     // unable to collide with each other or to capture a person's own column.
     registerLive(kindWordOf(plugin.name, dressing.kind), dressing, plugin.name)

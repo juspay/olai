@@ -1,0 +1,25 @@
+/* THIS PLUGIN'S SHEET — one line, and it is the one thing between these faces
+ * and a chip drawn with no layout at all.
+ *
+ * THE FAILURE IS SILENT, which is why this file exists rather than a note in a
+ * README. `@olai/web`'s `styles.css` carries `@source "./"` — the app's own
+ * tree — and Tailwind emits ONLY the utilities it can SEE. These components
+ * spell `rounded-full`, `border-accent/30`, `tabular-nums` and thirty more; the
+ * day they left `client/live/odu-ci/` for this package, nothing pointed at them
+ * any more. Not a missing style: a chip with no box, no ink and no spacing, and
+ * no compiler saying a word about it.
+ *
+ * So the sheet carries a `@source` relative to THIS directory and nothing else,
+ * and a consumer imports one line and knows nothing about where any of it
+ * landed. That is `olai-plugin-kolu`'s `appliance/props/all.css` one appliance over — its
+ * header argues the pattern in full and names the round upstream that taught it
+ * ("a package that ships a stylesheet has to carry its own prerequisites and
+ * point Tailwind at ITSELF").
+ *
+ * NO PREREQUISITES, unlike that one: nothing drawn here is somebody else's
+ * component. The chip and the matrix are olai's own drawing of odu's readings —
+ * odu ships an `@opentui` grid for a terminal, which is not a thing a browser
+ * can mount — so there is no row sheet and no emulator layout to chain in. The
+ * INK is the app's five and reaches these classes through the app's own tokens,
+ * which is a `@theme` and not an import (`./hue.ts` says which hue takes which). */
+@source "./";

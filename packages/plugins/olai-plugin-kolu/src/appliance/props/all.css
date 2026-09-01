@@ -1,0 +1,35 @@
+/* THE APPLIANCE'S SHEET — kolu's row, xterm's terminal, and this directory's
+ * own utilities, in the one order that works.
+ *
+ * The #2219 lesson restated ONE LEVEL DOWN. That round taught it upstream: a
+ * package that ships a stylesheet has to carry its own prerequisites and point
+ * Tailwind at ITSELF, because a consumer that has to know the order and the
+ * scan paths is a consumer holding facts about a sibling's directory layout.
+ * olai collapsed three imports and two `@source` lines into one import of
+ * `@kolu/solid-dockrow/all.css` on the strength of it.
+ *
+ * The same argument applies to olai's own kolu half, and it did not stop
+ * applying when that half stopped being a package: `@source` is relative to the
+ * FILE it is written in, so this directory keeps its own sheet whether the wall
+ * around it is a manifest or a directory. It applies WITH TEETH, because the
+ * failure is silent. These
+ * components spell Tailwind utility classes; Tailwind emits only what it can
+ * SEE; and a moved directory that nothing points at emits nothing. That is not
+ * a missing style, it is a row with no layout at all, and no compiler says a
+ * word about it.
+ *
+ * So the sheet carries the chain: the row's sheet (which brings the pip's and
+ * the theme tokens, each package naming its own prerequisite), the emulator's
+ * layout, and a `@source` relative only to THIS directory. A consumer imports
+ * this one line and knows nothing about where any of it landed. */
+@import "@kolu/solid-dockrow/all.css";
+
+/* xterm.js's own sheet — the live pane's terminal (`./LivePane.tsx`). The
+ * emulator ships its layout as CSS and there is no version of drawing a
+ * terminal that does not want it. */
+@import "@xterm/xterm/css/xterm.css";
+
+/* THE SCAN PATH, relative to this file and nothing else. `../styles.css` has
+ * its own `@source "./"` for the app's own tree; this one is what keeps these
+ * components' utilities alive wherever the directory ends up. */
+@source "./";

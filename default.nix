@@ -22,13 +22,13 @@ let
   olai-fonts = import ./packages/fonts { inherit pkgs; };
 
   # kolu's own logo, out of the same kolu pin the sources hydrate from, already
-  # a TypeScript module — @olai/plugin-kolu owns both the component and the
+  # a TypeScript module — olai-plugin-kolu owns both the component and the
   # derivation that feeds it, so this is the whole of what the build needs to
   # be told about a tenant's mark. `nix build .#kolu-mark` is also the one
   # command that answers "what does the pin currently say the logo is", which
   # matters because the generated file is gitignored and a pin bump therefore
   # shows no diff of its own.
-  kolu-mark = import ./packages/plugin-kolu { inherit pkgs; };
+  kolu-mark = import ./packages/plugins/olai-plugin-kolu { inherit pkgs; };
 
   src = pkgs.lib.fileset.toSource {
     root = ./.;
@@ -89,7 +89,7 @@ let
     postBunNodeModulesInstallPhase = ''
       sh ${kolu.hydrateScript} ${kolu.hydrateArgs}
       sh ${kolu.hydrateScript} ${odu.hydrateArgs}
-      install -m 644 ${kolu-mark}/mark.generated.ts packages/plugin-kolu/src/browser/mark.generated.ts
+      install -m 644 ${kolu-mark}/mark.generated.ts packages/plugins/olai-plugin-kolu/src/browser/mark.generated.ts
     '';
 
     buildPhase = ''
