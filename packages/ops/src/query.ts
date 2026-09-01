@@ -104,6 +104,7 @@ import {
   type Reference,
   ranked,
   rootsOf,
+  siblingsOf,
   type SearchAnswer,
   type SearchHit,
   type SearchRequest,
@@ -1083,13 +1084,19 @@ const referrersOf = (derived: Derived, id: string): ReadonlyArray<Reference> =>
  * a reader that invented an entry for it would be answering with a node that is
  * not there.
  *
- * TWO readers, one answer: {@link detail} carries it as the node read's
- * `placed`, and `subtree`'s walks put the same list on every row that has
- * one — the naming a walk owes a placement it will not descend into, in the
- * one shape both reads agree on.
+ * TWO readers, one mapping: {@link detail} carries it as the node read's
+ * `placed` (always fully situated — that read's dial shapes the child list
+ * alone), and `subtree`'s walks hang the same list on every row that has
+ * one, with `shows` shaped when the walk named `fields`. The FILE arm hangs
+ * it on the answer itself, over the file's top-level siblings — a file is
+ * not a node, so `{file, roots, placed}` is the row.
  */
-const placedUnder = (derived: Derived, id: string): ReadonlyArray<Placed> =>
-  (derived.children.get(id) ?? []).flatMap((child) => {
+const placedAmong = (
+  derived: Derived,
+  siblings: ReturnType<typeof siblingsOf>,
+  wants?: Wants,
+): ReadonlyArray<Placed> =>
+  siblings.flatMap((child) => {
     if (!isMirror(child.node)) return []
     const found = follow(derived, child)
     if (found.kind !== "found") return []
@@ -1098,9 +1105,25 @@ const placedUnder = (derived: Derived, id: string): ReadonlyArray<Placed> =>
       file: child.file,
       line: child.line,
       ...(child.node.parent === undefined ? {} : { parent: child.node.parent }),
-      shows: foundOf(derived, found.shows),
+      shows: wants === undefined
+        ? foundOf(derived, found.shows)
+        : shapedOf(derived, found.shows, wants),
     }]
   })
+
+const placedUnder = (
+  derived: Derived,
+  id: string,
+  wants?: Wants,
+): ReadonlyArray<Placed> =>
+  placedAmong(derived, derived.children.get(id) ?? [], wants)
+
+const placedIn = (
+  derived: Derived,
+  file: string,
+  wants?: Wants,
+): ReadonlyArray<Placed> =>
+  placedAmong(derived, siblingsOf(derived, file, undefined), wants)
 
 /**
  * The mirrors that show this node, in file-then-line order.
@@ -1295,16 +1318,19 @@ export const subtree = (
       ...(left <= 0 && children.length > 0 ? { truncated: true as const } : {}),
     }
   }
-  // `walk`'s other shape: the caller named the rows. The ROWS change and the
-  // WALK does not — same depth dial, same counted children, same `placed`,
-  // same `truncated` — because those are the walk's own structure, and
-  // `fields` has nothing to say about structure. `wants` rides as an argument
-  // rather than closed over: the outer binding is `Wants | undefined` for the
-  // unasked case, and a closure over it would reask the question the fork
-  // below has answered.
+  // `walk`'s other shape: the caller named the rows. The KEYS of the walk
+  // do not change — same depth dial, same counted children, same `placed`
+  // list, same `truncated` — because those are the walk's own structure.
+  // What each child ROW carries, and what each `placed` entry's `shows`
+  // carries, still obeys `wants`: `children` content has always gone back
+  // through this walk, and `shows` does too, so a two-field walk does not
+  // re-import the situating the dial exists to drop. `wants` rides as an
+  // argument rather than closed over: the outer binding is `Wants |
+  // undefined` for the unasked case, and a closure over it would reask the
+  // question the fork below has answered.
   const shapedWalk = (wants: Wants, located: LocatedRegular, left: number): ProjectedSubtree => {
     const children = countedChildren(at.derived, located.node.id)
-    const placed = placedUnder(at.derived, located.node.id)
+    const placed = placedUnder(at.derived, located.node.id, wants)
     return {
       ...shapedOf(at.derived, located, wants),
       children: left <= 0 ? [] : children.map((child) => shapedWalk(wants, child, left - 1)),
@@ -1335,14 +1361,22 @@ export const subtree = (
   // The roots a READER sees: `@olai/format`'s own reading of an outline's
   // top level, `ord`-sorted, placements dropped for the reason the walk
   // never descends into one — a mirror is a second view of a node that
-  // lives elsewhere. Under a node a placement IS named now, on its row's
-  // `placed`; the top level of a file has no row to name one on, so the
-  // drop here stands, and `OutlineRoots` says so in its own words.
+  // lives elsewhere. Named on the answer as `placed`, the same list a
+  // node-walk hangs on the row: `{file, roots}` is the row a file has.
   const roots = rootsOf(at.derived, arm.file)
+  const placed = placedIn(at.derived, arm.file, wants)
   return Result.succeed(
     wants === undefined
-      ? { file: arm.file, roots: roots.map((root) => walk(root, depth)) }
-      : { file: arm.file, roots: roots.map((root) => shapedWalk(wants, root, depth)) },
+      ? {
+          file: arm.file,
+          roots: roots.map((root) => walk(root, depth)),
+          ...(placed.length === 0 ? {} : { placed }),
+        }
+      : {
+          file: arm.file,
+          roots: roots.map((root) => shapedWalk(wants, root, depth)),
+          ...(placed.length === 0 ? {} : { placed }),
+        },
   )
 }
 

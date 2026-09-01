@@ -466,8 +466,9 @@ test("the read tools teach the fields the mirror and edge ops depend on", async 
     // `string[]` and is taught nowhere else.
     expect(said("search_nodes")).toContain("`custom`")
     expect(said("search_nodes")).toContain("`matchedProps`")
-    // …and the subtree read says where to go instead, since it walks none.
-    expect(said("read_subtree")).toContain("`placed`")
+    // …and the subtree read names them on the row, rather than pointing
+    // the caller at `read_node`.
+    expect(said("read_subtree")).toContain("on its row")
     // …and that it reads a whole OUTLINE, which is the only way an agent finds
     // out: `list_outlines` names the roots of a file and this is what descends
     // into all of them at once. A tool nobody is told about is a tool nobody
@@ -792,9 +793,11 @@ test("read_subtree answers a whole outline — every root, one call", async () =
 
     const roots = answered.structured["roots"] as ReadonlyArray<Record<string, unknown>>
     // BOTH roots — the whole claim, since these two used to be two calls — and
-    // NOT the placement between them: a mirror is a second view of a node that
-    // lives elsewhere, so elsewhere is where this read answers it.
+    // NOT the placement between them as a root: named on the answer instead.
     expect(roots.map((root) => root["id"])).toEqual(["today", "later"])
+    expect(
+      ((answered.structured["placed"] ?? []) as ReadonlyArray<{ id: string }>).map((entry) => entry.id),
+    ).toEqual(["echo"])
     // …and walked rather than merely named, which is what `list_outlines`
     // already does.
     const children = roots[0]?.["children"] as ReadonlyArray<Record<string, unknown>>

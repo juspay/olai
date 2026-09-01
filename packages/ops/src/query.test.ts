@@ -648,12 +648,12 @@ describe("placements", () => {
         ["now-sticky", "sticky", "the header scrolls away"],
         ["now-git", "git", "two git indicators"],
       ])
-    // UNWALKED, which is the distinction the design rests on: an entry
-    // carries the NODE, never the node's rows — `children` is a walk row's
-    // field, and a `placed` entry is not a walk row.
-    for (const entry of board.placed ?? []) {
-      expect(entry).not.toHaveProperty("children")
-    }
+    // UNWALKED: the entry is a placement plus `shows`, not a walk row.
+    // The key set is the claim — a `children` on this object would be the
+    // walk having descended, and this is the one assertion that would
+    // notice the object growing that key.
+    expect(Object.keys(board.placed![0]!).sort())
+      .toEqual(["file", "id", "line", "parent", "shows"])
   })
 
   test("the note dial and the row projection leave the naming alone", () => {
@@ -666,15 +666,27 @@ describe("placements", () => {
     const shaped = nodeOf(walked(reading(), { id: "now", depth: 0, fields: ["title"] }))
     expect(shaped).toMatchObject({ id: "now", title: "Now" })
     expect(shaped.placed?.map((entry) => entry.shows.id)).toEqual(["sticky", "git"])
+    // The KEY rides; `shows` is the same projection the row is — id and
+    // title, not the place, the ancestry, or the whole custom map. That is
+    // the 51KB lane-walk the dial exists to drop, one field over.
+    expect(shaped.placed?.[0]?.shows).toEqual({
+      id: "sticky",
+      title: "the header scrolls away",
+    })
+    expect(shaped.placed?.[0]?.shows).not.toHaveProperty("path")
+    expect(shaped.placed?.[0]?.shows).not.toHaveProperty("file")
+    expect(shaped.placed?.[0]?.shows).not.toHaveProperty("custom")
   })
 
   test("the file arm names them too — every root is the same walk", () => {
-    const roots = outlineOf(walked(reading(), { file: "roadmap.olai" })).roots
-    expect(roots.find((root) => root.id === "now")?.placed?.map((entry) => entry.id))
+    const answer = outlineOf(walked(reading(), { file: "roadmap.olai" }))
+    expect(answer.roots.find((root) => root.id === "now")?.placed?.map((entry) => entry.id))
       .toEqual(["now-sticky", "now-git"])
     // …and a node with none is answered with none — absence, never an empty
     // list, the same spelling of nothing the node read uses.
-    expect(roots.find((root) => root.id === "bugs")).not.toHaveProperty("placed")
+    expect(answer.roots.find((root) => root.id === "bugs")).not.toHaveProperty("placed")
+    // This file's top level is roots, not placements.
+    expect(answer).not.toHaveProperty("placed")
   })
 
   test("a search never answers with a placement", () => {
@@ -1221,9 +1233,31 @@ describe("a whole outline, walked", () => {
   })
 
   test("a placement at the top level is not a root", () => {
-    // The walk's own rule read one level up: a mirror is a second view of a
-    // node that lives elsewhere, and elsewhere is where this read answers it.
-    expect(rootIds(walked(shelf(), { file: "plan.olai" }))).not.toContain("echo")
+    // Still not a root — the walk never descends into a placement — but
+    // named on the answer, because `{file, roots}` is the row a file has.
+    const answer = outlineOf(walked(shelf(), { file: "plan.olai" }))
+    expect(answer.roots.map((root) => root.id)).not.toContain("echo")
+    expect(answer.placed?.map((entry) => [entry.id, entry.shows.id, entry.shows.title]))
+      .toEqual([["echo", "call", "call the joiner"]])
+  })
+
+  test("a file whose top level is all placements is not silence", () => {
+    const set = setOf({
+      "now.olai": `{"id":"now-call","ord":"a0","mirror":"call"}`,
+      "work.olai": `{"id":"call","ord":"a0","title":"call the joiner"}`,
+    })
+    const answer = outlineOf(walked(readingOf(set), { file: "now.olai" }))
+    expect(answer.roots).toEqual([])
+    expect(answer.placed?.map((entry) => [entry.id, entry.shows.id, entry.shows.title]))
+      .toEqual([["now-call", "call", "call the joiner"]])
+  })
+
+  test("the file arm's `shows` obeys the dial too", () => {
+    const answer = outlineOf(
+      walked(shelf(), { file: "plan.olai", fields: ["title"] }),
+    )
+    expect(answer.placed?.[0]?.shows).toEqual({ id: "call", title: "call the joiner" })
+    expect(answer.placed?.[0]?.shows).not.toHaveProperty("path")
   })
 
   test("a path that is not an outline is refused with the closest one that is", () => {
