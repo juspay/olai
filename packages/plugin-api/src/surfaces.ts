@@ -51,20 +51,17 @@ export const WIRES = [kolu, odu, spaces] as const
  * THE NAME AS DATA, beside the import. Claim 8's floor is that the registry
  * must be seen to SPELL every plugin — import specifiers are stripped before
  * the hunt, so a local binding is not a spelling, and a hyphenated name cannot
- * be a binding at all. One table, every plugin: a rename of `./wire`'s `name`
- * that left this list behind is a throw rather than a silent drift, hyphenated
- * or not. `WIRES` stays a list of bindings because `./rosters.test.ts` reads
- * that list as source.
+ * be a binding at all. `satisfies` holds each string to the import's `name`
+ * at `tsc`; there is no import-time throw in a module everything pulls in.
+ * `WIRES` stays a list of bindings because `./rosters.test.ts` reads that
+ * list as source.
  */
-for (const [wire, expected] of [
-  [kolu, "kolu"],
-  [odu, "odu"],
-  [spaces, "xyne-spaces"],
-] as const) {
-  if (wire.name !== expected) {
-    throw new Error(`plugins: ${expected} wire.name is "${wire.name}", not "${expected}"`)
-  }
-}
+const SPELLING = ["kolu", "odu", "xyne-spaces"] as const satisfies readonly [
+  typeof kolu.name,
+  typeof odu.name,
+  typeof spaces.name,
+]
+void SPELLING
 
 /**
  * A PLUGIN-OWNED WORD, PREFIXED WITH THE PLUGIN'S NAME — the one composition,

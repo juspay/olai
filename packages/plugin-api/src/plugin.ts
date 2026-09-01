@@ -733,6 +733,8 @@ export interface PluginServices {
 export type ConversationSeen =
   | {
     readonly kind: "delivered"
+    /** The transcript row, so a later mark on the same doorbell is not a second digest. */
+    readonly id: string
     readonly from: string
     readonly agent: string
     readonly session: string
@@ -740,6 +742,8 @@ export type ConversationSeen =
   }
   | {
     readonly kind: "replied"
+    /** The agent row THIS turn produced — not the newest agent row in the transcript. */
+    readonly id: string
     readonly agent: string
     readonly session: string
     readonly text: string

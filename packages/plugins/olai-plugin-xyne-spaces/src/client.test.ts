@@ -54,19 +54,56 @@ test("a thread reply carries conversationId", async () => {
   }
 })
 
-test("updateMessage edits in place by messageId", async () => {
+test("updateMessage edits in place by messageId and carries channelId", async () => {
   const spaces = await listen()
   try {
     const client = makeClient(spaces.url, "jwt-token", undefined)
-    await client.updateMessage({ messageId: "msg-9", markdownText: "CI settled green" })
+    await client.updateMessage({
+      messageId: "msg-9",
+      markdownText: "CI settled green",
+      channelId: "ch-team",
+    })
     expect(spaces.requests[0]?.path).toBe("/api/apps/chat/updateMessage")
     expect(spaces.requests[0]?.authorization).toBe("Bearer jwt-token")
     expect(spaces.requests[0]?.body).toEqual({
       messageId: "msg-9",
       markdownText: "CI settled green",
+      channelId: "ch-team",
     })
   } finally {
     spaces.close()
+  }
+})
+
+test("updateMessage without channel context is 400, matching the real refine", async () => {
+  const spaces = await listen()
+  try {
+    const client = makeClient(spaces.url, "jwt-token", undefined)
+    const result = await client.updateMessage({
+      messageId: "msg-9",
+      markdownText: "CI settled green",
+      channelId: "",
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.refused.status).toBe(400)
+      expect(result.refused.why).toContain("Validation error")
+    }
+  } finally {
+    spaces.close()
+  }
+})
+
+test("a closed Spaces is a refusal, not an unhandled rejection", async () => {
+  const spaces = await listen()
+  const url = spaces.url
+  spaces.close()
+  const client = makeClient(url, "jwt-token", undefined)
+  const result = await client.postMessage({ channelId: "ch", markdownText: "x" })
+  expect(result.ok).toBe(false)
+  if (!result.ok) {
+    expect(result.refused.status).toBe(0)
+    expect(result.refused.why.length).toBeGreaterThan(0)
   }
 })
 
@@ -103,7 +140,7 @@ test("a 401 is a refused post, not a thrown error", async () => {
     expect(result.ok).toBe(false)
     if (!result.ok) {
       expect(result.refused.status).toBe(401)
-      expect(result.refused.why).toBe("Authentication failed")
+      expect(result.refused.why).toContain("Authentication failed")
     }
   } finally {
     spaces.close()

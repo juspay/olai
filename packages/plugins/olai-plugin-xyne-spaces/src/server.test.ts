@@ -3,11 +3,17 @@
  * never the human's live instance.
  */
 
+import { mkdtempSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+
 import { readingOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import { serve, type ConversationSeen, type Services } from "./server.ts"
 import { listen } from "./testlib/fake-spaces.ts"
+
+const served = (): string => mkdtempSync(join(tmpdir(), "spaces-served-"))
 
 const rec = (title: string, fields: Record<string, string>): string =>
   `{"id":${JSON.stringify(title)},"ord":"a0","title":${JSON.stringify(title)},"custom":${
@@ -64,6 +70,7 @@ test("a doorbell in the bound conversation posts; a heartbeat and this plugin's 
   try {
     const half = serve({
       env: { OLAI_SPACES_URL: spaces.url, OLAI_SPACES_TOKEN: "tok" },
+      served: served(),
       now: () => "2026-09-01T12:00:00Z",
       say: () => {},
       warn: () => {},
@@ -79,6 +86,7 @@ test("a doorbell in the bound conversation posts; a heartbeat and this plugin's 
     bind(half)
     emit({
       kind: "delivered",
+      id: "d-1",
       from: "kolu",
       agent: "claude",
       session: "s-1",
@@ -86,6 +94,7 @@ test("a doorbell in the bound conversation posts; a heartbeat and this plugin's 
     })
     emit({
       kind: "delivered",
+      id: "d-2",
       from: "kolu",
       agent: "claude",
       session: "s-1",
@@ -93,6 +102,7 @@ test("a doorbell in the bound conversation posts; a heartbeat and this plugin's 
     })
     emit({
       kind: "delivered",
+      id: "d-3",
       from: "xyne-spaces",
       agent: "claude",
       session: "s-1",
@@ -117,6 +127,7 @@ test("a conversation the bind does not name is not mirrored", async () => {
   try {
     const half = serve({
       env: { OLAI_SPACES_URL: spaces.url, OLAI_SPACES_TOKEN: "tok" },
+      served: served(),
       now: () => "2026-09-01T12:00:00Z",
       say: () => {},
       warn: () => {},
@@ -126,6 +137,7 @@ test("a conversation the bind does not name is not mirrored", async () => {
     bind(half)
     emit({
       kind: "delivered",
+      id: "d-1",
       from: "kolu",
       agent: "opencode",
       session: "other",
@@ -145,6 +157,7 @@ test("no env is honestly absent — nothing is posted", async () => {
   try {
     const half = serve({
       env: {},
+      served: served(),
       now: () => "2026-09-01T12:00:00Z",
       say: () => {},
       warn: () => {},
@@ -154,6 +167,7 @@ test("no env is honestly absent — nothing is posted", async () => {
     bind(half)
     emit({
       kind: "delivered",
+      id: "d-1",
       from: "kolu",
       agent: "claude",
       session: "s-1",
@@ -161,6 +175,48 @@ test("no env is honestly absent — nothing is posted", async () => {
     })
     await Bun.sleep(40)
     expect(spaces.requests).toHaveLength(0)
+    half.unloaded()
+  } finally {
+    spaces.close()
+  }
+})
+
+test("a bind that names a different agent is said once", async () => {
+  const spaces = await listen()
+  const { watching, emit } = bus()
+  const warnings: Array<string> = []
+  try {
+    const half = serve({
+      env: { OLAI_SPACES_URL: spaces.url, OLAI_SPACES_TOKEN: "tok" },
+      served: served(),
+      now: () => "2026-09-01T12:00:00Z",
+      say: () => {},
+      warn: (line) => warnings.push(line),
+      deliveries: { scopes: () => [], deliver: () => {} },
+      watching,
+    })
+    bind(half)
+    emit({
+      kind: "delivered",
+      id: "d-1",
+      from: "kolu",
+      agent: "opencode",
+      session: "s-1",
+      body: "Lane dispatched: **nope**",
+    })
+    emit({
+      kind: "delivered",
+      id: "d-2",
+      from: "kolu",
+      agent: "opencode",
+      session: "s-1",
+      body: "Lane dispatched: **still nope**",
+    })
+    await Bun.sleep(40)
+    expect(spaces.requests).toHaveLength(0)
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0]).toContain("`claude`")
+    expect(warnings[0]).toContain("opencode")
     half.unloaded()
   } finally {
     spaces.close()

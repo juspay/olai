@@ -45,7 +45,29 @@ export const listen = async (): Promise<FakeSpaces> => {
       const refused = fail ?? held
       if (fail !== null) fail = null
       if (refused !== null) {
-        return Response.json({ error: refused.error, code: "REFUSED" }, { status: refused.status })
+        return Response.json(
+          { error: refused.error, message: refused.error, code: "REFUSED" },
+          { status: refused.status },
+        )
+      }
+      // THE REAL ROUTE'S REFINE — `validateChannelAccessForPost` requires one
+      // of channelId / channelName / conversationId. A body with none is 400
+      // before the controller, which is how a missing channelId on
+      // updateMessage went invisible when this fake accepted any body.
+      if (req.method === "POST" && url.pathname.startsWith("/api/apps/chat/")) {
+        const record = body !== null && typeof body === "object"
+          ? body as Record<string, unknown>
+          : {}
+        const channelId = typeof record.channelId === "string" ? record.channelId.trim() : ""
+        const channelName = typeof record.channelName === "string" ? record.channelName.trim() : ""
+        const conversationId =
+          typeof record.conversationId === "string" ? record.conversationId.trim() : ""
+        if (channelId === "" && channelName === "" && conversationId === "") {
+          return Response.json(
+            { error: "Bad Request", message: "Validation error" },
+            { status: 400 },
+          )
+        }
       }
       n += 1
       if (url.pathname === "/api/apps/chat/postMessage" && req.method === "POST") {

@@ -1,14 +1,35 @@
+import { mkdtempSync, readFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+
 import { expect, test } from "bun:test"
 
 import { makeClient } from "./client.ts"
+import { holdPath, loadHold, saveHold } from "./hold.ts"
 import {
   classify,
   laneOf,
   makeMirror,
   skipHeartbeat,
   trimTo,
+  type MirrorDeps,
 } from "./mirror.ts"
 import { listen } from "./testlib/fake-spaces.ts"
+
+const LANE = laneOf("claude", "s-1")
+
+const mirrorOf = (
+  client: ReturnType<typeof makeClient>,
+  over: Partial<MirrorDeps> = {},
+) =>
+  makeMirror({
+    client,
+    channel: "ch-team",
+    now: () => "2026-09-01T12:00:00Z",
+    deliverFault: () => {},
+    onRecovered: () => {},
+    ...over,
+  })
 
 test("classify names the digest kinds the human ruled", () => {
   expect(classify("Lane dispatched: **CI joins the conversation**")).toBe("dispatched")
@@ -27,60 +48,51 @@ test("a kolu heartbeat is not a digest", () => {
   expect(skipHeartbeat("Lane dispatched: foo")).toBe(false)
 })
 
-test("laneOf reads the dispatched title, else the first bold, else general", () => {
-  expect(laneOf("Lane dispatched: **CI joins the conversation**")).toBe("CI joins the conversation")
-  expect(laneOf("Review verdict on **CI joins the conversation**: 1 MUST")).toBe(
-    "CI joins the conversation",
-  )
-  expect(laneOf("an unattributed note")).toBe("general")
+test("laneOf is the conversation pair, not a bold span in the digest", () => {
+  expect(laneOf("claude", "s-1")).toBe("claude/s-1")
+  expect(laneOf("opencode", "other")).toBe("opencode/other")
 })
 
-test("trimTo caps at N characters and ellipsises", () => {
+test("trimTo caps on code points and closes an open fence", () => {
   expect(trimTo("short", 500)).toBe("short")
   expect(trimTo("abcdefghij", 5)).toBe("abcde…")
+  expect(trimTo("👍👍👍", 2)).toBe("👍👍…")
+  expect(trimTo("before\n```js\nconst x = 1", 80)).toBe("before\n```js\nconst x = 1")
+  const cut = trimTo("```js\nconst x = 1\nmore than the cap of this fence body xxx", 20)
+  expect(cut.endsWith("…")).toBe(true)
+  expect(cut).toContain("```")
+  expect((cut.match(/^```/gm) ?? []).length % 2).toBe(0)
 })
 
-test("the first digest for a lane opens a thread; later ones reply into it", async () => {
+test("the first digest for a conversation opens a thread; later ones reply into it", async () => {
   const spaces = await listen()
   try {
     const client = makeClient(spaces.url, "test-token", undefined)
     const faults: Array<string> = []
-    const mirror = makeMirror({
-      client,
-      channel: "ch-team",
-      now: () => "2026-09-01T12:00:00Z",
-      deliverFault: (body) => faults.push(body),
-    })
-    await mirror.postDigest("Lane dispatched: **odu doorbell**")
-    await mirror.postDigest("the odu doorbell author is idle: it needs you.")
+    const mirror = mirrorOf(client, { deliverFault: (body) => faults.push(body) })
+    await mirror.postDigest("Lane dispatched: **odu doorbell**", LANE, 500)
+    await mirror.postDigest("CI settled red on **#460**", LANE, 500)
     expect(spaces.requests).toHaveLength(2)
     const first = spaces.requests[0]?.body as Record<string, unknown>
     const second = spaces.requests[1]?.body as Record<string, unknown>
     expect(spaces.requests[0]?.path).toBe("/api/apps/chat/postMessage")
-    expect(spaces.requests[0]?.authorization).toBe("Bearer test-token")
-    expect(first.channelId).toBe("ch-team")
-    expect(first.markdownText).toContain("Lane dispatched")
     expect(first.conversationId).toBeUndefined()
     expect(second.conversationId).toBe("conv-1")
     expect(faults).toEqual([])
+    mirror.stop()
   } finally {
     spaces.close()
   }
 })
 
-test("a CI digest is posted once, then edited in place", async () => {
+test("a CI digest is posted once, then edited in place, with channelId on the edit", async () => {
   const spaces = await listen()
   try {
     const client = makeClient(spaces.url, "test-token", undefined)
-    const mirror = makeMirror({
-      client,
-      channel: "ch-team",
-      now: () => "2026-09-01T12:00:00Z",
-      deliverFault: () => {},
-    })
-    await mirror.postDigest("Lane dispatched: **odu doorbell**")
-    await mirror.postDigest("CI settled red on #97 — odu doorbell")
-    await mirror.postDigest("CI settled green on #97 — odu doorbell")
+    const mirror = mirrorOf(client)
+    await mirror.postDigest("Lane dispatched: **odu doorbell**", LANE, 500)
+    await mirror.postDigest("CI settled red on #97 — odu doorbell", LANE, 500)
+    await mirror.postDigest("CI settled green on #97 — odu doorbell", LANE, 500)
     expect(spaces.requests.map((r) => r.path)).toEqual([
       "/api/apps/chat/postMessage",
       "/api/apps/chat/postMessage",
@@ -88,7 +100,40 @@ test("a CI digest is posted once, then edited in place", async () => {
     ])
     const update = spaces.requests[2]?.body as Record<string, unknown>
     expect(update.messageId).toBe("msg-2")
+    expect(update.channelId).toBe("ch-team")
     expect(update.markdownText).toContain("green")
+    mirror.stop()
+  } finally {
+    spaces.close()
+  }
+})
+
+test("CI while faulted coalesces to one post on recovery, not two", async () => {
+  const spaces = await listen()
+  try {
+    const client = makeClient(spaces.url, "test-token", undefined)
+    const mirror = mirrorOf(client)
+    spaces.down(401, "Authentication failed")
+    await mirror.postDigest("CI settled red on #97", LANE, 500)
+    await mirror.postDigest("CI settled green on #97", LANE, 500)
+    expect(mirror.queued()).toHaveLength(1)
+    expect((mirror.queued()[0] as { text: string }).text).toContain("green")
+    spaces.up()
+    await mirror.postDigest("Lane dispatched: **next**", LANE, 500)
+    const posts = spaces.requests.filter((r) => r.path === "/api/apps/chat/postMessage")
+    const recovered = posts.filter((r) =>
+      typeof (r.body as { markdownText?: string }).markdownText === "string"
+      && ((r.body as { markdownText: string }).markdownText.includes("CI settled")
+        || (r.body as { markdownText: string }).markdownText.includes("Lane dispatched"))
+    )
+    const ciPosts = posts.filter((r) =>
+      (r.body as { markdownText: string }).markdownText.includes("CI settled")
+    )
+    expect(ciPosts.length).toBe(2) // one refused while down, one posted on recovery
+    expect(recovered.at(-2)?.body).toEqual(expect.objectContaining({
+      markdownText: expect.stringContaining("green"),
+    }))
+    mirror.stop()
   } finally {
     spaces.close()
   }
@@ -99,31 +144,70 @@ test("a refused post is said once; digests queue and post in order on recovery",
   try {
     const client = makeClient(spaces.url, "test-token", undefined)
     const faults: Array<string> = []
-    const mirror = makeMirror({
-      client,
-      channel: "ch-team",
+    const mirror = mirrorOf(client, {
       now: () => "2026-09-01T16:41:00Z",
       deliverFault: (body) => faults.push(body),
     })
     spaces.down(401, "Authentication failed")
-    await mirror.postDigest("Lane dispatched: **first**")
-    await mirror.postDigest("Lane dispatched: **second**")
+    await mirror.postDigest("Lane dispatched: **first**", LANE, 500)
+    await mirror.postDigest("Lane dispatched: **second**", LANE, 500)
     expect(mirror.queued()).toHaveLength(2)
     expect(faults).toHaveLength(1)
     expect(faults[0]).toContain("Authentication failed")
     expect(faults[0]).toContain("Said once")
     spaces.up()
-    await mirror.postDigest("Lane dispatched: **third**")
+    await mirror.postDigest("Lane dispatched: **third**", LANE, 500)
     expect(mirror.queued()).toHaveLength(0)
     expect(mirror.faulted()).toBe(false)
     expect(faults).toHaveLength(2)
-    expect(faults[1]).toContain("3 queued")
+    expect(faults[1]).toContain("2 queued")
+    expect(faults[1]).not.toContain("3 queued")
     const posts = spaces.requests.filter((r) => r.path === "/api/apps/chat/postMessage")
-    // two refused while down, then the three in order once the token works
     expect(posts).toHaveLength(5)
     expect((posts[2]?.body as { markdownText: string }).markdownText).toContain("first")
     expect((posts[3]?.body as { markdownText: string }).markdownText).toContain("second")
     expect((posts[4]?.body as { markdownText: string }).markdownText).toContain("third")
+    mirror.stop()
+  } finally {
+    spaces.close()
+  }
+})
+
+test("the queue retries on its own, without waiting for the next digest", async () => {
+  const spaces = await listen()
+  try {
+    const client = makeClient(spaces.url, "test-token", undefined)
+    const faults: Array<string> = []
+    const mirror = mirrorOf(client, {
+      deliverFault: (body) => faults.push(body),
+      retryMs: 20,
+    })
+    spaces.down(401, "Authentication failed")
+    await mirror.postDigest("Lane dispatched: **only**", LANE, 500)
+    expect(mirror.queued()).toHaveLength(1)
+    spaces.up()
+    await Bun.sleep(80)
+    expect(mirror.queued()).toHaveLength(0)
+    expect(mirror.faulted()).toBe(false)
+    expect(faults.some((body) => body.includes("queued"))).toBe(true)
+    mirror.stop()
+  } finally {
+    spaces.close()
+  }
+})
+
+test("a 4xx other than auth drops the head so the rest of the queue is not wedged", async () => {
+  const spaces = await listen()
+  try {
+    const client = makeClient(spaces.url, "test-token", undefined)
+    const mirror = mirrorOf(client)
+    spaces.failNext(400, "Bad Request")
+    await mirror.postDigest("Lane dispatched: **poison**", LANE, 500)
+    await mirror.postDigest("Lane dispatched: **after**", LANE, 500)
+    expect(mirror.queued()).toHaveLength(0)
+    const posts = spaces.requests.filter((r) => r.path === "/api/apps/chat/postMessage")
+    expect(posts.some((r) => (r.body as { markdownText: string }).markdownText.includes("after"))).toBe(true)
+    mirror.stop()
   } finally {
     spaces.close()
   }
@@ -133,14 +217,9 @@ test("orchestrator replies post trimmed; agentProgress rides the last thread", a
   const spaces = await listen()
   try {
     const client = makeClient(spaces.url, "test-token", undefined)
-    const mirror = makeMirror({
-      client,
-      channel: "ch-team",
-      now: () => "2026-09-01T12:00:00Z",
-      deliverFault: () => {},
-    })
-    await mirror.postDigest("Lane dispatched: **odu doorbell**")
-    await mirror.postReply("x".repeat(600), 500)
+    const mirror = mirrorOf(client)
+    await mirror.postDigest("Lane dispatched: **odu doorbell**", LANE, 500)
+    await mirror.postReply("x".repeat(600), LANE, 500)
     await mirror.progress("working", "s-1")
     await mirror.progress("done", "s-1")
     const reply = spaces.requests[1]?.body as Record<string, unknown>
@@ -154,6 +233,39 @@ test("orchestrator replies post trimmed; agentProgress rides the last thread", a
     expect(progress.sessionId).toBe("s-1")
     expect(progress.agentSlug).toBe("olai")
     expect(spaces.requests[3]?.body).toMatchObject({ status: "done" })
+    mirror.stop()
+  } finally {
+    spaces.close()
+  }
+})
+
+test("threads and queue survive a restart from the hold", async () => {
+  const spaces = await listen()
+  const dir = mkdtempSync(join(tmpdir(), "spaces-hold-"))
+  const path = holdPath(dir)
+  try {
+    const client = makeClient(spaces.url, "test-token", undefined)
+    const first = mirrorOf(client, {
+      hold: { load: () => loadHold(path), save: (held) => saveHold(path, held) },
+    })
+    spaces.down(401, "Authentication failed")
+    await first.postDigest("Lane dispatched: **held**", LANE, 500)
+    first.stop()
+    const raw = readFileSync(path, "utf8")
+    expect(raw).toContain("held")
+    spaces.up()
+    const second = mirrorOf(client, {
+      hold: { load: () => loadHold(path), save: (held) => saveHold(path, held) },
+    })
+    expect(second.queued()).toHaveLength(1)
+    await second.postDigest("Lane dispatched: **after restart**", LANE, 500)
+    expect(second.queued()).toHaveLength(0)
+    const posts = spaces.requests.filter((r) => r.path === "/api/apps/chat/postMessage")
+    expect(posts.some((r) => (r.body as { markdownText: string }).markdownText.includes("held"))).toBe(true)
+    expect(
+      posts.some((r) => (r.body as { markdownText: string }).markdownText.includes("after restart")),
+    ).toBe(true)
+    second.stop()
   } finally {
     spaces.close()
   }

@@ -992,6 +992,14 @@ export const bind = (
         ? { agent: state.talking.id, session: state.session.id }
         : null
     let lastStatus: ChatState["status"] | undefined
+    /** Agent rows already in the transcript when the current turn started —
+     *  `replied` is the row THIS turn produced, not the newest agent row in
+     *  the whole conversation (a cancel / gone / failed turn has no prose). */
+    let agentSeqAtTurn = -1
+    /** Doorbell rows already pushed, so a later mark on the same entry
+     *  (`transcript.refused`) is not a second digest. */
+    const deliveredIds = new Set<string>()
+    let deliveredFor: string | undefined
     /**
      * ... and the real one, PER PLUGIN.
      *
@@ -2159,18 +2167,26 @@ export const bind = (
           const who = whoOf(state)
           if (who !== null) {
             if (state.status === "thinking" && lastStatus !== "thinking") {
+              agentSeqAtTurn = Math.max(
+                -1,
+                ...[...(chat?.entries().values() ?? [])]
+                  .filter((entry): entry is Extract<ChatEntry, { kind: "agent" }> =>
+                    entry.kind === "agent"
+                  )
+                  .map((entry) => entry.seq),
+              )
               seen({ kind: "turn", ...who, status: "working" })
             }
             if (lastStatus === "thinking" && state.status !== "thinking") {
               seen({ kind: "turn", ...who, status: "done" })
-              const last = [...(chat?.entries().values() ?? [])]
+              const produced = [...(chat?.entries().values() ?? [])]
                 .filter((entry): entry is Extract<ChatEntry, { kind: "agent" }> =>
-                  entry.kind === "agent"
+                  entry.kind === "agent" && entry.seq > agentSeqAtTurn
                 )
                 .sort((a, b) => a.seq - b.seq)
                 .at(-1)
-              if (last !== undefined && last.text !== "") {
-                seen({ kind: "replied", ...who, text: last.text })
+              if (produced !== undefined && produced.text !== "") {
+                seen({ kind: "replied", id: produced.id, ...who, text: produced.text })
               }
             }
           }
@@ -2185,9 +2201,16 @@ export const bind = (
           saying.publish(change)
           const who = chat === null ? null : whoOf(chat.state())
           if (who === null) return
+          const whoKey = `${who.agent}/${who.session}`
+          if (deliveredFor !== whoKey) {
+            deliveredIds.clear()
+            deliveredFor = whoKey
+          }
           for (const [, entry] of change.upserts) {
             if (entry.kind === "user" && entry.rang !== undefined && entry.text !== "") {
-              seen({ kind: "delivered", from: entry.rang, ...who, body: entry.text })
+              if (deliveredIds.has(entry.id)) continue
+              deliveredIds.add(entry.id)
+              seen({ kind: "delivered", id: entry.id, from: entry.rang, ...who, body: entry.text })
             }
           }
         },

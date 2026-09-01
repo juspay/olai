@@ -9,8 +9,11 @@
  *     201 { eventType, conversationId, messageId }
  *
  *   POST /api/apps/chat/updateMessage
- *     { messageId, markdownText }
+ *     { messageId, markdownText, channelId }
  *     200 { eventType, conversationId, messageId }
+ *     `channelId` is required by `validateChannelAccessForPost` — the refine
+ *     wants one of channelId / channelName / conversationId, and without it
+ *     the route 400s before ChatController.updateMessage runs.
  *
  *   POST /api/apps/chat/agentProgress
  *     { conversationId, channelId?, status: "working"|"done", agentSlug?, sessionId? }
@@ -50,6 +53,7 @@ export interface SpacesClient {
   readonly updateMessage: (body: {
     readonly messageId: string
     readonly markdownText: string
+    readonly channelId: string
   }) => Promise<PostResult>
   readonly agentProgress: (body: {
     readonly conversationId: string
@@ -81,16 +85,21 @@ export const makeClient = (
     path: string,
     body: Record<string, unknown>,
   ): Promise<{ status: number; json: unknown }> => {
-    const response = await fetchImpl(`${base}${CHAT}${path}`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    })
-    const json: unknown = await response.json().catch(() => null)
-    return { status: response.status, json }
+    try {
+      const response = await fetchImpl(`${base}${CHAT}${path}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      })
+      const json: unknown = await response.json().catch(() => null)
+      return { status: response.status, json }
+    } catch (error) {
+      const why = error instanceof Error ? error.message : String(error)
+      return { status: 0, json: { error: why, message: why } }
+    }
   }
 
   const postedOf = (json: unknown): Posted | null => {
@@ -103,11 +112,15 @@ export const makeClient = (
   }
 
   const refusedOf = (status: number, json: unknown): Refused => {
-    const error =
-      json !== null && typeof json === "object" && "error" in json
-        ? String((json as { error: unknown }).error)
-        : `HTTP ${status}`
-    return { status, why: error }
+    const record = json !== null && typeof json === "object"
+      ? json as Record<string, unknown>
+      : {}
+    const error = typeof record.error === "string" ? record.error : undefined
+    const message = typeof record.message === "string" ? record.message : undefined
+    const why = error !== undefined && message !== undefined && error !== message
+      ? `${error}: ${message}`
+      : message ?? error ?? (status === 0 ? "network error" : `HTTP ${status}`)
+    return { status, why }
   }
 
   const postedCall = async (
@@ -133,6 +146,7 @@ export const makeClient = (
       postedCall("/updateMessage", {
         messageId: body.messageId,
         markdownText: body.markdownText,
+        channelId: body.channelId,
       }),
     agentProgress: async (body) => {
       const payload: Record<string, unknown> = {
