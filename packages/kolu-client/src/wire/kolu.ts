@@ -45,15 +45,16 @@
  *     into its spec and re-exports), `./detect` (the spawn-time probe's
  *     surface), `./testlib` (the fake padi and its lifecycle) and `./drivers`
  *     (the two padi-dialing evidence scripts).
- *   - **`@olai/kolu-ui`** — EVERYTHING BROWSER. The Dock row on a `terminal`
- *     property, the live pane, the re-attach policy, the fleet the tab holds
- *     once, and the words the header readout says. Its socket is `KoluUi` —
- *     the app hands over its composed client and a clock, and nothing else
- *     crosses.
+ *   - **`olai-plugin-kolu`'s `src/ui/`** — EVERYTHING BROWSER. The Dock row on a
+ *     `terminal` property, the live pane, the re-attach policy, the fleet the
+ *     tab holds once, and the words the header readout says. Its socket is
+ *     `KoluUi` — the app hands over its composed client and a clock, and
+ *     nothing else crosses. It was a package of its own (`@olai/kolu-ui`) until
+ *     the appliance fold folded it into the tenant beside the judgement.
  *
  * What is left outside them is not kolu implementation but olai's own
  * judgement ABOUT kolu, and it has a package of its own now:
- * `@olai/plugin-kolu`. It walks the vault for who OWNS a terminal
+ * `olai-plugin-kolu`. It walks the vault for who OWNS a terminal
  * (`claimants.ts` — outline records, injected into the dial rather than known
  * by it) and for what `_olai/Kolu.olai` says (`config.ts`); it decides what an
  * absent kolu MEANS, in five English sentences, over the probe it reaches
@@ -61,10 +62,12 @@
  * until the plugin wall went up); and it owns the padi pill and the feed its
  * press opens. Every one of those used to sit in a general package under a
  * kolu-shaped filename, and none of them names a `@kolu/*` package —
- * everything reaches kolu through this one and `@olai/kolu-ui`, which is what
- * `../../plugins/src/fence.test.ts` holds it as a fact rather than a habit —
+ * everything reaches kolu through this one and `olai-plugin-kolu`, which is what
+ * `packages/plugin-api/src/fence.test.ts` holds as a fact rather than a habit —
  * it absorbed the assertion `scripts/check-kolu-deps.sh` used to make, and the
- * script that kept the name asks about manifests now, not imports.
+ * script that kept the name asks about manifests now, not imports. It holds it
+ * by DERIVING the tenant from the registry, so the fold that moved kolu's faces
+ * into the plugin package moved the wall with them and nothing was edited here.
  */
 
 import { PrInfoSchema } from "anyforge/schemas"
@@ -179,7 +182,7 @@ export const KOLU_UNPULSED: WatchPulse | null = null
  * The drawer's last line is not an event: it is the door onto the outline
  * the watcher reads its knobs from. `file` is which served outline the
  * convention named — read off the served OUTLINE PATHS rather than the
- * nodes (`@olai/plugin-kolu`'s `koluFileIn` — shallowest, ties by path),
+ * nodes (`olai-plugin-kolu`'s `koluFileIn` — shallowest, ties by path),
  * so a config that parses to nothing keeps the door that opens it, and
  * the drawer's navigation is a plain open of a page that exists rather
  * than a second spelling of the convention in a browser that holds only
@@ -236,7 +239,7 @@ export const sameKolu = (a: KoluLink, b: KoluLink): boolean =>
  * THE PROPERTY KEY THE BROWSER'S DRESSING HANGS OFF.
  *
  * NOT THE LICENCE ANY MORE, and that is what changed under this constant. The
- * SERVER follows a declared KIND now — `@olai/plugin-kolu`'s `terminal`, read
+ * SERVER follows a declared KIND now — `olai-plugin-kolu`'s `terminal`, read
  * off `_olai/Properties.olai`, which is what decides whose fleet row a node
  * owns and which values the gate holds to a padi id. What is left here is the
  * word a TAB keys its dressing table on, and it is left because a tab has

@@ -1,0 +1,31 @@
+{
+  "name": "olai-plugin-odu",
+  "//name": "UNSCOPED, for `olai-plugin-kolu`'s reason one appliance over: `@olai/*` is the scope for the packages that ARE olai, and a tenant is named the way a plugin written outside this tree would be. The directory carries the same word.",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "//exports": "Five entries, and the first three are DISJOINT graphs — it is `olai-plugin-kolu`'s manifest one appliance over, deliberately the same shape. `./wire` is the declaration everything that composes or reads the surface pulls in statically, through `@olai/plugin-api/wire`. The root is the manifest, and this package OWNS its browser faces — the chip, the run matrix, the words beside them, and the tab's one subscription — so the manifest's graph carries SolidJS. `./server` is the runtime half, its own door for that exact reason: a process that renders nothing must not pull a UI runtime, which is the claim `packages/plugin-api/src/fence.test.ts` walks rather than trusts. The last two are the browser half's two contracts with packages that never import it: `./testids` is NAMES ONLY, so a scenario asserts on this package's own DOM without pulling a component into a suite that has no browser, and `./all.css` is the sheet — a `@source` pointed at the faces' own directory, because Tailwind emits only what it can SEE and a moved component nothing points at renders with no layout and nothing errors.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./wire": "./src/wire.ts",
+    "./server": "./src/server.ts",
+    "./testids": "./src/testids.ts",
+    "./all.css": "./src/browser/all.css"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "//": "THE ODU TENANT — the CI probe, the run cell, the chip and matrix that draw it, and the run events that reach the feed. It wraps `@olai/odu-client`, which stays the only package that names `@odu/*`.",
+  "//dependencies": "`@olai/odu-client`, `@olai/format` and `solid-js`, and no `@olai/plugin-api` for `olai-plugin-kolu`'s structural reason. `@olai/format` is here because `worktrees.ts` is — the walk that asks which nodes name a worktree, and whether the vault DECLARED that key a path, reads outline records: a thing `@olai/odu-client` must not learn (its interfaces are parametric in the node type) and a judgement `@olai/server` has no business making, since what it licences is a socket dial in somebody's checkout. `solid-js` is a runtime dependency here rather than a type-only one, because this package OWNS its browser faces — odu has no `-ui` sibling, and it needs none: nothing it draws reaches odu's product tier, so there is no second wall for a second package to be. What is deliberately NOT here is `@olai/web`: the faces need the app's clock, its duration register and the drawer's own contract, and every one of those arrives as a VALUE (src/browser/app.ts declares the shapes structurally and argues why) rather than as an import that would be a cycle.",
+  "dependencies": {
+    "@olai/format": "workspace:*",
+    "@olai/odu-client": "workspace:*",
+    "solid-js": "^1.9.0"
+  },
+  "devDependencies": {
+    "@olai/surface": "workspace:*"
+  },
+  "//devDependencies": "@olai/surface for its `./testlib` door ONLY — the schema walk that holds this cell`s `arrayKey` declaration honest (src/wire.test.ts). Deliberately not a runtime dependency, and it could not be one: surface sits ABOVE the plugin packages now, so a real dependency here would be the cycle the composition is shaped to make unrepresentable. A testlib is the one thing that can travel the other way, because nothing it touches ships."
+}

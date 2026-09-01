@@ -13,7 +13,7 @@
  * whether this serve runs it — so a third plugin reaches this panel without a
  * line here or in `./Panel.tsx` moving, and nothing in `@olai/web` can be the
  * place a plugin's name is hardcoded. The fence one package over holds that as
- * an equality per package (`@olai/plugins`' `fence.test.ts`); this module is
+ * an equality per package (`@olai/plugin-api`'s `fence.test.ts`); this module is
  * written so there is nothing for it to catch.
  *
  * **PURE FUNCTIONS OF THE CELL, and nothing else** — the shape `./policy.ts`
@@ -43,7 +43,7 @@ export const pluginRows = (roster: PluginRoster): ReadonlyArray<BuiltPlugin> => 
  * and a person hunting for a chip that is not there has no other way to learn
  * why.
  *
- * Each clause is a claim the code keeps (`@olai/plugins`' README): a plugin
+ * Each clause is a claim the code keeps (`@olai/plugin-api`'s README): a plugin
  * left out composes no sibling surface, so no tag of its is served; it never
  * probes, because the probe list is filtered before the chat is built; it
  * registers no dressing and mounts no chrome; and a value under a kind it

@@ -44,7 +44,7 @@
  * watchdog probes and which one the `pid` handshake reads: both addressed
  * `Object.keys(surfaces)[0]`, the FIRST SIBLING. Core could not go in that map
  * — its tags are `surface/<member>/<verb>` and must stay that way (an MCP
- * client writes them, the suite asserts them, and `@olai/plugins`'
+ * client writes them, the suite asserts them, and `@olai/plugin-api`'s
  * `composition.test.ts` pins it) — so the probe target was a PLUGIN, and a
  * serve that did not run that plugin answered its `system/identity` with
  * "Unknown request tag", emptying the `pid` echo. An empty echo is precisely
@@ -146,13 +146,13 @@
  */
 
 import { connectSurfaces } from "@kolu/surface-app/solid"
-import { surfacesOf, WIRES } from "@olai/plugins/wire"
+import { surfacesOf, WIRES } from "@olai/plugin-api/wire"
 import { surface } from "@olai/surface"
 
 /**
  * THE SIBLING MAP, typed off the registry's own tuple.
  *
- * `surfacesOf` answers a `Record<string, …>` because `@olai/plugins` declines to
+ * `surfacesOf` answers a `Record<string, …>` because `@olai/plugin-api` declines to
  * depend on `@kolu/surface` — its `PluginWire` says a surface is `{ spec }` and
  * no more. That erasure is right there and wrong here: the seam's client bundle
  * is typed PER KEY off each sibling's own spec, and a widened record would hand
@@ -253,7 +253,7 @@ export const pluginClients = wire.clients
  *
  * So the widening is a function with a name on it, spent at one call site
  * (`./plugins/Mounted.tsx`), rather than a cast at the walk. `unknown` is the
- * honest return and not a loss: `@olai/plugins` types a mount's client
+ * honest return and not a loss: `@olai/plugin-api` types a mount's client
  * `unknown` for the reason it types a server half's `dial` that way — core
  * cannot type a plugin's client without learning its members — and the plugin
  * narrows it once, at its own edge.

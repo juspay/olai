@@ -561,7 +561,7 @@ export const UserEntry = Schema.Struct({
   /**
    * A MACHINE SAID THIS, AND WHICH ONE — the plugin's `name`, as data.
    *
-   * A plugin can put a sentence into a conversation (`@olai/plugins`'
+   * A plugin can put a sentence into a conversation (`@olai/plugin-api`'s
    * `Deliveries`), and a row it put there is not a row a person typed. The mark
    * is what lets the browser draw it with a face of its own rather than in the
    * human's bubble, and what takes the *send again* press off it: re-sending a
@@ -587,7 +587,7 @@ export const UserEntry = Schema.Struct({
    * ever be wanted — but it is not owed one to earn its place.
    *
    * NOT DRAWN AS A NAME ABOVE THE WORDS, which looks like the obvious use of
-   * it: `@olai/plugins`' `Deliveries.deliver` REQUIRES the body to open with
+   * it: `@olai/plugin-api`'s `Deliveries.deliver` REQUIRES the body to open with
    * the plugin's own attribution, so a core-drawn name over it would put two
    * attributions on one row saying the same thing in two voices — and the core
    * one is the half that vanishes on the replay below.
@@ -1632,7 +1632,7 @@ export const Wake = Schema.Struct({
    * write. This is not about terminals: it is about A FILE CORE STORES AND NO
    * LONGER FINDS, which is core's fact about core's own record, and there is no
    * plugin better placed to say it. What the plugin says is the sentence that
-   * goes into the CONVERSATION (`@olai/plugins`' `PluginServerHalf.wake.gone`),
+   * goes into the CONVERSATION (`@olai/plugin-api`'s `PluginServerHalf.wake.gone`),
    * and core carries that one verbatim.
    *
    * A BOOLEAN AND NOT AN OPTIONAL KEY, though the record behind it writes

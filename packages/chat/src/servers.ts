@@ -56,7 +56,7 @@ import type { Reported } from "./agents/leg.ts"
  *
  * `why` IS THE PROBE'S OWN WHOLE SENTENCE and this file does not touch it. The
  * words belong to whoever found out — kolu's five ways of failing are
- * `@olai/plugin-kolu`'s to word — and everything here is about the STANDING
+ * `olai-plugin-kolu`'s to word — and everything here is about the STANDING
  * they are carried under.
  */
 export interface NotHere {

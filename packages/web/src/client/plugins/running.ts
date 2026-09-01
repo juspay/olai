@@ -45,7 +45,7 @@
  *
  * ## And why none of this is read from the registry
  *
- * `@olai/plugins`' registry knows what the BUILD has and cannot know what this
+ * `@olai/plugin-api`'s registry knows what the BUILD has and cannot know what this
  * serve composed — the two differ exactly when `--plugins` was given, which is
  * the only case this module exists for.
  */

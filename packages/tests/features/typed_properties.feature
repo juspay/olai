@@ -212,7 +212,7 @@ Feature: A property key that declares its type
   Scenario: A kind a PLUGIN contributed draws no door of the app's own
     # The wrong-door-is-worse-than-no-door rule, now said by the vault rather
     # than guessed at. `worktree` is declared `worktree` — a kind
-    # `@olai/plugin-odu` contributes, not one of the format's seven — so its
+    # `olai-plugin-odu` contributes, not one of the format's seven — so its
     # value names a checkout on the machine the orchestrator runs on, which is
     # not one of the four places this app can send anybody. A chip that offered
     # to open it would be offering a page that does not exist, and the plugin's

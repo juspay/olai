@@ -60,7 +60,7 @@ import { Schema } from "effect"
  * THE PROPERTY KEY THE CI FACE HANGS OFF.
  *
  * THE BROWSER'S HALF ALONE, which is the correction: the server follows a
- * declared KIND now (`@olai/plugin-odu`'s `worktree`, read off
+ * declared KIND now (`olai-plugin-odu`'s `worktree`, read off
  * `_olai/Properties.olai`), so which nodes are probed is decided by what the
  * vault DECLARED and not by this word at all. What is left here is what a TAB
  * keys its dressing table on — `TERMINAL_KEY`'s own situation, one appliance

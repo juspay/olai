@@ -2,7 +2,7 @@
  * THE REGISTRY, READ AS THE INTERFACE — one line, and the reason it is not
  * three.
  *
- * `@olai/plugins` exports `PLUGINS` as a TUPLE (`as const satisfies
+ * `@olai/plugin-api` exports `PLUGINS` as a TUPLE (`as const satisfies
  * ReadonlyArray<OlaiPlugin>`), and that is right where it is declared: a
  * `satisfies` keeps each manifest's own precise type, so a plugin that stopped
  * fitting is a type error on the registry's line with that plugin's NAME on it,
@@ -27,7 +27,7 @@
  * declares, which is the type every walk below is written against.
  */
 
-import { type OlaiPlugin, PLUGINS } from "@olai/plugins"
+import { type OlaiPlugin, PLUGINS } from "@olai/plugin-api"
 
 /** Every plugin this binary was built with, as the interface. */
 export const ROSTER: ReadonlyArray<OlaiPlugin> = PLUGINS

@@ -10,12 +10,12 @@
  *
  * The agent marks are BUNDLED and OURS — drawn in that file, in a few SVG
  * shapes, against a roster olai ships. A plugin's is not olai's to draw.
- * `@olai/plugins`' `fence.test.ts` holds as an equality per package that no
+ * `@olai/plugin-api`'s `fence.test.ts` holds as an equality per package that no
  * general package spells a plugin's name in code, so the table an agent's mark
  * is looked up in cannot exist here — and that fence is the right rule rather
  * than an obstacle: what a tenant looks like is a decision made where somebody
  * knows what the tenant IS. So the shapes arrive on the plugin's own manifest
- * ({@link ../plugins/marks.ts}, over `@olai/plugins`' `PluginMark`) and this
+ * ({@link ../plugins/marks.ts}, over `@olai/plugin-api`'s `PluginMark`) and this
  * component draws whatever came back.
  *
  * What core keeps is the ELEMENT — the box, the size, `aria-hidden` — because

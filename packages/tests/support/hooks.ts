@@ -306,7 +306,7 @@ const PIN_TAG = /^@pin:(commit|push)=([a-z]+)$/;
  *
  * WHY IT SPELLS PLUGIN NAMES, when almost nothing else in this repo may: a
  * scenario about `--plugins=odu` is a scenario about a person typing `odu`, and
- * the words a person types are the one place the name belongs. `@olai/plugins`'
+ * the words a person types are the one place the name belongs. `@olai/plugin-api`'s
  * fence holds the claim it actually makes — that no general package IMPORTS a
  * plugin or spells one in production code — and this suite is neither.
  */

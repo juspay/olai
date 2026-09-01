@@ -37,7 +37,7 @@
  * So the folder is here, named for what it is, holding the whole of the face —
  * and it is now the ONLY folder under `live/`, which reads as an accident and
  * is not. Its two former neighbours were dressings, and a dressing is a
- * PLUGIN'S; they left for `@olai/plugin-kolu` and `@olai/plugin-odu` with the
+ * PLUGIN'S; they left for `olai-plugin-kolu` and `olai-plugin-odu` with the
  * names they claimed. This one claims no name, registers nothing, and is drawn
  * by the row — so it is the app's, and it stayed.
  */

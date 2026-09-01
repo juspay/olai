@@ -40,7 +40,7 @@ import { Result } from "effect"
  * A FUNCTION AND NOT A CONST, because a contributed kind is a fact about the
  * BUILD and the FLAG rather than about the format: which words beyond the
  * format's seven a declaration may name, and which of them hold a value to
- * anything, is what `@olai/plugins` composes and what `--plugins` narrows
+ * anything, is what `@olai/plugin-api` composes and what `--plugins` narrows
  * (`@olai/format`'s `KindVocabulary`). It arrives here because this is the one
  * place the store's judgement meets the format's, and it goes no further than
  * the `validate` call below.

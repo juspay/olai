@@ -9,7 +9,7 @@
  *
  * ## Why not core's own byline
  *
- * Because core's mark does not survive a replay. `@olai/plugins`' `Deliveries.deliver`
+ * Because core's mark does not survive a replay. `@olai/plugin-api`'s `Deliveries.deliver`
  * says it in its own words and requires the body to CARRY its own attribution:
  * the browser is handed `rang` while the conversation is live, but
  * a conversation rebuilt from the agent's store comes back out of message

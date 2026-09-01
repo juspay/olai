@@ -73,15 +73,16 @@
  *     `./detect` (the spawn-time probe's
  *     surface), `./testlib` (the fake padi and its lifecycle) and `./drivers`
  *     (the two padi-dialing evidence scripts).
- *   - **`@olai/kolu-ui`** — EVERYTHING BROWSER. The Dock row on a `terminal`
- *     property, the live pane, the re-attach policy, the fleet the tab holds
- *     once, and the words the header readout says. Its socket is `KoluUi` —
- *     the app hands over its composed client and a clock, and nothing else
- *     crosses.
+ *   - **`olai-plugin-kolu`'s `src/ui/`** — EVERYTHING BROWSER. The Dock row on a
+ *     `terminal` property, the live pane, the re-attach policy, the fleet the
+ *     tab holds once, and the words the header readout says. Its socket is
+ *     `KoluUi` — the app hands over its composed client and a clock, and
+ *     nothing else crosses. It was a package of its own (`@olai/kolu-ui`) until
+ *     the appliance fold folded it into the tenant beside the judgement.
  *
  * What is left outside them is not kolu implementation but olai's own
  * judgement ABOUT kolu, and it has a package of its own now:
- * `@olai/plugin-kolu`. It walks the vault for who OWNS a terminal
+ * `olai-plugin-kolu`. It walks the vault for who OWNS a terminal
  * (`claimants.ts` — outline records, injected into the dial rather than known
  * by it) and for what `_olai/Kolu.olai` says (`config.ts`); it decides what an
  * absent kolu MEANS, in five English sentences, over the probe it reaches
@@ -89,10 +90,12 @@
  * until the plugin wall went up); and it owns the padi pill and the feed its
  * press opens. Every one of those used to sit in a general package under a
  * kolu-shaped filename, and none of them names a `@kolu/*` package —
- * everything reaches kolu through this one and `@olai/kolu-ui`, which is what
- * `../../plugins/src/fence.test.ts` holds it as a fact rather than a habit —
+ * everything reaches kolu through this one and `olai-plugin-kolu`, which is what
+ * `packages/plugin-api/src/fence.test.ts` holds as a fact rather than a habit —
  * it absorbed the assertion `scripts/check-kolu-deps.sh` used to make, and the
- * script that kept the name asks about manifests now, not imports.
+ * script that kept the name asks about manifests now, not imports. It holds it
+ * by DERIVING the tenant from the registry, so the fold that moved kolu's faces
+ * into the plugin package moved the wall with them and nothing was edited here.
  */
 
 import { type CellStore, inMemoryStore } from "@kolu/surface/server"
@@ -149,7 +152,7 @@ export interface KoluDeps<N> {
   readonly claimants: (nodes: ReadonlyArray<N>) => Iterable<Claimant>
   /** THE SECOND VAULT WALK, injected, and the same boundary again. What
    *  `_olai/Kolu.olai`'s watch knobs say is read off the same nodes by
-   *  `@olai/plugin-kolu`'s `config.ts`; what crosses is the derived
+   *  `olai-plugin-kolu`'s `config.ts`; what crosses is the derived
    *  intervals plus the malformed lines this package then says. The FILE is
    *  a QUESTION THE CALLER ANSWERED (the served-paths convention,
    *  `koluFileIn`), passed in so the walk reads inside it — a file that
@@ -166,7 +169,7 @@ export interface KoluDeps<N> {
    * the watcher emits, handed to whoever wants to ring something with it.
    *
    * ONLY THE WIRE'S OWN `KoluEvent` CROSSES, which is the whole of why this
-   * is a callback and not a member on {@link KoluHalf}: `@olai/plugin-kolu`
+   * is a callback and not a member on {@link KoluHalf}: `olai-plugin-kolu`
    * joins each event against an OUTLINE RECORD — the un-done nodes of a
    * file somebody scoped a conversation to — and an outline record is the
    * one thing this package must never learn. The event is already frozen,
@@ -189,7 +192,7 @@ export interface KoluDeps<N> {
    * armed at `heartbeatMs`) rather than minting a second one: a second timer
    * would be a second cadence, and the day the two disagreed there would be no
    * way to say which one the vault's `heartbeat` knob had meant. What is on the
-   * other end of this — `@olai/plugin-kolu`'s doorbell, delivering four derived
+   * other end of this — `olai-plugin-kolu`'s doorbell, delivering four derived
    * facts into a conversation that has heard nothing for a window — is not this
    * package's business, exactly as {@link KoluDeps.rang}'s reader is not.
    *
@@ -210,7 +213,7 @@ export interface KoluDeps<N> {
    *  every few seconds and it is not news. */
   readonly say: (line: string) => void
   /** The sentences the OWNER must read — the vault's malformed knob values
-   *  (`@olai/plugin-kolu`'s `config.ts`) — wired to a level the default
+   *  (`olai-plugin-kolu`'s `config.ts`) — wired to a level the default
    *  console turns on: a broken spell would stay behind
    *  `OLAI_LOG_LEVEL=debug` otherwise. */
   readonly warn: (line: string) => void
@@ -274,7 +277,7 @@ export interface KoluHalf<N> {
    * half is the watcher's CONFIG, re-derived off the one file the caller
    * named — the way `held-for`, `nag` and `heartbeat` move under a live
    * watcher's hands. Both walks are the PLUGIN's
-   * (`@olai/plugin-kolu`'s `claimants.ts` and `config.ts`); what crosses is
+   * (`olai-plugin-kolu`'s `claimants.ts` and `config.ts`); what crosses is
    * four strings per claim and one reading per revision — a `WatchConfig`
    * for the timers — the boundary the header draws, grown one sibling
    * rather than relaxed one jot. The FILE the caller named is the `knobs`

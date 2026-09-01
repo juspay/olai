@@ -260,7 +260,7 @@ export const PROP_KIND_TAKES = {
  * only the plugin knows what its kind means — core composing a sentence about
  * somebody else's vocabulary is the thing this whole interface exists to stop.
  *
- * DECLARED HERE STRUCTURALLY and again in `@olai/plugins`' `PropKind`, and the
+ * DECLARED HERE STRUCTURALLY and again in `@olai/plugin-api`'s `PropKind`, and the
  * two spellings are the arrangement rather than a duplication to tidy away:
  * this package sits a floor BELOW the plugin system and a plugin may not import
  * the registry at all, so the agreement is proved where the two ends meet — at
@@ -788,7 +788,7 @@ export const declarationsIn = (
  * vault that writes `terminal` are talking about one key rather than two.
  *
  * TWO PLUGINS CLAIMING ONE KEY is refused where the vocabulary is ASSEMBLED
- * (`@olai/plugins`' `kindsOf`), beside the refusal for two plugins claiming one
+ * (`@olai/plugin-api`'s `kindsOf`), beside the refusal for two plugins claiming one
  * word — not here. This is a pure fold over a table somebody else has already
  * proved well-formed, and a fold that also validated would be a second sentence
  * about one mistake, in a function tests call with tables they built themselves.

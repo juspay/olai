@@ -31,7 +31,7 @@
 # with `rg … 2>/dev/null || true` over `packages/*/src` — a fence that passes
 # GREEN on a machine with no ambient ripgrep (it is not in shell.nix's package
 # list) and that never saw `packages/tests`, the one member with no `src/`.
-# Those two now live in `packages/plugins/src/fence.test.ts`, under the pinned
+# Those two now live in `packages/plugin-api/src/fence.test.ts`, under the pinned
 # bun, walking the PACKAGE, with the allowed set DERIVED from the plugin
 # registry rather than typed out twice. What is left here is the half that
 # genuinely wants a shell: reading JSON out of the Nix store and comparing it
@@ -137,7 +137,16 @@ fi
 # which is not a widening for its own sake: `@odu/run-client` declares `effect`
 # at the same version, so a drifting manifest is the same two-instances failure
 # read off a different pin.
-for manifest in "$root"/packages/*/package.json; do
+# TWO GLOBS, because the tenants nest: `packages/plugins/` is the plugin
+# container and holds no package of its own, so `packages/*/package.json` would
+# walk every member but the two that wrap an appliance — which are precisely the
+# ones most likely to name a pinned external, and would have drifted here in
+# silence. The pair matches the root manifest's own `workspaces` field; a third
+# glob added there is a third line here. `nullglob` is not assumed: an
+# unmatched pattern stays literal in POSIX sh, and the `-f` guard below is what
+# makes that a skip rather than a `jq` reading a file called `*`.
+for manifest in "$root"/packages/*/package.json "$root"/packages/plugins/*/package.json; do
+  [ -f "$manifest" ] || continue
   drift=$(
     printf '%s' "$wanted" | jq -r --slurpfile pkg "$manifest" --arg label "$label" '
       to_entries[]

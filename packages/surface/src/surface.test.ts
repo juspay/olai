@@ -207,7 +207,7 @@ test("every declaration names a field its own schema carries, and no other membe
   // extraction, and it is not a member this spec declares any more: a plugin
   // brings a whole surface of its own and core composes it as a sibling, so
   // odu's cell is declared — and its two array depths held — in
-  // `@olai/plugin-odu`'s own suite, against the schema it actually ships. The
+  // `olai-plugin-odu`'s own suite, against the schema it actually ships. The
   // walk both suites spend is one walk, published through this package's
   // `./testlib` door, so there is no second opinion about it.
   //

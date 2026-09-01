@@ -51,7 +51,7 @@ import { Flag } from "effect/unstable/cli"
  * THE WIRE DOOR, for a list of NAMES — and the subpath is load-bearing rather
  * than a stylistic tidy-up.
  *
- * `@olai/plugins`' root is the MANIFESTS, and a manifest carries a plugin's
+ * `@olai/plugin-api`'s root is the MANIFESTS, and a manifest carries a plugin's
  * browser faces: SolidJS components, and behind kolu's a terminal emulator.
  * Reaching this list through the root would put every one of them on the static
  * graph of a process that renders nothing, and it does not merely cost bytes —
@@ -64,7 +64,7 @@ import { Flag } from "effect/unstable/cli"
  * `surfaces.ts` and exported from `./wire` as well as from the root, so the
  * browser-safe door answers the same question with none of that behind it.
  */
-import { PLUGIN_NAMES } from "@olai/plugins/wire"
+import { PLUGIN_NAMES } from "@olai/plugin-api/wire"
 
 /**
  * What `--plugins` says for itself.
@@ -122,7 +122,7 @@ export const pluginFlags = () => ({
  * having said.
  *
  * Splitting is this file's and not the registry's, because a comma-separated
- * list is a fact about a COMMAND LINE — `@olai/plugins`' `enabled` takes a list
+ * list is a fact about a COMMAND LINE — `@olai/plugin-api`'s `enabled` takes a list
  * of names and has no opinion about how a person typed them.
  *
  * An empty value is an empty LIST and not `null`: `--plugins=` is somebody
@@ -133,7 +133,7 @@ export const pluginFlags = () => ({
  *
  * AN UNKNOWN NAME IS REFUSED HERE, and this is the one place it is. A flag is
  * where a person types one, so it is where a typo can be answered with the
- * legal words beside it — `@olai/plugins`' `enabled` deliberately refuses
+ * legal words beside it — `@olai/plugin-api`'s `enabled` deliberately refuses
  * nothing, because a filter that also validated would be a second sentence
  * about one mistake, in a function tests call with lists they built themselves.
  */
@@ -153,4 +153,4 @@ export const pluginsPin = (given: string | null): ReadonlyArray<string> | null =
 /** The built-in list, re-exported beside the flag that declines to apply it —
  *  so a reader of this file can see what "nobody said" comes to without going
  *  a package down. The same courtesy `./gitPolicy.ts` ends with. */
-export { PLUGIN_NAMES } from "@olai/plugins/wire"
+export { PLUGIN_NAMES } from "@olai/plugin-api/wire"

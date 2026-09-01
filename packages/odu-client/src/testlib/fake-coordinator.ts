@@ -5,7 +5,7 @@
  *
  * `@olai/kolu-client`'s `fake-padi.ts` one appliance over, and deliberately the
  * same shape — including WHICH PACKAGE it sits in. This is `@olai/odu-client`
- * and not `@olai/plugin-odu` because it imports `@odu/run-client`, and that
+ * and not `olai-plugin-odu` because it imports `@odu/run-client`, and that
  * specifier is confined to this package by a fence with no exceptions. A
  * fixture is not an exemption: the fake serves odu's own surface, so it
  * genuinely IS a thing that knows odu exists, and it belongs behind the same

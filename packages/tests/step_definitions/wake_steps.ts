@@ -4,7 +4,7 @@
  *
  * Everything about WHAT is claimed, what a wake MEANS, and what the sentence
  * says is a pure function over a parsed vault and has its own unit tests
- * (`@olai/plugin-kolu`'s `doorbell.test.ts`); so are the three arms of the
+ * (`olai-plugin-kolu`'s `doorbell.test.ts`); so are the three arms of the
  * delivery itself (`@olai/chat`'s `deliveries.test.ts`). Nothing here re-asserts
  * any of that. What these steps are about is the half that only a real browser
  * and a real server can say: a person picks a file, a watcher on the far end of

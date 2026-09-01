@@ -19,23 +19,23 @@
  *
  * The ids split by RENDERER, which is the only line that holds once a face
  * lives in another package: a scenario asserting on the terminal row is
- * asserting on `@olai/kolu-ui`'s output, and one asserting on the padi pill or
+ * asserting on `olai-plugin-kolu`'s own faces, and one asserting on the padi pill or
  * the CI chip is asserting on a PLUGIN's. Each of those owns its own
- * names-only door, and `@olai/plugins/testids` is where the plugins' tables
+ * names-only door, and `@olai/plugin-api/testids` is where the plugins' tables
  * merge — an id it could only reach through here would be a suite reading one
  * package's DOM through another package's door.
  *
  * Two groups left this table for that reason and their absence is worth a line
- * each. The `padi*` five went to `@olai/plugin-kolu` with the pill and its
- * drawer, and the `ci*` three to `@olai/plugin-odu` with the chip and its
+ * each. The `padi*` five went to `olai-plugin-kolu` with the pill and its
+ * drawer, and the `ci*` three to `olai-plugin-odu` with the chip and its
  * matrix. A third group was DELETED rather than moved: six `terminal*` ids
- * that duplicated `@olai/kolu-ui`'s own, value for value, left behind when the
+ * that duplicated that tenant's own, value for value, left behind when the
  * door became a package — nothing in this client or the suite ever read them,
  * and two spellings of one contract is the exact failure this file exists to
  * prevent.
  */
 
-import type { PluginTestId } from "@olai/plugins/testids"
+import type { PluginTestId } from "@olai/plugin-api/testids"
 
 export const TESTID = {
   /** The app header: wordmark, and on desktop the connection, agent,
@@ -1202,7 +1202,7 @@ export const TESTID = {
   chatSpeaker: "chat-speaker",
   /** A PLUGIN's mark, on such a face. Its own id beside `chatAgentMark` because
    *  the two come from different places and only one of them is olai's: this
-   *  shape is contributed by the plugin's own manifest (`@olai/plugins`'
+   *  shape is contributed by the plugin's own manifest (`@olai/plugin-api`'s
    *  `PluginMark`). `data-mark` says which was drawn — the plugin's own, by
    *  name, or the `generic` a plugin that hangs none gets. */
   chatPluginMark: "chat-plugin-mark",
@@ -1302,7 +1302,7 @@ export const TESTID = {
    *  that asks "did I say this" should not have to filter the agent's prose. */
   chatMine: "chat-mine",
   /** What a MACHINE said in the human's lane — a plugin's doorbell putting a
-   *  sentence into the conversation (`@olai/plugins`' `Deliveries`). It is a
+   *  sentence into the conversation (`@olai/plugin-api`'s `Deliveries`). It is a
    *  `user` row like `chatMine` and deliberately not drawn as one: full width
    *  and left-aligned, with `data-rang-by` naming which plugin rang. It carries
    *  no `chatResend`, ever — re-sending a derivation that has stopped being true
@@ -1684,7 +1684,7 @@ export const selector = (id: TestId | PluginTestId): string => `[data-testid="${
  * The plugin roster is the one part of this panel whose rows are not known when
  * this file is written: there is a row per plugin the BUILD has, walked off the
  * `plugins` cell, and neither the panel nor the suite may spell a plugin's name
- * (`@olai/plugins`' `fence.test.ts` holds that as an equality per package). So
+ * (`@olai/plugin-api`'s `fence.test.ts` holds that as an equality per package). So
  * the row's handle is a GRAMMAR rather than a name — `{@link PLUGIN_PREF}`
  * followed by whatever the server said — and a scenario finds the rows with the
  * prefix and reads the names off the DOM, which is the only way to assert on a

@@ -13,7 +13,7 @@
  * This was `kolu.ts`, 341 lines of one appliance's name inside a package whose
  * whole subject is one conversation with one ACP agent. The judgement half of
  * it — what an absent padi MEANS, and the five English sentences it means it in
- * — is `@olai/plugin-kolu`'s now, where the rest of olai's judgement about kolu
+ * — is `olai-plugin-kolu`'s now, where the rest of olai's judgement about kolu
  * lives, and what is left here is the shape of the question.
  *
  * The division is worth stating in the words it is enforced by: **core displays
@@ -27,7 +27,7 @@
  *
  * ## Three shapes, spelled here rather than imported
  *
- * `@olai/plugins` declares these too, and so does each plugin, and that is the
+ * `@olai/plugin-api` declares these too, and so does each plugin, and that is the
  * arrangement rather than a duplication waiting to be tidied. This package sits
  * a floor BELOW the plugin system — it is `@olai/server` that meets an
  * appliance, through one door, and `@olai/chat` that is handed a list — so an

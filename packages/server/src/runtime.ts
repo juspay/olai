@@ -141,10 +141,10 @@ import { cadence } from "@olai/chat"
  * that bundle onto olai's own surface is the FRAMEWORK's, not this package's:
  * `mergeDisjointGroups` is the counted merge and it lives one import up.
  *
- * `@olai/plugins/server` and not `@olai/plugins`: the manifests carry a
+ * `@olai/plugin-api/server` and not `@olai/plugin-api`: the manifests carry a
  * plugin's CHROME and its DRESSINGS, which are SolidJS components and, behind
  * one of them, a terminal emulator — and this process renders nothing. The
- * three doors are three graphs; `@olai/plugins`' own manifest argues it and
+ * three doors are three graphs; `@olai/plugin-api`'s own manifest argues it and
  * its `fence.test.ts` walks each closure rather than trusting the argument.
  */
 import {
@@ -153,8 +153,8 @@ import {
   type PluginServices,
   enabled,
   SERVERS,
-} from "@olai/plugins/server"
-import { isEnabled, PLUGIN_NAMES, surfacesOf } from "@olai/plugins/wire"
+} from "@olai/plugin-api/server"
+import { isEnabled, PLUGIN_NAMES, surfacesOf } from "@olai/plugin-api/wire"
 
 import type { Cadence, Change, Chat } from "@olai/chat"
 import { type Emit, emitter } from "@olai/log"
@@ -189,7 +189,7 @@ export type Bound = Omit<SurfaceRuntime<typeof surface.spec>, "ctx">
  * ONE PUBLISHED REVISION, as a plugin's server half is handed it — the store's
  * own snapshot, whole.
  *
- * Named here because this is where the two vocabularies meet: `@olai/plugins`
+ * Named here because this is where the two vocabularies meet: `@olai/plugin-api`
  * types its revision hook PARAMETRICALLY and never names a vault record (its
  * manifest declines `@olai/format` on purpose — the format is downstairs, and a
  * floor package that imported it would be the plugin interface learning what an
@@ -285,12 +285,12 @@ export interface Wiring {
    * those members were part of core's own spec. They are a sibling surface
    * now, and absence is the sharper of the two answers: a member that is not
    * there cannot be read as a member that is there and empty, and the
-   * framework's composition expresses it for free (`@olai/plugins`'
+   * framework's composition expresses it for free (`@olai/plugin-api`'s
    * `composition.test.ts`). A machine that simply is not running the tool still gets
    * the hollow arm, because that is what the appliance's own half answers when
    * its dial finds nothing.
    *
-   * A FILTER over the built-in set — the `--plugins` flag `@olai/plugins`'
+   * A FILTER over the built-in set — the `--plugins` flag `@olai/plugin-api`'s
    * `enabled` is written for — is the same shape one step in, and is
    * deliberately not invented here: it filters the record this field turns
    * into, and there is nowhere on this interface for it to be a second
@@ -483,7 +483,7 @@ const writing = (ops: Ops, writer: Writer) => ({
  * runtime holds — that is what `--plugins` means — so the row that says so has
  * to come from the registry. `PLUGIN_NAMES` is that list and `isEnabled` is the
  * same question `enabled` answers as a filter, asked about one name
- * (`@olai/plugins`' `surfaces.ts`).
+ * (`@olai/plugin-api`'s `surfaces.ts`).
  *
  * `pinned` TRAVELS UNEXPANDED — `null` for a flag nobody gave, which means all
  * of them — because the line under the row names a given flag and otherwise
@@ -498,7 +498,7 @@ const writing = (ops: Ops, writer: Writer) => ({
  * nobody set, and asserting it is why this reading is exported rather than
  * inlined at its one call site.
  *
- * Through `@olai/plugins/wire` and not the root, for the reason the import at
+ * Through `@olai/plugin-api/wire` and not the root, for the reason the import at
  * the top of this file gives: the manifests carry SolidJS components, and this
  * process renders nothing.
  */
@@ -507,7 +507,7 @@ export const rosterOf = (
   /**
    * The BUILD's server halves, for the one thing a row carries that the
    * registry's names cannot answer: what this plugin's doorbell WAKES ON, in
-   * the plugin's own words (`@olai/plugins`' `PluginServerHalf.wake`).
+   * the plugin's own words (`@olai/plugin-api`'s `PluginServerHalf.wake`).
    *
    * OPTIONAL and empty by default, because the four callers that only ever
    * asked "which plugins does this build have" are asking a question the
@@ -1042,7 +1042,7 @@ export const bind = (
      * meant to prevent.
      *
      * What keeps the two honest is not a local re-derivation but
-     * `@olai/plugins`' own bench: `rosters.test.ts` holds that the three doors
+     * `@olai/plugin-api`'s own bench: `rosters.test.ts` holds that the three doors
      * list the same plugins in the same order, which is a stronger guarantee
      * than either end could give itself, and the one place a fourth plugin gets
      * it wrong.
@@ -1975,7 +1975,7 @@ export const bind = (
      * by the framework, out of the plugin's own name, with no name arithmetic
      * anywhere in olai.
      * The SIBLING KEY is the plugin's name and it has one spelling: the surface
-     * and the deps are keyed off the same word (`@olai/plugins`' `server.ts`),
+     * and the deps are keyed off the same word (`@olai/plugin-api`'s `server.ts`),
      * so the two cannot be filed apart.
      *
      * THE RECORD IS BUILT BY WALKING, which is why the two casts are here and
@@ -1993,7 +1993,7 @@ export const bind = (
      * with none, which the fusion below then adds to olai's own surface and
      * changes nothing about it. That is what "this process runs no plugins"
      * means, and it costs no mechanism — it is data the composition already
-     * takes (`@olai/plugins`' `composition.test.ts` holds it).
+     * takes (`@olai/plugin-api`'s `composition.test.ts` holds it).
      */
     const bundle = implementSurfaces(
       surfacesOf(composed.map((one) => one.plugin)) as unknown as SurfaceMap,

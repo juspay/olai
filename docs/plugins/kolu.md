@@ -1,1 +1,1 @@
-../../packages/plugin-kolu/docs.md
+../../packages/plugins/olai-plugin-kolu/docs.md

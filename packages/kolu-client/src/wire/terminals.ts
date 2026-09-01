@@ -127,8 +127,8 @@ export const resolveTerminal = (value: string, ids: Iterable<string>): Resolved 
  * pins that once, for both ends.
  *
  * IT USED TO BE SPELLED TWICE, one spelling on each side of a package wall:
- * `@olai/plugin-kolu`'s `doorbell.ts` composed the clause into its sentence,
- * `@olai/kolu-ui`'s `padi/events.ts` folded it for the feed, and each header
+ * `olai-plugin-kolu`'s `doorbell.ts` composed the clause into its sentence,
+ * `olai-plugin-kolu`'s `ui/padi/events.ts` folded it for the feed, and each header
  * promised the reader that the two answered identically for the same row.
  * They did not. The blank-label case above was live in BOTH and had to be
  * repaired in BOTH, in lockstep, inside one diff — which is the whole of what
@@ -141,7 +141,7 @@ export const resolveTerminal = (value: string, ids: Iterable<string>): Resolved 
  * spelling is not olai's invention but kolu's Dock's, and a wording that MUST
  * be identical in two processes is a fact about the wire between them rather
  * than a preference either end holds alone. The mechanics agree with the
- * reading: `@olai/plugin-kolu`'s server door may not reach a SolidJS package
+ * reading: `olai-plugin-kolu`'s server door may not reach a SolidJS package
  * and a browser may not reach a `node:` one, so the only floor a shared fold
  * can stand on is the one below both. It is a pure string fold and adds
  * nothing to this entry's closure, which is what the fence argued in

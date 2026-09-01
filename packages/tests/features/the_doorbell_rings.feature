@@ -14,7 +14,7 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
 
   ONE SCENARIO, and the whole of the rest is unit-tested. What a filter file
   CLAIMS, what a wake MEANS and what the sentence says are pure functions over a
-  parsed vault (`@olai/plugin-kolu`'s `doorbell.test.ts`); the arms of the
+  parsed vault (`olai-plugin-kolu`'s `doorbell.test.ts`); the arms of the
   delivery — taken at once by an idle agent, HELD through a running turn,
   coalesced under one key, flushed at the boundary — are driven through a real
   chat and a real subprocess agent (`@olai/chat`'s `deliveries.test.ts`). None of

@@ -259,7 +259,7 @@ export interface Chat {
   ) => Effect.Effect<void, OpFailure>
   /**
    * THE DOOR ONE PLUGIN'S DOORBELL REACHES THROUGH — its own conversations, and
-   * the one write-only verb into them (`@olai/plugins`' `Deliveries`).
+   * the one write-only verb into them (`@olai/plugin-api`'s `Deliveries`).
    *
    * ## Why a door per plugin, and not the two members it replaced
    *
@@ -361,7 +361,7 @@ export interface Chat {
    * fact about the vault, and the pick is a row in this package's own record.
    * Core says NOTHING, because a sentence about somebody's terminals is a
    * sentence core may not compose — what goes into the conversation is the
-   * string the plugin DECLARED (`@olai/plugins`' `PluginServerHalf.wake.gone`),
+   * string the plugin DECLARED (`@olai/plugin-api`'s `PluginServerHalf.wake.gone`),
    * carried verbatim through the door {@link Chat.doorFor} already hands out.
    * This member is the join between those two and composes nothing itself.
    *

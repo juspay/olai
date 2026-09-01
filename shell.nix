@@ -5,7 +5,7 @@ let
   odu = import ./nix/odu.nix { inherit pkgs; };
   pins = import ./npins;
   olaiFonts = import ./packages/fonts { inherit pkgs; };
-  koluMark = import ./packages/plugin-kolu { inherit pkgs; };
+  koluMark = import ./packages/plugins/olai-plugin-kolu { inherit pkgs; };
 in
 pkgs.mkShell {
   name = "olai-shell";
@@ -74,10 +74,10 @@ pkgs.mkShell {
     OLAI_FONTS_DIR = "${olaiFonts}";
 
     # KOLU'S OWN MARK, already a TypeScript module. The plugin's own
-    # `packages/plugin-kolu/default.nix` reads the pinned kolu's
+    # `packages/plugins/olai-plugin-kolu/default.nix` reads the pinned kolu's
     # `packages/client/favicon.svg` — the same pin the @kolu/* sources above
     # come from — and writes `mark.generated.ts`; `just install` copies that
-    # one file into `packages/plugin-kolu/src/browser/`, beside the component
+    # one file into `packages/plugins/olai-plugin-kolu/src/browser/`, beside the component
     # that draws it, exactly as the hydrate calls copy the sources. A logo is
     # updated by bumping the pin and nothing else.
     #
@@ -97,7 +97,7 @@ pkgs.mkShell {
   # 2>/dev/null || true`, which on a machine with no ambient one turned
   # "command not found" into an empty result and a GREEN fence — a check that
   # passes by failing to run. Adding `ripgrep` would have made those two legs
-  # honest; instead the greps left, to `packages/plugins/src/fence.test.ts`,
+  # honest; instead the greps left, to `packages/plugin-api/src/fence.test.ts`,
   # where the pinned bun reads the tree and a missing reader is not a thing that
   # can happen. Nothing in `scripts/` shells out to a searcher any more, so
   # there is nothing here to declare.

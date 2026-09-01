@@ -81,8 +81,8 @@ const filesSpelling = (pattern: RegExp): ReadonlyArray<string> =>
 //
 // The other half of that claim — that NO file in olai spells the four
 // primitives the assembly used to chain, nor the two fusion helpers
-// `@olai/plugins` used to export — is repo-wide and lives where those helpers
-// did: `@olai/plugins`' `mechanics.test.ts`, which carries the falsifier the
+// `@olai/plugin-api` used to export — is repo-wide and lives where those helpers
+// did: `@olai/plugin-api`'s `mechanics.test.ts`, which carries the falsifier the
 // upstream ask travelled with. A client-only sweep could not have made it.
 test("only wire.ts dials: the seam is called exactly once in the client", () => {
   expect(filesSpelling(/connectSurfaces\s*\(/)).toEqual(["wire.ts"])
@@ -319,7 +319,7 @@ test("a row's handle is marked in the gesture that owns it and the cell that wea
 // the fixture of the thing under test, and it was listed here because what this
 // sweep claims is about PRODUCTION faces and ACP's closed set — a bench naming
 // its own subject's vocabulary is what a bench does. That bench is
-// `@olai/plugin-odu`'s now and this sweep reads only this client's tree, so the
+// `olai-plugin-odu`'s now and this sweep reads only this client's tree, so the
 // row is gone with the file.
 //
 // The judgements it recorded did NOT leave with it, and both were about

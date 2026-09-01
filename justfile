@@ -64,7 +64,7 @@ check: typecheck test e2e kolu-deps odu-deps fmt-check nix bun-nix-fresh hm-modu
 #
 # The LAST line is the same errand for an ASSET rather than for sources: kolu's
 # own logo, already turned into a TypeScript module by
-# `packages/plugin-kolu/default.nix` out of the same kolu pin, copied beside the
+# `packages/plugins/olai-plugin-kolu/default.nix` out of the same kolu pin, copied beside the
 # component that draws it. So this recipe now does deps, hydrate AND assets, and
 # every one of the three comes from a pin. `install -m 644` rather than `cp`:
 # the source is a 0444 store path, and `install` unlinks and recreates, so the
@@ -74,7 +74,7 @@ install:
       && (cd acp && npm ci --ignore-scripts) \
       && sh $OLAI_KOLU_HYDRATE_SCRIPT $OLAI_KOLU_HYDRATE \
       && sh $OLAI_KOLU_HYDRATE_SCRIPT $OLAI_ODU_HYDRATE \
-      && install -m 644 "$OLAI_KOLU_MARK_DIR/mark.generated.ts" packages/plugin-kolu/src/browser/mark.generated.ts'
+      && install -m 644 "$OLAI_KOLU_MARK_DIR/mark.generated.ts" packages/plugins/olai-plugin-kolu/src/browser/mark.generated.ts'
 
 # TypeScript type checking — every workspace member, from the glob bun
 # installs from
@@ -142,7 +142,7 @@ test: install
       ./packages/web/src/client/chat/attention/asked.browsertest.ts \
       ./packages/web/src/client/chat/attention/elsewhere.browsertest.ts \
       ./packages/web/src/client/chat/declared.browsertest.ts \
-      ./packages/kolu-ui/src/props/held.browsertest.ts
+      ./packages/plugins/olai-plugin-kolu/src/ui/props/held.browsertest.ts
 
 # Every dependency the hydrated @kolu/* sources declare, checked against the
 # root package.json, every workspace manifest and the root `overrides` block
@@ -162,7 +162,7 @@ test: install
 #
 # WHAT THESE LEGS NO LONGER DO: the import fence. Which package may name
 # `@kolu/padi-client` or `@odu/*`, and the `/wire` entries staying
-# schemas-and-types, moved to `packages/plugins/src/fence.test.ts` — a `bun test`
+# schemas-and-types, moved to `packages/plugin-api/src/fence.test.ts` — a `bun test`
 # under the `test` leg. Two reasons, both about the old shape rather than about
 # tidiness: every one of those greps ended `rg … 2>/dev/null || true` and
 # `ripgrep` is not in shell.nix's package list, so on a machine with no ambient
