@@ -649,6 +649,17 @@ const startServerChild = async (
       // with the servers.
       detached: true,
       env: isolateEnv(spawnOptions.stateRoot, {
+        // TIED TO THIS WORKER, by name. A server arms the kernel's parent-death
+        // signal only for a spawner that asks (`@olai/server`'s
+        // `dieWithParent.ts` owns the variable; this suite may not import that
+        // package, so the name is spelled here). It asks because THIS is the
+        // runner #355 was written for: cucumber SIGKILLed by odu's timeout
+        // used to leave a server per cancelled run sitting on a deleted
+        // `/tmp`. The value is this process's pid — the spawned server's real
+        // parent — which is also what tells "my worker died before I armed"
+        // from "my wrapper exited on purpose", the daemonising case that must
+        // NOT self-terminate.
+        OLAI_DIE_WITH_PARENT: String(process.pid),
         // The EMPTY string is the explicit off switch, and it is what a person
         // turning chat off would set — so the no-agent scenario reaches that
         // state the same way rather than through a hole in the harness.

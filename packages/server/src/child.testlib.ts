@@ -23,6 +23,8 @@ import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
+import { DIE_WITH_PARENT } from "./dieWithParent.ts"
+
 const MAIN = path.join(import.meta.dirname, "main.ts")
 
 /** A stand-in for the built browser bundle, which the entry point refuses to
@@ -106,6 +108,13 @@ export const startWeb = (options: {
     // The address is read as logfmt; do not inherit a developer's
     // OLAI_LOG=pretty.
     OLAI_LOG: "logfmt",
+    // TIED TO THIS TEST PROCESS, by name: the child arms the kernel's
+    // parent-death signal only when a spawner asks, and this one asks —
+    // `bun test` killed mid-file is exactly the runner death #355 stopped
+    // leaking servers from. The value is the ASKER's pid, which is also how
+    // the child tells "my runner died before I armed" from "my wrapper
+    // exited on purpose" (`./dieWithParent.ts`).
+    [DIE_WITH_PARENT]: String(process.pid),
     // A private runtime directory, so a unit test that starts a server does
     // not drop a lock into the developer's `$XDG_RUNTIME_DIR/olai`. An
     // explicit `env.XDG_RUNTIME_DIR` still wins — lock tests point two
