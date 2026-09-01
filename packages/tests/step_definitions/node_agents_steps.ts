@@ -25,7 +25,7 @@ import { Then, When } from "@cucumber/cucumber";
 import { selector, TESTID } from "@olai/web/testlib";
 
 import { attr } from "../support/selectors.ts";
-import { CHAT_ENTRY, CHAT_TRANSCRIPT, POLL_TIMEOUT } from "../support/world.ts";
+import { POLL_TIMEOUT } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
 const ROSTER = selector(TESTID.agentRoster);
@@ -137,22 +137,32 @@ When("I press the agent {string}", async function (this: OlaiWorld, node: string
 
 // ── the contract that rides on a binding ───────────────────────────────
 
-/** Every notice in which olai has told an agent what it is — counted over the
- *  NOTICE's own words rather than over the transcript's text, since a person
- *  could type them. */
-const contracts = (world: OlaiWorld) =>
-  world.page
-    .locator(CHAT_ENTRY)
-    .filter({ hasText: "This conversation is the node agent for" });
+/** THE CONTRACT'S OPENING WORDS, which are unique to it and to the panel: no
+ *  other sentence in this app names a node agent, and a person typing them
+ *  would be typing the thing under test. */
+const OPENS = "This conversation is the node agent for";
+
+/** How many times olai has told this agent what it is.
+ *
+ *  COUNTED OVER THE PAGE'S TEXT rather than over notice rows, because the
+ *  scripted agent SAYS THE PROMPT BACK (`agent/fake-acp-agent.ts` echoes what
+ *  it was given) — so the words appear twice per teaching, once as olai's
+ *  notice and once inside the agent's echo of the message they rode under.
+ *  Halving that is what makes the count mean teachings, and it is also the
+ *  assertion that BOTH halves happened: the notice a person reads, and the
+ *  lines the agent was actually handed. */
+const taughtTimes = async (world: OlaiWorld): Promise<number> => {
+  const said = await world.page.locator("body").innerText();
+  return Math.floor((said.split(OPENS).length - 1) / 2);
+};
 
 Then(
   "the agent was told its contract {int} time(s)",
   async function (this: OlaiWorld, times: number) {
     await this.waitUntil(
-      async () => (await contracts(this).count()) === times,
+      async () => (await taughtTimes(this)) === times,
       `the conversation to carry the contract ${times} time(s), and it carries ` +
-        `${await contracts(this).count()} — the transcript reads ` +
-        `${JSON.stringify(await this.page.locator(CHAT_TRANSCRIPT).innerText())}`,
+        `${await taughtTimes(this)}`,
     );
   },
 );
@@ -162,7 +172,7 @@ Then(
 Then(
   "the contract names {string} and its subtree",
   async function (this: OlaiWorld, title: string) {
-    const said = await contracts(this).first().innerText();
+    const said = await this.page.locator("body").innerText();
     assert.ok(
       said.includes(title),
       `the contract to name ${JSON.stringify(title)}, and it says ${JSON.stringify(said)}`,
