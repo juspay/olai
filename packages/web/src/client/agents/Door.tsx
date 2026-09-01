@@ -58,6 +58,7 @@ import { SaidLine } from "../SaidLine.tsx"
 import { createSaying } from "../saying.ts"
 import { TESTID } from "../testids.ts"
 import { createChatState } from "../chat/state.ts"
+import { DOT } from "../readout.ts"
 // HOW LONG AGO, REACHED AND NOT RE-SPELLED. `agoOf` is the commit pill's by
 // history and by nothing else — it is pure arithmetic over an ISO stamp and a
 // clock, with its own table of cases — and a second phrasing of *2m ago* in
@@ -70,7 +71,7 @@ import { createChatState } from "../chat/state.ts"
 import { agoOf, createNow } from "../commit/ago.ts"
 import { useAgents } from "./answered.tsx"
 import { focus } from "./focus.ts"
-import { memoryOf, type Row, rowsOf, SAID } from "./roster.ts"
+import { LOOK, memoryOf, type Row, rowsOf } from "./roster.ts"
 
 export function AgentDoor(props: { readonly node: string }) {
   const roster = useAgents()
@@ -97,7 +98,7 @@ function Door(props: {
   readonly agent: Row
   readonly saying: ReturnType<typeof createSaying>
 }) {
-  const said = () => SAID[props.agent.standing]
+  const look = () => LOOK[props.agent.standing]
   const now = createNow()
   const open = () => {
     props.saying.say(undefined)
@@ -120,7 +121,7 @@ function Door(props: {
         {...(props.agent.session === null ? {} : {
           role: "button",
           tabindex: 0,
-          title: "open this agent in the panel",
+          title: `open this agent in the panel — ${look().detail}`,
           onClick: () => open(),
           onKeyDown: (event: KeyboardEvent) => {
             if (event.key !== "Enter" && event.key !== " ") return
@@ -137,12 +138,12 @@ function Door(props: {
             description — `../chat/door.ts`). What is left is what only the
             door can say. */}
         <p class="m-0 flex items-center gap-2 text-[0.8125rem] leading-snug">
-          <span class={`inline-block size-2 shrink-0 rounded-full ${said().dot}`} aria-hidden="true" />
+          <span class={`${DOT} ${look().dot}`} aria-hidden="true" />
           {/* THE STANDING NEVER SHRINKS. It is the one word on this line a
               person is reading the door FOR, and a flex row shrinks its items
               in proportion — so without this the state was clipped to `asle…`
               while the engine beside it kept its full width. */}
-          <span class="shrink-0 font-semibold text-accent">{said().word}</span>
+          <span class="shrink-0 font-semibold text-accent">{look().label}</span>
           <span class="min-w-0 truncate text-muted">
             · {props.agent.engine} · memory: this subtree ({memoryOf(props.agent)})
           </span>

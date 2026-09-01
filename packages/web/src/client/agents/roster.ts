@@ -54,6 +54,7 @@
 import type { Agents, ChatState, NodeAgentRow } from "@olai/surface"
 
 import { busyIn } from "../chat/busy.ts"
+import type { Look } from "../readout.ts"
 
 /**
  * HOW A NODE AGENT STANDS — see the header for why there are seven of them.
@@ -90,32 +91,64 @@ export interface Row extends NodeAgentRow {
   readonly waiting: number
 }
 
-/** What each standing is CALLED and how it is painted — one table, read by the
- *  sidebar's row and by the door on the outline, so the two cannot come to say
- *  different things about one agent.
+/**
+ * What each standing is CALLED, how it is painted, and what it MEANS — one
+ * table, read by the sidebar's row and by the door on the outline, so the two
+ * cannot come to say different things about one agent.
  *
- *  A WORD AND A DOT, never a colour alone: the word is what a screen reader
- *  gets, what survives a screenshot, and the only read for somebody who cannot
- *  tell `doing` from `alarm` (`../chat/standing.ts` argues the same line for
- *  the server roster's marks).
+ * A `Look` (`../readout.ts`) and not a shape of this folder's own, which is the
+ * point: *a mark, two or three words, and a sentence behind them* is a thing
+ * this app already is — the connection dot and the Commit pill are both it, and
+ * both keep their own table of it beside the state they report on
+ * (`../connection/status.ts`, `../commit/said.ts`). A third state machine wants
+ * the third table, not a third costume; what the roster adds is its own seven
+ * rows, and it inherits the geometry, the `DOT` and the discipline that the
+ * sentence is what a hover and a screen reader get.
  *
- *  A RECORD OVER THE CLOSED UNION rather than a lookup with a fallback: an
- *  eighth standing fails to compile here. */
-export const SAID: {
-  readonly [K in Standing]: {
-    /** What the row says it is doing. */
-    readonly word: string
-    /** The dot's paint — utility classes, so the two faces share one pip. */
-    readonly dot: string
-  }
-} = {
-  "needs-you": { word: "needs you", dot: "bg-doing" },
-  working: { word: "working…", dot: "bg-done animate-pulse" },
-  waking: { word: "starting…", dot: "bg-done animate-pulse" },
-  idle: { word: "idle", dot: "bg-done" },
-  gone: { word: "not running", dot: "bg-alarm" },
-  asleep: { word: "asleep", dot: "bg-muted/50" },
-  unbound: { word: "no session bound", dot: "border border-muted/60" },
+ * A WORD AND A DOT, never a colour alone: the word is what survives a
+ * screenshot and is the only read for somebody who cannot tell `doing` from
+ * `alarm` (`../chat/standing.ts` argues the same line for the server roster's
+ * marks).
+ *
+ * A RECORD OVER THE CLOSED UNION rather than a lookup with a fallback: an
+ * eighth standing fails to compile here.
+ */
+export const LOOK: Record<Standing, Look> = {
+  "needs-you": {
+    dot: "bg-doing",
+    label: "needs you",
+    detail: "its turn has stopped on a question only you can answer, and nothing times out",
+  },
+  working: {
+    dot: "bg-done animate-pulse",
+    label: "working…",
+    detail: "a turn is in flight",
+  },
+  waking: {
+    dot: "bg-done animate-pulse",
+    label: "starting…",
+    detail: "its agent is coming up — a subprocess, a handshake, a replay",
+  },
+  idle: {
+    dot: "bg-done",
+    label: "idle",
+    detail: "its conversation is open and ready",
+  },
+  gone: {
+    dot: "bg-alarm",
+    label: "not running",
+    detail: "its agent is not there; this is the one that needs a person",
+  },
+  asleep: {
+    dot: "bg-muted/50",
+    label: "asleep",
+    detail: "its session is on disk with nothing running it — pressing it opens the conversation",
+  },
+  unbound: {
+    dot: "border border-muted/60",
+    label: "no session bound",
+    detail: "nobody has bound a conversation to this node agent yet",
+  },
 }
 
 /**

@@ -41,7 +41,7 @@
  * in the register the column's other second lines use. At the end, what is
  * waiting on YOU, drawn only when there is any.
  *
- * The STANDING is a word and a dot, never a dot alone (`./roster.ts`'s `SAID`
+ * The STANDING is a word and a dot, never a dot alone (`./roster.ts`'s `LOOK`
  * argues it): the colour is the fastest read for somebody who can use it and
  * the only read for nobody.
  */
@@ -51,6 +51,7 @@ import { createMemo, Show } from "solid-js"
 
 import { CHIP_QUIET } from "../layout/chip.ts"
 import { REGION, REGION_LABEL } from "../layout/entry.ts"
+import { DOT } from "../readout.ts"
 import { SaidLine } from "../SaidLine.tsx"
 import { createSaying } from "../saying.ts"
 import { TESTID } from "../testids.ts"
@@ -58,7 +59,7 @@ import { useRouter } from "../router.tsx"
 import { createChatState } from "../chat/state.ts"
 import { useAgents } from "./answered.tsx"
 import { focus, rowOf } from "./focus.ts"
-import { type Row, rowsOf, SAID } from "./roster.ts"
+import { LOOK, type Row, rowsOf } from "./roster.ts"
 
 export function Agents() {
   const roster = useAgents()
@@ -123,7 +124,7 @@ export function Agents() {
  *  activation is also a procedure call is an anchor a middle-click opens
  *  without doing half of what it says. */
 function AgentRow(props: { readonly row: Row; readonly onPress: () => void }) {
-  const said = () => SAID[props.row.standing]
+  const look = () => LOOK[props.row.standing]
   return (
     <li class="mb-0.5">
       <button
@@ -136,13 +137,16 @@ function AgentRow(props: { readonly row: Row; readonly onPress: () => void }) {
         // pixels, and a test that pinned it would fail the next time somebody
         // improved it (`../../../../HACKING.md`).
         data-standing={props.row.standing}
-        title={`${props.row.title} — ${props.row.engine}, ${said().word}`}
+        // THE SENTENCE THE TABLE ALREADY CARRIES, rather than a phrase composed
+        // here: `Look.detail` is what a state MEANS and is the half a hover and
+        // a screen reader get everywhere else in this app's chrome.
+        title={`${props.row.title} — ${props.row.engine}: ${look().detail}`}
         onClick={() => props.onPress()}
       >
         <span class="min-w-0 flex-1">
           <span class="block truncate text-[0.875rem] leading-snug">{props.row.title}</span>
           <span class="flex min-w-0 items-center gap-1 text-[0.75rem] leading-snug text-paper/55">
-            <span class={`inline-block size-1.5 shrink-0 rounded-full ${said().dot}`} aria-hidden="true" />
+            <span class={`${DOT} ${look().dot}`} aria-hidden="true" />
             {/* THE ENGINE GIVES WAY AND THE STANDING DOES NOT, which is what
                 the column is narrow enough to make a decision: written as one
                 span the two shrank together and `grok — the kimi implementor ·
@@ -150,7 +154,7 @@ function AgentRow(props: { readonly row: Row; readonly onPress: () => void }) {
                 for. The engine is a name somebody wrote and can be read in
                 full on the node itself. */}
             <span class="min-w-0 truncate">{props.row.engine}</span>
-            <span class="shrink-0">· {said().word}</span>
+            <span class="shrink-0">· {look().label}</span>
           </span>
         </span>
         <Show when={props.row.waiting > 0}>
