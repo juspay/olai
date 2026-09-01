@@ -8,7 +8,7 @@
  * package, so importing it back would be the cycle the manifests cannot express
  * — the direction argued in that package's `plugin.ts` and held by its
  * `fence.test.ts` rather than by a reviewer's memory. The agreement is proved at
- * the registry's `satisfies` instead: the same pin `./ui/props/block.ts`
+ * the registry's `satisfies` instead: the same pin `./appliance/props/block.ts`
  * already keeps with the drawer's entry, one floor down.
  *
  * ## What the pill actually borrows, and why every item is the APP'S

@@ -25,6 +25,15 @@
  * `fence.test.ts` answers WHAT MAY NAME WHAT. That is the split, and it is why
  * `namesAPlugin`, the tenants, the container and every claim stayed behind.
  *
+ * TWO OTHER PACKAGES READ THE TREE THE SAME WAY and cannot call this, so a
+ * future reader knows where the other copies are: `@olai/acp`'s
+ * `manifest.test.ts` (whose own first claim is that acp imports no `@olai`
+ * sibling, so reaching for this module is the thing that test exists to fail)
+ * and `@olai/tests`' `imports.test.ts` (which could import it — that package
+ * declares `@olai/plugin-api` — but only through a door, and a `./tree` door
+ * would put this file on the very closure `codeDoorsOf` walks, changing what
+ * the tenancy claims compute). Both are structural, not sloppiness.
+ *
  * ## Why `.testlib.ts`
  *
  * The repo's convention for a module that exists to serve tests and ships no
@@ -33,15 +42,12 @@
  * which reads PRODUCTION sources: a tree reader is not product.
  */
 
-import { existsSync, readdirSync, readFileSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 import * as path from "node:path"
 
 /** Where every workspace member lives. */
 export const PACKAGES = path.join(import.meta.dirname, "..", "..")
 
-/** The repository root. Its manifest is the one the isolated linker splices
- *  into the node_modules every hydrated source resolves from by walking up,
- *  which is why a specifier it declares is not confined to anybody — and it is
 /** The repository root. Its manifest is the one the isolated linker splices
  *  into the node_modules every hydrated source resolves from by walking up,
  *  which is why a specifier it declares is not confined to anybody — and it is
@@ -55,7 +61,7 @@ export const REPO = path.join(PACKAGES, "..")
  *  per specifier that resolves into it. A second read could answer differently
  *  only if something rewrote the file mid-run, which is a thing no claim here
  *  does and none should. */
-export const MANIFESTS = new Map<string, Record<string, unknown> | undefined>()
+const MANIFESTS = new Map<string, Record<string, unknown> | undefined>()
 export const manifestAt = (dir: string): Record<string, unknown> | undefined => {
   if (MANIFESTS.has(dir)) return MANIFESTS.get(dir)
   const file = path.join(dir, "package.json")
@@ -82,10 +88,6 @@ export const manifestAt = (dir: string): Record<string, unknown> | undefined => 
   return read
 }
 
-/** ...and what one declares, in the three blocks that all mean the same thing
- *  to a wall: a dependency, a devDependency and a peer are three reasons to
- *  resolve a specifier and one answer about which side of a boundary a package
- *  stands on. */
 /** A manifest's `exports` map, PARSED rather than cast. npm legally allows a
  *  conditional object (`{"./wire": {"import": "…"}}`) and a wildcard; this
  *  reading knows neither, and the difference between "knows neither" and
@@ -116,6 +118,10 @@ export const mainOf = (manifest: Record<string, unknown>): string | undefined =>
   return typeof main === "string" ? main : undefined
 }
 
+/** ...and what one declares, in the three blocks that all mean the same thing
+ *  to a wall: a dependency, a devDependency and a peer are three reasons to
+ *  resolve a specifier and one answer about which side of a boundary a package
+ *  stands on. */
 export const dependencyNames = (manifest: Record<string, unknown> | undefined): ReadonlyArray<string> =>
   Object.keys({
     ...(manifest?.["dependencies"] as Record<string, string> | undefined),
@@ -127,7 +133,7 @@ export const dependencyNames = (manifest: Record<string, unknown> | undefined): 
  * EVERY WORKSPACE MEMBER, as its directory relative to `packages/` — so a
  * top-level member is `web` and a nested tenant is `plugins/olai-plugin-kolu`.
  *
-
+ * READ OUT OF THE ROOT'S OWN `workspaces` GLOBS, and that is the point rather
  * than an implementation detail. This file used to walk `readdirSync(PACKAGES)`
  * one level deep, which was the same set only while every member sat at the top
  * — and the day the tenants moved under `packages/plugins/` that walk would have
@@ -259,17 +265,11 @@ export interface Named {
    *  ask a DIFFERENT question of the same reading, and reading every source
    *  twice to ask it would be the corpus walked twice. */
   readonly specs: ReadonlyArray<string>
-  /** Every plugin specifier this file reaches for, by any of the three doors. */
-  readonly plugins: ReadonlyArray<string>
 }
 
 /** The grammar a path is read in, decided ONCE. */
 export const grammarOf = (file: string): Named["grammar"] =>
   file.endsWith(".css") ? "css" : file.endsWith(".tsx") ? "tsx" : "ts"
-
-/** Does this specifier name a plugin package — the bare name or a subpath
- *  under it. A claim that matched only the bare name would be green under
- *  `olai-plugin-kolu/wire`, which is the door every consumer would actually
 
 // ── the wire door's closure ────────────────────────────────────────────
 //
@@ -315,12 +315,12 @@ export const grammarOf = (file: string): Named["grammar"] =>
  * `Bun.build` metafile would make every such crossing an unresolved edge and
  * every purity claim pass over the truncated graph.
  */
-export type Landing =
+type Landing =
   | { readonly kind: "external" }
   | { readonly kind: "module"; readonly path: string }
   | { readonly kind: "unresolved"; readonly why: string }
 
-export const resolveWorkspace = (spec: string): Landing => {
+const resolveWorkspace = (spec: string): Landing => {
   // WHICH MEMBER a specifier names is a lookup rather than a pattern, because
   // the two families of workspace name do not share one: core is `@olai/<x>`
   // and a tenant is the unscoped `olai-plugin-<x>` its directory is called.
@@ -360,6 +360,34 @@ export const runtimeImportsOf = (file: string, text: string): ReadonlyArray<stri
     .map((one) => one.path)
 
 /**
+ * ...memoised for the WALK ALONE, keyed by the absolute path it visits.
+ *
+ * The three door entries reach overlapping graphs — most of `@olai/format`'s
+ * modules are on all of them — so without this each shared module is transpiled
+ * once per entry rather than once.
+ *
+ * It is private to the walk rather than wrapped around `runtimeImportsOf`, and
+ * the difference is a correctness one rather than a scoping preference. That
+ * function has a second caller (claim 8's `codeOf`), which hands it a
+ * PACKAGES-RELATIVE path and a SHEBANG-STRIPPED text — a different key and a
+ * different input for the same file. A memo keyed on the path alone would be a
+ * place with two writers that agree only by the accident that one spells its
+ * paths absolute and the other relative, and the first shebang-carrying module
+ * either walk visited would make it answer one caller with the other's reading.
+ * A cache is a mutable place; this one has exactly one writer.
+ */
+const WALKED = new Map<string, ReadonlyArray<string>>()
+const importsOfModule = (file: string, text: string): ReadonlyArray<string> => {
+  const held = WALKED.get(file)
+  if (held !== undefined) return held
+  const found = runtimeImportsOf(file, text)
+  WALKED.set(file, found)
+  return found
+}
+
+
+
+/**
  * THE GRAPH ONE DOOR OPENS, in the two readings the claims below need.
  *
  * `reached` is the PAIRS — which file evaluated which specifier — and is what a
@@ -386,33 +414,6 @@ export const runtimeImportsOf = (file: string, text: string): ReadonlyArray<stri
  * One traversal answers all three, because three would be three chances to
  * disagree about what the graph is.
  */
-/**
- * ...memoised for the WALK ALONE, keyed by the absolute path it visits.
- *
- * The three door entries reach overlapping graphs — most of `@olai/format`'s
- * modules are on all of them — so without this each shared module is transpiled
- * once per entry rather than once.
- *
- * It is private to the walk rather than wrapped around `runtimeImportsOf`, and
- * the difference is a correctness one rather than a scoping preference. That
- * function has a second caller (claim 8's `codeOf`), which hands it a
- * PACKAGES-RELATIVE path and a SHEBANG-STRIPPED text — a different key and a
- * different input for the same file. A memo keyed on the path alone would be a
- * place with two writers that agree only by the accident that one spells its
- * paths absolute and the other relative, and the first shebang-carrying module
- * either walk visited would make it answer one caller with the other's reading.
- * A cache is a mutable place; this one has exactly one writer.
- */
-export const WALKED = new Map<string, ReadonlyArray<string>>()
-export const importsOfModule = (file: string, text: string): ReadonlyArray<string> => {
-  const held = WALKED.get(file)
-  if (held !== undefined) return held
-  const found = runtimeImportsOf(file, text)
-  WALKED.set(file, found)
-  return found
-}
-
-
 export const graphFrom = (entry: string): {
   reached: ReadonlyArray<{ file: string; spec: string }>
   files: ReadonlyArray<string>

@@ -78,8 +78,12 @@ const CHROME = {
  * A spread resolves a collision silently in favour of whichever was written
  * last, and TypeScript's duplicate-key diagnostic fires only for two literal
  * keys in ONE literal — so `{ ...appliance, ...CHROME }` can drop an id with no
- * diagnostic anywhere. That was prose first, then a test beside this file that
- * could not fail (its header records why), then a pair of module-scope throws.
+ * diagnostic anywhere. That was prose first; then a test beside this file that
+ * could not fail, because it rebuilt the chrome half by SUBTRACTING `appliance`'s
+ * keys from the merged object — and a key both halves declare is in
+ * `appliance`, so the subtraction removed it from the other side and the clash
+ * list was empty by construction; then a pair of module-scope throws. That test
+ * is deleted, which is why its lesson is written here.
  *
  * The throws are gone because the compiler turned out to be able to make the
  * claim itself: both halves are `as const`, so their VALUES are literal unions,
@@ -90,12 +94,15 @@ const CHROME = {
  * no overlap."* An assertion the compiler can prove vacuous is one it can also
  * prove, so it is stated as a type.
  *
- * Each assertion is a value whose TYPE is `true` while the intersection is
- * empty, and is the offending member otherwise — so a collision is a compile
- * error that NAMES the key or the value, on the line below, in every
- * `just typecheck` and every editor, forever. It costs no runtime code, ships
- * nothing to the browser, and needs no test: a claim `tsc` refuses cannot be
- * exercised at runtime, and its falsifier is a planting run against `tsc`.
+ * Each assertion is a TYPE ALIAS whose argument is `true` while the
+ * intersection is empty and the OFFENDING MEMBER otherwise, so a collision is a
+ * compile error that names the key or the value — `Type '"padi"' does not
+ * satisfy the constraint 'true'.` — in every `just typecheck` and every editor,
+ * forever. It emits NOTHING: an earlier draft wrote the same assertion as two
+ * `const … = true` bindings, which typecheck identically and put four dead
+ * statements in the browser bundle for a claim the compiler had already settled.
+ * It needs no test either: a claim `tsc` refuses cannot be exercised at runtime,
+ * and its falsifier is a planting run against `tsc`.
  *
  * ONE LIMIT, MEASURED RATHER THAN ASSUMED, because the first draft of this
  * paragraph claimed the opposite and was wrong. The KEY assertion survives an
@@ -114,12 +121,13 @@ type SharedValue = Extract<
   (typeof CHROME)[keyof typeof CHROME]
 >
 
+/** `true`, or a compile error naming what went wrong. */
+type Assert<T extends true> = T
+
 /** No key is declared by both halves — a spread would drop one silently. */
-const _noSharedKey: [SharedKey] extends [never] ? true : SharedKey = true
+type _NoSharedKey = Assert<[SharedKey] extends [never] ? true : SharedKey>
 /** No value is worn by both — one `[data-testid=…]` may name one component. */
-const _noSharedValue: [SharedValue] extends [never] ? true : SharedValue = true
-void _noSharedKey
-void _noSharedValue
+type _NoSharedValue = Assert<[SharedValue] extends [never] ? true : SharedValue>
 
 /** THE DOOR: both halves, in one table. The `as const` is load-bearing rather
  *  than habitual — see the value assertion's measured limit above. */

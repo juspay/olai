@@ -67,42 +67,44 @@ members=$(sh "$root/scripts/workspace-members.sh" "$root")
 # THE REGISTRY: the member that owns the fence.
 registry=$(for m in $members; do if [ -f "$m/src/fence.test.ts" ]; then echo "$m"; fi; done)
 
-# THE PLUGINS: what the registry DECLARES. Not a shape test — `@olai/plugin-api`
-# opens `./wire`, `./server` and `./all.css` too, because it MIRRORS the doors
-# it composes, so a signature match would have called the interface a tenant and
-# quietly aimed half these mutations at the wrong package. The registry is the
-# one package allowed to name a plugin, so its dependency list IS the roster.
+# THE PLUGINS: what the registry DECLARES, held to the CONTAINER. Not a shape
+# test — `@olai/plugin-api` opens `./wire`, `./server` and `./all.css` too,
+# because it MIRRORS the doors it composes, so a signature match would have
+# called the interface a tenant and quietly aimed half these mutations at the
+# wrong package. The registry is the one package allowed to name a plugin, so
+# its dependency list IS the roster; the container filter is what stops that
+# roster from meaning something else the day the registry declares any other
+# workspace sibling (`jq -r keys[]` sorts `@olai/…` ahead of `olai-plugin-…`,
+# so `plugin_a` would silently become that package).
+#
+# ONE `jq` PER MEMBER rather than one per (dependency x member) pair: the nested
+# loop this replaces forked `jq` eighty-eight times, 227ms of a 9.5s run and the
+# only super-linear thing in the harness.
+#
+# AND EVERY NAME IS DERIVED AFTER THE FILTER, which the first draft got wrong:
+# `name_a`/`name_b` were read off the pre-filter list and never recomputed, so a
+# filter that dropped anything but the first entry left `$plugin_b` and
+# `$name_b` naming different packages — and mutations 4, 6 and 8 spend them
+# together. The mutation would have imported a non-plugin, the fence would have
+# correctly said nothing, and the harness would have scored it
+# `GREEN — THE FENCE DID NOT SEE IT`: a false indictment of the lint, from the
+# guard written to prevent exactly that.
+names=$(for m in $members; do echo "$m $(jq -r .name "$m/package.json")"; done)
+declared_deps=$(jq -r '.dependencies | keys[]' "$registry/package.json")
 plugins=$(
-  for name in $(jq -r '.dependencies | keys[]' "$registry/package.json"); do
-    for m in $members; do
-      if [ "$(jq -r .name "$m/package.json")" = "$name" ] && [ "$m" != "$registry" ]; then
-        echo "$m"
-      fi
+  for want in $declared_deps; do
+    echo "$names" | while read -r m mname; do
+      if [ "$mname" = "$want" ] && [ "$m" != "$registry" ]; then echo "$m"; fi
     done
   done
 )
-plugin_a=$(echo "$plugins" | sed -n 1p)
-plugin_b=$(echo "$plugins" | sed -n 2p)
-name_a=$(jq -r .name "$plugin_a/package.json")
-name_b=$(jq -r .name "$plugin_b/package.json")
-registry_name=$(jq -r .name "$registry/package.json")
-
-# THE CONTAINER, derived from where a tenant lives rather than typed — so
-# mutation 13's impostor lands beside the plugins on this tree and beside the
-# packages on a tree from before the fold, which is what "the same script means
-# the same thing on both" has to mean for the one mutation that is ABOUT the
-# fold.
-container=$(dirname "$plugin_a")
-
-# ...and the roster HELD TO IT. The loop above answers "every workspace member
-# the registry declares", which is the tenants today and is not the same
-# question: the day the registry declares any other workspace sibling, `jq -r
-# keys[]` sorts `@olai/…` ahead of `olai-plugin-…` and `plugin_a` silently
-# becomes that package, aiming every mutation at the wrong files. The container
-# guard below catches that by accident of arithmetic; this catches it on purpose.
+container=$(dirname "$(echo "$plugins" | sed -n 1p)")
 plugins=$(for m in $plugins; do if [ "$(dirname "$m")" = "$container" ]; then echo "$m"; fi; done)
 plugin_a=$(echo "$plugins" | sed -n 1p)
 plugin_b=$(echo "$plugins" | sed -n 2p)
+name_a=$(echo "$names" | awk -v p="$plugin_a" '$1 == p { print $2 }')
+name_b=$(echo "$names" | awk -v p="$plugin_b" '$1 == p { print $2 }')
+registry_name=$(jq -r .name "$registry/package.json")
 
 # ...and THREE PATHS THAT ARE TYPED, which the header's "derived" is about the
 # registry and the plugins rather than about these. Each is chosen rather than
@@ -122,8 +124,8 @@ other_dial=packages/odu-client/src/index.ts
 case "$plugins" in *"$registry"*) echo "prove-fence: the registry came back as a plugin" >&2; exit 1 ;; esac
 # EVERY PATH A MUTATION TOUCHES, not just the roots they are derived from. Five
 # mutations reach `$plugin_x/src/<file>` and mutation 8 reaches a browser
-# directory the architecture explicitly contemplates a tenant not having ("odu
-# has no `-ui` sibling and needs none"). Without these, a missing one dies
+# directory the architecture explicitly contemplates a tenant not having (odu
+# has no separate appliance-face directory and needs none). Without these, a missing one dies
 # mid-run on `cp`/`sed` rather than here, with this block's own diagnostic.
 for path in "$registry" "$plugin_a" "$plugin_b" "$general_src" "$sheet" "$other_dial" \
   "$container" "$plugin_a/src/plugin.ts" "$plugin_a/src/wire.ts" "$plugin_b/src/wire.ts" \
@@ -191,10 +193,10 @@ trap 'restore; trap - TERM; kill -TERM $$' TERM
 # variable, and a subshell would take that record with it — leaving every
 # mutation applied and every later one reading a tree several defects deep.
 
-# Remember a file, so the trap can put it back however this exits.
 # Record a tracked file as one `restore` must put back. It no longer COPIES —
-# see `restore` — so this is the whole of the obligation, and `run` discharges
-# it rather than each mutation remembering to.
+# see `restore` — so this is the whole of the obligation. Each mutation helper
+# discharges it; `impostor` is the one that does not, because it CREATES rather
+# than edits and the `git clean` in `restore` is what takes that back.
 hold() {
   touched="$touched $1"
 }
@@ -238,7 +240,20 @@ only=${*:-}
 passed=0
 failed=0
 unnamed=0
-declared=""
+
+# THE MUTATION NUMBERS, spelled once, and checked BEFORE anything runs. It used
+# to accumulate as `run` executed and be checked at the END, so
+# `prove-fence.sh 5 99` paid a baseline and a mutation before saying the 99 was
+# a typo. The set is static; the check can be too. And a selector that named no
+# mutation used to print `0 of 0 mutations were caught.` and exit 0, which is
+# this script's own indictment of the lints reproduced on its one argument.
+DECLARED="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15"
+for want in $only; do
+  case " $DECLARED " in
+    *" $want "*) ;;
+    *) echo "prove-fence: no mutation $want — declared: $DECLARED" >&2; exit 1 ;;
+  esac
+done
 
 # THE BASELINE, and the whole verdict rests on it. Every judgement below is
 # "the suite went red when I broke the tree" — which says nothing unless the
@@ -263,7 +278,6 @@ run() {
   n=$1
   what=$2
   shift 2
-  declared="$declared $n"
   if [ -n "$only" ]; then
     case " $only " in *" $n "*) ;; *) return 0 ;; esac
   fi
@@ -356,18 +370,6 @@ run 14 "a wire MECHANIC the framework performs comes back" \
   append "$general_src" 'export const again = () => fuseGroups({})'
 
 run 15 "the turnkey SEAM stops being called" unname_the_seam
-# A SELECTOR THAT NAMED NO MUTATION IS A REFUSAL, not a quiet run of nothing.
-# `sh scripts/prove-fence.sh 16` used to match nothing, skip all fifteen, and
-# print `0 of 0 mutations were caught.` with exit 0 — which is this script's own
-# indictment of the lints ("a sweep's one failure mode is going quiet") reproduced
-# on its one CLI argument.
-for want in $only; do
-  case " $declared " in
-    *" $want "*) ;;
-    *) echo "prove-fence: no mutation $want — declared:$declared" >&2; exit 1 ;;
-  esac
-done
-
 echo
 echo "$passed of $((passed + failed + unnamed)) mutations were caught."
 [ "$unnamed" -eq 0 ] || echo "$unnamed went red with no claim naming it, which is not a catch." >&2

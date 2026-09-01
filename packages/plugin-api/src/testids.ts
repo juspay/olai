@@ -43,6 +43,30 @@
 import { TESTID as kolu } from "olai-plugin-kolu/testids"
 import { TESTID as odu } from "olai-plugin-odu/testids"
 
+/**
+ * THE COLLISION, MADE UNREPRESENTABLE — the middle layer of the three, using
+ * the instrument the inner and outer ones use.
+ *
+ * `./testids.test.ts` beside this file already walks both tables and counts;
+ * that test stays, because it also holds the FLOOR (neither table came back
+ * empty) and the count (the merge kept every key), which a type cannot ask. What
+ * it could not do is fire in an editor or in `just typecheck`, and what it
+ * cannot do at all is stop the collision being written — a spread resolves one
+ * silently in favour of whichever was last.
+ *
+ * Both tables are `as const`, so their values are literal unions and the
+ * question is one `tsc` answers, naming the offending string. Same two lines a
+ * tenant uses about its own two halves (`olai-plugin-kolu/src/testids.ts`, whose
+ * header records the two drafts that got there the wrong way) and `/web`
+ * uses about this table and its own.
+ */
+type Assert<T extends true> = T
+type SharedPluginId = Extract<
+  (typeof kolu)[keyof typeof kolu],
+  (typeof odu)[keyof typeof odu]
+>
+type _NoSharedPluginId = Assert<[SharedPluginId] extends [never] ? true : SharedPluginId>
+
 /** Every plugin's ids, flat. See the header on the merge and what proves it
  *  safe. */
 export const PLUGIN_TESTID = { ...kolu, ...odu } as const

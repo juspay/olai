@@ -3,7 +3,7 @@
  *
  * The third standing promise in the app's chrome row, beside the connection pill
  * ("is this page still reading?") and the Commit pill ("is what is written to it
- * kept?"). `../ui/padi/said.ts` is where the words come from, and it
+ * kept?"). `../appliance/padi/said.ts` is where the words come from, and it
  * argues why the per-chip dots are not enough on their own — a hollow beside one
  * terminal cannot tell "this one is gone" from "there is no fleet", and a page
  * with no `terminal` property says nothing at all.

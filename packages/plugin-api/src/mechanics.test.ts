@@ -48,10 +48,16 @@
  * about nothing. This is the package they lived in, which makes it the package
  * that owes the proof they are gone.
  *
- * The walk is `packages/*​/src`, sources only. `node_modules` is excluded for the
- * obvious reason: the framework is where these functions are DEFINED and called,
- * and a sweep that read the hydrated kolu sources would fail on the first line of
- * `connectSurfaces` itself.
+ * The walk is every WORKSPACE MEMBER, whole — `./tree.testlib.ts`'s `MEMBERS`
+ * and `sourcesUnder`, which is where the corpus rules live now. It was
+ * `packages/*​/src` behind a one-level `readdir`, and the appliance fold made
+ * both halves of that wrong: the tenants nest, so the readdir keyed their files
+ * under `plugins`, and a package's sources are not all under `src` — `@olai/tests`
+ * has none at all, which is the hole the fence's own header records. `node_modules`
+ * stays out for the obvious reason (the framework is where these functions are
+ * DEFINED and called, and a sweep that read the hydrated kolu sources would fail
+ * on the first line of `connectSurfaces` itself) — and it stays out by `Bun.Glob`
+ * declining to follow a symlinked directory rather than by a prune written here.
  */
 
 import { readFileSync } from "node:fs"

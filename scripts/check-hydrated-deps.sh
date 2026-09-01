@@ -161,7 +161,7 @@ for member in $members; do
     '
   )
   if [ -n "$drift" ]; then
-    echo "check-hydrated-deps: $(basename "$(dirname "$manifest")") disagrees with $label:" >&2
+    echo "check-hydrated-deps: $member disagrees with $label:" >&2
     echo "$drift" | sed 's/^/  /' >&2
     fail=1
   fi

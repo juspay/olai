@@ -127,10 +127,12 @@ import { PLUGIN_NAMES, WIRES } from "./surfaces.ts"
 import {
   cssImportsOf,
   dependencyNames,
+  doorsOf,
   graphFrom,
   grammarOf,
   manifestAt,
   MEMBER_OF_PACKAGE,
+  mainOf,
   MEMBERS,
   memberOf,
   type Named,
@@ -193,12 +195,20 @@ const CONTAINER = "plugins"
  *  use. */
 const namesAPlugin = (spec: string): boolean => PLUGIN_PACKAGES.includes(packageOf(spec))
 
+/** One source, as `./tree.testlib.ts` reads it, PLUS the one projection that is
+ *  this file's: which of its specifiers name a plugin. The reader knows nothing
+ *  about plugins and must not — that is the split — so the plugin-shaped field
+ *  is added here, where the word means something. */
+interface Read extends Named {
+  readonly plugins: ReadonlyArray<string>
+}
+
 /** Every member's sources, read once, each with what it reaches for. */
-const tree: ReadonlyMap<string, ReadonlyArray<Named>> = new Map(
+const tree: ReadonlyMap<string, ReadonlyArray<Read>> = new Map(
   MEMBERS
     .map((member) => [
       member as string,
-      sourcesUnder(path.join(PACKAGES, member)).map((file): Named => {
+      sourcesUnder(path.join(PACKAGES, member)).map((file): Read => {
         // A scripted agent opens with a shebang; the line holds no import.
         const text = readFileSync(file, "utf8").replace(/^#![^\n]*\n/, "")
         const grammar = grammarOf(file)
@@ -711,8 +721,16 @@ const hydratedIn = (pkg: string): ReadonlyArray<string> => {
  *  answer rather than this file's guess at one, so a fourth door added there is
  *  walked here without an edit. `./all.css` is not a module and drops out. */
 const codeDoorsOf = (dir: string): ReadonlyArray<string> => {
-  const manifest = manifestAt(dir) as { exports?: Record<string, string>; main?: string } | undefined
-  const targets = [...Object.values(manifest?.exports ?? {}), manifest?.main ?? ""]
+  const manifest = manifestAt(dir)
+  if (manifest === undefined) return []
+  // THROUGH `doorsOf`, not through a cast. This is the one function that
+  // enumerates ALL of a tenant's doors — it feeds CLOSURES, TENANTS,
+  // TENANT_MEMBERS and TIERS — so a door it drops is a tenant closure that
+  // shrank, which is what `doorsOf` refuses a conditional or wildcard export
+  // for. A cast would have read one as `[object Object]`, failed the suffix
+  // test, and dropped it in silence: the exact hole, in the exact function
+  // where it costs the most.
+  const targets = [...Object.values(doorsOf(manifest)), mainOf(manifest) ?? ""]
   return [...new Set(targets)].filter((t) => /\.tsx?$/.test(t)).map((t) => path.join(dir, t))
 }
 
@@ -884,8 +902,8 @@ describe("an appliance's product tier stays inside its tenant", () => {
       walkFrom(path.join(PACKAGES, REGISTRY, "src", "wire.ts")).map((one) => memberOf(one.file)),
     )
     const wireDoors = [...TENANT_MEMBERS].filter((pkg) => {
-      const manifest = manifestAt(path.join(PACKAGES, pkg)) as { exports?: Record<string, string> } | undefined
-      return manifest?.exports?.["./wire"] !== undefined
+      const manifest = manifestAt(path.join(PACKAGES, pkg))
+      return manifest !== undefined && doorsOf(manifest)["./wire"] !== undefined
     }).sort()
     expect(wireDoors.length).toBeGreaterThan(PLUGIN_NAMES.length)
     expect(wireDoors.filter((pkg) => !reached.has(pkg))).toEqual([])
@@ -1004,7 +1022,11 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
    *  begins with it, case-folded, so `koluHalf`, `KoluUi`, `wiring.kolu` and
    *  `"odu"` all count. No trailing boundary, because the defect this is
    *  written against was `koluHalf` rather than a bare word. */
-  const spellingOf = (name: string) => new RegExp(`\\b${name}`, "i")
+  // Built ONCE per plugin rather than once per file: the filter below runs it
+  // across the whole compiled corpus, which was fourteen hundred `RegExp`
+  // constructions a run for two distinct patterns.
+  const SPELLING = new Map(PLUGIN_NAMES.map((name) => [name, new RegExp(`\\b${name}`, "i")]))
+  const spellingOf = (name: string) => SPELLING.get(name) ?? new RegExp(`\\b${name}`, "i")
 
   test("the corpus actually compiled, and the subtraction did not empty it", () => {
     // Not vacuous, twice over: a transpiler that threw on everything, or a

@@ -34,6 +34,27 @@ root="${1:-$(dirname "$0")/..}"
 # the last iteration whose test is false, before any trailing `true` can run.
 while IFS= read -r glob; do
   [ -n "$glob" ] || continue
+  # REFUSE A SHAPE THIS CANNOT EXPAND, which is the half of the shared rule a
+  # first draft left out and which made "the rule is shared, the code is not"
+  # false. POSIX sh has no globstar: `packages/**` expands to exactly the
+  # top-level entries, so both tenants would be missing, `matched` would still
+  # be 1, and nothing would throw — a silently short member list, the precise
+  # failure this script exists to prevent. `tree.testlib.ts` reads the same
+  # field with `Bun.Glob`, which DOES know `**`, so on the day the root is
+  # simplified to one recursive glob the two readings would disagree with
+  # nothing red. Refusing what this expander cannot honour is what keeps them
+  # one rule. It also refuses a glob outside `packages/`, as that reading does.
+  case "$glob" in
+    *"**"*)
+      echo "workspace-members: the glob '$glob' uses '**', which POSIX sh cannot" >&2
+      echo "  expand — it would silently answer with the top level only. Expand it in" >&2
+      echo "  the manifest, or teach this script a matching expander." >&2
+      exit 1 ;;
+    packages/*) ;;
+    *)
+      echo "workspace-members: the glob '$glob' does not name anything under packages/" >&2
+      exit 1 ;;
+  esac
   matched=0
   for dir in "$root"/$glob; do
     if [ -f "$dir/package.json" ]; then

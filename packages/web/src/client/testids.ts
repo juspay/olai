@@ -1666,6 +1666,36 @@ export const TESTID = {
 
 export type TestId = (typeof TESTID)[keyof typeof TESTID]
 
+/**
+ * THE APP'S IDS AND THE PLUGINS' SHARE NO VALUE — the third layer of one
+ * invariant, held with the same instrument as the two inside it.
+ *
+ * `selector` below takes an id from EITHER table, so the two are ONE namespace
+ * of `[data-testid=…]` values: a value spelled in both is a selector that
+ * matches two different components, and the scenario that spends it is green
+ * about the wrong element. The inner two layers already refuse that — a tenant
+ * refuses a collision between its own halves
+ * (`olai-plugin-kolu/src/testids.ts`), and the registry holds the plugins'
+ * doors disjoint from each other — and nothing compared either with THIS table,
+ * which is the outermost and the one a scenario actually writes.
+ *
+ * The appliance fold is what made it worth stating: kolu's ten `terminal*` /
+ * `events*` ids used to sit behind a second package's door that nothing
+ * imported, and they are spread into `PLUGIN_TESTID` now. The collision surface
+ * grew by ten values and the claim for it did not exist.
+ *
+ * A TYPE rather than a test, for the reason the innermost layer gives: both
+ * tables are `as const`, so their values are literal unions and asking whether
+ * two unions intersect is a question `tsc` answers — in every typecheck and
+ * every editor, naming the offending string, with no runtime code and nothing
+ * to keep green. VALUES rather than keys, because the value is what the
+ * selector spends: two tables may both call something `mount` and name them
+ * apart; what they may not both spell is `"padi"`.
+ */
+type Assert<T extends true> = T
+type SharedTestId = Extract<TestId, PluginTestId>
+type _NoSharedTestId = Assert<[SharedTestId] extends [never] ? true : SharedTestId>
+
 /** `[data-testid="…"]`, for the side that writes selectors rather than
  *  attributes.
  *
