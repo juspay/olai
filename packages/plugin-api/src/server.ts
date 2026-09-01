@@ -203,6 +203,43 @@ export interface PluginServerHalf<Revision> extends PluginWire {
      *  of core's authorship on the strip. */
     readonly waiting: { readonly one: string; readonly many: string }
     /**
+     * WHICH KINDS OF SERVED FILE THIS WAKE CAN BE SCOPED TO — `@olai/format`'s
+     * own file-kind words (`kinds.ts`: `outline`, `document`, `hypertext`,
+     * `csv`, `image`, `pdf`), as data.
+     *
+     * ## Why the plugin answers this and core does not
+     *
+     * A scope is a FILTER, and only the thing doing the filtering knows what it
+     * reads out of a file. kolu derives its claimed set from the `kolu-terminal`
+     * values on a file's un-done NODES, so a file that holds no nodes derives
+     * the empty set for ever — a doorbell that never rings, never digests, and
+     * goes on being beaten for, which is quiet-because-broken wearing
+     * quiet-and-fine's face. That is the plugin's fact about the plugin's own
+     * derivation; core stores a path and never opens it.
+     *
+     * So the picker offers the kinds named here and no others (`@olai/web`'s
+     * `chat/scopable.ts`), and a scope already stored on some other kind is a
+     * FAULT rather than a silence ({@link unwatchable}). Before this field the
+     * picker offered every file the directory served, `.md` included, and the
+     * human's screenshot of it is what this member exists for.
+     *
+     * ## Words rather than a predicate, because it has to TRAVEL
+     *
+     * `PropKind.admits` is a function because its one reader is in this process.
+     * The picker is in a browser, so what crosses is DATA — the same move
+     * everything else on this member makes, carried on the roster
+     * (`@olai/surface`'s `BuiltPlugin`'s `wake.kinds`) and read against the same
+     * registry at the other end.
+     *
+     * NON-EMPTY, because a wake that admits no kind is a control nobody could
+     * ever point at anything: the picker would draw, open, and offer nothing.
+     * The words are plain strings HERE — this package declares no dependency on
+     * the format, the way it declares none on the wire — and a plugin that can
+     * see `@olai/format` is expected to type its own list against `FileKind`, as
+     * kolu's does.
+     */
+    readonly kinds: readonly [string, ...Array<string>]
+    /**
      * ...AND WHAT A CONVERSATION IS TOLD WHEN THE FILE IT WOKE ON STOPS BEING
      * SERVED — one WHOLE sentence, because there is no control to draw between
      * its halves.
@@ -246,6 +283,34 @@ export interface PluginServerHalf<Revision> extends PluginWire {
      * (`@olai/chat`'s `Chat.faults`).
      */
     readonly gone: string
+    /**
+     * ...AND WHAT IT IS TOLD WHEN THE FILE IS RIGHT THERE AND IS NOT A KIND
+     * THIS WAKE CAN WATCH — {@link kinds}' other half, on the same terms as
+     * {@link gone} and for the same reason.
+     *
+     * ## Two causes, two sentences, and never one sentence with an *or* in it
+     *
+     * The consequence is identical — nothing is watched, nothing is derived, and
+     * the row leaves this plugin's door so that no heartbeat can go on claiming
+     * a live watch over it — but WHAT HAPPENED is not, and a person reading
+     * either one has a different thing to do about it. A single sentence
+     * covering both would say *renamed, or moved, or deleted, or not an
+     * outline* on every rename for ever, which is the message paying, in the
+     * common case, for a state that only a stored pick can be in.
+     *
+     * ## How a conversation gets into this state at all, now the picker cannot
+     *
+     * The picker offers only {@link kinds}, so nothing a person presses today
+     * can reach it. What can: a pick stored before that filter existed (the
+     * `2026-09-01.md` in the human's screenshot), a tab left open from an older
+     * serve, and a record edited by hand. All three are a row on disk that
+     * outlives a picker-only fix, which is why this is a fault the serve
+     * DERIVES per revision rather than a refusal at the write.
+     *
+     * REQUIRED for {@link gone}'s reason exactly: a plugin that rings has stored
+     * picks, and a stored pick can name any path at all.
+     */
+    readonly unwatchable: string
   }
 }
 

@@ -4,9 +4,10 @@
  *
  * A doorbell is TWO facts arriving on two different members, and this is where
  * they are put together. What the wake IS — the subject, the lead-in to the
- * file, and the plugin's own word for a sentence it is holding — is compiled in
- * and rides the `plugins` cell (`@olai/surface`'s `BuiltPlugin`'s `wake`),
- * because it moves at most once per serve. WHICH FILE a person picked and HOW
+ * file, the plugin's own word for a sentence it is holding, and the KINDS of
+ * file it can be pointed at — is compiled in and rides the `plugins` cell
+ * (`@olai/surface`'s `BuiltPlugin`'s `wake`), because it moves at most once per
+ * serve. WHICH FILE a person picked and HOW
  * MANY sentences this end is holding ride `ChatState.wake`, because they move
  * per conversation and per turn. A row on screen needs both, and neither cell
  * can answer for the other.
@@ -58,7 +59,7 @@
  * offers no picker.
  */
 
-import type { BuiltPlugin, ChatState } from "@olai/surface"
+import type { BuiltPlugin, ChatState, WakeFault } from "@olai/surface"
 
 /** One conversation's scope as the server holds it — `ChatState.wake`'s own
  *  element, named here rather than re-declared, so the two cannot drift. */
@@ -81,6 +82,17 @@ export interface Ringer {
   readonly subject: string
   /** ... and its lead-in to the file, drawn only where there is a file. */
   readonly from: string
+  /**
+   * WHICH KINDS OF SERVED FILE this doorbell can be pointed at — the plugin's
+   * own answer, as `@olai/format`'s kind words, and the whole of what narrows
+   * the picker ({@link ./scopable.ts}).
+   *
+   * It is on the ROW rather than looked up where the picker is drawn for the
+   * same reason every other word here is: a row is a join over two wire members,
+   * and a component that reached back into the roster for one of them would be a
+   * second join, in a file whose job is to draw.
+   */
+  readonly kinds: ReadonlyArray<string>
   /** The file a person picked, root-relative and `/`-spelled — or `null`, which
    *  is the doorbell OFF and is what a fresh conversation reads. */
   readonly file: string | null
@@ -99,20 +111,21 @@ export interface Ringer {
    */
   readonly held: string | null
   /**
-   * THE FILE IT WAS POINTED AT IS NOT SERVED ANY MORE — renamed, moved or
-   * deleted while the doorbell was on it.
+   * THIS DOORBELL IS NOT WATCHING THE FILE IT NAMES, and which of the two ways
+   * — `gone` for a file renamed, moved or deleted while the doorbell was on it,
+   * `unwatchable` for one that is served and is not a kind this plugin reads.
    *
-   * A row in this state draws the fault instead of a live picker
+   * A row in either state draws the fault instead of a live answer
    * ({@link ./Wake.tsx}), because the alternative is a control that says
    * `lanes.olai` over a conversation nothing will ever ring again — and the
    * silence underneath it is indistinguishable from the silence of a subject
    * with nothing to report. The conversation has already been told, once, in
    * the plugin's own words; this is the standing fact the strip keeps showing.
    *
-   * `false` for a row nobody scoped, which is the ordinary case: a doorbell
-   * that is off is not a doorbell that is broken.
+   * `null` for a row nobody scoped, which is the ordinary case: a doorbell that
+   * is off is not a doorbell that is broken.
    */
-  readonly gone: boolean
+  readonly fault: WakeFault | null
 }
 
 /**
@@ -151,12 +164,19 @@ export const ringersOf = (
       name: plugin.name,
       subject: wake.subject,
       from: wake.from,
+      // NO DECLARATION IS NO OFFER, which is the honest reading of an absent
+      // key: this tab is talking to a serve that never said which files its
+      // doorbell can watch (`@olai/surface`'s `BuiltPlugin` argues why that is
+      // possible at all). An empty list matches no path, so the picker opens
+      // and offers nothing — where a missing filter would offer everything,
+      // which is the defect.
+      kinds: wake.kinds ?? [],
       file: mine?.file ?? null,
       waiting,
-      // OFF IS NOT BROKEN. A row with no pick behind it carries `false`,
+      // OFF IS NOT BROKEN. A row with no pick behind it carries `null`,
       // because there is no file for a fault to be about — the fault is a fact
       // about a scope, and a conversation nobody scoped has none.
-      gone: mine?.gone ?? false,
+      fault: mine?.fault ?? null,
       held: waiting > 0
         ? `${waiting} ${waiting === 1 ? wake.waiting.one : wake.waiting.many}`
         : null,

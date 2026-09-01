@@ -692,17 +692,24 @@ test("a wake sentence reaches the roster, and never for a plugin this serve left
     subject: "wake on terminal activity",
     from: "terminals from",
     waiting: { one: "waiting sentence", many: "waiting sentences" },
+    // WHICH FILES THE PICKER MAY OFFER, which is drawn in the sense that
+    // matters: it is what the list is made of, and core cannot work it out.
+    kinds: ["outline"] as const,
   }
-  /** ... and the fourth field, which is NOT drawn: the whole sentence a
-   *  conversation is told when its file stops being served. It is delivered
-   *  into the transcript, and a browser has no occasion to write it. */
-  const wake = { ...drawn, gone: "the file you woke on is not here any more" }
+  /** ... and the two fields that are NOT: the whole sentences a conversation is
+   *  told when its doorbell stops watching. They are delivered into the
+   *  transcript, and a browser has no occasion to write either. */
+  const wake = {
+    ...drawn,
+    gone: "the file you woke on is not here any more",
+    unwatchable: "the file you woke on is not one this can read",
+  }
   const halves = [{ name: first, wake }, { name: second }]
 
   const all = rosterOf({ env: {}, now: () => STARTED, served: "/tmp" }, halves)
-  // THE THREE THE PICKER IS MADE OF, and not the fourth. A roster that carried
-  // the delivered sentence would be putting a message on the wire for a reader
-  // that never sends one — and the wire's own schema has no key for it.
+  // WHAT THE PICKER IS MADE OF, and not the sentences. A roster that carried a
+  // delivered sentence would be putting a message on the wire for a reader that
+  // never sends one — and the wire's own schema has no key for either.
   expect(all.built.find((row) => row.name === first)?.wake).toEqual(drawn)
   // A plugin that wakes nobody declares none, which is a whole plugin and the
   // ordinary case — absent rather than an empty sentence.
@@ -803,10 +810,16 @@ const RINGING = {
   subject: "wake on something",
   from: "the somethings of",
   waiting: { one: "sentence", many: "sentences" },
-  /** ... and the fourth, which the fault cases below DO read a word of, because
-   *  what they are about is that core carries it verbatim: this string, and
-   *  nothing joined to it, is what reaches the conversation. */
+  /** WHICH FILES it can be pointed at — read by the fault cases below, which
+   *  are what decides whether a stored pick is watchable at all. */
+  kinds: ["outline"] as const,
+  /** ... and the two sentences, which the fault cases DO read a word of,
+   *  because what they are about is that core carries the right one verbatim:
+   *  this string, and nothing joined to it, is what reaches the conversation. */
   gone: "the file this doorbell watched is not here any more, and nothing is being watched",
+  /** ... and the other cause, whose whole point is that it is NOT the sentence
+   *  above: the file is served, and holds nothing this doorbell can read. */
+  unwatchable: "the file this doorbell is pointed at is not one it can read, and nothing is being watched",
 }
 
 /**
@@ -959,12 +972,12 @@ const chatKeeping = (kept: ReadonlyArray<Scoped>): {
     // `runtime.ts` asks for a door by name and bridges it — never that it does
     // the keying itself, which is the thing that moved out of that file.
     doorFor: (plugin: string) => ({
-      // ... AND A ROW WHOSE FILE IS GONE IS NOT ON IT, which is the real
-      // chat's own filter and is load-bearing for the fault cases: it is what
-      // the thunk below reads to decide whether the sentence is still owed.
+      // ... AND A FAULTED ROW IS NOT ON IT, which is the real chat's own filter
+      // and is load-bearing for the fault cases: it is what the thunk below
+      // reads to decide whether the sentence is still owed.
       scopes: () =>
         rows
-          .filter((row) => row.plugin === plugin && row.gone !== true)
+          .filter((row) => row.plugin === plugin && row.fault === undefined)
           .map(({ agent, file, session }) => ({ agent, file, session })),
       deliver: (to: { readonly agent: string; readonly session: string }, say: () => string | null) =>
         Effect.suspend(() => {
@@ -980,17 +993,17 @@ const chatKeeping = (kept: ReadonlyArray<Scoped>): {
       Effect.sync(() => {
         picked.push({ to, plugin, file })
       }),
-    faults: (served) =>
+    faults: (judge) =>
       Effect.sync(() => {
         const fell: Array<Scoped> = []
         rows = rows.map((row) => {
-          const here = served(row.file)
-          if (here === (row.gone !== true)) return row
-          if (here) {
+          const wrong = judge(row.plugin, row.file)
+          if (wrong === (row.fault ?? null)) return row
+          if (wrong === null) {
             return { agent: row.agent, session: row.session, plugin: row.plugin, file: row.file }
           }
-          const broken: Scoped = { ...row, gone: true }
-          fell.push(broken)
+          const broken: Scoped = { ...row, fault: wrong }
+          if (row.fault === undefined) fell.push(broken)
           return broken
         })
         return fell
@@ -1287,6 +1300,50 @@ test("a file that is served and EMPTY is not a file that is gone", () => {
           // plugin can go on watching a file somebody is in the middle of
           // rewriting.
           expect(ringer.door().scopes()).toEqual([{ ...TALKING, file: "empty.olai" }])
+        }),
+      { chat: it.chat, plugins: [ringer.name, other.name] },
+    ))
+})
+
+/**
+ * ...AND A SCOPE ON A FILE THAT IS SERVED AND CANNOT BE READ — the second cause,
+ * and the one a picker-only fix would have left silent.
+ *
+ * The picker offered every file the directory serves, documents included (the
+ * human's screenshot, 2026-09-01). A document has no NODES, so a wake that
+ * derives its set from a file's records watches the empty set for ever — no
+ * wake, no digest, and a heartbeat still reporting a live watcher. Filtering
+ * the picker stops NEW picks; it does nothing about the ones already on the
+ * disk, so those are judged per revision here exactly as a rename is.
+ *
+ * WHAT IS UNDER TEST IS THE COMPOSITION: that core compares the plugin's
+ * declared `kinds` against the registry's answer for the path, and that the
+ * sentence which reaches the conversation is the OTHER declared string —
+ * `unwatchable`, not `gone`. Getting that wrong would tell somebody their file
+ * had been renamed while it sat in front of them.
+ */
+test("a scope on a served file its doorbell cannot read is told, in the OTHER declared sentence", () => {
+  const ringer = halfCalled("ringer", RINGING)
+  const other = halfCalled("other", RINGING)
+  // Both files are served. Only the second is a kind this doorbell declared,
+  // and the healthy row is first, so a delivery for it would arrive first.
+  const it = chatKeeping([scoped(ringer.name, "a.olai"), scoped(other.name, "notes.md")])
+  return withDoubles([ringer, other], () =>
+    withRuntime(
+      { "a.olai": OUTLINE, "notes.md": "# notes\n" },
+      () =>
+        Effect.gen(function*() {
+          expect(yield* it.rang).toEqual({
+            to: TALKING,
+            body: RINGING.unwatchable,
+            from: other.name,
+          })
+          expect(yield* it.waiting).toBe(0)
+          // ... and the row is off the door for the same reason a renamed one
+          // is: nothing is being watched, so nothing this plugin does per scope
+          // may go on happening — a heartbeat over it most of all.
+          expect(other.door().scopes()).toEqual([])
+          expect(ringer.door().scopes()).toEqual([{ ...TALKING, file: "a.olai" }])
         }),
       { chat: it.chat, plugins: [ringer.name, other.name] },
     ))

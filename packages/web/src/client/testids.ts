@@ -1496,15 +1496,17 @@ export const TESTID = {
    *  in `data-waiting`; the noun beside it is the plugin's own word for what is
    *  waiting, so a scenario reads the count and not the sentence. */
   chatWakeWaiting: "chat-wake-waiting",
-  /** THE FAULT: the file this doorbell was pointed at is not served any more,
-   *  so the row draws this instead of a live picker. Its presence IS the fault
-   *  — quiet-and-fine and quiet-because-broken are indistinguishable on every
-   *  other channel, and a picker still naming a file nothing will ever read
-   *  would be the control asserting something untrue. `data-file` is the path
-   *  that went missing, so a scenario reads the state as data rather than out
-   *  of the sentence beside it. The way to fix it — picking another file — is
-   *  still on the row ({@link chatWakePicker}). */
-  chatWakeGone: "chat-wake-gone",
+  /** THE FAULT: this doorbell is not watching the file it names, so the row
+   *  draws this beside the picker instead of a live answer. Its presence IS the
+   *  fault — quiet-and-fine and quiet-because-broken are indistinguishable on
+   *  every other channel, and a picker still naming a file nothing will ever
+   *  read would be the control asserting something untrue. `data-fault` is WHY
+   *  in core's own two words (`gone` for a file that is not served any more,
+   *  `unwatchable` for one that is and is not a kind this doorbell reads) and
+   *  `data-file` is the path it is about, so a scenario reads the state as data
+   *  rather than out of the sentence beside it. The way to fix it — picking
+   *  another file — is still on the row ({@link chatWakePicker}). */
+  chatWakeFault: "chat-wake-fault",
   /** ... and how that task ENDED, in the harness's own word — `completed`,
    *  `failed`, `killed`, `stopped`, of which ACP's own status can spell only
    *  two. Drawn only once the task has ended, which is what makes its presence

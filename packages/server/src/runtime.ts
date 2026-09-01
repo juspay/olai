@@ -75,6 +75,7 @@ import {
   conventionRecorded,
   conventionServed,
   documentAt,
+  fileKind,
   type InboxHeld,
   inboxHeldIn,
   inboxIn,
@@ -528,17 +529,23 @@ export const rosterOf = (
       return {
         name,
         running,
-        // THE THREE THE STRIP DRAWS, named one at a time rather than spread
-        // whole — and the omission is the point. `wake.gone` is the sentence a
-        // conversation is told when its file stops being served, and it is
-        // DELIVERED rather than drawn: it belongs in the transcript, through
-        // the door below, and a browser holding a copy of it would be a browser
-        // holding a message it has no occasion to write. So the wire carries
-        // what a picker is made of and nothing else, which is also why the
-        // roster's own schema (`@olai/surface`'s `BuiltPlugin`) never grew a
-        // fourth key.
+        // WHAT THE PICKER IS MADE OF, named one at a time rather than spread
+        // whole — and the omission is the point. The three strings the strip
+        // draws, plus the KINDS the picker may offer, because that is the one
+        // fact core cannot work out for itself about which files a doorbell
+        // could ever watch. What is left behind are `wake.gone` and
+        // `wake.unwatchable`, the two sentences a conversation is told when its
+        // doorbell stops watching: those are DELIVERED rather than drawn — they
+        // belong in the transcript, through the door below — and a browser
+        // holding a copy of either would be a browser holding a message it has
+        // no occasion to write.
         ...(wake === undefined ? {} : {
-          wake: { subject: wake.subject, from: wake.from, waiting: wake.waiting },
+          wake: {
+            subject: wake.subject,
+            from: wake.from,
+            waiting: wake.waiting,
+            kinds: wake.kinds,
+          },
         }),
       }
     }),
@@ -1051,14 +1058,20 @@ export const bind = (
       composed.filter((one) => one.plugin.wake !== undefined).map((one) => one.plugin.name),
     )
     /**
-     * ...AND THE SENTENCE EACH OF THEM DECLARED FOR A SCOPE THAT BROKE, keyed
-     * by the one word this file knows about a plugin.
+     * ...AND WHAT EACH OF THEM DECLARED ABOUT A SCOPE THAT BROKE, keyed by the
+     * one word this file knows about a plugin: the KINDS its doorbell can watch
+     * and the two sentences it says when it is watching nothing.
      *
-     * A TABLE OF STRINGS THE PLUGIN WROTE, which is the only kind of table core
+     * A TABLE OF WORDS THE PLUGIN WROTE, which is the only kind of table core
      * is allowed to keep about words: nothing here is composed, joined,
      * abbreviated or interpolated into. The whole of what this file does with a
-     * value out of it is hand it back through
-     * {@link Chat.doorFor}'s `deliver`.
+     * sentence out of it is hand it back through {@link Chat.doorFor}'s
+     * `deliver`, and the whole of what it does with the kinds is COMPARE them
+     * against `fileKind`'s answer — a registry lookup, not a reading.
+     *
+     * The declaration is carried WHOLE rather than as three tables, because the
+     * two members are asked in one breath: {@link faulted} judges a row by the
+     * kinds and then reaches for the sentence that judgement names.
      *
      * A name with no entry gets nothing said — a pick stored against a plugin
      * this serve did not compose, which is a row the strip already declines to
@@ -1066,23 +1079,38 @@ export const bind = (
      * words to ring it with, so the row is marked and nobody is told, which is
      * the honest arm rather than core reaching for a sentence of its own.
      */
-    const goneSaid = new Map(
+    const rings = new Map(
       composed.flatMap(({ plugin }) =>
-        plugin.wake === undefined ? [] : [[plugin.name, plugin.wake.gone] as const]
+        plugin.wake === undefined ? [] : [[plugin.name, plugin.wake] as const]
       ),
     )
     /**
-     * A SCOPE WHOSE FILE STOPPED BEING SERVED — found here, said by the plugin,
-     * once.
+     * A SCOPE ITS DOORBELL CANNOT WATCH — found here, said by the plugin, once.
      *
      * ## Why core is the one that detects
      *
-     * Core owns both halves of the question and no plugin owns either: the
-     * SERVED SET is this connector's own revision, and the PICKS are
-     * `@olai/chat`'s record. A doorbell asked to notice its own file had gone
-     * would be a doorbell deriving from a file it cannot find, which is
+     * Core owns every half of both questions and no plugin owns any: the SERVED
+     * SET is this connector's own revision, the KINDS a doorbell can watch are
+     * a declaration the plugin handed this file at composition, and the PICKS
+     * are `@olai/chat`'s record. A doorbell asked to notice its own file had
+     * gone would be a doorbell deriving from a file it cannot find, which is
      * precisely the state that produces no signal at all — that is the defect,
      * not a place to fix it ({@link Chat.faults} tells the whole story).
+     *
+     * ## TWO CAUSES, ONE WALK
+     *
+     * The file is not in the set at all — renamed, moved, deleted — or it is in
+     * the set and `fileKind` says it is not one of the kinds that doorbell
+     * declared. The second is the state the picker used to be able to produce:
+     * every served file was offered, so a person could scope a conversation to
+     * a `.md`, and a wake that derives its set from a file's NODES then watched
+     * the empty set for ever while the heartbeat went on reporting a live
+     * watcher. The picker offers only the declared kinds now (`@olai/web`'s
+     * `chat/scopable.ts`); this arm is what answers for the picks that were
+     * stored before it did, and for a stale tab or a hand-edited record.
+     *
+     * GONE IS ASKED FIRST, because a file that is not served has no kind and
+     * "renamed" is the more actionable of the two things to be told.
      *
      * ## `documentAt`, and not `derived.byFile`
      *
@@ -1100,7 +1128,9 @@ export const bind = (
      * question costs the SCOPES rather than the DIRECTORY, which is what makes
      * it affordable on a hook that fires for every keystroke that lands in an
      * outline. Handing `@olai/chat` a set of missing paths instead would have
-     * meant walking the directory here to build one.
+     * meant walking the directory here to build one. The kind question is
+     * cheaper still and does not change that arithmetic: a lookup in a table
+     * built once at composition, and `fileKind` over one name.
      *
      * ## ON ITS OWN FIBER, and what that costs
      *
@@ -1109,24 +1139,41 @@ export const bind = (
      * it exists). What that means is that the mark lands SHORTLY after the
      * revision that made it true, not during it — so a plugin deriving on this
      * same revision still sees the scope on its door for one pass. That costs
-     * nothing: the file is not in the revision, so a derivation over it finds
-     * nothing to say. From the next revision the row is off the door entirely
-     * ({@link Chat.doorFor}).
+     * nothing under either cause, and for one reason: the derivation finds
+     * nothing to say. A file that is gone is not in the revision at all, and a
+     * file of a kind the doorbell cannot read is one it could never derive
+     * anything from, which is the whole of why it is a fault. From the next
+     * revision the row is off the door entirely ({@link Chat.doorFor}).
      */
     const faulted = chat === null ? (): void => {} : (snapshot: VaultRevision): void => {
       ring(Effect.flatMap(
         chat.faults(
-          (file) => documentAt(snapshot.value.set, file) !== undefined,
-          // A ROW WHOSE TENANT CANNOT SPEAK IS NOT MARKED. `goneSaid` holds a
-          // sentence only for a plugin this serve COMPOSED and that declared
+          (plugin, file) => {
+            if (documentAt(snapshot.value.set, file) === undefined) return "gone"
+            // THE DECLARATION, COMPARED AGAINST THE REGISTRY, and core reading
+            // neither for meaning: the plugin said which kinds it watches and
+            // `@olai/format` says what this file is. A plugin with no entry is
+            // not judged at all — `sayable` has already left its rows alone.
+            const kinds = rings.get(plugin)?.kinds
+            if (kinds === undefined) return null
+            const kind = fileKind(file)
+            return kind !== null && kinds.includes(kind) ? null : "unwatchable"
+          },
+          // A ROW WHOSE TENANT CANNOT SPEAK IS NOT MARKED. `rings` holds a
+          // declaration only for a plugin this serve COMPOSED and that made
           // one, so a serve run without a tenant leaves its rows alone rather
           // than burning their one signal unheard.
-          (plugin) => goneSaid.has(plugin),
+          (plugin) => rings.has(plugin),
         ),
         (fell) =>
           Effect.forEach(fell, (row) => {
-            const words = goneSaid.get(row.plugin)
-            if (words === undefined) return Effect.void
+            const wake = rings.get(row.plugin)
+            if (wake === undefined) return Effect.void
+            // WHICH SENTENCE, decided by the cause the walk recorded on the row
+            // (`@olai/chat`'s `Scoped.fault`) — the two are the plugin's own
+            // words for the two things that can have happened, and core picks
+            // between them rather than writing either.
+            const words = row.fault === "unwatchable" ? wake.unwatchable : wake.gone
             // A THUNK, ASKED WHEN THE WORDS GO IN, which is the whole reason
             // `deliver` takes one: this body may wait out a running turn, or
             // wait for somebody to open the conversation at all, and by then

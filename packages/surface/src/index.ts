@@ -1580,6 +1580,7 @@ export {
   UsageFailure,
   UserEntry,
   Wake,
+  type WakeFault,
   Watched,
   Watching,
   whyNot,

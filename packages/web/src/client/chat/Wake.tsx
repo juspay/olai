@@ -83,9 +83,20 @@
  *
  * The files come from the directory this serve is already handing every reader
  * (`../served.tsx`), matched by the one matcher the composer's `@` list uses
- * (`../file/matching.ts`). No kind filter: what a wake file MEANS is the
- * plugin's business and core never opens it, so a core-side rule about which
- * files may be picked would be core deciding something it cannot know.
+ * (`../file/matching.ts`) — and NARROWED before either, by {@link ./scopable.ts}.
+ *
+ * IT USED TO OFFER EVERY SERVED FILE, on the reading that what a wake file
+ * MEANS is the plugin's business and a core-side rule about which files may be
+ * picked would be core deciding something it cannot know. The first half of
+ * that is right and the conclusion did not follow: the human's screenshot,
+ * 2026-09-01, has `2026-09-01.md` offered between two outlines, and a document
+ * has no NODES — so a conversation scoped to one watches the empty set for
+ * ever, hears nothing, and is beaten for by a heartbeat that goes on saying the
+ * watcher is alive. Core did not have to LEARN anything to close that: the
+ * plugin declares which kinds it can watch (`@olai/surface`'s
+ * `BuiltPlugin.wake.kinds`) and core offers no other. What is left for core to
+ * rule on is core's own files — the trash, the archives, the `_olai/` mints —
+ * and that ruling is argued where it is spent.
  *
  * ## AND THE PAIR IS READ AT THE CLICK
  *
@@ -107,6 +118,7 @@ import { QUIET_PILL } from "../pill.ts"
 import { useServed } from "../served.tsx"
 import { TESTID } from "../testids.ts"
 import { olai } from "../wire.ts"
+import { scopable } from "./scopable.ts"
 import type { Chat } from "./state.ts"
 import { type Ringer, ringersOf } from "./wake.ts"
 
@@ -230,30 +242,46 @@ function Line(props: {
       </Show>
       <Picker ringer={props.ringer} onPick={(file) => props.onScope(file)} />
       {/* THE FAULT, and it is drawn BESIDE the picker rather than instead of
-          it. The file this doorbell was pointed at is not served any more, so
-          nothing will ever ring here again — and the silence that follows is
-          indistinguishable from the silence of a subject with nothing to
-          report, which is the whole reason this line exists. The trigger is
-          still pressable, because the fix is picking another file and a control
-          that told somebody it was broken and then refused the gesture that
-          mends it would be worse than the fault.
+          it. This doorbell is not watching the file it names — the file went,
+          or it is a kind this doorbell cannot read — so nothing will ever ring
+          here again, and the silence that follows is indistinguishable from the
+          silence of a subject with nothing to report, which is the whole reason
+          this line exists. The trigger is still pressable, because the fix is
+          picking another file and a control that told somebody it was broken
+          and then refused the gesture that mends it would be worse than the
+          fault.
 
-          THESE WORDS ARE CORE'S, which is the one place on this strip that is
-          true, and the boundary is exact: core is describing A FILE IT STORES
-          AND CANNOT FIND, which is a fact about core's own record. What the
-          CONVERSATION was told is the plugin's own sentence, delivered once
-          (`@olai/plugin-api`'s `PluginServerHalf.wake.gone`), and no word of it is
-          repeated here. */}
-      <Show when={props.ringer.gone}>
-        <span
-          class="shrink-0 text-alarm"
-          data-testid={TESTID.chatWakeGone}
-          // The path that went missing, as DATA — a scenario reads the state
-          // rather than the sentence, the way the count beside it does.
-          data-file={props.ringer.file ?? ""}
-        >
-          gone — pick another file
-        </span>
+          TWO CAUSES AND TWO LINES, because a person has a different thing to do
+          about each: a file that went is one to find or re-pick, and a file
+          that is there and cannot be read is one to replace with an outline.
+          The words for both are CORE'S, which is the one place on this strip
+          that is true, and the boundary is exact: core is describing A FILE IT
+          STORES — one it cannot find, or one it is holding against a
+          declaration it was handed. What the CONVERSATION was told is the
+          plugin's own sentence, delivered once (`@olai/plugin-api`'s
+          `PluginServerHalf.wake.gone` and `.unwatchable`), and no word of either
+          is repeated here.
+
+          IT NAMES NO KIND. "not an outline" would need core to decide how to
+          say a kind word as a noun, in both numbers and with an article, for a
+          list that is the plugin's; what core can say without composing
+          anybody's sentence is that this doorbell cannot watch this file, which
+          is the whole of what it knows and the whole of what has to be done. */}
+      <Show when={props.ringer.fault} keyed>
+        {(fault) => (
+          <span
+            class="shrink-0 text-alarm"
+            data-testid={TESTID.chatWakeFault}
+            // WHICH fault and about WHICH path, as DATA — a scenario reads the
+            // state rather than the sentence, the way the count beside it does.
+            data-fault={fault}
+            data-file={props.ringer.file ?? ""}
+          >
+            {fault === "gone"
+              ? "gone — pick another file"
+              : "not one this can watch — pick another file"}
+          </span>
+        )}
       </Show>
       {/* THE WAY BACK OFF, and only where there is something to turn off. The
           same verb with no file rather than a second one: there is one fact
@@ -318,13 +346,28 @@ function Picker(props: {
   const picker = createInlinePicker<string>({ opening: () => "" })
   const typed = () => picker.showing() ?? ""
 
-  /** The files on offer, best first. Computed only while the list is up: this
-   *  is a pass over the whole directory, and a strip drawn on every conversation
-   *  must not be doing one for a list nobody opened. */
+  /**
+   * The files on offer, best first — and ONLY the ones this doorbell could
+   * actually be pointed at ({@link ./scopable.ts}).
+   *
+   * Computed only while the list is up: this is a pass over the whole
+   * directory, and a strip drawn on every conversation must not be doing one
+   * for a list nobody opened. The narrowing rides the SAME pass rather than a
+   * memo of its own, and over the FOLDED entries rather than the paths, so the
+   * vault's fold is still taken once per version of the directory and never per
+   * keystroke (`../file/matching.ts` keeps it).
+   */
   const offered = createMemo((): ReadonlyArray<string> => {
     if (!picker.open()) return []
-    return matchFiles(folded(files()), typed(), LIMIT).map((file) => file.path)
+    const kinds = props.ringer.kinds
+    const can = folded(files()).filter((file) => scopable(file.path, kinds))
+    return matchFiles(can, typed(), LIMIT).map((file) => file.path)
   })
+
+  /** Whether this doorbell is not watching what it names — either cause, since
+   *  the trigger draws the same way for both and the LINE beside it is where
+   *  they differ ({@link Line}). */
+  const broken = (): boolean => props.ringer.fault !== null
 
   /** What the trigger says: the picked file's own name, or that there is none.
    *  `off` is the whole answer in that state and reads as one — the lead-in
@@ -340,11 +383,11 @@ function Picker(props: {
         ref={picker.setTrigger}
         type="button"
         // THE TRIGGER STOPS LOOKING LIKE A LIVE ANSWER when the file it names
-        // is not served any more. It goes on wearing the path — that is what
-        // somebody has to recognise to know which file went — but it stops
+        // is not being watched. It goes on wearing the path — that is what
+        // somebody has to recognise to know which file it is about — but it stops
         // reading as the quiet statement of fact the other states are. Still
         // pressable, because picking another file is the fix.
-        class={`${QUIET_PILL} max-w-[16rem] truncate${props.ringer.gone ? " text-alarm" : ""}`}
+        class={`${QUIET_PILL} max-w-[16rem] truncate${broken() ? " text-alarm" : ""}`}
         data-testid={TESTID.chatWakePicker}
         // WHOSE doorbell and WHAT it is pointed at, as data: the words in this
         // line are the plugin's sentence, and the state a scenario asserts must

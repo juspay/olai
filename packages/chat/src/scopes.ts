@@ -22,14 +22,15 @@
  *
  * ## ...and ONE derived fact, which is here because "once" needs a memory
  *
- * {@link Scoped.gone} is the exception to the paragraph above and proves its
+ * {@link Scoped.fault} is the exception to the paragraph above and proves its
  * rule. It is not a pick and not a held body: it records that a conversation
- * HAS ALREADY BEEN TOLD its file stopped being served. Whether the file is
- * there is re-derived from every published revision and never read off this
- * record ({@link Scopes.faults}); what is written down is the SAYING, because
- * "exactly once, and not again after a restart" is a fact about messages sent
- * and nothing can reconstruct it. A serve that forgot it would say the same
- * thing on every boot for as long as the file stayed renamed.
+ * HAS ALREADY BEEN TOLD its doorbell is watching nothing, and which of the two
+ * ways that was true when it was told. Whether it is still true is re-derived
+ * from every published revision and never read off this record
+ * ({@link Scopes.faults}); what is written down is the SAYING, because "exactly
+ * once, and not again after a restart" is a fact about messages sent and
+ * nothing can reconstruct it. A serve that forgot it would say the same thing
+ * on every boot for as long as the file stayed renamed.
  *
  * ## The key is the TRIPLE, and the conversation half of it is the pair
  *
@@ -158,42 +159,69 @@ export interface Scoped {
    *  back. */
   readonly file: string
   /**
-   * THE FILE THIS ROW NAMES IS NOT SERVED ANY MORE — set once, on the
-   * transition, and cleared the moment it comes back ({@link Scopes.faults}).
+   * THIS ROW'S DOORBELL IS WATCHING NOTHING, and why — set once, on the
+   * transition, and cleared the moment it comes right again
+   * ({@link Scopes.faults}).
    *
    * ## Why it is on the ROW and written to the disk
    *
-   * Two properties have to hold at once and only a persisted flag has both.
+   * Two properties have to hold at once and only a persisted mark has both.
    * ONCE: a conversation is told its doorbell broke exactly one time, not once
-   * per revision for as long as the file stays missing — so something has to
-   * remember it was already said, and the false→true edge is the only place
-   * that decision can be made. AND ACROSS A RESTART: a serve that came back
-   * would otherwise re-read the picks, find the file still missing, and say it
-   * again — every boot, forever, about a fault the person was told about days
-   * ago. Written down, the boot reads a row that is already marked and says
-   * nothing while the strip goes on drawing it broken.
+   * per revision for as long as it stays broken — so something has to remember
+   * it was already said, and the fine→faulted edge is the only place that
+   * decision can be made. AND ACROSS A RESTART: a serve that came back would
+   * otherwise re-read the picks, find the same fault, and say it again — every
+   * boot, forever, about something the person was told about days ago. Written
+   * down, the boot reads a row that is already marked and says nothing while
+   * the strip goes on drawing it broken.
    *
    * An in-memory set held beside the table gives the first and not the second,
    * which is the arrangement it is worth naming as refused: it is the one that
    * turns a rename into a message per restart.
    *
-   * ## `true` OR ABSENT, and never `false`
+   * ## THE WORD OR ABSENT, and never a `false`
    *
-   * There is no third state, and a row that is fine carries no key: a healed
-   * scope is written back without one rather than with a `false`, so the record
-   * on disk is the same bytes it was before the fault. `undefined` is what
-   * every row written by an olai that predates this field reads as, which is
-   * exactly right — an unmarked row is one nothing has been said about, and the
-   * first revision after the boot decides.
+   * A row that is fine carries no key: a healed scope is written back without
+   * one rather than with a `null`, so the record on disk is the same bytes it
+   * was before the fault. `undefined` is what every row written by an olai that
+   * predates this field reads as, which is exactly right — an unmarked row is
+   * one nothing has been said about, and the first revision after the boot
+   * decides.
+   *
+   * WHICH WORD is the CAUSE, because two of them reach a person as two
+   * different sentences ({@link Scopes.faults}): the file is not served, or the
+   * file is served and is not a kind that doorbell can watch. The mark is one
+   * mark either way — a row is told once that it is watching nothing, not once
+   * per cause — so a cause that changes under a still-faulted row is written
+   * back and nothing is said again. What it is FOR is the strip, which draws
+   * the two differently ({@link ../../surface/src/chat.ts}'s `Wake.fault`).
    *
    * WHAT IT IS NOT is a cache of derived truth. It records that a MESSAGE WAS
-   * SENT; whether the file is served is re-derived from the revision every
-   * time, by the caller, and this flag is only ever compared against that fresh
-   * answer. A flag that were consulted INSTEAD of the revision would be the
+   * SENT; whether the doorbell can watch is re-derived from the revision every
+   * time, by the caller, and this mark is only ever compared against that fresh
+   * answer. A mark that were consulted INSTEAD of the revision would be the
    * Monitor's frozen ignore-list reborn.
    */
-  readonly gone?: true
+  readonly fault?: Fault
 }
+
+/**
+ * WHY A DOORBELL IS NOT WATCHING — the two ways, and the whole of the union.
+ *
+ * `gone` is the file that is not in the served set at all: renamed, moved or
+ * deleted. `unwatchable` is the file that IS served and whose KIND the doorbell
+ * cannot derive anything from — a `.md` under a wake that reads nodes, which is
+ * the state a picker that offered every served file could leave on the disk.
+ *
+ * The words are the wire's own (`@olai/surface`'s `WakeFault`), re-declared
+ * here rather than imported for this package's standing reason about what it
+ * may name: a record on disk is not a wire value, and the two are held equal by
+ * the member that copies one into the other ({@link ./chat.ts}'s `wakeOf`)
+ * rather than by a shared literal. What the CAUSES MEAN is core's — the served
+ * set and the declaration are both core's to compare — while what is SAID about
+ * either is the plugin's string, carried whole.
+ */
+export type Fault = "gone" | "unwatchable"
 
 /**
  * The table, and the two things anybody does with it.
@@ -233,9 +261,9 @@ export interface Scopes {
     file: string | null,
   ) => Effect.Effect<ReadonlyArray<Scoped>, MemoryFailure>
   /**
-   * WHICH ROWS' FILES ARE STILL THERE — judged against the revision the caller
-   * is holding, marked, persisted, and answered with the ones that JUST BROKE
-   * ({@link Scoped.gone}).
+   * WHICH ROWS' DOORBELLS CAN STILL WATCH WHAT THEY NAME — judged against the
+   * revision the caller is holding, marked, persisted, and answered with the
+   * ones that JUST BROKE ({@link Scoped.fault}).
    *
    * ## A PREDICATE, and never a set of missing paths
    *
@@ -246,13 +274,24 @@ export interface Scopes {
    * both of those are per-revision work proportional to the DIRECTORY. The rows
    * are the small side: at most {@link ROWS} of them, and the caller's answer
    * for one path is a binary search over the set it already has in hand
-   * (`@olai/format`'s `documentAt`). So the walk is over the picks and the
-   * membership test comes in, which is `conventions.ts`' whole argument one
-   * package over, spent here for the same reason.
+   * (`@olai/format`'s `documentAt`) plus one lookup in a table it built at boot.
+   * So the walk is over the picks and the judgement comes in, which is
+   * `conventions.ts`' whole argument one package over, spent here for the same
+   * reason.
+   *
+   * ## IT ANSWERS WITH THE CAUSE, and this file decides nothing about it
+   *
+   * The two causes are the caller's to tell apart, because both halves of each
+   * are the caller's: the SERVED SET is its revision, and WHICH KINDS a
+   * doorbell can watch is a declaration its plugin handed it. What this file
+   * does with the answer is remember it, hand it to the strip and spend one
+   * signal on it — see {@link Scoped.fault} for why a cause that changes under
+   * an already-faulted row is written back silently.
    *
    * IT IS ASKED OF EVERY ROW, INCLUDING THE MARKED ONES, and that is what makes
-   * healing work at all: a row that has been told it is gone must still be
-   * tested, because the file coming back is the event that clears it.
+   * healing work at all: a row that has been told it is watching nothing must
+   * still be judged, because the file coming back — or being replaced by one of
+   * a kind the doorbell reads — is the event that clears it.
    *
    * ## What comes back, and what does not
    *
@@ -279,7 +318,11 @@ export interface Scopes {
    * cost a delay.
    */
   readonly faults: (
-    served: (file: string) => boolean,
+    /** What is wrong with one row's file for one row's doorbell, or `null` for
+     *  the file this doorbell can watch — which is every row on every ordinary
+     *  revision. The plugin is passed because the second cause is a fact about
+     *  THAT doorbell's declaration and not about the file alone. */
+    judge: (plugin: string, file: string) => Fault | null,
     /** Whether a fault on this plugin's row can be SAID — a plugin this serve did
      *  not compose, or one declaring no words for it, answers `false` and its
      *  rows are left untouched. The mark is the saying; see the walk. */
@@ -313,6 +356,15 @@ interface Written {
  * JSON array parses back in the order it was written, and that order is
  * "touched oldest first", which is the whole of what {@link capped} needs.
  */
+/** The fault mark a written row carries, as the fragment a fresh row spreads —
+ *  the two words, the one legacy `gone: true` that meant the first of them, and
+ *  nothing at all for anything else ({@link picks} argues both). */
+const markOf = (one: Record<string, unknown>): { fault?: Fault } => {
+  const written = one["fault"]
+  if (written === "gone" || written === "unwatchable") return { fault: written }
+  return one["gone"] === true ? { fault: "gone" } : {}
+}
+
 const picks = (held: Record<string, unknown>): ReadonlyArray<Scoped> => {
   const written = (held as Written).scopes
   if (!Array.isArray(written)) return []
@@ -326,12 +378,19 @@ const picks = (held: Record<string, unknown>): ReadonlyArray<Scoped> => {
     const file = word(one["file"])
     if (agent === null || session === null || plugin === null || file === null) continue
     // THE FAULT IS NOT LOAD-BEARING, so it is read where the four above are
-    // REQUIRED: a row whose `gone` will not parse is a row that names a
+    // REQUIRED: a row whose mark will not parse is a row that names a
     // conversation, a doorbell and a file perfectly well, and dropping it would
     // turn a person's doorbell off over a byte that means "we already said
-    // something about this". Anything but a literal `true` reads as an unmarked
-    // row, which is the state the next revision decides for itself.
-    rows.push({ agent, session, plugin, file, ...(one["gone"] === true ? { gone: true } : {}) })
+    // something about this". Anything but one of the two words reads as an
+    // unmarked row, which is the state the next revision decides for itself.
+    //
+    // A ROW FROM THE OLAI BEFORE THIS ONE wrote `gone: true`, when there was
+    // one way for a doorbell to be watching nothing and it needed no word. It
+    // is read as the word it meant. That is one line for a record a day old and
+    // it is worth it for exactly what the mark IS: dropping it re-tells a
+    // conversation about a rename it was already told about, on the first
+    // revision after an upgrade.
+    rows.push({ agent, session, plugin, file, ...markOf(one) })
   }
   return rows
 }
@@ -398,7 +457,7 @@ export const forDirectory = (spelling: string): Effect.Effect<Scopes> =>
           // that is the whole of the invariant ({@link Scoped}).
           //
           // The row is built FRESH, which is where a re-pick loses any
-          // {@link Scoped.gone} the old one carried — and that is the answer
+          // {@link Scoped.fault} the old one carried — and that is the answer
           // rather than an accident of the literal. A person who has just
           // pointed this doorbell somewhere is owed the next fault on the new
           // file, and carrying the old file's mark across would swallow it.
@@ -447,10 +506,10 @@ export const forDirectory = (spelling: string): Effect.Effect<Scopes> =>
        * another window is not somebody touching their doorbell
        * ({@link Scoped}).
        */
-      faults: (served, sayable) =>
+      faults: (judge, sayable) =>
         writing.withPermit(Effect.gen(function*() {
           const before = rows
-          /** The false→true edges, and only those — the caller's cue to say
+          /** The fine→faulted edges, and only those — the caller's cue to say
            *  something once. */
           const fell: Array<Scoped> = []
           let moved = false
@@ -463,19 +522,30 @@ export const forDirectory = (spelling: string): Effect.Effect<Scopes> =>
             // conversation is never told. The mark and the saying are one act
             // and this is what keeps them one.
             if (!sayable(row.plugin)) return row
-            const here = served(row.file)
-            const marked = row.gone === true
-            if (here !== marked) return row
+            const wrong = judge(row.plugin, row.file)
+            const marked = row.fault
+            // NOTHING TO SAY AND NOTHING TO WRITE — a fine row that was fine,
+            // or a broken one broken the same way it was already told about.
+            // The first is every row on every revision anybody ever publishes,
+            // and the second is what keeps a standing fault off the disk for as
+            // long as it stands.
+            if (wrong === (marked ?? null)) return row
             moved = true
-            if (here) {
-              // IT CAME BACK. Written back without the key rather than with a
-              // `false`, so a healed table is the same bytes an untroubled one
+            if (wrong === null) {
+              // IT CAME RIGHT. Written back without the key rather than with a
+              // `null`, so a healed table is the same bytes an untroubled one
               // is ({@link Scoped}) — and nothing is said, because one fault is
               // one signal and the strip is where "it is fine again" shows.
               return { agent: row.agent, session: row.session, plugin: row.plugin, file: row.file }
             }
-            const broken: Scoped = { ...row, gone: true }
-            fell.push(broken)
+            const broken: Scoped = { ...row, fault: wrong }
+            // ONE SIGNAL PER FAULT AND NOT PER CAUSE. A row already marked is a
+            // conversation that has already been told its doorbell is watching
+            // nothing; the cause moving under it — a `.md` that was scoped and
+            // is now also deleted — changes what the STRIP should say and not
+            // whether there is anything to interrupt anybody with. So the new
+            // word is written and `fell` is left alone.
+            if (marked === undefined) fell.push(broken)
             return broken
           })
           // NOTHING MOVED IS NO WRITE, which is every revision but the two this

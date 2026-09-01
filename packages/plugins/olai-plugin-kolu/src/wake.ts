@@ -1,7 +1,8 @@
 /**
  * WHAT THE STRIP'S DOORBELL CONTROL SAYS, in kolu's own words — three
  * strings and not one sentence, because core draws the control between them,
- * and beside them ONE whole sentence for the one moment nothing is drawn.
+ * and beside them the KINDS of file this wake can be pointed at and TWO whole
+ * sentences for the two moments nothing is drawn.
  *
  * ## Why the plugin owns every word and core owns none
  *
@@ -23,10 +24,34 @@
  * the interesting half: the file is a filter a person swaps, while "terminal
  * activity" is what the doorbell IS.
  *
- * ## ...AND THE FOURTH, which is a MESSAGE and not a piece of a control
+ * ## WHICH FILES IT MAY BE POINTED AT, which is not a sentence at all
+ *
+ * {@link wake.kinds} is the one member here a person never reads. It is the
+ * answer to a question only this package can answer — a scope is a filter, and
+ * what kolu filters BY is the `kolu-terminal` values on a file's un-done NODES
+ * ({@link ./doorbell.ts}), so a file that holds no nodes claims nobody, for
+ * ever. The picker was offering every served file, `2026-09-01.md` among the
+ * outlines (the human, 2026-09-01), and a conversation scoped to one of those
+ * watched the empty set while the heartbeat went on saying the watcher was
+ * alive — the exact confusion the heartbeat exists to prevent, handed over by
+ * the control. So kolu names the kind it can read and core offers no other.
+ *
+ * ONE ENTRY, and it will stay one until something in this package can derive a
+ * claim out of prose. It is spelled as `@olai/format`'s own word rather than as
+ * `.olai`, because a suffix is a string two packages can disagree about and a
+ * KIND is the registry's single answer.
+ *
+ * ## ...AND THE TWO MESSAGES, which are not pieces of a control
  *
  * {@link wake.gone} is what a conversation is told when the file it woke on
- * stops being served. Nothing draws it: core hands it to the same door kolu's
+ * stops being served, and {@link wake.unwatchable} is what it is told when that
+ * file is right there and is not something kolu can read a claim out of. They
+ * are two sentences because they are two different things to have happened and
+ * two different things to do about it, even though the cost is one: no wake, no
+ * digest, and — because core drops the row off this plugin's door either way —
+ * no heartbeat pretending otherwise.
+ *
+ * Nothing draws either: core hands each to the same door kolu's
  * own bodies go through, whole, with no lead-in and no numeral
  * (`@olai/plugin-api`'s `PluginServerHalf.wake.gone` argues why it is one string
  * where the others are three). So it is written the way {@link ./doorbell.ts}
@@ -34,16 +59,16 @@
  * line a glance can read, the attribution under it, and then what a person has
  * to do about it.
  *
- * IT NAMES NO FILE, and that is not an omission core would fill in. Core knows
- * the path and refuses to punch a hole in somebody else's sentence for it; the
- * strip is drawing that path two inches away, marked broken. What only kolu can
- * say is the half that costs: that no terminal is being watched for this
- * conversation any more.
+ * NEITHER NAMES A FILE, and that is not an omission core would fill in. Core
+ * knows the path and refuses to punch a hole in somebody else's sentence for
+ * it; the strip is drawing that path two inches away, marked broken. What only
+ * kolu can say is the half that costs: that no terminal is being watched for
+ * this conversation any more.
  *
- * AND IT MUST NOT READ AS A HEARTBEAT. The other sentence a quiet conversation
- * can receive says the watcher is alive and the fleet is quiet; this one says
- * the watcher is watching nothing. Confusing them is the whole failure this
- * field exists to prevent — a silence that is fine and a silence that is broken
+ * AND NEITHER MAY READ AS A HEARTBEAT. The other sentence a quiet conversation
+ * can receive says the watcher is alive and the fleet is quiet; these two say
+ * the watcher is watching nothing. Confusing them is the whole failure these
+ * fields exist to prevent — a silence that is fine and a silence that is broken
  * are indistinguishable on every other channel — so the words below deny the
  * other reading outright rather than leaving a reader to infer it.
  *
@@ -52,20 +77,43 @@
  * `@olai/plugin-api`'s `PluginServerHalf` reads this off the enabled halves, and
  * {@link ./server.ts} re-exports it beside `kinds` and `probe` for the reason
  * those two are re-exported there: a composition root opens ONE door per
- * plugin. It is not IN `server.ts` because that file's closure is the runtime
- * half — `koluHalf`, the mirror, the dial — and the member that refuses a
- * scope for a plugin declaring no wake wants three strings, not a socket.
+ * plugin. (That neighbour is the PROPERTY kinds this plugin teaches the vault;
+ * {@link wake.kinds} below is a different word for a different table, and the
+ * two never meet.) It is not IN `server.ts` because that file's closure is the
+ * runtime half — `koluHalf`, the mirror, the dial — and the member that refuses
+ * a scope for a plugin declaring no wake wants strings, not a socket.
  *
  * The words themselves are pinned by nothing, deliberately: they are prose a
  * person reads on a strip, and a test asserting their spelling would be a
  * test that fails when somebody improves them. What IS held is that the
  * plugin declares them at all — `@olai/server`'s roster copies `wake` onto a
  * row only for a plugin that is RUNNING, and its own bench asserts that
- * rather than trusting this paragraph.
+ * rather than trusting this paragraph. The KINDS are held harder than prose
+ * can be: they are typed against `@olai/format`'s own union below, so a word
+ * the registry does not claim is a type error here rather than a picker that
+ * offers nothing on somebody else's machine.
  */
 
-/** kolu's doorbell, as the strip says it. See the header for why it is three
- *  pieces and why the subject leads. */
+import type { FileKind } from "@olai/format"
+
+/**
+ * THE KIND OF FILE A KOLU WAKE CAN BE POINTED AT — one, and it is the outline.
+ *
+ * Typed against the registry's own union rather than spelled as a suffix: the
+ * word travels to the picker as data (`@olai/surface`'s `BuiltPlugin`'s
+ * `wake.kinds`) and is compared there against `fileKind`'s answer, so the two
+ * ends are reading one table. A `.olai` written out here would be a second
+ * answer to a question `@olai/format`'s `kinds.ts` settles, and the failure it
+ * buys is silent: a picker that offers nothing at all.
+ *
+ * A named constant rather than a member written inline, so this annotation
+ * exists to be checked — a literal inside the object below would widen to
+ * `string` against {@link PluginServerHalf}'s own field and check nothing.
+ */
+const KINDS: readonly [FileKind, ...Array<FileKind>] = ["outline"]
+
+/** kolu's doorbell, as the strip says it. See the header for why the drawn half
+ *  is three pieces and why the subject leads. */
 export const wake = {
   /** What the wake is ON. */
   subject: "wake on terminal activity",
@@ -78,9 +126,13 @@ export const wake = {
    *  fresh derivation of everything standing, so calling them "messages"
    *  would promise five messages where one will arrive. */
   waiting: { one: "fleet event waiting", many: "fleet events waiting" },
+  /** WHICH FILES THIS MAY BE POINTED AT — see the header, and {@link KINDS}
+   *  for why the word rather than the suffix. */
+  kinds: KINDS,
   /**
-   * ... and the one whole sentence, for the moment the file goes away. See the
-   * header: no picker around it, no file named in it, and it says both halves
+   * ... and the first whole sentence, for the moment the file goes away. See
+   * the header: no picker around it, no file named in it, and it says both
+   * halves
    * — the file is gone AND nothing is being watched — because a reader told
    * only the first half would reasonably assume the watcher carried on.
    *
@@ -96,5 +148,33 @@ export const wake = {
     "Written by olai's kolu watcher, not by a person.",
     "",
     "No terminals are being watched for this conversation any more. Nothing is claimed, nothing will be derived, and nothing is being held back — this is not a quiet fleet, it is a doorbell with no file behind it. Point the wake control at a file that exists and it starts again.",
+  ].join("\n"),
+  /**
+   * ... and the second, for the file that is right there and has nothing kolu
+   * can read.
+   *
+   * The SAME THREE PARTS as {@link wake.gone} — the first line a glance can
+   * read, the attribution, the denial and the way out — because a person may
+   * receive either of them and must not have to learn two shapes of message.
+   * What differs is the middle clause of the first line, which is the only
+   * thing that actually differs: the file is there, and it holds no nodes, so
+   * there is nothing on it that could ever claim a terminal.
+   *
+   * IT SAYS WHY IN THE MECHANISM'S OWN TERMS — "no nodes", "claim" — rather
+   * than "wrong kind of file", because a person who reads only that the pick
+   * was wrong has been told nothing they can act on, and the whole of what is
+   * wrong with a document here is a fact about how this doorbell derives.
+   *
+   * A conversation can only be in this state from a pick made before the picker
+   * filtered (`@olai/plugin-api`'s `PluginServerHalf.wake.kinds`), a tab left
+   * open from an older serve, or a record edited by hand — so it is rare and it
+   * is nobody's mistake to be scolded for. The last clause says what to press.
+   */
+  unwatchable: [
+    "The file this conversation's terminal wake is pointed at is not an outline — it is served, and it holds no nodes, so nothing in it can claim a terminal.",
+    "",
+    "Written by olai's kolu watcher, not by a person.",
+    "",
+    "No terminals are being watched for this conversation. Nothing is claimed, nothing will be derived, and nothing is being held back — this is not a quiet fleet, it is a doorbell pointed at a file that can never carry a claim. Point the wake control at an outline and it starts.",
   ].join("\n"),
 }

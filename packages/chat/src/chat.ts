@@ -114,7 +114,7 @@ import type { AgentEvent } from "./events.ts"
 import * as Listings from "./listings.ts"
 import * as Memory from "./memory.ts"
 import type { Probe } from "./probes.ts"
-import type { Scoped, Scopes } from "./scopes.ts"
+import type { Fault, Scoped, Scopes } from "./scopes.ts"
 import { type Change, says, Transcript } from "./transcript.ts"
 import { type Turn, Turns } from "./turns.ts"
 import { sameWatching, watching } from "./watching.ts"
@@ -290,11 +290,12 @@ export interface Chat {
      * file a person picked. SYNCHRONOUS, because the blob it feeds is built in
      * a plain `.map` and read from a watcher sink with no Effect around it.
      *
-     * A ROW WHOSE FILE IS GONE IS NOT ON THIS LIST ({@link Chat.faults}), and
-     * that omission is the boundary between the two things a quiet conversation
-     * can mean, kept by construction rather than by care. There is no file, so
-     * there is nothing to derive and nothing to ring about; and anything else a
-     * plugin does per scope — a heartbeat saying it is alive and the subject is
+     * A ROW WHOSE DOORBELL CANNOT WATCH WHAT IT NAMES IS NOT ON THIS LIST
+     * ({@link Chat.faults}) — the file is gone, or it is served and is not a
+     * kind this plugin reads — and that omission is the boundary between the
+     * two things a quiet conversation can mean, kept by construction rather
+     * than by care. There is nothing to derive and nothing to ring about; and
+     * anything else a plugin does per scope — a heartbeat saying it is alive and the subject is
      * quiet, most of all — must not fire for a conversation whose scope is
      * broken, because "alive and quiet" and "watching nothing" are the two
      * sentences this whole feature exists to keep apart. Neither end has to
@@ -341,8 +342,8 @@ export interface Chat {
     file: string | null,
   ) => Effect.Effect<void, OpFailure>
   /**
-   * WHICH SCOPED FILES ARE STILL SERVED — asked of every published revision,
-   * and answered with the conversations whose doorbell JUST BROKE.
+   * WHICH SCOPED FILES A DOORBELL CAN STILL WATCH — asked of every published
+   * revision, and answered with the conversations whose doorbell JUST BROKE.
    *
    * ## The defect this exists to make impossible
    *
@@ -355,34 +356,47 @@ export interface Chat {
    * hand-run fleet watch is retired this is the only thing standing between
    * them.
    *
+   * ## THE SECOND WAY IN, and it is the same silence by a different door
+   *
+   * The file is right there and is not something that doorbell can read: a
+   * `.md` under a wake that derives its set from a file's NODES. The picker
+   * offered every served file until the kinds were declared
+   * (`@olai/plugin-api`'s `PluginServerHalf.wake.kinds`), so this is a state a
+   * record on disk can be in and a gesture cannot reach any more — and a
+   * picker-only fix would have left it exactly as silent as the rename was.
+   * Same walk, same one signal, same row off the plugin's door; a different
+   * cause and therefore a different sentence.
+   *
    * ## WHO DETECTS AND WHO SPEAKS
    *
-   * Core detects, because core owns the file and the table: the served set is a
-   * fact about the vault, and the pick is a row in this package's own record.
-   * Core says NOTHING, because a sentence about somebody's terminals is a
-   * sentence core may not compose — what goes into the conversation is the
-   * string the plugin DECLARED (`@olai/plugin-api`'s `PluginServerHalf.wake.gone`),
+   * Core detects, because core owns both halves of both questions: the served
+   * set is a fact about the vault, WHICH KINDS a doorbell can watch is a
+   * declaration its plugin handed the composition root, and the pick is a row
+   * in this package's own record. Core says NOTHING, because a sentence about
+   * somebody's terminals is a sentence core may not compose — what goes into
+   * the conversation is the string the plugin DECLARED for that cause
+   * (`@olai/plugin-api`'s `PluginServerHalf.wake.gone` and `.unwatchable`),
    * carried verbatim through the door {@link Chat.doorFor} already hands out.
    * This member is the join between those two and composes nothing itself.
    *
-   * ## A PREDICATE rather than the paths that went missing
+   * ## A JUDGEMENT rather than the paths that went missing
    *
-   * The caller holds a revision and can answer "is this path served" in a
-   * binary search; it cannot hand over a list of what went missing without
-   * either a second member here or a walk of the whole directory per revision.
-   * The picks are the small side — at most a few dozen — so the walk is over
-   * them and the membership test comes in. That is `@olai/format`'s
+   * The caller holds a revision and can answer "can this doorbell watch this
+   * path" in a binary search plus a lookup; it cannot hand over a list of what
+   * broke without either a second member here or a walk of the whole directory
+   * per revision. The picks are the small side — at most a few dozen — so the
+   * walk is over them and the judgement comes in. That is `@olai/format`'s
    * `conventions.ts` argument, spent here for its reason rather than copied.
    *
    * ## Exactly once, and quiet on the way back
    *
-   * What comes back is the false→true edge only ({@link ./scopes.ts}'s
-   * `Scoped.gone`): a second revision with the file still missing answers with
-   * nothing, and a restart with the flag already on the record answers with
-   * nothing, so a rename is one sentence rather than one per revision or one
-   * per boot. A file that COMES BACK unmarks the row, the plugin's door starts
-   * listing it again, and nobody is told — one signal per fault, and the strip
-   * is where the recovery shows.
+   * What comes back is the fine→faulted edge only ({@link ./scopes.ts}'s
+   * `Scoped.fault`): a second revision with the same fault standing answers
+   * with nothing, and a restart with the mark already on the record answers
+   * with nothing, so a rename is one sentence rather than one per revision or
+   * one per boot. A file that COMES RIGHT unmarks the row, the plugin's door
+   * starts listing it again, and nobody is told — one signal per fault, and the
+   * strip is where the recovery shows.
    *
    * ## It cannot fail, because nobody is standing at the screen
    *
@@ -394,7 +408,10 @@ export interface Chat {
    * the next revision to find.
    */
   readonly faults: (
-    served: (file: string) => boolean,
+    /** What is wrong with one row's file for one row's doorbell — the served
+     *  set and the plugin's declared kinds, asked as one question, answered
+     *  `null` for the file that doorbell can watch. */
+    judge: (plugin: string, file: string) => Fault | null,
     /** Whether a fault on this plugin's row can be SAID. A row nobody can be
      *  told about is left unmarked, so the one signal is not spent by a serve
      *  that has no doorbell to lose. */
@@ -434,7 +451,7 @@ const sameWake = (
       && row.name === was.name
       && row.file === was.file
       && row.waiting === was.waiting
-      && row.gone === was.gone
+      && row.fault === was.fault
   })
 /**
  * How long an agent may say NOTHING after a cancel before the panel says so.
@@ -947,12 +964,14 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           name: row.plugin,
           file: row.file,
           waiting: counted.get(row.plugin) ?? 0,
-          // THE FAULT TRAVELS, so the control can stop drawing as enabled
-          // ({@link Chat.faults}). A BOOLEAN on the wire where the record
-          // carries `true`-or-absent: the wire is a decoded value a browser
-          // reads per frame, and an optional key there would be a third state
-          // for a face to have an opinion about.
-          gone: row.gone === true,
+          // THE FAULT TRAVELS, AND SO DOES ITS CAUSE, so the control can stop
+          // drawing as enabled and can say which of the two things happened
+          // ({@link Chat.faults}). NULLABLE on the wire where the record carries
+          // the word-or-absent: the wire is a decoded value a browser reads per
+          // frame, and an optional key there would be one more state for a face
+          // to have an opinion about. The two unions are held equal by this
+          // line and by the type checker rather than by a shared literal.
+          fault: row.fault ?? null,
         }))
     }
 
@@ -2513,14 +2532,14 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       doorFor: (plugin) => ({
         scopes: () =>
           (options.scoping?.rows() ?? [])
-            // ... AND NOT A ROW WHOSE FILE IS GONE. There is nothing to watch,
+            // ... AND NOT A ROW THAT IS NOT BEING WATCHED. There is nothing to watch,
             // so there is nothing for this plugin to derive — and everything a
             // plugin does PER SCOPE stops with it, which is the point: a
             // heartbeat that fired for a broken scope would be the panel saying
             // "alive and quiet" about a doorbell that is watching nothing. The
             // filter is how those two are kept apart by construction rather
             // than by every caller remembering ({@link Chat.faults}).
-            .filter((row) => row.plugin === plugin && row.gone !== true)
+            .filter((row) => row.plugin === plugin && row.fault === undefined)
             // The `plugin` column goes on the way out: a door is already
             // ABOUT one plugin, so carrying its name back to it would be the
             // caller's own question answered a second time.
