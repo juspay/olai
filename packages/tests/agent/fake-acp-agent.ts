@@ -434,12 +434,12 @@ const storedSessions = () =>
  * The picker, shaped the way the real adapter's is.
  *
  * Two rows spelled as ids, and three ALIASES — which is the shape that matters
- * and the one this file used to be missing. The pinned adapter (0.66.0) offers
- * `default`, `opus[1m]`, `sonnet`, `haiku`: bare family words, while the live
- * model it reports on the wire is a concrete API id like `claude-sonnet-5`.
- * With only id-spelled rows here, a panel that could not bridge the two
- * vocabularies passed every scenario in this suite and named a raw id in front
- * of the person who filed the bug.
+ * and the one this file used to be missing. The adapter (captured at 0.66.0)
+ * offers `default`, `opus[1m]`, `sonnet`, `haiku`: bare family words, while
+ * the live model it reports on the wire is a concrete API id like
+ * `claude-sonnet-5`. With only id-spelled rows here, a panel that could not
+ * bridge the two vocabularies passed every scenario in this suite and named a
+ * raw id in front of the person who filed the bug.
  *
  * `opus[1m]` is here for the OTHER direction — the one a review constructed
  * against the real adapter. It is a row that states a context lane, and a live

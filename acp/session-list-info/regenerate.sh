@@ -185,5 +185,12 @@ diff -u --label a/dist/acp-agent.js --label b/dist/acp-agent.js \
   "$work/original.js" "$work/rebuilt.js" > "$work/raw.patch" || test $? -eq 1
 
 mv "$work/raw.patch" "$out"
-git apply --check "$out"
+# The written patch, tried where its paths MEAN something: against a second
+# pristine extract, at the same -F0 the derivation applies it with. Checked
+# from the repo root instead, `git apply` was asked about a `dist/acp-agent.js`
+# this tree does not have, so the script died on its own last line every run
+# and printed nothing about what it had just written.
+mkdir -p "$work/check/dist"
+cp "$work/original.js" "$work/check/dist/acp-agent.js"
+patch -p1 -F0 -s -d "$work/check" < "$out"
 echo "$out regenerated (anchored splice, diff-computed hunks; $(grep -c '^+' "$out") additions)"

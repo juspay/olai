@@ -1,6 +1,6 @@
 --- a/dist/acp-agent.js
 +++ b/dist/acp-agent.js
-@@ -572,6 +572,275 @@
+@@ -570,6 +570,275 @@
          return this.ctx.notify(method, params);
      }
  }
@@ -276,7 +276,7 @@
  export class ClaudeAcpAgent {
      sessions;
      client;
-@@ -790,20 +1059,76 @@
+@@ -797,20 +1066,76 @@
          return result;
      }
      async listSessions(params) {

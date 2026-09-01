@@ -659,13 +659,33 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      *
      * IT WITHDRAWS THE INTERRUPTION, and it is the one place in this file that
      * works around somebody else's defect rather than stating a rule of its
-     * own. The pinned adapter (0.66.0) leaves a turn's `session/prompt`
+     * own. The pinned adapter (0.70.0) leaves a turn's `session/prompt`
      * unanswered forever if a `_session/steering` is injected into any turn of
      * a session that has once held a queued one — the steered words run and
      * stream, and only a cancel ends the turn. Verified on the wire with no
      * olai in it: fresh sessions steer cleanly, one sequential turn steers
      * cleanly, two steer cleanly, and one QUEUED turn earlier in the session
      * poisons every steer after it.
+     *
+     * STILL TRUE AT 0.70.0, measured rather than assumed at the pin bump
+     * (2026-09-01): claude-agent-acp#1039's own reproduction script, run
+     * verbatim against the built pin, is STILL OPEN after 240s exactly as it
+     * is at 0.66.0.
+     *
+     * AND THIS GUARD IS NOT THE WHOLE OF THE DEFECT, which the same round
+     * found and which nothing here acts on yet: a session in which a turn has
+     * armed a `Monitor` poisons the steer the same way, with nothing ever
+     * queued. Measured on the wire at 0.66.0 and at 0.70.0 alike, and — the
+     * question worth asking before naming somebody else's bug — against a
+     * PRISTINE 0.70.0 with olai's own patches lifted off, which hangs
+     * identically. So it is upstream's and older than this pin rather than
+     * anything the bump or the patches introduced. A background `Bash` does
+     * NOT do it, measured the same way: the trigger is narrower than "a task
+     * was armed", which is why the latch is not simply widened here on a
+     * guess. The conversation that armed one still gets offered the
+     * interruption, and pressing it still sits on *working…* until cancel.
+     * Widening the latch was not this lane's to take; it is named in the
+     * bump's PR so it can be ruled on rather than found by somebody's evening.
      *
      * Before this PR the combination was unreachable — olai never sent a
      * mid-turn `session/prompt` on this leg — so the queue is what makes it
@@ -699,7 +719,8 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * scoped this conversation opted it into machine-started turns, and `+ new`
      * is how the control comes back.
      *
-     * It goes when the adapter is fixed and the pin moves, and not before.
+     * It goes when the adapter is fixed, and not when the pin merely moves:
+     * the 0.66.0 → 0.70.0 bump moved it and #1039 is still open.
      */
     let queuedHere = false
 

@@ -1,11 +1,11 @@
 /**
  * The usage report, over values.
  *
- * The payloads here are what the pinned Claude Code adapter (0.66.0) actually
- * sends — captured off the wire across four turns and a `/model` — plus the
- * near misses, which are the whole reason this is a function rather than a
- * field access: a fraction with a broken half in it is worse on screen than no
- * fraction at all.
+ * The payloads here are what the Claude Code adapter (captured at 0.66.0)
+ * actually sends — captured off the wire across four turns and a `/model` —
+ * plus the near misses, which are the whole reason this is a function rather
+ * than a field access: a fraction with a broken half in it is worse on screen
+ * than no fraction at all.
  */
 
 import { describe, expect, test } from "bun:test"

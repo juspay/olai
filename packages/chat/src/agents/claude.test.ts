@@ -1,7 +1,7 @@
 /**
  * The adapter's bets, over values.
  *
- * The payloads here are what the pinned Claude Code adapter (0.66.0) actually
+ * The payloads here are what the Claude Code adapter (captured at 0.66.0) actually
  * sends: the plan-mode permission request whose first allow-flavoured option
  * switches the session to `auto`, an ops call announced with its programmatic
  * name in `_meta`, the CLI `init` message a `/model` produces. Why any of that
@@ -178,9 +178,10 @@ describe("which tool a call is", () => {
 })
 
 /**
- * The handshake, as the pinned adapter (0.66.0) actually answers it — captured
- * from the wire on 2026-08-24, trimmed to the two corners read here and the
- * shape they sit in. The nesting is the point: `promptQueueing` is inside
+ * The handshake, as the pinned adapter (0.70.0) actually answers it — captured
+ * from the wire on 2026-08-24 and re-captured unchanged at the 0.70.0 bump
+ * (2026-09-01), trimmed to the two corners read here and the shape they sit
+ * in. The nesting is the point: `promptQueueing` is inside
  * `agentCapabilities._meta`, and the steering advertisement is beside
  * `agentCapabilities` rather than inside it, which is where the steering
  * extension's own contract puts it. A reader that looked in the other place
@@ -193,7 +194,7 @@ const HANDSHAKE = {
     promptCapabilities: { image: true },
     loadSession: true,
   },
-  agentInfo: { name: "@agentclientprotocol/claude-agent-acp", version: "0.66.0" },
+  agentInfo: { name: "@agentclientprotocol/claude-agent-acp", version: "0.70.0" },
   _meta: {
     steering: { supported: true },
     goal: { version: 1, controlMethod: "_session/goal" },

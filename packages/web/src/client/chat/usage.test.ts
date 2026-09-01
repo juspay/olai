@@ -1,9 +1,9 @@
 /**
  * The header's usage line, over values.
  *
- * The numbers here are the ones the pinned adapter (0.66.0) actually sent,
- * captured across four turns and a `/model` — including the turn where the
- * window itself moved, which is the case a fraction exists to make legible.
+ * The numbers here are the ones the adapter (captured at 0.66.0) actually
+ * sent, across four turns and a `/model` — including the turn where the window
+ * itself moved, which is the case a fraction exists to make legible.
  */
 
 import { describe, expect, test } from "bun:test"
