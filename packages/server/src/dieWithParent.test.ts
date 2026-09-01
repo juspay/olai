@@ -330,14 +330,19 @@ const webLeg = (): { readonly argv: ReadonlyArray<string>; readonly env: NodeJS.
 }
 
 test("the tie is a pid or it is nothing, and nothing is read into silence", () => {
-  // THE SPELLING IS THE CONTRACT, pinned on the owner's side. Two spawners
-  // sit behind a dependency wall that forbids importing this constant and
-  // spell the name as a literal — `packages/tests/support/hooks.ts` and
-  // `support/serve.sh`. Renaming `DIE_WITH_PARENT` breaks
-  // `./child.testlib.ts` at compile time and lets those two drift SILENTLY:
-  // every harness server would come up untied, #355's leak would return, and
-  // nothing anywhere would go red — the evidence would be `/tmp` filling up
-  // a week later. This line is where a rename fails loudly instead.
+  // A REMINDER, NOT A PIN — and the difference is worth writing down,
+  // because the two reviews of #455 disagreed about this line and the second
+  // one is right. Two spawners sit behind a dependency wall that forbids
+  // importing this constant and spell the name as a literal
+  // (`packages/tests/support/hooks.ts`, `support/serve.sh`), so a rename
+  // would leave every harness server untied with nothing going red — #355's
+  // leak back, and the evidence `/tmp` filling up a week later. What
+  // actually catches the rename is the COMPILE BREAK in
+  // `./child.testlib.ts`, which imports the constant. This assertion cannot:
+  // it lives in the same file as the constant, so one edit satisfies both in
+  // the same breath. What it is good for is the checklist it carries — the
+  // person making that edit is standing in front of the two file names above
+  // at the moment they need them.
   expect(DIE_WITH_PARENT).toBe("OLAI_DIE_WITH_PARENT")
   expect(parentTie({})).toEqual({ parent: null })
   expect(parentTie({ [DIE_WITH_PARENT]: "" })).toEqual({ parent: null })
@@ -443,20 +448,25 @@ test("PIN: the race — tied to a spawner that is already gone, and it stops any
 test("PIN: the same race under a PR_SET_CHILD_SUBREAPER ancestor, where PID 1 never comes", async () => {
   // THE CLAIM THAT CHOSE THE DESIGN, and until now the only one the suite
   // took on trust. Gating #355's `getppid() === 1` on the spawn shape — the
-  // smaller fix — would pass every other leg in this file on this machine,
-  // because an orphan here lands on init and the two rules agree. They do not
-  // agree under a subreaper: an orphaned descendant reparents to the nearest
-  // living subreaper ancestor, so `getppid()` never reads 1 and the smaller
-  // fix would sit through the very race it was written for. A session
-  // manager, a supervisor and `systemd-run --user --scope` are all that
-  // ancestor, so this is not an exotic machine — it is a user session.
+  // smaller fix — passes six of the eight legs here, because an orphan on
+  // this machine lands on init and the two rules agree. Under a subreaper
+  // they do not: an orphaned descendant reparents to the nearest living
+  // subreaper ancestor, so `getppid()` never reads 1 and the smaller fix
+  // would sit through the very race it was written for. A session manager, a
+  // supervisor and `systemd-run --user --scope` are all that ancestor, so
+  // this is not an exotic machine — it is a user session.
   //
-  // The leg arranges one: a grandparent that arms PR_SET_CHILD_SUBREAPER and
-  // stays up, a wrapper that ties the kid to itself and exits, and a kid that
-  // waits to be orphaned before it honors the tie. The assertion is BOTH
-  // halves — that the orphan landed on the subreaper and not on 1 (so the old
-  // rule could not have fired), and that the kid stopped anyway (so the tie
-  // did).
+  // This leg and the tie-not-parent leg below are the two that catch it, and
+  // they reach the same disagreement from opposite sides: this one arranges a
+  // kernel where `getppid()` never reads 1, that one stages the state the
+  // race leaves behind, in the product, where the old rule has nothing to
+  // see.
+  //
+  // The arrangement: a grandparent that arms PR_SET_CHILD_SUBREAPER and stays
+  // up, a wrapper that ties the kid to itself and exits, and a kid that waits
+  // to be orphaned before it honors the tie. The assertion is BOTH halves, in
+  // that order — the orphan landed on the subreaper and not on 1 (so the old
+  // rule could not have fired), and the kid stopped anyway (so the tie did).
   if (process.platform !== "linux") return
   const run = await launch({
     argv: kidArgv("after-orphan"),
@@ -466,16 +476,28 @@ test("PIN: the same race under a PR_SET_CHILD_SUBREAPER ancestor, where PID 1 ne
   })
   try {
     await until(BOUND_MS, "the wrapper to exit", () => gone(run.wrapperPid))
+    // THE ARRANGEMENT FIRST, and this order is the finding rather than a
+    // style: waiting for the death first makes the lesser fix's red a
+    // ten-second "SIGTERM never appeared", which is the same shape a kid that
+    // hung before it reached the guard would produce — and the two lines that
+    // say PID 1 never came would never have run. Asserted here, the same red
+    // reads "the old rule could not have fired, and the kid did not stop".
     await until(
       BOUND_MS,
-      () => `the kid to stop itself (log:\n${run.log()})`,
-      () => run.log().includes("SIGTERM"),
+      () => `the kid to be reparented (log:\n${run.log()})`,
+      () => /orphaned ppid=\d+/.test(run.log()),
     )
     const orphanedAt = Number(/orphaned ppid=(\d+)/.exec(run.log())?.[1])
     // `Number` rather than a cast: an absent reaper pid becomes NaN and fails
     // here, which is the right answer for a leg that asked for a subreaper.
     expect(orphanedAt).toBe(Number(run.reaperPid))
     expect(orphanedAt).not.toBe(1)
+    // ...and only THEN the death, which is the half the tie is responsible for.
+    await until(
+      BOUND_MS,
+      () => `the kid to stop itself (log:\n${run.log()})`,
+      () => run.log().includes("SIGTERM"),
+    )
     expect(run.log()).toContain(`tied-to=${run.wrapperPid}`)
     await until(BOUND_MS, "the kid to exit", () => gone(run.childPid))
   } finally {
