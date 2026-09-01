@@ -44,7 +44,7 @@ olai never writes this file. Turning the plugin on without a bind is a connected
 
 A kolu heartbeat ("the watcher is alive") is not a digest and does not post. Human messages never mirror.
 
-**One thread per bound conversation.** The thread key is the olai `(agent, session)` pair that already rides the watching event — not a title parsed out of the digest. The conversation's first digest opens the Spaces thread; later digests reply into it. Lane threads and the outbound queue are persisted beside the bind (`_olai/spaces-mirror.json`, which olai writes; it never writes `Spaces.olai`) so a restart opens the same thread and still has the queued digests.
+**One thread per bound conversation.** The thread key is the olai `(agent, session)` pair that already rides the watching event — not a title parsed out of the digest. The conversation's first digest opens the Spaces thread; later digests reply into it. Lane threads and the outbound queue are persisted in the state home (`@olai/state`'s `mirror` kind — the same home as the doorbell's wake scopes), so a restart opens the same thread and still has the queued digests. Olai never writes `Spaces.olai`.
 
 **Orchestrator replies and doorbell bodies, trimmed**: each is capped at the first ~500 Unicode code points with an ellipsis, and an open code fence the cut would have left is closed. Working-notes still produce the ephemeral signal below rather than a stored wall of fragments.
 
@@ -52,7 +52,7 @@ A kolu heartbeat ("the watcher is alive") is not a digest and does not post. Hum
 
 ## Failure honesty
 
-A refused post is said **once** into the olai conversation (the doorbell fault pattern), not once per message. Digests queue (capped) and post in order on recovery; the queue retries on its own, not only when the next digest arrives. A single item that the far end will never accept (a 4xx other than auth) is dropped so it cannot wedge the rest. The pill stays on `spaces fault` until a post is accepted again. The recovery sentence is a separate delivery from the fault, so it cannot replace a fault line that has not been handed over yet.
+A refused post is said **once** into the olai conversation (the doorbell fault pattern), not once per message. Digests queue (capped at 32) and post in order on recovery; the queue retries on its own, not only when the next digest arrives. A missing channel (the typo in `_olai/Spaces.olai`) keeps retrying with the fault said. A dead Spaces thread is forgotten and the digest re-opens one. A 4xx that will never accept (a validation error) is dropped so it cannot wedge the rest. Overflow of the cap drops the oldest and **says so**, with the count. The pill stays on `spaces fault` until a post is accepted again. The recovery sentence is a separate delivery from the fault, so it cannot replace a fault line that has not been handed over yet.
 
 ## What it is not
 

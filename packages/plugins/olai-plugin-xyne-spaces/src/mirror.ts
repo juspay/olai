@@ -101,7 +101,12 @@ export const faultBody = (why: string, at: string): string =>
   ].join("\n")
 
 export const recoveredBody = (count: number, channel: string, at: string): string =>
-  `token accepted again — ${count} queued digest${count === 1 ? "" : "s"} posted to the bound channel (${channel}) at ${at}, in order.`
+  count > 0
+    ? `token accepted again — ${count} queued digest${count === 1 ? "" : "s"} posted to the bound channel (${channel}) at ${at}, in order.`
+    : `token accepted again — mirroring resumed on the bound channel (${channel}) at ${at}.`
+
+export const overflowBody = (dropped: number, cap: number, at: string): string =>
+  `mirroring dropped ${dropped} queued digest${dropped === 1 ? "" : "s"} at ${at} — the queue is full (${cap}), oldest first. Written by olai's spaces mirror, not by a person.`
 
 export interface HeldSnapshot {
   readonly channel: string
@@ -114,7 +119,7 @@ export interface MirrorDeps {
   readonly client: SpacesClient
   readonly channel: string
   readonly now: () => string
-  readonly deliverFault: (body: string, coalesce: "fault" | "recovered") => void
+  readonly deliverFault: (body: string, coalesce: "fault" | "recovered" | "overflow") => void
   readonly onRecovered: () => void
   readonly hold?: {
     readonly load: () => HeldSnapshot | undefined
@@ -137,16 +142,17 @@ export interface Mirror {
   readonly stop: () => void
 }
 
-const QUEUE_CAP = 32
+export const QUEUE_CAP = 32
 
 const retryable = (status: number): boolean =>
-  status === 0 || status === 401 || status === 403 || status === 408 || status === 429
-  || status >= 500
+  status === 0 || status === 401 || status === 403 || status === 404 || status === 408
+  || status === 429 || status >= 500
 
 export const makeMirror = (deps: MirrorDeps): Mirror => {
   const threads = new Map<string, Thread>()
   const queue: Array<Outbound> = []
   let saidFault = false
+  let droppedTotal = 0
   let lastLane = "general"
   let retry: ReturnType<typeof setTimeout> | undefined
   const retryMs = deps.retryMs ?? 15_000
@@ -177,10 +183,10 @@ export const makeMirror = (deps: MirrorDeps): Mirror => {
     if (!saidFault) return
     saidFault = false
     deps.onRecovered()
-    if (drained > 0) deps.deliverFault(recoveredBody(drained, deps.channel, deps.now()), "recovered")
+    deps.deliverFault(recoveredBody(drained, deps.channel, deps.now()), "recovered")
   }
 
-  type Verdict = "ok" | "retry" | "drop" | { readonly repost: Outbound }
+  type Verdict = "ok" | "retry" | "drop" | "reopen" | { readonly repost: Outbound }
 
   const send = async (item: Outbound): Promise<Verdict> => {
     if (item.op === "update") {
@@ -190,12 +196,16 @@ export const makeMirror = (deps: MirrorDeps): Mirror => {
         channelId: deps.channel,
       })
       if (!result.ok) {
-        fail(result.refused.why)
         if (result.refused.status === 404) {
+          const held = threads.get(item.lane)
+          if (held !== undefined) {
+            threads.set(item.lane, { ...held, ciMessageId: undefined })
+          }
           return {
             repost: { op: "post", lane: item.lane, kind: "ci", text: item.text },
           }
         }
+        fail(result.refused.why)
         return retryable(result.refused.status) ? "retry" : "drop"
       }
       return "ok"
@@ -207,6 +217,11 @@ export const makeMirror = (deps: MirrorDeps): Mirror => {
       conversationId: thread?.conversationId,
     })
     if (!result.ok) {
+      if (result.refused.status === 404 && thread !== undefined) {
+        threads.delete(item.lane)
+        persist()
+        return "reopen"
+      }
       fail(result.refused.why)
       return retryable(result.refused.status) ? "retry" : "drop"
     }
@@ -218,15 +233,23 @@ export const makeMirror = (deps: MirrorDeps): Mirror => {
     return "ok"
   }
 
+  let inFlight: Promise<number> | undefined
+
   const schedule = (): void => {
     if (retry !== undefined || queue.length === 0) return
     retry = setTimeout(() => {
       retry = undefined
+      if (inFlight !== undefined) {
+        void inFlight.then(() => {
+          if (queue.length > 0) schedule()
+        })
+        return
+      }
       void drainAndRecover()
     }, retryMs)
   }
 
-  const drain = async (): Promise<number> => {
+  const drainLoop = async (): Promise<number> => {
     let n = 0
     while (queue.length > 0) {
       const next = queue[0]
@@ -236,17 +259,25 @@ export const makeMirror = (deps: MirrorDeps): Mirror => {
         schedule()
         return n
       }
+      if (verdict === "reopen") continue
       if (typeof verdict === "object") {
         queue[0] = verdict.repost
         persist()
-        schedule()
-        return n
+        continue
       }
       queue.shift()
       persist()
       if (verdict === "ok") n += 1
     }
     return n
+  }
+
+  const drain = async (): Promise<number> => {
+    if (inFlight !== undefined) return inFlight
+    inFlight = drainLoop().finally(() => {
+      inFlight = undefined
+    })
+    return inFlight
   }
 
   const drainAndRecover = async (): Promise<void> => {
@@ -258,7 +289,15 @@ export const makeMirror = (deps: MirrorDeps): Mirror => {
   const enqueue = async (item: Outbound): Promise<void> => {
     const drained = await drain()
     if (queue.length > 0) {
-      while (queue.length >= QUEUE_CAP) queue.shift()
+      let dropped = 0
+      while (queue.length >= QUEUE_CAP) {
+        queue.shift()
+        dropped += 1
+      }
+      if (dropped > 0) {
+        droppedTotal += dropped
+        deps.deliverFault(overflowBody(droppedTotal, QUEUE_CAP, deps.now()), "overflow")
+      }
       queue.push(item)
       persist()
       schedule()
@@ -274,7 +313,15 @@ export const makeMirror = (deps: MirrorDeps): Mirror => {
       persist()
       return
     }
-    queue.push(typeof verdict === "object" ? verdict.repost : item)
+    if (verdict === "reopen" || typeof verdict === "object") {
+      queue.push(typeof verdict === "object" ? verdict.repost : item)
+      persist()
+      const recovered = await drain()
+      if (queue.length === 0) succeed(drained + recovered)
+      persist()
+      return
+    }
+    queue.push(item)
     persist()
     schedule()
   }
@@ -288,9 +335,7 @@ export const makeMirror = (deps: MirrorDeps): Mirror => {
     if (index < 0) return false
     const current = queue[index]
     if (current === undefined) return false
-    queue[index] = current.op === "update"
-      ? { ...current, text }
-      : { ...current, text }
+    queue[index] = { ...current, text }
     persist()
     return true
   }

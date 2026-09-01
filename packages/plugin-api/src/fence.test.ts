@@ -833,7 +833,7 @@ describe("an appliance's product tier stays inside its tenant", () => {
     ).toEqual({
       kolu: ["kolu-client", "plugins/olai-plugin-kolu"],
       odu: ["odu-client", "plugins/olai-plugin-odu"],
-      "xyne-spaces": ["plugins/olai-plugin-xyne-spaces"],
+      "xyne-spaces": ["plugins/olai-plugin-xyne-spaces", "state"],
     })
     // ...and each APPLIANCE tenant has a TIER, which is the other way this
     // derivation comes back empty: a `node_modules` that was never hydrated.

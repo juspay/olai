@@ -30,7 +30,7 @@ import {
   spacesFileIn,
   type SpacesReading,
 } from "./config.ts"
-import { holdPath, loadHold, saveHold } from "./hold.ts"
+import { loadHold, saveHold } from "./hold.ts"
 import { laneOf, makeMirror, skipHeartbeat, type Mirror } from "./mirror.ts"
 import {
   name,
@@ -169,12 +169,12 @@ export const serve = (services: Services): {
   }
 
   const serial = (work: () => Promise<void>): void => {
-    chain = chain.then(work, work).then(undefined, () => {})
+    chain = chain.then(work, work).then(undefined, (error: unknown) => {
+      services.warn(`spaces: ${error instanceof Error ? error.message : String(error)}`)
+    })
   }
 
-  let saidUnknownAgent = false
-
-  const deliverFault = (body: string, coalesce: "fault" | "recovered"): void => {
+  const deliverFault = (body: string, coalesce: "fault" | "recovered" | "overflow"): void => {
     const to = lastBound
     if (to === undefined) {
       services.warn(`spaces: ${body.split("\n")[0] ?? body}`)
@@ -197,15 +197,27 @@ export const serve = (services: Services): {
     if (channel === undefined) return null
     if (mirror !== undefined) return mirror
     const client = makeClient(env.url, env.token, services.dial as Dial | undefined)
-    const path = holdPath(services.served)
+    const loaded = loadHold(services.served)
+    if ("error" in loaded) services.warn(`spaces: ${loaded.error}`)
     mirror = makeMirror({
       client,
       channel,
       now: services.now,
       onRecovered: () => paint(connected()),
       hold: {
-        load: () => loadHold(path),
-        save: (held) => saveHold(path, held),
+        load: () => "ok" in loaded && loaded.ok.channel === channel ? loaded.ok : undefined,
+        save: (held) => {
+          void Effect.runPromise(saveHold(services.served, held)).then(
+            undefined,
+            (error: unknown) => {
+              services.warn(
+                `spaces: hold could not be written (${
+                  error instanceof Error ? error.message : String(error)
+                })`,
+              )
+            },
+          )
+        },
       },
       deliverFault: (body, coalesce) => {
         if (coalesce === "fault") {
@@ -224,15 +236,6 @@ export const serve = (services: Services): {
   }
 
   const onSeen = (event: ConversationSeen): void => {
-    if (reading.bind !== null && reading.bind.agent !== null && reading.bind.agent !== event.agent) {
-      if (!saidUnknownAgent) {
-        saidUnknownAgent = true
-        services.warn(
-          `spaces: bind names agent \`${reading.bind.agent}\` which is not this conversation's agent (${event.agent}).`,
-        )
-      }
-      return
-    }
     if (!boundTo(reading.bind, event.agent, event.session)) return
     lastBound = { agent: event.agent, session: event.session }
     const held = ensureMirror()
@@ -282,7 +285,6 @@ export const serve = (services: Services): {
       }
       const channelChanged = next.bind?.channel !== reading.bind?.channel
       reading = next
-      saidUnknownAgent = false
       if (channelChanged) {
         mirror?.stop()
         mirror = undefined

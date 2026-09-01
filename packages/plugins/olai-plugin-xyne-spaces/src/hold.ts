@@ -1,22 +1,21 @@
 /**
- * THE MIRROR'S HOLD — lane threads and the outbound queue, beside the bind.
+ * THE MIRROR'S HOLD — lane threads and the outbound queue, in the state home.
  *
- * `_olai/Spaces.olai` is the person's file and olai never writes it. This
- * sidecar is olai's, next to that file, so a restart opens the same Spaces
- * thread per conversation and the queued digests are still there to post.
- * A missing or unreadable hold is a fresh map — the first serve's answer.
+ * Not in the vault. `@olai/state` is the established home: `fileFor("mirror")`
+ * keyed by the vault's canonical path, `writeHeld` staged and renamed so a
+ * torn write is not a silently empty hold. A missing or unreadable hold is a
+ * fresh map — the first serve's answer. A single malformed row is skipped,
+ * not the whole file.
  */
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
-import { dirname, join } from "node:path"
+import { Effect } from "effect"
+import { readFileSync } from "node:fs"
+
+import { canonical, fileFor, writeHeld, type StateFailure } from "@olai/state"
 
 import type { HeldSnapshot, Outbound, Thread } from "./mirror.ts"
 
 export type Held = HeldSnapshot
-
-export const HOLD_BASENAME = "spaces-mirror.json"
-
-export const holdPath = (served: string): string => join(served, "_olai", HOLD_BASENAME)
 
 const isThread = (value: unknown): value is Thread => {
   if (value === null || typeof value !== "object") return false
@@ -41,32 +40,54 @@ const isOutbound = (value: unknown): value is Outbound => {
   return false
 }
 
-export const loadHold = (path: string): Held | undefined => {
+export const holdFile = (served: string): { readonly at: string; readonly cwd: string } => {
+  const cwd = canonical(served)
+  return { cwd, at: fileFor("mirror", cwd) }
+}
+
+export type Load =
+  | { readonly ok: Held }
+  | { readonly missing: true }
+  | { readonly error: string }
+
+export const loadHold = (served: string): Load => {
+  const { at, cwd } = holdFile(served)
   try {
-    const raw: unknown = JSON.parse(readFileSync(path, "utf8"))
-    if (raw === null || typeof raw !== "object") return undefined
+    const raw: unknown = JSON.parse(readFileSync(at, "utf8"))
+    if (raw === null || typeof raw !== "object") {
+      return { error: `\`${at}\` is not a hold object` }
+    }
     const record = raw as Record<string, unknown>
-    if (typeof record.channel !== "string" || typeof record.lastLane !== "string") return undefined
-    if (!Array.isArray(record.threads) || !Array.isArray(record.queue)) return undefined
+    if (record.cwd !== cwd) return { missing: true }
+    if (typeof record.channel !== "string" || typeof record.lastLane !== "string") {
+      return { error: `\`${at}\` is missing channel or lastLane` }
+    }
     const threads: Array<readonly [string, Thread]> = []
-    for (const row of record.threads) {
-      if (!Array.isArray(row) || row.length !== 2 || typeof row[0] !== "string" || !isThread(row[1])) {
-        return undefined
+    if (Array.isArray(record.threads)) {
+      for (const row of record.threads) {
+        if (!Array.isArray(row) || row.length !== 2 || typeof row[0] !== "string" || !isThread(row[1])) {
+          continue
+        }
+        threads.push([row[0], row[1]])
       }
-      threads.push([row[0], row[1]])
     }
     const queue: Array<Outbound> = []
-    for (const item of record.queue) {
-      if (!isOutbound(item)) return undefined
-      queue.push(item)
+    if (Array.isArray(record.queue)) {
+      for (const item of record.queue) {
+        if (isOutbound(item)) queue.push(item)
+      }
     }
-    return { channel: record.channel, lastLane: record.lastLane, threads, queue }
-  } catch {
-    return undefined
+    return { ok: { channel: record.channel, lastLane: record.lastLane, threads, queue } }
+  } catch (cause) {
+    if ((cause as { readonly code?: unknown }).code === "ENOENT") return { missing: true }
+    return { error: `\`${at}\` could not be read: ${cause instanceof Error ? cause.message : String(cause)}` }
   }
 }
 
-export const saveHold = (path: string, held: Held): void => {
-  mkdirSync(dirname(path), { recursive: true })
-  writeFileSync(path, `${JSON.stringify(held)}\n`)
+export const saveHold = (
+  served: string,
+  held: Held,
+): Effect.Effect<void, StateFailure> => {
+  const { at, cwd } = holdFile(served)
+  return writeHeld(at, { cwd, ...held })
 }

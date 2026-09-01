@@ -1,15 +1,15 @@
 /**
  * A SPACES THAT IS NOT SPACES — the far end of the mirror's unit tests.
  *
- * The suite pins the request shapes (auth header, postMessage body, thread
- * reply, updateMessage, agentProgress) and the queue-on-failure behaviour.
- * Standing up the human's live instance would be the opposite of that, and
- * is refused: this listens on loopback, records every request, and answers
- * with the ChatActionResponse the real routes return
- * (`~/code/xyne-spaces` `apps/backend/src/apps/types/index.ts`).
+ * The suite pins the request shapes and the queue-on-failure behaviour against
+ * the real route's gates, not a paraphrase of one of them. Standing up the
+ * human's live instance is refused: this listens on loopback, records every
+ * request, and answers with the ChatActionResponse the real routes return.
  *
- * It is a real HTTP server (Bun.serve), not a stub of `fetch`, so a test
- * that passes here is a test of the bytes on the wire.
+ * It is a real HTTP server (Bun.serve). The four refines the three chat POSTs
+ * actually run (`~/code/xyne-spaces` `routes/chat.ts`, `channelValidation.ts`,
+ * `chatController.ts`) are all here, plus channel existence — an unknown
+ * `channelId` is 404, which is how a typo'd bind is tested as retryable.
  */
 
 export interface Recorded {
@@ -22,22 +22,52 @@ export interface Recorded {
 export interface FakeSpaces {
   readonly url: string
   readonly requests: ReadonlyArray<Recorded>
-  readonly failNext: (status: number, error: string) => void
+  readonly failNext: (status: number, error: string, message?: string) => void
   /** Stay refused until {@link FakeSpaces.up}. */
-  readonly down: (status: number, error: string) => void
+  readonly down: (status: number, error: string, message?: string) => void
   readonly up: () => void
+  /** Forget a conversation so the next post into it 404s as a dead thread. */
+  readonly dropConversation: (id: string) => void
+  /** Delay each fetch by `ms`, so two drain callers can overlap. */
+  readonly slow: (ms: number) => void
   readonly close: () => void
 }
 
-export const listen = async (): Promise<FakeSpaces> => {
+const asRecord = (body: unknown): Record<string, unknown> =>
+  body !== null && typeof body === "object" ? body as Record<string, unknown> : {}
+
+const trimmed = (record: Record<string, unknown>, key: string): string =>
+  typeof record[key] === "string" ? (record[key] as string).trim() : ""
+
+const hasChannelContext = (record: Record<string, unknown>): boolean =>
+  trimmed(record, "channelId") !== ""
+  || trimmed(record, "channelName") !== ""
+  || trimmed(record, "conversationId") !== ""
+
+const hasMessageText = (record: Record<string, unknown>): boolean =>
+  trimmed(record, "text") !== "" || trimmed(record, "markdownText") !== ""
+
+const badRequest = (message: string): Response =>
+  Response.json({ error: "Bad Request", message }, { status: 400 })
+
+const notFound = (message: string): Response =>
+  Response.json({ error: "Not Found", message }, { status: 404 })
+
+export const listen = async (opts?: {
+  readonly channels?: ReadonlyArray<string>
+}): Promise<FakeSpaces> => {
   const requests: Array<Recorded> = []
-  let fail: { status: number; error: string } | null = null
-  let held: { status: number; error: string } | null = null
+  const channels = new Set(opts?.channels ?? ["ch-team", "ch"])
+  const conversations = new Set<string>()
+  let fail: { status: number; error: string; message: string } | null = null
+  let held: { status: number; error: string; message: string } | null = null
+  let wait = 0
   let n = 0
 
   const server = Bun.serve({
     port: 0,
     async fetch(req) {
+      if (wait > 0) await Bun.sleep(wait)
       const url = new URL(req.url)
       const authorization = req.headers.get("authorization")
       const body: unknown = await req.json().catch(() => null)
@@ -46,50 +76,65 @@ export const listen = async (): Promise<FakeSpaces> => {
       if (fail !== null) fail = null
       if (refused !== null) {
         return Response.json(
-          { error: refused.error, message: refused.error, code: "REFUSED" },
+          { error: refused.error, message: refused.message, code: "REFUSED" },
           { status: refused.status },
         )
       }
-      // THE REAL ROUTE'S REFINE — `validateChannelAccessForPost` requires one
-      // of channelId / channelName / conversationId. A body with none is 400
-      // before the controller, which is how a missing channelId on
-      // updateMessage went invisible when this fake accepted any body.
-      if (req.method === "POST" && url.pathname.startsWith("/api/apps/chat/")) {
-        const record = body !== null && typeof body === "object"
-          ? body as Record<string, unknown>
-          : {}
-        const channelId = typeof record.channelId === "string" ? record.channelId.trim() : ""
-        const channelName = typeof record.channelName === "string" ? record.channelName.trim() : ""
-        const conversationId =
-          typeof record.conversationId === "string" ? record.conversationId.trim() : ""
-        if (channelId === "" && channelName === "" && conversationId === "") {
-          return Response.json(
-            { error: "Bad Request", message: "Validation error" },
-            { status: 400 },
-          )
-        }
+      if (req.method !== "POST" || !url.pathname.startsWith("/api/apps/chat/")) {
+        return Response.json({ error: "not found", code: "NOT_FOUND" }, { status: 404 })
+      }
+      const record = asRecord(body)
+      if (!hasChannelContext(record)) {
+        return badRequest("Validation error")
+      }
+      const channelId = trimmed(record, "channelId")
+      if (channelId !== "" && !channels.has(channelId)) {
+        return notFound("Channel not found")
       }
       n += 1
-      if (url.pathname === "/api/apps/chat/postMessage" && req.method === "POST") {
-        const record = body !== null && typeof body === "object"
-          ? body as Record<string, unknown>
-          : {}
-        const conversationId =
-          typeof record.conversationId === "string" ? record.conversationId : `conv-${n}`
+      if (url.pathname === "/api/apps/chat/postMessage") {
+        if (!hasMessageText(record)) {
+          return badRequest("Either text, markdownText, flow, or attachments is required")
+        }
+        const conversationId = trimmed(record, "conversationId")
+        if (conversationId !== "") {
+          if (!conversations.has(conversationId)) {
+            return Response.json(
+              { error: `Conversation ${conversationId} not found`, code: "NOT_FOUND" },
+              { status: 404 },
+            )
+          }
+          return Response.json({
+            eventType: "MESSAGE_POSTED",
+            conversationId,
+            messageId: `msg-${n}`,
+          }, { status: 201 })
+        }
+        const opened = `conv-${n}`
+        conversations.add(opened)
         return Response.json({
           eventType: "MESSAGE_POSTED",
-          conversationId,
+          conversationId: opened,
           messageId: `msg-${n}`,
         }, { status: 201 })
       }
-      if (url.pathname === "/api/apps/chat/updateMessage" && req.method === "POST") {
+      if (url.pathname === "/api/apps/chat/updateMessage") {
+        if (trimmed(record, "messageId") === "") {
+          return badRequest("Message ID is required")
+        }
+        if (!hasMessageText(record) && record.flowJSON === undefined) {
+          return badRequest("Either text, markdownText, flowJSON, or attachments is required")
+        }
         return Response.json({
           eventType: "MESSAGE_UPDATED",
           conversationId: "conv-held",
-          messageId: (body as { messageId?: string } | null)?.messageId ?? `msg-${n}`,
+          messageId: trimmed(record, "messageId") || `msg-${n}`,
         }, { status: 200 })
       }
-      if (url.pathname === "/api/apps/chat/agentProgress" && req.method === "POST") {
+      if (url.pathname === "/api/apps/chat/agentProgress") {
+        if (trimmed(record, "conversationId") === "") {
+          return badRequest("Conversation ID is required")
+        }
         return Response.json({ success: true }, { status: 200 })
       }
       return Response.json({ error: "not found", code: "NOT_FOUND" }, { status: 404 })
@@ -101,14 +146,20 @@ export const listen = async (): Promise<FakeSpaces> => {
     get requests() {
       return requests
     },
-    failNext: (status, error) => {
-      fail = { status, error }
+    failNext: (status, error, message = error) => {
+      fail = { status, error, message }
     },
-    down: (status, error) => {
-      held = { status, error }
+    down: (status, error, message = error) => {
+      held = { status, error, message }
     },
     up: () => {
       held = null
+    },
+    dropConversation: (id) => {
+      conversations.delete(id)
+    },
+    slow: (ms) => {
+      wait = ms
     },
     close: () => {
       server.stop(true)

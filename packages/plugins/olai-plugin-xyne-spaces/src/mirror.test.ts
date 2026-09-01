@@ -1,15 +1,17 @@
-import { mkdtempSync, readFileSync } from "node:fs"
+import { afterEach, beforeEach, expect, test } from "bun:test"
+import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
-import { expect, test } from "bun:test"
+import { Effect } from "effect"
 
 import { makeClient } from "./client.ts"
-import { holdPath, loadHold, saveHold } from "./hold.ts"
+import { loadHold, saveHold } from "./hold.ts"
 import {
   classify,
   laneOf,
   makeMirror,
+  QUEUE_CAP,
   skipHeartbeat,
   trimTo,
   type MirrorDeps,
@@ -17,6 +19,18 @@ import {
 import { listen } from "./testlib/fake-spaces.ts"
 
 const LANE = laneOf("claude", "s-1")
+
+let stateHome = ""
+const wasState = process.env["XDG_STATE_HOME"]
+beforeEach(() => {
+  stateHome = mkdtempSync(join(tmpdir(), "spaces-state-"))
+  process.env["XDG_STATE_HOME"] = stateHome
+})
+afterEach(() => {
+  if (wasState === undefined) delete process.env["XDG_STATE_HOME"]
+  else process.env["XDG_STATE_HOME"] = wasState
+  rmSync(stateHome, { recursive: true, force: true })
+})
 
 const mirrorOf = (
   client: ReturnType<typeof makeClient>,
@@ -196,6 +210,100 @@ test("the queue retries on its own, without waiting for the next digest", async 
   }
 })
 
+test("a typo'd channel 404 keeps retrying with the fault said", async () => {
+  const spaces = await listen()
+  try {
+    const client = makeClient(spaces.url, "test-token", undefined)
+    const faults: Array<string> = []
+    const mirror = mirrorOf(client, {
+      channel: "no-such-channel",
+      deliverFault: (body) => faults.push(body),
+      retryMs: 20,
+    })
+    await mirror.postDigest("Lane dispatched: **typo**", LANE, 500)
+    expect(mirror.queued()).toHaveLength(1)
+    expect(mirror.faulted()).toBe(true)
+    expect(faults[0]).toContain("Channel not found")
+    await Bun.sleep(50)
+    expect(mirror.queued()).toHaveLength(1)
+    mirror.stop()
+  } finally {
+    spaces.close()
+  }
+})
+
+test("a dead thread is forgotten and the digest re-opens one, without a fault", async () => {
+  const spaces = await listen()
+  try {
+    const client = makeClient(spaces.url, "test-token", undefined)
+    const faults: Array<string> = []
+    const mirror = mirrorOf(client, { deliverFault: (body) => faults.push(body) })
+    await mirror.postDigest("Lane dispatched: **first**", LANE, 500)
+    const id = mirror.threads().get(LANE)?.conversationId
+    expect(id).toBeDefined()
+    spaces.dropConversation(id ?? "")
+    await mirror.postDigest("Lane dispatched: **second**", LANE, 500)
+    expect(faults).toEqual([])
+    expect(mirror.threads().get(LANE)?.conversationId).not.toBe(id)
+    const posts = spaces.requests.filter((r) => r.path === "/api/apps/chat/postMessage")
+    expect(posts).toHaveLength(3)
+    expect((posts[2]?.body as { conversationId?: string }).conversationId).toBeUndefined()
+    mirror.stop()
+  } finally {
+    spaces.close()
+  }
+})
+
+test("overflow of the cap drops the oldest and says so", async () => {
+  const spaces = await listen()
+  try {
+    const client = makeClient(spaces.url, "test-token", undefined)
+    const faults: Array<string> = []
+    const mirror = mirrorOf(client, { deliverFault: (body) => faults.push(body) })
+    spaces.down(401, "Authentication failed")
+    for (let i = 0; i < QUEUE_CAP + 3; i++) {
+      await mirror.postDigest(`Lane dispatched: **n${i}**`, LANE, 500)
+    }
+    expect(mirror.queued()).toHaveLength(QUEUE_CAP)
+    expect(faults.some((body) => body.includes("dropped 3") && body.includes(`${QUEUE_CAP}`))).toBe(
+      true,
+    )
+    expect((mirror.queued()[0] as { text: string }).text).toContain("n3")
+    mirror.stop()
+  } finally {
+    spaces.close()
+  }
+})
+
+test("drain does not double-post when two callers overlap on the await", async () => {
+  const spaces = await listen()
+  try {
+    const client = makeClient(spaces.url, "test-token", undefined)
+    const mirror = mirrorOf(client, { retryMs: 60_000 })
+    spaces.down(401, "Authentication failed")
+    await mirror.postDigest("Lane dispatched: **A**", LANE, 500)
+    await mirror.postDigest("Lane dispatched: **B**", LANE, 500)
+    spaces.slow(40)
+    spaces.up()
+    const before = spaces.requests.length
+    await Promise.all([
+      mirror.postDigest("Lane dispatched: **C**", LANE, 500),
+      mirror.postDigest("Lane dispatched: **D**", LANE, 500),
+    ])
+    const after = spaces.requests.slice(before)
+      .filter((r) => r.path === "/api/apps/chat/postMessage")
+      .map((r) => (r.body as { markdownText: string }).markdownText)
+    expect(after.filter((text) => text.includes("**A**")).length).toBe(1)
+    expect(after.filter((text) => text.includes("**B**")).length).toBe(1)
+    expect(after.filter((text) => text.includes("**C**")).length).toBe(1)
+    expect(after.filter((text) => text.includes("**D**")).length).toBe(1)
+    expect(mirror.queued()).toHaveLength(0)
+    mirror.stop()
+  } finally {
+    spaces.close()
+  }
+})
+
 test("a 4xx other than auth drops the head so the rest of the queue is not wedged", async () => {
   const spaces = await listen()
   try {
@@ -239,24 +347,40 @@ test("orchestrator replies post trimmed; agentProgress rides the last thread", a
   }
 })
 
+test("the hold lands in the state home, whole, skipping a bad row", async () => {
+  const served = mkdtempSync(join(tmpdir(), "spaces-vault-"))
+  await Effect.runPromise(saveHold(served, {
+    channel: "ch-team",
+    lastLane: LANE,
+    threads: [[LANE, { conversationId: "conv-1", ciMessageId: undefined }]],
+    queue: [{ op: "post", lane: LANE, kind: "dispatched", text: "held" }],
+  }))
+  const got = loadHold(served)
+  expect("ok" in got).toBe(true)
+  if ("ok" in got) {
+    expect(got.ok.queue[0]?.text).toBe("held")
+    expect(got.ok.threads[0]?.[1].conversationId).toBe("conv-1")
+  }
+})
+
 test("threads and queue survive a restart from the hold", async () => {
   const spaces = await listen()
-  const dir = mkdtempSync(join(tmpdir(), "spaces-hold-"))
-  const path = holdPath(dir)
   try {
     const client = makeClient(spaces.url, "test-token", undefined)
-    const first = mirrorOf(client, {
-      hold: { load: () => loadHold(path), save: (held) => saveHold(path, held) },
-    })
+    let snapshot: Parameters<NonNullable<MirrorDeps["hold"]>["save"]>[0] | undefined
+    const hold = {
+      load: () => snapshot,
+      save: (held: NonNullable<typeof snapshot>) => {
+        snapshot = held
+      },
+    }
+    const first = mirrorOf(client, { hold })
     spaces.down(401, "Authentication failed")
     await first.postDigest("Lane dispatched: **held**", LANE, 500)
     first.stop()
-    const raw = readFileSync(path, "utf8")
-    expect(raw).toContain("held")
+    expect(snapshot?.queue).toHaveLength(1)
     spaces.up()
-    const second = mirrorOf(client, {
-      hold: { load: () => loadHold(path), save: (held) => saveHold(path, held) },
-    })
+    const second = mirrorOf(client, { hold })
     expect(second.queued()).toHaveLength(1)
     await second.postDigest("Lane dispatched: **after restart**", LANE, 500)
     expect(second.queued()).toHaveLength(0)

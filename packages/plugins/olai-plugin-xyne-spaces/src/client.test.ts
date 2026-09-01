@@ -94,6 +94,68 @@ test("updateMessage without channel context is 400, matching the real refine", a
   }
 })
 
+test("postMessage without markdownText is 400", async () => {
+  const spaces = await listen()
+  try {
+    const client = makeClient(spaces.url, "jwt-token", undefined)
+    const result = await client.postMessage({ channelId: "ch-team", markdownText: "" })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.refused.status).toBe(400)
+  } finally {
+    spaces.close()
+  }
+})
+
+test("updateMessage without messageId is 400", async () => {
+  const spaces = await listen()
+  try {
+    const client = makeClient(spaces.url, "jwt-token", undefined)
+    const result = await client.updateMessage({
+      messageId: "",
+      markdownText: "x",
+      channelId: "ch-team",
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.refused.status).toBe(400)
+  } finally {
+    spaces.close()
+  }
+})
+
+test("agentProgress without conversationId is 400", async () => {
+  const spaces = await listen()
+  try {
+    const client = makeClient(spaces.url, "jwt-token", undefined)
+    const result = await client.agentProgress({
+      conversationId: "",
+      channelId: "ch-team",
+      status: "working",
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.refused.status).toBe(400)
+  } finally {
+    spaces.close()
+  }
+})
+
+test("an unknown channel is 404 Channel not found", async () => {
+  const spaces = await listen()
+  try {
+    const client = makeClient(spaces.url, "jwt-token", undefined)
+    const result = await client.postMessage({
+      channelId: "no-such-channel",
+      markdownText: "Lane dispatched: **x**",
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.refused.status).toBe(404)
+      expect(result.refused.why).toContain("Channel not found")
+    }
+  } finally {
+    spaces.close()
+  }
+})
+
 test("a closed Spaces is a refusal, not an unhandled rejection", async () => {
   const spaces = await listen()
   const url = spaces.url

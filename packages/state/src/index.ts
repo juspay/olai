@@ -19,8 +19,8 @@
  *   - the STATE home is for something that SHOULD survive a restart and means
  *     nothing to anybody else — which conversation the chat panel was in
  *     (`@olai/chat`'s `memory.ts`), and which doorbell each conversation
- *     picked (`@olai/chat`'s `scopes.ts`). After git left this package,
- *     `@olai/chat` is the remaining tenant, in two KINDS rather than one —
+ *     picked (`@olai/chat`'s `scopes.ts`), and the outbound-mirror's threads
+ *     and queue. After git left this package the state home has three KINDS —
  *     {@link Kind} says why the split is by what each record survives.
  *
  * ONE FILE PER SERVED DIRECTORY under either, named by a DIGEST of the path
@@ -147,14 +147,16 @@ export class StateFailure extends Data.TaggedError("StateFailure")<{
  * told it could not reach, and nothing but a type can say so. It also makes
  * "what does olai keep about a directory" answerable by reading one line.
  *
- * Two tenants, and the split between them is what each SURVIVES rather than
+ * Three kinds, and the split between them is what each SURVIVES rather than
  * what each is about. `chat` is the panel's last conversation — one record,
  * rewritten whenever the panel opens one. `wake` is which conversations a
  * person pointed a plugin's doorbell at, and on which file; it holds the picks
  * and never the messages, because a held message is a derivation of state that
- * is still true and is rung again by whatever derives it.
+ * is still true and is rung again by whatever derives it. `mirror` is the
+ * outbound-mirror's thread map and queued digests for one vault — machine
+ * state about a channel, not content in it.
  */
-export type Kind = "chat" | "wake"
+export type Kind = "chat" | "wake" | "mirror"
 
 /** Where one kind of remembered thing lives for one served directory — a
  *  subdirectory of the state home, and the digest under it. Takes the

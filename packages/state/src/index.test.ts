@@ -101,6 +101,9 @@ test("a kind is a subdirectory of the state home, and the digest names the file"
     expect(fileFor("chat", root)).toBe(
       path.join(home, "olai", "chat", `${digestOf(root)}.json`),
     )
+    expect(fileFor("mirror", root)).toBe(
+      path.join(home, "olai", "mirror", `${digestOf(root)}.json`),
+    )
   }))
 
 test("nothing written down is `null` rather than a failure", () =>
