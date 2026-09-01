@@ -114,6 +114,13 @@
  *                itself stamped with the `Agent` call it came out of
  *   subagent elicits  the same, as an `AskUserQuestion` elicitation, which
  *                names the tool call it was asked from and nothing else
+ *   external <server> <tool> <json-args>   call a tool on an ATTACHED stdio
+ *                MCP server — one of the `mcpServers` the client handed
+ *                `session/new`, spawned on first use — with the frames a real
+ *                call's turn would wear, the result's first text block said
+ *                back in prose. It is how a scenario gets a workbench agent to
+ *                USE one of olai's probed tools rather than merely log that
+ *                the server arrived
  *   crash        exit mid-turn, having SPOKEN first
  *   vanish       exit mid-turn having said NOTHING AT ALL — not even the
  *                usage frames every other turn opens with, so the client has
@@ -169,6 +176,7 @@
  * run down with it. A directory of its own is what makes that unrepresentable.
  */
 
+import { spawn } from "node:child_process"
 import { existsSync, readFileSync, rmSync, statSync } from "node:fs"
 import { basename } from "node:path"
 
@@ -256,9 +264,10 @@ let sessionId = "fake-session-1"
 let mcp: { url: string; headers: Record<string, string> } | null = null
 /** The NAMES of every MCP server the client handed us, in the order it sent
  *  them. Olai's own is the http one this file actually calls; the rest are
- *  somebody else's programs on the host, which this file has no business
- *  spawning — reporting that they arrived is the whole of what a scenario
- *  about them can ask. */
+ *  somebody else's programs on the host, which this file spawns only when a
+ *  turn asks for it ({@link externalOf} and its verb, `external <server>
+ *  <tool> <json-args>`) — reporting that they arrived is otherwise the whole
+ *  of what a scenario about them can ask. */
 let servers: ReadonlyArray<string> = []
 /** What the wrapped CLI says about its connection to each of them, by name —
  *  the `mcp_servers` status the real adapter forwards on its `init`. Every
@@ -711,6 +720,165 @@ const callMcp = async (
   if (response.status === 202) return {}
   const body = (await response.json()) as { result?: Record<string, unknown> }
   return body.result ?? {}
+}
+
+// ── attached externals ───────────────────────────────────────────────
+
+/**
+ * One STDIO entry off the session's own `mcpServers` — spawned lazily the
+ * first time a turn asks its tools for something, the way the wrapped CLI
+ * lazily attaches a server nothing ever calls. Spawning per PROMPT would
+ * leak one child per turn; spawning at `session/new` would put a process
+ * behind every conversation in a suite that almost never asks, so first-ask
+ * it is.
+ *
+ * The conversation with one is the smallest honest piece of MCP: newline-
+ * DELIMITED JSON-RPC on the child's pipes (MCP's stdio transport — no
+ * Content-Length wrapper), an `initialize`, the `initialized` notification,
+ * and then calls answered by `id`. Anything that would need
+ * capability-negotiation or `notifications/*` back-talk is out of this file's
+ * business: a fixture's job is to be a client of the server's SHAPE, and an
+ * `external` verb's caller owns the tool name and the arguments.
+ */
+let externals = new Map<string, {
+  type?: string
+  name?: string
+  command?: string
+  args?: ReadonlyArray<string>
+  env?: ReadonlyArray<{ name: string; value: string }>
+}>()
+
+interface External {
+  readonly ask: (method: string, params?: Record<string, unknown>) => Promise<Record<string, unknown>>
+}
+
+/** The attach, memoised — `null` is the memoised FAILURE, so one broken
+ *  spawn is one roster word (`attachment`) and one sentence per turn that
+ *  asks, never a second child. */
+const attached2 = new Map<string, External | null>()
+
+const externalOf = async (name: string): Promise<External | null> => {
+  const held = attached2.get(name)
+  if (held !== undefined) return held
+  const entry = externals.get(name)
+  if (entry === undefined || entry.command === undefined) {
+    attached2.set(name, null)
+    return null
+  }
+  try {
+    const child = spawn(
+      entry.command,
+      [...(entry.args ?? [])],
+      {
+        stdio: ["pipe", "pipe", "inherit"],
+        // The entry's own env MERGED OVER this process's, the same rule the
+        // adapter's spawn keeps — a server that wanted a socket path from
+        // the client gets it without losing PATH.
+        env: {
+          ...process.env,
+          ...Object.fromEntries((entry.env ?? []).map((pair) => [pair.name, pair.value])),
+        } as Record<string, string>,
+      },
+    )
+    if (child.stdin === null || child.stdout === null) throw new Error("no pipes")
+    let next = 0
+    const pending = new Map<number, (message: Record<string, unknown>) => void>()
+    let queue = ""
+    child.stdout.on("data", (chunk: Buffer) => {
+      queue += chunk.toString("utf8")
+      for (;;) {
+        const at = queue.indexOf("\n")
+        if (at === -1) return
+        const line = queue.slice(0, at).trim()
+        queue = queue.slice(at + 1)
+        if (line === "") continue
+        let message: Record<string, unknown>
+        try {
+          message = JSON.parse(line) as Record<string, unknown>
+        } catch {
+          continue
+        }
+        const mid = message["id"]
+        if (typeof mid !== "number") continue
+        pending.get(mid)?.(message)
+      }
+    })
+    const ask = (method: string, params?: Record<string, unknown>): Promise<Record<string, unknown>> =>
+      new Promise((resolve, reject) => {
+        const mid = ++next
+        const timer = setTimeout(() => {
+          pending.delete(mid)
+          reject(new Error(`${method} unanswered after 300s`))
+        }, 300_000)
+        pending.set(mid, (message) => {
+          clearTimeout(timer)
+          pending.delete(mid)
+          if (message["error"] !== undefined) reject(new Error(JSON.stringify(message["error"])))
+          else resolve((message["result"] as Record<string, unknown>) ?? {})
+        })
+        child.stdin?.write(JSON.stringify({ jsonrpc: "2.0", id: mid, method, ...(params === undefined ? {} : { params }) }) + "\n")
+      })
+    await ask("initialize", {
+      protocolVersion: "2025-06-18",
+      capabilities: {},
+      clientInfo: { name: "fake-acp-agent", version: "0.0.0" },
+    })
+    child.stdin.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n")
+    const external: External = { ask }
+    attached2.set(name, external)
+    return external
+  } catch (thrown) {
+    attached2.set(name, null)
+    attachment.set(name, "failed")
+    noise(`external ${name}: attach failed — ${String(thrown)}`)
+    return null
+  }
+}
+
+/** A STAND-ALONE `useTool` ({@link useTool}'s shape) against an ATTACHED
+ *  external: the frames are the pair every other tool in this file wears,
+ *  because from the client's seat this IS a call the session's agent made —
+ *  the server's name prefixes the title so the row reads which of them took
+ *  it. The outcome's text is the first TEXT block of the result, or the
+ *  result itself — MCP's tool result is `content` blocks with an optional
+ *  `structuredContent`, and a fixture reads without guessing. */
+const useExternal = async (
+  server: string,
+  name: string,
+  args: Record<string, unknown>,
+): Promise<string> => {
+  const toolCallId = `call-${++nextMcpId}`
+  notify("session/update", {
+    sessionId,
+    update: {
+      sessionUpdate: "tool_call",
+      toolCallId,
+      title: `${server} — ${name}`,
+      status: "in_progress",
+      rawInput: args,
+    },
+  })
+  const sayOutcome = (status: "completed" | "failed", output: unknown): void =>
+    notify("session/update", {
+      sessionId,
+      update: { sessionUpdate: "tool_call_update", toolCallId, status, rawOutput: output },
+    })
+  const server_ = await externalOf(server)
+  if (server_ === null) {
+    sayOutcome("failed", { error: `no attached MCP server named \`${server}\`` })
+    return `no attached MCP server named \`${server}\``
+  }
+  try {
+    const result = await server_.ask("tools/call", { name, arguments: args })
+    const blocks = result["content"] as ReadonlyArray<{ type?: string; text?: string }> | undefined
+    const said = blocks?.find((block) => block?.type === "text")?.text
+      ?? JSON.stringify(result["structuredContent"] ?? result)
+    sayOutcome(result["isError"] === true ? "failed" : "completed", result)
+    return said
+  } catch (thrown) {
+    sayOutcome("failed", { error: String(thrown) })
+    return `the call failed: ${String(thrown)}`
+  }
 }
 
 /** A call that finished, carrying nothing but the fact — the shape the real
@@ -2103,6 +2271,31 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     return
   }
 
+  if (verb === "external") {
+    // `external <server> <tool> <json-args>` — the whole of what a scenario
+    // can ask of somebody else's program the client handed in. The args are
+    // the caller's JSON verbatim: this file holds no opinion about one
+    // server over another, which is the same discipline `mcp` keeps for
+    // olai's own.
+    const [server, tool, ...json] = rest
+    let args: Record<string, unknown> = {}
+    try {
+      args = JSON.parse(json.join(" ") || "{}") as Record<string, unknown>
+    } catch (thrown) {
+      say(`could not parse the arguments as JSON: ${String(thrown)}`)
+      reply(id, { stopReason: "end_turn" })
+      return
+    }
+    if (server === undefined || tool === undefined) {
+      say(`usage: external <server> <tool> <json-args>`)
+      reply(id, { stopReason: "end_turn" })
+      return
+    }
+    say(await useExternal(server, tool, args))
+    reply(id, { stopReason: "end_turn" })
+    return
+  }
+
   if (verb === "add") {
     const outlines = await callMcp("tools/call", { name: "list_outlines", arguments: {} })
     const listed = (outlines["structuredContent"] as
@@ -2170,6 +2363,9 @@ const openSession = (params: Record<string, unknown>): void => {
     name?: string
     url?: string
     headers?: ReadonlyArray<{ name: string; value: string }>
+    command?: string
+    args?: ReadonlyArray<string>
+    env?: ReadonlyArray<{ name: string; value: string }>
   }>
   servers = given.map((server) => server.name ?? "?")
   const http = given.find((server) => server.type === "http")
@@ -2179,6 +2375,14 @@ const openSession = (params: Record<string, unknown>): void => {
       (http.headers ?? []).map((header) => [header.name, header.value]),
     ),
   }
+  // The STDIO entries, kept whole against the day a turn asks for one —
+  // spawning one is lazy ({@link externalOf}), so this is a listing and not
+  // a process tree per conversation.
+  externals = new Map(
+    given
+      .filter((server) => server.type === undefined && typeof server.command === "string")
+      .map((server) => [server.name ?? "?", server]),
+  )
 }
 
 /**

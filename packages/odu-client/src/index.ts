@@ -71,17 +71,20 @@ import { inMemoryStore } from "@kolu/surface/server"
 import { Effect } from "effect"
 
 import { reposRootIn } from "./resolve.ts"
-import { makeWatch, type Watch, type WatchDeps, type WorktreeNode } from "./runs.ts"
-import { type CiRuns, NO_RUNS } from "./wire/index.ts"
+import { makeWatch, type RunNotice, type Watch, type WatchDeps, type WorktreeNode } from "./runs.ts"
+import { type CiRun, type CiRuns, NO_RUNS } from "./wire/index.ts"
 
-/** TWO NAMES leave this package, and they are the two the server actually
- *  holds: what one worktree-naming node looks like on the way in ({@link
- *  WorktreeNode}), and the dial
- *  a test substitutes ({@link DialRun}). The resolution rule's own symbols
- *  are NOT re-exported — `./resolve.ts` is where they are argued and where
- *  its bench imports them from, and a door onto a module nothing outside
- *  opens is a public API with no caller. */
-export { type DialRun, type WorktreeNode } from "./runs.ts"
+/** FOUR NAMES leave this package, and they are the ones the server actually
+ *  holds: what one worktree-naming node looks like on the way in
+ *  ({@link WorktreeNode}), the dial a test substitutes ({@link DialRun}), the
+ *  two transitions a hold rings ({@link RunNotice}), and where one node's log
+ *  lives on disk ({@link durableLogPath}) — the wake's sentence wants the
+ *  path, and `./logs.ts`'s own comment says whose spelling it is. The
+ *  resolution rule's own symbols are NOT re-exported — `./resolve.ts` is
+ *  where they are argued and where its bench imports them from, and a door
+ *  onto a module nothing outside opens is a public API with no caller. */
+export { durableLogPath } from "./logs.ts"
+export { type DialRun, type RunNotice, type WorktreeNode } from "./runs.ts"
 
 /**
  * What this half is handed.
@@ -113,6 +116,13 @@ export interface OduDeps<N> {
   } | null
   /** THE VAULT WALK, injected. See above. */
   readonly worktrees: (vault: N) => Iterable<WorktreeNode>
+  /** A transition worth waking a conversation about ({@link RunNotice}) —
+   *  the doorbell's tap, and `@olai/kolu-client`'s `rang` one appliance
+   *  over: the watch's own frozen notice crosses here, and what a plugin
+   *  does with it — join it against the `worktree` values a scoped file's
+   *  un-done nodes claim — is a walk over outline records this package must
+   *  not be able to spell. */
+  readonly rang: (notice: RunNotice) => void
   /** Routine narration, at debug. */
   readonly say: (line: string) => void
   /** The sentences the OWNER must read — a dial that failed for a reason that
@@ -151,6 +161,11 @@ export interface OduHalf<N> {
    *  yesterday's reading, so the worktrees reset to none; the sockets follow on
    *  the next sweep. */
   readonly unloaded: () => void
+  /** The rows as they stand, live and last-seen both — a fresh subscriber's
+   *  snapshot answer, and the doorbell's: a body delivered through core's
+   *  queue composes its counts at the moment it goes in, off THIS reading,
+   *  never off what a notice's own frame closed over. */
+  readonly rows: () => ReadonlyArray<CiRun>
 }
 
 /** The cell, in the shape `defineSurface`'s sections take. */
@@ -186,6 +201,7 @@ export const oduHalf = <N,>(deps: OduDeps<N>): OduHalf<N> => {
     return {
       revision: () => {},
       unloaded: () => {},
+      rows: () => [],
       handlers: {
         cells: {
           ci: {
@@ -205,6 +221,7 @@ export const oduHalf = <N,>(deps: OduDeps<N>): OduHalf<N> => {
   const { env, served, dial } = deps.options
   const watch: Watch = makeWatch({
     publish: (runs) => cell?.set({ runs }),
+    rang: deps.rang,
     say: deps.say,
     warn: deps.warn,
     reposRoot: reposRootIn(env, served),
@@ -214,6 +231,7 @@ export const oduHalf = <N,>(deps: OduDeps<N>): OduHalf<N> => {
   return {
     revision: (vault) => watch.reclaim(deps.worktrees(vault)),
     unloaded: () => watch.reclaim([]),
+    rows: watch.rows,
     handlers: {
       cells: {
         ci: {

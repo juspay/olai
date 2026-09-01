@@ -49,6 +49,29 @@
  * verdict, or nothing" the plan asks for. See `../src/index.ts` on where that
  * verdict comes FROM, which is the one place this phase deliberately declines
  * to read odu's on-disk ledger.
+ *
+ * ## The two notices a hold rings
+ *
+ * The same observations that move the chip's ink are also the two transitions a
+ * scoped conversation is woken with ({@link RunNotice}), and the watch is the
+ * one place that can say them honestly: nothing ELSE rings olai's doorbell —
+ * there is no second reader of odu, so a run's ink and a run's wake can never
+ * disagree, which is the whole economy of the rule.
+ *
+ * First-red is said ONCE PER HOLD, and a hold IS one run (one socket's life):
+ * the moment any frame carries a red cell. A run that was already red when olai
+ * first dialed it says it on the first frame — the same acceptance the fleet
+ * watcher makes of a terminal held when olai booted: pre-existence is not a
+ * pardon. Settle is said where the row is stamped, and it carries the ids of
+ * every node this hold EVER saw red, which is the watch's own record — the
+ * same provenance the chip's last-verdict rule states: a node that failed and
+ * went green on a rerun is a fact the hold observed, not an inference anybody
+ * ran afterwards.
+ *
+ * An UNBOARDED run rings nothing, and it is silent by the same authority the
+ * cell saves: both emission sites sit behind the `wanted` guard the frame
+ * writes already keep, so a lane the vault dropped is quiet on every channel
+ * at once.
  */
 
 import { dialRun, type DialedRun, runSocketPath } from "@odu/run-client/dial"
@@ -62,7 +85,7 @@ import { Cause, Duration, Effect, Fiber, Schedule, type Scope, Stream } from "ef
 
 import { runOf, wentOf } from "./project.ts"
 import { type Worktree, worktreeAt } from "./resolve.ts"
-import type { CiRun } from "./wire/index.ts"
+import type { CiRun, RunCell } from "./wire/index.ts"
 
 /**
  * How long between sweeps.
@@ -103,11 +126,58 @@ export interface WorktreeNode extends Worktree {
  *  run on the machine running the suite. */
 export type DialRun = typeof dialRun
 
+/**
+ * ONE TRANSITION A HOLD OBSERVED — the whole of what the appliance tells its
+ * owner about a run, in two kinds.
+ *
+ * It is an IN-PROCESS notice and never a wire shape: the observations belong
+ * to the same process that holds the socket ({@link Watch}), so no schema
+ * guards this the way `@olai/kolu-client`'s `KoluEvent` is guarded — that one
+ * crosses padi's socket, this one does not.
+ *
+ * THE ROW RIDES WHOLE in both kinds, and it is the chip's own row: the
+ * classification (verdict, counts, which nodes are red) is a fold over the
+ * cells BOTH sides already run, and shipping the answers beside the cells
+ * would put a question and what answers it on one notice with nothing holding
+ * them together — `wire/index.ts`'s own rule about `tallyOf` and `verdictOf`,
+ * one payload over.
+ */
+export type RunNotice =
+  | {
+    /**
+     * THE MOMENT A RUN FIRST WENT RED — once per hold, and a hold is one
+     *  run: never once per red node, and never again for a rerun's second
+     *  red spell while the socket lives. `cell` is the FIRST red cell in the
+     *  run's own scheduling order on the frame that reddened. */
+    readonly kind: "first-red"
+    /** The row AS OF THE FRAME THAT REDDENED — live, with the counts so far. */
+    readonly run: CiRun
+    readonly cell: RunCell
+  }
+  | {
+    /**
+     * THE RUN SETTLED — the socket is gone, the row stamped `live: false`
+     *  with the last verdict it supported. The verdict word itself (`ok` /
+     *  `red` / `ended`) is the owning plugin's fold of the row, exactly as
+     *  the chip's is.
+     */
+    readonly kind: "settled"
+    readonly run: CiRun
+    /** Every cell id this hold EVER observed red — the wake's record-truth
+     *  for "failed earlier, went green on a rerun": observed, not inferred. */
+    readonly reddened: ReadonlyArray<string>
+  }
+
 /** What the watcher is handed. */
 export interface WatchDeps {
   /** The rows moved — the WHOLE set, every time, because the cell carries the
    *  whole set and its `equals` is what makes a repeat publish nothing. */
   readonly publish: (runs: ReadonlyArray<CiRun>) => void
+  /** A transition worth waking somebody about — {@link RunNotice}. Sink,
+   *  fire-and-forget, for `kolu-client`'s `rang` reason: the caller is a hold
+   *  fiber with nowhere to put a failure, and the owner wires it onto its own
+   *  catch. */
+  readonly rang: (notice: RunNotice) => void
   /** Routine narration, at debug: on a machine with no CI running this is a
    *  line every few seconds and it is not news. */
   readonly say: (line: string) => void
@@ -249,10 +319,33 @@ export const makeWatch = (deps: WatchDeps): Watch => {
        * gives: one `worktree` string can name two checkouts across a re-add,
        * and a hold on the old one may not write a row about the new.
        */
+      /**
+       * THE HOLD'S OWN RECORD of red: which node ids ANY frame so far carried
+       *  in the red column, and whether the first one has been said. Per hold
+       *  and discarded with it, so a NEW run in this checkout starts the
+       *  counting over — once per run is once per socket's life, and that is
+       *  the only unit odu has for it.
+       */
+      const reddened = new Set<string>()
+      let redSaid = false
       const settle = (): void => {
         if (wanted.get(watched.id)?.at !== watched.at) return
-        rows.set(watched.id, runOf(watched, state, header))
+        const row = runOf(watched, state, header)
+        rows.set(watched.id, row)
         publish()
+        let first: RunCell | undefined
+        for (const cell of row.cells) {
+          if (!cell.red) continue
+          reddened.add(cell.id)
+          first ??= cell
+        }
+        // FIRST-RED, the moment any frame carries one — the chip's ink and
+        // the wake read the same frame the same way, so the two can never
+        // disagree about what going red means.
+        if (first !== undefined && !redSaid) {
+          redSaid = true
+          deps.rang({ kind: "first-red", run: row, cell: first })
+        }
       }
       // Published BEFORE the first frame: a coordinator that is up but has not
       // stamped a header yet is a run in `unstarted`, and drawing nothing for
@@ -303,8 +396,14 @@ export const makeWatch = (deps: WatchDeps): Watch => {
       // while its run was still going has no row to stamp.
       const last = rows.get(watched.id)
       if (last !== undefined && wanted.get(watched.id)?.at === watched.at) {
-        rows.set(watched.id, wentOf(last))
+        const went = wentOf(last)
+        rows.set(watched.id, went)
         publish()
+        // SETTLED: the verdict is the owner's fold of the row; what this hold
+        // adds is the one thing the row alone cannot still say — every node
+        // it ever saw red, so a flaked node that went green on a rerun is a
+        // fact and not a secret.
+        deps.rang({ kind: "settled", run: went, reddened: [...reddened] })
       }
     }).pipe(
       // EVERY WAY A DIAL CAN END. `catchCause` rather than `catch` for
