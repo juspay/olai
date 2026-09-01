@@ -258,12 +258,7 @@ test("first-red names the lane, the node, and the counts so far", () => {
 })
 
 test("a settle with a green verdict comes out green, and names a rerun flake by name", () => {
-  const said = bodyFor(settled({}, ["e2e@x86_64-linux"]), CLAIM, "lanes.olai", "2026-09-02T11:20:00.000Z", {
-    total: 4,
-    settled: 4,
-    ok: 4,
-    red: 0,
-  })
+  const said = bodyFor(settled({}, ["e2e@x86_64-linux"]), CLAIM, "lanes.olai", "2026-09-02T11:20:00.000Z")
   expect(said).toContain("came out green — 4/4 ok.")
   // The flake is named as WHAT the hold observed, not why.
   expect(said).toContain("`e2e@x86_64-linux` went red earlier in this run and went green on a rerun")
@@ -274,12 +269,7 @@ test("a settle with a red verdict names each failed recipe WITH its log path", (
     // The two still going when the first red landed both failed in the end;
     // the paint moves WITH the word, the way a real frame's fold would have it.
     cells: RED_CELLS.map((cell) => repainted(cell, cell.red || cell.status === "running" ? "failed" : "ok")),
-  }), CLAIM, "lanes.olai", "2026-09-02T11:20:00.000Z", {
-    total: 4,
-    settled: 4,
-    ok: 2,
-    red: 2,
-  })
+  }), CLAIM, "lanes.olai", "2026-09-02T11:20:00.000Z")
   expect(said).toContain("came out red — 2/4 ok, 2 red.")
   expect(said).toContain("`e2e@x86_64-linux`: failed — the log is at /home/x/code/odu/.worktrees/a/.ci/8f8fe56/x86_64-linux/e2e.log.")
   expect(said).toContain("`fmt-check@aarch64-darwin`: failed — the log is at /home/x/code/odu/.worktrees/a/.ci/8f8fe56/aarch64-darwin/fmt-check.log.")
@@ -291,12 +281,7 @@ test("a run that settled without deciding says `ended` — never `red`, and neve
   // the chip's own bench assures (odu's `errored` is for INFRASTRUCTURE,
   // and conflating the two is the one mis-report this doorbell exists not
   // to make).
-  const said = bodyFor(settled({ cells: RED_CELLS.filter((cell) => !cell.red) }), CLAIM, "lanes.olai", "2026-09-02T11:20:00.000Z", {
-    total: 3,
-    settled: 3,
-    ok: 3,
-    red: 0,
-  })
+  const said = bodyFor(settled({ cells: RED_CELLS.filter((cell) => !cell.red) }), CLAIM, "lanes.olai", "2026-09-02T11:20:00.000Z")
   expect(said).toContain("ended without deciding")
 })
 

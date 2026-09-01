@@ -50,7 +50,6 @@ import {
   type PropDeclarations,
 } from "@olai/format"
 import { type DialRun, oduHalf, type RunNotice } from "@olai/odu-client"
-import { tallyOf } from "@olai/odu-client/wire"
 
 import { bodyFor, claimedIn, claimingIn, countsFor } from "./doorbell.ts"
 import { ownKinds } from "./kinds.ts"
@@ -221,8 +220,10 @@ export const serve = (services: Services): {
     if (at === undefined) return null
     const claim = claimingIn(claimedIn(declaring, at, file)).get(notice.run.id)
     if (claim === undefined) return null
-    const counts = notice.kind === "first-red" ? countsFor(half.rows(), notice) : tallyOf(notice.run.cells)
-    return bodyFor(notice, claim, file, services.now(), counts)
+    if (notice.kind === "first-red") {
+      return bodyFor(notice, claim, file, services.now(), countsFor(half.rows(), notice))
+    }
+    return bodyFor(notice, claim, file, services.now())
   }
 
   /**

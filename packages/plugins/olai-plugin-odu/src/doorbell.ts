@@ -201,11 +201,6 @@ const laneOf = (claim: Claim): string => {
   return node === "" ? "the lane" : `lane \`${node}\``
 }
 
-/** The run's own name for itself — odu's `<name> <sha7>#<seq>+dirty`, the
- *  fold both this sentence and the chip's hover now run (`wire`'s
- *  {@link identityOf}), so the two never spell one run two ways. */
-const whichOf = identityOf
-
 /** The count in the chip's own spelling, with the red numeral the event is
  *  about joined to it — `8/10 ok so far, 1 red`. The `so far` clause is the
  *  first-red notice's own: the sentence claims nothing final. */
@@ -284,20 +279,36 @@ const reranLines = (notice: Extract<RunNotice, { kind: "settled" }>): ReadonlyAr
  * message that cannot be switched off from inside its own text is a message
  * a person resents.
  *
- * `counts` is the fresh reading a first-red body wants (see the header), and
- * the caller's `null` discipline is the drop rule: claim gone, subject gone,
- * no sentence.
+ * `counts` is the fresh reading a first-red body wants (see the header) and
+ * is not an argument of a settle: a settle's numbers are the notice's own
+ * last frame, folded inside, so a caller cannot hand a tally the sentence
+ * then ignores. The caller's `null` discipline is the drop rule: claim gone,
+ * subject gone, no sentence.
  */
-export const bodyFor = (
-  notice: RunNotice,
+export function bodyFor(
+  notice: Extract<RunNotice, { kind: "first-red" }>,
   claim: Claim,
   file: string,
   stamp: string,
   counts: RunTally,
-): string => {
+): string
+export function bodyFor(
+  notice: Extract<RunNotice, { kind: "settled" }>,
+  claim: Claim,
+  file: string,
+  stamp: string,
+): string
+export function bodyFor(
+  notice: RunNotice,
+  claim: Claim,
+  file: string,
+  stamp: string,
+  counts?: RunTally,
+): string {
   const run = notice.run
-  const which = whichOf(run)
-  const lines = [essenceOf(notice, claim, counts), "", `Written by olai's odu watcher at ${stampOf(stamp)}, not by a person.`]
+  const which = identityOf(run)
+  const printed = notice.kind === "first-red" ? counts ?? tallyOf(run.cells) : tallyOf(run.cells)
+  const lines = [essenceOf(notice, claim, printed), "", `Written by olai's odu watcher at ${stampOf(stamp)}, not by a person.`]
   if (notice.kind === "first-red") {
     lines.push(
       "",
@@ -307,12 +318,11 @@ export const bodyFor = (
     )
     return lines.join("\n")
   }
-  const tally = tallyOf(run.cells)
   lines.push(
     "",
     `The run is \`${which}\`, settled in ${run.at}.${claimLine(claim, file)}`,
   )
-  if (tally.red > 0) lines.push("", ...failedLines(run))
+  if (printed.red > 0) lines.push("", ...failedLines(run))
   const reran = reranLines(notice)
   if (reran.length > 0) lines.push("", ...reran)
   lines.push(

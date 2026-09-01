@@ -169,6 +169,18 @@ describe("odu's mcp, asked for fresh", () => {
     expect(found.missing?.why).toContain("`run`")
   })
 
+  test("a newer odu shipping an extra tool without `checkout` is still handed over", async () => {
+    // Presence and aim are checked against the verbs a conversation is
+    // promised, and nothing wider: a newer odu growing a tool this olai
+    // does not aim is not a reason to refuse the six that do.
+    oduOnPath(answering(handshake({
+      tools: [...SURFACE.tools, tool("future_verb", false)],
+    })))
+    const found = await probe({ PATH: where })
+    expect(found.missing).toBeNull()
+    expect(found.server).not.toBeNull()
+  })
+
   test("`tools/list` that PAGES arrives whole — the loop, not the shape", async () => {
     oduOnPath(`
       const lines = require("node:readline").createInterface({ input: process.stdin })

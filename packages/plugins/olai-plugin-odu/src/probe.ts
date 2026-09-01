@@ -318,14 +318,17 @@ export const probe = async (env: Record<string, string | undefined>): Promise<Pr
       },
     }
   }
-  const aimless = verdict.tools.find((tool) => names.has(tool.name) && !tool.checkout)
+  const aimless = VERBS.find((verb) => {
+    const tool = verdict.tools.find((one) => one.name === verb)
+    return tool !== undefined && !tool.checkout
+  })
   if (aimless !== undefined) {
     return {
       server: null,
       missing: {
         name: ODU_COMMAND,
         where: found,
-        why: `it answers, but \`${aimless.name}\` takes no per-call \`checkout\``
+        why: `it answers, but \`${aimless}\` takes no per-call \`checkout\``
           + " — a conversation spans many lanes, and this build could only ever aim at olai's own served directory;"
           + " one of the two needs an upgrade",
       },

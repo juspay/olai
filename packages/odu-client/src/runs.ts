@@ -321,19 +321,22 @@ export const makeWatch = (deps: WatchDeps): Watch => {
        */
       /**
        * THE HOLD'S OWN RECORD of red: which node ids ANY frame so far carried
-       *  in the red column, and whether the first one has been said. Per hold
-       *  and discarded with it, so a NEW run in this checkout starts the
-       *  counting over — once per run is once per socket's life, and that is
-       *  the only unit odu has for it.
+       *  in the red column. First-red is the set going from empty to not —
+       *  one record, not a set plus a boolean beside it. Per hold and
+       *  discarded with it, so a NEW run in this checkout starts the counting
+       *  over — once per run is once per socket's life, and that is the only
+       *  unit odu has for it.
        */
       const reddened = new Set<string>()
-      let redSaid = false
       const settle = (): void => {
         if (wanted.get(watched.id)?.at !== watched.at) return
         const row = runOf(watched, state, header)
         rows.set(watched.id, row)
         publish()
         let first: RunCell | undefined
+        // First-red is "the set was empty and this frame is not" — one
+        // record, not a set plus a boolean beside it.
+        const seen = reddened.size > 0
         for (const cell of row.cells) {
           if (!cell.red) continue
           reddened.add(cell.id)
@@ -342,8 +345,7 @@ export const makeWatch = (deps: WatchDeps): Watch => {
         // FIRST-RED, the moment any frame carries one — the chip's ink and
         // the wake read the same frame the same way, so the two can never
         // disagree about what going red means.
-        if (first !== undefined && !redSaid) {
-          redSaid = true
+        if (first !== undefined && !seen) {
           deps.rang({ kind: "first-red", run: row, cell: first })
         }
       }
