@@ -270,6 +270,33 @@ export namespace Slots {
  * rather than restated, because each of them fails the same silent way: a chip
  * whose duration ladder drifted reads plausibly and is wrong, and nothing
  * anywhere goes red.
+ *
+ * ## ITS FUNCTIONS ARE BOUND, and that is a bug this shape caused once
+ *
+ * These three services replaced a plain RECORD the app handed every face
+ * (`AppFurniture`), and a record's fields are values: `clocks.tickingOf` was a
+ * function you could hold, pass to a helper, or hand to a component. A class's
+ * prototype METHOD is not — detached from its receiver it reads `this.config`
+ * off `undefined` — so the same expression that had been correct for the life
+ * of the feature started throwing the moment the record became a service, deep
+ * inside a render, on a page that happened to draw a live CI chip:
+ *
+ *     TypeError: Cannot read properties of undefined (reading 'config')
+ *
+ * The call site was not wrong; the seam changed underneath it. So the fix is
+ * here rather than at the one caller that happened to be found: every function
+ * a plugin may hold is an `=` property, bound at construction, and holding one
+ * is exactly as safe as it was when this was a record.
+ *
+ * ## WHY `Wired` IS NOT LIKE THIS
+ *
+ * Because binding it would replace a loud failure with a quiet wrong answer.
+ * `Wired.client()` reads `this.ctx.fiber.name` — the CALLING fiber, through
+ * Cordis's tracker proxy — so a bound copy would capture the service's own
+ * context and hand every plugin whichever client the service was constructed
+ * under. A method that throws when it is passed around is the right shape for
+ * something whose answer depends on who is asking; a value is the right shape
+ * for arithmetic. `./browser.test.ts` holds both halves.
  */
 export class Clocks extends Service {
   constructor(ctx: Context, public config: AppClocks) {
@@ -284,25 +311,20 @@ export class Clocks extends Service {
     return this.config.MINUTE
   }
 
-  createTicking(every: number, when?: () => boolean): () => number {
-    return this.config.createTicking(every, when)
-  }
+  // BOUND, and every one of them — see {@link Clocks}' header. These are `=`
+  // properties rather than prototype methods so that `clocks.tickingOf` is a
+  // value a caller may hold, which is what the record they replaced already was.
+  readonly createTicking = (every: number, when?: () => boolean): (() => number) =>
+    this.config.createTicking(every, when)
 
-  createNow(started: () => string | number | null | undefined): () => number {
-    return this.config.createNow(started)
-  }
+  readonly createNow = (started: () => string | number | null | undefined): (() => number) =>
+    this.config.createNow(started)
 
-  wordsOf(seconds: number): string {
-    return this.config.wordsOf(seconds)
-  }
+  readonly wordsOf = (seconds: number): string => this.config.wordsOf(seconds)
 
-  exactOf(seconds: number): string {
-    return this.config.exactOf(seconds)
-  }
+  readonly exactOf = (seconds: number): string => this.config.exactOf(seconds)
 
-  tickingOf(elapsedMs: number): string {
-    return this.config.tickingOf(elapsedMs)
-  }
+  readonly tickingOf = (elapsedMs: number): string => this.config.tickingOf(elapsedMs)
 }
 
 /**
@@ -323,10 +345,10 @@ export class Bar extends Service {
     super(ctx, "bar")
   }
 
-  /** Whether this is a desktop bar. */
-  desktop(): boolean {
-    return this.config.desktop()
-  }
+  /** Whether this is a desktop bar. BOUND, for {@link Clocks}' reason: a
+   *  readout that hands `bar.desktop` to a `<Show when={…}>` is holding a
+   *  value, which is what it was when this was a record. */
+  readonly desktop = (): boolean => this.config.desktop()
 
   /** The pill's classes — the box is the bar's and what is drawn inside it is
    *  the plugin's, which is why this is classes rather than a component. */
@@ -335,10 +357,10 @@ export class Bar extends Service {
   }
 
   /** A panel that hangs off a chrome pill, whole: the portal, the layer, the
-   *  anchor and the focus cycle already spent. */
-  popover(): AppPopover {
-    return this.config.createPopover()
-  }
+   *  anchor and the focus cycle already spent. BOUND, for {@link Clocks}'
+   *  reason — a plugin composing its own furniture record out of these hands
+   *  the factory on, and `createPopover: ctx.bar.popover` must keep working. */
+  readonly popover = (): AppPopover => this.config.createPopover()
 }
 
 export namespace Bar {
@@ -391,6 +413,24 @@ export namespace Links {
  * to "your members are not on this wire" is a plugin that draws its
  * nothing-here arm, and a throw would take the whole fiber down for a state the
  * page can survive.
+ *
+ * ## CALL IT; NEVER PASS IT — the one service whose method is not bound
+ *
+ * `Clocks`, `Bar` and `Links` hand out BOUND functions, because a plugin used
+ * to hold those as record fields and a prototype method detached from its
+ * receiver throws (that header records the crash). This one is deliberately not
+ * bound, and the difference is which failure you get for the same mistake.
+ *
+ * `client()` reads `this.ctx.fiber.name` — the CALLING fiber, through Cordis's
+ * tracker proxy — so a bound copy would capture the service's OWN context and
+ * hand every plugin whichever client the service was constructed under. That is
+ * a quiet wrong answer: one plugin reading another's members, with nothing
+ * anywhere going red. Unbound, `const c = ctx.wired.client; c()` throws at the
+ * first call and names the line.
+ *
+ * A value is the right shape for arithmetic; a method is the right shape for
+ * something whose answer depends on who is asking. `./browser.test.ts` holds
+ * both halves, so neither can quietly become the other.
  */
 export class Wired extends Service {
   constructor(ctx: Context, public config: Wired.Config) {
