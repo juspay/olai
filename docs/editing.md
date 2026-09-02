@@ -5,6 +5,7 @@ Click a title and the caret is where you clicked. From there it is the outliner'
 | | |
 |---|---|
 | **Enter** | commit, and open the next line |
+| **Enter, at the start** | insert a blank line above |
 | **Enter, mid-line** | split the row in two, there |
 | **Backspace, at the start** | join this row onto the one above |
 | **Tab** / **Shift+Tab** | indent under the row above, or out again |
@@ -81,13 +82,13 @@ Every one of these is a fact about the node a row SHOWS, so pressing any of the 
 
 A key is not a change to the page. Every one of them is one operation through the same gate the agent writes through, so a row moves when the file says it moved and two tabs on the same outline cannot disagree. What you type buffers locally until you stop (blur, Enter, or a pause), so typing is never a round trip; that buffer is an editor and not a claim about the file, and a write that comes back refused — a title cannot be empty — puts the reason under the row and leaves your text exactly where it is.
 
-A new row is that same idea: **Enter** opens a line where the row will go, and the node is written the moment it has a title. So an outline never fills up with blank bullets, and a key pressed by accident writes nothing at all. A line like that is a line like any other while you are in it: click somewhere else and it is written and left behind, with the caret where you clicked rather than back in the row it just made.
+A new row is that same idea: **Enter** opens a line where the row will go, and the node is written the moment it has a title. So an outline never fills up with blank records on disk, and a key pressed by accident writes nothing at all. Several empty drafts can stand on the page at once — **Enter Enter Enter** lays out a skeleton — and they stay until they have a title, until **Escape** drops the one you are in, or until the page closes. Click a parked one and the caret is back in it. A line like that is a line like any other while you are in it: type a title and leave, and it is written and left behind, with the caret where you clicked rather than back in the row it just made.
 
 ## One row into two, and two into one
 
 **Enter in the MIDDLE of a line cuts it there.** What is before the caret stays where you were; what is after it becomes the next row, and the caret goes with it, at its head — those are the words that moved. Everything that DESCRIBED the row you were in stays with it: what hangs under it, its note, its mark, its date, what it waits on. The line that came off is a new row, and a new row is a bullet — nobody has said anything about it yet, and this app does not decide that for you.
 
-At the END of a line the key is what it always was, because there is nothing after the caret to split off. At the HEAD of one it is that too, and that is a decision worth saying out loud: an outliner you have used would put a blank row above, and here there is no blank row to put — a node needs a title ([format.md](format.md)) — so nothing is written that the write gate would have to refuse. Cutting where one side would be nothing but spaces is the same thing for the same reason, and reads the same way.
+At the END of a line the key is what it always was, because there is nothing after the caret to split off: a draft after this row, after the whole subtree. At the HEAD of one it inserts a blank draft *above*, and the words you were on stay where they were. That draft is still local — a node needs a title ([format.md](format.md)), so nothing is written until it has one. Cutting where one side would be nothing but spaces is the same thing as an end-of-line press, and reads the same way.
 
 **Backspace at the START of a line joins it onto the row above** — its sibling, the row your eye is on. The two titles run together with nothing between them, because that is what they were before somebody cut them; the caret lands on the seam. Anywhere else in the line, Backspace is the ordinary one and deletes a character; it means this only in the one place it has nothing of its own to do.
 

@@ -86,8 +86,12 @@ export const nothingIsBeingTyped = async (world: OlaiWorld): Promise<void> => {
 const caretPlace = async (world: OlaiWorld): Promise<string | null> =>
   await world.page.evaluate(
     ([caret, newRow, node]) => {
-      const editor = document.querySelector(caret);
-      if (editor === null) return null;
+      // The focused editor, not any title-editor on the page: parked empty
+      // drafts are inputs so they can be clicked back into, and a click
+      // away that parks the live one would otherwise still "be" this
+      // place — the wait never ends.
+      const editor = document.activeElement;
+      if (editor === null || !editor.matches(caret)) return null;
       const row = editor.closest(node);
       let place = "(off the tree)";
       if (row !== null) {

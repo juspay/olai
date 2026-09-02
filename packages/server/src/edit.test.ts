@@ -80,6 +80,13 @@ test("Enter on a top-level row names the FILE, because there is no parent", () =
     .toEqual({ op: "add", file: "house.olai", after: "kitchen", title: "garage" })
 })
 
+test("Enter at column 0 names before the row, same parent as after would", () => {
+  expect(asked({ verb: "add", at: { kind: "before", id: "order" }, title: "measure" }))
+    .toEqual({ op: "add", parent: "kitchen", before: "order", title: "measure" })
+  expect(asked({ verb: "add", at: { kind: "before", id: "kitchen" }, title: "garage" }))
+    .toEqual({ op: "add", file: "house.olai", before: "kitchen", title: "garage" })
+})
+
 test("the first child of a branch goes under it, last among nothing", () => {
   expect(asked({ verb: "add", at: { kind: "under", id: "loose" }, title: "a first" }))
     .toEqual({ op: "add", parent: "loose", title: "a first" })

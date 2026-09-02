@@ -152,15 +152,60 @@ export interface Editing extends Replied {
 export interface Pending extends Replied {
   readonly kind: "new"
   /** Where the row goes, in the surface's own terms — and, for `after` and
-   *  `under`, what it is DRAWN after: the anchor names a row, and that row is
-   *  on screen. No second field, so the two cannot disagree (they did: the
-   *  anchor was the shown node and the drawing was the placement, which are
-   *  two different rows under a mirror). */
+   *  `before` and `under`, what it is DRAWN against: the anchor names a row,
+   *  and that row is on screen. No second field, so the two cannot disagree
+   *  (they did: the anchor was the shown node and the drawing was the
+   *  placement, which are two different rows under a mirror). */
   readonly at: Anchor
   readonly text: string
+  /**
+   * Local identity of this empty slot — not a node id. Two drafts parked at
+   * the same anchor (Enter Enter Enter) would otherwise share a blur slot,
+   * and a blur of one would close the other.
+   */
+  readonly slot: string
 }
 
 export type Draft = Editing | Pending
+
+/**
+ * An empty pending draft: the editor standing where a row will go, with
+ * nothing in it. One constructor, so "empty" is not three fields assembled
+ * at every call site — a slot, an anchor, and a text that could disagree
+ * about whether this writes anything.
+ *
+ * The text is the empty string, not whitespace. Whitespace typed into a
+ * live editor is still empty for {@link commitOf} ({@link emptyPendingOf}
+ * trims), but a draft that is being opened has not been typed in yet.
+ */
+export const emptyPending = (at: Anchor, slot: string): Pending => ({
+  kind: "new",
+  at,
+  text: "",
+  slot,
+})
+
+/**
+ * The empty pending this draft is, or `null` when it is not one.
+ * Parse, not a boolean: parking and a skipped write both need the pending
+ * itself. A pending whose text is only spaces is empty — the ops layer
+ * refuses a blank title, and a key pressed by accident is the same amount
+ * of nothing. A row draft is never empty in this sense: clearing a title
+ * is still a write, so the refusal can be seen ({@link commitOf}).
+ */
+export const emptyPendingOf = (draft: Draft | null): Pending | null =>
+  draft !== null && draft.kind === "new" && draft.text.trim() === "" ? draft : null
+
+/** The list with this empty pending on it, or the list unchanged.
+ *  Same slot is a no-op, so parking twice cannot duplicate a ghost. */
+export const parked = (
+  list: ReadonlyArray<Pending>,
+  held: Draft | null,
+): ReadonlyArray<Pending> => {
+  const empty = emptyPendingOf(held)
+  if (empty === null || list.some((g) => g.slot === empty.slot)) return list
+  return [...list, empty]
+}
 
 /** What committing this draft would ASK FOR, or `null` when it would ask for
  *  nothing. Pure, and the whole of the decision: every caller — blur, Enter,
@@ -172,7 +217,7 @@ export type Draft = Editing | Pending
  *  swallowing it here would leave a cleared row looking saved. */
 export const commitOf = (draft: Draft): Edit | null => {
   if (draft.kind === "new") {
-    return draft.text.trim() === ""
+    return emptyPendingOf(draft) !== null
       ? null
       : { verb: "add", at: draft.at, title: draft.text }
   }
@@ -255,6 +300,18 @@ export const kept = (
  *  sibling of the node it stands for, somewhere else entirely. */
 export const after = (draft: Editing): Anchor => ({ kind: "after", id: draft.row })
 
+/** Where a draft opened at column 0 goes: immediately BEFORE the row the
+ *  caret was in. The words stay; the blank is the line above. */
+export const before = (draft: Editing): Anchor => ({ kind: "before", id: draft.row })
+
+/** A pending draft drawn against a row on screen — `after` or `before` it.
+ *  `under` and `first` have no row to sit next to; those are a page's start
+ *  line. One shape, so a consumer cannot hold both sides at once. */
+export type Beside = { readonly kind: "after" | "before"; readonly id: string }
+
+export const besideOf = (at: Anchor): Beside | null =>
+  at.kind === "after" || at.kind === "before" ? { kind: at.kind, id: at.id } : null
+
 /**
  * WHICH EDITOR a draft is drawn in: the row, and which of the three things it
  * is. Two draft values with the same slot are the same box on screen with
@@ -275,7 +332,7 @@ export interface Slot {
 
 export const slotOf = (draft: Draft): Slot =>
   draft.kind === "new"
-    ? { row: anchorRow(draft.at), field: "new" }
+    ? { row: draft.slot, field: "new" }
     : { row: draft.row, field: draft.field }
 
 export const sameSlot = (a: Slot, b: Slot): boolean =>
@@ -301,11 +358,6 @@ export const stillAt = (draft: Draft, from: Slot): boolean =>
   sameSlot(slotOf(draft), from) ||
   (draft.kind === "row" && draft.was !== undefined && sameSlot(draft.was, from))
 
-/** The row a pending draft is drawn after, and `null` for the one that is
- *  drawn on a page's own start line — an outline with no rows to follow. */
-export const anchorRow = (at: Anchor): string | null =>
-  at.kind === "after" ? at.id : null
-
 /** Whether two anchors name the same place. What a start line asks to know
  *  whether the open pending draft is the one IT offered. */
 export const sameAnchor = (a: Anchor, b: Anchor): boolean =>
@@ -314,3 +366,21 @@ export const sameAnchor = (a: Anchor, b: Anchor): boolean =>
     : a.kind === "first"
     ? a.file === (b as typeof a).file
     : a.id === (b as typeof a).id
+
+/**
+ * Remaining parked drafts after a pending became a row.
+ *
+ * `after` keeps its neighbour — last-ghost-commit already preserves order
+ * there. `before`, `first` and `under` re-aim onto the row that landed, so
+ * they stay above it rather than drawing against a place that is now below
+ * it (or against a start line that has unmounted).
+ */
+export const reaimed = (
+  list: ReadonlyArray<Pending>,
+  from: Anchor,
+  id: string,
+): ReadonlyArray<Pending> => {
+  if (from.kind === "after") return list
+  const next: Anchor = { kind: "before", id }
+  return list.map((g) => (sameAnchor(g.at, from) ? { ...g, at: next } : g))
+}

@@ -8,18 +8,18 @@
  * none — so the first line would only be reachable by asking the agent.
  *
  * It is a button until it is pressed, and then it IS the editor: the same
- * pending draft any `Enter` opens, in the same place its row will appear. So
- * there is one new-row mechanism rather than a special case for the first one.
+ * pending drafts a row's Enter opens, drawn by {@link Ghosts} in the same
+ * place the row will appear. So there is one new-row mechanism rather than a
+ * special case for the first one.
  */
 
 import type { Anchor } from "@olai/surface"
 import { Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
-import { anchorRow, sameAnchor } from "./draft.ts"
+import { sameAnchor } from "./draft.ts"
 import { useEditor } from "./editing.tsx"
-import { NewRow } from "./NewRow.tsx"
-import { keyHandler } from "./RowEditor.tsx"
+import { Ghosts } from "./Ghosts.tsx"
 
 export function StartLine(props: {
   /** Where the row this offers would go. */
@@ -32,16 +32,18 @@ export function StartLine(props: {
    *  the anchor rather than its KIND: a draft anchored `after` a row is drawn
    *  by that row (`../Tree.tsx`), and saying which anchor is ours states the
    *  half of that rule this component owns instead of implying it. */
-  const pending = () => {
+  const live = () => {
     const draft = editor.draft()
     return draft !== null && draft.kind === "new" && sameAnchor(draft.at, props.at)
       ? draft
       : undefined
   }
+  const parked = () => editor.ghosts().filter((g) => sameAnchor(g.at, props.at))
+  const any = () => live() !== undefined || parked().length > 0
 
   return (
     <Show
-      when={pending()}
+      when={any()}
       fallback={
         <button
           type="button"
@@ -53,14 +55,7 @@ export function StartLine(props: {
         </button>
       }
     >
-      {(draft) => (
-        <NewRow
-          draft={draft()}
-          onInput={editor.type}
-          onKey={keyHandler("line", editor.press)}
-          onBlur={(left) => editor.blur({ row: anchorRow(props.at), field: "new" }, left)}
-        />
-      )}
+      <Ghosts parked={parked()} live={live()} />
     </Show>
   )
 }
