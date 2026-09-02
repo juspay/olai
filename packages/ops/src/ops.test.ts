@@ -35,6 +35,7 @@ import {
   outlinePaths,
   parseOutline,
   verdictOf,
+  type OpFailure,
   type WriteRequest as Request,
   type WriteResult as Applied,
 } from "@olai/format"
@@ -1261,55 +1262,142 @@ describe("a document's write cannot lose bytes (the 2026-09-01 incident)", () =>
    * block drives passes at HEAD — the incident itself did not reproduce — so
    * the rule is made of this test instead. Beneath a healthy plan, the landed
    * bytes are taken away between the rename and the answer (a racing
-   * truncation, a dying disk, a bad deploy step — this layer cannot name
-   * which, and does not have to). A document write that cannot read its own
-   * bytes back is a REFUSAL, never a revision: what the incident got is the
-   * one answer this layer no longer has.
+   * truncation by something the gate does not serialize — vim, a `git pull`,
+   * a bad deploy step; this layer cannot name which, and does not have to).
+   * A document write that cannot read its own bytes back is a REFUSAL, never
+   * a reported success: what the incident got is the one answer this layer no
+   * longer has.
+   *
+   * The refusal it pins must tell the truth about what landed, because the
+   * write DID land: the revision is published, the file is on disk, the set
+   * serves it, and — for the create verb — "try again" is now refused, the
+   * file existing. So the sentence says so, names what the disk actually kept
+   * (in bytes — `list_documents`' vocabulary), and points at `write_document`
+   * as the way back.
    */
-  test("a document write whose bytes do not survive its window is refused, not reported", () => {
-    const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-ops-looted-")))
-    fs.writeFileSync(path.join(root, "house.olai"), HOUSE)
-    return Effect.gen(function*() {
-      const store = yield* Store.make({ root, codec, watch: false, settle: "10 millis" })
-      const landed = store.commit
-      // The loss re-enacted BELOW the layer being held to account: the gate
-      // stages, renames, publishes and answers — and by the time the ops
-      // layer looks, the file is 0 bytes, exactly as the incident found it.
-      const looted: typeof store = {
-        ...store,
-        commit: (write) =>
-          Effect.map(landed(write), (outcome) => {
-            // `commit` answers one Result: a SUCCESS carries the revision —
-            // those are the writes that reported, and the ones looted here.
-            if (Result.isSuccess(outcome)) {
-              for (const change of write.changes) {
-                if (change.contents !== null) {
-                  fs.writeFileSync(path.join(root, change.path), "")
+  describe("a document write whose bytes do not survive its window is refused, not reported", () => {
+    /** The re-enactment, BELOW the layer being held to account: the gate
+     *  stages, renames, publishes and answers — and by the time the ops layer
+     *  looks, the file is 0 bytes, exactly as the incident found it. `run`
+     *  returns the refusal the ops layer concludes from that disk. */
+    const looted = async (
+      files: Record<string, string>,
+      request: Request,
+    ): Promise<{ failure: OpFailure; root: string }> => {
+      const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-ops-looted-")))
+      for (const [file, contents] of Object.entries(files)) {
+        fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true })
+        fs.writeFileSync(path.join(root, file), contents)
+      }
+      return Effect.gen(function*() {
+        const store = yield* Store.make({ root, codec, watch: false, settle: "10 millis" })
+        const landed = store.commit
+        // `commit` answers one Result: a SUCCESS carries the revision —
+        // those are the writes that reported, and the ones looted here.
+        const wrapped: typeof store = {
+          ...store,
+          commit: (write) =>
+            Effect.map(landed(write), (outcome) => {
+              if (Result.isSuccess(outcome)) {
+                for (const change of write.changes) {
+                  if (change.contents !== null) {
+                    fs.writeFileSync(path.join(root, change.path), "")
+                  }
                 }
               }
-            }
-            return outcome
-          }),
-      }
-      const ops = Ops.make({
-        store: looted,
-        root,
-        policy: fixedPolicy({ commit: "off", push: null }),
-        context: steady(),
-      })
-      const failure = yield* Effect.flip(
-        ops.run({ op: "create-doc", file: "briefs/dispatch.md", text: BRIEF }, "mcp"),
+              return outcome
+            }),
+        }
+        const ops = Ops.make({
+          store: wrapped,
+          root,
+          policy: fixedPolicy({ commit: "off", push: null }),
+          context: steady(),
+        })
+        const failure = yield* Effect.flip(ops.run(request, "mcp"))
+        return { failure, root }
+      }).pipe(
+        Effect.scoped,
+        Effect.provide(NodeServices.layer),
+        Effect.runPromise,
       )
-      expect(failure._tag).toBe("ValidationFailure")
-      expect(failure.message).toContain("briefs/dispatch.md")
-      // The re-enactment really did its part.
-      expect(fs.readFileSync(path.join(root, "briefs/dispatch.md"), "utf8")).toBe("")
-    }).pipe(
-      Effect.scoped,
-      Effect.provide(NodeServices.layer),
-      Effect.runPromise,
-    ).finally(() => {
-      fs.rmSync(root, { recursive: true, force: true })
+    }
+
+    test("a create: the write landed, the refusal names the 0 bytes the disk kept, and `write_document` is the way back", async () => {
+      const { failure, root } = await looted(
+        { "house.olai": HOUSE },
+        { op: "create-doc", file: "briefs/dispatch.md", text: BRIEF },
+      )
+      try {
+        expect(failure._tag).toBe("ValidationFailure")
+        expect(failure.message).toContain("briefs/dispatch.md` landed")
+        // The headline of this PR, asserted directly: the sentence names WHAT
+        // THE DISK KEPT, not that nothing was written — and since the write
+        // landed, it names the verb that can still rewrite it.
+        expect(failure.message).toContain("0 bytes where")
+        expect(failure.message).toContain("write_document")
+        // The re-enactment really did its part.
+        expect(fs.readFileSync(path.join(root, "briefs/dispatch.md"), "utf8")).toBe("")
+      } finally {
+        fs.rmSync(root, { recursive: true, force: true })
+      }
+    })
+
+    test("a write_document: the web's verb is refused with the same sentence", async () => {
+      const { failure, root } = await looted(
+        { "house.olai": HOUSE, "notes/plan.md": "# old plan\n" },
+        { op: "doc", file: "notes/plan.md", text: BRIEF },
+      )
+      try {
+        expect(failure._tag).toBe("ValidationFailure")
+        expect(failure.message).toContain("notes/plan.md` landed")
+        expect(failure.message).toContain("0 bytes where")
+        expect(failure.message).toContain("write_document")
+        expect(fs.readFileSync(path.join(root, "notes/plan.md"), "utf8")).toBe("")
+      } finally {
+        fs.rmSync(root, { recursive: true, force: true })
+      }
+    })
+
+    test("a write_document killed between gate and read-back by the set itself — the gone file is named, not the disk blamed", async () => {
+      // `body` answers null for a path the served set does not hold: after a
+      // dot-directory path is refused at plan, the only way to reach this arm
+      // is the file leaving the set inside the write's own window. Re-enacted
+      // by deleting the file behind the store's back in the same seam.
+      const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-ops-looted-")))
+      fs.writeFileSync(path.join(root, "house.olai"), HOUSE)
+      fs.mkdirSync(path.join(root, "notes"), { recursive: true })
+      fs.writeFileSync(path.join(root, "notes/plan.md"), "# old plan\n")
+      try {
+        const failure = await Effect.gen(function*() {
+          const store = yield* Store.make({ root, codec, watch: false, settle: "10 millis" })
+          const landed = store.commit
+          const wrapped: typeof store = {
+            ...store,
+            commit: (write) =>
+              Effect.map(landed(write), (outcome) => {
+                if (Result.isSuccess(outcome)) fs.rmSync(path.join(root, "notes/plan.md"))
+                return outcome
+              }),
+          }
+          const ops = Ops.make({
+            store: wrapped,
+            root,
+            policy: fixedPolicy({ commit: "off", push: null }),
+            context: steady(),
+          })
+          return yield* Effect.flip(ops.run({ op: "doc", file: "notes/plan.md", text: BRIEF }, "mcp"))
+        }).pipe(
+          Effect.scoped,
+          Effect.provide(NodeServices.layer),
+          Effect.runPromise,
+        )
+        expect(failure._tag).toBe("ValidationFailure")
+        expect(failure.message).toContain("landed")
+        expect(failure.message).not.toContain("not kept by the disk")
+      } finally {
+        fs.rmSync(root, { recursive: true, force: true })
+      }
     })
   })
 

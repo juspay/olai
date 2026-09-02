@@ -4961,6 +4961,17 @@ describe("documents", () => {
       expect(failure.message).toContain("is not a relative `.md` path")
     }
   })
+
+  test("create refuses a path under a directory the serve's walk prunes", () => {
+    // A file under a dot-directory or `node_modules` is written and never held
+    // by the served set — invisible to every reader. Pre-refusal it answered
+    // success for nothing; the refusal names the prune, not the disk.
+    for (const path of [".archive/note.md", "notes/.scratch/draft.md", "node_modules/readme.md"]) {
+      const failure = refused(vault(), { op: "create-doc", file: path })
+      expect(failure._tag).toBe("UsageFailure")
+      expect(failure.message).toContain("the serve's walk prunes")
+    }
+  })
 })
 
 describe("delete", () => {
