@@ -29,12 +29,13 @@ export const name = "xyne-spaces"
  *
  *   - `connected` — `$OLAI_SPACES_URL` and `$OLAI_SPACES_TOKEN` are set, and
  *     the last post (if any) was accepted.
- *   - `absent` — one or both env vars are missing. The ORDINARY state on a
- *     machine that has not been pointed at Spaces, which is why it is not an
- *     error: a vault opens, every page draws, and the pill says `no spaces`.
- *   - `fault` — the env is present and a post was refused. Distinct from
- *     `absent` on purpose, because the two have opposite fixes: one is "set
- *     the env", the other is "the token was rejected / the channel is gone".
+ *   - `absent` — no env, and no bind. The ORDINARY state on a machine that
+ *     has not been pointed at Spaces, which is why it is not an error: a
+ *     vault opens, every page draws, and the pill says `no spaces`.
+ *   - `fault` — something the user asked for is not working, and the tip
+ *     names which: a post was refused, OR `_olai/Spaces.olai` binds a
+ *     channel and the env is missing. Distinct from `absent` on purpose —
+ *     a bind is the user naming a channel, and a dim pill would hide that.
  */
 export const SpacesStatus = Schema.Literals(["connected", "absent", "fault"])
 export type SpacesStatus = typeof SpacesStatus.Type

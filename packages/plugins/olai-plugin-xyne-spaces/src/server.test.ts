@@ -163,7 +163,7 @@ test("a conversation the bind does not name is not mirrored", async () => {
   }
 })
 
-test("no env is honestly absent — nothing is posted", async () => {
+test("no env and no bind is honestly absent — nothing is posted", async () => {
   const spaces = await listen()
   const { watching, emit } = bus()
   try {
@@ -177,7 +177,7 @@ test("no env is honestly absent — nothing is posted", async () => {
       watching,
       held: memoryHeld(),
     })
-    bind(half)
+    expect(half.link().status).toBe("absent")
     emit({
       kind: "delivered",
       id: "d-1",
@@ -188,9 +188,78 @@ test("no env is honestly absent — nothing is posted", async () => {
     })
     await Bun.sleep(40)
     expect(spaces.requests).toHaveLength(0)
+    expect(half.link().status).toBe("absent")
     half.unloaded()
   } finally {
     spaces.close()
   }
+})
+
+test("a bind without env is a fault, named, and said once into the conversation", async () => {
+  const spaces = await listen()
+  const { watching, emit } = bus()
+  const faults: Array<string> = []
+  try {
+    const half = serve({
+      env: {},
+      served: served(),
+      now: () => "2026-09-01T12:00:00Z",
+      say: () => {},
+      warn: () => {},
+      deliveries: {
+        scopes: () => [],
+        deliver: (_to, say) => {
+          const body = say()
+          if (body !== null) faults.push(body)
+        },
+      },
+      watching,
+      held: memoryHeld(),
+    })
+    bind(half)
+    expect(half.link().status).toBe("fault")
+    expect(half.link().why).toContain("_olai/Spaces.olai")
+    expect(half.link().why).toContain("OLAI_SPACES_URL, OLAI_SPACES_TOKEN")
+    emit({
+      kind: "delivered",
+      id: "d-1",
+      from: "kolu",
+      agent: "claude",
+      session: "s-1",
+      body: "Lane dispatched: **x**",
+    })
+    await Bun.sleep(40)
+    expect(spaces.requests).toHaveLength(0)
+    expect(faults).toHaveLength(1)
+    expect(faults[0]).toContain("_olai/Spaces.olai")
+    expect(faults[0]).toContain("OLAI_SPACES_URL, OLAI_SPACES_TOKEN")
+    half.unloaded()
+  } finally {
+    spaces.close()
+  }
+})
+
+test("dropping the bind without env returns the pill to absent", () => {
+  const { watching } = bus()
+  const half = serve({
+    env: {},
+    served: served(),
+    now: () => "2026-09-01T12:00:00Z",
+    say: () => {},
+    warn: () => {},
+    deliveries: { scopes: () => [], deliver: () => {} },
+    watching,
+    held: memoryHeld(),
+  })
+  bind(half)
+  expect(half.link().status).toBe("fault")
+  const empty = readingOf(setOf({}))
+  half.revision({
+    value: { set: empty.set, derived: empty.derived },
+    changed: [],
+    removed: ["_olai/Spaces.olai"],
+  })
+  expect(half.link().status).toBe("absent")
+  half.unloaded()
 })
 

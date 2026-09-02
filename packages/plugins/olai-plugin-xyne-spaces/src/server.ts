@@ -31,7 +31,7 @@ import {
   type SpacesReading,
 } from "./config.ts"
 import { recordOf, snapshotOf } from "./hold.ts"
-import { laneOf, makeMirror, skipHeartbeat, type Mirror } from "./mirror.ts"
+import { laneOf, makeMirror, skipHeartbeat, unconfiguredBody, type Mirror } from "./mirror.ts"
 import {
   name,
   type SpacesLink,
@@ -163,6 +163,9 @@ export const serve = (services: Services): {
   readonly published: (ctx: unknown) => void
   readonly revision: (revision: VaultRevision) => void
   readonly unloaded: () => void
+  /** The pill's current reading — what `link` last painted. Tests read
+   *  this; the browser reads the cell. */
+  readonly link: () => SpacesLink
 } => {
   const env = linkFromEnv(services.env, services.now())
   let current: SpacesLink = env.link
@@ -201,6 +204,27 @@ export const serve = (services: Services): {
     since: services.now(),
   })
 
+  const missingEnv = env.url === null || env.token === null
+
+  const boundFile = (): string => file?.file ?? "_olai/Spaces.olai"
+
+  /** Bind without env is a FAULT: the user named a channel. Quiet
+   *  `absent` is only for a machine that never did. */
+  const sayUnconfigured = (): string => {
+    const body = unconfiguredBody(env.link.where, boundFile(), services.now())
+    const why = body.split("\n")[0] ?? body
+    if (current.status !== "fault" || current.why !== why) {
+      paint({
+        status: "fault",
+        where: env.link.where,
+        told: env.link.told,
+        why,
+        since: services.now(),
+      })
+    }
+    return body
+  }
+
   const ensureMirror = (): Mirror | null => {
     if (env.url === null || env.token === null) return null
     const channel = reading.bind?.channel
@@ -236,12 +260,15 @@ export const serve = (services: Services): {
   const onSeen = (event: ConversationSeen): void => {
     if (!boundTo(reading.bind, event.agent, event.session)) return
     lastBound = { agent: event.agent, session: event.session }
+    if (event.kind === "delivered" && event.from === name) return
     const held = ensureMirror()
-    if (held === null) return
+    if (held === null) {
+      deliverFault(sayUnconfigured(), "fault")
+      return
+    }
     const lane = laneOf(event.agent, event.session)
 
     if (event.kind === "delivered") {
-      if (event.from === name) return
       if (skipHeartbeat(event.body)) return
       serial(async () => {
         await held.postDigest(event.body, lane, reading.trim)
@@ -287,7 +314,12 @@ export const serve = (services: Services): {
         mirror?.stop()
         mirror = undefined
       }
+      if (missingEnv) {
+        if (next.bind !== null) deliverFault(sayUnconfigured(), "fault")
+        else if (current.status !== "absent") paint(env.link)
+      }
     },
+    link: () => current,
     unloaded: () => {
       stop()
       mirror?.stop()

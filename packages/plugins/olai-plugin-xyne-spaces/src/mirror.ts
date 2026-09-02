@@ -100,6 +100,21 @@ export const faultBody = (why: string, at: string): string =>
     "Said once — not repeated per message. Digests queue here and post when the token works again; fix OLAI_SPACES_TOKEN (or the channel id in _olai/Spaces.olai) and the queue retries on its own.",
   ].join("\n")
 
+/** A channel is bound in the vault and this process has no Spaces app —
+ *  the user named where to post, and the secrets that would post are
+ *  missing. Not `absent`: `absent` is the ordinary quiet of a machine
+ *  that never pointed at Spaces. */
+export const unconfiguredBody = (where: string, file: string, at: string): string =>
+  [
+    `mirroring is down: ${file} binds a channel, but ${where} ${
+      where.includes(",") ? "are" : "is"
+    } not set on this process (${at}).`,
+    "",
+    "Written by olai's spaces mirror, not by a person.",
+    "",
+    "Said once — not repeated per message. Set the missing env and restart; the bind is already in the vault.",
+  ].join("\n")
+
 export const recoveredBody = (count: number, channel: string, at: string): string =>
   count > 0
     ? `token accepted again — ${count} queued digest${count === 1 ? "" : "s"} posted to the bound channel (${channel}) at ${at}, in order.`
