@@ -64,6 +64,7 @@ import { describe, expect, test } from "bun:test"
 
 import { exposeMapsOf, surfacesOf } from "@olai/plugin-api"
 
+import { BUNDLE_NAMES } from "./rows.ts"
 import { type ServerHalf, serverHalves } from "./tree.testlib.ts"
 
 /** The real roster, LOADED — no door in this package imports a plugin
@@ -273,3 +274,47 @@ describe("the plugins this binary was built with", () => {
   })
 })
 
+
+/**
+ * ...AND THE TWO CLAIMS ABOUT A PLUGIN'S OWN VALUES, which live here because
+ * this is the file that LOADS them.
+ *
+ * They were `fence.test.ts`'s, and `prove-fence.sh` is what moved them. That
+ * file's whole subject is what a package may name, and it answers it by
+ * sweeping the tree as TEXT and walking module graphs — neither of which
+ * evaluates a plugin. Reading a plugin's `name` and its `faces` needs the
+ * module, and importing one there cost the falsifier two mutations: appending a
+ * `.tsx` to a server half and appending an appliance's client to the wrong
+ * tenant's dial both killed the fence MODULE at load, so the suite DIED rather
+ * than refusing and no claim named the defect. A fence that dies names nothing.
+ *
+ * Here the loading is the point — every case above composes what these modules
+ * export — so a plugin that will not load takes down a file that could not have
+ * asserted anything about it anyway.
+ */
+describe("a plugin answers to the name its row binds it under", () => {
+  test("every module's own `name` is the row's `id`", () => {
+    // THE EQUALITY THE WHOLE PER-PLUGIN STAMP RESTS ON. The row's `id` is what
+    // the loader binds the fiber under, and every service that stamps a plugin
+    // reads `ctx.fiber.name` off that binding — the kind prefix, the delivery
+    // door's key, the sibling key its members compose under. A module whose own
+    // `name` disagreed would serve its members at one address and be stamped at
+    // another, with nothing between the two to notice.
+    expect([...WIRES.map((wire) => wire.name)].sort()).toEqual([...BUNDLE_NAMES].sort())
+  })
+
+  test("every face a plugin names is a face it wrote a map for", () => {
+    // An empty map and an ABSENT map mean the same thing to `exposeFaces`
+    // (deny in full) and different things to a reader: an empty one asserts
+    // the plugin considered the face and declined, which is a claim worth
+    // being able to make, but a face key holding nothing at all is more
+    // likely a half-finished edit. This is the one shape check on a value the
+    // compiler sees only as a record of records.
+    for (const wire of WIRES) {
+      for (const [face, map] of Object.entries(wire.faces as Record<string, object>)) {
+        expect([`${wire.name}/${face}`, Object.keys(map).length > 0])
+          .toEqual([`${wire.name}/${face}`, true])
+      }
+    }
+  })
+})

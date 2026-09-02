@@ -48,7 +48,7 @@
 import type { BuiltPlugin, PluginRoster } from "@olai/surface"
 import { pluginState } from "@olai/surface"
 
-import { builtInDefault, setByServer } from "./instance.ts"
+import { builtInDefault, setByServer } from "../settings/instance.ts"
 
 /** The rows to draw, in the order the build lists its plugins. A build with no
  *  plugins, and a page that has not heard from the server yet, both draw none —
@@ -56,63 +56,50 @@ import { builtInDefault, setByServer } from "./instance.ts"
 export const pluginRows = (roster: PluginRoster): ReadonlyArray<BuiltPlugin> => roster.built
 
 /**
- * WHAT THE ROW IN FORCE MEANS — five arms, and every one of them is a state of
- * the app rather than a setting of a switch.
+ * WHAT THE ROW IN FORCE MEANS — one short line, and five of them.
  *
- * Running is the ordinary state and it is described in what a reader can SEE:
- * members on the wire, faces on screen, a property held to the kind the plugin
- * declares. Every other arm is TOTAL ABSENCE rather than a degraded mode — that
- * is what `--plugins` has always meant — and absence is the half worth spelling
- * out, because everything it costs is invisible: nothing is drawn, so nothing
- * looks broken, and a person hunting for a chip that is not there has no other
- * way to learn why.
+ * ## SHORT, and that is a ruling rather than a preference
  *
- * Each clause of the absent arms is a claim the code keeps (`@olai/plugin-api`'s
- * README): a plugin that is not composed serves no tag, never probes, registers
- * no dressing, mounts no chrome, and a value under a kind it declared is
- * validated as plain text, because `admits` is a promise only a plugin that is
- * here can make. The four absences differ in WHY, not in what they cost, so the
- * sentence about the cost is written once and each arm says its own why.
+ * These were paragraphs. Each absent arm recited the four things a missing
+ * plugin costs — no member served, no probe, no face drawn, a property
+ * validated as plain text — and every one of those is TRUE and is a claim the
+ * code keeps. None of them is what a person opening this panel wants. The human
+ * (2026-09-02): *users are not going to read novels*.
  *
- * `failed` is the one arm that is a FAULT — it was asked for, it is not here,
- * and nothing else on screen says so — and it is the one arm that carries words
- * that are not core's. The plugin's message is QUOTED and attributed; core
- * composes no clause of it, for the same reason the doorbell's three strings are
- * the plugin's. A throw with nothing to say is quoted as nothing rather than as
- * core's paraphrase of it.
+ * So the long account moved to where long accounts belong — this comment, the
+ * package READMEs, `docs/running.md` — and what is on screen is the state and
+ * the ONE thing a reader can act on. A hint that is not read is worth nothing,
+ * however true it is.
+ *
+ * ## What survives the cut, in every arm
+ *
+ * The WHY, because that is the whole reason the five words exist: `running:
+ * false` used to be one sentence covering four different mornings, and a person
+ * hunting for a chip that is not there can act on exactly one of them. And any
+ * FLAG VALUE they would have to type, which is never cut — this is the one
+ * screen in the product that tells you what to type.
+ *
+ * `failed` is the one arm that is a FAULT and the one that carries words that
+ * are not core's: the plugin's own message, verbatim, because core composes no
+ * clause of a plugin's failure prose. A throw with nothing to say says so.
  */
 export const pluginHint = (plugin: BuiltPlugin): string => {
-  const name = plugin.name
   switch (pluginState(plugin)) {
     case "running":
-      return `${name} is running: its members are on the wire, it looks for its ` +
-        `tool once per chat session, it draws its own faces, and a property ` +
-        `declared with one of its kinds is held to it.`
+      return `Running — its chips, panels and chat messages all work.`
     case "optIn":
-      return `${name} is not running, which is total absence rather than a ` +
-        `quiet mode: ${ABSENT} It is off because this build ships it off — ` +
-        `it needs something this machine may not have — and nothing here is ` +
-        `wrong.`
+      return `Off by default — it needs something this machine may not have.`
     case "failed":
-      return `${name} was asked for and its start threw, so it is not ` +
-        `running: ${ABSENT} ${quoted(plugin.fault)}`
+      return `Failed to start. ${said(plugin.fault)}`
     case "waiting":
-      return `${name} was asked for and has not finished starting: ${ABSENT} ` +
-        `It is waiting on something it needs, and it will draw nothing until ` +
-        `it has it.`
+      return `Starting — waiting for something it needs.`
     default:
-      return `${name} is not running, which is total absence rather than a ` +
-        `quiet mode: ${ABSENT} It is off because it was not asked for.`
+      return `Off — it was not asked for. Nothing of it is drawn.`
   }
 }
 
-/** WHAT EVERY ABSENCE COSTS, written once — the four arms differ in why, and
- *  a reader is owed the same account of the cost in all of them. */
-const ABSENT = `no member of it is served, it never looks for its tool, it ` +
-  `draws nothing, and a property declared with one of its kinds is plain text.`
-
-/** THE PLUGIN'S OWN SENTENCE, quoted and attributed — or the honest nothing. */
-const quoted = (fault: string | undefined): string =>
+/** THE PLUGIN'S OWN SENTENCE, verbatim — or the honest nothing. */
+const said = (fault: string | undefined): string =>
   fault === undefined ? `It gave no message.` : `It said: “${fault}”.`
 
 /**
@@ -140,17 +127,16 @@ const quoted = (fault: string | undefined): string =>
 export const pluginSetBy = (roster: PluginRoster, plugin: BuiltPlugin): string => {
   const pinned = roster.pinned
   if (pinned !== null) {
-    return setByServer(
-      pinned.length === 0
-        ? "--plugins= — an empty value, which is none of them"
-        : `--plugins=${pinned.join(",")}`,
-    )
+    // `--plugins=` is somebody saying NONE out loud, and it is spelled as
+    // itself: a row is Off either way, and this line is the only place a
+    // reader can tell that from nobody having said anything.
+    return setByServer(pinned.length === 0 ? "--plugins= (none)" : `--plugins=${pinned.join(",")}`)
   }
   // NOBODY GAVE THE FLAG, so what is in force is the built-in default — and
-  // which default that is, is the row's own.
+  // which default that is, is the row's own. The opt-in row names the flag
+  // VALUE that turns it on, which is the one thing on this panel a reader can
+  // act on and is therefore the one thing the short copy keeps.
   return pluginState(plugin) === "optIn"
-    ? `Nobody gave --plugins, and this build ships ${plugin.name} off. ` +
-      `--plugins=${plugin.name} is what turns it on. It is the instance's ` +
-      `policy: the same in every browser, and it cannot be changed from one.`
+    ? `Server default: off. Turn it on with --plugins=${plugin.name}`
     : builtInDefault("--plugins")
 }

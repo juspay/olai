@@ -651,6 +651,22 @@ export const TESTID = {
   prefsTrigger: "prefs-trigger",
   /** The panel it opens (portalled out of the header). */
   prefsPanel: "prefs-panel",
+  /** ...AND THE PLUGINS' OWN DOOR, beside it in the bar.
+   *
+   *  The rows were ON the preferences panel and are a control of their own now.
+   *  Two triggers rather than one because they answer two different questions:
+   *  preferences is HOW THIS BROWSER READS, and every row on it is this
+   *  browser's to change; plugins is WHAT THIS INSTANCE IS RUNNING, which no
+   *  browser may change at all. A panel that mixed them made the frozen rows
+   *  read as preferences somebody had disabled rather than as facts about the
+   *  serve.
+   *
+   *  It keeps the `prefsRow` / `prefsHint` names for what it draws, because a
+   *  row is the same object with the same three parts and a second grammar for
+   *  it would be a second thing for a scenario to know. */
+  pluginsTrigger: "plugins-trigger",
+  /** The panel it opens (portalled out of the header, like the one beside it). */
+  pluginsPanel: "plugins-panel",
   /** One preference on it; `data-pref` is which — `theme`, `font`, `size`,
    *  `density`, `done`, `git-commit`, `git-push`, and one `plugin-<name>` per
    *  plugin this build has ({@link pluginPref}, which is why that tail is open

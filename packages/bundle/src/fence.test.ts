@@ -137,13 +137,25 @@ import { describe, expect, test } from "bun:test"
 
 import { ROWS } from "./bundle.ts"
 import { BUNDLE_NAMES as PLUGIN_NAMES } from "./rows.ts"
-import { type ServerHalf, serverHalves } from "./tree.testlib.ts"
 
-/** The real roster, LOADED — no door in this package imports a plugin
- *  statically any more, which is itself a claim below, so a test that wants
- *  their values does what the runtime does and imports them by the row's own
- *  name (`./tree.testlib.ts`). */
-const WIRES: ReadonlyArray<ServerHalf> = await serverHalves()
+/**
+ * THIS FILE IMPORTS NO PLUGIN, and that is a property of the FALSIFIER rather
+ * than a tidiness.
+ *
+ * It briefly did — a `serverHalves()` that imported each row's module, so the
+ * two claims about a plugin's own VALUES (its sibling key, its face maps) could
+ * read them. `prove-fence.sh` caught what that cost: mutation 8 appends a
+ * `.tsx` import to a server half to trip the component claim, and mutation 10
+ * appends an appliance's client to the wrong tenant's dial. With the plugins
+ * imported here, both of those killed this MODULE at load — the suite died
+ * rather than refused, and a fence that dies is a fence that named nothing.
+ *
+ * So the value claims moved to `./composition.test.ts`, which already loads the
+ * halves and is about what they compose to. What is left here is a sweep over
+ * the tree as TEXT plus a walk over module graphs, neither of which evaluates a
+ * plugin — so a plugin that will not load at all still gets every claim in this
+ * file run against it, which is exactly when a fence is most worth having.
+ */
 import {
   cssImportsOf,
   dependencyNames,
@@ -323,6 +335,72 @@ const componentsOn = (door: { files: ReadonlyArray<string> }): ReadonlyArray<str
 const BROWSER_DOOR = graphFrom(path.join(PACKAGES, REGISTRY, "src", "rows.ts"))
 
 /**
+ * ...AND EACH PLUGIN'S OWN BROWSER DOOR, which is where the browser's
+ * confinement claim went when `./wire` collapsed — and it went there because
+ * `prove-fence.sh` said so.
+ *
+ * The old `./wire` door was walked with a list that forbade FIVE things, and
+ * each was there for one of two reasons: `solid-js` because a SERVER read that
+ * door, and `@olai/format`, `node:` builtins and every appliance client because
+ * a BROWSER did. When the door collapsed, the server half of that list survived
+ * intact — a server half re-exports its own `./wire`, so `NOT_ON_A_SERVER` is
+ * what catches a UI runtime there now. The browser half survived NOTHING: a
+ * plugin's `./wire` could pull `node:fs` and land it in the tab's chunk with no
+ * claim in the tree to say otherwise.
+ *
+ * The falsifier found it rather than a reviewer: mutation 6 appends
+ * `@olai/format` to a plugin's `./wire` and went GREEN — *the fence did not see
+ * it* — where every other mutation was caught. That is exactly what a mutation
+ * harness is for, and it is the second time this file has been corrected by one.
+ *
+ * So the door being walked is the one the TAB actually opens: each plugin's
+ * `./browser`, which is the chunk a roster fetches. What it may carry is
+ * genuinely different from what `./wire` could, and the list below says how.
+ */
+const BROWSER_DOORS: ReadonlyArray<{ readonly name: string; readonly door: Door }> = TENANTS_OF
+  .map((tenant) => ({
+    name: tenant.name,
+    door: graphFrom(path.join(PACKAGES, tenant.dir, "src", "browser.tsx")),
+  }))
+
+/** One walked door, as the two claims below read it. */
+type Door = ReturnType<typeof graphFrom>
+
+/**
+ * WHAT MUST NOT BE ON A PLUGIN'S BROWSER CHUNK — the old wire door's list with
+ * the two entries removed that a browser face legitimately IS.
+ *
+ * `solid-js` is gone from it, and so is the `.tsx` claim: a browser half is
+ * components, which is the whole reason it is a chunk of its own. `@xterm/*` is
+ * gone for the same reason one tenant over — kolu's terminal door draws a
+ * terminal, and the emulator is precisely the 344 KB this split exists to keep
+ * off every other machine.
+ *
+ * What is LEFT is the half of the old list that was always about the browser:
+ *
+ *   - a `node:` builtin is not a thing a browser bundle may contain, and it is
+ *     the sharpest entry because it fails at RUNTIME in the tab rather than at
+ *     any build step;
+ *   - `@odu/*` and `@kolu/padi-client` are an appliance's PRODUCT TIER, which
+ *     stays behind that appliance's client package — the claim
+ *     `check-kolu-deps.sh` used to make about a `-client`, held here about the
+ *     door that would ship it to a reader.
+ *
+ * `@olai/format` is NOT on this list, and its absence is a measured decision
+ * rather than an oversight: odu's chip reads the vault's own file-kind words to
+ * decide what a run is about, so the format is on that chunk today and is
+ * legitimately there. The old wire door forbade it because the SERVER read that
+ * door and a floor package has no business teaching a daemon a vocabulary; the
+ * browser is the end that spends it. Mutation 6 therefore moves to a `node:`
+ * builtin, which is the entry that still means something here.
+ */
+const NOT_IN_A_TAB = [
+  /^node:/,
+  /^@odu\//,
+  /^@kolu\/padi-client(\/|$)/,
+] as const
+
+/**
  * ...AND THE SERVER DOOR, which is no longer a FILE in this package.
  *
  * It was `src/server.ts`: an array of statically imported server halves, whose
@@ -420,6 +498,46 @@ describe("the browser's door names every plugin and imports none", () => {
 
   test("...and no file on it is a component at all", () => {
     expect(componentsOn(BROWSER_DOOR)).toEqual([])
+  })
+})
+
+/**
+ * A PLUGIN'S OWN BROWSER CHUNK STAYS A BROWSER CHUNK — the claim the `./wire`
+ * door used to make for the tab, kept, and aimed at the door the tab now opens.
+ *
+ * See {@link BROWSER_DOORS} for why it is here and what the falsifier had to
+ * say about it being nowhere.
+ */
+describe("a plugin's browser chunk stays a browser chunk", () => {
+  test("the walk crossed into every tenant's faces, and resolved every edge", () => {
+    // NOT VACUOUS, in both directions at once: a resolver that answered nothing
+    // would walk one file per tenant and satisfy the list below by being empty,
+    // and an entry that does not exist would do the same more quietly. Every
+    // tenant has a browser half — it is what its row's chunk IS — so an absent
+    // one is a defect rather than a plugin that happens to draw nothing.
+    for (const { name, door } of BROWSER_DOORS) {
+      expect([name, door.unresolved]).toEqual([name, []])
+      expect([name, door.files.length > 1]).toEqual([name, true])
+    }
+  })
+
+  test("nothing on one is a `node:` builtin or an appliance's product tier", () => {
+    const bad = BROWSER_DOORS.flatMap(({ name, door }) =>
+      door.reached
+        .filter((one) => NOT_IN_A_TAB.some((rule) => rule.test(one.spec)))
+        .map((one) => `${name}: ${one.file}: ${one.spec}`)
+    )
+    expect([...new Set(bad)].sort()).toEqual([])
+  })
+
+  test("...and each one DOES carry components, which is what a chunk is for", () => {
+    // The complement, said out loud: this door exists to carry exactly what the
+    // composition root's may not. A version of it that reached nothing would
+    // pass the claim above by being empty, and the faces would be on somebody
+    // else's graph — which is the arrangement the split replaced.
+    for (const { name, door } of BROWSER_DOORS) {
+      expect([name, componentsOn(door).length > 0]).toEqual([name, true])
+    }
   })
 })
 
@@ -740,16 +858,6 @@ describe("the root door is opened by packages that render nothing", () => {
 })
 
 describe("a plugin is a sibling, and core computes none of its addresses", () => {
-  test("every plugin is composed under its own name, and no two share one", () => {
-    const names: ReadonlyArray<string> = WIRES.map((wire) => wire.name)
-    expect([...names].sort()).toEqual([...PLUGIN_NAMES].sort())
-    // The sibling KEY is the wire prefix, so two plugins with one name is two
-    // sets of members at one address — which `composeSurfaceContracts` would
-    // catch at boot with a duplicate-tag throw, in a process that has already
-    // started. Here it is a test.
-    expect(new Set(names).size, names.join(", ")).toBe(names.length)
-  })
-
   test("a plugin's name is a legal tag segment, because it becomes one", () => {
     // `assertTagSegment` refuses an empty name and one containing "/", and it
     // refuses at boot. The framework's reason is the sharper one and it is
@@ -758,25 +866,26 @@ describe("a plugin is a sibling, and core computes none of its addresses", () =>
     // could not see. A plugin's name is also its preferences row and its docs
     // slug, so the bar this holds it to is a little higher than the
     // framework's — a word, not a path.
-    for (const wire of WIRES) {
-      expect([wire.name, /^[a-z][a-z0-9-]*$/.test(wire.name)]).toEqual([wire.name, true])
+    //
+    // OFF THE ROWS and not off the loaded modules, which is the whole of why
+    // this claim stayed here while the two beside it left. The row's `id` is
+    // the sibling key — it is what the fiber is bound under and what every one
+    // of its tags is composed from — so the name this holds to the grammar is
+    // the name that becomes a tag, and reading it costs no import.
+    for (const name of PLUGIN_NAMES) {
+      expect([name, /^[a-z][a-z0-9-]*$/.test(name)]).toEqual([name, true])
     }
+    // ...and no two rows claim one word. Two plugins with one name is two sets
+    // of members at one address, which `composeSurfaceContracts` would catch at
+    // boot with a duplicate-tag throw, in a process that has already started.
+    expect(new Set(PLUGIN_NAMES).size, PLUGIN_NAMES.join(", ")).toBe(PLUGIN_NAMES.length)
   })
 
-  test("every face a plugin names is a face it wrote a map for", () => {
-    // An empty map and an ABSENT map mean the same thing to `exposeFaces`
-    // (deny in full) and different things to a reader: an empty one asserts
-    // the plugin considered the face and declined, which is a claim worth
-    // being able to make, but a face key holding nothing at all is more
-    // likely a half-finished edit. This is the one shape check on a value the
-    // compiler sees only as a record of records.
-    for (const wire of WIRES) {
-      for (const [face, map] of Object.entries(wire.faces as Record<string, object>)) {
-        expect([`${wire.name}/${face}`, Object.keys(map).length > 0])
-          .toEqual([`${wire.name}/${face}`, true])
-      }
-    }
-  })
+  // THE TWO CLAIMS THAT READ A PLUGIN'S OWN VALUES ARE IN
+  // `./composition.test.ts` — that every module answers to the name its row
+  // binds it under, and that every face a plugin declares is a face it wrote a
+  // map for. They need the modules LOADED, and this file may not load one: see
+  // the note at the top on what `prove-fence.sh` found when it did.
 })
 
 /**

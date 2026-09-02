@@ -147,8 +147,9 @@ case "$plugins" in *"$registry"*) echo "prove-fence: the registry came back as a
 # has no separate appliance-face directory and needs none). Without these, a missing one dies
 # mid-run on `cp`/`sed` rather than here, with this block's own diagnostic.
 for path in "$registry" "$plugin_a" "$plugin_b" "$general_src" "$sheet" "$other_dial" \
-  "$container" "$plugin_a/src/browser.tsx" "$plugin_a/src/wire.ts" "$plugin_b/src/wire.ts" \
-  "$plugin_a/src/server.ts" "$plugin_b/src/server.ts" "$plugin_b/src/browser/Mark.tsx"; do
+  "$container" "$plugin_a/src/browser.tsx" "$plugin_b/src/browser.tsx" \
+  "$plugin_a/src/wire.ts" "$plugin_a/src/server.ts" "$plugin_b/src/server.ts" \
+  "$plugin_b/src/browser/Mark.tsx"; do
   [ -e "$path" ] || { echo "prove-fence: derived path $path does not exist" >&2; exit 1; }
 done
 
@@ -389,13 +390,50 @@ run 3 "a plugin imports the REGISTRY back (the cycle)" \
 # appliance's client onto its own graph and goes red there. The protection
 # moved; it did not leave.
 
-run 5 "the WIRE door pulls a UI runtime onto the server's graph" \
-  'UI runtime, an appliance' \
+# MUTATIONS 5 AND 6 WERE ONE DOOR AND ARE NOW TWO, and the split is the whole
+# story of what this PR did to the fence.
+#
+# There used to be a `./wire` door: `@olai/bundle` exported a subpath that
+# statically imported every plugin's own `./wire`, and one confinement list was
+# walked over it. That list forbade five things for TWO different reasons held
+# in one place — `solid-js` because a SERVER read that door, and `@olai/format`,
+# `node:` builtins and every appliance's client because a BROWSER read it too.
+# One graph, two audiences, one list; which entry was there for which reader was
+# a thing you had to know rather than a thing the file said.
+#
+# The door is gone. The browser now fetches each plugin's `./browser` as its own
+# dynamic-import chunk, so the two audiences no longer share a graph — and the
+# old list came apart along the seam it always had:
+#
+#   - THE SERVER HALF SURVIVED WHERE IT STOOD. A plugin's `./server` re-exports
+#     its own `./wire`, so `./wire` is still on the server's graph and a UI
+#     runtime put there is still refused — by `NOT_ON_A_SERVER`, through the
+#     server door, rather than by a wire door that no longer exists. Mutation 5
+#     keeps its edit unchanged for exactly that reason: the DEFECT is the same
+#     defect, reached by the same line; only the claim that answers it has a new
+#     address, and a mutation that named the old one scored
+#     `RED, BUT NOT BY THE CLAIM IT NAMES` — red for the right reason, counted
+#     as a miss, which is the harness accusing a lint that was doing its job.
+#
+#   - THE BROWSER HALF MOVED TO THE CHUNK. What a tab may not carry is now held
+#     over each plugin's `./browser` by `NOT_IN_A_TAB`, and mutation 6 follows
+#     it there. Its old subject stopped being a defect: `@olai/format` on a
+#     plugin's `./wire` is legal twice over — the server may read the vault's
+#     format, and the tab may too, because odu's chip spends those file-kind
+#     words to say what a run is about. So the mutation is re-aimed at the entry
+#     that DID survive and is sharpest: a `node:` builtin, which no bundler can
+#     satisfy for a browser and which fails in the reader's tab rather than at
+#     any build step. This mutation is also why that list exists at all — it
+#     went GREEN against the tree that had no browser-chunk claim, which is the
+#     second time this harness has written a line of `fence.test.ts`.
+
+run 5 "a plugin's WIRE pulls a UI runtime, and its SERVER re-exports it" \
+  'UI runtime or a component library' \
   append "$plugin_a/src/wire.ts" 'import "solid-js"'
 
-run 6 "the WIRE door pulls the vault's format" \
-  'UI runtime, an appliance' \
-  append "$plugin_b/src/wire.ts" 'import "@olai/format"'
+run 6 "a plugin's BROWSER CHUNK pulls a node: builtin" \
+  'builtin or an appliance' \
+  append "$plugin_b/src/browser.tsx" 'import "node:fs"'
 
 run 7 "the SERVER door pulls an emulator" \
   'UI runtime or a component library' \

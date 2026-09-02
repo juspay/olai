@@ -21,7 +21,7 @@
 import { NO_ROSTER, type PluginRoster } from "@olai/surface"
 import { expect, test } from "bun:test"
 
-import { pluginHint, pluginRows, pluginSetBy } from "./plugins.ts"
+import { pluginHint, pluginRows, pluginSetBy } from "./rows.ts"
 import { pluginPref, PLUGIN_PREF } from "../testids.ts"
 
 /** A build with two plugins, and whichever of them this case is about running.
@@ -94,24 +94,30 @@ test("a page that has heard nothing draws no plugin rows", () => {
 })
 
 /**
- * NOT RUNNING IS TOTAL ABSENCE, and the hint has to say so, because everything
- * it costs is invisible: nothing is drawn, so nothing looks broken, and a
- * person hunting for a face that is not there has no other way to find out why.
- * The row's Off is not a quiet mode of a thing that is still here.
+ * THE HINT SAYS WHICH STATE THE APP IS IN — running, or one of four absences —
+ * and it says it SHORT.
+ *
+ * It used to recite the four things an absent plugin costs: no member served,
+ * no probe, no face drawn, a value under its kind held to nothing but text.
+ * Every clause was true and none of them was read (the human, 2026-09-02:
+ * *users are not going to read novels*). The long account is in the code and
+ * the docs now; what this holds is that the row still tells a reader WHICH
+ * state it is in, which is the only part they can act on.
+ *
+ * A LENGTH BOUND, and it is a real assertion rather than a gesture: the arms
+ * are one sentence each, and the way copy like this rots is one clause at a
+ * time with nobody noticing until it is a paragraph again.
  */
-test("the hint says which state the app is in, and names the plugin", () => {
+test("the hint says which state the app is in, and stays one short line", () => {
   const [alpha, beta] = pluginRows(roster(["alpha"]))
-  expect(pluginHint(alpha!)).toContain("alpha")
-  expect(pluginHint(alpha!)).toContain("is running")
-  expect(pluginHint(beta!)).toContain("beta")
-  expect(pluginHint(beta!)).toContain("is not running")
-  // The four things an absent plugin costs, each of which is a claim the server
-  // keeps: no member served, no probe, no face, and a value under its kind held
-  // to nothing but text.
-  expect(pluginHint(beta!)).toContain("no member of it is served")
-  expect(pluginHint(beta!)).toContain("never looks for its tool")
-  expect(pluginHint(beta!)).toContain("draws nothing")
-  expect(pluginHint(beta!)).toContain("plain text")
+  expect(pluginHint(alpha!)).toContain("Running")
+  expect(pluginHint(beta!)).toContain("Off")
+  // ...and neither is a paragraph. The failed arm is exempt from the bound
+  // because the plugin's own message rides on it and its length is not core's
+  // to bound (`./rows.ts`); every arm core writes in full is held here.
+  for (const row of [alpha!, beta!]) {
+    expect([row.name, pluginHint(row).length < 100]).toEqual([row.name, true])
+  }
 })
 
 /**
@@ -152,26 +158,23 @@ test("an empty flag is somebody saying none, and says so as itself", () => {
   const said = roster([], [])
   const none = pluginSetBy(said, said.built[0]!)
   expect(none).toContain("--plugins=")
-  expect(none).toContain("none of them")
-  expect(none).not.toContain("built-in default")
+  expect(none).toContain("none")
+  expect(none).not.toContain("default")
 })
 
-/** Every read-only row says the same two things — who set it, and that this
- *  browser cannot — because they are one doctrine (`./instance.ts`). A second
- *  copy of it is the copy somebody softens. */
-test("every arm carries the instance doctrine", () => {
+/** Every one of these lines is SHORT, for the reason the hints are: a line
+ *  nobody reads is worth nothing however true it is. What it may never lose is
+ *  the flag a reader would have to type, which the cases above hold. */
+test("every arm is one short line", () => {
   const flagless = roster(["alpha", "beta"])
   const pinned = roster(["alpha"], ["alpha"])
   const optIn = row("optIn")
-  const both = [
+  const every = [
     pluginSetBy(flagless, flagless.built[0]!),
     pluginSetBy(pinned, pinned.built[0]!),
     pluginSetBy(optIn, only(optIn)),
   ]
-  for (const said of both) {
-    expect(said).toContain("instance's policy")
-    expect(said).toContain("cannot be changed")
-  }
+  for (const said of every) expect([said, said.length < 80]).toEqual([said, true])
 })
 
 /**
@@ -184,25 +187,22 @@ test("every arm carries the instance doctrine", () => {
  * the cost is the same in each; what differs is the WHY, which is the only
  * thing a person can act on and the only thing the boolean threw away.
  */
-test("each absence says its own why, over one account of the cost", () => {
+test("each absence says its own why, and they are four different whys", () => {
   const optIn = row("optIn")
   const failed = row("failed", "no socket at /run/nothing")
   const waiting = row("waiting")
   const off = row("off")
 
-  // Every one of them carries the same four costs.
-  for (const sent of [optIn, failed, waiting, off]) {
-    const said = pluginHint(only(sent))
-    expect(said).toContain("no member of it is served")
-    expect(said).toContain("plain text")
-    expect(said).toContain("alpha")
-  }
-
-  // ...and four different reasons.
-  expect(pluginHint(only(optIn))).toContain("this build ships it off")
+  expect(pluginHint(only(optIn))).toContain("Off by default")
   expect(pluginHint(only(off))).toContain("was not asked for")
-  expect(pluginHint(only(waiting))).toContain("has not finished starting")
-  expect(pluginHint(only(failed))).toContain("its start threw")
+  expect(pluginHint(only(waiting))).toContain("waiting for something it needs")
+  expect(pluginHint(only(failed))).toContain("Failed to start")
+
+  // FOUR DISTINCT SENTENCES, asserted as a set rather than one at a time: the
+  // way this collapses back is two arms drifting into one wording, which every
+  // `toContain` above would still pass.
+  const said = [optIn, off, waiting, failed].map((sent) => pluginHint(only(sent)))
+  expect(new Set(said).size).toBe(4)
 })
 
 /**
@@ -233,13 +233,15 @@ test("a failed row quotes what the plugin said, or says it said nothing", () => 
 test("an opt-in row names its own default and the flag that changes it", () => {
   const sent = row("optIn")
   const said = pluginSetBy(sent, only(sent))
-  expect(said).toContain("ships alpha off")
+  expect(said).toContain("off")
+  // THE ONE THING THE SHORT COPY MAY NEVER CUT. Everything else on this panel
+  // is a fact; this is the only actionable thing on it, and it is exact enough
+  // to type.
   expect(said).toContain("--plugins=alpha")
   // ...and its neighbour under the same absent flag says the opposite default,
   // which is the whole reason this is not one line for the panel.
   const ordinary = roster(["alpha", "beta"])
-  expect(pluginSetBy(ordinary, ordinary.built[0]!)).toContain("built-in default")
-  expect(pluginSetBy(ordinary, ordinary.built[0]!)).not.toContain("ships")
+  expect(pluginSetBy(ordinary, ordinary.built[0]!)).not.toContain("--plugins=alpha")
 })
 
 /**
@@ -257,8 +259,8 @@ test("a state this tab has never heard of falls back to the boolean", () => {
   // ...and a serve too old to send one at all is the same fallback, which is
   // exactly how this panel drew every row before the word existed.
   const old = roster(["alpha"])
-  expect(pluginHint(old.built[0]!)).toContain("is running")
-  expect(pluginHint(old.built[1]!)).toContain("is not running")
+  expect(pluginHint(old.built[0]!)).toContain("Running")
+  expect(pluginHint(old.built[1]!)).toContain("Off")
 })
 
 /**
