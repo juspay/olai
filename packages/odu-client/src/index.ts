@@ -92,11 +92,10 @@ export { type DialRun, type RunNotice, type WorktreeNode } from "./runs.ts"
  * `worktrees` is THE VAULT WALK, injected — the `claimants` arrangement one
  * appliance over, and the same boundary for the same reason. Which nodes carry
  * a `worktree` is a reading of outline records, so it belongs to whoever holds
- * the vault (`olai-plugin-odu`'s `worktrees.ts`), and what crosses is four strings
- * per node ({@link WorktreeNode}). The interfaces here are PARAMETRIC in the
- * node type,
- * which is the same claim the compiler can check: a package generic in `N`
- * cannot read an `N`.
+ * the vault (`olai-plugin-odu`'s `worktrees.ts`), and what crosses is
+ * {@link WorktreeNode} — path, PR URL, optional repo, node, title. The
+ * interfaces here are PARAMETRIC in the node type, which is the same claim
+ * the compiler can check: a package generic in `N` cannot read an `N`.
  */
 export interface OduDeps<N> {
   /**

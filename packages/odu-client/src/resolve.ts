@@ -12,7 +12,7 @@
  * (2026-08-29) and ruled that whatever is argued here is reviewable like the
  * rest of the diff, so the argument is written where the rule is.
  *
- * ## The rule, in three lines
+ * ## The rule, in four lines
  *
  *   1. **An absolute value is used as written.** No repo, no root, no
  *      arithmetic — a board that grows tired of the guessing can end it one
@@ -22,11 +22,19 @@
  *      `<repos root>/<repo>`. The repo comes from the node's own `pr-url`
  *      (`https://github.com/juspay/odu/pull/94` → `odu`) — the human's own
  *      suggestion, and the right source for it: a PR URL is a VALUE somebody
- *      wrote on the node, where the alternative (reading `projects/<repo>/`
- *      out of the file the node happens to live in) is a fact about the
- *      vault's LAYOUT, and a rule that depends on layout breaks silently when
- *      somebody reorganises a directory.
- *   3. **The repos root is the served directory's own parent**, unless
+ *      wrote on the node.
+ *   3. **Where there is no PR URL, a repository the vault walk handed over
+ *      is spent the same way.** That name is not invented here — inventing
+ *      one from thin air is still the wrong door. The walk may supply it
+ *      from where the row lives (`projects/<repo>/…`); a relative checkout
+ *      in a file that is not under that prefix, with no PR URL, still
+ *      resolves to nothing. Reading the file path as THE rule (replacing
+ *      the URL) would be a fact about the vault's LAYOUT, and a rule that
+ *      depends on layout breaks silently when somebody reorganises a
+ *      directory. Spending it only in the window before a PR exists is the
+ *      2026-09-02 close: four settles of a boarded checkout the watcher
+ *      never placed, because this function refused to look.
+ *   4. **The repos root is the served directory's own parent**, unless
  *      `$OLAI_REPOS_DIR` says otherwise. The board and the repositories it
  *      boards are checkouts side by side — `~/code/oss.olai` beside
  *      `~/code/odu` — and that adjacency is not a coincidence this rule is
@@ -34,9 +42,10 @@
  *      already rest on. A machine laid out otherwise says so once, in a
  *      variable, rather than by editing a hundred rows.
  *
- * A node with a relative `worktree` and no `pr-url` resolves to NOTHING and is
- * not probed. Not a fallback: the two facts a node must carry for a face are a
- * path and which tree it is in, and inventing the second from thin air is
+ * A node with a relative `worktree`, no `pr-url`, and no repository handed
+ * over resolves to NOTHING and is not probed. The two facts a node must
+ * carry for a face are a path and which tree it is in; a name the walk did
+ * not supply is not a fact, and inventing the second from thin air is
  * exactly the wrong door this repo's display rules refuse everywhere else.
  *
  * ## Why a wrong answer here is cheap, which is what makes the rule acceptable
@@ -74,6 +83,18 @@ export interface Worktree {
    *  in the case that matters, and a node whose PRs are in two repositories
    *  has a `worktree` that can only be in one of them anyway. */
   readonly prUrl?: string
+  /**
+   * THE REPOSITORY THE VAULT WALK HANDED OVER, when it has one.
+   *
+   * A relative `worktree` does not name its tree, and a PR URL is the usual
+   * source of that name ({@link repoIn}). A lane that runs CI before it opens
+   * a PR has no URL yet — the 2026-09-02 silent doorbell, four settles of a
+   * boarded checkout the watcher never placed. The walk may therefore hand a
+   * repository of its own (from where the row lives); this is that name, and
+   * inventing one HERE would still be the wrong door. Spent only when
+   * {@link repoIn} answers nothing.
+   */
+  readonly repo?: string
 }
 
 /** Where checkouts live on this machine, decided once at the composition root
@@ -135,6 +156,26 @@ export const repoIn = (prUrl: string | undefined): string | undefined => {
 }
 
 /**
+ * A REPOSITORY NAME, or `undefined` for a string that is not one.
+ *
+ * One path segment, nothing that climbs, nothing that is a path. The vault
+ * walk may hand {@link Worktree.repo} over from a file prefix; this is the
+ * fence that keeps a prefix of `..` or `olai/nested` from becoming a join.
+ * {@link worktreeAt}'s containment check is the second fence, asked of the
+ * resolved path, so a name that slipped through here still cannot leave the
+ * repos root.
+ */
+const repoName = (name: string | undefined): string | undefined => {
+  if (name === undefined) return undefined
+  const trimmed = name.trim()
+  if (
+    trimmed === "" || trimmed === "." || trimmed === ".."
+    || trimmed.includes("/") || trimmed.includes("\\")
+  ) return undefined
+  return trimmed
+}
+
+/**
  * The absolute checkout root a `worktree` value names, or `undefined` for one
  * this rule cannot place.
  *
@@ -148,7 +189,7 @@ export const worktreeAt = (
   const written = worktree.value.trim()
   if (written === "") return undefined
   if (isAbsolute(written)) return resolvePath(written)
-  const repo = repoIn(worktree.prUrl)
+  const repo = repoIn(worktree.prUrl) ?? repoName(worktree.repo)
   if (repo === undefined) return undefined
   // `resolve` rather than a bare `join`, so a value carrying `..` cannot
   // climb out of the checkout it was written under — the same fence
