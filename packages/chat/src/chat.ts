@@ -717,20 +717,21 @@ const silence = (agent: string): string =>
  * than handed to anybody ({@link ./sessions.ts}'s own rule for its writers).
  *
  * ONE SPELLING for every writer that keeps that rule: the two migration marks
- * ({@link Chat.assigned}, {@link Chat.replaced}) and the teaching's own
- * ({@link contracted}). What they share is why none of them refuses — each runs
- * AFTER the half of its gesture that mattered has already landed, so a refusal
- * here would be telling somebody their assignment, or their turn, failed when
- * it did not. What differs is one sentence, which is the argument
- * ({@link taughtLost} and the two beside it): a lost write costs something
- * different each time, and that is the half worth saying out loud.
+ * ({@link Chat.assigned}, {@link Chat.replaced}). What they share is why
+ * neither of them refuses — each runs AFTER the half of its gesture that
+ * mattered has already landed, so a refusal here would be telling somebody
+ * their assignment, or their turn, failed when it did not. What differs is
+ * one sentence, which is the argument ({@link assignLost} and the one beside
+ * it): a lost write costs something different each time, and that is the half
+ * worth saying out loud.
  *
  * `undefined` is a chat composed with no record at all, which is the state
  * every test in this package is in unless it says otherwise.
  *
- * NOT the last-said write, which is deliberately not a caller: that one has to
- * know whether the write LANDED, because a frame is published off the back of
- * it ({@link saidHere}).
+ * NOT the two writes that have to know the OUTCOME — the teaching's own
+ * ({@link contracted}) and the last-said one ({@link saidHere}): a frame and
+ * a notice are published off the back of those, so their failures are not
+ * just worth a sentence, they decide what may be shown.
  */
 const noting = (
   write: Effect.Effect<void, Memory.MemoryFailure> | undefined,
@@ -1191,12 +1192,15 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * that matters — a session swapped under a send — where it would mark a
      * conversation taught that never heard a word.
      *
-     * THE WRITE IS FORKED AND DETACHED and the saying is not: the row belongs
-     * in the transcript now, in this send's own order, while the disk write is
-     * behind a gesture that has already been answered — and its failure is a
-     * LOG rather than a refusal ({@link ./sessions.ts}), because the cost of
-     * losing it is one contract taught twice, which is not worth taking a send
-     * away from somebody over.
+     * THE MARK FIRST, and the notice only where it landed: a notice is the
+     * report OF the mark, so the fact has to exist before it is read out —
+     * the other way round, a failed write was a LOG under a contract the pane
+     * had already been shown, which is the one shape a restart says twice
+     * over. The write rides this send's own effect now, its failure is still
+     * a LOG rather than a refusal ({@link ./sessions.ts}), and what the
+     * failure costs changed with the order: the contract rides a LATER
+     * message instead — a telling delayed, never one duplicated — which is
+     * still not worth taking a send away from somebody over.
      */
     const contracted = (teach: Teaching, key: string): Effect.Effect<void> =>
       Effect.gen(function*() {
@@ -1204,8 +1208,12 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         if (overheard === undefined || overheard === null) return
         const row = transcript.entries().get(key)
         if (row === undefined || row.kind !== "user" || row.delivery !== undefined) return
+        const done = yield* Effect.result(overheard.teach(teach.to))
+        if (done._tag === "Failure") {
+          yield* Effect.logWarning(taughtLost(done.failure))
+          return
+        }
         publish(transcript.add("notice", teach.lines.join("\n")))
-        yield* Effect.forkDetach(noting(overheard.teach(teach.to), taughtLost))
       })
 
     /**

@@ -281,6 +281,31 @@ Feature: A node with an `agent-session` property IS an agent
     When I ask the agent "and now?"
     Then the agent was told its contract 1 time
 
+  @agent-stored @scratch:lanes
+  Scenario: ... and a restart does not teach the migration contract again
+    # The human's report of 2026-09-02 on the team deploy: an opencode
+    # conversation ASSIGNED to a node agent, taught its migration contract on
+    # the message after the assign — and the same preamble rode the next
+    # message after a redeploy, nowhere near the session's first. The rule is
+    # the one every contract keeps: once per session, and it is written down;
+    # neither does a restart say it again.
+    Given I open the outline "lanes.olai"
+    And the agent panel is open
+    When I open the unassigned chats
+    And I assign the conversation "the last conversation" to the node titled "a lane nobody has put an agent on", searching for "lane nobody"
+    And I close the unassigned chats
+    And I ask the agent "where were we?"
+    Then the agent was told its contract 1 time
+    And the contract says the conversation was assigned
+    # THE REDEPLOY: the process goes down, the tab comes up against a new one,
+    # and the message that follows is nowhere near the conversation's first.
+    When the server stops
+    And the server starts again on the same port
+    And I open the app
+    And the agent panel is open
+    And I ask the agent "still there?"
+    Then the agent was told its contract 0 times
+
   @corpus:lanes
   Scenario: A node agent's panel offers a fresh session, labelled with what it means
     # The affordance the panel owed a person and did not have. It says what

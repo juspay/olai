@@ -26,7 +26,7 @@
 
 import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 import { Effect } from "effect"
-import { mkdtempSync, readFileSync, rmSync } from "node:fs"
+import { chmodSync, mkdtempSync, readFileSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
@@ -207,6 +207,92 @@ describe("an agent-associated session is taught, once", () => {
       expect(second).not.toContain("[olai]")
     })
   }, 20_000)
+
+  test("a RESTART does not re-teach an assigned chat — the report of 2026-09-02", async () => {
+    // Seen on the team deploy: an opencode conversation ASSIGNED to a node
+    // agent, taught its migration contract on the message after the assign —
+    // and the same `[olai] This conversation has been ASSIGNED…` preamble rode
+    // the next message after a redeploy, nowhere near the session's first.
+    claimed = []
+    await withChat(async (seat) => {
+      // A chat with a life before it had a node: no binding, so nothing is
+      // taught on its way by.
+      await run(seat.chat.send("before it had a node", [], []))
+      await settle()
+      expect(notices(seat)).toEqual([])
+
+      // The assign gesture's two halves (`@olai/server`'s `assignSession`):
+      // the property lands, and that it arrived by assignment is written down.
+      claimed = [SPACES]
+      await run(seat.chat.assigned({ agent: "opencode", session: "sess-1" }))
+
+      // The next message carries the MIGRATION contract — once — and the mark
+      // lands, so this whole sequence never happens again.
+      await run(seat.chat.send("now that it has one", [], []))
+      await settle()
+      expect(notices(seat)).toEqual([teachingFor(SPACES, "assigned").join("\n")])
+      expect(overheardIn("sess-1")?.["assigned"]).toBe(true)
+      expect(overheardIn("sess-1")?.["taught"]).toBe(true)
+    })
+
+    // THE REDEPLOY: process down, everything rebuilt — a new record over the
+    // same file, a new agent subprocess minting the same session id, and a
+    // message that is nowhere near the conversation's first.
+    await withChat(async (seat) => {
+      await run(seat.chat.send("after the redeploy", [], []))
+      await settle()
+      expect(notices(seat)).toEqual([])
+      const [said] = heard(seat)
+      expect(said).toContain("after the redeploy")
+      expect(said).not.toContain("[olai]")
+    })
+  }, 30_000)
+
+  test("a teach mark the disk REFUSED ships no notice — the failure costs one LATER telling, never a second one", async () => {
+    // The report of 2026-09-02, with the deploy's lost write played by a
+    // record gone read-only: the assign's mark landed (it is the gesture's
+    // OWN write, {@link Chat.assigned}) and the message after it was TAKEN —
+    // but the teach mark write that was supposed to ride with it failed,
+    // which is the one shape the incident's row can have had: `assigned`
+    // written, `taught` not. The unfixed send publishes the notice anyway —
+    // the write is forked BEHIND it and a failure is only logged — so the
+    // pane reads a contract the disk never promised it would keep, and the
+    // message after the redeploy says the whole thing again.
+    let first: ReadonlyArray<string> = []
+    await withChat(async (seat) => {
+      await run(seat.chat.assigned({ agent: "opencode", session: "sess-1" }))
+      expect(overheardIn("sess-1")?.["assigned"]).toBe(true)
+
+      const dir = join(state, "olai", "heard")
+      chmodSync(dir, 0o555)
+      try {
+        await run(seat.chat.send("now that it has one", [], []))
+        await settle()
+      } finally {
+        chmodSync(dir, 0o755)
+      }
+
+      // The agent TOOK the message — the lines rode its prompt before the
+      // write was attempted — but nothing landed, and so nothing may be
+      // SHOWN: a notice over a mark that did not write is what makes the
+      // NEXT message say it all again.
+      expect(heard(seat)[0]).toContain("[olai]")
+      expect(overheardIn("sess-1")?.["taught"]).toBeUndefined()
+      first = [...notices(seat)]
+    })
+
+    // THE REDEPLOY: the record carries the assign and NOT the teaching — the
+    // incident's row, verbatim. The next message says the contract, once,
+    // because a re-telling with a written-down REASON is not the violation
+    // being filed; the violation is a pane that says it TWICE.
+    await withChat(async (seat) => {
+      await run(seat.chat.send("after the redeploy", [], []))
+      await settle()
+      expect(first).toEqual([])
+      expect(notices(seat)).toEqual([teachingFor(SPACES, "assigned").join("\n")])
+      expect(overheardIn("sess-1")?.["taught"]).toBe(true)
+    })
+  }, 30_000)
 
   test("a session ALREADY marked in the record is never taught at all", async () => {
     const kept = await run(sessionsIn(cwd))
