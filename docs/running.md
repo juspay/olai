@@ -165,7 +165,9 @@ inputs.olai.url = "github:juspay/olai";
 }
 ```
 
-The module fills `package` from the flake for the host platform. The packaged binary already bakes the browser bundle (`OLAI_DIST_DIR`), so the service needs no ambient environment.
+The module fills `package` from the flake for the host platform. The packaged binary already bakes the browser bundle (`OLAI_DIST_DIR`) and the pinned `odu` (put first on the server's own PATH, so the chat panel's CI probe resolves the build's binary and not a host's — [plugins/odu.md](plugins/odu.md)), so the service needs no ambient environment.
+
+`OLAI_ODU_BIN` is the one knob over the last of those: it names a **directory** whose `odu` the serve puts first on its PATH instead of the pin — how you test a development odu against a packaged olai — and the empty string is the explicit off switch (the probe then answers from the ambient PATH, and a PATH with no `odu` draws the row under the roster — [chat.md](chat.md#when-a-tool-server-does-not-arrive)). The two adapter knobs beside it (`OLAI_ACP_AGENT`, `OLAI_ACP_PI`) name executable *files*; this one names the *directory* the way the pin's own `bin/` does.
 
 **The one thing a user service does NOT inherit is your PATH**, and that is where agents live. Olai looks for the ones it knows when it starts — the pinned adapters it ships with (Claude Code's and pi-acp's), and the agents they drive on its own search path: an `opencode`, a `pi` — and a unit started by systemd sees neither your login shell nor your profile. So an `opencode` you can run in a terminal is not necessarily one this process can find, and `OLAI_AGENT_PATH` is how you say where to look:
 

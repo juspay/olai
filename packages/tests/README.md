@@ -83,14 +83,14 @@ bun run test features/see_the_outline.feature    # one feature
 bun run test features/see_the_outline.feature:45 # one scenario
 ```
 
-While changing the server or the client, point `OLAI_BIN` at a two-line script that runs the working tree instead of rebuilding with Nix each time:
+While changing the server or the client, point `OLAI_BIN` at a small generated script that runs the working tree instead of rebuilding with Nix each time:
 
 ```bash
 just build-client
 export OLAI_BIN="$(just dev-bin)"
 ```
 
-`just dev-bin` writes `.olai-dev/bin` inside THIS worktree. `/tmp/olai-dev` is a path every checkout shares, and two e2e lanes used to drive one tree through it. The wrapper takes the same argv, so the harness cannot tell the difference — but it serves `packages/web/dist`, so a client change needs the `just build-client` first. `just e2e` always uses the nix-built binary, which is what a user runs.
+`just dev-bin` writes `.olai-dev/bin` inside THIS worktree. `/tmp/olai-dev` is a path every checkout shares, and two e2e lanes used to drive one tree through it. The wrapper takes the same argv AND the same first answer: it re-spells the nix wrapper's `OLAI_ODU_BIN` default with its own splice, so which odu the server resolves is the build's pin on both shapes — the harness cannot tell the difference. It serves `packages/web/dist`, so a client change needs the `just build-client` first. `just e2e` always uses the nix-built binary, which is what a user runs.
 
 Bun hosts the runner. Bun executes `.ts` directly, so there is no tsx, no ts-node and no build step between a step definition and the browser — which is also why the dev shell needs no node.
 
@@ -157,6 +157,7 @@ nix develop -c bash
 cd packages/tests
 bash tasks.sh                  # a Monitor that ticks and ends
 KIND=bash bash tasks.sh        # a background shell that exits 3
+KIND=agent bash tasks.sh       # an async Agent; a forwarded task-notification prints
 ```
 
 `tasks.ts` / `tasks.sh` are the fourth driver here and the only one that talks to no olai at all: it drives the PINNED ADAPTER directly, arms one real background task, and prints what reaches an ACP client beside what the CLI underneath it actually sent.

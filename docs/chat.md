@@ -65,6 +65,8 @@ With one agent on the machine the list is exactly what it always was — no head
 
 **A conversation opens on its newest line.** The panel jumps there at once, so a long transcript is not something you have to scroll down. While you read, new text only follows if you were already at the bottom; scroll up and it stays put.
 
+**The transcript is the pane that scrolls.** The composer, and the strips above it (which servers this conversation has, what is still running, what it wakes on), stay put. A long turn does not carry the box away with the rows.
+
 ## Who, and which model, the header names
 
 Under the conversation's title, the header names **the agent** — its mark and its name — and then the model. The agent is there because a conversation is bound to one for its life and "who am I talking to" is a question you answer by looking rather than by reading; the model is there because a turn's cost and character depend on it and nothing else on screen says.
@@ -319,6 +321,8 @@ That is the ruling, and it came from a real turn: five survey agents and a monit
 
 **The call that sent the agent out stays exactly where it was.** It is the main agent's own call — it is the record of what happened — so it keeps its place in the conversation, its title, its ending, and the agent's report in its fold. Scrolling back to it a week later still tells the story.
 
+That report is how an async agent comes back, too. The harness injects the completion as a user-role turn — a `<task-notification>` block, stamped `origin.kind: "task-notification"` in the session stream — so the main agent can be woken with the result. That turn is not a message you typed and it is not the main agent answering: the report is filed in the spawning row's fold, the ending is the one-row news at the bottom in the harness's own words, and none of the XML occupies the column.
+
 ```
 · read every note                        ↳ Explore
 │ ● working…
@@ -433,7 +437,7 @@ If the machine is running [kolu](https://kolu.dev) — terminals for coding agen
 
 ## odu
 
-If the machine has an answering [odu](https://github.com/juspay/odu), the panel's agent gets CI its own way: every new conversation resolves `odu` on the server's PATH, starts it, and hands the session `odu mcp` when it answers — the run verbs (`run`, `node_rerun`, `node_cancel`, `wait_for_settle`, `lease`/`release`) and odu's own resources, with no olai-invented verb among them. It is looked for rather than assumed, and the probe asks the one question only the right build answers: those verbs must take a per-call `checkout`, because a conversation spans every lane on its board while the server itself is spawned in one directory. An answer without them gets the sentence, not the tools. [odu's own page](plugins/odu.md#the-chat-panels-odu) has the whole of it, including which half of the face stays parked in the server's own directory; [odu's PR #97](https://github.com/juspay/odu/pull/97) is the checkout-targeting shape this asks for.
+The panel's agent gets CI its own way: every new conversation resolves `odu` on the server's PATH, starts it, and hands the session `odu mcp` when it answers — the run verbs (`run`, `node_rerun`, `node_cancel`, `wait_for_settle`, `lease`/`release`) and odu's own resources, with no olai-invented verb among them. Every documented way of starting olai — `nix run`, the packaged binary, `just serve`, the home-manager unit — bakes the pinned [odu](https://github.com/juspay/odu) onto the server's PATH, so what gets resolved is the build's own binary, not whatever a machine happens to have installed. It is still probed rather than assumed, and the probe asks the one question only the right build answers: those verbs must take a per-call `checkout`, because a conversation spans every lane on its board while the server itself is spawned in one directory. An answer without them gets the sentence, not the tools — and *no answer at all* gets one too: a serve whose PATH carries no `odu` is a miss the panel draws, never a quiet plugin (see [below](#when-a-tool-server-does-not-arrive)). [odu's own page](plugins/odu.md#the-chat-panels-odu) has the whole of it, including which half of the face stays parked in the server's own directory; [odu's PR #97](https://github.com/juspay/odu/pull/97) is the checkout-targeting shape this asks for.
 
 ## Which tool servers a conversation has
 
@@ -470,6 +474,8 @@ It is per conversation, because the detection is: start a padi and the next conv
 **A machine that is simply not running kolu sees none of this**, and that is deliberate — nothing failed. It has no row on the roster either: what the panel reports is a tool server that was here and would not work, or one something said would be; never the absence of one that was never installed.
 
 An agent's report never overrules the probe. If this host's `kolu` would not answer, the session was never given one — so an agent that reports a `kolu` is reporting a `kolu` of its own, out of its own config, and the row here goes on saying what olai found.
+
+**For odu the rule is one notch stricter: the build itself says odu should be here.** A packaged olai — `nix run`, the packaged binary, the home-manager unit — carries the pinned `odu` on the server's PATH (`just serve` answers the same question from the tree; [running.md](running.md) has the one knob, `OLAI_ODU_BIN`), so a serve that resolves none IS an absence the panel draws: no `odu` is on the PATH this server was started with, with the build's promise beside it and no path beside the name — nothing was resolved, so there is nothing to name. There is no quiet case to mistake it for, and that is the point of the rule: a machine that runs all its odu through `nix run github:juspay/odu` installs nothing anywhere persistent, which is exactly how a serve started outside the build used to have no CI verbs *and nothing on screen saying why* — the one production shape this arm exists to name.
 
 ## What this conversation wakes on
 

@@ -1941,3 +1941,40 @@ Feature: Talking to the agent
     And the chat says nothing is running in the background
     And the chat says that task ended "failed"
     And the chat shows the harness saying "exit code 3"
+
+  @scratch:chat
+  Scenario: An async agent's report folds under the spawning row, never as a person speaking
+    # The verified leak (2026-09-01): an async Agent's completion injects a
+    # user-role `<task-notification>` carrying the subagent's whole report,
+    # stamped `origin.kind: "task-notification"` in the session stream. The
+    # panel drew that payload RAW in the column — literal `#` markers, no
+    # fold, no attribution. docs/chat.md forbids it twice: the report lives
+    # in the spawn's fold, and a background agent's ending is one row at
+    # the bottom in the harness's own words.
+    When I ask the agent "subagent notify"
+    Then the chat says a background task is watching "count the ticks"
+    And the agent is idle
+    When the agent is released
+    Then the newest line says "finished"
+    And the chat does not show my message "I have thorough coverage"
+    And the chat does not show my message "<task-notification>"
+    When I unfold the tool call
+    Then the spawn's fold carries "I have thorough coverage"
+    And the spawn's fold carries "Findings"
+
+  @scratch:chat
+  Scenario: The shipped path files the report on the task stamp, not as a leftover chunk
+    # The notify scenario above stamps origin on a user_message_chunk no
+    # adapter actually sends (`toAcpNotifications` carries messageId /
+    # parentToolUseId only). The path every real user gets is a
+    # tool_call_update carrying `_meta.claudeCode.backgroundTask.report`.
+    When I ask the agent "subagent report"
+    Then the chat says a background task is watching "count the ticks"
+    And the agent is idle
+    When the agent is released
+    Then the newest line says "finished"
+    And the chat does not show my message "I have thorough coverage"
+    And the chat does not show my message "<task-notification>"
+    When I unfold the tool call
+    Then the spawn's fold carries "I have thorough coverage"
+    And the spawn's fold carries "Findings"

@@ -8,6 +8,17 @@
  * fourteen-line call naming this appliance's constructor, three of its members
  * by name, two vault walks under kolu-shaped filenames, and two log channels —
  * and beside it a `wiring.kolu` slot on the composition's own interface. Every
+    trace,
+/**
+ * KOLU'S SERVER HALF — everything kolu-shaped that a composition root used to
+ * have to spell for itself.
+ *
+ * ## What this module is, in one sentence
+ *
+ * `@olai/server`'s `runtime.ts` held a `const kolu = koluHalf({…})` — a
+ * fourteen-line call naming this appliance's constructor, three of its members
+ * by name, two vault walks under kolu-shaped filenames, and two log channels —
+ * and beside it a `wiring.kolu` slot on the composition's own interface. Every
  * line of that was olai's judgement ABOUT kolu written into a package that must
  * not know the word. It is here now, whole, and what core does instead is
  * iterate: it hands every enabled plugin the same {@link Services} blob and
@@ -65,15 +76,17 @@ import { claimantsIn } from "./claimants.ts"
 import { koluFileIn, watchConfigIn } from "./config.ts"
 import {
   bodyFor,
-  claimedIn,
-  claimingIn,
   classify,
   type Heartbeat,
   makeHeartbeat,
   type Meaning,
+  type Ringing,
+  ringingIn,
   standingIn,
   terminalsIn,
+  whyOut,
 } from "./doorbell.ts"
+import { listed, type Trace, tracing } from "./trace.ts"
 import { name, surface } from "./wire.ts"
 
 /** The kinds this plugin teaches a vault, reached on this door — see
@@ -361,17 +374,29 @@ export const serve = (services: Services): {
    *  happens — but the honest answer costs one comparison. */
   let derived: Derived | undefined
 
+  /**
+   * THE DOORBELL'S OWN ACCOUNT — every seam below says what it did, on the
+   * owner's debug channel ({@link ./trace.ts} argues the level and the shape).
+   *
+   * It is a FIELD OF THE SERVE and not of the plugin, because `say` is: core
+   * hands each serve its own channel, and a tracer minted at module scope would
+   * be one process's log for however many serves a test stands up.
+   */
+  const trace: Trace = tracing(services.say)
+
+
     /**
    * THE WORDS, DERIVED AFRESH AT THE MOMENT THEY ENTER A CONVERSATION.
    *
    * ## Why this is not the ring's own answer
    *
-   * `ring` composes a body once, to learn whether there is anything to say at
-   * all. That body is NOT what goes in: core holds a delivery through a running
-   * turn, or until somebody opens the conversation, and the fleet moves while it
-   * waits. The human found one arriving about two terminals that had been killed
-   * and a lane that had been merged and closed in the gap — a message asserting a
-   * world that had closed while it queued.
+   * `ring` asks only whether there is anybody to say this to — a COUNT, not a
+   * sentence, and it composes none. The words are composed HERE, last thing,
+   * because core holds a delivery through a running turn or until somebody
+   * opens the conversation, and the fleet moves while it waits. The human found
+   * one arriving about two terminals that had been killed and a lane that had
+   * been merged and closed in the gap — a message asserting a world that had
+   * closed while it queued.
    *
    * So core is handed a CLOSURE (`@olai/plugin-api`'s `Deliveries.deliver`) and calls
    * it last thing. This reads `derived` and `half.rows()` at CALL time — the
@@ -390,11 +415,29 @@ export const serve = (services: Services): {
    */
   const said = (file: string, meaning: Meaning): string | null => {
     const at = derived
-    if (at === undefined) return null
+    if (at === undefined) {
+      // The store has never published, or an `unloaded` disowned the last
+      // revision while this body waited. Said rather than swallowed: a
+      // conversation that stopped being woken because the VAULT went away and
+      // one that stopped because nobody claims anything look identical from
+      // outside, and they are not the same fault.
+      trace("dropped", { file, meaning, why: "no-revision" })
+      return null
+    }
     const rows = half.rows()
-    const claiming = claimingIn(claimedIn(declaring, at, file), [...rows.keys()])
-    const standing = standingIn(claiming, rows, meaning)
-    return standing.length === 0 ? null : bodyFor(meaning, standing, file, services.now())
+    const ringing = ringingIn(declaring, at, file, [...rows.keys()], trace)
+    const standing = standingIn(ringing.claiming, rows, meaning)
+    if (standing.length === 0) {
+      trace("dropped", { file, meaning, why: "nobody-standing" })
+      return null
+    }
+    trace("said", {
+      file,
+      meaning,
+      standing: standing.length,
+      terminals: listed(standing.map((one) => one.terminal)),
+    })
+    return bodyFor(meaning, standing, file, services.now())
   }
 
 /**
@@ -404,9 +447,12 @@ export const serve = (services: Services): {
    * two seats may filter by two boards and mean two different things by one
    * terminal moving, so the derivation cannot be hoisted out of the loop —
    * but two seats on the SAME board with the SAME meaning are one answer all
-   * the way to the sentence, so both the claims walk and the body are memoised
-   * for the life of this call and dropped with it. The rows and their id list
-   * are one reading of one map however many scopes there are.
+   * the way to the count that decides whether anybody is told at all, so both
+   * the claims walk and that count are memoised for the life of this call and
+   * dropped with it. The rows and their id list are one reading of one map
+   * however many scopes there are. THE SENTENCE is not memoised and is not
+   * composed here at all — it is `said`'s, at the delivery moment, off a fresh
+   * derivation.
    *
    * THE VALUES ARE RESOLVED AGAINST THE LIVE ROSTER (`half.rows()`) and never
    * against the event, which carries padi's whole id: the board writes
@@ -441,6 +487,18 @@ export const serve = (services: Services): {
    * it is worth exactly one.
    */
   const ring = (event: KoluEvent): void => {
+    // FIRST, AND BEFORE EVERY GATE BELOW: what arrived. This is the line that
+    // says a nag fired at all — the watcher emits `transition` once and `nag`
+    // every window after it ({@link ../../kolu-client/src/watch.ts}), and
+    // neither of them wrote a word anywhere before this. A reader asking "did
+    // the fleet ever ask for this terminal" was reading a chat transcript for
+    // the answer, which is only a record of the events that RANG.
+    trace("event", {
+      kind: event.kind,
+      at: event.at,
+      terminal: event.row?.terminal ?? null,
+      state: event.row?.state ?? null,
+    })
     // A HEARTBEAT NAMES NO TERMINAL — the watcher is alive, which is the
     // pill's news. Asked here rather than only inside `classify` so that the
     // ordinary case on a quiet machine costs a comparison instead of a walk
@@ -454,71 +512,115 @@ export const serve = (services: Services): {
     // `at` rather than a fresh clock read: one moment, one stamp.
     heart.saw(event.at)
     const at = derived
-    if (at === undefined) return
+    if (at === undefined) {
+      trace("dropped", { terminal: event.row.terminal, why: "no-revision" })
+      return
+    }
     try {
       const rows = half.rows()
       const fleet = [...rows.keys()]
-      // ONE STAMP FOR THE WHOLE EVENT, so two conversations woken by one
-      // terminal are not told two different times about it.
-      const now = services.now()
-      // ...AND ONE WALK PER FILE. The derivation is per FILE and the scope is
+      // ONE WALK PER FILE. The derivation is per FILE and the scope is
       // per CONVERSATION, which are not the same cardinality: a person with
       // three seats on one board would otherwise pay three identical walks
       // per event. Minted per event and dropped with it — this plugin holds
       // nothing between ticks, which is the property the whole coalescing
       // argument rests on.
-      const perFile = new Map<string, ReturnType<typeof claimingIn>>()
-      const claimingFor = (file: string) => {
+      //
+      // THE MEMO IS ALSO WHAT KEEPS THE TRACE HONEST: `ringingIn` says the set
+      // out loud, so a `derived` line per seat on one board would report three
+      // walks where the plugin did one, and a reader counting lines would be
+      // reading the log's own shape rather than the doorbell's.
+      const perFile = new Map<string, Ringing>()
+      const ringingFor = (file: string): Ringing => {
         const held = perFile.get(file)
         if (held !== undefined) return held
-        const fresh = claimingIn(claimedIn(declaring, at, file), fleet)
+        const fresh = ringingIn(declaring, at, file, fleet, trace)
         perFile.set(file, fresh)
         return fresh
       }
-      // ...AND ONE SENTENCE PER (FILE, MEANING), which is the same argument
-      // carried to its end. The walk above is not the only thing two seats on
-      // one board share: the standing they derive is a function of the file's
-      // claims and the meaning alone, and so is the multi-paragraph body built
-      // from it. Keying the memo on the file ALONE closed half the redundancy
-      // and left the expensive half open — the string. The pair is the whole
-      // key because a `wake` and a `digest` over one file are two different
-      // subsets and two different sentences, and nothing else about a scope
-      // enters either: the conversation is only ever the ADDRESS the body is
-      // sent to.
+      // ...AND ONE COUNT PER (FILE, MEANING), which is the same argument carried
+      // to its end. The walk above is not the only thing two seats on one board
+      // share: what STANDS under a meaning is a function of the file's claims
+      // and the meaning alone, and nothing else about a scope enters it — the
+      // conversation is only ever the ADDRESS the words are sent to.
       //
-      // `null` is a MEMOISED SILENCE rather than a miss — a file that has
-      // nobody standing for this meaning must not be walked again per seat —
-      // and it is why this map is read with `has` rather than by testing the
-      // value.
+      // A COUNT, AND NOT A SENTENCE. This asked `bodyFor` for the whole
+      // multi-paragraph body and then tested it for `null`, throwing the string
+      // away every time: the body that actually goes in is composed by `said`
+      // at delivery, off a fresh derivation, which is the entire point of the
+      // closure below. So the memo was keyed on "the expensive half" and the
+      // expensive half was never used — one composed sentence per (file,
+      // meaning) per event, built to be discarded. The question here has always
+      // been "is there anybody to say this to", and that is a length.
       //
       // Minted per event and dropped with it, exactly as `perFile` is. Neither
-      // survives the tick, so nothing here can serve a sentence about a fleet
-      // that has moved on, and the plugin still holds nothing between ticks.
-      const perSaid = new Map<string, string | null>()
-      const bodyIn = (
+      // survives the tick, so the plugin still holds nothing between ticks.
+      const perStanding = new Map<string, number>()
+      const standingFor = (
         file: string,
         meaning: Meaning,
-        claiming: ReturnType<typeof claimingIn>,
-      ): string | null => {
+        claiming: Ringing["claiming"],
+      ): number => {
         const key = `${meaning}:${file}`
-        if (perSaid.has(key)) return perSaid.get(key) ?? null
-        const standing = standingIn(claiming, rows, meaning)
-        // The event's own terminal is held by construction, so this is empty
+        const held = perStanding.get(key)
+        if (held !== undefined) return held
+        // The event's own terminal is held by construction, so this is zero
         // only where the row moved between the emit and this walk. A sentence
         // about nobody is worse than no sentence.
-        const fresh = standing.length === 0 ? null : bodyFor(meaning, standing, file, now)
-        perSaid.set(key, fresh)
+        const fresh = standingIn(claiming, rows, meaning).length
+        perStanding.set(key, fresh)
         return fresh
       }
-      for (const scope of services.deliveries.scopes()) {
-        const claiming = claimingFor(scope.file)
-        const meaning = classify(event, claiming)
-        // SILENCE IS NO CALL AT ALL. Not a quieter body, not a warning about
-        // an unclaimed terminal — the dispatch dropped that arm on purpose.
+      const scopes = services.deliveries.scopes()
+      trace("scopes", {
+        terminal: event.row.terminal,
+        scoped: scopes.length,
+        files: listed(new Set(scopes.map((scope) => scope.file))),
+      })
+      for (const scope of scopes) {
+        const ringing = ringingFor(scope.file)
+        const meaning = classify(event, ringing.claiming)
+        // THE ONE LINE THE P1 WOULD HAVE BEEN FOUND BY, beside `derived` above.
+        // SILENCE IS NO CALL AT ALL — not a quieter body, not a warning about
+        // an unclaimed terminal; the dispatch dropped that arm on purpose, and
+        // it stays dropped. But a silence nobody can SEE is what made a lane
+        // that had fallen out of the set indistinguishable from a lane nobody
+        // scoped, and that distinction is the whole diagnosis. So the silence
+        // is said HERE, on the debug channel, and not to the conversation.
+        //
+        // ...AND IT SAYS WHICH GATE, which is the half that was missing. The
+        // RCA this feature carries was "absent from the set"; the next one of
+        // its shape would have been "absent, and I still do not know why", and
+        // the reason is the readable fact. `why` rides only on the silent arm —
+        // a wake and a digest are already their own explanation.
+        trace("classified", {
+          terminal: event.row.terminal,
+          file: scope.file,
+          agent: scope.agent,
+          session: scope.session,
+          meaning: meaning ?? "none",
+          why: meaning === null ? whyOut(event.row.terminal, ringing) : null,
+        })
         if (meaning === null) continue
         // Asked ONCE here, against the revision the event arrived on, so a
         // ring that has nothing to say costs no slot in core and no row.
-        if (bodyIn(scope.file, meaning, claiming) === null) continue
+        //
+        // `dropped`, THE SAME WORD THE DELIVERY MOMENT USES, because it is the
+        // same fact — nobody is standing — and the only difference is WHEN it
+        // was asked. This said `withheld` here and `dropped` there, which is two
+        // names for one thing and a reader left wondering which of the two they
+        // were looking at. The seam a line came from is already in the line.
+        if (standingFor(scope.file, meaning, ringing.claiming) === 0) {
+          trace("dropped", { file: scope.file, meaning, why: "nobody-standing" })
+          continue
+        }
+        trace("delivering", {
+          file: scope.file,
+          meaning,
+          agent: scope.agent,
+          session: scope.session,
+          coalesce: `${name}:${meaning}`,
+        })
         services.deliveries.deliver(
           { agent: scope.agent, session: scope.session },
           // ... AND ASKED AGAIN AT THE MOMENT IT GOES IN, which is what this
@@ -538,6 +640,12 @@ export const serve = (services: Services): {
           // said happened, happened. What is re-derived is who it is still
           // true of, and a set that has entirely settled answers `null`, which
           // drops the message rather than shortening it.
+          //
+          // THE GAP BETWEEN `delivering` AND `delivered` IS THE HOLD, and it is
+          // worth two lines rather than one for exactly that reason: a body
+          // handed over and never said is core coalescing it away or a fleet
+          // that settled while it waited, and neither is visible from either
+          // end alone.
           () => {
             const body = said(scope.file, meaning)
             // AND THE WINDOW RESETS HERE, where the words actually go in
@@ -547,6 +655,13 @@ export const serve = (services: Services): {
             // silenced would be a heartbeat lost to a message nobody got
             // ({@link ./doorbell.ts}'s `makeHeartbeat` argues the ledger).
             if (body !== null) heart.delivered(scope)
+            trace("delivered", {
+              file: scope.file,
+              meaning,
+              agent: scope.agent,
+              session: scope.session,
+              said: body !== null,
+            })
             return body
           },
           { coalesce: `${name}:${meaning}` },
@@ -591,6 +706,7 @@ export const serve = (services: Services): {
     terminals,
     now: services.now,
     coalesce: `${name}:heartbeat`,
+    trace,
   })
 
   /**

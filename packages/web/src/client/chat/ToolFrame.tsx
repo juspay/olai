@@ -77,6 +77,7 @@ import { Key } from "@solid-primitives/keyed"
 import { createMemo, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
+import { Markdown } from "../markdown/Markdown.tsx"
 import { armedOf, endedOf, watchOf } from "./background.ts"
 import { Diff } from "./Diff.tsx"
 import { diffKey, isUnfolded, toggleFold } from "./folds.ts"
@@ -180,7 +181,9 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
   /** There is something to unfold when there is either half of a body. A frame
    *  with neither is one line and nothing to press. */
   const body = () =>
-    props.entry.detail !== undefined || (!ended() && props.entry.progress !== undefined)
+    props.entry.detail !== undefined
+    || (!ended() && props.entry.progress !== undefined)
+    || Boolean(props.entry.armed?.report)
 
   return (
     <div
@@ -408,6 +411,23 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
             asked for. */}
         <Show when={!ended() && props.entry.progress}>
           {(progress) => <Saying said={progress()} tall={true} />}
+        </Show>
+        {/* THE TASK'S REPORT, in this fold and nowhere else. An async
+            completion injects the report as a user-role turn; that turn is
+            not drawn. These words are the one place the subagent is allowed
+            to speak in this conversation (`docs/chat.md`), and they ride
+            the task — `armed.report` — which is the vocabulary the ending
+            already uses. Markdown, because they are prose, the same
+            pipeline as the main agent's answer. */}
+        <Show when={props.entry.armed?.report}>
+          {(report) => (
+            <Markdown
+              source={report()}
+              from=""
+              class="olai-md-compact border-t border-rule px-2 py-1 text-sm"
+              testid={TESTID.chatToolReport}
+            />
+          )}
         </Show>
         <Show when={props.entry.detail}>
           {(detail) => (
