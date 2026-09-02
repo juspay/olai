@@ -27,33 +27,45 @@
  *
  * ## What it claims
  *
- *   1. **Only `@olai/plugin-api` names a plugin.** Held as an EQUALITY per
+ *   1. **Only `@olai/bundle` names a plugin.** Held as an EQUALITY per
  *      package — `[]` for every general one — and never as a filtered list
  *      asserted empty: a pattern that rotted would report nothing found and
  *      pass, which is the failure mode the sweeps in `@olai/tests` were
  *      written after two days of exactly it.
- *   2. **No plugin imports another plugin**, and none imports `@olai/plugin-api`.
- *      The second is what keeps the direction a DAG the manifests express: the
- *      registry imports every plugin, so a plugin that imported back would be
- *      a cycle, and the manifests are where that is refused rather than here.
- *      This holds the SOURCES to the same answer the manifests give.
+ *   2. **No plugin imports the REGISTRY, and every plugin imports the
+ *      INTERFACE.** The first is what keeps the direction a DAG the manifests
+ *      express: `@olai/bundle` imports every plugin, so a plugin that imported
+ *      back would be a cycle. The second is the arrow that made the split
+ *      necessary — a server half is a Cordis plugin whose `inject` names
+ *      services `@olai/plugin-api` declares — and it is asserted to EXIST,
+ *      because a fence that only forbade would pass on a tree where the
+ *      services door had quietly stopped being reachable.
+ *
+ *      **"No plugin imports another plugin" is NOT among these any more.**
+ *      The Cordis proposal overturns it: `inject` is the dependency arm and it
+ *      is reactive, so the half-wired state the ban feared is `PENDING`. What
+ *      the ban protected is claim 6's: an appliance's TIER stays inside its
+ *      tenant, so a plugin reaching into another's `./server` drags that
+ *      appliance's client onto its own graph and goes red there.
  *   3. **A plugin is a SIBLING, and core computes none of its addresses.**
  *      Each plugin composes under its own name, no two share one, and a name
  *      is a legal tag segment because it becomes one. The framework would
  *      catch a collision at boot with a duplicate-tag throw; here it is a test,
  *      in a process that has not started yet.
- *   4. **The wire door stays a wire door.** What a composition root reaches
- *      through `@olai/plugin-api/wire` may not pull a UI runtime onto the
+ *   4. **The wire door stays a wire door.** What the browser reaches
+ *      through `@olai/bundle/wire` may not pull a UI runtime onto the
  *      server's graph or an appliance's client onto the browser's — the same
  *      claim `check-kolu-deps.sh`'s fifth assertion makes about the slice one
  *      floor down, made here about the door that composes them.
- *   5. **...and the server door stays a server door.** What `@olai/server`
- *      reaches through `@olai/plugin-api/server` MAY pull an appliance's client,
- *      the vault's format and a `node:` builtin — that is what a runtime half
- *      is made of — and may not pull a browser face onto the graph of a
- *      process that renders nothing. It is the complement of claim 4 rather
- *      than a repetition of it, and the two together are why there are three
- *      doors.
+ *   5. **...and the server door stays a server door.** The modules the bundle's
+ *      ROWS name MAY pull an appliance's client, the vault's format and a
+ *      `node:` builtin — that is what a runtime half is made of — and may not
+ *      pull a browser face onto the graph of a process that renders nothing.
+ *      It is the complement of claim 4 rather than a repetition of it, and the
+ *      two together are why there are three doors. It is walked as each ROW's
+ *      module rather than as one array's import graph, because there is no
+ *      array: a row names a specifier the loader resolves at mount, so what is
+ *      walked is every module this build will actually mount.
  *   6. **An appliance's PRODUCT TIER stays inside its tenant**, and the tenant
  *      is COMPUTED. Which packages may name `@kolu/padi-client` or
  *      `@odu/run-client` used to be two hand-written `grep -v` path
@@ -459,7 +471,9 @@ describe("the server door pulls no browser face", () => {
  * walk would have had `plugins` meaning the fence's subject in one line and the
  * thing it fences in the next. So the interface moved out to `@olai/plugin-api`
  * and `packages/plugins/` became the container — one directory, one kind of
- * thing in it.
+ * thing in it. The REGISTRY then moved again, to `@olai/bundle`, when a plugin
+ * started importing the interface; the container is unaffected, and the package
+ * a plugin may not import is `@olai/bundle` now.
  *
  * Held BOTH WAYS, because each direction fails differently and silently:
  *
@@ -536,42 +550,35 @@ describe("only the registry knows a plugin's name", () => {
     expect([...declaredBy(REGISTRY)].sort()).toEqual([...PLUGIN_PACKAGES].sort())
   })
 
-  test("a plugin imports another plugin only through its own name, and no registry", () => {
-    for (const { dir, pkg } of TENANTS_OF) {
-      // ITS OWN NAME comes off the record rather than being spelled out of the
-      // directory. It used to be `@olai/${dir}`, which was the tenant's real
-      // package name only while a tenant was `packages/plugin-<name>` and
-      // scoped — after the fold that arithmetic composes
-      // `@olai/plugins/olai-plugin-kolu`, which is not a specifier anything can
-      // produce, so the exclusion silently stopped excluding: a tenant that
-      // reached its own package by name would be reported as importing a
-      // FOREIGN plugin. Which is exactly the shape the tenancy claim's own
-      // header cites — "a plugin package grew a testlib that served its own
-      // appliance's real surface" — so the wrong failure would arrive on the
-      // day the right one was meant to be forgiven.
-      //
-      // NO PLUGIN IMPORTS ANOTHER PLUGIN, and this is the claim the proposal
-      // rules ON. It is a fact about today rather than a wall: a plugin may
-      // NAME another plugin's service in its `inject`, and the day the
-      // spaces-mirror lane does (kolu's fleet beside odu's runs) this claim
-      // becomes "and it imports the service definitions it names, which are
-      // `@olai/plugin-api`'s". Until then it is worth holding as an equality,
-      // because an accidental edge is still an accident.
-      const foreign = tree.get(dir)?.flatMap((s) =>
-        s.plugins.filter((p) => p !== pkg && !p.startsWith(`${pkg}/`)).map((p) => `${s.file}: ${p}`)
-      ) ?? []
-      expect(foreign, dir).toEqual([])
-      // THE REGISTRY IS STILL FORBIDDEN, and the INTERFACE is not — which is
-      // the reversal this phase made and the reason the two are different
-      // packages at all. `@olai/bundle` imports every plugin, so a plugin
-      // importing it back is the cycle the manifests decline to express;
-      // `@olai/plugin-api` imports none, so a plugin importing it is an
-      // ordinary arrow and is how a server half names the services it injects.
-      //
-      // Held over the sources too, because a type-only import is a cycle a
-      // bundler forgives and a reader does not — which is why this reads
-      // `specs` (the positional grammar, which sees a type-only import) rather
-      // than the walk's `scanImports`.
+  /**
+   * A PLUGIN MAY NOT IMPORT THE REGISTRY — and MAY import another plugin, which
+   * is the one claim of this file the phase RETIRED.
+   *
+   * ## What fell, and why it is not a hole
+   *
+   * "No plugin imports another plugin" was an equality here. The Cordis proposal
+   * overturns it: `inject` is the dependency arm and it is REACTIVE, so the
+   * half-wired state the ban feared is `PENDING` — a legitimate, inspectable
+   * state the runtime resolves or reports. The first edge that needs it is the
+   * spaces-mirror lane, which wants kolu's fleet beside odu's runs and which the
+   * old shape could only wire by hand at the composition root.
+   *
+   * What the ban was PROTECTING is still protected, by a claim further down: an
+   * appliance's product TIER stays inside its TENANT, so a plugin that reached
+   * into another's `./server` would drag that appliance's client onto its own
+   * graph and go red there. The protection moved; it did not leave.
+   *
+   * ## What stands
+   *
+   * THE REGISTRY IS STILL FORBIDDEN. `@olai/bundle` imports every plugin, so a
+   * plugin importing it back is the cycle the manifests decline to express.
+   * Held over the sources too, because a type-only import is a cycle a bundler
+   * forgives and a reader does not — which is why this reads `specs` (the
+   * positional grammar, which sees a type-only import) rather than the walk's
+   * `scanImports`.
+   */
+  test("a plugin does not import the registry", () => {
+    for (const { dir } of TENANTS_OF) {
       const back = tree.get(dir)?.flatMap((s) =>
         s.specs
           .filter((spec) => spec === "@olai/bundle" || spec.startsWith("@olai/bundle/"))
@@ -582,16 +589,16 @@ describe("only the registry knows a plugin's name", () => {
   })
 
   /**
-   * ...AND THE INTERFACE IS WHAT A PLUGIN DOES IMPORT, which is the positive
-   * half of the claim above and is not decoration.
+   * ...AND IT DOES IMPORT THE INTERFACE, which is the positive half and is not
+   * decoration.
    *
    * A version of this fence that only forbade things would pass on a tree where
    * the services door had quietly stopped being reachable — a plugin written
    * against a copy of the shapes, structurally, the way `olai-plugin-odu`'s
    * `server.ts` re-declared `Deliveries` for a while precisely because the
-   * import was a cycle. So the arrow is asserted to EXIST.
+   * import WAS a cycle. So the arrow is asserted to exist.
    */
-  test("...and every plugin's server half does import the interface", () => {
+  test("...and every plugin does import the interface", () => {
     for (const { dir } of TENANTS_OF) {
       const named = tree.get(dir)?.flatMap((s) =>
         s.specs
@@ -1115,7 +1122,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
    * asserts kolu's Dock-row attributes by name. A claim that forbade it to
    * spell `kolu` would be a claim that forbade it to test kolu. Its own
    * manifest already argues the narrower carve-out it keeps (names only,
-   * through `@olai/plugin-api/testids`), which is the import half of the same
+   * through `@olai/bundle/testids`), which is the import half of the same
    * question and is held by claim 1.
    *
    * `.css` is left to claim 1, which reads `@import` in the grammar CSS has.
