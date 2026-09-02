@@ -28,7 +28,7 @@ import { AGENT_ENV, roster, whyNoAgent } from "@olai/chat"
 import type { GitPin } from "@olai/format"
 import type { IdentityConfig } from "@olai/identity"
 import { fixedPolicy, make as makeOps, TOOLS } from "@olai/ops"
-import { BUNDLE_NAMES, mountBundle } from "@olai/bundle/bundle"
+import { BUNDLE_NAMES, mountBundle, reportBundle } from "@olai/bundle/bundle"
 import { emitter } from "@olai/log"
 import {
   Clock,
@@ -233,6 +233,13 @@ export const serve = (options: ServeOptions) =>
         await plugins.plugin(Surfaces, { changed: () => onChange.run() })
       await mountBundle(plugins, options.plugins)
     })
+    // WHAT BECAME OF EACH ROW, read once the bundle has settled — the word a
+    // preferences row wears when a plugin is not running, and the plugin's own
+    // sentence when its start threw. A snapshot rather than a live read
+    // because a failed fiber's error is private and reachable only by awaiting
+    // it; `./runtime.ts`'s `PluginRuntime.report` argues why that is honest in
+    // this phase and names the phase it stops being.
+    const report = yield* Effect.promise(() => reportBundle(plugins))
     const kinds = yield* Effect.promise(() => propKinds(plugins))
     const { root, store } = yield* openDirectory(options.root, kinds)
     // ...and the SECOND capture, now the root annotation is in force — see the
@@ -487,6 +494,7 @@ export const serve = (options: ServeOptions) =>
         onChange,
         built: BUNDLE_NAMES,
         pinned: options.plugins,
+        report,
       },
     })
     publish = wired.publish

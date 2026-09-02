@@ -68,7 +68,8 @@ import Loader from "@cordisjs/plugin-loader"
 import type { EntryOptions } from "@cordisjs/plugin-loader"
 import type { PropKind } from "@olai/plugin-api"
 import { kindWordOf } from "@olai/plugin-api"
-import type { Context } from "cordis"
+import type { Context, Fiber } from "cordis"
+import { FiberState } from "cordis"
 import { load } from "js-yaml"
 import { readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
@@ -203,6 +204,113 @@ export const declaredKinds = async (): Promise<ReadonlyMap<string, PropKind>> =>
 /** The loader's module-resolution seam, written where the plugins are declared
  *  — see this module's header for why it cannot live in the loader's package. */
 const importByName = (specifier: string): Promise<unknown> => import(specifier)
+
+/**
+ * WHAT BECAME OF ONE ROW — the mechanical half of the word a preferences row
+ * wears, and deliberately four states rather than five.
+ *
+ * `off` here means the loader declined to load the row, and says nothing about
+ * WHO wrote the `disabled` that made it decline. The row's own default and the
+ * operator's flag are the same field by design ({@link pluginsPatch}), so the
+ * only thing that can tell them apart is whether a flag was given at all —
+ * which is `--plugins`, which is the composition root's to hold and not this
+ * file's. So the root splits `off` into `off` and `optIn` when it builds the
+ * roster, and this reading stays about the LOADER.
+ */
+export type RowState = "running" | "waiting" | "failed" | "off"
+
+/** One row's state, and the plugin's own words if its start threw. */
+export interface RowReport {
+  readonly state: RowState
+  /** VERBATIM, and only on `failed` — what the plugin threw, with nothing
+   *  composed around it. Absent where it threw something with no message. */
+  readonly fault?: string
+}
+
+/**
+ * EVERY ROW'S STATE, off the live registry — which plugin fiber is where.
+ *
+ * ## Why the registry and not the loader's entries
+ *
+ * `@cordisjs/plugin-include` is an `EntryTree` of its own, and it is mounted
+ * with `ctx.plugin(Include, …)` rather than as a loader entry — so the link
+ * `EntryTree`'s constructor draws (`ctx.fiber.entry.subtree = this`) is never
+ * drawn, and `ctx.loader.entries()` yields nothing about the rows. The
+ * REGISTRY has them either way: a row that loaded called `ctx.plugin` on the
+ * module it named, and a runtime is keyed by that module's own `name` export,
+ * which every row's server half exports as the row's `id`. One reading, and it
+ * does not depend on a private link between two of the pin's packages.
+ *
+ * ## A row that never loaded is ABSENT, and that is the `off` arm
+ *
+ * The loader does not import a disabled row at all, so there is no runtime to
+ * find and nothing to read a state off. That absence IS the answer — the same
+ * absence the wire, the faces and the kind table already show — rather than a
+ * missing case.
+ *
+ * ## ASYNC because a fault is only readable by asking for it
+ *
+ * Cordis keeps a failed fiber's error private and re-throws it from `await()`,
+ * which for a settled fiber is one already-rejected promise. So the walk awaits
+ * exactly the fibers that are in `FAILED` and nothing else; every other row
+ * answers synchronously and the returned promise is already resolved by the
+ * time the caller has it.
+ */
+export const reportBundle = async (ctx: Context): Promise<ReadonlyMap<string, RowReport>> => {
+  const wanted = new Set(BUNDLE_NAMES)
+  const fibers = new Map<string, Fiber>()
+  ctx.registry.forEach((runtime) => {
+    const id = runtime.name
+    if (id === undefined || !wanted.has(id)) return
+    // The FIRST fiber, and a row has exactly one: the bundle mounts each module
+    // once. A second would mean two rows naming one module, which the entry ids
+    // already forbid.
+    for (const fiber of runtime.fibers) {
+      if (!fibers.has(id)) fibers.set(id, fiber)
+    }
+  })
+  const table = new Map<string, RowReport>()
+  for (const row of ROWS) {
+    const fiber = fibers.get(row.id)
+    if (fiber === undefined) {
+      table.set(row.id, { state: "off" })
+      continue
+    }
+    table.set(row.id, await reportOf(fiber))
+  }
+  return table
+}
+
+/** One fiber's state, as a row's word — and the one place the runtime's six
+ *  states are collapsed into the four a person is shown. `LOADING` is `waiting`
+ *  with the same sentence under it (a row that has not finished starting has
+ *  not started), and `UNLOADING`/`DISPOSED` are `off` because a fiber on its
+ *  way out has already unwound every registration it made. */
+const reportOf = async (fiber: Fiber): Promise<RowReport> => {
+  switch (fiber.state) {
+    case FiberState.ACTIVE:
+      return { state: "running" }
+    case FiberState.PENDING:
+    case FiberState.LOADING:
+      return { state: "waiting" }
+    case FiberState.FAILED: {
+      const fault = await fiber.await().then(() => undefined, faultOf)
+      return fault === undefined ? { state: "failed" } : { state: "failed", fault }
+    }
+    default:
+      return { state: "off" }
+  }
+}
+
+/** The plugin's own words, or nothing — never core's paraphrase of them. A
+ *  throw with no message reaches the panel as a row that says a start threw and
+ *  quotes nobody, which is honest; `String(reason)` on a bare `Error` would put
+ *  the word "Error" on screen as if the plugin had said it. */
+const faultOf = (reason: unknown): string | undefined => {
+  const said = reason instanceof Error ? reason.message : typeof reason === "string" ? reason : ""
+  const trimmed = said.trim()
+  return trimmed === "" ? undefined : trimmed
+}
 
 /**
  * MOUNT THE BUNDLE ON `ctx` — the rows, patched by the flag, as fibers.

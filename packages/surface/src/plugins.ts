@@ -66,6 +66,43 @@ export const BuiltPlugin = Schema.Struct({
    *  `false` is total absence rather than a degraded arm. */
   running: Schema.Boolean,
   /**
+   * WHY, IN ONE WORD — the five states {@link pluginState} narrows to, and the
+   * one thing `running` cannot say.
+   *
+   * A plugin is a Cordis fiber now, and `false` covers four different mornings:
+   * the operator's flag left it out, the BUILD leaves it out until somebody
+   * asks, its `apply` threw, or it is still waiting on a service that has not
+   * arrived. Those want four different sentences under the row, and one of them
+   * wants an alarm — so the word travels rather than being guessed at the far
+   * end from a boolean that has already thrown the distinction away.
+   *
+   * `running` STAYS, and is not redundant: it is what the browser's two mount
+   * licences are read out of (`@olai/web`'s `client/plugins/running.ts`), and a
+   * licence must not have to know five words to answer one question. The two
+   * cannot disagree — the composition root writes `running` from what actually
+   * registered a sibling and derives this from the same reading.
+   *
+   * A PLAIN STRING, and OPTIONAL, for the two reasons `wake` is: a tab left
+   * open across a downgrade is talking to a serve that declares none, and a
+   * serve may one day name a sixth word this build has never heard of. Neither
+   * may fail the roster's DECODE, because the roster is what every plugin's
+   * mount hangs off. {@link pluginState} is the one reading, and it answers an
+   * absent or unknown word out of `running` — which is exactly what this field
+   * refines and never contradicts.
+   */
+  state: Schema.optionalKey(Schema.String),
+  /**
+   * ...AND THE PLUGIN'S OWN WORDS, when its start threw — verbatim, with core
+   * composing nothing around them.
+   *
+   * Only on a row whose state is `failed`. The panel draws it under the row's
+   * sentence and quotes it as the plugin's; a serve that failed a plugin with
+   * no message to give sends none, and the row says a start threw without
+   * inventing what it said. That is the same rule the delivery doors keep:
+   * failure prose is the plugin's, and core's job is to carry it.
+   */
+  fault: Schema.optionalKey(Schema.String),
+  /**
    * THE DOORBELL'S SENTENCE, when this plugin can wake a conversation — the
    * plugin's own words, travelling as data.
    *
@@ -131,6 +168,70 @@ export const BuiltPlugin = Schema.Struct({
   })),
 })
 export type BuiltPlugin = typeof BuiltPlugin.Type
+
+/**
+ * THE FIVE WORDS A ROW CAN BE IN, and each is a different morning.
+ *
+ *   - `running`  composed: members on the wire, faces drawn, probe run, kinds
+ *                held. The ordinary state and the only one that is good news.
+ *   - `off`      the operator's flag did not name it. Total absence, asked for.
+ *   - `optIn`    this BUILD leaves it off until somebody asks — the row's own
+ *                `disabled`, which is the built-in default living in the file
+ *                the loader reads. Also total absence, and NOBODY ASKED, which
+ *                is why it is not the same word as `off`: a row nobody chose is
+ *                not a row somebody turned off, and only one of the two is
+ *                worth a person's attention when they went looking for a chip.
+ *   - `failed`   its `apply` threw. The one word that is a FAULT: it was asked
+ *                for, it is absent, and nothing else on screen says so.
+ *   - `waiting`  the fiber is `PENDING` on a service that has not arrived. Not
+ *                reachable while everything a plugin injects is mounted before
+ *                the bundle is, and declared here because the runtime that can
+ *                produce it is already the one running.
+ */
+export type PluginState = "running" | "off" | "optIn" | "failed" | "waiting"
+
+/** The five, as a set — the narrowing's whole vocabulary, spelled once. */
+const STATES: ReadonlySet<string> = new Set<PluginState>([
+  "running",
+  "off",
+  "optIn",
+  "failed",
+  "waiting",
+])
+
+/**
+ * WHAT WORD A ROW IS IN — the one reading of {@link BuiltPlugin.state}, and the
+ * one place an absent or unknown word is answered.
+ *
+ * ## Why it narrows rather than decodes
+ *
+ * The field is a plain optional string precisely so that neither an older serve
+ * (which declares none) nor a newer one (which may name a sixth) can fail the
+ * roster's decode — and a roster that fails to decode takes EVERY plugin's
+ * mount down, not this row's. That decision is only worth making if somebody
+ * then narrows, which is here: a word this build does not know falls back to
+ * what `running` already said, so the worst a strange serve can do is draw the
+ * row the way this app drew every row before the field existed.
+ *
+ * ## And why the fallback is `running`, not `off`
+ *
+ * `running` is the field the two ends have always agreed on and the one the
+ * mount licences are read from. A narrowing that answered `off` for a row whose
+ * `running` is `true` would put the panel and the page into two different
+ * stories about the same plugin — a chip in the bar, and a row saying it is not
+ * there. So this refines `running` and can never contradict it.
+ */
+export const pluginState = (plugin: BuiltPlugin): PluginState => {
+  const word = plugin.state
+  if (word !== undefined && STATES.has(word)) {
+    // ...and a serve that says `running` while `running` is false, or the other
+    // way round, is not a state this can carry either: the boolean wins, for
+    // the reason above. Only the four ABSENT words are refinements of `false`.
+    const claimed = word as PluginState
+    if ((claimed === "running") === plugin.running) return claimed
+  }
+  return plugin.running ? "running" : "off"
+}
 
 /**
  * THE ROSTER: every plugin compiled in, in registry order, and what the

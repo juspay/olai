@@ -114,6 +114,7 @@ import {
   NO_ROSTER,
   type OpFailure,
   type PluginRoster,
+  type PluginState,
   surface,
   watchable,
   type Who,
@@ -163,6 +164,7 @@ import { cadence } from "@olai/chat"
  * environment, the clock and the two log channels are reached for.
  */
 import type { ConversationSeen, Registered, Wake } from "@olai/plugin-api/services"
+import type { RowReport } from "@olai/bundle/bundle"
 import type { Context } from "cordis"
 
 import type { Cadence, Change, Chat } from "@olai/chat"
@@ -314,6 +316,32 @@ export interface PluginRuntime {
    * setting over.
    */
   readonly pinned: ReadonlyArray<string> | null
+  /**
+   * WHAT BECAME OF EACH ROW, as the loader left it — the word a preferences row
+   * wears when `running` is `false`, and the plugin's own words when its start
+   * threw.
+   *
+   * ## A BOOT SNAPSHOT, and that is a phase boundary rather than a shortcut
+   *
+   * `running` is read LIVE, off what has registered a sibling surface, and this
+   * is not: it is taken once, after `mountBundle` settles, because a fiber's
+   * error is private and reachable only by awaiting it, and the roster is
+   * republished synchronously from a re-compose. The two cannot disagree
+   * because {@link rosterOf} lets the live reading WIN — a name that is
+   * composed says `running` whatever the snapshot remembers, and the snapshot
+   * is spent only on the rows that are absent.
+   *
+   * Nothing in this phase mounts or fails a plugin after the boot: the bundle
+   * is mounted before the store opens and nothing turns a row off afterwards.
+   * The day something can (the preferences toggle, phase 6) this is the second
+   * of the two places that has to learn to move — `./propKinds.ts` names the
+   * first, and for the same reason.
+   *
+   * EMPTY IS LEGAL and is what every caller that does not care passes: a row it
+   * has nothing to say about is `off`, which is what `running: false` has always
+   * meant on its own.
+   */
+  readonly report: ReadonlyMap<string, RowReport>
 }
 export interface Wiring {
   /** THE SERVED word: the machine this process runs on, minted ONCE per
@@ -583,9 +611,21 @@ export const rosterOf = (
     built: offered.built.map((name) => {
       const composed = running.includes(name)
       const wake = composed ? wakes.get(name) : undefined
+      const said = stateOf(offered, name, composed)
       return {
         name,
         running: composed,
+        // THE WORD, beside the boolean it refines — never instead of it. The
+        // licences a browser reads its mounts out of ask the boolean; the panel
+        // asks the word; and `@olai/surface`'s `pluginState` is what holds the
+        // two together at the far end, including for a serve too old to send
+        // one at all.
+        state: said.state,
+        // ...and the plugin's own sentence, on the one word that is a fault.
+        // Core writes no clause of it, for the reason the wake's three strings
+        // are the plugin's: a sentence with a hole in it would make core the
+        // author of everything around the hole.
+        ...(said.fault === undefined ? {} : { fault: said.fault }),
         // WHAT THE PICKER IS MADE OF, named one at a time rather than spread
         // whole — and the omission is the point. The three strings the strip
         // draws, plus the KINDS the picker may offer, because that is the one
@@ -607,6 +647,58 @@ export const rosterOf = (
     }),
     pinned: offered.pinned,
   }
+
+/**
+ * WHICH OF THE FIVE WORDS ONE ROW IS IN — the live reading and the boot
+ * snapshot, joined, and the one place `off` is told from `optIn`.
+ *
+ * ## The live reading wins
+ *
+ * A name that COMPOSED is `running`, whatever the snapshot remembers, and the
+ * snapshot is spent only on the rows that are absent. That is what keeps the
+ * word and the boolean from telling two stories about one plugin: `running` is
+ * derived from the same reading, on the line above.
+ *
+ * ## And the one thing the loader cannot tell you
+ *
+ * The row's own `disabled` and the operator's flag are the SAME FIELD — that is
+ * the whole of what makes `--plugins` a patch rather than a filter — so nothing
+ * downstream of the patch can say which of them wrote it. What can is whether a
+ * flag was given at all, which is `pinned`, which is here. So an absent row
+ * under no flag is `optIn` (this build leaves it off until somebody asks) and
+ * an absent row under a flag is `off` (somebody asked, and did not ask for
+ * this). A person who went looking for a chip is owed that difference: one of
+ * them names a flag they typed, and the other names one they have not.
+ */
+const stateOf = (
+  offered: NonNullable<Wiring["plugins"]>,
+  name: string,
+  composed: boolean,
+): { readonly state: PluginState; readonly fault?: string } => {
+  if (composed) return { state: "running" }
+  // A row the snapshot has nothing to say about is `off`, which is what
+  // `running: false` on its own has always meant.
+  const report = offered.report.get(name) ?? { state: "off" as const }
+  switch (report.state) {
+    case "failed":
+      return report.fault === undefined
+        ? { state: "failed" }
+        : { state: "failed", fault: report.fault }
+    case "waiting":
+      return { state: "waiting" }
+    case "off":
+      // THE LOADER DECLINED TO LOAD IT, and `pinned` is the only thing left
+      // that can say who wrote the `disabled` it declined on.
+      return { state: offered.pinned === null ? "optIn" : "off" }
+    default:
+      // `running` in the snapshot and absent from the live reading: a fiber
+      // that is ACTIVE and registered no sibling surface. Somebody asked for
+      // it and it did load, so it is not `optIn`; nothing of it reached the
+      // wire, so it is not `running` either. `off` is the honest word, and it
+      // is the one every other absence already wears.
+      return { state: "off" }
+  }
+}
 
 /** One of those, as `implementSurface` wants it. A bound member is called with
  *  the bare input (`bind(ns, verb, (input) => handler({ input, ctx }))`), and

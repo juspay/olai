@@ -21,7 +21,7 @@
 import { NO_ROSTER, type PluginRoster } from "@olai/surface"
 import { expect, test } from "bun:test"
 
-import { pluginHint, pluginRows, pluginsSetBy } from "./plugins.ts"
+import { pluginHint, pluginRows, pluginSetBy } from "./plugins.ts"
 import { pluginPref, PLUGIN_PREF } from "../testids.ts"
 
 /** A build with two plugins, and whichever of them this case is about running.
@@ -36,6 +36,29 @@ const roster = (
   ],
   pinned,
 })
+
+/**
+ * ...and a build whose ONE row is in a named state — what a serve that sends
+ * the word looks like.
+ *
+ * A separate helper rather than a third parameter on the one above, because
+ * every case up there is about a serve that sends no word at all, which is both
+ * the shape an older server has and the shape the narrowing falls back to. Two
+ * helpers keep that reading honest: nothing here quietly starts sending a state
+ * to the cases that are about not having one.
+ */
+const row = (state: string, fault?: string): PluginRoster => ({
+  built: [{
+    name: "alpha",
+    running: state === "running",
+    state,
+    ...(fault === undefined ? {} : { fault }),
+  }],
+  pinned: null,
+})
+
+/** That row, for the readings that take one. */
+const only = (sent: PluginRoster) => sent.built[0]!
 
 /**
  * A ROW PER PLUGIN THE BUILD HAS, not per plugin that is running — which is the
@@ -97,13 +120,15 @@ test("the hint says which state the app is in, and names the plugin", () => {
  * it makes unspellable.
  */
 test("a given flag is named with its value, and an omitted one is the default", () => {
-  expect(pluginsSetBy(roster(["alpha", "beta"]))).toContain("built-in default")
-  expect(pluginsSetBy(roster(["alpha", "beta"]))).not.toContain("--plugins=")
+  const nobody = roster(["alpha", "beta"])
+  expect(pluginSetBy(nobody, nobody.built[0]!)).toContain("built-in default")
+  expect(pluginSetBy(nobody, nobody.built[0]!)).not.toContain("--plugins=")
   // ...and the flag is still NAMED where nobody gave it, because the reader who
   // wants this changed needs the door even when there is no value to quote.
-  expect(pluginsSetBy(roster(["alpha", "beta"]))).toContain("--plugins")
+  expect(pluginSetBy(nobody, nobody.built[0]!)).toContain("--plugins")
 
-  const pinned = pluginsSetBy(roster(["alpha"], ["alpha"]))
+  const said = roster(["alpha"], ["alpha"])
+  const pinned = pluginSetBy(said, said.built[0]!)
   expect(pinned).toContain("--plugins=alpha")
   expect(pinned).not.toContain("built-in default")
 })
@@ -111,8 +136,8 @@ test("a given flag is named with its value, and an omitted one is the default", 
 /** A list is spelled the way it is typed — comma-separated, no spaces — so the
  *  line is something a reader can hand to whoever runs the instance verbatim. */
 test("a multi-name flag is quoted as one word", () => {
-  expect(pluginsSetBy(roster(["alpha", "beta"], ["alpha", "beta"])))
-    .toContain("--plugins=alpha,beta")
+  const said = roster(["alpha", "beta"], ["alpha", "beta"])
+  expect(pluginSetBy(said, said.built[0]!)).toContain("--plugins=alpha,beta")
 })
 
 /**
@@ -124,7 +149,8 @@ test("a multi-name flag is quoted as one word", () => {
  * could hand to whoever runs the instance.
  */
 test("an empty flag is somebody saying none, and says so as itself", () => {
-  const none = pluginsSetBy(roster([], []))
+  const said = roster([], [])
+  const none = pluginSetBy(said, said.built[0]!)
   expect(none).toContain("--plugins=")
   expect(none).toContain("none of them")
   expect(none).not.toContain("built-in default")
@@ -133,15 +159,106 @@ test("an empty flag is somebody saying none, and says so as itself", () => {
 /** Every read-only row says the same two things — who set it, and that this
  *  browser cannot — because they are one doctrine (`./instance.ts`). A second
  *  copy of it is the copy somebody softens. */
-test("both arms carry the instance doctrine", () => {
+test("every arm carries the instance doctrine", () => {
+  const flagless = roster(["alpha", "beta"])
+  const pinned = roster(["alpha"], ["alpha"])
+  const optIn = row("optIn")
   const both = [
-    pluginsSetBy(roster(["alpha", "beta"])),
-    pluginsSetBy(roster(["alpha"], ["alpha"])),
+    pluginSetBy(flagless, flagless.built[0]!),
+    pluginSetBy(pinned, pinned.built[0]!),
+    pluginSetBy(optIn, only(optIn)),
   ]
   for (const said of both) {
     expect(said).toContain("instance's policy")
     expect(said).toContain("cannot be changed")
   }
+})
+
+/**
+ * THE FOUR ABSENCES ARE FOUR SENTENCES, and the boolean could only ever say
+ * one of them.
+ *
+ * `running: false` covers the flag leaving it out, the BUILD leaving it out
+ * until somebody asks, a start that threw, and a plugin still waiting on a
+ * service. All four cost exactly the same — total absence — so the account of
+ * the cost is the same in each; what differs is the WHY, which is the only
+ * thing a person can act on and the only thing the boolean threw away.
+ */
+test("each absence says its own why, over one account of the cost", () => {
+  const optIn = row("optIn")
+  const failed = row("failed", "no socket at /run/nothing")
+  const waiting = row("waiting")
+  const off = row("off")
+
+  // Every one of them carries the same four costs.
+  for (const sent of [optIn, failed, waiting, off]) {
+    const said = pluginHint(only(sent))
+    expect(said).toContain("no member of it is served")
+    expect(said).toContain("plain text")
+    expect(said).toContain("alpha")
+  }
+
+  // ...and four different reasons.
+  expect(pluginHint(only(optIn))).toContain("this build ships it off")
+  expect(pluginHint(only(off))).toContain("was not asked for")
+  expect(pluginHint(only(waiting))).toContain("has not finished starting")
+  expect(pluginHint(only(failed))).toContain("its start threw")
+})
+
+/**
+ * THE PLUGIN'S OWN WORDS, QUOTED — core composes no clause of them, which is
+ * the rule the doorbell's three strings already keep.
+ *
+ * A start that threw is the one arm that is a FAULT rather than a policy, and
+ * it is the one arm where the useful half of the sentence is not core's to
+ * write. A throw with nothing to say is quoted as nothing rather than as core's
+ * paraphrase of it — `String(reason)` on a bare `Error` would put the word
+ * "Error" on screen as if the plugin had said it.
+ */
+test("a failed row quotes what the plugin said, or says it said nothing", () => {
+  expect(pluginHint(only(row("failed", "no socket at /run/nothing"))))
+    .toContain("“no socket at /run/nothing”")
+  expect(pluginHint(only(row("failed")))).toContain("gave no message")
+})
+
+/**
+ * THE OPT-IN ROW IS WHY THE LINE IS PER ROW.
+ *
+ * Under no flag at all, one row's built-in default is ON and its neighbour's is
+ * OFF. One line for the whole panel could name only one of those two defaults,
+ * and the row a reader is looking at would be the other one. The opt-in row
+ * also names the flag VALUE that turns it on, because this is the one screen in
+ * the product that tells you what to type.
+ */
+test("an opt-in row names its own default and the flag that changes it", () => {
+  const sent = row("optIn")
+  const said = pluginSetBy(sent, only(sent))
+  expect(said).toContain("ships alpha off")
+  expect(said).toContain("--plugins=alpha")
+  // ...and its neighbour under the same absent flag says the opposite default,
+  // which is the whole reason this is not one line for the panel.
+  const ordinary = roster(["alpha", "beta"])
+  expect(pluginSetBy(ordinary, ordinary.built[0]!)).toContain("built-in default")
+  expect(pluginSetBy(ordinary, ordinary.built[0]!)).not.toContain("ships")
+})
+
+/**
+ * A WORD THIS BUILD DOES NOT KNOW DRAWS THE ROW THE OLD WAY, rather than a
+ * blank or a lie.
+ *
+ * The state travels as a plain optional string so that neither an older serve
+ * (which sends none) nor a newer one (which may name a sixth) can fail the
+ * roster's DECODE — and a roster that fails to decode takes every plugin's
+ * mount down, not this row's. `@olai/surface`'s `pluginState` is where that
+ * narrowing happens; this case is the panel's half of it.
+ */
+test("a state this tab has never heard of falls back to the boolean", () => {
+  expect(pluginHint(only(row("hibernating")))).toContain("was not asked for")
+  // ...and a serve too old to send one at all is the same fallback, which is
+  // exactly how this panel drew every row before the word existed.
+  const old = roster(["alpha"])
+  expect(pluginHint(old.built[0]!)).toContain("is running")
+  expect(pluginHint(old.built[1]!)).toContain("is not running")
 })
 
 /**

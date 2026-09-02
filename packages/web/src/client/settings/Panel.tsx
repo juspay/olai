@@ -89,7 +89,7 @@ import {
   pushOn,
   pushSetBy,
 } from "./policy.ts"
-import { pluginHint, pluginRows, pluginsSetBy } from "./plugins.ts"
+import { pluginHint, pluginRows, pluginSetBy } from "./plugins.ts"
 import { QUIET_MS } from "@olai/format"
 import { Row } from "./Row.tsx"
 import { Segmented } from "./Segmented.tsx"
@@ -352,7 +352,7 @@ export function Panel(props: {
             label={plugin.name}
             pref={pluginPref(plugin.name)}
             hint={pluginHint(plugin)}
-            setBy={pluginsSetBy(plugins())}
+            setBy={pluginSetBy(plugins(), plugin)}
           >
             <Segmented
               choices={PLUGIN_CHOICES}

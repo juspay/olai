@@ -1755,8 +1755,18 @@ export { App, appName } from "./app.ts"
  *
  *  `watchable` is the one reading of a row's `wake.kinds`, and it is exported
  *  because the two ends that ask it — the browser's picker and the serve's
- *  per-revision fault — must agree and cannot see each other. */
-export { BuiltPlugin, NO_ROSTER, PluginRoster, watchable } from "./plugins.ts"
+ *  per-revision fault — must agree and cannot see each other. `pluginState` is
+ *  the same arrangement one field over: the composition root writes the word
+ *  and the panel narrows it, and a narrowing spelled twice is a panel that can
+ *  disagree with the serve about which of five mornings a row is having. */
+export {
+  BuiltPlugin,
+  NO_ROSTER,
+  type PluginState,
+  pluginState,
+  PluginRoster,
+  watchable,
+} from "./plugins.ts"
 
 /** Where the hashed browser bundle lives, and what the bundler names a split
  *  chunk in it — see {@link ./bundle.ts}. One spelling, both halves of the

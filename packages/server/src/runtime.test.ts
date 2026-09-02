@@ -28,7 +28,7 @@ import {
 import type { App, DocumentEntry, Head, Manifest, PluginRoster, Shelf } from "@olai/surface"
 import { CHAT_OFF, NO_ROSTER } from "@olai/surface"
 import type { Chat, Faulted, Scoped } from "@olai/chat"
-import { DEFAULT_BUNDLE_NAMES } from "@olai/bundle/bundle"
+import { DEFAULT_BUNDLE_NAMES, type RowReport } from "@olai/bundle/bundle"
 import { PLUGIN_NAMES } from "@olai/bundle/wire"
 import type { Deliveries } from "@olai/plugin-api/services"
 import { DeliveryDoors, Surfaces, Wakes } from "@olai/plugin-api/services"
@@ -165,6 +165,11 @@ const withRuntime = <A>(
         onChange,
         built: (extra.plugins ?? []).map((one) => one.name),
         pinned: null,
+        // NOTHING TO SAY ABOUT ANY ROW: these runtimes mount doubles directly
+        // rather than through the bundle, so there is no loader reading to
+        // snapshot. An empty report is what `running: false` has always meant
+        // on its own, which is the state every row here is in.
+        report: new Map(),
       },
       git: gitWiring(
         ops,
@@ -647,11 +652,15 @@ test("a revision that changes no pin sends no frame", () =>
  * it on and nothing mounted" — which is a real state and the one the old
  * derivation could not express.
  */
-const offering = (pinned: ReadonlyArray<string> | null = null): PluginRuntime => ({
+const offering = (
+  pinned: ReadonlyArray<string> | null = null,
+  report: ReadonlyMap<string, RowReport> = new Map(),
+): PluginRuntime => ({
   ctx: new Context(),
   onChange: { run: () => {} },
   built: PLUGIN_NAMES,
   pinned,
+  report,
 })
 
 /**
@@ -738,6 +747,95 @@ test("an empty flag crosses as an empty list, not as nobody having said", () => 
  */
 test("no plugin slot is no roster, rather than every plugin off", () => {
   expect(rosterOf(null)).toEqual(NO_ROSTER)
+})
+
+/**
+ * THE WORD, BESIDE THE BOOLEAN — five states where `running: false` was one,
+ * and each of them is a different sentence under the row.
+ *
+ * `running` covered four different mornings with one `false`: the flag left it
+ * out, the BUILD leaves it out until somebody asks, its `apply` threw, or it is
+ * still waiting on something. A person who went looking for a chip that is not
+ * there can act on exactly one of those, and the boolean threw away which.
+ *
+ * The word is composed from the LIVE reading and the boot snapshot together,
+ * and the live one wins — which is what stops the roster telling two stories
+ * about one plugin. Every case below asserts the boolean beside the word for
+ * that reason.
+ */
+test("a row that is not running says which of the four absences it is", () => {
+  const first = PLUGIN_NAMES[0]
+  const second = PLUGIN_NAMES[1]
+  if (first === undefined || second === undefined) {
+    throw new Error("this test needs a build with two plugins")
+  }
+
+  // NOBODY SAID, and the loader declined to load it: that can only be the row's
+  // own `disabled`, which is this build leaving it off until somebody asks.
+  const optIn = rosterOf(offering(null, new Map([[first, { state: "off" }]])), [])
+  expect(optIn.built.find((row) => row.name === first)?.state).toBe("optIn")
+  expect(optIn.built.find((row) => row.name === first)?.running).toBe(false)
+
+  // ...and the SAME snapshot under a flag is `off`, because somebody asked and
+  // did not ask for this. One field, two layers, and `pinned` is the only thing
+  // that can say which of them wrote it.
+  const off = rosterOf(offering([second], new Map([[first, { state: "off" }]])), [second])
+  expect(off.built.find((row) => row.name === first)?.state).toBe("off")
+
+  // A START THAT THREW carries the plugin's own words, verbatim.
+  const failed = rosterOf(
+    offering(null, new Map([[first, { state: "failed", fault: "no socket at /run/x" }]])),
+    [],
+  )
+  const row = failed.built.find((one) => one.name === first)
+  expect(row?.state).toBe("failed")
+  expect(row?.fault).toBe("no socket at /run/x")
+  expect(row?.running).toBe(false)
+
+  // ...and a throw with no message says a start threw and quotes nobody, rather
+  // than putting core's paraphrase on screen as if the plugin had said it.
+  const silent = rosterOf(offering(null, new Map([[first, { state: "failed" }]])), [])
+  expect(silent.built.find((one) => one.name === first)?.state).toBe("failed")
+  expect(silent.built.find((one) => one.name === first)?.fault).toBeUndefined()
+
+  // STILL WAITING is not the same as off: it was asked for, it did load, and it
+  // is short of something it injects.
+  const waiting = rosterOf(offering(null, new Map([[first, { state: "waiting" }]])), [])
+  expect(waiting.built.find((one) => one.name === first)?.state).toBe("waiting")
+})
+
+/**
+ * THE LIVE READING WINS, and the snapshot is spent only on the rows that are
+ * absent — which is what keeps the word and the boolean from disagreeing.
+ *
+ * `running` is read off what registered a sibling surface, at the moment the
+ * roster is built; the report is a snapshot taken once when the bundle settled.
+ * A snapshot that has gone stale in the direction of failure would otherwise
+ * put an alarm under a plugin whose chip is in the bar.
+ */
+test("a composed plugin says running however the snapshot remembers it", () => {
+  const first = PLUGIN_NAMES[0]
+  if (first === undefined) throw new Error("this build has no plugins")
+  const roster = rosterOf(
+    offering(null, new Map([[first, { state: "failed", fault: "it threw once" }]])),
+    [first],
+  )
+  const row = roster.built.find((one) => one.name === first)
+  expect(row?.running).toBe(true)
+  expect(row?.state).toBe("running")
+  // ...and the fault does not ride along on a row that is running.
+  expect(row?.fault).toBeUndefined()
+})
+
+/**
+ * A ROW THE SNAPSHOT HAS NOTHING TO SAY ABOUT falls back to what `running:
+ * false` has always meant on its own — which is what every runtime in this file
+ * but this section's is, and what a serve that mounted doubles directly is.
+ */
+test("an empty report leaves the rows saying exactly what the boolean did", () => {
+  const roster = rosterOf(offering([]), [])
+  expect(roster.built.every((row) => row.state === "off")).toBe(true)
+  expect(roster.built.every((row) => row.fault === undefined)).toBe(true)
 })
 
 /**
