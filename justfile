@@ -222,10 +222,10 @@ serve dir="docs" *args: build-client
     # new (scripts/acp-pi.sh says why the roster probes for the agent).
     export OLAI_ACP_PI="$(sh scripts/acp-pi.sh)"
     # The pinned odu on PATH, exactly as the packaged binary bakes into its
-    # wrapper (default.nix) — scripts/odu-bin.sh is the one place that is
-    # decided. Empty is off, and off is a DRAWN row, not a quiet plugin.
-    odu_bin="$(sh scripts/odu-bin.sh)"
-    [ -n "$odu_bin" ] && export PATH="$odu_bin:$PATH"
+    # wrapper (default.nix) — scripts/olai-path.sh composes the whole
+    # variable, so this can be the same one line the acp knobs are. An empty
+    # override is off, and off is a DRAWN row, not a quiet plugin.
+    export PATH="$(sh scripts/olai-path.sh)"
     # `kill 0` takes the whole process group down together: a stray bundler
     # watching a tree nobody is serving is a confusing thing to leave behind.
     trap 'kill 0' EXIT INT TERM
@@ -248,8 +248,7 @@ run dir="docs" *args: build-client
     export OLAI_ACP_AGENT="$(sh scripts/acp-agent.sh)"
     export OLAI_ACP_PI="$(sh scripts/acp-pi.sh)"
     # The pinned odu on PATH, the same errand one recipe over — see `serve`.
-    odu_bin="$(sh scripts/odu-bin.sh)"
-    [ -n "$odu_bin" ] && export PATH="$odu_bin:$PATH"
+    export PATH="$(sh scripts/olai-path.sh)"
     OLAI_DIST_DIR={{ dist }} \
       {{ nix_shell }} bun --watch packages/server/src/main.ts web {{ dir }} {{ args }}
 
