@@ -8,6 +8,8 @@
 import type { SpacesLink } from "../wire.ts"
 
 export interface Said {
+  /** The dot's COLOUR — a background utility. Geometry is the chrome's. */
+  readonly dot: string
   readonly label: string
   readonly detail: string
   readonly loud: boolean
@@ -16,6 +18,7 @@ export interface Said {
 export const spacesSaid = (link: SpacesLink): Said => {
   if (link.status === "absent") {
     return {
+      dot: "bg-muted",
       label: "no spaces",
       detail:
         `no Spaces app is configured — olai looked at ${link.where}`
@@ -25,12 +28,14 @@ export const spacesSaid = (link: SpacesLink): Said => {
   }
   if (link.status === "fault") {
     return {
+      dot: "bg-alarm",
       label: "spaces fault",
       detail: link.why ?? `Spaces refused a post at ${link.where}.`,
       loud: true,
     }
   }
   return {
+    dot: "bg-done",
     label: "spaces",
     detail: `posting to ${link.where}`,
     loud: false,

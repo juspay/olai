@@ -14,6 +14,7 @@ test("absent names where olai looked, and is not loud", () => {
   expect(said.label).toBe("no spaces")
   expect(said.detail).toContain("OLAI_SPACES_URL")
   expect(said.loud).toBe(false)
+  expect(said.dot).toBe("bg-muted")
 })
 
 test("connected is one quiet word", () => {
@@ -24,6 +25,7 @@ test("connected is one quiet word", () => {
   }))
   expect(said.label).toBe("spaces")
   expect(said.loud).toBe(false)
+  expect(said.dot).toBe("bg-done")
 })
 
 test("fault is loud and names the refusal", () => {
@@ -36,4 +38,5 @@ test("fault is loud and names the refusal", () => {
   expect(said.label).toBe("spaces fault")
   expect(said.detail).toBe("Authentication failed")
   expect(said.loud).toBe(true)
+  expect(said.dot).toBe("bg-alarm")
 })

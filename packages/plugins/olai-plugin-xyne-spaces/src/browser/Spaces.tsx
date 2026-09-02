@@ -30,7 +30,7 @@ export function Spaces(props: { readonly app: SpacesApp }) {
         aria-label={`spaces: ${said().detail}`}
       >
         <span
-          class={`${pill.DOT} ${said().loud ? pill.DOT_HOLLOW_ALARM : ""}`}
+          class={`${pill.DOT} ${said().loud ? pill.DOT_HOLLOW_ALARM : said().dot}`}
           aria-hidden="true"
         />
         <span class={`min-w-0 truncate ${said().loud ? pill.TEXT_ALARM : ""}`}>
