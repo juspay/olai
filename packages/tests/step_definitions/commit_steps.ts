@@ -21,10 +21,10 @@
 
 import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
+import { TESTID } from "@olai/web/testlib";
 
 import {
   APP_CHROME,
-  APP_CHROME_CONTROLS,
   APP_HEADER,
   attr,
   COMMIT_AUTO_ARMED,
@@ -161,12 +161,13 @@ When("I hover the commit pill", async function (this: OlaiWorld) {
 /**
  * The human's bug, as an assertion: ONE control in the header answers for git.
  *
- * There were two — this pill and the `● git` readout beside it — and the claim
- * is about the ROW rather than about the chip that went. "The old one is
- * absent" would pass for a twin under a new name, so the row's whole inventory
- * is named (`support/world.ts`'s `APP_CHROME_CONTROLS`) and anything else in it
- * fails here. The attribute the readout carried is checked too, which is the
- * case the inventory cannot see: a chip that arrives with no test id.
+ * There were two — this pill and the `● git` readout beside it. The claim is
+ * that count, not the chrome row's whole membership: plugin Headers grow in
+ * registry order with no bar edit (`web`'s `plugins/Chrome.tsx`), so a closed
+ * set of every testid in the row breaks on a legitimate new pill (spaces,
+ * the next one). "The old one is absent" would still pass for a twin under
+ * a new name, so the retired readout's attribute is checked too — a chip
+ * that arrives with no test id of its own.
  *
  * Settle first: an absent element and a frame that has not arrived look
  * identical, and only one of them is the claim.
@@ -182,12 +183,12 @@ Then("the header shows one git indicator", async function (this: OlaiWorld) {
       el.getAttribute("data-testid") ?? ""
     )
   );
-  assert.deepEqual(
-    inside,
-    [...APP_CHROME_CONTROLS],
-    `the app's chrome row holds ${JSON.stringify(inside)}, and it is supposed to ` +
-      `hold ${JSON.stringify(APP_CHROME_CONTROLS)} — one of those answers for git ` +
-      "(the Commit pill) and a second one is the redundancy `one-git-indicator` closed",
+  const git = inside.filter((id) => id === TESTID.commitPill);
+  assert.equal(
+    git.length,
+    1,
+    `the chrome row holds ${JSON.stringify(inside)}; exactly one of those is ` +
+      "the Commit pill — a second one is the redundancy `one-git-indicator` closed",
   );
   assert.equal(
     await header.locator(RETIRED_GIT_READOUT).count(),

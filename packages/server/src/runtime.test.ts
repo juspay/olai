@@ -28,7 +28,7 @@ import {
 import type { App, DocumentEntry, Head, Manifest, PluginRoster, Shelf } from "@olai/surface"
 import { CHAT_OFF, NO_ROSTER } from "@olai/surface"
 import type { Chat, Faulted, Scoped } from "@olai/chat"
-import { PLUGIN_NAMES } from "@olai/plugin-api/wire"
+import { DEFAULT_PLUGIN_NAMES, PLUGIN_NAMES } from "@olai/plugin-api/wire"
 import * as pluginsDoor from "@olai/plugin-api/server"
 import type { PluginServices } from "@olai/plugin-api/server"
 import type { CollectionDeltasMsg } from "@kolu/surface/define"
@@ -638,10 +638,12 @@ test("a revision that changes no pin sends no frame", () =>
 test("every plugin the build has is on the roster, running or not", () => {
   const all = rosterOf({ env: {}, now: () => STARTED, served: "/tmp" })
   expect(all.built.map((one) => one.name)).toEqual([...PLUGIN_NAMES])
-  // Nobody said, so all of them run — and `pinned` stays `null` rather than
+  // Nobody said, so the built-in default runs — not necessarily every plugin
+  // this binary was built with — and `pinned` stays `null` rather than
   // expanding into that list, because the row under it has to say whether a
-  // person typed this policy or got the built-in default.
-  expect(all.built.every((one) => one.running)).toBe(true)
+  // person typed this policy or got the default.
+  expect(all.built.filter((one) => one.running).map((one) => one.name))
+    .toEqual([...DEFAULT_PLUGIN_NAMES])
   expect(all.pinned).toBeNull()
 
   // ...and one name out of the list leaves every other row present and off,

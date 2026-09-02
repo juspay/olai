@@ -21,11 +21,13 @@
  * say, and it is exactly the trade the note takes one level down, where a
  * textarea shows markdown until it closes.
  *
- * Styled to be invisible: the same font, size, weight and colour as the title
- * it replaces, no border, no background, no ring. A row must not jump when it
- * becomes editable, so the input's box is the title span's box — which is why
- * it is `w-full` inside the same flex cell rather than a control with padding
- * of its own.
+ * Styled to be invisible: the same font, size, weight, colour and leading as
+ * the title it replaces, no border, no background, no ring. A row must not
+ * jump when it becomes editable, so the input's box is the title span's box
+ * — `w-full` inside the same flex cell, `appearance-none`, and an explicit
+ * `1.5em` height (the markdown body's leading) so the UA's own line box
+ * cannot win. A section keeps its heavier type (`section`), or a top-level
+ * row would shrink the moment the caret arrived.
  *
  * {@link DraftSaid} is drawn wherever an editor is, and that is why it lives
  * here rather than in the tree: a refusal must be visible for EVERY draft, and
@@ -41,7 +43,7 @@ import { useEditor } from "./editing.tsx"
 import { SaidLine } from "../SaidLine.tsx"
 import { type Caret, type EditAction, type EditField, editKey } from "../keys.ts"
 import { TESTID } from "../testids.ts"
-import { ROW_NOTE as AS_NOTE, ROW_TITLE } from "../touch.ts"
+import { ROW_NOTE as AS_NOTE, ROW_TITLE, SECTION_TITLE } from "../touch.ts"
 
 export function TitleEditor(props: {
   readonly text: string
@@ -54,10 +56,15 @@ export function TitleEditor(props: {
    *  middle of a tree is not a mystery. */
   readonly placeholder?: string
   /** Where the caret goes when this editor OPENS, when the draft has an
-   *  opinion — a split, a merge, or an indent, the three keys after which the
+   *  opinion — a split, a merge, an indent, or a click, the four after which the
    *  end of the text is the wrong place to be ({@link ./draft.ts}'s `caret`).
-   *  Absent is the end of the text, which is what a click on a title means. */
+   *  Absent is the end of the text: the filler, a note, the move-to picker
+   *  handing the row back. */
   readonly caret?: number
+  /** This row is a section heading — the same fact {@link ../NodeLine.tsx}
+   *  draws, so the input is the same type as the title it replaces. Absent
+   *  is a row. */
+  readonly section?: boolean
 }) {
   let element!: HTMLInputElement
 
@@ -117,7 +124,7 @@ export function TitleEditor(props: {
       <input
         ref={element}
         type="text"
-        class={`w-full flex-1 border-0 bg-transparent p-0 text-ink outline-none ${ROW_TITLE}`}
+        class={`m-0 h-[1.5em] w-full min-h-0 flex-1 appearance-none border-0 bg-transparent p-0 text-ink outline-none ${props.section === true ? SECTION_TITLE : ROW_TITLE}`}
         data-testid={TESTID.titleEditor}
         value={props.text}
         placeholder={props.placeholder}
@@ -329,10 +336,11 @@ const caretOf = (target: EventTarget | null): Caret | undefined => {
  * threaded through three components is a prop the next editor site forgets.
  *
  * WHERE the caret lands differs between the two halves, and that is what
- * `opening` is for: a fresh editor puts it at the end of the text, which is
- * where a person who just clicked a title wants it; a caret being taken BACK
- * goes where it already was, so `Tab` in the middle of a word does not throw
- * the reader to the end of the line.
+ * `opening` is for: a fresh editor without an offset puts it at the end of
+ * the text, which is the filler and a note; a click names the offset it
+ * landed on (`./point.ts`) and a split, a merge or an indent name theirs;
+ * a caret being taken BACK goes where it already was, so `Tab` in the
+ * middle of a word does not throw the reader to the end of the line.
  *
  * `wanted` is the third answer, and three keys give one: a split and a merge,
  * whose point is that the caret stays where the sentence was cut or joined, and

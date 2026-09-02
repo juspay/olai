@@ -17,7 +17,7 @@
 
 import { expect, test } from "bun:test"
 
-import { PLUGIN_NAMES } from "@olai/plugin-api/wire"
+import { DEFAULT_PLUGIN_NAMES, PLUGIN_NAMES } from "@olai/plugin-api/wire"
 
 import { pluginsPin, pluginsSaid } from "./pluginPolicy.ts"
 
@@ -56,7 +56,7 @@ test("the sentence names every plugin this build has", () => {
   // the flag accepts.
   const said = pluginsSaid()
   for (const name of PLUGIN_NAMES) expect(said).toContain(name)
-  expect(said).toContain("the default is all of them")
+  expect(said).toContain(`the default is ${DEFAULT_PLUGIN_NAMES.join(", ")}`)
   // The read-only clause is the half a person acts on: it is the sentence that
   // tells somebody looking at a greyed-out preferences row where the decision
   // actually lives.

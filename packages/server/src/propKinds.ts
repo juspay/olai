@@ -38,8 +38,7 @@ import { enabled, kindsOf, SERVERS } from "@olai/plugin-api/server"
 
 /**
  * The vocabulary, for a serve pinned by `--plugins` — `null` being nobody
- * having said, which means every plugin this binary was built with
- * (`./pluginPolicy.ts`).
+ * having said, which means the built-in default (`./pluginPolicy.ts`).
  *
  * The return type is `@olai/format`'s and the value is `@olai/plugin-api`'s, which
  * is this line's whole job: neither package names the other, the two shapes are

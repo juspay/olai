@@ -117,10 +117,15 @@ export interface Editing extends Replied {
    * it keeps the key and so keeps the box, and the platform keeps the selection
    * inside it.
    *
-   * None of the three is the end of the text (a click's answer) and none is
-   * where the caret was in an editor that has gone away (which nothing can
-   * read), so it is a fact the DRAFT has to carry — the row it names is redrawn
-   * by a frame that arrives later, in an element that does not exist yet.
+   * A CLICK is the fourth: the offset it landed on, measured against the
+   * source (`./point.ts`), because the `<input>` that will hold the caret
+   * is not on the page yet. Absent is still the end of the text — the
+   * filler, a note, a row handed back from the move-to picker.
+   *
+   * None of those is where the caret was in an editor that has gone away
+   * (which nothing can read), so it is a fact the DRAFT has to carry — the
+   * row it names is redrawn by a frame that arrives later, in an element
+   * that does not exist yet.
    */
   readonly caret?: number
   /**

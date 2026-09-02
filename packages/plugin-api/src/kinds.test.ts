@@ -136,16 +136,20 @@ test("...so the only reachable collision is one NAME twice, and it is a throw na
  * fixtures cannot drift and the real plugins can.
  */
 test("a plugin's own composed word is the one the registry composes", () => {
+  const kindsBy: Record<string, ReadonlyArray<PropKind>> = {
+    kolu: koluKinds,
+    odu: oduKinds,
+  }
   const composed = kindsOf(
-    [{ name: "kolu", kinds: koluKinds }, { name: "odu", kinds: oduKinds }],
+    Object.entries(kindsBy).map(([name, kinds]) => ({ name, kinds })),
     [],
   )
   const expected = WIRES.flatMap((wire) =>
-    (wire.name === "kolu" ? koluKinds : oduKinds).map((one) => kindWordOf(wire.name, one.kind))
+    (kindsBy[wire.name] ?? []).map((one) => kindWordOf(wire.name, one.kind)),
   )
   expect([...composed.built.keys()].sort()).toEqual([...expected].sort())
-  // Not vacuous: both plugins teach a word, so the walk above compared
-  // something.
+  // Not vacuous: the two plugins that teach a word compared something. A
+  // third plugin that teaches none is a whole plugin and contributes nothing.
   expect(expected.length).toBe(2)
   // ...and each plugin's own constant is on that list, which is the half a
   // fixture cannot check — `takes` is written with it, and so is the walk that

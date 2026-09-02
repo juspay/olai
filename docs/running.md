@@ -226,11 +226,12 @@ Theme, typeface, size, note density and finished work are untouched by any of th
 
 ## Which integrations this serve runs
 
-olai talks to two things that are not olai — kolu ([plugins/kolu.md](plugins/kolu.md)) and odu ([plugins/odu.md](plugins/odu.md)) — and `--plugins` says which of them this serve is running.
+olai talks to three things that are not olai — kolu ([plugins/kolu.md](plugins/kolu.md)), odu ([plugins/odu.md](plugins/odu.md)), and Xyne Spaces ([plugins/xyne-spaces.md](plugins/xyne-spaces.md)) — and `--plugins` says which of them this serve is running.
 
 ```
-olai web ~/outlines --plugins=odu     # odu only
-olai web ~/outlines --plugins=        # neither
+olai web ~/outlines --plugins=odu                    # odu only
+olai web ~/outlines --plugins=kolu,odu,xyne-spaces   # all three, Spaces opt-in
+olai web ~/outlines --plugins=                       # none
 ```
 
 ...and the same thing where a machine is actually configured, because a policy
@@ -239,12 +240,12 @@ you set by hand on the command line is a policy you set once and forget:
 ```nix
   services.olai.plugins = [ "odu" ];   # odu only
   services.olai.plugins = [ ];         # neither
-  # omit it entirely            — every integration this build has
+  # omit it entirely            — the built-in default (kolu and odu)
 ```
 
 **It is the git policy's shape, one setting over**, and for the same reason: which tools this HOST has is the operator's fact. So it is a CLI flag and a home-manager option — the two doors an instance's policy is set through in this repo, exactly as `commit` and `push` are — rather than an env var, a settings file or a browser toggle, preferences draws the rows **read-only** naming where they are changed, and the answer is the same in every browser. An env var names a resource to reach (`OLAI_ACP_AGENT`); this names a policy the instance runs under, and a policy belongs on the `--help` page beside the other policies, where it can be read without knowing it exists.
 
-**Omitting the flag is not the same as writing an empty one.** No flag means every integration this binary was built with; `--plugins=` with nothing after it means none, and the preferences row says which of the two you did. The nix option keeps the same three answers apart: omitted is `null`, none is `[ ]`. A name the build does not have is refused at startup, naming the words it does have — a typo is never a silently disabled integration.
+**Omitting the flag is not the same as writing an empty one.** No flag means the built-in default (kolu and odu; xyne-spaces is opt-in and must be named); `--plugins=` with nothing after it means none, and the preferences row says which of the two you did. The nix option keeps the same three answers apart: omitted is `null`, none is `[ ]`. A name the build does not have is refused at startup, naming the words it does have — a typo is never a silently disabled integration.
 
 **A serve with an integration off is not a degraded serve**, and the word is literal: the connection indicator stays green. Nothing is parked and nothing is half-wired — the integration's members are not on the wire at all, its tab half is never mounted so nothing subscribes to them, it hangs no chip in the bar, it probes for nothing, and the kinds it teaches the vault validate as ordinary text ([live-properties.md](live-properties.md)). The outline it would have owned is an ordinary outline. That is exactly the state a machine that never had the tool is already in, which is why it costs nothing to be true — and it is the state `olai surface` and every headless face already run in.
 

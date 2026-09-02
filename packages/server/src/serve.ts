@@ -65,7 +65,8 @@ export interface ServeOptions {
    *  what every browser draws read-only is the instance's policy. */
   readonly pin: GitPin
   /** WHICH built-in integrations to run — `null` for nobody having said,
-   *  which means all of them. `./pluginPolicy.ts` argues why omission stays
+   *  which means the built-in default (not necessarily every plugin this
+   *  binary was built with). `./pluginPolicy.ts` argues why omission stays
    *  distinguishable from the default typed out loud. */
   readonly plugins: ReadonlyArray<string> | null
 }

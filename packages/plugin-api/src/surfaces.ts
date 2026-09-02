@@ -28,6 +28,7 @@
 
 import * as kolu from "olai-plugin-kolu/wire"
 import * as odu from "olai-plugin-odu/wire"
+import * as spaces from "olai-plugin-xyne-spaces/wire"
 
 /** One plugin's wire half — its sibling key, its surface, and which of its
  *  members each face may see. The three things a composition root needs and
@@ -36,6 +37,13 @@ export interface PluginWire {
   readonly name: string
   readonly surface: { readonly spec: unknown }
   readonly faces: Readonly<Record<string, Readonly<Record<string, unknown>>>>
+  /**
+   * Whether omitting `--plugins` runs this plugin. Absent means yes — the
+   * built-in default is ON. `false` is opt-in: named on the flag, or not
+   * running. A plugin that needs a secret this machine may not have is
+   * the second kind.
+   */
+  readonly defaultOn?: boolean
 }
 
 /** WHAT THIS BINARY WAS BUILT WITH, on the wire.
@@ -44,7 +52,23 @@ export interface PluginWire {
  *  widened array would take their key types with it. A third party adding a
  *  plugin rebuilds olai; that is the one thing compiled-in cannot do, and it
  *  is accepted — the boundary is the value, not the loading. */
-export const WIRES = [kolu, odu] as const
+export const WIRES = [kolu, odu, spaces] as const
+
+/**
+ * THE NAME AS DATA, beside the import. Claim 8's floor is that the registry
+ * must be seen to SPELL every plugin — import specifiers are stripped before
+ * the hunt, so a local binding is not a spelling, and a hyphenated name cannot
+ * be a binding at all. `satisfies` holds each string to the import's `name`
+ * at `tsc`; there is no import-time throw in a module everything pulls in.
+ * `WIRES` stays a list of bindings because `./rosters.test.ts` reads that
+ * list as source.
+ */
+const SPELLING = ["kolu", "odu", "xyne-spaces"] as const satisfies readonly [
+  typeof kolu.name,
+  typeof odu.name,
+  typeof spaces.name,
+]
+void SPELLING
 
 /**
  * A PLUGIN-OWNED WORD, PREFIXED WITH THE PLUGIN'S NAME — the one composition,
@@ -109,19 +133,26 @@ export const kindWordOf = (plugin: string, kind: string): string => {
 }
 
 /** Every plugin's name, in registry order — the words `--plugins` takes, the
- *  rows preferences draws, and what "all of them" comes to when nobody said. */
+ *  rows preferences draws, and the set an unknown name is refused against. */
 export const PLUGIN_NAMES: ReadonlyArray<string> = WIRES.map((wire) => wire.name)
+
+/** What omitting `--plugins` runs — not necessarily {@link PLUGIN_NAMES}.
+ *  A plugin with {@link PluginWire.defaultOn} `false` is absent from this
+ *  list and stays off until the flag names it. */
+export const DEFAULT_PLUGIN_NAMES: ReadonlyArray<string> = (WIRES as ReadonlyArray<PluginWire>)
+  .flatMap((wire) => wire.defaultOn === false ? [] : [wire.name])
 
 /**
  * WHICH PLUGINS THIS SERVE RUNS, out of what it was built with.
  *
- * `null` is nobody having said, and it means ALL — the built-in default. That
- * is the same "omission stays distinguishable from the default typed out loud"
- * the git policy's pin is built on (`@olai/server`'s `gitPolicy.ts`), and it
- * is here for the same reason: preferences names a GIVEN flag under the row
- * and otherwise says the built-in default, and a filter that had already
- * expanded `null` into the full list could not tell a reader which of the two
- * they were looking at.
+ * `null` is nobody having said, and it means the built-in default
+ * ({@link DEFAULT_PLUGIN_NAMES}), which is not necessarily every plugin
+ * this binary was built with. That is the same "omission stays
+ * distinguishable from the default typed out loud" the git policy's pin
+ * is built on (`@olai/server`'s `gitPolicy.ts`), and it is here for the
+ * same reason: preferences names a GIVEN flag under the row and otherwise
+ * says the built-in default, and a filter that had already expanded `null`
+ * into a list could not tell a reader which of the two they were looking at.
  *
  * An unknown name is NOT refused here. The flag refuses it, once, where a
  * person types one, with the legal names beside it — a second sentence about
@@ -131,14 +162,15 @@ export const PLUGIN_NAMES: ReadonlyArray<string> = WIRES.map((wire) => wire.name
 export const enabled = <P extends { readonly name: string }>(
   plugins: ReadonlyArray<P>,
   names: ReadonlyArray<string> | null,
-): ReadonlyArray<P> => names === null ? plugins : plugins.filter((p) => names.includes(p.name))
+): ReadonlyArray<P> =>
+  plugins.filter((p) => (names ?? DEFAULT_PLUGIN_NAMES).includes(p.name))
 
 /** Is one plugin running on this serve — the same question {@link enabled}
  *  answers, asked about a name instead of answered as a list. Both exist
  *  because preferences draws a row per BUILT plugin and says of each whether
  *  it is on, which is not a filter over the enabled ones. */
 export const isEnabled = (names: ReadonlyArray<string> | null, name: string): boolean =>
-  names === null || names.includes(name)
+  (names ?? DEFAULT_PLUGIN_NAMES).includes(name)
 
 /**
  * THE SIBLING MAP — what `composeSurfaceContracts`, `implementSurfaces` and
