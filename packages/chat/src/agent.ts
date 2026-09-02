@@ -999,7 +999,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *
      * The adapter stamps `sessionId` on every raw message it forwards
      * (`extNotification("_claude/sdkMessage", { sessionId, message })`,
-     * unconditionally, 0.70.0), and everything one carries is a fact about that
+     * unconditionally, 0.73.0), and everything one carries is a fact about that
      * one conversation. Mostly this is already fenced — the panel holds one
      * conversation at a time and `leaving()` drops what is keyed to the last —
      * but the residue is real and narrow: an `init` in flight from a session
