@@ -63,6 +63,33 @@
  *
  * A MISSING FILE IS NOT A FAILURE. It is the answer on the first serve of a
  * directory, and the answer after the state directory has been cleaned out.
+ *
+ * ## The record whose directory is gone
+ *
+ * A record outlives the directory it is about all the time: every temp copy a
+ * test or a script ever served leaves one, and nothing was ever asking. So the
+ * home grew a file per /tmp directory the machine had ever seen. {@link
+ * pruneGone} is the answer, run once per server boot next to the runtime
+ * home's own sweep (`@olai/server`'s `lock.ts`): a record whose `cwd` answers
+ * ENOENT is dropped.
+ *
+ * WHY AT BOOT and not on the read path: the read path can never meet the
+ * record that needs dropping — it is only ever asked about the directory
+ * being served right now, which by construction exists. The records for
+ * directories that died are exactly the ones nobody ever reads.
+ *
+ * CONSERVATIVE by one rule: ONLY ENOENT counts. A directory whose answer is
+ * anything else — a network mount that will not answer, a permission that
+ * moved — is not a dead directory, and its record stays. The same
+ * conservatism governs the record: bytes that are not JSON, a record that
+ * names no `cwd`, a staged `.tmp` nobody renamed away — all left alone. This
+ * is hygiene, not validity, the same posture the runtime sweep takes: a file
+ * the sweep cannot read or cannot unlink is left, and the boot continues.
+ *
+ * EVERY tenant directory is swept, not only the kinds THIS build knows: the
+ * home is one per machine across olai versions, the `mirror` records of an
+ * older build among them, and a record's contract — `cwd` inside the file —
+ * is older than any tenant list.
  */
 
 import { Data, Effect } from "effect"
@@ -296,6 +323,76 @@ export const writeHeld = (
     catch: (cause) =>
       new StateFailure({ why: `\`${at}\` could not be written: ${reasonOf(cause)}` }),
   })
+
+/**
+ * Drop every record whose served directory no longer exists. Returns how many
+ * it dropped, so the boot that ran it can say so.
+ *
+ * See the header for the whole ruling: run at server start, ONLY ENOENT is a
+ * dead directory, and anything unreadable, unparseable, `cwd`-less, staged or
+ * unanswerable is LEFT — a record is never pruned on a non-answer.
+ *
+ * Plain and synchronous rather than an {@link Effect}, for `sweepRuntime`'s
+ * reason: it sweeps, and a sweep that cannot reach one file moves on to the
+ * next. Where THAT one runs is `holdVault`, beside this one's.
+ */
+export const pruneGone = (): number => {
+  const home = stateHome()
+  let tenants: ReadonlyArray<fs.Dirent>
+  try {
+    tenants = fs.readdirSync(home, { withFileTypes: true })
+  } catch {
+    return 0
+  }
+  let pruned = 0
+  for (const tenant of tenants) {
+    if (!tenant.isDirectory()) continue
+    const dir = join(home, tenant.name)
+    let names: ReadonlyArray<string>
+    try {
+      names = fs.readdirSync(dir)
+    } catch {
+      continue
+    }
+    for (const name of names) {
+      if (!name.endsWith(".json")) continue
+      if (goneRecord(join(dir, name))) pruned += 1
+    }
+  }
+  return pruned
+}
+
+/**
+ * One record's hearing: dead or not.
+ *
+ * The `cwd` inside the file is the question — a record is ABOUT the directory
+ * it names, and the file's own name is only a digest of it. A `stat` that
+ * answers is the whole ruling: ENOENT says the directory is gone and the
+ * record may go; any other answer, or no answer, keeps it. The unlink's own
+ * failure keeps it too, and is not counted.
+ */
+const goneRecord = (at: string): boolean => {
+  let held: unknown
+  try {
+    held = JSON.parse(fs.readFileSync(at, "utf8"))
+  } catch {
+    return false
+  }
+  const cwd = (held as { readonly cwd?: unknown } | null)?.cwd
+  if (typeof cwd !== "string" || cwd === "") return false
+  try {
+    fs.statSync(cwd)
+    return false
+  } catch (cause) {
+    if ((cause as { readonly code?: unknown }).code !== "ENOENT") return false
+  }
+  try {
+    fs.unlinkSync(at)
+    return true
+  } catch {
+    return false
+  }
+}
 
 /** What went wrong, in the words the thing that failed used. Spelled here
  *  rather than taken from `@olai/log`, because that would be a workspace

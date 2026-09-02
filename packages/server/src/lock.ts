@@ -100,7 +100,7 @@ import type { Scope } from "effect"
 import * as fs from "node:fs"
 import { dirname, join } from "node:path"
 
-import { canonical, digestOf, runtimeHome } from "@olai/state"
+import { canonical, digestOf, pruneGone, runtimeHome } from "@olai/state"
 
 import { lockExclusive } from "./flock.ts"
 
@@ -319,6 +319,17 @@ export const holdVault = (
       yield* Effect.annotateLogs(Effect.logInfo("swept leftover runtime files"), {
         count: swept,
       })
+    }
+    // The state home's half of the same hygiene: a chat memory or a doorbell
+    // pick outlives a /tmp vault forever, and nothing was ever asking after
+    // it. One sweep per boot, ENOENT-dead records only — `@olai/state` owns
+    // the ruling, and says why pruning belongs here and not on the read path.
+    const pruned = pruneGone()
+    if (pruned > 0) {
+      yield* Effect.annotateLogs(
+        Effect.logInfo("pruned state records for directories that are gone"),
+        { count: pruned },
+      )
     }
     yield* Effect.acquireRelease(
       Effect.suspend((): Effect.Effect<Held, VaultInUse | LockUnavailable> => {

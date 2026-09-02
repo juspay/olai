@@ -16,10 +16,17 @@
  * out of every test's way. Nothing else in this tree branches on `location`
  * existing; a real browser (the e2e suite) never loads this file.
  *
- * And one runtime directory for the whole test process, set here before any
- * file loads, and never restored. An afterAll on the first file that imported
- * a helper used to put `$XDG_RUNTIME_DIR` back to the developer's
- * `/run/user/…/olai`, so every later serving test swept and locked it.
+ * And one runtime directory AND one state home for the whole test process,
+ * set here before any file loads, and never restored. An afterAll on the
+ * first file that imported a helper used to put `$XDG_RUNTIME_DIR` back to
+ * the developer's `/run/user/…/olai`, so every later serving test swept and
+ * locked it. The state home is the same story one directory over, made
+ * load-bearing by the boot sweep (`@olai/state`'s `pruneGone`): an
+ * unisolated boot does not merely WRITE into the developer's
+ * `~/.local/state/olai` — it PRUNES the records whose directories died,
+ * which is the ordinary content of one. Tests that need a state answer of
+ * their own re-point the variable per case and put it back; the ambient
+ * answer is nobody's real home.
  */
 
 import * as fs from "node:fs"
@@ -34,4 +41,7 @@ if (typeof globalThis.location === "undefined") {
 
 process.env["XDG_RUNTIME_DIR"] = fs.mkdtempSync(
   path.join(os.tmpdir(), "olai-test-run-"),
+)
+process.env["XDG_STATE_HOME"] = fs.mkdtempSync(
+  path.join(os.tmpdir(), "olai-test-state-"),
 )
