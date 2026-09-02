@@ -88,14 +88,13 @@ import { repeatPick } from "./date/repeat.ts"
 
 import { createEdgeEditing } from "./edges/editing.tsx"
 import { useEditor } from "./edit/editing.tsx"
-import type { Pending } from "./edit/draft.ts"
+import { Ghosts } from "./edit/Ghosts.tsx"
 import { offsetAt, titleBox } from "./edit/point.ts"
 import { useMoving } from "./move/moving.tsx"
 import { useNarrowed } from "./filter/narrowed.tsx"
 import { behindTheMark, CONTEXT_DIM, lighting, matchedAttr } from "./filter/why.ts"
 import { onATag } from "./filter/tag.ts"
 import { useUndo } from "./edit/undoing.ts"
-import { NewRow } from "./edit/NewRow.tsx"
 import { DescEditor, DraftSaid, keyHandler, TitleEditor } from "./edit/RowEditor.tsx"
 import { setFolded } from "./fold/memory.ts"
 import { createFoldReading } from "./fold/reading.ts"
@@ -890,41 +889,5 @@ function Branch(props: {
           been written. Enter Enter Enter parks the earlier empties here too. */}
       <Ghosts parked={parkedAfter()} live={liveAfter()} />
     </li>
-  )
-}
-
-/** Empty drafts at one anchor: the parked ones first (Enter Enter Enter), then
- *  the live caret if it is here. Parked inputs do not take focus; clicking one
- *  resumes it. */
-function Ghosts(props: {
-  readonly parked: ReadonlyArray<Pending>
-  readonly live: Pending | undefined
-}) {
-  const editor = useEditor()
-  return (
-    <>
-      <Key each={props.parked} by="slot">
-        {(draft) => (
-          <NewRow
-            draft={draft()}
-            active={false}
-            onActivate={() => editor.resume(draft().slot)}
-            onInput={editor.type}
-            onKey={keyHandler("line", editor.press)}
-            onBlur={(left) => editor.blur({ row: draft().slot, field: "new" }, left)}
-          />
-        )}
-      </Key>
-      <Show when={props.live}>
-        {(draft) => (
-          <NewRow
-            draft={draft()}
-            onInput={editor.type}
-            onKey={keyHandler("line", editor.press)}
-            onBlur={(left) => editor.blur({ row: draft().slot, field: "new" }, left)}
-          />
-        )}
-      </Show>
-    </>
   )
 }

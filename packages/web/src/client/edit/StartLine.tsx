@@ -8,19 +8,18 @@
  * none — so the first line would only be reachable by asking the agent.
  *
  * It is a button until it is pressed, and then it IS the editor: the same
- * pending draft any `Enter` opens, in the same place its row will appear. So
- * there is one new-row mechanism rather than a special case for the first one.
+ * pending drafts a row's Enter opens, drawn by {@link Ghosts} in the same
+ * place the row will appear. So there is one new-row mechanism rather than a
+ * special case for the first one.
  */
 
 import type { Anchor } from "@olai/surface"
-import { Key } from "@solid-primitives/keyed"
 import { Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
 import { sameAnchor } from "./draft.ts"
 import { useEditor } from "./editing.tsx"
-import { NewRow } from "./NewRow.tsx"
-import { keyHandler } from "./RowEditor.tsx"
+import { Ghosts } from "./Ghosts.tsx"
 
 export function StartLine(props: {
   /** Where the row this offers would go. */
@@ -56,28 +55,7 @@ export function StartLine(props: {
         </button>
       }
     >
-      <Key each={parked()} by="slot">
-        {(draft) => (
-          <NewRow
-            draft={draft()}
-            active={false}
-            onActivate={() => editor.resume(draft().slot)}
-            onInput={editor.type}
-            onKey={keyHandler("line", editor.press)}
-            onBlur={(left) => editor.blur({ row: draft().slot, field: "new" }, left)}
-          />
-        )}
-      </Key>
-      <Show when={live()}>
-        {(draft) => (
-          <NewRow
-            draft={draft()}
-            onInput={editor.type}
-            onKey={keyHandler("line", editor.press)}
-            onBlur={(left) => editor.blur({ row: draft().slot, field: "new" }, left)}
-          />
-        )}
-      </Show>
+      <Ghosts parked={parked()} live={live()} />
     </Show>
   )
 }
