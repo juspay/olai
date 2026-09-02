@@ -27,7 +27,7 @@
  *     console, and left for whoever was waiting to put on the page. A page that
  *     is missing a renderer or a menu is still a page somebody can read, and
  *     taking it down would replace something they can read with something they
- *     cannot (HACKING.md's error rule, answered at the surface rather than
+ *     cannot (the error rule, answered at the surface rather than
  *     here). There is no retry loop either: a reload is the honest answer, and
  *     a loop of failing imports is a page that gets slower the longer it is
  *     broken.

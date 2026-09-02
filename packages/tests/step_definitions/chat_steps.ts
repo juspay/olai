@@ -2702,7 +2702,7 @@ Then("there is nothing to type into", async function (this: OlaiWorld) {
 // THE STANDING IS READ AS DATA, never as a mark. Which glyph says "connected"
 // is a decision about pixels and belongs to whoever is drawing it next; that
 // the panel says the agent attached a named server is the behaviour, and it is
-// what these assert (HACKING.md — tests assert behaviour, not styling).
+// what these assert — tests assert behaviour, not styling.
 
 /** One roster row's standing, waited for. The four steps below differ in one
  *  word, so the selector shape, the attribute name, the failure label and the

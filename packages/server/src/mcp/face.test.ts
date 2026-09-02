@@ -240,7 +240,7 @@ test("the errors cell reads as a live value", async () => {
 // A directory that cannot be READ, over the agent's face — the same rows the
 // browser draws its banner from, off the same cell, because there is one cell.
 //
-// This is the MCP half of "MCP and Web ops must be consistent" (HACKING.md),
+// This is the MCP half of "MCP and Web ops must be consistent",
 // and it is asserted rather than argued: the failure used to be a log line, so
 // an agent reading a served directory that had gone away was handed the last
 // good tree with nothing to say it was stale — the same lie the browser told,

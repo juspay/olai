@@ -61,7 +61,7 @@
  * survey, on the same three clocks: every published revision, every landed
  * commit, and a slow sweep because nothing watches `.git`. They are two cells
  * because two controls draw them, and one derivation because they are two
- * readings of one question (HACKING.md: MCP and Web ops must be consistent).
+ * readings of one question (MCP and Web ops must be consistent).
  *
  * Nothing here interprets an outline or an agent. It moves what the store and
  * the chat decided onto the wire, and that is all — with one exception, and it
@@ -436,8 +436,8 @@ export interface Wiring {
 /**
  * The git half of {@link Wiring}, from the ops layer.
  *
- * ONE spelling, because there used to be two composition roots and HACKING.md's
- * rule is that they must not diverge. Written out twice, the day one of them
+ * ONE spelling, because there used to be two composition roots and the
+ * consistency rule is that they must not diverge. Written out twice, the day one of them
  * grew a cell would be the day the two faces quietly stopped being the same
  * product. There is one root now (`./serve.ts`); this helper is still the
  * place the git half is assembled, so a second caller cannot drift.
@@ -1888,7 +1888,7 @@ export const bind = (
       },
       // What a re-read of a live stream failed with, in olai's own voice
       // ({@link ./report.ts}). Required by the framework at wiring time rather
-      // than defaulted, which is the boot-time spelling of HACKING.md's rule.
+      // than defaulted, which is the boot-time spelling of the error rule.
       onStreamReadError: (error, { stream }) => readFailed(stream, error, say),
       procedures: {
         chat: {
@@ -2022,7 +2022,7 @@ export const bind = (
         // The browser's search: the SAME call `search_nodes` makes for an
         // agent, over one reading of one snapshot — so the two faces answer
         // identically by construction rather than by two matchers that happen
-        // to agree (HACKING.md). Nothing is checked HERE and nothing needs to
+        // to agree. Nothing is checked HERE and nothing needs to
         // be: what this returns and what the procedure declares are one
         // declaration, `@olai/format`'s, which is the only arrangement under
         // which this line could not be quietly returning more than the wire

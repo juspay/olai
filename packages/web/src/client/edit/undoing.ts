@@ -23,7 +23,7 @@
  * moods every said-line in this client has ({@link ../saying.ts}) and the entry
  * is dropped; a nudge from a write
  * that landed rides back the same way it does for every other key (#109); and
- * a replay with nothing to say says nothing at all. HACKING's rule is the
+ * a replay with nothing to say says nothing at all. The error rule is the
  * reason the first of those exists: a ⌘Z that silently failed would be a person
  * believing their outline had gone back and reading one that had not.
  */

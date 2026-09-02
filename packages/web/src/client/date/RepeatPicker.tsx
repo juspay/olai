@@ -22,8 +22,8 @@
  *
  * The two remain two panels, and that is not an accident of the shell: they are
  * two writes at the gate, so a picker that sent both would be the web doing in
- * one gesture what MCP needs two calls for, which is the deviation HACKING.md
- * forbids. One affordance in a person's hands, two ops underneath.
+ * one gesture what MCP needs two calls for, which is the deviation the
+ * consistency rule forbids. One affordance in a person's hands, two ops underneath.
  */
 
 import { REPEAT_RULES } from "@olai/format"

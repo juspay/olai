@@ -430,7 +430,7 @@ test("dirty names every file that moved, tracked or not", async () => {
  * It used to answer with no files and no upstream, which every reader above
  * draws as "nothing waiting, nothing to push" — so a repository that became
  * unreadable under a running server would have shown `✓ committed` with the
- * reason nowhere. That is #108's own mistake one call over, and HACKING's rule
+ * reason nowhere. That is #108's own mistake one call over, and the rule
  * is the same one: git's words come back, and the caller publishes them.
  */
 test("a status git refuses is Unusable with its words, not an empty tree", async () => {

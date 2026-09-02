@@ -852,8 +852,8 @@ export class Transcript {
     // call nobody made. The notification is still swallowed (the caller
     // does not write a user bubble); the report just has nowhere to live.
     // Said at debug by the caller (`chat.ts`) so a vanished report is not
-    // indistinguishable from one that was never sent (`HACKING.md`: never
-    // silently ignore). This module stays a value — no logger of its own.
+    // indistinguishable from one that was never sent — never
+    // silently ignore an error. This module stays a value — no logger of its own.
     if (
       held === undefined
       && move.title === undefined

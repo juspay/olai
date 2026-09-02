@@ -499,7 +499,7 @@ export function Transcript(props: { readonly chat: Chat }) {
         {/* THE ID LOOKUP'S OWN BAD NEWS, once for the pane. Which of the
             agent's backticks are nodes is a call now ({@link ./declared.ts}),
             and a call that did not arrive must not read as prose that named
-            none of them (HACKING.md — an error reaches somebody). The words are
+            none of them (an error reaches somebody). The words are
             untouched and every span still says what the agent wrote; what is
             missing is which of them can be pressed.
 

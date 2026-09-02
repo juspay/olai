@@ -199,8 +199,8 @@ export const SearchAnswer = Schema.Struct({
    *  an unknown value (`is:open`). ABSENT for every query it could read.
    *
    *  It travels rather than being swallowed because a door that answered
-   *  `is:open` with an empty list and no reason is the silent failure
-   *  HACKING.md forbids: the reader typed an operator, and the honest answer is
+   *  `is:open` with an empty list and no reason is a silent failure:
+   *  the reader typed an operator, and the honest answer is
    *  which values it takes. The filter over the tree draws its own because it
    *  parses for itself; these are for the three doors that ask the server. */
   refusals: Schema.optionalKey(Schema.Array(Refusal)),

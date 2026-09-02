@@ -52,7 +52,7 @@
  *
  * ## Why not Kobalte's `Combobox`, which is the ecosystem's answer
  *
- * Asked, because HACKING.md's SolidJS rule says to ask and because the `•••`
+ * Asked, because the SolidJS rule says to ask and because the `•••`
  * menu is that library's now. A `Combobox` OWNS ITS INPUT: it renders the
  * field, holds the value, decides when the list is open, and reads the whole
  * box as the query. Every one of those is already somebody else's here — the

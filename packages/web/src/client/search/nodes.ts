@@ -10,8 +10,8 @@
  * the same rule inside one process. It lives in `search/` rather than in
  * `palette/` because of that second door.
  *
- * It is a hook rather than lines inside a component for the reason HACKING.md
- * gives twice: UI components stay encapsulated, and a browser should use the
+ * It is a hook rather than lines inside a component for two rules at
+ * once: UI components stay encapsulated, and a browser should use the
  * SolidJS ecosystem rather than hand-roll it.
  *
  * WHEN to ask is not here either, and that is the change `vault-in-browser`'s

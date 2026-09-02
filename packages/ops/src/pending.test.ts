@@ -1276,7 +1276,7 @@ describe("--commit=off", () => {
 /**
  * The two faces produce the SAME commit for the same pending set.
  *
- * HACKING.md's rule is that MCP and Web ops must be consistent and never
+ * The rule is that MCP and Web ops must be consistent and never
  * deviate, and this is that rule made checkable at the one place it would be
  * expensive to get wrong: what ends up permanently in somebody's history.
  * `olai web`'s button and the agent's `commit` tool are two callers of one `Ops.commit`
@@ -1370,7 +1370,7 @@ test("both faces commit the same tree and the same message, differing only in th
    * adds to this rule.
    *
    * The MCP tool grew a `paths` argument for exactly the reason the button has
-   * checkboxes — HACKING.md's "MCP and Web ops must be consistent; never
+   * checkboxes — "MCP and Web ops must be consistent; never
    * deviate" — so the two faces committing the same three of five files have to
    * produce the same tree, the same message and the same leftovers. A face that
    * resolved a path differently would put a different file in somebody's history

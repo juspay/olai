@@ -6,7 +6,7 @@
  * person could do neither: the web has DRAWN both since edges-ui — the links
  * under a node, the dim and the `blocked by` line of a blocked row — and had no
  * affordance to change one. That is a standing consistency deviation rather
- * than a missing feature (HACKING.md, `parity-see` / `parity-after`), and this
+ * than a missing feature (`parity-see` / `parity-after`), and this
  * is what closes it. What it sends is the intent every other write on this face
  * sends: one `see` / `after` edit at the same gate `set_see` and `set_after` go
  * through, judged by the same planner, refused in the same words. Nothing is

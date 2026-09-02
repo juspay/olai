@@ -8,7 +8,7 @@
  * neither does this. The unit is the NODE and what changed about it.
  *
  * The words are the ones the commit panel draws ({@link ../changes.ts}), which
- * is the parity HACKING.md asks for: the agent marks a node done, this row says
+ * is the parity the consistency rule asks for: the agent marks a node done, this row says
  * *marked done*, and the row waiting to be committed says *marked done*. One
  * event, one sentence, two places it is seen.
  *

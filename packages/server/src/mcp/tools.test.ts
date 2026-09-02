@@ -371,7 +371,7 @@ test("the tool list is reads and writes, and nothing that names a byte", async (
 })
 
 /**
- * The two git verbs, as an agent is offered them — HACKING.md's consistency
+ * The two git verbs, as an agent is offered them — the consistency
  * rule at the seam where it is easiest to break: the panel grew checkboxes, so
  * the tool grew `paths`, and a face that had one without the other would be two
  * different products.

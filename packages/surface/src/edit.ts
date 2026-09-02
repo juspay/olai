@@ -41,7 +41,7 @@
  * directions that meet in the middle of this list.
  *
  * FOUR ARE THE POINTER'S, and they are here for a rule rather than for a
- * feature: "MCP and Web ops must be consistent; never deviate" (HACKING.md).
+ * feature: "MCP and Web ops must be consistent; never deviate".
  * An agent could set or clear a date, retire a placement and archive a
  * subtree, and a person at the same directory could do none of them — a
  * standing deviation (`editor-op-parity`), not editor growth. `date`,
@@ -147,7 +147,7 @@
  * and a create; a retitle, a note, N reparentings and an archive — and each is
  * ONE request at the write gate, planned and validated and renamed together.
  * Assembling them HERE out of the verbs above would have been the deviation
- * HACKING.md forbids at its plainest: the web doing in one keystroke what MCP
+ * the consistency rule forbids at its plainest: the web doing in one keystroke what MCP
  * needs four calls for. So they were born in the ops layer and reached both
  * faces in the same change (`split_node`, `merge_node` — the same two ops),
  * which is the shape `unarchive` arrived in and for the same reason. The other
@@ -628,7 +628,7 @@ export const Edit = Schema.Union([
    * not declare or lift a single dependency. What differs from `see` is what the
    * edges MEAN: `after` is the ordering graph, so an add that would close a loop
    * is REFUSED, naming the loop it would close, and that sentence reaches this
-   * face verbatim like every other refusal (HACKING.md). Nothing here fences it
+   * face verbatim like every other refusal. Nothing here fences it
    * first — a rule this schema enforced would be a rule an agent's `set_after`
    * does not have.
    *
@@ -794,7 +794,7 @@ export const Edit = Schema.Union([
    * pin is an ordinary node whose title is the address, in an ordinary outline
    * — and an agent pins, reorders and unpins with `add_node`, `move_node` and
    * `trash_node`, which is the consistency rule paid up front rather than
-   * closed later (HACKING.md).
+   * closed later.
    *
    * WHERE IT LANDS IS THE SERVER'S, exactly as {@link capture}'s inbox is and
    * for the same argument: which file the shelf IS is a fact about the SET —

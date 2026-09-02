@@ -188,8 +188,8 @@ test("every page the index links is a page that is there", () => {
   // that would notice belongs here rather than in a second file.
   const broken = linksIn(INDEX).filter(isLocal).flatMap((target) => {
     const landed = landing(INDEX, target);
-    // `../HACKING.md` is deliberately outside the vault — the index's own last
-    // line says so, and a developing doc is not a served page.
+    // A link that climbs out of the vault is not a door: at the served
+    // address an unserved path draws as text, and there is no page to check.
     if (landed === null) return [];
     return fs.existsSync(at(landed)) ? [] : [`${INDEX}: ${target} → ${landed}, which is not there`];
   });

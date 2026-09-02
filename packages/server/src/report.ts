@@ -89,7 +89,7 @@ export const report = (event: SurfaceAppEvent, say: Emit): void => {
  * A live STREAM member could not re-read its answer.
  *
  * The framework requires a handler here rather than defaulting one, which is
- * the boot-time spelling of HACKING.md's rule: a subscription that quietly
+ * the boot-time spelling of the error rule: a subscription that quietly
  * stopped answering is the failure nobody would ever see. What a reader sees
  * meanwhile is the last frame that DID arrive — the read is retried on the next
  * pulse and the subscription is not torn down, because a transient refusal is

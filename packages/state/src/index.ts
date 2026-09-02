@@ -57,7 +57,7 @@
  * ## What it does with a failure
  *
  * Nothing kept here is load-bearing enough to stop a boot, and none of it is
- * quiet either (HACKING.md: never silently ignore an error). Both verbs FAIL
+ * quiet either — never silently ignore an error. Both verbs FAIL
  * with a reason and the caller decides — a memory that cannot be read means the
  * panel opens the newest conversation and says why.
  *

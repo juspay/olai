@@ -673,7 +673,7 @@ export function Hypertext(props: { readonly file: string }) {
    * the sentence on screen would be about a file the reader never named.
    *
    * BUT IT SAYS SO. A click that does nothing and explains nothing is what
-   * HACKING's error rule is about — the reader pressed a link, the page did not
+   * the error rule is about — the reader pressed a link, the page did not
    * move, and nothing on screen accounts for it — so the miss draws a refusal
    * in the voice every other refused act in this client speaks
    * ({@link REFUSED}). Moving nothing is still the answer; being silent about

@@ -14,7 +14,7 @@
  * The STANDING is read off `data-standing` rather than off the words, on this
  * suite's standing rule: which colour or which phrase says *asleep* is a
  * decision about pixels, and a scenario that pinned one would go red the next
- * time somebody improved it (HACKING.md). The WORDS are asserted only where the
+ * time somebody improved it — tests assert behaviour, not styling. The WORDS are asserted only where the
  * claim is about the words — the door's memory count, and its one line of the
  * agent's latest message, both of which are the feature rather than its paint.
  */

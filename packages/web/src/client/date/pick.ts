@@ -25,7 +25,7 @@
  * WHAT IS NOT HERE is any judgement about the date itself. The validator is
  * the gate — on the set the write would produce, as it is for an agent's
  * `set_date` — so a value this layer disliked would be a rule the web has and
- * MCP does not (HACKING.md). The one thing it fences is a GESTURE that would
+ * MCP does not (the consistency rule). The one thing it fences is a GESTURE that would
  * produce no write at all, which is the draft's own rule and not a fence on
  * what may be written ({@link pressOf}).
  *

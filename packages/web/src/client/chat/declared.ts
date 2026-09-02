@@ -83,7 +83,7 @@
  * A call that FAILS on a live socket is said out loud instead ({@link
  * declaringFailure}, drawn once by `./Transcript.tsx`): an unmarked
  * paragraph is indistinguishable from a paragraph naming nothing, and a
- * reference that quietly never appears is the silent failure HACKING.md
+ * reference that quietly never appears is the silent failure the error rule
  * forbids. Those ids stay unknown rather than being remembered as absent, so
  * the next frame of a streaming message, or the wire coming back, asks again.
  *
@@ -217,7 +217,7 @@ let reported = 0
  * next thing to move it is the next question anybody asks, which for a settled
  * transcript is never. The reverse costs as much: an older success clearing a
  * newer failure leaves a conversation whose spans quietly never mark and says
- * nothing about it, which is the silent failure HACKING.md forbids.
+ * nothing about it, which is the silent failure the error rule forbids.
  *
  * So the slot is TAGGED with the batch that set it, and an older batch cannot
  * take it back. `>=` rather than `>`, because a batch answers this once and

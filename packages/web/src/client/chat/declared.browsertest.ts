@@ -12,7 +12,7 @@
  * the slot, and for a settled transcript there is no next question to move it.
  * The reverse costs as much — an older success clearing a newer failure is a
  * conversation whose spans quietly never mark, which is the silent failure
- * HACKING.md forbids.
+ * the error rule forbids.
  *
  * ## Why it is a `.browsertest.ts`
  *

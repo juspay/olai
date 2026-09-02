@@ -106,7 +106,7 @@ Feature: The files olai names for itself, and the doors onto them
     # only way this app reports a file it could not read without somebody
     # opening the page to find out — so a `Pins.olai` that will not parse
     # must wear it WHERE the reader will see it, at the home these files
-    # live in now (HACKING.md: never silently ignore errors).
+    # live in now (never silently ignore errors).
     When I pin the page
     # The shelf FIRST, so the rewrite below lands on a file the pin has already
     # been written into rather than racing that write.

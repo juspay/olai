@@ -119,7 +119,7 @@ function AgentRow(props: { readonly row: Row; readonly onPress: () => void }) {
         // The STANDING as data, so a scenario can assert the state without
         // asserting the paint: which colour says "working" is a decision about
         // pixels, and a test that pinned it would fail the next time somebody
-        // improved it (`../../../../HACKING.md`).
+        // improved it. Tests assert behaviour, not styling.
         data-standing={props.row.standing}
         // THE SENTENCE THE TABLE ALREADY CARRIES, rather than a phrase composed
         // here: `Look.detail` is what a state MEANS and is the half a hover and

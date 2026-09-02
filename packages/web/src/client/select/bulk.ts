@@ -5,7 +5,7 @@
  * Nothing new crosses the wire. Every verb here is the edit the same key
  * already sends for one row (`../../../surface/src/edit.ts`), repeated — which
  * is exactly what an agent does when it is asked to indent three things, and is
- * the whole of how this feature keeps HACKING's consistency rule: a bulk
+ * the whole of how this feature keeps the consistency rule: a bulk
  * gesture is N calls, not a bulk op the browser can make and MCP cannot.
  *
  * THE ORDER IS THE FEATURE, and it is the only arithmetic in this file. Each

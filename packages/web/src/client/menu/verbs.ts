@@ -22,7 +22,7 @@
  * still offers `Mark todo`, and choosing it is refused in the ops layer's own
  * words — "nothing should decide on your behalf that finished work is not
  * finished" — which is the sentence a person needs, and the two clicks it asks
- * for are the two calls an agent makes (HACKING.md's consistency rule). A menu
+ * for are the two calls an agent makes (the consistency rule). A menu
  * that greyed that entry out would be teaching a rule this app does not have.
  *
  * IT IS ASKED ABOUT A {@link Subject} RATHER THAN ABOUT A ROW, because two
