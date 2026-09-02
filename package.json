@@ -13,17 +13,20 @@
     "//typecheck": "ONE glob, and a recursive one: `./packages/**` matches a top-level member and a nested tenant alike, so it does not have to be kept in step with the two globs above. `--filter .*.` would cover both too and is NOT used — it matches the ROOT package as well, whose `typecheck` script is this line, which re-enters itself. A member nobody typechecks is a member whose types are checked by whichever suite happens to import it.",
     "typecheck": "bun run --filter './packages/**' typecheck"
   },
-  "//dependencies": "The runtime dependencies of the hydrated @kolu/* sources, declared HERE at the root rather than in the member that imports them: the isolated linker (bunfig.toml) symlinks only the root package's direct dependencies into the root node_modules, and that is where node_modules/@kolu/<name>/src/*.ts resolves its own imports by walking up. Every entry is at the exact version the pinned kolu declares — PEER dependencies included, because a peer is a runtime import like any other and the arrangement it names (`the app supplies the runtime`) is exactly the one this list is. `ws` is here for that reason and not because any olai source imports it: @kolu/surface-app's serving half is a Node websocket server. `@modelcontextprotocol/sdk` and `ts-pattern` are the same case one package over — @kolu/surface-mcp is built on the SDK's low-level Server and matches on its connection state with ts-pattern; no olai source imports either. This is not maintained by memory — scripts/check-hydrated-deps.sh reads the pinned kolu's own answer out of the Nix store and fails `just check` when this list drifts from it. ONE script asks that of every pin: the same three assertions run again for `@odu/run-client` (the `odu-deps` leg), because a pin is a pin and the second one was a line-for-line copy of the first until it stopped being.",
+  "//dependencies": "The runtime dependencies of the hydrated @kolu/* sources, declared HERE at the root rather than in the member that imports them: the isolated linker (bunfig.toml) symlinks only the root package's direct dependencies into the root node_modules, and that is where node_modules/@kolu/<name>/src/*.ts resolves its own imports by walking up. Every entry is at the exact version the pinned kolu declares — PEER dependencies included, because a peer is a runtime import like any other and the arrangement it names (`the app supplies the runtime`) is exactly the one this list is. `ws` is here for that reason and not because any olai source imports it: @kolu/surface-app's serving half is a Node websocket server. `@modelcontextprotocol/sdk` and `ts-pattern` are the same case one package over — @kolu/surface-mcp is built on the SDK's low-level Server and matches on its connection state with ts-pattern; no olai source imports either. This is not maintained by memory — scripts/check-hydrated-deps.sh reads the pinned kolu's own answer out of the Nix store and fails `just check` when this list drifts from it. ONE script asks that of every pin: the same three assertions run again for `@odu/run-client` (the `odu-deps` leg), because a pin is a pin and the second one was a line-for-line copy of the first until it stopped being. `cosmokit`, `@standard-schema/spec` and `js-yaml` are the CORDIS pin's turn of the same arrangement (`nix/cordis.nix`, the `cordis-deps` leg): four hydrated packages, one union of externals, resolved by walking up into this same root node_modules. js-yaml is `@cordisjs/plugin-include`'s — the base bundle is a `.yml` file and include is what reads it — and no olai source imports it, which is the `ws` case one pin over.",
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.96",
     "@effect/platform-browser": "4.0.0-rc.112",
     "@effect/platform-node": "4.0.0-rc.112",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@parcel/watcher": "^2.5.1",
+    "@standard-schema/spec": "^1.1.0",
     "@solid-primitives/rootless": "^1.5.3",
     "@solid-primitives/scheduled": "^1.5.3",
     "@xterm/xterm": "^6.0.0",
+    "cosmokit": "^1.8.1",
     "effect": "4.0.0-rc.112",
+    "js-yaml": "^4.1.0",
     "neverthrow": "^8.2.0",
     "p-limit": "^7.3.1",
     "simple-git": "^3.36.0",
@@ -42,6 +45,7 @@
   "//devDependencies": "@types/ws is the other half of the `ws` entry above: the hydrated sources are raw TypeScript, so `tsc --noEmit` checks them, and it resolves their types from the same root node_modules their imports resolve from.",
   "devDependencies": {
     "@types/bun": "^1.4.0",
+    "@types/js-yaml": "^4.0.9",
     "@types/ws": "^8.18.1",
     "typescript": "^5.8.0"
   }

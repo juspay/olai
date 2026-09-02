@@ -41,7 +41,7 @@ default:
 [macos]
 [parallel]
 [metadata("ci")]
-check: typecheck test e2e kolu-deps odu-deps fmt-check nix bun-nix-fresh hm-module
+check: typecheck test e2e kolu-deps odu-deps cordis-deps fmt-check nix bun-nix-fresh hm-module
 
 # Install deps (bun) and hydrate the @kolu/* sources from the npins kolu pin.
 # The `npm ci` in the acp/ pin is the adapter tree's half: the MCP bridge's
@@ -58,9 +58,10 @@ check: typecheck test e2e kolu-deps odu-deps fmt-check nix bun-nix-fresh hm-modu
 # — so the expansion is deliberately unquoted.
 #
 # `@odu/run-client` rides the SAME script on a second line — one copier, two
-# pins (nix/odu.nix says why odu brings no script of its own). Two invocations
-# rather than one concatenated argv so a failure names which pin it was
-# hydrating.
+# pins (nix/odu.nix says why odu brings no script of its own). Cordis is a
+# third pin on a third line, four packages out of one repository
+# (nix/cordis.nix). Separate invocations rather than one concatenated argv so
+# a failure names which pin it was hydrating.
 #
 # The LAST lines are the same errand for an ASSET rather than for sources:
 # each tenant's own logo, already turned into a TypeScript module by
@@ -75,6 +76,7 @@ install:
       && (cd acp && npm ci --ignore-scripts) \
       && sh $OLAI_KOLU_HYDRATE_SCRIPT $OLAI_KOLU_HYDRATE \
       && sh $OLAI_KOLU_HYDRATE_SCRIPT $OLAI_ODU_HYDRATE \
+      && sh $OLAI_KOLU_HYDRATE_SCRIPT $OLAI_CORDIS_HYDRATE \
       && install -m 644 "$OLAI_KOLU_MARK_DIR/mark.generated.ts" packages/plugins/olai-plugin-kolu/src/browser/mark.generated.ts \
       && install -m 644 "$OLAI_ODU_MARK_DIR/mark.generated.ts" packages/plugins/olai-plugin-odu/src/browser/mark.generated.ts'
 
@@ -185,6 +187,15 @@ kolu-deps:
 # every manifest's honesty cosmetic in exactly the way it already did for kolu.
 odu-deps:
     {{ nix_shell }} sh -c 'sh scripts/check-hydrated-deps.sh @odu/run-client "$OLAI_ODU_MANIFEST"'
+
+# ...and the same three questions about the four hydrated Cordis packages, over
+# the UNION of what they declare (nix/cordis.nix builds it): `cosmokit`,
+# `@standard-schema/spec` and `js-yaml`. The four resolve those by walking up
+# into the one root node_modules exactly as the @kolu/* members do, so a
+# version that drifted here is two `cosmokit`s — the same failure the other two
+# legs watch for, read off a third pin.
+cordis-deps:
+    {{ nix_shell }} sh -c 'sh scripts/check-hydrated-deps.sh cordis "$OLAI_CORDIS_MANIFEST"'
 
 # Build the browser bundle into packages/web/dist. The nix build runs this
 # same script in its own sandbox (default.nix), so there is one bundler and not
