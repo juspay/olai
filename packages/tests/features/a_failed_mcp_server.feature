@@ -17,6 +17,11 @@ Feature: A failed MCP server is a visible fact
   padi answers. So the two scenarios below differ only in whether the host's
   kolu works — the panel, the agent and the conversation are the same.
 
+  `odu` needs no such fake: the packaged wrapper the suite spawns (`OLAI_BIN`)
+  answers that one from its own pin — which IS the isolation, on a laptop that
+  has a real odu too — and `OLAI_ODU_BIN` is the knob a scenario turns when it
+  wants another answer (the empty string elbows the pin entirely).
+
   Background:
     Given I open the app
     And the agent panel is open
@@ -61,5 +66,5 @@ Feature: A failed MCP server is a visible fact
     # is the exact state this whole feature exists to make impossible. The two
     # facts have to be asserted together.
     When I ask the agent "servers"
-    Then the agent's answer mentions "servers: [olai kolu]"
+    Then the agent's answer mentions "servers: [olai kolu odu]"
     And the panel says nothing about a missing server

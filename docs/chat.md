@@ -469,13 +469,13 @@ The reason is the point. Every way of failing looks the same from the outside �
 
 **`PADI_SOCKET` counts as somebody saying kolu should be here.** If the variable is set — a kolu terminal sets it for what it starts, and a person who set it by hand meant it — and there is no `kolu` on the PATH this server was started with, that is a miss and the panel says so. It is worth knowing because *olai's* PATH is not your shell's: run as a systemd user service (the home-manager unit), it inherits neither, so a kolu you can run in a terminal is not necessarily one this process can see. That was the original mystery from the other side.
 
-**The build itself counts as somebody saying odu should be here.** A packaged olai — `nix run`, the home-manager unit, `just serve` — carries the pinned `odu` on the server's PATH, so a serve that resolves none is a miss and the panel says so: `no \`odu\` is on the PATH this server was started with`, with no path beside the name, because nothing was resolved to name one. There is no quiet absence to mistake it for, and that is the point of the rule: a machine that runs all its odu through `nix run github:juspay/odu` installs nothing anywhere persistent, which is exactly how a serve started outside the build used to have no CI verbs *and nothing on screen saying why* — the one production shape this arm exists to name.
-
 It is per conversation, because the detection is: start a padi and the next conversation has the terminals, with nothing to restart and nothing left on screen saying otherwise.
 
 **A machine that is simply not running kolu sees none of this**, and that is deliberate — nothing failed. It has no row on the roster either: what the panel reports is a tool server that was here and would not work, or one something said would be; never the absence of one that was never installed.
 
 An agent's report never overrules the probe. If this host's `kolu` would not answer, the session was never given one — so an agent that reports a `kolu` is reporting a `kolu` of its own, out of its own config, and the row here goes on saying what olai found.
+
+**For odu the rule is one notch stricter: the build itself says odu should be here.** A packaged olai — `nix run`, the packaged binary, the home-manager unit — carries the pinned `odu` on the server's PATH (`just serve` answers the same question from the tree; [running.md](running.md) has the one knob, `OLAI_ODU_BIN`), so a serve that resolves none IS an absence the panel draws: no `odu` is on the PATH this server was started with, with the build's promise beside it and no path beside the name — nothing was resolved, so there is nothing to name. There is no quiet case to mistake it for, and that is the point of the rule: a machine that runs all its odu through `nix run github:juspay/odu` installs nothing anywhere persistent, which is exactly how a serve started outside the build used to have no CI verbs *and nothing on screen saying why* — the one production shape this arm exists to name.
 
 ## What this conversation wakes on
 

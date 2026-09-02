@@ -225,7 +225,12 @@ serve dir="docs" *args: build-client
     # wrapper (default.nix) — scripts/olai-path.sh composes the whole
     # variable, so this can be the same one line the acp knobs are. An empty
     # override is off, and off is a DRAWN row, not a quiet plugin.
-    export PATH="$(sh scripts/olai-path.sh)"
+    # Two lines rather than one `export PATH="$(…)"`: the export builtin's
+    # own status is what `set -e` sees, and a failing build script must stop
+    # the serve here — continuing would splice an EMPTY PATH, and the next
+    # thing run reports `nix: command not found`.
+    PATH="$(sh scripts/olai-path.sh)"
+    export PATH
     # `kill 0` takes the whole process group down together: a stray bundler
     # watching a tree nobody is serving is a confusing thing to leave behind.
     trap 'kill 0' EXIT INT TERM
@@ -247,8 +252,10 @@ run dir="docs" *args: build-client
     set -euo pipefail
     export OLAI_ACP_AGENT="$(sh scripts/acp-agent.sh)"
     export OLAI_ACP_PI="$(sh scripts/acp-pi.sh)"
-    # The pinned odu on PATH, the same errand one recipe over — see `serve`.
-    export PATH="$(sh scripts/olai-path.sh)"
+    # The pinned odu on PATH, the same errand one recipe over — see `serve`
+    # for why the export is two lines.
+    PATH="$(sh scripts/olai-path.sh)"
+    export PATH
     OLAI_DIST_DIR={{ dist }} \
       {{ nix_shell }} bun --watch packages/server/src/main.ts web {{ dir }} {{ args }}
 
@@ -305,15 +312,25 @@ nix:
     echo "packaged pi adapter: $pi"
     # THE BAKED ODU, asserted the same way and for its own incident's sake:
     # the odu plugin's probe resolves `odu` on the SERVER's PATH, so the
-    # wrapper prefixes the pin's bin dir onto it (default.nix) — and a
-    # wrapper that stopped doing so would now fail the probe LOUDLY in every
-    # conversation instead of being silent (olai-plugin-odu's probe), which
-    # is a worse time to find out than this line.
-    odu_dir=$(grep -o "/nix/store/[a-z0-9]*-odu/bin" "$out/bin/olai" | head -n1)
+    # wrapper's `--set-default OLAI_ODU_BIN` names the pin's bin dir and its
+    # `--run` splices it FIRST (default.nix) — a wrapper that stopped doing
+    # either would now answer the probe LOUDLY in every conversation instead
+    # of being silent (olai-plugin-odu's probe), which is a worse time to
+    # find out than this line. Extraction is the two adapter checks' own
+    # sed, keyed on the variable SPELLING rather than a store-name pattern:
+    # a different wrapping that still mentioned the store dir would lie to
+    # the pattern, and the variable spelling is the contract.
+    odu_dir=$(sed -n "s|.*OLAI_ODU_BIN=\${OLAI_ODU_BIN-'\(.*\)'}.*|\1|p" "$out/bin/olai")
     if [ -z "$odu_dir" ]; then
-      echo "the packaged binary does not prefix an odu bin dir onto PATH," >&2
+      echo "the packaged binary does not name an OLAI_ODU_BIN default," >&2
       echo "so \`nix run\` would start with no odu resolvable — every documented" >&2
       echo "launch path is supposed to carry the pinned one. Wrapper:" >&2
+      cat "$out/bin/olai" >&2
+      exit 1
+    fi
+    if ! grep -qF 'export PATH="$OLAI_ODU_BIN:$PATH"' "$out/bin/olai"; then
+      echo "the wrapper names OLAI_ODU_BIN but never splices it onto PATH —" >&2
+      echo "the probe would resolve nothing. Wrapper:" >&2
       cat "$out/bin/olai" >&2
       exit 1
     fi

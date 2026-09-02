@@ -139,6 +139,20 @@ let
   # the acp-agent line's own argument, one integration over.
   odu-bin = odu.bin;
 
+  # THE ODU KNOB THE WRAPPER READS, documented beside it because the wrapper
+  # is generated text: `OLAI_ODU_BIN` names a DIRECTORY to put first on the
+  # server's PATH. Unset, it answers the pin — every packaged start resolves
+  # the build's own `odu`; set to a directory, it answers that one (an
+  # operator testing a development odu against a packaged olai); set to the
+  # empty string, it is the explicit off switch — the probe then answers
+  # from the ambient PATH, and a PATH with no odu draws the plugin's missing
+  # row rather than nothing. `--set-default` is what makes the empty answer
+  # reachable: it substitutes only when the variable is UNSET, so an empty
+  # value survives it. A set-but-not-a-directory value is skipped with a
+  # stderr line (the row then says the rest) — a serve that refuses to boot
+  # over one mis-set variable is the worse failure for the systemd unit.
+  # scripts/olai-path.sh is the dev loop's spelling of the same knob; the
+  # e2e suite's servers are this wrapper, so it is also the suite's spelling.
   olai = pkgs.runCommand "olai"
     {
       nativeBuildInputs = [ pkgs.makeWrapper ];
@@ -153,7 +167,8 @@ let
       --set OLAI_DIST_DIR "${olai-client}" \
       --set-default OLAI_ACP_AGENT "${acp-agent}/bin/claude-agent-acp" \
       --set-default OLAI_ACP_PI "${acp-agent}/bin/pi-acp" \
-      --prefix PATH : "${odu-bin}/bin"
+      --set-default OLAI_ODU_BIN "${odu-bin}/bin" \
+      --run 'if [ -n "$OLAI_ODU_BIN" ]; then if [ -d "$OLAI_ODU_BIN" ]; then export PATH="$OLAI_ODU_BIN:$PATH"; else echo "olai: OLAI_ODU_BIN=$OLAI_ODU_BIN is not a directory — no odu goes on the PATH of this serve" >&2; fi; fi'
   '';
 in
 {

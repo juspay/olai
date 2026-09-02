@@ -117,8 +117,12 @@ describe("odu's mcp, asked for fresh", () => {
     expect(found.server).toBeNull()
     expect(found.missing?.name).toBe("odu")
     expect(found.missing?.where).toBeNull()
-    expect(found.missing?.why).toContain("`odu`")
+    expect(found.missing?.why).toContain("no `odu`")
     expect(found.missing?.why).toContain("PATH")
+    // The distinctive half, pinned rather than shape-checked: the promise
+    // the bake makes, in the sentence itself — it is the part a drift in
+    // the ruling would quietly take away.
+    expect(found.missing?.why).toContain("a packaged olai carries one")
   })
 
   test("an answering `odu` with the shape is handed over, by its own resolved path", async () => {

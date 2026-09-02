@@ -269,12 +269,15 @@ const resolveOn = (path: string | undefined): string | null => {
 }
 
 /** The one sentence for the resolve that found NOTHING — the command named,
- *  said not to be on the server's PATH, with the baked-in ruling carried so
- *  the row is also the directions out ({@link probe}'s header argues it).
+ *  said not to be on the server's PATH, with the build's promise beside it
+ *  so the row is also the directions out ({@link probe}'s header argues it).
  *  kolu's `EXPECTED` is the same sentence one appliance over, pinned there
- *  to `PADI_SOCKET`; here the bake itself is what expects. */
+ *  to `PADI_SOCKET`; here the bake itself is what expects. The second clause
+ *  states the promise and STOPS — any diagnosis (a serve started outside
+ *  the build; `OLAI_ODU_BIN` deliberately empty) is this serve's own to
+ *  judge, and a sentence that can be wrong is worse than a shorter one. */
 const NOT_FOUND = `no \`${ODU_COMMAND}\` is on the PATH this server was started with`
-  + " — a packaged olai carries one, so this serve did not come from the build"
+  + " — a packaged olai carries one"
 
 /**
  * ASK THIS HOST — one resolve, one spawn, one round trip, per conversation.
@@ -293,11 +296,13 @@ const NOT_FOUND = `no \`${ODU_COMMAND}\` is on the PATH this server was started 
  * wrapper in the root default.nix, from nix/odu.nix), so every documented
  * start — `nix run`, the packaged binary, `just serve`, the home-manager
  * unit — resolves one. A probe that finds NOTHING is therefore not the
- * ordinary case; it is a serve started from outside the build (a bare
- * `bun` invocation, somebody's hand-rolled unit), and the difference
- * between the two is exactly what a person on the second kind needs to
- * see rather than to infer from a conversation that simply has no CI
- * verbs. Silence here was the production incident: a host that ran all
+ * ordinary case; it is a serve that declined the build's own answer (a
+ * bare `bun` invocation, somebody's hand-rolled unit, `OLAI_ODU_BIN`
+ * emptied on purpose — the plugin cannot tell them apart and does not
+ * try: the sentence carries the fact, the diagnosis is theirs), and the
+ * difference between the two is exactly what a person on the second kind
+ * needs to see rather than to infer from a conversation that simply has
+ * no CI verbs. Silence here was the production incident: a host that ran all
  * its odu through `nix run github:juspay/odu` installed nothing, and the
  * quiet arm meant the feature could never fire while the panel said
  * nothing about why. The sentence is odu's own spelling of kolu's
