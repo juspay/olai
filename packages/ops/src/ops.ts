@@ -763,6 +763,13 @@ export const make = (options: Options): Ops => {
          * only: every other verb's answer is about RECORDS the gate
          * validated, and their bytes are the serializer's, not the caller's.
          */
+        // Recorded BEFORE the read-back can refuse, because the write it
+        // tallies has already landed — a refused read-back is the ANSWER
+        // taken back, not the write, and the write is this counter's
+        // business. The counter is the panel's per-writer tally, not arming:
+        // what arms a pending sweep is the git survey, and the file a looted
+        // write left behind is dirty there exactly as any other write's is.
+        commits.wrote(writer)
         for (const document of documents) {
           const held = yield* Effect.result(options.store.body(document.file))
           if (Result.isFailure(held)) {
@@ -803,12 +810,6 @@ export const make = (options: Options): Ops => {
           }
         }
 
-        // Recorded AFTER the write landed — and recorded on the refused
-        // read-back path too, where the write landed the same. The counter is
-        // the panel's per-writer tally, not arming: what arms a pending sweep
-        // is the git survey, and the file a looted write left behind is dirty
-        // there exactly as any other write's is.
-        commits.wrote(writer)
         /** WHY this write is not in the history — always a sentence, because
          *  there is always a reason (`./pending.ts`'s `whyOf`). It rides the
          *  reply, so what happened is where the person who asked for the write
