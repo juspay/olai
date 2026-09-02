@@ -1,0 +1,29 @@
+{
+  "name": "@olai/bundle",
+  "//name": "THE BUILD'S SET OF PLUGINS, and the one place either tenant's name is spelled. It was the back half of `@olai/plugin-api`, which held both the INTERFACE a plugin is written against and the REGISTRY that names every plugin — an arrangement that could not survive a plugin importing the interface, because the registry imports the plugin and the manifests decline to express a cycle. So the interface stayed where it was and the registry moved here. `bundle` is the proposal's own word for it and dsh's (a profile stacks bundles, each a list of rows plus the code they mount); it is deliberately NOT the `@kolu/surface` sense of the word, where a rooted bundle is a composed wire — see src/bundle.ts's header, which is the one place the two could be confused.",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "//exports": "THE THREE DOORS, unchanged in role by the move and unchanged in number: three doors because three GRAPHS. `./wire` is the BROWSER-SAFE half — the sibling map, the filters and the fusion helpers — on a graph that reaches each plugin's own `./wire` subpath and stops there. The ROOT is the MANIFESTS whole — the dressings, the chrome and the marks, which are SolidJS components and, behind kolu's, a terminal emulator — and only the renderer opens it. `./bundle` is what a COMPOSITION ROOT reads: the base bundle's ROWS, the loader that mounts them and the `--plugins` patch, on a graph with no browser face on it. What used to be behind that third door was `SERVERS`, an array of statically imported server halves; it is a `.yml` file and a module specifier per row now, so the door carries no plugin's code at all and the fence's walk of it is a walk of the rows. A FOURTH entry is not a fourth graph: `./all.css` is the plugins' stylesheets chained, and it is here because a CSS import is a door a plugin's name can be spelled through. A FIFTH, `./testids`, is the same routing in a third grammar: a `data-testid` is spent in `@olai/tests`, which may not name a plugin either, and the door is NAMES ONLY so a suite with no browser in it never pulls a component. src/fence.test.ts walks each closure rather than trusting this sentence.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./wire": "./src/wire.ts",
+    "./bundle": "./src/bundle.ts",
+    "./all.css": "./src/all.css",
+    "./testids": "./src/testids.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "//": "THE ONLY PLACE A PLUGIN'S NAME IS SPELLED — src/olai.yml is the build's rows, src/registry.ts and src/surfaces.ts the two browser doors, and src/fence.test.ts is what refuses a general package that names a tenant before a reviewer has to notice.",
+  "//dependencies": "The two plugins, the interface they are written against, and the runtime that mounts them. `@olai/plugin-api` is the INTERFACE and is a dependency in this direction only — it names no plugin, which is what makes the arrow one-way and the cycle unrepresentable. `effect` is for the schemas a contributed member is declared in; `solid-js` is TYPES ONLY. `cordis` and `@cordisjs/plugin-loader`/`-include` are NOT declared here and are not omissions: they are hydrated from the npins pin (nix/cordis.nix) into the root node_modules, the way every `@kolu/*` member is, and scripts/check-hydrated-deps.sh is what holds their versions.",
+  "dependencies": {
+    "@olai/plugin-api": "workspace:*",
+    "olai-plugin-kolu": "workspace:*",
+    "olai-plugin-odu": "workspace:*",
+    "effect": "4.0.0-rc.112",
+    "solid-js": "^1.9.0"
+  }
+}

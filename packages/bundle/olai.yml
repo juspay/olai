@@ -1,0 +1,27 @@
+# THE BASE BUNDLE — every plugin this build has, as rows.
+#
+# One row per plugin, and this file is the whole of the list. It replaced three
+# `as const` arrays that had to agree in order (`WIRES`, `PLUGINS`, `SERVERS`,
+# six edits per plugin); what is left in code is the BROWSER's two doors, which
+# cannot be data until the tab boots off the roster cell — `src/surfaces.ts`
+# says why, and `src/rosters.test.ts` holds this file equal to them.
+#
+#   id    the sibling key. It IS the plugin's name: the word `--plugins` takes,
+#         the row preferences draws, the namespace every one of its members
+#         reaches the wire under, and the address of its docs page. The fiber is
+#         bound under it, so it is also the stamp `ctx.deliveries` and
+#         `ctx.kinds` read off `ctx.fiber.name` — never off anything a caller
+#         supplies.
+#   name  the MODULE the loader mounts. A specifier and not an import: the
+#         loader resolves it at mount through the bundle's own resolver
+#         (`src/bundle.ts`), which is what makes a plugin's presence a runtime
+#         fact and is the seam an out-of-tree `olai plugin add` lands on later.
+#
+# `--plugins` does NOT edit this file. It is a PATCH applied over these rows on
+# the way in — `- id: kolu` / `disabled: true` for every name the flag left out
+# — so what an operator said and what the build has stay two readable things,
+# and `--dump-config` can later show both.
+- id: kolu
+  name: olai-plugin-kolu/server
+- id: odu
+  name: olai-plugin-odu/server

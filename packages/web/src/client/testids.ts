@@ -35,7 +35,7 @@
  * prevent.
  */
 
-import type { PluginTestId } from "@olai/plugin-api/testids"
+import type { PluginTestId } from "@olai/bundle/testids"
 
 export const TESTID = {
   /** The app header: wordmark, and on desktop the connection, agent,

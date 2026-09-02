@@ -69,7 +69,7 @@ import * as path from "node:path";
 
 import { expect, test } from "bun:test";
 
-import { PLUGIN_NAMES } from "@olai/plugin-api/wire";
+import { PLUGIN_NAMES } from "@olai/bundle/wire";
 
 import { ROOT } from "./support/sweep.ts";
 

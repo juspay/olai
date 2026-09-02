@@ -146,7 +146,7 @@
  */
 
 import { connectSurfaces } from "@kolu/surface-app/solid"
-import { surfacesOf, WIRES } from "@olai/plugin-api/wire"
+import { surfacesOf, WIRES } from "@olai/bundle/wire"
 import { surface } from "@olai/surface"
 
 /**

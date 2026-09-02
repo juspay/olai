@@ -149,11 +149,13 @@ export interface Options {
    *  session is opened after that. */
   readonly tools: () => AcpAgent.ToolServer | null
   /** The OPTIONAL servers to look for, once per conversation — whatever else
-   *  this host turns out to be running ({@link ./probes.ts}). Handed in whole
-   *  and carried through to {@link ./agent.ts} untouched: what is on the list is
-   *  the composition root's business, and omitting it is a chat that asks this
+   *  this host turns out to be running ({@link ./probes.ts}). A THUNK, and
+   *  carried through to {@link ./agent.ts} untouched: what is on the list is the
+   *  composition root.s business, and so is WHEN the list is settled — a serve
+   *  whose integrations are fibers answers a different list per conversation, so
+   *  this side holds no copy of one. Omitting it is a chat that asks this
    *  machine nothing. */
-  readonly probes?: ReadonlyArray<Probe>
+  readonly probes?: () => ReadonlyArray<Probe>
   /**
    * WHERE THE DOORBELL PICKS ARE KEPT — which conversations somebody pointed a
    * plugin's doorbell at, and at which file ({@link ./scopes.ts}).

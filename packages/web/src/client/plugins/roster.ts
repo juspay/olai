@@ -27,7 +27,8 @@
  * declares, which is the type every walk below is written against.
  */
 
-import { type OlaiPlugin, PLUGINS } from "@olai/plugin-api"
+import { PLUGINS } from "@olai/bundle"
+import type { OlaiPlugin } from "@olai/plugin-api"
 
 /** Every plugin this binary was built with, as the interface. */
 export const ROSTER: ReadonlyArray<OlaiPlugin> = PLUGINS

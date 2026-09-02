@@ -64,7 +64,7 @@ import { Flag } from "effect/unstable/cli"
  * `surfaces.ts` and exported from `./wire` as well as from the root, so the
  * browser-safe door answers the same question with none of that behind it.
  */
-import { PLUGIN_NAMES } from "@olai/plugin-api/wire"
+import { PLUGIN_NAMES } from "@olai/bundle/wire"
 
 /**
  * What `--plugins` says for itself.
@@ -153,4 +153,4 @@ export const pluginsPin = (given: string | null): ReadonlyArray<string> | null =
 /** The built-in list, re-exported beside the flag that declines to apply it —
  *  so a reader of this file can see what "nobody said" comes to without going
  *  a package down. The same courtesy `./gitPolicy.ts` ends with. */
-export { PLUGIN_NAMES } from "@olai/plugin-api/wire"
+export { PLUGIN_NAMES } from "@olai/bundle/wire"

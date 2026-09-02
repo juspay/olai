@@ -40,6 +40,17 @@
         "effect": "4.0.0-rc.112",
       },
     },
+    "packages/bundle": {
+      "name": "@olai/bundle",
+      "version": "0.1.0",
+      "dependencies": {
+        "@olai/plugin-api": "workspace:*",
+        "effect": "4.0.0-rc.112",
+        "olai-plugin-kolu": "workspace:*",
+        "olai-plugin-odu": "workspace:*",
+        "solid-js": "^1.9.0",
+      },
+    },
     "packages/chat": {
       "name": "@olai/chat",
       "version": "0.1.0",
@@ -146,8 +157,6 @@
       "version": "0.1.0",
       "dependencies": {
         "effect": "4.0.0-rc.112",
-        "olai-plugin-kolu": "workspace:*",
-        "olai-plugin-odu": "workspace:*",
         "solid-js": "^1.9.0",
       },
     },
@@ -164,6 +173,7 @@
       "dependencies": {
         "@olai/format": "workspace:*",
         "@olai/kolu-client": "workspace:*",
+        "@olai/plugin-api": "workspace:*",
         "@olai/plugin-kit": "workspace:*",
         "@xterm/addon-fit": "^0.11.0",
         "@xterm/xterm": "^6.0.0",
@@ -180,6 +190,7 @@
       "dependencies": {
         "@olai/format": "workspace:*",
         "@olai/odu-client": "workspace:*",
+        "@olai/plugin-api": "workspace:*",
         "@olai/plugin-kit": "workspace:*",
         "solid-js": "^1.9.0",
       },
@@ -192,6 +203,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@effect/platform-node": "4.0.0-rc.112",
+        "@olai/bundle": "workspace:*",
         "@olai/chat": "workspace:*",
         "@olai/format": "workspace:*",
         "@olai/identity": "workspace:*",
@@ -246,6 +258,7 @@
       "name": "@olai/tests",
       "version": "0.1.0",
       "dependencies": {
+        "@olai/bundle": "workspace:*",
         "@olai/fonts": "workspace:*",
         "@olai/format": "workspace:*",
         "@olai/identity": "workspace:*",
@@ -265,6 +278,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@kobalte/core": "^0.13.13",
+        "@olai/bundle": "workspace:*",
         "@olai/child": "workspace:*",
         "@olai/fonts": "workspace:*",
         "@olai/format": "workspace:*",
@@ -464,6 +478,8 @@
     "@msgpackr-extract/msgpackr-extract-win32-x64": ["@msgpackr-extract/msgpackr-extract-win32-x64@3.0.4", "", { "os": "win32", "cpu": "x64" }, "sha512-CmCXPQrkbwExx3j946/PtHWHbYJiCRBRDl4BlkRQcJB/YOwQxJRTpoo7aTsortjgoJ1x7opzTSxn7C+ASSLVjQ=="],
 
     "@olai/acp": ["@olai/acp@workspace:packages/acp"],
+
+    "@olai/bundle": ["@olai/bundle@workspace:packages/bundle"],
 
     "@olai/chat": ["@olai/chat@workspace:packages/chat"],
 

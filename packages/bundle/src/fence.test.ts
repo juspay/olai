@@ -123,6 +123,7 @@ import * as path from "node:path"
 
 import { describe, expect, test } from "bun:test"
 
+import { ROWS } from "./bundle.ts"
 import { PLUGIN_NAMES, WIRES } from "./surfaces.ts"
 import {
   cssImportsOf,
@@ -149,9 +150,19 @@ import {
  *  directories because that is what the walk below has; both are DERIVED —
  *  the registry from the manifest that owns this file, the tenants from the
  *  packages the registry names — so a rename moves them without an edit here. */
-const REGISTRY = MEMBER_OF_PACKAGE.get("@olai/plugin-api") ??
+const REGISTRY = MEMBER_OF_PACKAGE.get("@olai/bundle") ??
   (() => {
-    throw new Error("fence: `@olai/plugin-api` is not a workspace member, so there is no registry to fence")
+    throw new Error("fence: `@olai/bundle` is not a workspace member, so there is no registry to fence")
+  })()
+
+/** ...and the INTERFACE, which is the package the registry used to be half of.
+ *  It names no plugin, which is what lets a plugin import it — so it is
+ *  excused from the "no package outside the registry" claims below by being a
+ *  different package, and holds a claim of its own instead: its SERVICES door
+ *  pulls no browser face. */
+const INTERFACE = MEMBER_OF_PACKAGE.get("@olai/plugin-api") ??
+  (() => {
+    throw new Error("fence: `@olai/plugin-api` is not a workspace member, so there is no interface to fence")
   })()
 
 /**
@@ -285,7 +296,40 @@ const componentsOn = (door: { files: ReadonlyArray<string> }): ReadonlyArray<str
  *  be the argument undercut by its own callers, and the file re-read three
  *  times over. */
 const WIRE_DOOR = graphFrom(path.join(PACKAGES, REGISTRY, "src", "wire.ts"))
-const SERVER_DOOR = graphFrom(path.join(PACKAGES, REGISTRY, "src", "server.ts"))
+
+/**
+ * ...AND THE SERVER DOOR, which is no longer a FILE in this package.
+ *
+ * It was `src/server.ts`: an array of statically imported server halves, whose
+ * import graph this walk followed. There is no such array — the rows in
+ * `olai.yml` name each plugin's server module as a SPECIFIER and the loader
+ * mounts it at runtime — so what is walked is each ROW's module, resolved off
+ * the bundle rather than off an import.
+ *
+ * The claim it holds is unchanged and the reading is stronger: it used to be
+ * "whatever the registry's `./server.ts` happened to pull in", and it is now
+ * "every module this build will actually mount". A row naming a module that
+ * does not exist is a walk that cannot read it, which the `unresolved` claim
+ * below is about.
+ */
+const SERVER_DOOR = ((): ReturnType<typeof graphFrom> => {
+  const graphs = ROWS.map((row) => {
+    // `olai-plugin-kolu/server` → `packages/plugins/olai-plugin-kolu/src/server.ts`.
+    // The one piece of arithmetic, and it is the ecosystem's rather than this
+    // file's: a package's `./server` subpath is `src/server.ts` in every member
+    // of this tree, and a row whose module does not resolve that way is a row
+    // this walk reports rather than skips.
+    const dir = MEMBER_OF_PACKAGE.get(packageOf(row.name))
+    if (dir === undefined) throw new Error(`fence: the bundle row \`${row.id}\` names no workspace member`)
+    return graphFrom(path.join(PACKAGES, dir, "src", "server.ts"))
+  })
+  return {
+    reached: graphs.flatMap((one) => one.reached),
+    files: [...new Set(graphs.flatMap((one) => one.files))],
+    unresolved: graphs.flatMap((one) => one.unresolved),
+  }
+})()
+
 
 describe("the wire door stays a wire door", () => {
   const reached = WIRE_DOOR.reached
@@ -469,7 +513,7 @@ describe("only the registry knows a plugin's name", () => {
     expect(files).toBeGreaterThan(400)
   })
 
-  test("no package outside packages/plugin-api imports a plugin", () => {
+  test("no package outside the registry imports a plugin", () => {
     for (const pkg of packages) {
       if (pkg === REGISTRY) continue
       const reached = tree.get(pkg)?.flatMap((s) => s.plugins.map((p) => `${s.file}: ${p}`)) ?? []
@@ -479,7 +523,7 @@ describe("only the registry knows a plugin's name", () => {
     }
   })
 
-  test("no package outside packages/plugin-api declares a plugin in its manifest", () => {
+  test("no package outside the registry declares a plugin in its manifest", () => {
     for (const pkg of packages) {
       if (pkg === REGISTRY) continue
       expect(declaredBy(pkg), pkg).toEqual([])
@@ -492,7 +536,7 @@ describe("only the registry knows a plugin's name", () => {
     expect([...declaredBy(REGISTRY)].sort()).toEqual([...PLUGIN_PACKAGES].sort())
   })
 
-  test("a plugin imports neither another plugin nor the registry", () => {
+  test("a plugin imports another plugin only through its own name, and no registry", () => {
     for (const { dir, pkg } of TENANTS_OF) {
       // ITS OWN NAME comes off the record rather than being spelled out of the
       // directory. It used to be `@olai/${dir}`, which was the tenant's real
@@ -505,21 +549,56 @@ describe("only the registry knows a plugin's name", () => {
       // header cites — "a plugin package grew a testlib that served its own
       // appliance's real surface" — so the wrong failure would arrive on the
       // day the right one was meant to be forgiven.
+      //
+      // NO PLUGIN IMPORTS ANOTHER PLUGIN, and this is the claim the proposal
+      // rules ON. It is a fact about today rather than a wall: a plugin may
+      // NAME another plugin's service in its `inject`, and the day the
+      // spaces-mirror lane does (kolu's fleet beside odu's runs) this claim
+      // becomes "and it imports the service definitions it names, which are
+      // `@olai/plugin-api`'s". Until then it is worth holding as an equality,
+      // because an accidental edge is still an accident.
       const foreign = tree.get(dir)?.flatMap((s) =>
         s.plugins.filter((p) => p !== pkg && !p.startsWith(`${pkg}/`)).map((p) => `${s.file}: ${p}`)
       ) ?? []
       expect(foreign, dir).toEqual([])
-      // The registry imports every plugin, so a plugin importing it back is
-      // the cycle the manifests decline to express. Held over the sources too,
-      // because a type-only import is a cycle a bundler forgives and a reader
-      // does not — which is why this reads `specs` (the positional grammar,
-      // which sees a type-only import) rather than the walk's `scanImports`.
+      // THE REGISTRY IS STILL FORBIDDEN, and the INTERFACE is not — which is
+      // the reversal this phase made and the reason the two are different
+      // packages at all. `@olai/bundle` imports every plugin, so a plugin
+      // importing it back is the cycle the manifests decline to express;
+      // `@olai/plugin-api` imports none, so a plugin importing it is an
+      // ordinary arrow and is how a server half names the services it injects.
+      //
+      // Held over the sources too, because a type-only import is a cycle a
+      // bundler forgives and a reader does not — which is why this reads
+      // `specs` (the positional grammar, which sees a type-only import) rather
+      // than the walk's `scanImports`.
       const back = tree.get(dir)?.flatMap((s) =>
+        s.specs
+          .filter((spec) => spec === "@olai/bundle" || spec.startsWith("@olai/bundle/"))
+          .map((spec) => `${s.file}: ${spec}`)
+      ) ?? []
+      expect(back, dir).toEqual([])
+    }
+  })
+
+  /**
+   * ...AND THE INTERFACE IS WHAT A PLUGIN DOES IMPORT, which is the positive
+   * half of the claim above and is not decoration.
+   *
+   * A version of this fence that only forbade things would pass on a tree where
+   * the services door had quietly stopped being reachable — a plugin written
+   * against a copy of the shapes, structurally, the way `olai-plugin-odu`'s
+   * `server.ts` re-declared `Deliveries` for a while precisely because the
+   * import was a cycle. So the arrow is asserted to EXIST.
+   */
+  test("...and every plugin's server half does import the interface", () => {
+    for (const { dir } of TENANTS_OF) {
+      const named = tree.get(dir)?.flatMap((s) =>
         s.specs
           .filter((spec) => spec === "@olai/plugin-api" || spec.startsWith("@olai/plugin-api/"))
           .map((spec) => `${s.file}: ${spec}`)
       ) ?? []
-      expect(back, dir).toEqual([])
+      expect(named.length, dir).toBeGreaterThan(0)
     }
   })
 })
@@ -553,22 +632,46 @@ describe("only the renderer opens the manifest door", () => {
    *  directory name because that is what the walk has. */
   const RENDERER = "web"
 
-  test("no package but the browser imports `@olai/plugin-api` itself", () => {
+  test("no package but the browser imports `@olai/bundle` itself", () => {
     for (const pkg of packages) {
       if (pkg === REGISTRY || pkg === RENDERER) continue
       // The BARE specifier alone. A subpath is the supported reach and is
-      // deliberately not matched — a claim that caught `@olai/plugin-api/wire`
+      // deliberately not matched — a claim that caught `@olai/bundle/wire`
       // would forbid the door this whole split exists to offer.
       //
       // Read off `Named.specs`, which is the corpus read ONCE at module scope in
       // whichever grammar each file has. Re-reading here to ask a second
-      // question of the same text is what that field's own comment forbids, and
+      // question of the same text is what that field.s own comment forbids, and
       // it is the most expensive thing in this file when it happens.
       const reached = tree.get(pkg)?.flatMap((s) =>
-        s.specs.filter((spec) => spec === "@olai/plugin-api").map(() => s.file)
+        s.specs.filter((spec) => spec === "@olai/bundle").map(() => s.file)
       ) ?? []
       expect(reached, pkg).toEqual([])
     }
+  })
+
+  /**
+   * ...AND THE SERVICES DOOR PULLS NO BROWSER FACE, which is the claim the
+   * INTERFACE package owes now that it is one.
+   *
+   * `@olai/plugin-api` is two doors: the root is what a browser half is written
+   * against and its fields return `JSX.Element`, and `./services` is what a
+   * SERVER half is written against. A server that reached the first would
+   * evaluate a `.tsx` and die on `react/jsx-dev-runtime` before it served
+   * anything — the same hazard the three-door split has always been about, one
+   * package over — so the services door is walked and held to the same list a
+   * server door is.
+   */
+  test("the services door pulls no browser face", () => {
+    const door = graphFrom(path.join(PACKAGES, INTERFACE, "src", "services.ts"))
+    expect(door.unresolved).toEqual([])
+    const bad = door.reached
+      .filter((one) => NOT_ON_A_SERVER.some((rule) => rule.test(one.spec)))
+      .map((one) => `: `)
+    expect([...new Set(bad)].sort()).toEqual([])
+    expect(componentsOn(door)).toEqual([])
+    // Not vacuous: the door reaches at least the contract beside it.
+    expect(door.files.length).toBeGreaterThan(1)
   })
 })
 
@@ -682,8 +785,20 @@ const ROOT_DECLARED: ReadonlySet<string> = new Set(dependencyNames(manifestAt(RE
  *  `@kolu/surface`, `-app`, `-cli`, `-mcp`, `-daemon`, `-daemon-supervisor`:
  *  olai's app is BUILT on them — the surface composition every one of these
  *  claims is about is theirs — so they are imported anywhere, like `effect`.
- *  Confining them would be confining the framework to a tenant. */
-const FRAMEWORK = /^@kolu\/surface(-[a-z]+)*(\/|$)/
+ *  Confining them would be confining the framework to a tenant.
+ *
+ *  `cordis` and `@cordisjs/plugin-*` are the SAME TIER and the arm is
+ *  PERMANENT, which is the one thing that changed about this rule this phase.
+ *  It arrived in the spike as a note saying "drop the two arms the day the
+ *  spike is deleted"; the spike is deleted and the arms stayed, because Cordis
+ *  is now the runtime olai's server composition is built on — a plugin imports
+ *  it to type its own `apply`, the composition root mounts the bundle on it,
+ *  and the interface package's services extend its `Service`. Confining it to a
+ *  tenant would be confining the framework to a tenant, which is exactly the
+ *  sentence above one pin over. It is hydrated from the npins pin
+ *  (`nix/cordis.nix`) the way every `@kolu/*` member is, which is why it needs
+ *  the arm at all. */
+const FRAMEWORK = /^(?:@kolu\/surface(-[a-z]+)*|cordis|@cordisjs\/plugin-[a-z]+)(\/|$)/
 
 /** Is this specifier, named by this package, a HYDRATED one — copied into the
  *  root `node_modules` from a Nix pin, where every package resolves it whether

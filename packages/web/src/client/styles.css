@@ -23,7 +23,7 @@
  * the same tree. */
 @source "./";
 
-/* THE PLUGINS' FACES, as one line — `@olai/plugin-api/all.css`.
+/* THE PLUGINS' FACES, as one line — `@olai/bundle/all.css`.
  *
  * This was `@olai/kolu-ui/all.css`, and before that two vendor imports and a
  * paragraph explaining kolu's own chain. Each level carries its own: the row's
@@ -42,7 +42,7 @@
  * app's own tree; Tailwind emits ONLY what it can SEE; and a face that moved
  * out of that tree emits nothing at all — not a missing style, a component with
  * no box, no ink and no spacing, with nothing red anywhere. */
-@import "@olai/plugin-api/all.css";
+@import "@olai/bundle/all.css";
 
 /* The typefaces themselves — `@font-face` and every `:root[data-font]`
  * block — are generated from `@olai/fonts`'s catalog and appended by the

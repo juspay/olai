@@ -42,7 +42,7 @@ import {
 // nothing outside it names a plugin. The door is NAMES ONLY, which is what
 // keeps a component (and behind kolu's, a terminal emulator) off the graph of a
 // process with no browser in it.
-import { PLUGIN_TESTID } from "@olai/plugin-api/testids";
+import { PLUGIN_TESTID } from "@olai/bundle/testids";
 import { listenHeaderProxy, type HeaderProxy } from "./headerProxy.ts";
 import type { LivePadi } from "@olai/kolu-client/testlib";
 import {

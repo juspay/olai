@@ -17,7 +17,7 @@
 
 import { expect, test } from "bun:test"
 
-import { PLUGIN_NAMES } from "@olai/plugin-api/wire"
+import { PLUGIN_NAMES } from "@olai/bundle/wire"
 
 import { pluginsPin, pluginsSaid } from "./pluginPolicy.ts"
 

@@ -28,9 +28,23 @@ import { AGENT_ENV, roster, whyNoAgent } from "@olai/chat"
 import type { GitPin } from "@olai/format"
 import type { IdentityConfig } from "@olai/identity"
 import { fixedPolicy, make as makeOps, TOOLS } from "@olai/ops"
-import { enabled, probesOf, SERVERS } from "@olai/plugin-api/server"
+import { BUNDLE_NAMES, mountBundle } from "@olai/bundle/bundle"
+import { emitter } from "@olai/log"
+import {
+  Clock,
+  DeliveryDoors,
+  Env,
+  Kinds,
+  Log,
+  type SessionStart,
+  Surfaces,
+  Vault,
+  Wakes,
+} from "@olai/plugin-api/services"
+import { Context } from "cordis"
 import { Effect, SubscriptionRef } from "effect"
 import { randomBytes } from "node:crypto"
+import { resolve } from "node:path"
 
 import * as Chat from "@olai/chat"
 import { roster as agentsRoster } from "./agents.ts"
@@ -84,17 +98,129 @@ export interface ServeOptions {
 export const serve = (options: ServeOptions) =>
   Effect.gen(function*() {
     /**
-     * WHAT THE PLUGINS TEACH THIS VAULT'S VOCABULARY, before anything reads a
-     * file — because the store validates through it and the write planner
-     * refuses through it ({@link ./propKinds.ts}).
+     * THE PLUGIN RUNTIME, MOUNTED — before the store, before the chat, before
+     * anything reads a file.
      *
-     * FIRST, and that ordering is the one thing worth noticing here: a codec
-     * built without it would judge the boot's own load against a vocabulary
-     * that has never heard of a terminal, and every value under a contributed
-     * kind would be text until something re-validated.
+     * ## Why this is the first thing that happens
+     *
+     * A plugin teaches the vault its VOCABULARY, and the store validates
+     * through it ({@link ./propKinds.ts}): a codec built without it would judge
+     * the boot's own load against a vocabulary that has never heard of a
+     * terminal, and every value under a contributed kind would be text until
+     * something re-validated. That ordering was already here — `propKinds` ran
+     * first — and what changed is where the words come from. They used to be a
+     * static field on a compiled-in list; they are registrations a mounted fiber
+     * makes, so the fibers have to be up.
+     *
+     * Nothing in an `apply` touches the disk or dials anything: each half is
+     * MADE eagerly and STARTED lazily, and starting is a cell's connector, which
+     * the framework runs when the surface binds. So mounting here costs the
+     * import of two modules and a handful of `Map.set`s.
+     *
+     * ## The services, and the ONE place a process reaches for the real world
+     *
+     * This is it, which is the rule every seam in this tree is built on: a
+     * plugin that read `process.env` or called `new Date()` would be a plugin a
+     * test cannot drive. What changed is only that the values arrive once, at
+     * the service, instead of once per plugin — and that the two KEYED ones (the
+     * doorbell's door, and a test's injectable dial) are keyed by the CALLING
+     * FIBER inside the service rather than by a name a composition root closed
+     * over.
+     *
+     * THERE IS ALWAYS A CONTEXT HERE, and `--plugins=` is not the exception:
+     * saying NONE out loud is every row patched `disabled`, so the services
+     * stand and nothing mounts into them, which is exactly the state the roster
+     * has to be able to draw. The face that composes no runtime at all is the
+     * one that never calls this function — `olai surface`, the headless faces,
+     * every test in this package — and it passes `null` to `bind` directly.
      */
-    const kinds = propKinds(options.plugins)
+    /**
+     * THE ONE BRIDGE from an Effect to a sink that has no fiber under it — the
+     * two log channels the services carry, and the doorbell's delivery.
+     *
+     * `Emit` names its argument a line because logging is what most callers do
+     * with it; what it IS is "run this Effect later, under the services this
+     * fiber has". A delivery reaching core from a plugin's watcher sink is in
+     * precisely the position `@olai/log`'s `emit.ts` was written for: a plain
+     * callback with no fiber under it, where an empty context would mean the
+     * DEFAULT logger at the DEFAULT level — so every line the delivery's own
+     * turn emits would escape an `OLAI_LOG_LEVEL` the operator typed and arrive
+     * in a different shape than the same line from a person's send. One
+     * conversation would keep two journals, told apart by who started the turn.
+     *
+     * A `let`, RE-CAPTURED after the directory is open, and that is not
+     * bookkeeping: `openDirectory` annotates this scope with the root
+     * (`./directory.ts` owns the reason it must happen before the store forks
+     * anything), and an emitter captured before it closes over a context
+     * without that annotation. The services are constructed FIRST — they have
+     * to be, because a plugin teaches the vault its vocabulary — so the first
+     * capture is what stands for the handful of lines a plugin's `apply` could
+     * emit, and every line after the directory is open says which directory it
+     * was about.
+     */
+    let ring = yield* emitter
+    /** THE CHAT, built further down and `null` forever on a machine with no ACP
+     *  agent. It is declared UP HERE because two things below reach for it out
+     *  of order: the delivery service asks for a plugin.s door per call, and the
+     *  refusal observer is installed on the ops layer, which is built before the
+     *  chat that draws its refusals. */
+    let chat: Chat.Chat | null = null
+    /** The re-compose, filled in by `bind` — `./runtime.ts`'s `PluginRuntime`
+     *  argues why it is a holder rather than a callback passed here. */
+    const onChange = { run: (): void => {} }
+    /** WHERE A RELATIVE PATH RESOLVES FROM, resolved the way `openDirectory`
+     *  resolves it and BEFORE it, because the services are constructed first.
+     *  One spelling of `resolve` in two places is a hazard; two answers to which
+     *  directory this serve is about is a worse one, and `./directory.ts` is
+     *  handed the same string. */
+    const served = resolve(options.root)
+    const plugins = new Context()
+    yield* Effect.promise(async () => {
+        await plugins.plugin(Env, { vars: process.env })
+        await plugins.plugin(Clock, { now: () => new Date().toISOString() })
+        // The two log LEVELS are this file's and the sentences are not. Routine
+        // narration goes at `debug`, because on a machine that is not running
+        // the tool it is a line every few seconds and it is not news; what the
+        // OWNER must read goes at `warning`, because the default console level
+        // is `info` and a malformed value in somebody's vault sitting behind
+        // `OLAI_LOG_LEVEL=debug` is a sentence nobody is told.
+        await plugins.plugin(Log, {
+          say: (line) => ring(Effect.logDebug(line)),
+          warn: (line) => ring(Effect.logWarning(line)),
+        })
+        await plugins.plugin(Vault, { served })
+        // The chat is built further down and a machine with no ACP agent never
+        // builds one at all, so the door is asked for per call rather than
+        // captured — which is also what makes a plugin that unloads and comes
+        // back get the door that is live rather than the one that was.
+        await plugins.plugin(DeliveryDoors, {
+          doorFor: (plugin) => {
+            const door = chat?.doorFor(plugin)
+            if (door === undefined) return null
+            // The chat`s `deliver` is an EFFECT and a plugin`s caller is a
+            // watcher sink with nowhere to put one, so the bridge is here —
+            // the one thing that genuinely belongs to a composition root. The
+            // KEYING is not: `ctx.deliveries` mints the door off the calling
+            // fiber, so what this line does is hand over the chat`s own door
+            // for the name it was asked about and nothing else.
+            return {
+              scopes: door.scopes,
+              deliver: (to, say, options) => {
+                ring(door.deliver(to, say, options))
+              },
+            }
+          },
+        })
+        await plugins.plugin(Kinds)
+        await plugins.plugin(Wakes)
+        await plugins.plugin(Surfaces, { changed: () => onChange.run() })
+      await mountBundle(plugins, options.plugins)
+    })
+    const kinds = yield* Effect.promise(() => propKinds(plugins))
     const { root, store } = yield* openDirectory(options.root, kinds)
+    // ...and the SECOND capture, now the root annotation is in force — see the
+    // `let` above for why there are two.
+    ring = yield* emitter
 
     // The chat publishes through the surface, and the surface is seeded from
     // the chat. One mutable slot resolves that, and it is safe because nothing
@@ -127,9 +253,6 @@ export const serve = (options: ServeOptions) =>
       }
       return publish
     }
-    // Likewise the refusal observer: ops is built before the chat that draws
-    // its refusals, because the chat is not what writes.
-    let chat: Chat.Chat | null = null
 
     // Bumped whenever anything about git settled — a commit by whichever door
     // (the button, the agent's tool, the quiet window), a push, a refusal of
@@ -189,25 +312,56 @@ export const serve = (options: ServeOptions) =>
       cwd: root,
       tools: () => tools,
       /**
-       * ...AND WHATEVER ELSE THIS HOST IS RUNNING, asked once per conversation.
+       * ...AND WHATEVER ELSE THIS HOST IS RUNNING, asked once per conversation
+       * — the `chat/session-start` waterfall, collected here.
        *
        * The one place the two halves meet: `@olai/chat` declares the SHAPE of
        * the question — is your tool here, and what am I owed if it is not — and
        * each plugin answers it in its own package, in its own words. This line
-       * is where a drift between the two spellings is a type error, which is
-       * why neither of them imports the other.
+       * is where a drift between the two spellings is a type error, which is why
+       * neither of them imports the other.
        *
-       * FILTERED BY THE PIN, so a plugin left out of `--plugins` never probes,
-       * exactly as the registry says an absent plugin means. `process.env` is
-       * read HERE for the reason everything else on this page is: a composition
-       * root is where a process reaches for the real environment, and a probe
-       * has to see what a session's own spawn will resolve against.
+       * ## A THUNK, and the reason is that the list can move
        *
-       * Through `@olai/plugin-api/server` and not the root, for `./pluginPolicy.ts`'s
-       * reason: the manifests carry SolidJS faces, and the first `.tsx` this
-       * process evaluates kills the boot.
+       * It used to be a list built once at boot: `probesOf(enabled(SERVERS,
+       * pin), env)`, filtered by the flag, held for the life of the process.
+       * That was exact while the set could not change. A plugin is a fiber now,
+       * so the list is collected PER SESSION OPEN by dispatching the waterfall —
+       * a plugin that unloaded between conversations contributes nothing to the
+       * next one, and nobody keeps a second list for it to fall out of step
+       * with.
+       *
+       * ## What each plugin pushes, and what it does NOT
+       *
+       * A thunk, not an answer. The asking stays `@olai/chat`'s to schedule
+       * under its own bounded concurrency, which is load-bearing rather than
+       * tidy: a probe starts a subprocess on the session-open path, and a
+       * waterfall that awaited each listener in turn would multiply that window
+       * by the number of plugins — the same defect the bound exists to prevent,
+       * wearing a different shape. `Probed`'s two halves still come off ONE
+       * reading, which is the invariant `probe()` existed to hold.
+       *
+       * NO FILTER BY THE PIN, and its absence is the phase: a plugin left out of
+       * `--plugins` has no fiber, so it has no listener on this event, so it
+       * never probes — which is what the registry always claimed an absent
+       * plugin meant, now true by construction rather than by a `.filter`.
+       *
+       * The ENVIRONMENT is not read here either. It is `ctx.env.vars`, on the
+       * service, reached by the plugin that asks — a composition root is still
+       * where a process reaches for the real environment (one screen up, where
+       * `Env` is constructed), and a probe still sees what a session's own spawn
+       * will resolve against.
        */
-      probes: probesOf(enabled(SERVERS, options.plugins), process.env),
+      probes: () => {
+        const start: SessionStart = { asking: [] }
+        // The waterfall's own shape: listeners are called with the payload and a
+        // `next`, and the INNER function is what runs when the last of them has
+        // called through. Nothing here is async — every listener pushes and
+        // returns `next()` — so the promise this returns is already settled, and
+        // `@olai/chat` is handed the collected list rather than a promise of one.
+        void plugins.waterfall("chat/session-start", start, async () => start)
+        return start.asking
+      },
       /**
        * ... AND WHICH CONVERSATIONS SOMEBODY POINTED A PLUGIN'S DOORBELL AT.
        *
@@ -285,27 +439,26 @@ export const serve = (options: ServeOptions) =>
       hostname: theMachine,
       startedAt,
       git: gitWiring(ops, policy, settled),
-      // THE PLUGINS, and this is the one place a process reaches for the real
-      // environment and the real clock on their behalf. `olai web` is the face
-      // every plugin's door is drawn on, so it is the face that composes them;
-      // the headless and one-shot faces pass `null` and carry no
-      // `surface/<name>/` on the wire at all, which is the true answer for a
-      // process that has no business dialing somebody's daemon on its way to
-      // printing a node.
+      // THE PLUGINS, already mounted — and this is no longer the place a
+      // process reaches for the real environment on their behalf. That happens
+      // at the top of this function, where the services are constructed, and
+      // what crosses here is the context they hang on plus the two facts a
+      // BROWSER has to be told: which plugins the build has, and whether
+      // anybody typed the flag.
       //
-      // `root` is the served directory, and it is half of where a relative path
-      // in a property resolves to; the other half is in the environment beside
-      // it, for the machine whose checkouts do not sit beside its vault. Both
-      // are read HERE, once, because a composition root is where a process
-      // reaches for the real environment — the rule for what a relative path
-      // resolves AGAINST is argued in the appliance package that resolves one.
+      // `olai web` is the face every plugin's door is drawn on, so it is the
+      // face that composes them; the headless and one-shot faces never call this
+      // function and pass `null` to `bind` directly, carrying no
+      // `surface/<name>/` on the wire at all — the true answer for a process
+      // that has no business dialing somebody's daemon on its way to printing a
+      // node.
       //
       // NO `dials`: the injectables are a test's, and this is the product.
       plugins: {
-        env: process.env,
-        now: () => new Date().toISOString(),
-        served: root,
-        names: options.plugins,
+        ctx: plugins,
+        onChange,
+        built: BUNDLE_NAMES,
+        pinned: options.plugins,
       },
     })
     publish = wired.publish

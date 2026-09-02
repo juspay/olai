@@ -1,0 +1,4 @@
+- id: kolu
+  name: olai-plugin-kolu/server
+- id: odu
+  name: olai-plugin-odu/server

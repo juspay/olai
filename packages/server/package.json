@@ -21,6 +21,7 @@
     "@olai/identity": "workspace:*",
     "@olai/log": "workspace:*",
     "@olai/ops": "workspace:*",
+    "@olai/bundle": "workspace:*",
     "@olai/plugin-api": "workspace:*",
     "@olai/sigterm": "workspace:*",
     "@olai/state": "workspace:*",

@@ -127,19 +127,17 @@ import {
   UsageFailure,
 } from "@olai/format"
 import type { Snapshot } from "@olai/store"
-import { mergeDisjointGroups, surfaceTag } from "@kolu/surface/define"
+import { type SurfaceSpec, surfaceTag } from "@kolu/surface/define"
 import {
-  assertHandlersMatchGroup,
   emptyHandlers,
   type ImplementSurfaceDeps,
-  implementSurface,
-  implementSurfaces,
+  implementRootedSurfaces,
   inMemoryChannel,
   inMemoryStore,
+  type MountedSurface,
+
   type SurfaceHandler,
   type SurfaceHandlers,
-  type SurfaceMap,
-  superviseTerminalSource,
   type SurfaceRuntime,
 } from "@kolu/surface/server"
 import { Duration, Effect, Result, type Scope, Stream, SubscriptionRef } from "effect"
@@ -147,25 +145,24 @@ import { Duration, Effect, Result, type Scope, Stream, SubscriptionRef } from "e
 import { cadence } from "@olai/chat"
 /**
  * THE ONLY PLACE THIS FILE MEETS AN APPLIANCE, and it meets none of them by
- * name. What arrives is a LIST — every plugin this binary was built with, each
- * carrying a sibling key, a whole surface of its own and a server half. Fusing
- * that bundle onto olai's own surface is the FRAMEWORK's, not this package's:
- * `mergeDisjointGroups` is the counted merge and it lives one import up.
+ * name — nor, now, by list.
  *
- * `@olai/plugin-api/server` and not `@olai/plugin-api`: the manifests carry a
- * plugin's CHROME and its DRESSINGS, which are SolidJS components and, behind
- * one of them, a terminal emulator — and this process renders nothing. The
- * three doors are three graphs; `@olai/plugin-api`'s own manifest argues it and
- * its `fence.test.ts` walks each closure rather than trusting the argument.
+ * What arrives is a mounted RUNTIME ({@link Wiring.plugins}): a Cordis context
+ * whose services every plugin fiber has already registered itself into. This
+ * file reads three of those registries — the sibling surfaces, the wake
+ * declarations and the kinds — and drives two events. It composes no list, it
+ * calls no half's constructor, and it holds no plugin's name except as a key it
+ * was handed.
+ *
+ * `@olai/plugin-api/services` and not `@olai/plugin-api`: the root is the
+ * manifest door and a manifest carries a plugin's CHROME and its DRESSINGS,
+ * which are SolidJS components and, behind one of them, a terminal emulator —
+ * and this process renders nothing. What is imported here is type-only anyway;
+ * the services themselves are constructed in `./serve.ts`, which is where the
+ * environment, the clock and the two log channels are reached for.
  */
-import {
-  type PluginServer,
-  type PluginServerHalf,
-  type PluginServices,
-  enabled,
-  SERVERS,
-} from "@olai/plugin-api/server"
-import { isEnabled, PLUGIN_NAMES, surfacesOf } from "@olai/plugin-api/wire"
+import type { Registered, Wake } from "@olai/plugin-api/services"
+import type { Context } from "cordis"
 
 import type { Cadence, Change, Chat } from "@olai/chat"
 import { type Emit, emitter } from "@olai/log"
@@ -250,6 +247,73 @@ const apply = <T>(
   for (const key of change.removes) collection?.remove(key)
 }
 
+
+/**
+ * THE PLUGIN RUNTIME, as this file is handed one — a Cordis context with every
+ * service on it and every enabled plugin already mounted.
+ *
+ * ## Why a CONTEXT and not a list
+ *
+ * A list is what a composition root reads when composition happens once. This
+ * one does not: a plugin is a fiber, a registration is an effect, and a fiber
+ * that is disposed unwinds its sibling surface, its kinds, its wake declaration
+ * and its listeners without asking anybody. So what this file holds is the
+ * thing those registries hang on, and it reads them at the moment it needs
+ * them rather than copying them at boot.
+ *
+ * ## The three registries it reads
+ *
+ * `ctx.surfaces.composed()` — the siblings to mount on the rooted bundle.
+ * `ctx.wakes.declared()` — which plugins ring, and what each says when its
+ * doorbell stops watching. `ctx.kinds` is read one floor up, in `./serve.ts`,
+ * because the store validates through it and the store opens first.
+ *
+ * ## ...and the two events it drives
+ *
+ * `vault/revision` on every published revision, `vault/unloaded` when the store
+ * has never published. Both are EMITS, so a listener that throws is one
+ * listener's problem — the dispatcher contains it — and neither is a teardown
+ * hook (`@olai/plugin-api`'s `Vault` argues why the second one's name matters).
+ */
+export interface PluginRuntime {
+  /** The context every service hangs on, and every mounted plugin's parent. */
+  readonly ctx: Context
+  /**
+   * TOLD WHEN A SIBLING ARRIVES OR LEAVES — the re-compose, filled in by
+   * {@link bind}.
+   *
+   * A mutable holder rather than a callback passed at construction, and the
+   * ORDER is the reason: the services are constructed before the store opens
+   * (a plugin teaches the vault its vocabulary, and the store validates through
+   * it), and the thing that knows how to re-compose is the rooted bundle, which
+   * does not exist until this runtime is built. So `./serve.ts` makes the
+   * holder, hands it to `ctx.surfaces` as its `changed` callback, and hands it
+   * here; {@link bind} fills it in and every later register or dispose comes
+   * through it.
+   */
+  readonly onChange: { run: () => void }
+  /**
+   * EVERY PLUGIN THIS BUILD HAS, in bundle order — not the ones that are
+   * running.
+   *
+   * The roster carries a row per BUILT plugin and says of each whether it runs,
+   * so the row that says `false` has to come from somewhere other than what was
+   * composed. This is that list, read off the bundle's rows before anything was
+   * mounted.
+   */
+  readonly built: ReadonlyArray<string>
+  /**
+   * ...and what `--plugins` was GIVEN, unexpanded — `null` for a flag nobody
+   * typed.
+   *
+   * It travels unexpanded because the line under the preferences row names a
+   * given flag and otherwise says the built-in default, and a value that had
+   * already expanded `null` into the full list could not tell a reader which of
+   * the two they were looking at. The git pin keeps the same distinction one
+   * setting over.
+   */
+  readonly pinned: ReadonlyArray<string> | null
+}
 export interface Wiring {
   /** THE SERVED word: the machine this process runs on, minted ONCE per
    *  serve by the composition root (`./hostname.ts` is the receptacle and
@@ -264,98 +328,49 @@ export interface Wiring {
   readonly startedAt: string
   readonly store: Store
   /**
-   * THE PLUGINS, all of them, or `null` for a runtime that is to have none.
+   * THE PLUGIN RUNTIME, or `null` for a runtime that is to have none.
    *
-   * ## One field where there were two named ones
+   * ## What this slot has been, in three shapes
    *
-   * This slot held ONE NAMED FIELD PER APPLIANCE — an environment, a clock and
-   * an injectable dial; an environment, the served directory and an injectable
+   * It held ONE NAMED FIELD PER APPLIANCE — an environment, a clock and an
+   * injectable dial; an environment, the served directory and an injectable
    * dial. Two records with the nouns changed, on the interface of the package
-   * that must not know either noun, and each of them the reason an
-   * appliance-named constructor was called forty lines further down. What both
-   * were actually asking for is one list — what the process can see, what time
-   * it is, which directory this is about, and a seam for a test — so that is
-   * the list, and a third plugin is composed without a line of it moving. Each
-   * half is assembled where the judgement about it lives, which is that
-   * plugin's own `./server` door, and what this file does with the result is
-   * ITERATE.
+   * that must not know either noun.
+   *
+   * It then held one LIST's worth of ingredients — what the process can see,
+   * what time it is, which directory this is about, and a seam for a test —
+   * which this file spent building a `PluginServices` blob per plugin and
+   * pushing it into `SERVERS`, keyed by hand.
+   *
+   * It holds a mounted CONTEXT now ({@link PluginRuntime}). The ingredients
+   * moved to `./serve.ts`, where they are constructed as SERVICES on that
+   * context, and the plugins registered themselves into those services before
+   * this runtime existed — because a plugin teaches the vault its vocabulary
+   * and the store validates through it, so the fibers have to be up before the
+   * directory opens. What is left for this file is to read three registries and
+   * drive two events.
    *
    * ## What `null` means, which is stronger than what it used to
    *
-   * `null` is the OFF setting and it is what `olai surface`, the headless
-   * faces and every test in this package take: a one-shot CLI read has no use
-   * for a standing socket to somebody's daemon, and dialing one would be a
-   * process that touched an appliance on its way to printing a node.
+   * `null` is the OFF setting and it is what `olai surface`, the headless faces
+   * and every test in this package take: a one-shot CLI read has no use for a
+   * standing socket to somebody's daemon, and dialing one would be a process
+   * that touched an appliance on its way to printing a node.
    *
-   * What it composes to is NOTHING — an empty sibling record, so
-   * `implementSurfaces` mints no tag, no handler and no expose row, and the
-   * wire carries no `surface/<name>/` at all. That is a change from what the
-   * two named slots meant: they made every contributed member PRESENT and
-   * hollow — a cell at its seed, an empty collection, a read that refused in
-   * words — which is one code path for "this laptop is not running the tool"
-   * and "this process has no business dialing", and was the right answer while
-   * those members were part of core's own spec. They are a sibling surface
-   * now, and absence is the sharper of the two answers: a member that is not
-   * there cannot be read as a member that is there and empty, and the
-   * framework's composition expresses it for free (`@olai/plugin-api`'s
-   * `composition.test.ts`). A machine that simply is not running the tool still gets
-   * the hollow arm, because that is what the appliance's own half answers when
-   * its dial finds nothing.
+   * What it composes to is NOTHING — no sibling is mounted on the rooted
+   * bundle, so no tag, no handler and no expose row is minted, and the wire
+   * carries no `surface/<name>/` at all. A machine that simply is not running
+   * the tool still gets the hollow arm, because that is what the appliance's
+   * own half answers when its dial finds nothing.
    *
-   * A FILTER over the built-in set — the `--plugins` flag `@olai/plugin-api`'s
-   * `enabled` is written for — is the same shape one step in, and is
-   * deliberately not invented here: it filters the record this field turns
-   * into, and there is nowhere on this interface for it to be a second
-   * mechanism.
+   * `--plugins` is not here at all any more, and its absence is the phase: it
+   * is a `disabled` PATCH over the bundle's rows, applied where the rows are
+   * read (`@olai/bundle`'s `bundle.ts`), so a plugin left out never mounts and
+   * there is nothing here to filter. What travels on {@link PluginRuntime} is
+   * only what a BROWSER has to be told: which plugins the build has, and
+   * whether anybody typed the flag.
    */
-  readonly plugins: {
-    /** WHAT THE PROCESS CAN SEE — the variables an appliance's rendezvous is
-     *  decided from, whichever they are. Handed in rather than read for the
-     *  reason every other seam here is: a test that asserts a rendezvous has
-     *  to own it, and a composition root is where a process reaches for the
-     *  real environment. */
-    readonly env: Record<string, string | undefined>
-    /** THE CLOCK, as ISO-8601 — what a plugin stamps a "since" from, so a test
-     *  that asserts "connected · just now" owns the instant it rendered from.
-     *  Deliberately not {@link Wiring.startedAt}'s twin: that one is a single
-     *  mint for the whole serve, and this is read per stamp. */
-    readonly now: () => string
-    /** THE DIRECTORY THIS RUNTIME SERVES. Here rather than read from the store
-     *  because it is half of where a relative path in a property resolves to —
-     *  the whole rule is argued in the appliance package that resolves one —
-     *  and because it is a fact about the SERVE rather than about any one
-     *  revision. */
-    readonly served: string
-    /**
-     * THE TEST SEAM — one injectable per plugin, keyed by the plugin's name.
-     *
-     * A fake daemon in a test, standing on a real unix socket: the thing a
-     * scenario puts up so the suite does not depend on whichever daemons
-     * happen to be running on the machine. Keyed and OPAQUE, which is
-     * the whole of what core can honestly say about it — typing a plugin's own
-     * double would mean knowing what that plugin talks to, and each narrows
-     * its own at its own edge.
-     *
-     * A name with no entry gets none, which is the ordinary case: a real serve
-     * passes nothing here at all.
-     */
-    readonly dials?: Readonly<Record<string, unknown>>
-    /**
-     * WHICH of the built-in plugins this serve runs — `null` for nobody
-     * having said, which means all of them (`../pluginPolicy.ts`).
-     *
-     * A list rather than a flag per plugin, and `null` rather than the full
-     * list, for the reason the git pin keeps the same distinction one setting
-     * over: a browser draws the row read-only and has to say whether a person
-     * TYPED this policy or got the built-in default, and a value that had
-     * already expanded could not tell those apart.
-     *
-     * What a name left out of it comes to is total absence — no sibling
-     * composed, no tag served, no expose row granted — which is the state this
-     * runtime has always had for an appliance it could not reach.
-     */
-    readonly names?: ReadonlyArray<string> | null
-  } | null
+  readonly plugins: PluginRuntime | null
   /** Absent when no ACP agent is configured: the cell stays `off` and the
    *  procedures answer that they are. A directory is readable whether or not
    *  an agent is installed. */
@@ -532,29 +547,43 @@ const writing = (ops: Ops, writer: Writer) => ({
 export const rosterOf = (
   offered: Wiring["plugins"],
   /**
-   * The BUILD's server halves, for the one thing a row carries that the
-   * registry's names cannot answer: what this plugin's doorbell WAKES ON, in
-   * the plugin's own words (`@olai/plugin-api`'s `PluginServerHalf.wake`).
+   * WHICH PLUGINS ARE MOUNTED RIGHT NOW — the names whose fibers are ACTIVE and
+   * have registered a sibling surface.
    *
-   * OPTIONAL and empty by default, because the four callers that only ever
-   * asked "which plugins does this build have" are asking a question the
-   * sentence has nothing to do with — and because a required parameter here
-   * would make every one of them name a list to get an answer they already had.
+   * READ, NOT DERIVED, and that is the change this phase makes to the meaning
+   * of `running`. It used to be `isEnabled(pin, name)` — a re-reading of the
+   * flag, which was exact only because the filter ran once and nothing could
+   * move afterwards. A plugin is a fiber now: it can be `PENDING` on a service
+   * that has not arrived, `FAILED` because its `apply` threw, or disposed
+   * because its row was turned off — and in every one of those the flag still
+   * says yes while the wire carries no `surface/<name>/` at all. So the row
+   * says what is composed, which is what the word on it has always claimed.
+   *
+   * OPTIONAL and empty by default, because the callers that only ever asked
+   * "which plugins does this build have" are asking a different question and
+   * should not have to name a list to get an answer they already had.
+   */
+  running: ReadonlyArray<string> = [],
+  /**
+   * ...and what each of THOSE declared about a wake — the one thing a row
+   * carries that a name cannot answer: what this plugin's doorbell WAKES ON, in
+   * the plugin's own words (`@olai/plugin-api`'s `Wake`).
    *
    * ONLY ON A ROW THAT IS RUNNING, and that gate is the point rather than a
    * tidiness: this roster carries a row per BUILT plugin, running or not, so a
    * picker offered for a plugin this serve did not compose would store a pick
-   * nothing will ever read.
+   * nothing will ever read. It falls out here for free, because a plugin that
+   * is not mounted has no registration in this table either.
    */
-  halves: ReadonlyArray<Pick<PluginServerHalf<never>, "name" | "wake">> = [],
+  wakes: ReadonlyMap<string, Wake> = new Map(),
 ): PluginRoster =>
   offered === null ? NO_ROSTER : {
-    built: PLUGIN_NAMES.map((name) => {
-      const running = isEnabled(offered.names ?? null, name)
-      const wake = running ? halves.find((one) => one.name === name)?.wake : undefined
+    built: offered.built.map((name) => {
+      const composed = running.includes(name)
+      const wake = composed ? wakes.get(name) : undefined
       return {
         name,
-        running,
+        running: composed,
         // WHAT THE PICKER IS MADE OF, named one at a time rather than spread
         // whole — and the omission is the point. The three strings the strip
         // draws, plus the KINDS the picker may offer, because that is the one
@@ -574,7 +603,7 @@ export const rosterOf = (
         }),
       }
     }),
-    pinned: offered.names ?? null,
+    pinned: offered.pinned,
   }
 
 /** One of those, as `implementSurface` wants it. A bound member is called with
@@ -798,6 +827,10 @@ export const bind = (
      *  clock is the chat, which reaches this file as a callback rather than as
      *  a stream ({@link republishAgents}). */
     let agentsCell: { set: (value: Agents) => void } | null = null
+    /** The PLUGINS cell, held for the agents cell's reason: its clock is a
+     *  fiber arriving or leaving, which reaches this file as a callback off
+     *  `ctx.surfaces` rather than as a stream ({@link republishPlugins}). */
+    let pluginsCell: { set: (value: PluginRoster) => void } | null = null
 
     /**
      * THE ROSTER, ASSEMBLED AND PUBLISHED — the one place the two halves are
@@ -814,6 +847,24 @@ export const bind = (
       const carrier = wiring.agents
       if (cell === null || carrier === undefined || carrier === null) return
       cell.set(carrier.rowsWith(chat === null ? [] : chat.overheard()))
+    }
+
+    /**
+     * ...AND THE PLUGIN ROSTER, on its own clock — a fiber arriving or leaving.
+     *
+     * Nothing before the cell's connector has run, which is the first
+     * {@link recompose}: the runtime is built, the connectors start inside the
+     * call that builds it, and the mounts follow. The seed carries the same
+     * value, so a page that loads between the two reads the roster rather than
+     * an empty one.
+     *
+     * A serve with no plugin runtime never calls this at all — there is no
+     * `ctx.surfaces` for anything to move on — and its cell holds `NO_ROSTER`
+     * for the life of the process, which is what a runtime that composes no
+     * sibling has to say.
+     */
+    const republishPlugins = (): void => {
+      pluginsCell?.set(roster())
     }
 
     /**
@@ -959,8 +1010,8 @@ export const bind = (
     let shelfFile: Convention | undefined
     let inboxFile: Convention | undefined
     /**
-     * THE PLUGINS' SERVER HALVES, one per composed plugin, assembled by
-     * ITERATING.
+     * THE MOUNTED PLUGIN RUNTIME, or `null` — and this file no longer builds
+     * anything per plugin.
      *
      * ## What this replaces, and why the replacement is shorter than one of them
      *
@@ -968,156 +1019,67 @@ export const bind = (
      * constructor, naming three of that appliance's members, with two vault
      * walks imported from appliance-shaped filenames in this package and two
      * log channels; and beside it the same block for the second appliance with
-     * the nouns changed. That the second was the first with the nouns changed
-     * was this file's own complaint about itself, and it is not answered by
-     * making the two differ — it is answered by neither of them being here.
-     * Each plugin assembles its own half in its own package, out of the SAME
-     * blob, and this file names no appliance, no member and no constructor.
+     * the nouns changed. Those left when the plugins did, and what stood in
+     * their place was a `.map` over `SERVERS` that built a `PluginServices` blob
+     * per plugin — an environment, a clock, a served directory, two log
+     * channels, a dial keyed by name and a delivery door keyed by name — and
+     * pushed it in whole.
      *
-     * ## What crosses
+     * Neither is here now. The services are constructed in `./serve.ts`, once,
+     * on the context {@link PluginRuntime} carries; every plugin mounted itself
+     * into them before this runtime existed; and the two KEYED fields — the
+     * dial and the delivery door — are keyed by the CALLING FIBER rather than by
+     * a name this file closed over. That was the one thing on the old blob this
+     * file genuinely had to get right, and it is not this file's to get wrong
+     * any more (`@olai/plugin-api`'s `DeliveryDoors` argues the move).
      *
-     * Everything a plugin gets is on that blob: the environment, the clock, the
-     * served directory, two log channels, and — keyed by the plugin's own name,
-     * which is the one word core knows about it — whatever a test injected.
-     * What comes back is a `deps` this file hands `implementSurfaces` without
-     * opening, an optional hand-back for the sibling's own write face, and two
-     * hooks a revision drives.
+     * ## What is left for a composition root
      *
-     * MADE EAGERLY, STARTED LAZILY, which is each half's own arrangement and is
-     * unchanged by the move: making one is free and gives its members something
-     * to answer with before anything has dialed, and STARTING it is a cell's
-     * connector, which the framework runs when the surface BINDS. One dial per
-     * process however many tabs are open — the git sweep's arrangement, applied
-     * to a socket instead of a repository.
-     *
-     * ## The two log LEVELS are this file's, and the sentences are not
-     *
-     * `say` is the emitter this function already holds. Routine narration goes
-     * at `debug`, because on a machine that is not running the tool it is a line
-     * every few seconds and it is not news; what the OWNER must read goes at
-     * `warning`, because the default console level is `info` and a malformed
-     * value in somebody's vault sitting behind `OLAI_LOG_LEVEL=debug` is a
-     * sentence nobody is told. WHICH of its own sentences go where is the
-     * plugin's decision; which channel each level IS, is this file's.
+     * Reading three registries and driving two events, which is what the rest of
+     * this block is. Nothing here names a plugin, opens a `deps`, or calls a
+     * constructor.
      */
     const offered = wiring.plugins
+    /** The plugin context, or `null`. Named rather than reached through
+     *  `offered` at each use, because the four readings below are one question
+     *  asked at four moments and a reader should see that they are. */
+    const plugins = offered?.ctx ?? null
     /**
-     * THE DOOR A MACHINE WITH NO AGENT GETS — and it touches nothing.
+     * EVERY SIBLING COMPOSED RIGHT NOW — read, never cached.
      *
-     * Named rather than inlined because what it says is a claim: a serve with
-     * no chat has no scope store either (`@olai/chat` owns that table, so
-     * `chat === null` means it was never constructed), which makes "a boot with
-     * the agent merely off PATH cannot evict a person's picks" true by
-     * construction rather than by care. `scopes()` answers the empty list
-     * forever, which is the honest machine-without-the-tool state, and `deliver`
-     * returns `void` because there is no failure channel on a verb that cannot
-     * fail.
+     * A function and not a value, and the difference is the whole of what a
+     * runtime buys over a registry: a plugin that unloads takes its sibling out
+     * of this list at the moment it unloads, and every caller below that asks
+     * again gets the answer that is true now. A `const` here would be the
+     * spike's own defect — a roster copied at boot, read forever, and quietly
+     * wrong the first time anything moved.
      */
-    const NO_DOOR: PluginServices["deliveries"] = { scopes: () => [], deliver: () => {} }
+    const siblings = (): ReadonlyArray<Registered> => plugins?.surfaces.composed() ?? []
     /**
-     * ... and the real one, PER PLUGIN.
+     * WHICH COMPOSED PLUGINS RING AT ALL, and what each says when its doorbell
+     * stops watching — read the same way and for the same reason.
      *
-     * Keyed by the only word this file knows about the plugin it is for, which
-     * is `dial`'s arrangement one field over and the second of its kind. An
-     * unkeyed door would hand one plugin the conversations a person scoped to
-     * another — the ownership triple's middle column exists for exactly that.
+     * A scope written for anybody else would be a row nothing will ever read, so
+     * the member that writes one refuses it. The declaration is carried WHOLE
+     * rather than as three tables, because the two members are asked in one
+     * breath: {@link faulted} judges a row by the kinds and then reaches for the
+     * sentence that judgement names.
      *
-     * `deliver` bridges a SYNCHRONOUS plugin verb onto an Effect member with one
-     * `runFork`, which is the bridge this file already makes for the two log
-     * emitters above it: the caller is a watcher sink with nowhere to put a
-     * failure, and a promise nobody has a reason to catch is an unhandled
-     * rejection in somebody's server log.
+     * ## One registry where there were two lists that had to agree
      *
-     * WHAT IS LEFT HERE is the one thing that genuinely belongs to a
-     * composition root: the bridge from an Effect to a sink that has no fiber
-     * under it. The KEYING moved to `@olai/chat`'s `doorFor`, where the mark it
-     * protects is written — this file used to filter the rows and pass the name
-     * as an argument, which put the anti-spoofing property in a different
-     * package from the thing it is a property of.
-     */
-    const doorFor = chat === null
-      ? (): PluginServices["deliveries"] => NO_DOOR
-      : (who: string): PluginServices["deliveries"] => {
-        const door = chat.doorFor(who)
-        return {
-          scopes: door.scopes,
-          deliver: (to, say, options) => {
-            // FORKED UNDER THIS FIBER'S SERVICES, and not with a bare
-            // `Effect.runFork`. A doorbell's `deliver` is called from a
-            // watcher's sink, which is a plain callback with no fiber under it
-            // — the exact situation `@olai/log`'s `emit.ts` was written for,
-            // and its argument carries here unchanged: an empty context is the
-            // DEFAULT logger at the DEFAULT level, so every line the delivery's
-            // own turn emits (`../../chat/src/agent.ts`'s `prompt sent`, `turn
-            // ended`) would escape an `OLAI_LOG_LEVEL` the operator typed and
-            // arrive in a different shape than the same line from a person's
-            // send. One conversation would keep two journals, told apart by who
-            // started the turn.
-            ring(door.deliver(to, say, options))
-          },
-        }
-      }
-    const composed: ReadonlyArray<{
-      readonly plugin: PluginServerHalf<VaultRevision>
-      readonly half: PluginServer<VaultRevision>
-    }> = offered === null ? [] : enabled<PluginServerHalf<VaultRevision>>(SERVERS, offered.names ?? null).map((plugin) => ({
-      plugin,
-      half: plugin.serve({
-        env: offered.env,
-        now: offered.now,
-        served: offered.served,
-        say: (line) => say(Effect.logDebug(line)),
-        warn: (line) => say(Effect.logWarning(line)),
-        // Opaque, and keyed by the only word this file knows about the plugin
-        // it is for. A name with no entry gets none, which is every real serve.
-        dial: offered.dials?.[plugin.name],
-        // ... and the doorbell's door, keyed the same way and for a sharper
-        // version of the same reason — see {@link doorFor}.
-        deliveries: doorFor(plugin.name),
-      }),
-    }))
-    /**
-     * WHICH COMPOSED PLUGINS RING AT ALL — the names whose halves declare a
-     * wake sentence. A scope written for anybody else would be a row nothing
-     * will ever read, so the member that writes one refuses it.
+     * The gate used to be built from `SERVERS` and the roster's rows from
+     * `PLUGIN_NAMES` — two doors, held equal by a test, because routing the gate
+     * through the roster would have made a doorbell depend on the plugin also
+     * being on the wire door. Both are this registry now. A plugin that
+     * registered a wake rings; one that did not, or that has since unloaded,
+     * does not; and there is no second list for the two to disagree across.
      *
-     * ## Off `composed`, and NOT off the roster below, which was tried
-     *
-     * The two gate opposite ends of one interaction — the browser decides
-     * whether to OFFER a picker off the roster's rows, this decides whether to
-     * ACCEPT the pick — so deriving them once looks like the obvious tightening.
-     * It is the wrong one, and the reason is which REGISTRY each is keyed by.
-     * {@link rosterOf} builds its rows from `PLUGIN_NAMES`, the WIRE door; this
-     * is built from `SERVERS`, the server door. Routing the gate through the
-     * roster would make a doorbell depend on the plugin also being on the wire
-     * door — so a plugin composed here but missing there would lose its
-     * doorbell silently, which is a worse failure than the drift the change was
-     * meant to prevent.
-     *
-     * What keeps the two honest is not a local re-derivation but
-     * `@olai/plugin-api`'s own bench: `rosters.test.ts` holds that the three doors
-     * list the same plugins in the same order, which is a stronger guarantee
-     * than either end could give itself, and the one place a fourth plugin gets
-     * it wrong.
-     */
-    const composedWake = new Set(
-      composed.filter((one) => one.plugin.wake !== undefined).map((one) => one.plugin.name),
-    )
-    /**
-     * ...AND WHAT EACH OF THEM DECLARED ABOUT A SCOPE THAT BROKE, keyed by the
-     * one word this file knows about a plugin: the KINDS its doorbell can watch
-     * and the two sentences it says when it is watching nothing.
-     *
-     * A TABLE OF WORDS THE PLUGIN WROTE, which is the only kind of table core
-     * is allowed to keep about words: nothing here is composed, joined,
-     * abbreviated or interpolated into. The whole of what this file does with a
-     * sentence out of it is hand it back through {@link Chat.doorFor}'s
-     * `deliver`, and the whole of what it does with the kinds is COMPARE them
-     * against `fileKind`'s answer — a registry lookup, not a reading.
-     *
-     * The declaration is carried WHOLE rather than as three tables, because the
-     * two members are asked in one breath: {@link faulted} judges a row by the
-     * kinds and then reaches for the sentence that judgement names.
+     * A TABLE OF WORDS THE PLUGIN WROTE, which is the only kind of table core is
+     * allowed to keep about words: nothing here is composed, joined, abbreviated
+     * or interpolated into. The whole of what this file does with a sentence out
+     * of it is hand it back through {@link Chat.doorFor}'s `deliver`, and the
+     * whole of what it does with the kinds is COMPARE them against `fileKind`'s
+     * answer — a registry lookup, not a reading.
      *
      * A name with no entry gets nothing said — a pick stored against a plugin
      * this serve did not compose, which is a row the strip already declines to
@@ -1125,11 +1087,10 @@ export const bind = (
      * words to ring it with, so the row is marked and nobody is told, which is
      * the honest arm rather than core reaching for a sentence of its own.
      */
-    const rings = new Map(
-      composed.flatMap(({ plugin }) =>
-        plugin.wake === undefined ? [] : [[plugin.name, plugin.wake] as const]
-      ),
-    )
+    const rings = (): ReadonlyMap<string, Wake> => plugins?.wakes.declared() ?? new Map()
+    /** ...and the same question asked about ONE name, which is what the member
+     *  that writes a scope asks. */
+    const composedWake = (name: string): boolean => rings().has(name)
     /**
      * A SCOPE ITS DOORBELL CANNOT WATCH — found here, said by the plugin, once.
      *
@@ -1203,7 +1164,7 @@ export const bind = (
             // would fault on a pick the browser had just offered. A plugin with
             // no entry is not judged at all — `sayable` has already left its
             // rows alone.
-            const kinds = rings.get(plugin)?.kinds
+            const kinds = rings().get(plugin)?.kinds
             if (kinds === undefined) return null
             return watchable(kinds, file) ? null : "unwatchable"
           },
@@ -1211,11 +1172,11 @@ export const bind = (
           // declaration only for a plugin this serve COMPOSED and that made
           // one, so a serve run without a tenant leaves its rows alone rather
           // than burning their one signal unheard.
-          (plugin) => rings.has(plugin),
+          (plugin) => rings().has(plugin),
         ),
         (fell) =>
           Effect.forEach(fell, (row) => {
-            const wake = rings.get(row.plugin)
+            const wake = rings().get(row.plugin)
             if (wake === undefined) return Effect.void
             // WHICH SENTENCE, INDEXED BY THE CAUSE the walk recorded on the row
             // (`@olai/chat`'s `Scoped.fault`) — never chosen between arms here.
@@ -1260,15 +1221,21 @@ export const bind = (
           }, { discard: true }),
       ))
     }
-    /** ...and the same two facts as the value a browser draws its read-only
-     *  rows off — every plugin this binary HAS, which of them this serve RUNS,
-     *  and whether anybody typed the flag. Read off the registry rather than
-     *  off `composed` above, which is a list of the ones that are on;
-     *  {@link rosterOf} argues why that difference is the feature.
+    /**
+     * ...and the same two facts as the value a browser draws its read-only rows
+     * off — every plugin this binary HAS, which of them this serve is RUNNING,
+     * and whether anybody typed the flag.
      *
-     *  The BUILD's halves go with it, because the doorbell's sentence is
-     *  compiled in and the row that draws a picker has to carry it. */
-    const roster = rosterOf(offered, SERVERS)
+     * A FUNCTION, because it moves. It used to be a `const`: the flag was read
+     * once at the composition root, the cell was seeded with the answer, and
+     * `plugins.ts` said in as many words that it "moves at most once per serve,
+     * which is why it has no connector". That was true of a filter that ran
+     * once; it is not true of a runtime. A fiber that fails, unloads or comes
+     * back moves the row, so this is asked again on every register and dispose
+     * and the cell is republished ({@link republishPlugins}).
+     */
+    const roster = (): PluginRoster =>
+      rosterOf(offered, siblings().map((one) => one.name), rings())
     /**
      * EVERY CONNECTOR BELOW READS `store.reads`, and every frame on it is a
      * pair: the set, and how old it is (`@olai/store`'s `Aged`). These take
@@ -1348,18 +1315,31 @@ export const bind = (
             ),
         },
         /**
-         * WHICH PLUGINS THIS BUILD HAS AND WHICH THIS SERVE RUNS — seeded, and
-         * that is the whole connector.
+         * WHICH PLUGINS THIS BUILD HAS AND WHICH THIS SERVE IS RUNNING —
+         * seeded, and republished whenever a fiber arrives or leaves.
          *
-         * NO `connect`, and it is the one cell on this surface that will never
-         * need one: the flag is read once, at the composition root, before this
-         * runtime exists. A connector here would be a subscription to a value
-         * that cannot move, and the day one is added is the day something can
-         * turn a plugin on without restarting — which `../pluginPolicy.ts`
-         * deliberately refuses to make possible.
+         * ## It had no connector, and the reason it did not has expired
+         *
+         * "The flag is read once, at the composition root, before this runtime
+         * exists. A connector here would be a subscription to a value that
+         * cannot move, and the day one is added is the day something can turn a
+         * plugin on without restarting." That was exactly right about a filter
+         * that ran once. A plugin is a FIBER now, and a fiber moves without
+         * anybody turning anything on: it can be `PENDING` on a service that has
+         * not arrived, `FAILED` because its `apply` threw, or disposed because
+         * its row went off. Every one of those is a row whose `running` changed
+         * while the flag said the same thing, and a cell with no connector would
+         * go on saying what the flag said.
+         *
+         * The connector holds the cell; {@link recompose} is what calls it, on
+         * the one clock that can move this value. The flag is still CLI/nix only
+         * — `../pluginPolicy.ts` is unchanged, and a browser toggle is phase 6's
+         * — so what this republish reports is a fact about the runtime and never
+         * a setting somebody changed here.
          */
         plugins: {
-          store: inMemoryStore<PluginRoster>(roster),
+          store: inMemoryStore<PluginRoster>(roster()),
+          connect: (cell) => Effect.sync(() => pluginsCell = cell),
         },
         /**
          * What git is doing for this directory at all — one half of what the
@@ -1524,7 +1504,7 @@ export const bind = (
                     // file neither knows nor composes it; what it knows is that
                     // a claim derived from a directory the store can no longer
                     // see is a claim nobody may vouch for.
-                    for (const { half } of composed) half.unloaded()
+                    plugins?.emit("vault/unloaded")
                     return cell.set(null)
                   }
                   // THE PROJECTION CONSUMES WHAT IT IS HANDED, so these two
@@ -1584,7 +1564,7 @@ export const bind = (
                   // a keystroke that landed in a note costs one walk per plugin
                   // and zero frames, and the sockets are the sweeps' business
                   // on their own clocks.
-                  for (const { half } of composed) half.revision(snapshot)
+                  plugins?.emit("vault/revision", snapshot)
                   // ...AND THE PICKS THIS REVISION BROKE, which is core's own
                   // reading of the same snapshot and the one thing above that
                   // is not a plugin's. It is HERE, on the revision hook, for
@@ -2073,7 +2053,7 @@ export const bind = (
           // somebody left open, and the chat is where that race is answered.
           scope: ({ input }) =>
             withChat((open) =>
-              composedWake.has(input.plugin)
+              composedWake(input.plugin)
                 ? open.scope(
                   { agent: input.agent, session: input.session },
                   input.plugin,
@@ -2213,17 +2193,47 @@ export const bind = (
       },
     }
 
-    // `ctx` is the WRITE face and it stays here: the transport gets `Bound`,
-    // which is the runtime with `ctx` taken off, so nothing that serves a
-    // socket can also publish into the surface.
-    //
-    // CORE STAYS STANDALONE and this line is byte-unchanged, which is the
-    // whole shape of the composition below. `implementSurface` mints
-    // `surface/<member>/<verb>` exactly as it always did — an MCP client's
-    // URIs, every tag assertion in the suite and every accessor in the browser
-    // address the same words after this phase as before it — and the plugins
-    // arrive BESIDE it rather than around it.
-    const runtime = implementSurface(surface, deps)
+    /**
+     * OLAI'S OWN SURFACE, AND EVERY PLUGIN'S BESIDE IT — one ROOTED BUNDLE,
+     * built by the framework.
+     *
+     * `ctx` is the WRITE face and it stays here: the transport gets `Bound`,
+     * which is the runtime with `ctx` taken off, so nothing that serves a socket
+     * can also publish into the surface.
+     *
+     * CORE STAYS UNPREFIXED and its tags are byte-unchanged.
+     * `implementRootedSurfaces` mints `surface/<member>/<verb>` for the root
+     * exactly as `implementSurface` did — an MCP client's URIs, every tag
+     * assertion in the suite and every accessor in the browser address the same
+     * words after this phase as before it — and the plugins arrive BESIDE it
+     * rather than around it, at `surface/<key>/<member>/<verb>`.
+     *
+     * ## What this one call replaced, and why the replacement is the phase
+     *
+     * Five hand-spelled steps stood here: `implementSurface` for the root,
+     * `implementSurfaces` over a keyed map of every sibling, `mergeDisjointGroups`
+     * to fuse the two groups, a `{...a, ...b}` spread of the two handler records
+     * with `assertHandlersMatchGroup` after it, and `superviseTerminalSource` to
+     * fold the two runtimes' supervision. Every one of them is inside this call
+     * now (juspay/kolu#2223), and the spread is the one worth naming: a handler
+     * record is keyed by nothing but tags, so `{...a, ...b}` is a last-writer-wins
+     * merge with the same silence `RpcGroup.merge` has, and the assertion after
+     * it proved the route SET rather than which side won a shared tag. The
+     * framework counts both axes.
+     *
+     * ## And why the door had to be a NEW one rather than the old one live
+     *
+     * The bundle's roster MOVES: a plugin is a fiber, and a fiber that fails or
+     * is disposed takes its sibling with it. `implementSurfaces` bakes its map
+     * at the call, so the only way to change the roster over it is to re-call it
+     * over the survivors — which the spike did, and which silently forks every
+     * survivor's state: new handler values, new cell stores, new channels, new
+     * sources, and an already-open connection answering out of the previous
+     * copy. That finding is what this door was filed from, and `mount` is the
+     * answer: the ARRIVING sibling is walked and nothing else is, so a survivor
+     * keeps what it had.
+     */
+    const runtime = implementRootedSurfaces(surface, {}, deps)
 
     // From here on an entry write PUBLISHES as well as landing in the
     // projection. Before this line the connector had already run its first
@@ -2233,73 +2243,113 @@ export const bind = (
     published = runtime.ctx
 
     /**
-     * ...AND EVERY PLUGIN'S SURFACE, COMPOSED AS SIBLINGS over the same
-     * transport.
+     * WHAT IS MOUNTED, BY KEY — the bookkeeping the re-compose diffs against.
      *
-     * `implementSurfaces` takes a keyed map of STANDALONE surfaces and re-walks
-     * each one at `surface/<key>/`, so a member a plugin declared `fleet`
-     * reaches the wire as `surface/<that plugin's name>/fleet/get` — computed
-     * by the framework, out of the plugin's own name, with no name arithmetic
-     * anywhere in olai.
-     * The SIBLING KEY is the plugin's name and it has one spelling: the surface
-     * and the deps are keyed off the same word (`@olai/plugin-api`'s `server.ts`),
-     * so the two cannot be filed apart.
-     *
-     * THE RECORD IS BUILT BY WALKING, which is why the two casts are here and
-     * why they are the honest spelling rather than a gap. The framework's
-     * `SurfaceMap` and `SurfaceDepsFor` are exact for a LITERAL map — each
-     * value pinning its own spec, each key's deps checked against it — and this
-     * record's keys are runtime data read off a registry. What the exactness
-     * buys is kept where it can be: each plugin annotates its own deps against
-     * its OWN spec inside its own package, so a member it mis-shaped is a type
-     * error in that plugin's file, and `assertHandlersMatchGroup` inside
-     * `implementSurfaces` proves the route set at boot in both directions.
-     *
-     * THE EMPTY RECORD IS A REAL CASE and it is the one every headless face
-     * takes: `{}` composes to a group with no requests and a handler record
-     * with none, which the fusion below then adds to olai's own surface and
-     * changes nothing about it. That is what "this process runs no plugins"
-     * means, and it costs no mechanism — it is data the composition already
-     * takes (`@olai/plugin-api`'s `composition.test.ts` holds it).
+     * The VALUE is the framework's own {@link MountedSurface}, which carries its
+     * own undo. That is what makes this table safe to hold: dropping a sibling
+     * is calling `drop()` on the registration this runtime made, never a
+     * `drop(key)` verb that could retract somebody else's — and a key that was
+     * dropped and re-mounted is a different value, so a stale entry's `drop()`
+     * is a no-op rather than a stranger's teardown.
      */
-    const bundle = implementSurfaces(
-      surfacesOf(composed.map((one) => one.plugin)) as unknown as SurfaceMap,
-      {},
-      Object.fromEntries(
-        composed.map((one) => [one.plugin.name, one.half.deps]),
-      ) as never,
-    )
-
-    // ...and each half is handed back its OWN write face, addressed by the one
-    // word this file knows about it. This is not the read-back the three
-    // `fleet: () => published?.collections.fleet` closures were: those were
-    // core reaching into ITS OWN ctx for another package's members, by name,
-    // three times. `implementSurfaces` returns a ctx PER SIBLING, so what
-    // crosses here is one opaque value that is already the plugin's, and the
-    // plugin narrows it to a type this file could not spell.
-    for (const { plugin, half } of composed) {
-      half.published?.(bundle.ctx[plugin.name])
-    }
-
-    /** OLAI'S TAGS AND EVERY SIBLING'S, in one group — the framework's own
-     *  COUNTED merge, labelled by the two halves so a collision names which of
-     *  them claimed the tag rather than only the loser. See the return below
-     *  for why the count matters at all. */
-    const fused = mergeDisjointGroups({ core: runtime.group, plugins: bundle.group })
+    const mounted = new Map<string, MountedSurface<SurfaceSpec>>()
 
     /**
-     * ...and the two handler records as one, proved against that group.
+     * THE RE-COMPOSE, and it lives HERE — which is the whole of the second
+     * bullet of this phase.
      *
-     * A spread, because the merge above has just established that the two tag
-     * sets are disjoint and a handler record is keyed by nothing but tags. What
-     * the spread is not trusted about is the RESULT: `assertHandlersMatchGroup`
-     * is the framework's own door and it names both directions — a tag with no
-     * handler, and a handler at a tag the group never minted — so a route set
-     * that drifted is a boot refusal naming the tags rather than a member that
-     * answers nothing with nobody told.
+     * The spike put it inside the `surfaces` service, and its own review said
+     * why that was wrong: a service that re-composed re-implemented every
+     * SURVIVING sibling on every register, so a plugin that had been serving
+     * since boot got a new runtime because a different plugin arrived. What a
+     * service can honestly do is hold the table and say when it moved; deciding
+     * what to do about it needs the rooted bundle, and the rooted bundle is the
+     * composition root's.
+     *
+     * ## What it does, in the order it does it
+     *
+     * Mounts every sibling that is registered and not yet mounted, drops every
+     * one that is mounted and no longer registered, and republishes the roster
+     * cell. Mounting hands the sibling back its own write face
+     * ({@link Registered.published}) — the seam the three `fleet: () =>
+     * published?.collections.fleet` closures used to be, with core no longer in
+     * the middle of it: what crosses is one opaque value that is already the
+     * plugin's, addressed by the only word core knows about it.
+     *
+     * ## What a DROP reaches, and what a MOUNT does not
+     *
+     * A drop is live all the way down. Each of a sibling's tags is bound to a
+     * handler that is stable for the mount's whole life and refuses the instant
+     * it is dropped, so a connection accepted BEFORE the drop stops being served
+     * those members — a new call gets a `SurfaceSiblingDropped` defect and an
+     * in-flight subscription dies with the same defect rather than hanging on a
+     * producer nobody drives any more.
+     *
+     * A MOUNT reaches this runtime's `group` and `handlers`, which are live
+     * reads, and does NOT reach a listener that has already bound: `serveSurfaceApp`
+     * takes the pair at the moment it listens and builds each accepted socket's
+     * `RpcServer` over what it was handed. So the contract for a sibling
+     * ARRIVING after the listener is up is RECONNECT — the roster cell moving is
+     * what tells a browser to, and `SurfacesConnection.redial(surfaces)` is what
+     * a browser that boots off that cell will call (which is phase 5's, because
+     * the tab's sibling map is compiled in until `ctx.slots` lands). Nothing in
+     * this phase mounts a plugin after the listener is up: the bundle is mounted
+     * before the store opens.
      */
-    const handlers: SurfaceHandlers = { ...runtime.handlers, ...bundle.handlers }
-    assertHandlersMatchGroup(fused, handlers, "plugins")
+    const recompose = (): void => {
+      const wanted = new Map(siblings().map((one) => [one.name, one] as const))
+      for (const [key, one] of wanted) {
+        if (mounted.has(key)) continue
+        const mount = runtime.mount(
+          key,
+          // The two casts are the honest spelling rather than a gap, and they
+          // are the pair `implementSurfaces` used to take. The framework's
+          // `Surface` and `ImplementSurfaceDeps` are exact for a LITERAL — each
+          // pinning its own spec — and what arrives here is a value read off a
+          // registry at runtime. What the exactness buys is kept where it can
+          // be: each plugin annotates its own deps against its OWN spec inside
+          // its own package (`satisfies`, in that plugin's `apply`), so a member
+          // it mis-shaped is a type error in that plugin's file, and the mount
+          // proves the route set on arrival in both directions.
+          one.surface as never,
+          one.deps as never,
+        )
+        mounted.set(key, mount)
+        // ...and the sibling is handed back its OWN write face, addressed by
+        // the one word this file knows about it. The plugin narrows it to a
+        // type this file could not spell.
+        one.published?.(mount.ctx)
+      }
+      for (const [key, mount] of [...mounted]) {
+        if (wanted.has(key)) continue
+        mounted.delete(key)
+        // `drop()` resolves when the sibling's sources have been finalized; the
+        // ROSTER change is synchronous at the call, which is what the line
+        // below is about to publish. A teardown fault reaches `runtime.done`,
+        // the one owned-fault channel, exactly as a finalizer faulting during
+        // `close()` does — so there is nothing here to await and nothing to
+        // catch.
+        void mount.drop()
+      }
+      republishPlugins()
+    }
+
+    /**
+     * THE FIRST COMPOSITION, and every one after it.
+     *
+     * The bundle was mounted before this runtime existed — `./serve.ts` puts the
+     * fibers up before the store opens, because a plugin teaches the vault its
+     * vocabulary and the store validates through it — so what this call does is
+     * mount siblings that are ALREADY registered. From here on the same function
+     * runs on every register and every dispose, through the holder
+     * {@link PluginRuntime.onChange} carries.
+     *
+     * A HOLDER and not a callback passed at construction, and the order is the
+     * reason: `ctx.surfaces` needs to be told what to call before any plugin can
+     * register, and the thing to call does not exist until here.
+     */
+    recompose()
+    if (offered !== null) offered.onChange.run = recompose
 
     return {
       /**
@@ -2313,36 +2363,64 @@ export const bind = (
        * the values, so every face inherits the hold BY CONSTRUCTION rather than
        * by this wrap having run before the filtering did.
        *
-       * THE FUSION IS SAFE BY CONSTRUCTION and proved anyway. A core tag has
-       * three segments and a sibling tag has four, and the framework forbids a
-       * `/` inside any name, so the two sets cannot intersect —
-       * `mergeDisjointGroups` claims every tag before merging and says so
-       * anyway, because `RpcGroup.merge` underneath is a last-writer-wins
-       * `Map.set` and a silently dropped tag is a member that answers nothing
-       * with nobody told. It is the same proof the BROWSER's seam runs on the
-       * other side of the socket (`connectSurfaces`, one function), which is
-       * what keeps the two ends from coming to disagree about what "core plus
-       * the siblings" means.
+       * THE FUSION IS SAFE BY CONSTRUCTION and counted anyway, and neither is
+       * this file's any more. A core tag has three segments and a sibling tag
+       * has four, and the framework forbids a `/` inside any name, so the two
+       * sets cannot intersect; `implementRootedSurfaces` claims every tag on
+       * both axes before it commits, because `RpcGroup.merge` underneath is a
+       * last-writer-wins `Map.set` and a silently dropped tag is a member that
+       * answers nothing with nobody told. It is the same proof the BROWSER's
+       * seam runs on the other side of the socket (`connectSurfaces`, one
+       * function), which is what keeps the two ends from coming to disagree
+       * about what "core plus the siblings" means.
        *
        * SUPERVISION HAS ONE TERMINAL SOURCE and it is olai's. `done` is what a
        * serving site treats as structural death (`./fault.ts`), and the
        * question this arrangement has to answer is which of two runtimes gets
        * to settle it. Core does: this process exists to serve a directory, so
-       * its runtime ending is this process ending, and the bundle is PASSIVE —
+       * its runtime ending is this process ending, and a sibling is PASSIVE —
        * only a genuine fault in a plugin's own source reaches `done` before
        * close, which is right, because a plugin whose connector died is
-       * structural damage too. `close` tears the terminal source down fully
-       * first and then releases the passive one, which is the framework's own
-       * combinator and not a done/close fold written here.
+       * structural damage too. That fold used to be `superviseTerminalSource`
+       * called here over two runtimes; it is inside the one runtime now.
+       *
+       * ## GETTERS, and this is the third bullet of the phase
+       *
+       * `group` and `handlers` are LIVE READS off the rooted runtime, not values
+       * copied out of it. That is what "a live connection does not keep the old
+       * fused group" comes to at THIS layer: there is one fused pair, and
+       * everything downstream reads it rather than holding a copy — so a drop
+       * cannot leave anybody serving a sibling that is gone.
+       *
+       * What a getter cannot reach is a TRANSPORT that has already baked the
+       * pair. `serveSurfaceApp` takes `group` and `handlers` at the moment it
+       * listens; a drop still reaches every open connection (the framework binds
+       * each sibling's tags to handlers that refuse from the instant of the
+       * drop), and a sibling ARRIVING after the listen is the reconnect half of
+       * the contract — see {@link recompose}.
        */
       bound: {
-        group: fused,
-        handlers,
-        ...superviseTerminalSource(bundle, runtime),
+        get group() {
+          return runtime.group
+        },
+        get handlers() {
+          return runtime.handlers
+        },
+        done: runtime.done,
+        close: runtime.close,
       },
-      // Built from the SAME list the composition above walked, which is the
-      // whole of why they are here — see the field's own note.
-      faces: facesOf(composed.map((one) => one.plugin)),
+      /**
+       * ...and the two face gates, over the SAME registry the composition reads.
+       *
+       * A getter for `bound`'s reason: a face is a default-deny allowlist
+       * derived from the sibling set, so a roster that moved and a gate that did
+       * not is a serve refusing members it composes or naming members it does
+       * not. Whoever reads this after a change gets the gate for the roster that
+       * is up.
+       */
+      get faces() {
+        return facesOf(siblings())
+      },
       publish: {
         state: (state) => {
           runtime.ctx.cells.chat.set(state)

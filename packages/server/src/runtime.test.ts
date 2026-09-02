@@ -28,9 +28,10 @@ import {
 import type { App, DocumentEntry, Head, Manifest, PluginRoster, Shelf } from "@olai/surface"
 import { CHAT_OFF, NO_ROSTER } from "@olai/surface"
 import type { Chat, Faulted, Scoped } from "@olai/chat"
-import { PLUGIN_NAMES } from "@olai/plugin-api/wire"
-import * as pluginsDoor from "@olai/plugin-api/server"
-import type { PluginServices } from "@olai/plugin-api/server"
+import { PLUGIN_NAMES } from "@olai/bundle/wire"
+import type { Deliveries } from "@olai/plugin-api/services"
+import { DeliveryDoors, Surfaces, Wakes } from "@olai/plugin-api/services"
+import { Context } from "cordis"
 import type { CollectionDeltasMsg } from "@kolu/surface/define"
 import { defineSurface } from "@kolu/surface/define"
 import { NO_KINDS } from "@olai/format"
@@ -47,7 +48,7 @@ import type { NodeAgent } from "@olai/format"
 import type { Roster } from "./agents.ts"
 import { watchFault } from "./fault.ts"
 import { hostname } from "./hostname.ts"
-import { type Bound, bind, gitWiring, rosterOf, writerAt } from "./runtime.ts"
+import { type Bound, bind, gitWiring, type PluginRuntime, rosterOf, writerAt } from "./runtime.ts"
 
 /** The codec this suite validates through — the vocabulary of a build that
  *  composed no plugin, which is what these fixtures declare nothing about
@@ -88,16 +89,16 @@ const withRuntime = <A>(
    *
    * `chat` is the panel this runtime answers for, absent by default because a
    * directory is readable whether or not an agent is installed and every
-   * reading test here is that machine. `plugins` is WHICH NAMES this serve
-   * runs: `undefined` is no plugin slot at all ({@link rosterOf}'s
-   * `NO_ROSTER`), `[]` is the slot with nobody in it, and a list is the flag
-   * somebody typed. What is BEHIND those names is whatever
-   * {@link withDoubles} has put in the registry for the duration — this
-   * harness composes what the runtime is handed and never looks inside it.
+   * reading test here is that machine. `plugins` is WHICH DOUBLES to mount:
+   * `undefined` is no plugin runtime at all ({@link rosterOf}'s `NO_ROSTER`),
+   * `[]` is a mounted runtime with nothing in it, and a list is the doubles a
+   * case built. What is behind a name is a Cordis plugin object with no
+   * appliance under it ({@link doubleCalled}) — this harness mounts what the
+   * runtime is handed and never looks inside it.
    */
   extra: {
     readonly chat?: Chat
-    readonly plugins?: ReadonlyArray<string>
+    readonly plugins?: ReadonlyArray<ReturnType<typeof doubleCalled>>
     /** The vault's half of the node-agent roster ({@link ./agents.ts}) —
      *  absent for every case that is not about a binding, which is what a
      *  serve with no ACP agent is handed too. */
@@ -125,6 +126,9 @@ const withRuntime = <A>(
       },
     }
     const ops = makeOps({ store, root, policy: fixedPolicy({ commit: "off", push: null }) })
+    /** The re-compose holder `bind` fills in — one per boot, as `./serve.ts`
+     *  makes one per serve. */
+    const onChange = { run: (): void => {} }
     const wired = yield* bind({
       store,
       chat: extra.chat ?? null,
@@ -133,23 +137,24 @@ const withRuntime = <A>(
       writer: "web",
       hostname: hostname(),
       startedAt: STARTED,
-      // NO PLUGINS, unless a case asked for names. Every runtime in this file
+      // NO PLUGINS, unless a case asked for doubles. Every runtime in this file
       // but the doorbell's is a reader — a bound face, an MCP route — and none
       // of them is about a terminal door or a CI chip; dialing whatever daemons
       // happen to be on the machine running the suite would make these tests
       // depend on them. `null` is the OFF setting, and what it produces is a
-      // surface with no `surface/<name>/` on it at all: an empty sibling record
-      // composes to no tag, no handler and no expose row, so olai's own group
-      // is byte for byte what it always was.
+      // rooted bundle with no sibling mounted on it: no tag, no handler and no
+      // expose row, so olai's own group is byte for byte what it always was.
       //
       // The doorbell's cases DO take the slot, and they still dial nothing:
       // what stands behind their names is a double with no appliance under it
-      // ({@link withDoubles}).
+      // ({@link doubleCalled}).
       plugins: extra.plugins === undefined ? null : {
-        env: {},
-        now: () => STARTED,
-        served: root,
-        names: extra.plugins,
+        ctx: yield* Effect.promise(() =>
+          mounting(extra.plugins ?? [], () => extra.chat ?? null, onChange)
+        ),
+        onChange,
+        built: (extra.plugins ?? []).map((one) => one.name),
+        pinned: null,
       },
       git: gitWiring(
         ops,
@@ -623,20 +628,36 @@ test("a revision that changes no pin sends no frame", () =>
 // ── which plugins this build has, and which this serve runs ────────────
 
 /**
- * THE ROSTER IS READ OFF THE REGISTRY, not off what was composed, and that is
- * the difference the preferences panel exists to draw: a composed list is the
- * plugins that are ON, and the panel draws a row per plugin the BUILD has and
- * says of each whether it runs. A plugin left out of `--plugins` is absent from
- * every structure the runtime holds, so a roster derived from what was composed
- * could only ever draw rows that all say yes.
+ * WHAT A COMPOSITION ROOT HANDS THE ROSTER — the two facts a browser is told,
+ * with an inert runtime behind them.
  *
- * The names are the REGISTRY'S, read here rather than spelled, which is the
- * same discipline the flag's own `--help` sentence keeps: a third plugin
+ * `ctx` is a bare Cordis context with nothing mounted on it, because these
+ * cases are about the ROSTER's arithmetic and never about a fiber: what is
+ * running is the second argument, handed in, so a case can say "the flag left
+ * it on and nothing mounted" — which is a real state and the one the old
+ * derivation could not express.
+ */
+const offering = (pinned: ReadonlyArray<string> | null = null): PluginRuntime => ({
+  ctx: new Context(),
+  onChange: { run: () => {} },
+  built: PLUGIN_NAMES,
+  pinned,
+})
+
+/**
+ * THE ROSTER CARRIES A ROW PER BUILT PLUGIN, and says of each whether it is
+ * COMPOSED — which is the difference the preferences panel exists to draw. A
+ * plugin left out of `--plugins` is absent from every structure the runtime
+ * holds, so a roster derived only from what is composed could draw no row for
+ * it at all.
+ *
+ * The `built` names are the BUNDLE'S, handed in rather than spelled, which is
+ * the same discipline the flag's own `--help` sentence keeps: a third plugin
  * reaches this test, the flag and the panel with no line of any of them moving,
  * and this file — a general one — names none.
  */
 test("every plugin the build has is on the roster, running or not", () => {
-  const all = rosterOf({ env: {}, now: () => STARTED, served: "/tmp" })
+  const all = rosterOf(offering(), [...PLUGIN_NAMES])
   expect(all.built.map((one) => one.name)).toEqual([...PLUGIN_NAMES])
   // Nobody said, so all of them run — and `pinned` stays `null` rather than
   // expanding into that list, because the row under it has to say whether a
@@ -645,13 +666,37 @@ test("every plugin the build has is on the roster, running or not", () => {
   expect(all.pinned).toBeNull()
 
   // ...and one name out of the list leaves every other row present and off,
-  // which is the row that could not exist if this were a filter.
+  // which is the row that could not exist if this were a filter. `running` is
+  // WHAT MOUNTED and not what the flag said, which is the change this phase
+  // makes to the word: the flag is the reason only one is up, and the roster
+  // reports the runtime rather than re-reading the reason.
   const first = PLUGIN_NAMES[0]
   if (first === undefined) throw new Error("this build has no plugins to pin")
-  const one = rosterOf({ env: {}, now: () => STARTED, served: "/tmp", names: [first] })
+  const one = rosterOf(offering([first]), [first])
   expect(one.built.map((row) => row.name)).toEqual([...PLUGIN_NAMES])
   expect(one.built.filter((row) => row.running).map((row) => row.name)).toEqual([first])
   expect(one.pinned).toEqual([first])
+})
+
+/**
+ * A PLUGIN THE FLAG LEFT ON AND THE RUNTIME DID NOT MOUNT — the row the old
+ * derivation could not draw at all.
+ *
+ * `running` used to be `isEnabled(pin, name)`, a second reading of the flag,
+ * which was exact only because the filter ran once and nothing could move
+ * afterwards. A plugin is a fiber now: it can sit `PENDING` on a service that
+ * never arrived, or land in `FAILED` because its `apply` threw, and in both the
+ * flag still says yes while the wire carries no `surface/<name>/` at all. The
+ * roster says what is composed, so a browser drawing that row is told the truth
+ * about it.
+ */
+test("a plugin the flag left on but nothing mounted draws as off", () => {
+  const roster = rosterOf(offering(), [])
+  expect(roster.built.map((row) => row.name)).toEqual([...PLUGIN_NAMES])
+  expect(roster.built.some((row) => row.running)).toBe(false)
+  // ...and the flag is still reported as nobody having said, because nobody
+  // did: the two facts are independent and the panel draws both.
+  expect(roster.pinned).toBeNull()
 })
 
 /**
@@ -661,7 +706,7 @@ test("every plugin the build has is on the roster, running or not", () => {
  * apart is the line under the row.
  */
 test("an empty flag crosses as an empty list, not as nobody having said", () => {
-  const none = rosterOf({ env: {}, now: () => STARTED, served: "/tmp", names: [] })
+  const none = rosterOf(offering([]), [])
   expect(none.pinned).toEqual([])
   expect(none.built.some((row) => row.running)).toBe(false)
   expect(none.built.map((row) => row.name)).toEqual([...PLUGIN_NAMES])
@@ -714,9 +759,9 @@ test("a wake sentence reaches the roster, and never for a plugin this serve left
       unwatchable: "the file you woke on is not one this can read",
     },
   }
-  const halves = [{ name: first, wake }, { name: second }]
+  const wakes = new Map([[first, wake]])
 
-  const all = rosterOf({ env: {}, now: () => STARTED, served: "/tmp" }, halves)
+  const all = rosterOf(offering(), [...PLUGIN_NAMES], wakes)
   // WHAT THE PICKER IS MADE OF, and not the sentences. A roster that carried a
   // delivered sentence would be putting a message on the wire for a reader that
   // never sends one — and the wire's own schema has no key for either.
@@ -727,17 +772,17 @@ test("a wake sentence reaches the roster, and never for a plugin this serve left
 
   // ... and the row is still THERE when the flag leaves it out, saying it does
   // not run — with no picker on it.
-  const pinned = rosterOf({ env: {}, now: () => STARTED, served: "/tmp", names: [second] }, halves)
+  const pinned = rosterOf(offering([second]), [second], wakes)
   expect(pinned.built.map((row) => row.name)).toEqual([...PLUGIN_NAMES])
   expect(pinned.built.find((row) => row.name === first)?.running).toBe(false)
   expect(pinned.built.find((row) => row.name === first)?.wake).toBeUndefined()
 })
 
 /** ... and a caller that only wants to know which plugins the build HAS says so
- *  by naming no halves. The four cases above are that caller, and this is the
+ *  by naming no wakes. The four cases above are that caller, and this is the
  *  claim they make read out loud. */
-test("no halves is no sentence, and every row is still there", () => {
-  const all = rosterOf({ env: {}, now: () => STARTED, served: "/tmp" })
+test("no wake declarations is no sentence, and every row is still there", () => {
+  const all = rosterOf(offering(), [...PLUGIN_NAMES])
   expect(all.built.map((row) => row.name)).toEqual([...PLUGIN_NAMES])
   expect(all.built.every((row) => row.wake === undefined)).toBe(true)
 })
@@ -758,56 +803,57 @@ test("the roster is served on the plugins cell", () =>
 // ── the doorbell's two gates ───────────────────────────────────────────
 
 /**
- * THE TWO CLAIMS THAT PUT `wake` ON THE PLUGIN SERVER DOOR AND A DELIVERY DOOR
- * ON THE SERVICES BLOB — asserted where they are made, rather than left as
- * paragraphs.
+ * THE TWO CLAIMS THAT PUT A WAKE DECLARATION ON A REGISTRY AND A DELIVERY DOOR
+ * ON A SERVICE — asserted where they are made, rather than left as paragraphs.
  *
  * ## The two things under test
  *
- * `PluginServerHalf.wake` sits on the SERVER half rather than on the manifest
- * because it has a SERVER READER, and that reader is the only one there is: the
- * member that writes a scope refuses a plugin this serve did not compose, and
- * refuses one whose half declares no wake (`./runtime.ts`'s `composedWake`).
- * Either pick would store a row nothing will ever read. So the three cases
- * below are the three answers that gate can give.
+ * `ctx.wakes.register(…)` is a REGISTRATION rather than a field, and it has a
+ * server reader that is the only one there is: the member that writes a scope
+ * refuses a plugin this serve did not compose, and refuses one that declared no
+ * wake (`./runtime.ts`'s `composedWake`). Either pick would store a row nothing
+ * will ever read. So the three cases below are the three answers that gate can
+ * give — and the first of them is now free rather than checked, because a
+ * plugin that is not mounted has no registration in the table at all.
  *
- * `PluginServices.deliveries` is built PER PLUGIN, and the key is a fence
- * rather than a filing convention: an unkeyed door would hand one plugin the
+ * `ctx.deliveries` is keyed by the CALLING FIBER, and the key is a fence rather
+ * than a filing convention: an unkeyed door would hand one plugin the
  * conversations a person scoped to ANOTHER, and would let one plugin sign
- * another's name onto a row that reaches an agent. So the last case takes the
- * doors two plugins were handed and asks each of them both questions.
+ * another's name onto a row that reaches an agent. The composition root used to
+ * build one door per plugin and close over the name; the service reads
+ * `this.ctx.fiber.name` instead, which is the word the registry bound the fiber
+ * under and not something a caller can spell. So the last case takes two
+ * plugins' doors and asks each of them both questions.
  *
  * WHAT A DELIVERY DOES ONCE IT IS THROUGH THE DOOR — the three arms, the held
  * bodies, the coalescing — is `@olai/chat`'s bench and deliberately not this
  * one. What this file owns is the COMPOSITION: who is offered a door, whose
  * rows are on it, and whose name is stamped on what goes out of it.
  *
- * ## The halves are DOUBLES, and the registry is put back
+ * ## The plugins are DOUBLES, and there is no registry to put back
  *
- * A composition root reads its halves off `@olai/plugin-api`'s compiled-in
- * registry, so a case that wants a plugin declaring a wake beside one that
- * declares none has to say what the registry holds for the length of one boot.
- * Composing the BUILD's real halves is what the harness above already says no
- * to, and it is worse here than there: a real half dials the daemon it is a
- * client of, so these cases would pass or fail on whether the machine running
+ * A composition root used to read its halves off a compiled-in array, so a case
+ * that wanted a plugin declaring a wake beside one that declares none had to
+ * `mock.module` the registry for the length of one boot and restore it in a
+ * `finally` — a rewrite of a live ESM binding for the whole process, with every
+ * later file in this package reading whatever was left installed.
+ *
+ * None of that is needed now. A plugin is a FIBER, so a double is a plugin
+ * object mounted on a context this case owns, and the context goes away with
+ * the case. Composing the BUILD's real plugins is still what the harness says
+ * no to, and it is worse here than anywhere: a real half dials the daemon it is
+ * a client of, so these cases would pass or fail on whether the machine running
  * the suite happens to be running somebody's appliance.
  *
- * A double carries nothing but what a composition root reads — a name, an empty
- * surface, no faces, and a `serve` that records the door it was handed. That is
- * the same restraint {@link rosterOf}'s own cases keep one section up, where
- * the halves are two literals: this file still names no plugin, and what is
- * under test is `./runtime.ts`'s wiring rather than any tenant's.
+ * A double carries nothing but what a composition root reads — an empty
+ * surface, no faces, and an `apply` that records the door its fiber was handed.
+ * This file still names no plugin, and what is under test is `./runtime.ts`'s
+ * wiring rather than any tenant's.
  */
 
-/** The real door, COPIED OUT before any double is installed — an ESM import is
- *  a live binding and `mock.module` rewrites it in place, so a restore that
- *  read the imported namespace back would be handing the mock to itself
- *  (`@olai/format`'s `set.walks.test.ts` spells out the same dance). */
-const REGISTRY = { ...pluginsDoor }
-
-/** A whole surface with nothing on it. What a double contributes to the fused
- *  group, and it is a real state rather than a convenience: an empty sibling
- *  composes to no tag, no handler and no expose row (`@olai/plugin-api`'s
+/** A whole surface with nothing on it. What a double contributes to the rooted
+ *  bundle, and it is a real state rather than a convenience: an empty sibling
+ *  composes to no tag, no handler and no expose row (`@olai/bundle`'s
  *  `composition.test.ts` holds it), so a runtime composed with these is byte
  *  for byte the runtime every other case in this file boots. */
 const NOTHING = defineSurface({})
@@ -836,67 +882,87 @@ const RINGING = {
 }
 
 /**
- * ONE DOUBLE: a name, whether it rings, and a place to keep the door it was
- * handed.
+ * ONE DOUBLE: a name, whether it rings, and a place to keep the door its fiber
+ * was handed.
  *
- * `serve` is the whole of what a composition root calls, and what it records is
- * the only way a door is observable from outside at all — core builds one per
- * plugin, hands it over, and reads it back nowhere.
+ * `apply` is the whole of what the runtime calls, and the door it records is the
+ * only way one is observable from outside at all — the service mints it per
+ * call, off the calling fiber, and hands it back nowhere.
+ *
+ * THE TWO REVISION LISTENERS ARE NO-OPS AND MUST STILL BE HERE, for the reason
+ * the two hooks they replace had to be: every published revision emits, so a
+ * double that listened to neither would leave the events with no subscriber and
+ * this file with no evidence they are driven at all. What a plugin MAKES of a
+ * revision is its own bench; what this file owns is that core drives it.
  */
-const halfCalled = (name: string, wake?: typeof RINGING) => {
-  let door: PluginServices["deliveries"] | undefined
+const doubleCalled = (name: string, wake?: typeof RINGING) => {
+  let door: { scopes: Deliveries["scopes"]; deliver: Deliveries["deliver"] } | undefined
   return {
     name,
-    surface: NOTHING,
-    faces: {},
-    ...(wake === undefined ? {} : { wake }),
-    serve: (services: PluginServices) => {
-      door = services.deliveries
-      // THE TWO REVISION HOOKS ARE NO-OPS AND MUST STILL BE HERE. Core calls
-      // both on every published revision, so a double without them is a double
-      // that kills the connector the moment a case makes a revision happen —
-      // which is exactly what the fault cases below do, and which nothing else
-      // in this file does. What a half MAKES of a revision is its own bench;
-      // what this file owns is that core drives it.
-      return { deps: {}, revision: () => {}, unloaded: () => {} }
+    plugin: {
+      name,
+      inject: ["deliveries", "surfaces", "wakes"] as const,
+      apply(ctx: Context) {
+        // The door is the SERVICE, reached through this fiber's own context —
+        // so what is recorded is exactly what this plugin can do, keyed by the
+        // name the registry bound it under and by nothing this file passed in.
+        door = {
+          scopes: () => ctx.deliveries.scopes(),
+          deliver: (to, say, options) => ctx.deliveries.deliver(to, say, options),
+        }
+        if (wake !== undefined) ctx.wakes.register(wake)
+        ctx.surfaces.register({ surface: NOTHING, faces: {}, deps: {} })
+        ctx.on("vault/revision", () => {})
+        ctx.on("vault/unloaded", () => {})
+      },
     },
-    /** The door this half was handed. THROWS rather than answering an empty
-     *  one, because a case that reaches for it before anything composed this
-     *  half is asking a question with no answer, and should say so where it
-     *  asked rather than assert against a stand-in. */
-    door: (): PluginServices["deliveries"] => {
-      if (door === undefined) throw new Error(`nothing composed \`${name}\``)
+    /** The door this double's fiber was handed. THROWS rather than answering an
+     *  empty one, because a case that reaches for it before anything mounted
+     *  this plugin is asking a question with no answer, and should say so where
+     *  it asked rather than assert against a stand-in. */
+    door: () => {
+      if (door === undefined) throw new Error(`nothing mounted \`${name}\``)
       return door
     },
   }
 }
 
 /**
- * Run `body` against a registry holding `halves`, and put the real one back
- * whatever happens.
+ * A CONTEXT WITH THE SERVICES ON IT AND `doubles` MOUNTED — what a composition
+ * root is handed, built for one case.
  *
- * THE RESTORE IS NOT TIDINESS. `mock.module` rewrites a live binding for the
- * whole process and `bun test` loads one file after another into it, so a
- * double left installed would be the registry every LATER file in this package
- * reads — and the failure it caused would be attributed to whichever of them
- * happened to compose a plugin.
- *
- * NOT a `beforeEach`/`afterEach` pair, and the window is the reason: the halves
- * differ per case, and a runtime reads the registry at the moment it composes.
- * So the double stands around ONE boot rather than for the length of the file,
- * which is also what keeps every other case here reading the registry it always
- * read.
+ * Every service the doubles inject, and no more: this is the harness saying out
+ * loud that a plugin sees what it names. `deliveries` is the one with anything
+ * behind it, and its `doorFor` is the chat the case built — asked per call, the
+ * way `./serve.ts` asks it, so a door minted before the chat existed is not a
+ * door frozen empty.
  */
-const withDoubles = async <A>(
-  halves: ReadonlyArray<ReturnType<typeof halfCalled>>,
-  body: () => Promise<A>,
-): Promise<A> => {
-  mock.module("@olai/plugin-api/server", () => ({ ...REGISTRY, SERVERS: halves }))
-  try {
-    return await body()
-  } finally {
-    mock.module("@olai/plugin-api/server", () => REGISTRY)
-  }
+const mounting = async (
+  doubles: ReadonlyArray<ReturnType<typeof doubleCalled>>,
+  chat: () => Chat | null,
+  onChange: { run: () => void },
+): Promise<Context> => {
+  const ctx = new Context()
+  await ctx.plugin(DeliveryDoors, {
+    doorFor: (who) => {
+      const door = chat()?.doorFor(who)
+      if (door === undefined) return null
+      // THE SAME BRIDGE `./serve.ts` MAKES, and for the same reason: the chat`s
+      // `deliver` is an Effect and a plugin`s caller is a watcher sink with
+      // nowhere to put one. A harness that skipped it would be a harness in
+      // which every delivery silently never happened.
+      return {
+        scopes: door.scopes,
+        deliver: (to, say, options) => {
+          Effect.runFork(door.deliver(to, say, options))
+        },
+      }
+    },
+  })
+  await ctx.plugin(Wakes)
+  await ctx.plugin(Surfaces, { changed: () => onChange.run() })
+  for (const one of doubles) await ctx.plugin(one.plugin)
+  return ctx
 }
 
 /** The one conversation every case below is about — a PAIR, because a session
@@ -1062,18 +1128,17 @@ const scoping = (bound: Bound) => {
  * answered.
  */
 test("a scope naming a composed plugin that rings is written through, whole", () => {
-  const ringer = halfCalled("ringer", RINGING)
+  const ringer = doubleCalled("ringer", RINGING)
   const it = chatKeeping([])
-  return withDoubles([ringer], () =>
-    withRuntime(
+  return withRuntime(
       { "a.olai": OUTLINE },
       ({ wired }) =>
         Effect.gen(function*() {
           yield* scoping(wired.bound)({ to: TALKING, plugin: ringer.name, file: "notes.olai" })
           expect(it.picked).toEqual([{ to: TALKING, plugin: ringer.name, file: "notes.olai" }])
         }),
-      { chat: it.chat, plugins: [ringer.name] },
-    ))
+      { chat: it.chat, plugins: [ringer] },
+  )
 })
 
 /**
@@ -1092,11 +1157,10 @@ test("a scope naming a composed plugin that rings is written through, whole", ()
  * against the cap of a record that has one.
  */
 test("a scope naming a plugin this serve did not compose is refused, in words", () => {
-  const ringer = halfCalled("ringer", RINGING)
-  const quiet = halfCalled("quiet")
+  const ringer = doubleCalled("ringer", RINGING)
+  const quiet = doubleCalled("quiet")
   const it = chatKeeping([])
-  return withDoubles([ringer, quiet], () =>
-    withRuntime(
+  return withRuntime(
       { "a.olai": OUTLINE },
       ({ wired }) =>
         Effect.gen(function*() {
@@ -1108,8 +1172,8 @@ test("a scope naming a plugin this serve did not compose is refused, in words", 
         }),
       // The flag ran the OTHER one, which is what makes this about the serve:
       // the build has both halves and this process composed one of them.
-      { chat: it.chat, plugins: [quiet.name] },
-    ))
+      { chat: it.chat, plugins: [quiet] },
+  )
 })
 
 /**
@@ -1123,11 +1187,10 @@ test("a scope naming a plugin this serve did not compose is refused, in words", 
  * would have proved only the first.
  */
 test("a scope naming a composed plugin that declares no wake is refused, in words", () => {
-  const ringer = halfCalled("ringer", RINGING)
-  const quiet = halfCalled("quiet")
+  const ringer = doubleCalled("ringer", RINGING)
+  const quiet = doubleCalled("quiet")
   const it = chatKeeping([])
-  return withDoubles([ringer, quiet], () =>
-    withRuntime(
+  return withRuntime(
       { "a.olai": OUTLINE },
       ({ wired }) =>
         Effect.gen(function*() {
@@ -1142,8 +1205,8 @@ test("a scope naming a composed plugin that declares no wake is refused, in word
           yield* scoping(wired.bound)({ to: TALKING, plugin: ringer.name, file: "notes.olai" })
           expect(it.picked).toEqual([{ to: TALKING, plugin: ringer.name, file: "notes.olai" }])
         }),
-      { chat: it.chat, plugins: [ringer.name, quiet.name] },
-    ))
+      { chat: it.chat, plugins: [ringer, quiet] },
+  )
 })
 
 /**
@@ -1164,14 +1227,13 @@ test("a scope naming a composed plugin that declares no wake is refused, in word
  * plugin's name.
  */
 test("each plugin's door carries only its own conversations, and rings under only its own name", () => {
-  const ringer = halfCalled("ringer", RINGING)
-  const other = halfCalled("other", RINGING)
+  const ringer = doubleCalled("ringer", RINGING)
+  const other = doubleCalled("other", RINGING)
   const it = chatKeeping([
     scoped(ringer.name, "ringer.olai"),
     scoped(other.name, "other.olai"),
   ])
-  return withDoubles([ringer, other], () =>
-    withRuntime(
+  return withRuntime(
       // BOTH PICKED FILES ARE REALLY SERVED, which this case needs to say
       // nothing about and would otherwise be quietly about: a scope whose file
       // this directory does not hold is marked broken on the first revision and
@@ -1203,8 +1265,8 @@ test("each plugin's door carries only its own conversations, and rings under onl
             from: other.name,
           })
         }),
-      { chat: it.chat, plugins: [ringer.name, other.name] },
-    ))
+      { chat: it.chat, plugins: [ringer, other] },
+  )
 })
 
 /**
@@ -1217,16 +1279,15 @@ test("each plugin's door carries only its own conversations, and rings under onl
  * arm where there is no table to evict from at all.
  */
 test("a plugin composed into a chatless serve is handed a door onto nothing", () => {
-  const ringer = halfCalled("ringer", RINGING)
-  return withDoubles([ringer], () =>
-    withRuntime({ "a.olai": OUTLINE }, () =>
+  const ringer = doubleCalled("ringer", RINGING)
+  return withRuntime({ "a.olai": OUTLINE }, () =>
       Effect.gen(function*() {
         expect(ringer.door().scopes()).toEqual([])
         // ...and the write end answers `void` rather than refusing, because a
         // watcher's sink has nowhere to put a refusal. Nothing to assert but
         // that it is callable and returns.
         expect(ringer.door().deliver(TALKING, () => "into the void")).toBeUndefined()
-      }), { plugins: [ringer.name] }))
+      }), { plugins: [ringer] })
 })
 
 /**
@@ -1264,15 +1325,14 @@ test("a plugin composed into a chatless serve is handed a door onto nothing", ()
  */
 
 test("a scope whose file is not served is told, in the plugin's own words and nobody else's", () => {
-  const ringer = halfCalled("ringer", RINGING)
-  const other = halfCalled("other", RINGING)
+  const ringer = doubleCalled("ringer", RINGING)
+  const other = doubleCalled("other", RINGING)
   // Two picks in one conversation: one on a file this directory serves, one on
   // a file it does not. Only the second is a fault — and the rows are in this
   // order, so a delivery for the healthy one would arrive FIRST. That is what
   // makes the silence readable off the queue rather than off a timer.
   const it = chatKeeping([scoped(ringer.name, "a.olai"), scoped(other.name, "lanes.olai")])
-  return withDoubles([ringer, other], () =>
-    withRuntime(
+  return withRuntime(
       { "a.olai": OUTLINE },
       () =>
         Effect.gen(function*() {
@@ -1296,8 +1356,8 @@ test("a scope whose file is not served is told, in the plugin's own words and no
           expect(other.door().scopes()).toEqual([])
           expect(ringer.door().scopes()).toEqual([{ ...TALKING, file: "a.olai" }])
         }),
-      { chat: it.chat, plugins: [ringer.name, other.name] },
-    ))
+      { chat: it.chat, plugins: [ringer, other] },
+  )
 })
 
 test("a file that is served and EMPTY is not a file that is gone", () => {
@@ -1311,11 +1371,10 @@ test("a file that is served and EMPTY is not a file that is gone", () => {
   // proves nothing on its own; a pick on a file that really is missing gives
   // this case something to WAIT for, and the empty file's row sits ahead of it,
   // so a delivery for it would have to arrive first.
-  const ringer = halfCalled("ringer", RINGING)
-  const other = halfCalled("other", RINGING)
+  const ringer = doubleCalled("ringer", RINGING)
+  const other = doubleCalled("other", RINGING)
   const it = chatKeeping([scoped(ringer.name, "empty.olai"), scoped(other.name, "lanes.olai")])
-  return withDoubles([ringer, other], () =>
-    withRuntime(
+  return withRuntime(
       { "a.olai": OUTLINE, "empty.olai": "" },
       () =>
         Effect.gen(function*() {
@@ -1326,8 +1385,8 @@ test("a file that is served and EMPTY is not a file that is gone", () => {
           // rewriting.
           expect(ringer.door().scopes()).toEqual([{ ...TALKING, file: "empty.olai" }])
         }),
-      { chat: it.chat, plugins: [ringer.name, other.name] },
-    ))
+      { chat: it.chat, plugins: [ringer, other] },
+  )
 })
 
 /**
@@ -1348,13 +1407,12 @@ test("a file that is served and EMPTY is not a file that is gone", () => {
  * had been renamed while it sat in front of them.
  */
 test("a scope on a served file its doorbell cannot read is told, in the OTHER declared sentence", () => {
-  const ringer = halfCalled("ringer", RINGING)
-  const other = halfCalled("other", RINGING)
+  const ringer = doubleCalled("ringer", RINGING)
+  const other = doubleCalled("other", RINGING)
   // Both files are served. Only the second is a kind this doorbell declared,
   // and the healthy row is first, so a delivery for it would arrive first.
   const it = chatKeeping([scoped(ringer.name, "a.olai"), scoped(other.name, "notes.md")])
-  return withDoubles([ringer, other], () =>
-    withRuntime(
+  return withRuntime(
       { "a.olai": OUTLINE, "notes.md": "# notes\n" },
       () =>
         Effect.gen(function*() {
@@ -1370,8 +1428,8 @@ test("a scope on a served file its doorbell cannot read is told, in the OTHER de
           expect(other.door().scopes()).toEqual([])
           expect(ringer.door().scopes()).toEqual([{ ...TALKING, file: "a.olai" }])
         }),
-      { chat: it.chat, plugins: [ringer.name, other.name] },
-    ))
+      { chat: it.chat, plugins: [ringer, other] },
+  )
 })
 
 // ── the two gestures that move a node agent's binding ──────────────────

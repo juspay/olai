@@ -254,11 +254,19 @@ export interface Options {
    * this host turns out to be running ({@link ./probes.ts}).
    *
    * A LIST HANDED IN, and this file names nothing that is on it. What might be
-   * here is the composition root's business, because it is the root that knows
+   * here is the composition root.s business, because it is the root that knows
    * which integrations this build has and which of them this serve was told to
    * run; what is here is that they are ASKED per session rather than at boot, so
    * a daemon started after olai is picked up by the next conversation instead of
    * at the next restart.
+   *
+   * A THUNK rather than the list itself, and that is the second half of the
+   * same sentence. The list used to be built once at boot, which was exact
+   * while the set of integrations could not move; it can now — a plugin is a
+   * fiber on the root.s side of this wall, and one that unloads takes its probe
+   * with it — so the root is asked again per session and this file holds no
+   * copy. What it costs is nothing here: the answer was already asked per
+   * session, and now the QUESTION is too.
    *
    * OMITTED IS EMPTY, and that is the useful default rather than a convenience.
    * Every test in this package opens sessions against a fixture agent and has no
@@ -267,7 +275,7 @@ export interface Options {
    * `beforeEach` to stop one, which is a test reaching into the process to
    * silence a dependency it could not name.
    */
-  readonly probes?: ReadonlyArray<Probe>
+  readonly probes?: () => ReadonlyArray<Probe>
   /** Where "which conversation is the panel's" is kept between one serve of
    *  this directory and the next ({@link ./memory.ts}). Handed in rather than
    *  built here for the reason the tool server is: this module is the one that
@@ -1481,7 +1489,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *  rather than once at boot, so a daemon started after olai is picked up by
      *  the next conversation instead of the next restart. */
     const servers = Effect.map(
-      probed(options.probes ?? []),
+      probed(options.probes?.() ?? []),
       // ONE probing answers both halves, and both are read off the ONE array
       // this callback is handed. `handedIn` takes what a session is given, and
       // `missingIn` takes what a person is owed about the ones it was not —
