@@ -5,7 +5,7 @@ Feature: The files olai names for itself, and the doors onto them
   `_olai/`: the shelf, the trash, and now the inbox.
 
   Those files were being drawn TWICE. `_olai/` was an ordinary folder in the
-  file tree, so `_olai/Pins.olai` sat there as a row even though the shelf
+  file tree, so `_olai/Pins.org` sat there as a row even though the shelf
   above it already IS that file's face — and the trash has had a door of its
   own at the foot of the column since it was written. Then came a Prefs
   switch to draw them again — and that was the wrong half: inspectability a
@@ -29,24 +29,24 @@ Feature: The files olai names for itself, and the doors onto them
   marked `todo` or `doing` — any depth; an unmarked row is furniture —
   hidden at zero.
   Only the MINT moved as to WHICH file — a directory that already keeps
-  its own `Inbox.olai` goes on capturing into the file it has, and this
+  its own `Inbox.org` goes on capturing into the file it has, and this
   entry opens whichever file that is.
 
   `@scratch:` because these write the directory they are served.
 
   Background:
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
 
   # ── the tree stops drawing them; the group at the foot keeps them ────
 
   Scenario: A minted shelf is the shelf, and not also a row in the tree
-    # THE BUG, as a scenario. Pinning mints `_olai/Pins.olai`; before this
+    # THE BUG, as a scenario. Pinning mints `_olai/Pins.org`; before this
     # change the tree grew an `_olai` folder holding a `Pins` row, a second way
     # into the file the shelf directly above it already draws.
     When I pin the page
-    Then the pinned shelf holds "/house.olai"
-    And "_olai/Pins.olai" holds a node titled "/house.olai"
-    But the outline list does not link to "_olai/Pins.olai"
+    Then the pinned shelf holds "/house.org"
+    And "_olai/Pins.org" holds a node titled "/house.org"
+    But the outline list does not link to "_olai/Pins.org"
     And the file tree does not show the folder "_olai"
     And there should be no page errors
 
@@ -55,10 +55,10 @@ Feature: The files olai names for itself, and the doors onto them
     # only at the root. Folders start collapsed, so a file inside one is
     # reached the way a reader reaches it.
     When I pin the page
-    Then the outline list links to "house.olai"
+    Then the outline list links to "house.org"
     And the file tree shows the folder "Daily"
     When I expand the folder "Daily"
-    Then the outline list links to "Daily/2026-08.olai"
+    Then the outline list links to "Daily/2026-08.org"
 
   # ── the vault group: a home, not a switch ────────────────────────────
 
@@ -67,12 +67,12 @@ Feature: The files olai names for itself, and the doors onto them
     # flipping, the group needs nothing: the pin mints the file and the row
     # is THERE, in Trash's register, below every row of the reader's own.
     When I pin the page
-    Then the vault group links to "_olai/Pins.olai"
+    Then the vault group links to "_olai/Pins.org"
     And the vault group sits below the file tree
-    When I open "_olai/Pins.olai" from the vault group
-    Then the address is "/_olai/Pins.olai"
+    When I open "_olai/Pins.org" from the vault group
+    Then the address is "/_olai/Pins.org"
     And the outline has 1 rows
-    And the vault group's "_olai/Pins.olai" row marks the current page
+    And the vault group's "_olai/Pins.org" row marks the current page
     And there should be no page errors
 
   Scenario: The furniture nests under one parent, and the Trash is in it
@@ -84,11 +84,11 @@ Feature: The files olai names for itself, and the doors onto them
     Then the sidebar's foot is one parent named "olai"
     And the parent nests the Trash door
     When I pin the page
-    Then the parent nests the vault group's "_olai/Pins.olai" row
+    Then the parent nests the vault group's "_olai/Pins.org" row
     And there should be no page errors
 
   Scenario: The trash is out of the tree either way, because it is not a file you edit
-    # The older ruling, and the group does not reach it: `_olai/Trash.olai`
+    # The older ruling, and the group does not reach it: `_olai/Trash.org`
     # is read on the Trash page and nowhere else, so it is not an outline the
     # group may offer even though it lives in the directory the group reads.
     # The pin is what puts a faceable file in `_olai/` at all.
@@ -96,28 +96,28 @@ Feature: The files olai names for itself, and the doors onto them
     And I open the node menu of "install"
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu
-    Then "_olai/Trash.olai" holds the node "install"
-    And the vault group links to "_olai/Pins.olai"
-    But the vault group does not link to "_olai/Trash.olai"
-    And the outline list does not link to "_olai/Trash.olai"
+    Then "_olai/Trash.org" holds the node "install"
+    And the vault group links to "_olai/Pins.org"
+    But the vault group does not link to "_olai/Trash.org"
+    And the outline list does not link to "_olai/Trash.org"
 
   Scenario: An outline that will not parse is marked in the group, not hidden
     # THE EXCEPTION, and the reason the group exists at all: the ⚠ is the
     # only way this app reports a file it could not read without somebody
-    # opening the page to find out — so a `Pins.olai` that will not parse
+    # opening the page to find out — so a `Pins.org` that will not parse
     # must wear it WHERE the reader will see it, at the home these files
     # live in now (HACKING.md: never silently ignore errors).
     When I pin the page
     # The shelf FIRST, so the rewrite below lands on a file the pin has already
     # been written into rather than racing that write.
-    Then the pinned shelf holds "/house.olai"
-    And the vault group links to "_olai/Pins.olai"
-    When I rewrite "_olai/Pins.olai" as:
+    Then the pinned shelf holds "/house.org"
+    And the vault group links to "_olai/Pins.org"
+    When I rewrite "_olai/Pins.org" as:
       """
-      {"id":"p0","ord":"a0",title:"/house.olai"}
+      {"id":"p0","ord":"a0",title:"/house.org"}
       """
-    Then the vault group's "_olai/Pins.olai" row is marked unreadable
-    And the outline list does not link to "_olai/Pins.olai"
+    Then the vault group's "_olai/Pins.org" row is marked unreadable
+    And the outline list does not link to "_olai/Pins.org"
 
   Scenario: A file added under _olai/ joins the group as it lands
     # THE LIVE PROPERTY, and the whole reason the group reads the directory
@@ -125,12 +125,12 @@ Feature: The files olai names for itself, and the doors onto them
     # a row on the next publish — no preference, no rescan, no restart of
     # anything. And the wrench in the padi drawer can land on it because of
     # exactly this.
-    When I rewrite "_olai/Kolu.olai" as:
+    When I rewrite "_olai/Kolu.org" as:
       """
       {"id":"watch","ord":"a0","title":"watch"}
       """
-    Then the vault group links to "_olai/Kolu.olai"
-    But the outline list does not link to "_olai/Kolu.olai"
+    Then the vault group links to "_olai/Kolu.org"
+    But the outline list does not link to "_olai/Kolu.org"
     And there should be no page errors
 
   # ── the inbox mints under _olai/, and gets a door ────────────────────
@@ -143,18 +143,18 @@ Feature: The files olai names for itself, and the doors onto them
     Then the sidebar offers no Inbox
     And there should be no page errors
 
-  Scenario: A capture mints _olai/Inbox.olai, and the Inbox entry opens it
+  Scenario: A capture mints _olai/Inbox.org, and the Inbox entry opens it
     When I press the palette shortcut
     And I capture "buy the walnut stain" from the palette
-    Then "_olai/Inbox.olai" holds a node titled "buy the walnut stain"
+    Then "_olai/Inbox.org" holds a node titled "buy the walnut stain"
     When I close the palette
     Then the sidebar offers the Inbox
     # Not also a tree row: it is a file olai named for itself. The vault
     # group keeps its door, since the group is the files' home now.
-    And the outline list does not link to "_olai/Inbox.olai"
-    And the vault group links to "_olai/Inbox.olai"
+    And the outline list does not link to "_olai/Inbox.org"
+    And the vault group links to "_olai/Inbox.org"
     When I open the Inbox from the sidebar
-    Then the address is "/_olai/Inbox.olai"
+    Then the address is "/_olai/Inbox.org"
     And the outline has 1 rows
     And there should be no page errors
 
@@ -168,9 +168,9 @@ Feature: The files olai names for itself, and the doors onto them
     And I capture "buy the walnut stain" from the palette
     # The file FIRST, so the rewrite below lands on an inbox the capture has
     # already minted rather than racing that write.
-    Then "_olai/Inbox.olai" holds a node titled "buy the walnut stain"
+    Then "_olai/Inbox.org" holds a node titled "buy the walnut stain"
     When I close the palette
-    And I rewrite "_olai/Inbox.olai" as:
+    And I rewrite "_olai/Inbox.org" as:
       """
       {"id":"i0","ord":"a0",title:"buy the walnut stain"}
       """
@@ -178,22 +178,22 @@ Feature: The files olai names for itself, and the doors onto them
     And the Inbox wears no count
 
   Scenario: An inbox the directory already keeps is the file the capture and the door both use
-    # ONLY THE MINT MOVED. A vault that already keeps `Inbox.olai` at its top
+    # ONLY THE MINT MOVED. A vault that already keeps `Inbox.org` at its top
     # level goes on capturing into it — the finding rule is unchanged, by NAME,
     # shallowest first — and the entry is a door onto whichever file that is.
     # Its own file, so the tree draws it as well; the vault group may not take
     # a file the reader keeps at THEIR root.
-    When I create the outline "Inbox.olai" from the sidebar
+    When I create the outline "Inbox.org" from the sidebar
     And I press the palette shortcut
     And I capture "buy the walnut stain" from the palette
-    Then "Inbox.olai" holds a node titled "buy the walnut stain"
-    And "_olai/Inbox.olai" holds exactly 0 nodes titled "buy the walnut stain"
+    Then "Inbox.org" holds a node titled "buy the walnut stain"
+    And "_olai/Inbox.org" holds exactly 0 nodes titled "buy the walnut stain"
     When I close the palette
     Then the sidebar offers the Inbox
-    And the outline list links to "Inbox.olai"
-    But the vault group does not link to "Inbox.olai"
+    And the outline list links to "Inbox.org"
+    But the vault group does not link to "Inbox.org"
     When I open the Inbox from the sidebar
-    Then the address is "/Inbox.olai"
+    Then the address is "/Inbox.org"
     And there should be no page errors
 
   # ── the door sits by Agenda and wears its count ───────────────────────
@@ -219,7 +219,7 @@ Feature: The files olai names for itself, and the doors onto them
     And I capture "and a tin of oil" from the palette
     When I close the palette
     Then the Inbox wears a count of 2
-    When I rewrite "_olai/Inbox.olai" as:
+    When I rewrite "_olai/Inbox.org" as:
       """
       """
     Then the Inbox wears no count
@@ -230,21 +230,21 @@ Feature: The files olai names for itself, and the doors onto them
   Scenario: An empty inbox wears no count
     # No chip at all rather than a nought: an inbox with nothing in it is a
     # door, not news — the same ruling Agenda's quiet face already keeps.
-    When I create the outline "Inbox.olai" from the sidebar
+    When I create the outline "Inbox.org" from the sidebar
     Then the sidebar offers the Inbox
     And the Inbox wears no count
     And there should be no page errors
 
-  Scenario: A later root Inbox.olai is the file the door and the count both name
-    # THE DIVERGENCE. A capture mints `_olai/Inbox.olai` and the door wears 1.
-    # Creating `Inbox.olai` from the sidebar makes that the shallowest inbox —
+  Scenario: A later root Inbox.org is the file the door and the count both name
+    # THE DIVERGENCE. A capture mints `_olai/Inbox.org` and the door wears 1.
+    # Creating `Inbox.org` from the sidebar makes that the shallowest inbox —
     # the file capture and the door both use. The count has to follow them,
     # not stay on the deeper file that still holds the capture.
     When I press the palette shortcut
     And I capture "buy the walnut stain" from the palette
     When I close the palette
     Then the Inbox wears a count of 1
-    When I create the outline "Inbox.olai" from the sidebar
+    When I create the outline "Inbox.org" from the sidebar
     Then the Inbox wears no count
-    And the address is "/Inbox.olai"
+    And the address is "/Inbox.org"
     And there should be no page errors

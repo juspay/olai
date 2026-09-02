@@ -42,7 +42,7 @@ const NOTE =
   "Two ways to go: walnut, six weeks — or birch, in stock. Measure the alcove before ordering."
 
 const derived = derive(nodesOfFiles({
-  "house.olai": [
+  "house.org": [
     `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":true}`,
     `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","desc":"${NOTE}"}`,
     `{"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets"}`,
@@ -54,8 +54,8 @@ const TODAY = "2026-08-18"
 
 const house: Shown = {
   kind: "outline",
-  file: "house.olai",
-  rows: rowsOf(derived, "house.olai"),
+  file: "house.org",
+  rows: rowsOf(derived, "house.org"),
 }
 const tree: Drawn = drawnBy(house)
 

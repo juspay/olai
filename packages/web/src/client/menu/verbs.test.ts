@@ -31,8 +31,8 @@ const GARDEN = [
   `{"id":"herbs","ord":"a0","title":"the herb bed","todo":true}`,
 ].join("\n")
 
-const derived = derive(recordsOf(setOf({ "house.olai": HOUSE, "garden.olai": GARDEN })))
-const rows = rowsOf(derived, "house.olai")
+const derived = derive(recordsOf(setOf({ "house.org": HOUSE, "garden.org": GARDEN })))
+const rows = rowsOf(derived, "house.org")
 
 /** One row of the fixture, by id — through the client's own walk
  *  (`edit/order.ts`) with nothing folded, rather than a second one here. */
@@ -231,14 +231,14 @@ test("the repeat entry sends nothing on its own", () => {
 test("a repeating row says CHANGE, and gains the entry that stops it", () => {
   const repeating = derive(
     recordsOf(setOf({
-      "house.olai": HOUSE.replace(
+      "house.org": HOUSE.replace(
         `"title":"order the cabinets","date":"2026-08-10"`,
         `"title":"order the cabinets","date":"2026-08-10","repeat":"every week on monday"`,
       ),
-      "garden.olai": GARDEN,
+      "garden.org": GARDEN,
     })),
   )
-  const found = flatten(rowsOf(repeating, "house.olai"), new Set())
+  const found = flatten(rowsOf(repeating, "house.org"), new Set())
     .find((one) => one.at.node.id === "order")
   if (found === undefined) throw new Error("no row for `order`")
   const verbs = writeVerbs(subjectOfRow(found), found.under, NO_PINS)

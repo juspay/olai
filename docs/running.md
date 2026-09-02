@@ -15,9 +15,9 @@ just run            # the one brain: this repo's docs, on an OS-assigned port
 just serve docs     # the same, plus a client-bundler watch for the edit loop
 ```
 
-`olai web <dir> [--port] [--host]` reads the directory recursively, picking up every `.olai` outline and every `.md` document, and serves them to a browser. It does not descend into dot-directories or `node_modules` — a directory of outlines is usually a git repository, and nothing anyone wrote is inside `.git`. Defaults: port `0` (the OS picks one), host `127.0.0.1`. A fixed `--port` is a deploy's word — the home-manager module passes `7714` ("olai" on a phone keypad). `--port 0` asks the OS every boot: a `just run` / `just serve` restart may land on a new port.
+`olai web <dir> [--port] [--host]` reads the directory recursively, picking up every `.org` outline and every `.md` document, and serves them to a browser. It does not descend into dot-directories or `node_modules` — a directory of outlines is usually a git repository, and nothing anyone wrote is inside `.git`. Defaults: port `0` (the OS picks one), host `127.0.0.1`. A fixed `--port` is a deploy's word — the home-manager module passes `7714` ("olai" on a phone keypad). `--port 0` asks the OS every boot: a `just run` / `just serve` restart may land on a new port.
 
-If a directory that used to serve comes up EMPTY, its outlines predate the rename to `.olai`: [format.md](format.md) carries the one-line `git mv` to run on it. olai reads the one extension and migrates nothing for you.
+If a directory that used to serve comes up EMPTY or broken, its outlines may still use the former JSONL-backed `.olai` format. [format.md](format.md) describes the Org2 representation. Both the filenames and the contents need conversion; olai does not silently migrate them.
 
 It binds to loopback by default because the surface is unauthenticated: anyone who can reach the port can read every outline under the directory — and, since the keyboard editor arrived, change one.
 
@@ -149,13 +149,13 @@ To keep it running as a user service (systemd on Linux, launchd on macOS), add t
 
 ```nix
 # flake.nix
-inputs.olai.url = "github:juspay/olai";
+inputs.org.url = "github:juspay/olai";
 ```
 
 ```nix
 # home.nix (a home-manager module)
 { config, inputs, ... }: {
-  imports = [ inputs.olai.homeManagerModules.default ];
+  imports = [ inputs.org.homeManagerModules.default ];
   services.olai = {
     enable = true;
     dataDir = "${config.home.homeDirectory}/outlines";
@@ -248,7 +248,7 @@ you set by hand on the command line is a policy you set once and forget:
 
 **A serve with an integration off is not a degraded serve**, and the word is literal: the connection indicator stays green. Nothing is parked and nothing is half-wired — the integration's members are not on the wire at all, its tab half is never mounted so nothing subscribes to them, it hangs no chip in the bar, it probes for nothing, and the kinds it teaches the vault validate as ordinary text ([live-properties.md](live-properties.md)). The outline it would have owned is an ordinary outline. That is exactly the state a machine that never had the tool is already in, which is why it costs nothing to be true — and it is the state `olai surface` and every headless face already run in.
 
-**A vault cannot switch one off**, deliberately. A served directory says how an integration should BEHAVE — `_olai/Kolu.olai` is the vault's file and travels with it — but a directory that could decide which tools the machine serving it runs would be the vault deciding something about the host.
+**A vault cannot switch one off**, deliberately. A served directory says how an integration should BEHAVE — `_olai/Kolu.org` is the vault's file and travels with it — but a directory that could decide which tools the machine serving it runs would be the vault deciding something about the host.
 
 ## Agents, over HTTP
 
@@ -282,7 +282,7 @@ olai surface capture "look into the new cabinets" \
 ```
 
 ```
-captured into /home/srid/vault — http://127.0.0.1:7714/_olai/Inbox.olai#a1b2c3
+captured into /home/srid/vault — http://127.0.0.1:7714/_olai/Inbox.org#a1b2c3
 ```
 
 **A title and a note, and that is all it takes.** `title` is the row (required, and the one argument that is positional); `--text` becomes the note. There is no way to say *where* — a capture lands at the top level of the inbox, and where it belongs is a decision you make in the app afterwards, which is what an inbox is for. It carried a `--url` link field and a repeatable `--props k=v` once; both are gone for now, and `--url` means the server.
@@ -291,7 +291,7 @@ captured into /home/srid/vault — http://127.0.0.1:7714/_olai/Inbox.olai#a1b2c3
 
 **`--url` is required, on every call, with nothing underneath it.** No default, no environment variable, no remembered vault. That is the feature: an earlier design walked to a per-user socket path both ends agreed on because neither chose it, and a capture meant for one vault landed in another and answered exactly like a capture that had not. If you want a short spelling, make it an alias — then it is visibly your own choice.
 
-**It lands in the inbox the directory has**, wherever you keep one, and mints `_olai/Inbox.olai` when there is none — the same convention `⌘K` `+` follows, resolved on the server against the same reading the write is judged on ([editing.md](editing.md#quick-capture)). It is the same write as everything else: the same validation, the same all-or-none rename, the same `--commit` mode. A refused capture leaves nothing behind, not even the inbox it would have minted.
+**It lands in the inbox the directory has**, wherever you keep one, and mints `_olai/Inbox.org` when there is none — the same convention `⌘K` `+` follows, resolved on the server against the same reading the write is judged on ([editing.md](editing.md#quick-capture)). It is the same write as everything else: the same validation, the same all-or-none rename, the same `--commit` mode. A refused capture leaves nothing behind, not even the inbox it would have minted.
 
 **And it arrives dated**, so it is on the day's journal page as well as in the inbox — which is the half a capture made while nobody was looking actually needs. The stamp is written by the server, with its offset, so it names one instant on the vault's own clock. **A date AND the capture's born `todo` mark compose into due work** ([format.md](format.md#days)) — not an occurrence: the capture ticks that day's **Agenda** count when it lands, and from the next morning it shows **overdue**. Ruled 2026-08-29, keeping the composition deliberate: a capture you still owe is owed. If you do not owe it, the row is one `done` or one cleared date away from being off that list.
 
@@ -300,7 +300,7 @@ captured into /home/srid/vault — http://127.0.0.1:7714/_olai/Inbox.olai#a1b2c3
 Every verb an agent has is a verb here, under the same name, with the same arguments and the same answers. `olai surface --help` lists them grouped by what they do, with an example each, and `olai surface <verb> --help` gives that verb's own flags. There is no separate page for it, deliberately: a page beside a binary is a page that goes stale, and the help is what you always have to hand.
 
 ```sh
-olai surface --url http://127.0.0.1:7714 get outlines _olai/Inbox.olai
+olai surface --url http://127.0.0.1:7714 get outlines _olai/Inbox.org
 olai surface --url http://127.0.0.1:7714 search_nodes --text 'is:todo prop:pr'
 olai surface list --url http://127.0.0.1:7714   # every verb and readable member
 ```

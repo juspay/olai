@@ -1,6 +1,6 @@
 Feature: The events drawer's foot — the door onto the watch's config
 
-  The drawer's last line is not an event: `_olai/Kolu.olai` is the one file
+  The drawer's last line is not an event: `_olai/Kolu.org` is the one file
   that paces the watch, and the foot is the proof of it without leaving the
   drawer — a wrench that opens the WHOLE config as the ordinary outline it
   is.
@@ -12,7 +12,7 @@ Feature: The events drawer's foot — the door onto the watch's config
 
   IT NAMED WHO WAS SILENCED, TOO, until the second doorbell (2026-08-31):
   a `2 muted · …` line off the same cell, and five scenarios pinning which
-  mutes the watcher could vouch for. The mute list left `_olai/Kolu.olai`
+  mutes the watcher could vouch for. The mute list left `_olai/Kolu.org`
   with that PR — a conversation's wake FILTER FILE is the silence control
   now — so the line and its scenarios went and the door stayed.
 
@@ -21,10 +21,10 @@ Feature: The events drawer's foot — the door onto the watch's config
 
   @scratch:good
   Scenario: A config that decides nothing but the knobs still offers its door
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     # The wrench's state alone, which is now its only state: thresholds a
     # reader may want, and a door onto them.
-    When I rewrite "_olai/Kolu.olai" as:
+    When I rewrite "_olai/Kolu.org" as:
       """
       {"id":"watch","ord":"a0","title":"watch","custom":{"held-for":"30s"}}
       """
@@ -34,7 +34,7 @@ Feature: The events drawer's foot — the door onto the watch's config
 
   @scratch:good
   Scenario: No config file, so no foot at all
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     # The defaults' vault: nothing decided anything, and a wrench with no
     # page to open would be a door onto nothing.
     When I press the padi pill
@@ -43,30 +43,30 @@ Feature: The events drawer's foot — the door onto the watch's config
 
   @scratch:good
   Scenario: The wrench lands on the config, an ordinary outline page
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     # The door the whole design exists for: the foot IS the file, openable
     # like any page — no special case, because the `_olai/` outlines have a
     # sidebar home now rather than a hiding switch.
-    When I rewrite "_olai/Kolu.olai" as:
+    When I rewrite "_olai/Kolu.org" as:
       """
       {"id":"watch","ord":"a0","title":"watch","custom":{"held-for":"30s"}}
       {"id":"nag","ord":"a1","title":"a note beside it"}
       """
     And I press the padi pill
     And I press the drawer's wrench
-    Then the address is "/_olai/Kolu.olai"
+    Then the address is "/_olai/Kolu.org"
     And the drawer is closed
     And the outline has 2 rows
-    And the vault group links to "_olai/Kolu.olai"
+    And the vault group links to "_olai/Kolu.org"
     And there should be no page errors
 
   @scratch:good
   Scenario: A torn config still names itself, and the wrench still opens it
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     # The wrench is the DOOR BY WHICH A PERSON WOULD FIX the config, so it
     # may not fall away with the nodes the parse withheld: the file is found
     # by NAME off the served outlines, and the foot has nothing else to say.
-    When I rewrite "_olai/Kolu.olai" as:
+    When I rewrite "_olai/Kolu.org" as:
       """
       {"id":"watch","ord":"a0","title":"watch"
       """

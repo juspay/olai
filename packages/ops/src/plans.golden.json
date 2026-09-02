@@ -1,19 +1,19 @@
 [
   {
     "what": "add under a parent, with edges and properties",
-    "sha": "a2262626b7b7d6c1"
+    "sha": "fb8a580ac2ab3c83"
   },
   {
     "what": "add at the top level of an outline, with a subtree and a forward reference",
-    "sha": "9c19e94487a89b5c"
+    "sha": "26e8becec716fc32"
   },
   {
     "what": "add into a file the set could not read — the writable gate",
-    "sha": "57e8ff79fee52a88"
+    "sha": "3fc178981d240f57"
   },
   {
     "what": "add into a path that is not an outline at all",
-    "sha": "c471a54a085e1117"
+    "sha": "ac4d6b6002721f83"
   },
   {
     "what": "add under an id nothing declares — the did-you-mean",
@@ -21,7 +21,7 @@
   },
   {
     "what": "todo on a bullet",
-    "sha": "ed6f8aa51e0f085c"
+    "sha": "797a3436b035850c"
   },
   {
     "what": "doing, which the order gate judges",
@@ -29,15 +29,15 @@
   },
   {
     "what": "done on the node it was waiting for",
-    "sha": "e3253f35f1951f41"
+    "sha": "cd7e981180553f66"
   },
   {
     "what": "doing again, now that the way is clear",
-    "sha": "9d6095c9ae22ed75"
+    "sha": "a1da07cad4f5cc5b"
   },
   {
     "what": "cancelled over open work below it",
-    "sha": "8dd564259fa3f789"
+    "sha": "e5ee2cb6891444a3"
   },
   {
     "what": "done over unfinished work below it — refused, naming what stands there",
@@ -45,7 +45,7 @@
   },
   {
     "what": "todo undone, back to a bullet",
-    "sha": "288a81bd0590663e"
+    "sha": "d41e84bd3b5de38f"
   },
   {
     "what": "a mark on a mirror — refused, naming the node",
@@ -53,7 +53,7 @@
   },
   {
     "what": "title",
-    "sha": "9bbf340a225513a7"
+    "sha": "1fff7d26d9998ef5"
   },
   {
     "what": "title with a stale `was` — refused without reading the set",
@@ -61,35 +61,35 @@
   },
   {
     "what": "desc",
-    "sha": "9fb84919ff717f20"
+    "sha": "8f640fa355fa139e"
   },
   {
     "what": "desc cleared",
-    "sha": "66729b538153009e"
+    "sha": "ed78d94bf9b70a71"
   },
   {
     "what": "date",
-    "sha": "197bd22aab451c71"
+    "sha": "0a422e2cb1eb9e34"
   },
   {
     "what": "date cleared",
-    "sha": "d3bd9a579ea5aaa7"
+    "sha": "5228ce1ca93ca9c7"
   },
   {
     "what": "repeat, canonicalised",
-    "sha": "4370156550765ccf"
+    "sha": "2b705c6beca6e0d3"
   },
   {
     "what": "repeat cleared",
-    "sha": "c44d379ed09f6230"
+    "sha": "55335c8397c9b460"
   },
   {
     "what": "prop written",
-    "sha": "fa41f9d92bd95679"
+    "sha": "75d39ad7d2c0918f"
   },
   {
     "what": "prop removed",
-    "sha": "10e7f586dd4adb7a"
+    "sha": "2f206106cb705953"
   },
   {
     "what": "prop shadowing a field the format has — refused toward the verb that writes it",
@@ -97,11 +97,11 @@
   },
   {
     "what": "move under another parent",
-    "sha": "938de7c36d26443d"
+    "sha": "b13652d1d0f5268e"
   },
   {
     "what": "move to the top level",
-    "sha": "355036de7bb174bd"
+    "sha": "ab989729502daf22"
   },
   {
     "what": "move under its own descendant — refused, naming the loop",
@@ -109,11 +109,11 @@
   },
   {
     "what": "split a title in two",
-    "sha": "6bd8e1d7a6d14118"
+    "sha": "e3fac5df465abd29"
   },
   {
     "what": "merge into the sibling above",
-    "sha": "62cb12db8d162993"
+    "sha": "5840de87cc02d218"
   },
   {
     "what": "merge the first row of a file — refused, there is nothing above it",
@@ -121,7 +121,7 @@
   },
   {
     "what": "duplicate a subtree",
-    "sha": "99d8e8bc3c52b573"
+    "sha": "8102cc94b2481b4e"
   },
   {
     "what": "duplicate a placement — refused, a mirror is not a subtree",
@@ -129,7 +129,7 @@
   },
   {
     "what": "trash a node and what is under it",
-    "sha": "97c50b39bd9de248"
+    "sha": "3dc3e8b0ce44600a"
   },
   {
     "what": "trash an id nothing declares — refused with the near miss",
@@ -137,47 +137,47 @@
   },
   {
     "what": "untrash whose recorded outline is nowhere — refused",
-    "sha": "a1f79abb5e4b6797"
+    "sha": "7ee11b81475b3b8e"
   },
   {
     "what": "create an outline, seeded",
-    "sha": "1178aa0350205c6d"
+    "sha": "c142ea9fde63f552"
   },
   {
     "what": "create an outline that already exists — refused",
-    "sha": "304b3468b9b82d4a"
+    "sha": "6400e9da01d161f8"
   },
   {
     "what": "create an empty outline",
-    "sha": "415e9f3fa12b28af"
+    "sha": "ff520ae7ca84ff43"
   },
   {
     "what": "untrash by the recorded chain, now that the source file is back",
-    "sha": "b9207e572118eb3e"
+    "sha": "62907635383c2ff1"
   },
   {
     "what": "untrash into a named file",
-    "sha": "4ed2c3a750c4af16"
+    "sha": "f972669769eac457"
   },
   {
     "what": "empty an outline that is not the trash — refused",
-    "sha": "a48876512c0c05af"
+    "sha": "45529f72f02a65e5"
   },
   {
     "what": "empty the trash",
-    "sha": "96464f80dc08e5b6"
+    "sha": "31bda6af4200c71f"
   },
   {
     "what": "empty a trash that now holds nothing — refused",
-    "sha": "fcb65a15884e9707"
+    "sha": "ca97b0bf05223d23"
   },
   {
     "what": "see added",
-    "sha": "58107e67fda010cf"
+    "sha": "1824b42c9ac3f02d"
   },
   {
     "what": "see removed",
-    "sha": "920529d844f5a81c"
+    "sha": "53558de015d94b7f"
   },
   {
     "what": "see naming an id nothing declares — refused with the near miss",
@@ -185,7 +185,7 @@
   },
   {
     "what": "after added",
-    "sha": "1feb123ea3dd29bb"
+    "sha": "9a7ade6543556a0f"
   },
   {
     "what": "after closing a loop — refused, naming the loop",
@@ -193,11 +193,11 @@
   },
   {
     "what": "after removed",
-    "sha": "e3635ff17b445ace"
+    "sha": "e8d0366853a145a8"
   },
   {
     "what": "mirror placed in another file",
-    "sha": "5439dbef4b292ad0"
+    "sha": "b77dd094da1116aa"
   },
   {
     "what": "mirror inside what it shows — refused, naming the loop",
@@ -205,7 +205,7 @@
   },
   {
     "what": "unmirror the placement",
-    "sha": "345caa6e05d69791"
+    "sha": "18f69c67a4a33c35"
   },
   {
     "what": "unmirror a node that is not a placement — refused",
@@ -233,7 +233,7 @@
   },
   {
     "what": "update several fields of one node at once",
-    "sha": "d9487265c7bb46e5"
+    "sha": "a53bb08e975ad090"
   },
   {
     "what": "update whose `was` has gone stale — refused",
@@ -241,7 +241,7 @@
   },
   {
     "what": "apply a run of ops, each seeing the last one's work",
-    "sha": "65e16f014f82954e"
+    "sha": "a2bcb901f8377ff5"
   },
   {
     "what": "apply whose third op is refused — the index is named and nothing lands",
@@ -249,7 +249,7 @@
   },
   {
     "what": "trash a node others point at, which is allowed",
-    "sha": "7ec7a723af8277c2"
+    "sha": "ce9cb2605f22575f"
   },
   {
     "what": "todo over a settled mark — refused, the instant is on a day's page",
@@ -281,39 +281,39 @@
   },
   {
     "what": "split a node that carries a mark, a date and children",
-    "sha": "9092b2f5b3610525"
+    "sha": "7a95619151d52bf4"
   },
   {
     "what": "add born doing — the start rides the capture",
-    "sha": "9f01367d3ecde4bc"
+    "sha": "c0b52a3a4b0a314c"
   },
   {
     "what": "a node to run rounds on",
-    "sha": "2965a1e9633d3186"
+    "sha": "6e7f07ef3a3245c7"
   },
   {
     "what": "doing — the first round opens",
-    "sha": "17f49ae221a8f591"
+    "sha": "b37fc45e31b6080d"
   },
   {
     "what": "done — the round is banked",
-    "sha": "750bf26f21350492"
+    "sha": "9c8222fd4e718375"
   },
   {
     "what": "undone — the bank stands",
-    "sha": "78bda3ec38382c19"
+    "sha": "af5a8b6e9983809b"
   },
   {
     "what": "doing again — a fresh round stamped over the bank",
-    "sha": "121f83770d17e92c"
+    "sha": "240a12ceae2cbe09"
   },
   {
     "what": "done again — the second round adds in",
-    "sha": "750bf26f21350492"
+    "sha": "9c8222fd4e718375"
   },
   {
     "what": "a bare undo leaves the work banked",
-    "sha": "78bda3ec38382c19"
+    "sha": "af5a8b6e9983809b"
   },
   {
     "what": "delete the document the script minted",
@@ -325,7 +325,7 @@
   },
   {
     "what": "delete an outline holding records — refused, naming them",
-    "sha": "d73742f32014462b"
+    "sha": "38d4650380162739"
   },
   {
     "what": "delete a page of the kinds olai only shows — refused",

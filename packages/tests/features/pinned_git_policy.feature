@@ -14,7 +14,7 @@ Feature: The git rows are the instance's policy, always read-only
   them for a server to have an opinion on.
 
   Background:
-    Given I open the outline "garden.olai"
+    Given I open the outline "garden.org"
 
   Scenario: A bare instance draws the built-in defaults, read-only
     When I open the preferences

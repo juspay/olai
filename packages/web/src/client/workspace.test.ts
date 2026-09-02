@@ -25,35 +25,35 @@ import {
   WORKSPACE_PREFIX,
 } from "./workspace.ts"
 
-const house: Route = atFile("house.olai")
+const house: Route = atFile("house.org")
 const kitchen: Route = atNode("kitchen")
-const garden: Route = atFile("garden.olai")
+const garden: Route = atFile("garden.org")
 const agenda: Route = { kind: "agenda" }
 const today: Route = { kind: "today" }
 const doc: Route = atElement("notes/finishes.md", "beds")
-const filtered: Route = { ...atFile("house.olai"), filter: "is:done" }
+const filtered: Route = { ...atFile("house.org"), filter: "is:done" }
 
 test("a lone page is exactly the address it always was", () => {
-  expect(hrefOfWorkspace(lone(house))).toBe("/house.olai")
-  expect(hrefOfWorkspace(lone(filtered))).toBe("/house.olai?q=is%3Adone")
+  expect(hrefOfWorkspace(lone(house))).toBe("/house.org")
+  expect(hrefOfWorkspace(lone(filtered))).toBe("/house.org?q=is%3Adone")
   expect(hrefOfWorkspace(lone(doc))).toBe("/notes/finishes.md#beds")
   expect(hrefOfWorkspace(lone(agenda))).toBe("/agenda")
-  expect(workspaceOf("/house.olai")).toEqual(lone(house))
-  expect(workspaceOf("/house.olai?q=is%3Adone")).toEqual(lone(filtered))
+  expect(workspaceOf("/house.org")).toEqual(lone(house))
+  expect(workspaceOf("/house.org?q=is%3Adone")).toEqual(lone(filtered))
   expect(workspaceOf("/notes/finishes.md#beds")).toEqual(lone(doc))
 })
 
 test("every existing page address is a workspace of one", () => {
   const addresses = [
     "/",
-    "/house.olai",
+    "/house.org",
     "/#kitchen",
     "/finishes.md",
     "/d/2026-08-10",
     "/today",
     "/agenda",
     "/trash",
-    "/house.olai?q=%23home",
+    "/house.org?q=%23home",
     "/?q=is:done#kitchen",
   ]
   for (const address of addresses) {
@@ -131,7 +131,7 @@ test("closing the second-to-last pane returns a plain page address", () => {
   const one = closeFocused(two)
   expect(isLone(one)).toBe(true)
   expect(panesOf(one)[0]!.route).toEqual(house)
-  expect(hrefOfWorkspace(one)).toBe("/house.olai")
+  expect(hrefOfWorkspace(one)).toBe("/house.org")
 })
 
 test("closing a middle pane keeps the others and moves focus right", () => {
@@ -202,7 +202,7 @@ test("an expanded sliver does not print as a collapsed rail", () => {
 })
 
 test("pathological w= is a kindness, not a throw", () => {
-  const two = "/s/house.olai/%23kitchen"
+  const two = "/s/house.org/%23kitchen"
   // Both zeros: nothing expanded to be a fraction of. Equal shares.
   const allRails = workspaceOf(`${two}?w=0,0`)
   expect(panesOf(allRails).length).toBe(2)
@@ -240,16 +240,16 @@ test("an empty /s/ is the default outline, not a throw", () => {
 
 test("a one-level row writes the flat `/s/` URL, byte for byte", () => {
   const ws = openRight(lone(house), 0, kitchen)
-  expect(hrefOfWorkspace(ws)).toBe("/s/house.olai/%23kitchen?w=50%2C50&f=1")
+  expect(hrefOfWorkspace(ws)).toBe("/s/house.org/%23kitchen?w=50%2C50&f=1")
   expect(hrefOfWorkspace(ws).includes("a=")).toBe(false)
   expect(hrefOfWorkspace(ws).includes("t=")).toBe(false)
 })
 
 test("an absent or unknown axis is a row", () => {
-  const flat = workspaceOf("/s/house.olai/%23kitchen")
+  const flat = workspaceOf("/s/house.org/%23kitchen")
   expect(flat.layout.kind).toBe("split")
   if (flat.layout.kind === "split") expect(flat.layout.axis).toBe("row")
-  const unknown = workspaceOf("/s/house.olai/%23kitchen?a=diagonal")
+  const unknown = workspaceOf("/s/house.org/%23kitchen?a=diagonal")
   expect(unknown.layout.kind).toBe("split")
   if (unknown.layout.kind === "split") expect(unknown.layout.axis).toBe("row")
 })

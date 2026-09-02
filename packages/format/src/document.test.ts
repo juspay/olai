@@ -26,7 +26,7 @@ const TODAY = "2026-08-19"
 const VAULT = (): OutlineSet =>
   setOf(
     {
-      "house.olai": [
+      "house.org": [
         `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doc":"notes/plan.md"}`,
         `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets","done":"2026-08-10T09:00:00+05:30",` +
         `"desc":"quoted in [the brief](../brief.md)"}`,
@@ -192,12 +192,12 @@ test("a note is not a file, so a leading --- block is prose in one", () => {
   // AS A NOTE, the block is prose: the `#home` in it is a tag somebody wrote,
   // and the `[…](…)` is a link this note points along. Nothing skipped.
   expect(tagsIn(text).map(String)).toEqual(["#home", "@alice"])
-  expect(linksIn("house.olai", text).map(printAddress)).toEqual(["brief.md"])
+  expect(linksIn("house.org", text).map(printAddress)).toEqual(["brief.md"])
 
   // AS A DOCUMENT, the same six lines index neither — the block is the file's
   // own record, and what it holds is a PROPERTY. One text, two readings, and
   // the difference is entirely which kind of thing is asking.
-  const set = setOf({ "house.olai": `{"id":"a","ord":"a0","title":"a"}` }, [
+  const set = setOf({ "house.org": `{"id":"a","ord":"a0","title":"a"}` }, [
     ["notes/note.md", text],
     ["brief.md", "# Brief\n"],
   ])
@@ -221,7 +221,7 @@ test("a negated clause is satisfied by a document", () => {
 test("a scoped query selects no documents", () => {
   const set = VAULT()
   const filter = parseFilter("plan", TODAY)
-  expect(matchingDocuments(bodiedIn(set), filter, { file: "house.olai" })).toEqual([])
+  expect(matchingDocuments(bodiedIn(set), filter, { file: "house.org" })).toEqual([])
   expect(matchingDocuments(bodiedIn(set), filter, { under: "kitchen" })).toEqual([])
 })
 
@@ -281,7 +281,7 @@ test("a document nothing points at has no referrers", () => {
 // answer half the question and hide the other half.
 test("a link onto a heading points at the document", () => {
   const set = setOf(
-    { "a.olai": `{"id":"n","ord":"a0","title":"see [the scope](brief.md#scope)"}\n` },
+    { "a.org": `{"id":"n","ord":"a0","title":"see [the scope](brief.md#scope)"}\n` },
     [["brief.md", "# Brief\n\n## Scope\n"]],
   )
   expect(referringTo(set, "brief.md")).toEqual(["see [the scope](brief.md#scope)"])
@@ -300,7 +300,7 @@ test("a document linking its own heading is not its own referrer", () => {
 // standing rule, read once more over the other kind of referrer.
 test("a referrer written in an archive is left out", () => {
   const set = setOf(
-    { "_olai/Trash.olai": `{"id":"old","ord":"a0","title":"was here","doc":"brief.md"}\n` },
+    { "_olai/Trash.org": `{"id":"old","ord":"a0","title":"was here","doc":"brief.md"}\n` },
     [["brief.md", "# Brief\n"]],
   )
   expect(referringTo(set, "brief.md")).toEqual([])

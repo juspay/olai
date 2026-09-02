@@ -118,30 +118,30 @@ const REFUSED = { full: false, incremental: false }
 
 test("the comparator says nothing about two reports that are the same report", () => {
   expect(differing([], [], ACCEPTED)).toBeNull()
-  expect(differing(["a.olai:1 one", "b.olai:2 two"], ["a.olai:1 one", "b.olai:2 two"], REFUSED))
+  expect(differing(["a.org:1 one", "b.org:2 two"], ["a.org:1 one", "b.org:2 two"], REFUSED))
     .toBeNull()
 })
 
 test("one arm accepting the set and the other refusing it is the worst kind", () => {
   // The verdict, not the wording: this is a write landing or being turned away
   // differently, which is what a person would feel.
-  expect(differing([], ["a.olai:1 one"], { full: true, incremental: false })).toEqual({
+  expect(differing([], ["a.org:1 one"], { full: true, incremental: false })).toEqual({
     why: "verdict",
     missing: [],
-    invented: ["a.olai:1 one"],
+    invented: ["a.org:1 one"],
   })
 })
 
 test("a finding one arm has and the other does not is named in the entry", () => {
-  expect(differing(["a.olai:1 one", "b.olai:2 two"], ["a.olai:1 one"], REFUSED)).toEqual({
+  expect(differing(["a.org:1 one", "b.org:2 two"], ["a.org:1 one"], REFUSED)).toEqual({
     why: "findings",
-    missing: ["b.olai:2 two"],
+    missing: ["b.org:2 two"],
     invented: [],
   })
-  expect(differing(["a.olai:1 one"], ["a.olai:1 one", "b.olai:2 two"], REFUSED)).toEqual({
+  expect(differing(["a.org:1 one"], ["a.org:1 one", "b.org:2 two"], REFUSED)).toEqual({
     why: "findings",
     missing: [],
-    invented: ["b.olai:2 two"],
+    invented: ["b.org:2 two"],
   })
 })
 
@@ -149,10 +149,10 @@ test("a sentence said twice where the other arm said it once is a difference", (
   // A plain set difference would call these two lists equal, and the shape it
   // would hide is a rule asked about one record twice — which is exactly what a
   // narrowing that failed to dedupe its candidates would produce.
-  expect(differing(["a.olai:1 one"], ["a.olai:1 one", "a.olai:1 one"], REFUSED)).toEqual({
+  expect(differing(["a.org:1 one"], ["a.org:1 one", "a.org:1 one"], REFUSED)).toEqual({
     why: "findings",
     missing: [],
-    invented: ["a.olai:1 one"],
+    invented: ["a.org:1 one"],
   })
 })
 
@@ -165,12 +165,12 @@ test("the same findings in a different order is a difference, and its own kind",
   // each arm has there — is what a reader acts on, rather than both reports
   // whole, which on a badly broken directory is an assertion message the size
   // of the report.
-  expect(differing(["a.olai:1 one", "a.olai:1 two"], ["a.olai:1 two", "a.olai:1 one"], REFUSED))
+  expect(differing(["a.org:1 one", "a.org:1 two"], ["a.org:1 two", "a.org:1 one"], REFUSED))
     .toEqual({
       why: "order",
       missing: [],
       invented: [],
-      parted: { at: 0, full: "a.olai:1 one", incremental: "a.olai:1 two" },
+      parted: { at: 0, full: "a.org:1 one", incremental: "a.org:1 two" },
     })
 })
 
@@ -200,7 +200,7 @@ test("...and it names the first place they part, not the whole of both reports",
  * two corners that are ABOUT the decline.
  */
 const at = (files: Record<string, string>): Revision =>
-  new Map([["keel.olai", KEEL], ...Object.entries(files)])
+  new Map([["keel.org", KEEL], ...Object.entries(files)])
 
 const KEEL = `{"id":"keel","ord":"a","title":"the file nobody edits"}`
 
@@ -251,12 +251,12 @@ const CORNERS: ReadonlyArray<Corner> = [
       "without being edited themselves",
     steps: [
       at({
-        "a.olai": `{"id":"top","ord":"a","title":"top"}\n` +
+        "a.org": `{"id":"top","ord":"a","title":"top"}\n` +
           `{"id":"kid","ord":"b","title":"kid","parent":"top"}`,
       }),
       at({
-        "a.olai": `{"id":"kid","ord":"b","title":"kid","parent":"top"}`,
-        "b.olai": `{"id":"top","ord":"a","title":"top"}`,
+        "a.org": `{"id":"kid","ord":"b","title":"kid","parent":"top"}`,
+        "b.org": `{"id":"top","ord":"a","title":"top"}`,
       }),
     ],
   },
@@ -266,16 +266,16 @@ const CORNERS: ReadonlyArray<Corner> = [
       "pointing at nothing",
     steps: [
       at({
-        "a.olai": `{"id":"top","ord":"a","title":"top"}\n` +
+        "a.org": `{"id":"top","ord":"a","title":"top"}\n` +
           `{"id":"kid","ord":"b","title":"kid","parent":"top"}`,
-        "b.olai": `{"id":"other","ord":"a","title":"other"}`,
+        "b.org": `{"id":"other","ord":"a","title":"other"}`,
       }),
       at({
-        "a.olai": `{"id":"top","ord":"a","title":"top"}\n` +
+        "a.org": `{"id":"top","ord":"a","title":"top"}\n` +
           `{"id":"kid","ord":"b","title":"kid","parent":"top"}`,
       }),
       at({
-        "a.olai": `{"id":"kid","ord":"b","title":"kid","parent":"top"}`,
+        "a.org": `{"id":"kid","ord":"b","title":"kid","parent":"top"}`,
       }),
     ],
   },
@@ -285,14 +285,14 @@ const CORNERS: ReadonlyArray<Corner> = [
       "and a field on the parent",
     steps: [
       at({
-        "a.olai": `{"id":"top","ord":"a","title":"top"}\n` +
+        "a.org": `{"id":"top","ord":"a","title":"top"}\n` +
           `{"id":"kid","ord":"b","title":"kid","parent":"top"}`,
-        "b.olai": `{"id":"far","ord":"a","title":"far"}`,
+        "b.org": `{"id":"far","ord":"a","title":"far"}`,
       }),
       at({
-        "a.olai": `{"id":"top","ord":"a","mirror":"far"}\n` +
+        "a.org": `{"id":"top","ord":"a","mirror":"far"}\n` +
           `{"id":"kid","ord":"b","title":"kid","parent":"top"}`,
-        "b.olai": `{"id":"far","ord":"a","title":"far"}`,
+        "b.org": `{"id":"far","ord":"a","title":"far"}`,
       }),
     ],
   },
@@ -302,11 +302,11 @@ const CORNERS: ReadonlyArray<Corner> = [
       "declares",
     steps: [
       at({
-        "a.olai": `{"id":"one","ord":"a","title":"one","after":["two"]}`,
-        "b.olai": `{"id":"two","ord":"a","title":"two"}`,
+        "a.org": `{"id":"one","ord":"a","title":"one","after":["two"]}`,
+        "b.org": `{"id":"two","ord":"a","title":"two"}`,
       }),
       at({
-        "a.olai": `{"id":"one","ord":"a","title":"one","after":["two"]}`,
+        "a.org": `{"id":"one","ord":"a","title":"one","after":["two"]}`,
       }),
     ],
   },
@@ -316,11 +316,11 @@ const CORNERS: ReadonlyArray<Corner> = [
     // The finding stood on the revision before — see `declines` above.
     declines: true,
     steps: [
-      at({ "a.olai": `{"id":"one","ord":"a","title":"one"}` }),
-      at({ "a.olai": `{"id":"one","ord":"a","title":"one","see":["two"]}` }),
+      at({ "a.org": `{"id":"one","ord":"a","title":"one"}` }),
+      at({ "a.org": `{"id":"one","ord":"a","title":"one","see":["two"]}` }),
       at({
-        "a.olai": `{"id":"one","ord":"a","title":"one","see":["two"]}`,
-        "b.olai": `{"id":"two","ord":"a","title":"two"}`,
+        "a.org": `{"id":"one","ord":"a","title":"one","see":["two"]}`,
+        "b.org": `{"id":"two","ord":"a","title":"two"}`,
       }),
     ],
   },
@@ -331,13 +331,13 @@ const CORNERS: ReadonlyArray<Corner> = [
       "not the order the record writes its fields",
     steps: [
       at({
-        "a.olai": `{"id":"one","ord":"a","title":"one"}`,
-        "b.olai": `{"id":"two","ord":"a","title":"two"}\n` +
+        "a.org": `{"id":"one","ord":"a","title":"one"}`,
+        "b.org": `{"id":"two","ord":"a","title":"two"}\n` +
           `{"id":"three","ord":"b","title":"three"}`,
       }),
       at({
-        "a.olai": `{"id":"one","ord":"a","title":"one","after":["two"],"blocks":["three"],"see":["two"]}`,
-        "b.olai": `{"id":"other","ord":"a","title":"other","see":["three"]}`,
+        "a.org": `{"id":"one","ord":"a","title":"one","after":["two"],"blocks":["three"],"see":["two"]}`,
+        "b.org": `{"id":"other","ord":"a","title":"other","see":["three"]}`,
       }),
     ],
   },
@@ -346,12 +346,12 @@ const CORNERS: ReadonlyArray<Corner> = [
       "a reparent closes a PARENT LOOP through records the edit did not name",
     steps: [
       at({
-        "a.olai": `{"id":"one","ord":"a","title":"one"}\n` +
+        "a.org": `{"id":"one","ord":"a","title":"one"}\n` +
           `{"id":"two","ord":"b","title":"two","parent":"one"}\n` +
           `{"id":"three","ord":"c","title":"three","parent":"two"}`,
       }),
       at({
-        "a.olai": `{"id":"one","ord":"a","title":"one","parent":"three"}\n` +
+        "a.org": `{"id":"one","ord":"a","title":"one","parent":"three"}\n` +
           `{"id":"two","ord":"b","title":"two","parent":"one"}\n` +
           `{"id":"three","ord":"c","title":"three","parent":"two"}`,
       }),
@@ -362,14 +362,14 @@ const CORNERS: ReadonlyArray<Corner> = [
       "an `after` edge closes an ORDERING LOOP through a mirror in a third file",
     steps: [
       at({
-        "a.olai": `{"id":"cook","ord":"a","title":"cook"}\n` +
+        "a.org": `{"id":"cook","ord":"a","title":"cook"}\n` +
           `{"id":"eat","ord":"b","title":"eat","after":["cook"]}`,
-        "b.olai": `{"id":"m","ord":"a","mirror":"eat"}`,
+        "b.org": `{"id":"m","ord":"a","mirror":"eat"}`,
       }),
       at({
-        "a.olai": `{"id":"cook","ord":"a","title":"cook","after":["m"]}\n` +
+        "a.org": `{"id":"cook","ord":"a","title":"cook","after":["m"]}\n` +
           `{"id":"eat","ord":"b","title":"eat","after":["cook"]}`,
-        "b.olai": `{"id":"m","ord":"a","mirror":"eat"}`,
+        "b.org": `{"id":"m","ord":"a","mirror":"eat"}`,
       }),
     ],
   },
@@ -380,11 +380,11 @@ const CORNERS: ReadonlyArray<Corner> = [
       "reach because `written()` forces every edge into a DAG by corpus order",
     steps: [
       at({
-        "a.olai": `{"id":"one","ord":"a","title":"one"}\n` +
+        "a.org": `{"id":"one","ord":"a","title":"one"}\n` +
           `{"id":"two","ord":"b","title":"two"}`,
       }),
       at({
-        "a.olai": `{"id":"one","ord":"a","title":"one","blocks":["two"]}\n` +
+        "a.org": `{"id":"one","ord":"a","title":"one","blocks":["two"]}\n` +
           `{"id":"two","ord":"b","title":"two","blocks":["one"]}`,
       }),
     ],
@@ -395,12 +395,12 @@ const CORNERS: ReadonlyArray<Corner> = [
       "finds",
     steps: [
       at({
-        "a.olai": `{"id":"top","ord":"a","title":"top"}\n` +
+        "a.org": `{"id":"top","ord":"a","title":"top"}\n` +
           `{"id":"kid","ord":"b","title":"kid","parent":"top"}`,
-        "b.olai": `{"id":"m","ord":"a","mirror":"top"}`,
+        "b.org": `{"id":"m","ord":"a","mirror":"top"}`,
       }),
       at({
-        "a.olai": `{"id":"top","ord":"a","title":"top"}\n` +
+        "a.org": `{"id":"top","ord":"a","title":"top"}\n` +
           `{"id":"kid","ord":"b","title":"kid","parent":"top"}\n` +
           `{"id":"m","ord":"c","mirror":"top","parent":"kid"}`,
       }),
@@ -412,11 +412,11 @@ const CORNERS: ReadonlyArray<Corner> = [
       "cost a cycle walk and must not change a finding either",
     steps: [
       at({
-        "a.olai": `{"id":"one","ord":"a","title":"one"}\n` +
+        "a.org": `{"id":"one","ord":"a","title":"one"}\n` +
           `{"id":"two","ord":"b","title":"two","parent":"one"}`,
       }),
       at({
-        "a.olai": `{"id":"one","ord":"a","title":"one edited"}\n` +
+        "a.org": `{"id":"one","ord":"a","title":"one edited"}\n` +
           `{"id":"two","ord":"b","title":"two","parent":"one"}`,
       }),
     ],
@@ -429,20 +429,20 @@ const CORNERS: ReadonlyArray<Corner> = [
     // is a degraded one whose ledger has errors in it — and a dirty ledger is
     // the narrowing's own second fact, not a new rule. It walked the corpus
     // here before the per-file ruling too; what changed is the door, from a set
-    // that was refused and published nothing to one published with `a.olai`
+    // that was refused and published nothing to one published with `a.org`
     // withheld.
     declines: true,
     steps: [
       at({
-        "a.olai": `{"id":"one","ord":"a","title":"one","after":["keel"]}\n` +
+        "a.org": `{"id":"one","ord":"a","title":"one","after":["keel"]}\n` +
           `{"id":"two","ord":"b","title":"two","after":["keel"]}`,
       }),
       at({
-        "a.olai": `{"id":"one","ord":"a","title":"one","after":["gone"]}\n` +
+        "a.org": `{"id":"one","ord":"a","title":"one","after":["gone"]}\n` +
           `{"id":"two","ord":"b","title":"two","after":["gone"]}`,
       }),
       at({
-        "a.olai": `{"id":"two","ord":"b","title":"two","after":["gone"]}\n` +
+        "a.org": `{"id":"two","ord":"b","title":"two","after":["gone"]}\n` +
           `{"id":"one","ord":"a","title":"one","after":["gone"]}`,
       }),
     ],
@@ -453,13 +453,13 @@ const CORNERS: ReadonlyArray<Corner> = [
       "in a file the edit never touched",
     steps: [
       at({
-        "a.olai": `{"id":"one","ord":"a","title":"one","doc":"notes.md"}`,
-        "b.olai": `{"id":"two","ord":"a","title":"two"}`,
+        "a.org": `{"id":"one","ord":"a","title":"one","doc":"notes.md"}`,
+        "b.org": `{"id":"two","ord":"a","title":"two"}`,
         "notes.md": "# notes",
       }),
       at({
-        "a.olai": `{"id":"one","ord":"a","title":"one","doc":"notes.md"}`,
-        "b.olai": `{"id":"two","ord":"a","title":"two edited"}`,
+        "a.org": `{"id":"one","ord":"a","title":"one","doc":"notes.md"}`,
+        "b.org": `{"id":"two","ord":"a","title":"two edited"}`,
       }),
     ],
   },
@@ -470,10 +470,10 @@ const CORNERS: ReadonlyArray<Corner> = [
     // The finding stood on the revision before — see `declines` above.
     declines: true,
     steps: [
-      at({ "a.olai": `{"id":"one","ord":"a","title":"one"}` }),
-      at({ "a.olai": `{"id":"one","ord":"a","title":"one","doc":"notes.md"}` }),
+      at({ "a.org": `{"id":"one","ord":"a","title":"one"}` }),
+      at({ "a.org": `{"id":"one","ord":"a","title":"one","doc":"notes.md"}` }),
       at({
-        "a.olai": `{"id":"one","ord":"a","title":"one","doc":"notes.md"}`,
+        "a.org": `{"id":"one","ord":"a","title":"one","doc":"notes.md"}`,
         "notes.md": "# notes",
       }),
     ],
@@ -484,11 +484,11 @@ const CORNERS: ReadonlyArray<Corner> = [
       "membership at all",
     steps: [
       at({
-        "a.olai": `{"id":"one","ord":"a","title":"one","doc":"notes.md"}`,
+        "a.org": `{"id":"one","ord":"a","title":"one","doc":"notes.md"}`,
         "notes.md": "# notes",
       }),
       at({
-        "a.olai": `{"id":"one","ord":"a","title":"one","doc":"notes.md"}`,
+        "a.org": `{"id":"one","ord":"a","title":"one","doc":"notes.md"}`,
         "notes.md": "# notes, edited",
       }),
     ],
@@ -499,13 +499,13 @@ const CORNERS: ReadonlyArray<Corner> = [
       "both halves of the delta",
     steps: [
       at({
-        "a.olai": `{"id":"one","ord":"a","title":"one","doc":"notes.md"}`,
+        "a.org": `{"id":"one","ord":"a","title":"one","doc":"notes.md"}`,
         "notes.md": "# notes",
       }),
       at({
-        "a.olai": `{"id":"one","ord":"a","title":"one","doc":"notes.md"}`,
+        "a.org": `{"id":"one","ord":"a","title":"one","doc":"notes.md"}`,
         "notes.md": "# notes again",
-        "b.olai": `{"id":"two","ord":"a","title":"two"}`,
+        "b.org": `{"id":"two","ord":"a","title":"two"}`,
       }),
     ],
   },
@@ -521,22 +521,22 @@ const CORNERS: ReadonlyArray<Corner> = [
     declines: true,
     steps: [
       at({
-        "a.olai": `{"id":"one","ord":"a","title":"one","after":["two"]}`,
-        "b.olai": `{"id":"two","ord":"a","title":"two"}`,
+        "a.org": `{"id":"one","ord":"a","title":"one","after":["two"]}`,
+        "b.org": `{"id":"two","ord":"a","title":"two"}`,
       }),
       at({
-        "a.olai": `{"id":"one","ord":"a","title":"one","after":["two"]}`,
-        "b.olai": `{not json`,
+        "a.org": `{"id":"one","ord":"a","title":"one","after":["two"]}`,
+        "b.org": `{not json`,
       }),
       at({
-        "a.olai": `{"id":"one","ord":"a","title":"one","after":["two"]}\n` +
+        "a.org": `{"id":"one","ord":"a","title":"one","after":["two"]}\n` +
           `{"id":"three","ord":"b","title":"three"}`,
-        "b.olai": `{not json`,
+        "b.org": `{not json`,
       }),
       at({
-        "a.olai": `{"id":"one","ord":"a","title":"one","after":["two"]}\n` +
+        "a.org": `{"id":"one","ord":"a","title":"one","after":["two"]}\n` +
           `{"id":"three","ord":"b","title":"three"}`,
-        "b.olai": `{"id":"two","ord":"a","title":"two"}`,
+        "b.org": `{"id":"two","ord":"a","title":"two"}`,
       }),
     ],
   },
@@ -548,22 +548,22 @@ const CORNERS: ReadonlyArray<Corner> = [
     // NEITHER ARM narrows here, which is stronger than it used to be and is the
     // same decline said twice: the patcher refuses a view whose `byId` kept one
     // of two claims, so the view is rebuilt, and the reading the next revision
-    // follows is the degraded one this left — `a.olai` withheld, its ledger
+    // follows is the degraded one this left — `a.org` withheld, its ledger
     // dirty. There is no revision in this corner the narrowing may answer.
     narrows: false,
     declines: true,
     steps: [
       at({
-        "a.olai": `{"id":"one","ord":"a","title":"one"}`,
-        "b.olai": `{"id":"two","ord":"a","title":"two"}`,
+        "a.org": `{"id":"one","ord":"a","title":"one"}`,
+        "b.org": `{"id":"two","ord":"a","title":"two"}`,
       }),
       at({
-        "a.olai": `{"id":"one","ord":"a","title":"one"}`,
-        "b.olai": `{"id":"one","ord":"a","title":"also one"}`,
+        "a.org": `{"id":"one","ord":"a","title":"one"}`,
+        "b.org": `{"id":"one","ord":"a","title":"also one"}`,
       }),
       at({
-        "a.olai": `{"id":"one","ord":"a","title":"one"}`,
-        "b.olai": `{"id":"two","ord":"a","title":"two"}`,
+        "a.org": `{"id":"one","ord":"a","title":"one"}`,
+        "b.org": `{"id":"two","ord":"a","title":"two"}`,
       }),
     ],
   },
@@ -575,16 +575,16 @@ const CORNERS: ReadonlyArray<Corner> = [
     declines: true,
     steps: [
       at({
-        "_olai/Properties.olai": `{"id":"p","ord":"a","title":"pr","custom":{"type":"text"}}`,
-        "a.olai": `{"id":"one","ord":"a","title":"one","custom":{"pr":"#193"}}`,
+        "_olai/Properties.org": `{"id":"p","ord":"a","title":"pr","custom":{"type":"text"}}`,
+        "a.org": `{"id":"one","ord":"a","title":"one","custom":{"pr":"#193"}}`,
       }),
       at({
-        "_olai/Properties.olai": `{"id":"p","ord":"a","title":"pr","custom":{"type":"int"}}`,
-        "a.olai": `{"id":"one","ord":"a","title":"one","custom":{"pr":"#193"}}`,
+        "_olai/Properties.org": `{"id":"p","ord":"a","title":"pr","custom":{"type":"int"}}`,
+        "a.org": `{"id":"one","ord":"a","title":"one","custom":{"pr":"#193"}}`,
       }),
       at({
-        "_olai/Properties.olai": `{"id":"p","ord":"a","title":"pr","custom":{"type":"int"}}`,
-        "a.olai": `{"id":"one","ord":"a","title":"one","custom":{"pr":"193"}}`,
+        "_olai/Properties.org": `{"id":"p","ord":"a","title":"pr","custom":{"type":"int"}}`,
+        "a.org": `{"id":"one","ord":"a","title":"one","custom":{"pr":"193"}}`,
       }),
     ],
   },
@@ -596,28 +596,28 @@ const CORNERS: ReadonlyArray<Corner> = [
     declines: true,
     steps: [
       at({
-        "_olai/Properties.olai":
+        "_olai/Properties.org":
           `{"id":"p","ord":"a","title":"agent","custom":{"type":"ref","under":"roster"}}`,
-        "r.olai": `{"id":"roster","ord":"a","title":"the agents"}\n` +
+        "r.org": `{"id":"roster","ord":"a","title":"the agents"}\n` +
           `{"id":"grok","ord":"b","title":"Grok","parent":"roster"}`,
-        "a.olai": `{"id":"one","ord":"a","title":"one","custom":{"agent":"grok"}}`,
+        "a.org": `{"id":"one","ord":"a","title":"one","custom":{"agent":"grok"}}`,
       }),
       // Reparented OUT of the roster — the id still exists, so nothing about
       // `byId` moved and the domain still shrank.
       at({
-        "_olai/Properties.olai":
+        "_olai/Properties.org":
           `{"id":"p","ord":"a","title":"agent","custom":{"type":"ref","under":"roster"}}`,
-        "r.olai": `{"id":"roster","ord":"a","title":"the agents"}\n` +
+        "r.org": `{"id":"roster","ord":"a","title":"the agents"}\n` +
           `{"id":"grok","ord":"b","title":"Grok"}`,
-        "a.olai": `{"id":"one","ord":"a","title":"one","custom":{"agent":"grok"}}`,
+        "a.org": `{"id":"one","ord":"a","title":"one","custom":{"agent":"grok"}}`,
       }),
       // ...and put back, which has to take the finding away again.
       at({
-        "_olai/Properties.olai":
+        "_olai/Properties.org":
           `{"id":"p","ord":"a","title":"agent","custom":{"type":"ref","under":"roster"}}`,
-        "r.olai": `{"id":"roster","ord":"a","title":"the agents"}\n` +
+        "r.org": `{"id":"roster","ord":"a","title":"the agents"}\n` +
           `{"id":"grok","ord":"b","title":"Grok","parent":"roster"}`,
-        "a.olai": `{"id":"one","ord":"a","title":"one","custom":{"agent":"grok"}}`,
+        "a.org": `{"id":"one","ord":"a","title":"one","custom":{"agent":"grok"}}`,
       }),
     ],
   },
@@ -627,13 +627,13 @@ const CORNERS: ReadonlyArray<Corner> = [
       "notice",
     steps: [
       at({
-        "_olai/Properties.olai": `{"id":"p","ord":"a","title":"brief","custom":{"type":"doc"}}`,
-        "a.olai": `{"id":"one","ord":"a","title":"one","custom":{"brief":"b.md"}}`,
+        "_olai/Properties.org": `{"id":"p","ord":"a","title":"brief","custom":{"type":"doc"}}`,
+        "a.org": `{"id":"one","ord":"a","title":"one","custom":{"brief":"b.md"}}`,
         "b.md": "a brief",
       }),
       at({
-        "_olai/Properties.olai": `{"id":"p","ord":"a","title":"brief","custom":{"type":"doc"}}`,
-        "a.olai": `{"id":"one","ord":"a","title":"one","custom":{"brief":"b.md"}}`,
+        "_olai/Properties.org": `{"id":"p","ord":"a","title":"brief","custom":{"type":"doc"}}`,
+        "a.org": `{"id":"one","ord":"a","title":"one","custom":{"brief":"b.md"}}`,
       }),
     ],
   },
@@ -645,12 +645,12 @@ const CORNERS: ReadonlyArray<Corner> = [
     declines: true,
     steps: [
       alone({
-        "a.olai": `{"id":"one","ord":"a","title":"one"}`,
-        "b.olai": `{"id":"two","ord":"a","title":"two","parent":"one"}`,
+        "a.org": `{"id":"one","ord":"a","title":"one"}`,
+        "b.org": `{"id":"two","ord":"a","title":"two","parent":"one"}`,
       }),
       alone({
-        "a.olai": `{"id":"three","ord":"a","title":"three"}`,
-        "b.olai": `{"id":"four","ord":"a","title":"four","parent":"three"}`,
+        "a.org": `{"id":"three","ord":"a","title":"three"}`,
+        "b.org": `{"id":"four","ord":"a","title":"four","parent":"three"}`,
       }),
     ],
   },

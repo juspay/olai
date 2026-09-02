@@ -34,9 +34,15 @@ test("the drawer's order is the map's own, and it does not sort", () => {
 
 test("a hand-written file's key order survives the parse — what a drawer draws", () => {
   const parsed = parseOutline(
-    "lanes.olai",
-    `{"id":"lane","ord":"a","title":"a lane",` +
-      `"custom":{"worktree":".worktrees/pda","agent":"claude-opus","brief":"briefs/pda.md"}}\n`,
+    "lanes.org",
+    `* a lane\n` +
+      `:PROPERTIES:\n` +
+      `:ID: lane\n` +
+      `:OLAI_KIND: regular\n` +
+      `:OLAI_ORD: "a"\n` +
+      `:OLAI_TITLE: "a lane"\n` +
+      `:OLAI_CUSTOM: {"worktree":".worktrees/pda","agent":"claude-opus","brief":"briefs/pda.md"}\n` +
+      `:END:\n`,
   )
   const outline = Result.getOrThrow(parsed)
   const node = outline.nodes[0]?.node
@@ -46,7 +52,7 @@ test("a hand-written file's key order survives the parse — what a drawer draws
 
 test("...and what OLAI writes is alphabetical, so the two orders agree on its own files", () => {
   const written = serializeNode({ id: "lane", ord: "a", title: "a lane", custom: LANE })
-  const outline = Result.getOrThrow(parseOutline("lanes.olai", `${written}\n`))
+  const outline = Result.getOrThrow(parseOutline("lanes.org", `${written}\n`))
   const node = outline.nodes[0]?.node
   expect(node === undefined || isMirror(node) ? [] : customOrder(customOf(node)))
     .toEqual(["agent", "brief", "worktree"])

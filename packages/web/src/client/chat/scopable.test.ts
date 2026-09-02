@@ -39,8 +39,8 @@ const OUTLINES: ReadonlyArray<string> = ["outline"]
  * root-relative, `/`-spelled, archives included.
  */
 const SERVED: ReadonlyArray<string> = [
-  "lanes.olai",
-  "work/board.olai",
+  "lanes.org",
+  "work/board.org",
   "2026-09-01.md",
   "notes/plan.md",
   "saved.html",
@@ -48,13 +48,13 @@ const SERVED: ReadonlyArray<string> = [
   "shot.png",
   "paper.pdf",
   "README",
-  "_olai/Trash.olai",
-  "_olai/Pins.olai",
-  "_olai/Properties.olai",
-  "_olai/Kolu.olai",
-  "_olai/Inbox.olai",
-  "Archive.olai",
-  "old/Archive.olai",
+  "_olai/Trash.org",
+  "_olai/Pins.org",
+  "_olai/Properties.org",
+  "_olai/Kolu.org",
+  "_olai/Inbox.org",
+  "Archive.org",
+  "old/Archive.org",
 ]
 
 const offered = (kinds: ReadonlyArray<string> = OUTLINES): ReadonlyArray<string> =>
@@ -62,7 +62,7 @@ const offered = (kinds: ReadonlyArray<string> = OUTLINES): ReadonlyArray<string>
 
 describe("the picker offers only what the doorbell could watch", () => {
   test("the reader's own outlines, and nothing else in the directory", () => {
-    expect(offered()).toEqual(["lanes.olai", "work/board.olai"])
+    expect(offered()).toEqual(["lanes.org", "work/board.org"])
   })
 
   test("and a document is not among them, which is the whole defect", () => {
@@ -87,7 +87,7 @@ describe("the picker offers only what the doorbell could watch", () => {
 
   test("the KIND decides and the suffix does not — every kind the registry has", () => {
     // A doorbell declaring some other kind is offered that kind's files, which
-    // is what makes this the plugin's ruling rather than a hard-coded `.olai`.
+    // is what makes this the plugin's ruling rather than a hard-coded `.org`.
     for (const [kind, claim] of Object.entries(FILE_KINDS)) {
       const path = `held/one${claim.exts[0]}`
       expect(watchable([kind], path)).toBe(true)
@@ -108,12 +108,12 @@ describe("what is not offered, though it is an outline", () => {
     // It is in the screenshot and it passes a naive kind test: it is an outline
     // and it really does hold records. That is what makes it worth ruling on —
     // a doorbell scoped to it would ring about work somebody put away.
-    expect(offered()).not.toContain("_olai/Trash.olai")
+    expect(offered()).not.toContain("_olai/Trash.org")
   })
 
-  test("a leftover Archive.olai, wherever it sits, for the same reason", () => {
-    expect(offered()).not.toContain("Archive.olai")
-    expect(offered()).not.toContain("old/Archive.olai")
+  test("a leftover Archive.org, wherever it sits, for the same reason", () => {
+    expect(offered()).not.toContain("Archive.org")
+    expect(offered()).not.toContain("old/Archive.org")
   })
 
   test("and the files olai named for itself, which are nobody's board", () => {
@@ -131,7 +131,7 @@ describe("what is not offered, though it is an outline", () => {
     // Not offered is a curation of a list; the fault a stored pick is judged by
     // is the kind rule alone. A conversation already scoped to the trash goes
     // on deriving exactly what it always derived and is told nothing.
-    expect(watchable(OUTLINES, "_olai/Trash.olai")).toBe(true)
-    expect(watchable(OUTLINES, "_olai/Pins.olai")).toBe(true)
+    expect(watchable(OUTLINES, "_olai/Trash.org")).toBe(true)
+    expect(watchable(OUTLINES, "_olai/Pins.org")).toBe(true)
   })
 })

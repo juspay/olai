@@ -9,7 +9,7 @@ Feature: A dated node that comes back
 
   The grammar is small, closed and spelled in the file — `every day`, `every
   week on <weekday>`, `every month`, `every year` — so the picker is a list of
-  exactly those rules and there is nothing to type that is not on it. A `.olai`
+  exactly those rules and there is nothing to type that is not on it. A `.org`
   is read by people; `0 0 * * 1` says the same thing in a dialect that has to
   be learned.
 
@@ -28,7 +28,7 @@ Feature: A dated node that comes back
   scenarios.
 
   Background:
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     # These scenarios tick rows off and keep reading them, so finished work
     # must stay drawn: the per-page default is hidden now (preferences.feature).
     And I show the done nodes
@@ -68,7 +68,7 @@ Feature: A dated node that comes back
     And I choose "Set repeat…" from the node menu
     And I pick the repeat rule "every week on monday"
     Then the node "order" shows the repeat rule "every week on monday"
-    And "house.olai" holds the node "order" repeating "every week on monday"
+    And "house.org" holds the node "order" repeating "every week on monday"
     And the repeat picker is closed
     And the page has not reloaded
     And there should be no page errors
@@ -94,7 +94,7 @@ Feature: A dated node that comes back
     And the node menu does not offer "Set repeat…"
     When I choose "Stop repeating" from the node menu
     Then the node "order" shows no repeat rule
-    And "house.olai" holds the node "order" with no repeat rule
+    And "house.org" holds the node "order" with no repeat rule
     And there should be no page errors
 
   Scenario: Cancelling and Escape write nothing
@@ -124,10 +124,10 @@ Feature: A dated node that comes back
     Then the node "order" has status "done"
     # The completed record keeps its own day, so the day it was finished on
     # still shows it — and the rule has moved on with the occurrence.
-    And "house.olai" holds the node "order" dated "2019-03-04"
-    And "house.olai" holds the node "order" with no repeat rule
+    And "house.org" holds the node "order" dated "2019-03-04"
+    And "house.org" holds the node "order" with no repeat rule
     # STRICTLY after: the next Monday, never the same one back again.
-    And "house.olai" holds a node titled "order the new cabinets" dated "2019-03-11" repeating "every week on monday"
+    And "house.org" holds a node titled "order the new cabinets" dated "2019-03-11" repeating "every week on monday"
     And the page has not reloaded
     And there should be no page errors
 
@@ -141,20 +141,20 @@ Feature: A dated node that comes back
     And I pick the repeat rule "every week on monday"
     When I click the title of "order"
     And I press "Control+Enter"
-    Then "house.olai" holds exactly 2 nodes titled "order the new cabinets"
+    Then "house.org" holds exactly 2 nodes titled "order the new cabinets"
     When I press "Control+Enter"
     Then the node "order" has no status
-    And "house.olai" holds exactly 2 nodes titled "order the new cabinets"
+    And "house.org" holds exactly 2 nodes titled "order the new cabinets"
     When I press "Control+Enter"
     Then the node "order" has status "done"
-    And "house.olai" holds exactly 2 nodes titled "order the new cabinets"
+    And "house.org" holds exactly 2 nodes titled "order the new cabinets"
     And there should be no page errors
 
   Scenario: A dated row with no rule is completed exactly as it always was
     When I click the title of "order"
     And I press "Control+Enter"
     Then the node "order" has status "done"
-    And "house.olai" holds exactly 1 node titled "order the new cabinets"
+    And "house.org" holds exactly 1 node titled "order the new cabinets"
     And there should be no page errors
 
   # ── where it is drawn ──────────────────────────────────────────────

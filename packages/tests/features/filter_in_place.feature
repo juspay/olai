@@ -15,7 +15,7 @@ Feature: Filtering the outline in place
     # The whole promise. `hinges` lives under `install`, which lives under
     # `kitchen`: all three stay, everything else goes, and the count says how
     # many of the rows on screen are actually matches.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     # The page hides its finished rows by default now; the counts here are the
     # WHOLE page's, so it is first asked to show them.
     And I show the done nodes
@@ -41,7 +41,7 @@ Feature: Filtering the outline in place
     # `alcove` is a word in `order`'s NOTE and nowhere in its title; `hinges`
     # is a word in the title of `hinges`. `kitchen` and `install` carry
     # neither and are here only as the ancestry that leads to the two matches.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     When I filter the page by "alcove OR hinges"
     Then the outline has 4 rows
     And the filter found "2 of 10"
@@ -67,7 +67,7 @@ Feature: Filtering the outline in place
     # and only that row — a note repeating what the title already lit would be
     # noise on a page whose whole problem was too little signal. `order` is
     # the one node here carrying a note, and `cabinets` is in its title.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     When I filter the page by "cabinets"
     Then the node "order" is a match
     And the node "order" lights "cabinets"
@@ -77,9 +77,9 @@ Feature: Filtering the outline in place
     # A narrowed page is a link somebody can send. That is the same argument
     # `/#<id>` is made of, and it is why the filter is in the URL rather than
     # in a signal beside it.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     When I filter the page by "hinges"
-    Then the address is exactly "/house.olai?q=hinges"
+    Then the address is exactly "/house.org?q=hinges"
     When I reload the page
     Then the outline has 3 rows
     And the filter box holds "hinges"
@@ -87,11 +87,11 @@ Feature: Filtering the outline in place
   Scenario: Clearing the filter takes the query out of the address entirely
     # An unfiltered page has ONE spelling — no `?q=`, no empty query — so one
     # page is one string in the bar.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     And I show the done nodes
     When I filter the page by "hinges"
     And I clear the filter
-    Then the address is exactly "/house.olai"
+    Then the address is exactly "/house.org"
     And the outline has 10 rows
 
   Scenario: A collapsed ancestor does not hide a match
@@ -99,7 +99,7 @@ Feature: Filtering the outline in place
     # tree the reader was reading; the filter makes a different tree, and
     # honouring the collapse inside it would hide the very match that was typed
     # for. Nothing is written — clearing the filter brings the fold back.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     When I collapse the node "install"
     Then the node "hinges" is not shown
     When I filter the page by "hinges"
@@ -119,7 +119,7 @@ Feature: Filtering the outline in place
     # asked as a substring it would go green against a bar that had appended a
     # clause about matches nothing is holding back (review of #248, both
     # reviewers). One element, one sentence, one comparison.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     # `demo` and `basil` are finished, and the tree is two rows shorter for it —
     # the per-page default is hidden, so the walk starts where the pick ends up.
     Then the outline has 8 rows
@@ -136,7 +136,7 @@ Feature: Filtering the outline in place
     # there, and says where the switch is. `hinges` is open work; `demo` and
     # `basil` are the finished ones, and `basil` is a match under the MIRROR of
     # the herb bed, which is a row of this page like any other.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     When I hide the done nodes
     And I filter the page by "hinges OR is:done"
     Then the node "hinges" is a match
@@ -155,16 +155,16 @@ Feature: Filtering the outline in place
     # the ⌘K palette and an agent ask the server — and a door that answered
     # `is:open` with an empty list and no reason would be the one place a
     # typo looks exactly like an empty directory.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     When I search the header for "is:open"
     Then the search refuses "is:open" and says "done, cancelled, doing, todo, marked, blocked, mirrored, trashed"
 
   Scenario: Pressing a `#tag` filters the page by it
     # The gesture the tags have been decorative for since title-markdown. It is
     # the same act as typing, so it lands in the same place: the address.
-    Given I open the outline "garden.olai"
+    Given I open the outline "garden.org"
     When I press the tag "#outdoors"
-    Then the address is exactly "/garden.olai?q=%23outdoors"
+    Then the address is exactly "/garden.org?q=%23outdoors"
     And the filter box holds "#outdoors"
     And the node "garden" is a match
 
@@ -172,7 +172,7 @@ Feature: Filtering the outline in place
     # One press, one act. A tag pill sits inside the title, whose own click
     # opens the editor — and Solid runs the row's handler before the pane's, so
     # without a guard the press would filter the page AND start an edit.
-    Given I open the outline "garden.olai"
+    Given I open the outline "garden.org"
     When I press the tag "#outdoors"
     Then no row is being edited
 
@@ -180,13 +180,13 @@ Feature: Filtering the outline in place
     # A zoom is a navigation: it asks for that node's page, not for that node's
     # page still narrowed by what was typed on the last one. The filtered
     # address is not lost — it is where Back goes.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     When I filter the page by "cabinets"
     And I zoom into the node "install"
     Then the address is exactly "/#install"
     And the filter box holds ""
     When I go back
-    Then the address is exactly "/house.olai?q=cabinets"
+    Then the address is exactly "/house.org?q=cabinets"
 
   Scenario: A zoomed page filters its own children
     # Scoped downstream, and it falls out of the address rather than being
@@ -213,7 +213,7 @@ Feature: Filtering the outline in place
     # a second half about the pages with no filter to fill; the pages have one
     # now, and where the press lands on each of them is
     # `filter_everywhere.feature`.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     Then tags on this page are pressable
     When I open the day "2026-08-10"
     Then tags on this page are pressable
@@ -230,7 +230,7 @@ Feature: Filtering the outline in place
     # and the page was drawing it when the second query was typed. If the first
     # session's answer is spent on the second, it goes away and comes back
     # (`@olai/web`'s `filter/asking.ts`, where the hold is a session).
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     # Shown rather than left at the per-page default: this one is about the
     # answer across a CLEAR, and a page that is hiding two rows counts eight
     # where it is about to count them again.

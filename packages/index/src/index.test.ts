@@ -47,7 +47,7 @@ import {
   type Verdict,
   verdictOf,
 } from "@olai/format"
-import { seeded, vaultOf } from "@olai/format/testlib"
+import { orgFixture, seeded, vaultOf } from "@olai/format/testlib"
 import { Result } from "effect"
 
 import { CROWD_FLOOR, type Index, open } from "./index.ts"
@@ -134,7 +134,7 @@ const NUL = String.fromCharCode(0)
 const LONE = String.fromCharCode(0xd83d)
 
 const HAND = {
-  "house.olai": [
+  "house.org": [
     `{"id":"house","ord":"a0","title":"House #home"}`,
     `{"id":"kitchen","parent":"house","ord":"a1","title":"Remodel the kitchen","desc":"walnut cabinets and a new sink","todo":true,"date":"2026-08-14","custom":{"pr":"#258","agent":"claude-opus"}}`,
     `{"id":"chen","parent":"house","ord":"a2","title":"Ask chen remodelling costs","done":"2026-08-10T09:00:00-04:00"}`,
@@ -150,12 +150,12 @@ const HAND = {
       desc: `tail${NUL}prose about lacquer`,
     }),
   ].join("\n"),
-  "work.olai": [
+  "work.org": [
     `{"id":"work","ord":"a0","title":"Work #office"}`,
     `{"id":"invoice","parent":"work","ord":"a1","title":"Send the invoice","todo":true,"changed":"2026-08-13T10:30:00-04:00"}`,
     `{"id":"mirror-kitchen","parent":"work","ord":"a2","mirror":"kitchen"}`,
   ].join("\n"),
-  "_olai/Trash.olai": [
+  "_olai/Trash.org": [
     `{"id":"gone","ord":"a0","title":"Old kitchen plan","desc":"walnut, once"}`,
   ].join("\n"),
 } as const
@@ -180,7 +180,7 @@ const handVault = (): Reading =>
       new Map<string, Result.Result<Document, Verdict>>([
         ...Object.entries(HAND).map(
           ([file, text]) =>
-            [file, Result.mapError(parseOutline(file, text), verdictOf)] as [
+            [file, Result.mapError(parseOutline(file, orgFixture(text)), verdictOf)] as [
               string,
               Result.Result<Document, Verdict>,
             ],
@@ -334,8 +334,8 @@ test("a scope narrows the same records whichever way the candidates came", () =>
   const at = handVault()
   try {
     for (const text of ["kitchen", "remo", "walnut", "cabinets", "house"]) {
-      same(at, index, text, { file: "house.olai" })
-      same(at, index, text, { file: "work.olai" })
+      same(at, index, text, { file: "house.org" })
+      same(at, index, text, { file: "work.org" })
       same(at, index, text, { under: "house" })
       same(at, index, text, { under: "work" })
       same(at, index, text, { under: "kitchen" })
@@ -599,12 +599,12 @@ test("index and corpus stay in step through a soak that crosses the decline thre
 
     const filed = (path: string, text: string): string => {
       texts.set(path, text)
-      decoded.set(path, Result.mapError(parseOutline(path, text), verdictOf))
+      decoded.set(path, Result.mapError(parseOutline(path, orgFixture(text)), verdictOf))
       return path
     }
     const mintFile = (): string => {
       const at = minted++
-      return filed(`note${at}.olai`, fileOf(random, at, RECORDS, at % 2 === 0))
+      return filed(`note${at}.org`, fileOf(random, at, RECORDS, at % 2 === 0))
     }
     const unfiled = (path: string): void => {
       texts.delete(path)
@@ -735,7 +735,7 @@ test("index and corpus stay in step through a soak that crosses the decline thre
             const text = texts.get(from) as string
             unfiled(from)
             removed.push(from)
-            changed.push(filed(`moved${minted++}.olai`, text))
+            changed.push(filed(`moved${minted++}.org`, text))
             shapes.rename += 1
           } else if (roll < 0.88 && alive.length > 1) {
             // A RECORD MOVED BETWEEN FILES — the shape that rewrites two files
@@ -876,7 +876,7 @@ test("index and corpus agree over a generated vault", () => {
     const corpus = vaultOf({ files: 120, records: 12 })
     const decoded = new Map<string, Result.Result<Document, Verdict>>()
     for (const [path, text] of corpus) {
-      decoded.set(path, Result.mapError(parseOutline(path, text), verdictOf))
+      decoded.set(path, Result.mapError(parseOutline(path, orgFixture(text)), verdictOf))
     }
     const at = reading(assemble(decoded))
     // IT REALLY NARROWS, which every `toEqual` in this file would go on passing
@@ -919,9 +919,12 @@ test("a document that leaves takes its row with it", () => {
   try {
     const decoded = new Map<string, Result.Result<Document, Verdict>>([
       [
-        "a.olai",
+        "a.org",
         Result.mapError(
-          parseOutline("a.olai", `{"id":"one","ord":"a0","title":"a kitchen row"}`),
+          parseOutline(
+            "a.org",
+            orgFixture(`{"id":"one","ord":"a0","title":"a kitchen row"}`),
+          ),
           verdictOf,
         ),
       ],

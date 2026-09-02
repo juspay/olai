@@ -33,6 +33,7 @@ import { Effect } from "effect"
 import { resolve } from "node:path"
 
 import { holdVault } from "./lock.ts"
+import { compileOrg2Corpus } from "./org2.ts"
 
 export interface Directory {
   /** The directory, resolved. Resolved rather than as typed: it is what every
@@ -58,6 +59,7 @@ export const openDirectory = (root: string, kinds: KindVocabulary) =>
     const resolved = resolve(root)
     yield* Effect.annotateLogsScoped({ root: resolved })
     yield* holdVault(resolved)
+    yield* Effect.sync(() => compileOrg2Corpus(resolved))
     const directory: Directory = {
       root: resolved,
       store: yield* Store.make({ root: resolved, codec: codecFor(kinds) }),

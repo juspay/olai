@@ -32,7 +32,7 @@ const OLAI: Audit = { prefix: "olai", trailer: "X-Olai-Writer" }
  *  `/tmp` is not itself a work tree, and nothing here walks upwards past it. */
 const loose = (): { readonly root: string; readonly file: string } => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-git-")))
-  const file = path.join(root, "a.olai")
+  const file = path.join(root, "a.org")
   fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"a"}\n`)
   return { root, file }
 }
@@ -109,7 +109,7 @@ test("a git that cannot answer is Unusable carrying its words, not NoRepo", asyn
  * The three spellings, from a served SUBDIRECTORY — where they are three
  * different strings and the difference matters.
  *
- * git prints `notes/b.olai`, because git speaks repo-relative paths. What
+ * git prints `notes/b.org`, because git speaks repo-relative paths. What
  * comes back also says what the SERVED root calls it, and where it is on disk,
  * which is the whole reason the placement belongs to the handle rather than to
  * a caller.
@@ -117,14 +117,14 @@ test("a git that cannot answer is Unusable carrying its words, not NoRepo", asyn
 test("a dirty file answers in all three spellings, from a served subdirectory", async () => {
   const { root } = repo()
   fs.mkdirSync(path.join(root, "notes"))
-  fs.writeFileSync(path.join(root, "notes", "b.olai"), `{"id":"b","ord":"a0","title":"b"}\n`)
+  fs.writeFileSync(path.join(root, "notes", "b.org"), `{"id":"b","ord":"a0","title":"b"}\n`)
 
   const served = path.join(root, "notes")
   expect((await surveyed(served)).files).toEqual([
     {
-      path: "notes/b.olai",
-      served: "b.olai",
-      at: path.join(served, "b.olai"),
+      path: "notes/b.org",
+      served: "b.org",
+      at: path.join(served, "b.org"),
       how: "untracked",
       from: null,
     },
@@ -143,13 +143,13 @@ test("a dirty file answers in all three spellings, from a served subdirectory", 
 test("a served subdirectory still sees the dirt above it, marked as outside", async () => {
   const { root } = repo()
   fs.mkdirSync(path.join(root, "notes"))
-  fs.writeFileSync(path.join(root, "notes", "b.olai"), `{"id":"b","ord":"a0","title":"b"}\n`)
+  fs.writeFileSync(path.join(root, "notes", "b.org"), `{"id":"b","ord":"a0","title":"b"}\n`)
   fs.writeFileSync(path.join(root, "README.md"), "edited by hand\n")
 
   const found = (await surveyed(path.join(root, "notes"))).files
   expect(found.map((one) => [one.path, one.served]).sort()).toEqual([
     ["README.md", null],
-    ["notes/b.olai", "b.olai"],
+    ["notes/b.org", "b.org"],
   ])
 })
 
@@ -159,13 +159,13 @@ test("a served subdirectory still sees the dirt above it, marked as outside", as
 test("dirty keeps how each file moved", async () => {
   const { root, file } = repo()
   const run = git(root)
-  fs.writeFileSync(path.join(root, "gone.olai"), `{"id":"g","ord":"a0","title":"g"}\n`)
+  fs.writeFileSync(path.join(root, "gone.org"), `{"id":"g","ord":"a0","title":"g"}\n`)
   fs.writeFileSync(path.join(root, "moved.md"), "to be renamed\n")
   run("add", "-A")
   run("commit", "--quiet", "-m", "more fixtures")
 
   fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"edited"}\n`)
-  fs.rmSync(path.join(root, "gone.olai"))
+  fs.rmSync(path.join(root, "gone.org"))
   fs.renameSync(path.join(root, "moved.md"), path.join(root, "landed.md"))
   fs.writeFileSync(path.join(root, "fresh.md"), "brand new\n")
   fs.writeFileSync(path.join(root, "staged.md"), "added to the index by hand\n")
@@ -176,8 +176,8 @@ test("dirty keeps how each file moved", async () => {
   const how = new Map(
     (await surveyed(root)).files.map((one) => [one.path, one.how]),
   )
-  expect(how.get("a.olai")).toBe("modified")
-  expect(how.get("gone.olai")).toBe("deleted")
+  expect(how.get("a.org")).toBe("modified")
+  expect(how.get("gone.org")).toBe("deleted")
   expect(how.get("fresh.md")).toBe("untracked")
   expect(how.get("staged.md")).toBe("added")
   // A rename is ONE entry that names both sides — see the test below. The side
@@ -192,7 +192,7 @@ test("dirty keeps how each file moved", async () => {
  *
  * Two entries — a `renamed` arrival and a `deleted` departure with nothing
  * joining them — is what left a person's commit panel reading `Kept.md deleted`
- * after a `git mv Kept.md Kept.olai`, with the file that actually holds their
+ * after a `git mv Kept.md Kept.org`, with the file that actually holds their
  * notes nowhere near it. Git knows both halves and prints them on one line; the
  * entry keeps them together, in the same three spellings the arriving side has.
  */
@@ -202,14 +202,14 @@ test("a staged rename is ONE entry naming both sides", async () => {
   fs.writeFileSync(path.join(root, "Kept.md"), `{"id":"m","ord":"a0","title":"m"}\n`)
   run("add", "-A")
   run("commit", "--quiet", "-m", "more fixtures")
-  run("mv", "Kept.md", "Kept.olai")
+  run("mv", "Kept.md", "Kept.org")
 
   const moved = (await surveyed(root)).files
   expect(moved).toEqual([
     {
-      path: "Kept.olai",
-      served: "Kept.olai",
-      at: path.join(root, "Kept.olai"),
+      path: "Kept.org",
+      served: "Kept.org",
+      at: path.join(root, "Kept.org"),
       how: "renamed",
       from: {
         path: "Kept.md",
@@ -276,11 +276,11 @@ test("a commit records a staged rename instead of refusing on a pathspec", async
   fs.writeFileSync(path.join(root, "Kept.md"), `{"id":"m","ord":"a0","title":"m"}\n`)
   run("add", "-A")
   run("commit", "--quiet", "-m", "more fixtures")
-  run("mv", "Kept.md", "Kept.olai")
+  run("mv", "Kept.md", "Kept.org")
 
   const done = await asked(root, (git) =>
     git.commit({
-      paths: [path.join(root, "Kept.md"), path.join(root, "Kept.olai")],
+      paths: [path.join(root, "Kept.md"), path.join(root, "Kept.org")],
       message: "olai: the rename\n\nX-Olai-Writer: mcp\n",
     }))
   expect(done._tag === "Failed" ? done.said : "").not.toContain("pathspec")
@@ -289,7 +289,7 @@ test("a commit records a staged rename instead of refusing on a pathspec", async
   // ONE commit, and git reads it back as the rename it is rather than as an
   // unrelated add beside a deletion.
   expect(run("show", "--name-status", "--find-renames", "--format=", "HEAD").trim())
-    .toBe("R100\tKept.md\tKept.olai")
+    .toBe("R100\tKept.md\tKept.org")
   expect(run("status", "--porcelain").trim()).toBe("")
   // And the INDEX is what a person's next `git commit` in a terminal will see:
   // nothing staged that this call left behind. `status` being empty says the
@@ -413,12 +413,12 @@ test("a repository mid-cherry-pick says so", async () => {
 test("dirty names every file that moved, tracked or not", async () => {
   const { root, file } = repo()
   fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"edited"}\n`)
-  fs.writeFileSync(path.join(root, "new.olai"), `{"id":"n","ord":"a0","title":"n"}\n`)
+  fs.writeFileSync(path.join(root, "new.org"), `{"id":"n","ord":"a0","title":"n"}\n`)
   fs.writeFileSync(path.join(root, "notes.md"), "not an outline\n")
 
   const found = await surveyed(root)
   expect(found.files.map((one) => one.path).sort())
-    .toEqual(["a.olai", "new.olai", "notes.md"])
+    .toEqual(["a.org", "new.org", "notes.md"])
   // Nothing to push to, which is not the same as nothing to push — a
   // repository nobody has given a remote has nowhere for a branch to go.
   expect(found.upstream).toBe(null)
@@ -513,7 +513,7 @@ test("the last commit is olai's own, never the repository's HEAD", async () => {
       message: "olai: one edit\n\nX-Olai-Writer: chat-agent\n",
     }))
   // ... and a person's commit on top of it does not become olai's.
-  fs.writeFileSync(path.join(root, "b.olai"), `{"id":"b","ord":"a0","title":"b"}\n`)
+  fs.writeFileSync(path.join(root, "b.org"), `{"id":"b","ord":"a0","title":"b"}\n`)
   run("add", "-A")
   run("commit", "--quiet", "-m", "mine, by hand")
 
@@ -557,9 +557,9 @@ test("show is the named commit's copy, and Absent for a file it never had", asyn
 
   const head = await asked(root, (git) => git.head)
   expect(head).toMatch(/^[0-9a-f]{40}$/)
-  expect(await asked(root, (git) => git.show(head ?? "", "a.olai")))
+  expect(await asked(root, (git) => git.show(head ?? "", "a.org")))
     .toEqual({ _tag: "Text", text: `{"id":"a","ord":"a0","title":"a"}\n` })
-  expect(await asked(root, (git) => git.show(head ?? "", "never.olai")))
+  expect(await asked(root, (git) => git.show(head ?? "", "never.org")))
     .toEqual({ _tag: "Absent" })
 })
 
@@ -586,19 +586,19 @@ test("a path no commit has is Absent; a git that could not answer is Unusable", 
   const head = (await asked(root, (git) => git.head)) ?? ""
 
   // On disk, staged, and not in the commit — git's other spelling for absent.
-  fs.writeFileSync(path.join(root, "new.olai"), `{"id":"n","ord":"a0","title":"n"}\n`)
-  git(root)("add", "new.olai")
-  expect(await asked(root, (git) => git.show(head, "new.olai"))).toEqual({ _tag: "Absent" })
+  fs.writeFileSync(path.join(root, "new.org"), `{"id":"n","ord":"a0","title":"n"}\n`)
+  git(root)("add", "new.org")
+  expect(await asked(root, (git) => git.show(head, "new.org"))).toEqual({ _tag: "Absent" })
   // ... and the index it is sitting in is not what `show` reads: the file it
   // ALSO holds a staged edit of still answers with the commit's bytes.
   fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"staged edit"}\n`)
-  git(root)("add", "a.olai")
-  expect(await asked(root, (git) => git.show(head, "a.olai")))
+  git(root)("add", "a.org")
+  expect(await asked(root, (git) => git.show(head, "a.org")))
     .toEqual({ _tag: "Text", text: `{"id":"a","ord":"a0","title":"a"}\n` })
 
   // A revision that is not one. git's own words ride the answer, exactly as
   // they do on every other refusal this file reports.
-  const refused = await asked(root, (git) => git.show("not-a-revision", "a.olai"))
+  const refused = await asked(root, (git) => git.show("not-a-revision", "a.org"))
   expect(refused._tag).toBe("Unusable")
   expect(refused._tag === "Unusable" ? refused.said : "").toContain("invalid object name")
 })
@@ -632,7 +632,7 @@ test("head names the commit, moves when a commit lands, and is null before the f
 
   // ... and the first sha still answers what it always answered, which is the
   // property the cache one package up is built on.
-  expect(await asked(root, (git) => git.show(first ?? "", "a.olai")))
+  expect(await asked(root, (git) => git.show(first ?? "", "a.org")))
     .toEqual({ _tag: "Text", text: `{"id":"a","ord":"a0","title":"a"}\n` })
 })
 
@@ -650,7 +650,7 @@ test("head names the commit, moves when a commit lands, and is null before the f
 test("show names a file the way the repository does, from a served subdirectory", async () => {
   const { root } = repo()
   fs.mkdirSync(path.join(root, "notes"))
-  fs.writeFileSync(path.join(root, "notes", "b.olai"), `{"id":"b","ord":"a0","title":"b"}\n`)
+  fs.writeFileSync(path.join(root, "notes", "b.org"), `{"id":"b","ord":"a0","title":"b"}\n`)
   fs.writeFileSync(path.join(root, "above.md"), "one level up\n")
   const run = git(root)
   run("add", "-A")
@@ -658,7 +658,7 @@ test("show names a file the way the repository does, from a served subdirectory"
 
   const served = path.join(root, "notes")
   const head = (await asked(served, (git) => git.head)) ?? ""
-  expect(await asked(served, (git) => git.show(head, "notes/b.olai")))
+  expect(await asked(served, (git) => git.show(head, "notes/b.org")))
     .toEqual({ _tag: "Text", text: `{"id":"b","ord":"a0","title":"b"}\n` })
   // The one the served spelling could not reach at all.
   expect(await asked(served, (git) => git.show(head, "above.md")))
@@ -694,7 +694,7 @@ test("git refusing is a warning with git's own words in a field, and a Failed", 
 test("a commit is the named paths, the message, and the sha it made", async () => {
   const { root, file } = repo()
   fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"edited"}\n`)
-  fs.writeFileSync(path.join(root, "untouched.olai"), `{"id":"u","ord":"a0","title":"u"}\n`)
+  fs.writeFileSync(path.join(root, "untouched.org"), `{"id":"u","ord":"a0","title":"u"}\n`)
 
   const done = await asked(root, (git) =>
     git.commit({ paths: [file], message: "olai: one edit\n\nX-Olai-Writer: web\n" }))
@@ -707,7 +707,7 @@ test("a commit is the named paths, the message, and the sha it made", async () =
     .toBe("web")
   // The file nobody named is still untracked: only the paths given are ever
   // staged, because a served directory is a working tree with other work in it.
-  expect(run("status", "--porcelain").trim()).toBe("?? untouched.olai")
+  expect(run("status", "--porcelain").trim()).toBe("?? untouched.org")
 })
 
 /**
@@ -772,7 +772,7 @@ test("a refused commit puts the index back exactly as it was", async () => {
   expect(before.status).toContain("AM mine.md")
   // And the outline is MODIFIED rather than staged: the `add` this call made
   // has been taken back out.
-  expect(before.status).toContain(" M a.olai")
+  expect(before.status).toContain(" M a.org")
 })
 
 /**
@@ -789,7 +789,7 @@ test("a refused commit puts the index back exactly as it was", async () => {
 test("a commit that lands leaves the index agreeing with it", async () => {
   const { root } = repo()
   const run = git(root)
-  const fresh = path.join(root, "new.olai")
+  const fresh = path.join(root, "new.org")
   fs.writeFileSync(fresh, `{"id":"n","ord":"a0","title":"n"}\n`)
 
   expect((await asked(root, (git) => git.commit({ paths: [fresh], message: "olai: new" })))._tag)
@@ -797,7 +797,7 @@ test("a commit that lands leaves the index agreeing with it", async () => {
 
   // Clean, rather than a staged deletion of the file that was just committed.
   expect(run("status", "--porcelain").trim()).toBe("")
-  expect(run("ls-files", "-s")).toContain("new.olai")
+  expect(run("ls-files", "-s")).toContain("new.org")
 })
 
 /**

@@ -1,6 +1,0 @@
-{"id":"lanes","ord":"a0","title":"the lanes"}
-{"id":"lane-plugins","parent":"lanes","ord":"a0","title":"the plugin system","custom":{"pr-url":"https://github.com/juspay/olai/pull/447","worktree":".worktrees/plugin-system"}}
-{"id":"plugins-implement","parent":"lane-plugins","ord":"a0","title":"implement + open PR","doing":true,"custom":{"agent":"claude","terminal":"11111111"}}
-{"id":"plugins-review","parent":"lane-plugins","ord":"a1","title":"review: grok","todo":true,"custom":{"agent":"grok"}}
-{"id":"lane-quiet","parent":"lanes","ord":"a1","title":"a lane with nothing running"}
-{"id":"quiet-implement","parent":"lane-quiet","ord":"a0","title":"implement + open PR","done":"2026-08-24","custom":{"agent":"claude","terminal":"33333333"}}

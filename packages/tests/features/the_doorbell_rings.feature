@@ -24,7 +24,7 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
   under them.
 
   The far end is this suite's own padi (`@padi:lanes`) and the board is the
-  ordinary `lanes.olai`: its `review: grok` step is `todo` and claims a terminal
+  ordinary `lanes.org`: its `review: grok` step is `todo` and claims a terminal
   padi says is blocked on a person, which is the digest arm of the two.
 
   THE RING IS CAUSED, NOT WAITED FOR. `held-for` is a debounce, and lowering it
@@ -33,13 +33,13 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
 
   @scratch:lanes @padi:lanes
   Scenario: The conversation I pointed at the board hears from it, and my half-typed message does not move
-    Given I open the outline "lanes.olai"
+    Given I open the outline "lanes.org"
     And the agent panel is open
     # The default, and it is a ruling rather than an oversight: nobody is opted
     # in by a serve, so the control is drawn saying so.
     Then this conversation's "kolu" wake is on nothing
-    When I point this conversation's "kolu" wake at "lanes.olai"
-    Then this conversation's "kolu" wake is on "lanes.olai"
+    When I point this conversation's "kolu" wake at "lanes.org"
+    Then this conversation's "kolu" wake is on "lanes.org"
     # Half a thought in the box, unsent. Everything after this line is also a
     # claim about these words: the doorbell rides the wire a send rides and
     # never the composer.

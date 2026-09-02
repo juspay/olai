@@ -348,7 +348,7 @@ export interface Chat {
    *
    * ## The defect this exists to make impossible
    *
-   * A person scopes a conversation to `lanes.olai`. Somebody renames the file.
+   * A person scopes a conversation to `lanes.org`. Somebody renames the file.
    * The doorbell derives per revision and walks a file that is not there, so it
    * derives nothing — forever — while the strip goes on drawing the control as
    * ON. Nothing is wrong anywhere a person can see, and the conversation is

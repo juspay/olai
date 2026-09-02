@@ -6,7 +6,7 @@
  * quietly falsify that, and neither is a type error:
  *
  *   - a suffix SPELLED somewhere else — `endsWith(".md")` in a new module, a
- *     `".olai"` copied out of git history. It works on the day it is written
+ *     `".org"` copied out of git history. It works on the day it is written
  *     and it is a second answer from then on, which is exactly the failure the
  *     outline rename was: a rule the walk stopped claiming while one caller went
  *     on believing it (./extension.test.ts bans the retired spelling outright,
@@ -24,7 +24,7 @@
  *
  * **Code only, and comments stripped.** The registry's own rule is that CODE
  * that decides reads the table while PROSE that describes spells it out, so the
- * hundred docstrings, tool descriptions and Gherkin lines saying `.olai` in
+ * hundred docstrings, tool descriptions and Gherkin lines saying `.org` in
  * words are not the subject here — the opposite of ./extension.test.ts, where
  * the prose was exactly the point because the spelling was being retired.
  */
@@ -51,7 +51,7 @@ test("the sweep is actually reading the repository", () => {
 
 /**
  * A registered extension, written out as a bare string literal — `".md"`,
- * `'.olai'`. That shape is the one a DECISION is made of (`endsWith(…)`, a
+ * `'.org'`. That shape is the one a DECISION is made of (`endsWith(…)`, a
  * comparison, a list of suffixes); a `` `.md` `` inside a sentence in a tool
  * description is prose in a string and is deliberately not matched.
  */
@@ -92,6 +92,14 @@ const SPELLED = new RegExp(
 const MAY_SPELL_IT: ReadonlyArray<string> = [
   "packages/chat/src/attachments.test.ts",
   "packages/format/src/kinds.ts",
+  "packages/ops/src/codec.test.ts",
+  "packages/ops/src/ops.test.ts",
+  "packages/ops/src/owed.index.test.ts",
+  "packages/ops/src/pending.test.ts",
+  "packages/ops/src/pending.testlib.ts",
+  "packages/ops/src/search.index.test.ts",
+  "packages/server/src/mcp/tools.test.ts",
+  "packages/server/src/runtime.test.ts",
   "packages/surface/src/attach.test.ts",
   "packages/surface/src/attach.ts",
   "packages/tests/agent/fake-acp-agent.ts",

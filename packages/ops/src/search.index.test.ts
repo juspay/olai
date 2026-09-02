@@ -35,6 +35,7 @@ import {
   type WriteRequest,
 } from "@olai/format"
 import * as StoreModule from "@olai/store"
+import { orgFixture } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 import { Effect, SubscriptionRef } from "effect"
 
@@ -84,7 +85,7 @@ const POOL: ReadonlyArray<SearchRequest> = [
   { text: "zzzzzzzz" },
   { text: "#home" },
   { text: "joiner", withDesc: true },
-  { text: "walnut", file: "house.olai" },
+  { text: "walnut", file: "house.org" },
   { text: "walnut", under: "kitchen" },
   { text: "walnut", kind: "node" },
   { text: "walnut", kind: "document" },
@@ -139,10 +140,10 @@ test("every write leaves the indexed door answering what the corpus walk does", 
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-index-")))
   const write = (file: string, contents: string): void => {
     fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true })
-    fs.writeFileSync(path.join(root, file), contents)
+    fs.writeFileSync(path.join(root, file), file.endsWith(".org") ? orgFixture(contents) : contents)
   }
-  write("house.olai", HOUSE)
-  write("garden.olai", GARDEN)
+  write("house.org", HOUSE)
+  write("garden.org", GARDEN)
   write("notes/finishes.md", "---\nagent: claude-opus\n---\n\nThe walnut finish, and brass.\n")
   write("notes/spare.md", "nothing about the kitchen here\n")
 
@@ -168,7 +169,7 @@ test("every write leaves the indexed door answering what the corpus walk does", 
     // A property, which is a `prop:` query's whole subject and is not text.
     { op: "prop", id: "order", key: "pr", value: "https://x/1" },
     // A WHOLE FILE minted.
-    { op: "create", file: "shed.olai", seed: { title: "Shed, with walnut trim" } },
+    { op: "create", file: "shed.org", seed: { title: "Shed, with walnut trim" } },
     // A record put AWAY — its rows stay, under the archive's path, where only
     // an `is:trashed` query reaches them.
     { op: "trash", id: "demo" },

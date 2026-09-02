@@ -22,7 +22,7 @@ const hitOf = (
   at: { kind: "node", id: NodeId.make("lane") },
   id: "lane",
   title: "a lane",
-  file: "roadmap.olai",
+  file: "roadmap.org",
   line: 1,
   path: [],
   ...(custom === undefined ? {} : { custom }),

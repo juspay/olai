@@ -21,7 +21,7 @@
  * same server rather than two that happen to agree.
  *
  * `@scratch:` on every scenario that uses these: a capture WRITES the served
- * directory, and it mints `_olai/Inbox.olai` in it.
+ * directory, and it mints `_olai/Inbox.org` in it.
  */
 
 import * as assert from "node:assert";
@@ -208,7 +208,7 @@ Then(
     // The ops layer's own answer, untouched…
     assert.strictEqual(said.did, "capture");
     assert.strictEqual(typeof said.id, "string");
-    assert.strictEqual(said.file, "_olai/Inbox.olai");
+    assert.strictEqual(said.file, "_olai/Inbox.org");
     // …plus the two facts that say WHICH olai answered: the directory, stamped
     // by the server so it cannot be this side's guess, and the address this
     // side dialled, which the server behind a proxy could not know.

@@ -71,7 +71,7 @@
  * inherited — now over the wire rather than over the local set, which changes
  * nothing about it. A door that respelled it is a door that can drift from it.
  *
- * The FILE half of the same list goes the other way — `_olai/Trash.olai` is in it —
+ * The FILE half of the same list goes the other way — `_olai/Trash.org` is in it —
  * and the two are right for their own reasons rather than by oversight: a path
  * names bytes an agent will read, where a node names a row of a reading, and
  * "what did we put away last month" is answered by naming the file or by

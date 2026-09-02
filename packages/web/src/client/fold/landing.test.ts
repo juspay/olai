@@ -25,12 +25,12 @@ const chainTo = (rows: ReadonlyArray<Row>, id: string): ReadonlyArray<Row> | und
 }
 
 const line = (id: string, title: string, children: ReadonlyArray<Row> = []): Row => ({
-  at: { file: "house.olai", line: 1, node: { id, ord: "a0", title } },
+  at: { file: "house.org", line: 1, node: { id, ord: "a0", title } },
   blocked: [],
   children,
   key: id,
   kind: "node",
-  shows: { file: "house.olai", line: 1, node: { id, ord: "a0", title } },
+  shows: { file: "house.org", line: 1, node: { id, ord: "a0", title } },
   under: 0,
 })
 
@@ -43,12 +43,12 @@ const placementOf = (
   atLine: number,
   children: ReadonlyArray<Row> = [],
 ): Row => ({
-  at: { file: "house.olai", line: atLine, node: { id: `m${atLine}`, ord: "a0", title: "" } },
+  at: { file: "house.org", line: atLine, node: { id: `m${atLine}`, ord: "a0", title: "" } },
   blocked: [],
   children,
   key: `m${atLine}`,
   kind: "mirror",
-  shows: { file: "garden.olai", line: 2, node: { id: target, ord: "a0", title } },
+  shows: { file: "garden.org", line: 2, node: { id: target, ord: "a0", title } },
   under: 0,
 })
 

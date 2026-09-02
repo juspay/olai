@@ -46,7 +46,7 @@ Feature: Properties on a node, from the web
   scenarios.
 
   Background:
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     And I mark the page
 
   Scenario: The first one is added from the menu, and the row says so with no gesture at all
@@ -63,7 +63,7 @@ Feature: Properties on a node, from the web
     # THE WHOLE POINT: no pilcrow pressed, no row opened. The fact is on the row
     # the moment the file says it is.
     Then the node "handles" shows the property "pr" holding "https://github.com/juspay/olai/pull/179"
-    And "house.olai" holds the node "handles" with "pr" set to "https://github.com/juspay/olai/pull/179"
+    And "house.org" holds the node "handles" with "pr" set to "https://github.com/juspay/olai/pull/179"
     # ...and the ADD was one gesture too: the value box's Enter closed the chip,
     # and the leaving the close fired sent nothing of its own.
     And the node "handles" says nothing about its properties
@@ -89,7 +89,7 @@ Feature: Properties on a node, from the web
     And I add a property on "handles"
     And I write the property "stage" holding "review" on "handles"
     Then the properties on "handles" read "agent, stage"
-    And "house.olai" holds the node "handles" with "stage" set to "review"
+    And "house.org" holds the node "handles" with "stage" set to "review"
     And there should be no page errors
 
   Scenario: A chip is edited in place — press its key, type, press Enter
@@ -104,7 +104,7 @@ Feature: Properties on a node, from the web
     And the property editor on "handles" offers no key box
     When I type "addressing" into the property editor on "handles"
     Then the node "handles" shows the property "stage" holding "addressing"
-    And "house.olai" holds the node "handles" with "stage" set to "addressing"
+    And "house.org" holds the node "handles" with "stage" set to "addressing"
     # ONE GESTURE, ONE COMMIT, and the commit owns the close: the blur the
     # unmount fires is Enter's own closing, not a second write — the day it is
     # heard as one, the ops layer's no-change guard draws "already says … —
@@ -125,7 +125,7 @@ Feature: Properties on a node, from the web
     And I click away from the property editor on "handles"
     Then the property editor on "handles" is closed
     And the node "handles" shows the property "stage" holding "addressing"
-    And "house.olai" holds the node "handles" with "stage" set to "addressing"
+    And "house.org" holds the node "handles" with "stage" set to "addressing"
     And the node "handles" says nothing about its properties
     And there should be no page errors
 
@@ -150,7 +150,7 @@ Feature: Properties on a node, from the web
     And I click away from the property editor on "handles"
     Then the property editor on "handles" is closed
     And the node "handles" shows the property "stage" holding "submitted"
-    And "house.olai" holds the node "handles" with "stage" set to "submitted"
+    And "house.org" holds the node "handles" with "stage" set to "submitted"
     And the node "handles" says nothing about its properties
     And there should be no page errors
 
@@ -172,7 +172,7 @@ Feature: Properties on a node, from the web
     When I edit the property "stage" on "handles"
     And I type "" into the property editor on "handles"
     Then the node "handles" shows no property "stage"
-    And "house.olai" holds the node "handles" with no "stage"
+    And "house.org" holds the node "handles" with no "stage"
     # ...and the row is back to drawing nothing at all, rather than a run
     # holding only the facts nobody asked to see.
     And the node "handles" shows no drawer
@@ -185,17 +185,17 @@ Feature: Properties on a node, from the web
     # holds now — so a blur where nothing was typed writes nothing, even though
     # the file moved underneath. Judged against the live value instead, this
     # wrote the stale `review` back over the agent's word, silently.
-    Given I rewrite "house.olai" as:
+    Given I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"handles","parent":"kitchen","ord":"a0","title":"choose the handles","custom":{"stage":"review"}}
       """
-    And I open the outline "house.olai"
+    And I open the outline "house.org"
     And I mark the page
     When I edit the property "stage" on "handles"
     Then the property editor on "handles" holds "review"
     # ...and now somebody else — an agent, another tab — moves the same key.
-    When I rewrite "house.olai" as:
+    When I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"handles","parent":"kitchen","ord":"a0","title":"choose the handles","custom":{"stage":"addressing"}}
@@ -205,7 +205,7 @@ Feature: Properties on a node, from the web
     # THE CLAIM: the agent's word stands, on the row and on the disk, and
     # nothing was said — because nothing was written.
     And the node "handles" shows the property "stage" holding "addressing"
-    And "house.olai" holds the node "handles" with "stage" set to "addressing"
+    And "house.org" holds the node "handles" with "stage" set to "addressing"
     And the node "handles" says nothing about its properties
     And there should be no page errors
 
@@ -222,12 +222,12 @@ Feature: Properties on a node, from the web
     # Enter's unmount-blur stands down the same as ever, so there is no second
     # send for a second note to answer (argued where the shape was ruled:
     # typed_properties.feature's first scenario).
-    Given I rewrite "house.olai" as:
+    Given I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"handles","parent":"kitchen","ord":"a0","title":"choose the handles","custom":{"stage":"review"}}
       """
-    And I open the outline "house.olai"
+    And I open the outline "house.org"
     And I mark the page
     When I edit the property "stage" on "handles"
     And I type "submitted" into the property editor on "handles" without pressing Enter
@@ -237,7 +237,7 @@ Feature: Properties on a node, from the web
     # marker is the ordering the parser owes: the one republish that answers
     # `kitchen` is the parse that moved `stage`, nothing else on the page is
     # asked about it.
-    When I rewrite "house.olai" as:
+    When I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","custom":{"airing":"2026-08-10"}}
       {"id":"handles","parent":"kitchen","ord":"a0","title":"choose the handles","custom":{"stage":"audit"}}
@@ -252,7 +252,7 @@ Feature: Properties on a node, from the web
     # the spurious no-change note `chip-blur-double-commit-2` was filed for.
     Then the node "handles" refuses the property write with "it now says `audit`"
     And the node "handles" shows the property "stage" holding "audit"
-    And "house.olai" holds the node "handles" with "stage" set to "audit"
+    And "house.org" holds the node "handles" with "stage" set to "audit"
     # THE TWO-WRITES HALF (both reviews' SHOULD on the reopen, one ask): the
     # refusal above CLOSED the box; pressing the chip again mints the snapshot
     # FRESH, of the first agent's value — `audit` — and THAT is the premise
@@ -263,7 +263,7 @@ Feature: Properties on a node, from the web
     When I edit the property "stage" on "handles"
     And the property editor on "handles" holds "audit"
     And I type "the third opinion" into the property editor on "handles" without pressing Enter
-    When I rewrite "house.olai" as:
+    When I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","custom":{"airing":"2026-08-12"}}
       {"id":"handles","parent":"kitchen","ord":"a0","title":"choose the handles","custom":{"stage":"declared"}}
@@ -279,7 +279,7 @@ Feature: Properties on a node, from the web
     And the node "handles" refuses the property write with "expected to replace (`audit`)"
     And the node "handles" refuses the property write with "it now says `declared`"
     And the node "handles" shows the property "stage" holding "declared"
-    And "house.olai" holds the node "handles" with "stage" set to "declared"
+    And "house.org" holds the node "handles" with "stage" set to "declared"
     And the page has not reloaded
     And there should be no page errors
 
@@ -297,16 +297,16 @@ Feature: Properties on a node, from the web
     # ...and the refusal has a READER (Opus's NIT 2): it is the EXPECTED
     # answer on this path, not an accident — so the line that draws it had to
     # outlive the run, which went with the key.
-    Given I rewrite "house.olai" as:
+    Given I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"handles","parent":"kitchen","ord":"a0","title":"choose the handles","custom":{"stage":"review"}}
       """
-    And I open the outline "house.olai"
+    And I open the outline "house.org"
     And I mark the page
     When I edit the property "stage" on "handles"
     And I type "submitted" into the property editor on "handles" without pressing Enter
-    When I rewrite "house.olai" as:
+    When I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"handles","parent":"kitchen","ord":"a0","title":"choose the handles"}
@@ -316,7 +316,7 @@ Feature: Properties on a node, from the web
     # THE FLIP HALF: the typed "submitted" rides nowhere — the key stays gone,
     # on the row and on the disk.
     And the node "handles" shows no property "stage"
-    And "house.olai" holds the node "handles" with no "stage"
+    And "house.org" holds the node "handles" with no "stage"
     # ...and the note half: drawn under the row the chip was on, the run being
     # gone with the key.
     And the node "handles" refuses the property write with "the key is gone"
@@ -326,12 +326,12 @@ Feature: Properties on a node, from the web
     # Both reviewers. The fold is for PROSE; a URL and a deep vault path are the
     # two door kinds most likely to run past it, and folding them took away the
     # link the door rule had just given them. A name is one token however long.
-    Given I rewrite "house.olai" as:
+    Given I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"handles","parent":"kitchen","ord":"a0","title":"choose the handles","custom":{"pr":"https://github.com/juspay/olai/pull/369#discussion_r1234567890","note":"a sentence long enough to be prose rather than a fact, which is what the fold is for"}}
       """
-    And I open the outline "house.olai"
+    And I open the outline "house.org"
     # 61 characters and still a door.
     Then the property "pr" on "handles" is a "away" door to "https://github.com/juspay/olai/pull/369#discussion_r1234567890"
     And the property "pr" on "handles" is not folded
@@ -343,7 +343,7 @@ Feature: Properties on a node, from the web
     # pi's S2. `custom` is open all the way, so a hand-written record may carry
     # a custom `date` beside the FIELD of that name — a legal record that only
     # `set_prop` refuses to MAKE. Both chips are drawn on the node's own page.
-    Given I rewrite "house.olai" as:
+    Given I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"handles","parent":"kitchen","ord":"a0","title":"choose the handles","date":"2026-08-10","custom":{"date":"whenever the tiler is free"}}
@@ -363,12 +363,12 @@ Feature: Properties on a node, from the web
     # REMOVAL is exact whatever the key held, which is why the deleted menu
     # offered `Remove <key>` on a list and no `Edit <key>…`. Excluding the chip
     # took the removal away with the edit.
-    Given I rewrite "house.olai" as:
+    Given I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"handles","parent":"kitchen","ord":"a0","title":"choose the handles","custom":{"reviewers":["pi","grok"],"stage":"review"}}
       """
-    And I open the outline "house.olai"
+    And I open the outline "house.org"
     And I mark the page
     Then the node "handles" shows the property "reviewers" holding "pi, grok"
     When I edit the property "reviewers" on "handles"
@@ -382,7 +382,7 @@ Feature: Properties on a node, from the web
     When I edit the property "reviewers" on "handles"
     And I type "" into the property editor on "handles"
     Then the node "handles" shows no property "reviewers"
-    And "house.olai" holds the node "handles" with no "reviewers"
+    And "house.org" holds the node "handles" with no "reviewers"
     And there should be no page errors
 
   Scenario: Escape writes nothing, and neither does opening a chip and leaving it
@@ -425,7 +425,7 @@ Feature: Properties on a node, from the web
     When I edit the property "stage" on "handles"
     And I type "addressing" into the property editor on "handles"
     Then the node "handles" shows the property "stage" holding "addressing"
-    And "house.olai" holds the node "handles" with "stage" set to "addressing"
+    And "house.org" holds the node "handles" with "stage" set to "addressing"
     And there should be no page errors
 
   Scenario: What the pilcrow adds is the note, and never what the row already shows
@@ -444,12 +444,12 @@ Feature: Properties on a node, from the web
   # ── the doors ────────────────────────────────────────────────────────
 
   Scenario: A value that names a document in this directory opens that document
-    Given I rewrite "house.olai" as:
+    Given I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"handles","parent":"kitchen","ord":"a0","title":"choose the handles","custom":{"brief":"finishes.md"}}
       """
-    And I open the outline "house.olai"
+    And I open the outline "house.org"
     Then the property "brief" on "handles" is a "document" door to "/finishes.md"
     When I follow the property "brief" on "handles"
     Then the address is "/finishes.md"
@@ -457,26 +457,26 @@ Feature: Properties on a node, from the web
 
   Scenario: A value that IS a node's id opens that node — assignment becomes navigation
     # The exact-id rule, and the whole reason it can be trusted: `basil` is a
-    # node `garden.olai` declares, so this is a match against the SET rather
+    # node `garden.org` declares, so this is a match against the SET rather
     # than a guess about a word.
-    Given I rewrite "house.olai" as:
+    Given I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"handles","parent":"kitchen","ord":"a0","title":"choose the handles","custom":{"reviewer":"basil"}}
       """
-    And I open the outline "house.olai"
+    And I open the outline "house.org"
     Then the property "reviewer" on "handles" is a "node" door to "/#basil"
     When I follow the property "reviewer" on "handles"
     Then the zoomed node is "basil"
     And there should be no page errors
 
   Scenario: A date wears the date badge and opens its day
-    Given I rewrite "house.olai" as:
+    Given I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"handles","parent":"kitchen","ord":"a0","title":"choose the handles","custom":{"soak-until":"2026-08-10"}}
       """
-    And I open the outline "house.olai"
+    And I open the outline "house.org"
     Then the property "soak-until" on "handles" is a "day" door to "/d/2026-08-10"
     When I follow the property "soak-until" on "handles"
     Then the address is "/d/2026-08-10"
@@ -487,12 +487,12 @@ Feature: Properties on a node, from the web
     # directions: the whole value IS the thing, or the value is not a door.
     # `claude-opus` is id-shaped and names no node; `merge` is a sentence; and
     # the `pr` here has a URL INSIDE it, which is not the same as being one.
-    Given I rewrite "house.olai" as:
+    Given I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"handles","parent":"kitchen","ord":"a0","title":"choose the handles","custom":{"home":"https://example.invalid/one","agent":"claude-opus","merge":"the human approves","pr":"#179 https://example.invalid/one landed"}}
       """
-    And I open the outline "house.olai"
+    And I open the outline "house.org"
     Then the property "home" on "handles" is a "away" door to "https://example.invalid/one"
     And the property "home" on "handles" opens in a tab of its own
     And the property "agent" on "handles" is not a link
@@ -505,12 +505,12 @@ Feature: Properties on a node, from the web
     # about the lane in. Alphabetical is what olai's own WRITER produces, not
     # what a drawer imposes — so a run over a hand-written record reads as it
     # was written.
-    Given I rewrite "house.olai" as:
+    Given I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"handles","parent":"kitchen","ord":"a0","title":"choose the handles","custom":{"worktree":".worktrees/pda","agent":"claude-opus","brief":"finishes.md"}}
       """
-    And I open the outline "house.olai"
+    And I open the outline "house.org"
     Then the properties on "handles" read "worktree, agent, brief"
     And there should be no page errors
 
@@ -518,12 +518,12 @@ Feature: Properties on a node, from the web
     # Move 3's fold, which is the safety net rather than the goal: props are
     # short facts by rule, and the fold is what stops a record that broke the
     # rule from putting the wall back on every row of the board.
-    Given I rewrite "house.olai" as:
+    Given I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"handles","parent":"kitchen","ord":"a0","title":"choose the handles","custom":{"stage":"review","verdict":"DO-NOT-OBJECT at c2704bc6 — the owner map verified against the diff, and the wait discipline holds"}}
       """
-    And I open the outline "house.olai"
+    And I open the outline "house.org"
     Then the property "verdict" on "handles" is folded
     And the property "stage" on "handles" is not folded
     And the property "verdict" on "handles" reads "DO-NOT-OBJECT at c2704bc6 —"
@@ -545,7 +545,7 @@ Feature: Properties on a node, from the web
     Then the property editor on "handles" fits the screen
     When I write the property "pr" holding "https://github.com/juspay/olai/pull/179" on "handles"
     Then the node "handles" shows the property "pr" holding "https://github.com/juspay/olai/pull/179"
-    And "house.olai" holds the node "handles" with "pr" set to "https://github.com/juspay/olai/pull/179"
+    And "house.org" holds the node "handles" with "pr" set to "https://github.com/juspay/olai/pull/179"
     When I add a property on "handles"
     Then the property editor on "handles" fits the screen
     When I write the property "agent" holding "claude-opus" on "handles"

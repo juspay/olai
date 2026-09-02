@@ -10,7 +10,7 @@
  * a file is ADDED, REMOVED or RENAMED. The server re-asked it per published
  * revision (`@olai/server`'s `runtime.ts`), which is per keystroke: a thousand
  * basenames sliced, folded and compared so that a title edit in one of them
- * could be told the shelf is still `Pins.olai`. The cell's `equals` then
+ * could be told the shelf is still `Pins.org`. The cell's `equals` then
  * swallowed the frame, having already paid for the work
  * (`perf-filename-conventions`).
  *
@@ -72,7 +72,7 @@
  *
  * - {@link conventionServed} over the files a SET SERVES, which is where the
  *   inbox is found, because `byFile` groups PARSED RECORDS and an empty or
- *   torn `Inbox.olai` has no entry in it — so the count would name a different
+ *   torn `Inbox.org` has no entry in it — so the count would name a different
  *   file from the one a capture lands in (`./inbox.ts` argues it at length);
  * - {@link conventionRecorded} over the files a DERIVATION HOLDS RECORDS FOR,
  *   which is where the shelf is found, because that is the list its rows come

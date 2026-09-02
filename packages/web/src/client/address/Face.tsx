@@ -6,7 +6,7 @@
  * string: the sidebar's pinned shelf, where every row is an address
  * (`../pins/Pin.tsx`), and an ORDINARY OUTLINE ROW whose title is one
  * (`../NodeTitle.tsx`). The second arrived from the maintainer opening
- * `Pins.olai` — which the design invites, since the shelf is an ordinary file —
+ * `Pins.org` — which the design invites, since the shelf is an ordinary file —
  * and finding a bullet reading `/orchestrator/instructions.md`. The shelf
  * resolved its rows and the page did not, which is one title with two answers.
  *

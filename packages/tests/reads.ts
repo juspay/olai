@@ -60,13 +60,13 @@ say("the map: which outlines there are, and what their roots are CALLED")
 await call(agent, "list_outlines", {})
 
 say("(a) the WHOLE outline, in one call")
-await call(agent, "read_subtree", { file: "plan.olai" })
+await call(agent, "read_subtree", { file: "plan.org" })
 
 say("(a) …and `depth` still applies, per root")
-await call(agent, "read_subtree", { file: "plan.olai", depth: 1 })
+await call(agent, "read_subtree", { file: "plan.org", depth: 1 })
 
 say("(a) …and `withDesc: false` is the lean read — structure, no notes")
-await call(agent, "read_subtree", { file: "plan.olai", withDesc: false })
+await call(agent, "read_subtree", { file: "plan.org", withDesc: false })
 
 say("(b) a selection, and the same selection WITH its notes")
 await call(agent, "search_nodes", { text: "is:todo" })
@@ -76,16 +76,16 @@ say("(c) a node read carries the parent's id — `path` is titles")
 await call(agent, "read_node", { id: "call" })
 
 say("the refusals: a path that is not an outline")
-await call(agent, "read_subtree", { file: "plans.olai" })
+await call(agent, "read_subtree", { file: "plans.org" })
 
 say("the refusals: nothing close enough to be a typo")
-await call(agent, "read_subtree", { file: "nothing/like/it.olai" })
+await call(agent, "read_subtree", { file: "nothing/like/it.org" })
 
 say("the refusals: an outline the set could not load")
-await call(agent, "read_subtree", { file: "torn.olai" })
+await call(agent, "read_subtree", { file: "torn.org" })
 
 say("the refusals: both ways in, and neither")
-await call(agent, "read_subtree", { id: "today", file: "plan.olai" })
+await call(agent, "read_subtree", { id: "today", file: "plan.org" })
 await call(agent, "read_subtree", {})
 
 say("…while an id the set does not hold is still an ANSWER")

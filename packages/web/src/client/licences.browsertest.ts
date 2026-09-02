@@ -38,7 +38,7 @@ const frame = (...licences: ReadonlyArray<Licence>): PageReading =>
  *  the whole case the old shape could not draw: the vault declared a column it
  *  calls `pty` to be the kind `terminal`. */
 const pty = (word: string): Licence => ({
-  from: "roadmap/lanes.olai",
+  from: "roadmap/lanes.org",
   prop: "pty",
   value: "c56b6183",
   word,
@@ -47,7 +47,7 @@ const pty = (word: string): Licence => ({
 /** ...and one for a second key, so the arriving-and-leaving case has something
  *  to arrive. */
 const checkout: Licence = {
-  from: "roadmap/lanes.olai",
+  from: "roadmap/lanes.org",
   prop: "checkout",
   value: ".worktrees/tp",
   word: "worktree",
@@ -68,7 +68,7 @@ const driving = <A>(
   })
 
 const asked = (table: Licences, prop: string, value: string) =>
-  table("roadmap/lanes.olai", prop, value)
+  table("roadmap/lanes.org", prop, value)
 
 test("an identical frame is not a new table", () =>
   driving(frame(pty("terminal")), (write, table) => {
@@ -117,7 +117,7 @@ test("a value the page says nothing about is undefined — which is what keeps i
     expect(asked(table(), "pty", "somethingelse")).toBeUndefined()
     // The same words under the same key, written in ANOTHER file, are another
     // question too — which is the whole reason the lookup is a triple.
-    expect(table()("board.olai", "pty", "c56b6183")).toBeUndefined()
+    expect(table()("board.org", "pty", "c56b6183")).toBeUndefined()
   }))
 
 test("a reading that has not arrived is an empty table, and holds", () =>

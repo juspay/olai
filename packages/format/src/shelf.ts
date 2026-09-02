@@ -1,5 +1,5 @@
 /**
- * THE SHELF, READ OFF THE SET — the rows of `Pins.olai` and what the directory
+ * THE SHELF, READ OFF THE SET — the rows of `Pins.org` and what the directory
  * says each one points at.
  *
  * The shelf is a reading of the whole vault: which file the shelf IS is a fact
@@ -46,7 +46,7 @@ import { pinsIn } from "./node.ts"
  * One row of the shelf, as the wire carries it.
  *
  * THE TITLE TRAVELS VERBATIM, which is what makes this an answer about the
- * FILE rather than a rendering instruction: `Pins.olai` is an ordinary outline
+ * FILE rather than a rendering instruction: `Pins.org` is an ordinary outline
  * a hand and an agent are invited to edit, so what a row says is what somebody
  * wrote, and the reader that draws it is the one that reads addresses.
  */
@@ -77,7 +77,7 @@ const Pinned = Schema.Struct({
    * hand a reader that reads the same title with a parser of its own — which is
    * exactly what the browser does, and NOT with the same answers. This reading
    * over-answers by construction: the app claims words of its own before the
-   * grammar is asked at all (`/d/…`, `/today`), so `/d/2026-08-20.olai#x` is a
+   * grammar is asked at all (`/d/…`, `/today`), so `/d/2026-08-20.org#x` is a
    * day page up there and an outline's node down here. What holds is one
    * direction — wherever the app reads a node, this reads the same node
    * (`@olai/web`'s `pins/target.test.ts`) — and the id is what lets the drawing
@@ -98,7 +98,7 @@ const Pinned = Schema.Struct({
 export type Pinned = typeof Pinned.Type
 
 /** The shelf in the order it is drawn — the top level of the directory's
- *  `Pins.olai`, in `ord` order. */
+ *  `Pins.org`, in `ord` order. */
 export const Shelf = Schema.Array(Pinned)
 export type Shelf = typeof Shelf.Type
 
@@ -128,7 +128,7 @@ export const sameShelf: (a: Shelf, b: Shelf) => boolean = Schema.toEquivalence(S
  * pin's address that is answered down here.
  *
  * WHICH addresses name one is `./address.ts`'s answer and not this function's:
- * the bare `#id` and the qualified `garden.olai#id` both do, and the second
+ * the bare `#id` and the qualified `garden.org#id` both do, and the second
  * normalises to the same id, which is exactly why this asks the grammar rather
  * than matching a shape. What is done here is the two things the app writes
  * around an address in a title, both of which docs/format.md's Pins spells: the
@@ -170,7 +170,7 @@ export const pinTargetIn = (title: string): string | undefined => {
   // whether this names a node.
   const { pathname, fragment } = splitAddress(at.slice(1))
   const address = parseAddress(pathname + (fragment === undefined ? "" : `#${fragment}`))
-  // A ROW names a node too — `Tasks.olai#a1b2c3` is what a hand writes when
+  // A ROW names a node too — `Tasks.org#a1b2c3` is what a hand writes when
   // it knows where the node lives — and what a pin draws is the node's NAME,
   // which the id half answers alone: the file half can go stale across a
   // move, and the id is exactly what survives one (the grammar's `Address`;
@@ -179,7 +179,7 @@ export const pinTargetIn = (title: string): string | undefined => {
 }
 
 /**
- * THE SHELF: the top level of the directory's `Pins.olai`, in the order it is
+ * THE SHELF: the top level of the directory's `Pins.org`, in the order it is
  * drawn, with every node address resolved to the name it has right now.
  *
  * THE TOP LEVEL ONLY, and that is a rule rather than a shortcut: a shelf is a
@@ -191,7 +191,7 @@ export const pinTargetIn = (title: string): string | undefined => {
  * including one whose title is not an address: whether a title names a PAGE is
  * the app parser's answer (docs/format.md says so out loud, so that the test is
  * a parser rather than a list of prefixes), and a row this could not draw is a
- * row `Pins.olai`'s own page still draws as an ordinary heading or note.
+ * row `Pins.org`'s own page still draws as an ordinary heading or note.
  */
 export const shelfOf = (derived: Derived): Shelf =>
   shelfIn(derived, pinsIn(derived.byFile.keys()))

@@ -1,0 +1,17 @@
+* terminal
+:PROPERTIES:
+:ID: prop-terminal
+:OLAI_KIND: regular
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "terminal"
+:OLAI_CUSTOM: {"type":"kolu-terminal"}
+:END:
+
+* pty
+:PROPERTIES:
+:ID: prop-pty
+:OLAI_KIND: regular
+:OLAI_ORD: "a1"
+:OLAI_TITLE: "pty"
+:OLAI_CUSTOM: {"type":"kolu-terminal"}
+:END:

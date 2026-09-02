@@ -10,7 +10,7 @@ Feature: Starting a new outline from the sidebar
   What is typed is the PATH, because a file's name is its address in this app
   — the sidebar, the URL and every reading of the set call it by it. The suffix
   is the door's own half of that: this door makes outlines, so `Foo` is asked
-  for as `Foo.olai` and `Foo.olai` is asked for as itself. Nothing else about
+  for as `Foo.org` and `Foo.org` is asked for as itself. Nothing else about
   the path is judged in the browser — it goes to the ops layer completed and
   otherwise as it was typed, and what comes back for one it will not take is
   `create_outline`'s own sentence, drawn verbatim under the box.
@@ -20,13 +20,13 @@ Feature: Starting a new outline from the sidebar
   scenarios.
 
   Background:
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     And I mark the page
 
   Scenario: A new outline is created and opened, and the sidebar lists it
-    When I create the outline "plans/next.olai" from the sidebar
-    Then the address is "/plans/next.olai"
-    And the outline list links to "plans/next.olai"
+    When I create the outline "plans/next.org" from the sidebar
+    Then the address is "/plans/next.org"
+    And the outline list links to "plans/next.org"
     And the page has not reloaded
     And there should be no page errors
 
@@ -34,32 +34,32 @@ Feature: Starting a new outline from the sidebar
     # No seed on the wire, deliberately: an agent's `create_outline` may be born
     # holding a tree, and a person types the first line where it will live —
     # which the empty outline's own page is already the affordance for.
-    When I create the outline "plans/next.olai" from the sidebar
+    When I create the outline "plans/next.org" from the sidebar
     And I start the first line
     And I type "buy the tickets"
     And I click away from the editor
-    Then "plans/next.olai" holds a node titled "buy the tickets"
+    Then "plans/next.org" holds a node titled "buy the tickets"
     And there should be no page errors
 
   Scenario: A path the set already holds is refused in the op's own words
-    When I create the outline "house.olai" from the sidebar
+    When I create the outline "house.org" from the sidebar
     Then the outline creation is refused saying "is already an outline"
-    And the address is "/house.olai"
+    And the address is "/house.org"
 
   Scenario: A bare name is the file the door makes, and is opened
     # The bug this feature grew for: `Foo` came back as the wire's paragraph
-    # about relative `.olai` paths, for a name with nothing wrong with it
+    # about relative `.org` paths, for a name with nothing wrong with it
     # except the four characters the door already knows.
     When I create the outline "Foo" from the sidebar
-    Then the address is "/Foo.olai"
-    And the outline list links to "Foo.olai"
+    Then the address is "/Foo.org"
+    And the outline list links to "Foo.org"
     And the page has not reloaded
     And there should be no page errors
 
   Scenario: The folders in a bare path are kept, and only the suffix is added
     When I create the outline "notes/plan" from the sidebar
-    Then the address is "/notes/plan.olai"
-    And the outline list links to "notes/plan.olai"
+    Then the address is "/notes/plan.org"
+    And the outline list links to "notes/plan.org"
     And there should be no page errors
 
   Scenario: A path that climbs out of the directory is still the planner's
@@ -67,38 +67,38 @@ Feature: Starting a new outline from the sidebar
     # browser that pre-checked any of them would be a second rule free to
     # disagree with the one an agent meets. What it names is the COMPLETED
     # path, which is the file that was actually asked for.
-    When I create the outline "../escape.olai" from the sidebar
-    Then the outline creation is refused saying "is not a relative `.olai` path"
+    When I create the outline "../escape.org" from the sidebar
+    Then the outline creation is refused saying "is not a relative `.org` path"
     When I create the outline "../escape" from the sidebar
-    Then the outline creation is refused saying "`../escape.olai` is not a relative"
+    Then the outline creation is refused saying "`../escape.org` is not a relative"
 
   Scenario: A path that names a PLACE reaches the planner as it was typed
-    # Every suffix begins with a dot, so completing `..` would make `...olai`
+    # Every suffix begins with a dot, so completing `..` would make `...org`
     # — an ordinary filename the planner takes, where it used to say "no
     # `..`". The completion declines those, and the paragraph goes on naming
     # what was actually typed.
     When I create the outline ".." from the sidebar
-    Then the outline creation is refused saying "`..` is not a relative `.olai` path"
+    Then the outline creation is refused saying "`..` is not a relative `.org` path"
     When I create the outline "." from the sidebar
-    Then the outline creation is refused saying "`.` is not a relative `.olai` path"
+    Then the outline creation is refused saying "`.` is not a relative `.org` path"
     When I create the outline "notes/" from the sidebar
-    Then the outline creation is refused saying "`notes/` is not a relative `.olai` path"
-    And the outline list does not link to "...olai"
+    Then the outline creation is refused saying "`notes/` is not a relative `.org` path"
+    And the outline list does not link to "...org"
 
   Scenario: A name carrying the other kind's suffix is the box's own refusal
     # The one verdict this side makes for itself, because it is about WHICH
     # DOOR you are at — a question the ops layer never sees, since what reaches
     # it is one completed path. Short words, and it says what to type instead.
     When I create the outline "notes.md" from the sidebar
-    Then the outline creation is refused saying "`notes.md` is a document, not an outline — type `notes` to make `notes.olai`."
+    Then the outline creation is refused saying "`notes.md` is a document, not an outline — type `notes` to make `notes.org`."
     # The other half of advice that ends "type `notes`": the box still holds
     # what was typed, so there is something to edit into it.
     And the new outline box still holds "notes.md"
-    And the address is "/house.olai"
+    And the address is "/house.org"
 
   Scenario: Escape puts the box away and writes nothing
     When I open the new outline box
-    And I fill the new outline box with "plans/next.olai"
+    And I fill the new outline box with "plans/next.org"
     And I press "Escape"
     Then the new outline box is gone
-    And the outline list does not link to "plans/next.olai"
+    And the outline list does not link to "plans/next.org"

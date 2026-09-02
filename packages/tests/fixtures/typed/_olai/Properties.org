@@ -1,0 +1,71 @@
+* agent
+:PROPERTIES:
+:ID: prop-agent
+:OLAI_KIND: regular
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "agent"
+:OLAI_CUSTOM: {"type":"ref","under":"agents"}
+:END:
+
+* brief
+:PROPERTIES:
+:ID: prop-brief
+:OLAI_KIND: regular
+:OLAI_ORD: "a1"
+:OLAI_TITLE: "brief"
+:OLAI_CUSTOM: {"base":"root","type":"doc"}
+:END:
+
+* dispatched
+:PROPERTIES:
+:ID: prop-dispatched
+:OLAI_KIND: regular
+:OLAI_ORD: "a2"
+:OLAI_TITLE: "dispatched"
+:OLAI_CUSTOM: {"type":"date"}
+:END:
+
+* merge
+:PROPERTIES:
+:ID: prop-merge
+:OLAI_KIND: regular
+:OLAI_ORD: "a3"
+:OLAI_TITLE: "merge"
+:OLAI_CUSTOM: {"type":"ref"}
+:END:
+
+** automatic
+:PROPERTIES:
+:ID: auto
+:OLAI_KIND: regular
+:OLAI_PARENT: "prop-merge"
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "automatic"
+:END:
+
+** the human merges
+:PROPERTIES:
+:ID: human
+:OLAI_KIND: regular
+:OLAI_PARENT: "prop-merge"
+:OLAI_ORD: "a1"
+:OLAI_TITLE: "the human merges"
+:END:
+
+* records
+:PROPERTIES:
+:ID: prop-records
+:OLAI_KIND: regular
+:OLAI_ORD: "a4"
+:OLAI_TITLE: "records"
+:OLAI_CUSTOM: {"type":"int"}
+:END:
+
+* worktree
+:PROPERTIES:
+:ID: prop-worktree
+:OLAI_KIND: regular
+:OLAI_ORD: "a5"
+:OLAI_TITLE: "worktree"
+:OLAI_CUSTOM: {"type":"odu-worktree"}
+:END:

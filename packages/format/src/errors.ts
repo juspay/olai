@@ -106,7 +106,7 @@ const CATALOGUE = {
   "duplicate-id": "set",
   /** `parent` names an id no record in the set declares. */
   "unknown-parent": "set",
-  /** `parent` resolves, but in another file. Every `.olai` is an independent
+  /** `parent` resolves, but in another file. Every `.org` is an independent
    *  tree; cross-file relations are mirrors and edges.
    *
    *  It names the parent's site as a POINTER and not as a second fault
@@ -134,7 +134,7 @@ const CATALOGUE = {
   "missing-doc": "set",
   /**
    * A PROPERTY does not fit what its key declares — or a declaration in
-   * `_olai/Properties.olai` does not say a type this format knows
+   * `_olai/Properties.org` does not say a type this format knows
    * ({@link ./typing.ts}).
    *
    * ONE code for the two, the way `bad-repeat` is one for the rule and the
@@ -397,7 +397,7 @@ export const isCrossFile = (error: OutlineError): boolean => blamedOn(error).len
  *  and `unreadable-file`, about one FILE that will not open), and the rule
  *  lives here rather than in whichever renderer noticed first, which is the
  *  same argument {@link errorLine} makes: the browser's rows and an agent's
- *  one-liner must not disagree about whether `plan.olai:0` is a line number
+ *  one-liner must not disagree about whether `plan.org:0` is a line number
  *  somebody could go and look for.
  *
  *  Asked of a {@link Site} rather than of an error: the `line` it reads is the

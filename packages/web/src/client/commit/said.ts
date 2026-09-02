@@ -2,7 +2,7 @@
  * What a change is CALLED on screen.
  *
  * The panel never shows a text diff, and this is the whole reason it does not
- * have to: a `.olai` diff is one enormous line per node with everything on it
+ * have to: a raw `.org` diff exposes a multi-line storage drawer with everything on it
  * changing at once, and what a reader actually wants is the sentence. So
  * `@olai/format` classifies a change into one `Sort` — once, on the server,
  * from the fields that differ and what they became — and this is the table that
@@ -522,8 +522,8 @@ export const HOW_TONE: Readonly<Record<How, string>> = {
  * The wire carries `from` repo-root-relative on both kinds of row — the one
  * unambiguous name a file has across a repository, and the namespace a commit
  * request ticks in. The other-files list draws that name as it is; the outline
- * list draws SERVED names (`roadmap.olai`, not `docs/roadmap.olai`), and
- * `docs/a.olai → b.olai` on one line is two spellings of the same directory in
+ * list draws SERVED names (`roadmap.org`, not `docs/roadmap.org`), and
+ * `docs/a.org → b.org` on one line is two spellings of the same directory in
  * six inches of screen.
  *
  * A file from OUTSIDE the served root keeps its repo-relative name, which is

@@ -186,7 +186,7 @@ export const MCP: ExposeMap<typeof surface.spec> = {
  * `pins` is a FOURTH, and the one that is a READING rather than a projection of
  * the files: the sidebar's shelf, answered per revision (`@olai/format`'s
  * `shelfOf`). An agent has no use for it and is not offered it — the shelf is an
- * ordinary outline, `Pins.olai`, and an agent reads it with `read_subtree` and
+ * ordinary outline, `Pins.org`, and an agent reads it with `read_subtree` and
  * writes it with `add_node` / `move_node` / `trash_node`, which is the whole
  * point of the convention being titles in a file (docs/format.md's Pins). What
  * this member adds for a BROWSER is the resolution — a pin's node named as it

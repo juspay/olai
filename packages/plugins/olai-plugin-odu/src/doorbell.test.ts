@@ -69,7 +69,7 @@ const under = (
   }}`
 
 /** The declarations file, saying what a key is. A declaration is read from
- *  `_olai/Properties.olai` and from nowhere else — a `prop-*` row parked in
+ *  `_olai/Properties.org` and from nowhere else — a `prop-*` row parked in
  *  the board file itself is prose, which is the mistake this helper exists
  *  once against. */
 const declaring = (key = "worktree"): string =>
@@ -86,8 +86,8 @@ const claimsOf = (files: Record<string, string>, file: string) => {
 }
 
 const BOARD = {
-  "_olai/Properties.olai": declaring(),
-  "lanes.olai": [
+  "_olai/Properties.org": declaring(),
+  "lanes.org": [
     marked("lane-a", "the e2e lane", "doing", { worktree: ".worktrees/a" }),
     marked("lane-b", "the docs lane", "doing", { worktree: ".worktrees/b" }),
   ].join("\n"),
@@ -150,12 +150,12 @@ const settled = (
   reddened,
 })
 
-const CLAIM: Claim = { value: ".worktrees/a", node: "lane-a", title: "the e2e lane", file: "lanes.olai" }
+const CLAIM: Claim = { value: ".worktrees/a", node: "lane-a", title: "the e2e lane", file: "lanes.org" }
 
 // ── The claimed set ──────────────────────────────────────────────────────
 
 test("a file's un-done nodes claiming a worktree are the claimed set", () => {
-  const claims = claimsOf(BOARD, "lanes.olai")
+  const claims = claimsOf(BOARD, "lanes.org")
   expect(claims.map(({ value, node }) => ({ value, node }))).toEqual([
     { value: ".worktrees/a", node: "lane-a" },
     { value: ".worktrees/b", node: "lane-b" },
@@ -164,39 +164,39 @@ test("a file's un-done nodes claiming a worktree are the claimed set", () => {
 
 test("a mirrored lane claims through its TARGET", () => {
   const claims = claimsOf({
-    "_olai/Properties.olai": declaring(),
-    "lanes.olai": `{"id":"m","ord":"a1","mirror":"lane-a"}`,
-    "projects/the-thing/Records.olai": [
+    "_olai/Properties.org": declaring(),
+    "lanes.org": `{"id":"m","ord":"a1","mirror":"lane-a"}`,
+    "projects/the-thing/Records.org": [
       marked("lane-a", "the e2e lane", "doing", { worktree: ".worktrees/a" }),
     ].join("\n"),
-  }, "lanes.olai")
+  }, "lanes.org")
   expect(claims).toEqual([{
     value: ".worktrees/a",
     node: "lane-a",
     title: "the e2e lane",
-    file: "projects/the-thing/Records.olai",
+    file: "projects/the-thing/Records.org",
   }])
 })
 
 test("a DONE lane claims nothing — finishing the lane turns the doorbell off", () => {
   expect(claimsOf({
-    "_olai/Properties.olai": declaring(),
-    "lanes.olai": marked("lane-a", "the e2e lane", "done", { worktree: ".worktrees/a" }),
-  }, "lanes.olai")).toEqual([])
+    "_olai/Properties.org": declaring(),
+    "lanes.org": marked("lane-a", "the e2e lane", "done", { worktree: ".worktrees/a" }),
+  }, "lanes.org")).toEqual([])
 })
 
 test("...and a CANCELLED lane claims nothing either — both marks end the wait", () => {
   expect(claimsOf({
-    "_olai/Properties.olai": declaring(),
-    "lanes.olai": marked("lane-a", "the e2e lane", "cancelled", { worktree: ".worktrees/a" }),
-  }, "lanes.olai")).toEqual([])
+    "_olai/Properties.org": declaring(),
+    "lanes.org": marked("lane-a", "the e2e lane", "cancelled", { worktree: ".worktrees/a" }),
+  }, "lanes.org")).toEqual([])
 })
 
 test("...and a BULLET nobody marked is not a task", () => {
   expect(claimsOf({
-    "_olai/Properties.olai": declaring(),
-    "lanes.olai": rec("lane-a", "the e2e lane", { worktree: ".worktrees/a" }),
-  }, "lanes.olai")).toEqual([])
+    "_olai/Properties.org": declaring(),
+    "lanes.org": rec("lane-a", "the e2e lane", { worktree: ".worktrees/a" }),
+  }, "lanes.org")).toEqual([])
 })
 
 test("nothing declared ANYWHERE: the plugin's OWN key carries the claim", () => {
@@ -204,39 +204,39 @@ test("nothing declared ANYWHERE: the plugin's OWN key carries the claim", () => 
   // exercises: an enabled odu claims the key `odu-worktree` by convention,
   // so a vault that has said nothing at all is heard on it.
   expect(claimsOf({
-    "lanes.olai": marked("lane-a", "the e2e lane", "doing", { "odu-worktree": ".worktrees/a" }),
-  }, "lanes.olai")).toEqual([{ value: ".worktrees/a", node: "lane-a", title: "the e2e lane", file: "lanes.olai" }])
+    "lanes.org": marked("lane-a", "the e2e lane", "doing", { "odu-worktree": ".worktrees/a" }),
+  }, "lanes.org")).toEqual([{ value: ".worktrees/a", node: "lane-a", title: "the e2e lane", file: "lanes.org" }])
 })
 
 test("an UNDECLARED column claims nothing — the licence is the declaration", () => {
   // The key's own spelling is `worktree`, and that is never read: no row
   // asked for a face, so the probe and the doorbell both let it sleep.
   expect(claimsOf({
-    "lanes.olai": marked("lane-a", "the e2e lane", "doing", { worktree: ".worktrees/a" }),
-  }, "lanes.olai")).toEqual([])
+    "lanes.org": marked("lane-a", "the e2e lane", "doing", { worktree: ".worktrees/a" }),
+  }, "lanes.org")).toEqual([])
 })
 
 test("a settled CARRYING node under a live lane claims nothing", () => {
   expect(claimsOf({
-    "_olai/Properties.olai": declaring(),
-    "lanes.olai": [
+    "_olai/Properties.org": declaring(),
+    "lanes.org": [
       marked("lane-a", "the e2e lane", "doing"),
       under("step-1", "lane-a", "a0", "fold the review", "done", { worktree: ".worktrees/a" }),
     ].join("\n"),
-  }, "lanes.olai")).toEqual([])
+  }, "lanes.org")).toEqual([])
 })
 
 // ── The join ─────────────────────────────────────────────────────────────
 
 test("two rows naming ONE checkout coalesce into one claim, first writer wins", () => {
   const claims = claimsOf({
-    "_olai/Properties.olai": declaring(),
-    "lanes.olai": [
+    "_olai/Properties.org": declaring(),
+    "lanes.org": [
       marked("lane-a", "the e2e lane", "doing", { worktree: ".worktrees/a" }),
       marked("lane-b", "a copied row", "doing", { worktree: ".worktrees/a" }),
     ].join("\n"),
-  }, "lanes.olai")
-  expect(claims).toEqual([{ value: ".worktrees/a", node: "lane-a", title: "the e2e lane", file: "lanes.olai" }])
+  }, "lanes.org")
+  expect(claims).toEqual([{ value: ".worktrees/a", node: "lane-a", title: "the e2e lane", file: "lanes.org" }])
   expect(claimingIn(claims).get(".worktrees/a")?.node).toBe("lane-a")
 })
 
@@ -258,7 +258,7 @@ test("first-red names the lane, the node, and the counts so far", () => {
   expect(said).toContain("ci 8f8fe56#2")
   expect(said).toContain("live in /home/x/code/odu/.worktrees/a")
   expect(said).toContain("`lane-a`")
-  expect(said).toContain("lanes.olai")
+  expect(said).toContain("lanes.org")
   expect(said).toContain("once per hold")
   expect(said).toContain("Written by olai's odu watcher at 2026-09-02 11:20 UTC, not by a person.")
   expect(said).toContain("Clearing the file on this conversation's wake control stops both.")
@@ -269,7 +269,7 @@ test("a mirrored claim's sentence names the TARGET's file, not the filter", () =
     value: ".worktrees/a",
     node: "lane-a",
     title: "the e2e lane",
-    file: "projects/the-thing/Records.olai",
+    file: "projects/the-thing/Records.org",
   }
   const said = bodyFor(firstRed(), claim, "2026-09-02T11:20:00.000Z", {
     total: 10,
@@ -277,8 +277,8 @@ test("a mirrored claim's sentence names the TARGET's file, not the filter", () =
     ok: 8,
     red: 1,
   })
-  expect(said).toContain("`lane-a` of projects/the-thing/Records.olai")
-  expect(said).not.toContain("lanes.olai")
+  expect(said).toContain("`lane-a` of projects/the-thing/Records.org")
+  expect(said).not.toContain("lanes.org")
 })
 
 test("a settle with a green verdict comes out green, and names a rerun flake by name", () => {
@@ -334,7 +334,7 @@ test("an unclaimed run rings nothing — silence, and silence means no call at a
   // The dispatch dropped the drift arm on purpose: the test is not the
   // absence of a delivery here (that is `server.ts`'s loop's word), it is
   // that there is no fourth arm in this module at all.
-  expect(claimingIn(claimsOf(BOARD, "lanes.olai")).has(".worktrees/never-heard")).toBe(false)
+  expect(claimingIn(claimsOf(BOARD, "lanes.org")).has(".worktrees/never-heard")).toBe(false)
 })
 
 test("the coalesce key is per kind per run, not per worktree", () => {

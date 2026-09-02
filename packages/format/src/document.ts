@@ -213,7 +213,7 @@ export const faceOf = ({ path, title, links, tags, props }: Document): Face => (
 })
 
 /**
- * A `.olai`: the records this app is about, and the face they add up to.
+ * A `.org`: the records this app is about, and the face they add up to.
  *
  * `nodes` is the tree exactly as it always was — ids, positions, marks, dates,
  * edges, props, every field of {@link ./node.ts} — carried as {@link Located},
@@ -354,7 +354,7 @@ export const outlineDocument = (
     links,
     tags,
     // A FILE writes no properties of its own here: an outline's named facts
-    // are on its records, where `set_prop` puts them, and a `.olai` has no
+    // are on its records, where `set_prop` puts them, and a `.org` has no
     // frontmatter to read. Empty because nothing wrote one, which is the same
     // sentence the unkept arm's empty `links` says.
     props: {},

@@ -138,7 +138,7 @@ export interface PluginServerHalf<Revision> extends PluginWire {
   readonly probe?: (env: Record<string, string | undefined>) => Promise<Probed>
   /**
    * WHAT THIS PLUGIN TEACHES THE VAULT'S VOCABULARY — the kinds a
-   * `_olai/Properties.olai` may declare and this plugin will answer for
+   * `_olai/Properties.org` may declare and this plugin will answer for
    * ({@link PropKind}).
    *
    * ON THIS DOOR rather than on the manifest, for {@link probe}'s reason and
@@ -294,7 +294,7 @@ export interface PluginServerHalf<Revision> extends PluginWire {
      *
      * ## IT USED TO BE NOTHING AT ALL, and the silence was the defect
      *
-     * A person scopes a conversation to `lanes.olai`; somebody renames the
+     * A person scopes a conversation to `lanes.org`; somebody renames the
      * file. The doorbell's derivation is a pure function of the revision and
      * finds no such file, so it derives nothing — forever — while the strip
      * goes on drawing the control as ON. That silence is byte for byte the

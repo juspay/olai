@@ -1,0 +1,64 @@
+* kitchen remodel #home
+:PROPERTIES:
+:ID: kitchen
+:OLAI_KIND: regular
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "kitchen remodel #home"
+:END:
+
+** take out the old counters
+:PROPERTIES:
+:ID: demo
+:OLAI_KIND: regular
+:OLAI_PARENT: "kitchen"
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "take out the old counters"
+:OLAI_DONE: "2026-08-03"
+:END:
+
+** order the new cabinets
+:PROPERTIES:
+:ID: order
+:OLAI_KIND: regular
+:OLAI_PARENT: "kitchen"
+:OLAI_ORD: "a1"
+:OLAI_TITLE: "order the new cabinets"
+:END:
+
+** install the cabinets
+:PROPERTIES:
+:ID: install
+:OLAI_KIND: regular
+:OLAI_PARENT: "kitchen"
+:OLAI_ORD: "a2"
+:OLAI_TITLE: "install the cabinets"
+:OLAI_DOING: "2026-08-02"
+:END:
+
+*** pick the hinges
+:PROPERTIES:
+:ID: hinges
+:OLAI_KIND: regular
+:OLAI_PARENT: "install"
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "pick the hinges"
+:OLAI_DESC: "brass, if the budget survives"
+:END:
+
+*** chase the supplier
+:PROPERTIES:
+:ID: chase-supplier
+:OLAI_KIND: regular
+:OLAI_PARENT: "install"
+:OLAI_ORD: "a1"
+:OLAI_TITLE: "chase the supplier"
+:END:
+
+** chase the supplier
+:PROPERTIES:
+:ID: chase-tiler
+:OLAI_KIND: regular
+:OLAI_PARENT: "kitchen"
+:OLAI_ORD: "a3"
+:OLAI_TITLE: "chase the supplier"
+:END:

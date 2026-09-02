@@ -127,7 +127,7 @@ Then(
 /**
  * MAKE THE WATCHER SPEAK NOW.
  *
- * `_olai/Kolu.olai` is the file that paces the watch, and `held-for` is how long
+ * `_olai/Kolu.org` is the file that paces the watch, and `held-for` is how long
  * a terminal must sit in a state before it is worth saying anything about. The
  * fixture's fleet already holds one — `review: grok`'s terminal, which padi says
  * is blocked on a person — so lowering the debounce re-arms that standing hold
@@ -142,7 +142,7 @@ Then(
  */
 When("the watch is told to report a held terminal at once", function (this: OlaiWorld) {
   this.writeServed(
-    "_olai/Kolu.olai",
+    "_olai/Kolu.org",
     `{"id":"watch","ord":"a0","title":"watch","custom":{"held-for":"0s"}}`,
   );
 });

@@ -15,7 +15,7 @@
  * key's spelling — and a declaration comes from either of two places, folded
  * once (`@olai/format`'s `withClaims`):
  *
- *   1. **the vault's row** in `_olai/Properties.olai`, which always wins; and
+ *   1. **the vault's row** in `_olai/Properties.org`, which always wins; and
  *   2. **this kind's `claims`**, the key odu owns by convention, which applies
  *      to a vault that has said nothing about that key.
  *

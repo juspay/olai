@@ -1070,7 +1070,7 @@ const propClause = (
 
 /**
  * What a key DECLARES — `undefined` for one nobody declared, which is every key
- * in a vault with no `_olai/Properties.olai` and most keys in one that has.
+ * in a vault with no `_olai/Properties.org` and most keys in one that has.
  *
  * A PLAIN LOOKUP, and that is the reconciliation rather than a shortcut: the
  * map's own keys are folded ({@link ../typing.ts}'s `keyOf`) and this token
@@ -2771,7 +2771,7 @@ const namedInScope = (
  * caller's own scope already holds it. One boolean per call, read before the
  * walk.
  *
- * A LEFTOVER `Archive.olai` is orphaned from every query, including
+ * A LEFTOVER `Archive.org` is orphaned from every query, including
  * `is:trashed`: it is not trash, and it is not live work either. The file's own
  * page still draws unfiltered; a query does not re-enter it.
  *
@@ -3260,7 +3260,7 @@ export const documentHayOf = (document: Bodied): string => {
  * filter over an open outline page wants and what a `search` with `file` means.
  *
  * The archive rule does not reach here either. What is put away is an
- * `_olai/Trash.olai`, which is an outline; a `.md` beside one is a document like
+ * `_olai/Trash.org`, which is an outline; a `.md` beside one is a document like
  * any other.
  *
  * ## What an index may say here

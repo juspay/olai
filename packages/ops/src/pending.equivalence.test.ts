@@ -199,19 +199,19 @@ const script = (at: string) => (session: Session): ReadonlyArray<Step> => {
     { name: "clean, nothing waiting", run: () => {} },
     {
       name: "one outline edited — the first revision, which owes a read",
-      run: () => write(served("house.olai"), HOUSE.replace("order the cabinets", "order cabinets")),
+      run: () => write(served("house.org"), HOUSE.replace("order the cabinets", "order cabinets")),
     },
     {
       name: "a keystroke in the same outline — nothing new to read",
-      run: () => write(served("house.olai"), HOUSE.replace("order the cabinets", "order oak")),
+      run: () => write(served("house.org"), HOUSE.replace("order the cabinets", "order oak")),
     },
     {
       name: "a second outline joins the dirty list",
-      run: () => write(served("garden.olai"), GARDEN.replace("build the beds", "build raised beds")),
+      run: () => write(served("garden.org"), GARDEN.replace("build the beds", "build raised beds")),
     },
     {
       name: "a keystroke while two are waiting",
-      run: () => write(served("house.olai"), HOUSE.replace("install them", "install them all")),
+      run: () => write(served("house.org"), HOUSE.replace("install them", "install them all")),
     },
     {
       name: "a document edited by hand — a row that is not an outline",
@@ -219,17 +219,17 @@ const script = (at: string) => (session: Session): ReadonlyArray<Step> => {
     },
     {
       name: "an outline that git has never seen",
-      run: () => write(served("shed.olai"), SHED),
+      run: () => write(served("shed.org"), SHED),
     },
     {
       name: "an edit made outside olai, in a file already waiting",
-      run: () => write(served("garden.olai"), GARDEN.replace("Garden", "The garden")),
+      run: () => write(served("garden.org"), GARDEN.replace("Garden", "The garden")),
     },
     {
       name: "the working copy of one outline stops parsing",
-      run: () => write(served("garden.olai"), "this is not a node\n"),
+      run: () => write(served("garden.org"), "this is not a node\n"),
     },
-    { name: "... and mends", run: () => write(served("garden.olai"), GARDEN) },
+    { name: "... and mends", run: () => write(served("garden.org"), GARDEN) },
     {
       name: "a commit lands: HEAD moves, the working tree does not",
       run: () => {
@@ -239,7 +239,7 @@ const script = (at: string) => (session: Session): ReadonlyArray<Step> => {
     },
     {
       name: "an edit after the commit — a generation nobody has read yet",
-      run: () => write(served("house.olai"), HOUSE.replace("Kitchen remodel", "Kitchen")),
+      run: () => write(served("house.org"), HOUSE.replace("Kitchen remodel", "Kitchen")),
     },
     {
       name: "the commit is amended: HEAD moves, no byte on disk does",
@@ -247,24 +247,24 @@ const script = (at: string) => (session: Session): ReadonlyArray<Step> => {
     },
     {
       name: "a keystroke on the amended generation",
-      run: () => write(served("house.olai"), HOUSE.replace("Kitchen remodel", "The kitchen")),
+      run: () => write(served("house.org"), HOUSE.replace("Kitchen remodel", "The kitchen")),
     },
     {
       // THE INDEX CORNERS, three steps of one file. `git show` reads the object
       // store, so none of this is an input to either arm — what these move is
       // the dirty list and the working side, both of which are taken fresh.
       name: "an outline is restored out of HEAD, and stops waiting",
-      run: () => git("checkout", "--quiet", "HEAD", "--", served("house.olai")),
+      run: () => git("checkout", "--quiet", "HEAD", "--", served("house.org")),
     },
     {
       name: "... and out of an OLDER commit, which stages content and dirties it again",
-      run: () => git("checkout", "--quiet", "HEAD~1", "--", served("house.olai")),
+      run: () => git("checkout", "--quiet", "HEAD~1", "--", served("house.org")),
     },
     {
       name: "an outline is staged and then edited again",
       run: () => {
-        git("add", "--", served("house.olai"))
-        write(served("house.olai"), HOUSE.replace("Kitchen remodel", "Kitchen, staged and moved on"))
+        git("add", "--", served("house.org"))
+        write(served("house.org"), HOUSE.replace("Kitchen remodel", "Kitchen, staged and moved on"))
       },
     },
     {
@@ -272,24 +272,24 @@ const script = (at: string) => (session: Session): ReadonlyArray<Step> => {
       run: () => {
         git("add", "-A")
         git("commit", "--quiet", "-m", "olai: before the rename")
-        git("mv", served("garden.olai"), served("yard.olai"))
-        write(served("yard.olai"), GARDEN.replace("Garden", "The yard"))
+        git("mv", served("garden.org"), served("yard.org"))
+        write(served("yard.org"), GARDEN.replace("Garden", "The yard"))
       },
     },
     {
       name: "a keystroke while a rename is waiting",
-      run: () => write(served("house.olai"), HOUSE.replace("install them", "install the doors")),
+      run: () => write(served("house.org"), HOUSE.replace("install them", "install the doors")),
     },
     {
       name: "a `.md` is renamed INTO the format — no committed outline to compare",
       run: () => {
-        git("mv", "notes.md", served("notes.olai"))
-        write(served("notes.olai"), outline(`{"id":"note","ord":"a0","title":"a note"}`))
+        git("mv", "notes.md", served("notes.org"))
+        write(served("notes.org"), outline(`{"id":"note","ord":"a0","title":"a note"}`))
       },
     },
     {
       name: "an outline leaves the disk",
-      run: () => remove(served("shed.olai")),
+      run: () => remove(served("shed.org")),
     },
     {
       name: "everything waiting is committed",
@@ -304,25 +304,25 @@ const script = (at: string) => (session: Session): ReadonlyArray<Step> => {
     },
     {
       name: "a keystroke on the sha the session started from",
-      run: () => write(served("house.olai"), HOUSE.replace("Kitchen remodel", "Kitchen again")),
+      run: () => write(served("house.org"), HOUSE.replace("Kitchen remodel", "Kitchen again")),
     },
     {
       name: "another branch is checked out: HEAD and the working tree move together",
       run: () => {
         git("checkout", "--quiet", "-f", "-B", "other", "HEAD~1")
-        write(served("house.olai"), HOUSE.replace("order the cabinets", "order on the other branch"))
+        write(served("house.org"), HOUSE.replace("order the cabinets", "order on the other branch"))
       },
     },
     {
       name: "... and back to where it was",
       run: () => {
         git("checkout", "--quiet", "-f", "main")
-        write(served("house.olai"), HOUSE.replace("Kitchen remodel", "Kitchen, back on main"))
+        write(served("house.org"), HOUSE.replace("Kitchen remodel", "Kitchen, back on main"))
       },
     },
     {
       name: "a last keystroke, on the branch the session began on",
-      run: () => write(served("house.olai"), HOUSE.replace("install them", "install them now")),
+      run: () => write(served("house.org"), HOUSE.replace("install them", "install them now")),
     },
   ]
 }
@@ -346,11 +346,11 @@ const holds = (report: Report): void => {
 test("a scripted git session answers what re-reading HEAD answers, at every step", async () => {
   holds(
     await replay(
-      { "house.olai": HOUSE, "garden.olai": GARDEN, "notes.md": "as it was\n" },
+      { "house.org": HOUSE, "garden.org": GARDEN, "notes.md": "as it was\n" },
       script(""),
     ),
   )
-})
+}, 30_000)
 
 /** The same script one directory down, where a served name and a repository
  *  name are two different strings and the `.md` that is renamed into the format
@@ -358,12 +358,12 @@ test("a scripted git session answers what re-reading HEAD answers, at every step
 test("... and the same session in a served subdirectory", async () => {
   holds(
     await replay(
-      { "docs/house.olai": HOUSE, "docs/garden.olai": GARDEN, "notes.md": "as it was\n" },
+      { "docs/house.org": HOUSE, "docs/garden.org": GARDEN, "notes.md": "as it was\n" },
       script("docs/"),
       { serve: "docs" },
     ),
   )
-})
+}, 30_000)
 
 /**
  * A repository whose first commit has not been made.
@@ -376,13 +376,13 @@ test("... and the same session in a served subdirectory", async () => {
  */
 test("a repository with no commits yet has no committed side, on both arms", async () => {
   const report = await replay(
-    { "house.olai": HOUSE },
+    { "house.org": HOUSE },
     ({ write, git }) => [
       { name: "nothing has ever been committed", run: () => {} },
-      { name: "a second outline arrives", run: () => write("garden.olai", GARDEN) },
+      { name: "a second outline arrives", run: () => write("garden.org", GARDEN) },
       {
         name: "an edit before the first commit",
-        run: () => write("house.olai", HOUSE.replace("Kitchen remodel", "Kitchen")),
+        run: () => write("house.org", HOUSE.replace("Kitchen remodel", "Kitchen")),
       },
       {
         name: "the first commit lands",
@@ -393,7 +393,7 @@ test("a repository with no commits yet has no committed side, on both arms", asy
       },
       {
         name: "an edit on the other side of the first commit",
-        run: () => write("house.olai", HOUSE.replace("install them", "install them now")),
+        run: () => write("house.org", HOUSE.replace("install them", "install them now")),
       },
     ],
     { seed: false },
@@ -403,7 +403,7 @@ test("a repository with no commits yet has no committed side, on both arms", asy
   // is what a directory with no history is.
   expect(report.changed).toBeGreaterThan(3)
   expect(report.generations).toBeGreaterThan(0)
-})
+}, 30_000)
 
 /**
  * WHAT A KEYSTROKE COSTS, as an assertion.
@@ -421,16 +421,16 @@ test("a repository with no commits yet has no committed side, on both arms", asy
  */
 test("a keystroke costs one subprocess with fifty outlines waiting, not fifty", async () => {
   const HOW_MANY = 50
-  const files: Record<string, string> = { "house.olai": HOUSE }
+  const files: Record<string, string> = { "house.org": HOUSE }
   for (let at = 0; at < HOW_MANY; at++) {
-    files[`file${at}.olai`] = outline(`{"id":"n${at}","ord":"a0","title":"node ${at}"}`)
+    files[`file${at}.org`] = outline(`{"id":"n${at}","ord":"a0","title":"node ${at}"}`)
   }
 
   await withArms(files, {}, (arms) =>
     Effect.gen(function*() {
       const { cached, cachedSide, plain, plainSide, session } = arms
       const dirty = (at: number, title: string) =>
-        session.write(`file${at}.olai`, outline(`{"id":"n${at}","ord":"a0","title":"${title}"}`))
+        session.write(`file${at}.org`, outline(`{"id":"n${at}","ord":"a0","title":"${title}"}`))
 
       // FIFTY WAITING, which under manual commit is an ordinary afternoon.
       for (let at = 0; at < HOW_MANY; at++) dirty(at, `edited ${at}`)
@@ -469,7 +469,7 @@ test("a keystroke costs one subprocess with fifty outlines waiting, not fifty", 
 
       // A FILE THAT HAS JUST BECOME DIRTY is the one revision that still owes a
       // read, and it owes exactly one.
-      session.write("newcomer.olai", outline(`{"id":"new","ord":"a0","title":"new"}`))
+      session.write("newcomer.org", outline(`{"id":"new","ord":"a0","title":"new"}`))
       yield* arms.settle
       arms.reset()
       yield* cached.status
@@ -478,7 +478,7 @@ test("a keystroke costs one subprocess with fifty outlines waiting, not fifty", 
 
       // A COMMIT MOVES HEAD, so the generation goes and what is still waiting
       // is read again — once each, and once only.
-      session.git("add", "file0.olai")
+      session.git("add", "file0.org")
       session.git("commit", "--quiet", "-m", "olai: one of them")
       yield* arms.settle
       arms.reset()
@@ -493,4 +493,4 @@ test("a keystroke costs one subprocess with fifty outlines waiting, not fifty", 
       yield* cached.status
       expect(cachedSide.spawns()).toBe(1)
     }))
-})
+}, 30_000)

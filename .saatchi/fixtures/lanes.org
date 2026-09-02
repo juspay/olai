@@ -1,0 +1,59 @@
+* the lanes
+:PROPERTIES:
+:ID: lanes
+:OLAI_KIND: regular
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "the lanes"
+:END:
+
+** the plugin system
+:PROPERTIES:
+:ID: lane-plugins
+:OLAI_KIND: regular
+:OLAI_PARENT: "lanes"
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "the plugin system"
+:OLAI_CUSTOM: {"pr-url":"https://github.com/juspay/olai/pull/447","worktree":".worktrees/plugin-system"}
+:END:
+
+*** implement + open PR
+:PROPERTIES:
+:ID: plugins-implement
+:OLAI_KIND: regular
+:OLAI_PARENT: "lane-plugins"
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "implement + open PR"
+:OLAI_DOING: true
+:OLAI_CUSTOM: {"agent":"claude","terminal":"11111111"}
+:END:
+
+*** review: grok
+:PROPERTIES:
+:ID: plugins-review
+:OLAI_KIND: regular
+:OLAI_PARENT: "lane-plugins"
+:OLAI_ORD: "a1"
+:OLAI_TITLE: "review: grok"
+:OLAI_TODO: true
+:OLAI_CUSTOM: {"agent":"grok"}
+:END:
+
+** a lane with nothing running
+:PROPERTIES:
+:ID: lane-quiet
+:OLAI_KIND: regular
+:OLAI_PARENT: "lanes"
+:OLAI_ORD: "a1"
+:OLAI_TITLE: "a lane with nothing running"
+:END:
+
+*** implement + open PR
+:PROPERTIES:
+:ID: quiet-implement
+:OLAI_KIND: regular
+:OLAI_PARENT: "lane-quiet"
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "implement + open PR"
+:OLAI_DONE: "2026-08-24"
+:OLAI_CUSTOM: {"agent":"claude","terminal":"33333333"}
+:END:

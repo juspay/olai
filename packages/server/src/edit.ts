@@ -289,7 +289,7 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
     case "docNew":
       return Result.succeed({ op: "create-doc", file: edit.file })
     // …and the outline's own creation door, which resolves nothing for the same
-    // reason: the path is the caller's, and whether it is a relative `.olai`
+    // reason: the path is the caller's, and whether it is a relative `.org`
     // the set does not already hold is `create_outline`'s own judgement, in its
     // own words. No `seed` — a person's first row is an `add` at the anchor the
     // empty file offers (`Anchor`'s `first`).
@@ -416,12 +416,12 @@ const mirrorRequest = (
  * two doors, so its resolution went down to `@olai/format` (`inbox.ts`), and
  * the shelf has one, so this one is still here. The reasoning is the same — where the file is is a fact about the SET, so it is read here rather
  * than in a tab holding a file list some frames old, and one op is what keeps a
- * refused pin from leaving an empty `Pins.olai` behind.
+ * refused pin from leaving an empty `Pins.org` behind.
  *
- * WHERE ONE IS MINTED is `_olai/Pins.olai` and not the root (`mintedInto`,
+ * WHERE ONE IS MINTED is `_olai/Pins.org` and not the root (`mintedInto`,
  * human 2026-08-19): a file olai made because somebody pressed something is not
  * one of the reader's own, and the top level of a served directory is theirs.
- * The READING is untouched — a directory that already keeps a `Pins.olai`
+ * The READING is untouched — a directory that already keeps a `Pins.org`
  * anywhere goes on pinning into the file it has, which is what makes this a
  * change to the mint alone.
  *
@@ -433,7 +433,7 @@ const mirrorRequest = (
  * ## The NAME, when the gesture carried one
  *
  * The row's title is the address, and a named pin's is that address inside a
- * markdown link — the spelling `Pins.olai` has always had and the one an agent
+ * markdown link — the spelling `Pins.org` has always had and the one an agent
  * writes by hand (docs/format.md's Pins). It is composed HERE, beside the
  * placement, for the reason the placement is here: this is the one site that
  * knows the whole row it is about to add, so there is no moment at which a
@@ -800,7 +800,7 @@ const walkRequest = (
  * A row, taken back.
  *
  * `archive` is the whole of it, because `archive` is the whole of what the set
- * can do about a record it no longer wants: the node goes to `_olai/Trash.olai`
+ * can do about a record it no longer wants: the node goes to `_olai/Trash.org`
  * keeping its id, so anything pointing at it goes on resolving. That is a
  * trash rather than a shredder, and it is the same op `trash_node` runs.
  *
@@ -1076,7 +1076,7 @@ export const inverseOf = (
     case "docDay":
     // A minted OUTLINE is the same answer for the same reason, and it is the
     // one an existing arm already relies on: quick capture into a directory
-    // with no inbox mints `_olai/Inbox.olai`, and its ⌘Z takes the LINE back
+    // with no inbox mints `_olai/Inbox.org`, and its ⌘Z takes the LINE back
     // and leaves the file — an empty inbox behind the sidebar's Inbox entry,
     // which is a thing a reader can see, rather than a file quietly appearing
     // and disappearing.

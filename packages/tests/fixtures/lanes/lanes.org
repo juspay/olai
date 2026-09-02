@@ -1,0 +1,141 @@
+* the lanes
+:PROPERTIES:
+:ID: lanes
+:OLAI_KIND: regular
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "the lanes"
+:END:
+
+** the terminal door
+:PROPERTIES:
+:ID: lane-door
+:OLAI_KIND: regular
+:OLAI_PARENT: "lanes"
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "the terminal door"
+:OLAI_CUSTOM: {"item":"terminal-door","repo":"olai"}
+:END:
+
+*** implement + open PR
+:PROPERTIES:
+:ID: door-implement
+:OLAI_KIND: regular
+:OLAI_PARENT: "lane-door"
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "implement + open PR"
+:OLAI_DOING: true
+:OLAI_CUSTOM: {"agent":"claude","terminal":"11111111"}
+:END:
+
+*** review: grok
+:PROPERTIES:
+:ID: door-review
+:OLAI_KIND: regular
+:OLAI_PARENT: "lane-door"
+:OLAI_ORD: "a1"
+:OLAI_TITLE: "review: grok"
+:OLAI_TODO: true
+:OLAI_CUSTOM: {"agent":"grok","terminal":"22222222-2222-4222-8222-222222222222"}
+:END:
+
+** the quiet lane
+:PROPERTIES:
+:ID: lane-quiet
+:OLAI_KIND: regular
+:OLAI_PARENT: "lanes"
+:OLAI_ORD: "a1"
+:OLAI_TITLE: "the quiet lane"
+:END:
+
+*** implement + open PR
+:PROPERTIES:
+:ID: quiet-implement
+:OLAI_KIND: regular
+:OLAI_PARENT: "lane-quiet"
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "implement + open PR"
+:OLAI_DONE: "2026-08-24"
+:OLAI_CUSTOM: {"agent":"claude","terminal":"33333333"}
+:END:
+
+** a lane that finished
+:PROPERTIES:
+:ID: lane-old
+:OLAI_KIND: regular
+:OLAI_PARENT: "lanes"
+:OLAI_ORD: "a2"
+:OLAI_TITLE: "a lane that finished"
+:END:
+
+*** implement + open PR
+:PROPERTIES:
+:ID: old-implement
+:OLAI_KIND: regular
+:OLAI_PARENT: "lane-old"
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "implement + open PR"
+:OLAI_DONE: "2026-08-20"
+:OLAI_CUSTOM: {"agent":"claude","terminal":"44444444"}
+:END:
+
+** a lane whose column is not called `terminal`
+:PROPERTIES:
+:ID: lane-named
+:OLAI_KIND: regular
+:OLAI_PARENT: "lanes"
+:OLAI_ORD: "a3"
+:OLAI_TITLE: "a lane whose column is not called `terminal`"
+:END:
+
+*** implement + open PR
+:PROPERTIES:
+:ID: named-implement
+:OLAI_KIND: regular
+:OLAI_PARENT: "lane-named"
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "implement + open PR"
+:OLAI_DOING: true
+:OLAI_CUSTOM: {"agent":"claude","pty":"11111111"}
+:END:
+
+*** review: grok
+:PROPERTIES:
+:ID: named-review
+:OLAI_KIND: regular
+:OLAI_PARENT: "lane-named"
+:OLAI_ORD: "a1"
+:OLAI_TITLE: "review: grok"
+:OLAI_TODO: true
+:OLAI_CUSTOM: {"agent":"grok","where":"22222222-2222-4222-8222-222222222222"}
+:END:
+
+** a lane that declared nothing at all
+:PROPERTIES:
+:ID: lane-claimed
+:OLAI_KIND: regular
+:OLAI_PARENT: "lanes"
+:OLAI_ORD: "a4"
+:OLAI_TITLE: "a lane that declared nothing at all"
+:END:
+
+*** implement + open PR
+:PROPERTIES:
+:ID: claimed-implement
+:OLAI_KIND: regular
+:OLAI_PARENT: "lane-claimed"
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "implement + open PR"
+:OLAI_DOING: true
+:OLAI_CUSTOM: {"agent":"claude","kolu-terminal":"11111111"}
+:END:
+
+*** a column of my own
+:PROPERTIES:
+:ID: claimed-mine
+:OLAI_KIND: regular
+:OLAI_PARENT: "lane-claimed"
+:OLAI_ORD: "a1"
+:OLAI_TITLE: "a column of my own"
+:OLAI_TODO: true
+:OLAI_CUSTOM: {"agent":"grok","terminal-of-mine":"22222222-2222-4222-8222-222222222222"}
+:END:

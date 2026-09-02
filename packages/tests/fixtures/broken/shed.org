@@ -1,0 +1,16 @@
+* clear out the shed
+:PROPERTIES:
+:ID: shed
+:OLAI_KIND: regular
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "clear out the shed"
+:END:
+
+* hang up the rake
+:PROPERTIES:
+:ID: rake
+:OLAI_KIND: regular
+:OLAI_PARENT: "shhed"
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "hang up the rake"
+:END:

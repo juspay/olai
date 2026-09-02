@@ -13,13 +13,13 @@
  *     nobody upgrading asked for: a reader who never opened the row finds
  *     finished work gone from every outline until they flip one place
  *     either way).
- *   - THE OUT-VOTE is a page's claim — "house.olai is a story: show me how it
+ *   - THE OUT-VOTE is a page's claim — "house.org is a story: show me how it
  *     ended; the board owes me nothing" — kept as a per-file OVERRIDE,
  *     `olai.done.overrides`. What is an OVERRIDE rather than a fact the panel
  *     could have been asked for: the page says the word beside its own filter
  *     (`../filter/DoneFlip.tsx`), where "what about here?" is the question
  *     being answered. Stored the folds' way (../fold/memory.ts): the entry is
- *     a sorted JSON OBJECT of `{ "file.olai": "shown" | "hidden" }`, idempotent
+ *     a sorted JSON OBJECT of `{ "file.org": "shown" | "hidden" }`, idempotent
  *     under reprint so one render frame cannot write another's bytes; a page
  *     whose pick IS the default holds nothing, so the default is stored
  *     nowhere (no entry is "follow"). Two tabs flipping DIFFERENT pages are

@@ -15,17 +15,17 @@
  *
  * ## AND A TITLE THAT IS NOTHING BUT AN ADDRESS IS DRAWN AS THE PAGE IT NAMES
  *
- * `/orchestrator/orchestrator.olai` is a title this app WRITES: it is how a
+ * `/orchestrator/orchestrator.org` is a title this app WRITES: it is how a
  * pin is spelled, because storing a name beside the address would be storing a
  * copy of a fact the set already holds (docs/format.md's Pins). The sidebar's
  * shelf resolved those rows from the first day and the FILE's own page did
- * not — so opening `Pins.olai`, which the design invites, showed the plumbing
+ * not — so opening `Pins.org`, which the design invites, showed the plumbing
  * (maintainer, 2026-08-18: *wtf is this UI*).
  *
  * The fix is here rather than on that page, and that is the whole of it: a
  * title is rendered at view time — markdown is, tags are — and an address is
  * one more reading of the same string, so it is decided where every title is
- * decided and no page has a case of its own. `Pins.olai` is browsable because
+ * decided and no page has a case of its own. `Pins.org` is browsable because
  * it is an ordinary outline, and it now reads like one.
  *
  * A TITLE WRITTEN AS ONE MARKDOWN LINK to an address is the same face with a

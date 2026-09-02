@@ -34,7 +34,7 @@ import { TESTID } from "../testids.ts"
 
 installPipeline(pipeline)
 
-const NOTE = "house.olai"
+const NOTE = "house.org"
 
 test("a fenced block is highlighted, in classes rather than colours", () => {
   const html = renderMarkdown("```ts\nconst a = 1\n```\n", NOTE)
@@ -86,10 +86,10 @@ test("a footnote is a link to a note at the end", () => {
 // break under the reader's cursor.
 test("footnote ids belong to the block, not to the parser", () => {
   const source = "Cabinets[^1]\n\n[^1]: Walnut.\n"
-  const one = renderMarkdown(source, "house.olai")
-  const other = renderMarkdown(source, "garden.olai")
+  const one = renderMarkdown(source, "house.org")
+  const other = renderMarkdown(source, "garden.org")
   expect(one).not.toEqual(other)
-  expect(renderMarkdown(source, "house.olai")).toEqual(one)
+  expect(renderMarkdown(source, "house.org")).toEqual(one)
   // Nothing is left with the parser's own bare `fn-1`.
   expect(one).not.toContain(`id="fn-1"`)
   expect(one).toMatch(/id="md-[a-z0-9]+-fn-1"/)
@@ -173,7 +173,7 @@ test("a link in a note resolves beside the note, not beside the page", () => {
   expect(renderMarkdown(source, "notes/2026-08-12.md"))
     .toContain(`href="/notes/palette.md"`)
   // The same link written in an OUTLINE resolves beside the outline.
-  expect(renderMarkdown(source, "house.olai")).toContain(`href="/palette.md"`)
+  expect(renderMarkdown(source, "house.org")).toContain(`href="/palette.md"`)
 })
 
 // A fragment is two questions — which file, and where in it — so the path is
@@ -216,7 +216,7 @@ test("a link that is not a relative document is left exactly as written", () => 
     .toContain(`href="https://example.com/x.md"`)
   expect(renderMarkdown("[a](/finishes.md)", NOTE)).toContain(`href="/finishes.md"`)
   expect(renderMarkdown("[a](notes/rows.tsv)", NOTE)).toContain(`href="notes/rows.tsv"`)
-  expect(renderMarkdown("[a](house.olai)", NOTE)).toContain(`href="house.olai"`)
+  expect(renderMarkdown("[a](house.org)", NOTE)).toContain(`href="house.org"`)
 })
 
 // A PICTURE IS A PAGE NOW, so a link to one is rewritten like a link to a
@@ -287,8 +287,8 @@ test("a heading carries an id and a link to it", () => {
 // that the namespace is the BLOCK's.)
 test("heading ids belong to the block, not to the parser", () => {
   const source = "## Shape\n"
-  expect(renderMarkdown(source, "house.olai")).not
-    .toEqual(renderMarkdown(source, "garden.olai"))
+  expect(renderMarkdown(source, "house.org")).not
+    .toEqual(renderMarkdown(source, "garden.org"))
 })
 
 // The contents is derived from the RENDERING, so what it points at is what is

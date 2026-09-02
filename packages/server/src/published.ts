@@ -436,7 +436,7 @@ const changeOf = <S extends Document, T>(
   // dropped from what a FRESH subscriber reads and told to NOBODY — an open
   // reader kept it until reconnect, which is how a file removed via
   // `git checkout` + `resync` went on showing in every open sidebar
-  // (`https://github.com/juspay/oss.olai/blob/main/_olai/Inbox.olai`'s `phantom-sidebar-key-on-unnamed-remove`).
+  // (`https://github.com/juspay/oss.olai/blob/main/_olai/Inbox.org`'s `phantom-sidebar-key-on-unnamed-remove`).
   const minted = complete || held === undefined ? NO_MINTED : mintedOf(held, entries, moved.removed)
   return {
     entries,

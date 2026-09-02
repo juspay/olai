@@ -477,7 +477,7 @@ const TIED: ReadonlyArray<Case> = ((): ReadonlyArray<Case> => {
     readonly line: number
     readonly mark: string
   }
-  const left = (one: Row): boolean => one.file === "touched.olai"
+  const left = (one: Row): boolean => one.file === "touched.org"
   /** The file ignored ON PURPOSE — see above. */
   const byLineAlone = (one: Row, other: Row): number => one.line - other.line
   const written = (
@@ -497,18 +497,18 @@ const TIED: ReadonlyArray<Case> = ((): ReadonlyArray<Case> => {
   return [
     written(
       "written `every member ties, nothing leaves`",
-      [stood("a.olai", "stood first"), stood("b.olai", "stood second")],
-      [stood("touched.olai", "arrived")],
+      [stood("a.org", "stood first"), stood("b.org", "stood second")],
+      [stood("touched.org", "arrived")],
       ["last"],
     ),
     written(
       "written `every member ties, one leaves from the middle`",
       [
-        stood("a.olai", "stood first"),
-        stood("touched.olai", "left"),
-        stood("b.olai", "stood second"),
+        stood("a.org", "stood first"),
+        stood("touched.org", "left"),
+        stood("b.org", "stood second"),
       ],
-      [stood("touched.olai", "arrived")],
+      [stood("touched.org", "arrived")],
       ["moved", "last"],
     ),
   ]

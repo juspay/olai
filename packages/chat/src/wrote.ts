@@ -2,7 +2,7 @@
  * What an olai WRITE said for itself, read off the tool call that made it.
  *
  * The other half of "the transcript shows what the agent changed", and
- * deliberately the opposite shape from a diff. A `.olai` diff is one enormous
+ * deliberately the opposite shape from a diff. A `.org` diff is one enormous
  * line per node with everything on it changing at once — the rule the commit
  * panel is built on — so an olai write is drawn as the node-level story instead:
  * the format's own classification of the change (*marked done*, *note

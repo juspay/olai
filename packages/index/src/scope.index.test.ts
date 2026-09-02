@@ -33,6 +33,7 @@ import {
   readingOfVault,
   TANGLED,
 } from "@olai/format/testlib/scope"
+import { orgFixture } from "@olai/format/testlib"
 import { assemble, nodesIn, parseOutline, reading, verdictOf } from "@olai/format"
 import { expect, test } from "bun:test"
 import { Result } from "effect"
@@ -145,7 +146,7 @@ test("a write leaves the two narrowings still agreeing", () => {
       const edited = edit(text)
       if (edited === text) throw new Error(`the edit to ${file} changed nothing`)
       vault.set(file, edited)
-      decoded.set(file, Result.mapError(parseOutline(file, edited), verdictOf))
+      decoded.set(file, Result.mapError(parseOutline(file, orgFixture(edited)), verdictOf))
       read = reading(assemble(decoded), {
         read,
         delta: { upserts: [[file, { nodes: nodesIn(decoded.get(file)) }]], removes: [] },
@@ -157,7 +158,7 @@ test("a write leaves the two narrowings still agreeing", () => {
     // holds and leaves what the INDEX holds alone — the records under `d4n1`
     // still say every word they said, and are in no scope above it any more.
     rewritten(
-      "deep4.olai",
+      "deep4.org",
       (text) =>
         text.replace(
           /^\{"id":"d4n1".*$/m,
@@ -167,7 +168,7 @@ test("a write leaves the two narrowings still agreeing", () => {
     // ...and the other way round: the text of a record changes and where it
     // hangs does not, which moves what the index holds and leaves the scope
     // alone.
-    rewritten("deep7.olai", (text) => text.replaceAll("garden", "walnut"))
+    rewritten("deep7.org", (text) => text.replaceAll("garden", "walnut"))
   } finally {
     index.close()
   }

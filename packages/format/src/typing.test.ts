@@ -50,7 +50,7 @@ import { Result } from "effect"
  * proving something about a vault nobody has.
  */
 const FILES = {
-  "_olai/Properties.olai": [
+  "_olai/Properties.org": [
     `{"id":"prop-merge","ord":"a0","title":"merge","custom":{"type":"ref"}}`,
     `{"id":"auto","parent":"prop-merge","ord":"a0","title":"automatic"}`,
     `{"id":"human","parent":"prop-merge","ord":"a1","title":"the human merges"}`,
@@ -62,14 +62,14 @@ const FILES = {
     `{"id":"prop-item","ord":"a6","title":"item","custom":{"type":"node"}}`,
     `{"id":"prop-from","ord":"a7","title":"from","custom":{"type":"text"}}`,
   ].join("\n"),
-  "orchestrator/agents.olai": [
+  "orchestrator/agents.org": [
     `{"id":"agents-roster","ord":"a0","title":"the agents"}`,
     `{"id":"claude","parent":"agents-roster","ord":"a0","title":"Claude"}`,
     `{"id":"grok","parent":"agents-roster","ord":"a1","title":"Grok"}`,
     `{"id":"pi","parent":"agents-roster","ord":"a2","title":"pi"}`,
     `{"id":"a-mirror","parent":"agents-roster","ord":"a3","mirror":"lane"}`,
   ].join("\n"),
-  "orchestrator/lanes.olai": [
+  "orchestrator/lanes.org": [
     `{"id":"lane","ord":"a0","title":"the doc-backlinks lane"}`,
   ].join("\n"),
 }
@@ -89,11 +89,11 @@ const typed: Typed = {
   kinds: NO_KINDS,
 }
 
-/** What is wrong with a value on a record of `orchestrator/lanes.olai` — the
+/** What is wrong with a value on a record of `orchestrator/lanes.org` — the
  *  file the live board's lanes are in, so a relative `doc` is resolved from one
  *  directory in, exactly as it is on the real one. */
 const wrong = (key: string, value: string): string | undefined =>
-  wrongValue(typed, "orchestrator/lanes.olai", key, value)
+  wrongValue(typed, "orchestrator/lanes.org", key, value)
 
 /** An instant with a known offset, so the normaliser's one impure input is a
  *  constant here rather than the machine's zone. */
@@ -101,20 +101,20 @@ const NOW = "2026-08-25T10:06:00-04:00"
 
 /** What a door would STORE, or the sentence it refuses with. */
 const stored = (key: string, value: string): string =>
-  Result.match(storedValue(typed, "orchestrator/lanes.olai", key, value, NOW), {
+  Result.match(storedValue(typed, "orchestrator/lanes.org", key, value, NOW), {
     onSuccess: (held) => held,
     onFailure: (said) => `REFUSED: ${said}`,
   })
 
 // ── what a vault declares ──────────────────────────────────────────────
 
-test("a directory with no Properties.olai declares nothing, and every key is text", () => {
-  const bare = derive(nodesOfFiles({ "a.olai": `{"id":"one","ord":"a0","title":"one"}` }))
+test("a directory with no Properties.org declares nothing, and every key is text", () => {
+  const bare = derive(nodesOfFiles({ "a.org": `{"id":"one","ord":"a0","title":"one"}` }))
   expect(declarationsOf(bare, NO_KINDS)).toEqual(NO_TYPING)
   expect(
     wrongValue(
       { declarations: declarationsOf(bare, NO_KINDS), derived: bare, documents: new Set(), kinds: NO_KINDS },
-      "a.olai",
+      "a.org",
       "dispatched",
       "2026-08-25 10:06 (sweep queue #5)",
     ),
@@ -162,7 +162,7 @@ test("two readings of one vault DECLARE the same thing, and a moved declaration 
   expect(sameTyping(typed.declarations, declarationsOf(derive(nodesOfFiles(FILES)), NO_KINDS))).toBe(true)
   const moved = derive(nodesOfFiles({
     ...FILES,
-    "_olai/Properties.olai": FILES["_olai/Properties.olai"]
+    "_olai/Properties.org": FILES["_olai/Properties.org"]
       .replace(`"type":"date"`, `"type":"int"`),
   }))
   expect(sameTyping(typed.declarations, declarationsOf(moved, NO_KINDS))).toBe(false)
@@ -205,7 +205,7 @@ test("a path is one run with no spaces in it, and the remark is refused", () => 
 })
 
 test("a doc resolves against the naming outline's own directory", () => {
-  // Written on a record of `orchestrator/lanes.olai`, so `../briefs/pdb.md` is
+  // Written on a record of `orchestrator/lanes.org`, so `../briefs/pdb.md` is
   // the served document and a bare `briefs/pdb.md` is not.
   expect(wrong("brief", "../briefs/pdb.md")).toBeUndefined()
   const said = wrong("brief", "briefs/pdb.md")
@@ -240,7 +240,7 @@ test("a DANGLING ref value is flagged the way a dangling edge is — with a did-
   // thing that still exists.
   const without = derive(nodesOfFiles({
     ...FILES,
-    "orchestrator/agents.olai": FILES["orchestrator/agents.olai"]
+    "orchestrator/agents.org": FILES["orchestrator/agents.org"]
       .split("\n")
       .filter((line) => !line.includes(`"id":"grok"`))
       .join("\n"),
@@ -251,7 +251,7 @@ test("a DANGLING ref value is flagged the way a dangling edge is — with a did-
     documents: DOCUMENTS,
     kinds: NO_KINDS,
   }
-  expect(wrongValue(after, "orchestrator/lanes.olai", "agent", "grok")).toContain(
+  expect(wrongValue(after, "orchestrator/lanes.org", "agent", "grok")).toContain(
     "names a node under `agents-roster`",
   )
 })
@@ -260,8 +260,8 @@ test("a LIST is checked member by member, and the sentence quotes the bad one", 
   // No door writes one — `set_prop` and `add_node`'s map are text — so this arm
   // is reached by a hand-edited file alone, and it still has to answer.
   expect(wrong("pr", "190")).toBeUndefined()
-  expect(wrongValue(typed, "orchestrator/lanes.olai", "pr", ["190", "191"])).toBeUndefined()
-  expect(wrongValue(typed, "orchestrator/lanes.olai", "pr", ["190", "#191"]))
+  expect(wrongValue(typed, "orchestrator/lanes.org", "pr", ["190", "191"])).toBeUndefined()
+  expect(wrongValue(typed, "orchestrator/lanes.org", "pr", ["190", "#191"]))
     .toContain(`"#191"`)
 })
 
@@ -375,7 +375,7 @@ test("the bootstrap table is the words a declaration says about itself", () => {
 
 test("a bad type is refused naming the legal kinds and each one's shape", () => {
   const bent = derive(nodesOfFiles({
-    "_olai/Properties.olai": `{"id":"p","ord":"a0","title":"took","custom":{"type":"took"}}`,
+    "_olai/Properties.org": `{"id":"p","ord":"a0","title":"took","custom":{"type":"took"}}`,
   }))
   const said = wrongDeclaration(bent, bent.byId.get("p")!, new Set(), NO_KINDS)?.said
   expect(said).toContain("`type` is `took`, which is not a property type")
@@ -391,9 +391,9 @@ test("a bad type is refused naming the legal kinds and each one's shape", () => 
 
 test("unfitHeld names every existing value that would not fit a newly declared key", () => {
   const derived = derive(nodesOfFiles({
-    "_olai/Properties.olai":
+    "_olai/Properties.org":
       `{"id":"prop-brief","ord":"a0","title":"brainstorm","custom":{"type":"doc"}}`,
-    "lanes.olai": [
+    "lanes.org": [
       `{"id":"a","ord":"a0","title":"first","custom":{"brainstorm":"not a path"}}`,
       `{"id":"b","ord":"a1","title":"second","custom":{"brainstorm":"also prose"}}`,
       `{"id":"c","ord":"a2","title":"third","custom":{"brainstorm":"briefs/pdb.md"}}`,
@@ -408,7 +408,7 @@ test("unfitHeld names every existing value that would not fit a newly declared k
   const unfit = unfitHeld(typed, "brainstorm")
   expect(unfit.map((one) => one.id)).toEqual(["a", "b"])
   expect(unfit[0]).toMatchObject({
-    file: "lanes.olai",
+    file: "lanes.org",
     id: "a",
     title: "first",
     value: "not a path",
@@ -423,11 +423,11 @@ test("unfitHeld names every existing value that would not fit a newly declared k
 
 test("unfitHeld keeps a list's members beside the joined display string", () => {
   const derived = derive(nodesOfFiles({
-    "_olai/Properties.olai": [
+    "_olai/Properties.org": [
       `{"id":"prop-merge","ord":"a0","title":"merge","custom":{"type":"ref"}}`,
       `{"id":"auto","parent":"prop-merge","ord":"a0","title":"automatic"}`,
     ].join("\n"),
-    "lanes.olai":
+    "lanes.org":
       `{"id":"lane","ord":"a0","title":"a lane","custom":{"merge":["auto","nope"]}}`,
   }))
   const typed: Typed = {
@@ -446,7 +446,7 @@ test("unfitHeld keeps a list's members beside the joined display string", () => 
 
 test("a declaration missing its type is refused naming the same vocabulary", () => {
   const bent = derive(nodesOfFiles({
-    "_olai/Properties.olai": `{"id":"p","ord":"a0","title":"musts"}`,
+    "_olai/Properties.org": `{"id":"p","ord":"a0","title":"musts"}`,
   }))
   const said = wrongDeclaration(bent, bent.byId.get("p")!, new Set(), NO_KINDS)?.said
   expect(said).toContain("does not say its `type`")
@@ -458,7 +458,7 @@ test("a declaration missing its type is refused naming the same vocabulary", () 
 test("a vault cannot declare `type`, `under` or `base` — the recursion stops in the table", () => {
   const claiming = derive(nodesOfFiles({
     ...FILES,
-    "_olai/Properties.olai": `${FILES["_olai/Properties.olai"]}\n` +
+    "_olai/Properties.org": `${FILES["_olai/Properties.org"]}\n` +
       `{"id":"prop-type","ord":"a8","title":"type","custom":{"type":"int"}}\n` +
       `{"id":"prop-base","ord":"a9","title":"base","custom":{"type":"text"}}`,
   }))
@@ -472,7 +472,7 @@ test("a declaration the reading cannot make is skipped rather than guessed at", 
   // key half-typed, which would refuse every value of it in a file nobody
   // edited.
   const bent = derive(nodesOfFiles({
-    "_olai/Properties.olai": [
+    "_olai/Properties.org": [
       `{"id":"p-1","ord":"a0","title":"nokind"}`,
       `{"id":"p-2","ord":"a1","title":"unknown","custom":{"type":"colour"}}`,
       `{"id":"p-3","ord":"a2","title":"stray","custom":{"type":"date","under":"nowhere"}}`,
@@ -500,9 +500,9 @@ test("a declaration the reading cannot make is skipped rather than guessed at", 
 
 test("a contributed kind nobody answers for judges no value, and is still reported", () => {
   const bent = derive(nodesOfFiles({
-    "_olai/Properties.olai":
+    "_olai/Properties.org":
       `{"id":"p","ord":"a0","title":"unknown","custom":{"type":"colour"}}`,
-    "a.olai": `{"id":"one","ord":"a0","title":"one","custom":{"unknown":"anything at all"}}`,
+    "a.org": `{"id":"one","ord":"a0","title":"one","custom":{"unknown":"anything at all"}}`,
   }))
   const typed: Typed = {
     declarations: declarationsOf(bent, NO_KINDS),
@@ -512,7 +512,7 @@ test("a contributed kind nobody answers for judges no value, and is still report
   }
   // PLAIN TEXT, which is the whole of what a kind nobody is answering for
   // costs a vault: the value is still a name and nothing breaks.
-  expect(wrongValue(typed, "a.olai", "unknown", "anything at all")).toBeUndefined()
+  expect(wrongValue(typed, "a.org", "unknown", "anything at all")).toBeUndefined()
   // ...and the ONE finding is on the declarations file, naming the legal words
   // — the same sentence a build that HAS the plugin would not say at all.
   const said = wrongDeclaration(bent, bent.byId.get("p")!, new Set(), NO_KINDS)?.said
@@ -528,9 +528,9 @@ test("a kind this build knows is a legal declaration, and holds its values to th
     enabled: new Map<string, ContributedKind>(),
   }
   const bent = derive(nodesOfFiles({
-    "_olai/Properties.olai":
+    "_olai/Properties.org":
       `{"id":"p","ord":"a0","title":"pty","custom":{"type":"sprocket"}}`,
-    "a.olai": `{"id":"one","ord":"a0","title":"one","custom":{"pty":"a uuid, and a remark"}}`,
+    "a.org": `{"id":"one","ord":"a0","title":"one","custom":{"pty":"a uuid, and a remark"}}`,
   }))
   // THE DECLARATION IS ACCEPTED off the BUILT half, whether or not this serve
   // runs the plugin — a file's verdict may not depend on a flag it cannot see.
@@ -538,7 +538,7 @@ test("a kind this build knows is a legal declaration, and holds its values to th
   const held = (kinds: typeof KINDS): string | undefined =>
     wrongValue(
       { declarations: declarationsOf(bent, NO_KINDS), derived: bent, documents: new Set(), kinds },
-      "a.olai",
+      "a.org",
       "pty",
       "a uuid, and a remark",
     )
@@ -551,7 +551,7 @@ test("a kind this build knows is a legal declaration, and holds its values to th
 test("sameTyping tells one contributed word from another, so a retype re-asks every value", () => {
   const of = (word: string) =>
     declarationsOf(derive(nodesOfFiles({
-      "_olai/Properties.olai":
+      "_olai/Properties.org":
         `{"id":"p","ord":"a0","title":"pty","custom":{"type":"${word}"}}`,
     })), NO_KINDS)
   expect(sameTyping(of("sprocket"), of("sprocket"))).toBe(true)
@@ -571,7 +571,7 @@ test("a MIRROR cannot be where a ref's variants live", () => {
   // nobody was looking at. It is refused where the mistake is made now.
   const bent = derive(nodesOfFiles({
     ...FILES,
-    "_olai/Properties.olai":
+    "_olai/Properties.org":
       `{"id":"p","ord":"a0","title":"agent","custom":{"type":"ref","under":"a-mirror"}}`,
   }))
   // The key is NOT declared, so no value of it is refused for the wrong reason.
@@ -591,13 +591,13 @@ test("a ref's variants are capped in the sentence, and the did-you-mean is not",
     (_, at) => `{"id":"agent-${at}","parent":"roster","ord":"a${at}","title":"agent ${at}"}`,
   )
   const big = derive(nodesOfFiles({
-    "_olai/Properties.olai":
+    "_olai/Properties.org":
       `{"id":"p","ord":"a0","title":"agent","custom":{"type":"ref","under":"roster"}}`,
-    "r.olai": [`{"id":"roster","ord":"a0","title":"the agents"}`, ...many].join("\n"),
+    "r.org": [`{"id":"roster","ord":"a0","title":"the agents"}`, ...many].join("\n"),
   }))
   const said = wrongValue(
     { declarations: declarationsOf(big, NO_KINDS), derived: big, documents: new Set(), kinds: NO_KINDS },
-    "a.olai",
+    "a.org",
     "agent",
     "agent-29x",
   )
@@ -622,7 +622,7 @@ test("the declarations are read in LINE order, which is the order a duplicate is
   // reading keeps the EARLIER LINE and the rule reports the later one, so a
   // vault is never told to fix the very line its values are checked against.
   const crossed = derive(nodesOfFiles({
-    "_olai/Properties.olai": [
+    "_olai/Properties.org": [
       `{"id":"p-first","ord":"a9","title":"pr","custom":{"type":"int"}}`,
       `{"id":"p-second","ord":"a0","title":"pr","custom":{"type":"date"}}`,
     ].join("\n"),
@@ -632,7 +632,7 @@ test("the declarations are read in LINE order, which is the order a duplicate is
 
 test("a key declared twice differing only in case is one key declared twice", () => {
   const twice = derive(nodesOfFiles({
-    "_olai/Properties.olai": [
+    "_olai/Properties.org": [
       `{"id":"p1","ord":"a0","title":"merge","custom":{"type":"ref"}}`,
       `{"id":"p2","ord":"a1","title":"Merge","custom":{"type":"date"}}`,
     ].join("\n"),
@@ -646,7 +646,7 @@ test("a key declared twice differing only in case is one key declared twice", ()
  * THE FOLD, AS DATA — `withClaims`, which is the one place precedence lives.
  *
  * Two layers reach every reader of declarations in this tree as ONE map: a
- * vault's rows in `_olai/Properties.olai`, and the key an enabled plugin claims
+ * vault's rows in `_olai/Properties.org`, and the key an enabled plugin claims
  * by convention. These cases are about the precedence between them and nothing
  * else, so they hand the function two plain values rather than deriving either
  * from a set — the arithmetic is the subject, and a fixture vault would put a

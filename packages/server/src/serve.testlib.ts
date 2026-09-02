@@ -29,6 +29,7 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { DEFAULT_IDENTITY_CONFIG, type IdentityConfig } from "@olai/identity"
+import { orgFixture } from "@olai/format/testlib"
 import { serve } from "./serve.ts"
 // Twin of startWeb's OLAI_ACP_AGENT: "". None of these in-process boots
 // is about the chat panel, and a real `opencode` on PATH would spawn one
@@ -50,7 +51,7 @@ export const SERVER_LAYERS = Layer.mergeAll(
  *  not to refuse to start. */
 export const served = (): string => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-served-"))
-  fs.writeFileSync(path.join(root, "a.olai"), `{"id":"a","ord":"a0","title":"a"}\n`)
+  fs.writeFileSync(path.join(root, "a.org"), orgFixture(`{"id":"a","ord":"a0","title":"a"}\n`))
   return root
 }
 

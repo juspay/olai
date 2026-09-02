@@ -34,8 +34,8 @@ Feature: The agenda — what is owed, on one line of time
     # due on it.
     Then the agenda spine runs "late, late, late, today"
     And the spine's "late" days are "2019-10-30, 2019-11-03, 2019-11-05"
-    # TIME ORDER, across the outlines: `permit` is in work.olai and `visas` in
-    # life.olai, and on a line a day is where a node goes. The old page grouped
+    # TIME ORDER, across the outlines: `permit` is in work.org and `visas` in
+    # life.org, and on a line a day is where a node goes. The old page grouped
     # by file first and read "visas, permit, posts".
     And the spine's "late" rows are "permit, visas, posts"
     # `doing` IS overdue-capable (human, 2026-08-12): started-but-unfinished is
@@ -98,7 +98,7 @@ Feature: The agenda — what is owed, on one line of time
     # One predicate, read everywhere: the agenda's first section and the tone
     # of a date badge are the same question, so a row that is late reads late
     # in the tree it lives in as much as on the page that collects it.
-    Given I open the outline "work.olai"
+    Given I open the outline "work.org"
     Then the date on "posts" is overdue
     # And an occurrence's pill never turns amber, however long ago its day was.
     And the date on "delivery" is not overdue
@@ -134,9 +134,9 @@ Feature: The agenda — what is owed, on one line of time
     Given I open the agenda
     And I mark the page
     Then the agenda spine runs "late, late, late, today"
-    When something is scheduled for today in "work.olai"
+    When something is scheduled for today in "work.org"
     Then the spine's "today" rows are "due-today"
-    When something is scheduled for tomorrow in "work.olai"
+    When something is scheduled for tomorrow in "work.org"
     Then the agenda spine runs "late, late, late, today, ahead"
     And the days ahead are tomorrow
     And the spine's "ahead" rows are "due-soon"
@@ -153,8 +153,8 @@ Feature: The agenda — what is owed, on one line of time
     # name a day nobody knows in advance.
     Given I open the agenda
     And I mark the page
-    When something is scheduled for tomorrow in "work.olai"
-    And something is scheduled 14 days from today in "work.olai"
+    When something is scheduled for tomorrow in "work.org"
+    And something is scheduled 14 days from today in "work.org"
     Then the agenda spine runs "late, late, late, today, ahead, ahead"
     # Each says how far away it FEELS, in the unit a person would use.
     And the day for tomorrow says "Tomorrow"
@@ -176,9 +176,9 @@ Feature: The agenda — what is owed, on one line of time
     # one — which is a thing only a recomputation can do.
     Given I open the agenda
     And I mark the page
-    When something is scheduled for tomorrow in "work.olai"
-    And something is scheduled 15 days from today in "work.olai"
-    And something is scheduled 29 days from today in "work.olai"
+    When something is scheduled for tomorrow in "work.org"
+    And something is scheduled 15 days from today in "work.org"
+    And something is scheduled 29 days from today in "work.org"
     # A fortnight either side of the middle day.
     Then the agenda notes "two quiet weeks"
     When I filter the page by "due-soon OR due-in-29"
@@ -195,10 +195,10 @@ Feature: The agenda — what is owed, on one line of time
     # for on this page.
     Given I open the agenda
     And I mark the page
-    When something is scheduled for yesterday in "work.olai"
+    When something is scheduled for yesterday in "work.org"
     Then the pill on "due-yesterday" says "1 day late"
     And the date on "due-yesterday" is overdue
-    When something is scheduled for two o'clock tomorrow in "work.olai"
+    When something is scheduled for two o'clock tomorrow in "work.org"
     Then the pill on "due-at-two" says "14:00"
     And the date on "due-at-two" is not overdue
     And the page has not reloaded
@@ -219,7 +219,7 @@ Feature: The agenda — what is owed, on one line of time
 
   @corpus:agenda
   Scenario: Something slipped, and the entry to it is on fire
-    Given I open the outline "work.olai"
+    Given I open the outline "work.org"
     # Three late tasks over two outlines, counted as NODES: a mark saying "3"
     # means three things are late, not that three files or three days hold them.
     Then the agenda entry is on fire with 3 late
@@ -231,7 +231,7 @@ Feature: The agenda — what is owed, on one line of time
 
   @corpus:agenda
   Scenario: Put the column away and the alarm goes with it
-    Given I open the outline "work.olai"
+    Given I open the outline "work.org"
     When I collapse the sidebar
     Then the sidebar rail is showing
     # A dot rather than a count — three rem has no room for a numeral, and the
@@ -252,8 +252,8 @@ Feature: The agenda — what is owed, on one line of time
     Given I open the app
     And I mark the page
     Then the agenda entry is on fire with 3 late
-    When every date is taken off "life.olai"
-    And every date is taken off "work.olai"
+    When every date is taken off "life.org"
+    And every date is taken off "work.org"
     Then the agenda entry is quiet
     # No chip at all rather than a nought: an agenda with nothing on it is a
     # door, not news.
@@ -265,9 +265,9 @@ Feature: The agenda — what is owed, on one line of time
   Scenario: Work on today is a nudge, and the entry stays quiet about it
     Given I open the app
     And I mark the page
-    When every date is taken off "life.olai"
-    And every date is taken off "work.olai"
-    And something is scheduled for today in "work.olai"
+    When every date is taken off "life.org"
+    And every date is taken off "work.org"
+    And something is scheduled for today in "work.org"
     Then the agenda entry nudges with 1 on today
     And the agenda entry says "Agenda — 1 on today"
     And the page has not reloaded
@@ -276,7 +276,7 @@ Feature: The agenda — what is owed, on one line of time
   Scenario: Both at once — the alarm wins the row, the nudge is still spoken
     Given I open the app
     And I mark the page
-    When something is scheduled for today in "work.olai"
+    When something is scheduled for today in "work.org"
     # One number on a 13px row, and it is the one that decides whether to press.
     Then the agenda entry is on fire with 3 late
     And the agenda entry also carries 1 on today
@@ -288,7 +288,7 @@ Feature: The agenda — what is owed, on one line of time
     # The mark is the page's own reading, so it moves when the files do — which
     # is the whole of "live": a task ticked off in the tree leaves Overdue, and
     # the count beside the word in the column goes with it.
-    Given I open the outline "work.olai"
+    Given I open the outline "work.org"
     # `posts` is ticked off partway through and the whole claim rests on
     # still SEEING it wearing the mark — so the page is asked to keep its
     # finished rows drawn.
@@ -306,8 +306,8 @@ Feature: The agenda — what is owed, on one line of time
   Scenario: An agenda with nothing due says so, and offers nothing to press
     Given I open the agenda
     And I mark the page
-    When every date is taken off "life.olai"
-    And every date is taken off "work.olai"
+    When every date is taken off "life.org"
+    And every date is taken off "work.org"
     Then the agenda is empty
     And the agenda draws no spine
     # Not a dead end: the directory is still the way on.

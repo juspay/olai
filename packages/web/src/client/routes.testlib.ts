@@ -23,9 +23,9 @@ import { atElement, atFile, atNode, HOME_ROUTE, type Route } from "./routes.ts"
 
 export const ROUTES: ReadonlyArray<Route> = [
   HOME_ROUTE,
-  atFile("house.olai"),
-  atFile("wing/kitchen.olai"),
-  atFile("a file with spaces.olai"),
+  atFile("house.org"),
+  atFile("wing/kitchen.org"),
+  atFile("a file with spaces.org"),
   atFile("finishes.md"),
   atFile("notes/deep/plan.md"),
   atNode("kitchen"),
@@ -37,7 +37,7 @@ export const ROUTES: ReadonlyArray<Route> = [
   // ...and the same pages, narrowed. The filter is part of the address, so it
   // is part of the round trip: a query the app writes into the bar and cannot
   // read back is a page that loses its filter on reload.
-  { ...atFile("house.olai"), filter: "is:done" },
+  { ...atFile("house.org"), filter: "is:done" },
   // The four that grew one under `search-everywhere`. A day and the agenda are
   // date questions and the trash is read-only, and neither of those is a reason
   // not to be able to look through what they are showing.
@@ -53,7 +53,7 @@ export const ROUTES: ReadonlyArray<Route> = [
   // A quoted phrase is the query that puts a `"` — and the spaces it exists to
   // keep — into the address. A narrowed page is a link somebody sends, so the
   // quotes have to survive the trip both ways.
-  { ...atFile("house.olai"), filter: `"pick the hinges" OR knobs` },
+  { ...atFile("house.org"), filter: `"pick the hinges" OR knobs` },
   // …and a document at a place INSIDE it, which is the other thing an address
   // here carries. A `#` that could not be read back is a link into a section
   // that lands at the top of the page the moment it is reloaded or shared.
@@ -61,8 +61,8 @@ export const ROUTES: ReadonlyArray<Route> = [
   atElement("notes/report.html", "Q3 revenue"),
   // …and an OUTLINE at one, the row arm: the qualified spelling of a node,
   // kept rather than normalised, since the outline gained its landing.
-  atElement("house.olai", "kitchen"),
-  { ...atElement("house.olai", "install"), filter: "#home" },
+  atElement("house.org", "kitchen"),
+  { ...atElement("house.org", "install"), filter: "#home" },
   // One page per suffix the registry claims, and one at a place inside it:
   // the registry is the grammar's own census of what a path can mean, so a
   // kind it learns is a row here the day it is learned, not when somebody

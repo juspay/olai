@@ -1,4 +1,0 @@
-{"id":"pantry","ord":"a0","title":"restock the pantry"}
-{"id":"flour","parent":"pantry","ord":"a0","title":"buy flour"}
-{"id":"rice","parent":"pantry","ord":"a1",title:"buy rice"}
-{"id":"beans","parent":"pantry","ord":"a2","title":"buy beans"}

@@ -41,7 +41,7 @@ const KITCHEN = [
   `{"id":"loose","ord":"a1","title":"a node with no children"}`,
 ].join("\n")
 
-const house = (): OutlineSet => setOf({ "house.olai": KITCHEN })
+const house = (): OutlineSet => setOf({ "house.org": KITCHEN })
 
 /** A batch, spelled once so the tests below read as the list of ops they are
  *  about rather than as an envelope. */
@@ -83,7 +83,7 @@ describe("a capture carries its edges and its facts", () => {
         { id: "step-1", title: "order them" },
       ],
     })
-    const nodes = fileOf(result, "house.olai")
+    const nodes = fileOf(result, "house.org")
     expect(record(nodes, "step-2").after).toEqual(["step-1"])
     expect(record(nodes, "step-1").after).toBeUndefined()
     // And the answer names every node it made, so the caller need not search
@@ -103,7 +103,7 @@ describe("a capture carries its edges and its facts", () => {
       waitsOn: ["install"],
       see: ["order"],
     })
-    expect(record(fileOf(result, "house.olai"), "n1")).toMatchObject({
+    expect(record(fileOf(result, "house.org"), "n1")).toMatchObject({
       after: ["install"],
       see: ["order"],
     })
@@ -118,7 +118,7 @@ describe("a capture carries its edges and its facts", () => {
       // a key holding nothing is a key the file does not carry.
       props: { pr: "https://x/1", agent: "claude-opus", blank: "" },
     })
-    expect(record(fileOf(result, "house.olai"), "n1").custom)
+    expect(record(fileOf(result, "house.org"), "n1").custom)
       .toEqual({ pr: "https://x/1", agent: "claude-opus" })
   })
 
@@ -129,7 +129,7 @@ describe("a capture carries its edges and its facts", () => {
       title: "lane",
       waitsOn: ["order", "order", "install"],
     })
-    expect(record(fileOf(result, "house.olai"), "n1").after).toEqual(["order", "install"])
+    expect(record(fileOf(result, "house.org"), "n1").after).toEqual(["order", "install"])
   })
 
   test("a `props` key spelled like a field is refused in `set_prop`'s words", () => {
@@ -197,13 +197,13 @@ describe("a capture carries its edges and its facts", () => {
       title: "lane",
       after: "demo",
     })
-    expect(record(fileOf(placed, "house.olai"), "n1").title).toBe("lane")
+    expect(record(fileOf(placed, "house.org"), "n1").title).toBe("lane")
 
     // A SEED's root has no siblings to be placed among, so there `after` is the
     // misspelling again and is refused like any child's.
     const seeded = refused(house(), {
       op: "create",
-      file: "lane.olai",
+      file: "lane.org",
       seed: { title: "lane", after: ["order"] } as unknown as never,
     })
     expect(seeded.message).toContain("write `waitsOn` instead")
@@ -250,7 +250,7 @@ describe("a capture carries its edges and its facts", () => {
     // `install` after `order` already; a capture that `order` waits on closes
     // the ring through two nodes the set holds and one it is minting.
     const wired = setOf({
-      "house.olai": KITCHEN.replace(
+      "house.org": KITCHEN.replace(
         `"title":"install them","todo":true}`,
         `"title":"install them","todo":true,"after":["order"]}`,
       ),
@@ -269,7 +269,7 @@ describe("a capture carries its edges and its facts", () => {
   test("a seed carries them too — a new outline arrives wired", () => {
     const result = planned(house(), {
       op: "create",
-      file: "lane.olai",
+      file: "lane.org",
       seed: {
         title: "lane",
         props: { agent: "claude-opus" },
@@ -279,7 +279,7 @@ describe("a capture carries its edges and its facts", () => {
         ],
       },
     })
-    const nodes = fileOf(result, "lane.olai")
+    const nodes = fileOf(result, "lane.org")
     expect(record(nodes, "n1").custom).toEqual({ agent: "claude-opus" })
     expect(record(nodes, "s2").after).toEqual(["s1"])
   })
@@ -295,7 +295,7 @@ describe("a capture carries its edges and its facts", () => {
       mark: "doing",
       waitsOn: ["order"],
     })
-    expect(record(fileOf(result, "house.olai"), "n1")).toMatchObject({
+    expect(record(fileOf(result, "house.org"), "n1")).toMatchObject({
       doing: true,
       after: ["order"],
     })
@@ -315,7 +315,7 @@ describe("apply", () => {
       ),
     )
     expect(result.files).toHaveLength(1)
-    const nodes = fileOf(result, "house.olai")
+    const nodes = fileOf(result, "house.org")
     // Every op's work is in the ONE file the plan writes — the last plan to
     // touch a path is that path, finished.
     expect(record(nodes, "order").done).toBe(STAMP)
@@ -336,7 +336,7 @@ describe("apply", () => {
         { op: "prop", id: "worktop", key: "agent", value: "claude-opus" },
       ),
     )
-    expect(record(fileOf(result, "house.olai"), "worktop")).toMatchObject({
+    expect(record(fileOf(result, "house.org"), "worktop")).toMatchObject({
       after: ["install"],
       custom: { agent: "claude-opus" },
     })
@@ -402,7 +402,7 @@ describe("apply", () => {
         { op: "done", id: "kitchen" },
       ),
     )
-    expect(record(fileOf(result, "house.olai"), "kitchen").done).toBe(STAMP)
+    expect(record(fileOf(result, "house.org"), "kitchen").done).toBe(STAMP)
   })
 
   test("`set_doing` after `set_after` in one batch meets the same gate", () => {
@@ -430,7 +430,7 @@ describe("apply", () => {
   test("the nudges of every op ride one answer", () => {
     // Door two, twice: two tasks arriving under a branch marked done.
     const done = setOf({
-      "house.olai": KITCHEN.replace(
+      "house.org": KITCHEN.replace(
         `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
         `{"id":"kitchen","ord":"a0","title":"Kitchen remodel","done":"2026-08-01"}`,
       ),
@@ -446,11 +446,11 @@ describe("apply", () => {
     // sentence is said once rather than twice.
     expect(result.nudge).toContain("`Kitchen remodel` was marked done")
     expect(result.nudge?.match(/marked done over work/g)).toHaveLength(1)
-    expect(record(fileOf(result, "house.olai"), "kitchen").done).toBeUndefined()
+    expect(record(fileOf(result, "house.org"), "kitchen").done).toBeUndefined()
   })
 
   test("an op after an archive is planned against the file the archive made", () => {
-    // `archive` mints an `_olai/Trash.olai` that the set has never held, so the
+    // `archive` mints an `_olai/Trash.org` that the set has never held, so the
     // reading the NEXT op is judged against carries a file the derivation was
     // not built from. That is the one case the fold's patched view has to get
     // right — and the proof is that the second op can name the node that has
@@ -463,12 +463,12 @@ describe("apply", () => {
       ),
     )
     expect(result.files.map((one) => one.file).sort()).toEqual([
-      "_olai/Trash.olai",
-      "house.olai",
+      "_olai/Trash.org",
+      "house.org",
     ])
-    expect(record(fileOf(result, "_olai/Trash.olai"), "order").title)
+    expect(record(fileOf(result, "_olai/Trash.org"), "order").title)
       .toBe("order the walnut cabinets")
-    expect(fileOf(result, "house.olai").some((one) => one.id === "order")).toBe(false)
+    expect(fileOf(result, "house.org").some((one) => one.id === "order")).toBe(false)
   })
 
   test("the fold and the patcher agree about a file beside a directory", () => {
@@ -476,7 +476,7 @@ describe("apply", () => {
     // (`assemble`, which orders by `byPath`) and asks the format to patch the
     // view onto it (`reading`, whose `patch` orders the same way) — and slice 4
     // of `model-indices` is what made those one answer instead of two, because
-    // `.` sorts before `/` and a bare code-point compare puts `wing.olai` ahead
+    // `.` sorts before `/` and a bare code-point compare puts `wing.org` ahead
     // of the directory it names while a walk descends first.
     //
     // A batch across exactly that pair is the case where a disagreement would
@@ -485,8 +485,8 @@ describe("apply", () => {
     // would catch it — and op 1 would be planned against a set in an order no
     // load produces. Both ops land, in the right files, in the right order.
     const wing = setOf({
-      "wing.olai": `{"id":"wing","ord":"a0","title":"the wing"}`,
-      "wing/kitchen.olai": `{"id":"kitchen","ord":"a0","title":"the kitchen"}`,
+      "wing.org": `{"id":"wing","ord":"a0","title":"the wing"}`,
+      "wing/kitchen.org": `{"id":"kitchen","ord":"a0","title":"the kitchen"}`,
     })
     const result = planned(
       wing,
@@ -497,17 +497,17 @@ describe("apply", () => {
       ),
     )
     expect(result.files.map((one) => one.file).sort(byPath))
-      .toEqual(["wing/kitchen.olai", "wing.olai"])
+      .toEqual(["wing/kitchen.org", "wing.org"])
     // Op 1 resolved an id declared in the OTHER file, against the view the
     // patcher produced — which is the half that needs the two orders to agree.
-    expect(record(fileOf(result, "wing/kitchen.olai"), "sink").after).toEqual(["wing"])
-    expect(record(fileOf(result, "wing.olai"), "wing").title).toBe("the west wing")
+    expect(record(fileOf(result, "wing/kitchen.org"), "sink").after).toEqual(["wing"])
+    expect(record(fileOf(result, "wing.org"), "wing").title).toBe("the west wing")
   })
 
   test("a batch that touches two outlines plans both", () => {
     const two = setOf({
-      "house.olai": KITCHEN,
-      "shed.olai": `{"id":"shed","ord":"a0","title":"Shed"}`,
+      "house.org": KITCHEN,
+      "shed.org": `{"id":"shed","ord":"a0","title":"Shed"}`,
     })
     const result = planned(
       two,
@@ -516,7 +516,7 @@ describe("apply", () => {
         { op: "add", parent: "shed", title: "a rake" },
       ),
     )
-    expect(result.files.map((one) => one.file).sort()).toEqual(["house.olai", "shed.olai"])
+    expect(result.files.map((one) => one.file).sort()).toEqual(["house.org", "shed.org"])
   })
 })
 
@@ -533,7 +533,7 @@ describe("update", () => {
       props: { pr: "https://x/1" },
       mark: "done",
     })
-    expect(record(fileOf(result, "house.olai"), "order")).toMatchObject({
+    expect(record(fileOf(result, "house.org"), "order")).toMatchObject({
       title: "order the cabinets #kitchen",
       desc: "from the joiner",
       date: "2026-08-20",
@@ -550,7 +550,7 @@ describe("update", () => {
 
   test("`null` removes the note, the date and one property", () => {
     const rich = setOf({
-      "house.olai": KITCHEN.replace(
+      "house.org": KITCHEN.replace(
         `{"id":"loose","ord":"a1","title":"a node with no children"}`,
         `{"id":"loose","ord":"a1","title":"a node with no children","date":"2026-08-01",` +
           `"desc":"a note","custom":{"pr":"https://x/1","agent":"claude-opus"}}`,
@@ -563,7 +563,7 @@ describe("update", () => {
       date: null,
       props: { pr: null },
     })
-    const node = record(fileOf(result, "house.olai"), "loose")
+    const node = record(fileOf(result, "house.org"), "loose")
     expect(node.desc).toBeUndefined()
     expect(node.date).toBeUndefined()
     // MERGED, not replaced: the key nobody named is still there.
@@ -572,16 +572,16 @@ describe("update", () => {
 
   test("`after` REPLACES — what the list leaves out comes off", () => {
     const wired = setOf({
-      "house.olai": KITCHEN.replace(
+      "house.org": KITCHEN.replace(
         `"title":"install them","todo":true}`,
         `"title":"install them","todo":true,"after":["order","demo"]}`,
       ),
     })
     const result = planned(wired, { op: "update", id: "install", after: ["order"] })
-    expect(record(fileOf(result, "house.olai"), "install").after).toEqual(["order"])
+    expect(record(fileOf(result, "house.org"), "install").after).toEqual(["order"])
 
     const cleared = planned(wired, { op: "update", id: "install", after: [] })
-    expect(record(fileOf(cleared, "house.olai"), "install").after).toBeUndefined()
+    expect(record(fileOf(cleared, "house.org"), "install").after).toBeUndefined()
   })
 
   test("`after` carries `set_after`'s refusals — unknown, loop, and no-op", () => {
@@ -589,7 +589,7 @@ describe("update", () => {
       .toBe("NotFoundFailure")
 
     const wired = setOf({
-      "house.olai": KITCHEN.replace(
+      "house.org": KITCHEN.replace(
         `"title":"install them","todo":true}`,
         `"title":"install them","todo":true,"after":["order"]}`,
       ),
@@ -624,7 +624,7 @@ describe("update", () => {
 
   test("`mark: null` takes off whatever mark is there, and refuses when none is", () => {
     const result = planned(house(), { op: "update", id: "order", mark: null })
-    expect(record(fileOf(result, "house.olai"), "order").todo).toBeUndefined()
+    expect(record(fileOf(result, "house.org"), "order").todo).toBeUndefined()
     expect(result.summary).toBe("update: order the cabinets (un-todo)")
 
     expect(refused(house(), { op: "update", id: "loose", mark: null }).message)
@@ -633,7 +633,7 @@ describe("update", () => {
 
   test("`was` is `set_title`'s and `set_desc`'s, per field, and is CHECKED", () => {
     const rich = setOf({
-      "house.olai": KITCHEN.replace(
+      "house.org": KITCHEN.replace(
         `{"id":"loose","ord":"a1","title":"a node with no children"}`,
         `{"id":"loose","ord":"a1","title":"a node with no children","desc":"a note"}`,
       ),
@@ -646,7 +646,7 @@ describe("update", () => {
       desc: "a better note",
       was: { title: "a node with no children", desc: "a note" },
     })
-    expect(record(fileOf(landed, "house.olai"), "loose")).toMatchObject({
+    expect(record(fileOf(landed, "house.org"), "loose")).toMatchObject({
       title: "renamed",
       desc: "a better note",
     })
@@ -705,7 +705,7 @@ describe("update", () => {
     })
     // One `changed`, because the fold writes one record — and it is the same
     // instant the planner's context minted for the whole call.
-    expect(record(fileOf(result, "house.olai"), "order").changed).toBe(STAMP)
+    expect(record(fileOf(result, "house.org"), "order").changed).toBe(STAMP)
   })
 })
 

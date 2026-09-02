@@ -27,7 +27,7 @@ Feature: Native task timing — `started`, `took`, and the ticking row
   the row as it STANDS, so each reading below first steps away from it.)
 
   Background:
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     # These scenarios tick rows off and keep reading them, so finished work
     # must stay drawn: the per-page default is hidden now (preferences.feature).
     And I show the done nodes
@@ -40,7 +40,7 @@ Feature: Native task timing — `started`, `took`, and the ticking row
     And I press "Control+Shift+Enter"
     And I press "Control+Shift+Enter"
     Then the node "handles" has status "doing"
-    And "house.olai" holds a node marked doing titled "choose the handles"
+    And "house.org" holds a node marked doing titled "choose the handles"
     When I click away from the editor
     # The clock reads SECOND: from one frame to the next, without another
     # write from anybody, the chip must not sit still.
@@ -75,7 +75,7 @@ Feature: Native task timing — `started`, `took`, and the ticking row
     # A mark where a walk landed is never *true*, and the span the wait took
     # is worth keeping on the row.
     Then the node "knobs" shows a settled took chip
-    And "house.olai" holds a node marked cancelled titled "pick the knobs"
+    And "house.org" holds a node marked cancelled titled "pick the knobs"
     And there should be no page errors
 
   # ── the silences ───────────────────────────────────────────────────
@@ -105,7 +105,7 @@ Feature: Native task timing — `started`, `took`, and the ticking row
     And I select all and type "⏱ 2h 34m"
     And I press "Enter"
     Then the node "handles" has the title "⏱ 2h 34m"
-    And "house.olai" holds a node titled "⏱ 2h 34m"
+    And "house.org" holds a node titled "⏱ 2h 34m"
     When I click away from the editor
     # Nothing echoes: the row carries no chip, and the words stayed a title.
     Then the node "handles" shows no took chip
@@ -137,5 +137,5 @@ Feature: Native task timing — `started`, `took`, and the ticking row
     # BANKED on the record, and the instant the chip wears is the FRESH
     # round's — the pause between the two belongs to nobody.
     And the node "handles" wears a fresh start, not that one
-    And "house.olai" holds a node titled "choose the handles" with the rounds banked
+    And "house.org" holds a node titled "choose the handles" with the rounds banked
     And there should be no page errors

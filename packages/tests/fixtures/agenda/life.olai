@@ -1,3 +1,0 @@
-{"id":"trip","ord":"a0","title":"the coast trip"}
-{"id":"visas","parent":"trip","ord":"a0","title":"send the visa forms","todo":true,"date":"2019-11-03","after":["photos"]}
-{"id":"photos","parent":"trip","ord":"a1","title":"get passport photos","doing":true}

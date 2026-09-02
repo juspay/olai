@@ -18,7 +18,7 @@ Feature: Duplicating a subtree
   scenarios.
 
   Background:
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     And I mark the page
 
   Scenario: The menu copies the row and everything under it
@@ -29,9 +29,9 @@ Feature: Duplicating a subtree
     When I open the node menu of "install"
     Then the node menu offers "Duplicate"
     When I choose "Duplicate" from the node menu
-    Then "house.olai" holds exactly 2 nodes titled "install the cabinets"
-    And "house.olai" holds a copy of "install" with fresh ids throughout
-    And the copy of "install" in "house.olai" repeats every field but the ids and the stamps
+    Then "house.org" holds exactly 2 nodes titled "install the cabinets"
+    And "house.org" holds a copy of "install" with fresh ids throughout
+    And the copy of "install" in "house.org" repeats every field but the ids and the stamps
     And the page has not reloaded
     And there should be no page errors
 
@@ -40,8 +40,8 @@ Feature: Duplicating a subtree
     # bookmark key every browser has trained every reader on.
     When I click the title of "install"
     And I press "ControlOrMeta+Shift+d"
-    Then "house.olai" holds exactly 2 nodes titled "install the cabinets"
-    And "house.olai" holds a copy of "install" with fresh ids throughout
+    Then "house.org" holds exactly 2 nodes titled "install the cabinets"
+    And "house.org" holds a copy of "install" with fresh ids throughout
     And there should be no page errors
 
   Scenario: The copy carries the marks it copied, instants and all
@@ -57,8 +57,8 @@ Feature: Duplicating a subtree
     Given the node "kitchen" is expanded
     When I open the node menu of "kitchen"
     And I choose "Duplicate" from the node menu
-    Then "house.olai" holds a copy of "kitchen" with fresh ids throughout
-    And the copy of "kitchen" in "house.olai" repeats every field but the ids and the stamps
+    Then "house.org" holds a copy of "kitchen" with fresh ids throughout
+    And the copy of "kitchen" in "house.org" repeats every field but the ids and the stamps
 
   Scenario: An edge inside the copy follows the copy; one that leaves it does not
     # The rule with two halves, in one record: `pick the hinges` waits on
@@ -68,21 +68,21 @@ Feature: Duplicating a subtree
     # into the original, or makes it wait on something that was never copied.
     When I open the node menu of "install"
     And I choose "Duplicate" from the node menu
-    Then "house.olai" holds a copy of "install" with fresh ids throughout
-    And in the copy of "install" in "house.olai", "hinges" waits on the copy of "handles" and on "order"
-    And "house.olai" holds the node "hinges" after "handles, order"
+    Then "house.org" holds a copy of "install" with fresh ids throughout
+    And in the copy of "install" in "house.org", "hinges" waits on the copy of "handles" and on "order"
+    And "house.org" holds the node "hinges" after "handles, order"
 
   Scenario: A mirror under the copy is copied as a placement, showing the same node
     # `kitchen-herbs` is a placement of a node in ANOTHER file. Copying the
     # kitchen copies the line, not the herb bed: the copy is a mirror record
-    # with a fresh id of its own and the same target, and `garden.olai` is
+    # with a fresh id of its own and the same target, and `garden.org` is
     # untouched.
     Given the node "kitchen" is expanded
     When I open the node menu of "kitchen"
     And I choose "Duplicate" from the node menu
-    Then "house.olai" holds a copy of "kitchen" with fresh ids throughout
-    And the copy of "kitchen" in "house.olai" places a mirror of "herbs"
-    And "garden.olai" holds exactly 1 node titled "the herb bed by the door"
+    Then "house.org" holds a copy of "kitchen" with fresh ids throughout
+    And the copy of "kitchen" in "house.org" places a mirror of "herbs"
+    And "garden.org" holds exactly 1 node titled "the herb bed by the door"
 
   Scenario: A placement offers no Duplicate — retiring the line is what it offers
     # The same split the put-away makes: copying through a mirror would write a
@@ -99,14 +99,14 @@ Feature: Duplicating a subtree
     # set has. The original is untouched by both.
     When I click the title of "install"
     And I press "ControlOrMeta+Shift+d"
-    Then "house.olai" holds exactly 2 nodes titled "install the cabinets"
+    Then "house.org" holds exactly 2 nodes titled "install the cabinets"
     # Escape takes the caret out of the row, which is what makes the chord the
     # page's rather than the input's.
     When I press "Escape"
     And I press "ControlOrMeta+z"
-    Then "house.olai" holds exactly 1 node titled "install the cabinets"
-    And "house.olai" holds the node "install"
-    And "_olai/Trash.olai" holds a node titled "install the cabinets"
+    Then "house.org" holds exactly 1 node titled "install the cabinets"
+    And "house.org" holds the node "install"
+    And "_olai/Trash.org" holds a node titled "install the cabinets"
     When I press "ControlOrMeta+Shift+z"
-    Then "house.olai" holds exactly 2 nodes titled "install the cabinets"
+    Then "house.org" holds exactly 2 nodes titled "install the cabinets"
     And there should be no page errors

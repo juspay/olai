@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test"
 import { Result } from "effect"
 
-import { MirrorNode, type Node, RegularNode } from "./node.ts"
+import type { MirrorNode, Node, RegularNode } from "./node.ts"
 import { parseOutline } from "./parse.ts"
 import { serializeNode, serializeOutline } from "./write.ts"
 
-const regular = (fields: Partial<RegularNode>): RegularNode => ({
+const regular = (fields: Partial<RegularNode> = {}): RegularNode => ({
   id: "n",
   ord: "a0",
   title: "a node",
@@ -13,259 +13,119 @@ const regular = (fields: Partial<RegularNode>): RegularNode => ({
 })
 
 describe("serializeNode", () => {
-  test("canonical field order, whatever order the object was built in", () => {
-    const node: RegularNode = {
-      see: ["x"],
-      title: "order the cabinets",
-      ord: "a1",
+  test("writes one Org heading with native identity and ordered OLAI properties", () => {
+    const text = serializeNode(regular({
       id: "order",
-      date: "2026-08-10",
       parent: "kitchen",
+      title: "order the cabinets",
+      date: "2026-08-10",
       after: ["demo"],
-    }
-    expect(serializeNode(node)).toBe(
-      `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets",` +
-        `"date":"2026-08-10","after":["demo"],"see":["x"]}`,
+      see: ["x"],
+    }))
+    expect(text).toBe(
+      `* order the cabinets\n` +
+        `:PROPERTIES:\n` +
+        `:ID: order\n` +
+        `:OLAI_KIND: regular\n` +
+        `:OLAI_PARENT: "kitchen"\n` +
+        `:OLAI_ORD: "a0"\n` +
+        `:OLAI_TITLE: "order the cabinets"\n` +
+        `:OLAI_DATE: "2026-08-10"\n` +
+        `:OLAI_AFTER: ["demo"]\n` +
+        `:OLAI_SEE: ["x"]\n` +
+        `:END:`,
     )
   })
 
-  test("absent fields are omitted, never null and never empty", () => {
-    expect(serializeNode(regular({}))).toBe(`{"id":"n","ord":"a0","title":"a node"}`)
+  test("omits optional fields that hold nothing", () => {
+    const empty = serializeNode(regular({
+      after: [],
+      blocks: [],
+      see: [],
+      desc: "",
+      custom: { blank: "", tags: [] },
+    }))
+    expect(empty).toBe(serializeNode(regular()))
+    expect(empty).not.toContain("OLAI_DESC")
+    expect(empty).not.toContain("OLAI_CUSTOM")
   })
 
-  /**
-   * The four ways to spell "this node has no note and no edges" produce ONE
-   * file. `undefined` is the schema's; `null`, `[]` and `""` are the three a
-   * writer can reach for by accident, and docs/format.md's Writing section
-   * says none of them may reach a file.
-   *
-   * The stake is the format's own bet: two files that mean the same thing must
-   * not differ byte-for-byte, or a line-based git merge conflicts over nothing.
-   */
-  test("an optional field holding nothing is not written at all", () => {
-    const empty = serializeNode(
-      regular({
-        after: [],
-        blocks: [],
-        see: [],
-        desc: "",
-        // `null` is not in the schema's type, but it is exactly what a writer
-        // reaching for "clear this" produces, and it must not reach a file.
-        date: null as unknown as string,
-        doc: undefined,
-      }),
-    )
-    expect(empty).toBe(`{"id":"n","ord":"a0","title":"a node"}`)
-    expect(empty).toBe(serializeNode(regular({})))
-  })
-
-  test("a non-empty array is written, so the rule is about EMPTY and not arrays", () => {
-    expect(serializeNode(regular({ after: ["demo"], see: [] }))).toBe(
-      `{"id":"n","ord":"a0","title":"a node","after":["demo"]}`,
-    )
-  })
-
-  /**
-   * The asymmetry, stated: a REQUIRED field is emitted whatever it holds.
-   *
-   * Dropping one makes a line the reader rejects outright — `\`title\` is
-   * required and missing` — which is strictly worse than handing an odd value
-   * to the validator that is about to see it anyway. The write gate validates
-   * the whole set before any of these bytes are renamed into place.
-   */
-  test("a required field is never dropped, however empty it is", () => {
-    expect(serializeNode(regular({ title: "" }))).toBe(
-      `{"id":"n","ord":"a0","title":""}`,
-    )
-    const mirror: MirrorNode = { id: "m", ord: "a0", mirror: "" }
-    expect(serializeNode(mirror)).toBe(`{"id":"m","ord":"a0","mirror":""}`)
-  })
-
-  test("a mirror carries only its four", () => {
+  test("keeps required empty values and mirror shape", () => {
+    expect(serializeNode(regular({ title: "" }))).toContain(`:OLAI_TITLE: ""`)
     const mirror: MirrorNode = { id: "m", parent: "p", ord: "a0", mirror: "target" }
-    expect(serializeNode(mirror)).toBe(
-      `{"id":"m","parent":"p","ord":"a0","mirror":"target"}`,
+    const text = serializeNode(mirror)
+    expect(text).toContain(":OLAI_KIND: mirror")
+    expect(text).toContain(`:OLAI_MIRROR: "target"`)
+    expect(text).not.toContain("OLAI_TITLE")
+  })
+
+  test("JSON-encodes arbitrary multiline Markdown on one property line", () => {
+    const text = serializeNode(regular({ desc: "first\n* heading\n#+end_src" }))
+    expect(text).toContain(`:OLAI_DESC: "first\\n* heading\\n#+end_src"`)
+    expect(text.split("\n").filter((line) => line.startsWith(":OLAI_DESC:"))).toHaveLength(1)
+  })
+
+  test("writes custom keys canonically", () => {
+    const text = serializeNode(regular({
+      custom: { pr: "https://x/1", agent: "opus", terminal: "485c" },
+    }))
+    expect(text).toContain(
+      `:OLAI_CUSTOM: {"agent":"opus","pr":"https://x/1","terminal":"485c"}`,
     )
-  })
-
-  test("a note's newlines are escaped, so a record is still one line", () => {
-    const line = serializeNode(regular({ desc: "first\nsecond\n\nthird" }))
-    expect(line.includes("\n")).toBe(false)
-  })
-
-  /**
-   * `custom` is the one field whose value has an INSIDE, so both writing rules
-   * have to hold one level in as well: canonical order, and one spelling of
-   * absence.
-   *
-   * A map straight from JSON carries whatever order somebody's editor left, and
-   * two files that mean the same thing must not differ byte for byte — the
-   * whole reason the fields above have a canonical order at all.
-   */
-  test("custom keys are written alphabetically, whatever order the map holds", () => {
-    expect(
-      serializeNode(regular({ custom: { pr: "https://x/1", agent: "opus", terminal: "485c" } })),
-    ).toBe(
-      `{"id":"n","ord":"a0","title":"a node",` +
-        `"custom":{"agent":"opus","pr":"https://x/1","terminal":"485c"}}`,
-    )
-  })
-
-  test("a custom key holding nothing is not written, and an empty map is no field", () => {
-    // The `{"after":[]}` conflict-about-nothing, one level in: a key emptied
-    // and a key removed are one file, so they cannot be two maps on disk.
-    expect(serializeNode(regular({ custom: { pr: "", tags: [] } })))
-      .toBe(`{"id":"n","ord":"a0","title":"a node"}`)
-    expect(serializeNode(regular({ custom: {} })))
-      .toBe(serializeNode(regular({})))
-  })
-
-  test("custom is written last, after every field the format gives a meaning", () => {
-    expect(serializeNode(regular({ custom: { pr: "https://x/1" }, see: ["y"], date: "2026-08-10" })))
-      .toBe(
-        `{"id":"n","ord":"a0","title":"a node","date":"2026-08-10","see":["y"],` +
-          `"custom":{"pr":"https://x/1"}}`,
-      )
   })
 })
 
 describe("serializeOutline", () => {
-  test("one record per line and exactly one trailing newline", () => {
+  test("renders parentage as heading hierarchy and mirrors as headings", () => {
     const nodes: ReadonlyArray<Node> = [
-      regular({ id: "a" }),
-      regular({ id: "b", ord: "a1" }),
-      regular({ id: "c", ord: "a2" }),
+      regular({ id: "root", title: "Kitchen" }),
+      regular({ id: "child", parent: "root", title: "order" }),
+      { id: "placed", parent: "root", ord: "a1", mirror: "child" },
     ]
     const text = serializeOutline(nodes)
+    expect(text).toContain("* Kitchen\n")
+    expect(text).toContain("** order\n")
+    expect(text).toContain("** mirror of child\n")
     expect(text.endsWith("\n")).toBe(true)
     expect(text.endsWith("\n\n")).toBe(false)
-    expect(text.split("\n")).toHaveLength(4)
-    expect(text.split("\n").at(-1)).toBe("")
   })
 
-  test("no nodes is an empty file, not a blank line", () => {
+  test("round-trips every record field and adversarial prose exactly", () => {
+    const nodes: ReadonlyArray<Node> = [
+      regular({
+        id: "root",
+        title: "TODO *Markdown* :tag:",
+        done: "2026-08-29T12:26:44-04:00",
+        started: "2026-08-29T09:52:00-04:00",
+        worked: 9284,
+        date: "2026-08-30",
+        desc: "first\n* heading-looking\n#+end_src\n:PROPERTIES:",
+        doc: "notes.md",
+        after: ["prior"],
+        blocks: ["later"],
+        see: ["related"],
+        created: "2026-08-29T09:00:00-04:00",
+        changed: "2026-08-29T12:26:44-04:00",
+        custom: { agent: "opus", labels: ["one", "two"] },
+      }),
+      regular({ id: "child", parent: "root", ord: "a1", title: "child" }),
+      { id: "placed", parent: "root", ord: "a2", mirror: "child" },
+    ]
+    const parsed = parseOutline("round-trip.org", serializeOutline(nodes))
+    if (Result.isFailure(parsed)) {
+      throw new Error(parsed.failure.map((error) => error.message).join("; "))
+    }
+    expect(parsed.success.nodes.map((located) => located.node)).toEqual([...nodes])
+    expect(parsed.success.nodes.map((located) => located.line)).toEqual([1, 21, 30])
+  })
+
+  test("an empty outline remains an empty file", () => {
     expect(serializeOutline([])).toBe("")
   })
 
-  /**
-   * The 2026-08-09 incident, as a test: a multi-record write produced two
-   * records glued onto one line, and the file that came out was one no reader
-   * could parse. The assertion is not "the string looks right" — it is that
-   * every line of what came out parses back to the record that went in, for
-   * every shape of record the format has.
-   */
-  test("a multi-record write can never glue or split a line", () => {
-    const nodes: ReadonlyArray<Node> = [
-      regular({ id: "root", title: "Kitchen #home" }),
-      regular({
-        id: "child",
-        parent: "root",
-        ord: "a0",
-        title: "order the cabinets",
-        desc: "measure first\n\n- the wall is not square\n- the floor is not level",
-        date: "2026-08-10",
-        done: "2026-08-11",
-        after: ["root"],
-      }),
-      { id: "mirrored", parent: "root", ord: "a1", mirror: "child" },
-      regular({ id: "quotes", parent: "root", ord: "a2", title: `he said "no"` }),
-      regular({ id: "unicode", parent: "root", ord: "a3", title: "café — naïve 日本語" }),
-      // Every empty spelling, in the middle of a real write: the record that
-      // comes back has none of these keys, so the round-trip below compares it
-      // against the one WITHOUT them.
-      regular({
-        id: "hollow",
-        parent: "root",
-        ord: "a4",
-        title: "nothing on it",
-        after: [],
-        see: [],
-        desc: "",
-      }),
-    ]
-
-    /** The same records as they will read back — the empty fields gone. */
-    const expected: ReadonlyArray<Node> = nodes.map((node) =>
-      node.id === "hollow"
-        ? { id: "hollow", parent: "root", ord: "a4", title: "nothing on it" }
-        : node
-    )
-
-    const text = serializeOutline(nodes)
-    expect(text.split("\n")).toHaveLength(nodes.length + 1)
-
-    const parsed = parseOutline("round-trip.olai", text)
-    if (Result.isFailure(parsed)) {
-      throw new Error(
-        `the bytes this writer produced do not parse: ${
-          parsed.failure.map((error) => `${error.line}: ${error.message}`).join("; ")
-        }`,
-      )
-    }
-    expect(parsed.success.nodes.map((located) => located.node)).toEqual([...expected])
-    expect(parsed.success.nodes.map((located) => located.line)).toEqual([1, 2, 3, 4, 5, 6])
-  })
-
-  test("literal UTF-8, not \\u escapes", () => {
-    expect(serializeOutline([regular({ title: "café" })])).toBe(
-      `{"id":"n","ord":"a0","title":"café"}\n`,
-    )
-  })
-
-  /**
-   * The writer emits the fields it has an ORDER for, so a field the record
-   * schema gained and that list did not would be dropped on the next write —
-   * data that parsed, lost, by a writer every layer above believes. Which
-   * fields EXIST now comes from the schema, so only the order is hand-written;
-   * this is what makes forgetting to place a new one loud instead of lossy.
-   * `todo` was exactly that edit.
-   */
-  test("every field of both record shapes has a place in the canonical order", () => {
-    const ordered = new Set(orderOf(serializeNode(EVERY_REGULAR_FIELD)))
-    for (const field of Object.keys(RegularNode.fields)) {
-      expect(ordered.has(field)).toBe(true)
-    }
-
-    const mirrored = new Set(orderOf(serializeNode(EVERY_MIRROR_FIELD)))
-    for (const field of Object.keys(MirrorNode.fields)) {
-      expect(mirrored.has(field)).toBe(true)
-    }
+  test("keeps literal UTF-8", () => {
+    const text = serializeOutline([regular({ title: "café — 日本語" })])
+    expect(text).toContain("* café — 日本語")
+    expect(text).toContain(`:OLAI_TITLE: "café — 日本語"`)
   })
 })
-
-/** The keys of a serialized record, in the order the writer wrote them. */
-const orderOf = (line: string): ReadonlyArray<string> =>
-  Object.keys(JSON.parse(line) as Record<string, unknown>)
-
-/** Every optional field carrying something, so nothing is omitted for being
- *  empty and what comes back is the writer's whole vocabulary. A field added
- *  to the schema without a value here fails the test above by its absence. */
-const EVERY_REGULAR_FIELD: RegularNode = {
-  id: "n",
-  parent: "p",
-  ord: "a0",
-  title: "a node",
-  done: true,
-  cancelled: true,
-  doing: true,
-  todo: true,
-  started: "2026-08-11T08:30:00-04:00",
-  worked: 123,
-  date: "2026-08-11",
-  repeat: "every week on monday",
-  desc: "a note",
-  doc: "notes.md",
-  after: ["x"],
-  blocks: ["y"],
-  see: ["z"],
-  created: "2026-08-11T09:00:00-04:00",
-  changed: "2026-08-11T10:00:00-04:00",
-  custom: { pr: "https://x/1" },
-}
-
-const EVERY_MIRROR_FIELD: MirrorNode = {
-  id: "m",
-  parent: "p",
-  ord: "a0",
-  mirror: "n",
-}

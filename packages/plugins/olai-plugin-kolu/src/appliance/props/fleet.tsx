@@ -60,7 +60,7 @@
  * judgement ABOUT kolu, and it has a package of its own now:
  * `olai-plugin-kolu`. It walks the vault for who OWNS a terminal
  * (`claimants.ts` — outline records, injected into the dial rather than known
- * by it) and for what `_olai/Kolu.olai` says (`config.ts`); it decides what an
+ * by it) and for what `_olai/Kolu.org` says (`config.ts`); it decides what an
  * absent kolu MEANS, in five English sentences, over the probe it reaches
  * through `@olai/kolu-client/detect` (`probe.ts`, which was `@olai/chat`'s
  * until the plugin wall went up); and it owns the padi pill and the feed its

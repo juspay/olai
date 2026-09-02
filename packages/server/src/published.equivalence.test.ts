@@ -108,17 +108,17 @@ const GARDEN = '{"id":"garden","ord":"a0","title":"garden"}'
  * A DIRECTORY WITH EVERY KIND IN IT, including the two path shapes that decide
  * whether a born key lands where the set puts it.
  *
- * `wing.olai` and `wing/kitchen.olai` are the pair a plain code-point sort and
+ * `wing.org` and `wing/kitchen.org` are the pair a plain code-point sort and
  * `byPath` disagree about (`.` is 0x2E and `/` is 0x2F), and the projection now
  * finds a file by binary search over that order — so a set holding both is the
  * one corpus where a search using the wrong comparator would look in the wrong
  * half.
  */
 const CORNERS: ReadonlyMap<string, string> = new Map([
-  ["house.olai", HOUSE],
-  ["garden.olai", GARDEN],
-  ["wing.olai", '{"id":"wing","ord":"a0","title":"the wing"}'],
-  ["wing/kitchen.olai", '{"id":"wingkitchen","ord":"a0","title":"the wing kitchen"}'],
+  ["house.org", HOUSE],
+  ["garden.org", GARDEN],
+  ["wing.org", '{"id":"wing","ord":"a0","title":"the wing"}'],
+  ["wing/kitchen.org", '{"id":"wingkitchen","ord":"a0","title":"the wing kitchen"}'],
   ["notes.md", "# hello"],
   ["report.html", ""],
   ["data/sales.csv", "a,b\n1,2"],
@@ -133,7 +133,7 @@ const CORNERS: ReadonlyMap<string, string> = new Map([
 const CORNER_STEPS: ReadonlyArray<Step> = [
   // A SAVE of an outline: its own collection and the heads move, the documents
   // hear nothing.
-  { writes: [["house.olai", `${HOUSE}\n{"id":"sink","parent":"kitchen","ord":"a1","title":"sink"}`]] },
+  { writes: [["house.org", `${HOUSE}\n{"id":"sink","parent":"kitchen","ord":"a1","title":"sink"}`]] },
   // A SAVE of a `.md`: the documents and the heads move, the outlines hear
   // nothing — the mirror image, and the revision that used to rebuild all three.
   { writes: [["notes.md", "# hello again"]] },
@@ -142,20 +142,20 @@ const CORNER_STEPS: ReadonlyArray<Step> = [
   // blank the page. The body is owed instead.
   { writes: [["report.html", ""]] },
   // A FILE BORN INTO THE MIDDLE of the listing.
-  { writes: [["shed.olai", '{"id":"shed","ord":"a0","title":"the shed"}']] },
+  { writes: [["shed.org", '{"id":"shed","ord":"a0","title":"the shed"}']] },
   // ...AND ONE BORN BEFORE THE WHOLE VAULT, which is the placement a map that
   // appended would get wrong and a map that appended to the END of a
   // three-file set would still look right about.
   { writes: [["aaa.md", "# first of all"]] },
   // ...AND ONE AFTER ALL OF IT, so the arm that WOULD look right is exercised
   // beside the two that would not.
-  { writes: [["zzz.olai", '{"id":"zzz","ord":"a0","title":"last of all"}']] },
+  { writes: [["zzz.org", '{"id":"zzz","ord":"a0","title":"last of all"}']] },
   // A FILE THAT LEAVES.
-  { deletes: ["garden.olai"] },
+  { deletes: ["garden.org"] },
   // A FILE THAT BREAKS: it keeps its key, its records go, its errors arrive.
-  { writes: [["house.olai", '{"id":"kitchen"']] },
+  { writes: [["house.org", '{"id":"kitchen"']] },
   // ...and MENDS.
-  { writes: [["house.olai", HOUSE]] },
+  { writes: [["house.org", HOUSE]] },
   // A FILE THAT WILL NOT OPEN — the one breakage that reaches
   // `DocumentEntry.refused`, which no amount of bad JSONL produces.
   { writes: [["notes.md", REFUSED]] },
@@ -168,12 +168,12 @@ const CORNER_STEPS: ReadonlyArray<Step> = [
   // revision.
   {
     writes: [
-      ["house.olai", `${HOUSE}\n{"id":"pantry","parent":"kitchen","ord":"a2","title":"pantry"}`],
-      ["wing.olai", '{"id":"wing","ord":"a0","title":"the wing, rebuilt"}'],
+      ["house.org", `${HOUSE}\n{"id":"pantry","parent":"kitchen","ord":"a2","title":"pantry"}`],
+      ["wing.org", '{"id":"wing","ord":"a0","title":"the wing, rebuilt"}'],
       ["notes.md", "# pulled"],
-      ["wing/attic.olai", '{"id":"attic","ord":"a0","title":"the attic"}'],
+      ["wing/attic.org", '{"id":"attic","ord":"a0","title":"the attic"}'],
     ],
-    deletes: ["shed.olai"],
+    deletes: ["shed.org"],
   },
   // A PATH DELETED AND WRITTEN AGAIN, in two revisions: the second is a BIRTH
   // of a key the collection held a moment ago, which is the one case where
@@ -182,7 +182,7 @@ const CORNER_STEPS: ReadonlyArray<Step> = [
   { writes: [["aaa.md", "# back again"]] },
   // A DIRECTORY EMPTIED under a file of the same name — the byPath pair, taken
   // apart.
-  { deletes: ["wing/kitchen.olai"] },
+  { deletes: ["wing/kitchen.org"] },
   // ── MIXED-KIND MEMBERSHIP AT A CONSTANT FILE COUNT ───────────────────
   //
   // AN OUTLINE LEAVES AND A `.md` ARRIVES, in one revision. This is the shape
@@ -193,24 +193,24 @@ const CORNER_STEPS: ReadonlyArray<Step> = [
   // every fresh one. A `git pull` that rewrites a note as a page is exactly it.
   {
     writes: [["swapped.md", "# what the outline used to say\n"]],
-    deletes: ["house.olai"],
+    deletes: ["house.org"],
   },
   // ...AND THE INVERSE, because the two collections are two different pieces of
   // code reading one rule: a `.md` leaves and an outline arrives.
   {
-    writes: [["swapped.olai", '{"id":"swapped","ord":"a0","title":"back to records"}']],
+    writes: [["swapped.org", '{"id":"swapped","ord":"a0","title":"back to records"}']],
     deletes: ["swapped.md"],
   },
   // ...AND THE UNNAMED TWIN, which has no remove on the wire either: the walk's
   // `readAll` drops the key and a carried map has nothing at all to tell it to.
   {
     writes: [["ghosted.md", "# arrived as the other one vanished\n"]],
-    forgotten: ["swapped.olai"],
+    forgotten: ["swapped.org"],
   },
   // ...and one more kind again, since `bodiedIn` is a THREE-kind narrowing: an
   // unkept file leaves as an outline arrives.
   {
-    writes: [["revived.olai", '{"id":"revived","ord":"a0","title":"revived"}']],
+    writes: [["revived.org", '{"id":"revived","ord":"a0","title":"revived"}']],
     deletes: ["report.html"],
   },
   // A RESYNC: the file goes and the store names NOBODY as removed, because the
@@ -218,13 +218,13 @@ const CORNER_STEPS: ReadonlyArray<Step> = [
   // (`Step.forgotten`). This is the one shape every corpus in this file missed
   // and an e2e scenario caught — a projection that trusts `removed` for
   // membership keeps the key for the life of the process.
-  { forgotten: ["zzz.olai"] },
+  { forgotten: ["zzz.org"] },
   // ...and the same for a bodied file, which is the other collection.
   { forgotten: ["data/sales.csv"] },
   // ...and one that leaves unannounced while another ARRIVES in the same
   // revision, so the file count does not move: the departure has to be caught
   // by the arriving key rather than by the count.
-  { writes: [["late.olai", '{"id":"late","ord":"a0","title":"arrived"}']], forgotten: ["wing/attic.olai"] },
+  { writes: [["late.org", '{"id":"late","ord":"a0","title":"arrived"}']], forgotten: ["wing/attic.org"] },
   // ...and a `.csv` and a picture, which are bodied files the set keeps nothing
   // of and which owe nobody a body.
   { writes: [["data/sales.csv", "a,b\n3,4"], ["art/handle.png", ""]] },
@@ -236,7 +236,7 @@ const CORNER_STEPS: ReadonlyArray<Step> = [
   // above hold the halves apart (a bare departure; a bare restore under one);
   // held together is where open tabs used to keep the missing key forever.
   {
-    writes: [["revived.olai", '{"id":"revived","ord":"a0","title":"checked back out"}']],
+    writes: [["revived.org", '{"id":"revived","ord":"a0","title":"checked back out"}']],
     forgotten: ["aaa.md"],
   },
 ]
@@ -279,7 +279,7 @@ test("the phantom is gone — and the pre-fix wire, wired back in, fails the sam
 // ── size, and the shapes at rates ──────────────────────────────────────
 
 /** A generated vault with the OTHER kinds beside the outlines — `vaultOf` mints
- *  `.olai` and nothing else, and a directory of nothing but outlines is one
+ *  `.org` and nothing else, and a directory of nothing but outlines is one
  *  where the documents collection is empty and half the projection is never
  *  asked anything. */
 const generated = (files: number, records: number): ReadonlyMap<string, string> => {
@@ -402,26 +402,26 @@ test("the reference agrees with itself, so a divergence is never the harness", (
  */
 test("a write moves the file's entry and nothing else's, in every collection", () => {
   const revisions = revisionsOf(CORNERS, [
-    { writes: [["house.olai", `${HOUSE}\n{"id":"sink","parent":"kitchen","ord":"a1","title":"sink"}`]] },
+    { writes: [["house.org", `${HOUSE}\n{"id":"sink","parent":"kitchen","ord":"a1","title":"sink"}`]] },
     { writes: [["notes.md", "# hello again"]] },
   ])
   const first = publishedOf(revisions[0]!, null)
-  const wasHouse = first.outlines.entries.get("house.olai")
-  const wasWing = first.outlines.entries.get("wing.olai")
+  const wasHouse = first.outlines.entries.get("house.org")
+  const wasWing = first.outlines.entries.get("wing.org")
   const wasNotesHead = first.heads.entries.get("notes.md")
 
   const second = publishedOf(revisions[1]!, first)
   // THE OUTLINE THAT MOVED: a delta, at the new revision, carrying an entry
   // that is not the one the wire holds.
-  expect(second.outlines.upserts.map(([path]) => path)).toEqual(["house.olai"])
-  expect(second.outlines.entries.get("house.olai")).not.toBe(wasHouse)
-  expect(second.outlines.entries.get("house.olai")?.rev).toBe(2)
-  expect(second.outlines.upserts[0]?.[1]).toBe(second.outlines.entries.get("house.olai")!)
+  expect(second.outlines.upserts.map(([path]) => path)).toEqual(["house.org"])
+  expect(second.outlines.entries.get("house.org")).not.toBe(wasHouse)
+  expect(second.outlines.entries.get("house.org")?.rev).toBe(2)
+  expect(second.outlines.upserts[0]?.[1]).toBe(second.outlines.entries.get("house.org")!)
   // ...and its HEAD, which is the member a reader watches for "the file moved".
-  expect(second.heads.upserts.map(([path]) => path)).toEqual(["house.olai"])
+  expect(second.heads.upserts.map(([path]) => path)).toEqual(["house.org"])
   // THE NEIGHBOURS: the very objects, so a fold keyed on identity sees nothing
   // move — which is the whole reason an untouched file is not rebuilt.
-  expect(second.outlines.entries.get("wing.olai")).toBe(wasWing!)
+  expect(second.outlines.entries.get("wing.org")).toBe(wasWing!)
   expect(second.heads.entries.get("notes.md")).toBe(wasNotesHead!)
   expect(second.documents.upserts).toEqual([])
 

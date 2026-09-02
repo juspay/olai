@@ -1,0 +1,34 @@
+* the agents
+:PROPERTIES:
+:ID: agents
+:OLAI_KIND: regular
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "the agents"
+:END:
+
+** Claude
+:PROPERTIES:
+:ID: claude
+:OLAI_KIND: regular
+:OLAI_PARENT: "agents"
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "Claude"
+:END:
+
+** Grok
+:PROPERTIES:
+:ID: grok
+:OLAI_KIND: regular
+:OLAI_PARENT: "agents"
+:OLAI_ORD: "a1"
+:OLAI_TITLE: "Grok"
+:END:
+
+** pi
+:PROPERTIES:
+:ID: pi
+:OLAI_KIND: regular
+:OLAI_PARENT: "agents"
+:OLAI_ORD: "a2"
+:OLAI_TITLE: "pi"
+:END:

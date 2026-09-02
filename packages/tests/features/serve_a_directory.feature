@@ -1,7 +1,7 @@
 @corpus:good
 Feature: Serve a directory
   Olai is pointed at one directory and serves what it finds there. Every
-  `.olai` under it is an independent outline, every `.md` a document, and the
+  `.org` under it is an independent outline, every `.md` a document, and the
   sidebar is one file TREE of both — so this is the first thing that has to be
   true, and the cheapest thing to be wrong about (a mis-globbed extension, a
   path that reads as absolute in the browser and relative on disk).
@@ -9,12 +9,12 @@ Feature: Serve a directory
   Scenario: Every outline in the directory is listed
     # A root outline so no folder is force-opened for ancestry: only the two
     # root outlines show until Daily is unfolded (or someone opens a nested file).
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     Then the outline list has 2 entries
-    And the outline list links to "garden.olai"
-    And the outline list links to "house.olai"
+    And the outline list links to "garden.org"
+    And the outline list links to "house.org"
     When I expand the folder "Daily"
-    Then the outline list links to "Daily/2026-08.olai"
+    Then the outline list links to "Daily/2026-08.org"
     And the outline list has 3 entries
 
   Scenario: Nested paths are folders, collapsed by default
@@ -26,7 +26,7 @@ Feature: Serve a directory
     # the reader opens one. Expanding shows the children; collapsing hides
     # them again. The fold is client-local, and this browser remembers which
     # folders are open (`folds_are_remembered.feature`).
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     Then the file tree shows the folder "Daily"
     And the file tree shows the folder "notes"
     And the folder "Daily" is collapsed
@@ -42,7 +42,7 @@ Feature: Serve a directory
     And the document link "notes/palette.md" is hidden
     And the page has not reloaded
     When I expand the folder "Daily"
-    Then the outline link "Daily/2026-08.olai" reads "2026-08"
+    Then the outline link "Daily/2026-08.org" reads "2026-08"
 
   Scenario: Opening a nested file expands its folder chain
     # The selection must never hide under a shut parent. Landing on a nested
@@ -52,6 +52,6 @@ Feature: Serve a directory
     Then the folder "notes" is expanded
     And the document link "notes/palette.md" is shown
     And the folder "Daily" is collapsed
-    When I open the outline "house.olai"
+    When I open the outline "house.org"
     Then the folder "notes" is collapsed
     And the document link "notes/palette.md" is hidden

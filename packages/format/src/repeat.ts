@@ -3,7 +3,7 @@
  *
  * A node's `repeat` is TEXT, and the text is the grammar — `every day`, `every
  * week on monday`, `every month`, `every year`, and nothing else. It is stored
- * the way a person would write it because a `.olai` is read by people: a
+ * the way a person would write it because a `.org` is read by people: a
  * cron field (`0 0 * * 1`) says the same thing in a dialect that has to be
  * learned, and the moment a dialect exists the pressure is to grow it. Four
  * spellings is a vocabulary; five fields with numbers in them is a language,

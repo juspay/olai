@@ -147,7 +147,7 @@ export const granting = (
  * A grant is a claim that some named record of the past is allowed to spell the
  * thing being hunted, and a claim about a path that has been moved is not a
  * loosened fence — it is a fence that has quietly TIGHTENED onto whatever the
- * path became. `docs/roadmap.olai` became the `docs/roadmap/` directory on
+ * path became. `docs/roadmap.org` became the `docs/roadmap/` directory on
  * 2026-08-20 — both spellings gone from this repository since, with the vault
  * — and both sweeps went red on the ledger they were written to excuse, on
  * master, for two days: the grant was still spelled, and it granted nothing.

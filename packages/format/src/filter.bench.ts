@@ -63,7 +63,7 @@ const TYPED = ["k", "ki", "kit", "kitc", "kitch", "kitche", "kitchen"]
 
 const vault = (): ReadonlyArray<Located> =>
   Array.from({ length: NODES }, (_, at) => ({
-    file: `vault/${Math.floor(at / PER_FILE)}.olai`,
+    file: `vault/${Math.floor(at / PER_FILE)}.org`,
     line: (at % PER_FILE) + 1,
     node: {
       id: `n${at}`,

@@ -115,8 +115,9 @@ const FLOOR = 3
  *     may be a whole quoted paragraph;
  *   - IT CARRIES A `NUL`. FTS5's query parser reads the expression as a C
  *     string, so a `\0` inside a phrase ends the phrase early and the call
- *     raises `unterminated string`. Stored text is unaffected — that side is
- *     handed a length — so this is a rule about needles alone;
+ *     raises `unterminated string`. Stored text is normalised by
+ *     {@link indexable} so words on either side remain candidates; this is a
+ *     rule about needles alone;
  *   - IT IS NOT WELL FORMED. Half a surrogate pair survives in a JavaScript
  *     string and does not survive the trip to UTF-8, and the two sides of the
  *     comparison do not mangle it into the same thing: a needle carrying one
@@ -138,6 +139,11 @@ const FLOOR = 3
  */
 export const lookupable = (word: string): boolean =>
   longEnough(word) && !word.includes("\0") && word.isWellFormed()
+
+/** Bytes FTS cannot safely compare are separators in its non-authoritative
+ * candidate text. The corpus matcher still sees the exact title and note, so
+ * this may only widen the shortlist; it cannot create a search hit. */
+const indexable = (text: string): string => text.toWellFormed().replaceAll("\0", " ")
 
 /** At least {@link FLOOR} code points, counted no further than it needs to be.
  *  A code point is at most two UTF-16 units, so anything twice the floor long
@@ -380,7 +386,7 @@ export const open = (): Index => {
     for (const at of records) {
       if (isMirror(at.node)) continue
       insertRec.run(next, "node", at.node.id, file)
-      insertHay.run(next, hayOf(at.node as RegularNode))
+      insertHay.run(next, indexable(hayOf(at.node as RegularNode)))
       next += 1
       added += 1
     }
@@ -389,7 +395,7 @@ export const open = (): Index => {
 
   const putDocument = (document: Bodied): number => {
     insertRec.run(next, "document", document.path, document.path)
-    insertHay.run(next, documentHayOf(document))
+    insertHay.run(next, indexable(documentHayOf(document)))
     next += 1
     return 1
   }

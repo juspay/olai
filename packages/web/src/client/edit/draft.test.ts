@@ -166,9 +166,9 @@ test("a new row is drawn after the row it follows, or on a page's start line", (
   // drawn after, and saying so is what keeps one editor from appearing twice.
   expect(anchorRow({ kind: "after", id: "order" })).toBe("order")
   expect(anchorRow({ kind: "under", id: "order" })).toBeNull()
-  expect(anchorRow({ kind: "first", file: "a.olai" })).toBeNull()
+  expect(anchorRow({ kind: "first", file: "a.org" })).toBeNull()
   expect(slotOf(pending())).toEqual({ row: "order", field: "new" })
-  expect(slotOf(pending({ at: { kind: "first", file: "a.olai" } })))
+  expect(slotOf(pending({ at: { kind: "first", file: "a.org" } })))
     .toEqual({ row: null, field: "new" })
 })
 
@@ -201,6 +201,6 @@ test("two anchors are the same place only when they name the same one", () => {
     .toBe(true)
   expect(sameAnchor({ kind: "under", id: "order" }, { kind: "after", id: "order" }))
     .toBe(false)
-  expect(sameAnchor({ kind: "first", file: "a.olai" }, { kind: "first", file: "b.olai" }))
+  expect(sameAnchor({ kind: "first", file: "a.org" }, { kind: "first", file: "b.org" }))
     .toBe(false)
 })

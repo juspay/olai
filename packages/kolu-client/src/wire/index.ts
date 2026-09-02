@@ -173,7 +173,7 @@ export const koluMembers = {
      * THE RECENT EVENTS — what the server-side watcher computed, as a ring of
      * the last ~200.
      *
-     * The knob set these events came from is `_olai/Kolu.olai` in the served
+     * The knob set these events came from is `_olai/Kolu.org` in the served
      * directory (the vault owner's, read live); what olai owns is the reading
      * and the math — the mirror's rows folded into transition/hold/nag. The
      * ring is ATTENTION ONLY — liveness is the `pulse` cell above, not a row

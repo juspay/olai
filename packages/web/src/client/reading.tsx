@@ -162,7 +162,7 @@ export interface Reading {
    * once here so the pane's leaves and the chrome outside it (the palette's pin
    * row) look up the same Map. A second `createNames` over this reading would
    * copy the array again on every navigation, which is the defect this field
-   * closes (`https://github.com/juspay/oss.olai/blob/main/projects/olai/roadmap/deferred.olai`'s `names-table-once`).
+   * closes (`https://github.com/juspay/oss.olai/blob/main/projects/olai/roadmap/deferred.org`'s `names-table-once`).
    */
   readonly names: Accessor<Names>
   /**

@@ -52,7 +52,7 @@ const held = () => {
             Result.succeed({
               id: named,
               title: named,
-              file: "house.olai",
+              file: "house.org",
               ...(undo === undefined ? {} : { undo }),
             }),
           ),

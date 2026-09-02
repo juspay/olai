@@ -2,7 +2,7 @@
 
 Git is how you see what olai did to your files — an audit trail, not sync and not undo. Writes land on disk and WAIT to be committed: from the pill in the app header (or, on a phone, from a banner when there is something to record), or by the agent's own `commit` tool, which is the better one to use — it knows where a train of thought ended, so its message can say `olai: reconcile the roadmap with the #70–#81 merges` instead of describing edits. The server can also press that button for you when the writes stop arriving — [Auto-commit](#committing-on-its-own), below.
 
-**The two places that "not undo" is load-bearing are the emptied Trash and a deleted file** — one unit each of the two that destroy ([editing.md](editing.md)). Emptying the archive is a write like any other — the file is rewritten holding no records — and deleting a file is the same write with the rewrite step missing. So history holds them to exactly the extent it had already recorded them, and no further. A directory that is not a repository, or one served `--no-commit`, holds none of them. A directory whose file had been committed holds all of them — `git show HEAD:_olai/Trash.olai` reads a trashed row back, and the same door is the whole undo story of a deleted file. Olai will not do that for you: nothing in the app reads a commit onto disk.
+**The two places that "not undo" is load-bearing are the emptied Trash and a deleted file** — one unit each of the two that destroy ([editing.md](editing.md)). Emptying the archive is a write like any other — the file is rewritten holding no records — and deleting a file is the same write with the rewrite step missing. So history holds them to exactly the extent it had already recorded them, and no further. A directory that is not a repository, or one served `--no-commit`, holds none of them. A directory whose file had been committed holds all of them — `git show HEAD:_olai/Trash.org` reads a trashed row back, and the same door is the whole undo story of a deleted file. Olai will not do that for you: nothing in the app reads a commit onto disk.
 
 ## The pill
 
@@ -35,7 +35,7 @@ The two kinds of row are the two things olai can honestly say about a file:
 │   · chat agent · 12m ago · 1a2b3c4        │
 │                                           │
 │ OUTLINES ─────────────────────────────    │
-│ ☑ roadmap.olai                            │
+│ ☑ roadmap.org                            │
 │   ✓  Outlines as a collection    done     │
 │   ✎  Notes: one state, same line  note    │
 │   +  Kolu integration: auto-…    created  │
@@ -52,9 +52,9 @@ The two kinds of row are the two things olai can honestly say about a file:
 └───────────────────────────────────────────┘
 ```
 
-An outline olai serves gets its NODES and what changed about each — never a text diff, because a `.olai` diff is one enormous line per node with everything on it changing at once. Every other file gets its path and what git says happened to it: `modified`, `added`, `deleted`, `renamed`, `untracked`. Those are git's words rather than yours, so a `mv` you have not staged is a `deleted` and an `untracked` — `renamed` appears once both halves are staged.
+An outline olai serves gets its NODES and what changed about each — never a text diff, because an Org heading and its storage drawer are not the semantic story. Every other file gets its path and what git says happened to it: `modified`, `added`, `deleted`, `renamed`, `untracked`. Those are git's words rather than yours, so a `mv` you have not staged is a `deleted` and an `untracked` — `renamed` appears once both halves are staged.
 
-A `renamed` row names BOTH halves (`old/name.md → name.olai`) and is one row with one tick: a rename is one thing that happened, and committing the arriving side on its own would land it in two pieces — an add here, a deletion still staged and waiting to be swept into whatever you commit next. That goes for an outline too: rename one and its nodes read as having MOVED, because the committed side olai compares against is HEAD's copy of the file it came from.
+A `renamed` row names BOTH halves (`old/name.md → name.org`) and is one row with one tick: a rename is one thing that happened, and committing the arriving side on its own would land it in two pieces — an add here, a deletion still staged and waiting to be swept into whatever you commit next. That goes for an outline too: rename one and its nodes read as having MOVED, because the committed side olai compares against is HEAD's copy of the file it came from.
 
 ## Committing some of it
 

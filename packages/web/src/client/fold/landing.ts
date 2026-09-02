@@ -4,7 +4,7 @@
  * without a browser.
  *
  * The act itself is `./OutlinePage.tsx`'s face work beside the reading it
- * performs: the address said `/File.olai#id`, the router minted the landing
+ * performs: the address said `/File.org#id`, the router minted the landing
  * (`../landing.ts`), and the face owes its pane the row — selected with the
  * accent `./focus.ts` owns, on screen, exactly once.
  *

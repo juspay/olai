@@ -1,3 +1,0 @@
-{"id":"attic","ord":"a0","title":"clear the attic"}
-{"id":"boxes","parent":"attic","ord":"a0","title":"sort the boxes"}
-{"id":"lamps","parent":"attic","ord":"a1","title":"box up the lamps","after":["donate"]}

@@ -1,0 +1,27 @@
+* weekend plans
+:PROPERTIES:
+:ID: plans
+:OLAI_KIND: regular
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "weekend plans"
+:END:
+
+** go to the market
+:PROPERTIES:
+:ID: market
+:OLAI_KIND: regular
+:OLAI_PARENT: "plans"
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "go to the market"
+:OLAI_TODO: "2026-08-29"
+:END:
+
+** bake the bread
+:PROPERTIES:
+:ID: bake
+:OLAI_KIND: regular
+:OLAI_PARENT: "plans"
+:OLAI_ORD: "a1"
+:OLAI_TITLE: "bake the bread"
+:OLAI_AFTER: ["market"]
+:END:

@@ -47,30 +47,31 @@ mock.module("./paths.ts", () => ({
 
 const { apart, assemble, outlinePaths, withDocuments } = await import("./set.ts")
 const { bodiedDocument, outlineDocument } = await import("./document.ts")
+const { orgFixture } = await import("./fixtures.testlib.ts")
 const { parseOutline } = await import("./parse.ts")
 const { verdictOf } = await import("./verdict.ts")
 
 /** A directory with the shapes an ORDER can go wrong at: nested paths, a file
- *  and a directory sharing a name (`wing.olai` beside `wing/…`), a dotted
+ *  and a directory sharing a name (`wing.org` beside `wing/…`), a dotted
  *  `_olai/`, documents beside the outlines, and one file nobody could parse. */
 const vault = (files: number) => {
   const decoded = new Map<string, Result.Result<never, never>>()
   const put = (path: string, document: unknown) =>
     decoded.set(path, Result.succeed(document as never))
-  put("_olai/Trash.olai", outlineDocument("_olai/Trash.olai", []))
-  put("wing.olai", outlineDocument("wing.olai", []))
+  put("_olai/Trash.org", outlineDocument("_olai/Trash.org", []))
+  put("wing.org", outlineDocument("wing.org", []))
   for (let which = 0; which < files; which++) {
-    const name = `wing/room-${String(which).padStart(4, "0")}.olai`
+    const name = `wing/room-${String(which).padStart(4, "0")}.org`
     const text = `{"id":"n${which}","ord":"a0","title":"room ${which}"}`
-    const read = parseOutline(name, text)
+    const read = parseOutline(name, orgFixture(text))
     if (Result.isFailure(read)) throw new Error(`fixture ${name} does not parse`)
     put(name, read.success)
     if (which % 5 === 0) put(`notes/${which}.md`, bodiedDocument(`notes/${which}.md`, "# note\n"))
   }
   decoded.set(
-    "torn.olai",
+    "torn.org",
     Result.fail(
-      verdictOf([{ code: "bad-json", file: "torn.olai", line: 1, message: "no" }] as never),
+      verdictOf([{ code: "bad-json", file: "torn.org", line: 1, message: "no" }] as never),
     ) as never,
   )
   return assemble(decoded as never)
@@ -83,7 +84,10 @@ const written = (path: string, title: string) => {
   // ({@link ./node.ts}'s `ID_SHAPE`) — this fixture is about paths, and every
   // record still needs an id nothing else claims.
   const id = path.replace(/[^A-Za-z0-9_-]/g, "-")
-  const read = parseOutline(path, `{"id":"${id}","ord":"a0","title":"${title}"}`)
+  const read = parseOutline(
+    path,
+    orgFixture(`{"id":"${id}","ord":"a0","title":"${title}"}`),
+  )
   if (Result.isFailure(read)) throw new Error(`${path} does not parse`)
   return read.success
 }
@@ -108,24 +112,24 @@ test("the splice answers what re-assembling answered", () => {
   const set = vault(40)
   // A file the set already serves, rewritten — the common case, and the one an
   // ordinary batch is made of.
-  same(set, [written("wing/room-0007.olai", "seven again")], "a file rewritten")
+  same(set, [written("wing/room-0007.org", "seven again")], "a file rewritten")
   // A file that ARRIVES, at each end of the order and in the middle of it.
-  same(set, [written("aaa.olai", "first")], "a file sorting first")
-  same(set, [written("zzz.olai", "last")], "a file sorting last")
-  same(set, [written("wing/room-0007a.olai", "between")], "a file sorting between two")
+  same(set, [written("aaa.org", "first")], "a file sorting first")
+  same(set, [written("zzz.org", "last")], "a file sorting last")
+  same(set, [written("wing/room-0007a.org", "between")], "a file sorting between two")
   // The pair `./paths.ts` exists for: a file and a directory sharing a name.
-  same(set, [written("wing/room-0007.olai/inner.olai", "under a name")], "under a shared name")
+  same(set, [written("wing/room-0007.org/inner.org", "under a name")], "under a shared name")
   // A file the set could not READ, written — it leaves `broken`, exactly as
   // re-assembling from a map that now holds a successful decode leaves it.
-  same(set, [written("torn.olai", "mended")], "a broken file mended")
+  same(set, [written("torn.org", "mended")], "a broken file mended")
   // SEVERAL at once, which is what one op does when it writes a node into one
   // file and a signpost into another.
   same(
     set,
     [
-      written("wing/room-0003.olai", "three"),
-      written("mmm.olai", "arriving"),
-      written("torn.olai", "mended"),
+      written("wing/room-0003.org", "three"),
+      written("mmm.org", "arriving"),
+      written("torn.org", "mended"),
     ],
     "three at once",
   )
@@ -135,9 +139,9 @@ test("the splice answers what re-assembling answered", () => {
 
 test("the order is the set's own, whichever way the set was built", () => {
   const set = vault(12)
-  const grown = withDocuments(set, [written("wing.olai/inner.olai", "under the file")])
+  const grown = withDocuments(set, [written("wing.org/inner.org", "under the file")])
   expect(outlinePaths(grown)).toEqual(outlinePaths(assembled(set, [
-    written("wing.olai/inner.olai", "under the file"),
+    written("wing.org/inner.org", "under the file"),
   ])))
   // The promise `assemble` makes, kept by a splice: path order, and the same
   // path order a client sorting for itself would produce.
@@ -147,7 +151,7 @@ test("the order is the set's own, whichever way the set was built", () => {
 test("the comparisons per write stop growing with the directory", () => {
   const small = vault(50)
   const large = vault(500)
-  const one = written("wing/room-0007.olai", "seven again")
+  const one = written("wing/room-0007.org", "seven again")
 
   const counted = (run: () => void): number => {
     compares = 0

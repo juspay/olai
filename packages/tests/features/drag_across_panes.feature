@@ -26,7 +26,7 @@ Feature: Dragging a row from one pane into the other
     # one gap in this outline whose depth the pointer cannot get wrong: the row
     # above is `kitchen` and the row below is its first child, so "one inside
     # the row above" and "level with the row below" are the same answer.
-    When I open the address "/s/house.olai/house.olai"
+    When I open the address "/s/house.org/house.org"
     # `demo` anchors half the drops here, and it is finished: the pick is one
     # page-scoped fact, so two panes of the one file both redraw off it.
     And I show the done nodes
@@ -41,7 +41,7 @@ Feature: Dragging a row from one pane into the other
     # the same news arriving twice.
     And the node "knobs" is a child of "kitchen" in pane 0
     And the node "knobs" is not a child of "install" in pane 0
-    And "house.olai" holds the node "knobs"
+    And "house.org" holds the node "knobs"
     And the page has not reloaded
     And there should be no page errors
 
@@ -57,7 +57,7 @@ Feature: Dragging a row from one pane into the other
     # apart, and neither can the file. What separates them is where the line is
     # DRAWN, which is why this scenario exists and why the one below asserts the
     # same thing from the other side (review, opencode + grok, 2026-08-18).
-    When I open the address "/s/house.olai/house.olai"
+    When I open the address "/s/house.org/house.org"
     And I show the done nodes
     And I pick up the bullet of "knobs" in pane 0 and hold it above the title of "demo" in pane 1
     Then the drop line is drawn over pane 1
@@ -70,7 +70,7 @@ Feature: Dragging a row from one pane into the other
     # of ITS page, so two panes showing one file draw two sets of lines wearing
     # the SAME keys. Measured across the document, pane 0's gesture would be
     # planned against pane 1's boxes and promise its landing over there.
-    When I open the address "/s/house.olai/house.olai"
+    When I open the address "/s/house.org/house.org"
     # `demo` anchors half the drops here, and it is finished: the pick is one
     # page-scoped fact, so two panes of the one file both redraw off it.
     And I show the done nodes
@@ -85,10 +85,10 @@ Feature: Dragging a row from one pane into the other
   # ── two different files ──────────────────────────────────────────────
 
   Scenario: A row held over another file's pane is refused there, in words, before the drop
-    When I open the address "/s/house.olai/garden.olai"
+    When I open the address "/s/house.org/garden.org"
     And I mark the page
     And I pick up the bullet of "knobs" in pane 0 and hold it over the title of "mint" in pane 1
-    Then the drop is refused by "garden.olai"
+    Then the drop is refused by "garden.org"
     And the refused pane says "another file"
     And no drop line is drawn
     # And the promise is kept when the hand lets go: the same sentence, on the
@@ -97,16 +97,16 @@ Feature: Dragging a row from one pane into the other
     When I let go
     Then the pick says "another file"
     And the node "knobs" is a child of "install" in pane 0
-    And "house.olai" holds the node "knobs"
+    And "house.org" holds the node "knobs"
     And there should be no page errors
 
   Scenario: The pane the drag began in is unaffected by the one that refuses
     # One pointer, one pane, one answer — the refusal is about where the hand
     # IS, not about the split being open.
-    When I open the address "/s/house.olai/garden.olai"
+    When I open the address "/s/house.org/garden.org"
     And I mark the page
     # The pick this makes is the FOCUSED pane's — pane 0, which holds
-    # house.olai, where `demo` must be drawn for the drop below to land on it.
+    # house.org, where `demo` must be drawn for the drop below to land on it.
     Then pane 0 is focused
     And I show the done nodes
     And I pick up the bullet of "knobs" in pane 0 and hold it above the title of "demo" in pane 0
@@ -130,10 +130,10 @@ Feature: Dragging a row from one pane into the other
     # Delete that early-out and this scenario fails rather than argues: pane 1's
     # three children become candidates, and the line offers to put `install`
     # inside itself — the loop the ops layer would then have to refuse.
-    When I open the address "/s/house.olai/%23install"
+    When I open the address "/s/house.org/%23install"
     And I mark the page
     And I pick up the bullet of "install" in pane 0 and hold it over the title of "handles" in pane 1
-    Then the drop is refused by "house.olai"
+    Then the drop is refused by "house.org"
     And the refused pane says "inside what you are carrying"
     # ...and NOT the file rule's words, which is the whole reason there are two
     # sentences: nothing here is about files at all.

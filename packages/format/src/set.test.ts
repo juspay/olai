@@ -50,17 +50,17 @@ const spelled = (values: ReadonlyArray<string>): ReadonlyArray<string> => [...va
 // carried on the value rather than a second reading of it.
 test("assemble collects every decoded file as the document it is", () => {
   const set = assemble(decoded({
-    "home.olai": outline("home.olai", `{"id":"kitchen","ord":"a","title":"kitchen"}\n`),
+    "home.org": outline("home.org", `{"id":"kitchen","ord":"a","title":"kitchen"}\n`),
     "notes/cabinets.md": document("notes/cabinets.md", "# Cabinets\n"),
-    "work.olai": outline(
-      "work.olai",
+    "work.org": outline(
+      "work.org",
       `{"id":"budget","ord":"a","title":"budget"}\n{"id":"m","ord":"b","mirror":"kitchen"}`,
     ),
   }))
 
-  expect(paths(set)).toEqual(["home.olai", "notes/cabinets.md", "work.olai"])
+  expect(paths(set)).toEqual(["home.org", "notes/cabinets.md", "work.org"])
   expect(set.documents.map((one) => one.kind)).toEqual(["outline", "document", "outline"])
-  expect(outlinePaths(set)).toEqual(["home.olai", "work.olai"])
+  expect(outlinePaths(set)).toEqual(["home.org", "work.org"])
   expect(spelled(markdownIn(set).map((one) => one.path))).toEqual(["notes/cabinets.md"])
   expect(markdownIn(set).map((one) => one.body)).toEqual(["# Cabinets\n"])
   // The nodes are reachable THROUGH the outline they were written in, in file
@@ -68,7 +68,7 @@ test("assemble collects every decoded file as the document it is", () => {
   // one level down.
   expect(ids(recordsOf(set))).toEqual(["kitchen", "budget", "m"])
   expect(recordsOf(set).map((located) => `${located.file}:${located.line}`))
-    .toEqual(["home.olai:1", "work.olai:1", "work.olai:2"])
+    .toEqual(["home.org:1", "work.org:1", "work.org:9"])
 })
 
 // A DOCUMENT ARRIVES WITH ITS FACE, which is the whole of what PR 2 added to
@@ -114,8 +114,8 @@ test("a markdown document carries a face", () => {
 // kinds (`./backlinks.ts`).
 test("an outline carries a face read off its records", () => {
   const set = assemble(decoded({
-    "home.olai": outline(
-      "home.olai",
+    "home.org": outline(
+      "home.org",
       [
         `{"id":"kitchen","ord":"a","title":"kitchen #home","doc":"notes/cabinets.md"}`,
         `{"id":"sink","ord":"b","title":"sink","see":["kitchen"],"desc":"see [the brief](brief.md)"}`,
@@ -126,7 +126,7 @@ test("an outline carries a face read off its records", () => {
     "brief.md": document("brief.md", "# Brief\n"),
   }))
 
-  const home = set.documents.find((one) => one.path === "home.olai")!
+  const home = set.documents.find((one) => one.path === "home.org")!
   // The FILENAME, which is what an outline has always been called.
   expect(home.title).toBe("home")
   expect(spelled(home.tags)).toEqual(["#home"])
@@ -157,23 +157,23 @@ test("hypertext is a face and no body", () => {
 // it true of every caller. The one in the tree that does not walk a directory
 // is the write gate: it assembles what the last probe held with the files it is
 // about to write swapped in, so a path that did not exist before sits at the
-// END of that map — and until #208 a created `_olai/Trash.olai` was published after
-// the `house.olai` it sorts before, which `list_outlines` answers with and a
+// END of that map — and until #208 a created `_olai/Trash.org` was published after
+// the `house.org` it sorts before, which `list_outlines` answers with and a
 // search tie breaks on.
 test("documents come out in path order, whatever order the map holds", () => {
   const set = assemble(decoded({
-    "zeta.olai": outline("zeta.olai", `{"id":"z","ord":"a","title":"z"}`),
+    "zeta.org": outline("zeta.org", `{"id":"z","ord":"a","title":"z"}`),
     "notes/zebra.md": document("notes/zebra.md", "z\n"),
-    "_olai/Trash.olai": outline("_olai/Trash.olai", `{"id":"arch","ord":"a","title":"arch"}`),
+    "_olai/Trash.org": outline("_olai/Trash.org", `{"id":"arch","ord":"a","title":"arch"}`),
     "notes/apple.md": document("notes/apple.md", "a\n"),
-    "middle.olai": outline("middle.olai", `{"id":"mid","ord":"a","title":"mid"}`),
+    "middle.org": outline("middle.org", `{"id":"mid","ord":"a","title":"mid"}`),
   }))
   expect(paths(set)).toEqual([
-    "_olai/Trash.olai",
-    "middle.olai",
+    "_olai/Trash.org",
+    "middle.org",
     "notes/apple.md",
     "notes/zebra.md",
-    "zeta.olai",
+    "zeta.org",
   ])
   // The records follow it file by file, which is why the sort is done to the
   // paths before anything is built rather than to the lists afterwards.
@@ -181,46 +181,46 @@ test("documents come out in path order, whatever order the map holds", () => {
 })
 
 // WHICH path order, and it is the one question a code-point sort answers
-// differently: `.` is 0x2E and `/` is 0x2F, so a plain compare puts `wing.olai`
+// differently: `.` is 0x2E and `/` is 0x2F, so a plain compare puts `wing.org`
 // ahead of the directory it names, while a walk descends into `wing` when it
-// meets it (`@olai/store`'s `disk.ts`) and reads `wing/kitchen.olai` first.
+// meets it (`@olai/store`'s `disk.ts`) and reads `wing/kitchen.org` first.
 // `byPath` is the walk's answer, it is what `assemble` sorts by, and slice 4 of
 // `model-indices` is why there is one of it: the patcher places an arriving
 // file by this order and the browser draws its sidebar in it, so a second
 // spelling anywhere would be the same directory read two ways.
 test("a directory sorts where descending into it would put it", () => {
-  expect(["wing.olai", "wing/kitchen.olai", "wing-annexe.olai"].sort(byPath)).toEqual([
-    "wing/kitchen.olai",
-    "wing-annexe.olai",
-    "wing.olai",
+  expect(["wing.org", "wing/kitchen.org", "wing-annexe.org"].sort(byPath)).toEqual([
+    "wing/kitchen.org",
+    "wing-annexe.org",
+    "wing.org",
   ])
   // Deeper, and the same rule one level down.
-  expect(["a/b.olai", "a/b/c.olai"].sort(byPath)).toEqual(["a/b/c.olai", "a/b.olai"])
+  expect(["a/b.org", "a/b/c.org"].sort(byPath)).toEqual(["a/b/c.org", "a/b.org"])
   // Everything that is not the separator is code point order, unchanged.
-  expect(["b.olai", "A.olai", "a.olai"].sort(byPath)).toEqual(["A.olai", "a.olai", "b.olai"])
+  expect(["b.org", "A.org", "a.org"].sort(byPath)).toEqual(["A.org", "a.org", "b.org"])
 
   const set = assemble(decoded({
-    "wing.olai": outline("wing.olai", `{"id":"wing","ord":"a","title":"wing"}`),
-    "wing/kitchen.olai": outline(
-      "wing/kitchen.olai",
+    "wing.org": outline("wing.org", `{"id":"wing","ord":"a","title":"wing"}`),
+    "wing/kitchen.org": outline(
+      "wing/kitchen.org",
       `{"id":"kitchen","ord":"a","title":"kitchen"}`,
     ),
   }))
-  expect(outlinePaths(set)).toEqual(["wing/kitchen.olai", "wing.olai"])
+  expect(outlinePaths(set)).toEqual(["wing/kitchen.org", "wing.org"])
   expect(ids(recordsOf(set))).toEqual(["kitchen", "wing"])
 })
 
 // The collection is not derived from the records, and this is the case that
-// proves it: an empty `.olai` is a file of the set the sidebar shows and a file
+// proves it: an empty `.org` is a file of the set the sidebar shows and a file
 // a writer may append to, not a file that is missing.
 test("an outline holding no nodes is still one of the set's documents", () => {
   const set = assemble(decoded({
-    "empty.olai": outline("empty.olai", ``),
-    "a.olai": outline("a.olai", `{"id":"a","ord":"a","title":"a"}`),
+    "empty.org": outline("empty.org", ``),
+    "a.org": outline("a.org", `{"id":"a","ord":"a","title":"a"}`),
   }))
   // In PATH order, which is `assemble`'s own doing rather than the order this
   // fixture happens to name them in.
-  expect(outlinePaths(set)).toEqual(["a.olai", "empty.olai"])
+  expect(outlinePaths(set)).toEqual(["a.org", "empty.org"])
   expect(ids(recordsOf(set))).toEqual(["a"])
 })
 
@@ -237,15 +237,15 @@ test("nothing decoded assembles to an empty set", () => {
 // been instead of blanking the page.
 test("a file that did not decode keeps its place and carries its errors", () => {
   const set = assemble(decoded({
-    "good.olai": outline("good.olai", `{"id":"a","ord":"a","title":"a"}`),
-    "bad.olai": unreadable("bad.olai", `{"id":"b","ord":"a",title:"b"}`),
+    "good.org": outline("good.org", `{"id":"a","ord":"a","title":"a"}`),
+    "bad.org": unreadable("bad.org", `{"id":"b","ord":"a",title:"b"}`),
   }))
 
-  expect(outlinePaths(set)).toEqual(["bad.olai", "good.olai"])
+  expect(outlinePaths(set)).toEqual(["bad.org", "good.org"])
   expect(ids(recordsOf(set))).toEqual(["a"])
-  expect(set.broken.map((file) => file.file)).toEqual(["bad.olai"])
+  expect(set.broken.map((file) => file.file)).toEqual(["bad.org"])
   expect(set.broken[0]?.errors.map((error) => `${error.file}:${error.line} ${error.code}`))
-    .toEqual(["bad.olai:1 not-json"])
+    .toEqual(["bad.org:1 bad-record"])
 })
 
 // The same for a BODIED file the probe could not read: it holds its place as a
@@ -282,18 +282,18 @@ test("an unreadable document holds its place with an empty body", () => {
  */
 test("a set taken apart and assembled again is the set it was", () => {
   const set = assemble(decoded({
-    "home.olai": outline(
-      "home.olai",
+    "home.org": outline(
+      "home.org",
       [
         `{"id":"kitchen","ord":"a","title":"kitchen"}`,
         `{"id":"sink","parent":"kitchen","ord":"a","title":"sink"}`,
         "",
       ].join("\n"),
     ),
-    "empty.olai": outline("empty.olai", ""),
+    "empty.org": outline("empty.org", ""),
     "notes/cabinets.md": document("notes/cabinets.md", "# Cabinets\n"),
     "saved.html": Result.succeed(bodiedDocument("saved.html", null)),
-    "bad.olai": unreadable("bad.olai", `{"id":"b","ord":"a",title:"b"}`),
+    "bad.org": unreadable("bad.org", `{"id":"b","ord":"a",title:"b"}`),
   }))
 
   expect(assemble(apart(set))).toEqual(set)
@@ -314,16 +314,16 @@ test("a set taken apart and assembled again is the set it was", () => {
 // the batch fold a set in an order no load produces.
 test("the inverse holds for the pair path order exists to settle", () => {
   const set = assemble(decoded({
-    "wing.olai": outline("wing.olai", `{"id":"wing","ord":"a","title":"wing"}`),
-    "wing/kitchen.olai": outline(
-      "wing/kitchen.olai",
+    "wing.org": outline("wing.org", `{"id":"wing","ord":"a","title":"wing"}`),
+    "wing/kitchen.org": outline(
+      "wing/kitchen.org",
       `{"id":"kitchen","ord":"a","title":"kitchen"}`,
     ),
     "wing/notes.md": document("wing/notes.md", "n\n"),
   }))
-  expect(outlinePaths(set)).toEqual(["wing/kitchen.olai", "wing.olai"])
+  expect(outlinePaths(set)).toEqual(["wing/kitchen.org", "wing.org"])
   expect(assemble(apart(set))).toEqual(set)
-  expect(outlinePaths(assemble(apart(set)))).toEqual(["wing/kitchen.olai", "wing.olai"])
+  expect(outlinePaths(assemble(apart(set)))).toEqual(["wing/kitchen.org", "wing.org"])
 })
 
 // ── the point lookup, against the walk it replaced ──────────────────────
@@ -334,8 +334,8 @@ test("the inverse holds for the pair path order exists to settle", () => {
  * and to nothing else — so what is asked here is the equivalence: every path,
  * and a handful that are not paths at all, looked up both ways.
  *
- * The corpus is chosen to break it rather than to demonstrate it. `wing.olai`
- * beside `wing/kitchen.olai` is the pair the test above exists for — a search
+ * The corpus is chosen to break it rather than to demonstrate it. `wing.org`
+ * beside `wing/kitchen.org` is the pair the test above exists for — a search
  * comparing with `<` instead of {@link byPath} looks in the wrong half for
  * exactly one of them — and the misses are the cases where a search that fell
  * off either end would answer with a neighbour instead of with nothing.
@@ -343,17 +343,17 @@ test("the inverse holds for the pair path order exists to settle", () => {
 test("a file found by search is the file a walk finds", () => {
   const files: Record<string, Decoded> = {}
   for (const path of [
-    "wing.olai",
-    "wing/kitchen.olai",
-    "wing/attic.olai",
-    "_olai/Inbox.olai",
-    "_olai/Trash.olai",
-    "Areas.olai",
-    "areas.olai",
-    "a.olai",
-    "a/b.olai",
-    "a/b/c.olai",
-    "zzz.olai",
+    "wing.org",
+    "wing/kitchen.org",
+    "wing/attic.org",
+    "_olai/Inbox.org",
+    "_olai/Trash.org",
+    "Areas.org",
+    "areas.org",
+    "a.org",
+    "a/b.org",
+    "a/b/c.org",
+    "zzz.org",
   ]) files[path] = outline(path, `{"id":"${path.replace(/[^a-z]/gi, "")}","ord":"a","title":"t"}`)
   for (const path of ["notes.md", "wing/notes.md", "a/b/notes.md", "art/handle.png"]) {
     files[path] = document(path, "n\n")
@@ -368,14 +368,14 @@ test("a file found by search is the file a walk finds", () => {
       // ...and the paths that are NOT there: before the first, after the last,
       // between two neighbours, a prefix of one, and one a segment longer.
       "",
-      "AAAA.olai",
-      "zzzz.olai",
+      "AAAA.org",
+      "zzzz.org",
       "wing",
       "wing/",
       "wing/kitchen",
-      "wing/kitchen.olai/deeper.olai",
-      "b.olai",
-      "_olai/Pins.olai",
+      "wing/kitchen.org/deeper.org",
+      "b.org",
+      "_olai/Pins.org",
     ]
   ) expect(documentAt(set, path)).toBe(walked(path) as never)
 })

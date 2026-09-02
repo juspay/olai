@@ -412,7 +412,7 @@ export const make = (
       Effect.gen(function*() {
         const cut = path.lastIndexOf("/")
         const directory = cut === -1 ? "" : path.slice(0, cut)
-        // A file the set has never held — the first `_olai/Trash.olai` — may name
+        // A file the set has never held — the first `_olai/Trash.org` — may name
         // a directory that is not there. Making it is part of writing it.
         if (directory !== "") yield* fs.makeDirectory(absolute(directory), { recursive: true })
         // Unique per call as well as per process: one commit stages several

@@ -9,7 +9,7 @@
  * interesting half. The human's own vault, the morning after the outline
  * extension changed, drew the OLD name marked `deleted` and nothing else: the
  * notes were in a file whose name was nowhere on screen. That name is the whole
- * fix — a person reads `Reading.md → Kept.olai` and knows both that nothing was
+ * fix — a person reads `Reading.md → Kept.org` and knows both that nothing was
  * lost and what the commit is about to record.
  *
  * DIMMED and ahead of the name, because the row is still about the file it is

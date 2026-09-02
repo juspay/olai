@@ -58,7 +58,7 @@ const vault = (): OutlineSet =>
   setOf(
     Object.fromEntries(
       Array.from({ length: FILES }, (_, file) => [
-        `wing/room-${String(file).padStart(2, "0")}.olai`,
+        `wing/room-${String(file).padStart(2, "0")}.org`,
         Array.from(
           { length: RECORDS },
           (_, record) =>
@@ -67,7 +67,7 @@ const vault = (): OutlineSet =>
       ]),
     ),
     [["notes/plan.md", "# Plan\n"]],
-    { "torn.olai": `{"id":"torn"` },
+    { "torn.org": `{"id":"torn"` },
   )
 
 /** What one answer touched: records reached through the grouping, and paths
@@ -125,7 +125,7 @@ test("the paths question answers the listing's own files, in its own order", () 
   // A file the set could not READ is a file the directory serves, so it is in
   // the answer — which matters for the one caller: an inbox nobody can parse is
   // still the inbox, and minting a second one over it is the worse answer.
-  expect(Query.paths(set).paths).toContain("torn.olai")
+  expect(Query.paths(set).paths).toContain("torn.org")
 })
 
 test("...and answering it touches no record", () => {
@@ -161,25 +161,25 @@ const walkedLoaded = (
 test("homes answers what the walk answered", () => {
   const at = readingOf(vault())
   const asked = [
-    "wing/room-00.olai",
-    "wing/room-07.olai",
-    "torn.olai",
+    "wing/room-00.org",
+    "wing/room-07.org",
+    "torn.org",
     "notes/plan.md",
-    "nowhere.olai",
-    "wing/room-00.olai",
+    "nowhere.org",
+    "wing/room-00.org",
   ]
   const answer = Query.homes(at, { ids: ["n0-0", "n7-3", "nobody"], files: asked })
   expect(answer.loaded).toEqual(walkedLoaded(at.set, asked))
   expect(answer.homes).toEqual([
-    { id: "n0-0", file: "wing/room-00.olai" },
-    { id: "n7-3", file: "wing/room-07.olai" },
+    { id: "n0-0", file: "wing/room-00.org" },
+    { id: "n7-3", file: "wing/room-07.org" },
   ])
 })
 
 test("...and a second fold click costs the question, not the directory", () => {
   const at = readingOf(vault())
   const counted = counting(at.set, at.derived)
-  const asking = { ids: ["n0-0"], files: ["wing/room-00.olai", "nowhere.olai"] }
+  const asking = { ids: ["n0-0"], files: ["wing/room-00.org", "nowhere.org"] }
 
   // The reading, with the counting halves swapped in and the rest of it left
   // alone — the pointing index included, which this question does not read and

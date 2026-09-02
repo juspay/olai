@@ -188,7 +188,7 @@ can never take over a column you have been using for something of your own.
 A key is declared by whichever of these speaks, and the first one wins:
 
 ```
-  1. THE VAULT'S ROW        _olai/Properties.olai       ← always wins
+  1. THE VAULT'S ROW        _olai/Properties.org       ← always wins
   2. THE PLUGIN'S CLAIM     the kind's own word          ← where the vault said nothing
 ```
 
@@ -201,7 +201,7 @@ And a row of yours always beats it — which is how you move a kind onto a short
 key, and how you take a face away again:
 
 ```jsonl
-_olai/Properties.olai
+_olai/Properties.org
 {"id":"prop-terminal","ord":"a0","title":"terminal","custom":{"type":"kolu-terminal"}}
 ```
 
@@ -333,7 +333,7 @@ readonly wake?: {
 
 ```
    ┌─ the wake strip ──────────────────────────────────────────────┐
-   │  wake on terminal activity · terminals from [ lanes.olai ▾ ]  │
+   │  wake on terminal activity · terminals from [ lanes.org ▾ ]  │
    │  └──────── subject ───────┘ ↑└─ from ─┘ └── core's picker ─┘  │
    │                             core's punctuation                │
    └───────────────────────────────────────────────────────────────┘
@@ -483,14 +483,14 @@ This is the subtlest path in the system, and it is worth following end to end.
 
 The difficulty: **a vault's declarations deliberately never travel to a browser**
 (juspay/olai#395 — the tab receives *answers*, not rules). So the browser cannot
-look at `_olai/Properties.olai` and decide anything.
+look at `_olai/Properties.org` and decide anything.
 
 ```
   ┌─ THE DECLARATIONS, FOLDED ─────────────────────────────────────────┐
   │ the plugin's claim   kolu-terminal → kolu-terminal   (a default)   │
   │ the vault's row      pty           → kolu-terminal   (and it wins) │
   │ ── the record ─────────────────────────────────────────────────────│
-  │ lanes.olai   {"title":"implement","custom":{"pty":"c56b6183"}}     │
+  │ lanes.org   {"title":"implement","custom":{"pty":"c56b6183"}}     │
   └────────────────────────────┬───────────────────────────────────────┘
                                │
   ┌─ THE SERVER ───────────────▼───────────────────────────────────────┐

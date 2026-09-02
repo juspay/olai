@@ -14,7 +14,7 @@
  * spelling — and a declaration now comes from either of two places, folded once
  * (`@olai/format`'s `withClaims`):
  *
- *   1. **the vault's row** in `_olai/Properties.olai`, which always wins; and
+ *   1. **the vault's row** in `_olai/Properties.org`, which always wins; and
  *   2. **this kind's `claims`**, the key kolu owns by convention, which applies
  *      to a vault that has said nothing about that key.
  *
@@ -103,7 +103,7 @@ export const admitsTerminal = (value: string): boolean => /^[0-9a-fA-F-]+$/.test
  * {@link TERMINAL_TYPE} — `kolu-terminal`, never the bare `terminal`. A vault
  * that has said nothing about THAT key is declaring it this kind, so turning
  * kolu on is the whole of turning the door on: nobody hand-writes a row in
- * `_olai/Properties.olai` to get a face an enabled plugin already knows how to
+ * `_olai/Properties.org` to get a face an enabled plugin already knows how to
  * draw, and **nothing ever writes anybody's vault**.
  *
  * THE CLAIMED KEY IS THE COMPOSED WORD ITSELF, and it is not a choice this

@@ -37,7 +37,7 @@ import type { Reading } from "./validate.ts"
  * asked from both places.
  */
 const VAULT = new Map<string, string>([
-  ["_olai/Properties.olai", [
+  ["_olai/Properties.org", [
     // `base: root` — the amendment, on the key the live board writes from a
     // convention that stands at the root.
     `{"id":"prop-brief","ord":"a0","title":"brief","custom":{"type":"doc","base":"root"}}`,
@@ -54,18 +54,18 @@ const VAULT = new Map<string, string>([
     `{"id":"prop-pr-url","ord":"a7","title":"pr-url","custom":{"type":"text"}}`,
     `{"id":"prop-item","ord":"a8","title":"item","custom":{"type":"node"}}`,
   ].join("\n")],
-  ["agents.olai", [
+  ["agents.org", [
     `{"id":"agents","ord":"a0","title":"the agents"}`,
     `{"id":"grok","parent":"agents","ord":"a0","title":"Grok"}`,
   ].join("\n")],
-  ["roadmap/lanes.olai", [
+  ["roadmap/lanes.org", [
     `{"id":"lanes","ord":"a0","title":"the lanes"}`,
     `{"id":"lane","parent":"lanes","ord":"a0","title":"one lane","custom":{` +
       `"brief":"briefs/tp.md","note":"briefs/tp.md","agent":"grok","merge":"merge-auto",` +
       `"worktree":".worktrees/tp","records":"193","dispatched":"2026-08-25",` +
       `"pr-url":"https://github.com/juspay/olai/pull/402","item":"agents"}}`,
   ].join("\n")],
-  ["board.olai", [
+  ["board.org", [
     `{"id":"board","ord":"a0","title":"the board"}`,
     `{"id":"root-lane","parent":"board","ord":"a0","title":"a lane at the root",` +
       `"custom":{"brief":"briefs/tp.md","note":"briefs/tp.md"}}`,
@@ -95,8 +95,8 @@ const typed: Typed = {
   kinds: NO_KINDS,
 }
 
-const IN_SUB = "roadmap/lanes.olai"
-const AT_ROOT = "board.olai"
+const IN_SUB = "roadmap/lanes.org"
+const AT_ROOT = "board.org"
 
 /** The lane board as a page — the outline the doors below are asked of. */
 const lanes = () =>
@@ -181,10 +181,10 @@ const DOC_CORPUS = [
   "not a path",
   "https://example.com/x.md",
   "",
-  // A SERVED `.olai` — the directory holds it and draws a page for it, and it
+  // A SERVED `.org` — the directory holds it and draws a page for it, and it
   // is not an `.md`, so a `doc` may not name it. The one the review named.
-  "agents.olai",
-  "../agents.olai",
+  "agents.org",
+  "../agents.org",
   // ...and the two the other way: an ABSOLUTE path, which `isPathShaped`
   // accepts and `pathedOf` refuses, and a PERCENT-ESCAPE, which one leaves
   // alone and the other decodes.
@@ -386,22 +386,22 @@ test("the page ships a LICENCE per claimed value, and the vault it was read from
   // draws.
   const read = readingOfVault(
     new Map<string, string>([
-      ["_olai/Properties.olai", [
+      ["_olai/Properties.org", [
         `{"id":"p","ord":"a0","title":"pty","custom":{"type":"sprocket"}}`,
         `{"id":"q","ord":"a1","title":"brief","custom":{"type":"text"}}`,
       ].join("\n")],
-      ["a.olai", [
+      ["a.org", [
         `{"id":"top","ord":"a0","title":"the rows"}`,
         `{"id":"one","parent":"top","ord":"a0","title":"one",` +
           `"custom":{"pty":"c56b6183","brief":"notes.md","sprocket":"deadbeef"}}`,
       ].join("\n")],
     ]),
   )
-  const at = { kind: "at", address: addressOf("a.olai", null)! } as const
+  const at = { kind: "at", address: addressOf("a.org", null)! } as const
   const running = { built: new Map([["sprocket", SPROCKET]]), enabled: new Map([["sprocket", SPROCKET]]) }
   const page = pageOf(read, at, running)
   expect(page.licences).toEqual([
-    { from: "a.olai", prop: "pty", value: "c56b6183", word: "sprocket" },
+    { from: "a.org", prop: "pty", value: "c56b6183", word: "sprocket" },
   ])
   // The two that are NOT claimed say so by being absent: a declared `text`, and
   // a key spelled as the kind itself that the vault never declared. The second
@@ -428,8 +428,8 @@ test("a contributed kind draws no door of the app's own, and reads as text where
   // the machine.
   const read = readingOfVault(
     new Map<string, string>([
-      ["_olai/Properties.olai", `{"id":"p","ord":"a0","title":"pty","custom":{"type":"sprocket"}}`],
-      ["a.olai", `{"id":"one","ord":"a0","title":"one","custom":{"pty":"https://example.com/x"}}`],
+      ["_olai/Properties.org", `{"id":"p","ord":"a0","title":"pty","custom":{"type":"sprocket"}}`],
+      ["a.org", `{"id":"one","ord":"a0","title":"one","custom":{"pty":"https://example.com/x"}}`],
     ]),
   )
   const asking = (enabled: boolean): Vault => ({
@@ -442,8 +442,8 @@ test("a contributed kind draws no door of the app's own, and reads as text where
       enabled: enabled ? new Map([["sprocket", SPROCKET]]) : new Map(),
     },
   })
-  expect(meaningOf(asking(true), "a.olai", "pty", "https://example.com/x")).toBeNull()
-  expect(meaningOf(asking(false), "a.olai", "pty", "https://example.com/x"))
+  expect(meaningOf(asking(true), "a.org", "pty", "https://example.com/x")).toBeNull()
+  expect(meaningOf(asking(false), "a.org", "pty", "https://example.com/x"))
     .toEqual({ kind: "away", href: "https://example.com/x" })
 })
 
@@ -455,8 +455,8 @@ test("...and the WORD is the consult's other answer, on the key the vault actual
   // matching — which is exactly the vault that drew nothing before.
   const read = readingOfVault(
     new Map<string, string>([
-      ["_olai/Properties.olai", `{"id":"p","ord":"a0","title":"pty","custom":{"type":"sprocket"}}`],
-      ["a.olai", `{"id":"one","ord":"a0","title":"one","custom":{"pty":"c56b6183"}}`],
+      ["_olai/Properties.org", `{"id":"p","ord":"a0","title":"pty","custom":{"type":"sprocket"}}`],
+      ["a.org", `{"id":"one","ord":"a0","title":"one","custom":{"pty":"c56b6183"}}`],
     ]),
   )
   const asking = (enabled: boolean): Vault => ({
@@ -469,16 +469,16 @@ test("...and the WORD is the consult's other answer, on the key the vault actual
       enabled: enabled ? new Map([["sprocket", SPROCKET]]) : new Map(),
     },
   })
-  expect(consult(asking(true), "a.olai", "pty", "c56b6183"))
+  expect(consult(asking(true), "a.org", "pty", "c56b6183"))
     .toEqual({ opens: null, word: "sprocket" })
   // A KIND NOBODY ANSWERS FOR LICENCES NOTHING, which is the same absent state a
   // machine that never had the plugin is in — and it is the arm a `--plugins=`
   // serve takes for every value of every contributed kind.
-  expect(consult(asking(false), "a.olai", "pty", "c56b6183"))
+  expect(consult(asking(false), "a.org", "pty", "c56b6183"))
     .toEqual({ opens: null, word: null })
   // ...and a key the vault declared nothing about carries no word however it is
   // spelled, including when it is spelled as the kind itself.
-  expect(consult(asking(true), "a.olai", "sprocket", "c56b6183"))
+  expect(consult(asking(true), "a.org", "sprocket", "c56b6183"))
     .toEqual({ opens: null, word: null })
   // A VALUE THAT DOES NOT FIT LICENSES NOTHING, which is what makes a BUILT-IN
   // declaration safe to switch on: enabling a plugin declares keys in vaults
@@ -490,12 +490,12 @@ test("...and the WORD is the consult's other answer, on the key the vault actual
   // AND NO GUESS EITHER, which is this arm agreeing with every other declared
   // one rather than a second rule: a key that has a declaration never falls back
   // to reading its value's shape.
-  expect(consult(asking(true), "a.olai", "pty", "a note about it"))
+  expect(consult(asking(true), "a.org", "pty", "a note about it"))
     .toEqual({ opens: null, word: null })
   // Every other arm answers `word: null`, which is what makes the field a
   // licence rather than a second name for the declared type. A `date` is the
   // sharpest of them: it is declared, it opens a door, and it claims nothing.
-  expect(consult(asking(true), "a.olai", "undeclared", "2026-08-30"))
+  expect(consult(asking(true), "a.org", "undeclared", "2026-08-30"))
     .toEqual({ opens: { kind: "day", date: "2026-08-30" }, word: null })
 })
 

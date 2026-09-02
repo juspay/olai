@@ -1,0 +1,67 @@
+* the deck #home
+:PROPERTIES:
+:ID: deck
+:OLAI_KIND: regular
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "the deck #home"
+:END:
+
+** dig the post holes
+:PROPERTIES:
+:ID: posts
+:OLAI_KIND: regular
+:OLAI_PARENT: "deck"
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "dig the post holes"
+:OLAI_TODO: true
+:OLAI_DATE: "2019-11-05"
+:END:
+
+** pull the permit
+:PROPERTIES:
+:ID: permit
+:OLAI_KIND: regular
+:OLAI_PARENT: "deck"
+:OLAI_ORD: "a1"
+:OLAI_TITLE: "pull the permit"
+:OLAI_DOING: true
+:OLAI_DATE: "2019-10-30"
+:END:
+
+** the timber arrives
+:PROPERTIES:
+:ID: delivery
+:OLAI_KIND: regular
+:OLAI_PARENT: "deck"
+:OLAI_ORD: "a2"
+:OLAI_TITLE: "the timber arrives"
+:OLAI_DATE: "2019-11-02"
+:END:
+
+* the boundary survey
+:PROPERTIES:
+:ID: survey
+:OLAI_KIND: regular
+:OLAI_ORD: "a1"
+:OLAI_TITLE: "the boundary survey"
+:OLAI_DONE: "2019-11-04T09:15:00-04:00"
+:OLAI_DATE: "2019-11-01"
+:END:
+
+* paint the rails
+:PROPERTIES:
+:ID: paint
+:OLAI_KIND: regular
+:OLAI_ORD: "a2"
+:OLAI_TITLE: "paint the rails"
+:OLAI_TODO: true
+:END:
+
+* replace the gate latch
+:PROPERTIES:
+:ID: latch
+:OLAI_KIND: regular
+:OLAI_ORD: "a3"
+:OLAI_TITLE: "replace the gate latch"
+:OLAI_TODO: "2019-11-21"
+:END:

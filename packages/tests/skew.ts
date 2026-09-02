@@ -74,7 +74,7 @@ const WINDOW_MS = Number(process.env["WINDOW_MS"] ?? 3000)
  * A MEANING error and not a syntax one, which is the whole reason the boot
  * state is what it is: a file that will not PARSE keeps its key and carries its
  * errors (`@olai/surface`'s `Head.broken`), so that set still validates and its
- * heads still travel. `shed.olai`'s rake hangs off a parent nothing declares,
+ * heads still travel. `shed.org`'s rake hangs off a parent nothing declares,
  * which no file can own — so the set is refused, the store publishes no
  * snapshot, and the manifest says `null`. That is the state the window opens
  * out of.
@@ -86,7 +86,7 @@ const WINDOW_MS = Number(process.env["WINDOW_MS"] ?? 3000)
  */
 const REFUSED: ReadonlyArray<readonly [string, string]> = [
   [
-    "pantry.olai",
+    "pantry.org",
     `{"id":"pantry","ord":"a0","title":"restock the pantry"}
 {"id":"flour","parent":"pantry","ord":"a0","title":"buy flour"}
 {"id":"rice","parent":"pantry","ord":"a1","title":"buy rice"}
@@ -94,7 +94,7 @@ const REFUSED: ReadonlyArray<readonly [string, string]> = [
 `,
   ],
   [
-    "shed.olai",
+    "shed.org",
     `{"id":"shed","ord":"a0","title":"clear out the shed"}
 {"id":"rake","parent":"shhed","ord":"a0","title":"hang up the rake"}
 `,

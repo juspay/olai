@@ -151,9 +151,9 @@ Feature: Documents become writable
   @scratch:good
   Scenario: An outline's suffix at the document door is the box's own refusal
     Given I open the app
-    When I create the document "house.olai" from the sidebar
-    Then the document creation is refused saying "`house.olai` is an outline, not a document — type `house` to make `house.md`."
-    And the new document box still holds "house.olai"
+    When I create the document "house.org" from the sidebar
+    Then the document creation is refused saying "`house.org` is an outline, not a document — type `house` to make `house.md`."
+    And the new document box still holds "house.org"
 
   # A DOCUMENT IS NOT A MOUNT, and these three are the difference. Going from
   # one document to another keeps the same page on screen — same route kind,
@@ -303,7 +303,7 @@ Feature: Documents become writable
     And I mark the page
     When I press Delete file
     And I confirm deleting the file
-    Then the deletion is refused saying "`finishes.md` is still named by `install` (`doc`, house.olai:4) — deleting the file would leave that pointing at nothing. Re-point it, or delete the naming record first."
+    Then the deletion is refused saying "`finishes.md` is still named by `install` (`doc`, house.org:4) — deleting the file would leave that pointing at nothing. Re-point it, or delete the naming record first."
     And the document link "finishes.md" is shown
     And there should be no page errors
 
@@ -314,7 +314,7 @@ Feature: Documents become writable
     # delete, and nothing about that is a filter on the set — it IS the gate's
     # own ruling, drawn early so a reader never learns it twice.
     Given I open the app
-    When I open the outline "house.olai"
+    When I open the outline "house.org"
     Then the file's delete is not offered
     And there should be no page errors
 
@@ -327,12 +327,12 @@ Feature: Documents become writable
     Given I open the app
     And I mark the page
     When I create the outline "scratch" from the sidebar
-    Then the outline list links to "scratch.olai"
-    When I open the empty outline "scratch.olai"
+    Then the outline list links to "scratch.org"
+    When I open the empty outline "scratch.org"
     Then the file's delete is offered
     When I press Delete file
-    Then the deletion asks "Delete scratch.olai? Nothing in olai puts it back — it leaves the directory the way every other write does, so what survives is whatever git has already recorded."
+    Then the deletion asks "Delete scratch.org? Nothing in olai puts it back — it leaves the directory the way every other write does, so what survives is whatever git has already recorded."
     When I confirm deleting the file
-    Then the outline list does not link to "scratch.olai"
-    And the main pane says there is no outline "scratch.olai"
+    Then the outline list does not link to "scratch.org"
+    And the main pane says there is no outline "scratch.org"
     And there should be no page errors

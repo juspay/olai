@@ -544,7 +544,7 @@ export const targetsOf = (
   return named ?? NOTHING_NAMED
 }
 
-/** Where work that is over is put away: one `_olai/Trash.olai` for the
+/** Where work that is over is put away: one `_olai/Trash.org` for the
  *  whole served directory. Being trashed is a fact about the FILE a node is
  *  written in — there is no field for it, and there is not going to be one,
  *  for the reason no derived state is stored. It lives here rather than in
@@ -552,12 +552,12 @@ export const targetsOf = (
  *  puts its finished work in — and the registry holds only what every kind has
  *  an answer to.
  *
- *  There used to be one `Archive.olai` per directory, beside the outline it
+ *  There used to be one `Archive.org` per directory, beside the outline it
  *  left. That convention is dead (human, 2026-08-19): those files stay on disk
  *  and stop being read — not trash, not drawn on the trash page, invisible to
  *  `is:trashed`, and dormant in every live reading until a human opens one and
  *  hand-moves it. No migration. The kind registry still parses them — they are
- *  `.olai` — because a skip for a dead name would keep that name load-bearing;
+ *  `.org` — because a skip for a dead name would keep that name load-bearing;
  *  {@link isLeftoverArchive} is the predicate the readings ask, the same way
  *  {@link isTrashed} is asked of the one trash.
  *
@@ -605,7 +605,7 @@ export const TRASH = `Trash${OUTLINE_EXT}`
  *  kind of statement: what a served file IS, by its name.
  *
  *  WHERE ONE IS MINTED is {@link mintedInto}'s and not this constant's, exactly
- *  as the shelf's is: `_olai/Inbox.olai`, beside the shelf and the trash
+ *  as the shelf's is: `_olai/Inbox.org`, beside the shelf and the trash
  *  (human, 2026-08-20, reversing that of 2026-08-19 which kept it at the root).
  *  Nothing about the reading moved with it — {@link inboxIn} goes on finding
  *  whichever outline is CALLED this, wherever it sits. */
@@ -624,8 +624,8 @@ export const INBOX = `Inbox${OUTLINE_EXT}`
  * HOW that file is found is {@link outlineCalled}'s, and it is that function
  * rather than a walk here because the shelf below is found the same way. WHERE
  * one is minted when there is none is {@link mintedInto}'s, and the two
- * questions stay apart: a directory already keeping `Inbox.olai` at its root,
- * or `notes/inbox.olai`, goes on capturing into the file it has, and nothing
+ * questions stay apart: a directory already keeping `Inbox.org` at its root,
+ * or `notes/inbox.org`, goes on capturing into the file it has, and nothing
  * migrates.
  */
 export const inboxIn = (files: Iterable<string>): string | undefined =>
@@ -649,9 +649,9 @@ export const inboxIn = (files: Iterable<string>): string | undefined =>
  *
  * WHERE ONE IS MINTED is {@link mintedInto}'s and not this constant's, and the
  * two questions are deliberately apart: this is the NAME a directory's shelf is
- * found by, wherever it sits, and a directory that already keeps a `Pins.olai`
+ * found by, wherever it sits, and a directory that already keeps a `Pins.org`
  * at its root goes on using it. What olai CREATES, when there is none, is
- * `_olai/Pins.olai` — a file olai made rather than one a person did, so it
+ * `_olai/Pins.org` — a file olai made rather than one a person did, so it
  * goes where those go (human, 2026-08-19).
  */
 export const PINS = `Pins${OUTLINE_EXT}`
@@ -693,8 +693,8 @@ export const PROPERTIES = `Properties${OUTLINE_EXT}`
  *
  * IT IS A MINT AND NOT A HOME, which is the whole distinction this file keeps
  * between the two questions a convention asks. {@link pinsIn} and
- * {@link inboxIn} go on finding whichever outline is CALLED `Pins.olai` or
- * `Inbox.olai`, wherever it sits — a directory that already keeps one at the
+ * {@link inboxIn} go on finding whichever outline is CALLED `Pins.org` or
+ * `Inbox.org`, wherever it sits — a directory that already keeps one at the
  * root, or under `notes/`, keeps using the file it has and nothing moves. This
  * says only where olai puts one when the directory has none.
  */
@@ -739,7 +739,7 @@ export const inOlaiDir = (file: string): boolean => file.startsWith(OLAI_PREFIX)
  *
  * The shelf was first; the trash moved here next (human, 2026-08-19); and the
  * inbox is the third — a capture into a directory with none mints
- * `_olai/Inbox.olai` (human, 2026-08-20, reversing the 2026-08-19 ruling that
+ * `_olai/Inbox.org` (human, 2026-08-20, reversing the 2026-08-19 ruling that
  * kept it at the root). All three are files olai made because
  * somebody pressed something, and the top level of a served directory is the
  * reader's.
@@ -748,13 +748,13 @@ export const mintedInto = (name: string): string => `${OLAI_DIR}/${name}`
 
 /**
  * THE one trash. Minted here, found here, written here. Not "whichever
- * outline is called `Trash.olai`" — {@link pinsIn} and {@link inboxIn} still
+ * outline is called `Trash.org`" — {@link pinsIn} and {@link inboxIn} still
  * find by name wherever the file sits; the trash is one file at one path,
  * because a node put away from any outline has to have one place to go, and
  * an entry in that file records which outline it came from so untrash can
  * put it back.
  *
- * Exact path, not a basename walk: `_olai/trash.olai` is a different file
+ * Exact path, not a basename walk: `_olai/trash.org` is a different file
  * and an ordinary outline. The mint always writes {@link TRASH}.
  */
 export const TRASH_FILE = mintedInto(TRASH)
@@ -764,19 +764,19 @@ export const TRASH_FILE = mintedInto(TRASH)
 export const isTrashed = (file: string): boolean => file === TRASH_FILE
 
 /**
- * Leftover per-directory `Archive.olai`: parsed as an outline so a human can
+ * Leftover per-directory `Archive.org`: parsed as an outline so a human can
  * open it and hand-move, but dormant — not trash, not live readings.
  *
- * Basename exactly `Archive.olai` (human, 2026-08-19: left on disk and stop
+ * Basename exactly `Archive.org` (human, 2026-08-19: left on disk and stop
  * being read — orphaned). Exact, not a kind-registry skip: a tombstone for a
- * dead convention would keep the name load-bearing. `archive.olai` is a
+ * dead convention would keep the name load-bearing. `archive.org` is a
  * different file and an ordinary outline.
  *
  * Asked the way {@link isTrashed} is — once per file, compared against a
  * constant so the hot path allocates nothing.
  */
 export const isLeftoverArchive = (file: string): boolean =>
-  file === "Archive.olai" || file.endsWith("/Archive.olai")
+  file === "Archive.org" || file.endsWith("/Archive.org")
 
 /**
  * WHAT WAS PUT AWAY — the one question every reading of the live set actually
@@ -821,7 +821,7 @@ export const propertiesIn = (files: Iterable<string>): string | undefined =>
  * The file is whichever outline is CALLED that, wherever it sits, so a
  * directory that already keeps its inbox under `notes/` captures into the file
  * it has rather than growing a second one at the root. Case-insensitively,
- * because it is a name a person typed and `inbox.olai` is the same intention.
+ * because it is a name a person typed and `inbox.org` is the same intention.
  *
  * SHALLOWEST WINS, then path order — one answer, and a stable one, for the
  * directory that somehow holds two. "First in path order" would let a file
@@ -877,8 +877,8 @@ const nearerOf = (held: string, file: string): string => {
 }
 
 /** How many segments deep a path sits — COUNTED rather than split, so a
- *  comparison of two files allocates nothing. `a.olai` is 1 and
- *  `wing/a.olai` is 2, which is `split("/").length` exactly. */
+ *  comparison of two files allocates nothing. `a.org` is 1 and
+ *  `wing/a.org` is 2, which is `split("/").length` exactly. */
 const depthOf = (file: string): number => {
   let depth = 1
   for (let at = 0; at < file.length; at++) {

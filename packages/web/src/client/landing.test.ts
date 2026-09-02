@@ -45,8 +45,8 @@ describe("what an address is owed", () => {
   })
 
   test("a ROW of an outline is the outline's landing; a bare node is none", () => {
-    expect(landingOf(routeOf("/house.olai#kitchen"))).toEqual({
-      file: "house.olai",
+    expect(landingOf(routeOf("/house.org#kitchen"))).toEqual({
+      file: "house.org",
       at: "kitchen",
       spent: false,
     })
@@ -62,14 +62,14 @@ describe("what an address is owed", () => {
   })
 
   test("a pane at a whole page is owed nothing, beside one that is", () => {
-    const owed = landingsOf(workspaceOf("/s/house.olai/notes%2Fbeds.md%23slats"))
+    const owed = landingsOf(workspaceOf("/s/house.org/notes%2Fbeds.md%23slats"))
     expect(owed.has(0)).toBe(false)
     expect(owed.get(1)?.at).toBe("slats")
   })
 
   test("a lone page is the same question with one pane", () => {
     expect([...landingsOf(lone(routeOf("/notes/beds.md#slats"))).keys()]).toEqual([0])
-    expect(landingsOf(lone(routeOf("/house.olai"))).size).toBe(0)
+    expect(landingsOf(lone(routeOf("/house.org"))).size).toBe(0)
   })
 })
 

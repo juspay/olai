@@ -1065,7 +1065,7 @@ const emit = (
   const stored = typedProps(scope, file, capture.props)
   if (Result.isFailure(stored)) return locus(capture, stored.failure)
   const born = capturedNode(scope, capture, at, stored.success)
-  // A record of `_olai/Properties.olai` is a DECLARATION, and a bad `type` on
+  // A record of `_olai/Properties.org` is a DECLARATION, and a bad `type` on
   // it used to pass this seam and meet the generic write gate — "`capture: x`
   // would leave the file invalid" — which named nothing. The sentence is the
   // format's ({@link wrongDeclaration}); this is {@link typedProps}' twin for
@@ -2020,7 +2020,7 @@ const capped = <T>(all: ReadonlyArray<T>, name: (one: T) => string): string =>
  * under it (docs/format.md's Validation), and gains nothing to say here.
  *
  * ARCHIVED WORK IS EXEMPT AT BOTH DOORS, as everywhere else: a subtree put
- * away in an `_olai/Trash.olai` is over, so nothing in it is open work and nothing
+ * away in an `_olai/Trash.org` is over, so nothing in it is open work and nothing
  * in it hides any. It is one question — is the file this happens in an archive
  * — asked once per door, because `parent` is same-file by the format and a
  * node's whole ancestry therefore lives where the node does.
@@ -2402,7 +2402,7 @@ const typedProps = (
 }
 
 /**
- * What is wrong with a record landing in `_olai/Properties.olai` — the
+ * What is wrong with a record landing in `_olai/Properties.org` — the
  * bootstrap, raised as a usage refusal one moment before the validator would
  * raise it as a finding about bytes.
  *
@@ -2411,7 +2411,7 @@ const typedProps = (
  * broken declarations file has to read one wording, and this layer's job is to
  * raise it as a `usage` refusal the way {@link typedProps} raises a value's.
  *
- * SCOPED TO THE DECLARATIONS FILE: a write that would leave `lanes.olai`
+ * SCOPED TO THE DECLARATIONS FILE: a write that would leave `lanes.org`
  * invalid still meets the generic gate, because that file is not a vocabulary.
  * A node already in the map is taken out of `claimed` so editing its own type
  * is not reported as declaring the key twice.
@@ -3085,7 +3085,7 @@ const notThroughTheTrash = (
  * moves a subtree between files, so `archive`, `unarchive` and this cannot come
  * to disagree about what a subtree IS. {@link carryingDoc} rewrites the one
  * FIELD that is relative to the outline naming it: a `doc` is a path from the
- * `.olai` that carries it, so a record that changes file has to re-aim it or the
+ * `.org` that carries it, so a record that changes file has to re-aim it or the
  * write gate sees an attachment that is not there.
  *
  * A `doc`-TYPED PROPERTY is the same arithmetic and is deliberately NOT rewritten
@@ -3288,7 +3288,7 @@ const planSplit = (
  *   - **the mark, the date and the edges go WITH THE RECORD into the archive.**
  *     The format allows one mark per node and the surviving row already has its
  *     own answer, so there is no merge of two; nothing is destroyed, because the
- *     record keeps its id in `_olai/Trash.olai` and `Put back` returns it. What
+ *     record keeps its id in `_olai/Trash.org` and `Put back` returns it. What
  *     this op owes is that the loss is never SILENT, which is what the
  *     {@link nudge} is for — a `done` that left the live outline is exactly the
  *     news a person is owed.
@@ -3515,9 +3515,9 @@ const planCreate = (
     return Result.fail(
       new UsageFailure({
         reason:
-          `\`${request.file}\` is not a relative \`.olai\` path under the served ` +
+          `\`${request.file}\` is not a relative \`.org\` path under the served ` +
           `directory (no absolute path, no \`..\`, no \`.\`, and the name must end ` +
-          `in \`.olai\`)`,
+          `in \`.org\`)`,
       }),
     )
   }
@@ -3568,7 +3568,7 @@ const planCreate = (
   const minted = built.success
 
   // THE SAME EXISTING-VALUES WALK {@link planAdd} runs, for its reason:
-  // a seed of `_olai/Properties.olai` is a declaration over whatever the
+  // a seed of `_olai/Properties.org` is a declaration over whatever the
   // rest of the set already holds.
   const unfit = refuseCaptureDeclaration(scope, file, minted)
   if (unfit !== undefined) return Result.fail(unfit)
@@ -3634,7 +3634,7 @@ const creatable = (raw: string, extension: string): string | null => {
 // ── archive ────────────────────────────────────────────────────────────
 
 /**
- * A subtree out of a working outline and into `_olai/Trash.olai` beside it, with
+ * A subtree out of a working outline and into `_olai/Trash.org` beside it, with
  * the chain it hung off re-created there so the tree still reads years later.
  *
  * The racket reference's semantics, kept because they are what the archive is
@@ -3845,7 +3845,7 @@ const liftSubtree = (
  *
  *  One max scan rather than a filter-map-sort: `ord` is a base62 fractional
  *  index, so `>` on the string IS the comparison, and only the largest matters.
- *  `_olai/Trash.olai` is the one file in a set that grows without bound, and this
+ *  `_olai/Trash.org` is the one file in a set that grows without bound, and this
  *  runs once per ancestor level of every archive.
  *
  *  Split from {@link appendedOrd} because a merge appends a WHOLE ROW of
@@ -3898,7 +3898,7 @@ const appendedUnder = <N extends Node>(
 // ── unarchive ──────────────────────────────────────────────────────────
 
 /**
- * A subtree back OUT of an `_olai/Trash.olai` — the inverse `archive` waited for
+ * A subtree back OUT of an `_olai/Trash.org` — the inverse `archive` waited for
  * (`parity-unarchive`), and the reason the trash was never a shredder.
  *
  * The subtree comes back INTACT and the ids come with it, which is the archive
@@ -4181,7 +4181,7 @@ const notASignpost = (
 ): Result.Result<void, OpFailure> => {
   if (!bareScaffold(node)) return Result.succeed(undefined)
   // The outermost scaffold is the SOURCE FILE, not an ancestor node. Its
-  // twin is the outline itself — there is no live row titled `house.olai`
+  // twin is the outline itself — there is no live row titled `house.org`
   // sitting at the landing — so the copy-at-the-landing test below would
   // let it through and mint a second outline-named heading. Refuse it
   // first, by the title being a live outline path.
@@ -5239,7 +5239,7 @@ const shownTitle = (scope: Scope, target: string): string =>
  * mark, its children and its own place in whatever outline defines it, and
  * every other placement of it stays exactly where it was. That is the whole
  * semantic, and it is why this is not `trash_node` (which MOVES a node and its
- * subtree into `_olai/Trash.olai`, ids and all) and not a delete of anything —
+ * subtree into `_olai/Trash.org`, ids and all) and not a delete of anything —
  * there is no op in this layer that destroys content, and this one does not
  * become the first by accident.
  *
@@ -5568,7 +5568,7 @@ const namingDocument = (
  * closest help.
  */
 const planDelete = (scope: Scope, request: Extract<Request, { op: "delete" }>): Planned => {
-  // The FORMAT's registry, not the body's: a `.olai` is the one kind with no
+  // The FORMAT's registry, not the body's: a `.org` is the one kind with no
   // body at all, which is exactly why `bodyKind` cannot classify this.
   const kind = fileKind(request.file)
   if (kind !== null && kind !== "outline" && kind !== "document") {
@@ -5724,7 +5724,7 @@ const heldBy = (scope: Scope, going: ReadonlySet<string>): ReadonlyArray<string>
  * per removal (`remove_mirror`, `empty_trash`), never per write.
  *
  * THE KEY IS THE FIELD in the sentence, which is what makes the refusal
- * actionable: `` `lane` (`agent`, orchestrator/lanes.olai:12) `` reads exactly
+ * actionable: `` `lane` (`agent`, orchestrator/lanes.org:12) `` reads exactly
  * as the `see`/`after` entries beside it, and names the word to re-point.
  */
 const namingByProp = (

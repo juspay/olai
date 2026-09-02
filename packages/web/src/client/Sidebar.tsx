@@ -45,11 +45,11 @@
  * below the tree, in the register the Trash door beside it already uses
  * (human, 2026-08-29: the *Hidden outlines* switch went entirely — in
  * place of a toggle that suppressed a path, a first-class seat for the
- * vault's own furniture, the way a trash has always had one). `Kolu.olai`,
- * `Inbox.olai`, `Properties.olai`, `Pins.olai` — each is simply a page
+ * vault's own furniture, the way a trash has always had one). `Kolu.org`,
+ * `Inbox.org`, `Properties.org`, `Pins.org` — each is simply a page
  * that exists: it opens like any outline, lights its row when it is the
  * page being read, and wears the ⚠ when it will not parse, because an
- * unreadable file is never a silent one. `_olai/Trash.olai` is the ONE
+ * unreadable file is never a silent one. `_olai/Trash.org` is the ONE
  * absence, on the archive's own rule: it is not a file you edit, and the
  * Trash entry is its door.
  *
@@ -223,7 +223,7 @@ export function Sidebar(props: {
   // form subscribes every entry to the open page. This notifies exactly the
   // entry that lit and the one that went out.
   const isActive = createSelector(() => props.active)
-  // The archives are not in the tree: an `_olai/Trash.olai` is not an outline a
+  // The archives are not in the tree: an `_olai/Trash.org` is not an outline a
   // reader opens and edits, and the Trash entry below the tree is its one
   // door. Filtered here rather than upstream because every other reader of
   // `files` — the page model, the trash itself — wants the whole list.
@@ -255,7 +255,7 @@ export function Sidebar(props: {
 
   // WHICH FILE THE INBOX IS, read off the same resolver the server captures
   // through (`@olai/format`'s `inboxIn`) — never a path this column composes,
-  // or a directory keeping `notes/inbox.olai` would be offered a door onto a
+  // or a directory keeping `notes/inbox.org` would be offered a door onto a
   // file that does not exist. `undefined` is a directory that has never
   // captured, and then there is no entry: minting one is the capture's job.
   //
@@ -606,10 +606,10 @@ function FileAnatomy(props: {
  * (`FileAnatomy`): tests assert the rows' agreement by asking one
  * component of both.
  *
- * It is a FILE PAGE, not a page of its own the way Trash is: `Kolu.olai`
+ * It is a FILE PAGE, not a page of its own the way Trash is: `Kolu.org`
  * opens like any outline, so the seat lights the current-page wash off the
  * open page's file exactly as a tree row does, and wears the same ⚠ when
- * the file will not read — an unreadable `_olai/Pins.olai` used to be the
+ * the file will not read — an unreadable `_olai/Pins.org` used to be the
  * one exception the hiding switch kept a row for, precisely because
  * swallowing the mark would be the silent failure the corpus's own rules
  * refuse.
@@ -682,9 +682,9 @@ function Trash() {
  *  minted by the write that fills it (`@olai/server`'s `edit.ts`: one op, so a
  *  refused capture leaves nothing behind).
  *
- *  A reader whose inbox is their OWN file — a root `Inbox.olai`, a
- *  `notes/inbox.olai` — sees it here and in the tree, which is the double the
- *  shelf has always had for a root `Pins.olai`: this entry is a door onto
+ *  A reader whose inbox is their OWN file — a root `Inbox.org`, a
+ *  `notes/inbox.org` — sees it here and in the tree, which is the double the
+ *  shelf has always had for a root `Pins.org`: this entry is a door onto
  *  whichever file the directory's inbox is, and a reader's own outline is
  *  never the vault group's business.
  *

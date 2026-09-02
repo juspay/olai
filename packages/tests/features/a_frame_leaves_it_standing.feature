@@ -35,7 +35,7 @@ Feature: A frame leaves the rest of the page standing
     And I mark the page
     Then the node "handles" is shown
     And I mark every element of the "breadcrumbs"
-    When I rewrite "house.olai" as:
+    When I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
       {"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets"}
@@ -50,19 +50,19 @@ Feature: A frame leaves the rest of the page standing
   Scenario: A row's properties hold still while another row is retitled
     # The ROW is where a node is an array element, which is where the rebuild
     # was: a zoomed heading's node is merged in place and never showed it.
-    Given I rewrite "house.olai" as:
+    Given I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"handles","parent":"kitchen","ord":"a0","title":"choose the handles"}
       {"id":"hinges","parent":"kitchen","ord":"a1","title":"pick the hinges","custom":{"pr":"https://example.invalid/1","stage":"review"}}
       """
-    And I open the outline "house.olai"
+    And I open the outline "house.org"
     And I mark the page
     # No ¶ to press: the run is drawn on the row whether it is open or not
     # (`props-doors-autoshow`), and `hinges` has no note behind a mark anyway.
     Then the node "hinges" shows the property "pr" holding "https://example.invalid/1"
     And I mark every element of the "property drawer"
-    When I rewrite "house.olai" as:
+    When I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"handles","parent":"kitchen","ord":"a0","title":"choose the handles today"}
@@ -77,14 +77,14 @@ Feature: A frame leaves the rest of the page standing
     # The one whose cost is visible without a probe: the chips were rebuilt on
     # every frame, so a reader who had tabbed onto an `×` to take a link off
     # lost the caret to the document body the moment anybody wrote anything.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     And I mark the page
     When I open the node menu of "order"
     And I choose "Link to a node…" from the node menu
     Then the edge panel holds "herbs"
     When I put the caret on the edge panel's ×
     And I mark every element of the "edge panel's list"
-    And I rewrite "house.olai" as:
+    And I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","see":["herbs"]}
@@ -107,7 +107,7 @@ Feature: A frame leaves the rest of the page standing
     # scenario watching a `<details>` with nothing under it.
     Then what points at the document is "install the cabinets"
     And I mark every element of the "referrers section"
-    When I rewrite "house.olai" as:
+    When I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"install","parent":"kitchen","ord":"a0","title":"install the cabinets","doc":"finishes.md"}
@@ -126,13 +126,13 @@ Feature: A frame leaves the rest of the page standing
     # typing on a different page entirely.
     Given I open the node "herbs"
     And I pin the page
-    When I open the outline "house.olai"
+    When I open the outline "house.org"
     And I mark the page
     And I pin the page
     Then the pinned shelf holds "/#herbs"
-    And the pinned shelf holds "/house.olai"
+    And the pinned shelf holds "/house.org"
     And I mark every element of the "pinned shelf"
-    When I rewrite "garden.olai" as:
+    When I rewrite "garden.org" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the gate"}

@@ -29,8 +29,8 @@ import { assemble, nodesIn } from "./set.ts"
 import { stillHolds, taping } from "./tape.ts"
 import { reading, type Reading } from "./validate.ts"
 
-const ONE = "a.olai"
-const OTHER = "b.olai"
+const ONE = "a.org"
+const OTHER = "b.org"
 
 /** One file with a root and a record on it, and a second file beside it —
  *  enough for a keyed read, a walk, and a lookup that finds nothing. */
@@ -48,7 +48,7 @@ const files = (
     }),
   ].join("\n"),
   [OTHER]: JSON.stringify({ id: "s", ord: "a0", title: "elsewhere" }),
-  ...(extra ? { "c.olai": JSON.stringify({ id: "nobody", ord: "a0", title: "arrived" }) } : {}),
+  ...(extra ? { "c.org": JSON.stringify({ id: "nobody", ord: "a0", title: "arrived" }) } : {}),
 })
 
 const at = (options?: Parameters<typeof files>[0]): Reading => readingOf(setOf(files(options)))

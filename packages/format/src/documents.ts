@@ -93,7 +93,7 @@ export const resolveRelative = (from: string, to: string): string => {
  * resolves to the same served path once the node lives in `toFile`.
  *
  * Needed because `doc` is relative to the NAMING outline's directory, so a
- * node that leaves `house.olai` for `_olai/Trash.olai` would otherwise look
+ * node that leaves `house.org` for `_olai/Trash.org` would otherwise look
  * for `finishes.md` under `_olai/` and the write gate would refuse the trash.
  */
 export const retargetRelative = (fromFile: string, toFile: string, rel: string): string => {
@@ -227,7 +227,7 @@ export const bodiedOf = (from: string, href: string): string | null => {
  * have a page" have to be answered from the name. THIS one's caller can ask —
  * a property value becomes a link only where the tab is holding the path in its
  * file list (`@olai/web`'s `props/door.ts`) — and existence is a stronger
- * answer than any suffix rule: it lets an `.olai` be named, which `bodyKind`
+ * answer than any suffix rule: it lets an `.org` be named, which `bodyKind`
  * refuses because an outline is a tree rather than a body, and it refuses a
  * `.md` the directory has not got, which `bodiedOf` deliberately allows.
  *
@@ -299,7 +299,7 @@ export const isPicture = (path: string): boolean => suffixed(path, PICTURE_EXTEN
  * is a different permission from a page drawing itself, and nothing has forced
  * the question — a `.csv` being a KIND now did not force it either, since that
  * kind's own page is handed the text over the wire and never fetches this
- * route. Everything the set itself is made of — `.olai`, `.md` — stays out
+ * route. Everything the set itself is made of — `.org`, `.md` — stays out
  * because those already have a page of their own, and a route that also handed
  * them over raw would be a second way to read them with no argument for the
  * first.

@@ -56,7 +56,7 @@
  * judgement ABOUT kolu, and it has a package of its own now:
  * `olai-plugin-kolu`. It walks the vault for who OWNS a terminal
  * (`claimants.ts` — outline records, injected into the dial rather than known
- * by it) and for what `_olai/Kolu.olai` says (`config.ts`); it decides what an
+ * by it) and for what `_olai/Kolu.org` says (`config.ts`); it decides what an
  * absent kolu MEANS, in five English sentences, over the probe it reaches
  * through `@olai/kolu-client/detect` (`probe.ts`, which was `@olai/chat`'s
  * until the plugin wall went up); and it owns the padi pill and the feed its
@@ -190,7 +190,7 @@ export const KOLU_UNPULSED: WatchPulse | null = null
  * so there is no config page to open and the drawer draws no foot at all.
  *
  * IT USED TO CARRY A MUTE LIST TOO — `{file, names}`, the titles of the
- * terminals `_olai/Kolu.olai`'s `mutes` node silenced, narrowed to the
+ * terminals `_olai/Kolu.org`'s `mutes` node silenced, narrowed to the
  * ones the watcher's fold could actually say. The mutes went with the
  * second doorbell (2026-08-31), and the cell was RENAMED rather than
  * dropped: the wake FILTER FILE a person picks per conversation is the
@@ -240,7 +240,7 @@ export const sameKolu = (a: KoluLink, b: KoluLink): boolean =>
  *
  * NOT THE LICENCE ANY MORE, and that is what changed under this constant. The
  * SERVER follows a declared KIND now — `olai-plugin-kolu`'s `terminal`, read
- * off `_olai/Properties.olai`, which is what decides whose fleet row a node
+ * off `_olai/Properties.org`, which is what decides whose fleet row a node
  * owns and which values the gate holds to a padi id. What is left here is the
  * word a TAB keys its dressing table on, and it is left because a tab has
  * nothing else: a vault's declarations deliberately do not travel

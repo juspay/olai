@@ -3,7 +3,7 @@
  * this whole vocabulary exists to refuse.
  *
  * The rule is the commit panel's and it is about the FILE rather than about the
- * tool that wrote it: a `.olai` is one line per node, so a text diff of it is
+ * tool that wrote it: a `.org` is one line per node, so a text diff of it is
  * one enormous line with everything on it changing at once. Olai's own writes
  * never produce one — they go through the ops layer, which answers with a
  * node-level story ({@link ./Wrote.tsx}) — but an agent's OWN `Edit` can name
@@ -18,7 +18,7 @@
  * `Applied.sort` on the ops reply rather than a table beside it.
  *
  * `null` is the honest answer for a file this cannot read: an agent hand-editing
- * an outline is exactly how a `.olai` stops parsing, and inventing node changes
+ * an outline is exactly how a `.org` stops parsing, and inventing node changes
  * out of half a file would be worse than saying so. What the panel draws then
  * says which side would not read, and still never a text diff.
  */

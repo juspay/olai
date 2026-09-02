@@ -36,7 +36,7 @@ Feature: Moving a row to a parent you search for
   scenarios.
 
   Background:
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     # `demo` — finished — is the row half these scenarios pick up or land
     # against, and the page defaults it away: the whole tree is asked for.
     And I show the done nodes
@@ -59,7 +59,7 @@ Feature: Moving a row to a parent you search for
     And I press "ControlOrMeta+Shift+m"
     And I search the move picker for "order the new"
     And I choose "order the new cabinets" from the move picker
-    Then the node "install" in "house.olai" sits under "order"
+    Then the node "install" in "house.org" sits under "order"
     And the node "install" is a child of "order"
     And the node "handles" is a child of "install"
     And the page has not reloaded
@@ -120,7 +120,7 @@ Feature: Moving a row to a parent you search for
     # collapsed BY — a row with nothing under it draws no triangle — and the
     # rewrite is waited for by the row it adds, before anything is pressed on a
     # page it redrew.
-    When I rewrite "house.olai" as:
+    When I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
       {"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters","done":"2026-08-03"}
@@ -133,7 +133,7 @@ Feature: Moving a row to a parent you search for
     And I press "ControlOrMeta+Shift+m"
     And I search the move picker for "take out the old"
     And I choose "take out the old counters" from the move picker
-    Then the node "knobs" in "house.olai" sits under "demo"
+    Then the node "knobs" in "house.org" sits under "demo"
     And the node "knobs" is not shown
     And the move noted "marked done over work that is not finished"
     And there should be no page errors
@@ -168,19 +168,19 @@ Feature: Moving a row to a parent you search for
 
   Scenario: A destination in ANOTHER OUTLINE carries the row there, subtree and all
     # The gesture this scenario exists for is the one that used to be dimmed:
-    # `compost` lives in `garden.olai` and the row lives in `house.olai`.
+    # `compost` lives in `garden.org` and the row lives in `house.org`.
     # `install` holds three rows and an attached document, and what lands is one
     # `move_node` naming a parent in another file — the op an agent sends.
     When I click the title of "install"
     And I press "ControlOrMeta+Shift+m"
     And I search the move picker for "the compost heap"
     And I choose "the compost heap" from the move picker
-    Then the node "install" in "garden.olai" sits under "compost"
+    Then the node "install" in "garden.org" sits under "compost"
     # …with everything under it, under the ids it always had. That is what makes
     # this a move rather than a copy written out again somewhere else, and it is
     # why `hinges`' `after` edges still name rows in the outline it left.
-    And the node "handles" in "garden.olai" sits under "install"
-    And the node "knobs" in "garden.olai" sits under "install"
+    And the node "handles" in "garden.org" sits under "install"
+    And the node "knobs" in "garden.org" sits under "install"
     # …and it is off THIS page, because this page is another file now. The row
     # did not vanish; it is somewhere a reader can open.
     And the node "install" is not shown
@@ -197,9 +197,9 @@ Feature: Moving a row to a parent you search for
     And I press "ControlOrMeta+Shift+m"
     And I search the move picker for "the compost heap"
     And I choose "the compost heap" from the move picker
-    Then the node "install" in "garden.olai" sits under "compost"
+    Then the node "install" in "garden.org" sits under "compost"
     When I press "ControlOrMeta+z"
-    Then the node "install" in "house.olai" sits under "kitchen"
+    Then the node "install" in "house.org" sits under "kitchen"
     And the node "order" comes before "install"
     And the node "handles" is a child of "install"
     And there should be no page errors
@@ -223,14 +223,14 @@ Feature: Moving a row to a parent you search for
   Scenario: A mirror moves as the placement it is, and its target stays put
     # The rule every move on this face follows: where a row SITS names the row's
     # own record. `kitchen-herbs` is a placement of `herbs`, which lives in
-    # `garden.olai` — moving the line moves the line, and the node it draws is
+    # `garden.org` — moving the line moves the line, and the node it draws is
     # not touched.
     When I open the node menu of "kitchen-herbs"
     And I choose "Move to…" from the node menu
     And I search the move picker for "install the cabinets"
     And I choose "install the cabinets" from the move picker
-    Then the node "kitchen-herbs" in "house.olai" sits under "install"
-    And the node "herbs" in "garden.olai" sits under "garden"
+    Then the node "kitchen-herbs" in "house.org" sits under "install"
+    And the node "herbs" in "garden.org" sits under "garden"
     And there should be no page errors
 
   # ── what the gesture costs the wire ─────────────────────────────────
@@ -270,7 +270,7 @@ Feature: Moving a row to a parent you search for
     And I mark the wire
     # Another hand moves the row again. There is nothing of the gesture left, so
     # this frame reaches nothing at all.
-    And I rewrite "house.olai" as:
+    And I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
       {"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters"}
@@ -336,6 +336,6 @@ Feature: Moving a row to a parent you search for
     Then the move picker is open on "kitchen"
     When I press the tag "#home" in the open move picker
     Then the move picker is open on "kitchen"
-    And the address is exactly "/house.olai"
+    And the address is exactly "/house.org"
     And the page has not reloaded
     And there should be no page errors

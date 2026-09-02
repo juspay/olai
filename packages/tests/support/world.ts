@@ -725,7 +725,7 @@ export const AGENDA_OWED = selector(TESTID.agendaOwed);
 /** The number on it. Absent when nothing is owed — a quiet entry wears no chip
  *  rather than a zero. */
 export const AGENDA_COUNT = selector(TESTID.agendaCount);
-/** The trash: the one `_olai/Trash.olai` the directory holds, read-only, one verb. */
+/** The trash: the one `_olai/Trash.org` the directory holds, read-only, one verb. */
 export const TRASH_PAGE = selector(TESTID.trashPage);
 /** One row of it — a trashed node; `data-node-id` is which. */
 export const TRASH_ROW = selector(TESTID.trashRow);
@@ -1189,7 +1189,7 @@ export const NODE_REF_ANY = `[${CHAT_NODE_REF_ATTR}]`;
  *  present), the error view (it did not), or the fault card (the client threw
  *  while drawing). Waiting on any — rather than on the one the scenario
  *  expects — means a broken-set regression fails with "expected a tree, found
- *  the error view for house.olai:3" instead of a bare 30-second timeout.
+ *  the error view for house.org:3" instead of a bare 30-second timeout.
  *
  *  The FAULT is the third for exactly that reason and no other: it is the one
  *  shape no scenario but `the_client_breaks.feature` ever wants, so leaving it
@@ -2074,7 +2074,7 @@ export class OlaiWorld extends World {
 
   /** The place AND the query — {@link addressOf} of the bar. Its own accessor
    *  beside {@link place} because most assertions in this suite are about the
-   *  place alone: a step asserting "/house.olai" must not start passing for a
+   *  place alone: a step asserting "/house.org" must not start passing for a
    *  page that is also filtered. */
   address(): string {
     return addressOf(new URL(this.page.url()));
@@ -2645,7 +2645,7 @@ export class OlaiWorld extends World {
    * every assertion that WAITS for something to arrive in one goes through.
    *
    * Some writes in this app mint the file they land in: `archive` writes
-   * `_olai/Trash.olai` the first time anything is put away. A scenario polling
+   * `_olai/Trash.org` the first time anything is put away. A scenario polling
    * for a node to ARRIVE there is polling for the FILE too, and a reader that
    * threw would fail on the first poll — at speed it usually does not, under
    * load it does, and what the failure then names is an ENOENT out of a helper

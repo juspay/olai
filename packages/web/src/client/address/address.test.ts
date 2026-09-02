@@ -2,7 +2,7 @@
  * WHAT COUNTS AS AN ADDRESS, and what the page it names is CALLED.
  *
  * The interesting half is the refusals. This reading runs over every title the
- * app draws now, and the file it was written for — `Pins.olai` — is an
+ * app draws now, and the file it was written for — `Pins.org` — is an
  * ordinary outline, so a person and an agent may write a heading, a note or a
  * nested checklist into it, and none of those names a place. What decides is
  * the BIJECTION (`../routes.ts`), which is why a title that merely begins with
@@ -25,7 +25,7 @@ test("an address this app would mint is a pin, whatever page it names", () => {
   for (const address of [
     "/#herbs",
     "/notes/finishes.md",
-    "/garden.olai",
+    "/garden.org",
     "/d/2026-08-18",
     "/today",
     "/agenda",
@@ -90,7 +90,7 @@ test("a title spelled with an escape nothing can read is not a door, and does no
   // file the format invites a hand and an agent to edit — so a `URIError` here
   // was the whole sidebar going down, not one row being skipped (review,
   // 2026-08-18). It reads as what it is: not an address, so not a pin.
-  for (const title of ["/%", "/%ZZ.md", "/%2.olai", "[x](/%)"]) {
+  for (const title of ["/%", "/%ZZ.md", "/%2.org", "[x](/%)"]) {
     expect(addressIn(title)).toBeUndefined()
   }
 })
@@ -107,7 +107,7 @@ test("a markdown link is a NAMED pin; a blank label is no name", () => {
 })
 
 test("prose either side of a link is a sentence, not a pin", () => {
-  // A row of `Pins.olai` may be a note about the shelf. Reading one as a door
+  // A row of `Pins.org` may be a note about the shelf. Reading one as a door
   // would put a sentence in the sidebar.
   expect(addressIn("see [the agenda](/agenda) tomorrow")).toBeUndefined()
 })
@@ -152,7 +152,7 @@ test("an address nobody can name says the address rather than a blank", () => {
 
 test("a file is called by its own name, not by its path", () => {
   expect(nameOf(atFile("notes/finishes.md"), undefined)).toBe("finishes.md")
-  expect(nameOf(atFile("a/b/garden.olai"), undefined)).toBe("garden.olai")
+  expect(nameOf(atFile("a/b/garden.org"), undefined)).toBe("garden.org")
 })
 
 test("the pages that are not files are called what a reader calls them", () => {
@@ -171,7 +171,7 @@ test("the pages that are not files are called what a reader calls them", () => {
 // address — which arm of the route asks a question about the set at all.
 
 const named = (title: string): Names => (id) =>
-  id === "herbs" ? { id: "herbs", title, file: "garden.olai" } : undefined
+  id === "herbs" ? { id: "herbs", title, file: "garden.org" } : undefined
 
 test("a node address asked of the page's names is that node's title", () => {
   expect(shownIn(named("the herb bed"), atNode("herbs"))).toBe("the herb bed")
@@ -192,17 +192,17 @@ test("nothing to say, said the same way three times", () => {
 // never hold the id. The width answers with the FILE — the heading arm's own
 // answer, and the opposite of the raw href this used to fall through to.
 test("a landed row page is named by its file — the request the table answered held no row", () => {
-  expect(requestFor(routeOf("/house.olai#install"), "2026-08-29")).toEqual({
+  expect(requestFor(routeOf("/house.org#install"), "2026-08-29")).toEqual({
     kind: "at",
-    address: addressOf("house.olai", null),
+    address: addressOf("house.org", null),
   })
-  expect(nameOf(routeOf("/house.olai#install"), undefined)).toBe("house.olai")
+  expect(nameOf(routeOf("/house.org#install"), undefined)).toBe("house.org")
 })
 
 // …and where the table DOES see the id — an in-tree title of the qualified
 // spelling, which `namesFor`'s pin half reliably asks about — the row arm
 // answers the node's live name, the same answer the bare spelling draws.
 test("the qualified spelling of a node answers the node's own live name", () => {
-  expect(shownIn(named("the herb bed"), atElement("garden.olai", "herbs"))).toBe("the herb bed")
-  expect(nameOf(routeOf("/garden.olai#herbs"), "the herb bed")).toBe("the herb bed")
+  expect(shownIn(named("the herb bed"), atElement("garden.org", "herbs"))).toBe("the herb bed")
+  expect(nameOf(routeOf("/garden.org#herbs"), "the herb bed")).toBe("the herb bed")
 })

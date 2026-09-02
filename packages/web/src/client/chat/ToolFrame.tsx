@@ -392,7 +392,7 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
       <Key each={blocks()} by="key">
         {(block) => (
           /* Which SHAPE a change is drawn in is decided by the FILE and not by
-             the tool: an outline is one line per node, so a text diff of one is
+             the tool: an outline is stored as multi-line Org headings, so a raw text diff is
              a single enormous line — the rule the Commit panel has always had,
              and it holds for an agent's own `Edit` as much as for an olai
              write. */

@@ -32,7 +32,7 @@ Feature: The header sticks
 
     Examples:
       | kind     | name            |
-      | outline  | house.olai      |
+      | outline  | house.org      |
       | node     | kitchen         |
       | document | kitchen-sink.md |
 
@@ -74,7 +74,7 @@ Feature: The header sticks
     # A row deep enough in the fixture that the window still has room to put
     # past it: `install` is mid-tree, and near the end the browser would stop
     # short and pass for the wrong reason.
-    When I open the outline "house.olai"
+    When I open the outline "house.org"
     And the window is shorter than the page
     And a jump lands the row "install" at the top of the window
     Then the app header is at the top of the viewport
@@ -91,7 +91,7 @@ Feature: The header sticks
   # anything.
   @corpus:good @phone @abp
   Scenario: A jump to a row lands below the pinned section on a phone, not behind it
-    When I open the outline "house.olai"
+    When I open the outline "house.org"
     And the window is shorter than the page
     And a jump lands the row "install" at the top of the window
     Then the app header is at the top of the viewport

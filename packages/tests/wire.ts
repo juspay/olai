@@ -163,7 +163,7 @@ const READING: Size = { outlines: 40, rows: 200, documents: 60 }
 const BIG: Size = { outlines: 300, rows: 300, documents: 200 }
 
 const outlineFile = (file: number) =>
-  `notes/outline-${String(file).padStart(3, "0")}.olai`
+  `notes/outline-${String(file).padStart(3, "0")}.org`
 
 /** One outline's records. */
 const outlineAt = (file: number, rows: number): string => {

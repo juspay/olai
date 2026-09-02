@@ -452,7 +452,7 @@ test("anything else a frame could say is not a page to open", () => {
       `${OPEN}/media/../../etc/hostname`,
       `${OPEN}/media/%2e%2e/secret.html`,
       `${OPEN}/media/a%2fb.html`,
-      `${OPEN}/media/second.html%00.olai`,
+      `${OPEN}/media/second.html%00.org`,
       // Ours, and not this message — heard as what they ARE, never as an open.
       "olai:page-sealed",
       "olai:page-height:640",

@@ -30,7 +30,7 @@
  * ## What is NOT offered is not thereby REFUSED
  *
  * The list is a CURATION and the fault is a CORRECTNESS rule, and only the
- * first is below. A conversation somebody scoped to `_olai/Trash.olai` before
+ * first is below. A conversation somebody scoped to `_olai/Trash.org` before
  * this landed goes on deriving exactly what it always derived and is told
  * nothing: the pick is odd, it is not broken, and core does not interrupt a
  * person about a control that is doing what they asked. That is why
@@ -55,27 +55,27 @@ import { watchable } from "@olai/surface"
  * names
  *
  * It is tempting to read them as one — *outlines that will never carry a lane*
- * — and that reading is false of the first: `_olai/Trash.olai` is full of lanes
+ * — and that reading is false of the first: `_olai/Trash.org` is full of lanes
  * that DID carry one, records and `kolu-terminal` props and all. That is
  * exactly why it is excluded rather than harmless. So:
  *
  *   - **`isPutAway` — the records are not LIVE.** The one trash and the
- *     leftover `Archive.olai`s. A trashed lane's claim is history, and the walk
+ *     leftover `Archive.org`s. A trashed lane's claim is history, and the walk
  *     would really derive terminals from it, which is worse than deriving
  *     nothing: the doorbell would ring about work somebody deliberately put
  *     away. `@olai/format` already names this disjunction for the half-dozen
  *     readings of the live set that ask it.
  *   - **`inOlaiDir` — the file is OLAI'S, not the reader's corpus.**
- *     `_olai/Pins.olai` is a shelf of mirrors, `_olai/Properties.olai` declares
- *     property kinds, `_olai/Kolu.olai` holds a watcher's knobs,
- *     `_olai/Inbox.olai` is where a capture lands. Outlines every one, and none
+ *     `_olai/Pins.org` is a shelf of mirrors, `_olai/Properties.org` declares
+ *     property kinds, `_olai/Kolu.org` holds a watcher's knobs,
+ *     `_olai/Inbox.org` is where a capture lands. Outlines every one, and none
  *     of them is a board anybody keeps.
  *
  * ## And the sidebar is the evidence that they must stay two
  *
  * `../Sidebar.tsx` asks a question one word away from this one — it seats the
  * `_olai/` rows and the Trash apart from the tree — and it deliberately keeps
- * the leftover `Archive.olai`s IN the tree, because a person may want to open
+ * the leftover `Archive.org`s IN the tree, because a person may want to open
  * one and hand-move what is in it. This module deliberately keeps them OUT,
  * because opening a file is not pointing a doorbell at it. A single named rule
  * for "the reader's own corpus" would have to be wrong for one of the two, and
@@ -102,7 +102,7 @@ const readersOwn = (path: string): boolean => !isPutAway(path) && !inOlaiDir(pat
  * EVERYTHING ELSE IS OFFERED, and that is the honest end of the ruling rather
  * than the place the filtering stopped. Which of a person's outlines carries a
  * lane is a thing the picker cannot know and must not guess: a board is
- * `lanes.olai` on one machine and `work/today.olai` on the next, and a picker
+ * `lanes.org` on one machine and `work/today.org` on the next, and a picker
  * that tried to rank them would be wrong in a way nobody could correct.
  */
 export const scopable = (kinds: ReadonlyArray<string>, path: string): boolean =>

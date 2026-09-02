@@ -79,9 +79,9 @@ const GARDEN = [
 ].join("\n")
 
 const START: Corpus = {
-  "garden.olai": GARDEN,
-  "notes/Inbox.olai": [capture("first"), capture("second")].join("\n"),
-  "notes/Pins.olai": pin("deep"),
+  "garden.org": GARDEN,
+  "notes/Inbox.org": [capture("first"), capture("second")].join("\n"),
+  "notes/Pins.org": pin("deep"),
 }
 
 /**
@@ -224,68 +224,68 @@ interface Step {
 const SCRIPT: ReadonlyArray<Step> = [
   {
     what: "a title edited — no path moves (the hot case)",
-    to: (files) => ({ ...files, "garden.olai": GARDEN.replace("herb bed", "herb patch") }),
+    to: (files) => ({ ...files, "garden.org": GARDEN.replace("herb bed", "herb patch") }),
   },
   {
     what: "a record added to the inbox — no path moves",
     to: (files) => ({
       ...files,
-      "notes/Inbox.olai": `${files["notes/Inbox.olai"]}\n${capture("third")}`,
+      "notes/Inbox.org": `${files["notes/Inbox.org"]}\n${capture("third")}`,
     }),
   },
   {
     what: "an ordinary file added",
-    to: (files) => ({ ...files, "shed.olai": `{"id":"shed","ord":"a0","title":"the shed"}` }),
+    to: (files) => ({ ...files, "shed.org": `{"id":"shed","ord":"a0","title":"the shed"}` }),
   },
   {
     what: "a SHALLOWER inbox added — the answer moves with the path set",
-    to: (files) => ({ ...files, "Inbox.olai": capture("root") }),
+    to: (files) => ({ ...files, "Inbox.org": capture("root") }),
   },
   {
     what: "a shallower shelf added — the same, one convention over",
-    to: (files) => ({ ...files, "Pins.olai": pin("root") }),
+    to: (files) => ({ ...files, "Pins.org": pin("root") }),
   },
   {
     what: "an unrelated file removed",
-    to: (files) => without(files, "shed.olai"),
+    to: (files) => without(files, "shed.org"),
   },
   {
     what: "the shallow inbox RENAMED to a name no convention reads",
-    to: (files) => ({ ...without(files, "Inbox.olai"), "kept.olai": capture("root") }),
+    to: (files) => ({ ...without(files, "Inbox.org"), "kept.org": capture("root") }),
   },
   {
-    what: "a CASE-ONLY rename of the shelf — Pins.olai → pins.olai",
-    to: (files) => ({ ...without(files, "Pins.olai"), "pins.olai": pin("root") }),
+    what: "a CASE-ONLY rename of the shelf — Pins.org → pins.org",
+    to: (files) => ({ ...without(files, "Pins.org"), "pins.org": pin("root") }),
   },
   {
     what: "another title edited — no path moves",
-    to: (files) => ({ ...files, "garden.olai": GARDEN.replace("kitchen", "scullery") }),
+    to: (files) => ({ ...files, "garden.org": GARDEN.replace("kitchen", "scullery") }),
   },
   {
     what: "the shelf file EMPTIED — served still, holding nothing: only byFile moves",
-    to: (files) => ({ ...files, "pins.olai": "" }),
+    to: (files) => ({ ...files, "pins.org": "" }),
   },
   {
     what: "…and filled again",
-    to: (files) => ({ ...files, "pins.olai": pin("root") }),
+    to: (files) => ({ ...files, "pins.org": pin("root") }),
   },
   {
     what: "the shallow shelf removed — the answer falls back to the deep one",
-    to: (files) => without(files, "pins.olai"),
+    to: (files) => without(files, "pins.org"),
   },
   {
     what: "the last shelf removed — there is none, and undefined is the answer",
-    to: (files) => without(files, "notes/Pins.olai"),
+    to: (files) => without(files, "notes/Pins.org"),
   },
   {
     what: "a shelf minted where olai mints one",
-    to: (files) => ({ ...files, "_olai/Pins.olai": pin("minted") }),
+    to: (files) => ({ ...files, "_olai/Pins.org": pin("minted") }),
   },
   {
     what: "every capture marked done — the count moves, the path set does not",
     to: (files) => ({
       ...files,
-      "notes/Inbox.olai": (files["notes/Inbox.olai"] as string)
+      "notes/Inbox.org": (files["notes/Inbox.org"] as string)
         .replaceAll(`"todo":true`, `"done":true`),
     }),
   },
@@ -423,21 +423,21 @@ test("a departure the delta never names is caught by the count", () => {
   // be in neither list (`@olai/server`'s `published.ts` says so and mints the
   // remove itself). The carrier must not take an empty delta as "nothing
   // moved", and this is the case that says it does not.
-  const files: Corpus = { ...START, "Pins.olai": pin("root"), "Inbox.olai": capture("root") }
+  const files: Corpus = { ...START, "Pins.org": pin("root"), "Inbox.org": capture("root") }
   const first = revised(files)
   const shelfHeld = conventionRecorded(pinsIn, first.read.derived, first.moved, undefined)
   const inboxHeld = conventionServed(inboxIn, first.read.set, first.moved, undefined)
-  expect(shelfHeld.file).toBe("Pins.olai")
-  expect(inboxHeld.file).toBe("Inbox.olai")
+  expect(shelfHeld.file).toBe("Pins.org")
+  expect(inboxHeld.file).toBe("Inbox.org")
 
-  const after = revised(without(without(files, "Pins.olai"), "Inbox.olai"))
+  const after = revised(without(without(files, "Pins.org"), "Inbox.org"))
   const SILENT: PathsMoved = { changed: [], removed: [] }
   const shelfNext = conventionRecorded(pinsIn, after.read.derived, SILENT, shelfHeld)
   const inboxNext = conventionServed(inboxIn, after.read.set, SILENT, inboxHeld)
   expect(shelfNext).not.toBe(shelfHeld)
   expect(inboxNext).not.toBe(inboxHeld)
-  expect(shelfNext.file).toBe("notes/Pins.olai")
-  expect(inboxNext.file).toBe("notes/Inbox.olai")
+  expect(shelfNext.file).toBe("notes/Pins.org")
+  expect(inboxNext.file).toBe("notes/Inbox.org")
 })
 
 // ── the mutation proof ─────────────────────────────────────────────────
@@ -505,10 +505,10 @@ test("a carrier that skips the count is caught by the unnamed departure", () => 
   // Not by the script — every step of it names what it moved — but by the case
   // above, run through the broken arm. Which is the point of having both: the
   // count is not there for the sequences a generator writes.
-  const files: Corpus = { ...START, "Pins.olai": pin("root") }
+  const files: Corpus = { ...START, "Pins.org": pin("root") }
   const first = revised(files)
   const held = DELTA_ONLY.shelf(first.read.derived, first.moved, undefined)
-  const after = revised(without(files, "Pins.olai"))
+  const after = revised(without(files, "Pins.org"))
   const next = DELTA_ONLY.shelf(after.read.derived, { changed: [], removed: [] }, held)
   expect(next).toBe(held)
   expect(next.file).not.toBe(walkedShelf(after.read.derived))
@@ -534,25 +534,25 @@ test("a carrier that re-walks every revision answers correctly and fails the cou
  * walk has an opinion about, so a sequence really does exercise the rule and
  * not just the check in front of it.
  *
- * `Pins.olai` and `pins.olai` are both here on purpose: they are two paths of
+ * `Pins.org` and `pins.org` are both here on purpose: they are two paths of
  * one depth a directory can serve at once, which is the TIE the walk breaks on
  * path order (`P` sorts before `p`), and a carrier that got the tie-break
  * wrong would have to be caught by the reference arm.
  */
 const POOL = [
-  "a.olai",
-  "b.olai",
-  "wing/a.olai",
-  "wing.olai",
+  "a.org",
+  "b.org",
+  "wing/a.org",
+  "wing.org",
   "notes.md",
-  "Pins.olai",
-  "pins.olai",
-  "wing/Pins.olai",
-  "_olai/Pins.olai",
-  "Inbox.olai",
-  "wing/inbox.olai",
-  "deep/down/Inbox.olai",
-  "_olai/Inbox.olai",
+  "Pins.org",
+  "pins.org",
+  "wing/Pins.org",
+  "_olai/Pins.org",
+  "Inbox.org",
+  "wing/inbox.org",
+  "deep/down/Inbox.org",
+  "_olai/Inbox.org",
 ] as const
 
 /** One file's records — its own id space, so a path may come and go without
@@ -576,7 +576,7 @@ const holding = (at: number, revision: number): string =>
 const sequenceOf = (seed: number, steps: number): ReadonlyArray<Corpus> => {
   const random = seeded(seed)
   const corpora: Array<Corpus> = []
-  let files: Corpus = { "a.olai": holding(0, 0) }
+  let files: Corpus = { "a.org": holding(0, 0) }
   for (let revision = 1; revision <= steps; revision++) {
     const at = Math.floor(random() * POOL.length)
     const path = POOL[at] as string
@@ -602,7 +602,7 @@ test("over generated sequences: same answers, and the walks are the path-set cha
   let quiet = 0
   let disagreed = 0
   for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
-    let files: Corpus = { "a.olai": holding(0, 0) }
+    let files: Corpus = { "a.org": holding(0, 0) }
     let revision = revised(files)
     let shelfHeld = conventionRecorded(pinsIn, revision.read.derived, revision.moved, undefined)
     let inboxHeld = conventionServed(inboxIn, revision.read.set, revision.moved, undefined)

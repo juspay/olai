@@ -36,7 +36,7 @@ const frame = (...doors: ReadonlyArray<Door>): PageReading =>
 /** One answer, spelled fresh each call — a `brief` on a board row opening the
  *  document it names, which is the value the whole feature was built for. */
 const brief = (file: string): Door => ({
-  from: "roadmap/features.olai",
+  from: "roadmap/features.org",
   prop: "brief",
   value: "briefs/tp.md",
   opens: { kind: "document", file },
@@ -46,7 +46,7 @@ const brief = (file: string): Door => ({
  *  that can move without the value moving: a key re-declared from `text` to
  *  `ref` changes what every chip of it DRAWS. */
 const agent = (titled: boolean): Door => ({
-  from: "roadmap/features.olai",
+  from: "roadmap/features.org",
   prop: "agent",
   value: "grok",
   opens: { kind: "node", id: "grok", titled },
@@ -67,7 +67,7 @@ const driving = <A>(
   })
 
 const asked = (table: Doors, prop: string, value: string) =>
-  table("roadmap/features.olai", prop, value)
+  table("roadmap/features.org", prop, value)
 
 test("an identical frame is not a new table", () =>
   driving(frame(brief("briefs/tp.md")), (write, table) => {
@@ -117,7 +117,7 @@ test("a value the page says nothing about is undefined — which is what keeps i
     expect(asked(table(), "worktree", ".worktrees/tp")).toBeUndefined()
     // The same words under the same key, written in ANOTHER file, are another
     // question — which is the whole reason the lookup is a triple.
-    expect(table()("board.olai", "brief", "briefs/tp.md")).toBeUndefined()
+    expect(table()("board.org", "brief", "briefs/tp.md")).toBeUndefined()
   }))
 
 test("a reading that has not arrived is an empty table, and holds", () =>

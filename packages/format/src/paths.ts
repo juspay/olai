@@ -20,7 +20,7 @@
  *
  * THE SEPARATOR SORTS FIRST, which is the whole of the rule and the half a
  * plain string compare gets wrong: `.` is code point 0x2E and `/` is 0x2F, so
- * `wing.olai` compares before `wing/kitchen.olai` while a walk that descends
+ * `wing.org` compares before `wing/kitchen.org` while a walk that descends
  * into `wing` when it meets it produces the opposite (`@olai/store`'s `disk.ts`
  * — "the map reads down the tree the way a listing of it does"). Ordering the
  * separator below every other character IS segment-by-segment comparison, and

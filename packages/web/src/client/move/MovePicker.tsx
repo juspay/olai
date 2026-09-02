@@ -21,7 +21,7 @@
  * nodes.ts`). So what this finds and what an agent's `search_nodes` finds
  * cannot drift, and neither can this door and the one next to it.
  *
- * The query is the full grammar, so `is:todo`, `#home` and `file:garden.olai`
+ * The query is the full grammar, so `is:todo`, `#home` and `file:garden.org`
  * all narrow the destinations — and `is:trashed` reaches into the Trash, where
  * every hit is refused by name rather than quietly missing. Archived nodes are
  * out of the default answer already (the matcher's own rule), so that refusal

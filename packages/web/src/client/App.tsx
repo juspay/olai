@@ -245,7 +245,7 @@ export default function App() {
    * outline was found first" — and those are read off the page, which is where
    * they were resolved (`./page.ts`'s `fileOf`).
    *
-   * SO A ZOOM KEEPS THE STACK. `/house.olai` → `/#install` is one file
+   * SO A ZOOM KEEPS THE STACK. `/house.org` → `/#install` is one file
    * throughout: the address stops naming it and the page on screen still says
    * it, so this memo does not move and the effect below does not fire. It used
    * to fire twice per navigation — once on the blank and once on the answer —

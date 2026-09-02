@@ -23,11 +23,11 @@ Feature: The filter reaches every page that draws nodes
     # `rails` carries the tag; `ferry` is the other outline's whole answer for
     # this day, so filtering by the tag takes the heading with the row.
     Given I open the day "2019-11-05"
-    Then the day groups are "life.olai, work.olai"
+    Then the day groups are "life.org, work.org"
     And the day lists "ferry, posts, rails"
     When I filter the page by "#home"
     Then the day lists "rails"
-    And the day groups are "work.olai"
+    And the day groups are "work.org"
     And the filter found "1 of 3"
     # Every row on a day is a MATCH: the ancestry that a tree would keep as
     # context is drawn in the crumb above the row, and was never a row.
@@ -133,7 +133,7 @@ Feature: The filter reaches every page that draws nodes
     # — because those doors are searching the directory. This page IS the
     # archive: a matcher applying that rule here would take away every row and
     # leave the reader nothing to read the absence by.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     And I mark the page
     When I open the node menu of "install"
     And I choose "Move to Trash" from the node menu

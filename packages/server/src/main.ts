@@ -194,7 +194,7 @@ const HELP = {
     capture: 'capture "look into the new cabinets" --text "the brass ones"',
     read_node: "read_node a1b2c3",
     search_nodes: "search_nodes --text 'is:todo prop:pr'",
-    get: "get outlines _olai/Inbox.olai",
+    get: "get outlines _olai/Inbox.org",
     list_outlines: "list_outlines",
   },
   flags: [
@@ -331,7 +331,7 @@ const surfaceCmd = Command.make("surface").pipe(
 )
 
 const olai = Command.make("olai").pipe(
-  Command.withDescription("olai — outlines in flat-record JSONL"),
+  Command.withDescription("olai — outlines stored as Org2 headings"),
   Command.withSubcommands([web, surfaceCmd]),
 )
 

@@ -19,7 +19,7 @@ Feature: Referenced by — a zoomed node says what points at it
       node is drawn;
     - an `after` or a `blocks` is the ordering graph, and both directions of it
       are already on the page (`blocked by`, and the node's own `after` row);
-    - a referrer written in an `_olai/Trash.olai` is left out, as it is everywhere
+    - a referrer written in an `_olai/Trash.org` is left out, as it is everywhere
       else (#226).
 
   `@scratch:` because the live scenarios write the directory they are served.
@@ -33,7 +33,7 @@ Feature: Referenced by — a zoomed node says what points at it
   # ── what it says, and how it starts ──────────────────────────────────
 
   Scenario: A node that is pointed at says so, and starts shut
-    # `order` (house.olai) sees `herbs` (garden.olai), which is the one `see` in
+    # `order` (house.org) sees `herbs` (garden.org), which is the one `see` in
     # this corpus and the only thing that counts here.
     Then the page says it is referenced by 1 nodes
     And the referenced-by section is collapsed
@@ -53,7 +53,7 @@ Feature: Referenced by — a zoomed node says what points at it
   # ── the three rulings ────────────────────────────────────────────────
 
   Scenario: A placement is not a reference
-    # `kitchen-herbs` (house.olai) mirrors `herbs`, and zooming the placement
+    # `kitchen-herbs` (house.org) mirrors `herbs`, and zooming the placement
     # lands on the one page the herb bed has — where the mirror is NOT among the
     # things referring to it. A view is not a claim.
     Given I open the node "kitchen-herbs"
@@ -64,11 +64,11 @@ Feature: Referenced by — a zoomed node says what points at it
     And there should be no page errors
 
   Scenario: What is put away is on the Trash and nowhere else
-    When I rewrite "_olai/Trash.olai" as:
+    When I rewrite "_olai/Trash.org" as:
       """
       {"id":"retired","ord":"a0","title":"the old bed, see @herbs","see":["herbs"]}
       """
-    And another writer adds "look at @herbs before Tuesday" to "garden.olai"
+    And another writer adds "look at @herbs before Tuesday" to "garden.org"
     # The archived record does BOTH things this section draws, and neither
     # reaches the page: what arrives is the live mention, so the count is two
     # rather than three and each row holds exactly the live half.
@@ -83,7 +83,7 @@ Feature: Referenced by — a zoomed node says what points at it
 
   Scenario: A reference written elsewhere arrives while the section is open
     When I open the referenced-by section
-    And another writer adds "look at @herbs before Tuesday" to "garden.olai"
+    And another writer adds "look at @herbs before Tuesday" to "garden.org"
     Then the page says it is referenced by 2 nodes
     # The section a reader opened stays open when the set moves under it — the
     # list grows in place rather than shutting and starting again.
@@ -94,9 +94,9 @@ Feature: Referenced by — a zoomed node says what points at it
     And there should be no page errors
 
   Scenario: A word taken back out takes its entry with it
-    When another writer adds "look at @herbs before Tuesday" to "garden.olai"
+    When another writer adds "look at @herbs before Tuesday" to "garden.org"
     And the page says it is referenced by 2 nodes
-    And I rewrite "garden.olai" as:
+    And I rewrite "garden.org" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door","doing":"2026-07-20"}
@@ -107,7 +107,7 @@ Feature: Referenced by — a zoomed node says what points at it
     And there should be no page errors
 
   Scenario: The last reference going takes the whole section with it
-    When I rewrite "house.olai" as:
+    When I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
       {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets"}
@@ -117,8 +117,8 @@ Feature: Referenced by — a zoomed node says what points at it
     And there should be no page errors
 
   Scenario: One record doing both is one referrer, in both rows
-    When another writer adds "look at @herbs before Tuesday" to "garden.olai"
-    And I rewrite "house.olai" as:
+    When another writer adds "look at @herbs before Tuesday" to "garden.org"
+    And I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
       {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets for @herbs","see":["herbs"]}
@@ -128,8 +128,8 @@ Feature: Referenced by — a zoomed node says what points at it
     Then the page says it is referenced by 2 nodes
     When I open the referenced-by section
     Then the referenced-by "sees this" row reads "order the new cabinets for @herbs"
-    # CORPUS ORDER, whichever index found them: garden.olai sorts before
-    # house.olai, so the appended mention comes first even though the `see`
+    # CORPUS ORDER, whichever index found them: garden.org sorts before
+    # house.org, so the appended mention comes first even though the `see`
     # was there all along.
     And the referenced-by "mentions this" row reads "look at @herbs before Tuesday, order the new cabinets for @herbs"
     And there should be no page errors

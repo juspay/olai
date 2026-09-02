@@ -61,7 +61,7 @@ test("a headless serve commits a quiet directory and pushes it, with no tab open
   const there = gitIn(bare)
 
   fs.writeFileSync(
-    path.join(root, "garden.olai"),
+    path.join(root, "garden.org"),
     `{"id":"garden","ord":"a0","title":"garden"}\n`,
   )
   // The shared fixture, so this file cannot drift from every other suite over
@@ -146,7 +146,7 @@ const served = (): { readonly root: string; readonly bare: string; readonly stat
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-boot-")))
   const bare = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-boot-remote-")))
   fs.writeFileSync(
-    path.join(root, "garden.olai"),
+    path.join(root, "garden.org"),
     `{"id":"garden","ord":"a0","title":"garden"}\n`,
   )
   repoAt(root)

@@ -71,18 +71,18 @@ const byFinding = (file: string): string => {
  * Every path both rules answer the same for — which is to say: the outlines,
  * and only the outlines.
  *
- * `.olai` carries no dot of its own, so the last dot in an outline's name is
+ * `.org` carries no dot of its own, so the last dot in an outline's name is
  * the one that opens its suffix, and the rule that FINDS the dot lands on the
  * same character as the rule that SPELLS the suffix. That coincidence is the
  * whole of the agreement, and it does not survive a second registered kind.
  */
 const AGREE: ReadonlyArray<readonly [path: string, stem: string]> = [
-  ["roadmap.olai", "roadmap"],
-  ["docs/roadmap.olai", "roadmap"],
-  ["a/deep/tree/house.olai", "house"],
-  ["Archive.olai", "Archive"],
+  ["roadmap.org", "roadmap"],
+  ["docs/roadmap.org", "roadmap"],
+  ["a/deep/tree/house.org", "house"],
+  ["Archive.org", "Archive"],
   // A dot inside the name is not the suffix, and neither rule takes it for one.
-  ["notes.v2.olai", "notes.v2"],
+  ["notes.v2.org", "notes.v2"],
   // The degenerate outline: a file called nothing but its suffix. Spelled from
   // the registry rather than written out, because ./kinds.ts is the only file
   // allowed to say it in code (`@olai/tests`' `kinds.test.ts` holds that).
@@ -97,7 +97,7 @@ const AGREE: ReadonlyArray<readonly [path: string, stem: string]> = [
  *   - **another registered kind.** A `.md` or a `.html` keeps its suffix under
  *     `bySpelling`, which is the reading `./dates.ts` explicitly refused to
  *     write. Every daily note is in here.
- *   - **a file the registry claims nothing about.** `house.olai.bak` and
+ *   - **a file the registry claims nothing about.** `house.org.bak` and
  *     `plan.json` lose a suffix under `byFinding` that no rule in this
  *     package ever said was one. `shot.png` was one of these until the
  *     viewers claimed a picture, which is the whole point of the row moving
@@ -124,7 +124,7 @@ const DIVERGE: ReadonlyArray<
   ["notes/report.html", "report.html", "report", "report"],
   ["shot.png", "shot.png", "shot", "shot"],
   ["art/diagram.svg", "diagram.svg", "diagram", "diagram"],
-  ["house.olai.bak", "house.olai.bak", "house.olai", "house.olai.bak"],
+  ["house.org.bak", "house.org.bak", "house.org", "house.org.bak"],
   ["plan.json", "plan.json", "plan", "plan.json"],
   ["README", "README", "READM", "README"],
   ["docs/README", "README", "READM", "README"],
@@ -180,7 +180,7 @@ describe("what each caller actually passes", () => {
   // seam is the subject line.
   test("a commit subject names an outline's stem, with the suffix gone", () => {
     const change: NodeChange = {
-      file: "docs/roadmap.olai",
+      file: "docs/roadmap.org",
       id: "x",
       title: "a node",
       fields: [],
@@ -202,7 +202,7 @@ describe("what each caller actually passes", () => {
     expect(noteDateOf("notes.v2.md")).toBeNull()
     // And nothing that is not a document is asked at all — the guard, not the
     // stripping, is what answers for these.
-    expect(noteDateOf("2026-08-11.olai")).toBeNull()
+    expect(noteDateOf("2026-08-11.org")).toBeNull()
     expect(noteDateOf("2026-08-11.html")).toBeNull()
     expect(noteDateOf("2026-08-11")).toBeNull()
   })
@@ -215,13 +215,13 @@ describe("what each caller actually passes", () => {
  * Its caller is a box that offers a name back to be TYPED — the sidebar's
  * refusal for a name carrying the wrong kind's suffix (`@olai/web`'s
  * `file/completing.ts`) — and a stem there would be advice that moves the file:
- * "type `plan`" for a `notes/plan.md` mints `plan.olai` at the root.
+ * "type `plan`" for a `notes/plan.md` mints `plan.org` at the root.
  */
 describe("the suffix off a path, and the same off a name", () => {
   test("bareOf keeps every directory above the file", () => {
     expect(bareOf("notes/plan.md")).toBe("notes/plan")
     expect(bareOf("Daily/2026/08/2026-08-12.md")).toBe("Daily/2026/08/2026-08-12")
-    expect(bareOf("plan.olai")).toBe("plan")
+    expect(bareOf("plan.org")).toBe("plan")
     expect(bareOf("report.html")).toBe("report")
     // A kind with several spellings takes off THE ONE THAT CLAIMED THE FILE,
     // which is the whole reason the walk answers with the suffix it matched
@@ -242,7 +242,7 @@ describe("the suffix off a path, and the same off a name", () => {
   // the stem is this answer over the basename, so the two can never take a
   // different number of characters off one name.
   test("a stem is this answer over the basename", () => {
-    for (const path of ["notes/plan.md", "a/b/c.olai", "README", "x/y/plan v1.2", "r.html"]) {
+    for (const path of ["notes/plan.md", "a/b/c.org", "README", "x/y/plan v1.2", "r.html"]) {
       expect({ path, stem: stemOf(path) }).toEqual({
         path,
         stem: bareOf(path.slice(path.lastIndexOf("/") + 1)),

@@ -20,7 +20,7 @@
  *     and it is the one partition of a verdict there is.
  *   - {@link admits} — how a REFUSAL is read, and it is per file. Its
  *     answer has no whole-set member: there is no way to spell "the set is
- *     invalid, so no" at a write, only "`lanes.olai` is what stops this", which
+ *     invalid, so no" at a write, only "`lanes.org` is what stops this", which
  *     is what makes the freeze unspellable through this socket rather than
  *     merely fixed at one call site.
  *   - {@link darkened} — which files a write took off the screen that were ON
@@ -41,7 +41,7 @@
  * exactly what the validator did before the table existed, with the question of
  * what should sit on it left open as `#human` (roadmap `verdict-boot-policy`).
  * The human answered on 2026-08-29 and the answer has no second value in it:
- * **every finding is per file**. A broken `.olai` degrades ALONE, at a cold
+ * **every finding is per file**. A broken `.org` degrades ALONE, at a cold
  * boot and at runtime alike; nothing a file can say takes another file off the
  * screen or refuses a write to it.
  *

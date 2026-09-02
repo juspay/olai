@@ -21,7 +21,7 @@ Feature: A shortlist says how much of the answer it drew
   `@corpus:good` — nothing here writes.
 
   Background:
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
 
   Scenario: The palette drew eight of what it found, and says which
     When I press the palette shortcut

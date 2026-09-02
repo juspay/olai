@@ -1,0 +1,47 @@
+* the lanes
+:PROPERTIES:
+:ID: lanes
+:OLAI_KIND: regular
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "the lanes"
+:END:
+
+** the doc-backlinks lane
+:PROPERTIES:
+:ID: backlinks
+:OLAI_KIND: regular
+:OLAI_PARENT: "lanes"
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "the doc-backlinks lane"
+:OLAI_CUSTOM: {"agent":"grok","dispatched":"2026-08-19T09:00:00-04:00","merge":"auto","records":"189"}
+:END:
+
+** the typed-properties lane
+:PROPERTIES:
+:ID: props
+:OLAI_KIND: regular
+:OLAI_PARENT: "lanes"
+:OLAI_ORD: "a1"
+:OLAI_TITLE: "the typed-properties lane"
+:OLAI_CUSTOM: {"agent":"claude","brief":"briefs/tp.md","dispatched":"2026-08-25T10:06:00-04:00","merge":"human","records":"193","worktree":".worktrees/typed-properties"}
+:END:
+
+** the chip-editor lane
+:PROPERTIES:
+:ID: chips
+:OLAI_KIND: regular
+:OLAI_PARENT: "lanes"
+:OLAI_ORD: "a2"
+:OLAI_TITLE: "the chip-editor lane"
+:OLAI_CUSTOM: {"agent":"pi","dispatched":"2026-08-21","merge":"auto","records":"200"}
+:END:
+
+** a lane from long ago
+:PROPERTIES:
+:ID: far
+:OLAI_KIND: regular
+:OLAI_PARENT: "lanes"
+:OLAI_ORD: "a3"
+:OLAI_TITLE: "a lane from long ago"
+:OLAI_CUSTOM: {"records":"1000","terminal":"a uuid, and a remark about it"}
+:END:

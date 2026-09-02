@@ -35,7 +35,7 @@ test("a path that climbs is refused, however it is spelled", () => {
   // A separator smuggled in as an escape is one segment claiming to be two.
   expect(mediaTarget("/media/a%2fb.png")).toBeNull()
   expect(mediaTarget("/media/a%5cb.png")).toBeNull()
-  expect(mediaTarget("/media/shot.png%00.olai")).toBeNull()
+  expect(mediaTarget("/media/shot.png%00.org")).toBeNull()
   // A malformed escape names nothing at all.
   expect(mediaTarget("/media/%zz.png")).toBeNull()
 })
@@ -68,7 +68,7 @@ test("a page and the parts it draws with are served", () => {
 // argument for the first. Data nothing has a page for is nobody's, and a
 // directory is not a file.
 test("anything that is not fetched by a page is not served", () => {
-  expect(mediaTarget("/media/plan.olai")).toBeNull()
+  expect(mediaTarget("/media/plan.org")).toBeNull()
   expect(mediaTarget("/media/notes.md")).toBeNull()
   expect(mediaTarget("/media/data/sales.csv")).toBeNull()
   expect(mediaTarget("/media/data.json")).toBeNull()
@@ -99,7 +99,7 @@ test("a path is decoded and guarded whether or not the route would answer it", (
   // one divergence, and it is the reason for the split.
   expect(mediaPath("/media/notes.md")).toBe("notes.md")
   expect(mediaTarget("/media/notes.md")).toBeNull()
-  expect(mediaPath("/media/plan.olai")).toBe("plan.olai")
+  expect(mediaPath("/media/plan.org")).toBe("plan.org")
   // The guard itself is not relaxed by an inch: every climb, every smuggled
   // separator and every malformed escape falls the same way it does above.
   for (
@@ -111,7 +111,7 @@ test("a path is decoded and guarded whether or not the route would answer it", (
       "/media//notes.md",
       "/media/a%2fb.md",
       "/media/a%5cb.md",
-      "/media/notes.md%00.olai",
+      "/media/notes.md%00.org",
       "/media/%zz.md",
       "/media/",
       "/notes.md",

@@ -3,7 +3,7 @@
  * that can be stated without a browser.
  *
  * An address that names a place inside a page — `/notes/beds.md#slats`,
- * `/saved/report.html#totals`, `/house.olai#install` — asks to arrive THERE, and
+ * `/saved/report.html#totals`, `/house.org#install` — asks to arrive THERE, and
  * that ask is an ACT: it
  * happens once, on arrival, and never again. What performs one is a face (the
  * markdown body scrolls to a heading; the `.html` preview puts the fragment on

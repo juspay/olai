@@ -25,7 +25,7 @@ const hits = (query: string): ReadonlyArray<NodeHit> =>
     at: { kind: "node" as const, id: `note-${at}` as never },
     id: `note-${at}`,
     title: `note about ${at}`,
-    file: "house.olai",
+    file: "house.org",
     line: at + 2,
     path: ["notes"],
     see: undefined,
@@ -78,7 +78,7 @@ test("the node rows say what they write, then where they are", () => {
     label: "note about 3",
     // The label is a title and renders as one — the outline it is written in
     // rides the row so the menu can draw it (`CompletionMenu`'s `RowLabel`).
-    from: "house.olai",
+    from: "house.org",
     // The `·` is the PLACE's and nothing else's: the id and the place are two
     // facts, and one glyph doing both jobs on one line leaves a reader working
     // out which dots are boundaries and which are ancestry.

@@ -1,6 +1,6 @@
 /**
- * The fixtures every test in this package is written against: JSONL text in,
- * exactly the records a real load produces out.
+ * The fixtures every test in this package is written against: compact logical
+ * records in, exactly the records a real Org load produces out.
  *
  * Fixtures go through `parseOutline` rather than being written as record
  * literals, because line numbers are part of the answer — sibling ties break
@@ -34,6 +34,8 @@ import { unkept } from "./kinds.ts"
 import { isMirror, isPutAway, type Located, type LocatedRegular, storedMarker } from "./node.ts"
 import { type Dated, datesOf, dayOf, monthOf } from "./occasion.ts"
 import { parseOutline } from "./parse.ts"
+import { serializeOutline } from "./write.ts"
+import type { Node } from "./node.ts"
 import { pointingOf } from "./pointing.ts"
 import { bodiedDocument, type Document, type Outline } from "./document.ts"
 import { assemble, outlinesIn, type OutlineSet } from "./set.ts"
@@ -42,14 +44,26 @@ import { type Verdict, verdictOf } from "./verdict.ts"
 
 /** The default fixture file name. Named once so a test that cares about paths
  *  can say so, and one that does not need never mention it. */
-export const FIXTURE_FILE = "a.olai"
+export const FIXTURE_FILE = "a.org"
 
-/** One file's worth of JSONL, parsed — or a diagnostic good enough to fix the
+/** One file's worth of compact logical records, parsed — or a diagnostic good enough to fix the
  *  fixture without opening the parser. */
 export const outlineOf = (contents: string, file = FIXTURE_FILE): Outline => {
-  const parsed = parseOutline(file, contents)
+  const parsed = parseOutline(file, orgFixture(contents))
   if (Result.isFailure(parsed)) throw new Error(unparsable(file, contents, parsed.failure))
   return parsed.success
+}
+
+/** Existing tests describe records compactly as JSON objects. Product parsing
+ * never accepts that notation; the fixture boundary turns it into the same
+ * Org2 bytes production writers emit before exercising the real parser. */
+export const orgFixture = (contents: string): string => {
+  const lines = contents.split("\n").filter((line) => line.trim() !== "")
+  try {
+    return serializeOutline(lines.map((line) => JSON.parse(line) as Node))
+  } catch {
+    return contents
+  }
 }
 
 /** The located records of one file, in file order. */
@@ -371,9 +385,9 @@ export const settled = (held: ReadonlyMap<string, string>): ReadonlyMap<string, 
  *  stream the records are, so the whole vault is one seed's answer. */
 const pathOf = (random: () => number, at: number): string => {
   const roll = random()
-  if (roll < 0.2) return `area${at % 20}/note${at}.olai`
-  if (roll < 0.24) return `area${at % 20}.olai`
-  return `note${at}.olai`
+  if (roll < 0.2) return `area${at % 20}/note${at}.org`
+  if (roll < 0.24) return `area${at % 20}.org`
+  return `note${at}.org`
 }
 
 /** One file's JSONL: a root and its children, some marked, a few naming each

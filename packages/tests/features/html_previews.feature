@@ -283,7 +283,7 @@ Feature: A `.html` in the vault
   Scenario: A link to an outline beside the page opens the outline
     # THE THIRD KIND, and the one that goes to a different page shape. A vault
     # is outlines as well as prose, so a saved page sitting in one can link at
-    # `house.olai` beside it — and an outline is not drawn as a body like the
+    # `house.org` beside it — and an outline is not drawn as a body like the
     # other two, it is a TREE. Which page a path opens at is not a
     # question the frame can answer or needs to: the seal claims the click
     # because the registry claims the suffix, and the app looks the path up in
@@ -298,12 +298,12 @@ Feature: A `.html` in the vault
     When I rewrite "atlas.html" as:
       """
       <h1>Atlas</h1>
-      <p><a id="tree" href="house.olai">the house outline</a></p>
+      <p><a id="tree" href="house.org">the house outline</a></p>
       """
     And I click the page "atlas.html"
     Then the preview shows the heading "Atlas"
     When I click "#tree" inside the preview
-    Then the address is "/house.olai"
+    Then the address is "/house.org"
     And the outline list is shown
     # A route, not a reload — the same in-place navigation the sidebar's own
     # click on that outline makes.

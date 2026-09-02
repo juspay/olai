@@ -16,7 +16,7 @@
  * be one: no offset, no line range, no walk of the directory that is not the
  * served set's own list.
  *
- * It is not a smaller `grep`. A grep over `.olai` answers with JSON fragments
+ * It is not a smaller `grep`. A grep over `.org` answers with JSON fragments
  * out of context, invites byte-level edits back, and cannot say where a node
  * SITS — its ancestry, the tags in its title, how far the tasks under it have
  * got, none of which is in the line it would print. What an agent needs to act
@@ -1249,7 +1249,7 @@ const armOf = (
  * document path, a node id, a heading inside a body — and a search hit already
  * carries one. It is the wrong reuse here because it encapsulates a different
  * axis: an address is a place written as TEXT, parsed out of a title somebody
- * typed in `Pins.olai` or out of an address bar, and it carries an arm (a
+ * typed in `Pins.org` or out of an address bar, and it carries an arm (a
  * heading in a body) this read has no answer for. Nothing in this request is
  * written text — it is two typed fields, and what is decided below is which of
  * them was given.

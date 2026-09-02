@@ -9,7 +9,7 @@
  *
  * | URL | Page |
  * |---|---|
- * | `/Tasks.olai` | one outline, drawn as a tree |
+ * | `/Tasks.org` | one outline, drawn as a tree |
  * | `/notes/README.md` | one document, drawn as a body |
  * | `/notes/README.md#install` | …landed at one of its headings |
  * | `/#a1b2c3` | one node, wherever it lives |
@@ -45,7 +45,7 @@
  * spelled twice, free to disagree with the name it carries, and it makes the
  * kind of a file a property of the LINK that was clicked rather than of the
  * file. What changed on 2026-08-19 is that the ruling was taken all the way:
- * `.olai` is a suffix like the others, so the prefix that spelled it is gone
+ * `.org` is a suffix like the others, so the prefix that spelled it is gone
  * and a file's address is its path.
  *
  * A NODE spells no prefix either, for a sharper reason: `#a1b2c3` is the
@@ -94,8 +94,8 @@
  * would be an address that meant something different tomorrow.
  *
  * `/trash` spells nothing for the same reason: it is a question asked of the
- * set — every `_olai/Trash.olai` under the directory — not a file's address. The
- * files it reads still HAVE addresses (`/_olai/Trash.olai` parses like any
+ * set — every `_olai/Trash.org` under the directory — not a file's address. The
+ * files it reads still HAVE addresses (`/_olai/Trash.org` parses like any
  * outline), and what such an address opens is the trash view, because an
  * archive is not a place you edit (`page.ts` decides that, not this parser).
  *
@@ -123,7 +123,7 @@
  * AND TOTAL. Parsing answers a route for every string, including one no
  * address could have been written with: `decodeURIComponent` throws on a
  * malformed escape, and this parser is asked about the ADDRESS BAR, where a
- * person types, and about a TITLE in `Pins.olai`, which the format invites a
+ * person types, and about a TITLE in `Pins.org`, which the format invites a
  * hand and an agent to edit (docs/format.md's Pins). A throw out of either is
  * not a bad address — it is a blank app, since a throw during render takes the
  * tree that was rendering with it and this client mounts no error boundary. So
@@ -169,7 +169,7 @@ export type Route =
   | { readonly kind: "today"; readonly filter?: string }
   /** What is owed, read forward from whatever day it is. */
   | { readonly kind: "agenda"; readonly filter?: string }
-  /** What was put away: every `_olai/Trash.olai` under the directory, read-only.
+  /** What was put away: every `_olai/Trash.org` under the directory, read-only.
    *  It spells no file for the reason `/agenda` spells no horizon — which
    *  archives exist is the set's answer, and an address that named one would
    *  mean something different the day a subdirectory gets its own. */
@@ -377,7 +377,7 @@ export const fileNamed = (route: Route): string | undefined => {
  * cannot tell "the reader typed `/`" from "this is not one of ours". It used
  * to be tested by the BIJECTION instead — print the route back and compare —
  * which answered the same for `/etc/passwd` and refused a spelling this app
- * reads but would not have written, `/house.olai#kitchen`. The bijection is
+ * reads but would not have written, `/house.org#kitchen`. The bijection is
  * still the TEST (`routes.test.ts`); it is no longer the mechanism.
  *
  * A FRAGMENT IS PART OF THE ADDRESS NOW, and this claims it. It used to be

@@ -22,8 +22,8 @@ const TODAY = "2026-08-10"
 // ── what the server is asked ───────────────────────────────────────────
 
 test("an address goes over as the address the parser read", () => {
-  expect(requestFor(atFile("house.olai"), TODAY))
-    .toEqual({ kind: "at", address: addressOf("house.olai", null) })
+  expect(requestFor(atFile("house.org"), TODAY))
+    .toEqual({ kind: "at", address: addressOf("house.org", null) })
   expect(requestFor(HOME_ROUTE, TODAY)).toEqual({ kind: "at", address: null })
 })
 
@@ -44,8 +44,8 @@ test("the agenda carries the day it is counted against", () => {
 // it must not reach this one — a page reading that carried the query would be
 // the whole page re-asked on every keystroke.
 test("the narrowing is dropped: it is not part of which page this is", () => {
-  expect(requestFor({ ...atFile("house.olai"), filter: "is:todo" }, TODAY))
-    .toEqual(requestFor(atFile("house.olai"), TODAY))
+  expect(requestFor({ ...atFile("house.org"), filter: "is:todo" }, TODAY))
+    .toEqual(requestFor(atFile("house.org"), TODAY))
   expect(requestFor({ kind: "trash", filter: "is:todo" }, TODAY)).toEqual({ kind: "trash" })
 })
 
@@ -54,32 +54,32 @@ test("the narrowing is dropped: it is not part of which page this is", () => {
 // outline its file spelled. Sent whole, a link to a row would re-ask the page
 // for each row of it.
 test("a row is the outline it sits in: its element is a landing, not a page", () => {
-  expect(requestFor(atElement("house.olai", "install"), TODAY))
-    .toEqual(requestFor(atFile("house.olai"), TODAY))
+  expect(requestFor(atElement("house.org", "install"), TODAY))
+    .toEqual(requestFor(atFile("house.org"), TODAY))
 })
 
 // ── which sidebar entry lights up ──────────────────────────────────────
 
 const ROW: Row = {
-  at: { file: "garden.olai", line: 1, node: { id: "herbs", ord: "a0", title: "herbs" } },
+  at: { file: "garden.org", line: 1, node: { id: "herbs", ord: "a0", title: "herbs" } },
   blocked: [],
   under: 0,
   key: "/herbs",
   children: [],
   kind: "node",
-  shows: { file: "garden.olai", line: 1, node: { id: "herbs", ord: "a0", title: "herbs" } },
+  shows: { file: "garden.org", line: 1, node: { id: "herbs", ord: "a0", title: "herbs" } },
 }
 
-const OUTLINE: Shown = { kind: "outline", file: "house.olai", rows: [ROW] }
+const OUTLINE: Shown = { kind: "outline", file: "house.org", rows: [ROW] }
 
 test("the open outline is the one the page is of", () => {
-  expect(fileOf(OUTLINE)).toBe("house.olai")
+  expect(fileOf(OUTLINE)).toBe("house.org")
   expect(fileOf({ kind: "document", file: "notes/finishes.md", referrers: [], props: {} }))
     .toBe("notes/finishes.md")
 })
 
 // The point of asking the reading rather than the URL: `/#herbs-here` may be a
-// mirror living in house.olai, and the page it opens is in garden.olai.
+// mirror living in house.org, and the page it opens is in garden.org.
 test("a zoomed node lights up the file its CANONICAL record is in", () => {
   expect(fileOf({
     kind: "node",
@@ -92,12 +92,12 @@ test("a zoomed node lights up the file its CANONICAL record is in", () => {
       children: [],
       under: 0,
     },
-  })).toBe("garden.olai")
+  })).toBe("garden.org")
 })
 
 test("a page that names no node lights up nothing", () => {
   expect(fileOf({ kind: "agenda", date: TODAY, agenda: NOTHING_OWED })).toBeUndefined()
-  expect(fileOf({ kind: "nothing", sought: "outline", requested: "shed.olai" }))
+  expect(fileOf({ kind: "nothing", sought: "outline", requested: "shed.org" }))
     .toBeUndefined()
 })
 
@@ -135,10 +135,10 @@ test("the trash draws its groups, and keeps the FILES beside them", () => {
   // is worth a file heading is a fact about the directory.
   expect(drawnBy({
     kind: "trash",
-    files: ["_olai/Trash.olai"],
+    files: ["_olai/Trash.org"],
     groups: [],
     records: 3,
-  })).toEqual({ kind: "trash", files: ["_olai/Trash.olai"], groups: [] })
+  })).toEqual({ kind: "trash", files: ["_olai/Trash.org"], groups: [] })
 })
 
 test("a page a query has nothing to say about draws none of it", () => {
@@ -157,11 +157,11 @@ test("a page a query has nothing to say about draws none of it", () => {
  *  directory holds them (`../client/directory.ts`). It was a list of faces
  *  until `perf-faces-broken-walk`, and every element of it was read for its
  *  `path` and nothing else. */
-const SERVED = ["house.olai", "notes/finishes.md"]
+const SERVED = ["house.org", "notes/finishes.md"]
 
 test("a path the directory holds opens at its own route; one it does not opens nowhere", () => {
-  expect(opensAt(SERVED, "house.olai")).toEqual(atFile("house.olai"))
-  expect(opensAt(SERVED, "shed.olai")).toBeUndefined()
+  expect(opensAt(SERVED, "house.org")).toEqual(atFile("house.org"))
+  expect(opensAt(SERVED, "shed.org")).toBeUndefined()
 })
 
 test("a fragment is read by the grammar that would have written it", () => {
@@ -171,5 +171,5 @@ test("a fragment is read by the grammar that would have written it", () => {
   // After an OUTLINE it is a node, because an outline's places are node ids —
   // which is the grammar's own answer (`@olai/format`'s `address.ts`), asked
   // here rather than re-decided.
-  expect(opensAt(SERVED, "house.olai", "install")).toEqual(atElement("house.olai", "install"))
+  expect(opensAt(SERVED, "house.org", "install")).toEqual(atElement("house.org", "install"))
 })

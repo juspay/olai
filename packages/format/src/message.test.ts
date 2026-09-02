@@ -14,7 +14,7 @@ import type { Other } from "./committing.ts"
 import { composed } from "./message.ts"
 
 const change = (over: Partial<NodeChange>): NodeChange => ({
-  file: "roadmap.olai",
+  file: "roadmap.org",
   id: "x",
   title: "a node",
   fields: [],
@@ -40,7 +40,7 @@ describe("a composed message", () => {
     expect(composed([change({ sort: "done" })]).split("\n")[0])
       .toBe("olai: 1 edit to roadmap — a node done")
     expect(
-      composed([change({ sort: "done" }), change({ file: "other.olai", id: "y" })])
+      composed([change({ sort: "done" }), change({ file: "other.org", id: "y" })])
         .split("\n")[0],
     ).toBe("olai: 2 edits — a node done")
   })
@@ -96,18 +96,18 @@ describe("a message that also carries other files", () => {
    * A RENAME names both halves, which is the one row where the status word on
    * its own refuses to say the interesting part.
    *
-   * `renamed: Kept.olai` is a line a person reads a year later and cannot act
+   * `renamed: Kept.org` is a line a person reads a year later and cannot act
    * on: renamed from WHAT. The body is the permanent record of what a commit
    * did, and `deleted: Reading.md` — which is what this said before both halves
    * travelled together — was the log agreeing with the wrong half of the panel.
    */
   test("a renamed file names the side it came from", () => {
-    const message = composed([], [other("Kept.olai", "renamed", "Reading.md")])
-    expect(message).toContain("renamed: Reading.md → Kept.olai")
+    const message = composed([], [other("Kept.org", "renamed", "Reading.md")])
+    expect(message).toContain("renamed: Reading.md → Kept.org")
     expect(message).not.toContain("deleted: Reading.md")
     // The subject still names the file as it is NOW: what the commit recorded
     // is a file at that path, and the arrow belongs to the line that has room.
-    expect(message.split("\n")[0]).toBe("olai: 1 file — Kept.olai")
+    expect(message.split("\n")[0]).toBe("olai: 1 file — Kept.org")
   })
 
   test("one other file is singular", () => {

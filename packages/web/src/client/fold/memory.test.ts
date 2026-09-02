@@ -74,32 +74,32 @@ const answering = (
 
 test("what is stored is collapsed ids, grouped by file", () => {
   const folds = withFolds(new Map(), [
-    { id: "kitchen", file: "house.olai" },
-    { id: "herbs", file: "garden.olai" },
+    { id: "kitchen", file: "house.org" },
+    { id: "herbs", file: "garden.org" },
   ], true)
   expect(printFolds(folds)).toBe(
-    `{"garden.olai":["herbs"],"house.olai":["kitchen"]}`,
+    `{"garden.org":["herbs"],"house.org":["kitchen"]}`,
   )
   expect(parseFolds(printFolds(folds))).toEqual(
-    foldsOf({ "garden.olai": ["herbs"], "house.olai": ["kitchen"] }),
+    foldsOf({ "garden.org": ["herbs"], "house.org": ["kitchen"] }),
   )
 })
 
 test("a node folded while another file is open is remembered under ITS file", () => {
-  // The mirrors ruling, in the store: `herbs` lives in garden.olai, so folding
-  // the mirror of it that hangs in house.olai is a fact about garden.olai —
+  // The mirrors ruling, in the store: `herbs` lives in garden.org, so folding
+  // the mirror of it that hangs in house.org is a fact about garden.org —
   // which is what makes both placements read as folded.
-  const folds = withFolds(new Map(), [{ id: "herbs", file: "garden.olai" }], true)
-  expect(folds.get("house.olai")).toBeUndefined()
-  expect([...(folds.get("garden.olai") ?? [])]).toEqual(["herbs"])
+  const folds = withFolds(new Map(), [{ id: "herbs", file: "garden.org" }], true)
+  expect(folds.get("house.org")).toBeUndefined()
+  expect([...(folds.get("garden.org") ?? [])]).toEqual(["herbs"])
 })
 
 test("unfolding removes the id, and the last one takes the file with it", () => {
-  const folded = foldsOf({ "house.olai": ["kitchen", "install"] })
-  const one = withFolds(folded, [{ id: "install", file: "house.olai" }], false)
-  expect([...(one.get("house.olai") ?? [])]).toEqual(["kitchen"])
+  const folded = foldsOf({ "house.org": ["kitchen", "install"] })
+  const one = withFolds(folded, [{ id: "install", file: "house.org" }], false)
+  expect([...(one.get("house.org") ?? [])]).toEqual(["kitchen"])
 
-  const none = withFolds(one, [{ id: "kitchen", file: "house.olai" }], false)
+  const none = withFolds(one, [{ id: "kitchen", file: "house.org" }], false)
   expect(none.size).toBe(0)
   // ...and nothing at all is a key REMOVED, not an empty object left behind.
   expect(printFolds(none)).toBeNull()
@@ -108,18 +108,18 @@ test("unfolding removes the id, and the last one takes the file with it", () => 
 test("a node nobody has touched is simply absent, and therefore open", () => {
   // The default is the SHAPE, not a value: an expand-all over a page nobody
   // has folded writes nothing at all.
-  const folds = withFolds(new Map(), [{ id: "kitchen", file: "house.olai" }], false)
+  const folds = withFolds(new Map(), [{ id: "kitchen", file: "house.org" }], false)
   expect(printFolds(folds)).toBeNull()
 })
 
 test("collapse-all is one write, not one per node", () => {
   const folds = withFolds(new Map(), [
-    { id: "kitchen", file: "house.olai" },
-    { id: "install", file: "house.olai" },
-    { id: "herbs", file: "garden.olai" },
+    { id: "kitchen", file: "house.org" },
+    { id: "install", file: "house.org" },
+    { id: "herbs", file: "garden.org" },
   ], true)
-  expect([...(folds.get("house.olai") ?? [])].sort()).toEqual(["install", "kitchen"])
-  expect([...(folds.get("garden.olai") ?? [])]).toEqual(["herbs"])
+  expect([...(folds.get("house.org") ?? [])].sort()).toEqual(["install", "kitchen"])
+  expect([...(folds.get("garden.org") ?? [])]).toEqual(["herbs"])
 })
 
 test("a value this app did not write is nothing, and the reader gets the default", () => {
@@ -127,27 +127,27 @@ test("a value this app did not write is nothing, and the reader gets the default
   // an older olai, a console, a half-written entry.
   expect(parseFolds(null).size).toBe(0)
   expect(parseFolds("hello").size).toBe(0)
-  expect(parseFolds(`["house.olai"]`).size).toBe(0)
-  expect(parseFolds(`{"house.olai":"kitchen"}`).size).toBe(0)
+  expect(parseFolds(`["house.org"]`).size).toBe(0)
+  expect(parseFolds(`{"house.org":"kitchen"}`).size).toBe(0)
   // ...and a bad member does not condemn the good ones beside it.
-  expect(parseFolds(`{"house.olai":["kitchen",7,null]}`)).toEqual(
-    foldsOf({ "house.olai": ["kitchen"] }),
+  expect(parseFolds(`{"house.org":["kitchen",7,null]}`)).toEqual(
+    foldsOf({ "house.org": ["kitchen"] }),
   )
 })
 
 test("a node that MOVED to another file keeps its fold, under the new file", () => {
   // The case pruning by bucket alone gets wrong, and it is the ordinary one:
-  // `archive` keeps the id and moves the record to `_olai/Trash.olai`, leaving the
+  // `archive` keeps the id and moves the record to `_olai/Trash.org`, leaving the
   // source file served with the rest of its nodes. Read as "not declared by
-  // house.olai any more" that is indistinguishable from a deletion — and the
+  // house.org any more" that is indistinguishable from a deletion — and the
   // whole point of keying by id is that a fold survives a move.
   const live = new Map([
-    ["house.olai", new Set(["kitchen", "order"])],
-    ["_olai/Trash.olai", new Set(["install"])],
+    ["house.org", new Set(["kitchen", "order"])],
+    ["_olai/Trash.org", new Set(["install"])],
   ])
-  const folds = foldsOf({ "house.olai": ["kitchen", "install"] })
+  const folds = foldsOf({ "house.org": ["kitchen", "install"] })
   expect(pruned(folds, answering(folds, live))).toEqual(
-    foldsOf({ "house.olai": ["kitchen"], "_olai/Trash.olai": ["install"] }),
+    foldsOf({ "house.org": ["kitchen"], "_olai/Trash.org": ["install"] }),
   )
 })
 
@@ -155,12 +155,12 @@ test("the fold of a node that is gone is dropped", () => {
   // Gone means gone from the whole SET, not from the file it used to be in —
   // which is what the move above is the other side of.
   const live = new Map([
-    ["house.olai", new Set(["kitchen"])],
-    ["garden.olai", new Set(["herbs"])],
+    ["house.org", new Set(["kitchen"])],
+    ["garden.org", new Set(["herbs"])],
   ])
-  const folds = foldsOf({ "house.olai": ["kitchen", "deleted"] })
+  const folds = foldsOf({ "house.org": ["kitchen", "deleted"] })
   expect(pruned(folds, answering(folds, live))).toEqual(
-    foldsOf({ "house.olai": ["kitchen"] }),
+    foldsOf({ "house.org": ["kitchen"] }),
   )
 })
 
@@ -169,15 +169,15 @@ test("a file this browser cannot see keeps its folds", () => {
   // or that this directory is not serving right now, says nothing about whether
   // its nodes exist — and pruning against a set that does not contain it would
   // throw away the folds of every outline the reader is not looking at.
-  const live = new Map([["house.olai", new Set(["kitchen"])]])
-  const unseen = foldsOf({ "garden.olai": ["herbs"] })
+  const live = new Map([["house.org", new Set(["kitchen"])]])
+  const unseen = foldsOf({ "garden.org": ["herbs"] })
   expect(pruned(unseen, answering(unseen, live))).toEqual(
-    foldsOf({ "garden.olai": ["herbs"] }),
+    foldsOf({ "garden.org": ["herbs"] }),
   )
   // Nothing loaded at all prunes nothing.
-  const nothing = foldsOf({ "house.olai": ["gone"] })
+  const nothing = foldsOf({ "house.org": ["gone"] })
   expect(pruned(nothing, answering(nothing, new Map()))).toEqual(
-    foldsOf({ "house.olai": ["gone"] }),
+    foldsOf({ "house.org": ["gone"] }),
   )
 })
 
@@ -185,11 +185,11 @@ test("an id lives in ONE bucket: folding it where it moved to clears the old one
   // The write half of the same rule. A stale copy would win anyway — the set
   // every row reads is the union — so "one node, one fold state" has to hold in
   // the storage and not only in the id.
-  const stale = foldsOf({ "house.olai": ["install"] })
-  expect(withFolds(stale, [{ id: "install", file: "_olai/Trash.olai" }], true))
-    .toEqual(foldsOf({ "_olai/Trash.olai": ["install"] }))
+  const stale = foldsOf({ "house.org": ["install"] })
+  expect(withFolds(stale, [{ id: "install", file: "_olai/Trash.org" }], true))
+    .toEqual(foldsOf({ "_olai/Trash.org": ["install"] }))
   // ...and unfolding finds it wherever it is, not only under the file named.
-  expect(withFolds(stale, [{ id: "install", file: "_olai/Trash.olai" }], false))
+  expect(withFolds(stale, [{ id: "install", file: "_olai/Trash.org" }], false))
     .toEqual(new Map())
 })
 
@@ -197,14 +197,14 @@ test("a write starts from the ENTRY unioned with what this tab holds", () => {
   // Two tabs are not making rival picks the way two theme presses are: they are
   // each adding a different fact. Starting from the held map alone is how one
   // tab's fold disappears when the other writes from a map that predates it.
-  const stored = foldsOf({ "house.olai": ["kitchen"] })
-  const held = foldsOf({ "garden.olai": ["herbs"] })
+  const stored = foldsOf({ "house.org": ["kitchen"] })
+  const held = foldsOf({ "garden.org": ["herbs"] })
   expect(combined(stored, held)).toEqual(
-    foldsOf({ "house.olai": ["kitchen"], "garden.olai": ["herbs"] }),
+    foldsOf({ "house.org": ["kitchen"], "garden.org": ["herbs"] }),
   )
   // The same file from both sides is one bucket, not two.
-  expect(combined(stored, foldsOf({ "house.olai": ["order"] }))).toEqual(
-    foldsOf({ "house.olai": ["kitchen", "order"] }),
+  expect(combined(stored, foldsOf({ "house.org": ["order"] }))).toEqual(
+    foldsOf({ "house.org": ["kitchen", "order"] }),
   )
   // A browser that will not give its storage back reads as nothing, and then
   // the union is exactly what this tab is holding.
@@ -213,11 +213,11 @@ test("a write starts from the ENTRY unioned with what this tab holds", () => {
 
 test("an unfold still removes, because the change goes on after the union", () => {
   const base = combined(
-    foldsOf({ "house.olai": ["kitchen", "order"] }),
-    foldsOf({ "house.olai": ["kitchen"] }),
+    foldsOf({ "house.org": ["kitchen", "order"] }),
+    foldsOf({ "house.org": ["kitchen"] }),
   )
-  expect(withFolds(base, [{ id: "kitchen", file: "house.olai" }], false)).toEqual(
-    foldsOf({ "house.olai": ["order"] }),
+  expect(withFolds(base, [{ id: "kitchen", file: "house.org" }], false)).toEqual(
+    foldsOf({ "house.org": ["order"] }),
   )
 })
 
@@ -230,22 +230,22 @@ test("a write starts from the ENTRY: a sibling tab's fold this tab never saw sur
   // thrown away.
   remembering((store) => {
     // This tab folds herbs; the signal now holds it.
-    setFolded([{ id: "herbs", file: "garden.olai" }], true)
+    setFolded([{ id: "herbs", file: "garden.org" }], true)
     // A sibling tab rewrites the entry with a fold of its own. No `storage`
     // event reaches this tab (`followFolds` was never started), so the signal
     // still knows only about herbs — exactly the window the union covers.
-    store.set(FOLDS_KEY, `{"house.olai":["kitchen"]}`)
+    store.set(FOLDS_KEY, `{"house.org":["kitchen"]}`)
     // This tab's next write must not throw the sibling's fold away.
-    setFolded([{ id: "install", file: "house.olai" }], true)
+    setFolded([{ id: "install", file: "house.org" }], true)
     expect(store.get(FOLDS_KEY)).toBe(
-      `{"garden.olai":["herbs"],"house.olai":["install","kitchen"]}`,
+      `{"garden.org":["herbs"],"house.org":["install","kitchen"]}`,
     )
     // Unfold everything so the module signal is empty for whoever runs next.
     setFolded(
       [
-        { id: "herbs", file: "garden.olai" },
-        { id: "install", file: "house.olai" },
-        { id: "kitchen", file: "house.olai" },
+        { id: "herbs", file: "garden.org" },
+        { id: "install", file: "house.org" },
+        { id: "kitchen", file: "house.org" },
       ],
       false,
     )
@@ -258,9 +258,9 @@ test("an id the question did not name is left exactly where it is", () => {
   // in the meantime. The set said nothing about `fresh` because nobody asked it
   // — which is not the same as saying it does not have it, and reading the two
   // the same way would drop a fold made a moment ago.
-  const asked = foldsOf({ "house.olai": ["kitchen"] })
-  const live = new Map([["house.olai", new Set(["kitchen"])]])
-  const since = foldsOf({ "house.olai": ["kitchen", "fresh"] })
+  const asked = foldsOf({ "house.org": ["kitchen"] })
+  const live = new Map([["house.org", new Set(["kitchen"])]])
+  const since = foldsOf({ "house.org": ["kitchen", "fresh"] })
   expect(pruned(since, answering(asked, live))).toEqual(since)
 })
 
@@ -270,20 +270,20 @@ test("the answer is read against the question, never on its own", () => {
   // this" from "nobody mentioned it" — the folds that were sent say which, and
   // the file a fold is under says whether the silence is evidence at all.
   const asked = foldsOf({
-    "house.olai": ["kitchen", "deleted"],
-    "garden.olai": ["herbs"],
+    "house.org": ["kitchen", "deleted"],
+    "garden.org": ["herbs"],
   })
   expect(
     homesOf(memoryOf(asked), {
-      homes: [{ id: "kitchen", file: "_olai/Trash.olai" }],
-      // garden.olai is not here: it parses no more, so it testifies about
+      homes: [{ id: "kitchen", file: "_olai/Trash.org" }],
+      // garden.org is not here: it parses no more, so it testifies about
       // nothing and `herbs` gets no entry at all.
-      loaded: ["house.olai"],
+      loaded: ["house.org"],
     }),
   ).toEqual(
     new Map([
       // where it is now...
-      ["kitchen", "_olai/Trash.olai"],
+      ["kitchen", "_olai/Trash.org"],
       // ...gone, said by a file that can say it...
       ["deleted", null],
       // ...and `herbs` absent, which is the third answer.

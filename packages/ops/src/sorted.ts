@@ -6,7 +6,7 @@
  * and none of those says what KIND of change it was: `done: fix the sink` is
  * the commit convention's phrasing, not a value anything can switch on. The
  * chat panel needs the switchable one, because a transcript row about an olai
- * write is never a text diff — a `.olai` diff is one enormous line, which is
+ * write is never a text diff — a `.org` diff is one enormous line, which is
  * the commit panel's own rule — and what it shows instead is the node-level
  * story in the vocabulary that already exists (*marked done*, *note rewritten*,
  * *moved*).
@@ -64,7 +64,7 @@ import type { Plan } from "./plan.ts"
  * change to report.
  *
  * A FILE is not a record, though, and one op moves the first without the
- * second: `create_outline` with no seed mints an empty `.olai`, which compares
+ * second: `create_outline` with no seed mints an empty `.org`, which compares
  * as nothing at all. That one is *created* — a file that was not there before
  * is exactly what the word means, and the alternative is a panel telling
  * somebody that a write which just made an outline changed nothing.
@@ -129,7 +129,7 @@ export const sortOfWrite = (
   const change = changes.find((entry) => entry.id === about) ?? biggestOf(changes)
   if (change !== null && change !== undefined) return change.sort
   // No RECORD moved — and one write can still mean something, because a file is
-  // not a record: `create_outline` with no seed mints an empty `.olai`, which
+  // not a record: `create_outline` with no seed mints an empty `.org`, which
   // compares as nothing at all. Reporting *nothing changed* about a write that
   // just brought a file into being is a lie the panel would draw, so the
   // arrival of the FILE is the change, in the word the format already has for

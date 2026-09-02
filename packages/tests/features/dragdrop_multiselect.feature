@@ -14,7 +14,7 @@ Feature: Dragging rows, and picking several
   between scenarios.
 
   Background:
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     # These scenarios tick rows off and keep reading them, so finished work
     # must stay drawn: the per-page default is hidden now (preferences.feature).
     And I show the done nodes
@@ -69,7 +69,7 @@ Feature: Dragging rows, and picking several
   Scenario: A mirror's own children are not places for THIS file's rows
     # Those rows are records of another outline, drawn here because a mirror
     # expands. A parent is same-file by the format, so there is no landing for a
-    # `house.olai` row among them — they are not candidates at all, so a
+    # `house.org` row among them — they are not candidates at all, so a
     # pointer held over one lands beside the MIRROR, in this file, where the
     # write can actually go.
     When I pick up the bullet of "knobs" and hold it above the title of "mint"
@@ -77,7 +77,7 @@ Feature: Dragging rows, and picking several
     And the drop line would put it after "kitchen-herbs"
     When I let go
     Then the node "knobs" is a child of "kitchen"
-    And "house.olai" holds the node "knobs"
+    And "house.org" holds the node "knobs"
     And nothing is said about the pick
     And there should be no page errors
 
@@ -241,8 +241,8 @@ Feature: Dragging rows, and picking several
     Then the question names "3 rows under it"
     When I press the Trash
     Then the node "install" is not shown
-    And "_olai/Trash.olai" holds the node "install"
-    And "_olai/Trash.olai" holds the node "knobs"
+    And "_olai/Trash.org" holds the node "install"
+    And "_olai/Trash.org" holds the node "knobs"
 
   Scenario: The question does not outlive the rows it is about
     # `asking` is a signal on a bar that is always mounted, so putting the pick

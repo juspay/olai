@@ -2,7 +2,7 @@
 Feature: What is put away is on the Trash and nowhere else
   Moving a row to the Trash used to change where it was READ and not whether it
   was read: an archived node kept its dates, so it went on lighting its day in
-  the calendar, sat on that day's page under an `_olai/Trash.olai` heading, and — if
+  the calendar, sat on that day's page under an `_olai/Trash.org` heading, and — if
   somebody had scheduled it and never finished it — went on being owed on the
   agenda. That was a deliberate rule (2026-08-11: work that was put away is
   still work that happened) and the human reversed it on 2026-08-17 after
@@ -32,7 +32,7 @@ Feature: What is put away is on the Trash and nowhere else
     Given I open the agenda
     Then the spine's "late" rows are "order"
     And the agenda entry is on fire with 1 late
-    When I open the outline "house.olai"
+    When I open the outline "house.org"
     And I open the node menu of "order"
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu
@@ -54,9 +54,9 @@ Feature: What is put away is on the Trash and nowhere else
   Scenario: A row put away leaves the day it was scheduled for
     Given I open the day "2026-08-10"
     # Two outlines have something on the 10th, in path order.
-    Then the day groups are "Daily/2026-08.olai, house.olai"
+    Then the day groups are "Daily/2026-08.org, house.org"
     And the day lists "catch-up, order"
-    When I open the outline "house.olai"
+    When I open the outline "house.org"
     And I open the node menu of "order"
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu
@@ -66,7 +66,7 @@ Feature: What is put away is on the Trash and nowhere else
     # the day's own rule for an outline left with nothing, reached here by the
     # archive rather than by a query.
     Then the day lists "catch-up"
-    And the day groups are "Daily/2026-08.olai"
+    And the day groups are "Daily/2026-08.org"
     And there should be no page errors
 
   @scratch:good
@@ -78,7 +78,7 @@ Feature: What is put away is on the Trash and nowhere else
     Then the month shown is "2026-08"
     And the day lists "demo"
     And the day "2026-08-03" has something on it
-    When I open the outline "house.olai"
+    When I open the outline "house.org"
     # `demo` is the one finished row in this corpus, and the page has to see
     # it to take its menu.
     And I show the done nodes
@@ -98,7 +98,7 @@ Feature: What is put away is on the Trash and nowhere else
     # query searches within it is `filter_everywhere.feature`'s — what is this
     # feature's is that the row is THERE while it is nowhere else, and that the
     # operator naming the archive still answers from a page drawing none of it.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     When I open the node menu of "order"
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu

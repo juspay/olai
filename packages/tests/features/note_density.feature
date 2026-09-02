@@ -17,7 +17,7 @@ Feature: A row is its title, and the pilcrow opens the rest
   unchanged: the subject IS the page, so its note is always in full.
 
   Background:
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
 
   Scenario: By default a row shows the first line of its note
     # Cozy: the title, and one clamped line. The rest of a multi-line note

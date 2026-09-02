@@ -5,7 +5,7 @@ Feature: The outline remembers how you left it
   That is the bug this feature closes (2026-08-13, human).
 
   A fold is a preference of this BROWSER now — kept in its own storage, never
-  sent anywhere, never written into a `.olai` and never committed — and it is
+  sent anywhere, never written into a `.org` and never committed — and it is
   kept BY NODE. Three things follow, and each one is a scenario below: it
   survives a reload, it survives zooming in and back out (a place key would not:
   the walk under a node spells the same row differently), and every mirror of a
@@ -28,7 +28,7 @@ Feature: The outline remembers how you left it
   @corpus:good
   Scenario: A tree you collapsed is still collapsed after a reload
     # The complaint, verbatim, as a scenario.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     And the node "kitchen" is expanded
     When I collapse the node "kitchen"
     Then the node "kitchen" is collapsed
@@ -44,7 +44,7 @@ Feature: The outline remembers how you left it
     # from the node down, so the same row has a different PLACE key there than
     # it does on the whole outline. Folding by id makes the round trip a
     # no-op, which is what a reader who zoomed in to look at one branch means.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     When I collapse the node "install"
     Then the node "install" is collapsed
     When I zoom into the node "kitchen"
@@ -60,28 +60,28 @@ Feature: The outline remembers how you left it
     # somebody can arrive at with no history behind it.
     Given I open the node "kitchen"
     When I collapse the node "install"
-    And I open the outline "house.olai"
+    And I open the outline "house.org"
     Then the node "install" is collapsed
 
   @corpus:good
   Scenario: Mirrors of one node fold together
     # THE RULING (2026-08-13): one node, one fold state. `kitchen-herbs` in
-    # house.olai is a mirror of `herbs`, which lives in garden.olai — so
+    # house.org is a mirror of `herbs`, which lives in garden.org — so
     # folding the placement is a fact about the node, and the node's own row in
     # its own outline is folded with it.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     When I collapse the node "kitchen-herbs"
     Then the children of "kitchen-herbs" are hidden
-    And this browser remembers "herbs" folded in "garden.olai"
-    When I open the outline "garden.olai"
+    And this browser remembers "herbs" folded in "garden.org"
+    When I open the outline "garden.org"
     Then the node "herbs" is collapsed
     And the children of "herbs" are hidden
 
   @scratch:good
   Scenario: A fold follows its node into the Trash
     # GONE MEANS GONE FROM THE SET, and `archive` is a MOVE: the record lands
-    # in `_olai/Trash.olai` with its id kept while the file it left goes on
-    # being served. Read as "house.olai does not declare it any more" that is
+    # in `_olai/Trash.org` with its id kept while the file it left goes on
+    # being served. Read as "house.org does not declare it any more" that is
     # indistinguishable from a deletion, and the fold would be dropped at
     # exactly the moment keying by id was supposed to keep it.
     #
@@ -90,18 +90,18 @@ Feature: The outline remembers how you left it
     # told about. The reload is when it asks — a browser opening with folds in
     # its entry asks where they now live, which is the tidy that used to be a
     # walk of the whole vault.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     When I collapse the node "install"
-    Then this browser remembers "install" folded in "house.olai"
-    When another writer archives "install" out of "house.olai"
+    Then this browser remembers "install" folded in "house.org"
+    When another writer archives "install" out of "house.org"
     Then the node "install" is not shown
     When I reload the page
-    Then this browser remembers "install" folded in "_olai/Trash.olai"
+    Then this browser remembers "install" folded in "_olai/Trash.org"
     And there should be no page errors
 
   @corpus:good
   Scenario: A folder you opened in the directory is still open after a reload
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     And the folder "Daily" is collapsed
     When I expand the folder "Daily"
     Then the folder "Daily" is expanded

@@ -14,7 +14,7 @@ Feature: The outline and the chat point at each other
   is a private copy with a server of its own.
 
   Background:
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     # The write these scenarios press is so often a DONE mark, and the row it
     # is about must still be on the page to land on — done-hidden's landing
     # half (`@olai/web`'s `fold/landing.ts`) is its own ruling, not this
@@ -64,7 +64,7 @@ Feature: The outline and the chat point at each other
     # zoomed page draws that node too, with the same attribute on it, so a
     # press that always navigated would satisfy every other line here. The
     # address is what tells the two apart.
-    And the address is "/house.olai"
+    And the address is "/house.org"
 
   @scratch:chat
   Scenario: An id the agent named in its own prose is a reference, and nothing else is
@@ -75,7 +75,7 @@ Feature: The outline and the chat point at each other
     Then the agent's answer names the node "order"
     When I press the node "order" in the answer
     Then the node "order" is focused
-    And the address is "/house.olai"
+    And the address is "/house.org"
     # ...and the same backticks around something the set does not declare stay
     # what they are. An agent writes them around file names and flags all day.
     When I ask the agent "edit"
@@ -93,7 +93,7 @@ Feature: The outline and the chat point at each other
     When I open the node menu of "order"
     And I choose "Ask agent" from the node menu
     Then the composer is armed with "order"
-    When I rewrite "house.olai" as:
+    When I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters","done":"2026-08-03"}
@@ -117,7 +117,7 @@ Feature: The outline and the chat point at each other
     When I collapse the node "kitchen"
     And I ask the agent "done order"
     And I press the node "order" in the write
-    Then the address is "/house.olai#order"
+    Then the address is "/house.org#order"
     And the node "kitchen" is expanded
     And the node "order" is focused
 
@@ -134,7 +134,7 @@ Feature: The outline and the chat point at each other
     Given I hand the page's Done pick back to the panel
     When I ask the agent "done order"
     And I press the node "order" in the write
-    Then the address is "/house.olai#order"
+    Then the address is "/house.org#order"
     And the node "order" is focused
     # And the pick is the witness beside the landed row: `demo` was finished
     # long before this scenario and stays hidden, the flip still answers
@@ -161,8 +161,8 @@ Feature: The outline and the chat point at each other
     When I press the node "hinges" in the write
     Then the node "hinges" is focused
     And the node "order" is not shown
-    When I click the outline "yard.olai"
-    And I click the outline "house.olai"
+    When I click the outline "yard.org"
+    And I click the outline "house.org"
     Then the node "order" is not shown
     And the node "hinges" is not shown
     And there should be no page errors
@@ -175,7 +175,7 @@ Feature: The outline and the chat point at each other
     # still lands where the node IS.
     When I ask the agent "done fence"
     And I press the node "fence" in the write
-    Then the address is "/yard.olai#fence"
+    Then the address is "/yard.org#fence"
     # `fence` is done on arrival, and this reader once said yard keeps its
     # finished work — the pick is yard's own, so it is said on yard before it
     # is expected of a landing.
@@ -194,7 +194,7 @@ Feature: The outline and the chat point at each other
     Then the node "install" is focused
     When I ask the agent "done order"
     Then the agent's answer names the node "order"
-    When I rewrite "house.olai" as:
+    When I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters","done":"2026-08-03"}
@@ -206,7 +206,7 @@ Feature: The outline and the chat point at each other
     # keeps saying "the set declared it once", and pressing it is the act
     # that must now say nothing.
     When I press the node "order" in the answer
-    Then the address is "/house.olai"
+    Then the address is "/house.org"
     And the node "install" is focused
 
   @scratch:chat @wire

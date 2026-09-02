@@ -19,7 +19,7 @@
  * the same claim (`@olai/format`'s `referrersTo`): a RECORD that attached this
  * document or linked it in its prose, drawn as the node it is and opening its
  * page; and a DOCUMENT whose body links here, drawn as the file it is. Saying
- * "house.olai points here" where the honest answer is "the node `kitchen`
+ * "house.org points here" where the honest answer is "the node `kitchen`
  * attaches it" would be the coarser answer offered because it was the easier
  * one.
  *

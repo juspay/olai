@@ -92,23 +92,23 @@ const flood = (file: string, many: number): Verdict =>
 // ── which files a finding is about ─────────────────────────────────────
 
 test("a finding implicates where it was found", () => {
-  expect(implicatedBy(rowOf("a.olai", "duplicate-id"))).toEqual(["a.olai"])
+  expect(implicatedBy(rowOf("a.org", "duplicate-id"))).toEqual(["a.org"])
 })
 
 test("a finding implicates every file it names as related, once each", () => {
-  const row = rowOf("a.olai", "parent-cycle", [
-    ["b.olai", 4],
-    ["a.olai", 9],
-    ["b.olai", 7],
+  const row = rowOf("a.org", "parent-cycle", [
+    ["b.org", 4],
+    ["a.org", 9],
+    ["b.org", 7],
   ])
-  expect(implicatedBy(row)).toEqual(["a.olai", "b.olai"])
+  expect(implicatedBy(row)).toEqual(["a.org", "b.org"])
 })
 
 test("the implicated files come out in path order, whatever order the rows are in", () => {
   const verdict = verdictOf([
-    rowOf("wing/room.olai", "duplicate-id"),
-    rowOf("a.olai", "missing-doc"),
-    rowOf("wing.olai", "unknown-target"),
+    rowOf("wing/room.org", "duplicate-id"),
+    rowOf("a.org", "missing-doc"),
+    rowOf("wing.org", "unknown-target"),
   ])
   // `byPath` and not a string sort: the order is the WALK's, so a directory
   // sorts before the file it shares a name with (`./paths.ts`) and a banner
@@ -118,7 +118,7 @@ test("the implicated files come out in path order, whatever order the rows are i
   // answered exactly this list and was one of two orderings of one axis; the
   // entries are already in it, so the second is gone.
   expect(entriesOf(verdict).map((one) => one.file))
-    .toEqual(["a.olai", "wing/room.olai", "wing.olai"])
+    .toEqual(["a.org", "wing/room.org", "wing.org"])
 })
 
 // ── the write gate's question ──────────────────────────────────────────
@@ -127,30 +127,30 @@ test("the implicated files come out in path order, whatever order the rows are i
 // being wrong is not an answer a write can be given: the question is per file,
 // and a write to files nothing is wrong with is admitted.
 test("a write to files no finding is about is admitted", () => {
-  const verdict = verdictOf([rowOf("lanes.olai", "bad-prop")])
-  expect(admits(entriesOf(verdict), ["roadmap/bugs.olai"])).toEqual({ _tag: "admitted" })
-  expect(admits(entriesOf(verdict), ["roadmap/bugs.olai", "house.olai"])._tag).toBe("admitted")
+  const verdict = verdictOf([rowOf("lanes.org", "bad-prop")])
+  expect(admits(entriesOf(verdict), ["roadmap/bugs.org"])).toEqual({ _tag: "admitted" })
+  expect(admits(entriesOf(verdict), ["roadmap/bugs.org", "house.org"])._tag).toBe("admitted")
 })
 
 test("a write to an implicated file is refused, and the refusal NAMES it", () => {
-  const rows = [rowOf("lanes.olai", "bad-prop"), rowOf("lanes.olai", "duplicate-id")]
-  const admission = admits(entriesOf(verdictOf(rows)), ["lanes.olai"])
-  expect(admission).toEqual({ _tag: "implicated", file: "lanes.olai", rows })
+  const rows = [rowOf("lanes.org", "bad-prop"), rowOf("lanes.org", "duplicate-id")]
+  const admission = admits(entriesOf(verdictOf(rows)), ["lanes.org"])
+  expect(admission).toEqual({ _tag: "implicated", file: "lanes.org", rows })
 })
 
 // FIRST in the caller's own order, because a refusal is a sentence somebody
 // reads and the second blocker is one fix away from being the first.
 test("the blocker named is the first of the write's own files that is implicated", () => {
-  const verdict = verdictOf([rowOf("b.olai", "bad-prop"), rowOf("c.olai", "bad-prop")])
-  const admission = admits(entriesOf(verdict), ["a.olai", "c.olai", "b.olai"])
-  expect(admission._tag === "implicated" && admission.file).toBe("c.olai")
+  const verdict = verdictOf([rowOf("b.org", "bad-prop"), rowOf("c.org", "bad-prop")])
+  const admission = admits(entriesOf(verdict), ["a.org", "c.org", "b.org"])
+  expect(admission._tag === "implicated" && admission.file).toBe("c.org")
 })
 
 test("a cross-file finding implicates both ends, so a write to either is refused", () => {
-  const verdict = verdictOf([rowOf("a.olai", "mirror-cycle", [["b.olai", 3]])])
-  expect(admits(entriesOf(verdict), ["a.olai"])._tag).toBe("implicated")
-  expect(admits(entriesOf(verdict), ["b.olai"])._tag).toBe("implicated")
-  expect(admits(entriesOf(verdict), ["c.olai"])._tag).toBe("admitted")
+  const verdict = verdictOf([rowOf("a.org", "mirror-cycle", [["b.org", 3]])])
+  expect(admits(entriesOf(verdict), ["a.org"])._tag).toBe("implicated")
+  expect(admits(entriesOf(verdict), ["b.org"])._tag).toBe("implicated")
+  expect(admits(entriesOf(verdict), ["c.org"])._tag).toBe("admitted")
 })
 
 // The exception the two-plane merger hinges on: a bad value NAMES the
@@ -163,12 +163,12 @@ test("a cross-file finding implicates both ends, so a write to either is refused
 // at a judge site instead of a related one.
 test("a declaration a bad value names is related, not broken — the blame and the gate say so", () => {
   const verdict = verdictOf([{
-    file: "lanes.olai",
+    file: "lanes.org",
     line: 3,
     code: "bad-prop",
     message: "pr must be a day",
     related: [{
-      file: "_olai/Properties.olai",
+      file: "_olai/Properties.org",
       line: 1,
       note: "declared here",
       broken: false,
@@ -176,15 +176,15 @@ test("a declaration a bad value names is related, not broken — the blame and t
   } as OutlineError])
   const entries = entriesOf(verdict)
   expect(implicatedBy(verdict.findings[0] as OutlineError))
-    .toEqual(["lanes.olai", "_olai/Properties.olai"])
-  expect(entries.map((one) => one.file)).toEqual(["lanes.olai"])
-  expect(admits(entries, ["_olai/Properties.olai"])._tag).toBe("admitted")
-  expect(admits(entries, ["lanes.olai"])._tag).toBe("implicated")
+    .toEqual(["lanes.org", "_olai/Properties.org"])
+  expect(entries.map((one) => one.file)).toEqual(["lanes.org"])
+  expect(admits(entries, ["_olai/Properties.org"])._tag).toBe("admitted")
+  expect(admits(entries, ["lanes.org"])._tag).toBe("implicated")
 })
 
 test("an unmarked related is broken by DEFAULT — a cycle's steps darken both files", () => {
-  const verdict = verdictOf([rowOf("a.olai", "mirror-cycle", [["b.olai", 3]])])
-  expect(entriesOf(verdict).map((one) => one.file)).toEqual(["a.olai", "b.olai"])
+  const verdict = verdictOf([rowOf("a.org", "mirror-cycle", [["b.org", 3]])])
+  expect(entriesOf(verdict).map((one) => one.file)).toEqual(["a.org", "b.org"])
 })
 
 // THE SECOND NAMED-NOT-BLAMED SITE, at the socket: `foreign-parent` names the
@@ -195,12 +195,12 @@ test("an unmarked related is broken by DEFAULT — a cycle's steps darken both f
 // in the file that goes dark.
 test("a parent a foreign placement names is related, not broken", () => {
   const verdict = verdictOf([{
-    file: "child.olai",
+    file: "child.org",
     line: 2,
     code: "foreign-parent",
     message: "`parent` is `kitchen`, which lives in another file",
     related: [{
-      file: "parent.olai",
+      file: "parent.org",
       line: 1,
       note: "the parent lives here",
       broken: false,
@@ -208,10 +208,10 @@ test("a parent a foreign placement names is related, not broken", () => {
   } as OutlineError])
   const entries = entriesOf(verdict)
   expect(implicatedBy(verdict.findings[0] as OutlineError))
-    .toEqual(["child.olai", "parent.olai"])
-  expect(entries.map((one) => one.file)).toEqual(["child.olai"])
-  expect(admits(entries, ["parent.olai"])._tag).toBe("admitted")
-  expect(admits(entries, ["child.olai"])._tag).toBe("implicated")
+    .toEqual(["child.org", "parent.org"])
+  expect(entries.map((one) => one.file)).toEqual(["child.org"])
+  expect(admits(entries, ["parent.org"])._tag).toBe("admitted")
+  expect(admits(entries, ["child.org"])._tag).toBe("implicated")
 })
 
 // ── the write gate's other question ────────────────────────────────────
@@ -229,26 +229,26 @@ const dark = (file: string): BrokenFile => ({
 })
 
 test("a file this write put out is named, and one that was already out is not", () => {
-  expect(darkened([], [dark("lanes.olai")])).toEqual(["lanes.olai"])
-  expect(darkened([dark("lanes.olai")], [dark("lanes.olai")])).toEqual([])
+  expect(darkened([], [dark("lanes.org")])).toEqual(["lanes.org"])
+  expect(darkened([dark("lanes.org")], [dark("lanes.org")])).toEqual([])
   // …and per FILE, not per row: a write that adds a second finding to a file
   // already carrying one adds nothing a reader can see. Comparing rows would
   // make every broken file a wall again, one row at a time.
   const worse: BrokenFile = {
-    file: "lanes.olai",
-    errors: [rowOf("lanes.olai", "bad-prop"), rowOf("lanes.olai", "unknown-target")],
+    file: "lanes.org",
+    errors: [rowOf("lanes.org", "bad-prop"), rowOf("lanes.org", "unknown-target")],
   }
-  expect(darkened([dark("lanes.olai")], [worse])).toEqual([])
+  expect(darkened([dark("lanes.org")], [worse])).toEqual([])
 })
 
 test("a write that breaks nothing new darkens nothing, and a mend even less", () => {
   expect(darkened([], [])).toEqual([])
-  expect(darkened([dark("lanes.olai")], [])).toEqual([])
+  expect(darkened([dark("lanes.org")], [])).toEqual([])
 })
 
 test("the darkened files come out in the order the report filed them", () => {
-  expect(darkened([dark("b.olai")], [dark("a.olai"), dark("b.olai"), dark("c.olai")]))
-    .toEqual(["a.olai", "c.olai"])
+  expect(darkened([dark("b.org")], [dark("a.org"), dark("b.org"), dark("c.org")]))
+    .toEqual(["a.org", "c.org"])
 })
 
 // THE WRITE'S OWN FILES need no exception in it: they are the first half of the
@@ -256,8 +256,8 @@ test("the darkened files come out in the order the report filed them", () => {
 // is refused by the very same `admits` — which is what makes this one question
 // asked over a longer list rather than two questions with two answers.
 test("the write's own files are the first half of the ask, answered by admits", () => {
-  expect(admits([dark("garden.olai")], ["garden.olai"])._tag).toBe("implicated")
-  expect(darkened([], [dark("garden.olai")])).toEqual(["garden.olai"])
+  expect(admits([dark("garden.org")], ["garden.org"])._tag).toBe("implicated")
+  expect(darkened([], [dark("garden.org")])).toEqual(["garden.org"])
 })
 
 /**
@@ -271,49 +271,49 @@ test("the write's own files are the first half of the ask, answered by admits", 
  * against each other on one pair of real sets.
  */
 const AGENTS = {
-  "_olai/Properties.olai":
+  "_olai/Properties.org":
     `{"id":"prop-agent","ord":"a0","title":"agent","custom":{"type":"ref","under":"roster"}}`,
-  "agents.olai": `{"id":"roster","ord":"a0","title":"the agents"}\n` +
+  "agents.org": `{"id":"roster","ord":"a0","title":"the agents"}\n` +
     `{"id":"claude","parent":"roster","ord":"a0","title":"Claude"}`,
-  "lanes.olai": `{"id":"lane","ord":"a0","title":"a lane","custom":{"agent":"claude"}}`,
-  "garden.olai": `{"id":"garden","ord":"a0","title":"the garden"}`,
+  "lanes.org": `{"id":"lane","ord":"a0","title":"a lane","custom":{"agent":"claude"}}`,
+  "garden.org": `{"id":"garden","ord":"a0","title":"the garden"}`,
 }
 
 test("a write that strands a value in a third file is stopped, naming that file", () => {
   const standing = validatedOf(AGENTS)
   expect(standing.broken).toEqual([])
 
-  // The move, as bytes: `claude` leaves `agents.olai` for `garden.olai`, and
+  // The move, as bytes: `claude` leaves `agents.org` for `garden.org`, and
   // nothing else in the directory is touched.
   const moved = validatedOf({
     ...AGENTS,
-    "agents.olai": `{"id":"roster","ord":"a0","title":"the agents"}`,
-    "garden.olai": `{"id":"garden","ord":"a0","title":"the garden"}\n` +
+    "agents.org": `{"id":"roster","ord":"a0","title":"the agents"}`,
+    "garden.org": `{"id":"garden","ord":"a0","title":"the garden"}\n` +
       `{"id":"claude","ord":"a1","title":"Claude"}`,
   })
-  const paths = ["agents.olai", "garden.olai"]
+  const paths = ["agents.org", "garden.org"]
   // The candidate breaks a file, and it is neither of the two the write puts
   // down — so an ask over `paths` alone admits it.
-  expect(moved.broken.map((one) => one.file)).toEqual(["lanes.olai"])
+  expect(moved.broken.map((one) => one.file)).toEqual(["lanes.org"])
   expect(admits(moved.broken, paths)._tag).toBe("admitted")
   // The gate asks over the longer list, and refuses carrying the bystander's
   // own rows — every one of which names the file the write would have broken.
   const stopped = stopping(moved, paths, standing)
   expect(stopped?.findings.map((one) => [one.file, one.code]))
-    .toEqual([["lanes.olai", "bad-prop"]])
+    .toEqual([["lanes.org", "bad-prop"]])
 })
 
 test("the same write lands once nothing names the moved variant", () => {
-  const { "lanes.olai": _stranded, ...rest } = AGENTS
+  const { "lanes.org": _stranded, ...rest } = AGENTS
   const standing = validatedOf(rest)
   const moved = validatedOf({
     ...rest,
-    "agents.olai": `{"id":"roster","ord":"a0","title":"the agents"}`,
-    "garden.olai": `{"id":"garden","ord":"a0","title":"the garden"}\n` +
+    "agents.org": `{"id":"roster","ord":"a0","title":"the agents"}`,
+    "garden.org": `{"id":"garden","ord":"a0","title":"the garden"}\n` +
       `{"id":"claude","ord":"a1","title":"Claude"}`,
   })
   expect(moved.broken).toEqual([])
-  expect(stopping(moved, ["agents.olai", "garden.olai"], standing)).toBeNull()
+  expect(stopping(moved, ["agents.org", "garden.org"], standing)).toBeNull()
 })
 
 /**
@@ -327,7 +327,7 @@ test("the same write lands once nothing names the moved variant", () => {
  *
  * It is not the guarantee any more, and this is the test that says so. The
  * incident's own shape — declaring `brainstorm` over three values in a file the
- * write does not touch — reaches the gate as a set where `lanes.olai` was lit
+ * write does not touch — reaches the gate as a set where `lanes.org` was lit
  * and would be dark, so the gate turns it back with no fence involved. Six
  * planner doors, plus whichever verb is written next, are covered by one rule
  * about the tree a write would leave.
@@ -341,46 +341,46 @@ test("the same write lands once nothing names the moved variant", () => {
  */
 test("a declaration over unfit values in another file is stopped by the GATE", () => {
   const held = {
-    "lanes.olai": [
+    "lanes.org": [
       `{"id":"a","ord":"a0","title":"first","custom":{"brainstorm":"not a path"}}`,
       `{"id":"b","ord":"a1","title":"second","custom":{"brainstorm":"prose"}}`,
     ].join("\n"),
-    "house.olai": `{"id":"house","ord":"a0","title":"the house"}`,
+    "house.org": `{"id":"house","ord":"a0","title":"the house"}`,
   }
   // Undeclared, `brainstorm` means whatever it says and the vault is clean.
   const standing = validatedOf(held)
   expect(standing.broken).toEqual([])
 
-  // The declaration lands in `_olai/Properties.olai` and judges values two
+  // The declaration lands in `_olai/Properties.org` and judges values two
   // files away. That file is the only one this write puts down.
   const declared = validatedOf({
     ...held,
-    "_olai/Properties.olai":
+    "_olai/Properties.org":
       `{"id":"p","ord":"a0","title":"brainstorm","custom":{"type":"doc"}}`,
   })
-  expect(declared.broken.map((one) => one.file)).toEqual(["lanes.olai"])
+  expect(declared.broken.map((one) => one.file)).toEqual(["lanes.org"])
 
-  const paths = ["_olai/Properties.olai"]
+  const paths = ["_olai/Properties.org"]
   // Asked about its own file, the write is clean — which is exactly why the
   // fence had to exist before the gate could see this.
   expect(admits(declared.broken, paths)._tag).toBe("admitted")
   // Asked as a write, it is refused, and the rows name the file it would have
   // taken off the screen rather than the file it was writing.
   expect(stopping(declared, paths, standing)?.findings.map((one) => one.file))
-    .toEqual(["lanes.olai", "lanes.olai"])
+    .toEqual(["lanes.org", "lanes.org"])
 })
 
 // A directory nothing could LIST is the one finding that is about the whole
 // load rather than about a file, so no file's health can be asserted under it.
 test("a directory that could not be read implicates every write", () => {
   const verdict = verdictOf([rowOf(".", "unreadable-directory")])
-  const admission = admits(entriesOf(verdict), ["anything.olai"])
+  const admission = admits(entriesOf(verdict), ["anything.org"])
   expect(admission._tag === "implicated" && admission.file).toBe(".")
 })
 
 test("a clean verdict admits everything, and says it is clean", () => {
   expect(isClean(NOTHING_WRONG)).toBe(true)
-  expect(admits(entriesOf(NOTHING_WRONG), ["a.olai"])._tag).toBe("admitted")
+  expect(admits(entriesOf(NOTHING_WRONG), ["a.org"])._tag).toBe("admitted")
   expect(verdictOf([])).toBe(NOTHING_WRONG)
 })
 
@@ -390,8 +390,8 @@ test("a clean verdict admits everything, and says it is clean", () => {
 // because the rows were all it had. What `summary` hands back cannot carry one
 // — the bound is the SHAPE, and the surface's clamp is on top of it.
 test("a summary carries counts and never a row, whatever the row count", () => {
-  const face = faceOf(flood("lanes.olai", 135), 5)
-  expect(face.files).toEqual([{ file: "lanes.olai", state: "invalid", count: 135 }])
+  const face = faceOf(flood("lanes.org", 135), 5)
+  expect(face.files).toEqual([{ file: "lanes.org", state: "invalid", count: 135 }])
   expect(face.total).toBe(135)
   expect(face.more).toBe(0)
   // Said of the VALUE rather than of the type: nothing anywhere in it is a
@@ -400,38 +400,38 @@ test("a summary carries counts and never a row, whatever the row count", () => {
 })
 
 test("the face of a 135-row file is the face of a 5-row file, but for the count", () => {
-  const many = faceOf(flood("lanes.olai", 135), 5)
-  const few = faceOf(flood("lanes.olai", 5), 5)
+  const many = faceOf(flood("lanes.org", 135), 5)
+  const few = faceOf(flood("lanes.org", 5), 5)
   expect({ ...many, files: many.files.map((one) => ({ ...one, count: 0 })), total: 0 })
     .toEqual({ ...few, files: few.files.map((one) => ({ ...one, count: 0 })), total: 0 })
 })
 
 test("more implicated files than the clamp are counted, not drawn", () => {
   const verdict = verdictOf(
-    ["a.olai", "b.olai", "c.olai", "d.olai"].map((file) => rowOf(file, "duplicate-id")),
+    ["a.org", "b.org", "c.org", "d.org"].map((file) => rowOf(file, "duplicate-id")),
   )
   const face = faceOf(verdict, 2)
-  expect(face.files.map((one) => one.file)).toEqual(["a.olai", "b.olai"])
+  expect(face.files.map((one) => one.file)).toEqual(["a.org", "b.org"])
   expect(face.more).toBe(2)
   expect(face.total).toBe(4)
 })
 
 test("a file's state is the worst thing said about it", () => {
-  const unreadable = faceOf(verdictOf([rowOf("a.olai", "unreadable-file")]), 5)
+  const unreadable = faceOf(verdictOf([rowOf("a.org", "unreadable-file")]), 5)
   expect(unreadable.files[0]?.state).toBe("unreadable")
   const unparsed = faceOf(
-    verdictOf([rowOf("a.olai", "not-json"), rowOf("a.olai", "duplicate-id")]),
+    verdictOf([rowOf("a.org", "not-json"), rowOf("a.org", "duplicate-id")]),
     5,
   )
   expect(unparsed.files[0]?.state).toBe("unparsed")
-  const invalid = faceOf(verdictOf([rowOf("a.olai", "duplicate-id")]), 5)
+  const invalid = faceOf(verdictOf([rowOf("a.org", "duplicate-id")]), 5)
   expect(invalid.files[0]?.state).toBe("invalid")
 })
 
 // A cross-file finding is ONE finding and TWO ROWS somebody has to go and look
 // at, which is what the total is a size of.
 test("a cross-file finding is counted under both files, and counted twice", () => {
-  const face = faceOf(verdictOf([rowOf("a.olai", "mirror-cycle", [["b.olai", 3]])]), 5)
+  const face = faceOf(verdictOf([rowOf("a.org", "mirror-cycle", [["b.org", 3]])]), 5)
   expect(face.files.map((one) => one.count)).toEqual([1, 1])
   expect(face.total).toBe(2)
 })
@@ -440,8 +440,8 @@ test("a cross-file finding is counted under both files, and counted twice", () =
 // nothing is re-partitioned on the way, so the two constructors are one answer.
 test("the face of a set's broken files is the face of the verdict that broke them", () => {
   const verdict = verdictOf([
-    rowOf("a.olai", "mirror-cycle", [["b.olai", 3]]),
-    rowOf("c.olai", "duplicate-id"),
+    rowOf("a.org", "mirror-cycle", [["b.org", 3]]),
+    rowOf("c.org", "duplicate-id"),
   ])
   expect(faceOf(verdict, 5)).toEqual(faceOf(verdict, 5))
 })
@@ -472,7 +472,7 @@ const healthy = (random: () => number): Record<string, string> => {
       own.push(id)
       lines.push(JSON.stringify(record))
     }
-    files[`f${which}.olai`] = lines.join("\n")
+    files[`f${which}.org`] = lines.join("\n")
   }
   return files
 }
@@ -534,12 +534,12 @@ const adopted = (
 /**
  * THE PROBE grok's review named, and the hole it found.
  *
- * `pantry.olai` is `not-json`. `lanes.olai` reads perfectly and holds prose
+ * `pantry.org` is `not-json`. `lanes.org` reads perfectly and holds prose
  * against an `int` declaration. Before this test the `bad-prop` was WASHED OUT
  * — `reportOf` strips every `isGuessWhileUnreadable` code the moment any file
  * fails to decode, `bad-prop` was classified `set-across-files` for all seven
  * kinds it judges, and a withheld finding breaks nothing since the ruling — so
- * `lanes.olai` was published live and WRITABLE carrying a value the format had
+ * `lanes.org` was published live and WRITABLE carrying a value the format had
  * just refused to mean. That is the safety net the per-file rule retired, and
  * the opposite of what #439 promises.
  *
@@ -550,21 +550,21 @@ const adopted = (
  */
 test("a value that fits no declaration is not washed out by an unparsed file", () => {
   const files = {
-    "_olai/Properties.olai": `{"id":"p","ord":"a0","title":"records","custom":{"type":"int"}}`,
-    "lanes.olai": `{"id":"lane","ord":"a0","title":"a lane","custom":{"records":"prose"}}`,
+    "_olai/Properties.org": `{"id":"p","ord":"a0","title":"records","custom":{"type":"int"}}`,
+    "lanes.org": `{"id":"lane","ord":"a0","title":"a lane","custom":{"records":"prose"}}`,
   }
   // ALONE, it is a finding and nobody argues.
   const clean = validatedOf(files)
-  expect(clean.broken.map((one) => one.file)).toEqual(["lanes.olai"])
+  expect(clean.broken.map((one) => one.file)).toEqual(["lanes.org"])
 
   // …AND BESIDE A FILE THAT WOULD NOT PARSE, which is the probe. The parse
-  // failure is its own file's; the value is still refused; `lanes.olai` is
+  // failure is its own file's; the value is still refused; `lanes.org` is
   // still withheld, and a write to it is still stopped.
-  const set = validatedOf(files, [], { "pantry.olai": `{"id":"pantry"` })
+  const set = validatedOf(files, [], { "pantry.org": `{"id":"pantry"` })
   expect(set.broken.map((one) => one.file).slice().sort())
-    .toEqual(["lanes.olai", "pantry.olai"])
-  expect(brokenIn(set, "lanes.olai")?.map((one) => one.code)).toEqual(["bad-prop"])
-  expect(admits(set.broken, ["lanes.olai"])._tag).toBe("implicated")
+    .toEqual(["lanes.org", "pantry.org"])
+  expect(brokenIn(set, "lanes.org")?.map((one) => one.code)).toEqual(["bad-prop"])
+  expect(admits(set.broken, ["lanes.org"])._tag).toBe("implicated")
 })
 
 /**
@@ -578,18 +578,18 @@ test("a value that fits no declaration is not washed out by an unparsed file", (
  */
 test("a ref value IS still a guess while a file will not parse", () => {
   const files = {
-    "_olai/Properties.olai":
+    "_olai/Properties.org":
       `{"id":"p","ord":"a0","title":"agent","custom":{"type":"ref","under":"roster"}}`,
-    "agents.olai": `{"id":"roster","ord":"a0","title":"the roster"}\n` +
+    "agents.org": `{"id":"roster","ord":"a0","title":"the roster"}\n` +
       `{"id":"claude","parent":"roster","ord":"a1","title":"Claude"}`,
-    "lanes.olai": `{"id":"lane","ord":"a0","title":"a lane","custom":{"agent":"nobody"}}`,
+    "lanes.org": `{"id":"lane","ord":"a0","title":"a lane","custom":{"agent":"nobody"}}`,
   }
   const alone = validatedOf(files)
-  expect(alone.broken.map((one) => one.file)).toEqual(["lanes.olai"])
+  expect(alone.broken.map((one) => one.file)).toEqual(["lanes.org"])
 
-  const set = validatedOf(files, [], { "pantry.olai": `{"id":"pantry"` })
-  expect(set.broken.map((one) => one.file)).toEqual(["pantry.olai"])
-  expect(admits(set.broken, ["lanes.olai"])._tag).toBe("admitted")
+  const set = validatedOf(files, [], { "pantry.org": `{"id":"pantry"` })
+  expect(set.broken.map((one) => one.file)).toEqual(["pantry.org"])
+  expect(admits(set.broken, ["lanes.org"])._tag).toBe("admitted")
 })
 
 /**

@@ -1,22 +1,17 @@
 /**
- * Records back to bytes — the other half of {@link ./parse.ts}, and the only
- * place in olai that writes the format.
+ * Records back to Org2 — the other half of {@link ./parse.ts}, and the only
+ * place in olai that writes the outline format.
  *
- * docs/format.md's Writing section is four rules, and all four are held here
- * rather than by the callers: canonical field order, absent fields omitted
- * (never `null`, never `[]`), no blank lines, exactly one trailing newline.
- * A caller hands over records and gets a whole file; it never concatenates,
- * never joins and never appends a newline of its own.
+ * Each record is one heading with a native Org ID and a property drawer. The
+ * heading hierarchy mirrors `parent`; JSON-encoded property values preserve
+ * every OLAI scalar, collection and arbitrary Markdown string exactly.
  *
  * That last sentence is the lesson of 2026-08-09, when a writer that built its
  * own bytes produced two records glued onto one line — a file no reader could
  * parse, out of a write every layer above believed had succeeded. The shape
  * here is what makes that unrepresentable: {@link serializeOutline} takes the
- * records and owns every separator, so there is no seam a caller could get
- * wrong, and {@link serializeNode} can only ever produce a single line because
- * `JSON.stringify` of a record with no raw newlines in it is one (a `desc`'s
- * embedded newlines are escaped by JSON itself, which is the whole reason the
- * format is JSONL).
+ * records and owns every heading, drawer and separator, so there is no seam a
+ * caller can get wrong.
  *
  * Field order comes from docs/format.md's own table, and that list is also
  * what may be written at all — one list, walked once, so a field can be
@@ -42,6 +37,7 @@
 
 import { type Custom, type CustomValue, customKeys } from "./custom.ts"
 import { isMirror, type Node } from "./node.ts"
+import { FIELD_PROPERTIES, KIND_PROPERTY } from "./org2.ts"
 
 /**
  * Which fields a record must carry WHATEVER it holds — docs/format.md's
@@ -135,7 +131,7 @@ export const nothing = (value: unknown): boolean =>
  * that should not exist is refused rather than written — but only if it still
  * SAYS what it is.
  */
-export const serializeNode = (node: Node): string => {
+const recordOf = (node: Node): Record<string, unknown> => {
   const required = REQUIRED[isMirror(node) ? "mirror" : "regular"]
 
   const record: Record<string, unknown> = {}
@@ -145,8 +141,45 @@ export const serializeNode = (node: Node): string => {
       : (node as Record<string, unknown>)[field]
     if (required.has(field) || !nothing(value)) record[field] = value
   }
-  return JSON.stringify(record)
+  return record
 }
+
+/** A safe one-line face for the heading. The exact source title remains in
+ * OLAI_TITLE, so Org TODO words, tags, emphasis and embedded newlines may be
+ * rendered without being mistaken for canonical OLAI data. */
+const headingFace = (node: Node): string => {
+  const value = isMirror(node) ? `mirror of ${node.mirror}` : node.title
+  const display = value
+    .replace(/\r\n?|\n/g, " ↩ ")
+    // Keep hostile bytes out of Org's structural heading line. The exact
+    // title below remains JSON-escaped in OLAI_TITLE and round-trips intact.
+    .replace(/[\u0000-\u001f\u007f]/g, "�")
+    .replace(/[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/g, "�")
+  const oneLine = display.trim()
+  return oneLine === "" ? "(untitled)" : oneLine
+}
+
+const serializeNodeAt = (node: Node, level: number): string => {
+  const record = recordOf(node)
+  const lines = [
+    `${"*".repeat(level)} ${headingFace(node)}`,
+    ":PROPERTIES:",
+    `:ID: ${node.id}`,
+    `:${KIND_PROPERTY}: ${isMirror(node) ? "mirror" : "regular"}`,
+  ]
+  for (const field of ORDER) {
+    if (field === "id") continue
+    const value = record[field]
+    if (value === undefined) continue
+    lines.push(`:${FIELD_PROPERTIES[field]}: ${JSON.stringify(value)}`)
+  }
+  lines.push(":END:")
+  return lines.join("\n")
+}
+
+/** One standalone heading. Whole-file callers use {@link serializeOutline},
+ * which supplies the actual hierarchy. */
+export const serializeNode = (node: Node): string => serializeNodeAt(node, 1)
 
 /**
  * The `custom` map a record actually HOLDS: canonical key order, and no key
@@ -193,11 +226,42 @@ export const heldCustom = (value: unknown): Custom => {
 }
 
 /**
- * A whole outline file: one record per line, exactly one trailing newline.
+ * A whole outline file: one heading per record, exactly one trailing newline.
  *
  * An EMPTY set of nodes is an empty file, not a file holding one blank line —
  * a lone `\n` would be a blank line a reader tolerates and a writer must not
  * emit.
  */
 export const serializeOutline = (nodes: ReadonlyArray<Node>): string =>
-  nodes.length === 0 ? "" : `${nodes.map(serializeNode).join("\n")}\n`
+  nodes.length === 0 ? "" : `${hierarchyOf(nodes).join("\n\n")}\n`
+
+/** Render every node once. Valid files begin at their top-level records and
+ * recurse through parents; broken/orphaned/cyclic inputs are appended at level
+ * one with their explicit OLAI_PARENT intact so the read gate can refuse them
+ * rather than a serializer silently dropping data. */
+const hierarchyOf = (nodes: ReadonlyArray<Node>): ReadonlyArray<string> => {
+  const ids = new Set(nodes.map((node) => node.id))
+  const children = new Map<string, Array<Node>>()
+  for (const node of nodes) {
+    if (node.parent === undefined || !ids.has(node.parent) || node.parent === node.id) continue
+    const held = children.get(node.parent) ?? []
+    held.push(node)
+    children.set(node.parent, held)
+  }
+
+  const rendered = new Set<Node>()
+  const active = new Set<Node>()
+  const out: Array<string> = []
+  const emit = (node: Node, level: number): void => {
+    if (rendered.has(node) || active.has(node)) return
+    active.add(node)
+    out.push(serializeNodeAt(node, level))
+    rendered.add(node)
+    for (const child of children.get(node.id) ?? []) emit(child, level + 1)
+    active.delete(node)
+  }
+
+  for (const node of nodes) if (node.parent === undefined) emit(node, 1)
+  for (const node of nodes) emit(node, 1)
+  return out
+}

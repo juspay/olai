@@ -13,7 +13,7 @@
  *
  * A value is looked up by the file it was WRITTEN in, its key and itself. The
  * file is not decoration: a `doc` key that resolves beside the writer answers
- * `briefs/tp.md` differently on a row of `roadmap/features.olai` and a row of
+ * `briefs/tp.md` differently on a row of `roadmap/features.org` and a row of
  * the root, so a table keyed by key-and-value would hand one of those rows the
  * other's answer. It is the same triple the projection dedupes on
  * (`@olai/format`'s `pageOf`), joined the same way, so the two cannot spell a

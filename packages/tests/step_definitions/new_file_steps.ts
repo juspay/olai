@@ -103,7 +103,7 @@ Then(
 );
 
 /** WHAT THE BOX STILL HOLDS after it has said something — the other half of a
- *  refusal that ends "type `notes` to make `notes.olai`". Advice about a name
+ *  refusal that ends "type `notes` to make `notes.org`". Advice about a name
  *  the box had thrown away would be advice nobody can take, and the retention
  *  is one uncleared signal in the client (`file/NewFile.tsx`), which is exactly
  *  the kind of thing that goes quietly. */

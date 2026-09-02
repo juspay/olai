@@ -19,7 +19,7 @@
  * **What cannot hold is the converse**, and it is worth writing down rather than
  * discovering: the browser applies precedence the format cannot see. `/d/…`,
  * `/today`, `/agenda` and `/trash` are words THIS APP claimed, read before the
- * address grammar is asked at all — so `/d/2026-08-20.olai#x` is a day page up
+ * address grammar is asked at all — so `/d/2026-08-20.org#x` is a day page up
  * here and an outline's node down there. The server over-answers by
  * construction, and the narrowing that makes that harmless is `./pins.ts`'s
  * `showing`: an answered name is spent only where this parser agrees the row
@@ -59,12 +59,12 @@ const TITLES = [
   // …including the QUALIFIED one, which both sides read as the same id — the
   // file half now scores where the page LANDS, and what a pin asks about is
   // still the node.
-  "/garden.olai#herbs",
-  "[the bed](/garden.olai#herbs)",
+  "/garden.org#herbs",
+  "[the bed](/garden.org#herbs)",
   // Addresses that name themselves.
   "/notes/finishes.md",
   "/notes/finishes.md#install",
-  "/garden.olai",
+  "/garden.org",
   "/agenda",
   "/agenda?q=is%3Atodo",
   "[What is late](/agenda?q=is%3Atodo)",
@@ -105,7 +105,7 @@ test("…and the corpus above actually exercises that direction", () => {
 // address grammar is asked, and the grammar down there reads the same string as
 // an outline with an element on it.
 test("the server over-answers where this app claimed a word, and the row ignores it", () => {
-  const claimed = "/d/2026-08-20.olai#x"
+  const claimed = "/d/2026-08-20.org#x"
   expect(pinTargetIn(claimed)).toBe("x")
   expect(nodeIn(claimed)).toBeUndefined()
 
@@ -113,5 +113,5 @@ test("the server over-answers where this app claimed a word, and the row ignores
   // read — a day — and the name answered about a node it does not address is
   // not spent.
   const drawn = pinsOf([{ id: "p", title: claimed, shows: { id: "x", name: "the kitchen" } }])
-  expect(drawn.map((pin) => [pin.route.kind, pin.name])).toEqual([["day", "2026-08-20.olai"]])
+  expect(drawn.map((pin) => [pin.route.kind, pin.name])).toEqual([["day", "2026-08-20.org"]])
 })

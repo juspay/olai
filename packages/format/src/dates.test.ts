@@ -18,7 +18,7 @@ import { nodesOfFiles } from "./fixtures.testlib.ts"
  *  month boundaries above and below testable rather than assumed. */
 const SET = derive(
   nodesOfFiles({
-    "work.olai": [
+    "work.org": [
       `{"id":"deck","ord":"a0","title":"the deck"}`,
       `{"id":"posts","parent":"deck","ord":"a0","title":"dig the post holes","date":"2026-08-05"}`,
       // Later in the day than `posts`, and written to the file first — so a
@@ -28,7 +28,7 @@ const SET = derive(
       `{"id":"july","ord":"a1","title":"the last day of July","date":"2026-07-31"}`,
       `{"id":"september","ord":"a2","title":"the first day of September","date":"2026-09-01"}`,
     ].join("\n"),
-    "life.olai": [
+    "life.org": [
       `{"id":"trip","ord":"a0","title":"the coast trip"}`,
       `{"id":"ferry","parent":"trip","ord":"a0","title":"book the ferry","date":"2026-08-05T09:00"}`,
       `{"id":"pack","parent":"trip","ord":"a1","title":"pack the bags","date":"2026-08-31"}`,
@@ -46,7 +46,7 @@ const SET = derive(
  */
 const MARKED = derive(
   nodesOfFiles({
-    "ship.olai": [
+    "ship.org": [
       // Finished at an instant, scheduled for nothing: the roadmap's own shape
       // after the done-datetime migration, and the case that vanished from the
       // calendar when only `date` counted.
@@ -136,8 +136,8 @@ test("a day is lit once, whatever is on it", () => {
 
 test("a day collects every outline that has something on it", () => {
   expect(datedOn(SET, "2026-08-05").map((group) => group.file)).toEqual([
-    "life.olai",
-    "work.olai",
+    "life.org",
+    "work.org",
   ])
 })
 
@@ -295,8 +295,8 @@ test("a row shows the date that put it on the day", () => {
 test("two records claiming one id are two rows, not one", () => {
   const duplicated = derive(
     nodesOfFiles({
-      "a.olai": `{"id":"dup","ord":"a0","title":"one","done":"2026-08-11T09:00:00-04:00"}`,
-      "b.olai": `{"id":"dup","ord":"a0","title":"the other","done":"2026-08-11T10:00:00-04:00"}`,
+      "a.org": `{"id":"dup","ord":"a0","title":"one","done":"2026-08-11T09:00:00-04:00"}`,
+      "b.org": `{"id":"dup","ord":"a0","title":"the other","done":"2026-08-11T10:00:00-04:00"}`,
     }),
   )
   expect(idsOf(duplicated, "2026-08-11")).toEqual(["dup", "dup"])
@@ -310,7 +310,7 @@ test("two records claiming one id are two rows, not one", () => {
 test("an archived node is on no day, and lights no day in the calendar", () => {
   const archived = derive(
     nodesOfFiles({
-      "_olai/Trash.olai":
+      "_olai/Trash.org":
         `{"id":"deck","ord":"a0","title":"the deck","done":"2026-08-11T09:00:00-04:00"}`,
     }),
   )
@@ -325,35 +325,35 @@ test("an archived node is on no day, and lights no day in the calendar", () => {
 test("the live outline keeps the day the archive was taken off", () => {
   const beside = derive(
     nodesOfFiles({
-      "_olai/Trash.olai":
+      "_olai/Trash.org":
         `{"id":"deck","ord":"a0","title":"the deck","done":"2026-08-11T09:00:00-04:00"}`,
-      "work.olai": `{"id":"rails","ord":"a0","title":"paint the rails","date":"2026-08-11"}`,
+      "work.org": `{"id":"rails","ord":"a0","title":"paint the rails","date":"2026-08-11"}`,
     }),
   )
   expect(idsOf(beside, "2026-08-11")).toEqual(["rails"])
   expect(datedOn(beside, "2026-08-11").map((group) => group.file)).toEqual([
-    "work.olai",
+    "work.org",
   ])
   expect(datedDays(beside, "2026-08").includes("2026-08-11")).toBe(true)
 })
 
-// Leftover Archive.olai is the same exclusion one basename over (human,
+// Leftover Archive.org is the same exclusion one basename over (human,
 // 2026-08-19): left on disk and stop being read. A dated leftover lights no
 // day, is on no day's page, and is owed on no agenda — and it is still not
 // the trash, so `is:trashed` is not the door back in (./filter.ts).
-test("a leftover Archive.olai is on no day, and lights no day in the calendar", () => {
+test("a leftover Archive.org is on no day, and lights no day in the calendar", () => {
   const leftover = derive(
     nodesOfFiles({
-      "Archive.olai":
+      "Archive.org":
         `{"id":"old","ord":"a0","title":"the old deck","done":"2026-08-11T09:00:00-04:00"}`,
-      "notes/Archive.olai":
+      "notes/Archive.org":
         `{"id":"older","ord":"a0","title":"the older deck","date":"2026-08-11"}`,
-      "work.olai": `{"id":"rails","ord":"a0","title":"paint the rails","date":"2026-08-11"}`,
+      "work.org": `{"id":"rails","ord":"a0","title":"paint the rails","date":"2026-08-11"}`,
     }),
   )
   expect(idsOf(leftover, "2026-08-11")).toEqual(["rails"])
   expect(datedOn(leftover, "2026-08-11").map((group) => group.file)).toEqual([
-    "work.olai",
+    "work.org",
   ])
   expect(datedDays(leftover, "2026-08").includes("2026-08-11")).toBe(true)
 })
@@ -364,12 +364,12 @@ test("a leftover Archive.olai is on no day, and lights no day in the calendar", 
 test("a mirror of a dated node does not put it on the day twice", () => {
   const mirrored = derive(
     nodesOfFiles({
-      "work.olai": `{"id":"posts","ord":"a0","title":"dig","date":"2026-08-05"}`,
-      "life.olai": `{"id":"posts-here","ord":"a0","mirror":"posts"}`,
+      "work.org": `{"id":"posts","ord":"a0","title":"dig","date":"2026-08-05"}`,
+      "life.org": `{"id":"posts-here","ord":"a0","mirror":"posts"}`,
     }),
   )
   expect(datedOn(mirrored, "2026-08-05").map((group) => group.file)).toEqual([
-    "work.olai",
+    "work.org",
   ])
   expect(datedDays(mirrored, "2026-08").length).toBe(1)
 })
@@ -413,7 +413,7 @@ test("a document merely NAMING a date is not that day's note", () => {
       "2026-8-12.md",
       "20260812.md",
       "2026-08-10.txt",
-      "2026-08-10.olai",
+      "2026-08-10.org",
       // The date is the FOLDER here; the file is `notes.md`.
       "2026-08-10/notes.md",
       "notes.md",

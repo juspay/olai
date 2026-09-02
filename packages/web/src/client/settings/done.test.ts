@@ -41,7 +41,7 @@ import {
  *  default goes back to hidden. Same discipline as `fold/memory.test.ts`'s
  *  order-ing. */
 const quiet = (): void => {
-  for (const file of ["a.olai", "b.olai", "garden.olai", "house.olai"]) {
+  for (const file of ["a.org", "b.org", "garden.org", "house.org"]) {
     letDoneFollow(file)
   }
   setDoneHidden(true)
@@ -53,14 +53,14 @@ test("the default is hidden; a page's own word out-votes it either way", () => {
   remembering((store) => {
     quiet()
     expect(doneHidden()).toBe(true)
-    expect(doneHiddenOn("house.olai")).toBe(true)
+    expect(doneHiddenOn("house.org")).toBe(true)
     // The ask: this page shows.
-    setDoneFor("house.olai", "shown")
-    expect(doneHiddenOn("house.olai")).toBe(false)
-    expect(doneOverride("house.olai")).toBe("shown")
-    expect(store.get(DONE_OVERRIDES_KEY)).toBe('{"house.olai":"shown"}')
+    setDoneFor("house.org", "shown")
+    expect(doneHiddenOn("house.org")).toBe(false)
+    expect(doneOverride("house.org")).toBe("shown")
+    expect(store.get(DONE_OVERRIDES_KEY)).toBe('{"house.org":"shown"}')
     // ...and its sibling never heard.
-    expect(doneHiddenOn("garden.olai")).toBe(true)
+    expect(doneHiddenOn("garden.org")).toBe(true)
   })
 })
 
@@ -68,29 +68,29 @@ test("a page can also out-vote a SHOWN default — the map holds both words", ()
   remembering((store) => {
     quiet()
     setDoneHidden(false)
-    expect(doneHiddenOn("house.olai")).toBe(false)
-    setDoneFor("house.olai", "hidden")
-    expect(doneHiddenOn("house.olai")).toBe(true)
-    expect(store.get(DONE_OVERRIDES_KEY)).toBe('{"house.olai":"hidden"}')
+    expect(doneHiddenOn("house.org")).toBe(false)
+    setDoneFor("house.org", "hidden")
+    expect(doneHiddenOn("house.org")).toBe(true)
+    expect(store.get(DONE_OVERRIDES_KEY)).toBe('{"house.org":"hidden"}')
     // Writing the word the default already says is still an ask: the entry
     // stands, and the page keeps saying it wherever the default moves.
-    setDoneFor("garden.olai", "shown")
+    setDoneFor("garden.org", "shown")
     expect(store.get(DONE_OVERRIDES_KEY))
-      .toBe('{"garden.olai":"shown","house.olai":"hidden"}')
+      .toBe('{"garden.org":"shown","house.org":"hidden"}')
   })
 })
 
 test("the spelling is sorted, so one map has one spelling; empty is no entry", () => {
   remembering((store) => {
     quiet()
-    setDoneFor("b.olai", "shown")
-    setDoneFor("a.olai", "hidden")
+    setDoneFor("b.org", "shown")
+    setDoneFor("a.org", "hidden")
     expect(store.get(DONE_OVERRIDES_KEY))
-      .toBe('{"a.olai":"hidden","b.olai":"shown"}')
-    setDoneFor("a.olai", "shown")
-    setDoneFor("b.olai", "shown")
-    letDoneFollow("a.olai")
-    letDoneFollow("b.olai")
+      .toBe('{"a.org":"hidden","b.org":"shown"}')
+    setDoneFor("a.org", "shown")
+    setDoneFor("b.org", "shown")
+    letDoneFollow("a.org")
+    letDoneFollow("b.org")
     expect(store.has(DONE_OVERRIDES_KEY)).toBe(false)
   })
 })
@@ -98,13 +98,13 @@ test("the spelling is sorted, so one map has one spelling; empty is no entry", (
 test("a value this app did not write reads as no overrides", () => {
   remembering((store) => {
     quiet()
-    for (const bad of ["not json", '["house.olai"]', '{"a.olai":true}', "42"]) {
+    for (const bad of ["not json", '["house.org"]', '{"a.org":true}', "42"]) {
       store.set(DONE_OVERRIDES_KEY, bad)
       // The entry this tab holds is the parse's, not the bytes': a malformed
       // one goes in as NOTHING and the write comes out a clean spelling.
-      setDoneFor("house.olai", "shown")
-      expect(store.get(DONE_OVERRIDES_KEY)).toBe('{"house.olai":"shown"}')
-      letDoneFollow("house.olai")
+      setDoneFor("house.org", "shown")
+      expect(store.get(DONE_OVERRIDES_KEY)).toBe('{"house.org":"shown"}')
+      letDoneFollow("house.org")
     }
   })
 })
@@ -112,15 +112,15 @@ test("a value this app did not write reads as no overrides", () => {
 test("a write keeps the pick of a page this tab never saw", () => {
   remembering((store) => {
     quiet()
-    // A sibling tab flipped garden.olai; this tab has not heard yet.
-    store.set(DONE_OVERRIDES_KEY, '{"garden.olai":"shown"}')
-    setDoneFor("house.olai", "hidden")
+    // A sibling tab flipped garden.org; this tab has not heard yet.
+    store.set(DONE_OVERRIDES_KEY, '{"garden.org":"shown"}')
+    setDoneFor("house.org", "hidden")
     expect(store.get(DONE_OVERRIDES_KEY))
-      .toBe('{"garden.olai":"shown","house.olai":"hidden"}')
+      .toBe('{"garden.org":"shown","house.org":"hidden"}')
     // ...and this tab's own release ranks after the union — the page is back
     // to following the panel, and the sibling's word survives.
-    letDoneFollow("house.olai")
-    expect(store.get(DONE_OVERRIDES_KEY)).toBe('{"garden.olai":"shown"}')
+    letDoneFollow("house.org")
+    expect(store.get(DONE_OVERRIDES_KEY)).toBe('{"garden.org":"shown"}')
   })
 })
 
@@ -129,20 +129,20 @@ test("on a contested key the STORED one wins — a sibling's fresh flip is never
     quiet()
     // A started tab and a later sibling share house shown — the only case
     // both maps ever hold one key.
-    setDoneFor("house.olai", "shown")
+    setDoneFor("house.org", "shown")
     // The sibling flips the SAME door; this tab's `storage` event hasn't
     // landed (the shipped event order lets a same-process write sit in
     // `value()` for a beat after the entry already says otherwise).
-    store.set(DONE_OVERRIDES_KEY, '{"house.olai":"hidden"}')
-    expect(doneOverride("house.olai")).toBe("shown")
+    store.set(DONE_OVERRIDES_KEY, '{"house.org":"hidden"}')
+    expect(doneOverride("house.org")).toBe("shown")
     // Then THE SAME tab picks another page — the event loop the folds trade
     // on: the fresh stored spelling rides over this tab's stale one in
     // either direction, and the stale copy, which would have otherwise
     // clambered back over a sibling's fresh write, never could.
-    setDoneFor("garden.olai", "hidden")
-    expect(doneOverride("house.olai")).toBe("hidden")
+    setDoneFor("garden.org", "hidden")
+    expect(doneOverride("house.org")).toBe("hidden")
     expect(store.get(DONE_OVERRIDES_KEY))
-      .toBe('{"garden.olai":"hidden","house.olai":"hidden"}')
+      .toBe('{"garden.org":"hidden","house.org":"hidden"}')
     // What the union CANNOT see remains the folds' window: a sibling's
     // delete of a key this tab still holds would come back — the one-event-
     // loop addition-dominating trade, named in done.ts's write half.
@@ -153,7 +153,7 @@ test("on a contested key the STORED one wins — a sibling's fresh flip is never
 
 const derived = derive(
   nodesOfFiles({
-    "house.olai": [
+    "house.org": [
       `{"id":"kitchen","ord":"a0","title":"kitchen #home"}`,
       `{"id":"demo","parent":"kitchen","ord":"a0","title":"take out the counters","done":"2026-08-03"}`,
     ].join("\n"),
@@ -161,19 +161,19 @@ const derived = derive(
 )
 const house = {
   kind: "outline" as const,
-  file: "house.olai",
-  rows: rowsOf(derived, "house.olai"),
+  file: "house.org",
+  rows: rowsOf(derived, "house.org"),
 }
 
 test("an outline is about its own file", () => {
-  expect(pageFileOf(house)).toBe("house.olai")
+  expect(pageFileOf(house)).toBe("house.org")
   expect(pageFileOf(undefined)).toBeUndefined()
 })
 
 test("a zoom is about the outline its node is canonical in — the same page", () => {
   expect(
     pageFileOf({ kind: "node", zoomed: zoom(derived, "kitchen"), backlinks: [] }),
-  ).toBe("house.olai")
+  ).toBe("house.org")
 })
 
 test("a day is about nothing — the arm every non-tree page takes", () => {
@@ -189,16 +189,16 @@ test("the rows a page draws: done out when hiding, the same array when showing",
   remembering(() => {
     quiet()
     const drawn = { kind: "tree" as const, rows: house.rows }
-    const hiding = visibleIn(drawn, "house.olai", 0)
+    const hiding = visibleIn(drawn, "house.org", 0)
     expect(hiding).not.toBe(drawn)
     // `demo` is done: the one root stays, its done child is the row that goes.
     expect(hiding.kind === "tree" && hiding.rows[0]?.children.length).toBe(0)
 
-    setDoneFor("house.olai", "shown")
+    setDoneFor("house.org", "shown")
     // THE IDENTITY CONTRACT: the count of held-back matches reads this as its
     // zero (../filter/narrowing.ts), so showing must hand the value back
     // rather than rewrap it.
-    expect(visibleIn(drawn, "house.olai", 0)).toBe(drawn)
+    expect(visibleIn(drawn, "house.org", 0)).toBe(drawn)
   })
 })
 
@@ -210,31 +210,31 @@ test("a reveal spares the owed places and leaves the pick's word untouched", () 
     const drawn = { kind: "tree" as const, rows: house.rows }
     const demo = house.rows[0]!.children[0]!
     const owed = new Set([demo.key])
-    revealDone("house.olai", 0, owed)
-    const shown = visibleIn(drawn, "house.olai", 0)
+    revealDone("house.org", 0, owed)
+    const shown = visibleIn(drawn, "house.org", 0)
     // `demo` is the landing's row: back — and storing NOTHING about it: the
     // reveal is a visiting answer and the answers to the two questions the
     // flip asks are exactly as they were.
     expect(shown).not.toBe(drawn)
     expect(shown.kind === "tree" && shown.rows[0]?.children.length).toBe(1)
-    expect(doneOverride("house.olai")).toBeUndefined()
+    expect(doneOverride("house.org")).toBeUndefined()
     expect(store.has(DONE_OVERRIDES_KEY)).toBe(false)
-    concealDone("house.olai", 0, owed)
+    concealDone("house.org", 0, owed)
   })
 })
 
 test("the reveal spares nothing the pick does not take: a showing page draws identically", () => {
   remembering(() => {
     quiet()
-    setDoneFor("house.olai", "shown")
+    setDoneFor("house.org", "shown")
     const drawn = { kind: "tree" as const, rows: house.rows }
     const owed = new Set([house.rows[0]!.children[0]!.key])
-    revealDone("house.olai", 0, owed)
+    revealDone("house.org", 0, owed)
     // THE IDENTITY CONTRACT, held for the reveal too: the sweep only ever
     // runs where the pick prunes, and extra keep under a showing pick is
     // dead weight the answer must not take the shape of.
-    expect(visibleIn(drawn, "house.olai", 0)).toBe(drawn)
-    concealDone("house.olai", 0, owed)
+    expect(visibleIn(drawn, "house.org", 0)).toBe(drawn)
+    concealDone("house.org", 0, owed)
   })
 })
 
@@ -245,13 +245,13 @@ test("the reveal is the PANE's — the same file's other pane keeps its own answ
     // Pane 0 lands on the done child; pane 1 never heard the address. The
     // courtesy is the arrival's: one sweep spares and one does not.
     const owed = new Set([house.rows[0]!.children[0]!.key])
-    revealDone("house.olai", 0, owed)
+    revealDone("house.org", 0, owed)
     for (const pane of [0, 1]) {
-      const answer = visibleIn(drawn, "house.olai", pane)
+      const answer = visibleIn(drawn, "house.org", pane)
       expect(answer.kind === "tree" && answer.rows[0]?.children.length)
         .toBe(pane === 0 ? 1 : 0)
     }
-    concealDone("house.olai", 0, owed)
+    concealDone("house.org", 0, owed)
   })
 })
 
@@ -263,11 +263,11 @@ test("the write hands back THE SET THE TABLE HOLDS — the skipped write's stale
     // The skip path: the table already holds what this asks — the write is
     // spent, so the answer is the STANDING set, never the caller's own:
     // concealing with WHAT THE CALLER BUILT would compare `!==` and leak.
-    const first = revealDone("house.olai", 0, new Set([demoKey]))
-    const answered = revealDone("house.olai", 0, new Set([demoKey]))
+    const first = revealDone("house.org", 0, new Set([demoKey]))
+    const answered = revealDone("house.org", 0, new Set([demoKey]))
     expect(answered).toBe(first)
-    concealDone("house.olai", 0, answered)
-    const after = visibleIn(drawn, "house.olai", 0)
+    concealDone("house.org", 0, answered)
+    const after = visibleIn(drawn, "house.org", 0)
     expect(after.kind === "tree" && after.rows[0]?.children.length).toBe(0)
   })
 })
@@ -279,21 +279,21 @@ test("the file's next landing replaces the reveal; the release asks for THE VERY
     // Read the reveal's bookkeeping THE WAY THE PAGE READS IT: through the
     // sweep whose word the flip is about — the raw table is nobody's door.
     const drawnChildren = (): number => {
-      const answer = visibleIn(drawn, "house.olai", 0)
+      const answer = visibleIn(drawn, "house.org", 0)
       return answer.kind === "tree" ? (answer.rows[0]?.children.length ?? -1) : -1
     }
     const stale = new Set(["an arrival already answered"])
-    revealDone("house.olai", 0, stale)
+    revealDone("house.org", 0, stale)
     const standing = new Set([house.rows[0]!.children[0]!.key])
-    revealDone("house.olai", 0, standing)
+    revealDone("house.org", 0, standing)
     // ONE OUTSTANDING ARRIVAL PER PAGE PER PANE: the second landing's place
     // is the one the sweep spares.
     expect(drawnChildren()).toBe(1)
     // THE KEYED ANSWER: concealing with the OLD set is not the release — a
     // fresher reveal is not this one's to take down.
-    concealDone("house.olai", 0, stale)
+    concealDone("house.org", 0, stale)
     expect(drawnChildren()).toBe(1)
-    concealDone("house.olai", 0, standing)
+    concealDone("house.org", 0, standing)
     expect(drawnChildren()).toBe(0)
   })
 })
@@ -304,8 +304,8 @@ test("the pick reaches a tree and nothing else", () => {
     const day = { kind: "day" as const, groups: [], notes: [] }
     // Even on a page that SHOWS: a day is a record of what happened, and this
     // preference was never asked about it (the file argument is the tree's).
-    setDoneFor("house.olai", "shown")
-    expect(visibleIn(day, "house.olai", 0)).toBe(day)
+    setDoneFor("house.org", "shown")
+    expect(visibleIn(day, "house.org", 0)).toBe(day)
     // A tree with NO page to be about is not pruned either: with hidden the
     // default, this is the one arm that does the opposite — there is no file
     // for a pick to be read off, so the unpruned value stands (unreachable

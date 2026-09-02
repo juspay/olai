@@ -36,7 +36,7 @@ Feature: On a phone
 
   @corpus:good @phone
   Scenario: One column — the sidebar is a drawer behind a burger
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     Then the burger is on screen
     And the sidebar is put away
     When I tap the burger
@@ -63,7 +63,7 @@ Feature: On a phone
     # WhatsApp's rule. The pills that used to crowd the bar — live, the commit
     # mark, the agent toggle, prefs — are not in it. Search is. A dead wire is
     # the freeze overlay, which the sister scenario holds.
-    Given I open the outline "garden.olai"
+    Given I open the outline "garden.org"
     Then the burger is on screen
     And the phone header is identity and search
 
@@ -77,7 +77,7 @@ Feature: On a phone
 
   @scratch:good @phone
   Scenario: A dead wire freezes a phone too
-    Given I open the outline "garden.olai"
+    Given I open the outline "garden.org"
     When the server stops
     Then the app is frozen under the offline overlay
     When the server starts again on the same port
@@ -91,7 +91,7 @@ Feature: On a phone
 
   @corpus:good @phone
   Scenario: A tap on a bullet zooms into that node
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     And I mark the page
     When I tap the bullet of "kitchen"
     Then the zoomed node is "kitchen"
@@ -100,7 +100,7 @@ Feature: On a phone
 
   @corpus:good @phone
   Scenario: A tap on a toggle folds and unfolds
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     When I tap the toggle of "kitchen"
     Then the node "kitchen" is collapsed
     And the children of "kitchen" are hidden
@@ -113,7 +113,7 @@ Feature: On a phone
     # Touch has no hover: the triangle stays as the fold affordance; the
     # ••• is not drawn at all, so a 390px title still has room. What a phone
     # reaches the MENU with instead is the next scenario.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     Then the collapse control of "kitchen" is revealed
     And the node menu of "kitchen" is not on the row
 
@@ -133,7 +133,7 @@ Feature: On a phone
 
   @corpus:good @phone
   Scenario: Holding a finger on a row opens its ••• menu
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     And I mark the page
     When I hold a finger on the node "kitchen"
     Then the node menu is open
@@ -151,7 +151,7 @@ Feature: On a phone
 
   @corpus:good @phone
   Scenario: A verb chosen with a thumb does what it says
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     And the node "kitchen" is expanded
     When I hold a finger on the node "kitchen"
     Then the node menu is open
@@ -168,13 +168,13 @@ Feature: On a phone
     # covering. This is the scenario for `client/ghost.ts`: without it,
     # choosing `Move to Trash` here opened the mirror three rows down, on a
     # question nobody had answered yet.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     And I mark the page
     When I hold a finger on the node "kitchen"
     Then the node menu is open
     When I tap "Move to Trash" in the node menu
     Then the node menu asks "Move “kitchen remodel #home” and the 7 rows under it to the Trash? They keep their ids, and the Trash in the sidebar is where to put them back."
-    And the address is "/house.olai"
+    And the address is "/house.org"
     And the page has not reloaded
 
   @corpus:good @phone
@@ -193,7 +193,7 @@ Feature: On a phone
     # person can read inside a scenario — so the screen is what shrinks, which
     # is a real handset too (one with its keyboard up), and the step checks its
     # own premise rather than trusting it.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     And the screen is shorter than the outline
     When I flick the node "kitchen" up the screen
     Then the outline has scrolled
@@ -217,7 +217,7 @@ Feature: On a phone
 
   @corpus:good @phone
   Scenario: A finger held on the bullet picks the row up, and does not follow its link
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     And I mark the page
     When I hold a finger on the bullet of "kitchen" and keep it there
     Then the row "kitchen" is in the air
@@ -226,7 +226,7 @@ Feature: On a phone
     When I let the finger go
     Then no row is in the air
     # The click a lift synthesises, eaten: under this finger is an `<a href>`.
-    And the address is "/house.olai"
+    And the address is "/house.org"
     And the page has not reloaded
     # ...and only that one. A plain tap is still the navigation it always was.
     When I tap the bullet of "kitchen"
@@ -234,7 +234,7 @@ Feature: On a phone
 
   @scratch:good @phone
   Scenario: A held row follows the finger and lands where it is let go
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     And I mark the page
     When I hold a finger on the bullet of "knobs" and keep it there
     And I drag that finger above the title of "handles"
@@ -242,7 +242,7 @@ Feature: On a phone
     And the drop line would put it first
     When I let the finger go
     Then the node "knobs" comes before "handles"
-    And the address is "/house.olai"
+    And the address is "/house.org"
     And there should be no page errors
 
   @corpus:good @phone
@@ -253,7 +253,7 @@ Feature: On a phone
     # non-passive `touchmove` put up at the DEADLINE instead, and a finger that
     # moved before it never reaches one. Sister of the row's own fence below,
     # aimed at the one cell that could have broken it.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     And the screen is shorter than the outline
     When I flick the bullet of "kitchen" up the screen
     Then the outline has scrolled
@@ -262,10 +262,10 @@ Feature: On a phone
 
   @corpus:good @phone
   Scenario: A tap on an outline entry opens that outline
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     When I tap the burger
-    And I tap the outline "garden.olai"
-    Then the address is "/garden.olai"
+    And I tap the outline "garden.org"
+    Then the address is "/garden.org"
     And the node "herbs" is shown
 
   @corpus:journal @phone
@@ -284,5 +284,5 @@ Feature: On a phone
     # the keyboard. With nothing in the way it is the whole viewport, which is
     # what this asserts; a keyboard cannot be raised from a test, and there is
     # nothing on this page to type into yet.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     Then the page reports the visible strip as the whole viewport

@@ -118,7 +118,7 @@ export type Ask = typeof Ask.Type
  * meant to — what was put away is reachable at every door that asks for it
  * (2026-08-17's ruling took the default presence, never the way to ask). That
  * it WAS put away is a thing the agent has to be told, and it is told by the
- * line rather than by a field here: `file` already says `_olai/Trash.olai`, and
+ * line rather than by a field here: `file` already says `_olai/Trash.org`, and
  * `@olai/chat`'s `lineFor` asks the format the same question every other reader
  * of an archive asks (`isTrashed`). A boolean beside the file it is computed
  * from would be one more pair for a producer to get wrong, and a convention
@@ -162,8 +162,8 @@ export type NodeContext = typeof NodeContext.Type
  * What an olai WRITE did to a node, which is the other half of the same
  * feature and deliberately not a diff.
  *
- * A `.olai` diff is one enormous line per node with everything on it changing
- * at once — the commit panel's own rule, and the reason `@olai/format`
+ * A raw `.org` diff exposes a multi-line storage drawer — the commit panel's
+ * own rule, and the reason `@olai/format`
  * classifies a change into a {@link Sort} instead. So a tool call that went
  * through the ops layer carries the node-level story: the same word the commit
  * panel draws (*marked done*, *note rewritten*, *moved*), the node it is about,
@@ -1641,7 +1641,7 @@ export const Wake = Schema.Struct({
    * The control must stop drawing as ON, and that is the whole of what this
    * field is for. A doorbell that derives nothing derives nothing FOREVER, so
    * the conversation goes quiet in a way that is indistinguishable from a
-   * conversation with nothing to report — and a picker still saying `lanes.olai`
+   * conversation with nothing to report — and a picker still saying `lanes.org`
    * over that silence is the panel asserting something untrue.
    *
    * TWO CAUSES, because a person has a different thing to do about each and the

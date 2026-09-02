@@ -24,7 +24,7 @@ Feature: Committing on purpose
   test without one, and the assertions at the end are lines out of its log.
 
   Background:
-    Given I open the outline "garden.olai"
+    Given I open the outline "garden.org"
 
   Scenario: A directory olai has never committed in says exactly that
     # Not "committed", which would be a lie, and not nothing at all. A clean
@@ -52,7 +52,7 @@ Feature: Committing on purpose
     # to done. Written out in full because the count below is the point — a
     # rewrite that dropped the nodes it was not about would report those as
     # gone, which is true and not what this scenario is asking.
-    When I rewrite "garden.olai" as:
+    When I rewrite "garden.org" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door","doing":"2026-07-20"}
@@ -69,7 +69,7 @@ Feature: Committing on purpose
     Then the commit pill says "waiting"
     And the commit pill says 1 uncommitted
     When I open the commit panel
-    # Never a text diff: a `.olai` diff is one enormous line per node with
+    # Never a text diff: a raw `.org` diff exposes a multi-line storage drawer with
     # everything on it changing at once. The unit is the node and what changed
     # about it.
     Then the change to "mint" is "done"
@@ -86,7 +86,7 @@ Feature: Committing on purpose
 
   Scenario: A document edited by hand is waiting too, and can be committed on its own
     # The bug this whole item was filed for, in the human's words: "the git
-    # commit thing should work across whole repo, not just .olai files edited
+    # commit thing should work across whole repo, not just .org files edited
     # through MCP". `git status` had always surveyed these files; the panel
     # dropped them one line later, because olai only lists the files it writes.
     #
@@ -181,7 +181,7 @@ Feature: Committing on purpose
     # The hole this whole feature closed: nothing used to check, so an agent
     # marking a node done mid-rebase could swallow a resolution.
     When HEAD is detached in the served repository
-    And I rewrite "garden.olai" as:
+    And I rewrite "garden.org" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door","doing":"2026-07-20"}
@@ -223,7 +223,7 @@ Feature: Committing on purpose
     When I press Escape on the preferences
     Then the preferences are shut
     And the commit pill says auto-commit is "armed"
-    When I rewrite "garden.olai" as:
+    When I rewrite "garden.org" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door","doing":"2026-07-20"}

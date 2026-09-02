@@ -1,0 +1,26 @@
+* clear the attic
+:PROPERTIES:
+:ID: attic
+:OLAI_KIND: regular
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "clear the attic"
+:END:
+
+** sort the boxes
+:PROPERTIES:
+:ID: boxes
+:OLAI_KIND: regular
+:OLAI_PARENT: "attic"
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "sort the boxes"
+:END:
+
+** box up the lamps
+:PROPERTIES:
+:ID: lamps
+:OLAI_KIND: regular
+:OLAI_PARENT: "attic"
+:OLAI_ORD: "a1"
+:OLAI_TITLE: "box up the lamps"
+:OLAI_AFTER: ["donate"]
+:END:

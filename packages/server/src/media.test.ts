@@ -140,7 +140,7 @@ test("the vault's other files are not served, however they are asked for", async
         // raw bytes here would be a second way to read a file that already has
         // one — the same argument the set's own files get.
         "/media/notes/sales.csv",
-        "/media/a.olai",
+        "/media/a.org",
         "/media/notes/secret.env",
         "/media/notes/nothing.html",
         "/media/../../etc/hostname",

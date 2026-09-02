@@ -212,10 +212,10 @@ export const datesOf = (node: RegularNode): ReadonlyArray<Occasioned> => {
  * happened, and archiving is what people do with work after they finish it —
  * and what that cost in practice was the other half of the sentence: a day and
  * the agenda went on drawing rows a reader had already swept off the page,
- * under an `_olai/Trash.olai` heading that explained where they lived without
+ * under an `_olai/Trash.org` heading that explained where they lived without
  * explaining why they were still there. Putting something away is that reader
  * saying they are done looking at it, and the trash is where it is looked at
- * again. Leftover `Archive.olai` is the same exclusion one basename over
+ * again. Leftover `Archive.org` is the same exclusion one basename over
  * (human, 2026-08-19): left on disk and stop being read — not trash, so not the
  * trash page's remainder; not live work, so a date in one lights no day.
  * {@link isPutAway} is the pair of predicates as one question.

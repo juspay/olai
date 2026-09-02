@@ -1,0 +1,17 @@
+* the board, one directory in
+:PROPERTIES:
+:ID: board
+:OLAI_KIND: regular
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "the board, one directory in"
+:END:
+
+** a lane written from the root
+:PROPERTIES:
+:ID: board-lane
+:OLAI_KIND: regular
+:OLAI_PARENT: "board"
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "a lane written from the root"
+:OLAI_CUSTOM: {"agent":"grok","brief":"briefs/tp.md","merge":"auto","worktree":".worktrees/board"}
+:END:

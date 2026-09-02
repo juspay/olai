@@ -1,7 +1,7 @@
 /**
  * THE FLOOD, PINNED — red-first, on the fixture that produced it.
  *
- * 2026-08-25, sighted by the human with `git.md` open: `orchestrator/lanes.olai`
+ * 2026-08-25, sighted by the human with `git.md` open: `orchestrator/lanes.org`
  * was failing typed-property validation with about 135 rows, and the last-good
  * banner at the top of EVERY page inlined the full enumeration. The selected
  * page's own content was still there below, but the banner ran longer than a
@@ -70,9 +70,9 @@ const broken = (files: ReadonlyArray<BrokenFile>): ReadonlyMap<string, BrokenFil
   new Map(files.map((one) => [one.file, one]))
 
 test("135 rows in one file draw one line, and the line is a count", () => {
-  const face = filesFace(flood("orchestrator/lanes.olai", 135)).face
+  const face = filesFace(flood("orchestrator/lanes.org", 135)).face
   expect(face.files).toEqual([
-    { file: "orchestrator/lanes.olai", state: "invalid", count: 135 },
+    { file: "orchestrator/lanes.org", state: "invalid", count: 135 },
   ])
   expect(face.total).toBe(135)
 })
@@ -94,15 +94,15 @@ test("the banner's payload is bounded regardless of the row count", () => {
     total: 0,
     files: face.files.map((one) => ({ ...one, count: 0 })),
   })
-  const few = filesFace(flood("lanes.olai", 5)).face
-  const many = filesFace(flood("lanes.olai", 135)).face
+  const few = filesFace(flood("lanes.org", 5)).face
+  const many = filesFace(flood("lanes.org", 135)).face
   expect(countless(many)).toEqual(countless(few))
   expect(JSON.stringify(many)).not.toContain("claude-opus")
   expect(JSON.stringify(many)).not.toContain("message")
 })
 
 test("more broken files than the clamp are counted, not listed", () => {
-  const files = Array.from({ length: BANNER_FILES + 3 }, (_, at) => `f${at}.olai`)
+  const files = Array.from({ length: BANNER_FILES + 3 }, (_, at) => `f${at}.org`)
   const face = filesFace(
     broken(files.map((file): BrokenFile => ({
       file,
@@ -123,13 +123,13 @@ test("more broken files than the clamp are counted, not listed", () => {
 // a fold of delta frames rather than a listing.
 test("the files are named in path order, not in arrival order", () => {
   const face = filesFace(
-    broken(["notes/zed.olai", "attic.olai", "notes/alpha.olai"].map((file) => ({
+    broken(["notes/zed.org", "attic.org", "notes/alpha.org"].map((file) => ({
       file,
       errors: [{ file, line: 1, code: "duplicate-id" as const, message: "twice" }],
     }))),
   ).face
   expect(face.files.map((one) => one.file))
-    .toEqual(["attic.olai", "notes/alpha.olai", "notes/zed.olai"])
+    .toEqual(["attic.org", "notes/alpha.org", "notes/zed.org"])
 })
 
 /** The other thing that can be wrong: the directory itself would not open. */
@@ -151,7 +151,7 @@ test("a directory that could not be read is the banner's other sentence", () => 
   // …and a directory full of broken files is NOT that sentence: those pages are
   // live, and telling their reader they are looking at an old copy would be the
   // one thing this banner must never say.
-  expect(filesFace(flood("lanes.olai", 3)).kind).toBe("files")
+  expect(filesFace(flood("lanes.org", 3)).kind).toBe("files")
 })
 
 /**
@@ -165,7 +165,7 @@ test("a directory that could not be read is the banner's other sentence", () => 
  * component to draw by mistake.
  */
 test("a directory that went away outranks the files it left behind", () => {
-  const trouble = troubleIn(flood("lanes.olai", 3), WENT_AWAY)
+  const trouble = troubleIn(flood("lanes.org", 3), WENT_AWAY)
   expect(trouble?.kind).toBe("gone")
   expect(trouble?.face.files.map((one) => one.file)).toEqual(["."])
 })

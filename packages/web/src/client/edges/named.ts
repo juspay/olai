@@ -36,7 +36,7 @@
  * field as a SET — re-adding a target the node already names is a silent no-op
  * (`@olai/ops`'s `planEdges`) — so a file saying the same thing three times is
  * saying it once, and the surfaces reading it say it once (ruled 2026-08-16,
- * human). A `.olai` is plain text: nothing stops a hand or a merge from writing
+ * human). A `.org` is plain text: nothing stops a hand or a merge from writing
  * the repeat, and the validator does not refuse it.
  *
  * That makes the KEY honest, which is the half that broke. Both readers draw a

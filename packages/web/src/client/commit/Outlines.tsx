@@ -3,9 +3,8 @@
  *
  * Every row here is a NODE and what changed about it — "marked done", "note
  * rewritten", "archived". There is no text diff and there will not be one: a
- * `.olai` diff is one enormous line per node with everything on it changing at
- * once, which is exactly the shape this format bought line-based merges with and
- * exactly the shape nobody can read.
+ * raw `.org` diff exposes a multi-line storage drawer rather than the semantic
+ * node change.
  *
  * Grouped by FILE because that is the unit git commits and the unit the sidebar
  * already lists — and, since the panel learnt to be piecemeal, the unit a person

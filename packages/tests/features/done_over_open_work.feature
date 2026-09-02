@@ -25,7 +25,7 @@ Feature: A finished branch cannot hide unfinished work
   scenarios.
 
   Background:
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     # Finished work is hidden by default on every page now, and these rows are
     # marked done as the scenario's BUSINESS — the gate's sentence has to stay
     # visible to be read. Where the row went is preferences.feature's subject.
@@ -66,7 +66,7 @@ Feature: A finished branch cannot hide unfinished work
     # THE INCIDENT, end to end. `the cold frames` is a bullet whose two tasks
     # are both done, so it is a branch anybody may tick off — and the moment
     # something under it becomes work again, the claim it makes is false.
-    Given I open the outline "garden.olai"
+    Given I open the outline "garden.org"
     And I show the done nodes
     When I click the title of "frames"
     And I press "Control+Enter"
@@ -89,7 +89,7 @@ Feature: A finished branch cannot hide unfinished work
   Scenario: Finishing work under a finished branch changes nothing above it
     # The other direction of the same write: `done` arriving under `done` is not
     # unfinished work, so there is nothing to re-open and the branch stays shut.
-    Given I open the outline "garden.olai"
+    Given I open the outline "garden.org"
     And I show the done nodes
     When I click the title of "frames"
     And I press "Control+Enter"

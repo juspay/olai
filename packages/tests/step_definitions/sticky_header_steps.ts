@@ -117,7 +117,7 @@ When(
  *    attribute and is the failure this family of steps exists to catch.
  *  - TOP VS PINNED BOTTOM — the row's top is at-or-below the pinned row's
  *    bottom edge; anything less and it is being read through the back of the
- *    pinned heading (measured on `house.olai`: 71.5px pre-fix vs 116.5
+ *    pinned heading (measured on `house.org`: 71.5px pre-fix vs 116.5
  *    post-fix, band [72, 111.4)).
  *  - WHO IS AT THE SPOT — an `elementFromPoint` at the row's own top edge
  *    names the row itself, not the pinned section. Geometry alone can pass

@@ -20,7 +20,7 @@
  * The RECORD OF THE PAST used to be granted here — `docs/brainstorming/` held
  * the decisions and why the alternatives lost, including the argument for the
  * face this sweep retires, `docs/RCA/` held incidents as they were diagnosed,
- * and the roadmap and `_olai/Trash.olai` were ledgers whose entries describe
+ * and the roadmap and `_olai/Trash.org` were ledgers whose entries describe
  * PRs that shipped the subcommand. Those ledgers are not in this repository
  * any more: the orchestrator's vault moved to
  * https://github.com/juspay/oss.olai, where they go on saying what they said

@@ -41,8 +41,8 @@ const worktreesOf = (files: Record<string, string>) => [
 test("a vault that declares `worktree` a path yields the nodes that carry it, with the PR beside them", () => {
   expect(
     worktreesOf({
-      "_olai/Properties.olai": declaring(WORKTREE_TYPE),
-      "board.olai": rec("node-a", "the seam", {
+      "_olai/Properties.org": declaring(WORKTREE_TYPE),
+      "board.org": rec("node-a", "the seam", {
         worktree: ".worktrees/live-properties",
         "pr-url": "https://github.com/juspay/olai/pull/433",
       }),
@@ -61,8 +61,8 @@ test("a node with no `pr-url` still crosses — where it RESOLVES is not this wa
   // dropped here for want of a URL would be a resolution rule spelled twice.
   expect(
     worktreesOf({
-      "_olai/Properties.olai": declaring(WORKTREE_TYPE),
-      "board.olai": rec("node-a", "the seam", { worktree: "/srv/checkout" }),
+      "_olai/Properties.org": declaring(WORKTREE_TYPE),
+      "board.org": rec("node-a", "the seam", { worktree: "/srv/checkout" }),
     }),
   ).toEqual([{
     node: "node-a",
@@ -78,7 +78,7 @@ test("a vault that declares NOTHING gets the claim, on the key that carries odu'
   // to its own composed word.
   expect(
     worktreesOf({
-      "board.olai": rec("node-a", "the seam", { [WORKTREE_TYPE]: ".worktrees/a" }),
+      "board.org": rec("node-a", "the seam", { [WORKTREE_TYPE]: ".worktrees/a" }),
     }),
   ).toEqual([{ node: "node-a", title: "the seam", value: ".worktrees/a", prUrl: undefined }])
 })
@@ -90,7 +90,7 @@ test("...and a PERSON'S OWN `worktree` column is never captured by enabling a pl
   // on would be pointing a socket dial at a value nobody offered it.
   expect(
     worktreesOf({
-      "board.olai": rec("node-a", "the seam", { worktree: ".worktrees/a" }),
+      "board.org": rec("node-a", "the seam", { worktree: ".worktrees/a" }),
     }),
   ).toEqual([])
 })
@@ -98,8 +98,8 @@ test("...and a PERSON'S OWN `worktree` column is never captured by enabling a pl
 test("...and the SHORT key is one vault row away — the user's key, the plugin's kind", () => {
   expect(
     worktreesOf({
-      "_olai/Properties.olai": declaring(WORKTREE_TYPE, "worktree"),
-      "board.olai": rec("node-a", "the seam", { worktree: ".worktrees/a" }),
+      "_olai/Properties.org": declaring(WORKTREE_TYPE, "worktree"),
+      "board.org": rec("node-a", "the seam", { worktree: ".worktrees/a" }),
     }),
   ).toEqual([{ node: "node-a", title: "the seam", value: ".worktrees/a", prUrl: undefined }])
 })
@@ -107,8 +107,8 @@ test("...and the SHORT key is one vault row away — the user's key, the plugin'
 test("...and neither does one that declares the claimed key something else", () => {
   expect(
     worktreesOf({
-      "_olai/Properties.olai": declaring("text", WORKTREE_TYPE),
-      "board.olai": rec("node-a", "the seam", { [WORKTREE_TYPE]: ".worktrees/a" }),
+      "_olai/Properties.org": declaring("text", WORKTREE_TYPE),
+      "board.org": rec("node-a", "the seam", { [WORKTREE_TYPE]: ".worktrees/a" }),
     }),
   ).toEqual([])
 })
@@ -120,8 +120,8 @@ test("a key declared `path` is NOT a worktree, which is the whole reason this ki
   // key called anything else.
   expect(
     worktreesOf({
-      "_olai/Properties.olai": declaring("path"),
-      "board.olai": rec("node-a", "the seam", { worktree: ".worktrees/a" }),
+      "_olai/Properties.org": declaring("path"),
+      "board.org": rec("node-a", "the seam", { worktree: ".worktrees/a" }),
     }),
   ).toEqual([])
 })
@@ -132,8 +132,8 @@ test("a key called anything at all is a worktree if the vault declares it one", 
   // nothing is not — however many properties it happens to call `worktree`.
   expect(
     worktreesOf({
-      "_olai/Properties.olai": declaring(WORKTREE_TYPE, "checkout"),
-      "board.olai": rec("node-a", "the seam", { checkout: "/srv/x", worktree: "/srv/decoy" }),
+      "_olai/Properties.org": declaring(WORKTREE_TYPE, "checkout"),
+      "board.org": rec("node-a", "the seam", { checkout: "/srv/x", worktree: "/srv/decoy" }),
     }),
   ).toEqual([{ node: "node-a", title: "the seam", value: "/srv/x", prUrl: undefined }])
 })
@@ -141,8 +141,8 @@ test("a key called anything at all is a worktree if the vault declares it one", 
 test("a record with no `worktree` is not one, declaration or not", () => {
   expect(
     worktreesOf({
-      "_olai/Properties.olai": declaring(WORKTREE_TYPE),
-      "board.olai": rec("plain", "an ordinary bullet", { agent: "claude-opus" }),
+      "_olai/Properties.org": declaring(WORKTREE_TYPE),
+      "board.org": rec("plain", "an ordinary bullet", { agent: "claude-opus" }),
     }),
   ).toEqual([])
 })
@@ -152,8 +152,8 @@ test("a MIRROR is skipped — its target carries the property and is in the same
   // the wrong record; two rows probing one checkout would also be two dials of
   // one socket.
   const named = worktreesOf({
-    "_olai/Properties.olai": declaring(WORKTREE_TYPE),
-    "board.olai": [
+    "_olai/Properties.org": declaring(WORKTREE_TYPE),
+    "board.org": [
       rec("node-a", "the seam", { worktree: ".worktrees/a" }),
       `{"id":"m","ord":"a1","mirror":"node-a"}`,
     ].join("\n"),

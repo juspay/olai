@@ -12,13 +12,13 @@
  *
  * ## THE FILTER FILE IS THE WHOLE OF THE SCOPE
  *
- * A person picks one `.olai` file per conversation, and the terminals that
+ * A person picks one `.org` file per conversation, and the terminals that
  * file's UN-DONE nodes claim are the ones that conversation hears. That makes
- * the day board (`lanes.olai`) the natural filter — it already holds exactly
+ * the day board (`lanes.org`) the natural filter — it already holds exactly
  * the live lanes — and it makes silence the default: a fresh conversation has
  * no file, so it has no doorbell, and nobody is opted in by a serve.
  *
- * The mute list that used to live in `_olai/Kolu.olai` went in the same
+ * The mute list that used to live in `_olai/Kolu.org` went in the same
  * landing (2026-08-31), and it is worth being exact about what that was and
  * was not: a mute silenced the events FEED, for everybody, whatever anybody
  * was doing — and the feed has no silence control now, because it says

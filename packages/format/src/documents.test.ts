@@ -27,10 +27,10 @@ const nodeOf = (line: string, file: string) => {
 // reader of the directory, and the validator's whole job is to judge the one
 // the store already read.
 test("a relative path resolves against the naming file's directory", () => {
-  expect(resolveRelative("sub/plan.olai", "../notes/a.md")).toBe("notes/a.md")
-  expect(resolveRelative("sub/plan.olai", "./a.md")).toBe("sub/a.md")
-  expect(resolveRelative("sub/plan.olai", "a.md")).toBe("sub/a.md")
-  expect(resolveRelative("plan.olai", "notes/a.md")).toBe("notes/a.md")
+  expect(resolveRelative("sub/plan.org", "../notes/a.md")).toBe("notes/a.md")
+  expect(resolveRelative("sub/plan.org", "./a.md")).toBe("sub/a.md")
+  expect(resolveRelative("sub/plan.org", "a.md")).toBe("sub/a.md")
+  expect(resolveRelative("plan.org", "notes/a.md")).toBe("notes/a.md")
 })
 
 // There is nothing above the served directory to name, so a `..` that would
@@ -38,35 +38,35 @@ test("a relative path resolves against the naming file's directory", () => {
 // the answer against files that were actually found, and a path that clamped
 // simply resolves to nothing.
 test("retargetRelative keeps the same landing when the naming file moves", () => {
-  expect(retargetRelative("house.olai", "_olai/Trash.olai", "finishes.md"))
+  expect(retargetRelative("house.org", "_olai/Trash.org", "finishes.md"))
     .toBe("../finishes.md")
-  expect(retargetRelative("_olai/Trash.olai", "house.olai", "../finishes.md"))
+  expect(retargetRelative("_olai/Trash.org", "house.org", "../finishes.md"))
     .toBe("finishes.md")
-  expect(retargetRelative("house.olai", "_olai/Trash.olai", "notes/palette.md"))
+  expect(retargetRelative("house.org", "_olai/Trash.org", "notes/palette.md"))
     .toBe("../notes/palette.md")
-  expect(retargetRelative("notes/plan.olai", "_olai/Trash.olai", "cabinets.md"))
+  expect(retargetRelative("notes/plan.org", "_olai/Trash.org", "cabinets.md"))
     .toBe("../notes/cabinets.md")
   expect(resolveRelative(
-    "_olai/Trash.olai",
-    retargetRelative("house.olai", "_olai/Trash.olai", "finishes.md"),
+    "_olai/Trash.org",
+    retargetRelative("house.org", "_olai/Trash.org", "finishes.md"),
   )).toBe("finishes.md")
 })
 
 test("a path climbing above the served directory clamps to it", () => {
-  expect(resolveRelative("plan.olai", "../../etc/passwd.md")).toBe("etc/passwd.md")
-  expect(resolveRelative("sub/plan.olai", "../../../a.md")).toBe("a.md")
+  expect(resolveRelative("plan.org", "../../etc/passwd.md")).toBe("etc/passwd.md")
+  expect(resolveRelative("sub/plan.org", "../../../a.md")).toBe("a.md")
 })
 
 test("docOf is where a node's doc lands, and nothing for a node without one", () => {
-  expect(docOf(nodeOf(`{"id":"a","ord":"a","title":"a","doc":"../n/a.md"}`, "sub/p.olai")))
+  expect(docOf(nodeOf(`{"id":"a","ord":"a","title":"a","doc":"../n/a.md"}`, "sub/p.org")))
     .toBe("n/a.md")
-  expect(docOf(nodeOf(`{"id":"a","ord":"a","title":"a"}`, "p.olai"))).toBeUndefined()
+  expect(docOf(nodeOf(`{"id":"a","ord":"a","title":"a"}`, "p.org"))).toBeUndefined()
 })
 
 // A mirror is a second PLACEMENT of a node, not a second copy of its fields:
 // the document belongs to the node it points at, and is drawn from there.
 test("a mirror attaches no document of its own", () => {
-  expect(docOf(nodeOf(`{"id":"m","ord":"a","mirror":"a"}`, "p.olai"))).toBeUndefined()
+  expect(docOf(nodeOf(`{"id":"m","ord":"a","mirror":"a"}`, "p.org"))).toBeUndefined()
 })
 
 // A picture is a file beside the text that names it, resolved the same way a
@@ -109,7 +109,7 @@ test("a relative link to a document resolves beside the file that names it", () 
   expect(bodiedOf("notes/palette.md", "finishes.md")).toBe("notes/finishes.md")
   expect(bodiedOf("notes/palette.md", "./finishes.md")).toBe("notes/finishes.md")
   // A note is written in an OUTLINE, and a link in one resolves the same way.
-  expect(bodiedOf("house.olai", "finishes.md")).toBe("finishes.md")
+  expect(bodiedOf("house.org", "finishes.md")).toBe("finishes.md")
 })
 
 // A space in the filename is still a filename. The arithmetic is the same as
@@ -120,7 +120,7 @@ test("a relative link to a document whose name has spaces resolves beside the fi
     .toBe("the brief.md")
   expect(bodiedOf("notes/palette.md", "the brief.md")).toBe("notes/the brief.md")
   expect(bodiedOf("notes/palette.md", "./the brief.md")).toBe("notes/the brief.md")
-  expect(bodiedOf("house.olai", "the brief.md")).toBe("the brief.md")
+  expect(bodiedOf("house.org", "the brief.md")).toBe("the brief.md")
 })
 
 // Markdown's portable spelling of a space in a destination is `%20`. A vault
@@ -128,7 +128,7 @@ test("a relative link to a document whose name has spaces resolves beside the fi
 // name contains the percent sign.
 test("a percent-encoded space in a document link names the file, not the encoding", () => {
   expect(bodiedOf("notes/palette.md", "the%20brief.md")).toBe("notes/the brief.md")
-  expect(bodiedOf("house.olai", "the%20brief.md")).toBe("the brief.md")
+  expect(bodiedOf("house.org", "the%20brief.md")).toBe("the brief.md")
   expect(bodiedOf("Daily/2026/08/2026-08-12.md", "../../../the%20brief.md"))
     .toBe("the brief.md")
 })
@@ -141,7 +141,7 @@ const named = (from: string, prose: string) =>
 test("a percent-encoded markdown link to a spaced name is that document", () => {
   expect(named("notes/plan.md", "see [the brief](the%20brief.md)"))
     .toEqual(["notes/the%20brief.md"])
-  expect(named("house.olai", "see [the brief](../the%20brief.md)"))
+  expect(named("house.org", "see [the brief](../the%20brief.md)"))
     .toEqual(["the%20brief.md"])
   expect(named("notes/plan.md", "see [scope](the%20brief.md#scope)"))
     .toEqual(["notes/the%20brief.md#scope"])
@@ -199,7 +199,7 @@ test("only a relative link to a file with a page is a document link", () => {
     "/finishes.md",
     "#beds",
     "",
-    "garden.olai",
+    "garden.org",
     "README",
     "the%ZZ.md",
     "%2Fsecret.md",
@@ -228,7 +228,7 @@ test("only picture extensions are pictures, case-insensitively", () => {
   expect(isPicture("a/shot.png")).toBe(true)
   expect(isPicture("a/SHOT.JPEG")).toBe(true)
   expect(isPicture("a/logo.svg")).toBe(false)
-  expect(isPicture("a/plan.olai")).toBe(false)
+  expect(isPicture("a/plan.org")).toBe(false)
   expect(isPicture("a/notes.md")).toBe(false)
   expect(isPicture("png")).toBe(false)
 })
@@ -255,7 +255,7 @@ test("a page, a picture, a pdf and the parts a page draws with are assets", () =
   expect(isAsset("a/text.woff2")).toBe(true)
   expect(isAsset("a/sales.csv")).toBe(false)
   expect(isAsset("a/notes.md")).toBe(false)
-  expect(isAsset("a/plan.olai")).toBe(false)
+  expect(isAsset("a/plan.org")).toBe(false)
   expect(isAsset("a/data.json")).toBe(false)
   expect(isAsset("js")).toBe(false)
 })

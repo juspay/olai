@@ -36,6 +36,7 @@ import { expect, test } from "bun:test"
 import { Result } from "effect"
 
 import { type Document, isOutline, type Outline, outlineDocument } from "./document.ts"
+import { orgFixture } from "./fixtures.testlib.ts"
 import { parseOutline } from "./parse.ts"
 import { assemble, type OutlineSet, withDocuments } from "./set.ts"
 import { following, type Reading, reading } from "./validate.ts"
@@ -72,13 +73,13 @@ const watched = (set: OutlineSet, tripwire: Tripwire): OutlineSet => ({
  *  vault has, at whatever size a case asks for. */
 const vault = (files: number): OutlineSet => {
   const decoded = new Map<string, Result.Result<Document, never>>()
-  decoded.set("_olai/Trash.olai", Result.succeed(outlineDocument("_olai/Trash.olai", [])))
+  decoded.set("_olai/Trash.org", Result.succeed(outlineDocument("_olai/Trash.org", [])))
   for (let which = 0; which < files; which++) {
-    const path = `wing/room-${String(which).padStart(4, "0")}.olai`
+    const path = `wing/room-${String(which).padStart(4, "0")}.org`
     const text = [0, 1, 2]
       .map((row) => `{"id":"n${which}-${row}","ord":"a${row}","title":"row ${row}"}`)
       .join("\n")
-    const read = parseOutline(path, text)
+    const read = parseOutline(path, orgFixture(text))
     if (Result.isFailure(read)) throw new Error(`fixture ${path} does not parse`)
     decoded.set(path, Result.succeed<Document>(read.success))
   }
@@ -89,7 +90,10 @@ const vault = (files: number): OutlineSet => {
  *  the set, and the one document below that is NOT behind the tripwire. */
 const written = (path: string, title: string): Outline => {
   const id = path.replace(/[^A-Za-z0-9_-]/g, "-")
-  const read = parseOutline(path, `{"id":"${id}","ord":"a0","title":"${title}"}`)
+  const read = parseOutline(
+    path,
+    orgFixture(`{"id":"${id}","ord":"a0","title":"${title}"}`),
+  )
   if (Result.isFailure(read)) throw new Error(`${path} does not parse`)
   return read.success
 }
@@ -132,9 +136,9 @@ test("the two doors answer the same reading of the same write", () => {
   for (const path of [
     // A file the directory already serves — the common case, and the one an
     // ordinary batch is made of.
-    "wing/room-0007.olai",
+    "wing/room-0007.org",
     // ...one that ARRIVES, which is what an op that archives a node does.
-    "aaa.olai",
+    "aaa.org",
   ]) {
     const { carried, checked: asChecked } = bothWays(40, path)
     expect([path, carried.set.documents]).toEqual([path, asChecked.set.documents])
@@ -148,8 +152,8 @@ test("the two doors answer the same reading of the same write", () => {
 })
 
 test("the records a write reads stop being the directory's", () => {
-  const small = bothWays(50, "wing/room-0007.olai")
-  const large = bothWays(500, "wing/room-0007.olai")
+  const small = bothWays(50, "wing/room-0007.org")
+  const large = bothWays(500, "wing/room-0007.org")
 
   // THE SHAPE OF THE BEFORE COLUMN IS THE COST: the reads grow with the
   // DIRECTORY, per write, for a write that touched one file. Every outline is
@@ -176,11 +180,11 @@ test("a write with nothing left to patch onto rebuilds, on either door", () => {
   // hits it on every op of a batch against a one-file vault.
   const set = assemble(
     new Map<string, Result.Result<Document, never>>([
-      ["only.olai", Result.succeed<Document>(written("only.olai", "the one file"))],
+      ["only.org", Result.succeed<Document>(written("only.org", "the one file"))],
     ]),
   )
   const read = reading(set)
-  const one = written("only.olai", "rewritten")
+  const one = written("only.org", "rewritten")
   const carried = following(read, [one])
   const asChecked = checked(read, one)
 
@@ -189,5 +193,5 @@ test("a write with nothing left to patch onto rebuilds, on either door", () => {
   expect([carried.derived.byId instanceof Map, asChecked.derived.byId instanceof Map])
     .toEqual([true, true])
   expect(carried.derived.nodes).toEqual(asChecked.derived.nodes)
-  expect(carried.derived.byId.get("only-olai")?.node).toMatchObject({ title: "rewritten" })
+  expect(carried.derived.byId.get("only-org")?.node).toMatchObject({ title: "rewritten" })
 })

@@ -255,7 +255,7 @@ export interface Derived {
    *
    * THE TRASH IS IN IT, like every other index here: what is put away is left
    * out at the READ (both readers do, each in its own words), because an index
-   * that knew about `_olai/Trash.olai` would be the format's storage rule wired
+   * that knew about `_olai/Trash.org` would be the format's storage rule wired
    * into a fold that is about what prose says.
    *
    * SOME KEYS CAN NEVER BECOME REFERENCES, and that is a decision rather than
@@ -895,8 +895,8 @@ const resolutions = (
     // Only a MIRROR stands for something: a regular record resolves to itself,
     // and filing it under its own id would say every node mirrors itself.
     if (!isMirror(located.node)) continue
-    // A leftover Archive.olai is not a live placement: it is not drawn on
-    // the trash page (unlike `_olai/Trash.olai`, which still counts) and it
+    // A leftover Archive.org is not a live placement: it is not drawn on
+    // the trash page (unlike `_olai/Trash.org`, which still counts) and it
     // is not a live outline. Filing it here would make `is:mirrored` re-enter
     // an orphaned file.
     if (isLeftoverArchive(located.file)) continue
@@ -1326,7 +1326,7 @@ const orderings = (
   const after = new Map<string, Array<string>>()
   const edgesTo = new Map<string, Set<string>>()
   /** File one edge, ONCE, in both directions. Both ends are resolved to nodes
-   *  before they get here, so a field repeating a target (a `.olai` is plain
+   *  before they get here, so a field repeating a target (a `.org` is plain
    *  text, and nothing refuses a hand that writes `after: [b, b]`), the two
    *  spellings of one arrow both written down, and two ids standing at one
    *  node through a mirror all arrive as the same pair — and each of them is
@@ -1590,7 +1590,7 @@ export const isBlocked = (derived: Derived, id: string): boolean =>
  * CHAINS FOLLOWED and THE TRASH INCLUDED, both inherited from the index
  * rather than decided here — which is what makes this the same answer
  * `read_node` hands back as `mirrors` (`@olai/ops`' `placementsOf`). A
- * placement in an `_olai/Trash.olai` is a placement: it is where the node is drawn
+ * placement in an `_olai/Trash.org` is a placement: it is where the node is drawn
  * on the trash page, and a reader who put one copy away has not thereby
  * unmirrored the node.
  */

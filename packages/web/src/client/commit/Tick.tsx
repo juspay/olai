@@ -9,7 +9,7 @@
  * rather than a span that would have to grow all three by hand.
  *
  * Its label is the file, and the file is the row: an outline's node changes
- * travel together, because a partial `.olai` write is not a thing that exists.
+ * travel together, because a partial `.org` write is not a thing that exists.
  */
 
 import { TESTID } from "../testids.ts"

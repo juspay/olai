@@ -10,10 +10,10 @@
  *
  * | Address | Names |
  * |---|---|
- * | `Tasks.olai` | an outline document |
+ * | `Tasks.org` | an outline document |
  * | `README.md` | a markdown document |
  * | `#a1b2c3` | a node — the document half is optional |
- * | `Tasks.olai#a1b2c3` | a ROW — the node, at the file that holds it |
+ * | `Tasks.org#a1b2c3` | a ROW — the node, at the file that holds it |
  * | `README.md#install` | a heading — the document half is required |
  *
  * **The document half of a node address is optional, and the bare id is what
@@ -21,7 +21,7 @@
  * renames and moves between files, so a bare `#id` outlives every edit short
  * of a delete — the property the browser's node permalink argued for, kept.
  *
- * The qualified spelling — `Tasks.olai#a1b2c3`, which is what somebody writes
+ * The qualified spelling — `Tasks.org#a1b2c3`, which is what somebody writes
  * when they know where the node lives — is read and KEPT, as the row arm. It
  * used to be normalised away to the bare node, on the argument that the file
  * in it is a fact that can go stale and the id beside it cannot. What that
@@ -52,7 +52,7 @@
  *
  * ## Which half decides what a `#` means
  *
- * `#install` after a `.md` is a heading and `#a1b2c3` after a `.olai` is a
+ * `#install` after a `.md` is a heading and `#a1b2c3` after a `.org` is a
  * node, and NOTHING about the two fragments tells them apart — both are text
  * somebody typed. What tells them apart is the DOCUMENT: an outline has nodes
  * and no headings, a body has headings and no nodes, and which of the two a
@@ -71,7 +71,7 @@
  * {@link printAddress} is total over an {@link Address}, and
  * {@link parseAddress} is total over any string — `null` for text that is not
  * an address, never a throw. The consumers are the address bar, a title in
- * `Pins.olai` that the format invites a hand and an agent to edit, and an
+ * `Pins.org` that the format invites a hand and an agent to edit, and an
  * href written in somebody's note; a `URIError` out of any of those is not a
  * bad address, it is a blank page, since a throw during render takes the tree
  * that was rendering with it. What cannot be read names nothing.
@@ -88,7 +88,7 @@ import { Schema } from "effect"
 import { type FileKind, fileKind, holdsBody } from "./kinds.ts"
 
 /**
- * A path that names a file the directory SERVES — `Tasks.olai`,
+ * A path that names a file the directory SERVES — `Tasks.org`,
  * `notes/README.md`, relative to the served root.
  *
  * The rule is the registry's ({@link fileKind}): a suffix no kind claims is not
@@ -150,7 +150,7 @@ export type Slug = typeof Slug.Type
 export const Tag = Schema.String.pipe(Schema.brand("Tag"))
 export type Tag = typeof Tag.Type
 
-/** A whole document: `Tasks.olai`, `notes/README.md`. */
+/** A whole document: `Tasks.org`, `notes/README.md`. */
 export const AtDocument = Schema.Struct({
   kind: Schema.Literal("document"),
   path: DocumentPath,
@@ -401,7 +401,7 @@ const LINKED = /^\[([^\]]*)\]\(([^()\s]+)\)$/
  *
  * It is here because the reader is, and for the same argument: two writers cut
  * this, on opposite sides of a wire — the SERVER, resolving the `pin` a
- * browser sent into the row it adds to `Pins.olai`
+ * browser sent into the row it adds to `Pins.org`
  * (`@olai/server`'s `edit.ts`), and the BROWSER, renaming a pin that is
  * already up there with the `set_title` an agent would send
  * (`@olai/web`'s `pins/naming.ts`). A title written one way and read another
@@ -426,7 +426,7 @@ const LINKED = /^\[([^\]]*)\]\(([^()\s]+)\)$/
  * not the same kind of decision: a `(` in a path is unspellable INSIDE a link
  * and means exactly what `%28` means to every reader of an address here — the
  * path is decoded per segment, the query by `URLSearchParams`, the element by
- * the grammar. So a named pin to `plan (old).olai` is a door, where a name with
+ * the grammar. So a named pin to `plan (old).org` is a door, where a name with
  * a bracket in it is refused. The bare form is untouched, because nothing about
  * it is inside a link.
  */
@@ -477,7 +477,7 @@ const escaped = (address: string): string =>
  * different reasons. `..` is somebody naming a place OUTSIDE the directory,
  * which is not a place this grammar has words for (the store refuses to read
  * one either). A leading slash is worse in the browser: an address is printed
- * after a `/`, so `/x.olai` would print as `//x.olai` — which a browser reads
+ * after a `/`, so `/x.org` would print as `//x.org` — which a browser reads
  * as a URL on ANOTHER HOST, and an address that can leave the site is not an
  * address this may mint.
  */

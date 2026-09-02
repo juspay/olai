@@ -69,7 +69,7 @@ export const trashQuestion = (
  *
  * THREE THINGS IT HAS TO SAY, and it says exactly those:
  *
- *   - HOW MANY rows go. Counted over the SET — every record in `_olai/Trash.olai`
+ *   - HOW MANY rows go. Counted over the SET — every record in `_olai/Trash.org`
  *     — and never over the rows this page is drawing, for
  *     `../menu/subtree.ts`'s reason one page along: a filter narrows what is on
  *     screen, and a sentence that counted the picture would understate the
@@ -94,7 +94,7 @@ export const trashQuestion = (
  *     reading of the repository beside the header's.
  */
 export const emptyQuestion = (
-  /** How many records the write deletes — every record in `_olai/Trash.olai`
+  /** How many records the write deletes — every record in `_olai/Trash.org`
    *  (`../page.ts` holds which files those are). */
   count: number,
 ): string => {

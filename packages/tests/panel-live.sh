@@ -31,7 +31,7 @@ mkdir -p "$work/vault"
 # The vault is the driver's own and deliberately small: what is being driven is
 # the PANEL, and a corpus shared with the suite would drift away from that the
 # moment a scenario needed a row.
-cat > "$work/vault/plan.olai" <<'OLAI'
+cat > "$work/vault/plan.org" <<'OLAI'
 {"id":"today","ord":"a0","title":"Today"}
 {"id":"call","parent":"today","ord":"a0","title":"call the joiner","todo":true,"desc":"about the hinges"}
 OLAI

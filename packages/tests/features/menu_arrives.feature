@@ -19,7 +19,7 @@ Feature: The ••• menu's primitive arrives when a row is asked for its menu
 
   @corpus:good
   Scenario: An outline paints without fetching the menu
-    When I open the outline "house.olai"
+    When I open the outline "house.org"
     And I hover the node "install"
     # Not "nothing was drawn": the `•••` is there to be pressed, and hovering
     # the row is not asking for a menu — it is the primitive behind the button
@@ -30,7 +30,7 @@ Feature: The ••• menu's primitive arrives when a row is asked for its menu
 
   @corpus:good
   Scenario: The first press fetches it, and no row after that fetches it again
-    When I open the outline "house.olai"
+    When I open the outline "house.org"
     And I open the node menu of "install"
     Then the node menu offers "Zoom in"
     And the menu's primitive was fetched once
@@ -54,7 +54,7 @@ Feature: The ••• menu's primitive arrives when a row is asked for its menu
   @corpus:good
   Scenario: While it is on its way, the ••• is still the •••
     Given the menu's primitive is held up
-    When I open the outline "house.olai"
+    When I open the outline "house.org"
     And I press the node menu of "install"
     # The button stays put in the same cell — there is no third thing to draw
     # and nothing in the gutter moves — and no panel until the chunk lands.
@@ -71,7 +71,7 @@ Feature: The ••• menu's primitive arrives when a row is asked for its menu
   @corpus:good
   Scenario: If it never comes, the row says so
     Given the menu's primitive never arrives
-    When I open the outline "house.olai"
+    When I open the outline "house.org"
     And I press the node menu of "install"
     Then the node menu of "install" says its menu never came
     And the node menu is closed
@@ -93,7 +93,7 @@ Feature: The ••• menu's primitive arrives when a row is asked for its menu
   @corpus:good
   Scenario: Changing your mind inside the window does not cancel the ask
     Given the menu's primitive is held up
-    When I open the outline "house.olai"
+    When I open the outline "house.org"
     And I press the node menu of "install"
     And I click away from the node menu
     And I press "Escape"

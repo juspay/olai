@@ -84,7 +84,7 @@
  * judgement ABOUT kolu, and it has a package of its own now:
  * `olai-plugin-kolu`. It walks the vault for who OWNS a terminal
  * (`claimants.ts` — outline records, injected into the dial rather than known
- * by it) and for what `_olai/Kolu.olai` says (`config.ts`); it decides what an
+ * by it) and for what `_olai/Kolu.org` says (`config.ts`); it decides what an
  * absent kolu MEANS, in five English sentences, over the probe it reaches
  * through `@olai/kolu-client/detect` (`probe.ts`, which was `@olai/chat`'s
  * until the plugin wall went up); and it owns the padi pill and the feed its
@@ -151,7 +151,7 @@ export interface KoluDeps<N> {
    *  The ruling's words: "the server passes the vault-walk in". */
   readonly claimants: (nodes: ReadonlyArray<N>) => Iterable<Claimant>
   /** THE SECOND VAULT WALK, injected, and the same boundary again. What
-   *  `_olai/Kolu.olai`'s watch knobs say is read off the same nodes by
+   *  `_olai/Kolu.org`'s watch knobs say is read off the same nodes by
    *  `olai-plugin-kolu`'s `config.ts`; what crosses is the derived
    *  intervals plus the malformed lines this package then says. The FILE is
    *  a QUESTION THE CALLER ANSWERED (the served-paths convention,
@@ -429,7 +429,7 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
    *  silence, so the walk is never answered twice.
    *
    *  It is the caller's own `file` ARGUMENT and not anything the config
-   *  walk hands back: a `_olai/Kolu.olai` the codec tore apart contributes
+   *  walk hands back: a `_olai/Kolu.org` the codec tore apart contributes
    *  no records, and the wrench onto it is exactly the door by which a
    *  person would go and repair it. */
   let deciding: string | null = null

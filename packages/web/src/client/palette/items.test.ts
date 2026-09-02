@@ -52,13 +52,13 @@ test("a search hit becomes a row that jumps to the node", () => {
   const item = hitItem(node({
     id: "hinges",
     title: "pick the hinges",
-    file: "house.olai",
+    file: "house.org",
     line: 6,
     path: ["kitchen remodel #home", "install the cabinets"],
     matched: "title",
   }), atOnce)
   expect(item.label).toBe("pick the hinges")
-  expect(item.from).toBe("house.olai")
+  expect(item.from).toBe("house.org")
   // The place is a LINE OF ITS OWN, never an inline hint: an ancestor title
   // is somebody's prose, and beside the title it starved it to one word per
   // line and scrolled the palette sideways.
@@ -72,7 +72,7 @@ test("the place reads NEAREST ancestor first, so a truncation keeps what situate
   const item = hitItem(node({
     id: "hinges",
     title: "pick the hinges",
-    file: "house.olai",
+    file: "house.org",
     line: 6,
     path: ["kitchen remodel #home", "install the cabinets"],
     matched: "title",
@@ -84,12 +84,12 @@ test("a node at the top level is placed by its file", () => {
   const top = hitItem(node({
     id: "buy",
     title: "Buy groceries",
-    file: "errands.olai",
+    file: "errands.org",
     line: 1,
     path: [],
     matched: "title",
   }), atOnce)
-  expect(top.place).toBe("errands.olai")
+  expect(top.place).toBe("errands.org")
 })
 
 test("a `>` line is a message to the agent", () => {

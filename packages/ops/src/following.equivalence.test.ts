@@ -193,8 +193,8 @@ test("one asking per batch: the carried answers are the SAME answers, until memb
     expect(carried.asked.broken).toBe(broken)
     // ...and the content the layer holds is the NEW content, which is what
     // makes the carrying legitimate rather than a stale answer.
-    expect(carried.asked.at("house.olai")).toBe(
-      carried.set.documents.find((document) => document.path === "house.olai"),
+    expect(carried.asked.at("house.org")).toBe(
+      carried.set.documents.find((document) => document.path === "house.org"),
     )
   }
 
@@ -217,7 +217,7 @@ test("a file MINTED mid-batch reaches what carries — the answers move, and the
   const fold = folding(at)
   const outlines = at.asked.outlines
 
-  const made = plan(at, { op: "create", file: "notes/plans.olai" })
+  const made = plan(at, { op: "create", file: "notes/plans.org" })
   if (Result.isFailure(made)) throw new Error(`refused: ${made.failure.message}`)
   const next = fold(made.success)
   if (Result.isFailure(next)) throw new Error("the fold refused")
@@ -227,21 +227,21 @@ test("a file MINTED mid-batch reaches what carries — the answers move, and the
   // that this directory does not serve the file the batch has just minted, and
   // the next op's `add` into it would be refused with a near miss.
   expect(next.success.asked.outlines).not.toBe(outlines)
-  expect(next.success.asked.serves.has("notes/plans.olai")).toBe(true)
-  expect(next.success.asked.at("notes/plans.olai")?.kind).toBe("outline")
+  expect(next.success.asked.serves.has("notes/plans.org")).toBe(true)
+  expect(next.success.asked.at("notes/plans.org")?.kind).toBe("outline")
   // And the op that follows it lands, which is the sentence that mattered.
-  const into = plan(next.success, { op: "add", file: "notes/plans.olai", title: "a first row" })
+  const into = plan(next.success, { op: "add", file: "notes/plans.org", title: "a first row" })
   expect(Result.isSuccess(into)).toBe(true)
 })
 
 test("a file MENDED mid-batch leaves `broken`, and what carries hears about it", () => {
-  // `torn.olai` is the corpus's unreadable file. Nothing can write it — every
+  // `torn.org` is the corpus's unreadable file. Nothing can write it — every
   // gate refuses — so the way it leaves `broken` in a batch is the way it does
   // on disk: somebody fixes the file. What this asserts is the CONTEXT's half
   // of that: the carrier declines rather than answering off an old `broken`.
   const at = start()
   const fold = folding(at)
-  expect(at.asked.broken.has("torn.olai")).toBe(true)
+  expect(at.asked.broken.has("torn.org")).toBe(true)
 
   const made = plan(at, { op: "todo", id: "loose" })
   if (Result.isFailure(made)) throw new Error("`todo` refused")
@@ -250,7 +250,7 @@ test("a file MENDED mid-batch leaves `broken`, and what carries hears about it",
   // A content write of ANOTHER file leaves the broken answer exactly where it
   // was — the carried one, the same object.
   expect(next.success.asked.broken).toBe(at.asked.broken)
-  expect(next.success.asked.broken.has("torn.olai")).toBe(true)
+  expect(next.success.asked.broken.has("torn.org")).toBe(true)
 })
 
 test("an intermediate context is a value: a later op does not move an earlier one's answers", () => {
@@ -279,7 +279,7 @@ test("an intermediate context is a value: a later op does not move an earlier on
   // Each context answers about the set it was built for, and about no other:
   // the note it holds for `loose` is the note that op wrote.
   const noteAt = (scope: Scope): string | undefined => {
-    const document = scope.asked.at("house.olai")
+    const document = scope.asked.at("house.org")
     if (document === undefined || document.kind !== "outline") return undefined
     const found = document.nodes.find((located) => located.node.id === "loose")
     return found === undefined || "mirror" in found.node ? undefined : found.node.desc
@@ -288,8 +288,8 @@ test("an intermediate context is a value: a later op does not move an earlier on
   // ...and each context's own set says the same thing, which is what makes the
   // layer a reading of that set rather than a memory of the run.
   for (const scope of scopes) {
-    expect(scope.asked.at("house.olai")).toBe(
-      scope.set.documents.find((document) => document.path === "house.olai"),
+    expect(scope.asked.at("house.org")).toBe(
+      scope.set.documents.find((document) => document.path === "house.org"),
     )
   }
 })

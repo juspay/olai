@@ -6,7 +6,7 @@
  *
  * `./memory.ts` remembers collapsed node ids grouped by the file each node is
  * defined in, and that memory has to survive a directory that moves under it:
- * a node somebody ARCHIVED is the same node in `_olai/Trash.olai` and keeps its
+ * a node somebody ARCHIVED is the same node in `_olai/Trash.org` and keeps its
  * fold, a node somebody DELETED should stop being remembered, and a file that
  * has stopped parsing says nothing at all about its nodes. All three were
  * answered out of one thing — the whole id→file map of the tab's own copy of

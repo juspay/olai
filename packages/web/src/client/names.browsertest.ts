@@ -39,7 +39,7 @@ import { createNames } from "./names.ts"
  *  a rule about the names table and nothing else. */
 const frame = (...names: ReadonlyArray<readonly [string, string]>): PageReading =>
   ({
-    names: names.map(([id, title]): Named => ({ id, title, file: "house.olai" })),
+    names: names.map(([id, title]): Named => ({ id, title, file: "house.org" })),
   }) as unknown as PageReading
 
 const driving = <A>(

@@ -321,7 +321,7 @@ When("I scroll to the bottom of the page", async function (this: OlaiWorld) {
  * THE BOTTOM IS THE HOSTILE PLACE, and that is worth saying rather than
  * working around quietly. A section holds its place at the top of the reading
  * while its own branch scrolls past (`client/Tree.tsx`), so at the very bottom
- * of `house.olai` the pinned `kitchen` heading lies exactly over
+ * of `house.org` the pinned `kitchen` heading lies exactly over
  * `install`'s bullet — an `elementFromPoint` survey of that page finds it is
  * the one row in the window whose bullet cannot be pressed. A reader who
  * wanted it would nudge the page; Playwright instead retries the click and
@@ -375,7 +375,7 @@ Then("the page is back where I left it", async function (this: OlaiWorld) {
   // page than the outline it came from, so the first attempt clamps, and
   // the retry can land a few pixels short of a bottom recorded on the
   // taller page. The claim is "where you were, not the top" — a 6px miss
-  // at the bottom of house.olai is that clamp, not a lost position.
+  // at the bottom of house.org is that clamp, not a lost position.
   const slop = 8;
   try {
     await this.waitUntil(

@@ -37,7 +37,7 @@ the built-in claim is `kolu-terminal` and not `terminal`.
 
 ### ...and one row moves it to whatever key you like
 
-`_olai/Properties.olai` says which of *your* columns is which kind, and it always
+`_olai/Properties.org` says which of *your* columns is which kind, and it always
 wins:
 
 ```jsonl

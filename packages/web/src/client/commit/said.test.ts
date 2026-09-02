@@ -72,7 +72,7 @@ const stopped = (said: string): GitState => git({ paused: said })
  *  else has — the two numbers `newsSays` and `isNews` read off the survey now
  *  that they take it whole. */
 const waiting = (count: number): Pending =>
-  surveyed(READY, { unreadable: Array.from({ length: count }, (_, at) => `f${at}.olai`) })
+  surveyed(READY, { unreadable: Array.from({ length: count }, (_, at) => `f${at}.org`) })
 
 const behind = (count: number): Pending =>
   surveyed(READY, { unpushed: { upstream: "origin/main", commits: count } })
@@ -118,7 +118,7 @@ test("a serve that never asks git cannot report a git fault", () => {
 })
 
 test("what is waiting outranks what was last recorded, and a busy repository says so", () => {
-  const one = { changes: [], unreadable: ["garden.olai"] }
+  const one = { changes: [], unreadable: ["garden.org"] }
   expect(faceOf(surveyed(READY, one), true, GIT_OFF)).toBe("waiting")
   expect(
     faceOf(
@@ -291,15 +291,15 @@ test("a fault that arrived with nothing to say still reads as a sentence", () =>
 })
 
 test("the sentence counts what the label counts", () => {
-  const waiting = surveyed(READY, { unreadable: ["garden.olai"] })
+  const waiting = surveyed(READY, { unreadable: ["garden.org"] })
   expect(explain("waiting", waiting, GIT_OFF)).toStartWith("1 change is")
-  const two = surveyed(READY, { unreadable: ["garden.olai", "shed.olai"] })
+  const two = surveyed(READY, { unreadable: ["garden.org", "shed.org"] })
   expect(explain("waiting", two, GIT_OFF)).toStartWith("2 changes are")
 })
 
 test("a busy repository says which interruption it is in", () => {
   const busy = surveyed({ _tag: "Blocked", reason: "rebase", said: "" }, {
-    unreadable: ["garden.olai"],
+    unreadable: ["garden.org"],
   })
   expect(explain("blocked", busy, GIT_OFF)).toContain("a rebase is in progress")
 })
@@ -338,18 +338,18 @@ test("the scope line says which part of the repository olai serves", () => {
  *
  * The wire carries one unambiguous name — repo-root-relative, the namespace a
  * commit request ticks in — and this is the rendering the outline list does to
- * it, so that a rename inside `docs/` reads `a.olai → b.olai` rather than
+ * it, so that a rename inside `docs/` reads `a.org → b.org` rather than
  * spelling the served directory once on each side of the arrow.
  */
 test("a rename's other half is shortened to the served spelling, and only there", () => {
-  expect(localOf("docs/a.olai", "docs/")).toBe("a.olai")
+  expect(localOf("docs/a.org", "docs/")).toBe("a.org")
   // Served AT the root, where the two spellings are already the same string.
-  expect(localOf("a.olai", "")).toBe("a.olai")
+  expect(localOf("a.org", "")).toBe("a.org")
   // From OUTSIDE the served root, where the repo-relative name is the only one
   // that names a file that exists. Shortening by prefix alone would have turned
-  // `docsy/a.olai` into `a.olai` — a file one directory over, or none at all.
+  // `docsy/a.org` into `a.org` — a file one directory over, or none at all.
   expect(localOf("README.md", "docs/")).toBe("README.md")
-  expect(localOf("docsy/a.olai", "docs/")).toBe("docsy/a.olai")
+  expect(localOf("docsy/a.org", "docs/")).toBe("docsy/a.org")
   // Nothing to say for a row that did not move.
   expect(localOf(null, "docs/")).toBe(null)
 })
@@ -458,7 +458,7 @@ test("every status a file can be in has a word", () => {
 /**
  * A dirty outline whose bytes moved with NO node moving still counts.
  *
- * The reviewer's reproduction: add a blank line to a `.olai` and the file is
+ * The reviewer's reproduction: add a blank line to a `.org` and the file is
  * dirty, listed, and committable, while `changes` is empty — so a tally of node
  * changes read zero and the pill said `committed` over a panel offering to
  * commit it. `outlines` exists precisely so that reformat is not invisible, and
@@ -468,7 +468,7 @@ test("an outline that changed no node is still something waiting", () => {
   const reformatted: Pending = {
     ...NOTHING_PENDING,
     repo: READY,
-    outlines: [{ file: "garden.olai", path: "garden.olai", how: "modified", from: null }],
+    outlines: [{ file: "garden.org", path: "garden.org", how: "modified", from: null }],
     last: { sha: "abc", message: "olai: earlier", writer: "web", at: "" },
   }
   expect(waitingIn(reformatted)).toBe(1)
@@ -478,7 +478,7 @@ test("an outline that changed no node is still something waiting", () => {
   const changed: Pending = {
     ...reformatted,
     changes: [{
-      file: "garden.olai",
+      file: "garden.org",
       id: "mint",
       title: "split the mint",
       fields: ["done"],
@@ -489,7 +489,7 @@ test("an outline that changed no node is still something waiting", () => {
 
   // An outline that does not parse is its own row and is not double-counted
   // with the file it names either.
-  const broken: Pending = { ...reformatted, unreadable: ["garden.olai"] }
+  const broken: Pending = { ...reformatted, unreadable: ["garden.org"] }
   expect(waitingIn(broken)).toBe(1)
 
   // A clean tree is still clean, which is the other half of the fence.
@@ -545,7 +545,7 @@ test("the panel promises to record only what there is to record", () => {
   expect(willRecord(waiting(2), { ...windowed, paused: "no upstream" })).toBe(false)
   expect(willRecord(
     surveyed({ _tag: "Blocked", reason: "rebase", said: "" }, {
-      unreadable: ["garden.olai"],
+      unreadable: ["garden.org"],
     }),
     windowed,
   )).toBe(false)

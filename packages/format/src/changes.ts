@@ -8,9 +8,8 @@
  * tree, and a past change is a commit against its parent
  * (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/git-commits.md).
  *
- * **Never a text diff.** A `.olai` diff is one enormous line per node with
- * everything on it changing at once, which is exactly the thing this format
- * bought line-based merges with — and exactly the thing nobody can read. The
+ * **Never a text diff.** A raw `.org` diff exposes a multi-line storage drawer
+ * rather than the semantic node change. The
  * unit here is a NODE, and what a reader is told is what CHANGED ABOUT IT:
  * marked done, note rewritten, moved, archived.
  *
@@ -141,7 +140,7 @@ interface Placed {
  *
  * Matched by ID ACROSS FILES rather than within one, so archiving reads as one
  * change to one node rather than as a removal and an unrelated arrival: the
- * subtree left `roadmap.olai` and is in `_olai/Trash.olai`, which is what
+ * subtree left `roadmap.org` and is in `_olai/Trash.org`, which is what
  * happened. Both files are dirty in that case, so both sides are in hand.
  *
  * The answer is in file order — the `after` side's, then whatever only the

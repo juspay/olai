@@ -46,7 +46,7 @@ import {
   type Scope,
   selecting,
 } from "./filter.ts"
-import { seeded } from "./fixtures.testlib.ts"
+import { orgFixture, seeded } from "./fixtures.testlib.ts"
 import { bodyKind, fileKind, unkept } from "./kinds.ts"
 import { isMirror, type LocatedRegular } from "./node.ts"
 import { parseOutline } from "./parse.ts"
@@ -316,16 +316,16 @@ const spelled = (one: Matched): string =>
  *   - THE ARCHIVE, a subtree of it, so a scope and the trash rule meet.
  */
 export const TANGLED: Readonly<Record<string, string>> = {
-  // `far.olai` sorts BEFORE `tangled.olai`, which is what makes the order half
+  // `far.org` sorts BEFORE `tangled.org`, which is what makes the order half
   // of the comparison real: a descent of `t-root` reaches `t-cross` last and
   // the corpus holds it first.
-  "far.olai": [
+  "far.org": [
     `{"id":"t-far","ord":"a0","title":"far kitchen root"}`,
     `{"id":"t-target","parent":"t-far","ord":"a1","title":"the kitchen target","todo":true}`,
     `{"id":"t-target-child","parent":"t-target","ord":"a2","title":"kitchen under the target"}`,
     `{"id":"t-cross","parent":"t-live","ord":"a3","title":"kitchen written in another file"}`,
   ].join("\n"),
-  "tangled.olai": [
+  "tangled.org": [
     `{"id":"t-root","ord":"a0","title":"tangled kitchen root"}`,
     `{"id":"t-live","parent":"t-root","ord":"a1","title":"a live kitchen branch","todo":true}`,
     `{"id":"t-inner","parent":"t-live","ord":"a2","title":"kitchen deeper in","desc":"walnut"}`,
@@ -337,7 +337,7 @@ export const TANGLED: Readonly<Record<string, string>> = {
     `{"id":"t-loop-b","parent":"t-loop-a","ord":"a8","title":"kitchen in a loop, two"}`,
     `{"id":"t-orphan","parent":"t-nobody","ord":"a9","title":"kitchen under nothing"}`,
   ].join("\n"),
-  "_olai/Trash.olai": [
+  "_olai/Trash.org": [
     `{"id":"t-gone","ord":"a0","title":"an old kitchen plan"}`,
     `{"id":"t-gone-child","parent":"t-gone","ord":"a1","title":"kitchen, once"}`,
   ].join("\n"),
@@ -371,7 +371,7 @@ export const deepVaultOf = (
   const corpus = new Map<string, string>()
   for (let at = 0; at < files; at++) {
     corpus.set(
-      at % 5 === 0 ? `area${at % 7}/deep${at}.olai` : `deep${at}.olai`,
+      at % 5 === 0 ? `area${at % 7}/deep${at}.org` : `deep${at}.org`,
       deepFileOf(random, at, records),
     )
   }
@@ -546,7 +546,7 @@ export const decodedVault = (
       // A file with no BODY KIND is an outline — the one kind that holds
       // records rather than text, which is what makes it the else of this.
       bodyKind(file) === null
-        ? Result.mapError(parseOutline(file, text), verdictOf)
+        ? Result.mapError(parseOutline(file, orgFixture(text)), verdictOf)
         : Result.succeed<Document>(bodiedDocument(file, text)),
     )
   }
@@ -586,7 +586,15 @@ export const vaultAt = (dir: string): ReadonlyMap<string, string> => {
     for (const entry of fs.readdirSync(path.join(dir, at), { withFileTypes: true })) {
       const file = at === "" ? entry.name : `${at}/${entry.name}`
       if (entry.isDirectory()) walk(file)
-      else if (fileKind(file) !== null && !unkept(file)) {
+      else if (file.endsWith(".olai")) {
+        // The pinned production corpus predates this POC. Migrate it in
+        // memory so the differential keeps exercising the same real data
+        // without teaching the product parser a compatibility mode.
+        vault.set(
+          `${file.slice(0, -".olai".length)}.org`,
+          fs.readFileSync(path.join(dir, file), "utf8"),
+        )
+      } else if (fileKind(file) !== null && !unkept(file)) {
         vault.set(file, fs.readFileSync(path.join(dir, file), "utf8"))
       }
     }

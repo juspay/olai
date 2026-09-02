@@ -113,7 +113,7 @@ function Row(props: { readonly error: OutlineError }) {
 /** `file:line`, or just the file when there is no line to name. WHICH of those
  *  it is comes from the format (`hasLine`) rather than from a comparison
  *  written here: an agent's one-liner and these rows must not disagree about
- *  whether `plan.olai:0` is a line number somebody could go and look for.
+ *  whether `plan.org:0` is a line number somebody could go and look for.
  *
  *  It takes the format's {@link Site} WHOLE rather than the two fields apart,
  *  and the difference is not tidiness: taken apart, this was a sixth spelling

@@ -1,0 +1,27 @@
+* the coast trip
+:PROPERTIES:
+:ID: trip
+:OLAI_KIND: regular
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "the coast trip"
+:END:
+
+** book the ferry
+:PROPERTIES:
+:ID: ferry
+:OLAI_KIND: regular
+:OLAI_PARENT: "trip"
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "book the ferry"
+:OLAI_DATE: "2019-11-05T09:00"
+:END:
+
+** pack the bags
+:PROPERTIES:
+:ID: pack
+:OLAI_KIND: regular
+:OLAI_PARENT: "trip"
+:OLAI_ORD: "a1"
+:OLAI_TITLE: "pack the bags"
+:OLAI_DATE: "2019-11-06"
+:END:

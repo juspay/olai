@@ -43,7 +43,7 @@ import * as path from "node:path"
 
 import { NodeServices } from "@effect/platform-node"
 import { NO_KINDS, type Owed, owedOf, type WriteRequest } from "@olai/format"
-import { walkedAgenda, walkedDays } from "@olai/format/testlib"
+import { orgFixture, walkedAgenda, walkedDays } from "@olai/format/testlib"
 import * as StoreModule from "@olai/store"
 import { expect, test } from "bun:test"
 import { Effect, SubscriptionRef } from "effect"
@@ -150,11 +150,11 @@ test("every write leaves the counted door answering what the corpus walk does", 
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-owed-")))
   const write = (file: string, contents: string): void => {
     fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true })
-    fs.writeFileSync(path.join(root, file), contents)
+    fs.writeFileSync(path.join(root, file), file.endsWith(".org") ? orgFixture(contents) : contents)
   }
-  write("work.olai", WORK)
-  write("life.olai", LIFE)
-  write("_olai/Trash.olai", TRASH)
+  write("work.org", WORK)
+  write("life.org", LIFE)
+  write("_olai/Trash.org", TRASH)
 
   /** The ops in order, each chosen for the shape of change it makes the count
    *  follow. The four the roadmap node names — a date moving, a mark arriving
@@ -210,7 +210,7 @@ test("every write leaves the counted door answering what the corpus walk does", 
     { op: "add", parent: "deck", title: "the sander arrives", date: "2026-08-02" },
     // A whole FILE minted, so the delta names a path the day index has never
     // had a record from.
-    { op: "create", file: "shed.olai", seed: { title: "the shed" } },
+    { op: "create", file: "shed.org", seed: { title: "the shed" } },
     // ...and NEW OWED work on that same day, which is the tally's key arriving
     // one write after the journal's did.
     { op: "add", parent: "deck", title: "sand the rails", date: "2026-08-02", mark: "todo" },
@@ -219,7 +219,7 @@ test("every write leaves the counted door answering what the corpus walk does", 
     { op: "move", id: "pack", parent: "ferry" },
     // The trash EMPTIED: records leave the set outright, from a file the day
     // index has never had a key for.
-    { op: "empty", file: "_olai/Trash.olai" },
+    { op: "empty", file: "_olai/Trash.org" },
   ]
 
   return Effect.gen(function*() {

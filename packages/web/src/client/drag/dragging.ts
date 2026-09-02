@@ -245,8 +245,8 @@ export const createDragging = (
    *     It is also the same reading the FADE now uses (`./air.ts`), so what is
    *     drawn as being in the air and what is refused as a landing cannot come
    *     from two opinions.
-   *   - **Every row of another FILE.** A row from `house.olai` has no landing
-   *     among the rows a mirror of `garden.olai` expands — they are drawn in
+   *   - **Every row of another FILE.** A row from `house.org` has no landing
+   *     among the rows a mirror of `garden.org` expands — they are drawn in
    *     this tree and they are records of that one. That was the format's rule
    *     when it was written (review, 2026-08-14) and it is the GESTURE's now:
    *     `move_node` carries a subtree to another outline, so such a drop would

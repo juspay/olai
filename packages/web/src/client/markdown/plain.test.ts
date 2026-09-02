@@ -29,7 +29,7 @@ import { tagStyle } from "../theme/tagInk.ts"
 
 installPipeline(pipeline)
 
-const NOTE = "house.olai"
+const NOTE = "house.org"
 
 /**
  * The long way round: the pipeline, forced inline, then the tag split — which
