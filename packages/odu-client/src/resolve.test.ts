@@ -83,11 +83,41 @@ test("an ABSOLUTE worktree is used as written — the board's way out of the gue
 })
 
 test("a relative worktree with no repository resolves to NOTHING, and is not probed", () => {
-  // Not a fallback: the two facts a node must carry for a face are a path and
-  // which tree it is in, and inventing the second is exactly the wrong door
-  // this repo's display rules refuse everywhere else.
+  // Not a fallback from thin air: the two facts a node must carry for a face
+  // are a path and which tree it is in, and inventing the second is exactly
+  // the wrong door this repo's display rules refuse everywhere else. A repo
+  // the vault walk HANDED OVER is the other fact, below — not invented here.
   expect(worktreeAt({ value: ".worktrees/a" }, ROOT)).toBeUndefined()
   expect(worktreeAt({ value: ".worktrees/a", prUrl: "not a url" }, ROOT)).toBeUndefined()
+})
+
+test("a relative worktree with no PR URL uses a repo the walk handed over", () => {
+  // THE SILENT SHAPE (2026-09-02): a lane that runs CI before it opens a PR
+  // has a relative checkout and no URL. The walk now hands the repository
+  // from the row's own file; this is that name, spent the same way a PR URL's
+  // repo is spent. Inventing one here would still be the wrong door.
+  expect(worktreeAt({ value: ".worktrees/flake-shakeout", repo: "olai" }, ROOT))
+    .toBe("/home/x/code/olai/.worktrees/flake-shakeout")
+})
+
+test("a PR URL still wins over a handed-over repo", () => {
+  expect(
+    worktreeAt(
+      {
+        value: ".worktrees/a",
+        prUrl: "https://github.com/juspay/odu/pull/94",
+        repo: "olai",
+      },
+      ROOT,
+    ),
+  ).toBe("/home/x/code/odu/.worktrees/a")
+})
+
+test("a handed-over repo that is not a repository name is refused", () => {
+  expect(worktreeAt({ value: ".worktrees/a", repo: ".." }, ROOT)).toBeUndefined()
+  expect(worktreeAt({ value: ".worktrees/a", repo: "." }, ROOT)).toBeUndefined()
+  expect(worktreeAt({ value: ".worktrees/a", repo: "olai/nested" }, ROOT)).toBeUndefined()
+  expect(worktreeAt({ value: ".worktrees/a", repo: "" }, ROOT)).toBeUndefined()
 })
 
 test("an empty worktree names nothing", () => {
