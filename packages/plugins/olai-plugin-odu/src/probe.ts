@@ -66,10 +66,12 @@ export interface StdioServer {
   readonly env: Readonly<Record<string, string>>
 }
 
-/** ...and the other half. `where` is never `null` here: the one way an odu
- *  can BE expected and fail is by having been resolved and started, and a
- *  `where` is the first thing that path takes. `why` is a WHOLE SENTENCE and
- *  it is this package's — core displays it and never composes one. */
+/** ...and the other half. `where` is `null` in exactly one arm: a PATH with
+ *  no `odu` on it at all ({@link probe}), where nothing was resolved so there
+ *  is nothing to name. Every OTHER way an odu can fail begins by having been
+ *  resolved and started, and a `where` is the first thing that path takes.
+ *  `why` is a WHOLE SENTENCE and it is this package's — core displays it and
+ *  never composes one. */
 export interface NotHere {
   readonly name: string
   readonly where: string | null
@@ -83,8 +85,11 @@ export interface NotHere {
 export interface Probed {
   /** The server to hand a session, or `null` where there is none to hand. */
   readonly server: StdioServer | null
-  /** What a person is owed about the one they did not get, or `null` where an
-   *  absence is the ordinary case and no fault. */
+  /** What a person is owed about the one they did not get, or `null` the
+   *  moment a server IS handed over. There is no quiet-absence case for odu:
+   *  a packaged olai bakes the binary onto the server's PATH (nix/odu.nix),
+   *  so a resolve that finds nothing is a fact somebody must see, never an
+   *  ordinary state. */
   readonly missing: NotHere | null
 }
 
@@ -263,6 +268,14 @@ const resolveOn = (path: string | undefined): string | null => {
   return null
 }
 
+/** The one sentence for the resolve that found NOTHING — the command named,
+ *  said not to be on the server's PATH, with the baked-in ruling carried so
+ *  the row is also the directions out ({@link probe}'s header argues it).
+ *  kolu's `EXPECTED` is the same sentence one appliance over, pinned there
+ *  to `PADI_SOCKET`; here the bake itself is what expects. */
+const NOT_FOUND = `no \`${ODU_COMMAND}\` is on the PATH this server was started with`
+  + " — a packaged olai carries one, so this serve did not come from the build"
+
 /**
  * ASK THIS HOST — one resolve, one spawn, one round trip, per conversation.
  *
@@ -274,13 +287,22 @@ const resolveOn = (path: string | undefined): string | null => {
  * session's own spawn will resolve against, and a composition root is the one
  * place a real `process.env` belongs.
  *
- * ## Absence is QUIET, and there is no arm that makes it loud
+ * ## Absence is LOUD, because a packaged olai carries an odu
  *
- * Nothing on a machine says odu was EXPECTED here: no environment variable
- * names it the way `PADI_SOCKET` names a padi on kolu's side, and the board's
- * `odu-worktree` values licence a socket DIAL — which the watcher half pays
- * with or without a binary anywhere. An absent `odu` is the ordinary case,
- * answered bare.
+ * The build bakes the pinned `odu` binary onto the server's PATH (the
+ * wrapper in the root default.nix, from nix/odu.nix), so every documented
+ * start — `nix run`, the packaged binary, `just serve`, the home-manager
+ * unit — resolves one. A probe that finds NOTHING is therefore not the
+ * ordinary case; it is a serve started from outside the build (a bare
+ * `bun` invocation, somebody's hand-rolled unit), and the difference
+ * between the two is exactly what a person on the second kind needs to
+ * see rather than to infer from a conversation that simply has no CI
+ * verbs. Silence here was the production incident: a host that ran all
+ * its odu through `nix run github:juspay/odu` installed nothing, and the
+ * quiet arm meant the feature could never fire while the panel said
+ * nothing about why. The sentence is odu's own spelling of kolu's
+ * `EXPECTED` one appliance over: the command named, said not to be on
+ * the server's PATH, with `where` null because nothing was resolved.
  *
  * ## A found one that will not answer is a sentence
  *
@@ -292,7 +314,7 @@ const resolveOn = (path: string | undefined): string | null => {
  */
 export const probe = async (env: Record<string, string | undefined>): Promise<Probed> => {
   const found = resolveOn(env["PATH"])
-  if (found === null) return { server: null, missing: null }
+  if (found === null) return { server: null, missing: { name: ODU_COMMAND, where: null, why: NOT_FOUND } }
 
   const child = spawn(found, [...ARGS], { stdio: ["pipe", "pipe", "ignore"] })
   const verdict = await askOver(child, DEADLINE_MS)

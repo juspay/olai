@@ -6,7 +6,7 @@
 { pkgs ? import ./nix/nixpkgs.nix { }, b2n, rev ? "dev" }:
 let
   kolu = import ./nix/kolu.nix { inherit pkgs; };
-  odu = import ./nix/odu.nix { inherit pkgs; };
+  odu = import ./nix/odu.nix { inherit pkgs b2n; };
   version = (pkgs.lib.importJSON ./package.json).version;
 
   # @kolu/surface-app's own helper for stamping a build's commit into the
@@ -133,6 +133,12 @@ let
   # nix-built olai needs nothing ambient, and two machines run the same adapter.
   acp-agent = pkgs.callPackage ./nix/acp-agent.nix { };
 
+  # The pinned odu BINARY, the second half of what the odu pin vendors
+  # (nix/odu.nix): the chat probe resolves `odu` on the SERVER's PATH, so a
+  # packaged olai puts it there itself rather than asking a host to have one —
+  # the acp-agent line's own argument, one integration over.
+  odu-bin = odu.bin;
+
   olai = pkgs.runCommand "olai"
     {
       nativeBuildInputs = [ pkgs.makeWrapper ];
@@ -146,9 +152,10 @@ let
       --add-flags "${base}/packages/server/src/main.ts" \
       --set OLAI_DIST_DIR "${olai-client}" \
       --set-default OLAI_ACP_AGENT "${acp-agent}/bin/claude-agent-acp" \
-      --set-default OLAI_ACP_PI "${acp-agent}/bin/pi-acp"
+      --set-default OLAI_ACP_PI "${acp-agent}/bin/pi-acp" \
+      --prefix PATH : "${odu-bin}/bin"
   '';
 in
 {
-  inherit olai olai-client olai-fonts kolu-mark odu-mark base acp-agent;
+  inherit olai olai-client olai-fonts kolu-mark odu-mark base acp-agent odu-bin;
 }

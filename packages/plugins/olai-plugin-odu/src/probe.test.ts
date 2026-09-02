@@ -10,8 +10,10 @@
  * environment it is a claim about, and a machine really running odu decides
  * none of them.
  *
- * WHAT IS PINNED: absence is bare (nothing on a machine says odu was
- * expected); an answer carrying the six verbs WITH `checkout` on every one is
+ * WHAT IS PINNED: absence is a MISSING ROW, never quiet (a packaged olai
+ * bakes the binary onto the server's PATH, so a resolve that finds nothing
+ * names the command and says so, with no `where` — nothing was resolved);
+ * an answer carrying the six verbs WITH `checkout` on every one is
  * the server a session gets (path pinned, args are `mcp`, env empty); a
  * missing VERB and a missing `checkout` are TWO sentences, because they are
  * two different fixes; a wedged server and a hung-up one are told apart by
@@ -108,10 +110,15 @@ const handshake = (tools: Record<string, unknown> = SURFACE): Record<number, unk
 })
 
 describe("odu's mcp, asked for fresh", () => {
-  test("no `odu` on the probed PATH is the ordinary case, and is told bare", async () => {
+  test("no `odu` on the probed PATH is a missing row, never quiet — a packaged olai carries one", async () => {
     const none = mkdtempSync(join(tmpdir(), "olai-odu-"))
     made.push(none)
-    expect(await probe({ PATH: none })).toEqual({ server: null, missing: null })
+    const found = await probe({ PATH: none })
+    expect(found.server).toBeNull()
+    expect(found.missing?.name).toBe("odu")
+    expect(found.missing?.where).toBeNull()
+    expect(found.missing?.why).toContain("`odu`")
+    expect(found.missing?.why).toContain("PATH")
   })
 
   test("an answering `odu` with the shape is handed over, by its own resolved path", async () => {
