@@ -158,6 +158,10 @@ export const TESTID = {
    *  place a person went, and it stays up across an assignment because moving
    *  several chats is one job. */
   unassignedDone: "unassigned-done",
+  /** The sentence a list with nothing left in it draws — and the claim that
+   *  must not be made where an agent could not be asked, which is why a
+   *  scenario can name it. */
+  unassignedEmpty: "unassigned-empty",
   /** What an assignment said — the node it landed on, or why it did not.
    *  A node already talking through a conversation is the refusal a person has
    *  to be able to read. */

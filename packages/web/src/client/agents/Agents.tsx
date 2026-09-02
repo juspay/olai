@@ -79,14 +79,19 @@ export function Agents() {
   // THE JOIN IS THE PROVIDER'S, once for the whole app (`./answered.tsx`), so
   // this column and every door on the page are reading one answer rather than
   // each folding the same two cells for itself.
-  const { rows, unassigned, askChats } = useAgents()
+  const { rows, unassigned, unreachable, askChats } = useAgents()
+  /** Whether the last row has anything to say — chats waiting for a node, or
+   *  an agent nobody could ask what it has. The second is why it is not simply
+   *  a count: *we did not get to look* is news too, and a row that drew only on
+   *  a number would swallow it. */
+  const spare = () => unassigned().length > 0 || unreachable().length > 0
   /** *Take me to this agent* — its node, and its conversation — and whatever
    *  that press had to say ({@link ./focus.ts}, which argues why one press
    *  means both and owns the wording of a refusal). */
   const focus = createFocus()
 
   return (
-    <Show when={rows().length > 0 || unassigned().length > 0}>
+    <Show when={rows().length > 0 || spare()}>
       <section class={REGION} data-testid={TESTID.agentRoster}>
         <h2 class={REGION_LABEL}>Agents</h2>
         <ul class="m-0 list-none p-0">
@@ -101,9 +106,10 @@ export function Agents() {
             {(row) => <AgentRow row={row()} onPress={() => focus.press(row())} />}
           </Key>
           {/* ... and the chats that are nobody's yet, LAST. */}
-          <Show when={unassigned().length > 0}>
+          <Show when={spare()}>
             <UnassignedRow
               many={unassigned().length}
+              unasked={unreachable().length}
               onPress={() => {
                 // ASKED AGAIN ON THE PRESS, because the answer behind the count
                 // is a question about somebody's disk and a `claude --resume`
@@ -201,7 +207,15 @@ function AgentRow(props: { readonly row: Row; readonly onPress: () => void }) {
  * sitting there. Its own testid, since "there is a row" and "it counts twelve"
  * are two claims and a scenario about migration is about the second.
  */
-function UnassignedRow(props: { readonly many: number; readonly onPress: () => void }) {
+function UnassignedRow(props: {
+  readonly many: number
+  /** How many agents could not be asked what they have stored. The row draws
+   *  for these too, with nothing else on it: *we did not get to look* is the
+   *  one thing a count cannot say, and the list is where it is said in full
+   *  ({@link ./Unassigned.tsx}). */
+  readonly unasked: number
+  readonly onPress: () => void
+}) {
   return (
     <li class="mb-0.5">
       <button
@@ -214,12 +228,19 @@ function UnassignedRow(props: { readonly many: number; readonly onPress: () => v
         <span class="min-w-0 flex-1">
           <span class="block truncate text-[0.875rem] leading-snug text-paper/70">Unassigned</span>
           <span class="block truncate text-[0.75rem] leading-snug text-paper/55">
-            {props.many === 1 ? "1 chat" : `${props.many} chats`} · assign each to a node
+            {props.many > 0
+              ? `${props.many === 1 ? "1 chat" : `${props.many} chats`} · assign each to a node`
+              : `${props.unasked === 1 ? "1 agent" : `${props.unasked} agents`} could not be asked`}
           </span>
         </span>
-        <span class={`${CHIP_QUIET} shrink-0`} data-testid={TESTID.agentUnassignedCount}>
-          {props.many}
-        </span>
+        {/* THE COUNT IS OF CHATS, so it is absent where there are none — a `0`
+            beside a row that is there because something could not be asked
+            would be the answer nobody has. */}
+        <Show when={props.many > 0}>
+          <span class={`${CHIP_QUIET} shrink-0`} data-testid={TESTID.agentUnassignedCount}>
+            {props.many}
+          </span>
+        </Show>
       </button>
     </li>
   )

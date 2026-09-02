@@ -63,12 +63,14 @@
  * ({@link Roster.askChats}), which is the same bargain the session picker
  * already makes on every open.
  *
- * A REFUSAL IS NO LIST. A serve with no ACP agent refuses this call, and what
- * it draws is what a directory with nothing stored draws: no Unassigned row.
- * That is the one place this differs from the picker, which must say *we did
- * not get to look* rather than *there is nothing* — the picker is a list
- * somebody opened, and this is a row nobody asked for. A row that could not be
- * counted is a row with nothing to say.
+ * WHAT COULD NOT BE ASKED IS KEPT, in both of its sizes. One agent that could
+ * not answer is a row of the answer ({@link Roster.unreachable}) and the whole
+ * ask not landing is {@link Roster.chatsRefusal} — and neither empties the last
+ * list this tab had. Both are drawn where the conversations are, because *we
+ * did not get to look* and *there is nothing here* are different answers and
+ * this list is now the only place either can be said. The sidebar's ROW is the
+ * one reader that says less: it counts chats, and a count is not a sentence, so
+ * it draws for an unreachable agent without pretending to number one.
  *
  * BEFORE THE FIRST FRAME the roster is empty, which is the same thing a
  * directory with no `agent-session` property anywhere says and the same thing it draws:
@@ -89,7 +91,13 @@ import {
   useContext,
 } from "solid-js"
 
-import { type AgentChoice, type Listed, NO_AGENT_ROSTER, type SessionInfo } from "@olai/surface"
+import {
+  type AgentChoice,
+  type Listed,
+  NO_AGENT_ROSTER,
+  type SessionInfo,
+  type Unreachable,
+} from "@olai/surface"
 
 import { createChatState } from "../chat/state.ts"
 import { run } from "../run.ts"
@@ -118,6 +126,25 @@ export interface Roster {
    * same nothing, which is what the row does with them.
    */
   readonly unassigned: Accessor<ReadonlyArray<SessionInfo>>
+  /**
+   * ... AND THE WHOLE ANSWER THE LISTING GAVE, for the readers that need more
+   * of it than the difference: which agents COULD NOT BE ASKED and what they
+   * said about it, and the links that make one conversation another's history.
+   *
+   * `null` until an answer has arrived, which is a list nobody can draw yet
+   * rather than an empty one.
+   */
+  readonly chats: Accessor<Listed | null>
+  /** WHICH AGENTS COULD NOT BE ASKED what they have stored, and why — that
+   *  answer's own arm, read off it here rather than at each face, because two
+   *  faces draw it: the row that says there is something to look at, and the
+   *  list that names them. Empty before an answer and where every agent
+   *  answered. */
+  readonly unreachable: Accessor<ReadonlyArray<Unreachable>>
+  /** ... and why the last ask did not land at all — a dropped socket, a server
+   *  that went — as opposed to one agent that could not be asked, which is a
+   *  row of the answer above. `null` when the last ask landed. */
+  readonly chatsRefusal: Accessor<string | null>
   /** Ask the agents again — what a person opening the list gets, because a
    *  conversation started in a terminal a moment ago should be in it. */
   readonly askChats: () => void
@@ -148,20 +175,29 @@ export function AgentsProvider(props: { readonly children: JSX.Element }) {
    * sentence — see the header on why this row differs from the picker.
    */
   const [chats, setChats] = createSignal<Listed | null>(null)
+  const [chatsRefusal, setChatsRefusal] = createSignal<string | null>(null)
   const askChats = (): void => {
     run(
       olai.procedures.chat.sessions(),
       // A REFUSAL LEAVES THE LAST ANSWER STANDING rather than emptying the
-      // row: a socket that dropped is not a directory whose chats were all
-      // assigned, and `run` has no overload that swallows one silently.
-      () => {},
-      (listed) => setChats(listed),
+      // list — a socket that dropped is not a directory whose chats were all
+      // assigned — and it is KEPT, because the list is the one place those
+      // conversations are now and a stale one with nothing said over it would
+      // be the same lie the picker's own refusal arm exists to prevent.
+      (failure) => setChatsRefusal(failure.message),
+      (listed) => {
+        setChatsRefusal(null)
+        setChats(listed)
+      },
     )
   }
   // ONCE, on the frame this provider mounts. It is the only unprompted round
   // trip in this module, and what it buys is the count on a row nobody has
   // pressed yet — see the header.
   askChats()
+
+  /** The answer's own arm, read once here — see {@link Roster.unreachable}. */
+  const unreachable = createMemo((): ReadonlyArray<Unreachable> => chats()?.unreachable ?? [])
 
   /** ... minus what the roster claims ({@link ./lineage.ts}), which is a
    *  reading of the CELL and so is live: the frame an assignment lands on is
@@ -173,7 +209,16 @@ export function AgentsProvider(props: { readonly children: JSX.Element }) {
 
   return (
     <AgentsContext.Provider
-      value={{ rows, at: (node) => byNode().get(node), engines, unassigned, askChats }}
+      value={{
+        rows,
+        at: (node) => byNode().get(node),
+        engines,
+        unassigned,
+        chats,
+        unreachable,
+        chatsRefusal,
+        askChats,
+      }}
     >
       {props.children}
     </AgentsContext.Provider>

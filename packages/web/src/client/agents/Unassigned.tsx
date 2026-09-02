@@ -38,6 +38,22 @@
  * still here, on the title, because the honest first question about a chat from
  * three weeks ago is *which one is this*.
  *
+ * ## WHAT COULD NOT BE ASKED IS NAMED HERE, in both of its sizes
+ *
+ * An agent whose stored conversations could not be read is a row of the answer
+ * rather than a silence (`@olai/chat`'s `listings.ts`), and it is drawn AFTER
+ * the conversations and BESIDE them: one agent being unaskable is a fact about
+ * that agent, and taking the others' conversations off the screen for it is the
+ * bug the fan-out was the fix for. The whole ask not landing — a dropped
+ * socket — is the same sentence about a larger subject and gets its own line,
+ * with the last answer still drawn above it.
+ *
+ * Both matter more here than they did in the picker they came from: this is the
+ * ONLY list of stored conversations in the app now, so an unread disk drawn as
+ * an empty list would be the whole app claiming there is nothing to migrate.
+ * Which is also why *every conversation belongs to a node agent* is said only
+ * where every agent actually answered.
+ *
  * ## `@` NODE-COMPLETION, which is the search every other picker uses
  *
  * The target is chosen with {@link ../search/Shortlist.tsx} — the same box, the
@@ -62,7 +78,7 @@ import { createMemo, createSignal, For, Show } from "solid-js"
 
 import type { NodeHit, SessionInfo } from "@olai/surface"
 
-import { type Grouped, groupedByAgent } from "../chat/grouped.ts"
+import { type Grouped, groupedByAgent, nameOf } from "../chat/grouped.ts"
 import { AgentMark } from "../chat/AgentMark.tsx"
 import { whenOf } from "../chat/when.ts"
 import { run } from "../run.ts"
@@ -88,7 +104,10 @@ const ASSIGN_LIST: ShortlistTestids = {
 }
 
 export function Unassigned() {
-  const { unassigned, engines, at } = useAgents()
+  const { unassigned, unreachable, chatsRefusal, engines, at } = useAgents()
+  /** What a person reads for that agent ({@link ../chat/grouped.ts}) — the
+   *  roster's name, never the id that came off the wire. */
+  const named = (agent: string): string => nameOf(engines(), agent)
   /** WHAT THE LAST ASSIGNMENT SAID — the node it landed on, or the server's
    *  own refusal. Held by the LIST rather than by a row, for the reason the
    *  roster's own line is held by its section: the row it was about leaves this
@@ -213,6 +232,37 @@ export function Unassigned() {
         )}
       </For>
 
+      {/* AN AGENT THAT COULD NOT BE ASKED, named and not dropped — AFTER the
+          conversations, because they are what somebody opened this for, and
+          BESIDE them rather than instead of them: one agent being unaskable is
+          a fact about that agent, and taking the others' conversations off the
+          screen for it is the bug the fan-out was the fix for
+          (`@olai/chat`'s `listings.ts`). Without this the list would be
+          answering *there is nothing here* with *we did not get to look*,
+          which is a claim about somebody's disk. */}
+      <For each={unreachable()}>
+        {(agent) => (
+          <p
+            class="m-0 mt-2 text-xs text-muted"
+            data-testid={TESTID.chatSessionUnreachable}
+            data-agent={agent.agent}
+          >
+            {named(agent.agent)} could not be asked — {agent.why}
+          </p>
+        )}
+      </For>
+
+      {/* ... and the whole ask not landing, which is a different sentence about
+          a larger subject: not one agent's trouble but this tab never having
+          reached the server. The last answer is still drawn above it. */}
+      <Show when={chatsRefusal()}>
+        {(why) => (
+          <p class="m-0 mt-2 text-xs text-alarm" data-testid={TESTID.chatSessionsRefused}>
+            the conversations could not be listed — {why()}
+          </p>
+        )}
+      </Show>
+
       {/* WHAT THE LAST ASSIGNMENT SAID, under the list — the node it landed on,
           or why it did not. */}
       <Show when={saying.said()}>
@@ -223,9 +273,13 @@ export function Unassigned() {
 
       {/* An empty list is a sentence rather than a blank panel: the row that
           opened this is gone from the sidebar by then, so somebody standing
-          here has just assigned the last one. */}
-      <Show when={unassigned().length === 0}>
-        <p class="m-0 mt-2 text-xs text-muted">
+          here has just assigned the last one.
+          ONLY WHERE EVERY AGENT ANSWERED, which is the whole of the honesty
+          above: *every conversation belongs to a node agent* is a claim about
+          what is on disk, and an agent that could not be asked is exactly the
+          case where nobody knows. */}
+      <Show when={unassigned().length === 0 && unreachable().length === 0}>
+        <p class="m-0 mt-2 text-xs text-muted" data-testid={TESTID.unassignedEmpty}>
           Every conversation in this directory belongs to a node agent.
         </p>
       </Show>

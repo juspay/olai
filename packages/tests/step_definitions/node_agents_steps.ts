@@ -288,6 +288,7 @@ const LIST = selector(TESTID.unassignedPanel);
 const CHAT = selector(TESTID.unassignedChat);
 const ASSIGN = selector(TESTID.unassignedAssign);
 const DONE = selector(TESTID.unassignedDone);
+const EMPTY = selector(TESTID.unassignedEmpty);
 const ASSIGN_SEARCH = selector(TESTID.assignSearch);
 const ASSIGN_HIT = selector(TESTID.assignHit);
 const ASSIGN_REFUSED = selector(TESTID.assignRefused);
@@ -362,6 +363,16 @@ Then(
       async () => (await this.page.locator(CHAT, { hasText: title }).count()) === 0,
       `${JSON.stringify(title)} to leave the unassigned list`,
     );
+  },
+);
+
+/** The claim a list may only make when every agent actually answered: an
+ *  unread disk drawn as *there is nothing here* is the honesty this view
+ *  exists to keep. */
+Then(
+  "the list does not claim every conversation belongs to a node agent",
+  async function (this: OlaiWorld) {
+    assert.strictEqual(await this.page.locator(EMPTY).count(), 0);
   },
 );
 

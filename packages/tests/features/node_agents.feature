@@ -322,3 +322,20 @@ Feature: A node with an `agent-session` property IS an agent
     When I press the door on "door-live"
     And I open the session picker
     Then the panel offers a fresh session, saying "memory is the subtree"
+
+  @agent-stored @scratch:lanes
+  Scenario: An agent that could not be asked is named in the list, not drawn as nothing
+    # *We did not get to look* and *there is nothing here* are different
+    # answers, and this list is the only place either can be given now: an
+    # unread disk drawn as an empty list would be the whole app claiming there
+    # is nothing to migrate.
+    Given I open the outline "lanes.olai"
+    And the agent panel is open
+    When I ask the agent "lose"
+    And I open the unassigned chats
+    # NAMED, in the agent's own words, as ONE agent's trouble — and this serve
+    # has one agent, so it is the whole of what there was to say.
+    Then the picker says "claude" could not be asked, with "the conversation store is unreadable"
+    # ... and the claim that would be a lie is not made.
+    And the unassigned list does not hold "the last conversation"
+    And the list does not claim every conversation belongs to a node agent
