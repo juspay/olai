@@ -49,32 +49,39 @@ interface. The tenants that stand on both live one directory over, in
 
 ## 2. The shape, in two breaths
 
-A plugin has two halves and they are written against two different things.
+A plugin has two halves, written against two different things — the browser's
+faces and the server's services — and ONE shape.
 
-**The browser half is a value.** Its first field is a `name`; its second is a whole
-`surface` of its own. Everything else is optional.
-
-```ts
-// packages/plugins/olai-plugin-odu/src/plugin.ts  (abridged)
-export const plugin = {
-  name,                                   // "odu"
-  surface,                                // a whole surface, declared here
-  faces,                                  // which face may see which member
-  dressings: [{ kind: WORKTREE_KIND, Chip: CiChip, Pane: RunMatrix }],
-  mount: OduMount,
-} as const
-```
-
-Core never writes `: OlaiPlugin` on that object; the fit is proved at the registry:
+**BOTH HALVES ARE CORDIS PLUGINS** — `name`, `inject`, `apply(ctx)` — and the
+browser one registers into declared SLOTS where it used to be a manifest object
+a compiled-in registry held:
 
 ```ts
-// packages/bundle/src/registry.ts
-export const PLUGINS = [kolu, odu, spaces] as const satisfies ReadonlyArray<OlaiPlugin>
+// packages/plugins/olai-plugin-odu/src/browser.tsx  (abridged)
+export { name, surface } from "./wire.ts"
+export const inject = ["slots", "clocks", "wired"] as const
+
+export function apply(ctx: Context): void {
+  ctx.slots.register("outline.row.chip", WORKTREE_KIND, CiChip)
+  ctx.slots.register("outline.row.pane", WORKTREE_KIND, RunMatrix)
+  ctx.slots.register("chat.speaker.mark", OduMark)
+  ctx.slots.register("app.mount", (props) => /* one subscription per tab */)
+}
 ```
 
-A plugin that stops fitting is a type error on **that line**, naming the plugin.
+The manifest could not survive the tab following the roster: a value is present
+whether or not this serve composed the plugin, so every walk over it carried a
+LICENCE beside it — and the two licences pointed opposite ways, because a face
+drawn early and taken away is a flicker while a subscription opened early
+latches a `degraded` readout for the life of the page. A fiber the roster never
+named registers nothing, so there is nothing left to license.
 
-**The server half is a Cordis plugin** — a function that installs *revertible
+`inject` is the same narrowness the old structural `OduApp` record declared,
+said to the RUNTIME instead of to the type checker: Cordis holds the fiber
+`PENDING` until every name is provided, so a half that asks for a service nobody
+gives simply never starts, and the preferences row says `waiting`.
+
+**The server half is the same shape** — a function that installs *revertible
 effects* into a shared context, and declares which services it needs:
 
 ```ts
@@ -501,12 +508,24 @@ the Cordis services at `./services` — and it names no plugin at all. That is w
 lets a plugin import it, which the registry could never allow while the two were
 one package.
 
-The server's list is now `olai.yml` and the browser's two are still `as const`
-arrays, because a browser bundle is built ahead of time and there is no loader in
-the tab. So a fourth plugin is **one row plus two lines**, and
-[`rosters.test.ts`](../../packages/bundle/src/rosters.test.ts) is the lid: the rows,
-`WIRES` and `PLUGINS` hold the same plugins in the same order, and every row's
-`id` is the name the module it mounts answers to.
+**`olai.yml` is the whole list, and a fourth plugin is ONE ROW.** The browser
+kept two `as const` arrays for one round — a browser bundle is built ahead of
+time and there is no loader in the tab — held equal to the rows by a
+`rosters.test.ts`. That test was a monument to the duplication rather than a fix
+for it, and it is deleted with the lists.
+
+What the tab reads instead is WRITTEN from the rows at build time
+([`generate.ts`](../../packages/bundle/generate.ts)): the browser's rows with a
+dynamic `import()` per plugin, the stylesheet chain, and the merged testid table
+with its pairwise disjointness proof. All three are gitignored and produced by
+`just install` and by the nix build in its own sandbox, beside the tenants'
+marks and for the same reason — a generated file is never in the store copy of
+the tree, so a packaged build cannot ship a stale one.
+
+The literal specifier is what makes each plugin its own **chunk**, which is the
+browser's exact twin of *no fiber, no surface, no handler*: a plugin the roster
+does not name is never fetched, never evaluated, and registers nothing. kolu's
+terminal emulator is 336 KB a machine that does not run kolu never downloads.
 
 ---
 
@@ -828,21 +847,22 @@ that matters.
    thunk onto `chat/session-start` if you have a tool to probe for. Everything
    you register comes back out when your fiber unloads, and you write no teardown
    for any of it.
-3. **`packages/plugins/olai-plugin-<name>/src/plugin.ts`** — the manifest: the
-   wire half plus `dressings`, `chrome`, `mount`, `mark`. Browser graph.
+3. **`packages/plugins/olai-plugin-<name>/src/browser.tsx`** — the browser half:
+   `name`, `surface`, `inject`, and an `apply(ctx)` that registers your faces
+   into `ctx.slots`. Browser graph, and its own chunk.
 4. **`packages/plugins/olai-plugin-<name>/docs.md`** — the user page, plus a
    symlink at `docs/plugins/<name>.md` and a line in `docs/index.md`.
    `packages/tests/plugin_docs.test.ts` fails if you skip either.
-5. **One row and four edits in `packages/bundle/`.** The row is
-   `olai.yml` — `id: <name>`, `name: olai-plugin-<name>/server`, and a
-   `disabled: true` if your plugin needs a secret this machine may not have and
-   should be off until `--plugins` names it — and it is the whole of what the
-   SERVER needs. The four are the browser's: `surfaces.ts`'s
-   `WIRES` (an `import` line and an array entry), `registry.ts`'s `PLUGINS` (the
-   same two), `testids.ts`'s spread into `PLUGIN_TESTID`, one `@import` in
-   `src/all.css` (a face outside the scan path renders with **no layout while
-   nothing errors**), and `package.json`'s `dependencies` — without which the
-   imports do not resolve at all.
+5. **ONE ROW in `packages/bundle/olai.yml`** — `id: <name>`, `name:
+   olai-plugin-<name>/server`, and a `disabled: true` if your plugin needs a
+   secret this machine may not have and should be off until `--plugins` names
+   it. That is the whole of it: the browser's rows, the stylesheet chain and the
+   merged testid table are WRITTEN from that row by `generate.ts`, so the four
+   hand-edits this step used to list are gone. What you do still write is your
+   own package's `exports` (`./wire`, `./server`, `./browser`, `./testids`,
+   `./all.css` — the generator derives all four subpaths from the row's module
+   name) and one line in `packages/bundle/package.json`'s `dependencies`,
+   without which the generated `import()` does not resolve.
 
 Then run `bun test packages/bundle` and let the fence tell you what you got
 wrong. It will be specific.
@@ -865,9 +885,9 @@ names the file.
 | `scripts/prove-fence.sh` | the fence and the mechanics lint go RED when they should. Not a `just check` leg: it mutates tracked files and puts them back, and `check` runs its legs in parallel. Run it when the fence CHANGES — a sweep's one failure mode is going quiet, and a fence that stopped running looks exactly like a fence that is holding |
 | `packages/bundle/src/mechanics.test.ts` | olai names no wire mechanic the framework performs |
 | `packages/bundle/src/tree.testlib.ts` | not a claim — the READING both of the above stand on (workspace members, manifests, sources, the module graph). Split out so the two files above are their claims and nothing else, and so the source walk is written once |
-| `packages/bundle/src/rosters.test.ts` | the bundle's rows and the two browser doors list the same plugins in the same order, and every row's `id` is the name the module it mounts answers to — which is the equality the whole per-plugin STAMP rests on |
+| `packages/bundle/src/report.test.ts` | what became of each row, off real Cordis fibers: a row nothing mounted reads `off`, one whose `apply` threw reads `failed` and carries the plugin's own message verbatim, one short of a service it injects reads `waiting` — the words the preferences row's five are composed from |
 | `packages/bundle/src/kinds.test.ts` | the word a vault declares is composed from the FIBER's name; a word leaves the vocabulary when its plugin unloads; the BUILT half carries every row's words whatever the flag said |
-| `packages/bundle/src/composition.test.ts` | an empty roster composes, and core's tags do not move |
+| `packages/bundle/src/composition.test.ts` | an empty roster composes, core's tags do not move, and — the two claims that need the modules LOADED — every module answers to the name its row binds it under, and every face a plugin declares is a face it wrote a map for. There is no `rosters.test.ts` any more: it held three hand-written lists equal, and two of the three are generated from the third |
 | `packages/bundle/src/testids.test.ts` | the plugins’ testid tables are disjoint — and one layer further out, `packages/web/src/client/testids.test.ts` holds the app’s own table disjoint from theirs, which is the seam `selector()` actually spends |
 | `packages/plugins/olai-plugin-kolu/src/testids.ts` | a tenant’s two testid halves share no key and no value — a TYPE-level assertion, so a collision is a `tsc` error naming the offender rather than a test somebody keeps green |
 | `packages/plugins/olai-plugin-kolu/src/faces.test.ts` | the tenant’s own two face directories stay apart — `src/browser/` names no part of the appliance’s tier, and `src/appliance/` names none of the vault’s vocabulary, which is the wall `@olai/kolu-ui`’s manifest kept before the fold. In the TENANT, not in the fence: a per-directory rule up there would be the fence inventing a layout convention and enforcing its own invention |

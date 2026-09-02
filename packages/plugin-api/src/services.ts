@@ -234,6 +234,11 @@ export namespace Log {
  * disk went away for a beat.
  */
 export class Vault extends Service {
+  /** Every plugin's reading of a revision, and of the store going quiet —
+   *  each ALREADY WRAPPED (see {@link Vault.revision}). */
+  private readonly onRevision = new Set<(snapshot: unknown) => void>()
+  private readonly onUnloaded = new Set<() => void>()
+
   constructor(ctx: Context, public config: Vault.Config) {
     super(ctx, "vault")
   }
@@ -243,11 +248,100 @@ export class Vault extends Service {
   get served(): string {
     return this.config.served
   }
+
+  /**
+   * A PUBLISHED REVISION REACHED THE STORE — subscribe for as long as the
+   * calling fiber is loaded.
+   *
+   * ## Why this is a service door and not `ctx.on("vault/revision")`
+   *
+   * It WAS the event, and the composition root's header stated the paper's
+   * defensive rule as a fact it did not hold: *"Both are EMITS, so a listener
+   * that throws is one listener's problem — the dispatcher contains it."*
+   * Cordis's `emit` is a bare loop of `Reflect.apply` with no `try` in it, so a
+   * plugin that threw on a revision took two things down with it that were
+   * never its to take:
+   *
+   *   - EVERY LATER PLUGIN on that revision, which never heard it at all; and
+   *   - THE OWNED DIRECTORY FIBER, because both emits sit inside the `manifest`
+   *     connector's `Effect.sync` and a throw there fails `store.reads` — the
+   *     fiber whose settling the root reads as structural damage.
+   *
+   * All three plugins in this tree listen with no `try` of their own, and none
+   * of them is wrong to: the whole reason a bus exists is that containment is
+   * a property of the BUS rather than a discipline each subscriber keeps.
+   *
+   * So the two vault events are a dispatcher of the shape {@link Watchers}
+   * already had — wrapped once, here, with the calling fiber's name on the
+   * line — and they are gone from the `Events` table rather than left there as
+   * a second way in. One mechanism, contained by construction.
+   */
+  revision(handler: (snapshot: unknown) => void): () => void {
+    return this.listen(this.onRevision, handler)
+  }
+
+  /**
+   * ...AND THE STORE HAS NEVER PUBLISHED — same containment, and NOT teardown.
+   *
+   * The name matters and has been got wrong once: `unloaded` says the STORE has
+   * no published set, which is a fact about the vault. A plugin that read it as
+   * "you are being unloaded" tore down its own live subscriptions, so a disk
+   * that went away for a beat took every mirror with it and nothing brought
+   * them back. Teardown is the disposer `apply` returns.
+   */
+  unloaded(handler: () => void): () => void {
+    return this.listen(this.onUnloaded, handler)
+  }
+
+  /** The one wrap, spelled once for both doors — the calling fiber's name is
+   *  read here off the registry binding, so a line about a misbehaving handler
+   *  says whose it was and no caller can sign another plugin's name to one. */
+  private listen<H extends (...args: never[]) => void>(
+    into: Set<H>,
+    handler: H,
+  ): () => void {
+    const who = this.ctx.fiber.name
+    const warn = this.config.warn
+    const sink = ((...args: never[]) => {
+      try {
+        handler(...args)
+      } catch (thrown) {
+        warn?.(`plugins: "${who}" threw on a vault event — ${String(thrown)}`)
+      }
+    }) as H
+    return this.ctx.effect(() => {
+      into.add(sink)
+      return () => {
+        into.delete(sink)
+      }
+    })
+  }
+
+  /**
+   * THE COMPOSITION ROOT'S HALF — tell every plugin a revision landed.
+   *
+   * Not a plugin's to call, and it is on the service rather than behind a
+   * config callback because the SINKS are here: a root that had to reach for
+   * them would be reaching into this service's private state. The root calls
+   * it from the one place that knows a revision was published.
+   */
+  published(snapshot: unknown): void {
+    for (const sink of [...this.onRevision]) sink(snapshot)
+  }
+
+  /** ...and that the store has none. */
+  quiet(): void {
+    for (const sink of [...this.onUnloaded]) sink()
+  }
 }
 
 export namespace Vault {
   export interface Config {
     readonly served: string
+    /** WHERE A THROWN HANDLER IS SAID — the owner's channel, wired by the
+     *  composition root, exactly as {@link Watchers} wires its own. Optional
+     *  because a runtime with no plugins has nobody to be misbehaving. */
+    readonly warn?: (line: string) => void
   }
 }
 
@@ -666,15 +760,28 @@ declare module "cordis" {
     watching: Watchers
   }
 
+  /**
+   * ONE EVENT, and the two that left are worth the space they used to take.
+   *
+   * `vault/revision` and `vault/unloaded` are {@link Vault}'s doors now
+   * (`ctx.vault.revision(…)`, `ctx.vault.unloaded(…)`). They were emits, and
+   * the claim made about them — that the dispatcher contains a listener that
+   * throws — was not true of Cordis's `emit`, which is a bare loop with no
+   * `try`. A door that wraps once is the only shape that claim has ever been
+   * true of, and leaving the events declared beside it would be a second way in
+   * with none of the containment.
+   *
+   * `surfaces/published` is gone because it never fired. It was declared here,
+   * documented in two READMEs and in `docs/internal/plugin-system.md`, and no
+   * line in the tree ever emitted it — a plugin that listened would have waited
+   * for ever, silently, which is worse than the hook not existing. Emitting it
+   * from the re-compose was the alternative and it is the wrong half of the
+   * trade: it would need exactly the containment the two vault events just had
+   * to be rebuilt to get, for a hook with no caller and no asked-for use. The
+   * roster CELL already carries what it would have said, to the one consumer
+   * that wants it. It comes back the day something needs it, as a door.
+   */
   interface Events {
-    /** A published revision landed. The whole snapshot; every listener narrows
-     *  it in its own signature to the part it reads. */
-    "vault/revision"(snapshot: unknown): void
-    /** The store has NEVER published — see {@link Vault}. NOT teardown. */
-    "vault/unloaded"(): void
-    /** The composed roster moved: a sibling arrived or left, and the fused
-     *  group a socket dialed is no longer the one being served. */
-    "surfaces/published"(roster: ReadonlyArray<string>): void
     /** A conversation is opening — see {@link SessionStart}. */
     "chat/session-start"(
       start: SessionStart,

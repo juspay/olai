@@ -122,7 +122,7 @@ const mounted = async (doubles: Doubles) => {
      *  about the bind going away hands its own. */
     revision: (snapshot?: unknown): void => {
       if (snapshot !== undefined) {
-        ctx.emit("vault/revision", snapshot)
+        ctx.vault.published(snapshot)
         return
       }
       const reading = readingOf(setOf({
@@ -131,7 +131,7 @@ const mounted = async (doubles: Doubles) => {
           "xyne-channel": "ch-team",
         }),
       }))
-      ctx.emit("vault/revision", {
+      ctx.vault.published({
         value: { set: reading.set, derived: reading.derived },
         changed: ["board.olai"],
         removed: [],

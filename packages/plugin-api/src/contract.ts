@@ -65,13 +65,18 @@ export interface StdioServer {
  * is what a reader most wants and is not always a thing that exists.
  *
  * `@olai/chat` and each plugin spell this shape THEMSELVES, and the three
- * declarations are the arrangement rather than a duplication to tidy away. A
- * plugin may not import this package ({@link OlaiPlugin}'s header: the registry
- * imports every plugin), and `@olai/chat` is a general package one floor down
- * that the composition root hands a list to — so the agreement is proved where
- * the two ends meet, at `@olai/plugin-api/server`'s `probesOf` and the registry's
- * `satisfies`, and nothing below this floor learns that a plugin system exists.
- * It is the same trade {@link AppFurniture} makes in the other direction.
+ * declarations are the arrangement rather than a duplication to tidy away. It
+ * used to be that a plugin COULD NOT import this package — it held the registry
+ * too, and the registry imports every plugin — and that premise left with the
+ * registry ({@link ./plugin.ts}'s header argues the reversal); the three
+ * spellings stayed, because `@olai/chat` is a general package one floor down
+ * that is handed a list and must not learn that a plugin system exists. So the
+ * agreement is still proved where the two ends meet, which is now the
+ * `chat/session-start` waterfall a server half pushes its thunk onto
+ * ({@link ./services.ts}'s `SessionStart`) rather than a `probesOf` over a
+ * compiled-in list. It is the same trade {@link ./browser.ts}'s four services
+ * make in the other direction: a plugin re-declares only the part it reads, and
+ * contravariance makes the narrower spelling the stronger claim.
  */
 export interface NotHere {
   readonly name: string
@@ -110,8 +115,10 @@ export interface Probed {
  * is the same move `KoluDeps` makes with the vault walks.
  *
  * WHAT THAT COSTS A VAULT IS NOTHING, and the two layers are why. A kind
- * claims the key equal to its own composed word ({@link ./server.ts}'s
- * `kindsOf`), so an enabled plugin declares `kolu-terminal` / `odu-worktree` for
+ * claims the key equal to its own composed word ({@link ./services.ts}'s
+ * `Kinds.register`, which sets `claims` to the word it just composed out of the
+ * registering fiber's name), so an enabled plugin declares `kolu-terminal` /
+ * `odu-worktree` for
  * a vault that has said nothing about them — and olai never writes anybody's
  * vault to do it. A row of the vault's own always wins, which is how a kind
  * moves onto a short key and how a face is taken away again.
@@ -128,32 +135,43 @@ export interface Probed {
  * ## Two vocabularies, and which question reads which
  *
  * The table core assembles out of these has two halves, and the distance
- * between them is what `--plugins` means one more time ({@link ./server.ts}'s
- * `kindsOf`). A DECLARATION is refused against every kind this BINARY was built
+ * between them is what `--plugins` means one more time (`@olai/server`'s
+ * `propKinds.ts`). It used to be one function over two lists a composition root
+ * held; it is two READINGS now, and the split is the phase rather than a
+ * refactor — the ENABLED half is what the mounted fibers registered
+ * ({@link ./services.ts}'s `Kinds`), and the BUILT half is read off every row of
+ * the bundle INCLUDING the rows this serve disabled (`@olai/bundle`'s
+ * `declaredKinds`), because a disabled row never mounts and its words still have
+ * to be reachable. A DECLARATION is refused against every kind this BINARY was built
  * with, so `{"type":"kolu-terminal"}` is a legal row on a serve running only odu and
  * `{"type":"banana"}` is refused naming every legal word; a VALUE is held to
  * the kinds this serve is RUNNING, because {@link PropKind.admits} is a promise
  * only a plugin that is here can make. A file's verdict may not depend on a
  * flag on the machine, and that split is the whole of how it does not.
  *
- * ## It is reached on the SERVER door
+ * ## It is registered on the SERVER door
  *
- * Declared here, because a kind is part of what a plugin IS. Reached through
- * {@link ./server.ts}, for {@link OlaiPlugin.probe}'s reason: the vocabulary is
- * spent by the validator and the write planner, which is a process that renders
- * nothing, and a manifest carries this plugin's SolidJS faces. The browser
- * needs none of it — a vault's declarations deliberately do not travel
- * (`@olai/format`'s `meaning.ts`). What the browser gets instead is the same
- * consult's ANSWER per drawn value, which is what the dressing table one floor
- * up is keyed by ({@link Dressing}): the WORD, never the property key.
+ * Declared here, because a kind is part of what a plugin IS. Registered through
+ * {@link ./services.ts}'s `Kinds`, for the reason the probe is a
+ * `chat/session-start` listener on that same door: the vocabulary is spent by
+ * the validator and the write planner, which is a process that renders nothing,
+ * and everything of this plugin that carries SolidJS is in its BROWSER half — a
+ * chunk the server never fetches and never evaluates. The browser needs none of
+ * it — a vault's declarations deliberately do not travel (`@olai/format`'s
+ * `meaning.ts`). What the browser gets instead is the same consult's ANSWER per
+ * drawn value, which is what the KIND-KEYED slots one floor up are keyed by
+ * ({@link ./browser.ts}'s `SLOTS`, the three rows whose `keyedBy` is `"kind"`):
+ * the WORD, never the property key.
  */
 export interface PropKind {
   /**
    * THE BARE WORD THIS PLUGIN CONTRIBUTES — `terminal`, not `kolu-terminal`.
    *
-   * The registry PREFIXES it with the plugin's name ({@link ./surfaces.ts}'s
-   * `kindWordOf`), so what a vault declares is `kolu-terminal` and what the
-   * page's licence carries is the same. It is the move the wire already makes
+   * The SERVICE prefixes it with the registering fiber's own name
+   * ({@link kindWordOf}, this file's, called by `ctx.kinds` on the server and by
+   * `ctx.slots` in the tab so that one word cannot become two spellings), so
+   * what a vault declares is `kolu-terminal` and what the page's licence carries
+   * is the same. It is the move the wire already makes
    * with a member — a plugin declares `fleet` and the framework composes
    * `surface/kolu/fleet/get` — and it buys the same two things here:
    *
@@ -163,9 +181,14 @@ export interface PropKind {
    *     been using for something of their own.
    *
    * A plugin writes the bare word once and the composition happens where the
-   * registry is. What each plugin does spell for itself is a copy of that
-   * composition for its own vault walk — it may not import this package — and
-   * `./kinds.test.ts` holds the two spellings equal.
+   * FIBER's name is: inside the service, off `ctx.fiber.name`, never off an
+   * argument a caller supplied. What each plugin does spell for itself is a copy
+   * of that composition for its own vault walk — a constant beside the bare word
+   * (`olai-plugin-odu`'s `WORKTREE_TYPE`), which it wrote when it could not
+   * import this package at all and still writes now that it can, because the
+   * walk wants the composed word at module scope and a registration has not
+   * happened yet there. `@olai/bundle`'s `kinds.test.ts` holds the two spellings
+   * equal.
    */
   readonly kind: string
   /** What the clause naming this kind says in a refusal — `` `kolu-terminal` (a
@@ -298,8 +321,10 @@ export interface Deliveries {
    * as that session's first message. Which arm a body took is not reported back,
    * because there is no arm a plugin would answer differently.
    *
-   * FIRE AND FORGET, like {@link PluginServices.say} and
-   * {@link PluginServices.warn} beside it, and for their reason: the caller is a
+   * FIRE AND FORGET, like {@link ./services.ts}'s `Log.say` and `Log.warn`
+   * beside it — the two that were `PluginServices` fields when this was one blob
+   * of seven, and are a service of their own now — and for their reason: the
+   * caller is a
    * sink with nowhere to put a failure, and a rejected promise nobody has a
    * reason to catch is an unhandled rejection in somebody's server log.
    *
@@ -553,10 +578,10 @@ export const kindWordOf = (plugin: string, kind: string): string => {
  * this is three strings and not one. A single sentence with a hole in it
  * would make core the author of everything around the hole, and the four ways
  * a wake could be described have nothing in common but that they are wakes —
- * the same argument {@link probe}'s `missing.why` makes one hook over, and the
+ * the same argument {@link NotHere}'s `why` makes one door over, and the
  * third time this tree has spent it.
  *
- * {@link wake.faults} is the same rule read from the other end: none of those
+ * {@link Wake.faults} is the same rule read from the other end: none of those
  * is drawn anywhere, so each is one whole sentence rather than pieces, and
  * core carries the one the cause names into a conversation without joining
  * anything to it.
@@ -570,11 +595,15 @@ export const kindWordOf = (plugin: string, kind: string): string => {
  * bodies ARE, in both grammatical numbers, because a tree that stored one form
  * and added an `s` would be a tree that had decided what the noun is.
  *
- * ON THIS DOOR and not on the manifest, for {@link kinds}' reason: the
- * declaration has a SERVER reader — the member that writes a scope refuses a
- * plugin that declares no wake, and it reads this field off the enabled halves
- * — and a composition root that reached a manifest would put a UI runtime on
- * the graph of a process that renders nothing.
+ * REGISTERED ON THE SERVER DOOR ({@link ./services.ts}'s `Wakes`) and never
+ * hung in a browser slot, for {@link PropKind}'s reason: the declaration has a
+ * SERVER reader — the member that writes a scope refuses a plugin that declares
+ * no wake, and it reads this off what the mounted fibers registered — and a
+ * composition root that reached for a plugin's faces to find it would put a UI
+ * runtime on the graph of a process that renders nothing. It was a FIELD on the
+ * server half (`PluginServerHalf.wake`) read off every built row; a
+ * registration is the same declaration made by a fiber that is actually here,
+ * which is what {@link ./services.ts}'s `Wakes` argues.
  *
  * Absent is a plugin that wakes nobody, which is a whole plugin: no strip
  * row, no picker, no doorbell — the state every machine without the tool
@@ -668,8 +697,9 @@ export interface Wake {
  * beside the words. What the sentence has to say is what the plugin knows
  * and core does not: that nothing is being watched now.
  *
- * ## Why the TABLE is required where {@link PluginServerHalf.wake} itself is
- * not
+ * ## Why the TABLE is required where the WAKE itself is not
+ * ({@link ./services.ts}'s `Wakes.register`, which a plugin may simply never
+ * call)
  *
  * A plugin that wakes nobody declares no `wake` at all and is a whole
  * plugin. A plugin that DOES wake has scoped conversations; a scoped

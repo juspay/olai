@@ -1624,7 +1624,7 @@ export const bind = (
                     // file neither knows nor composes it; what it knows is that
                     // a claim derived from a directory the store can no longer
                     // see is a claim nobody may vouch for.
-                    plugins?.emit("vault/unloaded")
+                    plugins?.vault.quiet()
                     return cell.set(null)
                   }
                   // THE PROJECTION CONSUMES WHAT IT IS HANDED, so these two
@@ -1684,7 +1684,7 @@ export const bind = (
                   // a keystroke that landed in a note costs one walk per plugin
                   // and zero frames, and the sockets are the sweeps' business
                   // on their own clocks.
-                  plugins?.emit("vault/revision", snapshot)
+                  plugins?.vault.published(snapshot)
                   // ...AND THE PICKS THIS REVISION BROKE, which is core's own
                   // reading of the same snapshot and the one thing above that
                   // is not a plugin's. It is HERE, on the revision hook, for
@@ -2411,8 +2411,13 @@ export const bind = (
      * `RpcServer` over what it was handed. So the contract for a sibling
      * ARRIVING after the listener is up is RECONNECT — the roster cell moving is
      * what tells a browser to, and `SurfacesConnection.redial(surfaces)` is what
-     * a browser that boots off that cell will call (which is phase 5's, because
-     * the tab's sibling map is compiled in until `ctx.slots` lands). Nothing in
+     * a browser that boots off that cell CALLS — `@olai/web`'s `client/wire.ts`,
+     * which dials the root with no siblings at all, reads the `plugins` cell off
+     * it, loads a chunk per plugin the roster names and redials with their
+     * surfaces. That was written here as a later phase's work, on the grounds
+     * that the tab's sibling map was compiled in; the map stopped being compiled
+     * in when the browser's rows became a dynamic `import()` per row, and the
+     * consumer landed with them. Nothing in
      * this phase mounts a plugin after the listener is up: the bundle is mounted
      * before the store opens.
      */

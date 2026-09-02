@@ -267,7 +267,15 @@ unnamed=0
 # a typo. The set is static; the check can be too. And a selector that named no
 # mutation used to print `0 of 0 mutations were caught.` and exit 0, which is
 # this script's own indictment of the lints reproduced on its one argument.
-DECLARED="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15"
+#
+# FOUR IS NOT IN IT, and its absence is the same argument one step on. Mutation
+# 4 was retired with the claim it was about (a plugin importing another plugin),
+# and it was dropped from the `run` calls below — but not from here, so
+# `prove-fence.sh 4` selected a mutation that does not exist, ran nothing, and
+# exited 0. A selector that names no mutation printing a clean pass is exactly
+# the failure this list was made static to prevent, and it was doing it for one
+# number.
+DECLARED="1 2 3 5 6 7 8 9 10 11 12 13 14 15"
 for want in $only; do
   case " $DECLARED " in
     *" $want "*) ;;

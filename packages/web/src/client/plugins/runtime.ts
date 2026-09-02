@@ -147,7 +147,38 @@ export const composeTo = async (
     // trying", so the page can draw whatever did start.
     const fiber = ctx.plugin(half)
     mounted.set(name, fiber)
-    await Promise.resolve(fiber).then(() => {}, () => {})
+    await Promise.resolve(fiber).then(() => {}, (refused: unknown) => {
+      // A FAILED HALF DOES NOT STAY MOUNTED. `mounted` is what the guard four
+      // lines up reads to skip a plugin that is already up, so a fiber left
+      // here after its `apply` threw is a plugin this tab will never try again
+      // — not on the next roster frame, not after a redial that rebuilt
+      // everything else. Nothing about the throw says it is permanent: a half
+      // whose `apply` reached for a member the wire had not settled, or threw
+      // on a value one frame of the roster carried, deserves the next frame.
+      // Cordis has already unwound whatever it had registered, so dropping the
+      // entry leaves no residue behind it.
+      mounted.delete(name)
+      // ...AND IT SAYS SO. The containment is right and the SILENCE was not: a
+      // half whose `apply` threw registers no faces, so the plugin is simply
+      // absent from the page — while the panel two chips over reads the SERVER's
+      // answer and says `running`, because on the server it is. Two ends, two
+      // truths, and nothing on screen or in the console reconciling them.
+      //
+      // This is the one place that knows, so this is where it is said, with the
+      // plugin's NAME on it. An `error` rather than a `warn`: a plugin the
+      // roster asked for and that did not start is a fault, which is the same
+      // reading `rows.ts` gives the server-side `failed`.
+      //
+      // WHAT IS STILL OWED is the panel's half — a tab-side failure drawn
+      // beside the server-side state, since they are genuinely two facts and a
+      // reader with the console shut has only one of them. That wants a field
+      // on the roster row's browser reading rather than a console line, and it
+      // is not this phase's.
+      console.error(
+        `olai: the plugin "${name}" is running on the server, but its browser half failed to start — its faces are absent from this page`,
+        refused,
+      )
+    })
   }
 }
 

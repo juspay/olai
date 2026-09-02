@@ -32,7 +32,7 @@ import { DEFAULT_BUNDLE_NAMES } from "@olai/bundle"
 import type { RowReport } from "@olai/bundle/bundle"
 import { BUNDLE_NAMES as PLUGIN_NAMES } from "@olai/bundle"
 import type { Deliveries } from "@olai/plugin-api/services"
-import { DeliveryDoors, Surfaces, Wakes } from "@olai/plugin-api/services"
+import { DeliveryDoors, Surfaces, Vault, Wakes } from "@olai/plugin-api/services"
 import { Context } from "cordis"
 import type { CollectionDeltasMsg } from "@kolu/surface/define"
 import { defineSurface } from "@kolu/surface/define"
@@ -1118,8 +1118,14 @@ const doubleCalled = (name: string, wake?: typeof RINGING) => {
         }
         if (wake !== undefined) ctx.wakes.register(wake)
         ctx.surfaces.register({ surface: NOTHING, faces: {}, deps: {} })
-        ctx.on("vault/revision", () => {})
-        ctx.on("vault/unloaded", () => {})
+        // NO VAULT DOORS HERE. This double used to `ctx.on` the two vault
+        // EVENTS, which cost nothing because an event needs no `inject`. They
+        // are `ctx.vault` doors now, and naming `vault` in the list above would
+        // hold this fiber PENDING in a harness that mounts no `Vault` — so the
+        // double would never apply, and every doorbell case here would fail
+        // saying no plugin rings. Nothing in this file asserted on them anyway;
+        // what they are FOR — containment, and leaving with the fiber — is
+        // `@olai/plugin-api`'s `services.test.ts`, against a real `Vault`.
       },
     },
     /** The door this double's fiber was handed. THROWS rather than answering an
@@ -1166,6 +1172,13 @@ const mounting = async (
     },
   })
   await ctx.plugin(Wakes)
+  // THE VAULT, because the composition root reaches for its doors on every
+  // published revision — `plugins.vault.published(snapshot)`. It used to reach
+  // for an EVENT, which needed nothing mounted, so this harness could leave the
+  // service out; a door cannot be called on a service that is not there, and
+  // the doorbell cases below drive their faults through exactly that call.
+  // `served` is the double's own directory, which none of these cases reads.
+  await ctx.plugin(Vault, { served: "/tmp" })
   await ctx.plugin(Surfaces, { changed: () => onChange.run() })
   for (const one of doubles) await ctx.plugin(one.plugin)
   return ctx

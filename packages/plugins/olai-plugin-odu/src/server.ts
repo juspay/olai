@@ -333,7 +333,7 @@ export function apply(ctx: Context): void {
    *  the whole published snapshot, and {@link VaultRevision} names the one
    *  field odu touches. "Each plugin takes what it needs" is a claim the
    *  compiler checks rather than a comment. */
-  ctx.on("vault/revision", (snapshot) => {
+  ctx.vault.revision((snapshot) => {
     const revision = snapshot as VaultRevision
     declaring = declarationsOf(revision.value.derived, ownKinds)
     derived = revision.value.derived
@@ -353,7 +353,7 @@ export function apply(ctx: Context): void {
    *  distinction the event's name carries and the old `unloaded()` hook did
    *  not: unloading this PLUGIN is the fiber being disposed, and every effect
    *  above unwinds then. */
-  ctx.on("vault/unloaded", () => {
+  ctx.vault.unloaded(() => {
     declaring = NO_TYPING
     derived = undefined
     half.unloaded()

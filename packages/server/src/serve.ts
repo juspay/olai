@@ -192,7 +192,7 @@ export const serve = (options: ServeOptions) =>
           say: (line) => ring(Effect.logDebug(line)),
           warn: (line) => ring(Effect.logWarning(line)),
         })
-        await plugins.plugin(Vault, { served })
+        await plugins.plugin(Vault, { served, warn: (line) => ring(Effect.logWarning(line)) })
         // The chat is built further down and a machine with no ACP agent never
         // builds one at all, so the door is asked for per call rather than
         // captured — which is also what makes a plugin that unloads and comes

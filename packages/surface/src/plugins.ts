@@ -23,10 +23,21 @@
  * ## A CELL, and read-only
  *
  * One value about the served INSTANCE rather than about any file in it — the
- * shape `manifest` and `git` already are. It is read once, at the composition
- * root, out of the flag and the registry; it moves at most once per serve,
- * which is why it has no connector and needs no `equals` (`@olai/server`'s
- * `runtime.ts` seeds it and nothing republishes it).
+ * shape `manifest` and `git` already are. It is seeded at the composition root,
+ * out of the flag and the rows, and REPUBLISHED from every re-compose
+ * (`@olai/server`'s `runtime.ts`): a plugin is a fiber, so a register or a
+ * dispose moves the roster and the word on a row is read live.
+ *
+ * It therefore has both of the things it was once documented as needing
+ * neither of. A CONNECTOR, because a cell that is only seeded goes on saying
+ * what the flag said while rows change state underneath it — the connector
+ * hands the cell to the runtime and `recompose` is the one clock that moves it.
+ * And an `equals` ({@link sameRoster}): a republish used to be a thing that
+ * never happened, so a comparator would have been dead weight with a comment
+ * explaining why it was there. The fiber ended that, and the TAB following the
+ * roster made it load-bearing — an identical republish costs a `redial` and a
+ * rebuilt page unless something says the two rosters are one. {@link
+ * sameRoster} carries the whole of that argument.
  *
  * Read-only on the wire because `--plugins` is CLI/nix ONLY — no settings file,
  * no browser toggle, the git policy's shape one setting over. What a browser

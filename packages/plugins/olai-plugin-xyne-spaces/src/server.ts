@@ -308,7 +308,7 @@ export function apply(ctx: Context): () => void {
    *  THE PAYLOAD IS NARROWED HERE, in this plugin's own signature: core emits
    *  the whole published snapshot and {@link VaultRevision} names the parts this
    *  half touches. */
-  ctx.on("vault/revision", (snapshot) => {
+  ctx.vault.revision((snapshot) => {
     const revision = snapshot as VaultRevision
     reading = spacesConfigIn(revision.value.derived)
     if (missingEnv) {

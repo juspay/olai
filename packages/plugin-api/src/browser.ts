@@ -25,21 +25,29 @@
  * stops naming unwinds its own faces on the way out and the app re-reads what
  * is left.
  *
- * ## THE SEVEN SLOTS, and why the table is data
+ * ## THE SIX SLOTS, and why the table is data
  *
- * A slot is a place in this app where a plugin's face may hang. There are seven
+ * A slot is a place in this app where a plugin's face may hang. There are six
  * and they are DECLARED ({@link SLOTS}) rather than implied by four hooks on an
  * interface, because a registration has to be checkable against something: a
  * plugin hanging a chip in the header is a mistake somebody should be told
  * about at the moment they make it, and an interface with an optional field per
  * hook can only be wrong silently.
  *
+ * THERE WERE SEVEN. `app.drawer` — the panel a header readout's press opens —
+ * was declared and READ BY NOBODY: the chrome walk draws `app.header` and the
+ * one plugin with a panel hangs it on `ctx.bar.popover()`, which is the app's
+ * whole portalled panel rather than a slot. A slot nobody reads is a face
+ * registered into silence, which is the failure `live/dressings.ts` names about
+ * this very table — so it is gone until something wants it, and it comes back
+ * as a walk beside `PluginHeaders` on the day one does.
+ *
  * Each slot declares WHAT KEYS IT — and there are exactly two rules, which is
- * why there are two register doors rather than seven:
+ * why there are two register doors rather than six:
  *
  *   - **`plugin`** — one face per plugin, keyed by the fiber's own name. The
- *     header readout, the drawer it opens, the tab half wrapped around the
- *     page, and the mark a delivered sentence wears. The key is read INSIDE the
+ *     header readout, the tab half wrapped around the page, and the mark a
+ *     delivered sentence wears. The key is read INSIDE the
  *     service off `this.ctx.fiber.name`, never off an argument, for the reason
  *     {@link ./services.ts}'s doors read it there: a key a caller supplies is a
  *     key one plugin can sign another's registration with.
@@ -91,7 +99,7 @@ import type {
 } from "./plugin.ts"
 
 /**
- * WHERE A FACE CAN HANG — the seven, and what keys each.
+ * WHERE A FACE CAN HANG — the six, and what keys each.
  *
  * DATA rather than a union alone, because the key rule is the thing a reader
  * and the service both need and a union could only carry the names. The gloss
@@ -110,8 +118,6 @@ export const SLOTS = {
   /** A readout in the app's bar. WHERE it sits in the cluster is the app's
    *  decision and always was; what a plugin gets is a seat. */
   "app.header": { keyedBy: "plugin" },
-  /** ...and the panel that readout's press opens. */
-  "app.drawer": { keyedBy: "plugin" },
   /** The tab's own half of this plugin, wrapped ONCE around the page — one
    *  subscription however many leaves draw. These NEST; the app folds them. */
   "app.mount": { keyedBy: "plugin" },
@@ -120,10 +126,10 @@ export const SLOTS = {
   "chat.speaker.mark": { keyedBy: "plugin" },
 } as const satisfies Readonly<Record<string, { readonly keyedBy: "plugin" | "kind" }>>
 
-/** One of the seven. */
+/** One of the six. */
 export type SlotName = keyof typeof SLOTS
 
-/** ...the four a PLUGIN keys, one face each. */
+/** ...the three a PLUGIN keys, one face each. */
 export type PluginSlot = {
   [S in SlotName]: (typeof SLOTS)[S]["keyedBy"] extends "plugin" ? S : never
 }[SlotName]
@@ -151,7 +157,6 @@ export interface SlotFaces {
   "outline.row.pane": PropPane
   "outline.row.block": PropBlock
   "app.header": () => JSX.Element
-  "app.drawer": () => JSX.Element
   "app.mount": (props: { readonly children: JSX.Element }) => JSX.Element
   "chat.speaker.mark": () => JSX.Element
 }
@@ -208,13 +213,26 @@ export class Slots extends Service {
     const keyed = SLOTS[slot].keyedBy === "kind"
     const key = keyed ? kindWordOf(plugin, second as string) : plugin
     const face = keyed ? third : second
-    const held = this.table.get(slot) ?? new Map<string, unknown>()
-    const already = held.has(key)
     return this.ctx.effect(() => {
-      // INSIDE the effect body and not above it, so the refusal is the fiber's
-      // own failure rather than a throw at a call site that has already made
-      // registrations the runtime would have to unwind by hand.
-      if (already) {
+      // THE TABLE AND THE TEST ARE BOTH READ HERE, and the second half of that
+      // was wrong for a round: `held` and `already` were computed OUTSIDE the
+      // effect, which made them a snapshot of the moment `register` was called
+      // rather than of the moment the registration takes.
+      //
+      // A fiber's effect body RE-EXECUTES — on a reload, on an `update`, when a
+      // service it injects leaves and returns — and its disposer runs first,
+      // taking the key back out. A captured `already` would still say `true` on
+      // the second pass and refuse a plugin re-registering the face it had just
+      // unwound; a captured `held` would write into a `Map` this table had
+      // already dropped when the slot emptied, so the entry would exist for the
+      // fiber and be invisible to every reader. Neither is theoretical: the
+      // server's `Surfaces` had the same shape and the review that found it
+      // there is the reason this one is written this way.
+      const held = this.table.get(slot) ?? new Map<string, unknown>()
+      // The refusal is INSIDE the body so it is the fiber's own failure — a
+      // throw at the call site would land after registrations the runtime would
+      // then have to unwind by hand.
+      if (held.has(key)) {
         throw new Error(
           `plugins: "${plugin}" hangs two faces in "${slot}" under "${key}" — `
             + `the second would replace the first with nothing said.`,

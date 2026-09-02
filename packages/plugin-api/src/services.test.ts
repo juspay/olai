@@ -12,7 +12,7 @@ import { expect, test } from "bun:test"
 import { Context } from "cordis"
 
 import type { SessionStart } from "./services.ts"
-import { Kinds, Surfaces } from "./services.ts"
+import { Kinds, Surfaces, Vault } from "./services.ts"
 
 /** What a probe answers on a machine that simply does not have the tool — the
  *  ordinary arm, and the one these cases need because none of them is about
@@ -235,4 +235,116 @@ test("an unloaded plugin is off the next session's list", async () => {
   const second: SessionStart = { asking: [] }
   await ctx.waterfall("chat/session-start", second, async () => second)
   expect(second.asking).toEqual([])
+})
+
+/**
+ * A LISTENER THAT THROWS IS ONE LISTENER'S PROBLEM — which the composition
+ * root's header asserted for a year and the dispatcher did not hold.
+ *
+ * `vault/revision` and `vault/unloaded` were Cordis EMITS, and the root said of
+ * them: *"Both are EMITS, so a listener that throws is one listener's problem —
+ * the dispatcher contains it."* Cordis's `emit` is a bare loop of
+ * `Reflect.apply` with no `try` in it, so a plugin that threw on a revision
+ * took two things that were never its to take:
+ *
+ *   - EVERY LATER PLUGIN on that revision, which never heard it; and
+ *   - THE DIRECTORY FIBER, because both emits sit inside the `manifest`
+ *     connector's `Effect.sync` and a throw there fails `store.reads` — the
+ *     fiber the composition root reads as structural damage when it settles.
+ *
+ * All three plugins in this tree listen with no `try` of their own, and none of
+ * them is wrong to. So the two events became doors on `ctx.vault` that wrap
+ * once, and this is the case that says so: the arrangement is only worth
+ * anything if a THROWN handler leaves its neighbour and its caller standing.
+ */
+test("a vault listener that throws costs the next plugin nothing", async () => {
+  const said: Array<string> = []
+  const heard: Array<string> = []
+  const ctx = new Context()
+  await ctx.plugin(Vault, { served: "/tmp/x", warn: (line) => said.push(line) })
+
+  // TWO PLUGINS, and the throwing one FIRST: the failure this pins is a loop
+  // that stops, so a case with the thrower last would pass over a dispatcher
+  // that contains nothing at all.
+  await ctx.plugin({
+    name: "thrower",
+    inject: ["vault"],
+    apply: (own: Context) => {
+      own.vault.revision(() => {
+        throw new Error("a walk this plugin could not finish")
+      })
+    },
+  })
+  await ctx.plugin({
+    name: "neighbour",
+    inject: ["vault"],
+    apply: (own: Context) => {
+      own.vault.revision(() => heard.push("neighbour"))
+    },
+  })
+
+  // THE CALLER IS STILL STANDING, which is the half that matters most: this
+  // call is made inside the store's own fiber, and a throw out of it fails the
+  // directory read rather than one plugin's walk.
+  expect(() => ctx.vault.published({ rev: 1 })).not.toThrow()
+  // ...the neighbour heard the revision the thrower did not finish...
+  expect(heard).toEqual(["neighbour"])
+  // ...and the throw was SAID, on the owner's channel, with the plugin's name
+  // on it. A contained fault nobody is told about is the same silence the
+  // uncontained one had, one layer in.
+  expect(said).toHaveLength(1)
+  expect(said[0]).toContain("thrower")
+  expect(said[0]).toContain("a walk this plugin could not finish")
+  // ...and the neighbour is not blamed for it.
+  expect(said[0]).not.toContain("neighbour")
+})
+
+/** ...and the same for the store going quiet, which is the other door and the
+ *  one whose NAME has been misread before: `unloaded` says the STORE has never
+ *  published, not that the plugin is being torn down. */
+test("an unloaded listener that throws costs the next plugin nothing", async () => {
+  const said: Array<string> = []
+  const heard: Array<string> = []
+  const ctx = new Context()
+  await ctx.plugin(Vault, { served: "/tmp/x", warn: (line) => said.push(line) })
+  await ctx.plugin({
+    name: "thrower",
+    inject: ["vault"],
+    apply: (own: Context) => {
+      own.vault.unloaded(() => {
+        throw new Error("nope")
+      })
+    },
+  })
+  await ctx.plugin({
+    name: "neighbour",
+    inject: ["vault"],
+    apply: (own: Context) => {
+      own.vault.unloaded(() => heard.push("neighbour"))
+    },
+  })
+  expect(() => ctx.vault.quiet()).not.toThrow()
+  expect(heard).toEqual(["neighbour"])
+  expect(said[0]).toContain("thrower")
+})
+
+/** A LISTENER LEAVES WITH ITS FIBER, like every other registration here — the
+ *  subscription is an `ctx.effect`, so unloading the plugin takes it out of the
+ *  set and nothing has to remember to. */
+test("a vault listener goes when its plugin does", async () => {
+  const heard: Array<string> = []
+  const ctx = new Context()
+  await ctx.plugin(Vault, { served: "/tmp/x" })
+  const fiber = await ctx.plugin({
+    name: "leaver",
+    inject: ["vault"],
+    apply: (own: Context) => {
+      own.vault.revision(() => heard.push("leaver"))
+    },
+  })
+  ctx.vault.published({ rev: 1 })
+  expect(heard).toEqual(["leaver"])
+  await fiber.dispose()
+  ctx.vault.published({ rev: 2 })
+  expect(heard).toEqual(["leaver"])
 })

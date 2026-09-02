@@ -29,10 +29,11 @@
  * is dialled first and this connection released only once that has resolved, so
  * a dial that throws leaves the working wire alone.
  *
- * Nothing waits. The first paint is a page with no plugin faces on it, which is
- * not a guess about the roster but the TRUE state of a tab that has not been
- * told yet — and it lands on the same frame as `heads` and `page`, so what a
- * reader sees is one paint with everything in it.
+ * THE FIRST PAINT WAITS FOR THE FIRST ROSTER, bounded — see {@link firstRoster}.
+ * It did not, and every ordinary boot therefore drew the page twice: render with
+ * no siblings, roster arrives, redial, rebuild. That is the rare-case cost of a
+ * redial paid on every load on every machine, and the deadline is what keeps a
+ * roster that never answers from turning the wait into a white screen.
  *
  * ## WHAT A REDIAL COSTS, said out loud
  *
@@ -47,8 +48,8 @@
  * off on the server leaves the tab without a reload, and one turned on arrives
  * the same way. The cost is bounded by the roster's own `equals` — a serve
  * republishing an identical roster (a reconnect does) moves nothing — and by
- * there being exactly one redial on an ordinary boot, on a page with nothing in
- * it yet.
+ * the first render WAITING for the first roster, so the ordinary boot redials
+ * before it has drawn anything at all.
  *
  * ## ...AND A REDIAL IS NOT A RETIREMENT
  *
@@ -200,6 +201,33 @@ let composed = ""
  */
 const rerost = async (want: ReadonlyArray<string>): Promise<void> => {
   const signature = signatureOf(want)
+  // ONE AT A TIME, and it is the roster's own shape that makes this reachable
+  // rather than theoretical. `composed` is only written on SUCCESS — which is
+  // right, because a failed redial must leave the next frame free to try again
+  // — so between the first frame and its redial resolving, the guard the loop
+  // reads still says the old signature. A second frame in that window (a
+  // reconnect republishing, a plugin failing while another is being brought in)
+  // passes the guard and starts a SECOND `live.redial` on the same connection,
+  // which the seam refuses outright: it would dial a third wire while the
+  // caller still believes it holds one.
+  //
+  // Queued rather than dropped. Dropping would be simpler and would lose the
+  // last frame's answer if it arrived mid-flight, leaving the tab following a
+  // roster the server has already moved off — silently, since nothing would
+  // republish to correct it. Chaining costs one more redial in a window that
+  // is one round trip wide.
+  const mine = inFlight.then(() => rerostNow(want, signature), () => rerostNow(want, signature))
+  inFlight = mine.then(() => {}, () => {})
+  return mine
+}
+
+/** The tail of {@link rerost}, entered only when no other redial is running. */
+let inFlight: Promise<void> = Promise.resolve()
+
+const rerostNow = async (want: ReadonlyArray<string>, signature: string): Promise<void> => {
+  // ...and once it is our turn, the answer may already be the one on the wire:
+  // the frame ahead of us in the queue may have been for the same roster.
+  if (signature === composed) return
   setRedialing(true)
   try {
     const halves = await Promise.all(
@@ -253,6 +281,47 @@ const surfaceMapOf = (
  * signature comparison makes it a no-op, which is what stops the loop from
  * chasing its own tail.
  */
+/**
+ * THE FIRST PAINT WAITS FOR THE FIRST ROSTER — bounded, and only the first.
+ *
+ * ## What it costs not to
+ *
+ * The boot sequence is: dial the root with no siblings, render, the roster
+ * arrives, redial, and the tree rebuilds keyed on {@link wireGeneration}. So
+ * EVERY ORDINARY PAGE LOAD drew the outline twice and opened core's
+ * subscriptions twice — not the rare case the rebuild was argued for (somebody
+ * turning a plugin on or off), but every load on every machine.
+ *
+ * The header used to argue that away: the first paint lands on the same frame
+ * as `heads` and `page`, so a reader sees one paint. That is true of what a
+ * READER sees and not of what the page DOES, and the second half is the one
+ * that costs — a second full render and a second set of subscriptions, thrown
+ * away, on the critical path of every boot.
+ *
+ * ## Why it is bounded, and what the deadline is FOR
+ *
+ * A page that waits on a cell waits forever when the cell never answers — a
+ * server too old to declare the member, a roster that fails to decode, a socket
+ * that never opens. Blanking the app for any of those would trade a double
+ * paint for a white screen, which is much worse: the freeze overlay and the
+ * connection readout are INSIDE the tree, so a tab that cannot reach its server
+ * would have no way to say so.
+ *
+ * So the deadline is not a guess at how long a roster takes; it is the promise
+ * that a broken roster costs a flicker rather than the product. On the ordinary
+ * path it never fires — the roster rides the first frame off the same socket as
+ * `heads` — and when it does fire the page renders exactly as it did before
+ * this existed, with the redial arriving later as an ordinary generation bump.
+ */
+const FIRST_ROSTER_MS = 1500
+
+/** Resolved by whichever comes first: the roster settling, or the deadline. */
+let settle: () => void = () => {}
+export const firstRoster: Promise<void> = new Promise<void>((resolve) => {
+  settle = resolve
+  setTimeout(resolve, FIRST_ROSTER_MS)
+})
+
 createRoot(() => {
   createEffect(() => {
     generation()
@@ -264,11 +333,15 @@ createRoot(() => {
       // because of it would be this page inventing a policy.
       if (value === undefined) return
       const want = value.built.filter((row) => row.running).map((row) => row.name)
-      if (signatureOf(want) === composed) return
-      void rerost(want)
+      if (signatureOf(want) === composed) {
+        settle()
+        return
+      }
+      void rerost(want).then(settle)
     })
   })
 })
+
 
 /**
  * OLAI'S OWN CLIENT, unprefixed — the members every page reads.

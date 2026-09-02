@@ -39,24 +39,30 @@
  * `surface/kolu/fleet/get` with no name arithmetic in any general package.
  *
  * Beside those, a plugin contributes property KINDS the format takes as data
- * and never imports, DRESSINGS licensed by declared kind, a CHROME slot or two,
- * a SERVER HALF that installs itself into the services here, and a PROBE — one
- * reading that answers with the MCP server a chat session is handed AND the
- * WHOLE SENTENCE about the one it did not get.
+ * and never imports, FACES it hangs in the app's six declared slots
+ * ({@link ./browser.ts}) — dressing a kind it contributed, or keyed by its own
+ * name — a SERVER HALF that installs itself into the services here, and a PROBE
+ * — one reading that answers with the MCP server a chat session is handed AND
+ * the WHOLE SENTENCE about the one it did not get.
  *
  * A plugin also carries a USER PAGE, and it is deliberately NOT a field here:
  * the page is `packages/plugins/olai-plugin-<name>/docs.md`, served under
  * `docs/` through a symlink at `docs/plugins/<name>.md`, and its address is the
- * plugin's NAME ({@link ./plugin.ts}'s `OlaiPlugin` argues it in full).
+ * plugin's NAME — the one word in {@link ./contract.ts}'s {@link PluginWire},
+ * which is also the word the loader binds the fiber under, so the docs slug,
+ * the wire prefix and the fiber's own key cannot drift apart
+ * (`packages/tests/plugin_docs.test.ts` holds the page to it).
  *
  * ## THE TWO DOORS
  *
- * This one is what a BROWSER half is written against — the dressings, the
- * chrome slots and the marks, whose fields return `JSX.Element` — plus the
- * shapes both halves share ({@link ./contract.ts}). {@link ./services.ts} is
- * what a SERVER half is written against, and it names `cordis` where this one
- * names `solid-js`: a server that reached a browser face would evaluate a
- * `.tsx` and die on `react/jsx-dev-runtime` before it served anything.
+ * This one is what a BROWSER half is written against: the SLOTS its faces hang
+ * in and the services it names in its `inject` ({@link ./browser.ts}), the face
+ * types that say what each of those faces is handed ({@link ./plugin.ts}, whose
+ * fields return `JSX.Element`), and the shapes both halves share
+ * ({@link ./contract.ts}). {@link ./services.ts} is what a SERVER half is
+ * written against, and it names `cordis` and no browser face where this one
+ * names `solid-js` as well: a server that reached a browser face would evaluate
+ * a `.tsx` and die on `react/jsx-dev-runtime` before it served anything.
  */
 
 export type {
@@ -87,7 +93,7 @@ export type {
   PropEntry,
   PropPane,
 } from "./plugin.ts"
-/** THE RUNTIME A BROWSER HALF INSTALLS ITSELF INTO — the seven slots and the
+/** THE RUNTIME A BROWSER HALF INSTALLS ITSELF INTO — the six slots and the
  *  four services, beside the shapes above that say what a face drawn into one
  *  is handed. Both come through this door because both are what a browser half
  *  is written against, and neither is reachable from `./services.ts`. */

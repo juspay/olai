@@ -175,3 +175,115 @@ test("two plugins asking the same service get two different clients", async () =
   })
   expect(answers).toEqual(["client:alpha", "client:beta"])
 })
+
+/**
+ * THE SLOT TABLE'S OWN CASES — what a registration does, what it refuses, and
+ * what leaves with the fiber that made it.
+ *
+ * `Slots` had none. The claims about it lived in `@olai/web`'s walks, which ask
+ * what is DRAWN; nothing asked what the table says after a registration that
+ * did not take — which is the one question the server's `Kinds` and `Surfaces`
+ * both have a bench for, and the one the server's refused-sibling bug was found
+ * by.
+ */
+
+/** A context with the slot table on it, and a counter for the `changed`
+ *  callback the app wires to a signal. */
+const withSlots = async () => {
+  const moved: Array<number> = []
+  const ctx = new Context()
+  await ctx.plugin(Slots, { changed: () => moved.push(1) })
+  return { ctx, moved }
+}
+
+/** THE STAMP IS THE FIBER'S NAME, never an argument — so a plugin cannot hang a
+ *  face under another's key, and a kind word is composed the way `ctx.kinds`
+ *  composes it on the server. */
+test("a face is keyed by the fiber, and a kind by the composed word", async () => {
+  const { ctx } = await withSlots()
+  const face = () => null
+  await ctx.plugin({
+    name: "alpha",
+    inject: ["slots"],
+    apply: (own: Context) => {
+      own.slots.register("app.header", face)
+      own.slots.register("outline.row.chip", "terminal", face as never)
+    },
+  })
+  expect(ctx.slots.hung("app.header")).toEqual([{ plugin: "alpha", face }])
+  // `alpha` + `-` + `terminal` — the same composition the vault's vocabulary
+  // gets, so the word a face is looked up by and the word a declaration writes
+  // cannot be two spellings.
+  expect([...ctx.slots.dressed("outline.row.chip").keys()]).toEqual(["alpha-terminal"])
+})
+
+/** TWO FACES IN ONE SLOT UNDER ONE KEY IS REFUSED, and it takes only its own
+ *  fiber down — the throw is inside the effect body, so Cordis lands that fiber
+ *  in FAILED having unwound whatever it had registered, and every other
+ *  plugin's faces are untouched. */
+test("a plugin that hangs two faces in one slot fails alone", async () => {
+  const { ctx } = await withSlots()
+  const face = () => null
+  await ctx.plugin({
+    name: "neighbour",
+    inject: ["slots"],
+    apply: (own: Context) => own.slots.register("app.header", face),
+  }).then(() => {}, () => {})
+  await ctx.plugin({
+    name: "greedy",
+    inject: ["slots"],
+    apply: (own: Context) => {
+      own.slots.register("app.header", face)
+      own.slots.register("app.header", face)
+    },
+  }).then(() => {}, () => {})
+  // The greedy plugin registered nothing — its first face was unwound with the
+  // fiber — and the neighbour's is still hung.
+  expect(ctx.slots.hung("app.header")).toEqual([{ plugin: "neighbour", face }])
+})
+
+/** A FACE LEAVES WITH ITS FIBER. Every registration is an `ctx.effect`, so a
+ *  plugin the roster stops naming unwinds its own faces and the app is told to
+ *  re-read — which is the whole of why the two mount licences could go. */
+test("a face goes when its plugin does, and the app is told", async () => {
+  const { ctx, moved } = await withSlots()
+  const face = () => null
+  const fiber = await ctx.plugin({
+    name: "leaver",
+    inject: ["slots"],
+    apply: (own: Context) => own.slots.register("app.mount", face as never),
+  })
+  expect(ctx.slots.hung("app.mount")).toHaveLength(1)
+  const said = moved.length
+  await fiber.dispose()
+  expect(ctx.slots.hung("app.mount")).toEqual([])
+  // ...and `changed` fired for the leaving as well as the arriving. A table
+  // that moved without saying so is a page still drawing a face that is gone.
+  expect(moved.length).toBeGreaterThan(said)
+})
+
+/** ...AND A FIBER MAY REGISTER AGAIN AFTER IT HAS UNWOUND, which is what a
+ *  re-execute is: the disposer runs, then the body does. A duplicate test
+ *  captured before the effect would refuse the second pass and take a plugin
+ *  down for coming back. */
+test("a plugin that unwinds and re-registers is not refused", async () => {
+  const { ctx } = await withSlots()
+  const face = () => null
+  let undo: (() => void) | undefined
+  await ctx.plugin({
+    name: "cycler",
+    inject: ["slots"],
+    apply: (own: Context) => {
+      undo = own.slots.register("app.header", face)
+    },
+  })
+  expect(ctx.slots.hung("app.header")).toHaveLength(1)
+  undo?.()
+  expect(ctx.slots.hung("app.header")).toEqual([])
+  // The same fiber, the same slot, the same key — and no refusal, because the
+  // table is read at the moment the registration takes rather than snapshotted
+  // when `register` was called.
+  expect(() => {
+    ctx.slots.register("app.header", face)
+  }).not.toThrow()
+})

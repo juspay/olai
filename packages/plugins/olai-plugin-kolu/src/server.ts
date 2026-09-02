@@ -759,7 +759,7 @@ export function apply(ctx: Context): void {
    * whole published snapshot and {@link VaultRevision} names the parts kolu
    * touches, which is a claim the compiler checks rather than a comment.
    */
-  ctx.on("vault/revision", (snapshot) => {
+  ctx.vault.revision((snapshot) => {
     const revision = snapshot as VaultRevision
     file = conventionServed(koluFileIn, revision.value.set, revision, file)
     declaring = declarationsOf(revision.value.derived, ownKinds)
@@ -796,7 +796,7 @@ export function apply(ctx: Context): void {
    * surface, the kinds, the wake, these listeners — and what this listener does
    * is none of that: it says the DISK went away, not that kolu did.
    */
-  ctx.on("vault/unloaded", () => {
+  ctx.vault.unloaded(() => {
     derived = undefined
     file = undefined
     half.unloaded()

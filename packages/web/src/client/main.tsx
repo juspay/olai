@@ -25,7 +25,7 @@ import { followStoredSize } from "./theme/sizeState.ts"
 import { followStoredTheme } from "./theme/state.ts"
 import { trackVisibleViewport } from "./viewport.ts"
 import { provideFurniture } from "./plugins/furniture.tsx"
-import { connectionReadout, olai, wireGeneration } from "./wire.ts"
+import { connectionReadout, firstRoster, olai, wireGeneration } from "./wire.ts"
 
 // The paired half of the `/sw.js` the server serves, which is now the
 // framework's NOTIFICATION worker (packages/server/src/listener.ts says why):
@@ -123,6 +123,13 @@ if (root === null) throw new Error("no #root element")
 // because the ORDER is then a line somebody can read rather than a race
 // somebody has to reason about (`./plugins/furniture.tsx`).
 await provideFurniture()
+
+// ...AND THE FIRST ROSTER, bounded. Without this the boot draws twice on every
+// load: render with no siblings, the roster arrives,  redials, and the
+// tree rebuilds keyed on the generation below. Waiting costs one round trip the
+// page was making anyway; the deadline inside  is what stops a
+// roster that never answers turning that wait into a blank tab.
+await firstRoster
 
 render(
   () => (

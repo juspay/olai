@@ -8,7 +8,7 @@
  * `mark` on it, listed in a compiled-in registry and walked by four modules in
  * `@olai/web`. A browser half is a Cordis FIBER now — `name`, `inject`,
  * `apply(ctx)`, exactly its server half — and what it used to declare it now
- * REGISTERS, into the seven slots `./browser.ts` declares. So the hooks retired
+ * REGISTERS, into the six slots `./browser.ts` declares. So the hooks retired
  * with the object that carried them and what stayed here is the DRAWING
  * contract: what a face is handed, what it may answer with, and the three
  * paragraphs about a mark that are the whole of what makes one column of them
@@ -39,7 +39,8 @@
  * `...oduMembers.cells` is two lines that say exactly what is in the spec — and
  * a registry is one line that does not. The trade is bought back by the
  * framework's own composition, which was here the whole time
- * ({@link ./composition.test.ts}): a plugin declares a WHOLE SURFACE in its own package
+ * (`@olai/bundle`'s `composition.test.ts`, which moved with the registry): a
+ * plugin declares a WHOLE SURFACE in its own package
  * and core composes it as a SIBLING under the plugin's name, so what reaches
  * the wire is `surface/kolu/fleet/get` — computed by
  * `composeSurfaceContracts` and by nothing olai wrote. The composed group
