@@ -147,8 +147,8 @@ case "$plugins" in *"$registry"*) echo "prove-fence: the registry came back as a
 # has no separate appliance-face directory and needs none). Without these, a missing one dies
 # mid-run on `cp`/`sed` rather than here, with this block's own diagnostic.
 for path in "$registry" "$plugin_a" "$plugin_b" "$general_src" "$sheet" "$other_dial" \
-  "$container" "$plugin_a/src/plugin.ts" "$plugin_a/src/wire.ts" "$plugin_b/src/wire.ts" \
-  "$plugin_a/src/server.ts" "$plugin_b/src/server.ts" "$plugin_b/src/browser/mount.tsx"; do
+  "$container" "$plugin_a/src/browser.tsx" "$plugin_a/src/wire.ts" "$plugin_b/src/wire.ts" \
+  "$plugin_a/src/server.ts" "$plugin_b/src/server.ts" "$plugin_b/src/browser/Mark.tsx"; do
   [ -e "$path" ] || { echo "prove-fence: derived path $path does not exist" >&2; exit 1; }
 done
 
@@ -361,17 +361,20 @@ run 2 "a general package DECLARES a plugin in its manifest" \
   'declares a plugin in its manifest' \
   declare_dep "$general" "$name_a"
 
-# The two DIRECTION mutations go in the manifest module rather than in `./wire`,
-# and the reason is worth reading: `fence.test.ts` IMPORTS `./surfaces.ts`,
-# which imports every plugin's `./wire` — so a cycle put there is refused by the
-# module loader before a single claim runs, and the proof would read "red"
-# without any claim having seen it. `src/plugin.ts` is on the browser graph,
-# which no test in the registry imports (that is the whole reason
-# `rosters.test.ts` reads its three rosters as TEXT), so a defect there is
-# caught by the sweep and NAMED by it.
+# THE DIRECTION MUTATION goes in the BROWSER half rather than in `./wire`, and
+# the reason has changed with the doors. It used to be that `fence.test.ts`
+# imported `./surfaces.ts`, which imported every plugin's `./wire`, so a cycle
+# put there was refused by the module loader before a single claim ran and the
+# proof read "red" without any claim having seen it. There is no `surfaces.ts`
+# — but the suite still LOADS each plugin's server half (`serverHalves`, which
+# imports by the row's own name), and a server half re-exports its `./wire`.
+# `src/browser.tsx` is on the browser graph, which nothing in the registry
+# imports at all now: the root door names that module in a dynamic `import()`
+# and the walk records it without following it. So a defect there is caught by
+# the sweep and NAMED by it, which is exactly what this mutation has to prove.
 run 3 "a plugin imports the REGISTRY back (the cycle)" \
   'a plugin does not import the registry' \
-  append "$plugin_a/src/plugin.ts" "import \"$registry_name\""
+  append "$plugin_a/src/browser.tsx" "import \"$registry_name\""
 
 # MUTATION 4 IS GONE, and its absence is a ruling rather than a gap. It was "a
 # plugin imports ANOTHER plugin", aimed at a claim the Cordis proposal
@@ -400,7 +403,7 @@ run 7 "the SERVER door pulls an emulator" \
 
 run 8 "the SERVER door pulls a COMPONENT (the .tsx claim)" \
   'no file on it is a component at all' \
-  append "$plugin_b/src/server.ts" 'import "./browser/mount.tsx"'
+  append "$plugin_b/src/server.ts" 'import "./browser/Mark.tsx"'
 
 run 9 "a general package names an appliance's PRODUCT TIER" \
   'outside a tenant names a hydrated specifier' \
