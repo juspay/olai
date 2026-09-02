@@ -33,6 +33,17 @@
  * reason `../doors.ts` builds one: the askers are per drawn row and the answer
  * is per frame.
  *
+ * ## And a third that is not a reading of the roster at all
+ *
+ * {@link Roster.engines} is WHICH AGENTS THIS MACHINE HAS, which is a different
+ * question from which nodes are node agents — and it is here for a reason that
+ * is entirely about where the subscription is. It is a field of the chat cell
+ * this provider is already holding, and its one reader is the `•••` menu's
+ * *start an agent session* on a BARE node, which has to pick an engine because
+ * the node names none (`../menu/verbs.ts`). A second `createChatState` behind
+ * the menu would be the per-row subscription this whole module exists to
+ * refuse, arriving from the other side.
+ *
  * BEFORE THE FIRST FRAME the roster is empty, which is the same thing a
  * directory with no `agent-session` property anywhere says and the same thing it draws:
  * nothing. There is no third state to give anybody — an empty sidebar and a
@@ -45,7 +56,7 @@
 
 import { type Accessor, createContext, createMemo, type JSX, useContext } from "solid-js"
 
-import { NO_AGENT_ROSTER } from "@olai/surface"
+import { type AgentChoice, NO_AGENT_ROSTER } from "@olai/surface"
 
 import { createChatState } from "../chat/state.ts"
 import { olai } from "../wire.ts"
@@ -57,6 +68,11 @@ export interface Roster {
   /** This node's row, or `undefined` for a node that is not a node agent —
    *  which is every other row of every outline. */
   readonly at: (node: string) => Row | undefined
+  /** WHICH AGENTS THIS MACHINE HAS, in the order the panel's picker draws them
+   *  — see the header for why this rides here. Empty before the first frame,
+   *  and on a serve with no ACP agent at all, which are the same two cases
+   *  every other reading here has. */
+  readonly engines: Accessor<ReadonlyArray<AgentChoice>>
 }
 
 const AgentsContext = createContext<Roster>()
@@ -70,9 +86,13 @@ export function AgentsProvider(props: { readonly children: JSX.Element }) {
   const chat = createChatState()
   const rows = createMemo(() => rowsOf(cell.value() ?? NO_AGENT_ROSTER, chat()))
   const byNode = createMemo(() => new Map(rows().map((row) => [row.id, row])))
+  // OFF THE SAME FRAME, and a memo rather than a read at each asker so that a
+  // chat frame which moved a dot does not re-run the menu's catalog: the list
+  // is replaced whole per frame and is the same array on nearly all of them.
+  const engines = createMemo(() => chat().roster)
 
   return (
-    <AgentsContext.Provider value={{ rows, at: (node) => byNode().get(node) }}>
+    <AgentsContext.Provider value={{ rows, at: (node) => byNode().get(node), engines }}>
       {props.children}
     </AgentsContext.Provider>
   )

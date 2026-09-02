@@ -49,7 +49,7 @@ import {
   type Situated,
   type Status,
 } from "@olai/format"
-import type { Edit, Shelf } from "@olai/surface"
+import type { AgentChoice, Edit, Shelf } from "@olai/surface"
 
 import { datePick } from "../date/pick.ts"
 import { repeatPick } from "../date/repeat.ts"
@@ -173,6 +173,11 @@ export type Does =
  *  a list of verbs rather than a list of wrappers. */
 const sends = (edit: Edit): Does => ({ kind: "edit", edit })
 
+/** A MACHINE WITH NO AGENT ON IT, which is the honest argument for a caller
+ *  that cannot offer *start an agent session* anyway — `NO_PINS`' shape one
+ *  question over (`../palette/ops.ts` says why it cannot matter there). */
+export const NO_ENGINES: ReadonlyArray<AgentChoice> = []
+
 /** One write the menu offers: what it is called, what it does, and what it
  *  asks first — if it asks anything. */
 export interface Verb {
@@ -236,6 +241,12 @@ export const writeVerbs = (
    *  because it is a second reading, and one of them no longer comes from the
    *  browser's copy of anything. */
   shelf: Shelf,
+  /** WHICH AGENTS THIS MACHINE HAS — the third question a subject cannot
+   *  answer, and the one that is not about the vault at all
+   *  (`../agents/answered.tsx`). It is what *start an agent session* picks from
+   *  on a node that names no engine of its own; {@link NO_ENGINES} is the
+   *  honest argument for a caller that cannot offer that verb anyway. */
+  engines: ReadonlyArray<AgentChoice> = NO_ENGINES,
 ): ReadonlyArray<Verb> => {
   const verbs: Array<Verb> = []
   // The node this subject draws: the mark it carries, the date it has. A
@@ -278,27 +289,58 @@ export const writeVerbs = (
           does: sends({ verb: "trash", id: pinned.id }),
         },
     )
-    // A NODE AGENT WITH NO SESSION YET, and the verb that gives it one.
+    // ANY NODE THAT DOES NOT ALREADY HAVE A SESSION, and the verb that gives it
+    // one. The press WRITES the property; it does not require one.
     //
-    // OFFERED ONLY THERE, which is the whole of the fence and is read straight
-    // off the property. A node carrying no `agent-session` is not a node agent
-    // and has no agent to start a session WITH — putting the property on is the
-    // gesture that creates one, and it is the run of chips three pixels away.
-    // A node whose property already names a session HAS one: replacing it is
-    // the *fresh session* affordance, which is a different verb with a
-    // different warning ("memory is the subtree; the transcript becomes
-    // history") and belongs to the migration phase that ships it.
+    // The human, testing the deployed head on 2026-09-02: the ruling was *the
+    // `•••` should get a menu item allowing me to start an agent session*, and
+    // an item that appeared only where somebody had already typed
+    // `agent-session: claude` by hand is the gesture asking to be performed
+    // before it will offer itself. So the fence is one arm now, and it is the
+    // only one the ruling names:
+    //
+    //   - a node whose property already names a SESSION is offered nothing.
+    //     Replacing a live conversation is the *fresh session* affordance,
+    //     which owes a person a sentence about what happens to the transcript
+    //     ("memory is the subtree; the transcript becomes history") and belongs
+    //     to the migration phase that ships it.
+    //   - everything else is offered it, bare nodes included.
+    //
+    // WHICH ENGINE, in the order a person would expect to be asked:
+    //
+    //   - the node's OWN, where its property names one. It said which agent it
+    //     is; nothing here gets to second-guess that, and this is the case
+    //     where there is nothing to choose however many agents are installed.
+    //   - otherwise EVERY AGENT THIS MACHINE HAS, one entry each. With one
+    //     installed that is one entry and no ask, which is the ruling's own
+    //     words; with several the menu IS the ask — a list of choices is what a
+    //     menu already is, so this needs no panel, no picker and no second
+    //     gesture, and it is the shape `MARK_MENU` above already takes.
+    //   - with NONE installed there is no entry, because there is nothing to
+    //     start a session with and an entry whose only outcome is that sentence
+    //     teaches nobody anything.
+    //
+    // The label carries the agent's name only when there is a choice to make.
+    // Naming it on a machine with one agent would be answering a question
+    // nobody was asked, in the one place a menu has no room for it.
     //
     // It names the node the row SHOWS, the rule a mark and a pin already
     // follow: a mirror is a placement, the property is on the record it stands
     // for, and the roster answers with that record's id.
-    const agent = sessionIn(customText(shown.node, AGENT_PROP) ?? "")
-    if (agent !== null && agent.session === null) {
-      verbs.push({
-        id: "start-agent",
-        label: "Start an agent session",
-        does: { kind: "start-agent", engine: agent.engine },
-      })
+    const held = sessionIn(customText(shown.node, AGENT_PROP) ?? "")
+    if (held?.session == null) {
+      const choices: ReadonlyArray<AgentChoice> = held === null
+        ? engines
+        : [{ id: held.engine, name: held.engine }]
+      for (const choice of choices) {
+        verbs.push({
+          id: `start-agent-${choice.id}`,
+          label: choices.length === 1
+            ? "Start an agent session"
+            : `Start an agent session — ${choice.name}`,
+          does: { kind: "start-agent", engine: choice.id },
+        })
+      }
     }
     // The mark it already carries is not offered again: putting it back is the
     // one mark request the ops layer refuses for asking about nothing

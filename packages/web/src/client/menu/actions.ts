@@ -34,7 +34,7 @@
  */
 
 import type { Row } from "@olai/format"
-import type { Shelf } from "@olai/surface"
+import type { AgentChoice, Shelf } from "@olai/surface"
 import { Result } from "effect"
 
 import { armNode } from "../chat/armed.ts"
@@ -119,6 +119,12 @@ export const nodeMenuActions = (args: {
    *  every key and value it draws and a menu that is closed by the time
    *  anything has been typed could not hold one anyway. */
   readonly addProp: () => void
+  /** WHICH AGENTS THIS MACHINE HAS, for the one verb that has to pick one on a
+   *  node that names none — `../agents/answered.tsx`'s third reading, handed in
+   *  rather than subscribed to here for the reason that module exists: the
+   *  catalog is built per open menu, and the chat cell it comes off moves
+   *  several times a turn. */
+  readonly engines: ReadonlyArray<AgentChoice>
   /** Open the row's MOVE-TO picker — the same arrangement the three above are,
    *  for the same reason: a destination is a node somebody has to find, and the
    *  panel belongs to the ROW (⌘⇧M in its editor opens the same one), not to a
@@ -208,6 +214,7 @@ export const nodeMenuActions = (args: {
     subjectOfRow(args.row),
     args.row.under,
     args.pins,
+    args.engines,
   ).map(
     ({ does, ...verb }) => ({
       ...verb,

@@ -565,15 +565,20 @@ An agent with no session can only do half of that, and does the half that exists
 
 ### Starting a session
 
-**The row's `•••` menu offers *Start an agent session*** on a node agent that has none yet — a node whose `agent-session` names an engine and no conversation. Pressing it opens a fresh conversation with that engine and writes the conversation back onto the same property, in that order, so the vault never names a session that was not opened.
+**Any row's `•••` menu offers *Start an agent session*.** Pressing it opens a fresh conversation and writes it onto that node's `agent-session` property, in that order, so the vault never names a session that was not opened. **The press writes the property; it does not require one** — so this is how a node agent is created, not only how an existing one is given a session.
 
 ```
+(no property)               →  agent-session: claude:0f3c8d21-…
 agent-session: claude       →  agent-session: claude:0f3c8d21-…
 ```
 
-The entry is not offered on a node whose property already names a conversation. Replacing a live session is the *fresh session* affordance — the one that has to say what happens to the transcript — and it ships with [migration](#what-is-not-here-yet-and-in-what-order-it-comes). Until then, re-pointing a bound node is an edit to the property, which is a chip under the title like any other.
+**Which engine**, in the order you would expect to be asked:
 
-A node with no `agent-session` at all is not a node agent and is offered nothing: **writing the property is what creates one**, and the run of chips is three pixels from the menu.
+- **the node's own**, where its property already names one — it said which agent it is, and nothing second-guesses that, however many agents you have installed;
+- otherwise **one entry per agent this machine has**. With one installed that is a single plain entry and no question; with several the menu *is* the question — `Start an agent session — Claude Code`, `— Grok` — because a list of choices is what a menu already is;
+- with **none** installed there is no entry, since there is nothing to start a session with.
+
+**The one node it is not offered on** is one whose property already names a conversation. Replacing a live session is the *fresh session* affordance — the one that has to say what happens to the transcript — and it ships with [migration](#what-is-not-here-yet-and-in-what-order-it-comes). Until then, re-pointing a bound node is an edit to the property, which is a chip under the title like any other.
 
 ### Where the binding lives, and what a second machine sees
 

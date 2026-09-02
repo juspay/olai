@@ -26,7 +26,8 @@ Feature: A node with an `agent-session` property IS an agent
     # is the nine — including the ones on lanes that are FINISHED, because the
     # query says nothing about `done` and a roster that quietly dropped them
     # would be deciding something nobody asked for. Taking the property off is
-    # how a row leaves.
+    # how a row leaves, and putting it on is how one arrives — which is what
+    # the `•••` verb below does in one press.
     Given I open the outline "lanes.olai"
     Then the agents roster holds 9 agents
     And the agents roster lists "door-implement"
@@ -82,27 +83,51 @@ Feature: A node with an `agent-session` property IS an agent
   # ── the gesture that binds one ────────────────────────────────────────
 
   @scratch:lanes
-  Scenario: Starting an agent session writes the session onto the property
-    # The `•••` verb, and the whole of what it is: open a conversation with the
-    # engine this node's property already names, then write that conversation
-    # back onto the same property. Two acts, one press, and the ORDER is the
-    # guarantee — the vault never names a session that was not opened.
+  Scenario: Starting an agent session on a BARE node is what creates the node agent
+    # The verb WRITES the property; it does not require one (the human, testing
+    # the deployed head, 2026-09-02). `lane-fresh` carries nothing at all —
+    # which is nearly every row of every outline — so before the press it is
+    # not a node agent and wears no door.
     #
-    # It is offered here because `door-implement` carries `agent-session:
-    # claude` with no session half. A node with no property at all is not a node
-    # agent and has no agent to start a session with; a node whose property
-    # already names one HAS a session, and replacing it is the fresh-session
-    # affordance the migration phase ships.
+    # The engine is the machine's, and this serve has exactly one installed, so
+    # there is nothing to ask: the entry is one plain line.
+    Given I open the outline "lanes.olai"
+    Then there is no door on "lane-fresh"
+    When I open the node menu of "lane-fresh"
+    And I choose "Start an agent session" from the node menu
+    # One press, and the node IS one: the property carries both halves, and the
+    # roster — which is that query — has a row it did not have, wearing a door
+    # that says which engine.
+    Then the node "lane-fresh" shows the property "agent-session" holding "claude:fake-session-1"
+    And the agents roster holds 10 agents
+    And the agents roster lists "lane-fresh"
+    And the door on "lane-fresh" reads "claude"
+    #
+    # WHAT IS NOT ASSERTED HERE is the standing, and the reason is the scripted
+    # agent rather than the panel: it answers every `session/new` with one id,
+    # so a node bound in this serve names the conversation the fixture's
+    # pre-bound row already names, and which of the two the panel reports as
+    # `bound` is the first-node-wins rule doing its job. That the panel follows
+    # a binding is asserted where nothing collides — the keystone below.
+
+  @scratch:lanes
+  Scenario: ... and on a node that already names an engine, it uses that one
+    # The other half of *which engine*: `door-implement` carries
+    # `agent-session: claude` with no session, so it said which agent it is and
+    # nothing gets to second-guess that. Two acts, one press, and the ORDER is
+    # the guarantee — the vault never names a session that was not opened.
     Given I open the outline "lanes.olai"
     Then the agent "door-implement" stands "unbound"
     When I open the node menu of "door-implement"
     And I choose "Start an agent session" from the node menu
     # The property now carries both halves, which is the durable half of the
-    # answer: this survives the restart, because it is in the file.
+    # answer: this survives the restart, because it is in the file — and its
+    # engine is the one the node already named rather than one picked for it.
     Then the node "door-implement" shows the property "agent-session" holding "claude:fake-session-1"
-    # ... and the roster says so without being told twice: the row is the query,
-    # and the query has just been answered differently.
-    And the agent "door-implement" stands "idle"
+    # ... and the door says so without being told twice: it read `no session
+    # bound` a moment ago, and the row is the query.
+    And the door on "door-implement" reads "claude"
+    And the door on "door-implement" does not read "no session bound"
 
   @corpus:lanes
   Scenario: A node agent that already has a session is not offered a new one

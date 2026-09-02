@@ -116,6 +116,22 @@ Then(
   },
 );
 
+/** The same reading, negated — and WAITED for rather than read once, because
+ *  what it is about is words a door STOPPED saying: a press writes a file, the
+ *  file arrives on the collection, and the door redraws a frame later. Read
+ *  once, this would pass on the frame before the write landed. */
+Then(
+  "the door on {string} does not read {string}",
+  async function (this: OlaiWorld, node: string, words: string) {
+    const door = doorFor(this, node);
+    await door.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.waitUntil(
+      async () => !(await door.innerText()).replaceAll("\n", " ").includes(words),
+      `the door on ${node} to stop reading ${JSON.stringify(words)}`,
+    );
+  },
+);
+
 Then("there is no door on {string}", async function (this: OlaiWorld, node: string) {
   assert.strictEqual(await doorFor(this, node).count(), 0);
 });
