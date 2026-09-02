@@ -1710,6 +1710,24 @@ export const ChatState = Schema.Struct({
   /** The session the server is in, or `null` between sessions. WHOSE it is
    *  is `talking` below, which is the panel's one answer to that. */
   session: Schema.NullOr(Conversation),
+  /**
+   * WHICH NODE AGENT this conversation belongs to, by the node's own id — or
+   * `null` for a conversation no node claims, which is nearly every one.
+   *
+   * ONE ID AND NOT THE ROW. What that node is CALLED, which file it is in and
+   * how big its subtree is are the roster's answer ({@link NodeAgentRow}), and
+   * the roster is a cell of its own that this browser already holds — so a
+   * copy here would be the node's title in two places on one wire, free to
+   * disagree by a frame in exactly the header a person reads to find out who
+   * they are talking to. A header whose id matches no roster row draws the
+   * conversation the way it always did, which is the honest face of a node
+   * somebody has taken the property off.
+   *
+   * IT GOES WITH THE CONVERSATION, like `wake` below: the binding is per
+   * session, so a panel between sessions belongs to nobody and a fresh session
+   * belongs to whichever node claims IT rather than to the last one's node.
+   */
+  bound: Schema.NullOr(Schema.String),
   /** The model a turn actually runs on, labelled the way the agent labels its
    *  own models. `null` until the agent has said. */
   model: Schema.NullOr(Schema.String),
@@ -1895,6 +1913,7 @@ export type ChatState = typeof ChatState.Type
 export const CHAT_OFF: ChatState = {
   status: "off",
   session: null,
+  bound: null,
   model: null,
   usage: null,
   commands: [],

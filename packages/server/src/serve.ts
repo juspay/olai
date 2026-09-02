@@ -33,6 +33,7 @@ import { Effect, SubscriptionRef } from "effect"
 import { randomBytes } from "node:crypto"
 
 import * as Chat from "@olai/chat"
+import { roster as agentsRoster } from "./agents.ts"
 import { openDirectory } from "./directory.ts"
 import { propKinds } from "./propKinds.ts"
 import { watchFault } from "./fault.ts"
@@ -177,6 +178,11 @@ export const serve = (options: ServeOptions) =>
     /** Filled once the listener has bound — see the thunk on the chat's
      *  options. Until then there is no session to hand it to. */
     let tools: Chat.ToolServer | null = null
+    /** THE VAULT'S HALF OF THE AGENTS ROSTER, held here because two things
+     *  read it and they are built at different moments: the chat's teaching,
+     *  through the thunk below, and the runtime's own cell, which is also what
+     *  keeps it current ({@link ./agents.ts}). */
+    const nodeAgents = agentsRoster()
 
     chat = installed.length === 0 ? null : yield* Chat.make({
       roster: installed,
@@ -220,6 +226,27 @@ export const serve = (options: ServeOptions) =>
        * down.
        */
       scoping: yield* Chat.scopesIn(root),
+      /**
+       * ... AND WHAT OLAI HAS OVERHEARD EACH CONVERSATION DO.
+       *
+       * Built here for the picks' reason above, word for word: `root` is in
+       * hand, the record is read once at boot, and a directory whose record
+       * will not read comes up teaching each node agent its contract once more
+       * and one warning rather than not at all. Inside the same ternary, so a
+       * machine with no ACP agent opens nobody's record.
+       */
+      overheard: yield* Chat.sessionsIn(root),
+      /**
+       * ... and WHOSE NODE AGENT a conversation is, which is what tells the
+       * panel there is a contract to teach at all ({@link ./agents.ts}).
+       *
+       * A THUNK OVER A CARRIER, and the carrier is written by the runtime built
+       * a few lines below: the chat is constructed first because the surface
+       * binds to it, so the earlier of the two asks the later one's question
+       * through a closure. What it answers with is a row of the reading the
+       * roster cell is drawn from — one reading, two readers, no second walk.
+       */
+      agentAt: (to) => nodeAgents.agentAt(to),
       onState: (state) => publishing().state(state),
       onTranscript: (change) => publishing().transcript(change),
     })
@@ -248,6 +275,11 @@ export const serve = (options: ServeOptions) =>
     const wired = yield* bind({
       store,
       chat,
+      // The carrier the chat's teaching already reads. The runtime is what
+      // KEEPS it current — one reading per published revision, taken where the
+      // roster cell is filled — so the two readers cannot be looking at two
+      // different vaults.
+      agents: nodeAgents,
       ops,
       writer: "web",
       hostname: theMachine,

@@ -151,12 +151,17 @@ export const releasePort = (holder: net.Server): Promise<void> =>
  * would pollute a `@git:repo` work tree); shared corpus servers put it
  * in a per-worker temp directory.
  */
+/** WHERE A SPAWNED SERVER KEEPS WHAT SURVIVES A RESTART — `$XDG_STATE_HOME`,
+ *  under the isolation root {@link isolateEnv} is given. */
+const stateHomeIn = (stateRoot: string): string =>
+  path.join(stateRoot, "state");
+
 export const isolateEnv = (
   stateRoot: string,
   extras: NodeJS.ProcessEnv = {},
 ): NodeJS.ProcessEnv => {
   const cache = path.join(stateRoot, "cache");
-  const state = path.join(stateRoot, "state");
+  const state = stateHomeIn(stateRoot);
   const runtime = path.join(stateRoot, "runtime");
   fs.mkdirSync(cache, { recursive: true });
   fs.mkdirSync(state, { recursive: true });

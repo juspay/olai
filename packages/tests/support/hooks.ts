@@ -50,6 +50,7 @@ import { installReaper, killProcessGroup, reap } from "./reaper.ts";
 
 import { After, AfterAll, Before, BeforeAll, Status } from "@cucumber/cucumber";
 import { findLogfmt } from "@olai/log/testlib";
+
 import { chromium } from "playwright";
 import type { Browser } from "playwright";
 
@@ -254,6 +255,7 @@ const PAINTS_TAG = "@markdown-paints";
  *  picked one — and to the newest again only once the picked one is gone. */
 const STORED_TAG = "@agent-stored";
 
+
 /** `@no-agent`: this scenario's server is started with NO agent, which is the
  *  one state a person should never reach by following a documented launch path
  *  — every one of them defaults to the pinned adapter. It is reached here the
@@ -447,7 +449,10 @@ const workerCopyOf = (corpus: string): string => {
  *  real work tree; XDG/HOME written under it would show up as uncommitted
  *  files and flip the Commit pill from `never` to `waiting`. `After`
  *  deletes the sibling with the tree. */
+/** WHERE A SCRATCH SERVER'S OWN FILES GO — beside the copy, never inside it:
+ *  a `@git:repo` work tree must not gain olai's state. */
 const scratchState = (root: string): string => `${root}.xdg`;
+
 
 // ── the server under test ──────────────────────────────────────────────
 
@@ -550,6 +555,7 @@ interface Spawn {
    *  restarting the server under an open page needs the SAME address. */
   readonly port?: number;
   readonly stored?: boolean;
+
   /** `false` starts the server with no agent at all. */
   readonly agent?: boolean;
   /** `true` makes the scratch copy a repository — see {@link GIT_TAG}. */
@@ -1221,6 +1227,7 @@ Before(
       (tag) => tag.name === OPENCODE_TAG,
     );
     this.hasPi = scenario.pickle.tags.some((tag) => tag.name === PI_TAG);
+
     // On the world rather than in a local, because a restart mid-scenario has
     // to reproduce this boot (`startOwnServer`).
     this.avatarTemplate = scenario.pickle.tags.some(

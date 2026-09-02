@@ -37,16 +37,19 @@
  */
 
 import {
+  AGENT_PROP,
   customOf,
+  customText,
   isMirror,
   MARKS,
   type Node,
   type LocatedRegular,
   type Row,
+  sessionIn,
   type Situated,
   type Status,
 } from "@olai/format"
-import type { Edit, Shelf } from "@olai/surface"
+import type { AgentChoice, Edit, Shelf } from "@olai/surface"
 
 import { datePick } from "../date/pick.ts"
 import { repeatPick } from "../date/repeat.ts"
@@ -147,10 +150,33 @@ export type Does =
    * own `+` cannot be drawn on (see where this is pushed).
    */
   | { readonly kind: "add-prop" }
+  /**
+   * START THIS NODE AGENT'S SESSION — the one verb here that is not an edit at
+   * all and does not open a panel either.
+   *
+   * It is two acts that only make sense together: open a conversation with the
+   * engine this node's `agent-session` property names, then write the session
+   * it opened back onto that property. A browser cannot do the second, because
+   * `chat.newSession` answers with nothing and no tab can say which
+   * conversation appeared; so what this arm carries is the ENGINE, and the
+   * running of it is one procedure at the server, where both halves are in hand
+   * (`@olai/surface`'s `chat.startAgentSession`).
+   *
+   * THE ENGINE TRAVELS ON THE ARM rather than being re-read where it is run,
+   * for the reason every other arm carries its own value: the menu was drawn
+   * against a revision, and the property could have moved by the time somebody
+   * presses. What lands is then a session for the engine the entry said.
+   */
+  | { readonly kind: "start-agent"; readonly engine: string }
 
 /** The ordinary answer, at the site that gives it — so the list below reads as
  *  a list of verbs rather than a list of wrappers. */
 const sends = (edit: Edit): Does => ({ kind: "edit", edit })
+
+/** A MACHINE WITH NO AGENT ON IT, which is the honest argument for a caller
+ *  that cannot offer *start an agent session* anyway — `NO_PINS`' shape one
+ *  question over (`../palette/ops.ts` says why it cannot matter there). */
+export const NO_ENGINES: ReadonlyArray<AgentChoice> = []
 
 /** One write the menu offers: what it is called, what it does, and what it
  *  asks first — if it asks anything. */
@@ -215,6 +241,12 @@ export const writeVerbs = (
    *  because it is a second reading, and one of them no longer comes from the
    *  browser's copy of anything. */
   shelf: Shelf,
+  /** WHICH AGENTS THIS MACHINE HAS — the third question a subject cannot
+   *  answer, and the one that is not about the vault at all
+   *  (`../agents/answered.tsx`). It is what *start an agent session* picks from
+   *  on a node that names no engine of its own; {@link NO_ENGINES} is the
+   *  honest argument for a caller that cannot offer that verb anyway. */
+  engines: ReadonlyArray<AgentChoice> = NO_ENGINES,
 ): ReadonlyArray<Verb> => {
   const verbs: Array<Verb> = []
   // The node this subject draws: the mark it carries, the date it has. A
@@ -257,6 +289,59 @@ export const writeVerbs = (
           does: sends({ verb: "trash", id: pinned.id }),
         },
     )
+    // ANY NODE THAT DOES NOT ALREADY HAVE A SESSION, and the verb that gives it
+    // one. The press WRITES the property; it does not require one.
+    //
+    // The human, testing the deployed head on 2026-09-02: the ruling was *the
+    // `•••` should get a menu item allowing me to start an agent session*, and
+    // an item that appeared only where somebody had already typed
+    // `agent-session: claude` by hand is the gesture asking to be performed
+    // before it will offer itself. So the fence is one arm now, and it is the
+    // only one the ruling names:
+    //
+    //   - a node whose property already names a SESSION is offered nothing.
+    //     Replacing a live conversation is the *fresh session* affordance,
+    //     which owes a person a sentence about what happens to the transcript
+    //     ("memory is the subtree; the transcript becomes history") and belongs
+    //     to the migration phase that ships it.
+    //   - everything else is offered it, bare nodes included.
+    //
+    // WHICH ENGINE, in the order a person would expect to be asked:
+    //
+    //   - the node's OWN, where its property names one. It said which agent it
+    //     is; nothing here gets to second-guess that, and this is the case
+    //     where there is nothing to choose however many agents are installed.
+    //   - otherwise EVERY AGENT THIS MACHINE HAS, one entry each. With one
+    //     installed that is one entry and no ask, which is the ruling's own
+    //     words; with several the menu IS the ask — a list of choices is what a
+    //     menu already is, so this needs no panel, no picker and no second
+    //     gesture, and it is the shape `MARK_MENU` above already takes.
+    //   - with NONE installed there is no entry, because there is nothing to
+    //     start a session with and an entry whose only outcome is that sentence
+    //     teaches nobody anything.
+    //
+    // The label carries the agent's name only when there is a choice to make.
+    // Naming it on a machine with one agent would be answering a question
+    // nobody was asked, in the one place a menu has no room for it.
+    //
+    // It names the node the row SHOWS, the rule a mark and a pin already
+    // follow: a mirror is a placement, the property is on the record it stands
+    // for, and the roster answers with that record's id.
+    const held = sessionIn(customText(shown.node, AGENT_PROP) ?? "")
+    if (held?.session == null) {
+      const choices: ReadonlyArray<AgentChoice> = held === null
+        ? engines
+        : [{ id: held.engine, name: held.engine }]
+      for (const choice of choices) {
+        verbs.push({
+          id: `start-agent-${choice.id}`,
+          label: choices.length === 1
+            ? "Start an agent session"
+            : `Start an agent session — ${choice.name}`,
+          does: { kind: "start-agent", engine: choice.id },
+        })
+      }
+    }
     // The mark it already carries is not offered again: putting it back is the
     // one mark request the ops layer refuses for asking about nothing
     // ("already done"), and an entry whose only outcome is that sentence is an
