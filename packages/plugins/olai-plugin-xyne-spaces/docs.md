@@ -17,9 +17,9 @@ No env and no bind → the plugin is honestly **absent**, not broken. A bind in 
 
 Beside the connection pill in the header is a readout with three states rather than two:
 
-- `● spaces` — both env vars are set and the last post (if any) was accepted;
-- `● no spaces`, dim — nothing is configured (no env, no bind), and the tip names **where olai looked** (`OLAI_SPACES_URL` / `OLAI_SPACES_TOKEN`);
-- `● spaces fault` in the alarm colour — a post was refused, or a channel is bound and the env is missing, and the tip names **which**.
+- `● xyne` — both env vars are set and the last post (if any) was accepted;
+- `● no xyne`, dim — nothing is configured (no env, no bind), and the tip names **where olai looked** (`OLAI_SPACES_URL` / `OLAI_SPACES_TOKEN`);
+- `● xyne fault` in the alarm colour — a post was refused, or a channel is bound and the env is missing, and the tip names **which**.
 
 The third is why the readout is not a boolean. *Nothing was ever configured* and *a channel is bound but the process has no app* have opposite loudness, and a fault reported as absent would hide the bind the user already wrote.
 
@@ -56,7 +56,7 @@ A kolu heartbeat ("the watcher is alive") is not a digest and does not post. Hum
 
 ## Failure honesty
 
-A refused post, and a bind whose process has no Spaces app, are said **once** into the olai conversation (the doorbell fault pattern), not once per message. Digests queue (capped at 32) and post in order on recovery; the queue retries on its own, not only when the next digest arrives. A missing channel (the typo in `_olai/Spaces.olai`) keeps retrying with the fault said. A dead Spaces thread is forgotten and the digest re-opens one. A 4xx that will never accept (a validation error) is dropped so it cannot wedge the rest. Overflow of the cap drops the oldest and **says so**, with the count. The pill stays on `spaces fault` until a post is accepted again. The recovery sentence is a separate delivery from the fault, so it cannot replace a fault line that has not been handed over yet.
+A refused post, and a bind whose process has no Spaces app, are said **once** into the olai conversation (the doorbell fault pattern), not once per message. Digests queue (capped at 32) and post in order on recovery; the queue retries on its own, not only when the next digest arrives. A missing channel (the typo in `_olai/Spaces.olai`) keeps retrying with the fault said. A dead Spaces thread is forgotten and the digest re-opens one. A 4xx that will never accept (a validation error) is dropped so it cannot wedge the rest. Overflow of the cap drops the oldest and **says so**, with the count. The pill stays on `xyne fault` until a post is accepted again. The recovery sentence is a separate delivery from the fault, so it cannot replace a fault line that has not been handed over yet.
 
 ## What it is not
 

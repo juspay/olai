@@ -11,7 +11,7 @@ const link = (over: Partial<SpacesLink>): SpacesLink => ({
 
 test("absent names where olai looked, and is not loud", () => {
   const said = spacesSaid(link({ status: "absent", where: "OLAI_SPACES_URL" }))
-  expect(said.label).toBe("no spaces")
+  expect(said.label).toBe("no xyne")
   expect(said.detail).toContain("OLAI_SPACES_URL")
   expect(said.loud).toBe(false)
   expect(said.dot).toBe("bg-muted")
@@ -23,7 +23,7 @@ test("connected is one quiet word", () => {
     where: "https://spaces.example",
     told: true,
   }))
-  expect(said.label).toBe("spaces")
+  expect(said.label).toBe("xyne")
   expect(said.loud).toBe(false)
   expect(said.dot).toBe("bg-done")
 })
@@ -35,7 +35,7 @@ test("fault is loud and names the refusal", () => {
     told: true,
     why: "Authentication failed",
   }))
-  expect(said.label).toBe("spaces fault")
+  expect(said.label).toBe("xyne fault")
   expect(said.detail).toBe("Authentication failed")
   expect(said.loud).toBe(true)
   expect(said.dot).toBe("bg-alarm")

@@ -27,7 +27,7 @@ export function Spaces(props: { readonly app: SpacesApp }) {
         data-testid={TESTID.spaces}
         data-spaces={link().status}
         title={said().detail}
-        aria-label={`spaces: ${said().detail}`}
+        aria-label={`xyne: ${said().detail}`}
       >
         <span
           class={`${pill.DOT} ${said().loud ? pill.DOT_HOLLOW_ALARM : said().dot}`}

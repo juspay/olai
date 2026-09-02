@@ -36,7 +36,7 @@ export const defaultOn = false
  *     the last post (if any) was accepted.
  *   - `absent` — no env, and no bind. The ORDINARY state on a machine that
  *     has not been pointed at Spaces, which is why it is not an error: a
- *     vault opens, every page draws, and the pill says `no spaces`.
+ *     vault opens, every page draws, and the pill says `no xyne`.
  *   - `fault` — something the user asked for is not working, and the tip
  *     names which: a post was refused, OR `_olai/Spaces.olai` binds a
  *     channel and the env is missing. Distinct from `absent` on purpose —

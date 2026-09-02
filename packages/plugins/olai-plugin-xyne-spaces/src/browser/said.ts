@@ -19,7 +19,7 @@ export const spacesSaid = (link: SpacesLink): Said => {
   if (link.status === "absent") {
     return {
       dot: "bg-muted",
-      label: "no spaces",
+      label: "no xyne",
       detail:
         `no Spaces app is configured — olai looked at ${link.where}`
         + (link.told ? "." : " (set OLAI_SPACES_URL and OLAI_SPACES_TOKEN)."),
@@ -29,14 +29,14 @@ export const spacesSaid = (link: SpacesLink): Said => {
   if (link.status === "fault") {
     return {
       dot: "bg-alarm",
-      label: "spaces fault",
+      label: "xyne fault",
       detail: link.why ?? `Spaces refused a post at ${link.where}.`,
       loud: true,
     }
   }
   return {
     dot: "bg-done",
-    label: "spaces",
+    label: "xyne",
     detail: `posting to ${link.where}`,
     loud: false,
   }
