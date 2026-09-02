@@ -16,6 +16,7 @@
  */
 
 export {
+  DEFAULT_PLUGIN_NAMES,
   enabled,
   exposeMapsOf,
   isEnabled,

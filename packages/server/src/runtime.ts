@@ -102,6 +102,7 @@ import type {
 import {
   type Agents,
   type Applied,
+  type ChatEntry,
   CHAT_OFF,
   type ChatState,
   type Edit,
@@ -159,9 +160,11 @@ import { cadence } from "@olai/chat"
  * its `fence.test.ts` walks each closure rather than trusting the argument.
  */
 import {
+  type ConversationSeen,
   type PluginServer,
   type PluginServerHalf,
   type PluginServices,
+  type Watching,
   enabled,
   SERVERS,
 } from "@olai/plugin-api/server"
@@ -172,6 +175,7 @@ import { type Emit, emitter } from "@olai/log"
 import type { Roster } from "./agents.ts"
 import * as Bodies from "./bodies.ts"
 import { contextFor } from "./context.ts"
+import { heldFor } from "./held.ts"
 import { inverseOf, reresolves, requestFor } from "./edit.ts"
 import { runResolved } from "./resolving.ts"
 import {
@@ -512,11 +516,12 @@ const writing = (ops: Ops, writer: Writer) => ({
  * same question `enabled` answers as a filter, asked about one name
  * (`@olai/plugin-api`'s `surfaces.ts`).
  *
- * `pinned` TRAVELS UNEXPANDED — `null` for a flag nobody gave, which means all
- * of them — because the line under the row names a given flag and otherwise
- * says the built-in default, and a value that had already expanded could not
- * tell those two apart. The git pin keeps the same distinction one setting
- * over, and `./pluginPolicy.ts` argues it where the flag is read.
+ * `pinned` TRAVELS UNEXPANDED — `null` for a flag nobody gave, which means
+ * the built-in default — because the line under the row names a given flag
+ * and otherwise says the built-in default, and a value that had already
+ * expanded could not tell those two apart. The git pin keeps the same
+ * distinction one setting over, and `./pluginPolicy.ts` argues it where the
+ * flag is read.
  *
  * NO PLUGIN SLOT ANSWERS {@link NO_ROSTER}: such a runtime composes no sibling
  * surface at all — `olai surface`, the headless faces, every test in this
@@ -1015,6 +1020,36 @@ export const bind = (
      */
     const NO_DOOR: PluginServices["deliveries"] = { scopes: () => [], deliver: () => {} }
     /**
+     * THE WATCHING BUS — conversation events, pushed to every plugin that
+     * subscribed. Human messages are not among them. Built once per bind so
+     * a plugin that served before the first transcript frame still hears it.
+     */
+    const watchers = new Set<(event: ConversationSeen) => void>()
+    const watching: Watching = {
+      subscribe: (handler) => {
+        watchers.add(handler)
+        return () => {
+          watchers.delete(handler)
+        }
+      },
+    }
+    const seen = (event: ConversationSeen): void => {
+      for (const handler of watchers) handler(event)
+    }
+    const whoOf = (state: ChatState): { agent: string; session: string } | null =>
+      state.session !== null && state.talking?.kind === "agent"
+        ? { agent: state.talking.id, session: state.session.id }
+        : null
+    let lastStatus: ChatState["status"] | undefined
+    /** Agent rows already in the transcript when the current turn started —
+     *  `replied` is the row THIS turn produced, not the newest agent row in
+     *  the whole conversation (a cancel / gone / failed turn has no prose). */
+    let agentSeqAtTurn = -1
+    /** Doorbell rows already pushed, so a later mark on the same entry
+     *  (`transcript.refused`) is not a second digest. */
+    const deliveredIds = new Set<string>()
+    let deliveredFor: string | undefined
+    /**
      * ... and the real one, PER PLUGIN.
      *
      * Keyed by the only word this file knows about the plugin it is for, which
@@ -1074,6 +1109,11 @@ export const bind = (
         // ... and the doorbell's door, keyed the same way and for a sharper
         // version of the same reason — see {@link doorFor}.
         deliveries: doorFor(plugin.name),
+        watching,
+        // The hold, keyed the same way: core owns the file in the state
+        // home so `@olai/state` stays out of every tenant, and the writes
+        // are chained so the last snapshot handed over is the one that lands.
+        held: heldFor(plugin.name, offered.served, (line) => say(Effect.logWarning(line))),
       }),
     }))
     /**
@@ -2353,13 +2393,56 @@ export const bind = (
           // the frames that moved nothing, which is nearly all of them
           // ({@link republishAgents}).
           republishAgents()
+          const who = whoOf(state)
+          if (who !== null) {
+            if (state.status === "thinking" && lastStatus !== "thinking") {
+              agentSeqAtTurn = Math.max(
+                -1,
+                ...[...(chat?.entries().values() ?? [])]
+                  .filter((entry): entry is Extract<ChatEntry, { kind: "agent" }> =>
+                    entry.kind === "agent"
+                  )
+                  .map((entry) => entry.seq),
+              )
+              seen({ kind: "turn", ...who, status: "working" })
+            }
+            if (lastStatus === "thinking" && state.status !== "thinking") {
+              seen({ kind: "turn", ...who, status: "done" })
+              const produced = [...(chat?.entries().values() ?? [])]
+                .filter((entry): entry is Extract<ChatEntry, { kind: "agent" }> =>
+                  entry.kind === "agent" && entry.seq > agentSeqAtTurn
+                )
+                .sort((a, b) => a.seq - b.seq)
+                .at(-1)
+              if (produced !== undefined && produced.text !== "") {
+                seen({ kind: "replied", id: produced.id, ...who, text: produced.text })
+              }
+            }
+          }
+          lastStatus = state.status
         },
         // Through the CADENCE, never straight onto the collection: a row that
         // grows reaches the wire as pieces on a clock rather than as itself
         // once per token (`transcript-stream-quadratic`). What comes back out
         // is a frame, and {@link apply} writes it in the one order that
         // never shows a paragraph getting shorter.
-        transcript: (change) => saying.publish(change),
+        transcript: (change) => {
+          saying.publish(change)
+          const who = chat === null ? null : whoOf(chat.state())
+          if (who === null) return
+          const whoKey = `${who.agent}/${who.session}`
+          if (deliveredFor !== whoKey) {
+            deliveredIds.clear()
+            deliveredFor = whoKey
+          }
+          for (const [, entry] of change.upserts) {
+            if (entry.kind === "user" && entry.rang !== undefined && entry.text !== "") {
+              if (deliveredIds.has(entry.id)) continue
+              deliveredIds.add(entry.id)
+              seen({ kind: "delivered", id: entry.id, from: entry.rang, ...who, body: entry.text })
+            }
+          }
+        },
       },
     }
   })

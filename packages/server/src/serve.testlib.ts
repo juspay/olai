@@ -105,7 +105,7 @@ export const withServe = async <A>(
       allowedOrigins: [],
       identity: options.identity ?? DEFAULT_IDENTITY_CONFIG,
       pin: { commit: options.commits ?? "off", push: null },
-      // Every built-in plugin, which is what omitting `--plugins` means and what a
+      // The built-in default, which is what omitting `--plugins` means and what a
       // real serve does — these harnesses stand up the whole product, and a
       // composition narrower than the one a person gets would be a suite proving
       // something nobody runs.

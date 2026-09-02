@@ -65,7 +65,7 @@ a cycle. The fit is proved at the registry instead:
 
 ```ts
 // packages/plugin-api/src/registry.ts
-export const PLUGINS = [kolu, odu] as const satisfies ReadonlyArray<OlaiPlugin>
+export const PLUGINS = [kolu, odu, spaces] as const satisfies ReadonlyArray<OlaiPlugin>
 ```
 
 A plugin that stops fitting is a type error on **that line**, naming the plugin.
@@ -677,7 +677,7 @@ names the file.
 | `packages/plugin-api/src/tree.testlib.ts` | not a claim — the READING both of the above stand on (workspace members, manifests, sources, the module graph). Split out so the two files above are their claims and nothing else, and so the source walk is written once |
 | `packages/plugin-api/src/rosters.test.ts` | the three doors list the same plugins, in the same order |
 | `packages/plugin-api/src/composition.test.ts` | an empty roster composes, and core's tags do not move |
-| `packages/plugin-api/src/testids.test.ts` | two plugins’ testid tables are disjoint — and one layer further out, `packages/web/src/client/testids.test.ts` holds the app’s own table disjoint from theirs, which is the seam `selector()` actually spends |
+| `packages/plugin-api/src/testids.test.ts` | the plugins’ testid tables are disjoint — and one layer further out, `packages/web/src/client/testids.test.ts` holds the app’s own table disjoint from theirs, which is the seam `selector()` actually spends |
 | `packages/plugins/olai-plugin-kolu/src/testids.ts` | a tenant’s two testid halves share no key and no value — a TYPE-level assertion, so a collision is a `tsc` error naming the offender rather than a test somebody keeps green |
 | `packages/plugins/olai-plugin-kolu/src/faces.test.ts` | the tenant’s own two face directories stay apart — `src/browser/` names no part of the appliance’s tier, and `src/appliance/` names none of the vault’s vocabulary, which is the wall `@olai/kolu-ui`’s manifest kept before the fold. In the TENANT, not in the fence: a per-directory rule up there would be the fence inventing a layout convention and enforcing its own invention |
 | `packages/tests/plugin_docs.test.ts` | every plugin's docs page exists, is served, and is linked |

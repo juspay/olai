@@ -79,6 +79,7 @@ export type {
   ChipContext,
   Chrome,
   ChromeFace,
+  ConversationSeen,
   Deliveries,
   Dressing,
   FileLink,
@@ -86,6 +87,7 @@ export type {
   NotHere,
   OlaiPlugin,
   PillLook,
+  PluginHeld,
   PluginMark,
   PluginMount,
   PluginServer,
@@ -97,9 +99,11 @@ export type {
   PropKind,
   PropPane,
   StdioServer,
+  Watching,
 } from "./plugin.ts"
 
 export {
+  DEFAULT_PLUGIN_NAMES,
   enabled,
   exposeMapsOf,
   isEnabled,

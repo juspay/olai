@@ -20,8 +20,8 @@
  *
  * ## Three doors means three lists, and that is the cost of the split
  *
- * {@link WIRES}, `PLUGINS` and {@link SERVERS} each enumerate the same two
- * plugins, so a third one is three lines rather than one. That is worth naming
+ * {@link WIRES}, `PLUGINS` and {@link SERVERS} each enumerate the same
+ * plugins, so a fourth one is three lines rather than one. That is worth naming
  * as a cost rather than presenting as a design: a single list would be one edit,
  * and it is not available, because the three lists are what the three GRAPHS
  * are. A registry that named every plugin once and re-exported the halves would
@@ -56,6 +56,7 @@
 
 import * as kolu from "olai-plugin-kolu/server"
 import * as odu from "olai-plugin-odu/server"
+import * as spaces from "olai-plugin-xyne-spaces/server"
 
 import type { PluginServer, PluginServices, Probed, PropKind } from "./plugin.ts"
 import { kindWordOf, type PluginWire } from "./surfaces.ts"
@@ -66,13 +67,16 @@ import { kindWordOf, type PluginWire } from "./surfaces.ts"
  *  the interface, because they are part of what a plugin IS and not part of how
  *  it is reached. */
 export type {
+  ConversationSeen,
   Deliveries,
   NotHere,
+  PluginHeld,
   PluginServer,
   PluginServices,
   Probed,
   PropKind,
   StdioServer,
+  Watching,
 } from "./plugin.ts"
 
 /**
@@ -384,7 +388,7 @@ export const probesOf = (
   })
 
 /**
- * WHAT THIS BINARY CAN SERVE — the same two plugins {@link WIRES} lists, with
+ * WHAT THIS BINARY CAN SERVE — the same plugins {@link WIRES} lists, with
  * their runtime halves on them.
  *
  * `satisfies` against `PluginServerHalf<never>` and not against a concrete
@@ -405,9 +409,9 @@ export const probesOf = (
  *  need", rather than one for the list and another for the test that narrows
  *  it. They are declared in `./surfaces.ts` because the question is about
  *  NAMES and the wire door answers it too. */
-export { enabled, isEnabled, kindWordOf, PLUGIN_NAMES } from "./surfaces.ts"
+export { DEFAULT_PLUGIN_NAMES, enabled, isEnabled, kindWordOf, PLUGIN_NAMES } from "./surfaces.ts"
 
-export const SERVERS = [kolu, odu] as const satisfies ReadonlyArray<PluginServerHalf<never>>
+export const SERVERS = [kolu, odu, spaces] as const satisfies ReadonlyArray<PluginServerHalf<never>>
 
 /**
  * THE KIND VOCABULARY, ASSEMBLED — the two maps `@olai/format` takes, out of

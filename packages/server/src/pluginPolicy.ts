@@ -29,7 +29,8 @@
  * ## `null` is not "none", and that is the whole design
  *
  * {@link pluginsPin} answers `null` for a flag nobody typed, and `null` means
- * EVERY plugin this binary was built with. It does NOT mean an empty list.
+ * the built-in default (`DEFAULT_PLUGIN_NAMES`), which is not necessarily
+ * every plugin this binary was built with. It does NOT mean an empty list.
  * Whether a flag was GIVEN is a fact a browser has to be told, because a given
  * flag is named under the preferences row (`--plugins=kolu`) while an omitted
  * one is the built-in default — both are the instance's policy, read-only, the
@@ -64,7 +65,7 @@ import { Flag } from "effect/unstable/cli"
  * `surfaces.ts` and exported from `./wire` as well as from the root, so the
  * browser-safe door answers the same question with none of that behind it.
  */
-import { PLUGIN_NAMES } from "@olai/plugin-api/wire"
+import { DEFAULT_PLUGIN_NAMES, PLUGIN_NAMES } from "@olai/plugin-api/wire"
 
 /**
  * What `--plugins` says for itself.
@@ -83,7 +84,7 @@ import { PLUGIN_NAMES } from "@olai/plugin-api/wire"
 export const pluginsSaid = (): string =>
   `which built-in integrations to run, comma-separated: ${
     PLUGIN_NAMES.join(", ")
-  } (the default is all of them). ` +
+  } (the default is ${DEFAULT_PLUGIN_NAMES.join(", ")}). ` +
   `A plugin left out is not there at all — it never probes, mounts nothing on the wire, ` +
   `draws no face, and the file it would own is an ordinary outline. ` +
   `Pass an empty value to run none. ${INSTANCE}`

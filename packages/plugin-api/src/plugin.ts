@@ -1,6 +1,6 @@
 /**
  * WHAT A PLUGIN IS, as a type — the whole of what core knows about kolu, odu,
- * and whatever the third one turns out to be.
+ * and xyne-spaces.
  *
  * ## Why there is an interface at all, which reverses a ruling
  *
@@ -9,10 +9,12 @@
  * owns that axis, and there is no second foreign slice anywhere in git or the
  * roadmap — a plug-in system with a population of one is speculative
  * generality."* That was true when it was written and it is not true now. The
- * population is two — odu arrived (#433) and grew a cell, a dressing, a vault
+ * population is three — odu arrived (#433) and grew a cell, a dressing, a vault
  * walk and a probe of its own, every one of them the kolu block with the nouns
- * changed, which `@olai/server`'s runtime says about itself. A second tenant is
- * not speculation; it is the evidence the first ruling asked for.
+ * changed; xyne-spaces arrived as the outbound mirror, with no appliance-client
+ * package one floor down. A second tenant is not speculation; it is the
+ * evidence the first ruling asked for, and a third is the same evidence spent
+ * again.
  *
  * What the reversal costs is named here rather than left for a reader to find:
  * the named spread was LEGIBLE — `...koluMembers.cells` beside
@@ -296,6 +298,9 @@ export interface PillLook {
   readonly PILL_WARN_COAT: string
   readonly DOT_HOLLOW_WARN: string
   readonly TEXT_WARN: string
+  readonly PILL_ALARM_COAT: string
+  readonly DOT_HOLLOW_ALARM: string
+  readonly TEXT_ALARM: string
 }
 
 /**
@@ -469,9 +474,10 @@ export interface Dressing {
 /**
  * THE APP'S CHROME, and what a plugin hangs in it.
  *
- * Two slots and no more: a HEADER readout (kolu's padi pill) and the DRAWER
- * its press opens (the events feed). A plugin that hangs neither is not a
- * lesser plugin — odu has neither.
+ * Two slots and no more: a HEADER readout (kolu's padi pill, spaces' link
+ * pill) and the DRAWER a press opens (kolu's events feed). A plugin that hangs
+ * neither is not a lesser plugin — odu has neither. Spaces hangs a Header with
+ * no Drawer: a readout that opened nothing would be a control that lied.
  *
  * ONE ARGUMENT, and it is the furniture ({@link AppFurniture}). A slot that took
  * the plugin's own data as props would be the app reading a plugin's members to
@@ -628,17 +634,19 @@ export type PluginMount = (props: {
  * a NAMED SLOT is, and naming one is the thing a general package must stop
  * doing. What the two actually asked for was the same list: **what the process
  * can see** (the environment), **what time it is**, **which directory this
- * serve is about**, **two log channels**, and **a way for a test to hand the
- * dial a fake**. So that is the list, spelled once, and a third plugin is
- * handed it without core learning a word.
+ * serve is about**, **two log channels**, **a way for a test to hand the
+ * dial a fake**, and **a small record this plugin keeps about this serve**.
+ * So that is the list, spelled once, and a third plugin is handed it without
+ * core learning a word.
  *
- * Every field is here because one of the two tenants would otherwise have had
+ * Every field is here because one of the tenants would otherwise have had
  * to be asked for it separately, and none is here for a plugin that does not
  * exist: `served` is odu's today (half of where a relative `worktree`
- * resolves) and `now` is kolu's (what a link's `since` is stamped from), and
- * each is offered to both because "which directory" and "what time is it" are
- * questions about the SERVE and not about an appliance. A plugin reads what it
- * needs and its own signature says which — see {@link PluginServer}.
+ * resolves), `now` is kolu's (what a link's `since` is stamped from), and
+ * `held` is spaces' (the thread map and the outbound queue). Each is offered
+ * to every plugin because those are questions about the SERVE and not about
+ * an appliance. A plugin reads what it needs and its own signature says
+ * which — see {@link PluginServer}.
  *
  * ## Why a composition root hands these in rather than a plugin reading them
  *
@@ -703,6 +711,92 @@ export interface PluginServices {
    * verb that cannot fail.
    */
   readonly deliveries: Deliveries
+  /**
+   * CONVERSATION EVENTS, PUSHED — doorbells that landed, agent replies that
+   * settled, turns that started or ended ({@link Watching}).
+   *
+   * A plugin that mirrors a conversation never reads one. Core pushes what
+   * happened, and human messages are simply not among the events. WRITE-ONLY
+   * `deliveries` stays write-only; this is a second door, the other direction,
+   * still not a transcript.
+   *
+   * REQUIRED like {@link deliveries}: there is no serve where the bus is
+   * missing. A machine with no chat never fires, which is the honest
+   * machine-without-the-tool state.
+   */
+  readonly watching: Watching
+  /**
+   * A SMALL RECORD THIS PLUGIN KEEPS about this serve, in the state home —
+   * not the vault.
+   *
+   * Core owns the file (`@olai/state`, keyed by this plugin's `name` the way
+   * {@link deliveries} is). What the record SAYS is the plugin's. `load` is
+   * the last snapshot that landed, or `null` on a first serve and on a file
+   * that would not parse (core has already warned). `save` is fire-and-forget
+   * and ORDERED: successive snapshots of one in-memory state land in the
+   * order they were handed over, so a drain that persisted `queue:[B]` and
+   * then `queue:[]` cannot have the empty lose the rename race to the
+   * earlier one and come back on the next boot as a digest already posted.
+   *
+   * REQUIRED like {@link deliveries}: there is no serve where the home is
+   * missing. A machine that cannot write the file warns; the plugin is not
+   * asked to care.
+   */
+  readonly held: PluginHeld
+}
+
+/**
+ * THE HELD DOOR — one opaque record per plugin per vault.
+ *
+ * Core does not open it. The plugin parses what it wrote.
+ */
+export interface PluginHeld {
+  readonly load: () => Record<string, unknown> | null
+  readonly save: (value: Record<string, unknown>) => void
+}
+
+/**
+ * WHAT HAPPENED IN A CONVERSATION, as a plugin that mirrors one is told.
+ *
+ * Three kinds, and none of them is a human message. `delivered` is a doorbell
+ * that actually went into the conversation (the thunk answered, the row was
+ * written). `replied` is an orchestrator turn that settled, with the full
+ * reply. `turn` is the ephemeral working signal, start and end.
+ */
+export type ConversationSeen =
+  | {
+    readonly kind: "delivered"
+    /** The transcript row, so a later mark on the same doorbell is not a second digest. */
+    readonly id: string
+    readonly from: string
+    readonly agent: string
+    readonly session: string
+    readonly body: string
+  }
+  | {
+    readonly kind: "replied"
+    /** The agent row THIS turn produced — not the newest agent row in the transcript. */
+    readonly id: string
+    readonly agent: string
+    readonly session: string
+    readonly text: string
+  }
+  | {
+    readonly kind: "turn"
+    readonly agent: string
+    readonly session: string
+    readonly status: "working" | "done"
+  }
+
+/**
+ * THE WATCHING BUS — subscribe to {@link ConversationSeen}, get an unsubscribe.
+ *
+ * Fire-and-forget on the plugin's side: the handler is a sink, like
+ * {@link Deliveries.deliver}. Core does not wait for whatever the plugin
+ * does with the event.
+ */
+export interface Watching {
+  readonly subscribe: (handler: (event: ConversationSeen) => void) => () => void
 }
 
 /**
@@ -972,7 +1066,7 @@ export interface PluginServer<Revision> {
  * Every field below but the two inherited ones is optional, and that is not a
  * staging convenience: the ABSENT arm of every hook is the state a machine
  * without the tool already shows, and that state already had to work. The
- * interface is also roomier than its two tenants need, and the room is not
+ * interface is also roomier than its tenants need, and the room is not
  * speculation either — a chat AGENT (today a second hardcoded roster in
  * `@olai/chat`'s `agents/`) is a probe whose answer carries its own failure
  * sentence plus a per-conversation attach, which is this shape with most of the

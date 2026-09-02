@@ -19,6 +19,7 @@ import {
   canonical,
   digestOf,
   fileFor,
+  fileForHold,
   pruneGone,
   readHeld,
   runtimeHome,
@@ -102,7 +103,19 @@ test("a kind is a subdirectory of the state home, and the digest names the file"
     expect(fileFor("chat", root)).toBe(
       path.join(home, "olai", "chat", `${digestOf(root)}.json`),
     )
+    expect(fileFor("heard", root)).toBe(
+      path.join(home, "olai", "heard", `${digestOf(root)}.json`),
+    )
+    expect(fileForHold("example", root)).toBe(
+      path.join(home, "olai", "hold", `${digestOf(root)}.example.json`),
+    )
   }))
+
+test("a plugin name that is not a filename is refused", () => {
+  expect(() => fileForHold("../escape", "/tmp")).toThrow(/not a filename/)
+  expect(() => fileForHold("a/b", "/tmp")).toThrow(/not a filename/)
+  expect(() => fileForHold("", "/tmp")).toThrow(/not a filename/)
+})
 
 test("nothing written down is `null` rather than a failure", () =>
   withState(async ({ root }) => {
@@ -211,6 +224,16 @@ test("a sweep walks every tenant directory, not only the kinds this build knows"
     fs.writeFileSync(foreign, JSON.stringify({ cwd: gone, channel: "ch-team" }) + "\n")
     expect(pruneGone()).toBe(1)
     expect(fs.existsSync(foreign)).toBe(false)
+  }))
+
+test("a plugin hold whose directory is gone is pruned too", () =>
+  withState(async () => {
+    const gone = fs.mkdtempSync(path.join(os.tmpdir(), "olai-state-gone-"))
+    fs.rmSync(gone, { recursive: true, force: true })
+    const at = fileForHold("example", gone)
+    await Effect.runPromise(writeHeld(at, { cwd: gone, queue: [] }))
+    expect(pruneGone()).toBe(1)
+    expect(fs.existsSync(at)).toBe(false)
   }))
 
 test("a record whose directory merely fails to answer stays — only ENOENT is dead", () =>
