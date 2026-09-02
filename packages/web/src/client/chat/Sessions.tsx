@@ -42,6 +42,30 @@
  * alone. What is drawn is always a fact somebody SENT — never a relationship
  * inferred here from two rows that happen to share a title.
  *
+ * ## THE NODE AGENT'S OWN SESSIONS COME FIRST, where the panel is in one
+ *
+ * A conversation bound to a node agent has a history that is not the same list
+ * as *every chat in this directory*: the conversations THIS agent has had, which
+ * are the `/clear` chain behind the one its property names, claimed in one
+ * gesture when the chat was assigned ({@link ../agents/lineage.ts}). So the
+ * list opens with **past sessions (n)** — the same rows, the same press, in a
+ * block of their own — and then the whole directory's chats under it. An agent
+ * that has had one conversation draws no block at all rather than a heading
+ * over nothing.
+ *
+ * ... and with **fresh session**, which is the affordance this panel owed a
+ * person and did not have: a new conversation for this node agent, with the
+ * property re-pointed at it. It is drawn with what it MEANS beside it — memory
+ * is the subtree, the transcript becomes history — because that sentence is the
+ * whole reason it is safe, and a button that threw away a transcript without
+ * saying where the knowledge went would be the one gesture in this feature
+ * nobody should press without reading. Nothing is lost that was written down,
+ * and what was only ever in the transcript is what the contract asked the agent
+ * to bank as it went.
+ *
+ * Both are drawn only where the panel's conversation belongs to a node —
+ * everywhere else this is the list it has always been.
+ *
  * ## HOW IT SHUTS, which for a while was "it does not"
  *
  * Every other panel this client draws answers a pointer outside it and Escape;
@@ -61,15 +85,24 @@
 
 import { createMemo, For, Match, Show, Switch, untrack } from "solid-js"
 
+import { memoryOf } from "@olai/format"
+
+import { useAgents } from "../agents/answered.tsx"
+import { pastOf } from "../agents/lineage.ts"
+import { hideUnassigned } from "../agents/showing.ts"
 import { createInlinePicker } from "../inlinePicker.ts"
 import { AgentMark } from "./AgentMark.tsx"
 import { type Grouped, groupedByAgent, nameOf } from "./grouped.ts"
 import { Refusal } from "./Refusal.tsx"
 import { WITHIN } from "../layer.ts"
 import { QUIET_PILL } from "../pill.ts"
-import { TESTID } from "../testids.ts"
+import { run } from "../run.ts"
+import { createSaying } from "../saying.ts"
+import { SaidLine } from "../SaidLine.tsx"
+import { TESTID, type TestId } from "../testids.ts"
 import type { Chat, Sessions as Answer } from "./state.ts"
 import { whenOf } from "./when.ts"
+import { olai } from "../wire.ts"
 import type { OpFailure, SessionInfo, Unreachable } from "@olai/surface"
 
 /**
@@ -99,6 +132,9 @@ import type { OpFailure, SessionInfo, Unreachable } from "@olai/surface"
 type Showing = { readonly _tag: "asking" } | Answer
 
 export function Sessions(props: { readonly chat: Chat }) {
+  /** The roster as this tab has it (`../agents/answered.tsx`) — one
+   *  subscription for the whole app, and this popover is one of its readers. */
+  const roster = useAgents()
   /** The payload is named rather than inferred: `opening` answers with only one
    *  of the three arms, and a picker inferred from it would be one the answer
    *  could never be shown. */
@@ -152,6 +188,58 @@ export function Sessions(props: { readonly chat: Chat }) {
     if (answer?._tag !== "listed") return new Map()
     return new Map(answer.sessions.map((session) => [`${session.agent}/${session.id}`, session]))
   })
+
+  /**
+   * THE NODE AGENT THIS CONVERSATION BELONGS TO, or `undefined` — which is
+   * nearly every conversation.
+   *
+   * Two cells and a lookup, never a copy on one of them: the chat cell says
+   * WHICH node ({@link ChatState.bound}) and the roster says what that node is
+   * called and which engine it runs on — the header's own arrangement, read at
+   * the door beside it (`./Header.tsx`).
+   */
+  const node = createMemo(() => {
+    const at = props.chat.state().bound
+    return at === null ? undefined : roster.at(at)
+  })
+
+  /**
+   * ... AND THE CONVERSATIONS IT HAS HAD BEFORE THIS ONE, newest first
+   * ({@link ../agents/lineage.ts}).
+   *
+   * Off the answer this popover is showing rather than the provider's own copy,
+   * which is deliberate and is the only place the two could differ: this list
+   * was asked for when the popover opened, so the chain drawn is the chain that
+   * answer describes. Untracked for {@link groups}' reason — the links move
+   * when the answer does, and the answer arrives once per open.
+   */
+  const past = createMemo((): ReadonlyArray<SessionInfo> => {
+    const answer = picker.showing()
+    const agent = node()
+    if (answer?._tag !== "listed" || agent === undefined || agent.session === null) return []
+    return pastOf(answer.sessions, agent.engine, agent.session)
+  })
+
+  /** What *fresh session* said, where it was refused — an engine this machine
+   *  does not have, an agent that would not start, a record the ops layer will
+   *  not write. Held here rather than at the button, because the popover shuts
+   *  on success and the line is only ever about a press that did not land. */
+  const saying = createSaying()
+
+  /** A NEW CONVERSATION FOR THIS NODE AGENT, with the property re-pointed at
+   *  it — one procedure at the server, which is the same one the `•••` menu's
+   *  *start an agent session* runs (`@olai/surface`'s `chat.startAgentSession`,
+   *  which argues why a browser cannot do both halves). */
+  const fresh = (): void => {
+    const agent = node()
+    if (agent === undefined) return
+    saying.say(undefined)
+    run(
+      olai.procedures.chat.startAgentSession({ node: agent.id, agent: agent.engine }),
+      (failure) => saying.say({ tone: "alarm", text: failure.message, kind: failure._tag }),
+      () => picker.shut(),
+    )
+  }
 
   /** Whether the groups are worth a heading each. ONE agent on the machine is a
    *  heading over the whole list, saying what the panel's own header already
@@ -214,6 +302,84 @@ export function Sessions(props: { readonly chat: Chat }) {
               )}
             </Match>
             <Match when={picker.showing()?._tag === "listed"}>
+              {/* THIS NODE AGENT'S OWN, before the directory's — its history,
+                  and the way to start it over. Only where the panel is in a
+                  node agent's conversation; everywhere else the list is the
+                  list it has always been. */}
+              <Show when={node()}>
+                {(agent) => (
+                  <>
+                    <Show when={past().length > 0}>
+                      <li
+                        class="flex items-center gap-1.5 px-2 pt-1 pb-1 text-[0.625rem] text-muted"
+                        data-testid={TESTID.chatPastSessions}
+                        data-count={past().length}
+                      >
+                        past sessions ({past().length})
+                      </li>
+                      <For each={past()}>
+                        {(session) => (
+                          <Row
+                            session={session}
+                            successor={session.supersededBy === null
+                              ? undefined
+                              : byId().get(`${session.agent}/${session.supersededBy}`)}
+                            current={false}
+                            testid={TESTID.chatPastSession}
+                            onPick={() => {
+                              picker.shut()
+                              hideUnassigned()
+                              props.chat.loadSession(session.agent, session.id)
+                            }}
+                          />
+                        )}
+                      </For>
+                    </Show>
+                    <li class="px-2 pt-1 pb-2">
+                      <button
+                        type="button"
+                        class="block w-full rounded px-2 py-1 text-left text-xs text-accent hover:bg-rule"
+                        data-testid={TESTID.chatFreshSession}
+                        data-agent={agent().id}
+                        onClick={() => fresh()}
+                      >
+                        fresh session
+                        {/* WHAT IT MEANS, beside it and not in a tooltip: this
+                            is the one gesture in the feature that replaces a
+                            live conversation, and the sentence is the whole
+                            reason it is safe to press. */}
+                        <span class="block text-[0.625rem] text-muted">
+                          memory is the subtree ({memoryOf(agent())}); the transcript becomes
+                          history
+                        </span>
+                      </button>
+                      <Show when={saying.said()}>
+                        {(said) => (
+                          <SaidLine
+                            said={said()}
+                            testid={TESTID.chatFreshSaid}
+                            class="mt-1 px-2 text-[0.625rem]"
+                          />
+                        )}
+                      </Show>
+                    </li>
+                  </>
+                )}
+              </Show>
+              {/* ... AND THE DIRECTORY'S OWN, UNDER A LINE OF THEIR OWN where
+                  the block above is drawn. One agent on the machine draws no
+                  group headings (the picker's own rule), so without this the
+                  two blocks ran together and *past sessions (1)* read as a
+                  heading over every conversation in the directory. It says what
+                  the lower list IS rather than whose it is — and a node agent's
+                  own past sessions are in it too, because they are stored here
+                  like everything else and a list that hid them would be
+                  answering a different question. */}
+              <Show when={node() !== undefined && groups().length > 0}>
+                <li class="px-2 pt-1 pb-1 text-[0.625rem] text-muted">
+                  every conversation here
+                </li>
+              </Show>
               <Show
                 when={groups().length > 0 || unreachable().length > 0}
                 fallback={
@@ -248,6 +414,12 @@ export function Sessions(props: { readonly chat: Chat }) {
                               current={session.id === current()}
                               onPick={() => {
                                 picker.shut()
+                                // ... AND THE PANEL STOPS SHOWING THE
+                                // UNASSIGNED LIST, which is reachable from
+                                // under this very header: opening a
+                                // conversation is asking to be in it
+                                // (`../agents/showing.ts`).
+                                hideUnassigned()
                                 // WITH the agent the row carries: this may be
                                 // the one the panel is not talking to, and the
                                 // id means nothing to the other.
@@ -302,6 +474,12 @@ function Row(props: {
   /** Whether this is the conversation the panel is already in. Passed rather
    *  than looked up, so the row does not need the cell. */
   readonly current: boolean
+  /** What to call this row, for a scenario — the list's own name by default,
+   *  and the node agent's own where the row is one of ITS past sessions. Two
+   *  names because they are two claims: *the directory holds this chat* and
+   *  *this agent has had this conversation* are asserted separately, and the
+   *  same row can be both. */
+  readonly testid?: TestId
   readonly onPick: () => void
 }) {
   /** The agent's own count of the conversation, drawn when it was SENT:
@@ -318,7 +496,7 @@ function Row(props: {
       <button
         type="button"
         class="flex w-full flex-col rounded px-2 py-1 text-left text-xs hover:bg-rule"
-        data-testid={TESTID.chatSession}
+        data-testid={props.testid ?? TESTID.chatSession}
         data-session-id={props.session.id}
         data-agent={props.session.agent}
         data-current={props.current}

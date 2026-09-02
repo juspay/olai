@@ -22,10 +22,13 @@
  * behind a MINIMIZED panel is the case that feature exists for.
  *
  * Both layouts render the same `Face` — the header, which servers this
- * conversation has, and then one of four bodies ({@link ./face.ts}): the
+ * conversation has, and then one of the bodies ({@link ./face.ts}): the
  * conversation, the explanation that this machine has no agent, the explanation
- * that a live agent would not open one, or the question of WHICH agent a
- * conversation is with ({@link ./Choose.tsx}). So the two shells own their chrome and their
+ * that a live agent would not open one, the question of WHICH agent a
+ * conversation is with ({@link ./Choose.tsx}), or the chats no node claims
+ * ({@link ../agents/Unassigned.tsx}) — the last two being the two bodies that
+ * are not a conversation at all, and the two this TAB decides rather than the
+ * server. So the two shells own their chrome and their
  * geometry and nothing else. Inside it, `Body` is the conversation,
  * the box and the drop target around them: a file let go of anywhere on the
  * conversation is attached to it, and the chips land in the composer inside.
@@ -52,6 +55,8 @@ import { createEffect, createMemo, createSignal, Match, on, Show, Switch } from 
 
 import type { AgentChoice } from "@olai/surface"
 
+import { showingUnassigned } from "../agents/showing.ts"
+import { Unassigned } from "../agents/Unassigned.tsx"
 import { ChatHandle } from "../layout/Handle.tsx"
 import { desktop } from "../layout/media.ts"
 import {
@@ -289,6 +294,20 @@ function Face(props: { readonly chat: Chat }) {
       <Switch fallback={<Body chat={props.chat} />}>
         <Match when={face().kind === "no-agent"}>
           <NoAgent />
+        </Match>
+        {/* THE CHATS NOBODY CLAIMS, where somebody pressed the roster's last
+            row ({@link ../agents/Unassigned.tsx}). It sits under `no-agent` and
+            over everything else, and both halves of that are the same fact: a
+            serve with no agent has no conversations to list, and every arm
+            below is a state of a CONVERSATION — which this is deliberately not.
+            Somebody who pressed *Unassigned* asked for this and nothing else,
+            and a panel that answered with the question of which agent to open
+            a new chat with would be answering a question nobody asked.
+
+            THIS TAB'S, like the `asking` arm below and for its reason exactly
+            ({@link ../agents/showing.ts}). */}
+        <Match when={showingUnassigned()}>
+          <Unassigned />
         </Match>
         <Match when={refused()}>
           {(unopened) => <Unopened chat={props.chat} unopened={unopened()} />}

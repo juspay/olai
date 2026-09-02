@@ -136,6 +136,57 @@ export const TESTID = {
    *  to, drawn first and pressable. Absent on every conversation no node
    *  claims, which is nearly all of them. */
   chatNode: "chat-node",
+
+  // ── migration: the chats no node claims ──────────────────────────────
+  /** The roster's LAST row: every conversation in this directory that no node
+   *  agent claims, with how many. Drawn only where there is one — a directory
+   *  whose chats are all assigned ends the section at its agents, and one with
+   *  neither draws no section at all. */
+  agentUnassigned: "agent-unassigned",
+  /** ... and the count on it, which is the news the row carries. */
+  agentUnassignedCount: "agent-unassigned-count",
+  /** The panel body that row opens: those conversations, grouped by whose they
+   *  are, each with the gesture that gives it a node. */
+  unassignedPanel: "unassigned-panel",
+  /** One of them. `data-session-id` and `data-agent` are the pair that names a
+   *  conversation anywhere in this app. */
+  unassignedChat: "unassigned-chat",
+  /** The gesture on that row: *assign to node…*, which opens the search under
+   *  it. */
+  unassignedAssign: "unassigned-assign",
+  /** The way out, back to the conversation the panel was in. The list is a
+   *  place a person went, and it stays up across an assignment because moving
+   *  several chats is one job. */
+  unassignedDone: "unassigned-done",
+  /** What an assignment said — the node it landed on, or why it did not.
+   *  A node already talking through a conversation is the refusal a person has
+   *  to be able to read. */
+  unassignedSaid: "unassigned-said",
+  /** The node search under an open *assign to node…* — the shared shortlist
+   *  (`search/Shortlist.tsx`), with this door's own words. */
+  assignSearch: "assign-search",
+  /** One node it found. */
+  assignHit: "assign-hit",
+  /** Where that node lives, on its row. */
+  assignHitPlace: "assign-hit-place",
+  /** ... and a property the query matched on it. */
+  assignHitProp: "assign-hit-prop",
+  /** Why a hit cannot be taken: it is already talking through a conversation,
+   *  and one agent has one current session. */
+  assignRefused: "assign-refused",
+  /** Why the SEARCH itself answered nothing, in the grammar's own words. */
+  assignSearchFailed: "assign-search-failed",
+  /** The panel header's session detail, on a conversation a node agent owns:
+   *  the conversations it has had before this one. `data-count` is how many. */
+  chatPastSessions: "chat-past-sessions",
+  /** One of those past conversations, pressable like any other stored chat. */
+  chatPastSession: "chat-past-session",
+  /** *Fresh session* — a new conversation for this node agent, and the label
+   *  saying what happens to the one it replaces. */
+  chatFreshSession: "chat-fresh-session",
+  /** ... and why one did not happen: an engine this machine does not have, an
+   *  agent that would not start, a record the ops layer will not write. */
+  chatFreshSaid: "chat-fresh-said",
   /** Rail icon: jump to today. */
   railCalendar: "rail-calendar",
   /** Rail icon: open outlines / home. */

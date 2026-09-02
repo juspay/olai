@@ -44,6 +44,32 @@
  * the menu would be the per-row subscription this whole module exists to
  * refuse, arriving from the other side.
  *
+ * ## ... and a fourth: THE CHATS NO NODE CLAIMS
+ *
+ * Migration needs the OTHER list — what every installed agent has stored here
+ * — and that one is not a cell at all. It is a question, asked of the agents
+ * themselves, which can mean starting one that is not running
+ * (`@olai/chat`'s `listings.ts` owns what that costs and how long an answer is
+ * worth keeping). So it is asked ONCE when this provider mounts, and the
+ * difference is derived live: **what is unassigned is the listing minus what
+ * the roster claims** ({@link ./lineage.ts}), and the roster is a cell. That
+ * arrangement is what makes the count on the sidebar honest without a second
+ * round trip — assign a chat and the property lands, the cell moves, and the
+ * row it left drops out of the list on that frame.
+ *
+ * ASKED ONCE PER TAB rather than per frame, and never on a clock: the answer
+ * changes when somebody works in this directory — a `claude --resume` in a
+ * terminal — so the list is re-asked when a person OPENS it
+ * ({@link Roster.askChats}), which is the same bargain the session picker
+ * already makes on every open.
+ *
+ * A REFUSAL IS NO LIST. A serve with no ACP agent refuses this call, and what
+ * it draws is what a directory with nothing stored draws: no Unassigned row.
+ * That is the one place this differs from the picker, which must say *we did
+ * not get to look* rather than *there is nothing* — the picker is a list
+ * somebody opened, and this is a row nobody asked for. A row that could not be
+ * counted is a row with nothing to say.
+ *
  * BEFORE THE FIRST FRAME the roster is empty, which is the same thing a
  * directory with no `agent-session` property anywhere says and the same thing it draws:
  * nothing. There is no third state to give anybody — an empty sidebar and a
@@ -54,15 +80,25 @@
  * reader is looking at it through the offline overlay.
  */
 
-import { type Accessor, createContext, createMemo, type JSX, useContext } from "solid-js"
+import {
+  type Accessor,
+  createContext,
+  createMemo,
+  createSignal,
+  type JSX,
+  useContext,
+} from "solid-js"
 
-import { type AgentChoice, NO_AGENT_ROSTER } from "@olai/surface"
+import { type AgentChoice, type Listed, NO_AGENT_ROSTER, type SessionInfo } from "@olai/surface"
 
 import { createChatState } from "../chat/state.ts"
+import { run } from "../run.ts"
 import { olai } from "../wire.ts"
+import { unassignedIn } from "./lineage.ts"
 import { type Row, rowsOf } from "./roster.ts"
 
-/** The roster as this tab has it: the list, and one node's row. */
+/** The roster as this tab has it: the list, one node's row, and the chats
+ *  nobody has given a node yet. */
 export interface Roster {
   readonly rows: Accessor<ReadonlyArray<Row>>
   /** This node's row, or `undefined` for a node that is not a node agent —
@@ -73,6 +109,18 @@ export interface Roster {
    *  and on a serve with no ACP agent at all, which are the same two cases
    *  every other reading here has. */
   readonly engines: Accessor<ReadonlyArray<AgentChoice>>
+  /**
+   * THE CONVERSATIONS NO NODE CLAIMS, newest first across every installed
+   * agent — what **Unassigned** holds and counts.
+   *
+   * Empty before the listing has answered, on a serve that refused it, and on
+   * a directory whose chats are all assigned. Those are three ways to draw the
+   * same nothing, which is what the row does with them.
+   */
+  readonly unassigned: Accessor<ReadonlyArray<SessionInfo>>
+  /** Ask the agents again — what a person opening the list gets, because a
+   *  conversation started in a terminal a moment ago should be in it. */
+  readonly askChats: () => void
 }
 
 const AgentsContext = createContext<Roster>()
@@ -91,8 +139,42 @@ export function AgentsProvider(props: { readonly children: JSX.Element }) {
   // is replaced whole per frame and is the same array on nearly all of them.
   const engines = createMemo(() => chat().roster)
 
+  /**
+   * WHAT EVERY INSTALLED AGENT HAS STORED HERE, as this tab last heard it.
+   *
+   * `null` until an answer arrives and after one that was refused, which are
+   * the same thing to every reader: there is no list, so there is nothing to
+   * say a chat is unclaimed by. A refusal is deliberately NOT kept as a
+   * sentence — see the header on why this row differs from the picker.
+   */
+  const [chats, setChats] = createSignal<Listed | null>(null)
+  const askChats = (): void => {
+    run(
+      olai.procedures.chat.sessions(),
+      // A REFUSAL LEAVES THE LAST ANSWER STANDING rather than emptying the
+      // row: a socket that dropped is not a directory whose chats were all
+      // assigned, and `run` has no overload that swallows one silently.
+      () => {},
+      (listed) => setChats(listed),
+    )
+  }
+  // ONCE, on the frame this provider mounts. It is the only unprompted round
+  // trip in this module, and what it buys is the count on a row nobody has
+  // pressed yet — see the header.
+  askChats()
+
+  /** ... minus what the roster claims ({@link ./lineage.ts}), which is a
+   *  reading of the CELL and so is live: the frame an assignment lands on is
+   *  the frame that row leaves this list. */
+  const unassigned = createMemo(() => {
+    const listed = chats()
+    return listed === null ? [] : unassignedIn(listed.sessions, cell.value() ?? NO_AGENT_ROSTER)
+  })
+
   return (
-    <AgentsContext.Provider value={{ rows, at: (node) => byNode().get(node), engines }}>
+    <AgentsContext.Provider
+      value={{ rows, at: (node) => byNode().get(node), engines, unassigned, askChats }}
+    >
       {props.children}
     </AgentsContext.Provider>
   )

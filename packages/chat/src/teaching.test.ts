@@ -59,6 +59,48 @@ test("it is TWO lines, so the standing law reads the same under every agent", ()
   expect(one[1]).toBe(other[1] as string)
 })
 
+// ── the migration variant ─────────────────────────────────────────────
+
+test("an ASSIGNED session is told it was moved here, and what it was before", () => {
+  // The one fact the ordinary contract cannot carry: this conversation existed
+  // before the node claimed it, so its transcript is the only copy of what it
+  // knows.
+  const [who] = teachingFor(SPACES, "assigned")
+  expect(who).toContain("ASSIGNED")
+  expect(who).toContain("Xyne Spaces — the org OS")
+  expect(who).toContain("ordinary chat until now")
+})
+
+test("... and is ordered to BANK what it knows rather than to write as it learns", () => {
+  // The distillation order, which is the whole of why the variant exists: an
+  // assigned session is not going to learn its standing facts, it already has
+  // them, and they are about to be in the wrong place.
+  const [, law] = teachingFor(SPACES, "assigned")
+  expect(law).toContain("NOW your memory")
+  expect(law).toContain("WRITE INTO IT")
+  expect(law).toContain("only copy")
+  // The same law underneath, in the same words: the transcript is history.
+  expect(law).toContain("HISTORY")
+  expect(law).toContain("14 rows")
+})
+
+test("it is the same two lines in the same order, however the session arrived", () => {
+  // One contract rather than two: a reader comparing an assigned agent's first
+  // turn with an opened one's should see the same shape.
+  expect(teachingFor(SPACES, "assigned")).toHaveLength(2)
+  for (const line of teachingFor(SPACES, "assigned")) expect(line.startsWith("[olai] ")).toBe(true)
+})
+
+test("an empty subtree is still said rather than counted, on the variant too", () => {
+  const [, law] = teachingFor({ ...SPACES, memory: 0 }, "assigned")
+  expect(law).toContain("nothing under it yet")
+  expect(law).not.toContain("0 rows")
+})
+
+test("`opened` is the default, so every existing caller teaches what it taught", () => {
+  expect(teachingFor(SPACES, "opened")).toEqual(teachingFor(SPACES))
+})
+
 test("under a message it rides the seam every other annotation rides", () => {
   // A blank line between what a person wrote and what olai added, which is
   // `./prompt.ts`'s one rule — so the message stays the message.

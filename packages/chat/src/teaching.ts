@@ -69,6 +69,24 @@
 import { memoryOf, type NodeAgent } from "@olai/format"
 
 /**
+ * HOW THIS CONVERSATION CAME TO BELONG TO ITS NODE, which is the one thing the
+ * contract has to say differently.
+ *
+ * `opened` is a conversation olai opened FOR the node — it knows nothing that
+ * is not in its subtree, because it has not said anything yet.
+ *
+ * `assigned` is a chat that already existed and was moved to a node
+ * ({@link ./sessions.ts}'s `Overheard.assigned`, and the migration this phase
+ * ships): everything it knows is in a transcript that has just stopped being
+ * its memory. So the standing law is the same law with an ORDER in front of
+ * it — bank what you know, now, before the transcript stops mattering. It is
+ * the one turn where "write standing facts as you learn them" is not enough,
+ * because nothing new is going to be learnt: the knowledge is already there and
+ * is about to be in the wrong place.
+ */
+export type Arrival = "opened" | "assigned"
+
+/**
  * WHAT THE AGENT IS TOLD, as the lines {@link ./prompt.ts}'s `annotated` puts
  * under a message — one line per thing, in the order they are given.
  *
@@ -81,10 +99,32 @@ import { memoryOf, type NodeAgent } from "@olai/format"
  * agent is actually in: "nothing under it yet" is an instruction to start
  * writing, where a line claiming a memory of zero rows would read as a memory
  * that failed to load.
+ *
+ * ## THE MIGRATION VARIANT is the same two lines with the same shape
+ *
+ * An assigned session is told the same two things in the same order — which
+ * node, and what its subtree is — because they are the same two facts, and a
+ * reader comparing an assigned agent's first turn with an opened one's should
+ * see one contract rather than two. What differs is a clause on each: that this
+ * conversation was moved here (it was somebody's chat a moment ago and its
+ * transcript is the only copy of what it knows), and that the first thing to do
+ * about that is WRITE THE STANDING FACTS DOWN. The distillation order is a
+ * sentence in the contract rather than a turn of its own, for the reason the
+ * whole teaching is a preamble: a turn spent before anybody has said anything
+ * is a turn spent on every migrated chat whether or not it is ever used again.
  */
-export const teachingFor = (agent: NodeAgent): ReadonlyArray<string> => [
-  `[olai] This conversation is the node agent for “${agent.title}” — the node \`${agent.id}\` in \`${agent.file}\`.`,
-  `[olai] That node's SUBTREE is your memory (${
-    agent.memory === 0 ? "nothing under it yet" : memoryOf(agent)
-  }): read it to find out what you already know, and write standing facts back into it as you learn them. This transcript is HISTORY, not memory — the session can be thrown away and recreated at any time, and the next one must be able to read that subtree and know everything this one knew.`,
+export const teachingFor = (
+  agent: NodeAgent,
+  how: Arrival = "opened",
+): ReadonlyArray<string> => [
+  how === "assigned"
+    ? `[olai] This conversation has been ASSIGNED to the node agent “${agent.title}” — the node \`${agent.id}\` in \`${agent.file}\`. It was an ordinary chat until now; from here it is that node's current session.`
+    : `[olai] This conversation is the node agent for “${agent.title}” — the node \`${agent.id}\` in \`${agent.file}\`.`,
+  how === "assigned"
+    ? `[olai] That node's SUBTREE is NOW your memory (${
+      agent.memory === 0 ? "nothing under it yet" : memoryOf(agent)
+    }): read it, and then WRITE INTO IT — the standing facts this transcript is currently the only copy of, the decisions, what you are in the middle of, what a successor would need. This transcript is HISTORY, not memory — the session can be thrown away and recreated at any time, and the next one must be able to read that subtree and know everything this one knew.`
+    : `[olai] That node's SUBTREE is your memory (${
+      agent.memory === 0 ? "nothing under it yet" : memoryOf(agent)
+    }): read it to find out what you already know, and write standing facts back into it as you learn them. This transcript is HISTORY, not memory — the session can be thrown away and recreated at any time, and the next one must be able to read that subtree and know everything this one knew.`,
 ]

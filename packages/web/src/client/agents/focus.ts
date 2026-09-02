@@ -48,6 +48,7 @@ import { run } from "../run.ts"
 import { createSaying, type Saying } from "../saying.ts"
 import { olai } from "../wire.ts"
 import type { Row } from "./roster.ts"
+import { hideUnassigned } from "./showing.ts"
 
 /** WHERE A NODE AGENT LIVES — the outline it is written in, at its own row.
  *
@@ -101,6 +102,11 @@ export const createFocus = (): Focus => {
     const session = agent.session
     if (session === null) return
     setChatOpen(true)
+    // ... AND THE PANEL STOPS SHOWING THE UNASSIGNED LIST, wherever it was
+    // showing it ({@link ./showing.ts}): pressing an agent is asking for that
+    // agent's conversation, and a list left up over it would be a press that
+    // looked like it did nothing.
+    hideUnassigned()
     // BOTH HALVES, because a session id means nothing to the wrong agent: the
     // row carries the engine the property named beside the session it named,
     // and the pair is what opens one.

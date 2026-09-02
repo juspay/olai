@@ -24,6 +24,18 @@
  *     written against the session it was said in, so a fresh session is untaught
  *     — which is the point, since the transcript is exactly what does not carry
  *     the contract.
+ *   - {@link Overheard.assigned} — that this session was MOVED to a node agent
+ *     rather than opened for one. It decides WHICH of the two standing
+ *     instructions goes out ({@link ./teaching.ts}), and it is the same kind of
+ *     fact `taught` is: a gesture happened once and nothing can re-derive it —
+ *     the transcript of a chat somebody assigned is indistinguishable from the
+ *     transcript of one olai opened for a node.
+ *   - {@link Overheard.superseded} — the conversation that replaced this one,
+ *     WHERE OLAI ITSELF DID THE REPLACING. The adapter reports a `/clear` in
+ *     its own corner of `session/list` ({@link ./events.ts}'s `Stored`) and
+ *     says nothing about a re-pointing olai made, so without this a node
+ *     agent's own previous session would come back as a conversation nobody
+ *     claims ({@link ./succession.ts}).
  *   - {@link Overheard.said} — the last thing this agent said WHILE OLAI WAS
  *     WATCHING. The panel runs one conversation at a time, so an agent that is
  *     not the open one has no transcript here to read a line off; without this,
@@ -33,9 +45,11 @@
  *     ({@link ./memory.ts}), and a conversation somebody drove from a terminal
  *     moves it not at all.
  *
- * Neither could be put in the vault without writing to the board on every turn,
- * which is a commit on every turn — so the ruling's line is kept where it is
- * drawn: config in the vault, bookkeeping on the machine.
+ * None of them could be put in the vault without writing to the board on every
+ * turn, which is a commit on every turn — so the ruling's line is kept where it
+ * is drawn: config in the vault, bookkeeping on the machine. WHICH node a
+ * session belongs to is the config half and is the property; that a chat was
+ * assigned, and what replaced it, are things that HAPPENED here.
  *
  * ## KEYED ON THE CONVERSATION, which is the whole shape change
  *
@@ -51,8 +65,9 @@
  * ## Written only by olai, and therefore CAPPED
  *
  * Nobody hand-writes this file — the gesture that binds a node writes a
- * property now, and these rows appear behind turns a person is having. So it
- * grows one row per session that is ever taught, and it is capped the way
+ * property now, and these rows appear behind turns a person is having and
+ * behind the two gestures that move a binding. So it grows one row per session
+ * that is ever taught, assigned or replaced, and it is capped the way
  * {@link ./scopes.ts} is and for the same reason: {@link ROWS} rows,
  * least-recently-touched evicted, because a count cap costs no probe and cannot
  * be wrong about a conversation it has never asked about. What an eviction
@@ -135,6 +150,20 @@ export interface Overheard extends Conversing {
   /** This SESSION has already been told its contract. Absent is untaught,
    *  which is what every conversation starts as. */
   readonly taught?: boolean
+  /**
+   * This session was ASSIGNED to a node agent — an ordinary chat given a home
+   * rather than a conversation opened for one.
+   *
+   * NOT CLEARED when a node lets it go, because what it says is how this
+   * conversation ARRIVED, and that does not stop having happened. It is read
+   * together with {@link taught} in the one place that asks, so a session
+   * taught its migration contract is never taught a second one.
+   */
+  readonly assigned?: boolean
+  /** The conversation that REPLACED this one, where olai made the replacement —
+   *  a session id, with this row's own agent. Absent for every conversation
+   *  nothing has replaced, and for a `/clear` the adapter already reports. */
+  readonly superseded?: string
   /** The last line olai heard from it. Absent until olai has heard one. */
   readonly said?: Said
 }
@@ -163,6 +192,29 @@ export interface Sessions {
    * none.
    */
   readonly teach: (to: Conversing) => Effect.Effect<void, MemoryFailure>
+  /**
+   * Mark this conversation as ASSIGNED to a node agent — said once, by the
+   * gesture that writes the pointer onto a node (`@olai/server`'s
+   * `assignSession`), and after the property has landed rather than before it.
+   *
+   * A no-op for one already marked, for {@link teach}'s reason: the row already
+   * says what this would write, and a chat is assigned once.
+   */
+  readonly assign: (to: Conversing) => Effect.Effect<void, MemoryFailure>
+  /**
+   * ... and write down that OLAI replaced this conversation with another —
+   * said by the gesture that re-points a bound node at a fresh session.
+   *
+   * ON THE ROW OF THE SESSION LEFT BEHIND, which is the direction a listing
+   * reads it in: `supersededBy` is a fact about the conversation that was
+   * replaced ({@link ./succession.ts}), and a record shaped the other way would
+   * have to be inverted at every read.
+   *
+   * A no-op where the row already names that successor; where it names a
+   * DIFFERENT one, the newer wins, because a session replaced twice was
+   * replaced last by the one that is bound now.
+   */
+  readonly supersede: (to: Conversing, by: string) => Effect.Effect<void, MemoryFailure>
   /**
    * ... and write down the last line this conversation's agent said.
    *
@@ -219,6 +271,8 @@ const read = (held: Record<string, unknown>): ReadonlyArray<Overheard> => {
       agent,
       session,
       ...(one["taught"] === true ? { taught: true } : {}),
+      ...(one["assigned"] === true ? { assigned: true } : {}),
+      ...supersededIn(one["superseded"]),
       ...saidIn(one["said"]),
     })
   }
@@ -234,6 +288,14 @@ const saidIn = (value: unknown): { readonly said?: Said } => {
   const text = word(one["text"])
   const at = word(one["at"])
   return text === null || at === null ? {} : { said: { text, at } }
+}
+
+/** The successor a row names, or nothing at all — read by the same `word` every
+ *  other name in this file is, so an empty string names no conversation and is
+ *  absent rather than a link to nowhere. */
+const supersededIn = (value: unknown): { readonly superseded?: string } => {
+  const by = word(value)
+  return by === null ? {} : { superseded: by }
 }
 
 /** The same conversation — the PAIR, never the session alone. */
@@ -313,6 +375,16 @@ export const forDirectory = (spelling: string): Effect.Effect<Sessions> =>
       at: (to) => rows.find((row) => sameChat(row, to)),
       teach: (to) =>
         write(to, (row) => (row?.taught === true ? undefined : { ...row, ...to, taught: true })),
+      assign: (to) =>
+        write(
+          to,
+          (row) => (row?.assigned === true ? undefined : { ...row, ...to, assigned: true }),
+        ),
+      supersede: (to, by) =>
+        write(
+          to,
+          (row) => (row?.superseded === by ? undefined : { ...row, ...to, superseded: by }),
+        ),
       said: (to, said) =>
         write(to, (row) => (row?.said?.text === said.text ? undefined : { ...row, ...to, said })),
     }

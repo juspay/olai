@@ -300,10 +300,12 @@ export const writeVerbs = (
     // only one the ruling names:
     //
     //   - a node whose property already names a SESSION is offered nothing.
-    //     Replacing a live conversation is the *fresh session* affordance,
-    //     which owes a person a sentence about what happens to the transcript
-    //     ("memory is the subtree; the transcript becomes history") and belongs
-    //     to the migration phase that ships it.
+    //     Replacing a live conversation owes a person a sentence about what
+    //     happens to the transcript ("memory is the subtree; the transcript
+    //     becomes history"), and that sentence does not fit on a menu entry: it
+    //     is the panel's *fresh session*, drawn with the label beside it
+    //     (`../chat/Sessions.tsx`), which runs this same procedure on a node
+    //     that already has one.
     //   - everything else is offered it, bare nodes included.
     //
     // WHICH ENGINE, in the order a person would expect to be asked:

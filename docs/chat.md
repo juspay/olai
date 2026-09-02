@@ -580,7 +580,7 @@ agent-session: claude       →  agent-session: claude:0f3c8d21-…
 - otherwise **one entry per agent this machine has**. With one installed that is a single plain entry and no question; with several the menu *is* the question — `Start an agent session — Claude Code`, `— Grok` — because a list of choices is what a menu already is;
 - with **none** installed there is no entry, since there is nothing to start a session with.
 
-**The one node it is not offered on** is one whose property already names a conversation. Replacing a live session is the *fresh session* affordance — the one that has to say what happens to the transcript — and it ships with [migration](#what-is-not-here-yet-and-in-what-order-it-comes). Until then, re-pointing a bound node is an edit to the property, which is a chip under the title like any other.
+**The one node it is not offered on** is one whose property already names a conversation. Replacing a live session is a different gesture with a warning of its own — [*fresh session*](#fresh-session), in the panel, where the sentence about what happens to the transcript fits beside it. Re-pointing a bound node by hand is still an edit to the property, which is a chip under the title like any other.
 
 ### Where the binding lives, and what a second machine sees
 
@@ -596,7 +596,7 @@ Last writer wins, visibly, in a file, through the ops layer — rather than sile
 
 **A node that has gone is not on the roster.** Trash the node, or take the property off it, and the row disappears rather than becoming a door onto a record that is not there.
 
-**Two things stay on the machine**, and both are bookkeeping rather than configuration: that a session has been **taught** its contract (below), and the last line it was **heard** to say. Nothing configures either, nothing else can reconstruct them, and a board written to on every turn would be a board committed on every turn. They live beside [the which-conversation note](#which-conversation-you-come-back-to), under `~/.local/state/olai/heard/` (or wherever `XDG_STATE_HOME` points), keyed by the agent and session they are about, capped at thirty-two conversations with the least recently overheard dropped — the same cap the doorbell picks keep, and what an eviction costs is one contract taught a second time.
+**Two things stay on the machine**, and both are bookkeeping rather than configuration: what olai **overheard** each conversation do — that it has been taught its contract (below), that it was **assigned** to a node rather than opened for one, what olai itself **replaced** it with, and the last line it was **heard** to say. Nothing configures any of them, nothing else can reconstruct them, and a board written to on every turn would be a board committed on every turn. They live beside [the which-conversation note](#which-conversation-you-come-back-to), under `~/.local/state/olai/heard/` (or wherever `XDG_STATE_HOME` points), keyed by the agent and session they are about, capped at thirty-two conversations with the least recently overheard dropped — the same cap the doorbell picks keep, and what an eviction costs is one contract taught a second time.
 
 ### An agent-associated session is taught what it is
 
@@ -606,12 +606,55 @@ The whole thing rests on the agent actually writing into its subtree, so olai te
 
 **Once per session, and it is written down.** A second message does not say it again, and neither does a restart. A *fresh* session is untaught — which is the point, since the transcript is exactly what does not carry the contract.
 
+**A chat you ASSIGNED is told something more**, and it is the one difference between the two contracts: it is told that it was moved here, and ordered to write what it knows into the subtree *now* rather than as it goes. A session olai opened for a node knows nothing that is not already in the subtree; an old chat's knowledge is in a transcript that has just stopped being its memory, so the distillation is the first thing it does. It is a sentence in the contract rather than a turn of its own, for the same reason the whole teaching is a preamble: a turn spent before anybody has said anything is a turn spent on every migrated chat, whether or not it is ever used again.
+
 Two honest limits. The notice and the mark go together, and only where the message they rode under was actually TAKEN by the agent — a send the agent refused says nothing and marks nothing, so the transcript never quotes a contract that did not go out. What neither can see is a turn that fails afterwards: the words went, so the contract went with them, and whether the agent finished reading is not something this end can answer. And a node the set no longer declares — the property came off, the record was trashed — teaches nothing at all, because telling an agent its memory is a node that is not there is worse than telling it nothing.
+
+## Moving the chats you already have
+
+Migration is **association, not conversion**. Nothing moves on disk, no transcript is copied anywhere, and the session file stays exactly where its agent keeps it. What a press writes is one property on one node — and from that frame the conversation is that node agent's current session, with its context intact. A home, not an abandonment.
+
+### Unassigned
+
+**The Agents section ends with an *Unassigned* row**, counting every conversation in this directory that no node agent claims. It is the same list [the chats picker](#which-conversation-you-come-back-to) draws, minus what the roster already has: the conversation each node's `agent-session` names, and the conversations behind it (below).
+
+- **it draws only where there is one.** A directory whose chats all belong to a node ends the section at its agents; a directory with neither draws no section at all.
+- **...and it draws even with no node agent at all**, which is where a person migrating actually starts. A doorway that appeared only once you had made your first node agent by hand would be a doorway nobody finds.
+- **the count is asked once**, when the tab loads, off the same question the picker asks — which can mean starting an agent that is not running, so it is asked once rather than on a clock. Opening the row asks again, because a `claude --resume` in a terminal a moment ago should be in the list.
+- **it may never empty**, and that is the design rather than a state to fix. A chat that is nobody's agent goes on working exactly as it always did.
+
+### assign to node…
+
+**Opening it lists those conversations in the panel** — grouped by whose they are, each saying how big it is and when it was last touched, exactly as the picker draws them. Pressing a title opens it, because the honest first question about a chat from three weeks ago is *which one is this*. Under it is **assign to node…**, which opens the same node search the [edge panel and the move picker](search.md) use: type words, take a row.
+
+```
+(no property)               →  agent-session: claude:0f3c8d21-…
+agent-session: grok         →  agent-session: claude:0f3c8d21-…
+```
+
+- **the engine comes from the chat**, and the value is written whole. A session id means nothing to the wrong agent, so a node that named a *different* engine is re-pointed rather than half-rewritten — a property naming one engine and another engine's conversation would be a node agent nobody could open.
+- **a bare node is offered**, so this is how a node agent comes into being as much as it is how one gets a session — the same ruling [*start an agent session*](#starting-a-session) keeps.
+- **a node already talking through a conversation refuses**, in a plain sentence: one agent, one current session. It is dimmed in the search where you can see it before pressing, and refused again by the server, because a browser judges against the frame it was drawn on. To replace a live session, use *fresh session* below.
+- **the row leaves the list on the frame the property lands.** Nothing is re-asked: what is unassigned is the listing minus what the roster claims, and the roster is live.
+
+### Its past sessions come with it
+
+**Assigning a chat claims the `/clear` chain behind it.** The picker already knows which conversation replaced which — olai's pinned adapter says so on the row that was left behind — so the conversations behind the one you assigned are that agent's **past sessions** from day one, rather than a list that starts empty and fills as you clear. They are named in the panel's `chats` list, above the directory's own: *past sessions (n)*, pressable like any other stored conversation. And because they are claimed, they leave *Unassigned* in the same press.
+
+### fresh session
+
+**The `chats` list on a node agent's conversation also offers *fresh session*, labelled with what it means**: memory is the subtree, the transcript becomes history. It opens a new conversation with that node's engine and re-points the property at it — the same two acts *start an agent session* runs, in the same order, so the vault never names a session that was not opened.
+
+What it costs is what the contract has been saying all along: nothing that was written into the subtree, and everything that was only ever in the transcript. **The conversation it replaces is not orphaned** — olai writes down what replaced it, so it becomes one of that agent's past sessions rather than reappearing under *Unassigned* as a chat nobody claims. That note is this machine's, like the rest of what olai overheard.
+
+### It is still one conversation at a time
+
+Assigning a chat does not start anything. Olai runs **one conversation at a time**, so a node agent that is not the open one is *asleep* — its session is on disk, pressing its row opens it, and nothing is happening in it in the meantime. Migrating ten chats gives you ten node agents whose memories are ten subtrees and whose sessions are ten files; it does not give you ten running agents. That is [the next phase](#what-is-not-here-yet-and-in-what-order-it-comes), and everything above is honest without it.
 
 ### What is not here yet, and in what order it comes
 
-This is phase one of a ruled plan, and the rest is a plan rather than a list of gaps:
+The rest is a plan rather than a list of gaps:
 
-1. **Migration** — an *Unassigned* roster entry holding every conversation no node claims, an **assign to node…** gesture for chats that already exist, the *fresh session* affordance, and the one distillation turn that banks an old chat's knowledge into its new subtree. After it, real chats move over one row at a time.
+1. **Concurrent agents** — the agent module holds a map of live sessions instead of one, the panel routes turns and deliveries by node, and the roster's live states become true for many rows at once. Everything below presumes it: a wake acted on while nobody is looking, an agent that dispatches.
 2. **Derived wakes** — a node agent's [doorbell scope](#what-this-conversation-wakes-on) becomes its subtree, and an agentless wake climbs to the nearest ancestor node agent. The manual control survives for conversations no node claims.
 3. **Agency** — a node agent creates child nodes and puts agents on them, writing only inside its own subtree and asking its ancestor for anything above.

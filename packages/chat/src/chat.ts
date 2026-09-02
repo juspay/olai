@@ -119,6 +119,7 @@ import * as Memory from "./memory.ts"
 import { annotated } from "./prompt.ts"
 import type { Probe } from "./probes.ts"
 import type { Fault, Faulted, Scopes } from "./scopes.ts"
+import { succeeded } from "./succession.ts"
 import { teachingFor } from "./teaching.ts"
 import { type Change, says, Transcript } from "./transcript.ts"
 import { type Turn, Turns } from "./turns.ts"
@@ -240,6 +241,35 @@ export interface Chat {
    * cell connector with no Effect around it.
    */
   readonly overheard: () => ReadonlyArray<Overheard>
+  /**
+   * A CHAT WAS GIVEN A HOME — write down that this conversation was ASSIGNED to
+   * a node agent rather than opened for one ({@link ./sessions.ts}).
+   *
+   * The other half of the gesture that writes the pointer onto a node, and it
+   * is here because the record is: the composition root holds the ops layer and
+   * this file holds what olai overheard, exactly as they hold the two halves of
+   * the roster (`@olai/server`'s `assignSession`).
+   *
+   * WHAT IT DECIDES is which contract that session is taught on its next
+   * message ({@link ./teaching.ts}): an assigned chat is told to bank what it
+   * knows into the subtree, because its transcript is the only copy of it.
+   *
+   * IT NEVER REFUSES. A mark that could not be written is a session taught the
+   * ordinary contract instead of the migration one — a worse sentence, not a
+   * lost assignment — and the property, which is the assignment, has already
+   * landed by the time this is called. So it logs, the way every other write to
+   * this record does.
+   */
+  readonly assigned: (to: Conversing) => Effect.Effect<void>
+  /**
+   * ... and OLAI REPLACED ONE WITH ANOTHER — write down which conversation took
+   * this one's place, for the *fresh session* affordance.
+   *
+   * Same shape and same silence as {@link Chat.assigned}, and what a lost write
+   * costs here is one old session appearing under Unassigned as a conversation
+   * nobody claims, which somebody can see and nothing acts on.
+   */
+  readonly replaced: (to: Conversing, by: string) => Effect.Effect<void>
   /**
    * THE SET MOVED — ask {@link Options.agentAt} again, and publish if the
    * answer changed.
@@ -682,6 +712,39 @@ const silence = (agent: string): string =>
   `that its provider key is set in the environment olai itself runs in, then ` +
   `send again.`
 
+/**
+ * A WRITE TO THIS MACHINE'S RECORD, ATTEMPTED — and its failure logged rather
+ * than handed to anybody ({@link ./sessions.ts}'s own rule for its writers).
+ *
+ * The two migration marks are the callers ({@link Chat.assigned},
+ * {@link Chat.replaced}), and what they share is the reason this refuses
+ * nothing: each runs AFTER the durable half of its gesture has already landed
+ * in the vault, so a refusal here would be telling somebody their assignment
+ * failed when it did not. `undefined` is a chat composed with no record at all,
+ * which is the state every test in this package is in unless it says otherwise.
+ */
+const noting = (
+  write: Effect.Effect<void, Memory.MemoryFailure> | undefined,
+  why: (failure: Memory.MemoryFailure) => string,
+): Effect.Effect<void> =>
+  write === undefined ? Effect.void : Effect.gen(function*() {
+    const done = yield* Effect.result(write)
+    if (done._tag === "Failure") yield* Effect.logWarning(why(done.failure))
+  })
+
+/** ... and what each of them costs when it is lost, said where the write is
+ *  rather than at the call site: the sentence is about this record, and the
+ *  gesture that made the write is a package away. */
+const assignLost = (failure: Memory.MemoryFailure): string =>
+  `a chat was assigned to a node agent and that it was ASSIGNED could not be written down ` +
+  `(${failure.why}) — the pointer landed, and the session will be taught the ordinary ` +
+  `contract rather than the one that asks it to bank what it knows`
+
+const replaceLost = (failure: Memory.MemoryFailure): string =>
+  `a node agent was given a fresh session and what it replaced could not be written down ` +
+  `(${failure.why}) — the new session is bound, and the old one will show under Unassigned ` +
+  `as a conversation no node claims`
+
 export const make = (options: Options): Effect.Effect<Chat, never, never> =>
   Effect.gen(function*() {
     /**
@@ -1067,14 +1130,23 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * and the mark that goes to disk afterwards is written against THAT
      * conversation rather than against whichever one the panel has come to be
      * in ({@link contracted}).
+     *
+     * WHICH OF THE TWO CONTRACTS comes off the same row the `taught` mark does,
+     * in one read: a session somebody ASSIGNED to a node is told to bank what
+     * its transcript knows, and one olai opened for a node is told the standing
+     * law alone ({@link ./teaching.ts}'s `Arrival`). Two reads of that row would
+     * be two answers to one question, and the second could be taken after a
+     * write that moved it.
      */
     const teaching = (): Teaching | null => {
       const to = conversationOf()
       const overheard = options.overheard
       if (to === null || overheard === undefined || overheard === null) return null
-      if (overheard.at(to)?.taught === true) return null
+      const row = overheard.at(to)
+      if (row?.taught === true) return null
       const node = options.agentAt?.(to) ?? null
-      return node === null ? null : { to, lines: teachingFor(node) }
+      if (node === null) return null
+      return { to, lines: teachingFor(node, row?.assigned === true ? "assigned" : "opened") }
     }
 
     /**
@@ -2761,6 +2833,12 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       entries: () => transcript.entries(),
       state: () => state,
       overheard: () => options.overheard?.rows() ?? [],
+      // THE TWO MARKS THE MIGRATION GESTURES LEAVE, and both are written the
+      // way everything else in this record is: behind a gesture that has
+      // already been answered, logging what it could not write rather than
+      // taking the gesture away from somebody ({@link ./sessions.ts}).
+      assigned: (to) => noting(options.overheard?.assign(to), assignLost),
+      replaced: (to, by) => noting(options.overheard?.supersede(to, by), replaceLost),
       // THE SET'S ANSWER, ASKED AGAIN. `move` is what publishes, and it is
       // guarded on the value rather than called unconditionally: this runs per
       // revision, the state cell is what the whole panel redraws from, and a
@@ -2844,7 +2922,15 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         unopened = null
         return changeSession(waiting.again, state.unopened?.what ?? null)
       }),
-      sessions: listings.all,
+      // ... WEARING THE SUPERSESSIONS OLAI ITSELF MADE ({@link
+      // ./succession.ts}). The overlay is here, at the one door every reader of
+      // a listing comes through, so the migration list, the panel's *past
+      // sessions* and the picker's own superseded line cannot come to disagree
+      // about which conversations a node agent has had.
+      sessions: Effect.map(
+        listings.all,
+        (listed) => succeeded(listed, options.overheard?.rows() ?? []),
+      ),
       answer: (id, answers) =>
         onAgent((agent) =>
           Effect.flatMap(
