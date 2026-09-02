@@ -19,31 +19,35 @@ export function Ghosts(props: {
   readonly parked: ReadonlyArray<Pending>
   readonly live: Pending | undefined
 }) {
-  const editor = useEditor()
   return (
     <>
       <Key each={props.parked} by="slot">
-        {(draft) => (
-          <NewRow
-            draft={draft()}
-            active={false}
-            onActivate={() => editor.resume(draft().slot)}
-            onInput={editor.type}
-            onKey={keyHandler("line", editor.press)}
-            onBlur={(left) => editor.blur({ row: draft().slot, field: "new" }, left)}
-          />
-        )}
+        {(draft) => <GhostRow draft={draft()} active={false} />}
       </Key>
       <Show when={props.live}>
-        {(draft) => (
-          <NewRow
-            draft={draft()}
-            onInput={editor.type}
-            onKey={keyHandler("line", editor.press)}
-            onBlur={(left) => editor.blur({ row: draft().slot, field: "new" }, left)}
-          />
-        )}
+        {(draft) => <GhostRow draft={draft()} />}
       </Show>
     </>
+  )
+}
+
+/** Slot is captured as a string at mount: a blur fires as this row unmounts
+ *  (Enter spent the draft, a mirror took its place), and reading the
+ *  `<Show>`/`<Key>` accessor then is the stale-value throw. */
+function GhostRow(props: {
+  readonly draft: Pending
+  readonly active?: boolean
+}) {
+  const editor = useEditor()
+  const slot = props.draft.slot
+  return (
+    <NewRow
+      draft={props.draft}
+      active={props.active}
+      onActivate={props.active === false ? () => editor.resume(slot) : undefined}
+      onInput={editor.type}
+      onKey={keyHandler("line", editor.press)}
+      onBlur={(left) => editor.blur({ row: slot, field: "new" }, left)}
+    />
   )
 }
