@@ -154,7 +154,7 @@ export const parentToolUseIn = (meta: Meta): string | null =>
  *
  *   - **the spawn's own flag.** The adapter stamps `subagent: true` beside the
  *     tool name on every frame it builds for an `Agent`/`Task` call
- *     (`claudeCodeMetaFromToolUse`, adapter 0.70.0), and that frame is emitted
+ *     (`claudeCodeMetaFromToolUse`, adapter 0.73.0), and that frame is emitted
  *     when the tool use starts — so it arrives at the moment the agent is sent
  *     out rather than at the moment it reports back. The FLAG rather than the
  *     tool NAME, which the same corner also carries: the name is a word one

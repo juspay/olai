@@ -36,7 +36,7 @@
  * survive a restart, because the agent's own answer at every boot is a static
  * one. The pinned Claude Code adapter reads `settings.json`, and a container
  * whose settings pin `"model": "sonnet"` RE-ASSERTS that pin over the resumed
- * conversation's own model, every time (0.70.0, `getAvailableModels`: env, then
+ * conversation's own model, every time (0.73.0, `getAvailableModels`: env, then
  * settings, then the transcript). The conversation was on Fable; it came back
  * on Sonnet; nothing on screen said why.
  *

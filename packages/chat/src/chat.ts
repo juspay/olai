@@ -815,8 +815,9 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      *
      * It goes when the adapter is FIXED, which is not the same as when the
      * pin moves: the 0.66.0 → 0.70.0 bump moved it four releases and #1039
-     * is still open. `acp/patches/README.md` is where each bump records
-     * whether it re-measured this.
+     * stayed open. 0.70.0 → 0.73.0 is a different swallow (#958, candidate
+     * #1065), not this latch. `acp/patches/README.md` is where each bump
+     * records whether it re-measured this.
      */
     let queuedHere = false
 
