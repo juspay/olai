@@ -91,6 +91,16 @@ test("it is the same two lines in the same order, however the session arrived", 
   for (const line of teachingFor(SPACES, "assigned")) expect(line.startsWith("[olai] ")).toBe(true)
 })
 
+test("... and both end on the SAME standing law, word for word", () => {
+  // The half that must not differ: what the law says is the whole contract, and
+  // two spellings of it is two contracts.
+  const law = "This transcript is HISTORY, not memory —"
+  const [, opened] = teachingFor(SPACES, "opened")
+  const [, assigned] = teachingFor(SPACES, "assigned")
+  expect((opened as string).slice((opened as string).indexOf(law)))
+    .toBe((assigned as string).slice((assigned as string).indexOf(law)))
+})
+
 test("an empty subtree is still said rather than counted, on the variant too", () => {
   const [, law] = teachingFor({ ...SPACES, memory: 0 }, "assigned")
   expect(law).toContain("nothing under it yet")

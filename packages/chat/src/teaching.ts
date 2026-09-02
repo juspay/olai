@@ -116,15 +116,62 @@ export type Arrival = "opened" | "assigned"
 export const teachingFor = (
   agent: NodeAgent,
   how: Arrival = "opened",
-): ReadonlyArray<string> => [
-  how === "assigned"
-    ? `[olai] This conversation has been ASSIGNED to the node agent “${agent.title}” — the node \`${agent.id}\` in \`${agent.file}\`. It was an ordinary chat until now; from here it is that node's current session.`
-    : `[olai] This conversation is the node agent for “${agent.title}” — the node \`${agent.id}\` in \`${agent.file}\`.`,
-  how === "assigned"
-    ? `[olai] That node's SUBTREE is NOW your memory (${
+): ReadonlyArray<string> => {
+  const says = SAYS[how]
+  return [
+    `[olai] ${says.who(agent)}`,
+    `[olai] ${says.memory} (${
       agent.memory === 0 ? "nothing under it yet" : memoryOf(agent)
-    }): read it, and then WRITE INTO IT — the standing facts this transcript is currently the only copy of, the decisions, what you are in the middle of, what a successor would need. This transcript is HISTORY, not memory — the session can be thrown away and recreated at any time, and the next one must be able to read that subtree and know everything this one knew.`
-    : `[olai] That node's SUBTREE is your memory (${
-      agent.memory === 0 ? "nothing under it yet" : memoryOf(agent)
-    }): read it to find out what you already know, and write standing facts back into it as you learn them. This transcript is HISTORY, not memory — the session can be thrown away and recreated at any time, and the next one must be able to read that subtree and know everything this one knew.`,
-]
+    }): ${says.order} ${LAW}`,
+  ]
+}
+
+/**
+ * THE STANDING LAW, spelled ONCE — the sentence both contracts end on.
+ *
+ * It is the half that must not differ between them: a reader comparing an
+ * assigned agent's first turn with an opened one's has to see one contract
+ * rather than two, and a law written out at each arm is a law two people can
+ * edit into two laws. What varies is above it and is a table.
+ */
+const LAW =
+  `This transcript is HISTORY, not memory — the session can be thrown away and recreated at any time, and the next one must be able to read that subtree and know everything this one knew.`
+
+/** What one arrival says for itself: who this conversation is, what its memory
+ *  IS, and what to do about it. Three clauses and no more — everything else in
+ *  the two lines is the same words in the same order. */
+interface Words {
+  /** The whole first line, which is the one that names the node. */
+  readonly who: (agent: NodeAgent) => string
+  /** ... and the opening of the second, up to the count. */
+  readonly memory: string
+  /** ... and what the agent is told to do with it, before {@link LAW}. */
+  readonly order: string
+}
+
+/**
+ * The two contracts, as the clauses they differ in.
+ *
+ * A RECORD OVER THE CLOSED UNION rather than a ternary per line, which is this
+ * repo's own shape for exactly this (`@olai/web`'s `roster.ts` `LOOK`): a third
+ * arrival fails to compile here, where a ternary would quietly keep saying
+ * `opened`'s words. It is also what makes the SHAPE of the teaching visible —
+ * two lines, `[olai] ` and the law — instead of that shape being spelled once
+ * per branch.
+ */
+const SAYS: Record<Arrival, Words> = {
+  opened: {
+    who: (agent) =>
+      `This conversation is the node agent for “${agent.title}” — the node \`${agent.id}\` in \`${agent.file}\`.`,
+    memory: "That node's SUBTREE is your memory",
+    order:
+      "read it to find out what you already know, and write standing facts back into it as you learn them.",
+  },
+  assigned: {
+    who: (agent) =>
+      `This conversation has been ASSIGNED to the node agent “${agent.title}” — the node \`${agent.id}\` in \`${agent.file}\`. It was an ordinary chat until now; from here it is that node's current session.`,
+    memory: "That node's SUBTREE is NOW your memory",
+    order:
+      "read it, and then WRITE INTO IT — the standing facts this transcript is currently the only copy of, the decisions, what you are in the middle of, what a successor would need.",
+  },
+}
