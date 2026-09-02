@@ -351,6 +351,7 @@
   "@olai/acp" = copyPathToStore ./packages/acp;
   "@olai/chat" = copyPathToStore ./packages/chat;
   "@olai/child" = copyPathToStore ./packages/child;
+  "@olai/cordis-spike" = copyPathToStore ./packages/cordis-spike;
   "@olai/fonts" = copyPathToStore ./packages/fonts;
   "@olai/format" = copyPathToStore ./packages/format;
   "@olai/git" = copyPathToStore ./packages/git;
@@ -504,6 +505,10 @@
   "@solid-primitives/utils@6.4.1" = fetchurl {
     url = "https://registry.npmjs.org/@solid-primitives/utils/-/utils-6.4.1.tgz";
     hash = "sha512-ISSB5QX1qP2ynrheIpYwc4oKR5Ny4siNuUyf1qZniy+Il+p/PtDB0QK1Dnle8noiHpwRD3gpPdubOC3qI/Zamg==";
+  };
+  "@standard-schema/spec@1.1.0" = fetchurl {
+    url = "https://registry.npmjs.org/@standard-schema/spec/-/spec-1.1.0.tgz";
+    hash = "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==";
   };
   "@swc/helpers@0.5.23" = fetchurl {
     url = "https://registry.npmjs.org/@swc/helpers/-/helpers-0.5.23.tgz";
@@ -824,6 +829,10 @@
   "cors@2.8.6" = fetchurl {
     url = "https://registry.npmjs.org/cors/-/cors-2.8.6.tgz";
     hash = "sha512-tJtZBBHA6vjIAaF6EnIaq6laBBP9aq/Y3ouVJjEfoHbRBcHBAHYcMh/w8LDrk2PvIMMq8gmopa5D4V8RmbrxGw==";
+  };
+  "cosmokit@1.8.1" = fetchurl {
+    url = "https://registry.npmjs.org/cosmokit/-/cosmokit-1.8.1.tgz";
+    hash = "sha512-PDBv4l90xZKrUsZ0vtoycgZpO/j4iFsqJXrAxsyBDsnQRI7ZMJXIjgDJsKNjd5L8jnVnnlrDCdhkFbTncgCVjQ==";
   };
   "cross-spawn@7.0.6" = fetchurl {
     url = "https://registry.npmjs.org/cross-spawn/-/cross-spawn-7.0.6.tgz";

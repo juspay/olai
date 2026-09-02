@@ -3,6 +3,7 @@
 let
   kolu = import ./nix/kolu.nix { inherit pkgs; };
   odu = import ./nix/odu.nix { inherit pkgs; };
+  cordis = import ./nix/cordis.nix { inherit pkgs; };
   pins = import ./npins;
   olaiFonts = import ./packages/fonts { inherit pkgs; };
   koluMark = import ./packages/plugins/olai-plugin-kolu { inherit pkgs; };
@@ -42,6 +43,13 @@ pkgs.mkShell {
     # failure is about.
     OLAI_ODU_HYDRATE = odu.hydrateArgs;
     OLAI_ODU_MANIFEST = builtins.toJSON odu.externals;
+
+    # CORDIS, the same two ways as odu: the argv for kolu's copier, and the
+    # pinned core manifest's dependencies `scripts/check-hydrated-deps.sh`
+    # asserts the root against. A third pin, a third variable, because the
+    # three repositories move independently.
+    OLAI_CORDIS_HYDRATE = cordis.hydrateArgs;
+    OLAI_CORDIS_MANIFEST = builtins.toJSON cordis.externals;
 
     # THE ORCHESTRATOR'S VAULT, pinned — the corpus four differential legs read
     # (`@olai/format`'s scope, incremental and splice, and `@olai/server`'s

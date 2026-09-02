@@ -682,8 +682,13 @@ const ROOT_DECLARED: ReadonlySet<string> = new Set(dependencyNames(manifestAt(RE
  *  `@kolu/surface`, `-app`, `-cli`, `-mcp`, `-daemon`, `-daemon-supervisor`:
  *  olai's app is BUILT on them — the surface composition every one of these
  *  claims is about is theirs — so they are imported anywhere, like `effect`.
- *  Confining them would be confining the framework to a tenant. */
-const FRAMEWORK = /^@kolu\/surface(-[a-z]+)*(\/|$)/
+ *  Confining them would be confining the framework to a tenant.
+ *
+ *  `cordis` and `@cordisjs/plugin-loader` are the same class, for the spike:
+ *  hydrated from the npins pin (`nix/cordis.nix`), not an appliance, and the
+ *  package that mounts them (`@olai/cordis-spike`) is general by construction.
+ *  Drop the two arms the day the spike is deleted. */
+const FRAMEWORK = /^(?:@kolu\/surface(-[a-z]+)*|cordis|@cordisjs\/plugin-loader)(\/|$)/
 
 /** Is this specifier, named by this package, a HYDRATED one — copied into the
  *  root `node_modules` from a Nix pin, where every package resolves it whether
