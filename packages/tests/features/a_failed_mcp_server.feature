@@ -17,10 +17,13 @@ Feature: A failed MCP server is a visible fact
   padi answers. So the two scenarios below differ only in whether the host's
   kolu works — the panel, the agent and the conversation are the same.
 
-  `odu` needs no such fake: the packaged wrapper the suite spawns (`OLAI_BIN`)
-  answers that one from its own pin — which IS the isolation, on a laptop that
-  has a real odu too — and `OLAI_ODU_BIN` is the knob a scenario turns when it
-  wants another answer (the empty string elbows the pin entirely).
+  `odu` needs no such fake: the wrapper the suite spawns (`OLAI_BIN`, the
+  nix-built binary or `just dev-bin`'s own) answers that probe from its own
+  pin — which IS the isolation, on a laptop that has a real odu too. There
+  is NO scenario-side arm for it the way `@kolu` is one: isolateEnv deletes
+  the host's `OLAI_ODU_BIN`, so the wrapper's default is the only value any
+  server here ever sees. A scenario that needs another odu answer adds the
+  knob the way `@kolu` and `@padi:` were added — the shape is right there.
 
   Background:
     Given I open the app

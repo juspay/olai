@@ -328,7 +328,7 @@ nix:
       cat "$out/bin/olai" >&2
       exit 1
     fi
-    if ! grep -qF 'export PATH="$OLAI_ODU_BIN:$PATH"' "$out/bin/olai"; then
+    if ! grep -qF 'export PATH="$OLAI_ODU_BIN${PATH:+:$PATH}"' "$out/bin/olai"; then
       echo "the wrapper names OLAI_ODU_BIN but never splices it onto PATH —" >&2
       echo "the probe would resolve nothing. Wrapper:" >&2
       cat "$out/bin/olai" >&2
@@ -629,13 +629,30 @@ bench: install
 # A worktree-local wrapper the e2e harness can spawn (`OLAI_BIN=` this)
 # instead of the nix-built binary. `/tmp/olai-dev` is how two worktrees
 # used to drive one tree; this file lives in THIS worktree.
+#
+# THE ODU FACE OF “the same binary”: a wrapper that only changed the argv
+# would be the ONE spawn shape with no odu answer of its own, and
+# isolateEnv deleting the host's OLAI_ODU_BIN (workers.ts) would make the
+# roster features host-dependent on exactly the loop the README hands
+# developers. The generated file therefore re-spells default.nix's own
+# shape: a set-default line for the pin's bin dir, the same three-arm
+# splice. `serve`/`run` ask scripts/olai-path.sh to compose the variable
+# on every run; this file is WRITTEN once per worktree, so it composes
+# the default at write time the way the nix wrapper does at build time —
+# one knob, every face is only true when this face answers too.
 dev-bin:
     #!/usr/bin/env bash
     set -euo pipefail
     dir="{{ justfile_directory() }}/.olai-dev"
     mkdir -p "$dir"
-    printf '#!/usr/bin/env bash\nexec bun %s/packages/server/src/main.ts "$@"\n' \
-      "{{ justfile_directory() }}" > "$dir/bin"
+    # The same build-on-demand scripts/olai-path.sh's header spends a
+    # paragraph defending: here at WRITE time rather than each spawn.
+    odu_dir="$(nix build .#odu-bin --no-link --print-out-paths --accept-flake-config)/bin"
+    printf '#!/usr/bin/env bash\n' > "$dir/bin"
+    printf 'export OLAI_ODU_BIN="${OLAI_ODU_BIN-%s}"\n' "$odu_dir" >> "$dir/bin"
+    printf '%s\n' 'if [ -n "$OLAI_ODU_BIN" ]; then if [ -d "$OLAI_ODU_BIN" ]; then export PATH="$OLAI_ODU_BIN${PATH:+:$PATH}"; else echo "olai: OLAI_ODU_BIN=$OLAI_ODU_BIN is not a directory — no odu goes on the PATH of this serve" >&2; fi; fi' >> "$dir/bin"
+    printf 'exec bun %s/packages/server/src/main.ts "$@"\n' \
+      "{{ justfile_directory() }}" >> "$dir/bin"
     chmod +x "$dir/bin"
     echo "$dir/bin"
 

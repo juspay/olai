@@ -23,9 +23,11 @@ Feature: The panel says which MCP servers a conversation has
   The fake `kolu` in `agent/kolu/` is what every server this suite spawns finds
   first on its PATH, and the tag decides which one it is: the DEFAULT reaches no
   daemon, and `@kolu` is a host whose padi answers. The odu row beside it needs
-  no fake: the packaged wrapper the suite spawns (`OLAI_BIN`) answers the probe
-  from its own pin, on a laptop that has a real odu too — `OLAI_ODU_BIN` is the
-  knob (`a_failed_mcp_server.feature` says the same one sentence).
+  no fake: the wrapper the suite spawns (`OLAI_BIN`, the nix-built binary or
+  `just dev-bin`'s own) answers the probe from its own pin, on a laptop that
+  has a real odu too — isolateEnv deletes the host's `OLAI_ODU_BIN`, so the
+  wrapper's default is the only value any server here ever sees
+  (`a_failed_mcp_server.feature` says the whole of it).
 
   Background:
     Given I open the app
