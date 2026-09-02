@@ -23,9 +23,16 @@
  * was RETIRED into the preferences panel on exactly this argument — *a bar that
  * has five things in it at 390pt cannot spend one of them on a second door to a
  * panel that is already there*. This is not that case. It is not a second door
- * to the same panel; it is the only door to a different one, and what is behind
- * it is invisible everywhere else — a plugin that is off draws nothing, so
- * nothing on screen says it exists.
+ * to the same panel; it is the only door to a different one.
+ *
+ * And what is behind it has nowhere else to be asked. This is the argument the
+ * preferences panel used to carry for these rows, moved here with them, because
+ * it is the reason they are worth a control rather than the reason they were
+ * worth a section: the question they answer — *why is the integration the docs
+ * describe not on this screen* — cannot be asked anywhere else, because what a
+ * plugin that is off leaves behind is NOTHING AT ALL. No chip, no pane, no
+ * error. A product that drew only the settings a reader can change would answer
+ * that question by staying silent.
  *
  * DESKTOP ONLY, which is how the seat is afforded. On a phone it is a row at
  * the foot of the directory drawer beside preferences, because the phone bar is

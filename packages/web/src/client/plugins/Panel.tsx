@@ -43,6 +43,19 @@
  * to keep in step. What this file owns is which rows there are and what they
  * say ({@link ./rows.ts}).
  *
+ * ## NO PANEL-WIDE LINE, where preferences has one
+ *
+ * That panel closes with a sentence saying its rows are this browser's and
+ * naming the git rows as the exception, and it needs one: MOST of what is on it
+ * is the reader's, so the two that are not have to be called out or they read
+ * as the same kind of thing.
+ *
+ * Nothing here is the reader's. Every row is the instance's, and every row
+ * already says so on its own line — `./rows.ts`'s `pluginSetBy` ends each one
+ * with the same clause. A panel-wide sentence would be that clause a fourth
+ * time, under three rows that had each just said it, which is how a caveat
+ * stops being read at all.
+ *
  * ## Where the panel goes is not this file's decision
  *
  * The bar is `sticky` with a z-index, which makes it a stacking context and a

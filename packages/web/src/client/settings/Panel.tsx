@@ -9,19 +9,28 @@
  * settings popover, whose shape this adopts: its rows read and write wire
  * singletons, because its preferences are the server's.
  *
- * **THE INSTANCE'S ROWS ARE THE EXCEPTION**, and there are two kinds of them:
- * the two GIT rows, and one row per plugin this build has. Both are this
+ * **THE INSTANCE'S ROWS ARE THE EXCEPTION**, and there are two GIT ones: this
  * INSTANCE's policy, set at launch (a flag, the nix module, or the built-in
  * default), the same in every browser, always read-only. Never hidden: a policy
  * a reader cannot see is one they cannot ask anybody about. Nothing is SENT;
- * the policy arrives on the `git` and `plugins` cells, which this panel READS
- * and never writes. Theme, font, size, notes and done are untouched by any of
- * it — those are personal view choices and there is nothing about them for a
- * server to have an opinion on. The read-only row presentation is generic
- * (`./Row.tsx`'s `setBy`) and so are the words under it (`./instance.ts`),
- * which is what let the plugin rows join without either one being widened —
- * "a future instance setting can join them" was the claim, and this is it
- * arriving.
+ * the policy arrives on the `git` cell, which this panel READS and never
+ * writes. Theme, font, size, notes and done are untouched by any of it — those
+ * are personal view choices and there is nothing about them for a server to
+ * have an opinion on.
+ *
+ * THERE WAS A THIRD KIND and it left: a row per plugin this build has. The
+ * read-only presentation is generic (`./Row.tsx`'s `setBy`) and so are the
+ * words under it (`./instance.ts`), so they JOINED without either being
+ * widened — "a future instance setting can join them" was the claim, and they
+ * were it arriving. What that showed is that the mechanism generalises and the
+ * PANEL does not: git policy is about THIS DIRECTORY, which is what the rest of
+ * this panel is about, so a person setting how their pages read is in the right
+ * place to be told what happens when they write one. Which integrations the
+ * instance runs is a different question with a different owner, and a
+ * read-only strip among live ones reads as a preference somebody disabled
+ * rather than as a fact about the serve. They are their own control in the bar
+ * now (`../plugins/Plugins.tsx`), and they took their reading and their
+ * subscription with them.
  *
  * WHAT IS ON IT is a narrower question than "every client-local value", and the
  * answer is: the ones that are a CHOICE and have nowhere else to be made. The
@@ -45,12 +54,7 @@
  * so they are rows here rather than switches on the Commit panel. TWO rows and
  * not one strip of three, because they are two independent facts: pushing a
  * commit you made by hand is the shipped case, and folding them into a single
- * Off / Auto-commit / both would take it away. The PLUGIN rows pass the same
- * test from the other side: they are not a choice this browser has, and the
- * question they answer — "why is the integration the docs describe not on this
- * screen" — has nowhere else to be asked, because what a disabled plugin leaves
- * behind is nothing at all: no chip, no pane, no error. A panel that drew only
- * the settings a reader can change would answer that by staying silent. The layout values
+ * Off / Auto-commit / both would take it away. The layout values
  * in `../layout/prefs.ts` are
  * stored the same way and are deliberately NOT here — a sidebar width is set
  * by dragging the sidebar, and a panel being open is set by the control that
@@ -336,18 +340,19 @@ export function Panel(props: {
           it: they are always the instance's, and a caveat about a feature
           nobody is using is not a caveat here — every serve has them.
 
-          THE PLUGIN ROWS ARE NAMED THE SAME WAY and in the same breath, because
-          they are the same exception rather than a second one: one launch, one
-          kind of policy, one sentence. Naming them separately would be two
-          caveats a reader has to tell apart, and the row's own line already
-          says which flag set it. They are named as a CLASS and not counted,
-          since how many there are is the build's business. */}
+          THE PLUGIN ROWS WERE NAMED HERE TOO, in the same breath, while they
+          were on this panel — the same exception rather than a second one. They
+          are a panel of their own now and this sentence stops reaching for
+          them: a caveat about rows a reader cannot see from here is a caveat
+          about nothing, and it would send somebody looking down the panel for a
+          section that is not on it. Their panel needs no line of its own —
+          `../plugins/Panel.tsx` says why. */}
       <p class="border-t border-rule pt-3 text-xs text-muted" data-testid={TESTID.prefsScope}>
         These are this browser's. They are stored here, reach every tab you have
-        olai open in, and are never sent to the server. The two git rows and the
-        plugin rows are this instance's policy, set at launch — a flag, the nix
-        module, or the built-in default. They are the same in every browser and
-        cannot be changed from one.
+        olai open in, and are never sent to the server. The two git rows are
+        this instance's policy, set at launch — a flag, the nix module, or the
+        built-in default. They are the same in every browser and cannot be
+        changed from one.
       </p>
     </section>
   )
