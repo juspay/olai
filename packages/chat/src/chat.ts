@@ -1196,11 +1196,14 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * report OF the mark, so the fact has to exist before it is read out —
      * the other way round, a failed write was a LOG under a contract the pane
      * had already been shown, which is the one shape a restart says twice
-     * over. The write rides this send's own effect now, its failure is still
-     * a LOG rather than a refusal ({@link ./sessions.ts}), and what the
-     * failure costs changed with the order: the contract rides a LATER
-     * message instead — a telling delayed, never one duplicated — which is
-     * still not worth taking a send away from somebody over.
+     * over. It runs as the delivery's FIRST ACT ({@link begin}), inside the
+     * fork that starts the turn: the write is awaited ahead of the prompt's
+     * answer shape, so the answer rows can never answer before their contract
+     * has said so. Its failure is still a LOG rather than a refusal
+     * ({@link ./sessions.ts}), and what the failure costs changed with the
+     * order: the contract rides a LATER message instead — a telling delayed,
+     * never one duplicated — which is still not worth taking a send away
+     * from somebody over.
      */
     const contracted = (teach: Teaching, key: string): Effect.Effect<void> =>
       Effect.gen(function*() {
@@ -1908,21 +1911,29 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             ...(context.length === 0 ? {} : { context }),
           })
           publish(row.change)
-          yield* deliver(row.key, prompt, steer)
-          // ... AND THE CONTRACT IS SAID AND MARKED, both halves together and
-          // both only where the message it rode under was TAKEN
-          // ({@link contracted}).
+          // ... AND THE CONTRACT IS SAID AND MARKED as the delivery's own
+          // first act, both halves together and both only where the message
+          // it rode under was TAKEN ({@link contracted}).
           //
-          // AFTER the delivery rather than before the row, which is two
-          // corrections in one. A send the agent refused used to leave the
-          // notice standing — a conversation visibly quoting a contract the
-          // agent never took, with the mark rightly withheld beside it, so the
-          // transcript and the record said different things. And the ORDER is
-          // truer this way round: the lines ride UNDER the person's words in
-          // the prompt ({@link ./prompt.ts}'s `annotated`), so a notice under
-          // the message is what actually went out, where one above it was the
-          // panel arranging the message for the reader.
-          if (teach !== null) yield* contracted(teach, row.key)
+          // AFTER the delivery's decision rather than before the row, which
+          // is two corrections in one. A send the agent refused used to leave
+          // the notice standing — a conversation visibly quoting a contract
+          // the agent never took, with the mark rightly withheld beside it,
+          // so the transcript and the record said different things. And the
+          // ORDER is truer now the writing is awaited: the lines ride UNDER
+          // the person's words in the prompt ({@link ./prompt.ts}'s
+          // `annotated`), so the answer rows must not get between the message
+          // and its notice either — an awaited write is an event window, and
+          // the turn's first chunk was observed crossing it. The fork that
+          // begins the turn is the only thing after the decision, so the
+          // shape that cannot lose is the delivery handing its first act to
+          // the turn itself.
+          yield* deliver(
+            row.key,
+            prompt,
+            steer,
+            teach === null ? undefined : contracted(teach, row.key),
+          )
         }))
       })
 
@@ -1977,6 +1988,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       key: string,
       prompt: string,
       steer: boolean,
+      first?: Effect.Effect<void>,
     ): Effect.Effect<void> =>
       sending.withPermit(Effect.gen(function*() {
         const at = talking
@@ -2018,6 +2030,8 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             // Delivered, and into the turn a person could see running — so a
             // banner about the last thing that went wrong is a banner about
             // something the agent has visibly moved on from.
+            // ... AND THE DELIVERY'S FIRST ACT, here as anywhere (`first`).
+            if (first !== undefined) yield* first
             return move({ trouble: null })
           }
           // The agent ANSWERED — "nothing to steer" — so nothing took the
@@ -2026,7 +2040,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             return undeliverable(key, prompt, { gone: "refused", why: CANCELLED_UNDER_IT })
           }
         }
-        yield* begin(at, key, prompt)
+        yield* begin(at, key, prompt, first)
       }))
 
     /**
@@ -2129,6 +2143,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       at: Bound,
       key: string,
       prompt: string,
+      first?: Effect.Effect<void>,
     ): Effect.Effect<void> =>
       Effect.gen(function*() {
         /** A turn was ALREADY running when this one started — which, since
@@ -2217,6 +2232,12 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
 
         const running = yield* Effect.forkDetach(
           Effect.gen(function*() {
+            // The delivery's FIRST ACT, before the prompt crosses the wire:
+            // a contract's mark, so its notice answers before anything the
+            // agent could say — the shape `send`'s once-a-conversation
+            // teaching needs, and the one place it can hold by construction
+            // ({@link deliver}).
+            if (first !== undefined) yield* first
             const outcome = yield* Effect.result(at.agent.prompt(prompt))
             // Whether this turn was the LAST one running. The notices go in
             // either way — they are things that happened, and they happened —
