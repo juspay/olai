@@ -49,6 +49,7 @@ import {
   nodeSelector,
   POLL_TIMEOUT,
   START_LINE,
+  TAG,
   TITLE_EDITOR,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
@@ -84,6 +85,11 @@ When(
     // caret where it landed (`client/edit/point.ts`), so a press in the
     // middle of "choose the handles" would make the next Enter a SPLIT
     // rather than an add — and a hundred scenarios mean "open this row".
+    //
+    // A `#tag` at that end is a FILTER, not a caret (`Tree.tsx`'s `onATag`).
+    // `kitchen remodel #home` is the one that taught this: the last pixels
+    // of the title ARE the tag, and the filler past the glyphs is the end
+    // of the LINE (`edit/point.ts`).
     const title = this.nodeTitle(id);
     await title.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await this.intoReach(title);
@@ -91,9 +97,27 @@ When(
     if (box === null) {
       throw new Error(`the title of ${JSON.stringify(id)} has no box`);
     }
-    await title.click({
-      position: { x: Math.max(box.width - 2, 0), y: box.height / 2 },
-    });
+    const tagged = (await title.locator(TAG).count()) > 0;
+    if (tagged) {
+      const line = title.locator("xpath=..");
+      const lineBox = await line.boundingBox();
+      if (lineBox === null) {
+        throw new Error(`the line of ${JSON.stringify(id)} has no box`);
+      }
+      await line.click({
+        position: {
+          x: Math.min(
+            box.x - lineBox.x + box.width + 8,
+            Math.max(lineBox.width - 2, 0),
+          ),
+          y: lineBox.height / 2,
+        },
+      });
+    } else {
+      await title.click({
+        position: { x: Math.max(box.width - 2, 0), y: box.height / 2 },
+      });
+    }
     await this.waitForFrame();
     await this.page
       .locator(TITLE_EDITOR)
