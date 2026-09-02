@@ -320,17 +320,6 @@ export const holdVault = (
         count: swept,
       })
     }
-    // The state home's half of the same hygiene: a chat memory or a doorbell
-    // pick outlives a /tmp vault forever, and nothing was ever asking after
-    // it. One sweep per boot, ENOENT-dead records only — `@olai/state` owns
-    // the ruling, and says why pruning belongs here and not on the read path.
-    const pruned = pruneGone()
-    if (pruned > 0) {
-      yield* Effect.annotateLogs(
-        Effect.logInfo("pruned state records for directories that are gone"),
-        { count: pruned },
-      )
-    }
     yield* Effect.acquireRelease(
       Effect.suspend((): Effect.Effect<Held, VaultInUse | LockUnavailable> => {
         const path = lockFor(root)
@@ -380,6 +369,24 @@ export const holdVault = (
             // process is about to lose anyway.
           }
         }),
+    )
+    // The state home's half of the same hygiene: a chat memory or a doorbell
+    // pick outlives a /tmp vault forever, and nothing was ever asking after
+    // it. One sweep per SERVING boot — below the claim, because a boot this
+    // claim will refuse owes no sweep, and forked, because the walk is
+    // unbounded (one read+stat per record) and a stat on a network path that
+    // will not answer must never stand between the person and the bind they
+    // are waiting on. `@olai/state` owns the ruling of what may go.
+    yield* Effect.forkScoped(
+      Effect.suspend(() => {
+        const pruned = pruneGone()
+        return pruned > 0
+          ? Effect.annotateLogs(
+            Effect.logInfo("pruned state records for directories that are gone"),
+            { count: pruned },
+          )
+          : Effect.void
+      }),
     )
   })
 

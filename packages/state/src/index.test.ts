@@ -214,10 +214,12 @@ test("a sweep walks every tenant directory, not only the kinds this build knows"
   }))
 
 test("a record whose directory merely fails to answer stays — only ENOENT is dead", () =>
-  withState(async ({ root }) => {
+  withState(async ({ root, home }) => {
     // The parent made unreadable, the file under it unanswerable: EACCES
-    // where root does not rule (CI does; the record stays there too, on the
-    // stat answering rather than on the error).
+    // where root does not rule. Under root (CI) this case still ends 0 —
+    // root reads straight through the wall and the record stays VIA the
+    // stat answering rather than via the error: a success on the keep
+    // branch. The ENOTDIR half below pins the branch itself.
     const wall = path.join(root, "walled")
     fs.mkdirSync(wall)
     const beyond = path.join(wall, "vault")
@@ -231,6 +233,16 @@ test("a record whose directory merely fails to answer stays — only ENOENT is d
     } finally {
       fs.chmodSync(wall, 0o700)
     }
+    // ENOTDIR: `<file>/vault` can never be a directory, and statSync's
+    // answer is ENOTDIR for every user, root included — the non-ENOENT keep
+    // branch, with no way to be satisfied by success.
+    const blocker = path.join(root, "afile")
+    fs.writeFileSync(blocker, "not a directory\n")
+    const pinned = path.join(home, "olai", "chat", `${digestOf(`${blocker}/vault`)}.json`)
+    fs.mkdirSync(path.dirname(pinned), { recursive: true })
+    fs.writeFileSync(pinned, JSON.stringify({ cwd: `${blocker}/vault` }) + "\n")
+    expect(pruneGone()).toBe(0)
+    expect(fs.existsSync(pinned)).toBe(true)
   }))
 
 test("what the sweep cannot rule on, it leaves: no cwd, no JSON, a staged tmp", () =>

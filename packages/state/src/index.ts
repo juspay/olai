@@ -76,15 +76,30 @@
  * WHY AT BOOT and not on the read path: the read path can never meet the
  * record that needs dropping — it is only ever asked about the directory
  * being served right now, which by construction exists. The records for
- * directories that died are exactly the ones nobody ever reads.
+ * directories that died are exactly the ones nobody ever reads. The sweep
+ * runs once on the boot that holds the vault (packages/server/src/lock.ts),
+ * forked so its unbounded walk never stands between the person and the bind.
  *
  * CONSERVATIVE by one rule: ONLY ENOENT counts. A directory whose answer is
  * anything else — a network mount that will not answer, a permission that
- * moved — is not a dead directory, and its record stays. The same
- * conservatism governs the record: bytes that are not JSON, a record that
- * names no `cwd`, a staged `.tmp` nobody renamed away — all left alone. This
+ * moved — is not a dead directory, and its record stays. Even ENOENT is not
+ * always "gone": a vault on a bind mount the host does not see, an unplugged
+ * removable volume, an autofs path whose server is down — all answer the
+ * same, and the runtime lock's ledger keeps its file on exactly this
+ * evidence. Here the same evidence takes the opposite verdict on purpose,
+ * and the asymmetry is the stakes: the lock guards two brains over one
+ * vault, and a record guards a convenience note the next serve rewrites. The
+ * same conservatism governs the record: bytes that are not JSON, a record
+ * that names no `cwd`, a RELATIVE one (whose stat would resolve against
+ * wherever this process happens to sit, "dead" from one boot and "alive"
+ * from the next), a staged `.tmp` nobody renamed away — all left alone. This
  * is hygiene, not validity, the same posture the runtime sweep takes: a file
  * the sweep cannot read or cannot unlink is left, and the boot continues.
+ * One asymmetry between the two sweeps wants naming: the runtime one refuses
+ * to read a home that is not a private owned directory; this one has no
+ * equivalent, and that is defensible twice over — the state home sits under
+ * the user's own tree rather than in world-writable `/tmp`, and unlinking a
+ * symlink somebody planted removes the link, never its target.
  *
  * EVERY tenant directory is swept, not only the kinds THIS build knows: the
  * home is one per machine across olai versions, the `mirror` records of an
@@ -97,7 +112,7 @@ import { createHash } from "node:crypto"
 import * as fs from "node:fs"
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
-import { dirname, join, resolve } from "node:path"
+import { dirname, isAbsolute, join, resolve } from "node:path"
 
 /**
  * `$XDG_RUNTIME_DIR/olai`, or the fixed per-user `/tmp/olai-$UID` where there
@@ -368,8 +383,11 @@ export const pruneGone = (): number => {
  * The `cwd` inside the file is the question — a record is ABOUT the directory
  * it names, and the file's own name is only a digest of it. A `stat` that
  * answers is the whole ruling: ENOENT says the directory is gone and the
- * record may go; any other answer, or no answer, keeps it. The unlink's own
- * failure keeps it too, and is not counted.
+ * record may go; any other answer, or no answer, keeps it. A relative `cwd`
+ * keeps it too, and it is the one ruling this sweep could otherwise get wrong:
+ * the stat would resolve against wherever this process happened to be
+ * started, so the same record would be "dead" from one boot and "alive" from
+ * the next. The unlink's own failure keeps the record too, and is not counted.
  */
 const goneRecord = (at: string): boolean => {
   let held: unknown
@@ -379,7 +397,7 @@ const goneRecord = (at: string): boolean => {
     return false
   }
   const cwd = (held as { readonly cwd?: unknown } | null)?.cwd
-  if (typeof cwd !== "string" || cwd === "") return false
+  if (typeof cwd !== "string" || cwd === "" || !isAbsolute(cwd)) return false
   try {
     fs.statSync(cwd)
     return false
