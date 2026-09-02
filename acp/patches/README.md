@@ -511,9 +511,17 @@ RE-APPLIED and neither was retired.** `pi-mcp-servers.patch` is untouched: the
   class are otherwise untouched. [#1052](https://github.com/agentclientprotocol/claude-agent-acp/issues/1052)
   is unanswered.
 - **The two things that are NOT hunk context, checked rather than assumed.**
-  `message.timestamp` is no longer an undocumented passthrough in the library
-  that owns it: SDK 0.3.257 declares `timestamp?: string` on `SessionMessage`
-  (and `getSessionInfo` is still exported). The pairing rules are unchanged —
+  `message.timestamp` is still an undocumented passthrough of
+  `SessionMessage`. That type is byte-identical between 0.3.232 and 0.3.257
+  — `{ type, uuid, session_id, message, parent_tool_use_id, parent_agent_id }`
+  — and declares no `timestamp` in either. 0.3.257's four `timestamp?: string`
+  declarations sit on the *streamed* types (`SDKAssistantMessage`,
+  `SDKUserMessage`, `SDKUserMessageReplay`) and on `SessionStoreEntry`, and
+  all four were already in 0.3.232. `getSessionMessages` still returns
+  `SessionMessage[]`, so `facts.js`'s `Date.parse(message.timestamp ?? "")`
+  is exactly as undocumented as it was at 0.70.0, and the `timestampLoss` /
+  `sayTimestampLossOnce` guard this bump re-ships stays load-bearing.
+  `getSessionInfo` is still exported. The pairing rules are unchanged —
   they live in `facts.js`, which this bump did not edit. The background-task
   vocabulary (`SDKTaskStarted/Updated/Notification/Progress`,
   `SDKBackgroundTasksChanged`) is still in that SDK.
