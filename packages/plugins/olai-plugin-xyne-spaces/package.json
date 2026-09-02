@@ -6,7 +6,7 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
-  "//exports": "Five entries, and the first three are DISJOINT graphs — it is `olai-plugin-odu`'s manifest one appliance over, deliberately the same shape. `./wire` is the declaration everything that composes or reads the surface pulls in statically. The root is the manifest, and this package OWNS its browser faces — the spaces pill and the tab's one subscription — so the manifest's graph carries SolidJS. `./server` is the runtime half, its own door so a process that renders nothing must not pull a UI runtime. `./testids` is NAMES ONLY. `./all.css` is the sheet, a `@source` pointed at the faces' own directory.",
+  "//exports": "SIX entries, and three of them are DISJOINT graphs — it is `olai-plugin-odu`'s manifest one appliance over, deliberately the same shape. `./wire` is the declaration everything that composes or reads the surface pulls in statically. `./browser` is what REPLACED the manifest: a Cordis plugin (`name`, `inject`, `apply`) registering the spaces pill and the tab's one subscription into the app's declared slots. It carries SolidJS and it is a CHUNK, fetched only when the roster names this plugin — which for an OPT-IN row (`disabled: true` in `olai.yml`) means usually by nobody at all. The ROOT is the wire identity and nothing more, now that there is no manifest for it to be. `./server` is the runtime half, its own door so a process that renders nothing must not pull a UI runtime. `./testids` is NAMES ONLY. `./all.css` is the sheet, a `@source` pointed at the faces' own directory.",
   "exports": {
     ".": "./src/index.ts",
     "./wire": "./src/wire.ts",
