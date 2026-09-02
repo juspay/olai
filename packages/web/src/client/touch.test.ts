@@ -6,7 +6,7 @@
 
 import { expect, test } from "bun:test"
 
-import { STEP_REM } from "./theme/scale.ts"
+import { LEADING, STEP_REM } from "./theme/scale.ts"
 import { ROW_NOTE, ROW_TITLE, SECTION_TITLE } from "./touch.ts"
 
 const remOf = (classes: string): number => {
@@ -33,4 +33,9 @@ test("the outline type sits on the markdown scale's step", () => {
   for (const size of [remOf(ROW_TITLE), remOf(ROW_NOTE), remOf(SECTION_TITLE)]) {
     expect(Number.isInteger(size / STEP_REM)).toBe(true)
   }
+})
+
+test("a title's leading is the markdown body's, so the input that replaces it is the same box", () => {
+  expect(ROW_TITLE).toContain(`leading-[${LEADING.body}]`)
+  expect(SECTION_TITLE).toContain(`leading-[${LEADING.body}]`)
 })

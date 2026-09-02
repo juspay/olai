@@ -668,6 +668,7 @@ function Branch(props: {
               <TitleEditor
                 text={draft().text}
                 caret={draft().caret}
+                section={section()}
                 onInput={editor.type}
                 onKey={keyHandler("line", editor.press)}
                 onBlur={(left) => editor.blur({ row: props.row.at.node.id, field: "title" }, left)}
