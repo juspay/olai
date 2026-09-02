@@ -12,7 +12,12 @@
 import { CHAT_OFF, type ChatState } from "@olai/surface"
 import { describe, expect, test } from "bun:test"
 
-import { faceOf } from "./face.ts"
+import { faceOf, NOTHING_SHOWN, type Showing } from "./face.ts"
+
+/** The cases below are about the CELL, so they all pass the ordinary showing —
+ *  this tab looking at neither of its own two bodies. The block at the foot is
+ *  where those two are the subject. */
+const drawn = (state: ChatState, showing: Showing = NOTHING_SHOWN) => faceOf(state, showing)
 
 /** A live panel, as the cell holds one. `CHAT_OFF` is the no-agent value, so
  *  the ordinary case is spelled once here rather than at every test. */
@@ -22,21 +27,21 @@ const REFUSED = { why: "no such conversation: fake-stored-old", what: "fake-stor
 
 describe("which body the panel draws", () => {
   test("a conversation, which is nearly every panel", () => {
-    expect(faceOf(LIVE)).toEqual({ kind: "conversation" })
+    expect(drawn(LIVE)).toEqual({ kind: "conversation" })
   })
 
   test("no agent configured is the explanation, not an empty conversation", () => {
     // The panel DRAWS in this state rather than disappearing, which is the
     // argument every one of these faces inherits: a capability that is silently
     // absent cannot be told apart from one that is broken.
-    expect(faceOf(CHAT_OFF)).toEqual({ kind: "no-agent" })
+    expect(drawn(CHAT_OFF)).toEqual({ kind: "no-agent" })
   })
 
   test("an agent that would not open one is its own face, with the reason on it", () => {
     // The reason travels WITH the choice rather than being fetched again at the
     // point it is drawn: two reads of one fact are two answers free to
     // disagree, and this is the one that can be `null`.
-    expect(faceOf({ ...LIVE, unopened: REFUSED })).toEqual({
+    expect(drawn({ ...LIVE, unopened: REFUSED })).toEqual({
       kind: "unopened",
       unopened: REFUSED,
     })
@@ -46,7 +51,7 @@ describe("which body the panel draws", () => {
     // The whole distinction. `gone` is a process that is not there; this is one
     // that answered. A panel that folded them together said `not running` about
     // an agent that had just spoken to it.
-    expect(faceOf({ ...LIVE, status: "gone", trouble: "the agent exited" }))
+    expect(drawn({ ...LIVE, status: "gone", trouble: "the agent exited" }))
       .toEqual({ kind: "conversation" })
   })
 
@@ -54,7 +59,7 @@ describe("which body the panel draws", () => {
     // The clearing rule, from the other side: the cell carries `null` the
     // moment one is open, so nothing here has to decide when a face has stopped
     // being true.
-    expect(faceOf({ ...LIVE, unopened: null })).toEqual({ kind: "conversation" })
+    expect(drawn({ ...LIVE, unopened: null })).toEqual({ kind: "conversation" })
   })
 })
 
@@ -71,7 +76,7 @@ describe("two faces claiming one body", () => {
     // Unreachable in practice — nothing was attempted, so nothing was refused —
     // and stated anyway, because a precedence nobody wrote down is one a reader
     // meeting the two fields in the other order can get backwards.
-    expect(faceOf({ ...CHAT_OFF, unopened: REFUSED })).toEqual({ kind: "no-agent" })
+    expect(drawn({ ...CHAT_OFF, unopened: REFUSED })).toEqual({ kind: "no-agent" })
   })
 
   test("an agent that has GONE wins over a refusal it left behind", () => {
@@ -83,7 +88,7 @@ describe("two faces claiming one body", () => {
     //
     // The rows a dead agent left are the body, deliberately, with `trouble`
     // under them saying what happened.
-    expect(faceOf({ ...LIVE, status: "gone", trouble: "the agent exited", unopened: REFUSED }))
+    expect(drawn({ ...LIVE, status: "gone", trouble: "the agent exited", unopened: REFUSED }))
       .toEqual({ kind: "conversation" })
   })
 
@@ -93,7 +98,7 @@ describe("two faces claiming one body", () => {
     // has just pressed *try again*, and what they are owed is the thing they
     // pressed still saying what it was about. A body swapped out here would
     // flash the empty conversation and come back.
-    expect(faceOf({ ...LIVE, status: "booting", unopened: REFUSED }))
+    expect(drawn({ ...LIVE, status: "booting", unopened: REFUSED }))
       .toEqual({ kind: "unopened", unopened: REFUSED })
   })
 
@@ -101,7 +106,7 @@ describe("two faces claiming one body", () => {
     // The same status, the other value, and the pair is what makes the line
     // above about the refusal rather than about `booting`: the first paint of
     // every panel is this one, and it draws the conversation.
-    expect(faceOf({ ...LIVE, status: "booting" })).toEqual({ kind: "conversation" })
+    expect(drawn({ ...LIVE, status: "booting" })).toEqual({ kind: "conversation" })
   })
 })
 
@@ -111,24 +116,24 @@ describe("the question about which agent", () => {
   const ASKING: ChatState = { ...LIVE, talking: { kind: "asking" } }
 
   test("is the body when the panel is asking", () => {
-    expect(faceOf(ASKING)).toEqual({ kind: "choose" })
+    expect(drawn(ASKING)).toEqual({ kind: "choose", asked: "server" })
   })
 
   test("and not when nobody is asking, which is nearly every panel", () => {
-    expect(faceOf(LIVE)).toEqual({ kind: "conversation" })
+    expect(drawn(LIVE)).toEqual({ kind: "conversation" })
   })
 
   test("no agent at all outranks it — nothing was asked", () => {
     // `choosing` cannot be true with an empty roster (there is no chat at all),
     // and a precedence stated only in the writer is one a reader can meet in
     // the other order.
-    expect(faceOf({ ...CHAT_OFF, talking: { kind: "asking" } })).toEqual({ kind: "no-agent" })
+    expect(drawn({ ...CHAT_OFF, talking: { kind: "asking" } })).toEqual({ kind: "no-agent" })
   })
 
   test("a refusal outranks it — that one is about a live agent", () => {
     // The agent answered and said no, which is a sentence with a retry under
     // it. Asking which agent over the top of that would take the reason away.
-    expect(faceOf({ ...ASKING, unopened: REFUSED })).toEqual({
+    expect(drawn({ ...ASKING, unopened: REFUSED })).toEqual({
       kind: "unopened",
       unopened: REFUSED,
     })
@@ -141,6 +146,53 @@ describe("the question about which agent", () => {
     // The server never sets the pair — it binds an agent before one can die —
     // and a precedence stated only in the writer is one a reader can meet in
     // the other order.
-    expect(faceOf({ ...ASKING, status: "gone" })).toEqual({ kind: "choose" })
+    expect(drawn({ ...ASKING, status: "gone" })).toEqual({ kind: "choose", asked: "server" })
+  })
+})
+
+/**
+ * THIS TAB'S OWN TWO, and where they sit.
+ *
+ * Both are a person part-way through a gesture rather than a state of the
+ * panel, and both used to be tested BESIDE the answer in the JSX that drew
+ * them — which is exactly where a precedence stops being assertable.
+ */
+describe("the two bodies this tab decides", () => {
+  const SHOWING: Showing = { unassigned: true, asking: false }
+
+  test("the unassigned list is the body when this tab asked for it", () => {
+    expect(drawn(LIVE, SHOWING)).toEqual({ kind: "unassigned" })
+  })
+
+  test("no agent outranks it — there are no conversations to list", () => {
+    expect(drawn(CHAT_OFF, SHOWING)).toEqual({ kind: "no-agent" })
+  })
+
+  test("... and it outranks every face that is about a CONVERSATION", () => {
+    // Somebody who pressed *Unassigned* asked for that and nothing else: a
+    // refusal, or the question of which agent to open a new chat with, would be
+    // answering a question nobody asked.
+    expect(drawn({ ...LIVE, unopened: REFUSED }, SHOWING)).toEqual({ kind: "unassigned" })
+    expect(drawn({ ...LIVE, talking: { kind: "asking" } }, SHOWING))
+      .toEqual({ kind: "unassigned" })
+  })
+
+  test("`+ new` asking in this tab is the question, and says who asked", () => {
+    expect(drawn(LIVE, { unassigned: false, asking: true }))
+      .toEqual({ kind: "choose", asked: "tab" })
+  })
+
+  test("... and the SERVER's question outranks it, which is what the answer turns on", () => {
+    // Read the other way round, a `+ new` pressed over a panel that was already
+    // asking would answer the boot's question with the wrong verb — minting a
+    // fresh conversation where the panel was about to come back to the one this
+    // directory was in.
+    expect(drawn({ ...LIVE, talking: { kind: "asking" } }, { unassigned: false, asking: true }))
+      .toEqual({ kind: "choose", asked: "server" })
+  })
+
+  test("a refusal outranks this tab's question — that one is about a live agent", () => {
+    expect(drawn({ ...LIVE, unopened: REFUSED }, { unassigned: false, asking: true }))
+      .toEqual({ kind: "unopened", unopened: REFUSED })
   })
 })

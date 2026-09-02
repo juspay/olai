@@ -1010,7 +1010,7 @@ export const CHAT_SESSIONS = selector(TESTID.chatSessions);
 export const CHAT_SESSION_LIST = selector(TESTID.chatSessionList);
 export const CHAT_SESSIONS_REFUSED = selector(TESTID.chatSessionsRefused);
 export const CHAT_SESSION = selector(TESTID.chatSession);
-/** The heading over one agent's rows in the chats list. Drawn only where more
+/** The heading over one agent's rows in the unassigned list. Drawn only where more
  *  than one agent has conversations here. */
 export const CHAT_SESSION_AGENT = selector(TESTID.chatSessionAgent);
 /** One agent in that list that could not be asked what it has stored. Its own

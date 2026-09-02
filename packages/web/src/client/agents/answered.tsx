@@ -44,6 +44,34 @@
  * the menu would be the per-row subscription this whole module exists to
  * refuse, arriving from the other side.
  *
+ * ## ... and a fourth: THE CHATS NO NODE CLAIMS
+ *
+ * Migration needs the OTHER list — what every installed agent has stored here
+ * — and that one is not a cell at all. It is a question, asked of the agents
+ * themselves, which can mean starting one that is not running
+ * (`@olai/chat`'s `listings.ts` owns what that costs and how long an answer is
+ * worth keeping). So it is asked ONCE when this provider mounts, and the
+ * difference is derived live: **what is unassigned is the listing minus what
+ * the roster claims** ({@link ./lineage.ts}), and the roster is a cell. That
+ * arrangement is what makes the count on the sidebar honest without a second
+ * round trip — assign a chat and the property lands, the cell moves, and the
+ * row it left drops out of the list on that frame.
+ *
+ * ASKED ONCE PER TAB rather than per frame, and never on a clock: the answer
+ * changes when somebody works in this directory — a `claude --resume` in a
+ * terminal — so the list is re-asked when a person OPENS it
+ * ({@link Roster.askChats}), which is the same bargain the list this replaced
+ * made on every open.
+ *
+ * WHAT COULD NOT BE ASKED IS KEPT, in both of its sizes. One agent that could
+ * not answer is a row of the answer ({@link Roster.unreachable}) and the whole
+ * ask not landing is {@link Roster.chatsRefusal} — and neither empties the last
+ * list this tab had. Both are drawn where the conversations are, because *we
+ * did not get to look* and *there is nothing here* are different answers and
+ * this list is now the only place either can be said. The sidebar's ROW is the
+ * one reader that says less: it counts chats, and a count is not a sentence, so
+ * it draws for an unreachable agent without pretending to number one.
+ *
  * BEFORE THE FIRST FRAME the roster is empty, which is the same thing a
  * directory with no `agent-session` property anywhere says and the same thing it draws:
  * nothing. There is no third state to give anybody — an empty sidebar and a
@@ -54,15 +82,32 @@
  * reader is looking at it through the offline overlay.
  */
 
-import { type Accessor, createContext, createMemo, type JSX, useContext } from "solid-js"
+import {
+  type Accessor,
+  createContext,
+  createMemo,
+  createSignal,
+  type JSX,
+  useContext,
+} from "solid-js"
 
-import { type AgentChoice, NO_AGENT_ROSTER } from "@olai/surface"
+import {
+  type AgentChoice,
+  agentIn,
+  type Listed,
+  NO_AGENT_ROSTER,
+  type SessionInfo,
+  type Unreachable,
+} from "@olai/surface"
 
 import { createChatState } from "../chat/state.ts"
+import { run } from "../run.ts"
 import { olai } from "../wire.ts"
+import { type Chatting, unassignedIn } from "./lineage.ts"
 import { type Row, rowsOf } from "./roster.ts"
 
-/** The roster as this tab has it: the list, and one node's row. */
+/** The roster as this tab has it: the list, one node's row, and the chats
+ *  nobody has given a node yet. */
 export interface Roster {
   readonly rows: Accessor<ReadonlyArray<Row>>
   /** This node's row, or `undefined` for a node that is not a node agent —
@@ -73,6 +118,42 @@ export interface Roster {
    *  and on a serve with no ACP agent at all, which are the same two cases
    *  every other reading here has. */
   readonly engines: Accessor<ReadonlyArray<AgentChoice>>
+  /**
+   * THE CONVERSATIONS NO NODE CLAIMS, newest first across every installed
+   * agent — what **Unassigned** holds and counts.
+   *
+   * Empty before the listing has answered, on a serve that refused it, and on
+   * a directory whose chats are all assigned. Those are three ways to draw the
+   * same nothing, which is what the row does with them.
+   */
+  readonly unassigned: Accessor<ReadonlyArray<SessionInfo>>
+  /**
+   * ... AND THE WHOLE ANSWER THE LISTING GAVE, for the readers that need more
+   * of it than the difference: which agents COULD NOT BE ASKED and what they
+   * said about it, and the links that make one conversation another's history.
+   *
+   * `null` until an answer has arrived, which is a list nobody can draw yet
+   * rather than an empty one.
+   */
+  readonly chats: Accessor<Listed | null>
+  /** WHICH AGENTS COULD NOT BE ASKED what they have stored, and why — that
+   *  answer's own arm, read off it here rather than at each face, because two
+   *  faces draw it: the row that says there is something to look at, and the
+   *  list that names them. Empty before an answer and where every agent
+   *  answered. */
+  readonly unreachable: Accessor<ReadonlyArray<Unreachable>>
+  /** ... and why the last ask did not land at all — a dropped socket, a server
+   *  that went — as opposed to one agent that could not be asked, which is a
+   *  row of the answer above. `null` when the last ask landed. */
+  readonly chatsRefusal: Accessor<string | null>
+  /** WHICH CONVERSATION THE PANEL IS IN, as the pair that names one — `null`
+   *  when it is in none. Off the chat cell this provider already holds, so a
+   *  list that marks the row a reader is already looking at costs no second
+   *  subscription. */
+  readonly openChat: Accessor<Chatting | null>
+  /** Ask the agents again — what a person opening the list gets, because a
+   *  conversation started in a terminal a moment ago should be in it. */
+  readonly askChats: () => void
 }
 
 const AgentsContext = createContext<Roster>()
@@ -90,9 +171,70 @@ export function AgentsProvider(props: { readonly children: JSX.Element }) {
   // chat frame which moved a dot does not re-run the menu's catalog: the list
   // is replaced whole per frame and is the same array on nearly all of them.
   const engines = createMemo(() => chat().roster)
+  /** ... and which conversation it is IN, as the pair — see {@link Roster.openChat}. */
+  const openChat = createMemo((): Chatting | null => {
+    const state = chat()
+    const agent = agentIn(state)
+    const session = state.session
+    return agent === null || session === null ? null : { agent: agent.id, session: session.id }
+  })
+
+  /**
+   * WHAT EVERY INSTALLED AGENT HAS STORED HERE, as this tab last heard it.
+   *
+   * `null` until the FIRST answer arrives, and never emptied afterwards: an ask
+   * that did not land leaves the last list standing and puts its own sentence
+   * beside it ({@link chatsRefusal}), because *we did not get to look* and
+   * *there is nothing here* are different answers and this list is the only
+   * place either is said.
+   */
+  const [chats, setChats] = createSignal<Listed | null>(null)
+  const [chatsRefusal, setChatsRefusal] = createSignal<string | null>(null)
+  const askChats = (): void => {
+    run(
+      olai.procedures.chat.sessions(),
+      // A REFUSAL LEAVES THE LAST ANSWER STANDING rather than emptying the
+      // list — a socket that dropped is not a directory whose chats were all
+      // assigned — and it is KEPT, because the list is the one place those
+      // conversations are now and a stale one with nothing said over it would
+      // be the same lie the picker's own refusal arm exists to prevent.
+      (failure) => setChatsRefusal(failure.message),
+      (listed) => {
+        setChatsRefusal(null)
+        setChats(listed)
+      },
+    )
+  }
+  // ONCE, on the frame this provider mounts. It is the only unprompted round
+  // trip in this module, and what it buys is the count on a row nobody has
+  // pressed yet — see the header.
+  askChats()
+
+  /** The answer's own arm, read once here — see {@link Roster.unreachable}. */
+  const unreachable = createMemo((): ReadonlyArray<Unreachable> => chats()?.unreachable ?? [])
+
+  /** ... minus what the roster claims ({@link ./lineage.ts}), which is a
+   *  reading of the CELL and so is live: the frame an assignment lands on is
+   *  the frame that row leaves this list. */
+  const unassigned = createMemo(() => {
+    const listed = chats()
+    return listed === null ? [] : unassignedIn(listed.sessions, cell.value() ?? NO_AGENT_ROSTER)
+  })
 
   return (
-    <AgentsContext.Provider value={{ rows, at: (node) => byNode().get(node), engines }}>
+    <AgentsContext.Provider
+      value={{
+        rows,
+        at: (node) => byNode().get(node),
+        engines,
+        unassigned,
+        chats,
+        unreachable,
+        openChat,
+        chatsRefusal,
+        askChats,
+      }}
+    >
       {props.children}
     </AgentsContext.Provider>
   )

@@ -239,9 +239,9 @@ test("a dial that RAISES is one warning and then silence — it may never kill t
 })
 
 test("a lane this rule cannot place is never dialled at all", () => {
-  // A relative worktree with no PR URL names no repository, so there is
-  // nothing to ask about — `./resolve.ts` argues why that is a refusal rather
-  // than a guess.
+  // A relative worktree with no PR URL and no repo the walk handed over names
+  // no repository, so there is nothing to ask about — `./resolve.ts` argues
+  // why that is a refusal rather than a guess.
   let dials = 0
   const it = bench(async () => {
     dials += 1
@@ -254,6 +254,37 @@ test("a lane this rule cannot place is never dialled at all", () => {
       yield* watch.sweep
       yield* settle
       expect(dials).toBe(0)
+    })),
+  )
+})
+
+test("a relative worktree placed by repo rather than PR URL still rings its settle", () => {
+  // THE SILENT SHAPE (2026-09-02): flake-shakeout lived in infra.olai, carried
+  // a relative `odu-worktree`, and had no `pr-url`. Four sequential runs
+  // posted statuses the merge gates read; the doorbell stayed quiet, because
+  // this watcher never placed the checkout and so never held a socket. The
+  // walk now hands the repo over from the row's file. Who spawned the run
+  // is not a fact here — the socket is the socket.
+  let closed = (): void => {}
+  const ends = new Promise<void>((resolve) => {
+    closed = () => resolve()
+  })
+  const it = bench(coordinator(state(), header(), ends))
+  const watch = makeWatch(it.deps)
+  watch.reclaim([named({
+    value: ".worktrees/flake-shakeout",
+    prUrl: undefined,
+    repo: "olai",
+  })])
+  return Effect.runPromise(
+    Effect.scoped(Effect.gen(function*() {
+      yield* watch.sweep
+      yield* settle
+      expect(watch.rows()[0]?.id).toBe(".worktrees/flake-shakeout")
+      expect(watch.rows()[0]?.at).toBe("/home/x/code/olai/.worktrees/flake-shakeout")
+      closed()
+      yield* settle
+      expect(it.noticed.map((one) => one.kind)).toEqual(["settled"])
     })),
   )
 })

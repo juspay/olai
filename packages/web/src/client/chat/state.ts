@@ -51,7 +51,6 @@ import {
   type ChatEntry,
   type ChatState,
   type OpFailure,
-  type Listed,
   UsageFailure,
 } from "@olai/surface"
 import { type Accessor, createEffect, createMemo, createSignal, on } from "solid-js"
@@ -63,34 +62,6 @@ import { createRows } from "./order.ts"
 import { createTail, grownText } from "./growing.ts"
 import { forget, remember } from "./previews.ts"
 import { closePreview } from "./previewing.ts"
-
-/**
- * What asking for the stored conversations answered.
- *
- * TWO ARMS, because there are two answers and they were one: a refused list —
- * chat switched off, a call that never reached the server — resolved to `[]`,
- * which the picker drew as "no stored conversations". That is a sentence about
- * somebody's disk, and it was being used to report that we never got to look at
- * it.
- *
- * The reason travels WITH the refusal rather than being left on the panel's
- * `refused` signal: the click that asked was on the picker, so the picker is
- * where the answer belongs, and one refusal drawn in two places is one a
- * reader learns to skip in both.
- *
- * THE SAME DISTINCTION ONE LAYER IN. The list spans every installed agent now,
- * so "could not ask" is usually a fact about ONE OF THEM rather than about the
- * call — and it travels inside the listed answer ({@link Listed}'s
- * `unreachable`), for the same reason and with the same consequence: an agent
- * that is broken is named, and the other's conversations are still on the
- * screen. This arm is what is left, which is the whole call failing.
- */
-export type Sessions =
-  | ({ readonly _tag: "listed" } & Listed)
-  | {
-    readonly _tag: "refused"
-    readonly failure: OpFailure
-  }
 
 /**
  * What became of one upload — THREE arms, because there are three answers and
@@ -202,11 +173,6 @@ export interface Chat {
    *  asked for, because a boot picks its own conversation and a browser naming
    *  one would be asking for something nobody asked for. */
   readonly reopen: () => void
-  /** Asked of the server every time the picker opens: the agent's list is the
-   *  only one that is right. Answers {@link Sessions} — the list, or WHY there
-   *  is none — because the two are different answers and used to be the same
-   *  one. */
-  readonly sessions: () => Promise<Sessions>
   /**
    * Answer a question the agent asked — `id` is the ask row's own id.
    *
@@ -509,13 +475,5 @@ export const createChat = (): Chat => {
     answer: (id, answers, done) =>
       verb(olai.procedures.chat.answer({ id, answers }), done),
     decline: (id, done) => verb(olai.procedures.chat.decline({ id }), done),
-    sessions: () =>
-      new Promise((resolve) => {
-        run(
-          olai.procedures.chat.sessions(),
-          (failure) => resolve({ _tag: "refused", failure }),
-          (listed) => resolve({ _tag: "listed", ...listed }),
-        )
-      }),
   }
 }

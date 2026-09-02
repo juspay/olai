@@ -12,7 +12,7 @@
  * line — the alarm tone for a refusal (the reason a key did nothing) and the
  * muted one for a remark about something that happened. It does not fade on a
  * timer: the next ⌘Z clears it, and a message that vanished on its own would
- * be a refusal a person can miss by looking away, which is the thing HACKING's
+ * be a refusal a person can miss by looking away, which is the thing the
  * error rule is about.
  */
 

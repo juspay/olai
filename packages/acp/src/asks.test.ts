@@ -163,7 +163,7 @@ describe("a question, as a form", () => {
   test("a field this panel cannot draw makes the whole question undrawable", () => {
     // Half a form is worse than none: somebody submits believing they answered
     // all of it, and the agent acts on the half that arrived. The caller
-    // declines and SAYS so — never silently ignored (HACKING.md).
+    // declines and SAYS so — never silently ignored.
     const refused = formOf({
       ...oneQuestion,
       requestedSchema: {

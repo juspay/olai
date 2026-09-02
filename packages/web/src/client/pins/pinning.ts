@@ -24,7 +24,7 @@
  *
  * ## The line
  *
- * A refusal has to be read (HACKING.md), and two of the three doors are pressed
+ * A refusal has to be read, and two of the three doors are pressed
  * with nothing on screen to draw one under: a chord is pressed at whatever the
  * reader is looking at, and the shelf may not even be drawn yet. So the sentence
  * goes to the ONE place this app already puts what a gesture with no row said —

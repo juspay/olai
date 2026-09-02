@@ -665,7 +665,7 @@ export function Composer(props: {
 
       {/* THE `@` LIST'S OWN BAD NEWS, and only ever its own: the node half is a
           call now, and a call that did not arrive must not read as a word that
-          named nothing (HACKING.md — an error reaches somebody). It is drawn
+          named nothing (an error reaches somebody). It is drawn
           while the box is naming something, beside the list it is about, and it
           it is not the send's refusal slot — two unrelated failures sharing one
           sentence is how a reader is told the wrong thing about the wrong

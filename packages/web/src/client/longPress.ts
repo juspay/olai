@@ -36,7 +36,7 @@
  * already, and a drag that claims the pen must not find a menu opening under
  * it.
  *
- * ## Why this is hand-rolled, which HACKING.md's SolidJS rule makes the first
+ * ## Why this is hand-rolled, which the SolidJS rule makes the first
  * question to answer
  *
  * Nothing in the ecosystem ships this gesture. `@solid-primitives/gestures` is

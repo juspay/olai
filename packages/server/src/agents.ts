@@ -33,13 +33,14 @@
  * the earlier of the two ask the later one's question. One carrier, written
  * once per revision, read by both.
  *
- * ## The two readings point in OPPOSITE directions, which is the shape here
+ * ## The readings point in OPPOSITE directions, which is the shape here
  *
- * The cell asks "for this node, what is its session?" and the teaching asks
- * "for this conversation, whose node agent is it?" — the same property read
- * from either end. Both are a scan over a list that is a handful of rows on any
- * real vault and is re-read per revision anyway; an index keyed the other way
- * would be a second copy of the property to keep in step.
+ * The cell asks "for this node, what is its session?"; the teaching asks "for
+ * this conversation, whose node agent is it?"; and the assign gesture asks "is
+ * this node already talking through one?" — the same property read from either
+ * end. All three are a scan over a list that is a handful of rows on any real
+ * vault and is re-read per revision anyway; an index keyed the other way would
+ * be a second copy of the property to keep in step.
  *
  * ## The join itself is PURE and is the interesting part
  *
@@ -74,6 +75,23 @@ export interface Roster {
    * property rather than a second answer.
    */
   readonly agentAt: (to: Conversing) => NodeAgent | null
+  /**
+   * ... AND THE SAME READING FROM THE NODE'S END: this node's row, or `null`
+   * for a node that is not a node agent — which is every other row of every
+   * outline.
+   *
+   * The one caller is the gesture that ASSIGNS a conversation to a node
+   * (`./runtime.ts`), and what it needs is the half of the property a browser
+   * must not judge for itself: whether this node is already talking through a
+   * conversation. A tab decides that against the frame it was drawn on, which
+   * is the right answer for a dimmed row and the wrong one for a write — two
+   * tabs, or one left open while a `•••` verb ran, and the check would pass
+   * against a roster that has moved.
+   *
+   * A SCAN, for {@link agentAt}'s reason word for word: a handful of rows,
+   * re-read per revision, asked once per gesture.
+   */
+  readonly nodeAt: (node: string) => NodeAgent | null
   /** The rows the cell carries: the vault's half, wearing what olai overheard
    *  the sessions it names say. */
   readonly rowsWith: (overheard: ReadonlyArray<Overheard>) => Agents
@@ -93,6 +111,7 @@ export const roster = (): Roster => {
     },
     agentAt: (to) =>
       held.find((one) => one.engine === to.agent && one.session === to.session) ?? null,
+    nodeAt: (node) => held.find((one) => one.id === node) ?? null,
     rowsWith: (overheard) => joined(held, overheard),
   }
 }

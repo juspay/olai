@@ -10,7 +10,7 @@
  * `createSearch` (`./nodes.ts`) exactly as the palette does, draws
  * `./Result.tsx` exactly as the palette does, and presses a result the same
  * way — so the two doors cannot answer differently, in the same sense that
- * the browser and an agent cannot (HACKING.md's consistency rule, one layer
+ * the browser and an agent cannot (the consistency rule, one layer
  * in).
  *
  * That rule is why the DOCUMENT ROWS are here too. They are the palette's

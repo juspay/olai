@@ -20,6 +20,7 @@ import {
   digestOf,
   fileFor,
   fileForHold,
+  pruneGone,
   readHeld,
   runtimeHome,
   stateHome,
@@ -188,3 +189,122 @@ test("a record that will not parse is news", () =>
       expect(outcome.failure.message).toContain("JSON")
     }
   }))
+
+/**
+ * THE SWEEP over records whose directories are gone — the boot-time half of
+ * what keeps the home from growing one file per /tmp directory the machine
+ * ever served. What is pinned here is the CONSERVATISM the header rules:
+ * ENOENT alone is a dead directory, and the home otherwise keeps what it
+ * holds.
+ */
+test("a record whose directory answers ENOENT is pruned; a live one stays", () =>
+  withState(async ({ root, home }) => {
+    const gone = fs.mkdtempSync(path.join(os.tmpdir(), "olai-state-gone-"))
+    fs.rmSync(gone, { recursive: true, force: true })
+    const dead = fileFor("chat", gone)
+    await Effect.runPromise(writeHeld(dead, { cwd: gone, session: "abc" }))
+    const alive = fileFor("chat", root)
+    await Effect.runPromise(writeHeld(alive, { cwd: root, session: "abc" }))
+    expect(pruneGone()).toBe(1)
+    expect(fs.existsSync(dead)).toBe(false)
+    expect(fs.existsSync(alive)).toBe(true)
+    // Second sweep is a no-op: what is gone stays gone, nothing double-counts.
+    expect(pruneGone()).toBe(0)
+    expect(fs.existsSync(path.join(home, "olai"))).toBe(true)
+  }))
+
+test("a sweep walks every tenant directory, not only the kinds this build knows", () =>
+  withState(async ({ home }) => {
+    // `mirror` is no kind this build names; a machine's home holds older
+    // builds' tenants too, and a record is its `cwd`, not its subdirectory.
+    const gone = fs.mkdtempSync(path.join(os.tmpdir(), "olai-state-gone-"))
+    fs.rmSync(gone, { recursive: true, force: true })
+    const foreign = path.join(home, "olai", "mirror", `${digestOf(gone)}.json`)
+    fs.mkdirSync(path.dirname(foreign), { recursive: true })
+    fs.writeFileSync(foreign, JSON.stringify({ cwd: gone, channel: "ch-team" }) + "\n")
+    expect(pruneGone()).toBe(1)
+    expect(fs.existsSync(foreign)).toBe(false)
+  }))
+
+test("a plugin hold whose directory is gone is pruned too", () =>
+  withState(async () => {
+    const gone = fs.mkdtempSync(path.join(os.tmpdir(), "olai-state-gone-"))
+    fs.rmSync(gone, { recursive: true, force: true })
+    const at = fileForHold("example", gone)
+    await Effect.runPromise(writeHeld(at, { cwd: gone, queue: [] }))
+    expect(pruneGone()).toBe(1)
+    expect(fs.existsSync(at)).toBe(false)
+  }))
+
+test("a record whose directory merely fails to answer stays — only ENOENT is dead", () =>
+  withState(async ({ root, home }) => {
+    // The parent made unreadable, the file under it unanswerable: EACCES
+    // where root does not rule. Under root (CI) this case still ends 0 —
+    // root reads straight through the wall and the record stays VIA the
+    // stat answering rather than via the error: a success on the keep
+    // branch. The ENOTDIR half below pins the branch itself.
+    const wall = path.join(root, "walled")
+    fs.mkdirSync(wall)
+    const beyond = path.join(wall, "vault")
+    fs.mkdirSync(beyond)
+    fs.chmodSync(wall, 0o000)
+    try {
+      const at = fileFor("chat", beyond)
+      await Effect.runPromise(writeHeld(at, { cwd: beyond, session: "abc" }))
+      expect(pruneGone()).toBe(0)
+      expect(fs.existsSync(at)).toBe(true)
+    } finally {
+      fs.chmodSync(wall, 0o700)
+    }
+    // ENOTDIR: `<file>/vault` can never be a directory, and statSync's
+    // answer is ENOTDIR for every user, root included — the non-ENOENT keep
+    // branch, with no way to be satisfied by success.
+    const blocker = path.join(root, "afile")
+    fs.writeFileSync(blocker, "not a directory\n")
+    const pinned = path.join(home, "olai", "chat", `${digestOf(`${blocker}/vault`)}.json`)
+    fs.mkdirSync(path.dirname(pinned), { recursive: true })
+    fs.writeFileSync(pinned, JSON.stringify({ cwd: `${blocker}/vault` }) + "\n")
+    expect(pruneGone()).toBe(0)
+    expect(fs.existsSync(pinned)).toBe(true)
+  }))
+
+test("what the sweep cannot rule on, it leaves: no cwd, no JSON, a staged tmp", () =>
+  withState(async ({ home }) => {
+    const gone = fs.mkdtempSync(path.join(os.tmpdir(), "olai-state-gone-"))
+    fs.rmSync(gone, { recursive: true, force: true })
+    const kind = path.join(home, "olai", "chat")
+    fs.mkdirSync(kind, { recursive: true })
+    const nameless = path.join(kind, "a.json")
+    fs.writeFileSync(nameless, JSON.stringify({ session: "abc" }) + "\n")
+    const broken = path.join(kind, "b.json")
+    fs.writeFileSync(broken, "{ not json")
+    const staged = path.join(kind, `${digestOf(gone)}.json.123.4.tmp`)
+    fs.writeFileSync(staged, JSON.stringify({ cwd: gone }) + "\n")
+    expect(pruneGone()).toBe(0)
+    for (const at of [nameless, broken, staged]) expect(fs.existsSync(at)).toBe(true)
+  }))
+
+test("no home is no sweep rather than a failure", () => {
+  const before = process.env["XDG_STATE_HOME"]
+  process.env["XDG_STATE_HOME"] = path.join(os.tmpdir(), "olai-state-never-was")
+  try {
+    expect(pruneGone()).toBe(0)
+  } finally {
+    if (before === undefined) delete process.env["XDG_STATE_HOME"]
+    else process.env["XDG_STATE_HOME"] = before
+  }
+})
+
+/**
+ * The AMBIENT half of the test-harness ruling: a `bun test` run never lets a
+ * boot (in-process or spawned) fall through to the developer's own state
+ * home — `scripts/bun-test-preload.ts` hands the whole process a temp
+ * `$XDG_STATE_HOME` before any file loads, the way it already hands it a
+ * runtime directory. Every test above re-points the variable per case; THIS
+ * one is about the answer a test gets when it does not.
+ */
+test("bun test never answers with the developer's own state home by default", () => {
+  expect(process.env["XDG_STATE_HOME"]).toBeDefined()
+  expect(process.env["XDG_STATE_HOME"]).not.toBe("")
+  expect(stateHome()).not.toBe(path.join(os.homedir(), ".local", "state", "olai"))
+})

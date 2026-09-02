@@ -29,7 +29,7 @@
  *
  * The bands are kept far apart on purpose — single digits inside a box, tens
  * across the page — so the number itself says which question is being asked.
- * `chat/Sessions.tsx` is why: it drew its dropdown at `z-50`, the same
+ * The chat header's session dropdown is why: it drew at `z-50`, the same
  * utility the command palette covers the entire app with, and it means
  * something else entirely (it is sealed inside the chat panel, which rides at
  * 30). Nothing was broken and nothing could be read.

@@ -4,8 +4,9 @@ Feature: The ••• menu writes
   The row menu used to offer five ways of looking at an outline and no way of
   changing one — while an agent at the same directory could mark a node todo,
   clear a date, retire a placement and archive a subtree. That gap is a
-  HACKING.md consistency violation rather than a missing feature, and these
-  are the verbs that close it for the mouse.
+  consistency violation (MCP and Web ops must be consistent; never deviate)
+  rather than a missing feature, and these are the verbs that close it for the
+  mouse.
       | Move to…           |
 
   Every one of them is ONE op through the same write gate the agent's tools go

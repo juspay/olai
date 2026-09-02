@@ -829,11 +829,13 @@ export const surface = defineSurface({
      * this row that anybody writes is a FILE, and files are written through the
      * ops layer. The property carries the engine and the session both since the
      * human's 2026-09-02 ruling, so binding a node agent is an ordinary
-     * property write — `edit.apply`'s `prop` verb, or the `•••` menu's *start
-     * an agent session*, which opens the conversation and then writes it here
-     * through that same layer ({@link chat.startAgentSession}). A verb on this
-     * cell would be a second door onto a file, which is the thing this surface
-     * does not have anywhere.
+     * property write — `edit.apply`'s `prop` verb, or one of the two gestures
+     * that write it through that same layer with a second half of their own:
+     * the `•••` menu's *start an agent session*
+     * ({@link chat.startAgentSession}), which opens the conversation first, and
+     * *assign to node…* ({@link chat.assignSession}), which claims one that
+     * already exists. A verb on this cell would be a second door onto a file,
+     * which is the thing this surface does not have anywhere.
      *
      * What is NOT writable through anything is the line olai overheard: nobody
      * writes it, olai hears it, and a verb for it would be a browser telling
@@ -1278,6 +1280,51 @@ export const surface = defineSurface({
           node: Schema.String,
           /** ... and the engine to open it with, off that node's property. */
           agent: Schema.String,
+        }),
+        error: ChatFailure,
+      },
+      /**
+       * ASSIGN AN EXISTING CONVERSATION TO A NODE: write `agent-session:
+       * <engine>:<session>` onto that node, for a chat that already exists.
+       *
+       * The migration gesture, and the mirror image of {@link
+       * startAgentSession}: there, the session is opened and the property
+       * follows; here BOTH ALREADY EXIST and what is missing is the sentence
+       * that joins them. Nothing moves on disk — the session file stays
+       * wherever its agent keeps it — and the conversation becomes that node
+       * agent's current session with its context intact.
+       *
+       * THE ENGINE IS THE CHAT'S OWN, and the value is written whole: a session
+       * id means nothing to the wrong agent, so the pair travels together and a
+       * node that named a DIFFERENT engine is re-pointed rather than half
+       * rewritten. A property naming one engine and another engine's
+       * conversation would be a node agent nobody could open.
+       *
+       * IT IS HERE rather than being an `edit.apply` from the browser, and the
+       * reason is not the write: it is that assigning has a SECOND half this
+       * machine keeps — that this session ARRIVED by assignment, which is what
+       * decides the contract it is taught on its next message (`@olai/chat`'s
+       * `teaching.ts`). A browser writing the property alone would bind the
+       * conversation and lose the distillation order.
+       *
+       * REFUSES A NODE THAT IS ALREADY TALKING through a conversation, in a
+       * plain sentence: one agent, one current session. Replacing a live
+       * binding is the *fresh session* affordance, which is
+       * {@link startAgentSession} on a bound node and says what happens to the
+       * transcript. Refuses whatever the ops layer refuses besides — a record
+       * that is gone, a file that would not take the write.
+       */
+      assignSession: {
+        input: Schema.Struct({
+          /** The node that is about to claim the conversation — the id a
+           *  search hit or a roster row answers with. */
+          node: Schema.String,
+          /** WHOSE conversation it is: one of {@link ChatState.roster}'s ids,
+           *  off the row in the list ({@link SessionInfo}). */
+          agent: Schema.String,
+          /** ... and WHICH conversation, by the id that agent stores it
+           *  under. */
+          session: Schema.String,
         }),
         error: ChatFailure,
       },

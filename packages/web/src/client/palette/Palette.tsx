@@ -35,7 +35,7 @@
  * ONE line, in the two moods a write has (`../saying.ts`'s `Said`), and
  * the palette STAYS OPEN whenever there is one: a refusal is why nothing
  * happened, and a modal that closed on top of it would be the silent failure
- * HACKING.md's error rule is about. A write that landed with nothing to add
+ * the error rule is about. A write that landed with nothing to add
  * closes the palette, which is what choosing a command means.
  *
  * `>` ask and the search both use `run` with a real failure handler for the

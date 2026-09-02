@@ -184,3 +184,190 @@ Feature: A node with an `agent-session` property IS an agent
     And the agent panel is open
     And I ask the agent "still there?"
     Then the agent was told its contract 0 times
+
+  # ── migration: the chats that are nobody's yet ────────────────────────
+  #
+  # Migration is ASSOCIATION, NOT CONVERSION. Nothing moves on disk and no
+  # transcript is copied anywhere: what a press writes is one property, and from
+  # that frame the conversation is that node agent's current session with its
+  # context intact.
+  #
+  # These scenarios run on a serve whose agent has TWO stored conversations, one
+  # of them a `/clear` behind the other (`agent/fake-acp-agent.ts`) — which is
+  # what makes the chain assertable — and the panel comes up in the newer of
+  # them, which is the state a person migrating is actually in: talking in a
+  # chat that belongs to nobody.
+
+  @agent-stored @scratch:lanes
+  Scenario: The roster ends with the conversations no node claims
+    # Two conversations are stored here and the nine node agents name neither,
+    # so both are waiting for a home. The COUNT is the news this row carries,
+    # which is why it is asserted rather than the row's presence alone.
+    Given I open the outline "lanes.olai"
+    Then the agents roster holds 9 agents
+    And the roster offers 2 unassigned chats
+
+  @agent-stored @scratch:good
+  Scenario: A directory with no node agent still draws the section, for the chats
+    # The other end of the shelf's rule, and the ruling this phase adds to it: a
+    # person migrating has no node agents yet, so a doorway that appeared only
+    # once they had made one by hand would be a doorway nobody finds. What the
+    # section holds here is the one row.
+    Given I open the outline "garden.olai"
+    Then the agents roster holds 0 agents
+    And the roster offers 2 unassigned chats
+
+  @agent-stored @scratch:lanes
+  Scenario: Assigning a chat writes the one property, and claims its chain
+    # The whole gesture. `lane-fresh` carries nothing at all — so this is also
+    # how a node agent comes into being — and the conversation it takes is the
+    # newer of the stored pair, the one the older was superseded BY.
+    Given I open the outline "lanes.olai"
+    Then there is no door on "lane-fresh"
+    When I open the unassigned chats
+    Then the unassigned list holds "the last conversation"
+    And the unassigned list holds "an older conversation"
+    When I assign the conversation "the last conversation" to the node titled "a lane nobody has put an agent on", searching for "lane nobody"
+    # ONE PROPERTY, carrying both halves — the engine off the chat itself, and
+    # the conversation it already was.
+    Then the node "lane-fresh" shows the property "agent-session" holding "claude:fake-stored-new"
+    And the agents roster holds 10 agents
+    And the door on "lane-fresh" reads "claude"
+    # ... AND THE CHAIN RIDES ALONG: the conversation this one replaced is that
+    # agent's history rather than a chat nobody claims, so the list empties on
+    # one press rather than two.
+    And the unassigned list does not hold "an older conversation"
+    And the roster offers no unassigned chats
+
+  @agent-stored @scratch:lanes
+  Scenario: A node already talking through a conversation cannot take another
+    # One agent, one current session. `door-live`'s property names a
+    # conversation, so it is in the search and cannot be taken — dimmed where a
+    # reader scanning the list can see it, with the reason under the list rather
+    # than after a press that failed.
+    Given I open the outline "lanes.olai"
+    When I open the unassigned chats
+    And I look for a node to give "the last conversation" to, with "watch the connector"
+    And I point the assign search at "watch the connector"
+    Then the assign search refuses it, saying "one agent, one current session"
+    # ... and the press writes nothing: the property still names the
+    # conversation it named before anybody pressed anything, and the chat is
+    # still waiting for a home.
+    When I take the node the assign search refused
+    Then the node "door-live" shows the property "agent-session" holding "claude:fake-session-1"
+    And the roster offers 2 unassigned chats
+
+  @agent-stored @scratch:lanes
+  Scenario: An assigned session is taught the MIGRATION contract, once
+    # The distillation order, and the reason assigning is a procedure rather
+    # than a property write from a browser: nothing in a transcript says a
+    # conversation was moved to a node, so the fact is written down when the
+    # gesture runs and read when that session next says something.
+    #
+    # The panel is already IN the conversation being assigned — a boot with
+    # stored conversations comes back to the most recent — which is the ordinary
+    # way this happens: you are talking in a chat, and you give it a home.
+    Given I open the outline "lanes.olai"
+    And the agent panel is open
+    When I open the unassigned chats
+    And I assign the conversation "the last conversation" to the node titled "a lane nobody has put an agent on", searching for "lane nobody"
+    And I close the unassigned chats
+    And I ask the agent "where were we?"
+    Then the agent was told its contract 1 time
+    And the contract says the conversation was assigned
+    And the contract orders it to bank what it knows into the subtree
+    # ... and it is said once, like every other contract: the second message
+    # says nothing.
+    When I ask the agent "and now?"
+    Then the agent was told its contract 1 time
+
+  @corpus:lanes
+  Scenario: A node agent's panel offers a fresh session, labelled with what it means
+    # The affordance the panel owed a person and did not have. It says what
+    # happens to the transcript, because that sentence is the whole reason it is
+    # safe to press: the memory is the subtree, and a fresh session reads it.
+    Given I open the outline "lanes.olai"
+    And the agent panel is open
+    Then the agent "door-live" stands "idle"
+    When I open the session picker
+    Then the panel offers a fresh session, saying "memory is the subtree"
+    And the panel offers a fresh session, saying "the transcript becomes history"
+
+  @agent-stored @scratch:lanes
+  Scenario: ... and names the conversations this agent has had before this one
+    # Assigning claims the `/clear` chain in one gesture, so *past sessions* is
+    # populated from day one rather than starting empty and filling as somebody
+    # clears. `lane-fresh` takes the newer conversation; the older one — the
+    # conversation it superseded — is its history.
+    Given I open the outline "lanes.olai"
+    And the agent panel is open
+    When I open the unassigned chats
+    And I assign the conversation "the last conversation" to the node titled "a lane nobody has put an agent on", searching for "lane nobody"
+    And I close the unassigned chats
+    And I open the session picker
+    Then the panel says this agent has had 1 past session
+    And the past sessions hold "an older conversation"
+
+  @agent-stored @scratch:lanes
+  Scenario: A conversation no node claims has no sessions of its own
+    # The negative, and it is what keeps the header honest: *sessions* is a NODE
+    # AGENT's — its history, and the fresh one that ends it — so a chat that is
+    # nobody's has no such control at all, and the way to its siblings is the
+    # sidebar. Both halves in one scenario, because the claim is the difference
+    # between them: the panel comes up in a stored conversation no node names,
+    # and one press puts it in one that is named.
+    Given I open the outline "lanes.olai"
+    And the agent panel is open
+    Then the panel offers no sessions of its own
+    When I press the door on "door-live"
+    And I open the session picker
+    Then the panel offers a fresh session, saying "memory is the subtree"
+
+  @agent-stored @scratch:lanes
+  Scenario: An agent that could not be asked is named in the list, not drawn as nothing
+    # *We did not get to look* and *there is nothing here* are different
+    # answers, and this list is the only place either can be given now: an
+    # unread disk drawn as an empty list would be the whole app claiming there
+    # is nothing to migrate.
+    Given I open the outline "lanes.olai"
+    And the agent panel is open
+    When I ask the agent "lose"
+    And I open the unassigned chats
+    # NAMED, in the agent's own words, as ONE agent's trouble — and this serve
+    # has one agent, so it is the whole of what there was to say.
+    Then the list says "claude" could not be asked, with "the conversation store is unreadable"
+    # ... and the claim that would be a lie is not made.
+    And the unassigned list does not hold "the last conversation"
+    And the list does not claim every conversation belongs to a node agent
+
+  # ── what the list must not swallow ────────────────────────────────────
+
+  @agent-stored @scratch:lanes
+  Scenario: `+ new` pressed over the list opens a conversation, not one under it
+    # `+ new` opens a conversation, and every other door that does says so to
+    # the list on its way through — the roster row, a chat's own title, a past
+    # session. This one did not, so with one engine the fresh conversation
+    # opened UNDER the list still drawn over it, and with several the question
+    # of which agent could not draw at all until somebody pressed *done*.
+    Given I open the outline "lanes.olai"
+    And the agent panel is open
+    When I open the unassigned chats
+    And I start a new conversation
+    Then the chat input takes typing
+    And the unassigned list is not drawn
+
+  @agent-stored @scratch:lanes
+  Scenario: A conversation that cannot be opened mid-turn says so where the reader lands
+    # The list hides on the press, because a press means *take me there* and an
+    # open can hang — so the sentence about one that was REFUSED has to land
+    # where the person now is. A turn in flight is the case: switching
+    # conversations under it is refused, and a refusal drawn into the panel the
+    # press just dismissed is a press that looks like it did nothing.
+    Given I open the outline "lanes.olai"
+    And the agent panel is open
+    When I ask the agent "slow"
+    And I open the unassigned chats
+    And I pick the conversation "an older conversation"
+    Then the panel refuses, saying "a turn is running"
+    When the agent is released
+    Then the agent is idle

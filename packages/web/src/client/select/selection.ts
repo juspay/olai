@@ -16,7 +16,7 @@
  * **Nothing here is a new op.** A bulk verb is the edit the single-row key
  * already sends, once per row, in the order that produces the shape asked for
  * (`./bulk.ts`) — which is exactly what an agent does when it is told to indent
- * three things. The consistency rule (HACKING.md) is kept by construction: a
+ * three things. The consistency rule is kept by construction: a
  * gesture this face has that MCP does not would have needed a verb on the wire,
  * and there is none.
  *

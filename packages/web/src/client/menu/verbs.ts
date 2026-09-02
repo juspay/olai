@@ -22,7 +22,7 @@
  * still offers `Mark todo`, and choosing it is refused in the ops layer's own
  * words — "nothing should decide on your behalf that finished work is not
  * finished" — which is the sentence a person needs, and the two clicks it asks
- * for are the two calls an agent makes (HACKING.md's consistency rule). A menu
+ * for are the two calls an agent makes (the consistency rule). A menu
  * that greyed that entry out would be teaching a rule this app does not have.
  *
  * IT IS ASKED ABOUT A {@link Subject} RATHER THAN ABOUT A ROW, because two
@@ -300,10 +300,12 @@ export const writeVerbs = (
     // only one the ruling names:
     //
     //   - a node whose property already names a SESSION is offered nothing.
-    //     Replacing a live conversation is the *fresh session* affordance,
-    //     which owes a person a sentence about what happens to the transcript
-    //     ("memory is the subtree; the transcript becomes history") and belongs
-    //     to the migration phase that ships it.
+    //     Replacing a live conversation owes a person a sentence about what
+    //     happens to the transcript ("memory is the subtree; the transcript
+    //     becomes history"), and that sentence does not fit on a menu entry: it
+    //     is the panel's *fresh session*, drawn with the label beside it
+    //     (`../chat/NodeSessions.tsx`), which runs this same procedure on a node
+    //     that already has one.
     //   - everything else is offered it, bare nodes included.
     //
     // WHICH ENGINE, in the order a person would expect to be asked:

@@ -29,7 +29,7 @@
  * and which type: half a form is a form somebody can submit while believing
  * they answered all of it, and an agent that then acts on the half it got is
  * the failure this rule exists to prevent. Never silently ignored — the caller
- * renders it as a notice, like every other thing that went wrong (HACKING.md).
+ * renders it as a notice, like every other thing that went wrong.
  *
  * "A value, or a {@link Refused} saying why not" is how everything here
  * answers, in both directions: a question this panel cannot draw and an answer

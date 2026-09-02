@@ -120,6 +120,13 @@ export const startWeb = (options: {
     // explicit `env.XDG_RUNTIME_DIR` still wins — lock tests point two
     // children at one directory of their own.
     XDG_RUNTIME_DIR: fs.mkdtempSync(path.join(os.tmpdir(), "olai-child-run-")),
+    // ... and a private STATE home, for the sharper version of the same
+    // reason: every boot prunes the state's records whose directories died
+    // (`@olai/state`'s `pruneGone`), and the developer's
+    // `~/.local/state/olai` is full of exactly those. `./statehome.test.ts`
+    // pins this default. An explicit `env.XDG_STATE_HOME` still wins —
+    // headless tests assert on what one child wrote.
+    XDG_STATE_HOME: fs.mkdtempSync(path.join(os.tmpdir(), "olai-child-state-")),
     ...options.env,
   }
   const child: Child = start(

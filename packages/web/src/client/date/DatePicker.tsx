@@ -3,7 +3,7 @@
  *
  * MCP could set or clear a node's `date` and a person could only clear one
  * (#124's `•••` verb) — a standing consistency deviation rather than a missing
- * feature (HACKING.md, `editor-op-parity`). This is the affordance that closes
+ * feature (`editor-op-parity`). This is the affordance that closes
  * it, and what it sends is the intent every other write on this face sends:
  * one `date` edit at the same gate `set_date` goes through
  * ({@link ../../../../surface/src/edit.ts}), judged by the same planner,

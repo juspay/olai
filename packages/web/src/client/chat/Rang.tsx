@@ -19,7 +19,7 @@
  * not a line; nested inside the `user` arm it was a hundred of them, two
  * `<Show>`s deep, and the reader who came to find out what a `notice` looks
  * like had to scroll a plugin's fold to get there. That is how a switch stops
- * being a switch, and HACKING.md asks for the folder over the module for
+ * being a switch, and the rule asks for the folder over the module for
  * exactly this.
  *
  * ## Why the human bubble is NOT here

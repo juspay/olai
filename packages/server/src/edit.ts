@@ -22,8 +22,8 @@
  * answerable with a value and testable without a server.
  *
  * WHAT IT MAY NOT DO is produce a request an agent could not have sent for the
- * same intent — "MCP and Web ops must be consistent; never deviate"
- * (HACKING.md). The two faces share one `ops.run`, so anything that reaches it
+ * same intent — "MCP and Web ops must be consistent; never deviate".
+ * The two faces share one `ops.run`, so anything that reaches it
  * is judged identically; the risk is entirely HERE, in what this hands over.
  * The rule that falls out has two halves, and the difference between them is
  * who named the node:
@@ -570,7 +570,7 @@ const moveRequest = (
       // mirror on screen belongs to that target. Emitting the placement's own
       // id would be a request the ops layer always refuses — a keyboard that
       // could not do what the equivalent `move_node` does, which is exactly the
-      // deviation HACKING.md forbids.
+      // deviation the consistency rule forbids.
       const parent = nodeNamed(derived, above.node.id)
       if (parent === undefined) {
         return Result.fail(
@@ -684,7 +684,7 @@ const placeRequest = (
  * your behalf that finished work is not finished` (and, one settling mark over,
  * the same sentence about work somebody called off). A menu that quietly sent two
  * ops to walk `done` back to `todo` would be the web doing in one gesture what
- * MCP needs two for, which is the deviation HACKING.md forbids: the second
+ * MCP needs two for, which is the deviation the consistency rule forbids: the second
  * click is the person's, and an undo makes the two calls explicitly
  * ({@link markOf}).
  *
@@ -747,7 +747,7 @@ const markRequest = (
  * walk carries on from there. Two ops, the second one the person's — exactly
  * the two calls an agent makes, and exactly what the `•••` menu already asks of
  * the mouse. A ring that quietly sent both would be the web doing in one
- * keystroke what MCP needs two for, which is the deviation HACKING.md forbids;
+ * keystroke what MCP needs two for, which is the deviation the consistency rule forbids;
  * a ring that skipped a settling mark silently would be this file teaching a
  * rule the ops layer owns, and hiding the one refusal a person most needs to
  * have met.
@@ -1387,7 +1387,7 @@ const propOf = (
  * that ticks the node off or calls it off, that mark has to come off before the
  * old one goes back on, which is exactly the two calls an agent would make.
  * Anything else would be the web doing in one op what MCP needs two for, which
- * is the deviation HACKING.md forbids.
+ * is the deviation the consistency rule forbids.
  *
  * EVERY OTHER WAY BACK IS ONE CALL, and reading it as "two whenever a mark
  * displaced another" cost an undo: `Clear mark` on a `doing` row answered with

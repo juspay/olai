@@ -1,8 +1,7 @@
 {
   "permissions": {
     "deny": [
-      "Edit(CLAUDE.md)",
-      "Edit(HACKING.md)"
+      "Edit(CLAUDE.md)"
     ]
   },
   "hooks": {

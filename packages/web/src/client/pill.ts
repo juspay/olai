@@ -3,7 +3,7 @@ import { TARGET } from "./touch.ts"
 /**
  * The quiet pill button: a bordered verb beside something louder.
  *
- * Three sites wear it — the chat header's "chats" and "+ new", and the menu
+ * Three sites wear it — the chat header's "sessions" and "+ new", and the menu
  * confirm's Cancel — and they are the same button: a small action a reader
  * should not notice until they go looking for one, drawn as a border, no
  * fill, and muted text that inks on hover. One spelling, because the day this

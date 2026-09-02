@@ -99,7 +99,7 @@ Feature: The ⌘K palette writes
   Scenario: A refusal is quoted where it was asked, and the palette stays up
     # The ops layer's own words, verbatim — nothing decides on somebody's
     # behalf that finished work is not finished — and a modal that closed on
-    # top of them would be exactly the silent failure HACKING.md forbids. Two
+    # top of them would be exactly the silent failure the error rule forbids. Two
     # presses is what an agent makes and what the ••• menu asks for.
     Given I open the node "demo"
     When I press the palette shortcut

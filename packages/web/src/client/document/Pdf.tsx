@@ -3,7 +3,7 @@
  * URL on the media route.
  *
  * ZERO DEPENDENCIES, which is the ruling and is also this repository's standing
- * rule: olai requires nothing outside Nix (HACKING.md). Every browser this app
+ * rule: olai requires nothing outside Nix. Every browser this app
  * runs in ships a PDF viewer — pages, zoom, search, print, the lot — and
  * bundling a renderer to draw a worse one would be several megabytes of
  * somebody else's code in the tab to reproduce a feature the tab already has.

@@ -46,7 +46,7 @@ test("...and so does the band inside a box", () => {
 })
 
 test("the two bands do not overlap, so the number says which question it answers", () => {
-  // The whole reason `WITHIN` is single digits. `chat/Sessions.tsx` used to
+  // The whole reason `WITHIN` is single digits. The chat's session list used to
   // draw its dropdown at the command palette's own `z-50` while meaning
   // something sealed inside a panel three layers down; nothing was broken and
   // nothing could be read either.

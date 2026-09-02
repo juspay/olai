@@ -42,7 +42,7 @@
  * away a subtree nobody is looking at — the argument the `•••` menu already
  * makes by not offering the verb on a mirror at all. What that costs here is a
  * sentence instead of a button, which is the honest half of the trade: a Trash
- * that quietly took three of four rows is the silent failure HACKING's error
+ * that quietly took three of four rows is the silent failure the error
  * rule is about.
  */
 

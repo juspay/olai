@@ -61,7 +61,7 @@
  * survey, on the same three clocks: every published revision, every landed
  * commit, and a slow sweep because nothing watches `.git`. They are two cells
  * because two controls draw them, and one derivation because they are two
- * readings of one question (HACKING.md: MCP and Web ops must be consistent).
+ * readings of one question (MCP and Web ops must be consistent).
  *
  * Nothing here interprets an outline or an agent. It moves what the store and
  * the chat decided onto the wire, and that is all — with one exception, and it
@@ -440,8 +440,8 @@ export interface Wiring {
 /**
  * The git half of {@link Wiring}, from the ops layer.
  *
- * ONE spelling, because there used to be two composition roots and HACKING.md's
- * rule is that they must not diverge. Written out twice, the day one of them
+ * ONE spelling, because there used to be two composition roots and the
+ * consistency rule is that they must not diverge. Written out twice, the day one of them
  * grew a cell would be the day the two faces quietly stopped being the same
  * product. There is one root now (`./serve.ts`); this helper is still the
  * place the git half is assembled, so a second caller cannot drift.
@@ -1927,7 +1927,7 @@ export const bind = (
       },
       // What a re-read of a live stream failed with, in olai's own voice
       // ({@link ./report.ts}). Required by the framework at wiring time rather
-      // than defaulted, which is the boot-time spelling of HACKING.md's rule.
+      // than defaulted, which is the boot-time spelling of the error rule.
       onStreamReadError: (error, { stream }) => readFailed(stream, error, say),
       procedures: {
         chat: {
@@ -1994,10 +1994,22 @@ export const bind = (
            * key holds: the property is what the person just pressed a menu
            * entry to set, and the value it held is the engine that press named
            * anyway.
+           *
+           * ... WHICH IS ALSO THE *FRESH SESSION* AFFORDANCE, and the only
+           * thing that makes it one is the node already having a session: the
+           * panel's header offers this verb on a bound node under a label
+           * saying what it means, and the same two acts run. What the bound
+           * case owes besides is the LINEAGE — the conversation being replaced
+           * must not come back as a chat nobody claims — so the binding is read
+           * BEFORE the open, and the session it named is written down as
+           * superseded by the one that took its place (`@olai/chat`'s
+           * `succession.ts`). Read before, because by the time the property has
+           * been rewritten the roster's answer is the new session.
            */
           startAgentSession: ({ input }) =>
             withChat((open) =>
               Effect.gen(function*() {
+                const was = wiring.agents?.nodeAt(input.node) ?? null
                 yield* open.newSession(input.agent)
                 const now = open.state().session
                 if (now === null) {
@@ -2011,6 +2023,66 @@ export const bind = (
                   key: AGENT_PROP,
                   value: sessionValue(input.agent, now.id),
                 })
+                // WHAT THIS ONE REPLACED, where it replaced anything: only a
+                // node that WAS bound has a predecessor, and only to a
+                // conversation that is not the one just opened — an agent that
+                // answers `session/new` with an id it already had (the scripted
+                // one does) must not supersede a session with itself.
+                if (was?.session != null && was.session !== now.id) {
+                  yield* open.replaced(
+                    { agent: was.engine, session: was.session },
+                    now.id,
+                  )
+                }
+              })
+            ),
+          /**
+           * A CONVERSATION THAT ALREADY EXISTS, GIVEN A NODE — the migration
+           * gesture, and the other procedure here that is two verbs.
+           *
+           * COMPOSED HERE for its sibling's reason exactly: the property is the
+           * ops layer's, the mark is the chat's record, and neither package has
+           * seen the other. What differs is the ORDER and why it is that way
+           * round. Nothing has to be opened, so both halves are about things
+           * that already exist — and the durable one goes first, because the
+           * assignment IS the property: a mark written before a write that then
+           * failed would be a session believing it had been assigned to a node
+           * that never claimed it.
+           *
+           * THE REFUSAL IS READ HERE and not taken from the browser, against
+           * the roster's own reading rather than the tab's: a node already
+           * talking through a conversation keeps it, and *one agent, one
+           * current session* is the whole sentence. The list dims such a node
+           * where somebody can see it before pressing, which is a courtesy; the
+           * check that must not be racing is this one.
+           *
+           * THE VALUE IS WRITTEN WHOLE — engine and session, off the chat — so
+           * a node that named another engine is re-pointed rather than left
+           * naming one engine and another's conversation.
+           */
+          assignSession: ({ input }) =>
+            withChat((open) =>
+              Effect.gen(function*() {
+                const held = wiring.agents?.nodeAt(input.node) ?? null
+                if (held?.session != null) {
+                  return yield* new UsageFailure({
+                    reason: `“${held.title}” is already talking through a conversation — ` +
+                      `one agent, one current session. Give it a fresh session from the ` +
+                      `panel, or take the session off its \`${AGENT_PROP}\` property first.`,
+                  })
+                }
+                yield* applyEdit({
+                  verb: "prop",
+                  id: input.node,
+                  key: AGENT_PROP,
+                  value: sessionValue(input.agent, input.session),
+                })
+                // ... AND THAT IT ARRIVED BY ASSIGNMENT, which is what the
+                // session is taught on its next message (`@olai/chat`'s
+                // `teaching.ts`). After the write and never refusing: the
+                // assignment has landed, and a mark that could not be written
+                // costs the migration contract rather than the binding.
+                yield* open.assigned({ agent: input.agent, session: input.session })
               })
             ),
           // ... and the answer to the panel's own question, which opens the
@@ -2061,7 +2133,7 @@ export const bind = (
         // The browser's search: the SAME call `search_nodes` makes for an
         // agent, over one reading of one snapshot — so the two faces answer
         // identically by construction rather than by two matchers that happen
-        // to agree (HACKING.md). Nothing is checked HERE and nothing needs to
+        // to agree. Nothing is checked HERE and nothing needs to
         // be: what this returns and what the procedure declares are one
         // declaration, `@olai/format`'s, which is the only arrangement under
         // which this line could not be quietly returning more than the wire

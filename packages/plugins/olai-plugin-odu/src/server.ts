@@ -286,7 +286,7 @@ export const serve = (services: Services): {
     // THE VAULT WALK, passed in, and this package is now where both sides of it
     // live: which keys this vault DECLARES a `worktree`, and which nodes carry
     // one, are readings of outline records — things the package that dials odu
-    // must not learn. What crosses is four strings per node.
+    // must not learn. What crosses is the worktree's strings per node.
     worktrees: worktreesIn,
     // THE DOORBELL'S TAP, and the same boundary kolu's `rang` keeps one
     // appliance over: what crosses is the watch's own frozen notice, and what

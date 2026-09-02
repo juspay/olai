@@ -26,7 +26,7 @@
  *     line below is the news (`./count.ts`'s `countSaid` holds all three);
  *   - a REFUSAL, in the grammar's own words, for a known operator with an
  *     unknown value. Never silently downgraded to a substring search:
- *     HACKING.md's rule is that an error reaches somebody. It is drawn from
+ *     The rule is that an error reaches somebody. It is drawn from
  *     the browser's own parse, so it arrives with the keystroke rather than
  *     with an answer;
  *   - a FAILED CALL, which is a different piece of news in a different slot:

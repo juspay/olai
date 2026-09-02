@@ -12,8 +12,8 @@
  * WHAT IS ASSERTED AND WHAT IS NOT, said once for all three:
  *
  *   - the CSV's header row is a `<th>`, which is the FACT — the first row of
- *     the file is the header — and not the weight it is drawn at. HACKING.md's
- *     rule: tests assert behaviour, not styling;
+ *     the file is the header — and not the weight it is drawn at. The rule:
+ *     tests assert behaviour, not styling;
  *   - the picture is asserted to have LOADED (`naturalWidth`), not to look like
  *     anything. A `src` that 404s draws the same empty box as a `src` that is
  *     right, so the address alone proves nothing;

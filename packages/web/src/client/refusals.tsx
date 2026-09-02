@@ -72,7 +72,7 @@ const sameLines = (
  * The mood is `./SaidLine.tsx`'s, once, for every surface in this client
  * that has to say something: a refusal is why nothing happened, so it is toned
  * alarm and announced assertively, because a reader who does not notice one
- * believes the directory is empty (HACKING.md's error rule).
+ * believes the directory is empty (the error rule).
  *
  * WHAT THE DOOR STILL OWNS is where its rows sit and what it calls them — a
  * line under the filter bar, a ruled band across the palette, the same band

@@ -17,7 +17,7 @@
  *
  * Being open, where the panel goes, the pointer outside that shuts it, Escape,
  * and the arrow keys that walk the list are `@kobalte/core`'s `DropdownMenu` —
- * the SolidJS ecosystem's accessible primitive, and HACKING.md's rule ("make
+ * the SolidJS ecosystem's accessible primitive, and the rule ("make
  * full use of the ecosystem of libraries in SolidJS instead of hard-rolling").
  * What this app hand-rolled instead was a fourth copy of the same forty lines,
  * with `role=menu` and the keyboard that role promises deliberately left out

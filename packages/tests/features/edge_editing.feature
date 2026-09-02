@@ -5,7 +5,7 @@ Feature: Writing a node's edges — `see` and `after`
   and — for `after` — the dim on a row, the mark column's glyph and the
   `blocked by` line on a node's page. It could write neither. An agent could do
   both (`set_see`, `set_after`), so that was a standing consistency violation
-  rather than a missing feature (HACKING.md: "MCP and Web ops must be
+  rather than a missing feature ("MCP and Web ops must be
   consistent; never deviate").
 
   Two doors onto one op, and the same op either way: the `•••` menu's two

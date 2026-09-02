@@ -22,4 +22,4 @@ The development docs — the roadmap in the format itself, the decisions and why
 - [olai/brainstorming/](https://github.com/juspay/oss.olai/tree/main/projects/olai/brainstorming) — the decisions, and why the alternatives lost.
 - [olai/RCA/](https://github.com/juspay/oss.olai/tree/main/projects/olai/RCA) — root-cause analyses of things that went wrong.
 
-Developing is [../HACKING.md](../HACKING.md). The public site, [olai.kolu.dev](https://olai.kolu.dev), is the pitch; these pages are how to use it.
+The public site, [olai.kolu.dev](https://olai.kolu.dev), is the pitch; these pages are how to use it.

@@ -36,7 +36,7 @@
  * survive a restart, because the agent's own answer at every boot is a static
  * one. The pinned Claude Code adapter reads `settings.json`, and a container
  * whose settings pin `"model": "sonnet"` RE-ASSERTS that pin over the resumed
- * conversation's own model, every time (0.70.0, `getAvailableModels`: env, then
+ * conversation's own model, every time (0.73.0, `getAvailableModels`: env, then
  * settings, then the transcript). The conversation was on Fable; it came back
  * on Sonnet; nothing on screen said why.
  *
@@ -68,7 +68,7 @@
  * ## What it does with a failure
  *
  * Nothing here is load-bearing enough to stop a boot, and none of it is quiet
- * either (HACKING.md: never silently ignore an error). Both verbs FAIL with a
+ * either — never silently ignore an error. Both verbs FAIL with a
  * reason, and the one caller turns each into a row in the transcript and carries
  * on: a memory that cannot be read means the panel opens the newest conversation
  * — the old behaviour, exactly — and says why; a memory that cannot be written

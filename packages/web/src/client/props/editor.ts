@@ -18,7 +18,7 @@
  * face offers exactly what the tool offers: clear the box and the property is
  * gone, which is the same write an agent makes and lands in the same undo.
  *
- * A person's gesture must be an op an agent can make (HACKING.md), and this is
+ * A person's gesture must be an op an agent can make, and this is
  * that rule read the other way round — the removal verb did not need inventing,
  * it needed exposing.
  *

@@ -371,7 +371,7 @@ test("the tool list is reads and writes, and nothing that names a byte", async (
 })
 
 /**
- * The two git verbs, as an agent is offered them — HACKING.md's consistency
+ * The two git verbs, as an agent is offered them — the consistency
  * rule at the seam where it is easiest to break: the panel grew checkboxes, so
  * the tool grew `paths`, and a face that had one without the other would be two
  * different products.
@@ -1138,6 +1138,50 @@ test("delete_file removes a document, and the listing closes over it", async () 
       (answered.structured["documents"] as ReadonlyArray<{ file: string }>)
         .map((document) => document.file),
     ).not.toContain("notes/scratch.md")
+  })
+})
+
+/**
+ * THE 2026-09-01 INCIDENT'S OWN BATCH. The orchestrator's `create_document`,
+ * carrying a ~2KB brief, rode a parallel MCP batch beside a `delete_file` of
+ * another document — and the file it reported a revision for was 0 bytes on
+ * disk. The honest reproduction, through this face rather than below it:
+ * both calls in flight at once, the created file's bytes read off the disk at
+ * the moment both answers are back. Run as ROUNDS, not once — a race that
+ * lands wrong lands wrong sometimes, and a single pass is a coin flip.
+ */
+test("a create_document racing a delete_file keeps its body — the incident's batch", async () => {
+  const BRIEF = [
+    "---",
+    "lane: doorbell-missing-claim",
+    "---",
+    "",
+    "# Brief: the doorbell misses a claim",
+    "",
+    ...Array.from(
+      { length: 40 },
+      (_, line) => `Detail paragraph ${line + 1}: the evidence, the trace, and the ruling.`,
+    ),
+    "",
+  ].join("\n")
+  await withTools(VAULT, async ({ client, read }) => {
+    // Each round deletes what the PREVIOUS round created — the vault needs no
+    // per-round corpses, and the racing pair is over one file's birth beside
+    // another's end, which is the incident's shape. Round 0 spends `empty.md`.
+    for (let round = 0; round < 8; round++) {
+      const created = `briefs/dispatch-${round}.md`
+      const deleting = round === 0 ? "empty.md" : `briefs/dispatch-${round - 1}.md`
+      const [made, gone] = await Promise.all([
+        call(client, "create_document", { file: created, text: BRIEF }),
+        call(client, "delete_file", { file: deleting }),
+      ])
+      expect({ round, isError: made.isError }).toEqual({ round, isError: false })
+      expect({ round, isError: gone.isError }).toEqual({ round, isError: false })
+      // THE CLAIM, in the round the answers went out: the disk holds the body
+      // the call carried — and the delete took only its own file.
+      expect({ round, held: read(created) }).toEqual({ round, held: BRIEF })
+      expect(read(deleting)).toBeNull()
+    }
   })
 })
 

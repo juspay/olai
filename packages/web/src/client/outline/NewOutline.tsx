@@ -3,8 +3,8 @@
  *
  * MCP could mint one — `create_outline` — and a person could not: the tree
  * listed every file in the directory and offered no way to start another. A
- * standing consistency deviation rather than a missing feature (HACKING.md,
- * `parity-create-outline`), and this closes it.
+ * standing consistency deviation rather than a missing feature
+ * (`parity-create-outline`), and this closes it.
  *
  * The BOX is `../file/NewFile.tsx`, shared with the document's door, so what is
  * left here is the two things that are actually this file's: the op it sends,

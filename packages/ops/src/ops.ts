@@ -383,8 +383,8 @@ export interface Ops extends Asking {
    * A PROJECTION of the same survey {@link pending} runs rather than a probe of
    * its own ({@link ./pending.ts}'s `gitOf`), because the two values are drawn
    * together and two probes would be two answers: a page reading "no git here"
-   * beside a panel offering to commit four changes. HACKING.md's consistency
-   * rule, one control over.
+   * beside a panel offering to commit four changes. The consistency rule,
+   * one control over.
    */
   readonly git: Effect.Effect<GitState>
 }
@@ -734,11 +734,82 @@ export const make = (options: Options): Ops => {
           })
         }
 
-        // Recorded AFTER the write landed. Every write that lands is waiting
-        // now — nothing commits one on its own any more — so the counter
-        // answers "how many ops the next commit will sweep", and what clears it
-        // is that sweep.
+        /**
+         * A DOCUMENT WRITE'S YES IS EARNED, NOT REPORTED. (2026-09-01: a
+         * `create_document` answered a revision over a ~2KB body and the file
+         * was 0 bytes — the origin never reproduced, so this is the class
+         * narrowed rather than the cause named.) The gate stages, renames,
+         * re-probes, and takes the promised bytes only where the disk reads
+         * back as them — but an EMPTY `.md` still VALIDATES, so a loss inside
+         * the write's own window is published and answered the same as a
+         * landing. `documents` is the whole of what this asks: both verbs
+         * that carry bytes verbatim.
+         *
+         * What this read-back PROVES is narrower than durability: the bytes
+         * come back through the page cache over a stage+rename that never
+         * syncs, so it says nothing about the platter — only that nothing
+         * else has touched the file between the gate's rename and now. And
+         * what it closes is narrower than the window: the write is already
+         * PUBLISHED, and stays right to exist. A refusal here can only take
+         * back the ANSWER, not the landing — so it says what landed (rev,
+         * file, what the disk holds) and names `write_document` as the way
+         * back. "The disk did not keep it" is said only when the disk itself
+         * says so: a path the serve's walk prunes is refused at plan, and a
+         * real read failure arrives with its own words attached.
+         *
+         * The read-back is {@link @olai/store}'s `body`: live bytes, one
+         * file, kept by nobody — the door made for exactly this question. The
+         * cost is the write's own size once more, paid by document writes
+         * only: every other verb's answer is about RECORDS the gate
+         * validated, and their bytes are the serializer's, not the caller's.
+         */
+        // Recorded BEFORE the read-back can refuse, because the write it
+        // tallies has already landed — a refused read-back is the ANSWER
+        // taken back, not the write, and the write is this counter's
+        // business. The counter is the panel's per-writer tally, not arming:
+        // what arms a pending sweep is the git survey, and the file a looted
+        // write left behind is dirty there exactly as any other write's is.
         commits.wrote(writer)
+        for (const document of documents) {
+          const held = yield* Effect.result(options.store.body(document.file))
+          if (Result.isFailure(held)) {
+            return yield* new ValidationFailure({
+              reason:
+                `\`${about.summary}\` landed — rev ${written.success} is published and ` +
+                `\`${document.file}\` is on disk — but reading it back failed: ` +
+                `${held.failure.message} \`read_document\` shows what is there and ` +
+                `\`write_document\` is the way back.`,
+              verdict: NOTHING_WRONG,
+            })
+          }
+          if (held.success === null) {
+            return yield* new ValidationFailure({
+              reason:
+                `\`${about.summary}\` landed — rev ${written.success} is published — but ` +
+                `the served set does not hold \`${document.file}\` now: something outside ` +
+                `this write took it out of the set inside the write's own window. Check ` +
+                `the directory, and \`write_document\` is the way back to the text that ` +
+                `was asked for.`,
+              verdict: NOTHING_WRONG,
+            })
+          }
+          if (held.success !== document.text) {
+            const wrote = new TextEncoder().encode(document.text).length
+            const kept = new TextEncoder().encode(held.success).length
+            return yield* new ValidationFailure({
+              reason:
+                `\`${about.summary}\` landed — rev ${written.success} is published and ` +
+                `\`${document.file}\` is on disk — but it holds ${
+                  kept === wrote
+                    ? `different bytes of the same ${kept}-byte length`
+                    : `${kept} bytes where ${wrote} were written`
+                }. The set serves what the disk holds; \`write_document\` is the way ` +
+                `back (the file exists now, so create is refused).`,
+              verdict: NOTHING_WRONG,
+            })
+          }
+        }
+
         /** WHY this write is not in the history — always a sentence, because
          *  there is always a reason (`./pending.ts`'s `whyOf`). It rides the
          *  reply, so what happened is where the person who asked for the write

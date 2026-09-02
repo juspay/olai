@@ -999,7 +999,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *
      * The adapter stamps `sessionId` on every raw message it forwards
      * (`extNotification("_claude/sdkMessage", { sessionId, message })`,
-     * unconditionally, 0.70.0), and everything one carries is a fact about that
+     * unconditionally, 0.73.0), and everything one carries is a fact about that
      * one conversation. Mostly this is already fenced — the panel holds one
      * conversation at a time and `leaving()` drops what is keyed to the last —
      * but the residue is real and narrow: an `init` in flight from a session
@@ -1830,7 +1830,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * PERMIT. That is the whole of the fix: {@link opening} holds this same
      * permit across a `session/load` AND ITS REPLAY, so a listing that queued
      * on it waited out the replay of a conversation it has nothing to do with.
-     * Pressing `chats` while the agent you are talking to is opening one is
+     * Opening the list while the agent you are talking to is opening one is
      * exactly when somebody does it, and the answer to it — what is stored —
      * cannot be changed by the open in flight.
      *

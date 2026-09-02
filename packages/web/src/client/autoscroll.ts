@@ -41,7 +41,7 @@
  * the first report inside a zone and stops the moment the pointer leaves one,
  * so a page nobody is dragging over schedules nothing.
  *
- * WHY THIS IS HAND-ROLLED, which HACKING.md's SolidJS rule makes the first
+ * WHY THIS IS HAND-ROLLED, which the SolidJS rule makes the first
  * question to answer: nothing in the ecosystem ships it.
  * `@solid-primitives/scroll` reports where a page IS and
  * `@solid-primitives/gestures` is pan, pinch, rotate, swipe and tap — neither
