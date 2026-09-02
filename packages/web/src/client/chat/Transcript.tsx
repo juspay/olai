@@ -324,7 +324,13 @@ export function Transcript(props: { readonly chat: Chat }) {
 
   return (
     <div
-      class="olai-scroll min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-3 py-2 text-ink"
+      // `min-h-0` is what makes THIS the scroller. `flex-1` with the default
+      // `min-height: auto` will not shrink below the content, so a long turn
+      // grows the pane instead of overflowing it — and the parent
+      // (`./DropTarget.tsx`) becomes the scrollport, carrying the composer
+      // away with the rows. `overscroll-contain` stops a wheel at the end of
+      // this pane from moving the page beside it.
+      class="olai-scroll min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-3 py-2 text-ink"
       classList={{
         // A FLOOR, and ONLY WHILE A SHELF IS TAKING ROOM. What can squeeze this
         // pane is above it — a preview of one agent's calls — and the promise
@@ -343,6 +349,9 @@ export function Transcript(props: { readonly chat: Chat }) {
         // So it is scoped to the one arrangement it was written for. The shelf
         // is capped and yields first, and on the sheet opening one goes to the
         // full snap, so by the time this applies there is room for both.
+        // Exclusive with `min-h-0`: both set the same property, and Tailwind
+        // will not promise which wins if they share the class list.
+        "min-h-0": previewing() === null,
         "min-h-[7rem]": previewing() !== null,
       }}
       data-testid={TESTID.chatTranscript}
