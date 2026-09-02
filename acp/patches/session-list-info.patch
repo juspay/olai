@@ -1,8 +1,15 @@
 --- a/dist/acp-agent.js
 +++ b/dist/acp-agent.js
-@@ -570,6 +570,275 @@
-         return this.ctx.notify(method, params);
+@@ -1,5 +1,5 @@
+ import { agent as acpAgent, CreateElicitationResponse, methods, ndJsonStream, RequestError, } from "@agentclientprotocol/sdk";
+-import { deleteSession, getSessionMessages, listSessions, query, } from "@anthropic-ai/claude-agent-sdk";
++import { deleteSession, getSessionInfo, getSessionMessages, listSessions, query, } from "@anthropic-ai/claude-agent-sdk";
+ import { GOAL_ACTIONS, GOAL_CONTROL_METHOD, GOAL_EXTENSION_VERSION, goalUpdateFromPrompt, parseGoalRequest, toGoalSnapshot, } from "./goal-extension.js";
+ import { sanitizeTitle, SessionTitles } from "./session-titles.js";
+ import { AIR_NATIVE_SUBAGENT_SESSIONS_CAPABILITY, asSdkSessionNotification, clientSupportsSubagents, } from "./acp-subagents.js";
+@@ -641,6 +641,275 @@
      }
+     return false;
  }
 +/**
 + * olai patch (session-list-info) — GENERATED from acp/session-list-info/facts.js
@@ -276,7 +283,7 @@
  export class ClaudeAcpAgent {
      sessions;
      client;
-@@ -797,20 +1066,76 @@
+@@ -911,20 +1180,76 @@
          return result;
      }
      async listSessions(params) {
@@ -360,4 +367,4 @@
 +                }),
          };
      }
-     /** Read the SDK-maintained title for a session and, if it changed since the
+     async authenticate(_params) {

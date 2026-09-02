@@ -27,10 +27,10 @@ buildNpmPackage {
   # One lockfile, TWO adapters. The version names both pins rather than
   # claiming the build is the claude one alone: a bump of either line of
   # acp/package.json moves the store path's NAME, not only its hash — a
-  # pi-acp bump that left the path stamped "0.70.0" would be the old claim
+  # pi-acp bump that left the path stamped "0.73.0" would be the old claim
   # living on after its evidence.
   # tracks acp/package.json: @agentclientprotocol/claude-agent-acp + pi-acp
-  version = "0.70.0+pi-0.0.33";
+  version = "0.73.0+pi-0.0.33";
 
   # ../acp would also pull in whatever else lands in that directory; keep the
   # src (and its hash) to just the two files the build actually reads.
@@ -40,7 +40,7 @@ buildNpmPackage {
     filter = path: _type:
       baseNameOf path == "package.json" || baseNameOf path == "package-lock.json";
   };
-  npmDepsHash = "sha256-eNzXnOZUP12CojlssD4FAfp8ODXghF0kvMhYhtHsFXs=";
+  npmDepsHash = "sha256-9JFTvDE4oq13P+I/AMpygqRNIri9Rl3fNOOz5uAfXCQ=";
 
   # acp/ is a shim around its two pinned dependencies: nothing to compile,
   # and no package in the tree has an install script to run.

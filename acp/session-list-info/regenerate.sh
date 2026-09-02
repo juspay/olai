@@ -155,6 +155,13 @@ awk -v helpers="$work/helpers.js" -v listbody="$work/listSessions.js" '
     while ((getline l < listbody) > 0) list_block = list_block l "\n"
     in_list = 0
   }
+  # Anchor 0: 0.73.0 moved getSessionInfo out of acp-agent.js (session-titles
+  # is the only remaining caller). listSessions still needs it for the
+  # empty-transcript arbiter; restore the named import when the pin dropped it.
+  /^import \{ deleteSession, getSessionMessages, listSessions, query, \} from "@anthropic-ai\/claude-agent-sdk";$/ {
+    print "import { deleteSession, getSessionInfo, getSessionMessages, listSessions, query, } from \"@anthropic-ai/claude-agent-sdk\";"
+    next
+  }
   # Anchor 1: directly before the class, splice the helpers.
   # The marker has to be unique: one top-level `export class ... {`.
    /^export class ClaudeAcpAgent {/{
@@ -184,7 +191,7 @@ awk -v helpers="$work/helpers.js" -v listbody="$work/listSessions.js" '
 # make loud, walking straight past it. Earlier this was three greps into a
 # `counts` file and an `if` whose body was `:`; it counted nothing and said
 # nothing.
-for marker in sessionListFactsOf 'const sessionListFactsCache' pairSupersessions sayTimestampLossOnce; do
+for marker in sessionListFactsOf 'const sessionListFactsCache' pairSupersessions sayTimestampLossOnce getSessionInfo; do
   if [[ "$(grep -c "$marker" "$work/rebuilt.js" || true)" -lt 1 ]]; then
     echo "anchor missed: '$marker' is not in the rebuild — the anchor moved; fix the script's anchors." >&2
     exit 1

@@ -3516,8 +3516,10 @@ const planCreate = (
       new UsageFailure({
         reason:
           `\`${request.file}\` is not a relative \`.olai\` path under the served ` +
-          `directory (no absolute path, no \`..\`, no \`.\`, and the name must end ` +
-          `in \`.olai\`)`,
+          `directory (no absolute path, no \`..\`, no \`.\`, the name must end ` +
+          `in \`.olai\`, and no directory in it starts with \`.\` or is ` +
+          `\`node_modules\` — the serve's walk prunes those, so a file under ` +
+          `one is never part of the set)`,
       }),
     )
   }
@@ -3626,6 +3628,16 @@ const creatable = (raw: string, extension: string): string | null => {
     segments.push(segment)
   }
   if (segments.length === 0) return null
+
+  // Every segment above the file's own is a directory the serve's walk must be
+  // willing to descend into. The walk prunes dot-directories and `node_modules`
+  // (`@olai/store`'s listing), so a file under one is written and NEVER HELD —
+  // invisible to the set, to `list_documents`, and to every reader. A mint
+  // there can only answer success for nothing, so it is refused here, where
+  // the path is being judged anyway.
+  for (const directory of segments.slice(0, -1)) {
+    if (directory.startsWith(".") || directory === "node_modules") return null
+  }
 
   const file = segments.join("/")
   return file.endsWith(extension) ? file : null
@@ -5440,8 +5452,10 @@ const planCreateDocument = (
       new UsageFailure({
         reason:
           `\`${request.file}\` is not a relative \`.md\` path under the served ` +
-          `directory (no absolute path, no \`..\`, no \`.\`, and the name must end ` +
-          `in \`.md\`)`,
+          `directory (no absolute path, no \`..\`, no \`.\`, the name must end ` +
+          `in \`.md\`, and no directory in it starts with \`.\` or is ` +
+          `\`node_modules\` — the serve's walk prunes those, so a file under ` +
+          `one is never part of the set)`,
       }),
     )
   }
