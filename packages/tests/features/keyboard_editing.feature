@@ -28,6 +28,11 @@ Feature: Keyboard editing
     And the page has not reloaded
     And there should be no page errors
 
+  Scenario: A click in a title puts the caret there, not at the end
+    When I click the title of "handles" near its start
+    Then the caret is near the start of the line
+    And the row being typed holds "choose the handles"
+
   Scenario: A draft is an editor until something commits it
     # The no-optimistic-UI rule from the other side: what is typed is nowhere
     # near the disk until one of the three moments — and then it is. Both

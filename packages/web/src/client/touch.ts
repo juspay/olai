@@ -170,8 +170,15 @@ export const PAST_CONTROLS = "ml-16 md:ml-15"
  * 16px; stacking 1.125rem on top of that made every row a heading, which is
  * display type used as a list. A row is a line. `1rem` is the line. The Size
  * preference is how a reader who wants them bigger asks.
+ *
+ * THE LEADING IS THE MARKDOWN BODY'S. A title is drawn as `.olai-md`, which
+ * sets `line-height` to 1.5 (`theme/scale.ts`'s `LEADING.body`) rather than
+ * inheriting this span's. `leading-snug` (1.375) on the input that replaces
+ * it was a 2px jump the moment the caret arrived — the box this constant
+ * exists to keep still. The `1.5` is a literal because Tailwind scans this
+ * file as text; `touch.test.ts` holds it to the scale.
  */
-export const ROW_TITLE = "font-serif text-[1rem] leading-snug"
+export const ROW_TITLE = "font-serif text-[1rem] leading-[1.5]"
 
 /**
  * A TOP-LEVEL row is a section. One step above a row title — weight and a
@@ -181,7 +188,7 @@ export const ROW_TITLE = "font-serif text-[1rem] leading-snug"
  * one span are a coin toss, settled by the order Tailwind emitted them.
  */
 export const SECTION_TITLE =
-  "font-serif text-[1.125rem] font-semibold leading-snug tracking-tight"
+  "font-serif text-[1.125rem] font-semibold leading-[1.5] tracking-tight"
 
 /**
  * A row's NOTE, as type: what the clamped line, the rendered note and the
