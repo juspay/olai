@@ -476,7 +476,7 @@ export const graphFrom = (entry: string): {
       }
       const landing = resolveWorkspace(spec)
       if (landing.kind === "module") visit(landing.path)
-      else if (landing.kind === "unresolved") unresolved.push(`:  — `)
+      else if (landing.kind === "unresolved") unresolved.push(`${rel}: ${spec} — ${landing.why}`)
     }
   }
   visit(entry)
