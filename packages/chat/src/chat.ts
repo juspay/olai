@@ -716,12 +716,21 @@ const silence = (agent: string): string =>
  * A WRITE TO THIS MACHINE'S RECORD, ATTEMPTED — and its failure logged rather
  * than handed to anybody ({@link ./sessions.ts}'s own rule for its writers).
  *
- * The two migration marks are the callers ({@link Chat.assigned},
- * {@link Chat.replaced}), and what they share is the reason this refuses
- * nothing: each runs AFTER the durable half of its gesture has already landed
- * in the vault, so a refusal here would be telling somebody their assignment
- * failed when it did not. `undefined` is a chat composed with no record at all,
- * which is the state every test in this package is in unless it says otherwise.
+ * ONE SPELLING for every writer that keeps that rule: the two migration marks
+ * ({@link Chat.assigned}, {@link Chat.replaced}) and the teaching's own
+ * ({@link contracted}). What they share is why none of them refuses — each runs
+ * AFTER the half of its gesture that mattered has already landed, so a refusal
+ * here would be telling somebody their assignment, or their turn, failed when
+ * it did not. What differs is one sentence, which is the argument
+ * ({@link taughtLost} and the two beside it): a lost write costs something
+ * different each time, and that is the half worth saying out loud.
+ *
+ * `undefined` is a chat composed with no record at all, which is the state
+ * every test in this package is in unless it says otherwise.
+ *
+ * NOT the last-said write, which is deliberately not a caller: that one has to
+ * know whether the write LANDED, because a frame is published off the back of
+ * it ({@link saidHere}).
  */
 const noting = (
   write: Effect.Effect<void, Memory.MemoryFailure> | undefined,
@@ -735,6 +744,10 @@ const noting = (
 /** ... and what each of them costs when it is lost, said where the write is
  *  rather than at the call site: the sentence is about this record, and the
  *  gesture that made the write is a package away. */
+const taughtLost = (failure: Memory.MemoryFailure): string =>
+  `a node agent was taught its contract and it could not be written down ` +
+  `(${failure.why}) — the next message in this session will say it again`
+
 const assignLost = (failure: Memory.MemoryFailure): string =>
   `a chat was assigned to a node agent and that it was ASSIGNED could not be written down ` +
   `(${failure.why}) — the pointer landed, and the session will be taught the ordinary ` +
@@ -1191,15 +1204,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         const row = transcript.entries().get(key)
         if (row === undefined || row.kind !== "user" || row.delivery !== undefined) return
         publish(transcript.add("notice", teach.lines.join("\n")))
-        yield* Effect.forkDetach(Effect.gen(function*() {
-          const done = yield* Effect.result(overheard.teach(teach.to))
-          if (done._tag === "Failure") {
-            yield* Effect.logWarning(
-              `a node agent was taught its contract and it could not be written down ` +
-                `(${done.failure.why}) — the next message in this session will say it again`,
-            )
-          }
-        }))
+        yield* Effect.forkDetach(noting(overheard.teach(teach.to), taughtLost))
       })
 
     /**

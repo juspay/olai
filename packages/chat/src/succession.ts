@@ -47,12 +47,15 @@ import type { Listed, SessionInfo } from "@olai/surface"
 import type { Overheard } from "./sessions.ts"
 
 /**
- * The listing, wearing the supersessions olai made — the same value where
- * there is nothing to add, which is nearly every listing.
+ * The listing, wearing the supersessions olai made — the same value where there
+ * is nothing to add, which is EVERY listing on a machine that has never
+ * replaced a session.
  *
- * THE SAME OBJECT, deliberately: a listing is asked for on a click and handed
- * to a browser, and a copy minted for a machine that has never replaced a
- * session would be an allocation per ask for no change at all.
+ * That early return is the whole of the optimisation, deliberately: a listing
+ * is asked for on a click, and the alternative — a flag counting whether any
+ * row actually moved — is a mutable binding and a second branch to save one
+ * array allocation in the case where a machine has replaced a session and this
+ * listing holds none of them. What it buys is not worth what it is.
  */
 export const succeeded = (
   listed: Listed,
@@ -60,7 +63,6 @@ export const succeeded = (
 ): Listed => {
   const links = overheard.filter((row) => row.superseded !== undefined)
   if (links.length === 0) return listed
-  let moved = false
   const sessions = listed.sessions.map((session): SessionInfo => {
     // THE AGENT'S OWN ANSWER WINS — see the header. A row that already names a
     // successor is left exactly as it arrived.
@@ -68,9 +70,7 @@ export const succeeded = (
     const link = links.find(
       (row) => row.agent === session.agent && row.session === session.id,
     )
-    if (link === undefined) return session
-    moved = true
-    return { ...session, supersededBy: link.superseded ?? null }
+    return link === undefined ? session : { ...session, supersededBy: link.superseded ?? null }
   })
-  return moved ? { ...listed, sessions } : listed
+  return { ...listed, sessions }
 }

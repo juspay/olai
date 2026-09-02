@@ -59,9 +59,9 @@ test("a note is worn only by the agent it was written against", () => {
   expect(out.sessions[0]?.supersededBy).toBeNull()
 })
 
-test("a listing with nothing to add is the same value", () => {
-  // A machine that has never replaced a session — which is every machine until
-  // somebody presses *fresh session* — pays no allocation for the overlay.
+test("a machine that has never replaced a session is handed its own listing back", () => {
+  // Which is every machine until somebody presses *fresh session*: the overlay
+  // has nothing to say and costs nothing to ask.
   const answer = listed(chat("one"), chat("two"))
   expect(succeeded(answer, [])).toBe(answer)
   expect(succeeded(answer, [{ agent: "claude", session: "other", taught: true }])).toBe(answer)
