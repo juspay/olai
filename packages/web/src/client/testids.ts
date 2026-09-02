@@ -667,10 +667,17 @@ export const TESTID = {
   pluginsTrigger: "plugins-trigger",
   /** The panel it opens (portalled out of the header, like the one beside it). */
   pluginsPanel: "plugins-panel",
-  /** One preference on it; `data-pref` is which — `theme`, `font`, `size`,
-   *  `density`, `done`, `git-commit`, `git-push`, and one `plugin-<name>` per
-   *  plugin this build has ({@link pluginPref}, which is why that tail is open
-   *  and this list is not). */
+  /** One row on EITHER panel; `data-pref` is which. On preferences: `theme`,
+   *  `font`, `size`, `density`, `done`, `git-commit`, `git-push`. On plugins:
+   *  one `plugin-<name>` per plugin this build has ({@link pluginPref}, which
+   *  is why that tail is open and this list is not).
+   *
+   *  ONE NAME ACROSS TWO PANELS, deliberately. The plugin rows drew here until
+   *  they became a control of their own, and a row is the same object either
+   *  side of that move — a label, a control, what the choice in force means,
+   *  and who set it. A second grammar for the same four parts would be a second
+   *  thing for every scenario to know, and the two are told apart by the panel
+   *  they are found inside, which is what a scenario already scopes by. */
   prefsRow: "prefs-row",
   /** That row's hint: what the choice IN FORCE means, re-read whenever the
    *  control moves. Its own name because it is the half of a settings row that
