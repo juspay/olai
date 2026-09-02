@@ -188,8 +188,11 @@ describe("an agent-associated session is taught, once", () => {
 
       // ... and the same value, verbatim, where a person can read it — in
       // this ORDER: under the message it rode, and BEFORE the agent's first
-      // answer row, because the mark the notice reports on is awaited in the
-      // send's own effect and the reply crosses a process to get back.
+      // answer row, by CONSTRUCTION rather than by pace: the mark the notice
+      // reports on is the turn fork's first act — awaited ahead of the
+      // `prompt` call the answer must come back across — so on this lane no
+      // answer frame can exist while the notice has not landed, and no disk
+      // speed is being raced here.
       expect(notices(seat)).toEqual([teachingFor(SPACES).join("\n")])
       const kinds = seat.rows().map((row) => row.kind)
       expect(kinds.indexOf("notice")).toBeGreaterThan(kinds.indexOf("user"))
@@ -213,6 +216,31 @@ describe("an agent-associated session is taught, once", () => {
       expect(second).not.toContain("[olai]")
     })
   }, 20_000)
+
+  test("two sends in the one tick are taught ONCE — the fork hails the send home", async () => {
+    // The window a DETACHED write always was: `begin`'s fork starts the turn,
+    // the send ends under it, and the second send — the same tick, the
+    // ordinary reach for the box — reads `taught` on a mirror that is a
+    // millisecond short of true. The RED this pinned against, played before
+    // the hail existed: both prompt forks and BOTH notices up — a second
+    // teaching in one conversation, the rule's own sentence. With it: the
+    // first send's `send` holds until its fork's first act has landed — the
+    // write, not the write's scheduling — so the answer below can only be
+    // construction, not pace.
+    await withChat(async (seat) => {
+      await Promise.all([
+        run(seat.chat.send("one", [], [])),
+        run(seat.chat.send("two", [], [])),
+      ])
+      await settle()
+
+      expect(notices(seat)).toEqual([teachingFor(SPACES).join("\n")])
+      const [one, two] = heard(seat)
+      expect(one).toContain("[olai]")
+      expect(two).not.toContain("[olai]")
+      expect(overheardIn("sess-1")?.["taught"]).toBe(true)
+    })
+  }, 30_000)
 
   test("a RESTART does not re-teach an assigned chat — the report of 2026-09-02", async () => {
     // Seen on the team deploy: an opencode conversation ASSIGNED to a node
@@ -277,11 +305,13 @@ describe("an agent-associated session is taught, once", () => {
         chmodSync(dir, 0o755)
       }
 
-      // The agent TOOK the message — the lines rode its prompt before the
-      // write was attempted — but nothing landed, and so nothing may be
-      // SHOWN. That last assertion is THE RED here: the unfixed code
-      // publishes the notice over a mark that did not write, and the pane
-      // has read a contract the record cannot keep.
+      // The agent TOOK the message — the lines ride its prompt's TEXT, which
+      // `send` assembles ahead of the write — and on the WIRE the write goes
+      // first and its failure still releases the prompt: the one hinge here
+      // is that nothing LANDED, and so nothing may be SHOWN. That last
+      // assertion is THE RED here: the unfixed code publishes the notice
+      // over a mark that did not write, and the pane has read a contract the
+      // record cannot keep.
       expect(heard(seat)[0]).toContain("[olai]")
       expect(overheardIn("sess-1")?.["taught"]).toBeUndefined()
       expect(notices(seat)).toEqual([])
