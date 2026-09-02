@@ -98,7 +98,26 @@ plugins=$(
     done
   done
 )
-container=$(dirname "$(echo "$plugins" | sed -n 1p)")
+# THE CONTAINER: the directory MOST of those declarations sit in, rather than the
+# one the first of them sits in.
+#
+# `dirname` of the first entry is what this was, and the comment above warned
+# about exactly the day that would stop working: `jq -r keys[]` sorts
+# `@olai/…` ahead of `olai-plugin-…`, so the first entry is whichever `@olai/*`
+# sibling the registry declares. It declared none for a while and declares one
+# now — `@olai/plugin-api`, the INTERFACE, which is a package the registry
+# depends on and is not a tenant — so the first entry's dirname became
+# `packages` and the filter below dropped both real plugins, leaving the harness
+# to die on "fewer than two plugins found".
+#
+# The MODE is the derivation that survives that, and it survives it for the
+# reason the container exists at all: the tenants are the many and everything
+# else the registry declares is the few. It is still derived rather than typed,
+# which is the property this whole block is written for — a harness that
+# re-derived from the fence's own arithmetic would prove nothing.
+container=$(
+  for m in $plugins; do dirname "$m"; done | sort | uniq -c | sort -rn | head -n 1 | awk '{print $2}'
+)
 plugins=$(for m in $plugins; do if [ "$(dirname "$m")" = "$container" ]; then echo "$m"; fi; done)
 plugin_a=$(echo "$plugins" | sed -n 1p)
 plugin_b=$(echo "$plugins" | sed -n 2p)
@@ -335,7 +354,7 @@ run() {
 # the door split exists to prevent.
 
 run 1 "a general package IMPORTS a plugin" \
-  'outside packages/plugin-api imports a plugin' \
+  'outside the registry imports a plugin' \
   append "$general_src" "import \"$name_a/wire\""
 
 run 2 "a general package DECLARES a plugin in its manifest" \
@@ -351,12 +370,21 @@ run 2 "a general package DECLARES a plugin in its manifest" \
 # `rosters.test.ts` reads its three rosters as TEXT), so a defect there is
 # caught by the sweep and NAMED by it.
 run 3 "a plugin imports the REGISTRY back (the cycle)" \
-  'imports neither another plugin nor the registry' \
+  'a plugin does not import the registry' \
   append "$plugin_a/src/plugin.ts" "import \"$registry_name\""
 
-run 4 "a plugin imports ANOTHER plugin" \
-  'imports neither another plugin nor the registry' \
-  append "$plugin_a/src/plugin.ts" "import \"$name_b/wire\""
+# MUTATION 4 IS GONE, and its absence is a ruling rather than a gap. It was "a
+# plugin imports ANOTHER plugin", aimed at a claim the Cordis proposal
+# overturned: `inject` is the dependency arm and it is REACTIVE, so the
+# half-wired state the ban feared is `PENDING` — a legitimate, inspectable state
+# the runtime resolves or reports. A mutation kept against a retired claim would
+# score `GREEN — THE FENCE DID NOT SEE IT` for ever, which is a harness accusing
+# a lint of missing something nobody asked it to look for.
+#
+# What the ban PROTECTED is mutation 10's: an appliance's TIER stays inside its
+# tenant, so a plugin that reached into another's `./server` drags that
+# appliance's client onto its own graph and goes red there. The protection
+# moved; it did not leave.
 
 run 5 "the WIRE door pulls a UI runtime onto the server's graph" \
   'UI runtime, an appliance' \
@@ -387,7 +415,7 @@ run 11 "a general package SPELLS a plugin's name in code" \
   append "$general_src" 'export const koluHalf = () => null'
 
 run 12 "a general package reaches a plugin's SHEET (the CSS grammar)" \
-  'outside packages/plugin-api imports a plugin' \
+  'outside the registry imports a plugin' \
   append "$sheet" "@import \"$name_a/all.css\";"
 
 # ONE DIRECTION of an equality, and the other is not mutated here: moving a
