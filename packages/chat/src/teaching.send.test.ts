@@ -26,7 +26,7 @@
 
 import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 import { Effect } from "effect"
-import { mkdtempSync, readFileSync, rmSync } from "node:fs"
+import { chmodSync, mkdtempSync, readFileSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
@@ -186,8 +186,17 @@ describe("an agent-associated session is taught, once", () => {
       expect(said).toContain("This conversation is the node agent for “Xyne Spaces — the org OS”")
       expect(said).toContain(LAW)
 
-      // ... and the same value, verbatim, where a person can read it.
+      // ... and the same value, verbatim, where a person can read it — in
+      // this ORDER: under the message it rode, and BEFORE the agent's first
+      // answer row, by CONSTRUCTION rather than by pace: the mark the notice
+      // reports on is the turn fork's first act — awaited ahead of the
+      // `prompt` call the answer must come back across — so on this lane no
+      // answer frame can exist while the notice has not landed, and no disk
+      // speed is being raced here.
       expect(notices(seat)).toEqual([teachingFor(SPACES).join("\n")])
+      const kinds = seat.rows().map((row) => row.kind)
+      expect(kinds.indexOf("notice")).toBeGreaterThan(kinds.indexOf("user"))
+      expect(kinds.indexOf("notice")).toBeLessThan(kinds.indexOf("agent"))
 
       // ... and it is written down, so the next boot does not say it again.
       expect(overheardIn("sess-1")?.["taught"]).toBe(true)
@@ -207,6 +216,118 @@ describe("an agent-associated session is taught, once", () => {
       expect(second).not.toContain("[olai]")
     })
   }, 20_000)
+
+  test("two sends in the one tick are taught ONCE — the fork hails the send home", async () => {
+    // The window a DETACHED write always was: `begin`'s fork starts the turn,
+    // the send ends under it, and the second send — the same tick, the
+    // ordinary reach for the box — reads `taught` on a mirror that is a
+    // millisecond short of true. The RED this pinned against, played before
+    // the hail existed: both prompt forks and BOTH notices up — a second
+    // teaching in one conversation, the rule's own sentence. With it: the
+    // first send's `send` holds until its fork's first act has landed — the
+    // write, not the write's scheduling — so the answer below can only be
+    // construction, not pace.
+    await withChat(async (seat) => {
+      await Promise.all([
+        run(seat.chat.send("one", [], [])),
+        run(seat.chat.send("two", [], [])),
+      ])
+      await settle()
+
+      expect(notices(seat)).toEqual([teachingFor(SPACES).join("\n")])
+      const [one, two] = heard(seat)
+      expect(one).toContain("[olai]")
+      expect(two).not.toContain("[olai]")
+      expect(overheardIn("sess-1")?.["taught"]).toBe(true)
+    })
+  }, 30_000)
+
+  test("a RESTART does not re-teach an assigned chat — the report of 2026-09-02", async () => {
+    // Seen on the team deploy: an opencode conversation ASSIGNED to a node
+    // agent, taught its migration contract on the message after the assign —
+    // and the same `[olai] This conversation has been ASSIGNED…` preamble rode
+    // the next message after a redeploy, nowhere near the session's first.
+    claimed = []
+    await withChat(async (seat) => {
+      // A chat with a life before it had a node: no binding, so nothing is
+      // taught on its way by.
+      await run(seat.chat.send("before it had a node", [], []))
+      await settle()
+      expect(notices(seat)).toEqual([])
+
+      // The assign gesture's two halves (`@olai/server`'s `assignSession`):
+      // the property lands, and that it arrived by assignment is written down.
+      claimed = [SPACES]
+      await run(seat.chat.assigned({ agent: "opencode", session: "sess-1" }))
+
+      // The next message carries the MIGRATION contract — once — and the mark
+      // lands, so this whole sequence never happens again.
+      await run(seat.chat.send("now that it has one", [], []))
+      await settle()
+      expect(notices(seat)).toEqual([teachingFor(SPACES, "assigned").join("\n")])
+      expect(overheardIn("sess-1")?.["assigned"]).toBe(true)
+      expect(overheardIn("sess-1")?.["taught"]).toBe(true)
+    })
+
+    // THE REDEPLOY: process down, everything rebuilt — a new record over the
+    // same file, a new agent subprocess minting the same session id, and a
+    // message that is nowhere near the conversation's first.
+    await withChat(async (seat) => {
+      await run(seat.chat.send("after the redeploy", [], []))
+      await settle()
+      expect(notices(seat)).toEqual([])
+      const [said] = heard(seat)
+      expect(said).toContain("after the redeploy")
+      expect(said).not.toContain("[olai]")
+    })
+  }, 30_000)
+
+  test("a teach mark the disk REFUSED ships no notice — the failure costs one LATER telling, never a second one", async () => {
+    // The report of 2026-09-02, with the deploy's lost write played by a
+    // record gone read-only: the assign's mark landed (it is the gesture's
+    // OWN write, {@link Chat.assigned}) and the message after it was TAKEN —
+    // but the teach mark write that was supposed to ride with it failed,
+    // which is the one shape the incident's row can have had: `assigned`
+    // written, `taught` not. The unfixed send publishes the notice anyway —
+    // the write is forked BEHIND it and a failure is only logged — so the
+    // pane reads a contract the disk never promised it would keep, and the
+    // message after the redeploy says the whole thing again.
+    await withChat(async (seat) => {
+      await run(seat.chat.assigned({ agent: "opencode", session: "sess-1" }))
+      expect(overheardIn("sess-1")?.["assigned"]).toBe(true)
+
+      const dir = join(state, "olai", "heard")
+      chmodSync(dir, 0o555)
+      try {
+        await run(seat.chat.send("now that it has one", [], []))
+        await settle()
+      } finally {
+        chmodSync(dir, 0o755)
+      }
+
+      // The agent TOOK the message — the lines ride its prompt's TEXT, which
+      // `send` assembles ahead of the write — and on the WIRE the write goes
+      // first and its failure still releases the prompt: the one hinge here
+      // is that nothing LANDED, and so nothing may be SHOWN. That last
+      // assertion is THE RED here: the unfixed code publishes the notice
+      // over a mark that did not write, and the pane has read a contract the
+      // record cannot keep.
+      expect(heard(seat)[0]).toContain("[olai]")
+      expect(overheardIn("sess-1")?.["taught"]).toBeUndefined()
+      expect(notices(seat)).toEqual([])
+    })
+
+    // THE REDEPLOY: the record carries the assign and NOT the teaching — the
+    // incident's row, verbatim. The next message says the contract, once,
+    // because a re-telling with a written-down REASON is not the violation
+    // being filed; the violation is a pane that says it TWICE.
+    await withChat(async (seat) => {
+      await run(seat.chat.send("after the redeploy", [], []))
+      await settle()
+      expect(notices(seat)).toEqual([teachingFor(SPACES, "assigned").join("\n")])
+      expect(overheardIn("sess-1")?.["taught"]).toBe(true)
+    })
+  }, 30_000)
 
   test("a session ALREADY marked in the record is never taught at all", async () => {
     const kept = await run(sessionsIn(cwd))
