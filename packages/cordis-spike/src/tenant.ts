@@ -46,8 +46,9 @@ export const asFiber = (half: TenantHalf) => ({
     ctx.on("vault/revision", (snapshot) => {
       served.revision(snapshot as never)
     })
-    return () => {
-      served.unloaded()
-    }
+    // `PluginServer.unloaded` is not teardown: it means the store failed to
+    // publish. Registrations above are effects and unwind with the fiber.
+    // Phase 2 needs a distinct dispose if a half has teardown beyond that;
+    // this adapter does not call the wrong hook.
   },
 })
