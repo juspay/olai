@@ -104,7 +104,7 @@ import {
 } from "@olai/surface"
 import { BusyFailure, type NodeAgent, UsageFailure } from "@olai/format"
 import { emitter } from "@olai/log"
-import { Effect, Fiber, Semaphore } from "effect"
+import { Deferred, Effect, Fiber, Semaphore } from "effect"
 
 import * as AcpAgent from "./agent.ts"
 import type { Conversing, Overheard, Sessions } from "./sessions.ts"
@@ -717,20 +717,21 @@ const silence = (agent: string): string =>
  * than handed to anybody ({@link ./sessions.ts}'s own rule for its writers).
  *
  * ONE SPELLING for every writer that keeps that rule: the two migration marks
- * ({@link Chat.assigned}, {@link Chat.replaced}) and the teaching's own
- * ({@link contracted}). What they share is why none of them refuses — each runs
- * AFTER the half of its gesture that mattered has already landed, so a refusal
- * here would be telling somebody their assignment, or their turn, failed when
- * it did not. What differs is one sentence, which is the argument
- * ({@link taughtLost} and the two beside it): a lost write costs something
- * different each time, and that is the half worth saying out loud.
+ * ({@link Chat.assigned}, {@link Chat.replaced}). What they share is why
+ * neither of them refuses — each runs AFTER the half of its gesture that
+ * mattered has already landed, so a refusal here would be telling somebody
+ * their assignment, or their turn, failed when it did not. What differs is
+ * one sentence, which is the argument ({@link assignLost} and
+ * {@link replaceLost}): a lost write costs something different each time, and
+ * that is the half worth saying out loud.
  *
  * `undefined` is a chat composed with no record at all, which is the state
  * every test in this package is in unless it says otherwise.
  *
- * NOT the last-said write, which is deliberately not a caller: that one has to
- * know whether the write LANDED, because a frame is published off the back of
- * it ({@link saidHere}).
+ * NOT the two writes that have to know the OUTCOME — the teaching's own
+ * ({@link contracted}) and the last-said one ({@link saidHere}): a frame and
+ * a notice are published off the back of those, so their failures are not
+ * just worth a sentence, they decide what may be shown.
  */
 const noting = (
   write: Effect.Effect<void, Memory.MemoryFailure> | undefined,
@@ -1191,21 +1192,66 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * that matters — a session swapped under a send — where it would mark a
      * conversation taught that never heard a word.
      *
-     * THE WRITE IS FORKED AND DETACHED and the saying is not: the row belongs
-     * in the transcript now, in this send's own order, while the disk write is
-     * behind a gesture that has already been answered — and its failure is a
-     * LOG rather than a refusal ({@link ./sessions.ts}), because the cost of
-     * losing it is one contract taught twice, which is not worth taking a send
-     * away from somebody over.
+     * THE MARK FIRST, and the notice only where it landed: a notice is the
+     * report OF the mark, so the fact has to exist before it is read out —
+     * the other way round, a failed write was a LOG under a contract the pane
+     * had already been shown, which is the one shape a restart says twice
+     * over. It runs as the delivery's FIRST ACT ({@link begin}), inside the
+     * fork that starts the turn: the write is awaited ahead of the prompt's
+     * answer shape, so an answer row cannot outrun the notice of THIS message
+     * on the arm that has an answer coming after it — where the prompt it
+     * starts the turn for has not yet been sent. A send into a turn that was
+     * ALREADY in the air — the steer arm, or a queued spot behind one —
+     * runs the very same act into a conversation whose answer stream is mid-
+     * flow: a chunk of the running turn can cross the window, and the notice
+     * is the row under it, not before everything. What EVERY arm has by
+     * construction is the half that was the bug: the mark before its notice,
+     * and the send let go of only after the WRITE ({@link begin}'s hail),
+     * so the next send's `teaching()` reads `taught` in the mirror.
+     *
+     * And the WRITE ITSELF is gated on the row twice, once per fact it asks
+     * of it ({@link contracted}'s body, which says why): answered rows are
+     * out on the way IN, and on the way OUT the conversation may no longer
+     * be the one the mark now speaks for.
+     *
+     * Its failure is still a LOG rather than a refusal
+     * ({@link ./sessions.ts}), and what the failure costs changed with the
+     * order: the contract rides a LATER message instead — a telling delayed,
+     * never one duplicated — which is still not worth taking a send away
+     * from somebody over.
      */
     const contracted = (teach: Teaching, key: string): Effect.Effect<void> =>
       Effect.gen(function*() {
         const overheard = options.overheard
         if (overheard === undefined || overheard === null) return
+        // FIRST READ, gating the MARK on the send being unmarked for now: a
+        // send that already had its answer taught nobody anything, whatever
+        // `teaching()` believed when the prompt was built.
         const row = transcript.entries().get(key)
         if (row === undefined || row.kind !== "user" || row.delivery !== undefined) return
+        const done = yield* Effect.result(overheard.teach(teach.to))
+        if (done._tag === "Failure") {
+          yield* Effect.logWarning(taughtLost(done.failure))
+          return
+        }
+        // SECOND READ, the line before the notice it is gating, so the
+        // check-and-append are the one thing this fork can make of them: no
+        // await between, and no permit held — the fork has none. The write
+        // in between is the window, and what covers it by construction is
+        // `begin`'s ticket: `turns.open` precedes this fork, so `changeSession`
+        // refuses on `turns.busy` for the life of the write — the
+        // person-side's door against exactly this. What no ticket stops is
+        // the agent-side's own half: `sessionOver`'s clear checks nothing —
+        // it mostly cannot happen mid-turn, because a switch offers it only
+        // where the ticket is away, but its event answers the AGENT, not the
+        // permit. A row gone here means the conversation was REPLACED — the
+        // mark is then kept for the conversation that was, which is the
+        // contract that was said; the notice belongs to the pane it was said
+        // TO, which is the one that went. The one place in this function that
+        // knows both things is the line that asks both questions again.
+        const after = transcript.entries().get(key)
+        if (after === undefined || after.kind !== "user" || after.delivery !== undefined) return
         publish(transcript.add("notice", teach.lines.join("\n")))
-        yield* Effect.forkDetach(noting(overheard.teach(teach.to), taughtLost))
       })
 
     /**
@@ -1900,21 +1946,29 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             ...(context.length === 0 ? {} : { context }),
           })
           publish(row.change)
-          yield* deliver(row.key, prompt, steer)
-          // ... AND THE CONTRACT IS SAID AND MARKED, both halves together and
-          // both only where the message it rode under was TAKEN
-          // ({@link contracted}).
+          // ... AND THE CONTRACT IS SAID AND MARKED as the delivery's own
+          // first act, both halves together and both only where the message
+          // it rode under was TAKEN ({@link contracted}).
           //
-          // AFTER the delivery rather than before the row, which is two
-          // corrections in one. A send the agent refused used to leave the
-          // notice standing — a conversation visibly quoting a contract the
-          // agent never took, with the mark rightly withheld beside it, so the
-          // transcript and the record said different things. And the ORDER is
-          // truer this way round: the lines ride UNDER the person's words in
-          // the prompt ({@link ./prompt.ts}'s `annotated`), so a notice under
-          // the message is what actually went out, where one above it was the
-          // panel arranging the message for the reader.
-          if (teach !== null) yield* contracted(teach, row.key)
+          // AFTER the delivery's decision rather than before the row, which
+          // is two corrections in one. A send the agent refused used to leave
+          // the notice standing — a conversation visibly quoting a contract
+          // the agent never took, with the mark rightly withheld beside it,
+          // so the transcript and the record said different things. And the
+          // ORDER is truer now the writing is awaited: the lines ride UNDER
+          // the person's words in the prompt ({@link ./prompt.ts}'s
+          // `annotated`), so the answer rows must not get between the message
+          // and its notice either — an awaited write is an event window, and
+          // the turn's first chunk was observed crossing it. The fork that
+          // begins the turn is the only thing after the decision, so the
+          // shape that cannot lose is the delivery handing its first act to
+          // the turn itself.
+          yield* deliver(
+            row.key,
+            prompt,
+            steer,
+            teach === null ? undefined : contracted(teach, row.key),
+          )
         }))
       })
 
@@ -1951,7 +2005,9 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * going to answer how many may start, and narrowing that window is not
      * closing it. The permit is held for one round trip: `begin` forks rather
      * than awaiting a turn, and a steer answers as soon as the message is on the
-     * agent's input.
+     * agent's input — a teaching send is the exception at the PERMIT, not the
+     * turn: its first message holds `sending` (and `opening` above it) across
+     * the record write ({@link begin}'s hail) before the prompt is on the wire.
      *
      * WHAT THE PERMIT DOES NOT COVER IS CANCEL, and it must not: a person who
      * has sent a message and then thought better of the whole turn is pressing
@@ -1969,6 +2025,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       key: string,
       prompt: string,
       steer: boolean,
+      first?: Effect.Effect<void>,
     ): Effect.Effect<void> =>
       sending.withPermit(Effect.gen(function*() {
         const at = talking
@@ -2010,6 +2067,8 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             // Delivered, and into the turn a person could see running — so a
             // banner about the last thing that went wrong is a banner about
             // something the agent has visibly moved on from.
+            // ... AND THE DELIVERY'S FIRST ACT, here as anywhere (`first`).
+            if (first !== undefined) yield* first
             return move({ trouble: null })
           }
           // The agent ANSWERED — "nothing to steer" — so nothing took the
@@ -2018,7 +2077,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             return undeliverable(key, prompt, { gone: "refused", why: CANCELLED_UNDER_IT })
           }
         }
-        yield* begin(at, key, prompt)
+        yield* begin(at, key, prompt, first)
       }))
 
     /**
@@ -2083,7 +2142,9 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * Run one prompt as a turn.
      *
      * Accepted, not awaited: the turn runs on its own fiber and reports through
-     * the transcript, so a five-minute turn is not a five-minute call.
+     * the transcript, so a five-minute turn is not a five-minute call. A
+     * teaching send still detaches the turn; what it waits for is the fork's
+     * first act — the mark write — before releasing `sending`.
      *
      * The ticket is written down BEFORE the fork and the fiber is filled in
      * after, so a turn is on the record from the instant it starts rather than
@@ -2121,6 +2182,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       at: Bound,
       key: string,
       prompt: string,
+      first?: Effect.Effect<void>,
     ): Effect.Effect<void> =>
       Effect.gen(function*() {
         /** A turn was ALREADY running when this one started — which, since
@@ -2207,8 +2269,31 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
          */
         const quiet = (): boolean => shown === quietSince
 
+        // The fork's first act must be before the prompt for the ANSWER's
+        // sake — and this fiber must WAIT for it for the next SEND's sake.
+        // The first is the easy half: the act runs first in the fork ({@link
+        // deliver}). The second is the one detaching would betray: the
+        // mirror the next send's `teaching()` reads moves when the write
+        // LANDS ({@link ./sessions.ts}'s `write`), and this fiber — the
+        // `send`, under the `opening` and `sending` the next one parks on —
+        // would otherwise return with the write still crossing the
+        // disk: a pair of sends fired in the same tick would then both teach,
+        // the second off a mirror a millisecond short of true. So the fork
+        // hails when its first act is done, under `ensuring`: even its
+        // creeping EACCES is an outcome the send gets to stop waiting for —
+        // the mark's failure is a log ({@link contracted}), never a send on
+        // hold for the record's sake.
+        const hailed = yield* Deferred.make<void>()
         const running = yield* Effect.forkDetach(
           Effect.gen(function*() {
+            // The delivery's FIRST ACT, before the prompt crosses the wire:
+            // a contract's mark, so its notice answers before anything the
+            // agent could say — the shape `send`'s once-a-conversation
+            // teaching needs, and the one place it can hold by construction
+            // ({@link deliver}).
+            if (first !== undefined) {
+              yield* Effect.ensuring(first, Deferred.succeed(hailed, undefined))
+            }
             const outcome = yield* Effect.result(at.agent.prompt(prompt))
             // Whether this turn was the LAST one running. The notices go in
             // either way — they are things that happened, and they happened —
@@ -2374,6 +2459,17 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           ),
         )
         ticket.fiber = running
+        // ... AND THE WAIT, paired with the hail above: the only end of it
+        // that matters is the fork's first act having RUN, however it ended.
+        // Raced against the fiber's own exit (`await`, not `join`) so a
+        // `running` interrupted before `ensuring` installed cannot park this
+        // waiter on the deferred alone, holding `opening` and `sending`.
+        if (first !== undefined) {
+          yield* Effect.race(
+            Deferred.await(hailed),
+            Effect.asVoid(Fiber.await(running)),
+          )
+        }
       })
 
     /**
@@ -2699,6 +2795,14 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         // a person asking for a message to go, not for a turn to be broken
         // into, and the turn the first attempt was aimed at is over — that is
         // usually why there is a retry at all.
+        //
+        // NO `first`, and it is a choice now rather than the shape: the kept
+        // prompt carries whatever contract lines the FIRST attempt assembled
+        // ({@link send}'s `annotated`), so the agent hears them when this one
+        // finally goes — but if that attempt's write never landed, nothing
+        // re-tries the mark here: the retell rides the NEXT message, exactly
+        // the price {@link contracted}'s failed write pays, rather than a
+        // mark attempted under whoever the panel belongs to by then.
         yield* deliver(id, prompt, false)
       }))
 

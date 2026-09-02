@@ -96,8 +96,11 @@
  * a gesture, so there is nobody to tell, and both writers here are bookkeeping
  * behind a turn a person is watching for something else. They FAIL, with a
  * reason, and the caller logs it and carries on ({@link ./chat.ts}) — the cost
- * of a lost write is a contract taught twice or a door line one turn stale,
- * which is not worth taking a turn away from somebody over.
+ * of a lost write is a contract the next message carries instead or a door line
+ * one turn stale, which is not worth taking a turn away from somebody over.
+ * The teaching's caller goes one further and HOLDS THE NOTICE BACK on a failed
+ * write: a notice is the report of the mark, and a pane must never read a
+ * contract the record cannot keep.
  *
  * ## Not a second failure vocabulary
  *
