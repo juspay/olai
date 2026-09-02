@@ -925,7 +925,14 @@ export const createEditor = (
       return
     }
     enqueue(async () => {
-      if (!(await commit())) return
+      if (!(await commit())) {
+        // The write that would have let this ghost take the caret was
+        // refused. Focus is still in the parked input, whose keys we
+        // swallow — put the caret back on the draft that is holding the
+        // reason.
+        setCaret((n) => n + 1)
+        return
+      }
       // AFTER the commit: that is the call that re-aims parked `before`
       // ghosts onto the row that just landed. Capturing the ghost before
       // it would install a stale anchor — the blank above the new row
