@@ -33,7 +33,7 @@ import type { RowReport } from "@olai/bundle/bundle"
 import { BUNDLE_NAMES as PLUGIN_NAMES } from "@olai/bundle"
 import type { Deliveries } from "@olai/plugin-api/services"
 import { DeliveryDoors, Surfaces, Vault, Wakes } from "@olai/plugin-api/services"
-import { Context } from "cordis"
+import { Context, FiberState } from "cordis"
 import type { CollectionDeltasMsg } from "@kolu/surface/define"
 import { defineSurface } from "@kolu/surface/define"
 import { NO_KINDS } from "@olai/format"
@@ -976,8 +976,11 @@ test("a sibling the rooted bundle refuses takes only its own fiber down, and the
         // is about is the STATE and the TABLE rather than that rethrow.
         yield* Effect.promise(() => refused.await().catch(() => {}))
 
-        // FAILED, and nothing of it on the wire.
-        expect(refused.state).toBe(3)
+        // FAILED, and nothing of it on the wire. The ENUM rather than `3`: this
+        // phase deleted olai's own numbering of a fiber's states in favour of
+        // the pin's, and a literal here would be that numbering reintroduced as
+        // a magic number — silently wrong the day upstream inserts a state.
+        expect(refused.state).toBe(FiberState.FAILED)
         expect(plugins.surfaces.composed().map((one) => one.name)).toEqual([])
         expect(Object.keys(wired.bound.handlers).length).toBe(before)
 
@@ -991,7 +994,7 @@ test("a sibling the rooted bundle refuses takes only its own fiber down, and the
           },
         })
         yield* Effect.promise(() => healthy.await().catch(() => {}))
-        expect(healthy.state).toBe(2)
+        expect(healthy.state).toBe(FiberState.ACTIVE)
         expect(plugins.surfaces.composed().map((one) => one.name)).toEqual(["healthy"])
 
         // The roster a browser reads carries the truth about both: the build has
