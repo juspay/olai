@@ -519,33 +519,29 @@ export const kindWordOf = (plugin: string, kind: string): string => {
   return `${plugin}${KIND_SEPARATOR}${kind}`
 }
 
-/**
- * WHICH PLUGINS THIS SERVE RUNS, out of what it was built with.
+/*
+ * THE ENABLEMENT FILTER IS GONE, and where it went is the phase.
  *
- * `null` is nobody having said, and it means ALL — the built-in default. That
- * is the same "omission stays distinguishable from the default typed out loud"
- * the git policy's pin is built on (`@olai/server`'s `gitPolicy.ts`), and it
- * is here for the same reason: preferences names a GIVEN flag under the row
- * and otherwise says the built-in default, and a filter that had already
- * expanded `null` into the full list could not tell a reader which of the two
- * they were looking at.
+ * `enabled(plugins, names)` and `isEnabled(names, name)` lived here: a filter
+ * over a list of halves, and the same question asked about one name. They were
+ * the whole of how a serve decided which plugins ran, and they were on the
+ * INTERFACE package — the one a plugin is written against — because everything
+ * that composed a roster read them.
  *
- * An unknown name is NOT refused here. The flag refuses it, once, where a
- * person types one, with the legal names beside it — a second sentence about
- * one mistake is a second place for the wording to be softened, and this
- * function is also spent by tests that hand it a list they built themselves.
+ * Nothing calls either. `--plugins` is a `disabled` PATCH over rows now
+ * (`@olai/bundle`'s `pluginsPatch`, applied by `@cordisjs/plugin-include` on
+ * the way in), so a plugin that is off is never loaded rather than filtered out
+ * of a list — and the preferences row that needed `isEnabled` reads a state
+ * word off the roster cell instead.
+ *
+ * They are deleted rather than kept for a caller who might return, and the
+ * reason is that they are the RETIRED answer to a question this tree still
+ * asks. Left here they would be the most discoverable one: whoever adds the
+ * third reading of enablement — the writable roster is a later phase — would
+ * find a filter on the interface package before they found the patch, and it
+ * would be the wrong shape for a mechanism whose whole point is that a
+ * disabled row never mounts.
  */
-export const enabled = <P extends { readonly name: string }>(
-  plugins: ReadonlyArray<P>,
-  names: ReadonlyArray<string> | null,
-): ReadonlyArray<P> => names === null ? plugins : plugins.filter((p) => names.includes(p.name))
-
-/** Is one plugin running on this serve — the same question {@link enabled}
- *  answers, asked about a name instead of answered as a list. Both exist
- *  because preferences draws a row per BUILT plugin and says of each whether
- *  it is on, which is not a filter over the enabled ones. */
-export const isEnabled = (names: ReadonlyArray<string> | null, name: string): boolean =>
-  names === null || names.includes(name)
 
 /**
  * THE DOORBELL'S SENTENCE, when this plugin wakes conversations — in PIECES,

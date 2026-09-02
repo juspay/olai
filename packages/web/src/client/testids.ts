@@ -1840,7 +1840,7 @@ export const selector = (id: TestId | PluginTestId): string => `[data-testid="${
  * The plugin roster is the one part of this panel whose rows are not known when
  * this file is written: there is a row per plugin the BUILD has, walked off the
  * `plugins` cell, and neither the panel nor the suite may spell a plugin's name
- * (`@olai/plugin-api`'s `fence.test.ts` holds that as an equality per package). So
+ * (`@olai/bundle`'s `fence.test.ts` holds that as an equality per package). So
  * the row's handle is a GRAMMAR rather than a name — `{@link PLUGIN_PREF}`
  * followed by whatever the server said — and a scenario finds the rows with the
  * prefix and reads the names off the DOM, which is the only way to assert on a

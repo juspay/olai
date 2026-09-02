@@ -552,9 +552,9 @@ const writing = (ops: Ops, writer: Writer) => ({
  * preferences panel draws a row per plugin the BUILD has and says of each
  * whether it runs. A plugin left out is absent from every structure this
  * runtime holds — that is what `--plugins` means — so the row that says so has
- * to come from the registry. `PLUGIN_NAMES` is that list and `isEnabled` is the
- * same question `enabled` answers as a filter, asked about one name
- * (`@olai/plugin-api`'s `surfaces.ts`).
+ * to come from the BUNDLE'S ROWS rather than from anything this runtime can
+ * see. {@link PluginRuntime.built} is that list, read before a thing was
+ * mounted.
  *
  * `pinned` TRAVELS UNEXPANDED — `null` for a flag nobody gave, which means
  * the built-in default — because the line under the row names a given flag
@@ -569,10 +569,6 @@ const writing = (ops: Ops, writer: Writer) => ({
  * plugins as `running: false` there would be this file inventing a policy
  * nobody set, and asserting it is why this reading is exported rather than
  * inlined at its one call site.
- *
- * Through `@olai/plugin-api/wire` and not the root, for the reason the import at
- * the top of this file gives: the manifests carry SolidJS components, and this
- * process renders nothing.
  */
 export const rosterOf = (
   offered: Wiring["plugins"],

@@ -71,14 +71,7 @@ export type {
   Wake,
   Watching,
 } from "./contract.ts"
-export {
-  enabled,
-  exposeMapsOf,
-  isEnabled,
-  KIND_SEPARATOR,
-  kindWordOf,
-  surfacesOf,
-} from "./contract.ts"
+export { exposeMapsOf, KIND_SEPARATOR, kindWordOf, surfacesOf } from "./contract.ts"
 export type {
   AppClocks,
   AppPopover,

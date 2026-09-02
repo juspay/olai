@@ -138,7 +138,7 @@
  * repeated frame just the same. `plugins` is the odd one in that list, and it
  * declares on purpose: it is minted once per serve, so no frame of it ever
  * repeats and the merge has nothing to decide today — but a plugin row IS its
- * name (no two plugins may share one, which is `@olai/plugin-api`'s own fence), and
+ * name (no two plugins may share one, which is `@olai/bundle`'s own fence), and
  * a member that later grew a second frame would otherwise start replacing every
  * row silently. The members that declare NOTHING each say why
  * where they are declared, and three of them share one reason worth stating
@@ -537,7 +537,7 @@ export const LOADED: Manifest = {}
  * drawing the same server's answer about the same directory, and `off` above is
  * already exactly that answer wearing the repository's clothes. What a browser
  * does with it — draw the two git preference rows read-only, naming a given
- * flag or the built-in default — is `web/src/client/settings/`.
+ * flag or the built-in default — is `web/src/client/plugins/`.
  *
  * A CELL, and read-only on the wire, for the reason the manifest is: one value
  * the server owns, about the directory rather than about any file in it. It
@@ -814,7 +814,7 @@ export const surface = defineSurface({
       equals: sameRoster,
       /** A ROW IS ITS `name`, and the fence one package over is what makes
        *  that an identity rather than a hope: no two plugins may share a name
-       *  (`@olai/plugin-api`'s `fence.test.ts`), because the name is the sibling
+       *  (`@olai/bundle`'s `fence.test.ts`), because the name is the sibling
        *  key every one of its tags is composed under. */
       arrayKey: "name",
     },

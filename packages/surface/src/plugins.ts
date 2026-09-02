@@ -31,7 +31,7 @@
  * Read-only on the wire because `--plugins` is CLI/nix ONLY — no settings file,
  * no browser toggle, the git policy's shape one setting over. What a browser
  * does with it is draw a row per plugin, frozen, naming where it is changed
- * (`@olai/web`'s `client/settings/`).
+ * (`@olai/web`'s `client/plugins/Panel.tsx`).
  *
  * ## NOTHING HERE SPELLS A PLUGIN'S NAME
  *
@@ -76,11 +76,12 @@ export const BuiltPlugin = Schema.Struct({
    * wants an alarm — so the word travels rather than being guessed at the far
    * end from a boolean that has already thrown the distinction away.
    *
-   * `running` STAYS, and is not redundant: it is what the browser's two mount
-   * licences are read out of (`@olai/web`'s `client/plugins/running.ts`), and a
-   * licence must not have to know five words to answer one question. The two
-   * cannot disagree — the composition root writes `running` from what actually
-   * registered a sibling and derives this from the same reading.
+   * `running` STAYS, and is not redundant: it is the boolean the tab follows
+   * its roster by — which plugins to load a chunk for, dial, and mount a fiber
+   * for (`@olai/web`'s `client/wire.ts`) — and that reading must not have to
+   * know five words to answer one question. The two cannot disagree: the
+   * composition root writes `running` from what actually registered a sibling
+   * and derives this from the same reading.
    *
    * A PLAIN STRING, and OPTIONAL, for the two reasons `wake` is: a tab left
    * open across a downgrade is talking to a serve that declares none, and a
@@ -237,8 +238,8 @@ export const pluginState = (plugin: BuiltPlugin): PluginState => {
  * THE ROSTER: every plugin compiled in, in registry order, and what the
  * operator said.
  *
- * Registry order rather than sorted, because the registry is a source file
- * (`@olai/plugin-api`'s `surfaces.ts`) and the order a build lists its plugins in is
+ * Registry order rather than sorted, because the registry is a FILE
+ * (`@olai/bundle`'s `olai.yml`) and the order a build lists its plugins in is
  * the order `--help` names them in — a panel that re-sorted would put the rows
  * in an order nothing else in the product uses.
  */
