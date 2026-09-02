@@ -2005,7 +2005,9 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * going to answer how many may start, and narrowing that window is not
      * closing it. The permit is held for one round trip: `begin` forks rather
      * than awaiting a turn, and a steer answers as soon as the message is on the
-     * agent's input.
+     * agent's input — a teaching send is the exception at the PERMIT, not the
+     * turn: its first message holds `sending` (and `opening` above it) across
+     * the record write ({@link begin}'s hail) before the prompt is on the wire.
      *
      * WHAT THE PERMIT DOES NOT COVER IS CANCEL, and it must not: a person who
      * has sent a message and then thought better of the whole turn is pressing
@@ -2140,7 +2142,9 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * Run one prompt as a turn.
      *
      * Accepted, not awaited: the turn runs on its own fiber and reports through
-     * the transcript, so a five-minute turn is not a five-minute call.
+     * the transcript, so a five-minute turn is not a five-minute call. A
+     * teaching send still detaches the turn; what it waits for is the fork's
+     * first act — the mark write — before releasing `sending`.
      *
      * The ticket is written down BEFORE the fork and the fiber is filled in
      * after, so a turn is on the record from the instant it starts rather than
@@ -2457,7 +2461,15 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         ticket.fiber = running
         // ... AND THE WAIT, paired with the hail above: the only end of it
         // that matters is the fork's first act having RUN, however it ended.
-        if (first !== undefined) yield* Deferred.await(hailed)
+        // Raced against the fiber's own exit (`await`, not `join`) so a
+        // `running` interrupted before `ensuring` installed cannot park this
+        // waiter on the deferred alone, holding `opening` and `sending`.
+        if (first !== undefined) {
+          yield* Effect.race(
+            Deferred.await(hailed),
+            Effect.asVoid(Fiber.await(running)),
+          )
+        }
       })
 
     /**
