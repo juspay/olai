@@ -1,5 +1,18 @@
 {
   "pins": {
+    "cordis": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "cordiverse",
+        "repo": "cordis"
+      },
+      "branch": "master",
+      "submodules": false,
+      "revision": "00278924a984fedfaffb4bc3d5eb7d8e76215643",
+      "url": "https://github.com/cordiverse/cordis/archive/00278924a984fedfaffb4bc3d5eb7d8e76215643.tar.gz",
+      "hash": "sha256-tCoHVKDAs8e3+BpHI0JV0x+hNPjrvwAHvACQsiZCkZA="
+    },
     "kolu": {
       "type": "Git",
       "repository": {

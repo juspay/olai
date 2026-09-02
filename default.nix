@@ -7,6 +7,7 @@
 let
   kolu = import ./nix/kolu.nix { inherit pkgs; };
   odu = import ./nix/odu.nix { inherit pkgs b2n; };
+  cordis = import ./nix/cordis.nix { inherit pkgs; };
   version = (pkgs.lib.importJSON ./package.json).version;
 
   # @kolu/surface-app's own helper for stamping a build's commit into the
@@ -89,6 +90,7 @@ let
     postBunNodeModulesInstallPhase = ''
       sh ${kolu.hydrateScript} ${kolu.hydrateArgs}
       sh ${kolu.hydrateScript} ${odu.hydrateArgs}
+      sh ${kolu.hydrateScript} ${cordis.hydrateArgs}
       install -m 644 ${kolu-mark}/mark.generated.ts packages/plugins/olai-plugin-kolu/src/browser/mark.generated.ts
       install -m 644 ${odu-mark}/mark.generated.ts packages/plugins/olai-plugin-odu/src/browser/mark.generated.ts
     '';
