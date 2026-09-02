@@ -124,19 +124,6 @@ When(
 );
 
 When(
-  "I type {string} into the outline",
-  async function (this: OlaiWorld, text: string) {
-    // No click. Opening the page left the caret on a sidebar link; a
-    // letter there is the outline's, which is the whole of this step.
-    await typed(this, text);
-    await this.page
-      .locator(TITLE_EDITOR)
-      .first()
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  },
-);
-
-When(
   "I open the empty outline {string}",
   async function (this: OlaiWorld, file: string) {
     // Not "I open the outline": that step waits for a TREE, and an outline

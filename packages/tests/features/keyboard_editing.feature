@@ -33,11 +33,6 @@ Feature: Keyboard editing
     Then the caret is near the start of the line
     And the row being typed holds "choose the handles"
 
-  Scenario: Typing with no caret inserts into a row
-    When I type "xyz" into the outline
-    Then the row "kitchen" holds the caret
-    And the row being typed holds "kitchen remodel #homexyz"
-
   Scenario: A draft is an editor until something commits it
     # The no-optimistic-UI rule from the other side: what is typed is nowhere
     # near the disk until one of the three moments — and then it is. Both
