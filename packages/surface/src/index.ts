@@ -807,29 +807,37 @@ export const surface = defineSurface({
       arrayKey: "name",
     },
     /**
-     * THE AGENTS ROSTER — one row per node carrying an `agent-session` property, with
-     * the conversation this machine has bound to it ({@link ./agents.ts}).
+     * THE AGENTS ROSTER — one row per node carrying an `agent-session` property,
+     * wearing the one line this machine overheard its conversation say
+     * ({@link ./agents.ts}).
      *
      * A CELL, and for `pins`' reason word for word: it is a reading of the
      * whole vault that depends on nobody's question. What differs from the
      * shelf is what MOVES it — two things rather than one. A published revision
-     * moves it (a node gains the property, is renamed, grows a child), and so
-     * does a conversation opening, because the last line a bound agent said and
-     * whether it has been taught are per-session facts the chat writes. Both
-     * arrive through this cell's connector at the composition root
-     * (`@olai/server`'s `runtime.ts`), which is the one place both halves are in
-     * hand.
+     * moves it, and that is nearly all of the row: a node gains the property,
+     * is renamed, grows a child, or has its session pointer rewritten, all of
+     * which are edits to the SET. A chat frame moves the rest — the last line
+     * olai heard, written down at a turn boundary. Both arrive through this
+     * cell's connector at the composition root (`@olai/server`'s `runtime.ts`),
+     * which is the one place both halves are in hand.
      *
      * `equals` is what makes the second of those affordable: the chat cell moves
      * several times a turn and nearly none of those frames say anything new
      * about a roster of three rows.
      *
-     * WIRE-READ-ONLY, and here that is two different reasons rather than the
-     * usual one. The vault half is a file-shaped member like every other: an
-     * `agent-session` property is written by the ops layer, and the row follows. The
-     * BINDING half has no verb at all yet — bindings are hand-written in this
-     * phase (the assign gesture is the next one's), so there is nothing for a
-     * browser to call and nothing for one to be refused.
+     * WIRE-READ-ONLY, and it is the ordinary reason after all: every fact on
+     * this row that anybody writes is a FILE, and files are written through the
+     * ops layer. The property carries the engine and the session both since the
+     * human's 2026-09-02 ruling, so binding a node agent is an ordinary
+     * property write — `edit.apply`'s `prop` verb, or the `•••` menu's *start
+     * an agent session*, which opens the conversation and then writes it here
+     * through that same layer ({@link chat.startAgentSession}). A verb on this
+     * cell would be a second door onto a file, which is the thing this surface
+     * does not have anywhere.
+     *
+     * What is NOT writable through anything is the line olai overheard: nobody
+     * writes it, olai hears it, and a verb for it would be a browser telling
+     * the server what an agent said.
      */
     agents: {
       schema: Agents,
