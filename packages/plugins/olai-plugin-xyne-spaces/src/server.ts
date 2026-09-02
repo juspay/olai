@@ -206,7 +206,7 @@ export const serve = (services: Services): {
 
   const missingEnv = env.url === null || env.token === null
 
-  const boundFile = (): string => file?.file ?? "_olai/Spaces.olai"
+  const boundFile = (): string => file?.file ?? "_olai/XyneSpaces.olai"
 
   /** Bind without env is a FAULT: the user named a channel. Quiet
    *  `absent` is only for a machine that never did. */

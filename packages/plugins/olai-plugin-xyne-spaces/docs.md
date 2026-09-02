@@ -9,11 +9,11 @@
 Two facts, and they live in different places because one is a secret:
 
 - **`$OLAI_SPACES_URL`** and **`$OLAI_SPACES_TOKEN`** in the environment — the Spaces origin and the installed app's JWT. The human reuses the existing "kolu" Spaces app, so the bot's name in-channel is kolu. That is accepted. These are secrets; they are never written to the vault.
-- **`_olai/Spaces.olai`** — the conversation→channel binding and the digest knobs. An ordinary outline, found by basename the way `_olai/Kolu.olai` is (shallowest `spaces.olai`, `_olai/Spaces.olai` the chosen form).
+- **`_olai/XyneSpaces.olai`** — the conversation→channel binding and the digest knobs. An ordinary outline, found by basename the way `_olai/Kolu.olai` is (shallowest `xynespaces.olai`, `_olai/XyneSpaces.olai` the chosen form).
 
 **Off by default.** Omitting `--plugins` runs kolu and odu; this plugin stays off until the flag names it (`--plugins=xyne-spaces`, or listed with the others). A Spaces app JWT is a secret this machine may not have, and a pill in every bar for an integration nobody pointed at is the wrong default.
 
-No env and no bind → the plugin is honestly **absent**, not broken. A bind in `_olai/Spaces.olai` with no env is a **fault**, not absent: the user named a channel and this process cannot post. The pill is loud and names the missing env; the first bound conversation is told once.
+No env and no bind → the plugin is honestly **absent**, not broken. A bind in `_olai/XyneSpaces.olai` with no env is a **fault**, not absent: the user named a channel and this process cannot post. The pill is loud and names the missing env; the first bound conversation is told once.
 
 Beside the connection pill in the header is a readout with three states rather than two:
 
@@ -25,7 +25,7 @@ The third is why the readout is not a boolean. *Nothing was ever configured* and
 
 ## The binding
 
-One channel per team, one orchestrator. The bind is a node in `_olai/Spaces.olai`, not a picker in the chat panel:
+One channel per team, one orchestrator. The bind is a node in `_olai/XyneSpaces.olai`, not a picker in the chat panel:
 
 ```
 {"id":"mirror","ord":"a0","title":"mirror","custom":{"channel":"<spaces-channel-id>","agent":"claude","session":"<session-id>"}}
@@ -48,7 +48,7 @@ olai never writes this file. Turning the plugin on without a bind is a connected
 
 A kolu heartbeat ("the watcher is alive") is not a digest and does not post. Human messages never mirror.
 
-**One thread per bound conversation.** The thread key is the olai `(agent, session)` pair that already rides the watching event — not a title parsed out of the digest. The conversation's first digest opens the Spaces thread; later digests reply into it. Lane threads and the outbound queue are persisted through `PluginServices.held` — core owns the file in the state home (one hold per plugin per vault), the plugin parses the snapshot, and successive writes land in the order they were made. A restart opens the same thread and still has the queued digests. Olai never writes `Spaces.olai`.
+**One thread per bound conversation.** The thread key is the olai `(agent, session)` pair that already rides the watching event — not a title parsed out of the digest. The conversation's first digest opens the Spaces thread; later digests reply into it. Lane threads and the outbound queue are persisted through `PluginServices.held` — core owns the file in the state home (one hold per plugin per vault), the plugin parses the snapshot, and successive writes land in the order they were made. A restart opens the same thread and still has the queued digests. Olai never writes `XyneSpaces.olai`.
 
 **Orchestrator replies and doorbell bodies, trimmed**: each is capped at the first ~500 Unicode code points with an ellipsis, and an open code fence the cut would have left is closed. Working-notes still produce the ephemeral signal below rather than a stored wall of fragments.
 
@@ -56,7 +56,7 @@ A kolu heartbeat ("the watcher is alive") is not a digest and does not post. Hum
 
 ## Failure honesty
 
-A refused post, and a bind whose process has no Spaces app, are said **once** into the olai conversation (the doorbell fault pattern), not once per message. Digests queue (capped at 32) and post in order on recovery; the queue retries on its own, not only when the next digest arrives. A missing channel (the typo in `_olai/Spaces.olai`) keeps retrying with the fault said. A dead Spaces thread is forgotten and the digest re-opens one. A 4xx that will never accept (a validation error) is dropped so it cannot wedge the rest. Overflow of the cap drops the oldest and **says so**, with the count. The pill stays on `xyne fault` until a post is accepted again. The recovery sentence is a separate delivery from the fault, so it cannot replace a fault line that has not been handed over yet.
+A refused post, and a bind whose process has no Spaces app, are said **once** into the olai conversation (the doorbell fault pattern), not once per message. Digests queue (capped at 32) and post in order on recovery; the queue retries on its own, not only when the next digest arrives. A missing channel (the typo in `_olai/XyneSpaces.olai`) keeps retrying with the fault said. A dead Spaces thread is forgotten and the digest re-opens one. A 4xx that will never accept (a validation error) is dropped so it cannot wedge the rest. Overflow of the cap drops the oldest and **says so**, with the count. The pill stays on `xyne fault` until a post is accepted again. The recovery sentence is a separate delivery from the fault, so it cannot replace a fault line that has not been handed over yet.
 
 ## What it is not
 

@@ -1,5 +1,5 @@
 /**
- * The vault half of the Spaces mirror: `_olai/Spaces.olai`, the finder, the
+ * The vault half of the Spaces mirror: `_olai/XyneSpaces.olai`, the finder, the
  * bind, the trim knob.
  */
 
@@ -32,18 +32,18 @@ const setOf = (files: Record<string, string>, file?: string) =>
 test("the finder names the file by basename and case-folded, shallowest first", () => {
   expect(
     spacesFileIn([
-      "notes/spaces.olai",
-      "_olai/Spaces.olai",
+      "notes/xynespaces.olai",
+      "_olai/XyneSpaces.olai",
       "mocca.olai",
     ]),
-  ).toBe("_olai/Spaces.olai")
+  ).toBe("_olai/XyneSpaces.olai")
 })
 
 test("the finder names nothing a spaces file does not answer to", () => {
   expect(spacesFileIn(["mocca.olai", "_olai/Kolu.olai"])).toBeUndefined()
 })
 
-test("a set with no Spaces.olai binds nothing and trims at the default", () => {
+test("a set with no XyneSpaces.olai binds nothing and trims at the default", () => {
   const reading = setOf({
     "_olai/Pins.olai": `{"id":"p","ord":"a0","title":"the shelf"}`,
   })
@@ -54,7 +54,7 @@ test("a set with no Spaces.olai binds nothing and trims at the default", () => {
 
 test("a mirror node with a channel binds that channel", () => {
   const reading = setOf({
-    "_olai/Spaces.olai": rec("mirror", {
+    "_olai/XyneSpaces.olai": rec("mirror", {
       channel: "ch-team-olai",
       agent: "claude",
       session: "s-1",
@@ -69,7 +69,7 @@ test("a mirror node with a channel binds that channel", () => {
 
 test("a mirror without agent or session binds every conversation on that channel", () => {
   const reading = setOf({
-    "_olai/Spaces.olai": rec("mirror", { channel: "ch-team-olai" }),
+    "_olai/XyneSpaces.olai": rec("mirror", { channel: "ch-team-olai" }),
   })
   expect(reading.bind).toEqual({
     channel: "ch-team-olai",
@@ -93,7 +93,7 @@ test("no bind matches nothing", () => {
 
 test("a digest trim is a positive integer, and a bad one defaults and is said", () => {
   const ok = setOf({
-    "_olai/Spaces.olai": [
+    "_olai/XyneSpaces.olai": [
       rec("mirror", { channel: "ch" }),
       rec("digest", { trim: "240" }, "digest", "a1"),
     ].join("\n"),
@@ -102,7 +102,7 @@ test("a digest trim is a positive integer, and a bad one defaults and is said", 
   expect(ok.malformed).toEqual([])
 
   const bad = setOf({
-    "_olai/Spaces.olai": rec("digest", { trim: "plenty" }),
+    "_olai/XyneSpaces.olai": rec("digest", { trim: "plenty" }),
   })
   expect(bad.trim).toBe(DEFAULT_TRIM)
   expect(bad.malformed.length).toBe(1)

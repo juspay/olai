@@ -14,7 +14,7 @@ Each integration documents itself, in its own package, and this list is the door
 
 - [plugins/kolu.md](plugins/kolu.md) — the kolu integration: what olai does with a padi when one is running (the Dock row a `terminal` property draws, and the live read-only pane it opens), what it says when there is none, the header readout's three states, the events feed and the watch knobs behind it, the doorbell that wakes a scoped conversation when a claimed terminal goes quiet, the chat panel's `kolu mcp`, and which slice of the Orchestrator this is.
 - [plugins/odu.md](plugins/odu.md) — CI on the board: the chip a `worktree` wears while odu is running in that checkout, the run matrix it opens, what a settled run leaves behind, the two facts on the board that turn it on, the doorbell that wakes a scoped conversation when a claimed run goes red or settles, the chat panel's `odu mcp`, and what the watching costs.
-- [plugins/xyne-spaces.md](plugins/xyne-spaces.md) — the fleet in team chat: doorbell digests and trimmed orchestrator replies mirrored into a bound Xyne Spaces channel, a live working signal while a turn runs, watch-only (nothing comes back), env-held secrets and a bind in `_olai/Spaces.olai`.
+- [plugins/xyne-spaces.md](plugins/xyne-spaces.md) — the fleet in team chat: doorbell digests and trimmed orchestrator replies mirrored into a bound Xyne Spaces channel, a live working signal while a turn runs, watch-only (nothing comes back), env-held secrets and a bind in `_olai/XyneSpaces.olai`.
 
 The development docs — the roadmap in the format itself, the decisions and why the alternatives lost, and the root-cause analyses — live in the orchestrator's own vault, [juspay/oss.olai](https://github.com/juspay/oss.olai), under its `olai/` folder:
 

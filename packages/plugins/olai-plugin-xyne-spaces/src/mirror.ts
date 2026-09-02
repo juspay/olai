@@ -97,7 +97,7 @@ export const faultBody = (why: string, at: string): string =>
     "",
     "Written by olai's spaces mirror, not by a person.",
     "",
-    "Said once — not repeated per message. Digests queue here and post when the token works again; fix OLAI_SPACES_TOKEN (or the channel id in _olai/Spaces.olai) and the queue retries on its own.",
+    "Said once — not repeated per message. Digests queue here and post when the token works again; fix OLAI_SPACES_TOKEN (or the channel id in _olai/XyneSpaces.olai) and the queue retries on its own.",
   ].join("\n")
 
 /** A channel is bound in the vault and this process has no Spaces app —

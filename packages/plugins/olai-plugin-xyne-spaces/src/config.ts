@@ -1,5 +1,5 @@
 /**
- * THE VAULT HALF of the Spaces mirror — what `_olai/Spaces.olai` says.
+ * THE VAULT HALF of the Spaces mirror — what `_olai/XyneSpaces.olai` says.
  *
  * Secrets stay in ENV (`OLAI_SPACES_URL`, `OLAI_SPACES_TOKEN`). This file
  * holds the non-secret knobs: which conversation is bound to which Spaces
@@ -7,7 +7,7 @@
  * served outline paths rather than the nodes — `spacesFileIn` below, so a
  * config that parses to nothing still has a path a reader can name.
  *
- *   # Spaces
+ *   # Xyne Spaces
  *
  *   - mirror                           ← the binding, properties:
  *     - channel: "<spaces channel id>" ← required; nothing posts without it
@@ -23,7 +23,7 @@
 import { customText, isRegular, type Located } from "@olai/format"
 
 /** The basename the convention answers to, case-folded at the caller's end. */
-const FILE_BASENAME = "spaces.olai"
+const FILE_BASENAME = "xynespaces.olai"
 
 const MIRROR_TITLE = "mirror"
 const DIGEST_TITLE = "digest"
@@ -44,7 +44,7 @@ export interface SpacesReading {
 }
 
 /**
- * WHICH SERVED OUTLINE IS `_olai/Spaces.olai`, asked of the outline PATHS,
+ * WHICH SERVED OUTLINE IS `_olai/XyneSpaces.olai`, asked of the outline PATHS,
  * not the nodes: a config that exists but parses to nothing contributes no
  * records, and a reader still needs to name where olai looked. Case-folded
  * by basename; rank is shallowest first, ties by path — kolu's

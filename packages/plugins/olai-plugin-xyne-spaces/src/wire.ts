@@ -38,7 +38,7 @@ export const defaultOn = false
  *     has not been pointed at Spaces, which is why it is not an error: a
  *     vault opens, every page draws, and the pill says `no xyne`.
  *   - `fault` — something the user asked for is not working, and the tip
- *     names which: a post was refused, OR `_olai/Spaces.olai` binds a
+ *     names which: a post was refused, OR `_olai/XyneSpaces.olai` binds a
  *     channel and the env is missing. Distinct from `absent` on purpose —
  *     a bind is the user naming a channel, and a dim pill would hide that.
  */
