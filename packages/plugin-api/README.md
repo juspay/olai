@@ -37,7 +37,7 @@ Three properties fall out of that, and none of them is a convenience.
 | `env` | what the process can see, plus `dial()` — a test's injectable for THIS fiber |
 | `clock` | `now()`, as ISO-8601 |
 | `log` | `say` (routine, at debug) and `warn` (what the owner must read). Which of its own sentences goes where is the plugin's; which channel each level IS is the root's |
-| `vault` | the served directory, and the two events its revisions raise |
+| `vault` | the served directory, and the two doors its revisions ring |
 | `deliveries` | the doorbell — `scopes()` and `deliver(...)`, keyed by the calling fiber |
 | `kinds` | `register(kind)`, composing the word from the fiber's name |
 | `surfaces` | `register({surface, faces, deps, published?})` — one sibling per plugin |
@@ -45,14 +45,28 @@ Three properties fall out of that, and none of them is a convenience.
 | `watching` | `subscribe(handler)` — conversation events, PUSHED: a doorbell that landed, an orchestrator reply that settled, a turn that started or ended. Never a human message, and never a read |
 | `held` | `load()` / `save(record)` — a small opaque record this plugin keeps about this serve, in the state home rather than the vault, keyed by the calling fiber |
 
-## The events
+## The hooks
 
-| event | mode | what it replaced |
+| hook | mode | what it replaced |
 | --- | --- | --- |
-| `vault/revision` | emit | `PluginServer.revision(snapshot)`. The whole published snapshot; every listener narrows it in its own signature to the part it reads |
-| `vault/unloaded` | emit | `PluginServer.unloaded()`. **Not teardown** — it means the STORE has never published, so a reading derived from the vault is yesterday's while what a plugin holds from its own daemon is untouched. Unloading the PLUGIN is the fiber being disposed, which unwinds every effect above |
-| `surfaces/published` | emit | nothing; the roster could not move |
+| `ctx.vault.revision(handler)` | door | `PluginServer.revision(snapshot)`. The whole published snapshot; every listener narrows it in its own signature to the part it reads |
+| `ctx.vault.unloaded(handler)` | door | `PluginServer.unloaded()`. **Not teardown** — it means the STORE has never published, so a reading derived from the vault is yesterday's while what a plugin holds from its own daemon is untouched. Unloading the PLUGIN is the fiber being disposed, which unwinds every effect above |
 | `chat/session-start` | waterfall | `PluginServerHalf.probe`. A listener pushes a THUNK — its name and what it would ask — and the list is collected per session open, so a plugin that unloaded between conversations contributes nothing to the next one |
+
+Both vault hooks return an unsubscribe and are attached to the calling fiber, so
+a plugin the roster stops naming stops hearing revisions without remembering to
+say so.
+
+**Why they are doors rather than events.** They were `ctx.on("vault/revision")`
+and `ctx.on("vault/unloaded")`, defended by a sentence that turned out to be
+wrong: *both are emits, so a listener that throws is one listener's problem —
+the dispatcher contains it.* Cordis's `emit` is a bare `Reflect.apply` loop with
+no `try`. A plugin throwing on a revision silenced every plugin after it on that
+revision and failed the owned directory fiber that published it. Every listener
+is wrapped once inside the service now, warned with the calling fiber's name;
+the two events are removed from `Events` rather than kept beside the doors as an
+uncontained second way in. `surfaces/published` was declared and never emitted,
+so it is gone rather than implemented.
 
 ## The browser half is a Cordis plugin too
 

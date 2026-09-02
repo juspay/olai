@@ -271,12 +271,21 @@ const apply = <T>(
  * doorbell stops watching. `ctx.kinds` is read one floor up, in `./serve.ts`,
  * because the store validates through it and the store opens first.
  *
- * ## ...and the two events it drives
+ * ## ...and the two vault doors it drives
  *
- * `vault/revision` on every published revision, `vault/unloaded` when the store
- * has never published. Both are EMITS, so a listener that throws is one
- * listener's problem — the dispatcher contains it — and neither is a teardown
- * hook (`@olai/plugin-api`'s `Vault` argues why the second one's name matters).
+ * `ctx.vault.published(snapshot)` on every published revision,
+ * `ctx.vault.quiet()` when the store has never published. These are the root's
+ * half of `ctx.vault.revision(…)` and `ctx.vault.unloaded(…)`, and they are
+ * DOORS rather than emits for a reason this header used to have backwards: it
+ * said "both are EMITS, so a listener that throws is one listener's problem —
+ * the dispatcher contains it", and Cordis's `emit` is a bare `Reflect.apply`
+ * loop with no `try`, so it contains nothing. One plugin throwing on a revision
+ * took every LATER plugin's reading of it down, and the owned fiber that called
+ * `published` with it. The service wraps each listener once instead, so the
+ * sentence this header always wanted to say is now true.
+ *
+ * Neither is a teardown hook (`@olai/plugin-api`'s `Vault` argues why the
+ * second one's name matters).
  */
 export interface PluginRuntime {
   /** The context every service hangs on, and every mounted plugin's parent. */

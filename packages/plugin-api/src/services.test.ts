@@ -9,7 +9,7 @@
  */
 
 import { expect, test } from "bun:test"
-import { Context } from "cordis"
+import { Context, FiberState } from "cordis"
 
 import type { SessionStart } from "./services.ts"
 import { Kinds, Surfaces, Vault } from "./services.ts"
@@ -93,10 +93,15 @@ test("a sibling the composition root refused leaves the table, and takes only it
   // about a sibling with no tag on the wire is the one thing it may not say.
   expect(ctx.surfaces.composed().map((one) => one.name)).toEqual(["good", "later"])
 
-  // ...and the failure is exactly one fiber's. `2` is ACTIVE and `3` is FAILED
-  // (Cordis's `FiberState`), read as numbers because the enum is a value the
-  // pin exports and the states are what this case is about.
-  expect([good.state, bad.state, later.state]).toEqual([2, 3, 2])
+  // ...and the failure is exactly one fiber's. The ENUM rather than the numbers
+  // it happens to have: this phase deleted olai's own numbering of a fiber's
+  // states in favour of the pin's, so literals here would be that numbering
+  // reintroduced as magic numbers in the file that asserts the states matter.
+  expect([good.state, bad.state, later.state]).toEqual([
+    FiberState.ACTIVE,
+    FiberState.FAILED,
+    FiberState.ACTIVE,
+  ])
 
   // The re-compose was told about every registration, including the one it
   // refused — so the case is not passing because nothing was ever composed.

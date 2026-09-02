@@ -94,7 +94,7 @@ export function apply(ctx: Context) {
   for (const kind of kinds) ctx.kinds.register(kind)
   ctx.wakes.register(wake)
   ctx.surfaces.register({ surface, faces, deps: half.handlers })
-  ctx.on("vault/revision", (snapshot) => half.revision(…))
+  ctx.vault.revision((snapshot) => half.revision(…))
   ctx.on("chat/session-start", (start, next) => {
     start.asking.push({ name, ask: () => probe(ctx.env.vars) })
     return next()
@@ -142,19 +142,31 @@ over a name to build `doorFor(plugin.name)` and `dials[plugin.name]`, which put 
 fence's keying in a file that must not know what it was keying. Same guarantee,
 one fewer place to get it wrong.
 
-The events, and what each replaced:
+The hooks, and what each replaced:
 
-| Event | Mode | Was |
+| Hook | Mode | Was |
 | --- | --- | --- |
-| `vault/revision` | emit | `PluginServer.revision(snapshot)` |
-| `vault/unloaded` | emit | `PluginServer.unloaded()` — and it is **not teardown**: it means the STORE has never published, so what a plugin derived from the vault is yesterday's reading, while what it holds from its own daemon is untouched |
-| `surfaces/published` | emit | nothing; the roster could not move |
+| `ctx.vault.revision(handler)` | door | `PluginServer.revision(snapshot)` |
+| `ctx.vault.unloaded(handler)` | door | `PluginServer.unloaded()` — and it is **not teardown**: it means the STORE has never published, so what a plugin derived from the vault is yesterday's reading, while what it holds from its own daemon is untouched |
 | `chat/session-start` | waterfall | `PluginServerHalf.probe` |
-| `ctx.watching.saw(event)` | (a service, not an event) | `PluginServices.watching`.s hand-rolled `Set` and the unsubscribe a plugin had to remember to call |
+| `ctx.watching.saw(event)` | (a service, not an event) | `PluginServices.watching`'s hand-rolled `Set` and the unsubscribe a plugin had to remember to call |
+
+**The two vault hooks are DOORS, not emits, and that is a correction.** They were
+emits, under a claim this page made in as many words: *both are emits, so a
+listener that throws is one listener's problem — the dispatcher contains it.*
+Cordis's `emit` is a bare `Reflect.apply` loop with no `try`, so it contains
+nothing. One plugin throwing on a revision took down every LATER plugin's
+reading of that revision, and the owned directory fiber that published it. The
+service wraps each listener once and warns with the calling fiber's name, and
+the two events are **gone from the `Events` table** rather than left beside the
+doors as an uncontained second way in. `surfaces/published` is gone too: it was
+declared and emitted by nothing, so a plugin that listened waited forever.
 
 `--plugins`, the bundle's rows, and everything above are **phase 2** of a longer
-plan (the Cordis proposal's §6). What is deliberately NOT here: HMR (no Bun cache
-bust exists), interception on the vault, browser slots, and node-agent scopes.
+plan (the Cordis proposal's §6). Browser slots are here as well — `ctx.slots` in
+`@olai/plugin-api/browser`, with the tab following the roster. What is
+deliberately NOT here: HMR (no Bun cache bust exists), interception on the
+vault, and node-agent scopes.
 
 
 ## 4. Vocabulary
@@ -576,8 +588,13 @@ dies with the same defect rather than hanging on a producer nobody drives. A
 sibling ARRIVING after the listener has bound is the other half, and it is a
 **reconnect**: `serveSurfaceApp` takes the group and the handlers at the moment it
 listens, and `connectSurfaces` bakes its own at the dial. The roster cell moving
-is what tells a browser to; `SurfacesConnection.redial(surfaces)` is what a
-browser that boots off that cell will call, which is phase 5's work.
+is what tells a browser to; `SurfacesConnection.redial(surfaces)` is what the
+browser calls when it moves. `packages/web/src/client/wire.ts` holds that loop:
+it dials with no siblings, reads the roster cell, loads exactly the named
+browser halves, redials with their surfaces, and only then mounts their fibers —
+so a fiber is never started over a wire that does not carry its sibling. A
+second roster frame arriving mid-redial is queued behind the first rather than
+starting a second redial on one connection.
 
 ---
 

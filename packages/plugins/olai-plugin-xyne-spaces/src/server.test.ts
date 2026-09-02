@@ -7,8 +7,8 @@
  * `serve(services)` was a function this file called with a blob of doubles, and
  * the half handed back a `revision` hook, an `unloaded` hook and a `link()` for
  * the bench to read. None of those exists: the half is a Cordis plugin, so the
- * bench builds a CONTEXT with double services on it, mounts the plugin, emits
- * `vault/revision` and reads the pill off the cell the browser reads.
+ * bench builds a CONTEXT with double services on it, mounts the plugin, rings
+ * `ctx.vault.published(…)` and reads the pill off the cell the browser reads.
  *
  * What that buys is that the cases drive the path a serve drives. The old shape
  * could pass with a `revision` hook nothing called and an `unloaded` that tore

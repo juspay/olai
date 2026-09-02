@@ -210,7 +210,7 @@ export namespace Log {
 }
 
 /**
- * THE DIRECTORY THIS SERVE IS ABOUT, and the two events its revisions raise.
+ * THE DIRECTORY THIS SERVE IS ABOUT, and the two doors its revisions ring.
  *
  * ## Why the served path is the vault's and not the environment's
  *
@@ -219,19 +219,19 @@ export namespace Log {
  * off the store would be a second answer to a question the composition root
  * already holds.
  *
- * ## The events, and the one that is NOT teardown
+ * ## The doors, and the one that is NOT teardown
  *
- * `vault/revision` replaces `PluginServer.revision`: an emit, once per
+ * {@link Vault.revision} replaces `PluginServer.revision`: rung once per
  * published revision, carrying the whole snapshot, and every listener narrows
- * it in its own signature to the part it reads. `vault/unloaded` replaces
+ * it in its own signature to the part it reads. {@link Vault.unloaded} replaces
  * `PluginServer.unloaded`, and the name is load-bearing — it does NOT mean the
  * plugin is going away. It means the STORE HAS NEVER PUBLISHED: a directory the
  * server can no longer see, so whatever a plugin derived FROM the vault is
  * yesterday's reading and says so, while what it holds from its own daemon is
  * untouched. A half that has teardown beyond its own registrations puts it in
  * an `apply` disposer, which is where the runtime looks for one; reading
- * `vault/unloaded` as a teardown hook would disown a live daemon every time a
- * disk went away for a beat.
+ * `unloaded` as a teardown hook would disown a live daemon every time a disk
+ * went away for a beat.
  */
 export class Vault extends Service {
   /** Every plugin's reading of a revision, and of the store going quiet —
