@@ -34,20 +34,49 @@ export const streamOver = (stdio: {
     throw new Error("the subprocess was spawned without pipes")
   }
 
+  // Stashed so `cancel` (`connection.close` then `child.stop`) can mark
+  // the controller closed the same way `end` does, before leftover stdout
+  // arrives.
+  let stop: (() => void) | undefined
   const readable = new ReadableStream<Uint8Array>({
     start(controller) {
-      // Both ends of the pipe close the same way, and a process exiting can
-      // deliver `end` AND `error` — so closing twice has to be harmless.
-      const close = () => {
+      // A process exiting can deliver `end` AND `error`, and a consumer
+      // cancel closes the controller while leftover stdout is still in
+      // flight. Close twice is already caught; enqueue AFTER close is the
+      // throw `Invalid state: Controller is already closed` — the
+      // load-dependent flake `deliveries.test.ts` showed under a full
+      // suite. Drop the chunk; the conversation is already gone.
+      let closed = false
+      const onData = (chunk: Buffer) => {
+        if (closed) return
+        try {
+          controller.enqueue(new Uint8Array(chunk))
+        } catch {
+          stop?.()
+        }
+      }
+      const onClose = () => {
+        stop?.()
         try {
           controller.close()
         } catch {
           // already closed
         }
       }
-      stdout.on("data", (chunk: Buffer) => controller.enqueue(new Uint8Array(chunk)))
-      stdout.on("end", close)
-      stdout.on("error", close)
+      stop = () => {
+        if (closed) return
+        closed = true
+        stdout.removeListener("data", onData)
+        stdout.removeListener("end", onClose)
+        // `error` stays: Node throws an unhandled `error` event, and a
+        // process exiting can still deliver one after `end`.
+      }
+      stdout.on("data", onData)
+      stdout.on("end", onClose)
+      stdout.on("error", onClose)
+    },
+    cancel() {
+      stop?.()
     },
   })
 
