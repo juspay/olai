@@ -72,7 +72,7 @@ const KNOWN = (Object.keys(WHERE_FROM) as ReadonlyArray<AgentId>).map((id) => ({
 export function NoAgent() {
   return (
     <div
-      class="olai-scroll flex-1 overflow-y-auto px-4 py-6 text-sm text-muted"
+      class="olai-scroll min-h-0 flex-1 overflow-y-auto px-4 py-6 text-sm text-muted"
       data-testid={TESTID.chatNoAgent}
     >
       <p class="m-0 mb-3 text-ink">No agent is installed for this panel.</p>

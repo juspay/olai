@@ -50,7 +50,7 @@ export function Choose(props: {
 }) {
   return (
     <div
-      class="olai-scroll flex-1 overflow-y-auto px-4 py-6"
+      class="olai-scroll min-h-0 flex-1 overflow-y-auto px-4 py-6"
       data-testid={TESTID.chatChoose}
       // The list takes the keys while it is up, and Escape backs out of the
       // door that has a way back. `tabindex` so the box can hold focus for it
