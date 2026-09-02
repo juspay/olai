@@ -186,8 +186,14 @@ describe("an agent-associated session is taught, once", () => {
       expect(said).toContain("This conversation is the node agent for “Xyne Spaces — the org OS”")
       expect(said).toContain(LAW)
 
-      // ... and the same value, verbatim, where a person can read it.
+      // ... and the same value, verbatim, where a person can read it — in
+      // this ORDER: under the message it rode, and BEFORE the agent's first
+      // answer row, because the mark the notice reports on is awaited in the
+      // send's own effect and the reply crosses a process to get back.
       expect(notices(seat)).toEqual([teachingFor(SPACES).join("\n")])
+      const kinds = seat.rows().map((row) => row.kind)
+      expect(kinds.indexOf("notice")).toBeGreaterThan(kinds.indexOf("user"))
+      expect(kinds.indexOf("notice")).toBeLessThan(kinds.indexOf("agent"))
 
       // ... and it is written down, so the next boot does not say it again.
       expect(overheardIn("sess-1")?.["taught"]).toBe(true)
@@ -258,7 +264,6 @@ describe("an agent-associated session is taught, once", () => {
     // the write is forked BEHIND it and a failure is only logged — so the
     // pane reads a contract the disk never promised it would keep, and the
     // message after the redeploy says the whole thing again.
-    let first: ReadonlyArray<string> = []
     await withChat(async (seat) => {
       await run(seat.chat.assigned({ agent: "opencode", session: "sess-1" }))
       expect(overheardIn("sess-1")?.["assigned"]).toBe(true)
@@ -274,11 +279,12 @@ describe("an agent-associated session is taught, once", () => {
 
       // The agent TOOK the message — the lines rode its prompt before the
       // write was attempted — but nothing landed, and so nothing may be
-      // SHOWN: a notice over a mark that did not write is what makes the
-      // NEXT message say it all again.
+      // SHOWN. That last assertion is THE RED here: the unfixed code
+      // publishes the notice over a mark that did not write, and the pane
+      // has read a contract the record cannot keep.
       expect(heard(seat)[0]).toContain("[olai]")
       expect(overheardIn("sess-1")?.["taught"]).toBeUndefined()
-      first = [...notices(seat)]
+      expect(notices(seat)).toEqual([])
     })
 
     // THE REDEPLOY: the record carries the assign and NOT the teaching — the
@@ -288,7 +294,6 @@ describe("an agent-associated session is taught, once", () => {
     await withChat(async (seat) => {
       await run(seat.chat.send("after the redeploy", [], []))
       await settle()
-      expect(first).toEqual([])
       expect(notices(seat)).toEqual([teachingFor(SPACES, "assigned").join("\n")])
       expect(overheardIn("sess-1")?.["taught"]).toBe(true)
     })

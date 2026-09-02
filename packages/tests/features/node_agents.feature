@@ -183,6 +183,9 @@ Feature: A node with an `agent-session` property IS an agent
     And I open the app
     And the agent panel is open
     And I ask the agent "still there?"
+    # The anchor first: the count means nothing until the round trip has
+    # answered — 0 is where every count starts.
+    And the agent has answered "still there?" exactly once
     Then the agent was told its contract 0 times
 
   # ── migration: the chats that are nobody's yet ────────────────────────
@@ -304,6 +307,9 @@ Feature: A node with an `agent-session` property IS an agent
     And I open the app
     And the agent panel is open
     And I ask the agent "still there?"
+    # The anchor first: the count means nothing until the round trip has
+    # answered — 0 is where every count starts.
+    And the agent has answered "still there?" exactly once
     Then the agent was told its contract 0 times
 
   @corpus:lanes

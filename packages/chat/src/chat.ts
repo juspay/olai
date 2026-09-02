@@ -721,9 +721,9 @@ const silence = (agent: string): string =>
  * neither of them refuses — each runs AFTER the half of its gesture that
  * mattered has already landed, so a refusal here would be telling somebody
  * their assignment, or their turn, failed when it did not. What differs is
- * one sentence, which is the argument ({@link assignLost} and the one beside
- * it): a lost write costs something different each time, and that is the half
- * worth saying out loud.
+ * one sentence, which is the argument ({@link assignLost} and
+ * {@link replaceLost}): a lost write costs something different each time, and
+ * that is the half worth saying out loud.
  *
  * `undefined` is a chat composed with no record at all, which is the state
  * every test in this package is in unless it says otherwise.
