@@ -102,20 +102,24 @@ import {
   type Listed,
   type Talking,
 } from "@olai/surface"
-import { BusyFailure, UsageFailure } from "@olai/format"
+import { BusyFailure, type NodeAgent, UsageFailure } from "@olai/format"
 import { emitter } from "@olai/log"
 import { Effect, Fiber, Semaphore } from "effect"
 
 import * as AcpAgent from "./agent.ts"
+import type { Conversing, Overheard, Sessions } from "./sessions.ts"
 import type { Installed } from "./agents/roster.ts"
 import * as Attachments from "./attachments.ts"
 import * as Context from "./context.ts"
 import * as Deliveries from "./deliveries.ts"
 import type { AgentEvent } from "./events.ts"
+import { lastSaid } from "./heard.ts"
 import * as Listings from "./listings.ts"
 import * as Memory from "./memory.ts"
+import { annotated } from "./prompt.ts"
 import type { Probe } from "./probes.ts"
 import type { Fault, Faulted, Scopes } from "./scopes.ts"
+import { teachingFor } from "./teaching.ts"
 import { type Change, says, Transcript } from "./transcript.ts"
 import { type Turn, Turns } from "./turns.ts"
 import { sameWatching, watching } from "./watching.ts"
@@ -168,6 +172,42 @@ export interface Options {
    * without plugins at all.
    */
   readonly scoping?: Scopes | null
+  /**
+   * WHAT OLAI HAS OVERHEARD EACH CONVERSATION DO ({@link ./sessions.ts}) —
+   * which sessions have been taught their contract, and what each last said.
+   *
+   * HANDED IN rather than built here, for `scoping` above's reason: it is one
+   * of the records a composition root already opens per served directory, and
+   * building it here would put the read on a boot that has nothing to read it
+   * for.
+   *
+   * `null` — or absent — is a chat that keeps none: nothing is taught, nothing
+   * is written down, and the panel is exactly the panel it was before node
+   * agents existed. That is the state every test in this package is in unless
+   * it says otherwise.
+   */
+  readonly overheard?: Sessions | null
+  /**
+   * WHICH NODE AGENT A CONVERSATION BELONGS TO — the vault's OWN reading of one
+   * (`@olai/format`'s {@link NodeAgent}), never a shape this package declares —
+   * or `null` for a conversation no node claims, which is nearly every
+   * conversation.
+   *
+   * ASKED OF WHOEVER HOLDS THE VAULT, because the pointer IS in the vault: a
+   * node's `agent-session` property carries the session it is talking through,
+   * so "whose conversation is this" became a question about outlines, and this
+   * package has never seen one. The composition root holds the set and answers
+   * from its roster reading (`@olai/server`'s `agents.ts`).
+   *
+   * A THUNK for {@link Options.tools}' reason and one more: the answer moves on
+   * every published revision — the node is renamed, its subtree grows, its
+   * property is taken off — and a value handed in at construction would be a
+   * charter frozen at boot. Nothing is taught for `null`, which covers a
+   * pointer left on a node that has since been trashed or lost its property:
+   * telling an agent its memory is a node that is not there is worse than
+   * telling it nothing.
+   */
+  readonly agentAt?: (to: Conversing) => NodeAgent | null
   /** Publish the state cell. Called on every change; the surface dedups. */
   readonly onState: (state: ChatState) => void
   /** Publish transcript changes — ALL THREE of the things one carries: rows
@@ -184,6 +224,38 @@ export interface Chat {
   /** The transcript as it stands — what a fresh subscription is seeded with. */
   readonly entries: () => ReadonlyMap<string, ChatEntry>
   readonly state: () => ChatState
+  /**
+   * WHAT OLAI HAS OVERHEARD, as this machine's record holds it
+   * ({@link ./sessions.ts}) — empty for a chat built without one.
+   *
+   * A DOOR ONTO THE TABLE rather than an answer about the roster, and the split
+   * is the same one `doorFor` above makes: a roster ROW is the vault's
+   * `prop:agent-session` reading — which node, which engine, which session —
+   * with the last line olai heard that session say joined onto it, and this
+   * package has never seen an outline. The composition root holds both halves
+   * and does the join (`@olai/server`'s `agents.ts`); what it needs from here
+   * is the half only here has.
+   *
+   * SYNCHRONOUS, like the scope rows beside it, because the join runs inside a
+   * cell connector with no Effect around it.
+   */
+  readonly overheard: () => ReadonlyArray<Overheard>
+  /**
+   * THE SET MOVED — ask {@link Options.agentAt} again, and publish if the
+   * answer changed.
+   *
+   * `ChatState.bound` is the vault's answer to *whose conversation is this*,
+   * and since the human's 2026-09-02 ruling the vault is where that answer can
+   * MOVE: somebody edits a property, or the `•••` verb writes one. Everything
+   * else this state carries moves on the panel's own clock, so this is the one
+   * member a caller has to push.
+   *
+   * IDEMPOTENT AND CHEAP — one lookup, and a publish only when the node id
+   * differs. The composition root calls it on every published revision
+   * (`@olai/server`'s `runtime.ts`), which is a revision per keystroke landing
+   * in an outline, so answering nothing is the case it is written for.
+   */
+  readonly reread: () => void
   /** Prompt the agent with what was typed, with the pictures already
    *  attached to this conversation — by the paths {@link Chat.attach}
    *  answered with, which are re-checked here before any of them reaches a
@@ -508,6 +580,21 @@ interface Bound {
 interface Undelivered {
   readonly gone: AcpAgent.Gone
   readonly why: string
+}
+
+/**
+ * A CONTRACT ABOUT TO GO OUT: the lines, and the conversation they are for.
+ *
+ * ONE VALUE rather than two facts a send holds side by side, and the pairing is
+ * the whole of what it buys: the lines are built from one read of the binding
+ * table, and the mark written down afterwards has to be about the conversation
+ * that read named — not about whichever one the panel is in a beat later. Two
+ * separate reads is exactly how a session swapped mid-send would leave a
+ * conversation marked taught that never heard a word.
+ */
+interface Teaching {
+  readonly to: Deliveries.Addressed
+  readonly lines: ReadonlyArray<string>
 }
 
 /**
@@ -942,6 +1029,160 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     }
 
     /**
+     * WHICH NODE AGENT A CONVERSATION BELONGS TO, by the node's own id — `null`
+     * for one no node claims, which is nearly every conversation.
+     *
+     * The conversation is an ARGUMENT with a default for {@link wakeOf}'s
+     * reason exactly: the two places that publish this around a session
+     * CHANGING know the answer before `state.session` does, and would otherwise
+     * read the conversation before last.
+     *
+     * ASKED OF THE VAULT EVERY TIME rather than held beside the state, so there
+     * is nothing here to invalidate and nothing to reload: the pointer is a
+     * PROPERTY, and the answer is whatever the last published revision of the
+     * set says. This member is recomputed when a session opens or ends, so a
+     * property somebody moves under an open conversation lands the next time
+     * one does.
+     */
+    const boundTo = (
+      to: Deliveries.Addressed | null = conversationOf(),
+    ): string | null => (to === null ? null : options.agentAt?.(to)?.id ?? null)
+
+    /**
+     * WHAT THIS MESSAGE HAS TO TEACH, or nothing at all — the standing
+     * instruction a node agent's session is given ONCE
+     * ({@link ./teaching.ts}, which argues the channel).
+     *
+     * THREE WAYS TO ANSWER NOTHING, and every one of them is the ordinary case
+     * for somebody: no record at all — a serve composed without one, which is
+     * also what keeps a chat that CANNOT write the mark from teaching the same
+     * session on every message; a session already taught, which is every
+     * message after the first; and a conversation no node claims, which is
+     * nearly every conversation and also a pointer left on a record that has
+     * been trashed or has lost its property.
+     *
+     * THE ANSWER CARRIES THE CONVERSATION IT IS FOR, which is what makes it one
+     * value rather than two facts a send has to keep in step: the lines and
+     * "whose contract these are" are decided in the same breath, off one read,
+     * and the mark that goes to disk afterwards is written against THAT
+     * conversation rather than against whichever one the panel has come to be
+     * in ({@link contracted}).
+     */
+    const teaching = (): Teaching | null => {
+      const to = conversationOf()
+      const overheard = options.overheard
+      if (to === null || overheard === undefined || overheard === null) return null
+      if (overheard.at(to)?.taught === true) return null
+      const node = options.agentAt?.(to) ?? null
+      return node === null ? null : { to, lines: teachingFor(node) }
+    }
+
+    /**
+     * ... and SAYING that it went, and remembering it — the two halves of "the
+     * contract is out", together, because they are one event and used to be
+     * able to disagree.
+     *
+     * SAID AND MARKED ONLY WHERE THE MESSAGE WAS TAKEN, which is what the row's
+     * own delivery mark answers. A prompt that never reached an agent taught it
+     * nothing: a session marked taught over one would go the rest of its life
+     * believing it had been told, and a NOTICE left standing over one is a
+     * conversation visibly quoting a contract the agent never heard. What this
+     * cannot see is a turn that fails LATER — the agent had the words and died
+     * on them — and that is the honest limit of a synchronous check: the words
+     * went, so the contract went with them, and whether the agent finished
+     * reading is not a thing anything here can answer.
+     *
+     * THE NOTICE IS VERBATIM and never a summary: two spellings of one
+     * instruction is a panel claiming a contract that is not the one that went
+     * out, so the row carries the same value the prompt was built from. A
+     * NOTICE, because that is what it is — olai's own words about this
+     * conversation, in the row kind every other sentence of olai's takes.
+     *
+     * THE CONVERSATION IS HANDED IN, and it is the one the LINES were built
+     * for ({@link Teaching}) rather than whichever one the panel is in by the
+     * time this runs. Re-reading it here would be a second answer to "who was
+     * taught" a beat after the first, and the two differ in exactly the case
+     * that matters — a session swapped under a send — where it would mark a
+     * conversation taught that never heard a word.
+     *
+     * THE WRITE IS FORKED AND DETACHED and the saying is not: the row belongs
+     * in the transcript now, in this send's own order, while the disk write is
+     * behind a gesture that has already been answered — and its failure is a
+     * LOG rather than a refusal ({@link ./sessions.ts}), because the cost of
+     * losing it is one contract taught twice, which is not worth taking a send
+     * away from somebody over.
+     */
+    const contracted = (teach: Teaching, key: string): Effect.Effect<void> =>
+      Effect.gen(function*() {
+        const overheard = options.overheard
+        if (overheard === undefined || overheard === null) return
+        const row = transcript.entries().get(key)
+        if (row === undefined || row.kind !== "user" || row.delivery !== undefined) return
+        publish(transcript.add("notice", teach.lines.join("\n")))
+        yield* Effect.forkDetach(Effect.gen(function*() {
+          const done = yield* Effect.result(overheard.teach(teach.to))
+          if (done._tag === "Failure") {
+            yield* Effect.logWarning(
+              `a node agent was taught its contract and it could not be written down ` +
+                `(${done.failure.why}) — the next message in this session will say it again`,
+            )
+          }
+        }))
+      })
+
+    /**
+     * WHAT THIS CONVERSATION'S AGENT LAST SAID, written down against the
+     * CONVERSATION so the door on its node's row has a line when nobody is
+     * looking at it ({@link ./heard.ts}).
+     *
+     * AT THE TURN BOUNDARY and nowhere else: a paragraph is hundreds of chunks
+     * and a line taken mid-turn is a prefix. Nothing at all for a conversation
+     * no node claims, which is where it costs nothing.
+     */
+    const saidHere = (): Effect.Effect<void> =>
+      Effect.gen(function*() {
+        const to = conversationOf()
+        const overheard = options.overheard
+        if (to === null || overheard === undefined || overheard === null) return
+        // NOTHING AT ALL FOR A CONVERSATION NO NODE CLAIMS, asked of the vault
+        // rather than of the record: what the line is FOR is a door on a node's
+        // row, so a conversation with no node has nowhere to draw it and the
+        // write would be a row kept for nobody.
+        if (options.agentAt?.(to) == null) return
+        // THE LINE AND ITS OWN INSTANT, both off the row ({@link ./heard.ts}).
+        // The clock is deliberately not read here: this runs at EVERY turn
+        // boundary, and a turn that added no prose re-offers the line before
+        // it — so a stamp taken now would say *just now* about words from an
+        // hour ago, on the one member whose name is what olai HEARD.
+        const said = lastSaid(transcript.entries())
+        if (said === null) return
+        const done = yield* Effect.result(overheard.said(to, said))
+        if (done._tag === "Failure") {
+          yield* Effect.logWarning(
+            `what a node agent last said could not be written down ` +
+              `(${done.failure.why}) — its door draws the line before this one`,
+          )
+          return
+        }
+        // ... AND A FRAME, so the door actually gets the line.
+        //
+        // The roster is re-assembled on every chat frame, which is the door the
+        // composition root republishes it through (`@olai/server`'s
+        // `runtime.ts`) — and this write is FORKED off the turn boundary, so it
+        // lands AFTER the frame that turn published. Without this the line sat
+        // on the disk until something unrelated moved the panel, and a door
+        // whose agent had just answered drew blank for as long as nobody
+        // switched conversations.
+        //
+        // AN IDENTICAL STATE, deliberately: nothing about the panel changed,
+        // and what moved is the other half of a cell this package cannot see.
+        // Both cells' `equals` swallow a frame that said nothing (the chat's
+        // and the roster's), so the cost of the case where the line was already
+        // written down is one comparison.
+        move({})
+      })
+
+    /**
      * WHAT THIS CONVERSATION'S DOORBELLS ARE, for the strip — and the ONE
      * writer of that cell.
      *
@@ -1098,9 +1339,16 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           // without either of them being called at all.
           opened()
           const at = talking
+          const now = at === null ? null : { agent: at.row.id, session: event.id }
           move({
             status: state.status === "thinking" ? "thinking" : "idle",
             session: { id: event.id, title: event.title, updatedAt: null },
+            // WHICH NODE AGENT THIS CONVERSATION BELONGS TO, in the same breath
+            // and for the doorbells' reason below: the binding is per
+            // conversation, so the node that was true a moment ago was about a
+            // different one — and a header naming the last conversation's node
+            // over this one's is the one wrong thing this member can say.
+            bound: boundTo(now),
             trouble: null,
             unopened: null,
             // WHICH DOORBELLS THIS CONVERSATION HAS ON, said in the same breath
@@ -1108,7 +1356,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             // the row that was true a moment ago was about a different one.
             // The pair is spelled out because `state.session` is what this very
             // move is setting.
-            wake: wakeOf(at === null ? null : { agent: at.row.id, session: event.id }),
+            wake: wakeOf(now),
           })
           // ... AND WHATEVER WAS HELD FOR IT GOES IN NOW, on its own fiber and
           // NEVER from here. This arm is reached from INSIDE the `opening`
@@ -1152,6 +1400,14 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           queuedHere = false
           move({
             session: null,
+            // ... and so does the node this conversation belonged to. A panel
+            // between sessions belongs to nobody: the BINDING is untouched on
+            // disk, keyed by the conversation, and a session reopened comes
+            // back to its own node — but a header naming the last one's node
+            // over a panel with no conversation in it would be claiming an
+            // association that has nothing to hold it. `null` because
+            // `state.session` is only nulled by this very move.
+            bound: null,
             commands: [],
             asking: asking(),
             watching: watching(transcript.entries()),
@@ -1519,16 +1775,38 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         // opened has no business queueing behind somebody else's filesystem.
         yield* Effect.forEach(attachments, files.claim, { concurrency: "unbounded" })
 
-        const prompt = Attachments.promptWith(
-          Context.promptWith(said, context),
-          attachments,
-        )
         // BEHIND WHATEVER IS OPENING A CONVERSATION ({@link opening}), which is
         // what makes "the words are on screen from the moment you send them"
         // and "a replay empties the transcript" stop contradicting each other.
         // The permit covers the ROW as well as the delivery, deliberately: a
         // row written before the replay is a row the replay takes away.
         yield* opening.withPermit(Effect.gen(function*() {
+          // WHAT A NODE AGENT IS TOLD, if this conversation belongs to one and
+          // has not been told yet — INSIDE the permit, with the delivery it
+          // rides under.
+          //
+          // It was asked outside, and that was the one thing on this path that
+          // had no business being: a send that PARKS on the permit while a
+          // session switch completes is an ordinary event with two tabs open,
+          // and the contract addressed before the wait was delivered into the
+          // conversation that arrived after it. Both halves went wrong at once
+          // — the notice, the row and the prompt landed in the NEW conversation
+          // carrying the OLD one's node, and the mark was written onto the old
+          // binding, which then spent the rest of its life believing it had
+          // been taught. That is exactly what {@link Teaching} pairs the lines
+          // with a conversation to prevent; the pair held from build to mark
+          // and was broken between build and DELIVER.
+          //
+          // Nothing is lost by moving it: `teaching()` is two synchronous
+          // in-memory reads and `annotated` is pure. `files.claim` above is the
+          // only thing on this path that earned its place outside — each claim
+          // is a `realpath`, and a conversation being opened has no business
+          // queueing behind somebody else's filesystem.
+          const teach = teaching()
+          const prompt = Attachments.promptWith(
+            Context.promptWith(annotated(said, teach?.lines ?? []), context),
+            attachments,
+          )
           // The user's own message goes in FIRST and from the server, so both
           // tabs see it and a send that fails does not leave one behind. What
           // the ROW carries is the file NAMES: the tmp path is for the agent,
@@ -1545,6 +1823,20 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           })
           publish(row.change)
           yield* deliver(row.key, prompt, steer)
+          // ... AND THE CONTRACT IS SAID AND MARKED, both halves together and
+          // both only where the message it rode under was TAKEN
+          // ({@link contracted}).
+          //
+          // AFTER the delivery rather than before the row, which is two
+          // corrections in one. A send the agent refused used to leave the
+          // notice standing — a conversation visibly quoting a contract the
+          // agent never took, with the mark rightly withheld beside it, so the
+          // transcript and the record said different things. And the ORDER is
+          // truer this way round: the lines ride UNDER the person's words in
+          // the prompt ({@link ./prompt.ts}'s `annotated`), so a notice under
+          // the message is what actually went out, where one above it was the
+          // panel arranging the message for the reader.
+          if (teach !== null) yield* contracted(teach, row.key)
         }))
       })
 
@@ -1869,6 +2161,13 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             // carrying.
             if (current) {
               watched()
+              // ... AND IT IS WHERE A NODE AGENT'S DOOR GETS ITS LINE. The
+              // paragraph is closed by the settle above, so this is the first
+              // moment the agent's last word is a whole sentence rather than a
+              // prefix ({@link saidHere}). Forked for `flushing`'s reason and
+              // silent for a conversation no node claims, which is nearly all
+              // of them.
+              yield* Effect.forkDetach(saidHere())
               // ... AND THE TURN BOUNDARY IS WHERE A DOORBELL'S WORDS GET IN.
               // `turns.leave` answered TRUE, which is exactly "the set emptied"
               // ({@link ./turns.ts}), so this is the first moment since the body
@@ -2461,6 +2760,16 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     return {
       entries: () => transcript.entries(),
       state: () => state,
+      overheard: () => options.overheard?.rows() ?? [],
+      // THE SET'S ANSWER, ASKED AGAIN. `move` is what publishes, and it is
+      // guarded on the value rather than called unconditionally: this runs per
+      // revision, the state cell is what the whole panel redraws from, and a
+      // frame per keystroke that said the same thing would be the cost of a
+      // feature nobody is looking at.
+      reread: () => {
+        const now = boundTo()
+        if (now !== state.bound) move({ bound: now })
+      },
       send,
       // Under the SAME permit as a session change, because the two touch one
       // directory: a chunk that found the conversation's directory a moment

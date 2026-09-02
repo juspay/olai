@@ -58,6 +58,7 @@ import { fileOf, opensAt, requestFor } from "./page.ts"
 import { fileNamed } from "./routes.ts"
 import { createReadings, ReadingsProvider } from "./reading.tsx"
 import { Palette } from "./palette/Palette.tsx"
+import { AgentsProvider } from "./agents/answered.tsx"
 import { PinsProvider } from "./pins/answered.tsx"
 import { pinSaid } from "./pins/pinning.ts"
 import { Panes } from "./pane/Panes.tsx"
@@ -310,6 +311,12 @@ export default function App() {
           row and the ⌘⇧P chord ask whether this page is on it, and every row's
           ••• asks the same about its node (./pins/answered.tsx). */}
       <PinsProvider>
+      {/* THE AGENTS ROSTER, as the server answers it — one subscription and one
+          context, around everything that reads it: the sidebar's section draws
+          the whole of it, every outline row asks whether its node is on it
+          (the door), and the panel's header asks what the node its conversation
+          belongs to is called (./agents/answered.tsx). */}
+      <AgentsProvider>
       <FieldsProvider value={fields}>
       <AirProvider value={air}>
       <OpensProvider opens={(path, at) => opensAt(directory.paths(), path, at)}>
@@ -461,6 +468,7 @@ export default function App() {
       </OpensProvider>
       </AirProvider>
       </FieldsProvider>
+      </AgentsProvider>
       </PinsProvider>
       </ReadingsProvider>
       </RouterProvider>

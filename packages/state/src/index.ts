@@ -19,9 +19,10 @@
  *   - the STATE home is for something that SHOULD survive a restart and means
  *     nothing to anybody else — which conversation the chat panel was in
  *     (`@olai/chat`'s `memory.ts`), which doorbell each conversation picked
- *     (`@olai/chat`'s `scopes.ts`), and a plugin's hold (threads, a queue)
+ *     (`@olai/chat`'s `scopes.ts`), what olai overheard a conversation do
+ *     (`@olai/chat`'s `heard.ts`), and a plugin's hold (threads, a queue)
  *     handed through core as `PluginServices.held`. After git left this
- *     package the state home has two {@link Kind}s plus a per-plugin hold —
+ *     package the state home has three {@link Kind}s plus a per-plugin hold —
  *     {@link Kind} says why the split is by what each record survives.
  *
  * ONE FILE PER SERVED DIRECTORY under either, named by a DIGEST of the path
@@ -47,9 +48,9 @@
  *
  * It was written more than once before it was one, which is the bar: the lock's
  * runtime home and digest, and the chat panel's state home and digest. A git
- * policy used to live here too and no longer does — chat and a plugin's hold
- * are the remaining tenants, the hold reached through core so this leaf
- * stays out of every plugin. `@olai/chat`'s `memory.ts` named this module before it existed
+ * policy used to live here too and no longer does — chat, what a conversation
+ * overheard, and a plugin's hold are the remaining tenants, the hold reached
+ * through core so this leaf stays out of every plugin. `@olai/chat`'s `memory.ts` named this module before it existed
  * ("not a receptacle for where this machine keeps olai's state, though that is
  * what it would be at population two") and it is a LEAF for the same reason
  * `@olai/git` is: it knows about a filesystem and nothing about outlines, git,
@@ -149,19 +150,28 @@ export class StateFailure extends Data.TaggedError("StateFailure")<{
  * told it could not reach, and nothing but a type can say so. It also makes
  * "what does olai keep about a directory" answerable by reading one line.
  *
- * Two kinds named here, and a third named by {@link fileForHold}. The split
+ * Three kinds named here, and a fourth named by {@link fileForHold}. The split
  * between them is what each SURVIVES rather than what each is about. `chat`
  * is the panel's last conversation — one record, rewritten whenever the panel
  * opens one. `wake` is which conversations a person pointed a plugin's
  * doorbell at, and on which file; it holds the picks and never the messages,
  * because a held message is a derivation of state that is still true and is
- * rung again by whatever derives it. A plugin's hold is a small record that
- * plugin keeps about this serve — one file per plugin per vault — and it is
- * reached through core, not by the plugin naming this package. A plugin that
- * imported this leaf would become the sole reacher and this package would
- * silently join that tenant's exemption set.
+ * rung again by whatever derives it. `heard` is what olai OVERHEARD one
+ * conversation do: that this session has been told its node agent's contract,
+ * and the last line its agent said while olai was watching. A plugin's hold
+ * is a small record that plugin keeps about this serve — one file per plugin
+ * per vault — and it is reached through core, not by the plugin naming this
+ * package. A plugin that imported this leaf would become the sole reacher and
+ * this package would silently join that tenant's exemption set.
+ *
+ * `heard` is BOOKKEEPING and that is why it is here rather than in the vault,
+ * where the human's 2026-09-02 ruling put all config: nothing configures these
+ * two, nothing else can reconstruct them, and a board written to on every turn
+ * would be a board committed on every turn. Which node agent a session belongs
+ * to is the config half, and it is a property on the node
+ * (`@olai/format`'s `agents.ts`).
  */
-export type Kind = "chat" | "wake"
+export type Kind = "chat" | "wake" | "heard"
 
 /** Where one kind of remembered thing lives for one served directory — a
  *  subdirectory of the state home, and the digest under it. Takes the

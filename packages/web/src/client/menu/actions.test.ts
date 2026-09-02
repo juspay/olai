@@ -63,6 +63,10 @@ const actionsFor = (
   nodeMenuActions({
     row: row(id),
     pins: NO_PINS,
+    // A MACHINE WITH ONE AGENT, which is what makes *start an agent session* a
+    // single entry here — this file is about what RUNNING a verb does, and
+    // which verbs a row offers is `./verbs.test.ts`'s.
+    engines: [{ id: "claude", name: "Claude Code" }],
     collapsed: false,
     foldable: [],
     go: () => {},

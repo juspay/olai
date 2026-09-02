@@ -220,6 +220,7 @@ test("every declaration names a field its own schema carries, and no other membe
   // entry is a revision and a body; `manifest`, `git`, `dated`, `owed`,
   // `inbox` and `moving` carry no array of objects at all.
   expect(declaring.map((one) => `${one.name} → ${one.arrayKey}`).sort()).toEqual([
+    "cells.agents → id",
     "cells.chat → name",
     "cells.pending → path",
     "cells.pins → id",

@@ -108,6 +108,7 @@ import { hasBody } from "./body.ts"
 import { NodeBody } from "./NodeBody.tsx"
 import { NodeLine } from "./NodeLine.tsx"
 import { nodeMenuActions } from "./menu/actions.ts"
+import { useAgents } from "./agents/answered.tsx"
 import { usePins } from "./pins/answered.tsx"
 import { createMenuDoor } from "./menu/door.ts"
 import { NodeMenu } from "./menu/NodeMenu.tsx"
@@ -243,6 +244,13 @@ function Branch(props: {
   // archive takes with it rides on the row itself now (`Row.under`), counted
   // where the set is.
   const pins = usePins()
+  // ... and WHICH AGENTS THIS MACHINE HAS, for the one menu verb whose question
+  // is about neither the vault nor the sidebar: *start an agent session* has to
+  // pick an engine on a node that names none. Off the provider every door in
+  // this tree already reads (`./agents/answered.tsx`), so it costs this row no
+  // subscription of its own — and it is read INSIDE the menu's own getter
+  // below, so a chat frame moves nothing on a row nobody has opened one on.
+  const agents = useAgents()
   // ⌘Z is one stack for this page, whichever hand wrote: a menu verb files
   // what would take it back exactly as a keystroke does (./writes.ts).
   const undo = useUndo()
@@ -583,6 +591,7 @@ function Branch(props: {
             actions={nodeMenuActions({
               row: props.row,
               pins: pins(),
+              engines: agents.engines(),
               collapsed: collapsed(),
               foldable: foldable(),
               go,

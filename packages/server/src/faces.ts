@@ -200,6 +200,30 @@ export const MCP: ExposeMap<typeof surface.spec> = {
  * agent asking what the inbox holds asks `list_outlines` and is answered with
  * the nodes. A badge is a paint instruction for a door somebody is looking at.
  *
+ * `agents` is that same kind of reading again, and since the human's 2026-09-02
+ * ruling it is almost ENTIRELY one: the roster is the query
+ * `prop:agent-session` over the set — which node, what it is called, which
+ * engine and which conversation the property names, how big its subtree is —
+ * with one line joined onto it, the last thing olai overheard that conversation
+ * say (`./agents.ts`).
+ *
+ * The vault half an agent already has, and has better: `prop:agent-session` is
+ * a query it can type into `search_nodes`, and it is answered with the NODES,
+ * which are the thing it can act on. Serving it this member instead would be
+ * handing it a pre-joined list it would have to un-join to do anything with.
+ *
+ * What is left is the overheard line, and that is a paint instruction for a
+ * column somebody is looking at — one sentence, truncated to a row's width,
+ * beside a state dot. It is also the one fact here that is about a panel rather
+ * than about the vault, and an agent offered it would be reading what some
+ * other conversation said while a person watched. So: the browser's, like the
+ * shelf and the badge beside it.
+ *
+ * The argument used to rest on the SESSION POINTER being per-machine, and that
+ * half is gone: the pointer is in the vault now, an agent can read it with the
+ * same query, and it travels. What did not change is the answer — the reasons
+ * above are the ones that were always underneath it.
+ *
  * It satisfies the cost rule the way `pending` does rather than trivially: the
  * value is O(what somebody PINNED), which is a curated short list — it is
  * exactly the rows the sidebar draws, so a shelf too big for this member is a
@@ -256,6 +280,7 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   heads: "resource",
   pins: "resource",
   inbox: "resource",
+  agents: "resource",
   transcript: "resource",
   // ...and the pieces of the row still being said, which is the same
   // conversation delivered cheaply and belongs to exactly the face the
@@ -297,6 +322,7 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   "chat.resend": "tool",
   "chat.cancel": "tool",
   "chat.newSession": "tool",
+  "chat.startAgentSession": "tool",
   "chat.chooseAgent": "tool",
   "chat.loadSession": "tool",
   "chat.reopen": "tool",

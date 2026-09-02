@@ -102,6 +102,9 @@ test("a kind is a subdirectory of the state home, and the digest names the file"
     expect(fileFor("chat", root)).toBe(
       path.join(home, "olai", "chat", `${digestOf(root)}.json`),
     )
+    expect(fileFor("heard", root)).toBe(
+      path.join(home, "olai", "heard", `${digestOf(root)}.json`),
+    )
     expect(fileForHold("example", root)).toBe(
       path.join(home, "olai", "hold", `${digestOf(root)}.example.json`),
     )

@@ -100,6 +100,7 @@ import type {
   Writer,
 } from "@olai/format"
 import {
+  type Agents,
   type Applied,
   type ChatEntry,
   CHAT_OFF,
@@ -109,6 +110,7 @@ import {
   type GitState,
   LOADED,
   type Manifest,
+  NO_AGENT_ROSTER,
   NO_ROSTER,
   type OpFailure,
   type PluginRoster,
@@ -116,7 +118,15 @@ import {
   watchable,
   type Who,
 } from "@olai/surface"
-import { customText, isRegular, type Located, type Reading, UsageFailure } from "@olai/format"
+import {
+  AGENT_PROP,
+  customText,
+  isRegular,
+  type Located,
+  type Reading,
+  sessionValue,
+  UsageFailure,
+} from "@olai/format"
 import type { Snapshot } from "@olai/store"
 import { mergeDisjointGroups, surfaceTag } from "@kolu/surface/define"
 import {
@@ -162,6 +172,7 @@ import { isEnabled, PLUGIN_NAMES, surfacesOf } from "@olai/plugin-api/wire"
 
 import type { Cadence, Change, Chat } from "@olai/chat"
 import { type Emit, emitter } from "@olai/log"
+import type { Roster } from "./agents.ts"
 import * as Bodies from "./bodies.ts"
 import { contextFor } from "./context.ts"
 import { heldFor } from "./held.ts"
@@ -353,6 +364,21 @@ export interface Wiring {
    *  procedures answer that they are. A directory is readable whether or not
    *  an agent is installed. */
   readonly chat: Chat | null
+  /**
+   * THE NODE AGENTS' CARRIER — the vault's half of the roster, which this
+   * runtime WRITES on every published revision and reads back to fill the cell
+   * ({@link ./agents.ts}).
+   *
+   * Handed in rather than built here because the CHAT is built before this
+   * runtime is, and the chat asks it a question of its own: what a node agent
+   * is, for the standing instruction it teaches a session. One carrier, two
+   * readers, composed where both are in hand.
+   *
+   * Absent — like {@link Wiring.chat}, and usually with it — is a runtime that
+   * publishes an empty roster: no vault reading is taken, so the cell says
+   * there are no node agents, which is what a directory with none says.
+   */
+  readonly agents?: Roster | null
   /** The one writer. The edit procedures are the browser's door to it, and
    *  they hold nothing of their own: what a keystroke MEANT is resolved
    *  against this layer's own reading (`./edit.ts`) and run as one op. */
@@ -772,6 +798,27 @@ export const bind = (
      *  without changing one byte on disk, so no revision will ever say so. */
     let pendingCell: { set: (value: Pending) => void } | null = null
     let gitCell: { set: (value: GitState) => void } | null = null
+    /** The AGENTS cell, held for the same reason and one stronger: its second
+     *  clock is the chat, which reaches this file as a callback rather than as
+     *  a stream ({@link republishAgents}). */
+    let agentsCell: { set: (value: Agents) => void } | null = null
+
+    /**
+     * THE ROSTER, ASSEMBLED AND PUBLISHED — the one place the two halves are
+     * put together, called from both of the clocks that move either
+     * ({@link ./agents.ts}).
+     *
+     * Nothing at all before the cell's connector has run, and nothing at all
+     * for a serve with no carrier: a chat frame arriving before the first
+     * revision has no vault reading to join against, and publishing an empty
+     * roster for it would be a sidebar that flickered empty on the first turn.
+     */
+    const republishAgents = (): void => {
+      const cell = agentsCell
+      const carrier = wiring.agents
+      if (cell === null || carrier === undefined || carrier === null) return
+      cell.set(carrier.rowsWith(chat === null ? [] : chat.overheard()))
+    }
 
     /**
      * Both git cells, from one round of questions.
@@ -1287,6 +1334,57 @@ export const bind = (
         },
         chat: {
           store: inMemoryStore<ChatState>(chat === null ? CHAT_OFF : chat.state()),
+        },
+        /**
+         * THE AGENTS ROSTER, re-assembled whenever EITHER of its halves moves —
+         * the one cell on this surface with two clocks.
+         *
+         * A published revision moves the vault's half: a node gains the `agent`
+         * property, is renamed, or grows a child. A CHAT FRAME moves the
+         * machine's half: a conversation opens, an agent's last line is written
+         * down, a session is taught. Both go through {@link republishAgents},
+         * which is the whole reason it is a named closure rather than two
+         * bodies — two assemblers over one carrier would be two answers to what
+         * the roster is, and the one that disagreed would be the one nobody was
+         * looking at.
+         *
+         * The chat's clock is not a subscription: `publish.state` below is
+         * already the one door every chat frame comes through, so the roster is
+         * republished from there rather than by watching the cell this runtime
+         * itself writes. A cell that watched its own sibling would be a loop
+         * waiting to be closed by somebody adding a line to the wrong place.
+         *
+         * A revision that moved no node agent, and a chat frame that moved no
+         * binding, write the same value — which the cell's `equals` swallows
+         * (`@olai/surface`'s spec). The chat cell moves several times a turn, so
+         * that equality is what makes hanging this off it affordable at all.
+         *
+         * NO CARRIER IS NO ROSTER, which is a serve with no ACP agent: nothing
+         * reads the vault for a feature whose other half cannot exist, and the
+         * sidebar draws no section — the same thing a directory with no `agent`
+         * property anywhere draws.
+         */
+        agents: {
+          store: inMemoryStore<Agents>(NO_AGENT_ROSTER),
+          connect: (cell) =>
+            Stream.runForEach(
+              wiring.store.reads,
+              ({ snapshot }) =>
+                Effect.sync(() => {
+                  agentsCell = cell
+                  wiring.agents?.seen(snapshot === null ? null : snapshot.value.derived)
+                  // THE CHAT'S OWN HALF OF THE SAME MOVE, and it is the second
+                  // clock the ruling added: which node agent the OPEN
+                  // conversation belongs to is now a PROPERTY, so a revision
+                  // can change it — the `•••` verb writes one, and so does
+                  // anybody editing a chip. Without this the panel would go on
+                  // saying it belonged to nobody until the next time a session
+                  // opened, and the row it had just bound would draw as asleep.
+                  // It publishes only when the answer moved ({@link Chat.reread}).
+                  chat?.reread()
+                  republishAgents()
+                }),
+            ),
         },
         /**
          * WHICH PLUGINS THIS BUILD HAS AND WHICH THIS SERVE RUNS — seeded, and
@@ -1869,6 +1967,52 @@ export const bind = (
           // WITH the agent the browser named — every new chat asks which one,
           // and this end has no default to fall back on if it did not.
           newSession: ({ input }) => withChat((open) => open.newSession(input.agent)),
+          /**
+           * A NODE AGENT'S SESSION, STARTED — the one gesture that binds a node
+           * to a conversation, and the only procedure here that is two verbs
+           * rather than a pass-through.
+           *
+           * IT IS COMPOSED HERE because this is the only place both halves are
+           * in hand: `newSession` is the chat's, writing a property is the ops
+           * layer's, and neither package has ever seen the other. The same
+           * arrangement the roster's own join is under ({@link ./agents.ts}).
+           *
+           * SESSION FIRST AND THE PROPERTY AFTER IT, which is the guarantee the
+           * surface promises: `newSession` has RESOLVED by the time the state
+           * is read, so the id written down is a conversation that exists. The
+           * other order would leave a property naming a session nobody opened
+           * every time the agent failed to start.
+           *
+           * THE STATE IS READ RATHER THAN ANSWERED, because the chat's verb
+           * hands back nothing — a conversation is a thing the panel enters,
+           * not a value a call returns, and every other reader learns which one
+           * from the same cell. `null` there is an open that landed on no
+           * conversation, which nothing has ever produced and which must not
+           * become a property naming the empty string.
+           *
+           * NOT CONDITIONAL. `was` is omitted, so this overwrites whatever the
+           * key holds: the property is what the person just pressed a menu
+           * entry to set, and the value it held is the engine that press named
+           * anyway.
+           */
+          startAgentSession: ({ input }) =>
+            withChat((open) =>
+              Effect.gen(function*() {
+                yield* open.newSession(input.agent)
+                const now = open.state().session
+                if (now === null) {
+                  return yield* new UsageFailure({
+                    reason: `${input.agent} opened no conversation to bind to this node`,
+                  })
+                }
+                yield* applyEdit({
+                  verb: "prop",
+                  id: input.node,
+                  key: AGENT_PROP,
+                  value: sessionValue(input.agent, now.id),
+                })
+              })
+            ),
           // ... and the answer to the panel's own question, which opens the
           // conversation that agent's boot would have adopted rather than a
           // fresh one. Two verbs because they mean two things — see the
@@ -2169,6 +2313,13 @@ export const bind = (
       publish: {
         state: (state) => {
           runtime.ctx.cells.chat.set(state)
+          // ... AND THE ROSTER WITH IT, because this is the one door every chat
+          // frame comes through and the bindings move behind exactly these
+          // frames: a session opening, a contract taught, a line written down
+          // at the end of a turn. The cell's `equals` is what makes it free on
+          // the frames that moved nothing, which is nearly all of them
+          // ({@link republishAgents}).
+          republishAgents()
           const who = whoOf(state)
           if (who !== null) {
             if (state.status === "thinking" && lastStatus !== "thinking") {
