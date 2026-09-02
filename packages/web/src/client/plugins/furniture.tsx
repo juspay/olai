@@ -65,7 +65,16 @@ import { LAYER } from "../layer.ts"
 import { desktop } from "../layout/media.ts"
 import { createNow, exactOf, tickingOf, wordsOf } from "../live/duration/took.ts"
 import { createPopover } from "../popover.ts"
-import { DOT, DOT_HOLLOW_WARN, PILL, PILL_WARN_COAT, TEXT_WARN } from "../readout.ts"
+import {
+  DOT,
+  DOT_HOLLOW_ALARM,
+  DOT_HOLLOW_WARN,
+  PILL,
+  PILL_ALARM_COAT,
+  PILL_WARN_COAT,
+  TEXT_ALARM,
+  TEXT_WARN,
+} from "../readout.ts"
 import { Link } from "../router.tsx"
 import { atFile } from "../routes.ts"
 
@@ -125,7 +134,16 @@ const panelPopover = (): AppPopover => {
 export const FURNITURE: AppFurniture = {
   desktop,
   clocks: { SECOND, MINUTE, createTicking, createNow, wordsOf, exactOf, tickingOf },
-  pill: { PILL, DOT, PILL_WARN_COAT, DOT_HOLLOW_WARN, TEXT_WARN },
+  pill: {
+    PILL,
+    DOT,
+    PILL_WARN_COAT,
+    DOT_HOLLOW_WARN,
+    TEXT_WARN,
+    PILL_ALARM_COAT,
+    DOT_HOLLOW_ALARM,
+    TEXT_ALARM,
+  },
   createPopover: panelPopover,
   FileLink: FileDoor,
 }

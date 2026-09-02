@@ -22,7 +22,7 @@ export function Spaces(props: { readonly app: SpacesApp }) {
     <Show when={props.app.desktop()}>
       <span
         class={`${pill.PILL} max-w-[9.5rem] shrink-0 sm:max-w-none ${
-          said().loud ? pill.PILL_WARN_COAT : ""
+          said().loud ? pill.PILL_ALARM_COAT : ""
         }`}
         data-testid={TESTID.spaces}
         data-spaces={link().status}
@@ -30,10 +30,10 @@ export function Spaces(props: { readonly app: SpacesApp }) {
         aria-label={`spaces: ${said().detail}`}
       >
         <span
-          class={`${pill.DOT} ${said().loud ? pill.DOT_HOLLOW_WARN : ""}`}
+          class={`${pill.DOT} ${said().loud ? pill.DOT_HOLLOW_ALARM : ""}`}
           aria-hidden="true"
         />
-        <span class={`min-w-0 truncate ${said().loud ? pill.TEXT_WARN : ""}`}>
+        <span class={`min-w-0 truncate ${said().loud ? pill.TEXT_ALARM : ""}`}>
           {said().label}
         </span>
       </span>

@@ -75,6 +75,15 @@ export const DOT_HOLLOW_WARN = "!bg-transparent border-2 !border-[#e0a83c]"
 export const TEXT_WARN = "text-[#f0c46a]"
 
 /**
+ * THE ALARM REGISTER — a refused post, a missing permission. Same ink
+ * git's error face wears (`text-alarm`), so a Spaces fault is not the
+ * amber of "the watcher went quiet".
+ */
+export const PILL_ALARM_COAT = "!border-alarm shadow-[0_0_0_1px] shadow-alarm/40"
+export const DOT_HOLLOW_ALARM = "!bg-transparent border-2 !border-alarm"
+export const TEXT_ALARM = "text-alarm"
+
+/**
  * The other shape in the bar: a BUTTON with a glyph on it — the agent toggle
  * and the preferences trigger.
  *

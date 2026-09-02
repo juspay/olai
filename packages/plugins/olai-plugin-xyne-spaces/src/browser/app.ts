@@ -12,6 +12,9 @@ export interface PillLook {
   readonly PILL_WARN_COAT: string
   readonly DOT_HOLLOW_WARN: string
   readonly TEXT_WARN: string
+  readonly PILL_ALARM_COAT: string
+  readonly DOT_HOLLOW_ALARM: string
+  readonly TEXT_ALARM: string
 }
 
 export interface SpacesApp {
