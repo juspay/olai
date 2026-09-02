@@ -17,7 +17,7 @@
 
 import { expect, test } from "bun:test"
 
-import { DEFAULT_BUNDLE_NAMES } from "@olai/bundle/bundle"
+import { DEFAULT_BUNDLE_NAMES } from "@olai/bundle"
 import { BUNDLE_NAMES as PLUGIN_NAMES } from "@olai/bundle"
 
 import { pluginsPin, pluginsSaid } from "./pluginPolicy.ts"

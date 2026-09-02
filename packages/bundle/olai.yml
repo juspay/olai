@@ -1,10 +1,13 @@
 # THE BASE BUNDLE — every plugin this build has, as rows.
 #
-# One row per plugin, and this file is the whole of the list. It replaced three
-# `as const` arrays that had to agree in order (`WIRES`, `PLUGINS`, `SERVERS`,
-# six edits per plugin); what is left in code is the BROWSER's two doors, which
-# cannot be data until the tab boots off the roster cell — `src/surfaces.ts`
-# says why, and `src/rosters.test.ts` holds this file equal to them.
+# One row per plugin, and this file is the whole of the list — the ONLY place a
+# plugin is named by hand. It replaced three `as const` arrays that had to agree
+# in order (`WIRES`, `PLUGINS`, `SERVERS`, six edits per plugin), and then the
+# two the browser kept for one more round: those are WRITTEN from this file at
+# build time now (`../generate.ts` — the browser's rows with a dynamic import
+# per plugin, the stylesheet chain, and the merged testid table), so a plugin is
+# ONE ROW and there is no second list to keep in step. `src/fence.test.ts` is
+# what refuses a name spelled anywhere else.
 #
 #   id        the sibling key. It IS the plugin's name: the word `--plugins`
 #             takes, the row preferences draws, the namespace every one of its

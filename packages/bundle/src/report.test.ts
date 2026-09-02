@@ -34,7 +34,8 @@
 import { Context } from "cordis"
 import { expect, test } from "bun:test"
 
-import { BUNDLE_NAMES, reportBundle } from "./bundle.ts"
+import { reportBundle } from "./bundle.ts"
+import { BUNDLE_NAMES } from "./rows.ts"
 
 /** The first two rows this build has, by id — spelled nowhere, for the reason
  *  every other file in this package spells no plugin's name. */

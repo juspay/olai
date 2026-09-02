@@ -135,8 +135,7 @@ import * as path from "node:path"
 
 import { describe, expect, test } from "bun:test"
 
-import { ROWS } from "./bundle.ts"
-import { BUNDLE_NAMES as PLUGIN_NAMES } from "./rows.ts"
+import { BUNDLE_NAMES as PLUGIN_NAMES, ROWS } from "./rows.ts"
 
 /**
  * THIS FILE IMPORTS NO PLUGIN, and that is a property of the FALSIFIER rather

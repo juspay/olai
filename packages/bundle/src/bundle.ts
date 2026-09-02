@@ -1,6 +1,6 @@
 /**
  * THE BASE BUNDLE, MOUNTED — what a composition root reads to build a plugin
- * runtime, and the third of this package's doors.
+ * runtime, and the second of this package's two code doors.
  *
  * ## What this replaces
  *
@@ -42,26 +42,12 @@
  * package that declares the plugins — which is the same fence every other door
  * in this package keeps, in a third grammar.
  *
- * ## That seam is PIN-COUPLED, and here is what it is coupled to
- *
- * `loader.internal` is upstream's slot for Node's own `ModuleLoader`, which the
- * loader uses when it can reach the internals and leaves `undefined` when it
- * cannot — which is always, under bun. `EntryTree.import` calls exactly one
- * method on it, so what is assigned below is one method and a version tag, cast.
- *
- * **Verified against `@cordisjs/plugin-loader@1.0.0-rc.6`** (the pinned
- * revision — `npins/sources.json`, name `cordis`). A revision that renames the
- * slot, reshapes it, or starts calling a second method on it fails at RUNTIME
- * rather than at typecheck, because the cast is what makes the assignment legal
- * at all. `just cordis-deps` does not catch that and cannot: it asks about
- * versions, not shapes.
- *
- * THE UPSTREAM ASK is therefore a PUBLIC resolver seam — something like a
- * `resolve` option on `Loader.Config`, or a documented `import` hook — so a
- * consumer whose module graph the loader cannot walk is a supported case rather
- * than a cast. It goes beside the tsconfig-strictness ask in `nix/cordis.nix`;
- * both are the same class of thing, which is a pin olai cannot use as written
- * without saying so out loud.
+ * THAT SEAM IS PIN-COUPLED, and what it is coupled to — the cast, the revision
+ * it was verified against, and the upstream ask — is on { fillResolverSeam}
+ * rather than here. It was in this header, and a reviewer asking "did this
+ * revision move the slot" had to read the argument two hundred lines from the
+ * line that makes it. What stays here is the PACKAGE question: why the resolver
+ * lives in this package at all.
  */
 
 import Include from "@cordisjs/plugin-include"
@@ -156,6 +142,55 @@ export const declaredKinds = async (): Promise<ReadonlyMap<string, PropKind>> =>
 /** The loader's module-resolution seam, written where the plugins are declared
  *  — see this module's header for why it cannot live in the loader's package. */
 const importByName = (specifier: string): Promise<unknown> => import(specifier)
+
+/**
+ * FILL THE LOADER'S MODULE-RESOLUTION SEAM — the one line in this package that
+ * is coupled to a PIN REVISION rather than to a version.
+ *
+ * ## What it is coupled to, and why the reviewer of a pin bump needs it here
+ *
+ * `loader.internal` is upstream's slot for Node's own `ModuleLoader`, which the
+ * loader uses when it can reach the internals and leaves `undefined` when it
+ * cannot — which is always, under bun. `EntryTree.import` calls exactly one
+ * method on it, so what is assigned below is one method and a version tag,
+ * cast: upstream types the slot as the whole `ModuleLoader`, whose surface is
+ * the internals arm that is absent here (`ModuleLoader.fromInternal` answers
+ * `undefined`).
+ *
+ * **Verified against `@cordisjs/plugin-loader@1.0.0-rc.6`** (the pinned
+ * revision — `npins/sources.json`, name `cordis`). A revision that renames the
+ * slot, reshapes it, or starts calling a second method on it fails at RUNTIME
+ * rather than at typecheck, because the cast is what makes the assignment legal
+ * at all. `just cordis-deps` does not catch that and cannot: it asks about
+ * versions, not shapes.
+ *
+ * THE UPSTREAM ASK is therefore a PUBLIC resolver seam — something like a
+ * `resolve` option on `Loader.Config`, or a documented `import` hook — so a
+ * consumer whose module graph the loader cannot walk is a supported case rather
+ * than a cast. It goes beside the tsconfig-strictness ask in `nix/cordis.nix`;
+ * both are the same class of thing, which is a pin olai cannot use as written
+ * without saying so out loud.
+ *
+ * ## Its own function, so a pin bump has one place to look
+ *
+ * This argument used to be three separated places: a section of the file
+ * header, `importByName` above, and the assignment inline in `mountBundle`. A
+ * reviewer asking "did this revision move the slot" had to find all three, and
+ * the one that says what to check was two hundred lines from the one that does
+ * it. It is also the §5 case: `mountBundle` is one verb — MOUNT THE BUNDLE —
+ * that was also performing "patch a dependency's private internals", which is a
+ * second axis with a second reason to change.
+ *
+ * WHAT STAYS IN THE HEADER is why the resolver lives in THIS PACKAGE at all:
+ * that is a fact about the package boundary rather than about the assignment,
+ * and it is the file's business.
+ */
+const fillResolverSeam = (ctx: Context): void => {
+  ;(ctx.loader as unknown as { internal: unknown }).internal = {
+    version: "v1",
+    import: (specifier: string) => importByName(specifier),
+  }
+}
 
 /**
  * WHAT BECAME OF ONE ROW — the mechanical half of the word a preferences row
@@ -282,15 +317,10 @@ export const mountBundle = async (
 ): Promise<void> => {
   ctx.baseUrl = BASE_URL
   await ctx.plugin(Loader)
-  // The seam, filled before any row is mounted — see the header. Cast because
-  // upstream types the slot as Node's own `ModuleLoader`, whose whole surface
-  // is the internals the loader uses when it CAN reach them; the one method
-  // `EntryTree.import` calls is this one, and under bun the internals arm is
-  // absent (`ModuleLoader.fromInternal` answers `undefined`).
-  ;(ctx.loader as unknown as { internal: unknown }).internal = {
-    version: "v1",
-    import: (specifier: string) => importByName(specifier),
-  }
+  // Filled before any row is mounted, and this is a verb rather than an inline
+  // assignment because mounting the bundle and patching the loader's private
+  // internals are two things with two reasons to change — see the function.
+  fillResolverSeam(ctx)
   await ctx.plugin(Include, { path: BUNDLE, patches: [...pluginsPatch(names)] })
   await ctx.loader.await()
 }

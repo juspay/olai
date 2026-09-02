@@ -30,7 +30,8 @@ import { Kinds } from "@olai/plugin-api/services"
 import { expect, test } from "bun:test"
 import { Context } from "cordis"
 
-import { declaredKinds, ROWS } from "./bundle.ts"
+import { declaredKinds } from "./bundle.ts"
+import { ROWS } from "./rows.ts"
 import { type ServerHalf, serverHalves } from "./tree.testlib.ts"
 
 /** The real roster, LOADED — see `./composition.test.ts` for why a test loads

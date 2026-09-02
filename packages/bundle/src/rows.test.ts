@@ -19,7 +19,8 @@
 
 import { expect, test } from "bun:test"
 
-import { BUNDLE_NAMES, DEFAULT_BUNDLE_NAMES, pluginsPatch, ROWS } from "./bundle.ts"
+import { pluginsPatch } from "./bundle.ts"
+import { BUNDLE_NAMES, DEFAULT_BUNDLE_NAMES, ROWS } from "./rows.ts"
 
 /** What a patch says about one row, as a reader would ask it. `undefined` is a
  *  row the patch does not mention, which is what "nobody said" writes. */
