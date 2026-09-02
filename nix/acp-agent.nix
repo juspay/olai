@@ -40,7 +40,7 @@ buildNpmPackage {
     filter = path: _type:
       baseNameOf path == "package.json" || baseNameOf path == "package-lock.json";
   };
-  npmDepsHash = "sha256-9JFTvDE4oq13P+I/AMpygqRNIri9Rl3fNOOz5uAfXCQ=";
+  npmDepsHash = "sha256-dCiEbsKRiCWle/OFr1qypIZQ7lrGhxStLli3zlck+GY=";
 
   # acp/ is a shim around its two pinned dependencies: nothing to compile,
   # and no package in the tree has an install script to run.
