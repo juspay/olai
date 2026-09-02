@@ -845,13 +845,6 @@ export const APP_CHROME_CONTROLS: ReadonlyArray<string> = [
   // list by one; chrome that answers a question already answered is what the
   // list exists to stop, and this is the first kind.
   PLUGIN_TESTID.padi,
-  // The spaces link, same seat as padi: whether this olai can post to the
-  // bound channel. Orthogonal to git, registry-order beside padi, desktop
-  // only. A second plugin with a Header arrives here with no bar edit
-  // (`web`'s `plugins/Chrome.tsx`), so the git-indicator step no longer
-  // treats this list as a closed set — it counts Commit pills. This list
-  // is still the default desktop inventory a person reads.
-  PLUGIN_TESTID.spaces,
   TESTID.commitPill,
   // How long THIS process has been the one answering — furniture, beside
   // the committed pill, the same register. Added as the deliberate edit

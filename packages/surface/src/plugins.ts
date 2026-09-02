@@ -151,7 +151,7 @@ export const PluginRoster = Schema.Struct({
    *
    * `null` IS NOT THE EMPTY LIST, and keeping them apart is the whole reason
    * this field is here rather than derived from `built`. `null` is nobody
-   * having said, which means every plugin this binary has; `[]` is `--plugins=`,
+   * having said, which means the built-in default; `[]` is `--plugins=`,
    * somebody saying NONE out loud. Both leave the same rows on screen when a
    * build has one plugin, and the line under them says two different things:
    * one names the flag that did it, the other names the built-in default. The

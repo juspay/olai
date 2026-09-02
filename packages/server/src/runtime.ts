@@ -516,11 +516,12 @@ const writing = (ops: Ops, writer: Writer) => ({
  * same question `enabled` answers as a filter, asked about one name
  * (`@olai/plugin-api`'s `surfaces.ts`).
  *
- * `pinned` TRAVELS UNEXPANDED — `null` for a flag nobody gave, which means all
- * of them — because the line under the row names a given flag and otherwise
- * says the built-in default, and a value that had already expanded could not
- * tell those two apart. The git pin keeps the same distinction one setting
- * over, and `./pluginPolicy.ts` argues it where the flag is read.
+ * `pinned` TRAVELS UNEXPANDED — `null` for a flag nobody gave, which means
+ * the built-in default — because the line under the row names a given flag
+ * and otherwise says the built-in default, and a value that had already
+ * expanded could not tell those two apart. The git pin keeps the same
+ * distinction one setting over, and `./pluginPolicy.ts` argues it where the
+ * flag is read.
  *
  * NO PLUGIN SLOT ANSWERS {@link NO_ROSTER}: such a runtime composes no sibling
  * surface at all — `olai surface`, the headless faces, every test in this

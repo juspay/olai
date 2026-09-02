@@ -409,7 +409,7 @@ export const probesOf = (
  *  need", rather than one for the list and another for the test that narrows
  *  it. They are declared in `./surfaces.ts` because the question is about
  *  NAMES and the wire door answers it too. */
-export { enabled, isEnabled, kindWordOf, PLUGIN_NAMES } from "./surfaces.ts"
+export { DEFAULT_PLUGIN_NAMES, enabled, isEnabled, kindWordOf, PLUGIN_NAMES } from "./surfaces.ts"
 
 export const SERVERS = [kolu, odu, spaces] as const satisfies ReadonlyArray<PluginServerHalf<never>>
 

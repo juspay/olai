@@ -23,6 +23,11 @@ import { Schema } from "effect"
  *  address is `docs/plugins/xyne-spaces.md`, and the name IS that address. */
 export const name = "xyne-spaces"
 
+/** Off unless `--plugins` names it. A Spaces app JWT is a secret this
+ *  machine may not have, and a pill in every bar for an integration
+ *  nobody pointed at is the wrong default. */
+export const defaultOn = false
+
 /**
  * WHETHER THERE IS A SPACES APP to post as, and it is three states rather than
  * a boolean — kolu's link cell, with the nouns changed.

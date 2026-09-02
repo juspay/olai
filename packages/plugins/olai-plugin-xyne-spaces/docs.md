@@ -11,6 +11,8 @@ Two facts, and they live in different places because one is a secret:
 - **`$OLAI_SPACES_URL`** and **`$OLAI_SPACES_TOKEN`** in the environment — the Spaces origin and the installed app's JWT. The human reuses the existing "kolu" Spaces app, so the bot's name in-channel is kolu. That is accepted. These are secrets; they are never written to the vault.
 - **`_olai/Spaces.olai`** — the conversation→channel binding and the digest knobs. An ordinary outline, found by basename the way `_olai/Kolu.olai` is (shallowest `spaces.olai`, `_olai/Spaces.olai` the chosen form).
 
+**Off by default.** Omitting `--plugins` runs kolu and odu; this plugin stays off until the flag names it (`--plugins=xyne-spaces`, or listed with the others). A Spaces app JWT is a secret this machine may not have, and a pill in every bar for an integration nobody pointed at is the wrong default.
+
 No env and no bind → the plugin is honestly **absent**, not broken. A bind in `_olai/Spaces.olai` with no env is a **fault**, not absent: the user named a channel and this process cannot post. The pill is loud and names the missing env; the first bound conversation is told once.
 
 Beside the connection pill in the header is a readout with three states rather than two:

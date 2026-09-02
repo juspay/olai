@@ -17,11 +17,11 @@ let
 
   # ...and `--plugins`, on exactly the same terms. `null` is nobody having said,
   # which is not the same as saying NONE: an omitted flag applies the built-in
-  # default (every plugin this build has) and an empty list passes `--plugins ""`,
-  # which is somebody saying none out loud. The preferences panel reads the two
-  # differently — one names the flag under the row, the other names the default —
-  # so a module that helpfully expanded `null` into the full list would claim a
-  # flag nobody typed, exactly as `gitArgs` above refuses to.
+  # default and an empty list passes `--plugins ""`, which is somebody saying
+  # none out loud. The preferences panel reads the two differently — one names
+  # the flag under the row, the other names the default — so a module that
+  # helpfully expanded `null` into a list would claim a flag nobody typed,
+  # exactly as `gitArgs` above refuses to.
   #
   # A COMMA LIST because that is what the flag takes; `concatStringsSep` and not a
   # repeated flag, since the CLI reads one value.
@@ -131,10 +131,11 @@ in
         it and every browser draws the same answer, always read-only. There is
         no settings file and no browser toggle.
 
-        null (the default) passes no flag and applies the built-in default,
-        which is every plugin this build has. That is NOT the same as listing
-        them: an omitted flag draws "the built-in default" under the
-        preferences row, where a given one names the flag.
+        null (the default) passes no flag and applies the built-in default.
+        That is NOT the same as listing every plugin this build has: a plugin
+        may be opt-in, and the binary is the authority for which. An omitted
+        flag draws "the built-in default" under the preferences row, where a
+        given one names the flag.
 
         The empty list is somebody saying NONE out loud, and it is a real,
         supported state — a box with no CI tooling and no agent terminals runs

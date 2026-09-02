@@ -103,6 +103,7 @@ export type {
 } from "./plugin.ts"
 
 export {
+  DEFAULT_PLUGIN_NAMES,
   enabled,
   exposeMapsOf,
   isEnabled,

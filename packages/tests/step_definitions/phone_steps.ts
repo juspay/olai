@@ -201,7 +201,6 @@ Then("the app chrome is inside the header", async function (this: OlaiWorld) {
   const pills = [
     { name: "connection", sel: CONNECTION },
     { name: "padi pill", sel: PADI_PILL },
-    { name: "spaces pill", sel: SPACES_PILL },
     { name: "commit pill", sel: COMMIT_PILL },
     { name: "agent toggle", sel: CHAT_TOGGLE },
     { name: "preferences trigger", sel: PREFS_TRIGGER },
