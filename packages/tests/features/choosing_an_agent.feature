@@ -376,7 +376,7 @@ Feature: Choosing an agent
     And the chat shows my message "hello" exactly once
 
   @opencode @agent-stored @scratch:chat
-  Scenario: The chats list is every agent's, grouped by who they are with
+  Scenario: The unassigned list is every agent's, grouped by who they are with
     # One agent at a time is true of the PROCESS and was never true of the
     # history. The list used to be asked of whichever agent the panel happened
     # to be talking to, so a single opencode chat took every Claude
@@ -384,14 +384,14 @@ Feature: Choosing an agent
     # was to start a new Claude chat purely so the list would name them again.
     When I choose the agent "opencode"
     Then the header names the agent "opencode"
-    When I open the session picker
+    When I open the unassigned chats
     # BOTH, from a panel talking to one of them. The other was started to
     # answer the question and stopped again — a listing is a question, not a
     # visit.
-    Then the chats list shows "an opencode conversation" under the agent "opencode"
-    And the chats list shows "an older conversation" under the agent "claude"
-    And the chats list is grouped under the agent "claude"
-    And the chats list is grouped under the agent "opencode"
+    Then the unassigned list shows "an opencode conversation" under the agent "opencode"
+    And the unassigned list shows "an older conversation" under the agent "claude"
+    And the unassigned list is grouped under the agent "claude"
+    And the unassigned list is grouped under the agent "opencode"
 
   @opencode @agent-stored @scratch:chat
   Scenario: A row says how big its conversation is, and which conversation replaced it
@@ -402,14 +402,14 @@ Feature: Choosing an agent
     # ships, `acp/patches/session-list-info.patch`): the count per row, and
     # on the OLDER of the pair, which conversation replaced it.
     When I choose the agent "claude"
-    And I open the session picker
-    Then the chats row for "the last conversation" says it has one message
-    And the chats row for "an older conversation" says it has 47 messages
-    And the chats row for "an older conversation" was superseded by "the last conversation"
-    And the chats row for "the last conversation" was not superseded
+    And I open the unassigned chats
+    Then the row for "the last conversation" says it has one message
+    And the row for "an older conversation" says it has 47 messages
+    And the row for "an older conversation" was superseded by "the last conversation"
+    And the row for "the last conversation" was not superseded
     # ... while an agent whose list carries no corner says nothing — never a
     # zero standing in for a reading nobody did.
-    And the chats row for "an opencode conversation" shows no message count
+    And the row for "an opencode conversation" shows no message count
 
   @opencode @agent-stored @scratch:chat
   Scenario: A superseded line that names a conversation the list no longer knows
@@ -421,9 +421,9 @@ Feature: Choosing an agent
     # alone goes.
     When I choose the agent "claude"
     And the conversation "fake-stored-new" is gone from the agent
-    And I open the session picker
-    Then the chats row for "an older conversation" says it has 47 messages
-    And the chats row for "an older conversation" was not superseded
+    And I open the unassigned chats
+    Then the row for "an older conversation" says it has 47 messages
+    And the row for "an older conversation" was not superseded
 
   @opencode @agent-stored @scratch:chat
   Scenario: Picking another agent's conversation switches the panel to that agent
@@ -433,7 +433,7 @@ Feature: Choosing an agent
     # conversation — the same change + new makes, through the same door.
     When I choose the agent "opencode"
     Then the header names the agent "opencode"
-    When I open the session picker
+    When I open the unassigned chats
     And I pick the conversation "an older conversation"
     Then the header names the agent "claude"
     And the conversation is titled "an older conversation"
@@ -444,9 +444,9 @@ Feature: Choosing an agent
     # The picker's own rule, read at the other door: a heading naming the one
     # agent there is says what the panel's header already says, over every row
     # in the list.
-    When I open the session picker
-    Then the picker lists "an older conversation"
-    And the chats list has no headings
+    When I open the unassigned chats
+    Then the unassigned list lists "an older conversation"
+    And the unassigned list has no headings
 
   @opencode @agent-stored @scratch:chat
   Scenario: One agent that cannot be asked does not take the other's conversations
@@ -457,12 +457,12 @@ Feature: Choosing an agent
     # would be the bug this fan-out exists to fix, one agent along.
     When I choose the agent "claude"
     And I ask the agent "lose"
-    And I open the session picker
+    And I open the unassigned chats
     # Named, in its own words, as ONE agent's trouble.
-    Then the picker says "claude" could not be asked, with "the conversation store is unreadable"
+    Then the list says "claude" could not be asked, with "the conversation store is unreadable"
     # ... and the other agent's are still there, which is the half a refusal
     # about the whole call would have taken away.
-    And the chats list shows "an opencode conversation" under the agent "opencode"
+    And the unassigned list shows "an opencode conversation" under the agent "opencode"
 
   @pi @scratch:chat
   Scenario: pi on the machine is something the picker offers
@@ -547,17 +547,17 @@ Feature: Choosing an agent
     And the agent is idle
 
   @pi @agent-stored @scratch:chat
-  Scenario: The chats list groups pi conversations under pi, carrying no counts
+  Scenario: The unassigned list groups pi conversations under pi, carrying no counts
     # What the spike found: pi-acp's `session/list` honours the request's cwd
     # exactly and answers the protocol's four fields and nothing more — the
     # `_meta` of the answer is an empty OBJECT at response level, never a
     # corner on a row — so a pi row says nothing a claude row does: no count,
     # no "superseded by". Nothing drawn is not a zero.
     When I choose the agent "pi"
-    And I open the session picker
-    Then the chats list shows "a pi conversation" under the agent "pi"
-    And the chats list shows "an older conversation" under the agent "claude"
-    And the chats row for "a pi conversation" shows no message count
+    And I open the unassigned chats
+    Then the unassigned list shows "a pi conversation" under the agent "pi"
+    And the unassigned list shows "an older conversation" under the agent "claude"
+    And the row for "a pi conversation" shows no message count
 
   @pi @agent-stored @scratch:chat
   Scenario: Reopening a stored pi conversation talks to pi

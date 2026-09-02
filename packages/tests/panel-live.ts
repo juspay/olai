@@ -216,10 +216,13 @@ ok("the shelf opens onto that agent's own calls", await drawn("chat-preview-of",
 await shot("9-shelf")
 await idle()
 
-// ── 7. what the conversation picker knows about stored conversations ───
-await p.locator(selector("chat-sessions")).click()
-await drawn("chat-session-list")
-ok("the conversation picker lists this directory's stored conversations",
+// ── 7. what the UNASSIGNED list knows about stored conversations ───────
+// The panel's own `chats` picker is retired (the human's amendment of
+// 2026-09-02): the conversations no node agent claims are the sidebar's, and
+// this is the door a person uses now.
+await p.locator(selector("agent-unassigned")).click()
+await drawn("unassigned-panel")
+ok("the unassigned list holds this directory's stored conversations",
   await drawn("chat-session", 120_000),
   `${await p.locator(selector("chat-session")).count()} rows`)
 await shot("10-sessions")

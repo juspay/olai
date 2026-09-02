@@ -33,7 +33,8 @@ const ROSTER = selector(TESTID.agentRoster);
 const ROW = selector(TESTID.agentRow);
 const DOOR = selector(TESTID.agentDoor);
 const SAID = selector(TESTID.agentSaid);
-const CHAT_SESSION_LIST = selector(TESTID.chatSessionList);
+const CHAT_SESSIONS = selector(TESTID.chatSessions);
+const CHAT_INPUT = selector(TESTID.chatInput);
 
 /** One roster row, by the node it is about. */
 const rowFor = (world: OlaiWorld, node: string) =>
@@ -486,12 +487,15 @@ Then(
   },
 );
 
-Then("the panel offers no fresh session", async function (this: OlaiWorld) {
-  // The picker is open and has answered — the step before this one opened it —
-  // so an absent affordance is the claim rather than a race with the list.
-  await this.page.locator(CHAT_SESSION_LIST).waitFor({
-    state: "visible",
-    timeout: POLL_TIMEOUT,
-  });
-  assert.strictEqual(await this.page.locator(FRESH).count(), 0);
+/** A conversation no node claims has no sessions control at all — the header
+ *  offers its own history only where there IS one, and the way to every other
+ *  stored conversation is the sidebar. Waited for rather than read once: the
+ *  panel is drawn before `bound` has arrived, and the claim is about where it
+ *  settles. */
+Then("the panel offers no sessions of its own", async function (this: OlaiWorld) {
+  await this.page.locator(CHAT_INPUT).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await this.waitUntil(
+    async () => (await this.page.locator(CHAT_SESSIONS).count()) === 0,
+    "the panel to offer no sessions control",
+  );
 });

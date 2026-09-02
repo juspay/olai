@@ -530,7 +530,7 @@ Feature: Talking to the agent
     #
     # `an older conversation` is the older of the two by a month, so nothing
     # about a timestamp can bring the panel back to it. Only remembering can.
-    When I open the session picker
+    When I open the unassigned chats
     And I pick the conversation "an older conversation"
     Then the conversation is titled "an older conversation"
     When the server stops
@@ -545,7 +545,7 @@ Feature: Talking to the agent
     # session can be deleted, cleared out, or belong to an agent this server
     # has been repointed away from. Something has to be opened, and the panel
     # says which conversation it is in either way.
-    When I open the session picker
+    When I open the unassigned chats
     And I pick the conversation "an older conversation"
     Then the conversation is titled "an older conversation"
     When the conversation "fake-stored-old" is gone from the agent
@@ -578,7 +578,7 @@ Feature: Talking to the agent
     # panel in whichever finished last.
     Given the chat eventually shows "we decided to order the cabinets"
     When the next conversation load will hang
-    And I open the session picker
+    And I open the unassigned chats
     And I pick the conversation "an older conversation"
     And I ask the agent "hello"
     And the agent is released
@@ -625,7 +625,7 @@ Feature: Talking to the agent
     # a server starting. Boot adopts a stored conversation and asks for it, and
     # an agent that says no there used to leave the panel reporting a dead
     # process.
-    When I open the session picker
+    When I open the unassigned chats
     And I pick the conversation "an older conversation"
     Then the conversation is titled "an older conversation"
     When the agent refuses to load a conversation
@@ -681,18 +681,18 @@ Feature: Talking to the agent
     # a refusal used to arrive as an empty list and be drawn as the first —
     # a claim about the agent's disk standing in for never having read it.
     When I ask the agent "lose"
-    And I open the session picker
+    And I open the unassigned chats
     # NAMED, and named as ONE AGENT's trouble rather than as the list failing:
     # the list spans every installed agent now, so "we could not find out" is a
     # fact about a row of the roster. Here there is only one row, so it is the
     # whole of what there was to say.
-    Then the picker says "claude" could not be asked, with "the conversation store is unreadable"
-    And the picker lists nothing
+    Then the list says "claude" could not be asked, with "the conversation store is unreadable"
+    And the unassigned list is empty
 
   @agent-stored @scratch:chat
   Scenario: The picker switches conversations
-    When I open the session picker
-    Then the picker lists "an older conversation"
+    When I open the unassigned chats
+    Then the unassigned list lists "an older conversation"
     When I pick the conversation "an older conversation"
     Then the conversation is titled "an older conversation"
 
@@ -1444,7 +1444,7 @@ Feature: Talking to the agent
     Then the agent is idle
     And the transcript is scrolled to the newest line
     When I scroll the transcript to the top
-    And I open the session picker
+    And I open the unassigned chats
     And I pick the conversation "an older conversation"
     Then the conversation is titled "an older conversation"
     And the chat eventually shows "line 39"
@@ -1460,7 +1460,7 @@ Feature: Talking to the agent
     # line would leave the reader short of the newest. Armed and released
     # rather than slept, so the two moments are steps, not a race.
     When I arm late growth on the next stored conversation
-    And I open the session picker
+    And I open the unassigned chats
     And I pick the conversation "an older conversation"
     Then the conversation is titled "an older conversation"
     And the chat eventually shows "line 39"

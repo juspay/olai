@@ -93,6 +93,7 @@ import {
 
 import {
   type AgentChoice,
+  agentIn,
   type Listed,
   NO_AGENT_ROSTER,
   type SessionInfo,
@@ -102,7 +103,7 @@ import {
 import { createChatState } from "../chat/state.ts"
 import { run } from "../run.ts"
 import { olai } from "../wire.ts"
-import { unassignedIn } from "./lineage.ts"
+import { type Chatting, unassignedIn } from "./lineage.ts"
 import { type Row, rowsOf } from "./roster.ts"
 
 /** The roster as this tab has it: the list, one node's row, and the chats
@@ -145,6 +146,11 @@ export interface Roster {
    *  that went — as opposed to one agent that could not be asked, which is a
    *  row of the answer above. `null` when the last ask landed. */
   readonly chatsRefusal: Accessor<string | null>
+  /** WHICH CONVERSATION THE PANEL IS IN, as the pair that names one — `null`
+   *  when it is in none. Off the chat cell this provider already holds, so a
+   *  list that marks the row a reader is already looking at costs no second
+   *  subscription. */
+  readonly openChat: Accessor<Chatting | null>
   /** Ask the agents again — what a person opening the list gets, because a
    *  conversation started in a terminal a moment ago should be in it. */
   readonly askChats: () => void
@@ -165,6 +171,13 @@ export function AgentsProvider(props: { readonly children: JSX.Element }) {
   // chat frame which moved a dot does not re-run the menu's catalog: the list
   // is replaced whole per frame and is the same array on nearly all of them.
   const engines = createMemo(() => chat().roster)
+  /** ... and which conversation it is IN, as the pair — see {@link Roster.open}. */
+  const openChat = createMemo((): Chatting | null => {
+    const state = chat()
+    const agent = agentIn(state)
+    const session = state.session
+    return agent === null || session === null ? null : { agent: agent.id, session: session.id }
+  })
 
   /**
    * WHAT EVERY INSTALLED AGENT HAS STORED HERE, as this tab last heard it.
@@ -216,6 +229,7 @@ export function AgentsProvider(props: { readonly children: JSX.Element }) {
         unassigned,
         chats,
         unreachable,
+        openChat,
         chatsRefusal,
         askChats,
       }}

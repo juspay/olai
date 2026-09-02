@@ -80,13 +80,14 @@ import type { NodeHit, SessionInfo } from "@olai/surface"
 
 import { type Grouped, groupedByAgent, nameOf } from "../chat/grouped.ts"
 import { AgentMark } from "../chat/AgentMark.tsx"
-import { whenOf } from "../chat/when.ts"
+import { Conversation } from "../chat/Conversation.tsx"
 import { run } from "../run.ts"
 import { createSaying } from "../saying.ts"
 import { SaidLine } from "../SaidLine.tsx"
 import { Shortlist, type ShortlistTestids } from "../search/Shortlist.tsx"
 import { TESTID } from "../testids.ts"
 import { olai } from "../wire.ts"
+import { chatKey, successorIn } from "./lineage.ts"
 import { useAgents } from "./answered.tsx"
 import { hideUnassigned } from "./showing.ts"
 
@@ -104,7 +105,21 @@ const ASSIGN_LIST: ShortlistTestids = {
 }
 
 export function Unassigned() {
-  const { unassigned, unreachable, chatsRefusal, engines, at } = useAgents()
+  const { unassigned, unreachable, chatsRefusal, chats, openChat, engines, at } = useAgents()
+  /** Whether the panel is already IN this conversation — which is the ordinary
+   *  case for somebody migrating: you are talking in a chat, and you give it a
+   *  home. Marked and not pressable, for the reason every list of conversations
+   *  marks it: loading the one you are in throws away a transcript to replace it
+   *  with the same one. */
+  const current = (chat: SessionInfo): boolean => {
+    const at = openChat()
+    return at !== null && at.agent === chat.agent && at.session === chat.id
+  }
+  /** ... and which conversation replaced it, where the list holds that one
+   *  ({@link ./lineage.ts}): two `/clear` siblings both waiting for a node
+   *  differ in nothing else a reader can see. */
+  const successorOf = (chat: SessionInfo): SessionInfo | undefined =>
+    successorIn(chats()?.sessions ?? [], chat)
   /** What a person reads for that agent ({@link ../chat/grouped.ts}) — the
    *  roster's name, never the id that came off the wire. */
   const named = (agent: string): string => nameOf(engines(), agent)
@@ -119,7 +134,6 @@ export function Unassigned() {
    *  a thing you do to one chat at a time. */
   const [assigning, setAssigning] = createSignal<string | null>(null)
 
-  const key = (chat: SessionInfo): string => `${chat.agent}/${chat.id}`
 
   /** The rows, arranged by whose they are — the picker's own grouping, in the
    *  roster's order ({@link ../chat/grouped.ts}). */
@@ -169,10 +183,16 @@ export function Unassigned() {
    *  title asked for. */
   const open = (chat: SessionInfo): void => {
     saying.say(undefined)
+    // THE LIST GOES FIRST, and not on the answer: a press means *take me to
+    // that conversation*, and an open can HANG — an agent still loading, a
+    // handshake — so waiting for it would leave a person looking at the list
+    // they just pressed out of, with no box to type in. What happens to an open
+    // that does not land is the panel's own business and has its own face
+    // (`../chat/face.ts`'s `unopened`), which is where a reader looks for it.
+    hideUnassigned()
     run(
       olai.procedures.chat.loadSession({ agent: chat.agent, id: chat.id }),
       (failure) => saying.say({ tone: "alarm", text: failure.message, kind: failure._tag }),
-      () => hideUnassigned(),
     )
   }
 
@@ -209,7 +229,11 @@ export function Unassigned() {
         {(group) => (
           <>
             <Show when={headed()}>
-              <p class="m-0 mt-3 mb-1 flex items-center gap-1.5 text-[0.625rem] text-muted">
+              <p
+                class="m-0 mt-3 mb-1 flex items-center gap-1.5 text-[0.625rem] text-muted"
+                data-testid={TESTID.chatSessionAgent}
+                data-agent={group.agent.id}
+              >
                 <AgentMark id={group.agent.id} />
                 <span class="truncate">{group.agent.name}</span>
               </p>
@@ -219,9 +243,11 @@ export function Unassigned() {
                 {(chat) => (
                   <Chat
                     chat={chat}
-                    assigning={assigning() === key(chat)}
+                    successor={successorOf(chat)}
+                    current={current(chat)}
+                    assigning={assigning() === chatKey(chat.agent, chat.id)}
                     onOpen={() => open(chat)}
-                    onAssigning={(open) => setAssigning(open ? key(chat) : null)}
+                    onAssigning={(open) => setAssigning(open ? chatKey(chat.agent, chat.id) : null)}
                     onTake={(hit) => assign(chat, hit)}
                     refusing={refusing}
                   />
@@ -291,26 +317,27 @@ export function Unassigned() {
  * ONE unassigned conversation: what it is, and the gesture that gives it a
  * node.
  *
- * Its own component for the picker row's reason word for word — the search that
+ * Its own component for the shared row's reason word for word — the search that
  * opens under it is eight elements of its own, and a loop over groups with that
- * nested inside could not be read on one screen.
+ * nested inside could not be read on one screen. WHAT the conversation is, is
+ * not this component's: that is the row every list of conversations draws
+ * ({@link ../chat/Conversation.tsx}), and what is added here is the gesture.
  */
 function Chat(props: {
   readonly chat: SessionInfo
+  /** The conversation that replaced this one, where the list knows it — drawn
+   *  by the row itself ({@link ../chat/Conversation.tsx}). Two `/clear`
+   *  siblings both waiting for a node differ in nothing else. */
+  readonly successor: SessionInfo | undefined
+  /** Whether the panel is already in this one, which is the ordinary case for
+   *  somebody migrating: you are talking in a chat, and you give it a home. */
+  readonly current: boolean
   readonly assigning: boolean
   readonly onOpen: () => void
   readonly onAssigning: (open: boolean) => void
   readonly onTake: (hit: NodeHit) => void
   readonly refusing: (hit: NodeHit) => string | null
 }) {
-  /** The agent's own count, drawn where it was SENT: `null` is nobody's answer
-   *  and draws nothing rather than a zero of our own — the picker's rule, and
-   *  the same words, since it is the same fact. */
-  const size = (): string | null => {
-    const count = props.chat.messageCount
-    if (count === null) return null
-    return `${count} ${count === 1 ? "message" : "messages"}`
-  }
   return (
     <li
       class="rounded border border-rule/70 px-2 py-1.5"
@@ -318,24 +345,16 @@ function Chat(props: {
       data-session-id={props.chat.id}
       data-agent={props.chat.agent}
     >
-      <div class="flex items-baseline gap-2">
-        {/* THE TITLE OPENS IT, because the first honest question about a chat
-            from three weeks ago is which one it is — and the panel is right
-            there. */}
-        <button
-          type="button"
-          class="min-w-0 flex-1 truncate text-left text-xs text-ink hover:underline"
-          onClick={() => props.onOpen()}
-        >
-          {props.chat.title ?? props.chat.id}
-        </button>
-        <Show when={size()}>
-          {(drawn) => <span class="shrink-0 font-mono text-[0.625rem] text-muted">{drawn()}</span>}
-        </Show>
-        <Show when={whenOf(props.chat.updatedAt)}>
-          {(at) => <span class="shrink-0 font-mono text-[0.625rem] text-muted">{at()}</span>}
-        </Show>
-      </div>
+      {/* WHAT THE CONVERSATION IS, in the one row every list of them draws
+          ({@link ../chat/Conversation.tsx}) — and pressing it opens the chat,
+          because the first honest question about one from three weeks ago is
+          which one it is, and the panel is right there. */}
+      <Conversation
+        session={props.chat}
+        successor={props.successor}
+        current={props.current}
+        onPick={() => props.onOpen()}
+      />
       <button
         type="button"
         class="mt-0.5 text-[0.625rem] text-accent underline underline-offset-2"

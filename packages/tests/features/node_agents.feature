@@ -303,22 +303,22 @@ Feature: A node with an `agent-session` property IS an agent
     And the agent panel is open
     When I open the unassigned chats
     And I assign the conversation "the last conversation" to the node titled "a lane nobody has put an agent on", searching for "lane nobody"
+    And I close the unassigned chats
     And I open the session picker
     Then the panel says this agent has had 1 past session
     And the past sessions hold "an older conversation"
 
   @agent-stored @scratch:lanes
-  Scenario: A conversation no node claims is the picker it has always been
-    # The negative, and it is what keeps the block honest: *past sessions* and
-    # *fresh session* are a NODE AGENT's, so a chat that is nobody's has
-    # neither. Both halves in one scenario, because the claim is the difference
-    # between them rather than either on its own — the panel comes up in a
-    # stored conversation no node names, and one press puts it in one that is
-    # named.
+  Scenario: A conversation no node claims has no sessions of its own
+    # The negative, and it is what keeps the header honest: *sessions* is a NODE
+    # AGENT's — its history, and the fresh one that ends it — so a chat that is
+    # nobody's has no such control at all, and the way to its siblings is the
+    # sidebar. Both halves in one scenario, because the claim is the difference
+    # between them: the panel comes up in a stored conversation no node names,
+    # and one press puts it in one that is named.
     Given I open the outline "lanes.olai"
     And the agent panel is open
-    When I open the session picker
-    Then the panel offers no fresh session
+    Then the panel offers no sessions of its own
     When I press the door on "door-live"
     And I open the session picker
     Then the panel offers a fresh session, saying "memory is the subtree"
@@ -335,7 +335,7 @@ Feature: A node with an `agent-session` property IS an agent
     And I open the unassigned chats
     # NAMED, in the agent's own words, as ONE agent's trouble — and this serve
     # has one agent, so it is the whole of what there was to say.
-    Then the picker says "claude" could not be asked, with "the conversation store is unreadable"
+    Then the list says "claude" could not be asked, with "the conversation store is unreadable"
     # ... and the claim that would be a lie is not made.
     And the unassigned list does not hold "the last conversation"
     And the list does not claim every conversation belongs to a node agent

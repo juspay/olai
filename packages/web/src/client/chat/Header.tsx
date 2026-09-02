@@ -65,9 +65,9 @@
  * Everything drawn is a projection of the chat cell. Nothing is remembered
  * locally, so a second tab's header says the same thing as this one.
  *
- * `relative` is the session picker's containing block (`./Sessions.tsx`): the
- * list hangs from this header's box, so a 20rem list hung from `chats` cannot
- * run off the left of a phone sheet.
+ * `relative` is the sessions popover's containing block
+ * (`./NodeSessions.tsx`): the list hangs from this header's box, so a 20rem
+ * list hung from a pill cannot run off the left of a phone sheet.
  */
 
 import { createMemo, Show } from "solid-js"
@@ -83,7 +83,7 @@ import { TESTID } from "../testids.ts"
 import { AgentMark } from "./AgentMark.tsx"
 import { type Busy, busyIn } from "./busy.ts"
 import { LIVE_DOT } from "./live.ts"
-import { Sessions } from "./Sessions.tsx"
+import { NodeSessions } from "./NodeSessions.tsx"
 import type { Chat } from "./state.ts"
 import { usageOf } from "./usage.ts"
 
@@ -216,18 +216,20 @@ export function Header(props: {
 
       {/* Both verbs need an agent to act on. With none they would refuse, so
           they are not offered — the panel's body says why.
-          The CHATS list is gated on AN AGENT BEING BOUND (`agentIn`), which is
-          no longer the same thing as having somebody to ask: the list spans
-          every installed agent now ({@link ./Sessions.tsx}) and would answer
-          with no agent bound at all. It stays gated because the panel with none
-          is the panel ASKING which one, and a second door beside that question
-          offering the same answer in different words would be two answers to
-          one question. `+ new` is offered either way: raising that question is
-          exactly what it does, and it is the way out of a panel with no
-          conversation in it. */}
+          SESSIONS IS THE NODE AGENT'S OWN and is drawn only where this
+          conversation belongs to one ({@link ./NodeSessions.tsx}): its history,
+          and the fresh session that ends it. The `chats` list that stood here —
+          every stored conversation in the directory — is retired, because the
+          sidebar is that list twice over: an agent's conversation is reached by
+          pressing the agent, and one no node claims is a row of Unassigned. A
+          chat that is nobody's has no history of its own, so on one the header
+          offers nothing here at all.
+          `+ new` is offered either way: raising the question of which agent a
+          fresh conversation is with is not a question about a node agent, and
+          it is the way out of a panel with no conversation in it. */}
       <Show when={state().status !== "off"}>
-        <Show when={agentIn(state())}>
-          <Sessions chat={props.chat} />
+        <Show when={node()}>
+          {(agent) => <NodeSessions chat={props.chat} agent={agent()} />}
         </Show>
         <button
           type="button"

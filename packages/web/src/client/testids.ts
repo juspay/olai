@@ -1314,20 +1314,29 @@ export const TESTID = {
    *  header's `chatWorking` says the same fact in the chrome, and this says it
    *  where a person who has just pressed enter is looking. */
   chatBusy: "chat-busy",
+  /** The header's SESSIONS pill: this node agent's own conversations, and the
+   *  fresh one that ends the current one. Drawn only where the panel's
+   *  conversation belongs to a node agent — the `chats` list that stood here
+   *  retired into the sidebar's story (`chat/NodeSessions.tsx`). */
   chatSessions: "chat-sessions",
+  /** ... and the list it opens. */
   chatSessionList: "chat-session-list",
+  /** ONE STORED CONVERSATION, wherever conversations are listed
+   *  (`chat/Conversation.tsx`): a row of Unassigned, or one of a node agent's
+   *  past sessions. `data-session-id` and `data-agent` are the pair that names
+   *  one, and `data-current` says whether it is the one the panel is in. */
   chatSession: "chat-session",
-  /** The line under a chats row that says WHICH conversation replaced this
+  /** The line under such a row that says WHICH conversation replaced this
    *  one — with a `data-successor` of its id, because the successor need not
    *  be on the screen (it is drawn only when it is), and the sentence alone
    *  would be a claim nothing could pick out of two sharing a title. */
   chatSessionSuperseded: "chat-session-superseded",
-  /** The heading over one agent's rows in the chats list. Drawn only where
+  /** The heading over one agent's rows in the unassigned list. Drawn only where
    *  more than one agent has conversations here — one agent is a heading over
    *  the whole list. */
   chatSessionAgent: "chat-session-agent",
-  /** One agent in the chats list that could not be asked what it has stored,
-   *  with its reason. Its OWN name and not the whole call's refusal
+  /** One agent in that list that could not be asked what it has stored, with
+   *  its reason. Its OWN name and not the whole call's refusal
    *  (`chatSessionsRefused`): "the list could not be fetched" and "one of
    *  several agents is broken" are two states, and the second leaves every
    *  other agent's conversations on the screen. */
@@ -1659,10 +1668,13 @@ export const TESTID = {
   chatRefusal: "chat-refusal",
   /** What the last VERB refused — an empty send, a turn already running. */
   chatRefused: "chat-refused",
-  /** Why the picker has no conversations to offer. Its OWN answer rather than
-   *  the panel's `chatRefused`, because the click that asked was here — and
-   *  because a refusal that resolved to an empty list used to be drawn as "no
-   *  stored conversations", which is a claim about the agent's disk. */
+  /** Why the conversations could not be LISTED AT ALL — the whole ask not
+   *  landing, as against one agent that could not be asked
+   *  (`chatSessionUnreachable`). Its OWN answer rather than the panel's
+   *  `chatRefused`, because a refusal that resolved to an empty list used to be
+   *  drawn as "no stored conversations", which is a claim about somebody's
+   *  disk. Drawn in the unassigned list, which is where the conversations
+   *  are. */
   chatSessionsRefused: "chat-sessions-refused",
   /** What went wrong where nobody was waiting: a boot, a dead agent. */
   chatTrouble: "chat-trouble",

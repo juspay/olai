@@ -27,9 +27,9 @@
  * ## MATCHED ON THE PAIR, never on the session alone
  *
  * A session id belongs to one agent's own space and two agents can collide
- * formally, so every step of the walk carries the engine — the same rule the
- * picker's own successor lookup keeps (`../chat/Sessions.tsx`), and the same
- * one the record keeps a package away.
+ * formally, so every step of the walk carries the engine — the same rule the row
+ * that draws a successor keeps (`../chat/Conversation.tsx`), and the same one
+ * the record keeps a package away.
  *
  * ## WHAT IS NOT HERE
  *
@@ -46,10 +46,26 @@
 
 import type { Agents, SessionInfo } from "@olai/surface"
 
-/** The key one conversation is identified by, everywhere in this module — the
- *  PAIR, spelled once so the walk and the claim cannot come to disagree about
- *  a session id two agents both happen to use. */
-const keyOf = (agent: string, session: string): string => `${agent}/${session}`
+/**
+ * THE PAIR THAT NAMES A CONVERSATION, spelled once for this client.
+ *
+ * A session id belongs to one agent's own space and two agents can collide
+ * formally — asking opencode to load a Claude id gets a refusal — so neither
+ * half names a conversation alone. It is the rule the wire keeps
+ * (`@olai/surface`'s `SessionInfo`) and the record a package away keeps
+ * (`@olai/chat`'s `Conversing`), and this is that rule where the browser can
+ * hold it.
+ */
+export interface Chatting {
+  readonly agent: string
+  readonly session: string
+}
+
+/** ... and that pair as ONE STRING, for the places a key is wanted: the set a
+ *  walk marks off, and the signal saying which row has its search open. Spelled
+ *  here so the faces that key by it and the walks that match on it cannot come
+ *  to disagree about a slash. */
+export const chatKey = (agent: string, session: string): string => `${agent}/${session}`
 
 /**
  * THE CONVERSATIONS THIS ONE REPLACED, newest first — the node agent's *past
@@ -78,20 +94,46 @@ export const pastOf = (
   session: string,
 ): ReadonlyArray<SessionInfo> => {
   const past: Array<SessionInfo> = []
-  const seen = new Set<string>([keyOf(agent, session)])
+  const seen = new Set<string>([chatKey(agent, session)])
   let at = session
   for (;;) {
     const before = sessions.find(
       (row) => row.agent === agent && row.supersededBy === at,
     )
     if (before === undefined) return past
-    const key = keyOf(before.agent, before.id)
+    const key = chatKey(before.agent, before.id)
     if (seen.has(key)) return past
     seen.add(key)
     past.push(before)
     at = before.id
   }
 }
+
+/**
+ * THE CONVERSATION THIS ONE NAMES AS ITS SUCCESSOR, where the list holds it —
+ * `undefined` for a row that names none, and for one whose successor the list
+ * no longer knows.
+ *
+ * Both absences are one answer on purpose: what a reader gets from the link is
+ * the successor's NAME, so a link pointing at a row that has been deleted since
+ * the stamp was earned has nothing left to say and is not drawn
+ * (`../chat/Conversation.tsx`).
+ *
+ * MATCHED ON THE PAIR, like every other step of a lineage: an id belongs to one
+ * agent's own space, and a Claude row's link resolving to an opencode row would
+ * be a lie by lookup.
+ *
+ * A SCAN rather than an index, which is the change from the map this replaced:
+ * the map was built per open per face, and both faces wanted it, so the third
+ * copy was the one that would have gone stale. A listing is tens of rows.
+ */
+export const successorIn = (
+  sessions: ReadonlyArray<SessionInfo>,
+  session: SessionInfo,
+): SessionInfo | undefined =>
+  session.supersededBy === null
+    ? undefined
+    : sessions.find((row) => row.agent === session.agent && row.id === session.supersededBy)
 
 /**
  * EVERY CONVERSATION SOME NODE CLAIMS — the current sessions and their chains,
@@ -109,9 +151,9 @@ export const claimedIn = (
   const claimed = new Set<string>()
   for (const agent of agents) {
     if (agent.session === null) continue
-    claimed.add(keyOf(agent.engine, agent.session))
+    claimed.add(chatKey(agent.engine, agent.session))
     for (const past of pastOf(sessions, agent.engine, agent.session)) {
-      claimed.add(keyOf(past.agent, past.id))
+      claimed.add(chatKey(past.agent, past.id))
     }
   }
   return claimed
@@ -130,5 +172,5 @@ export const unassignedIn = (
   agents: Agents,
 ): ReadonlyArray<SessionInfo> => {
   const claimed = claimedIn(sessions, agents)
-  return sessions.filter((row) => !claimed.has(keyOf(row.agent, row.id)))
+  return sessions.filter((row) => !claimed.has(chatKey(row.agent, row.id)))
 }
