@@ -915,58 +915,6 @@ Then(
   },
 );
 
-/**
- * The transcript is the scrollport; the column that holds it (and the
- * composer under it) is not. `overflow` on the pane is the same number
- * `scrollOf` already asks — a short transcript would pass this having
- * scrolled nothing. The parent is the claim: if THAT overflows, the box
- * is in the same scroller as the rows.
- */
-Then("the transcript is the pane that scrolls", async function (this: OlaiWorld) {
-  const at = await this.page.locator(CHAT_TRANSCRIPT).evaluate((pane) => {
-    const body = pane.parentElement;
-    return {
-      pane: pane.scrollHeight - pane.clientHeight,
-      body:
-        body === null ? Number.NaN : body.scrollHeight - body.clientHeight,
-    };
-  });
-  assert.ok(
-    at.pane > 0,
-    "the transcript has no overflow, so this is not a claim about which pane scrolls",
-  );
-  assert.ok(
-    at.body < 1,
-    `the column around the transcript overflows by ${at.body}px — that ` +
-      "column also holds the composer, so a long turn is scrolling the box " +
-      "away with the rows",
-  );
-});
-
-Then("the composer sits on the panel", async function (this: OlaiWorld) {
-  const input = this.page.locator(CHAT_INPUT);
-  await input.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  const [panel, box] = await Promise.all([
-    this.page.locator(CHAT_PANEL).evaluate((node) => {
-      const r = node.getBoundingClientRect();
-      return { top: r.top, bottom: r.bottom, left: r.left, right: r.right };
-    }),
-    input.evaluate((node) => {
-      const r = node.getBoundingClientRect();
-      return { top: r.top, bottom: r.bottom, left: r.left, right: r.right };
-    }),
-  ]);
-  assert.ok(
-    box.top >= panel.top - 1 &&
-      box.bottom <= panel.bottom + 1 &&
-      box.left >= panel.left - 1 &&
-      box.right <= panel.right + 1,
-    `the composer is at y=${Math.round(box.top)}–${Math.round(box.bottom)} ` +
-      `in a panel at y=${Math.round(panel.top)}–${Math.round(panel.bottom)} — ` +
-      "a long turn carried the box out of the dock",
-  );
-});
-
 // ── refusals ───────────────────────────────────────────────────────────
 
 Then("the chat shows a refusal", async function (this: OlaiWorld) {

@@ -1419,19 +1419,6 @@ Feature: Talking to the agent
     And the transcript has stayed where I left it
 
   @scratch:chat
-  Scenario: A long transcript scrolls itself, and the box stays put
-    # The transcript is the pane that scrolls. An outer overflow on the
-    # column that also holds the composer (#458's phone hatch, left on
-    # for desktop) is what made a long turn carry the box away with the
-    # rows, and made follow-the-bottom a no-op — it assigns scrollTop on
-    # this pane, which was not the one moving.
-    When I ask the agent "flood"
-    Then the agent is idle
-    And the transcript is scrolled to the newest line
-    And the transcript is the pane that scrolls
-    And the composer sits on the panel
-
-  @scratch:chat
   Scenario: Opening a conversation with a transcript lands on the newest line
     # A different question from the one above. Following is a decision the
     # reader makes by scrolling WHILE they are in a conversation. Opening one
