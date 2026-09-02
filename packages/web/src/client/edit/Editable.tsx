@@ -144,7 +144,10 @@ export function Editable(props: {
 
   onMount(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (selection.rows().length === 0) return
+      if (selection.rows().length === 0) {
+        hear(event)
+        return
+      }
       // Never over a field. The pick is live across the whole window, so a
       // handler that fired while somebody was typing in the composer would be a
       // keystroke they could not get back.
@@ -156,9 +159,46 @@ export function Editable(props: {
       event.preventDefault()
       BULK[action](selection)
     }
-    window.addEventListener("keydown", onKey)
-    onCleanup(() => window.removeEventListener("keydown", onKey))
+    window.addEventListener("keydown", onKey, true)
+    onCleanup(() => window.removeEventListener("keydown", onKey, true))
   })
+
+  /**
+   * A letter with no caret: open the last (or first) row and put it there.
+   *
+   * The window hears it because after Escape, or on a fresh page, focus is
+   * `BODY` — there is no input to take the key. Two panes both listen; only
+   * the focused one acts, or a letter would land in both outlines at once.
+   * A field, a dialog, a link, a button keep their own keys.
+   */
+  const hear = (event: KeyboardEvent): void => {
+    if (editor.draft() !== null) return
+    if (event.defaultPrevented) return
+    if (event.metaKey || event.ctrlKey || event.altKey) return
+    if (event.isComposing) return
+    if (event.key.length !== 1) return
+    if (isEditingTarget(event.target)) return
+    if (event.target instanceof Element) {
+      if (
+        event.target.closest("[role='dialog'], [role='menu'], [role='listbox']")
+      ) return
+      // Space and Enter activate a focused button. A letter does not —
+      // "I show the done nodes" leaves the caret on Visible/Hidden, and
+      // the next letter is the outline's.
+      if (
+        event.target.closest("button") &&
+        (event.key === " " || event.key === "Enter")
+      ) return
+    }
+    if (surface !== undefined) {
+      const pane = surface.closest("[data-pane-focused]")
+      if (pane !== null && pane.getAttribute("data-pane-focused") !== "true") return
+    }
+    const row = editor.landing()
+    if (row === undefined) return
+    event.preventDefault()
+    editor.open(row, "title", { insert: event.key })
+  }
 
   return (
     <SelectionProvider value={selection}>

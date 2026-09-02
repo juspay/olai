@@ -104,8 +104,21 @@ export interface Editor {
    *  in, because moving an element in the document is what takes focus off it
    *  (`./RowEditor.tsx` says the rest). */
   readonly caret: Accessor<number>
-  /** Start editing a row's title (a click on it) or its note. */
-  readonly open: (row: Row, field: "title" | "desc") => void
+  /**
+   * Start editing a row's title (a click on it) or its note.
+   *
+   * `at` is how the caret got here. A click names the offset it landed on
+   * (`./point.ts`); a letter typed with no caret open names the character
+   * to insert, at the end. Absent is the end of the text — the filler, a
+   * note, the move-to picker handing the row back.
+   */
+  readonly open: (row: Row, field: "title" | "desc", at?: OpenAt) => void
+  /**
+   * The row a letter with no caret would open: the last one this tab was
+   * in, or the first visible row if it has not been in one. `undefined`
+   * on an empty page, where {@link start} is the door.
+   */
+  readonly landing: () => Row | undefined
   /** What has just been typed. Starts the idle clock. */
   readonly type: (text: string) => void
   /** The editor at this slot lost focus: commit, and close if it landed. It
@@ -129,6 +142,14 @@ export interface Editor {
   /** Open an editor for a row a page has nowhere else to offer — the first row
    *  of an empty outline, the first child of an empty branch. */
   readonly start: (at: Anchor) => void
+}
+
+/** How {@link Editor.open} was asked, when the caller has an opinion. */
+export interface OpenAt {
+  /** Offset into the source. Clamped to the title. Absent is the end. */
+  readonly caret?: number
+  /** A character typed before the input existed, inserted at {@link caret}. */
+  readonly insert?: string
 }
 
 /**
@@ -226,6 +247,12 @@ export const createEditor = (
 ): Editor => {
   const [draft, setDraft] = createSignal<Draft | null>(null)
   const [caret, setCaret] = createSignal(0)
+  /**
+   * The last row `open` was asked for, by `Row.key`. What a letter with no
+   * caret reopens. Not a signal: nothing draws it, and a keydown that
+   * reads it is outside tracking.
+   */
+  let lastKey: string | null = null
   /** Where a write's inverse goes. Read once, here, rather than at every
    *  write: it is the app's, it does not move, and a context read inside a
    *  promise would be reaching outside the scope that owns it. */
@@ -431,6 +458,7 @@ export const createEditor = (
   const move = async (to: Row | undefined) => {
     const next = to === undefined ? null : opened(to, "title")
     if (next === null) return
+    if (to !== undefined) lastKey = to.key
     if (!(await commit())) return
     setDraft(next)
   }
@@ -646,9 +674,16 @@ export const createEditor = (
   /** A row, as the draft that edits it. One place mints these, so the two ids
    *  and the place are read off the row together rather than assembled at
    *  every call site. */
-  const opened = (at: Row, field: "title" | "desc"): Draft | null => {
+  const opened = (at: Row, field: "title" | "desc", here?: OpenAt): Draft | null => {
     if (at.kind !== "node" && at.kind !== "mirror") return null
-    const text = (field === "title" ? at.shows.node.title : at.shows.node.desc) ?? ""
+    const saved = (field === "title" ? at.shows.node.title : at.shows.node.desc) ?? ""
+    const insert = field === "title" ? (here?.insert ?? "") : ""
+    const from = here?.caret
+    const clamped = from === undefined
+      ? saved.length
+      : Math.max(0, Math.min(from, saved.length))
+    const text = saved.slice(0, clamped) + insert + saved.slice(clamped)
+    const caret = insert === "" && from === undefined ? undefined : clamped + insert.length
     return {
       kind: "row",
       row: at.at.node.id,
@@ -656,7 +691,8 @@ export const createEditor = (
       place: at.key,
       field,
       text,
-      saved: text,
+      saved,
+      caret,
     }
   }
 
@@ -833,15 +869,29 @@ export const createEditor = (
     draft,
     where,
     caret,
-    open: (at, field) => {
-      const next = opened(at, field)
+    open: (at, field, here) => {
+      const next = opened(at, field, here)
       if (next === null) return
+      lastKey = at.key
       // A caret arriving puts the pick away, and it happens HERE rather than at
       // the click that asked, so no later door can forget it. Synchronously,
       // ahead of the queue: the bar and the window key listener are the pick's,
       // and leaving them up while a commit is in flight would be exactly the
       // state this invariant exists to make unreachable.
       selection.clear()
+      const go = (): void => {
+        idle.clear()
+        setDraft(next)
+      }
+      // Nothing to commit: a letter typed with no caret must open THIS
+      // turn, or the next letter of the same burst sees no draft and
+      // opens a second one that drops the first. A click on a quiet
+      // page is the same shape. The queue stays for the case a draft
+      // IS open — that write has to land before the new row does.
+      if (draft() === null) {
+        go()
+        return
+      }
       enqueue(async () => {
         // Whatever was being typed is committed on the way out, and a REFUSAL
         // stops the move: the row that would not save is the row to stay in,
@@ -850,9 +900,20 @@ export const createEditor = (
         // the second, and a refusal then landed on a row that had nothing to
         // do with it — with the first row's text gone from the screen.
         if (!(await commit())) return
-        idle.clear()
-        setDraft(next)
+        go()
       })
+    },
+    landing: () => {
+      // NOT `drawn()`: that memo is empty while there is no caret, which is
+      // exactly when a letter needs a row to open.
+      const rows = flatten(page.rows(), page.collapsed())
+      const last = lastKey === null
+        ? undefined
+        : rows.find((row) => row.key === lastKey)
+      if (last !== undefined && (last.kind === "node" || last.kind === "mirror")) {
+        return last
+      }
+      return rows.find((row) => row.kind === "node" || row.kind === "mirror")
     },
     type: (text) => {
       setDraft((held) => (held === null ? held : typed(held, text)))

@@ -1,6 +1,6 @@
 # Editing: the keyboard, and the pointer
 
-Click a title and the caret is in it. From there it is the outliner's loop on the keys you already know, and the whole list is in the app, under **Keyboard shortcuts** in the ⌘K palette.
+Click a title and the caret is where you clicked. Type with no caret and the last row you were in — or the first, if you have not been in one — takes the letters. From there it is the outliner's loop on the keys you already know, and the whole list is in the app, under **Keyboard shortcuts** in the ⌘K palette.
 
 | | |
 |---|---|

@@ -54,9 +54,10 @@ export function TitleEditor(props: {
    *  middle of a tree is not a mystery. */
   readonly placeholder?: string
   /** Where the caret goes when this editor OPENS, when the draft has an
-   *  opinion — a split, a merge, or an indent, the three keys after which the
+   *  opinion — a split, a merge, an indent, or a click, the four after which the
    *  end of the text is the wrong place to be ({@link ./draft.ts}'s `caret`).
-   *  Absent is the end of the text, which is what a click on a title means. */
+   *  Absent is the end of the text: the filler, a note, the move-to picker
+   *  handing the row back. */
   readonly caret?: number
 }) {
   let element!: HTMLInputElement
@@ -329,10 +330,11 @@ const caretOf = (target: EventTarget | null): Caret | undefined => {
  * threaded through three components is a prop the next editor site forgets.
  *
  * WHERE the caret lands differs between the two halves, and that is what
- * `opening` is for: a fresh editor puts it at the end of the text, which is
- * where a person who just clicked a title wants it; a caret being taken BACK
- * goes where it already was, so `Tab` in the middle of a word does not throw
- * the reader to the end of the line.
+ * `opening` is for: a fresh editor without an offset puts it at the end of
+ * the text, which is the filler and a note; a click names the offset it
+ * landed on (`./point.ts`) and a split, a merge or an indent name theirs;
+ * a caret being taken BACK goes where it already was, so `Tab` in the
+ * middle of a word does not throw the reader to the end of the line.
  *
  * `wanted` is the third answer, and three keys give one: a split and a merge,
  * whose point is that the caret stays where the sentence was cut or joined, and

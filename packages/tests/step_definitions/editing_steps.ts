@@ -80,7 +80,55 @@ import type { OlaiWorld } from "../support/world.ts";
 When(
   "I click the title of {string}",
   async function (this: OlaiWorld, id: string) {
-    await this.press(this.nodeTitle(id));
+    // The END of the title, not Playwright's centre. A click now puts the
+    // caret where it landed (`client/edit/point.ts`), so a press in the
+    // middle of "choose the handles" would make the next Enter a SPLIT
+    // rather than an add — and a hundred scenarios mean "open this row".
+    const title = this.nodeTitle(id);
+    await title.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.intoReach(title);
+    const box = await title.boundingBox();
+    if (box === null) {
+      throw new Error(`the title of ${JSON.stringify(id)} has no box`);
+    }
+    await title.click({
+      position: { x: Math.max(box.width - 2, 0), y: box.height / 2 },
+    });
+    await this.waitForFrame();
+    await this.page
+      .locator(TITLE_EDITOR)
+      .first()
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+When(
+  "I click the title of {string} near its start",
+  async function (this: OlaiWorld, id: string) {
+    const title = this.nodeTitle(id);
+    await title.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.intoReach(title);
+    const box = await title.boundingBox();
+    if (box === null) {
+      throw new Error(`the title of ${JSON.stringify(id)} has no box`);
+    }
+    await title.click({
+      position: { x: Math.min(8, box.width / 4), y: box.height / 2 },
+    });
+    await this.waitForFrame();
+    await this.page
+      .locator(TITLE_EDITOR)
+      .first()
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+When(
+  "I type {string} into the outline",
+  async function (this: OlaiWorld, text: string) {
+    // No click. Opening the page left the caret on a sidebar link; a
+    // letter there is the outline's, which is the whole of this step.
+    await typed(this, text);
     await this.page
       .locator(TITLE_EDITOR)
       .first()
@@ -269,6 +317,17 @@ Then(
     );
   },
 );
+
+Then("the caret is near the start of the line", async function (this: OlaiWorld) {
+  const editor = await openEditor(this);
+  await this.waitUntil(async () => {
+    const at = await editor.evaluate((element) => {
+      const field = element as HTMLInputElement;
+      return { start: field.selectionStart, length: field.value.length };
+    });
+    return at.start !== null && at.start <= 1 && at.start !== at.length;
+  }, "the caret to sit at the start of the line, not the end");
+});
 
 When("I click away from the editor", async function (this: OlaiWorld) {
   // Somewhere in the pane that is not a row: a blur, and nothing else — and

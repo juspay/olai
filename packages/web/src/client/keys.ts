@@ -566,7 +566,11 @@ export const SHORTCUTS: ReadonlyArray<{
   {
     group: "In a row",
     keys: [
-      { keys: "Click a title", what: "put the caret in it" },
+      { keys: "Click a title", what: "put the caret where you clicked" },
+      {
+        keys: "a letter, with no caret",
+        what: "type into the last row — or the first, if you have not been in one",
+      },
       { keys: "Enter", what: "commit, and open the next line", action: "add" },
       { keys: "Enter mid-line", what: "split the row in two there", action: "split" },
       {

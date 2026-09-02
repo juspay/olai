@@ -88,6 +88,7 @@ import { repeatPick } from "./date/repeat.ts"
 
 import { createEdgeEditing } from "./edges/editing.tsx"
 import { useEditor } from "./edit/editing.tsx"
+import { offsetAt, titleBox } from "./edit/point.ts"
 import { useMoving } from "./move/moving.tsx"
 import { useNarrowed } from "./filter/narrowed.tsx"
 import { behindTheMark, CONTEXT_DIM, lighting, matchedAttr } from "./filter/why.ts"
@@ -425,7 +426,8 @@ function Branch(props: {
    * about the ROW as a thing to do something to. Shift extends from where the
    * pick was started; ⌘ / Ctrl adds this row or takes it back out.
    *
-   * The plain click just OPENS. Putting the pick away is the editor's, in the
+   * The plain click just OPENS, at the character it landed on
+   * (`./edit/point.ts`). Putting the pick away is the editor's, in the
    * one place every caret comes from (`./edit/editing.tsx`'s `open`), because a
    * rule spelled at the call sites is a rule the next door forgets — and the
    * note's did.
@@ -453,7 +455,14 @@ function Branch(props: {
       selection.toggle(props.row.key)
       return
     }
-    editor.open(props.row, "title")
+    const title = props.row.kind === "node" || props.row.kind === "mirror"
+      ? props.row.shows.node.title
+      : ""
+    const here = titleBox(event)
+    const caret = here === null
+      ? undefined
+      : offsetAt(title, here.box, event.clientX, here.widthOf)
+    editor.open(props.row, "title", caret === undefined ? undefined : { caret })
   }
 
   return (
