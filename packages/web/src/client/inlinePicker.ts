@@ -3,7 +3,7 @@
  * is up, what it is up OVER, and the ways it goes away.
  *
  * There are two of them and they are both in the chat panel: the header's
- * stored conversations ({@link ./chat/Sessions.tsx}) and the wake strip's file
+ * a node agent's own sessions ({@link ./chat/NodeSessions.tsx}) and the wake strip's file
  * picker ({@link ./chat/Wake.tsx}). A quiet pill that opens it, a list hung from
  * the box the pill sits in rather than from the pill itself, and one small state
  * machine between them — which is what this is.

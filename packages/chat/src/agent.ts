@@ -1830,7 +1830,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * PERMIT. That is the whole of the fix: {@link opening} holds this same
      * permit across a `session/load` AND ITS REPLAY, so a listing that queued
      * on it waited out the replay of a conversation it has nothing to do with.
-     * Pressing `chats` while the agent you are talking to is opening one is
+     * Opening the list while the agent you are talking to is opening one is
      * exactly when somebody does it, and the answer to it — what is stored —
      * cannot be changed by the open in flight.
      *

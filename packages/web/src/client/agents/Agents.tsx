@@ -21,7 +21,7 @@
  * person has to act on, and that nobody will see if it is below a month of day
  * cells. So it goes with them, and the shelf keeps its place under them.
  *
- * ## AN EMPTY ROSTER DRAWS NOTHING — not a box, not a heading, not a hint
+ * ## AN EMPTY SECTION DRAWS NOTHING — not a box, not a heading, not a hint
  *
  * The shelf's rule, and it is load-bearing here for a second reason as well as
  * the first. The first is the shelf's own: a directory with no node agent is
@@ -44,6 +44,21 @@
  * The STANDING is a word and a dot, never a dot alone (`./roster.ts`'s `LOOK`
  * argues it): the colour is the fastest read for somebody who can use it and
  * the only read for nobody.
+ *
+ * ## ... AND THE SECTION ENDS WITH WHAT IS NOT ANYBODY'S
+ *
+ * The last row is **Unassigned**: every conversation in this directory that no
+ * node agent claims ({@link ./lineage.ts}), with how many. It is the doorway to
+ * migration and it is deliberately the LAST row — the agents are who you talk
+ * to, and this is a pile of chats waiting to become one.
+ *
+ * It draws only where there IS one, which keeps the section's rule intact from
+ * both ends: a directory with agents and nothing spare ends at its agents, and
+ * a directory with neither draws no section at all. But a directory with chats
+ * and NO agents draws the section for this row alone — which is exactly the
+ * state a person migrating is in, and a doorway that appeared only after you
+ * had already made your first node agent by hand would be a doorway nobody
+ * finds.
  */
 
 import { Key } from "@solid-primitives/keyed"
@@ -51,25 +66,32 @@ import { Show } from "solid-js"
 
 import { CHIP_QUIET } from "../layout/chip.ts"
 import { REGION, REGION_LABEL } from "../layout/entry.ts"
+import { setChatOpen } from "../layout/prefs.ts"
 import { DOT } from "../readout.ts"
 import { SaidLine } from "../SaidLine.tsx"
 import { TESTID } from "../testids.ts"
 import { useAgents } from "./answered.tsx"
 import { createFocus } from "./focus.ts"
 import { LOOK, type Row } from "./roster.ts"
+import { showUnassigned } from "./showing.ts"
 
 export function Agents() {
   // THE JOIN IS THE PROVIDER'S, once for the whole app (`./answered.tsx`), so
   // this column and every door on the page are reading one answer rather than
   // each folding the same two cells for itself.
-  const { rows } = useAgents()
+  const { rows, unassigned, unreachable, askChats } = useAgents()
+  /** Whether the last row has anything to say — chats waiting for a node, or
+   *  an agent nobody could ask what it has. The second is why it is not simply
+   *  a count: *we did not get to look* is news too, and a row that drew only on
+   *  a number would swallow it. */
+  const spare = () => unassigned().length > 0 || unreachable().length > 0
   /** *Take me to this agent* — its node, and its conversation — and whatever
    *  that press had to say ({@link ./focus.ts}, which argues why one press
    *  means both and owns the wording of a refusal). */
   const focus = createFocus()
 
   return (
-    <Show when={rows().length > 0}>
+    <Show when={rows().length > 0 || spare()}>
       <section class={REGION} data-testid={TESTID.agentRoster}>
         <h2 class={REGION_LABEL}>Agents</h2>
         <ul class="m-0 list-none p-0">
@@ -83,6 +105,23 @@ export function Agents() {
           <Key each={rows()} by="id">
             {(row) => <AgentRow row={row()} onPress={() => focus.press(row())} />}
           </Key>
+          {/* ... and the chats that are nobody's yet, LAST. */}
+          <Show when={spare()}>
+            <UnassignedRow
+              many={unassigned().length}
+              unasked={unreachable().length}
+              onPress={() => {
+                // ASKED AGAIN ON THE PRESS, because the answer behind the count
+                // is a question about somebody's disk and a `claude --resume`
+                // in a terminal moves it. The count a person just read is the
+                // one that was true when this tab started; the list they are
+                // about to read should be truer than that.
+                askChats()
+                setChatOpen(true)
+                showUnassigned()
+              }}
+            />
+          </Show>
         </ul>
         {/* WHY NOTHING HAPPENED, where a press was refused — a property naming a
             conversation the agent no longer has is the case, and it is one a
@@ -148,6 +187,58 @@ function AgentRow(props: { readonly row: Row; readonly onPress: () => void }) {
             title="questions this agent is waiting on you to answer"
           >
             {props.row.waiting}
+          </span>
+        </Show>
+      </button>
+    </li>
+  )
+}
+
+/**
+ * THE CHATS NOBODY HAS GIVEN A NODE — the section's last row.
+ *
+ * It is the same shape as an agent's row and deliberately not the same voice:
+ * no dot, because nothing here has a standing — these are conversations, not
+ * agents, and a dot would be claiming one of the seven words about a pile. What
+ * it says under the label is what a person does about it.
+ *
+ * The COUNT is a chip on the right, in the slot an agent's waiting questions
+ * take, because it is the same kind of fact in that column: how many things are
+ * sitting there. Its own testid, since "there is a row" and "it counts twelve"
+ * are two claims and a scenario about migration is about the second.
+ */
+function UnassignedRow(props: {
+  readonly many: number
+  /** How many agents could not be asked what they have stored. The row draws
+   *  for these too, with nothing else on it: *we did not get to look* is the
+   *  one thing a count cannot say, and the list is where it is said in full
+   *  ({@link ./Unassigned.tsx}). */
+  readonly unasked: number
+  readonly onPress: () => void
+}) {
+  return (
+    <li class="mb-0.5">
+      <button
+        type="button"
+        class="flex w-full min-w-0 items-center gap-2 rounded-xl px-2.5 py-1 text-left hover:bg-paper/10"
+        data-testid={TESTID.agentUnassigned}
+        title="conversations in this directory that no node agent claims — open to give one a node"
+        onClick={() => props.onPress()}
+      >
+        <span class="min-w-0 flex-1">
+          <span class="block truncate text-[0.875rem] leading-snug text-paper/70">Unassigned</span>
+          <span class="block truncate text-[0.75rem] leading-snug text-paper/55">
+            {props.many > 0
+              ? `${props.many === 1 ? "1 chat" : `${props.many} chats`} · assign each to a node`
+              : `${props.unasked === 1 ? "1 agent" : `${props.unasked} agents`} could not be asked`}
+          </span>
+        </span>
+        {/* THE COUNT IS OF CHATS, so it is absent where there are none — a `0`
+            beside a row that is there because something could not be asked
+            would be the answer nobody has. */}
+        <Show when={props.many > 0}>
+          <span class={`${CHIP_QUIET} shrink-0`} data-testid={TESTID.agentUnassignedCount}>
+            {props.many}
           </span>
         </Show>
       </button>

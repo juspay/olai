@@ -70,11 +70,11 @@
  * itself broken and then refused the one gesture that mends it would be worse
  * than the fault it reported.
  *
- * ## THE PICKER IS THE CHATS PICKER'S MODEL, and now its receptacle
+ * ## THE PICKER IS THE SESSIONS POPOVER'S MODEL, and now its receptacle
  *
  * A `QUIET_PILL` trigger, a list hung from the strip's own box rather than from
  * the button (a narrow list `right-0` of a small pill runs off the left of a
- * phone sheet), `aria-expanded` — {@link ./Sessions.tsx} argues those in place.
+ * phone sheet), `aria-expanded` — {@link ./NodeSessions.tsx} argues those in place.
  * The state machine underneath is not argued twice: one union signal, the
  * client's one dismissal for a pointer outside and Escape, and the caret back on
  * the pill when a press is what shut it, all of them
@@ -212,7 +212,7 @@ export function Wake(props: { readonly chat: Chat }) {
     <Show when={rows().length > 0 && to() !== undefined}>
       <section
         // `relative` is the picker's containing block: the list hangs from
-        // this strip's box the way the chats list hangs from the header's.
+        // this strip's box the way the sessions list hangs from the header's.
         class="relative shrink-0 border-b border-rule/70 bg-panel px-3 py-1.5 font-mono text-[0.6875rem] leading-snug"
         data-testid={TESTID.chatWake}
         aria-label="wakes on"

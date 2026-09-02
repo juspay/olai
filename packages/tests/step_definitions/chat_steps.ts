@@ -2380,15 +2380,12 @@ Then("the chat is empty", async function (this: OlaiWorld) {
   );
 });
 
-/** The `chats` button pressed. One body, two phrasings below, because the
- *  press means different things at different points in a scenario and a second
- *  spelling of the gesture is how the two would come to settle differently. */
-const pressChats = async (world: OlaiWorld): Promise<void> => {
-  await world.page.locator(CHAT_SESSIONS).click();
-};
-
+/** The header's SESSIONS pill pressed — a node agent's own conversations, and
+ *  the fresh session that ends the current one. It is drawn only where the
+ *  panel's conversation belongs to a node agent; every OTHER stored
+ *  conversation is the sidebar's now ("I open the unassigned chats"). */
 When("I open the session picker", async function (this: OlaiWorld) {
-  await pressChats(this);
+  await this.page.locator(CHAT_SESSIONS).click();
 });
 /** No `trouble` on screen — what went wrong where nobody was waiting, and the
  *  claim that nothing did. No wait of its own: the step before it has already
@@ -2409,11 +2406,11 @@ Then("the chat says nothing went wrong", async function (this: OlaiWorld) {
 
 /** ONE AGENT of the several installed could not be asked — a different claim
  *  from the one above, and the whole reason it has a locator of its own: this
- *  one leaves every other agent's conversations on the screen, and the picker
- *  did not refuse. Named by the agent, so a list with two broken agents in it
+ *  one leaves every other agent's conversations on the screen, and the list
+ *  itself did not refuse. Named by the agent, so a list with two broken agents in it
  *  is two assertions rather than one ambiguous locator. */
 Then(
-  "the picker says {string} could not be asked, with {string}",
+  "the list says {string} could not be asked, with {string}",
   async function (this: OlaiWorld, agent: string, reason: string) {
     const line = this.page.locator(
       `${CHAT_SESSION_UNREACHABLE}${attr("data-agent", agent)}`,
@@ -2421,18 +2418,18 @@ Then(
     await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     assert.ok(
       oneLine(await line.innerText()).includes(reason),
-      `the picker to give "${agent}"'s own reason, "${reason}"`,
+      `the list to give "${agent}"'s own reason, "${reason}"`,
     );
   },
 );
 
 /** The other half of the claim: a refusal draws no rows, so the two answers
  *  cannot be confused by a reader who sees an empty list under an error. */
-Then("the picker lists nothing", async function (this: OlaiWorld) {
+Then("the unassigned list is empty", async function (this: OlaiWorld) {
   assert.strictEqual(await this.page.locator(CHAT_SESSION).count(), 0);
 });
 
-Then("the picker lists {string}", async function (this: OlaiWorld, title: string) {
+Then("the unassigned list lists {string}", async function (this: OlaiWorld, title: string) {
   await this.page
     .locator(CHAT_SESSION, { hasText: title })
     .first()
@@ -2450,7 +2447,7 @@ When(
  *  the fan-out's claim: the list is not the agent this panel happens to be
  *  talking to. By the roster's id rather than by the brand name beside it. */
 Then(
-  "the chats list shows {string} under the agent {string}",
+  "the unassigned list shows {string} under the agent {string}",
   async function (this: OlaiWorld, title: string, agent: string) {
     await this.page
       .locator(`${CHAT_SESSION}${attr("data-agent", agent)}`, { hasText: title })
@@ -2464,7 +2461,7 @@ Then(
  *  the one above and be the interleaved list this arrangement exists to
  *  replace. */
 Then(
-  "the chats list is grouped under the agent {string}",
+  "the unassigned list is grouped under the agent {string}",
   async function (this: OlaiWorld, agent: string) {
     await this.page
       .locator(`${CHAT_SESSION_AGENT}${attr("data-agent", agent)}`)
@@ -2474,7 +2471,7 @@ Then(
 
 /** ... and that it is NOT grouped, which is the one-agent case: a heading over
  *  the whole list says what the panel's own header already says. */
-Then("the chats list has no headings", async function (this: OlaiWorld) {
+Then("the unassigned list has no headings", async function (this: OlaiWorld) {
   assert.strictEqual(await this.page.locator(CHAT_SESSION_AGENT).count(), 0);
 });
 
@@ -2489,7 +2486,7 @@ const rowOf = (world: OlaiWorld, title: string): Locator =>
  *  word changes to "message" — and the singular, not the number, is what the
  *  review noted the step below could otherwise never observe. */
 Then(
-  "the chats row for {string} says it has {int} messages",
+  "the row for {string} says it has {int} messages",
   async function (this: OlaiWorld, title: string, count: number) {
     const row = rowOf(this, title);
     await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -2502,7 +2499,7 @@ Then(
 );
 
 Then(
-  "the chats row for {string} says it has one message",
+  "the row for {string} says it has one message",
   async function (this: OlaiWorld, title: string) {
     const row = rowOf(this, title);
     await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -2517,7 +2514,7 @@ Then(
  *  corner to read a count out of: nothing there — never a zero standing in
  *  for nobody having asked. */
 Then(
-  "the chats row for {string} shows no message count",
+  "the row for {string} shows no message count",
   async function (this: OlaiWorld, title: string) {
     const row = rowOf(this, title);
     await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -2528,11 +2525,11 @@ Then(
   },
 );
 
-/** WHICH conversation replaced this one, read off the row — the picker's own
+/** WHICH conversation replaced this one, read off the row — the list's own
  *  answer to "which of these two do I want" before anybody opens the wrong
  *  half of a `/clear` pair. */
 Then(
-  "the chats row for {string} was superseded by {string}",
+  "the row for {string} was superseded by {string}",
   async function (this: OlaiWorld, title: string, successor: string) {
     const line = rowOf(this, title).locator(CHAT_SESSION_SUPERSEDED).first();
     await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -2545,7 +2542,7 @@ Then(
 );
 
 Then(
-  "the chats row for {string} was not superseded",
+  "the row for {string} was not superseded",
   async function (this: OlaiWorld, title: string) {
     // The absence of the line, not of the word: a title could supersede in
     // name only, and a superseded row carries the one element with the fact.

@@ -1,5 +1,5 @@
 /**
- * How the chats list is arranged for a reader, over values.
+ * How a list of stored conversations is arranged for a reader, over values.
  *
  * The rule has two edges and both are ways the list stops being usable: the
  * ORDER of the groups (which must not move because somebody sent a message) and
@@ -27,7 +27,7 @@ const said = (agent: string, id: string, updatedAt: string | null): SessionInfo 
   supersededBy: null,
 })
 
-describe("grouping the chats list", () => {
+describe("grouping a list of conversations", () => {
   test("in the ROSTER's order, not the list's", () => {
     // The server answers newest-first across every agent, so the newest
     // conversation here is opencode's — and the groups still come out in the

@@ -1160,7 +1160,7 @@ export const Conversation = Schema.Struct({
 export type Conversation = typeof Conversation.Type
 
 /**
- * One of the stored conversations, as the picker lists them — and WHOSE it is.
+ * One of the stored conversations, as a list of them draws one — and WHOSE it is.
  *
  * The agent is on the ROW rather than on a group around it, because it is a
  * fact about the conversation and travels wherever the row does: a session id

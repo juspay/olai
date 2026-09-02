@@ -3,7 +3,7 @@
  *
  * Everything asserted here is a statement about COST or about TIME, and both
  * are unreachable through the real thing at anything like a sane price: proving
- * that a click on `chats` does not start three subprocesses means counting
+ * that opening the list does not start three subprocesses means counting
  * subprocesses, and proving an answer goes stale means starting one, waiting
  * out a clock and starting it again. What they cost when they are wrong is the
  * bug this module is the fix for, one layer along — a conversation that is
@@ -289,7 +289,7 @@ describe("an agent that could not be asked", () => {
   })
 })
 
-describe("what a click on `chats` costs", () => {
+describe("what opening the list costs", () => {
   test("ONE agent started at a time, however many are installed", async () => {
     // Three handshakes racing each other is the cost a person pays for a click,
     // and the reason this holds a permit at all.

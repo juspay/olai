@@ -141,7 +141,7 @@ test("no file here spells the same-file law — it is the format's", () => {
 // layer.ts's claim — every `z-index` in this client comes from its table. The
 // numbers were never wrong before that module existed; they were spread over
 // twenty call sites, where two of them meant something entirely different from
-// what they looked like (`chat/Sessions.tsx` drew at the palette's own `z-50`
+// what they looked like (the chat's session list drew at the palette's own `z-50`
 // while sealed inside a panel riding three layers down). What stops that
 // coming back is not the table but this: a bare utility anywhere else fails
 // here, and picking a NAME is the question a bare number lets a person skip.

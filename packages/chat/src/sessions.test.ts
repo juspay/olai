@@ -120,6 +120,16 @@ describe("what it does with a file it cannot make sense of", () => {
     expect((await run(forDirectory(HERE))).at(IN)?.taught).toBeUndefined()
   })
 
+  test("`assigned` is only `true`, the way `taught` is", async () => {
+    already(HERE, [{ agent: "claude", session: "sess-1", assigned: "yes" }])
+    expect((await run(forDirectory(HERE))).at(IN)?.assigned).toBeUndefined()
+  })
+
+  test("a `superseded` that names nothing is a conversation nothing replaced", async () => {
+    already(HERE, [{ agent: "claude", session: "sess-1", superseded: "" }])
+    expect((await run(forDirectory(HERE))).at(IN)?.superseded).toBeUndefined()
+  })
+
   test("a half-written `said` is a door with no line, not a record refused", async () => {
     already(HERE, [{ agent: "claude", session: "sess-1", said: { text: "hello" } }])
     const row = (await run(forDirectory(HERE))).at(IN)
@@ -153,6 +163,52 @@ describe("what olai writes back", () => {
     expect(written(HERE)["heard"]).toEqual([
       { agent: "claude", session: "sess-1", taught: true },
     ])
+  })
+
+  test("that a chat was ASSIGNED comes back, which is what teaches it once", async () => {
+    // The migration mark: nothing in a transcript says a conversation was
+    // moved to a node, so a serve that forgot would teach the ordinary
+    // contract and the distillation order would never go out.
+    const heard = await run(forDirectory(HERE))
+    await run(heard.assign(IN))
+    expect((await run(forDirectory(HERE))).at(IN)?.assigned).toBe(true)
+  })
+
+  test("assigning a session already assigned writes nothing at all", async () => {
+    already(HERE, [{ agent: "claude", session: "sess-1", assigned: true }])
+    const heard = await run(forDirectory(HERE))
+    await run(heard.assign(IN))
+    expect(written(HERE)["heard"]).toEqual([
+      { agent: "claude", session: "sess-1", assigned: true },
+    ])
+  })
+
+  test("what olai replaced a session WITH is written on the session left behind", async () => {
+    const heard = await run(forDirectory(HERE))
+    await run(heard.supersede(IN, "sess-2"))
+    expect((await run(forDirectory(HERE))).at(IN)?.superseded).toBe("sess-2")
+  })
+
+  test("a session replaced twice names the conversation that is bound now", async () => {
+    const heard = await run(forDirectory(HERE))
+    await run(heard.supersede(IN, "sess-2"))
+    await run(heard.supersede(IN, "sess-3"))
+    expect(heard.at(IN)?.superseded).toBe("sess-3")
+  })
+
+  test("the marks sit beside each other on one row rather than replacing it", async () => {
+    // A chat assigned to a node, taught, and later given a fresh session is one
+    // conversation with three things overheard about it.
+    const heard = await run(forDirectory(HERE))
+    await run(heard.assign(IN))
+    await run(heard.teach(IN))
+    await run(heard.supersede(IN, "sess-2"))
+    expect((await run(forDirectory(HERE))).at(IN)).toEqual({
+      ...IN,
+      assigned: true,
+      taught: true,
+      superseded: "sess-2",
+    })
   })
 
   test("the last line an agent said is written down, and comes back", async () => {

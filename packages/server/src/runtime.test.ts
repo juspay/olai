@@ -42,6 +42,9 @@ import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
+import type { NodeAgent } from "@olai/format"
+
+import type { Roster } from "./agents.ts"
 import { watchFault } from "./fault.ts"
 import { hostname } from "./hostname.ts"
 import { type Bound, bind, gitWiring, rosterOf, writerAt } from "./runtime.ts"
@@ -95,6 +98,10 @@ const withRuntime = <A>(
   extra: {
     readonly chat?: Chat
     readonly plugins?: ReadonlyArray<string>
+    /** The vault's half of the node-agent roster ({@link ./agents.ts}) —
+     *  absent for every case that is not about a binding, which is what a
+     *  serve with no ACP agent is handed too. */
+    readonly agents?: Roster
   } = {},
 ): Promise<A> => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-runtime-")))
@@ -121,6 +128,7 @@ const withRuntime = <A>(
     const wired = yield* bind({
       store,
       chat: extra.chat ?? null,
+      ...(extra.agents === undefined ? {} : { agents: extra.agents }),
       ops,
       writer: "web",
       hostname: hostname(),
@@ -964,6 +972,12 @@ const chatKeeping = (kept: ReadonlyArray<Scoped>): {
     // every revision these cases publish, and a stub that died on it would fail
     // the wiring rather than the rule under test.
     overheard: () => [],
+    // The two marks the migration gestures leave, and neither is a doorbell:
+    // the real record is `@olai/chat`'s bench, and a case here that reached
+    // one would be asking about something this file does not own. They answer
+    // rather than die because they never refuse in the real chat either.
+    assigned: () => Effect.void,
+    replaced: () => Effect.void,
     reread: () => {},
     send: () => elsewhere,
     attach: () => elsewhere,
@@ -1358,4 +1372,255 @@ test("a scope on a served file its doorbell cannot read is told, in the OTHER de
         }),
       { chat: it.chat, plugins: [ringer.name, other.name] },
     ))
+})
+
+// ── the two gestures that move a node agent's binding ──────────────────
+//
+// Both are COMPOSED at this root rather than passed through, and both are two
+// acts that only make sense together: a property through the ops layer, and a
+// mark in the record of what olai has overheard (`@olai/chat`'s `sessions.ts`).
+// What the cases below hold is the seam between those halves — the order, the
+// refusal, and the one fact each gesture leaves behind for the next session to
+// be taught by.
+
+/** A stub roster carrier: which nodes are node agents, and which of them are
+ *  already talking through a conversation. The other two readings are nobody's
+ *  business here — the cell is not published in these cases and the teaching
+ *  is the chat's. */
+const rosterOfNodes = (rows: ReadonlyArray<NodeAgent>): Roster => ({
+  seen: () => {},
+  agentAt: () => null,
+  nodeAt: (node) => rows.find((row) => row.id === node) ?? null,
+  rowsWith: () => [],
+})
+
+/** One node agent as the vault's own reading answers it. */
+const nodeAgent = (over: Partial<NodeAgent> = {}): NodeAgent => ({
+  id: "a",
+  file: "a.olai",
+  title: "a",
+  engine: "claude",
+  session: null,
+  memory: 0,
+  ...over,
+})
+
+/**
+ * A stub chat that can OPEN a conversation and writes down what it is told.
+ *
+ * `chatKeeping` above answers a doorbell and dies on everything else, which is
+ * right for its cases and wrong for these: what these are about is the two
+ * members that were added for the migration, plus the one verb the fresh
+ * session runs first. Every other member still dies.
+ */
+const chatOpening = (opens: ReadonlyArray<string>): {
+  readonly chat: Chat
+  /** The conversations marked as having ARRIVED by assignment, in order. */
+  readonly assigned: ReadonlyArray<{ readonly agent: string; readonly session: string }>
+  /** ... and the ones olai replaced, with what replaced them. */
+  readonly replaced: ReadonlyArray<
+    { readonly agent: string; readonly session: string; readonly by: string }
+  >
+} => {
+  const assigned: Array<{ readonly agent: string; readonly session: string }> = []
+  const replaced: Array<
+    { readonly agent: string; readonly session: string; readonly by: string }
+  > = []
+  const elsewhere = Effect.die(new Error("this stub chat opens conversations and nothing else"))
+  /** Which conversation the panel is in — moved by `newSession`, exactly as the
+   *  real one is: the verb answers with nothing and the state is where every
+   *  reader learns which conversation appeared. */
+  let at = -1
+  const chat: Chat = {
+    entries: () => new Map(),
+    state: () => ({
+      ...CHAT_OFF,
+      session: at < 0 || opens[at] === undefined
+        ? null
+        : { id: opens[at] as string, title: null, updatedAt: null },
+    }),
+    overheard: () => [],
+    assigned: (to) => Effect.sync(() => void assigned.push(to)),
+    replaced: (to, by) => Effect.sync(() => void replaced.push({ ...to, by })),
+    reread: () => {},
+    send: () => elsewhere,
+    attach: () => elsewhere,
+    resend: () => elsewhere,
+    cancel: elsewhere,
+    newSession: () => Effect.sync(() => void (at += 1)),
+    chooseAgent: () => elsewhere,
+    loadSession: () => elsewhere,
+    reopen: elsewhere,
+    sessions: elsewhere,
+    answer: () => elsewhere,
+    recordRefusal: () => Effect.void,
+    scope: () => elsewhere,
+    start: Effect.void,
+    stop: Effect.void,
+    doorFor: () => ({ scopes: () => [], deliver: () => elsewhere }),
+    faults: () => elsewhere,
+  }
+  return { chat, assigned, replaced }
+}
+
+/** The two procedures, by the tags they are bound under. */
+const assigning = (bound: Bound) => {
+  const assign = bound.handlers["surface/chat/assignSession"]
+  if (assign === undefined) throw new Error("the chat group has no `assignSession`")
+  return (input: { readonly node: string; readonly agent: string; readonly session: string }) =>
+    assign(input) as Effect.Effect<void, { readonly reason: string }>
+}
+
+const starting = (bound: Bound) => {
+  const start = bound.handlers["surface/chat/startAgentSession"]
+  if (start === undefined) throw new Error("the chat group has no `startAgentSession`")
+  return (input: { readonly node: string; readonly agent: string }) =>
+    start(input) as Effect.Effect<void, { readonly reason: string }>
+}
+
+/** What the file says now — the durable half, read where it actually landed
+ *  rather than off a snapshot this harness took before the write. */
+const propertyIn = (root: string, file: string, id: string): string | undefined => {
+  for (const line of fs.readFileSync(path.join(root, file), "utf8").split("\n")) {
+    if (line.trim() === "") continue
+    const row = JSON.parse(line) as {
+      readonly id: string
+      readonly custom?: Record<string, unknown>
+    }
+    if (row.id === id) return row.custom?.["agent-session"] as string | undefined
+  }
+  return undefined
+}
+
+/**
+ * ASSIGNING A CHAT is one property and one mark, in that order.
+ *
+ * The order is the guarantee: the property IS the assignment, so a mark written
+ * before a write that then failed would be a session believing it had been
+ * assigned to a node that never claimed it. And the mark is what the session is
+ * taught by on its next message — the distillation order rather than the
+ * standing law — which is the whole reason this is a procedure at all rather
+ * than an `edit.apply` from a browser.
+ */
+test("a chat assigned to a bare node lands as one property, and is marked as having arrived that way", () => {
+  const it = chatOpening([])
+  return withRuntime(
+    { "a.olai": OUTLINE },
+    ({ wired, root }) =>
+      Effect.gen(function*() {
+        yield* assigning(wired.bound)({
+          node: "a",
+          agent: "claude",
+          session: "fake-stored-new",
+        })
+        // THE ENGINE AND THE SESSION AS ONE VALUE, off the chat: a property
+        // naming one engine and another engine's conversation would be a node
+        // agent nobody could open.
+        expect(propertyIn(root, "a.olai", "a")).toBe("claude:fake-stored-new")
+        expect(it.assigned).toEqual([{ agent: "claude", session: "fake-stored-new" }])
+      }),
+    // NO ROSTER AT ALL is a serve whose vault reading has not arrived, and a
+    // node it says nothing about is a node nothing is talking through — which
+    // is the ordinary case for a bare row.
+    { chat: it.chat },
+  )
+})
+
+/**
+ * ... AND A NODE ALREADY TALKING THROUGH ONE REFUSES, in a plain sentence.
+ *
+ * One agent, one current session. The browser dims such a node where somebody
+ * can see it before pressing, which is a courtesy; THIS is the check, because a
+ * tab decides against the frame it was drawn on and two tabs can be looking at
+ * one node.
+ *
+ * The negative beside it is the half that matters: nothing was written, and
+ * nothing was marked. A refusal that had already rewritten the property would
+ * be the one outcome a person cannot undo by pressing anything.
+ */
+test("a node already talking through a conversation refuses, and nothing is written", () => {
+  const it = chatOpening([])
+  return withRuntime(
+    { "a.olai": OUTLINE },
+    ({ wired, root }) =>
+      Effect.gen(function*() {
+        const said = yield* Effect.flip(assigning(wired.bound)({
+          node: "a",
+          agent: "claude",
+          session: "fake-stored-new",
+        }))
+        expect(said.reason).toContain("already talking through a conversation")
+        expect(said.reason).toContain("one agent, one current session")
+        expect(propertyIn(root, "a.olai", "a")).toBeUndefined()
+        expect(it.assigned).toEqual([])
+      }),
+    {
+      chat: it.chat,
+      agents: rosterOfNodes([nodeAgent({ session: "fake-session-1" })]),
+    },
+  )
+})
+
+/**
+ * A FRESH SESSION records what it replaced, so the conversation it replaced is
+ * not orphaned.
+ *
+ * Nothing else records it: no `/clear` happened, so no adapter has anything to
+ * say about this supersession (`@olai/chat`'s `succession.ts`). Without the
+ * mark the node agent's own previous conversation comes back under Unassigned,
+ * inviting somebody to assign it to the node it already belonged to — which is
+ * the one node that would refuse it.
+ */
+test("a fresh session on a bound node re-points the property and records what it replaced", () => {
+  const it = chatOpening(["fake-session-2"])
+  return withRuntime(
+    { "a.olai": OUTLINE },
+    ({ wired, root }) =>
+      Effect.gen(function*() {
+        yield* starting(wired.bound)({ node: "a", agent: "claude" })
+        expect(propertyIn(root, "a.olai", "a")).toBe("claude:fake-session-2")
+        expect(it.replaced).toEqual([
+          { agent: "claude", session: "fake-session-1", by: "fake-session-2" },
+        ])
+      }),
+    {
+      chat: it.chat,
+      agents: rosterOfNodes([nodeAgent({ session: "fake-session-1" })]),
+    },
+  )
+})
+
+/** ... and a node that had no session replaced nothing, which is every press of
+ *  the `•••` verb this procedure was written for. */
+test("starting a session on an unbound node records no supersession", () => {
+  const it = chatOpening(["fake-session-1"])
+  return withRuntime(
+    { "a.olai": OUTLINE },
+    ({ wired, root }) =>
+      Effect.gen(function*() {
+        yield* starting(wired.bound)({ node: "a", agent: "claude" })
+        expect(propertyIn(root, "a.olai", "a")).toBe("claude:fake-session-1")
+        expect(it.replaced).toEqual([])
+      }),
+    { chat: it.chat, agents: rosterOfNodes([nodeAgent()]) },
+  )
+})
+
+/** ... and neither does an agent that answers with the conversation the node
+ *  was already in, which is what the scripted agent does on every open: a
+ *  session must not be recorded as having superseded itself. */
+test("a fresh session that comes back as the same conversation supersedes nothing", () => {
+  const it = chatOpening(["fake-session-1"])
+  return withRuntime(
+    { "a.olai": OUTLINE },
+    ({ wired }) =>
+      Effect.gen(function*() {
+        yield* starting(wired.bound)({ node: "a", agent: "claude" })
+        expect(it.replaced).toEqual([])
+      }),
+    {
+      chat: it.chat,
+      agents: rosterOfNodes([nodeAgent({ session: "fake-session-1" })]),
+    },
+  )
 })
