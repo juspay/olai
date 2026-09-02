@@ -352,14 +352,25 @@ export const serve = (options: ServeOptions) =>
        * `Env` is constructed), and a probe still sees what a session's own spawn
        * will resolve against.
        */
-      probes: () => {
+      probes: async () => {
         const start: SessionStart = { asking: [] }
-        // The waterfall's own shape: listeners are called with the payload and a
-        // `next`, and the INNER function is what runs when the last of them has
-        // called through. Nothing here is async — every listener pushes and
-        // returns `next()` — so the promise this returns is already settled, and
-        // `@olai/chat` is handed the collected list rather than a promise of one.
-        void plugins.waterfall("chat/session-start", start, async () => start)
+        // AWAITED, and that is not ceremony. The waterfall.s own shape is that
+        // listeners are called with the payload and a `next`, and the INNER
+        // function runs when the last of them has called through — so with two
+        // synchronous listeners the chain settles inline and the pushes have
+        // landed by the time this line returns.
+        //
+        // A listener that awaited anything before its push would not have, and
+        // nothing would be red: it would simply be absent from every session,
+        // for ever, on a path whose whole subject is a plugin that is missing.
+        // So the dispatch is awaited and this door hands back a promise, which
+        // costs one microtask per session open and cannot be got wrong by a
+        // plugin author who had no reason to know the contract.
+        //
+        // The BOUNDED CONCURRENCY the thunks exist for is downstream of this and
+        // untouched: what is awaited here is building the LIST, and `@olai/chat`
+        // still schedules the asking.
+        await plugins.waterfall("chat/session-start", start, async () => start)
         return start.asking
       },
       /**

@@ -2324,12 +2324,24 @@ export const bind = (
         if (wanted.has(key)) continue
         mounted.delete(key)
         // `drop()` resolves when the sibling's sources have been finalized; the
-        // ROSTER change is synchronous at the call, which is what the line
-        // below is about to publish. A teardown fault reaches `runtime.done`,
-        // the one owned-fault channel, exactly as a finalizer faulting during
-        // `close()` does — so there is nothing here to await and nothing to
-        // catch.
-        void mount.drop()
+        // ROSTER change is synchronous at the call, which is what the line below
+        // is about to publish. So there is nothing here to AWAIT — a re-compose
+        // that waited for a teardown would hold up the fiber that triggered it.
+        //
+        // There IS something to catch. The framework says a teardown fault
+        // reaches `runtime.done`, the one owned-fault channel, exactly as a
+        // finalizer faulting during `close()` does; what it does not say is that
+        // the promise cannot reject, and a rejection nobody observes is an
+        // unhandled rejection in somebody's server log with a stack that names
+        // the framework rather than the plugin. So it is observed, and the one
+        // thing this file can honestly do with it is say WHICH sibling failed to
+        // leave — on the OWNER's channel, because a sibling still holding a
+        // source after it has left the roster is a thing a person can act on.
+        void mount.drop().catch((thrown: unknown) => {
+          plugins?.log.warn(
+            `plugins: "${key}" left the wire and its teardown failed — ${String(thrown)}`,
+          )
+        })
       }
       republishPlugins()
     }

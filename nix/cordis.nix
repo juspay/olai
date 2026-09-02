@@ -65,6 +65,27 @@
 # in olai's source. What the stamp hides is Cordis's authoring, not Cordis's
 # shape.
 #
+# ## THE TWO UPSTREAM ASKS, kept together because they are the same class
+#
+# Both are places olai cannot use the pin as written, and both are written down
+# here rather than worked around silently.
+#
+#   1. THE STRICTNESS DELTA above — adopt `noUncheckedIndexedAccess` and
+#      `noImplicitOverride`, retire the three off-switches — which takes the
+#      `@ts-nocheck` stamp with it.
+#   2. A PUBLIC RESOLVER SEAM on `@cordisjs/plugin-loader`. `EntryTree.import`
+#      resolves a row's `name` with a bare `import()` from inside the loader's
+#      own package, which under bun's isolated linker cannot see a workspace
+#      member; the only way through today is to fill `loader.internal` — the
+#      slot upstream keeps for Node's own `ModuleLoader` — with one method and a
+#      cast (`packages/bundle/src/bundle.ts`, which names the revision it was
+#      verified against). A `resolve` option on `Loader.Config`, or a documented
+#      import hook, would make "a consumer whose module graph the loader cannot
+#      walk" a supported case rather than a cast that fails at runtime.
+#
+# Neither is a blocker: the tree works. Both are the pin's own shape asking to
+# be a little wider, and a note here is how they stay askable.
+#
 # cosmokit, `@standard-schema/spec` and js-yaml stay on npm, declared at the
 # root at the versions the pin names — the same arrangement `@odu/run-client`
 # has with `effect`. The copier is kolu's (`hydrate-kolu-packages.sh`); this

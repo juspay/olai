@@ -40,6 +40,27 @@
  * (`loader.internal`) is filled with an `import()` written HERE, in the one
  * package that declares the plugins — which is the same fence every other door
  * in this package keeps, in a third grammar.
+ *
+ * ## That seam is PIN-COUPLED, and here is what it is coupled to
+ *
+ * `loader.internal` is upstream's slot for Node's own `ModuleLoader`, which the
+ * loader uses when it can reach the internals and leaves `undefined` when it
+ * cannot — which is always, under bun. `EntryTree.import` calls exactly one
+ * method on it, so what is assigned below is one method and a version tag, cast.
+ *
+ * **Verified against `@cordisjs/plugin-loader@1.0.0-rc.6`** (the pinned
+ * revision — `npins/sources.json`, name `cordis`). A revision that renames the
+ * slot, reshapes it, or starts calling a second method on it fails at RUNTIME
+ * rather than at typecheck, because the cast is what makes the assignment legal
+ * at all. `just cordis-deps` does not catch that and cannot: it asks about
+ * versions, not shapes.
+ *
+ * THE UPSTREAM ASK is therefore a PUBLIC resolver seam — something like a
+ * `resolve` option on `Loader.Config`, or a documented `import` hook — so a
+ * consumer whose module graph the loader cannot walk is a supported case rather
+ * than a cast. It goes beside the tsconfig-strictness ask in `nix/cordis.nix`;
+ * both are the same class of thing, which is a pin olai cannot use as written
+ * without saying so out loud.
  */
 
 import Include from "@cordisjs/plugin-include"

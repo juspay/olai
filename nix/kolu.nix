@@ -36,21 +36,38 @@
 # that will not typecheck here is a blocker rather than a nuisance. That is the
 # whole reason this arrangement is worth its cost, and it is unchanged.
 #
-# THE PIN TRACKS MASTER, which is the third state it has been in and is the one
-# it started in. It tracked master until the ROOTED BUNDLE arrived —
-# `mergeDisjointGroups` and `exposeRootedFaces` on `@kolu/surface`, and
-# `connectSurfaces`' `core` slot on `@kolu/surface-app` (juspay/kolu#2222) —
-# which is the capability olai asked for and the one this tree's client seam is
-# built on. That work was UNMERGED for a window, so the pin was frozen at an
-# exact sha on the `rooted-bundle` branch (the odu#94 precedent next door): a
-# branch whose head can still move under a merge, a rebase or an amendment is a
-# pin that would change what `@olai/web` compiles against with no diff to show
-# for it.
+# THE PIN IS FROZEN ON A BRANCH AGAIN, and this is the FOURTH state it has been
+# in. It tracked master until the ROOTED BUNDLE arrived — `mergeDisjointGroups`
+# and `exposeRootedFaces` on `@kolu/surface`, and `connectSurfaces`' `core` slot
+# on `@kolu/surface-app` (juspay/kolu#2222) — which was UNMERGED for a window,
+# so the pin was frozen at an exact sha on the `rooted-bundle` branch (the odu#94
+# precedent next door). #2222 merged (squashed onto master as `5077c7f9`), the
+# reason expired exactly as the note here said it would, and the pin came home.
 #
-# #2222 MERGED (squashed onto master as `5077c7f9`), and the reason expired with
-# it exactly as the note here said it would: the branch is gone with the squash,
-# the pin is unfrozen, and `just update-pins` walks it forward with everything
-# else. `npins/sources.json` records the revision either way, so what this tree
+# It is out again for the same reason, one capability later. A LIVE ROOTED
+# BUNDLE — `implementRootedSurfaces`, `mount(key, surface, deps)` handing back
+# its own undo, and `SurfacesConnection.redial(surfaces)` on the client
+# (juspay/kolu#2223) — is what olai's server composition is built on since the
+# plugins became fibers: a plugin can fail or be disposed, so the sibling set
+# moves, and re-implementing the whole map over the survivors forks every one of
+# their runtimes silently.
+#
+#   branch    live-bundle
+#   revision  560cb1b9 — the head of juspay/kolu#2223, which is a DRAFT
+#
+# A branch whose head can still move under a merge, a rebase or an amendment is
+# a pin that would change what this tree compiles against with no diff to show
+# for it. So the revision is exact rather than a branch head followed, and
+# `just update-pins` moving it is a diff somebody reads.
+#
+# THIS IS A MERGE GATE AND NOT A PREFERENCE. olai must not merge a tree whose
+# framework pin is on a branch: the branch goes away with the squash and the
+# revision stops being fetchable. kolu#2223 merges first, then this pin returns
+# to `master` at whatever sha the squash produced, and THEN this tree merges.
+# Delete this whole block and restore the one-line "the pin tracks master" note
+# when it does.
+#
+# `npins/sources.json` records the revision either way, so what this tree
 # compiled against is always in the diff.
 #
 # NOTE THE ATTR RENAME. Members are `kolu-surface`, not `kolu-src-surface`:

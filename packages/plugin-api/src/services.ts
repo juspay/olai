@@ -429,7 +429,29 @@ export class Surfaces extends Service {
     }
     return this.ctx.effect(() => {
       this.table.set(name, { ...sibling, name })
-      this.config.changed?.()
+      try {
+        this.config.changed?.()
+      } catch (refused) {
+        // THE ENTRY GOES BEFORE THE THROW DOES, and this is the one place it can:
+        // a throw out of the effect BODY exits before the disposer is returned,
+        // so the runtime has nothing to unwind and the entry would stay.
+        //
+        // What that cost is worth spelling out, because it is not the obvious
+        // one. The refusing fiber lands `FAILED`, which is what the containment
+        // claim says — and its sibling was still in {@link composed}, so the NEXT
+        // plugin to register re-ran the composition root's re-compose, which
+        // retried the same refused mount and threw inside THAT plugin's `apply`.
+        // One mis-shaped surface took down every plugin that arrived after it,
+        // each failing on somebody else's refusal, and the table went on
+        // reporting the refused one as composed to a roster that draws it.
+        //
+        // NOT re-notified on the way out: the root never mounted this sibling, so
+        // deleting it puts the table back exactly where the last successful
+        // composition left it and there is nothing for a re-compose to do. Telling
+        // it again would be re-entering it from inside a throw.
+        this.table.delete(name)
+        throw refused
+      }
       return () => {
         this.table.delete(name)
         this.config.changed?.()

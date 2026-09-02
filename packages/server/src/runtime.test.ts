@@ -38,7 +38,7 @@ import { NO_KINDS } from "@olai/format"
 import * as Store from "@olai/store"
 import { NodeServices } from "@effect/platform-node"
 import { expect, mock, test } from "bun:test"
-import { Effect, Fiber, Queue, Stream, SubscriptionRef } from "effect"
+import { Effect, Fiber, Queue, Schema, Stream, SubscriptionRef } from "effect"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
@@ -78,9 +78,15 @@ const withRuntime = <A>(
      *  file underneath it. */
     readonly root: string
     /** Every path whose BODY was read off the disk for a reader, in order —
-     *  `@olai/store`'s `body`, which is the one door `./bodies.ts` may use.
+     *  `@olai/store`.s `body`, which is the one door `./bodies.ts` may use.
      *  Recorded rather than mocked: the real read still happens. */
     readonly reads: ReadonlyArray<string>
+    /** THE PLUGIN CONTEXT this runtime was handed, or `null` where a case took
+     *  no plugin slot — for the one case that mounts a plugin AFTER the bundle
+     *  is composed, which is the only way to reach the live re-compose from
+     *  here. Every other case gets its plugins mounted before `bind` and has no
+     *  use for it. */
+    readonly plugins: Context | null
   }) => Effect.Effect<A, unknown>,
   /**
    * The two slots the doorbell's gates need and no other test here does —
@@ -129,6 +135,11 @@ const withRuntime = <A>(
     /** The re-compose holder `bind` fills in — one per boot, as `./serve.ts`
      *  makes one per serve. */
     const onChange = { run: (): void => {} }
+    /** The plugin context this boot was handed, held so the body can reach it —
+     *  see the `plugins` field the harness yields. */
+    const mounted = extra.plugins === undefined
+      ? null
+      : yield* Effect.promise(() => mounting(extra.plugins ?? [], () => extra.chat ?? null, onChange))
     const wired = yield* bind({
       store,
       chat: extra.chat ?? null,
@@ -148,10 +159,8 @@ const withRuntime = <A>(
       // The doorbell's cases DO take the slot, and they still dial nothing:
       // what stands behind their names is a double with no appliance under it
       // ({@link doubleCalled}).
-      plugins: extra.plugins === undefined ? null : {
-        ctx: yield* Effect.promise(() =>
-          mounting(extra.plugins ?? [], () => extra.chat ?? null, onChange)
-        ),
+      plugins: mounted === null ? null : {
+        ctx: mounted,
         onChange,
         built: (extra.plugins ?? []).map((one) => one.name),
         pinned: null,
@@ -165,7 +174,7 @@ const withRuntime = <A>(
     const runtime = yield* watchFault(wired.bound)
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
     yield* Effect.addFinalizer(() => runtime.stopped)
-    return yield* use({ wired, ops, store, reads, root })
+    return yield* use({ wired, ops, store, reads, root, plugins: mounted })
   }).pipe(Effect.scoped, Effect.provide(NodeServices.layer), Effect.runPromise)
 }
 
@@ -799,6 +808,96 @@ test("the roster is served on the plugins cell", () =>
       expect(yield* open.take).toEqual(NO_ROSTER)
       yield* Fiber.interrupt(open.reader)
     })))
+
+// ── a sibling that arrives after the bundle is composed ────────────────
+
+/**
+ * THE LIVE RE-COMPOSE, and the containment claim held on the one path where it
+ * can actually be false.
+ *
+ * Every other case in this file mounts its doubles BEFORE `bind`, which is what
+ * a real serve does: the bundle's rows are fibers before the store opens,
+ * because a plugin teaches the vault its vocabulary. A sibling that arrives
+ * AFTER that goes through `ctx.surfaces.register` → the root's `recompose` →
+ * `runtime.mount`, and `mount` is TRANSACTIONAL: a surface whose deps do not
+ * match it throws, with the roster and the running sources untouched.
+ *
+ * ## What that throw used to leave behind
+ *
+ * `Surfaces.register` set its table entry, called the root's re-compose, and
+ * returned the disposer. A re-compose that threw exited the effect body BEFORE
+ * the disposer existed, so the runtime had nothing to unwind: the refusing
+ * fiber landed `FAILED` — which is what the claim says — and its sibling stayed
+ * in `composed()`. The next plugin to register re-ran the re-compose, which
+ * retried the same refused mount and threw inside THAT plugin's `apply`. One
+ * mis-shaped surface took down every plugin that arrived after it, each failing
+ * on somebody else's refusal, and the roster went on drawing the refused one as
+ * running.
+ *
+ * ## Why the case is here rather than beside the service
+ *
+ * `@olai/plugin-api`'s own bench holds the same claim against a `changed` that
+ * refuses, which is the unit. This is the INTEGRATION: the refusal is a real
+ * `implementRootedSurfaces` mount refusing a real mis-shaped sibling, through
+ * the real `recompose`, so the case cannot pass on a stand-in that throws where
+ * the framework would not.
+ */
+test("a sibling the rooted bundle refuses takes only its own fiber down, and the next one still mounts", () =>
+  withRuntime(
+    { "a.olai": OUTLINE },
+    ({ plugins, wired }) =>
+      Effect.gen(function*() {
+        if (plugins === null) throw new Error("this case needs the plugin runtime")
+        const before = Object.keys(wired.bound.handlers).length
+
+        // A surface with a cell and DEPS THAT DO NOT MENTION IT — the shape a
+        // plugin's own `satisfies` makes unspellable in its own package, which
+        // is why reaching it here takes a double rather than a tenant.
+        const bad = {
+          name: "refused",
+          inject: ["surfaces"] as const,
+          apply(ctx: Context) {
+            ctx.surfaces.register({
+              surface: defineSurface({ cells: { fleet: { schema: Schema.String, default: "" } } }),
+              faces: {},
+              deps: {},
+            })
+          },
+        }
+        const refused = plugins.plugin(bad)
+        // `Fiber.await()` rethrows what the fiber landed on, and what this case
+        // is about is the STATE and the TABLE rather than that rethrow.
+        yield* Effect.promise(() => refused.await().catch(() => {}))
+
+        // FAILED, and nothing of it on the wire.
+        expect(refused.state).toBe(3)
+        expect(plugins.surfaces.composed().map((one) => one.name)).toEqual([])
+        expect(Object.keys(wired.bound.handlers).length).toBe(before)
+
+        // ...and the next plugin in is untouched by it, which is the half that
+        // was false: it composes, its tag is served, and the roster says so.
+        const healthy = plugins.plugin({
+          name: "healthy",
+          inject: ["surfaces"] as const,
+          apply(ctx: Context) {
+            ctx.surfaces.register({ surface: defineSurface({}), faces: {}, deps: {} })
+          },
+        })
+        yield* Effect.promise(() => healthy.await().catch(() => {}))
+        expect(healthy.state).toBe(2)
+        expect(plugins.surfaces.composed().map((one) => one.name)).toEqual(["healthy"])
+
+        // The roster a browser reads carries the truth about both: the build has
+        // no rows here (these doubles are not the bundle's), so what it says is
+        // that nothing composed is missing and nothing refused is present.
+        const get = wired.bound.handlers["surface/plugins/get"]
+        if (get === undefined) throw new Error("the plugins cell has no `get`")
+        const open = yield* watching(get({}) as Stream.Stream<PluginRoster>)
+        expect((yield* open.take).built.map((row) => row.name)).toEqual([])
+        yield* Fiber.interrupt(open.reader)
+      }),
+    { plugins: [] },
+  ))
 
 // ── the doorbell's two gates ───────────────────────────────────────────
 

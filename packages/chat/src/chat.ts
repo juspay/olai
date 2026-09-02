@@ -155,7 +155,7 @@ export interface Options {
    *  whose integrations are fibers answers a different list per conversation, so
    *  this side holds no copy of one. Omitting it is a chat that asks this
    *  machine nothing. */
-  readonly probes?: () => ReadonlyArray<Probe>
+  readonly probes?: () => Promise<ReadonlyArray<Probe>>
   /**
    * WHERE THE DOORBELL PICKS ARE KEPT — which conversations somebody pointed a
    * plugin's doorbell at, and at which file ({@link ./scopes.ts}).
