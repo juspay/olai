@@ -11,6 +11,7 @@
   "//": "THROWEEWAY. Phase-1 evidence that Cordis can be the runtime under olai. Not a shipping package. Reached through @olai/plugin-api/server so this package never names a tenant in product source (the fence). cordis and @cordisjs/plugin-loader are hydrated from the npins cordis pin (nix/cordis.nix), the way @kolu/* and @odu/run-client are — they are not bun dependencies.",
   "dependencies": {
     "@olai/plugin-api": "workspace:*",
+    "@olai/surface": "workspace:*",
     "effect": "4.0.0-rc.112"
   }
 }

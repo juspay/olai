@@ -25,6 +25,11 @@ export type RosterRow = {
   readonly running: boolean
 }
 
+/**
+ * Spike-local roster. It is not the `plugins` cell: wiring that cell is
+ * phase 2's composition root. `roster.test.ts` holds this value to
+ * `@olai/surface`'s `PluginRoster` so a republish would decode.
+ */
 export type Roster = {
   readonly built: ReadonlyArray<RosterRow>
   readonly pinned: ReadonlyArray<string> | null
