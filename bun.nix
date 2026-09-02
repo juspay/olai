@@ -349,6 +349,7 @@
     hash = "sha512-JfB4kuJQjaoHuCTseIINHtHWeJnvgEcxjwA5t/Y00ZgaOO1Crz3fjT/p8kT28zA/Caz7oiUMn3d6H2yOVCVwuw==";
   };
   "@olai/acp" = copyPathToStore ./packages/acp;
+  "@olai/bundle" = copyPathToStore ./packages/bundle;
   "@olai/chat" = copyPathToStore ./packages/chat;
   "@olai/child" = copyPathToStore ./packages/child;
   "@olai/fonts" = copyPathToStore ./packages/fonts;

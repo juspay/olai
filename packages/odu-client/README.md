@@ -37,7 +37,7 @@ olai's own folds are **not** here, and the difference is where their input is. T
 
 ## Why it is a package
 
-Because the wall makes the dependency direction **physics** — [`@olai/kolu-client`](../kolu-client/README.md)'s argument, and every word of it transfers. What is worth adding is the sentence specific to *this* appliance: odu's client half is **browser-safe**. `@odu/run-client/surface` imports nothing native, so a component that wanted `STATUS_META`'s glyph table could reach for it and compile. `packages/plugin-api/src/fence.test.ts`'s derived tenancy claim is what stops that, and the reason it must is padi's: the moment a component imports odu, every skew in odu's contract is a skew in olai's browser bundle and this package has stopped being the only thing that knows odu exists.
+Because the wall makes the dependency direction **physics** — [`@olai/kolu-client`](../kolu-client/README.md)'s argument, and every word of it transfers. What is worth adding is the sentence specific to *this* appliance: odu's client half is **browser-safe**. `@odu/run-client/surface` imports nothing native, so a component that wanted `STATUS_META`'s glyph table could reach for it and compile. `packages/bundle/src/fence.test.ts`'s derived tenancy claim is what stops that, and the reason it must is padi's: the moment a component imports odu, every skew in odu's contract is a skew in olai's browser bundle and this package has stopped being the only thing that knows odu exists.
 
 The manifest is **`effect`** and nothing else. It names no olai package at all — the wire vocabulary this package produces lives *in* it, which `@olai/surface` spreads — so the direction is a DAG the manifests enforce. `@olai/format` is deliberately absent for `@olai/kolu-client`'s reason: which nodes name a worktree, and whether the vault declared that key a `path`, is a reading of outline records, so it belongs to whoever holds the vault ([`olai-plugin-odu`](../plugins/olai-plugin-odu/README.md)'s `worktrees.ts`) and is **injected** (`OduDeps.worktrees`). What crosses is the worktree's strings per node.
 
@@ -53,7 +53,7 @@ Three things make it work, and two of them are the whole tree's rather than this
 | `effect`, at odu's pinned version | the root `package.json`, because the isolated linker puts only the root package's direct dependencies where a hydrated source resolves from. A *differing* version there is two copies of `effect`, which is worse than none |
 | `@kolu/surface`, hydrated | already there for kolu's own sake; `@odu/run-client`'s wire link imports it |
 
-`scripts/check-hydrated-deps.sh` asserts the version half and `packages/plugin-api/src/fence.test.ts` the confinement half, rather than trusting this table: the root manifest agrees with what the pinned package declares, `@odu/*` is imported nowhere but here, and `src/wire` stays schemas-and-types so odu's dial — which reaches `node:net` — never lands in the browser bundle.
+`scripts/check-hydrated-deps.sh` asserts the version half and `packages/bundle/src/fence.test.ts` the confinement half, rather than trusting this table: the root manifest agrees with what the pinned package declares, `@odu/*` is imported nowhere but here, and `src/wire` stays schemas-and-types so odu's dial — which reaches `node:net` — never lands in the browser bundle.
 
 ## What is deliberately not here
 

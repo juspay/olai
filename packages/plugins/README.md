@@ -12,12 +12,14 @@ appliance, which is the closest thing in this tree to a plugin written outside
 it, so it is named the way one would be.
 
 What does NOT go in it: the interface those tenants are written against. That is
-[`@olai/plugin-api`](../plugin-api/README.md), one directory over, and the
-separation is the point — it is the one package a plugin may not import, so a
-directory holding the fence's subject beside the things it fences would read as
-a contradiction in the workspace globs and in the fence's own graph walk.
+[`@olai/plugin-api`](../plugin-api/README.md), one directory over, with the registry that lists them in [`@olai/bundle`](../bundle/README.md) beside it, and the
+separation is the point — `@olai/bundle` is the one package a plugin may not
+import, so a directory holding the fence.s subject beside the things it fences
+would read as a contradiction in the workspace globs and in the fence.s own
+graph walk. A tenant DOES import the interface, which is what makes the arrow
+one-way and the cycle unrepresentable.
 
-Neither rule is a convention. `packages/plugin-api/src/fence.test.ts`'s ninth
+Neither rule is a convention. `packages/bundle/src/fence.test.ts`'s ninth
 claim holds this directory to the registry's own roster in **both** directions,
 read off two independent sources — the roster, and a `readdir` of this directory
 — so a plugin left outside it and a general package dropped inside it are each a
