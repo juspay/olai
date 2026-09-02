@@ -3,13 +3,18 @@ import { expect, test } from "bun:test"
 
 import {
   after,
-  anchorRow,
+  before,
+  besideOf,
   commitOf,
   type Draft,
   type Editing,
+  emptyPending,
+  emptyPendingOf,
   kept,
   landed,
+  parked,
   type Pending,
+  reaimed,
   refused,
   sameAnchor,
   sameSlot,
@@ -33,6 +38,7 @@ const pending = (over: Partial<Pending> = {}): Pending => ({
   kind: "new",
   at: { kind: "after", id: "order" },
   text: "",
+  slot: "d1",
   ...over,
 })
 
@@ -81,6 +87,61 @@ test("an empty new row is not a node", () => {
       at: { kind: "after", id: "order" },
       title: "measure the alcove",
     })
+})
+
+test("an empty pending is the three fields a new row starts with", () => {
+  expect(emptyPending({ kind: "before", id: "kitchen" }, "d2")).toEqual({
+    kind: "new",
+    at: { kind: "before", id: "kitchen" },
+    text: "",
+    slot: "d2",
+  })
+})
+
+test("only a pending with nothing in it is empty", () => {
+  const blank = emptyPending({ kind: "after", id: "order" }, "d3")
+  expect(emptyPendingOf(blank)).toEqual(blank)
+  expect(emptyPendingOf(pending({ text: "   " }))).toEqual(pending({ text: "   " }))
+  expect(emptyPendingOf(pending({ text: "measure" }))).toBeNull()
+  expect(emptyPendingOf(editing({ text: "" }))).toBeNull()
+  expect(emptyPendingOf(null)).toBeNull()
+})
+
+test("parking an empty pending puts it on the list once", () => {
+  const blank = emptyPending({ kind: "before", id: "kitchen" }, "d1")
+  const once = parked([], blank)
+  expect(once).toEqual([blank])
+  expect(parked(once, blank)).toBe(once)
+  expect(parked([], editing())).toEqual([])
+  expect(parked([], pending({ text: "measure" }))).toEqual([])
+  expect(parked([], null)).toEqual([])
+})
+
+test("a titled before-draft re-aims the parked ones onto the row it became", () => {
+  const d1 = emptyPending({ kind: "before", id: "kitchen" }, "d1")
+  const d2 = emptyPending({ kind: "before", id: "kitchen" }, "d2")
+  const next = reaimed([d1, d2], d2.at, "garage")
+  expect(next).toEqual([
+    { ...d1, at: { kind: "before", id: "garage" } },
+    { ...d2, at: { kind: "before", id: "garage" } },
+  ])
+  expect(reaimed(next, d2.at, "other")).toEqual(next)
+})
+
+test("a first or under draft re-aims the skeleton onto the row it became", () => {
+  const first = emptyPending({ kind: "first", file: "empty.olai" }, "d1")
+  expect(reaimed([first], first.at, "n1")).toEqual([
+    { ...first, at: { kind: "before", id: "n1" } },
+  ])
+  const under = emptyPending({ kind: "under", id: "knobs" }, "d2")
+  expect(reaimed([under], under.at, "n2")).toEqual([
+    { ...under, at: { kind: "before", id: "n2" } },
+  ])
+})
+
+test("an after-draft leaves the parked ones on their neighbour", () => {
+  const d1 = emptyPending({ kind: "after", id: "handles" }, "d1")
+  expect(reaimed([d1], d1.at, "n7")).toEqual([d1])
 })
 
 // ── what a draft becomes ───────────────────────────────────────────────
@@ -136,7 +197,7 @@ test("a new row that landed becomes the row it created", () => {
     field: "title",
     text: "measure",
     saved: "measure",
-    was: { row: "order", field: "new" },
+    was: { row: "d1", field: "new" },
   })
 })
 
@@ -145,6 +206,18 @@ test("the next row follows the ROW, not the node it shows", () => {
   // the reader is looking, rather than beside the node somewhere else.
   expect(after(editing({ row: "echo", id: "order" })))
     .toEqual({ kind: "after", id: "echo" })
+})
+
+test("Enter at column 0 is before the ROW, not after its subtree", () => {
+  expect(before(editing({ row: "echo", id: "order" })))
+    .toEqual({ kind: "before", id: "echo" })
+})
+
+test("a pending next to a row is after or before it, never both", () => {
+  expect(besideOf({ kind: "after", id: "order" })).toEqual({ kind: "after", id: "order" })
+  expect(besideOf({ kind: "before", id: "order" })).toEqual({ kind: "before", id: "order" })
+  expect(besideOf({ kind: "under", id: "order" })).toBeNull()
+  expect(besideOf({ kind: "first", file: "a.olai" })).toBeNull()
 })
 
 // ── which editor a blur came from ──────────────────────────────────────
@@ -161,15 +234,12 @@ test("a slot names the box rather than the text in it", () => {
 })
 
 test("a new row is drawn after the row it follows, or on a page's start line", () => {
-  // `after` is the only anchor a ROW draws — the other two are what a page
-  // with no rows offers, and it draws them itself. So they have no row to be
-  // drawn after, and saying so is what keeps one editor from appearing twice.
-  expect(anchorRow({ kind: "after", id: "order" })).toBe("order")
-  expect(anchorRow({ kind: "under", id: "order" })).toBeNull()
-  expect(anchorRow({ kind: "first", file: "a.olai" })).toBeNull()
-  expect(slotOf(pending())).toEqual({ row: "order", field: "new" })
-  expect(slotOf(pending({ at: { kind: "first", file: "a.olai" } })))
-    .toEqual({ row: null, field: "new" })
+  // The blur slot is the pending's own `slot`, so two ghosts at the same
+  // anchor stay two editors. `under` and `first` have no row to sit next to;
+  // those are a page's start line.
+  expect(slotOf(pending())).toEqual({ row: "d1", field: "new" })
+  expect(slotOf(pending({ slot: "d2", at: { kind: "first", file: "a.olai" } })))
+    .toEqual({ row: "d2", field: "new" })
 })
 
 test("a line that landed is still the editor the blur came from", () => {
@@ -186,7 +256,7 @@ test("a line that landed is still the editor the blur came from", () => {
   // And it is the forwarding address that says so, not a blanket yes: another
   // row's editor is another row's, landed or not.
   expect(stillAt(editing({ row: "demo" }), from)).toBe(false)
-  expect(stillAt(row, slotOf(pending({ at: { kind: "after", id: "demo" } })))).toBe(false)
+  expect(stillAt(row, slotOf(pending({ slot: "d2", at: { kind: "after", id: "demo" } })))).toBe(false)
 })
 
 test("a row that was always a row forwards nothing", () => {
@@ -200,6 +270,10 @@ test("two anchors are the same place only when they name the same one", () => {
   expect(sameAnchor({ kind: "under", id: "order" }, { kind: "under", id: "order" }))
     .toBe(true)
   expect(sameAnchor({ kind: "under", id: "order" }, { kind: "after", id: "order" }))
+    .toBe(false)
+  expect(sameAnchor({ kind: "before", id: "order" }, { kind: "before", id: "order" }))
+    .toBe(true)
+  expect(sameAnchor({ kind: "before", id: "order" }, { kind: "after", id: "order" }))
     .toBe(false)
   expect(sameAnchor({ kind: "first", file: "a.olai" }, { kind: "first", file: "b.olai" }))
     .toBe(false)

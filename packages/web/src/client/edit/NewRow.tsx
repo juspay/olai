@@ -1,8 +1,9 @@
 /**
  * A row that does not exist yet.
  *
- * It is drawn where the row WILL be — after the sibling it follows, or on the
- * start line of a page with no rows — with the same gutter arithmetic every
+ * It is drawn where the row WILL be — after the sibling it follows, before
+ * the one it was opened above, or on the start line of a page with no rows —
+ * with the same gutter arithmetic every
  * other row uses (`../touch.ts`), so the line a person is typing on sits
  * exactly where the line they are making it will sit. What it deliberately
  * does NOT have is a glyph that goes anywhere or says a mark: those are
@@ -19,14 +20,20 @@
 import { DOT } from "../marks.tsx"
 import { TESTID } from "../testids.ts"
 import { CONTROL, GUTTER_GAP, HOVER_CELL, HOVER_GUTTER } from "../touch.ts"
-import type { Draft } from "./draft.ts"
+import type { Pending } from "./draft.ts"
 import { DraftSaid, TitleEditor } from "./RowEditor.tsx"
 
 export function NewRow(props: {
-  readonly draft: Draft
+  readonly draft: Pending
   readonly onInput: (text: string) => void
   readonly onKey: (event: KeyboardEvent) => void
   readonly onBlur: (left: boolean) => void
+  /** This draft holds the caret. Parked ghosts are inputs too, so they can
+   *  be clicked back into; they must not steal focus on mount. Absent is
+   *  the live one, which is what a start line and a lone Enter still are. */
+  readonly active?: boolean
+  /** Clicking a parked ghost puts the caret in it. */
+  readonly onActivate?: () => void
 }) {
   return (
     <div>
@@ -50,6 +57,8 @@ export function NewRow(props: {
           onInput={props.onInput}
           onKey={props.onKey}
           onBlur={props.onBlur}
+          active={props.active}
+          onActivate={props.onActivate}
           placeholder="a new line — type it, and Enter makes the next one"
         />
       </div>
