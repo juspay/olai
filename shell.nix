@@ -114,7 +114,7 @@ pkgs.mkShell {
   # 2>/dev/null || true`, which on a machine with no ambient one turned
   # "command not found" into an empty result and a GREEN fence — a check that
   # passes by failing to run. Adding `ripgrep` would have made those two legs
-  # honest; instead the greps left, to `packages/plugin-api/src/fence.test.ts`,
+  # honest; instead the greps left, to `packages/bundle/src/fence.test.ts`,
   # where the pinned bun reads the tree and a missing reader is not a thing that
   # can happen. Nothing in `scripts/` shells out to a searcher any more, so
   # there is nothing here to declare.

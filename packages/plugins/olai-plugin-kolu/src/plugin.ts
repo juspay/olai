@@ -15,7 +15,7 @@
  * reaches `./browser/` and `./appliance/`, and therefore SolidJS and, behind
  * one of these faces, a terminal emulator. That is the whole reason
  * `olai-plugin-kolu` exports three code entries rather than one, and
- * `packages/plugin-api/src/fence.test.ts` walks each closure rather than trusting
+ * `packages/bundle/src/fence.test.ts` walks each closure rather than trusting
  * this paragraph.
  */
 

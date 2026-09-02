@@ -26,7 +26,7 @@
  *     add to — and a plugin that grew a dressing needs no edit here at all.
  *   - **no general package names a tenant.** This file spells neither `kolu` nor
  *     `odu` nor `terminal` nor `worktree`; `@olai/plugin-api` is the only package
- *     allowed to, and `packages/plugin-api/src/fence.test.ts` holds that as an
+ *     allowed to, and `packages/bundle/src/fence.test.ts` holds that as an
  *     equality rather than as a habit.
  *   - **a DISABLED plugin is still registered here, and that is correct.**
  *     `--plugins` is a fact about the SERVE and this runs at import time in a

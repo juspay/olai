@@ -34,7 +34,7 @@
  *
  * IT GOES THROUGH THE REGISTRY and not to a plugin, and that is a fence rather
  * than a preference: a CSS import is a door a plugin's NAME can be spelled
- * through, `packages/plugin-api/src/fence.test.ts` reads a `.css` file's imports
+ * through, `packages/bundle/src/fence.test.ts` reads a `.css` file's imports
  * for exactly that reason, and this package may not name a tenant in any
  * grammar.
  *

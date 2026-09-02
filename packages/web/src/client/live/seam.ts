@@ -52,7 +52,7 @@
  * at all. That rule is unchanged and the way it is KEPT has got stronger: the
  * two dressings this app installs are not folders beside this one any more, they
  * are packages (`olai-plugin-kolu`, `olai-plugin-odu`), and this package may
- * not name one — `packages/plugin-api/src/fence.test.ts` holds that as an equality
+ * not name one — `packages/bundle/src/fence.test.ts` holds that as an equality
  * per package rather than as a habit. So the direction is physics here rather
  * than discipline.
  *

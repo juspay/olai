@@ -166,7 +166,7 @@ test: install
 #
 # WHAT THESE LEGS NO LONGER DO: the import fence. Which package may name
 # `@kolu/padi-client` or `@odu/*`, and the `/wire` entries staying
-# schemas-and-types, moved to `packages/plugin-api/src/fence.test.ts` — a `bun test`
+# schemas-and-types, moved to `packages/bundle/src/fence.test.ts` — a `bun test`
 # under the `test` leg. Two reasons, both about the old shape rather than about
 # tidiness: every one of those greps ended `rg … 2>/dev/null || true` and
 # `ripgrep` is not in shell.nix's package list, so on a machine with no ambient

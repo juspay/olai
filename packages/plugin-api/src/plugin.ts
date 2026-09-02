@@ -472,7 +472,7 @@ export type PluginMount = (props: {
  * FACES: a name, what it puts on the wire, which face may see which of its
  * members, what its kinds wear, what it hangs in the chrome, and what it mounts
  * around the page. Nothing else crosses this door, and the fence proves it
- * (`packages/plugin-api/src/fence.test.ts`).
+ * (`packages/bundle/src/fence.test.ts`).
  *
  * ## It extends {@link PluginWire}, because a plugin is ONE identity
  *

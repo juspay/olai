@@ -16,7 +16,7 @@
  * the mount is a component, so a reader has to know that the manifest door and
  * the wire door are two graphs. That split is the whole reason
  * `olai-plugin-odu` exports three entries rather than one, and
- * `packages/plugin-api/src/fence.test.ts` walks each closure rather than trusting
+ * `packages/bundle/src/fence.test.ts` walks each closure rather than trusting
  * this paragraph.
  */
 
