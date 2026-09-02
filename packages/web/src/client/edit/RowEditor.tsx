@@ -65,6 +65,12 @@ export function TitleEditor(props: {
    *  draws, so the input is the same type as the title it replaces. Absent
    *  is a row. */
   readonly section?: boolean
+  /** This editor holds the caret. A parked empty draft is an input so it
+   *  can be clicked back into, but it must not take focus on mount — there
+   *  is still only one caret. Absent is live, which is every other caller. */
+  readonly active?: boolean
+  /** The parked input was focused: put the caret here. */
+  readonly onActivate?: () => void
 }) {
   let element!: HTMLInputElement
 
@@ -90,7 +96,11 @@ export function TitleEditor(props: {
     setCaret(element.selectionStart ?? 0)
   }
 
-  takeCaret(() => element, { at: () => props.caret, then: readCaret })
+  takeCaret(() => element, {
+    at: () => props.caret,
+    then: readCaret,
+    armed: () => props.active !== false,
+  })
 
   /** The three widgets, as one loop ({@link ../complete/completing.tsx}) — one
    *  hook, whose two members are the two jobs a field with a completion in it
@@ -151,7 +161,10 @@ export function TitleEditor(props: {
         }}
         onClick={readCaret}
         onSelect={readCaret}
-        onFocus={readCaret}
+        onFocus={() => {
+          readCaret()
+          if (props.active === false) props.onActivate?.()
+        }}
         onBlur={() => props.onBlur(element.isConnected)}
       />
       <completion.Panel />
@@ -364,11 +377,16 @@ const takeCaret = (
      *  this function moved it, so anything tracking it has to be told rather
      *  than left waiting for an event that will not come. */
     readonly then?: () => void
+    /** Whether this editor is the caret. A parked empty draft is an input
+     *  so it can be clicked; it must not take the caret when another one
+     *  bumps. Absent is live. */
+    readonly armed?: () => boolean
   } = {},
 ): void => {
   const editor = useEditor()
   let opening = true
   createEffect(on(editor.caret, () => {
+    if (said.armed?.() === false) return
     const field = element()
     const at = opening
       ? said.at?.() ?? field.value.length

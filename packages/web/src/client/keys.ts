@@ -236,6 +236,7 @@ export const isEditingTarget = (target: EventTarget | null): boolean => {
  */
 export type EditAction =
   | "add"
+  | "insert"
   | "split"
   | "merge"
   | "in"
@@ -345,17 +346,20 @@ export const editKey = (
     // (`Alt+Shift+↑/↓`), so a chord that reads as "move this row" two keys over
     // must not quietly read as "call it off" here. It stays unclaimed.
     if (event.altKey) return event.shiftKey ? null : "cancel-mark"
-    // A TITLE ON BOTH SIDES is the whole test, and each half rules out a case
-    // this format cannot hold. Nothing before the caret would leave the row with
-    // an empty title, which is not a node the ops layer will write — so `Enter`
-    // at the head of a line goes on being the key that opens the next one, and
-    // there is no blank row to insert above. Nothing after it is the ordinary
-    // end-of-line press. A SELECTION spanning to either end reads the same way,
-    // since what a split keeps is what falls outside it. And a half that is
-    // nothing but whitespace is one of those cases rather than a split the ops
-    // layer would refuse a moment later — the decision is that a half this
-    // format cannot hold makes the key an `add`, so it is spelled here.
-    return at !== undefined && halves(at) ? "split" : "add"
+    // A TITLE ON BOTH SIDES is a split. Nothing after the caret is the ordinary
+    // end-of-line press (`add`). Nothing before it, with words still on the
+    // line, is INSERT ABOVE: a local draft, still nothing on disk until it has
+    // a title. An empty field is `add` too — start and end are the same place,
+    // and Enter on an empty draft opens the next empty draft rather than
+    // stacking one above itself. A SELECTION spanning to either end reads as
+    // `add`/`insert` the same way, since what a split keeps is what falls
+    // outside it. And a half that is nothing but whitespace is not a split the
+    // ops layer would refuse a moment later.
+    if (at !== undefined && halves(at)) return "split"
+    if (
+      at !== undefined && at.start === 0 && at.end === 0 && at.text.trim() !== ""
+    ) return "insert"
+    return "add"
   }
   // The caret at the very start with nothing selected — the one place a
   // `Backspace` has nothing of its own to delete, which is exactly why it is
@@ -568,6 +572,7 @@ export const SHORTCUTS: ReadonlyArray<{
     keys: [
       { keys: "Click a title", what: "put the caret where you clicked" },
       { keys: "Enter", what: "commit, and open the next line", action: "add" },
+      { keys: "Enter at the start", what: "insert a blank line above", action: "insert" },
       { keys: "Enter mid-line", what: "split the row in two there", action: "split" },
       {
         keys: "Backspace at the start",

@@ -1,13 +1,14 @@
 /**
  * The editor: one draft, the keys that move it, and the writes they cause.
  *
- * Everything here is about ONE row at a time — there is exactly one draft in
+ * Everything here is about ONE CARET — there is exactly one live draft in
  * this tab, because there is exactly one caret — and every write it makes is
  * the surface's one `edit` procedure, which is a single op at the same write
- * gate the agent's tools go through. Nothing in this module touches an
- * outline, a record or a placement: what `Tab` MEANS is resolved on the
- * server, against the snapshot the write is judged against
- * (`packages/server/src/edit.ts`).
+ * gate the agent's tools go through. Empty drafts that have been left behind
+ * (Enter Enter Enter) stay on screen as parked slots until the page closes;
+ * they are not a second caret. Nothing in this module touches an outline, a
+ * record or a placement: what `Tab` MEANS is resolved on the server, against
+ * the snapshot the write is judged against (`packages/server/src/edit.ts`).
  *
  * So the whole of what this file owns is the loop a person is in:
  *
@@ -65,13 +66,14 @@ import type { Selection } from "../select/selection.ts"
 import { olai } from "../wire.ts"
 import {
   after,
-  anchorRow,
+  before,
   commitOf,
   IDLE_COMMIT,
   type Draft,
   type Editing as RowDraft,
   kept,
   landed,
+  type Pending,
   refused,
   sameSlot,
   type Slot,
@@ -94,10 +96,17 @@ export interface Editor {
    *  keystroke — so a tree that matched on this would re-run its whole depth
    *  per character typed. */
   readonly draft: Accessor<Draft | null>
+  /** Empty drafts left on screen while the caret is elsewhere — Enter Enter
+   *  Enter parks each one rather than collapsing it. The live draft is not
+   *  in this list; a row reads both to draw every ghost at its anchor. */
+  readonly ghosts: Accessor<ReadonlyArray<Pending>>
+  /** Put the caret in a parked empty draft. Clicking a ghost that is already
+   *  on screen is how a skeleton gets filled in. */
+  readonly resume: (slot: string) => void
   /** WHERE the caret is, and nothing about what is being typed there: the
    *  `Row.key` of the row being edited, the id of the row a new line is being
-   *  drawn after, and which field. Three primitives, so they answer the same
-   *  value while a person types and a row's match stops propagating. */
+   *  drawn after or before, and which field. Primitives, so they answer the
+   *  same value while a person types and a row's match stops propagating. */
   readonly where: Accessor<Where>
   /** A counter the open editor watches: every bump means "take the caret
    *  back". It is bumped after the ops that redraw the row the key was pressed
@@ -159,12 +168,16 @@ export interface Where {
    *  is not drawn yet. */
   readonly place: string | null
   /** The id of the row a NEW line is being drawn after, or `null` when there
-   *  is no pending draft or it belongs to a page's start line. */
+   *  is no pending draft after a row (one before a row, or a page's start
+   *  line). */
   readonly after: string | null
+  /** The id of the row a NEW line is being drawn before — `Enter` at column
+   *  0. `null` when the live draft is not that. */
+  readonly before: string | null
   readonly field: "title" | "desc" | null
 }
 
-const NOWHERE: Where = { place: null, after: null, field: null }
+const NOWHERE: Where = { place: null, after: null, before: null, field: null }
 
 /** What {@link createEditor}'s `drawn` answers with when there is no caret in
  *  a row — one array, so a page with nothing being typed in it hands back the
@@ -237,7 +250,16 @@ export const createEditor = (
   moving: Pick<Moving, "open">,
 ): Editor => {
   const [draft, setDraft] = createSignal<Draft | null>(null)
+  const [ghosts, setGhosts] = createSignal<ReadonlyArray<Pending>>([])
   const [caret, setCaret] = createSignal(0)
+  let slots = 0
+  const mintSlot = (): string => `d${++slots}`
+  /** Leave an empty pending on screen without it holding the caret. Same
+   *  slot is a no-op, so parking twice cannot duplicate a ghost. */
+  const park = (held: Pending): void => {
+    if (held.text.trim() !== "") return
+    setGhosts((list) => list.some((g) => g.slot === held.slot) ? list : [...list, held])
+  }
   /** Where a write's inverse goes. Read once, here, rather than at every
    *  write: it is the app's, it does not move, and a context read inside a
    *  promise would be reaching outside the scope that owns it. */
@@ -270,10 +292,19 @@ export const createEditor = (
     const held = draft()
     if (held === null) return NOWHERE
     if (held.kind === "new") {
-      return { place: null, after: anchorRow(held.at), field: null }
+      return {
+        place: null,
+        after: held.at.kind === "after" ? held.at.id : null,
+        before: held.at.kind === "before" ? held.at.id : null,
+        field: null,
+      }
     }
-    return { place: held.place, after: null, field: held.field }
-  }, NOWHERE, { equals: (a, b) => a.place === b.place && a.after === b.after && a.field === b.field })
+    return { place: held.place, after: null, before: null, field: held.field }
+  }, NOWHERE, {
+    equals: (a, b) =>
+      a.place === b.place && a.after === b.after && a.before === b.before &&
+      a.field === b.field,
+  })
 
   /**
    * THE PAGE AS THE EYE RUNS DOWN IT, walked once per frame and only while a
@@ -422,6 +453,20 @@ export const createEditor = (
     // Only when the editor is still on the same draft: a commit that landed
     // while the reader had already moved on must not drag them back.
     setDraft((held) => (held === current ? landed(current, done.id, done.nudge) : held))
+    // A before-draft that just became a row: remaining ghosts parked at the
+    // same `before` would otherwise draw inside the ORIGINAL row, which is
+    // now BELOW the new sibling — the skeleton would jump under what you
+    // just titled. Re-aim them at the row that just landed, so they stay
+    // above it.
+    if (current.kind === "new" && current.at.kind === "before") {
+      const from = current.at.id
+      const next = { kind: "before" as const, id: done.id }
+      setGhosts((list) =>
+        list.map((g) =>
+          g.at.kind === "before" && g.at.id === from ? { ...g, at: next } : g
+        )
+      )
+    }
     return true
   }
 
@@ -533,12 +578,31 @@ export const createEditor = (
   }
 
   /** `Enter`: commit this row, and open an editor where the next one goes. The
-   *  new row is not written until it has text — see {@link ./draft.ts}. */
+   *  new row is not written until it has text — see {@link ./draft.ts}. On an
+   *  empty draft, the current one stays on screen and a fresh empty one opens
+   *  beside it, which is how Enter Enter Enter becomes a skeleton. */
   const continued = async () => {
     if (!(await commit())) return
     const held = draft()
+    if (held === null) return
+    if (held.kind === "new") {
+      park(held)
+      setDraft({ kind: "new", at: held.at, text: "", slot: mintSlot() })
+      setCaret((n) => n + 1)
+      return
+    }
+    setDraft({ kind: "new", at: after(held), text: "", slot: mintSlot() })
+    setCaret((n) => n + 1)
+  }
+
+  /** `Enter` at column 0 of a titled row: a blank draft ABOVE it. The words
+   *  stay; nothing is written until the blank has a title. */
+  const inserted = async () => {
+    if (!(await commit())) return
+    const held = draft()
     if (held === null || held.kind !== "row") return
-    setDraft({ kind: "new", at: after(held), text: "" })
+    setDraft({ kind: "new", at: before(held), text: "", slot: mintSlot() })
+    setCaret((n) => n + 1)
   }
 
   /**
@@ -691,6 +755,7 @@ export const createEditor = (
       setDraft(null)
     },
     add: () => enqueue(continued),
+    insert: () => enqueue(inserted),
     // The two COMPOUND keys. `split` is the only action that needs to know
     // where in the LINE it was pressed — it is what decides the cut — and the
     // matcher cannot spell one without it: an `Enter` with no caret to read is
@@ -846,8 +911,30 @@ export const createEditor = (
     await move(neighbour(drawn(), held.place, by))
   }
 
+  const resume = (slot: string): void => {
+    const found = ghosts().find((g) => g.slot === slot)
+    if (found === undefined) return
+    const held = draft()
+    if (held?.kind === "new" && held.slot === slot) return
+    if (held?.kind === "new" && held.text.trim() === "") {
+      park(held)
+      setGhosts((list) => list.filter((g) => g.slot !== slot))
+      setDraft(found)
+      setCaret((n) => n + 1)
+      return
+    }
+    enqueue(async () => {
+      if (!(await commit())) return
+      setGhosts((list) => list.filter((g) => g.slot !== slot))
+      setDraft(found)
+      setCaret((n) => n + 1)
+    })
+  }
+
   return {
     draft,
+    ghosts,
+    resume,
     where,
     caret,
     open: (at, field, here) => {
@@ -866,6 +953,10 @@ export const createEditor = (
         // clicking another title started a write of the first row and opened
         // the second, and a refusal then landed on a row that had nothing to
         // do with it — with the first row's text gone from the screen.
+        // An empty pending is parked rather than dropped, so a skeleton
+        // survives a click into a titled row.
+        const current = draft()
+        if (current?.kind === "new" && current.text.trim() === "") park(current)
         if (!(await commit())) return
         idle.clear()
         setDraft(next)
@@ -906,9 +997,15 @@ export const createEditor = (
         // the answer was "somebody else is typing" about the same caret with
         // the same words in it, so the click-away wrote the line and left the
         // caret in it.
-        setDraft((held) =>
-          held !== null && stillAt(held, from) && held.text === before.text ? null : held
-        )
+        // An empty pending is parked: click-away is not Escape, and a
+        // skeleton of blanks should survive leaving the last one.
+        setDraft((held) => {
+          if (held === null || !stillAt(held, from) || held.text !== before.text) {
+            return held
+          }
+          if (held.kind === "new" && held.text.trim() === "") park(held)
+          return null
+        })
       })
     },
     press: (action, at) => ACTIONS[action](at),
@@ -926,7 +1023,10 @@ export const createEditor = (
     start: (at) => {
       selection.clear()
       idle.clear()
-      setDraft({ kind: "new", at, text: "" })
+      const current = draft()
+      if (current?.kind === "new" && current.text.trim() === "") park(current)
+      setDraft({ kind: "new", at, text: "", slot: mintSlot() })
+      setCaret((n) => n + 1)
     },
   }
 }

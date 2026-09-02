@@ -435,6 +435,13 @@ Then("a new row is being typed", async function (this: OlaiWorld) {
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
+Then("{int} new rows are being typed", async function (this: OlaiWorld, n: number) {
+  await this.waitUntil(
+    async () => (await this.page.locator(NEW_ROW).count()) === n,
+    `${n} new rows to be on the page`,
+  );
+});
+
 Then(
   "the note of {string} is being typed",
   async function (this: OlaiWorld, id: string) {
@@ -499,6 +506,32 @@ Then(
       first,
       second,
     );
+  },
+);
+
+/** WHERE a draft opened at column 0 is drawn — above the title you were in,
+ *  not after that row's whole subtree. Asked of boxes on the page: a new row
+ *  is not a node (nothing has been written), so document order of `[data-node-id]`
+ *  cannot see it. The caret's editor sits in the draft; that draft's top
+ *  edge has to meet the title it was opened above. */
+Then(
+  "the row being typed is drawn immediately above the title of {string}",
+  async function (this: OlaiWorld, id: string) {
+    const title = this.nodeTitle(id);
+    await title.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.waitUntil(async () => {
+      const editor = this.page.locator(TITLE_EDITOR).first();
+      if ((await editor.count()) === 0) return false;
+      const draft = editor.locator("xpath=ancestor::*[@data-testid='new-row'][1]");
+      if ((await draft.count()) === 0) return false;
+      const above = await draft.boundingBox();
+      const of = await title.boundingBox();
+      if (above === null || of === null) return false;
+      // Adjacent and above: the draft's bottom meets the title, with a little
+      // slack for padding. Below it — the subtree floor — is the teleport.
+      const gap = of.y - (above.y + above.height);
+      return gap >= -2 && gap < 40;
+    }, `the draft to sit immediately above the title of "${id}", not below its subtree`);
   },
 );
 

@@ -63,15 +63,15 @@ Feature: Splitting and merging a row
     Then a new row is being typed
     And the node "handles" has the title "choose the handles"
 
-  Scenario: Enter at the head of a line opens the next one too
-    # And this is a decision rather than an oversight. Workflowy would put a
-    # blank row ABOVE; this format has no blank row to put — a node needs a
-    # title — so the key goes on meaning what it has always meant, and nothing
-    # is written that the ops layer would refuse.
+  Scenario: Enter at the head of a line inserts a draft above
+    # Workflowy's "make space": a blank above, the words stay. Still a draft,
+    # still nothing on disk — a node needs a title — so nothing is written that
+    # the ops layer would refuse.
     When I click the title of "handles"
     And I put the caret at the start of the line
     And I press "Enter"
     Then a new row is being typed
+    And the row being typed is drawn immediately above the title of "handles"
     And the node "handles" has the title "choose the handles"
 
   Scenario: Backspace at the start joins the row onto the one above

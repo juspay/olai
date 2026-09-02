@@ -88,6 +88,7 @@ import { repeatPick } from "./date/repeat.ts"
 
 import { createEdgeEditing } from "./edges/editing.tsx"
 import { useEditor } from "./edit/editing.tsx"
+import type { Pending } from "./edit/draft.ts"
 import { offsetAt, titleBox } from "./edit/point.ts"
 import { useMoving } from "./move/moving.tsx"
 import { useNarrowed } from "./filter/narrowed.tsx"
@@ -377,10 +378,21 @@ function Branch(props: {
     return draft?.kind === "row" ? draft : undefined
   }
   const pending = () => {
-    if (editor.where().after !== props.row.at.node.id) return undefined
-    const draft = editor.draft()
-    return draft?.kind === "new" ? draft : undefined
+    const held = editor.draft()
+    return held?.kind === "new" ? held : undefined
   }
+  const liveAfter = () => {
+    if (editor.where().after !== props.row.at.node.id) return undefined
+    return pending()
+  }
+  const liveBefore = () => {
+    if (editor.where().before !== props.row.at.node.id) return undefined
+    return pending()
+  }
+  const parkedAfter = () =>
+    editor.ghosts().filter((g) => g.at.kind === "after" && g.at.id === props.row.at.node.id)
+  const parkedBefore = () =>
+    editor.ghosts().filter((g) => g.at.kind === "before" && g.at.id === props.row.at.node.id)
   /** Is the caret in THIS row? What the row draws to say so, and what a
    *  scenario asks. A blinking text cursor at the end of a title was the whole
    *  affordance a walk with `↑`/`↓` had, and in a tree of a hundred rows that
@@ -506,6 +518,8 @@ function Branch(props: {
       // fold follows too and the format spells once (`shownRecord`).
       data-match={matchedAttr(narrowed, shownId())}
     >
+      <Ghosts parked={parkedBefore()} live={liveBefore()} />
+
       {/* group/row is on the LINE, not the <li>: a parent li also contains
           every nested child, and a named group-hover on the li would reveal
           every descendant's menu and triangle at once. Gap is GUTTER_GAP —
@@ -873,17 +887,44 @@ function Branch(props: {
           INSIDE this item and after its children, which is exactly where the
           next sibling appears in an outline. It is not a row of the tree — no
           `<li>`, no testid a scenario counts nodes with — because nothing has
-          been written. */}
-      <Show when={pending()}>
+          been written. Enter Enter Enter parks the earlier empties here too. */}
+      <Ghosts parked={parkedAfter()} live={liveAfter()} />
+    </li>
+  )
+}
+
+/** Empty drafts at one anchor: the parked ones first (Enter Enter Enter), then
+ *  the live caret if it is here. Parked inputs do not take focus; clicking one
+ *  resumes it. */
+function Ghosts(props: {
+  readonly parked: ReadonlyArray<Pending>
+  readonly live: Pending | undefined
+}) {
+  const editor = useEditor()
+  return (
+    <>
+      <Key each={props.parked} by="slot">
+        {(draft) => (
+          <NewRow
+            draft={draft()}
+            active={false}
+            onActivate={() => editor.resume(draft().slot)}
+            onInput={editor.type}
+            onKey={keyHandler("line", editor.press)}
+            onBlur={(left) => editor.blur({ row: draft().slot, field: "new" }, left)}
+          />
+        )}
+      </Key>
+      <Show when={props.live}>
         {(draft) => (
           <NewRow
             draft={draft()}
             onInput={editor.type}
             onKey={keyHandler("line", editor.press)}
-            onBlur={(left) => editor.blur({ row: props.row.at.node.id, field: "new" }, left)}
+            onBlur={(left) => editor.blur({ row: draft().slot, field: "new" }, left)}
           />
         )}
       </Show>
-    </li>
+    </>
   )
 }

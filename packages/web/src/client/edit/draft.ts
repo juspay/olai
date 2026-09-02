@@ -152,12 +152,18 @@ export interface Editing extends Replied {
 export interface Pending extends Replied {
   readonly kind: "new"
   /** Where the row goes, in the surface's own terms — and, for `after` and
-   *  `under`, what it is DRAWN after: the anchor names a row, and that row is
-   *  on screen. No second field, so the two cannot disagree (they did: the
-   *  anchor was the shown node and the drawing was the placement, which are
-   *  two different rows under a mirror). */
+   *  `before` and `under`, what it is DRAWN against: the anchor names a row,
+   *  and that row is on screen. No second field, so the two cannot disagree
+   *  (they did: the anchor was the shown node and the drawing was the
+   *  placement, which are two different rows under a mirror). */
   readonly at: Anchor
   readonly text: string
+  /**
+   * Local identity of this empty slot — not a node id. Two drafts parked at
+   * the same anchor (Enter Enter Enter) would otherwise share a blur slot,
+   * and a blur of one would close the other.
+   */
+  readonly slot: string
 }
 
 export type Draft = Editing | Pending
@@ -255,6 +261,10 @@ export const kept = (
  *  sibling of the node it stands for, somewhere else entirely. */
 export const after = (draft: Editing): Anchor => ({ kind: "after", id: draft.row })
 
+/** Where a draft opened at column 0 goes: immediately BEFORE the row the
+ *  caret was in. The words stay; the blank is the line above. */
+export const before = (draft: Editing): Anchor => ({ kind: "before", id: draft.row })
+
 /**
  * WHICH EDITOR a draft is drawn in: the row, and which of the three things it
  * is. Two draft values with the same slot are the same box on screen with
@@ -275,7 +285,7 @@ export interface Slot {
 
 export const slotOf = (draft: Draft): Slot =>
   draft.kind === "new"
-    ? { row: anchorRow(draft.at), field: "new" }
+    ? { row: draft.slot, field: "new" }
     : { row: draft.row, field: draft.field }
 
 export const sameSlot = (a: Slot, b: Slot): boolean =>
@@ -301,10 +311,11 @@ export const stillAt = (draft: Draft, from: Slot): boolean =>
   sameSlot(slotOf(draft), from) ||
   (draft.kind === "row" && draft.was !== undefined && sameSlot(draft.was, from))
 
-/** The row a pending draft is drawn after, and `null` for the one that is
- *  drawn on a page's own start line — an outline with no rows to follow. */
+/** The row a pending draft is drawn against, and `null` for the one that is
+ *  drawn on a page's own start line — an outline with no rows to follow.
+ *  `after` and `before` both name a row on screen; `under` and `first` do not. */
 export const anchorRow = (at: Anchor): string | null =>
-  at.kind === "after" ? at.id : null
+  at.kind === "after" || at.kind === "before" ? at.id : null
 
 /** Whether two anchors name the same place. What a start line asks to know
  *  whether the open pending draft is the one IT offered. */

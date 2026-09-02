@@ -349,8 +349,8 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
  * is only what is BEING placed, which each caller spreads its own fields for.
  */
 type Landing =
-  | { readonly parent: string; readonly after?: string }
-  | { readonly file: string; readonly after?: string }
+  | { readonly parent: string; readonly after?: string; readonly before?: string }
+  | { readonly file: string; readonly after?: string; readonly before?: string }
 
 const landingFor = (
   at: Reading,
@@ -366,9 +366,10 @@ const landingFor = (
   // has no children of its own — what hangs under it belongs to the node it
   // shows — so this one is the ops layer's to refuse, in its own words.
   if (anchor.kind === "under") return Result.succeed({ parent: anchor.id })
-  // After a row: the same parent as the row it follows, placed immediately
-  // after it. A row at top level has no parent, and then the FILE is what says
-  // where it goes — the pair both ops take.
+  // After a row, or immediately before it: the same parent as the row it
+  // sits next to. A row at top level has no parent, and then the FILE is what
+  // says where it goes — the pair both ops take. `before` is `Enter` at
+  // column 0; `after` is `Enter` at the end of the line.
   //
   // The anchor may be a MIRROR, and that is the point rather than an oversight:
   // a placement occupies a line among siblings, so `Enter` on one makes a
@@ -379,7 +380,7 @@ const landingFor = (
   const parent = target.node.parent
   return Result.succeed({
     ...(parent === undefined ? { file: target.file } : { parent }),
-    after: anchor.id,
+    ...(anchor.kind === "before" ? { before: anchor.id } : { after: anchor.id }),
   })
 }
 

@@ -13,10 +13,11 @@
  */
 
 import type { Anchor } from "@olai/surface"
+import { Key } from "@solid-primitives/keyed"
 import { Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
-import { anchorRow, sameAnchor } from "./draft.ts"
+import { sameAnchor } from "./draft.ts"
 import { useEditor } from "./editing.tsx"
 import { NewRow } from "./NewRow.tsx"
 import { keyHandler } from "./RowEditor.tsx"
@@ -32,16 +33,18 @@ export function StartLine(props: {
    *  the anchor rather than its KIND: a draft anchored `after` a row is drawn
    *  by that row (`../Tree.tsx`), and saying which anchor is ours states the
    *  half of that rule this component owns instead of implying it. */
-  const pending = () => {
+  const live = () => {
     const draft = editor.draft()
     return draft !== null && draft.kind === "new" && sameAnchor(draft.at, props.at)
       ? draft
       : undefined
   }
+  const parked = () => editor.ghosts().filter((g) => sameAnchor(g.at, props.at))
+  const any = () => live() !== undefined || parked().length > 0
 
   return (
     <Show
-      when={pending()}
+      when={any()}
       fallback={
         <button
           type="button"
@@ -53,14 +56,28 @@ export function StartLine(props: {
         </button>
       }
     >
-      {(draft) => (
-        <NewRow
-          draft={draft()}
-          onInput={editor.type}
-          onKey={keyHandler("line", editor.press)}
-          onBlur={(left) => editor.blur({ row: anchorRow(props.at), field: "new" }, left)}
-        />
-      )}
+      <Key each={parked()} by="slot">
+        {(draft) => (
+          <NewRow
+            draft={draft()}
+            active={false}
+            onActivate={() => editor.resume(draft().slot)}
+            onInput={editor.type}
+            onKey={keyHandler("line", editor.press)}
+            onBlur={(left) => editor.blur({ row: draft().slot, field: "new" }, left)}
+          />
+        )}
+      </Key>
+      <Show when={live()}>
+        {(draft) => (
+          <NewRow
+            draft={draft()}
+            onInput={editor.type}
+            onKey={keyHandler("line", editor.press)}
+            onBlur={(left) => editor.blur({ row: draft().slot, field: "new" }, left)}
+          />
+        )}
+      </Show>
     </Show>
   )
 }

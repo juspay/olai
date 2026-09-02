@@ -216,9 +216,11 @@ test("Enter splits only with text on BOTH sides of the caret", () => {
   expect(editKey(key("Enter"), "line", at(5, LINE))).toBe("split")
   // At the END of the line it is the key it has always been.
   expect(editKey(key("Enter"), "line", at(11, LINE))).toBe("add")
-  // At the HEAD of it too: the head would be empty, which is not a node this
-  // format can hold, so there is no blank row to insert above.
-  expect(editKey(key("Enter"), "line", at(0, LINE))).toBe("add")
+  // At the HEAD of a titled line: a local draft above, words stay.
+  expect(editKey(key("Enter"), "line", at(0, LINE))).toBe("insert")
+  // An empty field is `add` — start and end are the same place, and Enter on
+  // an empty draft opens the next empty one rather than stacking above itself.
+  expect(editKey(key("Enter"), "line", at(0, ""))).toBe("add")
   // A caller that cannot say where the caret is gets the old reading, which is
   // the safe way round.
   expect(editKey(key("Enter"), "line")).toBe("add")
@@ -334,6 +336,7 @@ test("every editing key is written down for a person", () => {
   )
   const actions: ReadonlyArray<EditAction> = [
     "add",
+    "insert",
     "split",
     "merge",
     "in",

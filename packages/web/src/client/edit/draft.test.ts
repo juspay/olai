@@ -3,6 +3,7 @@ import { expect, test } from "bun:test"
 
 import {
   after,
+  before,
   anchorRow,
   commitOf,
   type Draft,
@@ -33,6 +34,7 @@ const pending = (over: Partial<Pending> = {}): Pending => ({
   kind: "new",
   at: { kind: "after", id: "order" },
   text: "",
+  slot: "d1",
   ...over,
 })
 
@@ -136,7 +138,7 @@ test("a new row that landed becomes the row it created", () => {
     field: "title",
     text: "measure",
     saved: "measure",
-    was: { row: "order", field: "new" },
+    was: { row: "d1", field: "new" },
   })
 })
 
@@ -145,6 +147,11 @@ test("the next row follows the ROW, not the node it shows", () => {
   // the reader is looking, rather than beside the node somewhere else.
   expect(after(editing({ row: "echo", id: "order" })))
     .toEqual({ kind: "after", id: "echo" })
+})
+
+test("Enter at column 0 is before the ROW, not after its subtree", () => {
+  expect(before(editing({ row: "echo", id: "order" })))
+    .toEqual({ kind: "before", id: "echo" })
 })
 
 // ── which editor a blur came from ──────────────────────────────────────
@@ -161,15 +168,17 @@ test("a slot names the box rather than the text in it", () => {
 })
 
 test("a new row is drawn after the row it follows, or on a page's start line", () => {
-  // `after` is the only anchor a ROW draws — the other two are what a page
-  // with no rows offers, and it draws them itself. So they have no row to be
-  // drawn after, and saying so is what keeps one editor from appearing twice.
+  // `after` and `before` name a row on screen; `under` and `first` are what a
+  // page with no rows offers, and it draws them itself. So they have no row to
+  // be drawn against. The blur slot is the pending's own `slot`, so two ghosts
+  // at the same anchor stay two editors.
   expect(anchorRow({ kind: "after", id: "order" })).toBe("order")
+  expect(anchorRow({ kind: "before", id: "order" })).toBe("order")
   expect(anchorRow({ kind: "under", id: "order" })).toBeNull()
   expect(anchorRow({ kind: "first", file: "a.olai" })).toBeNull()
-  expect(slotOf(pending())).toEqual({ row: "order", field: "new" })
-  expect(slotOf(pending({ at: { kind: "first", file: "a.olai" } })))
-    .toEqual({ row: null, field: "new" })
+  expect(slotOf(pending())).toEqual({ row: "d1", field: "new" })
+  expect(slotOf(pending({ slot: "d2", at: { kind: "first", file: "a.olai" } })))
+    .toEqual({ row: "d2", field: "new" })
 })
 
 test("a line that landed is still the editor the blur came from", () => {
@@ -186,7 +195,7 @@ test("a line that landed is still the editor the blur came from", () => {
   // And it is the forwarding address that says so, not a blanket yes: another
   // row's editor is another row's, landed or not.
   expect(stillAt(editing({ row: "demo" }), from)).toBe(false)
-  expect(stillAt(row, slotOf(pending({ at: { kind: "after", id: "demo" } })))).toBe(false)
+  expect(stillAt(row, slotOf(pending({ slot: "d2", at: { kind: "after", id: "demo" } })))).toBe(false)
 })
 
 test("a row that was always a row forwards nothing", () => {
@@ -200,6 +209,10 @@ test("two anchors are the same place only when they name the same one", () => {
   expect(sameAnchor({ kind: "under", id: "order" }, { kind: "under", id: "order" }))
     .toBe(true)
   expect(sameAnchor({ kind: "under", id: "order" }, { kind: "after", id: "order" }))
+    .toBe(false)
+  expect(sameAnchor({ kind: "before", id: "order" }, { kind: "before", id: "order" }))
+    .toBe(true)
+  expect(sameAnchor({ kind: "before", id: "order" }, { kind: "after", id: "order" }))
     .toBe(false)
   expect(sameAnchor({ kind: "first", file: "a.olai" }, { kind: "first", file: "b.olai" }))
     .toBe(false)

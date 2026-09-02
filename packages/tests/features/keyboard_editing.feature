@@ -90,6 +90,30 @@ Feature: Keyboard editing
     Then "house.olai" holds a node titled "measure the alcove"
     And the page has not reloaded
 
+  Scenario: Enter Enter Enter lays out three empty drafts, and writes none of them
+    # Outlining is sketching blanks. Empty titles are still illegal on disk, so
+    # each line is a local draft until it has words — but the drafts stay on
+    # the page, so a skeleton can be laid out and filled in.
+    When I click the title of "handles"
+    And I press "Enter"
+    And I press "Enter"
+    And I press "Enter"
+    Then 3 new rows are being typed
+    And the outline "house.olai" shows exactly the nodes "kitchen, demo, order, install, handles, hinges, knobs, kitchen-herbs"
+
+  Scenario: Enter at the start of a line inserts a draft above it
+    # Workflowy's "make space": caret at column 0, Enter, a blank above, the
+    # words you were on stay where they were. Still a draft, still nothing on
+    # disk. What it must not do is teleport the caret to the floor of the
+    # subtree — that is what Enter at the END of the line does.
+    When I click the title of "kitchen"
+    And I put the caret at the start of the line
+    And I press "Enter"
+    Then a new row is being typed
+    And the row being typed is drawn immediately above the title of "kitchen"
+    And the node "kitchen" has the title "kitchen remodel #home"
+    And the outline "house.olai" shows exactly the nodes "kitchen, demo, order, install, handles, hinges, knobs, kitchen-herbs"
+
   Scenario: The line being typed sits where the row will sit
     # A new sibling is drawn at the depth it will HAVE, not one step out of it:
     # the draft reserves the same gutter a row does (the `•••` cell and the
