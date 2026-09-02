@@ -9,7 +9,9 @@
  * pure function of a vault and a value.
  *
  * WHAT IS PINNED: a lane the file carries claims its run's notices; a
- * mirrored lane claims through the target; a DONE lane claims nothing; an
+ * mirrored lane claims through the target; a day-board nested mirror of a
+ * lane in another file claims through the target, both homes (the 2026-09-02
+ * ringing and silent lanes, side by side); a DONE lane claims nothing; an
  * undeclared column claims nothing; an unclaimed run rings NOTHING at all
  * (spelled as what it is: the absence of a call); first-red's counts are the
  * FRESH reading where the row is still this run's; and a red settle carries
@@ -176,6 +178,48 @@ test("a mirrored lane claims through its TARGET", () => {
     title: "the e2e lane",
     file: "projects/the-thing/Records.olai",
   }])
+})
+
+test("a day-board mirror of a lane in another file claims through the target — both homes", () => {
+  // THE 2026-09-02 SHAPE. Scope is the day board; ringing lanes lived in
+  // features.olai, the silent one in infra.olai; each is a nested mirror
+  // under an unmarked day root, the same apply that minted the lane. The
+  // claim walk has to find BOTH, or a row in a file other than the ringing
+  // ones has changed the derivation. Placement of the relative checkout
+  // (the silent half had no pr-url) is `worktrees.ts` / `worktreeAt`'s.
+  const claims = claimsOf({
+    "_olai/Properties.olai": rec("prop-worktree", "worktree", { type: "path" }),
+    "orchestrator/lanes.olai": [
+      rec("lanes", "Lanes"),
+      rec("day-2026-09-01", "2026-09-01 day lanes"),
+      `{"id":"day-mirror-nap","parent":"day-2026-09-01","ord":"a0","mirror":"node-agents-p1"}`,
+      `{"id":"day-mirror-fsh","parent":"day-2026-09-01","ord":"aB","mirror":"flake-shakeout"}`,
+    ].join("\n"),
+    "projects/olai/roadmap/features.olai": marked(
+      "node-agents-p1",
+      "the agents roster",
+      "doing",
+      {
+        "odu-worktree": ".worktrees/node-agents-roster",
+        "pr-url": "https://github.com/juspay/olai/pull/461",
+      },
+    ),
+    "projects/olai/roadmap/infra.olai": marked("flake-shakeout", "the flake shakeout", "doing", {
+      "odu-worktree": ".worktrees/flake-shakeout",
+    }),
+  }, "orchestrator/lanes.olai")
+  expect(claims.map(({ value, node, file }) => ({ value, node, file }))).toEqual([
+    {
+      value: ".worktrees/node-agents-roster",
+      node: "node-agents-p1",
+      file: "projects/olai/roadmap/features.olai",
+    },
+    {
+      value: ".worktrees/flake-shakeout",
+      node: "flake-shakeout",
+      file: "projects/olai/roadmap/infra.olai",
+    },
+  ])
 })
 
 test("a DONE lane claims nothing — finishing the lane turns the doorbell off", () => {
