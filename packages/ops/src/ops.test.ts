@@ -1199,6 +1199,240 @@ test("concurrent ops all land, each re-derived from the set the last one left", 
         .toBe(true)
     })))
 
+// ── the 2026-09-01 incident: a document's write reported over lost bytes ──
+
+/**
+ * A `create_document` returned success — a revision — over a ~2KB body, and
+ * the file on disk was 0 bytes. The incident's own report adds two
+ * circumstances: the create rode a parallel MCP batch beside a `delete_file`
+ * of another document, and the serve runs `--commit=manual` with deploys in
+ * the gap between a write and its commit.
+ *
+ * These tests are the honest reproduction attempts: each shape the incident
+ * names, driven against a real directory, asserting the one claim the
+ * incident broke — THE BYTES THE CALL CARRIED ARE THE BYTES THE DISK KEEPS at
+ * the moment the write reports. (The report's third observation, that the
+ * file was absent from all git history, is reproduced by neither code nor
+ * these tests because it needs none: that vault gitignores `briefs/`, so the
+ * file could never have been in a commit.)
+ */
+describe("a document's write cannot lose bytes (the 2026-09-01 incident)", () => {
+  /** A body at the incident's size: two kilobytes of markdown with frontmatter,
+   *  paragraphs and a list — the shape a dispatch brief actually has. */
+  const BRIEF = [
+    "---",
+    "lane: doorbell-missing-claim",
+    "dispatched: 2026-09-01",
+    "---",
+    "",
+    "# Brief: the doorbell misses a claim",
+    "",
+    "A claim on a held terminal is answered by the doorbell's next wake rather",
+    "than at the moment it is made, because the claim path and the wake path",
+    "read two different clocks.",
+    "",
+    "## The work",
+    "",
+    "1. Reproduce with a held terminal and two claims in one wake.",
+    "2. The fix is one clock, read once, at the doorbell's own edge.",
+    "3. Pin it in the suite that owns the wake.",
+    "",
+    ...Array.from(
+      { length: 30 },
+      (_, line) => `Detail paragraph ${line + 1}: the evidence, the trace, and the ruling.`,
+    ),
+    "",
+  ].join("\n")
+
+  /** Everything waiting, committed — the same sweep `the git seam` makes. */
+  const sweep = (fixture: Fixture): Effect.Effect<void> =>
+    Effect.flatMap(fixture.ops.commit({}, "mcp"), (done) =>
+      done._tag === "Committed"
+        ? Effect.void
+        : Effect.die(new Error(`the commit did not land: ${JSON.stringify(done)}`)))
+
+  /** The committed content of one file — the other half of "the write is in
+   *  history", asked of git rather than of the disk the test already owns. */
+  const committed = (root: string, file: string): string =>
+    execFileSync("git", ["show", `HEAD:${file}`], { cwd: root, encoding: "utf8" })
+
+  /**
+   * THE GUARANTEE, pinned at the seam that makes it: each incident shape this
+   * block drives passes at HEAD — the incident itself did not reproduce — so
+   * the rule is made of this test instead. Beneath a healthy plan, the landed
+   * bytes are taken away between the rename and the answer (a racing
+   * truncation, a dying disk, a bad deploy step — this layer cannot name
+   * which, and does not have to). A document write that cannot read its own
+   * bytes back is a REFUSAL, never a revision: what the incident got is the
+   * one answer this layer no longer has.
+   */
+  test("a document write whose bytes do not survive its window is refused, not reported", () => {
+    const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-ops-looted-")))
+    fs.writeFileSync(path.join(root, "house.olai"), HOUSE)
+    return Effect.gen(function*() {
+      const store = yield* Store.make({ root, codec, watch: false, settle: "10 millis" })
+      const landed = store.commit
+      // The loss re-enacted BELOW the layer being held to account: the gate
+      // stages, renames, publishes and answers — and by the time the ops
+      // layer looks, the file is 0 bytes, exactly as the incident found it.
+      const looted: typeof store = {
+        ...store,
+        commit: (write) =>
+          Effect.map(landed(write), (outcome) => {
+            // `commit` answers one Result: a SUCCESS carries the revision —
+            // those are the writes that reported, and the ones looted here.
+            if (Result.isSuccess(outcome)) {
+              for (const change of write.changes) {
+                if (change.contents !== null) {
+                  fs.writeFileSync(path.join(root, change.path), "")
+                }
+              }
+            }
+            return outcome
+          }),
+      }
+      const ops = Ops.make({
+        store: looted,
+        root,
+        policy: fixedPolicy({ commit: "off", push: null }),
+        context: steady(),
+      })
+      const failure = yield* Effect.flip(
+        ops.run({ op: "create-doc", file: "briefs/dispatch.md", text: BRIEF }, "mcp"),
+      )
+      expect(failure._tag).toBe("ValidationFailure")
+      expect(failure.message).toContain("briefs/dispatch.md")
+      // The re-enactment really did its part.
+      expect(fs.readFileSync(path.join(root, "briefs/dispatch.md"), "utf8")).toBe("")
+    }).pipe(
+      Effect.scoped,
+      Effect.provide(NodeServices.layer),
+      Effect.runPromise,
+    ).finally(() => {
+      fs.rmSync(root, { recursive: true, force: true })
+    })
+  })
+
+  test("the baseline: the body is on disk with the answer, and in HEAD once committed", () =>
+    withOps({ "house.olai": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        expect(BRIEF.length).toBeGreaterThan(1800)
+        const applied = yield* run(fixture, {
+          op: "create-doc",
+          file: "briefs/doorbell-missing-claim.md",
+          text: BRIEF,
+        })
+        expect(applied.rev).toBeGreaterThan(1)
+
+        // THE CLAIM, at the moment the answer went out: the bytes are the call's.
+        expect(fixture.read("briefs/doorbell-missing-claim.md")).toBe(BRIEF)
+        // …and not through the fixture's second read of the disk only: the set
+        // the next read answers carries the same body.
+        const documents = markdownIn(yield* fixture.set())
+        expect(documents.map((document) => String(document.path))).toEqual([
+          "briefs/doorbell-missing-claim.md",
+        ])
+
+        yield* sweep(fixture)
+        expect(committed(fixture.root, "briefs/doorbell-missing-claim.md")).toBe(BRIEF)
+      }), { git: true }))
+
+  test("the batch: a create racing a delete of ANOTHER document keeps its body", () =>
+    withOps(
+      {
+        "house.olai": HOUSE,
+        ...Object.fromEntries(
+          Array.from({ length: 8 }, (_, round) => [`spent-${round}.md`, `# spent ${round}\n`]),
+        ),
+      },
+      (fixture) =>
+        Effect.gen(function*() {
+          // Eight rounds, each firing the incident's pair at the store gate at
+          // once: a race that lands wrong once lands wrong OFTEN, and a single
+          // pass of a race test is a coin flip that happened to come up.
+          for (let round = 0; round < 8; round++) {
+            const created = `briefs/dispatch-${round}.md`
+            yield* Effect.all(
+              [
+                run(fixture, { op: "create-doc", file: created, text: BRIEF }),
+                run(fixture, { op: "delete", file: `spent-${round}.md` }),
+              ],
+              { concurrency: 2 },
+            )
+            // Asserted INSIDE the round, not collected after: the claim is
+            // about the moment the answers went out, and a later look could
+            // have been repaired by the reads in between.
+            expect(fixture.read(created)).toBe(BRIEF)
+            expect(fixture.read(`spent-${round}.md`)).toBeNull()
+          }
+        }),
+    ))
+
+  test("a serve restart between the write and the commit loses nothing", async () => {
+    /**
+     * The deploy case, made small: the serve that took the write is CLOSED
+     * with the write still waiting on a commit, and a fresh store+ops over
+     * the same root answers for the bytes afterwards. `withOps` cannot be
+     * reused — it deletes its root — so the boot is spelled here over one
+     * root the test owns, twice.
+     */
+    const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-ops-restart-")))
+    const write = (file: string, contents: string) => {
+      fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true })
+      fs.writeFileSync(path.join(root, file), contents)
+    }
+    write("house.olai", HOUSE)
+    repoAt(root)
+    const booted = <A>(use: (ops: Ops.Ops) => Effect.Effect<A, unknown>): Promise<A> =>
+      Effect.gen(function*() {
+        const store = yield* Store.make({
+          root,
+          codec,
+          watch: false,
+          settle: "10 millis",
+        })
+        return yield* use(Ops.make({
+          store,
+          root,
+          policy: fixedPolicy({ commit: "auto", push: null }),
+          context: steady(),
+        }))
+      }).pipe(
+        Effect.scoped,
+        Effect.provide(NodeServices.layer),
+        Effect.runPromise,
+      )
+    try {
+      // Boot one: the write lands, its answer goes out, the serve goes away
+      // with the commit never asked for.
+      await booted((ops) =>
+        Effect.gen(function*() {
+          const applied = yield* Effect.orDie(ops.run({
+            op: "create-doc",
+            file: "briefs/doorbell-missing-claim.md",
+            text: BRIEF,
+          }, "mcp"))
+          expect(applied.rev).toBeGreaterThan(1)
+        }))
+      // THE CLAIM, read of the disk with no olai process alive to speak for it.
+      expect(fs.readFileSync(path.join(root, "briefs/doorbell-missing-claim.md"), "utf8"))
+        .toBe(BRIEF)
+
+      // Boot two: the next serve finds the file as its own, still holding its
+      // body — and the commit the first boot never made is the second's to
+      // sweep, carrying every byte.
+      await booted((ops) =>
+        Effect.gen(function*() {
+          const done = yield* ops.commit({}, "mcp")
+          expect(done._tag).toBe("Committed")
+        }))
+      expect(committed(root, "briefs/doorbell-missing-claim.md")).toBe(BRIEF)
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true })
+    }
+  })
+})
+
 // ── git ────────────────────────────────────────────────────────────────
 
 /**

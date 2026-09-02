@@ -734,6 +734,42 @@ export const make = (options: Options): Ops => {
           })
         }
 
+        /**
+         * A DOCUMENT WRITE'S YES IS EARNED, NOT REPORTED. (2026-09-01: a
+         * `create_document` answered a revision over a body and the file was
+         * 0 bytes — the origin never reproduced, so this is the class closed
+         * rather than the cause.) The gate's own re-probe takes the promised
+         * bytes only where the disk reads back as them, and a `.md` that
+         * reads back EMPTY still VALIDATES — so a loss that lands inside the
+         * write's own window is published and answered the same as a
+         * landing, whichever arm took it away. `documents` is the whole of
+         * what this asks: both verbs that carry bytes verbatim, and the one
+         * shape of write this layer answers for that the gate cannot refuse
+         * on content alone.
+         *
+         * The read-back is {@link @olai/store}'s `body`: live bytes, one
+         * file, kept by nobody — the door made for exactly this question. The
+         * cost is the write's own size once more, paid by document writes
+         * only: every other verb's answer is about RECORDS the gate
+         * validated, and their bytes are the serializer's, not the caller's.
+         */
+        for (const document of documents) {
+          const held = yield* Effect.result(options.store.body(document.file))
+          if (!Result.isSuccess(held) || held.success !== document.text) {
+            return yield* new ValidationFailure({
+              reason:
+                `\`${about.summary}\` was not kept by the disk: \`${document.file}\` reads back ` +
+                `${
+                  Result.isSuccess(held) && held.success !== null
+                    ? `${held.success.length} characters`
+                    : "unreadable or missing"
+                } where ${document.text.length} were written — read it again and ` +
+                `rewrite from what it says.`,
+              verdict: NOTHING_WRONG,
+            })
+          }
+        }
+
         // Recorded AFTER the write landed. Every write that lands is waiting
         // now — nothing commits one on its own any more — so the counter
         // answers "how many ops the next commit will sweep", and what clears it
