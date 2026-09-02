@@ -151,14 +151,16 @@ export function* worktreesIn(derived: Derived): Generator<WorktreeNode> {
  * THE REPOSITORY A ROW'S FILE NAMES, or `undefined` for a path that is not
  * under `projects/<repo>/`.
  *
- * One segment, the second of a `projects/…` path — `projects/olai/roadmap/infra.olai`
- * is `olai`, `orchestrator/lanes.olai` is nothing. Asked here rather than in
+ * One segment, the second of a `projects/<repo>/…` path — `projects/olai/roadmap/infra.olai`
+ * is `olai`, `orchestrator/lanes.olai` is nothing, and so is an outline sitting
+ * directly under `projects/` (`projects/scratch.olai`): that is under
+ * `projects/`, not under `projects/<repo>/`. Asked here rather than in
  * `@olai/odu-client`, because a file path is a fact about the vault's layout
  * and that package does not learn what an outline file is.
  */
 const repoFromFile = (file: string): string | undefined => {
   const parts = file.split("/")
-  if (parts[0] !== "projects") return undefined
+  if (parts[0] !== "projects" || parts.length < 3) return undefined
   const repo = parts[1]
   if (repo === undefined || repo === "" || repo === "." || repo === "..") return undefined
   return repo

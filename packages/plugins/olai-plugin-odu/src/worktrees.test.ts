@@ -202,6 +202,20 @@ test("...and a file that is not under projects/<repo>/ still hands no repo", () 
     value: ".worktrees/a",
     prUrl: undefined,
   }])
+  // Directly under `projects/` is under `projects/`, not under
+  // `projects/<repo>/` — the filename is not a repository.
+  expect(
+    worktreesOf({
+      "projects/scratch.olai": rec("lane-b", "a scratch board", {
+        [WORKTREE_TYPE]: ".worktrees/b",
+      }),
+    }),
+  ).toEqual([{
+    node: "lane-b",
+    title: "a scratch board",
+    value: ".worktrees/b",
+    prUrl: undefined,
+  }])
 })
 
 test("a MIRROR is skipped — its target carries the property and is in the same walk", () => {
