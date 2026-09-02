@@ -127,9 +127,10 @@ export const TESTID = {
   /** The door's one line of the agent's latest message. Absent until olai has
    *  heard one, which is a door drawn without it rather than an empty line. */
   agentSaid: "agent-said",
-  /** Why a press on a roster row did nothing — a binding naming a
-   *  conversation that agent no longer has is the case a person has to be able
-   *  to read, because only editing the record can fix it. */
+  /** Why a press on a roster row did nothing — a property naming a
+   *  conversation that agent no longer has (another machine's session, one the
+   *  agent has forgotten) is the case a person has to be able to read, because
+   *  only rewriting the property can fix it. */
   agentRefused: "agent-refused",
   /** The panel header's NODE name — the node agent this conversation belongs
    *  to, drawn first and pressable. Absent on every conversation no node

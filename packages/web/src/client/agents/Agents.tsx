@@ -84,10 +84,10 @@ export function Agents() {
             {(row) => <AgentRow row={row()} onPress={() => focus.press(row())} />}
           </Key>
         </ul>
-        {/* WHY NOTHING HAPPENED, where a press was refused — a binding naming a
+        {/* WHY NOTHING HAPPENED, where a press was refused — a property naming a
             conversation the agent no longer has is the case, and it is one a
-            person can only fix by editing the record, so they have to be able
-            to read it. On the SECTION rather than on the row, because the row
+            person can only fix by rewriting that property, so they have to be
+            able to read it. On the SECTION rather than on the row, because the row
             it belongs to may have been replaced by the frame that answered. */}
         <Show when={focus.said()}>
           {(said) => (

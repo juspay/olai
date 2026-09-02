@@ -8,7 +8,7 @@
  * verb the chats picker sends, with the same pair, and it is a change of AGENT
  * as often as it is a change of conversation (`@olai/surface`'s
  * `chat.loadSession`). A node agent's session is one of those conversations —
- * that is the whole of what the binding says — so focusing one is that verb
+ * that is the whole of what the property says — so focusing one is that verb
  * with the pair read off the roster row, and there is no second way to open a
  * conversation anywhere in this app.
  *
@@ -64,9 +64,10 @@ export const rowOf = (agent: Pick<Row, "id" | "file">): Route =>
  *
  * ONE MODULE FOR BOTH FACES. The two of them were spelling the same three lines
  * apiece — clear the line, do the verb, word the refusal — and the wording was
- * the part that mattered and the part most likely to drift: a stale binding
- * names a conversation the agent no longer has, and *that* is the sentence a
- * person needs, because only editing the record can fix it. A gesture whose
+ * the part that mattered and the part most likely to drift: a stale property
+ * names a conversation the agent no longer has — another machine's session, or
+ * one this agent has forgotten — and *that* is the sentence a person needs,
+ * because only rewriting the property can fix it. A gesture whose
  * refusal is worded at each caller is a gesture that says two different things
  * about one failure.
  *

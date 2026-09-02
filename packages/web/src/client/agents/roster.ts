@@ -45,7 +45,7 @@
  * ## And why the LIVE one is decided by `bound` rather than by the ids
  *
  * `ChatState.bound` names the node the open conversation belongs to, decided by
- * the server off the same table the roster's `session` came from. Comparing the
+ * the server off the same property the roster's `session` came from. Comparing
  * session ids here instead would be this browser re-deriving an answer the
  * server has already given — and re-deriving it from a pair that can arrive on
  * two different frames, so a session swap would light two rows or none for as
