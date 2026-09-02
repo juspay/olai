@@ -55,7 +55,7 @@ import { createEffect, createMemo, createSignal, Match, on, Show, Switch } from 
 
 import type { AgentChoice } from "@olai/surface"
 
-import { showingUnassigned } from "../agents/showing.ts"
+import { hideUnassigned, showingUnassigned } from "../agents/showing.ts"
 import { Unassigned } from "../agents/Unassigned.tsx"
 import { ChatHandle } from "../layout/Handle.tsx"
 import { desktop } from "../layout/media.ts"
@@ -252,6 +252,20 @@ function Face(props: { readonly chat: Chat }) {
    * conversation, at once.
    */
   const onNew = (): void => {
+    // THE LIST GOES FIRST, because `+ new` OPENS A CONVERSATION and every other
+    // door that does says so on its way through (`../agents/showing.ts`, and
+    // `../agents/focus.ts` / `./NodeSessions.tsx` keeping it). Without this the
+    // press landed nowhere a person could see: the unassigned list outranks
+    // every face below it (`./face.ts`), so with one engine the fresh
+    // conversation opened UNDER the list, and with several the question of
+    // which agent could not draw until somebody pressed *done* — springing up
+    // minutes after the press that raised it.
+    //
+    // BEFORE THE QUESTION IS READ, not after: the face is a function of this
+    // signal, so a list still showing would answer `unassigned` here and hide
+    // the one arm this button must not step on — the SERVER's own question,
+    // which is answered with a different verb.
+    hideUnassigned()
     // A panel that is already asking has nothing for this button to add: the
     // question is up, and the answer to it opens a conversation.
     if (face().kind === "choose") return
@@ -312,7 +326,7 @@ function Face(props: { readonly chat: Chat }) {
             row ({@link ../agents/Unassigned.tsx}) — where it sits in the
             precedence, and why, is {@link ./face.ts}'s. */}
         <Match when={face().kind === "unassigned"}>
-          <Unassigned />
+          <Unassigned chat={props.chat} />
         </Match>
         <Match when={refused()}>
           {(unopened) => <Unopened chat={props.chat} unopened={unopened()} />}

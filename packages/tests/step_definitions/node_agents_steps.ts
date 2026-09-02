@@ -499,3 +499,27 @@ Then("the panel offers no sessions of its own", async function (this: OlaiWorld)
     "the panel to offer no sessions control",
   );
 });
+
+/** The list is not on screen — the other half of every door that opens a
+ *  conversation: it says so to the list on its way through. */
+Then("the unassigned list is not drawn", async function (this: OlaiWorld) {
+  await this.page.locator(LIST).waitFor({ state: "detached", timeout: POLL_TIMEOUT });
+});
+
+/** WHAT THE PANEL REFUSED, where a person is looking — the panel's own
+ *  talk-back at the foot of the transcript, which is where a verb's refusal has
+ *  always landed (`chat/state.ts`'s `verb`). Its own step here because the
+ *  claim is about a refusal reaching the reader at all: the door that raised it
+ *  is a list that has already dismissed itself. */
+Then(
+  "the panel refuses, saying {string}",
+  async function (this: OlaiWorld, words: string) {
+    const line = this.page.locator(selector(TESTID.chatRefused));
+    await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.ok(
+      (await line.innerText()).replaceAll("\n", " ").includes(words),
+      `the panel to refuse saying ${JSON.stringify(words)}, and it says ` +
+        JSON.stringify((await line.innerText()).replaceAll("\n", " ")),
+    );
+  },
+);

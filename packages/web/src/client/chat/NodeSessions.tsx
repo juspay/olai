@@ -130,7 +130,15 @@ export function NodeSessions(props: { readonly chat: Chat; readonly agent: Row }
         agent: props.agent.engine,
       }),
       (failure) => saying.say({ tone: "alarm", text: failure.message, kind: failure._tag }),
-      () => picker.shut(),
+      () => {
+        // ASKED AGAIN, on the frame the re-point lands. The roster cell moves
+        // at once — the property is written — so without this the pill walks a
+        // listing taken before the new session existed: `past()` finds no link
+        // to it, and `sessions (3)` reads `sessions (1)` over a history that is
+        // still there, self-correcting only when somebody next opens this.
+        askChats()
+        picker.shut()
+      },
     )
   }
 

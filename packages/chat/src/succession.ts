@@ -24,13 +24,30 @@
  * panel's *past sessions*, and the picker's own superseded line — must not come
  * to disagree about which conversations a node agent has had.
  *
- * ## THE AGENT'S OWN ANSWER WINS
+ * ## OLAI'S OWN LINK WINS, and the reason is who is asking
  *
- * A row that already names a successor keeps the one it names. The agent read
- * its own transcripts; olai read a state file it wrote, which can be older than
- * a `/clear` somebody ran in a terminal afterwards. Where the two disagree, the
- * one closer to the conversation is right — and the case is rare enough to be
- * worth no more than this sentence.
+ * Where both facts exist for one row they answer slightly different questions,
+ * and the field has ONE consumer: a node agent's lineage
+ * (`@olai/web`'s `lineage.ts`). `/clear` says what became of a TRANSCRIPT; a
+ * re-pointing says what became of the AGENT — and it is the second that the
+ * walk backwards from a node's current session is looking for.
+ *
+ * It was the other way round for one review, on the argument that the agent
+ * read its own transcripts while this end read a state file that can be older
+ * than a later `/clear`. True, and beside the point: letting the `/clear` link
+ * stand is exactly the boomerang this record exists to prevent. Assign a chat
+ * that was itself a `/clear` remainder — the row already names the successor
+ * its agent reported — then give that node a fresh session. The re-pointing is
+ * dropped, the walk back from the new session finds nothing, and the
+ * conversation the node just let go of comes back under Unassigned, offering
+ * itself to the one node that would refuse it.
+ *
+ * WHAT IT COSTS is the drawn line in the rare disagreement: a conversation olai
+ * re-pointed away from AND somebody later cleared in a terminal says *superseded
+ * by* the session the node moved to, rather than the terminal's. That is the
+ * honest answer for the only place the line is drawn — inside a node agent's
+ * own history — and the terminal's sibling is still its own row, claimed by
+ * nobody, which is what it is.
  *
  * ## MATCHED ON THE PAIR, never on the session alone
  *
@@ -64,9 +81,9 @@ export const succeeded = (
   const links = overheard.filter((row) => row.superseded !== undefined)
   if (links.length === 0) return listed
   const sessions = listed.sessions.map((session): SessionInfo => {
-    // THE AGENT'S OWN ANSWER WINS — see the header. A row that already names a
-    // successor is left exactly as it arrived.
-    if (session.supersededBy !== null) return session
+    // OLAI'S OWN LINK WINS where there is one — see the header. A row olai has
+    // never re-pointed keeps whatever its agent reported, which is every row on
+    // a machine that has never pressed *fresh session*.
     const link = links.find(
       (row) => row.agent === session.agent && row.session === session.id,
     )

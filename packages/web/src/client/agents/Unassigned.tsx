@@ -88,6 +88,7 @@ import { Shortlist, type ShortlistTestids } from "../search/Shortlist.tsx"
 import { TESTID } from "../testids.ts"
 import { olai } from "../wire.ts"
 import { chatKey, successorIn } from "./lineage.ts"
+import type { Chat } from "../chat/state.ts"
 import { useAgents } from "./answered.tsx"
 import { hideUnassigned } from "./showing.ts"
 
@@ -104,7 +105,7 @@ const ASSIGN_LIST: ShortlistTestids = {
   failed: TESTID.assignSearchFailed,
 }
 
-export function Unassigned() {
+export function Unassigned(props: { readonly chat: Chat }) {
   const { unassigned, unreachable, chatsRefusal, chats, openChat, engines, at } = useAgents()
   /** Whether the panel is already IN this conversation — which is the ordinary
    *  case for somebody migrating: you are talking in a chat, and you give it a
@@ -178,22 +179,30 @@ export function Unassigned() {
     )
   }
 
-  /** ... and open one, to find out which conversation it is. The panel goes
-   *  back to being a conversation, which is what a person pressing a chat's
-   *  title asked for. */
+  /**
+   * ... and open one, to find out which conversation it is. The panel goes back
+   * to being a conversation, which is what a person pressing a chat's title
+   * asked for.
+   *
+   * THE LIST GOES FIRST, and not on the answer: a press means *take me to that
+   * conversation*, and an open can HANG — an agent still loading, a handshake —
+   * so waiting for it would leave a person looking at the list they just
+   * pressed out of, with no box to type in.
+   *
+   * THROUGH THE PANEL'S OWN VERB, and that is what makes hiding first safe: a
+   * refusal has to land where the reader now IS, and `../chat/state.ts`'s
+   * `verb` puts one at the foot of the transcript — the panel they are looking
+   * at a beat later. Sent as a bare procedure it was reported into THIS list, a
+   * line inside a panel that had just dismissed itself, and the case that
+   * reaches it is ordinary: a turn in flight refuses a switch ("a turn is
+   * running; cancel it before switching conversations"), so pressing a chat
+   * mid-turn was a press that looked like it did nothing — the offence this
+   * whole feature polices.
+   */
   const open = (chat: SessionInfo): void => {
     saying.say(undefined)
-    // THE LIST GOES FIRST, and not on the answer: a press means *take me to
-    // that conversation*, and an open can HANG — an agent still loading, a
-    // handshake — so waiting for it would leave a person looking at the list
-    // they just pressed out of, with no box to type in. What happens to an open
-    // that does not land is the panel's own business and has its own face
-    // (`../chat/face.ts`'s `unopened`), which is where a reader looks for it.
     hideUnassigned()
-    run(
-      olai.procedures.chat.loadSession({ agent: chat.agent, id: chat.id }),
-      (failure) => saying.say({ tone: "alarm", text: failure.message, kind: failure._tag }),
-    )
+    props.chat.loadSession(chat.agent, chat.id)
   }
 
   return (

@@ -171,7 +171,7 @@ export function AgentsProvider(props: { readonly children: JSX.Element }) {
   // chat frame which moved a dot does not re-run the menu's catalog: the list
   // is replaced whole per frame and is the same array on nearly all of them.
   const engines = createMemo(() => chat().roster)
-  /** ... and which conversation it is IN, as the pair — see {@link Roster.open}. */
+  /** ... and which conversation it is IN, as the pair — see {@link Roster.openChat}. */
   const openChat = createMemo((): Chatting | null => {
     const state = chat()
     const agent = agentIn(state)
@@ -182,10 +182,11 @@ export function AgentsProvider(props: { readonly children: JSX.Element }) {
   /**
    * WHAT EVERY INSTALLED AGENT HAS STORED HERE, as this tab last heard it.
    *
-   * `null` until an answer arrives and after one that was refused, which are
-   * the same thing to every reader: there is no list, so there is nothing to
-   * say a chat is unclaimed by. A refusal is deliberately NOT kept as a
-   * sentence — see the header on why this row differs from the picker.
+   * `null` until the FIRST answer arrives, and never emptied afterwards: an ask
+   * that did not land leaves the last list standing and puts its own sentence
+   * beside it ({@link chatsRefusal}), because *we did not get to look* and
+   * *there is nothing here* are different answers and this list is the only
+   * place either is said.
    */
   const [chats, setChats] = createSignal<Listed | null>(null)
   const [chatsRefusal, setChatsRefusal] = createSignal<string | null>(null)

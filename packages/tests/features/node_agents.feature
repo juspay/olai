@@ -339,3 +339,35 @@ Feature: A node with an `agent-session` property IS an agent
     # ... and the claim that would be a lie is not made.
     And the unassigned list does not hold "the last conversation"
     And the list does not claim every conversation belongs to a node agent
+
+  # ── what the list must not swallow ────────────────────────────────────
+
+  @agent-stored @scratch:lanes
+  Scenario: `+ new` pressed over the list opens a conversation, not one under it
+    # `+ new` opens a conversation, and every other door that does says so to
+    # the list on its way through — the roster row, a chat's own title, a past
+    # session. This one did not, so with one engine the fresh conversation
+    # opened UNDER the list still drawn over it, and with several the question
+    # of which agent could not draw at all until somebody pressed *done*.
+    Given I open the outline "lanes.olai"
+    And the agent panel is open
+    When I open the unassigned chats
+    And I start a new conversation
+    Then the chat input takes typing
+    And the unassigned list is not drawn
+
+  @agent-stored @scratch:lanes
+  Scenario: A conversation that cannot be opened mid-turn says so where the reader lands
+    # The list hides on the press, because a press means *take me there* and an
+    # open can hang — so the sentence about one that was REFUSED has to land
+    # where the person now is. A turn in flight is the case: switching
+    # conversations under it is refused, and a refusal drawn into the panel the
+    # press just dismissed is a press that looks like it did nothing.
+    Given I open the outline "lanes.olai"
+    And the agent panel is open
+    When I ask the agent "slow"
+    And I open the unassigned chats
+    And I pick the conversation "an older conversation"
+    Then the panel refuses, saying "a turn is running"
+    When the agent is released
+    Then the agent is idle
