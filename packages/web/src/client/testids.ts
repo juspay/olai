@@ -1577,7 +1577,7 @@ export const TESTID = {
   /** The list it opens, hung from the strip's own box. */
   chatWakeList: "chat-wake-list",
   /** Where a person types to narrow that list, which a vault of any size needs
-   *  and the chats picker does not (an agent's conversations are tens; a
+   *  and a list of conversations does not (an agent's conversations are tens; a
    *  directory's files are thousands). */
   chatWakeQuery: "chat-wake-query",
   /** One offered file in it; `data-file` is the path a press would scope this

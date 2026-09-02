@@ -34,7 +34,7 @@
  *     is that the agent's answer is the only one that is right — a terminal
  *     `claude --resume` in the same directory changes it — so what is kept is
  *     kept for seconds, not for the life of the server.
- *   - **ONE AT A TIME**, so a click on `chats` is not three handshakes racing
+ *   - **ONE AT A TIME**, so opening the list is not three handshakes racing
  *     each other.
  *   - **an agent that could not be asked is NAMED, not dropped.** Two halves of
  *     one rule, one agent apart: a broken agent must not take the others'
@@ -141,7 +141,7 @@ export interface Listings {
 
 export const make = (where: Where): Effect.Effect<Listings> =>
   Effect.gen(function*() {
-    /** One agent started at a time. A click on `chats` must not be a reason to
+    /** One agent started at a time. Opening the list must not be a reason to
      *  start every agent on the machine at once. */
     const oneAtATime = yield* Semaphore.make(1)
     const answers = new Map<string, Kept>()
@@ -223,7 +223,7 @@ export const make = (where: Where): Effect.Effect<Listings> =>
       // thing here is a cold start, and that is one at a time whichever order
       // the rows are asked in. Held to one, the agent already running and every
       // cached answer would queue behind whichever subprocess is starting — a
-      // click on `chats` costing the sum rather than the maximum.
+      // one open costing the sum rather than the maximum.
       all: Effect.map(
         Effect.forEach(where.roster, storedBy, { concurrency: "unbounded" }),
         asOneList,

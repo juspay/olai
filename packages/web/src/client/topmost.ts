@@ -141,7 +141,7 @@ export const topmostWhileOpen = (open: Accessor<boolean>): Accessor<boolean> => 
   // Taken on the way up and KEPT until it goes down — `held || ++opened`, and
   // the `held` is what makes it exactly one ticket per opening: `open` is an
   // accessor the caller derived, so it may re-fire without the answer changing
-  // (`chat/Sessions.tsx`'s does, when the agent's list arrives), and a panel
+  // (`chat/NodeSessions.tsx`'s does, when the agent's list arrives), and a panel
   // must not climb the stack because something inside it moved.
   const ticket = createMemo<number>((held) => (open() ? held || ++opened : 0), 0)
   layers.add(ticket)

@@ -676,7 +676,7 @@ Feature: Talking to the agent
     And the outline list is shown
 
   @agent-stored @scratch:chat
-  Scenario: A picker that could not ask says so, not "no conversations"
+  Scenario: A list that could not ask says so, not "no conversations"
     # "There are none" and "we could not find out" are different answers, and
     # a refusal used to arrive as an empty list and be drawn as the first —
     # a claim about the agent's disk standing in for never having read it.
@@ -690,7 +690,7 @@ Feature: Talking to the agent
     And the unassigned list is empty
 
   @agent-stored @scratch:chat
-  Scenario: The picker switches conversations
+  Scenario: The unassigned list switches conversations
     When I open the unassigned chats
     Then the unassigned list lists "an older conversation"
     When I pick the conversation "an older conversation"

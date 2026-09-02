@@ -60,8 +60,8 @@
  * ASKED ONCE PER TAB rather than per frame, and never on a clock: the answer
  * changes when somebody works in this directory — a `claude --resume` in a
  * terminal — so the list is re-asked when a person OPENS it
- * ({@link Roster.askChats}), which is the same bargain the session picker
- * already makes on every open.
+ * ({@link Roster.askChats}), which is the same bargain the list this replaced
+ * made on every open.
  *
  * WHAT COULD NOT BE ASKED IS KEPT, in both of its sizes. One agent that could
  * not answer is a row of the answer ({@link Roster.unreachable}) and the whole

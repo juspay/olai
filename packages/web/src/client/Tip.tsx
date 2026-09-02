@@ -69,7 +69,7 @@ export function Tip(props: {
    * and the chat dock that shares the page layer — which is
    * {@link LAYER.over}, the same claim the panel behind that pill already
    * makes. Sitting at the page layer is how the coral rule cut the first
-   * line of the sentence and how the dock's "chats" / "+ new" painted
+   * line of the sentence and how the dock's header pills painted
    * through the rest.
    */
   readonly layer?: typeof LAYER.page | typeof LAYER.over

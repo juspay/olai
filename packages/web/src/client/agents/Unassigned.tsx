@@ -21,9 +21,9 @@
  * It is THIS TAB'S ({@link ./showing.ts}), like that question is. A second tab
  * goes on showing whatever conversation it was in.
  *
- * ## The rows are the chats list's own
+ * ## The rows are every conversation list's own
  *
- * Same answer, same grouping, same words: `chat.sessions` asked of every
+ * One answer, one grouping, one set of words: `chat.sessions` asked of every
  * installed agent, grouped by whose the conversations are
  * ({@link ../chat/grouped.ts}), each row saying how big it is and when it was
  * last touched ({@link ../chat/when.ts}). A second list of conversations with a

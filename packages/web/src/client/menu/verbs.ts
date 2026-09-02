@@ -304,7 +304,7 @@ export const writeVerbs = (
     //     happens to the transcript ("memory is the subtree; the transcript
     //     becomes history"), and that sentence does not fit on a menu entry: it
     //     is the panel's *fresh session*, drawn with the label beside it
-    //     (`../chat/Sessions.tsx`), which runs this same procedure on a node
+    //     (`../chat/NodeSessions.tsx`), which runs this same procedure on a node
     //     that already has one.
     //   - everything else is offered it, bare nodes included.
     //

@@ -159,7 +159,7 @@ with a face: the panel draws and says how to install one. The table lives in
 `@olai/chat`'s `agents/roster.ts`.
 
 **One agent at a time is true of the PROCESS, not of the history.** Only the
-conversation's own agent is kept running, and the `chats` list spans all of
+conversation's own agent is kept running, and the stored-conversations list spans all of
 them: the one being talked to is asked every time it opens, and each of the
 others is started to answer, asked, and stopped again — one at a time, with the
 answer reused for a few seconds. An agent that could not be asked is named in

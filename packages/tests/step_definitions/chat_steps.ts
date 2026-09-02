@@ -2380,15 +2380,12 @@ Then("the chat is empty", async function (this: OlaiWorld) {
   );
 });
 
-/** The `chats` button pressed. One body, two phrasings below, because the
- *  press means different things at different points in a scenario and a second
- *  spelling of the gesture is how the two would come to settle differently. */
-const pressChats = async (world: OlaiWorld): Promise<void> => {
-  await world.page.locator(CHAT_SESSIONS).click();
-};
-
+/** The header's SESSIONS pill pressed — a node agent's own conversations, and
+ *  the fresh session that ends the current one. It is drawn only where the
+ *  panel's conversation belongs to a node agent; every OTHER stored
+ *  conversation is the sidebar's now ("I open the unassigned chats"). */
 When("I open the session picker", async function (this: OlaiWorld) {
-  await pressChats(this);
+  await this.page.locator(CHAT_SESSIONS).click();
 });
 /** No `trouble` on screen — what went wrong where nobody was waiting, and the
  *  claim that nothing did. No wait of its own: the step before it has already
@@ -2409,8 +2406,8 @@ Then("the chat says nothing went wrong", async function (this: OlaiWorld) {
 
 /** ONE AGENT of the several installed could not be asked — a different claim
  *  from the one above, and the whole reason it has a locator of its own: this
- *  one leaves every other agent's conversations on the screen, and the picker
- *  did not refuse. Named by the agent, so a list with two broken agents in it
+ *  one leaves every other agent's conversations on the screen, and the list
+ *  itself did not refuse. Named by the agent, so a list with two broken agents in it
  *  is two assertions rather than one ambiguous locator. */
 Then(
   "the list says {string} could not be asked, with {string}",
@@ -2528,7 +2525,7 @@ Then(
   },
 );
 
-/** WHICH conversation replaced this one, read off the row — the picker's own
+/** WHICH conversation replaced this one, read off the row — the list's own
  *  answer to "which of these two do I want" before anybody opens the wrong
  *  half of a `/clear` pair. */
 Then(

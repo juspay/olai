@@ -5,7 +5,7 @@
  * ## Switching is `loadSession`, and nothing new
  *
  * The panel already knows how to move to a stored conversation: it is the same
- * verb the chats picker sends, with the same pair, and it is a change of AGENT
+ * verb every list of conversations sends, with the same pair, and it is a change of AGENT
  * as often as it is a change of conversation (`@olai/surface`'s
  * `chat.loadSession`). A node agent's session is one of those conversations —
  * that is the whole of what the property says — so focusing one is that verb

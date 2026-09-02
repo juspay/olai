@@ -453,7 +453,7 @@ When("I take the node the assign search refused", async function (this: OlaiWorl
   await this.page.locator(ASSIGN_HIT, { hasText: /./ }).first().click();
 });
 
-// ── the node agent's own sessions, in the panel's picker ───────────────
+// ── the node agent's own sessions, in the panel header's pill ─────────
 
 Then(
   "the panel says this agent has had {int} past session(s)",
