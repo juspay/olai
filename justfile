@@ -221,6 +221,16 @@ serve dir="docs" *args: build-client
     # `pi` on the search path gets the row, every other machine gets nothing
     # new (scripts/acp-pi.sh says why the roster probes for the agent).
     export OLAI_ACP_PI="$(sh scripts/acp-pi.sh)"
+    # The pinned odu on PATH, exactly as the packaged binary bakes into its
+    # wrapper (default.nix) — scripts/olai-path.sh composes the whole
+    # variable, so this can be the same one line the acp knobs are. An empty
+    # override is off, and off is a DRAWN row, not a quiet plugin.
+    # Two lines rather than one `export PATH="$(…)"`: the export builtin's
+    # own status is what `set -e` sees, and a failing build script must stop
+    # the serve here — continuing would splice an EMPTY PATH, and the next
+    # thing run reports `nix: command not found`.
+    PATH="$(sh scripts/olai-path.sh)"
+    export PATH
     # `kill 0` takes the whole process group down together: a stray bundler
     # watching a tree nobody is serving is a confusing thing to leave behind.
     trap 'kill 0' EXIT INT TERM
@@ -242,6 +252,10 @@ run dir="docs" *args: build-client
     set -euo pipefail
     export OLAI_ACP_AGENT="$(sh scripts/acp-agent.sh)"
     export OLAI_ACP_PI="$(sh scripts/acp-pi.sh)"
+    # The pinned odu on PATH, the same errand one recipe over — see `serve`
+    # for why the export is two lines.
+    PATH="$(sh scripts/olai-path.sh)"
+    export PATH
     OLAI_DIST_DIR={{ dist }} \
       {{ nix_shell }} bun --watch packages/server/src/main.ts web {{ dir }} {{ args }}
 
@@ -296,6 +310,35 @@ nix:
       exit 1
     fi
     echo "packaged pi adapter: $pi"
+    # THE BAKED ODU, asserted the same way and for its own incident's sake:
+    # the odu plugin's probe resolves `odu` on the SERVER's PATH, so the
+    # wrapper's `--set-default OLAI_ODU_BIN` names the pin's bin dir and its
+    # `--run` splices it FIRST (default.nix) — a wrapper that stopped doing
+    # either would now answer the probe LOUDLY in every conversation instead
+    # of being silent (olai-plugin-odu's probe), which is a worse time to
+    # find out than this line. Extraction is the two adapter checks' own
+    # sed, keyed on the variable SPELLING rather than a store-name pattern:
+    # a different wrapping that still mentioned the store dir would lie to
+    # the pattern, and the variable spelling is the contract.
+    odu_dir=$(sed -n "s|.*OLAI_ODU_BIN=\${OLAI_ODU_BIN-'\(.*\)'}.*|\1|p" "$out/bin/olai")
+    if [ -z "$odu_dir" ]; then
+      echo "the packaged binary does not name an OLAI_ODU_BIN default," >&2
+      echo "so \`nix run\` would start with no odu resolvable — every documented" >&2
+      echo "launch path is supposed to carry the pinned one. Wrapper:" >&2
+      cat "$out/bin/olai" >&2
+      exit 1
+    fi
+    if ! grep -qF 'export PATH="$OLAI_ODU_BIN${PATH:+:$PATH}"' "$out/bin/olai"; then
+      echo "the wrapper names OLAI_ODU_BIN but never splices it onto PATH —" >&2
+      echo "the probe would resolve nothing. Wrapper:" >&2
+      cat "$out/bin/olai" >&2
+      exit 1
+    fi
+    if [ ! -x "$odu_dir/odu" ]; then
+      echo "the wrapper's pinned odu is not executable: $odu_dir/odu" >&2
+      exit 1
+    fi
+    echo "packaged odu: $odu_dir/odu"
 
 # The home-manager module evaluates under a sample config (systemd argv on
 # Linux, launchd argv on Darwin). Cheap, no home-manager pin, no activation —
@@ -586,13 +629,30 @@ bench: install
 # A worktree-local wrapper the e2e harness can spawn (`OLAI_BIN=` this)
 # instead of the nix-built binary. `/tmp/olai-dev` is how two worktrees
 # used to drive one tree; this file lives in THIS worktree.
+#
+# THE ODU FACE OF “the same binary”: a wrapper that only changed the argv
+# would be the ONE spawn shape with no odu answer of its own, and
+# isolateEnv deleting the host's OLAI_ODU_BIN (workers.ts) would make the
+# roster features host-dependent on exactly the loop the README hands
+# developers. The generated file therefore re-spells default.nix's own
+# shape: a set-default line for the pin's bin dir, the same three-arm
+# splice. `serve`/`run` ask scripts/olai-path.sh to compose the variable
+# on every run; this file is WRITTEN once per worktree, so it composes
+# the default at write time the way the nix wrapper does at build time —
+# one knob, every face is only true when this face answers too.
 dev-bin:
     #!/usr/bin/env bash
     set -euo pipefail
     dir="{{ justfile_directory() }}/.olai-dev"
     mkdir -p "$dir"
-    printf '#!/usr/bin/env bash\nexec bun %s/packages/server/src/main.ts "$@"\n' \
-      "{{ justfile_directory() }}" > "$dir/bin"
+    # The same build-on-demand scripts/olai-path.sh's header spends a
+    # paragraph defending: here at WRITE time rather than each spawn.
+    odu_dir="$(nix build .#odu-bin --no-link --print-out-paths --accept-flake-config)/bin"
+    printf '#!/usr/bin/env bash\n' > "$dir/bin"
+    printf 'export OLAI_ODU_BIN="${OLAI_ODU_BIN-%s}"\n' "$odu_dir" >> "$dir/bin"
+    printf '%s\n' 'if [ -n "$OLAI_ODU_BIN" ]; then if [ -d "$OLAI_ODU_BIN" ]; then export PATH="$OLAI_ODU_BIN${PATH:+:$PATH}"; else echo "olai: OLAI_ODU_BIN=$OLAI_ODU_BIN is not a directory — no odu goes on the PATH of this serve" >&2; fi; fi' >> "$dir/bin"
+    printf 'exec bun %s/packages/server/src/main.ts "$@"\n' \
+      "{{ justfile_directory() }}" >> "$dir/bin"
     chmod +x "$dir/bin"
     echo "$dir/bin"
 

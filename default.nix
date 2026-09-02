@@ -6,7 +6,7 @@
 { pkgs ? import ./nix/nixpkgs.nix { }, b2n, rev ? "dev" }:
 let
   kolu = import ./nix/kolu.nix { inherit pkgs; };
-  odu = import ./nix/odu.nix { inherit pkgs; };
+  odu = import ./nix/odu.nix { inherit pkgs b2n; };
   version = (pkgs.lib.importJSON ./package.json).version;
 
   # @kolu/surface-app's own helper for stamping a build's commit into the
@@ -133,6 +133,26 @@ let
   # nix-built olai needs nothing ambient, and two machines run the same adapter.
   acp-agent = pkgs.callPackage ./nix/acp-agent.nix { };
 
+  # The pinned odu BINARY, the second half of what the odu pin vendors
+  # (nix/odu.nix): the chat probe resolves `odu` on the SERVER's PATH, so a
+  # packaged olai puts it there itself rather than asking a host to have one —
+  # the acp-agent line's own argument, one integration over.
+  odu-bin = odu.bin;
+
+  # THE ODU KNOB THE WRAPPER READS, documented beside it because the wrapper
+  # is generated text: `OLAI_ODU_BIN` names a DIRECTORY to put first on the
+  # server's PATH. Unset, it answers the pin — every packaged start resolves
+  # the build's own `odu`; set to a directory, it answers that one (an
+  # operator testing a development odu against a packaged olai); set to the
+  # empty string, it is the explicit off switch — the probe then answers
+  # from the ambient PATH, and a PATH with no odu draws the plugin's missing
+  # row rather than nothing. `--set-default` is what makes the empty answer
+  # reachable: it substitutes only when the variable is UNSET, so an empty
+  # value survives it. A set-but-not-a-directory value is skipped with a
+  # stderr line (the row then says the rest) — a serve that refuses to boot
+  # over one mis-set variable is the worse failure for the systemd unit.
+  # scripts/olai-path.sh is the dev loop's spelling of the same knob; the
+  # e2e suite's servers are this wrapper, so it is also the suite's spelling.
   olai = pkgs.runCommand "olai"
     {
       nativeBuildInputs = [ pkgs.makeWrapper ];
@@ -142,13 +162,19 @@ let
       };
     } ''
     mkdir -p $out/bin
+    # The compose-not-splice rule olai-path.sh teaches, and every face owns:
+    # an unguarded `:$PATH` with PATH unset earns every spawned server a
+    # trailing colon — the empty PATH element, the working directory
+    # smuggled onto it. scripts/olai-path.sh writes it the same way.
     makeWrapper ${pkgs.bun}/bin/bun $out/bin/olai \
       --add-flags "${base}/packages/server/src/main.ts" \
       --set OLAI_DIST_DIR "${olai-client}" \
       --set-default OLAI_ACP_AGENT "${acp-agent}/bin/claude-agent-acp" \
-      --set-default OLAI_ACP_PI "${acp-agent}/bin/pi-acp"
+      --set-default OLAI_ACP_PI "${acp-agent}/bin/pi-acp" \
+      --set-default OLAI_ODU_BIN "${odu-bin}/bin" \
+      --run 'if [ -n "$OLAI_ODU_BIN" ]; then if [ -d "$OLAI_ODU_BIN" ]; then export PATH="$OLAI_ODU_BIN''${PATH:+:$PATH}"; else echo "olai: OLAI_ODU_BIN=$OLAI_ODU_BIN is not a directory — no odu goes on the PATH of this serve" >&2; fi; fi'
   '';
 in
 {
-  inherit olai olai-client olai-fonts kolu-mark odu-mark base acp-agent;
+  inherit olai olai-client olai-fonts kolu-mark odu-mark base acp-agent odu-bin;
 }

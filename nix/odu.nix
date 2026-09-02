@@ -25,9 +25,29 @@
 # node_modules — and it lives in kolu because that is the repo whose layout it
 # knows (its own header argues the one-copy rule). Asking odu for a second one,
 # or writing a third here, would be exactly the drift that header describes.
-# So this file supplies ARGV and nothing else.
+# So the COPIER gets ARGV and nothing else from this file — the pin's other
+# product (the binary, the block below) rides no script at all.
 
-{ pkgs }:
+# WHAT THIS FILE ALSO VENDORS, since the ruling of 2026-09-01: THE BINARY.
+# Sources alone were the missing half — a packaged olai resolved `odu` off an
+# ambient PATH that a deployed serve (a systemd unit, `nix run`) does not
+# have, and the odu plugin's probe found nothing there. So the pin's own
+# default.nix is composed below: odu built the way ODU builds it — its own
+# pinned nixpkgs and overlay (the @kolu/* source copies its build hydrates),
+# its own bun.nix — with THIS tree's bun2nix standing in for odu's own
+# bun2nix input: the two spell `fetchBunDeps` + `hook` the same way, and a
+# second toolchain pin for one derivation would be one more thing to keep in
+# step. The result is the wrapper with the runner flake and the agent binary
+# cache baked on, because a conversation's `run` verb provisions lanes and a
+# coordinator without them is misbuilt — `selfFlake` is the pin itself, the
+# same source odu's own flake would have been built from.
+#
+# `b2n` is OPTIONAL for the dev shell's sake: shell.nix imports this file for
+# `hydrateArgs` and `externals` and carries no bun2nix of its own. Nothing
+# lazy forces `bin` there; force it without a b2n and odu's own `base` names
+# what is missing.
+
+{ pkgs, b2n ? null }:
 
 let
   npins = import ../npins;
@@ -51,4 +71,20 @@ in
   # reading JSON. Same fact `npins/sources.json` holds; exposed because the
   # PR body and the manifest note both want to quote it.
   revision = npins.odu.revision;
+
+  # THE BINARY — odu's own `odu` wrapper, built from the pin. Composed rather
+  # than re-described: `${npins.odu}/default.nix` is the recipe odu's flake
+  # runs, and an olai-side re-spelling of the makeWrapper arguments would be
+  # exactly the drift `hydrateArgs` above rides kolu's one script to avoid.
+  # The pkgs is odu's OWN pinned one — olai's cannot be substituted: the
+  # build hydrates @kolu/* sources from the overlay odu's nixpkgs import
+  # applies, and the revisions those resolve to are the pin's business, not
+  # this tree's.
+  bin = (import "${npins.odu}/default.nix" {
+    pkgs = import "${npins.odu}/nix/nixpkgs.nix" {
+      inherit (pkgs.stdenv.hostPlatform) system;
+    };
+    inherit b2n;
+    selfFlake = "${npins.odu}";
+  }).odu;
 }
