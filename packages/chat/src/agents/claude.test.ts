@@ -179,10 +179,11 @@ describe("which tool a call is", () => {
 })
 
 /**
- * The handshake, as the pinned adapter (0.70.0) actually answers it — captured
- * from the wire on 2026-08-24 and re-captured unchanged at the 0.70.0 bump
- * (2026-09-01), trimmed to the two corners read here and the shape they sit
- * in. The nesting is the point: `promptQueueing` is inside
+ * The handshake, as the pinned adapter (0.73.0) actually answers it — captured
+ * from the wire on 2026-08-24, re-captured unchanged at the 0.70.0 bump
+ * (2026-09-01), and re-read in the 0.73.0 dist (2026-09-02): the two corners
+ * sit where they sat. Trimmed to those corners and the shape they sit in.
+ * The nesting is the point: `promptQueueing` is inside
  * `agentCapabilities._meta`, and the steering advertisement is beside
  * `agentCapabilities` rather than inside it, which is where the steering
  * extension's own contract puts it. A reader that looked in the other place
@@ -195,7 +196,7 @@ const HANDSHAKE = {
     promptCapabilities: { image: true },
     loadSession: true,
   },
-  agentInfo: { name: "@agentclientprotocol/claude-agent-acp", version: "0.70.0" },
+  agentInfo: { name: "@agentclientprotocol/claude-agent-acp", version: "0.73.0" },
   _meta: {
     steering: { supported: true },
     goal: { version: 1, controlMethod: "_session/goal" },

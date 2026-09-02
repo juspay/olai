@@ -147,6 +147,77 @@ test("a record with no `worktree` is not one, declaration or not", () => {
   ).toEqual([])
 })
 
+test("a node under projects/<repo>/ carries that repo, so a relative checkout can be placed without a PR URL", () => {
+  // THE SILENT SHAPE (2026-09-02): flake-shakeout lived in infra.olai, wrote
+  // a relative `odu-worktree`, and had no `pr-url` — four settles, statuses
+  // on the gate, no wake. The walk used to hand the URL or nothing; without
+  // one, `worktreeAt` refused to place and the watcher never dialled. The
+  // repo is the file's own `projects/<repo>/` prefix, which is a fact about
+  // WHERE THE ROW LIVES rather than a guess, and a PR URL still wins where
+  // one exists (`./resolve.ts`).
+  expect(
+    worktreesOf({
+      "projects/olai/roadmap/infra.olai": rec("flake-shakeout", "the shakeout", {
+        [WORKTREE_TYPE]: ".worktrees/flake-shakeout",
+      }),
+    }),
+  ).toEqual([{
+    node: "flake-shakeout",
+    title: "the shakeout",
+    value: ".worktrees/flake-shakeout",
+    prUrl: undefined,
+    repo: "olai",
+  }])
+})
+
+test("a node that already has a PR URL still carries the file's repo beside it", () => {
+  // The ringing shape: features.olai, relative checkout, PR already open.
+  // Both names travel; `worktreeAt` spends the URL and ignores the file's.
+  expect(
+    worktreesOf({
+      "projects/olai/roadmap/features.olai": rec("node-agents-p1", "the roster", {
+        [WORKTREE_TYPE]: ".worktrees/node-agents-roster",
+        "pr-url": "https://github.com/juspay/olai/pull/461",
+      }),
+    }),
+  ).toEqual([{
+    node: "node-agents-p1",
+    title: "the roster",
+    value: ".worktrees/node-agents-roster",
+    prUrl: "https://github.com/juspay/olai/pull/461",
+    repo: "olai",
+  }])
+})
+
+test("...and a file that is not under projects/<repo>/ still hands no repo", () => {
+  expect(
+    worktreesOf({
+      "orchestrator/lanes.olai": rec("lane-a", "the seam", {
+        [WORKTREE_TYPE]: ".worktrees/a",
+      }),
+    }),
+  ).toEqual([{
+    node: "lane-a",
+    title: "the seam",
+    value: ".worktrees/a",
+    prUrl: undefined,
+  }])
+  // Directly under `projects/` is under `projects/`, not under
+  // `projects/<repo>/` — the filename is not a repository.
+  expect(
+    worktreesOf({
+      "projects/scratch.olai": rec("lane-b", "a scratch board", {
+        [WORKTREE_TYPE]: ".worktrees/b",
+      }),
+    }),
+  ).toEqual([{
+    node: "lane-b",
+    title: "a scratch board",
+    value: ".worktrees/b",
+    prUrl: undefined,
+  }])
+})
+
 test("a MIRROR is skipped — its target carries the property and is in the same walk", () => {
   // A placement holds no properties of its own, so asking it would be asking
   // the wrong record; two rows probing one checkout would also be two dials of

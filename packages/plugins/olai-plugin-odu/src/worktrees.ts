@@ -69,7 +69,7 @@
  * block says so in words, and this one hands a path to a socket dial in
  * somebody's checkout.
  *
- * What crosses is four strings per node (`@olai/odu-client`'s
+ * What crosses is the worktree's strings (`@olai/odu-client`'s
  * `WorktreeNode`). The probe is odu's, the walk is olai's, and that shape is
  * the only place they meet.
  */
@@ -110,14 +110,24 @@ import { ownKinds, WORKTREE_TYPE } from "./kinds.ts"
  * checkout would also be two dials of one socket, which is the thing the
  * watcher's first-writer-wins rule then has to clean up.
  *
- * `pr-url` IS STILL READ BY NAME, and that is the one key here that is, which
+ * `pr-url` IS STILL READ BY NAME, and that is the one KEY here that is, which
  * is worth naming rather than leaving as an inconsistency. It names no kind —
  * this plugin contributes exactly one word — and it licences nothing: the
  * `worktree` value is what becomes a path, and the PR URL only ever narrows
- * where that path is looked for. A value that is not a URL resolves to no
- * repository and the node is dropped (`@olai/odu-client`'s `repoIn`), which is
- * the same outcome a wrong declaration would have bought, reached without a
- * second gate.
+ * where that path is looked for. A value that is not a URL names no
+ * repository from that key; the FILE the row lives in may still, below.
+ *
+ * THE FILE'S `projects/<repo>/` PREFIX is the other name, handed over so a
+ * relative checkout can be placed before a PR exists. The 2026-09-02 miss:
+ * flake-shakeout lived in `projects/olai/roadmap/infra.olai`, wrote
+ * `.worktrees/flake-shakeout`, had no `pr-url`, and four sequential settles
+ * posted statuses the merge gates read while the doorbell stayed quiet —
+ * `worktreeAt` refused to look, so the watcher never held a socket. A PR URL
+ * still wins where one exists; a file that is not under `projects/<repo>/`
+ * still hands nothing, and a relative value there with no URL is still not
+ * probed. The layout is not THE rule (that would break silently on a
+ * reorganisation); it is the fact about where THIS row lives, spent only in
+ * the window the URL has not yet filled.
  */
 export function* worktreesIn(derived: Derived): Generator<WorktreeNode> {
   const declarations = declarationsOf(derived, ownKinds)
@@ -126,11 +136,32 @@ export function* worktreesIn(derived: Derived): Generator<WorktreeNode> {
     if (!isRegular(located)) continue
     const value = textDeclaredAs(declarations, located.node, WORKTREE_TYPE)
     if (value === undefined) continue
+    const repo = repoFromFile(located.file)
     yield {
       node: located.node.id,
       title: located.node.title,
       value,
       prUrl: customText(located.node, PR_URL_KEY),
+      ...(repo === undefined ? {} : { repo }),
     }
   }
+}
+
+/**
+ * THE REPOSITORY A ROW'S FILE NAMES, or `undefined` for a path that is not
+ * under `projects/<repo>/`.
+ *
+ * One segment, the second of a `projects/<repo>/…` path — `projects/olai/roadmap/infra.olai`
+ * is `olai`, `orchestrator/lanes.olai` is nothing, and so is an outline sitting
+ * directly under `projects/` (`projects/scratch.olai`): that is under
+ * `projects/`, not under `projects/<repo>/`. Asked here rather than in
+ * `@olai/odu-client`, because a file path is a fact about the vault's layout
+ * and that package does not learn what an outline file is.
+ */
+const repoFromFile = (file: string): string | undefined => {
+  const parts = file.split("/")
+  if (parts[0] !== "projects" || parts.length < 3) return undefined
+  const repo = parts[1]
+  if (repo === undefined || repo === "" || repo === "." || repo === "..") return undefined
+  return repo
 }

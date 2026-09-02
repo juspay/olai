@@ -222,6 +222,7 @@ import {
   SessionInfo,
   Unreachable,
 } from "./chat.ts"
+import { Agents, NO_AGENT_ROSTER, sameAgentRoster } from "./agents.ts"
 import { editProcedures } from "./edit.ts"
 import { opsProcedures } from "./ops.ts"
 import { DatedAnswer, DatedRequest, Owed, OwedRequest } from "./dates.ts"
@@ -805,6 +806,53 @@ export const surface = defineSurface({
        *  key every one of its tags is composed under. */
       arrayKey: "name",
     },
+    /**
+     * THE AGENTS ROSTER — one row per node carrying an `agent-session` property,
+     * wearing the one line this machine overheard its conversation say
+     * ({@link ./agents.ts}).
+     *
+     * A CELL, and for `pins`' reason word for word: it is a reading of the
+     * whole vault that depends on nobody's question. What differs from the
+     * shelf is what MOVES it — two things rather than one. A published revision
+     * moves it, and that is nearly all of the row: a node gains the property,
+     * is renamed, grows a child, or has its session pointer rewritten, all of
+     * which are edits to the SET. A chat frame moves the rest — the last line
+     * olai heard, written down at a turn boundary. Both arrive through this
+     * cell's connector at the composition root (`@olai/server`'s `runtime.ts`),
+     * which is the one place both halves are in hand.
+     *
+     * `equals` is what makes the second of those affordable: the chat cell moves
+     * several times a turn and nearly none of those frames say anything new
+     * about a roster of three rows.
+     *
+     * WIRE-READ-ONLY, and it is the ordinary reason after all: every fact on
+     * this row that anybody writes is a FILE, and files are written through the
+     * ops layer. The property carries the engine and the session both since the
+     * human's 2026-09-02 ruling, so binding a node agent is an ordinary
+     * property write — `edit.apply`'s `prop` verb, or the `•••` menu's *start
+     * an agent session*, which opens the conversation and then writes it here
+     * through that same layer ({@link chat.startAgentSession}). A verb on this
+     * cell would be a second door onto a file, which is the thing this surface
+     * does not have anywhere.
+     *
+     * What is NOT writable through anything is the line olai overheard: nobody
+     * writes it, olai hears it, and a verb for it would be a browser telling
+     * the server what an agent said.
+     */
+    agents: {
+      schema: Agents,
+      default: NO_AGENT_ROSTER,
+      verbs: ["get"],
+      equals: sameAgentRoster,
+      /** A ROW IS ITS NODE'S `id`, which is exactly what identity means here:
+       *  the node is the durable thing and the session is cattle, so a row
+       *  whose session was swapped is the same row with a new binding rather
+       *  than a new row. Without a key, a frame that moved one agent's last
+       *  line replaced every other row of the sidebar — and the sidebar keys
+       *  the roster by this same id (`agents/Agents.tsx`), so a rename moves
+       *  the row it renames. */
+      arrayKey: "id",
+    },
 
   },
   collections: {
@@ -1192,6 +1240,45 @@ export const surface = defineSurface({
        *  does not have, which is what a tab open across a restart can send. */
       newSession: {
         input: Schema.Struct({ agent: Schema.String }),
+        error: ChatFailure,
+      },
+      /**
+       * START A NODE AGENT'S SESSION: open a fresh conversation with the engine
+       * that node's `agent-session` property already names, and write the
+       * session it opened back onto the property.
+       *
+       * The `•••` menu's verb, and the one gesture in olai that binds a node
+       * agent to a conversation. It is HERE — one procedure rather than a
+       * `newSession` the browser follows with an `edit.apply` — because a
+       * browser cannot learn which session was opened: {@link newSession}
+       * answers with nothing, and a tab watching the state cell for a session
+       * to appear would be racing every other tab's turn.
+       *
+       * SESSION FIRST, PROPERTY SECOND, and the order is the guarantee: the
+       * vault never names a conversation that does not exist. The other order
+       * fails the other way — a property pointing at a session that was never
+       * opened, on a row whose door refuses for ever.
+       *
+       * WHICH ENGINE is the browser's to say, for {@link newSession}'s reason
+       * word for word: there is no default anywhere in this app, and a verb
+       * that could be called without one would be where a default grew back.
+       * What the menu sends is the engine the node's own property names, which
+       * is the only reading of *that node's agent* — a node with no property is
+       * not a node agent, and the menu does not offer this on one.
+       *
+       * Refuses whatever either half refuses: an engine this machine does not
+       * have, an agent that would not start, and every reason the ops layer has
+       * for declining to write a property — a record that is gone, a file that
+       * would not take the write.
+       */
+      startAgentSession: {
+        input: Schema.Struct({
+          /** The node whose property is about to name the session — the id the
+           *  roster answers with. */
+          node: Schema.String,
+          /** ... and the engine to open it with, off that node's property. */
+          agent: Schema.String,
+        }),
         error: ChatFailure,
       },
       /** Answer the question the panel is asking ({@link ChatState.talking}'s
@@ -1663,6 +1750,14 @@ export { HomesAnswer, HomesRequest } from "@olai/format"
  *  re-exported by nobody, for the same reason). */
 export { NO_PINS, Shelf } from "@olai/format"
 export type { Pinned } from "@olai/format"
+
+/** THE AGENTS ROSTER as the `agents` cell carries it — see {@link ./agents.ts}.
+ *  `sameAgentRoster` does NOT come through this door, for `sameShelf`'s reason:
+ *  a cell declares its `equals` in the spec above, which is the only place that
+ *  answer is spent. `AGENT_PROP` does, because the browser draws the property's
+ *  own name where it explains what put a row on this roster. */
+export { AGENT_PROP } from "@olai/format"
+export { Agents, NO_AGENT_ROSTER, NodeAgentRow } from "./agents.ts"
 
 /** HOW FULL THE INBOX IS as the `inbox` cell carries it — the floor's
  *  shape, re-exported for the shelf's reason. `sameInboxHeld` does NOT

@@ -102,7 +102,7 @@ const SWEEP = Duration.seconds(3)
  * ONE NODE THAT NAMES A WORKTREE, as the vault walk hands it over —
  * {@link Worktree} plus the two strings a log line names it with.
  *
- * What crosses is FOUR STRINGS and no record: the walk over the vault belongs
+ * What crosses is the worktree's strings and no record: the walk over the vault belongs
  * to whoever holds the vault (`olai-plugin-odu`'s `worktrees.ts`), which is the
  * boundary this package's header draws and `@olai/kolu-client`'s `Claimant`
  * draws one appliance over.

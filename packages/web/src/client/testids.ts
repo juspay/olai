@@ -106,6 +106,36 @@ export const TESTID = {
   pinRename: "pin-rename",
   /** The line that says where a dragged pin would land. */
   pinDropLine: "pin-drop-line",
+
+  // ── the node agents ──────────────────────────────────────────────────
+  /** The AGENTS section of the sidebar — the roster, which is the query
+   *  `prop:agent-session`. Drawn only when the directory has a node agent, on the
+   *  shelf's rule exactly: an empty roster is nothing at all rather than an
+   *  empty box, so its presence is the fact a scenario asserts. */
+  agentRoster: "agent-roster",
+  /** One node agent on it. `data-agent` is the NODE's own id and
+   *  `data-standing` is how it stands — the two facts a scenario needs, and
+   *  neither is readable off a colour (`agents/roster.ts`'s `SAID`). */
+  agentRow: "agent-row",
+  /** How many questions that agent's conversation is waiting on you to answer.
+   *  Hidden at zero, which is where every agent but the open one is. */
+  agentWaiting: "agent-waiting",
+  /** The DOOR under an agent-carrying outline row: what that agent is, and one
+   *  line of what it last said. `data-agent` is the node's id, as on the roster
+   *  row, so one scenario can press either. */
+  agentDoor: "agent-door",
+  /** The door's one line of the agent's latest message. Absent until olai has
+   *  heard one, which is a door drawn without it rather than an empty line. */
+  agentSaid: "agent-said",
+  /** Why a press on a roster row did nothing — a property naming a
+   *  conversation that agent no longer has (another machine's session, one the
+   *  agent has forgotten) is the case a person has to be able to read, because
+   *  only rewriting the property can fix it. */
+  agentRefused: "agent-refused",
+  /** The panel header's NODE name — the node agent this conversation belongs
+   *  to, drawn first and pressable. Absent on every conversation no node
+   *  claims, which is nearly all of them. */
+  chatNode: "chat-node",
   /** Rail icon: jump to today. */
   railCalendar: "rail-calendar",
   /** Rail icon: open outlines / home. */
