@@ -136,6 +136,10 @@ Feature: A node with an `agent-session` property IS an agent
     # that was not written down would hear it again here.
     When I ask the agent "and now?"
     Then the agent was told its contract 1 time
+    # ... and the door has the line, on the frame the write published rather
+    # than whenever something else next moves the panel. The scripted agent
+    # says back what it was given, so the last thing olai heard is the question.
+    And the door on "door-live" last said "and now?"
 
   @scratch:lanes
   Scenario: ... and a restart does not say it again

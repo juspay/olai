@@ -120,6 +120,25 @@ Then("there is no door on {string}", async function (this: OlaiWorld, node: stri
   assert.strictEqual(await doorFor(this, node).count(), 0);
 });
 
+/**
+ * WHAT OLAI HEARD, on the door — waited for rather than read once, and that is
+ * the assertion rather than politeness: the line is written at the turn
+ * boundary, forked off it, and the roster is re-assembled on the FRAME that
+ * write publishes. A door that only filled in when something else moved the
+ * panel is exactly the defect this step is here to catch.
+ */
+Then(
+  "the door on {string} last said {string}",
+  async function (this: OlaiWorld, node: string, words: string) {
+    const said = doorFor(this, node).locator(SAID);
+    await said.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.waitUntil(
+      async () => (await said.innerText()).includes(words),
+      `the door on ${node} to say it last heard ${JSON.stringify(words)}`,
+    );
+  },
+);
+
 /** An agent olai has not heard yet draws no line at all, which is different
  *  from drawing an empty one. */
 Then(

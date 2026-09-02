@@ -1162,7 +1162,24 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             `what a node agent last said could not be written down ` +
               `(${done.failure.why}) — its door draws the line before this one`,
           )
+          return
         }
+        // ... AND A FRAME, so the door actually gets the line.
+        //
+        // The roster is re-assembled on every chat frame, which is the door the
+        // composition root republishes it through (`@olai/server`'s
+        // `runtime.ts`) — and this write is FORKED off the turn boundary, so it
+        // lands AFTER the frame that turn published. Without this the line sat
+        // on the disk until something unrelated moved the panel, and a door
+        // whose agent had just answered drew blank for as long as nobody
+        // switched conversations.
+        //
+        // AN IDENTICAL STATE, deliberately: nothing about the panel changed,
+        // and what moved is the other half of a cell this package cannot see.
+        // Both cells' `equals` swallow a frame that said nothing (the chat's
+        // and the roster's), so the cost of the case where the line was already
+        // written down is one comparison.
+        move({})
       })
 
     /**
