@@ -1,6 +1,6 @@
 # @olai/plugin-api — what a plugin is written against
 
-olai integrates with two things that are not olai: [kolu](https://kolu.dev), which runs coding agents in terminals and serves them over MCP, and [odu](https://github.com/juspay/odu), which runs CI. The part of that integration which is genuinely **olai's own judgement about an appliance** — what an absent padi means, which vault file is kolu's by convention, which property wears which face — belongs neither to the appliance nor to core, and this is the interface it is written against.
+olai integrates with three things that are not olai: [kolu](https://kolu.dev), which runs coding agents in terminals and serves them over MCP; [odu](https://github.com/juspay/odu), which runs CI; and [Xyne Spaces](https://github.com/xynehq/xyne), the org.s team chat. The part of that integration which is genuinely **olai's own judgement about an appliance** — what an absent padi means, which vault file is kolu's by convention, which property wears which face — belongs neither to the appliance nor to core, and this is the interface it is written against.
 
 **This package names no plugin.** That is the whole of why a plugin may import it, and it is a reversal: for several rounds this package was the interface AND the registry, so a plugin importing it back was a cycle the manifests could not express and a manifest was therefore a plain `as const` object proved by the registry's `satisfies`. The registry is [`@olai/bundle`](../bundle/README.md) now. The `satisfies` stays, because a structural agreement checked where both ends are in hand is the stronger claim; what the reversal buys is that a server half can name the services it needs.
 
@@ -42,6 +42,8 @@ Three properties fall out of that, and none of them is a convenience.
 | `kinds` | `register(kind)`, composing the word from the fiber's name |
 | `surfaces` | `register({surface, faces, deps, published?})` — one sibling per plugin |
 | `wakes` | `register(wake)` — the sentence the strip draws, and the two a broken scope is owed |
+| `watching` | `subscribe(handler)` — conversation events, PUSHED: a doorbell that landed, an orchestrator reply that settled, a turn that started or ended. Never a human message, and never a read |
+| `held` | `load()` / `save(record)` — a small opaque record this plugin keeps about this serve, in the state home rather than the vault, keyed by the calling fiber |
 
 ## The events
 
@@ -86,6 +88,12 @@ What core does with a body is three arms, and which one it took is never reporte
 
 **AND THE SCOPE ITSELF CAN BREAK, so the plugin declares the sentences for that too.** `wake.faults` is a whole sentence per WAY this doorbell can stop watching, keyed by the way's own word: `gone` for the file that stops being served, `unwatchable` for the file that is right there and is not a kind this wake can read. A TABLE and not two fields, because core indexes it by the cause its own walk recorded — so a third way goes red in every plugin that rings, naming the sentence it now owes, where a ternary at the composition root would fall through and tell somebody their file had been renamed while it sat in front of them. The defect both close is a silence — a doorbell that derives nothing derives nothing forever, and quiet-because-broken looks exactly like quiet-and-fine on every channel there is. Core DETECTS both, because core owns the served set, the declaration and the picks and the plugin owns none of them once its doorbell has stopped watching ([`@olai/chat`](../chat/README.md)'s `Chat.faults`), and core SAYS nothing: it carries whichever string the cause names through the same door, whole, naming no file and joining nothing to it. That is why each is one string where the drawn three are pieces — nothing is drawn between their halves. TWO of them and not one with an *or* in it: the consequence is identical and what happened is not, and a single sentence would say *renamed, or moved, or deleted, or not an outline* on every rename for ever. Both are REQUIRED wherever `wake` is present, because a plugin that rings has scoped conversations, every one of them can be renamed out from under it, and a stored pick can name any path at all. A scope in either state also leaves `scopes()` entirely, so a doorbell cannot ring for it and nothing else a plugin does per scope can either.
 
+## One hold, and it is core's file
+
+A plugin may keep a **small record about this serve** — thread ids, a queue — and that record lives in the state home, not the vault. `ctx.held` ([`src/services.ts`](src/services.ts)) is `load()` and `save(value)`: core owns the file ([`@olai/state`](../state/README.md), keyed by the CALLING FIBER the way `deliveries` is), the plugin parses what it wrote. `save` is fire-and-forget and **ordered**, so successive snapshots of one in-memory state land in the order they were handed over. `@olai/state` stays out of every tenant: a plugin that imported it would become the sole reacher and the package would silently join that tenant's exemption set.
+
+Required like `deliveries`. A machine that cannot write the file warns; the plugin is not asked to care.
+
 ## One kind, and both doors ask it
 
 A plugin's face used to follow a hardcoded property KEY — a value was a terminal because somebody called the column `terminal`. That is name-matching, and `brief` and `worktree` are the proof it cannot hold: both are declared `path`, on the same rows, and only one of them names a checkout to dial a socket in. So a plugin contributes a **kind** ([`src/plugin.ts`](src/plugin.ts)'s `PropKind`), a vault declares it in `_olai/Properties.olai` like any other type, and the server's walks, the value gate AND the browser's dressing table all follow the DECLARATION. The browser follows it at one remove and that remove is the point: a vault's declarations do not travel to a tab, so the page carries the licence as an ANSWER per drawn value (`/format`'s `Licence`) — the same consult that answers what a value NAMES answers what claims it. Keying the tab's table on the property key was the last surviving half of the name-matching defect, and it is gone.
@@ -104,3 +112,17 @@ A plugin's browser half draws a chip that TICKS, a pill in the app's bar, a pane
 
 That is `@olai/web`'s own `BlockChrome` scaled up — the drawer already hands a face its fact line rather than letting the face spell `"prop"` — and it is the only shape available: the app mounts every plugin, so a plugin that imported the app for those names would be a cycle. Each plugin re-declares the part it reads, structurally, and contravariance makes that the **stronger** agreement: a plugin asking for something the app does not hand over is a type error at the registry's `satisfies`, with that plugin's name on the line.
 
+
+## One watching bus, and what it is not
+
+A plugin that MIRRORS a conversation — into team chat, into a log, into anything — needs to know what happened in one. `ctx.watching.subscribe(handler)` is that, and the shape of it is the whole argument: core **pushes**, in three kinds (`delivered`, `replied`, `turn`), and **a human message is not among them**.
+
+That keeps `deliveries`' write-only promise exactly where it was. A plugin can put words into a conversation and be told what the MACHINE did in one; it still cannot learn what a person typed. Two doors, opposite directions, and neither is a transcript — which is a stronger claim than "we chose not to expose it", because there is no arm of either interface where the person's words could be added without saying so in the type.
+
+The subscription is an **effect**: it returns a disposer attached to the calling fiber, so a plugin that unloads stops being told without remembering to unsubscribe. The handler is a **sink**: fire-and-forget, and an exception in it is contained and said on the owner's channel, because a mirror that threw on one event must not take a conversation's turn down with it.
+
+## One held record, and core does not open it
+
+`ctx.held` is a small opaque record per plugin per vault, in the **state home** rather than the vault — `@olai/state`'s file, which no plugin imports. Core owns the file and keys it by the calling fiber, the way the doorbell's door is keyed and for the same reason: a record keyed by nobody would let one plugin read and overwrite another's.
+
+`save` is fire-and-forget and **ordered**. Successive snapshots of one in-memory state land in the order they were handed over, so a drain that persisted `queue:[B]` and then `queue:[]` cannot have the empty lose the rename race to the earlier one and come back on the next boot as a digest already posted.

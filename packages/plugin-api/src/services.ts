@@ -61,7 +61,14 @@
 
 import { Context, Service } from "cordis"
 
-import { type Deliveries, kindWordOf, type PropKind, type Wake } from "./contract.ts"
+import {
+  type ConversationSeen,
+  type Deliveries,
+  kindWordOf,
+  type PluginHeld,
+  type PropKind,
+  type Wake,
+} from "./contract.ts"
 
 /**
  * ONE SIBLING SURFACE, as its plugin hands it over.
@@ -485,6 +492,111 @@ export namespace Surfaces {
  * check that refuses one for a plugin that never declared a wake — rather than
  * by a second list somebody remembered to update.
  */
+/**
+ * CONVERSATION EVENTS, PUSHED — doorbells that landed, agent replies that
+ * settled, turns that started or ended ({@link ConversationSeen}).
+ *
+ * A plugin that mirrors a conversation never READS one. Core pushes what
+ * happened, and human messages are simply not among the events. `deliveries`
+ * stays write-only; this is a second door, the other direction, and still not a
+ * transcript.
+ *
+ * ## Why the subscription is an effect and the handler is a sink
+ *
+ * `subscribe` returns a disposer attached to the CALLING fiber, so a plugin that
+ * unloads stops being told — which is the part a hand-rolled bus gets wrong, and
+ * the reason the old `Watching.subscribe` handed an unsubscribe back for the
+ * plugin to remember to call. Nobody remembers it now.
+ *
+ * The handler itself is fire-and-forget, like {@link DeliveryDoors.deliver}:
+ * core does not wait for whatever the plugin does with the event, and an
+ * exception is contained here rather than reaching the thing that fired it. A
+ * mirror that threw on one event must not take a conversation's turn down.
+ */
+export class Watchers extends Service {
+  private readonly sinks = new Set<(event: ConversationSeen) => void>()
+
+  constructor(ctx: Context, public config: Watchers.Config = {}) {
+    super(ctx, "watching")
+  }
+
+  /** Be told what happens in conversations, for as long as the calling fiber is
+   *  loaded. */
+  subscribe(handler: (event: ConversationSeen) => void): () => void {
+    const who = this.ctx.fiber.name
+    const warn = this.config.warn
+    // WRAPPED HERE rather than at every call, so containment is a property of
+    // the bus and not a thing each plugin is asked to keep. The name is the
+    // calling fiber's, read off the registry binding, so a line about a
+    // misbehaving handler says whose it was.
+    const sink = (event: ConversationSeen): void => {
+      try {
+        handler(event)
+      } catch (thrown) {
+        warn?.(`plugins: "${who}" threw on a conversation event — ${String(thrown)}`)
+      }
+    }
+    return this.ctx.effect(() => {
+      this.sinks.add(sink)
+      return () => {
+        this.sinks.delete(sink)
+      }
+    })
+  }
+
+  /** ...and the other end, which is the composition root's: one event to every
+   *  subscriber, in subscription order. */
+  saw(event: ConversationSeen): void {
+    for (const sink of [...this.sinks]) sink(event)
+  }
+}
+
+export namespace Watchers {
+  export interface Config {
+    /** Where a handler's own exception is said — the owner's channel. Absent on
+     *  a context nobody is serving from, where a throw is the test's to see. */
+    readonly warn?: (line: string) => void
+  }
+}
+
+/**
+ * A SMALL RECORD THIS PLUGIN KEEPS about this serve, in the state home — not
+ * the vault.
+ *
+ * Core owns the file and keys it by the CALLING fiber's name, the way the
+ * doorbell's door is keyed and for the same reason: a record keyed by nobody
+ * would let one plugin read and overwrite another's. What the record SAYS is the
+ * plugin's; core does not open it.
+ *
+ * `load` is the last snapshot that landed, or `null` on a first serve and on a
+ * file that would not parse (core has already warned). `save` is
+ * fire-and-forget and ORDERED: successive snapshots of one in-memory state land
+ * in the order they were handed over, so a drain that persisted `queue:[B]` and
+ * then `queue:[]` cannot have the empty lose the rename race to the earlier one
+ * and come back on the next boot as a digest already posted.
+ */
+export class Held extends Service {
+  constructor(ctx: Context, public config: Held.Config) {
+    super(ctx, "held")
+  }
+
+  load(): Record<string, unknown> | null {
+    return this.config.doorFor(this.ctx.fiber.name).load()
+  }
+
+  save(value: Record<string, unknown>): void {
+    this.config.doorFor(this.ctx.fiber.name).save(value)
+  }
+}
+
+export namespace Held {
+  export interface Config {
+    /** One plugin's record, by name — the composition root's, because where a
+     *  machine keeps olai's own files is not a plugin's business. */
+    readonly doorFor: (plugin: string) => PluginHeld
+  }
+}
+
 export class Wakes extends Service {
   private readonly table = new Map<string, Wake>()
 
@@ -545,11 +657,13 @@ declare module "cordis" {
     clock: Clock
     deliveries: DeliveryDoors
     env: Env
+    held: Held
     kinds: Kinds
     log: Log
     surfaces: Surfaces
     vault: Vault
     wakes: Wakes
+    watching: Watchers
   }
 
   interface Events {
@@ -569,5 +683,15 @@ declare module "cordis" {
   }
 }
 
-export type { Deliveries, NotHere, Probed, PropKind, StdioServer, Wake } from "./contract.ts"
+export type {
+  ConversationSeen,
+  Deliveries,
+  NotHere,
+  PluginHeld,
+  Probed,
+  PropKind,
+  StdioServer,
+  Watching,
+  Wake,
+} from "./contract.ts"
 export { enabled, isEnabled, kindWordOf } from "./contract.ts"

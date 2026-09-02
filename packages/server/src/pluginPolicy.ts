@@ -29,7 +29,8 @@
  * ## `null` is not "none", and that is the whole design
  *
  * {@link pluginsPin} answers `null` for a flag nobody typed, and `null` means
- * EVERY plugin this binary was built with. It does NOT mean an empty list.
+ * the built-in default (`DEFAULT_PLUGIN_NAMES`), which is not necessarily
+ * every plugin this binary was built with. It does NOT mean an empty list.
  * Whether a flag was GIVEN is a fact a browser has to be told, because a given
  * flag is named under the preferences row (`--plugins=kolu`) while an omitted
  * one is the built-in default — both are the instance's policy, read-only, the
@@ -63,7 +64,15 @@ import { Flag } from "effect/unstable/cli"
  * import that looked innocent: a list of strings. `PLUGIN_NAMES` is declared in
  * `surfaces.ts` and exported from `./wire` as well as from the root, so the
  * browser-safe door answers the same question with none of that behind it.
+ *
+ * THE DEFAULT COMES OFF THE ROWS and not off the wire door, which is a second
+ * import and one spelling rather than one import and two. A plugin that is off
+ * until the flag names it says so in `olai.yml`.s own `disabled`, because that
+ * is the same field the PATCH writes — the built-in default and an operator.s
+ * override are one mechanism, and a `defaultOn` on the wire half beside it
+ * would be the same fact in two places for a `--help` line to disagree with.
  */
+import { DEFAULT_BUNDLE_NAMES } from "@olai/bundle/bundle"
 import { PLUGIN_NAMES } from "@olai/bundle/wire"
 
 /**
@@ -83,7 +92,7 @@ import { PLUGIN_NAMES } from "@olai/bundle/wire"
 export const pluginsSaid = (): string =>
   `which built-in integrations to run, comma-separated: ${
     PLUGIN_NAMES.join(", ")
-  } (the default is all of them). ` +
+  } (the default is ${DEFAULT_BUNDLE_NAMES.join(", ")}). ` +
   `A plugin left out is not there at all — it never probes, mounts nothing on the wire, ` +
   `draws no face, and the file it would own is an ordinary outline. ` +
   `Pass an empty value to run none. ${INSTANCE}`

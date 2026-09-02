@@ -48,6 +48,7 @@
         "effect": "4.0.0-rc.112",
         "olai-plugin-kolu": "workspace:*",
         "olai-plugin-odu": "workspace:*",
+        "olai-plugin-xyne-spaces": "workspace:*",
         "solid-js": "^1.9.0",
       },
     },
@@ -196,6 +197,16 @@
       },
       "devDependencies": {
         "@olai/surface": "workspace:*",
+      },
+    },
+    "packages/plugins/olai-plugin-xyne-spaces": {
+      "name": "olai-plugin-xyne-spaces",
+      "version": "0.1.0",
+      "dependencies": {
+        "@olai/format": "workspace:*",
+        "@olai/plugin-api": "workspace:*",
+        "effect": "4.0.0-rc.112",
+        "solid-js": "^1.9.0",
       },
     },
     "packages/server": {
@@ -1112,6 +1123,8 @@
     "olai-plugin-kolu": ["olai-plugin-kolu@workspace:packages/plugins/olai-plugin-kolu"],
 
     "olai-plugin-odu": ["olai-plugin-odu@workspace:packages/plugins/olai-plugin-odu"],
+
+    "olai-plugin-xyne-spaces": ["olai-plugin-xyne-spaces@workspace:packages/plugins/olai-plugin-xyne-spaces"],
 
     "on-finished": ["on-finished@2.4.1", "", { "dependencies": { "ee-first": "1.1.1" } }, "sha512-oVlzkg3ENAhCk2zdv7IJwd/QUD4z2RxRwpkcGY8psCVcCYZNq4wYnVWALHM+brtuJjePWiYF/ClmuDr8Ch5+kg=="],
 

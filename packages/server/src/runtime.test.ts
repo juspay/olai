@@ -28,6 +28,7 @@ import {
 import type { App, DocumentEntry, Head, Manifest, PluginRoster, Shelf } from "@olai/surface"
 import { CHAT_OFF, NO_ROSTER } from "@olai/surface"
 import type { Chat, Faulted, Scoped } from "@olai/chat"
+import { DEFAULT_BUNDLE_NAMES } from "@olai/bundle/bundle"
 import { PLUGIN_NAMES } from "@olai/bundle/wire"
 import type { Deliveries } from "@olai/plugin-api/services"
 import { DeliveryDoors, Surfaces, Wakes } from "@olai/plugin-api/services"
@@ -666,12 +667,19 @@ const offering = (pinned: ReadonlyArray<string> | null = null): PluginRuntime =>
  * and this file — a general one — names none.
  */
 test("every plugin the build has is on the roster, running or not", () => {
-  const all = rosterOf(offering(), [...PLUGIN_NAMES])
+  // NOBODY SAID, so what mounted is the built-in default — not necessarily
+  // every plugin this binary was built with, since a row may carry its own
+  // `disabled` and be opt-in. The roster carries a row for every one of them
+  // either way, which is the whole reason the two lists are separate arguments.
+  const all = rosterOf(offering(), [...DEFAULT_BUNDLE_NAMES])
   expect(all.built.map((one) => one.name)).toEqual([...PLUGIN_NAMES])
-  // Nobody said, so all of them run — and `pinned` stays `null` rather than
-  // expanding into that list, because the row under it has to say whether a
-  // person typed this policy or got the built-in default.
-  expect(all.built.every((one) => one.running)).toBe(true)
+  expect(all.built.filter((one) => one.running).map((one) => one.name))
+    .toEqual([...DEFAULT_BUNDLE_NAMES])
+  // ...and an opt-in row is a row that is THERE and off, which is the state a
+  // panel has to be able to draw and a filter over the running set could not.
+  expect(all.built.length).toBeGreaterThanOrEqual(DEFAULT_BUNDLE_NAMES.length)
+  // `pinned` stays `null` rather than expanding into that list, because the row
+  // under it has to say whether a person typed this policy or got the default.
   expect(all.pinned).toBeNull()
 
   // ...and one name out of the list leaves every other row present and off,

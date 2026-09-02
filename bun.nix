@@ -1588,6 +1588,7 @@
   };
   "olai-plugin-kolu" = copyPathToStore ./packages/plugins/olai-plugin-kolu;
   "olai-plugin-odu" = copyPathToStore ./packages/plugins/olai-plugin-odu;
+  "olai-plugin-xyne-spaces" = copyPathToStore ./packages/plugins/olai-plugin-xyne-spaces;
   "on-finished@2.4.1" = fetchurl {
     url = "https://registry.npmjs.org/on-finished/-/on-finished-2.4.1.tgz";
     hash = "sha512-oVlzkg3ENAhCk2zdv7IJwd/QUD4z2RxRwpkcGY8psCVcCYZNq4wYnVWALHM+brtuJjePWiYF/ClmuDr8Ch5+kg==";

@@ -1,0 +1,4 @@
+/* THIS PLUGIN'S SHEET — a `@source` at these faces, because Tailwind emits
+ * only the utilities it can SEE and a face outside the scan path renders
+ * with no layout while nothing errors. */
+@source "./";

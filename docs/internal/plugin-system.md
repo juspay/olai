@@ -69,7 +69,7 @@ Core never writes `: OlaiPlugin` on that object; the fit is proved at the regist
 
 ```ts
 // packages/bundle/src/registry.ts
-export const PLUGINS = [kolu, odu] as const satisfies ReadonlyArray<OlaiPlugin>
+export const PLUGINS = [kolu, odu, spaces] as const satisfies ReadonlyArray<OlaiPlugin>
 ```
 
 A plugin that stops fitting is a type error on **that line**, naming the plugin.
@@ -143,6 +143,7 @@ The events, and what each replaced:
 | `vault/unloaded` | emit | `PluginServer.unloaded()` — and it is **not teardown**: it means the STORE has never published, so what a plugin derived from the vault is yesterday's reading, while what it holds from its own daemon is untouched |
 | `surfaces/published` | emit | nothing; the roster could not move |
 | `chat/session-start` | waterfall | `PluginServerHalf.probe` |
+| `ctx.watching.saw(event)` | (a service, not an event) | `PluginServices.watching`.s hand-rolled `Set` and the unsubscribe a plugin had to remember to call |
 
 `--plugins`, the bundle's rows, and everything above are **phase 2** of a longer
 plan (the Cordis proposal's §6). What is deliberately NOT here: HMR (no Bun cache
@@ -172,6 +173,8 @@ Skim the table; the sections after it give one example each.
 | **chrome** | what a plugin hangs in the app's header bar |
 | **mount** | the plugin's own half of the tab — one subscription per tab |
 | **mark** | the plugin's FACE — the glyph over a sentence it delivered into a conversation |
+| **watching** (`ctx.watching`) | the read-shaped door that is not a read: core PUSHES what happened in a conversation — a doorbell that landed, an orchestrator reply that settled, a turn that started or ended — and a human message is not among them |
+| **held** (`ctx.held`) | a small opaque record a plugin keeps about this serve, in the state home rather than the vault |
 | **doorbell** (`ctx.deliveries`) | the write-only door a plugin speaks INTO a conversation through: which conversations opted in to it, and one verb that puts a whole sentence in one. Keyed by the calling fiber |
 | **wake** | the plugin's own words for the control a person points that doorbell with — three pieces, and core composes none of them |
 | **roster** | which plugins this build has, and which this serve is running |
@@ -500,7 +503,7 @@ one package.
 
 The server's list is now `olai.yml` and the browser's two are still `as const`
 arrays, because a browser bundle is built ahead of time and there is no loader in
-the tab. So a third plugin is **one row plus two lines**, and
+the tab. So a fourth plugin is **one row plus two lines**, and
 [`rosters.test.ts`](../../packages/bundle/src/rosters.test.ts) is the lid: the rows,
 `WIRES` and `PLUGINS` hold the same plugins in the same order, and every row's
 `id` is the name the module it mounts answers to.
@@ -559,17 +562,18 @@ browser that boots off that cell will call, which is phase 5's work.
 
 ---
 
-## 7. Built vs running
+## 7. Built vs default vs running
 
-Two lists, and the distance between them is the whole of what `--plugins` means.
+THREE lists, and the distance between them is the whole of what `--plugins` means.
 
 ```
-  BUILT      what the binary carries      = the rows in packages/bundle/olai.yml
+  BUILT      what the binary carries      = every row in packages/bundle/olai.yml
+  DEFAULT    what omitting the flag runs  = the rows without their own `disabled`
   RUNNING    what THIS serve mounted      = the fibers that reached ACTIVE
 ```
 
 ```
-olai web ~/outlines                    # every plugin this build has
+olai web ~/outlines                    # the built-in default
 olai web ~/outlines --plugins=odu      # odu only
 olai web ~/outlines --plugins=         # none — said out loud
 ```
@@ -580,15 +584,34 @@ once and forgotten:
 ```nix
   services.olai.plugins = [ "odu" ];   # odu only
   services.olai.plugins = [ ];         # none
-  # omit it                            — every plugin this build has
+  # omit it                            — the built-in default
 ```
 
-**The flag is a PATCH now, not a filter.** It writes `- id: kolu` / `disabled:
-true` onto the rows on the way in, through `@cordisjs/plugin-include`, so what an
-operator said and what the build has stay two readable things rather than one
-list already narrowed. A disabled row never mounts, which is the same absence
-`--plugins` always meant — reached by the loader declining to load rather than by
-a `.filter` in a general package.
+**The flag is a PATCH now, not a filter.** It writes a `disabled` onto every row
+on the way in, through `@cordisjs/plugin-include`, so what an operator said and
+what the build has stay two readable things rather than one list already
+narrowed. A disabled row never mounts, which is the same absence `--plugins`
+always meant — reached by the loader declining to load rather than by a
+`.filter` in a general package.
+
+**And that is also where the built-in DEFAULT lives.** A plugin that needs a
+secret this machine may not have is off until somebody asks for it, and it says
+so in its own row:
+
+```yaml
+- id: xyne-spaces
+  name: olai-plugin-xyne-spaces/server
+  disabled: true
+```
+
+The alternative was a `defaultOn: false` on the wire half — a field core reads to
+build a default list — and the row wins because it is the SAME FIELD the patch
+writes. One mechanism, two writers: the file says what the build does by
+default, the patch says what the operator asked for, and there is no second
+spelling for the two to disagree across. It also means turning an opt-in plugin
+ON is not a special path: `--plugins=xyne-spaces` writes `disabled: false` over a
+row the file set `true`, which is the same line that turns another row off.
+[`rows.test.ts`](../../packages/bundle/src/rows.test.ts) holds both directions.
 
 **RUNNING is read off the runtime, not off the flag.** It used to be
 `isEnabled(pin, name)`, a second reading of what the operator typed, which was
@@ -811,8 +834,10 @@ that matters.
    symlink at `docs/plugins/<name>.md` and a line in `docs/index.md`.
    `packages/tests/plugin_docs.test.ts` fails if you skip either.
 5. **One row and four edits in `packages/bundle/`.** The row is
-   `olai.yml` — `id: <name>`, `name: olai-plugin-<name>/server` — and it is the
-   whole of what the SERVER needs. The four are the browser's: `surfaces.ts`'s
+   `olai.yml` — `id: <name>`, `name: olai-plugin-<name>/server`, and a
+   `disabled: true` if your plugin needs a secret this machine may not have and
+   should be off until `--plugins` names it — and it is the whole of what the
+   SERVER needs. The four are the browser's: `surfaces.ts`'s
    `WIRES` (an `import` line and an array entry), `registry.ts`'s `PLUGINS` (the
    same two), `testids.ts`'s spread into `PLUGIN_TESTID`, one `@import` in
    `src/all.css` (a face outside the scan path renders with **no layout while
@@ -843,7 +868,7 @@ names the file.
 | `packages/bundle/src/rosters.test.ts` | the bundle's rows and the two browser doors list the same plugins in the same order, and every row's `id` is the name the module it mounts answers to — which is the equality the whole per-plugin STAMP rests on |
 | `packages/bundle/src/kinds.test.ts` | the word a vault declares is composed from the FIBER's name; a word leaves the vocabulary when its plugin unloads; the BUILT half carries every row's words whatever the flag said |
 | `packages/bundle/src/composition.test.ts` | an empty roster composes, and core's tags do not move |
-| `packages/bundle/src/testids.test.ts` | two plugins’ testid tables are disjoint — and one layer further out, `packages/web/src/client/testids.test.ts` holds the app’s own table disjoint from theirs, which is the seam `selector()` actually spends |
+| `packages/bundle/src/testids.test.ts` | the plugins’ testid tables are disjoint — and one layer further out, `packages/web/src/client/testids.test.ts` holds the app’s own table disjoint from theirs, which is the seam `selector()` actually spends |
 | `packages/plugins/olai-plugin-kolu/src/testids.ts` | a tenant’s two testid halves share no key and no value — a TYPE-level assertion, so a collision is a `tsc` error naming the offender rather than a test somebody keeps green |
 | `packages/plugins/olai-plugin-kolu/src/faces.test.ts` | the tenant’s own two face directories stay apart — `src/browser/` names no part of the appliance’s tier, and `src/appliance/` names none of the vault’s vocabulary, which is the wall `@olai/kolu-ui`’s manifest kept before the fold. In the TENANT, not in the fence: a per-directory rule up there would be the fence inventing a layout convention and enforcing its own invention |
 | `packages/tests/plugin_docs.test.ts` | every plugin's docs page exists, is served, and is linked |

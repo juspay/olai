@@ -180,6 +180,60 @@ export interface PropKind {
 }
 
 /**
+ * THE HELD DOOR — one opaque record per plugin per vault.
+ *
+ * Core does not open it. The plugin parses what it wrote.
+ */
+export interface PluginHeld {
+  readonly load: () => Record<string, unknown> | null
+  readonly save: (value: Record<string, unknown>) => void
+}
+
+/**
+ * WHAT HAPPENED IN A CONVERSATION, as a plugin that mirrors one is told.
+ *
+ * Three kinds, and none of them is a human message. `delivered` is a doorbell
+ * that actually went into the conversation (the thunk answered, the row was
+ * written). `replied` is an orchestrator turn that settled, with the full
+ * reply. `turn` is the ephemeral working signal, start and end.
+ */
+export type ConversationSeen =
+  | {
+    readonly kind: "delivered"
+    /** The transcript row, so a later mark on the same doorbell is not a second digest. */
+    readonly id: string
+    readonly from: string
+    readonly agent: string
+    readonly session: string
+    readonly body: string
+  }
+  | {
+    readonly kind: "replied"
+    /** The agent row THIS turn produced — not the newest agent row in the transcript. */
+    readonly id: string
+    readonly agent: string
+    readonly session: string
+    readonly text: string
+  }
+  | {
+    readonly kind: "turn"
+    readonly agent: string
+    readonly session: string
+    readonly status: "working" | "done"
+  }
+
+/**
+ * THE WATCHING BUS — subscribe to {@link ConversationSeen}, get an unsubscribe.
+ *
+ * Fire-and-forget on the plugin's side: the handler is a sink, like
+ * {@link Deliveries.deliver}. Core does not wait for whatever the plugin
+ * does with the event.
+ */
+export interface Watching {
+  readonly subscribe: (handler: (event: ConversationSeen) => void) => () => void
+}
+
+/**
  * ONE GENERIC CAPABILITY: DELIVER A MESSAGE INTO A CONVERSATION — the whole of
  * what core grows so that a plugin can ring a doorbell.
  *

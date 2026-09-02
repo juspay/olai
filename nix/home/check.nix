@@ -108,7 +108,7 @@ let
     assert !(lib.hasInfix "--commit" execPlain);
     assert !(lib.hasInfix "--push" execPlain);
     # ...and NO PLUGIN FLAG either, for the identical reason one line up: an
-    # omitted `--plugins` runs every plugin this build has AND draws "the
+    # omitted `--plugins` applies the built-in default AND draws "the
     # built-in default" under the preferences row, where a given one names the
     # flag. A module that expanded the default into a list would claim one.
     assert !(lib.hasInfix "--plugins" execPlain);

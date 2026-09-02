@@ -81,11 +81,19 @@ import { fileURLToPath } from "node:url"
  * stamp `ctx.deliveries` and `ctx.kinds` read off `ctx.fiber.name`. `name` is
  * the module the loader mounts, and it is deliberately a SPECIFIER rather than
  * an import: that is what makes a plugin's presence a runtime fact.
+ *
+ * `disabled` is the row's OWN default, and it is the file's rather than a
+ * field on a manifest. A plugin that needs a secret this machine may not have
+ * is off until `--plugins` names it, and saying so in the row means the built-in
+ * default and the operator's override are the same mechanism — one `disabled`,
+ * written by the file or written by the patch.
  */
 export interface BundleRow {
   readonly id: string
   readonly name: string
+  readonly disabled?: boolean
 }
+
 
 /** Where the rows live, as a URL — the loader's `baseUrl` and the file this
  *  module reads, spelled once so the two cannot point at different files. */
@@ -116,40 +124,54 @@ function readRows(): ReadonlyArray<BundleRow> {
     if (typeof one?.id !== "string" || typeof one?.name !== "string") {
       throw new Error(`bundle: row ${at} of ${file} needs an \`id\` and a \`name\``)
     }
-    return { id: one.id, name: one.name }
+    return { id: one.id, name: one.name, ...(one.disabled === true ? { disabled: true } : {}) }
   })
 }
 
-/** Every plugin's name, in bundle order — the words `--plugins` takes and the
- *  rows preferences draws. The same list `@olai/bundle/wire`'s `PLUGIN_NAMES`
- *  answers off the browser's door, and `./rosters.test.ts` holds them equal. */
+/** Every plugin's name, in bundle order — the words `--plugins` takes, the rows
+ *  preferences draws, and the set an unknown name is refused against. The same
+ *  list `@olai/bundle/wire`'s `PLUGIN_NAMES` answers off the browser's door, and
+ *  `./rosters.test.ts` holds them equal. */
 export const BUNDLE_NAMES: ReadonlyArray<string> = ROWS.map((row) => row.id)
 
 /**
- * `--plugins`, AS A PATCH — the overlay an operator's flag writes over the
- * rows.
+ * ...AND WHAT OMITTING THE FLAG RUNS, which is not necessarily all of them.
  *
- * `null` is nobody having said, which means all of them, and it writes NO
- * patch at all: the distinction between an omitted flag and one typed out loud
- * is what the preferences row is drawn from, and a patch that had already
- * expanded `null` into "every row enabled" would be indistinguishable from the
- * built-in default (`@olai/server`'s `pluginPolicy.ts` argues it where the flag
- * is read). An empty list is `--plugins=` — somebody saying NONE — and writes a
- * `disabled` patch for every row.
+ * A row that carries its own `disabled` is opt-in: off until `--plugins` names
+ * it. That is the built-in default living in the file the loader reads rather
+ * than in a field on a manifest, which is what lets the flag and the default be
+ * ONE mechanism — a `disabled` written by the row, or a `disabled` written by
+ * the patch.
+ */
+export const DEFAULT_BUNDLE_NAMES: ReadonlyArray<string> = ROWS
+  .flatMap((row) => row.disabled === true ? [] : [row.id])
+
+/**
+ * `--plugins`, AS A PATCH — the overlay an operator's flag writes over the rows.
  *
- * A NAME LEFT OUT gets `disabled: true` on its row, which is exactly what
- * include's own patch algorithm takes: `{ id, …overrides }` copied onto the
- * matching row. The flag refuses an unknown name where a person types one, so
- * a patch for a row that does not exist is not this function's failure to
- * report — include logs it and carries on, which is the right arm for an
- * overlay that outlived a build.
+ * `null` is nobody having said, and it writes NO patch at all: the rows' own
+ * `disabled` stands, which is the built-in default. That is also what keeps the
+ * distinction between an omitted flag and one typed out loud — the preferences
+ * row is drawn from it, and a patch that had already expanded `null` could not
+ * tell a reader which of the two they were looking at.
+ *
+ * A flag that WAS given writes a `disabled` onto EVERY row, set from whether the
+ * flag named it. Both directions, deliberately: a name the flag gives turns a
+ * row ON even where the file left it off, which is the whole of how an opt-in
+ * plugin is opted into, and a name the flag omits turns a row off even where the
+ * file left it on. `--plugins=` — somebody saying NONE out loud — is that with an
+ * empty list, and disables every row.
+ *
+ * That is exactly the shape include's own patch algorithm takes: `{ id,
+ * …overrides }` copied onto the matching row. The flag refuses an unknown name
+ * where a person types one, so a patch for a row that does not exist is not this
+ * function's failure to report — include logs it and carries on, which is the
+ * right arm for an overlay that outlived a build.
  */
 export const pluginsPatch = (
   names: ReadonlyArray<string> | null,
 ): ReadonlyArray<Partial<EntryOptions>> =>
-  names === null ? [] : ROWS.flatMap((row) =>
-    names.includes(row.id) ? [] : [{ id: row.id, disabled: true }]
-  )
+  names === null ? [] : ROWS.map((row) => ({ id: row.id, disabled: !names.includes(row.id) }))
 
 /**
  * WHAT EVERY BUILT PLUGIN TEACHES THE VAULT, running or not — the declarations

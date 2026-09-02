@@ -60,13 +60,16 @@
  */
 
 export type {
+  ConversationSeen,
   Deliveries,
   NotHere,
+  PluginHeld,
   PluginWire,
   Probed,
   PropKind,
   StdioServer,
   Wake,
+  Watching,
 } from "./contract.ts"
 export { enabled, isEnabled, KIND_SEPARATOR, kindWordOf } from "./contract.ts"
 export type {

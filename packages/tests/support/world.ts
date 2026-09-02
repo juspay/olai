@@ -713,6 +713,10 @@ export const AGENDA_QUIET = selector(TESTID.agendaQuiet);
 export const AGENDA_EMPTY = selector(TESTID.agendaEmpty);
 /** The way to it from the directory column, above the month. */
 export const AGENDA_LINK = selector(TESTID.agendaLink);
+/** The padi chrome readout — desktop, between connection and the Commit pill. */
+export const PADI_PILL = selector(PLUGIN_TESTID.padi);
+/** The spaces chrome readout — desktop, beside padi, same cluster. */
+export const SPACES_PILL = selector(PLUGIN_TESTID.spaces);
 /** The Padi readout's drawer: what recently wanted attention, and under it
  *  the foot — the wrench onto the watch's config. */
 export const PADI_FEED = selector(PLUGIN_TESTID.padiFeed);
@@ -803,22 +807,20 @@ export const CONNECTION = selector(TESTID.connection);
  *
  * There is no `git` test id any more: the readout was a second chip answering
  * the question the Commit pill already answers, which is the bug
- * `one-git-indicator` closed. Holding that shut takes a claim about the ROW
- * rather than about the chip that went — a twin under a different name would
- * pass any assertion phrased as "the old one is absent". So the scenario counts
- * what is IN the row ({@link APP_CHROME_CONTROLS}), and the attribute the
- * readout carried is checked as well, for a chip that arrives carrying no test
- * id at all.
+ * `one-git-indicator` closed. Holding that shut is a count of Commit pills
+ * in the row, not the row's whole membership — plugin Headers grow here
+ * without a bar edit. The attribute the readout carried is checked as well,
+ * for a chip that arrives carrying no test id at all. {@link APP_CHROME_CONTROLS}
+ * is the default desktop inventory.
  */
 export const APP_CHROME = selector(TESTID.appChrome);
 
-/** Everything that belongs in that row, and nothing else may be. In order — a
- *  list a person has to come and edit is exactly the point: adding chrome to
- *  the header is a decision, and a second control reporting on git is the
- *  decision this fence is here to make somebody look at. The theme pill was the
- *  fifth entry until `preferences-panel`, which is the same decision made
- *  again: a preference with a door of its own, beside the door to the
- *  preferences. */
+/** The default desktop inventory of that row, in order. Plugin Headers grow
+ *  here in registry order without a bar edit, so "the header shows one git
+ *  indicator" counts Commit pills rather than treating this list as a closed
+ *  set. The list is still the inventory a person reads, and a second control
+ *  reporting on git is the decision the git-indicator step is here to catch.
+ *  The theme pill was the fifth entry until `preferences-panel`. */
 export const APP_CHROME_CONTROLS: ReadonlyArray<string> = [
   // The search box, and beside it the magnifier a phone gets instead (the bar
   // has no room for a box at 390pt, and a phone has no ⌘K). Added here as the

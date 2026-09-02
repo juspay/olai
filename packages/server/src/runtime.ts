@@ -102,6 +102,7 @@ import type {
 import {
   type Agents,
   type Applied,
+  type ChatEntry,
   CHAT_OFF,
   type ChatState,
   type Edit,
@@ -161,7 +162,7 @@ import { cadence } from "@olai/chat"
  * the services themselves are constructed in `./serve.ts`, which is where the
  * environment, the clock and the two log channels are reached for.
  */
-import type { Registered, Wake } from "@olai/plugin-api/services"
+import type { ConversationSeen, Registered, Wake } from "@olai/plugin-api/services"
 import type { Context } from "cordis"
 
 import type { Cadence, Change, Chat } from "@olai/chat"
@@ -527,11 +528,12 @@ const writing = (ops: Ops, writer: Writer) => ({
  * same question `enabled` answers as a filter, asked about one name
  * (`@olai/plugin-api`'s `surfaces.ts`).
  *
- * `pinned` TRAVELS UNEXPANDED — `null` for a flag nobody gave, which means all
- * of them — because the line under the row names a given flag and otherwise
- * says the built-in default, and a value that had already expanded could not
- * tell those two apart. The git pin keeps the same distinction one setting
- * over, and `./pluginPolicy.ts` argues it where the flag is read.
+ * `pinned` TRAVELS UNEXPANDED — `null` for a flag nobody gave, which means
+ * the built-in default — because the line under the row names a given flag
+ * and otherwise says the built-in default, and a value that had already
+ * expanded could not tell those two apart. The git pin keeps the same
+ * distinction one setting over, and `./pluginPolicy.ts` argues it where the
+ * flag is read.
  *
  * NO PLUGIN SLOT ANSWERS {@link NO_ROSTER}: such a runtime composes no sibling
  * surface at all — `olai surface`, the headless faces, every test in this
@@ -1056,8 +1058,38 @@ export const bind = (
      */
     const siblings = (): ReadonlyArray<Registered> => plugins?.surfaces.composed() ?? []
     /**
+     * THE WATCHING BUS, as this file reaches it — conversation events, pushed to
+     * every plugin that subscribed. Human messages are not among them.
+     *
+     * The SET of subscribers is not here any more. It was a `Set` and a
+     * `subscribe` returning an unsubscribe the plugin had to remember to call;
+     * it is `ctx.watching` now, where a subscription is an effect on the
+     * subscribing fiber and a plugin that unloads stops being told without
+     * anybody remembering anything. What is left for a composition root is the
+     * OTHER end: saying what happened, once, to whoever is listening.
+     *
+     * `null` on a serve with no plugin runtime, where there is nobody to tell.
+     */
+    const seen = (event: ConversationSeen): void => {
+      plugins?.watching.saw(event)
+    }
+    const whoOf = (state: ChatState): { agent: string; session: string } | null =>
+      state.session !== null && state.talking?.kind === "agent"
+        ? { agent: state.talking.id, session: state.session.id }
+        : null
+    let lastStatus: ChatState["status"] | undefined
+    /** Agent rows already in the transcript when the current turn started —
+     *  `replied` is the row THIS turn produced, not the newest agent row in
+     *  the whole conversation (a cancel / gone / failed turn has no prose). */
+    let agentSeqAtTurn = -1
+    /** Doorbell rows already pushed, so a later mark on the same entry
+     *  (`transcript.refused`) is not a second digest. */
+    const deliveredIds = new Set<string>()
+    let deliveredFor: string | undefined
+    /**
      * WHICH COMPOSED PLUGINS RING AT ALL, and what each says when its doorbell
-     * stops watching — read the same way and for the same reason.
+     * stops watching — read the same way {@link siblings} is and for the same
+     * reason.
      *
      * A scope written for anybody else would be a row nothing will ever read, so
      * the member that writes one refuses it. The declaration is carried WHOLE
@@ -2443,13 +2475,56 @@ export const bind = (
           // the frames that moved nothing, which is nearly all of them
           // ({@link republishAgents}).
           republishAgents()
+          const who = whoOf(state)
+          if (who !== null) {
+            if (state.status === "thinking" && lastStatus !== "thinking") {
+              agentSeqAtTurn = Math.max(
+                -1,
+                ...[...(chat?.entries().values() ?? [])]
+                  .filter((entry): entry is Extract<ChatEntry, { kind: "agent" }> =>
+                    entry.kind === "agent"
+                  )
+                  .map((entry) => entry.seq),
+              )
+              seen({ kind: "turn", ...who, status: "working" })
+            }
+            if (lastStatus === "thinking" && state.status !== "thinking") {
+              seen({ kind: "turn", ...who, status: "done" })
+              const produced = [...(chat?.entries().values() ?? [])]
+                .filter((entry): entry is Extract<ChatEntry, { kind: "agent" }> =>
+                  entry.kind === "agent" && entry.seq > agentSeqAtTurn
+                )
+                .sort((a, b) => a.seq - b.seq)
+                .at(-1)
+              if (produced !== undefined && produced.text !== "") {
+                seen({ kind: "replied", id: produced.id, ...who, text: produced.text })
+              }
+            }
+          }
+          lastStatus = state.status
         },
         // Through the CADENCE, never straight onto the collection: a row that
         // grows reaches the wire as pieces on a clock rather than as itself
         // once per token (`transcript-stream-quadratic`). What comes back out
         // is a frame, and {@link apply} writes it in the one order that
         // never shows a paragraph getting shorter.
-        transcript: (change) => saying.publish(change),
+        transcript: (change) => {
+          saying.publish(change)
+          const who = chat === null ? null : whoOf(chat.state())
+          if (who === null) return
+          const whoKey = `${who.agent}/${who.session}`
+          if (deliveredFor !== whoKey) {
+            deliveredIds.clear()
+            deliveredFor = whoKey
+          }
+          for (const [, entry] of change.upserts) {
+            if (entry.kind === "user" && entry.rang !== undefined && entry.text !== "") {
+              if (deliveredIds.has(entry.id)) continue
+              deliveredIds.add(entry.id)
+              seen({ kind: "delivered", id: entry.id, from: entry.rang, ...who, body: entry.text })
+            }
+          }
+        },
       },
     }
   })

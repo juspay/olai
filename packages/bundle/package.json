@@ -18,11 +18,12 @@
     "typecheck": "tsc --noEmit"
   },
   "//": "THE ONLY PLACE A PLUGIN'S NAME IS SPELLED — src/olai.yml is the build's rows, src/registry.ts and src/surfaces.ts the two browser doors, and src/fence.test.ts is what refuses a general package that names a tenant before a reviewer has to notice.",
-  "//dependencies": "The two plugins, the interface they are written against, and the runtime that mounts them. `@olai/plugin-api` is the INTERFACE and is a dependency in this direction only — it names no plugin, which is what makes the arrow one-way and the cycle unrepresentable. `effect` is for the schemas a contributed member is declared in; `solid-js` is TYPES ONLY. `cordis` and `@cordisjs/plugin-loader`/`-include` are NOT declared here and are not omissions: they are hydrated from the npins pin (nix/cordis.nix) into the root node_modules, the way every `@kolu/*` member is, and scripts/check-hydrated-deps.sh is what holds their versions.",
+  "//dependencies": "The three plugins, the interface they are written against, and the runtime that mounts them. `@olai/plugin-api` is the INTERFACE and is a dependency in this direction only — it names no plugin, which is what makes the arrow one-way and the cycle unrepresentable. `effect` is for the schemas a contributed member is declared in; `solid-js` is TYPES ONLY. `cordis` and `@cordisjs/plugin-loader`/`-include` are NOT declared here and are not omissions: they are hydrated from the npins pin (nix/cordis.nix) into the root node_modules, the way every `@kolu/*` member is, and scripts/check-hydrated-deps.sh is what holds their versions.",
   "dependencies": {
     "@olai/plugin-api": "workspace:*",
     "olai-plugin-kolu": "workspace:*",
     "olai-plugin-odu": "workspace:*",
+    "olai-plugin-xyne-spaces": "workspace:*",
     "effect": "4.0.0-rc.112",
     "solid-js": "^1.9.0"
   }

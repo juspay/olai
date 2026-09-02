@@ -34,12 +34,14 @@ import {
   Clock,
   DeliveryDoors,
   Env,
+  Held,
   Kinds,
   Log,
   type SessionStart,
   Surfaces,
   Vault,
   Wakes,
+  Watchers,
 } from "@olai/plugin-api/services"
 import { Context } from "cordis"
 import { Effect, SubscriptionRef } from "effect"
@@ -48,6 +50,7 @@ import { resolve } from "node:path"
 
 import * as Chat from "@olai/chat"
 import { roster as agentsRoster } from "./agents.ts"
+import { heldFor } from "./held.ts"
 import { openDirectory } from "./directory.ts"
 import { propKinds } from "./propKinds.ts"
 import { watchFault } from "./fault.ts"
@@ -79,7 +82,8 @@ export interface ServeOptions {
    *  what every browser draws read-only is the instance's policy. */
   readonly pin: GitPin
   /** WHICH built-in integrations to run — `null` for nobody having said,
-   *  which means all of them. `./pluginPolicy.ts` argues why omission stays
+   *  which means the built-in default (not necessarily every plugin this
+   *  binary was built with). `./pluginPolicy.ts` argues why omission stays
    *  distinguishable from the default typed out loud. */
   readonly plugins: ReadonlyArray<string> | null
 }
@@ -210,6 +214,19 @@ export const serve = (options: ServeOptions) =>
               },
             }
           },
+        })
+        // THE WATCHING BUS. Its subscribers are plugin fibers, so a plugin that
+        // unloads stops being told without anything here remembering to say so;
+        // what a handler throws is contained and said on the owner.s channel,
+        // because a mirror that threw on one event must not take a
+        // conversation.s turn down with it.
+        await plugins.plugin(Watchers, { warn: (line) => ring(Effect.logWarning(line)) })
+        // ...and the small record a plugin keeps about this serve, in the state
+        // home rather than the vault. Core owns the file and keys it by the
+        // calling fiber; `./held.ts` orders the writes so the last snapshot
+        // handed over is the one that lands.
+        await plugins.plugin(Held, {
+          doorFor: (plugin) => heldFor(plugin, served, (line) => ring(Effect.logWarning(line))),
         })
         await plugins.plugin(Kinds)
         await plugins.plugin(Wakes)

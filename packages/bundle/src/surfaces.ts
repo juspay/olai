@@ -36,6 +36,7 @@
 import type { PluginWire } from "@olai/plugin-api"
 import * as kolu from "olai-plugin-kolu/wire"
 import * as odu from "olai-plugin-odu/wire"
+import * as spaces from "olai-plugin-xyne-spaces/wire"
 
 /** One plugin's wire half, re-exported — the three fields that ARE a plugin's
  *  identity. Declared in `@olai/plugin-api`, because both halves of a plugin
@@ -49,7 +50,30 @@ export type { PluginWire }
  *  widened array would take their key types with it. A third party adding a
  *  plugin rebuilds olai; that is the one thing compiled-in cannot do, and it
  *  is accepted — the boundary is the value, not the loading. */
-export const WIRES = [kolu, odu] as const
+export const WIRES = [kolu, odu, spaces] as const
+
+/**
+ * THE NAME AS DATA, beside the import. Claim 8's floor is that the registry
+ * must be seen to SPELL every plugin — import specifiers are stripped before
+ * the hunt, so a local binding is not a spelling, and a hyphenated name cannot
+ * be a binding at all. `satisfies` holds each string to the import's `name` at
+ * `tsc`; there is no import-time throw in a module everything pulls in.
+ * {@link WIRES} stays a list of bindings because `./rosters.test.ts` reads that
+ * list as source.
+ *
+ * THE SERVER'S LIST DOES NOT NEED ONE, and the asymmetry is worth a sentence:
+ * `../olai.yml` spells every name in full, and it is DATA rather than code — so
+ * the hunt, which reads what a source compiles to, never sees it. This witness
+ * is the browser doors' half of the same fact, and it is the only half a
+ * compiled reading can have.
+ */
+const SPELLING = ["kolu", "odu", "xyne-spaces"] as const satisfies readonly [
+  typeof kolu.name,
+  typeof odu.name,
+  typeof spaces.name,
+]
+void SPELLING
+
 
 /** Every plugin's name, in registry order — the words `--plugins` takes, the
  *  rows preferences draws, and what "all of them" comes to when nobody said. */
