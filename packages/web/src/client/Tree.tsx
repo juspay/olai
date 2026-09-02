@@ -380,18 +380,13 @@ function Branch(props: {
     const held = editor.draft()
     return held?.kind === "new" ? held : undefined
   }
-  const liveAfter = () => {
-    if (editor.where().after !== props.row.at.node.id) return undefined
+  const live = (kind: "after" | "before") => {
+    const at = editor.where().pending
+    if (at?.kind !== kind || at.id !== props.row.at.node.id) return undefined
     return pending()
   }
-  const liveBefore = () => {
-    if (editor.where().before !== props.row.at.node.id) return undefined
-    return pending()
-  }
-  const parkedAfter = () =>
-    editor.ghosts().filter((g) => g.at.kind === "after" && g.at.id === props.row.at.node.id)
-  const parkedBefore = () =>
-    editor.ghosts().filter((g) => g.at.kind === "before" && g.at.id === props.row.at.node.id)
+  const parked = (kind: "after" | "before") =>
+    editor.ghosts().filter((g) => g.at.kind === kind && g.at.id === props.row.at.node.id)
   /** Is the caret in THIS row? What the row draws to say so, and what a
    *  scenario asks. A blinking text cursor at the end of a title was the whole
    *  affordance a walk with `↑`/`↓` had, and in a tree of a hundred rows that
@@ -517,7 +512,7 @@ function Branch(props: {
       // fold follows too and the format spells once (`shownRecord`).
       data-match={matchedAttr(narrowed, shownId())}
     >
-      <Ghosts parked={parkedBefore()} live={liveBefore()} />
+      <Ghosts parked={parked("before")} live={live("before")} />
 
       {/* group/row is on the LINE, not the <li>: a parent li also contains
           every nested child, and a named group-hover on the li would reveal
@@ -887,7 +882,7 @@ function Branch(props: {
           next sibling appears in an outline. It is not a row of the tree — no
           `<li>`, no testid a scenario counts nodes with — because nothing has
           been written. Enter Enter Enter parks the earlier empties here too. */}
-      <Ghosts parked={parkedAfter()} live={liveAfter()} />
+      <Ghosts parked={parked("after")} live={live("after")} />
     </li>
   )
 }

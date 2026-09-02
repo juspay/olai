@@ -265,6 +265,14 @@ export const after = (draft: Editing): Anchor => ({ kind: "after", id: draft.row
  *  caret was in. The words stay; the blank is the line above. */
 export const before = (draft: Editing): Anchor => ({ kind: "before", id: draft.row })
 
+/** A pending draft drawn against a row on screen — `after` or `before` it.
+ *  `under` and `first` have no row to sit next to; those are a page's start
+ *  line. One shape, so a consumer cannot hold both sides at once. */
+export type Beside = { readonly kind: "after" | "before"; readonly id: string }
+
+export const besideOf = (at: Anchor): Beside | null =>
+  at.kind === "after" || at.kind === "before" ? { kind: at.kind, id: at.id } : null
+
 /**
  * WHICH EDITOR a draft is drawn in: the row, and which of the three things it
  * is. Two draft values with the same slot are the same box on screen with

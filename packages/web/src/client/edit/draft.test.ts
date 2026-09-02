@@ -4,6 +4,7 @@ import { expect, test } from "bun:test"
 import {
   after,
   before,
+  besideOf,
   anchorRow,
   commitOf,
   type Draft,
@@ -152,6 +153,13 @@ test("the next row follows the ROW, not the node it shows", () => {
 test("Enter at column 0 is before the ROW, not after its subtree", () => {
   expect(before(editing({ row: "echo", id: "order" })))
     .toEqual({ kind: "before", id: "echo" })
+})
+
+test("a pending next to a row is after or before it, never both", () => {
+  expect(besideOf({ kind: "after", id: "order" })).toEqual({ kind: "after", id: "order" })
+  expect(besideOf({ kind: "before", id: "order" })).toEqual({ kind: "before", id: "order" })
+  expect(besideOf({ kind: "under", id: "order" })).toBeNull()
+  expect(besideOf({ kind: "first", file: "a.olai" })).toBeNull()
 })
 
 // ── which editor a blur came from ──────────────────────────────────────

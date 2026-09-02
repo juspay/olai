@@ -66,9 +66,11 @@ import type { Selection } from "../select/selection.ts"
 import { olai } from "../wire.ts"
 import {
   after,
+  besideOf,
   before,
   commitOf,
   IDLE_COMMIT,
+  type Beside,
   type Draft,
   type Editing as RowDraft,
   kept,
@@ -104,9 +106,9 @@ export interface Editor {
    *  on screen is how a skeleton gets filled in. */
   readonly resume: (slot: string) => void
   /** WHERE the caret is, and nothing about what is being typed there: the
-   *  `Row.key` of the row being edited, the id of the row a new line is being
-   *  drawn after or before, and which field. Primitives, so they answer the
-   *  same value while a person types and a row's match stops propagating. */
+   *  `Row.key` of the row being edited, the row a new line is drawn after or
+   *  before, and which field. Primitives, so they answer the same value while
+   *  a person types and a row's match stops propagating. */
   readonly where: Accessor<Where>
   /** A counter the open editor watches: every bump means "take the caret
    *  back". It is bumped after the ops that redraw the row the key was pressed
@@ -167,17 +169,14 @@ export interface Where {
   /** The `Row.key` being edited, or `null` — no row draft, or one whose row
    *  is not drawn yet. */
   readonly place: string | null
-  /** The id of the row a NEW line is being drawn after, or `null` when there
-   *  is no pending draft after a row (one before a row, or a page's start
-   *  line). */
-  readonly after: string | null
-  /** The id of the row a NEW line is being drawn before — `Enter` at column
-   *  0. `null` when the live draft is not that. */
-  readonly before: string | null
+  /** The row a NEW line is drawn against, after or before it. One field, so
+   *  a live draft cannot be both. `null` when there is no pending draft, or
+   *  it belongs to a page's start line (`under` / `first`). */
+  readonly pending: Beside | null
   readonly field: "title" | "desc" | null
 }
 
-const NOWHERE: Where = { place: null, after: null, before: null, field: null }
+const NOWHERE: Where = { place: null, pending: null, field: null }
 
 /** What {@link createEditor}'s `drawn` answers with when there is no caret in
  *  a row — one array, so a page with nothing being typed in it hands back the
@@ -292,18 +291,13 @@ export const createEditor = (
     const held = draft()
     if (held === null) return NOWHERE
     if (held.kind === "new") {
-      return {
-        place: null,
-        after: held.at.kind === "after" ? held.at.id : null,
-        before: held.at.kind === "before" ? held.at.id : null,
-        field: null,
-      }
+      return { place: null, pending: besideOf(held.at), field: null }
     }
-    return { place: held.place, after: null, before: null, field: held.field }
+    return { place: held.place, pending: null, field: held.field }
   }, NOWHERE, {
     equals: (a, b) =>
-      a.place === b.place && a.after === b.after && a.before === b.before &&
-      a.field === b.field,
+      a.place === b.place && a.field === b.field &&
+      a.pending?.kind === b.pending?.kind && a.pending?.id === b.pending?.id,
   })
 
   /**
