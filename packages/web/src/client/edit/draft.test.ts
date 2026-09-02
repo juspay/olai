@@ -9,6 +9,8 @@ import {
   commitOf,
   type Draft,
   type Editing,
+  emptyPending,
+  emptyPendingOf,
   kept,
   landed,
   type Pending,
@@ -84,6 +86,24 @@ test("an empty new row is not a node", () => {
       at: { kind: "after", id: "order" },
       title: "measure the alcove",
     })
+})
+
+test("an empty pending is the three fields a new row starts with", () => {
+  expect(emptyPending({ kind: "before", id: "kitchen" }, "d2")).toEqual({
+    kind: "new",
+    at: { kind: "before", id: "kitchen" },
+    text: "",
+    slot: "d2",
+  })
+})
+
+test("only a pending with nothing in it is empty", () => {
+  const blank = emptyPending({ kind: "after", id: "order" }, "d3")
+  expect(emptyPendingOf(blank)).toEqual(blank)
+  expect(emptyPendingOf(pending({ text: "   " }))).toEqual(pending({ text: "   " }))
+  expect(emptyPendingOf(pending({ text: "measure" }))).toBeNull()
+  expect(emptyPendingOf(editing({ text: "" }))).toBeNull()
+  expect(emptyPendingOf(null)).toBeNull()
 })
 
 // ── what a draft becomes ───────────────────────────────────────────────

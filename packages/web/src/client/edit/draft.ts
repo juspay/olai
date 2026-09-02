@@ -168,6 +168,34 @@ export interface Pending extends Replied {
 
 export type Draft = Editing | Pending
 
+/**
+ * An empty pending draft: the editor standing where a row will go, with
+ * nothing in it. One constructor, so "empty" is not three fields assembled
+ * at every call site — a slot, an anchor, and a text that could disagree
+ * about whether this writes anything.
+ *
+ * The text is the empty string, not whitespace. Whitespace typed into a
+ * live editor is still empty for {@link commitOf} ({@link emptyPendingOf}
+ * trims), but a draft that is being opened has not been typed in yet.
+ */
+export const emptyPending = (at: Anchor, slot: string): Pending => ({
+  kind: "new",
+  at,
+  text: "",
+  slot,
+})
+
+/**
+ * The empty pending this draft is, or `null` when it is not one.
+ * Parse, not a boolean: parking and a skipped write both need the pending
+ * itself. A pending whose text is only spaces is empty — the ops layer
+ * refuses a blank title, and a key pressed by accident is the same amount
+ * of nothing. A row draft is never empty in this sense: clearing a title
+ * is still a write, so the refusal can be seen ({@link commitOf}).
+ */
+export const emptyPendingOf = (draft: Draft | null): Pending | null =>
+  draft !== null && draft.kind === "new" && draft.text.trim() === "" ? draft : null
+
 /** What committing this draft would ASK FOR, or `null` when it would ask for
  *  nothing. Pure, and the whole of the decision: every caller — blur, Enter,
  *  the idle timer — asks this one question rather than each deciding for
@@ -178,7 +206,7 @@ export type Draft = Editing | Pending
  *  swallowing it here would leave a cleared row looking saved. */
 export const commitOf = (draft: Draft): Edit | null => {
   if (draft.kind === "new") {
-    return draft.text.trim() === ""
+    return emptyPendingOf(draft) !== null
       ? null
       : { verb: "add", at: draft.at, title: draft.text }
   }

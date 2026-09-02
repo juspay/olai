@@ -69,6 +69,8 @@ import {
   besideOf,
   before,
   commitOf,
+  emptyPending,
+  emptyPendingOf,
   IDLE_COMMIT,
   type Beside,
   type Draft,
@@ -254,10 +256,19 @@ export const createEditor = (
   let slots = 0
   const mintSlot = (): string => `d${++slots}`
   /** Leave an empty pending on screen without it holding the caret. Same
-   *  slot is a no-op, so parking twice cannot duplicate a ghost. */
-  const park = (held: Pending): void => {
-    if (held.text.trim() !== "") return
-    setGhosts((list) => list.some((g) => g.slot === held.slot) ? list : [...list, held])
+   *  slot is a no-op, so parking twice cannot duplicate a ghost. A titled
+   *  draft, or nothing, is left alone — parking is not how a write happens. */
+  const parkIfEmpty = (held: Draft | null): void => {
+    const empty = emptyPendingOf(held)
+    if (empty === null) return
+    setGhosts((list) => list.some((g) => g.slot === empty.slot) ? list : [...list, empty])
+  }
+  /** Open a fresh empty pending at this anchor and take the caret. One
+   *  place mints the slot, so continued / inserted / start cannot disagree
+   *  about the three fields a new row starts with. */
+  const openPending = (at: Anchor): void => {
+    setDraft(emptyPending(at, mintSlot()))
+    setCaret((n) => n + 1)
   }
   /** Where a write's inverse goes. Read once, here, rather than at every
    *  write: it is the app's, it does not move, and a context read inside a
@@ -580,13 +591,11 @@ export const createEditor = (
     const held = draft()
     if (held === null) return
     if (held.kind === "new") {
-      park(held)
-      setDraft({ kind: "new", at: held.at, text: "", slot: mintSlot() })
-      setCaret((n) => n + 1)
+      parkIfEmpty(held)
+      openPending(held.at)
       return
     }
-    setDraft({ kind: "new", at: after(held), text: "", slot: mintSlot() })
-    setCaret((n) => n + 1)
+    openPending(after(held))
   }
 
   /** `Enter` at column 0 of a titled row: a blank draft ABOVE it. The words
@@ -595,8 +604,7 @@ export const createEditor = (
     if (!(await commit())) return
     const held = draft()
     if (held === null || held.kind !== "row") return
-    setDraft({ kind: "new", at: before(held), text: "", slot: mintSlot() })
-    setCaret((n) => n + 1)
+    openPending(before(held))
   }
 
   /**
@@ -847,8 +855,9 @@ export const createEditor = (
    */
   const mirrored = async (target: string): Promise<void> => {
     const before = draft()
-    if (before !== null && before.kind === "new" && before.text.trim() === "") {
-      const done = await send({ verb: "mirror", target, at: before.at }, slotOf(before))
+    const empty = emptyPendingOf(before)
+    if (empty !== null) {
+      const done = await send({ verb: "mirror", target, at: empty.at }, slotOf(empty))
       if (done === null) return
       // The line the caret was standing on is a record the file holds now, and
       // it is not one this editor can type in — so the draft is spent rather
@@ -910,8 +919,8 @@ export const createEditor = (
     if (found === undefined) return
     const held = draft()
     if (held?.kind === "new" && held.slot === slot) return
-    if (held?.kind === "new" && held.text.trim() === "") {
-      park(held)
+    if (emptyPendingOf(held) !== null) {
+      parkIfEmpty(held)
       setGhosts((list) => list.filter((g) => g.slot !== slot))
       setDraft(found)
       setCaret((n) => n + 1)
@@ -949,8 +958,7 @@ export const createEditor = (
         // do with it — with the first row's text gone from the screen.
         // An empty pending is parked rather than dropped, so a skeleton
         // survives a click into a titled row.
-        const current = draft()
-        if (current?.kind === "new" && current.text.trim() === "") park(current)
+        parkIfEmpty(draft())
         if (!(await commit())) return
         idle.clear()
         setDraft(next)
@@ -997,7 +1005,7 @@ export const createEditor = (
           if (held === null || !stillAt(held, from) || held.text !== before.text) {
             return held
           }
-          if (held.kind === "new" && held.text.trim() === "") park(held)
+          parkIfEmpty(held)
           return null
         })
       })
@@ -1017,10 +1025,8 @@ export const createEditor = (
     start: (at) => {
       selection.clear()
       idle.clear()
-      const current = draft()
-      if (current?.kind === "new" && current.text.trim() === "") park(current)
-      setDraft({ kind: "new", at, text: "", slot: mintSlot() })
-      setCaret((n) => n + 1)
+      parkIfEmpty(draft())
+      openPending(at)
     },
   }
 }
