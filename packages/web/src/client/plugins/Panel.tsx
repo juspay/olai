@@ -68,7 +68,7 @@ import { For, Show } from "solid-js"
 
 import { NO_ROSTER, type PluginRoster } from "@olai/surface"
 
-import { styleOf } from "../anchor.ts"
+import { type Anchor, styleOf } from "../anchor.ts"
 import { LAYER } from "../layer.ts"
 import { Segmented } from "../settings/Segmented.tsx"
 import { Row } from "../settings/Row.tsx"
@@ -87,8 +87,11 @@ const PLUGIN_CHOICES = [
 ] as const
 
 export function Panel(props: {
-  readonly at: ReturnType<typeof styleOf> extends infer _ ? Parameters<typeof styleOf>[0]
-    : never
+  /** Where to sit, in viewport pixels — see `../anchor.ts` for why this is not
+   *  a matter of CSS alone. */
+  readonly at: Anchor
+  /** Register this surface with the click-away, since it is portalled and so is
+   *  not a descendant of the control that opened it. */
   readonly inside: (el: HTMLElement | undefined) => void
 }) {
   /** THE ROSTER, read once for the whole panel.

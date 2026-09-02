@@ -44,8 +44,8 @@
  *
  * `ctx.wired` needs the live connection's sibling clients, and the connection
  * is `../wire.ts`'s, which imports this module to compose. So the direction
- * runs one way and the value arrives through {@link readClientsFrom} — set
- * once, at boot, by the module that owns the wire.
+ * runs one way and the value arrives as an argument to {@link composeTo} —
+ * which is also what stops it being a second call somebody can forget.
  */
 
 import type { BrowserHalf } from "@olai/bundle"
@@ -72,10 +72,8 @@ const [moved, setMoved] = createSignal(0)
  *  mounted only after the redial that carries its client. */
 let clients: ((plugin: string) => unknown) | null = null
 
-/** Told where the clients are, once, by the module that owns the wire. */
-export const readClientsFrom = (read: (plugin: string) => unknown): void => {
-  clients = read
-}
+/** ...told by {@link composeTo}, which is the only thing that may set it —
+ *  see that function on why the two are one act. */
 
 /**
  * THE CONTEXT ITSELF, exported so `./furniture.tsx` can hang the app's three
@@ -111,8 +109,26 @@ const mounted = new Map<string, { readonly dispose: () => Promise<void> }>()
  * and the ones it had made are unwound — with its siblings ACTIVE. So a plugin
  * whose browser half is broken is one absent set of faces rather than a white
  * tab, which is the same bargain its server half already makes.
+ *
+ * ## THE CLIENTS ARRIVE HERE, and that is one act rather than two
+ *
+ * `ctx.wired` needs the live connection's sibling clients, and the connection
+ * is `../wire.ts`'s, which imports this module — so the value cannot be an
+ * import and arrives through the holder above.
+ *
+ * It arrives as an ARGUMENT TO THIS CALL, and briefly did not: there was a
+ * `readClientsFrom` beside this, and the caller had to invoke the two in order.
+ * That turned the invariant the whole redial sequence exists for — *a fiber is
+ * only ever started over a wire that carries its sibling* — into "call these
+ * two exports in this order", enforced by nothing but the adjacency of two
+ * lines in another module. One parameter makes it unspellable instead: there is
+ * no way to mount a fiber without having said which wire it mounts over.
  */
-export const composeTo = async (halves: ReadonlyArray<BrowserHalf>): Promise<void> => {
+export const composeTo = async (
+  halves: ReadonlyArray<BrowserHalf>,
+  clientFor: (plugin: string) => unknown,
+): Promise<void> => {
+  clients = clientFor
   const wanted = new Map(halves.map((half) => [half.name, half] as const))
   // OUT FIRST, so a plugin that left has unwound its registrations before a
   // plugin that arrived can claim a key it was holding. The two orders differ

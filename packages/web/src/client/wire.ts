@@ -89,7 +89,7 @@ import { createEffect, createRoot, createSignal } from "solid-js"
 
 import { BETWEEN_WIRES, type SurfaceReadout } from "./connection/status.ts"
 
-import { composeTo, readClientsFrom } from "./plugins/runtime.ts"
+import { composeTo } from "./plugins/runtime.ts"
 
 /**
  * The word a degraded readout calls olai's own floor.
@@ -154,10 +154,23 @@ const [generation, setGeneration] = createSignal(1)
  *  a wire that is being swapped and one that has been retired. */
 const [redialing, setRedialing] = createSignal(false)
 
-/** THE PLUGINS THIS WIRE CARRIES, as a signature — sorted-free, because the
- *  roster's order is the bundle's and is stable, so the joined list moves
- *  exactly when the answer does. `""` is a wire with no sibling on it, which is
- *  what the first dial above is and what a serve running no plugins stays. */
+/**
+ * A SET OF PLUGIN NAMES AS ONE VALUE — what {@link composed} holds and what the
+ * loop below compares against it.
+ *
+ * Unsorted, because the roster's order is the bundle's and is stable, so the
+ * joined list moves exactly when the answer does. `""` is a wire with no
+ * sibling on it, which is what the first dial is and what a serve running no
+ * plugins stays.
+ *
+ * A FUNCTION rather than a `.join` at each of the two sites, and the two sites
+ * are the whole reason: one writes the signature and one compares against it,
+ * so a separator changed in one place and not the other leaves the loop either
+ * spinning (never equal) or wedged (always equal). Neither fails loudly.
+ */
+const signatureOf = (names: ReadonlyArray<string>): string => names.join("\n")
+
+/** THE PLUGINS THIS WIRE CARRIES, as that signature. */
 let composed = ""
 
 /**
@@ -186,7 +199,7 @@ let composed = ""
  * is.
  */
 const rerost = async (want: ReadonlyArray<string>): Promise<void> => {
-  const signature = want.join("\n")
+  const signature = signatureOf(want)
   setRedialing(true)
   try {
     const halves = await Promise.all(
@@ -202,8 +215,7 @@ const rerost = async (want: ReadonlyArray<string>): Promise<void> => {
     // every plugin narrows it once, at its own edge, against a shape it
     // declares itself.
     live = await live.redial(surfaceMapOf(halves))
-    readClientsFrom((plugin) => (live.clients as Record<string, unknown>)[plugin])
-    await composeTo(halves)
+    await composeTo(halves, (plugin) => (live.clients as Record<string, unknown>)[plugin])
     composed = signature
   } catch (refused) {
     console.error(
@@ -252,7 +264,7 @@ createRoot(() => {
       // because of it would be this page inventing a policy.
       if (value === undefined) return
       const want = value.built.filter((row) => row.running).map((row) => row.name)
-      if (want.join("\n") === composed) return
+      if (signatureOf(want) === composed) return
       void rerost(want)
     })
   })
