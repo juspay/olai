@@ -100,11 +100,15 @@ export const createFocus = (): Focus => {
     const session = agent.session
     if (session === null) return
     setChatOpen(true)
+    // BOTH HALVES, because a session id means nothing to the wrong agent: the
+    // row carries the engine the property named beside the session it named,
+    // and the pair is what opens one.
+    //
     // `run` HAS NO OVERLOAD WITHOUT A FAILURE HANDLER, deliberately
     // (`../run.ts`), and a press that swallowed one would be a press that
     // silently did nothing.
     run(
-      olai.procedures.chat.loadSession({ agent: session.agent, id: session.id }),
+      olai.procedures.chat.loadSession({ agent: agent.engine, id: session }),
       (failure) => saying.say({ tone: "alarm", text: failure.message, kind: failure._tag }),
     )
   }

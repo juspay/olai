@@ -247,7 +247,6 @@
         "@olai/identity": "workspace:*",
         "@olai/kolu-client": "workspace:*",
         "@olai/plugin-api": "workspace:*",
-        "@olai/state": "workspace:*",
         "@olai/surface": "workspace:*",
         "@olai/web": "workspace:*",
       },

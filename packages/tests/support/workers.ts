@@ -152,14 +152,8 @@ export const releasePort = (holder: net.Server): Promise<void> =>
  * in a per-worker temp directory.
  */
 /** WHERE A SPAWNED SERVER KEEPS WHAT SURVIVES A RESTART — `$XDG_STATE_HOME`,
- *  under the isolation root {@link isolateEnv} is given.
- *
- *  EXPORTED because a scenario may need to write into it before the boot that
- *  reads it: the node-agent bindings are hand-written in this phase, so a step
- *  puts one where the serve will look (`step_definitions/node_agents_steps.ts`).
- *  A second spelling of this join there would be a step writing a file nothing
- *  reads, failing thirty seconds later as a timeout with nothing to say. */
-export const stateHomeIn = (stateRoot: string): string =>
+ *  under the isolation root {@link isolateEnv} is given. */
+const stateHomeIn = (stateRoot: string): string =>
   path.join(stateRoot, "state");
 
 export const isolateEnv = (

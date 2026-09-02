@@ -25,7 +25,7 @@
  * demonstrably be in and cannot honestly draw as any of the four:
  *
  *   - **`unbound`** is a node agent nobody has bound a session to, which is
- *     what EVERY node agent is the moment somebody puts an `agent` property on
+ *     what EVERY node agent is the moment somebody puts an `agent-session` property on
  *     a node. Drawing it as *asleep* would claim a conversation that does not
  *     exist and offer a door that opens nothing.
  *   - **`waking`** is the bound conversation's agent still starting — a

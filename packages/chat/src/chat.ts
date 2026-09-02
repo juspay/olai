@@ -107,7 +107,7 @@ import { emitter } from "@olai/log"
 import { Effect, Fiber, Semaphore } from "effect"
 
 import * as AcpAgent from "./agent.ts"
-import type { Bindings, Bound as Binding } from "./agents.ts"
+import type { Conversing, Overheard, Sessions } from "./sessions.ts"
 import type { Installed } from "./agents/roster.ts"
 import * as Attachments from "./attachments.ts"
 import * as Context from "./context.ts"
@@ -173,35 +173,41 @@ export interface Options {
    */
   readonly scoping?: Scopes | null
   /**
-   * WHICH NODE AGENT EACH CONVERSATION BELONGS TO ({@link ./agents.ts}) — the
-   * node↔session pointer this machine keeps.
+   * WHAT OLAI HAS OVERHEARD EACH CONVERSATION DO ({@link ./sessions.ts}) —
+   * which sessions have been taught their contract, and what each last said.
    *
-   * HANDED IN rather than built here, and for the reason `scoping` above is
-   * handed in read one step further: this record is only half of an answer.
-   * The other half is the VAULT — which nodes carry an `agent` property, what
-   * they are called and how big their subtrees are — and this package has never
-   * seen an outline. The composition root holds both, so it is the root that
-   * reads the table and the root that answers {@link Options.charge} from it.
+   * HANDED IN rather than built here, for `scoping` above's reason: it is one
+   * of the records a composition root already opens per served directory, and
+   * building it here would put the read on a boot that has nothing to read it
+   * for.
    *
-   * `null` — or absent — is a chat that keeps none: no conversation belongs to
-   * a node, nothing is taught, nothing is written down, and the panel is
-   * exactly the panel it was before node agents existed. That is the state
-   * every test in this package is in unless it says otherwise.
+   * `null` — or absent — is a chat that keeps none: nothing is taught, nothing
+   * is written down, and the panel is exactly the panel it was before node
+   * agents existed. That is the state every test in this package is in unless
+   * it says otherwise.
    */
-  readonly binding?: Bindings | null
+  readonly overheard?: Sessions | null
   /**
-   * WHAT A BOUND NODE IS — its title, its file and how much is under it, asked
-   * of whoever holds the vault — the vault's OWN reading of a node agent
-   * (`@olai/format`'s {@link NodeAgent}), never a shape this package declares.
+   * WHICH NODE AGENT A CONVERSATION BELONGS TO — the vault's OWN reading of one
+   * (`@olai/format`'s {@link NodeAgent}), never a shape this package declares —
+   * or `null` for a conversation no node claims, which is nearly every
+   * conversation.
+   *
+   * ASKED OF WHOEVER HOLDS THE VAULT, because the pointer IS in the vault: a
+   * node's `agent-session` property carries the session it is talking through,
+   * so "whose conversation is this" became a question about outlines, and this
+   * package has never seen one. The composition root holds the set and answers
+   * from its roster reading (`@olai/server`'s `agents.ts`).
    *
    * A THUNK for {@link Options.tools}' reason and one more: the answer moves on
-   * every published revision — the node is renamed, its subtree grows — and a
-   * value handed in at construction would be a charter frozen at boot. `null`
-   * is a node the set does not declare (or has stopped declaring), and then
-   * nothing is taught: telling an agent its memory is a node that is not there
-   * is worse than telling it nothing.
+   * every published revision — the node is renamed, its subtree grows, its
+   * property is taken off — and a value handed in at construction would be a
+   * charter frozen at boot. Nothing is taught for `null`, which covers a
+   * pointer left on a node that has since been trashed or lost its property:
+   * telling an agent its memory is a node that is not there is worse than
+   * telling it nothing.
    */
-  readonly charge?: (node: string) => NodeAgent | null
+  readonly agentAt?: (to: Conversing) => NodeAgent | null
   /** Publish the state cell. Called on every change; the surface dedups. */
   readonly onState: (state: ChatState) => void
   /** Publish transcript changes — ALL THREE of the things one carries: rows
@@ -219,20 +225,37 @@ export interface Chat {
   readonly entries: () => ReadonlyMap<string, ChatEntry>
   readonly state: () => ChatState
   /**
-   * WHICH CONVERSATION EACH NODE AGENT IS BOUND TO, as this machine's record
-   * holds it ({@link ./agents.ts}) — empty for a chat built without one.
+   * WHAT OLAI HAS OVERHEARD, as this machine's record holds it
+   * ({@link ./sessions.ts}) — empty for a chat built without one.
    *
    * A DOOR ONTO THE TABLE rather than an answer about the roster, and the split
-   * is the same one `doorFor` above makes: the ROSTER is a join of this table
-   * with the vault's `prop:agent` reading, and this package has never seen an
-   * outline. The composition root holds both halves and does the join
-   * (`@olai/server`'s `runtime.ts`); what it needs from here is the half only
-   * here has.
+   * is the same one `doorFor` above makes: a roster ROW is the vault's
+   * `prop:agent-session` reading — which node, which engine, which session —
+   * with the last line olai heard that session say joined onto it, and this
+   * package has never seen an outline. The composition root holds both halves
+   * and does the join (`@olai/server`'s `agents.ts`); what it needs from here
+   * is the half only here has.
    *
    * SYNCHRONOUS, like the scope rows beside it, because the join runs inside a
    * cell connector with no Effect around it.
    */
-  readonly bindings: () => ReadonlyArray<Binding>
+  readonly overheard: () => ReadonlyArray<Overheard>
+  /**
+   * THE SET MOVED — ask {@link Options.agentAt} again, and publish if the
+   * answer changed.
+   *
+   * `ChatState.bound` is the vault's answer to *whose conversation is this*,
+   * and since the human's 2026-09-02 ruling the vault is where that answer can
+   * MOVE: somebody edits a property, or the `•••` verb writes one. Everything
+   * else this state carries moves on the panel's own clock, so this is the one
+   * member a caller has to push.
+   *
+   * IDEMPOTENT AND CHEAP — one lookup, and a publish only when the node id
+   * differs. The composition root calls it on every published revision
+   * (`@olai/server`'s `runtime.ts`), which is a revision per keystroke landing
+   * in an outline, so answering nothing is the case it is written for.
+   */
+  readonly reread: () => void
   /** Prompt the agent with what was typed, with the pictures already
    *  attached to this conversation — by the paths {@link Chat.attach}
    *  answered with, which are re-checked here before any of them reaches a
@@ -1014,50 +1037,43 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * CHANGING know the answer before `state.session` does, and would otherwise
      * read the conversation before last.
      *
-     * READ OFF THE TABLE EVERY TIME rather than held beside the state, so
-     * there is nothing here to invalidate — but read off the MIRROR, which is
-     * a different claim and the honest one.
-     *
-     * A HAND-EDIT LANDS AT THE NEXT START. The mirror is loaded once, at boot
-     * ({@link ./agents.ts}), and nothing watches the file; this member is also
-     * only recomputed when a session opens or ends. So the one binding gesture
-     * this phase has — editing the record — takes effect on the next serve,
-     * which docs/chat.md says out loud rather than leaving somebody to find out
-     * by waiting. What re-reading here buys is narrower and still worth having:
-     * a session that opens later in the SAME serve is answered against
-     * whatever the mirror holds now, including the rows olai has written back
-     * into it.
+     * ASKED OF THE VAULT EVERY TIME rather than held beside the state, so there
+     * is nothing here to invalidate and nothing to reload: the pointer is a
+     * PROPERTY, and the answer is whatever the last published revision of the
+     * set says. This member is recomputed when a session opens or ends, so a
+     * property somebody moves under an open conversation lands the next time
+     * one does.
      */
     const boundTo = (
       to: Deliveries.Addressed | null = conversationOf(),
-    ): string | null => (to === null ? null : options.binding?.at(to)?.node ?? null)
+    ): string | null => (to === null ? null : options.agentAt?.(to)?.id ?? null)
 
     /**
      * WHAT THIS MESSAGE HAS TO TEACH, or nothing at all — the standing
      * instruction a node agent's session is given ONCE
      * ({@link ./teaching.ts}, which argues the channel).
      *
-     * FOUR WAYS TO ANSWER NOTHING, and every one of them is the ordinary case
-     * for somebody: no binding table at all (a serve composed without one),
-     * a conversation no node claims (nearly every conversation), a session
-     * already taught (every message after the first), and a node the SET does
-     * not declare — which is a binding pointing at a record that has been
-     * trashed or has lost its property, and where telling an agent its memory
-     * is a node that is not there would be worse than telling it nothing.
+     * THREE WAYS TO ANSWER NOTHING, and every one of them is the ordinary case
+     * for somebody: no record at all — a serve composed without one, which is
+     * also what keeps a chat that CANNOT write the mark from teaching the same
+     * session on every message; a session already taught, which is every
+     * message after the first; and a conversation no node claims, which is
+     * nearly every conversation and also a pointer left on a record that has
+     * been trashed or has lost its property.
      *
      * THE ANSWER CARRIES THE CONVERSATION IT IS FOR, which is what makes it one
      * value rather than two facts a send has to keep in step: the lines and
-     * "whose contract these are" are decided in the same breath, off one read
-     * of the table, and the mark that goes to disk afterwards is written
-     * against THAT conversation rather than against whichever one the panel has
-     * come to be in ({@link taught}).
+     * "whose contract these are" are decided in the same breath, off one read,
+     * and the mark that goes to disk afterwards is written against THAT
+     * conversation rather than against whichever one the panel has come to be
+     * in ({@link contracted}).
      */
     const teaching = (): Teaching | null => {
       const to = conversationOf()
-      if (to === null) return null
-      const row = options.binding?.at(to)
-      if (row === undefined || row.taught === true) return null
-      const node = options.charge?.(row.node) ?? null
+      const overheard = options.overheard
+      if (to === null || overheard === undefined || overheard === null) return null
+      if (overheard.at(to)?.taught === true) return null
+      const node = options.agentAt?.(to) ?? null
       return node === null ? null : { to, lines: teachingFor(node) }
     }
 
@@ -1092,19 +1108,19 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * THE WRITE IS FORKED AND DETACHED and the saying is not: the row belongs
      * in the transcript now, in this send's own order, while the disk write is
      * behind a gesture that has already been answered — and its failure is a
-     * LOG rather than a refusal ({@link ./agents.ts}), because the cost of
+     * LOG rather than a refusal ({@link ./sessions.ts}), because the cost of
      * losing it is one contract taught twice, which is not worth taking a send
      * away from somebody over.
      */
     const contracted = (teach: Teaching, key: string): Effect.Effect<void> =>
       Effect.gen(function*() {
-        const binding = options.binding
-        if (binding === undefined || binding === null) return
+        const overheard = options.overheard
+        if (overheard === undefined || overheard === null) return
         const row = transcript.entries().get(key)
         if (row === undefined || row.kind !== "user" || row.delivery !== undefined) return
         publish(transcript.add("notice", teach.lines.join("\n")))
         yield* Effect.forkDetach(Effect.gen(function*() {
-          const done = yield* Effect.result(binding.teach(teach.to))
+          const done = yield* Effect.result(overheard.teach(teach.to))
           if (done._tag === "Failure") {
             yield* Effect.logWarning(
               `a node agent was taught its contract and it could not be written down ` +
@@ -1115,9 +1131,9 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       })
 
     /**
-     * WHAT THIS CONVERSATION'S AGENT LAST SAID, written down beside the binding
-     * so the door on its node's row has a line when nobody is looking at it
-     * ({@link ./heard.ts}).
+     * WHAT THIS CONVERSATION'S AGENT LAST SAID, written down against the
+     * CONVERSATION so the door on its node's row has a line when nobody is
+     * looking at it ({@link ./heard.ts}).
      *
      * AT THE TURN BOUNDARY and nowhere else: a paragraph is hundreds of chunks
      * and a line taken mid-turn is a prefix. Nothing at all for a conversation
@@ -1126,9 +1142,13 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     const saidHere = (): Effect.Effect<void> =>
       Effect.gen(function*() {
         const to = conversationOf()
-        const binding = options.binding
-        if (to === null || binding === undefined || binding === null) return
-        if (binding.at(to) === undefined) return
+        const overheard = options.overheard
+        if (to === null || overheard === undefined || overheard === null) return
+        // NOTHING AT ALL FOR A CONVERSATION NO NODE CLAIMS, asked of the vault
+        // rather than of the record: what the line is FOR is a door on a node's
+        // row, so a conversation with no node has nowhere to draw it and the
+        // write would be a row kept for nobody.
+        if (options.agentAt?.(to) == null) return
         // THE LINE AND ITS OWN INSTANT, both off the row ({@link ./heard.ts}).
         // The clock is deliberately not read here: this runs at EVERY turn
         // boundary, and a turn that added no prose re-offers the line before
@@ -1136,7 +1156,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         // hour ago, on the one member whose name is what olai HEARD.
         const said = lastSaid(transcript.entries())
         if (said === null) return
-        const done = yield* Effect.result(binding.said(to, said))
+        const done = yield* Effect.result(overheard.said(to, said))
         if (done._tag === "Failure") {
           yield* Effect.logWarning(
             `what a node agent last said could not be written down ` +
@@ -2723,7 +2743,16 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     return {
       entries: () => transcript.entries(),
       state: () => state,
-      bindings: () => options.binding?.rows() ?? [],
+      overheard: () => options.overheard?.rows() ?? [],
+      // THE SET'S ANSWER, ASKED AGAIN. `move` is what publishes, and it is
+      // guarded on the value rather than called unconditionally: this runs per
+      // revision, the state cell is what the whole panel redraws from, and a
+      // frame per keystroke that said the same thing would be the cost of a
+      // feature nobody is looking at.
+      reread: () => {
+        const now = boundTo()
+        if (now !== state.bound) move({ bound: now })
+      },
       send,
       // Under the SAME permit as a session change, because the two touch one
       // directory: a chunk that found the conversation's directory a moment

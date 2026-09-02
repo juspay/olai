@@ -185,7 +185,7 @@ export function NodeBody(props: {
             onAddingEnd={props.onAddingPropEnd}
           />
 
-          {/* THE DOOR, where this node carries an `agent` property — under the
+          {/* THE DOOR, where this node carries an `agent-session` property — under the
               run, on the live-properties seam's shape and deliberately not
               through it (`./agents/Door.tsx` argues why core's own property may
               not be a plugin's kind). It draws NOTHING on every other row,

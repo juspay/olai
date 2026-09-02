@@ -1,36 +1,34 @@
-Feature: A node with an `agent` property IS an agent
-  Creating a node agent is creating an olai node. Put an `agent` property on any
-  node and an agent is associated with it: the node's title is its name, its
-  note is its charter, and its SUBTREE is its memory. A chat session bound to it
-  is cattle — thrown away and made again at any time — because what the agent
-  knows is written in the outline rather than in a transcript.
+Feature: A node with an `agent-session` property IS an agent
+  Creating a node agent is creating an olai node. Put an `agent-session`
+  property on any node and an agent is associated with it: the node's title is
+  its name, its note is its charter, and its SUBTREE is its memory. A chat
+  session bound to it is cattle — thrown away and made again at any time —
+  because what the agent knows is written in the outline rather than in a
+  transcript.
 
   Which is why the AGENTS roster in the column is not a list anybody maintains.
-  It is literally the query `prop:agent`, answered where the set is: put the
-  property on and the row is there, take it off and the row is gone. These
+  It is literally the query `prop:agent-session`, answered where the set is: put
+  the property on and the row is there, take it off and the row is gone. These
   scenarios are that sentence held to, on a board that carries the property on
-  eight of its rows and on none of the others.
+  nine of its rows and on none of the others.
 
-  The other half of a node agent is a SESSION, and in this phase the node↔session
-  pointer is written by hand into this machine's own state — there is no assign
-  gesture yet, and no conversation olai serves here has been bound to anything.
-  So what these scenarios pin is the half that is a fact about the VAULT, plus
-  the honest face of the half that is not: an agent nobody has bound a session
-  to says `no session bound` rather than drawing as asleep, which would claim a
-  conversation that does not exist. What the panel does once one IS bound is
-  unit-tested where the join is (`@olai/web`'s `agents/roster.test.ts`), because
-  every one of those states is a fact about the panel's own cell rather than
-  about a directory.
+  ONE KEY CARRIES BOTH HALVES. The property says which ENGINE the node's agent
+  runs on and WHICH CONVERSATION it is talking through — `claude`, or
+  `claude:<session>` — so the binding is a fact about the VAULT since the
+  human's ruling of 2026-09-02, and a directory arrives at olai already bound or
+  not at all, with no second file anywhere to keep in step. The board below has
+  one of each: eight node agents nobody has started a session for, and one whose
+  property names the conversation its serve opens.
 
   @corpus:lanes
   Scenario: The roster is the query, and nothing else
-    # Eight rows carry `agent` on this board and six do not. The roster is the
-    # eight — including the ones on lanes that are FINISHED, because the query
-    # says nothing about `done` and a roster that quietly dropped them would be
-    # deciding something nobody asked for. Taking the property off is how a row
-    # leaves.
+    # Nine rows carry `agent-session` on this board and six do not. The roster
+    # is the nine — including the ones on lanes that are FINISHED, because the
+    # query says nothing about `done` and a roster that quietly dropped them
+    # would be deciding something nobody asked for. Taking the property off is
+    # how a row leaves.
     Given I open the outline "lanes.olai"
-    Then the agents roster holds 8 agents
+    Then the agents roster holds 9 agents
     And the agents roster lists "door-implement"
     And the agents roster lists "door-review"
     And the agents roster lists "quiet-implement"
@@ -39,7 +37,7 @@ Feature: A node with an `agent` property IS an agent
     And the agent "door-review" is named "review: grok"
 
   @corpus:lanes
-  Scenario: An agent nobody has bound a session to says so, on both its faces
+  Scenario: An agent nobody has started a session for says so, on both its faces
     # The roster row and the door are two faces of one answer, addressed by the
     # same node id — so this is also the assertion that they cannot disagree.
     Given I open the outline "lanes.olai"
@@ -65,9 +63,9 @@ Feature: A node with an `agent` property IS an agent
     And the door on "door-implement" reads "memory: this subtree (0 rows)"
 
   @corpus:lanes
-  Scenario: A row with no `agent` property wears no door
+  Scenario: A row with no `agent-session` property wears no door
     # Nearly every row in every outline is this one, and what it costs is a
-    # lookup in a roster of eight.
+    # lookup in a roster of nine.
     Given I open the outline "lanes.olai"
     Then there is no door on "lane-door"
     And there is no door on "lanes"
@@ -81,33 +79,72 @@ Feature: A node with an `agent` property IS an agent
     Given I open the outline "garden.olai"
     Then the agents roster is not drawn
 
+  # ── the gesture that binds one ────────────────────────────────────────
+
+  @scratch:lanes
+  Scenario: Starting an agent session writes the session onto the property
+    # The `•••` verb, and the whole of what it is: open a conversation with the
+    # engine this node's property already names, then write that conversation
+    # back onto the same property. Two acts, one press, and the ORDER is the
+    # guarantee — the vault never names a session that was not opened.
+    #
+    # It is offered here because `door-implement` carries `agent-session:
+    # claude` with no session half. A node with no property at all is not a node
+    # agent and has no agent to start a session with; a node whose property
+    # already names one HAS a session, and replacing it is the fresh-session
+    # affordance the migration phase ships.
+    Given I open the outline "lanes.olai"
+    Then the agent "door-implement" stands "unbound"
+    When I open the node menu of "door-implement"
+    And I choose "Start an agent session" from the node menu
+    # The property now carries both halves, which is the durable half of the
+    # answer: this survives the restart, because it is in the file.
+    Then the node "door-implement" shows the property "agent-session" holding "claude:fake-session-1"
+    # ... and the roster says so without being told twice: the row is the query,
+    # and the query has just been answered differently.
+    And the agent "door-implement" stands "idle"
+
+  @corpus:lanes
+  Scenario: A node agent that already has a session is not offered a new one
+    # The fence read from the other side. `door-live`'s property names a
+    # conversation, so the verb that would replace it is simply not in the menu
+    # — a *fresh session* is a different verb, with a different warning about
+    # what happens to the transcript, and it is not this phase's.
+    Given I open the outline "lanes.olai"
+    When I open the node menu of "door-live"
+    Then the node menu does not offer "Start an agent session"
+
   # ── the keystone: what an agent-associated session is told ────────────
 
-  @scratch:lanes @bind:door-implement
+  @scratch:lanes
   Scenario: An agent-associated session is taught its contract, once
     # The rule the whole record exists for. The binding is a FIXTURE FACT
-    # (`@bind:`) rather than a step, because of when it has to be true: the
-    # record is read once, at boot, and this phase has no gesture that writes
-    # one — so a directory arrives at olai already bound, or not at all.
+    # rather than a step — `door-live` carries `agent-session:
+    # claude:fake-session-1`, and that session is the one the scripted agent
+    # answers `session/new` with every time, so this directory arrives at olai
+    # already bound, which is the shape a person's is in when they open it.
     Given I open the outline "lanes.olai"
     And the agent panel is open
     # The binding took: the roster says this agent is the conversation the
     # panel is in, which is the half `bound` answers.
-    Then the agent "door-implement" stands "idle"
+    Then the agent "door-live" stands "idle"
     When I ask the agent "what is blocking the connector?"
     Then the agent was told its contract 1 time
-    And the contract names "implement + open PR" and its subtree
+    And the contract names "watch the connector" and its subtree
     # ... and the second message says nothing. This is what the `taught` record
     # is kept for: nothing in the transcript carries the rule, so a session
     # that was not written down would hear it again here.
     When I ask the agent "and now?"
     Then the agent was told its contract 1 time
 
-  @scratch:lanes @bind:door-implement
+  @scratch:lanes
   Scenario: ... and a restart does not say it again
     # The other half of "written down": the record outlives the process, so a
     # serve that came back would otherwise re-teach on every boot — forever,
-    # about something the agent was told days ago.
+    # about something the agent was told days ago. THAT record is this
+    # machine's, and it stays this machine's: what olai overheard a conversation
+    # do is bookkeeping, and a board written to on every turn is a board
+    # committed on every turn.
     Given I open the outline "lanes.olai"
     And the agent panel is open
     And I ask the agent "what is blocking the connector?"

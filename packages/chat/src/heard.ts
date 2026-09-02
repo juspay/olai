@@ -7,7 +7,7 @@
  * one conversation at a time, so for every node agent but the open one there is
  * no transcript here at all — which is why the line is written down beside the
  * binding rather than read off the rows when the door is drawn
- * ({@link ./agents.ts}'s `Bound.said`).
+ * ({@link ./sessions.ts}'s `Overheard.said`).
  *
  * ## Why the ROWS and not the wire
  *
@@ -47,7 +47,7 @@
  * qualification does its work: a replay re-mints the stored rows, so a resumed
  * conversation's old prose carries a `since` of the resume rather than of the
  * day it was said. What keeps the door honest across that is the RECORD, which
- * treats unchanged prose as nothing to write ({@link ./agents.ts}'s `said`) —
+ * treats unchanged prose as nothing to write ({@link ./sessions.ts}'s `said`) —
  * so a resumed session keeps the stamp it already had until the agent actually
  * says something new.
  *
@@ -56,7 +56,7 @@
  * The FIRST non-empty line, clipped. An answer is a paragraph and a door is a
  * line, so the cut has to happen somewhere; here is where, so that the record
  * holds a line rather than a screenful somebody would have to trim at every
- * draw ({@link ./agents.ts}'s `Said.text`). The ellipsis is drawn rather than
+ * draw ({@link ./sessions.ts}'s `Said.text`). The ellipsis is drawn rather than
  * implied: a clipped line and a line that happened to end there are different
  * facts, and the browser's own truncation cannot tell a reader which it has.
  *
@@ -66,7 +66,7 @@
 
 import type { ChatEntry } from "@olai/surface"
 
-import type { Said } from "./agents.ts"
+import type { Said } from "./sessions.ts"
 
 /**
  * How much of a line is kept.

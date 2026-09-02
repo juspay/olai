@@ -1,15 +1,15 @@
 /**
  * THE KEYSTONE, AT THE LAYER THAT IMPLEMENTS IT — a real chat, over a real
- * subprocess, with a binding record on a real disk.
+ * subprocess, with a real record on a real disk.
  *
  * The pieces already had suites: what the record holds across a restart
- * (`./agents.test.ts`), what the words are (`./teaching.test.ts`), and which
+ * (`./sessions.test.ts`), what the words are (`./teaching.test.ts`), and which
  * row becomes a door's line (`./heard.test.ts`). What none of them could see is
  * the RULE, which lives nowhere but `./chat.ts`'s send path — the gate on
- * `row.taught`, the gate on the row's delivery mark, and the turn boundary the
- * heard line is taken at. Nothing anywhere built `make` with `Options.binding`
- * and `Options.charge`, so an inverted gate or a moved publish would have
- * greened the whole tree.
+ * `taught`, the gate on the row's delivery mark, and the turn boundary the
+ * heard line is taken at. Nothing anywhere built `make` with
+ * `Options.overheard` and `Options.agentAt`, so an inverted gate or a moved
+ * publish would have greened the whole tree.
  *
  * The FIXTURE is what makes it assertable from outside: it says back the prompt
  * it was given (`./fixtures/teaching-agent.ts`), so a case reads what the agent
@@ -17,35 +17,39 @@
  * built from the same value and would be one half of the pair vouching for the
  * other. Both are asserted, separately, for that reason.
  *
- * The binding record is WRITTEN BY HAND into a temp state home, which is the
- * only way one is written in this phase and therefore the way a person's
- * directory actually reaches this code.
+ * WHICH NODE AGENT A CONVERSATION IS is the VAULT's answer since the human's
+ * ruling of 2026-09-02 (`@olai/format`'s `agents.ts`), and it reaches this
+ * package as a thunk the composition root fills. So the cases below arrange it
+ * by saying what the set says — including the one thing only a property can do,
+ * which is move under an open panel.
  */
 
 import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 import { Effect } from "effect"
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { mkdtempSync, readFileSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
-import type { ChatEntry, ChatState } from "@olai/surface"
+import type { NodeAgent } from "@olai/format"
 import { canonical, digestOf } from "@olai/state"
+import type { ChatEntry, ChatState } from "@olai/surface"
 
-import { forDirectory as bindingsIn } from "./agents.ts"
 import { OPENCODE } from "./agents/opencode.ts"
 import type { Installed } from "./agents/roster.ts"
 import { type Chat, make as makeChat } from "./chat.ts"
+import { forDirectory as sessionsIn } from "./sessions.ts"
 import { teachingFor } from "./teaching.ts"
 
 const FIXTURE = join(import.meta.dirname, "fixtures", "teaching-agent.ts")
 
 /** The node agent every case here is about — the vault's own row, which is
- *  what `Options.charge` answers with (`@olai/format`'s `NodeAgent`). */
-const SPACES = {
+ *  what `Options.agentAt` answers with (`@olai/format`'s {@link NodeAgent}). */
+const SPACES: NodeAgent = {
   id: "spaces",
   file: "lanes.olai",
   title: "Xyne Spaces — the org OS",
   engine: "opencode",
+  session: "sess-1",
   memory: 14,
 }
 
@@ -60,10 +64,15 @@ let cwd = ""
 let state = ""
 const wasState = process.env["XDG_STATE_HOME"]
 
+/** THE VAULT, as this case's set answers it — mutable, because the one thing a
+ *  property can do that a fixture list cannot is move while a panel is open. */
+let claimed: ReadonlyArray<NodeAgent> = []
+
 beforeEach(() => {
   cwd = mkdtempSync(join(tmpdir(), "olai-teaching-"))
   state = mkdtempSync(join(tmpdir(), "olai-teaching-state-"))
   process.env["XDG_STATE_HOME"] = state
+  claimed = [SPACES]
 })
 
 afterEach(() => {
@@ -73,19 +82,24 @@ afterEach(() => {
   rmSync(state, { recursive: true, force: true })
 })
 
-const at = (): string => join(state, "olai", "agents", `${digestOf(canonical(cwd))}.json`)
+const at = (): string => join(state, "olai", "heard", `${digestOf(canonical(cwd))}.json`)
 
-/** The bindings a person wrote, before the serve that reads them at boot. */
-const bind = (bound: ReadonlyArray<Record<string, unknown>>): void => {
-  mkdirSync(join(state, "olai", "agents"), { recursive: true, mode: 0o700 })
-  writeFileSync(at(), `${JSON.stringify({ cwd: canonical(cwd), bound })}\n`)
+/** What olai has written down about this directory's conversations — where the
+ *  two facts it overhears land. Empty before it has overheard anything, which
+ *  is a file that is not there at all. */
+const record = (): ReadonlyArray<Record<string, unknown>> => {
+  try {
+    return (JSON.parse(readFileSync(at(), "utf8")) as {
+      heard: ReadonlyArray<Record<string, unknown>>
+    }).heard
+  } catch {
+    return []
+  }
 }
 
-/** ... and the record as it stands now, which is where the two things olai
- *  writes back land. */
-const record = (): ReadonlyArray<Record<string, unknown>> =>
-  (JSON.parse(readFileSync(at(), "utf8")) as { bound: ReadonlyArray<Record<string, unknown>> })
-    .bound
+/** ... and one conversation's row of it. */
+const overheardIn = (session: string): Record<string, unknown> | undefined =>
+  record().find((row) => row["session"] === session)
 
 const run = <A, E>(effect: Effect.Effect<A, E>): Promise<A> => Effect.runPromise(effect)
 const settle = (ms = 250) => Effect.runPromise(Effect.sleep(`${ms} millis`))
@@ -98,11 +112,11 @@ interface Seat {
 }
 
 /**
- * A chat over the fixture agent, bound as the caller asked, opened and ready.
+ * A chat over the fixture agent, opened and ready.
  *
- * `charge` answers for `spaces` and nothing else, which is the composition root's
- * own shape (`@olai/server`'s `agents.ts`): a node the SET does not declare
- * answers `null`, and then nothing is taught.
+ * `agentAt` is the composition root's own shape (`@olai/server`'s `agents.ts`):
+ * the PAIR is looked up against what the set says, so a conversation no
+ * property names answers `null` and nothing is taught.
  */
 const withChat = async (body: (seat: Seat) => Promise<void>): Promise<void> => {
   const entries = new Map<string, ChatEntry>()
@@ -111,8 +125,9 @@ const withChat = async (body: (seat: Seat) => Promise<void>): Promise<void> => {
     roster: [ROW],
     cwd,
     tools: () => null,
-    binding: await run(bindingsIn(cwd)),
-    charge: (node) => (node === SPACES.id ? SPACES : null),
+    overheard: await run(sessionsIn(cwd)),
+    agentAt: (to) =>
+      claimed.find((one) => one.engine === to.agent && one.session === to.session) ?? null,
     onState: (next) => {
       published = next
     },
@@ -160,7 +175,6 @@ const LAW = teachingFor(SPACES)[1] as string
 
 describe("an agent-associated session is taught, once", () => {
   test("the first message carries the contract — to the AGENT and into the transcript", async () => {
-    bind([{ node: "spaces", agent: "opencode", session: "sess-1" }])
     await withChat(async (seat) => {
       await run(seat.chat.send("what is blocking the connector?", [], []))
       await settle()
@@ -176,12 +190,11 @@ describe("an agent-associated session is taught, once", () => {
       expect(notices(seat)).toEqual([teachingFor(SPACES).join("\n")])
 
       // ... and it is written down, so the next boot does not say it again.
-      expect(record()[0]?.["taught"]).toBe(true)
+      expect(overheardIn("sess-1")?.["taught"]).toBe(true)
     })
   }, 20_000)
 
   test("the second message says nothing — the rule this whole record exists for", async () => {
-    bind([{ node: "spaces", agent: "opencode", session: "sess-1" }])
     await withChat(async (seat) => {
       await run(seat.chat.send("first", [], []))
       await settle()
@@ -196,7 +209,8 @@ describe("an agent-associated session is taught, once", () => {
   }, 20_000)
 
   test("a session ALREADY marked in the record is never taught at all", async () => {
-    bind([{ node: "spaces", agent: "opencode", session: "sess-1", taught: true }])
+    const kept = await run(sessionsIn(cwd))
+    await run(kept.teach({ agent: "opencode", session: "sess-1" }))
     await withChat(async (seat) => {
       await run(seat.chat.send("hello", [], []))
       await settle()
@@ -206,13 +220,6 @@ describe("an agent-associated session is taught, once", () => {
   }, 20_000)
 
   test("a FRESH session is untaught — the mark is per session, not per node", async () => {
-    // Both of this node's conversations, bound. If the mark were per node the
-    // second would inherit the first's, which is exactly the failure the
-    // transcript-is-not-memory rule exists to prevent.
-    bind([
-      { node: "spaces", agent: "opencode", session: "sess-1" },
-      { node: "spaces", agent: "opencode", session: "sess-2" },
-    ])
     await withChat(async (seat) => {
       await run(seat.chat.send("first", [], []))
       await settle()
@@ -222,6 +229,12 @@ describe("an agent-associated session is taught, once", () => {
       const deadline = Date.now() + 8_000
       while (Date.now() < deadline && seat.chat.state().session?.id !== "sess-2") await settle(20)
       expect(seat.chat.state().session?.id).toBe("sess-2")
+
+      // The property re-pointed at the new conversation, which is what the
+      // `•••` verb writes. If the mark were per NODE this would inherit the
+      // first session's — exactly the failure the transcript-is-not-memory rule
+      // exists to prevent.
+      claimed = [{ ...SPACES, session: "sess-2" }]
 
       // The new conversation emptied the transcript, so this is its own first
       // notice rather than the last one still standing.
@@ -235,38 +248,39 @@ describe("an agent-associated session is taught, once", () => {
   }, 20_000)
 
   test("a conversation NO node claims is taught nothing, and nothing is written", async () => {
-    bind([{ node: "spaces", agent: "opencode", session: "somebody-else" }])
+    // The property names another conversation entirely — which is every
+    // conversation in olai but the bound ones.
+    claimed = [{ ...SPACES, session: "somebody-else" }]
     await withChat(async (seat) => {
       await run(seat.chat.send("hello", [], []))
       await settle()
       expect(notices(seat)).toEqual([])
-      expect(record()[0]?.["taught"]).toBeUndefined()
+      expect(overheardIn("sess-1")?.["taught"]).toBeUndefined()
     })
   }, 20_000)
 
-  test("a node the SET does not declare teaches nothing — a binding onto a trashed row", async () => {
-    // `charge` answers for `spaces` alone, which is what a composition root
-    // does for a node the vault has stopped declaring. Telling an agent its
-    // memory is a node that is not there is worse than telling it nothing.
-    bind([{ node: "gone", agent: "opencode", session: "sess-1" }])
+  test("a node the SET no longer declares teaches nothing — a property on a trashed row", async () => {
+    // What a composition root answers once the vault has stopped declaring the
+    // node: telling an agent its memory is a record that is not there is worse
+    // than telling it nothing.
+    claimed = []
     await withChat(async (seat) => {
       await run(seat.chat.send("hello", [], []))
       await settle()
       expect(notices(seat)).toEqual([])
-      expect(record()[0]?.["taught"]).toBeUndefined()
+      expect(overheardIn("sess-1")?.["taught"]).toBeUndefined()
     })
   }, 20_000)
 })
 
 describe("what the panel and the door learn from it", () => {
   test("`bound` names the node the OPEN conversation belongs to, and follows a switch", async () => {
-    bind([{ node: "spaces", agent: "opencode", session: "sess-1" }])
     await withChat(async (seat) => {
       expect(seat.state().bound).toBe("spaces")
 
-      // A fresh conversation belongs to whoever claims IT — and nobody claims
-      // `sess-2` here, so the panel belongs to nobody rather than carrying the
-      // last conversation's node across.
+      // A fresh conversation belongs to whoever claims IT — and the property
+      // still names `sess-1`, so the panel belongs to nobody rather than
+      // carrying the last conversation's node across.
       await run(seat.chat.newSession("opencode"))
       const deadline = Date.now() + 8_000
       while (Date.now() < deadline && seat.chat.state().session?.id !== "sess-2") await settle(20)
@@ -275,13 +289,12 @@ describe("what the panel and the door learn from it", () => {
   }, 20_000)
 
   test("the door's line lands at the TURN BOUNDARY, with the row's own instant", async () => {
-    bind([{ node: "spaces", agent: "opencode", session: "sess-1" }])
     await withChat(async (seat) => {
-      expect(record()[0]?.["said"]).toBeUndefined()
+      expect(overheardIn("sess-1")?.["said"]).toBeUndefined()
       await run(seat.chat.send("what is blocking the connector?", [], []))
       await settle()
 
-      const said = record()[0]?.["said"] as { text: string; at: string } | undefined
+      const said = overheardIn("sess-1")?.["said"] as { text: string; at: string } | undefined
       // The fixture says back what it was given, so the agent's first line is
       // the person's own words — and the door's line is the AGENT's row.
       expect(said?.text).toContain("heard: what is blocking the connector?")

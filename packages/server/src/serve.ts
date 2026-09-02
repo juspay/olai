@@ -227,18 +227,18 @@ export const serve = (options: ServeOptions) =>
        */
       scoping: yield* Chat.scopesIn(root),
       /**
-       * ... AND WHICH CONVERSATION EACH NODE AGENT IS BOUND TO.
+       * ... AND WHAT OLAI HAS OVERHEARD EACH CONVERSATION DO.
        *
        * Built here for the picks' reason above, word for word: `root` is in
-       * hand, the record is read once at boot, and a directory whose bindings
-       * will not read comes up with every node agent drawing as unbound and one
-       * warning rather than not at all. Inside the same ternary, so a machine
-       * with no ACP agent reads nobody's bindings.
+       * hand, the record is read once at boot, and a directory whose record
+       * will not read comes up teaching each node agent its contract once more
+       * and one warning rather than not at all. Inside the same ternary, so a
+       * machine with no ACP agent opens nobody's record.
        */
-      binding: yield* Chat.bindingsIn(root),
+      overheard: yield* Chat.sessionsIn(root),
       /**
-       * ... and the VAULT'S HALF of the same answer, which is what a node agent
-       * has to be told about itself ({@link ./agents.ts}).
+       * ... and WHOSE NODE AGENT a conversation is, which is what tells the
+       * panel there is a contract to teach at all ({@link ./agents.ts}).
        *
        * A THUNK OVER A CARRIER, and the carrier is written by the runtime built
        * a few lines below: the chat is constructed first because the surface
@@ -246,7 +246,7 @@ export const serve = (options: ServeOptions) =>
        * through a closure. What it answers with is a row of the reading the
        * roster cell is drawn from — one reading, two readers, no second walk.
        */
-      charge: (node) => nodeAgents.charge(node),
+      agentAt: (to) => nodeAgents.agentAt(to),
       onState: (state) => publishing().state(state),
       onTranscript: (change) => publishing().transcript(change),
     })

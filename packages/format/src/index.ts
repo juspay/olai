@@ -1048,13 +1048,15 @@ export { NO_PINS, pinTargetIn, sameShelf, Shelf, shelfIn, shelfOf } from "./shel
 export type { Pinned } from "./shelf.ts"
 
 /**
- * THE NODE AGENTS OF A SET — the roster, which is the query `prop:agent`
- * answered where the set is ({@link ./agents.ts}).
+ * THE NODE AGENTS OF A SET — the roster, which is the query
+ * `prop:agent-session` answered where the set is ({@link ./agents.ts}).
  *
- * `AGENT_PROP` is public for the one reader that has to quote the property back
- * rather than find rows by it (`@olai/chat`'s teaching), and `NodeAgent` for the
- * one that widens it with the per-machine half a vault cannot know
- * (`@olai/surface`).
+ * `AGENT_PROP` and `sessionValue` are public for the one gesture that WRITES
+ * the property rather than reading rows off it — the `•••` menu's *start an
+ * agent session*, composed at the server's composition root — so the key and
+ * the colon rule have one spelling for the writer and the reader both.
+ * `NodeAgent` is public for the reader that widens it with the one fact a vault
+ * cannot know (`@olai/surface`).
  */
 export {
   AGENT_PROP,
@@ -1064,6 +1066,8 @@ export {
   NodeAgent,
   NodeAgents,
   sameAgents,
+  sessionIn,
+  sessionValue,
 } from "./agents.ts"
 
 /**

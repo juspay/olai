@@ -109,7 +109,7 @@ export const TESTID = {
 
   // ── the node agents ──────────────────────────────────────────────────
   /** The AGENTS section of the sidebar — the roster, which is the query
-   *  `prop:agent`. Drawn only when the directory has a node agent, on the
+   *  `prop:agent-session`. Drawn only when the directory has a node agent, on the
    *  shelf's rule exactly: an empty roster is nothing at all rather than an
    *  empty box, so its presence is the fact a scenario asserts. */
   agentRoster: "agent-roster",

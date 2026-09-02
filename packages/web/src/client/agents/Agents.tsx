@@ -2,7 +2,7 @@
  * THE AGENTS ROSTER: one row per node agent, in the directory column.
  *
  * THE ROSTER IS A QUERY and this is that query drawn — every node carrying an
- * `agent` property, answered where the set is (`@olai/format`'s `agents.ts`).
+ * `agent-session` property, answered where the set is (`@olai/format`'s `agents.ts`).
  * There is no list to maintain, nothing to register and nothing that can fall
  * out of step: put the property on a node and the row is here on the frame the
  * store publishes; take it off and the row is gone. A node RENAMED anywhere

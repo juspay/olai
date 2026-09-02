@@ -31,13 +31,23 @@ const GARDEN = [
   `{"id":"herbs","ord":"a0","title":"the herb bed","todo":true}`,
 ].join("\n")
 
-const derived = derive(recordsOf(setOf({ "house.olai": HOUSE, "garden.olai": GARDEN })))
+/** Two node agents and the difference between them: one whose property names
+ *  an engine and no conversation, and one whose property names both. */
+const LANES = [
+  `{"id":"waiting","ord":"a0","title":"a node agent with no session","custom":{"agent-session":"claude"}}`,
+  `{"id":"talking","ord":"a1","title":"...and one that has one","custom":{"agent-session":"claude:sess-1"}}`,
+].join("\n")
+
+const derived = derive(
+  recordsOf(setOf({ "house.olai": HOUSE, "garden.olai": GARDEN, "lanes.olai": LANES })),
+)
 const rows = rowsOf(derived, "house.olai")
+const laneRows = rowsOf(derived, "lanes.olai")
 
 /** One row of the fixture, by id — through the client's own walk
  *  (`edit/order.ts`) with nothing folded, rather than a second one here. */
 const row = (id: string): Row => {
-  const found = flatten(rows, new Set()).find((one) => one.at.node.id === id)
+  const found = flatten([...rows, ...laneRows], new Set()).find((one) => one.at.node.id === id)
   if (found === undefined) throw new Error(`no row for \`${id}\` in the fixture`)
   return found
 }
@@ -390,4 +400,19 @@ test("with no indexes yet there is no archive, rather than one nobody counted", 
       "Move to…",
       "Duplicate",
     ])
+})
+
+// ── starting a node agent's session ────────────────────────────────────
+
+test("a node agent with no session offers to start one, with its own engine", () => {
+  const found = verb("waiting", "Start an agent session")
+  expect(found.does).toEqual({ kind: "start-agent", engine: "claude" })
+})
+
+test("a node agent that already has one is offered nothing — a fresh session is another verb", () => {
+  expect(labels("talking")).not.toContain("Start an agent session")
+})
+
+test("a node that is not a node agent is offered nothing: the property is what creates one", () => {
+  expect(labels("install")).not.toContain("Start an agent session")
 })

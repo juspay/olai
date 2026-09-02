@@ -20,9 +20,8 @@ const SPACES = {
   title: "Xyne Spaces — the org OS",
   engine: "grok",
   memory: 14,
-  session: { agent: "claude", id: "sess-1" },
+  session: "sess-1",
   said: { text: "the mirror lane is in flight", at: "2026-09-01T16:41:00Z" },
-  taught: true,
 }
 const ODU = { ...SPACES, id: "odu", title: "Odu — the CI family", session: null, said: null }
 
@@ -43,7 +42,7 @@ test("a node agent nobody has bound a session to is UNBOUND, not asleep", () => 
 test("a bound agent that is not the open conversation is ASLEEP", () => {
   // The panel is in `spaces`' conversation; `odu`'s is on disk and has no
   // process. Bound, and asleep.
-  const bound: Agents = [SPACES, { ...ODU, session: { agent: "claude", id: "sess-2" } }]
+  const bound: Agents = [SPACES, { ...ODU, session: "sess-2" }]
   expect(standingOf(bound, panel({ status: "thinking", bound: "spaces" }), "odu")).toBe("asleep")
 })
 
@@ -92,7 +91,7 @@ test("the count is the OPEN conversation's questions, and zero everywhere else",
 test("a sleeping agent's row never wears the open conversation's count", () => {
   // The panel is asking two questions of `spaces`; `odu` is a different agent
   // and has nothing waiting, whatever the panel is doing.
-  const bound: Agents = [SPACES, { ...ODU, session: { agent: "claude", id: "sess-2" } }]
+  const bound: Agents = [SPACES, { ...ODU, session: "sess-2" }]
   const asked = panel({ status: "thinking", asking: 2, bound: "spaces" })
   expect(rowsOf(bound, asked).find((row) => row.id === "odu")?.waiting).toBe(0)
 })

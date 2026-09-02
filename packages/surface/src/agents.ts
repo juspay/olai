@@ -1,18 +1,20 @@
 /**
- * THE AGENTS ROSTER, on the wire — one row per node agent, and the two facts
- * about it that no vault can hold.
+ * THE AGENTS ROSTER, on the wire — one row per node agent, and the ONE fact
+ * about it that no vault holds.
  *
- * A node agent is a NODE carrying an `agent` property, and everything durable
- * about it is a reading of the set: which node, what it is called, which engine
- * the property names, how many records are under it
- * (`@olai/format`'s `agents.ts`, which is the query `prop:agent` answered where
- * the set is). That half travels between machines because the vault does.
+ * A node agent is a NODE carrying an `agent-session` property, and nearly
+ * everything about it is a reading of the set: which node, what it is called,
+ * which engine and which conversation the property names, how many records are
+ * under it (`@olai/format`'s `agents.ts`, which is the query
+ * `prop:agent-session` answered where the set is). All of that travels between
+ * machines, because the vault does — the session pointer included, since the
+ * human's 2026-09-02 ruling put every piece of config in the vault.
  *
- * WHICH CONVERSATION IT IS TALKING THROUGH DOES NOT. A session id means nothing
- * to another machine's agent — the same reason the which-conversation note is
- * per-machine — so the binding lives in this machine's state
- * (`@olai/chat`'s `agents.ts`) and reaches a browser only here, joined onto the
- * vault's row by the server that holds both.
+ * WHAT THIS MACHINE ADDS is one line: the last thing olai HEARD that agent say.
+ * It is bookkeeping rather than config — nothing configures it and nothing else
+ * can reconstruct it — so it stays in this machine's own state
+ * (`@olai/chat`'s `sessions.ts`) and reaches a browser only here, joined onto
+ * the vault's row by the server that holds both.
  *
  * ## What is NOT on this row, and where it is instead
  *
@@ -47,30 +49,17 @@ import { Schema } from "effect"
  * The vault's fields are SPREAD rather than nested, the way {@link SessionInfo}
  * spreads a {@link Conversation}'s: what a reader wants off this is a title, an
  * engine and a state, and `row.node.title` would be a box around one fact. What
- * the spread buys over a hand-copied list of four fields is that the two
- * declarations cannot drift — a field added to the vault's reading is a field
- * on the wire, or the type checker says so.
+ * the spread buys over a hand-copied list is that the two declarations cannot
+ * drift — a field added to the vault's reading is a field on the wire, or the
+ * type checker says so.
+ *
+ * WHICH CONVERSATION, and with WHICH AGENT, are `session` and `engine` from
+ * that spread. The pair is what opens one (`chat.loadSession` takes both,
+ * because a session id means nothing to the wrong agent) and the browser reads
+ * them off one row rather than off a nested object minted here.
  */
 export const NodeAgentRow = Schema.Struct({
   ...NodeAgent.fields,
-  /**
-   * The conversation this node agent is talking through, or `null` for one
-   * nobody has bound a session to.
-   *
-   * `null` IS A STATE A PERSON MEETS rather than a gap: bindings are written by
-   * hand in this phase, so a node that has just been given an `agent` property
-   * has a roster row and no session, and the row says exactly that. Drawing it
-   * as *asleep* would claim a conversation that does not exist.
-   *
-   * THE PAIR, never the session alone, because a session id means nothing to
-   * the wrong agent — the identity `SessionInfo` and the panel's own note
-   * already spell (`./chat.ts`).
-   */
-  session: Schema.NullOr(Schema.Struct({
-    /** One of `AGENTS`' ids — which agent can open this conversation. */
-    agent: Schema.String,
-    id: Schema.String,
-  })),
   /**
    * THE LAST LINE OLAI HEARD THIS AGENT SAY, or `null` before it has heard one.
    *
@@ -78,7 +67,7 @@ export const NodeAgentRow = Schema.Struct({
    * off a transcript because for every node agent but the open one there IS no
    * transcript here — and the qualification is load-bearing and is drawn:
    * this is what olai heard, so a conversation somebody drove from a terminal
-   * moves it not at all (`@olai/chat`'s `agents.ts`).
+   * moves it not at all (`@olai/chat`'s `sessions.ts`).
    */
   said: Schema.NullOr(Schema.Struct({
     /** One line, already cut to one where it was heard. */

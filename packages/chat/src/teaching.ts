@@ -39,7 +39,7 @@
  *     the lines go with the words.
  *   - **It survives a `/clear` and a fresh session by construction**, because
  *     "has this conversation been taught" is written down per SESSION
- *     ({@link ./agents.ts}'s `Bound.taught`). A new session is untaught, which
+ *     ({@link ./sessions.ts}'s `Overheard.taught`). A new session is untaught, which
  *     is right: the whole point of the contract is that the transcript is not
  *     what carries it.
  *

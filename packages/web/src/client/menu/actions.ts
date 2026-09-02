@@ -35,6 +35,7 @@
 
 import type { Row } from "@olai/format"
 import type { Shelf } from "@olai/surface"
+import { Result } from "effect"
 
 import { armNode } from "../chat/armed.ts"
 import type { Relation } from "../edges/relation.ts"
@@ -44,6 +45,8 @@ import { setFolded } from "../fold/memory.ts"
 import { type Fold, foldIdOf, foldOf } from "../fold/rows.ts"
 import { setChatOpen } from "../layout/prefs.ts"
 import { atNode, hrefOf, type Route } from "../routes.ts"
+import { runAsync } from "../run.ts"
+import { olai } from "../wire.ts"
 import { asText } from "./subtree.ts"
 import type { MenuAction } from "./action.ts"
 import { subjectOfRow, writeVerbs } from "./verbs.ts"
@@ -247,6 +250,33 @@ export const nodeMenuActions = (args: {
           case "pick-move":
             args.pickMove()
             return
+          // THE ONE ARM THAT ANSWERS WITH A PROMISE, which is `copy-text`'s
+          // shape and not a fourth kind of entry. Both halves are one procedure
+          // at the server — open the conversation, then write the session onto
+          // the property — because a browser cannot learn which session
+          // appeared (`./verbs.ts`'s `Does`). What comes back is either nothing
+          // to say, the way an edit that lands says nothing, or the refusal in
+          // the server's own words: a stale engine, an agent that would not
+          // start, a record the ops layer will not write.
+          //
+          // THE PANEL IS OPENED first and whatever the outcome: this verb
+          // switches the conversation, and a switch nobody can see is a press
+          // that looks like it did nothing — the same reason `Ask agent` above
+          // opens it.
+          //
+          // `run` IS NOT `async`, deliberately: the arms above answer with
+          // nothing SYNCHRONOUSLY, and an `async` here would hand every one of
+          // them a resolved promise instead — which is a value, and anything
+          // but `undefined` is drawn as a sentence beside the `•••`.
+          case "start-agent":
+            setChatOpen(true)
+            return runAsync(
+              olai.procedures.chat.startAgentSession({ node: id, agent: does.engine }),
+            ).then((outcome) =>
+              Result.isSuccess(outcome)
+                ? undefined
+                : { tone: "alarm", text: outcome.failure.message, kind: outcome.failure._tag }
+            )
         }
       },
     }),

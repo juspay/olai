@@ -28,9 +28,12 @@
  * read by the person who wrote them, by `prop:` in a query, and by the drawer
  * that draws them. That is the difference, and it is very nearly the only one.
  *
- * The exception is `agent` ({@link ./agents.ts}, ruled with the human on
- * 2026-09-01): a node carrying it IS a node agent, and the roster in olai's
- * sidebar is that query. It is written down HERE as well as there, and in
+ * The exception is `agent-session` ({@link ./agents.ts}, ruled with the human
+ * on 2026-09-01 and amended on 2026-09-02): a node carrying it IS a node agent,
+ * and the roster in olai's sidebar is that query. ONE key carries both halves —
+ * which engine, and which conversation — because the amendment put every piece
+ * of olai's configuration in the vault, and the session pointer was the last
+ * one outside it. It is written down HERE as well as there, and in
  * docs/format.md's Properties, because an exception nobody can find from the
  * rule is how a rule quietly stops being one — and because the next reading
  * that wants a key of its own has to see that there is a ruling to get, rather

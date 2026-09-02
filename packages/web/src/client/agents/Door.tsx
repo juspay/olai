@@ -58,7 +58,7 @@
  *
  * And under them, ONE LINE of the agent's latest message — with the
  * qualification drawn rather than implied: this is what olai HEARD, written
- * down while the panel was in that conversation (`@olai/chat`'s `agents.ts`).
+ * down while the panel was in that conversation (`@olai/chat`'s `sessions.ts`).
  * A door with nothing on that line is an agent olai has not heard yet, which is
  * a line absent rather than an empty one.
  *

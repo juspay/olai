@@ -16,7 +16,7 @@
  * cell (`./roster.ts`) — and this is where the pair is read. It has to be one
  * place rather than one per face, and the reason is a measurement rather than a
  * preference: the DOOR is drawn for every node in the outline (it answers
- * nothing on the rows that carry no `agent` property, which is nearly all of
+ * nothing on the rows that carry no `agent-session` property, which is nearly all of
  * them). A door that joined for itself meant a chat-cell SUBSCRIPTION per row
  * and a whole-roster join per row per frame — a thousand subscriptions and a
  * thousand joins on a big board, for three agents' worth of answer, on a cell
@@ -34,7 +34,7 @@
  * is per frame.
  *
  * BEFORE THE FIRST FRAME the roster is empty, which is the same thing a
- * directory with no `agent` property anywhere says and the same thing it draws:
+ * directory with no `agent-session` property anywhere says and the same thing it draws:
  * nothing. There is no third state to give anybody — an empty sidebar and a
  * sidebar that has not heard look identical.
  *

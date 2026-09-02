@@ -807,7 +807,7 @@ export const surface = defineSurface({
       arrayKey: "name",
     },
     /**
-     * THE AGENTS ROSTER — one row per node carrying an `agent` property, with
+     * THE AGENTS ROSTER — one row per node carrying an `agent-session` property, with
      * the conversation this machine has bound to it ({@link ./agents.ts}).
      *
      * A CELL, and for `pins`' reason word for word: it is a reading of the
@@ -826,7 +826,7 @@ export const surface = defineSurface({
      *
      * WIRE-READ-ONLY, and here that is two different reasons rather than the
      * usual one. The vault half is a file-shaped member like every other: an
-     * `agent` property is written by the ops layer, and the row follows. The
+     * `agent-session` property is written by the ops layer, and the row follows. The
      * BINDING half has no verb at all yet — bindings are hand-written in this
      * phase (the assign gesture is the next one's), so there is nothing for a
      * browser to call and nothing for one to be refused.
@@ -1232,6 +1232,45 @@ export const surface = defineSurface({
        *  does not have, which is what a tab open across a restart can send. */
       newSession: {
         input: Schema.Struct({ agent: Schema.String }),
+        error: ChatFailure,
+      },
+      /**
+       * START A NODE AGENT'S SESSION: open a fresh conversation with the engine
+       * that node's `agent-session` property already names, and write the
+       * session it opened back onto the property.
+       *
+       * The `•••` menu's verb, and the one gesture in olai that binds a node
+       * agent to a conversation. It is HERE — one procedure rather than a
+       * `newSession` the browser follows with an `edit.apply` — because a
+       * browser cannot learn which session was opened: {@link newSession}
+       * answers with nothing, and a tab watching the state cell for a session
+       * to appear would be racing every other tab's turn.
+       *
+       * SESSION FIRST, PROPERTY SECOND, and the order is the guarantee: the
+       * vault never names a conversation that does not exist. The other order
+       * fails the other way — a property pointing at a session that was never
+       * opened, on a row whose door refuses for ever.
+       *
+       * WHICH ENGINE is the browser's to say, for {@link newSession}'s reason
+       * word for word: there is no default anywhere in this app, and a verb
+       * that could be called without one would be where a default grew back.
+       * What the menu sends is the engine the node's own property names, which
+       * is the only reading of *that node's agent* — a node with no property is
+       * not a node agent, and the menu does not offer this on one.
+       *
+       * Refuses whatever either half refuses: an engine this machine does not
+       * have, an agent that would not start, and every reason the ops layer has
+       * for declining to write a property — a record that is gone, a file that
+       * would not take the write.
+       */
+      startAgentSession: {
+        input: Schema.Struct({
+          /** The node whose property is about to name the session — the id the
+           *  roster answers with. */
+          node: Schema.String,
+          /** ... and the engine to open it with, off that node's property. */
+          agent: Schema.String,
+        }),
         error: ChatFailure,
       },
       /** Answer the question the panel is asking ({@link ChatState.talking}'s

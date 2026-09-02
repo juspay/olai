@@ -201,9 +201,9 @@ export const MCP: ExposeMap<typeof surface.spec> = {
  * the nodes. A badge is a paint instruction for a door somebody is looking at.
  *
  * `agents` is that same kind of reading again, and the one that is HALF a
- * reading: the roster is the query `prop:agent` over the set, joined with which
+ * reading: the roster is the query `prop:agent-session` over the set, joined with which
  * conversation this MACHINE has bound to each of those nodes
- * (`./agents.ts`). The vault half an agent already has — `prop:agent` is a
+ * (`./agents.ts`). The vault half an agent already has — `prop:agent-session` is a
  * query it can type into `search_nodes`, and it is answered with the NODES,
  * which is the thing it can act on. The binding half is per-machine chrome for
  * a column somebody is looking at, and an agent offered it would be offered
@@ -308,6 +308,7 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   "chat.resend": "tool",
   "chat.cancel": "tool",
   "chat.newSession": "tool",
+  "chat.startAgentSession": "tool",
   "chat.chooseAgent": "tool",
   "chat.loadSession": "tool",
   "chat.reopen": "tool",

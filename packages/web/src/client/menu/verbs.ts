@@ -37,12 +37,15 @@
  */
 
 import {
+  AGENT_PROP,
   customOf,
+  customText,
   isMirror,
   MARKS,
   type Node,
   type LocatedRegular,
   type Row,
+  sessionIn,
   type Situated,
   type Status,
 } from "@olai/format"
@@ -147,6 +150,24 @@ export type Does =
    * own `+` cannot be drawn on (see where this is pushed).
    */
   | { readonly kind: "add-prop" }
+  /**
+   * START THIS NODE AGENT'S SESSION — the one verb here that is not an edit at
+   * all and does not open a panel either.
+   *
+   * It is two acts that only make sense together: open a conversation with the
+   * engine this node's `agent-session` property names, then write the session
+   * it opened back onto that property. A browser cannot do the second, because
+   * `chat.newSession` answers with nothing and no tab can say which
+   * conversation appeared; so what this arm carries is the ENGINE, and the
+   * running of it is one procedure at the server, where both halves are in hand
+   * (`@olai/surface`'s `chat.startAgentSession`).
+   *
+   * THE ENGINE TRAVELS ON THE ARM rather than being re-read where it is run,
+   * for the reason every other arm carries its own value: the menu was drawn
+   * against a revision, and the property could have moved by the time somebody
+   * presses. What lands is then a session for the engine the entry said.
+   */
+  | { readonly kind: "start-agent"; readonly engine: string }
 
 /** The ordinary answer, at the site that gives it — so the list below reads as
  *  a list of verbs rather than a list of wrappers. */
@@ -257,6 +278,28 @@ export const writeVerbs = (
           does: sends({ verb: "trash", id: pinned.id }),
         },
     )
+    // A NODE AGENT WITH NO SESSION YET, and the verb that gives it one.
+    //
+    // OFFERED ONLY THERE, which is the whole of the fence and is read straight
+    // off the property. A node carrying no `agent-session` is not a node agent
+    // and has no agent to start a session WITH — putting the property on is the
+    // gesture that creates one, and it is the run of chips three pixels away.
+    // A node whose property already names a session HAS one: replacing it is
+    // the *fresh session* affordance, which is a different verb with a
+    // different warning ("memory is the subtree; the transcript becomes
+    // history") and belongs to the migration phase that ships it.
+    //
+    // It names the node the row SHOWS, the rule a mark and a pin already
+    // follow: a mirror is a placement, the property is on the record it stands
+    // for, and the roster answers with that record's id.
+    const agent = sessionIn(customText(shown.node, AGENT_PROP) ?? "")
+    if (agent !== null && agent.session === null) {
+      verbs.push({
+        id: "start-agent",
+        label: "Start an agent session",
+        does: { kind: "start-agent", engine: agent.engine },
+      })
+    }
     // The mark it already carries is not offered again: putting it back is the
     // one mark request the ops layer refuses for asking about nothing
     // ("already done"), and an entry whose only outcome is that sentence is an

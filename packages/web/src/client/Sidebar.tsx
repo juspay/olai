@@ -19,7 +19,7 @@
  * has the column it always had.
  *
  * WITH THE JOURNAL'S TWO QUESTIONS, and above the month, sits the AGENTS
- * roster (./agents/Agents.tsx): one row per node carrying an `agent` property,
+ * roster (./agents/Agents.tsx): one row per node carrying an `agent-session` property,
  * with what it is doing and what is waiting on you. It is up there rather than
  * beside the shelf because it is NEWS in exactly the sense the agenda's alarm
  * and the inbox's count are — something waiting that a person has to act on —
@@ -372,7 +372,7 @@ export function Sidebar(props: {
           </Show>
           {/* THE AGENTS ROSTER, with the journal's two questions rather than
               with the reader's own short list below them — the query
-              `prop:agent`, drawn (`./agents/Agents.tsx`, which argues the
+              `prop:agent-session`, drawn (`./agents/Agents.tsx`, which argues the
               placement). A row reading *needs you* is the same kind of fact as
               the agenda's alarm and the inbox's count, and the shelf's own
               2026-08-19 ruling is exactly about what may NOT come ahead of

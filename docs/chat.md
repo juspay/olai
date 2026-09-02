@@ -508,17 +508,24 @@ wake on CI runs · runs from  [ lanes.olai ▾ ]
 
 ## Node agents
 
-**Put an `agent` property on a node and that node has an agent.** There is nothing else to create, nowhere to register it, and no file to edit first: the node's title is the agent's name, its note is its charter, and its **subtree is its memory**. A chat session bound to it is cattle — it can be thrown away and made again at any time, because what the agent knows is written in the outline rather than in a transcript.
+**Put an `agent-session` property on a node and that node has an agent.** There is nothing else to create, nowhere to register it, and no file to edit first: the node's title is the agent's name, its note is its charter, and its **subtree is its memory**. A chat session bound to it is cattle — it can be thrown away and made again at any time, because what the agent knows is written in the outline rather than in a transcript.
 
 ```jsonl
-{"id":"spaces","ord":"a0","title":"Xyne Spaces — the org OS","custom":{"agent":"grok"}}
+{"id":"spaces","ord":"a0","title":"Xyne Spaces — the org OS","custom":{"agent-session":"grok"}}
 ```
 
-`agent` is the one custom key olai reads, and [format.md](format.md#properties) names it as the exception it is. The value is whatever you wrote — `claude`, `grok — the kimi implementor` — and it travels with the vault, so a board naming an engine this machine has never heard of is a node agent whose row says so rather than one that disappears.
+`agent-session` is the one custom key olai reads, and [format.md](format.md#properties) names it as the exception it is. **One key carries both halves** — which engine, and which conversation — split on the first colon:
+
+```
+agent-session: grok                 a node agent nobody has started a session for
+agent-session: grok:0f3c8d21-…      ...and one that is talking through that conversation
+```
+
+The engine is required and the session is optional, so writing the property by hand is how a node agent comes into being and [starting a session](#starting-a-session) is how it gets its second half. The engine travels with the vault, so a board naming an engine this machine has never heard of is a node agent whose row says so rather than one that disappears.
 
 ### The AGENTS roster
 
-The sidebar grows an **Agents** section, with the agenda and the inbox rather than beside the pinned shelf, because a row that says *needs you* is the same kind of news they are. **It is literally the query `prop:agent`**: put the property on a node and the row is there on the frame the write lands, rename the node and the row says the new name, take the property off and the row is gone. A directory with no node agent has no section at all — not an empty box, not a heading.
+The sidebar grows an **Agents** section, with the agenda and the inbox rather than beside the pinned shelf, because a row that says *needs you* is the same kind of news they are. **It is literally the query `prop:agent-session`**: put the property on a node and the row is there on the frame the write lands, rename the node and the row says the new name, take the property off and the row is gone. A directory with no node agent has no section at all — not an empty box, not a heading.
 
 Each row says the node's title, the engine, **how the agent stands**, and how many questions are waiting on you. The standing is a word and a dot, never a dot alone:
 
@@ -530,7 +537,7 @@ Each row says the node's title, the engine, **how the agent stands**, and how ma
 | **idle** | the conversation is open and ready |
 | **not running** | its agent is not there; this is the one that needs a person |
 | **asleep** | it has a session and this is not the conversation olai is in |
-| **no session bound** | nobody has bound a session to it yet |
+| **no session bound** | nobody has started a session for it yet |
 
 The last two are worth reading twice. **Olai runs one conversation at a time**, so at most one node agent has a process at all and every other one is asleep — which is not broken: the session is on disk, and pressing the row opens it. The count beside a row is **what is waiting on you**, and it is honest about what it can be: an agent with no process cannot have said anything since you last looked, so the only thing that accumulates unseen is a question you have not answered.
 
@@ -552,35 +559,37 @@ An agent-carrying row in an outline wears a **door** under its properties — ko
 
 **Pressing a roster row takes you to that agent**: its node, at its own row in the outline it is written in, and the panel switches to its conversation. Pressing the **door** switches the panel and navigates nowhere, because you are already standing on the node. The outline never narrows for any of this — the panel is the panel, and the board keeps its width.
 
-An agent with no session bound can only do half of that, and does the half that exists: from the sidebar it goes to the node. Its door is not pressable at all, since the reader is already there.
+An agent with no session can only do half of that, and does the half that exists: from the sidebar it goes to the node. Its door is not pressable at all, since the reader is already there.
 
 **The panel's header names the NODE first**, and it is pressable back onto the row. The agent and the model keep the second line, in that order — who, then what it runs on. A conversation no node claims has exactly the header it always had.
 
-### What the session binding is, and where it lives
+### Starting a session
 
-The `agent` property is durable and travels with the vault. **Which conversation a node agent is currently talking through does not**: a session id means nothing to another machine's agent, for the same reason [the which-conversation note](#which-conversation-you-come-back-to) is per-machine. So the binding is a record beside that note, under `~/.local/state/olai/agents/` (or wherever `XDG_STATE_HOME` points), named by a digest of the served directory and carrying that path inside it:
+**The row's `•••` menu offers *Start an agent session*** on a node agent that has none yet — a node whose `agent-session` names an engine and no conversation. Pressing it opens a fresh conversation with that engine and writes the conversation back onto the same property, in that order, so the vault never names a session that was not opened.
 
-```json
-{
-  "cwd": "/home/you/vault",
-  "bound": [
-    { "node": "spaces", "agent": "claude", "session": "0f3c…" }
-  ]
-}
+```
+agent-session: claude       →  agent-session: claude:0f3c8d21-…
 ```
 
-**You write that file by hand for now.** There is no assign gesture, no picker and no *Unassigned* entry — those are the next phase, where existing chats get moved over one row at a time. The file is read leniently, because a person types it: a row that does not name a node, an agent and a session is dropped and the rest of the file stands, and a file that will not parse at all leaves every node agent drawing as *no session bound* with a warning in the log rather than a server that will not serve. Nothing is ever evicted from it — the rows are yours.
+The entry is not offered on a node whose property already names a conversation. Replacing a live session is the *fresh session* affordance — the one that has to say what happens to the transcript — and it ships with [migration](#what-is-not-here-yet-and-in-what-order-it-comes). Until then, re-pointing a bound node is an edit to the property, which is a chip under the title like any other.
 
-**An edit takes effect at the next start.** The file is read once, when olai boots, and nothing watches it — so write a binding, then restart the serve. Two things follow from the same fact and are worth knowing before you meet them:
+A node with no `agent-session` at all is not a node agent and is offered nothing: **writing the property is what creates one**, and the run of chips is three pixels from the menu.
 
-- **a `/clear` leaves the binding pointing at the conversation you left.** Starting a fresh session does not re-point anything: the node goes on naming the old one, and the roster row draws *asleep* over a conversation nobody is in until you edit the record. Sessions are cattle in the sense that matters — the agent loses nothing, because the subtree is the memory — but in this phase the *pointer* is not cattle, and moving it is a hand's work.
-- **a binding whose node has gone is simply not on the roster.** Trash the node, or take the `agent` property off it, and the row disappears rather than becoming a door onto a record that is not there.
+### Where the binding lives, and what a second machine sees
 
-Both are the assign gesture's absence, which is the next phase.
+**In the vault, on the node, in the same property.** All of olai's configuration lives in `.olai` files or their properties, and which conversation a node agent is talking through is configuration — so it is the second half of `agent-session` rather than a file somewhere else. Write the property and the binding is there on the frame the write lands; there is no record to keep in step, nothing to restart, and nothing to hand-edit outside the board.
 
-A vault served from two machines is **one node agent with a session on each**, and the subtree is what keeps them coherent. That is the design working rather than a gap in it.
+**A session id is machine-local content in a board-durable place, and that is stated rather than hidden.** A vault served from two machines carries **one** pointer, and it is shaped by whichever machine wrote it:
 
-Olai writes two things back into that file and nothing else: that a session has been **taught** its contract (below), and the last line it was **heard** to say.
+- the other machine **draws the row** — the engine half is durable and true everywhere;
+- **pressing it is refused by that machine's own agent**, in the agent's own words, on the roster's line: it does not have that conversation;
+- **starting a session there rewrites the property**, and the first machine's pointer is gone.
+
+Last writer wins, visibly, in a file, through the ops layer — rather than silently in a state directory neither machine could see. The subtree is what keeps the two coherent, which is the design working rather than a gap in it: the agent loses nothing when a session is replaced, because the memory was never in the transcript.
+
+**A node that has gone is not on the roster.** Trash the node, or take the property off it, and the row disappears rather than becoming a door onto a record that is not there.
+
+**Two things stay on the machine**, and both are bookkeeping rather than configuration: that a session has been **taught** its contract (below), and the last line it was **heard** to say. Nothing configures either, nothing else can reconstruct them, and a board written to on every turn would be a board committed on every turn. They live beside [the which-conversation note](#which-conversation-you-come-back-to), under `~/.local/state/olai/heard/` (or wherever `XDG_STATE_HOME` points), keyed by the agent and session they are about, capped at thirty-two conversations with the least recently overheard dropped — the same cap the doorbell picks keep, and what an eviction costs is one contract taught a second time.
 
 ### An agent-associated session is taught what it is
 
@@ -596,6 +605,6 @@ Two honest limits. The notice and the mark go together, and only where the messa
 
 This is phase one of a ruled plan, and the rest is a plan rather than a list of gaps:
 
-1. **Migration** — an *Unassigned* roster entry holding every conversation no node claims, an **assign to node…** gesture, and the one distillation turn that banks an old chat's knowledge into its new subtree. After it, real chats move over one row at a time.
+1. **Migration** — an *Unassigned* roster entry holding every conversation no node claims, an **assign to node…** gesture for chats that already exist, the *fresh session* affordance, and the one distillation turn that banks an old chat's knowledge into its new subtree. After it, real chats move over one row at a time.
 2. **Derived wakes** — a node agent's [doorbell scope](#what-this-conversation-wakes-on) becomes its subtree, and an agentless wake climbs to the nearest ancestor node agent. The manual control survives for conversations no node claims.
 3. **Agency** — a node agent creates child nodes and puts agents on them, writing only inside its own subtree and asking its ancestor for anything above.

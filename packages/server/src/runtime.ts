@@ -117,7 +117,15 @@ import {
   watchable,
   type Who,
 } from "@olai/surface"
-import { customText, isRegular, type Located, type Reading, UsageFailure } from "@olai/format"
+import {
+  AGENT_PROP,
+  customText,
+  isRegular,
+  type Located,
+  type Reading,
+  sessionValue,
+  UsageFailure,
+} from "@olai/format"
 import type { Snapshot } from "@olai/store"
 import { mergeDisjointGroups, surfaceTag } from "@kolu/surface/define"
 import {
@@ -805,7 +813,7 @@ export const bind = (
       const cell = agentsCell
       const carrier = wiring.agents
       if (cell === null || carrier === undefined || carrier === null) return
-      cell.set(carrier.rowsWith(chat === null ? [] : chat.bindings()))
+      cell.set(carrier.rowsWith(chat === null ? [] : chat.overheard()))
     }
 
     /**
@@ -1326,6 +1334,15 @@ export const bind = (
                 Effect.sync(() => {
                   agentsCell = cell
                   wiring.agents?.seen(snapshot === null ? null : snapshot.value.derived)
+                  // THE CHAT'S OWN HALF OF THE SAME MOVE, and it is the second
+                  // clock the ruling added: which node agent the OPEN
+                  // conversation belongs to is now a PROPERTY, so a revision
+                  // can change it — the `•••` verb writes one, and so does
+                  // anybody editing a chip. Without this the panel would go on
+                  // saying it belonged to nobody until the next time a session
+                  // opened, and the row it had just bound would draw as asleep.
+                  // It publishes only when the answer moved ({@link Chat.reread}).
+                  chat?.reread()
                   republishAgents()
                 }),
             ),
@@ -1911,6 +1928,52 @@ export const bind = (
           // WITH the agent the browser named — every new chat asks which one,
           // and this end has no default to fall back on if it did not.
           newSession: ({ input }) => withChat((open) => open.newSession(input.agent)),
+          /**
+           * A NODE AGENT'S SESSION, STARTED — the one gesture that binds a node
+           * to a conversation, and the only procedure here that is two verbs
+           * rather than a pass-through.
+           *
+           * IT IS COMPOSED HERE because this is the only place both halves are
+           * in hand: `newSession` is the chat's, writing a property is the ops
+           * layer's, and neither package has ever seen the other. The same
+           * arrangement the roster's own join is under ({@link ./agents.ts}).
+           *
+           * SESSION FIRST AND THE PROPERTY AFTER IT, which is the guarantee the
+           * surface promises: `newSession` has RESOLVED by the time the state
+           * is read, so the id written down is a conversation that exists. The
+           * other order would leave a property naming a session nobody opened
+           * every time the agent failed to start.
+           *
+           * THE STATE IS READ RATHER THAN ANSWERED, because the chat's verb
+           * hands back nothing — a conversation is a thing the panel enters,
+           * not a value a call returns, and every other reader learns which one
+           * from the same cell. `null` there is an open that landed on no
+           * conversation, which nothing has ever produced and which must not
+           * become a property naming the empty string.
+           *
+           * NOT CONDITIONAL. `was` is omitted, so this overwrites whatever the
+           * key holds: the property is what the person just pressed a menu
+           * entry to set, and the value it held is the engine that press named
+           * anyway.
+           */
+          startAgentSession: ({ input }) =>
+            withChat((open) =>
+              Effect.gen(function*() {
+                yield* open.newSession(input.agent)
+                const now = open.state().session
+                if (now === null) {
+                  return yield* new UsageFailure({
+                    reason: `${input.agent} opened no conversation to bind to this node`,
+                  })
+                }
+                yield* applyEdit({
+                  verb: "prop",
+                  id: input.node,
+                  key: AGENT_PROP,
+                  value: sessionValue(input.agent, now.id),
+                })
+              })
+            ),
           // ... and the answer to the panel's own question, which opens the
           // conversation that agent's boot would have adopted rather than a
           // fresh one. Two verbs because they mean two things — see the
