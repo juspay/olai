@@ -1,3 +1,0 @@
-{"id":"yard","ord":"a0","title":"the yard"}
-{"id":"fence","parent":"yard","ord":"a0","title":"stain the fence"}
-{"id":"gate","parent":"yard","ord":"a1","title":"oil the gate hinge"}

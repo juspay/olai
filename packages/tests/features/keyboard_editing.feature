@@ -13,7 +13,7 @@ Feature: Keyboard editing
   between scenarios under the still-running server.
 
   Background:
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     # These scenarios tick rows off and keep reading them, so finished work
     # must stay drawn: the per-page default is hidden now (preferences.feature).
     And I show the done nodes
@@ -24,7 +24,7 @@ Feature: Keyboard editing
     And I select all and type "choose the brass handles"
     And I press "Enter"
     Then the node "handles" has the title "choose the brass handles"
-    And "house.olai" holds a node titled "choose the brass handles"
+    And "house.org" holds a node titled "choose the brass handles"
     And the page has not reloaded
     And there should be no page errors
 
@@ -35,13 +35,13 @@ Feature: Keyboard editing
     # wrote would pass the first, and one that wrote per keystroke the second.
     When I click the title of "knobs"
     And I select all and type "pick the little brass knobs"
-    Then "house.olai" holds no node titled "pick the little brass knobs"
-    And "house.olai" holds a node titled "pick the knobs"
+    Then "house.org" holds no node titled "pick the little brass knobs"
+    And "house.org" holds a node titled "pick the knobs"
     # Idle is the third moment (blur and Enter are the other two, and have
     # scenarios of their own): stop typing, and it goes. The editor stays open
     # — a commit is not a reason to take the caret away — so the row is asked
     # of the page only after the caret leaves it.
-    Then "house.olai" holds a node titled "pick the little brass knobs"
+    Then "house.org" holds a node titled "pick the little brass knobs"
     When I press "Escape"
     Then the node "knobs" has the title "pick the little brass knobs"
 
@@ -70,7 +70,7 @@ Feature: Keyboard editing
     And I press "Enter"
     And I type "measure the alcove"
     And I click away from the editor
-    Then "house.olai" holds a node titled "measure the alcove"
+    Then "house.org" holds a node titled "measure the alcove"
     And no row is being edited
 
   Scenario: Enter opens the next row, and it is written when it has a title
@@ -79,10 +79,10 @@ Feature: Keyboard editing
     Then a new row is being typed
     # Still nothing on disk: an empty new row is not a node, which is why
     # `Enter` opens an editor rather than writing a blank record.
-    And the outline "house.olai" shows exactly the nodes "kitchen, demo, order, install, handles, hinges, knobs, kitchen-herbs"
+    And the outline "house.org" shows exactly the nodes "kitchen, demo, order, install, handles, hinges, knobs, kitchen-herbs"
     When I type "measure the alcove"
     And I press "Enter"
-    Then "house.olai" holds a node titled "measure the alcove"
+    Then "house.org" holds a node titled "measure the alcove"
     And the page has not reloaded
 
   Scenario: The line being typed sits where the row will sit
@@ -109,7 +109,7 @@ Feature: Keyboard editing
     And I press "Enter"
     And I press "Escape"
     Then no row is being edited
-    And the outline "house.olai" shows exactly the nodes "kitchen, demo, order, install, handles, hinges, knobs, kitchen-herbs"
+    And the outline "house.org" shows exactly the nodes "kitchen, demo, order, install, handles, hinges, knobs, kitchen-herbs"
 
   Scenario: Tab indents under the row above, and Shift+Tab puts it back
     When I click the title of "knobs"
@@ -128,7 +128,7 @@ Feature: Keyboard editing
     # nothing about the editor it was pressed in.
     When I select all and type "choose the brass handles"
     And I click away from the editor
-    Then "house.olai" holds a node titled "choose the brass handles"
+    Then "house.org" holds a node titled "choose the brass handles"
 
   Scenario: Alt+Shift+Up moves a row among its siblings
     When I click the title of "knobs"
@@ -162,7 +162,7 @@ Feature: Keyboard editing
     Then the node "handles" has status "doing"
     When I press "Control+Shift+Enter"
     Then the node "handles" has no status
-    And "house.olai" holds the node "handles" with no mark
+    And "house.org" holds the node "handles" with no mark
     And the page has not reloaded
     And there should be no page errors
 
@@ -176,7 +176,7 @@ Feature: Keyboard editing
     When I click the title of "hinges"
     And I press "Control+Enter"
     Then the node "hinges" has status "done"
-    And "house.olai" holds a node marked done titled "pick the hinges"
+    And "house.org" holds a node marked done titled "pick the hinges"
 
   Scenario: The keys keep working after the row has moved
     # The caret is what a structural op nearly costs: the row is redrawn where
@@ -212,7 +212,7 @@ Feature: Keyboard editing
     # actually notice.
     When I type " out"
     And I click away from the editor
-    Then "house.olai" holds a node titled "pick out the knobs"
+    Then "house.org" holds a node titled "pick out the knobs"
     And there should be no page errors
 
   Scenario: Clicking the note you are reading puts the caret in it
@@ -229,7 +229,7 @@ Feature: Keyboard editing
     And the note being typed holds the source of "order"
     When I type " — measured twice"
     And I click away from the editor
-    Then "house.olai" holds a node whose note ends "— measured twice"
+    Then "house.org" holds a node whose note ends "— measured twice"
     # And clicking away is what it always was: the row folds back to its title.
     # Editing and expanding are ONE state — you leave both at once — and the
     # full rendered note is the node's own page, which is where a note has
@@ -247,7 +247,7 @@ Feature: Keyboard editing
     # what comes back is the shape the row had before the caret arrived — its
     # title.
     And the row "handles" is folded
-    And "house.olai" holds a node whose note ends "wide"
+    And "house.org" holds a node whose note ends "wide"
     # ...and once the caret leaves the row entirely, that title has a pilcrow
     # beside it, because there is something behind one at last. Asked AFTER the
     # click away on purpose: while the caret is in the line the title span is
@@ -261,7 +261,7 @@ Feature: Keyboard editing
     # who it is for, so it reaches them too.
     # `mint` is the last unfinished task under `herbs` — which is the moment
     # somebody might want to tick the parent too, and now can.
-    Given I open the outline "garden.olai"
+    Given I open the outline "garden.org"
     # `mint` is TICKED OFF below and the row has to stay on the page to be
     # read: each page hides its finished work by default now.
     And I show the done nodes
@@ -294,7 +294,7 @@ Feature: Keyboard editing
     # they typed was saved.
     And the refusal is announced at once
     And the row being typed holds ""
-    And "house.olai" holds a node titled "choose the handles"
+    And "house.org" holds a node titled "choose the handles"
 
   Scenario: A refusal belongs to the row that caused it
     # Two rows and one refusal: clicking away to another title commits the
@@ -307,7 +307,7 @@ Feature: Keyboard editing
     And I click the title of "knobs"
     Then the refusal says "a node needs a title"
     And the row being typed holds ""
-    And "house.olai" holds a node titled "pick the knobs"
+    And "house.org" holds a node titled "pick the knobs"
 
   Scenario: Two refusals in a row leave the editor working
     # The blur guard is cleared by a refused key as well as by a frame, so a
@@ -319,7 +319,7 @@ Feature: Keyboard editing
     Then the refusal says "no row above it"
     When I select all and type "choose the brass handles"
     And I click away from the editor
-    Then "house.olai" holds a node titled "choose the brass handles"
+    Then "house.org" holds a node titled "choose the brass handles"
 
   Scenario: The keys keep up with a person typing faster than the wire
     # Every write goes through one queue, so keys pressed without waiting land
@@ -349,8 +349,8 @@ Feature: Keyboard editing
     And I press "Enter"
     And I type "and one after the mirror"
     And I click away from the editor
-    Then "house.olai" holds a node titled "and one after the mirror"
-    And "garden.olai" holds no node titled "and one after the mirror"
+    Then "house.org" holds a node titled "and one after the mirror"
+    And "garden.org" holds no node titled "and one after the mirror"
 
   Scenario: A zoomed node with nothing under it offers the first child
     # The other page that has no row to press a key in. The anchor is the node
@@ -360,7 +360,7 @@ Feature: Keyboard editing
     And I start the first line
     And I type "brushed steel, maybe"
     And I click away from the editor
-    Then "house.olai" holds a node titled "brushed steel, maybe"
+    Then "house.org" holds a node titled "brushed steel, maybe"
     And the tree is shown
     # The `under` anchor's half of the scenario above: a start line is a
     # pending draft too, so the click that commits it is the click that ends
@@ -368,13 +368,13 @@ Feature: Keyboard editing
     And no row is being edited
 
   Scenario: An outline that holds nothing offers its first line
-    When I rewrite "empty.olai" as:
+    When I rewrite "empty.org" as:
       """
       """
-    And I open the empty outline "empty.olai"
+    And I open the empty outline "empty.org"
     And I start the first line
     And I type "the first thing"
     And I click away from the editor
-    Then "empty.olai" holds a node titled "the first thing"
+    Then "empty.org" holds a node titled "the first thing"
     # And the `first` anchor's, which is the last of the three.
     And no row is being edited

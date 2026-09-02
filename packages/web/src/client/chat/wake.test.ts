@@ -52,7 +52,7 @@ describe("which plugins are offered a doorbell at all", () => {
     const second: BuiltPlugin = { ...RINGER, name: "padi" }
     const rows = ringersOf(
       [RINGER, second],
-      [{ name: "padi", file: "Fleet.olai", waiting: 0, fault: null }],
+      [{ name: "padi", file: "Fleet.org", waiting: 0, fault: null }],
     )
     expect(rows.map((row) => row.name)).toEqual(["kolu", "padi"])
   })
@@ -66,32 +66,32 @@ describe("what one row says", () => {
   })
 
   test("and one that was scoped names the file it was pointed at", () => {
-    const rows = ringersOf([RINGER], [{ name: "kolu", file: "work/Fleet.olai", waiting: 0, fault: null }])
-    expect(rows[0]?.file).toBe("work/Fleet.olai")
+    const rows = ringersOf([RINGER], [{ name: "kolu", file: "work/Fleet.org", waiting: 0, fault: null }])
+    expect(rows[0]?.file).toBe("work/Fleet.org")
   })
 
   test("a scope for a plugin with no row of its own is dropped", () => {
     // Somebody scoped it, then this serve was started without it. There is
     // nothing to draw — no subject, no word for what waits — and the stored
     // pick is not lost by not being offered.
-    expect(ringersOf([QUIET], [{ name: "kolu", file: "Fleet.olai", waiting: 3, fault: null }])).toEqual([])
+    expect(ringersOf([QUIET], [{ name: "kolu", file: "Fleet.org", waiting: 3, fault: null }])).toEqual([])
   })
 })
 
 describe("what it is holding, in the plugin's own words", () => {
   test("nothing held says nothing at all, rather than a zero", () => {
-    expect(ringersOf([RINGER], [{ name: "kolu", file: "Fleet.olai", waiting: 0, fault: null }])[0]?.held)
+    expect(ringersOf([RINGER], [{ name: "kolu", file: "Fleet.org", waiting: 0, fault: null }])[0]?.held)
       .toBeNull()
   })
 
   test("one held takes the plugin's singular", () => {
-    const row = ringersOf([RINGER], [{ name: "kolu", file: "Fleet.olai", waiting: 1, fault: null }])[0]
+    const row = ringersOf([RINGER], [{ name: "kolu", file: "Fleet.org", waiting: 1, fault: null }])[0]
     expect(row?.held).toBe("1 fleet event waiting")
     expect(row?.waiting).toBe(1)
   })
 
   test("and several take its plural — core supplies the numeral and no noun", () => {
-    expect(ringersOf([RINGER], [{ name: "kolu", file: "Fleet.olai", waiting: 4, fault: null }])[0]?.held)
+    expect(ringersOf([RINGER], [{ name: "kolu", file: "Fleet.org", waiting: 4, fault: null }])[0]?.held)
       .toBe("4 fleet events waiting")
   })
 })
@@ -112,9 +112,9 @@ describe("a doorbell that is not watching what it names", () => {
   test("the row says so, and goes on naming the file it is about", () => {
     // The path is what somebody has to recognise to know which file it was, so
     // it stays — the row does not go blank and does not read as `off`.
-    const row = ringersOf([RINGER], [{ name: "kolu", file: "lanes.olai", waiting: 0, fault: "gone" }])[0]
+    const row = ringersOf([RINGER], [{ name: "kolu", file: "lanes.org", waiting: 0, fault: "gone" }])[0]
     expect(row?.fault).toBe("gone")
-    expect(row?.file).toBe("lanes.olai")
+    expect(row?.file).toBe("lanes.org")
   })
 
   test("and the cause travels, because the strip says a different thing for each", () => {
@@ -135,7 +135,7 @@ describe("a doorbell that is not watching what it names", () => {
     // A conversation nobody scoped has no file for a fault to be about, and its
     // row is drawn all the same. The two states must not collapse into one.
     expect(ringersOf([RINGER], [])[0]?.fault).toBeNull()
-    expect(ringersOf([RINGER], [{ name: "kolu", file: "Fleet.olai", waiting: 0, fault: null }])[0]?.fault)
+    expect(ringersOf([RINGER], [{ name: "kolu", file: "Fleet.org", waiting: 0, fault: null }])[0]?.fault)
       .toBeNull()
   })
 
@@ -144,7 +144,7 @@ describe("a doorbell that is not watching what it names", () => {
     // rule is that the alternative to holding words out of sight is not
     // dropping them, it is showing them — and that does not change because the
     // doorbell has since broken.
-    const row = ringersOf([RINGER], [{ name: "kolu", file: "lanes.olai", waiting: 2, fault: "gone" }])[0]
+    const row = ringersOf([RINGER], [{ name: "kolu", file: "lanes.org", waiting: 2, fault: "gone" }])[0]
     expect(row?.held).toBe("2 fleet events waiting")
   })
 })

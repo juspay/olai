@@ -47,7 +47,7 @@ Feature: A `.pdf`, a `.csv` and a picture in the vault
     And the "pdf" rows listed are "reports/q3.pdf"
     # …and the outlines and documents beside them are untouched: a vault that
     # gained three kinds did not lose the two it had.
-    And the "outline" rows listed are "Daily/2026-08.olai, garden.olai, house.olai"
+    And the "outline" rows listed are "Daily/2026-08.org, garden.org, house.org"
     And the "image" row "art/handle.png" wears its own glyph
     And the "csv" row "data/sales.csv" wears its own glyph
     And the "pdf" row "reports/q3.pdf" wears its own glyph

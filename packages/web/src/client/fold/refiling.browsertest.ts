@@ -39,8 +39,8 @@ import type { HomesAnswer, HomesRequest } from "@olai/format"
 import { collapsedNodes, FOLDS_KEY, folded, setFolded } from "./memory.ts"
 import { type Asking, createRefiling, SETTLE_MS } from "./refiling.ts"
 
-const INSTALL = { id: "install", file: "house.olai" }
-const HELD = `{"house.olai":["install"]}`
+const INSTALL = { id: "install", file: "house.org" }
+const HELD = `{"house.org":["install"]}`
 
 /** Storage this test can read back, in the shape `../preference.ts` asks for —
  *  the shim `./memory.test.ts` keeps, for its reason. */
@@ -112,14 +112,14 @@ const running = <A>(
 
 test("what this browser is holding is asked about, and what moved is re-filed", () =>
   driving(
-    { homes: [{ id: "install", file: "_olai/Trash.olai" }], loaded: ["house.olai"] },
+    { homes: [{ id: "install", file: "_olai/Trash.org" }], loaded: ["house.org"] },
     async (asked, store) => {
       setFolded([INSTALL], true)
       // The press is instant and prunes nothing; the tidy is the round trip.
       expect(store.get(FOLDS_KEY)).toBe(HELD)
       await tidied()
-      expect(asked[0]).toEqual({ ids: ["install"], files: ["house.olai"] })
-      expect(store.get(FOLDS_KEY)).toBe(`{"_olai/Trash.olai":["install"]}`)
+      expect(asked[0]).toEqual({ ids: ["install"], files: ["house.org"] })
+      expect(store.get(FOLDS_KEY)).toBe(`{"_olai/Trash.org":["install"]}`)
       // ...and the node is still shut, which is the point of re-filing rather
       // than dropping: one node, one fold state, wherever the node now lives.
       expect(collapsedNodes().has("install")).toBe(true)
@@ -142,7 +142,7 @@ test("a node the set called GONE can be folded again the moment it is back", () 
   // storage anyway. The triangle springs open; the entry says otherwise. A test
   // that read the entry alone watched the half that lied in the reader's
   // favour.
-  driving({ homes: [], loaded: ["house.olai"] }, async (asked, store) => {
+  driving({ homes: [], loaded: ["house.org"] }, async (asked, store) => {
     setFolded([INSTALL], true)
     await tidied()
     // Gone means gone from the set: asked about, under a file that was read.
@@ -182,19 +182,19 @@ test("an answer that has been overtaken says nothing", () => {
     setFolded([INSTALL], true)
     jest.advanceTimersByTime(SETTLE_MS + 1)
     // A second fold, and a second question, while the first is still open.
-    setFolded([{ id: "herbs", file: "garden.olai" }], true)
+    setFolded([{ id: "herbs", file: "garden.org" }], true)
     jest.advanceTimersByTime(SETTLE_MS + 1)
     expect(answers.length).toBe(2)
 
     // The FIRST one answers last, saying `install` is gone. It is not applied:
     // it was asked before `herbs` was folded and cannot speak for the memory
     // that followed it.
-    answers[1]!({ homes: [{ id: "install", file: "house.olai" }], loaded: [] })
-    answers[0]!({ homes: [], loaded: ["house.olai"] })
+    answers[1]!({ homes: [{ id: "install", file: "house.org" }], loaded: [] })
+    answers[0]!({ homes: [], loaded: ["house.org"] })
     await Promise.resolve()
     await Promise.resolve()
     expect(storage.store.get(FOLDS_KEY)).toBe(
-      `{"garden.olai":["herbs"],"house.olai":["install"]}`,
+      `{"garden.org":["herbs"],"house.org":["install"]}`,
     )
   })().finally(() => {
     dispose()

@@ -23,7 +23,7 @@ Feature: A pinned loop that git stopped can still be started again
   non-fast-forward. Nothing here pulls, rebases or forces.
 
   Background:
-    Given I open the outline "garden.olai"
+    Given I open the outline "garden.org"
     And the served repository has a remote
 
   Scenario: A branch somebody else moved stops the pinned loop, and Resume starts it again

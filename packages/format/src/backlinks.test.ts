@@ -19,10 +19,10 @@ const said = (derived: Derived, id: string): ReadonlyArray<string> =>
   backlinksOf(derived, id).map((one) => `${one.at.node.id} ${one.ways.join("+")}`)
 
 const HOUSE = {
-  "house.olai": `{"id":"kitchen","ord":"a","title":"kitchen remodel"}\n` +
+  "house.org": `{"id":"kitchen","ord":"a","title":"kitchen remodel"}\n` +
     `{"id":"order","parent":"kitchen","ord":"a","title":"order the cabinets","see":["herbs"]}\n` +
     `{"id":"install","parent":"kitchen","ord":"b","title":"install them","desc":"after @herbs is in"}`,
-  "garden.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}`,
+  "garden.org": `{"id":"herbs","ord":"a","title":"the herb bed"}`,
 }
 
 test("a `see` lands on the node it names, and so does a word in a note", () => {
@@ -38,7 +38,7 @@ test("nothing refers to a node nobody has written about", () => {
 
 test("one record doing both is one referrer saying both, edge first", () => {
   const view = viewOf({
-    "a.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}\n` +
+    "a.org": `{"id":"herbs","ord":"a","title":"the herb bed"}\n` +
       `{"id":"both","ord":"b","title":"see @herbs","see":["herbs"]}`,
   })
   expect(said(view, "herbs")).toEqual(["both see+mention"])
@@ -49,9 +49,9 @@ test("`@word` is a reference exactly when a record claims the word", () => {
   // is called that, and a reference where somebody is. The INDEX cannot tell
   // them apart — that is what makes it patchable — so this is the reading's
   // decision, asserted from both sides.
-  const files = { "a.olai": `{"id":"note","ord":"a","title":"ask @alice about it"}` }
+  const files = { "a.org": `{"id":"note","ord":"a","title":"ask @alice about it"}` }
   expect(backlinksOf(viewOf(files), "alice")).toEqual([])
-  const claimed = viewOf({ ...files, "b.olai": `{"id":"alice","ord":"a","title":"Alice"}` })
+  const claimed = viewOf({ ...files, "b.org": `{"id":"alice","ord":"a","title":"Alice"}` })
   expect(said(claimed, "alice")).toEqual(["note mention"])
 })
 
@@ -64,8 +64,8 @@ test("`@word` is a reference exactly when a record claims the word", () => {
 // refers to what. So the pair is pinned at the door that decides it.
 test("a `#topic` spelled like an id is not a reference, and the `@` beside it is", () => {
   const view = viewOf({
-    "garden.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}`,
-    "house.olai": `{"id":"ask","ord":"a","title":"ask @herbs about the pots"}\n` +
+    "garden.org": `{"id":"herbs","ord":"a","title":"the herb bed"}`,
+    "house.org": `{"id":"ask","ord":"a","title":"ask @herbs about the pots"}\n` +
       `{"id":"topic","ord":"b","title":"seed order","desc":"filed under #herbs"}`,
   })
   // Both keys are really there, so this is the READING choosing between them
@@ -78,7 +78,7 @@ test("a mention that arrives with the node it names is a reference at once", () 
   // The other half of the rule above, and the reason the index is not filtered
   // by existence: the word was already written, and nothing rewrote it.
   const view = viewOf({
-    "a.olai": `{"id":"note","ord":"a","title":"ask @alice about it"}\n` +
+    "a.org": `{"id":"note","ord":"a","title":"ask @alice about it"}\n` +
       `{"id":"alice","ord":"b","title":"Alice"}`,
   })
   expect(said(view, "alice")).toEqual(["note mention"])
@@ -86,10 +86,10 @@ test("a mention that arrives with the node it names is a reference at once", () 
 
 test("a placement is not a reference, and neither is an ordering edge", () => {
   const view = viewOf({
-    "a.olai": `{"id":"herbs","ord":"a","title":"the herb bed","todo":true}\n` +
+    "a.org": `{"id":"herbs","ord":"a","title":"the herb bed","todo":true}\n` +
       `{"id":"later","ord":"b","title":"later","after":["herbs"]}\n` +
       `{"id":"sooner","ord":"c","title":"sooner","blocks":["herbs"]}`,
-    "b.olai": `{"id":"m","ord":"a","mirror":"herbs"}`,
+    "b.org": `{"id":"m","ord":"a","mirror":"herbs"}`,
   })
   // The mirror is drawn where it sits and answered by `read_node`'s `mirrors`;
   // the two ordering edges are drawn as `blocked by` and `after` on the pages
@@ -102,10 +102,10 @@ test("a reference to a PLACEMENT of this node is a reference to this node", () =
   // opens the herb bed's page — read backwards. Chains too: `m2` mirrors `m`
   // mirrors `herbs`, and `mirrorsOf` files both under `herbs`.
   const view = viewOf({
-    "a.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}`,
-    "b.olai": `{"id":"m","ord":"a","mirror":"herbs"}\n` +
+    "a.org": `{"id":"herbs","ord":"a","title":"the herb bed"}`,
+    "b.org": `{"id":"m","ord":"a","mirror":"herbs"}\n` +
       `{"id":"points","ord":"b","title":"points","see":["m"]}`,
-    "deep/c.olai": `{"id":"m2","ord":"a","mirror":"m"}\n` +
+    "deep/c.org": `{"id":"m2","ord":"a","mirror":"m"}\n` +
       `{"id":"says","ord":"b","title":"about @m2"}`,
   })
   expect(said(view, "herbs")).toEqual(["points see", "says mention"])
@@ -113,26 +113,26 @@ test("a reference to a PLACEMENT of this node is a reference to this node", () =
 
 test("a record never refers to itself, through its own prose or its own placement", () => {
   const view = viewOf({
-    "a.olai": `{"id":"herbs","ord":"a","title":"the herb bed","desc":"this is @herbs","see":["m"]}`,
-    "b.olai": `{"id":"m","ord":"a","mirror":"herbs"}`,
+    "a.org": `{"id":"herbs","ord":"a","title":"the herb bed","desc":"this is @herbs","see":["m"]}`,
+    "b.org": `{"id":"m","ord":"a","mirror":"herbs"}`,
   })
   expect(backlinksOf(view, "herbs")).toEqual([])
 })
 
 test("what is put away is on the Trash and nowhere else", () => {
   const view = viewOf({
-    "a.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}\n` +
+    "a.org": `{"id":"herbs","ord":"a","title":"the herb bed"}\n` +
       `{"id":"live","ord":"b","title":"live","see":["herbs"]}`,
-    "_olai/Trash.olai": `{"id":"gone","ord":"a","title":"about @herbs","see":["herbs"]}`,
+    "_olai/Trash.org": `{"id":"gone","ord":"a","title":"about @herbs","see":["herbs"]}`,
   })
   expect(said(view, "herbs")).toEqual(["live see"])
 })
 
-test("a leftover Archive.olai is not a referrer either", () => {
+test("a leftover Archive.org is not a referrer either", () => {
   const view = viewOf({
-    "a.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}\n` +
+    "a.org": `{"id":"herbs","ord":"a","title":"the herb bed"}\n` +
       `{"id":"live","ord":"b","title":"live","see":["herbs"]}`,
-    "Archive.olai": `{"id":"old","ord":"a","title":"about @herbs","see":["herbs"]}`,
+    "Archive.org": `{"id":"old","ord":"a","title":"about @herbs","see":["herbs"]}`,
   })
   expect(said(view, "herbs")).toEqual(["live see"])
 })
@@ -142,8 +142,8 @@ test("the referrers come in corpus order, whichever index found them", () => {
   // that sorts FIRST and the edge in the one that sorts last, so a reading that
   // simply ran one index after the other would answer in the wrong order.
   const view = viewOf({
-    "a.olai": `{"id":"early","ord":"a","title":"about @herbs"}`,
-    "b.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}\n` +
+    "a.org": `{"id":"early","ord":"a","title":"about @herbs"}`,
+    "b.org": `{"id":"herbs","ord":"a","title":"the herb bed"}\n` +
       `{"id":"late","ord":"b","title":"late","see":["herbs"]}`,
   })
   expect(said(view, "herbs")).toEqual(["early mention", "late see"])
@@ -169,7 +169,7 @@ test("markdown the browser skips: a `@id` that still starts a word IS a mention"
   // the sigil opens a word even though the markup around it is something the
   // browser would decline to style a tag inside.
   const view = viewOf({
-    "a.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}\n` +
+    "a.org": `{"id":"herbs","ord":"a","title":"the herb bed"}\n` +
       // A space INSIDE an inline code span. The backtick does not open a word;
       // the space after it does.
       `{"id":"spanned","ord":"b","title":"spanned","desc":"write \`see @herbs here\` please"}\n` +
@@ -195,7 +195,7 @@ test("...and a TIGHT code span is not one, on either side", () => {
   // backtick is not in the opening alphabet, so nothing here has to know what
   // a code span is.
   const view = viewOf({
-    "a.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}\n` +
+    "a.org": `{"id":"herbs","ord":"a","title":"the herb bed"}\n` +
       `{"id":"tight","ord":"b","title":"tight","desc":"write \`@herbs\` in the note"}`,
   })
   expect(backlinksOf(view, "herbs")).toEqual([])
@@ -209,7 +209,7 @@ test("and the divergence runs the OTHER way too: emphasis is styled and is not a
   // So a reader can see `@herbs` styled as a tag on a record's own page and not
   // find that record in the herb bed's referenced-by section.
   const view = viewOf({
-    "a.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}\n` +
+    "a.org": `{"id":"herbs","ord":"a","title":"the herb bed"}\n` +
       `{"id":"emphasised","ord":"b","title":"emphasised","desc":"see *@herbs* today"}\n` +
       `{"id":"strong","ord":"c","title":"strong","desc":"see **@herbs** today"}`,
   })
@@ -221,7 +221,7 @@ test("a word inside another word is not a mention", () => {
   // is claimed only where a word starts, because `@` sits inside addresses all
   // the time. `#herbs` is the other namespace and is never one either.
   const view = viewOf({
-    "a.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}\n` +
+    "a.org": `{"id":"herbs","ord":"a","title":"the herb bed"}\n` +
       `{"id":"mail","ord":"b","title":"write to sam@herbs.example","desc":"filed under #herbs"}`,
   })
   expect(backlinksOf(view, "herbs")).toEqual([])

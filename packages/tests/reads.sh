@@ -34,7 +34,7 @@ work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 mkdir -p "$work/vault"
 
-cat > "$work/vault/plan.olai" <<'OLAI'
+cat > "$work/vault/plan.org" <<'OLAI'
 {"id":"today","ord":"a0","title":"Today"}
 {"id":"call","parent":"today","ord":"a0","title":"call the joiner","todo":true,"desc":"about the hinges, and whether the delivery slot still stands"}
 {"id":"measure","parent":"call","ord":"a0","title":"measure the alcove first"}
@@ -43,14 +43,14 @@ cat > "$work/vault/plan.olai" <<'OLAI'
 {"id":"echo","ord":"a2","mirror":"call"}
 OLAI
 
-printf '{"id":"scrap","ord":"a0","title":"a scrap"}\n' > "$work/vault/notes.olai"
-printf '{ not a record\n' > "$work/vault/torn.olai"
+printf '{"id":"scrap","ord":"a0","title":"a scrap"}\n' > "$work/vault/notes.org"
+printf '{ not a record\n' > "$work/vault/torn.org"
 
 olai_serve "$root" "$work/vault" "$work/server.log"
 trap 'kill "$OLAI_SERVER" 2>/dev/null || true; rm -rf "$work"' EXIT
 
 echo "vault:"
-for file in plan.olai notes.olai torn.olai; do
+for file in plan.org notes.org torn.org; do
   echo "  $file"
   sed 's/^/    /' "$work/vault/$file"
 done

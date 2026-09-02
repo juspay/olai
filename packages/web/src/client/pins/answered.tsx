@@ -3,7 +3,7 @@
  * drawn.
  *
  * One subscription to the `pins` cell, one context over it. The cell carries
- * the rows of `Pins.olai` with every node address resolved, re-sent whenever a
+ * the rows of `Pins.org` with every node address resolved, re-sent whenever a
  * published revision changes what it says (`@olai/format`'s `shelfOf`,
  * `https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md` §6's item 5) — so there is nothing
  * to ask for here and no generation to ask on: the server is the one that knows
@@ -40,7 +40,7 @@ const ShelfContext = createContext<() => Shelf>()
 export function PinsProvider(props: { readonly children: JSX.Element }) {
   const cell = olai.cells.pins.use()
   // BEFORE THE FIRST FRAME the shelf is empty, which is the same thing a
-  // directory with no `Pins.olai` says and the same thing it draws: nothing.
+  // directory with no `Pins.org` says and the same thing it draws: nothing.
   // A shelf cannot be "not known yet" to a reader — an empty column and a
   // column that has not heard look identical, so there is no third state to
   // give anybody.

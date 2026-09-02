@@ -1625,7 +1625,7 @@ describe("refusals and replacement", () => {
       reason: "`done: Kitchen remodel` would leave the outlines invalid",
       verdict: verdictOf([{
         code: "duplicate-id",
-        file: "house.olai",
+        file: "house.org",
         line: 3,
         message: "`order` is already the id of another node",
       }]),

@@ -161,14 +161,14 @@ test("filesOf hashes contents, not mtimes, and walks nested paths with /", () =>
   try {
     fs.mkdirSync(path.join(root, "notes"));
     fs.writeFileSync(path.join(root, "notes", "first.html"), "<h1>a</h1>\n");
-    fs.writeFileSync(path.join(root, "house.olai"), "{}\n");
+    fs.writeFileSync(path.join(root, "house.org"), "{}\n");
     const first = filesOf(root);
-    expect([...first.keys()].sort()).toEqual(["house.olai", "notes/first.html"]);
+    expect([...first.keys()].sort()).toEqual(["house.org", "notes/first.html"]);
     const later = Date.now() + 10_000;
-    fs.utimesSync(path.join(root, "house.olai"), later / 1000, later / 1000);
-    expect(filesOf(root).get("house.olai")).toBe(first.get("house.olai"));
-    fs.writeFileSync(path.join(root, "house.olai"), "{x}\n");
-    expect(filesOf(root).get("house.olai")).not.toBe(first.get("house.olai"));
+    fs.utimesSync(path.join(root, "house.org"), later / 1000, later / 1000);
+    expect(filesOf(root).get("house.org")).toBe(first.get("house.org"));
+    fs.writeFileSync(path.join(root, "house.org"), "{x}\n");
+    expect(filesOf(root).get("house.org")).not.toBe(first.get("house.org"));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -179,11 +179,11 @@ test("PIN (restore): restoreTree puts the fixture back and deletes extras", () =
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-scratch-rst-"));
   try {
     fs.mkdirSync(path.join(fixture, "notes"));
-    fs.writeFileSync(path.join(fixture, "house.olai"), "{}\n");
+    fs.writeFileSync(path.join(fixture, "house.org"), "{}\n");
     fs.writeFileSync(path.join(fixture, "notes", "a.md"), "a\n");
     fs.mkdirSync(path.join(root, "notes"));
-    fs.writeFileSync(path.join(root, "house.olai"), "{x}\n");
-    fs.writeFileSync(path.join(root, "extra.olai"), "nope\n");
+    fs.writeFileSync(path.join(root, "house.org"), "{x}\n");
+    fs.writeFileSync(path.join(root, "extra.org"), "nope\n");
     fs.writeFileSync(path.join(root, "notes", "extra.md"), "gone\n");
     const notesIno = fs.statSync(path.join(root, "notes")).ino;
     const origin = filesOf(fixture);
@@ -191,9 +191,9 @@ test("PIN (restore): restoreTree puts the fixture back and deletes extras", () =
     restoreTree(root, fixture);
     expect(sameTree(filesOf(root), origin)).toBe(true);
     expect(leftovers(origin, root)).toEqual([]);
-    expect(fs.existsSync(path.join(root, "extra.olai"))).toBe(false);
+    expect(fs.existsSync(path.join(root, "extra.org"))).toBe(false);
     expect(fs.existsSync(path.join(root, "notes", "extra.md"))).toBe(false);
-    expect(fs.readFileSync(path.join(root, "house.olai"), "utf8")).toBe("{}\n");
+    expect(fs.readFileSync(path.join(root, "house.org"), "utf8")).toBe("{}\n");
     expect(fs.statSync(path.join(root, "notes")).ino).toBe(notesIno);
   } finally {
     fs.rmSync(fixture, { recursive: true, force: true });
@@ -205,18 +205,18 @@ test("PIN (baseline): leftovers names the files restore did not put back", () =>
   const originRoot = fs.mkdtempSync(path.join(os.tmpdir(), "olai-scratch-org-"));
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-scratch-left-"));
   try {
-    fs.writeFileSync(path.join(originRoot, "house.olai"), "{}\n");
-    fs.writeFileSync(path.join(root, "house.olai"), "{x}\n");
-    fs.writeFileSync(path.join(root, "extra.olai"), "nope\n");
+    fs.writeFileSync(path.join(originRoot, "house.org"), "{}\n");
+    fs.writeFileSync(path.join(root, "house.org"), "{x}\n");
+    fs.writeFileSync(path.join(root, "extra.org"), "nope\n");
     const origin = filesOf(originRoot);
-    expect(leftovers(origin, root)).toEqual(["extra.olai", "house.olai"]);
+    expect(leftovers(origin, root)).toEqual(["extra.org", "house.org"]);
     const error = unrestoredError(
       "keyboard_editing.feature",
       "Typing a title writes it, and the page follows the file",
       leftovers(origin, root),
     );
-    expect(error.message).toContain("house.olai");
-    expect(error.message).toContain("extra.olai");
+    expect(error.message).toContain("house.org");
+    expect(error.message).toContain("extra.org");
     expect(error.message).toContain("Typing a title");
     expect(error.message).toContain(OWN_TAG);
     expect(error.message).toContain(SHARE_TAG);
@@ -261,8 +261,8 @@ test("PIN (resync waits): the door waits for in-flight writes, then probes", () 
 test("PIN (drain-then-restore): a stage file that lands during drain is restored away", async () => {
   const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "olai-scratch-drain-fix-"));
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-scratch-drain-rst-"));
-  fs.writeFileSync(path.join(fixture, "house.olai"), "{}\n");
-  fs.writeFileSync(path.join(root, "house.olai"), "{x}\n");
+  fs.writeFileSync(path.join(fixture, "house.org"), "{}\n");
+  fs.writeFileSync(path.join(root, "house.org"), "{x}\n");
   const origin = filesOf(fixture);
   let posts = 0;
   let atSecond: { tmp: boolean; house: string } | undefined;
@@ -275,7 +275,7 @@ test("PIN (drain-then-restore): a stage file that lands during drain is restored
       if (posts === 2) {
         atSecond = {
           tmp: fs.existsSync(path.join(root, ".olai-1-0.tmp")),
-          house: fs.readFileSync(path.join(root, "house.olai"), "utf8"),
+          house: fs.readFileSync(path.join(root, "house.org"), "utf8"),
         };
       }
       res.statusCode = 204;
@@ -304,7 +304,7 @@ test("PIN (drain-then-restore): a stage file that lands during drain is restored
     expect(atSecond).toEqual({ tmp: false, house: "{}\n" });
     expect(left).toEqual([]);
     expect(fs.existsSync(path.join(root, ".olai-1-0.tmp"))).toBe(false);
-    expect(fs.readFileSync(path.join(root, "house.olai"), "utf8")).toBe("{}\n");
+    expect(fs.readFileSync(path.join(root, "house.org"), "utf8")).toBe("{}\n");
   } finally {
     await new Promise<void>((resolve, reject) => {
       server.close((err) => (err ? reject(err) : resolve()));

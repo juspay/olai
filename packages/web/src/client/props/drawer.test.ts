@@ -15,7 +15,7 @@ import { expect, test } from "bun:test"
 import { customEntries, drawerEntries, systemEntries } from "./drawer.ts"
 
 const nodeOf = (record: string): RegularNode =>
-  recordsOf(setOf({ "a.olai": record }))[0]?.node as RegularNode
+  recordsOf(setOf({ "a.org": record }))[0]?.node as RegularNode
 
 test("the id is always a line, because nothing else on the page says it", () => {
   // The ruling this file was rewritten for: an id is what every tool call and
@@ -93,7 +93,15 @@ test("the custom chips are in the file's own order, whatever order that is", () 
     .toEqual(["agent", "pr", "terminal"])
 
   const handWritten = nodeOf(
-    `{"id":"n","ord":"a0","title":"t","custom":{"terminal":"485cd9bb","agent":"claude-opus","pr":"https://x/1"}}`,
+    `* t
+:PROPERTIES:
+:ID: n
+:OLAI_KIND: regular
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "t"
+:OLAI_CUSTOM: {"terminal":"485cd9bb","agent":"claude-opus","pr":"https://x/1"}
+:END:
+`,
   )
   expect(customEntries(customOf(handWritten)).map((entry) => entry.key))
     .toEqual(["terminal", "agent", "pr"])

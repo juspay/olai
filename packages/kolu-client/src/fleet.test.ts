@@ -22,7 +22,7 @@ import { type Claimant, claimsIn, rowOf } from "./fleet.ts"
 const claimant = (id: string, terminal: string | undefined): Claimant => ({
   id,
   title: `the ${id} step`,
-  file: "orchestrator/lanes.olai",
+  file: "orchestrator/lanes.org",
   terminal,
 })
 
@@ -103,7 +103,7 @@ describe("the ownership overlay", () => {
       kind: "node",
       id: "lane-1-implement",
       title: "the lane-1-implement step",
-      file: "orchestrator/lanes.olai",
+      file: "orchestrator/lanes.org",
     })
   })
 

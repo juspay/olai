@@ -16,12 +16,12 @@
  * new path was one somebody had already unticked.
  *
  * The unit is a FILE, and for an outline that means its node changes travel
- * together: a partial `.olai` write is not a thing that exists, so a half-ticked
+ * together: a partial `.org` write is not a thing that exists, so a half-ticked
  * outline would be an offer olai cannot keep.
  *
  * Keyed by REPO-ROOT-RELATIVE path throughout, which is the one name a file has
- * that cannot collide: an outline `roadmap.olai` served out of `docs/` and some
- * other dirty `roadmap.olai` at the repository root are two rows and two ticks.
+ * that cannot collide: an outline `roadmap.org` served out of `docs/` and some
+ * other dirty `roadmap.org` at the repository root are two rows and two ticks.
  */
 
 import { composed, type NodeChange, type Other, type Pending } from "@olai/format"

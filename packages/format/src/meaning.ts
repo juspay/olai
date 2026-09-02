@@ -125,7 +125,7 @@ import {
  * see.
  */
 export const Meaning = Schema.Union([
-  /** A document of this directory — a `.md`, a `.html`, an `.olai`, anything
+  /** A document of this directory — a `.md`, a `.html`, an `.org`, anything
    *  with a page. The path is resolved and SERVED: existence was asked, which
    *  is what makes this different from a written markdown link. */
   Schema.Struct({ kind: Schema.Literal("document"), file: Schema.String }),
@@ -261,7 +261,7 @@ export interface Vault {
   readonly declares: (id: string) => boolean
   /**
    * Does the directory serve this path — asked of EVERY file it holds, not only
-   * the documents, so an `.olai` may be named.
+   * the documents, so an `.org` may be named.
    *
    * The wide question, and it is the one a value that PROMISED nothing gets: a
    * `path` and an undeclared key alike say only that some string is there, so
@@ -276,7 +276,7 @@ export interface Vault {
    *
    * TWO PREDICATES AND NOT ONE, which is the shape grok's review corrected. A
    * single `serves` behind both meant the gate asked `markdownPaths` and the
-   * display asked the whole file list, so a `doc` value naming a served `.olai`
+   * display asked the whole file list, so a `doc` value naming a served `.org`
    * was REFUSED by the validator and DRAWN AS A LIVE DOOR by the chip — the
    * bug family this module exists to close, recreated inside the socket.
    *
@@ -430,7 +430,7 @@ const declaredly = (
       //
       // IT MAY NOT RIDE `path`'S ARM, and the review that caught it named the
       // failure exactly: `path`'s display asks the whole file list, so a `doc`
-      // value naming a served `.olai` was refused by the gate and drawn as a
+      // value naming a served `.org` was refused by the gate and drawn as a
       // live door — a wrong door on a finding, which is this module's founding
       // rule broken by the module built to keep it.
       const file = resolvedDoc(declared, from, value)
@@ -565,7 +565,7 @@ const dayIn = (value: string): Meaning | null =>
  * The path arithmetic and its refusals are one place ({@link ./documents.ts}'s
  * `pathedOf`: no scheme, no `//host`, no absolute path, no bare fragment, and a
  * `..` clamped to the served root) and existence is the question after it —
- * which is what lets an `.olai` be named, since the app draws a page for one
+ * which is what lets an `.org` be named, since the app draws a page for one
  * and no suffix allowlist has room for it.
  *
  * `declared` is `undefined` for the guess, which is exactly what it means:

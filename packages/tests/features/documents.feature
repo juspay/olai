@@ -29,7 +29,7 @@ Feature: Documents
     And the page has not reloaded
     And there should be no page errors
 
-  # The ⌘K row of the `.olai`/`.md` parity table. The palette streamed node
+  # The ⌘K row of the `.org`/`.md` parity table. The palette streamed node
   # hits and captured a line to the inbox, and offered no way to a document at
   # all: a reader who knew the file existed had to leave the modal, find the
   # sidebar and open the folder it lives in.
@@ -40,7 +40,7 @@ Feature: Documents
   # item of its own, and the grammar in this box still selects nodes.
   @corpus:good
   Scenario: The ⌘K palette opens a document by name
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     And I mark the page
     When I press the palette shortcut
     And I type "palette" into the palette
@@ -57,7 +57,7 @@ Feature: Documents
   # inside one client.
   @corpus:good
   Scenario: The header's box finds the same document, drawn the same way
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     When I search the header for "palette"
     Then the header search lists the document "notes/palette.md"
     When I press the header search result "palette.md"
@@ -70,12 +70,12 @@ Feature: Documents
   # than a list of suffixes written out here.
   @corpus:good
   Scenario: The palette's document rows are the bodied files, matched by path
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     When I press the palette shortcut
     And I type "notes/" into the palette
     Then the palette lists the document "notes/palette.md"
     When I type "garden" into the palette
-    Then the palette lists no document "garden.olai"
+    Then the palette lists no document "garden.org"
 
   @corpus:good
   Scenario: A document is a page of its own, at its own address
@@ -216,7 +216,7 @@ Feature: Documents
   # the row says which key was the reason exactly as a node's row does.
   @corpus:good
   Scenario: A document is found by a property its frontmatter writes
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     When I search the header for "prop:agent=claude-opus"
     Then the header search lists the document "notes/palette.md"
     And the header search result for the document "notes/palette.md" is called "Palette"
@@ -229,7 +229,7 @@ Feature: Documents
   # both are still findable by the name they actually have.
   @corpus:good
   Scenario: A frontmatter key is not a tag and not a day
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     When I press the palette shortcut
     And I type "#swatches" into the palette
     Then the palette lists no document "notes/palette.md"
@@ -253,7 +253,7 @@ Feature: Documents
   # attaches it is still not that document's page.
   @corpus:good
   Scenario: A document drawn under a node has no contents
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     When I zoom into the node "install"
     Then the reference on "install" draws the document
     And there is no contents on the page
@@ -284,13 +284,13 @@ Feature: Documents
     # `packages/surface`, where a URL nobody can send can still be tried.
     Then requesting "/media/..%2foutside.png" answers 404
     # Only pictures, whatever else is in the directory.
-    And requesting "/media/garden.olai" answers 404
+    And requesting "/media/garden.org" answers 404
     And requesting "/media/finishes.md" answers 404
     And requesting "/media/art/handle.png" answers 200 with type "image/png"
 
   @corpus:good
   Scenario: A node's doc is a reference in the tree and the document itself when zoomed
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     Then the node "install" refers to the document "finishes.md"
     And the reference on "install" shows "Finishes"
     And the reference on "install" does not draw the document
@@ -310,11 +310,11 @@ Feature: Documents
 
       Brushed brass.
       """
-    And I rewrite "house.olai" as:
+    And I rewrite "house.org" as:
       """
       {"id":"install","ord":"a0","title":"install the cabinets","doc":"note.md"}
       """
-    And I open the outline "house.olai"
+    And I open the outline "house.org"
     Then the node "install" refers to the document "note.md"
     And the reference on "install" shows "Finishes"
     When the served file "note.md" cannot be read
@@ -322,7 +322,7 @@ Feature: Documents
 
   @corpus:good
   Scenario: The reference on a node is the way to the document's page
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     And I mark the page
     When I follow the document link on "install"
     Then the document open is "finishes.md"
@@ -443,7 +443,7 @@ Feature: Documents
   # word inside a document was invisible to every door in this app.
   @corpus:good
   Scenario: A word in a document's prose is something a search finds
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     When I press the palette shortcut
     And I type "cabinetmaker" into the palette
     Then the palette lists the document "finishes.md"
@@ -453,7 +453,7 @@ Feature: Documents
   # that found different things would be the drift the one index exists against.
   @corpus:good
   Scenario: The header's box finds a body too
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     When I search the header for "cabinetmaker"
     Then the header search lists the document "finishes.md"
     When I press the header search result "Finishes"

@@ -74,7 +74,7 @@
  *
  * ## The archives ARE in the `@` list, and that is a decision — not an oversight
  *
- * An `_olai/Trash.olai` is a file the directory serves, so it is in the list the
+ * An `_olai/Trash.org` is a file the directory serves, so it is in the list the
  * composer passes; the sidebar hides it behind the Trash and that does not
  * (docs/chat.md). What a message may NAME is a different question from what a
  * reader opens, and "what did we put away last month" is a fair thing to ask an

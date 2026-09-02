@@ -33,6 +33,7 @@ import { Result } from "effect"
 
 import type { Derived } from "./derive.ts"
 import { matching, parseFilter } from "./filter.ts"
+import { orgFixture } from "./fixtures.testlib.ts"
 import { isMirror } from "./node.ts"
 import { parseOutline } from "./parse.ts"
 import {
@@ -129,7 +130,7 @@ test("a record written beneath a placement is under nothing above that placement
   expect(
     matching(at.derived, parseFilter("kitchen", NOW), {
       under: "t-root",
-      file: "tangled.olai",
+      file: "tangled.org",
     }).map((one) => one.at.node.id),
   ).toEqual(["t-root", "t-live", "t-inner"])
   // THE TRAP: `t-beneath` and `t-deeper` are written under a mirror, so the
@@ -143,12 +144,12 @@ test("a record written beneath a placement is under nothing above that placement
   expect(found("t-place")).toEqual([])
   expect(found("t-chain")).toEqual([])
   // ...and EMPTY WITH A LIVE FILE BESIDE IT, which is the half that makes the
-  // two lines above a claim rather than a coincidence: `tangled.olai` holds
+  // two lines above a claim rather than a coincidence: `tangled.org` holds
   // four records this query selects, so a narrowing that answered an empty
   // `under:` by falling through to the file would say so here and nowhere else
   // (the same pair `asksOver` now draws over every corpus).
   const inFile = (under: string): ReadonlyArray<string> =>
-    matching(at.derived, parseFilter("kitchen", NOW), { under, file: "tangled.olai" })
+    matching(at.derived, parseFilter("kitchen", NOW), { under, file: "tangled.org" })
       .map((one) => one.at.node.id)
   expect(inFile("t-place")).toEqual([])
   expect(inFile("t-nobody")).toEqual([])
@@ -379,7 +380,7 @@ test("a write leaves the narrowing answering what the walk does", () => {
     // the previous round's corpus with itself, and it would pass.
     if (edited === text) throw new Error(`the edit to ${file} changed nothing`)
     vault.set(file, edited)
-    decoded.set(file, Result.mapError(parseOutline(file, edited), verdictOf))
+    decoded.set(file, Result.mapError(parseOutline(file, orgFixture(edited)), verdictOf))
   }
   const requeried = (changed: ReadonlyArray<string>, removed: ReadonlyArray<string>): void => {
     read = reading(assemble(decoded), {
@@ -394,8 +395,8 @@ test("a write leaves the narrowing answering what the walk does", () => {
     // corpus walk may legitimately differ (`./filter.ts`'s `namedInScope`), so
     // an edit that minted one would report a divergence that is about this
     // fixture and not about the narrowing — which is exactly what the first
-    // draft of this test did, by writing `deep5.olai` beside the generator's
-    // own `area5/deep5.olai`.
+    // draft of this test did, by writing `deep5.org` beside the generator's
+    // own `area5/deep5.org`.
     expect(read.derived.byId.size).toBe(read.derived.nodes.length)
     holds(differential(read, asking(), NOW), { hits: 40, narrowing: 15 })
     moved.push(say())
@@ -405,34 +406,34 @@ test("a write leaves the narrowing answering what the walk does", () => {
   // one scope and puts it into another, and the one a child list that was
   // merely appended to would answer for both.
   rewritten(
-    "deep3.olai",
+    "deep3.org",
     (text) => text.replace(/^\{"id":"d3n17","parent":"[^"]*"/m, `{"id":"d3n17","parent":"d3n1"`),
   )
-  requeried(["deep3.olai"], [])
+  requeried(["deep3.org"], [])
 
   // A PLACEMENT ARRIVES over a live branch: whatever hangs under `d4n1` was in
   // every scope above it a moment ago and is in none of them now, which is the
   // trap asked as an EDIT rather than as a fixture.
   rewritten(
-    "deep4.olai",
+    "deep4.org",
     (text) =>
       text.replace(/^\{"id":"d4n1".*$/m, `{"id":"d4n1","parent":"d4r","ord":"a1","mirror":"d3r"}`),
   )
-  requeried(["deep4.olai"], [])
+  requeried(["deep4.org"], [])
 
   // A FILE REWRITTEN WHOLE — every record in it a new object under a new id,
   // which is the patcher's re-file path rather than its carry-across one, and
   // takes every scope the old ids named away with it.
-  rewritten("deep8.olai", (text) => text.replaceAll(`"d8`, `"e8`))
-  requeried(["deep8.olai"], [])
+  rewritten("deep8.org", (text) => text.replaceAll(`"d8`, `"e8`))
+  requeried(["deep8.org"], [])
 
   // ...and a FILE GONE, taking a scope's records with it: `under:` a root in it
   // must answer nothing, and `file:` it must too.
-  vault.delete("deep6.olai")
-  decoded.delete("deep6.olai")
-  requeried([], ["deep6.olai"])
+  vault.delete("deep6.org")
+  decoded.delete("deep6.org")
+  requeried([], ["deep6.org"])
   expect(matching(read.derived, parseFilter("kitchen", NOW), { under: "d6r" })).toEqual([])
-  expect(matching(read.derived, parseFilter("kitchen", NOW), { file: "deep6.olai" })).toEqual([])
+  expect(matching(read.derived, parseFilter("kitchen", NOW), { file: "deep6.org" })).toEqual([])
 
   // THE EDITS REALLY MOVED THE ANSWER. Without this the four comparisons above
   // could be four readings of one unchanged corpus, which is the way a soak
@@ -461,7 +462,7 @@ test("a scoped query never reads the corpus", () => {
   const blind = withoutCorpus(at.derived)
   const file = [...at.derived.byFile.keys()][3] as string
   const asked = parseFilter("kitchen OR garden", NOW)
-  for (const scope of [{ file }, { under: "d9n1" }, { under: "d9n1", file: "deep9.olai" }]) {
+  for (const scope of [{ file }, { under: "d9n1" }, { under: "d9n1", file: "deep9.org" }]) {
     // The same answer, arrived at without the corpus in reach — both halves
     // matter, and a scope that answered nothing at all would pass the first.
     expect(matching(blind, asked, scope)).toEqual(matching(at.derived, asked, scope))
@@ -472,7 +473,7 @@ test("a scoped query never reads the corpus", () => {
   // holds records from OUTSIDE the scope as well as inside it, so the scope has
   // something to cut and the comparison is not two empty answers.
   const named = [
-    ...(at.derived.byFile.get("deep9.olai") ?? []),
+    ...(at.derived.byFile.get("deep9.org") ?? []),
     ...(at.derived.byFile.get(file) ?? []),
   ].map((one) => one.node.id)
   const off = matching(at.derived, asked, { under: "d9r" }, named)

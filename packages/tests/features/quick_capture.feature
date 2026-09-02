@@ -27,7 +27,7 @@ Feature: A line captured from a terminal arrives on the page
   noticed.
 
   `@scratch:` because a capture writes the directory it is served, and mints
-  `_olai/Inbox.olai` in it — and `@share-scratch` because the restore between
+  `_olai/Inbox.org` in it — and `@share-scratch` because the restore between
   scenarios REMOVES a file the fixture does not have, which is exactly what a
   minted inbox is. So the whole feature costs one server rather than four, and
   the first line of every scenario ("no Inbox") is what proves the restore took.
@@ -35,7 +35,7 @@ Feature: A line captured from a terminal arrives on the page
   Scenario: A capture from a terminal reaches the page somebody already has open
     # Nothing is reloaded and nothing is pressed: the line is typed somewhere
     # else and the sidebar follows the disk like any other write.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     And the sidebar offers no Inbox
     When I capture "look into the new cabinets" from a terminal
     Then the sidebar offers the Inbox
@@ -48,7 +48,7 @@ Feature: A line captured from a terminal arrives on the page
     # took the write, and the address of the row it made — which is the half
     # that was missing when a capture went to the wrong vault and looked
     # exactly like one that had not.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     When I capture "buy the handles" from a terminal
     Then the terminal was told it captured into the served directory
     And the terminal was given a link to the row
@@ -58,7 +58,7 @@ Feature: A line captured from a terminal arrives on the page
     # The flag decides, and nothing about what stdout is attached to does. Both
     # of these run with stdout on a pipe, so a rule that read the descriptor
     # would give the same answer twice and prove nothing.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     When I capture "sand the shelf" from a terminal, asking for JSON
     Then the terminal was given the whole record, naming the vault
     And there should be no page errors
@@ -67,9 +67,9 @@ Feature: A line captured from a terminal arrives on the page
     # The other half of a client: `olai surface get outlines <path>` reads the
     # same collection an agent reads, through the same door the write went out
     # on — so one binary both wrote and saw it, with no browser involved.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     When I capture "fit the hinges" from a terminal
-    Then reading "_olai/Inbox.olai" from a terminal shows "fit the hinges"
+    Then reading "_olai/Inbox.org" from a terminal shows "fit the hinges"
     And there should be no page errors
 
   Scenario: …and lands on today, because nobody was looking at the inbox
@@ -88,7 +88,7 @@ Feature: A line captured from a terminal arrives on the page
     # refusal it replaced. And a call that names no server is a usage error
     # that never leaves the process, rather than a write into whichever vault
     # happened to be reachable.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     Then capturing while claiming "captured-by" is not something this door takes
     And capturing without saying which server is refused before anything is sent
     And the sidebar offers no Inbox

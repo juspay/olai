@@ -34,7 +34,7 @@ import { hrefOf } from "../routes.ts"
 
 /** The directory these cases are read against: two documents, one node the set
  *  declares, and a file the vault does NOT serve. */
-const SERVED = ["briefs/pda.md", "brainstorming/props-ui.html", "orchestrator/agents.olai"]
+const SERVED = ["briefs/pda.md", "brainstorming/props-ui.html", "orchestrator/agents.org"]
 
 /** ...and the `.md` half of it, WRITTEN OUT rather than filtered by suffix: a
  *  fixture that decided what a document is by spelling `.endsWith` would be a
@@ -43,7 +43,7 @@ const SERVED = ["briefs/pda.md", "brainstorming/props-ui.html", "orchestrator/ag
  *  exactly that). */
 const DOCUMENTS = ["briefs/pda.md"]
 const DECLARED: Record<string, { id: string; title: string; file: string }> = {
-  pi: { id: "pi", title: "pi", file: "orchestrator/agents.olai" },
+  pi: { id: "pi", title: "pi", file: "orchestrator/agents.org" },
 }
 
 /** The vault the CONSULT is asked of — three facts about a directory that
@@ -75,11 +75,11 @@ const doorFrom = (from: string) => (value: string, key = "note"): Door | null =>
   return opens === null ? null : doorFor(opens, value, names)
 }
 
-/** Written on a record of `orchestrator/lanes.olai`, which is where the live
+/** Written on a record of `orchestrator/lanes.org`, which is where the live
  *  board's lane nodes are — so a value naming `briefs/pda.md` is naming it from
  *  one directory in. */
-const LANES = doorFrom("orchestrator/lanes.olai")
-const ROOT = doorFrom("roadmap.olai")
+const LANES = doorFrom("orchestrator/lanes.org")
+const ROOT = doorFrom("roadmap.org")
 
 // ── the five kinds ─────────────────────────────────────────────────────
 
@@ -130,7 +130,7 @@ test("a value that IS a node's id opens that node, and says what it is called", 
 })
 
 test("a vault path opens that document — resolved beside the file it was written in", () => {
-  // From `orchestrator/lanes.olai`, a bare `briefs/pda.md` is
+  // From `orchestrator/lanes.org`, a bare `briefs/pda.md` is
   // `orchestrator/briefs/pda.md`, which the directory does not serve; the same
   // value written on a root outline names the served file. That is the same
   // arithmetic a relative link in a note takes, and the reason it is asked at
@@ -188,13 +188,13 @@ test("a node is matched by ID and never by title", () => {
   const titled = (value: string): Door | null => {
     const opens = meaningOf(
       { ...vault, declares: (id) => id === "agent-pi" },
-      "roadmap.olai",
+      "roadmap.org",
       "note",
       value,
     )
     return opens === null ? null : doorFor(opens, value, (id) =>
       id === "agent-pi"
-        ? { id: "agent-pi", title: "pi", file: "orchestrator/agents.olai" }
+        ? { id: "agent-pi", title: "pi", file: "orchestrator/agents.org" }
         : undefined)
   }
   expect(titled("pi")).toBeNull()
@@ -212,8 +212,8 @@ test("a path the directory does not serve is a string, not a broken link", () =>
 })
 
 test("a relative path to something with no page is left alone", () => {
-  // `.olai` is served and has a page; a `.txt` beside the notes has neither.
-  expect(ROOT("orchestrator/agents.olai")?.kind).toBe("document")
+  // `.org` is served and has a page; a `.txt` beside the notes has neither.
+  expect(ROOT("orchestrator/agents.org")?.kind).toBe("document")
   expect(ROOT("notes/scratch.txt")).toBeNull()
 })
 
@@ -249,7 +249,7 @@ test("`javascript:` and `data:` are text, and cannot become an href", () => {
 test("a date-shaped value is a date even where a node id could have matched", () => {
   const dated = meaningOf(
     { ...vault, declares: (id) => id === "2026-08-31" },
-    "roadmap.olai",
+    "roadmap.org",
     "note",
     "2026-08-31",
   )
@@ -283,7 +283,7 @@ test("an answer the vault declared a reference draws the target's title", () => 
     "agent-claude-opus",
     (id) =>
       id === "agent-claude-opus"
-        ? { id, title: "claude-opus", file: "orchestrator/agents.olai" }
+        ? { id, title: "claude-opus", file: "orchestrator/agents.org" }
         : undefined,
   )
   expect(claude.face).toBe("claude-opus")

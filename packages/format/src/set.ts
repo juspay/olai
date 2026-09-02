@@ -52,7 +52,7 @@ import { admits, darkened, type Verdict, verdictOf } from "./verdict.ts"
  *
  * It rides in the SET rather than only in the error report because the two
  * answer different questions. The report is "what must be fixed"; this is
- * "what does `pantry.olai` show" — and the answer is its own errors, in place,
+ * "what does `pantry.org` show" — and the answer is its own errors, in place,
  * while every other outline stays live. A view that had only the report would
  * have to guess which outline a `file:line` belonged to and hope the two lists
  * agreed.
@@ -244,7 +244,7 @@ export const brokenBy = (
  *
  * THE WRITE THAT MENDS is admitted by the same line, and nothing here has to
  * know it is one: a commit is judged on the set it WOULD make, so a write that
- * fixes `lanes.olai` wholly leaves a set with nothing to say about `lanes.olai`
+ * fixes `lanes.org` wholly leaves a set with nothing to say about `lanes.org`
  * and lands, and one that half-fixes it is stopped by what is left. There is no
  * repair case and no exception for it — there is one rule, asked of the tree
  * the write would leave behind.

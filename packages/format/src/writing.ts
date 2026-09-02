@@ -125,7 +125,7 @@ const CAPTURE = {
   props: Schema.optionalKey(
     Schema.Record(Schema.String, Schema.String).annotate({
       description:
-        "Named facts this node is born with — the map `set_prop` writes into, several keys at once, with that verb's own refusals: for a key spelled like a field the format already has, and for a value that does not fit what its key DECLARES in `_olai/Properties.olai`. One bad value refuses the whole capture, children included, and nothing is written. A key holding an empty string is a key the file does not carry.",
+        "Named facts this node is born with — the map `set_prop` writes into, several keys at once, with that verb's own refusals: for a key spelled like a field the format already has, and for a value that does not fit what its key DECLARES in `_olai/Properties.org`. One bad value refuses the whole capture, children included, and nothing is written. A key holding an empty string is a key the file does not carry.",
     }),
   ),
   /** The free cross-references this node is born with — `set_see`'s list.
@@ -486,7 +486,7 @@ export const PropRequest = Schema.Struct({
    *  is a key the file does not carry. */
   value: Schema.NullOr(Schema.String).annotate({
     description:
-      "What the property holds, as text. `null` removes it — and so does the empty string, since a key holding nothing is a key the file does not carry. A key the vault DECLARES in `_olai/Properties.olai` has a type, and a value that does not fit it is REFUSED with the values it may hold named: `merge` is one of its declared variants' ids, `records` is a whole number, `dispatched` is a date and nothing else — the commentary goes in the note. An accepted spelling is stored as the one canonical spelling (`2026-08-25 10:06` lands as the instant a mark records). Every other key is text and takes anything, as before.",
+      "What the property holds, as text. `null` removes it — and so does the empty string, since a key holding nothing is a key the file does not carry. A key the vault DECLARES in `_olai/Properties.org` has a type, and a value that does not fit it is REFUSED with the values it may hold named: `merge` is one of its declared variants' ids, `records` is a whole number, `dispatched` is a date and nothing else — the commentary goes in the note. An accepted spelling is stored as the one canonical spelling (`2026-08-25 10:06` lands as the instant a mark records). Every other key is text and takes anything, as before.",
   }),
   /* The CONDITION, spelled the text verbs' way and for one key instead of one
    *  field: `null` is a real answer here — "expects no such key", which is
@@ -528,7 +528,7 @@ export const PropRequest = Schema.Struct({
  * hole: the whole set is judged before either file is.
  *
  * **`parent` IS STILL SAME-FILE BY THE FORMAT**, and that has not changed: a
- * `.olai` is an independent tree and a record's parent lives in its own file.
+ * `.org` is an independent tree and a record's parent lives in its own file.
  * What changed is that the SUBTREE travels with the reparenting, so the record
  * that lands has its parent in the file it landed in. The sentence that used to
  * stand here — "a move never crosses outlines, archiving is what does" — was a
@@ -537,7 +537,7 @@ export const PropRequest = Schema.Struct({
  * across the set including the trash, so the same ones cannot be reused)
  * silently detaches every reference into what moved. That was the gap.
  *
- * **The trash is neither end of it.** A node goes into `_olai/Trash.olai`
+ * **The trash is neither end of it.** A node goes into `_olai/Trash.org`
  * through `trash_node`, which records the outline it left, and comes back out
  * through `untrash_node`, which tidies the scaffold above it and re-opens the
  * marks that stop being true the moment a branch is live again. Naming a trash
@@ -624,7 +624,7 @@ export const SplitRequest = Schema.Struct({
  *   - the CHILDREN move, in order, to the end of the sibling's own — nothing
  *     may be orphaned by a keystroke;
  *   - the MARK, the DATE and the EDGES of the node being merged go WITH ITS
- *     RECORD into `_olai/Trash.olai`, because the format allows one mark per node
+ *     RECORD into `_olai/Trash.org`, because the format allows one mark per node
  *     and the surviving row already has its own answer. Nothing is destroyed —
  *     the record is in the trash with its ids intact — and the answer's `nudge`
  *     says what went, so a `done` never disappears silently.
@@ -633,7 +633,7 @@ export const MergeRequest = Schema.Struct({
   op: Schema.Literal("merge"),
   id: Schema.String.annotate({
     description:
-      "The `id` of the node to merge INTO THE SIBLING ABOVE IT. Its title is appended to that sibling's, its note joined to that sibling's, its children moved under it — and its own record goes to `_olai/Trash.olai`, keeping its id, mark, date and edges.",
+      "The `id` of the node to merge INTO THE SIBLING ABOVE IT. Its title is appended to that sibling's, its note joined to that sibling's, its children moved under it — and its own record goes to `_olai/Trash.org`, keeping its id, mark, date and edges.",
   }),
 })
 
@@ -696,7 +696,7 @@ export const DuplicateRequest = Schema.Struct({
 })
 
 /**
- * Take a subtree back OUT of an `_olai/Trash.olai` — the inverse `archive` never
+ * Take a subtree back OUT of an `_olai/Trash.org` — the inverse `archive` never
  * had, built once here and exposed on both faces together (HACKING.md's
  * consistency rule; `parity-unarchive`).
  *
@@ -715,7 +715,7 @@ export const UntrashRequest = Schema.Struct({
   op: Schema.Literal("untrash"),
   id: Schema.String.annotate({
     description:
-      "The `id` of a node in an `_olai/Trash.olai`. It comes back out with everything under it.",
+      "The `id` of a node in an `_olai/Trash.org`. It comes back out with everything under it.",
   }),
   file: Schema.optionalKey(
     Schema.String.annotate({
@@ -750,9 +750,9 @@ export const UntrashRequest = Schema.Struct({
  *
  * **THERE IS ONE TRASH, SO THE SUBJECT IS ONE FILE.** The list that used to
  * sit here was the shape of a union of per-directory piles; with one
- * `_olai/Trash.olai` that union is a single path, and an array that can name
+ * `_olai/Trash.org` that union is a single path, and an array that can name
  * the same file twice (or none) is a fossil of the old convention. A leftover
- * `Archive.olai` is not the trash and is refused.
+ * `Archive.org` is not the trash and is refused.
  *
  * **WHAT IT IS REFUSED FOR is the rule `remove_mirror` already keeps**, read
  * over every record this write deletes: a record that is still NAMED by
@@ -784,7 +784,7 @@ export const EmptyRequest = Schema.Struct({
   op: Schema.Literal("empty"),
   file: Schema.String.annotate({
     description:
-      "The trash this write empties — `_olai/Trash.olai`, root-relative, exactly as `list_outlines` spells it. Every record in it goes, the source-file signposts and ancestor-title scaffold included, and the file stays behind empty. A leftover `Archive.olai` is not the trash and is refused. Refused for an outline that is not the trash, for one the set does not hold, for a trash that holds nothing, and while anything outside it still points into it — naming what to re-point first.",
+      "The trash this write empties — `_olai/Trash.org`, root-relative, exactly as `list_outlines` spells it. Every record in it goes, the source-file signposts and ancestor-title scaffold included, and the file stays behind empty. A leftover `Archive.org` is not the trash and is refused. Refused for an outline that is not the trash, for one the set does not hold, for a trash that holds nothing, and while anything outside it still points into it — naming what to re-point first.",
   }),
   was: Schema.optionalKey(
     Schema.Int.annotate({
@@ -814,7 +814,7 @@ export const CreateRequest = Schema.Struct({
   file: Schema.String.annotate({
     description:
       "Relative path of the new outline under the served directory. Must end in " +
-      "`.olai`. No absolute path, no `..` / `.` segments, no separators inside a " +
+      "`.org`. No absolute path, no `..` / `.` segments, no separators inside a " +
       "segment. Refused if that file already exists among the loaded outlines.",
   }),
   seed: Schema.optionalKey(
@@ -893,7 +893,7 @@ export const CreateDocumentRequest = Schema.Struct({
 })
 
 /**
- * DELETE ONE FILE — a document (`.md`) or an outline (`.olai`) holding no
+ * DELETE ONE FILE — a document (`.md`) or an outline (`.org`) holding no
  * records.
  *
  * The fourth unit the vocabulary has, and the second write that destroys.
@@ -940,7 +940,7 @@ export const DeleteRequest = Schema.Struct({
   file: Schema.String.annotate({
     description:
       "Path of the file to delete, exactly as the served set lists it — a `.md` document " +
-      "(any content) or an `.olai` outline holding NO records. Refused, naming what to " +
+      "(any content) or an `.org` outline holding NO records. Refused, naming what to " +
       "settle first, for a path the set does not hold, an outline still carrying records, " +
       "a document a `doc` field or a `doc`-declared property still names, a file the set " +
       "could not load, and any of the kinds olai only shows (`.html`, `.csv`, pictures, " +
@@ -1136,7 +1136,7 @@ export const UpdateRequest = Schema.Struct({
   props: Schema.optionalKey(
     Schema.Record(Schema.String, Schema.NullOr(Schema.String)).annotate({
       description:
-        "Properties to write, MERGED key by key — exactly as one `set_prop` per key would, and in the same words when one is refused. A key not named here is left alone; `null` (or `\"\"`) removes the one it names. A key spelled like a field the format already has is refused toward the verb that writes that fact, and a value that does not fit what its key DECLARES in `_olai/Properties.olai` is refused with the values it may hold named.",
+        "Properties to write, MERGED key by key — exactly as one `set_prop` per key would, and in the same words when one is refused. A key not named here is left alone; `null` (or `\"\"`) removes the one it names. A key spelled like a field the format already has is refused toward the verb that writes that fact, and a value that does not fit what its key DECLARES in `_olai/Properties.org` is refused with the values it may hold named.",
     }),
   ),
   /** REPLACED, and it is the one field here that could plausibly have been

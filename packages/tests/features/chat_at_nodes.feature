@@ -156,7 +156,7 @@ Feature: Typing @ in the chat completes a node of the directory
     Then the completion offers "hinges"
     When I accept the completion
     Then the composer is armed with "hinges"
-    When I rewrite "house.olai" as:
+    When I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets","doing":"2026-08-02"}
@@ -229,7 +229,7 @@ Feature: Typing @ in the chat completes a node of the directory
     # tree draws, so a row somebody else writes — another tab, a terminal, the
     # agent itself — is nameable without a reload, on the page that was already
     # open.
-    When I rewrite "splashback.olai" as:
+    When I rewrite "splashback.org" as:
       """
       {"id":"splashback","ord":"a0","title":"the splashback, zellige if the budget survives"}
       """

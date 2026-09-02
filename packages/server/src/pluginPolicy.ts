@@ -14,7 +14,7 @@
  * `--help` page beside the other policies, where it can be read without
  * knowing it exists.
  *
- * It is not a VAULT FILE, which is what `_olai/Kolu.olai` is: a served
+ * It is not a VAULT FILE, which is what `_olai/Kolu.org` is: a served
  * directory says how a plugin should BEHAVE, and it may travel between machines
  * that have different tools installed. Which tools this HOST has is the
  * operator's fact, not the vault's, and a vault that could switch off an

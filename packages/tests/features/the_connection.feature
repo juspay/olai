@@ -28,7 +28,7 @@ Feature: A dead wire freezes the app, and a replaced server is recoverable
   tab holding a dead server shipped unnoticed.
 
   Background:
-    Given I open the outline "garden.olai"
+    Given I open the outline "garden.org"
     # The fixtures these scenarios rewrite onto the wire carry a DONE row
     # (`basil`), and the whole point of the comparison is that the page after
     # is the page before — so the pick is said once, at the door.
@@ -67,7 +67,7 @@ Feature: A dead wire freezes the app, and a replaced server is recoverable
     # Written while the tab could not hear it, so the reconnect has something to
     # be measured by: the file is rewritten to five nodes, two of which `herb`
     # selects, so BOTH numbers move and neither could have been left standing.
-    When I rewrite "garden.olai" as:
+    When I rewrite "garden.org" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
@@ -116,7 +116,7 @@ Feature: A dead wire freezes the app, and a replaced server is recoverable
     And the server starts again on the same port
     And I reload from the overlay
     And I mark the page
-    And I rewrite "garden.olai" as:
+    And I rewrite "garden.org" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}

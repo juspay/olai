@@ -27,6 +27,7 @@
  */
 
 import { fixedPolicy, make as makeOps } from "@olai/ops"
+import { orgFixture } from "@olai/format/testlib"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import { ResourceUpdatedNotificationSchema } from "@modelcontextprotocol/sdk/types.js"
@@ -44,13 +45,13 @@ import { bind, gitWiring, writerAt } from "../runtime.ts"
 import { SERVER_LAYERS } from "../serve.testlib.ts"
 import { clientOver, serveFace } from "./face.ts"
 
-const HOUSE = [
+const HOUSE = orgFixture([
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
   `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets"}`,
   "",
-].join("\n")
+].join("\n"))
 
-const GARDEN = `{"id":"beds","ord":"a0","title":"Raised beds"}\n`
+const GARDEN = orgFixture(`{"id":"beds","ord":"a0","title":"Raised beds"}\n`)
 
 /** A string that appears ONLY in the document body, so an assertion that the
  *  corpus did not ride along is about this directory's actual bytes rather than
@@ -72,8 +73,8 @@ const SAVED = `<h1>Saved</h1>\n<p>${BODY_MARKER} inlined.</p>\n`
  *  away with the test. */
 const served = (): string => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-face-"))
-  fs.writeFileSync(path.join(root, "house.olai"), HOUSE)
-  fs.writeFileSync(path.join(root, "garden.olai"), GARDEN)
+  fs.writeFileSync(path.join(root, "house.org"), HOUSE)
+  fs.writeFileSync(path.join(root, "garden.org"), GARDEN)
   fs.writeFileSync(path.join(root, "manual.md"), MANUAL)
   fs.writeFileSync(path.join(root, "saved.html"), SAVED)
   return root
@@ -199,7 +200,7 @@ test("reading the outlines collection costs the KEY SET, not the corpus", async 
     const text = await textOf(client, "surface://collections/outlines")
 
     // What it IS: the file names, and only the outline files.
-    expect(JSON.parse(text).sort()).toEqual(["garden.olai", "house.olai"])
+    expect(JSON.parse(text).sort()).toEqual(["garden.org", "house.org"])
 
     // What it is NOT, stated two ways because they fail differently. The marker
     // catches a projection that reached the document text at all; the size
@@ -214,7 +215,7 @@ test("one outline item is that file's nodes, and no other file's", async () => {
   await withFace(async ({ client }) => {
     const entry = await readJson(
       client,
-      "surface://collections/outlines/house.olai",
+      "surface://collections/outlines/house.org",
     ) as { rev: number; nodes: ReadonlyArray<{ node: { title: string } }>; broken: unknown }
 
     expect(entry.nodes.map((n) => n.node.title)).toEqual([
@@ -265,7 +266,7 @@ test("a directory that cannot be read reaches the agent, not just the browser", 
 
 test("an edited outline notifies its subscribers", async () => {
   await withFace(async ({ client, refresh, root }) => {
-    const uri = "surface://collections/outlines/house.olai"
+    const uri = "surface://collections/outlines/house.org"
 
     const updated = new Promise<string>((resolve) => {
       client.setNotificationHandler(
@@ -277,8 +278,12 @@ test("an edited outline notifies its subscribers", async () => {
 
     // The change an agent is watching for: another writer moved a file.
     fs.writeFileSync(
-      path.join(root, "house.olai"),
-      `${HOUSE}{"id":"paint","parent":"kitchen","ord":"a1","title":"paint it"}\n`,
+      path.join(root, "house.org"),
+      orgFixture(
+        `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}\n` +
+          `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets"}\n` +
+          `{"id":"paint","parent":"kitchen","ord":"a1","title":"paint it"}\n`,
+      ),
     )
     await refresh()
 

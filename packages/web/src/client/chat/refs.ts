@@ -16,7 +16,7 @@
  *
  * **A span is a reference only if the SET declares it.** That is the whole of
  * the rule, and it is what makes a false positive unrepresentable: `true`,
- * `.olai`, `npm test` and every other backticked thing an agent writes are
+ * `.org`, `npm test` and every other backticked thing an agent writes are
  * looked up and are not nodes, so they stay what they are.
  *
  * **THE SET IS ASKED, and this tab no longer holds one to ask.** The lookup ran
@@ -179,7 +179,7 @@ const AS_A_CONTROL: ReadonlyArray<readonly [string, string]> = [
  *
  * It writes only where the answer MOVED. The pass runs on every frame of a
  * streaming answer, most spans in agent prose are not ids at all (`true`,
- * `house.olai`), and re-removing four absent attributes several times a
+ * `house.org`), and re-removing four absent attributes several times a
  * second is work with no effect to show for it.
  */
 export const markNodeRefs = (

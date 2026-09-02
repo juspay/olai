@@ -170,7 +170,7 @@ export const reportParents = (
       errors.push({
         code: "foreign-parent",
         ...siteOf(located),
-        message: `\`parent\` is \`${node.parent}\`, which lives in another file; every \`.olai\` is an independent tree, so cross-file placement is a \`mirror\``,
+        message: `\`parent\` is \`${node.parent}\`, which lives in another file; every \`.org\` is an independent tree, so cross-file placement is a \`mirror\``,
         // `broken: false` — the parent is a POINTER, not a second fault. This
         // record reached across; the record it reached at did nothing, is
         // named so the reader can see where the `parent` went, and keeps its
@@ -377,7 +377,7 @@ export const reportDocs = (
 // ── typed properties ───────────────────────────────────────────────────
 
 /**
- * The DECLARATIONS themselves — every record of `_olai/Properties.olai`, held
+ * The DECLARATIONS themselves — every record of `_olai/Properties.org`, held
  * against the built-in table ({@link ../typing.ts}'s `BOOTSTRAP`).
  *
  * WHOLE-FILE AND NOT NARROWED, and it is the one rule here that needs no

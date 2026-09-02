@@ -1,5 +1,5 @@
 /**
- * THE VAULT HALF of the attention watcher — what `_olai/Kolu.olai` says.
+ * THE VAULT HALF of the attention watcher — what `_olai/Kolu.org` says.
  *
  * HERE rather than in `@olai/kolu-client` for `./claimants.ts`'s reason,
  * one shelf below: the config file is a reading of the SET and nothing
@@ -16,8 +16,8 @@
  * is `config.ts` and the package is what says whose config it is.
  *
  * This is `@olai`'s own judgement ABOUT kolu, and the structure is
- * borrowed outright: one file by convention (`kolu.olai`, which is what
- * `_olai/Kolu.olai` reads as), one titled node under it, and everything
+ * borrowed outright: one file by convention (`kolu.org`, which is what
+ * `_olai/Kolu.org` reads as), one titled node under it, and everything
  * else left alone. FINDING the file is a question about the served
  * outline paths rather than the nodes — `koluFileIn` below, so a config
  * that parses to nothing still has the wrench that opens it — and the
@@ -72,7 +72,7 @@ import { customText, isRegular, type Located } from "@olai/format"
 import { DEFAULT_WATCH, type WatchConfig } from "@olai/kolu-client"
 
 /** The basename the convention answers to, case-folded at the caller's end. */
-const FILE_BASENAME = "kolu.olai"
+const FILE_BASENAME = "kolu.org"
 
 /** The one node title, exact and case-sensitive, `outlineCalled`'s rule. */
 const WATCH_TITLE = "watch"
@@ -109,7 +109,7 @@ export interface WatchReading {
 }
 
 /**
- * THE WRENCH'S ANSWER — which served outline is `_olai/Kolu.olai`, asked
+ * THE WRENCH'S ANSWER — which served outline is `_olai/Kolu.org`, asked
  * of the outline PATHS, not the nodes: a config that exists but parses
  * to nothing contributes no records, and the foot's only door onto it
  * (the wrench) would fall away with the nodes if both answered the same

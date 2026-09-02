@@ -634,7 +634,7 @@ const NOT_IN_COMMIT = /^fatal: path .*(?:does not exist in|exists on disk, but n
  * name a file has that is the same wherever olai is serving from. It took the
  * SERVED spelling and prefixed it, which is the same string for everything
  * under the served root and unable to name anything above it — so a rename INTO
- * a served subdirectory (`git mv Notes.md docs/Notes.olai`) had no way to ask
+ * a served subdirectory (`git mv Notes.md docs/Notes.org`) had no way to ask
  * for the side it came from, and the caller fell back to asking for a name HEAD
  * has never had. `<commit>:<path>` is repo-root-relative in git's own object
  * syntax whatever directory it runs in, so this is a prefix that had nothing to

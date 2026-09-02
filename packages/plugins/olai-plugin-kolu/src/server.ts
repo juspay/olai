@@ -50,7 +50,7 @@
  *
  * The two vault walks are the sharpest instance of it and they came with the
  * call: {@link ./claimants.ts} reads who OWNS a terminal and {@link ./config.ts}
- * reads what `_olai/Kolu.olai` says, both over outline records, which is a thing
+ * reads what `_olai/Kolu.org` says, both over outline records, which is a thing
  * the package that dials padi must not learn (its interfaces are PARAMETRIC in
  * the node type so a compiler can hold it to that). They were in `@olai/server`
  * under kolu-shaped filenames. They are behind the plugin wall now, and what
@@ -337,14 +337,14 @@ export const serve = (services: Services): {
     // dropped — is the same channel, because the alternative is this module
     // deciding which of padi's sentences matter.
     say: services.say,
-    // What the OWNER must read: a malformed `_olai/Kolu.olai` value — the
+    // What the OWNER must read: a malformed `_olai/Kolu.org` value — the
     // sentences whose promise lives in this package's `docs.md`. Rare by latch
     // (one line per new shape), and the default console level is `info`, so the
     // channel is `warning`, not `debug`.
     warn: services.warn,
   })
 
-  /** WHICH SERVED OUTLINE IS `_olai/Kolu.olai`, carried across revisions.
+  /** WHICH SERVED OUTLINE IS `_olai/Kolu.org`, carried across revisions.
    *  `conventionServed` hands the same object back while nothing it describes
    *  has moved, so this is a walk over the served paths on the revisions that
    *  could have changed the answer and a pointer comparison on the rest. It is

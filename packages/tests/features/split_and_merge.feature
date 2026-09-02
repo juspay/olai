@@ -15,7 +15,7 @@ Feature: Splitting and merging a row
   scenarios.
 
   Background:
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     # The exact-outline assertions count `demo` — finished — among the rows,
     # so the page is asked to keep its finished rows drawn.
     And I show the done nodes
@@ -26,7 +26,7 @@ Feature: Splitting and merging a row
     And I put the caret after "choose"
     And I press "Enter"
     Then the node "handles" has the title "choose"
-    And "house.olai" holds a node titled " the handles" under "install"
+    And "house.org" holds a node titled " the handles" under "install"
     # The caret follows the half that CAME OFF, at its head — those are the
     # words that moved, and they are what the person is still looking at.
     And the row being typed holds " the handles"
@@ -46,14 +46,14 @@ Feature: Splitting and merging a row
     Then the node "install" has the title "install"
     And the node "handles" is a child of "install"
     And the node "knobs" is a child of "install"
-    And "house.olai" holds a bare node titled " the cabinets"
+    And "house.org" holds a bare node titled " the cabinets"
 
   Scenario: A split cuts around a selection, keeping what falls outside it
     When I click the title of "handles"
     And I select "the" in the line
     And I press "Enter"
     Then the node "handles" has the title "choose "
-    And "house.olai" holds a node titled " handles"
+    And "house.org" holds a node titled " handles"
 
   Scenario: Enter at the end of a line still opens the next one
     # The other reading of the same key, unchanged: there is nothing after the
@@ -81,12 +81,12 @@ Feature: Splitting and merging a row
     # The caret is IN the surviving row, so the page draws an editor where its
     # title would be — which is the whole point of the key, and why what the row
     # says is asked of the editor and of the file rather than of a title span.
-    Then "house.olai" holds a node titled "pick the hingespick the knobs"
-    And "house.olai" no longer holds the node "knobs"
+    Then "house.org" holds a node titled "pick the hingespick the knobs"
+    And "house.org" no longer holds the node "knobs"
     # A TRASH rather than a shredder: the record is in the archive with its id,
     # which is what makes the mark it carried recoverable and the whole thing
     # undoable.
-    And "_olai/Trash.olai" holds the node "knobs"
+    And "_olai/Trash.org" holds the node "knobs"
     # The caret lands on the SEAM — the length of what the row above said —
     # which is where the two halves met.
     And the row being typed holds "pick the hingespick the knobs"
@@ -102,18 +102,18 @@ Feature: Splitting and merging a row
   Scenario: The children of a merged row are adopted, in order, by the row above
     # Nothing may be orphaned by a keystroke — and archiving them with their
     # parent would take a branch away that nobody asked about.
-    Given I open the outline "garden.olai"
+    Given I open the outline "garden.org"
     # `glazing` and `sowing` arrive under `herbs` still wearing their done
     # marks, and the assertions count them — so this page is asked too.
     And I show the done nodes
     When I click the title of "frames"
     And I put the caret at the start of the line
     And I press "Backspace"
-    Then "garden.olai" holds a node titled "the herb bed by the doorthe cold frames"
+    Then "garden.org" holds a node titled "the herb bed by the doorthe cold frames"
     And the node "glazing" is a child of "herbs"
     And the node "slugs" is a child of "herbs"
     And the node "mint" comes before "glazing"
-    And "garden.olai" no longer holds the node "frames"
+    And "garden.org" no longer holds the node "frames"
 
   Scenario: The first of its siblings has nothing above it to merge into
     When I click the title of "handles"
@@ -121,11 +121,11 @@ Feature: Splitting and merging a row
     And I press "Backspace"
     Then the refusal says "no row above it to merge into"
     And the row being typed holds "choose the handles"
-    And "house.olai" holds a node titled "choose the handles"
+    And "house.org" holds a node titled "choose the handles"
     # And the row goes on working, like every other refused key.
     When I select all and type "choose the brass handles"
     And I click away from the editor
-    Then "house.olai" holds a node titled "choose the brass handles"
+    Then "house.org" holds a node titled "choose the brass handles"
 
   Scenario: Backspace anywhere else is the field's own
     # The one position the key is claimed at is the one where it has nothing of
@@ -140,35 +140,35 @@ Feature: Splitting and merging a row
     When I click the title of "handles"
     And I put the caret after "choose"
     And I press "Enter"
-    Then "house.olai" holds a node titled " the handles"
+    Then "house.org" holds a node titled " the handles"
     # ⌘Z is dead while an editor is open — the input has the platform's own
     # undo in it — so the draft is dropped first, exactly as every other undo
     # scenario does it.
     When I press "Escape"
     And I press "ControlOrMeta+z"
     Then the node "handles" has the title "choose the handles"
-    And "house.olai" no longer holds a node titled " the handles"
+    And "house.org" no longer holds a node titled " the handles"
     When I press "ControlOrMeta+Shift+z"
     Then the node "handles" has the title "choose"
     # And the redo is the whole write, not half of it: the tail is a record on
     # disk again, immediately after the head — which is the placement the
     # merge-as-inverse shape exists to get right.
-    And "house.olai" holds a node titled " the handles" under "install"
+    And "house.org" holds a node titled " the handles" under "install"
 
   Scenario: ⌘Z after a merge brings the row back with its children
     # The one inverse on this surface that is a whole sequence: the record out
     # of the trash, back into its place, its children back under it, and the
     # survivor's title put back guarded by what the merge made it.
-    Given I open the outline "garden.olai"
+    Given I open the outline "garden.org"
     And I show the done nodes
     When I click the title of "frames"
     And I put the caret at the start of the line
     And I press "Backspace"
-    Then "garden.olai" no longer holds the node "frames"
+    Then "garden.org" no longer holds the node "frames"
     When I press "Escape"
     And I press "ControlOrMeta+z"
     Then the node "herbs" has the title "the herb bed by the door"
-    And "garden.olai" holds the node "frames"
+    And "garden.org" holds the node "frames"
     And the node "glazing" is a child of "frames"
     And the node "sowing" is a child of "frames"
     And the node "herbs" comes before "frames"
@@ -182,7 +182,7 @@ Feature: Splitting and merging a row
     When I click the title of "knobs"
     And I put the caret at the start of the line
     And I press "Backspace"
-    Then "house.olai" no longer holds the node "knobs"
+    Then "house.org" no longer holds the node "knobs"
     When I press "Escape"
     And I press "ControlOrMeta+z"
     Then the node "knobs" has status "todo"
@@ -192,7 +192,7 @@ Feature: Splitting and merging a row
   Scenario: A split at a mirror is refused, in the ops layer's own words
     # A split puts a SECOND ROW on the page, so it names the row's own record
     # like a merge does — and a placement is not a node. Named through the
-    # mirror instead, the tail would be minted beside `herbs` in `garden.olai`:
+    # mirror instead, the tail would be minted beside `herbs` in `garden.org`:
     # a mirror draws its target's children and never its siblings, so the two
     # halves of one sentence would stop being siblings on screen and the caret
     # would follow the tail off the page.
@@ -200,8 +200,8 @@ Feature: Splitting and merging a row
     And I put the caret after "the herb bed"
     And I press "Enter"
     Then the refusal says "is a mirror"
-    And "garden.olai" holds a node titled "the herb bed by the door"
-    And "garden.olai" holds no node titled " by the door"
+    And "garden.org" holds a node titled "the herb bed by the door"
+    And "garden.org" holds no node titled " by the door"
     # And the row goes on working: the refusal wrote nothing and the caret is
     # still where it was.
     And the row being typed holds "the herb bed by the door"
@@ -217,7 +217,7 @@ Feature: Splitting and merging a row
     And I type "and the soft-close ones"
     And I put the caret at the start of the line
     And I press "Backspace"
-    Then "house.olai" holds a node titled "pick the hingesand the soft-close ones"
+    Then "house.org" holds a node titled "pick the hingesand the soft-close ones"
     And the caret is at offset 15
 
   Scenario: Backspace at the start of an EMPTY draft still writes nothing
@@ -229,4 +229,4 @@ Feature: Splitting and merging a row
     And I press "Backspace"
     Then a new row is being typed
     And the node "hinges" has the title "pick the hinges"
-    And the outline "house.olai" shows exactly the nodes "kitchen, demo, order, install, handles, hinges, knobs, kitchen-herbs"
+    And the outline "house.org" shows exactly the nodes "kitchen, demo, order, install, handles, hinges, knobs, kitchen-herbs"

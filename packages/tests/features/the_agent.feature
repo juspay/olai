@@ -312,13 +312,13 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: An outline the agent rewrote by hand is still never a text diff
-    # The rule is about the FILE, not about the tool that wrote it: a `.olai`
+    # The rule is about the FILE, not about the tool that wrote it: a `.org`
     # is one line per node, so a text diff of one is a single enormous line.
     # olai's own writes cannot produce one — they go through the ops layer —
     # but an agent's own `Edit` can name any file, and one aimed at an outline
     # used to arrive as a diff block and be drawn as ordinary lines.
-    When I ask the agent "edit house.olai"
-    Then the chat shows the outline "house.olai" changing
+    When I ask the agent "edit house.org"
+    Then the chat shows the outline "house.org" changing
     And the outline change says "note rewritten"
     And the chat shows no diff
 
@@ -360,7 +360,7 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: An olai write tells its story instead of showing a diff
-    # The other vocabulary, and the rule behind it: a `.olai` diff is one
+    # The other vocabulary, and the rule behind it: a `.org` diff is one
     # enormous line per node with everything on it changing at once, which is
     # the commit panel's own reason for never showing one. So a write through
     # the ops layer is drawn as the node-level story, in the words the commit

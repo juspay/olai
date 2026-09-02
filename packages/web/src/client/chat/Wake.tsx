@@ -47,7 +47,7 @@
  *
  * ## AND THE TWO STATES WHERE THE CONTROL SAYS SOMETHING IS WRONG
  *
- * A person picks `lanes.olai`; somebody renames it. Or the file is right there
+ * A person picks `lanes.org`; somebody renames it. Or the file is right there
  * and is not a kind this doorbell can read. Either way it derives nothing —
  * forever — and the conversation goes quiet in a way that reads exactly like a
  * subject with nothing to report. The row draws the fault instead of a live

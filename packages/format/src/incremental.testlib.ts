@@ -59,7 +59,7 @@
  * promises and why it keeps its lists rather than clearing them on a refusal.
  *
  * A REVISION IS A DIRECTORY, spelled the way `./scope.testlib.ts` spells one —
- * path to bytes, `.olai` and `.md` and `.html` alike, decoded through the same
+ * path to bytes, `.org` and `.md` and `.html` alike, decoded through the same
  * door a load goes through ({@link decodedVault}). That is what lets the same
  * replay take a generated corpus and take THE REAL VAULT, pinned, and
  * it is why nothing here builds an `OutlineSet` by hand: a differential judged
@@ -534,7 +534,7 @@ const raise = (
  * The `.md` and `.html` files a generated directory can hold.
  *
  * ONE OF THEM LIVES IN A DIRECTORY NAMED AFTER AN OUTLINE BESIDE IT
- * (`a/notes.md`, next to `a.olai` and `a/inner.olai`), because `doc` is
+ * (`a/notes.md`, next to `a.org` and `a/inner.org`), because `doc` is
  * resolved against the outline's OWN directory and the two readings of a
  * relative path only part company there. The `.html` is in the list for the
  * narrowing the `doc` rule makes that a plain membership test would not: the

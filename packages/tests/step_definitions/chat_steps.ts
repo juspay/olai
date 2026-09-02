@@ -1234,7 +1234,7 @@ Then(
     await shown.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     assert.match(
       oneLine(await shown.innerText()),
-      /house\.olai:12/,
+      /house\.org:12/,
       "the follow-along location is what lets a reader see WHICH file an agent " +
         "is in without unfolding anything",
     );
@@ -1378,7 +1378,7 @@ Then("the chat shows no diff", async function (this: OlaiWorld) {
   assert.strictEqual(
     await this.page.locator(CHAT_DIFF).count(),
     0,
-    "an olai write drew a text diff. A `.olai` diff is one enormous line per " +
+    "an olai write drew a text diff. A `.org` diff is one enormous line per " +
       "node with everything on it changing at once — the panel's job for a " +
       "write is the node-level story, and this is the rule that says so",
   );

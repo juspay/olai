@@ -1,0 +1,18 @@
+* August 2026
+:PROPERTIES:
+:ID: august
+:OLAI_KIND: regular
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "August 2026"
+:END:
+
+** catch up on the backlog
+:PROPERTIES:
+:ID: catch-up
+:OLAI_KIND: regular
+:OLAI_PARENT: "august"
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "catch up on the backlog"
+:OLAI_DATE: "2026-08-10"
+:OLAI_DESC: "A note is markdown too, through the same pipeline a document is — so this is\nthe same surface asked in a narrower column, under a title.\n\n## A heading in a note\n\nProse under it: *italic*, **bold**, ~~struck~~, `inline code`, and a\n[link](https://example.com) mid-line.\n\n### A third level\n\n- a list item\n- another, with **bold**\n  - nested\n    - [ ] an unchecked task\n    - [x] a checked one\n\n> A quote in a note.\n>\n> > And one inside that.\n\n| option | lead time |\n|---|---|\n| walnut | six weeks |\n| birch | today |\n\n```ts\nconst finish: string = \"matte\"\n```\n\n---\n\nMeasure the alcove first[^why].\n\n[^why]: A note carries footnotes too, and mints their ids per block."
+:END:

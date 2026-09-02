@@ -37,7 +37,7 @@ const KOLU = { name: "kolu", kinds: [kind("terminal")] }
 const ODU = { name: "odu", kinds: [kind("worktree")] }
 
 test("the word a vault declares is the plugin's own, PREFIXED with the plugin", () => {
-  // What a person writes in `_olai/Properties.olai`, and what a page's licence
+  // What a person writes in `_olai/Properties.org`, and what a page's licence
   // carries. The bare word is the plugin's contribution and never reaches a
   // vault by itself.
   const table = kindsOf([KOLU, ODU], [KOLU, ODU])

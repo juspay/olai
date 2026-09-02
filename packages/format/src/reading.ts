@@ -810,7 +810,7 @@ export const Detail = Schema.Struct({
    * spelled `blocks` on the OTHER record resolves into the same graph, so a
    * node carrying no `after` at all can be waiting; and a target that is
    * `done`, a target with no mark, and anything put away in an
-   * `_olai/Trash.olai` stand in nobody's way, so an `after` of three can show
+   * `_olai/Trash.org` stand in nobody's way, so an `after` of three can show
    * nothing here. Two fields because they answer two questions — "what does
    * this record declare" is what `set_after` edits, "can this start" is what a
    * reader is deciding on.
@@ -907,7 +907,7 @@ export const SubtreeRequest = Schema.Struct({
   file: Schema.optionalKey(
     Schema.String.annotate({
       description:
-        "An outline (`.olai`) under the served directory, exactly as `list_outlines` lists it. Reads the WHOLE file: every top-level node in it, each walked to `depth`. Give this or `id` — never both, never neither.",
+        "An outline (`.org`) under the served directory, exactly as `list_outlines` lists it. Reads the WHOLE file: every top-level node in it, each walked to `depth`. Give this or `id` — never both, never neither.",
     }),
   ),
   depth: Schema.optionalKey(

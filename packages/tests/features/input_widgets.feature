@@ -20,7 +20,7 @@ Feature: The three input widgets
   scenarios.
 
   Background:
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     And I mark the page
 
   # ── `!` — a day, in words ───────────────────────────────────────────
@@ -52,8 +52,8 @@ Feature: The three input widgets
     And I type " !2026-09-01"
     And I press "Enter"
     Then the row being typed holds "choose the handles"
-    And "house.olai" holds the node "handles" dated "2026-09-01"
-    And "house.olai" holds a node titled "choose the handles"
+    And "house.org" holds the node "handles" dated "2026-09-01"
+    And "house.org" holds a node titled "choose the handles"
     And no completions are open
     And the page has not reloaded
     And there should be no page errors
@@ -64,7 +64,7 @@ Feature: The three input widgets
     When I click the title of "handles"
     And I type " !tomorrow"
     And I press "Enter"
-    Then "house.olai" holds the node "handles" dated tomorrow
+    Then "house.org" holds the node "handles" dated tomorrow
     And there should be no page errors
 
   Scenario: A row that does not exist yet is written first, then dated
@@ -77,8 +77,8 @@ Feature: The three input widgets
     And I press "Enter"
     And I type "ring the joiner !2026-09-01"
     And I press "Enter"
-    Then "house.olai" holds a node titled "ring the joiner"
-    And "house.olai" holds a node titled "ring the joiner" dated "2026-09-01"
+    Then "house.org" holds a node titled "ring the joiner"
+    And "house.org" holds a node titled "ring the joiner" dated "2026-09-01"
     And the row being typed holds "ring the joiner"
     And there should be no page errors
 
@@ -93,10 +93,10 @@ Feature: The three input widgets
     When I click the title of "handles"
     And I type " !2026-09-01"
     And I press "Enter"
-    Then "house.olai" holds the node "handles" dated "2026-09-01"
+    Then "house.org" holds the node "handles" dated "2026-09-01"
     When I type " and the hinges"
     And I click away from the editor
-    Then "house.olai" holds a node titled "choose the handles and the hinges"
+    Then "house.org" holds a node titled "choose the handles and the hinges"
     And no row is being edited
     And there should be no page errors
 
@@ -119,7 +119,7 @@ Feature: The three input widgets
     Then the row being typed holds "pick the knobs #home"
     And no completions are open
     When I click away from the editor
-    Then "house.olai" holds a node titled "pick the knobs #home"
+    Then "house.org" holds a node titled "pick the knobs #home"
     And there should be no page errors
 
   Scenario: A tag is a whole word, so a space ends it
@@ -133,7 +133,7 @@ Feature: The three input widgets
     # word somebody has only ever used in prose under a row is offered back to
     # them. It used to be invisible here, by accident of a walk that looked at
     # titles only.
-    When I rewrite "house.olai" as:
+    When I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
       {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","desc":"ask the #hob people about the cut-out"}
@@ -149,7 +149,7 @@ Feature: The three input widgets
     # The number beside a name is how many NODES carry it, which is what the
     # widget has always claimed and what one entry per record in the index now
     # makes true of a row that says the word twice.
-    When I rewrite "house.olai" as:
+    When I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home #home","desc":"and again #home"}
       {"id":"knobs","parent":"kitchen","ord":"a1","title":"pick the knobs"}
@@ -163,7 +163,7 @@ Feature: The three input widgets
   Scenario: `@` is the other namespace, and it offers only its own
     # `#alice` and `@alice` are different tags. A widget that offered one under
     # the other's sigil would be inventing tags the set does not hold.
-    When I rewrite "house.olai" as:
+    When I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
       {"id":"ask","parent":"kitchen","ord":"a1","title":"ask @alice about the alcove"}
@@ -208,8 +208,8 @@ Feature: The three input widgets
     # own `Enter` and writing a node titled `((compost`.
     And the mirror completions are open
     And I press "Enter"
-    Then "house.olai" holds a mirror of "compost" under "install"
-    And "house.olai" holds no node titled "((compost"
+    Then "house.org" holds a mirror of "compost" under "install"
+    And "house.org" holds no node titled "((compost"
     And there should be no page errors
 
   Scenario: A line that has words keeps them, and the mirror is the next row
@@ -220,8 +220,8 @@ Feature: The three input widgets
     And I type " ((compost"
     And the mirror completions are open
     And I press "Enter"
-    Then "house.olai" holds a node titled "pick the knobs"
-    And "house.olai" holds a mirror of "compost" under "install"
+    Then "house.org" holds a node titled "pick the knobs"
+    And "house.org" holds a mirror of "compost" under "install"
     And the row being typed holds "pick the knobs"
     And there should be no page errors
     # ...and the caret carries on in it, exactly as it does after a day: the
@@ -229,7 +229,7 @@ Feature: The three input widgets
     # no redraw is owed for it.
     When I type " and the hinges"
     And I click away from the editor
-    Then "house.olai" holds a node titled "pick the knobs and the hinges"
+    Then "house.org" holds a node titled "pick the knobs and the hinges"
     And no row is being edited
 
   Scenario: The placement is drawn, and ⌘Z retires it
@@ -244,10 +244,10 @@ Feature: The three input widgets
     And I type " ((compost"
     And the mirror completions are open
     And I press "Enter"
-    Then "house.olai" holds a mirror of "compost" under "install"
+    Then "house.org" holds a mirror of "compost" under "install"
     When I press "Escape"
     And I press "ControlOrMeta+z"
-    Then "house.olai" holds no mirror of "compost"
+    Then "house.org" holds no mirror of "compost"
     And there should be no page errors
 
   Scenario: Enter places nothing for a row the search has moved past
@@ -264,10 +264,10 @@ Feature: The three input widgets
     # Waited out whole: by the time the rows answer the new query, anything
     # that key wrongly placed has landed and the file would say so.
     Then the completions include "split the mint"
-    And "house.olai" holds no mirror of "compost"
+    And "house.org" holds no mirror of "compost"
     # ...and the key is not lost to the reader, only to the wrong row.
     When I press "Enter"
-    Then "house.olai" holds a mirror of "mint" under "install"
+    Then "house.org" holds a mirror of "mint" under "install"
     And there should be no page errors
 
   # ── the keys, and what happens when nothing matches ──────────────────
@@ -288,7 +288,7 @@ Feature: The three input widgets
     Then no completions are open
     When I press "Escape"
     Then no row is being edited
-    And "house.olai" holds a node titled "pick the knobs"
+    And "house.org" holds a node titled "pick the knobs"
 
   Scenario: A pointer takes a row without losing the caret
     # The row prevents the default on mousedown, so choosing with the mouse must

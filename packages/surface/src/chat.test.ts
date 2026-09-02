@@ -75,7 +75,7 @@ const SINCE = "2026-08-21T12:00:00.000Z"
 const CONTEXT: NodeContext = {
   id: "order",
   title: "order the new cabinets",
-  file: "house.olai",
+  file: "house.org",
   line: 4,
   path: ["Kitchen"],
 }
@@ -84,7 +84,7 @@ const REFUSAL = new ValidationFailure({
   reason: "`done: Kitchen remodel` would leave the outlines invalid",
   verdict: verdictOf([{
     code: "duplicate-id",
-    file: "house.olai",
+    file: "house.org",
     line: 3,
     message: "`order` is already the id of another node",
   }]),
@@ -193,10 +193,10 @@ const REPRESENTATIVE: ReadonlyArray<{ name: string; entry: ChatEntry }> = [
         sort: "edited",
         id: "order",
         title: "order the new cabinets",
-        file: "house.olai",
+        file: "house.org",
         nudge: null,
       },
-      locations: ["house.olai:4"],
+      locations: ["house.org:4"],
       parent: "tool:agent-1",
       spawned: { kind: "Explore" },
     },

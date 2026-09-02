@@ -16,8 +16,8 @@ const row = (id: string, key: string, children: ReadonlyArray<Row> = []): Row =>
     kind: "node",
     key,
     children,
-    at: { file: "house.olai", node: { id } },
-    shows: { file: "house.olai", node: { id } },
+    at: { file: "house.org", node: { id } },
+    shows: { file: "house.org", node: { id } },
   } as unknown as Row)
 
 //   a

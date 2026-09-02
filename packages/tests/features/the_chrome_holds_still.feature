@@ -52,10 +52,10 @@ Feature: The chrome holds still while the page changes
     # No folder in this one, and it is the sharper claim for it: the column
     # keeps every element either way, and what a reader sees is the wash going
     # out and coming back a round trip later.
-    Given I open the outline "life.olai"
+    Given I open the outline "life.org"
     And I mark the screen
-    When I click the outline "work.olai"
-    Then the address is "/work.olai"
+    When I click the outline "work.org"
+    Then the address is "/work.org"
     And the current mark moved in one frame
     And the sidebar did not remount
     And there should be no page errors

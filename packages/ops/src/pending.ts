@@ -45,7 +45,7 @@
  *
  *   - **the WHOLE REPOSITORY, in two kinds of row.** `commit-whole-repo`'s
  *     correction, and the human's own words: "the git commit thing should work
- *     across whole repo, not just .olai files edited through MCP". A dirty
+ *     across whole repo, not just .org files edited through MCP". A dirty
  *     outline olai serves gets node-level changes, because both sides parse
  *     into records. Every other dirty file — a document, a source file, an
  *     outline outside the served root — gets a path and a status letter,
@@ -755,8 +755,8 @@ export const make = (options: Options): Committing => {
     // outside the served root does not, so it is another file like any other.
     //
     // A rename is judged by the side it ARRIVED at, because that is the side
-    // that has a working copy: `README.md` renamed to `notes.olai` is an
-    // outline row now, and `notes.olai` renamed to `README.md` is not one any
+    // that has a working copy: `README.md` renamed to `notes.org` is an
+    // outline row now, and `notes.org` renamed to `README.md` is not one any
     // more. The row names both halves either way, so nothing is lost to the
     // reader — what the arriving side decides is whether there are NODES to
     // compare, and there are only ever nodes where there is a file to parse.
@@ -870,7 +870,7 @@ export const make = (options: Options): Committing => {
           // tree's doing — but nothing can be said about what changed in it.
           //
           // Unless it was never an outline at all: a rename INTO the format
-          // — a `.md` becoming a `.olai`, which is the migration this was
+          // — a `.md` becoming a `.org`, which is the migration this was
           // filed during — has no committed outline to compare against, and
           // that is an absence rather than a fault to report.
           if (fileKind(key) === "outline") unreadable.add(one.file)
@@ -1299,7 +1299,7 @@ const otherOf = (entry: Git.Dirty): Other => ({
 interface Was {
   /** Repo-root-relative, which is what `git.show` takes — and the only spelling
    *  a rename's source is guaranteed to have. Keyed by the SERVED one, a rename
-   *  INTO the served directory (`git mv Notes.md docs/Notes.olai` while olai
+   *  INTO the served directory (`git mv Notes.md docs/Notes.org` while olai
    *  serves `docs/`) has a source with no served name at all, so it fell back
    *  to the arriving name — which HEAD has never had — and every node in the
    *  file read as created. */
@@ -1332,7 +1332,7 @@ interface Picked {
  *
  * ONE NAMESPACE, repo-root-relative, for both kinds of row — which is why an
  * outline carries its repository path at all. Keyed by the served spelling, an
- * outline `roadmap.olai` under `docs/` and a dirty `roadmap.olai` at the
+ * outline `roadmap.org` under `docs/` and a dirty `roadmap.org` at the
  * repository root would be the same tick, and the commit would name the wrong
  * file. Rare, and permanent once it is in somebody's history.
  *

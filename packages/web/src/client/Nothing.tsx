@@ -33,7 +33,7 @@ export function Nothing(props: {
       testid={TESTID.nothing}
       line={
         props.requested === null
-          ? "No .olai outlines under the served directory."
+          ? "No .org outlines under the served directory."
           : `No ${NAMED[props.sought].noun} named ${props.requested} under the served directory.`
       }
     />

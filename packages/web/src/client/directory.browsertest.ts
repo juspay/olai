@@ -193,8 +193,8 @@ const twoFiles = (): Live => {
   const directory = live()
   directory.loaded()
   directory.snapshot([
-    ["house.olai", directory.wrote(1)],
-    ["garden.olai", directory.wrote(1)],
+    ["house.org", directory.wrote(1)],
+    ["garden.org", directory.wrote(1)],
   ])
   directory.paths()
   directory.broken()
@@ -205,7 +205,7 @@ const twoFiles = (): Live => {
  *  broken-map cases are all about, with the revision and the complaint the only
  *  things that vary. */
 const broke = (directory: Live, rev: number, message: string) =>
-  directory.delta([["house.olai", directory.wrote(rev, unreadable("house.olai", message))]])
+  directory.delta([["house.org", directory.wrote(rev, unreadable("house.org", message))]])
 
 // ── what one frame costs, which is the whole change ─────────────────────
 
@@ -227,7 +227,7 @@ const broke = (directory: Live, rev: number, message: string) =>
 test("a frame naming one file reads that file and no other", () => {
   const directory = twoFiles()
   const before = directory.reads()
-  directory.delta([["house.olai", directory.wrote(2)]])
+  directory.delta([["house.org", directory.wrote(2)]])
   directory.paths()
   directory.broken()
   expect(directory.reads() - before).toBe(1)
@@ -242,7 +242,7 @@ test("a frame that moved no member hands back the very paths it was holding", ()
   // are.
   const directory = twoFiles()
   const paths = directory.paths()
-  directory.delta([["house.olai", directory.wrote(2)]])
+  directory.delta([["house.org", directory.wrote(2)]])
   expect(directory.paths()).toBe(paths)
   directory.stop()
 })
@@ -253,16 +253,16 @@ test("a file arriving is a new list, in path order", () => {
   // name puts it.
   const directory = twoFiles()
   const paths = directory.paths()
-  directory.delta([["attic.olai", directory.wrote(1)]])
+  directory.delta([["attic.org", directory.wrote(1)]])
   expect(directory.paths()).not.toBe(paths)
-  expect(directory.paths()).toEqual(["attic.olai", "garden.olai", "house.olai"])
+  expect(directory.paths()).toEqual(["attic.org", "garden.org", "house.org"])
   directory.stop()
 })
 
 test("a file leaving is a new list without it", () => {
   const directory = twoFiles()
-  directory.delta([], ["house.olai"])
-  expect(directory.paths()).toEqual(["garden.olai"])
+  directory.delta([], ["house.org"])
+  expect(directory.paths()).toEqual(["garden.org"])
   directory.stop()
 })
 
@@ -273,7 +273,7 @@ test("a remove of a file this directory never held changes nothing, and says so 
   const directory = twoFiles()
   const paths = directory.paths()
   const broken = directory.broken()
-  directory.delta([], ["never-served.olai"])
+  directory.delta([], ["never-served.org"])
   expect(directory.paths()).toBe(paths)
   expect(directory.broken()).toBe(broken)
   directory.stop()
@@ -307,7 +307,7 @@ test("a reconnect is the same files, and deliberately not the same list", () => 
   // fold that re-sorted per frame would satisfy the two lines above and cost
   // the vault on every frame after them.
   const reseeded = directory.paths()
-  directory.delta([["house.olai", directory.wrote(2)]])
+  directory.delta([["house.org", directory.wrote(2)]])
   expect(directory.paths()).toBe(reseeded)
   directory.stop()
 })
@@ -324,7 +324,7 @@ test("a reconnect with an unreadable file keeps the map it had", () => {
   const broken = directory.broken()
   directory.snapshot(directory.held())
   expect(directory.broken()).toBe(broken)
-  expect(directory.broken().get("house.olai")?.errors[0]?.message).toBe("not JSON")
+  expect(directory.broken().get("house.org")?.errors[0]?.message).toBe("not JSON")
   directory.stop()
 })
 
@@ -334,8 +334,8 @@ test("...and a reconnect that MENDS one is a new answer all the same", () => {
   broke(directory, 2, "not JSON")
   const broken = directory.broken()
   directory.snapshot([
-    ["garden.olai", directory.wrote(1)],
-    ["house.olai", directory.wrote(3)],
+    ["garden.org", directory.wrote(1)],
+    ["house.org", directory.wrote(3)],
   ])
   expect(directory.broken()).not.toBe(broken)
   expect(directory.broken().size).toBe(0)
@@ -349,7 +349,7 @@ test("a frame that broke nothing leaves the broken map where it was", () => {
   const first = directory.broken()
   // One file rewritten — a new head, a new frame — and nothing about it
   // unreadable.
-  directory.delta([["house.olai", directory.wrote(2)]])
+  directory.delta([["house.org", directory.wrote(2)]])
   expect(directory.broken()).toBe(first)
   directory.stop()
 })
@@ -360,7 +360,7 @@ test("a file that stops parsing is a new answer", () => {
   broke(directory, 2, "not JSON")
   const now = directory.broken()
   expect(now).not.toBe(first)
-  expect([...now.keys()]).toEqual(["house.olai"])
+  expect([...now.keys()]).toEqual(["house.org"])
   directory.stop()
 })
 
@@ -373,7 +373,7 @@ test("a file that is still broken for another reason is a new answer", () => {
   broke(directory, 3, "no id")
   const now = directory.broken()
   expect(now).not.toBe(first)
-  expect(now.get("house.olai")?.errors[0]?.message).toBe("no id")
+  expect(now.get("house.org")?.errors[0]?.message).toBe("no id")
   directory.stop()
 })
 
@@ -381,7 +381,7 @@ test("a file that parses again is a new answer", () => {
   const directory = twoFiles()
   broke(directory, 2, "not JSON")
   const first = directory.broken()
-  directory.delta([["house.olai", directory.wrote(3)]])
+  directory.delta([["house.org", directory.wrote(3)]])
   const now = directory.broken()
   expect(now).not.toBe(first)
   expect(now.size).toBe(0)
@@ -392,11 +392,11 @@ test("a broken file removed is a new answer without it", () => {
   const directory = twoFiles()
   broke(directory, 2, "not JSON")
   const first = directory.broken()
-  directory.delta([], ["house.olai"])
+  directory.delta([], ["house.org"])
   const now = directory.broken()
   expect(now).not.toBe(first)
   expect(now.size).toBe(0)
-  expect(directory.paths()).toEqual(["garden.olai"])
+  expect(directory.paths()).toEqual(["garden.org"])
   directory.stop()
 })
 
@@ -407,20 +407,20 @@ test("one file's revision moves when that file does, and not when another does",
   // `useHead`, for an `.html` preview) must not be woken by a write three
   // folders away.
   const directory = twoFiles()
-  const house = directory.head(() => "house.olai")
+  const house = directory.head(() => "house.org")
   expect(house()).toBe(1)
-  directory.delta([["house.olai", directory.wrote(2)]])
+  directory.delta([["house.org", directory.wrote(2)]])
   expect(house()).toBe(2)
-  directory.delta([["garden.olai", directory.wrote(9)]])
+  directory.delta([["garden.org", directory.wrote(9)]])
   expect(house()).toBe(2)
   directory.stop()
 })
 
 test("a file this directory does not hold is at no revision at all", () => {
   const directory = twoFiles()
-  expect(directory.head(() => "nowhere.olai")()).toBeUndefined()
-  directory.delta([], ["house.olai"])
-  expect(directory.head(() => "house.olai")()).toBeUndefined()
+  expect(directory.head(() => "nowhere.org")()).toBeUndefined()
+  directory.delta([], ["house.org"])
+  expect(directory.head(() => "house.org")()).toBeUndefined()
   directory.stop()
 })
 
@@ -451,7 +451,7 @@ test("a directory that never loaded says so, and does not wait for a frame", () 
 test("a set that arrives is a directory", () => {
   const directory = twoFiles()
   expect(directory.standing()).toBe("loaded")
-  expect(directory.paths()).toEqual(["garden.olai", "house.olai"])
+  expect(directory.paths()).toEqual(["garden.org", "house.org"])
   directory.stop()
 })
 
@@ -483,9 +483,9 @@ test("a fold left holding nothing reads as still reading, not as an empty vault"
 test("...and the next snapshot is a directory again", () => {
   const directory = twoFiles()
   directory.invalidate()
-  directory.snapshot([["shed.olai", directory.wrote(1)]])
+  directory.snapshot([["shed.org", directory.wrote(1)]])
   expect(directory.standing()).toBe("loaded")
-  expect(directory.paths()).toEqual(["shed.olai"])
+  expect(directory.paths()).toEqual(["shed.org"])
   directory.stop()
 })
 
@@ -496,7 +496,7 @@ test("...and the frames in between land on nothing rather than on a hole", () =>
   // has built one again.
   const directory = twoFiles()
   directory.invalidate()
-  directory.delta([["attic.olai", directory.wrote(1)]])
+  directory.delta([["attic.org", directory.wrote(1)]])
   expect(directory.standing()).toBe("reading")
   expect(directory.paths()).toEqual([])
   directory.stop()
@@ -524,10 +524,10 @@ test("a tab holding files is holding a directory, whatever the cell still says",
   const directory = live()
   directory.never()
   directory.snapshot([
-    ["house.olai", directory.wrote(1)],
-    ["garden.olai", directory.wrote(1)],
+    ["house.org", directory.wrote(1)],
+    ["garden.org", directory.wrote(1)],
   ])
-  expect(directory.paths()).toEqual(["garden.olai", "house.olai"])
+  expect(directory.paths()).toEqual(["garden.org", "house.org"])
   expect(directory.standing()).toBe("loaded")
   directory.stop()
 })
@@ -546,7 +546,7 @@ test("...and a delta is the same proof as a snapshot", () => {
   directory.never()
   directory.snapshot([])
   expect(directory.standing()).toBe("never")
-  directory.delta([["house.olai", directory.wrote(1)]])
+  directory.delta([["house.org", directory.wrote(1)]])
   expect(directory.standing()).toBe("loaded")
   directory.stop()
 })

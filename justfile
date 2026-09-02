@@ -454,7 +454,7 @@ hm-module:
 #     against each other over this leg's own corpus before a figure is quoted,
 #     so a divergence throws rather than printing a ratio nobody may believe.
 #     Its vault is `vaultOf` with the OTHER kinds put in beside the outlines:
-#     a directory of nothing but `.olai` is one where the documents collection
+#     a directory of nothing but `.org` is one where the documents collection
 #     is empty and a third of what is measured is never asked anything;
 #   - ONE WRITE with TABS OPEN, timed as what the five standing views cost the
 #     server per published revision at one, three and ten subscribers on one

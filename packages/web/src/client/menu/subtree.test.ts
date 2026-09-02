@@ -33,8 +33,8 @@ const GARDEN = [
   `{"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil"}`,
 ].join("\n")
 
-const derived = derive(recordsOf(setOf({ "house.olai": HOUSE, "garden.olai": GARDEN })))
-const rows = rowsOf(derived, "house.olai")
+const derived = derive(recordsOf(setOf({ "house.org": HOUSE, "garden.org": GARDEN })))
+const rows = rowsOf(derived, "house.org")
 
 /** One row of the fixture, by id. `flatten` with nothing folded is "every row
  *  there is" — the client's own walk (`edit/order.ts`), rather than a second

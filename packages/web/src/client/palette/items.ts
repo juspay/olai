@@ -115,7 +115,7 @@ export interface PaletteItem {
   /**
    * WHICH KIND of served file this row opens, drawn as that kind's own glyph
    * in front of the label (`../file/icons.tsx`) — the face the sidebar's tree
-   * has used since a `.md`, a `.olai` and a folder stopped being four
+   * has used since a `.md`, a `.org` and a folder stopped being four
    * characters of extension apart.
    *
    * Only a document row carries one (`../search/row.ts`). A command is not a

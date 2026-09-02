@@ -20,7 +20,7 @@ const TODAY = "2026-08-18"
  *  the line is about days. */
 const day = (date: string): { date: string; groups: Agenda["today"] } => ({
   date,
-  groups: [{ file: "work.olai", nodes: [] as unknown as ReadonlyArray<DayEntry> }],
+  groups: [{ file: "work.org", nodes: [] as unknown as ReadonlyArray<DayEntry> }],
 })
 
 const agenda = (parts: Partial<Agenda>): Agenda => ({

@@ -175,7 +175,7 @@ const SERVER_INFO = { name: "olai", version: "0.1.0" } as const
  * (`@olai/ops`' `tools.ts`), so this sentence and that list say one thing.
  *
  * THE THIRD AND FOURTH UNITS ARE THE SAME LESSON READ ONCE MORE.
- * `empty_trash` empties `_olai/Trash.olai` and `delete_file` removes a file,
+ * `empty_trash` empties `_olai/Trash.org` and `delete_file` removes a file,
  * and an enumeration that stopped at nodes and documents would be disprovable
  * by an agent's second tool call in exactly the way the paragraph above is
  * about. They change none of the claims that do the work: the path is always
@@ -187,7 +187,7 @@ const INSTRUCTIONS =
   "olai serves a directory of outlines and the documents beside them. Everything here " +
   "is NODES and whole FILES, never bytes: search and read to find a node, then use " +
   "the write tools to change it; list and read a `.md` document by path, and write one " +
-  "back whole; `empty_trash` empties `_olai/Trash.olai`'s records; and `delete_file` " +
+  "back whole; `empty_trash` empties `_olai/Trash.org`'s records; and `delete_file` " +
   "removes a document or an emptied outline — guarded, and not to be put back, so a " +
   "path you are not sure of is a refusal you want. There is no filesystem under this " +
   "— no shell, no grep, no path outside the served directory, and no way to name part " +

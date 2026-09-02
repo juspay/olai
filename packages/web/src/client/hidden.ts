@@ -65,7 +65,7 @@ export const doneUnder = (row: Branch): number => {
  *
  * So a branch whose finished work sits under an unmarked child, or arrives
  * through a mirror, has a rollup that does not know about it — and there the
- * count is the only thing that says so. `house.olai`'s `kitchen` is exactly
+ * count is the only thing that says so. `house.org`'s `kitchen` is exactly
  * that: `1/2` beside it, two done rows inside it.
  */
 export const foldSays = (

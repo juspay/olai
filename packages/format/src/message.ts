@@ -142,7 +142,7 @@ const subjectOf = (
   }
   const outlines = new Set(changes.map((change) => change.file))
   const count = `${changes.length} ${changes.length === 1 ? "edit" : "edits"}`
-  // The STEM — `roadmap`, not `roadmap.olai`. A subject is read at a glance and
+  // The STEM — `roadmap`, not `roadmap.org`. A subject is read at a glance and
   // the suffix is the same on every outline there is. Which characters that
   // costs is `./kinds.ts`'s to say, not this file's.
   const where = outlines.size === 1 ? ` to ${stemOf(biggest.file)}` : ""

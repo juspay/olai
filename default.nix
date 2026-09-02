@@ -157,7 +157,7 @@ let
     {
       nativeBuildInputs = [ pkgs.makeWrapper ];
       meta = {
-        description = "olai — outliner over flat-record JSONL";
+        description = "olai — outliner over Org2 headings";
         mainProgram = "olai";
       };
     } ''

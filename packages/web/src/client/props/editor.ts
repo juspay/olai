@@ -100,7 +100,7 @@ export const sending = (
  * naively, one Enter is then TWO sends of the same write, and the second is
  * what the ops layer's own no-change guard turns away: a spurious "already
  * says … — nothing would change" note drawn under the run for a gesture that
- * did exactly what it was asked (bugs.olai's `chip-blur-double-commit-2`). An
+ * did exactly what it was asked (bugs.org's `chip-blur-double-commit-2`). An
  * Escape heard twice is worse than spurious: a write the person had declined.
  *
  * So the law is one sentence long: the gesture that closes OWNS the close —

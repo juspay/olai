@@ -49,24 +49,24 @@ const NOTHING_HELD = null
 test("every file the set lists gets an entry, at the set's revision", () => {
   const { outlines } = publishedOf(
     revision(
-      setOf({ "house.olai": HOUSE, "empty.olai": "" }, [["notes.md", "hello"]]),
+      setOf({ "house.org": HOUSE, "empty.org": "" }, [["notes.md", "hello"]]),
       {},
       7,
     ),
     NOTHING_HELD,
   )
 
-  expect([...outlines.entries.keys()]).toEqual(["empty.olai", "house.olai"])
-  expect(outlines.entries.get("house.olai")).toMatchObject({
+  expect([...outlines.entries.keys()]).toEqual(["empty.org", "house.org"])
+  expect(outlines.entries.get("house.org")).toMatchObject({
     rev: 7,
-    nodes: recordsOf(setOf({ "house.olai": HOUSE })),
+    nodes: recordsOf(setOf({ "house.org": HOUSE })),
     broken: null,
   })
   // AND WHAT THE FILE IS, beside what it holds: the face the decode built,
   // cut from the same document the records were (`@olai/format`'s `Face`).
-  expect(outlines.entries.get("house.olai")?.face.title).toBe("house")
+  expect(outlines.entries.get("house.org")?.face.title).toBe("house")
   // A file that holds nothing is still an outline somebody can open.
-  expect(outlines.entries.get("empty.olai")).toMatchObject({
+  expect(outlines.entries.get("empty.org")).toMatchObject({
     rev: 7,
     nodes: [],
     broken: null,
@@ -79,36 +79,36 @@ test("every file the set lists gets an entry, at the set's revision", () => {
 // the sidebar still lists the file and its own pane is what shows the trouble.
 test("a file that did not parse keeps its key and carries its errors", () => {
   const { outlines } = publishedOf(
-    revision(setOf({ "house.olai": HOUSE }, [], { "shed.olai": "{" })),
+    revision(setOf({ "house.org": HOUSE }, [], { "shed.org": "{" })),
     NOTHING_HELD,
   )
 
-  const shed = outlines.entries.get("shed.olai")
+  const shed = outlines.entries.get("shed.org")
   expect(shed?.nodes).toEqual([])
-  expect(shed?.broken?.file).toBe("shed.olai")
+  expect(shed?.broken?.file).toBe("shed.org")
   expect(shed?.broken?.errors.length).toBeGreaterThan(0)
-  expect(outlines.entries.get("house.olai")?.broken).toBeNull()
+  expect(outlines.entries.get("house.org")?.broken).toBeNull()
 })
 
 test("only the files the probe re-decoded are upserted", () => {
   const before = publishedOf(
-    revision(setOf({ "house.olai": HOUSE, "garden.olai": GARDEN })),
+    revision(setOf({ "house.org": HOUSE, "garden.org": GARDEN })),
     NOTHING_HELD,
   )
   const published = publishedOf(
     revision(
       setOf({
-        "house.olai": `${HOUSE}{"id":"sink","parent":"kitchen","ord":"a0","title":"sink"}\n`,
+        "house.org": `${HOUSE}{"id":"sink","parent":"kitchen","ord":"a0","title":"sink"}\n`,
       }, [["notes.md", "changed too"]]),
-      { changed: ["house.olai", "notes.md"], removed: ["garden.olai"] },
+      { changed: ["house.org", "notes.md"], removed: ["garden.org"] },
       2,
     ),
     before,
   )
 
-  expect(published.outlines.upserts.map(([path]) => path)).toEqual(["house.olai"])
+  expect(published.outlines.upserts.map(([path]) => path)).toEqual(["house.org"])
   expect(published.outlines.upserts[0]?.[1].rev).toBe(2)
-  expect(published.outlines.removes).toEqual(["garden.olai"])
+  expect(published.outlines.removes).toEqual(["garden.org"])
   // The document that moved in the same tick is the OTHER collection's upsert,
   // and each one names only its own keys.
   expect(published.documents.upserts.map(([path]) => path)).toEqual(["notes.md"])
@@ -116,13 +116,13 @@ test("only the files the probe re-decoded are upserted", () => {
   // was one line short of and the whole of grok's MUST on `bcc15008`. The
   // revision drops an outline and adds a `.md`, so the DIRECTORY holds two files
   // before and two after and the outlines birth nothing — and a rule that read
-  // membership off that count would carry a map still holding `garden.olai`,
+  // membership off that count would carry a map still holding `garden.org`,
   // telling an open subscriber to drop a key every fresh one would go on
   // reading. What a collection HOLDS and what it SAID have to be the same thing
   // in both directions.
-  expect(published.outlines.entries.has("garden.olai")).toBe(false)
-  expect([...published.outlines.entries.keys()]).toEqual(["house.olai"])
-  expect([...published.heads.entries.keys()]).toEqual(["house.olai", "notes.md"])
+  expect(published.outlines.entries.has("garden.org")).toBe(false)
+  expect([...published.outlines.entries.keys()]).toEqual(["house.org"])
+  expect([...published.heads.entries.keys()]).toEqual(["house.org", "notes.md"])
 })
 
 // ...AND THE INVERSE, because the two collections are two readings of one rule
@@ -131,13 +131,13 @@ test("only the files the probe re-decoded are upserted", () => {
 // the one that must not keep the key, and the file count is still still.
 test("a key that leaves as another kind arrives is dropped from its own map", () => {
   const before = publishedOf(
-    revision(setOf({ "house.olai": HOUSE }, [["notes.md", "# hello"]])),
+    revision(setOf({ "house.org": HOUSE }, [["notes.md", "# hello"]])),
     NOTHING_HELD,
   )
   const published = publishedOf(
     revision(
-      setOf({ "house.olai": HOUSE, "garden.olai": GARDEN }),
-      { changed: ["garden.olai"], removed: ["notes.md"] },
+      setOf({ "house.org": HOUSE, "garden.org": GARDEN }),
+      { changed: ["garden.org"], removed: ["notes.md"] },
       2,
     ),
     before,
@@ -146,10 +146,10 @@ test("a key that leaves as another kind arrives is dropped from its own map", ()
   expect(published.documents.removes).toEqual(["notes.md"])
   expect(published.documents.entries.has("notes.md")).toBe(false)
   expect([...published.documents.entries.keys()]).toEqual([])
-  expect([...published.outlines.entries.keys()]).toEqual(["garden.olai", "house.olai"])
+  expect([...published.outlines.entries.keys()]).toEqual(["garden.org", "house.org"])
   // ...and the file the revision did not touch keeps the entry it was published
   // with, rebuilt map or not.
-  expect(published.outlines.entries.get("house.olai")?.rev).toBe(1)
+  expect(published.outlines.entries.get("house.org")?.rev).toBe(1)
 })
 
 // `rev` IS THE CHANGE TOKEN, which is the half of the sentence above two
@@ -163,36 +163,36 @@ test("a key that leaves as another kind arrives is dropped from its own map", ()
 // one would leave every tab silently stale.
 test("a revision moves for the files that moved and for no others", () => {
   const first = publishedOf(
-    revision(setOf({ "house.olai": HOUSE, "garden.olai": GARDEN })),
+    revision(setOf({ "house.org": HOUSE, "garden.org": GARDEN })),
     NOTHING_HELD,
   )
-  const held = first.outlines.entries.get("garden.olai")
+  const held = first.outlines.entries.get("garden.org")
   const next = publishedOf(
     revision(
       setOf({
-        "house.olai": `${HOUSE}{"id":"sink","parent":"kitchen","ord":"a0","title":"sink"}\n`,
-        "garden.olai": GARDEN,
+        "house.org": `${HOUSE}{"id":"sink","parent":"kitchen","ord":"a0","title":"sink"}\n`,
+        "garden.org": GARDEN,
       }, []),
-      { changed: ["house.olai"], removed: [] },
+      { changed: ["house.org"], removed: [] },
       2,
     ),
     first,
   )
 
-  expect(next.outlines.entries.get("house.olai")?.rev).toBe(2)
-  expect(next.outlines.entries.get("garden.olai")?.rev).toBe(1)
+  expect(next.outlines.entries.get("house.org")?.rev).toBe(2)
+  expect(next.outlines.entries.get("garden.org")?.rev).toBe(1)
   // The entry itself, not merely a number equal to it: an unchanged file is the
   // value the wire already sent, so a fold keyed on identity would see nothing
   // move either.
-  expect(next.outlines.entries.get("garden.olai")).toBe(held as never)
+  expect(next.outlines.entries.get("garden.org")).toBe(held as never)
 })
 
 // A collection may not be told to drop a key it never had — the store talks
 // about a directory, and a `.md` leaving it is not an outline leaving this.
 test("a removed path that was never an entry is not a remove", () => {
-  const held = publishedOf(revision(setOf({ "house.olai": HOUSE })), NOTHING_HELD)
+  const held = publishedOf(revision(setOf({ "house.org": HOUSE })), NOTHING_HELD)
   const published = publishedOf(
-    revision(setOf({ "house.olai": HOUSE }), { changed: [], removed: ["notes.md"] }, 2),
+    revision(setOf({ "house.org": HOUSE }), { changed: [], removed: ["notes.md"] }, 2),
     held,
   )
 
@@ -207,7 +207,7 @@ test("a removed path that was never an entry is not a remove", () => {
 // projection no longer has anything to say about at all.
 test("a document's text is in its own entry, keyed by its path", () => {
   const { outlines, documents } = publishedOf(
-    revision(setOf({ "house.olai": HOUSE }, [["notes.md", "# hello"]]), {}, 3),
+    revision(setOf({ "house.org": HOUSE }, [["notes.md", "# hello"]]), {}, 3),
     NOTHING_HELD,
   )
 
@@ -223,11 +223,11 @@ test("a document's text is in its own entry, keyed by its path", () => {
 
 test("a document that left the directory is a remove of its key", () => {
   const held = publishedOf(
-    revision(setOf({ "house.olai": HOUSE }, [["notes.md", "# hello"]])),
+    revision(setOf({ "house.org": HOUSE }, [["notes.md", "# hello"]])),
     NOTHING_HELD,
   )
   const published = publishedOf(
-    revision(setOf({ "house.olai": HOUSE }), { changed: [], removed: ["notes.md"] }, 2),
+    revision(setOf({ "house.org": HOUSE }), { changed: [], removed: ["notes.md"] }, 2),
     held,
   )
 
@@ -242,7 +242,7 @@ test("a document that left the directory is a remove of its key", () => {
 test("a file that did not move keeps the entry it was published with", () => {
   const first = publishedOf(
     revision(
-      setOf({ "house.olai": HOUSE, "garden.olai": GARDEN }, [["notes.md", "# hello"]]),
+      setOf({ "house.org": HOUSE, "garden.org": GARDEN }, [["notes.md", "# hello"]]),
     ),
     NOTHING_HELD,
   )
@@ -252,23 +252,23 @@ test("a file that did not move keeps the entry it was published with", () => {
   // read off `first` AFTERWARDS would be reading `second`'s own map and would
   // hold whatever it holds. What is being asserted is about the ENTRY, so the
   // entry is what is kept.
-  const garden = first.outlines.entries.get("garden.olai")
+  const garden = first.outlines.entries.get("garden.org")
   const notes = first.documents.entries.get("notes.md")
   const second = publishedOf(
     revision(
       setOf({
-        "house.olai": `${HOUSE}{"id":"sink","parent":"kitchen","ord":"a0","title":"sink"}\n`,
-        "garden.olai": GARDEN,
+        "house.org": `${HOUSE}{"id":"sink","parent":"kitchen","ord":"a0","title":"sink"}\n`,
+        "garden.org": GARDEN,
       }, [["notes.md", "# hello"]]),
-      { changed: ["house.olai"] },
+      { changed: ["house.org"] },
       2,
     ),
     first,
   )
 
-  expect(second.outlines.entries.get("garden.olai")).toBe(garden!)
-  expect(second.outlines.entries.get("garden.olai")?.rev).toBe(1)
-  expect(second.outlines.entries.get("house.olai")?.rev).toBe(2)
+  expect(second.outlines.entries.get("garden.org")).toBe(garden!)
+  expect(second.outlines.entries.get("garden.org")?.rev).toBe(1)
+  expect(second.outlines.entries.get("house.org")?.rev).toBe(2)
   // An untouched document is not re-published either — which is what keeps an
   // open reader's body from arriving again every time a neighbour is saved.
   expect(second.documents.entries.get("notes.md")).toBe(notes!)
@@ -288,41 +288,41 @@ test("a file that did not move keeps the entry it was published with", () => {
 // this failure); this is the fixture small enough to write the answer down.
 test("a file that arrives takes its place in the listing, not the end of it", () => {
   const before = publishedOf(
-    revision(setOf({ "house.olai": HOUSE, "wing.olai": GARDEN }, [["notes.md", "# hello"]])),
+    revision(setOf({ "house.org": HOUSE, "wing.org": GARDEN }, [["notes.md", "# hello"]])),
     NOTHING_HELD,
   )
-  expect([...before.heads.entries.keys()]).toEqual(["house.olai", "notes.md", "wing.olai"])
+  expect([...before.heads.entries.keys()]).toEqual(["house.org", "notes.md", "wing.org"])
 
   const born = publishedOf(
     revision(
-      setOf({ "aaa.olai": GARDEN, "house.olai": HOUSE, "mid.olai": GARDEN, "wing.olai": GARDEN }, [[
+      setOf({ "aaa.org": GARDEN, "house.org": HOUSE, "mid.org": GARDEN, "wing.org": GARDEN }, [[
         "notes.md",
         "# hello",
       ]]),
-      { changed: ["aaa.olai", "mid.olai"] },
+      { changed: ["aaa.org", "mid.org"] },
       2,
     ),
     before,
   )
 
   expect([...born.heads.entries.keys()]).toEqual([
-    "aaa.olai",
-    "house.olai",
-    "mid.olai",
+    "aaa.org",
+    "house.org",
+    "mid.org",
     "notes.md",
-    "wing.olai",
+    "wing.org",
   ])
   expect([...born.outlines.entries.keys()]).toEqual([
-    "aaa.olai",
-    "house.olai",
-    "mid.olai",
-    "wing.olai",
+    "aaa.org",
+    "house.org",
+    "mid.org",
+    "wing.org",
   ])
   // ...and the files that did NOT arrive keep the entries they were published
   // with, rebuilt map or not: what is rebuilt is the map, never the entries in
   // it.
-  expect(born.heads.entries.get("house.olai")?.rev).toBe(1)
-  expect(born.outlines.entries.get("wing.olai")?.rev).toBe(1)
+  expect(born.heads.entries.get("house.org")?.rev).toBe(1)
+  expect(born.outlines.entries.get("wing.org")?.rev).toBe(1)
 })
 
 // The other kind of bodied file, and the whole memory claim as a projection:
@@ -334,7 +334,7 @@ test("a file that arrives takes its place in the listing, not the end of it", ()
 test("a `.html` is a key of the collection with no body in it", () => {
   const { documents } = publishedOf(
     revision(
-      setOf({ "house.olai": HOUSE }, [["notes.md", "# hello"], "report.html"]),
+      setOf({ "house.org": HOUSE }, [["notes.md", "# hello"], "report.html"]),
       {},
       4,
     ),
@@ -366,7 +366,7 @@ test("a `.html` is a key of the collection with no body in it", () => {
 test("a parse-broken document is not refused, and an unreadable one is", () => {
   const parsed = publishedOf(
     revision(
-      setOf({ "house.olai": HOUSE }, [["notes.md", "# hello"]], {
+      setOf({ "house.org": HOUSE }, [["notes.md", "# hello"]], {
         "torn.md": "whatever the bytes were",
       }),
       {},
@@ -386,7 +386,7 @@ test("a parse-broken document is not refused, and an unreadable one is", () => {
     revision(
       assemble(
         new Map<string, Result.Result<Document, Verdict>>([
-          ["house.olai", Result.succeed(outlineOf(HOUSE, "house.olai"))],
+          ["house.org", Result.succeed(outlineOf(HOUSE, "house.org"))],
           [
             "locked.md",
             Result.fail(verdictOf([
@@ -425,7 +425,7 @@ test("a parse-broken document is not refused, and an unreadable one is", () => {
 // the second half of this is written against.
 test("a bodyless entry is upserted only when its key is new", () => {
   const first = publishedOf(
-    revision(setOf({ "house.olai": HOUSE }, [["notes.md", "# hello"], "report.html"])),
+    revision(setOf({ "house.org": HOUSE }, [["notes.md", "# hello"], "report.html"])),
     NOTHING_HELD,
   )
   // Born: the key is announced, `null` and all, which is how the sidebar learns
@@ -440,7 +440,7 @@ test("a bodyless entry is upserted only when its key is new", () => {
   // publishes it, and the collection is told nothing in the meantime.
   const second = publishedOf(
     revision(
-      setOf({ "house.olai": HOUSE }, [["notes.md", "# hello"], "report.html"]),
+      setOf({ "house.org": HOUSE }, [["notes.md", "# hello"], "report.html"]),
       { changed: ["report.html"] },
       2,
     ),
@@ -461,7 +461,7 @@ test("a bodyless entry is upserted only when its key is new", () => {
   // set does not keep changes what a departure is.
   const gone = publishedOf(
     revision(
-      setOf({ "house.olai": HOUSE }, [["notes.md", "# hello"]]),
+      setOf({ "house.org": HOUSE }, [["notes.md", "# hello"]]),
       { changed: [], removed: ["report.html"] },
       3,
     ),
@@ -482,7 +482,7 @@ test("a bodyless entry is upserted only when its key is new", () => {
 test("a body is owed for the kinds this process can read, and no others", () => {
   const born = publishedOf(
     revision(
-      setOf({ "house.olai": HOUSE }, [
+      setOf({ "house.org": HOUSE }, [
         ["notes.md", "# hello"],
         "report.html",
         "data/sales.csv",
@@ -516,7 +516,7 @@ test("a body is owed for the kinds this process can read, and no others", () => 
 test("every served file has a head, and it is that file's revision alone", () => {
   const { documents, heads } = publishedOf(
     revision(
-      setOf({ "house.olai": HOUSE }, [["notes.md", "# hello"], "report.html"]),
+      setOf({ "house.org": HOUSE }, [["notes.md", "# hello"], "report.html"]),
       {},
       4,
     ),
@@ -524,16 +524,16 @@ test("every served file has a head, and it is that file's revision alone", () =>
   )
 
   for (const path of documents.entries.keys()) expect(heads.entries.has(path)).toBe(true)
-  expect([...heads.entries.keys()]).toEqual(["house.olai", "notes.md", "report.html"])
+  expect([...heads.entries.keys()]).toEqual(["house.org", "notes.md", "report.html"])
   expect(heads.entries.get("notes.md")).toMatchObject({ rev: 4 })
   expect(heads.entries.get("report.html")).toMatchObject({ rev: 4 })
-  expect(heads.entries.get("house.olai")).toMatchObject({ rev: 4 })
+  expect(heads.entries.get("house.org")).toMatchObject({ rev: 4 })
   // The head carries the face, which is the whole of what a browser knows about
   // a file it has not opened — and, for an outline, whether it parsed at all.
   expect(heads.entries.get("notes.md")?.face.title).toBe("hello")
-  expect(heads.entries.get("house.olai")?.broken).toBe(null)
+  expect(heads.entries.get("house.org")?.broken).toBe(null)
   // …and no content of any kind, which is the whole point of the member.
-  expect(heads.entries.get("house.olai")).not.toHaveProperty("nodes")
+  expect(heads.entries.get("house.org")).not.toHaveProperty("nodes")
   expect(heads.entries.get("notes.md")).not.toHaveProperty("text")
 })
 
@@ -544,18 +544,18 @@ test("every served file has a head, and it is that file's revision alone", () =>
 // there unless somebody read the file. The head has no body to withhold.
 test("a `.html` that changed is upserted here even though its body is not", () => {
   const first = publishedOf(
-    revision(setOf({ "house.olai": HOUSE }, [["notes.md", "# hello"], "report.html"])),
+    revision(setOf({ "house.org": HOUSE }, [["notes.md", "# hello"], "report.html"])),
     NOTHING_HELD,
   )
   expect(first.heads.upserts.map(([path]) => path)).toEqual([
-    "house.olai",
+    "house.org",
     "notes.md",
     "report.html",
   ])
 
   const second = publishedOf(
     revision(
-      setOf({ "house.olai": HOUSE }, [["notes.md", "# hello"], "report.html"]),
+      setOf({ "house.org": HOUSE }, [["notes.md", "# hello"], "report.html"]),
       { changed: ["report.html"] },
       2,
     ),
@@ -570,7 +570,7 @@ test("a `.html` that changed is upserted here even though its body is not", () =
 
   const gone = publishedOf(
     revision(
-      setOf({ "house.olai": HOUSE }, [["notes.md", "# hello"]]),
+      setOf({ "house.org": HOUSE }, [["notes.md", "# hello"]]),
       { changed: [], removed: ["report.html"] },
       3,
     ),

@@ -178,18 +178,18 @@ export type Revision = ReadonlyMap<string, string>
  */
 const pathOf = (which: number): string => {
   const at = which % 7
-  if (at === 6) return `wing/held${which}.olai`
-  if (at === 5) return `deep/held${which}.olai`
-  return `held${which}.olai`
+  if (at === 6) return `wing/held${which}.org`
+  if (at === 5) return `deep/held${which}.org`
+  return `held${which}.org`
 }
 
 /** …and the one FILE the directory called `wing/` also holds a file named
  *  after, so the separator-sorts-first rule has something to decide. */
-const WING = "wing.olai"
+const WING = "wing.org"
 
 /** The archive, whose referrers are left out at the READ — a rule only a corpus
  *  that has one can test. */
-const TRASH = "_olai/Trash.olai"
+const TRASH = "_olai/Trash.org"
 
 /** The one file the set keeps the PATH of and not the bytes: its `links` are
  *  empty because nothing read it rather than because it points nowhere, so it
@@ -462,7 +462,7 @@ const renamed = (
   if (there.length === 0) return
   const from = pick(random, there)
   const to = fileKind(from) === "outline"
-    ? `renamed${away.size}.olai`
+    ? `renamed${away.size}.org`
     : `renamed${away.size}.md`
   if (vault.has(to)) return
   const text = vault.get(from) as string

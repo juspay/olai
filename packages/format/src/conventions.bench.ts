@@ -89,8 +89,8 @@ const vault = (): Corpus => ({
   // with one finding in it is one nobody publishes
   // ({@link ./fixtures.testlib.ts}'s `settled`).
   ...Object.fromEntries(settled(vaultOf({ files: FILES, records: RECORDS }))),
-  "Pins.olai": PINS,
-  "notes/Inbox.olai": CAPTURES,
+  "Pins.org": PINS,
+  "notes/Inbox.org": CAPTURES,
 })
 
 /** One revision as the store publishes one: the reading, and the two lists it

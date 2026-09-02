@@ -1,5 +1,0 @@
-{"id":"cellar","ord":"a0","title":"tidy the cellar"}
-{"id":"shelves","parent":"attic","ord":"a0","title":"put up shelves"}
-{"id":"boxes","parent":"cellar","ord":"a1","title":"sort the crates"}
-{"id":"lamp","parent":"nowhere","ord":"a2","title":"fix the lamp"}
-{"id":"crates","parent":"porch","ord":"a3","title":"stack the crates"}

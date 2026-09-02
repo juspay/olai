@@ -29,35 +29,35 @@ const order = (errors: ReadonlyArray<OutlineError>): ReadonlyArray<string> =>
 test("errors sort by file, then line, then code", () => {
   expect(
     order([
-      error("b.olai", 1, "bad-id"),
-      error("a.olai", 10, "bad-id"),
-      error("a.olai", 2, "unknown-target"),
-      error("a.olai", 2, "bad-date"),
+      error("b.org", 1, "bad-id"),
+      error("a.org", 10, "bad-id"),
+      error("a.org", 2, "unknown-target"),
+      error("a.org", 2, "bad-date"),
     ]),
   ).toEqual([
-    "a.olai:2:bad-date",
-    "a.olai:2:unknown-target",
-    "a.olai:10:bad-id",
-    "b.olai:1:bad-id",
+    "a.org:2:bad-date",
+    "a.org:2:unknown-target",
+    "a.org:10:bad-id",
+    "b.org:1:bad-id",
   ])
 })
 
 // Lines are compared as numbers. String order would file line 10 before line 2
 // and make a long file's error list read at random.
 test("line 10 sorts after line 2, not before it", () => {
-  expect(compareErrors(error("a.olai", 10, "bad-id"), error("a.olai", 2, "bad-id")))
+  expect(compareErrors(error("a.org", 10, "bad-id"), error("a.org", 2, "bad-id")))
     .toBeGreaterThan(0)
 })
 
 // Files are compared by code point, not by `localeCompare`: a locale-sensitive
-// sort orders `B.olai` after `a.olai` in English and elsewhere would not, so
+// sort orders `B.org` after `a.org` in English and elsewhere would not, so
 // "two loads of the same broken set produce the same list" would stop being
 // true between two machines — which is the whole reason to order it at all.
 test("files sort by code point, not by locale", () => {
-  expect(order([error("a.olai", 1, "bad-id"), error("B.olai", 1, "bad-id")]))
-    .toEqual(["B.olai:1:bad-id", "a.olai:1:bad-id"])
+  expect(order([error("a.org", 1, "bad-id"), error("B.org", 1, "bad-id")]))
+    .toEqual(["B.org:1:bad-id", "a.org:1:bad-id"])
   // `Order.Order` is still a comparator, which is what `sort` above is handed.
-  expect(compareErrors(error("a.olai", 1, "bad-id"), error("B.olai", 1, "bad-id")))
+  expect(compareErrors(error("a.org", 1, "bad-id"), error("B.org", 1, "bad-id")))
     .toBeGreaterThan(0)
 })
 
@@ -67,8 +67,8 @@ test("files sort by code point, not by locale", () => {
 test("an error is cross-file when a related site lives in another file", () => {
   expect(
     isCrossFile(
-      error("b.olai", 1, "duplicate-id", [
-        { file: "a.olai", line: 1, note: "first declared here" },
+      error("b.org", 1, "duplicate-id", [
+        { file: "a.org", line: 1, note: "first declared here" },
       ]),
     ),
   ).toBe(true)
@@ -76,12 +76,12 @@ test("an error is cross-file when a related site lives in another file", () => {
   // problem.
   expect(
     isCrossFile(
-      error("a.olai", 3, "parent-cycle", [
-        { file: "a.olai", line: 1, note: "also in the loop" },
+      error("a.org", 3, "parent-cycle", [
+        { file: "a.org", line: 1, note: "also in the loop" },
       ]),
     ),
   ).toBe(false)
-  expect(isCrossFile({ code: "bad-id", file: "a.olai", line: 1, message: "x" })).toBe(false)
+  expect(isCrossFile({ code: "bad-id", file: "a.org", line: 1, message: "x" })).toBe(false)
 })
 
 // THE TWO PLANES, and one reading of the field that separates them. A site
@@ -92,30 +92,30 @@ test("an error is cross-file when a related site lives in another file", () => {
 // second counted rather than a third reading of `Related.broken`, which is the
 // drift this pair exists to make impossible.
 test("a site the finding NAMES but does not break is on one plane and not the other", () => {
-  const named = error("lanes.olai", 3, "bad-prop", [
-    { file: "_olai/Properties.olai", line: 1, note: "declared here", broken: false },
+  const named = error("lanes.org", 3, "bad-prop", [
+    { file: "_olai/Properties.org", line: 1, note: "declared here", broken: false },
   ])
-  expect(implicatedBy(named)).toEqual(["lanes.olai", "_olai/Properties.olai"])
-  expect(blamedOn(named)).toEqual(["lanes.olai"])
+  expect(implicatedBy(named)).toEqual(["lanes.org", "_olai/Properties.org"])
+  expect(blamedOn(named)).toEqual(["lanes.org"])
   expect(isCrossFile(named)).toBe(false)
 
   // …and an unmarked site is on both, which is the safe default: a rule that
   // forgets over-darkens rather than drawing a page out of records the
   // validator has just refused.
-  const shared = error("b.olai", 1, "duplicate-id", [
-    { file: "a.olai", line: 1, note: "first declared here" },
+  const shared = error("b.org", 1, "duplicate-id", [
+    { file: "a.org", line: 1, note: "first declared here" },
   ])
   expect(implicatedBy(shared)).toEqual(blamedOn(shared))
-  expect(blamedOn(shared)).toEqual(["b.olai", "a.olai"])
+  expect(blamedOn(shared)).toEqual(["b.org", "a.org"])
 
   // One file named TWICE — once as ground, once as broken — is broken,
   // whichever order the sites came in, and appears once on each plane.
-  const both = error("lanes.olai", 3, "bad-prop", [
-    { file: "a.olai", line: 1, note: "declared here", broken: false },
-    { file: "a.olai", line: 9, note: "first declared here" },
+  const both = error("lanes.org", 3, "bad-prop", [
+    { file: "a.org", line: 1, note: "declared here", broken: false },
+    { file: "a.org", line: 9, note: "first declared here" },
   ])
-  expect(blamedOn(both)).toEqual(["lanes.olai", "a.olai"])
-  expect(implicatedBy(both)).toEqual(["lanes.olai", "a.olai"])
+  expect(blamedOn(both)).toEqual(["lanes.org", "a.org"])
+  expect(implicatedBy(both)).toEqual(["lanes.org", "a.org"])
 })
 
 // The stage is a pure function of the code rather than a stored field: two
@@ -136,8 +136,8 @@ test("the stage is decided by the code alone", () => {
 // question still open, and the view says so rather than letting a reader
 // conclude from a short list that the rest of the set is fine.
 test("a report is at the line stage while anything in it is", () => {
-  const line = error("a.olai", 1, "not-json")
-  const set = error("a.olai", 2, "unknown-parent")
+  const line = error("a.org", 1, "not-json")
+  const set = error("a.org", 2, "unknown-parent")
   expect(reportStage([set, set])).toBe("set")
   expect(reportStage([line])).toBe("line")
   // One line error among many set errors still holds the whole report back —
@@ -272,16 +272,16 @@ test("every code says whether it can name a file it does not break", () => {
 test("the two planes differ for exactly the codes that say they do", () => {
   const found = findingsIn(validatedOf({
     // `boxes` twice, across two files: both ends share the fault.
-    "attic.olai": `{"id":"attic","ord":"a0","title":"the attic"}\n` +
+    "attic.org": `{"id":"attic","ord":"a0","title":"the attic"}\n` +
       `{"id":"boxes","parent":"attic","ord":"a1","title":"sort the boxes"}`,
-    "cellar.olai": `{"id":"cellar","ord":"a0","title":"the cellar"}\n` +
-      // …and a `parent` reaching into attic.olai: named, not blamed.
+    "cellar.org": `{"id":"cellar","ord":"a0","title":"the cellar"}\n` +
+      // …and a `parent` reaching into attic.org: named, not blamed.
       `{"id":"shelves","parent":"attic","ord":"a1","title":"put up shelves"}\n` +
       `{"id":"boxes","parent":"cellar","ord":"a2","title":"sort the crates"}`,
     // A value judged by a declaration one file over: the judge is named.
-    "_olai/Properties.olai":
+    "_olai/Properties.org":
       `{"id":"p","ord":"a0","title":"records","custom":{"type":"int"}}`,
-    "lanes.olai": `{"id":"lane","ord":"a0","title":"a lane","custom":{"records":"prose"}}`,
+    "lanes.org": `{"id":"lane","ord":"a0","title":"a lane","custom":{"records":"prose"}}`,
   }))
 
   // Every finding names at least what it breaks — the planes are nested, never

@@ -268,11 +268,11 @@ const pointedAt = (at: Reading, path: string, element: string | null = null): st
 // does not hold, and the second half of this case is what says so.
 test("a link onto a heading is filed under the heading and under the document", () => {
   const at = readingOfVault({
-    "a.olai": `{"id":"n","ord":"a0","title":"see [the scope](brief.md#scope)"}`,
+    "a.org": `{"id":"n","ord":"a0","title":"see [the scope](brief.md#scope)"}`,
     "brief.md": "# Brief\n\n## Scope\n\n## Risks\n",
   })
-  expect(pointedAt(at, "brief.md")).toBe("a.olai#n")
-  expect(pointedAt(at, "brief.md", "scope")).toBe("a.olai#n")
+  expect(pointedAt(at, "brief.md")).toBe("a.org#n")
+  expect(pointedAt(at, "brief.md", "scope")).toBe("a.org#n")
   // …and asking about the heading is asking about the heading.
   expect(pointedAt(at, "brief.md", "risks")).toBe("")
 })
@@ -294,15 +294,15 @@ test("a face writing a document and one of its headings is one referrer", () => 
 // two keys that no concatenation could have kept apart.
 test("a path that starts with a `#` is filed apart from the node arm", () => {
   const at = readingOfVault({
-    "a.olai": [
+    "a.org": [
       `{"id":"points","ord":"a0","title":"at the file","doc":"#odd.md"}`,
       `{"id":"odd","ord":"a1","title":"a node called odd"}`,
       `{"id":"names","ord":"a2","title":"at the node","see":["odd"]}`,
     ].join("\n"),
     "#odd.md": "# Odd\n",
   })
-  expect(pointedAt(at, "#odd.md")).toBe("a.olai#points")
-  expect(pointedAt(at, "", "odd")).toBe("a.olai#names")
+  expect(pointedAt(at, "#odd.md")).toBe("a.org#points")
+  expect(pointedAt(at, "", "odd")).toBe("a.org#names")
 })
 
 // The members are in PATH ORDER, which is the order the set holds its documents
@@ -336,12 +336,12 @@ test("the referrers come back in path order, whichever way the index got there",
 // UNTOUCHED, which is what keeps the page that read it from being redrawn.
 test("a body write that leaves the face alone carries the index by reference", () => {
   const before = readingOfVault({
-    "a.olai": `{"id":"n","ord":"a0","title":"n","doc":"brief.md"}`,
+    "a.org": `{"id":"n","ord":"a0","title":"n","doc":"brief.md"}`,
     "brief.md": "# Brief\n\nthe first draft\n",
   })
   const files = decodedVault(
     new Map([
-      ["a.olai", `{"id":"n","ord":"a0","title":"n","doc":"brief.md"}`],
+      ["a.org", `{"id":"n","ord":"a0","title":"n","doc":"brief.md"}`],
       ["brief.md", "# Brief\n\nthe second draft\n"],
     ]),
   )
@@ -354,7 +354,7 @@ test("a body write that leaves the face alone carries the index by reference", (
   expect(after.set.documents[1]).not.toBe(before.set.documents[1])
   expect(after.pointing).toBe(before.pointing)
   // …and the claim is not vacuous: the index has something in it to carry.
-  expect(pointedAt(before, "brief.md")).toBe("a.olai#n")
+  expect(pointedAt(before, "brief.md")).toBe("a.org#n")
 })
 
 // …and the other side of the same rule: a body write that MOVES a link moves

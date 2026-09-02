@@ -28,7 +28,7 @@ const HOUSE = [
   `{"id":"echo","ord":"a2","mirror":"order"}`,
 ].join("\n")
 
-const reading = (set: OutlineSet = setOf({ "house.olai": HOUSE })): Reading =>
+const reading = (set: OutlineSet = setOf({ "house.org": HOUSE })): Reading =>
   readingOf(set)
 
 const resolved = (ids: ReadonlyArray<string>): ReadonlyArray<NodeContext> => {
@@ -55,8 +55,8 @@ test("an id becomes the node, where it lives, and what it hangs off", () => {
     {
       id: "handles",
       title: "pick the handles",
-      file: "house.olai",
-      line: 4,
+      file: "house.org",
+      line: 28,
       // Outermost first, and the CANONICAL chain — what makes a bare "pick the
       // handles" mean something in a directory of outlines.
       path: ["Kitchen remodel", "install them"],
@@ -110,8 +110,8 @@ test("a mirror is refused naming the node it shows", () => {
 // (`@olai/chat`'s `lineFor`) rather than being told twice.
 test("an archived node resolves, with the archive it is in as its file", () => {
   const set = setOf({
-    "house.olai": HOUSE,
-    "_olai/Trash.olai": `{"id":"tiles","ord":"a0","title":"the tiles nobody liked"}`,
+    "house.org": HOUSE,
+    "_olai/Trash.org": `{"id":"tiles","ord":"a0","title":"the tiles nobody liked"}`,
   })
   const outcome = contextFor(readingOf(set), ["tiles"])
   expect(Result.isSuccess(outcome)).toBe(true)
@@ -119,7 +119,7 @@ test("an archived node resolves, with the archive it is in as its file", () => {
     {
       id: "tiles",
       title: "the tiles nobody liked",
-      file: "_olai/Trash.olai",
+      file: "_olai/Trash.org",
       line: 1,
       path: [],
     },

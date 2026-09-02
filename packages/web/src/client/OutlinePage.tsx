@@ -6,7 +6,7 @@
  * there is.
  *
  * The LANDING (below) is the outline arm of what the markdown face draws for
- * `#heading`: an address like `/house.olai#install` asking this page to arrive
+ * `#heading`: an address like `/house.org#install` asking this page to arrive
  * at the row it names. The act is the small half the browser cannot do: the
  * row is a place in the tree, not an element id — and the address may name
  * one inside a branch this reader has folded, which the tree answers with its

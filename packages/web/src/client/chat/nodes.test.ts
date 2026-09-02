@@ -37,7 +37,7 @@ const hit = (one: {
   at: { kind: "node", id: one.id as never },
   id: one.id,
   title: one.title,
-  file: one.file ?? "house.olai",
+  file: one.file ?? "house.org",
   line: 1,
   path: one.path ?? [],
   see: undefined,
@@ -60,7 +60,7 @@ test("a row reads the title, and says where it sits", () => {
   ).toEqual([{
     id: "hinges",
     label: "pick the hinges",
-    from: "house.olai",
+    from: "house.org",
     place: "install the cabinets · kitchen remodel",
     note: false,
   }])
@@ -68,13 +68,13 @@ test("a row reads the title, and says where it sits", () => {
 
 test("a node at the top of a file is placed by the file, which is all it has", () => {
   expect(nodeMatches([hit({ id: "kitchen", title: "kitchen remodel" })])[0]?.place)
-    .toBe("house.olai")
+    .toBe("house.org")
 })
 
 test("two nodes of one title are told apart by where they are", () => {
   expect(
     nodeMatches([
-      hit({ id: "chase-beds", title: "chase the supplier", file: "garden.olai", path: ["garden"] }),
+      hit({ id: "chase-beds", title: "chase the supplier", file: "garden.org", path: ["garden"] }),
       hit({
         id: "chase-order",
         title: "chase the supplier",

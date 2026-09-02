@@ -35,20 +35,20 @@ const matched = (
 ): ReadonlyArray<string> => matchFiles(files, query, limit).map((file) => file.path)
 
 const DIRECTORY = folded([
-  "Daily/2026-08.olai",
+  "Daily/2026-08.org",
   "finishes.md",
-  "garden.olai",
-  "house.olai",
+  "garden.org",
+  "house.org",
   "notes/cabinets.md",
   "notes/palette.md",
 ])
 
 test("an empty query is the whole directory — a bare `@` shows what is there", () => {
   expect(matched(DIRECTORY, "", LIMIT)).toEqual([
-    "Daily/2026-08.olai",
+    "Daily/2026-08.org",
     "finishes.md",
-    "garden.olai",
-    "house.olai",
+    "garden.org",
+    "house.org",
     "notes/cabinets.md",
     "notes/palette.md",
   ])
@@ -76,7 +76,7 @@ test("a name that starts with the query beats one that merely holds it", () => {
 })
 
 test("case is not something anybody should have to get right", () => {
-  expect(matched(DIRECTORY, "DAILY/", LIMIT)).toEqual(["Daily/2026-08.olai"])
+  expect(matched(DIRECTORY, "DAILY/", LIMIT)).toEqual(["Daily/2026-08.org"])
   expect(matched(folded(["Notes/Palette.md"]), "palette", LIMIT)).toEqual([
     "Notes/Palette.md",
   ])
@@ -99,6 +99,6 @@ test("what a row reads: the name, and where it sits", () => {
   expect(dirOf("notes/cabinets.md")).toBe("notes")
   // A file at the root has no folder to name, and says so with nothing rather
   // than with a `/` nobody typed.
-  expect(nameOf("house.olai")).toBe("house.olai")
-  expect(dirOf("house.olai")).toBe("")
+  expect(nameOf("house.org")).toBe("house.org")
+  expect(dirOf("house.org")).toBe("")
 })

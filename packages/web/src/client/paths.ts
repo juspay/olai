@@ -13,8 +13,8 @@
  * documented as matching what a directory walk produces and true of that — but
  * the SET has an order too (`@olai/format`'s `assemble`), and the two answered
  * differently for exactly one pair of paths: a file and a directory sharing a
- * name, where a plain string compare puts `wing.olai` ahead of
- * `wing/kitchen.olai` and a walk that descends does not. That was harmless
+ * name, where a plain string compare puts `wing.org` ahead of
+ * `wing/kitchen.org` and a walk that descends does not. That was harmless
  * while the client flattened its entries and re-derived in whatever order it
  * liked; it stopped being harmless when the client began PATCHING the format's
  * view, which places an arriving file by the set's order. So there is one

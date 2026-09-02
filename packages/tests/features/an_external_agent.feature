@@ -53,23 +53,23 @@ Feature: An agent olai did not start
   Scenario: A terminal starts a new outline and the open page lists it
     # The gap `create_outline` closes: `add_node` refuses any file the set does
     # not already hold, so without this an agent cannot open a fresh outline at
-    # all. The store's watcher already handles a new `.olai` (see
+    # all. The store's watcher already handles a new `.org` (see
     # it_stays_live.feature); this scenario proves the write path that mints
     # one reaches the same live tab — no reload.
     #
     # THREE, and the number is a fact about the FIXTURE, not the claim: the
     # claim is "one more than the corpus held", and this corpus now ships TWO
-    # outlines on purpose — `house.olai`, plus `yard.olai`, which
+    # outlines on purpose — `house.org`, plus `yard.org`, which
     # node_context.feature pins the cross-outline landing against — so the one
     # write is the one that turns it into three.
-    When the terminal agent creates the outline "shed.olai" seeded with "clear out the shed"
-    Then the outline list links to "shed.olai"
+    When the terminal agent creates the outline "shed.org" seeded with "clear out the shed"
+    Then the outline list links to "shed.org"
     And the outline list has 3 entries
     And the page has not reloaded
     And there should be no page errors
 
   Scenario: A terminal captures a node and it appears in the tree
-    When the terminal agent captures "water the plants" in "house.olai"
+    When the terminal agent captures "water the plants" in "house.org"
     Then the tree eventually shows a node titled "water the plants"
     And the page has not reloaded
 
@@ -79,10 +79,10 @@ Feature: An agent olai did not start
     # behind — a file nobody asked for. `seed` is a whole capture now, so the
     # file and everything in it arrive together, on a page that was already
     # open.
-    When the terminal agent creates the outline "shed.olai" holding a whole tree
-    Then the outline list links to "shed.olai"
+    When the terminal agent creates the outline "shed.org" holding a whole tree
+    Then the outline list links to "shed.org"
     And the terminal agent was told it captured 3 nodes
-    When I open the outline "shed.olai"
+    When I open the outline "shed.org"
     Then the node "clear" is a child of "shed"
     And the node "tins" is a child of "clear"
     And the node "clear" shows an empty checkbox
@@ -116,7 +116,7 @@ Feature: An agent olai did not start
     # carries no title of its own, and everything under `kitchen` is drawn
     # beneath it. Nothing was copied — there is one `order` on disk and two on
     # screen.
-    When the terminal agent mirrors "kitchen" at the top of "house.olai" as "now-kitchen"
+    When the terminal agent mirrors "kitchen" at the top of "house.org" as "now-kitchen"
     Then the node "now-kitchen" is shown
     And the node "order" is a child of "now-kitchen"
     And the node "install" is a child of "now-kitchen"
@@ -127,7 +127,7 @@ Feature: An agent olai did not start
     # The other half, and the semantic worth pinning end to end: retiring a
     # placement deletes ONE LINE. The row goes, and the node it was showing is
     # still there in the outline that defines it, with its subtree.
-    When the terminal agent mirrors "kitchen" at the top of "house.olai" as "now-kitchen"
+    When the terminal agent mirrors "kitchen" at the top of "house.org" as "now-kitchen"
     Then the node "now-kitchen" is shown
     When the terminal agent retires the mirror "now-kitchen"
     Then the node "now-kitchen" is not shown
@@ -143,8 +143,8 @@ Feature: An agent olai did not start
     # layer, not because anything was echoed.
     When the terminal agent duplicates "install"
     Then the terminal agent was told it captured 3 nodes
-    And the copy of "install" in "house.olai" repeats every field but the ids and the stamps
-    And "house.olai" holds a copy of "install" with fresh ids throughout
+    And the copy of "install" in "house.org" repeats every field but the ids and the stamps
+    And "house.org" holds a copy of "install" with fresh ids throughout
     And the tree eventually shows a node titled "install the cabinets"
     And the page has not reloaded
     And there should be no page errors
@@ -184,11 +184,11 @@ Feature: An agent olai did not start
     # exclusion over a file with nothing to exclude would be a check that
     # passes for the wrong reason. The write is this scratch copy's own, so no
     # other scenario reads a fixture grown for this one.
-    When the terminal agent captures "sort the bills" in "house.olai"
+    When the terminal agent captures "sort the bills" in "house.org"
     Then the tree eventually shows a node titled "sort the bills"
-    When the terminal agent mirrors "order" at the top of "house.olai" as "now-order"
+    When the terminal agent mirrors "order" at the top of "house.org" as "now-order"
     Then the node "now-order" is shown
-    When the terminal agent reads the whole outline "house.olai"
+    When the terminal agent reads the whole outline "house.org"
     # Two roots and no third: the placement occupies a place in the file and is
     # not something the file HOLDS, which is the same rule that keeps the walk
     # from descending into one. Named on the answer, so the file is not silence
@@ -237,9 +237,9 @@ Feature: An agent olai did not start
     # outline that is not there look identical to a caller, and only one of
     # them is worth acting on. The sentence is `read_document`'s own — one
     # typo, one answer, whichever verb it was typed at.
-    When the terminal agent reads the whole outline "hause.olai"
+    When the terminal agent reads the whole outline "hause.org"
     Then the terminal agent was refused with the kind "not-found"
-    And the terminal agent was pointed at "house.olai"
+    And the terminal agent was pointed at "house.org"
     And there should be no page errors
 
   Scenario: A selection arrives with its notes
@@ -265,7 +265,7 @@ Feature: An agent olai did not start
     # expensive read; `withDesc: false` is the table of contents — ids, titles,
     # marks, structure. `hinges` in this fixture carries a note, so a walk that
     # kept it would fail the absence below for the wrong reason.
-    When the terminal agent reads the whole outline "house.olai" without the notes
+    When the terminal agent reads the whole outline "house.org" without the notes
     Then the terminal agent was handed the roots "kitchen remodel #home"
     And no node in the answer carries a note
     And there should be no page errors

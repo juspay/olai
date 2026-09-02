@@ -14,14 +14,14 @@ Feature: It stays live
   a watcher on an inode that is gone.
 
   Background:
-    Given I open the outline "garden.olai"
+    Given I open the outline "garden.org"
     # The rewrite-and-watch scenarios count `basil` and `glazing` — finished
     # — among the rows the page must go on drawing; the pick is said once.
     And I show the done nodes
     And I mark the page
 
   Scenario: An edit on disk reaches the open page
-    When I rewrite "garden.olai" as:
+    When I rewrite "garden.org" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
@@ -37,7 +37,7 @@ Feature: It stays live
     # shape of a `git pull`. The settle delay is what makes them one probe, and
     # one probe is what makes them one published set: half a pull is a set that
     # was never on disk.
-    When I rewrite "garden.olai" as:
+    When I rewrite "garden.org" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
@@ -45,7 +45,7 @@ Feature: It stays live
       {"id":"mint","parent":"herbs","ord":"a1","title":"split the mint","doing":true}
       {"id":"compost","parent":"garden","ord":"a1","title":"turn the compost","after":["mint"]}
       """
-    And I rewrite "shed.olai" as:
+    And I rewrite "shed.org" as:
       """
       {"id":"shed","ord":"a0","title":"clear out the shed"}
       {"id":"rake","parent":"shed","ord":"a0","title":"hang up the rake"}
@@ -58,21 +58,21 @@ Feature: It stays live
     And there should be no page errors
 
   Scenario: One file that will not parse costs that one outline
-    # The error scope: house.olai loses its tree and nothing else does. Note
-    # what stays true — the sidebar still lists it, garden.olai is still drawn,
+    # The error scope: house.org loses its tree and nothing else does. Note
+    # what stays true — the sidebar still lists it, garden.org is still drawn,
     # and the summary over both names exactly one file.
-    When I rewrite "house.olai" as:
+    When I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters","done":"2026-08-03"}
       {"id":"order","parent":"kitchen","ord":"a1",title:"order the new cabinets"}
       """
-    Then the outline "house.olai" is marked unreadable
+    Then the outline "house.org" is marked unreadable
     And the stale banner names 1 file
-    And the stale banner names "house.olai" as "unparsed"
+    And the stale banner names "house.org" as "unparsed"
     And the node "herbs" is shown
-    When I open the unreadable outline "house.olai"
-    Then the outline failure shows an error at "house.olai:3"
+    When I open the unreadable outline "house.org"
+    Then the outline failure shows an error at "house.org:3"
     And the outline failure shows an error with code "not-json"
     And the page has not reloaded
 
@@ -80,10 +80,10 @@ Feature: It stays live
     # `nowhere` is nobody's id. That used to hold the WHOLE set — every page in
     # the app frozen at the last good revision behind a banner — and since the
     # human's ruling of 2026-08-29 it costs exactly the file that says it:
-    # garden.olai draws its rows where its tree was, house.olai is live, and the
+    # garden.org draws its rows where its tree was, house.org is live, and the
     # banner over both is a signpost naming the one broken file rather than a
     # warning about the page you are reading.
-    When I rewrite "garden.olai" as:
+    When I rewrite "garden.org" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
@@ -91,7 +91,7 @@ Feature: It stays live
       {"id":"mint","parent":"herbs","ord":"a1","title":"split the mint","doing":true,"after":["nowhere"]}
       """
     Then the stale banner is shown
-    And the stale banner names "garden.olai" as "invalid"
+    And the stale banner names "garden.org" as "invalid"
     # …and says it in ONE line. The banner is over every page in the app, so
     # what it may draw is a count and never the rows (`last-good-banner-flood`,
     # sighted with 135 of them above every open document).
@@ -99,22 +99,22 @@ Feature: It stays live
     # …and the line is a DOOR: every broken file has a page of its own now, so
     # the banner sends the reader to it rather than naming a destination with
     # nothing to show.
-    And the stale banner links to "garden.olai"
+    And the stale banner links to "garden.org"
     And the stale banner names 1 file
-    And the outline "garden.olai" is marked unreadable
+    And the outline "garden.org" is marked unreadable
     # THE BROKEN FILE'S OWN PAGE: its rows, where its tree was.
-    When I open the unreadable outline "garden.olai"
+    When I open the unreadable outline "garden.org"
     Then the outline failure shows an error with code "unknown-target"
-    And the outline failure shows an error at "garden.olai:4"
+    And the outline failure shows an error at "garden.org:4"
     # …AND THE NEIGHBOUR IS LIVE, drawn exactly as it always was. This is the
     # half that used to be impossible: every page in the app was the last good
     # copy behind that banner.
-    When I click the outline "house.olai"
+    When I click the outline "house.org"
     # An UNMARKED row, deliberately: a done one is drawn per the page's own Done
     # pick (#437), and what this step is about is that the neighbour's tree is
     # there at all.
     Then the node "install" is shown
-    When I rewrite "garden.olai" as:
+    When I rewrite "garden.org" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
@@ -175,7 +175,7 @@ Feature: It stays live
   # what went missing and what was drawn twice, with the line each node claims).
 
   Scenario: A record spliced into the middle of a file appears, once
-    When I rewrite "garden.olai" as:
+    When I rewrite "garden.org" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
@@ -186,10 +186,10 @@ Feature: It stays live
       {"id":"beans","parent":"beds","ord":"a1","title":"sow the beans"}
       {"id":"compost","parent":"garden","ord":"a2","title":"turn the compost"}
       """
-    Then the outline "garden.olai" shows exactly the nodes "garden, herbs, basil, mint, beds, peas, beans, compost"
+    Then the outline "garden.org" shows exactly the nodes "garden, herbs, basil, mint, beds, peas, beans, compost"
     # The insert is at line 5 — the middle of the file, not the end, which is
     # the whole distinction this scenario exists for.
-    When I rewrite "garden.olai" as:
+    When I rewrite "garden.org" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
@@ -201,12 +201,12 @@ Feature: It stays live
       {"id":"beans","parent":"beds","ord":"a1","title":"sow the beans"}
       {"id":"compost","parent":"garden","ord":"a2","title":"turn the compost"}
       """
-    Then the outline "garden.olai" shows exactly the nodes "garden, herbs, basil, mint, chives, beds, peas, beans, compost"
+    Then the outline "garden.org" shows exactly the nodes "garden, herbs, basil, mint, chives, beds, peas, beans, compost"
     And the node "chives" has the title "divide the chives"
     And the page has not reloaded
 
   Scenario: A record deleted from the middle goes, and takes nothing with it
-    When I rewrite "garden.olai" as:
+    When I rewrite "garden.org" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
@@ -217,8 +217,8 @@ Feature: It stays live
       {"id":"beans","parent":"beds","ord":"a1","title":"sow the beans"}
       {"id":"compost","parent":"garden","ord":"a2","title":"turn the compost"}
       """
-    Then the outline "garden.olai" shows exactly the nodes "garden, herbs, basil, mint, beds, peas, beans, compost"
-    When I rewrite "garden.olai" as:
+    Then the outline "garden.org" shows exactly the nodes "garden, herbs, basil, mint, beds, peas, beans, compost"
+    When I rewrite "garden.org" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
@@ -228,7 +228,7 @@ Feature: It stays live
       {"id":"beans","parent":"beds","ord":"a1","title":"sow the beans"}
       {"id":"compost","parent":"garden","ord":"a2","title":"turn the compost"}
       """
-    Then the outline "garden.olai" shows exactly the nodes "garden, herbs, basil, beds, peas, beans, compost"
+    Then the outline "garden.org" shows exactly the nodes "garden, herbs, basil, beds, peas, beans, compost"
     And the page has not reloaded
 
   Scenario: A file rewritten in a different order still says the same thing
@@ -236,7 +236,7 @@ Feature: It stays live
     # nothing about the outline: `ord` decides what is drawn where, and the file
     # order is not the outline's order. So nothing on screen may move, and no
     # title may end up on somebody else's node.
-    When I rewrite "garden.olai" as:
+    When I rewrite "garden.org" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
@@ -247,8 +247,8 @@ Feature: It stays live
       {"id":"beans","parent":"beds","ord":"a1","title":"sow the beans"}
       {"id":"compost","parent":"garden","ord":"a2","title":"turn the compost"}
       """
-    Then the outline "garden.olai" shows exactly the nodes "garden, herbs, basil, mint, beds, peas, beans, compost"
-    When I rewrite "garden.olai" as:
+    Then the outline "garden.org" shows exactly the nodes "garden, herbs, basil, mint, beds, peas, beans, compost"
+    When I rewrite "garden.org" as:
       """
       {"id":"compost","parent":"garden","ord":"a2","title":"turn the compost"}
       {"id":"beans","parent":"beds","ord":"a1","title":"sow the beans"}
@@ -259,7 +259,7 @@ Feature: It stays live
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       """
-    Then the outline "garden.olai" shows exactly the nodes "garden, herbs, basil, mint, beds, peas, beans, compost"
+    Then the outline "garden.org" shows exactly the nodes "garden, herbs, basil, mint, beds, peas, beans, compost"
     And the node "basil" has the title "sow the basil"
     And the node "mint" has the title "split the mint"
     And the node "peas" has the title "stake the peas"
@@ -271,7 +271,7 @@ Feature: It stays live
     # "one edit was missed": a page whose tree was mis-merged once keeps merging
     # into the wrong tree, so every later edit is wrong too — including the
     # end-appends that work on a clean page. Both new ids have to arrive.
-    When I rewrite "garden.olai" as:
+    When I rewrite "garden.org" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
@@ -282,8 +282,8 @@ Feature: It stays live
       {"id":"beans","parent":"beds","ord":"a1","title":"sow the beans"}
       {"id":"compost","parent":"garden","ord":"a2","title":"turn the compost"}
       """
-    Then the outline "garden.olai" shows exactly the nodes "garden, herbs, basil, mint, beds, peas, beans, compost"
-    When I rewrite "garden.olai" as:
+    Then the outline "garden.org" shows exactly the nodes "garden, herbs, basil, mint, beds, peas, beans, compost"
+    When I rewrite "garden.org" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
@@ -295,7 +295,7 @@ Feature: It stays live
       {"id":"beans","parent":"beds","ord":"a1","title":"sow the beans"}
       {"id":"compost","parent":"garden","ord":"a2","title":"turn the compost"}
       """
-    And I rewrite "garden.olai" as:
+    And I rewrite "garden.org" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}
@@ -308,26 +308,26 @@ Feature: It stays live
       {"id":"compost","parent":"garden","ord":"a2","title":"turn the compost"}
       {"id":"leaves","parent":"compost","ord":"a0","title":"rake the leaves in"}
       """
-    Then the outline "garden.olai" shows exactly the nodes "garden, herbs, basil, mint, chives, beds, peas, beans, compost, leaves"
+    Then the outline "garden.org" shows exactly the nodes "garden, herbs, basil, mint, chives, beds, peas, beans, compost, leaves"
     And the page has not reloaded
     And there should be no page errors
 
   Scenario: An outline that arrives beside the open one leaves it whole
-    # The shape the residual report came in on: new `.olai` files appearing
+    # The shape the residual report came in on: new `.org` files appearing
     # under a live tab while ANOTHER outline is being read — a port, a clone, a
     # sync finishing. Every scenario above edits the file on screen; this one
     # never touches it, which makes the promise absolute. Nothing about
-    # garden.olai changed, so nothing drawn from it may change either — and
+    # garden.org changed, so nothing drawn from it may change either — and
     # that is a claim only the whole multiset can make, since a tree that drew
     # one node twice still reads correctly.
-    When I rewrite "shed.olai" as:
+    When I rewrite "shed.org" as:
       """
       {"id":"shed","ord":"a0","title":"clear out the shed"}
       {"id":"rake","parent":"shed","ord":"a0","title":"hang up the rake"}
       """
     # Root outlines only: Daily/ stays collapsed. garden + house + shed.
     Then the outline list has 3 entries
-    And the outline "garden.olai" shows exactly the nodes "garden, herbs, basil, mint, frames, glazing, sowing, slugs, compost, turned, straw"
+    And the outline "garden.org" shows exactly the nodes "garden, herbs, basil, mint, frames, glazing, sowing, slugs, compost, turned, straw"
     And the node "basil" has the title "sow the basil"
     And the page has not reloaded
     And there should be no page errors
@@ -347,13 +347,13 @@ Feature: It stays live
     # the two assertions below are Chromium parsing what that rule builds and
     # matching it against the attribute the client really wrote. Delete the
     # escaping and this goes red on the selector, not on a timeout.
-    When I rewrite "say \"hi\".olai" as:
+    When I rewrite "say \"hi\".org" as:
       """
       {"id":"quoted","ord":"a0","title":"an outline nobody could grip"}
       """
     # Root outlines only, Daily/ still collapsed: garden + house + this one.
     Then the outline list has 3 entries
-    And the outline list links to "say \"hi\".olai"
+    And the outline list links to "say \"hi\".org"
     And the page has not reloaded
     And there should be no page errors
 
@@ -378,7 +378,7 @@ Feature: It stays live
     When I filter the page by "trays"
     Then the filter found "1 of 11"
     # Two rows retitled INTO the query have to arrive as matches.
-    When I rewrite "garden.olai" as:
+    When I rewrite "garden.org" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door","doing":"2026-07-20"}
@@ -390,7 +390,7 @@ Feature: It stays live
     And the node "mint" is a match
     # ...and rows retitled OUT of it have to leave, which is the half a stale
     # answer keeps drawn, still lit, still counted.
-    When I rewrite "garden.olai" as:
+    When I rewrite "garden.org" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door","doing":"2026-07-20"}
@@ -407,7 +407,7 @@ Feature: It stays live
     # live" has to mean the same thing there. Zooming is a route change and not
     # a load, which is why the mark planted in the Background is still valid.
     When I zoom into the node "herbs"
-    And I rewrite "garden.olai" as:
+    And I rewrite "garden.org" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the door"}

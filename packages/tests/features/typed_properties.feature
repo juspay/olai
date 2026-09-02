@@ -3,7 +3,7 @@
 Feature: A property key that declares its type
   A property value is any string, and nothing refuses a sloppy one — unless the
   vault has DECLARED what that key holds. Declarations are an outline like any
-  other, `_olai/Properties.olai`: one node per key, the title IS the key, the
+  other, `_olai/Properties.org`: one node per key, the title IS the key, the
   type in that node's own props, and an enum's variants are its children
   (docs/format.md).
 
@@ -36,7 +36,7 @@ Feature: A property key that declares its type
     # else, and the sentence that says so is the refusal's — a face that
     # paraphrased it would be one that threw the answer away and kept the
     # failure.
-    Given I open the outline "lanes.olai"
+    Given I open the outline "lanes.org"
     And I mark the page
     When I edit the property "merge" on "chips"
     And I type "AUTO: grok review folded + CI green" into the property editor on "chips"
@@ -47,7 +47,7 @@ Feature: A property key that declares its type
     # says it as the variant's TITLE and the file says it as the stored id,
     # which is the ref chip's own rule and is why these two lines differ.
     And the node "chips" shows the property "merge" holding "automatic"
-    And "lanes.olai" holds the node "chips" with "merge" set to "auto"
+    And "lanes.org" holds the node "chips" with "merge" set to "auto"
     And the page has not reloaded
     # ONE GESTURE, ONE REFUSAL — the refusal is the one send's own answer; the
     # stand-down swallows the duplicate and never the answer. Argued, not
@@ -64,7 +64,7 @@ Feature: A property key that declares its type
     # `agent` points at a roster that lives elsewhere, so the valid values are
     # whatever nodes are under it right now — and a near miss gets the same
     # did-you-mean an unknown id has always got.
-    Given I open the outline "lanes.olai"
+    Given I open the outline "lanes.org"
     And I mark the page
     When I edit the property "agent" on "chips"
     And I type "clade" into the property editor on "chips"
@@ -82,7 +82,7 @@ Feature: A property key that declares its type
     # gets ONE answer: the CONDITION is judged first, because a premise that
     # moved voids the write whole, where a value that does not fit is a fact
     # about the payload either way. The typed sentence never draws.
-    Given I open the outline "lanes.olai"
+    Given I open the outline "lanes.org"
     And I mark the page
     When I edit the property "merge" on "chips"
     And I type "AUTO: grok review folded + CI green" into the property editor on "chips" without pressing Enter
@@ -90,7 +90,7 @@ Feature: A property key that declares its type
     # lane still has a `merge`), and the open box is not the frame's business.
     # The marker on `far` is the ordering the Enter owes the gate: the one
     # republish that answers it is the parse that moved `merge`.
-    When I rewrite "lanes.olai" as:
+    When I rewrite "lanes.org" as:
       """
       {"id":"lanes","ord":"a0","title":"the lanes"}
       {"id":"backlinks","parent":"lanes","ord":"a0","title":"the doc-backlinks lane","custom":{"records":"189","agent":"grok","merge":"auto","dispatched":"2026-08-19T09:00:00-04:00"}}
@@ -109,19 +109,19 @@ Feature: A property key that declares its type
     # ref chip's own rule, argued at this seam's first scenario), the file as
     # the id itself, which stays the truth underneath the face.
     And the node "chips" shows the property "merge" holding "the human merges"
-    And "lanes.olai" holds the node "chips" with "merge" set to "human"
+    And "lanes.org" holds the node "chips" with "merge" set to "human"
     And there should be no page errors
 
   Scenario: A value that FITS lands, and lands as the one stored spelling
     # The other half of the same gate, and the half a refusal test alone would
     # let rot: `2026-8-30` is what somebody types and `2026-08-30` is what the
     # vault holds, because one name has one spelling.
-    Given I open the outline "lanes.olai"
+    Given I open the outline "lanes.org"
     And I mark the page
     When I edit the property "dispatched" on "chips"
     And I type "2026-8-30" into the property editor on "chips"
     Then the node "chips" shows the property "dispatched" holding "2026-08-30"
-    And "lanes.olai" holds the node "chips" with "dispatched" set to "2026-08-30"
+    And "lanes.org" holds the node "chips" with "dispatched" set to "2026-08-30"
     # One gesture, one commit — the Enter's own closing blur sent nothing of
     # its own, or the no-change guard would be drawing it here.
     And the node "chips" says nothing about its properties
@@ -131,12 +131,12 @@ Feature: A property key that declares its type
     # Typing is OPT-IN PER KEY, and this is what that means on a screen: the
     # lane whose `pr` is fenced writes a `terminal` holding a sentence, in the
     # same run of chips, and nothing objects.
-    Given I open the outline "lanes.olai"
+    Given I open the outline "lanes.org"
     And I mark the page
     When I edit the property "terminal" on "far"
     And I type "a uuid, and a longer remark about it" into the property editor on "far"
     Then the node "far" shows the property "terminal" holding "a uuid, and a longer remark about it"
-    And "lanes.olai" holds the node "far" with "terminal" set to "a uuid, and a longer remark about it"
+    And "lanes.org" holds the node "far" with "terminal" set to "a uuid, and a longer remark about it"
     And there should be no page errors
 
   # ── the reading side ─────────────────────────────────────────────────
@@ -175,7 +175,7 @@ Feature: A property key that declares its type
     # DATA, NOT CONFIG, and this is what that buys: the vocabulary is a page
     # somebody can open, read and edit, with the variants as the children they
     # are — no config file, no restart, no second format to learn.
-    When I open the address "/_olai/Properties.olai"
+    When I open the address "/_olai/Properties.org"
     Then the node "prop-merge" is shown
     And the node "prop-merge" has the title "merge"
     And the node "prop-merge" shows the property "type" holding "ref"
@@ -187,13 +187,13 @@ Feature: A property key that declares its type
   # ── what a declared value NAMES ──────────────────────────────────────
 
   Scenario: A `brief` written from the board's own root opens, one directory in
-    # THE RESURRECTION. `roadmap/board.olai` writes `briefs/tp.md` the way every
+    # THE RESURRECTION. `roadmap/board.org` writes `briefs/tp.md` the way every
     # board in every vault writes one — by a convention that stands at the root,
     # not by somebody standing in `roadmap/`. Resolved beside the writing file it
     # named `roadmap/briefs/tp.md`, which the directory does not serve, so the
     # chip drew link-coloured and inert; the vault says `base: root` on the
     # key's own row now, and the gate and the chip both read that row.
-    Given I open the address "/roadmap/board.olai"
+    Given I open the address "/roadmap/board.org"
     Then the property "brief" on "board-lane" is a "document" door to "/briefs/tp.md"
     When I follow the property "brief" on "board-lane"
     Then the address is "/briefs/tp.md"
@@ -203,10 +203,10 @@ Feature: A property key that declares its type
     # The other half of the same declaration. `agent grok` reads `agent Grok`
     # because the vault declared `agent` a reference — names rename, ids don't —
     # and the file goes on holding the id, which is what a `set_prop` takes.
-    Given I open the address "/roadmap/board.olai"
+    Given I open the address "/roadmap/board.org"
     Then the node "board-lane" shows the property "agent" holding "Grok"
     And the property "agent" on "board-lane" is a "node" door to "/#grok"
-    And "roadmap/board.olai" holds the node "board-lane" with "agent" set to "grok"
+    And "roadmap/board.org" holds the node "board-lane" with "agent" set to "grok"
     And there should be no page errors
 
   Scenario: A kind a PLUGIN contributed draws no door of the app's own
@@ -217,7 +217,7 @@ Feature: A property key that declares its type
     # not one of the four places this app can send anybody. A chip that offered
     # to open it would be offering a page that does not exist, and the plugin's
     # own face is what draws such a value.
-    Given I open the address "/roadmap/board.olai"
+    Given I open the address "/roadmap/board.org"
     Then the node "board-lane" shows the property "worktree" holding ".worktrees/board"
     And the property "worktree" on "board-lane" is not a link
     And there should be no page errors

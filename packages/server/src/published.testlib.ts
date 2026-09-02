@@ -245,7 +245,7 @@ const walkedChangeOf = <S, T>(
  * file that left is
  * re-listed as gone and named as removed by NOBODY. The walk this replaced
  * re-derived membership from the set every revision and could not be hurt by
- * it; a projection that carries its maps can be, and was — a `_olai/Inbox.olai`
+ * it; a projection that carries its maps can be, and was — a `_olai/Inbox.org`
  * deleted before a resync stayed in the sidebar for the life of the process,
  * which every corpus in this file missed and one e2e scenario caught
  * (`quick_capture.feature`, "the sidebar offers no Inbox"). So it is a corpus

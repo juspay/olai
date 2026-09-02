@@ -91,26 +91,26 @@ describe("a pick, across a restart", () => {
 
   test("what was picked is what comes back", async () => {
     const scopes = await run(forDirectory(HERE))
-    await run(scopes.set(IN, "kolu", "Fleet.olai"))
+    await run(scopes.set(IN, "kolu", "Fleet.org"))
     // A SECOND store over the same directory: the point is the disk, not the
     // closure — the next boot is a different process.
     expect((await run(forDirectory(HERE))).rows()).toEqual([
-      { agent: "claude", session: "sess-1", plugin: "kolu", file: "Fleet.olai" },
+      { agent: "claude", session: "sess-1", plugin: "kolu", file: "Fleet.org" },
     ])
   })
 
   test("a second pick for the same doorbell replaces the first", async () => {
     const scopes = await run(forDirectory(HERE))
-    await run(scopes.set(IN, "kolu", "Fleet.olai"))
-    await run(scopes.set(IN, "kolu", "Other.olai"))
+    await run(scopes.set(IN, "kolu", "Fleet.org"))
+    await run(scopes.set(IN, "kolu", "Other.org"))
     expect(scopes.rows()).toEqual([
-      { agent: "claude", session: "sess-1", plugin: "kolu", file: "Other.olai" },
+      { agent: "claude", session: "sess-1", plugin: "kolu", file: "Other.org" },
     ])
   })
 
   test("`null` clears it, and clearing is how a doorbell goes off", async () => {
     const scopes = await run(forDirectory(HERE))
-    await run(scopes.set(IN, "kolu", "Fleet.olai"))
+    await run(scopes.set(IN, "kolu", "Fleet.org"))
     await run(scopes.set(IN, "kolu", null))
     expect(scopes.rows()).toEqual([])
     expect((await run(forDirectory(HERE))).rows()).toEqual([])
@@ -118,33 +118,33 @@ describe("a pick, across a restart", () => {
 
   test("two plugins in one conversation are two picks", async () => {
     const scopes = await run(forDirectory(HERE))
-    await run(scopes.set(IN, "kolu", "Fleet.olai"))
-    await run(scopes.set(IN, "odu", "Runs.olai"))
+    await run(scopes.set(IN, "kolu", "Fleet.org"))
+    await run(scopes.set(IN, "odu", "Runs.org"))
     // The triple's middle column is what makes a per-plugin door answerable at
     // all: clearing one must not clear the other.
     await run(scopes.set(IN, "kolu", null))
     expect(scopes.rows()).toEqual([
-      { agent: "claude", session: "sess-1", plugin: "odu", file: "Runs.olai" },
+      { agent: "claude", session: "sess-1", plugin: "odu", file: "Runs.org" },
     ])
   })
 
   test("the same session id under another agent is another conversation", async () => {
     const scopes = await run(forDirectory(HERE))
-    await run(scopes.set({ agent: "claude", session: "sess-1" }, "kolu", "A.olai"))
-    await run(scopes.set({ agent: "opencode", session: "sess-1" }, "kolu", "B.olai"))
+    await run(scopes.set({ agent: "claude", session: "sess-1" }, "kolu", "A.org"))
+    await run(scopes.set({ agent: "opencode", session: "sess-1" }, "kolu", "B.org"))
     expect(scopes.rows()).toEqual([
-      { agent: "claude", session: "sess-1", plugin: "kolu", file: "A.olai" },
-      { agent: "opencode", session: "sess-1", plugin: "kolu", file: "B.olai" },
+      { agent: "claude", session: "sess-1", plugin: "kolu", file: "A.org" },
+      { agent: "opencode", session: "sess-1", plugin: "kolu", file: "B.org" },
     ])
   })
 
   test("another directory's picks are not this one's", async () => {
-    await run((await run(forDirectory(HERE))).set(IN, "kolu", "Fleet.olai"))
+    await run((await run(forDirectory(HERE))).set(IN, "kolu", "Fleet.org"))
     expect((await run(forDirectory(ELSEWHERE))).rows()).toEqual([])
   })
 
   test("a trailing slash is the same directory, not a second one", async () => {
-    await run((await run(forDirectory(HERE))).set(IN, "kolu", "Fleet.olai"))
+    await run((await run(forDirectory(HERE))).set(IN, "kolu", "Fleet.org"))
     expect((await run(forDirectory(`${HERE}/`))).rows().length).toBe(1)
     expect(files().length).toBe(1)
   })
@@ -152,7 +152,7 @@ describe("a pick, across a restart", () => {
   test("nothing is written under the served directory", async () => {
     const served = mkdtempSync(join(tmpdir(), "olai-served-"))
     try {
-      await run((await run(forDirectory(served))).set(IN, "kolu", "Fleet.olai"))
+      await run((await run(forDirectory(served))).set(IN, "kolu", "Fleet.org"))
       // The served directory is somebody's outline set — the store probes it
       // and a commit would commit it. The picks go to the state home.
       expect(readdirSync(served)).toEqual([])
@@ -167,7 +167,7 @@ describe("a pick, across a restart", () => {
     // is a derivation of state that is still true, and whatever derived it
     // rings again. Nothing puts one here, and this is where that would show.
     const scopes = await run(forDirectory(HERE))
-    await run(scopes.set(IN, "kolu", "Fleet.olai"))
+    await run(scopes.set(IN, "kolu", "Fleet.org"))
     const written = JSON.parse(readFileSync(only(), "utf8")) as Record<string, unknown>
     expect(Object.keys(written).sort()).toEqual(["cwd", "scopes"])
   })
@@ -181,8 +181,8 @@ describe("two picks at once", () => {
     // bytes never arrived. Two tabs, or a double-click on the picker.
     const scopes = await run(forDirectory(HERE))
     const both = await Promise.all([
-      outcome(scopes.set(IN, "kolu", "Fleet.olai")),
-      outcome(scopes.set(IN, "odu", "Runs.olai")),
+      outcome(scopes.set(IN, "kolu", "Fleet.org")),
+      outcome(scopes.set(IN, "odu", "Runs.org")),
     ])
     expect(both.map((one) => one._tag)).toEqual(["Success", "Success"])
     expect((await run(forDirectory(HERE))).rows().map((row) => row.plugin).sort())
@@ -197,7 +197,7 @@ describe("the cap", () => {
     // a live scope in silence.
     const scopes = await run(forDirectory(HERE))
     for (let n = 0; n <= ROWS; n++) {
-      await run(scopes.set({ agent: "claude", session: `sess-${n}` }, "kolu", "F.olai"))
+      await run(scopes.set({ agent: "claude", session: `sess-${n}` }, "kolu", "F.org"))
     }
     const kept = scopes.rows()
     expect(kept.length).toBe(ROWS)
@@ -211,18 +211,18 @@ describe("the cap", () => {
 
   test("touching a pick again keeps it, whatever its position", async () => {
     const scopes = await run(forDirectory(HERE))
-    await run(scopes.set({ agent: "claude", session: "old" }, "kolu", "F.olai"))
+    await run(scopes.set({ agent: "claude", session: "old" }, "kolu", "F.org"))
     // Fill the table exactly, so `old` is at the front of a full array and is
     // the next thing the cap would take.
     for (let n = 0; n < ROWS - 1; n++) {
-      await run(scopes.set({ agent: "claude", session: `sess-${n}` }, "kolu", "F.olai"))
+      await run(scopes.set({ agent: "claude", session: `sess-${n}` }, "kolu", "F.org"))
     }
     // Re-picking moves the row to the BACK of the array, which is the whole of
     // what "recently touched" means here — no stamp moves, the position does.
-    await run(scopes.set({ agent: "claude", session: "old" }, "kolu", "G.olai"))
+    await run(scopes.set({ agent: "claude", session: "old" }, "kolu", "G.org"))
     // ... so the next pick evicts, and what it takes is the row `old` was in
     // front of rather than `old`.
-    await run(scopes.set({ agent: "claude", session: "fresh" }, "kolu", "H.olai"))
+    await run(scopes.set({ agent: "claude", session: "fresh" }, "kolu", "H.org"))
     expect(scopes.rows().some((row) => row.session === "old")).toBe(true)
     expect(scopes.rows().some((row) => row.session === "sess-0")).toBe(false)
     expect(scopes.rows().length).toBe(ROWS)
@@ -235,7 +235,7 @@ describe("a record that cannot be trusted", () => {
   }
 
   test("a file that is not JSON is an empty mirror and no throw", async () => {
-    await run((await run(forDirectory(HERE))).set(IN, "kolu", "Fleet.olai"))
+    await run((await run(forDirectory(HERE))).set(IN, "kolu", "Fleet.org"))
     damage("{ half a fi")
     const again = await outcome(forDirectory(HERE))
     expect(Result.isSuccess(again)).toBe(true)
@@ -246,23 +246,23 @@ describe("a record that cannot be trusted", () => {
   test("a damaged ROW is dropped and the rest still open their doorbells", async () => {
     // All-or-nothing here would turn every doorbell in the directory off over
     // one row, which is the louder failure and the wrong one.
-    await run((await run(forDirectory(HERE))).set(IN, "kolu", "Fleet.olai"))
+    await run((await run(forDirectory(HERE))).set(IN, "kolu", "Fleet.org"))
     damage(JSON.stringify({
       cwd: HERE,
       scopes: [
         { agent: "claude", session: "sess-1", plugin: "kolu" },
-        { agent: "claude", session: "sess-2", plugin: "odu", file: "Runs.olai" },
+        { agent: "claude", session: "sess-2", plugin: "odu", file: "Runs.org" },
         7,
       ],
     }))
     expect((await run(forDirectory(HERE))).rows()).toEqual([
-      { agent: "claude", session: "sess-2", plugin: "odu", file: "Runs.olai" },
+      { agent: "claude", session: "sess-2", plugin: "odu", file: "Runs.org" },
     ])
   })
 
   test("a record about another directory is not this one's picks", async () => {
-    await run((await run(forDirectory(HERE))).set(IN, "kolu", "Fleet.olai"))
-    damage(JSON.stringify({ cwd: ELSEWHERE, scopes: [{ ...IN, plugin: "kolu", file: "X.olai" }] }))
+    await run((await run(forDirectory(HERE))).set(IN, "kolu", "Fleet.org"))
+    damage(JSON.stringify({ cwd: ELSEWHERE, scopes: [{ ...IN, plugin: "kolu", file: "X.org" }] }))
     expect((await run(forDirectory(HERE))).rows()).toEqual([])
   })
 
@@ -275,7 +275,7 @@ describe("a record that cannot be trusted", () => {
     const scopes = await run(forDirectory(HERE))
     chmodSync(state, 0o500)
     try {
-      expect(Result.isFailure(await outcome(scopes.set(IN, "kolu", "Fleet.olai")))).toBe(true)
+      expect(Result.isFailure(await outcome(scopes.set(IN, "kolu", "Fleet.org")))).toBe(true)
     } finally {
       chmodSync(state, 0o700)
     }
@@ -288,16 +288,16 @@ describe("a record that cannot be trusted", () => {
     // not even draw the row, because nothing republished it.
     if (typeof process.getuid === "function" && process.getuid() === 0) return
     const scopes = await run(forDirectory(HERE))
-    await run(scopes.set(IN, "kolu", "Fleet.olai"))
+    await run(scopes.set(IN, "kolu", "Fleet.org"))
     // The RECORD.s own directory, not the state home: the first pick already
     // made it, so a home that merely refuses `mkdir` would let this write through.
     chmodSync(home(), 0o500)
     try {
-      expect(Result.isFailure(await outcome(scopes.set(IN, "kolu", "Other.olai")))).toBe(true)
+      expect(Result.isFailure(await outcome(scopes.set(IN, "kolu", "Other.org")))).toBe(true)
     } finally {
       chmodSync(home(), 0o700)
     }
-    expect(scopes.rows().map((row) => row.file)).toEqual(["Fleet.olai"])
+    expect(scopes.rows().map((row) => row.file)).toEqual(["Fleet.org"])
   })
 })
 
@@ -305,14 +305,14 @@ describe("what a write says it removed", () => {
   test("a write answers with the rows it removed, so a caller can take their doorbells back", async () => {
     const scopes = await run(forDirectory(HERE))
     // A fresh pick removes nothing.
-    expect(await run(scopes.set(IN, "kolu", "Fleet.olai"))).toEqual([])
+    expect(await run(scopes.set(IN, "kolu", "Fleet.org"))).toEqual([])
     // Re-pointing removes the row it replaced — the caller holds bodies derived
     // from the OLD file and has to hear that it is gone.
-    const moved = await run(scopes.set(IN, "kolu", "Other.olai"))
-    expect(moved.map((row) => row.file)).toEqual(["Fleet.olai"])
+    const moved = await run(scopes.set(IN, "kolu", "Other.org"))
+    expect(moved.map((row) => row.file)).toEqual(["Fleet.org"])
     // ... and so does a clear.
     const cleared = await run(scopes.set(IN, "kolu", null))
-    expect(cleared.map((row) => row.file)).toEqual(["Other.olai"])
+    expect(cleared.map((row) => row.file)).toEqual(["Other.org"])
   })
 
   test("an EVICTED row is reported too, which is the one nobody made a gesture about", async () => {
@@ -320,9 +320,9 @@ describe("what a write says it removed", () => {
     // Fill the table, oldest first — which is just write order — so the cap has
     // an unambiguous victim.
     for (let n = 0; n < ROWS; n++) {
-      await run(scopes.set({ agent: "claude", session: `sess-${n}` }, "kolu", `File-${n}.olai`))
+      await run(scopes.set({ agent: "claude", session: `sess-${n}` }, "kolu", `File-${n}.org`))
     }
-    const left = await run(scopes.set({ agent: "claude", session: "sess-new" }, "kolu", "New.olai"))
+    const left = await run(scopes.set({ agent: "claude", session: "sess-new" }, "kolu", "New.org"))
     // The least recently touched one, and only it. A person never touched that
     // conversation, so this report is the only way its held bodies are ever
     // taken back.
@@ -351,16 +351,16 @@ describe("what a write says it removed", () => {
 describe("a pick its doorbell cannot watch", () => {
   const ALL_WELL = () => null
   const RENAMED = (_plugin: string, file: string): "gone" | null =>
-    file === "Fleet.olai" ? "gone" : null
+    file === "Fleet.org" ? "gone" : null
   /** The other cause: the file is right there and is not a kind that doorbell
    *  reads — a `.md` under a wake that derives from nodes, which is the state a
    *  picker offering every served file could leave on the disk. */
   const WRONG_KIND = (_plugin: string, file: string): "unwatchable" | null =>
-    file === "Fleet.olai" ? "unwatchable" : null
+    file === "Fleet.org" ? "unwatchable" : null
 
   test("nothing is answered, and nothing is written, while the file is there", async () => {
     const scopes = await run(forDirectory(HERE))
-    await run(scopes.set(IN, "kolu", "Fleet.olai"))
+    await run(scopes.set(IN, "kolu", "Fleet.org"))
     const written = readFileSync(only(), "utf8")
     expect(await run(scopes.faults(ALL_WELL, TELLABLE))).toEqual([])
     // A revision in which nothing moved is every revision anybody publishes,
@@ -370,9 +370,9 @@ describe("a pick its doorbell cannot watch", () => {
 
   test("the edge is answered once, and the mark is on the disk", async () => {
     const scopes = await run(forDirectory(HERE))
-    await run(scopes.set(IN, "kolu", "Fleet.olai"))
+    await run(scopes.set(IN, "kolu", "Fleet.org"))
     const fell = await run(scopes.faults(RENAMED, TELLABLE))
-    expect(fell.map((row) => row.file)).toEqual(["Fleet.olai"])
+    expect(fell.map((row) => row.file)).toEqual(["Fleet.org"])
     expect(scopes.rows()[0]?.fault).toBe("gone")
     // ... and again on the same missing file says nothing more. One rename is
     // one sentence, not one per revision for as long as it stays renamed.
@@ -385,7 +385,7 @@ describe("a pick its doorbell cannot watch", () => {
     // again — every boot, forever, about a fault somebody was told about days
     // ago. Driven through a SECOND STORE over the same directory, because the
     // next boot is a different process and the closure is not the point.
-    await run((await run(forDirectory(HERE))).set(IN, "kolu", "Fleet.olai"))
+    await run((await run(forDirectory(HERE))).set(IN, "kolu", "Fleet.org"))
     await run((await run(forDirectory(HERE))).faults(RENAMED, TELLABLE))
     const restarted = await run(forDirectory(HERE))
     expect(restarted.rows()[0]?.fault).toBe("gone")
@@ -394,7 +394,7 @@ describe("a pick its doorbell cannot watch", () => {
 
   test("the file coming back unmarks it, and the record is the bytes it was", async () => {
     const scopes = await run(forDirectory(HERE))
-    await run(scopes.set(IN, "kolu", "Fleet.olai"))
+    await run(scopes.set(IN, "kolu", "Fleet.org"))
     const untroubled = readFileSync(only(), "utf8")
     await run(scopes.faults(RENAMED, TELLABLE))
     // A HEALED TABLE IS AN UNTROUBLED TABLE. Written back without the key
@@ -407,10 +407,10 @@ describe("a pick its doorbell cannot watch", () => {
 
   test("... and it can break again afterwards, which is a second thing that happened", async () => {
     const scopes = await run(forDirectory(HERE))
-    await run(scopes.set(IN, "kolu", "Fleet.olai"))
+    await run(scopes.set(IN, "kolu", "Fleet.org"))
     await run(scopes.faults(RENAMED, TELLABLE))
     await run(scopes.faults(ALL_WELL, TELLABLE))
-    expect((await run(scopes.faults(RENAMED, TELLABLE))).map((row) => row.file)).toEqual(["Fleet.olai"])
+    expect((await run(scopes.faults(RENAMED, TELLABLE))).map((row) => row.file)).toEqual(["Fleet.org"])
   })
 
   test("THE SECOND CAUSE IS A FAULT ON THE SAME TERMS — said once, and written down", async () => {
@@ -420,7 +420,7 @@ describe("a pick its doorbell cannot watch", () => {
     // silent arm left — a scope nothing watches while the heartbeat says the
     // watcher is alive is the whole defect, whichever way it got there.
     const scopes = await run(forDirectory(HERE))
-    await run(scopes.set(IN, "kolu", "Fleet.olai"))
+    await run(scopes.set(IN, "kolu", "Fleet.org"))
     const fell = await run(scopes.faults(WRONG_KIND, TELLABLE))
     expect(fell.map((row) => row.fault)).toEqual(["unwatchable"])
     expect(scopes.rows()[0]?.fault).toBe("unwatchable")
@@ -434,7 +434,7 @@ describe("a pick its doorbell cannot watch", () => {
     // been told its doorbell is watching nothing; what changed is what the STRIP
     // should say, and one fault is one interruption.
     const scopes = await run(forDirectory(HERE))
-    await run(scopes.set(IN, "kolu", "Fleet.olai"))
+    await run(scopes.set(IN, "kolu", "Fleet.org"))
     await run(scopes.faults(WRONG_KIND, TELLABLE))
     expect(await run(scopes.faults(RENAMED, TELLABLE))).toEqual([])
     expect(scopes.rows()[0]?.fault).toBe("gone")
@@ -445,7 +445,7 @@ describe("a pick its doorbell cannot watch", () => {
     // otherwise every keystroke that lands in an outline is a filesystem write
     // for as long as somebody's doorbell is broken.
     const scopes = await run(forDirectory(HERE))
-    await run(scopes.set(IN, "kolu", "Fleet.olai"))
+    await run(scopes.set(IN, "kolu", "Fleet.org"))
     await run(scopes.faults(RENAMED, TELLABLE))
     const marked = readFileSync(only(), "utf8")
     expect(await run(scopes.faults(RENAMED, TELLABLE))).toEqual([])
@@ -457,20 +457,20 @@ describe("a pick its doorbell cannot watch", () => {
     // fault on the NEW file; carrying the old file's mark across would swallow
     // it silently.
     const scopes = await run(forDirectory(HERE))
-    await run(scopes.set(IN, "kolu", "Fleet.olai"))
+    await run(scopes.set(IN, "kolu", "Fleet.org"))
     await run(scopes.faults(RENAMED, TELLABLE))
-    await run(scopes.set(IN, "kolu", "Other.olai"))
+    await run(scopes.set(IN, "kolu", "Other.org"))
     expect(scopes.rows()[0]?.fault).toBeUndefined()
     expect(
-      (await run(scopes.faults((_plugin, file) => file === "Other.olai" ? "gone" : null, () => true)))
+      (await run(scopes.faults((_plugin, file) => file === "Other.org" ? "gone" : null, () => true)))
         .map((row) => row.file),
-    ).toEqual(["Other.olai"])
+    ).toEqual(["Other.org"])
   })
 
   test("only the rows whose own file went are marked", async () => {
     const scopes = await run(forDirectory(HERE))
-    await run(scopes.set(IN, "kolu", "Fleet.olai"))
-    await run(scopes.set(IN, "odu", "Runs.olai"))
+    await run(scopes.set(IN, "kolu", "Fleet.org"))
+    await run(scopes.set(IN, "odu", "Runs.org"))
     const fell = await run(scopes.faults(RENAMED, TELLABLE))
     expect(fell.map((row) => row.plugin)).toEqual(["kolu"])
     expect(scopes.rows().map((row) => row.fault)).toEqual(["gone", undefined])
@@ -482,13 +482,13 @@ describe("a pick its doorbell cannot watch", () => {
     // marking it would spend the one signal on a serve with no doorbell to
     // lose. Turn that plugin back on and the row must still be tellable.
     const scopes = await run(forDirectory(HERE))
-    await run(scopes.set(IN, "kolu", "Fleet.olai"))
+    await run(scopes.set(IN, "kolu", "Fleet.org"))
     const silent = (): boolean => false
     expect(await run(scopes.faults(RENAMED, silent))).toEqual([])
     expect(scopes.rows().map((row) => row.fault)).toEqual([undefined])
     // ... and with the tenant back, the fault is still owed and still said.
     const fell = await run(scopes.faults(RENAMED, TELLABLE))
-    expect(fell.map((row) => row.file)).toEqual(["Fleet.olai"])
+    expect(fell.map((row) => row.file)).toEqual(["Fleet.org"])
   })
 
   test("a fault is not a TOUCH, so it does not move a row's place in the eviction order", async () => {
@@ -497,8 +497,8 @@ describe("a pick its doorbell cannot watch", () => {
     // doorbell, and a fault that walked a row to the back would evict a pick
     // whose conversation was genuinely older.
     const scopes = await run(forDirectory(HERE))
-    await run(scopes.set({ agent: "claude", session: "a" }, "kolu", "Fleet.olai"))
-    await run(scopes.set({ agent: "claude", session: "b" }, "kolu", "Other.olai"))
+    await run(scopes.set({ agent: "claude", session: "a" }, "kolu", "Fleet.org"))
+    await run(scopes.set({ agent: "claude", session: "b" }, "kolu", "Other.org"))
     await run(scopes.faults(RENAMED, TELLABLE))
     expect(scopes.rows().map((row) => row.session)).toEqual(["a", "b"])
   })
@@ -509,7 +509,7 @@ describe("a pick its doorbell cannot watch", () => {
     // not on disk, so the sentence goes out now AND again after the next
     // restart. Failing whole leaves the same edge for the next revision.
     const scopes = await run(forDirectory(HERE))
-    await run(scopes.set(IN, "kolu", "Fleet.olai"))
+    await run(scopes.set(IN, "kolu", "Fleet.org"))
     chmodSync(home(), 0o500)
     try {
       const refused = await outcome(scopes.faults(RENAMED, TELLABLE))
@@ -526,12 +526,12 @@ describe("a pick its doorbell cannot watch", () => {
     // turn somebody's doorbell off over a byte that means "we already said
     // something about this".
     const scopes = await run(forDirectory(HERE))
-    await run(scopes.set(IN, "kolu", "Fleet.olai"))
+    await run(scopes.set(IN, "kolu", "Fleet.org"))
     const held = JSON.parse(readFileSync(only(), "utf8")) as { scopes: Array<Record<string, unknown>> }
     held.scopes[0]!["fault"] = "yes"
     writeFileSync(only(), JSON.stringify(held))
     const restarted = await run(forDirectory(HERE))
-    expect(restarted.rows().map((row) => row.file)).toEqual(["Fleet.olai"])
+    expect(restarted.rows().map((row) => row.file)).toEqual(["Fleet.org"])
     expect(restarted.rows()[0]?.fault).toBeUndefined()
   })
 
@@ -540,7 +540,7 @@ describe("a pick its doorbell cannot watch", () => {
     // the mark IS: dropping it re-tells a conversation about a rename it was
     // already told about, on the first revision after an upgrade.
     const scopes = await run(forDirectory(HERE))
-    await run(scopes.set(IN, "kolu", "Fleet.olai"))
+    await run(scopes.set(IN, "kolu", "Fleet.org"))
     const held = JSON.parse(readFileSync(only(), "utf8")) as { scopes: Array<Record<string, unknown>> }
     held.scopes[0]!["gone"] = true
     writeFileSync(only(), JSON.stringify(held))

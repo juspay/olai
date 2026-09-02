@@ -31,10 +31,10 @@ const GARDEN = [
 ].join("\n")
 
 const derived = derive(
-  recordsOf(setOf({ "house.olai": HOUSE, "garden.olai": GARDEN })),
+  recordsOf(setOf({ "house.org": HOUSE, "garden.org": GARDEN })),
 )
 
-const house = rowsOf(derived, "house.olai")
+const house = rowsOf(derived, "house.org")
 const kitchen = house[0] as Row
 const at = (row: Row, id: string): Row => {
   const found = row.children.find((child) => child.at.node.id === id)
@@ -43,17 +43,17 @@ const at = (row: Row, id: string): Row => {
 }
 
 test("a node folds by itself, in the file it is written in", () => {
-  expect(foldOf(kitchen)).toEqual({ id: "kitchen", file: "house.olai" })
+  expect(foldOf(kitchen)).toEqual({ id: "kitchen", file: "house.org" })
   expect(foldIdOf(at(kitchen, "install"))).toBe("install")
 })
 
 test("a mirror folds by what it SHOWS, in the file that node lives in", () => {
   // The ruling: one node, one fold state. The placement is `kitchen-herbs` in
-  // house.olai and the fold is `herbs` in garden.olai, which is what makes
+  // house.org and the fold is `herbs` in garden.org, which is what makes
   // folding this row fold the node everywhere it appears.
   expect(foldOf(at(kitchen, "kitchen-herbs"))).toEqual({
     id: "herbs",
-    file: "garden.olai",
+    file: "garden.org",
   })
 })
 
@@ -62,7 +62,7 @@ test("a row that shows nothing folds by its own record", () => {
   // ever asks — the answer exists so callers do not have to remember that.
   expect(foldOf(at(kitchen, "nowhere"))).toEqual({
     id: "nowhere",
-    file: "house.olai",
+    file: "house.org",
   })
 })
 
@@ -71,9 +71,9 @@ test("collapse-all names every node under a row that has children, once", () => 
   // `herbs` is mirrored TWICE under kitchen and is in it once, because one
   // node has one fold and naming it twice would be one write undoing itself.
   expect(foldsUnder(kitchen)).toEqual([
-    { id: "kitchen", file: "house.olai" },
-    { id: "install", file: "house.olai" },
-    { id: "herbs", file: "garden.olai" },
+    { id: "kitchen", file: "house.org" },
+    { id: "install", file: "house.org" },
+    { id: "herbs", file: "garden.org" },
   ])
 })
 

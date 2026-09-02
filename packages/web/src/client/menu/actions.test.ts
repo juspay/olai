@@ -45,10 +45,10 @@ const HOUSE = [
   `{"id":"echo","ord":"a2","mirror":"install"}`,
 ].join("\n")
 
-const derived = derive(recordsOf(setOf({ "house.olai": HOUSE })))
+const derived = derive(recordsOf(setOf({ "house.org": HOUSE })))
 
 const row = (id: string): Row => {
-  const found = flatten(rowsOf(derived, "house.olai"), new Set())
+  const found = flatten(rowsOf(derived, "house.org"), new Set())
     .find((one) => one.at.node.id === id)
   if (found === undefined) throw new Error(`no row for \`${id}\` in the fixture`)
   return found

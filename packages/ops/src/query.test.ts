@@ -78,7 +78,7 @@ const TODAY = "2026-08-09"
  *  every answer here has to follow rather than report as itself. */
 const LEDGER = (): OutlineSet =>
   setOf({
-    "roadmap.olai": [
+    "roadmap.org": [
       `{"id":"now","ord":"a0","title":"Now"}`,
       `{"id":"now-sticky","parent":"now","ord":"a0","mirror":"sticky"}`,
       `{"id":"now-git","parent":"now","ord":"a1","mirror":"focus-git"}`,
@@ -86,7 +86,7 @@ const LEDGER = (): OutlineSet =>
       `{"id":"sticky","parent":"bugs","ord":"a0","title":"the header scrolls away","doing":true,"after":["git"],"see":["git"]}`,
       `{"id":"git","parent":"bugs","ord":"a1","title":"two git indicators","todo":true,"desc":"the pill and the readout answer the same question","custom":{"pr":"https://github.com/juspay/olai/pull/176","agent":"claude-opus"}}`,
     ].join("\n"),
-    "focus.olai": [
+    "focus.org": [
       `{"id":"focus","ord":"a0","title":"Focus"}`,
       // A mirror OF a mirror: `now-git` shows this, which shows `git`.
       `{"id":"focus-git","parent":"focus","ord":"a0","mirror":"git"}`,
@@ -168,7 +168,7 @@ const reading = () => readingOf(LEDGER())
  */
 test("a node carrying everything produces every field `Found` declares", () => {
   const at = derivedOf(setOf({
-    "roadmap.olai": [
+    "roadmap.org": [
       `{"id":"top","ord":"a0","title":"Top"}`,
       `{"id":"all","parent":"top","ord":"a0","title":"carries everything","todo":true,` +
       `"see":["top"],"after":["top"],"custom":{"pr":"https://github.com/juspay/olai/pull/192"}}`,
@@ -187,7 +187,7 @@ test("a node carrying everything produces every field `Found` declares", () => {
 // the same absences doing the saying.
 test("a node's read carries `started`, `worked` and the derived `took` — and the jump carries none", () => {
   const at = derivedOf(setOf({
-    "house.olai": [
+    "house.org": [
       `{"id":"bake","ord":"a0","title":"bake the bread","done":"2026-08-29T12:26:44-04:00","started":"2026-08-29T09:52:00-04:00"}`,
       `{"id":"plumber","ord":"a1","title":"call the plumber","done":"2026-08-29T12:26:44-04:00"}`,
       `{"id":"hinge","ord":"a2","title":"fix the hinge on the door","cancelled":"2026-08-29T10:33:00-04:00","started":"2026-08-29T09:52:00-04:00"}`,
@@ -293,7 +293,7 @@ describe("what a node is waiting on", () => {
    *  bullet, so nothing is telling it it cannot start. */
   const WAITING = (): OutlineSet =>
     setOf({
-      "build.olai": [
+      "build.org": [
         `{"id":"pour","ord":"a0","title":"pour the slab","todo":true}`,
         `{"id":"cure","ord":"a1","title":"let it cure","doing":true,"blocks":["frame"]}`,
         `{"id":"frame","ord":"a2","title":"frame the walls","todo":true,"after":["pour"]}`,
@@ -308,8 +308,8 @@ describe("what a node is waiting on", () => {
     // `blocks` pointing back at it from elsewhere. And each blocker is a whole
     // situated answer, so "has this moved" needs no second read.
     expect(read(waiting(), "frame")?.blockedBy).toEqual([
-      { id: "pour", title: "pour the slab", file: "build.olai", line: 1, status: "todo", path: [] },
-      { id: "cure", title: "let it cure", file: "build.olai", line: 2, status: "doing", path: [] },
+      { id: "pour", title: "pour the slab", file: "build.org", line: 1, status: "todo", path: [] },
+      { id: "cure", title: "let it cure", file: "build.org", line: 10, status: "doing", path: [] },
     ])
   })
 
@@ -425,7 +425,7 @@ describe("the properties a node carries", () => {
    */
   test("a key holding nothing is carried by neither the hit nor `prop:`", () => {
     const lane = readingOf(setOf({
-      "roadmap.olai": `{"id":"lane","ord":"a0","title":"a lane","custom":{"pr":"","agent":"claude-opus"}}`,
+      "roadmap.org": `{"id":"lane","ord":"a0","title":"a lane","custom":{"pr":"","agent":"claude-opus"}}`,
     }))
     // The key `prop:` refuses is the key the answer leaves out…
     expect(search(lane, { text: "prop:pr" }, TODAY, NO_KINDS).hits).toEqual([])
@@ -434,7 +434,7 @@ describe("the properties a node carries", () => {
     // …and a map with nothing but such keys is no map at all, exactly as it is
     // no `custom` field on disk.
     const bare = readingOf(setOf({
-      "roadmap.olai": `{"id":"bare","ord":"a0","title":"a bare lane","custom":{"pr":""}}`,
+      "roadmap.org": `{"id":"bare","ord":"a0","title":"a bare lane","custom":{"pr":""}}`,
     }))
     expect(search(bare, { text: "lane" }, TODAY, NO_KINDS).hits[0]).not.toHaveProperty("custom")
     expect(read(bare.derived, "bare")).not.toHaveProperty("custom")
@@ -448,7 +448,7 @@ describe("the properties a node carries", () => {
   test("a long property is not truncated on a hit, and not reduced to its key", () => {
     const long = `https://github.com/juspay/olai/pull/176#${"x".repeat(500)}`
     const set = setOf({
-      "roadmap.olai": `{"id":"lane","ord":"a0","title":"a lane","custom":{"pr":${
+      "roadmap.org": `{"id":"lane","ord":"a0","title":"a lane","custom":{"pr":${
         JSON.stringify(long)
       }}}`,
     })
@@ -469,7 +469,7 @@ describe("the properties a node carries", () => {
    */
   test("a document hit carries its frontmatter and the key that selected it", () => {
     const vault = readingOf(setOf(
-      { "roadmap.olai": `{"id":"lane","ord":"a0","title":"a lane"}` },
+      { "roadmap.org": `{"id":"lane","ord":"a0","title":"a lane"}` },
       [
         ["notes/plan.md", "---\npr: 176\nagent: claude-opus\n---\n\n# The plan\n"],
         ["brief.md", "# Brief\n"],
@@ -514,8 +514,8 @@ describe("what refers to a node", () => {
       {
         id: "sticky",
         title: "the header scrolls away",
-        file: "roadmap.olai",
-        line: 5,
+        file: "roadmap.org",
+        line: 35,
         status: "doing",
         path: ["Bugs"],
         parent: "bugs",
@@ -528,7 +528,7 @@ describe("what refers to a node", () => {
 
   test("a word in a title or a note refers too, and one record is one referrer", () => {
     const at = derivedOf(setOf({
-      "a.olai": [
+      "a.org": [
         `{"id":"git","ord":"a0","title":"two git indicators"}`,
         `{"id":"said","ord":"a1","title":"about @git","desc":"and @git again"}`,
         `{"id":"both","ord":"a2","title":"see @git","see":["git"]}`,
@@ -549,11 +549,11 @@ describe("placements", () => {
     // `git` is placed twice: directly by `focus-git`, and through it by
     // `now-git`, which mirrors the mirror. Both are places `git` is drawn.
     expect(read(at(), "git")?.mirrors).toEqual([
-      { id: "focus-git", file: "focus.olai", line: 2, parent: "focus" },
-      { id: "now-git", file: "roadmap.olai", line: 3, parent: "now" },
+      { id: "focus-git", file: "focus.org", line: 9, parent: "focus" },
+      { id: "now-git", file: "roadmap.org", line: 18, parent: "now" },
     ])
     expect(read(at(), "sticky")?.mirrors).toEqual([
-      { id: "now-sticky", file: "roadmap.olai", line: 2, parent: "now" },
+      { id: "now-sticky", file: "roadmap.org", line: 9, parent: "now" },
     ])
   })
 
@@ -577,14 +577,14 @@ describe("placements", () => {
    */
   test("two placements sharing an id are the one record that id means", () => {
     const condemned = derivedOf(setOf({
-      "a.olai": [
+      "a.org": [
         `{"id":"node","ord":"a0","title":"the node"}`,
         `{"id":"dupe","ord":"a1","mirror":"node"}`,
       ].join("\n"),
-      "b.olai": `{"id":"dupe","ord":"a0","mirror":"node"}`,
+      "b.org": `{"id":"dupe","ord":"a0","mirror":"node"}`,
     }))
     expect(read(condemned, "node")?.mirrors).toEqual([
-      { id: "dupe", file: "a.olai", line: 2 },
+      { id: "dupe", file: "a.org", line: 9 },
     ])
   })
 
@@ -602,7 +602,7 @@ describe("placements", () => {
         id: "sticky",
         title: "the header scrolls away",
         status: "doing",
-        file: "roadmap.olai",
+        file: "roadmap.org",
         path: ["Bugs"],
       },
     })
@@ -679,7 +679,7 @@ describe("placements", () => {
   })
 
   test("the file arm names them too — every root is the same walk", () => {
-    const answer = outlineOf(walked(reading(), { file: "roadmap.olai" }))
+    const answer = outlineOf(walked(reading(), { file: "roadmap.org" }))
     expect(answer.roots.find((root) => root.id === "now")?.placed?.map((entry) => entry.id))
       .toEqual(["now-sticky", "now-git"])
     // …and a node with none is answered with none — absence, never an empty
@@ -757,7 +757,7 @@ describe("the caller shapes the rows", () => {
    *  and a property — every kind `fields` carries, in two rows. */
   const TIMED = (): OutlineSet =>
     setOf({
-      "steps.olai": [
+      "steps.org": [
         `{"id":"lane","ord":"a0","title":"the lane"}`,
         `{"id":"one","parent":"lane","ord":"a0","title":"first","done":"2026-08-29T09:12:00-04:00","desc":"the forensics","custom":{"took":"4m","agent":"claude-opus"}}`,
         `{"id":"one-a","parent":"one","ord":"a0","title":"the wrinkle","todo":true}`,
@@ -819,7 +819,7 @@ describe("the caller shapes the rows", () => {
     // never its own row. Pinning it as a fact: the note, the place, the
     // stamps are all still there.
     const lane = read(timed().derived, "lane", ["status"])
-    expect(lane).toMatchObject({ file: "steps.olai", line: 1, path: [], tags: [] })
+    expect(lane).toMatchObject({ file: "steps.org", line: 1, path: [], tags: [] })
     expect(lane?.children[0]).toEqual({ id: "one", status: "done" })
   })
 
@@ -845,7 +845,7 @@ describe("the caller shapes the rows", () => {
     // holding the instant-less `true`).
     const SPAN = (): OutlineSet =>
       setOf({
-        "steps.olai": [
+        "steps.org": [
           `{"id":"lane","ord":"a0","title":"the lane"}`,
           `{"id":"done-one","parent":"lane","ord":"a0","title":"finished","started":"2026-08-29T09:12:00-04:00","done":"2026-08-29T09:16:00-04:00"}`,
           `{"id":"jump","parent":"lane","ord":"a1","title":"jumped to done","done":"2026-08-29T09:12:00-04:00"}`,
@@ -932,7 +932,7 @@ describe("the caller shapes the rows", () => {
 
   test("a whole OUTLINE is shaped too, one call per ask", () => {
     const walkedOutline = outlineOf(
-      walked(timed(), { file: "steps.olai", fields: ["status"] }),
+      walked(timed(), { file: "steps.org", fields: ["status"] }),
     )
     expect(walkedOutline.roots).toEqual([
       {
@@ -1007,8 +1007,8 @@ describe("the caller shapes the rows", () => {
     const lane = nodeOf(walked(timed(), { id: "lane", depth: 1 }))
     expect(lane.children[0]).toMatchObject({
       id: "one",
-      file: "steps.olai",
-      line: 2,
+      file: "steps.org",
+      line: 9,
       path: ["the lane"],
       parent: "lane",
       status: "done",
@@ -1036,8 +1036,8 @@ describe("the caller shapes the rows", () => {
     }
     expect(read(timed().derived, "lane")?.children[0]).toMatchObject({
       id: "one",
-      file: "steps.olai",
-      line: 2,
+      file: "steps.org",
+      line: 9,
       path: ["the lane"],
       parent: "lane",
     })
@@ -1084,7 +1084,7 @@ describe("the notes a query asks for", () => {
     // Through `JSON.stringify` rather than a hand-written line, because what
     // this case is about is a note far too long to write out in one.
     const set = setOf({
-      "bugs.olai": JSON.stringify({
+      "bugs.org": JSON.stringify({
         id: "one",
         ord: "a0",
         title: "the commit pill lies",
@@ -1100,7 +1100,7 @@ describe("the notes a query asks for", () => {
     // A `.md`'s prose is the file, and `read_document` is how a file is read —
     // so there is nothing on this arm for the flag to turn on.
     const set = setOf(
-      { "bugs.olai": `{"id":"one","ord":"a0","title":"a bug"}` },
+      { "bugs.org": `{"id":"one","ord":"a0","title":"a bug"}` },
       [["notes/bug.md", "# a bug\n\nthe prose lives here\n"]],
     )
     const [hit] = search(readingOf(set), { text: "bug", withDesc: true }, TODAY, NO_KINDS).hits
@@ -1121,7 +1121,7 @@ describe("a whole outline, walked", () => {
    *  the near miss's near miss, and a file that did not parse. */
   const SHELF = (): OutlineSet =>
     setOf({
-      "plan.olai": [
+      "plan.org": [
         `{"id":"today","ord":"a0","title":"Today"}`,
         `{"id":"call","parent":"today","ord":"a0","title":"call the joiner","todo":true}`,
         `{"id":"hinges","parent":"call","ord":"a0","title":"ask about the hinges"}`,
@@ -1129,8 +1129,8 @@ describe("a whole outline, walked", () => {
         // A placement, at the top level, of a node that lives under `today`.
         `{"id":"echo","ord":"a2","mirror":"call"}`,
       ].join("\n"),
-      "notes.olai": `{"id":"scrap","ord":"a0","title":"a scrap"}`,
-    }, [], { "torn.olai": "{ not a record" })
+      "notes.org": `{"id":"scrap","ord":"a0","title":"a scrap"}`,
+    }, [], { "torn.org": "{ not a record" })
 
   const shelf = () => readingOf(SHELF())
 
@@ -1138,10 +1138,10 @@ describe("a whole outline, walked", () => {
     outlineOf(answer).roots.map((root) => root.id)
 
   test("one call answers every top-level node, nested", () => {
-    const answer = walked(shelf(), { file: "plan.olai" })
+    const answer = walked(shelf(), { file: "plan.org" })
     // The file rides back, so an agent holding several reads in flight knows
     // which one this is.
-    expect(answer).toMatchObject({ file: "plan.olai" })
+    expect(answer).toMatchObject({ file: "plan.org" })
     // BOTH roots, in the sibling order a reader sees them in — which is the
     // whole claim: two roots used to be two calls.
     expect(rootIds(answer)).toEqual(["today", "later"])
@@ -1156,7 +1156,7 @@ describe("a whole outline, walked", () => {
   })
 
   test("each root says for itself where the walk stopped", () => {
-    const answer = outlineOf(walked(shelf(), { file: "plan.olai", depth: 1 }))
+    const answer = outlineOf(walked(shelf(), { file: "plan.org", depth: 1 }))
     // One root bottoms out at the depth…
     expect(answer.roots[0]?.children[0]).toMatchObject({ id: "call", truncated: true })
     // …while its neighbour bottoms out at a leaf, and says nothing.
@@ -1169,14 +1169,14 @@ describe("a whole outline, walked", () => {
    * is how a table-of-contents question does not pay for the forensics.
    */
   test("the notes ride by default, and `withDesc: false` takes them off", () => {
-    const withNotes = outlineOf(walked(shelf(), { file: "plan.olai" }))
+    const withNotes = outlineOf(walked(shelf(), { file: "plan.org" }))
     expect(withNotes.roots[1]).toMatchObject({ desc: "nothing urgent" })
     // Explicit `true` is the same answer as omitting the flag — ON is the
     // default, said out loud rather than inferred from the line above.
-    expect(outlineOf(walked(shelf(), { file: "plan.olai", withDesc: true })).roots[1])
+    expect(outlineOf(walked(shelf(), { file: "plan.org", withDesc: true })).roots[1])
       .toMatchObject({ desc: "nothing urgent" })
 
-    const lean = outlineOf(walked(shelf(), { file: "plan.olai", withDesc: false }))
+    const lean = outlineOf(walked(shelf(), { file: "plan.org", withDesc: false }))
     expect(lean.roots[1]).not.toHaveProperty("desc")
     // Structure is unchanged: both roots, the child, the grandchild.
     expect(lean.roots.map((root) => root.id)).toEqual(["today", "later"])
@@ -1186,7 +1186,7 @@ describe("a whole outline, walked", () => {
 
   test("`truncated` is unchanged by the flag", () => {
     const lean = outlineOf(
-      walked(shelf(), { file: "plan.olai", depth: 1, withDesc: false }),
+      walked(shelf(), { file: "plan.org", depth: 1, withDesc: false }),
     )
     expect(lean.roots[0]?.children[0]).toMatchObject({ id: "call", truncated: true })
     expect(lean.roots[0]?.children[0]).not.toHaveProperty("desc")
@@ -1218,15 +1218,15 @@ describe("a whole outline, walked", () => {
     const set = setOf({
       // Written out of `ord` order on purpose — the same fixture shape the
       // listing's own case uses, so the two claims are read against each other.
-      "out.olai": [
+      "out.org": [
         `{"id":"second","ord":"a1","title":"Second"}`,
         `{"id":"first","ord":"a0","title":"First"}`,
       ].join("\n"),
     })
-    expect(rootIds(walked(readingOf(set), { file: "out.olai" })))
+    expect(rootIds(walked(readingOf(set), { file: "out.org" })))
       .toEqual(["first", "second"])
     expect(outlines(set, derivedOf(set))[0]).toEqual({
-      file: "out.olai",
+      file: "out.org",
       nodes: 2,
       roots: ["Second", "First"],
     })
@@ -1235,7 +1235,7 @@ describe("a whole outline, walked", () => {
   test("a placement at the top level is not a root", () => {
     // Still not a root — the walk never descends into a placement — but
     // named on the answer, because `{file, roots}` is the row a file has.
-    const answer = outlineOf(walked(shelf(), { file: "plan.olai" }))
+    const answer = outlineOf(walked(shelf(), { file: "plan.org" }))
     expect(answer.roots.map((root) => root.id)).not.toContain("echo")
     expect(answer.placed?.map((entry) => [entry.id, entry.shows.id, entry.shows.title]))
       .toEqual([["echo", "call", "call the joiner"]])
@@ -1243,10 +1243,10 @@ describe("a whole outline, walked", () => {
 
   test("a file whose top level is all placements is not silence", () => {
     const set = setOf({
-      "now.olai": `{"id":"now-call","ord":"a0","mirror":"call"}`,
-      "work.olai": `{"id":"call","ord":"a0","title":"call the joiner"}`,
+      "now.org": `{"id":"now-call","ord":"a0","mirror":"call"}`,
+      "work.org": `{"id":"call","ord":"a0","title":"call the joiner"}`,
     })
-    const answer = outlineOf(walked(readingOf(set), { file: "now.olai" }))
+    const answer = outlineOf(walked(readingOf(set), { file: "now.org" }))
     expect(answer.roots).toEqual([])
     expect(answer.placed?.map((entry) => [entry.id, entry.shows.id, entry.shows.title]))
       .toEqual([["now-call", "call", "call the joiner"]])
@@ -1254,30 +1254,30 @@ describe("a whole outline, walked", () => {
 
   test("the file arm's `shows` obeys the dial too", () => {
     const answer = outlineOf(
-      walked(shelf(), { file: "plan.olai", fields: ["title"] }),
+      walked(shelf(), { file: "plan.org", fields: ["title"] }),
     )
     expect(answer.placed?.[0]?.shows).toEqual({ id: "call", title: "call the joiner" })
     expect(answer.placed?.[0]?.shows).not.toHaveProperty("path")
   })
 
   test("a path that is not an outline is refused with the closest one that is", () => {
-    const refusal = refusedWalk(shelf(), { file: "plans.olai" })
+    const refusal = refusedWalk(shelf(), { file: "plans.org" })
     expect(refusal._tag).toBe("NotFoundFailure")
-    expect(refusal.message).toContain("did you mean `plan.olai`")
+    expect(refusal.message).toContain("did you mean `plan.org`")
   })
 
   test("…and with the outlines themselves when nothing is close", () => {
     // The right answer for a directory of a handful of outlines, and the wrong
     // one for its few thousand node ids — which is why the two refusals differ.
-    const refusal = refusedWalk(shelf(), { file: "nothing/like/it/at/all.olai" })
-    expect(refusal.message).toContain("plan.olai")
-    expect(refusal.message).toContain("notes.olai")
+    const refusal = refusedWalk(shelf(), { file: "nothing/like/it/at/all.org" })
+    expect(refusal.message).toContain("plan.org")
+    expect(refusal.message).toContain("notes.org")
   })
 
   test("a file that did not parse is refused with the validator's own rows", () => {
     // Never answered as an outline holding nothing: nobody read that file, so
     // there is nothing to answer with — `read_document`'s rule for a `.md`.
-    const refusal = refusedWalk(shelf(), { file: "torn.olai" })
+    const refusal = refusedWalk(shelf(), { file: "torn.org" })
     expect(refusal._tag).toBe("ValidationFailure")
     expect(
       (refusal as { readonly verdict: { readonly findings: ReadonlyArray<unknown> } })
@@ -1292,7 +1292,7 @@ describe("a whole outline, walked", () => {
   })
 
   test("naming both, and naming neither, are refused in their own words", () => {
-    const both = refusedWalk(shelf(), { id: "today", file: "plan.olai" })
+    const both = refusedWalk(shelf(), { id: "today", file: "plan.org" })
     expect(both._tag).toBe("UsageFailure")
     expect(both.message).toContain("two different reads")
 
@@ -1318,7 +1318,7 @@ describe("the tags a node carries", () => {
    *  whole reason the sigil is reported. */
   const TAGGED = (): OutlineSet =>
     setOf({
-      "work.olai": [
+      "work.org": [
         `{"id":"call","ord":"a0","title":"call @alice about #alice/onboarding"}`,
         `{"id":"plain","ord":"a1","title":"nothing to see here"}`,
       ].join("\n"),
@@ -1363,14 +1363,14 @@ describe("the tags a node carries", () => {
 describe("a query is words and operators", () => {
   const WORK = (): OutlineSet =>
     setOf({
-      "work.olai": [
+      "work.org": [
         `{"id":"trip","ord":"a0","title":"the trip"}`,
         `{"id":"book","parent":"trip","ord":"a0","title":"book the flights","done":"2026-08-03"}`,
         `{"id":"pack","parent":"trip","ord":"a1","title":"pack","todo":true,"desc":"the small case"}`,
         `{"id":"house","ord":"a1","title":"the house"}`,
         `{"id":"paint","parent":"house","ord":"a0","title":"paint the hall","done":"2026-08-09"}`,
       ].join("\n"),
-      "_olai/Trash.olai": `{"id":"old","ord":"a0","title":"an old trip","done":"2026-01-01"}`,
+      "_olai/Trash.org": `{"id":"old","ord":"a0","title":"an old trip","done":"2026-01-01"}`,
     })
 
   const ids = (query: Parameters<typeof search>[1]): ReadonlyArray<string> =>
@@ -1469,9 +1469,9 @@ describe("a query is words and operators", () => {
   })
 
   test("a scope narrows to one outline, or to one node and what is beneath it", () => {
-    expect(ids({ text: "is:done", file: "work.olai" })).toEqual(["book", "paint"])
+    expect(ids({ text: "is:done", file: "work.org" })).toEqual(["book", "paint"])
     expect(ids({ text: "is:done", under: "trip" })).toEqual(["book"])
-    expect(ids({ text: "is:done", file: "_olai/Trash.olai", under: "trip" })).toEqual([])
+    expect(ids({ text: "is:done", file: "_olai/Trash.org", under: "trip" })).toEqual([])
   })
 
   test("a hit says which field carried the words — and says nothing when none did", () => {
@@ -1503,7 +1503,7 @@ describe("a query is words and operators", () => {
 describe("the directory", () => {
   const DIRECTORY = (): OutlineSet =>
     setOf({
-      "house.olai": [
+      "house.org": [
         // Written out of `ord` order on purpose: the roots a listing shows are
         // the file's, in the order the file writes them.
         `{"id":"garden","ord":"a1","title":"Garden"}`,
@@ -1513,9 +1513,9 @@ describe("the directory", () => {
         // sitting at the top level of the file.
         `{"id":"shown","ord":"a2","mirror":"paint"}`,
       ].join("\n"),
-      "empty.olai": "",
-      "shed.olai": `{"id":"shed","ord":"a0","title":"Shed"}`,
-    }, [], { "torn.olai": `{"id":` })
+      "empty.org": "",
+      "shed.org": `{"id":"shed","ord":"a0","title":"Shed"}`,
+    }, [], { "torn.org": `{"id":` })
 
   /** The WHOLE listing in one assertion rather than four indexes into it: the
    *  order is one of the claims, so a row pinned by position would be leaning
@@ -1525,16 +1525,16 @@ describe("the directory", () => {
     expect(outlines(set, derivedOf(set))).toEqual([
       // In PATH order, which is the set's ({@link ../../format/src/set.ts}'s
       // `assemble` puts it there) and what the sidebar shows.
-      { file: "empty.olai", nodes: 0, roots: [] },
+      { file: "empty.org", nodes: 0, roots: [] },
       // Three regular nodes — the mirror is a placement, so it is neither
       // counted nor a root — and the roots are in FILE order.
-      { file: "house.olai", nodes: 3, roots: ["Garden", "House"] },
-      { file: "shed.olai", nodes: 1, roots: ["Shed"] },
+      { file: "house.org", nodes: 3, roots: ["Garden", "House"] },
+      { file: "shed.org", nodes: 1, roots: ["Shed"] },
       // The torn row is the other arm: its errors and NOTHING ELSE — no
       // `nodes: 0` for a count nobody counted, and no empty `roots` claiming
       // the outline is about nothing. Empty above is a file somebody emptied;
       // this is a file nobody read. They must not look the same.
-      { file: "torn.olai", unreadable: [expect.any(String)] },
+      { file: "torn.org", unreadable: [expect.any(String)] },
     ])
   })
 })
@@ -1663,24 +1663,24 @@ const generatedCorpus = (): OutlineSet =>
 describe("which nodes of a page a query selects", () => {
   const PILE = (): OutlineSet =>
     setOf({
-      "house.olai": [
+      "house.org": [
         `{"id":"kitchen","ord":"a0","title":"kitchen remodel"}`,
         `{"id":"order","parent":"kitchen","ord":"a0","title":"order the doors","desc":"walnut, or birch"}`,
         `{"id":"hinges","parent":"kitchen","ord":"a1","title":"pick the door hinges","done":"2026-08-02"}`,
         `{"id":"tiles","parent":"kitchen","ord":"a2","title":"the door mat"}`,
       ].join("\n"),
-      "shed.olai": `{"id":"shed","ord":"a0","title":"the shed door"}`,
-      "_olai/Trash.olai": [
+      "shed.org": `{"id":"shed","ord":"a0","title":"the shed door"}`,
+      "_olai/Trash.org": [
         `{"id":"old","ord":"a0","title":"the old door"}`,
       ].join("\n"),
     })
 
   /** The outline everything below is filtered on, unless a case names another
-   *  page. An `.olai` path is an outline: the address grammar says which page a
+   *  page. An `.org` path is an outline: the address grammar says which page a
    *  suffix opens, and nothing here re-decides it. */
   const AT_HOUSE: PageRequest = {
     kind: "at",
-    address: { kind: "document", path: DocumentPath.make("house.olai") },
+    address: { kind: "document", path: DocumentPath.make("house.org") },
   }
 
   const asked = (page: PageRequest, text: string): NarrowingAnswer =>
@@ -1698,7 +1698,7 @@ describe("which nodes of a page a query selects", () => {
 
   test("A NODE THIS PAGE DOES NOT DRAW IS NOT IN THE ANSWER", () => {
     // The whole of `filter-ask-carries-revision`. `shed` matches the query as
-    // well as any row of `house.olai` does, and the box that asked is narrowing
+    // well as any row of `house.org` does, and the box that asked is narrowing
     // an outline it is not in — so the walk never reaches it, where the door
     // this replaced walked the whole vault to hand it over for the page to drop
     // again.
@@ -1707,7 +1707,7 @@ describe("which nodes of a page a query selects", () => {
     // above a claim about scope rather than about this fixture.
     expect(ids("door", {
       kind: "at",
-      address: { kind: "document", path: DocumentPath.make("shed.olai") },
+      address: { kind: "document", path: DocumentPath.make("shed.org") },
     })).toEqual(["shed"])
   })
 
@@ -1791,7 +1791,7 @@ describe("which nodes of a page a query selects", () => {
  */
 const HOUSE = (): OutlineSet =>
   setOf({
-    "house.olai": [
+    "house.org": [
       `{"id":"kitchen","ord":"a0","title":"kitchen remodel"}`,
       `{"id":"order","parent":"kitchen","ord":"a0","title":"order the cabinets"}`,
       // A placement of `order`, which is the id an agent writes: `read_node`
@@ -1800,8 +1800,8 @@ const HOUSE = (): OutlineSet =>
       // ...and one whose chain ends nowhere.
       `{"id":"nowhere","ord":"a2","mirror":"gone"}`,
     ].join("\n"),
-    "garden.olai": HERBS,
-    "_olai/Trash.olai": [
+    "garden.org": HERBS,
+    "_olai/Trash.org": [
       `{"id":"old","ord":"a0","title":"the old counters"}`,
     ].join("\n"),
   })
@@ -1828,7 +1828,7 @@ describe("which of these ids the set declares", () => {
     // Every other backticked thing an agent writes — a flag, a file, a
     // command — and a placement whose chain is dead, which has nothing to
     // point at either.
-    expect(asked("true", "house.olai", "bun test", "nowhere")).toEqual([])
+    expect(asked("true", "house.org", "bun test", "nowhere")).toEqual([])
   })
 
   test("one question, one answer per id — the rest of the batch is unaffected", () => {
@@ -1874,14 +1874,14 @@ describe("where these ids are, and which of these files the set has", () => {
     homes(readingOf(HOUSE()), { ids, files })
 
   test("an id the set declares comes back with the file its record is written in", () => {
-    expect(asking(["order"]).homes).toEqual([{ id: "order", file: "house.olai" }])
+    expect(asking(["order"]).homes).toEqual([{ id: "order", file: "house.org" }])
   })
 
   test("a node that was PUT AWAY answers with the file it was moved to", () => {
     // The case the whole member exists for: `archive` keeps the id and moves
     // the record, so a fold filed under the source file is re-filed rather than
     // read as a deletion.
-    expect(asking(["old"]).homes).toEqual([{ id: "old", file: "_olai/Trash.olai" }])
+    expect(asking(["old"]).homes).toEqual([{ id: "old", file: "_olai/Trash.org" }])
   })
 
   test("a PLACEMENT answers for ITSELF — no chain is followed", () => {
@@ -1890,21 +1890,21 @@ describe("where these ids are, and which of these files the set has", () => {
     // nothing and is folded by its own id, so asked through `named` it would
     // read as a node that is gone while its record sits in the file.
     expect(asking(["echo", "nowhere"]).homes).toEqual([
-      { id: "echo", file: "house.olai" },
-      { id: "nowhere", file: "house.olai" },
+      { id: "echo", file: "house.org" },
+      { id: "nowhere", file: "house.org" },
     ])
     expect(named(derivedOf(HOUSE()), { ids: ["nowhere"] }).named).toEqual([])
   })
 
   test("an id no record carries is not in the answer at all", () => {
     expect(asking(["deleted", "order"]).homes).toEqual([
-      { id: "order", file: "house.olai" },
+      { id: "order", file: "house.org" },
     ])
   })
 
   test("an id repeated is asked once", () => {
     expect(asking(["order", "order"]).homes).toEqual([
-      { id: "order", file: "house.olai" },
+      { id: "order", file: "house.org" },
     ])
   })
 
@@ -1913,9 +1913,9 @@ describe("where these ids are, and which of these files the set has", () => {
     // whose every remembered id has gone away looks exactly like a file that
     // stopped parsing, from the ids alone. A path the directory does not serve
     // is not one either.
-    expect(asking([], ["house.olai", "garden.olai", "gone.olai"]).loaded).toEqual([
-      "house.olai",
-      "garden.olai",
+    expect(asking([], ["house.org", "garden.org", "gone.org"]).loaded).toEqual([
+      "house.org",
+      "garden.org",
     ])
   })
 
@@ -1925,9 +1925,9 @@ describe("where these ids are, and which of these files the set has", () => {
     // outline whose last node was deleted would come back unreadable, and a
     // caller reading that as "nothing can be concluded" would keep the folds of
     // every node that used to be in it, for good.
-    const emptied = readingOf(setOf({ "house.olai": "", "garden.olai": HERBS }))
-    expect(homes(emptied, { ids: [], files: ["house.olai"] }).loaded).toEqual([
-      "house.olai",
+    const emptied = readingOf(setOf({ "house.org": "", "garden.org": HERBS }))
+    expect(homes(emptied, { ids: [], files: ["house.org"] }).loaded).toEqual([
+      "house.org",
     ])
   })
 
@@ -1936,10 +1936,10 @@ describe("where these ids are, and which of these files the set has", () => {
     // says. The broken one keeps its key on the wire and declares no nodes; the
     // other is not there at all.
     const torn = readingOf(
-      setOf({ "garden.olai": HERBS }, [], { "house.olai": `{"id":` }),
+      setOf({ "garden.org": HERBS }, [], { "house.org": `{"id":` }),
     )
-    expect(homes(torn, { ids: ["herbs"], files: ["house.olai", "gone.olai"] })).toEqual({
-      homes: [{ id: "herbs", file: "garden.olai" }],
+    expect(homes(torn, { ids: ["herbs"], files: ["house.org", "gone.org"] })).toEqual({
+      homes: [{ id: "herbs", file: "garden.org" }],
       loaded: [],
     })
   })
@@ -1960,14 +1960,14 @@ describe("the sidebar's two date readings", () => {
    *  that read a clock would expire. */
   const DAYS = (): OutlineSet =>
     setOf({
-      "work.olai": [
+      "work.org": [
         `{"id":"permit","ord":"a0","title":"file the permit","todo":true,"date":"2026-08-03"}`,
         `{"id":"posts","ord":"a1","title":"dig the post holes","doing":true,"date":"2026-08-09"}`,
         `{"id":"survey","ord":"a2","title":"the boundary survey","done":"2026-08-21","date":"2026-08-28"}`,
         `{"id":"filed","ord":"a3","title":"chase the filing","todo":"2026-08-17"}`,
         `{"id":"next","ord":"a4","title":"pour the slab","todo":true,"date":"2026-09-02"}`,
       ].join("\n"),
-      "life.olai": [
+      "life.org": [
         `{"id":"visas","ord":"a0","title":"send the visa forms","todo":true,"date":"2026-08-05"}`,
         `{"id":"mum","ord":"a1","title":"mum's birthday","date":"2026-08-09"}`,
       ].join("\n"),
@@ -2028,12 +2028,12 @@ describe("the sidebar's two date readings", () => {
 describe("which tags the set already uses", () => {
   const HOUSE = (): OutlineSet =>
     setOf({
-      "house.olai": [
+      "house.org": [
         `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}`,
         `{"id":"order","parent":"kitchen","ord":"a1","title":"order cabinets #home #shopping"}`,
         `{"id":"ask","parent":"kitchen","ord":"a2","title":"ask @alice about the #hob"}`,
       ].join("\n"),
-      "_olai/Trash.olai": `{"id":"old","ord":"a0","title":"the old boiler #boiler"}`,
+      "_olai/Trash.org": `{"id":"old","ord":"a0","title":"the old boiler #boiler"}`,
     })
 
   // The ENVELOPE, which is this layer's half: what the rules are is

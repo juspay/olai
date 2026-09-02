@@ -242,7 +242,7 @@ export function PropsDrawer(props: {
    * or the document whose frontmatter this is.
    *
    * Required, and it is what makes a relative path resolvable: `brief
-   * briefs/pda.md` on a record of `orchestrator/lanes.olai` names a different
+   * briefs/pda.md` on a record of `orchestrator/lanes.org` names a different
    * file from the same words on a record at the root, exactly as a `doc` field
    * and a relative picture already do (`@olai/format`'s `docOf`). A default
    * would be this component guessing at the one fact only its caller has.

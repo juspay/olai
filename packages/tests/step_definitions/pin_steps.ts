@@ -3,13 +3,13 @@
  *
  * The steps come in two kinds and the split is the feature's whole point. Some
  * ask what the SIDEBAR draws — which doors, in what order, under what names —
- * and some write or read `Pins.olai` DIRECTLY, because a shelf stored in the
+ * and some write or read `Pins.org` DIRECTLY, because a shelf stored in the
  * directory is one an agent can write and one whose order is a fact about a
  * file rather than about a browser.
  *
  * The addresses are the app's own spelling (`web/src/client/routes.ts`), and
  * they travel through these steps VERBATIM: what a scenario writes into
- * `Pins.olai` is what the shelf reads back, and a step that normalised one
+ * `Pins.org` is what the shelf reads back, and a step that normalised one
  * would be a step that could pass over a shelf drawing something else.
  */
 
@@ -31,7 +31,7 @@ const PIN_RENAME = selector(TESTID.pinRename);
 
 /** The file the shelf IS. Named once here, from the format's own constant, so
  *  a scenario naming it and a step reading it cannot disagree. */
-const PINS_FILE = "Pins.olai";
+const PINS_FILE = "Pins.org";
 
 /** One row of the shelf, by the address it opens — which is the fact the row
  *  publishes (`data-at`) and the only one that identifies it, since two pins
@@ -50,7 +50,7 @@ const shelved = async (world: OlaiWorld): Promise<ReadonlyArray<string>> =>
     .evaluateAll((rows) => rows.map((one) => one.getAttribute("data-at") ?? ""));
 
 /** The shelf, made out of nothing but addresses — the write an AGENT makes,
- *  and the shape the ordering scenarios start from. `Pins.olai` is an ordinary
+ *  and the shape the ordering scenarios start from. `Pins.org` is an ordinary
  *  outline, so this is `add_node` five times spelled as the file it produces. */
 Given(
   "the directory has the pins:",
@@ -213,7 +213,7 @@ When(
 
 /**
  * What an outline ROW draws for its title — the maintainer's own gesture
- * (2026-08-18): pin something, then open `Pins.olai` as the ordinary outline
+ * (2026-08-18): pin something, then open `Pins.org` as the ordinary outline
  * it is. The shelf resolved its rows and the file's page drew the raw address,
  * which is one title with two answers.
  *

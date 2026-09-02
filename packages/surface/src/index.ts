@@ -467,7 +467,7 @@ export const Head = Schema.Struct({
    *
    * The one field here that is not about a file's identity, and it is here for
    * the reason the face is: it is what a browser cannot derive without the
-   * content. A `.olai` that stopped parsing keeps its key and carries its
+   * content. A `.org` that stopped parsing keeps its key and carries its
    * errors — the per-entity half of the error scope expressed as DATA rather
    * than by absence, which is the same sentence {@link OutlineEntry.broken}
    * makes and the same value, cut from the same set. The sidebar marks such a
@@ -687,7 +687,7 @@ export const surface = defineSurface({
       arrayKey: "path",
     },
     /**
-     * THE PINNED SHELF — the rows of the directory's `Pins.olai`, and the live
+     * THE PINNED SHELF — the rows of the directory's `Pins.org`, and the live
      * name of whatever node each one addresses (`@olai/format`'s {@link Shelf}).
      *
      * A CELL, which is to say a STANDING answer with no argument. The shelf is
@@ -823,7 +823,7 @@ export const surface = defineSurface({
      * other change on the disk.
      */
     outlines: {
-      /** Root-relative, `/`-spelled — `"roadmap.olai"`, `"notes/todo.olai"`.
+      /** Root-relative, `/`-spelled — `"roadmap.org"`, `"notes/todo.org"`.
        *  The same spelling the store's paths and every `file:line` use. */
       keySchema: Schema.String,
       schema: OutlineEntry,

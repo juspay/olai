@@ -9,7 +9,7 @@
  *
  * IT LIVES HERE RATHER THAN IN `../pins/` because the shelf turned out to be
  * one consumer of it and not the axis. The axis is *what an address in a title
- * means*, and the second consumer is the outline itself: a row of `Pins.olai`
+ * means*, and the second consumer is the outline itself: a row of `Pins.org`
  * opened as the ordinary outline it is drew `/orchestrator/instructions.md`
  * — the plumbing, in a place the design invites people to browse (maintainer,
  * 2026-08-18, on a screenshot). One resolver, read by whoever is drawing, is
@@ -137,7 +137,7 @@ export const titleFace = (
  *     been read and keeps it when a file will not parse — which is why a zoomed
  *     node there is its id. A door with an id written on it is a door nobody
  *     can read, so this one is asked of the set. And a pane draws a file's
- *     whole PATH (two panes on `a/x.olai` and `b/x.olai` have to be tellable
+ *     whole PATH (two panes on `a/x.org` and `b/x.org` have to be tellable
  *     apart) where a shelf row draws its NAME, in a column too narrow for
  *     either path.
  *   - **so unifying them needs a mode flag**, and a mode flag is the braid

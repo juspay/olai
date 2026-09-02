@@ -31,7 +31,7 @@ Feature: The `terminal` property is a DOOR
   Scenario: The row is kolu's own, on an ordinary outline
     # Three lanes, three states, one page — and the reader never went anywhere
     # special to see them.
-    Given I open the outline "lanes.olai"
+    Given I open the outline "lanes.org"
     # A lane that finished IS content here — the sleeping row is the third
     # state being read off the page — so the board is asked to keep it drawn.
     And I show the done nodes
@@ -44,7 +44,7 @@ Feature: The `terminal` property is a DOOR
 
   @scratch:lanes @padi:lanes
   Scenario: The DECLARATION opens the door, and the key's name opens nothing
-    # What licenses this face is one row in `_olai/Properties.olai` saying which
+    # What licenses this face is one row in `_olai/Properties.org` saying which
     # of your columns holds a terminal — never the fact that a column happens to
     # be spelled `terminal`. The board here calls its column `pty` and declares
     # it, so it wears kolu's row like any other; the column beside it holds a
@@ -56,7 +56,7 @@ Feature: The `terminal` property is a DOOR
     # the tab followed the key, so the two agreed only for a vault that named its
     # column after the kind — and this fixture's `pty` row was walked, probed and
     # gated while drawing nothing.
-    Given I open the outline "lanes.olai"
+    Given I open the outline "lanes.org"
     Then the terminal row on "named-implement" is working
     And "named-review" wears no terminal door at all
     And there should be no page errors
@@ -66,7 +66,7 @@ Feature: The `terminal` property is a DOOR
     # The property is still a true record of where the work happened. A gray
     # live row would claim the terminal is sitting there doing nothing, which is a
     # different and wrong fact.
-    Given I open the outline "lanes.olai"
+    Given I open the outline "lanes.org"
     # `old-implement` is finished: the sentence that says the fleet lost it
     # hangs on its row, so that row has to be on the page.
     And I show the done nodes
@@ -78,14 +78,14 @@ Feature: The `terminal` property is a DOOR
   Scenario: An enabled plugin declares its own key — nothing to edit, nothing written
     # THE DEFAULT, and the whole of it: `kolu-terminal` is the key kolu claims by
     # convention, so a lane carrying one wears the door with NO row in
-    # `_olai/Properties.olai` about it — and olai wrote nothing to this vault to
+    # `_olai/Properties.org` about it — and olai wrote nothing to this vault to
     # make that true.
     #
     # The name carries `kolu-` on purpose, and the second assertion is why: a
     # column somebody calls `terminal-of-mine` is theirs, holding a real fleet id,
     # and turning a plugin on may not reinterpret it. A plugin can only ever
     # auto-declare a key carrying its own name.
-    Given I open the outline "lanes.olai"
+    Given I open the outline "lanes.org"
     Then the terminal row on "claimed-implement" is working
     And "claimed-mine" wears no terminal door at all
     And there should be no page errors
@@ -109,7 +109,7 @@ Feature: The `terminal` property is a DOOR
     # `kolu/link` for the life of the page. Nothing subscribes until the roster
     # says the plugin is on (`web/src/client/plugins/Mounted.tsx`), and this is
     # what says so.
-    Given I open the outline "lanes.olai"
+    Given I open the outline "lanes.org"
     Then "door-implement" wears no terminal door at all
     And the padi indicator is not drawn at all
     And the connection is "live"
@@ -125,7 +125,7 @@ Feature: The `terminal` property is a DOOR
     # vault opens, every row draws, and the chips are honest about what they
     # cannot see. This is the scenario that would catch "nothing to report" drawn
     # as "we looked and it is quiet", which is the one confusion the design refuses.
-    Given I open the outline "lanes.olai"
+    Given I open the outline "lanes.org"
     Then the terminal on "door-implement" has no row
     And the terminal on "door-implement" says "no padi is running"
     And there should be no page errors
@@ -139,7 +139,7 @@ Feature: The `terminal` property is a DOOR
     # THE BROWSER DOES NOT DIAL PADI to do it. What this page subscribes to is
     # an ordinary member of olai's own surface; the server holds padi's attach
     # on the one connection the fleet already rides.
-    Given I open the outline "lanes.olai"
+    Given I open the outline "lanes.org"
     When I watch the terminal on "door-implement"
     Then a snapshot pane opens on "door-implement"
     And the pane is a live window rather than a snapshot
@@ -152,7 +152,7 @@ Feature: The `terminal` property is a DOOR
     # terminal, so there is no attach behind a pane nobody is looking at —
     # twelve lanes on a page are twelve rows and zero attached terminals until
     # somebody presses one.
-    Given I open the outline "lanes.olai"
+    Given I open the outline "lanes.org"
     When I watch the terminal on "door-review"
     Then a snapshot pane opens on "door-review"
     And the live screen shows "open the PR"
@@ -167,7 +167,7 @@ Feature: The `terminal` property is a DOOR
     #
     # A sentence IN PLACE OF the terminal — not a fault, not an empty box, and
     # not a frozen screen under a tag still claiming to be live.
-    Given I open the outline "lanes.olai"
+    Given I open the outline "lanes.org"
     # Watching is a press on the row, and `quiet-implement` is finished.
     And I show the done nodes
     When I watch the terminal on "quiet-implement"
@@ -185,7 +185,7 @@ Feature: The `terminal` property is a DOOR
     # The control core answers even here: its schemas never move, so the
     # refusal is a judgement on a readable hello rather than a decode failure
     # three calls later.
-    Given I open the outline "lanes.olai"
+    Given I open the outline "lanes.org"
     Then the terminal on "door-implement" has no row
     And the terminal on "door-implement" says "99.0"
     And the terminal on "door-implement" says "upgrade"
@@ -201,7 +201,7 @@ Feature: The `terminal` property is a DOOR
     #
     # `door-implement` names its terminal by prefix, `door-review` by the whole
     # id, and both must light.
-    Given I open the outline "lanes.olai"
+    Given I open the outline "lanes.org"
     Then the terminal row on "door-implement" is working
     And the terminal row on "door-review" is awaiting
     And there should be no page errors
@@ -216,7 +216,7 @@ Feature: The `terminal` property is a DOOR
     # So this scenario is as much about the page as about the pane: the read
     # lands, AND the page is still alive afterwards, which is what the last two
     # steps are for.
-    Given I open the outline "lanes.olai"
+    Given I open the outline "lanes.org"
     When I watch the terminal on "door-implement"
     Then a snapshot pane opens on "door-implement"
     And the live screen shows "just check"
@@ -231,7 +231,7 @@ Feature: The `terminal` property is a DOOR
     # A per-property sentence cannot tell "this terminal is gone" from "there is no
     # fleet", and a page with no `terminal` property anywhere says nothing at
     # all. So the link gets a chrome readout beside the connection pill.
-    Given I open the outline "lanes.olai"
+    Given I open the outline "lanes.org"
     Then the padi indicator says "connected"
     And there should be no page errors
 
@@ -239,7 +239,7 @@ Feature: The `terminal` property is a DOOR
   Scenario: The header says there is no kolu, and where it looked
     # No `@padi:` tag, so this server dials the rendezvous path and finds
     # nothing — a laptop that is not running kolu, which is most of them.
-    Given I open the outline "lanes.olai"
+    Given I open the outline "lanes.org"
     Then the padi indicator says "absent"
     And the padi indicator explains "no padi is answering"
     And there should be no page errors
@@ -250,7 +250,7 @@ Feature: The `terminal` property is a DOOR
     # builds that cannot speak to each other is a fact somebody has to act on,
     # and the sentence names both versions so the reader knows which way to
     # move.
-    Given I open the outline "lanes.olai"
+    Given I open the outline "lanes.org"
     Then the padi indicator says "skew"
     And the padi indicator explains "99.0"
     And the padi indicator explains "needs an upgrade"
@@ -269,7 +269,7 @@ Feature: The `terminal` property is a DOOR
     # painted has proved the whole chain, so the next stumble is a fresh
     # episode rather than an old one's accounting. This lane had copied the
     # re-attach and not the refill.
-    Given I open the outline "lanes.olai"
+    Given I open the outline "lanes.org"
     When I watch the terminal on "door-implement"
     Then a snapshot pane opens on "door-implement"
     And the live screen shows "just check"

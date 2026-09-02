@@ -58,7 +58,7 @@
  * node's and every mirror standing for it.
  *
  * **What is put away is on the Trash and nowhere else** (#226). A referrer
- * written in an `_olai/Trash.olai` is left out, the same way it is left out of
+ * written in an `_olai/Trash.org` is left out, the same way it is left out of
  * search, of the agenda and of blockedness — and there is no `is:trashed` to
  * say otherwise at this door, because a section is not a query.
  */
@@ -193,7 +193,7 @@ export const backlinksOf = (derived: Derived, id: string): ReadonlyArray<Backlin
  * difference is real rather than a convenience: a `.md` writes a link in its
  * prose and has no record to attribute it to, while an outline's link is
  * always SOME record's — the node that attached the document, wrote the `see`,
- * or put the link in its note. Saying "house.olai points here" where the honest
+ * or put the link in its note. Saying "house.org points here" where the honest
  * answer is "the node `kitchen` attaches it" would be the coarser answer
  * offered because it was the easier one.
  */
@@ -239,9 +239,9 @@ export type Referrer = typeof Referrer.Type
  *
  * WHAT IS PUT AWAY IS ON THE TRASH AND NOWHERE ELSE (#226), which is this
  * module's standing rule read once more: a referrer written in an
- * `_olai/Trash.olai` is left out, the same way it is left out of search, of the
+ * `_olai/Trash.org` is left out, the same way it is left out of search, of the
  * agenda and of blockedness. It is left out HERE rather than at the fold, like
- * every other index of this format: an index that knew about `_olai/Trash.olai`
+ * every other index of this format: an index that knew about `_olai/Trash.org`
  * would be the storage rule wired into a fold about what a file points at.
  *
  * A LINK ONTO A HEADING POINTS AT THE DOCUMENT, which is the one place this

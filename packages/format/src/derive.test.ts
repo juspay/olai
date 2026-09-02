@@ -465,18 +465,18 @@ test("a mirror reports its target's mark, through as many hops as it takes", () 
 test("a mirror row draws its target's mark, whichever of them it is", () => {
   const rows = rowsOf(
     derive(nodesOfFiles({
-      "a.olai": `{"id":"working","ord":"a","title":"working","doing":"2026-08-11"}\n` +
+      "a.org": `{"id":"working","ord":"a","title":"working","doing":"2026-08-11"}\n` +
         `{"id":"waiting","ord":"b","title":"waiting","todo":"2026-08-11"}\n` +
         `{"id":"finished","ord":"c","title":"finished","done":"2026-08-11"}\n` +
         `{"id":"note","ord":"d","title":"a note about all three"}`,
       // In another file, which is where a mirror usually lives: the one
       // relation that crosses files must not be the one that drops the mark.
-      "b.olai": `{"id":"m-working","ord":"a","mirror":"working"}\n` +
+      "b.org": `{"id":"m-working","ord":"a","mirror":"working"}\n` +
         `{"id":"m-waiting","ord":"b","mirror":"waiting"}\n` +
         `{"id":"m-finished","ord":"c","mirror":"finished"}\n` +
         `{"id":"m-note","ord":"d","mirror":"note"}`,
     })),
-    "b.olai",
+    "b.org",
   )
   expect(rows.map((row) => [row.at.node.id, row.status])).toEqual([
     ["m-working", "doing"],
@@ -540,36 +540,36 @@ test("a duplicated id resolves to the record that claimed it first", () => {
   expect(within.byId.get("x")?.line).toBe(1)
 
   const across = derive(nodesOfFiles({
-    "a.olai": `{"id":"x","ord":"a","title":"first"}`,
-    "b.olai": `{"id":"x","ord":"a","title":"second"}`,
+    "a.org": `{"id":"x","ord":"a","title":"first"}`,
+    "b.org": `{"id":"x","ord":"a","title":"second"}`,
   }))
-  expect([across.byId.get("x")?.file, across.byId.get("x")?.line]).toEqual(["a.olai", 1])
+  expect([across.byId.get("x")?.file, across.byId.get("x")?.line]).toEqual(["a.org", 1])
   // One entry per id, not one per record: the map is an index, not a list.
   expect(across.byId.size).toBe(1)
 })
 
 // The set is flat and carries every file's records; `byFile` is that same list
-// read the other way. What it promises is DISK order, because the reader that
-// needs it most is a WRITER — a write re-emits the whole file, and a
-// reordering here would be a diff nobody asked for.
-test("a file's records come back in line order, whatever order the set is in", () => {
+// read the other way. What it promises is heading order, including the
+// hierarchy's necessary adjacency: a child heading sits below its parent
+// before the next top-level sibling.
+test("a file's records come back in heading order, whatever order the set is in", () => {
   const nodes = nodesOfFiles({
-    "a.olai": `{"id":"a1","ord":"b","title":"one"}\n` +
+    "a.org": `{"id":"a1","ord":"b","title":"one"}\n` +
       `{"id":"a2","ord":"a","title":"two"}\n` +
       `{"id":"m","parent":"a1","ord":"a","mirror":"b1"}`,
-    "b.olai": `{"id":"b1","ord":"a","title":"elsewhere"}`,
+    "b.org": `{"id":"b1","ord":"a","title":"elsewhere"}`,
   })
   // Handed over backwards: the promise is about what the index MEANS, not
   // about the order the caller happened to build its list in.
   const derived = derive([...nodes].reverse())
   // A placement is a RECORD, so it is here — this index is about what the file
   // holds, and `ord` order is a different list (`siblingsOf` sorts for that).
-  expect(ids(recordsOf(derived, "a.olai"))).toEqual(["a1", "a2", "m"])
-  expect(ids(recordsOf(derived, "b.olai"))).toEqual(["b1"])
+  expect(ids(recordsOf(derived, "a.org"))).toEqual(["a1", "m", "a2"])
+  expect(ids(recordsOf(derived, "b.org"))).toEqual(["b1"])
   // A file with nothing of its own is ABSENT rather than mapped to an empty
   // list: which files exist is the set's answer, never this map's.
-  expect(derived.byFile.has("c.olai")).toBe(false)
-  expect(recordsOf(derived, "c.olai")).toEqual([])
+  expect(derived.byFile.has("c.org")).toBe(false)
+  expect(recordsOf(derived, "c.org")).toEqual([])
 })
 
 // ── what cannot start yet ──────────────────────────────────────────────
@@ -731,7 +731,7 @@ test("blocks is the same edge, and both halves land in one answer", () => {
 
 // AN EDGE NAMED TWICE IS ONE EDGE — the last thing normalisation owes the
 // readers of this graph, and the three ways a set can say one arrow twice.
-// Nothing refuses any of them: a `.olai` is plain text, the validator asks
+// Nothing refuses any of them: a `.org` is plain text, the validator asks
 // whether a target EXISTS, and both fields are legal spellings of the same
 // claim. What reads it takes it as a set — the `blocked by` row a page draws
 // keyed by the blocker's id, the tip, the walk the acyclicity rule shares —
@@ -758,9 +758,9 @@ test("an edge named twice, however it is spelled, is one edge", () => {
   // so an `after` naming both is naming one target — and the pair is one edge
   // only because both ends are resolved before they are compared.
   const mirrored = derive(nodesOfFiles({
-    "a.olai": `{"id":"a","ord":"a","title":"a","todo":true,"after":["b","b-here"]}\n` +
+    "a.org": `{"id":"a","ord":"a","title":"a","todo":true,"after":["b","b-here"]}\n` +
       `{"id":"b-here","ord":"b","mirror":"b"}`,
-    "b.olai": `{"id":"b","ord":"a","title":"b","doing":true}`,
+    "b.org": `{"id":"b","ord":"a","title":"b","doing":true}`,
   }))
   expect(mirrored.after.get("a")).toEqual(["b"])
   expect(waiting(mirrored, "a")).toEqual(["b doing"])
@@ -780,8 +780,8 @@ test("an edge named twice, however it is spelled, is one edge", () => {
 // read as history rather than as a plate. Both ends, one rule.
 test("archived work neither blocks nor is blocked", () => {
   const derived = derive(nodesOfFiles({
-    "house.olai": `{"id":"a","ord":"a","title":"a","todo":true,"after":["put-away"]}`,
-    "_olai/Trash.olai":
+    "house.org": `{"id":"a","ord":"a","title":"a","todo":true,"after":["put-away"]}`,
+    "_olai/Trash.org":
       `{"id":"put-away","ord":"a","title":"put away half-finished","doing":true}\n` +
         `{"id":"old","ord":"b","title":"old","todo":true,"after":["a"]}`,
   }))
@@ -791,13 +791,13 @@ test("archived work neither blocks nor is blocked", () => {
   expect(derived.status.get("put-away")).toBe("doing")
 })
 
-// Leftover Archive.olai is the same exemption (human, 2026-08-19): orphaned
+// Leftover Archive.org is the same exemption (human, 2026-08-19): orphaned
 // from live readings, so it neither blocks nor is blocked, and a leftover
 // mirror does not make a live node `is:mirrored`.
-test("leftover Archive.olai work neither blocks nor is blocked", () => {
+test("leftover Archive.org work neither blocks nor is blocked", () => {
   const derived = derive(nodesOfFiles({
-    "house.olai": `{"id":"a","ord":"a","title":"a","todo":true,"after":["old"]}`,
-    "Archive.olai":
+    "house.org": `{"id":"a","ord":"a","title":"a","todo":true,"after":["old"]}`,
+    "Archive.org":
       `{"id":"old","ord":"a","title":"leftover half-finished","doing":true}\n` +
         `{"id":"waiting","ord":"b","title":"waiting","todo":true,"after":["a"]}`,
   }))
@@ -806,10 +806,10 @@ test("leftover Archive.olai work neither blocks nor is blocked", () => {
   expect(derived.status.get("old")).toBe("doing")
 })
 
-test("a leftover Archive.olai mirror does not make a node is:mirrored", () => {
+test("a leftover Archive.org mirror does not make a node is:mirrored", () => {
   const derived = derive(nodesOfFiles({
-    "house.olai": `{"id":"herbs","ord":"a","title":"the herb bed"}`,
-    "Archive.olai": `{"id":"m","ord":"a","mirror":"herbs"}`,
+    "house.org": `{"id":"herbs","ord":"a","title":"the herb bed"}`,
+    "Archive.org": `{"id":"m","ord":"a","mirror":"herbs"}`,
   }))
   expect(derived.mirrorsOf.has("herbs")).toBe(false)
 })
@@ -843,10 +843,10 @@ test("standingBefore asks the same question of a node that is not work yet", () 
   // And everywhere else they agree, because the TARGET side is one function:
   // a bullet, a done node and an archived one stand in nobody's way.
   const clear = derive(nodesOfFiles({
-    "a.olai": `{"id":"a","ord":"a","title":"a","after":["note","fin","gone"]}\n` +
+    "a.org": `{"id":"a","ord":"a","title":"a","after":["note","fin","gone"]}\n` +
       `{"id":"note","ord":"b","title":"a note"}\n` +
       `{"id":"fin","ord":"c","title":"fin","done":"2026-08-10"}`,
-    "_olai/Trash.olai": `{"id":"gone","ord":"a","title":"gone","todo":true}`,
+    "_olai/Trash.org": `{"id":"gone","ord":"a","title":"gone","todo":true}`,
   }))
   expect(before(clear, "a")).toEqual([])
 
@@ -877,8 +877,8 @@ test("an archive beside any outline is an archive", () => {
   expect(
     waiting(
       derive(nodesOfFiles({
-        "work/plans.olai": `{"id":"a","ord":"a","title":"a","todo":true,"after":["old"]}`,
-        "_olai/Trash.olai": `{"id":"old","ord":"a","title":"old","doing":true}`,
+        "work/plans.org": `{"id":"a","ord":"a","title":"a","todo":true,"after":["old"]}`,
+        "_olai/Trash.org": `{"id":"old","ord":"a","title":"old","doing":true}`,
       })),
       "a",
     ),
@@ -890,7 +890,7 @@ test("an archive beside any outline is an archive", () => {
 // blocker a reader is handed is a node with a title to show.
 test("an edge naming a mirror means the node it shows", () => {
   const derived = derive(nodesOfFiles({
-    "a.olai": `{"id":"a","ord":"a","title":"a","todo":true,"after":["m"]}\n` +
+    "a.org": `{"id":"a","ord":"a","title":"a","todo":true,"after":["m"]}\n` +
       `{"id":"b","ord":"b","title":"the real one","doing":true}\n` +
       `{"id":"m","ord":"c","mirror":"b"}\n` +
       `{"id":"c","ord":"d","title":"c","doing":true,"blocks":["m2"]}\n` +
@@ -960,11 +960,11 @@ test("a row, a mirror row and a page all say what the node is waiting on", () =>
 // where those two key domains have to meet.
 test("a mirror row carries both halves of the waiting glyph", () => {
   const derived = derive(nodesOfFiles({
-    "a.olai": `{"id":"first","ord":"a","title":"first","doing":true}\n` +
+    "a.org": `{"id":"first","ord":"a","title":"first","doing":true}\n` +
       `{"id":"second","ord":"b","title":"second","todo":true,"after":["first"]}`,
-    "b.olai": `{"id":"m","ord":"a","mirror":"second"}`,
+    "b.org": `{"id":"m","ord":"a","mirror":"second"}`,
   }))
-  const mirror = drawn(rowsOf(derived, "b.olai"), 0)
+  const mirror = drawn(rowsOf(derived, "b.org"), 0)
   expect(mirror.kind).toBe("mirror")
   // The mark the glyph is toned with…
   expect(mirror.status).toBe("todo")
@@ -1000,9 +1000,9 @@ test("an after loop derives without hanging", () => {
 // says so on two rows for ever. `validate.test.ts` holds the other half.
 test("a loop closing through a mirror is one loop in the graph", () => {
   const derived = derive(nodesOfFiles({
-    "a.olai": `{"id":"x","ord":"a","title":"x","doing":true,"after":["m"]}\n` +
+    "a.org": `{"id":"x","ord":"a","title":"x","doing":true,"after":["m"]}\n` +
       `{"id":"y","ord":"b","title":"y","doing":true,"after":["x"]}`,
-    "b.olai": `{"id":"m","ord":"a","mirror":"y"}`,
+    "b.org": `{"id":"m","ord":"a","mirror":"y"}`,
   }))
   expect(waiting(derived, "x")).toEqual(["y doing"])
   expect(waiting(derived, "y")).toEqual(["x doing"])
@@ -1022,8 +1022,8 @@ test("a loop closing through a mirror is one loop in the graph", () => {
 // under one node while it shows another is exactly what this exists to find.
 test("a mirror is filed under the node its chain ends at, not the hop before", () => {
   const derived = derive(nodesOfFiles({
-    "a.olai": `{"id":"x","ord":"a","title":"the real one"}`,
-    "b.olai": `{"id":"m1","ord":"a","mirror":"m2"}\n{"id":"m2","ord":"b","mirror":"x"}`,
+    "a.org": `{"id":"x","ord":"a","title":"the real one"}`,
+    "b.org": `{"id":"m1","ord":"a","mirror":"m2"}\n{"id":"m2","ord":"b","mirror":"x"}`,
   }))
   expect(members(derived.mirrorsOf, "x")).toEqual(["m1", "m2"])
   expect(derived.mirrorsOf.has("m2")).toBe(false)
@@ -1044,9 +1044,9 @@ test("a chain that shows no node, and a node that shows itself, are filed nowher
 // A duplicated id is one node — `byId` says so — so it is one entry here too.
 test("a node's mirrors are listed once each", () => {
   const derived = derive(nodesOfFiles({
-    "a.olai": `{"id":"x","ord":"a","title":"x"}`,
-    "b.olai": `{"id":"m","ord":"a","mirror":"x"}`,
-    "c.olai": `{"id":"m","ord":"a","mirror":"x"}`,
+    "a.org": `{"id":"x","ord":"a","title":"x"}`,
+    "b.org": `{"id":"m","ord":"a","mirror":"x"}`,
+    "c.org": `{"id":"m","ord":"a","mirror":"x"}`,
   }))
   expect(members(derived.mirrorsOf, "x")).toEqual(["m"])
 })
@@ -1193,7 +1193,7 @@ test("a mirror row is drawn with its target's children", () => {
       `{"id":"c","parent":"p","ord":"a","title":"c","done":true}\n` +
       `{"id":"m","ord":"a","mirror":"p"}`,
   )
-  const rows = rowsOf(derive(nodes), "a.olai")
+  const rows = rowsOf(derive(nodes), "a.org")
   const mirror = drawn(rows, 0)
   expect(mirror.kind).toBe("mirror")
   // `at` is the record occupying the place; `shows` is what is drawn there —
@@ -1224,7 +1224,7 @@ test("a mirror of a mirror shows the node at the end of the chain, with its chil
       `{"id":"hop","ord":"b","mirror":"p"}\n` +
       `{"id":"far","ord":"a","mirror":"hop"}`,
   )
-  const far = drawn(rowsOf(derive(nodes), "a.olai"), 0)
+  const far = drawn(rowsOf(derive(nodes), "a.org"), 0)
   expect(far.at.node.id).toBe("far")
   expect(far.kind).toBe("mirror")
   // Through both hops, to the node that actually carries a title…
@@ -1245,7 +1245,7 @@ test("one node reached through two places has two keys", () => {
       `{"id":"c","parent":"p","ord":"a","title":"c"}\n` +
       `{"id":"m","ord":"a","mirror":"p"}`,
   )
-  const rows = shape(rowsOf(derive(nodes), "a.olai"))
+  const rows = shape(rowsOf(derive(nodes), "a.org"))
   expect(rows).toEqual(["/m mirror", "/m/c node", "/p node", "/p/c node"])
   expect(new Set(rows).size).toBe(rows.length)
 })
@@ -1255,7 +1255,7 @@ test("one node reached through two places has two keys", () => {
 // refused the set, and the reader is looking at it to find out why.
 test("a mirror with no target is a dangling row with no children", () => {
   const nodes = nodesOf(`{"id":"m","ord":"a","mirror":"gone"}`)
-  const rows = rowsOf(derive(nodes), "a.olai")
+  const rows = rowsOf(derive(nodes), "a.org")
   expect(rows.map(stubbed)).toEqual(["dangling gone"])
   // Nothing to draw, so the row carries no `shows` at all — a view switching
   // on `kind` never has a placeholder to test for.
@@ -1270,7 +1270,7 @@ test("a dangling row names where the chain died, not the first hop", () => {
   const nodes = nodesOf(
     `{"id":"a","ord":"a","mirror":"b"}\n{"id":"b","ord":"b","mirror":"c"}`,
   )
-  const rows = rowsOf(derive(nodes), "a.olai")
+  const rows = rowsOf(derive(nodes), "a.org")
   expect(rows.map(stubbed)).toEqual(["dangling c", "dangling c"])
   expect(rows.map((row) => row.at.node.id)).toEqual(["a", "b"])
 })
@@ -1280,14 +1280,14 @@ test("a dangling row names where the chain died, not the first hop", () => {
 // drawn, and the row names the id it closed on rather than the first hop.
 test("a mirror chain that closes on itself is a cycle naming where it closed", () => {
   const itself = nodesOf(`{"id":"m","ord":"a","mirror":"m"}`)
-  expect(rowsOf(derive(itself), "a.olai").map(stubbed)).toEqual(["cycle m"])
+  expect(rowsOf(derive(itself), "a.org").map(stubbed)).toEqual(["cycle m"])
 
   // Two mirrors showing each other: from `m1` the chain runs m1 → m2 → m1, so
   // that place closed on `m1`, and the place at `m2` on `m2`.
   const pair = nodesOf(
     `{"id":"m1","ord":"a","mirror":"m2"}\n{"id":"m2","ord":"b","mirror":"m1"}`,
   )
-  const rows = rowsOf(derive(pair), "a.olai")
+  const rows = rowsOf(derive(pair), "a.org")
   expect(rows.map(stubbed)).toEqual(["cycle m1", "cycle m2"])
   expect(rows.every((row) => row.children.length === 0)).toBe(true)
 
@@ -1298,7 +1298,7 @@ test("a mirror chain that closes on itself is a cycle naming where it closed", (
       `{"id":"b","ord":"b","mirror":"c"}\n` +
       `{"id":"c","ord":"c","mirror":"b"}`,
   )
-  expect(rowsOf(derive(into), "a.olai").map(stubbed))
+  expect(rowsOf(derive(into), "a.org").map(stubbed))
     .toEqual(["cycle b", "cycle b", "cycle c"])
 })
 
@@ -1311,7 +1311,7 @@ test("a mirror inside its own subtree is a cycle stub, not a hang", () => {
   const nodes = nodesOf(
     `{"id":"a","ord":"a","title":"a"}\n{"id":"m","parent":"a","ord":"b","mirror":"a"}`,
   )
-  const rows = rowsOf(derive(nodes), "a.olai")
+  const rows = rowsOf(derive(nodes), "a.org")
   expect(shape(rows)).toEqual(["/a node", "/a/m cycle"])
   // And it says which ancestor it closed on, which is what a view would
   // otherwise have to guess from the mirror's own id.
@@ -1324,29 +1324,29 @@ test("a mirror inside its own subtree is a cycle stub, not a hang", () => {
       `{"id":"b","parent":"a","ord":"a","title":"b"}\n` +
       `{"id":"m","parent":"b","ord":"b","mirror":"a"}`,
   )
-  const deepRows = rowsOf(derive(deep), "a.olai")
+  const deepRows = rowsOf(derive(deep), "a.org")
   expect(shape(deepRows)).toEqual(["/a node", "/a/b node", "/a/b/m cycle"])
   expect(deepRows[0]?.children[0]?.children.map(stubbed)).toEqual(["cycle a"])
 })
 
-// Every `.olai` is an independent tree, so the rows of a file are its own
+// Every `.org` is an independent tree, so the rows of a file are its own
 // roots — the set is flat and carries every file's nodes, so the filtering is
 // what makes "the rows of this file" mean anything at all.
 test("roots are the requested file's own top-level nodes, in ord order", () => {
   const nodes = nodesOfFiles({
-    "a.olai": `{"id":"second","ord":"b","title":"b"}\n` +
+    "a.org": `{"id":"second","ord":"b","title":"b"}\n` +
       `{"id":"first","ord":"a","title":"a"}\n` +
       `{"id":"kid","parent":"first","ord":"a","title":"kid"}`,
-    "b.olai": `{"id":"elsewhere","ord":"a","title":"elsewhere"}`,
+    "b.org": `{"id":"elsewhere","ord":"a","title":"elsewhere"}`,
   })
   // One `Derived` for every file: it carries the nodes it was built from, so
   // the rows of two files cannot be drawn from two different revisions.
   const derived = derive(nodes)
-  expect(shape(rowsOf(derived, "a.olai")))
+  expect(shape(rowsOf(derived, "a.org")))
     .toEqual(["/first node", "/first/kid node", "/second node"])
-  expect(shape(rowsOf(derived, "b.olai"))).toEqual(["/elsewhere node"])
+  expect(shape(rowsOf(derived, "b.org"))).toEqual(["/elsewhere node"])
   // A file with no nodes of its own draws nothing, rather than everything.
-  expect(rowsOf(derived, "c.olai")).toEqual([])
+  expect(rowsOf(derived, "c.org")).toEqual([])
 })
 
 // ── hiding what is done ────────────────────────────────────────────────
@@ -1427,13 +1427,13 @@ test("a parent nobody marked is not hidden, however finished its children are", 
 test("done-hidden drops a mirror of a done node with the subtree it draws", () => {
   const rows = rowsOf(
     derive(nodesOfFiles({
-      "a.olai": `{"id":"finished","ord":"a","title":"finished","done":"2026-08-11"}\n` +
+      "a.org": `{"id":"finished","ord":"a","title":"finished","done":"2026-08-11"}\n` +
         `{"id":"how","parent":"finished","ord":"a","title":"how it went"}\n` +
         `{"id":"open","ord":"b","title":"open","doing":true}`,
-      "b.olai": `{"id":"m-finished","ord":"a","mirror":"finished"}\n` +
+      "b.org": `{"id":"m-finished","ord":"a","mirror":"finished"}\n` +
         `{"id":"m-open","ord":"b","mirror":"open"}`,
     })),
-    "b.olai",
+    "b.org",
   )
   // Drawn, the mirror carries the target's subtree — the bullet under a done
   // node is exactly what the sweep is about.
@@ -1495,12 +1495,12 @@ test("a kept DONE ANCESTOR re-asks the question of every child — done children
 test("the reservation is keyed on the PLACE — a kept node leaves its other mirrors hidden", () => {
   const rows = rowsOf(
     derive(nodesOfFiles({
-      "a.olai": `{"id":"finished","ord":"a","title":"finished","done":"2026-08-11"}\n` +
+      "a.org": `{"id":"finished","ord":"a","title":"finished","done":"2026-08-11"}\n` +
         `{"id":"open","ord":"b","title":"open","doing":true}`,
-      "b.olai": `{"id":"m-finished","ord":"a","mirror":"finished"}\n` +
+      "b.org": `{"id":"m-finished","ord":"a","mirror":"finished"}\n` +
         `{"id":"m-open","ord":"b","mirror":"open"}`,
     })),
-    "b.olai",
+    "b.org",
   )
   // The mirror's place key is the half of the name the landing scrolled to;
   // keeping IT draws the mirror back — and says nothing about any other place
@@ -1696,7 +1696,7 @@ const UNDER_GARDEN = [
 ].join("\n")
 
 const UNDER = derive(
-  nodesOfFiles({ "house.olai": UNDER_HOUSE, "garden.olai": UNDER_GARDEN }),
+  nodesOfFiles({ "house.org": UNDER_HOUSE, "garden.org": UNDER_GARDEN }),
 )
 
 /** One row of that fixture, by the id of the record it draws. */
@@ -1723,18 +1723,18 @@ test("the count is the records an archive would move", () => {
   // among them: it lives in another file, and `archive` moves what a `parent`
   // chain reaches.
   expect(under(UNDER, "kitchen")).toBe(5)
-  expect(underRow(rowsOf(UNDER, "house.olai"), "kitchen").under).toBe(5)
+  expect(underRow(rowsOf(UNDER, "house.org"), "kitchen").under).toBe(5)
 })
 
 test("a leaf takes nothing with it", () => {
   expect(under(UNDER, "handles")).toBe(0)
-  expect(underRow(rowsOf(UNDER, "house.olai"), "handles").under).toBe(0)
+  expect(underRow(rowsOf(UNDER, "house.org"), "handles").under).toBe(0)
 })
 
 test("a mirror's row counts what its TARGET holds, which is what it draws", () => {
   // The placement itself has no children in the set; the row draws the herb
   // bed's, so what an archive of the herb bed would move is what its row says.
-  expect(underRow(rowsOf(UNDER, "house.olai"), "kitchen-herbs").under).toBe(1)
+  expect(underRow(rowsOf(UNDER, "house.org"), "kitchen-herbs").under).toBe(1)
 })
 
 test("hiding what is done does not shrink what an archive would take", () => {
@@ -1742,7 +1742,7 @@ test("hiding what is done does not shrink what an archive would take", () => {
   // done hidden, `withoutDone` has already dropped `demo` from the tree, and a
   // count taken from the drawn children would have promised four and moved
   // five. The row carries the number it was built with.
-  const showing = withoutDone(rowsOf(UNDER, "house.olai"))
+  const showing = withoutDone(rowsOf(UNDER, "house.org"))
   expect(underRow(showing, "kitchen").children.some((row) => row.at.node.id === "demo"))
     .toBe(false)
   expect(underRow(showing, "kitchen").under).toBe(5)

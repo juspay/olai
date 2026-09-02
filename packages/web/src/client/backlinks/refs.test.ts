@@ -27,13 +27,13 @@ const referringTo = (files: Record<string, string>, id: string) =>
   backlinksOf(viewOf(files), id)
 
 const HOUSE = {
-  "house.olai": [
+  "house.org": [
     `{"id":"kitchen","ord":"a0","title":"kitchen remodel"}`,
     `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","see":["herbs"]}`,
     `{"id":"install","parent":"kitchen","ord":"a2","title":"install them","desc":"after @herbs is in"}`,
     `{"id":"both","parent":"kitchen","ord":"a3","title":"water @herbs","see":["herbs"]}`,
   ].join("\n"),
-  "garden.olai": `{"id":"herbs","ord":"a0","title":"the herb bed"}`,
+  "garden.org": `{"id":"herbs","ord":"a0","title":"the herb bed"}`,
 }
 
 test("the rows are keyed by the way, and a record doing both is in each", () => {
@@ -54,7 +54,7 @@ test("a link carries the referrer's own title and the outline it is written in",
   expect(rowsOf(referringTo(HOUSE, "herbs")).see[0]).toEqual({
     id: "order",
     title: "order the cabinets",
-    from: "house.olai",
+    from: "house.org",
   })
 })
 

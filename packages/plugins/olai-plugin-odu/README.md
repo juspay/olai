@@ -65,7 +65,7 @@ The name, the member, the faces, the doorbell, the probe and the failure sentenc
 
 ## The kind, and what it licences
 
-Odu contributes ONE property kind ([`src/kinds.ts`](src/kinds.ts)): `worktree`. A vault declares it in `_olai/Properties.olai` like any other type, and that row is what licences the probe.
+Odu contributes ONE property kind ([`src/kinds.ts`](src/kinds.ts)): `worktree`. A vault declares it in `_olai/Properties.org` like any other type, and that row is what licences the probe.
 
 **It used to ask for `path`, joined to the key name `worktree`, and that could not hold.** `brief` is a `path` too, on the very same lane rows — a shape cannot tell a document from a checkout — so the licence needed a hardcoded name to mean anything, which gave the probe to any vault that happened to use the word and denied it to a board whose column is called `checkout`. The kind is the fact said once, where the vault says everything else about its keys. A board that declared `path` gets no chip now; the repair is the word in that one row.
 

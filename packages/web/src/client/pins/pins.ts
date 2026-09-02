@@ -29,7 +29,7 @@
  *   - **a mirror** is the format's word for pointing a curated list at a node,
  *     and it is the right word for a list of NODES. A shelf is not one: half
  *     its entries are not nodes, and a mirror means *draw it here too* — so
- *     `Pins.olai` would hold every pinned node's whole subtree, which is a
+ *     `Pins.org` would hold every pinned node's whole subtree, which is a
  *     second copy of the tree rather than a row of doors. A pin says GO THERE.
  *
  * What the chosen shape buys is that pinning grew no verb on the agent's face:
@@ -51,7 +51,7 @@
  * A markdown link — `[Overdue](/agenda?q=is%3Atodo)` — is the other case, and
  * it is a NAME rather than a copy: somebody wrote it, nothing derived it, and
  * nothing will disagree with it later. Titles are inline markdown in this
- * format already (docs/format.md's Fields), so `Pins.olai` opened as an
+ * format already (docs/format.md's Fields), so `Pins.org` opened as an
  * ordinary outline draws it as an ordinary link.
  *
  * WHICH OF THE TWO A GESTURE WRITES IS THE READER'S, and that is the whole of
@@ -64,7 +64,7 @@
  *
  * ## WHERE THE SHELF COMES FROM, since PR 5 of `vault-in-browser`
  *
- * From the wire, whole: the `pins` cell carries the rows of `Pins.olai` in the
+ * From the wire, whole: the `pins` cell carries the rows of `Pins.org` in the
  * order they are drawn, each with the live name of whatever node it addresses,
  * re-answered on every published revision (`@olai/format`'s `shelfOf`). This
  * module used to walk the browser's copy of every outline to work that out —
@@ -83,7 +83,7 @@
  * ## WHAT COUNTS AS A DOOR IS NOT THIS MODULE'S ANY MORE
  *
  * `../address/address.ts` owns it, and the move is the maintainer's finding
- * read structurally: the shelf resolved its rows and `Pins.olai`'s own page
+ * read structurally: the shelf resolved its rows and `Pins.org`'s own page
  * drew the raw address, which is one title with two answers. The rule was the
  * shelf's while the shelf was its only reader; the outline is the second, so
  * the rule moved to where both can read it and this module kept what is
@@ -156,7 +156,7 @@ export interface Pin {
 
 /** One answered row as a pin, or `undefined` when it is not one — a row whose
  *  title says something other than a place. Such a row is left alone rather
- *  than drawn: `Pins.olai` is an ordinary outline, and a heading or a note in
+ *  than drawn: `Pins.org` is an ordinary outline, and a heading or a note in
  *  it is a thing somebody may write. (A MIRROR never reaches here: it carries
  *  no title to address with, and the reading leaves it out.) */
 const pinOf = (row: Pinned): Pin | undefined => {
@@ -189,7 +189,7 @@ const pinOf = (row: Pinned): Pin | undefined => {
  *
  * The two sides read one title with two parsers, each reading its own half of
  * the seam, and the server's reading is the WIDER one by construction: it cannot
- * see the words this app claimed, so `/d/2026-08-20.olai#x` comes back with a
+ * see the words this app claimed, so `/d/2026-08-20.org#x` comes back with a
  * node on it while this parser reads a day (`./target.test.ts` pins both the
  * direction that holds and that case). This is the narrowing that makes the
  * difference harmless rather than a lie: a name is drawn on a door, and a name
@@ -201,7 +201,7 @@ const pinOf = (row: Pinned): Pin | undefined => {
 const showing = (route: Route, row: Pinned): string | undefined => {
   const address = route.kind === "at" ? route.address : null
   if (address === null || row.shows === undefined) return undefined
-  // A ROW names the node too (`/house.olai#install` is what a hand writes)
+  // A ROW names the node too (`/house.org#install` is what a hand writes)
   // and draws its live name exactly as the bare spelling would: the id half
   // is what moves survive, wherever the pin's file half went stale.
   return (address.kind === "node" || address.kind === "row") && address.id === row.shows.id
@@ -211,7 +211,7 @@ const showing = (route: Route, row: Pinned): string | undefined => {
 
 /**
  * The shelf, in the order it is drawn — empty when the directory has no
- * `Pins.olai`, when the file holds nothing, and while the first frame is still
+ * `Pins.org`, when the file holds nothing, and while the first frame is still
  * arriving.
  *
  * The ORDER and the ROWS are the answer's (`ord`, the sort every other reading

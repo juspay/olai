@@ -56,14 +56,14 @@ test("an empty list grants nothing, and grants are read together", () => {
 });
 
 // …and the grant list held to the DISK, which is the half both sweeps went two
-// days without: `docs/roadmap.olai` became `docs/roadmap/` and the entry naming
+// days without: `docs/roadmap.org` became `docs/roadmap/` and the entry naming
 // it went on being spelled while covering nothing, so the ledger it was written
 // to excuse turned both sweeps red on master. A directory is asked about
 // without its trailing slash; a file exactly as written.
 test("an entry that names nothing on disk is reported, and a live one is not", () => {
   expect(unresolved(["justfile", "packages/tests/"])).toEqual([]);
-  expect(unresolved(["docs/roadmap.olai", "docs/", "docs/nowhere/"]))
-    .toEqual(["docs/roadmap.olai", "docs/nowhere/"]);
+  expect(unresolved(["docs/roadmap.org", "docs/", "docs/nowhere/"]))
+    .toEqual(["docs/roadmap.org", "docs/nowhere/"]);
 });
 
 // The walk itself: the listing is real, it leaves the caller out of it, and the

@@ -32,7 +32,7 @@ Feature: The directory column sticks too
 
     Examples:
       | kind     | name            |
-      | outline  | house.olai      |
+      | outline  | house.org      |
       | node     | kitchen         |
       | document | kitchen-sink.md |
 
@@ -43,7 +43,7 @@ Feature: The directory column sticks too
   @corpus:good
   Scenario: A directory taller than the strip scrolls inside the column
     Given the window is shorter than the page
-    And I open the outline "house.olai"
+    And I open the outline "house.org"
     When I scroll to the bottom of the page
     Then the directory takes the wheel, and the page stays where it is
     And the directory column is pinned under the header

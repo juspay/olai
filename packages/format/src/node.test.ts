@@ -83,19 +83,19 @@ test("the trash and the inbox wear the one suffix", () => {
 // through this — the web's `+` and an agent capturing by hand — so one
 // spelling of the rule is what keeps them landing in the same file.
 test("a directory's inbox is whichever outline is called that, wherever it sits", () => {
-  expect(inboxIn(["house.olai", "Inbox.olai"])).toBe("Inbox.olai")
+  expect(inboxIn(["house.org", "Inbox.org"])).toBe("Inbox.org")
   // A name a person typed, so the case they typed it in does not decide.
-  expect(inboxIn(["house.olai", "notes/inbox.olai"])).toBe("notes/inbox.olai")
+  expect(inboxIn(["house.org", "notes/inbox.org"])).toBe("notes/inbox.org")
   // A file merely ENDING in the name is a different file.
-  expect(inboxIn(["not-an-Inbox.olai"])).toBeUndefined()
+  expect(inboxIn(["not-an-Inbox.org"])).toBeUndefined()
   expect(inboxIn([])).toBeUndefined()
 })
 
 test("with two inboxes the shallower one wins, so the answer is stable", () => {
   // "First in path order" would let a file three directories down claim the
   // capture from the obvious one beside it.
-  expect(inboxIn(["deep/down/Inbox.olai", INBOX, "a/Inbox.olai"])).toBe(INBOX)
-  expect(inboxIn(["z/Inbox.olai", "a/Inbox.olai"])).toBe("a/Inbox.olai")
+  expect(inboxIn(["deep/down/Inbox.org", INBOX, "a/Inbox.org"])).toBe(INBOX)
+  expect(inboxIn(["z/Inbox.org", "a/Inbox.org"])).toBe("a/Inbox.org")
 })
 // The shelf is the THIRD named file, and it is read by the same walk — which
 // is the whole reason `outlineCalled` exists rather than a second filter
@@ -103,25 +103,25 @@ test("with two inboxes the shallower one wins, so the answer is stable", () => {
 // file it has, exactly as it does for a capture.
 test("a directory's shelf is whichever outline is called that, wherever it sits", () => {
   expect(PINS).toBe(`Pins${OUTLINE_EXT}`)
-  expect(pinsIn(["house.olai", "Pins.olai"])).toBe("Pins.olai")
-  expect(pinsIn(["house.olai", "notes/pins.olai"])).toBe("notes/pins.olai")
-  expect(pinsIn(["my-Pins.olai"])).toBeUndefined()
+  expect(pinsIn(["house.org", "Pins.org"])).toBe("Pins.org")
+  expect(pinsIn(["house.org", "notes/pins.org"])).toBe("notes/pins.org")
+  expect(pinsIn(["my-Pins.org"])).toBeUndefined()
   expect(pinsIn([])).toBeUndefined()
   // Shallowest first, then path order — the inbox's rule, because it is the
   // same walk.
-  expect(pinsIn(["deep/down/Pins.olai", PINS, "a/Pins.olai"])).toBe(PINS)
+  expect(pinsIn(["deep/down/Pins.org", PINS, "a/Pins.org"])).toBe(PINS)
   // TWO SPELLINGS OF ONE NAME at one depth is the tie the walk actually has to
   // break, and it breaks it on path order like any other pair: `P` sorts before
   // `p`. Pinned here because the walk is a running minimum rather than a sort
   // (`outlineCalled`), so "which of these two" is a comparison somebody could
   // get backwards without any list looking wrong.
-  expect(pinsIn(["pins.olai", "Pins.olai"])).toBe("Pins.olai")
-  expect(pinsIn(["Pins.olai", "pins.olai"])).toBe("Pins.olai")
+  expect(pinsIn(["pins.org", "Pins.org"])).toBe("Pins.org")
+  expect(pinsIn(["Pins.org", "pins.org"])).toBe("Pins.org")
   // …and it is a MINIMUM and not a first-match, so the order the caller hands
   // the files over in cannot change the answer. A map's keys and a set are
   // both legal here, which is what the two readers of a derivation pass.
-  expect(pinsIn(new Set(["a/Pins.olai", "Pins.olai"]))).toBe("Pins.olai")
-  expect(pinsIn(new Map([["a/Pins.olai", 1], ["Pins.olai", 2]]).keys())).toBe("Pins.olai")
+  expect(pinsIn(new Set(["a/Pins.org", "Pins.org"]))).toBe("Pins.org")
+  expect(pinsIn(new Map([["a/Pins.org", 1], ["Pins.org", 2]]).keys())).toBe("Pins.org")
 })
 
 // WHERE OLAI MINTS ONE is a different question from where it FINDS one, and
@@ -130,12 +130,12 @@ test("a directory's shelf is whichever outline is called that, wherever it sits"
 // back.
 test("olai mints its own files under _olai/, and finds them anywhere", () => {
   expect(OLAI_DIR).toBe("_olai")
-  expect(mintedInto(PINS)).toBe("_olai/Pins.olai")
+  expect(mintedInto(PINS)).toBe("_olai/Pins.org")
   expect(OLAI_DIR.startsWith(".")).toBe(false)
   // The reading is untouched: a shelf already at the root, or under `notes/`,
   // or in the mint directory is the one that answers.
-  expect(pinsIn(["_olai/Pins.olai"])).toBe("_olai/Pins.olai")
-  expect(pinsIn([PINS, "_olai/Pins.olai"])).toBe(PINS)
+  expect(pinsIn(["_olai/Pins.org"])).toBe("_olai/Pins.org")
+  expect(pinsIn([PINS, "_olai/Pins.org"])).toBe(PINS)
 })
 
 // The TRASH and the INBOX are both minted under `_olai/` now — the inbox's
@@ -143,19 +143,19 @@ test("olai mints its own files under _olai/, and finds them anywhere", () => {
 // 2026-08-20). The NAME is untouched, which is the whole of what `inboxIn`
 // reads: only the mint moved.
 test("the trash and the inbox are minted under _olai/, under their own names", () => {
-  expect(TRASH_FILE).toBe("_olai/Trash.olai")
+  expect(TRASH_FILE).toBe("_olai/Trash.org")
   expect(mintedInto(TRASH)).toBe(TRASH_FILE)
   expect(isTrashed(TRASH_FILE)).toBe(true)
-  expect(isTrashed("Archive.olai")).toBe(false)
-  expect(isTrashed("notes/Archive.olai")).toBe(false)
-  expect(isTrashed("Trash.olai")).toBe(false)
-  expect(INBOX).toBe("Inbox.olai")
-  expect(mintedInto(INBOX)).toBe("_olai/Inbox.olai")
+  expect(isTrashed("Archive.org")).toBe(false)
+  expect(isTrashed("notes/Archive.org")).toBe(false)
+  expect(isTrashed("Trash.org")).toBe(false)
+  expect(INBOX).toBe("Inbox.org")
+  expect(mintedInto(INBOX)).toBe("_olai/Inbox.org")
   // And the READING is untouched by the move, exactly as the shelf's was: a
   // directory already keeping one at the root goes on capturing into it, and
   // a minted one is found by the same walk.
-  expect(inboxIn(["_olai/Inbox.olai"])).toBe("_olai/Inbox.olai")
-  expect(inboxIn([INBOX, "_olai/Inbox.olai"])).toBe(INBOX)
+  expect(inboxIn(["_olai/Inbox.org"])).toBe("_olai/Inbox.org")
+  expect(inboxIn([INBOX, "_olai/Inbox.org"])).toBe(INBOX)
 })
 
 // WHICH FILES OLAI NAMED FOR ITSELF, as one predicate — the question the
@@ -166,34 +166,34 @@ test("a file olai named for itself is one under _olai/, exactly", () => {
   expect(inOlaiDir(mintedInto(PINS))).toBe(true)
   expect(inOlaiDir(mintedInto(INBOX))).toBe(true)
   expect(inOlaiDir(TRASH_FILE)).toBe(true)
-  expect(inOlaiDir("house.olai")).toBe(false)
+  expect(inOlaiDir("house.org")).toBe(false)
   expect(inOlaiDir("notes/palette.md")).toBe(false)
   // The mint is at the ROOT, so a `_olai` a person made under a folder of
   // their own is their directory and not olai's — and a file merely NAMED
   // for it is a file.
-  expect(inOlaiDir("notes/_olai/Pins.olai")).toBe(false)
-  expect(inOlaiDir("_olai.olai")).toBe(false)
+  expect(inOlaiDir("notes/_olai/Pins.org")).toBe(false)
+  expect(inOlaiDir("_olai.org")).toBe(false)
   expect(inOlaiDir("_olai")).toBe(false)
 })
 
-// Leftover per-directory Archive.olai: basename exactly, not trash, not an
-// ordinary live outline. `archive.olai` is a different file.
-test("a leftover Archive.olai is dormant by basename, and is not the trash", () => {
-  expect(isLeftoverArchive("Archive.olai")).toBe(true)
-  expect(isLeftoverArchive("notes/Archive.olai")).toBe(true)
-  expect(isLeftoverArchive("garden/plot/Archive.olai")).toBe(true)
-  expect(isLeftoverArchive("archive.olai")).toBe(false)
-  expect(isLeftoverArchive("Archive.olai.bak")).toBe(false)
-  expect(isLeftoverArchive("notes/archive.olai")).toBe(false)
+// Leftover per-directory Archive.org: basename exactly, not trash, not an
+// ordinary live outline. `archive.org` is a different file.
+test("a leftover Archive.org is dormant by basename, and is not the trash", () => {
+  expect(isLeftoverArchive("Archive.org")).toBe(true)
+  expect(isLeftoverArchive("notes/Archive.org")).toBe(true)
+  expect(isLeftoverArchive("garden/plot/Archive.org")).toBe(true)
+  expect(isLeftoverArchive("archive.org")).toBe(false)
+  expect(isLeftoverArchive("Archive.org.bak")).toBe(false)
+  expect(isLeftoverArchive("notes/archive.org")).toBe(false)
   expect(isLeftoverArchive(TRASH_FILE)).toBe(false)
-  expect(isLeftoverArchive("house.olai")).toBe(false)
-  expect(isTrashed("Archive.olai")).toBe(false)
+  expect(isLeftoverArchive("house.org")).toBe(false)
+  expect(isTrashed("Archive.org")).toBe(false)
 })
 
 // The two conventions are two files and never one, which is what a directory
 // holding both has to be able to say.
 test("the inbox and the shelf are different files", () => {
-  const files = ["Inbox.olai", "Pins.olai"]
-  expect(inboxIn(files)).toBe("Inbox.olai")
-  expect(pinsIn(files)).toBe("Pins.olai")
+  const files = ["Inbox.org", "Pins.org"]
+  expect(inboxIn(files)).toBe("Inbox.org")
+  expect(pinsIn(files)).toBe("Pins.org")
 })

@@ -62,12 +62,12 @@ const CHROME = {
    *  an empty one.
    *
    *  IT HELD A MUTES LINE TOO until the second doorbell took the mute list out
-   *  of `_olai/Kolu.olai` (the wake filter file is the silence control now), so
+   *  of `_olai/Kolu.org` (the wake filter file is the silence control now), so
    *  `padiFeedMutes` went with it. The foot survives the cut because the wrench
    *  does — the config's duration knobs are still a thing a person edits, and
    *  this is still the only door onto them. */
   padiFeedFoot: "padi-feed-foot",
-  /** THE WRENCH — the door onto the `_olai/Kolu.olai` the convention read, so
+  /** THE WRENCH — the door onto the `_olai/Kolu.org` the convention read, so
    *  the watch's thresholds are one press away as an ordinary outline page. */
   padiFeedWrench: "padi-feed-wrench",
 } as const

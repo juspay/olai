@@ -88,7 +88,7 @@ Comparison is over text, so a duration is a **wall-clock** subtraction: an hour 
 
 ### Typed keys compare
 
-A key the vault DECLARES `int` or `date` in `_olai/Properties.olai` ([format.md](format.md#typed-properties)) gains **spans**, in the syntax `created:` already has — because the declaration is what makes `..` honest:
+A key the vault DECLARES `int` or `date` in `_olai/Properties.org` ([format.md](format.md#typed-properties)) gains **spans**, in the syntax `created:` already has — because the declaration is what makes `..` honest:
 
 ```
 prop:records=190..200               a count in a range
@@ -113,7 +113,7 @@ prop:merge=auto is:todo             equality on a ref, exactly as before
 
 **`is:mirrored` is the second derived value, and it asks the only direction a mirror has a subject in.** A placement is never a hit — a mirror is a second *view* of a node, so answering with one would be the same node twice, once at a place no write lands — which left the record's `mirror` field unaskable from either end. The question with an answer is not "is this record a placement" but **"is this NODE drawn somewhere else"**, which is what putting something on a curated list does to it, and what `read_node` already reports as `mirrors`. It reads that same index, chains and all: a mirror of a mirror of a node is a place that node is drawn, and the record in the middle collects nothing. A placement that dangles or closes a loop shows no node and mirrors none.
 
-A copy filed in an `_olai/Trash.olai` still counts, and that is the index's rule inherited rather than a second one: it is still where the node is drawn on the trash page, and putting one copy away has not unmirrored the node. (`is:mirrored` is a question about the node, so it does not by itself reach an archived node — that is still `is:trashed`'s to open.)
+A copy filed in an `_olai/Trash.org` still counts, and that is the index's rule inherited rather than a second one: it is still where the node is drawn on the trash page, and putting one copy away has not unmirrored the node. (`is:mirrored` is a question about the node, so it does not by itself reach an archived node — that is still `is:trashed`'s to open.)
 
 **A known operator with an unknown value is refused**, in the grammar's own words, and the query selects nothing: `is:open` says which values `is:` takes rather than quietly searching for that text and finding none. A colon after anything else (`TODO:`, `http://…`) is an ordinary word — colons occur in prose.
 
@@ -188,7 +188,7 @@ Above every page that draws nodes there is a filter box. It is not the header's 
 - **A dead wire takes the APP, not the box.** The filter is a question now, and so is every other door on the page, so a connection that cannot carry one freezes the whole app under an overlay that says it is offline in the connection pill's own words ([vault-in-browser](https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md) §5b's ruling). Nothing underneath answers a press or a keystroke; the rows the server last answered are still behind it, because a freeze is not a blank page. When the wire comes back the overlay lifts by itself — no reload — and the filter is re-asked against the set as it now stands, so the page you get back is about the files rather than about the moment the socket died.
 - **Folds are suspended while a filter is on.** A collapse is a claim about the tree you were reading, and honouring it inside a filtered one would hide the match you typed for. Nothing is written: clearing the filter brings every collapse back.
 - **Hiding finished work happens first.** The Done pick — the panel's default, or the page's own word beside its filter — is a standing part of how that page reads; the filter is a question asked of it. So `is:done` under a page that hides finished work draws nothing — and the bar says how many matches are being held back, rather than leaving it a mystery.
-- **A narrowed page can be KEPT, and NAMED** — `⌘⇧P` puts it on the sidebar's shelf with its query, so a saved search is a pin rather than a fourth kind of thing ([editing.md](editing.md#pinning-a-page-to-the-sidebar), [format.md](format.md#pins)). The chord is live while the caret is in the box, which is where a hand is when the thought arrives — and because a query is the one part of an address nothing in the directory can name, it asks what to call this one first: type a name and Enter, or Enter alone for the bare pin, which is drawn as the page's own name with the query beside it. A saved search is therefore a row in `Pins.olai` reading `[What is late](/agenda?q=is%3Atodo)`, and renaming it is editing that row — from the shelf's own `✎`, or in the file.
+- **A narrowed page can be KEPT, and NAMED** — `⌘⇧P` puts it on the sidebar's shelf with its query, so a saved search is a pin rather than a fourth kind of thing ([editing.md](editing.md#pinning-a-page-to-the-sidebar), [format.md](format.md#pins)). The chord is live while the caret is in the box, which is where a hand is when the thought arrives — and because a query is the one part of an address nothing in the directory can name, it asks what to call this one first: type a name and Enter, or Enter alone for the bare pin, which is drawn as the page's own name with the query beside it. A saved search is therefore a row in `Pins.org` reading `[What is late](/agenda?q=is%3Atodo)`, and renaming it is editing that row — from the shelf's own `✎`, or in the file.
 - The bar reports **"3 of 41"**: how many drawn rows are matches, of how many rows the page HOLDS — every row it could draw, whether or not a preference of yours is taking some of them off the screen. So the second number does not move when you hide finished work, and the matches held back are counted inside it: **"3 of 41 — 2 more matches hidden as done"** is 5 matches on a page of 41 rows, and adds up. Found nothing? The denominator stays, because "no matches of 41" and an empty directory are two different pieces of news. A part that is zero is not said.
 
 ### Every row says why it is drawn
@@ -213,7 +213,7 @@ A phrase spanning two rendered pieces of a title — across a `**bold**`, across
 
 | page | what a filter takes away | what stays |
 |---|---|---|
-| `/<file>.olai`, `/#<id>` | every row that did not match | the matches, their subtrees, and the ancestors that lead to one |
+| `/<file>.org`, `/#<id>` | every row that did not match | the matches, their subtrees, and the ancestors that lead to one |
 | `/d/<date>`, `/today` | every row that did not match, and an outline heading left with none | the matches — and their ancestry, which was never a row |
 | `/agenda` | the same, per day of the spine; a day left with nothing leaves the line, and the silences either side of it close up into one longer wait | the matches, under the days that still hold one — and no line at all when none do |
 | `/trash` | the same as a tree, per archive; an archive left with nothing goes | the matches, their subtrees, and the scaffold that says where the pile came from |

@@ -26,29 +26,29 @@ const bench = (): { trace: Trace; lines: ReadonlyArray<string> } => {
 
 test("a line is the prefix, the moment, then the facts in the caller's order", () => {
   const it = bench()
-  it.trace("classified", { terminal: "11e565c0", file: "lanes.olai", meaning: "none" })
+  it.trace("classified", { terminal: "11e565c0", file: "lanes.org", meaning: "none" })
   // THE ORDER IS THE CALLER'S and is never sorted: a seam knows which fact a
   // reader wants first, and an alphabetised line would put `file` before the
   // terminal the reader came looking for.
   expect(it.lines[0]).toBe(
-    "kolu doorbell classified terminal=11e565c0 file=lanes.olai meaning=none",
+    "kolu doorbell classified terminal=11e565c0 file=lanes.org meaning=none",
   )
 })
 
 test("a value that would break the scan is quoted, and one that would not is bare", () => {
   const it = bench()
   it.trace("said", {
-    file: "orchestrator/lanes.olai",
+    file: "orchestrator/lanes.org",
     step: "implement + open PR",
     standing: 2,
     coalesce: "kolu:wake",
   })
   // A path and a colon-keyed word stay BARE, which is what makes
-  // `grep 'file=orchestrator/lanes.olai'` find them. A title holds anything at
+  // `grep 'file=orchestrator/lanes.org'` find them. A title holds anything at
   // all — spaces here, and an `=` or a quote on some other board — so it is
   // rendered through `JSON.stringify`, which is both the escape and the test.
   expect(it.lines[0]).toBe(
-    'kolu doorbell said file=orchestrator/lanes.olai step="implement + open PR" standing=2'
+    'kolu doorbell said file=orchestrator/lanes.org step="implement + open PR" standing=2'
       + " coalesce=kolu:wake",
   )
 })
@@ -71,7 +71,7 @@ test("an absent fact says `none` and is never dropped", () => {
 test("a list rides as one bare token, and an empty one is `none`", () => {
   const it = bench()
   it.trace("derived", {
-    file: "lanes.olai",
+    file: "lanes.org",
     ringing: listed(["11e565c0@tns", "4b5a3fb6@odu-doorbell"]),
     unmatched: listed([]),
   })
@@ -79,7 +79,7 @@ test("a list rides as one bare token, and an empty one is `none`", () => {
   // `=`, and a comma is none of the three — so `grep` reaches straight through
   // the list without the separator having to be exotic to earn it.
   expect(it.lines[0]).toBe(
-    "kolu doorbell derived file=lanes.olai ringing=11e565c0@tns,4b5a3fb6@odu-doorbell"
+    "kolu doorbell derived file=lanes.org ringing=11e565c0@tns,4b5a3fb6@odu-doorbell"
       + " unmatched=none",
   )
 })

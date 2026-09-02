@@ -32,7 +32,7 @@ import { nodesOfFiles } from "./fixtures.testlib.ts"
 import { type Destination, type Moved, movingOf, whyNot } from "./moving.ts"
 
 /**
- * The browser suite's own `house.olai` plus a NOW SECTION, which is the
+ * The browser suite's own `house.org` plus a NOW SECTION, which is the
  * topology the drawing walk exists for — `ops` documents a Now/Focus list as
  * mirrors of live work, and this is that:
  *
@@ -45,8 +45,8 @@ import { type Destination, type Moved, movingOf, whyNot } from "./moving.ts"
  *         knobs
  *       kitchen-install (a mirror of install, a sibling of what it shows)
  *
- * with `herbs` over in `garden.olai` and `tiles` put away in an archive that
- * sits under a folder — an archive is `_olai/Trash.olai` at the root or beside any
+ * with `herbs` over in `garden.org` and `tiles` put away in an archive that
+ * sits under a folder — an archive is `_olai/Trash.org` at the root or beside any
  * outline under it (`@olai/format`'s own rule).
  */
 const HOUSE = [
@@ -65,9 +65,9 @@ const AWAY = `{"id":"tiles","ord":"a0","title":"the tiles nobody liked"}`
 
 const derived = derive(
   nodesOfFiles({
-    "house.olai": HOUSE,
-    "garden.olai": GARDEN,
-    "_olai/Trash.olai": AWAY,
+    "house.org": HOUSE,
+    "garden.org": GARDEN,
+    "_olai/Trash.org": AWAY,
   }),
 )
 
@@ -201,13 +201,13 @@ test("the answer carries the row as the set says it now, and a verdict per desti
   expect(said.moved).toEqual({
     id: "install",
     title: "install the cabinets",
-    file: "house.olai",
+    file: "house.org",
     parent: "kitchen",
   })
   expect(said.refusals).toHaveLength(3)
   expect(said.refusals[0]).toBeNull()
   expect(said.refusals[1]).toContain("inside the row you are moving")
-  // …and the third is a node of `garden.olai`, which the picker will now carry
+  // …and the third is a node of `garden.org`, which the picker will now carry
   // the row to: a verdict of `null` is the answer that lets `Enter` write.
   expect(said.refusals[2]).toBeNull()
 })
@@ -219,7 +219,7 @@ test("a MIRROR is moved as the placement it is, and called by what it shows", ()
   expect(said.moved).toEqual({
     id: "kitchen-install",
     title: "install the cabinets",
-    file: "house.olai",
+    file: "house.org",
     parent: "kitchen",
   })
 })

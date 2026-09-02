@@ -5,7 +5,7 @@
  * holds, the way a reader of the same directory sees it, and the way the racket
  * original's sidebar did. The alternative — a section per kind, each
  * re-spelling every nested path as a string — is what this replaces: once a
- * corpus has depth (`Daily/2026-08.olai`, `brainstorming/*.md`), the path
+ * corpus has depth (`Daily/2026-08.org`, `brainstorming/*.md`), the path
  * string wraps and the folder is nowhere to click.
  *
  * Pure: paths in, rows out. Collapse, active marking and the link each file
@@ -97,7 +97,7 @@ const freeze = (node: Building, prefix: string): ReadonlyArray<FileRow> => {
       of: entry.of,
     })
   }
-  // Sorted by the on-disk basename, not the stem: `a.md` and `a.olai` are two
+  // Sorted by the on-disk basename, not the stem: `a.md` and `a.org` are two
   // files and the glyph is what tells them apart, so the order still has to
   // see the suffix. Folders sort as their own name, among those basenames.
   rows.sort((left, right) => {
@@ -159,7 +159,7 @@ export const dirsIn = (rows: ReadonlyArray<FileRow>): ReadonlySet<string> => {
 }
 
 /** Directory paths that contain `file`, outermost first. Empty for a root
- *  file — there is no folder chain to open for `house.olai`. The sidebar
+ *  file — there is no folder chain to open for `house.org`. The sidebar
  *  uses this to keep the open file's ancestors unfolded so a collapsed-by-
  *  default tree never hides the selection. */
 export const ancestorDirs = (file: string): ReadonlyArray<string> => {

@@ -74,7 +74,7 @@
  *
  * ## Where the declarations are
  *
- * `_olai/Properties.olai`, read BY NAME like the shelf and the inbox
+ * `_olai/Properties.org`, read BY NAME like the shelf and the inbox
  * ({@link ../node.ts}'s `propertiesIn`). One node per key, the TITLE is the
  * key, the type is spelled in that node's own props, and an enum's variants are
  * its children:
@@ -101,7 +101,7 @@
  * so the obvious question is what types THOSE. {@link BOOTSTRAP} does, and it is the
  * one place this stops: a built-in table, in code, checked against the records
  * of the declarations file and nowhere else. A vault cannot re-declare `type`,
- * and a `Properties.olai` that says something the table does not know is a
+ * and a `Properties.org` that says something the table does not know is a
  * broken file naming the key — which is how every other validation rule
  * reports.
  *
@@ -283,7 +283,7 @@ export interface ContributedKind {
    *
    * A vault that says nothing about `terminal` is DECLARING it this kind, and
    * that is the whole of what this field buys: the alternative was every user
-   * hand-writing a row in `_olai/Properties.olai` before an enabled plugin
+   * hand-writing a row in `_olai/Properties.org` before an enabled plugin
    * would draw anything, which the human rejected as the model. **Nothing ever
    * writes a user's vault**; the default is data, read at the same moment the
    * rows are.
@@ -317,7 +317,7 @@ export interface ContributedKind {
  *   - {@link built} is what this BINARY knows how to mean, and it is what a
  *     DECLARATION is refused against. A vault that names `terminal` while this
  *     serve runs `--plugins=odu` wrote a legal word; refusing it would make one
- *     directory's `Properties.olai` broken on one machine and clean on the
+ *     directory's `Properties.org` broken on one machine and clean on the
  *     next, which is the one thing a file's verdict may not depend on.
  *   - {@link enabled} is what this SERVE actually runs, and it is what a VALUE
  *     is held to. A kind nobody is answering for cannot say whether a value
@@ -365,7 +365,7 @@ const kindWords = (kinds: KindVocabulary): ReadonlyArray<string> =>
  * was written down: the validator resolved a `doc` BESIDE THE WRITING FILE (a
  * node names a file beside itself, which is what `doc` the FIELD means), and
  * the board wrote every `brief` VAULT-ROOT-RELATIVE (`brief briefs/tp.md` on a
- * record of `roadmap/features.olai`, ~101 of them). So the display drew a door
+ * record of `roadmap/features.org`, ~101 of them). So the display drew a door
  * onto `roadmap/briefs/tp.md`, which the directory does not serve, and every
  * one of those chips was dead — while the gate, asking the same question the
  * same way, was quietly refusing them too. The fix is not to pick a winner: it
@@ -414,7 +414,7 @@ export const BASE_BY_DEFAULT: PathBase = "file"
  */
 export interface Declared {
   readonly type: PropType
-  /** The id of the node in `_olai/Properties.olai` that declares this key. */
+  /** The id of the node in `_olai/Properties.org` that declares this key. */
   readonly at: string
 }
 
@@ -424,7 +424,7 @@ export interface Declared {
 export type PropDeclarations = ReadonlyMap<string, Declared>
 
 /** A vault that declares nothing — the answer for a directory with no
- *  `Properties.olai`, and the default every reader that has none passes. One
+ *  `Properties.org`, and the default every reader that has none passes. One
  *  value rather than a fresh empty map per call, for `NO_PINS`' reason. */
 export const NO_TYPING: PropDeclarations = new Map()
 
@@ -573,7 +573,7 @@ interface Grounded {
  * A declaration is a node carrying properties, so the obvious question is what
  * types THOSE, and the obvious answer — declare them in the file — is the
  * regress this table cuts. It is code, it is applied to the records of
- * `_olai/Properties.olai` and to nothing else, and a vault cannot re-declare
+ * `_olai/Properties.org` and to nothing else, and a vault cannot re-declare
  * either word: a property called `type` on an ordinary node is somebody's own
  * vocabulary and none of this format's business.
  *
@@ -647,7 +647,7 @@ export const BOOTSTRAP: ReadonlyMap<string, Grounded> = new Map<string, Grounded
 
 /**
  * A VAULT'S DECLARATIONS, read off the set — the top level of whichever outline
- * is called `Properties.olai`, one entry per key.
+ * is called `Properties.org`, one entry per key.
  *
  * THE TOP LEVEL ONLY, and it is the same rule the shelf keeps one convention
  * over: what hangs under a declaration is that declaration's own business, and
@@ -755,7 +755,7 @@ export const declarationsIn = (
 /**
  * THE TWO LAYERS, FOLDED — and the ONE place precedence is decided.
  *
- * A vault's `_olai/Properties.olai` is one source of declarations. An enabled
+ * A vault's `_olai/Properties.org` is one source of declarations. An enabled
  * plugin's {@link ContributedKind.claims} is the other: the key it owns by
  * convention, declared for a vault that has said nothing about it, so turning a
  * plugin on is the whole of turning its faces on. Nothing writes anybody's
@@ -1577,7 +1577,7 @@ export const resolvesId = (
 }
 
 /**
- * WHAT IS WRONG WITH A RECORD OF `_olai/Properties.olai` — the bootstrap, said
+ * WHAT IS WRONG WITH A RECORD OF `_olai/Properties.org` — the bootstrap, said
  * as a finding.
  *
  * Asked of every record in that file and of no record anywhere else, which is

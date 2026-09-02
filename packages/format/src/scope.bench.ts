@@ -75,7 +75,7 @@ const ASKED = ["kitchen", "walnut", `"a note about"`, "kitchen OR garden", "is:t
 const vault = (): ReadonlyArray<Located> => {
   const records: Array<Located> = []
   for (let file = 0; file < FILES; file++) {
-    const path = `vault/${file}.olai`
+    const path = `vault/${file}.org`
     for (let which = 0; which < PER_FILE; which++) {
       const id = `n${file}-${which}`
       records.push({
@@ -117,7 +117,7 @@ const runs = (arm: () => void): number => {
 }
 
 const SCOPES: ReadonlyArray<readonly [string, Scope]> = [
-  ["file: one of 200", { file: `vault/${Math.floor(FILES / 3)}.olai` }],
+  ["file: one of 200", { file: `vault/${Math.floor(FILES / 3)}.org` }],
   ["under: a file's root", { under: `n${Math.floor(FILES / 3)}-0` }],
   ["under: a small subtree", { under: `n${Math.floor(FILES / 3)}-20` }],
   ["(no scope — control)", {}],

@@ -53,7 +53,7 @@ const GARDEN = [
   `{"id":"late","parent":"garden","ord":"a1","title":"late thing","date":"2026-08-01","todo":true}`,
 ].join("\n")
 
-const RECORDS = nodesOfFiles({ "house.olai": HOUSE, "garden.olai": GARDEN })
+const RECORDS = nodesOfFiles({ "house.org": HOUSE, "garden.org": GARDEN })
 const SET = derive(RECORDS)
 
 /** What day it is, for the two arms that have to be told. Fixed, because a
@@ -67,7 +67,7 @@ const TODAY = "2026-08-10"
 const facesOf = (paths: ReadonlyArray<string>): ReadonlyArray<Face> =>
   paths.map((path) => ({ path, title: path, links: [], tags: [], props: {} }) as unknown as Face)
 
-const FILES = ["garden.olai", "house.olai"]
+const FILES = ["garden.org", "house.org"]
 /** Two of these are about the day arm: one NAMED for a date, which IS that
  *  day's note, and one merely naming a date, which is a document about a day
  *  and nobody's note. */
@@ -127,13 +127,13 @@ const roots = (shows: ReturnType<typeof readAt>): ReadonlyArray<string> =>
 
 test("a bare `/` opens the first outline found", () => {
   const shows = readAt(HOME)
-  expect(shows.kind === "outline" ? shows.file : undefined).toBe("garden.olai")
+  expect(shows.kind === "outline" ? shows.file : undefined).toBe("garden.org")
   expect(roots(shows)).toEqual(["garden"])
 })
 
 test("a named outline opens that one, with its own rows", () => {
-  const shows = readAt(at("house.olai"))
-  expect(shows.kind === "outline" ? shows.file : undefined).toBe("house.olai")
+  const shows = readAt(at("house.org"))
+  expect(shows.kind === "outline" ? shows.file : undefined).toBe("house.org")
   expect(roots(shows)).toEqual(["kitchen"])
 })
 
@@ -141,8 +141,8 @@ test("a named outline opens that one, with its own rows", () => {
 // asked to land on is a fact for the reader of the page, not for the reading
 // — exactly as `notes/finishes.md#install` is the document and a landing.
 test("a row address opens the outline that holds it", () => {
-  const shows = readAt(at("house.olai", "kitchen"))
-  expect(shows.kind === "outline" ? shows.file : undefined).toBe("house.olai")
+  const shows = readAt(at("house.org", "kitchen"))
+  expect(shows.kind === "outline" ? shows.file : undefined).toBe("house.org")
   expect(roots(shows)).toEqual(["kitchen"])
 })
 
@@ -150,26 +150,26 @@ test("a row address opens the outline that holds it", () => {
 // the id is durable and the file half is not, which is the price this arm
 // chose to pay the way the heading arm pays it.
 test("a row of an outline the directory does not hold is a nothing that names it", () => {
-  expect(readAt(at("shed.olai", "kitchen"))).toEqual({
+  expect(readAt(at("shed.org", "kitchen"))).toEqual({
     kind: "nothing",
     sought: "outline",
-    requested: "shed.olai",
+    requested: "shed.org",
   })
 })
 
 // The two nothings are decided HERE rather than by a view counting files, so
 // the screen that says them has one thing to say and no reasoning to do.
 test("an outline the directory does not have is a nothing that names it", () => {
-  expect(readAt(at("shed.olai"))).toEqual({
+  expect(readAt(at("shed.org"))).toEqual({
     kind: "nothing",
     sought: "outline",
-    requested: "shed.olai",
+    requested: "shed.org",
   })
 })
 
 test("a directory with no outlines at all is the other nothing", () => {
   const nothing = { kind: "nothing", sought: "outline", requested: null } as const
-  expect(pageOf(readingAt(SET, []), at("shed.olai")).shows).toEqual(nothing)
+  expect(pageOf(readingAt(SET, []), at("shed.org")).shows).toEqual(nothing)
   expect(pageOf(readingAt(SET, []), HOME).shows).toEqual(nothing)
 })
 
@@ -188,10 +188,10 @@ test("a document the directory does not have is a nothing that names it", () => 
 
 test("an outline whose file did not parse is the broken page, not an empty one", () => {
   const unreadable: BrokenFile = {
-    file: "house.olai",
-    errors: [{ code: "not-json", file: "house.olai", line: 2, message: "not JSON" }],
+    file: "house.org",
+    errors: [{ code: "not-json", file: "house.org", line: 2, message: "not JSON" }],
   }
-  expect(readAt(at("house.olai"), FILES, [unreadable])).toEqual({
+  expect(readAt(at("house.org"), FILES, [unreadable])).toEqual({
     kind: "broken",
     file: unreadable,
   })
@@ -202,7 +202,7 @@ test("an outline whose file did not parse is the broken page, not an empty one",
 test("a day collects the dated nodes of every outline", () => {
   const shows = readAt({ kind: "day", date: "2026-08-10" })
   expect(shows.kind === "day" ? shows.groups.map((group) => group.file) : [])
-    .toEqual(["garden.olai", "house.olai"])
+    .toEqual(["garden.org", "house.org"])
 })
 
 test("a day with nothing dated it is an empty day, not a nothing", () => {
@@ -235,20 +235,20 @@ test("the agenda is answered for the day it was asked for, and says which", () =
 const ARCHIVED = derive([
   ...RECORDS,
   ...nodesOfFiles({
-    "_olai/Trash.olai": [
+    "_olai/Trash.org": [
       `{"id":"old","ord":"a0","title":"the old kitchen"}`,
       `{"id":"tiles","parent":"old","ord":"a0","title":"choose the tiles"}`,
     ].join("\n"),
   }),
 ] as ReadonlyArray<Located>)
 
-const WITH_TRASH = ["_olai/Trash.olai", ...FILES]
-const WITH_LEFTOVER = ["Archive.olai", ...FILES, "garden/Archive.olai"]
+const WITH_TRASH = ["_olai/Trash.org", ...FILES]
+const WITH_LEFTOVER = ["Archive.org", ...FILES, "garden/Archive.org"]
 
-test("the trash is the one `_olai/Trash.olai`, and an empty one is a page", () => {
+test("the trash is the one `_olai/Trash.org`, and an empty one is a page", () => {
   expect(readAt({ kind: "trash" }, WITH_TRASH)).toEqual({
     kind: "trash",
-    files: ["_olai/Trash.olai"],
+    files: ["_olai/Trash.org"],
     // Nothing has been put away in the plain fixture, so the archive is a file
     // with no rows: not a heading over nothing, which is also what makes "the
     // trash is empty" this list being empty.
@@ -262,13 +262,13 @@ test("the trash is the one `_olai/Trash.olai`, and an empty one is a page", () =
 })
 
 test("the trash file's own address opens the trash — it is not a place you edit", () => {
-  expect(readAt(at("_olai/Trash.olai"), WITH_TRASH))
-    .toEqual({ kind: "trash", files: ["_olai/Trash.olai"], groups: [], records: 0 })
+  expect(readAt(at("_olai/Trash.org"), WITH_TRASH))
+    .toEqual({ kind: "trash", files: ["_olai/Trash.org"], groups: [], records: 0 })
 })
 
-test("a leftover Archive.olai opens as an outline, not the trash", () => {
-  const shows = readAt(at("Archive.olai"), WITH_LEFTOVER)
-  expect(shows.kind === "outline" ? shows.file : undefined).toBe("Archive.olai")
+test("a leftover Archive.org opens as an outline, not the trash", () => {
+  const shows = readAt(at("Archive.org"), WITH_LEFTOVER)
+  expect(shows.kind === "outline" ? shows.file : undefined).toBe("Archive.org")
   expect(readAt({ kind: "trash" }, WITH_LEFTOVER))
     .toEqual({ kind: "trash", files: [], groups: [], records: 0 })
 })
@@ -276,14 +276,14 @@ test("a leftover Archive.olai opens as an outline, not the trash", () => {
 test("a bare `/` never opens an archive, even one that sorts first", () => {
   for (const files of [WITH_TRASH, WITH_LEFTOVER]) {
     const shows = readAt(HOME, files)
-    expect(shows.kind === "outline" ? shows.file : undefined).toBe("garden.olai")
+    expect(shows.kind === "outline" ? shows.file : undefined).toBe("garden.org")
   }
 })
 
 test("the trash draws each archive that has something in it, and counts the SET", () => {
   const shows = readAt({ kind: "trash" }, WITH_TRASH, READABLE, ARCHIVED)
   expect(shows.kind === "trash" ? shows.groups.map((group) => group.file) : [])
-    .toEqual(["_olai/Trash.olai"])
+    .toEqual(["_olai/Trash.org"])
   expect(
     shows.kind === "trash"
       ? shows.groups.flatMap((group) => group.rows.map((row) => row.at.node.id))
@@ -296,18 +296,18 @@ test("the trash draws each archive that has something in it, and counts the SET"
 // ── the names table ────────────────────────────────────────────────────
 
 test("every id this page points at is resolved, once each", () => {
-  const reading = pageOf(readingAt(SET, facesOf(FILES)), at("house.olai"))
+  const reading = pageOf(readingAt(SET, facesOf(FILES)), at("house.org"))
   // `install` sees `herbs`; `linky`'s TITLE addresses the same node. One entry.
   expect(reading.names).toEqual([
-    { id: "herbs", title: "the herb bed", file: "garden.olai" },
+    { id: "herbs", title: "the herb bed", file: "garden.org" },
   ])
 })
 
 test("an id nothing declares is absent — the honest dangling link", () => {
   const set = derive(nodesOfFiles({
-    "house.olai": `{"id":"a","ord":"a0","title":"a","see":["gone"]}`,
+    "house.org": `{"id":"a","ord":"a0","title":"a","see":["gone"]}`,
   }))
-  expect(pageOf(readingAt(set, facesOf(["house.olai"])), at("house.olai")).names)
+  expect(pageOf(readingAt(set, facesOf(["house.org"])), at("house.org")).names)
     .toEqual([])
 })
 
@@ -320,20 +320,20 @@ test("the address the page IS gets a name too — the palette's pin row asks it"
  *  property that IS an id, one that only looks like a word, one holding a
  *  sentence, and one holding a list of both kinds. */
 const PROPPED = derive(nodesOfFiles({
-  "lanes.olai": [
+  "lanes.org": [
     `{"id":"lane","ord":"a0","title":"a lane","custom":{"reviewer":"pi","agent":"nobody","merge":"the human approves personally"}}`,
     `{"id":"two","ord":"a1","title":"another","custom":{"reviewer":["pi","stranger"]}}`,
   ].join("\n"),
-  "agents.olai": `{"id":"pi","ord":"a0","title":"pi"}`,
+  "agents.org": `{"id":"pi","ord":"a0","title":"pi"}`,
 }))
 
 test("a custom value that IS a node id is resolved — the door's question, asked where the set is", () => {
-  const reading = pageOf(readingAt(PROPPED, facesOf(["lanes.olai", "agents.olai"])), at("lanes.olai"))
-  expect(reading.names).toEqual([{ id: "pi", title: "pi", file: "agents.olai" }])
+  const reading = pageOf(readingAt(PROPPED, facesOf(["lanes.org", "agents.org"])), at("lanes.org"))
+  expect(reading.names).toEqual([{ id: "pi", title: "pi", file: "agents.org" }])
 })
 
 test("a custom value naming nothing is absent, and prose never reaches the index", () => {
-  const reading = pageOf(readingAt(PROPPED, facesOf(["lanes.olai", "agents.olai"])), at("lanes.olai"))
+  const reading = pageOf(readingAt(PROPPED, facesOf(["lanes.org", "agents.org"])), at("lanes.org"))
   // `nobody` is id-shaped and declares nothing; `merge` holds a sentence, which
   // is not id-shaped at all. Neither is a name, and the drawer draws both as
   // the plain text they are.
@@ -343,7 +343,7 @@ test("a custom value naming nothing is absent, and prose never reaches the index
 })
 
 test("each member of a LIST value is asked about on its own", () => {
-  const reading = pageOf(readingAt(PROPPED, facesOf(["lanes.olai", "agents.olai"])), at("lanes.olai"))
+  const reading = pageOf(readingAt(PROPPED, facesOf(["lanes.org", "agents.org"])), at("lanes.org"))
   // `two` carries `["pi","stranger"]`: the first is a node, the second is not,
   // and one entry answers for both rows that name it.
   expect(reading.names.map((one) => one.id)).toEqual(["pi"])
@@ -352,9 +352,9 @@ test("each member of a LIST value is asked about on its own", () => {
 // ── parity: the reading IS the pure functions the browser used to call ──
 
 test("an outline's rows are `rowsOf`, exactly", () => {
-  const shows = readAt(at("house.olai"))
+  const shows = readAt(at("house.org"))
   expect(shows.kind === "outline" ? shows.rows : undefined)
-    .toEqual(rowsOf(SET, "house.olai"))
+    .toEqual(rowsOf(SET, "house.org"))
 })
 
 test("a node page is `zoom` plus `backlinksOf`, exactly", () => {
@@ -382,17 +382,17 @@ test("a day is `datedOn` plus `dailyNotesOn`, exactly", () => {
 test("the trash is `rowsOf` per archive plus `nodesOf`, exactly", () => {
   const shows = readAt({ kind: "trash" }, WITH_TRASH, READABLE, ARCHIVED)
   expect(shows.kind === "trash" ? shows.groups : undefined)
-    .toEqual([{ file: "_olai/Trash.olai", rows: rowsOf(ARCHIVED, "_olai/Trash.olai") }])
+    .toEqual([{ file: "_olai/Trash.org", rows: rowsOf(ARCHIVED, "_olai/Trash.org") }])
   expect(shows.kind === "trash" ? shows.records : undefined)
-    .toBe(nodesOf(ARCHIVED, "_olai/Trash.olai").length)
+    .toBe(nodesOf(ARCHIVED, "_olai/Trash.org").length)
 })
 
 test("a document page is `referrersTo`, exactly", () => {
   const faces: ReadonlyArray<Face> = [
     { path: "notes/finishes.md", title: "finishes", links: [], tags: [], props: {} },
     {
-      path: "house.olai",
-      title: "house.olai",
+      path: "house.org",
+      title: "house.org",
       links: [addressOf("notes/finishes.md", null)!],
       tags: [],
       props: {},
@@ -435,12 +435,12 @@ const decode = Schema.decodeUnknownSync(PageReading)
 
 const EVERY_ROUTE: ReadonlyArray<PageRequest> = [
   HOME,
-  at("house.olai"),
-  at("garden.olai"),
-  at("shed.olai"),
+  at("house.org"),
+  at("garden.org"),
+  at("shed.org"),
   at("notes/finishes.md"),
   at("notes/missing.md"),
-  at("_olai/Trash.olai"),
+  at("_olai/Trash.org"),
   node("kitchen"),
   node("herbs-here"),
   node("nothing-declares-this"),
@@ -466,8 +466,8 @@ for (const request of EVERY_ROUTE) {
 }
 
 test("two readings of one set are the same reading, and a moved set is not", () => {
-  const before = pageOf(readingAt(SET, facesOf(FILES)), at("house.olai"))
-  expect(samePageReading(before, pageOf(readingAt(SET, facesOf(FILES)), at("house.olai"))))
+  const before = pageOf(readingAt(SET, facesOf(FILES)), at("house.org"))
+  expect(samePageReading(before, pageOf(readingAt(SET, facesOf(FILES)), at("house.org"))))
     .toBe(true)
   const moved = derive(
     RECORDS.map((one) =>
@@ -476,6 +476,6 @@ test("two readings of one set are the same reading, and a moved set is not", () 
         : one
     ) as ReadonlyArray<Located>,
   )
-  expect(samePageReading(before, pageOf(readingAt(moved, facesOf(FILES)), at("house.olai"))))
+  expect(samePageReading(before, pageOf(readingAt(moved, facesOf(FILES)), at("house.org"))))
     .toBe(false)
 })

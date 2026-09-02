@@ -34,19 +34,19 @@ Feature: A stale Enter is claimed and spends nothing
   row spends is an address and a sentence.
 
   Scenario: The palette opens nothing for a row the query has moved past
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     When I press the palette shortcut
     And I type "compost" into the palette
     Then the palette lists the node "the compost heap"
     When I retype the palette as "mint" and press Enter at once
     # Nothing was opened, and the modal is still up over the page it was
     # opened from.
-    Then the address is "/house.olai"
+    Then the address is "/house.org"
     And the command palette is open
     # Waited out whole: by the time the rows answer the new query, anything
     # that key wrongly sent has landed and the address would say so.
     And the palette lists the node "split the mint"
-    And the address is "/house.olai"
+    And the address is "/house.org"
     # ...and the key is not lost to the reader, only to the wrong row: pressed
     # again over rows that are theirs, it opens the one they were looking at.
     When I press "Enter"
@@ -59,7 +59,7 @@ Feature: A stale Enter is claimed and spends nothing
     # window the scenario above opens takes the row it landed on — which is the
     # row somebody could see. Moving the gate one level down would keep every
     # other scenario in this file green.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     When I press the palette shortcut
     And I type "compost" into the palette
     Then the palette lists the node "the compost heap"
@@ -74,20 +74,20 @@ Feature: A stale Enter is claimed and spends nothing
     # a round trip away. A command row is never behind anything, so `Enter` on
     # one inside the settle runs it — which is the palette's oldest gesture and
     # the one a reader makes fastest.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     When I press the palette shortcut
     And I retype the palette as "agenda" and press Enter at once
     Then the address is "/agenda"
     And there should be no page errors
 
   Scenario: The header box opens nothing for a row the query has moved past
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     When I search the header for "compost"
     Then the header search lists the node "the compost heap"
     When I retype the header search as "mint" and press Enter at once
-    Then the address is "/house.olai"
+    Then the address is "/house.org"
     And the header search lists the node "split the mint"
-    And the address is "/house.olai"
+    And the address is "/house.org"
     When I press "Enter"
     Then the address is "/#mint"
     And there should be no page errors

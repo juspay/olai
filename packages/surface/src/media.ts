@@ -121,7 +121,7 @@ export const mediaPath = (url: string): string | null => {
  * PAGE is drawn by pointing at the file (a saved page, a picture `.svg`
  * included, a `.pdf`), plus the parts a saved page draws itself with. That list
  * is where the argument for each of those lives, and what it leaves out
- * (`.md`, `.olai`, `.csv`, data) is the more interesting half of it: those have
+ * (`.md`, `.org`, `.csv`, data) is the more interesting half of it: those have
  * pages that are handed their CONTENT, so raw bytes here would be a second way
  * to read a file that already has one.
  *

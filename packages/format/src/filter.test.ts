@@ -33,7 +33,7 @@ import { isPutAway } from "./node.ts"
  *  is the record saying nothing has been written to it since it was captured.
  *  Instants, not days, so the cut to a day is exercised rather than assumed. */
 const CORPUS = {
-  "house.olai": [
+  "house.org": [
     `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}`,
     `{"id":"demo","parent":"kitchen","ord":"a0","title":"take out the counters","done":"2026-08-03"}`,
     `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","doing":true,"date":"2026-08-10","repeat":"every week on monday","desc":"walnut or birch","after":["demo"],"see":["herbs"],"created":"2026-08-01T09:12:44-04:00","changed":"2026-08-13T10:02:00-04:00","custom":{"agent":"Claude-Opus","pr":"https://github.com/juspay/olai/pull/176","tags":["cabinets","walnut"]}}`,
@@ -41,12 +41,12 @@ const CORPUS = {
     `{"id":"hinges","parent":"install","ord":"a0","title":"pick the hinges #home","todo":"2026-08-11","after":["order"],"created":"2026-07-20T14:30:00-04:00","changed":"2026-08-11T09:00:00-04:00"}`,
     `{"id":"kitchen-herbs","parent":"kitchen","ord":"a3","mirror":"herbs"}`,
   ].join("\n"),
-  "garden.olai": [
+  "garden.org": [
     `{"id":"garden","ord":"a0","title":"garden #outdoors"}`,
     `{"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed #home","doing":true,"after":["hinges"]}`,
     `{"id":"basil","parent":"herbs","ord":"a0","title":"sow the basil","done":"2026-07-20","created":"2025-12-31T23:59:00-05:00","changed":"2026-08-10T07:00:00-04:00","custom":{"agent":"claude-opus"}}`,
   ].join("\n"),
-  "_olai/Trash.olai": [
+  "_olai/Trash.org": [
     `{"id":"gone","ord":"a0","title":"the old kitchen table #home","done":"2026-06-01","created":"2026-06-01T10:00:00-04:00"}`,
   ].join("\n"),
 }
@@ -71,7 +71,7 @@ const derived = derive(nodesOfFiles(CORPUS))
  */
 const CALLED_OFF = derive(nodesOfFiles({
   ...CORPUS,
-  "house.olai": CORPUS["house.olai"]
+  "house.org": CORPUS["house.org"]
     .replace(`"done":"2026-08-03"`, `"cancelled":"2026-08-03T11:00:00-04:00"`)
     .replace(`"doing":true,"date":"2026-08-10"`, `"cancelled":true,"date":"2026-08-10"`),
 }))
@@ -171,7 +171,7 @@ test("`has:repeat` is inside `has:date`, and the difference is what is dated onc
 // how `desc: ""` becomes a node with a note and no note at once.
 test("a field holding nothing is a field the record does not carry", () => {
   const hollow = derive(nodesOfFiles({
-    "a.olai": [
+    "a.org": [
       `{"id":"blank","ord":"a0","title":"blank","desc":"","see":[],"after":[]}`,
       `{"id":"real","ord":"a1","title":"real","desc":"something"}`,
     ].join("\n"),
@@ -205,7 +205,7 @@ test("a field holding nothing is a field the record does not carry", () => {
  */
 test("a hollow stamp is a stamp the record does not carry", () => {
   const at = (id: string, created: string, line: number) => ({
-    file: "a.olai",
+    file: "a.org",
     line,
     node: { id, ord: `a${line}`, title: id, created },
   })
@@ -551,7 +551,7 @@ test("a phrase is found in a note, and says so", () => {
  */
 test("a quoted operator is the text, not the operator", () => {
   const literal = derive(nodesOfFiles({
-    "a.olai": [
+    "a.org": [
       `{"id":"note","ord":"a0","title":"what is:done reads","todo":true}`,
       `{"id":"ticked","ord":"a1","title":"something else","done":"2026-08-01"}`,
     ].join("\n"),
@@ -572,7 +572,7 @@ test("a quoted operator is the text, not the operator", () => {
  */
 test("a phrase does not cross the line break a note keeps", () => {
   const wrapped = derive(nodesOfFiles({
-    "a.olai": `{"id":"list","ord":"a0","title":"the list","desc":"pick the\\nhinges"}`,
+    "a.org": `{"id":"list","ord":"a0","title":"the list","desc":"pick the\\nhinges"}`,
   }))
   expect(selectsIn(wrapped, "pick hinges")).toEqual(["list"])
   expect(selectsIn(wrapped, `"pick the hinges"`)).toEqual([])
@@ -703,7 +703,7 @@ test("`or` is a word and `OR` is the joiner", () => {
  *  halves of this change are each other's escape hatch. */
 test("a quoted `OR` is the word, in capitals", () => {
   const shouting = derive(nodesOfFiles({
-    "a.olai": [
+    "a.org": [
       `{"id":"ward","ord":"a0","title":"book the OR for Tuesday"}`,
       `{"id":"list","ord":"a1","title":"the theatre list"}`,
     ].join("\n"),
@@ -787,7 +787,7 @@ test("an edge is not a wait: a finished target, and a source that is not work", 
  */
 test("a `blocks` written on the other record is waited on all the same", () => {
   const sugared = derive(nodesOfFiles({
-    "a.olai": [
+    "a.org": [
       `{"id":"ship","ord":"a0","title":"ship it","todo":true}`,
       `{"id":"review","ord":"a1","title":"read it over","doing":true,"blocks":["ship"]}`,
     ].join("\n"),
@@ -811,7 +811,7 @@ test("`is:blocked` composes and negates like every other clause", () => {
 test("a node whose blocker is finished stops matching", () => {
   const finished = derive(nodesOfFiles({
     ...CORPUS,
-    "house.olai": CORPUS["house.olai"].replace(`"doing":true`, `"done":"2026-08-12"`),
+    "house.org": CORPUS["house.org"].replace(`"doing":true`, `"done":"2026-08-12"`),
   }))
   // `order` is done, so `hinges` is waiting on nothing and is out of the answer
   // — while `herbs`, which waits on `hinges` rather than on `order`, is still
@@ -899,7 +899,7 @@ test("a value may contain an equals sign", () => {
  *  meeting on one token. */
 test("a value may hold a space, which is what quoting one is for", () => {
   const spaced = derive(nodesOfFiles({
-    "a.olai": [
+    "a.org": [
       `{"id":"one","ord":"a0","title":"the first","custom":{"stage":"in review"}}`,
       `{"id":"two","ord":"a1","title":"the second","custom":{"stage":"in"}}`,
     ].join("\n"),
@@ -1040,7 +1040,7 @@ test("`is:mirrored` finds the node a placement shows, never the placement", () =
 test("a chain of placements is places the node at the end of it is drawn", () => {
   const chained = derive(nodesOfFiles({
     ...CORPUS,
-    "shelf.olai": `{"id":"now-herbs","ord":"a0","mirror":"kitchen-herbs"}`,
+    "shelf.org": `{"id":"now-herbs","ord":"a0","mirror":"kitchen-herbs"}`,
   }))
   // `now-herbs` shows `kitchen-herbs` which shows `herbs`, so both placements
   // are filed under `herbs` and neither is filed under the one in the middle.
@@ -1051,7 +1051,7 @@ test("a chain of placements is places the node at the end of it is drawn", () =>
  *  `Derived.status` keeps about one, rather than a second rule here. */
 test("a placement pointing at nothing mirrors nothing", () => {
   const dangling = derive(nodesOfFiles({
-    "a.olai": `{"id":"a","ord":"a","title":"a"}\n{"id":"m","ord":"b","mirror":"nobody"}`,
+    "a.org": `{"id":"a","ord":"a","title":"a"}\n{"id":"m","ord":"b","mirror":"nobody"}`,
   }))
   expect(selectsIn(dangling, "is:mirrored")).toEqual([])
 })
@@ -1421,7 +1421,7 @@ test("a duration's count is read as a number", () => {
  * row proves nothing about the bound (grok, reviewing the durations).
  */
 const ON_THE_DOT = {
-  "dot.olai": [
+  "dot.org": [
     `{"id":"now","ord":"a0","title":"stamped at the moment asked","created":"${NOW}"}`,
     `{"id":"minute","ord":"a1","title":"stamped a minute before","created":"2026-08-13T10:59:00-04:00"}`,
   ].join("\n"),
@@ -1475,7 +1475,7 @@ test("a window written backwards is empty, as an inverted day range is", () => {
  * silent one. Both need a datetime typed into a file by hand.
  */
 const BY_HAND = {
-  "hand.olai": [
+  "hand.org": [
     // The same instant as `install`'s capture, written three ways.
     `{"id":"plain","ord":"a0","title":"as this package writes one","created":"2026-08-13T08:00:00-04:00"}`,
     `{"id":"fraction","ord":"a1","title":"with a fraction nobody minted","created":"2026-08-13T08:00:00.000-04:00"}`,
@@ -1521,7 +1521,7 @@ test("a duration composes with words, marks and the joiner", () => {
  * corpus where they agreed would pin nothing.
  */
 const ROLLING = {
-  "rolling.olai": [
+  "rolling.org": [
     // Since midnight, and so inside both readings of a day.
     `{"id":"morning","ord":"a0","title":"this morning","created":"2026-08-13T08:00:00-04:00"}`,
     // Yesterday evening: inside a rolling day, outside today.
@@ -1563,7 +1563,7 @@ test("`1w` is a rolling week where `this-week` starts on Monday", () => {
  * `date:today..`. Stated rather than special-cased (docs/search.md).
  */
 const JOURNAL = {
-  "journal.olai": [
+  "journal.org": [
     `{"id":"ticked","ord":"a0","title":"just ticked","done":"2026-08-13T10:40:00-04:00"}`,
     `{"id":"earlier","ord":"a1","title":"ticked at breakfast","done":"2026-08-13T07:00:00-04:00"}`,
     `{"id":"planned","ord":"a2","title":"planned for today","date":"2026-08-13"}`,
@@ -1687,21 +1687,21 @@ test("a scope that is already the archive is answered rather than overruled", ()
     .toEqual(["herbs", "kitchen", "hinges"])
   // And it composes with the other two scopes rather than replacing them.
   expect(
-    matching(derived, home, { trashed: true, file: "_olai/Trash.olai" })
+    matching(derived, home, { trashed: true, file: "_olai/Trash.org" })
       .map(({ at }) => at.node.id),
   ).toEqual(["gone"])
 })
 
-// Leftover Archive.olai is orphaned from every query, including `is:trashed`
+// Leftover Archive.org is orphaned from every query, including `is:trashed`
 // (human, 2026-08-19: left on disk and stop being read). It is not trash, and
 // it is not live work either.
-test("a leftover Archive.olai is in no query, including is:trashed", () => {
+test("a leftover Archive.org is in no query, including is:trashed", () => {
   const leftover = derive(nodesOfFiles({
-    "house.olai":
+    "house.org":
       `{"id":"live","ord":"a0","title":"live leftover work","todo":true,"date":"2026-08-11"}`,
-    "Archive.olai":
+    "Archive.org":
       `{"id":"old","ord":"a0","title":"put away leftover","todo":true,"date":"2026-08-11"}`,
-    "notes/Archive.olai":
+    "notes/Archive.org":
       `{"id":"older","ord":"a0","title":"nested leftover"}`,
   }))
   expect(selectsIn(leftover, "leftover")).toEqual(["live"])
@@ -1789,7 +1789,7 @@ test("a negated clause names nothing, because nothing carried it", () => {
 test("a scope narrows to one outline, or to one node and everything beneath it", () => {
   const home = parseFilter("#home", TODAY)
   expect(
-    matching(derived, home, { file: "garden.olai" }).map(({ at }) => at.node.id),
+    matching(derived, home, { file: "garden.org" }).map(({ at }) => at.node.id),
   ).toEqual(["herbs"])
   expect(
     matching(derived, home, { under: "kitchen" }).map(({ at }) => at.node.id),
@@ -1817,7 +1817,7 @@ const narrowed = (file: string, text: string): ReadonlyArray<string> => {
 }
 
 test("a match keeps the ancestors that lead to it, and drops everything else", () => {
-  expect(narrowed("house.olai", "hinges")).toEqual([
+  expect(narrowed("house.org", "hinges")).toEqual([
     "kitchen",
     "  install",
     "    hinges",
@@ -1825,7 +1825,7 @@ test("a match keeps the ancestors that lead to it, and drops everything else", (
 })
 
 test("a match keeps its whole subtree — you asked for the thing", () => {
-  expect(narrowed("house.olai", "install")).toEqual([
+  expect(narrowed("house.org", "install")).toEqual([
     "kitchen",
     "  install",
     "    hinges",
@@ -1833,13 +1833,13 @@ test("a match keeps its whole subtree — you asked for the thing", () => {
 })
 
 test("nothing matching is an empty tree rather than the tree it started as", () => {
-  expect(narrowed("house.olai", "nothing-is-called-this")).toEqual([])
+  expect(narrowed("house.org", "nothing-is-called-this")).toEqual([])
 })
 
 test("a mirror is narrowed by the node it SHOWS, wherever it is drawn", () => {
-  // `herbs` lives in garden.olai and is mirrored under `kitchen`. Filtering
-  // house.olai for it keeps the placement, with its ancestor.
-  expect(narrowed("house.olai", "herb")).toEqual([
+  // `herbs` lives in garden.org and is mirrored under `kitchen`. Filtering
+  // house.org for it keeps the placement, with its ancestor.
+  expect(narrowed("house.org", "herb")).toEqual([
     "kitchen",
     "  herbs",
     "    basil",
@@ -1849,7 +1849,7 @@ test("a mirror is narrowed by the node it SHOWS, wherever it is drawn", () => {
 test("the count is of PLACES, which is what a reader counts on the screen", () => {
   const filter = parseFilter("#home", TODAY)
   const matched = new Set(matching(derived, filter).map(({ at }) => at.node.id))
-  const house = keeping(rowsOf(derived, "house.olai"), matched)
+  const house = keeping(rowsOf(derived, "house.org"), matched)
   // `kitchen`, `hinges`, and the mirror of `herbs` under `kitchen` — three
   // rows on screen for two nodes plus a placement.
   expect(matchedIn(house, matched)).toBe(3)
@@ -1878,9 +1878,9 @@ const idsOf = (text: string): ReadonlySet<string> =>
 
 test("a filtered day keeps what matched and nothing as context", () => {
   const tenth = onDay("2026-08-10")
-  expect(listed(tenth)).toEqual(["house.olai/order"])
+  expect(listed(tenth)).toEqual(["house.org/order"])
   expect(listed(keepingDated(tenth, idsOf("cabinets")))).toEqual([
-    "house.olai/order",
+    "house.org/order",
   ])
   // The node's ANCESTORS are not on the day and are not put there by matching
   // one of them: `kitchen` is the crumb above the row, not a row.
@@ -1889,7 +1889,7 @@ test("a filtered day keeps what matched and nothing as context", () => {
 
 test("an outline with nothing left is not a heading over no rows", () => {
   const tenth = onDay("2026-08-10")
-  expect(tenth.map((group) => group.file)).toEqual(["house.olai"])
+  expect(tenth.map((group) => group.file)).toEqual(["house.org"])
   expect(keepingDated(tenth, idsOf("nothing-is-called-this"))).toEqual([])
 })
 
@@ -1931,7 +1931,7 @@ const bestOf = (text: string, limit: number): ReadonlyArray<string> =>
 test("the shortlist is ranked, where the answer it is cut from is not", () => {
   // `the` opens `the herb bed` and is buried in five other titles, so one node
   // outranks the rest by the position bonus alone — and it is not the one the
-  // set lists first (`basil` is, in the file that sorts before `house.olai`).
+  // set lists first (`basil` is, in the file that sorts before `house.org`).
   expect(matching(derived, parseFilter("the", TODAY)).map(({ at }) => at.node.id))
     .toEqual(["herbs", "basil", "demo", "order", "install", "hinges"])
   expect(bestOf("the", 3)).toEqual(["herbs", "order", "install"])
@@ -1972,7 +1972,7 @@ test("a query the grammar refuses, and an empty one, have no shortlist", () => {
 
 test("how many rows a day draws is how many entries it holds, not how many files", () => {
   const third = onDay("2026-08-03")
-  expect(third.map((group) => group.file)).toEqual(["house.olai"])
+  expect(third.map((group) => group.file)).toEqual(["house.org"])
   expect(datedIn(third)).toBe(1)
   expect(datedIn(onDay("2026-08-10"))).toBe(1)
   expect(datedIn([])).toBe(0)
@@ -2113,14 +2113,14 @@ test("no run a needle produces is ever empty, whatever the fold did", () => {
 /** A board that types two keys and leaves a third alone — the shape the live
  *  one is being migrated to (`https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/typed-properties.md`). */
 const BOARD = {
-  "_olai/Properties.olai": [
+  "_olai/Properties.org": [
     `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`,
     `{"id":"prop-dispatched","ord":"a1","title":"dispatched","custom":{"type":"date"}}`,
     `{"id":"prop-merge","ord":"a2","title":"merge","custom":{"type":"ref"}}`,
     `{"id":"auto","parent":"prop-merge","ord":"a0","title":"automatic"}`,
     `{"id":"human","parent":"prop-merge","ord":"a1","title":"the human merges"}`,
   ].join("\n"),
-  "lanes.olai": [
+  "lanes.org": [
     `{"id":"l-189","ord":"a0","title":"the backlinks lane","custom":{"pr":"189","dispatched":"2026-08-19T09:00:00-04:00","merge":"auto"}}`,
     `{"id":"l-193","ord":"a1","title":"the props lane","custom":{"pr":"193","dispatched":"2026-08-25T10:06:00-04:00","merge":"human"}}`,
     `{"id":"l-200","ord":"a2","title":"the chip lane","custom":{"pr":"200","dispatched":"2026-08-21","merge":"auto"}}`,
@@ -2265,11 +2265,11 @@ const GENERATED = Array.from({ length: 120 }, (_, at) => {
 })
 
 const generated = derive(nodesOfFiles({
-  "_olai/Properties.olai": [
+  "_olai/Properties.org": [
     `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`,
     `{"id":"prop-dispatched","ord":"a1","title":"dispatched","custom":{"type":"date"}}`,
   ].join("\n"),
-  "lanes.olai": GENERATED.map((lane, at) =>
+  "lanes.org": GENERATED.map((lane, at) =>
     `{"id":"${lane.id}","ord":"a${at}","title":"lane ${at}","custom":{"pr":"${lane.pr}","dispatched":"${lane.dispatched}"}}`
   ).join("\n"),
 }))

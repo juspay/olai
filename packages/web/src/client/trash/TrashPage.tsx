@@ -1,7 +1,7 @@
 /**
  * The trash: what was put away, kept whole, and the one way back out.
  *
- * This is `_olai/Trash.olai` made visible — every archive under the directory,
+ * This is `_olai/Trash.org` made visible — every archive under the directory,
  * drawn as the tree the archive op wrote: the scaffold of ancestor titles,
  * and the subtrees hanging off it exactly as they left. The web calls it
  * TRASH because that is what it is to a person (Workflowy's word, and the
@@ -28,7 +28,7 @@
  * too.
  *
  * An EMPTY trash is a page that says so, not an error: the archive tool
- * re-creates `_olai/Trash.olai` on first use, so a directory with no archive
+ * re-creates `_olai/Trash.org` on first use, so a directory with no archive
  * file and one whose archives hold nothing are the same fact, and both are
  * drawn the same way — and that is also what takes the **Empty trash** verb
  * off the page, since a control offering to delete nothing teaches a reader

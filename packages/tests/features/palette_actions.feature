@@ -13,7 +13,7 @@ Feature: The ⌘K palette writes
   QUICK CAPTURE is racket's `olai add` — a `+` prefix, a line, Enter — and its
   whole promise is that nothing moves. The page, the scroll and the address
   stay where they were, the line lands in the directory's inbox (minted on
-  first use, at `_olai/Inbox.olai` — where olai puts the files it names
+  first use, at `_olai/Inbox.org` — where olai puts the files it names
   itself), and the box empties for the next one.
 
   `@scratch:` because they write the directory they are served. They share
@@ -21,7 +21,7 @@ Feature: The ⌘K palette writes
   scenarios.
 
   Background:
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     # These scenarios tick rows off and keep reading them, so finished work
     # must stay drawn: the per-page default is hidden now (preferences.feature).
     And I show the done nodes
@@ -71,12 +71,12 @@ Feature: The ⌘K palette writes
     When I press the palette shortcut
     And I press "Enter"
     Then the command palette is open
-    And "house.olai" holds a node marked doing titled "kitchen remodel #home"
+    And "house.org" holds a node marked doing titled "kitchen remodel #home"
     # …and the arrows are the way in: down lands on the first row, which is the
     # first thing this node can take.
     When I press "ArrowDown"
     And I press "Enter"
-    Then "house.olai" holds a node marked todo titled "kitchen remodel #home"
+    Then "house.org" holds a node marked todo titled "kitchen remodel #home"
 
   Scenario: Marking from the palette writes the mark, and the page follows the file
     Given I open the node "handles"
@@ -86,7 +86,7 @@ Feature: The ⌘K palette writes
     When I press the palette shortcut
     And I choose "Mark doing" from the palette
     Then the command palette is closed
-    And "house.olai" holds a node marked doing titled "choose the handles"
+    And "house.org" holds a node marked doing titled "choose the handles"
     And the page has not reloaded
     And there should be no page errors
 
@@ -117,13 +117,13 @@ Feature: The ⌘K palette writes
     When I press the palette shortcut
     And I choose "Complete" from the palette
     Then the palette remarks "every task under `the herb bed by the door` is done now"
-    And "garden.olai" holds a node marked done titled "split the mint"
+    And "garden.org" holds a node marked done titled "split the mint"
 
   Scenario: Clearing a date from the palette removes the field
     Given I open the node "order"
     When I press the palette shortcut
     And I choose "Clear date" from the palette
-    Then "house.olai" holds the node "order" with no date
+    Then "house.org" holds the node "order" with no date
 
   Scenario: The put-away asks first, in the palette's own box
     # The ••• menu's sentence, verbatim — the same blast radius, counted over
@@ -133,7 +133,7 @@ Feature: The ⌘K palette writes
     When I press the palette shortcut
     And I choose "Move to Trash" from the palette
     Then the palette asks "Move “install the cabinets” and the 3 rows under it to the Trash? They keep their ids, and the Trash in the sidebar is where to put them back."
-    And "house.olai" holds a node titled "install the cabinets"
+    And "house.org" holds a node titled "install the cabinets"
 
   Scenario: The question takes the caret, and Tab cycles its two ways out
     # A question nobody's keyboard can reach is a question only a mouse may
@@ -153,7 +153,7 @@ Feature: The ⌘K palette writes
     When I press "Escape"
     Then the palette is not asking anything
     And the command palette is open
-    And "house.olai" holds a node titled "install the cabinets"
+    And "house.org" holds a node titled "install the cabinets"
 
   Scenario: A prefix typed behind the question does not steal its Enter
     # The Switch draws the question above both prefixes because nothing typed
@@ -166,8 +166,8 @@ Feature: The ⌘K palette writes
     And I click the palette box
     And I type "+ oops" into the palette
     And I press "Enter"
-    Then "house.olai" no longer holds the node "install"
-    And "_olai/Inbox.olai" holds exactly 0 nodes titled "oops"
+    Then "house.org" no longer holds the node "install"
+    And "_olai/Inbox.org" holds exactly 0 nodes titled "oops"
 
   Scenario: Cancelling the question writes nothing
     Given I open the node "install"
@@ -176,16 +176,16 @@ Feature: The ⌘K palette writes
     And I choose "Cancel" from the palette
     Then the palette is not asking anything
     And the palette offers "Move to Trash"
-    And "house.olai" holds a node titled "install the cabinets"
+    And "house.org" holds a node titled "install the cabinets"
 
   Scenario: Answering it moves the subtree to the Trash, ids and all
     Given I open the node "install"
     When I press the palette shortcut
     And I choose "Move to Trash" from the palette
     And I choose "Move to Trash" from the palette
-    Then "house.olai" no longer holds the node "install"
-    And "_olai/Trash.olai" holds the node "install"
-    And "_olai/Trash.olai" holds the node "hinges"
+    Then "house.org" no longer holds the node "install"
+    And "_olai/Trash.org" holds the node "install"
+    And "_olai/Trash.org" holds the node "hinges"
     And there should be no page errors
 
   Scenario: ⌘Z takes back an op chosen from the palette
@@ -199,9 +199,9 @@ Feature: The ⌘K palette writes
     # files the inverse, so it is the signal that there is something on the
     # stack. The file can be written a beat before that answer reaches the tab.
     Then the command palette is closed
-    And "house.olai" holds a node marked doing titled "choose the handles"
+    And "house.org" holds a node marked doing titled "choose the handles"
     When I press "ControlOrMeta+z"
-    Then "house.olai" holds the node "handles" with no mark
+    Then "house.org" holds the node "handles" with no mark
 
   # ── quick capture ────────────────────────────────────────────────────
 
@@ -229,14 +229,14 @@ Feature: The ⌘K palette writes
     # the browser composed would be the one claim it may not make.
     #
     # WHERE it is minted reverses a documented ruling (human, 2026-08-20):
-    # `_olai/Inbox.olai`, beside the shelf and the trash, rather than a file at
+    # `_olai/Inbox.org`, beside the shelf and the trash, rather than a file at
     # the top level of somebody else's directory. The remark below is the fence
     # for it — the path travels back on the answer, so a mint that moved and a
     # sentence that did not would be caught here.
     When I press the palette shortcut
     And I capture "buy the walnut stain" from the palette
-    Then "_olai/Inbox.olai" holds a node titled "buy the walnut stain"
-    And the palette remarks "captured “buy the walnut stain” to _olai/Inbox.olai"
+    Then "_olai/Inbox.org" holds a node titled "buy the walnut stain"
+    And the palette remarks "captured “buy the walnut stain” to _olai/Inbox.org"
     And there should be no page errors
 
   Scenario: A second Enter on the first capture is not a second write
@@ -244,7 +244,7 @@ Feature: The ⌘K palette writes
     # the palette, so nothing visible has happened while the round trip is out
     # — which is exactly when a hand repeats the key. Both sends are judged
     # against a reading the first has not landed in yet, so on a directory
-    # with no inbox both resolve to the same `create _olai/Inbox.olai`, the write
+    # with no inbox both resolve to the same `create _olai/Inbox.org`, the write
     # gate re-plans that REQUEST rather than re-resolving the edit, and the
     # second comes back refused in `create_outline`'s own words — over a line
     # that DID land, with the refusal overwriting the remark saying so.
@@ -262,8 +262,8 @@ Feature: The ⌘K palette writes
     When I press the palette shortcut
     And I type "+ buy the walnut stain" into the palette
     And I press "Enter" twice without waiting
-    Then the palette remarks "captured “buy the walnut stain” to _olai/Inbox.olai"
-    And "_olai/Inbox.olai" holds exactly 1 node titled "buy the walnut stain"
+    Then the palette remarks "captured “buy the walnut stain” to _olai/Inbox.org"
+    And "_olai/Inbox.org" holds exactly 1 node titled "buy the walnut stain"
     And there should be no page errors
 
   Scenario: A capture of nothing is refused in the ops layer's own words
@@ -288,17 +288,17 @@ Feature: The ⌘K palette writes
     And the palette box holds "+ "
     And the address is "/#install"
     When I capture "and a tin of oil" from the palette
-    Then "_olai/Inbox.olai" holds a node titled "and a tin of oil"
-    And "_olai/Inbox.olai" holds a node titled "buy the walnut stain"
+    Then "_olai/Inbox.org" holds a node titled "and a tin of oil"
+    And "_olai/Inbox.org" holds a node titled "buy the walnut stain"
     When I close the palette
     Then the zoomed node is "install"
 
   Scenario: A second capture goes into the inbox that now exists
     When I press the palette shortcut
     And I capture "buy the walnut stain" from the palette
-    Then "_olai/Inbox.olai" holds a node titled "buy the walnut stain"
+    Then "_olai/Inbox.org" holds a node titled "buy the walnut stain"
     When I capture "and a tin of oil" from the palette
-    Then "_olai/Inbox.olai" holds a node titled "and a tin of oil"
+    Then "_olai/Inbox.org" holds a node titled "and a tin of oil"
     And there should be no page errors
 
   Scenario: ⌘Z takes back a capture
@@ -306,10 +306,10 @@ Feature: The ⌘K palette writes
     And I capture "buy the walnut stain" from the palette
     # The palette's own line rather than the disk, for the reason the op
     # scenario gives: it is said in the answer that files the inverse.
-    Then the palette remarks "captured “buy the walnut stain” to _olai/Inbox.olai"
-    And "_olai/Inbox.olai" holds a node titled "buy the walnut stain"
+    Then the palette remarks "captured “buy the walnut stain” to _olai/Inbox.org"
+    And "_olai/Inbox.org" holds a node titled "buy the walnut stain"
     # The palette first: ⌘Z is dead while the box has the caret, because an
     # input has the platform's own undo in it — the same rule a draft follows.
     When I close the palette
     And I press "ControlOrMeta+z"
-    Then "_olai/Inbox.olai" no longer holds a node titled "buy the walnut stain"
+    Then "_olai/Inbox.org" no longer holds a node titled "buy the walnut stain"

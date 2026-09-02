@@ -122,7 +122,7 @@ const SCOPED = scoping([{
   agent: "opencode",
   session: "sess-1",
   plugin: KOLU,
-  file: "Fleet.olai",
+  file: "Fleet.org",
 }])
 
 /** The machine-marked rows, in the order the transcript holds them. */
@@ -206,9 +206,9 @@ describe("an agent mid-turn", () => {
       expect(rung(chat)).toEqual([])
       // ... and the strip says one is waiting, because the alternative to
       // holding words out of sight is not dropping them, it is showing them.
-      expect(chat.state().wake).toEqual([{ name: KOLU, file: "Fleet.olai", waiting: 1, fault: null }])
+      expect(chat.state().wake).toEqual([{ name: KOLU, file: "Fleet.org", waiting: 1, fault: null }])
       await until("the turn boundary to let it in", () => rung(chat).length === 1)
-      expect(chat.state().wake).toEqual([{ name: KOLU, file: "Fleet.olai", waiting: 0, fault: null }])
+      expect(chat.state().wake).toEqual([{ name: KOLU, file: "Fleet.org", waiting: 0, fault: null }])
     })
   }, 20_000)
 
@@ -462,7 +462,7 @@ const movable = (): Scopes => {
     agent: "opencode",
     session: "sess-1",
     plugin: KOLU,
-    file: "Fleet.olai",
+    file: "Fleet.org",
   }]
   return {
     rows: () => rows,
@@ -503,7 +503,7 @@ describe("a doorbell somebody turned off", () => {
     await closing(chat, async () => {
       await holding(chat)
       await run(chat.doorFor(KOLU).deliver(open(chat), () => RANG))
-      expect(chat.state().wake).toEqual([{ name: KOLU, file: "Fleet.olai", waiting: 1, fault: null }])
+      expect(chat.state().wake).toEqual([{ name: KOLU, file: "Fleet.org", waiting: 1, fault: null }])
       // The gesture, made on seeing that count — the clear and the count are
       // drawn on one line, so this is the ordinary way to press it and not a
       // contrived race.
@@ -541,8 +541,8 @@ describe("a doorbell somebody turned off", () => {
       // names the file it was derived from, so it would land under a control
       // saying it watches a different one — and the plugin does not re-derive
       // it, because the terminals it named need not be claimed in the new file.
-      await run(chat.scope(open(chat), KOLU, "Other.olai"))
-      expect(chat.state().wake).toEqual([{ name: KOLU, file: "Other.olai", waiting: 0, fault: null }])
+      await run(chat.scope(open(chat), KOLU, "Other.org"))
+      expect(chat.state().wake).toEqual([{ name: KOLU, file: "Other.org", waiting: 0, fault: null }])
       await run(chat.send("say:done", [], []))
       await until("the second turn to finish", () => chat.state().status === "idle")
       expect(rung(chat)).toEqual([])
@@ -562,7 +562,7 @@ describe("a doorbell somebody turned off", () => {
     }
     const chat = await panel({ scoping: refusing })
     await closing(chat, async () => {
-      const outcome = await Effect.runPromise(Effect.result(chat.scope(open(chat), KOLU, "Fleet.olai")))
+      const outcome = await Effect.runPromise(Effect.result(chat.scope(open(chat), KOLU, "Fleet.org")))
       expect(outcome._tag).toBe("Failure")
       expect(rows).toEqual([])
       expect(chat.state().wake).toEqual([])
@@ -633,12 +633,12 @@ describe("a doorbell that is not watching what it names", () => {
   /** Everything is where it was and readable. The answer on every revision but
    *  two. */
   const ALL_WELL = () => null
-  /** ... and the rename: `Fleet.olai` is gone and nothing else is. */
+  /** ... and the rename: `Fleet.org` is gone and nothing else is. */
   const RENAMED = (_plugin: string, file: string): "gone" | null =>
-    file === "Fleet.olai" ? "gone" : null
+    file === "Fleet.org" ? "gone" : null
   /** ... and the pick that was never watchable in the first place. */
   const WRONG_KIND = (_plugin: string, file: string): "unwatchable" | null =>
-    file === "Fleet.olai" ? "unwatchable" : null
+    file === "Fleet.org" ? "unwatchable" : null
 
   test("the conversation is told once, and a second revision says nothing more", async () => {
     const chat = await panel({ scoping: movable() })
@@ -646,7 +646,7 @@ describe("a doorbell that is not watching what it names", () => {
       // Nothing has broken yet, so nothing is answered and the row is whole.
       expect(await run(chat.faults(ALL_WELL, TELLABLE))).toEqual([])
       expect(chat.state().wake).toEqual([
-        { name: KOLU, file: "Fleet.olai", waiting: 0, fault: null },
+        { name: KOLU, file: "Fleet.org", waiting: 0, fault: null },
       ])
 
       // THE EDGE. What comes back is the row AND the cause, for the caller to
@@ -654,7 +654,7 @@ describe("a doorbell that is not watching what it names", () => {
       // nothing and chooses nothing.
       const fell = await run(chat.faults(RENAMED, TELLABLE))
       expect(fell.map((row) => ({ plugin: row.plugin, file: row.file, fault: row.fault })))
-        .toEqual([{ plugin: KOLU, file: "Fleet.olai", fault: "gone" }])
+        .toEqual([{ plugin: KOLU, file: "Fleet.org", fault: "gone" }])
 
       // ... and every revision after it, with the file still missing, answers
       // with nothing. This is the whole of "once": a rename is one sentence,
@@ -671,7 +671,7 @@ describe("a doorbell that is not watching what it names", () => {
       // The file is still named — that is what somebody has to recognise to
       // know which one went — and the row now says it is broken beside it.
       expect(chat.state().wake).toEqual([
-        { name: KOLU, file: "Fleet.olai", waiting: 0, fault: "gone" },
+        { name: KOLU, file: "Fleet.org", waiting: 0, fault: "gone" },
       ])
     })
   }, 20_000)
@@ -680,7 +680,7 @@ describe("a doorbell that is not watching what it names", () => {
     const chat = await panel({ scoping: movable() })
     await closing(chat, async () => {
       expect(chat.doorFor(KOLU).scopes()).toEqual([
-        { agent: "opencode", session: "sess-1", file: "Fleet.olai" },
+        { agent: "opencode", session: "sess-1", file: "Fleet.org" },
       ])
       await run(chat.faults(RENAMED, TELLABLE))
       // THE BOUNDARY BETWEEN THE TWO SIGNALS, kept by construction. There is
@@ -704,10 +704,10 @@ describe("a doorbell that is not watching what it names", () => {
       // control shows rather than a thing worth interrupting somebody for.
       expect(await run(chat.faults(ALL_WELL, TELLABLE))).toEqual([])
       expect(chat.doorFor(KOLU).scopes()).toEqual([
-        { agent: "opencode", session: "sess-1", file: "Fleet.olai" },
+        { agent: "opencode", session: "sess-1", file: "Fleet.org" },
       ])
       expect(chat.state().wake).toEqual([
-        { name: KOLU, file: "Fleet.olai", waiting: 0, fault: null },
+        { name: KOLU, file: "Fleet.org", waiting: 0, fault: null },
       ])
 
       // ... and it can break a second time, which is a second thing that
@@ -724,7 +724,7 @@ describe("a doorbell that is not watching what it names", () => {
       agent: "opencode",
       session: "sess-1",
       plugin: KOLU,
-      file: "Fleet.olai",
+      file: "Fleet.org",
     }]
     const refusing: Scopes = {
       rows: () => rows,
@@ -736,7 +736,7 @@ describe("a doorbell that is not watching what it names", () => {
       expect(await run(chat.faults(RENAMED, TELLABLE))).toEqual([])
       expect(rows[0]?.fault).toBeUndefined()
       expect(chat.state().wake).toEqual([
-        { name: KOLU, file: "Fleet.olai", waiting: 0, fault: null },
+        { name: KOLU, file: "Fleet.org", waiting: 0, fault: null },
       ])
     })
   }, 20_000)
@@ -752,7 +752,7 @@ describe("a doorbell that is not watching what it names", () => {
       expect(fell.map((row) => row.fault)).toEqual(["unwatchable"])
       // The strip carries the CAUSE, because the two lines it draws differ.
       expect(chat.state().wake).toEqual([
-        { name: KOLU, file: "Fleet.olai", waiting: 0, fault: "unwatchable" },
+        { name: KOLU, file: "Fleet.org", waiting: 0, fault: "unwatchable" },
       ])
       // ... and the door is empty, which is what keeps a heartbeat from
       // reporting a live watch over a conversation watching nothing.

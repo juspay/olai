@@ -24,7 +24,7 @@
  * that — and `brief` and `worktree`, both `path`, were indistinguishable to
  * anything that wanted to tell two keys apart. The key is found by DECLARED
  * KIND now (`@olai/format`'s `textDeclaredAs`): a row in
- * `_olai/Properties.olai` saying `{"title":"terminal","custom":{"type":"kolu-terminal"}}`
+ * `_olai/Properties.org` saying `{"title":"terminal","custom":{"type":"kolu-terminal"}}`
  * is what makes the door on that key, and a column called `pty` carrying that
  * same declaration gets it too.
  *

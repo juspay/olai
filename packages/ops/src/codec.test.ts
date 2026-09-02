@@ -13,11 +13,12 @@
  * and once from nothing, and asserts the two are the same reading.
  */
 
-import type { Document, OutlineError, Reading } from "@olai/format"
+import type { Document, Node, OutlineError, Reading } from "@olai/format"
 import {
   markdownIn,
   NO_KINDS,
   outlinePaths,
+  serializeOutline,
   type Verdict,
 } from "@olai/format"
 import { expect, test } from "bun:test"
@@ -38,9 +39,17 @@ const decoded = (
   new Map(
     Object.entries(files).map(([path, contents]) => [
       path,
-      codec.byName?.(path) ?? codec.decode(path, contents),
+      codec.byName?.(path) ?? codec.decode(path, fixtureOrg(path, contents)),
     ]),
   )
+
+const fixtureOrg = (path: string, contents: string): string => {
+  if (!path.endsWith(".org")) return contents
+  return serializeOutline(
+    contents.split("\n").filter((line) => line.trim() !== "")
+      .map((line) => JSON.parse(line) as Node),
+  )
+}
 
 /** A verdict that must be one, so a test that mis-writes a fixture hears which
  *  rule refused it rather than a type error three lines later. */
@@ -97,7 +106,10 @@ const bothWays = (
   const files = new Map(held)
   for (const path of moved.removed) files.delete(path)
   for (const path of moved.changed) {
-    files.set(path, codec.byName?.(path) ?? codec.decode(path, after[path] as string))
+    files.set(
+      path,
+      codec.byName?.(path) ?? codec.decode(path, fixtureOrg(path, after[path] as string)),
+    )
   }
   // The fixture's own claim, checked: the two lists really are the difference
   // between the two directories.
@@ -111,9 +123,9 @@ const bothWays = (
 }
 
 const KITCHEN: Files = {
-  "kitchen.olai": `{"id":"cook","ord":"a","title":"cook dinner","todo":true}\n` +
+  "kitchen.org": `{"id":"cook","ord":"a","title":"cook dinner","todo":true}\n` +
     `{"id":"shop","ord":"b","title":"shop","after":["cook"],"todo":true}`,
-  "notes/plan.olai": `{"id":"plan","ord":"a","title":"the plan","see":["cook"]}\n` +
+  "notes/plan.org": `{"id":"plan","ord":"a","title":"the plan","see":["cook"]}\n` +
     `{"id":"here","ord":"b","parent":"plan","mirror":"cook"}`,
   "notes/plan.md": "# the plan\n",
 }
@@ -121,8 +133,8 @@ const KITCHEN: Files = {
 test("an edited outline is patched onto the last verdict", () => {
   const done = `{"id":"cook","ord":"a","title":"cook dinner","done":true}\n` +
     `{"id":"shop","ord":"b","title":"shop","after":["cook"],"todo":true}`
-  const reading = bothWays(KITCHEN, { ...KITCHEN, "kitchen.olai": done }, {
-    changed: ["kitchen.olai"],
+  const reading = bothWays(KITCHEN, { ...KITCHEN, "kitchen.org": done }, {
+    changed: ["kitchen.org"],
     removed: [],
   })
   // The placement in the other file says what its target says, and what was
@@ -134,17 +146,17 @@ test("an edited outline is patched onto the last verdict", () => {
 })
 
 test("an outline that arrives is patched in, in path order", () => {
-  const arriving = { ...KITCHEN, "beside.olai": `{"id":"new","ord":"a","title":"new"}` }
-  const reading = bothWays(KITCHEN, arriving, { changed: ["beside.olai"], removed: [] })
+  const arriving = { ...KITCHEN, "beside.org": `{"id":"new","ord":"a","title":"new"}` }
+  const reading = bothWays(KITCHEN, arriving, { changed: ["beside.org"], removed: [] })
   expect(outlinePaths(reading.set))
-    .toEqual(["beside.olai", "kitchen.olai", "notes/plan.olai"])
+    .toEqual(["beside.org", "kitchen.org", "notes/plan.org"])
   expect(reading.derived.nodes.map((at) => at.node.id))
     .toEqual(["new", "cook", "shop", "plan", "here"])
 })
 
 test("an outline that goes away takes its records out of the indexes", () => {
-  const { "notes/plan.olai": _gone, ...left } = KITCHEN
-  const reading = bothWays(KITCHEN, left, { changed: [], removed: ["notes/plan.olai"] })
+  const { "notes/plan.org": _gone, ...left } = KITCHEN
+  const reading = bothWays(KITCHEN, left, { changed: [], removed: ["notes/plan.org"] })
   expect(reading.derived.mirrorsOf.has("cook")).toBe(false)
   // What still names it is what is left naming it: the `see` and the placement
   // went with the file, and the edge in the file that stayed did not.
@@ -169,9 +181,9 @@ test("a file deleted and written back in one breath is what the upsert says", ()
   // other way around.
   const rewritten = `{"id":"cook","ord":"a","title":"cook something else","todo":true}\n` +
     `{"id":"shop","ord":"b","title":"shop","after":["cook"],"todo":true}`
-  const reading = bothWays(KITCHEN, { ...KITCHEN, "kitchen.olai": rewritten }, {
-    changed: ["kitchen.olai"],
-    removed: ["kitchen.olai"],
+  const reading = bothWays(KITCHEN, { ...KITCHEN, "kitchen.org": rewritten }, {
+    changed: ["kitchen.org"],
+    removed: ["kitchen.org"],
   })
   expect(reading.derived.byId.get("cook")?.node).toMatchObject({ title: "cook something else" })
 })

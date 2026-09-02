@@ -33,7 +33,7 @@ Feature: What git is doing is on screen, in ONE indicator
   corpus server is already the serve it is about.
 
   Background:
-    Given I open the outline "garden.olai"
+    Given I open the outline "garden.org"
     # The write some of these watch land is a DONE mark (`mint`), and the row
     # must stay drawn to be seen wearing it.
     And I show the done nodes

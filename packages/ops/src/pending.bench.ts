@@ -88,7 +88,7 @@ const body = (which: number, edit: number): string =>
 
 const corpus = (): Record<string, string> =>
   Object.fromEntries(
-    Array.from({ length: FILES }, (_, which) => [`file${which}.olai`, body(which, 0)] as const),
+    Array.from({ length: FILES }, (_, which) => [`file${which}.org`, body(which, 0)] as const),
   )
 
 /** One arm over one row: what each keystroke took, and what it spawned. */
@@ -117,7 +117,7 @@ const row = (dirty: number): Promise<{ readonly before: Arm; readonly after: Arm
       // that would be timing the one revision this change does not claim to
       // make cheaper.
       for (let which = 0; which < dirty; which++) {
-        session.write(`file${which}.olai`, body(which, 1))
+        session.write(`file${which}.org`, body(which, 1))
       }
       yield* arms.settle
       yield* cached.status
@@ -130,7 +130,7 @@ const row = (dirty: number): Promise<{ readonly before: Arm; readonly after: Arm
 
       for (let round = 0; round < ROUNDS; round++) {
         // ONE KEYSTROKE: one file that is already waiting, edited again.
-        session.write("file0.olai", body(0, round + 2))
+        session.write("file0.org", body(0, round + 2))
         yield* arms.settle
         arms.reset()
 

@@ -7,7 +7,7 @@ Feature: See the outline
   and the view has to work out that it is `doing` from its three children.
 
   Background:
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     # These scenarios read the WHOLE tree — where a row sits, what its subtree
     # derives, a mirror's children — so they ask the page to show its
     # finished rows rather than leave the pick at its per-page default.
@@ -50,8 +50,8 @@ Feature: See the outline
     And the page has not reloaded
 
   Scenario: A mirror shows its target's subtree, inline and marked
-    # `kitchen-herbs` lives in house.olai and points at `herbs` in
-    # garden.olai — the one relation that crosses files.
+    # `kitchen-herbs` lives in house.org and points at `herbs` in
+    # garden.org — the one relation that crosses files.
     Then the node "kitchen-herbs" is marked as a mirror
     And the node "basil" is a child of "kitchen-herbs"
     And the node "mint" is a child of "kitchen-herbs"

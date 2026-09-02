@@ -91,7 +91,7 @@ export const sameInboxHeld: (a: InboxHeld, b: InboxHeld) => boolean =
  * THE FILE is found the way the capture is (`inboxIn` over
  * {@link outlinePaths}), not over `derived.byFile`. `byFile` is a grouping of
  * parsed records: an empty outline and a torn one have no entry, so a
- * shallowest empty `Inbox.olai` beside a populated `_olai/Inbox.olai` would
+ * shallowest empty `Inbox.org` beside a populated `_olai/Inbox.org` would
  * send the door and every future capture to the empty file and the count to
  * the deeper one. The set's paths are the list capture already walks.
  *
@@ -177,12 +177,12 @@ export type Capturing = Omit<Capture, "after" | "mark">
  * a capture that is refused leaves nothing behind, not a half-filled inbox and
  * not an empty file.
  *
- * WHERE ONE IS MINTED is `_olai/Inbox.olai` and not the root ({@link
+ * WHERE ONE IS MINTED is `_olai/Inbox.org` and not the root ({@link
  * mintedInto}, human 2026-08-20, reversing the ruling of the day before): the
  * shelf's argument read one convention over — a file olai made because
  * somebody pressed something is not one of the reader's own. The READING is
- * untouched, so a directory that already keeps an `Inbox.olai` at its root, or
- * a `notes/inbox.olai`, goes on capturing into the file it has and nothing
+ * untouched, so a directory that already keeps an `Inbox.org` at its root, or
+ * a `notes/inbox.org`, goes on capturing into the file it has and nothing
  * migrates.
  *
  * NOTHING IS VALIDATED HERE. A blank title, a date that is not a date, a

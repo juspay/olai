@@ -2,7 +2,7 @@
  * An outline the agent rewrote with its own tools — drawn as nodes, never as
  * lines.
  *
- * The sibling of {@link ./Diff.tsx} and the reason it has one: a `.olai` is one
+ * The sibling of {@link ./Diff.tsx} and the reason it has one: a `.org` is one
  * line per node, so a text diff of it is a single enormous line with everything
  * on it changing at once. That is the Commit panel's oldest rule, and until this
  * drew, it held for olai's own writes and not for a file — an agent's `Edit`

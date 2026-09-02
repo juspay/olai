@@ -22,7 +22,7 @@ Feature: The fourth mark — "not happening" is a stored fact
   copy per worker (`@share-scratch`); the corpus is restored between scenarios.
 
   Background:
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     # These scenarios tick rows off and keep reading them, so finished work
     # must stay drawn: the per-page default is hidden now (preferences.feature).
     And I show the done nodes
@@ -39,7 +39,7 @@ Feature: The fourth mark — "not happening" is a stored fact
     # The BOX is where the two settling marks are told apart…
     And the node "knobs" shows a crossed checkbox
     # And it is on disk, under the mark's own name.
-    And "house.olai" holds a node marked cancelled titled "pick the knobs"
+    And "house.org" holds a node marked cancelled titled "pick the knobs"
     # …and the STRIKE is what they share: nobody is waiting on this line. Read
     # off the title the page draws, so the caret is put away first — a row
     # being typed in has an input where its title is.

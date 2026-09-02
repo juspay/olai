@@ -125,7 +125,7 @@ Given(
     await link.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     await link.click();
     // A ROW OF THIS FILE, not any outline-tree. `/` is the first outline
-    // (`Daily/2026-08.olai` in the good corpus); createReading HOLDS that
+    // (`Daily/2026-08.org` in the good corpus); createReading HOLDS that
     // tree while the named outline is in flight, so waiting for the
     // container matches the previous page. One rAF is vsync, not the swap
     // — darwin + parallel workers loses that window (#445's row-jump), and
@@ -296,7 +296,7 @@ Then(
 // (`client/file/icons.tsx`). Asserted on `data-glyph` rather than on the
 // drawing, because which shape is right for an outline is a design question
 // and "there is one, and it is the outline's" is the promise. The extension is
-// deliberately not the assertion either: `.olai` in the label is the thing
+// deliberately not the assertion either: `.org` in the label is the thing
 // that was carrying this on its own and the reason the mark was filed.
 //
 // EIGHT rows are asserted and not every row on screen, which a reviewer asked

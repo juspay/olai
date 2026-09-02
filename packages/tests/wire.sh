@@ -47,7 +47,7 @@ mkdir -p "$work/vault"
 # One outline, so the app has a tree to draw and the session is an ordinary one
 # rather than a directory with nothing in it. The measured files are the
 # driver's own.
-printf '{"id":"house","ord":"a0","title":"house"}\n' > "$work/vault/house.olai"
+printf '{"id":"house","ord":"a0","title":"house"}\n' > "$work/vault/house.org"
 
 olai_serve "$root" "$work/vault" "$work/server.log"
 trap 'kill "$OLAI_SERVER" 2>/dev/null || true; rm -rf "$work"' EXIT

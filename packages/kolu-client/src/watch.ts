@@ -53,7 +53,7 @@
  *
  * ## What is deliberately not computed here
  *
- * The KNOB reading. `_olai/Kolu.olai` is outline records, and this package
+ * The KNOB reading. `_olai/Kolu.org` is outline records, and this package
  * has no business knowing what one is (`./index.ts`'s header): the server
  * walks the vault (`@olai/server`'s `koluConfig.ts`, beside `claimants.ts`)
  * and hands over the derived config — malformed values already defaulted
@@ -100,7 +100,7 @@ export interface WatchConfig {
   readonly heartbeatMs: number
 }
 
-/** The knobs when `_olai/Kolu.olai` is absent, torn or quiet — the brief's
+/** The knobs when `_olai/Kolu.org` is absent, torn or quiet — the brief's
  *  own numbers, one constant, not three defaults remembered in two places. */
 export const DEFAULT_WATCH: WatchConfig = {
   heldForMs: 60_000,
@@ -242,7 +242,7 @@ export const makeWatch = (
   options: { readonly now: () => number },
 ): Watch => {
   /** The knob set in force. Defaults until the vault's walk reconfigures —
-   *  which is also what an absent `_olai/Kolu.olai` reconfigures TO. */
+   *  which is also what an absent `_olai/Kolu.org` reconfigures TO. */
   let config: WatchConfig = DEFAULT_WATCH
   /** The holds, keyed by fleet id. */
   const holds = new Map<string, Hold>()

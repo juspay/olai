@@ -1,10 +1,10 @@
 /**
  * Phase one of the codec: one file's bytes into located records.
  *
- * There is no parser to write. A line is `JSON.parse`d and handed to the
- * record schema; what comes back is either a node or an error naming the line
- * it came from. The seam is "parse per line, validate the set": everything
- * checkable from a SINGLE line is checked here — shape, id spelling, ISO
+ * Org2 parses one file into headings and property drawers, then each heading
+ * is handed to the existing record schema. The seam remains "decode per file,
+ * validate the set": everything checkable from a SINGLE heading is checked
+ * here — shape, id spelling, ISO
  * dates, at most one mark — and everything that needs to know what
  * else exists is {@link ./validate.ts}. That is what lets the store re-decode
  * one changed file and keep its neighbours' results, and it is why
@@ -20,6 +20,11 @@
  * a screen of cascading errors with one real cause.
  */
 
+import {
+  type Org2AstNode,
+  type Org2Property,
+  parseOrgWithDiagnostics,
+} from "./org2-parser.ts"
 import { Result, Schema } from "effect"
 import * as SchemaIssue from "effect/SchemaIssue"
 
@@ -34,6 +39,7 @@ import {
   type Node,
   RegularNode,
 } from "./node.ts"
+import { FIELD_PROPERTIES, KIND_PROPERTY, KNOWN_PROPERTIES } from "./org2.ts"
 import { canonicalRepeat, REPEAT_GRAMMAR } from "./repeat.ts"
 
 const options = {
@@ -60,11 +66,6 @@ const decodeRecord = (
 
 const formatIssue = SchemaIssue.makeFormatterStandardSchemaV1()
 
-/** Readers tolerate blank lines (writers never emit them), so a blank line is
- *  skipped rather than reported — but the line counter does not skip, because
- *  `file:line` has to match what an editor shows. */
-const isBlank = (text: string): boolean => text.trim() === ""
-
 export const parseOutline = (
   file: string,
   contents: string,
@@ -72,19 +73,79 @@ export const parseOutline = (
   const nodes: Array<Located> = []
   const errors: Array<OutlineError> = []
 
-  contents.split("\n").forEach((text, index) => {
-    const line = index + 1
-    if (isBlank(text)) return
+  const parsed = parseOrgWithDiagnostics(contents, { sourceRanges: true })
+  for (const diagnostic of parsed.diagnostics) {
+    errors.push({
+      code: "bad-record",
+      file,
+      line: diagnostic.line,
+      message: `Org2 could not parse this outline at column ${diagnostic.column}: ${diagnostic.message}`,
+    })
+  }
 
-    const record = readRecord(file, line, text)
-    if (Result.isFailure(record)) {
-      errors.push(...record.failure)
-      return
+  for (const child of parsed.ast.children) {
+    if (child.type === "Headline") continue
+    errors.push({
+      code: "bad-record",
+      file,
+      line: child.sourceRange?.startLine ?? 1,
+      message:
+        "an OLAI outline contains headings only; document-level Org content would be lost on the next OLAI write",
+    })
+  }
+
+  /**
+   * A heading is one OLAI record. Parentage is the Org hierarchy unless the
+   * explicit OLAI_PARENT property is present. The explicit arm is what lets a
+   * broken or half-edited file remain representable long enough for OLAI's
+   * whole-set validator to name the real problem instead of the serializer
+   * silently repairing it.
+   */
+  const visit = (children: ReadonlyArray<Org2AstNode>, structuralParent?: string): void => {
+    for (const child of children) {
+      if (child.type !== "Headline") continue
+
+      const line = child.sourceRange?.startLine ?? 1
+      const drawers = (child.children ?? []).filter((one) => one.type === "PropertyDrawer")
+      if (drawers.length !== 1) {
+        errors.push({
+          code: "bad-record",
+          file,
+          line,
+          message: `every OLAI heading needs exactly one property drawer; this one has ${drawers.length}`,
+        })
+      }
+
+      const properties = drawers[0]?.properties ?? []
+      const record = recordFromProperties(file, line, properties, structuralParent)
+      let parentForChildren = structuralParent
+      if (Result.isFailure(record)) {
+        errors.push(...record.failure)
+      } else {
+        const located: Located = { file, line, node: record.success }
+        errors.push(...checkRecord(located))
+        nodes.push(located)
+        parentForChildren = record.success.id
+      }
+
+      const unexpected = (child.children ?? []).filter(
+        (one) => one.type !== "PropertyDrawer" && one.type !== "Headline",
+      )
+      for (const one of unexpected) {
+        errors.push({
+          code: "bad-record",
+          file,
+          line: one.sourceRange?.startLine ?? line,
+          message:
+            "OLAI heading bodies are encoded in OLAI_DESC; free-standing Org content would be lost on the next OLAI write",
+        })
+      }
+
+      visit(child.children ?? [], parentForChildren)
     }
-    const located: Located = { file, line, node: record.success }
-    errors.push(...checkRecord(located))
-    nodes.push(located)
-  })
+  }
+
+  visit(parsed.ast.children)
 
   // The FACE is built here rather than at the assembly, which is the whole of
   // where PR 2 put that walk: a decode is what the store caches per file per
@@ -96,41 +157,82 @@ export const parseOutline = (
     : Result.succeed(outlineDocument(file, nodes))
 }
 
-/** JSON, then shape. */
-const readRecord = (
+/** One drawer back into the record the schema already judges. Values use JSON
+ * so arbitrary Markdown, newlines, arrays and custom maps remain exact while
+ * each Org property stays one physical line. */
+const recordFromProperties = (
   file: string,
   line: number,
-  text: string,
+  properties: ReadonlyArray<Org2Property>,
+  structuralParent?: string,
 ): Result.Result<Node, ReadonlyArray<OutlineError>> => {
-  let json: unknown
-  try {
-    json = JSON.parse(text)
-  } catch (cause) {
-    return Result.fail([
-      {
-        code: "not-json",
+  const errors: Array<OutlineError> = []
+  const values = new Map<string, string>()
+  for (const property of properties) {
+    if (values.has(property.key)) {
+      errors.push({
+        code: "bad-record",
         file,
         line,
-        message: `this line is not JSON: ${cause instanceof Error ? cause.message : String(cause)}`,
-      },
-    ])
-  }
-
-  // `JSON.parse` is happy with `3`, `"x"` and `[…]`. Saying which of those it
-  // got beats the schema's "Expected object" for the paste-a-JSON-array
-  // mistake, which is the one people actually make.
-  if (json === null || typeof json !== "object" || Array.isArray(json)) {
-    return Result.fail([
-      {
-        code: "not-an-object",
+        message: `property \`${property.key}\` appears more than once`,
+      })
+      continue
+    }
+    values.set(property.key, property.value)
+    if (!KNOWN_PROPERTIES.has(property.key)) {
+      errors.push({
+        code: "bad-record",
         file,
         line,
-        message: `every line is one node, written as a JSON object; this line is ${describe(json)}`,
-      },
-    ])
+        message:
+          `property \`${property.key}\` is not an OLAI record field; use OLAI_CUSTOM for application properties`,
+      })
+    }
   }
 
-  const decoded = decodeRecord(json as Record<string, unknown>)
+  const id = values.get("ID")
+  if (id === undefined || id === "") {
+    errors.push({ code: "bad-record", file, line, message: "property `ID` is required" })
+  }
+
+  const kind = values.get(KIND_PROPERTY)
+  if (kind !== "regular" && kind !== "mirror") {
+    errors.push({
+      code: "bad-record",
+      file,
+      line,
+      message: "property `OLAI_KIND` must be `regular` or `mirror`",
+    })
+  }
+
+  const json: Record<string, unknown> = { id }
+  for (const [field, property] of Object.entries(FIELD_PROPERTIES)) {
+    const raw = values.get(property)
+    if (raw === undefined) continue
+    try {
+      json[field] = JSON.parse(raw)
+    } catch (cause) {
+      errors.push({
+        code: "bad-record",
+        file,
+        line,
+        message:
+          `property \`${property}\` is not valid JSON: ${cause instanceof Error ? cause.message : String(cause)}`,
+      })
+    }
+  }
+  if (!("parent" in json) && structuralParent !== undefined) json["parent"] = structuralParent
+
+  if (kind === "regular" && !("title" in json)) {
+    errors.push({ code: "bad-record", file, line, message: "property `OLAI_TITLE` is required" })
+  }
+  if (kind === "mirror" && !("mirror" in json)) {
+    errors.push({ code: "bad-record", file, line, message: "property `OLAI_MIRROR` is required" })
+  }
+
+  if (errors.length > 0) return Result.fail(errors)
+
+  const decoded = decodeRecord(json)
   return Result.isFailure(decoded)
     ? Result.fail(
       formatIssue(decoded.failure.issue).issues.map((issue) => ({
@@ -263,9 +365,6 @@ export const isIsoInstant = (value: string): boolean => {
  *  spelling, added. */
 const isIsoDatetime = (value: string): boolean =>
   /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/.test(value)
-
-const describe = (json: unknown): string =>
-  json === null ? "null" : Array.isArray(json) ? "an array" : `a ${typeof json}`
 
 /** The schema's issue, re-said as a sentence about a field. Its own wording
  *  ("Expected string", "Missing key") is accurate but headless; the field name

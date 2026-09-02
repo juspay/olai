@@ -5,7 +5,7 @@
  * It is a file page and not a page of its own — unlike the Trash — so these
  * steps assert on the ADDRESS it lands at rather than on a view: whichever
  * outline the directory's inbox is, the door has to open that one, and a
- * vault keeping its own `notes/inbox.olai` is exactly where a composed path
+ * vault keeping its own `notes/inbox.org` is exactly where a composed path
  * would be wrong.
  */
 
@@ -51,7 +51,7 @@ Then("the sidebar offers no Inbox", async function (this: OlaiWorld) {
 /** The ⚠ ON THE DOOR, and deliberately not on a tree row.
  *
  *  With the hiding rule in force this entry is the ONLY way in to
- *  `_olai/Inbox.olai` — the tree does not draw it — so the mark every
+ *  `_olai/Inbox.org` — the tree does not draw it — so the mark every
  *  unreadable outline gets has to be here. A step that read
  *  `OUTLINE_LINK[data-broken="true"]` (`live_steps.ts`) would be asking about
  *  a row this scenario has no reason to expect, and would stay green with the

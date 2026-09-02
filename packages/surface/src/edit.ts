@@ -544,7 +544,7 @@ export const Edit = Schema.Union([
   /**
    * Put a node and everything under it away — `trash_node`, from the menu.
    *
-   * A TRASH, not a shredder: the subtree moves to `_olai/Trash.olai` under a
+   * A TRASH, not a shredder: the subtree moves to `_olai/Trash.org` under a
    * scaffold of its ancestors' titles, keeping every id, so a mirror, an
    * `after` or a `see` that named any of it goes on resolving. It is one op —
    * the subtree is the op's unit, not this verb's arithmetic — and the fence
@@ -763,7 +763,7 @@ export const Edit = Schema.Union([
    *
    * WHERE IT LANDS IS THE SERVER'S, exactly as `docDay`'s path is and for the
    * same argument: the inbox is a fact about the SET — the outline named
-   * `Inbox.olai`, if the directory has one — so it is read against the
+   * `Inbox.org`, if the directory has one — so it is read against the
    * reading the write is judged on rather than in a tab holding a file list
    * some frames old. That is also what makes this ONE op rather than a
    * sequence: an existing inbox takes an `add`, a directory with none takes a
@@ -786,7 +786,7 @@ export const Edit = Schema.Union([
    * It carries an ADDRESS and nothing else, and that is the whole design
    * argument. A pin is not a placement of a node — a mirror already means
    * "draw it here too", and a shelf that drew every pinned node's subtree
-   * inside `Pins.olai` would be saying something nobody meant — and it is not
+   * inside `Pins.org` would be saying something nobody meant — and it is not
    * a field on a record either, because half the things worth pinning (the
    * agenda, a day, a filtered outline) are not nodes at all. What every one of
    * them IS is an address, this app already has exactly one spelling of those
@@ -798,7 +798,7 @@ export const Edit = Schema.Union([
    *
    * WHERE IT LANDS IS THE SERVER'S, exactly as {@link capture}'s inbox is and
    * for the same argument: which file the shelf IS is a fact about the SET —
-   * the outline named `Pins.olai`, if the directory has one (`@olai/format`'s
+   * the outline named `Pins.org`, if the directory has one (`@olai/format`'s
    * `pinsIn`) — so it is read against the reading the write is judged on
    * rather than in a tab holding a file list some frames old. That is also
    * what makes this ONE op rather than a sequence: an existing shelf takes an
@@ -828,7 +828,7 @@ export const Edit = Schema.Union([
      *
      * It is a field on this VERB and not a field on a record: what lands is
      * still one ordinary node whose title is `[name](address)`, which is the
-     * spelling `Pins.olai` has always had for a named pin and the one an agent
+     * spelling `Pins.org` has always had for a named pin and the one an agent
      * writes by hand (docs/format.md's Pins). So the format grew nothing, and
      * the consistency rule is paid the way pinning itself paid it — an agent
      * names a pin with the `add_node` it already has, and renaming one on
@@ -912,7 +912,7 @@ export const Edit = Schema.Union([
    *
    * WHAT ARRIVES IS COMPLETED, and that is the one half the browser settles
    * first: the sidebar's box knows which kind it makes, so a person may type
-   * `Foo` and this field carries `Foo.olai` (`@olai/web`'s
+   * `Foo` and this field carries `Foo.org` (`@olai/web`'s
    * `file/completing.ts`). The op is unchanged by it and still demands the
    * suffix — an agent naming a file has no door around it.
    *
@@ -1011,7 +1011,7 @@ export const Edit = Schema.Union([
    * sends it, and the deferral #109 recorded is not this PR's to close.
    *
    * It resolves to `archive`, because that is the only removal the SET has: a
-   * node goes to `_olai/Trash.olai` keeping its id, which is a trash rather than
+   * node goes to `_olai/Trash.org` keeping its id, which is a trash rather than
    * a shredder and is exactly what `trash_node` does for an agent.
    *
    * What the WIRE guarantees is the narrowing, and it is worth saying in those
@@ -1063,7 +1063,7 @@ export const Applied = Schema.Struct({
    * the inbox is is a fact about the set. So the tab that captured cannot say
    * where the line went unless the answer says, and a tab that guessed would
    * be inventing a placement one door after arguing it may not compute one —
-   * "captured to the Inbox" over a directory that keeps `notes/inbox.olai`.
+   * "captured to the Inbox" over a directory that keeps `notes/inbox.org`.
    * It rides back for every verb rather than for that one, because the ops
    * layer answers with it for every op already and a field present only
    * sometimes is a field a reader has to know the verbs to use.

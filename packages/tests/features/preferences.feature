@@ -95,26 +95,26 @@ Feature: One place to set how this browser reads
     # until somebody says so — and the somebody is the PAGE, speaking beside
     # its own filter (client/filter/DoneFlip.tsx). `demo` is done; `order` is
     # not.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     Then the node "demo" is not shown
     And the node "order" is shown
     When I show the done nodes
     Then this page's Done flip says "shown"
     And the Done flip is this page's own
-    And this browser has stored that done nodes are "shown" on "house.olai"
+    And this browser has stored that done nodes are "shown" on "house.org"
     And the node "demo" is shown
 
   Scenario: The panel's row is still the door, for the default every page starts from
     # The revision that put the flip on the page kept the row: what a page
     # that never said its own thing answers to. And the page that follows the
     # default marks nothing — "follow" is not a word it stores.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     When I set Done to "visible"
     Then the Done row explains that finished work is "shown"
     And this browser has stored done nodes "shown" by default
     And the node "demo" is shown
     And the Done flip is the panel's answer
-    And this browser has stored no Done word on "house.olai"
+    And this browser has stored no Done word on "house.org"
     When I set Done to "hidden"
     Then the Done row explains that finished work is "hidden"
     And this browser has stored done nodes "hidden" by default
@@ -122,7 +122,7 @@ Feature: One place to set how this browser reads
   Scenario: A page can also out-vote a shown default
     # The override word runs BOTH WAYS — shown-under-hidden is why the flip
     # exists, but a map that can only hold one direction is a flag with heirs.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     When I set Done to "visible"
     And I press Escape on the preferences
     Then the node "demo" is shown
@@ -130,24 +130,24 @@ Feature: One place to set how this browser reads
     Then the node "demo" is not shown
     And this page's Done flip says "hidden"
     And the Done flip is this page's own
-    And this browser has stored that done nodes are "hidden" on "house.olai"
+    And this browser has stored that done nodes are "hidden" on "house.org"
     And this browser has stored done nodes "shown" by default
 
   Scenario: Each page keeps its own pick
-    # THE FEATURE, in two files: `house.olai` shows its finished work because
-    # it was asked to; `garden.olai` has never been asked and hides by
+    # THE FEATURE, in two files: `house.org` shows its finished work because
+    # it was asked to; `garden.org` has never been asked and hides by
     # default. And going back finds the first pick still where it was made —
     # the failure this fences is the reader-wide switch of old, which would
     # have moved the roadmap's reading when the board was flipped.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     When I show the done nodes
-    And I open the outline "garden.olai"
+    And I open the outline "garden.org"
     Then the node "basil" is not shown
     And the Done flip is the panel's answer
-    When I open the outline "house.olai"
+    When I open the outline "house.org"
     Then the node "demo" is shown
-    And this browser has stored that done nodes are "shown" on "house.olai"
-    And this browser has stored no Done word on "garden.olai"
+    And this browser has stored that done nodes are "shown" on "house.org"
+    And this browser has stored no Done word on "garden.org"
 
   Scenario: Two panes read their two picks at the same moment
     # The one shape this design can break in, on one screen: pruning per FILE
@@ -156,7 +156,7 @@ Feature: One place to set how this browser reads
     # under two names; this cannot. The opening shows rows that MUST be there
     # (each pane has settled its tree) before it claims absences — a pane
     # still landing would make the same claims vacuously.
-    Given I open the address "/s/house.olai/garden.olai"
+    Given I open the address "/s/house.org/garden.org"
     Then the node "kitchen" is shown in pane 0
     And the node "mint" is shown in pane 1
     And the node "demo" is not shown in pane 0
@@ -165,8 +165,8 @@ Feature: One place to set how this browser reads
     And I show the done nodes
     Then this page's Done flip says "shown"
     And the node "demo" is shown in pane 0
-    # THE SAME NODE, TWO ANSWERS, ONE MOMENT: `basil` under house.olai's
-    # mirror is read with house.olai's pick — which page its row STANDS in is
+    # THE SAME NODE, TWO ANSWERS, ONE MOMENT: `basil` under house.org's
+    # mirror is read with house.org's pick — which page its row STANDS in is
     # the whole clause.
     And the node "basil" is shown in pane 0
     And the node "basil" is not shown in pane 1
@@ -180,7 +180,7 @@ Feature: One place to set how this browser reads
     # the tree filter on a page opened first; this one is where the pick
     # comes FROM: the zoom reads the outline's word, the flip says so, and
     # pressing it there writes the outline's entry and nothing else.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     When I show the done nodes
     Then the node "demo" is shown
     When I zoom into the node "kitchen"
@@ -188,7 +188,7 @@ Feature: One place to set how this browser reads
     And this page's Done flip says "shown"
     When I hide the done nodes
     Then the node "demo" is not shown
-    And this browser has stored that done nodes are "hidden" on "house.olai"
+    And this browser has stored that done nodes are "hidden" on "house.org"
 
   Scenario: The page's mark hands the pick back to the panel
     # The release door is the `·` — not a second press of either side (the
@@ -196,35 +196,35 @@ Feature: One place to set how this browser reads
     # what it says, and it means it twice the same way). After the hand back,
     # the word the page answers to is the panel's own, and the ask survives
     # no further — the map keeps no entry for what follow already IS.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     When I show the done nodes
     Then the Done flip is this page's own
     When I hand the page's Done pick back to the panel
     Then the Done flip is the panel's answer
     And the node "demo" is not shown
-    And this browser has stored no Done word on "house.olai"
+    And this browser has stored no Done word on "house.org"
 
   Scenario: A flip pressed the way the page ALREADY STANDS while the page follows says nothing
-    # The pin case, in the negative: `demo` is done, `house.olai` follows the
+    # The pin case, in the negative: `demo` is done, `house.org` follows the
     # default and the strip already stands at Hidden — pressing it is not a
     # way to pin the page at the word the panel already says: storage stays
     # silent, and the mark stays off.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     Then the Done flip is the panel's answer
     When I hide the done nodes
     Then the node "demo" is not shown
     And this page's Done flip says "hidden"
     And the Done flip is the panel's answer
-    And this browser has stored no Done word on "house.olai"
+    And this browser has stored no Done word on "house.org"
 
   Scenario: It is remembered, and it is this browser's
     # THE PIN FOR THE BOOT READ: the write is fenced by the stored-key steps
     # above; this one is that the first read after a reload honours the entry.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     When I show the done nodes
     Then the node "demo" is shown
     When I reload the page
-    Then this browser has stored that done nodes are "shown" on "house.olai"
+    Then this browser has stored that done nodes are "shown" on "house.org"
     And this page's Done flip says "shown"
     And the node "demo" is shown
 
@@ -235,7 +235,7 @@ Feature: One place to set how this browser reads
     # scenario here. The theme has had this fence since it was written; this is
     # the same one for this pick, through the same `storage` event — on the
     # SAME page, because that is what a page's word is about.
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     Then the node "demo" is not shown
     When a second tab shows the done on this page
     Then the node "demo" is shown
@@ -252,7 +252,7 @@ Feature: One place to set how this browser reads
   # ── how much of a row is drawn ───────────────────────────────────────
 
   Scenario: Notes moves the page you are reading, and is remembered
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     Then the row "order" is folded
     When I set Notes to "open"
     Then the Notes row explains that a row "already open"
@@ -263,7 +263,7 @@ Feature: One place to set how this browser reads
     And the row "order" is open
 
   Scenario: Picking a size sets the whole page, and is remembered
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     When I set Size to "medium"
     Then the page is set at "16px"
     And this browser has stored the size "medium"

@@ -1,0 +1,16 @@
+* paint the porch
+:PROPERTIES:
+:ID: porch
+:OLAI_KIND: regular
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "paint the porch"
+:END:
+
+** sand it back
+:PROPERTIES:
+:ID: sand
+:OLAI_KIND: regular
+:OLAI_PARENT: "porch"
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "sand it back"
+:END:

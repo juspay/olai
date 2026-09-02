@@ -44,7 +44,7 @@ const HOUSE = [
   `{"id":"echo","ord":"a2","mirror":"order"}`,
 ].join("\n")
 
-const reading = (set: OutlineSet = setOf({ "house.olai": HOUSE })): Reading =>
+const reading = (set: OutlineSet = setOf({ "house.org": HOUSE })): Reading =>
   readingOf(set)
 
 /** The request, or a refusal quoted well enough to fix the test without a
@@ -77,7 +77,7 @@ test("Enter under a parent adds a sibling in that parent", () => {
 
 test("Enter on a top-level row names the FILE, because there is no parent", () => {
   expect(asked({ verb: "add", at: { kind: "after", id: "kitchen" }, title: "garage" }))
-    .toEqual({ op: "add", file: "house.olai", after: "kitchen", title: "garage" })
+    .toEqual({ op: "add", file: "house.org", after: "kitchen", title: "garage" })
 })
 
 test("the first child of a branch goes under it, last among nothing", () => {
@@ -86,8 +86,8 @@ test("the first child of a branch goes under it, last among nothing", () => {
 })
 
 test("the first row of an empty outline is the one place a file is named", () => {
-  expect(asked({ verb: "add", at: { kind: "first", file: "new.olai" }, title: "one" }))
-    .toEqual({ op: "add", file: "new.olai", title: "one" })
+  expect(asked({ verb: "add", at: { kind: "first", file: "new.org" }, title: "one" }))
+    .toEqual({ op: "add", file: "new.org", title: "one" })
 })
 
 test("a new row after a MIRROR is a sibling of the mirror", () => {
@@ -96,7 +96,7 @@ test("a new row after a MIRROR is a sibling of the mirror", () => {
   // another file. A mirror carries a parent and an `ord` like any record, so
   // there is nothing to resolve through.
   expect(asked({ verb: "add", at: { kind: "after", id: "echo" }, title: "x" }))
-    .toEqual({ op: "add", file: "house.olai", after: "echo", title: "x" })
+    .toEqual({ op: "add", file: "house.org", after: "echo", title: "x" })
 })
 
 test("a new row after a node nothing declares is not found", () => {
@@ -107,7 +107,7 @@ test("a new row after a node nothing declares is not found", () => {
 // ── the palette's capture ──────────────────────────────────────────────
 
 test("a capture into a directory with an inbox is an `add` into that file", () => {
-  const set = setOf({ "house.olai": HOUSE, [INBOX]: "" })
+  const set = setOf({ "house.org": HOUSE, [INBOX]: "" })
   expect(asked({ verb: "capture", title: "buy milk" }, reading(set)))
     .toEqual({ op: "add", file: INBOX, title: "buy milk", mark: "todo" })
 })
@@ -126,7 +126,7 @@ test("a capture into a directory with NO inbox mints one under `_olai/`", () => 
       file: mintedInto(INBOX),
       seed: { title: "buy milk", mark: "todo" },
     })
-  expect(mintedInto(INBOX)).toBe("_olai/Inbox.olai")
+  expect(mintedInto(INBOX)).toBe("_olai/Inbox.org")
 })
 
 // …born `todo` under the one law the badge reads (the rows marked `todo` or
@@ -138,23 +138,23 @@ test("an inbox the directory already keeps somewhere else is the one used", () =
   // The convention is the NAME, not the place: a directory that files its
   // inbox under `notes/` captures into the file it has rather than growing a
   // second one at the root.
-  const set = setOf({ "house.olai": HOUSE, "notes/inbox.olai": "" })
+  const set = setOf({ "house.org": HOUSE, "notes/inbox.org": "" })
   expect(asked({ verb: "capture", title: "buy milk" }, reading(set)))
-    .toEqual({ op: "add", file: "notes/inbox.olai", title: "buy milk", mark: "todo" })
+    .toEqual({ op: "add", file: "notes/inbox.org", title: "buy milk", mark: "todo" })
 })
 
 test("with two inboxes the shallower one wins, so the answer is stable", () => {
   const set = setOf({
-    "deep/down/Inbox.olai": "",
+    "deep/down/Inbox.org": "",
     [INBOX]: "",
-    "house.olai": HOUSE,
+    "house.org": HOUSE,
   })
   expect(asked({ verb: "capture", title: "buy milk" }, reading(set)))
     .toEqual({ op: "add", file: INBOX, title: "buy milk", mark: "todo" })
 })
 
 test("a file merely ENDING in the name is not an inbox", () => {
-  const set = setOf({ "house.olai": HOUSE, "not-an-Inbox.olai": "" })
+  const set = setOf({ "house.org": HOUSE, "not-an-Inbox.org": "" })
   expect(asked({ verb: "capture", title: "buy milk" }, reading(set)))
     .toEqual({
       op: "create",
@@ -177,7 +177,7 @@ test("a blank capture is left to the ops layer, which has the words for it", () 
 // ── the shelf's pin ────────────────────────────────────────────────────
 
 test("a pin into a directory with a shelf is an `add` into that file", () => {
-  const set = setOf({ "house.olai": HOUSE, [PINS]: "" })
+  const set = setOf({ "house.org": HOUSE, [PINS]: "" })
   expect(asked({ verb: "pin", at: "/#order" }, reading(set)))
     .toEqual({ op: "add", file: PINS, title: "/#order" })
 })
@@ -193,29 +193,29 @@ test("a pin into a directory with NO shelf mints one under `_olai/`", () => {
       file: mintedInto(PINS),
       seed: { title: "/agenda?q=is%3Atodo" },
     })
-  expect(mintedInto(PINS)).toBe("_olai/Pins.olai")
+  expect(mintedInto(PINS)).toBe("_olai/Pins.org")
 })
 
 test("…and a shelf the directory already has is found wherever it sits", () => {
   // The MINT moved and the READING did not, which is what keeps every existing
   // vault pinning into the file it already has — at the root, or anywhere else.
-  for (const held of [PINS, "notes/pins.olai", "_olai/Pins.olai"]) {
-    const set = setOf({ "house.olai": HOUSE, [held]: "" })
+  for (const held of [PINS, "notes/pins.org", "_olai/Pins.org"]) {
+    const set = setOf({ "house.org": HOUSE, [held]: "" })
     expect(asked({ verb: "pin", at: "/today" }, reading(set)))
       .toEqual({ op: "add", file: held, title: "/today" })
   }
 })
 
 test("a shelf the directory already keeps somewhere else is the one used", () => {
-  const set = setOf({ "house.olai": HOUSE, "notes/pins.olai": "" })
+  const set = setOf({ "house.org": HOUSE, "notes/pins.org": "" })
   expect(asked({ verb: "pin", at: "/today" }, reading(set)))
-    .toEqual({ op: "add", file: "notes/pins.olai", title: "/today" })
+    .toEqual({ op: "add", file: "notes/pins.org", title: "/today" })
 })
 
 test("a pin names NO anchor, so it lands last on the shelf", () => {
   // Where a new bookmark goes, and the ops layer's own default for an `add`
   // that names no sibling. Where it goes afterwards is a drag's `place`.
-  const set = setOf({ "house.olai": HOUSE, [PINS]: `{"id":"p","ord":"a0","title":"/today"}` })
+  const set = setOf({ "house.org": HOUSE, [PINS]: `{"id":"p","ord":"a0","title":"/today"}` })
   expect(asked({ verb: "pin", at: "/agenda" }, reading(set)))
     .toEqual({ op: "add", file: PINS, title: "/agenda" })
 })
@@ -224,16 +224,16 @@ test("the address is carried VERBATIM — nothing on the way parses one", () => 
   // A date crosses as the ten characters that were picked; an address crosses
   // as the characters this app minted. What reads it back is the browser, at
   // view time, through the same bijection that wrote it.
-  expect(asked({ verb: "pin", at: "/a b.olai" }))
-    .toEqual({ op: "create", file: mintedInto(PINS), seed: { title: "/a b.olai" } })
+  expect(asked({ verb: "pin", at: "/a b.org" }))
+    .toEqual({ op: "create", file: mintedInto(PINS), seed: { title: "/a b.org" } })
 })
 
-test("a pin that carried a NAME lands as the link `Pins.olai` spells one with", () => {
+test("a pin that carried a NAME lands as the link `Pins.org` spells one with", () => {
   // The row is still one ordinary node whose title is an address — inside a
   // markdown link, which is the spelling an agent writes by hand and the one
   // the shelf and the file's own page both draw (docs/format.md's Pins). No
   // second write, so ⌘Z takes the whole intention back.
-  const set = setOf({ "house.olai": HOUSE, [PINS]: "" })
+  const set = setOf({ "house.org": HOUSE, [PINS]: "" })
   expect(asked({ verb: "pin", at: "/agenda?q=is%3Atodo", name: "What is late" }, reading(set)))
     .toEqual({ op: "add", file: PINS, title: "[What is late](/agenda?q=is%3Atodo)" })
   // …and into a directory with no shelf, the same title is the seed.
@@ -248,7 +248,7 @@ test("a pin that carried a NAME lands as the link `Pins.olai` spells one with", 
 test("a BLANK name is the bare pin — naming nothing is what it always was", () => {
   // The box a reader pressed Enter in with nothing typed sends the words it
   // holds, and "no name" is not a second gesture.
-  const set = setOf({ "house.olai": HOUSE, [PINS]: "" })
+  const set = setOf({ "house.org": HOUSE, [PINS]: "" })
   for (const name of ["", "   "]) {
     expect(asked({ verb: "pin", at: "/#order", name }, reading(set)))
       .toEqual({ op: "add", file: PINS, title: "/#order" })
@@ -334,7 +334,7 @@ test("indenting under a MIRROR names the node it shows", () => {
   // `later` is the row under `echo`, which mirrors `order`, so `Tab` on it is
   // "go under what that row shows".
   const set = setOf({
-    "house.olai": `${HOUSE}\n{"id":"later","ord":"a3","title":"and one after it"}`,
+    "house.org": `${HOUSE}\n{"id":"later","ord":"a3","title":"and one after it"}`,
   })
   expect(asked({ verb: "move", id: "later", how: "in" }, reading(set)))
     .toEqual({ op: "move", id: "later", parent: "order" })
@@ -342,7 +342,7 @@ test("indenting under a MIRROR names the node it shows", () => {
 
 test("indenting under a mirror of nothing is refused rather than doomed", () => {
   const set = setOf({
-    "a.olai": [
+    "a.org": [
       `{"id":"one","ord":"a0","title":"one"}`,
       `{"id":"ghost","ord":"a1","mirror":"nowhere"}`,
       `{"id":"two","ord":"a2","title":"two"}`,
@@ -385,7 +385,7 @@ const marked = (id: string, mark: string): Reading => {
   const line = HOUSE.split("\n").find((one) => one.includes(`"id":"${id}"`))
   if (line === undefined) throw new Error(`no \`${id}\` in the fixture`)
   return reading(setOf({
-    "house.olai": HOUSE.replace(line, `${line.slice(0, -1)},"${mark}":true}`),
+    "house.org": HOUSE.replace(line, `${line.slice(0, -1)},"${mark}":true}`),
   }))
 }
 
@@ -557,7 +557,7 @@ test("a repeat rule is the op's own field, set and stopped alike", () => {
 // about the ABSENCE of one. The occurrence itself is the ops suite's.
 test("completing a repeating row asks for exactly what `set_done` asks for", () => {
   const at = reading(setOf({
-    "chores.olai": `{"id":"bins","ord":"a0","title":"put the bins out",` +
+    "chores.org": `{"id":"bins","ord":"a0","title":"put the bins out",` +
       `"todo":true,"date":"2026-08-17","repeat":"every week on monday"}`,
   }))
   expect(asked({ verb: "toggle", id: "bins", mark: "done" }, at))
@@ -587,8 +587,8 @@ test("unarchive passes through, destination and all — the chain is the op's to
     .toEqual({ op: "untrash", id: "handles" })
   expect(asked({ verb: "untrash", id: "handles", parent: "install" }))
     .toEqual({ op: "untrash", id: "handles", parent: "install" })
-  expect(asked({ verb: "untrash", id: "loose", file: "house.olai" }))
-    .toEqual({ op: "untrash", id: "loose", file: "house.olai" })
+  expect(asked({ verb: "untrash", id: "loose", file: "house.org" }))
+    .toEqual({ op: "untrash", id: "loose", file: "house.org" })
 })
 
 test("the inverse of a put-back is the archive that made the row a trash row", () => {
@@ -657,19 +657,19 @@ test("back to the top level of ANOTHER outline names that outline", () => {
   // it had got to. The neighbour is still resolved against the set as it
   // stands, in the outline it is going back to rather than the one it is in.
   const set = setOf({
-    "house.olai": HOUSE,
-    "garden.olai": `{"id":"herbs","ord":"a0","title":"the herb bed"}`,
+    "house.org": HOUSE,
+    "garden.org": `{"id":"herbs","ord":"a0","title":"the herb bed"}`,
   })
   expect(
-    asked({ verb: "place", id: "herbs", parent: null, file: "house.olai", after: null }, reading(set)),
-  ).toEqual({ op: "move", id: "herbs", parent: null, file: "house.olai", before: "kitchen" })
+    asked({ verb: "place", id: "herbs", parent: null, file: "house.org", after: null }, reading(set)),
+  ).toEqual({ op: "move", id: "herbs", parent: null, file: "house.org", before: "kitchen" })
 })
 
 test("...and with a parent the file decides nothing, so it does not travel", () => {
   // The ops layer's own rule about the pair, kept rather than re-argued: a
   // parent is in its own file, and a second answer beside it could only
   // disagree.
-  expect(asked({ verb: "place", id: "handles", parent: "kitchen", file: "house.olai", after: "demo" }))
+  expect(asked({ verb: "place", id: "handles", parent: "kitchen", file: "house.org", after: "demo" }))
     .toEqual({ op: "move", id: "handles", parent: "kitchen", after: "demo" })
 })
 
@@ -706,26 +706,26 @@ test("a merge names the row and nothing else — the sibling above is the set's"
 
 /** A house with the one trash, filled. */
 const ARCHIVED = [
-  `{"id":"sc1","ord":"a0","title":"house.olai"}`,
+  `{"id":"sc1","ord":"a0","title":"house.org"}`,
   `{"id":"sc2","parent":"sc1","ord":"a0","title":"Kitchen remodel"}`,
   `{"id":"knobs","parent":"sc2","ord":"a0","title":"pick the knobs"}`,
 ].join("\n")
 
 test("emptying resolves to one `empty`, naming the one trash", () => {
-  const at = reading(setOf({ "house.olai": HOUSE, "_olai/Trash.olai": ARCHIVED }))
+  const at = reading(setOf({ "house.org": HOUSE, "_olai/Trash.org": ARCHIVED }))
   expect(asked({ verb: "emptyTrash" }, at))
-    .toEqual({ op: "empty", file: "_olai/Trash.olai" })
+    .toEqual({ op: "empty", file: "_olai/Trash.org" })
 })
 
-test("a leftover Archive.olai is not emptied — it is not the trash", () => {
+test("a leftover Archive.org is not emptied — it is not the trash", () => {
   const at = reading(setOf({
-    "house.olai": HOUSE,
-    "_olai/Trash.olai": ARCHIVED,
-    "Archive.olai": `{"id":"old","ord":"a0","title":"something left behind"}`,
-    "garden/Archive.olai": `{"id":"older","ord":"a0","title":"another leftover"}`,
+    "house.org": HOUSE,
+    "_olai/Trash.org": ARCHIVED,
+    "Archive.org": `{"id":"old","ord":"a0","title":"something left behind"}`,
+    "garden/Archive.org": `{"id":"older","ord":"a0","title":"another leftover"}`,
   }))
   expect(asked({ verb: "emptyTrash" }, at))
-    .toEqual({ op: "empty", file: "_olai/Trash.olai" })
+    .toEqual({ op: "empty", file: "_olai/Trash.org" })
 })
 
 test("an empty trash file is not in the list at all", () => {
@@ -733,8 +733,8 @@ test("an empty trash file is not in the list at all", () => {
   // tidies its scaffold away and leaves it standing — so the resolution has to
   // skip it rather than send a path the planner is about to refuse.
   const at = reading(setOf({
-    "house.olai": HOUSE,
-    "_olai/Trash.olai": "",
+    "house.org": HOUSE,
+    "_olai/Trash.org": "",
   }))
   const failure = refused({ verb: "emptyTrash" }, at)
   expect(failure._tag).toBe("UsageFailure")
@@ -746,9 +746,9 @@ test("the count the confirm showed travels, and is never re-derived here", () =>
   // avoid — and a useless guard besides, since a count taken from THIS reading
   // would always agree with itself. What it guards is the retry, which the
   // planner checks on every attempt.
-  const at = reading(setOf({ "house.olai": HOUSE, "_olai/Trash.olai": ARCHIVED }))
+  const at = reading(setOf({ "house.org": HOUSE, "_olai/Trash.org": ARCHIVED }))
   expect(asked({ verb: "emptyTrash", was: 9 }, at))
-    .toEqual({ op: "empty", file: "_olai/Trash.olai", was: 9 })
+    .toEqual({ op: "empty", file: "_olai/Trash.org", was: 9 })
 })
 
 test("an empty trash is refused HERE, in terms of the trash", () => {
@@ -779,7 +779,7 @@ test("a move records where the row SAT — its parent, and the row above it", ()
   // `install` is third among the kitchen's children, so the place it leaves is
   // "under kitchen, after order" whichever of the four moves took it away.
   const back: ReadonlyArray<Edit> = [
-    { verb: "place", id: "install", parent: "kitchen", file: "house.olai", after: "order" },
+    { verb: "place", id: "install", parent: "kitchen", file: "house.org", after: "order" },
   ]
   expect(inverse({ verb: "move", id: "install", how: "in" })).toEqual(back)
   expect(inverse({ verb: "move", id: "install", how: "out" })).toEqual(back)
@@ -788,7 +788,7 @@ test("a move records where the row SAT — its parent, and the row above it", ()
 
 test("the FIRST of its siblings records `after: null` — a place with no neighbour", () => {
   expect(inverse({ verb: "move", id: "demo", how: "down" }))
-    .toEqual([{ verb: "place", id: "demo", parent: "kitchen", file: "house.olai", after: null }])
+    .toEqual([{ verb: "place", id: "demo", parent: "kitchen", file: "house.org", after: null }])
 })
 
 test("a top-level row records `parent: null`, the OUTLINE, and the row above it", () => {
@@ -797,7 +797,7 @@ test("a top-level row records `parent: null`, the OUTLINE, and the row above it"
   // "the top level" is the top level of a named outline, and `move_node` can
   // carry a row out of it into another.
   expect(inverse({ verb: "move", id: "loose", how: "in" }))
-    .toEqual([{ verb: "place", id: "loose", parent: null, file: "house.olai", after: "kitchen" }])
+    .toEqual([{ verb: "place", id: "loose", parent: null, file: "house.org", after: "kitchen" }])
 })
 
 test("the picker's move records the place it leaves, like every other one", () => {
@@ -806,14 +806,14 @@ test("the picker's move records the place it leaves, like every other one", () =
   // `place` back, with the neighbour, and not "under my old parent" (which
   // would put a row that was third among its siblings at the end of them).
   expect(inverse({ verb: "under", id: "install", parent: "loose" }))
-    .toEqual([{ verb: "place", id: "install", parent: "kitchen", file: "house.olai", after: "order" }])
+    .toEqual([{ verb: "place", id: "install", parent: "kitchen", file: "house.org", after: "order" }])
 })
 
 test("an undo is itself undoable: a place records the place it leaves", () => {
   // What makes redo the same machinery as undo rather than a second stack with
   // rules of its own — every replay answers with what would replay IT.
   expect(inverse({ verb: "place", id: "handles", parent: "kitchen", after: null }))
-    .toEqual([{ verb: "place", id: "handles", parent: "install", file: "house.olai", after: null }])
+    .toEqual([{ verb: "place", id: "handles", parent: "install", file: "house.org", after: null }])
 })
 
 test("a toggle records the mark it replaced, and `null` for none", () => {
@@ -887,7 +887,7 @@ test("a capture is taken back the same way a new row is", () => {
     inverse(
       { verb: "capture", title: "buy milk" },
       "n7",
-      reading(setOf({ "house.olai": HOUSE, [INBOX]: "" })),
+      reading(setOf({ "house.org": HOUSE, [INBOX]: "" })),
     ),
   ).toEqual([{ verb: "remove", id: "n7" }])
 })
@@ -902,7 +902,7 @@ test("a pin is taken back the same way a capture is", () => {
     inverse(
       { verb: "pin", at: "/#order" },
       "n7",
-      reading(setOf({ "house.olai": HOUSE, [PINS]: "" })),
+      reading(setOf({ "house.org": HOUSE, [PINS]: "" })),
     ),
   ).toEqual([{ verb: "remove", id: "n7" }])
 })
@@ -934,7 +934,7 @@ test("undoing a text edit is undoable in its turn — the pair, the other way ro
   // write is judged against, which by then says what the first write wrote.
   const landed = reading(
     setOf({
-      "house.olai": HOUSE.replace(
+      "house.org": HOUSE.replace(
         `"title":"order the cabinets"`,
         `"title":"order the walnut ones"`,
       ),
@@ -979,7 +979,7 @@ test("a MIRROR has no date of its own either", () => {
 
 test("a stopped recurrence is put back as the rule it stopped", () => {
   const at = reading(setOf({
-    "chores.olai": `{"id":"bins","ord":"a0","title":"put the bins out",` +
+    "chores.org": `{"id":"bins","ord":"a0","title":"put the bins out",` +
       `"todo":true,"date":"2026-08-17","repeat":"every week on monday"}`,
   }))
   expect(inverse({ verb: "repeat", id: "bins", repeat: null }, "minted", at))
@@ -1040,7 +1040,7 @@ test("an archive records the place the row is about to stop having", () => {
   // A row at top level has no parent to come back under, so its FILE is the
   // recorded fact — the same pair the op takes.
   expect(inverse({ verb: "trash", id: "loose" }))
-    .toEqual([{ verb: "untrash", id: "loose", file: "house.olai" }])
+    .toEqual([{ verb: "untrash", id: "loose", file: "house.org" }])
 })
 
 test("a split is taken back by merging the half it made", () => {
@@ -1072,7 +1072,7 @@ test("a merge is taken back by a whole sequence, and every step is already a ver
 
 test("a merge that MOVED the note puts the note back too, and one that did not says nothing", () => {
   const notes = reading(setOf({
-    "house.olai": [
+    "house.org": [
       `{"id":"a","ord":"a0","title":"a","desc":"the first"}`,
       `{"id":"b","ord":"a1","title":"b","desc":"the second"}`,
     ].join("\n"),
@@ -1116,7 +1116,7 @@ const EDGED = [
   `{"id":"echo","ord":"a1","mirror":"order"}`,
 ].join("\n")
 
-const edged = (): Reading => reading(setOf({ "house.olai": EDGED }))
+const edged = (): Reading => reading(setOf({ "house.org": EDGED }))
 
 test("an edge write travels as the op's own two lists, and resolves nothing", () => {
   expect(asked({ verb: "see", id: "order", add: ["kitchen"] }, edged()))
@@ -1193,7 +1193,7 @@ test("an edge write that would change nothing has nothing to take back", () => {
 const NOTES = "# Notes\n\nwhat was here\n"
 const vault = (): Reading =>
   reading(
-    setOf({ "house.olai": HOUSE }, [
+    setOf({ "house.org": HOUSE }, [
       ["notes.md", NOTES],
       "Daily/2026/08/2026-08-12.md",
     ]),
@@ -1258,18 +1258,18 @@ test("a deleted file has no inverse — the restore is git's", () => {
 })
 
 test("a new outline names its path outright, and the op judges it", () => {
-  expect(asked({ verb: "outlineNew", file: "plans.olai" }))
-    .toEqual({ op: "create", file: "plans.olai" })
+  expect(asked({ verb: "outlineNew", file: "plans.org" }))
+    .toEqual({ op: "create", file: "plans.org" })
   // Nothing about the path is checked HERE: a `..`, a `.md`, a file the set
   // already holds are each `create_outline`'s own refusal, in its own words.
-  expect(asked({ verb: "outlineNew", file: "../escape.olai" }))
-    .toEqual({ op: "create", file: "../escape.olai" })
-  expect(asked({ verb: "outlineNew", file: "house.olai" }))
-    .toEqual({ op: "create", file: "house.olai" })
+  expect(asked({ verb: "outlineNew", file: "../escape.org" }))
+    .toEqual({ op: "create", file: "../escape.org" })
+  expect(asked({ verb: "outlineNew", file: "house.org" }))
+    .toEqual({ op: "create", file: "house.org" })
 })
 
 test("nothing takes a minted outline back either", () => {
-  expect(inverse({ verb: "outlineNew", file: "plans.olai" }, "plans.olai"))
+  expect(inverse({ verb: "outlineNew", file: "plans.org" }, "plans.org"))
     .toEqual([])
 })
 
@@ -1279,6 +1279,6 @@ test("nothing takes a minted outline back either", () => {
  *  this surface cannot spell; this one is about records that have left the set,
  *  which no op reaches. */
 test("nothing takes an emptied trash back, and it says so by answering nothing", () => {
-  const at = reading(setOf({ "house.olai": HOUSE, "_olai/Trash.olai": ARCHIVED }))
-  expect(inverse({ verb: "emptyTrash" }, "_olai/Trash.olai", at)).toEqual([])
+  const at = reading(setOf({ "house.org": HOUSE, "_olai/Trash.org": ARCHIVED }))
+  expect(inverse({ verb: "emptyTrash" }, "_olai/Trash.org", at)).toEqual([])
 })

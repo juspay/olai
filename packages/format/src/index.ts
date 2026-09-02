@@ -317,7 +317,7 @@ export {
   mintedInto,
   OLAI_DIR,
   /** The one trash — the filename, the path it is minted at, and the
-   *  predicate a reading asks (`./node.ts`). Leftover `Archive.olai` is a
+   *  predicate a reading asks (`./node.ts`). Leftover `Archive.org` is a
    *  different question (`isLeftoverArchive`): parsed, openable, not trash. */
   TRASH,
   TRASH_FILE,
@@ -383,7 +383,7 @@ export type { HasCustom } from "./custom.ts"
  * ...AND WHAT A KEY MAY DECLARE ITSELF TO BE (./typing.ts).
  *
  * The map above stays open all the way; this is the fence a vault puts around
- * ONE key by declaring it in `_olai/Properties.olai`, and everything in it is
+ * ONE key by declaring it in `_olai/Properties.org`, and everything in it is
  * public because the rule is worn at two doors: the validator refuses a file
  * (in this package) and the write planner refuses a call (`@olai/ops`), in one
  * sentence, which is what `wrongValue`, `storedValue`, `wrongDeclaration` and
@@ -1031,7 +1031,7 @@ export type { Admission, FileFace, FileState, Summary } from "./verdict.ts"
 
 /**
  * THE PINNED SHELF, as a reading of the set rather than of a browser's copy of
- * it (./shelf.ts): the rows of the directory's `Pins.olai` and the live name of
+ * it (./shelf.ts): the rows of the directory's `Pins.org` and the live name of
  * whatever node each one addresses.
  *
  * Public because it crosses — the server answers it per revision and the

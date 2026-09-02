@@ -1,0 +1,82 @@
+* kitchen remodel #home
+:PROPERTIES:
+:ID: kitchen
+:OLAI_KIND: regular
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "kitchen remodel #home"
+:OLAI_DOING: "2026-08-01"
+:END:
+
+** take out the old counters
+:PROPERTIES:
+:ID: demo
+:OLAI_KIND: regular
+:OLAI_PARENT: "kitchen"
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "take out the old counters"
+:OLAI_DONE: "2026-08-03"
+:END:
+
+** order the new cabinets
+:PROPERTIES:
+:ID: order
+:OLAI_KIND: regular
+:OLAI_PARENT: "kitchen"
+:OLAI_ORD: "a1"
+:OLAI_TITLE: "order the new cabinets"
+:OLAI_DOING: "2026-08-05"
+:OLAI_DATE: "2026-08-10"
+:OLAI_DESC: "Two ways to go:\n\n- **walnut** — six week lead time\n- *birch* — in stock today\n\nMeasure the alcove before ordering."
+:OLAI_AFTER: ["demo"]
+:OLAI_SEE: ["herbs"]
+:END:
+
+** install the cabinets
+:PROPERTIES:
+:ID: install
+:OLAI_KIND: regular
+:OLAI_PARENT: "kitchen"
+:OLAI_ORD: "a2"
+:OLAI_TITLE: "install the cabinets"
+:OLAI_DOC: "finishes.md"
+:OLAI_AFTER: ["order"]
+:END:
+
+*** choose the handles
+:PROPERTIES:
+:ID: handles
+:OLAI_KIND: regular
+:OLAI_PARENT: "install"
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "choose the handles"
+:END:
+
+*** pick the hinges
+:PROPERTIES:
+:ID: hinges
+:OLAI_KIND: regular
+:OLAI_PARENT: "install"
+:OLAI_ORD: "a1"
+:OLAI_TITLE: "pick the hinges"
+:OLAI_TODO: "2026-08-11"
+:OLAI_AFTER: ["handles","order"]
+:END:
+
+*** pick the knobs
+:PROPERTIES:
+:ID: knobs
+:OLAI_KIND: regular
+:OLAI_PARENT: "install"
+:OLAI_ORD: "a2"
+:OLAI_TITLE: "pick the knobs"
+:OLAI_TODO: "2026-08-11"
+:END:
+
+** mirror of herbs
+:PROPERTIES:
+:ID: kitchen-herbs
+:OLAI_KIND: mirror
+:OLAI_PARENT: "kitchen"
+:OLAI_ORD: "a3"
+:OLAI_MIRROR: "herbs"
+:END:

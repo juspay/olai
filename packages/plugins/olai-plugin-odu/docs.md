@@ -61,7 +61,7 @@ Two facts, both on the board:
 
    `odu-worktree` is a **kind** this plugin contributes ([format.md](../format.md)), and an enabled odu claims the key of the same name. The name carries `odu-` on purpose: a column *you* call `worktree` is yours — and this one hands a path to a socket dial in somebody's checkout, so a plugin taking over a column by being switched on is exactly what must not happen.
 
-   **Want the short key?** One row in `_olai/Properties.olai` says which of *your* columns is this kind, and a vault row always wins:
+   **Want the short key?** One row in `_olai/Properties.org` says which of *your* columns is this kind, and a vault row always wins:
 
    ```jsonl
    {"id":"prop-worktree","ord":"aC","title":"worktree","custom":{"type":"odu-worktree"}}

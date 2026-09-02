@@ -10,13 +10,13 @@ Feature: Inline markdown in titles
   copy per worker (`@share-scratch`); the corpus is restored between scenarios.
 
   Background:
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     # The row whose title the markdown claims are about is `demo` — finished
     # — and the rendering is no good asserted of a row the pick has away.
     And I show the done nodes
 
   Scenario: A title renders inline markdown
-    When I rewrite "house.olai" as:
+    When I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"demo","parent":"kitchen","ord":"a0","title":"**take out** the old `counters`","done":"2026-08-03"}
@@ -34,7 +34,7 @@ Feature: Inline markdown in titles
   Scenario: A title with block markdown stays phrasing
     # A heading, a list or a fence in a title must not produce block elements
     # that break the row's layout. Words stay; boxes do not.
-    When I rewrite "house.olai" as:
+    When I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"# not a heading"}
       {"id":"demo","parent":"kitchen","ord":"a0","title":"- nor a list item"}
@@ -54,7 +54,7 @@ Feature: Inline markdown in titles
     # rendering was thrown away, marks and all, and the escaped source lights
     # nothing — so a row the filter had selected drew no reason for being in
     # front of anybody. Both halves are here, on one page.
-    When I rewrite "house.olai" as:
+    When I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"demo","parent":"kitchen","ord":"a0","title":"a **b *c* d** e"}
@@ -76,7 +76,7 @@ Feature: Inline markdown in titles
     # nothing lit, because the highlight rode the walk that deliberately does
     # not re-read code or a link for `#tags` and turned back at the same door.
     # The tag rule is a rule about tags; the highlight goes everywhere.
-    When I rewrite "house.olai" as:
+    When I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"demo","parent":"kitchen","ord":"a0","title":"run `just check` before pushing"}
@@ -107,7 +107,7 @@ Feature: Inline markdown in titles
     # is selected on the title. HAST still splits the URL into its own text
     # node; both pieces of the phrase must light. The extra space in the
     # asserted string is join(" ") plus a piece that already starts with one.
-    When I rewrite "house.olai" as:
+    When I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"demo","parent":"kitchen","ord":"a0","title":"see https://example.com first"}
@@ -123,7 +123,7 @@ Feature: Inline markdown in titles
     # so the phrase is also in desc so the row is in front of you. The
     # highlight is the visible title. The unit test is the renderer pin;
     # this scenario is the page.
-    When I rewrite "house.olai" as:
+    When I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"demo","parent":"kitchen","ord":"a0","title":"run `just check` before pushing","desc":"check before"}
@@ -141,7 +141,7 @@ Feature: Inline markdown in titles
     # The palette draws the same renderTitle a tree row does (links: false,
     # because the row is a button). Do not locate by visible label: CODE's
     # rendered text contains the bold title. data-id is hit-#demo / hit-#bold.
-    When I rewrite "house.olai" as:
+    When I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"demo","parent":"kitchen","ord":"a0","title":"run `just check` before pushing","desc":"check before"}

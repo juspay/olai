@@ -112,8 +112,8 @@ test("a name written with both sigils is two tags, each counted its own way", ()
 // rows the reader cannot be shown.
 test("what is in the trash is not counted, and a tag only it used is not offered", () => {
   const withArchive = derive(nodesOfFiles({
-    "house.olai": `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}`,
-    "_olai/Trash.olai": [
+    "house.org": `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}`,
+    "_olai/Trash.org": [
       `{"id":"old","ord":"a0","title":"the old kitchen #home"}`,
       `{"id":"gone","ord":"a1","title":"the old boiler #boiler"}`,
     ].join("\n"),
@@ -123,10 +123,10 @@ test("what is in the trash is not counted, and a tag only it used is not offered
   expect(tags.find((tag) => tag.name === "home")?.count).toBe(1)
 })
 
-test("a leftover Archive.olai is not counted in the live vocabulary either", () => {
+test("a leftover Archive.org is not counted in the live vocabulary either", () => {
   const withLeftover = derive(nodesOfFiles({
-    "house.olai": `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}`,
-    "Archive.olai": [
+    "house.org": `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}`,
+    "Archive.org": [
       `{"id":"old","ord":"a0","title":"the old kitchen #home"}`,
       `{"id":"gone","ord":"a1","title":"the old boiler #boiler"}`,
     ].join("\n"),

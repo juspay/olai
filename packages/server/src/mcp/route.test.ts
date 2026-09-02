@@ -26,7 +26,8 @@ import {
   type Store as OutlineStore,
   TOOLS,
 } from "@olai/ops"
-import { NO_KINDS } from "@olai/format"
+import { isMirror, NO_KINDS, type RegularNode } from "@olai/format"
+import { orgFixture, outlineOf } from "@olai/format/testlib"
 import * as Store from "@olai/store"
 import { expect, test } from "bun:test"
 import { Effect, Option, SubscriptionRef } from "effect"
@@ -49,7 +50,12 @@ import { bespokeFrom } from "./tools.ts"
  *  (`@olai/ops`' `codecFor`, and `@olai/format`'s `NO_KINDS`). */
 const codec = codecFor(NO_KINDS)
 
-const HOUSE = `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}\n`
+const HOUSE = orgFixture(`{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}\n`)
+
+const recordsIn = (text: string): ReadonlyArray<RegularNode> =>
+  outlineOf(text, "_olai/Inbox.org").nodes
+    .map((row) => row.node)
+    .filter((node): node is RegularNode => !isMirror(node))
 
 const TOKEN = "test-token"
 
@@ -70,7 +76,7 @@ const withRoute = <A>(
   listenOn: { readonly host: string } = { host: "127.0.0.1" },
 ): Promise<A> => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-route-")))
-  fs.writeFileSync(path.join(root, "house.olai"), HOUSE)
+  fs.writeFileSync(path.join(root, "house.org"), HOUSE)
 
   return Effect.gen(function*() {
     const store: OutlineStore = yield* Store.make({
@@ -232,7 +238,7 @@ test("tools/list and a resource read answer over the same POST", async () => {
       params: { uri: "surface://collections/outlines" },
     })
     expect(read.status).toBe(200)
-    expect(JSON.stringify(await read.json())).toContain("house.olai")
+    expect(JSON.stringify(await read.json())).toContain("house.org")
   })
 })
 
@@ -498,11 +504,8 @@ test("a capture is recorded as the login the proxy named on THAT request", async
       params: { name: "capture", arguments: { title: "from nobody" } },
     })
 
-    const inbox = fs.readFileSync(path.join(root, "_olai", "Inbox.olai"), "utf8")
-    const rows = inbox.trim().split("\n").map((line) => JSON.parse(line) as {
-      title?: string
-      custom?: Record<string, string>
-    })
+    const inbox = fs.readFileSync(path.join(root, "_olai", "Inbox.org"), "utf8")
+    const rows = recordsIn(inbox)
     expect(rows.find((row) => row.title === "from the tailnet")?.custom).toEqual({
       "captured-by": "srid@github",
     })
@@ -546,11 +549,8 @@ test("…and two people behind one proxy do not get each other's", async () => {
       capture(11, "grace's line", "grace@example.com"),
     ])
 
-    const inbox = fs.readFileSync(path.join(root, "_olai", "Inbox.olai"), "utf8")
-    const rows = inbox.trim().split("\n").map((line) => JSON.parse(line) as {
-      title?: string
-      custom?: Record<string, string>
-    })
+    const inbox = fs.readFileSync(path.join(root, "_olai", "Inbox.org"), "utf8")
+    const rows = recordsIn(inbox)
     expect(rows.find((row) => row.title === "ada's line")?.custom).toEqual({
       "captured-by": "ada@example.com",
     })

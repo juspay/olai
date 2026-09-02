@@ -24,7 +24,7 @@ import type { Door, Licence, Named, PageReading, Row } from "@olai/format"
 
 /** Where every fixture here lives — one file, because none of these suites is
  *  about which file a row came out of. */
-const FILE = "house.olai"
+const FILE = "house.org"
 
 /** One row of an outline, at the PLACE `key` names.
  *

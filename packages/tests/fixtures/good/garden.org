@@ -1,0 +1,104 @@
+* garden #outdoors
+:PROPERTIES:
+:ID: garden
+:OLAI_KIND: regular
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "garden #outdoors"
+:END:
+
+** the herb bed by the door
+:PROPERTIES:
+:ID: herbs
+:OLAI_KIND: regular
+:OLAI_PARENT: "garden"
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "the herb bed by the door"
+:OLAI_DOING: "2026-07-20"
+:END:
+
+*** sow the basil
+:PROPERTIES:
+:ID: basil
+:OLAI_KIND: regular
+:OLAI_PARENT: "herbs"
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "sow the basil"
+:OLAI_DONE: "2026-07-20"
+:END:
+
+*** split the mint
+:PROPERTIES:
+:ID: mint
+:OLAI_KIND: regular
+:OLAI_PARENT: "herbs"
+:OLAI_ORD: "a1"
+:OLAI_TITLE: "split the mint"
+:OLAI_DOING: true
+:END:
+
+** the cold frames
+:PROPERTIES:
+:ID: frames
+:OLAI_KIND: regular
+:OLAI_PARENT: "garden"
+:OLAI_ORD: "a1"
+:OLAI_TITLE: "the cold frames"
+:END:
+
+*** replace the cracked pane
+:PROPERTIES:
+:ID: glazing
+:OLAI_KIND: regular
+:OLAI_PARENT: "frames"
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "replace the cracked pane"
+:OLAI_DONE: "2026-07-15"
+:END:
+
+*** sow the first trays
+:PROPERTIES:
+:ID: sowing
+:OLAI_KIND: regular
+:OLAI_PARENT: "frames"
+:OLAI_ORD: "a1"
+:OLAI_TITLE: "sow the first trays"
+:OLAI_DONE: "2026-08-11"
+:END:
+
+*** the slugs got the seedlings last year
+:PROPERTIES:
+:ID: slugs
+:OLAI_KIND: regular
+:OLAI_PARENT: "frames"
+:OLAI_ORD: "a2"
+:OLAI_TITLE: "the slugs got the seedlings last year"
+:END:
+
+** the compost heap
+:PROPERTIES:
+:ID: compost
+:OLAI_KIND: regular
+:OLAI_PARENT: "garden"
+:OLAI_ORD: "a2"
+:OLAI_TITLE: "the compost heap"
+:END:
+
+*** turn the pile
+:PROPERTIES:
+:ID: turned
+:OLAI_KIND: regular
+:OLAI_PARENT: "compost"
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "turn the pile"
+:OLAI_DONE: "2026-07-01"
+:END:
+
+*** add the straw
+:PROPERTIES:
+:ID: straw
+:OLAI_KIND: regular
+:OLAI_PARENT: "compost"
+:OLAI_ORD: "a1"
+:OLAI_TITLE: "add the straw"
+:OLAI_DONE: "2026-07-02"
+:END:

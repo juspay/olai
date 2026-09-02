@@ -871,13 +871,13 @@ export const bind = (
      * start by walking every served file: the basename of each folded and
      * compared, the matches collected and sorted, for an answer that moves only
      * when a file is ADDED, REMOVED or RENAMED. A keystroke in one outline paid
-     * for the whole directory to be told the shelf is still `Pins.olai`, and
+     * for the whole directory to be told the shelf is still `Pins.org`, and
      * the cell's `equals` then swallowed the frame having already bought the
      * work.
      *
      * TWO CARRIERS AND NOT ONE, because the two questions are asked of two
      * different lists and that difference is deliberate: the inbox is found
-     * among the outlines the SET SERVES (an empty or torn `Inbox.olai` has no
+     * among the outlines the SET SERVES (an empty or torn `Inbox.org` has no
      * records and so no entry in `byFile`, and the door and the count must
      * name the file a capture would land in), while the shelf is found among
      * the files the DERIVATION HOLDS RECORDS FOR, which is where its rows come
@@ -1358,7 +1358,7 @@ export const bind = (
          *
          * A store that has never published has no shelf rather than an unknown
          * one: an empty shelf draws nothing, which is what a directory with no
-         * `Pins.olai` draws and what the column showed while the first frame was
+         * `Pins.org` draws and what the column showed while the first frame was
          * arriving before any of this.
          */
         pins: {
@@ -1383,7 +1383,7 @@ export const bind = (
          *
          * Its own carrier (`inboxFile`) and not the shelf's, over the
          * outlines the SET SERVES rather than the files the derivation holds
-         * records for: an empty or torn `Inbox.olai` has no entry in
+         * records for: an empty or torn `Inbox.org` has no entry in
          * `byFile`, and the count has to be about the file a capture would
          * actually land in (`@olai/format`'s `inbox.ts` argues it).
          *

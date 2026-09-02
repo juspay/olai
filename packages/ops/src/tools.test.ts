@@ -71,7 +71,7 @@ import { act, asking, read, TOOLS, write } from "./tools.ts"
  *  that could not be read. */
 const EVERYTHING = (): OutlineSet =>
   setOf({
-    "house.olai": [
+    "house.org": [
       `{"id":"house","ord":"a0","title":"House #home @sam","desc":"the note","date":"2026-08-14","doing":true,"see":["paint"],"after":["paint"]}`,
       `{"id":"paint","parent":"house","ord":"a0","title":"paint the hall","done":"2026-08-09T10:15:00-04:00"}`,
       `{"id":"sand","parent":"house","ord":"a1","title":"sand the floor","todo":true}`,
@@ -91,7 +91,7 @@ const EVERYTHING = (): OutlineSet =>
     // Bare, because the set holds this one's PATH and not its content — which
     // is exactly why no document read answers it.
     "saved/page.html",
-  ], { "torn.olai": "{ not a record", "torn.md": "{ not a record" })
+  ], { "torn.org": "{ not a record", "torn.md": "{ not a record" })
 
 const at = (): Reading => readingOf(EVERYTHING())
 
@@ -146,8 +146,8 @@ const CALLS: Record<string, ReadonlyArray<unknown>> = {
   read_subtree: [
     { id: "house", depth: 1 },
     { id: "house" },
-    { file: "house.olai" },
-    { file: "house.olai", depth: 1 },
+    { file: "house.org" },
+    { file: "house.org", depth: 1 },
     { id: "shed" },
     // The lean walk: notes off, structure on. Reached here so the decode
     // above is not vacuous about a `withDesc: false` answer.
@@ -155,7 +155,7 @@ const CALLS: Record<string, ReadonlyArray<unknown>> = {
     // The shaped walks: one per way in, so both projected arms of the union
     // are actually decoded.
     { id: "house", fields: ["title", "status", "done"] },
-    { file: "house.olai", depth: 1, fields: ["title", "status", "custom"] },
+    { file: "house.org", depth: 1, fields: ["title", "status", "custom"] },
   ],
   list_documents: [{}],
   // The reads that REFUSE are not called here: this walk decodes ANSWERS, and
@@ -218,13 +218,13 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
   // nothing. Pinned here so a change to the shape is a decision somebody makes
   // rather than one that happens.
   expect(outlines[0]).toEqual({
-    file: "house.olai",
+    file: "house.org",
     // Four REGULAR nodes; the two mirrors are placements and do not count.
     nodes: 4,
     roots: ["House #home @sam"],
   })
   expect(outlines[1]).toEqual({
-    file: "torn.olai",
+    file: "torn.org",
     unreadable: [expect.any(String)],
   })
 
@@ -311,7 +311,7 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
     .toEqual(["paint", "sand"])
   // The whole outline: the fixture's one top-level root, and NOT the
   // placement sitting beside it as a root — named on the answer instead.
-  expect(outline?.["file"]).toBe("house.olai")
+  expect(outline?.["file"]).toBe("house.org")
   expect((outline?.["roots"] as ReadonlyArray<Subtree>).map((root) => root.id))
     .toEqual(["house"])
   // …and `truncated` is per ROOT, reached here so the arm's own optional field

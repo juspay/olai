@@ -23,7 +23,7 @@ Feature: Writing a node's edges — `see` and `after`
   scenarios.
 
   Background:
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     And I mark the page
 
   Scenario: Linking to a node from the menu writes the `see` the agent writes
@@ -32,7 +32,7 @@ Feature: Writing a node's edges — `see` and `after`
     Then the see panel is open on "handles"
     When I search the edge panel for "compost"
     And I choose "the compost heap" from the edge panel
-    Then "house.olai" holds the node "handles" seeing "compost"
+    Then "house.org" holds the node "handles" seeing "compost"
     And the page has not reloaded
     And there should be no page errors
 
@@ -50,11 +50,11 @@ Feature: Writing a node's edges — `see` and `after`
     # Waited out whole: by the time the rows answer the new query, anything
     # that key wrongly sent has landed and the disk would say so.
     And the edge panel's rows answer "mint"
-    Then "house.olai" holds the node "handles" seeing nothing
+    Then "house.org" holds the node "handles" seeing nothing
     # ...and the key is not lost to the reader, only to the wrong row: pressed
     # again, over rows that are theirs, it takes the one they were looking at.
     When I press "Enter"
-    Then "house.olai" holds the node "handles" seeing "mint"
+    Then "house.org" holds the node "handles" seeing "mint"
     And there should be no page errors
 
   Scenario: The panel lists what the node says now, and its `×` takes one off
@@ -65,7 +65,7 @@ Feature: Writing a node's edges — `see` and `after`
     And I choose "Link to a node…" from the node menu
     Then the edge panel holds "herbs"
     When I drop "herbs" in the edge panel
-    Then "house.olai" holds the node "order" seeing nothing
+    Then "house.org" holds the node "order" seeing nothing
     And there should be no page errors
 
   Scenario: ⌘Z takes a link back, and ⌘⇧Z puts it back
@@ -75,12 +75,12 @@ Feature: Writing a node's edges — `see` and `after`
     And I choose "Link to a node…" from the node menu
     And I search the edge panel for "compost"
     And I choose "the compost heap" from the edge panel
-    Then "house.olai" holds the node "handles" seeing "compost"
+    Then "house.org" holds the node "handles" seeing "compost"
     When I press "Escape"
     And I press "ControlOrMeta+z"
-    Then "house.olai" holds the node "handles" seeing nothing
+    Then "house.org" holds the node "handles" seeing nothing
     When I press "ControlOrMeta+Shift+z"
-    Then "house.olai" holds the node "handles" seeing "compost"
+    Then "house.org" holds the node "handles" seeing "compost"
     And there should be no page errors
 
   # ── `after`, and the loop it refuses to close ───────────────────────
@@ -96,7 +96,7 @@ Feature: Writing a node's edges — `see` and `after`
     Then the after panel is open on "knobs"
     When I search the edge panel for "order the new cabinets"
     And I choose "order the new cabinets" from the edge panel
-    Then "house.olai" holds the node "knobs" after "order"
+    Then "house.org" holds the node "knobs" after "order"
     And the node "knobs" is blocked by "order"
     And the page has not reloaded
     And there should be no page errors
@@ -110,11 +110,11 @@ Feature: Writing a node's edges — `see` and `after`
     And I choose "Wait for a node…" from the node menu
     And I search the edge panel for "order the new cabinets"
     And I choose "order the new cabinets" from the edge panel
-    Then "house.olai" holds the node "knobs" after "order"
+    Then "house.org" holds the node "knobs" after "order"
     And the node "knobs" is blocked by "order"
     When I press "Escape"
     And I press "ControlOrMeta+z"
-    Then "house.olai" holds the node "knobs" after nothing
+    Then "house.org" holds the node "knobs" after nothing
     And the node "knobs" is not blocked
     And there should be no page errors
 
@@ -130,9 +130,9 @@ Feature: Writing a node's edges — `see` and `after`
     When I open the node "hinges"
     Then the node "hinges" comes after "choose the handles, order the new cabinets"
     When I drop "handles" from the drawn "after" of "hinges"
-    Then "house.olai" holds the node "hinges" after "order"
+    Then "house.org" holds the node "hinges" after "order"
     When I press "ControlOrMeta+z"
-    Then "house.olai" holds the node "hinges" after "order, handles"
+    Then "house.org" holds the node "hinges" after "order, handles"
     And the node "hinges" comes after "order the new cabinets, choose the handles"
     And there should be no page errors
 
@@ -147,7 +147,7 @@ Feature: Writing a node's edges — `see` and `after`
     And I choose "install the cabinets" from the edge panel
     Then the edge panel says "closes a loop"
     And the edge panel says "`order` → `install` → `order`"
-    And "house.olai" holds the node "order" after "demo"
+    And "house.org" holds the node "order" after "demo"
     And there should be no page errors
 
   # ── the zoomed node, which has no `•••` at all ──────────────────────
@@ -166,14 +166,14 @@ Feature: Writing a node's edges — `see` and `after`
     And I open the after panel from the page
     And I search the edge panel for "the compost heap"
     And I choose "the compost heap" from the edge panel
-    Then "house.olai" holds the node "handles" after "compost"
+    Then "house.org" holds the node "handles" after "compost"
     And the node "handles" comes after "the compost heap"
     And there should be no page errors
 
   Scenario: The `×` on a drawn `after` reference drops that dependency
     When I open the node "hinges"
     And I drop "order" from the drawn "after" of "hinges"
-    Then "house.olai" holds the node "hinges" after "handles"
+    Then "house.org" holds the node "hinges" after "handles"
     And there should be no page errors
 
   Scenario: The `×` on a drawn `see` reference drops that link
@@ -182,14 +182,14 @@ Feature: Writing a node's edges — `see` and `after`
     When I open the node "order"
     Then the node "order" sees "herbs" as "the herb bed by the door"
     When I drop "herbs" from the drawn "see" of "order"
-    Then "house.olai" holds the node "order" seeing nothing
+    Then "house.org" holds the node "order" seeing nothing
     And the node "order" draws no "see"
     And there should be no page errors
 
   # ── a file that names one target twice ──────────────────────────────
 
   Scenario: A target named twice draws ONE link, and the page survives the frame
-    # A `.olai` is plain text and a hand-edited one can say the same thing twice.
+    # A `.org` is plain text and a hand-edited one can say the same thing twice.
     # What it MEANS is the write layer's own answer: `set_see` and `set_after`
     # treat these fields as SETS — re-adding a target the node already names is
     # a silent no-op — so a file naming one target three times names it once,
@@ -212,7 +212,7 @@ Feature: Writing a node's edges — `see` and `after`
     # navigation, so the mark that outlives this write has to be planted on the
     # document the write arrives at.
     Given I mark the page
-    When I rewrite "house.olai" as:
+    When I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
       {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","doing":"2026-08-05","see":["herbs","herbs","herbs"]}
@@ -247,7 +247,7 @@ Feature: Writing a node's edges — `see` and `after`
     Then the node "hinges" comes after "choose the handles, order the new cabinets"
     And the node "hinges" is blocked by exactly "order"
     Given I mark the page
-    When I rewrite "house.olai" as:
+    When I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":"2026-08-01"}
       {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","doing":"2026-08-05"}
@@ -295,6 +295,6 @@ Feature: Writing a node's edges — `see` and `after`
     And the name the panel holds for "garden" styles the tag "#outdoors"
     When I press the tag "#outdoors" the panel's name for "garden" carries
     Then the edge panel holds "garden"
-    And the address is exactly "/house.olai"
+    And the address is exactly "/house.org"
     And the page has not reloaded
     And there should be no page errors

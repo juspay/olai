@@ -13,7 +13,7 @@ Feature: The ••• menu opens and shuts
   can quietly change it.
 
   Background:
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     # `demo` is the row the refused-mark scenarios open the menu OF —
     # finished, so the page is asked to keep it drawn (the menu under a row
     # that is not there is nobody's case).

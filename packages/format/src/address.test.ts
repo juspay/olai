@@ -38,20 +38,20 @@ const heading = (path: string, slug: string): Address => ({
  *  is a pin that opens the wrong page and a URL that means something else on a
  *  reload, and the round trip is the only thing that catches it. */
 const CANONICAL: ReadonlyArray<readonly [string, Address]> = [
-  ["Tasks.olai", document("Tasks.olai")],
+  ["Tasks.org", document("Tasks.org")],
   ["notes/README.md", document("notes/README.md")],
   ["saved/report.html", document("saved/report.html")],
   ["#a1b2c3", node("a1b2c3")],
   ["#kitchen", node("kitchen")],
-  ["Tasks.olai#a1b2c3", row("Tasks.olai", "a1b2c3")],
+  ["Tasks.org#a1b2c3", row("Tasks.org", "a1b2c3")],
   ["notes/README.md#install", heading("notes/README.md", "install")],
   // A `.html` carries whatever ids its author wrote, which are not slugs and
   // are not promised to be free of characters an address gives its own meaning
   // to. The escape is the whole point: it survives both ways.
   ["saved/report.html#Q3%20revenue", heading("saved/report.html", "Q3 revenue")],
-  ["a%20file%20with%20spaces.olai", document("a file with spaces.olai")],
+  ["a%20file%20with%20spaces.org", document("a file with spaces.org")],
   // The separator survives, so a reader still recognises the folder.
-  ["wing/kitchen.olai", document("wing/kitchen.olai")],
+  ["wing/kitchen.org", document("wing/kitchen.org")],
 ]
 
 test("every address survives being written and read back", () => {
@@ -73,7 +73,7 @@ test("every canonical spelling reads back as itself", () => {
 // the fragment itself says: an outline has rows and no headings, a body has
 // headings and no rows.
 test("an element of an outline is a row, an element of a body is a heading", () => {
-  expect(parseAddress("Tasks.olai#a1b2c3")).toEqual(row("Tasks.olai", "a1b2c3"))
+  expect(parseAddress("Tasks.org#a1b2c3")).toEqual(row("Tasks.org", "a1b2c3"))
   expect(parseAddress("README.md#a1b2c3")).toEqual(heading("README.md", "a1b2c3"))
 })
 
@@ -83,19 +83,19 @@ test("an element of an outline is a row, an element of a body is a heading", () 
 // qualified form is what a LANDING needs and the bare form is what a
 // permalink needs. The two are deliberately NOT one arm.
 test("a doc-qualified node keeps its file, and a bare one prints bare", () => {
-  const qualified = parseAddress("Tasks.olai#a1b2c3")
-  expect(qualified).toEqual(row("Tasks.olai", "a1b2c3"))
-  expect(printAddress(qualified as Address)).toBe("Tasks.olai#a1b2c3")
+  const qualified = parseAddress("Tasks.org#a1b2c3")
+  expect(qualified).toEqual(row("Tasks.org", "a1b2c3"))
+  expect(printAddress(qualified as Address)).toBe("Tasks.org#a1b2c3")
   expect(printAddress(node("a1b2c3"))).toBe("#a1b2c3")
 })
 
 // One constructor, so the arm a pair of halves lands on is decided in one
 // place rather than once per caller.
 test("the halves name the same places the written forms do", () => {
-  expect(addressOf("Tasks.olai", null)).toEqual(document("Tasks.olai"))
+  expect(addressOf("Tasks.org", null)).toEqual(document("Tasks.org"))
   expect(addressOf(null, "a1b2c3")).toEqual(node("a1b2c3"))
   expect(addressOf("README.md", "install")).toEqual(heading("README.md", "install"))
-  expect(addressOf("Tasks.olai", "a1b2c3")).toEqual(row("Tasks.olai", "a1b2c3"))
+  expect(addressOf("Tasks.org", "a1b2c3")).toEqual(row("Tasks.org", "a1b2c3"))
   // An empty element is a document with nothing after the `#`, which names the
   // document — not a failure.
   expect(addressOf("README.md", "")).toEqual(document("README.md"))
@@ -118,9 +118,9 @@ test("text that names no place is not an address", () => {
       "photo.tiff",
       "today",
       "notes#install",
-      // Outside the served directory, or able to leave the site: `//x.olai` is
+      // Outside the served directory, or able to leave the site: `//x.org` is
       // another host to a browser.
-      "/Tasks.olai",
+      "/Tasks.org",
       "../secrets.md",
       "a/../b.md",
       // An escape nothing could have written, in the half that has to be read.
@@ -158,7 +158,7 @@ test("an element nothing could have written names no element", () => {
   expect(parseAddress("README.md#")).toEqual(document("README.md"))
 })
 
-// Totality is the promise the address bar, a `Pins.olai` title and an href in
+// Totality is the promise the address bar, a `Pins.org` title and an href in
 // somebody's note are all read on: a throw during render is a blank page.
 test("parsing answers for any string at all, and never throws", () => {
   for (const text of ["%", "%2", "#%", "a#b#c", "🌱.md", "?q=is:done", "//"]) {
@@ -179,11 +179,11 @@ test("the plain-path fast path prints what the walk would have printed", () => {
   const walked = (path: string): string =>
     path.split("/").map(encodeURIComponent).join("/")
   const names = [
-    "Tasks.olai",
+    "Tasks.org",
     "notes/README.md",
-    "a file with spaces.olai",
+    "a file with spaces.org",
     "a-'file_(2)~!*.md",
-    "wing/kitchen.olai",
+    "wing/kitchen.org",
     "100% done.md",
     "a&b.md",
     "a$b.md",
@@ -238,10 +238,10 @@ test("an address the link's grammar cannot carry is ESCAPED, not refused", () =>
   // A `(` is unspellable inside a link and means `%28` to every reader of an
   // address here — so a file with parentheses in its name is nameable, and the
   // written form still reads back as the same path.
-  const title = pinTitle("/notes/plan%20(old).olai", "The old plan")
-  expect(title).toBe("[The old plan](/notes/plan%20%28old%29.olai)")
+  const title = pinTitle("/notes/plan%20(old).org", "The old plan")
+  expect(title).toBe("[The old plan](/notes/plan%20%28old%29.org)")
   expect(parseAddress(addressWritten(title ?? "").slice(1)))
-    .toEqual(document("notes/plan (old).olai"))
+    .toEqual(document("notes/plan (old).org"))
 })
 
 test("a blank name is the BARE address — un-naming is typing the name away", () => {

@@ -76,20 +76,20 @@ const TRASH = [
   `{"id":"pulls","parent":"old","ord":"a0","title":"the old pulls"}`,
 ].join("\n")
 
-/** A leftover `Archive.olai` — not the trash and not live work either, which is
+/** A leftover `Archive.org` — not the trash and not live work either, which is
  *  a rule the matcher holds and this reading inherits rather than restates. */
 const LEFTOVER = `{"id":"attic","ord":"a0","title":"the attic door"}`
 
 const SET = derive(nodesOfFiles({
-  "house.olai": HOUSE,
-  "garden.olai": GARDEN,
-  "_olai/Trash.olai": TRASH,
-  "Archive.olai": LEFTOVER,
+  "house.org": HOUSE,
+  "garden.org": GARDEN,
+  "_olai/Trash.org": TRASH,
+  "Archive.org": LEFTOVER,
 }))
 
 const TODAY = "2026-08-10"
 
-const FILES = ["Archive.olai", "_olai/Trash.olai", "garden.olai", "house.olai"]
+const FILES = ["Archive.org", "_olai/Trash.org", "garden.org", "house.org"]
 const facesOf = (paths: ReadonlyArray<string>): ReadonlyArray<Face> =>
   paths.map((path) => ({ path, title: path, links: [], tags: [] } as unknown as Face))
 const FACES = facesOf(FILES)
@@ -111,11 +111,11 @@ const node = (id: string): PageRequest => ({ kind: "at", address: addressOf("", 
 /** Every page this fixture can be read as — the sweep the parity claim runs
  *  over. Named so a failure says which page it was about. */
 const PAGES: ReadonlyArray<readonly [string, PageRequest]> = [
-  ["an outline", at("house.olai")],
-  ["another outline", at("garden.olai")],
+  ["an outline", at("house.org")],
+  ["another outline", at("garden.org")],
   ["a zoomed node", node("kitchen")],
   ["a zoom onto an archived node", node("old")],
-  ["a leftover archive", at("Archive.olai")],
+  ["a leftover archive", at("Archive.org")],
   ["a day", { kind: "day", date: "2026-08-10" }],
   ["the agenda", { kind: "agenda", today: TODAY }],
   ["the trash", { kind: "trash" }],
@@ -242,20 +242,20 @@ test("a node this page does not draw is not in the answer, however well it match
   // `shed` holds the word and lives in the other outline. That is the whole
   // change: the walk never reaches it, where the door this replaced walked the
   // vault to hand it over for the page to drop again.
-  expect(idsAt(at("house.olai"), "door")).not.toContain("shed")
-  expect(idsAt(at("garden.olai"), "door")).toContain("shed")
+  expect(idsAt(at("house.org"), "door")).not.toContain("shed")
+  expect(idsAt(at("garden.org"), "door")).toContain("shed")
 })
 
 test("a MIRROR is answered by the node it shows, in the file that node lives in", () => {
   // The case that makes a `file:`-scoped matcher wrong: `herbs` is drawn on
-  // `house.olai` as a placement and its record is in `garden.olai`, so an
+  // `house.org` as a placement and its record is in `garden.org`, so an
   // answer scoped by the page's FILE would lose the row it is made of.
-  expect(idsAt(at("house.olai"), "herb")).toEqual(["herbs"])
+  expect(idsAt(at("house.org"), "herb")).toEqual(["herbs"])
 })
 
 test("a node drawn twice is answered once", () => {
   // A placement is not a node. `herbs` is drawn under `garden` and again as the
-  // mirror on `house.olai`; the agenda reaches both files at once, and what
+  // mirror on `house.org`; the agenda reaches both files at once, and what
   // comes back is a set of ids a page looks itself up in.
   const answered = idsAt({ kind: "agenda", today: TODAY }, "herb")
   expect(answered).toEqual(["herbs"])
@@ -264,7 +264,7 @@ test("a node drawn twice is answered once", () => {
 test("what was put away is out of a live page and IN on the trash", () => {
   // The grammar's own door is still the grammar's, and what it opens is a
   // corner of the set a live outline is not in.
-  expect(idsAt(at("house.olai"), "is:trashed door")).toEqual([])
+  expect(idsAt(at("house.org"), "is:trashed door")).toEqual([])
   // The trash IS the archive: a matcher applying the default there would take
   // every row off the screen and leave nothing to read the absence by.
   expect(idsAt({ kind: "trash" }, "door")).toEqual(["old"])
@@ -276,8 +276,8 @@ test("what was put away is out of a live page and IN on the trash", () => {
 test("a leftover archive is orphaned from every query, the way it always was", () => {
   // Not trash, and not live work either — the rule lives in the matcher and
   // this reading inherits it rather than restating it.
-  expect(idsAt(at("Archive.olai"), "door")).toEqual([])
-  expect(idsAt(at("Archive.olai"), "is:trashed door")).toEqual([])
+  expect(idsAt(at("Archive.org"), "door")).toEqual([])
+  expect(idsAt(at("Archive.org"), "is:trashed door")).toEqual([])
 })
 
 test("only what a PRUNE can take away is a candidate", () => {
@@ -287,19 +287,19 @@ test("only what a PRUNE can take away is a candidate", () => {
   // tag; the rows under it do not.
   expect(idsAt(node("kitchen"), "#home")).toEqual([])
   // ...and on the outline that DRAWS `kitchen` as a row, it is selected.
-  expect(idsAt(at("house.olai"), "#home")).toEqual(["kitchen"])
+  expect(idsAt(at("house.org"), "#home")).toEqual(["kitchen"])
 })
 
 test("an empty box and a query the grammar refused both select nothing", () => {
-  expect(idsAt(at("house.olai"), "   ")).toEqual([])
-  expect(idsAt(at("house.olai"), "is:open")).toEqual([])
+  expect(idsAt(at("house.org"), "   ")).toEqual([])
+  expect(idsAt(at("house.org"), "is:open")).toEqual([])
 })
 
 // ── the envelope, and the wire ─────────────────────────────────────────
 
 test("the answer carries the words it answers, and survives the wire", () => {
   const answer = narrowingOf(READING, {
-    page: at("house.olai"),
+    page: at("house.org"),
     text: "door",
   }, TODAY, NO_KINDS)
   expect(answer.text).toBe("door")
@@ -313,7 +313,7 @@ test("two answers that select the same nodes for the same reasons are the same",
   // What keeps a revision that moved no match off the wire — the whole of the
   // fix, in the line the server binds as this member's `isEqual`.
   const ask = (text: string) =>
-    narrowingOf(READING, { page: at("house.olai"), text }, TODAY, NO_KINDS)
+    narrowingOf(READING, { page: at("house.org"), text }, TODAY, NO_KINDS)
   expect(sameNarrowing(ask("door"), ask("door"))).toBe(true)
   expect(sameNarrowing(ask("door"), ask("hinges"))).toBe(false)
 })

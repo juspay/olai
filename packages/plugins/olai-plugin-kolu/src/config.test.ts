@@ -7,7 +7,7 @@
  * IT HAD A MUTES HALF TOO — nine cases over a `mutes` node's children, the
  * values the timers gated on and the titles the drawer's foot read. They
  * went with the second doorbell (2026-08-31), which took the mute list out
- * of `_olai/Kolu.olai` altogether: a conversation's wake FILTER FILE is the
+ * of `_olai/Kolu.org` altogether: a conversation's wake FILTER FILE is the
  * silence control now. What is left is the knobs and the convention, and
  * both are pinned whole.
  */
@@ -48,20 +48,20 @@ const setOf = (files: Record<string, string>, file?: string) =>
 test("the finder names the file by basename and case-folded, shallowest first", () => {
   expect(
     koluFileIn([
-      "pieces/week-34/kolu.olai",
-      "_olai/Kolu.olai",
-      "mocca.olai",
+      "pieces/week-34/kolu.org",
+      "_olai/Kolu.org",
+      "mocca.org",
     ]),
-  ).toBe("_olai/Kolu.olai")
+  ).toBe("_olai/Kolu.org")
 })
 
 test("the finder names nothing a korrekt file does not answer to", () => {
-  expect(koluFileIn(["mocca.olai", "_olai/Pins.olai"])).toBeUndefined()
+  expect(koluFileIn(["mocca.org", "_olai/Pins.org"])).toBeUndefined()
 })
 
-test("a set with no `kolu.olai` says the defaults", () => {
+test("a set with no `kolu.org` says the defaults", () => {
   const reading = setOf({
-    "_olai/Pins.olai": `{"id":"p","ord":"a0","title":"the shelf everyone's reading"}`,
+    "_olai/Pins.org": `{"id":"p","ord":"a0","title":"the shelf everyone's reading"}`,
   })
   expect(reading.config).toEqual(DEFAULT_WATCH)
   expect(reading.malformed).toEqual([])
@@ -70,19 +70,19 @@ test("a set with no `kolu.olai` says the defaults", () => {
 // ── The wrench's door stays when the inside is torn ─────────────────────
 
 test("a config that parses to nothing reads the defaults — the wrench is the caller's", () => {
-  // An unparsed `_olai/Kolu.olai` contributes no records: this is the
+  // An unparsed `_olai/Kolu.org` contributes no records: this is the
   // walk's empty-inside answer. WHICH file it was is deliberately not this
   // walk's to answer — the caller found it off the served PATHS and keeps
   // its own answer, which is what lets the drawer's wrench draw over a file
   // whose nodes the codec withheld.
-  const reading = setOf({ "_olai/Kolu.olai": "" })
+  const reading = setOf({ "_olai/Kolu.org": "" })
   expect(reading.config).toEqual(DEFAULT_WATCH)
   expect(reading.malformed).toEqual([])
 })
 
 test("the knobs' defaults stand where the file says nothing", () => {
   const reading = setOf({
-    "_olai/Kolu.olai": [rec("watch", {})].join("\n"),
+    "_olai/Kolu.org": [rec("watch", {})].join("\n"),
   })
   expect(reading.config).toEqual(DEFAULT_WATCH)
 })
@@ -91,7 +91,7 @@ test("the knobs' defaults stand where the file says nothing", () => {
 
 test("the three durations parse the vault's grammar", () => {
   const reading = setOf({
-    "_olai/Kolu.olai": [
+    "_olai/Kolu.org": [
       rec("watch", { "held-for": "30s", nag: "10m", heartbeat: "30m" }),
     ].join("\n"),
   })
@@ -105,19 +105,19 @@ test("the three durations parse the vault's grammar", () => {
 
 test("a malformed duration keeps the default and earns its sentence", () => {
   const reading = setOf({
-    "_olai/Kolu.olai": [
+    "_olai/Kolu.org": [
       rec("watch", { "held-for": "soon" }),
     ].join("\n"),
   })
   expect(reading.config.heldForMs).toEqual(DEFAULT_WATCH.heldForMs)
   expect(reading.malformed).toEqual([
-    "kolu: `held-for: soon` in _olai/Kolu.olai is not a duration — write <n>s, <n>m or <n>h.",
+    "kolu: `held-for: soon` in _olai/Kolu.org is not a duration — write <n>s, <n>m or <n>h.",
   ])
 })
 
 test("`0s` is held-for's own spell, and not the intervals'", () => {
   const zeros = setOf({
-    "_olai/Kolu.olai": [
+    "_olai/Kolu.org": [
       rec("watch", { "held-for": "0s", nag: "0s", heartbeat: "0s" }),
     ].join("\n"),
   })
@@ -125,14 +125,14 @@ test("`0s` is held-for's own spell, and not the intervals'", () => {
   expect(zeros.config.nagMs).toEqual(DEFAULT_WATCH.nagMs)
   expect(zeros.config.heartbeatMs).toEqual(DEFAULT_WATCH.heartbeatMs)
   expect(zeros.malformed).toEqual([
-    "kolu: `nag: 0s` in _olai/Kolu.olai is not an interval its timer allows — padi refuses a nag of 0 as the spin it is.",
-    "kolu: `heartbeat: 0s` in _olai/Kolu.olai is not an interval its timer allows — padi refuses a heartbeat of 0 as the spin it is.",
+    "kolu: `nag: 0s` in _olai/Kolu.org is not an interval its timer allows — padi refuses a nag of 0 as the spin it is.",
+    "kolu: `heartbeat: 0s` in _olai/Kolu.org is not an interval its timer allows — padi refuses a heartbeat of 0 as the spin it is.",
   ])
 })
 
 test("a duration past the timer ceiling is the malformed half rather than a knob", () => {
   const reading = setOf({
-    "_olai/Kolu.olai": [
+    "_olai/Kolu.org": [
       rec("watch", { nag: `${2_147_483_648}ms` }),
     ].join("\n"),
   })
@@ -143,17 +143,17 @@ test("a duration past the timer ceiling is the malformed half rather than a knob
 // ── ONE file decides — including a silent one ─────────────────────────────
 
 test("nodes hanging in another file answer on their own, as not the file's", () => {
-  // `mocca.olai`'s `watch` is not the convention file's.
+  // `mocca.org`'s `watch` is not the convention file's.
   const reading = setOf({
-    "mocca.olai": [rec("watch", { nag: "10m" })].join("\n"),
+    "mocca.org": [rec("watch", { nag: "10m" })].join("\n"),
   })
   expect(reading.config).toEqual(DEFAULT_WATCH)
 })
 
 test("the deepest duplicate loses by convention while sharing the name", () => {
   const reading = setOf({
-    "_olai/Kolu.olai": [rec("watch", { nag: "10m" })].join("\n"),
-    "pieces/kolu.olai": [rec("watch", { nag: "1m" })].join("\n"),
+    "_olai/Kolu.org": [rec("watch", { nag: "10m" })].join("\n"),
+    "pieces/kolu.org": [rec("watch", { nag: "1m" })].join("\n"),
   })
   expect(reading.config.nagMs).toEqual(10 * 60_000)
 })
@@ -161,18 +161,18 @@ test("the deepest duplicate loses by convention while sharing the name", () => {
 test("the convention is by NAME, the way the shelf's is: a silent front-runner decides, and deeper said ones do not", () => {
   // The one behaviour this PR changed on purpose and the rule every
   // convention file already keeps (`inboxIn`, `pinsIn`): a root
-  // `Kolu.olai` of notes DECIDES — it is the shallowest file holding the
+  // `Kolu.org` of notes DECIDES — it is the shallowest file holding the
   // name — so the knobs say defaults, and the wrench lands on the ROOT
   // file. The reader's note file is not vetoed by a correctly-shaped
   // config sitting deeper: the answer is the name, and a reader keeping
   // one there finds it, not a layout the code knew to skip. Before
   // `koluFileIn` the walk dodged the silent one, silently.
   expect(
-    koluFileIn(["Kolu.olai", "_olai/Kolu.olai"]),
-  ).toBe("Kolu.olai")
+    koluFileIn(["Kolu.org", "_olai/Kolu.org"]),
+  ).toBe("Kolu.org")
   const reading = setOf({
-    "Kolu.olai": `{"id":"k","ord":"a0","title":"kolu notes"}`,
-    "_olai/Kolu.olai": [rec("watch", { nag: "1m" })].join("\n"),
+    "Kolu.org": `{"id":"k","ord":"a0","title":"kolu notes"}`,
+    "_olai/Kolu.org": [rec("watch", { nag: "1m" })].join("\n"),
   })
   expect(reading.config).toEqual(DEFAULT_WATCH)
 })

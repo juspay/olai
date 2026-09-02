@@ -18,7 +18,7 @@
  *
  * ## Why the SUBJECT leads and the file does not
  *
- * What is being woken ON is the subject; the `.olai` file is the FILTER over
+ * What is being woken ON is the subject; the `.org` file is the FILTER over
  * it. A control that led with the file would be describing its own mechanism
  * to somebody who wants to know what it does — and the mechanism is not even
  * the interesting half: the file is a filter a person swaps, while "terminal
@@ -38,7 +38,7 @@
  *
  * ONE ENTRY, and it will stay one until something in this package can derive a
  * claim out of prose. It is spelled as `@olai/format`'s own word rather than as
- * `.olai`, because a suffix is a string two packages can disagree about and a
+ * `.org`, because a suffix is a string two packages can disagree about and a
  * KIND is the registry's single answer — and it is bounded to the kinds that
  * HOLD RECORDS rather than to every kind there is, because `document` is a word
  * the registry claims and a file this doorbell can no more walk than a picture
@@ -111,7 +111,7 @@ import type { NodeKind } from "@olai/format"
  * Typed against the registry's own union rather than spelled as a suffix: the
  * word travels to the picker as data (`@olai/surface`'s `BuiltPlugin`'s
  * `wake.kinds`) and is compared there against `fileKind`'s answer, so the two
- * ends are reading one table. A `.olai` written out here would be a second
+ * ends are reading one table. A `.org` written out here would be a second
  * answer to a question `@olai/format`'s `kinds.ts` settles, and the failure it
  * buys is silent: a picker that offers nothing at all.
  *

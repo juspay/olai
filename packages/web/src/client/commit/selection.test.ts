@@ -27,10 +27,10 @@ const WAITING: Pending = {
   ...NOTHING_PENDING,
   repo: { _tag: "Ready", branch: "main" },
   outlines: [
-    { file: "roadmap.olai", path: "docs/roadmap.olai", how: "modified", from: null },
+    { file: "roadmap.org", path: "docs/roadmap.org", how: "modified", from: null },
   ],
   changes: [{
-    file: "roadmap.olai",
+    file: "roadmap.org",
     id: "kolu",
     title: "Kolu integration",
     fields: ["done"],
@@ -62,7 +62,7 @@ const over = <A>(
 
 test("everything is ticked, and a full selection is no selection at all", () => {
   over(WAITING, (selection) => {
-    expect(selection.ticked("docs/roadmap.olai")).toBe(true)
+    expect(selection.ticked("docs/roadmap.org")).toBe(true)
     expect(selection.ticked("README.md")).toBe(true)
     // `undefined`, not the list of all three: the server reads an omitted
     // selection as the full sweep it is.
@@ -74,10 +74,10 @@ test("everything is ticked, and a full selection is no selection at all", () => 
 
 test("unticking a file drops it, its node changes, and its name from the message", () => {
   over(WAITING, (selection) => {
-    selection.toggle("docs/roadmap.olai")
+    selection.toggle("docs/roadmap.org")
 
     expect(selection.paths()).toEqual(["README.md", "notes/todo.md"])
-    // An outline's node changes travel WITH it: a partial `.olai` write is not
+    // An outline's node changes travel WITH it: a partial `.org` write is not
     // a thing that exists, so a half-committed outline is not a thing to offer.
     expect(selection.changes()).toEqual([])
     expect(selection.message()).not.toContain("Kolu integration")
@@ -92,7 +92,7 @@ test("unticking a file drops it, its node changes, and its name from the message
 
 test("unticking everything is an empty selection, which is not the same as no selection", () => {
   over(WAITING, (selection) => {
-    for (const path of ["docs/roadmap.olai", "README.md", "notes/todo.md"]) {
+    for (const path of ["docs/roadmap.org", "README.md", "notes/todo.md"]) {
       selection.toggle(path)
     }
     // Empty rather than `undefined`: the panel reads this as a button with
@@ -121,6 +121,6 @@ test("a file that arrives while the panel is open is ticked", () => {
     expect(selection.ticked("later.md")).toBe(true)
     // ... and the one somebody unticked STAYS unticked.
     expect(selection.ticked("README.md")).toBe(false)
-    expect(selection.paths()).toEqual(["docs/roadmap.olai", "notes/todo.md", "later.md"])
+    expect(selection.paths()).toEqual(["docs/roadmap.org", "notes/todo.md", "later.md"])
   })
 })

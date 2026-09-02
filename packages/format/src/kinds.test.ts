@@ -29,8 +29,8 @@ const ENTRIES = Object.entries(FILE_KINDS) as ReadonlyArray<
 // an answer, not a failure. The suffix is matched exactly as the registry
 // writes it, so a near miss is a miss.
 test("a served file is one of the registry's kinds, or none of the set's business", () => {
-  expect(fileKind("plan.olai")).toBe("outline")
-  expect(fileKind("sub/dir/plan.olai")).toBe("outline")
+  expect(fileKind("plan.org")).toBe("outline")
+  expect(fileKind("sub/dir/plan.org")).toBe("outline")
   expect(fileKind("notes/cabinets.md")).toBe("document")
   expect(fileKind("data/sales.csv")).toBe("csv")
   expect(fileKind("reports/q3.pdf")).toBe("pdf")
@@ -126,7 +126,7 @@ test("a bodied file is a claimed file that is not an outline, and nothing else",
   expect(bodyKind("reports/q3.pdf")).toBe("pdf")
   // An outline is claimed and is NOT a body: it decodes to records, and the
   // page that draws one is a tree rather than a rendering.
-  expect(bodyKind("plan.olai")).toBeNull()
+  expect(bodyKind("plan.org")).toBeNull()
   expect(bodyKind("README")).toBeNull()
 })
 
@@ -141,7 +141,7 @@ test("a file whose body is TEXT is the bodied ones something here can read", () 
   expect(textKind("data/sales.csv")).toBe("csv")
   expect(textKind("art/handle.png")).toBeNull()
   expect(textKind("reports/q3.pdf")).toBeNull()
-  expect(textKind("plan.olai")).toBeNull()
+  expect(textKind("plan.org")).toBeNull()
   expect(textKind("README")).toBeNull()
 })
 
@@ -161,7 +161,7 @@ test("the files a browser fetches are the ones whose page points at them", () =>
   expect(isFetched("reports/q3.pdf")).toBe(true)
   expect(isFetched("data/sales.csv")).toBe(false)
   expect(isFetched("notes/cabinets.md")).toBe(false)
-  expect(isFetched("plan.olai")).toBe(false)
+  expect(isFetched("plan.org")).toBe(false)
   expect(isFetched("README")).toBe(false)
 })
 
@@ -178,7 +178,7 @@ test("the shown kinds are the ones the set holds the path of and not the content
   expect(unkept("art/handle.png")).toBe(true)
   expect(unkept("reports/q3.pdf")).toBe(true)
   expect(unkept("notes/cabinets.md")).toBe(false)
-  expect(unkept("plan.olai")).toBe(false)
+  expect(unkept("plan.org")).toBe(false)
   // A file no kind claims is not in the set at all, so there is nothing the set
   // is declining to hold — and the server asks this of a KEY, which may be
   // anything a caller subscribed to.

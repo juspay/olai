@@ -29,7 +29,7 @@ import { renderTitle } from "./title.ts"
 
 installPipeline(pipeline)
 
-const NOTE = "house.olai"
+const NOTE = "house.org"
 
 /** A title as a filtered page draws it — the pipeline, since every title here
  *  holds a backtick or a bracket and the fast path refuses those. */

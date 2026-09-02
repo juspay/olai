@@ -8,7 +8,7 @@
  * switchable).
  *
  * IT ASSERTED A MUTES LINE TOO until the second doorbell (2026-08-31) took
- * the mute list out of `_olai/Kolu.olai`. Two steps went with it — `the
+ * the mute list out of `_olai/Kolu.org`. Two steps went with it — `the
  * drawer's foot says {string}` and `the drawer says nothing about mutes` —
  * and the wrench's own steps did not move.
  *
@@ -64,7 +64,7 @@ Then("the drawer's foot offers the wrench", async function(this: OlaiWorld) {
   await visible(this, PADI_FEED_WRENCH)
   assert.equal(
     await wrench.getAttribute("href"),
-    "/_olai/Kolu.olai",
+    "/_olai/Kolu.org",
     "the wrench's door was not the config",
   )
 })

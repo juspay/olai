@@ -43,9 +43,9 @@ Plus one property, `served`: where the served directory sits from the repository
 ### Three spellings of one dirty file
 
 ```ts
-{ path: "docs/roadmap.olai",  // repo-root-relative: what a person is shown, and the commit key
-  served: "roadmap.olai",     // served-root-relative, or null for a file outside the served tree
-  at: "/home/you/notes/docs/roadmap.olai",   // absolute: what `commit` takes
+{ path: "docs/roadmap.org",  // repo-root-relative: what a person is shown, and the commit key
+  served: "roadmap.org",     // served-root-relative, or null for a file outside the served tree
+  at: "/home/you/notes/docs/roadmap.org",   // absolute: what `commit` takes
   how: "modified",             // the porcelain XY letters, read
   from: null }                 // the same three spellings again, for a rename's other half
 ```

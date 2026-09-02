@@ -33,14 +33,14 @@ of each thing the view has to draw:
 
 | what | where |
 |---|---|
-| nesting | `kitchen` → `install` → `handles` (house.olai) |
-| a done child | `demo` (house.olai:2) |
-| a doing child | `order` (house.olai:3) |
+| nesting | `kitchen` → `install` → `handles` (house.org) |
+| a done child | `demo` (house.org:2) |
+| a doing child | `order` (house.org:3) |
 | a todo child | `knobs` — an unstarted task nothing is waiting on, so an EMPTY box |
 | a todo child that is BLOCKED | `hinges` — the waiting glyph in the mark column instead, and the row dimmed |
-| a parent hiding finished work must not hide | `frames` (garden.olai) — both its tasks done, and NOBODY marked it |
+| a parent hiding finished work must not hide | `frames` (garden.org) — both its tasks done, and NOBODY marked it |
 | a note that must survive hiding finished work | `slugs` under `frames` — nobody finished it, nobody called it work |
-| a subtree that is entirely done | `compost` (garden.olai) — two done children, nothing unmarked, so Prefs-hidden empties its page |
+| a subtree that is entirely done | `compost` (garden.org) — two done children, nothing unmarked, so Prefs-hidden empties its page |
 | a bullet that is not a task | `handles` — no mark, so no status and no box at all |
 | a marked parent | `kitchen` is `doing`, `herbs` is `doing` — stored, like any other mark |
 | a rollup | `kitchen` shows `1/2`: `demo` done, `order` under way, `install` not a task |
@@ -54,7 +54,7 @@ of each thing the view has to draw:
 | a `doc` | `install` attaches `finishes.md` |
 | a document nothing attaches | `notes/palette.md` — still a page, still in the sidebar |
 | a document with YAML frontmatter | `notes/palette.md` again — the `---` block is off the page, off the title, out of the tag index, and its keys answer `prop:`. It carries a `date:` and a `#`-looking value on purpose: a property named `date` is not a day, and `#swatches` in the block is not a tag somebody wrote |
-| a nested outline | `Daily/2026-08.olai` — the sidebar's file tree, not a path string |
+| a nested outline | `Daily/2026-08.org` — the sidebar's file tree, not a path string |
 | a fenced code block, a footnote | `finishes.md` |
 | every mark the markdown pipeline draws, once each | `kitchen-sink.md` |
 | a relative picture | `finishes.md` names `art/handle.png`; `notes/palette.md` names the same file through `../`. The same file is a set member with a page of its own, which is the distinction those two rules keep: an `![](…)` is an embed off `/media/`, a `[…](…)` is a link to the picture's page |
@@ -64,7 +64,7 @@ of each thing the view has to draw:
 | a `.csv` in the vault | `data/sales.csv` — a header row, a field whose comma is CONTENT (`"steady, no returns"`), a doubled quote that is one quote, and an empty field that is a value. Five rows, so the whole file fits on a page and the clamp has nothing to say; the file bigger than a page is written by the scenario that is about size |
 | a `.pdf` in the vault | `reports/q3.pdf` — a minimal, well-formed PDF 1.4 of one page, generated with correct xref offsets rather than checked in as opaque bytes. Real Chrome draws it in its own viewer; the suite's Chromium ships no viewer at all, which is what makes the honest fallback assertable |
 | an `.svg`, which is a document that can script | `art/diagram.svg` — a fixture with teeth, like `report.html`: it carries a script that tries to rename this document and mark it, and neither may ever happen. Drawn in an `<img>`, and answered by the media route with `default-src 'none'; sandbox` |
-| a cross-file mirror | `kitchen-herbs` (house.olai) mirrors `herbs` (garden.olai) |
+| a cross-file mirror | `kitchen-herbs` (house.org) mirrors `herbs` (garden.org) |
 
 `report.html` carries a script that tries four things — write the app's `localStorage`, set a cookie on this app's origin, mark the app's own DOM, and navigate the tab away — and every one of them has to fail. It also rewrites its own paragraph, and that one has to SUCCEED: the file's own JavaScript runs now, and the paragraph is where both halves are read. It is a fixture with teeth on purpose: a preview is only worth having if a file the vault's owner did not write cannot use it as a way in, and a scenario that previewed inert markup would prove nothing about the file that matters. `features/html_previews.feature` reads the evidence that all four failed.
 
@@ -76,7 +76,7 @@ and a dark one, by whoever is changing how markdown is set. Only the few of its
 claims that can go silently wrong are asserted
 (`features/documents.feature`) — the rest are for the eye.
 
-The mirror is why there are two files. Every `.olai` is an independent tree —
+The mirror is why there are two files. Every `.org` is an independent tree —
 a `parent` may not cross files — so showing the herb bed inside the kitchen
 remodel is exactly what a mirror is *for*, and it is the one relation that
 cannot be exercised with a single file.
@@ -122,7 +122,7 @@ rather than of anything ornamental in it:
 | a node two levels down | `hinges` under `install` — so a completion row has ancestors to say, nearest first |
 | a node found by its NOTE | `hinges` again: `brass` is in its note and in no title anywhere, which is the row that has to say why it is there |
 | two nodes of ONE title | `chase-supplier` under `install`, `chase-tiler` under `kitchen` — the pair a vault gets by copy-paste, and the reason a row says more than its title |
-| something put away | `_olai/Trash.olai`'s `tiles` — out of every list unless the query says `is:trashed` |
+| something put away | `_olai/Trash.org`'s `tiles` — out of every list unless the query says `is:trashed` |
 
 The two documents are what `features/chat_at_completion.feature` completes
 against, and they are the smallest set that asks the question: one file whose
@@ -133,7 +133,7 @@ directory rather than over one kind of file. The nodes above them are what
 level in: a row with ancestors, a row found by something a reader cannot see on
 it, and two rows nothing but their place tells apart.
 
-The trash is `_olai/Trash.olai` — the one trash, same as every other corpus.
+The trash is `_olai/Trash.org` — the one trash, same as every other corpus.
 `list_outlines` answers in path order and that file sorts first, so the
 scripted agent's `add` verb skips it: capturing into the trash is not a
 capture, and a row written there is drawn on no page (#226).
@@ -178,7 +178,7 @@ between them rather than two names in one folder.
 
 | what | where |
 |---|---|
-| one day, two outlines | `2019-11-05` has `ferry` (life.olai) and `posts` + `rails` (work.olai) |
+| one day, two outlines | `2019-11-05` has `ferry` (life.org) and `posts` + `rails` (work.org) |
 | a bare date and a datetime on the same day | `posts` is `2019-11-05`, `rails` `2019-11-05T14:30` |
 | a datetime that must count for its own day | `ferry` is `2019-11-05T09:00` |
 | a day with one node | `2019-11-06` — `pack` |
@@ -211,7 +211,7 @@ pair they can make:
 | finished work with a date on both fields | `survey` — on the 1st and the 4th's day pages, and on no agenda |
 | work with no `date` at all | `paint` — a `todo` nobody scheduled, so there is no *when* to be late against |
 | a date on the MARK and nowhere else | `latch` — `todo: 2019-11-21`, which no view reads as a day |
-| overdue AND blocked | `visas` (life.olai) — after `photos`, which is under way, so the row says both |
+| overdue AND blocked | `visas` (life.org) — after `photos`, which is under way, so the row says both |
 | the blocker itself | `photos` — `doing` and undated, so it holds `visas` up without being on the agenda |
 
 **The dates are in 2019 for the reason the journal corpus's are** — everything
@@ -220,29 +220,29 @@ ahead are empty until a scenario writes into them, which the `@scratch:agenda`
 scenarios do.
 
 Two outlines, again for one reason: the agenda groups by outline within each of
-its sections, and one file cannot show a grouping. `visas` (life.olai) is
-dated between `permit` and `posts` (work.olai), so the two orders — path order
+its sections, and one file cannot show a grouping. `visas` (life.org) is
+dated between `permit` and `posts` (work.org), so the two orders — path order
 across the groups, oldest first inside one — cannot both be satisfied by
 accident.
 
 ## `broken/` — two broken files and a healthy one
 
-- `pantry.olai:3` — an unquoted key, so the line is not JSON (`not-json`).
+- `pantry.org:3` — an unquoted key, so the line is not JSON (`not-json`).
   The whole file contributes no nodes.
-- `shed.olai:2` — `parent` is `shhed`, which no node declares
+- `shed.org:2` — `parent` is `shhed`, which no node declares
   (`unknown-parent`, with `shed` as the did-you-mean).
-- `larder.olai` — nothing wrong with it, and `larder.olai:2` has
+- `larder.org` — nothing wrong with it, and `larder.org:2` has
   `see: ["flour"]`.
 
 The two ways a file can be broken, side by side, and a third file that is not.
-`pantry.olai` is *unparsed* — its lines could not be read — and `shed.olai` is
+`pantry.org` is *unparsed* — its lines could not be read — and `shed.org` is
 *invalid*: it reads perfectly and says something the set cannot hold. Since the
 human's ruling of 2026-08-29 those cost exactly the same thing, which is
 themselves: each keeps its place in the sidebar, each draws its own rows where
-its tree would be, and `larder.olai` is live, drawn and editable beside them.
+its tree would be, and `larder.org` is live, drawn and editable beside them.
 
-`larder.olai`'s `see` is the third claim and the reason it points where it does.
-`flour` is declared on a line of `pantry.olai` that did not parse, so "no node
+`larder.org`'s `see` is the third claim and the reason it points where it does.
+`flour` is declared on a line of `pantry.org` that did not parse, so "no node
 declares `flour`" is a **guess** while that file is mid-edit — the validator
 withholds it rather than reporting it, and a withheld finding may not take a
 healthy page down. Two `see` edges of exactly this shape served an empty vault
@@ -257,18 +257,18 @@ names TWO files is exercised, which needs errors that reach across one — and
 where the two ways of naming a second file are told apart, since one darkens it
 and the other does not.
 
-- `attic.olai:3` — `after` names `donate`, which nothing declares
-  (`unknown-target`) → belongs to `attic.olai` alone.
-- `cellar.olai:2` — `parent` is `attic`, which lives in `attic.olai`
+- `attic.org:3` — `after` names `donate`, which nothing declares
+  (`unknown-target`) → belongs to `attic.org` alone.
+- `cellar.org:2` — `parent` is `attic`, which lives in `attic.org`
   (`foreign-parent`) → **names** the other file, and breaks only this one.
-- `cellar.olai:3` — a second `boxes`; `attic.olai:2` claimed it first
+- `cellar.org:3` — a second `boxes`; `attic.org:2` claimed it first
   (`duplicate-id`) → **breaks both**.
-- `cellar.olai:4` — `parent` is `nowhere` (`unknown-parent`) → belongs to
-  `cellar.olai` alone.
-- `cellar.olai:5` — `parent` is `porch`, which lives in `porch.olai`
+- `cellar.org:4` — `parent` is `nowhere` (`unknown-parent`) → belongs to
+  `cellar.org` alone.
+- `cellar.org:5` — `parent` is `porch`, which lives in `porch.org`
   (`foreign-parent`) → the pointed-at file is HEALTHY, which is what this line
   is here for.
-- `porch.olai` — nothing wrong with it at all, and pointed at all the same.
+- `porch.org` — nothing wrong with it at all, and pointed at all the same.
 
 **A finding NAMES a second file and BREAKS one or two, and the two are not the
 same question** (`implicatedBy` against `blamed`, in
@@ -280,13 +280,13 @@ A `foreign-parent` is the other kind: the record that reached across is at
 fault, the file it reached AT did nothing, and the fix is the `parent` field in
 the file that goes dark — so the parent's file keeps its tree and keeps
 accepting writes (`Related.broken: false`, said by the rule that made the
-finding). So `attic.olai` and `cellar.olai` are broken here, `porch.olai` is
+finding). So `attic.org` and `cellar.org` are broken here, `porch.org` is
 NAMED and live, and the corpus says something rather than simply being a vault
 where everything is wrong.
 
 ## `typed/` — a vault that declares its property types
 
-Six keys declared in `_olai/Properties.olai`, and four lanes carrying values of
+Six keys declared in `_olai/Properties.org`, and four lanes carrying values of
 them. It is its own corpus rather than a corner of `good/` for one reason worth
 knowing: **a declaration fences a key across the whole vault**, so typing `pr`
 here would have made `good/`'s `pr: https://…/179` a broken file and taken a
@@ -296,7 +296,7 @@ a key changes the whole namespace" looks like from a test suite.
 | what | where |
 |---|---|
 | a `ref` whose variants are its own children | `merge` → `auto`, `human` |
-| a `ref` pointing at a roster elsewhere | `agent` → the children of `agents` in `agents.olai` |
+| a `ref` pointing at a roster elsewhere | `agent` → the children of `agents` in `agents.org` |
 | an `int` | `records` — 189, 193, 200, and a 1000 that a string comparison would put inside `190..200`. NOT `pr`, deliberately: olai's own vault declares `pr-url` as text (the human, 2026-08-25), and a fixture teaching the opposite about the same word would be the one place in this repository that disagrees with the board it ships beside. |
 | a `date`, both stored widths | `dispatched` — an instant on `props`, a bare day on `chips` |
 | a `doc` | `brief` on `props`, naming `briefs/tp.md` |
@@ -312,7 +312,7 @@ could serve.
 ## `lanes/` — a board whose steps name terminals
 
 Four lane steps in three states, each carrying a `terminal`, and one line of
-`_olai/Properties.olai` that makes them mean anything:
+`_olai/Properties.org` that makes them mean anything:
 
 ```jsonl
 {"id":"prop-terminal","ord":"a0","title":"terminal","custom":{"type":"terminal"}}

@@ -40,7 +40,7 @@ import { annotated } from "./prompt.ts"
  * — that is deliberate, and it is how "why did we put this away?" gets asked —
  * and no tool refuses a write into the trash, so a row that arrived reading
  * exactly like live work would be ticked off like live work. The `file:line`
- * carries `_olai/Trash.olai` already; a filename is a thing to notice, and this is
+ * carries `_olai/Trash.org` already; a filename is a thing to notice, and this is
  * a thing that was said.
  *
  * ASKED OF THE FILE, here, rather than carried as a second field beside it: it

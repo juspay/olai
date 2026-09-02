@@ -7,7 +7,7 @@
  * `@olai/format` owns seven property kinds and imports no plugin — the registry
  * that knows the plugins imports the format, so the arrow cannot point back
  * (`@olai/format`'s `typing.ts` argues the direction in full). A plugin
- * contributes a KIND, a vault declares it in `_olai/Properties.olai` like any
+ * contributes a KIND, a vault declares it in `_olai/Properties.org` like any
  * other type, and the table travels DOWN as data. This file is the one place
  * where the two ends are both in hand, which makes it the one place the join
  * can be made — the same move `probesOf` makes one line over in `./serve.ts`.

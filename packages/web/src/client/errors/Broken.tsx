@@ -2,7 +2,7 @@
  * ONE BROKEN OUTLINE, in that outline's own place — and its errors are all it
  * shows.
  *
- * The per-file ruling (2026-08-29) and its second half: a broken `.olai` costs
+ * The per-file ruling (2026-08-29) and its second half: a broken `.org` costs
  * the reader that file and nothing else, and what its page shows is the
  * validator's rows — where you would fix them — and NOT a stale copy of the
  * tree. The sidebar still lists it, every other outline is still live and still

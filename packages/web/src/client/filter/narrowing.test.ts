@@ -55,7 +55,7 @@ import type { Matches } from "./matches.ts"
 import { createNarrowing, type Narrowing } from "./narrowing.ts"
 
 const derived = derive(nodesOfFiles({
-  "house.olai": [
+  "house.org": [
     `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","doing":true}`,
     `{"id":"demo","parent":"kitchen","ord":"a0","title":"take out the counters #home","done":"2026-08-03"}`,
     `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","doing":true,"date":"2026-08-14"}`,
@@ -68,7 +68,7 @@ const derived = derive(nodesOfFiles({
   // a walk that leaves the archive out (`@olai/format`'s `dates.ts`, ruled
   // 2026-08-17), so this row reaches neither page and the trash is where it is
   // read.
-  "_olai/Trash.olai": [
+  "_olai/Trash.org": [
     `{"id":"old-kitchen","ord":"a0","title":"kitchen remodel #home"}`,
     `{"id":"tiles","parent":"old-kitchen","ord":"a0","title":"choose the tiles","todo":true}`,
     `{"id":"grout","parent":"old-kitchen","ord":"a1","title":"pick the grout"}`,
@@ -110,8 +110,8 @@ const narrowing = (shows: Shown, text: string, hideDone = false): Narrowing => {
 
 const house: Shown = {
   kind: "outline",
-  file: "house.olai",
-  rows: rowsOf(derived, "house.olai"),
+  file: "house.org",
+  rows: rowsOf(derived, "house.org"),
 }
 const tree: Drawn = drawnBy(house)
 const page = (text: string, hideDone = false): Narrowing =>
@@ -326,9 +326,9 @@ test("the agenda narrows day by day, and counts every row it draws", () => {
 
 const trash: Shown = {
   kind: "trash",
-  files: ["_olai/Trash.olai"],
-  groups: [{ file: "_olai/Trash.olai", rows: rowsOf(derived, "_olai/Trash.olai") }],
-  records: nodesOf(derived, "_olai/Trash.olai").length,
+  files: ["_olai/Trash.org"],
+  groups: [{ file: "_olai/Trash.org", rows: rowsOf(derived, "_olai/Trash.org") }],
+  records: nodesOf(derived, "_olai/Trash.org").length,
 }
 
 // The rule this page exists to except: archived nodes are out of every reading
@@ -529,18 +529,18 @@ test("an empty box is answered by the parse, not by the wire", () => {
  * the matcher; nothing describes it any more.
  */
 const FINISHED = derive(nodesOfFiles({
-  "_olai/Trash.olai": [
+  "_olai/Trash.org": [
     `{"id":"old-bath","ord":"a0","title":"bathroom #home","done":"2026-08-01"}`,
     `{"id":"taps","parent":"old-bath","ord":"a0","title":"the taps #home","done":"2026-08-02"}`,
   ].join("\n"),
 }))
 
 test("hiding finished work does not take the archive out of a zoom's scope", () => {
-  const rows = rowsOf(FINISHED, "_olai/Trash.olai")
+  const rows = rowsOf(FINISHED, "_olai/Trash.org")
   // A PLAIN WORD, which is the half of the grammar this is about: `is:trashed`
   // opens the archive by NAMING it, whatever a caller's scope says, so the
   // operator could never have shown this hole.
-  const whole: Shown = { kind: "outline", file: "_olai/Trash.olai", rows }
+  const whole: Shown = { kind: "outline", file: "_olai/Trash.org", rows }
   const reading = createRoot(() =>
     createNarrowing({
       query: () => parseFilter("#home", TODAY),
@@ -566,7 +566,7 @@ test("hiding finished work does not take the archive out of a zoom's scope", () 
  *
  * `showsPutAway`'s `day` and `agenda` arms are `false` because the walk those
  * pages are built from leaves the archive out (`@olai/format`'s `dates.ts`), so
- * the format can no longer produce a day group under an `_olai/Trash.olai` heading
+ * the format can no longer produce a day group under an `_olai/Trash.org` heading
  * — which is exactly why the fixture below is built BY HAND. Handed the page
  * the old rule would have drawn, the arms still refuse to widen the matcher's
  * scope: the archive is out of the reading because a page's own rows are not a
@@ -582,7 +582,7 @@ const putAwayOnADay = (): DayGroup => {
   const shims = zoom(derived, "shims")
   if (shims.kind !== "node") throw new Error("the fixture's archive lost `shims`")
   return {
-    file: "_olai/Trash.olai",
+    file: "_olai/Trash.org",
     nodes: [{ ...shims, occasion: "date", date: "2026-08-14" }],
   }
 }

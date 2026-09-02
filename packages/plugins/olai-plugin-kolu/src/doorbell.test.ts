@@ -162,10 +162,10 @@ test("a MIRROR resolves to the target that carries the property", () => {
   // read off the record that has one.
   expect(
     claimsOf({
-      "_olai/Properties.olai": declaring(),
-      "lanes.olai": `{"id":"m","ord":"a0","mirror":"step"}`,
-      "work.olai": marked("step", "implement", "doing", { terminal: "11111111" }),
-    }, "lanes.olai"),
+      "_olai/Properties.org": declaring(),
+      "lanes.org": `{"id":"m","ord":"a0","mirror":"step"}`,
+      "work.org": marked("step", "implement", "doing", { terminal: "11111111" }),
+    }, "lanes.org"),
   ).toEqual([{ value: "11111111", step: "implement", mark: "doing" }])
 })
 
@@ -197,14 +197,14 @@ test("a step-level claim under a MIRRORED lane rings — the walk goes down, not
   // that claims nothing at all.
   expect(
     claimsOf({
-      "_olai/Properties.olai": declaring(),
-      "lanes.olai": `{"id":"m","ord":"a0","mirror":"lane"}`,
-      "work.olai": [
+      "_olai/Properties.org": declaring(),
+      "lanes.org": `{"id":"m","ord":"a0","mirror":"lane"}`,
+      "work.org": [
         marked("lane", "the second doorbell", "doing"),
         under("rev-a", "lane", "a0", "review: grok", "doing", { terminal: "11111111" }),
         under("rev-b", "lane", "a1", "review: pi", "todo", { terminal: "22222222" }),
       ].join("\n"),
-    }, "lanes.olai"),
+    }, "lanes.org"),
   ).toEqual([
     { value: "11111111", step: "review: grok", mark: "doing" },
     { value: "22222222", step: "review: pi", mark: "todo" },
@@ -218,15 +218,15 @@ test("a LAWFULLY PARKED author is a digest, whatever the rest of the lane is doi
   // the ruled table sends to the digest, and the arm a wake must never take.
   expect(
     claimsOf({
-      "_olai/Properties.olai": declaring(),
-      "lanes.olai": [
+      "_olai/Properties.org": declaring(),
+      "lanes.org": [
         marked("lane", "the second doorbell", "doing"),
         under("author", "lane", "a0", "author", "doing", { terminal: "11111111" }),
         under("impl", "author", "a0", "implement + open PR", "done"),
         under("refactor", "author", "a1", "refactor passes", "done"),
         under("rev", "lane", "a1", "review: grok", "doing", { terminal: "22222222" }),
       ].join("\n"),
-    }, "lanes.olai"),
+    }, "lanes.org"),
   ).toEqual([
     // Its own subtree is finished, so nothing under it is being worked. The
     // lane above is still `doing` because the reviewer is going, and reading
@@ -244,13 +244,13 @@ test("another terminal's claimed step is never YOUR owing step", () => {
   // PI REVIEWER'S own terminal. Reading it as the author's owing step said a
   // report was owed by somebody who owed nothing — the reviewer was working.
   const claims = claimsOf({
-    "_olai/Properties.olai": declaring(),
-    "lanes.olai": [
+    "_olai/Properties.org": declaring(),
+    "lanes.org": [
       marked("lane", "the second doorbell", "doing", { terminal: "aaaaaaaa" }),
       under("impl", "lane", "a0", "implement + open PR", "done"),
       under("rev-pi", "lane", "a1", "review: pi", "doing", { terminal: "bbbbbbbb" }),
     ].join("\n"),
-  }, "lanes.olai")
+  }, "lanes.org")
   expect(claims).toEqual([
     // The reviewer's step is its own territory, so nothing is being worked
     // under the author: parked, a digest.
@@ -262,13 +262,13 @@ test("another terminal's claimed step is never YOUR owing step", () => {
 
 test("... and everything UNDER a claimed step goes with it", () => {
   const claims = claimsOf({
-    "_olai/Properties.olai": declaring(),
-    "lanes.olai": [
+    "_olai/Properties.org": declaring(),
+    "lanes.org": [
       marked("lane", "the second doorbell", "doing", { terminal: "aaaaaaaa" }),
       under("rev-pi", "lane", "a0", "review: pi", "todo", { terminal: "bbbbbbbb" }),
       under("deep", "rev-pi", "a0", "read the diff", "doing"),
     ].join("\n"),
-  }, "lanes.olai")
+  }, "lanes.org")
   expect(claims).toEqual([
     // `read the diff` is being worked, but it is the reviewer's work — it
     // cannot be what the author owes a report about.
@@ -283,38 +283,38 @@ test("a LANE-LEVEL claim names the deepest step somebody is on, not the lane", (
   // sub-steps is a step whose real work is below it.
   expect(
     claimsOf({
-      "_olai/Properties.olai": declaring(),
-      "lanes.olai": [
+      "_olai/Properties.org": declaring(),
+      "lanes.org": [
         marked("lane", "the second doorbell", "doing", { terminal: "11111111" }),
         under("impl", "lane", "a0", "implement + open PR", "doing"),
         under("inner", "impl", "a0", "write the failing test", "doing"),
         under("later", "lane", "a1", "refactor passes", "todo"),
       ].join("\n"),
-    }, "lanes.olai"),
+    }, "lanes.org"),
   ).toEqual([{ value: "11111111", step: "write the failing test", mark: "doing" }])
 })
 
 test("... and names itself when nothing under it is being worked", () => {
   expect(
     claimsOf({
-      "_olai/Properties.olai": declaring(),
-      "lanes.olai": [
+      "_olai/Properties.org": declaring(),
+      "lanes.org": [
         marked("lane", "the second doorbell", "todo", { terminal: "11111111" }),
         under("impl", "lane", "a0", "implement + open PR", "todo"),
       ].join("\n"),
-    }, "lanes.olai"),
+    }, "lanes.org"),
   ).toEqual([{ value: "11111111", step: "the second doorbell", mark: "todo" }])
 })
 
 test("one record reached twice — a lane and a mirror of it — is claimed once", () => {
   expect(
     claimsOf({
-      "_olai/Properties.olai": declaring(),
-      "lanes.olai": [
+      "_olai/Properties.org": declaring(),
+      "lanes.org": [
         marked("lane", "the second doorbell", "doing", { terminal: "11111111" }),
         `{"id":"m","ord":"a1","mirror":"lane"}`,
       ].join("\n"),
-    }, "lanes.olai"),
+    }, "lanes.org"),
   ).toEqual([{ value: "11111111", step: "the second doorbell", mark: "doing" }])
 })
 
@@ -333,29 +333,29 @@ test("a claim added between two events is seen by the second — the derivation 
   // latest one per event and its per-file memo is minted per event and dropped
   // with it, so there is nowhere for an answer to survive a tick.
   const before = {
-    "_olai/Properties.olai": declaring(),
-    "lanes.olai": marked("a", "review: grok", "doing", { terminal: "11111111" }),
+    "_olai/Properties.org": declaring(),
+    "lanes.org": marked("a", "review: grok", "doing", { terminal: "11111111" }),
   }
   const after = {
-    "_olai/Properties.olai": declaring(),
-    "lanes.olai": [
+    "_olai/Properties.org": declaring(),
+    "lanes.org": [
       marked("a", "review: grok", "doing", { terminal: "11111111" }),
       // The dispatch a person just wrote, mid-flight.
       `{"id":"b","ord":"a1","title":"review: pi","doing":"2026-08-31T09:00:00.000Z","custom":{"terminal":"22222222"}}`,
     ].join("\n"),
   }
-  expect(claimsOf(before, "lanes.olai")).toEqual([
+  expect(claimsOf(before, "lanes.org")).toEqual([
     { value: "11111111", step: "review: grok", mark: "doing" },
   ])
   // The SECOND event, against the revision the store now holds: the new claim
   // rings, with no restart and nothing subscribed to.
-  expect(claimsOf(after, "lanes.olai")).toEqual([
+  expect(claimsOf(after, "lanes.org")).toEqual([
     { value: "11111111", step: "review: grok", mark: "doing" },
     { value: "22222222", step: "review: pi", mark: "doing" },
   ])
   // ... and nothing accumulated on the way: handed the older revision again it
   // answers what that revision says, which a cache could not do.
-  expect(claimsOf(before, "lanes.olai")).toEqual([
+  expect(claimsOf(before, "lanes.org")).toEqual([
     { value: "11111111", step: "review: grok", mark: "doing" },
   ])
 })
@@ -369,26 +369,26 @@ test("a SETTLED step claims nothing, even under a lane that is still open", () =
   // row the file lists — a settled node's claim is as silent as a settled lane's.
   expect(
     claimsOf({
-      "_olai/Properties.olai": declaring(),
-      "lanes.olai": [
+      "_olai/Properties.org": declaring(),
+      "lanes.org": [
         marked("lane", "the second doorbell", "doing"),
         under("folded", "lane", "a0", "review: fr", "done", { terminal: "11111111" }),
         under("live", "lane", "a1", "review: grok", "doing", { terminal: "22222222" }),
       ].join("\n"),
-    }, "lanes.olai"),
+    }, "lanes.org"),
   ).toEqual([{ value: "22222222", step: "review: grok", mark: "doing" }])
 })
 
 test("... and so does a CANCELLED one, and an unmarked bullet somebody wrote", () => {
   expect(
     claimsOf({
-      "_olai/Properties.olai": declaring(),
-      "lanes.olai": [
+      "_olai/Properties.org": declaring(),
+      "lanes.org": [
         marked("lane", "the second doorbell", "doing"),
         under("dropped", "lane", "a0", "review: fr", "cancelled", { terminal: "11111111" }),
         under("note", "lane", "a1", "a note to self", null, { terminal: "22222222" }),
       ].join("\n"),
-    }, "lanes.olai"),
+    }, "lanes.org"),
   ).toEqual([])
 })
 
@@ -417,20 +417,20 @@ test("a lane MINTED AS A BULLET and claimed later rings — an UNMARKED CONTAINE
   // container is judged by its children and never by itself: that is the ruled
   // sentence, and this is the gate that did not obey it.
   const filed = {
-    "_olai/Properties.olai": declaring(),
-    "lanes.olai": `{"id":"m","ord":"a0","mirror":"tns"}`,
-    "bugs.olai": rec("tns", "PR: task notifications stop spilling raw"),
+    "_olai/Properties.org": declaring(),
+    "lanes.org": `{"id":"m","ord":"a0","mirror":"tns"}`,
+    "bugs.org": rec("tns", "PR: task notifications stop spilling raw"),
   }
   // A bullet somebody filed, claiming nothing — and nothing should ring for it.
   // That is the leaf case one test up, and it does not move.
-  expect(claimsOf(filed, "lanes.olai")).toEqual([])
+  expect(claimsOf(filed, "lanes.org")).toEqual([])
 
   // THE DISPATCH, as a LATER write onto the node already on the board: the
   // claim and the steps arrive, and the node's own row is never marked.
   const dispatched = {
-    "_olai/Properties.olai": declaring(),
-    "lanes.olai": `{"id":"m","ord":"a0","mirror":"tns"}`,
-    "bugs.olai": [
+    "_olai/Properties.org": declaring(),
+    "lanes.org": `{"id":"m","ord":"a0","mirror":"tns"}`,
+    "bugs.org": [
       rec("tns", "PR: task notifications stop spilling raw", { terminal: "11e565c0" }),
       under("impl", "tns", "a0", "implement + open PR", "done"),
       under("refactor", "tns", "a1", "refactor passes", "doing"),
@@ -438,7 +438,7 @@ test("a lane MINTED AS A BULLET and claimed later rings — an UNMARKED CONTAINE
   }
   // Somebody is on `refactor passes` right now and the terminal the node above
   // it claims is held. That is a WAKE, and the set has to carry it.
-  expect(claimsOf(dispatched, "lanes.olai")).toEqual([
+  expect(claimsOf(dispatched, "lanes.org")).toEqual([
     { value: "11e565c0", step: "refactor passes", mark: "doing" },
   ])
 })
@@ -451,13 +451,13 @@ test("... and an unmarked container whose work has all SETTLED still claims noth
   // somebody kept — which is `unfinished`'s own documented trap, one level up.
   expect(
     claimsOf({
-      "_olai/Properties.olai": declaring(),
-      "lanes.olai": [
+      "_olai/Properties.org": declaring(),
+      "lanes.org": [
         rec("tns", "PR: task notifications stop spilling raw", { terminal: "11e565c0" }),
         under("impl", "tns", "a0", "implement + open PR", "done"),
         under("dropped", "tns", "a1", "refactor passes", "cancelled"),
       ].join("\n"),
-    }, "lanes.olai"),
+    }, "lanes.org"),
   ).toEqual([])
 })
 
@@ -480,19 +480,19 @@ test("THE RESIDUAL: a bullet given ONLY a terminal, before its steps land, is st
   // deliberate change to this expectation and not a bug fix that happens to
   // pass because nothing was watching.
   const graftedClaimOnly = {
-    "_olai/Properties.olai": declaring(),
-    "lanes.olai": `{"id":"m","ord":"a0","mirror":"tns"}`,
-    "bugs.olai": rec("tns", "PR: task notifications stop spilling raw", {
+    "_olai/Properties.org": declaring(),
+    "lanes.org": `{"id":"m","ord":"a0","mirror":"tns"}`,
+    "bugs.org": rec("tns", "PR: task notifications stop spilling raw", {
       terminal: "11e565c0",
     }),
   }
-  expect(claimsOf(graftedClaimOnly, "lanes.olai")).toEqual([])
+  expect(claimsOf(graftedClaimOnly, "lanes.org")).toEqual([])
 
   // ...AND THE WALK SAYS WHICH GATE, by its own word for this one. That is what
   // keeps it a decision: an operator who wonders why a lane went quiet reads
   // `unmarked-leaf` rather than an absence they have to reconstruct.
   const at = readingOf(setOf(graftedClaimOnly)).derived
-  expect(walkedIn(declarationsOf(at, ownKinds), at, "lanes.olai").excluded).toEqual([
+  expect(walkedIn(declarationsOf(at, ownKinds), at, "lanes.org").excluded).toEqual([
     { value: "11e565c0", node: "tns", why: "unmarked-leaf" },
   ])
 
@@ -501,11 +501,11 @@ test("THE RESIDUAL: a bullet given ONLY a terminal, before its steps land, is st
   expect(
     claimsOf({
       ...graftedClaimOnly,
-      "bugs.olai": [
+      "bugs.org": [
         rec("tns", "PR: task notifications stop spilling raw", { terminal: "11e565c0" }),
         under("impl", "tns", "a0", "implement + open PR", "doing"),
       ].join("\n"),
-    }, "lanes.olai"),
+    }, "lanes.org"),
   ).toEqual([{ value: "11e565c0", step: "implement + open PR", mark: "doing" }])
 })
 
@@ -513,8 +513,8 @@ test("the walk names the OTHER two gates too — settled, and live-but-nobody-un
   // The three `Why` words, over one vault, so the vocabulary is pinned where it
   // is decided rather than only where it is printed.
   const at = readingOf(setOf({
-    "_olai/Properties.olai": declaring(),
-    "lanes.olai": [
+    "_olai/Properties.org": declaring(),
+    "lanes.org": [
       marked("closed", "a lane somebody folded", "done", { terminal: "aaaaaaaa" }),
       rec("spent", "a lane whose steps all settled", { terminal: "bbbbbbbb" }),
       under("gone", "spent", "a0", "implement", "done"),
@@ -522,7 +522,7 @@ test("the walk names the OTHER two gates too — settled, and live-but-nobody-un
       marked("live", "a lane somebody is on", "doing", { terminal: "dddddddd" }),
     ].join("\n"),
   })).derived
-  const walked = walkedIn(declarationsOf(at, ownKinds), at, "lanes.olai")
+  const walked = walkedIn(declarationsOf(at, ownKinds), at, "lanes.org")
   expect(walked.excluded).toEqual([
     { value: "aaaaaaaa", node: "closed", why: "settled" },
     { value: "bbbbbbbb", node: "spent", why: "not-live" },
@@ -543,12 +543,12 @@ test("... and an unmarked lane whose only live step is ANOTHER terminal's is a d
   // from the set instead, which is this file's own P1 again one rule down.
   expect(
     claimsOf({
-      "_olai/Properties.olai": declaring(),
-      "lanes.olai": [
+      "_olai/Properties.org": declaring(),
+      "lanes.org": [
         rec("tns", "PR: task notifications stop spilling raw", { terminal: "11e565c0" }),
         under("rev", "tns", "a0", "review: claude-opus", "doing", { terminal: "384f5360" }),
       ].join("\n"),
-    }, "lanes.olai"),
+    }, "lanes.org"),
   ).toEqual([
     { value: "11e565c0", step: "PR: task notifications stop spilling raw", mark: "todo" },
     { value: "384f5360", step: "review: claude-opus", mark: "doing" },
@@ -562,12 +562,12 @@ test("the digest line asserts NO mark, because the one it has is a verdict", () 
   // board says is `doing`, which is a false claim about their own file.
   const standing = standingFor({
     ...DECLARED,
-    "lanes.olai": [
+    "lanes.org": [
       marked("author", "author", "doing", { terminal: "11111111" }),
       under("impl", "author", "a0", "implement + open PR", "done"),
     ].join("\n"),
   }, fleetOf(row("11111111", "waiting", "trivial-pair", "olai")), "digest")
-  const body = bodyFor("digest", standing, "lanes.olai", "2026-08-31T14:32:07.001Z")
+  const body = bodyFor("digest", standing, "lanes.org", "2026-08-31T14:32:07.001Z")
   expect(body).toContain('nothing under "author" is being worked')
   expect(body).not.toContain("`todo`")
 })
@@ -578,9 +578,9 @@ test("a CANCELLED step is not un-done — `!== \"done\"` would have claimed it",
   // waking somebody about a lane they closed.
   expect(
     claimsOf({
-      "_olai/Properties.olai": declaring(),
-      "lanes.olai": marked("step", "implement", "cancelled", { terminal: "11111111" }),
-    }, "lanes.olai"),
+      "_olai/Properties.org": declaring(),
+      "lanes.org": marked("step", "implement", "cancelled", { terminal: "11111111" }),
+    }, "lanes.org"),
   ).toEqual([])
 })
 
@@ -598,21 +598,21 @@ test("an ABSENT mark on a LEAF is not a todo — a bullet with nothing under it 
   // `doing` step under it DOES claim, which is the case two tests up.
   expect(
     claimsOf({
-      "_olai/Properties.olai": declaring(),
-      "lanes.olai": rec("step", "implement", { terminal: "11111111" }),
-    }, "lanes.olai"),
+      "_olai/Properties.org": declaring(),
+      "lanes.org": rec("step", "implement", { terminal: "11111111" }),
+    }, "lanes.org"),
   ).toEqual([])
 })
 
 test("a DONE step is not un-done either, and both surviving marks are", () => {
   const claims = claimsOf({
-    "_olai/Properties.olai": declaring(),
-    "lanes.olai": [
+    "_olai/Properties.org": declaring(),
+    "lanes.org": [
       marked("a", "shipped", "done", { terminal: "11111111" }),
       marked("b", "in hand", "doing", { terminal: "22222222" }),
       marked("c", "queued", "todo", { terminal: "33333333" }),
     ].join("\n"),
-  }, "lanes.olai")
+  }, "lanes.org")
   expect(claims).toEqual([
     { value: "22222222", step: "in hand", mark: "doing" },
     { value: "33333333", step: "queued", mark: "todo" },
@@ -625,22 +625,22 @@ test("the value is read by LICENCE, so a person's own `terminal` column is not o
   // rides the key carrying the kind's own composed word and no other.
   expect(
     claimsOf({
-      "lanes.olai": marked("step", "implement", "doing", { terminal: "11111111" }),
-    }, "lanes.olai"),
+      "lanes.org": marked("step", "implement", "doing", { terminal: "11111111" }),
+    }, "lanes.org"),
   ).toEqual([])
   expect(
     claimsOf({
-      "lanes.olai": marked("step", "implement", "doing", { [TERMINAL_TYPE]: "11111111" }),
-    }, "lanes.olai"),
+      "lanes.org": marked("step", "implement", "doing", { [TERMINAL_TYPE]: "11111111" }),
+    }, "lanes.org"),
   ).toEqual([{ value: "11111111", step: "implement", mark: "doing" }])
 })
 
 test("a node in ANOTHER file is not in this file's scope", () => {
   expect(
     claimsOf({
-      "_olai/Properties.olai": declaring(),
-      "board.olai": marked("step", "implement", "doing", { terminal: "11111111" }),
-    }, "lanes.olai"),
+      "_olai/Properties.org": declaring(),
+      "board.org": marked("step", "implement", "doing", { terminal: "11111111" }),
+    }, "lanes.org"),
   ).toEqual([])
 })
 
@@ -653,18 +653,18 @@ test("the claiming node's id rides the account, so the panel can press through t
   // about the WORDS the plugin wrote, and core adds nothing to carry it.
   expect(
     claimingNodesOf({
-      "_olai/Properties.olai": declaring(),
-      "lanes.olai": marked("lane-sd", "review: grok", "doing", { terminal: "11111111" }),
-    }, "lanes.olai"),
+      "_olai/Properties.org": declaring(),
+      "lanes.org": marked("lane-sd", "review: grok", "doing", { terminal: "11111111" }),
+    }, "lanes.org"),
   ).toEqual([{ value: "11111111", node: "lane-sd", step: "review: grok", mark: "doing" }])
 })
 
 test("... and the account names it, in backticks, beside the terminal it is about", () => {
   const standing = standingFor({
     ...DECLARED,
-    "lanes.olai": marked("lane-sd", "review: grok", "doing", { terminal: "11111111" }),
+    "lanes.org": marked("lane-sd", "review: grok", "doing", { terminal: "11111111" }),
   }, fleetOf(row("11111111", "waiting", "trivial-pair", "olai")), "wake")
-  const body = bodyFor("wake", standing, "lanes.olai", "2026-08-31T14:32:07.001Z")
+  const body = bodyFor("wake", standing, "lanes.org", "2026-08-31T14:32:07.001Z")
   expect(body).toContain("on `lane-sd`.")
   // ... AND IN THE HEAD, which is the line the fold shows: pressing through to
   // the board was the thing a person wanted to do from the collapsed row, and a
@@ -676,7 +676,7 @@ test("... and the account names it, in backticks, beside the terminal it is abou
 test("... and the head links NOTHING where it names a count, because it would be picking for the reader", () => {
   const standing = standingFor({
     ...DECLARED,
-    "lanes.olai": [
+    "lanes.org": [
       marked("lane-a", "review: grok", "doing", { terminal: "11111111" }),
       marked("lane-b", "review: pi", "doing", { terminal: "22222222" }),
     ].join("\n"),
@@ -684,7 +684,7 @@ test("... and the head links NOTHING where it names a count, because it would be
     row("11111111", "waiting", "one", "olai"),
     row("22222222", "waiting", "two", "olai"),
   ), "wake")
-  const head = bodyFor("wake", standing, "lanes.olai", "2026-08-31T14:32:07.001Z").split("\n")[0]
+  const head = bodyFor("wake", standing, "lanes.org", "2026-08-31T14:32:07.001Z").split("\n")[0]
   expect(head).toBe("2 terminals are idle: they have finished, or they need you.")
   // Which of the two a single link went to would move with the board. The
   // account names both, each with its own reference — that is what the fold is
@@ -694,9 +694,9 @@ test("... and the head links NOTHING where it names a count, because it would be
 
 test("a PREFIX resolves — the board writes eight characters, the fleet holds uuids", () => {
   const claims = claimingNodesOf({
-    "_olai/Properties.olai": declaring(),
-    "lanes.olai": marked("step", "implement", "doing", { terminal: "54fe62f9" }),
-  }, "lanes.olai")
+    "_olai/Properties.org": declaring(),
+    "lanes.org": marked("step", "implement", "doing", { terminal: "54fe62f9" }),
+  }, "lanes.org")
   const claiming = claimingIn(claims, ["54fe62f9-aaaa-4bbb-8ccc-ddddddddddd0"])
   expect([...claiming.keys()]).toEqual(["54fe62f9-aaaa-4bbb-8ccc-ddddddddddd0"])
 })
@@ -705,28 +705,28 @@ test("an AMBIGUOUS value claims nothing at all", () => {
   // Two live terminals under one prefix: picking whichever sorted first would
   // put a lane's name on a terminal it never named, so the value owns neither.
   const claims = claimingNodesOf({
-    "_olai/Properties.olai": declaring(),
-    "lanes.olai": marked("step", "implement", "doing", { terminal: "54fe" }),
-  }, "lanes.olai")
+    "_olai/Properties.org": declaring(),
+    "lanes.org": marked("step", "implement", "doing", { terminal: "54fe" }),
+  }, "lanes.org")
   expect([...claimingIn(claims, ["54fe0001", "54fe0002"]).keys()]).toEqual([])
 })
 
 test("a value naming nobody live claims nothing, and says nothing about it", () => {
   const claims = claimingNodesOf({
-    "_olai/Properties.olai": declaring(),
-    "lanes.olai": marked("step", "implement", "doing", { terminal: "99999999" }),
-  }, "lanes.olai")
+    "_olai/Properties.org": declaring(),
+    "lanes.org": marked("step", "implement", "doing", { terminal: "99999999" }),
+  }, "lanes.org")
   expect([...claimingIn(claims, ["11111111"]).keys()]).toEqual([])
 })
 
 test("two records claiming one terminal — the file's first line wins", () => {
   const claims = claimingNodesOf({
-    "_olai/Properties.olai": declaring(),
-    "lanes.olai": [
+    "_olai/Properties.org": declaring(),
+    "lanes.org": [
       marked("a", "the lane", "doing", { terminal: "11111111" }),
       marked("b", "a copy of the lane", "todo", { terminal: "11111111" }),
     ].join("\n"),
-  }, "lanes.olai")
+  }, "lanes.org")
   expect(claimingIn(claims, ["11111111"]).get("11111111")?.step).toBe("the lane")
 })
 
@@ -738,14 +738,14 @@ const meaningOf = (files: Record<string, string>, file: string, event: KoluEvent
   return classify(event, claimingIn(claims, ["11111111", "22222222"]))
 }
 
-const DECLARED = { "_olai/Properties.olai": declaring() }
+const DECLARED = { "_olai/Properties.org": declaring() }
 
 test("claimed, and the claiming step is DOING — that is a wake", () => {
   expect(
     meaningOf({
       ...DECLARED,
-      "lanes.olai": marked("step", "implement", "doing", { terminal: "11111111" }),
-    }, "lanes.olai", fired("11111111")),
+      "lanes.org": marked("step", "implement", "doing", { terminal: "11111111" }),
+    }, "lanes.org", fired("11111111")),
   ).toBe("wake")
 })
 
@@ -755,8 +755,8 @@ test("claimed, and the claiming step is TODO — that is a digest line", () => {
   expect(
     meaningOf({
       ...DECLARED,
-      "lanes.olai": marked("step", "implement", "todo", { terminal: "11111111" }),
-    }, "lanes.olai", fired("11111111")),
+      "lanes.org": marked("step", "implement", "todo", { terminal: "11111111" }),
+    }, "lanes.org", fired("11111111")),
   ).toBe("digest")
 })
 
@@ -766,8 +766,8 @@ test("UNCLAIMED is silence, spelled `null` — there is no drift arm to take", (
   expect(
     meaningOf({
       ...DECLARED,
-      "lanes.olai": marked("step", "implement", "doing", { terminal: "11111111" }),
-    }, "lanes.olai", fired("22222222")),
+      "lanes.org": marked("step", "implement", "doing", { terminal: "11111111" }),
+    }, "lanes.org", fired("22222222")),
   ).toBeNull()
 })
 
@@ -781,8 +781,8 @@ test("a HEARTBEAT names no terminal, so it means nothing to a conversation", () 
   expect(
     meaningOf({
       ...DECLARED,
-      "lanes.olai": marked("step", "implement", "doing", { terminal: "11111111" }),
-    }, "lanes.olai", beat),
+      "lanes.org": marked("step", "implement", "doing", { terminal: "11111111" }),
+    }, "lanes.org", beat),
   ).toBeNull()
 })
 
@@ -791,8 +791,8 @@ test("a NAG means what its transition meant — the derivation is idempotent", (
   expect(
     meaningOf({
       ...DECLARED,
-      "lanes.olai": marked("step", "implement", "doing", { terminal: "11111111" }),
-    }, "lanes.olai", nag),
+      "lanes.org": marked("step", "implement", "doing", { terminal: "11111111" }),
+    }, "lanes.org", nag),
   ).toBe("wake")
 })
 
@@ -804,14 +804,14 @@ const standingFor = (
   files: Record<string, string>,
   fleet: ReadonlyMap<string, FleetTerminal>,
   meaning: "wake" | "digest",
-) => standingIn(claimingIn(claimingNodesOf(files, "lanes.olai"), fleet.keys()), fleet, meaning)
+) => standingIn(claimingIn(claimingNodesOf(files, "lanes.org"), fleet.keys()), fleet, meaning)
 
 test("the standing set is EVERY claimed terminal held now, not the one that moved", () => {
   // This is what makes core's replace-in-place lossless: the second body names
   // both terminals, so replacing the first one's slot loses nothing.
   const standing = standingFor({
     ...DECLARED,
-    "lanes.olai": [
+    "lanes.org": [
       marked("a", "reproduce + fix", "doing", { terminal: "11111111" }),
       marked("b", "post the verdict", "doing", { terminal: "22222222" }),
     ].join("\n"),
@@ -826,7 +826,7 @@ test("a claimed terminal that went back to WORK is not standing", () => {
   expect(
     standingFor({
       ...DECLARED,
-      "lanes.olai": [
+      "lanes.org": [
         marked("a", "reproduce + fix", "doing", { terminal: "11111111" }),
         marked("b", "post the verdict", "doing", { terminal: "22222222" }),
       ].join("\n"),
@@ -838,7 +838,7 @@ test("a claimed terminal that went back to WORK is not standing", () => {
 test("the two meanings PARTITION the standing set — neither body names the other's", () => {
   const files = {
     ...DECLARED,
-    "lanes.olai": [
+    "lanes.org": [
       marked("a", "reproduce + fix", "doing", { terminal: "11111111" }),
       marked("b", "chase the flake", "todo", { terminal: "22222222" }),
     ].join("\n"),
@@ -851,11 +851,11 @@ test("the two meanings PARTITION the standing set — neither body names the oth
 test("the FIRST LINE is the essence — the plain sentence the panel folds to", () => {
   const standing = standingFor({
     ...DECLARED,
-    "lanes.olai": marked("step", "reproduce + fix + open PR", "doing", {
+    "lanes.org": marked("step", "reproduce + fix + open PR", "doing", {
       terminal: "54fe62f9",
     }),
   }, fleetOf(row("54fe62f9", "waiting", "done-flip-flake", "olai")), "wake")
-  const body = bodyFor("wake", standing, "lanes.olai", "2026-08-31T14:32:07.001Z")
+  const body = bodyFor("wake", standing, "lanes.org", "2026-08-31T14:32:07.001Z")
   const [first, blank, third] = body.split("\n")
   // WHAT HAPPENED, in words a reader who was not there understands — this is the
   // only line the transcript draws until somebody expands it. The step here is
@@ -880,7 +880,7 @@ test("the FIRST LINE is the essence — the plain sentence the panel folds to", 
 test("... and the essence COUNTS rather than lists, so one line stays one line", () => {
   const standing = standingFor({
     ...DECLARED,
-    "lanes.olai": [
+    "lanes.org": [
       marked("a", "review: grok", "doing", { terminal: "11111111" }),
       marked("b", "review: pi", "doing", { terminal: "22222222" }),
     ].join("\n"),
@@ -888,7 +888,7 @@ test("... and the essence COUNTS rather than lists, so one line stays one line",
     row("11111111", "waiting", "one", "olai"),
     row("22222222", "waiting", "two", "olai"),
   ), "wake")
-  const body = bodyFor("wake", standing, "lanes.olai", "2026-08-31T14:32:07.001Z")
+  const body = bodyFor("wake", standing, "lanes.org", "2026-08-31T14:32:07.001Z")
   expect(body.split("\n")[0]).toBe(
     "2 terminals are idle: they have finished, or they need you.",
   )
@@ -897,15 +897,15 @@ test("... and the essence COUNTS rather than lists, so one line stays one line",
 test("the wake body names the terminal, who it is, its state and the doing step", () => {
   const standing = standingFor({
     ...DECLARED,
-    "lanes.olai": marked("step", "reproduce + fix + open PR", "doing", {
+    "lanes.org": marked("step", "reproduce + fix + open PR", "doing", {
       terminal: "54fe62f9",
     }),
   }, fleetOf(row("54fe62f9", "waiting", "done-flip-flake", "olai")), "wake")
-  const body = bodyFor("wake", standing, "lanes.olai", "2026-08-31T14:32:07.001Z")
+  const body = bodyFor("wake", standing, "lanes.org", "2026-08-31T14:32:07.001Z")
   expect(body).toContain(
     "— `54fe62f9` (olai·done-flip-flake) is held at `waiting`; its step \"reproduce + fix + open PR\" is `doing`, on `step`.",
   )
-  expect(body).toContain("One terminal claimed by lanes.olai is waiting on a person")
+  expect(body).toContain("One terminal claimed by lanes.org is waiting on a person")
   expect(body).toContain("a report or a block is owed")
   // The exit, in the body's own words: a machine message that cannot be
   // switched off from inside its own text is one a person resents.
@@ -915,16 +915,16 @@ test("the wake body names the terminal, who it is, its state and the doing step"
 test("the digest body says PARKED rather than owed, and counts what it names", () => {
   const standing = standingFor({
     ...DECLARED,
-    "lanes.olai": [
+    "lanes.org": [
       marked("a", "chase the flake", "todo", { terminal: "11111111" }),
       marked("b", "read the log", "todo", { terminal: "22222222" }),
     ].join("\n"),
   }, fleetOf(row("11111111", "waiting"), row("22222222", "waiting")), "digest")
-  const body = bodyFor("digest", standing, "lanes.olai", "2026-08-31T14:32:07.001Z")
+  const body = bodyFor("digest", standing, "lanes.org", "2026-08-31T14:32:07.001Z")
   expect(body.split("\n")[0]).toBe(
     "2 terminals went quiet, and nothing under them is being worked. A note, not a call.",
   )
-  expect(body).toContain("2 terminals claimed by lanes.olai are waiting on a person")
+  expect(body).toContain("2 terminals claimed by lanes.org are waiting on a person")
   expect(body).toContain("they are lawfully parked, so this is a note and not a call")
   expect(body).toContain("`11111111`")
   expect(body).toContain("`22222222`")
@@ -933,9 +933,9 @@ test("the digest body says PARKED rather than owed, and counts what it names", (
 test("NOTHING IN A BODY IS MARKDOWN — it is delivered as a message, not rendered", () => {
   const standing = standingFor({
     ...DECLARED,
-    "lanes.olai": marked("step", "reproduce", "doing", { terminal: "11111111" }),
+    "lanes.org": marked("step", "reproduce", "doing", { terminal: "11111111" }),
   }, fleetOf(row("11111111", "waiting")), "wake")
-  const body = bodyFor("wake", standing, "lanes.olai", "2026-08-31T14:32:07.001Z")
+  const body = bodyFor("wake", standing, "lanes.org", "2026-08-31T14:32:07.001Z")
   expect(body).not.toContain("**")
   expect(body).not.toContain("- `")
   expect(body.split("\n").some((line) => line.startsWith("#"))).toBe(false)
@@ -944,9 +944,9 @@ test("NOTHING IN A BODY IS MARKDOWN — it is delivered as a message, not render
 test("a row with no repo and no label is named by its id alone", () => {
   const standing = standingFor({
     ...DECLARED,
-    "lanes.olai": marked("step", "reproduce", "doing", { terminal: "11111111" }),
+    "lanes.org": marked("step", "reproduce", "doing", { terminal: "11111111" }),
   }, fleetOf(row("11111111", "waiting")), "wake")
-  expect(bodyFor("wake", standing, "lanes.olai", "2026-08-31T14:32:07.001Z")).toContain(
+  expect(bodyFor("wake", standing, "lanes.org", "2026-08-31T14:32:07.001Z")).toContain(
     "— `11111111` is held at `waiting`;",
   )
 })
@@ -954,9 +954,9 @@ test("a row with no repo and no label is named by its id alone", () => {
 test("an untitled claiming node is drawn around rather than filled in", () => {
   const standing = standingFor({
     ...DECLARED,
-    "lanes.olai": marked("step", "  ", "doing", { terminal: "11111111" }),
+    "lanes.org": marked("step", "  ", "doing", { terminal: "11111111" }),
   }, fleetOf(row("11111111", "waiting")), "wake")
-  expect(bodyFor("wake", standing, "lanes.olai", "2026-08-31T14:32:07.001Z")).toContain(
+  expect(bodyFor("wake", standing, "lanes.org", "2026-08-31T14:32:07.001Z")).toContain(
     "the node that claims it is `doing`",
   )
 })
@@ -964,9 +964,9 @@ test("an untitled claiming node is drawn around rather than filled in", () => {
 test("a clock this runtime cannot read passes through VERBATIM", () => {
   const standing = standingFor({
     ...DECLARED,
-    "lanes.olai": marked("step", "reproduce", "doing", { terminal: "11111111" }),
+    "lanes.org": marked("step", "reproduce", "doing", { terminal: "11111111" }),
   }, fleetOf(row("11111111", "waiting")), "wake")
-  expect(bodyFor("wake", standing, "lanes.olai", "half past four")).toContain(
+  expect(bodyFor("wake", standing, "lanes.org", "half past four")).toContain(
     "at half past four,",
   )
 })
@@ -999,13 +999,13 @@ const rangOver = (files: Record<string, string>, file: string, fleet: ReadonlyAr
 
 /** The P1's own vault, before and after the dispatch grafted onto the bullet. */
 const P1_FILED = {
-  "_olai/Properties.olai": declaring(),
-  "lanes.olai": `{"id":"m","ord":"a0","mirror":"tns"}`,
-  "bugs.olai": rec("tns", "PR: task notifications stop spilling raw", { terminal: "11e565c0" }),
+  "_olai/Properties.org": declaring(),
+  "lanes.org": `{"id":"m","ord":"a0","mirror":"tns"}`,
+  "bugs.org": rec("tns", "PR: task notifications stop spilling raw", { terminal: "11e565c0" }),
 }
 const P1_GRAFTED = {
   ...P1_FILED,
-  "bugs.olai": [
+  "bugs.org": [
     rec("tns", "PR: task notifications stop spilling raw", { terminal: "11e565c0" }),
     under("impl", "tns", "a0", "implement + open PR", "done"),
     under("refactor", "tns", "a1", "refactor passes", "doing"),
@@ -1013,13 +1013,13 @@ const P1_GRAFTED = {
 }
 
 test("the `derived` line NAMES the ringing set — a count would not have found this bug", () => {
-  const it = rangOver(P1_GRAFTED, "lanes.olai", ["11e565c0aaaa", "4b5a3fb6bbbb"])
+  const it = rangOver(P1_GRAFTED, "lanes.org", ["11e565c0aaaa", "4b5a3fb6bbbb"])
   // THE LOAD-BEARING FIELD. `ringing` carries the fleet id AND the board row
   // that claims it, so a reader goes to the row rather than to a uuid — and,
   // far more importantly, an ABSENCE is legible, because it is legible only
   // against the set it is absent from.
   expect(it.lines[0]).toBe(
-    "kolu doorbell derived file=lanes.olai claims=1 ringing=11e565c0aaaa@tns"
+    "kolu doorbell derived file=lanes.org claims=1 ringing=11e565c0aaaa@tns"
       + " unmatched=none excluded=none fleet=2",
   )
   expect([...it.ringing.claiming.keys()]).toEqual(["11e565c0aaaa"])
@@ -1028,9 +1028,9 @@ test("the `derived` line NAMES the ringing set — a count would not have found 
 test("... and the SAME vault before the graft names the gate instead", () => {
   // The bullet has its terminal and no steps: nothing rings, and the line says
   // which gate rather than leaving a reader to reconstruct an absence.
-  const it = rangOver(P1_FILED, "lanes.olai", ["11e565c0aaaa", "4b5a3fb6bbbb"])
+  const it = rangOver(P1_FILED, "lanes.org", ["11e565c0aaaa", "4b5a3fb6bbbb"])
   expect(it.lines[0]).toBe(
-    "kolu doorbell derived file=lanes.olai claims=0 ringing=none"
+    "kolu doorbell derived file=lanes.org claims=0 ringing=none"
       + " unmatched=none excluded=11e565c0@tns:unmarked-leaf fleet=2",
   )
 })
@@ -1038,31 +1038,31 @@ test("... and the SAME vault before the graft names the gate instead", () => {
 test("the silence says WHICH gate — every `Why`, plus unmatched and unclaimed", () => {
   // What `classified why=` prints, asked of the function that decides it. The
   // RCA was "absent from the set"; the next one of this shape should be a grep.
-  const grafted = rangOver(P1_GRAFTED, "lanes.olai", ["11e565c0aaaa"]).ringing
+  const grafted = rangOver(P1_GRAFTED, "lanes.org", ["11e565c0aaaa"]).ringing
   // In the set: the caller does not ask, because there is no silence to explain.
   expect(grafted.claiming.has("11e565c0aaaa")).toBe(true)
 
-  const filed = rangOver(P1_FILED, "lanes.olai", ["11e565c0aaaa"]).ringing
+  const filed = rangOver(P1_FILED, "lanes.org", ["11e565c0aaaa"]).ringing
   expect(whyOut("11e565c0aaaa", filed)).toBe("unmarked-leaf")
 
   // A lane somebody folded, and a lane whose steps all settled.
   const settled = rangOver({
-    "_olai/Properties.olai": declaring(),
-    "lanes.olai": [
+    "_olai/Properties.org": declaring(),
+    "lanes.org": [
       marked("closed", "folded", "done", { terminal: "aaaaaaaa" }),
       rec("spent", "spent", { terminal: "bbbbbbbb" }),
       under("gone", "spent", "a0", "implement", "done"),
     ].join("\n"),
-  }, "lanes.olai", ["aaaaaaaaffff", "bbbbbbbbffff"]).ringing
+  }, "lanes.org", ["aaaaaaaaffff", "bbbbbbbbffff"]).ringing
   expect(whyOut("aaaaaaaaffff", settled)).toBe("settled")
   expect(whyOut("bbbbbbbbffff", settled)).toBe("not-live")
 
   // A prefix that opens two live terminals claims neither — the claim is live
   // and it is the JOIN that refused, which is a different answer entirely.
   const ambiguous = rangOver({
-    "_olai/Properties.olai": declaring(),
-    "lanes.olai": marked("lane", "review: grok", "doing", { terminal: "11" }),
-  }, "lanes.olai", ["1111aaaa", "1122bbbb"]).ringing
+    "_olai/Properties.org": declaring(),
+    "lanes.org": marked("lane", "review: grok", "doing", { terminal: "11" }),
+  }, "lanes.org", ["1111aaaa", "1122bbbb"]).ringing
   expect(whyOut("1111aaaa", ambiguous)).toBe("unmatched")
 
   // ...and a terminal nobody in this file ever named, which is the ordinary
@@ -1079,16 +1079,16 @@ test("the silence says WHICH gate — every `Why`, plus unmatched and unclaimed"
 const WINDOW = 1_800_000
 
 /** ONE SCOPED SEAT — a conversation, and the file somebody pointed it at. */
-const SEAT: Scoped = { agent: "olai", session: "s-1", file: "lanes.olai" }
+const SEAT: Scoped = { agent: "olai", session: "s-1", file: "lanes.org" }
 
 /** A board with one un-done claim on it, and the same board grown a second. */
 const ONE_CLAIM = {
   ...DECLARED,
-  "lanes.olai": marked("lane", "review: grok", "doing", { terminal: "11111111" }),
+  "lanes.org": marked("lane", "review: grok", "doing", { terminal: "11111111" }),
 }
 const TWO_CLAIMS = {
   ...DECLARED,
-  "lanes.olai": [
+  "lanes.org": [
     marked("lane", "review: grok", "doing", { terminal: "11111111" }),
     marked("lane-b", "review: pi", "todo", { terminal: "22222222" }),
   ].join("\n"),
@@ -1172,14 +1172,14 @@ test("an EMPTY WINDOW produces exactly one heartbeat, and it carries the four fa
   const body = it.words()[0] ?? ""
   // THE FOUR FACTS, and they are the point: "still here" would be true of a
   // wedged watcher too, so what it says is what a reader can disagree with.
-  expect(body).toContain("— the filter file: lanes.olai.")
+  expect(body).toContain("— the filter file: lanes.org.")
   expect(body).toContain("— terminals it claims right now: 1.")
   expect(body).toContain("— last watcher event: none at all since it started watching.")
   expect(body).toContain("— watching since 2026-08-31 09:00 UTC, 30 minutes so far.")
   // The head is the one line the fold shows, and it says the window and the
   // subject rather than "still here".
   expect(body.split("\n")[0]).toBe(
-    "The kolu watcher is alive: 30 minutes with nothing to say about the one terminal lanes.olai claims.",
+    "The kolu watcher is alive: 30 minutes with nothing to say about the one terminal lanes.org claims.",
   )
   // The attribution rule the wake bodies keep, for its reason: a replayed
   // conversation rebuilds the text and nothing else.
@@ -1218,7 +1218,7 @@ test("a busy day never sees a heartbeat at all", () => {
 })
 
 test("...and one seat's traffic does not silence another seat's floor", () => {
-  const other: Scoped = { agent: "olai", session: "s-2", file: "lanes.olai" }
+  const other: Scoped = { agent: "olai", session: "s-2", file: "lanes.org" }
   const it = bench(ONE_CLAIM)
   it.scope(SEAT, other)
   it.heart.delivered(SEAT)
@@ -1245,7 +1245,7 @@ test("the facts are derived at SEND TIME, not when the beat fired", () => {
   expect(body).toContain("— terminals it claims right now: 2.")
   expect(body).toContain("— last watcher event: 2026-08-31 09:35 UTC, 5 minutes ago.")
   expect(body).toContain("— watching since 2026-08-31 09:00 UTC, 40 minutes so far.")
-  expect(body.split("\n")[0]).toContain("the 2 terminals lanes.olai claims")
+  expect(body.split("\n")[0]).toContain("the 2 terminals lanes.org claims")
 })
 
 test("...and the count follows the board back down, because nothing is remembered", () => {
@@ -1288,8 +1288,8 @@ test("...and a scope that goes while the heartbeat waits is dropped rather than 
 test("...and a re-scoped seat is beaten about the file it is on NOW", () => {
   const it = bench({
     ...DECLARED,
-    "lanes.olai": marked("lane", "review: grok", "doing", { terminal: "11111111" }),
-    "board.olai": [
+    "lanes.org": marked("lane", "review: grok", "doing", { terminal: "11111111" }),
+    "board.org": [
       marked("a", "one", "doing", { terminal: "22222222" }),
       marked("b", "two", "todo", { terminal: "33333333" }),
     ].join("\n"),
@@ -1297,9 +1297,9 @@ test("...and a re-scoped seat is beaten about the file it is on NOW", () => {
   it.scope(SEAT)
   it.after(WINDOW)
   it.heart.beat(WINDOW)
-  it.scope({ ...SEAT, file: "board.olai" })
+  it.scope({ ...SEAT, file: "board.org" })
   const body = it.words()[0] ?? ""
-  expect(body).toContain("— the filter file: board.olai.")
+  expect(body).toContain("— the filter file: board.org.")
   expect(body).toContain("— terminals it claims right now: 2.")
 })
 
@@ -1327,13 +1327,13 @@ test("a file that claims NOTHING is still beaten for — the zero is the evidenc
   // A scope pointed at the wrong file, or a board somebody emptied. This
   // message is the only place either of those would ever be said out loud, so
   // a count of zero is a reason to send rather than a reason to skip.
-  const it = bench({ ...DECLARED, "lanes.olai": marked("lane", "shipped", "done") })
+  const it = bench({ ...DECLARED, "lanes.org": marked("lane", "shipped", "done") })
   it.scope(SEAT)
   it.after(WINDOW)
   it.heart.beat(WINDOW)
   const body = it.words()[0] ?? ""
   expect(body.split("\n")[0]).toBe(
-    "The kolu watcher is alive: 30 minutes with nothing to say, and lanes.olai claims no terminals at all right now.",
+    "The kolu watcher is alive: 30 minutes with nothing to say, and lanes.org claims no terminals at all right now.",
   )
   expect(body).toContain("— terminals it claims right now: 0.")
 })
@@ -1354,12 +1354,12 @@ test("a beat says what it did — the head, then one line per conversation it de
   expect(it.lines[0]).toBe(
     "kolu doorbell beat every=1800000 scopes=1 spoken=0 lastEvent=none",
   )
-  expect(it.lines[1]).toBe("kolu doorbell beating file=lanes.olai agent=olai session=s-1")
+  expect(it.lines[1]).toBe("kolu doorbell beating file=lanes.org agent=olai session=s-1")
   // ...and the count is said at SEND time, not at beat time, which is where the
   // body reads it — so the line and the sentence can never disagree.
-  expect(it.lines).not.toContain("kolu doorbell beat-said file=lanes.olai agent=olai terminals=1")
+  expect(it.lines).not.toContain("kolu doorbell beat-said file=lanes.org agent=olai terminals=1")
   it.words()
-  expect(it.lines.at(-1)).toBe("kolu doorbell beat-said file=lanes.olai agent=olai terminals=1")
+  expect(it.lines.at(-1)).toBe("kolu doorbell beat-said file=lanes.org agent=olai terminals=1")
 })
 
 test("... and a conversation passed over says WHICH of the two reasons it was", () => {
@@ -1371,7 +1371,7 @@ test("... and a conversation passed over says WHICH of the two reasons it was", 
   it.heart.delivered({ agent: "olai", session: "s-1" })
   it.heart.beat(WINDOW)
   expect(it.lines).toContain(
-    "kolu doorbell beat-passed file=lanes.olai agent=olai why=spoke-this-window",
+    "kolu doorbell beat-passed file=lanes.org agent=olai why=spoke-this-window",
   )
   expect(it.held.length).toBe(0)
 
@@ -1380,7 +1380,7 @@ test("... and a conversation passed over says WHICH of the two reasons it was", 
   starved.unload()
   starved.heart.beat(WINDOW)
   expect(starved.lines).toContain(
-    "kolu doorbell beat-passed file=lanes.olai agent=olai why=no-revision",
+    "kolu doorbell beat-passed file=lanes.org agent=olai why=no-revision",
   )
   expect(starved.held.length).toBe(0)
 })
@@ -1407,7 +1407,7 @@ test("two records copying one value are ONE terminal, and the fleet is not asked
   // their fleet is gone. That is the fault's sentence, never this one's.
   const it = bench({
     ...DECLARED,
-    "lanes.olai": [
+    "lanes.org": [
       marked("a", "the lane", "doing", { terminal: "11111111" }),
       marked("b", "a copy of the lane", "todo", { terminal: "11111111" }),
     ].join("\n"),
@@ -1450,32 +1450,32 @@ test("a prefix and the id it names count as ONE terminal, not two", () => {
   // they can see one, and the count is the one number in a heartbeat somebody
   // might act on.
   const vault = readingOf(setOf({
-    "_olai/Properties.olai": declaring(),
-    "lanes.olai": [
+    "_olai/Properties.org": declaring(),
+    "lanes.org": [
       marked("lane", "the second doorbell", "doing", { terminal: "54fe62f9" }),
       under("step", "lane", "a0", "reproduce", "doing", {
         terminal: "54fe62f9-aaaa-4bbb-8ccc-ddddddddddd0",
       }),
     ].join("\n"),
   })).derived
-  expect(terminalsIn(declarationsOf(vault, ownKinds), vault, "lanes.olai")).toBe(1)
+  expect(terminalsIn(declarationsOf(vault, ownKinds), vault, "lanes.org")).toBe(1)
 })
 
 test("... and two whole ids sharing a prefix are still two", () => {
   const vault = readingOf(setOf({
-    "_olai/Properties.olai": declaring(),
-    "lanes.olai": [
+    "_olai/Properties.org": declaring(),
+    "lanes.org": [
       marked("a", "review: grok", "doing", { terminal: "54fe62f9-aaaa-4bbb-8ccc-ddddddddddd0" }),
       marked("b", "review: pi", "doing", { terminal: "54fe62f9-bbbb-4bbb-8ccc-ddddddddddd1" }),
     ].join("\n"),
   })).derived
-  expect(terminalsIn(declarationsOf(vault, ownKinds), vault, "lanes.olai")).toBe(2)
+  expect(terminalsIn(declarationsOf(vault, ownKinds), vault, "lanes.org")).toBe(2)
 })
 
 test("... and an AMBIGUOUS prefix folds away, leaving the two it could not choose between", () => {
   const vault = readingOf(setOf({
-    "_olai/Properties.olai": declaring(),
-    "lanes.olai": [
+    "_olai/Properties.org": declaring(),
+    "lanes.org": [
       marked("lane", "the second doorbell", "doing", { terminal: "54fe" }),
       marked("a", "review: grok", "doing", { terminal: "54fe62f9-aaaa-4bbb-8ccc-ddddddddddd0" }),
       marked("b", "review: pi", "doing", { terminal: "54fe62f9-bbbb-4bbb-8ccc-ddddddddddd1" }),
@@ -1483,5 +1483,5 @@ test("... and an AMBIGUOUS prefix folds away, leaving the two it could not choos
   })).derived
   // Right twice over: it IS two terminals, and the derivation already refuses
   // an ambiguous value ownership of either.
-  expect(terminalsIn(declarationsOf(vault, ownKinds), vault, "lanes.olai")).toBe(2)
+  expect(terminalsIn(declarationsOf(vault, ownKinds), vault, "lanes.org")).toBe(2)
 })

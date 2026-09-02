@@ -5,7 +5,7 @@ Feature: Pinning a page to the sidebar
   and the page a reader has narrowed with a query, one click away.
 
   The whole of it is STORED IN THE DIRECTORY and nothing about it is
-  browser-local — `Pins.olai`, one ordinary node per pin, whose title is the
+  browser-local — `Pins.org`, one ordinary node per pin, whose title is the
   ADDRESS the pin opens. That is what makes the shelf something an agent can
   read and write with the tools it already has (`add_node`, `move_node`,
   `trash_node`), and it is why these scenarios assert on the FILE as often as
@@ -20,7 +20,7 @@ Feature: Pinning a page to the sidebar
   scenarios.
 
   Background:
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     And I mark the page
 
   Scenario: A node pinned from the row menu appears on the shelf, and in the file
@@ -29,14 +29,14 @@ Feature: Pinning a page to the sidebar
     Then the pinned shelf holds "/#order"
     # Minted where olai puts the files it names itself, not at the top level of
     # somebody else’s directory.
-    And "_olai/Pins.olai" holds a node titled "/#order"
+    And "_olai/Pins.org" holds a node titled "/#order"
     And the pin "/#order" is named "order the new cabinets"
     And there should be no page errors
 
   Scenario: The shelf says the node's name RIGHT NOW, not the one it was pinned under
     When I open the node menu of "order"
     And I choose "Pin to sidebar" from the node menu
-    And the file "house.olai" renames "order" to "order the walnut ones"
+    And the file "house.org" renames "order" to "order the walnut ones"
     Then the pin "/#order" is named "order the walnut ones"
 
   Scenario: A pinned node is offered the way off the shelf instead
@@ -54,14 +54,14 @@ Feature: Pinning a page to the sidebar
     # app has always written, one keystroke from where the caret already is.
     Then the palette asks "a name for this pin — Enter with nothing pins it unnamed"
     When I name the pin ""
-    Then the pinned shelf holds "/house.olai?q=is%3Atodo"
-    And "_olai/Pins.olai" holds a node titled "/house.olai?q=is%3Atodo"
-    When I open the outline "garden.olai"
+    Then the pinned shelf holds "/house.org?q=is%3Atodo"
+    And "_olai/Pins.org" holds a node titled "/house.org?q=is%3Atodo"
+    When I open the outline "garden.org"
     And I mark the screen
-    And I follow the pin "/house.olai?q=is%3Atodo"
+    And I follow the pin "/house.org?q=is%3Atodo"
     # The WHOLE bar, not the path: a door that dropped the query would pass a
     # step that only read the path, and would open a different page.
-    Then the address is exactly "/house.olai?q=is%3Atodo"
+    Then the address is exactly "/house.org?q=is%3Atodo"
     And the filter box holds "is:todo"
     # AND IT ARRIVES NARROWED. `demo` is done, so the query the pin carries
     # leaves it out — and a page that drew it and took it away again is the
@@ -83,21 +83,21 @@ Feature: Pinning a page to the sidebar
 
   Scenario: A saved search is NAMED where the thought arrives, and comes back named
     # The gap this closes: a reader who has just narrowed a page had to pin it
-    # unnamed and then go and find `Pins.olai` to call it anything. The name is
+    # unnamed and then go and find `Pins.org` to call it anything. The name is
     # typed in the palette's own box — the shape `+ a line` already taught —
     # and what lands is one op: the row an agent would write by hand.
     When I filter the page by "is:todo"
     And I pin the page
     And I name the pin "What is late"
-    Then the pin "/house.olai?q=is%3Atodo" is named "What is late"
+    Then the pin "/house.org?q=is%3Atodo" is named "What is late"
     # The name renames the PIN and never the destination, so the query is still
     # drawn beside it — a door onto a narrowed page that did not say so would
     # promise something it does not open.
-    And the pin "/house.olai?q=is%3Atodo" carries the query "is:todo"
-    And "_olai/Pins.olai" holds a node titled "[What is late](/house.olai?q=is%3Atodo)"
-    When I open the outline "garden.olai"
-    And I follow the pin "/house.olai?q=is%3Atodo"
-    Then the address is exactly "/house.olai?q=is%3Atodo"
+    And the pin "/house.org?q=is%3Atodo" carries the query "is:todo"
+    And "_olai/Pins.org" holds a node titled "[What is late](/house.org?q=is%3Atodo)"
+    When I open the outline "garden.org"
+    And I follow the pin "/house.org?q=is%3Atodo"
+    Then the address is exactly "/house.org?q=is%3Atodo"
     And the filter box holds "is:todo"
     And there should be no page errors
 
@@ -114,11 +114,11 @@ Feature: Pinning a page to the sidebar
     # The FILE, not just the column: a shelf olai never minted is the proof
     # that no write went out — and a minted-but-empty one would be the file
     # this resolver's ONE op exists to prevent.
-    And "_olai/Pins.olai" holds nothing
+    And "_olai/Pins.org" holds nothing
     # …and backing out is not a mode: the chord still works after it.
     When I pin the page
     And I name the pin ""
-    Then the pinned shelf holds "/house.olai?q=is%3Atodo"
+    Then the pinned shelf holds "/house.org?q=is%3Atodo"
     And there should be no page errors
 
   Scenario: The question owns the modal, so a second press does not wipe the name
@@ -135,7 +135,7 @@ Feature: Pinning a page to the sidebar
     And the palette asks "a name for this pin — Enter with nothing pins it unnamed"
     # …and the words that survived are the ones that land.
     When I name the pin "What is late"
-    Then the pin "/house.olai?q=is%3Atodo" is named "What is late"
+    Then the pin "/house.org?q=is%3Atodo" is named "What is late"
     And there should be no page errors
 
   Scenario: A pin is renamed from the shelf, and ⌘Z takes the name back
@@ -148,7 +148,7 @@ Feature: Pinning a page to the sidebar
     Then the palette asks "a name for this pin — Enter with nothing takes the name off"
     When I name the pin "Kitchen project"
     Then the pin "/#order" is named "Kitchen project"
-    And "Pins.olai" holds a node titled "[Kitchen project](/#order)"
+    And "Pins.org" holds a node titled "[Kitchen project](/#order)"
     When I press "ControlOrMeta+z"
     # Back to a bare address, which is drawn by what it points at — live.
     Then the pin "/#order" is named "order the new cabinets"
@@ -162,19 +162,19 @@ Feature: Pinning a page to the sidebar
 
   Scenario: The chord is a toggle over one address, and mints the shelf under _olai/
     When I pin the page
-    Then the pinned shelf holds "/house.olai"
+    Then the pinned shelf holds "/house.org"
     # WHERE a shelf is minted: a file olai made because somebody pressed
     # something is not one of the reader's own, and the top level of a served
     # directory is theirs.
-    And "_olai/Pins.olai" holds a node titled "/house.olai"
+    And "_olai/Pins.org" holds a node titled "/house.org"
     When I pin the page
     Then the pinned shelf is not drawn
     # Unpinning is the set's own removal, so it is reversible rather than gone.
-    And "_olai/Trash.olai" holds a node titled "/house.olai"
+    And "_olai/Trash.org" holds a node titled "/house.org"
 
   Scenario: A pin is taken off the shelf from the shelf
     When I pin the page
-    And I unpin "/house.olai"
+    And I unpin "/house.org"
     Then the pinned shelf is not drawn
 
   Scenario: Pins are ordered by the file, and a drag reorders them
@@ -187,7 +187,7 @@ Feature: Pinning a page to the sidebar
     Then the pinned shelf reads "/agenda /#order /#demo"
     And there should be no page errors
 
-  Scenario: Pins.olai opened as an outline reads like an outline
+  Scenario: Pins.org opened as an outline reads like an outline
     # The shelf is an ordinary file you are invited to browse and edit — so the
     # page must not show the plumbing the shelf resolves. A title that is
     # NOTHING BUT an address is drawn as the page it names, wherever it is
@@ -195,7 +195,7 @@ Feature: Pinning a page to the sidebar
     Given the directory has the pins:
       | /finishes.md |
       | /#order         |
-    When I open the outline "Pins.olai"
+    When I open the outline "Pins.org"
     Then the node "p0" reads "finishes.md"
     And the node "p1" reads "order the new cabinets"
     # …and it is still the address underneath: what the editor opens is the
@@ -215,7 +215,7 @@ Feature: Pinning a page to the sidebar
     Then the pin "/#order" is named "Kitchen project"
     And the pin "/agenda?q=is%3Atodo" is named "What is late"
     And the pin "/agenda?q=is%3Atodo" carries the query "is:todo"
-    When I open the outline "Pins.olai"
+    When I open the outline "Pins.org"
     # Marked HERE: opening an outline is a real navigation, so the claim below
     # is about the LABEL press and nothing before it.
     And I mark the page
@@ -232,7 +232,7 @@ Feature: Pinning a page to the sidebar
     Given the directory has the pins:
       | [Kitchen #home](/#order) |
     Then the pin "/#order" is named "Kitchen #home"
-    When I open the outline "Pins.olai"
+    When I open the outline "Pins.org"
     Then the node "p0" reads "Kitchen #home"
     And the node "p0" draws no tag
 
@@ -253,14 +253,14 @@ Feature: Pinning a page to the sidebar
     And there should be no page errors
 
   Scenario: A title spelled with an escape nothing can read takes nothing down
-    # `Pins.olai` is a file the format invites a hand and an agent to edit, and
+    # `Pins.org` is a file the format invites a hand and an agent to edit, and
     # `decodeURIComponent("%")` throws — which during render is the whole
     # sidebar, not one skipped row.
     Given the directory has the pins:
       | /#%     |
       | /#order |
     Then the pinned shelf reads "/#order"
-    And the outline list links to "house.olai"
+    And the outline list links to "house.org"
     And there should be no page errors
 
   Scenario: A pin an agent wrote arrives without a reload

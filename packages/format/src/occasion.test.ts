@@ -31,7 +31,7 @@
  *   - THE SAME DAY TWICE ON ONE RECORD — scheduled for a day and finished on
  *     it — which is where `datesOf`'s precedence decides a row and where a day
  *     page that drew two would be claiming two things happened;
- *   - THE TRASH AND A LEFTOVER `Archive.olai`, both full of dated records,
+ *   - THE TRASH AND A LEFTOVER `Archive.org`, both full of dated records,
  *     because what was put away is on no day and the index leaves it out at the
  *     FOLD rather than at each read (`./occasion.ts`);
  *   - MIRRORS, which carry neither field and must contribute nothing however
@@ -100,13 +100,13 @@ const DAYS = [
 ] as const
 
 /** The files a corpus is spread over: two live outlines, one in a directory,
- *  the trash, and a leftover `Archive.olai` — the last two dated on purpose,
+ *  the trash, and a leftover `Archive.org` — the last two dated on purpose,
  *  because what they hold is what the fold must drop. */
 const FILES = [
-  "a.olai",
-  "deep/b.olai",
-  "_olai/Trash.olai",
-  "old/Archive.olai",
+  "a.org",
+  "deep/b.org",
+  "_olai/Trash.org",
+  "old/Archive.org",
 ] as const
 
 const pick = <T>(random: () => number, from: ReadonlyArray<T>): T =>

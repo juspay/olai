@@ -53,7 +53,7 @@ import type { WriteRequest } from "@olai/format"
  *  signpost above an ancestor scaffold above what was put away), so `untrash`
  *  and `empty` have something to work on. */
 export const OUTLINES: Record<string, string> = {
-  "house.olai": [
+  "house.org": [
     `{"id":"kitchen","ord":"a0","title":"Kitchen remodel","desc":"the big one"}`,
     `{"id":"demo","parent":"kitchen","ord":"a0","title":"demolition","done":"2026-08-01T09:00:00-04:00"}`,
     `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets","todo":true,"date":"2026-08-20","custom":{"pr":"https://x/1"}}`,
@@ -63,17 +63,17 @@ export const OUTLINES: Record<string, string> = {
     `{"id":"seeds","parent":"garden","ord":"a1","title":"buy seeds","see":["beds"]}`,
     `{"id":"loose","ord":"a2","title":"a node with nothing under it"}`,
   ].join("\n"),
-  "notes.olai": [
+  "notes.org": [
     `{"id":"notes","ord":"a0","title":"Notes"}`,
     `{"id":"shown","parent":"notes","ord":"a0","mirror":"kitchen"}`,
     `{"id":"stray","parent":"notes","ord":"a1","title":"a line to file"}`,
     `{"id":"spare","parent":"notes","ord":"a2","title":"a spare line, pointed at by nothing"}`,
   ].join("\n"),
-  "_olai/Trash.olai": [
-    `{"id":"pile","ord":"a0","title":"house.olai"}`,
+  "_olai/Trash.org": [
+    `{"id":"pile","ord":"a0","title":"house.org"}`,
     `{"id":"scaffold","parent":"pile","ord":"a0","title":"Kitchen remodel"}`,
     `{"id":"tiles","parent":"scaffold","ord":"a0","title":"choose the tiles","todo":true}`,
-    `{"id":"gone","ord":"a1","title":"vanished.olai"}`,
+    `{"id":"gone","ord":"a1","title":"vanished.org"}`,
     `{"id":"orphan","parent":"gone","ord":"a0","title":"nothing to go back to"}`,
   ].join("\n"),
 }
@@ -88,7 +88,7 @@ export const DOCUMENTS: ReadonlyArray<string | readonly [file: string, text: str
 /** A file that did not parse — the fact behind every `writable` refusal in the
  *  script, and the one thing a planner may never write over. */
 export const BROKEN: Record<string, string> = {
-  "torn.olai": `{"id":"torn","ord":"a0"`,
+  "torn.org": `{"id":"torn","ord":"a0"`,
 }
 
 /** One step of the script: the request, and what this step is FOR — the phrase
@@ -126,7 +126,7 @@ export const SCRIPT: ReadonlyArray<Step> = [
     what: "add at the top level of an outline, with a subtree and a forward reference",
     op: {
       op: "add",
-      file: "house.olai",
+      file: "house.org",
       title: "Shed",
       children: [
         { id: "roof", title: "roof it", waitsOn: ["frame"] },
@@ -136,7 +136,7 @@ export const SCRIPT: ReadonlyArray<Step> = [
   },
   {
     what: "add into a file the set could not read — the writable gate",
-    op: { op: "add", file: "torn.olai", title: "nowhere" },
+    op: { op: "add", file: "torn.org", title: "nowhere" },
   },
   {
     what: "add into a path that is not an outline at all",
@@ -211,17 +211,17 @@ export const SCRIPT: ReadonlyArray<Step> = [
     what: "untrash whose recorded outline is nowhere — refused",
     op: { op: "untrash", id: "orphan" },
   },
-  { what: "create an outline, seeded", op: { op: "create", file: "vanished.olai", seed: { title: "back again" } } },
+  { what: "create an outline, seeded", op: { op: "create", file: "vanished.org", seed: { title: "back again" } } },
   {
     what: "create an outline that already exists — refused",
-    op: { op: "create", file: "house.olai" },
+    op: { op: "create", file: "house.org" },
   },
-  { what: "create an empty outline", op: { op: "create", file: "notes/plans.olai" } },
+  { what: "create an empty outline", op: { op: "create", file: "notes/plans.org" } },
   {
     what: "untrash by the recorded chain, now that the source file is back",
     op: { op: "untrash", id: "tiles" },
   },
-  { what: "untrash into a named file", op: { op: "untrash", id: "orphan", file: "notes.olai" } },
+  { what: "untrash into a named file", op: { op: "untrash", id: "orphan", file: "notes.org" } },
   // ── the trash, emptied ───────────────────────────────────────────────
   //
   // HERE and not at the end: what is put away above is out again, and nothing
@@ -229,12 +229,12 @@ export const SCRIPT: ReadonlyArray<Step> = [
   // answers in. The edges the script adds below would each refuse it.
   {
     what: "empty an outline that is not the trash — refused",
-    op: { op: "empty", file: "house.olai" },
+    op: { op: "empty", file: "house.org" },
   },
-  { what: "empty the trash", op: { op: "empty", file: "_olai/Trash.olai" } },
+  { what: "empty the trash", op: { op: "empty", file: "_olai/Trash.org" } },
   {
     what: "empty a trash that now holds nothing — refused",
-    op: { op: "empty", file: "_olai/Trash.olai" },
+    op: { op: "empty", file: "_olai/Trash.org" },
   },
   // ── the edges ────────────────────────────────────────────────────────
   { what: "see added", op: { op: "see", id: "loose", add: ["order"] } },
@@ -250,7 +250,7 @@ export const SCRIPT: ReadonlyArray<Step> = [
   },
   { what: "after removed", op: { op: "after", id: "loose", remove: ["demo"] } },
   // ── the placements ───────────────────────────────────────────────────
-  { what: "mirror placed in another file", op: { op: "mirror", target: "order", file: "notes.olai" } },
+  { what: "mirror placed in another file", op: { op: "mirror", target: "order", file: "notes.org" } },
   {
     what: "mirror inside what it shows — refused, naming the loop",
     op: { op: "mirror", target: "kitchen", parent: "demo" },
@@ -397,7 +397,7 @@ export const SCRIPT: ReadonlyArray<Step> = [
   // itself minted above, so the write is judged against the world the
   // script's own rows made — and its three most human refusals: the SAME
   // file asked twice; the unit's own rule read of the corpus; and the kinds
-  // olai only SHOWS (`house.olai`, `notes/page.html` are both as recorded).
+  // olai only SHOWS (`house.org`, `notes/page.html` are both as recorded).
   // The walk the refusal asks the refusal's walk to read, `namingDocument` —
   // the document a `doc`-key sets is exercised in `./plan.test.ts`, where
   // the PROPERTIES are that test's own corpus's and no row above has to
@@ -412,7 +412,7 @@ export const SCRIPT: ReadonlyArray<Step> = [
   },
   {
     what: "delete an outline holding records — refused, naming them",
-    op: { op: "delete", file: "house.olai" },
+    op: { op: "delete", file: "house.org" },
   },
   {
     what: "delete a page of the kinds olai only shows — refused",

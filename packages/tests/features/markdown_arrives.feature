@@ -25,7 +25,7 @@ Feature: The markdown pipeline arrives before it is needed
   @corpus:good
   Scenario: The shell fetches the pipeline, and the outline does not wait for it
     Given the markdown pipeline is held up
-    When I open the outline "house.olai"
+    When I open the outline "house.org"
     # `demo` is among them — finished — so the pick is said before the rows
     # are counted: the claim is the bundle draws what it draws, not a
     # default.
@@ -82,8 +82,8 @@ Feature: The markdown pipeline arrives before it is needed
   @scratch:good
   Scenario: If it never comes, a title's marks are legible too
     Given the markdown pipeline never arrives
-    Given I open the outline "house.olai"
-    When I rewrite "house.olai" as:
+    Given I open the outline "house.org"
+    When I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"demo","parent":"kitchen","ord":"a0","title":"**take out** the old counters"}
@@ -97,8 +97,8 @@ Feature: The markdown pipeline arrives before it is needed
   @scratch:good
   Scenario: A title with markdown in it shows its source, then renders
     Given the markdown pipeline is held up
-    Given I open the outline "house.olai"
-    When I rewrite "house.olai" as:
+    Given I open the outline "house.org"
+    When I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"demo","parent":"kitchen","ord":"a0","title":"**take out** the old counters"}
@@ -124,8 +124,8 @@ Feature: The markdown pipeline arrives before it is needed
   @scratch:good @markdown-paints
   Scenario: No frame of legible raw markdown is ever painted
     Given the markdown pipeline is held up
-    Given I open the outline "house.olai"
-    When I rewrite "house.olai" as:
+    Given I open the outline "house.org"
+    When I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"demo","parent":"kitchen","ord":"a0","title":"**take out** the old counters","desc":"Doors: **matte**, not gloss."}
@@ -159,8 +159,8 @@ Feature: The markdown pipeline arrives before it is needed
   @scratch:good
   Scenario: The rendering replaces the source without moving the block
     Given the markdown pipeline is held up
-    Given I open the outline "house.olai"
-    When I rewrite "house.olai" as:
+    Given I open the outline "house.org"
+    When I rewrite "house.org" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
       {"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters","desc":"Doors: **matte**, not gloss."}

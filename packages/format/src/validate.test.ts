@@ -110,10 +110,10 @@ const codes = (errors: ReadonlyArray<OutlineError>): ReadonlyArray<string> =>
 test("a set using every relation loads clean", () => {
   expectValid(
     {
-      "home.olai": `{"id":"kitchen","ord":"a","title":"kitchen #reno"}\n` +
+      "home.org": `{"id":"kitchen","ord":"a","title":"kitchen #reno"}\n` +
         `{"id":"demo","parent":"kitchen","ord":"a","title":"demolition","done":"2026-08-01"}\n` +
         `{"id":"order","parent":"kitchen","ord":"b","title":"order cabinets","after":["demo"],"see":["budget"],"doc":"notes/cabinets.md"}\n`,
-      "work.olai": `{"id":"budget","ord":"a","title":"the budget","blocks":["order"]}\n` +
+      "work.org": `{"id":"budget","ord":"a","title":"the budget","blocks":["order"]}\n` +
         `{"id":"m","ord":"b","mirror":"order"}\n`,
     },
     ["notes/cabinets.md"],
@@ -132,8 +132,8 @@ test("a set using every relation loads clean", () => {
 
 test("a view that is not about this set is not the view the rules run over", () => {
   const before = setOf({
-    "a.olai": `{"id":"x","ord":"a","title":"one"}`,
-    "b.olai": `{"id":"y","ord":"a","title":"two"}`,
+    "a.org": `{"id":"x","ord":"a","title":"one"}`,
+    "b.org": `{"id":"y","ord":"a","title":"two"}`,
   })
   const first = validate(before)
   if (Result.isFailure(first)) throw new Error("expected the first set to be valid")
@@ -141,8 +141,8 @@ test("a view that is not about this set is not the view the rules run over", () 
   // A delta that claims nothing moved, about a set where something did — the
   // shape a caller with a wrong idea of what changed would hand over.
   const after = setOf({
-    "a.olai": `{"id":"x","ord":"a","title":"edited"}`,
-    "b.olai": `{"id":"y","ord":"a","title":"two"}`,
+    "a.org": `{"id":"x","ord":"a","title":"edited"}`,
+    "b.org": `{"id":"y","ord":"a","title":"two"}`,
   })
   const answer = validate(after, {
     read: first.success,
@@ -199,11 +199,11 @@ const judged = (set: OutlineSet, previous?: Previous): Reading => {
 
 test("a delta that describes the set is taken, and the view is a patched one", () => {
   const held = decodedOf({
-    "a.olai": `{"id":"x","ord":"a","title":"one"}`,
-    "b.olai": `{"id":"y","ord":"a","title":"two"}`,
+    "a.org": `{"id":"x","ord":"a","title":"one"}`,
+    "b.org": `{"id":"y","ord":"a","title":"two"}`,
   })
   const first = judged(assemble(held))
-  const { set, previous } = probed(held, first, "a.olai", `{"id":"x","ord":"a","title":"edited"}`)
+  const { set, previous } = probed(held, first, "a.org", `{"id":"x","ord":"a","title":"edited"}`)
   const answer = judged(set, previous)
 
   // A LAYER is what only the patcher produces — `derive` builds plain maps — so
@@ -223,45 +223,45 @@ test("an outline holding nothing is not a disagreement about the set", () => {
   // empty outline has one more file than the view has keys — which a check
   // stepping the two in lockstep has to expect rather than call a mismatch.
   const held = decodedOf({
-    "a.olai": `{"id":"x","ord":"a","title":"one"}`,
-    "empty.olai": ``,
-    "z.olai": `{"id":"y","ord":"a","title":"two"}`,
+    "a.org": `{"id":"x","ord":"a","title":"one"}`,
+    "empty.org": ``,
+    "z.org": `{"id":"y","ord":"a","title":"two"}`,
   })
   const first = judged(assemble(held))
-  const { set, previous } = probed(held, first, "a.olai", `{"id":"x","ord":"a","title":"edited"}`)
+  const { set, previous } = probed(held, first, "a.org", `{"id":"x","ord":"a","title":"edited"}`)
   const answer = judged(set, previous)
 
   expect(answer.derived.byId instanceof Map).toBe(false)
   expect(answer.derived.byId.get("x")?.node).toMatchObject({ title: "edited" })
-  expect([...answer.derived.byFile.keys()]).toEqual(["a.olai", "z.olai"])
+  expect([...answer.derived.byFile.keys()]).toEqual(["a.org", "z.org"])
 })
 
 test("a delta that leaves the view holding a file the set lost is thrown away", () => {
   const held = decodedOf({
-    "a.olai": `{"id":"x","ord":"a","title":"one"}`,
-    "b.olai": `{"id":"y","ord":"a","title":"two"}`,
+    "a.org": `{"id":"x","ord":"a","title":"one"}`,
+    "b.org": `{"id":"y","ord":"a","title":"two"}`,
   })
   const first = judged(assemble(held))
-  // The directory lost b.olai and the delta never says so, which the flat
+  // The directory lost b.org and the delta never says so, which the flat
   // comparison this replaced could only see as a length: the view files a
   // record under a path the set does not hold at all.
-  held.delete("b.olai")
+  held.delete("b.org")
   const set = assemble(held)
   const answer = judged(set, { read: first, delta: { upserts: [], removes: [] } })
 
-  expect([...answer.derived.byFile.keys()]).toEqual(["a.olai"])
+  expect([...answer.derived.byFile.keys()]).toEqual(["a.org"])
   expect(answer.derived.byId.has("y")).toBe(false)
   const records = recordsOf(set)
   expect(answer.derived.nodes.every((at, index) => at === records[index])).toBe(true)
 })
 
 // The set is flat: `files` is the list found on disk and the nodes are one
-// list. A `.olai` holding no nodes is still a file of the set — which is why
+// list. A `.org` holding no nodes is still a file of the set — which is why
 // `files` is not derived from `nodes`, and why an empty one is not an error.
 test("a file with no nodes is a member of the set, not a problem with it", () => {
   expectValid({
-    "empty.olai": ``,
-    "a.olai": `{"id":"a","ord":"a","title":"a"}\n`,
+    "empty.org": ``,
+    "a.org": `{"id":"a","ord":"a","title":"a"}\n`,
   })
 })
 
@@ -271,14 +271,14 @@ test("a file with no nodes is a member of the set, not a problem with it", () =>
 test("a duplicate id is reported on the second record, pointing at the first", () => {
   const error = only(
     errorsOf({
-      "a.olai": `{"id":"x","ord":"a","title":"one"}`,
-      "b.olai": `{"id":"x","ord":"a","title":"two"}`,
+      "a.org": `{"id":"x","ord":"a","title":"one"}`,
+      "b.org": `{"id":"x","ord":"a","title":"two"}`,
     }),
   )
   expect(error.code).toBe("duplicate-id")
-  expect([error.file, error.line]).toEqual(["b.olai", 1])
+  expect([error.file, error.line]).toEqual(["b.org", 1])
   expect(error.related).toEqual([
-    { file: "a.olai", line: 1, note: "first declared here" },
+    { file: "a.org", line: 1, note: "first declared here" },
   ])
   // And it is the shape the error view groups separately: two files are
   // implicated, so neither of them is "the broken one".
@@ -290,12 +290,12 @@ test("a duplicate id is reported on the second record, pointing at the first", (
 test("an unknown parent suggests the near id", () => {
   const error = only(
     errorsOf({
-      "a.olai": `{"id":"kitchen","ord":"a","title":"k"}\n` +
+      "a.org": `{"id":"kitchen","ord":"a","title":"k"}\n` +
         `{"id":"sink","parent":"kitchn","ord":"b","title":"s"}`,
     }),
   )
   expect(error.code).toBe("unknown-parent")
-  expect(error.line).toBe(2)
+  expect(error.line).toBe(9)
   expect(error.message).toContain("did you mean `kitchen`?")
 })
 
@@ -304,7 +304,7 @@ test("an unknown parent suggests the near id", () => {
 test("an unknown parent nothing resembles gets no did-you-mean", () => {
   const error = only(
     errorsOf({
-      "a.olai": `{"id":"kitchen","ord":"a","title":"k"}\n` +
+      "a.org": `{"id":"kitchen","ord":"a","title":"k"}\n` +
         `{"id":"sink","parent":"zzz","ord":"b","title":"s"}`,
     }),
   )
@@ -312,30 +312,30 @@ test("an unknown parent nothing resembles gets no did-you-mean", () => {
   expect(error.message).not.toContain("did you mean")
 })
 
-// Every `.olai` is an independent tree. A parent that resolves in another file
+// Every `.org` is an independent tree. A parent that resolves in another file
 // is the one unknown-parent case that is not a typo, so it gets its own code
 // and is told what to use instead.
 test("a parent in another file is a foreign-parent, not an unknown one", () => {
   const error = only(
     errorsOf({
-      "a.olai": `{"id":"kitchen","ord":"a","title":"k"}`,
-      "b.olai": `{"id":"sink","parent":"kitchen","ord":"a","title":"s"}`,
+      "a.org": `{"id":"kitchen","ord":"a","title":"k"}`,
+      "b.org": `{"id":"sink","parent":"kitchen","ord":"a","title":"s"}`,
     }),
   )
   expect(error.code).toBe("foreign-parent")
-  expect([error.file, error.line]).toEqual(["b.olai", 1])
+  expect([error.file, error.line]).toEqual(["b.org", 1])
   expect(error.message).toContain("`mirror`")
   // NAMED, NOT BLAMED. The parent's site is where the `parent` went, so a
-  // reader can see it; `broken: false` is the rule saying `a.olai` is nobody's
-  // fault here — the edit is the `parent` on this line, in `b.olai`.
+  // reader can see it; `broken: false` is the rule saying `a.org` is nobody's
+  // fault here — the edit is the `parent` on this line, in `b.org`.
   expect(error.related).toEqual([
-    { file: "a.olai", line: 1, note: "the parent lives here", broken: false },
+    { file: "a.org", line: 1, note: "the parent lives here", broken: false },
   ])
   // …and the two planes say different things about it, which is the point:
   // the finding is ABOUT both files, and it BREAKS one.
-  expect(implicatedBy(error)).toEqual(["b.olai", "a.olai"])
+  expect(implicatedBy(error)).toEqual(["b.org", "a.org"])
   expect(isCrossFile(error)).toBe(false)
-  expect(blamed([error]).map((one) => one.file)).toEqual(["b.olai"])
+  expect(blamed([error]).map((one) => one.file)).toEqual(["b.org"])
 })
 
 // A mirror is a placement, not a container: children hang off the node the
@@ -343,14 +343,14 @@ test("a parent in another file is a foreign-parent, not an unknown one", () => {
 test("a child of a mirror is refused", () => {
   const error = only(
     errorsOf({
-      "a.olai": `{"id":"k","ord":"a","title":"k"}\n` +
+      "a.org": `{"id":"k","ord":"a","title":"k"}\n` +
         `{"id":"m","ord":"b","mirror":"k"}\n` +
         `{"id":"c","parent":"m","ord":"c","title":"c"}`,
     }),
   )
   expect(error.code).toBe("parent-not-a-node")
-  expect(error.line).toBe(3)
-  expect(error.related?.[0]).toEqual({ file: "a.olai", line: 2, note: "the mirror is here" })
+  expect(error.line).toBe(17)
+  expect(error.related?.[0]).toEqual({ file: "a.org", line: 9, note: "the mirror is here" })
 })
 
 // A parent loop makes every tree walk in the system non-terminating, and it is
@@ -358,7 +358,7 @@ test("a child of a mirror is refused", () => {
 test("a parent cycle is one error naming the whole loop", () => {
   const error = only(
     errorsOf({
-      "a.olai": `{"id":"a","parent":"b","ord":"a","title":"a"}\n` +
+      "a.org": `{"id":"a","parent":"b","ord":"a","title":"a"}\n` +
         `{"id":"b","parent":"a","ord":"b","title":"b"}`,
     }),
   )
@@ -367,14 +367,14 @@ test("a parent cycle is one error naming the whole loop", () => {
   // same way.
   expect(error.line).toBe(1)
   expect(error.message).toContain("`a` → `b` → `a`")
-  expect(error.related).toEqual([{ file: "a.olai", line: 2, note: "also in the loop" }])
+  expect(error.related).toEqual([{ file: "a.org", line: 10, note: "also in the loop" }])
 })
 
 // Every relation field resolves against the whole set, and the message has to
 // say which field was the dangling one — a node can carry four.
 test("a dangling target is reported for mirror, after, blocks and see alike", () => {
   const errors = errorsOf({
-    "a.olai": `{"id":"a","ord":"a","title":"a","after":["no1"],"blocks":["no2"],"see":["no3"]}\n` +
+    "a.org": `{"id":"a","ord":"a","title":"a","after":["no1"],"blocks":["no2"],"see":["no3"]}\n` +
       `{"id":"m","ord":"b","mirror":"no4"}`,
   })
   expect(codes(errors)).toEqual([
@@ -409,13 +409,13 @@ const sites = (
 // record's own fields; this is the case that moved.
 test("two unknown targets on one record come out in the order the corpus first names them", () => {
   const errors = errorsOf({
-    "a.olai": `{"id":"a","ord":"a","title":"a","see":["zz"]}\n` +
+    "a.org": `{"id":"a","ord":"a","title":"a","see":["zz"]}\n` +
       `{"id":"b","ord":"b","title":"b","after":["aa"],"see":["zz"]}`,
   })
   // `zz` is named on line 1, so it is the first key; `b` names it with `see`
   // and `aa` with `after`, and its two findings follow that rather than the
   // order the record writes its fields in (which would put `after` first).
-  expect(sites(errors)).toEqual([[1, "see"], [2, "see"], [2, "after"]])
+  expect(sites(errors)).toEqual([[1, "see"], [10, "see"], [10, "after"]])
 })
 
 // The fold is per RECORD and per FIELD: what it collapses is a repeat, never a
@@ -423,7 +423,7 @@ test("two unknown targets on one record come out in the order the corpus first n
 // keys a record by every id it names and could have collapsed either.
 test("one unknown id named with two fields is one finding per field", () => {
   const errors = errorsOf({
-    "a.olai": `{"id":"a","ord":"a","title":"a","after":["gone"],"see":["gone"]}`,
+    "a.org": `{"id":"a","ord":"a","title":"a","after":["gone"],"see":["gone"]}`,
   })
   expect(sites(errors)).toEqual([[1, "after"], [1, "see"]])
 })
@@ -432,7 +432,7 @@ test("the same unknown id named twice in one field is one finding, not two", () 
   // Only a hand-edited file can hold this — no op writes a repeat — and two
   // copies of one sentence at one site tell a reader nothing the first did not.
   const errors = errorsOf({
-    "a.olai": `{"id":"a","ord":"a","title":"a","after":["gone","gone"]}`,
+    "a.org": `{"id":"a","ord":"a","title":"a","after":["gone","gone"]}`,
   })
   expect(sites(errors)).toEqual([[1, "after"]])
 })
@@ -442,7 +442,7 @@ test("the same unknown id named twice in one field is one finding, not two", () 
 test("an after cycle is refused", () => {
   const error = only(
     errorsOf({
-      "a.olai": `{"id":"a","ord":"a","title":"a","after":["b"]}\n` +
+      "a.org": `{"id":"a","ord":"a","title":"a","after":["b"]}\n` +
         `{"id":"b","ord":"b","title":"b","after":["a"]}`,
     }),
   )
@@ -456,7 +456,7 @@ test("an after cycle is refused", () => {
 test("a cycle written only in blocks is the same after-cycle", () => {
   const error = only(
     errorsOf({
-      "a.olai": `{"id":"a","ord":"a","title":"a","blocks":["b"]}\n` +
+      "a.org": `{"id":"a","ord":"a","title":"a","blocks":["b"]}\n` +
         `{"id":"b","ord":"b","title":"b","blocks":["a"]}`,
     }),
   )
@@ -474,9 +474,9 @@ test("a cycle written only in blocks is the same after-cycle", () => {
 test("an after cycle closing through a mirror is refused", () => {
   const error = only(
     errorsOf({
-      "a.olai": `{"id":"x","ord":"a","title":"x","after":["m"]}\n` +
+      "a.org": `{"id":"x","ord":"a","title":"x","after":["m"]}\n` +
         `{"id":"y","ord":"b","title":"y","after":["x"]}`,
-      "b.olai": `{"id":"m","ord":"a","mirror":"y"}`,
+      "b.org": `{"id":"m","ord":"a","mirror":"y"}`,
     }),
   )
   expect(error.code).toBe("after-cycle")
@@ -494,8 +494,8 @@ test("an after cycle closing through a mirror is refused", () => {
 test("an after cycle through the archive is still refused", () => {
   const error = only(
     errorsOf({
-      "a.olai": `{"id":"live","ord":"a","title":"live","doing":true,"after":["old"]}`,
-      "_olai/Trash.olai": `{"id":"old","ord":"a","title":"old","done":true,"after":["live"]}`,
+      "a.org": `{"id":"live","ord":"a","title":"live","doing":true,"after":["old"]}`,
+      "_olai/Trash.org": `{"id":"old","ord":"a","title":"old","done":true,"after":["live"]}`,
     }),
   )
   expect(error.code).toBe("after-cycle")
@@ -509,12 +509,12 @@ test("an after cycle through the archive is still refused", () => {
 test("mirrors that show each other are a mirror-cycle", () => {
   const error = only(
     errorsOf({
-      "a.olai": `{"id":"m1","ord":"a","mirror":"m2"}\n{"id":"m2","ord":"b","mirror":"m1"}`,
+      "a.org": `{"id":"m1","ord":"a","mirror":"m2"}\n{"id":"m2","ord":"b","mirror":"m1"}`,
     }),
   )
   expect(error.code).toBe("mirror-cycle")
   expect(error.message).toContain("`m1` → `m2` → `m1`")
-  expect(error.related).toEqual([{ file: "a.olai", line: 2, note: "also in the loop" }])
+  expect(error.related).toEqual([{ file: "a.org", line: 9, note: "also in the loop" }])
 })
 
 // The headline case, and the reason the check exists: a mirror of `a` placed
@@ -523,7 +523,7 @@ test("mirrors that show each other are a mirror-cycle", () => {
 // its own; it is only wrong where it sits.
 test("a mirror placed inside the subtree it shows is a mirror-cycle", () => {
   const errors = errorsOf({
-    "a.olai": `{"id":"a","ord":"a","title":"a"}\n{"id":"m","parent":"a","ord":"b","mirror":"a"}`,
+    "a.org": `{"id":"a","ord":"a","title":"a"}\n{"id":"m","parent":"a","ord":"b","mirror":"a"}`,
   })
   expect(codes(errors)).toEqual(["mirror-cycle"])
 })
@@ -531,8 +531,8 @@ test("a mirror placed inside the subtree it shows is a mirror-cycle", () => {
 // And it holds across files, which is the case mirrors exist for.
 test("a mirror is still a cycle when the subtree it shows lives elsewhere", () => {
   const errors = errorsOf({
-    "a.olai": `{"id":"a","ord":"a","title":"a"}\n{"id":"m","parent":"a","ord":"b","mirror":"b"}`,
-    "b.olai": `{"id":"b","ord":"a","title":"b"}\n{"id":"n","parent":"b","ord":"b","mirror":"a"}`,
+    "a.org": `{"id":"a","ord":"a","title":"a"}\n{"id":"m","parent":"a","ord":"b","mirror":"b"}`,
+    "b.org": `{"id":"b","ord":"a","title":"b"}\n{"id":"n","parent":"b","ord":"b","mirror":"a"}`,
   })
   expect(codes(errors)).toContain("mirror-cycle")
 })
@@ -541,7 +541,7 @@ test("a mirror is still a cycle when the subtree it shows lives elsewhere", () =
 // mirror in it is a parent cycle and only that.
 test("a pure parent cycle is not also reported as a mirror-cycle", () => {
   const errors = errorsOf({
-    "a.olai": `{"id":"a","parent":"b","ord":"a","title":"a"}\n` +
+    "a.org": `{"id":"a","parent":"b","ord":"a","title":"a"}\n` +
       `{"id":"b","parent":"a","ord":"b","title":"b"}`,
   })
   expect(codes(errors)).toEqual(["parent-cycle"])
@@ -552,7 +552,7 @@ test("a pure parent cycle is not also reported as a mirror-cycle", () => {
 // note nobody will ever see again.
 test("a doc naming no served file is refused, and says what it resolved to", () => {
   const error = only(
-    errorsOf({ "a.olai": `{"id":"a","ord":"a","title":"a","doc":"notes/a.md"}` }, []),
+    errorsOf({ "a.org": `{"id":"a","ord":"a","title":"a","doc":"notes/a.md"}` }, []),
   )
   expect(error.code).toBe("missing-doc")
   expect(error.message).toContain("resolves to `notes/a.md`")
@@ -567,7 +567,7 @@ test("a doc naming no served file is refused, and says what it resolved to", () 
 // because from a reader's side it is the same thing: no such document.
 test("a doc naming a served `.html` is refused, like any other non-document", () => {
   const error = only(
-    errorsOf({ "a.olai": `{"id":"a","ord":"a","title":"a","doc":"report.html"}` }, [
+    errorsOf({ "a.org": `{"id":"a","ord":"a","title":"a","doc":"report.html"}` }, [
       "report.html",
     ]),
   )
@@ -579,7 +579,7 @@ test("a doc naming a served `.html` is refused, like any other non-document", ()
 // outline's directory — the `../` case — is a normal, valid attachment.
 test("a doc reached through ../ resolves against the outline's directory", () => {
   expectValid(
-    { "sub/plan.olai": `{"id":"a","ord":"a","title":"a","doc":"../notes/a.md"}` },
+    { "sub/plan.org": `{"id":"a","ord":"a","title":"a","doc":"../notes/a.md"}` },
     ["notes/a.md"],
   )
   // The arithmetic behind it is `documents.ts`'s, and it is tested there.
@@ -595,7 +595,7 @@ test("a mark on a node with children is a set that loads", () => {
   // tasks, a mark over children that are all done, and a mark over children
   // that are all plain notes.
   expectValid({
-    "a.olai": `{"id":"p","ord":"a","title":"p","done":"2026-08-11"}\n` +
+    "a.org": `{"id":"p","ord":"a","title":"p","done":"2026-08-11"}\n` +
       `{"id":"c1","parent":"p","ord":"a","title":"c1","done":true}\n` +
       `{"id":"c2","parent":"p","ord":"b","title":"c2","doing":true}\n` +
       `{"id":"q","ord":"b","title":"q","done":true}\n` +
@@ -611,7 +611,7 @@ test("a mark on a node with children is a set that loads", () => {
 // set they make.
 test("a merge that marks a leaf and gives it a child still loads", () => {
   expectValid({
-    "a.olai": `{"id":"leaf","ord":"a","title":"leaf","done":"2026-08-10"}\n` +
+    "a.org": `{"id":"leaf","ord":"a","title":"leaf","done":"2026-08-10"}\n` +
       `{"id":"arrived","parent":"leaf","ord":"a","title":"arrived from the other branch","todo":true}`,
   })
 })
@@ -620,14 +620,14 @@ test("a merge that marks a leaf and gives it a child still loads", () => {
 // human diff two error views and a test assert on the first error.
 test("errors come back sorted by file, then line", () => {
   const errors = errorsOf({
-    "b.olai": `{"id":"b1","parent":"nope","ord":"a","title":"b"}`,
-    "a.olai": `{"id":"a1","ord":"a","title":"a","see":["nope"]}\n` +
+    "b.org": `{"id":"b1","parent":"nope","ord":"a","title":"b"}`,
+    "a.org": `{"id":"a1","ord":"a","title":"a","see":["nope"]}\n` +
       `{"id":"a2","parent":"nope","ord":"b","title":"a"}`,
   })
   expect(errors.map((error) => `${error.file}:${error.line}`)).toEqual([
-    "a.olai:1",
-    "a.olai:2",
-    "b.olai:1",
+    "a.org:1",
+    "a.org:10",
+    "b.org:1",
   ])
 })
 
@@ -638,12 +638,12 @@ test("errors come back sorted by file, then line", () => {
 // the broken one carries its own errors to render in its own place.
 test("a file that did not parse leaves the rest of the set valid", () => {
   const set = expectValid(
-    { "garden.olai": `{"id":"garden","ord":"a","title":"garden"}` },
+    { "garden.org": `{"id":"garden","ord":"a","title":"garden"}` },
     [],
-    { "house.olai": `{"id":"kitchen","ord":"a",title:"kitchen"}` },
+    { "house.org": `{"id":"kitchen","ord":"a",title:"kitchen"}` },
   )
-  expect(set.broken.map((file) => file.file)).toEqual(["house.olai"])
-  expect(set.broken[0]?.errors.map((error) => error.code)).toEqual(["not-json"])
+  expect(set.broken.map((file) => file.file)).toEqual(["house.org"])
+  expect(set.broken[0]?.errors.map((error) => error.code)).toEqual(["bad-record"])
 })
 
 // The staging rule, applied across files rather than within one: the ids the
@@ -652,12 +652,12 @@ test("a file that did not parse leaves the rest of the set valid", () => {
 // file — so the report is the parse error, which is the cause.
 test("a target that the unreadable file might declare is not reported as unknown", () => {
   const errors = errorsOf(
-    { "garden.olai": `{"id":"garden","ord":"a","title":"g","see":["elsewhere"]}` },
+    { "garden.org": `{"id":"garden","ord":"a","title":"g","see":["elsewhere"]}` },
     [],
-    { "house.olai": `{"id":"kitchen","ord":"a",title:"kitchen"}` },
+    { "house.org": `{"id":"kitchen","ord":"a",title:"kitchen"}` },
   )
-  expect(codes(errors)).toEqual(["not-json"])
-  expect(errors[0]?.file).toBe("house.olai")
+  expect(codes(errors)).toEqual(["bad-record"])
+  expect(errors[0]?.file).toBe("house.org")
 })
 
 // The other half of the same rule. A missing file can HIDE a duplicate but
@@ -666,13 +666,13 @@ test("a target that the unreadable file might declare is not reported as unknown
 test("an error the unreadable file cannot explain is reported with it", () => {
   const errors = errorsOf(
     {
-      "a.olai": `{"id":"x","ord":"a","title":"one"}`,
-      "b.olai": `{"id":"x","ord":"a","title":"two"}`,
+      "a.org": `{"id":"x","ord":"a","title":"one"}`,
+      "b.org": `{"id":"x","ord":"a","title":"two"}`,
     },
     [],
-    { "c.olai": `{"id":"y","ord":"a",title:"three"}` },
+    { "c.org": `{"id":"y","ord":"a",title:"three"}` },
   )
-  expect(codes(errors)).toEqual(["duplicate-id", "not-json"])
+  expect(codes(errors)).toEqual(["duplicate-id", "bad-record"])
 })
 
 // `parent` may not cross files, so an unresolved one is refused whichever file
@@ -681,11 +681,11 @@ test("an error the unreadable file cannot explain is reported with it", () => {
 // certain, only to re-report it in different words one fix later.
 test("an unknown parent is reported even when a file did not parse", () => {
   const errors = errorsOf(
-    { "a.olai": `{"id":"sink","parent":"nowhere","ord":"a","title":"s"}` },
+    { "a.org": `{"id":"sink","parent":"nowhere","ord":"a","title":"s"}` },
     [],
-    { "b.olai": `{"id":"y","ord":"a",title:"y"}` },
+    { "b.org": `{"id":"y","ord":"a",title:"y"}` },
   )
-  expect(codes(errors)).toEqual(["unknown-parent", "not-json"])
+  expect(codes(errors)).toEqual(["unknown-parent", "bad-record"])
 })
 
 // ── typed properties ───────────────────────────────────────────────────
@@ -699,7 +699,7 @@ test("an unknown parent is reported even when a file did not parse", () => {
  *  Spread into each case below with one record replaced, so what an assertion
  *  is about is the value and not the fixture. */
 const DECLARING = {
-  "_olai/Properties.olai": [
+  "_olai/Properties.org": [
     `{"id":"prop-merge","ord":"a0","title":"merge","custom":{"type":"ref"}}`,
     `{"id":"auto","parent":"prop-merge","ord":"a0","title":"automatic"}`,
     `{"id":"human","parent":"prop-merge","ord":"a1","title":"the human merges"}`,
@@ -711,7 +711,7 @@ const DECLARING = {
 test("a declared vault whose values fit loads", () => {
   expectValid({
     ...DECLARING,
-    "lanes.olai":
+    "lanes.org":
       `{"id":"lane","ord":"a0","title":"a lane","custom":{"merge":"auto","dispatched":"2026-08-25T10:06:00-04:00","pr":"193"}}`,
   })
 })
@@ -719,11 +719,11 @@ test("a declared vault whose values fit loads", () => {
 test("a hand edit that lands a bad value is a broken file naming the key", () => {
   const errors = errorsOf({
     ...DECLARING,
-    "lanes.olai":
+    "lanes.org":
       `{"id":"lane","ord":"a0","title":"a lane","custom":{"merge":"AUTO: grok review folded + CI green"}}`,
   })
   expect(codes(errors)).toEqual(["bad-prop"])
-  expect(errors[0]?.file).toBe("lanes.olai")
+  expect(errors[0]?.file).toBe("lanes.org")
   expect(errors[0]?.line).toBe(1)
   expect(errors[0]?.message).toContain("`merge` is `auto` | `human`")
 })
@@ -731,7 +731,7 @@ test("a hand edit that lands a bad value is a broken file naming the key", () =>
 test("a bad value's finding names the declaration that judged it", () => {
   const errors = errorsOf({
     ...DECLARING,
-    "lanes.olai": `{"id":"lane","ord":"a0","title":"a lane","custom":{"pr":"not-a-number"}}`,
+    "lanes.org": `{"id":"lane","ord":"a0","title":"a lane","custom":{"pr":"not-a-number"}}`,
   })
   expect(codes(errors)).toEqual(["bad-prop"])
   // Both halves of the judgement, so whatever asks which FILES the verdict
@@ -740,21 +740,21 @@ test("a bad value's finding names the declaration that judged it", () => {
   // vault file). `broken: false` is the merge plane the whole shape leans
   // on: NAMED but NOT darkened — the judge's page stays lit, its writes
   // stay admitted, and the ask can still reach it.
-  expect(errors[0]?.file).toBe("lanes.olai")
+  expect(errors[0]?.file).toBe("lanes.org")
   expect(errors[0]?.related).toEqual([
-    { file: "_olai/Properties.olai", line: 5, note: "declared here", broken: false },
+    { file: "_olai/Properties.org", line: 37, note: "declared here", broken: false },
   ])
 })
 
-test("one finding per KEY, in the order the record's own bytes hold them", () => {
+test("one finding per KEY, in canonical custom-key order", () => {
   const errors = errorsOf({
     ...DECLARING,
-    "lanes.olai":
+    "lanes.org":
       `{"id":"lane","ord":"a0","title":"a lane","custom":{"pr":"#193","dispatched":"whenever"}}`,
   })
   expect(codes(errors)).toEqual(["bad-prop", "bad-prop"])
-  expect(errors[0]?.message).toContain("`pr`")
-  expect(errors[1]?.message).toContain("`dispatched`")
+  expect(errors[0]?.message).toContain("`dispatched`")
+  expect(errors[1]?.message).toContain("`pr`")
 })
 
 // An undeclared key is text and always was — which is the whole of "typing is
@@ -762,7 +762,7 @@ test("one finding per KEY, in the order the record's own bytes hold them", () =>
 test("an undeclared key beside declared ones is left entirely alone", () => {
   expectValid({
     ...DECLARING,
-    "lanes.olai":
+    "lanes.org":
       `{"id":"lane","ord":"a0","title":"a lane","custom":{"terminal":"a-uuid-with (a remark)","merge":"human"}}`,
   })
 })
@@ -771,22 +771,22 @@ test("an undeclared key beside declared ones is left entirely alone", () => {
 // the lane changed, and the roster it pointed into did.
 test("a ref value whose target is deleted is flagged like a dangling edge", () => {
   const files = {
-    "_olai/Properties.olai":
+    "_olai/Properties.org":
       `{"id":"prop-agent","ord":"a0","title":"agent","custom":{"type":"ref","under":"roster"}}`,
-    "agents.olai": [
+    "agents.org": [
       `{"id":"roster","ord":"a0","title":"the agents"}`,
       `{"id":"claude","parent":"roster","ord":"a0","title":"Claude"}`,
       `{"id":"grok","parent":"roster","ord":"a1","title":"Grok"}`,
     ].join("\n"),
-    "lanes.olai": `{"id":"lane","ord":"a0","title":"a lane","custom":{"agent":"grok"}}`,
+    "lanes.org": `{"id":"lane","ord":"a0","title":"a lane","custom":{"agent":"grok"}}`,
   }
   expectValid(files)
   const errors = errorsOf({
     ...files,
-    "agents.olai": files["agents.olai"].split("\n").slice(0, 2).join("\n"),
+    "agents.org": files["agents.org"].split("\n").slice(0, 2).join("\n"),
   })
   expect(codes(errors)).toEqual(["bad-prop"])
-  expect(errors[0]?.file).toBe("lanes.olai")
+  expect(errors[0]?.file).toBe("lanes.org")
   expect(errors[0]?.message).toContain("names a node under `roster`")
 })
 
@@ -794,16 +794,16 @@ test("a ref value whose target is deleted is flagged like a dangling edge", () =
 // is the `doc` FIELD's arithmetic and not a second copy of it.
 test("a doc value resolves relative to the outline that names it", () => {
   const declaring = {
-    "_olai/Properties.olai": `{"id":"prop-brief","ord":"a0","title":"brief","custom":{"type":"doc"}}`,
+    "_olai/Properties.org": `{"id":"prop-brief","ord":"a0","title":"brief","custom":{"type":"doc"}}`,
   }
   expectValid({
     ...declaring,
-    "orchestrator/lanes.olai":
+    "orchestrator/lanes.org":
       `{"id":"lane","ord":"a0","title":"a lane","custom":{"brief":"../briefs/pdb.md"}}`,
   }, ["briefs/pdb.md"])
   const errors = errorsOf({
     ...declaring,
-    "orchestrator/lanes.olai":
+    "orchestrator/lanes.org":
       `{"id":"lane","ord":"a0","title":"a lane","custom":{"brief":"briefs/pdb.md"}}`,
   }, ["briefs/pdb.md"])
   expect(codes(errors)).toEqual(["bad-prop"])
@@ -814,10 +814,10 @@ test("a doc value resolves relative to the outline that names it", () => {
 
 test("a declaration the built-in table does not know is a broken declarations file", () => {
   const errors = errorsOf({
-    "_olai/Properties.olai": `{"id":"p","ord":"a0","title":"stage","custom":{"type":"colour"}}`,
+    "_olai/Properties.org": `{"id":"p","ord":"a0","title":"stage","custom":{"type":"colour"}}`,
   })
   expect(codes(errors)).toEqual(["bad-prop"])
-  expect(errors[0]?.file).toBe("_olai/Properties.olai")
+  expect(errors[0]?.file).toBe("_olai/Properties.org")
   expect(errors[0]?.message).toContain("which is not a property type — write `text` (anything)")
   expect(errors[0]?.message).toContain("`ref` (a child's id; `under` names the parent)")
   expect(errors[0]?.message).toContain("`int` (a digit run)")
@@ -825,7 +825,7 @@ test("a declaration the built-in table does not know is a broken declarations fi
 
 test("a declaration with no type at all says so", () => {
   const errors = errorsOf({
-    "_olai/Properties.olai": `{"id":"p","ord":"a0","title":"stage"}`,
+    "_olai/Properties.org": `{"id":"p","ord":"a0","title":"stage"}`,
   })
   expect(codes(errors)).toEqual(["bad-prop"])
   expect(errors[0]?.message).toContain("does not say its `type`")
@@ -836,53 +836,53 @@ test("a declaration with no type at all says so", () => {
 test("`under` on something that is not a ref, and `under` naming nothing", () => {
   expect(
     errorsOf({
-      "_olai/Properties.olai":
+      "_olai/Properties.org":
         `{"id":"p","ord":"a0","title":"stage","custom":{"type":"date","under":"roster"}}`,
-      "a.olai": `{"id":"roster","ord":"a0","title":"the roster"}`,
+      "a.org": `{"id":"roster","ord":"a0","title":"the roster"}`,
     })[0]?.message,
   ).toContain("takes its values from nowhere in particular")
   expect(
     errorsOf({
-      "_olai/Properties.olai":
+      "_olai/Properties.org":
         `{"id":"p","ord":"a0","title":"stage","custom":{"type":"ref","under":"rostr"}}`,
-      "a.olai": `{"id":"roster","ord":"a0","title":"the roster"}`,
+      "a.org": `{"id":"roster","ord":"a0","title":"the roster"}`,
     })[0]?.message,
   ).toContain("did you mean `roster`?")
 })
 
 test("a key declared twice is reported on the SECOND claim, not the first", () => {
   const errors = errorsOf({
-    "_olai/Properties.olai": [
+    "_olai/Properties.org": [
       `{"id":"p1","ord":"a0","title":"merge","custom":{"type":"int"}}`,
       `{"id":"p2","ord":"a1","title":"merge","custom":{"type":"date"}}`,
     ].join("\n"),
   })
   expect(codes(errors)).toEqual(["bad-prop"])
-  expect(errors[0]?.line).toBe(2)
+  expect(errors[0]?.line).toBe(10)
   expect(errors[0]?.message).toContain("already declared by an earlier node")
 })
 
 test("a variant may not pretend to be a declaration", () => {
   const errors = errorsOf({
-    "_olai/Properties.olai": [
+    "_olai/Properties.org": [
       `{"id":"prop-merge","ord":"a0","title":"merge","custom":{"type":"ref"}}`,
       `{"id":"auto","parent":"prop-merge","ord":"a0","title":"auto","custom":{"type":"int"}}`,
     ].join("\n"),
   })
   expect(codes(errors)).toEqual(["bad-prop"])
-  expect(errors[0]?.line).toBe(2)
+  expect(errors[0]?.line).toBe(10)
   expect(errors[0]?.message).toContain("only a TOP-LEVEL node of this file declares one")
 })
 
 test("a key spelled like a field, and the two words the bootstrap reserves", () => {
   expect(
     errorsOf({
-      "_olai/Properties.olai": `{"id":"p","ord":"a0","title":"done","custom":{"type":"text"}}`,
+      "_olai/Properties.org": `{"id":"p","ord":"a0","title":"done","custom":{"type":"text"}}`,
     })[0]?.message,
   ).toContain("`set_done` writes it")
   expect(
     errorsOf({
-      "_olai/Properties.olai": `{"id":"p","ord":"a0","title":"type","custom":{"type":"text"}}`,
+      "_olai/Properties.org": `{"id":"p","ord":"a0","title":"type","custom":{"type":"text"}}`,
     })[0]?.message,
   ).toContain("says about ITSELF")
 })
@@ -891,11 +891,11 @@ test("a key spelled like a field, and the two words the bootstrap reserves", () 
 // one convention over, so a vault keeping one at the root types just the same.
 test("the declarations file is found by name wherever it sits", () => {
   const errors = errorsOf({
-    "Properties.olai": `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`,
-    "lanes.olai": `{"id":"lane","ord":"a0","title":"a lane","custom":{"pr":"#193"}}`,
+    "Properties.org": `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`,
+    "lanes.org": `{"id":"lane","ord":"a0","title":"a lane","custom":{"pr":"#193"}}`,
   })
   expect(codes(errors)).toEqual(["bad-prop"])
-  expect(errors[0]?.file).toBe("lanes.olai")
+  expect(errors[0]?.file).toBe("lanes.org")
 })
 
 // ── the reading a WRITE leaves ─────────────────────────────────────────
@@ -947,9 +947,9 @@ const vault = (): Reading =>
   reading(
     setOf(
       {
-        "a.olai": `{"id":"x","ord":"a","title":"one"}`,
-        "b.olai": `{"id":"y","ord":"a","title":"two"}\n{"id":"z","ord":"b","title":"three"}`,
-        "empty.olai": ``,
+        "a.org": `{"id":"x","ord":"a","title":"one"}`,
+        "b.org": `{"id":"y","ord":"a","title":"two"}\n{"id":"z","ord":"b","title":"three"}`,
+        "empty.org": ``,
       },
       ["notes/one.md"],
     ),
@@ -957,11 +957,11 @@ const vault = (): Reading =>
 
 test("a file rewritten leaves a view of the set it leaves, patched", () => {
   const before = vault()
-  const after = following(before, [outlineOf(`{"id":"x","ord":"a","title":"edited"}`, "a.olai")])
+  const after = following(before, [outlineOf(`{"id":"x","ord":"a","title":"edited"}`, "a.org")])
 
   // The files this write did not name are carried across by identity, which is
   // the whole of why the corpus does not have to be walked to know they agree.
-  expect(carriedAcross(before, after, "b.olai")).toBe(true)
+  expect(carriedAcross(before, after, "b.org")).toBe(true)
   expect(isAbout(after)).toBe(true)
   expect(after.derived.byId.get("x")?.node).toMatchObject({ title: "edited" })
 })
@@ -974,24 +974,24 @@ test("a file that ARRIVES mid-write reaches the view, and the view is about the 
   // is no delta to miss it with, because one list builds both halves.
   const before = vault()
   const after = following(before, [
-    outlineOf(`{"id":"w","ord":"a","title":"minted"}`, "_olai/Trash.olai"),
+    outlineOf(`{"id":"w","ord":"a","title":"minted"}`, "_olai/Trash.org"),
   ])
 
-  expect(carriedAcross(before, after, "a.olai")).toBe(true)
+  expect(carriedAcross(before, after, "a.org")).toBe(true)
   expect(isAbout(after)).toBe(true)
-  expect(after.derived.byId.get("w")?.file).toBe("_olai/Trash.olai")
+  expect(after.derived.byId.get("w")?.file).toBe("_olai/Trash.org")
   // Path order on both sides, which is the other half of "about this set": the
   // minted file sorts first and both halves put it there.
-  expect([...after.derived.byFile.keys()]).toEqual(["_olai/Trash.olai", "a.olai", "b.olai"])
+  expect([...after.derived.byFile.keys()]).toEqual(["_olai/Trash.org", "a.org", "b.org"])
 })
 
 test("a file EMPTIED leaves no key, which is how a file with no records is spelt", () => {
   const before = vault()
-  const after = following(before, [outlineOf(``, "b.olai")])
+  const after = following(before, [outlineOf(``, "b.org")])
 
-  expect(carriedAcross(before, after, "a.olai")).toBe(true)
+  expect(carriedAcross(before, after, "a.org")).toBe(true)
   expect(isAbout(after)).toBe(true)
-  expect(after.derived.byFile.has("b.olai")).toBe(false)
+  expect(after.derived.byFile.has("b.org")).toBe(false)
   expect(after.derived.byId.has("y")).toBe(false)
 })
 
@@ -999,7 +999,7 @@ test("a `.md` written beside an outline moves the set and not the view's records
   const before = vault()
   const after = following(before, [
     bodiedDocument("notes/one.md", "# rewritten\n\n[the node](#x)\n"),
-    outlineOf(`{"id":"x","ord":"a","title":"edited"}`, "a.olai"),
+    outlineOf(`{"id":"x","ord":"a","title":"edited"}`, "a.org"),
   ])
 
   expect(isAbout(after)).toBe(true)
@@ -1034,17 +1034,17 @@ test("a written file the view would file differently is not patched onto", () =>
   const before = vault()
   const written = outlineOf(
     `{"id":"y","ord":"a","title":"two"}\n{"id":"z","ord":"b","title":"three"}`,
-    "b.olai",
+    "b.org",
   )
   const backwards: Document = { ...written, nodes: [...written.nodes].reverse() }
   const after = following(before, [backwards])
   const alsoAfter = reading(withDocuments(before.set, [backwards]), {
     read: before,
-    delta: { upserts: [["b.olai", { nodes: backwards.nodes }]], removes: [] },
+    delta: { upserts: [["b.org", { nodes: backwards.nodes }]], removes: [] },
   })
 
-  expect(carriedAcross(before, after, "a.olai")).toBe(false)
-  expect(carriedAcross(before, alsoAfter, "a.olai")).toBe(false)
+  expect(carriedAcross(before, after, "a.org")).toBe(false)
+  expect(carriedAcross(before, alsoAfter, "a.org")).toBe(false)
   expect([...after.derived.byFile.keys()]).toEqual([...alsoAfter.derived.byFile.keys()])
   expect(after.derived.nodes).toEqual(alsoAfter.derived.nodes)
 })
@@ -1065,8 +1065,8 @@ test("one path written in two KINDS leaves a view of the set, not of the outline
   // read the ONE way for that to be true.
   const before = vault()
   const mixed: ReadonlyArray<Document> = [
-    outlineOf(`{"id":"q","ord":"a","title":"an outline at this path"}`, "c.olai"),
-    bodiedDocument("c.olai", "a body where the records would have been"),
+    outlineOf(`{"id":"q","ord":"a","title":"an outline at this path"}`, "c.org"),
+    bodiedDocument("c.org", "a body where the records would have been"),
   ]
 
   const after = following(before, mixed)
@@ -1074,14 +1074,14 @@ test("one path written in two KINDS leaves a view of the set, not of the outline
   // set. A body holds no records, so the surviving document files nothing —
   // and the outline's id reached nothing, where it used to reach a phantom.
   expect(isAbout(after)).toBe(true)
-  expect(after.derived.byFile.has("c.olai")).toBe(false)
+  expect(after.derived.byFile.has("c.org")).toBe(false)
   expect(after.derived.byId.has("q")).toBe(false)
   // The set really did take the body, which is what makes the view above the
   // interesting answer rather than a write that did nothing.
-  expect(documentAt(after.set, "c.olai")?.kind).toBe("document")
+  expect(documentAt(after.set, "c.org")?.kind).toBe("document")
   // ...and a plain write THROUGH the returned reading stays about its set, so
   // nothing was deferred: the old spelling stayed consistently wrong from here.
-  const then = following(after, [outlineOf(`{"id":"x","ord":"a","title":"later"}`, "a.olai")])
+  const then = following(after, [outlineOf(`{"id":"x","ord":"a","title":"later"}`, "a.org")])
   expect(isAbout(then)).toBe(true)
   expect(then.derived.byId.has("q")).toBe(false)
 })
@@ -1093,18 +1093,18 @@ test("...and where that path HELD records, it is a write the door declines", () 
   // document is not an outline — so it DECLINES and rebuilds, which is the
   // answer the whole-corpus walk gave on the same input.
   const before = vault()
-  const asOutline = outlineOf(`{"id":"q","ord":"a","title":"an outline at this path"}`, "b.olai")
+  const asOutline = outlineOf(`{"id":"q","ord":"a","title":"an outline at this path"}`, "b.org")
   const mixed: ReadonlyArray<Document> = [
     asOutline,
-    bodiedDocument("b.olai", "a body where the records were"),
+    bodiedDocument("b.org", "a body where the records were"),
   ]
 
   const after = following(before, mixed)
   expect(isAbout(after)).toBe(true)
   // A rebuild, said the way this file says it: an untouched file's grouping is
   // a fresh array rather than the one the reading came in holding.
-  expect(carriedAcross(before, after, "a.olai")).toBe(false)
-  expect(after.derived.byFile.has("b.olai")).toBe(false)
+  expect(carriedAcross(before, after, "a.org")).toBe(false)
+  expect(after.derived.byFile.has("b.org")).toBe(false)
   expect(after.derived.byId.has("y")).toBe(false)
   expect(after.derived.byId.has("q")).toBe(false)
 
@@ -1113,10 +1113,10 @@ test("...and where that path HELD records, it is a write the door declines", () 
   // could have parted from the walk.
   const alsoAfter = reading(withDocuments(before.set, mixed), {
     read: before,
-    delta: { upserts: [["b.olai", { nodes: asOutline.nodes }]], removes: [] },
+    delta: { upserts: [["b.org", { nodes: asOutline.nodes }]], removes: [] },
   })
   expect(isAbout(alsoAfter)).toBe(true)
-  expect(alsoAfter.derived.byFile.has("b.olai")).toBe(false)
+  expect(alsoAfter.derived.byFile.has("b.org")).toBe(false)
   expect(alsoAfter.derived.byId.has("q")).toBe(false)
 })
 
@@ -1131,44 +1131,44 @@ test("...and where that path HELD records, it is a write the door declines", () 
 
 test("a broken file is withheld and its neighbours are untouched", () => {
   const { set, dark } = degradedBy({
-    "attic.olai": `{"id":"attic","ord":"a","title":"the attic"}\n` +
+    "attic.org": `{"id":"attic","ord":"a","title":"the attic"}\n` +
       `{"id":"lamps","ord":"b","title":"the lamps","see":["nobody-declares-this"]}`,
-    "cellar.olai": `{"id":"cellar","ord":"a","title":"the cellar"}\n` +
+    "cellar.org": `{"id":"cellar","ord":"a","title":"the cellar"}\n` +
       `{"id":"crates","parent":"cellar","ord":"b","title":"the crates"}`,
   })
 
   // ONE FILE DARK, and it is the one the finding is about.
-  expect(dark).toEqual(["attic.olai"])
-  expect(brokenBy(set).get("attic.olai")?.map((one) => one.code)).toEqual(["unknown-target"])
+  expect(dark).toEqual(["attic.org"])
+  expect(brokenBy(set).get("attic.org")?.map((one) => one.code)).toEqual(["unknown-target"])
   // It KEEPS ITS PLACE, as an outline with nothing in it — which is what makes
   // the sidebar go on listing a file somebody is in the middle of fixing, and
   // what makes its own page draw rows where its tree was.
-  expect(outlinePaths(set)).toEqual(["attic.olai", "cellar.olai"])
-  expect(documentAt(set, "attic.olai")).toEqual(outlineOf("", "attic.olai"))
+  expect(outlinePaths(set)).toEqual(["attic.org", "cellar.org"])
+  expect(documentAt(set, "attic.org")).toEqual(outlineOf("", "attic.org"))
 
   // AND THE NEIGHBOUR IS WHOLE — its records are in the set and its tree draws.
-  expect(brokenIn(set, "cellar.olai")).toBeUndefined()
+  expect(brokenIn(set, "cellar.org")).toBeUndefined()
 })
 
 test("a finding that names two files takes both, and only both", () => {
   const { set, dark } = degradedBy({
-    "attic.olai": `{"id":"attic","ord":"a","title":"the attic"}\n` +
+    "attic.org": `{"id":"attic","ord":"a","title":"the attic"}\n` +
       `{"id":"boxes","parent":"attic","ord":"b","title":"the boxes"}`,
-    "cellar.olai": `{"id":"boxes","ord":"a","title":"the crates"}`,
-    "shed.olai": `{"id":"shed","ord":"a","title":"the shed"}`,
+    "cellar.org": `{"id":"boxes","ord":"a","title":"the crates"}`,
+    "shed.org": `{"id":"shed","ord":"a","title":"the shed"}`,
   })
 
   // `boxes` is claimed twice, in two files, and there is no answer to "which
   // one is broken" — the error view has said so since it was written. So both
   // ends go dark, both carry the same row, and the third file is untouched.
-  expect(dark).toEqual(["attic.olai", "cellar.olai"])
-  expect(brokenBy(set).get("attic.olai")?.map((one) => one.code)).toEqual(["duplicate-id"])
-  expect(brokenBy(set).get("cellar.olai")?.map((one) => one.code)).toEqual(["duplicate-id"])
-  expect(brokenIn(set, "shed.olai")).toBeUndefined()
+  expect(dark).toEqual(["attic.org", "cellar.org"])
+  expect(brokenBy(set).get("attic.org")?.map((one) => one.code)).toEqual(["duplicate-id"])
+  expect(brokenBy(set).get("cellar.org")?.map((one) => one.code)).toEqual(["duplicate-id"])
+  expect(brokenIn(set, "shed.org")).toBeUndefined()
   // ONE finding, two entries — the very same row object, which is what makes
   // the whole report readable back off the set without a duplicate in it.
-  expect(brokenBy(set).get("attic.olai")?.[0]).toBe(
-    brokenBy(set).get("cellar.olai")?.[0] as OutlineError,
+  expect(brokenBy(set).get("attic.org")?.[0]).toBe(
+    brokenBy(set).get("cellar.org")?.[0] as OutlineError,
   )
   expect(findingsIn(set)).toHaveLength(1)
 })
@@ -1177,9 +1177,9 @@ test("a finding that names two files takes both, and only both", () => {
  * A HEALTHY FILE POINTING INTO A BROKEN ONE — the design question the ruling
  * left open, answered by not inventing a finding.
  *
- * `plan.olai` mirrors a node that lives in `attic.olai`, and `attic.olai` is
+ * `plan.org` mirrors a node that lives in `attic.org`, and `attic.org` is
  * withheld for a duplicate id of its own. The rules ran over the WHOLE set, so
- * the mirror resolved when it was judged and `plan.olai` is not implicated by
+ * the mirror resolved when it was judged and `plan.org` is not implicated by
  * anything. What the reader gets is the dangling face the derivation already
  * draws — `a mirror of X, which no node declares` — in a page that is otherwise
  * completely live.
@@ -1189,22 +1189,22 @@ test("a finding that names two files takes both, and only both", () => {
  */
 test("a mirror into a withheld file dangles, and does not break the file holding it", () => {
   const { set, dark } = degradedBy({
-    "attic.olai": `{"id":"attic","ord":"a","title":"the attic"}\n` +
+    "attic.org": `{"id":"attic","ord":"a","title":"the attic"}\n` +
       `{"id":"lamps","parent":"attic","ord":"b","title":"the lamps"}\n` +
       `{"id":"attic","ord":"c","title":"claimed twice"}`,
-    "plan.olai": `{"id":"plan","ord":"a","title":"the plan"}\n` +
+    "plan.org": `{"id":"plan","ord":"a","title":"the plan"}\n` +
       `{"id":"m","parent":"plan","ord":"b","mirror":"lamps"}`,
   })
 
-  expect(dark).toEqual(["attic.olai"])
-  expect(brokenIn(set, "plan.olai")).toBeUndefined()
+  expect(dark).toEqual(["attic.org"])
+  expect(brokenIn(set, "plan.org")).toBeUndefined()
 
   const view = reading(set).derived
   // The target is NAMED and not DECLARED, which is exactly what a dangling
   // edge is — the derivation has had a word for it all along.
   expect(view.byId.has("lamps")).toBe(false)
   expect(view.namedBy.has("lamps")).toBe(true)
-  const rows = rowsOf(view, "plan.olai")
+  const rows = rowsOf(view, "plan.org")
   const mirror = rows[0]?.children[0]
   expect(mirror?.kind).toBe("dangling")
   expect(mirror?.kind === "dangling" ? mirror.missing : "").toBe("lamps")
@@ -1212,8 +1212,8 @@ test("a mirror into a withheld file dangles, and does not break the file holding
 
 test("a directory with nothing wrong comes back as the very set it was handed", () => {
   const set = setOf({
-    "attic.olai": `{"id":"attic","ord":"a","title":"the attic"}`,
-    "cellar.olai": `{"id":"cellar","ord":"a","title":"the cellar"}`,
+    "attic.org": `{"id":"attic","ord":"a","title":"the attic"}`,
+    "cellar.org": `{"id":"cellar","ord":"a","title":"the cellar"}`,
   })
   const answer = validate(set)
   if (Result.isFailure(answer)) throw new Error("expected a valid set")

@@ -194,9 +194,9 @@ export const homesOf = (asked: Memory, answer: HomesAnswer): Homes => {
  * WHERE THE SET SAYS IT IS is where the fold goes, whether that is the file it
  * was already under or another one. GONE MEANS GONE FROM THE SET, not from the
  * file the fold is filed under, and that is the whole point of keying by id:
- * `archive` is a MOVE — the record lands in `_olai/Trash.olai` with its id kept
+ * `archive` is a MOVE — the record lands in `_olai/Trash.org` with its id kept
  * while the file it left goes on being served with the rest of its nodes — and
- * reading "house.olai does not declare it any more" as a deletion would forget
+ * reading "house.org does not declare it any more" as a deletion would forget
  * a fold precisely when the design promises to keep it (a place key could not
  * survive that move at all, which is why it is not the key).
  *

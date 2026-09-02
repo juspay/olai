@@ -3,7 +3,7 @@
  * that report on a write.
  *
  * Neither of them shows a text diff over an outline, and this is the whole
- * reason neither has to: a `.olai` diff is one enormous line per node with
+ * reason neither has to: a raw `.org` diff exposes a multi-line storage drawer with
  * everything on it changing at once, so `@olai/format` classifies a change into
  * one `Sort` — once, on the server, from the fields that differ and what they
  * became — and this is the table that turns that into words a person reads.

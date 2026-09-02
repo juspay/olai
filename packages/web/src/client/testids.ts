@@ -523,7 +523,7 @@ export const TESTID = {
   /** The sidebar's way to a brand-new OUTLINE — `create_outline`'s own door,
    *  beside the document's above (`parity-create-outline`). */
   newOutline: "new-outline",
-  /** Its path box — a relative `.olai` path, committed with Enter. */
+  /** Its path box — a relative `.org` path, committed with Enter. */
   newOutlinePath: "new-outline-path",
   /** Why minting one did not happen: the ops layer's own sentence about the
    *  path, verbatim. */
@@ -851,7 +851,7 @@ export const TESTID = {
   vaultGroup: "vault-group",
   /** The trash, as a page. Every archive the directory holds, read-only. */
   trashPage: "trash-page",
-  /** One archive's worth of rows on it; `data-file` is which `_olai/Trash.olai`.
+  /** One archive's worth of rows on it; `data-file` is which `_olai/Trash.org`.
    *  Drawn per archive that holds anything; its heading appears only when the
    *  directory holds more than one, the way the day page groups by file. */
   trashGroup: "trash-group",
@@ -1541,7 +1541,7 @@ export const TESTID = {
   /** The control that opens a trimmed diff in place, and shuts it again. */
   chatDiffExpand: "chat-diff-expand",
   /** One OUTLINE the call rewrote — its own name, because the whole claim is
-   *  that this is never the row above: a `.olai` is one line per node, so it
+   *  that this is never the row above: a `.org` is one line per node, so it
    *  is drawn as node changes and there is no text diff of one anywhere.
    *  `data-path` is the file, `data-expanded` whether the trim has been
    *  opened. */

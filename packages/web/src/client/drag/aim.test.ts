@@ -26,18 +26,18 @@ const pane = (file: string, left: number, rows: ReadonlyArray<Placed>): Aimed =>
 })
 
 //   pane 0 (x 0–500)          pane 1 (x 500–1000)
-//   house.olai                 house.olai
+//   house.org                 house.org
 //     one     y 0–20             three   y 0–20
 //     two      20–40             four     20–40
-const here = pane("house.olai", 0, [placed("one", 0, 0, 20), placed("two", 0, 1, 20)])
-const there = pane("house.olai", 500, [placed("three", 0, 0, 520), placed("four", 0, 1, 520)])
+const here = pane("house.org", 0, [placed("one", 0, 0, 20), placed("two", 0, 1, 20)])
+const there = pane("house.org", 500, [placed("three", 0, 0, 520), placed("four", 0, 1, 520)])
 /** The same pane, showing another outline — so it draws no row of the file the
  *  drag is carrying, whatever it has on screen. */
-const elsewhere = pane("garden.olai", 500, [])
+const elsewhere = pane("garden.org", 500, [])
 
 /** What the pointer is asking for, as a sentence. */
 const asked = (fields: ReadonlyArray<Aimed>, x: number, y: number): string => {
-  const aim = aimAt(fields, "house.olai", x, y)
+  const aim = aimAt(fields, "house.org", x, y)
   if (aim === null) return "nothing"
   if (aim.kind === "refused") return `refused by ${aim.refusal.file}`
   return `under ${aim.landing.parent ?? "(top)"} after ${aim.landing.after ?? "(first)"}`
@@ -62,18 +62,18 @@ test("a pointer outside every pane still aims at the nearest one", () => {
 })
 
 test("a pane drawing no row of the carried file refuses, by name, before the drop", () => {
-  expect(asked([here, elsewhere], 524, 25)).toBe("refused by garden.olai")
+  expect(asked([here, elsewhere], 524, 25)).toBe("refused by garden.org")
   // ...and the pane the drag began in is unaffected: one pointer, one pane, one
   // answer.
   expect(asked([here, elsewhere], 24, 25)).toBe("under (top) after one")
 })
 
 test("the refusal says which files, and is drawn over the pane that gave it", () => {
-  const aim = aimAt([here, elsewhere], "house.olai", 524, 25)
+  const aim = aimAt([here, elsewhere], "house.org", 524, 25)
   expect(aim?.kind).toBe("refused")
   if (aim?.kind !== "refused") return
-  expect(aim.refusal.why).toContain("garden.olai")
-  expect(aim.refusal.why).toContain("house.olai")
+  expect(aim.refusal.why).toContain("garden.org")
+  expect(aim.refusal.why).toContain("house.org")
   // The pane's own box, so the face covers what it is about.
   expect(aim.refusal).toMatchObject({ left: 500, width: 500 })
 })
@@ -82,8 +82,8 @@ test("a pane of the SAME file with nothing left to land beside says a different 
   // Every row drawn there is inside what the hand is holding — a zoom into the
   // branch being dragged, in the pane next door. Not a file rule, so not the
   // file rule's words.
-  const inside = pane("house.olai", 500, [])
-  const aim = aimAt([here, inside], "house.olai", 524, 25)
+  const inside = pane("house.org", 500, [])
+  const aim = aimAt([here, inside], "house.org", 524, 25)
   expect(aim?.kind).toBe("refused")
   if (aim?.kind !== "refused") return
   expect(aim.refusal.why).toContain("inside what you are carrying")

@@ -145,7 +145,7 @@ export interface Probed {
  * them names a checkout to probe, so nothing could tell them apart.
  *
  * So a plugin contributes a KIND, the vault declares it in
- * `_olai/Properties.olai` like any other, and the face follows the kind
+ * `_olai/Properties.org` like any other, and the face follows the kind
  * whatever the property is called. `@olai/format` imports no plugin — its kind
  * vocabulary is a PARAMETER and the server hands it this table as data, which
  * is the same move `KoluDeps` makes with the vault walks.

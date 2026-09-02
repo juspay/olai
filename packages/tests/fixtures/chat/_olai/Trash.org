@@ -1,0 +1,7 @@
+* the tiles nobody liked
+:PROPERTIES:
+:ID: tiles
+:OLAI_KIND: regular
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "the tiles nobody liked"
+:END:

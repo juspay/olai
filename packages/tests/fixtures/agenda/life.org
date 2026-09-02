@@ -1,0 +1,29 @@
+* the coast trip
+:PROPERTIES:
+:ID: trip
+:OLAI_KIND: regular
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "the coast trip"
+:END:
+
+** send the visa forms
+:PROPERTIES:
+:ID: visas
+:OLAI_KIND: regular
+:OLAI_PARENT: "trip"
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "send the visa forms"
+:OLAI_TODO: true
+:OLAI_DATE: "2019-11-03"
+:OLAI_AFTER: ["photos"]
+:END:
+
+** get passport photos
+:PROPERTIES:
+:ID: photos
+:OLAI_KIND: regular
+:OLAI_PARENT: "trip"
+:OLAI_ORD: "a1"
+:OLAI_TITLE: "get passport photos"
+:OLAI_DOING: true
+:END:

@@ -87,7 +87,7 @@ import {
   type Verdict,
   verdictOf,
 } from "@olai/format"
-import { seeded } from "@olai/format/testlib"
+import { orgFixture, seeded } from "@olai/format/testlib"
 import { Result } from "effect"
 
 import { codecFor } from "./codec.ts"
@@ -168,7 +168,7 @@ export const vaultFor = (
   const outlines = new Map<string, Filed>()
   const documents = new Map<string, string>()
   for (let at = 0; at < files; at++) {
-    const path = at % 5 === 0 ? `area${at % 3}/note${at}.olai` : `note${at}.olai`
+    const path = at % 5 === 0 ? `area${at % 3}/note${at}.org` : `note${at}.org`
     // A THIRD OF THE FILES HOLD NO DAY, which is what makes the calendar's and
     // the agenda's pre-check reachable at all.
     const dated = at % 3 !== 0
@@ -244,7 +244,7 @@ const decodeOne = (
   text: string,
 ): Result.Result<Document, Verdict> =>
   bodyKind(file) === null
-    ? Result.mapError(parseOutline(file, text), verdictOf)
+    ? Result.mapError(parseOutline(file, orgFixture(text)), verdictOf)
     : Result.succeed<Document>(bodiedDocument(file, text))
 
 /**
@@ -363,7 +363,7 @@ export const corpusOf = (
       // A FILE BORN, with a record on a day, so membership and the day index
       // move in one revision.
       born++
-      const fresh = `born${born}.olai`
+      const fresh = `born${born}.org`
       vault.outlines.set(fresh, [
         {
           id: `b${born}r`,

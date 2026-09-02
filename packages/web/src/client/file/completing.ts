@@ -5,11 +5,11 @@
  * `+ New outline` and `+ New document` ask for a path, and a person types what
  * the file is called: `Foo`. Until this module that reached `create_outline`
  * as it stood and came back as the wire's paragraph — "`Foo` is not a relative
- * `.olai` path under the served directory (no absolute path, no `..`, no `.`,
- * and the name must end in `.olai`)" — for a name with nothing wrong with it
+ * `.org` path under the served directory (no absolute path, no `..`, no `.`,
+ * and the name must end in `.org`)" — for a name with nothing wrong with it
  * except the four characters the door itself already knows (roadmap node
  * `new-file-bare-name`, ruled by the human 2026-08-21: "the box should accept
- * both `Foo` and `Foo.olai`, naturally").
+ * both `Foo` and `Foo.org`, naturally").
  *
  * ## Completing is not judging, and the difference is the whole design
  *
@@ -30,18 +30,18 @@
  *
  * ## A suffix is one the registry claims, and nothing else is a suffix at all
  *
- * `Foo.txt` is a bare name — it becomes `Foo.txt.olai` — and so is
+ * `Foo.txt` is a bare name — it becomes `Foo.txt.org` — and so is
  * `plan v1.2`. That is not a lenience, it is the only rule this module can
- * honestly hold: olai's set is `.olai`, `.md` and `.html` (`@olai/format`'s
+ * honestly hold: olai's set is `.org`, `.md` and `.html` (`@olai/format`'s
  * `kinds.ts`), and a dot anywhere else is somebody spelling a name. Cutting at
- * the last dot would rename `plan v1.2` to `plan v1.olai` behind their back,
+ * the last dot would rename `plan v1.2` to `plan v1.org` behind their back,
  * and refusing every dotted name would refuse a name that is perfectly good.
  *
  * ## What is NOT completed, and why that is not a second `..` rule
  *
  * Every registered suffix BEGINS WITH A DOT, so gluing one onto a last segment
  * that is `.`, `..` or empty makes an ordinary filename out of the one thing
- * the ops layer could refuse: `..` would be asked for as `...olai`, which
+ * the ops layer could refuse: `..` would be asked for as `...org`, which
  * `creatable` takes as a perfectly good name, and the box would mint a file
  * where the planner used to say "no `..`". So a text whose last segment is one
  * of those goes to the wire AS TYPED, and the paragraph goes on answering for
@@ -51,13 +51,13 @@
  * about which paths are legal — the verdict is still the planner's, and its
  * sentence is still what is drawn. `../escape` is untouched by it: its last
  * segment is a name, so it reaches the ops layer completed, as
- * `../escape.olai`, which is the file that was actually asked for.
+ * `../escape.org`, which is the file that was actually asked for.
  *
- * A TRAILING DOT is a name and is completed — `Foo.` → `Foo..olai`, the same
+ * A TRAILING DOT is a name and is completed — `Foo.` → `Foo..org`, the same
  * reading `plan v1.2` gets, because `Foo.` names a file (oddly) where `..`
  * names a place. So is a name that BEGINS with a dot: the store prunes
  * dot-DIRECTORIES and not dot-files (`@olai/store`'s `pruned`), so `.plan` →
- * `.plan.olai` is a file this app really lists. `.olai` typed whole is that
+ * `.plan.org` is a file this app really lists. `.org` typed whole is that
  * file's edge — the box takes it as it stands, `create_outline` accepts it, and
  * the row is drawn with an empty name. Pre-existing and identical on both faces
  * (an agent may ask for it too), so the day it is refused it is refused in
@@ -68,7 +68,7 @@
  * A name carrying ANOTHER kind's suffix — `Foo.md` typed into the outline door
  * — is refused here, in the box's own short sentence rather than the wire's
  * paragraph. It is not a second copy of an ops rule: the ops layer would only
- * ever see a completed path, and `Foo.md.olai` is what a "complete everything"
+ * ever see a completed path, and `Foo.md.org` is what a "complete everything"
  * rule would have made of it — a file nobody asked for. What the sentence says
  * is the thing only this side knows: which kind that name names, which kind
  * this door makes, and what to type to get one.

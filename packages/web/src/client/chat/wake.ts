@@ -117,7 +117,7 @@ export interface Ringer {
    *
    * A row in either state draws the fault instead of a live answer
    * ({@link ./Wake.tsx}), because the alternative is a control that says
-   * `lanes.olai` over a conversation nothing will ever ring again — and the
+   * `lanes.org` over a conversation nothing will ever ring again — and the
    * silence underneath it is indistinguishable from the silence of a subject
    * with nothing to report. The conversation has already been told, once, in
    * the plugin's own words; this is the standing fact the strip keeps showing.

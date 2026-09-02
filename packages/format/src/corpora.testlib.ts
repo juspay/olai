@@ -58,7 +58,7 @@ export const pick = <T>(random: () => number, from: ReadonlyArray<T>): T =>
  *  compare and a walk that descends — disagree about which comes first, which
  *  is slice 4's landmine and is now one answer, `byPath`), and the archive,
  *  whose records are exempt from blockedness at both ends of an arrow. */
-export const FILES = ["a.olai", "a/inner.olai", "b.olai", "deep/c.olai", "_olai/Trash.olai"] as const
+export const FILES = ["a.org", "a/inner.org", "b.org", "deep/c.org", "_olai/Trash.org"] as const
 /** The names records are drawn from — small enough that a target often names a
  *  record that is really there, and often one that is not. */
 export const IDS = Array.from({ length: 24 }, (_, at) => `n${at}`)

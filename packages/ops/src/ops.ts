@@ -537,7 +537,7 @@ export const make = (options: Options): Ops => {
        * THE ONE ALTERNATIVE EXPLANATION, ruled out before either refusal arm
        * below answers: THE SET WAS STALE WHERE THE REFUSAL LOOKS.
        *
-       * `stale-set-reads-clean-writes-refuse` (roadmap bugs.olai) is the
+       * `stale-set-reads-clean-writes-refuse` (roadmap bugs.org) is the
        * shape this repairs: a git operation replaced a file in a way the
        * watcher's stamps cannot see, so reads went on serving the old set
        * with no error and every write refused — the stale copy of that file

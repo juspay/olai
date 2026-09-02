@@ -65,7 +65,7 @@
  *
  * WHAT IS PUT AWAY IS IN IT, like every index of this format, and is left out
  * at the READ ({@link ./backlinks.ts} says it in its own words): an index that
- * knew about `_olai/Trash.olai` would be the format's storage rule wired into a
+ * knew about `_olai/Trash.org` would be the format's storage rule wired into a
  * fold that is about what a file points at.
  *
  * ## Where it lives, and why it is not on `Derived`

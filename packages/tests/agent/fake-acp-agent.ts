@@ -26,7 +26,7 @@
  *   done <id>    call `set_done` on that node, then say so
  *   add <title>  call `add_node` under the first outline's first root
  *   edit [file]  report a DIRECT file edit, as a `diff` content block — an
- *                outline if the name ends `.olai`, an over-budget rewrite for
+ *                outline if the name ends `.org`, an over-budget rewrite for
  *                `huge.md`, unbroken tokens (add, remove, and a same-line
  *                context row) for `long.md`, an ordinary
  *                markdown edit otherwise
@@ -612,7 +612,7 @@ const EDITED_HUNKS = [
 ]
 
 /**
- * The same gesture aimed at an OUTLINE — an agent's own `Edit` on a `.olai`,
+ * The same gesture aimed at an OUTLINE — an agent's own `Edit` on a `.org`,
  * which is the one thing olai's own tools cannot do and the one file a text
  * diff may never be drawn of.
  *
@@ -1596,7 +1596,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
         title: "a tool call you can watch",
         status: "in_progress",
         rawInput: { held: argument === "" ? "until released" : argument },
-        locations: [{ path: "/served/house.olai", line: 12 }],
+        locations: [{ path: "/served/house.org", line: 12 }],
       },
     })
     // What a real call does while it runs: says something about itself. Sent
@@ -1834,7 +1834,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     // third party, and an agent on the far end of a pipe has no access to
     // olai's constants — deriving the fixture from the implementation under
     // test would make the scenario agree with the client by construction.
-    const texts = file.endsWith(".olai")
+    const texts = file.endsWith(".org")
       ? EDITED_OUTLINE
       : file === "huge.md"
       ? REWRITTEN
@@ -2491,9 +2491,9 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     const listed = (outlines["structuredContent"] as
       | { outlines?: ReadonlyArray<{ file: string }> }
       | undefined)?.outlines ?? []
-    // `_olai/Trash.olai` sorts first, and capturing into the trash is not
+    // `_olai/Trash.org` sorts first, and capturing into the trash is not
     // a capture — the tree would never show the row (#226).
-    const file = listed.find((one) => one.file !== "_olai/Trash.olai")?.file
+    const file = listed.find((one) => one.file !== "_olai/Trash.org")?.file
     await useTool("add_node", { file, title: argument })
     say(`added \`${argument}\`.`)
     reply(id, { stopReason: "end_turn" })

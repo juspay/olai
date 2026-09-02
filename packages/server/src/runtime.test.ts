@@ -34,6 +34,7 @@ import type { PluginServices } from "@olai/plugin-api/server"
 import type { CollectionDeltasMsg } from "@kolu/surface/define"
 import { defineSurface } from "@kolu/surface/define"
 import { NO_KINDS } from "@olai/format"
+import { orgFixture } from "@olai/format/testlib"
 import * as Store from "@olai/store"
 import { NodeServices } from "@effect/platform-node"
 import { expect, mock, test } from "bun:test"
@@ -99,7 +100,7 @@ const withRuntime = <A>(
 ): Promise<A> => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-runtime-")))
   for (const [file, contents] of Object.entries(files)) {
-    fs.writeFileSync(path.join(root, file), contents)
+    fs.writeFileSync(path.join(root, file), file.endsWith(".org") ? orgFixture(contents) : contents)
   }
   const reads: Array<string> = []
 
@@ -166,7 +167,7 @@ const OUTLINE = `{"id":"a","ord":"a0","title":"a"}\n`
 /** A row whose parent nothing declares — a MEANING error rather than a syntax
  *  one. It used to be the way to leave the store with no snapshot at all; since
  *  the per-file ruling it is not, and that is the point of keeping it: the set
- *  publishes with `a.olai` withheld, its head carries its rows, and every other
+ *  publishes with `a.org` withheld, its head carries its rows, and every other
  *  file of the directory is served. */
 const REFUSED = `{"id":"a","parent":"nowhere","ord":"a0","title":"a"}\n`
 
@@ -214,7 +215,7 @@ const opening = (
   })
 
 test("app.get answers the box and the start this runtime was minted with", () =>
-  withRuntime({ "a.olai": OUTLINE }, ({ wired }) =>
+  withRuntime({ "a.org": OUTLINE }, ({ wired }) =>
     Effect.gen(function*() {
       const get = wired.bound.handlers["surface/app/get"]
       if (get === undefined) throw new Error("app.get is missing")
@@ -224,7 +225,7 @@ test("app.get answers the box and the start this runtime was minted with", () =>
     })))
 
 test("a face served under another writer differs by exactly the members that record one", () =>
-  withRuntime({ "a.olai": OUTLINE }, ({ wired, ops }) =>
+  withRuntime({ "a.org": OUTLINE }, ({ wired, ops }) =>
     Effect.gen(function*() {
       const agent = writerAt(wired.bound, ops, "mcp")
 
@@ -253,7 +254,7 @@ test("a face served under another writer differs by exactly the members that rec
  */
 test("opening a `.html` reads its body onto that key, and nothing holds it", () =>
   withRuntime(
-    { "a.olai": OUTLINE, "report.html": "<h1>Cabinet quote</h1>\n" },
+    { "a.org": OUTLINE, "report.html": "<h1>Cabinet quote</h1>\n" },
     ({ wired, store }) =>
       Effect.gen(function*() {
         const get = wired.bound.handlers["surface/documents/get"]
@@ -279,7 +280,7 @@ test("opening a `.html` reads its body onto that key, and nothing holds it", () 
         expect([...keys]).toEqual([["report.html"]])
         const set = yield* Effect.map(store.read("cheap"), (aged) => aged.snapshot)
         expect(set?.value.set.documents.map((one) => [String(one.path), one.kind]))
-          .toEqual([["a.olai", "outline"], ["report.html", "hypertext"]])
+          .toEqual([["a.org", "outline"], ["report.html", "hypertext"]])
       }),
   ))
 
@@ -295,7 +296,7 @@ test("opening a `.html` reads its body onto that key, and nothing holds it", () 
  */
 test("a reader watching a head is told the file moved, and no body is read", () =>
   withRuntime(
-    { "a.olai": OUTLINE, "report.html": "<h1>Before</h1>\n" },
+    { "a.org": OUTLINE, "report.html": "<h1>Before</h1>\n" },
     ({ wired, store, root, reads }) =>
       Effect.gen(function*() {
         const get = wired.bound.handlers["surface/heads/get"]
@@ -336,7 +337,7 @@ test("a reader watching a head is told the file moved, and no body is read", () 
  */
 test("a file a reader is holding is re-read for them when it moves", () =>
   withRuntime(
-    { "a.olai": OUTLINE, "report.html": "<h1>Before</h1>\n" },
+    { "a.org": OUTLINE, "report.html": "<h1>Before</h1>\n" },
     ({ wired, store, root, reads }) =>
       Effect.gen(function*() {
         const open = yield* opening(wired.bound, "report.html")
@@ -371,7 +372,7 @@ test("a file a reader is holding is re-read for them when it moves", () =>
  */
 test("a file whose reader has gone is not re-read on a later revision", () =>
   withRuntime(
-    { "a.olai": OUTLINE, "report.html": "<h1>Before</h1>\n" },
+    { "a.org": OUTLINE, "report.html": "<h1>Before</h1>\n" },
     ({ wired, store, root, reads }) =>
       Effect.gen(function*() {
         const open = yield* opening(wired.bound, "report.html")
@@ -416,7 +417,7 @@ test("a file whose reader has gone is not re-read on a later revision", () =>
  * announcement on the same key.
  */
 test("a reader holding a key across a file's birth is handed the body", () =>
-  withRuntime({ "a.olai": OUTLINE }, ({ wired, store, root }) =>
+  withRuntime({ "a.org": OUTLINE }, ({ wired, store, root }) =>
     Effect.gen(function*() {
       const open = yield* opening(wired.bound, "report.html")
 
@@ -447,7 +448,7 @@ test("a reader holding a key across a file's birth is handed the body", () =>
 test("an unreadable `.html` is refused rather than held open", () => {
   if (typeof process.getuid === "function" && process.getuid() === 0) return
   return withRuntime(
-    { "a.olai": OUTLINE, "locked.html": "<h1>Shut</h1>\n" },
+    { "a.org": OUTLINE, "locked.html": "<h1>Shut</h1>\n" },
     ({ wired, root }) =>
       Effect.gen(function*() {
         fs.chmodSync(path.join(root, "locked.html"), 0o000)
@@ -496,7 +497,7 @@ test("an unreadable `.html` is refused rather than held open", () => {
  */
 test("a broken outline publishes its head, with its own rows on it", () =>
   withRuntime(
-    { "a.olai": REFUSED, "b.olai": `{"id":"b","ord":"a0","title":"b"}\n` },
+    { "a.org": REFUSED, "b.org": `{"id":"b","ord":"a0","title":"b"}\n` },
     ({ wired }) =>
       Effect.gen(function*() {
         const said = wired.bound.handlers["surface/manifest/get"]
@@ -515,12 +516,12 @@ test("a broken outline publishes its head, with its own rows on it", () =>
 
         if (opened?.kind !== "snapshot") throw new Error("expected the opening snapshot")
         const entries = new Map(opened.entries)
-        expect([...entries.keys()]).toEqual(["a.olai", "b.olai"])
-        expect(entries.get("a.olai")?.broken?.errors.map((one) => one.code))
+        expect([...entries.keys()]).toEqual(["a.org", "b.org"])
+        expect(entries.get("a.org")?.broken?.errors.map((one) => one.code))
           .toEqual(["unknown-parent"])
         // …and the healthy neighbour is exactly what it would be in a directory
         // with nothing wrong with it at all.
-        expect(entries.get("b.olai")?.broken).toBeNull()
+        expect(entries.get("b.org")?.broken).toBeNull()
       }),
   ))
 
@@ -542,8 +543,8 @@ test("a broken outline publishes its head, with its own rows on it", () =>
 test("the shelf is answered per revision, so a rename elsewhere renames the pin", () =>
   withRuntime(
     {
-      "a.olai": OUTLINE,
-      "Pins.olai": `{"id":"p","ord":"a0","title":"/#a"}\n`,
+      "a.org": OUTLINE,
+      "Pins.org": `{"id":"p","ord":"a0","title":"/#a"}\n`,
     },
     ({ wired, store, root }) =>
       Effect.gen(function*() {
@@ -554,9 +555,12 @@ test("the shelf is answered per revision, so a rename elsewhere renames the pin"
         const first = yield* open.take
 
         // The pinned node is retitled in the file it lives in — which is not
-        // the shelf's file, and is the whole point: nothing about `Pins.olai`
+        // the shelf's file, and is the whole point: nothing about `Pins.org`
         // changed.
-        fs.writeFileSync(path.join(root, "a.olai"), `{"id":"a","ord":"a0","title":"b"}\n`)
+        fs.writeFileSync(
+          path.join(root, "a.org"),
+          orgFixture(`{"id":"a","ord":"a0","title":"b"}\n`),
+        )
         yield* store.refresh("cheap")
         const second = yield* open.take
 
@@ -586,8 +590,8 @@ test("the shelf is answered per revision, so a rename elsewhere renames the pin"
 test("a revision that changes no pin sends no frame", () =>
   withRuntime(
     {
-      "a.olai": OUTLINE,
-      "Pins.olai": `{"id":"p","ord":"a0","title":"/#a"}\n`,
+      "a.org": OUTLINE,
+      "Pins.org": `{"id":"p","ord":"a0","title":"/#a"}\n`,
       "report.html": "<h1>Before</h1>\n",
     },
     ({ wired, store, root }) =>
@@ -603,7 +607,10 @@ test("a revision that changes no pin sends no frame", () =>
         fs.writeFileSync(path.join(root, "report.html"), "<h1>After</h1>\n")
         yield* store.refresh("cheap")
         // …and one it does: the pinned node, retitled where it lives.
-        fs.writeFileSync(path.join(root, "a.olai"), `{"id":"a","ord":"a0","title":"b"}\n`)
+        fs.writeFileSync(
+          path.join(root, "a.org"),
+          orgFixture(`{"id":"a","ord":"a0","title":"b"}\n`),
+        )
         yield* store.refresh("cheap")
 
         expect(yield* open.take).toEqual([
@@ -738,7 +745,7 @@ test("no halves is no sentence, and every row is still there", () => {
  *  surface with no connector: the flag is read once, before the runtime exists,
  *  so there is nothing for a subscription to hear. */
 test("the roster is served on the plugins cell", () =>
-  withRuntime({ "a.olai": OUTLINE }, ({ wired }) =>
+  withRuntime({ "a.org": OUTLINE }, ({ wired }) =>
     Effect.gen(function*() {
       const get = wired.bound.handlers["surface/plugins/get"]
       if (get === undefined) throw new Error("the plugins cell has no `get`")
@@ -1046,11 +1053,11 @@ test("a scope naming a composed plugin that rings is written through, whole", ()
   const it = chatKeeping([])
   return withDoubles([ringer], () =>
     withRuntime(
-      { "a.olai": OUTLINE },
+      { "a.org": OUTLINE },
       ({ wired }) =>
         Effect.gen(function*() {
-          yield* scoping(wired.bound)({ to: TALKING, plugin: ringer.name, file: "notes.olai" })
-          expect(it.picked).toEqual([{ to: TALKING, plugin: ringer.name, file: "notes.olai" }])
+          yield* scoping(wired.bound)({ to: TALKING, plugin: ringer.name, file: "notes.org" })
+          expect(it.picked).toEqual([{ to: TALKING, plugin: ringer.name, file: "notes.org" }])
         }),
       { chat: it.chat, plugins: [ringer.name] },
     ))
@@ -1077,11 +1084,11 @@ test("a scope naming a plugin this serve did not compose is refused, in words", 
   const it = chatKeeping([])
   return withDoubles([ringer, quiet], () =>
     withRuntime(
-      { "a.olai": OUTLINE },
+      { "a.org": OUTLINE },
       ({ wired }) =>
         Effect.gen(function*() {
           const said = yield* Effect.flip(
-            scoping(wired.bound)({ to: TALKING, plugin: ringer.name, file: "notes.olai" }),
+            scoping(wired.bound)({ to: TALKING, plugin: ringer.name, file: "notes.org" }),
           )
           expect(said.reason).toContain(ringer.name)
           expect(it.picked).toEqual([])
@@ -1108,19 +1115,19 @@ test("a scope naming a composed plugin that declares no wake is refused, in word
   const it = chatKeeping([])
   return withDoubles([ringer, quiet], () =>
     withRuntime(
-      { "a.olai": OUTLINE },
+      { "a.org": OUTLINE },
       ({ wired }) =>
         Effect.gen(function*() {
           const said = yield* Effect.flip(
-            scoping(wired.bound)({ to: TALKING, plugin: quiet.name, file: "notes.olai" }),
+            scoping(wired.bound)({ to: TALKING, plugin: quiet.name, file: "notes.org" }),
           )
           expect(said.reason).toContain(quiet.name)
           expect(it.picked).toEqual([])
           // ...and the one that DOES ring, on the same runtime and the same
           // conversation, is written through — so what was refused was the
           // declaration and not the boot.
-          yield* scoping(wired.bound)({ to: TALKING, plugin: ringer.name, file: "notes.olai" })
-          expect(it.picked).toEqual([{ to: TALKING, plugin: ringer.name, file: "notes.olai" }])
+          yield* scoping(wired.bound)({ to: TALKING, plugin: ringer.name, file: "notes.org" })
+          expect(it.picked).toEqual([{ to: TALKING, plugin: ringer.name, file: "notes.org" }])
         }),
       { chat: it.chat, plugins: [ringer.name, quiet.name] },
     ))
@@ -1147,8 +1154,8 @@ test("each plugin's door carries only its own conversations, and rings under onl
   const ringer = halfCalled("ringer", RINGING)
   const other = halfCalled("other", RINGING)
   const it = chatKeeping([
-    scoped(ringer.name, "ringer.olai"),
-    scoped(other.name, "other.olai"),
+    scoped(ringer.name, "ringer.org"),
+    scoped(other.name, "other.org"),
   ])
   return withDoubles([ringer, other], () =>
     withRuntime(
@@ -1158,16 +1165,16 @@ test("each plugin's door carries only its own conversations, and rings under onl
       // leaves its plugin's door, which is a different case entirely (below).
       // What is under test here is the KEYING, so the files are ordinary ones.
       {
-        "ringer.olai": `{"id":"r","ord":"a0","title":"r"}\n`,
-        "other.olai": `{"id":"o","ord":"a0","title":"o"}\n`,
+        "ringer.org": `{"id":"r","ord":"a0","title":"r"}\n`,
+        "other.org": `{"id":"o","ord":"a0","title":"o"}\n`,
       },
       () =>
         Effect.gen(function*() {
           // ONE ROW EACH, and it is the row that names this plugin. The `plugin`
           // column itself is gone on the way out — a door that repeated it back
           // would be telling each plugin the one thing it already knows.
-          expect(ringer.door().scopes()).toEqual([{ ...TALKING, file: "ringer.olai" }])
-          expect(other.door().scopes()).toEqual([{ ...TALKING, file: "other.olai" }])
+          expect(ringer.door().scopes()).toEqual([{ ...TALKING, file: "ringer.org" }])
+          expect(other.door().scopes()).toEqual([{ ...TALKING, file: "other.org" }])
 
           ringer.door().deliver(TALKING, () => "the ringer's sentence")
           other.door().deliver(TALKING, () => "the other's sentence")
@@ -1199,7 +1206,7 @@ test("each plugin's door carries only its own conversations, and rings under onl
 test("a plugin composed into a chatless serve is handed a door onto nothing", () => {
   const ringer = halfCalled("ringer", RINGING)
   return withDoubles([ringer], () =>
-    withRuntime({ "a.olai": OUTLINE }, () =>
+    withRuntime({ "a.org": OUTLINE }, () =>
       Effect.gen(function*() {
         expect(ringer.door().scopes()).toEqual([])
         // ...and the write end answers `void` rather than refusing, because a
@@ -1215,7 +1222,7 @@ test("a plugin composed into a chatless serve is handed a door onto nothing", ()
  *
  * ## The defect these two cases are the absence of
  *
- * A person scopes a conversation to `lanes.olai`; somebody renames the file.
+ * A person scopes a conversation to `lanes.org`; somebody renames the file.
  * The plugin derives per revision over a file that is not there, so it derives
  * nothing — forever — while the strip goes on drawing the control as ON. The
  * conversation is silent in exactly the way a conversation with nothing to
@@ -1250,10 +1257,10 @@ test("a scope whose file is not served is told, in the plugin's own words and no
   // a file it does not. Only the second is a fault — and the rows are in this
   // order, so a delivery for the healthy one would arrive FIRST. That is what
   // makes the silence readable off the queue rather than off a timer.
-  const it = chatKeeping([scoped(ringer.name, "a.olai"), scoped(other.name, "lanes.olai")])
+  const it = chatKeeping([scoped(ringer.name, "a.org"), scoped(other.name, "lanes.org")])
   return withDoubles([ringer, other], () =>
     withRuntime(
-      { "a.olai": OUTLINE },
+      { "a.org": OUTLINE },
       () =>
         Effect.gen(function*() {
 
@@ -1274,7 +1281,7 @@ test("a scope whose file is not served is told, in the plugin's own words and no
           // scope, which is how "alive and quiet" is kept apart from "watching
           // nothing" by construction.
           expect(other.door().scopes()).toEqual([])
-          expect(ringer.door().scopes()).toEqual([{ ...TALKING, file: "a.olai" }])
+          expect(ringer.door().scopes()).toEqual([{ ...TALKING, file: "a.org" }])
         }),
       { chat: it.chat, plugins: [ringer.name, other.name] },
     ))
@@ -1293,10 +1300,10 @@ test("a file that is served and EMPTY is not a file that is gone", () => {
   // so a delivery for it would have to arrive first.
   const ringer = halfCalled("ringer", RINGING)
   const other = halfCalled("other", RINGING)
-  const it = chatKeeping([scoped(ringer.name, "empty.olai"), scoped(other.name, "lanes.olai")])
+  const it = chatKeeping([scoped(ringer.name, "empty.org"), scoped(other.name, "lanes.org")])
   return withDoubles([ringer, other], () =>
     withRuntime(
-      { "a.olai": OUTLINE, "empty.olai": "" },
+      { "a.org": OUTLINE, "empty.org": "" },
       () =>
         Effect.gen(function*() {
           expect((yield* it.rang).from).toBe(other.name)
@@ -1304,7 +1311,7 @@ test("a file that is served and EMPTY is not a file that is gone", () => {
           // ... and the empty file's scope is still on the door, where the
           // plugin can go on watching a file somebody is in the middle of
           // rewriting.
-          expect(ringer.door().scopes()).toEqual([{ ...TALKING, file: "empty.olai" }])
+          expect(ringer.door().scopes()).toEqual([{ ...TALKING, file: "empty.org" }])
         }),
       { chat: it.chat, plugins: [ringer.name, other.name] },
     ))
@@ -1332,10 +1339,10 @@ test("a scope on a served file its doorbell cannot read is told, in the OTHER de
   const other = halfCalled("other", RINGING)
   // Both files are served. Only the second is a kind this doorbell declared,
   // and the healthy row is first, so a delivery for it would arrive first.
-  const it = chatKeeping([scoped(ringer.name, "a.olai"), scoped(other.name, "notes.md")])
+  const it = chatKeeping([scoped(ringer.name, "a.org"), scoped(other.name, "notes.md")])
   return withDoubles([ringer, other], () =>
     withRuntime(
-      { "a.olai": OUTLINE, "notes.md": "# notes\n" },
+      { "a.org": OUTLINE, "notes.md": "# notes\n" },
       () =>
         Effect.gen(function*() {
           expect(yield* it.rang).toEqual({
@@ -1348,7 +1355,7 @@ test("a scope on a served file its doorbell cannot read is told, in the OTHER de
           // is: nothing is being watched, so nothing this plugin does per scope
           // may go on happening — a heartbeat over it most of all.
           expect(other.door().scopes()).toEqual([])
-          expect(ringer.door().scopes()).toEqual([{ ...TALKING, file: "a.olai" }])
+          expect(ringer.door().scopes()).toEqual([{ ...TALKING, file: "a.org" }])
         }),
       { chat: it.chat, plugins: [ringer.name, other.name] },
     ))

@@ -441,7 +441,7 @@ Then(
     // "Whole" as facts the shape cannot name back: the place, the ancestry,
     // and the answer's own id.
     assert.strictEqual(answer["id"], "kitchen");
-    assert.strictEqual(answer["file"], "house.olai");
+    assert.strictEqual(answer["file"], "house.org");
     assert.strictEqual(typeof answer["line"], "number", "a whole node is situated");
     claimShape(
       (answer["children"] ?? []) as ReadonlyArray<Record<string, unknown>>,

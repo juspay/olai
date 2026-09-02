@@ -2,7 +2,7 @@
  * WHICH files a served directory is made of — the one place that list exists.
  *
  * A served directory is somebody's folder, and olai claims part of it: an
- * outline is a `.olai`, a document is a `.md`, hypertext is a `.html`, a table
+ * outline is a `.org`, a document is a `.md`, hypertext is a `.html`, a table
  * is a `.csv`, a picture is a `.png` (and the seven other spellings of one), a
  * printed document is a `.pdf` — and everything else, a `README`, a `.ts`, is
  * not part of the set at all. That is one decision, and before this file it was
@@ -45,7 +45,7 @@
  * **CODE that DECIDES reads this; PROSE that DESCRIBES spells it out.** The
  * rule PR #177 wrote beside `OUTLINE_EXT` is unchanged and now covers every
  * kind: the hundred docstrings, tool descriptions and refusal messages that
- * say `.olai` or `.md` in words go on saying them in words — they are read by
+ * say `.org` or `.md` in words go on saying them in words — they are read by
  * a person, not by a branch, and interpolating a constant into a sentence buys
  * nothing while costing the one thing a message has, which is that you can
  * grep for it.
@@ -150,7 +150,7 @@ interface Claim {
    * handed the file's text on the wire like a document's, so serving the same
    * bytes raw would be a second way to read a file that already has a page —
    * the argument `./documents.ts`'s `ASSET_EXTENSIONS` makes for `.md` and
-   * `.olai`, and the one it makes against handing DATA to a previewed page.
+   * `.org`, and the one it makes against handing DATA to a previewed page.
    */
   readonly fetched: boolean
 }
@@ -158,7 +158,7 @@ interface Claim {
 /**
  * Every kind of file olai claims.
  *
- * `.olai` is the outline: the records this app is about. `.md` is the
+ * `.org` is the outline: the records this app is about. `.md` is the
  * document: prose beside the outlines, which a node may attach and a day may
  * be named for. The other four are the files olai SHOWS and never writes —
  * they have no editor and no create verb, `write_document` refuses each of them
@@ -184,7 +184,7 @@ interface Claim {
  * two things in one repository is an ambiguity every later reader pays for.
  */
 export const FILE_KINDS = {
-  outline: { exts: [".olai"], holds: "nodes", kept: true, fetched: false },
+  outline: { exts: [".org"], holds: "nodes", kept: true, fetched: false },
   document: { exts: [".md"], holds: "text", kept: true, fetched: false },
   hypertext: { exts: [".html"], holds: "text", kept: false, fetched: true },
   csv: { exts: [".csv"], holds: "text", kept: false, fetched: false },
@@ -344,7 +344,7 @@ export const fileKind = (path: string): FileKind | null => claimOf(path)?.[0] ??
 
 /**
  * A served file's NAME with the suffix that claims it taken off — `roadmap` for
- * `docs/roadmap.olai`, `2026-08-12` for `Daily/2026/08/2026-08-12.md` — and the
+ * `docs/roadmap.org`, `2026-08-12` for `Daily/2026/08/2026-08-12.md` — and the
  * bare name for a file no kind claims, since there is no suffix of ours to take
  * off one of those.
  *
@@ -492,8 +492,8 @@ export const FILE_EXTS: ReadonlyArray<string> = CLAIMS.flatMap(([, claim]) => cl
  * The outline's suffix, by name.
  *
  * Two things that are not `fileKind` need the string itself and cannot get it
- * from a boolean: the conventional file names derived from it (`Trash.olai`,
- * `Inbox.olai` — ./node.ts) and the mint that refuses a path which would not
+ * from a boolean: the conventional file names derived from it (`Trash.org`,
+ * `Inbox.org` — ./node.ts) and the mint that refuses a path which would not
  * be claimed back (`@olai/ops`' `outlinePath`). Retyping it in either place is
  * not a type error; it is a file the walk stops claiming, or an op that
  * refuses a path the sidebar just offered.

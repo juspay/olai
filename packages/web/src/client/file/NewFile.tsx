@@ -21,7 +21,7 @@
  *
  * What this box does do to what was typed is COMPLETE it: a door knows which
  * kind of file it makes and the wire deliberately does not, so `Foo` at the
- * outline door is asked for as `Foo.olai` (`./completing.ts` holds that rule,
+ * outline door is asked for as `Foo.org` (`./completing.ts` holds that rule,
  * the argument for it, and the one refusal that is the box's own rather than
  * the ops layer's). Every other verdict is still the ops layer's, over the path
  * this hands it.

@@ -1,4 +1,0 @@
-{"id":"prop-terminal","ord":"a0","title":"terminal","custom":{"type":"kolu-terminal"}}
-{"id":"prop-worktree","ord":"a1","title":"worktree","custom":{"type":"odu-worktree"}}
-{"id":"prop-pr-url","ord":"a2","title":"pr-url","custom":{"type":"text"}}
-{"id":"prop-agent","ord":"a3","title":"agent","custom":{"type":"text"}}

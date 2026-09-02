@@ -28,6 +28,7 @@ import * as path from "node:path"
 
 import { NodeServices } from "@effect/platform-node"
 import { NO_KINDS } from "@olai/format"
+import { orgFixture } from "@olai/format/testlib"
 import * as Store from "@olai/store"
 import { Effect } from "effect"
 
@@ -85,7 +86,7 @@ export const withArms = <A>(
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-differential-")))
   const write = (file: string, contents: string) => {
     fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true })
-    fs.writeFileSync(path.join(root, file), contents)
+    fs.writeFileSync(path.join(root, file), file.endsWith(".org") ? orgFixture(contents) : contents)
   }
   for (const [file, contents] of Object.entries(files)) write(file, contents)
 

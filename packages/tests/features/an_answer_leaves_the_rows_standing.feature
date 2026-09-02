@@ -22,7 +22,7 @@ Feature: An answer leaves the rows it did not change standing
     Given I open the app
 
   Scenario: A letter taken back leaves the palette's rows standing
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     And I mark the page
     When I press the palette shortcut
     And I type "cabinets" into the palette
@@ -37,7 +37,7 @@ Feature: An answer leaves the rows it did not change standing
     And there should be no page errors
 
   Scenario: A letter taken back leaves the header box's rows standing
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     And I mark the page
     When I search the header for "cabinets"
     Then the header search lists the node "order the new cabinets"
@@ -72,7 +72,7 @@ Feature: An answer leaves the rows it did not change standing
     And there should be no page errors
 
   Scenario: A refusal is not read out a second time for the next keystroke
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     And I mark the page
     When I filter the page by "is:nope"
     Then the filter refuses "is:nope" and says "done, cancelled, doing, todo, marked, blocked, mirrored, trashed"
@@ -100,7 +100,7 @@ Feature: An answer leaves the rows it did not change standing
   # sign the answer landed at all — and the line already up must not move for
   # it.
   Scenario: The palette's refusal is not read out a second time for the next keystroke
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     And I mark the page
     When I press the palette shortcut
     And I type "is:nope" into the palette
@@ -115,7 +115,7 @@ Feature: An answer leaves the rows it did not change standing
     And there should be no page errors
 
   Scenario: The header box's refusal is not read out a second time for the next keystroke
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     And I mark the page
     When I search the header for "is:nope"
     Then the search refuses "is:nope" and says "done, cancelled, doing, todo, marked, blocked, mirrored, trashed"

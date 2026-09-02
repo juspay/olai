@@ -30,7 +30,7 @@ const HOUSE = [
 
 const GARDEN = `{"id":"herbs","ord":"a0","title":"the herb bed","todo":true}`
 
-const derived = derive(recordsOf(setOf({ "house.olai": HOUSE, "garden.olai": GARDEN })))
+const derived = derive(recordsOf(setOf({ "house.org": HOUSE, "garden.org": GARDEN })))
 
 /**
  * THE NAMES a page carrying these rows would have been sent with — every id
@@ -68,7 +68,7 @@ test("a target the file names three times is drawn once", () => {
   // title — the repeat is dropped, not the resolution.
   expect(targets("order", "see")).toEqual(["herbs"])
   expect(refs("order", "see")[0]?.title).toBe("the herb bed")
-  expect(refs("order", "see")[0]?.from).toBe("garden.olai")
+  expect(refs("order", "see")[0]?.from).toBe("garden.org")
 })
 
 test("the other targets, and their order, survive the drop", () => {

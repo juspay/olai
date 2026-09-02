@@ -1,0 +1,25 @@
+* the yard
+:PROPERTIES:
+:ID: yard
+:OLAI_KIND: regular
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "the yard"
+:END:
+
+** stain the fence
+:PROPERTIES:
+:ID: fence
+:OLAI_KIND: regular
+:OLAI_PARENT: "yard"
+:OLAI_ORD: "a0"
+:OLAI_TITLE: "stain the fence"
+:END:
+
+** oil the gate hinge
+:PROPERTIES:
+:ID: gate
+:OLAI_KIND: regular
+:OLAI_PARENT: "yard"
+:OLAI_ORD: "a1"
+:OLAI_TITLE: "oil the gate hinge"
+:END:

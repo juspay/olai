@@ -75,7 +75,7 @@ const FILES = Number(process.env["OLAI_BENCH_FILES"] ?? 1200)
 const RECORDS = Number(process.env["OLAI_BENCH_RECORDS"] ?? 20)
 
 /**
- * The vault, with the OTHER kinds beside the outlines — `vaultOf` mints `.olai`
+ * The vault, with the OTHER kinds beside the outlines — `vaultOf` mints `.org`
  * and nothing else, and a directory of nothing but outlines is one where the
  * documents collection is empty and a third of what is being measured is never
  * asked for anything.

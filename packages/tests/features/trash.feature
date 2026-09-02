@@ -1,13 +1,13 @@
 @share-scratch
 @scratch:good
 Feature: The trash can be seen into, taken out of, and emptied
-  `_olai/Trash.olai` is the one trash: a sidebar entry of its own,
+  `_olai/Trash.org` is the one trash: a sidebar entry of its own,
   read-only rows, and one verb — Put back — that sends the `untrash` op
   both faces share (`untrash_node` is the same call).
 
   The last block is the other end of it. A bin nothing could ever be emptied
   from is a bin that only fills up, so the page has one verb of its OWN:
-  Empty trash, which permanently deletes every record in `_olai/Trash.olai`,
+  Empty trash, which permanently deletes every record in `_olai/Trash.org`,
   behind a question naming how many rows go — counted over the SET — and saying
   outright that nothing in olai puts them back. It is the only destructive
   write in this app, `empty_trash` is the same op for an agent, and the
@@ -21,7 +21,7 @@ Feature: The trash can be seen into, taken out of, and emptied
   restored between scenarios.
 
   Background:
-    Given I open the outline "house.olai"
+    Given I open the outline "house.org"
     And I mark the page
 
   Scenario: The trash starts empty, and says so rather than erroring
@@ -34,7 +34,7 @@ Feature: The trash can be seen into, taken out of, and emptied
     When I open the node menu of "install"
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu
-    Then "_olai/Trash.olai" holds the node "install"
+    Then "_olai/Trash.org" holds the node "install"
     When I open the Trash
     Then the Trash lists the node "install"
     And the Trash lists the node "handles"
@@ -47,25 +47,25 @@ Feature: The trash can be seen into, taken out of, and emptied
     When I open the node menu of "knobs"
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu
-    Then "_olai/Trash.olai" holds the node "knobs"
-    And the outline list does not link to "_olai/Trash.olai"
+    Then "_olai/Trash.org" holds the node "knobs"
+    And the outline list does not link to "_olai/Trash.org"
 
   Scenario: Put back restores the subtree where it came from
     When I open the node menu of "install"
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu
-    Then "house.olai" no longer holds the node "install"
+    Then "house.org" no longer holds the node "install"
     When I open the Trash
     And I put back "install" from the Trash
-    Then "_olai/Trash.olai" no longer holds the node "install"
-    And "house.olai" holds the node "install"
+    Then "_olai/Trash.org" no longer holds the node "install"
+    And "house.org" holds the node "install"
     # WHERE it landed is the half "holds" cannot pin: under its old parent,
     # found by the chain of ancestor titles the archive recorded — and the
     # children came back shaped as they left.
-    And the node "install" in "house.olai" sits under "kitchen"
-    And "house.olai" holds the node "handles"
-    And the node "handles" in "house.olai" sits under "install"
-    And the node "hinges" in "house.olai" sits under "install"
+    And the node "install" in "house.org" sits under "kitchen"
+    And "house.org" holds the node "handles"
+    And the node "handles" in "house.org" sits under "install"
+    And the node "hinges" in "house.org" sits under "install"
     # The emptied scaffold went with it: archive-then-unarchive leaves the
     # archive as it stood, which for this fixture is empty.
     And the Trash is empty
@@ -81,14 +81,14 @@ Feature: The trash can be seen into, taken out of, and emptied
     When I open the node menu of "knobs"
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu
-    Then "_olai/Trash.olai" holds the node "knobs"
+    Then "_olai/Trash.org" holds the node "knobs"
     When I open the Trash
     Then the Trash lists the node "knobs"
     # The signpost carries the live `install`'s title, and putting it back
     # would stand a second one beside it with `knobs` hanging off the copy.
     When I put back the row titled "install the cabinets" from the Trash
     Then the Trash says under the row titled "install the cabinets" that it is a signpost
-    And "house.olai" holds one node titled "install the cabinets"
+    And "house.org" holds one node titled "install the cabinets"
     And there should be no page errors
 
   Scenario: A chain that no longer stands is refused, and restoring it heals the way back
@@ -100,19 +100,19 @@ Feature: The trash can be seen into, taken out of, and emptied
     When I open the node menu of "knobs"
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu
-    Then "_olai/Trash.olai" holds the node "knobs"
+    Then "_olai/Trash.org" holds the node "knobs"
     When I open the node menu of "install"
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu
-    Then "house.olai" no longer holds the node "install"
+    Then "house.org" no longer holds the node "install"
     When I open the Trash
     And I put back "knobs" from the Trash
-    Then the Trash under "knobs" says "`pick the knobs` was put away from under `kitchen remodel #home` → `install the cabinets` in `house.olai`, and that chain matches nothing there — it may have been retitled, or put away itself. Give `parent` (it goes under that node) or `file` (top level) to say where it goes back"
-    And "_olai/Trash.olai" holds the node "knobs"
+    Then the Trash under "knobs" says "`pick the knobs` was put away from under `kitchen remodel #home` → `install the cabinets` in `house.org`, and that chain matches nothing there — it may have been retitled, or put away itself. Give `parent` (it goes under that node) or `file` (top level) to say where it goes back"
+    And "_olai/Trash.org" holds the node "knobs"
     When I put back "install" from the Trash
-    Then the node "install" in "house.olai" sits under "kitchen"
+    Then the node "install" in "house.org" sits under "kitchen"
     When I put back "knobs" from the Trash
-    Then the node "knobs" in "house.olai" sits under "install"
+    Then the node "knobs" in "house.org" sits under "install"
     And the Trash is empty
     And there should be no page errors
 
@@ -133,7 +133,7 @@ Feature: The trash can be seen into, taken out of, and emptied
     And I cancel emptying the Trash
     Then the Trash lists the node "install"
     And the Trash lists the node "knobs"
-    And "_olai/Trash.olai" holds the node "install"
+    And "_olai/Trash.org" holds the node "install"
     And the Trash offers Empty trash
     And there should be no page errors
 
@@ -141,16 +141,16 @@ Feature: The trash can be seen into, taken out of, and emptied
     When I open the node menu of "install"
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu
-    Then "house.olai" no longer holds the node "install"
+    Then "house.org" no longer holds the node "install"
     When I open the Trash
     And I press Empty trash
     And I confirm emptying the Trash
-    Then "_olai/Trash.olai" holds nothing
+    Then "_olai/Trash.org" holds nothing
     And the Trash is empty
     And the Trash does not offer Empty trash
     # The blast radius is the archive and nothing else: the live outline the
     # subtree came out of is untouched by the delete.
-    And "house.olai" holds the node "kitchen"
+    And "house.org" holds the node "kitchen"
     And there should be no page errors
 
   Scenario: A live row still pointing into the Trash refuses it, in the ops layer's own words
@@ -162,24 +162,24 @@ Feature: The trash can be seen into, taken out of, and emptied
     When I open the node menu of "order"
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu
-    Then "_olai/Trash.olai" holds the node "order"
+    Then "_olai/Trash.org" holds the node "order"
     When I open the Trash
     And I press Empty trash
     And I confirm emptying the Trash
-    Then the Trash says "`_olai/Trash.olai` still has records pointed INTO it from outside: `install` (`after`, house.olai:3), `hinges` (`after`, house.olai:5). Deleting what those name would leave them pointing at nothing, so nothing was written — re-point or retire them first, or `untrash_node` what they name back out."
-    And "_olai/Trash.olai" holds the node "order"
+    Then the Trash says "`_olai/Trash.org` still has records pointed INTO it from outside: `install` (`after`, house.org:3), `hinges` (`after`, house.org:5). Deleting what those name would leave them pointing at nothing, so nothing was written — re-point or retire them first, or `untrash_node` what they name back out."
+    And "_olai/Trash.org" holds the node "order"
     And there should be no page errors
 
   Scenario: Two piles are one emptying, and an edge BETWEEN them is not a holder
     # Grok's objection on #250, driven from the button. `catch-up` lives in
-    # `Daily/2026-08.olai` and `knobs` in `house.olai` — two piles in the ONE
+    # `Daily/2026-08.org` and `knobs` in `house.org` — two piles in the ONE
     # trash, and a `see` written from one to the other before either is put away.
     #
     # The edge is a record THIS WRITE DELETES, so it is not a reason to refuse.
     # It used to be one: the button sent an `apply` of one `empty` per archive,
     # each judged against one pile. One op naming the union is what fixed it,
     # and one trash file is why the two piles are already one emptying.
-    When I open the outline "Daily/2026-08.olai"
+    When I open the outline "Daily/2026-08.org"
     And I open the node menu of "catch-up"
     And I choose "Link to a node…" from the node menu
     Then the see panel is open on "catch-up"
@@ -188,20 +188,20 @@ Feature: The trash can be seen into, taken out of, and emptied
     # its `#home` is drawn as the pill every tag wears now, below the row's
     # title. The press below LANDS on that pill: one press is one door, and
     # the row's button claims a press AT its pill — a press that instead
-    # filtered the tree would hide `house.olai` from itself, `kitchen` and
+    # filtered the tree would hide `house.org` from itself, `kitchen` and
     # every descendant, and the pick would fall out from under this click
     # (found while this suite's own run broke here at 30s, #378).
     And I choose "pick the knobs" from the edge panel
-    Then "Daily/2026-08.olai" holds the node "catch-up" seeing "knobs"
+    Then "Daily/2026-08.org" holds the node "catch-up" seeing "knobs"
     When I open the node menu of "catch-up"
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu
-    Then "_olai/Trash.olai" holds the node "catch-up"
-    When I open the outline "house.olai"
+    Then "_olai/Trash.org" holds the node "catch-up"
+    When I open the outline "house.org"
     And I open the node menu of "knobs"
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu
-    Then "_olai/Trash.olai" holds the node "knobs"
+    Then "_olai/Trash.org" holds the node "knobs"
     When I open the Trash
     # Seven: source-file signposts for both piles, the ancestor titles above
     # each (`kitchen remodel #home` → `install the cabinets` for knobs — the
@@ -210,6 +210,6 @@ Feature: The trash can be seen into, taken out of, and emptied
     And I press Empty trash
     Then the Trash asks "Permanently delete all 7 rows in the Trash? Nothing in olai puts them back — the records leave the trash the way every other write does, so what survives is whatever git has already recorded."
     When I confirm emptying the Trash
-    Then "_olai/Trash.olai" holds nothing
+    Then "_olai/Trash.org" holds nothing
     And the Trash is empty
     And there should be no page errors
