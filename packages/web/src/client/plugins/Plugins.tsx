@@ -40,23 +40,16 @@
  * the arrangement `../settings/Preferences.tsx` already keeps, and this follows
  * it rather than inventing a second one.
  *
- * WHERE THE PANEL GOES is not the header's to decide: the bar is `sticky` with
- * a z-index, which makes it a stacking context and a 3rem-tall box. So the
- * panel is portalled out of it and positioned against the VIEWPORT
- * (`../anchor.ts`), exactly as the preferences panel beside it is.
- *
- * Dismissal is a pointer outside it, Escape, or the trigger again — and the two
- * a keyboard can reach put focus back on the trigger. That is `../popover.ts`
- * rather than anything of this file's: the preferences panel and the Commit
- * panel are the same object and share the bar's one focus cycle.
+ * WHAT A DOOR IN THIS BAR IS — the two shapes, the portal out of a stacking
+ * context, and the focus cycle it shares with the panels along from it — is
+ * `../BarDoor.tsx`, and this file is four strings and a panel. It was a copy of
+ * `../settings/Preferences.tsx` with those four changed, which is what a second
+ * instance of an affordance looks like when it is written rather than reused.
+ * That the two panels answer different questions is the argument for two DOORS
+ * and no argument at all for two implementations of one.
  */
 
-import { Show } from "solid-js"
-import { Portal } from "solid-js/web"
-
-import { ENTRY_SHAPE, ROW_GAP } from "../layout/entry.ts"
-import { createPopover } from "../popover.ts"
-import { ICON_BUTTON } from "../readout.ts"
+import { BarDoor } from "../BarDoor.tsx"
 import { TESTID } from "../testids.ts"
 
 import { Panel } from "./Panel.tsx"
@@ -65,40 +58,15 @@ export function Plugins(props: {
   /** `closet` is the phone drawer row. Default is the header chip. */
   readonly where?: "header" | "closet"
 }) {
-  const popover = createPopover()
-  const open = popover.open
-
-  const closet = () => props.where === "closet"
-
   return (
-    <>
-      <button
-        type="button"
-        ref={popover.setTrigger}
-        class={
-          closet()
-            ? `${ENTRY_SHAPE} ${ROW_GAP} w-full text-paper/80`
-            : `${ICON_BUTTON} border ${
-              open() ? "border-accent text-paper" : "border-paper/25"
-            }`
-        }
-        data-testid={TESTID.pluginsTrigger}
-        aria-expanded={open()}
-        aria-haspopup="true"
-        title="plugins: which integrations this server is running, and why"
-        onClick={() => popover.toggle()}
-      >
-        <span aria-hidden="true">⧉</span>
-        <span class={closet() ? undefined : "sr-only sm:not-sr-only"}>plugins</span>
-      </button>
-      {/* Out of the header entirely — see this file's header. */}
-      <Show when={open() ? popover.at() : null}>
-        {(at) => (
-          <Portal>
-            <Panel at={at()} inside={popover.setPanel} />
-          </Portal>
-        )}
-      </Show>
-    </>
+    <BarDoor
+      where={props.where}
+      glyph="⧉"
+      header="plugins"
+      closet="plugins"
+      testid={TESTID.pluginsTrigger}
+      title="plugins: which integrations this server is running, and why"
+      panel={(at, inside) => <Panel at={at} inside={inside} />}
+    />
   )
 }
