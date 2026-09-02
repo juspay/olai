@@ -60,15 +60,14 @@ const bus = (): {
 
 const bind = (half: ReturnType<typeof serve>): void => {
   const reading = readingOf(setOf({
-    "_olai/XyneSpaces.olai": rec("mirror", {
-      channel: "ch-team",
-      agent: "claude",
-      session: "s-1",
+    "board.olai": rec("orch", {
+      "agent-session": "claude:s-1",
+      "xyne-channel": "ch-team",
     }),
   }))
   half.revision({
     value: { set: reading.set, derived: reading.derived },
-    changed: ["_olai/XyneSpaces.olai"],
+    changed: ["board.olai"],
     removed: [],
   })
 }
@@ -218,7 +217,8 @@ test("a bind without env is a fault, named, and said once into the conversation"
     })
     bind(half)
     expect(half.link().status).toBe("fault")
-    expect(half.link().why).toContain("_olai/XyneSpaces.olai")
+    expect(half.link().why).toContain("xyne-channel")
+    expect(half.link().why).toContain("board.olai")
     expect(half.link().why).toContain("OLAI_SPACES_URL, OLAI_SPACES_TOKEN")
     emit({
       kind: "delivered",
@@ -231,7 +231,8 @@ test("a bind without env is a fault, named, and said once into the conversation"
     await Bun.sleep(40)
     expect(spaces.requests).toHaveLength(0)
     expect(faults).toHaveLength(1)
-    expect(faults[0]).toContain("_olai/XyneSpaces.olai")
+    expect(faults[0]).toContain("xyne-channel")
+    expect(faults[0]).toContain("board.olai")
     expect(faults[0]).toContain("OLAI_SPACES_URL, OLAI_SPACES_TOKEN")
     half.unloaded()
   } finally {
@@ -257,7 +258,7 @@ test("dropping the bind without env returns the pill to absent", () => {
   half.revision({
     value: { set: empty.set, derived: empty.derived },
     changed: [],
-    removed: ["_olai/XyneSpaces.olai"],
+    removed: ["board.olai"],
   })
   expect(half.link().status).toBe("absent")
   half.unloaded()

@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 
-import { recordOf, snapshotOf } from "./hold.ts"
-import { laneOf } from "./mirror.ts"
+import { recordAll, recordOf, snapshotOf, snapshotsOf } from "./hold.ts"
+import { laneOf, type HeldSnapshot } from "./mirror.ts"
 
 const LANE = laneOf("claude", "s-1")
 
@@ -49,6 +49,21 @@ test("a missing overflow count is zero rather than a refused hold", () => {
     queue: [],
   })
   expect(got?.droppedTotal).toBe(0)
+})
+
+test("two channels survive as two snapshots, and the old one-channel shape is one", () => {
+  const a: HeldSnapshot = {
+    channel: "ch-a",
+    lastLane: LANE,
+    threads: [[LANE, { conversationId: "conv-a", ciMessageId: undefined }]],
+    queue: [],
+    droppedTotal: 0,
+  }
+  const b: HeldSnapshot = { ...a, channel: "ch-b", threads: [] }
+  const all = snapshotsOf(recordAll(new Map([["ch-a", a], ["ch-b", b]])))
+  expect(all.get("ch-a")?.channel).toBe("ch-a")
+  expect(all.get("ch-b")?.channel).toBe("ch-b")
+  expect(snapshotsOf(recordOf(a)).get("ch-a")?.channel).toBe("ch-a")
 })
 
 test("recordOf is what snapshotOf reads back", () => {

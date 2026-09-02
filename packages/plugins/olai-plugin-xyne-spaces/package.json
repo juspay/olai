@@ -18,7 +18,7 @@
     "typecheck": "tsc --noEmit"
   },
   "//": "THE SPACES TENANT — olai's judgement ABOUT Xyne Spaces, phase 1 Mirror: doorbell digests and trimmed orchestrator replies posted outbound, agentProgress during turns, watch-only. There is no appliance-client package: Spaces is reached over HTTP with an app JWT, and that dial lives here.",
-  "//dependencies": "`@olai/format` because `config.ts` walks `_olai/Spaces.olai`. `solid-js` because this package owns the chrome pill. `effect` because the link cell is declared in Schema and its connector is an Effect. No `@olai/plugin-api`, for `olai-plugin-kolu`'s structural reason. No `@olai/web`: the pill's geometry arrives as a VALUE. No `@olai/state`: the hold is `PluginServices.held`, core's file, so this tenant does not become the sole reacher of the state leaf.",
+  "//dependencies": "`@olai/format` because `config.ts` reads `xyne-channel` and `agent-session` off the set. `solid-js` because this package owns the chrome pill. `effect` because the link cell is declared in Schema and its connector is an Effect. No `@olai/plugin-api`, for `olai-plugin-kolu`'s structural reason. No `@olai/web`: the pill's geometry arrives as a VALUE. No `@olai/state`: the hold is `PluginServices.held`, core's file, so this tenant does not become the sole reacher of the state leaf.",
   "dependencies": {
     "@olai/format": "workspace:*",
     "effect": "4.0.0-rc.112",

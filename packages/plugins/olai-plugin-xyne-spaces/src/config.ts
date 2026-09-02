@@ -1,118 +1,99 @@
 /**
- * THE VAULT HALF of the Spaces mirror — what `_olai/XyneSpaces.olai` says.
+ * THE VAULT HALF of the Spaces mirror — a `xyne-channel` property on a
+ * node agent.
  *
- * Secrets stay in ENV (`OLAI_SPACES_URL`, `OLAI_SPACES_TOKEN`). This file
- * holds the non-secret knobs: which conversation is bound to which Spaces
- * channel, and the digest trim. Finding the file is a question about the
- * served outline paths rather than the nodes — `spacesFileIn` below, so a
- * config that parses to nothing still has a path a reader can name.
+ * Secrets stay in ENV (`OLAI_SPACES_URL`, `OLAI_SPACES_TOKEN`). Which
+ * channel a conversation posts to is CONFIG, so it lives on the node that
+ * IS the agent (`agent-session`), not in a sidecar file and not on a
+ * session id that *fresh session* is allowed to throw away.
  *
- *   # Xyne Spaces
+ *   agent-session: claude:<session>
+ *   xyne-channel:  <spaces channel id>
  *
- *   - mirror                           ← the binding, properties:
- *     - channel: "<spaces channel id>" ← required; nothing posts without it
- *     - agent: "claude"                ← optional; omit to bind every agent
- *     - session: "<session id>"        ← optional; omit to bind every session
- *   - digest                           ← the knobs, properties:
- *     - trim: "500"                    ← orchestrator-reply cap, characters
- *
- * ABSENT means nothing is mirrored (the plugin may still be connected). A
- * malformed trim defaults and is said, once per new shape.
+ * A node with the channel and no session yet is named intent (the pill
+ * can fault on missing env) and posts nothing until a conversation is
+ * bound. A conversation no node claims does not post. Trim is the
+ * default; there is no second file of knobs.
  */
 
-import { customText, isRegular, type Located } from "@olai/format"
+import {
+  AGENT_PROP,
+  agentsOf,
+  customText,
+  isRegular,
+  type Derived,
+} from "@olai/format"
 
-/** The basename the convention answers to, case-folded at the caller's end. */
-const FILE_BASENAME = "xynespaces.olai"
-
-const MIRROR_TITLE = "mirror"
-const DIGEST_TITLE = "digest"
+/** The property a node agent carries to name the Spaces channel. */
+export const CHANNEL_PROP = "xyne-channel"
 
 /** Default orchestrator-reply cap, the human's ruling. */
 export const DEFAULT_TRIM = 500
 
-export interface MirrorBind {
+export interface ChannelBind {
+  readonly node: string
+  readonly file: string
+  readonly title: string
   readonly channel: string
-  readonly agent: string | null
-  readonly session: string | null
+  readonly engine: string
+  readonly session: string
 }
 
 export interface SpacesReading {
-  readonly bind: MirrorBind | null
+  /** Node agents that have both a current session and a channel. */
+  readonly binds: ReadonlyArray<ChannelBind>
+  /** Any live node carrying {@link CHANNEL_PROP}, session or not — intent. */
+  readonly named: ReadonlyArray<{ readonly node: string; readonly file: string }>
   readonly trim: number
-  readonly malformed: ReadonlyArray<string>
 }
 
 /**
- * WHICH SERVED OUTLINE IS `_olai/XyneSpaces.olai`, asked of the outline PATHS,
- * not the nodes: a config that exists but parses to nothing contributes no
- * records, and a reader still needs to name where olai looked. Case-folded
- * by basename; rank is shallowest first, ties by path — kolu's
- * `koluFileIn`, with the nouns changed.
- */
-export const spacesFileIn = (paths: Iterable<string>): string | undefined => {
-  return [...paths]
-    .filter((path) => path.split("/").pop()?.toLowerCase() === FILE_BASENAME)
-    .sort(
-      (a, b) => a.split("/").length - b.split("/").length || a.localeCompare(b),
-    )[0]
-}
-
-/**
- * What the vault says the mirror's knobs are, read off one revision's nodes,
- * inside the file the convention named.
+ * What the vault says the mirror's knobs are, read off one revision.
  *
- * ABSENT bind means nothing is mirrored. Within the named file the FIRST
- * `mirror` / `digest` node decides; a second is the owner's mistake.
+ * The roster is {@link agentsOf}: put-away and mirrors are already out.
+ * The channel is a second custom key on the same node. First claim wins
+ * where two nodes name one session, the same rule as `agentAt`.
  */
-export const spacesConfigIn = (
-  nodes: ReadonlyArray<Located>,
-  file: string | null,
-): SpacesReading => {
-  if (file === null) return { bind: null, trim: DEFAULT_TRIM, malformed: [] }
-  const inside = nodes.filter(isRegular).filter((located) => located.file === file)
-  const mirror = inside.find(({ node }) => node.title === MIRROR_TITLE)
-  const digest = inside.find(({ node }) => node.title === DIGEST_TITLE)
-  const malformed: Array<string> = []
-
-  const channel = mirror === undefined ? undefined : customText(mirror.node, "channel")?.trim()
-  const agent = mirror === undefined ? undefined : customText(mirror.node, "agent")?.trim()
-  const session = mirror === undefined ? undefined : customText(mirror.node, "session")?.trim()
-  const bind: MirrorBind | null =
-    channel === undefined || channel === ""
-      ? null
-      : {
-        channel,
-        agent: agent === undefined || agent === "" ? null : agent,
-        session: session === undefined || session === "" ? null : session,
-      }
-
-  let trim = DEFAULT_TRIM
-  if (digest !== undefined) {
-    const written = customText(digest.node, "trim")
-    if (written !== undefined) {
-      const parsed = Number.parseInt(written.trim(), 10)
-      if (!Number.isFinite(parsed) || parsed < 1) {
-        malformed.push(
-          `spaces: \`trim: ${written}\` in ${digest.file} is not a positive character count — write a number such as 500.`,
-        )
-      } else {
-        trim = parsed
-      }
-    }
+export const spacesConfigIn = (derived: Derived): SpacesReading => {
+  const channelOf = new Map<string, string>()
+  for (const located of derived.nodes) {
+    if (!isRegular(located)) continue
+    const channel = customText(located.node, CHANNEL_PROP)?.trim()
+    if (channel === undefined || channel === "") continue
+    channelOf.set(located.node.id, channel)
   }
 
-  return { bind, trim, malformed }
+  const named: Array<{ readonly node: string; readonly file: string }> = []
+  const claimed = new Set<string>()
+  const binds: Array<ChannelBind> = []
+  for (const agent of agentsOf(derived)) {
+    const channel = channelOf.get(agent.id)
+    if (channel === undefined) continue
+    named.push({ node: agent.id, file: agent.file })
+    if (agent.session === null) continue
+    const pair = `${agent.engine}/${agent.session}`
+    if (claimed.has(pair)) continue
+    claimed.add(pair)
+    binds.push({
+      node: agent.id,
+      file: agent.file,
+      title: agent.title,
+      channel,
+      engine: agent.engine,
+      session: agent.session,
+    })
+  }
+
+  return { binds, named, trim: DEFAULT_TRIM }
 }
 
-/** Does this conversation match the bind? No bind matches nothing. */
-export const boundTo = (
-  bind: MirrorBind | null,
+/** The bind for this conversation, or nothing — a chat no node agent
+ *  claims, or a node agent with no `xyne-channel`. */
+export const bindOf = (
+  reading: SpacesReading,
   agent: string,
   session: string,
-): boolean => {
-  if (bind === null) return false
-  if (bind.agent !== null && bind.agent !== agent) return false
-  if (bind.session !== null && bind.session !== session) return false
-  return true
-}
+): ChannelBind | undefined =>
+  reading.binds.find((bind) => bind.engine === agent && bind.session === session)
+
+export { AGENT_PROP }

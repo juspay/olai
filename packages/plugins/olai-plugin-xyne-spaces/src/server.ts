@@ -3,7 +3,8 @@
  * about it lives.
  *
  * Watch-only: this half posts, updates, and signals progress. It declares no
- * `wake` and no probe. Binding is the config file, not the doorbell picker.
+ * `wake` and no probe. Binding is `xyne-channel` on a node agent, not a
+ * sidecar file and not the doorbell picker.
  * Faults still go INTO the bound conversation through `deliveries.deliver`,
  * which is the doorbell fault pattern and does not need a wake declaration.
  *
@@ -14,23 +15,17 @@
 
 import type { ImplementSurfaceDeps } from "@kolu/surface/server"
 import { inMemoryStore } from "@kolu/surface/server"
-import {
-  conventionServed,
-  type Convention,
-  type Derived,
-  type OutlineSet,
-} from "@olai/format"
+import { type Derived, type OutlineSet } from "@olai/format"
 import { Effect } from "effect"
 
 import { makeClient, originOf, type Dial } from "./client.ts"
 import {
-  boundTo,
+  bindOf,
   DEFAULT_TRIM,
   spacesConfigIn,
-  spacesFileIn,
   type SpacesReading,
 } from "./config.ts"
-import { recordOf, snapshotOf } from "./hold.ts"
+import { recordAll, snapshotsOf } from "./hold.ts"
 import { laneOf, makeMirror, skipHeartbeat, unconfiguredBody, type Mirror } from "./mirror.ts"
 import {
   name,
@@ -170,9 +165,8 @@ export const serve = (services: Services): {
   const env = linkFromEnv(services.env, services.now())
   let current: SpacesLink = env.link
   let linkCell: { set: (value: SpacesLink) => void } | undefined
-  let file: Convention | undefined
-  let reading: SpacesReading = { bind: null, trim: DEFAULT_TRIM, malformed: [] }
-  let mirror: Mirror | undefined
+  let reading: SpacesReading = { binds: [], named: [], trim: DEFAULT_TRIM }
+  const mirrors = new Map<string, Mirror>()
   let lastBound: { agent: string; session: string } | undefined
   let chain = Promise.resolve()
 
@@ -206,12 +200,15 @@ export const serve = (services: Services): {
 
   const missingEnv = env.url === null || env.token === null
 
-  const boundFile = (): string => file?.file ?? "_olai/XyneSpaces.olai"
+  const namedWhere = (): string => {
+    const one = reading.named[0]
+    return one === undefined ? "a node agent" : `${one.file} node \`${one.node}\``
+  }
 
-  /** Bind without env is a FAULT: the user named a channel. Quiet
-   *  `absent` is only for a machine that never did. */
+  /** A node agent with xyne-channel and no env is a FAULT: the user named
+   *  a channel. Quiet `absent` is only for a machine that never did. */
   const sayUnconfigured = (): string => {
-    const body = unconfiguredBody(env.link.where, boundFile(), services.now())
+    const body = unconfiguredBody(env.link.where, namedWhere(), services.now())
     const why = body.split("\n")[0] ?? body
     if (current.status !== "fault" || current.why !== why) {
       paint({
@@ -225,21 +222,24 @@ export const serve = (services: Services): {
     return body
   }
 
-  const ensureMirror = (): Mirror | null => {
+  const ensureMirror = (channel: string): Mirror | null => {
     if (env.url === null || env.token === null) return null
-    const channel = reading.bind?.channel
-    if (channel === undefined) return null
-    if (mirror !== undefined) return mirror
+    const existing = mirrors.get(channel)
+    if (existing !== undefined) return existing
     const client = makeClient(env.url, env.token, services.dial as Dial | undefined)
-    const loaded = snapshotOf(services.held.load())
-    mirror = makeMirror({
+    const loaded = snapshotsOf(services.held.load()).get(channel)
+    const mirror = makeMirror({
       client,
       channel,
       now: services.now,
       onRecovered: () => paint(connected()),
       hold: {
-        load: () => loaded !== undefined && loaded.channel === channel ? loaded : undefined,
-        save: (held) => services.held.save(recordOf(held)),
+        load: () => loaded,
+        save: (held) => {
+          const next = snapshotsOf(services.held.load())
+          next.set(held.channel, held)
+          services.held.save(recordAll(next))
+        },
       },
       deliverFault: (body, coalesce) => {
         if (coalesce === "fault") {
@@ -254,14 +254,16 @@ export const serve = (services: Services): {
         deliverFault(body, coalesce)
       },
     })
+    mirrors.set(channel, mirror)
     return mirror
   }
 
   const onSeen = (event: ConversationSeen): void => {
-    if (!boundTo(reading.bind, event.agent, event.session)) return
+    const bind = bindOf(reading, event.agent, event.session)
+    if (bind === undefined) return
     lastBound = { agent: event.agent, session: event.session }
     if (event.kind === "delivered" && event.from === name) return
-    const held = ensureMirror()
+    const held = ensureMirror(bind.channel)
     if (held === null) {
       deliverFault(sayUnconfigured(), "fault")
       return
@@ -303,28 +305,17 @@ export const serve = (services: Services): {
     },
     published: () => {},
     revision: (revision) => {
-      file = conventionServed(spacesFileIn, revision.value.set, revision, file)
-      const next = spacesConfigIn(revision.value.derived.nodes, file.file ?? null)
-      for (const line of next.malformed) {
-        if (!reading.malformed.includes(line)) services.warn(line)
-      }
-      const channelChanged = next.bind?.channel !== reading.bind?.channel
-      reading = next
-      if (channelChanged) {
-        mirror?.stop()
-        mirror = undefined
-      }
+      reading = spacesConfigIn(revision.value.derived)
       if (missingEnv) {
-        if (next.bind !== null) deliverFault(sayUnconfigured(), "fault")
+        if (reading.named.length > 0) deliverFault(sayUnconfigured(), "fault")
         else if (current.status !== "absent") paint(env.link)
       }
     },
     link: () => current,
     unloaded: () => {
       stop()
-      mirror?.stop()
-      file = undefined
-      mirror = undefined
+      for (const mirror of mirrors.values()) mirror.stop()
+      mirrors.clear()
     },
   }
 }

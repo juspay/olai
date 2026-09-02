@@ -1,110 +1,73 @@
 /**
- * The vault half of the Spaces mirror: `_olai/XyneSpaces.olai`, the finder, the
- * bind, the trim knob.
+ * The vault half: `xyne-channel` on a node agent, joined to `agent-session`.
  */
 
-import { nodesOfFiles } from "@olai/format/testlib"
+import { readingOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
-import {
-  boundTo,
-  DEFAULT_TRIM,
-  spacesConfigIn,
-  spacesFileIn,
-} from "./config.ts"
+import { AGENT_PROP, bindOf, CHANNEL_PROP, DEFAULT_TRIM, spacesConfigIn } from "./config.ts"
 
-const rec = (
-  title: string,
-  fields: Record<string, string>,
-  id = title,
-  ord = "a0",
-): string =>
-  `{"id":${JSON.stringify(id)},"ord":${JSON.stringify(ord)},"title":${JSON.stringify(title)}${
-    Object.keys(fields).length === 0 ? "" : `,"custom":${JSON.stringify(fields)}`
+const rec = (id: string, title: string, fields: Record<string, string>): string =>
+  `{"id":${JSON.stringify(id)},"ord":"a0","title":${JSON.stringify(title)},"custom":${
+    JSON.stringify(fields)
   }}`
 
-const setOf = (files: Record<string, string>, file?: string) =>
-  spacesConfigIn(
-    nodesOfFiles(files),
-    file === undefined ? (spacesFileIn(Object.keys(files)) ?? null) : file,
-  )
+const reading = (files: Record<string, string>) =>
+  spacesConfigIn(readingOf(setOf(files)).derived)
 
-test("the finder names the file by basename and case-folded, shallowest first", () => {
-  expect(
-    spacesFileIn([
-      "notes/xynespaces.olai",
-      "_olai/XyneSpaces.olai",
-      "mocca.olai",
-    ]),
-  ).toBe("_olai/XyneSpaces.olai")
-})
-
-test("the finder names nothing a spaces file does not answer to", () => {
-  expect(spacesFileIn(["mocca.olai", "_olai/Kolu.olai"])).toBeUndefined()
-})
-
-test("a set with no XyneSpaces.olai binds nothing and trims at the default", () => {
-  const reading = setOf({
-    "_olai/Pins.olai": `{"id":"p","ord":"a0","title":"the shelf"}`,
-  })
-  expect(reading.bind).toBeNull()
-  expect(reading.trim).toBe(DEFAULT_TRIM)
-  expect(reading.malformed).toEqual([])
-})
-
-test("a mirror node with a channel binds that channel", () => {
-  const reading = setOf({
-    "_olai/XyneSpaces.olai": rec("mirror", {
-      channel: "ch-team-olai",
-      agent: "claude",
-      session: "s-1",
+test("a node agent with xyne-channel and a session is bound", () => {
+  const got = reading({
+    "board.olai": rec("orch", "orchestrator", {
+      [AGENT_PROP]: "claude:s-1",
+      [CHANNEL_PROP]: "ch-team",
     }),
   })
-  expect(reading.bind).toEqual({
-    channel: "ch-team-olai",
-    agent: "claude",
+  expect(got.binds).toEqual([{
+    node: "orch",
+    file: "board.olai",
+    title: "orchestrator",
+    channel: "ch-team",
+    engine: "claude",
     session: "s-1",
+  }])
+  expect(bindOf(got, "claude", "s-1")?.channel).toBe("ch-team")
+  expect(bindOf(got, "claude", "other")).toBeUndefined()
+  expect(got.trim).toBe(DEFAULT_TRIM)
+})
+
+test("a node agent with xyne-channel and no session is named, and posts nothing", () => {
+  const got = reading({
+    "board.olai": rec("orch", "orchestrator", {
+      [AGENT_PROP]: "claude",
+      [CHANNEL_PROP]: "ch-team",
+    }),
   })
+  expect(got.named).toEqual([{ node: "orch", file: "board.olai" }])
+  expect(got.binds).toEqual([])
 })
 
-test("a mirror without agent or session binds every conversation on that channel", () => {
-  const reading = setOf({
-    "_olai/XyneSpaces.olai": rec("mirror", { channel: "ch-team-olai" }),
+test("xyne-channel on a node that is not a node agent is ignored", () => {
+  const got = reading({
+    "board.olai": rec("note", "a note", { [CHANNEL_PROP]: "ch-team" }),
   })
-  expect(reading.bind).toEqual({
-    channel: "ch-team-olai",
-    agent: null,
-    session: null,
+  expect(got.named).toEqual([])
+  expect(got.binds).toEqual([])
+})
+
+test("a node agent without xyne-channel is not bound", () => {
+  const got = reading({
+    "board.olai": rec("orch", "orchestrator", { [AGENT_PROP]: "claude:s-1" }),
   })
-  expect(boundTo(reading.bind, "claude", "s-1")).toBe(true)
-  expect(boundTo(reading.bind, "opencode", "other")).toBe(true)
+  expect(got.binds).toEqual([])
+  expect(bindOf(got, "claude", "s-1")).toBeUndefined()
 })
 
-test("an agent-only bind matches that agent's sessions and no other agent's", () => {
-  const bind = { channel: "ch", agent: "claude", session: null }
-  expect(boundTo(bind, "claude", "s-1")).toBe(true)
-  expect(boundTo(bind, "claude", "s-2")).toBe(true)
-  expect(boundTo(bind, "opencode", "s-1")).toBe(false)
-})
-
-test("no bind matches nothing", () => {
-  expect(boundTo(null, "claude", "s-1")).toBe(false)
-})
-
-test("a digest trim is a positive integer, and a bad one defaults and is said", () => {
-  const ok = setOf({
-    "_olai/XyneSpaces.olai": [
-      rec("mirror", { channel: "ch" }),
-      rec("digest", { trim: "240" }, "digest", "a1"),
+test("the first node wins where two name one session", () => {
+  const got = reading({
+    "board.olai": [
+      rec("a", "first", { [AGENT_PROP]: "claude:s-1", [CHANNEL_PROP]: "ch-a" }),
+      rec("b", "second", { [AGENT_PROP]: "claude:s-1", [CHANNEL_PROP]: "ch-b" }),
     ].join("\n"),
   })
-  expect(ok.trim).toBe(240)
-  expect(ok.malformed).toEqual([])
-
-  const bad = setOf({
-    "_olai/XyneSpaces.olai": rec("digest", { trim: "plenty" }),
-  })
-  expect(bad.trim).toBe(DEFAULT_TRIM)
-  expect(bad.malformed.length).toBe(1)
-  expect(bad.malformed[0]).toContain("trim: plenty")
+  expect(got.binds.map((bind) => bind.channel)).toEqual(["ch-a"])
 })

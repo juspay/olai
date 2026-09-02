@@ -65,3 +65,28 @@ export const recordOf = (held: HeldSnapshot): Record<string, unknown> => ({
   queue: held.queue,
   droppedTotal: held.droppedTotal,
 })
+
+/** Every channel's snapshot, so two node agents naming two channels
+ *  cannot clobber each other's threads. A record that is still the
+ *  one-channel shape is one entry. */
+export const snapshotsOf = (
+  raw: Record<string, unknown> | null,
+): Map<string, HeldSnapshot> => {
+  const map = new Map<string, HeldSnapshot>()
+  if (raw === null) return map
+  if (Array.isArray(raw.mirrors)) {
+    for (const row of raw.mirrors) {
+      if (row === null || typeof row !== "object") continue
+      const one = snapshotOf(row as Record<string, unknown>)
+      if (one !== undefined) map.set(one.channel, one)
+    }
+    return map
+  }
+  const one = snapshotOf(raw)
+  if (one !== undefined) map.set(one.channel, one)
+  return map
+}
+
+export const recordAll = (held: ReadonlyMap<string, HeldSnapshot>): Record<string, unknown> => ({
+  mirrors: [...held.values()].map(recordOf),
+})
