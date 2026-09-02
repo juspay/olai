@@ -31,7 +31,11 @@ import { expect, test } from "bun:test"
 import { Context } from "cordis"
 
 import { declaredKinds, ROWS } from "./bundle.ts"
-import { WIRES } from "./surfaces.ts"
+import { type ServerHalf, serverHalves } from "./tree.testlib.ts"
+
+/** The real roster, LOADED — see `./composition.test.ts` for why a test loads
+ *  what no door imports. */
+const WIRES: ReadonlyArray<ServerHalf> = await serverHalves()
 
 const kind = (word: string): PropKind => ({
   kind: word,

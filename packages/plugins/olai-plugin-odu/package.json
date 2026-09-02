@@ -10,6 +10,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./wire": "./src/wire.ts",
+    "./browser": "./src/browser.tsx",
     "./server": "./src/server.ts",
     "./testids": "./src/testids.ts",
     "./all.css": "./src/browser/all.css"

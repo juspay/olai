@@ -22,9 +22,9 @@
       },
       "branch": "live-bundle",
       "submodules": false,
-      "revision": "a8b0e9d4a66bb449b9e29410954aa950faeacc9b",
-      "url": "https://github.com/juspay/kolu/archive/a8b0e9d4a66bb449b9e29410954aa950faeacc9b.tar.gz",
-      "hash": "sha256-MmcArA+3MTykZo05tauOEOdI+GdUj9uWK6+fgD6DUSM="
+      "revision": "b2e8be0d27772bd82a7d5320f373952ac3f89ce7",
+      "url": "https://github.com/juspay/kolu/archive/b2e8be0d27772bd82a7d5320f373952ac3f89ce7.tar.gz",
+      "hash": "sha256-4VRVHWYDIRU01y6GupUNfRKOrmamjQRuyWmfXMq/iBI="
     },
     "nixpkgs": {
       "type": "Git",

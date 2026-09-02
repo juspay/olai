@@ -158,11 +158,13 @@ import type { Entry } from "./drawer.ts"
 import { type Door, doorFor } from "./door.ts"
 
 import { type BlockChrome, layOut } from "../live/seam.ts"
-import { createRunning } from "../plugins/running.ts"
-// ...and the app's dressings, installed. A side-effect import, which is what
-// "these are the faces this app has" looks like when each folder registers
-// itself (`../live/dressings.ts` argues the whole arrangement).
-import "../live/dressings.ts"
+// ...and what dresses each live property, as a LOOKUP rather than a side
+// effect. It used to be `import "../live/dressings.ts"` with no binding —
+// "these are the faces this app has", said by an import that installed a table
+// somewhere else. There is no table to install now: a plugin registers its own
+// faces from its own fiber, and that module joins the three slots into the one
+// question the seam asks (`../live/dressings.ts` argues the whole arrangement).
+import { DRESSINGS } from "../live/dressings.ts"
 import { Handle } from "./handle.tsx"
 import { type ClosedBy, type Editing, leavingCommits, openedOn, sending, writes } from "./editor.ts"
 import { Link } from "../router.tsx"
@@ -324,24 +326,21 @@ export function PropsDrawer(props: {
    * otherwise wear a face — one text box for every property in the vault,
    * which is what stops each new dressing from growing its own.
    */
-  const running = createRunning()
-  // BOTH LICENCES ARE REACTIVE, which is why they are read inside the memo
-  // rather than captured. The roster arrives on a cell after the wire is up, so
-  // a tab draws the built-in default for an instant and then whatever the serve
-  // said; the page's answers arrive on the page's own frames. A predicate
-  // captured once would pin the first answer of either.
+  // BOTH READINGS ARE REACTIVE, which is why they are inside the memo rather
+  // than captured. The dressing table moves when a plugin arrives or leaves —
+  // the tab follows the server's roster now — and the page's answers arrive on
+  // the page's own frames. Either one captured once would pin whichever answer
+  // this component happened to be built on.
   //
-  // THE PAGE'S LICENCE ASKS ABOUT A VALUE and the roster's asks about a PLUGIN —
-  // `./live/seam.ts` says why a face wants both. `props.from` is spent here, the
-  // same fact `doorOf` spends one memo up, so the seam never learns that a page
-  // has files in it.
+  // `props.from` is spent here, the same fact `doorOf` spends one memo up, so
+  // the seam never learns that a page has files in it.
   const licences = useLicences()
   const laid = createMemo(() =>
     layOut(
       props.entries,
       editing()?.key,
-      running(),
       (key, value) => licences()(props.from, key, value),
+      DRESSINGS,
     )
   )
 

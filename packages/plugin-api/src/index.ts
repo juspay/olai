@@ -71,25 +71,38 @@ export type {
   Wake,
   Watching,
 } from "./contract.ts"
-export { enabled, isEnabled, KIND_SEPARATOR, kindWordOf } from "./contract.ts"
+export {
+  enabled,
+  exposeMapsOf,
+  isEnabled,
+  KIND_SEPARATOR,
+  kindWordOf,
+  surfacesOf,
+} from "./contract.ts"
 export type {
   AppClocks,
-  AppFurniture,
   AppPopover,
   BlockChrome,
   BlockContext,
   ChipContext,
-  Chrome,
-  ChromeFace,
-  Dressing,
   FileLink,
   JSX,
-  OlaiPlugin,
   PillLook,
   PluginMark,
-  PluginMount,
   PropBlock,
   PropChip,
   PropEntry,
   PropPane,
 } from "./plugin.ts"
+/** THE RUNTIME A BROWSER HALF INSTALLS ITSELF INTO — the seven slots and the
+ *  four services, beside the shapes above that say what a face drawn into one
+ *  is handed. Both come through this door because both are what a browser half
+ *  is written against, and neither is reachable from `./services.ts`. */
+export type {
+  Hung,
+  KindSlot,
+  PluginSlot,
+  SlotFaces,
+  SlotName,
+} from "./browser.ts"
+export { Bar, Clocks, Links, SLOTS, Slots, Wired } from "./browser.ts"

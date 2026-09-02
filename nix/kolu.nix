@@ -53,7 +53,7 @@
 # their runtimes silently.
 #
 #   branch    live-bundle
-#   revision  a8b0e9d4 — the head of juspay/kolu#2223, which is a DRAFT
+#   revision  b2e8be0d — the head of juspay/kolu#2223, which is a DRAFT
 #
 # A branch whose head can still move under a merge, a rebase or an amendment is
 # a pin that would change what this tree compiles against with no diff to show

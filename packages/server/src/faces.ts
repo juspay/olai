@@ -60,7 +60,7 @@ import {
   type FaceExposure,
 } from "@kolu/surface/expose"
 import type { SurfaceMap } from "@kolu/surface/server"
-import { exposeMapsOf, type PluginWire, surfacesOf } from "@olai/bundle/wire"
+import { exposeMapsOf, type PluginWire, surfacesOf } from "@olai/plugin-api"
 
 /**
  * The MCP adapter's allowlist — what an agent may SEE.

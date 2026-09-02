@@ -23,12 +23,13 @@
  * overlay over rows rather than a filter in code, and is the seam
  * `--dump-config` and `olai plugin add` land on later.
  *
- * {@link ROWS} reads the same file for the one question that has to be answered
- * BEFORE anything is mounted: which modules this BUILD has. The vault's
- * vocabulary needs it — a declaration of `kolu-terminal` stays legal on a serve
- * running only odu, so a file's verdict does not depend on a flag it cannot see
- * — and a disabled row is never imported by the loader, so its words have to be
- * read some other way. Two readings of one file, never two lists.
+ * The other reader is `../generate.ts`, at BUILD time, which writes the rows
+ * out as data (`./rows.ts`) for the one question that has to be answered before
+ * anything is mounted: which modules this BUILD has. The vault's vocabulary
+ * needs it — a declaration of `kolu-terminal` stays legal on a serve running
+ * only odu, so a file's verdict does not depend on a flag it cannot see — and a
+ * disabled row is never imported by the loader, so its words have to be read
+ * some other way. Two readings of one file, never two lists.
  *
  * ## The resolver, and why it is in THIS file
  *
@@ -68,84 +69,35 @@ import Loader from "@cordisjs/plugin-loader"
 import type { EntryOptions } from "@cordisjs/plugin-loader"
 import type { PropKind } from "@olai/plugin-api"
 import { kindWordOf } from "@olai/plugin-api"
+import { BUNDLE_NAMES, ROWS } from "./rows.ts"
 import type { Context, Fiber } from "cordis"
 import { FiberState } from "cordis"
-import { load } from "js-yaml"
-import { readFileSync } from "node:fs"
-import { fileURLToPath } from "node:url"
 
-/**
- * ONE ROW of the base bundle.
- *
- * `id` IS the plugin's name — the sibling key, the word `--plugins` takes, the
- * row preferences draws, and the word the fiber is bound under, which is the
- * stamp `ctx.deliveries` and `ctx.kinds` read off `ctx.fiber.name`. `name` is
- * the module the loader mounts, and it is deliberately a SPECIFIER rather than
- * an import: that is what makes a plugin's presence a runtime fact.
- *
- * `disabled` is the row's OWN default, and it is the file's rather than a
- * field on a manifest. A plugin that needs a secret this machine may not have
- * is off until `--plugins` names it, and saying so in the row means the built-in
- * default and the operator's override are the same mechanism — one `disabled`,
- * written by the file or written by the patch.
- */
-export interface BundleRow {
-  readonly id: string
-  readonly name: string
-  readonly disabled?: boolean
-}
-
-
-/** Where the rows live, as a URL — the loader's `baseUrl` and the file this
- *  module reads, spelled once so the two cannot point at different files. */
+/** Where the rows live, as a URL — the loader's `baseUrl` and the file Include
+ *  reads, spelled once so the two cannot point at different files. */
 const BASE_URL = new URL(".", import.meta.url).href
 
 /** The path Include is given, relative to {@link BASE_URL}. */
 const BUNDLE = "../olai.yml"
 
 /**
- * EVERY PLUGIN THIS BUILD HAS, in bundle order.
+ * THE ROWS AND THE NAME LISTS ARE `./rows.ts`'S NOW, and this file re-exports
+ * them because every caller that mounts also wants at least one of them.
  *
- * Read at module load, synchronously, because every caller wants it before
- * anything is mounted — the flag that refuses an unknown name, the roster's
- * `built` rows, and the vocabulary of words a vault may declare. A file that
- * will not parse is a build that cannot say what it has, so it throws here
- * rather than composing an empty bundle quietly.
- */
-export const ROWS: ReadonlyArray<BundleRow> = readRows()
-
-function readRows(): ReadonlyArray<BundleRow> {
-  const file = fileURLToPath(new URL(BUNDLE, BASE_URL))
-  const parsed = load(readFileSync(file, "utf8"))
-  if (!Array.isArray(parsed)) {
-    throw new Error(`bundle: ${file} is not a list of rows`)
-  }
-  return parsed.map((row: unknown, at: number) => {
-    const one = row as Partial<BundleRow>
-    if (typeof one?.id !== "string" || typeof one?.name !== "string") {
-      throw new Error(`bundle: row ${at} of ${file} needs an \`id\` and a \`name\``)
-    }
-    return { id: one.id, name: one.name, ...(one.disabled === true ? { disabled: true } : {}) }
-  })
-}
-
-/** Every plugin's name, in bundle order — the words `--plugins` takes, the rows
- *  preferences draws, and the set an unknown name is refused against. The same
- *  list `@olai/bundle/wire`'s `PLUGIN_NAMES` answers off the browser's door, and
- *  `./rosters.test.ts` holds them equal. */
-export const BUNDLE_NAMES: ReadonlyArray<string> = ROWS.map((row) => row.id)
-
-/**
- * ...AND WHAT OMITTING THE FLAG RUNS, which is not necessarily all of them.
+ * They used to be parsed HERE, at module load, out of the same `.yml` Include
+ * reads at mount — "two readers of one file, never two lists", which was the
+ * honest shape while nothing else was generated. It is not the honest shape any
+ * more: the browser's rows and two more doors are written from that file at
+ * build time (`../generate.ts`), so the rows are already available as data, and
+ * a second parse here would put `node:fs` and a YAML parser on the graph of a
+ * door whose other job is to name plugins for a docs sweep and a tab.
  *
- * A row that carries its own `disabled` is opt-in: off until `--plugins` names
- * it. That is the built-in default living in the file the loader reads rather
- * than in a field on a manifest, which is what lets the flag and the default be
- * ONE mechanism — a `disabled` written by the row, or a `disabled` written by
- * the patch.
+ * ONE SOURCE, still. The generator reads `olai.yml`; Include reads `olai.yml`
+ * itself at mount, which is what keeps `--plugins` a PATCH over rows rather
+ * than a filter in code. What is gone is the second parse, not the second
+ * reader.
  */
-export const DEFAULT_BUNDLE_NAMES: ReadonlyArray<string> = ROWS
-  .flatMap((row) => row.disabled === true ? [] : [row.id])
+export { BUNDLE_NAMES, type BundleRow, DEFAULT_BUNDLE_NAMES, ROWS } from "./rows.ts"
 
 /**
  * `--plugins`, AS A PATCH — the overlay an operator's flag writes over the rows.

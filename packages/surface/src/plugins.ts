@@ -312,3 +312,31 @@ export const watchable = (kinds: ReadonlyArray<string>, file: string): boolean =
  * makes for seeding the git cell with the setting face rather than the fault.
  */
 export const NO_ROSTER: PluginRoster = { built: [], pinned: null }
+
+/**
+ * TWO ROSTERS THAT SAY THE SAME THING ARE ONE — and this cell needs an `equals`
+ * now, where for its whole life it did not.
+ *
+ * It moved at most once per serve: the flag was read at the composition root
+ * and nothing afterwards could change what it said, so a republish was a thing
+ * that never happened and an `equals` would have been dead weight with a
+ * comment explaining why it was there.
+ *
+ * That stopped being true in two steps. A plugin is a FIBER, so the roster is
+ * republished from the re-compose — every register and every dispose — and the
+ * word on a row is read live. And the TAB now MOVES on it: a roster change is a
+ * `redial`, which builds a new wire, tears down every standing subscription on
+ * the old one and rebuilds the page's whole tree. A republish that carries the
+ * identical value would do all of that for nothing, and it is not a rare case:
+ * a reconnect republishes, and so does any re-compose that ended where it
+ * started.
+ *
+ * `Schema.toEquivalence` rather than a hand-written walk, for the reason every
+ * other `equals` on this spec takes it: the shape is the schema's, so a
+ * comparison written out here would be a second reading of it, free to miss the
+ * field somebody adds. The optional keys are part of that — a row whose `state`
+ * moved from `waiting` to `running` is a different roster, and a hand-rolled
+ * comparison of `name` and `running` would have called it the same one.
+ */
+export const sameRoster: (a: PluginRoster, b: PluginRoster) => boolean = Schema
+  .toEquivalence(PluginRoster)

@@ -72,8 +72,8 @@ import { Flag } from "effect/unstable/cli"
  * override are one mechanism, and a `defaultOn` on the wire half beside it
  * would be the same fact in two places for a `--help` line to disagree with.
  */
-import { DEFAULT_BUNDLE_NAMES } from "@olai/bundle/bundle"
-import { PLUGIN_NAMES } from "@olai/bundle/wire"
+import { DEFAULT_BUNDLE_NAMES } from "@olai/bundle"
+import { BUNDLE_NAMES as PLUGIN_NAMES } from "@olai/bundle"
 
 /**
  * What `--plugins` says for itself.
@@ -162,4 +162,4 @@ export const pluginsPin = (given: string | null): ReadonlyArray<string> | null =
 /** The built-in list, re-exported beside the flag that declines to apply it —
  *  so a reader of this file can see what "nobody said" comes to without going
  *  a package down. The same courtesy `./gitPolicy.ts` ends with. */
-export { PLUGIN_NAMES } from "@olai/bundle/wire"
+export { BUNDLE_NAMES as PLUGIN_NAMES } from "@olai/bundle"

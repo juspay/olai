@@ -32,4 +32,3 @@
  */
 
 export { faces, name, surface } from "./wire.ts"
-export { plugin } from "./plugin.ts"

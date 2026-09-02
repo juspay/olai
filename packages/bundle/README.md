@@ -6,7 +6,7 @@ That residue is not sloppiness. It is the part that genuinely was **olai's own j
 
 ## A plugin is two halves
 
-The BROWSER half is a value — [`@olai/plugin-api`](../plugin-api/README.md)'s `OlaiPlugin`, listed by [`src/registry.ts`](src/registry.ts). The SERVER half is a Cordis plugin, named by a row in [`olai.yml`](olai.yml) and mounted by the loader. Between them a plugin contributes:
+BOTH HALVES ARE CORDIS PLUGINS — `name`, `inject`, `apply(ctx)` — named by one row in [`olai.yml`](olai.yml): the server's is mounted by the loader, the browser's is fetched as its own chunk when the roster names it. The browser half used to be a VALUE, an `OlaiPlugin` manifest listed in a compiled-in registry. The object could not survive the tab following the roster: a manifest is present whether or not the serve composed the plugin, so every walk over it carried a LICENCE beside it — and the two licences pointed opposite ways (a face drawn early and taken away is a flicker; a subscription opened early latches a `degraded` readout for the life of the page). A fiber the roster never named registers nothing, so there is nothing left to license. Between them a plugin contributes:
 
 | | what it is | where |
 | --- | --- | --- |
@@ -19,10 +19,11 @@ The BROWSER half is a value — [`@olai/plugin-api`](../plugin-api/README.md)'s 
 | `ctx.surfaces.register` | the sibling, its faces, the deps that implement it, and an optional hand-back for its own write face | `./server` |
 | `ctx.wakes.register` | what the strip's doorbell control says, and the two sentences a broken scope is owed | `./server` |
 | `chat/session-start` | find the tool, and say in **whole sentences** what a chat session is owed when it is not here. Absence is a **state**, not an error. On the server half for a sharp reason: a probe starts a subprocess | `./server` |
-| `dressings` | what a live property wears in the browser — a chip beside the value, the pane it opens, or a block that owns a row. Looked up by the declared **kind**, the same word `PropKind` contributes: the page carries the licence as an answer per drawn value, so the browser follows the declaration without one ever travelling | manifest |
-| `chrome` | a header readout in the app's bar, and the drawer its press opens | manifest |
-| `mount` | the tab's own half, wrapped around the page once — one subscription however many leaves draw | manifest |
-| `mark` | the plugin's FACE: the shapes drawn over a sentence it delivered into a conversation. The chat panel names the speaker of every run of messages and looks this up by the name core stamped on the row, so a plugin arrives wearing its own face and no general package holds a table of them. Takes no argument at all — a mark is a glyph at the size of the line it sits on — and answers with a `<g>` in a `0 0 16 16` box, because the marks are read as a column and the app owns the size | manifest |
+| `ctx.slots.register` | WHERE A FACE HANGS: seven declared slots, keyed by the plugin (`app.header`, `app.drawer`, `app.mount`, `chat.speaker.mark`) or by a property KIND (`outline.row.chip`, `.pane`, `.block`). Each registration is an `ctx.effect`, so a plugin the roster stops naming unwinds its own faces | `./browser` |
+| the DRESSINGS | what a live property wears in the browser — a chip beside the value, the pane it opens, or a block that owns a row — registered into the three kind-keyed slots. Looked up by the declared **kind**, the same word `PropKind` contributes: the page carries the licence as an answer per drawn value, so the browser follows the declaration without one ever travelling | `./browser` |
+| the CHROME | a header readout in the app's bar, and the drawer its press opens | `./browser` |
+| the MOUNT | the tab's own half, wrapped around the page once — one subscription however many leaves draw | `./browser` |
+| the MARK | the plugin's FACE: the shapes drawn over a sentence it delivered into a conversation. The chat panel names the speaker of every run of messages and looks this up by the name core stamped on the row, so a plugin arrives wearing its own face and no general package holds a table of them. Takes no argument at all — a mark is a glyph at the size of the line it sits on — and answers with a `<g>` in a `0 0 16 16` box, because the marks are read as a column and the app owns the size | `./browser` |
 
 Everything but the name and the surface is optional, and the absent arm of each is the state a machine without the tool already shows.
 
@@ -49,10 +50,12 @@ A first attempt put a separator inside **member names** instead, and the way it 
 [`src/registry.ts`](src/registry.ts) lists the manifests and [`src/surfaces.ts`](src/surfaces.ts) lists the wire halves, both with static imports and `as const` literals. Those two have to be source files: the framework infers a surface spec as a **literal**, and a list assembled at runtime widens every member to its base type and takes with it the `arrayKey` a browser's merge reads, the `equals` a quiet frame rests on, the read-only narrowing of `verbs`, and every typed accessor a client has. They are also the BROWSER's, and a browser bundle is built ahead of time with no loader in the tab.
 
 A third party adding a plugin therefore still rebuilds olai. That is one step smaller than it was — the server's half of it is a row — and one phase from gone: `ctx.slots` retires the browser's two lists, and `olai plugin add` writes a row into a profile.
-
+## Two doors by graph, and two by name
 ## Three doors by graph, and two by name
 
-Three doors because three **graphs**, and nothing lands on a graph that has no use for it. What is behind them is no longer three arrays: the server's is a ROW, and the two that are still lists are the browser's. So a third plugin is one row plus two lines rather than three lines, and the cost still has a **lid** ([`src/rosters.test.ts`](src/rosters.test.ts)): the rows, `WIRES` and `PLUGINS` must hold the same plugins in the same order, and every row's `id` must be the name the module it mounts answers to — because a plugin added to two of them is a compile error nowhere, and a row whose `id` was not the plugin's own name would stamp its kinds, its sibling key and its delivery door with a word it does not answer to.
+Two doors because two **graphs** — and it was three. What is behind them is no longer three arrays and not even one: the SERVER's list is `olai.yml`, and the BROWSER's is [`generated from it`](generate.ts) at build time. So a third plugin is **one row**, and the lid that used to hold three lists equal (`src/rosters.test.ts`) is gone with the lists it was a monument to.
+
+The root door is where the collapse happened, and the graph got EMPTIER rather than fuller: it is one row per plugin carrying a dynamic `import()` of that plugin's browser half, so nothing behind it statically imports a plugin, each plugin is its own **chunk**, and a chunk is fetched only when the roster names it. That is the browser's exact twin of *no fiber, no surface, no handler*: a plugin this serve did not compose is not merely undrawn — it is never fetched, never evaluated and registers nothing. [`src/fence.test.ts`](src/fence.test.ts) holds both halves: the door names every plugin (in a literal specifier a bundler can split on) and crosses into none of them. What that buys is measurable — kolu's terminal emulator is a 344 KB chunk that a machine not running kolu never downloads.
 
 | door | who opens it | what it may carry |
 | --- | --- | --- |

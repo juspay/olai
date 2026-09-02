@@ -57,7 +57,10 @@
 import { Show } from "solid-js"
 import { Portal } from "solid-js/web"
 
-import type { AppFurniture, AppPopover, FileLink } from "@olai/plugin-api"
+import type { AppClocks, AppPopover, FileLink } from "@olai/plugin-api"
+import { Bar, Clocks, Links } from "@olai/plugin-api"
+
+import { ctx } from "./runtime.ts"
 
 import { styleOf } from "../anchor.ts"
 import { createTicking, MINUTE, SECOND } from "../clock.ts"
@@ -130,10 +133,21 @@ const panelPopover = (): AppPopover => {
   }
 }
 
-/** What every plugin's browser half is handed — see the header. */
-export const FURNITURE: AppFurniture = {
+/** THE APP'S CLOCK AND THE REGISTER IT TICKS IN, as `ctx.clocks` carries it. */
+export const CLOCKS: AppClocks = {
+  SECOND,
+  MINUTE,
+  createTicking,
+  createNow,
+  wordsOf,
+  exactOf,
+  tickingOf,
+}
+
+/** THE BAR — its breakpoint, its geometry and the panel that hangs off it, as
+ *  `ctx.bar` carries them. */
+export const BAR: Bar.Config = {
   desktop,
-  clocks: { SECOND, MINUTE, createTicking, createNow, wordsOf, exactOf, tickingOf },
   pill: {
     PILL,
     DOT,
@@ -145,5 +159,33 @@ export const FURNITURE: AppFurniture = {
     TEXT_ALARM,
   },
   createPopover: panelPopover,
-  FileLink: FileDoor,
+}
+
+/** ...and the door onto a served file, as `ctx.links` carries it. */
+export const LINKS: Links.Config = { File: FileDoor }
+
+/**
+ * ...AND THE THREE, MOUNTED — the one thing this module does rather than
+ * declares.
+ *
+ * They are hung here and not in `./runtime.ts` for a GRAPH reason and not a
+ * tidiness one. This file is a `.tsx`: `FileDoor` and the popover's panel are
+ * components. `./runtime.ts` is a `.ts` reached by `./marks.ts`, which is
+ * reached by the chat panel, which is imported by suites that run under a
+ * process with no Solid transform — so a static import of this module from
+ * there puts a JSX factory on the graph of a test that only wanted a lookup,
+ * and the failure is `Cannot find module 'react/jsx-dev-runtime'` at import
+ * time, which is the same hazard `@olai/bundle`'s three doors have always been
+ * about, one wall in.
+ *
+ * ORDER, said out loud: `./main.tsx` awaits this before it renders, and the
+ * roster cannot arrive before it — the first frame is a network round trip
+ * away. A plugin fiber that DID beat it would sit `PENDING` on the service it
+ * injects and start when it arrived, which is Cordis's own guarantee rather
+ * than something this ordering has to be careful about.
+ */
+export const provideFurniture = async (): Promise<void> => {
+  await ctx.plugin(Clocks, CLOCKS)
+  await ctx.plugin(Bar, BAR)
+  await ctx.plugin(Links, LINKS)
 }

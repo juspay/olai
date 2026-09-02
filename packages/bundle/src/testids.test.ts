@@ -17,7 +17,7 @@
 
 import { describe, expect, test } from "bun:test"
 
-import { PLUGIN_NAMES } from "./surfaces.ts"
+import { BUNDLE_NAMES as PLUGIN_NAMES } from "./rows.ts"
 import { PLUGIN_TESTID } from "./testids.ts"
 
 /**

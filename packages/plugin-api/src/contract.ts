@@ -399,6 +399,61 @@ export interface PluginWire {
   readonly faces: Readonly<Record<string, Readonly<Record<string, unknown>>>>
 }
 
+/**
+ * THE SIBLING MAP — what `composeSurfaceContracts`, `implementRootedSurfaces`,
+ * `exposeRootedFaces` and `connectSurfaces` all take, out of whatever list of
+ * plugin halves the caller is holding.
+ *
+ * Keyed by the plugin's own name, which IS the wire prefix: a member declared
+ * `fleet` in `olai-plugin-kolu` is `surface/kolu/fleet/get` on the wire, and
+ * nothing computed that string but the framework.
+ *
+ * ## Why it lives on the SHARED CONTRACT and not in the registry
+ *
+ * It was `@olai/bundle`'s, beside a compiled-in `WIRES` it was nearly always
+ * called on — which made it look like a reading of the registry. It never was:
+ * both callers today hand it a list they got somewhere else (the SERVE hands it
+ * what its fibers registered, the TAB hands it what the roster told it to
+ * load), and neither of them can reach a registry. What is left in the registry
+ * is the ROWS; this is a reading of `PluginWire`, so it belongs beside
+ * `PluginWire`.
+ *
+ * A plugin left out of the list is simply ABSENT from the record — no tag, no
+ * handler, no expose row, no `surface/<name>/` on the wire at all — which is
+ * what makes "disabled means absent" a property of the caller's list rather
+ * than a mechanism anybody has to write.
+ */
+export const surfacesOf = (
+  plugins: ReadonlyArray<PluginWire>,
+): Record<string, PluginWire["surface"]> =>
+  Object.fromEntries(plugins.map((plugin) => [plugin.name, plugin.surface]))
+
+/**
+ * ...and the expose maps for ONE face, keyed the same way — what the gate takes
+ * beside the sibling map.
+ *
+ * One map per sibling rather than one map with dotted paths, which is the
+ * framework's own shape and its reason is worth keeping in view: a sibling's
+ * map is written against that sibling's own spec, which is what keeps the keys
+ * compiler-checked and what stops `"a.b"` meaning two things depending on
+ * whether `a` is a namespace or a sibling.
+ *
+ * A plugin that says nothing about this face is ABSENT from the result rather
+ * than present-and-empty, and the difference is the whole default-deny
+ * contract: the gate denies a sibling with no map in full, which is what a
+ * plugin that never mentioned the agent's face means.
+ */
+export const exposeMapsOf = (
+  plugins: ReadonlyArray<PluginWire>,
+  face: string,
+): Record<string, Readonly<Record<string, unknown>>> =>
+  Object.fromEntries(
+    plugins.flatMap((plugin) => {
+      const map = plugin.faces[face]
+      return map === undefined ? [] : [[plugin.name, map] as const]
+    }),
+  )
+
 
 /**
  * A PLUGIN-OWNED WORD, PREFIXED WITH THE PLUGIN'S NAME — the one composition,

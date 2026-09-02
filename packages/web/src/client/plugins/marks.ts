@@ -5,33 +5,35 @@
  * row with the plugin's NAME and nothing else (`@olai/surface`'s
  * `UserEntry.rang`). The panel draws such a row as a speaker in its own right
  * and every speaker there wears a mark — so this is the lookup from that name
- * to the shapes the plugin contributed (`@olai/plugin-api`'s `PluginMark`).
+ * to the shapes the plugin registered in the `chat.speaker.mark` slot.
  *
  * ## Why a lookup and not a table
  *
- * Because a table would have this file spelling "kolu", and `@olai/plugin-api`'s
- * `fence.test.ts` holds as an equality per package that no general package does
- * — which is not a formality: a mark is a drawing decision about a tenant, made
- * where somebody knows what the tenant IS, and a table here would be a core
- * file edited every time a plugin core has never heard of ships. So the shape
- * arrives on the manifest and this walk is the whole of core's part in it.
+ * Because a table would have this file spelling "kolu", and `@olai/bundle`'s
+ * `fence.test.ts` holds as an equality per package that no general package
+ * does — which is not a formality: a mark is a drawing decision about a tenant,
+ * made where somebody knows what the tenant IS, and a table here would be a
+ * core file edited every time a plugin core has never heard of ships.
  *
- * ## Why the roster and not the RUNNING roster
+ * ## What a mark for a plugin that is NOT running means now
  *
- * `./running.ts` gates the chrome and the dressings on what this serve actually
- * composed, because those faces are drawn speculatively — a readout for an
- * appliance the operator turned off would be a complaint about a daemon nobody
- * asked for. Nothing here is speculative. A `rang` row EXISTS because that
- * plugin ran and delivered a sentence, so the row is its own evidence, and a
- * mark withheld because a later readout says the plugin is not composed would
- * strip the face off a row that is manifestly there. (It is also the honest
- * answer for the seam in between: a plugin that has since stopped still said
- * this.)
+ * `undefined`, and the change is worth stating because it reverses an argument.
+ * This walk used to read the BUILD's manifests rather than the running set, on
+ * the grounds that a `rang` row is its own evidence: the plugin ran and
+ * delivered a sentence, so withholding its face because a later readout says it
+ * is not composed would strip the mark off a row that is manifestly there.
+ *
+ * That reasoning was sound and its premise is gone. A plugin the roster does
+ * not name has no fiber in this tab — its chunk was never fetched — so there is
+ * no mark to hold back and nothing to decide. A row rung by a plugin this serve
+ * has since stopped running draws the generic, which is the same bargain a row
+ * rung by a plugin a later build dropped already got, and is honest: this tab
+ * does not have that plugin's drawing.
  *
  * ## Why `undefined` rather than a fallback here
  *
  * The generic is a DRAWING — an svg the panel owns — and this module answers a
- * question about a manifest. Handing back a component either way would put
+ * question about the slot table. Handing back a component either way would put
  * core's own generic behind a function whose name says "the plugin's", and the
  * one bug this whole arrangement exists to prevent is a plugin appearing to
  * have contributed something it did not. The face picks
@@ -40,10 +42,9 @@
 
 import type { PluginMark } from "@olai/plugin-api"
 
-import { ROSTER } from "./roster.ts"
+import { hung } from "./runtime.ts"
 
-/** The mark this plugin contributed, or `undefined` — for a plugin that hangs
- *  none, and for a name no manifest in this build answers to (a conversation
- *  rung by a plugin a later build dropped). */
+/** The mark this plugin registered, or `undefined` — for a plugin that hangs
+ *  none, and for a name no plugin running in this tab answers to. */
 export const markOf = (name: string): PluginMark | undefined =>
-  ROSTER.find((plugin) => plugin.name === name)?.mark
+  hung("chat.speaker.mark").find((one) => one.plugin === name)?.face

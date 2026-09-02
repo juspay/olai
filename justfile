@@ -77,6 +77,7 @@ install:
       && sh $OLAI_KOLU_HYDRATE_SCRIPT $OLAI_KOLU_HYDRATE \
       && sh $OLAI_KOLU_HYDRATE_SCRIPT $OLAI_ODU_HYDRATE \
       && sh $OLAI_KOLU_HYDRATE_SCRIPT $OLAI_CORDIS_HYDRATE \
+      && bun packages/bundle/generate.ts \
       && install -m 644 "$OLAI_KOLU_MARK_DIR/mark.generated.ts" packages/plugins/olai-plugin-kolu/src/browser/mark.generated.ts \
       && install -m 644 "$OLAI_ODU_MARK_DIR/mark.generated.ts" packages/plugins/olai-plugin-odu/src/browser/mark.generated.ts'
 
@@ -147,6 +148,35 @@ test: install
       ./packages/web/src/client/chat/attention/elsewhere.browsertest.ts \
       ./packages/web/src/client/chat/declared.browsertest.ts \
       ./packages/plugins/olai-plugin-kolu/src/appliance/props/held.browsertest.ts
+
+# The same suite, TO A LOG — for an agent, or for anyone who wants to read the
+# failures more than once.
+#
+# NEVER PIPE A LONG RUN THROUGH `tail` OR `head`. A truncated run throws away
+# the very lines you needed, so the next thing you do is run it AGAIN to see
+# them — which on this suite is two minutes bought for nothing. Redirect ONCE
+# and interrogate the file as many times as you like:
+#
+#     just test-log
+#     grep -E '^\(fail\)' .test.log          # which cases failed
+#     grep -B 20 '^(fail)' .test.log         # ...and why
+#     grep -E '^ +[0-9]+ (pass|fail)' .test.log
+#
+# Same rule for `just typecheck` and `just e2e`: `> some.log 2>&1`, then grep.
+#
+# The log is gitignored and overwritten per run. It is deliberately NOT `| tee`:
+# a tee still floods the terminal (and an agent's context) with the passing
+# lines, and the passing lines are never what anybody came for.
+
+# The unit suite to .test.log, printing only the failures — never pipe a long run through tail/head
+test-log:
+    #!/usr/bin/env bash
+    set -uo pipefail
+    {{ nix_shell }} bun test > .test.log 2>&1
+    status=$?
+    grep -E '^\(fail\)|^ +[0-9]+ (pass|fail)' .test.log || true
+    echo "full output: .test.log"
+    exit $status
 
 # Every dependency the hydrated @kolu/* sources declare, checked against the
 # root package.json, every workspace manifest and the root `overrides` block

@@ -694,4 +694,4 @@ export type {
   Watching,
   Wake,
 } from "./contract.ts"
-export { enabled, isEnabled, kindWordOf } from "./contract.ts"
+export { enabled, exposeMapsOf, isEnabled, kindWordOf, surfacesOf } from "./contract.ts"

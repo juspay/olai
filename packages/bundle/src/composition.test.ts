@@ -62,7 +62,14 @@ import {
 import { Schema } from "effect"
 import { describe, expect, test } from "bun:test"
 
-import { exposeMapsOf, surfacesOf, WIRES } from "./surfaces.ts"
+import { exposeMapsOf, surfacesOf } from "@olai/plugin-api"
+
+import { type ServerHalf, serverHalves } from "./tree.testlib.ts"
+
+/** The real roster, LOADED — no door in this package imports a plugin
+ *  statically any more, so a test that wants their values does what the runtime
+ *  does and imports them by the row's own name (`./tree.testlib.ts`). */
+const WIRES: ReadonlyArray<ServerHalf> = await serverHalves()
 
 /** A stand-in for olai's own surface — one cell, which is enough to ask every
  *  question here. The real one is `@olai/surface`'s and is deliberately not

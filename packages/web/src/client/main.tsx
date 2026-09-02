@@ -4,6 +4,7 @@
 
 import { registerOrRetireServiceWorker } from "@kolu/surface-app/lifecycle"
 import { SurfaceFaultBoundary } from "@kolu/surface-app/solid"
+import { Show } from "solid-js"
 import { render } from "solid-js/web"
 
 import App from "./App.tsx"
@@ -23,7 +24,8 @@ import { followStoredFont } from "./theme/fontState.ts"
 import { followStoredSize } from "./theme/sizeState.ts"
 import { followStoredTheme } from "./theme/state.ts"
 import { trackVisibleViewport } from "./viewport.ts"
-import { connectionReadout, olai } from "./wire.ts"
+import { provideFurniture } from "./plugins/furniture.tsx"
+import { connectionReadout, olai, wireGeneration } from "./wire.ts"
 
 // The paired half of the `/sw.js` the server serves, which is now the
 // framework's NOTIFICATION worker (packages/server/src/listener.ts says why):
@@ -112,10 +114,35 @@ if (root === null) throw new Error("no #root element")
 // is doing. Each of those is a handful of lines that touch the document rather
 // than the app, which is the reason they were put there and not the reason
 // they are safe.
+// THE APP'S OWN CONTRACT, on the plugin context, before anything renders — the
+// clock and its duration register, the chrome pill's geometry and the popover
+// that shares the bar's focus cycle, and a door onto a served file. A browser
+// half NAMES these in its `inject` and Cordis holds its fiber `PENDING` until
+// they exist, so this could in principle be late; it is awaited here because a
+// face that draws a beat after its neighbours is a flicker nobody chose, and
+// because the ORDER is then a line somebody can read rather than a race
+// somebody has to reason about (`./plugins/furniture.tsx`).
+await provideFurniture()
+
 render(
   () => (
     <SurfaceFaultBoundary fault={(text) => <Fault text={text} />}>
-      <App />
+      {/* KEYED ON THE WIRE, and this is what a tab that follows the roster
+          costs. A roster change is a `redial`: a NEW wire, with everything the
+          superseded one handed out dead — `clients`, `core`, `transport`,
+          `readout`, `health` — so every standing subscription in the tree
+          below has to be opened again, which means the tree has to be built
+          again. Local UI state does not survive it (an open pane, a scroll
+          position, a half-typed editor), and `./wire.ts` argues what that buys
+          and how rarely it happens: once on an ordinary boot, on a page that
+          has nothing in it yet, and thereafter only when somebody actually
+          turns a plugin on or off.
+
+          `keyed`, so the rebuild happens exactly when the wire moves and never
+          when a signal inside it does. */}
+      <Show when={wireGeneration()} keyed>
+        <App />
+      </Show>
     </SurfaceFaultBoundary>
   ),
   root,

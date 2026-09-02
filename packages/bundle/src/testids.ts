@@ -38,48 +38,22 @@
  * not left to luck: {@link PLUGIN_TESTID} is asserted disjoint in
  * `./testids.test.ts`, which is the same move `mergeDisjointGroups` makes about wire tags
  * one module over and for the identical reason.
- */
-
-import { TESTID as kolu } from "olai-plugin-kolu/testids"
-import { TESTID as odu } from "olai-plugin-odu/testids"
-import { TESTID as spaces } from "olai-plugin-xyne-spaces/testids"
-
-/**
- * THE COLLISION, MADE UNREPRESENTABLE — the middle layer of the three, using
- * the instrument the inner and outer ones use.
  *
- * `./testids.test.ts` beside this file already walks both tables and counts;
- * that test stays, because it also holds the FLOOR (neither table came back
- * empty) and the count (the merge kept every key), which a type cannot ask. What
- * it could not do is fire in an editor or in `just typecheck`, and what it
- * cannot do at all is stop the collision being written — a spread resolves one
- * silently in favour of whichever was last.
+ * ## The merge is GENERATED, and this file is the door
  *
- * Both tables are `as const`, so their values are literal unions and the
- * question is one `tsc` answers, naming the offending string. Same two lines a
- * tenant uses about its own two halves (`olai-plugin-kolu/src/testids.ts`, whose
- * header records the two drafts that got there the wrong way) and `/web`
- * uses about this table and its own.
+ * The three imports and the three pairwise assertions were hand-written, which
+ * made this one of the places `olai.yml` was not the only place a plugin is
+ * named. `../generate.ts` writes them out of the rows now, PROOF INCLUDED —
+ * every pair, because disjointness is not transitive and two plugins sharing
+ * nothing with a third says nothing about each other. What stays here is the
+ * argument, because a generated file is a bad place to keep one.
  */
-type Assert<T extends true> = T
-type SharedKoluOdu = Extract<
-  (typeof kolu)[keyof typeof kolu],
-  (typeof odu)[keyof typeof odu]
->
-type SharedKoluSpaces = Extract<
-  (typeof kolu)[keyof typeof kolu],
-  (typeof spaces)[keyof typeof spaces]
->
-type SharedOduSpaces = Extract<
-  (typeof odu)[keyof typeof odu],
-  (typeof spaces)[keyof typeof spaces]
->
-type SharedPluginId = SharedKoluOdu | SharedKoluSpaces | SharedOduSpaces
-type _NoSharedPluginId = Assert<[SharedPluginId] extends [never] ? true : SharedPluginId>
 
 /** Every plugin's ids, flat. See the header on the merge and what proves it
  *  safe. */
-export const PLUGIN_TESTID = { ...kolu, ...odu, ...spaces } as const
+export { PLUGIN_TESTID } from "./testids.generated.ts"
+
+import { PLUGIN_TESTID } from "./testids.generated.ts"
 
 /** One of them, as a closed union — so `@olai/web`'s `selector` takes an id
  *  from either table and a typo is still a type error rather than a selector

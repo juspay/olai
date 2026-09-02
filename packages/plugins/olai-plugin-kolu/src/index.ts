@@ -55,12 +55,3 @@
  */
 
 export { faces, name, surface } from "./wire.ts"
-
-/** The manifest, as `@olai/plugin-api`'s registry spreads it. It carries the name
- *  and the mounted members today and grows the probe, the failure sentences,
- *  the runtime half, the owned file, the kinds, the dressings and the chrome
- *  as the sweep reaches each of them. Every field but those two is optional,
- *  which is not a staging convenience: a plugin that contributes only a cell
- *  is a whole plugin, and the absent arm of every other hook is the state a
- *  machine without kolu already shows. */
-export { plugin } from "./plugin.ts"
