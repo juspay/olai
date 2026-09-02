@@ -46,6 +46,7 @@ import {
   expectBefore,
   NEW_ROW,
   NODE,
+  NODE_TITLE,
   nodeSelector,
   POLL_TIMEOUT,
   START_LINE,
@@ -565,19 +566,16 @@ Then(
   },
 );
 
-const idTitled = async (world: OlaiWorld, title: string): Promise<string | null> =>
-  world.page.locator(NODE).evaluateAll(
-    (all, [want, titleId]) => {
-      for (const element of all) {
-        const own = element.querySelector(`[data-testid="${titleId}"]`);
-        if (own !== null && (own.textContent ?? "").includes(want)) {
-          return element.getAttribute("data-node-id");
-        }
-      }
-      return null;
-    },
-    [title, TESTID.nodeTitle] as [string, string],
-  );
+const idTitled = async (world: OlaiWorld, title: string): Promise<string | null> => {
+  const rows = world.page.locator(NODE);
+  const n = await rows.count();
+  for (let i = 0; i < n; i++) {
+    const row = rows.nth(i);
+    const text = (await row.locator(NODE_TITLE).first().textContent()) ?? "";
+    if (text.includes(title)) return row.getAttribute("data-node-id");
+  }
+  return null;
+};
 
 /** WHERE a draft opened at column 0 is drawn — above the title you were in,
  *  not after that row's whole subtree. Asked of boxes on the page: a new row
