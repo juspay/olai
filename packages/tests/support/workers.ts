@@ -186,6 +186,13 @@ export const isolateEnv = (
   // spelling also deleted the socket a `@padi:` scenario had just spawned, so
   // the tag could not work at all.
   delete host.PADI_SOCKET;
+  // WHICH ODU goes the same way, one variable over: the packaged wrapper reads
+  // `OLAI_ODU_BIN` first (default.nix), so a developer mid-test of their own
+  // odu would otherwise point EVERY spawned server at it — which odu answers
+  // a scenario is the suite's to answer, and the default answer is the
+  // wrapper's own pin: a laptop that has a real one gets the same suite as
+  // one that has none — for `OLAI_AGENT_PATH`'s reason, one knob over.
+  delete host.OLAI_ODU_BIN;
   const env: NodeJS.ProcessEnv = {
     ...host,
     ...extras,

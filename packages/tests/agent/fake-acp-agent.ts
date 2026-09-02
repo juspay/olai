@@ -1373,7 +1373,9 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   }
 
   if (verb === "servers") {
-    // The list, as one definite line: `servers: [olai kolu]`. A scenario about
+    // The list, as one definite line: `servers: [olai kolu odu]` (the wrapper
+    // answers the pin for the third name the way it handed the suite answering
+    // the first two). A scenario about
     // what a session was GIVEN can then assert the whole answer rather than
     // the absence of a word, which is the only shape of that claim a streaming
     // panel can be asked for without waiting to see whether more arrives.
