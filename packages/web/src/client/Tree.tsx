@@ -88,13 +88,13 @@ import { repeatPick } from "./date/repeat.ts"
 
 import { createEdgeEditing } from "./edges/editing.tsx"
 import { useEditor } from "./edit/editing.tsx"
+import { Ghosts } from "./edit/Ghosts.tsx"
 import { offsetAt, titleBox } from "./edit/point.ts"
 import { useMoving } from "./move/moving.tsx"
 import { useNarrowed } from "./filter/narrowed.tsx"
 import { behindTheMark, CONTEXT_DIM, lighting, matchedAttr } from "./filter/why.ts"
 import { onATag } from "./filter/tag.ts"
 import { useUndo } from "./edit/undoing.ts"
-import { NewRow } from "./edit/NewRow.tsx"
 import { DescEditor, DraftSaid, keyHandler, TitleEditor } from "./edit/RowEditor.tsx"
 import { setFolded } from "./fold/memory.ts"
 import { createFoldReading } from "./fold/reading.ts"
@@ -377,10 +377,16 @@ function Branch(props: {
     return draft?.kind === "row" ? draft : undefined
   }
   const pending = () => {
-    if (editor.where().after !== props.row.at.node.id) return undefined
-    const draft = editor.draft()
-    return draft?.kind === "new" ? draft : undefined
+    const held = editor.draft()
+    return held?.kind === "new" ? held : undefined
   }
+  const live = (kind: "after" | "before") => {
+    const at = editor.where().pending
+    if (at?.kind !== kind || at.id !== props.row.at.node.id) return undefined
+    return pending()
+  }
+  const parked = (kind: "after" | "before") =>
+    editor.ghosts().filter((g) => g.at.kind === kind && g.at.id === props.row.at.node.id)
   /** Is the caret in THIS row? What the row draws to say so, and what a
    *  scenario asks. A blinking text cursor at the end of a title was the whole
    *  affordance a walk with `↑`/`↓` had, and in a tree of a hundred rows that
@@ -506,6 +512,8 @@ function Branch(props: {
       // fold follows too and the format spells once (`shownRecord`).
       data-match={matchedAttr(narrowed, shownId())}
     >
+      <Ghosts parked={parked("before")} live={live("before")} />
+
       {/* group/row is on the LINE, not the <li>: a parent li also contains
           every nested child, and a named group-hover on the li would reveal
           every descendant's menu and triangle at once. Gap is GUTTER_GAP —
@@ -873,17 +881,8 @@ function Branch(props: {
           INSIDE this item and after its children, which is exactly where the
           next sibling appears in an outline. It is not a row of the tree — no
           `<li>`, no testid a scenario counts nodes with — because nothing has
-          been written. */}
-      <Show when={pending()}>
-        {(draft) => (
-          <NewRow
-            draft={draft()}
-            onInput={editor.type}
-            onKey={keyHandler("line", editor.press)}
-            onBlur={(left) => editor.blur({ row: props.row.at.node.id, field: "new" }, left)}
-          />
-        )}
-      </Show>
+          been written. Enter Enter Enter parks the earlier empties here too. */}
+      <Ghosts parked={parked("after")} live={live("after")} />
     </li>
   )
 }

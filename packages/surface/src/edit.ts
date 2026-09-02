@@ -166,11 +166,12 @@ import { Schema } from "effect"
 const Id = Schema.String
 
 /**
- * Where a new row goes. Three places, because three is what the page offers:
- * after a row (`Enter`), under a row that has nothing beneath it yet (the first
- * child of a zoomed node), and first in an outline that holds nothing at all.
+ * Where a new row goes. Four places, because four is what the page offers:
+ * after a row (`Enter` at the end of a line), before a row (`Enter` at column
+ * 0), under a row that has nothing beneath it yet (the first child of a zoomed
+ * node), and first in an outline that holds nothing at all.
  *
- * A tagged union rather than three nullable fields: "after nothing, under
+ * A tagged union rather than four nullable fields: "after nothing, under
  * nothing, in this file" and "after this, under that" are both spellable with
  * nullable fields and neither means anything, and the server would have to
  * refuse them at runtime instead of the wire refusing them at decode.
@@ -207,6 +208,8 @@ const Was = <A extends Schema.Top>(text: A) =>
 export const Anchor = Schema.Union([
   /** Immediately after this node, among its siblings — a new sibling. */
   Schema.Struct({ kind: Schema.Literal("after"), id: Id }),
+  /** Immediately before this node, among its siblings — `Enter` at column 0. */
+  Schema.Struct({ kind: Schema.Literal("before"), id: Id }),
   /** The first child of this node, which is what an empty zoomed page offers. */
   Schema.Struct({ kind: Schema.Literal("under"), id: Id }),
   /** The first row of an outline that has none. The one place a FILE is
