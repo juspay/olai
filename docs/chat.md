@@ -65,6 +65,8 @@ With one agent on the machine the list is exactly what it always was — no head
 
 **A conversation opens on its newest line.** The panel jumps there at once, so a long transcript is not something you have to scroll down. While you read, new text only follows if you were already at the bottom; scroll up and it stays put.
 
+**The transcript is the pane that scrolls.** The composer, and the strips above it (which servers this conversation has, what is still running, what it wakes on), stay put. A long turn does not carry the box away with the rows.
+
 ## Who, and which model, the header names
 
 Under the conversation's title, the header names **the agent** — its mark and its name — and then the model. The agent is there because a conversation is bound to one for its life and "who am I talking to" is a question you answer by looking rather than by reading; the model is there because a turn's cost and character depend on it and nothing else on screen says.
