@@ -25,7 +25,8 @@
 # node_modules — and it lives in kolu because that is the repo whose layout it
 # knows (its own header argues the one-copy rule). Asking odu for a second one,
 # or writing a third here, would be exactly the drift that header describes.
-# So this file supplies ARGV and nothing else.
+# So the COPIER gets ARGV and nothing else from this file — the pin's other
+# product (the binary, the block below) rides no script at all.
 
 # WHAT THIS FILE ALSO VENDORS, since the ruling of 2026-09-01: THE BINARY.
 # Sources alone were the missing half — a packaged olai resolved `odu` off an
