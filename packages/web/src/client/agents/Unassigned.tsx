@@ -202,10 +202,19 @@ export function Unassigned() {
       data-testid={TESTID.unassignedPanel}
     >
       <div class="mb-3 flex items-baseline gap-2">
+        {/* THE HEADING COUNTS ONLY WHAT SOMEBODY COULD COUNT. With every agent
+            answered, *0 conversations no node claims* is the good news it
+            sounds like; with one that could not be asked it is a claim nobody
+            is in a position to make, and the reason under the list is the
+            answer instead. */}
         <p class="m-0 flex-1 text-sm text-ink">
-          Unassigned — {unassigned().length === 1
-            ? "one conversation"
-            : `${unassigned().length} conversations`} no node claims
+          Unassigned{unassigned().length === 0 && unreachable().length > 0
+            ? ""
+            : ` — ${
+              unassigned().length === 1
+                ? "one conversation"
+                : `${unassigned().length} conversations`
+            } no node claims`}
         </p>
         {/* THE WAY OUT, back to the conversation the panel was in. The list is
             a place a person went, and everything else in this app that takes

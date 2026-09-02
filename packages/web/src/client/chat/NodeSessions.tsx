@@ -75,7 +75,7 @@ import { memoryOf } from "@olai/format"
 import type { SessionInfo } from "@olai/surface"
 
 import { useAgents } from "../agents/answered.tsx"
-import { pastOf } from "../agents/lineage.ts"
+import { pastOf, successorIn } from "../agents/lineage.ts"
 import { hideUnassigned } from "../agents/showing.ts"
 import { createInlinePicker } from "../inlinePicker.ts"
 import { WITHIN } from "../layer.ts"
@@ -110,15 +110,11 @@ export function NodeSessions(props: { readonly chat: Chat; readonly agent: Row }
     return answer === null || session === null ? [] : pastOf(answer.sessions, props.agent.engine, session)
   })
 
-  /** The rows by id and their OWNER, for naming the one a `supersededBy` points
-   *  at. An id is the adapter's own space — two agents can collide formally,
-   *  and a Claude-A's link resolving to an opencode row would be a lie by
-   *  lookup. */
-  const byId = createMemo((): ReadonlyMap<string, SessionInfo> => {
-    const answer = chats()
-    if (answer === null) return new Map()
-    return new Map(answer.sessions.map((session) => [`${session.agent}/${session.id}`, session]))
-  })
+  /** ... and which conversation replaced one of them, where the answer holds
+   *  that one too ({@link ../agents/lineage.ts}) — matched on the pair, like
+   *  every other step of a lineage. */
+  const successorOf = (session: SessionInfo): SessionInfo | undefined =>
+    successorIn(chats()?.sessions ?? [], session)
 
   /** What *fresh session* said, where it was refused — an engine this machine
    *  does not have, an agent that would not start, a record the ops layer will
@@ -176,9 +172,7 @@ export function NodeSessions(props: { readonly chat: Chat; readonly agent: Row }
                 <li>
                   <Conversation
                     session={session}
-                    successor={session.supersededBy === null
-                      ? undefined
-                      : byId().get(`${session.agent}/${session.supersededBy}`)}
+                    successor={successorOf(session)}
                     current={false}
                     testid={TESTID.chatPastSession}
                     onPick={() => {
