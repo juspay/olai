@@ -39,7 +39,7 @@
 // door over.
 import type {} from "@olai/plugin-api"
 import type { Context } from "cordis"
-import type { Accessor, JSX } from "solid-js"
+import type { Accessor } from "solid-js"
 
 import type { CiRuns } from "@olai/odu-client/wire"
 
@@ -113,7 +113,7 @@ export function apply(ctx: Context): void {
   // can carry a `worktree` on a dozen rows and every one of them wants to know
   // whether its checkout is mid-run, so the subscription is here, once per tab,
   // and a chip reads a context instead.
-  ctx.slots.register("app.mount", (props: { readonly children: JSX.Element }) => (
+  ctx.slots.register("app.mount", (props) => (
     // INSIDE the component and not at `apply`: `use()` opens a subscription and
     // wants an owner, and the owner is the one this component is created under.
     // The one narrowing is here too, at the one edge — a cast rather than a

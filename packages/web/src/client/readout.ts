@@ -33,6 +33,8 @@ export interface Look {
   readonly detail: string
 }
 
+import { LAYER } from "./layer.ts"
+
 /** The pill both readouts wear, minus the width each one caps itself at. Quiet
  *  by construction — a border, paper and muted text — because chrome that
  *  competes with the outline is chrome a reader learns to skip.
@@ -110,3 +112,35 @@ export const ICON_BUTTON =
 export const BANNER =
   "flex min-h-11 w-full items-center gap-2 border-b border-rule bg-paper " +
   "px-4 py-2.5 text-left text-sm"
+
+/**
+ * THE BOX A PORTALLED PANEL WEARS — the preferences panel, the plugins panel,
+ * the Commit panel, and the one a plugin's chrome readout hangs off.
+ *
+ * Four of them, and it was written out four times. The fourth was written in
+ * the same commit as a comment two files away asserting there could not be one:
+ * `plugins/furniture.tsx`'s popover says *"the panel is the same shape
+ * `../commit/Panel.tsx` and `../settings/Panel.tsx` wear, folded in here so a
+ * plugin cannot wear a fourth."* A convention kept by memory is a convention
+ * that has already been broken by whoever was not remembering.
+ *
+ * What is in it is the set of decisions a panel does not get to make, and each
+ * fails silently on its own:
+ *
+ *   - NO `w-*`. The anchor writes the width inline (`./anchor.ts`), so a class
+ *     here could never beat it and would only look like it was in charge.
+ *   - `overflow-x-hidden` beside the y scroll, because a panel that scrolls
+ *     sideways is a panel whose content escaped its measured width.
+ *   - `LAYER.over` — above the page, below the modals that must cover the bar.
+ *     One notch wrong and it paints under the bar it hangs from.
+ *   - focusable, never in the tab order: opening puts the caret IN the panel so
+ *     a keyboard is standing inside it rather than beside it.
+ *
+ * NO `gap-*`, and that is the one thing the four legitimately differ in — each
+ * picks its own row rhythm. It is spelled at the call site rather than
+ * parameterised here, because a constant taking an argument to vary the only
+ * thing it does not own would be this shape pretending to own it.
+ */
+export const PANEL_BOX = `fixed ${LAYER.over} ` +
+  "flex min-h-0 flex-col overflow-y-auto overflow-x-hidden overscroll-contain " +
+  "rounded-2xl border-0 bg-panel p-4 text-sm shadow-xl ring-1 ring-rule/40 focus:outline-none"

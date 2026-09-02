@@ -29,7 +29,6 @@
 // door over.
 import type {} from "@olai/plugin-api"
 import type { Context } from "cordis"
-import type { JSX } from "solid-js"
 
 import { KoluUi, TerminalBlock } from "./appliance/index.ts"
 import type { KoluClient } from "./appliance/index.ts"
@@ -64,7 +63,6 @@ export function apply(ctx: Context): void {
   // until every one of them exists.
   const app: KoluApp = {
     desktop: () => ctx.bar.desktop(),
-    clocks: ctx.clocks,
     pill: ctx.bar.pill,
     createPopover: () => ctx.bar.popover(),
     FileLink: ctx.links.File,
@@ -92,7 +90,7 @@ export function apply(ctx: Context): void {
   // watching in a document somebody is reading. What stays the app's is the
   // LADDER and the LIFETIME — `ctx.clocks` owns the units and hands back a
   // timer that disposes with its component.
-  ctx.slots.register("app.mount", (props: { readonly children: JSX.Element }) => (
+  ctx.slots.register("app.mount", (props) => (
     <KoluUi
       client={ctx.wired.client() as KoluClient}
       now={ctx.clocks.createTicking(ctx.clocks.MINUTE)}

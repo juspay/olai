@@ -43,7 +43,7 @@ import { createSignal, Show } from "solid-js"
 
 import { agoOf } from "./ago.ts"
 import { type Anchor, styleOf } from "../anchor.ts"
-import { LAYER } from "../layer.ts"
+import { PANEL_BOX } from "../readout.ts"
 import {
   AUTO_ARMED,
   AUTO_STOPPED,
@@ -115,7 +115,7 @@ export function Panel(props: {
   return (
     <section
       ref={props.inside}
-      class={`fixed ${LAYER.over} flex min-h-0 flex-col gap-3 overflow-y-auto overflow-x-hidden overscroll-contain rounded-2xl border-0 bg-panel p-4 text-sm shadow-xl ring-1 ring-rule/40 focus:outline-none`}
+      class={`${PANEL_BOX} gap-3`}
       style={styleOf(props.at)}
       // Focusable, never in the tab order — see `settings/Panel.tsx`, and
       // `../popover.ts` for why a portalled panel has to take the caret itself.

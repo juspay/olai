@@ -21,7 +21,7 @@
 // door over.
 import type {} from "@olai/plugin-api"
 import type { Context } from "cordis"
-import type { Accessor, JSX } from "solid-js"
+import type { Accessor } from "solid-js"
 
 import type { SpacesApp } from "./browser/app.ts"
 import type { SpacesLink } from "./wire.ts"
@@ -68,7 +68,7 @@ export function apply(ctx: Context): () => void {
   const app: SpacesApp = { desktop: () => ctx.bar.desktop(), pill: ctx.bar.pill }
   ctx.slots.register("app.header", () => <Spaces app={app} />)
   ctx.slots.register("chat.speaker.mark", SpacesMark)
-  ctx.slots.register("app.mount", (props: { readonly children: JSX.Element }) => (
+  ctx.slots.register("app.mount", (props) => (
     // INSIDE the component: `use()` opens a subscription and wants an owner.
     // The cast is the one narrowing at the one edge — the value came from the
     // framework's own client bundle under this plugin's key, so the only thing

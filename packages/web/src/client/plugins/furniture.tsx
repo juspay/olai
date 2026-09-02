@@ -64,12 +64,12 @@ import { ctx } from "./runtime.ts"
 
 import { styleOf } from "../anchor.ts"
 import { createTicking, MINUTE, SECOND } from "../clock.ts"
-import { LAYER } from "../layer.ts"
 import { desktop } from "../layout/media.ts"
 import { createNow, exactOf, tickingOf, wordsOf } from "../live/duration/took.ts"
 import { createPopover } from "../popover.ts"
 import {
   DOT,
+  PANEL_BOX,
   DOT_HOLLOW_ALARM,
   DOT_HOLLOW_WARN,
   PILL,
@@ -118,7 +118,7 @@ const panelPopover = (): AppPopover => {
           <Portal>
             <section
               ref={popover.setPanel}
-              class={`fixed ${LAYER.over} flex min-h-0 flex-col gap-2 overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl border-0 bg-panel p-4 text-sm shadow-xl ring-1 ring-rule/40 focus:outline-none`}
+              class={`${PANEL_BOX} gap-2`}
               style={styleOf(at())}
               tabindex="-1"
               data-testid={props.testid}

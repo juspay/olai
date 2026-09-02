@@ -86,20 +86,25 @@ export type FileLink = (props: {
   readonly children: JSX.Element
 }) => JSX.Element
 
-/** The two clock facts the mount spends. The Dock's recency phrase ticks by the
- *  MINUTE here and by the second in kolu's own dock, and that difference is the
- *  APP'S call — an outline where forty lanes can carry a terminal each is a
- *  re-render storm bought for a digit nobody is watching — so the cadence
- *  crosses rather than being decided in this package. */
-export interface KoluClocks {
-  readonly MINUTE: number
-  readonly createTicking: (every: number, when?: () => boolean) => () => number
-}
+/*
+ * THE CLOCK IS NOT ON THIS RECORD, and it used to be — a `KoluClocks` with the
+ * two facts the mount spends, on a `KoluApp.clocks` beside the rest.
+ *
+ * Nothing ever read it out of here. The mount spends `ctx.clocks` DIRECTLY at
+ * `../browser.tsx`, which is where the cadence is decided, and every `app.*`
+ * read in this package is one of the four below. The field was the record
+ * carrying a service reference past every face that wanted it, to nobody.
+ *
+ * Its comment also said the cadence "crosses rather than being decided in this
+ * package", which the branch that made the mount a fiber reversed in as many
+ * words: `../browser.tsx` now says THE CADENCE IS THIS PACKAGE'S JUDGEMENT, and
+ * what the app owns is the LADDER and the LIFETIME. Deleting the dead half
+ * takes the stale argument with it and leaves the live one standing.
+ */
 
-/** ...and the whole of what this plugin is handed. */
+/** THE WHOLE OF WHAT THIS PLUGIN IS HANDED — four facts, and each is spent. */
 export interface KoluApp {
   readonly desktop: () => boolean
-  readonly clocks: KoluClocks
   readonly pill: PillLook
   readonly createPopover: () => AppPopover
   readonly FileLink: FileLink
