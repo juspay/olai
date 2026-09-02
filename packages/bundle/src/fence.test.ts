@@ -52,11 +52,20 @@
  *      is a legal tag segment because it becomes one. The framework would
  *      catch a collision at boot with a duplicate-tag throw; here it is a test,
  *      in a process that has not started yet.
- *   4. **The wire door stays a wire door.** What the browser reaches
- *      through `@olai/bundle/wire` may not pull a UI runtime onto the
- *      server's graph or an appliance's client onto the browser's — the same
- *      claim `check-kolu-deps.sh`'s fifth assertion makes about the slice one
- *      floor down, made here about the door that composes them.
+ *   4. **The browser's door names every plugin and imports none, and each
+ *      plugin's own chunk stays a browser chunk.** It was one claim about one
+ *      door — *the wire door stays a wire door*, `@olai/bundle/wire` being what
+ *      every listener pulled in statically, forbidden a UI runtime because a
+ *      SERVER read it and an appliance's client because a BROWSER did. There is
+ *      no such door: the root is one ROW per plugin with a dynamic `import()`
+ *      behind it, so its closure reaches no plugin at all and the bound is
+ *      satisfied by there being nothing to bound — which is why the door must
+ *      also SPELL every plugin, asserted first, and why what the browser
+ *      actually opens is walked separately, per tenant, as the `./browser`
+ *      chunk a roster fetches. The confinement went there with it: no `node:`
+ *      builtin, and no appliance's product tier — the same claim
+ *      `check-kolu-deps.sh`'s fifth assertion makes about the slice one floor
+ *      down, made here about the door that would ship it to a reader.
  *   5. **...and the server door stays a server door.** The modules the bundle's
  *      ROWS name MAY pull an appliance's client, the vault's format and a
  *      `node:` builtin — that is what a runtime half is made of — and may not

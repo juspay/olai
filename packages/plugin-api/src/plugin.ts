@@ -61,19 +61,27 @@
  *
  * It could not, for one reason: this package held the REGISTRY as well as the
  * interface, so a plugin that imported it would be a cycle the manifests could
- * not express. A manifest was therefore a plain `as const` object that never
- * wrote `: OlaiPlugin`, and the agreement was proved at the registry's
- * `satisfies` instead — the same move `@olai/ops` makes with the surface's
- * `Status`, and the same one `olai-plugin-kolu`'s `appliance/props/block.ts`
- * makes with the drawer's entry.
+ * not express. A plugin's half was therefore a plain `as const` object with no
+ * annotation on it, and the agreement was proved at the registry's `satisfies`
+ * instead — the same move `@olai/ops` makes with the surface's `Status`, and the
+ * same one `olai-plugin-kolu`'s `appliance/props/block.ts` makes with the
+ * drawer's entry.
  *
  * The registry moved to `@olai/bundle` and the premise went with it. This
  * package names no plugin at all now, so the arrow is one-way and a plugin
- * annotating its own manifest is an ordinary import. The structural proof stays
- * where it is regardless — `@olai/bundle`'s `registry.ts` still `satisfies` the
- * list, which is what catches a plugin that was never annotated — so what the
- * reversal buys is that a typo in a member name can be named at the PLUGIN,
- * with that plugin's name on the file, rather than only at the registry.
+ * importing what it is written against is an ordinary import — which is what
+ * every tenant's `./server.ts` and `./browser.tsx` do.
+ *
+ * The `satisfies` did not survive the move and could not have: `@olai/bundle` is
+ * ROWS, each naming a module a loader resolves at mount, and there is no list of
+ * imported halves left for a type to be asserted over. That is a stronger
+ * arrangement rather than a lost check, because the proof went to the line that
+ * is wrong instead of to a list far from it: a half hands its `surface` and its
+ * `faces` to `ctx.surfaces.register` ({@link ./services.ts}) and its drawn faces
+ * to `ctx.slots.register` ({@link ./browser.ts}), so a member name it got wrong
+ * or a slot this app does not declare is red in that plugin's own package, on
+ * the call that made the mistake — where the `satisfies` could only ever report
+ * it at one line of one list in a package the plugin's author was not editing.
  *
  * It is what the SERVER half already does, and there the import is not
  * optional: a server half is a Cordis plugin now, and `inject` names the
@@ -119,15 +127,23 @@ import type { JSX } from "solid-js"
  * ## STRUCTURAL on the plugin's side, and each declares only its own half
  *
  * A plugin MAY import this file (the registry moved to `@olai/bundle`, so the
- * arrow is one-way), and several still re-declare what they read instead
- * — so a plugin re-declares the parts of the furniture it reads, exactly as
- * `olai-plugin-kolu`'s `appliance/props/block.ts` already does with the drawer's entry. That is a
- * STRONGER agreement than a shared import rather than a weaker one: a plugin's
- * own declaration names exactly what it touches, function parameters are
- * contravariant, and so a plugin asking for something the app does not hand over
- * is a type error at the registry's `satisfies` with that plugin's name on the
- * line — while the app's richer furniture satisfies every narrower reading and
- * no plugin can see a field it did not ask for.
+ * arrow is one-way), and several still re-declare what they read instead — so a
+ * plugin re-declares the parts of the furniture it reads, exactly as
+ * `olai-plugin-kolu`'s `appliance/props/block.ts` already does with the drawer's
+ * entry. That is a STRONGER agreement than a shared import rather than a weaker
+ * one: a plugin's own declaration names exactly what it touches, function
+ * parameters are contravariant, and so a plugin asking for something the app
+ * does not hand over is a type error — while the app's richer furniture
+ * satisfies every narrower reading and no plugin can see a field it did not ask
+ * for.
+ *
+ * WHERE that error lands moved with the manifest. It used to be the registry's
+ * `satisfies`, one line of one list, with the plugin's name on it; there is no
+ * such list, and the reading is now composed inside the plugin's own `apply` out
+ * of the services it injected (`olai-plugin-kolu`'s `browser.tsx` builds its
+ * `KoluApp` from `ctx.bar`, `ctx.clocks` and `ctx.links`). So a field asked for
+ * that the app does not hand over is red on the line that composes it, in the
+ * package that asked, which is nearer the mistake than the registry ever was.
  */
 export interface AppClocks {
   /** The ladders' units, read rather than re-typed: a readout spelling `1000`
