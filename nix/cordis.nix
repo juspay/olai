@@ -15,6 +15,15 @@
 # this spike typechecks its own files, not the pin. That rewrite is a
 # derivation, not a file in this repo.
 #
+# BOTH ARMS ARE THROWAWAY. Phase 2 either typechecks the pin under olai's
+# `tsc` — the raw-TS argument the kolu and odu pins already make — or files
+# the strictness delta upstream and drops the stamp. And the jq rewrite
+# currently sets `exports["."]` only: that is enough for `import "cordis"`
+# and `import "@cordisjs/plugin-loader"`. A subpath the spike does not
+# import (`./src/*` happens to already point at source upstream) is not a
+# proof the rewrite is complete. Phase 2's rewrite must cover every subpath
+# the code imports, not just `.`.
+#
 # cosmokit and `@standard-schema/spec` stay on npm, declared at the root at the
 # versions the pin names — the same arrangement `@odu/run-client` has with
 # `effect`. The copier is kolu's (`hydrate-kolu-packages.sh`); this file
