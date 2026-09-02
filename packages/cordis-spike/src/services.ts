@@ -145,6 +145,15 @@ export class Surfaces extends Service {
     return [...this.fused.group.requests.keys()].sort()
   }
 
+  /**
+   * Re-calls `implementSurfaces` over EVERY remaining sibling. There is no
+   * incremental add/drop on a live group — the same fact as `connectSurfaces`
+   * baking the map at the call, seen from olai's side. State survives only
+   * because it lives in each plugin's `deps`; a server holding the previous
+   * `fused.handlers` keeps serving them. Phase 2 must not paper over this
+   * with a spike-local re-compose: it is a framework ask beside the
+   * `@kolu/surface` live-sibling one.
+   */
   private recompose() {
     const surfaces = Object.fromEntries(
       [...this.siblings.values()].map((one) => [one.name, one.surface]),
