@@ -201,10 +201,13 @@ function Face(props: { readonly chat: Chat }) {
   // prevent.
   createLastAgent(props.chat)
   createAsked(props.chat)
-  // WHICH of the four, decided in one place and asserted without a browser
-  // ({@link ./face.ts}) — the precedence has been re-decided once already, and
-  // what it decides is which of four things a person is looking at.
-  const face = () => faceOf(props.chat.state())
+  // WHICH of the five, decided in one place and asserted without a browser
+  // ({@link ./face.ts}) — the precedence has been re-decided twice already, and
+  // what it decides is which of five things a person is looking at. THIS TAB'S
+  // OWN TWO go in as arguments rather than being tested beside the answer in
+  // the JSX below, which is where half of this precedence used to live.
+  const face = () =>
+    faceOf(props.chat.state(), { unassigned: showingUnassigned(), asking: asking() })
   /**
    * A person pressed `+ new` and is being asked which agent — THIS TAB'S, and
    * deliberately not the server's.
@@ -224,12 +227,14 @@ function Face(props: { readonly chat: Chat }) {
   const pick = (id: string): void => {
     // WHICH question was answered is read off the FACE rather than off this
     // tab's own signal, because the two are not symmetrical: the panel's own
-    // question is the server's and outranks anything a click here started.
-    // Read the other way round, a `+ new` pressed over a panel that was
-    // ALREADY asking would answer the boot's question with the wrong verb —
-    // minting a fresh conversation where the panel was about to come back to
+    // question is the server's and outranks anything a click here started
+    // ({@link ./face.ts} owns that precedence, and says which asked on the arm
+    // itself). Read the other way round, a `+ new` pressed over a panel that
+    // was ALREADY asking would answer the boot's question with the wrong verb
+    // — minting a fresh conversation where the panel was about to come back to
     // the one this directory was in.
-    const server = face().kind === "choose"
+    const chosen = face()
+    const server = chosen.kind === "choose" && chosen.asked === "server"
     setAsking(false)
     if (server) {
       props.chat.chooseAgent(id)
@@ -266,6 +271,14 @@ function Face(props: { readonly chat: Chat }) {
     const chosen = face()
     return chosen.kind === "unopened" ? chosen.unopened : undefined
   }
+  /** ... and WHO is being asked which agent, where that is the body —
+   *  `undefined` otherwise, which is what `<Match>` takes. Same shape and same
+   *  reason as {@link refused}: the arm's payload comes off the answer that
+   *  chose it. */
+  const choosing = () => {
+    const chosen = face()
+    return chosen.kind === "choose" ? chosen.asked : undefined
+  }
   /** The roster, for whichever door is asking. */
   const agents = (): ReadonlyArray<AgentChoice> => props.chat.state().roster
   return (
@@ -296,17 +309,9 @@ function Face(props: { readonly chat: Chat }) {
           <NoAgent />
         </Match>
         {/* THE CHATS NOBODY CLAIMS, where somebody pressed the roster's last
-            row ({@link ../agents/Unassigned.tsx}). It sits under `no-agent` and
-            over everything else, and both halves of that are the same fact: a
-            serve with no agent has no conversations to list, and every arm
-            below is a state of a CONVERSATION — which this is deliberately not.
-            Somebody who pressed *Unassigned* asked for this and nothing else,
-            and a panel that answered with the question of which agent to open
-            a new chat with would be answering a question nobody asked.
-
-            THIS TAB'S, like the `asking` arm below and for its reason exactly
-            ({@link ../agents/showing.ts}). */}
-        <Match when={showingUnassigned()}>
+            row ({@link ../agents/Unassigned.tsx}) — where it sits in the
+            precedence, and why, is {@link ./face.ts}'s. */}
+        <Match when={face().kind === "unassigned"}>
           <Unassigned />
         </Match>
         <Match when={refused()}>
@@ -318,13 +323,17 @@ function Face(props: { readonly chat: Chat }) {
             underneath is still open and a misclick must not be a one-way door.
             Two arms would also be two component instances, so a tab-local
             question superseded by the server's would remount the list under
-            somebody's cursor. */}
-        <Match when={face().kind === "choose" || asking()}>
-          <Choose
-            agents={agents()}
-            onPick={pick}
-            onCancel={face().kind === "choose" ? undefined : () => setAsking(false)}
-          />
+            somebody's cursor. WHICH of them asked rides on the face rather than
+            being asked again here, which was the same question answered twice
+            in one component. */}
+        <Match when={choosing()}>
+          {(asked) => (
+            <Choose
+              agents={agents()}
+              onPick={pick}
+              onCancel={asked() === "tab" ? () => setAsking(false) : undefined}
+            />
+          )}
         </Match>
       </Switch>
     </>
