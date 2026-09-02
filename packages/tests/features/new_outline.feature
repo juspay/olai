@@ -4,7 +4,7 @@ Feature: Starting a new outline from the sidebar
   An agent could mint an outline — `create_outline` — and a person could not:
   the sidebar listed every file in the directory and offered no way to start
   another. A standing consistency violation rather than a missing feature
-  (HACKING.md: "MCP and Web ops must be consistent; never deviate"), and this
+  ("MCP and Web ops must be consistent; never deviate"), and this
   is the door that closes it, beside the one documents already had.
 
   What is typed is the PATH, because a file's name is its address in this app

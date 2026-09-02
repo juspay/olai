@@ -484,9 +484,9 @@ type Group = ReadonlyArray<Alternative>
  * this format stopped having), `date:soon`, `date:2026-13`.
  *
  * Reported rather than quietly downgraded to a substring term, because a query
- * that silently finds nothing is precisely the ignored error HACKING.md
- * forbids: the reader typed an operator, and the honest answer is which values
- * it takes.
+ * that silently finds nothing is precisely the kind of error the rule says must
+ * reach somebody: the reader typed an operator, and the honest answer is which
+ * values it takes.
  *
  * A SCHEMA and not an interface, because it does not stay here: the filter over
  * the tree parses for itself and draws these, and the other three doors ask the

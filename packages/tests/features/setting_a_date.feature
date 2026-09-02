@@ -2,7 +2,7 @@
 @scratch:good
 Feature: Setting a date from the web
   An agent could set OR clear a node's `date` (`set_date`) and a person could
-  only clear one (#124's `•••` verb) — a HACKING.md consistency deviation
+  only clear one (#124's `•••` verb) — a consistency deviation
   rather than a missing feature. The picker closes it, and it is reached from
   the two places a date already is: the pill on the row, and the row's menu.
 

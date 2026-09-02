@@ -21,7 +21,7 @@
  * five shapes a page can be, and each is one line per shape; the reading is
  * five memos and about as many paragraphs of argument. Read together, the
  * shapes-per-question table was invisible — and it is the thing that has to
- * grow an arm the day a sixth page kind draws nodes. HACKING.md's rule, and
+ * grow an arm the day a sixth page kind draws nodes. The rule, and
  * the reason it is a rule: prefer files and a hierarchy over a module that
  * holds everything about one word.
  *

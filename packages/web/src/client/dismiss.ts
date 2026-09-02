@@ -34,7 +34,7 @@
  * menu's ~80 kB / ~23 kB. These panels are up at first paint, so their
  * dismissal has to be.
  *
- * HACKING.md's SolidJS rule is the reason to reach for the library rather than
+ * The SolidJS rule is the reason to reach for the library rather than
  * keep a hand-rolled listener pair that happens to be shared:
  * `createInteractOutside` is `pointerdown` in the CAPTURE phase (so a press
  * that also navigates still shuts this first, and a trigger's own click cannot

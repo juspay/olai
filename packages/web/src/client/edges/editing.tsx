@@ -7,8 +7,8 @@
  * the same op: the panel's search, and the `×` on a reference already drawn
  * beside it. Four call sites, one write. Without this they would be four copies
  * of "send it, keep the answer, put the answer somewhere", and the copy that
- * forgot the last clause would be a refusal nobody sees — which HACKING.md
- * forbids by name and which this client has already been bitten by.
+ * forgot the last clause would be a refusal nobody sees — which the error
+ * rule forbids by name and which this client has already been bitten by.
  *
  * The shape is `../complete/completing.tsx`'s: a hook that hands back the
  * verbs a host calls and ONE component to draw, rather than the four accessors

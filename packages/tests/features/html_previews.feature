@@ -1407,7 +1407,7 @@ Feature: A `.html` in the vault
     And the preview shows the heading "Vendor"
     # …and the reader is TOLD, which is the half a dropped click owes them:
     # the page did not move and nothing else on screen would account for it.
-    # HACKING's rule is that an error surfaces somewhere in the UX, and a
+    # The rule is that an error surfaces somewhere in the UX, and a
     # click this app claimed and could not answer is one.
     And the preview says it cannot open that link
 

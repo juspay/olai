@@ -373,7 +373,7 @@ export const isAsset = (path: string): boolean =>
  * IT IS THE FORMAT'S because two faces ask it now. It was `@olai/web`'s
  * `document/preview.ts` while the browser was the only thing that named a
  * document, and the rule moved here whole when the agent's listing wanted the
- * same answer — "MCP and Web ops must be consistent" (HACKING.md) is a
+ * same answer — "MCP and Web ops must be consistent" is a
  * property of there being one function, not of two that were written from each
  * other.
  */

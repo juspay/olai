@@ -4,8 +4,8 @@
  *
  * Both subcommands write, so both take the flags, and what they MEAN is one
  * answer: the same modes, the same defaults, the same `--no-commit` override.
- * That much is HACKING.md's rule — "MCP and Web ops must be consistent; never
- * deviate" — and the reason this file exists at all rather than the flags being
+ * That much is the consistency rule — "MCP and Web ops must be consistent;
+ * never deviate" — and the reason this file exists at all rather than the flags being
  * declared twice in `./main.ts`.
  *
  * What differs between the faces is one clause of one sentence, and it is not a

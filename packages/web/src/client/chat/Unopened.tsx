@@ -89,8 +89,8 @@ export function Unopened(
       {/* WHAT THAT BUTTON WAS TOLD, when it was told something. The panel's
           refusal line lives in the transcript, and there is no transcript here
           — so without this a click on the one control in this body could be
-          refused and say nothing at all, which is the one thing HACKING.md
-          asks of every error. It is the same component the conversation draws,
+          refused and say nothing at all, which is the one thing the error
+          rule asks of every error. It is the same component the conversation draws,
           because it is the same kind of answer.
 
           The press it reports is the SECOND one: `reopen` takes the attempt as

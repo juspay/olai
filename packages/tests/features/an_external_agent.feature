@@ -136,7 +136,7 @@ Feature: An agent olai did not start
     And there should be no page errors
 
   Scenario: A terminal duplicates a subtree and the page draws the copy beside it
-    # HACKING.md's parity rule on this PR's op: `duplicate_node` is the same
+    # The parity rule on this PR's op: `duplicate_node` is the same
     # request the row menu's `Duplicate` and ⌘⇧D send, so what an agent gets is
     # what a person gets — a second subtree, one row below, sharing no id with
     # the first. The page follows because the write went through the one ops

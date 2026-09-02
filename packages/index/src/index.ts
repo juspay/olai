@@ -262,7 +262,7 @@ export interface Index {
  * that stores no copy of its own text (SQLite 3.43+; Bun 1.4 ships 3.53) — and
  * the tempting thing is to catch the schema failing and hand back a working
  * olai with a slower search. That would be an error nobody is ever told about
- * (HACKING.md's rule) hiding behind a table that quietly stopped existing:
+ * (an error must reach somebody) hiding behind a table that quietly stopped existing:
  * every query would go on answering correctly and nothing on any screen would
  * say why the vault got slow. The engine is pinned by this repository's own
  * flake, every test in this package asserts the capability on every run, and a

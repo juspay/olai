@@ -16,7 +16,7 @@
  * against the live outlines), a refusal comes back in the ops layer's own
  * words under the row, and ⌘Z after a put-back archives it again — the
  * inverse the server records. An agent's `untrash_node` is the same call,
- * which is what HACKING.md's consistency rule demands of a new verb.
+ * which is what the consistency rule demands of a new verb.
  *
  * THE PAGE HAS ONE VERB OF ITS OWN, and it is the app's only delete:
  * **Empty trash**, beside the heading, which permanently removes every record

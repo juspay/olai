@@ -697,7 +697,7 @@ export const DuplicateRequest = Schema.Struct({
 
 /**
  * Take a subtree back OUT of an `_olai/Trash.olai` — the inverse `archive` never
- * had, built once here and exposed on both faces together (HACKING.md's
+ * had, built once here and exposed on both faces together (the
  * consistency rule; `parity-unarchive`).
  *
  * Where it lands is the one real question, and the DEFAULT answer is the

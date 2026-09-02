@@ -383,8 +383,8 @@ export interface Ops extends Asking {
    * A PROJECTION of the same survey {@link pending} runs rather than a probe of
    * its own ({@link ./pending.ts}'s `gitOf`), because the two values are drawn
    * together and two probes would be two answers: a page reading "no git here"
-   * beside a panel offering to commit four changes. HACKING.md's consistency
-   * rule, one control over.
+   * beside a panel offering to commit four changes. The consistency rule,
+   * one control over.
    */
   readonly git: Effect.Effect<GitState>
 }

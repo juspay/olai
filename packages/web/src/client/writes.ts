@@ -18,7 +18,7 @@
  *     nothing should decide on somebody's behalf that finished work is not
  *     finished, that a placement is still named by three other rows and by
  *     which — and a caller that summarised them would be one that threw the
- *     answer away and kept the failure. HACKING.md's rule, at the surface it
+ *     answer away and kept the failure. The error rule, at the surface it
  *     applies to.
  *   - a NUDGE rides back on a write that LANDED, and it reaches the person who
  *     caused the write for the same reason it reaches an agent that did

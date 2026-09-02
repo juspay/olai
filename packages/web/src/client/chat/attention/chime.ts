@@ -2,7 +2,7 @@
  * One short chime — two notes, a third of a second, and no file.
  *
  * SYNTHESISED rather than shipped, and that is a dependency decision as much as
- * an aesthetic one: olai requires nothing outside Nix (HACKING.md), and an
+ * an aesthetic one: olai requires nothing outside Nix, and an
  * audio asset is a binary in the bundle, a second content type for the static
  * layer to negotiate, and a thing to license. Two oscillator notes are eleven
  * lines and are the same sound in every browser.

@@ -10,7 +10,7 @@
  *
  *   - a REFUSAL is why nothing happened. It is toned alarm and announced
  *     assertively, because a reader who does not notice it believes something
- *     happened that did not (HACKING.md's error rule).
+ *     happened that did not (the error rule).
  *   - a REMARK rides back on something that DID happen. It is toned quietly and
  *     announced politely, because interrupting what a screen reader is already
  *     saying to deliver advice is worse than the advice is worth.

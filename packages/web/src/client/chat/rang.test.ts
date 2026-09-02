@@ -11,7 +11,7 @@
  * nothing asserts them. Nothing asserts how the row is DRAWN either — the
  * label's weight, the control's glyph and the ground under it are the panel's,
  * and a test that pinned them would fail on a palette rather than on a defect
- * (HACKING.md).
+ * — tests assert behaviour, not styling.
  */
 
 import { describe, expect, test } from "bun:test"

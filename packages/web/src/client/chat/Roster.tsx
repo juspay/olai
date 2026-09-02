@@ -134,7 +134,7 @@ function Chip(props: { readonly server: ChatServer }) {
       // The STANDING as data, so a scenario can assert the state without
       // asserting the mark: which glyph says "connected" is a decision about
       // pixels, and a test that pinned it would fail the next time somebody
-      // improved it (`../../../../../HACKING.md`).
+      // improved it. Tests assert behaviour, not styling.
       data-standing={props.server.standing.kind}
       title={`${props.server.name} ${said().sentence}${
         props.server.where === null ? "" : ` — ${props.server.where}`

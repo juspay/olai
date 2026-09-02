@@ -1879,7 +1879,7 @@ Feature: Talking to the agent
 
   @scratch:chat
   Scenario: A dropped file olai cannot take says so, by name
-    # HACKING's rule, at the gesture where it is easiest to break: a file that
+    # The error rule, at the gesture where it is easiest to break: a file that
     # is dragged somewhere and then disappears has been swallowed, and the
     # person who dropped it has no way to tell that from a slow upload.
     When I drop "archive.zip" on the chat panel

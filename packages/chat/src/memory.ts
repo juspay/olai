@@ -68,7 +68,7 @@
  * ## What it does with a failure
  *
  * Nothing here is load-bearing enough to stop a boot, and none of it is quiet
- * either (HACKING.md: never silently ignore an error). Both verbs FAIL with a
+ * either — never silently ignore an error. Both verbs FAIL with a
  * reason, and the one caller turns each into a row in the transcript and carries
  * on: a memory that cannot be read means the panel opens the newest conversation
  * — the old behaviour, exactly — and says why; a memory that cannot be written

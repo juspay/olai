@@ -5,8 +5,8 @@
  * offered, asking, working — plus a line for what the write said, and it hangs
  * off the PAGE rather than off a row. Folding that into `./TrashPage.tsx` would
  * have put a small state machine in the middle of a file whose whole subject is
- * drawing a pile, and this app's rule is folder hierarchy over monoliths
- * (HACKING.md). The three states, and the rule that an armed question does not
+ * drawing a pile, and this app's rule is folder hierarchy over monoliths.
+ * The three states, and the rule that an armed question does not
  * outlive its subject, are NOT this file's either — they are
  * `../confirming.ts`'s, shared with `../select/SelectionBar.tsx`, which is
  * where that rule was found as a bug. What is left here is the layout and the

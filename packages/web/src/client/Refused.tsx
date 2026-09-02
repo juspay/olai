@@ -2,7 +2,7 @@
  * Why a write did not happen, said where the person who asked for it is
  * looking.
  *
- * HACKING's error rule at the surface it applies to: a refusal is quoted
+ * The error rule at the surface it applies to: a refusal is quoted
  * VERBATIM, because the ops layer's own words are the only ones that say WHY —
  * that this document has changed since it was read, that a path is already a
  * document under the served directory — and a caller that summarised them

@@ -681,7 +681,7 @@ const HOST = /^(?:[a-z0-9.-]+|\[[0-9a-f:.]+\])(?::\d{1,5})?$/i
  * still sealed, with nothing it may fetch. But it is a page that draws no
  * pictures and runs no scripts of its own for a reason nobody can see from the
  * outside, and "most errors should surface to the user at some level" is this
- * repository's own rule (HACKING.md). One rule, one owner, asked twice —
+ * repository's own rule. One rule, one owner, asked twice —
  * rather than the route re-deriving what a host looks like and drifting from
  * the policy it is reporting on.
  */

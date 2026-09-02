@@ -2,7 +2,7 @@
  * Search, as the wire speaks it — the browser's door to the ONE reading.
  *
  * The MCP face's `search_nodes` and the three doors a person types into must
- * answer identically for the same query (HACKING.md: MCP and Web ops must be
+ * answer identically for the same query (MCP and Web ops must be
  * consistent), and that is made structural rather than aspirational in three
  * places, of which this file is the third.
  *
