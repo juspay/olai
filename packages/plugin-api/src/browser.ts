@@ -298,7 +298,23 @@ export namespace Slots {
  * something whose answer depends on who is asking; a value is the right shape
  * for arithmetic. `./browser.test.ts` holds both halves.
  */
-export class Clocks extends Service {
+/*
+ * `implements AppClocks` IS THE FACADE'S ONLY GUARD, and it costs two words.
+ *
+ * This class restates every member of the record it wraps, and the rule "each
+ * one reaches the service" was held by nobody: a field added to `AppClocks` in
+ * `./plugin.ts` would silently fail to appear on `ctx.clocks`, and the first
+ * thing to notice would be a plugin package's typecheck — the wrong file, in
+ * the wrong repository half, naming the wrong side of the seam. The keyword
+ * emits nothing and moves the failure here, onto the line that forgot.
+ *
+ * `Bar` deliberately does NOT carry one: its config field is `createPopover`
+ * and its member is `popover`, and that rename is argued where it is spelled.
+ * `implements Bar.Config` would be a different claim wearing this one's clothes.
+ * `Slots` and `Wired` are not facades at all — their configs are callbacks the
+ * service consumes rather than members it re-publishes.
+ */
+export class Clocks extends Service implements AppClocks {
   constructor(ctx: Context, public config: AppClocks) {
     super(ctx, "clocks")
   }
@@ -375,7 +391,7 @@ export namespace Bar {
  *  one thing a plugin wants out of them. Its own service rather than a field on
  *  the bar because it has nothing to do with the bar: a chip deep in a property
  *  run links to a file, and it draws nowhere near the chrome. */
-export class Links extends Service {
+export class Links extends Service implements Links.Config {
   constructor(ctx: Context, public config: Links.Config) {
     super(ctx, "links")
   }

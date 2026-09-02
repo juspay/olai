@@ -37,7 +37,7 @@
  *
  * The names are DATA. They arrive from the registry at the composition root and
  * travel as strings; this file — a general one — declares that there ARE names
- * and knows none of them, which is the same fence `@olai/plugin-api`'s
+ * and knows none of them, which is the same fence `@olai/bundle`'s
  * `fence.test.ts` holds as an equality per package. A row is drawn by walking
  * what the cell carries, so a third plugin reaches the panel without a line of
  * this or of the panel moving.
@@ -188,17 +188,26 @@ export type BuiltPlugin = typeof BuiltPlugin.Type
  *                reachable while everything a plugin injects is mounted before
  *                the bundle is, and declared here because the runtime that can
  *                produce it is already the one running.
+ *
+ * ## The LIST is the declaration, and the type is derived from it
+ *
+ * It was the other way round: a union, and a `Set` built from it. Those are two
+ * spellings of one vocabulary, and only one of them was checked — `new
+ * Set<PluginState>([…])` does not demand exhaustiveness, so a sixth word added
+ * to the union and to the composition root would compile clean while the set
+ * still held five, and the new word would fall silently through
+ * {@link pluginState}'s narrowing to `running`/`off`.
+ *
+ * That is the exact failure the narrowing exists to prevent, arriving through
+ * the narrowing's own vocabulary. One `as const` array, the type read off it,
+ * and a sixth word is one edit that cannot be half-made.
  */
-export type PluginState = "running" | "off" | "optIn" | "failed" | "waiting"
+const STATES = ["running", "off", "optIn", "failed", "waiting"] as const
 
-/** The five, as a set — the narrowing's whole vocabulary, spelled once. */
-const STATES: ReadonlySet<string> = new Set<PluginState>([
-  "running",
-  "off",
-  "optIn",
-  "failed",
-  "waiting",
-])
+export type PluginState = (typeof STATES)[number]
+
+/** The five, as a set — what {@link pluginState} asks. */
+const KNOWN: ReadonlySet<string> = new Set<string>(STATES)
 
 /**
  * WHAT WORD A ROW IS IN — the one reading of {@link BuiltPlugin.state}, and the
@@ -224,7 +233,7 @@ const STATES: ReadonlySet<string> = new Set<PluginState>([
  */
 export const pluginState = (plugin: BuiltPlugin): PluginState => {
   const word = plugin.state
-  if (word !== undefined && STATES.has(word)) {
+  if (word !== undefined && KNOWN.has(word)) {
     // ...and a serve that says `running` while `running` is false, or the other
     // way round, is not a state this can carry either: the boolean wins, for
     // the reason above. Only the four ABSENT words are refinements of `false`.
