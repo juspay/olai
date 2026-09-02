@@ -77,7 +77,9 @@ import {
   type Editing as RowDraft,
   kept,
   landed,
+  parked,
   type Pending,
+  reaimed,
   refused,
   sameSlot,
   type Slot,
@@ -259,9 +261,7 @@ export const createEditor = (
    *  slot is a no-op, so parking twice cannot duplicate a ghost. A titled
    *  draft, or nothing, is left alone — parking is not how a write happens. */
   const parkIfEmpty = (held: Draft | null): void => {
-    const empty = emptyPendingOf(held)
-    if (empty === null) return
-    setGhosts((list) => list.some((g) => g.slot === empty.slot) ? list : [...list, empty])
+    setGhosts((list) => parked(list, held))
   }
   /** Open a fresh empty pending at this anchor and take the caret. One
    *  place mints the slot, so continued / inserted / start cannot disagree
@@ -458,19 +458,12 @@ export const createEditor = (
     // Only when the editor is still on the same draft: a commit that landed
     // while the reader had already moved on must not drag them back.
     setDraft((held) => (held === current ? landed(current, done.id, done.nudge) : held))
-    // A before-draft that just became a row: remaining ghosts parked at the
-    // same `before` would otherwise draw inside the ORIGINAL row, which is
-    // now BELOW the new sibling — the skeleton would jump under what you
-    // just titled. Re-aim them at the row that just landed, so they stay
-    // above it.
-    if (current.kind === "new" && current.at.kind === "before") {
-      const from = current.at.id
-      const next = { kind: "before" as const, id: done.id }
-      setGhosts((list) =>
-        list.map((g) =>
-          g.at.kind === "before" && g.at.id === from ? { ...g, at: next } : g
-        )
-      )
+    // Remaining ghosts at the same place: `before`/`first`/`under` re-aim
+    // onto the row that landed, so they stay above it (and a start line
+    // that has just unmounted is not the last they are seen). `after`
+    // keeps its neighbour.
+    if (current.kind === "new") {
+      setGhosts((list) => reaimed(list, current.at, done.id))
     }
     return true
   }
@@ -914,23 +907,30 @@ export const createEditor = (
     await move(neighbour(drawn(), held.place, by))
   }
 
-  const resume = (slot: string): void => {
+  const take = (slot: string): void => {
     const found = ghosts().find((g) => g.slot === slot)
     if (found === undefined) return
+    setGhosts((list) => list.filter((g) => g.slot !== slot))
+    setDraft(found)
+    setCaret((n) => n + 1)
+  }
+
+  const resume = (slot: string): void => {
+    if (ghosts().every((g) => g.slot !== slot)) return
     const held = draft()
     if (held?.kind === "new" && held.slot === slot) return
     if (emptyPendingOf(held) !== null) {
       parkIfEmpty(held)
-      setGhosts((list) => list.filter((g) => g.slot !== slot))
-      setDraft(found)
-      setCaret((n) => n + 1)
+      take(slot)
       return
     }
     enqueue(async () => {
       if (!(await commit())) return
-      setGhosts((list) => list.filter((g) => g.slot !== slot))
-      setDraft(found)
-      setCaret((n) => n + 1)
+      // AFTER the commit: that is the call that re-aims parked `before`
+      // ghosts onto the row that just landed. Capturing the ghost before
+      // it would install a stale anchor — the blank above the new row
+      // drawn below it.
+      take(slot)
     })
   }
 

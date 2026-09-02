@@ -5,7 +5,6 @@ import {
   after,
   before,
   besideOf,
-  anchorRow,
   commitOf,
   type Draft,
   type Editing,
@@ -13,7 +12,9 @@ import {
   emptyPendingOf,
   kept,
   landed,
+  parked,
   type Pending,
+  reaimed,
   refused,
   sameAnchor,
   sameSlot,
@@ -106,6 +107,43 @@ test("only a pending with nothing in it is empty", () => {
   expect(emptyPendingOf(null)).toBeNull()
 })
 
+test("parking an empty pending puts it on the list once", () => {
+  const blank = emptyPending({ kind: "before", id: "kitchen" }, "d1")
+  const once = parked([], blank)
+  expect(once).toEqual([blank])
+  expect(parked(once, blank)).toBe(once)
+  expect(parked([], editing())).toEqual([])
+  expect(parked([], pending({ text: "measure" }))).toEqual([])
+  expect(parked([], null)).toEqual([])
+})
+
+test("a titled before-draft re-aims the parked ones onto the row it became", () => {
+  const d1 = emptyPending({ kind: "before", id: "kitchen" }, "d1")
+  const d2 = emptyPending({ kind: "before", id: "kitchen" }, "d2")
+  const next = reaimed([d1, d2], d2.at, "garage")
+  expect(next).toEqual([
+    { ...d1, at: { kind: "before", id: "garage" } },
+    { ...d2, at: { kind: "before", id: "garage" } },
+  ])
+  expect(reaimed(next, d2.at, "other")).toEqual(next)
+})
+
+test("a first or under draft re-aims the skeleton onto the row it became", () => {
+  const first = emptyPending({ kind: "first", file: "empty.olai" }, "d1")
+  expect(reaimed([first], first.at, "n1")).toEqual([
+    { ...first, at: { kind: "before", id: "n1" } },
+  ])
+  const under = emptyPending({ kind: "under", id: "knobs" }, "d2")
+  expect(reaimed([under], under.at, "n2")).toEqual([
+    { ...under, at: { kind: "before", id: "n2" } },
+  ])
+})
+
+test("an after-draft leaves the parked ones on their neighbour", () => {
+  const d1 = emptyPending({ kind: "after", id: "handles" }, "d1")
+  expect(reaimed([d1], d1.at, "n7")).toEqual([d1])
+})
+
 // ── what a draft becomes ───────────────────────────────────────────────
 
 test("typing changes the text, and drops what the last write said", () => {
@@ -196,14 +234,9 @@ test("a slot names the box rather than the text in it", () => {
 })
 
 test("a new row is drawn after the row it follows, or on a page's start line", () => {
-  // `after` and `before` name a row on screen; `under` and `first` are what a
-  // page with no rows offers, and it draws them itself. So they have no row to
-  // be drawn against. The blur slot is the pending's own `slot`, so two ghosts
-  // at the same anchor stay two editors.
-  expect(anchorRow({ kind: "after", id: "order" })).toBe("order")
-  expect(anchorRow({ kind: "before", id: "order" })).toBe("order")
-  expect(anchorRow({ kind: "under", id: "order" })).toBeNull()
-  expect(anchorRow({ kind: "first", file: "a.olai" })).toBeNull()
+  // The blur slot is the pending's own `slot`, so two ghosts at the same
+  // anchor stay two editors. `under` and `first` have no row to sit next to;
+  // those are a page's start line.
   expect(slotOf(pending())).toEqual({ row: "d1", field: "new" })
   expect(slotOf(pending({ slot: "d2", at: { kind: "first", file: "a.olai" } })))
     .toEqual({ row: "d2", field: "new" })

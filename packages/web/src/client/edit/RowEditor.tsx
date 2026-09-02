@@ -142,9 +142,14 @@ export function TitleEditor(props: {
         spellcheck={false}
         onInput={(event) => {
           readCaret()
+          // A parked ghost is an input so it can be clicked back into, not
+          // so it can type into the live draft while resume is still on
+          // the queue.
+          if (props.active === false) return
           props.onInput(event.currentTarget.value)
         }}
         onKeyDown={(event) => {
+          if (props.active === false) return
           // The widget gets first refusal, and only over the keys it has an
           // answer for — see `Completion.key`. What it takes, it takes whole:
           // an arrow that walked the list must not also walk the outline.

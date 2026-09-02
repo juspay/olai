@@ -31,7 +31,7 @@ import { Then, When } from "@cucumber/cucumber";
 import { MARKS } from "@olai/format";
 
 import { shiftDay } from "@olai/format";
-import { IDLE_COMMIT, isoDayOf } from "@olai/web/testlib";
+import { IDLE_COMMIT, isoDayOf, TESTID } from "@olai/web/testlib";
 
 import type { Locator } from "playwright";
 
@@ -340,6 +340,31 @@ Then("the caret is near the start of the line", async function (this: OlaiWorld)
   }, "the caret to sit at the start of the line, not the end");
 });
 
+When("I click the first new row", async function (this: OlaiWorld) {
+  // Parked ghosts are drawn before the live one, so the first new-row is
+  // the oldest blank — the one resume has to re-find after a commit re-aims
+  // it. Pointer writes are not on the key counter; the next step waits for
+  // what the click wrote.
+  const row = this.page.locator(`${NEW_ROW} ${TITLE_EDITOR}`).first();
+  await this.press(row);
+});
+
+When("I click the page away from the drafts", async function (this: OlaiWorld) {
+  // Not `I click away from the editor`: that wait names the caret by the
+  // first title-editor in the document, and parked ghosts keep one of those
+  // standing, so the place never changes. Focus leaving the live input is
+  // the receipt that the empty drafts were parked rather than closed.
+  await this.page.locator("main").click({ position: { x: 4, y: 4 } });
+  await this.waitForFrame();
+  await this.waitUntil(async () => {
+    const inADraft = await this.page.evaluate((sel) => {
+      const el = document.activeElement;
+      return el !== null && el.matches(sel);
+    }, TITLE_EDITOR);
+    return !inADraft;
+  }, "focus to leave the drafts");
+});
+
 When("I click away from the editor", async function (this: OlaiWorld) {
   // Somewhere in the pane that is not a row: a blur, and nothing else — and
   // then the caret LEAVES, which is the same receipt the keys wait for and for
@@ -509,6 +534,51 @@ Then(
   },
 );
 
+/** A row a keystroke minted, by the title it was given — the id is nobody's
+ *  to choose, and "comes before" is still the page's sibling order. */
+Then(
+  "the node titled {string} comes before {string}",
+  async function (this: OlaiWorld, title: string, second: string) {
+    await this.waitUntil(async () => {
+      const first = await idTitled(this, title);
+      if (first === null) return false;
+      const drawn = await this.page
+        .locator(NODE)
+        .evaluateAll((all) => all.map((element) => element.getAttribute("data-node-id")));
+      return drawn.indexOf(first) !== -1 && drawn.indexOf(first) < drawn.indexOf(second);
+    }, `the node titled ${JSON.stringify(title)} to be drawn above "${second}"`);
+  },
+);
+
+Then(
+  "the node titled {string} comes before the node titled {string}",
+  async function (this: OlaiWorld, firstTitle: string, secondTitle: string) {
+    await this.waitUntil(async () => {
+      const first = await idTitled(this, firstTitle);
+      const second = await idTitled(this, secondTitle);
+      if (first === null || second === null) return false;
+      const drawn = await this.page
+        .locator(NODE)
+        .evaluateAll((all) => all.map((element) => element.getAttribute("data-node-id")));
+      return drawn.indexOf(first) !== -1 && drawn.indexOf(first) < drawn.indexOf(second);
+    }, `the node titled ${JSON.stringify(firstTitle)} to be drawn above ${JSON.stringify(secondTitle)}`);
+  },
+);
+
+const idTitled = async (world: OlaiWorld, title: string): Promise<string | null> =>
+  world.page.locator(NODE).evaluateAll(
+    (all, [want, titleId]) => {
+      for (const element of all) {
+        const own = element.querySelector(`[data-testid="${titleId}"]`);
+        if (own !== null && (own.textContent ?? "").includes(want)) {
+          return element.getAttribute("data-node-id");
+        }
+      }
+      return null;
+    },
+    [title, TESTID.nodeTitle] as [string, string],
+  );
+
 /** WHERE a draft opened at column 0 is drawn — above the title you were in,
  *  not after that row's whole subtree. Asked of boxes on the page: a new row
  *  is not a node (nothing has been written), so document order of `[data-node-id]`
@@ -522,13 +592,16 @@ Then(
     await this.waitUntil(async () => {
       const editor = this.page.locator(TITLE_EDITOR).first();
       if ((await editor.count()) === 0) return false;
-      const draft = editor.locator("xpath=ancestor::*[@data-testid='new-row'][1]");
+      const draft = editor.locator(
+        `xpath=ancestor::*[@data-testid='${TESTID.newRow}'][1]`,
+      );
       if ((await draft.count()) === 0) return false;
       const above = await draft.boundingBox();
       const of = await title.boundingBox();
       if (above === null || of === null) return false;
-      // Adjacent and above: the draft's bottom meets the title, with a little
-      // slack for padding. Below it — the subtree floor — is the teleport.
+      // Adjacent and above: one row's padding, not a layout assertion. The
+      // teleport this exists to catch is a large negative gap — the draft
+      // sits below the whole subtree.
       const gap = of.y - (above.y + above.height);
       return gap >= -2 && gap < 40;
     }, `the draft to sit immediately above the title of "${id}", not below its subtree`);

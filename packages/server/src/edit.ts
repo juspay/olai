@@ -348,9 +348,14 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
  * disagreeing about what "after this row" means. What differs between the two
  * is only what is BEING placed, which each caller spreads its own fields for.
  */
-type Landing =
-  | { readonly parent: string; readonly after?: string; readonly before?: string }
-  | { readonly file: string; readonly after?: string; readonly before?: string }
+type Home = { readonly parent: string } | { readonly file: string }
+type Neighbour =
+  | { readonly after: string; readonly before?: never }
+  | { readonly before: string; readonly after?: never }
+/** Where a row goes: a home, and at most one neighbour. `after` and `before`
+ *  together is the state `planPlacement` refuses at runtime; the type does
+ *  not spell it. */
+type Landing = Home | (Home & Neighbour)
 
 const landingFor = (
   at: Reading,

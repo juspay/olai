@@ -196,6 +196,17 @@ export const emptyPending = (at: Anchor, slot: string): Pending => ({
 export const emptyPendingOf = (draft: Draft | null): Pending | null =>
   draft !== null && draft.kind === "new" && draft.text.trim() === "" ? draft : null
 
+/** The list with this empty pending on it, or the list unchanged.
+ *  Same slot is a no-op, so parking twice cannot duplicate a ghost. */
+export const parked = (
+  list: ReadonlyArray<Pending>,
+  held: Draft | null,
+): ReadonlyArray<Pending> => {
+  const empty = emptyPendingOf(held)
+  if (empty === null || list.some((g) => g.slot === empty.slot)) return list
+  return [...list, empty]
+}
+
 /** What committing this draft would ASK FOR, or `null` when it would ask for
  *  nothing. Pure, and the whole of the decision: every caller — blur, Enter,
  *  the idle timer — asks this one question rather than each deciding for
@@ -347,12 +358,6 @@ export const stillAt = (draft: Draft, from: Slot): boolean =>
   sameSlot(slotOf(draft), from) ||
   (draft.kind === "row" && draft.was !== undefined && sameSlot(draft.was, from))
 
-/** The row a pending draft is drawn against, and `null` for the one that is
- *  drawn on a page's own start line — an outline with no rows to follow.
- *  `after` and `before` both name a row on screen; `under` and `first` do not. */
-export const anchorRow = (at: Anchor): string | null =>
-  at.kind === "after" || at.kind === "before" ? at.id : null
-
 /** Whether two anchors name the same place. What a start line asks to know
  *  whether the open pending draft is the one IT offered. */
 export const sameAnchor = (a: Anchor, b: Anchor): boolean =>
@@ -361,3 +366,21 @@ export const sameAnchor = (a: Anchor, b: Anchor): boolean =>
     : a.kind === "first"
     ? a.file === (b as typeof a).file
     : a.id === (b as typeof a).id
+
+/**
+ * Remaining parked drafts after a pending became a row.
+ *
+ * `after` keeps its neighbour — last-ghost-commit already preserves order
+ * there. `before`, `first` and `under` re-aim onto the row that landed, so
+ * they stay above it rather than drawing against a place that is now below
+ * it (or against a start line that has unmounted).
+ */
+export const reaimed = (
+  list: ReadonlyArray<Pending>,
+  from: Anchor,
+  id: string,
+): ReadonlyArray<Pending> => {
+  if (from.kind === "after") return list
+  const next: Anchor = { kind: "before", id }
+  return list.map((g) => (sameAnchor(g.at, from) ? { ...g, at: next } : g))
+}
