@@ -93,7 +93,7 @@
  */
 
 import { watchAgentStates } from "@kolu/padi-client/watch"
-import type { PadiSurfaceClient } from "@kolu/padi-client/dial"
+import type { PadiSurfaceClient } from "./link.ts"
 import type { PadiStateEvent, PadiWatchStatesInput } from "@kolu/padi-client/surface"
 import { narrowAgentState } from "@kolu/solid-dockrow/rowValues"
 import { agentBucket, WATCH_DEFAULT_STATES } from "@kolu/terminal-vocab/agentProjection"
