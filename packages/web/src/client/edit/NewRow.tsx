@@ -49,8 +49,16 @@ export function NewRow(props: {
           <span class={`${HOVER_CELL} hidden md:inline-flex`} aria-hidden="true" />
           <span class={HOVER_CELL} aria-hidden="true" />
         </span>
+        {/* The two faces of the same dot: the line the caret is IN draws the
+            bullet of the row it will become — Tab, Shift+Tab and
+            Alt+Shift+↑/↓ already answer under it, and a place the keys claim
+            is a row, not a placeholder — while a PARKED one stays the outline:
+            the sketch left standing on the page (the comment above).
+            `active` is exactly that line. */}
         <span class={CONTROL} aria-hidden="true">
-          <span class={`${DOT} border-[1.5px] border-muted`} />
+          <span
+            class={props.active === false ? `${DOT} border-[1.5px] border-muted` : `${DOT} bg-current`}
+          />
         </span>
         <TitleEditor
           text={props.draft.text}

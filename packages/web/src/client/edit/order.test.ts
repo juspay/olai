@@ -2,7 +2,7 @@ import type { Row } from "@olai/format"
 import { expect, test } from "bun:test"
 
 import { emptyPending } from "./draft.ts"
-import { flatten, neighbour, wired } from "./order.ts"
+import { flatten, neighbour, reanchored, wired } from "./order.ts"
 import type { Wire } from "./order.ts"
 
 /** A row, as far as this walk is concerned: the place it sits in, the node it
@@ -141,4 +141,51 @@ test("no drafts is the flattening itself, and the same values it answers", () =>
   const list = wired(tree, new Set(), [])
   expect(spelled(list)).toEqual(keys(flatten(tree, new Set())))
   expect(list.every((one) => one.kind === "row")).toBe(true)
+})
+
+// ── the structure keys over a blank ───────────────────────────────────
+
+test("Tab joins the flight of the row directly above the blank", () => {
+  // `a` has a subtree — the floor-seat's blank trails a1, a1x, a2: Tab joins
+  // the LAST of those, one level deeper than the seat.
+  expect(reanchored(tree, new Set(), { kind: "after", id: "a" }, "in"))
+    .toEqual({ kind: "after", id: "a2" })
+  // The row above at the blank's OWN depth: Tab slips under it — first-child's
+  // seat.
+  expect(reanchored(tree, new Set(), { kind: "after", id: "a1x" }, "in"))
+    .toEqual({ kind: "under", id: "a1x" })
+  // `b` is top-level and last: the wire's row above the blank is b itself.
+  expect(reanchored(tree, new Set(), { kind: "after", id: "b" }, "in"))
+    .toEqual({ kind: "under", id: "b" })
+  // The first-child's seat is as deep as that side of the shape goes.
+  expect(reanchored(tree, new Set(), { kind: "before", id: "a1" }, "in")).toBeUndefined()
+})
+
+test("Shift+Tab slips the blank out of the sibling list it sits in", () => {
+  expect(reanchored(tree, new Set(), { kind: "after", id: "a2" }, "out"))
+    .toEqual({ kind: "after", id: "a" })
+  // The first-child's seat out: right below the branch that held it — a seat
+  // among the PARENT's siblings is what Shift+Tab means everywhere else.
+  expect(reanchored(tree, new Set(), { kind: "under", id: "a1" }, "out"))
+    .toEqual({ kind: "after", id: "a1" })
+  // A top-level seat is as far out as a blank gets.
+  expect(reanchored(tree, new Set(), { kind: "after", id: "b" }, "out")).toBeUndefined()
+})
+
+test("Alt+Shift walks the blank one slot within its sibling list", () => {
+  // The single row above the seat: the blank comes out directly before it —
+  // the seat the eye already saw it in ONE place rather than two.
+  expect(reanchored(tree, new Set(), { kind: "after", id: "a1" }, "up"))
+    .toEqual({ kind: "before", id: "a1" })
+  // Two slots up from after-a2: past a2's whole subtree and above it.
+  expect(reanchored(tree, new Set(), { kind: "after", id: "a1x" }, "up"))
+    .toEqual({ kind: "before", id: "a1x" })
+  expect(reanchored(tree, new Set(), { kind: "after", id: "a2" }, "up"))
+    .toEqual({ kind: "after", id: "a1" })
+  expect(reanchored(tree, new Set(), { kind: "before", id: "a2" }, "down"))
+    .toEqual({ kind: "after", id: "a2" })
+  // Both ENDS are where the key says nothing — the blank does not wrap round
+  // any more than a row does.
+  expect(reanchored(tree, new Set(), { kind: "before", id: "a1" }, "up")).toBeUndefined()
+  expect(reanchored(tree, new Set(), { kind: "after", id: "b" }, "down")).toBeUndefined()
 })

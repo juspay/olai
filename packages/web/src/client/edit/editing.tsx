@@ -90,7 +90,7 @@ import {
   stillAt,
   typed,
 } from "./draft.ts"
-import { flatten, refound, wired } from "./order.ts"
+import { flatten, reanchored, refound, wired } from "./order.ts"
 import { serial } from "./queue.ts"
 import { redraws, rekeys } from "./redraws.ts"
 import { useUndo } from "./undoing.ts"
@@ -494,6 +494,45 @@ export const createEditor = (
     return true
   }
 
+  /**
+   * A structure key on a BLANK, before it goes anywhere near the queue.
+   *
+   * The two lives of one key: a row that EXISTS is moved by the ops layer — a
+   * write, the queue, the redraw, the caret-follow and all — but a sketch is
+   * alive before any of that: it moves by its ANCHOR alone, and the whole key
+   * is the local one — no write, no round trip, nothing on disk. A refusal the
+   * ops layer would otherwise have harangued about never exists, because the
+   * row it would have pinned hasn't been asked for — and the one thing a key
+   * CAN still say no to is a seat with no side to slip on.
+   *
+   * Computed on the WIRE the blank is drawn by ({@link ./order.ts}’s
+   * `reanchored`) — where the anchor points the same way the eye walks. One
+   * rule with the commit the sketch becomes: this walks the same anchors.
+   */
+  const resketching = (
+    how: "in" | "out" | "up" | "down",
+    name: (draft: RowDraft) => Edit,
+    at?: Caret,
+  ): void => {
+    const sketch = emptyPendingOf(draft())
+    if (sketch !== null) {
+      const next = reanchored(page.rows(), page.collapsed(), sketch.at, how)
+      if (next === undefined) return
+      idle.clear()
+      // A NEW SLOT for the new seat. The anchor IS a drawing address, so the
+      // blank jumps somewhere else on the page and the input remounts there —
+      // and the blur from the ONE going belongs to that address: it arrives
+      // with the slot of this sketch's past self, and `sameSlot`'s whole
+      // "the row it opened is not this one's to close" then holds as written,
+      // because the old element and the new one genuinely hold different
+      // addresses now. Keeping one slot made the remount's blur park the very
+      // draft the key was rearranging.
+      setDraft({ ...sketch, at: next, slot: mintSlot() })
+      return
+    }
+    enqueue(() => structural(name, at))
+  }
+
   /** The idle commit. Scheduled by every keystroke and cancelled by every
    *  commit, so a person who keeps typing causes one write rather than one per
    *  pause. */
@@ -859,14 +898,15 @@ export const createEditor = (
     // give the row a new parent read it — which is `./redraws.ts`'s `rekeys`,
     // not a decision made here. An indent draws the row in a branch that did
     // not exist; a reorder leaves it in the one it was in.
-    in: (at) =>
-      enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "in" }), at)),
-    out: (at) =>
-      enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "out" }), at)),
-    up: (at) =>
-      enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "up" }), at)),
-    down: (at) =>
-      enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "down" }), at)),
+    //
+    // The BLANK takes the four first: a sketch is re-shaped as a sketch —
+    // only its anchor moves, nothing is written — and the key is already
+    // right under the finger it was laid out with. `resketching` holds the
+    // drawing rule.
+    in: (at) => resketching("in", (held) => ({ verb: "move", id: held.row, how: "in" }), at),
+    out: (at) => resketching("out", (held) => ({ verb: "move", id: held.row, how: "out" }), at),
+    up: (at) => resketching("up", (held) => ({ verb: "move", id: held.row, how: "up" }), at),
+    down: (at) => resketching("down", (held) => ({ verb: "move", id: held.row, how: "down" }), at),
     // The BULLET's page, from the key rather than the pointer — and the row
     // being zoomed INTO is the one being typed in, which is why this is
     // `picking`'s three steps exactly: commit, leave the caret, then let the

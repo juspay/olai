@@ -203,6 +203,43 @@ Feature: Keyboard editing
     Then the node "knobs" comes before "hinges"
     And the page has not reloaded
 
+  Scenario: Enter, Tab, a title, Enter writes a child of the row above
+    # A blank takes the structure keys the moment it is a blank: the shape is
+    # laid out BEFORE any words, and the ONE write holds the shape the person
+    # sketched. A blank that only a title can move is a placeholder, not a row.
+    When I click the title of "install"
+    And I press "Enter"
+    Then a new row is being typed
+    When I press "Tab"
+    And I type "measure twice"
+    And I press "Enter"
+    Then "house.olai" holds a node titled "measure twice"
+    And "house.olai" holds a node titled "measure twice" under "install"
+
+  Scenario: A blank takes Shift+Tab back out, before it is written
+    # The same shape key the other way: the indent was the shape's, not a
+    # write's — so the un-indent is the blank's too, and nothing on disk moved.
+    When I click the title of "install"
+    And I press "Enter"
+    And I press "Tab"
+    And I press "Shift+Tab"
+    And I type "regrout the bar"
+    And I press "Enter"
+    Then "house.olai" holds a node titled "regrout the bar"
+    And the node titled "regrout the bar" comes before "kitchen-herbs"
+
+  Scenario: Alt+Shift+Up moves a blank among its would-be siblings
+    # The reorder pair, for the blank too: it goes up without becoming a write,
+    # so the skeleton a person is sketching can be moved whole before one word
+    # of it is on disk.
+    When I click the title of "handles"
+    And I press "Enter"
+    And I press "Alt+Shift+ArrowUp"
+    And I type "fetch a mallet"
+    And I press "Enter"
+    Then "house.olai" holds a node titled "fetch a mallet"
+    And the node titled "fetch a mallet" comes before the node titled "handles"
+
   Scenario: Ctrl+Enter ticks a row off, and again takes it back
     When I click the title of "handles"
     And I press "Control+Enter"
