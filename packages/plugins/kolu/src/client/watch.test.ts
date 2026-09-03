@@ -179,6 +179,15 @@ describe("the subscription watcher", () => {
     // THE ACCOUNTING, verbatim — the cap is padi's sentence, never ours.
     expect(fired[1]?.kind).toBe("nag")
     expect(fired[1]?.nag).toEqual({ index: 1 })
+
+    // ...and it is the KIND that decides it carries accounting at all: a
+    // first report with a count riding it drops the count at the fold, so
+    // no reader downstream ever spells a "reminder" of a first saying.
+    await Effect.runPromise(Queue.offer(queue, [
+      ev("transition", "t3", { nag: { index: 5, left: 0 } }),
+    ]))
+    await sleep(30)
+    expect(seen.events.at(-1)?.nag).toBeUndefined()
     watch.stop()
   })
 

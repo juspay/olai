@@ -328,7 +328,11 @@ export const makeWatch = (
         repo: row?.repo ?? null,
         since: new Date(ev.since).toISOString(),
       },
-      ...(ev.nag === undefined ? {} : { nag: ev.nag }),
+      // THE KIND DECIDES THE ACCOUNTING, here and not per reader: the wire
+      // schema is a flat `{kind, nag?}` whose pairing rule the doc states,
+      // so the fold is the one place the rule is ENFORCED — a first report
+      // that arrived with counting on it carries it no further.
+      ...(ev.kind === "nag" && ev.nag !== undefined ? { nag: ev.nag } : {}),
     }
   }
 
