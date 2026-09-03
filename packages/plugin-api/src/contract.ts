@@ -80,21 +80,41 @@ export interface StdioServer {
  * make in the other direction: a plugin re-declares only the part it reads, and
  * contravariance makes the narrower spelling the stronger claim.
  *
- * ## ...AND IT IS THE ONE OF THE THREE THAT STOPPED BEING SPELLED HERE
+ * ## IT WENT TO `@olai/acp` FOR A REVISION, AND CAME BACK
  *
- * It is `@olai/acp/engine`'s now, re-exported, because the agents phase gave it
- * a SECOND caller with the same problem and the opposite geometry: an ENGINE
- * PLUGIN says how to get itself for the face drawn when this host has no agent
- * at all, and `@olai/chat` reads exactly that shape for an MCP server a
- * conversation was meant to be handed. Both ends were forbidden the other's
- * package, so the shape went to the floor package under BOTH — which is where a
- * word two walls need belongs, and which the other two here have no equivalent
- * of. Nothing about the arrangement above changed: `@olai/chat` still declares
- * {@link StdioServer} and {@link Probed} for itself.
+ * The agents phase read it as a shape TWO WALLS needed — an engine plugin
+ * saying how to get itself, and `@olai/chat` saying what an absent MCP server
+ * was — and moved it to the floor package under both. The second reader turned
+ * out not to exist: an engine's install sentence is drawn by that engine's own
+ * BROWSER half out of a slot, so no server-side registration ever needed the
+ * shape, and `@olai/chat` had gone on declaring its own copy the whole time
+ * (`servers.ts`, the contravariant re-spelling this header argues for).
+ *
+ * So it is back here, beside the probe that is its only reader, and
+ * `@olai/acp`'s door is the poorer for one fewer word that was never the
+ * protocol's. An engine plugin that wants the shape for its install sentence
+ * takes it from HERE, which it already imports for `Agents`.
+ *
+ * `why` IS A WHOLE SENTENCE and nothing composes around it. The words belong to
+ * whoever found out — the five ways a padi can fail are `olai-plugin-kolu`'s to
+ * word, and where to get opencode is `olai-plugin-opencode`'s — because a
+ * sentence built out of a core template with a plugin's noun dropped into it is
+ * a debug log line on a screen. **Core displays a sentence and never composes
+ * one.**
  */
-import type { NotHere } from "@olai/acp/engine"
 
-export type { NotHere }
+/**
+ * SOMETHING THIS HOST DOES NOT HAVE, and what a person is owed about it.
+ *
+ * `where` is where the thing WOULD be, in whichever way makes sense for it: the
+ * file a probe asked for, or the page a person downloads it from. `null` for the
+ * ways of being absent that name no place at all.
+ */
+export interface NotHere {
+  readonly name: string
+  readonly where: string | null
+  readonly why: string
+}
 
 /** WHAT A PROBE FOUND — both halves at once, because they are one reading.
  *

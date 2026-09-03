@@ -24,7 +24,7 @@ import { Agents, definePlugin, type Registering } from "@olai/plugin-api/service
 import { Effect } from "effect"
 
 import { name } from "./index.ts"
-import { INSTALL, NAME } from "./install.ts"
+import { NAME } from "./install.ts"
 import { OPENCODE } from "./leg.ts"
 
 /** The plugin's word, re-exported for the reason every tenant's server door
@@ -49,10 +49,6 @@ export const ENGINE: Registering = {
     // its `storedFor`.)
     return { command: bin, args: ["acp", "--cwd", where.cwd] }
   },
-  // ...AND THE SENTENCE FOR A MACHINE THAT HAS NONE — {@link ./install.ts},
-  // which is where it is spelled because the BROWSER half draws the same words
-  // on the no-agent face and the two halves share no graph.
-  missing: INSTALL,
   // `_session/steering` does not exist on this wire and neither does a system
   // prompt: the standing instruction rides the first turn, like every engine
   // olai ships (`@olai/acp/engine`'s `PromptChannel`).

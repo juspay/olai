@@ -15,7 +15,7 @@
  * package knows.
  */
 
-import type { NotHere } from "@olai/acp/engine"
+import type { NotHere } from "@olai/plugin-api"
 
 /** WHAT A PERSON READS — in the picker, in the header beside the model, and on
  *  the row below. The plugin's, because "Claude Code" is a name rather than the

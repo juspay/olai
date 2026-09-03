@@ -217,7 +217,7 @@ Skim the table; the sections after it give one example each.
 | **member** | one thing on a surface: a cell, a collection, a stream, a procedure |
 | **face** | *who* may see which members — `browser`, `agent`. Default-deny |
 | **probe** | "is this tool on this host?" — an Effect registered on `SessionStart`, read afresh and asked once per conversation. The plugin's NAME is stamped off the fiber, like every other keyed door |
-| **engine** | one ACP agent olai can seat, as a plugin: a `Leg` that reads its wire, a probe that finds it on this host, an install sentence, and the channel its standing prompt rides. `claude`, `opencode`, `pi` — one directory and one row each |
+| **engine** | one ACP agent olai can seat, as a plugin: a `Leg` that reads its wire, a probe that finds it on this host, and the channel its standing prompt rides — plus, on its browser half, the mark it wears and the sentence about how to get it. `claude`, `opencode`, `pi` — one directory and one row each |
 | **kind** | a word a plugin teaches the vault's vocabulary. Contributed BARE (`terminal`) and composed by `Kinds` with the plugin's own name (`kolu-terminal`) |
 | **claim** | the key a kind declares by convention — its own composed word, so mounting a plugin turns its faces on with no file to edit |
 | **dressing** | what a live property *wears* in the browser: a chip, a pane, a block |
@@ -929,8 +929,8 @@ that matters.
 3. **`packages/plugins/<name>/src/browser.tsx`** — the browser half, the same
    shape: a `name` and a `surface` re-exported off `./wire.ts`, and a `default`
    `definePlugin` whose Effect registers your faces into `Slots`. Browser graph,
-   and its own chunk. An ENGINE re-exports only its `name` and registers three
-   faces: its mark, its picker row and its install sentence (step 6).
+   and its own chunk. An ENGINE re-exports only its `name` and registers TWO
+   faces: its mark and its install sentence (step 6).
 4. **`packages/plugins/<name>/docs.md`** — the user page, plus a
    symlink at `docs/plugins/<name>.md` and a line in `docs/index.md`.
    `packages/tests/plugin_docs.test.ts` fails if you skip either.
@@ -952,17 +952,19 @@ that matters.
    (`@olai/acp/engine`) — every bet about that agent's wire, each a pure function
    with a unit test, each safe to lose in ONE direction: an agent that says none
    of it matches nothing, and what happens then is that a person is asked.
-   `src/server.ts` registers `{ name, leg, at, missing, prompt }` on `Agents`:
-   what a person reads, the leg, a probe that answers `Adapter | null` for this
-   host, the whole install sentence for a machine that has none, and the channel
-   the standing prompt rides. `src/browser.tsx` hangs TWO faces, and both are
+   `src/server.ts` registers `{ name, leg, at, prompt }` on `Agents`: what a
+   person reads, the leg, a probe that answers `Adapter | null` for this host,
+   and the channel the standing prompt rides. NOT the install sentence — it rode
+   this registration once, read by nothing, because the face that draws it is
+   your BROWSER half's. `src/browser.tsx` hangs TWO faces, and both are
    drawings ABOUT this engine rather than data about it: its MARK
    (`chat.speaker.mark`) and its SENTENCE on the face drawn when the machine has
    no agent at all (`chat.agent.install`). Core keeps the shape of each — the
    sixteen-unit box, the list, the order — and neither drawing crosses the wire,
    so `--plugins` naming other engines draws a panel with nothing of yours
-   anywhere in it. Spell the install sentence ONCE, in a `src/install.ts` both
-   halves open: the server registers it as `missing` and the browser draws it.
+   anywhere in it. Spell the install sentence in a `src/install.ts` your browser
+   half opens — a `NotHere` (`@olai/plugin-api`), whose `why` is a WHOLE SENTENCE
+   core composes no clause of.
 
    THERE IS NO FACE FOR THE PICKER'S ROW, and the omission is a ruling. The
    words in that row are your engine's `name`, which the server already sends

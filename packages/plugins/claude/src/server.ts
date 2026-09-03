@@ -36,7 +36,7 @@ import { adapterFrom, AGENT_ENV } from "@olai/acp/engine"
 import { Agents, definePlugin, type Registering } from "@olai/plugin-api/services"
 import { Effect } from "effect"
 
-import { INSTALL, NAME } from "./install.ts"
+import { NAME } from "./install.ts"
 import { CLAUDE } from "./leg.ts"
 import { name } from "./index.ts"
 
@@ -63,10 +63,6 @@ export const ENGINE: Registering = {
   // nobody's PATH. `null` is a hand-rolled start that went through neither
   // the packaged binary nor the justfile — an absence, not a fault.
   at: (where) => adapterFrom(where.env[AGENT_ENV]),
-  // ...AND THE SENTENCE FOR A MACHINE THAT HAS NONE — {@link ./install.ts},
-  // which is where it is spelled because the BROWSER half draws the same words
-  // on the no-agent face and the two halves share no graph.
-  missing: INSTALL,
   // ACP has no system prompt on any wire, this one included, so the standing
   // instruction rides the first turn — where a person can read what their agent
   // was told. `@olai/acp/engine`'s `PromptChannel` argues it, and `@olai/chat`

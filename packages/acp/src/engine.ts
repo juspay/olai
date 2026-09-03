@@ -30,6 +30,18 @@
  * thing three engines should be free to say three ways. And the SPAWN: what to
  * do with an {@link Adapter} once you have one is `@olai/chat`'s, which is the
  * package that speaks the protocol out loud.
+ *
+ * AND HOW TO GET THE ENGINE, which is the one that was here and went. A
+ * `missing: NotHere` rode this registration for a revision, so an engine handed
+ * over its install sentence twice: once here and once as the face its browser
+ * half hangs in `chat.agent.install`. Only the face was ever read — no serve, no
+ * log line and no cell ever touched the field — so what it bought was a second
+ * authored copy of one sentence and a `null` arm whose documented behaviour ("a
+ * row with none is drawn nowhere") could not be observed, because the non-null
+ * arm was drawn nowhere either. The sentence is spelled once, in the plugin's
+ * own `install.ts`, and spent once, by the half that draws it. `NotHere` went
+ * back with it, to `@olai/plugin-api`'s `contract.ts` — the door of the probe
+ * that does read one.
  */
 
 import type { Leg } from "./leg.ts"
@@ -111,32 +123,6 @@ export interface Where {
 }
 
 /**
- * SOMETHING THIS HOST DOES NOT HAVE, and what a person is owed about it.
- *
- * ONE SHAPE FOR TWO ABSENCES, and they are the same absence one floor apart: an
- * optional MCP server a conversation was meant to be handed and was not
- * (`@olai/chat`'s `servers.ts`), and an ENGINE this machine has no install of
- * ({@link Engine.missing}). Both are answered by whoever went looking, both are
- * drawn rather than logged, and both carry the finder's OWN WHOLE SENTENCE.
- *
- * `why` IS THAT SENTENCE and nothing composes around it. The words belong to
- * whoever found out — the five ways a padi can fail are `olai-plugin-kolu`'s to
- * word, and where to get opencode is `olai-plugin-opencode`'s — because a
- * sentence built out of a core template with a plugin's noun dropped into it is
- * the debug log line on a screen. **Core displays a sentence and never composes
- * one.**
- *
- * `where` is where the thing WOULD be, in whichever way that makes sense for it:
- * the file a probe asked, or the page a person downloads it from. `null` for the
- * ways of being absent that name no place at all.
- */
-export interface NotHere {
-  readonly name: string
-  readonly where: string | null
-  readonly why: string
-}
-
-/**
  * WHERE A STANDING PROMPT GOES on this engine's wire.
  *
  * olai teaches a node agent's session one standing instruction, once
@@ -189,13 +175,6 @@ export interface Registering {
    *  {@link missing}, which is a different sentence and is answered whether or
    *  not anybody looked. */
   readonly at: (where: Where) => Adapter | null
-  /** ...and how to GET it, for the face drawn when this host has no agent at
-   *  all — the plugin's whole sentence, {@link NotHere}.
-   *
-   *  `null` for an engine that needs no getting: one that ships inside olai, or
-   *  one whose absence a person can do nothing about. A row with none is drawn
-   *  nowhere, which is the honest face of "there is nothing to tell you". */
-  readonly missing: NotHere | null
   /** Which channel this engine's standing prompt rides —
    *  {@link PromptChannel}. */
   readonly prompt: PromptChannel

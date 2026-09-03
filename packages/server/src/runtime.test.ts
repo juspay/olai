@@ -1226,7 +1226,6 @@ const engineCalled = (name: string) => ({
         name: ` (a name)`,
         leg: {} as Leg,
         at: () => null,
-        missing: null,
         prompt: { kind: "first-turn" },
       })
     }),

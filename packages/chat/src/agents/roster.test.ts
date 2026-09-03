@@ -52,7 +52,6 @@ const engine = (id: string, at: (where: Where) => Adapter | null): Engine => ({
   name: `${id} (a name)`,
   leg: NO_LEG,
   at,
-  missing: null,
   prompt: { kind: "first-turn" },
 })
 

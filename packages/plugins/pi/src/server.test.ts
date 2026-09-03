@@ -17,6 +17,7 @@ import { describe, expect, test } from "bun:test"
 
 import { name } from "./index.ts"
 import { ENGINE, PI_AGENT_ENV } from "./server.ts"
+import { INSTALL } from "./install.ts"
 
 const CWD = "/vault"
 
@@ -74,7 +75,12 @@ describe("finding pi on a host", () => {
   })
 
   test("what a person is told when this machine has no agent at all", () => {
-    expect(ENGINE.missing).toEqual({
+    // THE PLUGIN'S WHOLE SENTENCE — core displays one and never composes one.
+    // Asserted off the CONSTANT rather than off the registration: it is spelled
+    // once here and spent once, by the browser half that hangs it in
+    // `chat.agent.install`. It rode the server registration too for a revision,
+    // read by nothing, which is exactly one authored copy too many.
+    expect(INSTALL).toEqual({
       name: "pi",
       where: "https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent",
       why: "put `pi` on this server's PATH — the adapter for it comes with olai",
