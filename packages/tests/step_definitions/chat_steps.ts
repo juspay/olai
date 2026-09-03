@@ -330,6 +330,37 @@ When(
   },
 );
 
+/** How many times the agents have been ASKED FOR THEIR LISTING so far, off
+ *  the line the fake appends on every one (`packages/tests/agent/fake-acp-agent.ts`
+ *  — an absent file is an agent never asked, which is zero). The count is the
+ *  pin's currency: what asking costs is the asking, whatever it answered. */
+const listAsks = (scratch: string): number => {
+  try {
+    return fs
+      .readFileSync(path.join(scratch, ".agent-list-asks"), "utf8")
+      .trim()
+      .split("\n")
+      .filter((line) => line !== "").length;
+  } catch (failure) {
+    if ((failure as NodeJS.ErrnoException).code === "ENOENT") return 0;
+    throw failure;
+  }
+};
+
+/** NOTE the count, for `the list-asks have not grown` to say it never moved:
+ *  the shape of "the answer already names this conversation, so settling
+ *  another turn in it pays for no probe." */
+When("the list-asks so far are counted", function (this: OlaiWorld) {
+  this.notedListAsks = listAsks(this.scratch());
+});
+
+Then("the list-asks have not grown", function (this: OlaiWorld) {
+  if (this.notedListAsks === null) {
+    throw new Error("nothing was counted — pair this with `the list-asks so far are counted`");
+  }
+  assert.equal(listAsks(this.scratch()), this.notedListAsks);
+});
+
 /** Make the agent REFUSE to open a conversation — one verb or the other, and
  *  it stays alive and answering either way. Read at the moment of the request,
  *  so a scenario can arm it and then press something, or arm it and restart the

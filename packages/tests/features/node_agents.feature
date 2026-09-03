@@ -387,6 +387,16 @@ Feature: A node with an `agent-session` property IS an agent
     When I ask the agent "hello"
     And the agent is idle
     Then the roster offers 1 unassigned chats
+    # ... and NAMED BY THE ANSWER is where asking stops: the next turn settles
+    # into a conversation the listing already says, so the gate pays for no
+    # probe at all. That, and not the row, is what keeps a worked-in directory
+    # from paying an ask per settled turn for the life of a tab. The PRESS,
+    # which is itself an ask, comes after the count is done with.
+    When the list-asks so far are counted
+    And I ask the agent "how are you"
+    And the agent is idle
+    Then the roster offers 1 unassigned chats
+    And the list-asks have not grown
     When I open the unassigned chats
     Then the unassigned list holds "hello"
 

@@ -67,10 +67,16 @@
  * existed — OPENING can never fire. The event the empty answer cannot survive
  * is a SETTLED TURN: the conversation that just ran is a file the listing has
  * not seen, so when the last answer names neither it nor a node claiming it,
- * the ask goes out again there. One ask per settled turn of a conversation
- * the answer does not name, and none for one it does: the ordinary state of
- * every directory this is asked about, which is the same rule the cache keeps
- * one layer down — nothing is re-asked about what the answer already says.
+ * the ask goes out again there. ONCE per conversation, never per turn: a
+ * listing that CAN name it has been asked, and one that cannot — an agent
+ * without `sessionCapabilities.list`, or a `cwd` the directory rule rejects —
+ * never will, so re-asking on every settle would pay the spawn bill this
+ * file's ask-once rule exists to refuse, on a trigger nothing on screen ever
+ * shows. The tab remembers instead (`probed` below), and anything surer than
+ * one probe is the press. A conversation the answer already names pays
+ * nothing per turn, which is the ordinary state of every directory this is
+ * asked about — the same rule the cache keeps one layer down: nothing is
+ * re-asked about what the answer already says.
  *
  * WHAT COULD NOT BE ASKED IS KEPT, in both of its sizes. One agent that could
  * not answer is a row of the answer ({@link Roster.unreachable}) and the whole
@@ -98,7 +104,6 @@ import {
   createMemo,
   createSignal,
   type JSX,
-  on,
   useContext,
 } from "solid-js"
 
@@ -166,7 +171,8 @@ export interface Roster {
    *  conversation started in a terminal a moment ago should be in it. Called
    *  on the press, and by the provider itself when a settled turn lands the
    *  panel in a conversation the last answer does not name and no node claims
-   *  — the ask a row that is not drawn yet can never take. */
+   *  — the ask a row that is not drawn yet can never take, once per such
+   *  conversation (see the header); past that the press is the only ask. */
   readonly askChats: () => void
 }
 
@@ -209,6 +215,18 @@ export function AgentsProvider(props: { readonly children: JSX.Element }) {
    *  it would redraw the page for a wire a reader never sees. */
   let asking = false
   let held = false
+  const settleAsk = (apply: () => void): void => {
+    // THE FLAGS GO DOWN BEFORE THE ANSWER IS APPLIED, and the queue drains
+    // after: `run` rethrows a defect and a signal's subscribers run inside
+    // `apply`, so either arm throwing would otherwise pass the release by and
+    // wedge `asking` forever — taking the press with it, invisibly. A defect
+    // may now cost the drain; it may never lock the door.
+    const refire = held
+    asking = false
+    held = false
+    apply()
+    if (refire) askChats()
+  }
   const askChats = (): void => {
     // COALESCED, not stacked: while one ask is in flight a second says nothing
     // the settle will not say fresher — and the settle RE-FIRES when anything
@@ -220,13 +238,6 @@ export function AgentsProvider(props: { readonly children: JSX.Element }) {
       return
     }
     asking = true
-    const settled = (): void => {
-      asking = false
-      if (held) {
-        held = false
-        askChats()
-      }
-    }
     run(
       olai.procedures.chat.sessions(),
       // A REFUSAL LEAVES THE LAST ANSWER STANDING rather than emptying the
@@ -234,15 +245,15 @@ export function AgentsProvider(props: { readonly children: JSX.Element }) {
       // assigned — and it is KEPT, because the list is the one place those
       // conversations are now and a stale one with nothing said over it would
       // be the same lie the picker's own refusal arm exists to prevent.
-      (failure) => {
-        setChatsRefusal(failure.message)
-        settled()
-      },
-      (listed) => {
-        setChatsRefusal(null)
-        setChats(listed)
-        settled()
-      },
+      (failure) =>
+        settleAsk(() => {
+          setChatsRefusal(failure.message)
+        }),
+      (listed) =>
+        settleAsk(() => {
+          setChatsRefusal(null)
+          setChats(listed)
+        }),
     )
   }
   // ONCE, on the frame this provider mounts: what it buys is the count on a
@@ -255,31 +266,58 @@ export function AgentsProvider(props: { readonly children: JSX.Element }) {
   // TURN is when that is true: not the mount ask, which can land before the
   // first transcript exists, and never a clock, which the header rules out.
   //
+  // The previous status is a LOCAL and not `on`'s: a deferred `on` never
+  // recalls the first transition's before-value, and a tab that MOUNTED
+  // mid-turn — somebody worked in a sibling — is exactly the tab standing on
+  // the settle it would have dropped.
+  let wasThinking = chat().status === "thinking"
+  // THE SETTLED-TURN PROBES THIS TAB HAS PAID, by conversation key. That is
+  // the bound on the trigger: one probe is as much as a listing that CAN name
+  // the conversation needs, and as much as one that cannot will ever get —
+  // its answer is asked for again on the press and nowhere else. Never
+  // cleared: a conversation the answer names fails the named-check before it
+  // reaches the set, so what remains in it is precisely the conversations the
+  // answer can never name — the ones that must not probe twice.
+  const probed = new Set<string>()
+  //
   // The GATE, and not the turn, is the frugality: re-ask only when the last
   // answer names neither the conversation nor a node claiming it — which is
   // true of a conversation nobody has listed yet and of nothing else. A
   // conversation the answer already names pays nothing per turn, and that is
-  // every directory once its listing has landed; an agent's FIRST unlisted
-  // conversation pays one probe per settled turn until the answer catches up,
-  // which is exactly what pressing the row would have cost.
-  createEffect(
-    on(
-      () => chat().status,
-      (now, before) => {
-        if (before !== "thinking" || now === "thinking") return
-        const pair = openChat()
-        const listed = chats()
-        if (pair === null || listed === null) return
-        const named = listed.sessions.some(
-          (row) => row.agent === pair.agent && row.id === pair.session,
+  // every directory once its listing has landed. NO ANSWER YET — the mount ask
+  // still out, or refused — reads as NOT NAMED, and the ask below coalesces
+  // behind the one in flight if there is one: that settle is queued, never
+  // dropped.
+  createEffect(() => {
+    const now = chat().status === "thinking"
+    const settledTurn = wasThinking && !now
+    wasThinking = now
+    if (!settledTurn) return
+    const pair = openChat()
+    if (pair === null) return
+    const listed = chats()
+    if (listed !== null) {
+      // NAMED before CLAIMED: the answer naming the conversation is the
+      // ordinary case, and the claim walk pays a chain per roster agent over
+      // the whole listing to reach the same stop.
+      if (
+        listed.sessions.some((row) => row.agent === pair.agent && row.id === pair.session)
+      ) {
+        return
+      }
+      if (
+        claimedIn(listed.sessions, cell.value() ?? NO_AGENT_ROSTER).has(
+          chatKey(pair.agent, pair.session),
         )
-        const claimed = claimedIn(listed.sessions, cell.value() ?? NO_AGENT_ROSTER)
-          .has(chatKey(pair.agent, pair.session))
-        if (!named && !claimed) askChats()
-      },
-      { defer: true },
-    ),
-  )
+      ) {
+        return
+      }
+    }
+    const key = chatKey(pair.agent, pair.session)
+    if (probed.has(key)) return
+    probed.add(key)
+    askChats()
+  })
 
   /** The answer's own arm, read once here — see {@link Roster.unreachable}. */
   const unreachable = createMemo((): ReadonlyArray<Unreachable> => chats()?.unreachable ?? [])

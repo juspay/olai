@@ -195,8 +195,8 @@
  */
 
 import { spawn } from "node:child_process"
-import { existsSync, readFileSync, rmSync, statSync } from "node:fs"
-import { basename } from "node:path"
+import { appendFileSync, existsSync, readFileSync, rmSync, statSync } from "node:fs"
+import { basename, join } from "node:path"
 
 import { readMessages } from "../support/ndjson.ts"
 import { emitter, MARKER, RELEASE, released as releasedIn, speaking } from "../support/scripted.ts"
@@ -2803,6 +2803,13 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
     case "session/list":
       // Same as openSession: this cwd is ours, not an agent's.
       if (typeof params["cwd"] === "string") cwd = params["cwd"].replace(/\/+$/, "")
+      // COUNTED, one line per time asked — refused or not, the asking is the
+      // pin: a scenario notes the file, settles another turn of a
+      // conversation the last answer already names, and the count must not
+      // have moved. Appended-line shaped rather than a rewritten counter
+      // because several adapters on one directory each answer their own; the
+      // dot-file idiom keeps the store's walk out of it.
+      appendFileSync(join(cwd, ".agent-list-asks"), "1\n")
       // An agent that CANNOT say what it has stored — asked, and refusing.
       // Distinct from an agent with nothing stored, which answers an empty
       // list, and the whole point of the scenario that arms it: the two used

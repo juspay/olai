@@ -1859,6 +1859,10 @@ export class OlaiWorld extends World {
    *  dropped the stale-tab line when it arrived in the gap between "serving"
    *  and the new listener — the restart flake under load. */
   serverLog: { text: string } = { text: "" };
+  /** How many listing asks the agents had been through when a scenario
+   *  noted it — `null` until one does, so comparing is a sentence about
+   *  noted-and-now, never about a zero the scenario forgot to set. */
+  notedListAsks: number | null = null;
 
   /** Wait for a double `requestAnimationFrame`.
    *
