@@ -711,6 +711,15 @@ e2e: install nix
     # no tests at all.
     OLAI_BIN="$bin" {{ nix_shell_e2e }} bun run test
 
+# The same browser suite, spread over every x86_64-linux host in odu's
+# inventory. The script copies THIS worktree — committed, modified and
+# untracked non-ignored files — because this is an iteration recipe: requiring
+# a pushed SHA would make it test the last push rather than the edit in hand.
+# Each host enters this repository's own Nix shells, so SSH and Nix are the
+# remote contract; ambient just, bun and Playwright are not.
+e2e-fast-remote:
+    {{ nix_shell }} bash scripts/e2e-fast-remote.sh
+
 # Format the *.nix files
 fmt:
     {{ nix_shell }} nixpkgs-fmt {{ nix_files }}
