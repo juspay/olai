@@ -20,5 +20,5 @@ if [ -n "${OLAI_ACP_PI+set}" ]; then
   exit 0
 fi
 
-out=$(nix build .#acp-agent --no-link --print-out-paths --accept-flake-config)
+out=$(sh "$(dirname "$0")/nix-out.sh" .#acp-agent)
 printf '%s' "$out/bin/pi-acp"
