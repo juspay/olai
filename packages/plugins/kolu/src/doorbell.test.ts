@@ -40,6 +40,7 @@ import {
   claimingIn,
   classify,
   type Conversation,
+  makeDoorbell,
   makeHeartbeat,
   type Scoped,
   standingIn,
@@ -47,6 +48,7 @@ import {
   walkedIn,
   whyOut,
 } from "./doorbell.ts"
+import { makeWatch } from "olai-plugin-kolu/appliance"
 import { ownKinds, TERMINAL_TYPE } from "./kinds.ts"
 import { listed, tracing } from "./trace.ts"
 
@@ -1484,4 +1486,193 @@ test("... and an AMBIGUOUS prefix folds away, leaving the two it could not choos
   // Right twice over: it IS two terminals, and the derivation already refuses
   // an ambiguous value ownership of either.
   expect(terminalsIn(declarationsOf(vault, ownKinds), vault, "lanes.olai")).toBe(2)
+})
+
+// ── TWO NAGS, ONE WINDOW — the watcher's seam, and the note that must not double
+
+/**
+ * THE SEAM BENCH — the REAL watcher (`./client/watch.ts`'s `makeWatch`, nag
+ * clocks and all) rung through the doorbell's real drive loop, against a
+ * core whose `deliver` asks for the words AT ONCE.
+ *
+ * The last shape is the one choice in it: core asks a thunk when the words
+ * ENTER the conversation — at once where the seat is idle, on a turn
+ * boundary where one is running. The bench takes the idle arm because that
+ * is the arm the bug lived on (the orchestrator's agent was quiet), and it
+ * is the arm the window ledger is anchored against: a note is marked where
+ * its words go in, and the `held`-style bench one section up already pins
+ * the held arm. What the assertions count is therefore `said` — the bodies
+ * that ENTERED — never the hand-overs.
+ *
+ * The hold clock is REAL but SMALL, exactly `./client/watch.test.ts`'s
+ * arrangement: sixty seconds is 40 ms, ten minutes is 200. Small real
+ * timers are calibration rather than arithmetic — the assertions sit on the
+ * one thing the chain guarantees BY CONSTRUCTION, which is that a nag's
+ * stamp is never less than one window after the emission it re-arms from
+ * (`armNag` eats the delivery breath, and a `setTimeout` never fires
+ * early). The comparison at the window's edge has no racy side; the park
+ * stagger carries every margin that is not a whole window.
+ */
+const seam = (
+  files: Record<string, string>,
+  fleetRows: ReadonlyArray<FleetTerminal>,
+  knobs: { readonly heldForMs: number; readonly nagMs: number },
+) => {
+  const at = readingOf(setOf(files)).derived
+  const declaring = declarationsOf(at, ownKinds)
+  /** The live fleet, as `KoluHalf.rows()` hands it over — the bench's to
+   *  EDIT (a plain Map, never `fleetOf`'s readonly one), because standing
+   *  sets are read off it and a lane leaving the set is one `set` away. */
+  const fleet = new Map(fleetRows.map((one) => [one.id, one]))
+  /** The bodies that ENTERED the seat, each beside the key it was held
+   *  under — one array any assertion about a conversation's afternoon can
+   *  count. */
+  const said: Array<{ body: string; coalesce: string | undefined }> = []
+  const lines: Array<string> = []
+  const trace = tracing((line) => {
+    lines.push(line)
+  })
+  const bell = makeDoorbell({
+    ringing: (file) => ringingIn(declaring, at, file, [...fleet.keys()], trace),
+    rows: () => fleet,
+    scopes: () => [SEAT],
+    deliver: (_to, say, options) => {
+      const body = say()
+      if (body !== null) said.push({ body, coalesce: options?.coalesce })
+    },
+    now: () => new Date().toISOString(),
+    window: () => knobs.nagMs,
+    saw: () => {},
+    spoken: () => {},
+    coalesce: (meaning) => `kolu:${meaning}`,
+    trace,
+  })
+  const watch = makeWatch(
+    { emit: (event) => bell.ring(event), evict: () => {}, beat: () => {} },
+    { now: () => Date.now() },
+  )
+  watch.reconfigure({ heldForMs: knobs.heldForMs, nagMs: knobs.nagMs, heartbeatMs: 60_000 })
+  return { watch, fleet, said, lines }
+}
+
+/** One timed wait, small and honest. */
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
+
+/** The two parked boards the seam cases share: two lanes, their steps
+ *  nobody is on, so both meanings are the digest — the incident's own. */
+const TWO_PARKED = {
+  ...DECLARED,
+  "lanes.olai": [
+    marked("a", "chase the flake", "todo", { terminal: "11111111" }),
+    marked("b", "read the log", "todo", { terminal: "22222222" }),
+  ].join("\n"),
+}
+
+test("two terminals whose nag clocks fire inside one window deliver ONE note", async () => {
+  // 2026-09-02 19:12 UTC, the orchestrator's conversation: two byte-identical
+  // "2 terminals went quiet … a note, not a call" sentences, stamped the
+  // same minute. Each nag runs per terminal on its OWN clock, and every nag
+  // re-says the WHOLE standing set — so two parked lanes whose clocks align
+  // hand the conversation one paragraph twice, and neither copy carried new
+  // information.
+  const it = seam(TWO_PARKED, [row("11111111", "waiting"), row("22222222", "waiting")], {
+    heldForMs: 40,
+    nagMs: 200,
+  })
+  it.watch.observe("11111111", row("11111111", "waiting"))
+  await sleep(60)
+  it.watch.observe("22222222", row("22222222", "waiting"))
+  await sleep(140)
+  // BOTH TRANSITIONS LAND — a fresh hold's first word, once per hold, and
+  // the coalescing never touches it, though the two notes name the same
+  // standing set: the window eats NAGS, and only nags.
+  expect(it.said.length).toBe(2)
+
+  await sleep(160)
+  // BOTH NAG CLOCKS HAVE FIRED (≈240 and ≈300 ms). The second of them names
+  // exactly the set the transitions' notes already named, inside one nag
+  // window — so ONE note lands, not two.
+  expect(it.said.length).toBe(3)
+  expect(it.said[2]?.body).toContain(
+    "2 terminals went quiet, and nothing under them is being worked. A note, not a call.",
+  )
+  // ...AND THE SILENCE IS DECIDED, never invisible: the trace names the
+  // event the window ate and how far from the note it fell.
+  expect(it.lines.some((line) => line.startsWith("kolu doorbell coalesced"))).toBe(true)
+  expect(
+    it.lines.some((line) =>
+      line.startsWith(
+        `kolu doorbell coalesced file=${SEAT.file} meaning=digest agent=${SEAT.agent} session=${SEAT.session}`,
+      )
+    ),
+  ).toBe(true)
+
+  await sleep(200)
+  // ...AND THE CADENCE STANDS: one FULL nag window after the note that
+  // landed, the next nag rings again — the `nag` knob doing exactly what it
+  // is for, which is not the bug.
+  expect(it.said.length).toBe(4)
+  expect(it.said[3]?.body).toContain(
+    "2 terminals went quiet, and nothing under them is being worked. A note, not a call.",
+  )
+  it.watch.stop()
+})
+
+test("a wake and a note keep their MEANINGS — one window, one of each, never one", async () => {
+  const it = seam(
+    {
+      ...DECLARED,
+      "lanes.olai": [
+        marked("a", "fix the flake", "doing", { terminal: "11111111" }),
+        marked("b", "read the log", "todo", { terminal: "22222222" }),
+      ].join("\n"),
+    },
+    [row("11111111", "waiting"), row("22222222", "waiting")],
+    { heldForMs: 40, nagMs: 200 },
+  )
+  it.watch.observe("11111111", row("11111111", "waiting"))
+  await sleep(60)
+  it.watch.observe("22222222", row("22222222", "waiting"))
+  await sleep(140)
+  expect(it.said.length).toBe(2)
+
+  await sleep(160)
+  // Both nag clocks have fired, and BOTH notes land: the ledger is per
+  // meaning, because a report owed and a lane lawfully parked are two
+  // signals, and one must never eat the other.
+  expect(it.said.length).toBe(4)
+  expect(it.said[2]?.coalesce).toBe("kolu:wake")
+  expect(it.said[2]?.body).toContain("a report or a block is owed")
+  expect(it.said[3]?.coalesce).toBe("kolu:digest")
+  expect(it.said[3]?.body).toContain("a note and not a call")
+  it.watch.stop()
+})
+
+test("a REAL change in the set inside one window still rings", async () => {
+  const it = seam(TWO_PARKED, [row("11111111", "waiting"), row("22222222", "waiting")], {
+    heldForMs: 40,
+    nagMs: 200,
+  })
+  it.watch.observe("11111111", row("11111111", "waiting"))
+  await sleep(60)
+  it.watch.observe("22222222", row("22222222", "waiting"))
+  await sleep(140)
+  expect(it.said.length).toBe(2)
+  await sleep(160)
+  // The nag window's one note has landed: the pair's standing set, said
+  // once. The first terminal's own nag was the copy the window ate.
+  expect(it.said.length).toBe(3)
+
+  // The second lane goes back to WORK mid-window: the set is not the set
+  // the note named any more.
+  it.fleet.set("22222222", row("22222222", "thinking"))
+  it.watch.observe("22222222", row("22222222", "thinking"))
+  await sleep(140)
+  // ...so the NEXT nag rings inside the same window: what it says now is
+  // information the note did not carry. The ledger compares the set, which
+  // is the whole of "a real change in the set still rings".
+  expect(it.said.length).toBe(4)
+  expect(it.said[3]?.body).toContain("went quiet on")
+  expect(it.said[3]?.body).not.toContain("2 terminals")
+  it.watch.stop()
 })

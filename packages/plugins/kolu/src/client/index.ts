@@ -284,8 +284,15 @@ export interface KoluHalf<N> {
    * cell's whole value, published from this argument rather than echoed
    * back through the walk: the wrench must draw over a config that parses
    * to nothing, and a file that offers no nodes cannot name itself.
+   *
+   * WHAT COMES BACK is the knob set now in force — the one walk's own
+   * product, so the caller never re-walks for the reading. The doorbell's
+   * delivery window IS the `nag` knob (`olai-plugin-kolu`'s `makeDoorbell`
+   * coalesces two nags inside one window into one note), and a second walk
+   * of one rule in the same tick is the sentence that package's own
+   * doorbell module says three times over.
    */
-  readonly revision: (nodes: ReadonlyArray<N>, file: string | null) => void
+  readonly revision: (nodes: ReadonlyArray<N>, file: string | null) => WatchConfig
 
   /** The store has NEVER published — the directory's read failed outright.
    *  The wrench's door onto a file the server can no longer see is a page
@@ -485,7 +492,7 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
    *  the vault walk's `ReadonlyArray<N>` is satisfied by the surface-driven
    *  walk on the server's side. */
   let mirror: ReturnType<typeof makeMirror> | undefined
-  const revision = (nodes: ReadonlyArray<N>, file: string | null): void => {
+  const revision = (nodes: ReadonlyArray<N>, file: string | null): WatchConfig => {
     mirror?.reclaim(deps.claimants(nodes))
     const next = deps.config(nodes, file)
     // THE DRAWER'S FOOT, off the CALLER'S OWN ARGUMENT: the timers take the
@@ -503,6 +510,7 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
       saidMalformed = lines
       for (const line of next.malformed) deps.warn(line)
     }
+    return next.config
   }
   const unloaded = (): void => {
     deciding = null

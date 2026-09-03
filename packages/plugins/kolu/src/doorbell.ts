@@ -160,18 +160,21 @@
  * added between two events is seen by the second, and an older revision handed
  * back answers what IT says.
  *
- * THE ONE `let` IN THIS FILE IS THE HEARTBEAT'S, and it is admissible for a
- * reason that has to be stated rather than assumed. {@link makeHeartbeat}
- * remembers which conversations THIS PROCESS delivered words into since the
- * last beat, and when it last saw an event. Those are facts about ITS OWN
- * ACTIONS — nothing else in the world can contradict them, and no source has to
- * be caught changing them — where the forbidden set was a copy of DERIVED
- * TRUTH, which the vault moves underneath. The rule is not "hold no state", it
- * is "hold no second answer to a question the vault already answers", and the
- * count in a heartbeat's own sentence is derived at send time exactly like
- * every other number here. The ledger is bounded by construction too: it is
- * cleared whole on every beat, so a conversation nobody has scoped since
- * yesterday is not in it.
+ * THE TWO `let`s IN THIS FILE ARE THE HEARTBEAT'S AND THE WINDOW'S, and the
+ * second is admissible for the first's reason, which has to be stated rather
+ * than assumed. {@link makeHeartbeat} remembers which conversations THIS
+ * PROCESS delivered words into since the last beat, and when it last saw an
+ * event; {@link makeDoorbell} remembers which STANDING SET it last said into
+ * each conversation and when its words went in. Those are facts about ITS
+ * OWN ACTIONS — nothing else in the world can contradict them, and no source
+ * has to be caught changing them — where the forbidden set was a copy of
+ * DERIVED TRUTH, which the vault moves underneath. The rule is not "hold no
+ * state", it is "hold no second answer to a question the vault already
+ * answers", and the count in a heartbeat's own sentence is derived at send
+ * time exactly like every other number here. Each ledger is bounded by
+ * construction too: the heartbeat's is cleared whole on every beat, and the
+ * window's holds one entry per seat per meaning, replaced on every note —
+ * so a conversation nobody has scoped since yesterday is in neither.
  *
  * ## THE BODY IS A FRESH DERIVATION, and that is what makes coalescing safe
  *
@@ -184,6 +187,15 @@
  * names all three. That is the whole argument for a fixed key per meaning,
  * and it only holds while the body is a derivation of standing state rather
  * than an accumulation of arrivals.
+ *
+ * AND THAT COALESCING IS OVER BODIES STILL WAITING. What it cannot reach is
+ * two that each LAND — two nag clocks in one minute, both delivered the
+ * moment they were composed, both saying the same standing set because that
+ * is what the body always says. The fix is the same rule one seam up:
+ * {@link makeDoorbell}'s window ledger compares the set the LAST delivered
+ * note named and coalesces a nag whose set was already said inside the nag
+ * window in force, so the conversation reads one note per set per window
+ * rather than one per clock.
  *
  * It also opens with its OWN attribution and time. Core marks the row it
  * lands in, and a browser draws a face from that mark — but a conversation
@@ -850,7 +862,9 @@ export const claimingIn = (
  * which is the pill's news and not a conversation's. A `nag` means exactly
  * what its `transition` meant — the derivation is idempotent and the body is
  * standing state, so a nag costs a walk and rings the same bell, which is
- * what a nag is FOR.
+ * what a nag is FOR. The one rule on top is the delivery's and not the
+ * meaning's: a nag whose whole set was said inside the window coalesces
+ * rather than ringing again ({@link makeDoorbell}'s ledger).
  */
 export const classify = (
   event: KoluEvent,
@@ -1114,6 +1128,347 @@ const namingOf = (one: Standing): string => {
   return role === "" ? `${label} terminal` : `${label} ${role}`
 }
 
+// ── THE RING — one watcher event, rung through to every scoped seat ───────
+
+/** ONE CONVERSATION, as core addresses one — the pair `Deliveries.deliver`
+ *  takes, spelled here because the ledgers below are keyed by it. */
+export interface Conversation {
+  readonly agent: string
+  readonly session: string
+}
+
+/** ...and one SCOPED conversation, as core's `scopes()` lists it: the same
+ *  pair plus the file the person picked. A scope that has gone — a cleared
+ *  control, or a file the watcher can no longer read — is simply absent from
+ *  that list, which is the whole of how this module learns to stop. */
+export interface Scoped extends Conversation {
+  readonly file: string
+}
+
+/**
+ * THE DOORBELL'S EVENT DRIVE, as a value a test can hold.
+ *
+ * ## Why this is a value and not a serve's closure
+ *
+ * It sat inside `./server.ts`'s `apply`, which meant the one place the
+ * vault, the fleet and the scope list meet an event could not be reached by
+ * a test without standing up a `koluHalf`, a surface and a ctx — the wall
+ * {@link ringingIn}'s own paragraph names, one seam up. The seam between the
+ * watcher and a conversation is exactly where a sentence is decided, and a
+ * sentence is exactly where the next defect of this family would live, so
+ * `./doorbell.test.ts` drives the loop whole: the WATCHER is the real one
+ * (`./client/watch.ts`'s `makeWatch`, nag clocks and all), core is a fake
+ * that asks for the words AT ONCE — the idle seat, which is the arm the
+ * 2026-09-02 pair landed on — and every other dep is a value.
+ *
+ * ## THE WORDS ARE DERIVED AT THE MOMENT THEY ENTER A CONVERSATION
+ *
+ * `ring` asks only whether there is anybody to say this to — a COUNT, not a
+ * sentence, and it composes none. The words are composed inside the thunk,
+ * last thing, because core holds a delivery through a running turn or until
+ * somebody opens the conversation, and the fleet moves while it waits. The
+ * human found one arriving about two terminals that had been killed and a
+ * lane that had been merged and closed in the gap — a message asserting a
+ * world that had closed while it queued. So the thunk reads the CURRENT
+ * revision and the live rows at call time, never the values the ring tick
+ * closed over: it is this module's no-standing-set rule spent on the
+ * delivery moment rather than the derivation one. A set that has entirely
+ * settled answers `null` and core drops the message rather than shortening
+ * it — and THE MEANING IS NOT RE-DECIDED: what the event said happened,
+ * happened; what is asked again is who it is still true of.
+ *
+ * ## THE WINDOW — nags that fall inside one delivery window coalesce
+ *
+ * Each terminal nags on its OWN clock (the `nag` knob in `_olai/Kolu.olai`),
+ * and every nag re-says the WHOLE standing set — so two parked lanes whose
+ * clocks align by the minute hand the conversation one paragraph twice. Seen
+ * 2026-09-02 19:12 UTC in the orchestrator's conversation: two byte-identical
+ * "2 terminals went quiet … a note, not a call" sentences, one minute stamp,
+ * neither copy carrying new information. Core's OWN coalescing cannot reach
+ * it: the key under which a body is filed replaces a body still WAITING
+ * through a turn, and these two were each delivered the moment they were
+ * composed.
+ *
+ * So the doorbell keeps ONE small ledger beside the heartbeat's: per seat
+ * and meaning, the standing set the LAST note named and the stamp of the
+ * event whose ring drove it. A `nag` whose set is the one already said —
+ * inside the nag window in force — is coalesced away and says so on the
+ * trace (`coalesced`), the silence decided rather than invisible.
+ *
+ * THREE THINGS THE LEDGER NEVER EATS, because the meanings and the cadence
+ * are not the bug:
+ *
+ * - A `transition` is never suppressed: it is a fresh hold's first word,
+ *   once per hold — and a terminal that worked and went quiet again is
+ *   information even where the sentence reads the same.
+ * - A REAL CHANGE IN THE SET is never suppressed: the ledger compares the
+ *   set, so a lane joining or leaving, a state flip or a moved step rings
+ *   inside the window it landed in.
+ * - A nag ONE FULL WINDOW after the last note always rings: that reminder
+ *   is the `nag` knob doing exactly what it is for.
+ *
+ * THE ANCHOR IS THE DRIVING EVENT'S OWN STAMP, never the thunk's wall time.
+ * The watcher spaces one terminal's emissions at least one window apart by
+ * construction (`./client/watch.ts`'s `armNag` anchors at the last emission
+ * and eats the delivery breath), so measured in the chain's own stamps a
+ * once-per-window reminder lands ON OR PAST the window's edge and the
+ * comparison has no racy side. Measured from the thunk's wall time it
+ * would: the breath the timer ate IS the thunk's, and a reminder would
+ * stand or fall with a millisecond of vault size.
+ *
+ * THE LEDGER IS THE HEARTBEAT'S OWN RULING, one door down. The header's
+ * no-standing-set rule forbids a second answer to a question the vault
+ * already answers; this is a fact about the module's OWN ACTIONS — what it
+ * said and when — which nothing else in the world can contradict, so the
+ * ruling is untouched. And it replaces rather than accumulates: one entry
+ * per seat per meaning, so its size is the number of seats ever heard from,
+ * twice — a stale entry simply can never match, because its window has
+ * passed.
+ */
+export interface Doorbell {
+  /** One watcher event, rung through. */
+  readonly ring: (event: KoluEvent) => void
+}
+
+export const makeDoorbell = (deps: {
+  /** ONE FILE'S RINGING SET against the CURRENT revision — {@link ringingIn}
+   *  — or `null` where there is no revision to derive off: before the first
+   *  one, and after an `unloaded` disowned the last. Called at ring time AND
+   *  again inside the thunk, so both moments get the freshness they are
+   *  promised; the per-file memo below keeps a multi-seat tick to one walk
+   *  per file. */
+  readonly ringing: (file: string) => Ringing | null
+  /** The live fleet — `KoluHalf.rows()`, read fresh at both moments. */
+  readonly rows: () => ReadonlyMap<string, FleetTerminal>
+  /** Core's scoped conversations, asked afresh at ring time. */
+  readonly scopes: () => ReadonlyArray<Scoped>
+  /** Core's delivery door, write-only, taking the words as a THUNK. */
+  readonly deliver: (
+    to: Conversation,
+    say: () => string | null,
+    options?: { readonly coalesce?: string },
+  ) => void
+  /** The clock the bodies and the ledger stamp themselves with. */
+  readonly now: () => string
+  /** THE DELIVERY WINDOW a nag coalesces into — the `nag` cadence in force,
+   *  as the watcher's own timers run it: one note per window per set per
+   *  seat. Read at ring time so a knob edit is heard on the next event,
+   *  exactly as the timers hear it. */
+  readonly window: () => number
+  /** THE HEARTBEAT'S TWO TAPS — an attention event was seen (`at` is the
+   *  watcher's own stamp), and a wake or digest's words ENTERED a seat, so
+   *  its floor-on-silence window resets. */
+  readonly saw: (at: string) => void
+  readonly spoken: (to: Conversation) => void
+  /** The coalesce key, per meaning, minted by the caller under its own
+   *  plugin name — `./server.ts`'s stated reason: core files a held slot
+   *  under the PAIR of the plugin and the word, so the prefix buys
+   *  legibility in a dump and nothing else. */
+  readonly coalesce: (meaning: Meaning) => string
+  /** WHAT THE RING DID, on the owner's debug channel ({@link ./trace.ts}). */
+  readonly trace: Trace
+}): Doorbell => {
+  const trace = deps.trace
+  /** The ledger, keyed `agent \0 session \0 meaning` — see the header for
+   *  why the driving event's stamp is the anchor and why no pruning is
+   *  owed. `\0` as an ESCAPE and never as the byte: a literal NUL makes this
+   *  file read as BINARY to grep and to review tooling. */
+  const notes = new Map<string, { readonly at: number; readonly print: string }>()
+  const keyOf = (to: Conversation, meaning: Meaning): string =>
+    `${to.agent}\0${to.session}\0${meaning}`
+  /** WHAT THE NOTE SAYS, minus the stamp: the file it was read off and the
+   *  standing set it names, wholly and only. Two rings whose prints agree
+   *  carry the same information, however their minute stamps differ. */
+  const printOf = (file: string, standing: ReadonlyArray<Standing>): string =>
+    `${file}\0${JSON.stringify(standing)}`
+
+  /**
+   * THE WORDS, DERIVED AFRESH AT THE MOMENT THEY ENTER A CONVERSATION —
+   * the header argues the whole of it. The set's print rides beside the
+   * body so the thunk can mark the ledger with the set it ACTUALLY named,
+   * which is the set as it stood when the words went in and never the one
+   * the ring tick closed over.
+   */
+  const said = (file: string, meaning: Meaning): { body: string; print: string } | null => {
+    const ringing = deps.ringing(file)
+    if (ringing === null) {
+      trace("dropped", { file, meaning, why: "no-revision" })
+      return null
+    }
+    const standing = standingIn(ringing.claiming, deps.rows(), meaning)
+    if (standing.length === 0) {
+      trace("dropped", { file, meaning, why: "nobody-standing" })
+      return null
+    }
+    trace("said", {
+      file,
+      meaning,
+      standing: standing.length,
+      terminals: listed(standing.map((one) => one.terminal)),
+    })
+    return { body: bodyFor(meaning, standing, file, deps.now()), print: printOf(file, standing) }
+  }
+
+  return {
+    ring: (event) => {
+      // FIRST, AND BEFORE EVERY GATE BELOW: what arrived. This is the line
+      // that says a nag fired at all — the watcher emits `transition` once
+      // and `nag` every window after it, and neither of them wrote a word
+      // anywhere before this.
+      trace("event", {
+        kind: event.kind,
+        at: event.at,
+        terminal: event.row?.terminal ?? null,
+        state: event.row?.state ?? null,
+      })
+      // A HEARTBEAT NAMES NO TERMINAL — the watcher is alive, which is the
+      // pill's news. Asked here rather than only inside `classify` so that
+      // the ordinary case on a quiet machine costs a comparison instead of
+      // a walk per scope.
+      if (event.row === null) return
+      // ...AND THE ONE THING THE HEARTBEAT KEEPS OF IT: when this doorbell
+      // last saw the fleet ask for somebody. The event's own `at` rather
+      // than a fresh clock read: one moment, one stamp.
+      deps.saw(event.at)
+      const rows = deps.rows()
+      // ONE WALK PER FILE. The derivation is per FILE and the scope is per
+      // CONVERSATION, which are not the same cardinality: a person with
+      // three seats on one board would otherwise pay three identical walks
+      // per event. Minted per event and dropped with it — this module holds
+      // nothing between ticks, which is the property the whole coalescing
+      // argument rests on.
+      const perFile = new Map<string, Ringing | null>()
+      const ringingFor = (file: string): Ringing | null => {
+        const held = perFile.get(file)
+        if (held !== undefined) return held
+        const fresh = deps.ringing(file)
+        perFile.set(file, fresh)
+        return fresh
+      }
+      // ...AND ONE STANDING SET PER (FILE, MEANING), which is the same
+      // argument carried to its end: what STANDS under a meaning is a
+      // function of the file's claims and the live rows alone — the
+      // conversation is only ever the ADDRESS the words are sent to. The
+      // set itself is memoised, not its length: the window below compares
+      // it and the count was always a reading of it.
+      const perStanding = new Map<string, ReadonlyArray<Standing>>()
+      const standingFor = (
+        file: string,
+        meaning: Meaning,
+        claiming: Ringing["claiming"],
+      ): ReadonlyArray<Standing> => {
+        const key = `${meaning}:${file}`
+        const held = perStanding.get(key)
+        if (held !== undefined) return held
+        const fresh = standingIn(claiming, rows, meaning)
+        perStanding.set(key, fresh)
+        return fresh
+      }
+      const scopes = deps.scopes()
+      trace("scopes", {
+        terminal: event.row.terminal,
+        scoped: scopes.length,
+        files: listed(new Set(scopes.map((scope) => scope.file))),
+      })
+      for (const scope of scopes) {
+        const ringing = ringingFor(scope.file)
+        if (ringing === null) {
+          trace("dropped", { file: scope.file, why: "no-revision" })
+          continue
+        }
+        const meaning = classify(event, ringing.claiming)
+        // SILENCE IS NO CALL AT ALL — but a silence nobody can SEE is what
+        // made a lane that had fallen out of the set indistinguishable from
+        // a lane nobody scoped, so it is said HERE, on the debug channel,
+        // and it says WHICH gate.
+        trace("classified", {
+          terminal: event.row.terminal,
+          file: scope.file,
+          agent: scope.agent,
+          session: scope.session,
+          meaning: meaning ?? "none",
+          why: meaning === null ? whyOut(event.row.terminal, ringing) : null,
+        })
+        if (meaning === null) continue
+        const standing = standingFor(scope.file, meaning, ringing.claiming)
+        // Asked ONCE here, against the revision the event arrived on, so a
+        // ring that has nothing to say costs no slot in core and no row.
+        if (standing.length === 0) {
+          trace("dropped", { file: scope.file, meaning, why: "nobody-standing" })
+          continue
+        }
+        // THE WINDOW. A nag is per terminal on its own clock and re-says
+        // the WHOLE standing set, so two parked lanes whose clocks align
+        // inside one window would hand the seat one paragraph twice — the
+        // 2026-09-02 pair this check exists against. The comparison is the
+        // SET, gated on the nag alone: a transition is a fresh hold's first
+        // word and always rings, a changed set prints differently and
+        // always rings, and a nag one full window after the note lands ON
+        // OR PAST the edge of it ({@link makeDoorbell}'s header argues why
+        // the driving event's own stamp makes that side of the edge
+        // certain). The silence is said, the way every other gate here is.
+        if (event.kind === "nag") {
+          const key = keyOf(scope, meaning)
+          const last = notes.get(key)
+          if (last !== undefined && last.print === printOf(scope.file, standing)) {
+            const ago = Date.parse(event.at) - last.at
+            if (ago >= 0 && ago < deps.window()) {
+              trace("coalesced", {
+                file: scope.file,
+                meaning,
+                agent: scope.agent,
+                session: scope.session,
+                ago,
+              })
+              continue
+            }
+          }
+        }
+        trace("delivering", {
+          file: scope.file,
+          meaning,
+          agent: scope.agent,
+          session: scope.session,
+          coalesce: deps.coalesce(meaning),
+        })
+        deps.deliver(
+          { agent: scope.agent, session: scope.session },
+          // ...AND ASKED AGAIN AT THE MOMENT IT GOES IN, which is what this
+          // closure is for — the header's freshness essay, kept whole. THE
+          // GAP BETWEEN `delivering` AND `delivered` IS THE HOLD: a body
+          // handed over and never said is core coalescing it away or a
+          // fleet that settled while it waited, and neither is visible from
+          // either end alone.
+          () => {
+            const fresh = said(scope.file, meaning)
+            // AND THE WINDOW RESETS HERE, where the words actually go in
+            // rather than where the delivery was handed over. A body core
+            // coalesced away, or one that derived to `null` because the
+            // fleet settled while it waited, never reached anybody — and a
+            // window it silenced would be a heartbeat lost to a message
+            // nobody got. The ledger marks the same moment, with the set
+            // the note ACTUALLY named and the DRIVING EVENT'S stamp as the
+            // anchor — the header argues why it is not the thunk's clock.
+            if (fresh !== null) {
+              deps.spoken(scope)
+              notes.set(keyOf(scope, meaning), { at: Date.parse(event.at), print: fresh.print })
+            }
+            trace("delivered", {
+              file: scope.file,
+              meaning,
+              agent: scope.agent,
+              session: scope.session,
+              said: fresh !== null,
+            })
+            return fresh?.body ?? null
+          },
+          { coalesce: deps.coalesce(meaning) },
+        )
+      }
+    },
+  }
+}
+
 // ── THE HEARTBEAT — a floor on silence ────────────────────────────────────
 
 
@@ -1273,21 +1628,6 @@ export const terminalsIn = (
     if (!folded) held++
   }
   return held
-}
-
-/** ONE CONVERSATION, as core addresses one — the pair `Deliveries.deliver`
- *  takes, spelled here because the ledger below is keyed by it. */
-export interface Conversation {
-  readonly agent: string
-  readonly session: string
-}
-
-/** ...and one SCOPED conversation, as core's `scopes()` lists it: the same
- *  pair plus the file the person picked. A scope that has gone — a cleared
- *  control, or a file the watcher can no longer read — is simply absent from
- *  that list, which is the whole of how this module learns to stop. */
-export interface Scoped extends Conversation {
-  readonly file: string
 }
 
 /**
