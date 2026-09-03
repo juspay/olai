@@ -672,7 +672,8 @@ export default definePlugin({
      * prefix buys legibility in a dump and nothing else.
      *
      * `deliver` goes out through the detached seam because the heartbeat is
-     * driven from the watcher's own interval and composes its sentence there.
+     * driven off the watcher tap's batches — paced by {@link ./doorbell.ts}'s
+     * own arm/collapse gate — and composes its sentence there.
      */
     const heart: Heartbeat = makeHeartbeat({
       scopes: () => deliveries.scopes(),

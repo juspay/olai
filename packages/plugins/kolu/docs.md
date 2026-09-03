@@ -142,6 +142,8 @@ The kolu watcher is alive: 30 minutes with nothing to say about the 4 terminals 
 
 **A heartbeat is never a fault report.** It only ever means *the watch is running and had nothing to say*. A scope olai cannot watch is not beaten for at all — that case says so in words of its own, and there are two of them: the file you pointed at was renamed, moved or deleted, or it is not an outline and holds nothing that could ever claim a terminal (which can only be a pick made before the picker started filtering). Each is one message, once, and the strip goes on showing which. So the two can never be confused for each other, and clearing the file on the strip stops the heartbeats with everything else.
 
+**And under a capped, quiet fleet the floor goes quiet too — deliberately.** Beats are stamped per batch the subscription answers, and a fleet whose nag caps are spent answers nothing more: no batches, no beats, no walks of this loop. "The watcher is proving it is running" every half hour would then be the *still here* lie this message exists to refuse — the register to watch after the count is spent is the pill going amber (above), which is the same face a dead subscription wears, and telling the two apart is the trace's chapter below.
+
 ### What the doorbell says it did
 
 A doorbell's failure mode is a call that does not happen, and that is byte-for-byte identical to its ordinary quiet operation. So the doorbell keeps an account of itself: one line per moment, on the debug channel, off until you ask for it.

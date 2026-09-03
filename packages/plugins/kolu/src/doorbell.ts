@@ -1469,24 +1469,30 @@ const suffixed = (from: string, to: string, word: string): string => {
  *
  * ## What a beat does, in one breath
  *
- * The watcher already beats every `heartbeat` ms and has since the pill was
- * drawn ({@link ../../kolu-client/src/watch.ts}'s `pulse`). This rides THAT
- * beat: on each one, every scoped conversation that heard nothing since the
- * previous beat is delivered the four facts, and every conversation that heard
- * something is passed over and its window reset. There is no second timer and
- * no second knob — a heartbeat cadence a person could set apart from the one
- * they already set would be two answers to one question, and the second of
- * them would be the one nobody knew about.
+ * The watcher's tap fires when the SUBSCRIPTION answers — per batch, never
+ * on an interval of anybody's ({@link ./client/watch.ts}'s header). This loop
+ * rides that tap and owns the cadence the knob promises by itself: the FIRST
+ * beat of the process only ARMS the window (the timered watcher's `begun`
+ * gate swallowed its boot pulse for the same reason — a floor that dropped
+ * seconds after the dial would make the body's "the whole watch window"
+ * line a lie told about seconds), and a beat that lands inside the window
+ * is COLLAPSED, because the daemon's speech rate is not the vault's cadence.
+ * On each accepted beat, every scoped conversation that heard nothing since
+ * the previous one is delivered the four facts, and every conversation that
+ * heard something is passed over and its window reset. There is no second
+ * timer and no second knob — a heartbeat cadence a person could set apart
+ * from the one they already set would be two answers to one question, and
+ * the second of them would be the one nobody knew about.
  *
  * ## THE WINDOW IS MEASURED IN BEATS, not in milliseconds
  *
  * `delivered` is the whole ledger: a conversation is in {@link spoken} when
  * words of this plugin's actually entered it, and the set is cleared at the
- * end of every beat. So "in the window" means "since the previous beat", which
- * needs no arithmetic, no second clock and no stamp to compare — and it cannot
- * drift against the interval the watcher is actually running, because it IS
- * that interval. See the header on why a ledger of this process's own actions
- * is not the standing set the header forbids.
+ * end of every accepted beat. So "in the window" means "since the previous
+ * accepted beat", which needs no arithmetic past the arm/collapse gate —
+ * and it cannot drift against the interval the watcher is actually running,
+ * because it IS that interval. See the header on why a ledger of this
+ * process's own actions is not the standing set the header forbids.
  *
  * IT IS MARKED WHERE THE WORDS GO IN, not where the delivery was handed over,
  * and that is `./server.ts`'s to call from inside its own thunk. A body that
@@ -1566,7 +1572,7 @@ export const makeHeartbeat = (deps: {
 }): Heartbeat => {
   /** WHEN THIS PROCESS BEGAN WATCHING — read once, here, because this
    *  constructor runs in the same breath as the watcher's own
-   *  ({@link ../../kolu-client/src/index.ts}'s `koluHalf`). A restart re-dates
+   *  ({@link ./client/index.ts}'s `koluHalf`). A restart re-dates
    *  it, which is exactly the fact a reader wants: an uptime that keeps
    *  resetting is a process somebody keeps killing. */
   const since = deps.now()
@@ -1579,6 +1585,10 @@ export const makeHeartbeat = (deps: {
    *  beat. Cleared whole at the end of every beat, which is both the window's
    *  reset and its bound. */
   const spoken = new Set<string>()
+  /** THE WINDOW'S OTHER EDGE — the instant of the last ACCEPTED beat, or
+   *  `null` before the first. `null` is the arming rule: the first beat of
+   *  the process opens the count rather than closing one. */
+  let armedAt: number | null = null
   /** The ledger's key. `\0` as an ESCAPE and never as the byte: a literal NUL
    *  makes this file read as BINARY to grep and to review tooling, which is how
    *  a reviewer stops being able to see it at all. `../../chat/src/deliveries.ts`
@@ -1593,6 +1603,23 @@ export const makeHeartbeat = (deps: {
       spoken.add(keyOf(to))
     },
     beat: (everyMs) => {
+      // THE CADENCE IS THE KNOB'S AND NOT THE SUBSCRIPTION'S SPEECH RATE:
+      // the tap fires per batch now, and a fleet padi has things to say
+      // about can beat several times inside one window. An unreadable
+      // clock falls through and behaves as the interval old beats did —
+      // a floor married to a broken clock says what it can rather than
+      // going silent on a stamp it could not subtract.
+      const nowMs = Date.parse(deps.now())
+      if (armedAt === null) {
+        armedAt = nowMs
+        trace("beat-armed", { every: everyMs })
+        return
+      }
+      if (nowMs - armedAt < everyMs) {
+        trace("beat-collapsed", { every: everyMs })
+        return
+      }
+      armedAt = nowMs
       const scopes = deps.scopes()
       // THE HEAD OF THE BEAT, before the walk decides anything: the cadence in
       // force, how many conversations core lists, and how many of them this

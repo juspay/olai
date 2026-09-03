@@ -1144,7 +1144,7 @@ const TWO_CLAIMS = {
  * loop promises is that it re-reads them, so a bench that could not move them
  * underneath it would prove nothing.
  */
-const bench = (files: Record<string, string>) => {
+const bench = (files: Record<string, string>, opts?: { readonly armless?: boolean }) => {
   let clock = Date.parse("2026-08-31T09:00:00.000Z")
   let vault: Derived | null = readingOf(setOf(files)).derived
   let scoped: ReadonlyArray<Scoped> = []
@@ -1170,6 +1170,11 @@ const bench = (files: Record<string, string>) => {
     now: () => new Date(clock).toISOString(),
     coalesce: "kolu:heartbeat",
   })
+  // EVERY BENCH COMES WITH ITS FIRST BATCH: the subscription's arriving frame
+  // is what arms the loop in life — the first beat opens the count and says
+  // nothing — so the tests below drive the same pair of edges. The arming
+  // rule's own tests opt out, or they could not see it.
+  if (opts?.armless !== true) heart.beat(WINDOW)
   return {
     heart,
     held,
@@ -1375,6 +1380,36 @@ test("a file that claims NOTHING is still beaten for — the zero is the evidenc
 })
 
 
+test("the FIRST beat only arms the window — the timered watcher's `begun` swallow, moved down here with the pulse it swallowed", () => {
+  // Otherwise a floor could land seconds after the dial and say "no wake has
+  // gone in for 30 minutes, which is the whole watch window" about a
+  // conversation watched for seconds: the body's one hard claim would be a
+  // lie told at the exact moment a reader first meets it.
+  const it = bench(ONE_CLAIM, { armless: true })
+  it.scope(SEAT)
+  it.after(WINDOW)
+  it.heart.beat(WINDOW)
+  expect(it.held.length).toBe(0)
+  it.after(WINDOW)
+  it.heart.beat(WINDOW)
+  expect(it.held.length).toBe(1)
+})
+
+test("the cadence is the KNOB's, not the subscription's speech rate: a beat inside the window is collapsed", () => {
+  // The tap fires per BATCH now — a fleet padi has things to say about beats
+  // several times inside a window, and a floor paced on those would re-say
+  // itself at the daemon's rate while its body keeps claiming the knob's.
+  const it = bench(ONE_CLAIM)
+  it.scope(SEAT)
+  it.after(1_000)
+  it.heart.beat(WINDOW)
+  expect(it.held.length).toBe(0)
+  expect(it.lines.at(-1)).toBe("kolu doorbell beat-collapsed every=1800000")
+  it.after(WINDOW - 1_000)
+  it.heart.beat(WINDOW)
+  expect(it.held.length).toBe(1)
+})
+
 // ── WHAT THE BEAT SAID IT DID ──────────────────────────────────────────────
 
 test("a beat says what it did — the head, then one line per conversation it decided about", () => {
@@ -1387,10 +1422,13 @@ test("a beat says what it did — the head, then one line per conversation it de
   it.scope(SEAT)
   it.after(WINDOW)
   it.heart.beat(WINDOW)
-  expect(it.lines[0]).toBe(
+  // The bench's arm beat wrote the first line — the arming IS an accounted
+  // moment, or "this process's first window" is another invisible hollow.
+  expect(it.lines[0]).toBe("kolu doorbell beat-armed every=1800000")
+  expect(it.lines[1]).toBe(
     "kolu doorbell beat every=1800000 scopes=1 spoken=0 lastEvent=none",
   )
-  expect(it.lines[1]).toBe("kolu doorbell beating file=lanes.olai agent=olai session=s-1")
+  expect(it.lines[2]).toBe("kolu doorbell beating file=lanes.olai agent=olai session=s-1")
   // ...and the count is said at SEND time, not at beat time, which is where the
   // body reads it — so the line and the sentence can never disagree.
   expect(it.lines).not.toContain("kolu doorbell beat-said file=lanes.olai agent=olai terminals=1")
@@ -1405,6 +1443,7 @@ test("... and a conversation passed over says WHICH of the two reasons it was", 
   const it = bench(ONE_CLAIM)
   it.scope(SEAT)
   it.heart.delivered({ agent: "olai", session: "s-1" })
+  it.after(WINDOW)
   it.heart.beat(WINDOW)
   expect(it.lines).toContain(
     "kolu doorbell beat-passed file=lanes.olai agent=olai why=spoke-this-window",
@@ -1414,6 +1453,7 @@ test("... and a conversation passed over says WHICH of the two reasons it was", 
   const starved = bench(ONE_CLAIM)
   starved.scope(SEAT)
   starved.unload()
+  starved.after(WINDOW)
   starved.heart.beat(WINDOW)
   expect(starved.lines).toContain(
     "kolu doorbell beat-passed file=lanes.olai agent=olai why=no-revision",
