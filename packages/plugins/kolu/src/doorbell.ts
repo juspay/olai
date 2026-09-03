@@ -998,7 +998,7 @@ export const bodyFor = (
   standing: ReadonlyArray<Standing>,
   file: string,
   now: string,
-  nag?: KoluEvent["nag"],
+  event?: KoluEvent,
 ): string => {
   const many = standing.length !== 1
   const subject = many ? `${standing.length} terminals` : "One terminal"
@@ -1012,7 +1012,7 @@ export const bodyFor = (
     } is doing — ${
       many ? "they are" : "it is"
     } lawfully parked, so this is a note and not a call:`
-  const reminder = reminderOf(nag)
+  const reminder = reminderOf(event)
   return [
     essenceOf(meaning, standing),
     "",
@@ -1037,26 +1037,34 @@ export const bodyFor = (
  * first REMINDER on, out loud, in the same body the standing set is in —
  * the caller reads it straight off the event's own `nag` field rather than
  * counting anything itself, because the daemon's accounting is the one
- * that survives a restart ({@link ../../client/src/watch.ts}'s header).
+ * that survives a restart ({@link ./client/watch.ts}'s header).
  *
  * THE LAST ONE SAYS SO IN WORDS. A capped nag that ends well is
  * indistinguishable from a watcher gone quiet unless this clause says so —
  * and misreading it is precisely the failure the floor under silence is
  * not allowed to hide behind (the heartbeat counts a reminder as speech,
  * so after this one, only a real quiet follows).
+ *
+ * AND THE CLAUSE NAMES ITS TERMINAL. The body it rides in is about the
+ * whole STANDING set — it may list four rows — and a reminder line whose
+ * subject stays unspoken pastes one event's count onto every one of them.
+ * The id is the event's own: the reader sees exactly which row the count
+ * is about.
  */
-const reminderOf = (nag: KoluEvent["nag"] | undefined): string | null => {
+const reminderOf = (event: KoluEvent | undefined): string | null => {
   // The ACCOUNT is the wire's fold (`reminderAccount`, beside the schema);
-  // this is only the body's own wording of it.
-  const account = reminderAccount(nag)
-  if (account === null) return null
+  // this is only the body's own wording of it, with the event's own row
+  // named as the subject.
+  const account = reminderAccount(event?.nag)
+  if (account === null || event?.row === null || event === undefined) return null
+  const id = event.row.terminal
   if (account.total === null) {
-    return `This is reminder ${account.index} of an uncapped nag — it repeats on this interval while the state holds (a cap is spelled \`nag: 30m/3\` in _olai/Kolu.olai).`
+    return `This is reminder ${account.index} of an uncapped nag for \`${id}\` — it repeats on this interval while the state holds (a cap is spelled \`nag: 30m/3\` in _olai/Kolu.olai).`
   }
   if (account.last) {
-    return `This is reminder ${account.index} of ${account.index}, the last — this doorbell goes quiet about this terminal until its state changes.`
+    return `This is reminder ${account.index} of ${account.index} for \`${id}\`, the last — this doorbell goes quiet about that terminal until its state changes.`
   }
-  return `This is reminder ${account.index} of ${account.total}.`
+  return `This is reminder ${account.index} of ${account.total} for \`${id}\`.`
 }
 
 /**

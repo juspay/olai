@@ -382,7 +382,7 @@ export default definePlugin({
      * A PLAIN FUNCTION, because it is a derivation: the only thing in it that is
      * not one is the trace, which goes out through the seam.
      */
-    const said = (file: string, meaning: Meaning, nag?: KoluEvent["nag"]): string | null => {
+    const said = (file: string, meaning: Meaning, event: KoluEvent): string | null => {
       const at = derived
       if (at === undefined) {
         // The store has never published, or an `unloaded` disowned the last
@@ -404,10 +404,11 @@ export default definePlugin({
         file,
         meaning,
         standing: standing.length,
-        nag: nag?.index ?? null,
+        nag: event.nag?.index ?? null,
+        terminal: event.row?.terminal ?? null,
         terminals: listed(standing.map((one) => one.terminal)),
       })
-      return bodyFor(meaning, standing, file, clock.now(), nag)
+      return bodyFor(meaning, standing, file, clock.now(), event)
     }
 
     /**
@@ -618,8 +619,9 @@ export default definePlugin({
               // time exactly as the meaning does: it is the event's own fact
               // (padi counted it, not us) — what is re-derived is who it is
               // still true of, never the counting (`./doorbell.ts`'s
-              // `reminderOf` spells it).
-              const body = said(scope.file, meaning, event.nag)
+              // `reminderOf` spells it, naming the event's own terminal so a
+              // coalesced body of many rows can never borrow one row's count).
+              const body = said(scope.file, meaning, event)
               // AND THE WINDOW RESETS HERE, where the words actually go in rather
               // than where the delivery was handed over. A body core coalesced
               // away, or one that derived to `null` because the fleet settled

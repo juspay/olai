@@ -982,17 +982,31 @@ test("a first report carries NO count — the cap the count counts against is pa
   expect(body).not.toContain("reminder")
 })
 
-test("a capped nag spells the count, spell for spell the last one", () => {
+test("a capped nag spells the count, spell for spell the last one — and names the terminal it is about", () => {
   const standing = standingFor({
     ...DECLARED,
     "lanes.olai": marked("step", "reproduce", "doing", { terminal: "11111111" }),
   }, fleetOf(row("11111111", "waiting")), "wake")
-  const second = bodyFor("wake", standing, "lanes.olai", "2026-08-31T14:32:07.001Z", { index: 2, left: 1 })
-  expect(second).toContain("This is reminder 2 of 3.")
+  const second = bodyFor(
+    "wake",
+    standing,
+    "lanes.olai",
+    "2026-08-31T14:32:07.001Z",
+    { ...fired("11111111"), kind: "nag", nag: { index: 2, left: 1 } },
+  )
+  expect(second).toContain("This is reminder 2 of 3 for `11111111`.")
   // THE LAST ONE says so in words — the difference between a cap spent well
-  // and a watcher gone quiet is exactly where this sentence is true.
-  const last = bodyFor("wake", standing, "lanes.olai", "2026-08-31T14:32:07.001Z", { index: 3, left: 0 })
-  expect(last).toContain("This is reminder 3 of 3, the last — this doorbell goes quiet about this terminal until its state changes.")
+  // and a watcher gone quiet is exactly where this sentence is true. And the
+  // id anchors it: the body lists the whole standing set, so the count's
+  // subject is named rather than borrowed.
+  const last = bodyFor(
+    "wake",
+    standing,
+    "lanes.olai",
+    "2026-08-31T14:32:07.001Z",
+    { ...fired("11111111"), kind: "nag", nag: { index: 3, left: 0 } },
+  )
+  expect(last).toContain("This is reminder 3 of 3 for `11111111`, the last — this doorbell goes quiet about that terminal until its state changes.")
   // ...AND NOTHING OF IT IS MARKDOWN: the cap's own clause rides a body
   // that is a message, not a render.
   expect(last).not.toContain("**")
@@ -1003,8 +1017,14 @@ test("an UNCAPPED nag has no end to name — the count alone, in padi's own clau
     ...DECLARED,
     "lanes.olai": marked("step", "reproduce", "doing", { terminal: "11111111" }),
   }, fleetOf(row("11111111", "waiting")), "wake")
-  const body = bodyFor("wake", standing, "lanes.olai", "2026-08-31T14:32:07.001Z", { index: 4 })
-  expect(body).toContain("This is reminder 4 of an uncapped nag")
+  const body = bodyFor(
+    "wake",
+    standing,
+    "lanes.olai",
+    "2026-08-31T14:32:07.001Z",
+    { ...fired("11111111"), kind: "nag", nag: { index: 4 } },
+  )
+  expect(body).toContain("This is reminder 4 of an uncapped nag for `11111111`")
 })
 
 // ── THE LOGGING HALF'S OWN REPRODUCE-RED-FIRST ────────────────────────────
