@@ -215,19 +215,20 @@ const HELD_BUCKETS: ReadonlySet<string> = new Set(WATCH_DEFAULT_STATES)
 
 /**
  * What the DOORBELL's standing read needs, folded the exact way the wire's
- * `rows` answer it — EXPORTED FOR THE ONE READER THAT MUST NOT RE-DERIVE IT.
+ * `rows` answer it — EXPORTED FOR THE ONE READER THAT MUST NOT RE-DERIVE
+ * IT.
  *
  * A SECOND SPELLING WOULD BE A SECOND ANSWER. The doorbell in
- * `olai-plugin-kolu` composes a sentence naming every claimed terminal that
- * is HELD RIGHT NOW and reads that off the live fleet rows
- * (`KoluHalf.rows()`) rather than off any memory of its own — and the folds
- * it shares with the watcher's gate are kolu's, reached through
+ * `olai-plugin-kolu` composes a sentence naming every claimed terminal
+ * that is HELD RIGHT NOW, read off the live fleet rows
+ * (`KoluHalf.rows()`) rather than off any memory of its own — and the
+ * folds that decide held-ness are kolu's, reached through
  * `narrowAgentState` and `agentBucket`, which the judgement package does
  * not depend on: which words a padi build spells is exactly the knowledge
  * the package wall keeps on this side. So the fold crosses as a FUNCTION,
- * the way {@link ../fleet.ts}'s `Claimant` crosses as four strings — one
- * answer to "is this row held", read by the drawer and read by the
- * doorbell, so a body's facts and a padi event's facts cannot come apart.
+ * the way {@link ../fleet.ts}'s `Claimant` crosses as four strings: one
+ * answer to "is this row held", so a body's facts and a padi event's
+ * facts cannot come apart.
  */
 export const heldStateOf = (row: FleetTerminal): HeldState | null => {
   const narrowed = narrowAgentState(row.agentState)

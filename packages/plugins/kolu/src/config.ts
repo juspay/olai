@@ -4,7 +4,8 @@
  * HERE rather than in `@olai/kolu-client` for `./claimants.ts`'s reason,
  * one shelf below: the config file is a reading of the SET and nothing
  * to do with kolu. The package that dials padi gets the derived
- * intervals — three numbers — and never learns that an outline record
+ * intervals — the held-for and the heartbeat as numbers, the nag as one
+ * `{ ms, count? }` pair — and never learns that an outline record
  * exists.
  *
  * ...and here rather than in `@olai/server`, where it was, under the

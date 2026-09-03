@@ -852,8 +852,10 @@ export const claimingIn = (
  * vocabulary. Comparing the event's id against a value the vault wrote is the
  * mistake this whole pair of functions is shaped to make unspellable.
  *
- * A `heartbeat` carries no row and means nothing here: the watcher is alive,
- * which is the pill's news and not a conversation's. A `nag` means exactly
+ * A `heartbeat` carries no row and means nothing here: alive is the pill's
+ * news and not a conversation's. Nothing mints one any more — liveness is
+ * the subscription's own stamps now — but a ring served from before the
+ * fold can still carry one, and the arm is its home. A `nag` means exactly
  * what its `transition` meant — the derivation is idempotent and the body is
  * standing state, so a nag costs a walk and rings the same bell, which is
  * what a nag is FOR.

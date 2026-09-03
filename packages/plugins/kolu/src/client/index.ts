@@ -178,23 +178,24 @@ export interface KoluDeps<N> {
    *
    * OPTIONAL, like {@link MirrorOptions}' own dial: a face that rings
    * nobody passes nothing and pays nothing, and every existing caller keeps
-   * compiling. `heartbeat` events arrive here too — `row` is `null` on them
-   * and it is the READER's job to know that means no terminal moved, since
-   * filtering here would be this package deciding which of its own events
-   * matter to somebody else.
+   * compiling. What arrives is `transition` and `nag` — the `heartbeat`
+   * kind survives on the wire so a ring served from before the fold still
+   * decodes, and LOOKS just the way it always did (`row` is `null` on it,
+   * which meant then what it means now: no terminal moved).
    */
   readonly rang?: (event: KoluEvent) => void
   /**
    * THE HEARTBEAT'S TAP, and the same boundary once more — the watcher's own
    * beat, handed to whoever wants to prove liveness with it.
    *
-   * It rides the beat that already exists ({@link ./watch.ts}'s `pulse`,
-   * armed at `heartbeatMs`) rather than minting a second one: a second timer
-   * would be a second cadence, and the day the two disagreed there would be no
-   * way to say which one the vault's `heartbeat` knob had meant. What is on the
-   * other end of this — `olai-plugin-kolu`'s doorbell, delivering four derived
-   * facts into a conversation that has heard nothing for a window — is not this
-   * package's business, exactly as {@link KoluDeps.rang}'s reader is not.
+   * It rides the beat that already exists — the subscription's per-batch
+   * stamp ({@link ./watch.ts}'s header) — rather than minting a timer of
+   * its own: under a capped, quiet fleet the tap goes SILENT, which is the
+   * design docs.md names: the window a doorbell's floor guards is then the
+   * pill's amber face, not this callback. What is on the other end of this
+   * — `olai-plugin-kolu`'s doorbell, re-imposing the knob's cadence in
+   * `makeHeartbeat`'s own gate — is not this package's business, exactly
+   * as {@link KoluDeps.rang}'s reader is not.
    *
    * ONLY THE CADENCE CROSSES, and the beat's own `at` deliberately does not.
    * `WatchSink.beat` carries the stamp because the PILL draws it — the pill is
@@ -290,8 +291,8 @@ export interface KoluHalf<N> {
   /** The store has NEVER published — the directory's read failed outright.
    *  The wrench's door onto a file the server can no longer see is a page
    *  the store cannot vouch for: the reading resets to nothing. The watch
-   *  KNOBS are not touched — their timers hold their last hand-off while
-   *  the mirror, equally starved, has nothing new for them to gate. */
+   *  KNOBS are not touched — the standing subscription asks its last
+   *  question while the mirror, equally starved, has nothing new for it. */
   readonly unloaded: () => void
 }
 
