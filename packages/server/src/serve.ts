@@ -311,10 +311,20 @@ export const serve = (options: ServeOptions) =>
      *  options. Until then there is no session to hand it to. */
     let tools: Chat.ToolServer | null = null
     /** THE VAULT'S HALF OF THE AGENTS ROSTER, held here because two things
-     *  read it and they are built at different moments: the chat's teaching,
-     *  through the thunk below, and the runtime's own cell, which is also what
-     *  keeps it current ({@link ./agents.ts}). */
+     *  read it and they are built at different moments: the chat's teaching
+     *  and boot router, through the thunks below, and the runtime's own cell,
+     *  which is also what keeps it current ({@link ./agents.ts}).
+     *
+     *  SEED IT BEFORE BUILDING THE CHAT. The runtime subscription starts with
+     *  the current store reading, but its connector is lazy: no browser has
+     *  asked for the agents cell when `chat.start` routes remembered memory.
+     *  Leaving this carrier empty then makes a bound conversation look
+     *  unassigned, starts it in the root panel, and leaves the node asleep.
+     *  This cheap read is the same standing snapshot the subscription will
+     *  hand over; the subscription remains the one owner of later movement. */
     const nodeAgents = agentsRoster()
+    const initial = yield* store.read("cheap")
+    nodeAgents.seen(initial.snapshot === null ? null : initial.snapshot.value.derived)
 
     chat = installed.length === 0 ? null : yield* Chat.make({
       roster: installed,
@@ -410,11 +420,10 @@ export const serve = (options: ServeOptions) =>
        * ... and WHOSE NODE AGENT a conversation is, which is what tells the
        * panel there is a contract to teach at all ({@link ./agents.ts}).
        *
-       * A THUNK OVER A CARRIER, and the carrier is written by the runtime built
-       * a few lines below: the chat is constructed first because the surface
-       * binds to it, so the earlier of the two asks the later one's question
-       * through a closure. What it answers with is a row of the reading the
-       * roster cell is drawn from — one reading, two readers, no second walk.
+       * A THUNK OVER A CARRIER, seeded from the store above and kept current by
+       * the runtime built a few lines below. What it answers with is a row of
+       * the reading the roster cell is drawn from — one derived reading, two
+       * readers, no second walk.
        */
       agentAt: (to) => nodeAgents.agentAt(to),
       nodeAt: (node) => nodeAgents.nodeAt(node),

@@ -126,14 +126,18 @@ test("two node scopes work together, then an idle one is reaped and woken in pla
 })
 
 test("boot routes a remembered node session before spawning any panel", async () => {
-  const nodes: ReadonlyArray<NodeAgent> = [{
+  const remembered: NodeAgent = {
     id: "one",
     file: "Work.olai",
     title: "one",
     engine: "alpha",
     session: "remembered",
     memory: 2,
-  }]
+  }
+  // The composition root builds chat before the surface. Its carrier is
+  // seeded between construction and start, and the scheduler must read that
+  // live value when it routes remembered memory.
+  let nodes: ReadonlyArray<NodeAgent> = []
   const memory = forDirectory(cwd, "alpha")
   await run(memory.remember({ agent: "alpha", session: "remembered", model: null }))
 
@@ -159,6 +163,7 @@ test("boot routes a remembered node session before spawning any panel", async ()
     onState: () => {},
     onTranscript: () => {},
   }))
+  nodes = [remembered]
 
   try {
     await logged(chat.start)
