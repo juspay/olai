@@ -371,6 +371,36 @@ Feature: A node with an `agent-session` property IS an agent
     And the unassigned list does not hold "the last conversation"
     And the list does not claim every conversation belongs to a node agent
 
+  @scratch:chat
+  Scenario: A conversation started after the tab mounted draws the row, with no reload
+    # THE HOLE pi found driving panel-live's section 7 on a fresh vault
+    # (2026-09-02, ruled a chat bug by the human): the count was asked ONCE,
+    # at tab load — when a fresh vault's listing is empty — and the only
+    # re-ask was pressing the row, which the empty answer does not draw. A row
+    # that cannot be opened because it is not there makes its own refresh the
+    # unreachable half of the bargain. This serve has nothing stored, so the
+    # row starts absent; one conversation later the listing has something to
+    # say, and saying so must not take a tab reload.
+    Given the listing counter is armed
+    And I open the app
+    And the agent panel is open
+    And the roster offers no unassigned chats
+    When I ask the agent "hello"
+    And the agent is idle
+    Then the roster offers 1 unassigned chats
+    # ... and NAMED BY THE ANSWER is where asking stops: the next turn settles
+    # into a conversation the listing already says, so the gate pays for no
+    # probe at all. That, and not the row, is what keeps a worked-in directory
+    # from paying an ask per settled turn for the life of a tab. The PRESS,
+    # which is itself an ask, comes after the count is done with.
+    When the list-asks so far are counted
+    And I ask the agent "how are you"
+    And the agent is idle
+    Then the roster offers 1 unassigned chats
+    And the list-asks have not grown
+    When I open the unassigned chats
+    Then the unassigned list holds "hello"
+
   # ── what the list must not swallow ────────────────────────────────────
 
   @agent-stored @scratch:lanes

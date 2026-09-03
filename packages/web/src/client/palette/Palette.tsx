@@ -111,6 +111,7 @@ import {
 import type { Said } from "../saying.ts"
 import { useUndo } from "../edit/undoing.ts"
 import { applied, applying } from "../writes.ts"
+import { doneHiddenOn, setDoneFor } from "../settings/done.ts"
 import { isEditingTarget, listKey, matchKey, paneKey } from "../keys.ts"
 import { useRouter } from "../router.tsx"
 import { isLone } from "../workspace.ts"
@@ -154,6 +155,15 @@ export function Palette(props: {
   /** What the ids the FOCUSED page points at are called — the one thing the
    *  shelf's row needs that an address cannot say (`../pins/palette.ts`). */
   readonly names: Names
+  /**
+   * Which file the ⌘O / Ctrl+O flip is ABOUT — the FOCUSED page's file when
+   * the page has a flip (`../settings/done.ts`'s `pageFileOf` says which
+   * those are), `undefined` on a page the pick never belonged to. Handed down
+   * rather than asked of the route: an address cannot say whether it resolved
+   * to an outline or a document, and the focused pane's reading already has
+   * (`App.tsx`), the way `zoomed` above is.
+   */
+  readonly doneAt: string | undefined
 }) {
   // ⌘Z / ⌘⇧Z belong to the outline's undo stack; what this file owns is the
   // ONE window listener the global layer has (../keys.ts), and a second one
@@ -499,6 +509,21 @@ export function Palette(props: {
   }
 
   /**
+   * ⌘O / Ctrl+O — the strip's own gesture, pressed from the keyboard: flip
+   * whether the FOCUSED page draws what is finished, and remember the answer
+   * (`../settings/done.ts`). The strip's rule word for word: the word that
+   * goes in is the OTHER of the two the page is saying now, on the page's own
+   * file even when that says what the panel's default already says — the ask
+   * outlives where the default stands. A page with no flip gives the chord
+   * nothing to be about, and it says nothing.
+   */
+  const flipDone = (): void => {
+    const file = props.doneAt
+    if (file === undefined) return
+    setDoneFor(file, doneHiddenOn(file) ? "shown" : "hidden")
+  }
+
+  /**
    * THE PAGE, PINNED OR UNPINNED — the one gesture behind two doors: the ⌘⇧P
    * chord below, and the palette row that names it.
    *
@@ -792,6 +817,7 @@ export function Palette(props: {
       if (match.action === "undo") undo.undo()
       if (match.action === "redo") undo.redo()
       if (match.action === "closePane") router.close()
+      if (match.action === "done") flipDone()
       // The shelf, from wherever the reader is standing. Its answer goes to
       // the line under the header rather than to this component's, which is
       // the one this palette can draw and is not on screen when the chord is
