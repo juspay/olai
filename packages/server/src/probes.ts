@@ -34,15 +34,16 @@
  * Collecting whatever arrives and then reading it against the build's list keeps
  * the knowledge in the file that has it.
  *
- * THE COMPARATOR ITSELF IS `@olai/bundle`'S, and it was written out here. The
- * tab sorts its plugin-keyed slots by the same rule for the same reason, and the
- * two copies — the same `indexOf`, the same `-1` arm, the same paragraph about
- * strangers — sat in two different processes with one citing the other. The list
- * is that package's, so the order over it is too: `bundleRank` is where the
- * stranger rule and the stability argument now live.
+ * THE SORT ITSELF IS `@olai/bundle`'S, and it was written out here twice over.
+ * First the comparator's guts — the same `indexOf`, the same `-1` arm, the same
+ * paragraph about strangers — in two processes, one copy citing the other; that
+ * move extracted `bundleRank` and left the `.sort(…)` behind, so the copies came
+ * back the moment a third caller wanted one. `inBundleOrder` is the whole
+ * gesture, and the stranger rule, the stability argument and the reason a person
+ * needs this order at all live beside the list they are about.
  */
 
-import { bundleRank } from "@olai/bundle"
+import { inBundleOrder } from "@olai/bundle"
 import type { Asked, Plugins } from "@olai/plugin-api/services"
 import { Effect } from "effect"
 
@@ -58,9 +59,5 @@ import { Effect } from "effect"
  * here is the LIST, and `@olai/chat` still schedules the asking.
  */
 export const askingAt = (plugins: Plugins): Effect.Effect<ReadonlyArray<Asked>> =>
-  Effect.map(
-    plugins.sessionStart,
-    (asking) =>
-      [...asking].sort((one, other) => bundleRank(one.name) - bundleRank(other.name)),
-  )
+  Effect.map(plugins.sessionStart, (asking) => inBundleOrder(asking, (one) => one.name))
 

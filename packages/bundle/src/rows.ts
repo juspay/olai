@@ -176,6 +176,34 @@ const RANKS: ReadonlyMap<string, number> = new Map(BUNDLE_NAMES.map((id, at) => 
 export const bundleRank = (name: string): number => RANKS.get(name) ?? BUNDLE_NAMES.length
 
 /**
+ * ...AND THE SORT ITSELF, which is what every caller actually wanted.
+ *
+ * `bundleRank` extracted the LOOKUP and left the comparator behind, so the two
+ * call sites it was written for went on spelling
+ * `[...xs].sort((a, b) => bundleRank(k(a)) - bundleRank(k(b)))` — and the engines
+ * phase made a third, in a brand-new module whose only line was that one. Three
+ * copies of a comparator, each under its own paragraph re-arguing the same
+ * volatility, is the shape the paragraph above was written about; the fix it
+ * described was half-applied.
+ *
+ * WHAT THE ORDER IS FOR, said once here instead of three times out there:
+ * registration order is the order two dynamic `import()`s came back in, which is
+ * a fact about the filesystem and the module cache on the day rather than about
+ * `olai.yml`. A PERSON READS THESE LISTS — the servers a session reports, the
+ * faces down a transcript's mark column, the engines the picker offers and the
+ * install rows under them — and a list that reshuffles itself between boots is a
+ * list nobody can read twice. There is an e2e failure behind that sentence.
+ *
+ * KEYED BY A FUNCTION because the three callers key off three different fields
+ * (a row's `id`, a probe's `name`, a hung face's `plugin`), which is exactly why
+ * one comparator could not be shared without one.
+ */
+export const inBundleOrder = <A>(
+  items: Iterable<A>,
+  keyOf: (one: A) => string,
+): ReadonlyArray<A> => [...items].sort((one, other) => bundleRank(keyOf(one)) - bundleRank(keyOf(other)))
+
+/**
  * ...AND WHAT OMITTING THE FLAG RUNS, which is not necessarily all of them.
  *
  * A row that carries its own `disabled` is opt-in: off until `--plugins` names

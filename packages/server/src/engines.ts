@@ -1,29 +1,25 @@
 /**
- * WHICH ACP ENGINES THIS SERVE HAS, IN THE BUNDLE'S ORDER — and what a browser
- * is told about each.
+ * WHICH ACP ENGINES THIS SERVE HAS, in the bundle's order.
  *
- * ## The order is the whole reason this is a module
+ * ## Why reading a registry is a module and not a line
  *
- * An engine is a plugin, and a plugin's registration happens when its `apply`
- * runs, which is when the loader's dynamic `import()` for its row comes back. So
- * the registry's own order is the order two `import()`s resolved in, which is a
- * fact about the filesystem and the module cache on the day rather than about
- * `olai.yml`.
+ * An engine is a plugin, and a plugin registers when its `apply` runs — which is
+ * when the loader's dynamic `import()` for its row comes back. So the registry's
+ * own order is the order two `import()`s resolved in, which is a fact about the
+ * filesystem and the module cache on the day rather than about `olai.yml`.
  *
- * A PERSON READS THIS ORDER, twice over: it is the order the chat panel's picker
- * draws its rows in, and the order the no-agent face lists engines to install
- * in. A list that reshuffled itself between boots is a list nobody can read
- * twice — the exact failure `./probes.ts` was written after one wall over, where
- * the servers a session reported changed between two boots of one serve.
+ * That this order is IMPOSED, and why a person would notice if it were not, is
+ * argued once beside the list it is imposed from (`@olai/bundle`'s
+ * `inBundleOrder`) — the same call `./probes.ts` makes for the session's servers
+ * and `@olai/web`'s plugin runtime makes for the tab's slots. It is read twice
+ * over here: the order the chat panel's picker draws its rows in, and the order
+ * the no-agent face lists engines to install in. It is ALSO what a note naming
+ * no agent at all is read as being about (`@olai/chat`'s `memory.ts`), so a
+ * reshuffle there would silently be a different conversation coming back.
  *
- * It is ALSO what a note naming no agent at all is read as being about
- * (`@olai/chat`'s `memory.ts`), so a reshuffle there would silently be a
- * different conversation coming back.
- *
- * So the order is IMPOSED here rather than assumed anywhere: `bundleRank` is the
- * build's own list of rows, and it is the same list the roster cell and the
- * session-start thunks are ordered by. One order, from one file, for everything
- * a person can see.
+ * What is left in this module is a READING OF A LIVE REGISTRY, which is the
+ * composition root's job and nobody else's: `@olai/chat` is handed an array and
+ * never learns that a plugin system exists.
  *
  * ## What this module deliberately does NOT do
  *
@@ -36,10 +32,9 @@
  */
 
 import type { Engine } from "@olai/acp/engine"
-import { bundleRank } from "@olai/bundle"
+import { inBundleOrder } from "@olai/bundle"
 import type { Plugins } from "@olai/plugin-api/services"
 
 /** Every engine this serve mounted, in the build's own order. */
 export const enginesAt = (plugins: Plugins): ReadonlyArray<Engine> =>
-  [...plugins.engines()].sort((one, other) => bundleRank(one.id) - bundleRank(other.id))
-
+  inBundleOrder(plugins.engines(), (one) => one.id)
