@@ -200,6 +200,14 @@ export const settledOf = (tally: RunTally): boolean =>
  * the empty-set trap the counting form falls into; `settledOf` guards it in
  * one place, so no consumer of the reading repeats the guard.
  *
+ * `ok` is knowingly LOOSER than odu's own green: a node that settles through
+ * `cancelled` goes home without going red — a deliberate lane drop is not a
+ * failure (`./project.ts` reads odu's own hue table) — where odu's settle
+ * verdict counts the run as not-passed (juspay/odu#68). This fold's question
+ * is the face's — "did anything FAIL" — and the wording of the counts keeps
+ * the difference visible (`2/3 ok`, one cancelled, is not rendered `3/3`).
+ * The day a face must call this case out, the WORD has room:
+ *
  * A WORD rather than a boolean, because the day a third outcome matters
  * (odu's `cancelled` is already a distinct status) a boolean has no room for
  * it.
