@@ -257,6 +257,7 @@ describe("the manifest", () => {
     "plugin-api": ["@olai/acp/engine"],
     server: ["@olai/acp/engine"],
     "plugins/claude": ["@olai/acp/engine"],
+    "plugins/codex": ["@olai/acp/engine"],
     "plugins/opencode": ["@olai/acp/engine"],
     "plugins/pi": ["@olai/acp/engine"],
   }

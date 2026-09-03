@@ -102,7 +102,7 @@ export const NAMES_IN_ID: Leg = {
  *
  * What the chat's own lifecycle cases need of a leg and the whole of it: an
  * agent that takes a mid-turn message and answers it in order, with no
- * interrupting gesture. Two of the three engines olai ships answer exactly this
+ * interrupting gesture. Three of the four engines olai ships answer exactly this
  * way, and the cases that use it are about what the PANEL promises rather than
  * about which of them is speaking.
  */

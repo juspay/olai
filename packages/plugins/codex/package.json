@@ -1,0 +1,26 @@
+{
+  "name": "olai-plugin-codex",
+  "//name": "UNSCOPED, like every engine plugin: the directory, bundle id, --plugins word and docs address are all `codex`.",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./server": "./src/server.ts",
+    "./browser": "./src/browser.tsx",
+    "./testids": "./src/testids.ts",
+    "./all.css": "./src/browser/all.css"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "//": "THE CODEX ENGINE — its shipped ACP adapter, conservative reading of that wire, and the faces that identify it.",
+  "dependencies": {
+    "@olai/acp": "workspace:*",
+    "@olai/plugin-api": "workspace:*",
+    "effect": "4.0.0-rc.112",
+    "solid-js": "^1.9.0"
+  }
+}

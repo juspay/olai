@@ -167,9 +167,9 @@ inputs.olai.url = "github:juspay/olai";
 
 The module fills `package` from the flake for the host platform. The packaged binary already bakes the browser bundle (`OLAI_DIST_DIR`) and the pinned `odu` (put first on the server's own PATH, so the chat panel's CI probe resolves the build's binary and not a host's — [plugins/odu.md](plugins/odu.md)), so the service needs no ambient environment.
 
-`OLAI_ODU_BIN` is the one knob over the last of those: it names a **directory** whose `odu` the serve puts first on its PATH instead of the pin — how you test a development odu against a packaged olai — and the empty string is the explicit off switch (the probe then answers from the ambient PATH, and a PATH with no `odu` draws the row under the roster — [chat.md](chat.md#when-a-tool-server-does-not-arrive)). The two adapter knobs beside it (`OLAI_ACP_AGENT`, `OLAI_ACP_PI`) name executable *files*; this one names the *directory* the way the pin's own `bin/` does.
+`OLAI_ODU_BIN` is the one knob over the last of those: it names a **directory** whose `odu` the serve puts first on its PATH instead of the pin — how you test a development odu against a packaged olai — and the empty string is the explicit off switch (the probe then answers from the ambient PATH, and a PATH with no `odu` draws the row under the roster — [chat.md](chat.md#when-a-tool-server-does-not-arrive)). The three adapter knobs beside it (`OLAI_ACP_AGENT`, `OLAI_ACP_CODEX`, `OLAI_ACP_PI`) name executable *files*; this one names the *directory* the way the pin's own `bin/` does.
 
-**The one thing a user service does NOT inherit is your PATH**, and that is where agents live. Olai looks for the ones it knows when it starts — the pinned adapters it ships with (Claude Code's and pi-acp's), and the agents they drive on its own search path: an `opencode`, a `pi` — and a unit started by systemd sees neither your login shell nor your profile. So an `opencode` you can run in a terminal is not necessarily one this process can find, and `OLAI_AGENT_PATH` is how you say where to look:
+**The one thing a user service does NOT inherit is your PATH**, and that is where some agents live. Olai looks for the ones it knows when it starts — the self-contained pinned Claude Code and Codex adapters, the pinned pi-acp adapter, and the agents on its own search path: an `opencode`, a `pi` — and a unit started by systemd sees neither your login shell nor your profile. So an `opencode` you can run in a terminal is not necessarily one this process can find, and `OLAI_AGENT_PATH` is how you say where to look:
 
 ```nix
   systemd.user.services.olai.Environment = [
@@ -177,7 +177,7 @@ The module fills `package` from the flake for the host platform. The packaged bi
   ];
 ```
 
-Set, it REPLACES the search path rather than adding to it — including when it is set to the empty string, which is "look nowhere". The other variable is `OLAI_ACP_AGENT`: it points the Claude side at a different ACP executable, and setting it to the empty string turns the chat panel off entirely (nothing is probed, and the panel says so rather than disappearing). Both are [chat.md](chat.md)'s, which says what the panel does with each.
+Set, it REPLACES the search path rather than adding to it — including when it is set to the empty string, which is "look nowhere". The adapter variables are `OLAI_ACP_AGENT`, `OLAI_ACP_CODEX` and `OLAI_ACP_PI`; they point their rows at different ACP executables. Empty Codex or pi values omit that row, while empty `OLAI_ACP_AGENT` turns the chat panel off entirely (nothing is probed, and the panel says so rather than disappearing). They are [chat.md](chat.md)'s, which says what the panel does with each.
 
 **And the agent olai spawns inherits olai's environment — not yours.** Finding an agent is only half of starting one. A chat agent is a child of this process, so the variables it reads are the ones the *unit* was given. An agent whose config resolves a provider key out of the environment (opencode's `"apiKey": "{env:JUSPAY_API_KEY}"` is the shape) finds nothing unless olai itself was started with that key — and what that looks like in the panel is nothing at all: the agent takes the prompt, answers that the turn is over, and streams no error anywhere. Olai names it rather than drawing it as an ordinary turn — a notice saying the agent ended the turn without saying anything and to check its provider key, with the banner left up ([chat.md](chat.md)). `environmentFile` is where the key goes (Linux only; launchd has no equivalent, and the module refuses the option there rather than quietly ignoring it):
 
@@ -226,12 +226,12 @@ Theme, typeface, size, note density and finished work are untouched by any of th
 
 ## Which integrations this serve runs
 
-olai talks to a number of things that are not olai, and every one of them is a plugin: the APPLIANCES — kolu ([plugins/kolu.md](plugins/kolu.md)), odu ([plugins/odu.md](plugins/odu.md)), Xyne Spaces ([plugins/xyne-spaces.md](plugins/xyne-spaces.md)) — and the ACP ENGINES the chat panel can seat: Claude Code ([plugins/claude.md](plugins/claude.md)), opencode ([plugins/opencode.md](plugins/opencode.md)) and pi ([plugins/pi.md](plugins/pi.md)). `--plugins` says which of them this serve is running, and it does not know the difference.
+olai talks to a number of things that are not olai, and every one of them is a plugin: the APPLIANCES — kolu ([plugins/kolu.md](plugins/kolu.md)), odu ([plugins/odu.md](plugins/odu.md)), Xyne Spaces ([plugins/xyne-spaces.md](plugins/xyne-spaces.md)) — and the ACP ENGINES the chat panel can seat: Claude Code ([plugins/claude.md](plugins/claude.md)), Codex ([plugins/codex.md](plugins/codex.md)), opencode ([plugins/opencode.md](plugins/opencode.md)) and pi ([plugins/pi.md](plugins/pi.md)). `--plugins` says which of them this serve is running, and it does not know the difference.
 
 ```
 olai web ~/outlines --plugins=odu                        # odu only — and no agent to talk to
-olai web ~/outlines --plugins=claude,kolu,odu            # the usual set, minus the other two engines
-olai web ~/outlines --plugins=opencode,pi,kolu,odu      # no Claude row, no probe for one
+olai web ~/outlines --plugins=claude,kolu,odu            # one engine plus the usual appliances
+olai web ~/outlines --plugins=codex,opencode,pi,kolu,odu # no Claude row, no probe for one
 olai web ~/outlines --plugins=                          # none
 ```
 
