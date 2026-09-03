@@ -112,6 +112,7 @@ import {
   type Manifest,
   NO_AGENT_ROSTER,
   NO_ROSTER,
+  type OffBecause,
   type OpFailure,
   type PluginRoster,
   type PluginState,
@@ -419,10 +420,22 @@ export interface Wiring {
    * whether anybody typed the flag.
    */
   readonly plugins: PluginRuntime | null
-  /** Absent when no ACP agent is configured: the cell stays `off` and the
+  /** Absent when this serve has no ACP agent: the cell stays `off` and the
    *  procedures answer that they are. A directory is readable whether or not
    *  an agent is installed. */
   readonly chat: Chat | null
+  /**
+   * ...AND WHY, when {@link chat} is absent — `null` beside a chat that exists.
+   *
+   * Carried rather than re-derived, and that is the whole reason it is a field.
+   * There are three ways to have no agent (`@olai/chat`'s `Roster`), a person
+   * has a different thing to do about each, and only the composition root holds
+   * both halves of the answer — the engine registry and what every probe said.
+   * The panel drew its opening sentence by GUESSING between them until this
+   * arrived, and one of its guesses named a launch path no documented way of
+   * starting olai takes.
+   */
+  readonly noAgent: OffBecause | null
   /**
    * THE NODE AGENTS' CARRIER — the vault's half of the roster, which this
    * runtime WRITES on every published revision and reads back to fill the cell
@@ -1438,7 +1451,14 @@ export const bind = (
             ),
         },
         chat: {
-          store: inMemoryStore<ChatState>(chat === null ? CHAT_OFF : chat.state()),
+          // NO CHAT IS A STATE WITH A REASON, and the reason rides the same cell
+          // rather than a second one: the panel draws this face out of one value
+          // it already subscribes to, and a tab that has not heard yet holds
+          // `CHAT_OFF` itself, whose `off` is `null` — "not told" rather than
+          // any of the three ways of being off.
+          store: inMemoryStore<ChatState>(
+            chat === null ? { ...CHAT_OFF, off: wiring.noAgent } : chat.state(),
+          ),
         },
         /**
          * THE AGENTS ROSTER, re-assembled whenever EITHER of its halves moves —

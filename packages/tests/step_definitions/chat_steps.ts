@@ -2676,6 +2676,48 @@ Then(
   },
 );
 
+/**
+ * WHICH OF THE THREE, and the reason these are two steps rather than one with a
+ * parameter: what a person is owed differs per cause, so what a scenario should
+ * be able to say is that THIS cause produced THIS sentence — and a step taking
+ * the sentence as an argument would let a scenario assert whichever words
+ * happened to be there.
+ *
+ * The claim is deliberately about a PHRASE rather than the whole copy: the words
+ * are core's to reword (all three causes are facts about the SERVE, not about an
+ * engine), and what must not change is that the face commits to one of them.
+ * Before this, it hedged across two guesses, one of them unreachable.
+ */
+const saysNoAgentBecause = async (world: OlaiWorld, phrase: string, why: string): Promise<void> => {
+  const said = oneLine(await world.page.locator(CHAT_NO_AGENT).innerText());
+  assert.ok(
+    said.toLowerCase().includes(phrase.toLowerCase()),
+    `the no-agent face does not say ${why}. A face that will not name which of ` +
+      `the three ways of having no agent this is leaves a person guessing at the ` +
+      `one thing they could do about it. It reads: ${said}`,
+  );
+};
+
+Then("the panel says the agent is switched off", async function (this: OlaiWorld) {
+  await saysNoAgentBecause(this, "switched off", "that chat was switched off");
+});
+
+Then("the panel says this serve enabled no agent engine", async function (this: OlaiWorld) {
+  await saysNoAgentBecause(this, "no agent engine", "that this serve composed no engine plugin");
+});
+
+Then("the panel offers no way to install one", async function (this: OlaiWorld) {
+  // An engine's install sentence is its OWN browser half's, out of the
+  // `chat.agent.install` slot — so a serve that mounted no engine fetched no
+  // half and has nothing to list. Drawing an empty list, or a heading over one,
+  // would be core inventing a row for a plugin that is not here.
+  await this.waitUntil(
+    async () => (await this.page.locator(CHAT_INSTALL).count()) === 0,
+    "the no-agent face to list no engine at all",
+    HYDRATION_TIMEOUT,
+  );
+});
+
 // ── a conversation the agent would not open ────────────────────────────
 //
 // The panel's third body, and the one that is about a LIVE agent: it answered,

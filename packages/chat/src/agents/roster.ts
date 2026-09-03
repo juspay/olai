@@ -77,6 +77,7 @@
  */
 
 import { AGENT_ENV, type Adapter, type Engine, type Leg, type PromptChannel, type Where } from "@olai/acp/engine"
+import type { OffBecause } from "@olai/surface"
 
 import { AGENT_PATH_ENV } from "../adapter.ts"
 
@@ -105,27 +106,54 @@ export interface Installed {
 }
 
 /**
- * Every engine installed here, in the order it was given — or NOTHING when chat
- * is switched off.
+ * WHAT THIS MACHINE ANSWERED: the agents it has, or the reason it has none.
+ *
+ * A UNION RATHER THAN AN ARRAY THAT CAN BE EMPTY, and the arm is the whole
+ * point. An empty roster did THREE jobs — chat switched off, no engine plugin
+ * mounted, every engine asked and none installed — and the panel, holding one
+ * empty array, hedged across all of them in prose. One of its two guesses ("olai
+ * was started by hand, without the wrapper that bakes the pinned adapters in")
+ * cannot happen on any documented way of starting olai, so the commonest real
+ * cause — a `--plugins` list naming no engine — was the one case the face never
+ * named.
+ *
+ * The three are told apart HERE, where the deciding is, and the answer carries
+ * the reason on the arm that has one: `because` exists only where there is
+ * nothing installed, and `installed` is non-empty wherever it exists. Neither is
+ * a state a reader has to check the other for.
+ */
+export type Roster =
+  /** At least one agent, in the order the engines were given. */
+  | { readonly kind: "here"; readonly installed: ReadonlyArray<Installed> }
+  /** ...or none at all, and which of the three ways — `@olai/surface`'s
+   *  {@link OffBecause}, drawn by the panel and written to the log. */
+  | { readonly kind: "none"; readonly because: OffBecause }
+
+/**
+ * Every engine installed here, in the order it was given — or why there are
+ * none.
  *
  * PURE over {@link Where} and the engines handed in, which is what makes the off
- * switch and each row's shape assertable by a function a test can call with a
- * made-up environment and a made-up engine.
+ * switch, each row's shape AND each reason assertable by a function a test can
+ * call with a made-up environment and a made-up engine.
  *
  * THE ORDER IS THE CALLER'S. It is the order the picker draws and the order the
  * install rows are listed in, and it is decided against the BUNDLE'S own list of
  * rows rather than here — because registration order is the order two dynamic
  * imports came back in, which is a fact about the filesystem on the day
  * (`@olai/server`'s `probes.ts` argues it, and has an e2e failure behind it).
+ *
+ * THE ORDER OF THE `none` ARMS IS ALSO A RULING. The off switch wins even where
+ * no engine was mounted either, because it is the one a PERSON ASKED FOR:
+ * somebody who wrote `OLAI_ACP_AGENT=` is owed "you turned this off" rather than
+ * a lecture about `--plugins`. Below it, no engine at all outranks nothing
+ * installed for the plainer reason that nothing was ever asked.
  */
-export const rosterOf = (
-  where: Where,
-  engines: ReadonlyArray<Engine>,
-): ReadonlyArray<Installed> => {
+export const rosterOf = (where: Where, engines: ReadonlyArray<Engine>): Roster => {
   // The explicit off switch, and it is the WHOLE panel rather than one row —
   // see the header. Read before anything is probed, so a machine with an agent
   // installed still gets the "off" a person asked for.
-  if (where.env[AGENT_ENV] === "") return []
+  if (where.env[AGENT_ENV] === "") return { kind: "none", because: { kind: "switched-off" } }
   const found: Array<Installed> = []
   for (const engine of engines) {
     const adapter = engine.at(where)
@@ -139,15 +167,20 @@ export const rosterOf = (
       })
     }
   }
-  return found
+  if (found.length > 0) return { kind: "here", installed: found }
+  // NOTHING, and the two ways of getting here are not the same sentence: an
+  // engine that was never mounted was never asked, and there is no install
+  // sentence to draw for it either, because the face that draws one is its own
+  // browser half's.
+  return {
+    kind: "none",
+    because: engines.length === 0 ? { kind: "no-engine" } : { kind: "none-installed" },
+  }
 }
 
 /** The roster of the machine this process is on. The one impure door, and the
  *  only place `process.env` and the disk are read for this question. */
-export const roster = (
-  cwd: string,
-  engines: ReadonlyArray<Engine>,
-): ReadonlyArray<Installed> =>
+export const roster = (cwd: string, engines: ReadonlyArray<Engine>): Roster =>
   rosterOf({ env: process.env, cwd, found: (name) => onPath(name, searchPath()) }, engines)
 
 /** Where the probes look: {@link AGENT_PATH_ENV} when it is set — including

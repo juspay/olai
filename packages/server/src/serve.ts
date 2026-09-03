@@ -24,7 +24,7 @@
  */
 
 import { surface } from "@olai/surface"
-import { AGENT_ENV, roster, whyNoAgent } from "@olai/chat"
+import { roster, whyNoAgent } from "@olai/chat"
 import type { GitPin } from "@olai/format"
 import type { IdentityConfig } from "@olai/identity"
 import { fixedPolicy, make as makeOps, TOOLS } from "@olai/ops"
@@ -291,8 +291,16 @@ export const serve = (options: ServeOptions) =>
     // search path). Nothing found is the state the panel has a face for — it
     // draws, and says how to install one, out of each engine's own sentence —
     // so it is a line in the log and never a refusal to serve.
-    const installed = roster(root, engines)
-    if (installed.length === 0) yield* Effect.logInfo(whyNoAgent(process.env[AGENT_ENV]))
+    // ...ONE ANSWER WITH THE REASON ON THE ARM. A serve with no agent has one
+    // of three causes and only this end can tell them apart, so the roster
+    // hands over which — spent twice and never re-derived: the journal line
+    // here, and the chat cell the panel draws its opening sentence out of
+    // (`bind`'s `noAgent`, below). A screen and a journal disagreeing about one
+    // boot is how a person ends up debugging the wrong thing.
+    const found = roster(root, engines)
+    const installed = found.kind === "here" ? found.installed : []
+    const noAgent = found.kind === "none" ? found.because : null
+    if (noAgent !== null) yield* Effect.logInfo(whyNoAgent(noAgent))
 
     // Minted per process and handed only to the session we spawn: the write
     // surface is not something any page that can reach loopback may call.
@@ -435,6 +443,9 @@ export const serve = (options: ServeOptions) =>
     const wired = yield* bind({
       store,
       chat,
+      // ...and WHY there is none, where there is none — the value the log line
+      // above was made from, so the panel says exactly what the journal says.
+      noAgent,
       // The carrier the chat's teaching already reads. The runtime is what
       // KEEPS it current — one reading per published revision, taken where the
       // roster cell is filled — so the two readers cannot be looking at two

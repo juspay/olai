@@ -229,19 +229,19 @@ Theme, typeface, size, note density and finished work are untouched by any of th
 olai talks to a number of things that are not olai, and every one of them is a plugin: the APPLIANCES — kolu ([plugins/kolu.md](plugins/kolu.md)), odu ([plugins/odu.md](plugins/odu.md)), Xyne Spaces ([plugins/xyne-spaces.md](plugins/xyne-spaces.md)) — and the ACP ENGINES the chat panel can seat: Claude Code ([plugins/claude.md](plugins/claude.md)), opencode ([plugins/opencode.md](plugins/opencode.md)) and pi ([plugins/pi.md](plugins/pi.md)). `--plugins` says which of them this serve is running, and it does not know the difference.
 
 ```
-olai web ~/outlines --plugins=odu                        # odu only — and NO chat panel
+olai web ~/outlines --plugins=odu                        # odu only — and no agent to talk to
 olai web ~/outlines --plugins=claude,kolu,odu            # the usual set, minus the other two engines
 olai web ~/outlines --plugins=opencode,pi,kolu,odu      # no Claude row, no probe for one
 olai web ~/outlines --plugins=                          # none
 ```
 
-**Naming no engine turns the chat panel off**, and that is the flag doing exactly what it says rather than a trap: an engine is a row like any other, so a serve that composed none has no agent to talk to and draws the face that says so. If what you meant was "odu, and chat as usual", name the engines you want beside it. `OLAI_ACP_AGENT=""` is still the other way to turn chat off — the whole panel, whatever the flag says — and it is the one to reach for when the answer is *not this time* rather than *not on this instance*.
+**Naming no engine leaves the panel with no agent**, and that is the flag doing exactly what it says rather than a trap: an engine is a row like any other, so a serve that composed none has nothing to talk to. The panel still DRAWS — it says this serve has no agent engine, and that every one of them is a plugin that is on by default — because a capability that is silently absent cannot be told apart from one that is broken. If what you meant was "odu, and chat as usual", name the engines you want beside it. `OLAI_ACP_AGENT=""` is still the other way to turn chat off — the whole panel, whatever the flag says — and it is the one to reach for when the answer is *not this time* rather than *not on this instance*.
 
 ...and the same thing where a machine is actually configured, because a policy
 you set by hand on the command line is a policy you set once and forget:
 
 ```nix
-  services.olai.plugins = [ "odu" ];              # odu only — and no chat panel
+  services.olai.plugins = [ "odu" ];              # odu only — and no agent to talk to
   services.olai.plugins = [ "claude" "kolu" "odu" ];
   services.olai.plugins = [ ];                    # none
   # omit it entirely                              — the built-in default

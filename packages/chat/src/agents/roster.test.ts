@@ -33,7 +33,7 @@ import { tmpdir } from "node:os"
 import { delimiter, join } from "node:path"
 
 import { AGENT_ENV, AGENT_PATH_ENV } from "../adapter.ts"
-import { onPath, rosterOf } from "./roster.ts"
+import { type Installed, onPath, type Roster, rosterOf } from "./roster.ts"
 
 const CWD = "/vault"
 
@@ -60,13 +60,18 @@ const engine = (id: string, at: (where: Where) => Adapter | null): Engine => ({
 const here = (id: string): Engine => engine(id, () => ({ command: `/bin/${id}`, args: [] }))
 const absent = (id: string): Engine => engine(id, () => null)
 
+/** The rows off a roster that has some, for the cases that are about the ROWS.
+ *  A bench asserting the arm is a bench about the arm, and those are below. */
+const rowsIn = (found: Roster): ReadonlyArray<Installed> =>
+  found.kind === "here" ? found.installed : []
+
 describe("who is offered", () => {
   test("an engine whose probe answers is a row, carrying what the probe said", () => {
     const found = rosterOf({ env: {}, cwd: CWD, found: nowhere }, [
       engine("one", (where) => ({ command: "/bin/one", args: ["--cwd", where.cwd] })),
     ])
-    expect(found.map((row) => row.id)).toEqual(["one"])
-    expect(found[0]?.adapter).toEqual({ command: "/bin/one", args: ["--cwd", CWD] })
+    expect(rowsIn(found).map((row) => row.id)).toEqual(["one"])
+    expect(rowsIn(found)[0]?.adapter).toEqual({ command: "/bin/one", args: ["--cwd", CWD] })
   })
 
   test("...and one whose probe says nothing is simply absent", () => {
@@ -74,13 +79,14 @@ describe("who is offered", () => {
     // has had nothing go wrong, and what a person is owed about it is the
     // engine's own install sentence on the no-agent face rather than a row that
     // would fail at every `session/new`.
-    expect(rosterOf({ env: {}, cwd: CWD, found: nowhere }, [absent("one")])).toEqual([])
+    expect(rosterOf({ env: {}, cwd: CWD, found: nowhere }, [absent("one")]))
+      .toEqual({ kind: "none", because: { kind: "none-installed" } })
   })
 
   test("every row carries the engine's own name and prompt channel, untouched", () => {
     const found = rosterOf({ env: {}, cwd: CWD, found: nowhere }, [here("one")])
-    expect(found[0]?.name).toBe("one (a name)")
-    expect(found[0]?.prompt).toEqual({ kind: "first-turn" })
+    expect(rowsIn(found)[0]?.name).toBe("one (a name)")
+    expect(rowsIn(found)[0]?.prompt).toEqual({ kind: "first-turn" })
   })
 
   test("the probe is handed the SERVE's own lookup, not one of its own", () => {
@@ -102,7 +108,8 @@ describe("who is offered", () => {
   test("no engines at all is a whole state, and it is the empty roster", () => {
     // `--plugins=` with nothing named, or a build with every engine row
     // disabled. The panel draws the face that says so; nothing here refuses.
-    expect(rosterOf({ env: {}, cwd: CWD, found: () => "/bin/anything" }, [])).toEqual([])
+    expect(rosterOf({ env: {}, cwd: CWD, found: () => "/bin/anything" }, []))
+      .toEqual({ kind: "none", because: { kind: "no-engine" } })
   })
 
   test("the EMPTY variable is the whole off switch, not one missing row", () => {
@@ -117,7 +124,7 @@ describe("who is offered", () => {
         return { command: "/bin/one", args: [] }
       })],
     )
-    expect(found).toEqual([])
+    expect(found).toEqual({ kind: "none", because: { kind: "switched-off" } })
     expect(probed).toBe(false)
   })
 
@@ -131,7 +138,7 @@ describe("who is offered", () => {
       absent("skipped"),
       here("second"),
     ])
-    expect(found.map((row) => row.id)).toEqual(["first", "second"])
+    expect(rowsIn(found).map((row) => row.id)).toEqual(["first", "second"])
   })
 })
 

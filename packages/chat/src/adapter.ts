@@ -35,6 +35,7 @@
  */
 
 import { AGENT_ENV } from "@olai/acp/engine"
+import type { OffBecause } from "@olai/surface"
 
 /** The variable, spelled once — `@olai/acp/engine`'s, re-exported so this
  *  package's own readers reach it where they already reach for the roster's
@@ -50,28 +51,43 @@ export const AGENT_PATH_ENV = "OLAI_AGENT_PATH"
 /**
  * Why the roster is EMPTY, as a line for the log.
  *
- * The two cases read differently on purpose: an EMPTY variable is somebody
- * saying "not this time" — and it is the whole off switch, so nothing else was
- * even looked for — while an absent one is a launch path that did not go through
- * the wrapper or the justfile, which is worth pointing at because every
- * documented path bakes the default in. The second line also names the other
- * variable, because "olai cannot see the opencode I installed" is a PATH
- * question and this is the line somebody greps.
+ * TAKES THE REASON RATHER THAN RE-DERIVING IT. It read `process.env` itself
+ * once, which made the journal and the screen two independent accounts of one
+ * boot — and they could differ, because the screen had a third case the log line
+ * had no arm for. {@link OffBecause} is minted once, where the branch that
+ * decides it already is ({@link ./agents/roster.ts}), and spent here and on the
+ * wire. One reading, two readers.
  *
- * NO ENGINE IS NAMED IN EITHER, and that is not a loss of detail — it is the
- * fence. Which engines this build has is a list of ROWS, each with its own
- * sentence about how to get it, and the panel draws all of them
- * ({@link ./agents/roster.ts}). A log line that spelled three of them would be
- * core knowing an engine by name and would go stale the day a fourth row is
- * added, which is the one edit this whole phase exists to make cost nothing.
+ * The three read differently on purpose, because a person has a different thing
+ * to do about each: an EMPTY variable is somebody saying "not this time", no
+ * ENGINE is a `--plugins` list that named none of the rows that would have
+ * probed, and NONE INSTALLED is the only one where looking somewhere else is the
+ * answer — which is why it is the line that names the search path, since "olai
+ * cannot see the opencode I installed" is a PATH question and this is the line
+ * somebody greps.
+ *
+ * NO ENGINE IS NAMED IN ANY OF THEM, and that is not a loss of detail — it is
+ * the fence. Which engines this build has is a list of ROWS, each with its own
+ * sentence about how to get it, and the panel draws those ({@link
+ * ./agents/roster.ts}). A log line that spelled three of them would be core
+ * knowing an engine by name and would go stale the day a fourth row is added,
+ * which is the one edit this whole phase exists to make cost nothing.
  */
-export const whyNoAgent = (value: string | undefined): string =>
-  value === undefined
-    ? `no agent: ${AGENT_ENV} is unset and nothing baked one in — the packaged binary and ` +
-      `\`just serve\` both default to the pinned adapter, so this is a hand-rolled start — and ` +
-      `no other engine this build has found what it looks for on ${AGENT_PATH_ENV} (or PATH, ` +
-      `where that is unset). The outlines are served as usual, and the chat panel says the same ` +
-      `thing with each engine's own words on how to get it.`
-    : `no agent: ${AGENT_ENV} is set to the empty string, which is the explicit off switch — the ` +
-      `whole panel, so nothing else was looked for either. The outlines are served as usual and the ` +
-      `chat panel says so.`
+export const whyNoAgent = (because: OffBecause): string => {
+  switch (because.kind) {
+    case "switched-off":
+      return `no agent: ${AGENT_ENV} is set to the empty string, which is the explicit off ` +
+        `switch — the whole panel, so nothing else was looked for either. The outlines are ` +
+        `served as usual and the chat panel says so.`
+    case "no-engine":
+      return `no agent: this serve mounted no engine plugin, so nothing was probed. Every ` +
+        `agent olai can seat is a plugin and every one of them is enabled by default, so this ` +
+        `is a \`--plugins\` list that named none of them (or an engine fiber that failed — the ` +
+        `plugins readout says which). The outlines are served as usual.`
+    case "none-installed":
+      return `no agent: every engine this serve has was asked and this machine has none of ` +
+        `them — nothing was found on ${AGENT_PATH_ENV} (or PATH, where that is unset), and no ` +
+        `adapter was baked in. The outlines are served as usual, and the chat panel says the ` +
+        `same thing with each engine's own words on how to get it.`
+  }
+}

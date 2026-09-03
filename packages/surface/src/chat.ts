@@ -1699,6 +1699,52 @@ export type WakeFault = NonNullable<Wake["fault"]>
 export type Unopened = typeof Unopened.Type
 
 /**
+ * WHY THERE IS NO AGENT — the three ways a serve ends up with an empty roster,
+ * told apart by the only end that can tell them apart.
+ *
+ * ## The face used to guess, and it guessed wrong
+ *
+ * `roster: []` did two jobs and then three. It meant *chat is switched off*, it
+ * meant *nothing is installed here*, and once the engines became plugins it also
+ * meant *this serve mounted no engine at all* — and the panel, holding one empty
+ * array, hedged across all of them: "seeing this with an agent installed usually
+ * means one of two things", followed by two guesses, one of which (a start that
+ * did not go through the wrapper) cannot happen on any documented way of
+ * starting olai. A face guessing between states the SENDER knew is the
+ * diagnostic exactly inverted.
+ *
+ * The server knows which. It reads the off switch before it probes anything, it
+ * holds the engine registry, and it holds what the probes answered — so the
+ * reason is minted where the branch already is (`@olai/chat`'s
+ * `agents/roster.ts`) and travels as a VALUE. The same value is the log line
+ * (`whyNoAgent`), so what a person reads on the screen and what somebody greps
+ * out of the journal cannot be two different accounts of one boot.
+ *
+ * ## CORE'S OWN VOCABULARY, and legitimately so
+ *
+ * Like {@link Wake.fault} one cell over: none of these three is a fact about an
+ * ENGINE. They are facts about the SERVE — a variable core owns, a plugin list
+ * core was started with, and a set of probes that all answered no. What an
+ * individual engine has to say for itself is still its own words in its own
+ * package, drawn from the `chat.agent.install` slot; this says which of three
+ * sentences to put ABOVE that list, and whether to draw the list at all.
+ */
+export const OffBecause = Schema.Union([
+  /** `OLAI_ACP_AGENT` is set to the EMPTY STRING — the documented off switch,
+   *  read before anything is probed. A person asked for this. */
+  Schema.Struct({ kind: Schema.Literal("switched-off") }),
+  /** This serve mounted NO ENGINE PLUGIN, so nothing was ever probed and no
+   *  install sentence exists to draw. Every engine olai has is a plugin and
+   *  every one of them is enabled by default, so this is a `--plugins` list
+   *  that named none of them — or an engine fiber that failed. */
+  Schema.Struct({ kind: Schema.Literal("no-engine") }),
+  /** Engines were mounted, every one of them was asked, and this machine has
+   *  none of them. The one arm where "here is how to get one" is groundable. */
+  Schema.Struct({ kind: Schema.Literal("none-installed") }),
+])
+export type OffBecause = typeof OffBecause.Type
+
+/**
  * Where the conversation stands. Everything the header draws and everything a
  * composer needs to know about whether it may send.
  */
@@ -1717,12 +1763,22 @@ export const ChatState = Schema.Struct({
    *     them somewhere they cannot see.
    *   - `gone` — the agent is not there. `trouble` says why, and the next
    *     prompt retries the boot.
-   *   - `off` — no ACP agent is configured. The panel still DRAWS and says so,
-   *     naming the variable that would give it one: a capability that is
-   *     silently absent cannot be told apart from one that is broken. The
-   *     server serves the outlines either way.
+   *   - `off` — this serve has no agent. The panel still DRAWS and says so,
+   *     out of {@link ChatState.off}: a capability that is silently absent
+   *     cannot be told apart from one that is broken. The server serves the
+   *     outlines either way.
    */
   status: Schema.Literals(["off", "booting", "idle", "thinking", "gone"]),
+  /**
+   * ...and WHY, on the one arm where there is a why — {@link OffBecause}.
+   *
+   * Non-null exactly when `status` is `off` and this serve has decided so; the
+   * pair is minted together and never separately. `null` on every other status,
+   * and on the value a page holds before the first frame arrives ({@link
+   * CHAT_OFF}) — which is the one state that is genuinely "not told yet" rather
+   * than one of the three below.
+   */
+  off: Schema.NullOr(OffBecause),
   /** The session the server is in, or `null` between sessions. WHOSE it is
    *  is `talking` below, which is the panel's one answer to that. */
   session: Schema.NullOr(Conversation),
@@ -1929,6 +1985,12 @@ export type ChatState = typeof ChatState.Type
  *  placeholder for one. */
 export const CHAT_OFF: ChatState = {
   status: "off",
+  // NOT TOLD YET, which is this constant's other job: a page holds it before the
+  // first frame lands. A serve that HAS decided there is no agent sends one of
+  // {@link OffBecause}'s three arms over the top of it, so the panel's opening
+  // sentence says what happened rather than guessing between the ways it could
+  // have.
+  off: null,
   session: null,
   bound: null,
   model: null,

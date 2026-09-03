@@ -34,7 +34,27 @@ describe("which body the panel draws", () => {
     // The panel DRAWS in this state rather than disappearing, which is the
     // argument every one of these faces inherits: a capability that is silently
     // absent cannot be told apart from one that is broken.
-    expect(drawn(CHAT_OFF)).toEqual({ kind: "no-agent" })
+    //
+    // `off: null` is `CHAT_OFF`'s own value and is a REAL state rather than a
+    // placeholder: it is what a page holds before its first frame, which is
+    // "the server has not said which" and not one of the three ways of being
+    // off.
+    expect(drawn(CHAT_OFF)).toEqual({ kind: "no-agent", off: null })
+  })
+
+  test("...and the REASON rides the face, so the body never has to ask again", () => {
+    // The one field this face was missing, and the defect it left: three causes
+    // arrived as one empty roster, so the panel hedged in prose — including a
+    // guess (a start that skipped the wrapper) that no documented way of
+    // starting olai can produce, while the commonest real cause, a `--plugins`
+    // list naming no engine, went unmentioned. Only the server can tell them
+    // apart, so it sends which and this carries it through untouched.
+    for (const kind of ["switched-off", "no-engine", "none-installed"] as const) {
+      expect(drawn({ ...CHAT_OFF, off: { kind } })).toEqual({
+        kind: "no-agent",
+        off: { kind },
+      })
+    }
   })
 
   test("an agent that would not open one is its own face, with the reason on it", () => {
@@ -76,7 +96,7 @@ describe("two faces claiming one body", () => {
     // Unreachable in practice — nothing was attempted, so nothing was refused —
     // and stated anyway, because a precedence nobody wrote down is one a reader
     // meeting the two fields in the other order can get backwards.
-    expect(drawn({ ...CHAT_OFF, unopened: REFUSED })).toEqual({ kind: "no-agent" })
+    expect(drawn({ ...CHAT_OFF, unopened: REFUSED })).toEqual({ kind: "no-agent", off: null })
   })
 
   test("an agent that has GONE wins over a refusal it left behind", () => {
@@ -127,7 +147,7 @@ describe("the question about which agent", () => {
     // `choosing` cannot be true with an empty roster (there is no chat at all),
     // and a precedence stated only in the writer is one a reader can meet in
     // the other order.
-    expect(drawn({ ...CHAT_OFF, talking: { kind: "asking" } })).toEqual({ kind: "no-agent" })
+    expect(drawn({ ...CHAT_OFF, talking: { kind: "asking" } })).toEqual({ kind: "no-agent", off: null })
   })
 
   test("a refusal outranks it — that one is about a live agent", () => {
@@ -165,7 +185,7 @@ describe("the two bodies this tab decides", () => {
   })
 
   test("no agent outranks it — there are no conversations to list", () => {
-    expect(drawn(CHAT_OFF, SHOWING)).toEqual({ kind: "no-agent" })
+    expect(drawn(CHAT_OFF, SHOWING)).toEqual({ kind: "no-agent", off: null })
   })
 
   test("... and it outranks every face that is about a CONVERSATION", () => {

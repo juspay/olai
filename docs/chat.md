@@ -35,6 +35,16 @@ The list itself:
 
 With no agent at all the panel still draws, and says which agents olai can talk to and where to get one — because a feature that is silently absent cannot be told apart from one that is broken. That list is the ENABLED ENGINES and each one's own sentence about how it is got, answered by the server: a serve started `--plugins=opencode` says how to install opencode and does not offer a Claude Code it could not mount.
 
+**And it says which of three things happened**, rather than guessing between them. There are exactly three ways to have no agent, a person has a different thing to do about each, and only the server can tell them apart — so it sends which, and the panel's opening sentence is that one:
+
+| what the panel says | what happened | what to do |
+| --- | --- | --- |
+| *Chat is switched off* | `OLAI_ACP_AGENT` is set to the empty string | unset it and reload |
+| *This serve has no agent engine* | `--plugins` named no engine row, or an engine's plugin failed to start | drop the flag, or name an engine in it — every engine is on by default |
+| *No agent is installed for this panel* | every engine was asked and this machine has none of them | install one of the agents listed, or set `OLAI_AGENT_PATH` where olai should look |
+
+The same sentence goes in the log, off the same value, so what you read on the screen and what you grep out of the journal are one account of one boot.
+
 The conversation is the agent's own session for that directory: close olai, reopen it, and you are back in it — with the agent that has it, because which agent a conversation is with is written down beside which conversation it is ([below](#which-conversation-you-come-back-to)). A session id means nothing to the other agent, so this is not a nicety: asking the wrong one to open it gets a refusal. And (for the Claude agent) `claude --resume` in a terminal reaches the same conversations.
 
 ### What differs between them

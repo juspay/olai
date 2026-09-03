@@ -157,6 +157,10 @@ const withRuntime = <A>(
     const wired = yield* bind({
       store,
       chat: extra.chat ?? null,
+      // WHY there is none, where a case gave none — the arm a serve with no
+      // engine plugin mounted sends. Cases that hand a chat over are not in
+      // that state and the field rides `null` beside it.
+      noAgent: extra.chat === undefined ? { kind: "no-engine" } : null,
       ...(extra.agents === undefined ? {} : { agents: extra.agents }),
       ops,
       writer: "web",
