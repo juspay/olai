@@ -982,6 +982,24 @@ test("a first report carries NO count — the cap the count counts against is pa
   expect(body).not.toContain("reminder")
 })
 
+test("a count on a kind that is not a nag does not become a reminder in the body", () => {
+  // The flat schema will still decode a `transition` bearing `nag`; translate
+  // strips the pairing one hop upstream, AND the body refuses it — the wake's
+  // clause and the drawer's stamp fold by one rule.
+  const standing = standingFor({
+    ...DECLARED,
+    "lanes.olai": marked("step", "reproduce", "doing", { terminal: "11111111" }),
+  }, fleetOf(row("11111111", "waiting")), "wake")
+  const body = bodyFor(
+    "wake",
+    standing,
+    "lanes.olai",
+    "2026-08-31T14:32:07.001Z",
+    { ...fired("11111111"), nag: { index: 2, left: 1 } },
+  )
+  expect(body).not.toContain("This is reminder")
+})
+
 test("a capped nag spells the count, spell for spell the last one — and names the terminal it is about", () => {
   const standing = standingFor({
     ...DECLARED,

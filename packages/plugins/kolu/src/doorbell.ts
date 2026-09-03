@@ -1056,8 +1056,11 @@ export const bodyFor = (
 const reminderOf = (event: KoluEvent | undefined): string | null => {
   // The ACCOUNT is the wire's fold (`reminderAccount`, beside the schema);
   // this is only the body's own wording of it, with the event's own row
-  // named as the subject.
-  const account = reminderAccount(event?.nag)
+  // named as the subject. GATED BY KIND the exact way the drawer's stamp
+  // is — the flat schema will still decode a `transition` bearing `nag`,
+  // and while translate strips the pairing one hop upstream, no reader of
+  // this body may spell a count onto a kind the other face refused.
+  const account = reminderAccount(event?.kind === "nag" ? event.nag : undefined)
   if (account === null || event?.row === null || event === undefined) return null
   const id = event.row.terminal
   if (account.total === null) {
