@@ -20,6 +20,7 @@
 import type { Row } from "@olai/format"
 
 import { foldIdOf } from "../fold/rows.ts"
+import type { Pending } from "./draft.ts"
 
 /** Every row on screen, in the order they are painted.
  *
@@ -90,4 +91,79 @@ export const neighbour = (
 ): Row | undefined => {
   const at = drawn.findIndex((row) => row.key === place)
   return at === -1 ? undefined : drawn[at + step]
+}
+
+/**
+ * One step of the arrow keys: a ROW that is written, or a DRAFT that is still
+ * being laid out. The tree's rows carry `kind` on what they SHOW, not on
+ * themselves, so these two spell their own — the test is `kind`, which a
+ * `Pending` happens to share (`"new"`), and "happens" is exactly why this
+ * says it.
+ */
+export type Wire =
+  | { readonly kind: "row"; readonly row: Row }
+  | { readonly kind: "draft"; readonly pending: Pending }
+
+/**
+ * The page as the ARROW KEYS walk it: {@link flatten}, with every blank draft
+ * slotted where its ghost is drawn.
+ *
+ * `neighbour` walks rows alone — which was true to the keys while blanks had
+ * no keys of their own — and it is false to the eye: the eye skips nothing, so
+ * an arrow may not skip a blank either. A parked draft between two rows is a
+ * line the caret lands on, at exactly the place `Ghosts.tsx` paints it:
+ * `before:X` immediately above X; `after:X` at the FLOOR of X's subtree,
+ * which is where `Enter` lays the next line out; `under:X` immediately under
+ * X itself, the first-child's seat; `first` ahead of the first row. The fold
+ * set bites once: a collapsed branch's floor is the row itself.
+ *
+ * One walk rather than `flatten` with the drafts threaded through it, because
+ * the two lists live in different prisons and only the WALK couples them —
+ * the rows come off the wire and the drafts out of `./draft.ts`, and what the
+ * caller needs is the order they make together.
+ */
+export const wired = (
+  rows: ReadonlyArray<Row>,
+  collapsed: ReadonlySet<string>,
+  drafts: ReadonlyArray<Pending>,
+): ReadonlyArray<Wire> => {
+  if (drafts.length === 0) return flatten(rows, collapsed).map((row) => ({ kind: "row" as const, row }))
+  const keyed = new Map<string, Pending[]>()
+  const slot = (under: string, draft: Pending) => {
+    const at = keyed.get(under) ?? []
+    at.push(draft)
+    keyed.set(under, at)
+  }
+  for (const draft of drafts) {
+    const at = draft.at
+    slot(
+      at.kind === "first" ? "first"
+        : at.kind === "before" ? `b:${at.id}`
+        : at.kind === "after" ? `a:${at.id}`
+        : `u:${at.id}`,
+      draft,
+    )
+  }
+  const out: Array<Wire> = []
+  const lay = (level: ReadonlyArray<Row>): void => {
+    for (const row of level) {
+      const id = row.at.node.id
+      for (const draft of keyed.get(`b:${id}`) ?? []) {
+        out.push({ kind: "draft", pending: draft })
+      }
+      out.push({ kind: "row", row })
+      for (const draft of keyed.get(`u:${id}`) ?? []) {
+        out.push({ kind: "draft", pending: draft })
+      }
+      if (!collapsed.has(foldIdOf(row))) lay(row.children)
+      for (const draft of keyed.get(`a:${id}`) ?? []) {
+        out.push({ kind: "draft", pending: draft })
+      }
+    }
+  }
+  for (const draft of keyed.get("first") ?? []) {
+    out.push({ kind: "draft", pending: draft })
+  }
+  lay(rows)
+  return out
 }

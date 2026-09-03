@@ -251,9 +251,15 @@ export const isEditingTarget = (target: EventTarget | null): boolean => {
  *     panel, and what lands is chosen in it.
  *   - `note` — `Shift+Enter`: open the note under the row, and close it again
  *     from inside.
- *   - `prev` / `next` — the bare arrows, moving the caret between rows. The
- *     title editor is ONE LINE, so ↑ and ↓ have nothing else they could mean
- *     there, which is why they need no caret-position test.
+  *   - `prev` / `next` — the bare arrows, moving the caret between rows. The
+  *     title editor is ONE LINE, so ↑ and ↓ have nothing else they could mean
+  *     there, which is why they need no caret-position test.
+  *   - `left` / `right` — the bare horizontal arrows, crossing INTO the line
+  *     beside: the sentence's two directions are the same two as the rows'.
+  *     Claimed ONLY at the line's edge — a caret with text to walk through
+  *     keeps the platform's own movement, which is where every hand already
+  *     is — so these two are boundary-readings of {@link Caret} the way
+  *     `merge` is of `Backspace`, not claims on the key itself.
  *   - `cancel` — `Escape`: abandon the draft.
  *   - `selectUp` / `selectDown` — `Shift+↑/↓`: leave the caret and PICK rows,
  *     which is Workflowy's own gesture. A title editor is one line, so a
@@ -288,6 +294,8 @@ export type EditAction =
   | "note"
   | "prev"
   | "next"
+  | "left"
+  | "right"
   | "cancel"
   | "selectUp"
   | "selectDown"
@@ -460,6 +468,22 @@ export const editKey = (
       return down ? "next" : "prev"
     }
   }
+  // The horizontal arrows, claimed ONLY where the line has nothing left of
+  // its own for them — a caret WALKING a word or a selection is the platform's
+  // movement and is not for a client to second-guess. The boundaries are the
+  // caret's (`merge` on `Backspace` is the same argument one key over): a
+  // collapsed caret at column 0 against ←, and one at the far end against →.
+  // An absent caret is the safe side, the way it is for `split`: the key falls
+  // through to the field, which does its own thing with an edge press.
+  if (
+    event.key === "ArrowLeft" && !event.shiftKey && !event.altKey && !event.ctrlKey &&
+    !event.metaKey && at !== undefined && at.start === 0 && at.end === 0
+  ) return "left"
+  if (
+    event.key === "ArrowRight" && !event.shiftKey && !event.altKey && !event.ctrlKey &&
+    !event.metaKey && at !== undefined && at.start === at.end &&
+    at.end === at.text.length
+  ) return "right"
   // The second `⌘A`. The first one is not this layer's at all: it never gets
   // past `whole`, which is false until the platform's own select-all has
   // already run — the same caret value the two keys above read, asked a third
@@ -696,6 +720,11 @@ export const SHORTCUTS: ReadonlyArray<{
       },
       { keys: "Shift+Enter", what: "write the note under it", action: "note" },
       { keys: "↑ / ↓", what: "walk to the row above or below", action: "prev" },
+      {
+        keys: "← / → at either end",
+        what: "into the line before it or after it",
+        action: "left",
+      },
       {
         keys: "Shift+↑ / Shift+↓",
         what: "start picking rows, from this one",

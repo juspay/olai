@@ -1,7 +1,9 @@
 import type { Row } from "@olai/format"
 import { expect, test } from "bun:test"
 
-import { flatten, neighbour } from "./order.ts"
+import { emptyPending } from "./draft.ts"
+import { flatten, neighbour, wired } from "./order.ts"
+import type { Wire } from "./order.ts"
 
 /** A row, as far as this walk is concerned: the place it sits in, the node it
  *  shows, and its children. Built by hand rather than derived from a fixture
@@ -84,4 +86,59 @@ test("either end of the page is where the caret stays", () => {
 
 test("a place that is not drawn has no neighbours", () => {
   expect(neighbour(flatten(tree, new Set()), "/gone", 1)).toBeUndefined()
+})
+
+// ── the wire: blanks woven in with the rows ───────────────────────────
+
+const spelled = (list: ReadonlyArray<Wire>): ReadonlyArray<string> =>
+  list.map((one) => one.kind === "row" ? one.row.key : `(${one.pending.slot})`)
+
+test("a draft stands exactly where its ghost is drawn", () => {
+  expect(
+    spelled(wired(tree, new Set(), [
+      emptyPending({ kind: "before", id: "a1" }, "d1"),
+      emptyPending({ kind: "after", id: "a1" }, "d2"),
+      emptyPending({ kind: "under", id: "b" }, "d3"),
+    ])),
+  ).toEqual([
+    "/a",
+    "(d1)", // before the row it was opened on
+    "/a/a1",
+    "/a/a1/a1x",
+    "(d2)", // at the FLOOR of the subtree the anchor parents
+    "/a/a2",
+    "/b",
+    "(d3)", // the first-child's seat
+  ])
+})
+
+test("a folded branch's floor is the row itself", () => {
+  expect(
+    spelled(wired(tree, new Set(["a1"]), [emptyPending({ kind: "after", id: "a1" }, "d1")])),
+  ).toEqual(["/a", "/a/a1", "(d1)", "/a/a2", "/b"])
+})
+
+test("drafts on the same spot keep the order they were laid out in", () => {
+  // Enter Enter Enter parks the earlier empties, and the FIRST one laid is
+  // the FIRST line a person reaches walking down — the order Ghosts.tsx
+  // paints them in is the order this answers.
+  expect(
+    spelled(wired(tree, new Set(), [
+      emptyPending({ kind: "after", id: "a2" }, "d1"),
+      emptyPending({ kind: "after", id: "a2" }, "d2"),
+      emptyPending({ kind: "after", id: "a2" }, "d3"),
+    ])),
+  ).toEqual(["/a", "/a/a1", "/a/a1/a1x", "/a/a2", "(d1)", "(d2)", "(d3)", "/b"])
+})
+
+test("an empty page's start line is the whole walk", () => {
+  expect(
+    spelled(wired([], new Set(), [emptyPending({ kind: "first", file: "house.olai" }, "d1")])),
+  ).toEqual(["(d1)"])
+})
+
+test("no drafts is the flattening itself, and the same values it answers", () => {
+  const list = wired(tree, new Set(), [])
+  expect(spelled(list)).toEqual(keys(flatten(tree, new Set())))
+  expect(list.every((one) => one.kind === "row")).toBe(true)
 })

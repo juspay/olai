@@ -407,6 +407,55 @@ Feature: Keyboard editing
     When I press "ArrowUp"
     Then the row being typed holds "choose the handles"
 
+  Scenario: Up and down carry the column, and a shorter line clamps it
+    # The vertical keys keep the caret's place in the LINE as they change the
+    # ROW — the way a person reads a column of text — and a line shorter than
+    # that place takes the caret at the end, not an error or a jump.
+    When I click the title of "handles"
+    And I put the caret after "choose the handles"
+    And I press "ArrowDown"
+    Then the row being typed holds "pick the hinges"
+    And the caret is at offset 15
+    When I press "ArrowDown"
+    Then the row being typed holds "pick the knobs"
+    And the caret is at offset 14
+    When I press "ArrowUp"
+    Then the row being typed holds "pick the hinges"
+    And the caret is at offset 14
+
+  Scenario: Left at the start and right at the end cross into the line beside
+    # A caret sitting at a line's edge has nothing left in THIS line to move
+    # through — the arrow hands it to the next line a reader would reach, so
+    # the whole outline is one long line of text to the keys.
+    When I click the title of "order"
+    And I put the caret at the start of the line
+    And I press "ArrowLeft"
+    Then the row being typed holds "take out the old counters"
+    And the caret is at offset 25
+    When I press "ArrowRight"
+    Then the row being typed holds "order the new cabinets"
+    And the caret is at offset 0
+
+  Scenario: The arrows cross a blank draft the way they cross a row
+    # A blank on the page is a place the caret can BE: walking down out of the
+    # row above must stop on it, not skip it, and walking back up must find the
+    # SAME draft again — not a fresh blank each pass.
+    When I click the title of "order"
+    And I put the caret after "order the new cabinets"
+    And I press "Enter"
+    Then a new row is being typed
+    When I press "ArrowUp"
+    Then the row being typed holds "order the new cabinets"
+    And a new row is being typed
+    When I press "ArrowDown"
+    Then a new row is being typed
+    When I type "mid sentence"
+    And I press "Enter"
+    Then "house.olai" holds a node titled "mid sentence"
+    And the node titled "mid sentence" comes before the node titled "install"
+    When I press "Escape"
+    Then there should be no page errors
+
   Scenario: Enter on a mirror makes a sibling of the PLACEMENT
     # The other half of the mirror rule: what a row SAYS belongs to the node it
     # shows, and where a row SITS belongs to the row. So the new line appears

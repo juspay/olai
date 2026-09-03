@@ -90,7 +90,7 @@ import {
   stillAt,
   typed,
 } from "./draft.ts"
-import { flatten, neighbour, refound } from "./order.ts"
+import { flatten, refound, wired } from "./order.ts"
 import { serial } from "./queue.ts"
 import { redraws, rekeys } from "./redraws.ts"
 import { useUndo } from "./undoing.ts"
@@ -800,8 +800,13 @@ export const createEditor = (
     },
     merge: () => enqueue(merge),
     note: () => enqueue(note),
-    prev: () => enqueue(() => step(-1)),
-    next: () => enqueue(() => step(1)),
+    // The vertical pair carry the caret's column with them; the horizontal
+    // pair is claimed only AT an edge (../keys.ts), and the edge they arrive
+    // from is the offset the new line opens with.
+    prev: (at) => enqueue(() => step(-1, at?.start)),
+    next: (at) => enqueue(() => step(1, at?.start)),
+    left: () => enqueue(() => step(-1, Number.POSITIVE_INFINITY)),
+    right: () => enqueue(() => step(1, 0)),
     // The MARK is a fact about the node a row SHOWS — which is what the
     // checkbox beside it draws — so a mirror ticks off its target. All three
     // mark keys name that id, and none of them says where the write goes: the
@@ -1027,11 +1032,50 @@ export const createEditor = (
     act()
   }
 
-  /** The arrows: the next row the eye would reach, folds and all. */
-  const step = async (by: 1 | -1): Promise<void> => {
+  /**
+   * The arrows: the next LINE the eye would reach — a row that is written,
+   * or a blank still being laid out — and where in its text the caret lands.
+   *
+   * `neighbour` walked rows alone, which was true to the keys while the only
+   * way DOWN was a row: `wire` threads the drafts through the same walk the
+   * ghosts are drawn by, so the caret steps ONTO a blank rather than over it,
+   * and lands BACK on the same one walking up — the eye skips nothing. `Wire`
+   * is walked fresh here rather than memoised: this is the one reader's key
+   * handler that asks, asked once per press, and a walk cached against three
+   * signals that move on every keystroke is a cost, not a saving.
+   *
+   * `column` is the offset the key wants carried over: ↑/↓ hand in the caret's
+   * own column, clamped by a shorter line; ← arriving from the row after hands
+   * in the END of the one it enters, → the start — the two ways a person reads
+   * a sentence off the end of a line. Absent is an editor opened the old way.
+   */
+  const step = async (by: 1 | -1, column?: number): Promise<void> => {
     const held = draft()
-    if (held === null || held.kind !== "row" || held.place === null) return
-    await move(neighbour(drawn(), held.place, by))
+    if (held === null) return
+    const list = wired(
+      page.rows(),
+      page.collapsed(),
+      held.kind === "new" ? [...ghosts(), held] : ghosts(),
+    )
+    const here = held.kind === "new"
+      ? list.findIndex((one) => one.kind === "draft" && one.pending.slot === held.slot)
+      : held.place === null
+      ? -1
+      : list.findIndex((one) => one.kind === "row" && one.row.key === held.place)
+    const target = here === -1 ? undefined : list[here + by]
+    if (target === undefined) return
+    // Landing on a ghost is the same answer as clicking its row: the blank is
+    // resumed, not made again, and a wordless draft is parked rather than
+    // dropped if the step walks further.
+    if (target.kind === "draft") {
+      resume(target.pending.slot)
+      return
+    }
+    parkIfEmpty(held)
+    if (!(await commit())) return
+    setDraft(
+      opened(target.row, "title", column === undefined ? undefined : { caret: column }),
+    )
   }
 
   const take = (slot: string): void => {
