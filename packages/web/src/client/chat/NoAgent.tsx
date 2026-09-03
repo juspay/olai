@@ -26,11 +26,17 @@
  * `packages/bundle/src/fence.test.ts` holds as an equality per package that no
  * general package spells one in code.
  *
- * So each row is a face the engine's own browser half hung in
- * `chat.agent.install` ({@link ../plugins/agents.ts}), and this file draws the
- * LIST — the item, the mark, the testid a scenario reads. The sentence inside is
- * the plugin's whole words, the same string its server half registers as its
- * `missing`, spelled once in that plugin's package.
+ * So each row is a SENTENCE the engine's own browser half hung in
+ * `chat.agent.install` ({@link ../plugins/agents.ts}) — a `NotHere`, and the one
+ * slot on the table that carries a value rather than a drawing. This file draws
+ * every stroke: the item, the mark, the testid a scenario reads, and whether the
+ * name is an anchor or plain text. What arrives is the words, spelled once in
+ * that plugin's own `install.ts`.
+ *
+ * IT WAS A FACE for one revision, and what that bought was core's own Tailwind
+ * vocabulary (`text-ink underline underline-offset-2`) living in three tenant
+ * packages, in three byte-identical files, one restyle away from drifting — and
+ * a fourth engine copying markup in order to say one sentence.
  *
  * IT IS STRICTLY MORE HONEST THAN THE TABLE it replaces, and the reason is the
  * tab following the roster: this list is the engines this SERVE composed, not
@@ -65,7 +71,6 @@
  * not the answer.
  */
 
-import { Dynamic } from "solid-js/web"
 import { For, Match, Show, Switch } from "solid-js"
 
 import type { OffBecause } from "@olai/surface"
@@ -158,7 +163,32 @@ export function NoAgent(props: { readonly off: OffBecause | null }) {
                   <AgentMark id={engine.plugin} />
                 </span>
                 <span class="min-w-0">
-                  <Dynamic component={engine.face} />
+                  {/* A LINK ONLY WHERE THERE IS A PLACE. `where` is `null` for
+                      an engine that names none, and a dead anchor around a name
+                      is worse than the plain name. The arm is HERE, in core,
+                      because which element a name is drawn as is a fact about
+                      this list rather than about the engine — what the plugin
+                      answers is whether there is somewhere to point at. */}
+                  <Show
+                    when={engine.face.where}
+                    fallback={<span class="text-ink">{engine.face.name}</span>}
+                  >
+                    {(where) => (
+                      <a
+                        class="text-ink underline underline-offset-2"
+                        href={where()}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {engine.face.name}
+                      </a>
+                    )}
+                  </Show>
+                  {/* THE SENTENCE, VERBATIM. Core displays one and composes no
+                      clause of it — there is no template here with a plugin's
+                      noun dropped in, which is the shape that reads as a debug
+                      log line on a screen. */}
+                  <span>{` — ${engine.face.why}`}</span>
                 </span>
               </li>
             )}

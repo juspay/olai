@@ -122,7 +122,7 @@ The three properties the server half gets fall out here unchanged. Every `slots.
 | `app.header` | plugin | a readout in the app's bar. WHERE it sits in the cluster is the app's decision and always was; what a plugin gets is a seat |
 | `app.mount` | plugin | the tab's own half of this plugin, wrapped ONCE around the page — one subscription however many leaves draw. These NEST; the app folds them |
 | `chat.speaker.mark` | plugin | the shapes drawn over a sentence this plugin delivered into somebody's conversation — a `<g>` in a sixteen-unit box, never a whole `<svg>` |
-| `chat.agent.install` | plugin | an ENGINE plugin's row on the face the chat panel draws when this machine has NO agent at all: how a person gets it. Core owns the list, the mark and the link's element and composes no clause of the words |
+| `chat.agent.install` | plugin | an ENGINE plugin's row on the face the chat panel draws when this machine has NO agent at all: how a person gets it, as a `NotHere` and NOT a drawing — the one row on this table that carries a value. Core owns every stroke (the list, the mark, whether the name is a link); the plugin owns every word, and core composes no clause of them |
 
 **A slot is for what core CANNOT compose,** and two are gone for the two ways of failing that. `chat.agent.row` — the words inside an engine's row in the *which agent?* question — lasted one revision: all three engines hung the same markup around the same string the server was already sending as `AgentChoice.name`, which is one word with two authored sources and a picker that can come to disagree with the header beside it. A name the wire carries is core's to draw.
 

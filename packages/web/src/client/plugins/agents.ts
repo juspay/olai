@@ -23,12 +23,17 @@
  * exactly the markup core falls back to.
  */
 
-import type { JSX } from "solid-js"
+import type { NotHere } from "@olai/plugin-api"
 
 import { hung } from "./runtime.ts"
 
-/** Every engine's own sentence about being got, in the build's order. */
+/** Every engine's own sentence about being got, in the build's order.
+ *
+ *  A VALUE AND NOT A DRAWING, which is the one slot on the table that is: the
+ *  row's every stroke — the list, the mark, whether the name is a link — is
+ *  core's, so a face here would have been core's markup copied into every
+ *  engine package. See `@olai/plugin-api`'s `SlotFaces`. */
 export const installs = (): ReadonlyArray<{
   readonly plugin: string
-  readonly face: () => JSX.Element
+  readonly face: NotHere
 }> => [...hung("chat.agent.install")]

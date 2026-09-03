@@ -959,7 +959,9 @@ that matters.
    your BROWSER half's. `src/browser.tsx` hangs TWO faces, and both are
    drawings ABOUT this engine rather than data about it: its MARK
    (`chat.speaker.mark`) and its SENTENCE on the face drawn when the machine has
-   no agent at all (`chat.agent.install`). Core keeps the shape of each — the
+   no agent at all (`chat.agent.install`, which takes a `NotHere` VALUE rather
+   than a drawing: core owns every stroke of that row and you own every word).
+   Core keeps the shape of each — the
    sixteen-unit box, the list, the order — and neither drawing crosses the wire,
    so `--plugins` naming other engines draws a panel with nothing of yours
    anywhere in it. Spell the install sentence in a `src/install.ts` your browser

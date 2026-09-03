@@ -41,7 +41,7 @@ import { definePlugin, Slots } from "@olai/plugin-api"
 import { Effect } from "effect"
 
 import { PiMark } from "./browser/Mark.tsx"
-import { AgentInstall } from "./browser/rows.tsx"
+import { INSTALL } from "./install.ts"
 import { name } from "./index.ts"
 
 export { name }
@@ -57,15 +57,19 @@ export default definePlugin({
     // it from the registry binding, so a plugin cannot hang a face under
     // another's name.
     yield* slots.register("chat.speaker.mark", PiMark)
-    // ...AND THIS ENGINE'S ROW ON THE NO-AGENT FACE: the sentence the panel
-    // draws when this machine has no agent at all. Core keeps the SHAPE — the
-    // list, the mark beside each row, the link's element — and a plugin the
-    // roster does not name registers nothing, which is what makes `--plugins`
-    // draw a panel with nothing of this engine anywhere in it.
+    // ...AND THIS ENGINE'S ROW ON THE NO-AGENT FACE — the SENTENCE and not a
+    // drawing, which is the one slot on the table that takes a value. Core owns
+    // every stroke of that row: the list, the mark beside it, and whether the
+    // name is a link or plain text. This package owns every word. A face here
+    // meant core's own Tailwind vocabulary living in three tenant packages, in
+    // three byte-identical files, one restyle away from drifting.
+    //
+    // A plugin the roster does not name registers nothing, which is what makes
+    // `--plugins` draw a panel with nothing of this engine anywhere in it.
     //
     // THERE IS NO PICKER-ROW FACE BESIDE IT. A picker row's words are this
     // engine's `name`, which the server already sends per installed agent, so
     // a face for it would be a second author for one string.
-    yield* slots.register("chat.agent.install", AgentInstall)
+    yield* slots.register("chat.agent.install", INSTALL)
   }),
 })

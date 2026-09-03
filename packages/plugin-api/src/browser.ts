@@ -111,7 +111,7 @@ import {
 } from "@olai/effect-cordis"
 import { Effect, Scope } from "effect"
 
-import { kindWordOf } from "./contract.ts"
+import { kindWordOf, type NotHere } from "./contract.ts"
 import type {
   AppClocks,
   AppPopover,
@@ -155,8 +155,9 @@ export const SLOTS = {
    *  conversation — a `<g>` in a sixteen-unit box, never a whole `<svg>`. */
   "chat.speaker.mark": { keyedBy: "plugin" },
   /** THIS ENGINE'S ROW on the face drawn when the machine has NO agent at all:
-   *  how a person gets it. The plugin's whole sentence — core owns the list,
-   *  the mark and the link's element, and composes no clause of the words.
+   *  how a person gets it, as a `NotHere` rather than a drawing. Core owns the
+   *  list, the mark and whether the name is a link; the plugin owns every word,
+   *  and core composes no clause of them.
    *
    *  The panel's *which agent?* question has no slot beside this one, and the
    *  asymmetry is the ruling: a picker row's words are the engine's `name`,
@@ -192,6 +193,21 @@ export type KindSlot = {
  *
  * `app.mount` is the one exception and it is structural rather than a contract
  * the app owes: a mount WRAPS, so it must be handed what it wraps.
+ *
+ * ## ONE OF THEM IS NOT A FACE, and the asymmetry is the rule working
+ *
+ * `chat.agent.install` holds a {@link NotHere} — a name, a place and a whole
+ * sentence — where every other row holds a function that draws. The split the
+ * whole table is under is *core keeps the SHAPE, the plugin brings the words*,
+ * and for the no-agent row the shape is entirely core's: the list, the mark
+ * beside it, and whether the name is an `<a href>` or a plain `<span>`. A face
+ * there put core's own Tailwind vocabulary inside three tenant packages, in
+ * three byte-identical files that would drift from `@olai/web` the first time
+ * core restyled a link — and it made every future engine copy the markup to say
+ * one sentence.
+ *
+ * A mark stays a face because a `<g>` is genuinely the plugin's drawing. This is
+ * the difference between the two, made in the type.
  */
 export interface SlotFaces {
   "outline.row.chip": PropChip
@@ -200,7 +216,7 @@ export interface SlotFaces {
   "app.header": () => JSX.Element
   "app.mount": (props: { readonly children: JSX.Element }) => JSX.Element
   "chat.speaker.mark": () => JSX.Element
-  "chat.agent.install": () => JSX.Element
+  "chat.agent.install": NotHere
 }
 
 /** One face, with the plugin that hung it — what a walk over a plugin-keyed
