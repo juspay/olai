@@ -59,10 +59,10 @@ const recorder = () => {
         rows.delete(id)
         cleared.push(id)
       },
-      // THE WATCH's face, recorded — the subscription's attach/detach edges
-      // are separate news from the rows'.
-      watchable: (face: PadiSurfaceClient | null) => {
-        faces.push(face)
+      // THE DIAL'S own push, recorded — the face's attach/detach edges are
+      // separate news from the rows'.
+      face: (padi: PadiSurfaceClient | null) => {
+        faces.push(padi)
       },
       say: (line: string) => lines.push(line),
     },

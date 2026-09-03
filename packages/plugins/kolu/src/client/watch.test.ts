@@ -482,7 +482,7 @@ describe("the ring through the half", () => {
         upsert: () => {},
         remove: () => {},
         clearedRow: () => {},
-        watchable: (theFace) => {
+        face: (theFace) => {
           edges.push(theFace)
         },
         say: () => {},

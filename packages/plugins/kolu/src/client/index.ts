@@ -548,7 +548,7 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
       },
       remove: (id) => deps.fleet()?.remove(id),
       clearedRow: (id) => deps.fleet()?.remove(id),
-      watchable: (face) => watch.attach(face),
+      face: (padi) => watch.attach(padi),
       say: deps.say,
     },
     deps.options,
