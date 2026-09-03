@@ -955,16 +955,22 @@ that matters.
    `src/server.ts` registers `{ name, leg, at, missing, prompt }` on `Agents`:
    what a person reads, the leg, a probe that answers `Adapter | null` for this
    host, the whole install sentence for a machine that has none, and the channel
-   the standing prompt rides. `src/browser.tsx` hangs THREE faces, and all three
-   are drawings ABOUT this engine rather than data about it: its MARK
-   (`chat.speaker.mark`), its ROW in the *which agent?* question
-   (`chat.agent.row`), and its SENTENCE on the face drawn when the machine has
+   the standing prompt rides. `src/browser.tsx` hangs TWO faces, and both are
+   drawings ABOUT this engine rather than data about it: its MARK
+   (`chat.speaker.mark`) and its SENTENCE on the face drawn when the machine has
    no agent at all (`chat.agent.install`). Core keeps the shape of each — the
-   sixteen-unit box, the pressable row, the list, the order — and none of the
-   words crosses the wire, so `--plugins` naming other engines draws a panel with
-   nothing of yours anywhere in it. Spell the install sentence ONCE, in a
-   `src/install.ts` both halves open: the server registers it as `missing` and
-   the browser draws it. Its `testids` table is legitimately empty — an engine
+   sixteen-unit box, the list, the order — and neither drawing crosses the wire,
+   so `--plugins` naming other engines draws a panel with nothing of yours
+   anywhere in it. Spell the install sentence ONCE, in a `src/install.ts` both
+   halves open: the server registers it as `missing` and the browser draws it.
+
+   THERE IS NO FACE FOR THE PICKER'S ROW, and the omission is a ruling. The
+   words in that row are your engine's `name`, which the server already sends
+   per installed agent on the chat cell — so a slot for them would be one string
+   with two authored sources. A slot is for what core CANNOT compose: a `<g>`,
+   a sentence about getting your tool. Not a name it was handed.
+
+   Its `testids` table is legitimately empty — an engine
    draws inside core's own elements, under core's own ids, with `data-agent`
    carrying its word. And if olai SHIPS an
    adapter for it, the pin's patches and the rigs that generate them go in

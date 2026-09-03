@@ -1,20 +1,24 @@
 /**
- * THE PI ENGINE'S BROWSER HALF — three faces, and every one of them is a
- * drawing ABOUT this engine.
+ * THE PI ENGINE'S BROWSER HALF — two faces, and both are a drawing ABOUT
+ * this engine.
  *
  * ## Why an engine has a browser half at all
  *
  * Because a drawing about a plugin belongs where somebody knows what the plugin
  * IS, and `packages/bundle/src/fence.test.ts` holds that as an equality rather
  * than a preference: no general package spells a plugin's name in code. So this
- * engine's MARK, its ROW in the *which agent?* question and its SENTENCE on the
- * face drawn when the machine has no agent at all are all registered from here,
- * where the old shape had a `MARKS` table and a `WHERE_FROM` record inside
- * `@olai/web` keyed by a closed union of three.
+ * engine's MARK and its SENTENCE on the face drawn when the machine has no agent
+ * at all are both registered from here, where the old shape had a `MARKS` table
+ * and a `WHERE_FROM` record inside `@olai/web` keyed by a closed union of three.
  *
- * What core keeps is the SHAPE — the sixteen-unit box, the pressable row, the
- * list, the order — because those are facts about the columns these are read in
- * rather than about the engine. What arrives from here is the words and the
+ * WHAT IS NOT REGISTERED FROM HERE is the words of this engine's row in the
+ * *which agent?* question, and the reason is the rule above read the other way:
+ * that row says this engine's `name`, the server sends exactly that per
+ * installed agent, and core drawing a string it was handed spells nothing.
+ *
+ * What core keeps is the SHAPE — the sixteen-unit box, the list, the order —
+ * because those are facts about the columns these are read in rather than about
+ * the engine. What arrives from here is the words and the
  * strokes.
  *
  * ## The chunk, and what a serve without this row costs
@@ -37,7 +41,7 @@ import { definePlugin, Slots } from "@olai/plugin-api"
 import { Effect } from "effect"
 
 import { PiMark } from "./browser/Mark.tsx"
-import { AgentInstall, AgentRow } from "./browser/rows.tsx"
+import { AgentInstall } from "./browser/rows.tsx"
 import { name } from "./index.ts"
 
 export { name }
@@ -53,13 +57,15 @@ export default definePlugin({
     // it from the registry binding, so a plugin cannot hang a face under
     // another's name.
     yield* slots.register("chat.speaker.mark", PiMark)
-    // ...AND THIS ENGINE'S TWO ROWS IN THE CHAT PANEL: the words inside the row
-    // of the *which agent?* question, and the sentence on the face drawn when
-    // this machine has no agent at all. Core keeps the SHAPE of both — the
-    // pressable row, the list, the mark beside each — and a plugin the roster
-    // does not name registers neither, which is what makes
-    // `--plugins` draw a panel with nothing of this engine anywhere in it.
-    yield* slots.register("chat.agent.row", AgentRow)
+    // ...AND THIS ENGINE'S ROW ON THE NO-AGENT FACE: the sentence the panel
+    // draws when this machine has no agent at all. Core keeps the SHAPE — the
+    // list, the mark beside each row, the link's element — and a plugin the
+    // roster does not name registers nothing, which is what makes `--plugins`
+    // draw a panel with nothing of this engine anywhere in it.
+    //
+    // THERE IS NO PICKER-ROW FACE BESIDE IT. A picker row's words are this
+    // engine's `name`, which the server already sends per installed agent, so
+    // a face for it would be a second author for one string.
     yield* slots.register("chat.agent.install", AgentInstall)
   }),
 })

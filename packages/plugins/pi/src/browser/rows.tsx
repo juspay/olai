@@ -1,34 +1,33 @@
 /**
- * THIS ENGINE'S TWO ROWS IN THE CHAT PANEL — the words, where core keeps the
+ * THIS ENGINE'S ROW ON THE NO-AGENT FACE — the words, where core keeps the
  * shape.
  *
- * ## What each of them is, and what core still owns
+ * ## What it is, and what core still owns
  *
- * `AgentRow` is this engine's row in the panel's *which agent?* question. Core
- * owns the pressable row, the mark beside it, the order the rows come in and
- * what the press does; what arrives from here is what a person reads. It is
- * drawn only where this machine actually HAS the agent — the panel filters the
- * slot table by the roster, because a picker's promise is that a row it draws is
- * an agent you can talk to.
+ * The panel draws one face when this machine has NO agent at all, and this is
+ * this engine's line on it: how a person gets it. Core owns the list, the mark
+ * beside each row and the link's element; what arrives from here is the
+ * sentence and where the link goes.
  *
- * `AgentInstall` is the other face of the same fact: the row on the face drawn
- * when the machine has NO agent at all. Core owns the list, the mark and the
- * link's element; what arrives is the sentence and where the link goes.
+ * ## Why it is here rather than in `@olai/web`
  *
- * ## Why they are here rather than in `@olai/web`
+ * It was there: a `WHERE_FROM` record keyed by a closed `AgentId` union, three
+ * engines' download pages next to each other in one core file. That cannot
+ * exist now — `packages/bundle/src/fence.test.ts` holds as an equality per
+ * package that no general package spells a plugin's name in code, and an engine
+ * is a plugin. The rule is the right one rather than an obstacle: how a person
+ * gets an engine is a fact its own package knows, and a core table of them is a
+ * file edited every time an engine core has never heard of ships.
  *
- * They were there: a `WHERE_FROM` record keyed by a closed `AgentId` union, and
- * a picker that drew `state.roster` and looked a mark up in a table of three.
- * Neither can exist now — `packages/bundle/src/fence.test.ts` holds as an
- * equality per package that no general package spells a plugin's name in code,
- * and an engine is a plugin. The rule is the right one rather than an obstacle:
- * what an engine is CALLED and how a person gets it are facts its own package
- * knows, and a core table of them is a file edited every time an engine core has
- * never heard of ships.
+ * ## THE PICKER'S ROW IS NOT HERE, and the asymmetry is the point
  *
- * The tab follows the roster, so this chunk is fetched only when the serve says
- * `pi` is running: `--plugins=claude,opencode` draws no pi row on either
- * face, with nothing in core knowing why.
+ * The panel's *which agent?* question draws a row per installed engine, and its
+ * words are this engine's `name` — which the SERVER already sends, per
+ * installed agent, on the chat cell. A face for it lived here briefly and drew
+ * exactly the string core would have drawn without it: one word, two authored
+ * sources, nothing holding them equal. This face has no such source — the
+ * machine has no agent, so there is no roster to have carried one — which is
+ * what makes it a slot and the other a deletion.
  *
  * ## The sentence is spelled ONCE
  *
@@ -38,14 +37,10 @@
 
 import type { JSX } from "solid-js"
 
-import { INSTALL, NAME } from "../install.ts"
-
-/** The row in the *which agent?* question: what a person reads. */
-export const AgentRow = (): JSX.Element => <span class="truncate">{NAME}</span>
+import { INSTALL } from "../install.ts"
 
 /**
- * ...and the row on the no-agent face: where to get it, and the one thing to do
- * about it.
+ * Where to get this engine, and the one thing to do about it.
  *
  * A LINK ONLY WHERE THERE IS A PLACE. `where` is `null` for an engine that names
  * none, and a dead anchor around a name is worse than the plain name — so the

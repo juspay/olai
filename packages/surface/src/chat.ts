@@ -1247,23 +1247,32 @@ export type Listed = typeof Listed.Type
  * ## ...and why nothing replaced it HERE
  *
  * A member carrying each engine's install sentence was the obvious answer and is
- * the weaker one. What an engine is CALLED and how a person gets it are the same
- * kind of fact as the MARK it wears: a drawing about a plugin, which the plugin
- * draws. So each engine's browser half hangs its own row in `chat.agent.row` and
- * `chat.agent.install` (`@olai/plugin-api`'s `SLOTS`), and the tab draws what the
- * ROSTER named rather than what this wire listed.
+ * the weaker one. How a person GETS an engine is the same kind of fact as the
+ * MARK it wears: a drawing about a plugin, which the plugin draws. So each
+ * engine's browser half hangs its own row in `chat.agent.install`
+ * (`@olai/plugin-api`'s `SLOTS`), and the tab lists what the SLOT TABLE holds
+ * rather than what this wire listed.
  *
  * That is strictly more honest than a member would have been, and the reason is
  * the tab following the roster: a serve started `--plugins=opencode,pi` never
- * fetches the Claude chunk, so no Claude row is drawn on either face — where a
- * list on this cell would have had to be filtered by something, and a compiled-in
- * record would have gone on offering an engine this serve could not mount.
+ * fetches the Claude chunk, so no Claude row is drawn — where a list on this
+ * cell would have had to be filtered by something, and a compiled-in record
+ * would have gone on offering an engine this serve could not mount.
  *
- * WHAT DOES STILL CROSS is {@link AgentChoice}: an id and a name per INSTALLED
- * agent, on {@link ChatState.roster}. That is a fact about this MACHINE — which
- * agents are here — and only the server can answer it; the `name` is what a
- * picker row falls back to when a tab has no face for one, and what the header
- * says beside the model.
+ * ## WHAT DOES STILL CROSS, and why it is not a table
+ *
+ * {@link AgentChoice}: an id and a name per INSTALLED agent, on
+ * {@link ChatState.roster}. That is a fact about this MACHINE — which agents are
+ * here — and only the server can answer it. The `name` is the engine's own, out
+ * of its `Registering.name`, and it is what the picker's row says and what the
+ * header says beside the model.
+ *
+ * SO THE PICKER'S WORDS DO CROSS, and a slot for them would be a second author
+ * for one string: `chat.agent.row` existed for exactly one revision and all
+ * three engines hung the same markup around the same constant this cell was
+ * already carrying. A general package DRAWING a word the server sent is not a
+ * general package that knows it — the fence is about what core spells in code,
+ * and core spells none of this.
  */
 
 /**

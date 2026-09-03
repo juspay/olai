@@ -3405,11 +3405,11 @@ Then(
     const row = this.page.locator(`${CHAT_CHOOSE_AGENT}${attr("data-agent", id)}`);
     await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     // ...AND IT SAYS SOMETHING, which is the half an id alone cannot see. The
-    // words are the ENGINE PLUGIN's own now — a face in the `chat.agent.row`
-    // slot, drawn out of that plugin's own browser chunk — so a chunk the tab
-    // never fetched, or a half whose `apply` failed, would leave a pressable
-    // row with a mark and nothing to read. Not the exact words, for the reason
-    // above: what is asserted is that a person has something to press ON.
+    // words are the ENGINE PLUGIN's own — its `Registering.name`, which the
+    // server puts on the chat cell per installed agent — so a roster row that
+    // arrived without one would leave a pressable row with a mark and nothing
+    // to read. Not the exact words, for the reason above: what is asserted is
+    // that a person has something to press ON.
     assert.ok(
       oneLine(await row.innerText()).length > 0,
       `the picker's row for "${id}" is empty — the engine's own face did not draw`,
