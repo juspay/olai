@@ -174,6 +174,17 @@
  * conversation the client remembers being in and can no longer open is the case
  * its fallback exists for, and a scenario has to be able to reach it.
  *
+ * A conversation MINTED THIS RUN, on the other hand, is runtime state of this
+ * process, exactly as a real agent's transcript file is a fact its disk picked
+ * up while it was running: once a session opened here has CARRIED A TURN,
+ * `session/list` names it ({@link minted}) — the handshake always advertised
+ * the list capability for that reason, and a fresh vault is a vault whose list
+ * is EMPTY, not one whose agent cannot say so. What a minted row carries is
+ * what a turn cost it: its title is the first prompt's words and its stamp is
+ * the last prompt's moment. The static pair is never re-read this way — a
+ * row `OLAI_FAKE_ACP_STORED` put down keeps its pinned words and stamps, so
+ * the scenarios that assert them see one answer from the two shapes.
+ *
  * Dumb and deterministic on purpose. This is test infrastructure, not a
  * simulator.
  *
@@ -184,8 +195,8 @@
  */
 
 import { spawn } from "node:child_process"
-import { existsSync, readFileSync, rmSync, statSync } from "node:fs"
-import { basename } from "node:path"
+import { appendFileSync, existsSync, readFileSync, rmSync, statSync } from "node:fs"
+import { basename, join } from "node:path"
 
 import { readMessages } from "../support/ndjson.ts"
 import { emitter, MARKER, RELEASE, released as releasedIn, speaking } from "../support/scripted.ts"
@@ -358,6 +369,45 @@ const stored = () => STORED !== ""
 const STORED_TITLES: Record<string, string> = {
   "fake-stored-old": "an older conversation",
   "fake-stored-new": "the last conversation",
+}
+
+/**
+ * THE CONVERSATIONS THIS PROCESS HAS SEEN CARRY A TURN, by id — the live half
+ * of `session/list`: what a real agent's transcript files say about
+ * conversations STARTED after it woke up, which the environment variable
+ * above can never say because it was read once, at spawn.
+ *
+ * A turn accepted is the mark — not the open: a fresh session nobody has
+ * spoken into has no transcript, so listing it would be claiming a
+ * conversation that is nowhere. Whose it is is `sessionId` at the moment of
+ * the prompt: the same rule the static pair reads `cwd` by — the session a
+ * turn is IN is the one it lands on.
+ */
+interface Minted {
+  readonly title: string | null
+  readonly updatedAt: string
+  readonly messageCount: number
+}
+const minted = new Map<string, Minted>()
+
+/** The list, whole: the pair the machine woke up with, plus whatever this run
+ *  minted — each shape pruned its own way, and the static ids winning any
+ *  overlap so their pinned words and stamps never move. */
+const listedSessions = () => {
+  const staticRows = stored() ? storedSessions() : []
+  const staticIds = new Set(staticRows.map((row) => row.sessionId))
+  return [
+    ...staticRows,
+    ...[...minted]
+      .filter(([id]) => !staticIds.has(id) && !forgotten(id))
+      .map(([sessionId, row]) => ({
+        sessionId,
+        cwd,
+        title: row.title,
+        updatedAt: row.updatedAt,
+        _meta: { claudeCode: { messageCount: row.messageCount } },
+      })),
+  ]
 }
 
 /** Whether a scenario has made this conversation GONE — deleted from the
@@ -2717,7 +2767,11 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
         agentCapabilities: {
           loadSession: stored(),
           mcpCapabilities: { http: true },
-          ...(stored() ? { sessionCapabilities: { list: {} } } : {}),
+          // The LIST is always answerable: an empty one is the ordinary truth
+          // of a fresh directory, not a capability missing. `loadSession`
+          // stays the stored knob's because it chooses the boot path — see the
+          // header and {@link minted}.
+          sessionCapabilities: { list: {} },
           // IT HOLDS A PROMPT SENT WHILE IT IS BUSY — said where the real
           // adapter says it, inside the capabilities, in its own `_meta`
           // corner. Nothing about this file's behaviour depends on saying it
@@ -2749,6 +2803,18 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
     case "session/list":
       // Same as openSession: this cwd is ours, not an agent's.
       if (typeof params["cwd"] === "string") cwd = params["cwd"].replace(/\/+$/, "")
+      // COUNTED, one line per time asked — refused or not, the asking is the
+      // pin: a scenario notes the file, settles another turn of a
+      // conversation the last answer already names, and the count must not
+      // have moved. ARMED by the file's own existence and otherwise silent:
+      // the commit pill counts the whole repository (`commit-whole-repo`), so
+      // a counter that rode into every served directory unasked would add one
+      // to every count the suite asserts. Existence IS the arming — one
+      // empty write, the same idiom as the refuse/forget releases, no second
+      // file — and the dot prefix keeps the store's walk out of it.
+      if (existsSync(join(cwd, ".agent-list-asks"))) {
+        appendFileSync(join(cwd, ".agent-list-asks"), "1\n")
+      }
       // An agent that CANNOT say what it has stored — asked, and refusing.
       // Distinct from an agent with nothing stored, which answers an empty
       // list, and the whole point of the scenario that arms it: the two used
@@ -2757,7 +2823,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
         refuse(id, -32000, "the conversation store is unreadable")
         return
       }
-      reply(id, { sessions: stored() ? storedSessions() : [] })
+      reply(id, { sessions: listedSessions() })
       return
 
     case "session/new":
@@ -2857,6 +2923,18 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       const text = promptTextOf(params)
       // It is not waiting any more: this is the turn now.
       waiting.delete(id)
+      // ... and the conversation it landed in EXISTS from here on: a transcript
+      // is a file a turn wrote, so `session/list` names it from this prompt's
+      // moment — see {@link minted}. The pair a prompt carries is one user
+      // row and this file's answer to it, whichever way the turn then goes.
+      {
+        const had = minted.get(sessionId)
+        minted.set(sessionId, {
+          title: had?.title ?? text,
+          updatedAt: new Date().toISOString(),
+          messageCount: (had?.messageCount ?? 0) + 2,
+        })
+      }
       // The flag the steer handler reads, and it must come off however the
       // turn ends — a crash of a turn that left it set would make every later
       // steer claim to have been injected into nothing.
