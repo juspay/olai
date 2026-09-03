@@ -19,6 +19,7 @@ import { expect, test } from "bun:test"
 import { Cause, Effect, Layer, Logger } from "effect"
 
 import {
+  Agents,
   Deliveries,
   Held,
   definePlugin,
@@ -454,5 +455,106 @@ test("a plugin's held door is one door, however many times it is used", async ()
       }),
     )
     expect(minted).toBe(2)
+  })))
+})
+
+/**
+ * EVERY WAY OF CONTRIBUTING COUNTS AS ONE, and the word decides whether a
+ * browser half is ever mounted.
+ *
+ * ## The defect this is about
+ *
+ * `contributing()` is what `@olai/server`'s plugin roster computes `running`
+ * from, and `@olai/web` fetches a plugin's browser chunk only for a plugin the
+ * roster names running. So a plugin missing from this union is a plugin whose
+ * faces never hang, silently — the tab draws core's generic and nothing fails.
+ *
+ * The union was written out in `@olai/server` and named two registries by hand.
+ * It was the sibling table alone first, and every ACP engine read `off` while
+ * its fiber ran; then it was siblings ∪ engines, which is right for the plugins
+ * that exist and wrong for a plugin whose only contribution is a vocabulary
+ * word, a doorbell declaration or a session-start probe. Answered here, over the
+ * tables themselves, there is no list one package over to keep in step.
+ */
+test("a plugin is contributing whichever door it registered at", async () => {
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const plugins = yield* runtime()
+
+    yield* mountPlugin(plugins.host, registering("bysurface"))
+    yield* mountPlugin(
+      plugins.host,
+      definePlugin({
+        name: "bykind",
+        needs: [Kinds],
+        apply: Effect.gen(function*() {
+          yield* (yield* Kinds).register({ kind: "thing", takes: "a thing", admits: () => true })
+        }),
+      }),
+    )
+    yield* mountPlugin(
+      plugins.host,
+      definePlugin({
+        name: "byengine",
+        needs: [Agents],
+        apply: Effect.gen(function*() {
+          yield* (yield* Agents).register({
+            name: "an engine",
+            leg: {} as never,
+            at: () => null,
+            prompt: { kind: "first-turn" },
+          })
+        }),
+      }),
+    )
+    yield* mountPlugin(
+      plugins.host,
+      definePlugin({
+        name: "byprobe",
+        needs: [SessionStart],
+        apply: Effect.gen(function*() {
+          yield* (yield* SessionStart).ask(Effect.succeed(NOTHING_FOUND))
+        }),
+      }),
+    )
+
+    expect([...plugins.contributing()].sort()).toEqual(
+      ["byengine", "bykind", "byprobe", "bysurface"],
+    )
+  })))
+})
+
+test("...and a fiber that registered nothing is not contributing", async () => {
+  // Which is the honest answer rather than a gap: a plugin that started and put
+  // nothing on the wire has nothing for a tab to draw, so `off` is what a person
+  // reading the preferences row is owed.
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const plugins = yield* runtime()
+    const quiet = yield* mountPlugin(
+      plugins.host,
+      definePlugin({ name: "saysnothing", needs: [], apply: Effect.void }),
+    )
+    expect((yield* quiet.report).state).toBe("running")
+    expect(plugins.contributing()).toEqual([])
+  })))
+})
+
+test("a plugin counted once, however many doors it registered at", async () => {
+  // The union is over PLUGINS and not over registrations: kolu contributes a
+  // surface, a vocabulary word and a doorbell, and a roster row is one row.
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const plugins = yield* runtime()
+    yield* mountPlugin(
+      plugins.host,
+      definePlugin({
+        name: "manydoors",
+        needs: [Kinds, SessionStart, Surfaces],
+        apply: Effect.gen(function*() {
+          yield* (yield* Surfaces).register(NOTHING)
+          yield* (yield* Kinds).register({ kind: "thing", takes: "a thing", admits: () => true })
+          yield* (yield* SessionStart).ask(Effect.succeed(NOTHING_FOUND))
+        }),
+      }),
+    )
+    expect(plugins.contributing()).toEqual(["manydoors"])
   })))
 })

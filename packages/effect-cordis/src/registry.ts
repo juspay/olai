@@ -72,8 +72,14 @@ export interface Roster<V> {
  * Keyed by a fresh symbol rather than held in an array, so a release is a delete
  * rather than an `indexOf` and a `splice` — two plugins holding the same entry
  * VALUE are two entries, and dropping one leaves the other.
+ *
+ * `changed` is rung after every hold and every release, for {@link registry}'s
+ * reason exactly: whoever computes a live reading OVER this table has no other
+ * way to learn the table moved, and a reading that goes stale silently is worse
+ * than one that is recomputed too often. Optional, because a table nothing is
+ * derived from has nobody to tell.
  */
-export const roster = <V>(): Roster<V> => {
+export const roster = <V>(changed?: () => void): Roster<V> => {
   const held = new Map<symbol, V>()
   return {
     hold: (value) =>
@@ -81,9 +87,14 @@ export const roster = <V>(): Roster<V> => {
         Effect.sync(() => {
           const at = Symbol()
           held.set(at, value)
+          changed?.()
           return at
         }),
-        (at) => Effect.sync(() => void held.delete(at)),
+        (at) =>
+          Effect.sync(() => {
+            held.delete(at)
+            changed?.()
+          }),
       ).pipe(Effect.asVoid),
     read: () => [...held.values()],
   }

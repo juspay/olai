@@ -1399,33 +1399,29 @@ export const bind = (
      * and the cell is republished ({@link republishPlugins}).
      */
     const roster = (): PluginRoster =>
-      rosterOf(offered, composing(), rings())
+      rosterOf(offered, plugins?.contributing() ?? [], rings())
 
-    /**
-     * WHICH PLUGINS HAVE CONTRIBUTED SOMETHING RIGHT NOW — the live half of the
-     * word `running`.
+    /*
+     * WHICH PLUGINS HAVE CONTRIBUTED SOMETHING — the live half of the word
+     * `running` — is `Plugins.contributing()` above, and this file asks rather
+     * than composes it.
      *
-     * IT WAS THE SIBLING TABLE ALONE, and that was exact while every plugin
+     * IT WAS THE SIBLING TABLE ALONE, which was exact while every plugin
      * composed a sibling surface. An ENGINE composes none: what it contributes
-     * to a tab — a row of the picker, a name in the header, a sentence on the
-     * no-agent face — already travels on the chat cell, which is core's, so a
-     * second surface under `surface/claude/` would be one fact on the wire
-     * twice. Read off the siblings alone, every engine row said `off` while its
-     * fiber was `running`, and the tab never fetched its chunk: the panel drew
-     * the generic mark for an agent whose own shape was sitting in a chunk the
-     * roster had declined to name.
+     * to a tab already travels on the chat cell, which is core's, so a second
+     * surface under `surface/claude/` would be one fact on the wire twice. Read
+     * off the siblings alone, every engine row said `off` while its fiber ran,
+     * and the tab never fetched its chunk — the panel drew the generic mark for
+     * an agent whose own shape sat in a chunk the roster had declined to name.
      *
-     * A UNION rather than a second word on the row, because `running` means what
-     * it always meant — this plugin's contribution is live — and the two
-     * registries are two ways of contributing rather than two kinds of running.
-     * A plugin that registers NEITHER is `off`, which is what
-     * {@link stateOf}'s snapshot arm has always said about a fiber that started
-     * and put nothing on the wire.
+     * The fix was a hand-written union of two registries, HERE, and it was right
+     * for the plugins that exist and wrong by construction: this file has no
+     * reason to know how many registries `@olai/plugin-api` holds, and a plugin
+     * whose only contribution is a `Kinds` word, a `SessionStart` probe or a
+     * `Wakes` declaration was reported `off` while its fiber ran. The union is
+     * answered where the tables are; a sixth cannot be forgotten by a file one
+     * package over.
      */
-    const composing = (): ReadonlyArray<string> => [
-      ...siblings().map((one) => one.name),
-      ...(plugins?.engines() ?? []).map((one) => one.id),
-    ]
     /**
      * EVERY CONNECTOR BELOW READS `store.reads`, and every frame on it is a
      * pair: the set, and how old it is (`@olai/store`'s `Aged`). These take
