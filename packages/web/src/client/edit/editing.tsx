@@ -978,21 +978,40 @@ export const createEditor = (
    * worked out while the caret is still standing in it, and only then is the
    * line let go. `picking` could not order that: its callback runs after the
    * draft is gone.
+   *
+   * AND THE DRAFT GOES: the zoom pair leaves the caret behind. That used to
+   * be two answers wearing one key — `out` committed but kept the draft,
+   * which followed the journey only when the destination happened to be
+   * another node page (the pane need not remount there, so the editor and
+   * its draft survived), and was destroyed by the OUTLINE it often is. What
+   * decides which page lands must not decide whether a line stays open, and
+   * keeping the caret the other way round is not available either: the
+   * zoomed page's heading is not an editor, so `⌘.` has nowhere to carry
+   * one to. The pair's answer is therefore one — the same close `picking`
+   * does — and re-opening a row on arrival is the click's business, the way
+   * the bullet's own zoom has always worked.
    */
   const outOf = async (): Promise<void> => {
     const held = draft()
     if (held === null || held.kind !== "row" || held.place === null) return
+    // The destination is a thunk, decided up here and taken after the close:
+    // `drawn`'s gate gives no rows once the draft is down, and `zooming.out`'s
+    // existence IS the answer "is there a page above", asked while standing.
+    let act: (() => void) | null = null
     const parentKey = parentKeyOf(held.place)
     if (parentKey !== "") {
       const parent = drawn().find((one) => one.key === parentKey)
       if (parent === undefined) return
-      if (!(await commit())) return
-      zooming.into(parent.at.node.id)
-      return
+      act = () => zooming.into(parent.at.node.id)
+    } else {
+      const out = zooming.out
+      if (out === undefined) return
+      act = out
     }
-    if (zooming.out === undefined) return
     if (!(await commit())) return
-    zooming.out()
+    idle.clear()
+    setDraft(null)
+    act()
   }
 
   /** The arrows: the next row the eye would reach, folds and all. */

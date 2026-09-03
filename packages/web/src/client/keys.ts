@@ -198,7 +198,10 @@ export const isEditingTarget = (target: EventTarget | null): boolean => {
  *     `⌘,` on Apple: the bullet's page and back, by key rather than by
  *     pointer — the same two doors as a click on the bullet and the last
  *     breadcrumb. Two spellings because Alt is busy on a Mac (`⌥.` types
- *     `≥`), exactly as Workflowy splits them.
+ *     `≥`), exactly as Workflowy splits them. The pair leaves the caret
+ *     behind: the zoomed page's heading is not an editor, so there is
+ *     nothing on arrival to hold one — the click's job to open again, as
+ *     every pointer zoom has always worked.
  *   - `fold` — `Ctrl+Space`, on both platforms: collapse the branch the caret
  *     is in, or unfurl it — the triangle in the gutter by key. One chord,
  *     reading the fold's own memory the way the triangle reads it.
@@ -663,8 +666,8 @@ export const SHORTCUTS: ReadonlyArray<{
       },
       { keys: "Tab", what: "indent under the row above", action: "in" },
       { keys: "Shift+Tab", what: "outdent, after the old parent", action: "out" },
-      { keys: "⌘⇧↑ / Alt+Shift+↑", what: "move up among its siblings", action: "up" },
-      { keys: "⌘⇧↓ / Alt+Shift+↓", what: "move down among its siblings", action: "down" },
+      { keys: "Alt+Shift+↑ (Mac: ⌘⇧↑ too)", what: "move up among its siblings", action: "up" },
+      { keys: "Alt+Shift+↓ (Mac: ⌘⇧↓ too)", what: "move down among its siblings", action: "down" },
       { keys: "⌘. / Alt+.", what: "zoom into this row", action: "zoomIn" },
       { keys: "⌘, / Alt+,", what: "zoom out of it again", action: "zoomOut" },
       { keys: "Ctrl+Space", what: "fold this branch, or unfurl it", action: "fold" },
@@ -736,7 +739,7 @@ export const SHORTCUTS: ReadonlyArray<{
       { keys: "Shift+↑ / Shift+↓", what: "take one more row, or give one back" },
       { keys: "⌘A / Ctrl+A", what: "widen to the whole page" },
       { keys: "Tab / Shift+Tab", what: "indent them, or take them out again" },
-      { keys: "⌘⇧↑/↓ / Alt+Shift+↑ / ↓", what: "move them among their siblings" },
+      { keys: "Alt+Shift+↑/↓ (Mac: ⌘⇧↑/↓ too)", what: "move them among their siblings" },
       { keys: "⌘Enter / Ctrl+Enter", what: "tick them off, or take that back" },
       { keys: "Escape", what: "put the pick away" },
     ],

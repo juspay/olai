@@ -10,8 +10,8 @@ Click a title and the caret is where you clicked. From there it is the outliner'
 | **Backspace, at the start** | join this row onto the one above |
 | **Tab** / **Shift+Tab** | indent under the row above, or out again |
 | **Alt+Shift+↑/↓** (Mac: **⌘⇧↑/↓** too) | move a row among its siblings |
-| **⌘.** / **Alt+.** | zoom into this row (⌘ on a Mac, Alt elsewhere) |
-| **⌘,** / **Alt+,** | zoom out: to the page of the row's parent, or one zoom up |
+| **⌘.** / **Alt+.** | zoom into this row (⌘ on a Mac, Alt elsewhere) — the caret stays behind; a click opens a row again |
+| **⌘,** / **Alt+,** | zoom out: to the page of the row's parent, or one zoom up — the caret stays behind, the same way |
 | **Ctrl+Space** | fold this branch, or unfurl it |
 | **⌘↑/↓** / **Ctrl+↑/↓** | fold this branch, or unfurl it — the one way you meant |
 | **⌘Enter** / **Ctrl+Enter** | tick it off, or take that back |
