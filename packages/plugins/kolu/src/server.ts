@@ -359,13 +359,14 @@ export function apply(ctx: Context): void {
    */
   let pacing: WatchConfig = DEFAULT_WATCH
 
-/**
-   * ONE WATCHER EVENT, RUNG THROUGH — the doorbell's whole drive loop, and
-   * a wiring diagram now rather than the loop itself: the loop is
-   * {@link ./doorbell.ts}'s `makeDoorbell`, a value a test can hold, and the
-   * two things still composed HERE are the ones only this package's edge
-   * knows: which plugin name the coalesce keys are minted under, and the
-   * catch that keeps a throw out of the watcher's timers.
+  /**
+   * ONE WATCHER EVENT, RUNG THROUGH — the doorbell's whole drive loop as a
+   * value a test can hold: {@link ./doorbell.ts}'s `makeDoorbell`, wired to
+   * this serve's vault state, fleet half, deliveries and clock. The
+   * semantics — the window ledger, the freshness rule, the gates — are
+   * argued where the loop lives; what is composed HERE are the things only
+   * this package's edge knows: the four closures, the knob's own reading,
+   * and the plugin name in the keys.
    *
    * ONE COALESCE KEY PER MEANING, fixed. Core replaces an undelivered body
    * with the next one under the same key, so a burst while a turn runs
@@ -385,21 +386,6 @@ export function apply(ctx: Context): void {
    * that core keyed by conversation alone and the name was what kept two
    * plugins apart; a reader who believed it would have carried the name into a
    * key where it mattered rather than where it merely reads well.
-   *
-   * AND IT CANNOT THROW INTO A TIMER. This runs from `emitHold`, which is a
-   * `setTimeout` callback in the watcher — an exception escaping here would
-   * take the process down with no evidence and stop every other hold's timer
-   * on the way. So the whole walk is caught once, at this package's edge, and
-   * said on the owner's channel: a doorbell that failed is worth a line, and
-   * it is worth exactly one.
-   */
-  /**
-   * THE LOOP ITSELF, as a value — {@link ./doorbell.ts}'s `makeDoorbell`,
-   * wired to this serve's vault state, fleet half, deliveries and clock.
-   * Why it is a value and what the window ledger promises is argued where
-   * the loop lives; what is composed here are the four things only this
-   * serve has: the revision it holds, the rows, the scopes, and the plugin
-   * name in the keys.
    *
    * `heart` is referenced AS A CLOSURE rather than captured, because this
    * const is written one `let` below it: events arrive on the watcher's
@@ -423,6 +409,14 @@ export function apply(ctx: Context): void {
     trace,
   })
 
+  /**
+   * AND IT CANNOT THROW INTO A TIMER. The ring runs from `emitHold`, which
+   * is a `setTimeout` callback in the watcher — an exception escaping here
+   * would take the process down with no evidence and stop every other
+   * hold's timer on the way. So the whole walk is caught once, at this
+   * package's edge, and said on the owner's channel: a doorbell that failed
+   * is worth a line, and it is worth exactly one.
+   */
   const ring = (event: KoluEvent): void => {
     try {
       bell.ring(event)
@@ -439,9 +433,10 @@ export function apply(ctx: Context): void {
    * about the vault.
    *
    * `null` where there is no revision to derive off: before the first one, and
-   * after an `unloaded` disowned the last. It is {@link ring}'s own first gate
-   * in the shape a number-returning closure can spell it, and it is why a
-   * heartbeat cannot go out with a hole where its count belongs.
+   * after an `unloaded` disowned the last. It is the doorbell's own first
+   * gate in the shape a number-returning closure can spell it: the `ringing`
+   * closure above folds the same `undefined` into its `null`, and the walk
+   * drops every seat's ask on it — one `no-revision` line per file per event.
    */
   const terminals = (file: string): number | null => {
     const at = derived
@@ -584,9 +579,10 @@ export function apply(ctx: Context): void {
    * `derived` and `file` are exactly the pair a fleet event arriving after a
    * disown would be joined against. Leaving them set means the doorbell keeps
    * walking a vault the store has explicitly stopped vouching for and ringing
-   * somebody about claims read out of it. `undefined` is the doorbell's own
-   * first gate ({@link ring} returns on it), so clearing it is how the walk is
-   * told.
+   * somebody about claims read out of it. `undefined` here is what the
+   * doorbell's `ringing` closure folds into its `null` — the walk's first
+   * gate lands on it per file and the event is dropped for every seat, so
+   * clearing it is how the walk is told.
    *
    * UNLOADING THIS PLUGIN IS A DIFFERENT THING, and the event's name is what
    * keeps them apart. A disposed fiber unwinds every effect above — the sibling

@@ -1580,18 +1580,23 @@ test("two terminals whose nag clocks fire inside one window deliver ONE note", a
     nagMs: 200,
   })
   it.watch.observe("11111111", row("11111111", "waiting"))
-  await sleep(60)
+  await sleep(100)
   it.watch.observe("22222222", row("22222222", "waiting"))
-  await sleep(140)
-  // BOTH TRANSITIONS LAND — a fresh hold's first word, once per hold, and
-  // the coalescing never touches it, though the two notes name the same
-  // standing set: the window eats NAGS, and only nags.
+  await sleep(120)
+  // BOTH TRANSITIONS LAND (≈40 and ≈140 ms) — a fresh hold's first word,
+  // once per hold, and the coalescing never touches it, though the two
+  // notes name the same standing set: the window eats NAGS, and only nags.
   expect(it.said.length).toBe(2)
 
-  await sleep(160)
-  // BOTH NAG CLOCKS HAVE FIRED (≈240 and ≈300 ms). The second of them names
-  // exactly the set the transitions' notes already named, inside one nag
-  // window — so ONE note lands, not two.
+  await sleep(240)
+  // BOTH NAG CLOCKS HAVE FIRED (≈240 and ≈340 ms). The FIRST of them names
+  // exactly the set the second transition's note already named, inside one
+  // nag window — so ONE note lands, not two. THE STAGGER IS WIDENED TO A
+  // FULL HALF-WINDOW because this is the assertion the RED-first run leans
+  // on: a timer never fires EARLY, so an `ago >= window` edge has no racy
+  // side, but a late nag on a starved runner would land PAST the edge and
+  // ring honestly — the coalescing has to happen with a hundred
+  // milliseconds of room, or a flake reads as the feature failing.
   expect(it.said.length).toBe(3)
   expect(it.said[2]?.body).toContain(
     "2 terminals went quiet, and nothing under them is being worked. A note, not a call.",
@@ -1631,15 +1636,22 @@ test("a wake and a note keep their MEANINGS — one window, one of each, never o
     { heldForMs: 40, nagMs: 200 },
   )
   it.watch.observe("11111111", row("11111111", "waiting"))
-  await sleep(60)
+  await sleep(100)
   it.watch.observe("22222222", row("22222222", "waiting"))
-  await sleep(140)
+  await sleep(120)
   expect(it.said.length).toBe(2)
 
-  await sleep(160)
-  // Both nag clocks have fired, and BOTH notes land: the ledger is per
-  // meaning, because a report owed and a lane lawfully parked are two
-  // signals, and one must never eat the other.
+  await sleep(220)
+  // Both nag clocks have fired (≈240 and ≈340 ms), and BOTH notes land: a
+  // report owed and a lane lawfully parked are two signals, and one window
+  // must never let one eat the other. THE PIN IS BEHAVIOUR, NOT THE KEY —
+  // and the absence of a stronger sentence belongs to the reader's map:
+  // two meanings' standing sets are DISJOINT by construction (`standingIn`
+  // partitions on `meaningOf`), so their prints can never collide and the
+  // key's meaning arm is THE ANCHORRIER'S BELT (`keyOf`'s paragraph), not
+  // a property a black-box test on the prints could ever exercise — a
+  // merged key would still pass every assertion below, and `keyOf`'s
+  // comment says why it stands anyway.
   expect(it.said.length).toBe(4)
   expect(it.said[2]?.coalesce).toBe("kolu:wake")
   expect(it.said[2]?.body).toContain("a report or a block is owed")
@@ -1654,20 +1666,21 @@ test("a REAL change in the set inside one window still rings", async () => {
     nagMs: 200,
   })
   it.watch.observe("11111111", row("11111111", "waiting"))
-  await sleep(60)
+  await sleep(100)
   it.watch.observe("22222222", row("22222222", "waiting"))
-  await sleep(140)
+  await sleep(120)
   expect(it.said.length).toBe(2)
-  await sleep(160)
+  await sleep(200)
   // The nag window's one note has landed: the pair's standing set, said
-  // once. The first terminal's own nag was the copy the window ate.
+  // once, by the SECOND terminal's clock (≈340 ms). The first's nag was
+  // the copy the window ate.
   expect(it.said.length).toBe(3)
 
   // The second lane goes back to WORK mid-window: the set is not the set
   // the note named any more.
   it.fleet.set("22222222", row("22222222", "thinking"))
   it.watch.observe("22222222", row("22222222", "thinking"))
-  await sleep(140)
+  await sleep(120)
   // ...so the NEXT nag rings inside the same window: what it says now is
   // information the note did not carry. The ledger compares the set, which
   // is the whole of "a real change in the set still rings".

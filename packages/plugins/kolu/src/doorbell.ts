@@ -138,9 +138,13 @@
  *
  * ## THIS MODULE OWNS NO STANDING SET, and that is a ruling rather than an economy
  *
- * There is no cache of claimed ids here, and nothing watches for changes.
- * Every export is a pure function of the revision it is handed:
- * `derive(scope file, revision) -> the claimed set`, walked per event.
+ * There is no cache of the vault's ANSWERS here, and nothing watches for
+ * changes. Every DERIVATION is a pure function of the revision it is handed:
+ * `derive(scope file, revision) -> the claimed set`, walked per event. The
+ * one thing remembered is a door down: the ledgers of the next section keep
+ * this module's OWN SENTENCES — what it said into each seat and when — and
+ * the distance from a copy of derived truth to a record of its own actions
+ * is the whole of the ruling.
  *
  * The store's parsed, revisioned vault IS the maintained in-memory copy, and a
  * doorbell-private set beside it would be the Monitor's frozen `--ignore` list
@@ -151,10 +155,10 @@
  *
  * It costs nothing worth counting. Events are rare — a terminal has to go quiet
  * and stay quiet — and the walk is microseconds over an index the derivation
- * already keeps. `server.ts`'s `ring` memoises per FILE for the length of ONE
- * event, because a person with three seats on one board would otherwise pay
- * three identical walks; that map is minted per event and dropped with it,
- * which is the only lifetime any of this has.
+ * already keeps. {@link makeDoorbell}'s `ring` memoises per FILE for the
+ * length of ONE event, because a person with three seats on one board would
+ * otherwise pay three identical walks; that map is minted per event and
+ * dropped with it, which is the only lifetime any of this has.
  *
  * `./doorbell.test.ts` pins it rather than trusting this paragraph: a claim
  * added between two events is seen by the second, and an older revision handed
@@ -173,8 +177,10 @@
  * answers", and the count in a heartbeat's own sentence is derived at send
  * time exactly like every other number here. Each ledger is bounded by
  * construction too: the heartbeat's is cleared whole on every beat, and the
- * window's holds one entry per seat per meaning, replaced on every note —
- * so a conversation nobody has scoped since yesterday is in neither.
+ * window's is pruned on every ring to what could still change a nag's
+ * reading — each entry dropped the moment it is one full window old, the
+ * exact point past which it could never match again — so a conversation
+ * nobody has scoped since yesterday is in neither.
  *
  * ## THE BODY IS A FRESH DERIVATION, and that is what makes coalescing safe
  *
@@ -1220,10 +1226,11 @@ export interface Scoped extends Conversation {
  * no-standing-set rule forbids a second answer to a question the vault
  * already answers; this is a fact about the module's OWN ACTIONS — what it
  * said and when — which nothing else in the world can contradict, so the
- * ruling is untouched. And it replaces rather than accumulates: one entry
- * per seat per meaning, so its size is the number of seats ever heard from,
- * twice — a stale entry simply can never match, because its window has
- * passed.
+ * ruling is untouched. And it replaces rather than accumulates, AND
+ * FORGETS: one entry per seat per meaning, each dropped by `ring` one full
+ * window after it landed — the age past which a nag measured on one clock
+ * could never match it anyway — so its size is the seats heard from inside
+ * the window now in force, twice, and no serve keeps yesterday's.
  */
 export interface Doorbell {
   /** One watcher event, rung through. */
@@ -1270,10 +1277,20 @@ export const makeDoorbell = (deps: {
 }): Doorbell => {
   const trace = deps.trace
   /** The ledger, keyed `agent \0 session \0 meaning` — see the header for
-   *  why the driving event's stamp is the anchor and why no pruning is
-   *  owed. `\0` as an ESCAPE and never as the byte: a literal NUL makes this
-   *  file read as BINARY to grep and to review tooling. */
+   *  why the driving event's stamp is the anchor. `\0` as an ESCAPE and
+   *  never as the byte: a literal NUL makes this file read as BINARY to
+   *  grep and to review tooling. */
   const notes = new Map<string, { readonly at: number; readonly print: string }>()
+  /** THE MEANING EARNS ITS PLACE IN THE KEY as a belt rather than as the
+   *  load-bearing member. The work of keeping a wake and a digest apart is
+   *  done by the prints: two meanings' standing sets are disjoint by
+   *  construction ({@link standingIn} partitions on `meaningOf`), so their
+   *  prints can never collide and neither note could eat the other even
+   *  under a SHARED key. What the meaning in the key keeps true regardless
+   *  is that each set answers its OWN anchor — the day the partition rule
+   *  moves or the print's body is pared back, a shared key would let one
+   *  meaning's note stand in for the other's window, and no test of the
+   *  prints would catch the wake's reminder being silenced by a digest's. */
   const keyOf = (to: Conversation, meaning: Meaning): string =>
     `${to.agent}\0${to.session}\0${meaning}`
   /** WHAT THE NOTE SAYS, minus the stamp: the file it was read off and the
@@ -1330,6 +1347,16 @@ export const makeDoorbell = (deps: {
       // last saw the fleet ask for somebody. The event's own `at` rather
       // than a fresh clock read: one moment, one stamp.
       deps.saw(event.at)
+      // ...AND THE LEDGER SHEDDING ITS OWN YESTERDAYS, once per event
+      // rather than per key touched: an entry older than the window in
+      // force could never match again — measured on one clock, the `ago`
+      // below is already past its edge — and the one clock-skew this pass
+      // could introduce errs toward RINGING, which is the direction the
+      // anchor argument prefers.
+      const nowMs = Date.parse(deps.now())
+      for (const [key, note] of notes) {
+        if (nowMs - note.at > deps.window()) notes.delete(key)
+      }
       const rows = deps.rows()
       // ONE WALK PER FILE. The derivation is per FILE and the scope is per
       // CONVERSATION, which are not the same cardinality: a person with
@@ -1342,6 +1369,14 @@ export const makeDoorbell = (deps: {
         const held = perFile.get(file)
         if (held !== undefined) return held
         const fresh = deps.ringing(file)
+        // NO REVISION, SAID ONCE PER FILE: the memo is also what keeps the
+        // trace honest — three seats on one board are one ask and must read
+        // as one line, not three. A tick that asks NOTHING — no seats, so
+        // no file is ever walked — writes only the `event` line above: the
+        // doorbell dropped no words it would otherwise have asked about,
+        // and the absence of a `derived` line is the vault's silence in
+        // this channel's own shape.
+        if (fresh === null) trace("dropped", { file, why: "no-revision" })
         perFile.set(file, fresh)
         return fresh
       }
@@ -1372,10 +1407,7 @@ export const makeDoorbell = (deps: {
       })
       for (const scope of scopes) {
         const ringing = ringingFor(scope.file)
-        if (ringing === null) {
-          trace("dropped", { file: scope.file, why: "no-revision" })
-          continue
-        }
+        if (ringing === null) continue
         const meaning = classify(event, ringing.claiming)
         // SILENCE IS NO CALL AT ALL — but a silence nobody can SEE is what
         // made a lane that had fallen out of the set indistinguishable from
