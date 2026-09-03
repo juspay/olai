@@ -64,6 +64,7 @@ import { foldIdOf, foldOf } from "../fold/rows.ts"
 import type { Caret, EditAction } from "../keys.ts"
 import { runAsync } from "../run.ts"
 import type { Moving } from "../move/moving.tsx"
+import { parentKeyOf } from "../select/range.ts"
 import type { Selection } from "../select/selection.ts"
 import { olai } from "../wire.ts"
 import {
@@ -981,7 +982,7 @@ export const createEditor = (
   const outOf = async (): Promise<void> => {
     const held = draft()
     if (held === null || held.kind !== "row" || held.place === null) return
-    const parentKey = held.place.slice(0, held.place.lastIndexOf("/"))
+    const parentKey = parentKeyOf(held.place)
     if (parentKey !== "") {
       const parent = drawn().find((one) => one.key === parentKey)
       if (parent === undefined) return
