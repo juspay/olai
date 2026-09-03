@@ -3,9 +3,9 @@
  * browser against a real server, which is the whole point of this package.
  *
  * Everything below is a knob rather than a constant because the same profile
- * has to serve three callers — a laptop running one feature, `just check`
- * running all of them, and a bisect run that wants only the scenarios it
- * knows are flaky.
+ * has to serve four callers — a laptop running one feature, `just check`
+ * running all of them, a remote host running one shard, and a bisect run that
+ * wants only the scenarios it knows are flaky.
  */
 
 import { workerCount } from "./support/parallelism.js";
@@ -33,6 +33,12 @@ const tags = process.env.CUCUMBER_TAGS || "not @skip";
 // A retry that hides a reproducible failure is worse than a red run.
 const retry = parseInt(process.env.CUCUMBER_RETRY || "0", 10);
 
+// The remote just recipe gives each host one slice of the same scenario list.
+// Cucumber owns the assignment: its native sharder distributes pickles
+// round-robin, so an outline's expanded examples count and a feature move does
+// not leave a hand-maintained partition lopsided.
+const shard = process.env.CUCUMBER_SHARD || "";
+
 export const ui = {
   ...(!cliHasFeatureArgs && { paths: ["features/**/*.feature"] }),
   import: ["step_definitions/**/*.ts", "support/**/*.ts"],
@@ -44,6 +50,7 @@ export const ui = {
   formatOptions: { snippetInterface: "async-await" },
   ...(parallel > 1 && { parallel }),
   ...(retry > 0 && { retry }),
+  ...(shard !== "" && { shard }),
 };
 
 export default {};
