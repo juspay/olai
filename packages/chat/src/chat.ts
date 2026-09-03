@@ -3260,63 +3260,63 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         }),
       start: Effect.gen(function*() {
         // Eager, on the server's own start, because the panel is meant to show
-        // your last conversation before anybody types into it. On its own
-        // fiber: pages serve while it happens, and a boot that fails changes
-        // nothing — the next prompt retries it exactly as a crash does.
-        yield* Effect.forkDetach(
-          Effect.gen(function*() {
-            const chosen = yield* startsWith
-            if (chosen === null) {
-              // NOBODY IS CHOSEN and nobody will be chosen for you: the panel
-              // asks, and holds no conversation until it is answered. IDLE
-              // rather than `booting`, because nothing is happening — this is
-              // a state that has settled, and it settles until somebody presses
-              // something.
-              move({ status: "idle", talking: { kind: "asking" } })
-              return
+        // your last conversation before anybody types into it. The listener is
+        // already serving while this runs. The EFFECT settles with the boot so
+        // a scheduler above this panel can route a session whose identity was
+        // not knowable until `session/new` answered; the scheduler decides
+        // whether its whole boot belongs on a detached fiber.
+        yield* Effect.gen(function*() {
+          const chosen = yield* startsWith
+          if (chosen === null) {
+            // NOBODY IS CHOSEN and nobody will be chosen for you: the panel
+            // asks, and holds no conversation until it is answered. IDLE
+            // rather than `booting`, because nothing is happening — this is
+            // a state that has settled, and it settles until somebody presses
+            // something.
+            move({ status: "idle", talking: { kind: "asking" } })
+            return
+          }
+          // Serialized against every other way an agent is bound by
+          // {@link using}'s own permit, and NOT by the directory's: this boot
+          // runs while the listener serves pages, and a shutdown must not
+          // queue behind it.
+          // The other place a conversation is opened, and the one no click
+          // reaches. It takes {@link opening} for the reason the two verbs do
+          // — a page is served while this runs, so somebody can be typing
+          // into a panel whose conversation is still being replayed — and
+          // deliberately NOT the directory's permit, so a shutdown does not
+          // queue behind a boot.
+          const outcome = yield* opening.withPermit(Effect.result(
+            Effect.flatMap(using(chosen), (agent) => agent.boot),
+          ))
+          if (outcome._tag === "Failure") {
+            // A warning rather than an error: the panel is already showing
+            // this, and the next prompt retries the boot exactly as a crash
+            // does. Nothing has stopped.
+            yield* Effect.logWarning(outcome.failure.message).pipe(
+              Effect.annotateLogs({ agent: chosen.id }),
+            )
+            // The same distinction the session verbs make, at the other place
+            // a conversation is opened: an agent that ANSWERED the open with
+            // a no is running, and a boot that never reached one is not.
+            // What a boot was trying to open is nobody's by name — it adopts
+            // its own — so the face names no conversation, and trying again
+            // is the boot itself, which is idempotent and re-opens.
+            if (outcome.failure.gone === "refused") {
+              refusedOpen(outcome.failure, null, Effect.flatMap(using(chosen), (a) => a.boot))
+            } else {
+              wentAway(outcome.failure.message)
             }
-            // Serialized against every other way an agent is bound by
-            // {@link using}'s own permit, and NOT by the directory's: this boot
-            // runs while the listener serves pages, and a shutdown must not
-            // queue behind it.
-            // The other place a conversation is opened, and the one no click
-            // reaches. It takes {@link opening} for the reason the two verbs do
-            // — a page is served while this runs, so somebody can be typing
-            // into a panel whose conversation is still being replayed — and
-            // deliberately NOT the directory's permit, so a shutdown does not
-            // queue behind a boot.
-            const outcome = yield* opening.withPermit(Effect.result(
-              Effect.flatMap(using(chosen), (agent) => agent.boot),
-            ))
-            if (outcome._tag === "Failure") {
-              // A warning rather than an error: the panel is already showing
-              // this, and the next prompt retries the boot exactly as a crash
-              // does. Nothing has stopped.
-              yield* Effect.logWarning(outcome.failure.message).pipe(
-                Effect.annotateLogs({ agent: chosen.id }),
-              )
-              // The same distinction the session verbs make, at the other place
-              // a conversation is opened: an agent that ANSWERED the open with
-              // a no is running, and a boot that never reached one is not.
-              // What a boot was trying to open is nobody's by name — it adopts
-              // its own — so the face names no conversation, and trying again
-              // is the boot itself, which is idempotent and re-opens.
-              if (outcome.failure.gone === "refused") {
-                refusedOpen(outcome.failure, null, Effect.flatMap(using(chosen), (a) => a.boot))
-              } else {
-                wentAway(outcome.failure.message)
-              }
-              return
-            }
-            settled()
-            // ... and the other place a conversation is opened flushes for the
-            // same reason and at the same point: after the permit, never from
-            // inside the event ({@link changeSession}). A BOOT is how a doorbell
-            // reaches the conversation this directory was last in without
-            // anybody pressing anything.
-            yield* Effect.forkDetach(flushing)
-          }),
-        )
+            return
+          }
+          settled()
+          // ... and the other place a conversation is opened flushes for the
+          // same reason and at the same point: after the permit, never from
+          // inside the event ({@link changeSession}). A BOOT is how a doorbell
+          // reaches the conversation this directory was last in without
+          // anybody pressing anything.
+          yield* Effect.forkDetach(flushing)
+        })
       }),
       stop: Effect.gen(function*() {
         closing = true

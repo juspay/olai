@@ -15,6 +15,7 @@ import { Duration, Effect, Exit, Fiber, Scope, Semaphore } from "effect"
 import type { Panel, PanelOptions, WakeScope } from "./chat.ts"
 import { makePanel } from "./chat.ts"
 import * as Memory from "./memory.ts"
+import type { Conversing } from "./sessions.ts"
 import type { Change } from "./transcript.ts"
 
 /** Long enough not to churn an ordinary working set, finite so sleeping agents
@@ -38,6 +39,9 @@ export interface LiveSession {
  * scope exposed for the server's roster projection. */
 export interface Chat extends Panel {
   readonly live: () => ReadonlyMap<string, LiveSession>
+  /** Mark an existing conversation assigned and move the foreground process
+   * into the scope of the node that now owns it. */
+  readonly assignedTo: (node: string, to: Conversing) => Effect.Effect<void>
   readonly startAgentSession: (
     node: string,
     agent: string,
@@ -106,6 +110,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     const nodes = new Map<string, NodeSlot>()
     const pending = new Map<string, Array<PendingDelivery>>()
     let stopped = false
+    let relocating = false
     let active: { readonly kind: "root"; readonly panel: Panel } | {
       readonly kind: "node"
       readonly slot: NodeSlot
@@ -336,30 +341,82 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     const foreground = <A>(use: (panel: Panel) => Effect.Effect<A, OpFailure>) =>
       Effect.suspend(() => use(panelOf()))
 
-    const start = Effect.gen(function*() {
+    /** Move a conversation first opened in the unscoped panel into the node
+     * scope that owns it. Remembered node sessions never come through here:
+     * `start` routes those before any process is spawned. This is for the two
+     * bindings that cannot be known beforehand — a fresh session id returned
+     * by the agent, and the explicit assignment gesture. */
+    const relocateRoot = (assigned?: {
+      readonly node: NodeAgent
+      readonly to: Conversing
+    }): Effect.Effect<void, OpFailure> =>
+      Effect.suspend(() => {
+        if (relocating || active.kind !== "root" || active.panel !== root) return Effect.void
+        const old = root
+        const state = old.state()
+        const talking = state.talking
+        if (
+          state.status !== "idle"
+          || state.session === null
+          || talking === null
+          || talking.kind !== "agent"
+        ) return Effect.void
+        const to = { agent: talking.id, session: state.session.id }
+        if (
+          assigned !== undefined
+          && (assigned.to.agent !== to.agent || assigned.to.session !== to.session)
+        ) return Effect.void
+        const node = assigned?.node ?? nodeFor(to.agent, to.session)
+        if (node === null) return Effect.void
+
+        relocating = true
+        return Effect.gen(function*() {
+          const { slot, fresh } = yield* acquire(node)
+          // Acquisition can wait behind a concurrent node operation. Do not
+          // move a panel somebody switched in the meantime.
+          if (active.kind !== "root" || active.panel !== old) {
+            if (fresh) yield* close(slot)
+            return
+          }
+          activate(slot)
+          yield* old.stop
+          root = yield* rootPanel()
+          const held = slot.panel.state()
+          if (held.session?.id !== to.session || held.status === "gone") {
+            yield* slot.panel.loadSession(to.agent, to.session)
+          }
+          yield* flush(slot)
+        }).pipe(Effect.ensuring(Effect.sync(() => {
+          relocating = false
+        })))
+      })
+
+    const relocationFailed = (where: string, failure: OpFailure): Effect.Effect<void> =>
+      Effect.logWarning(`${where} could not enter its node scope: ${failure.message}`)
+
+    const start = Effect.asVoid(Effect.forkDetach(Effect.gen(function*() {
       const recalled = yield* Effect.result(memory.recall)
       if (recalled._tag === "Failure" || recalled.success === null) {
         yield* root.start
+        yield* Effect.catch(relocateRoot(), (failure) => relocationFailed("the booted session", failure))
         return
       }
       const held = recalled.success
       const node = nodeFor(held.agent, held.session)
       if (node === null) {
         yield* root.start
+        yield* Effect.catch(relocateRoot(), (failure) => relocationFailed("the booted session", failure))
         return
       }
-      yield* Effect.forkDetach(
-        Effect.catch(
-          Effect.asVoid(ensureNode(
-            node,
-            (panel) => panel.loadSession(held.agent, held.session),
-            true,
-          )),
-          (failure) =>
-            Effect.logWarning(`the remembered node agent could not open: ${failure.message}`),
-        ),
+      yield* Effect.catch(
+        Effect.asVoid(ensureNode(
+          node,
+          (panel) => panel.loadSession(held.agent, held.session),
+          true,
+        )),
+        (failure) => relocationFailed("the remembered node agent", failure),
       )
-    })
+    })))
 
     const scopedDoor = (plugin: string) => {
       const scopes = (): ReadonlyArray<WakeScope> => {
@@ -419,10 +476,23 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       ),
       overheard: () => root.overheard(),
       assigned: (to) => root.assigned(to),
+      assignedTo: (node, to) => Effect.gen(function*() {
+        yield* root.assigned(to)
+        const found = nodeAt(node)
+        if (found === null) return
+        yield* Effect.catch(
+          relocateRoot({ node: { ...found, engine: to.agent, session: to.session }, to }),
+          (failure) => relocationFailed("the assigned session", failure),
+        )
+      }),
       replaced: (to, by) => root.replaced(to, by),
       reread: () => {
         root.reread()
         for (const slot of nodes.values()) slot.panel.reread()
+        Effect.runFork(Effect.catch(
+          relocateRoot(),
+          (failure) => relocationFailed("the newly bound session", failure),
+        ))
       },
       send: (...args) => foreground((panel) => panel.send(...args)),
       attach: (chunk) => foreground((panel) => panel.attach(chunk)),

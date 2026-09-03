@@ -1373,6 +1373,7 @@ const chatKeeping = (kept: ReadonlyArray<Scoped>): {
     // one would be asking about something this file does not own. They answer
     // rather than die because they never refuse in the real chat either.
     assigned: () => Effect.void,
+    assignedTo: () => Effect.void,
     replaced: () => Effect.void,
     reread: () => {},
     send: () => elsewhere,
@@ -1812,13 +1813,21 @@ const nodeAgent = (over: Partial<NodeAgent> = {}): NodeAgent => ({
 const chatOpening = (opens: ReadonlyArray<string>): {
   readonly chat: Chat
   /** The conversations marked as having ARRIVED by assignment, in order. */
-  readonly assigned: ReadonlyArray<{ readonly agent: string; readonly session: string }>
+  readonly assigned: ReadonlyArray<{
+    readonly node: string | null
+    readonly agent: string
+    readonly session: string
+  }>
   /** ... and the ones olai replaced, with what replaced them. */
   readonly replaced: ReadonlyArray<
     { readonly agent: string; readonly session: string; readonly by: string }
   >
 } => {
-  const assigned: Array<{ readonly agent: string; readonly session: string }> = []
+  const assigned: Array<{
+    readonly node: string | null
+    readonly agent: string
+    readonly session: string
+  }> = []
   const replaced: Array<
     { readonly agent: string; readonly session: string; readonly by: string }
   > = []
@@ -1837,7 +1846,8 @@ const chatOpening = (opens: ReadonlyArray<string>): {
     }),
     live: () => new Map(),
     overheard: () => [],
-    assigned: (to) => Effect.sync(() => void assigned.push(to)),
+    assigned: (to) => Effect.sync(() => void assigned.push({ node: null, ...to })),
+    assignedTo: (node, to) => Effect.sync(() => void assigned.push({ node, ...to })),
     replaced: (to, by) => Effect.sync(() => void replaced.push({ ...to, by })),
     reread: () => {},
     send: () => elsewhere,
@@ -1915,7 +1925,11 @@ test("a chat assigned to a bare node lands as one property, and is marked as hav
         // naming one engine and another engine's conversation would be a node
         // agent nobody could open.
         expect(propertyIn(root, "a.olai", "a")).toBe("claude:fake-stored-new")
-        expect(it.assigned).toEqual([{ agent: "claude", session: "fake-stored-new" }])
+        expect(it.assigned).toEqual([{
+          node: "a",
+          agent: "claude",
+          session: "fake-stored-new",
+        }])
       }),
     // NO ROSTER AT ALL is a serve whose vault reading has not arrived, and a
     // node it says nothing about is a node nothing is talking through — which

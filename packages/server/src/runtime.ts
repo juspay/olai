@@ -2208,7 +2208,10 @@ export const bind = (
                 // `teaching.ts`). After the write and never refusing: the
                 // assignment has landed, and a mark that could not be written
                 // costs the migration contract rather than the binding.
-                yield* open.assigned({ agent: input.agent, session: input.session })
+                yield* open.assignedTo(input.node, {
+                  agent: input.agent,
+                  session: input.session,
+                })
               })
             ),
           // ... and the answer to the panel's own question, which opens the

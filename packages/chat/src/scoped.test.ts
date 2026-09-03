@@ -176,6 +176,44 @@ test("boot routes a remembered node session before spawning any panel", async ()
   }
 })
 
+test("boot moves a newly identified node session into its scope", async () => {
+  const node: NodeAgent = {
+    id: "one",
+    file: "Work.olai",
+    title: "one",
+    engine: "alpha",
+    // The fixture returns this id from `session/new`. With no remembered
+    // memory the scheduler cannot know that until the root boot answers.
+    session: "sess-1",
+    memory: 2,
+  }
+  const released: Array<string> = []
+  const chat = await run(make({
+    roster: [installed("alpha")],
+    engines: ["alpha"],
+    cwd,
+    tools: () => null,
+    nodeAt: (id) => id === node.id ? node : null,
+    nodes: () => [node],
+    nearestAt: (id, candidates) => candidates.has(id) ? id : null,
+    agentAt: ({ agent, session }) =>
+      node.engine === agent && node.session === session ? node : null,
+    ticket: (held) => ({ bearer: `ticket-${held}`, release: () => released.push(held) }),
+    onState: () => {},
+    onTranscript: () => {},
+  }))
+
+  try {
+    await run(chat.start)
+    await until("the newly identified session to enter its node scope", () =>
+      chat.state().bound === "one" && chat.live().get("one")?.status === "idle")
+  } finally {
+    await run(chat.stop)
+  }
+
+  expect(released).toEqual(["one"])
+})
+
 test("the cap reaps an idle scope, refuses a busy one, and holds its one-shot wake", async () => {
   let nodes: ReadonlyArray<NodeAgent> = [
     { id: "one", file: "Work.olai", title: "one", engine: "alpha", session: null, memory: 2 },
