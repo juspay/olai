@@ -49,6 +49,7 @@ export {
   type RowReport,
   type RowState,
   rowReport,
+  standing,
 } from "./host.ts"
 export { type AnyKey, type Detach, definePlugin, detached, type Plugin, PluginName } from "./plugin.ts"
 export { type Provision, serviceTag, type ServiceKey } from "./service.ts"

@@ -26,7 +26,7 @@
  */
 
 import { kindWordOf, type PropKind } from "@olai/plugin-api"
-import { definePlugin, Kinds, mountPlugin, openPlugins } from "@olai/plugin-api/services"
+import { definePlugin, Kinds, mountPlugin, openPlugins, standing } from "@olai/plugin-api/services"
 import { expect, test } from "bun:test"
 import { Effect, Scope } from "effect"
 
@@ -65,9 +65,7 @@ const teacher = (name: string, words: ReadonlyArray<PropKind>) =>
 const taught = async (
   teaching: ReadonlyArray<{ readonly name: string; readonly kinds: ReadonlyArray<PropKind> }>,
 ) => {
-  const scope = Scope.makeUnsafe()
-  const run = <A>(work: Effect.Effect<A, never, Scope.Scope>): Promise<A> =>
-    Effect.runPromise(Effect.provideService(work, Scope.Scope, scope))
+  const run = standing()
   const plugins = await run(openPlugins({ vars: {}, now: () => "", served: "/" }))
   const mounted = new Map<string, Awaited<ReturnType<typeof run<{
     readonly report: Effect.Effect<{ readonly state: string; readonly fault?: string }>

@@ -116,5 +116,6 @@ export {
   openApp,
   SLOTS,
   Slots,
+  standing,
   Wired,
 } from "./browser.ts"

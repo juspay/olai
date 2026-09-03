@@ -31,7 +31,17 @@
 import { expect, test } from "bun:test"
 import { Effect, Scope } from "effect"
 
-import { Bar, Clocks, definePlugin, Links, mountPlugin, openApp, Slots, Wired } from "./browser.ts"
+import {
+  Bar,
+  Clocks,
+  definePlugin,
+  Links,
+  mountPlugin,
+  openApp,
+  Slots,
+  standing,
+  Wired,
+} from "./browser.ts"
 
 /** The app's arithmetic, as a double — each answers something recognisable, so a
  *  call that reached the real value is told apart from one that returned a
@@ -60,9 +70,7 @@ const PILL = {
 /** A tab's runtime with the furniture on it, as `@olai/web` opens one. The
  *  Effects run at the EDGE: a case is an ordinary `async` test. */
 const opened = async (changed?: () => void) => {
-  const scope = Scope.makeUnsafe()
-  const run = <A>(work: Effect.Effect<A, never, Scope.Scope>): Promise<A> =>
-    Effect.runPromise(Effect.provideService(work, Scope.Scope, scope))
+  const run = standing()
   const app = await run(openApp({ changed, clientFor: (plugin) => `client:${plugin}` }))
   await run(app.furnish({
     clocks: CLOCKS,

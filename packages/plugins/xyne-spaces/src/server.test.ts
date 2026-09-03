@@ -24,7 +24,7 @@ import { join } from "node:path"
 import { readingOf, setOf } from "@olai/format/testlib"
 import type { ConversationSeen, Deliveries, PluginHeld } from "@olai/plugin-api"
 import type { SpacesLink } from "./wire.ts"
-import { mountPlugin, openPlugins, type Registered } from "@olai/plugin-api/services"
+import { mountPlugin, openPlugins, type Registered, standing } from "@olai/plugin-api/services"
 import { expect, test } from "bun:test"
 import { Effect, Scope } from "effect"
 
@@ -85,9 +85,7 @@ interface Doubles {
  * re-derivation before the statement that published it returns.
  */
 const mounted = async (doubles: Doubles) => {
-  const scope = Scope.makeUnsafe()
-  const run = <A>(work: Effect.Effect<A, never, Scope.Scope>): Promise<A> =>
-    Effect.runPromise(Effect.provideService(work, Scope.Scope, scope))
+  const run = standing()
   const held = doubles.held ?? memoryHeld()
   const plugins = await run(openPlugins({
     vars: doubles.env,

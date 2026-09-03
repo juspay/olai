@@ -12,18 +12,14 @@ import { expect, test } from "bun:test"
 import { Cause, Effect, Exit, Logger, Scope } from "effect"
 
 import { broadcast } from "./broadcast.ts"
+import { standing } from "./host.ts"
 
-/** Run a scoped effect against a scope this case owns. */
-const held = () => {
-  const scope = Scope.makeUnsafe()
-  return <A>(work: Effect.Effect<A, never, Scope.Scope>): Promise<A> =>
-    Effect.runPromise(Effect.provideService(work, Scope.Scope, scope))
-}
+
 
 test("every handler is told, in subscription order, and the caller waits", async () => {
   const said: Array<string> = []
   const bus = broadcast<string>("a toy occasion")
-  const run = held()
+  const run = standing()
   await run(bus.listen("one")((value) => Effect.sync(() => void said.push(`one:${value}`))))
   await run(bus.listen("other")((value) => Effect.sync(() => void said.push(`other:${value}`))))
   await Effect.runPromise(bus.tell("x"))
@@ -34,7 +30,7 @@ test("a handler that dies is contained, and the ones after it still hear", async
   const said: Array<string> = []
   const lines: Array<string> = []
   const bus = broadcast<string>("a toy occasion")
-  const run = held()
+  const run = standing()
   // THE FAILING ONE FIRST: the failure this pins is a loop that stops, so a case
   // with it last would pass over a bus that contains nothing at all.
   await run(bus.listen("thrower")(() => Effect.die(new Error("nope"))))
@@ -80,7 +76,7 @@ test("two handlers that are the same value are two registrations", async () => {
   const said: Array<string> = []
   const bus = broadcast<string>("a toy occasion")
   const same = (): Effect.Effect<void> => Effect.sync(() => void said.push("said"))
-  const run = held()
+  const run = standing()
   await run(bus.listen("one")(same))
   await run(bus.listen("other")(same))
   await Effect.runPromise(bus.tell("x"))

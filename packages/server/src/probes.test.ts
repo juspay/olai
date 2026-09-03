@@ -32,7 +32,13 @@ import { Effect, Scope } from "effect"
 
 import { BUNDLE_NAMES } from "@olai/bundle"
 import type { Probed } from "@olai/plugin-api"
-import { definePlugin, mountPlugin, openPlugins, SessionStart } from "@olai/plugin-api/services"
+import {
+  definePlugin,
+  mountPlugin,
+  openPlugins,
+  SessionStart,
+  standing,
+} from "@olai/plugin-api/services"
 
 import { askingAt } from "./probes.ts"
 
@@ -62,9 +68,7 @@ const asks = (name: string) =>
  *  order two dynamic imports came back in, and the thing every case here is
  *  about. */
 const mounted = async (names: ReadonlyArray<string>) => {
-  const scope = Scope.makeUnsafe()
-  const run = <A>(work: Effect.Effect<A, never, Scope.Scope>): Promise<A> =>
-    Effect.runPromise(Effect.provideService(work, Scope.Scope, scope))
+  const run = standing()
   const plugins = await run(openPlugins({ vars: {}, now: () => "", served: "/" }))
   const each = new Map<string, { readonly dispose: Effect.Effect<void> }>()
   for (const name of names) each.set(name, await run(mountPlugin(plugins.host, asks(name))))

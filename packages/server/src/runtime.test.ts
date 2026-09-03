@@ -37,6 +37,7 @@ import {
   Deliveries as DeliveriesTag,
   mountPlugin,
   openPlugins,
+  standing,
   Surfaces,
   Wakes,
 } from "@olai/plugin-api/services"
@@ -658,13 +659,12 @@ test("a revision that changes no pin sends no frame", () =>
  * second argument, handed in, so a case can say "the flag left it on and nothing
  * mounted" — which is a real state and the one the old derivation could not
  * express.
+ *
+ * ONE for the file rather than one per case, on a `standing` scope: nothing is
+ * mounted on it, so there is nothing for a case to leave behind.
  */
-const EMPTY_PLUGINS: Plugins = Effect.runSync(
-  Effect.provideService(
-    openPlugins({ vars: {}, now: () => STARTED, served: "/tmp" }),
-    Scope.Scope,
-    Scope.makeUnsafe(),
-  ),
+const EMPTY_PLUGINS: Plugins = await standing()(
+  openPlugins({ vars: {}, now: () => STARTED, served: "/tmp" }),
 )
 
 const offering = (
@@ -1175,7 +1175,7 @@ const mounting = (
   doubles: ReadonlyArray<ReturnType<typeof doubleCalled>>,
   chat: () => Chat | null,
   onChange: { run: () => void },
-): Effect.Effect<Plugins> =>
+): Effect.Effect<Plugins, never, Scope.Scope> =>
   Effect.gen(function*() {
     const plugins = yield* openPlugins({
       vars: {},
@@ -1187,7 +1187,7 @@ const mounting = (
     })
     for (const one of doubles) yield* mountPlugin(plugins.host, one.plugin)
     return plugins
-  }).pipe(Effect.provideService(Scope.Scope, Scope.makeUnsafe()))
+  })
 
 /** The one conversation every case below is about — a PAIR, because a session
  *  id means nothing to the wrong agent (`@olai/chat`'s `scopes.ts`). */

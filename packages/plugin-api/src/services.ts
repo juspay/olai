@@ -91,6 +91,7 @@ import {
   provide,
   registry,
   serviceTag,
+  standing,
   waterfall,
 } from "@olai/effect-cordis"
 import { Effect, Scope } from "effect"
@@ -112,7 +113,7 @@ import {
  *  is the one thing the bridge exists to stop being true. What it imports is
  *  olai's interface; that the interface is built on a translation of Cordis is
  *  this file's business and nobody else's. */
-export { definePlugin, type Detach, detached, type Plugin, PluginName, serviceTag }
+export { definePlugin, type Detach, detached, type Plugin, PluginName, serviceTag, standing }
 
 /**
  * WHAT THE PROCESS CAN SEE, plus the one seam a test fills.

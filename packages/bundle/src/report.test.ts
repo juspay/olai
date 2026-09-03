@@ -30,7 +30,13 @@
  * on which machine it ran on.
  */
 
-import { definePlugin, mountPlugin, openPlugins, serviceTag } from "@olai/plugin-api/services"
+import {
+  definePlugin,
+  mountPlugin,
+  openPlugins,
+  serviceTag,
+  standing,
+} from "@olai/plugin-api/services"
 import { expect, test } from "bun:test"
 import { Effect, Scope } from "effect"
 
@@ -53,9 +59,7 @@ const NOBODY_PROVIDES = serviceTag<{ readonly nothing: true }>("nothingProvidesT
 const mounted = async (
   plugins: ReadonlyArray<Parameters<typeof mountPlugin>[1]>,
 ): Promise<ReadonlyMap<string, { readonly state: string; readonly fault?: string }>> => {
-  const scope = Scope.makeUnsafe()
-  const run = <A>(work: Effect.Effect<A, never, Scope.Scope>): Promise<A> =>
-    Effect.runPromise(Effect.provideService(work, Scope.Scope, scope))
+  const run = standing()
   const opened = await run(openPlugins({ vars: {}, now: () => "", served: "/" }))
   for (const plugin of plugins) await run(mountPlugin(opened.host, plugin))
   return run(reportBundle(opened.host))

@@ -94,6 +94,7 @@ import {
   registry,
   type Registry,
   serviceTag,
+  standing,
 } from "@olai/effect-cordis"
 import { Effect, Scope } from "effect"
 
@@ -111,7 +112,7 @@ import type {
 
 /** WHAT A BROWSER HALF IS WRITTEN WITH, re-exported so it opens ONE door — the
  *  same argument `./services.ts` makes for the server's. */
-export { definePlugin, mountPlugin }
+export { definePlugin, mountPlugin, standing }
 export type { Host }
 
 /**

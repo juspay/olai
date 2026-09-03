@@ -57,8 +57,9 @@ import {
   openApp,
   type PluginSlot,
   type SlotFaces,
+  standing,
 } from "@olai/plugin-api"
-import { Effect, Scope } from "effect"
+import type { Effect } from "effect"
 import { createSignal } from "solid-js"
 
 /** WHEN A FACE ARRIVED OR LEFT — the one signal every slot read is tracked
@@ -76,13 +77,12 @@ let clients: ((plugin: string) => unknown) | null = null
 /** ...told by {@link composeTo}, which is the only thing that may set it —
  *  see that function on why the two are one act. */
 
-/** THE PAGE'S SCOPE, and the one place an Effect is run from a module that is
- *  not one. A tab has no shutdown short of the page going away, so the scope is
- *  never closed — what it is FOR is that every registration a plugin makes hangs
- *  off it and unwinds when that plugin is dropped. */
-const scope = Scope.makeUnsafe()
-const run = <A>(work: Effect.Effect<A, never, Scope.Scope>): Promise<A> =>
-  Effect.runPromise(Effect.provideService(work, Scope.Scope, scope))
+/** THE PAGE'S RUNTIME, and the one place an Effect is run from a module that
+ *  is not one. A tab has no shutdown short of the page going away, so the scope
+ *  behind this is never closed — what it is FOR is that every registration a
+ *  plugin makes hangs off ITS OWN scope, inside this one, and unwinds when that
+ *  plugin is dropped (`@olai/effect-cordis`'s `standing`). */
+const run = standing()
 
 /**
  * THE RUNTIME ITSELF, exported so `./furniture.tsx` can hang the app's three
