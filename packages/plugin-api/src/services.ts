@@ -200,14 +200,29 @@ export interface Vault {
    * INFERRED from the handler's own signature and written in the plugin's own
    * file, which is where a reader looking for what this half reads would go.
    *
-   * It was `unknown`, and every plugin opened its handler with the same
-   * `snapshot as VaultRevision` under a paragraph claiming the compiler checked
-   * it — three casts, three copies of the claim, and `as` is the one thing that
-   * is not checked. This is exactly as unsound as the cast it replaces and no
-   * more; what changes is that the unsoundness is in ONE place and the prose is
-   * true. The sound version is a schema the root supplies and each half decodes,
-   * which is a decode that can FAIL and so is a behaviour change, not this
-   * phase's.
+   * ## THE ANNOTATION IS A CLAIM, NOT A CHECK. Say it plainly.
+   *
+   * `A` is free — the CALLER picks it — so nothing holds a handler's parameter
+   * type against what the root actually rings, and the provision below satisfies
+   * this signature with one `as`. A half that named a field the snapshot does
+   * not carry would compile and read `undefined` at runtime, exactly as it would
+   * have through the cast this replaced.
+   *
+   * What changed is the count and the honesty, not the soundness. It was
+   * `unknown`, and all three halves opened with the same `snapshot as
+   * VaultRevision` under a paragraph saying the compiler had checked it: three
+   * casts and three copies of a false sentence. There is one `as` now, in the
+   * provision, and the plugins' paragraphs say what they are doing.
+   *
+   * A CHECKED version needs a type both ends can spell, and the shape is
+   * `@olai/format`'s (`OutlineSet`, `Derived`) — which this package refuses as a
+   * dependency for the reason its manifest gives: the kind table travels as
+   * DATA, and a floor package importing the vocabulary would be the format
+   * learning what a terminal is. Naming the fields structurally instead would
+   * not help, because `derived: unknown` is not assignable to `derived: Derived`
+   * and every half would be back to a cast. The sound version is a schema the
+   * root supplies and each half DECODES, which can fail and so is a behaviour
+   * change rather than a signature.
    */
   readonly revision: <A>(
     handler: (snapshot: A) => Effect.Effect<void>,
@@ -606,6 +621,11 @@ export const openPlugins = (
       // under a paragraph saying the compiler had checked it. The bus carries a
       // whole published snapshot; what a half names is the part of it that half
       // touches, and that narrowing is inferred from the handler it hands over.
+      //
+      // THIS IS WHERE THE UNSOUNDNESS LIVES, and the interface says so above it
+      // rather than leaving a reader to find this line: `A` is the caller's to
+      // pick, so a half's parameter type is a claim about what the root rings
+      // and this `as` is what lets the two meet.
       revision: revisions.listen(plugin) as Vault["revision"],
       // The other door takes no value, so a plugin hands over the Effect itself
       // rather than a function of nothing.

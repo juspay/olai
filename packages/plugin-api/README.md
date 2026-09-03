@@ -65,7 +65,7 @@ Three properties fall out of that, and none of them is a convenience.
 
 | hook | mode | what it replaced |
 | --- | --- | --- |
-| `vault.revision(handler)` | door | `PluginServer.revision(snapshot)`. The whole published snapshot; every listener narrows it in its own signature to the part it reads |
+| `vault.revision(handler)` | door | `PluginServer.revision(snapshot)`. The whole published snapshot; every listener narrows it in its own signature to the part it reads — a CLAIM about what the root rings rather than a check, because the door's payload is the handler's to name (one `as` in the provision, where three casts in three plugins used to be; `src/services.ts` argues what a checked one would cost) |
 | `vault.unloaded(handler)` | door | `PluginServer.unloaded()`. **Not teardown** — it means the STORE has never published, so a reading derived from the vault is yesterday's while what a plugin holds from its own daemon is untouched. Unloading the PLUGIN is its scope closing, which unwinds every registration above |
 | `SessionStart` | waterfall (Effect middleware) | `PluginServerHalf.probe`. A listener pushes a THUNK — its name and what it would ask — and the list is collected per session open, so a plugin that unloaded between conversations contributes nothing to the next one |
 

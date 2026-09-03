@@ -324,7 +324,10 @@ export default definePlugin({
      * THE PAYLOAD IS NARROWED HERE, in this plugin's own signature: core rings
      * the whole published snapshot and {@link VaultRevision} names the parts
      * this half touches. The door is generic in its payload, so that signature
-     * IS the narrowing — inferred, rather than asserted inside the handler.
+     * IS the narrowing — inferred, rather than asserted inside the handler, and
+     * a CLAIM rather than a check: the payload type is the caller's to pick, so
+     * nothing holds this line against what the root publishes (the door's own
+     * paragraph argues why a checked one needs a schema and a decode).
      *
      * ## THE RE-DERIVE IS THE HANDLER; THE FAULT IS DETACHED
      *

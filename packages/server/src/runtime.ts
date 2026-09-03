@@ -1706,9 +1706,11 @@ export const bind = (
                   // served file its own convention names, the other hands its
                   // walk the whole derivation because the question it asks
                   // includes what the vault DECLARES. Each narrows the argument
-                  // in its own signature, which is a claim the compiler checks;
-                  // a hook per plugin here would be this file knowing what each
-                  // of them reads.
+                  // in its own signature — a claim that half makes about what
+                  // this line rings and not one the compiler holds it to (the
+                  // vault door's `revision` says why, and where the one `as`
+                  // lives); a hook per plugin here would be this file knowing
+                  // what each of them reads.
                   //
                   // IT COSTS ALMOST NOTHING ON ALMOST EVERY REVISION, and that
                   // is the plugins' own arrangement rather than a promise made

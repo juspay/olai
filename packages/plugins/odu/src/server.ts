@@ -101,9 +101,12 @@ export { wake } from "./wake.ts"
  * ONE REVISION OF THE VAULT, as much of it as this half reads — which is the
  * DERIVATION and nothing else.
  *
- * Narrower than kolu's, and the narrowness is the claim: core passes the whole
- * published snapshot and this type names the one field odu touches, so "each
- * plugin takes what it needs" is checked rather than asserted. The walk it feeds
+ * Narrower than kolu's, and the narrowness is the claim — a claim in the literal
+ * sense, which the vault door spells out: core passes the whole published
+ * snapshot, this type names the one field odu touches, and nothing holds the two
+ * against each other, because the door's payload is the caller's to pick. "Each
+ * plugin takes what it needs" is what this file ASSERTS about odu, and the
+ * assertion is worth making where a reader can check it by eye. The walk it feeds
  * asks TWO things of that one reading — the records, and what the vault DECLARES
  * about the key ({@link ./worktrees.ts} argues why the declaration is what
  * LICENCES a probe) — and both are answered off a memo the validator has already
@@ -359,7 +362,8 @@ export default definePlugin({
      *  the whole published snapshot, and {@link VaultRevision} names the one
      *  field odu touches. "Each plugin takes what it needs" is INFERRED from the
      *  handler below rather than asserted inside it — the door is generic in its
-     *  payload, so this signature IS the narrowing. */
+     *  payload, so this signature IS the narrowing, and it is this half's claim
+     *  about what the root rings rather than something the compiler checks. */
     yield* vault.revision((revision: VaultRevision) =>
       Effect.sync(() => {
         declaring = declarationsOf(revision.value.derived, ownKinds)

@@ -765,6 +765,13 @@ export default definePlugin({
      * the whole published snapshot and {@link VaultRevision} names the parts kolu
      * touches. The door is generic in its payload, so that signature IS the
      * narrowing — inferred from the handler rather than asserted inside it.
+     *
+     * IT IS A CLAIM AND NOT A CHECK, which the door says at length: the payload
+     * type is the caller's to pick, so nothing holds this line against what the
+     * root actually publishes. A field named here that the snapshot does not
+     * carry compiles and reads `undefined`. What the move bought is one `as` in
+     * the door instead of one in each of three halves, not a check that was
+     * never there.
      */
     yield* vault.revision((revision: VaultRevision) =>
       Effect.sync(() => {
