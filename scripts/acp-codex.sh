@@ -9,5 +9,5 @@ if [ -n "${OLAI_ACP_CODEX+set}" ]; then
   exit 0
 fi
 
-out=$(nix build .#codex-agent --no-link --print-out-paths --accept-flake-config)
+out=$(sh "$(dirname "$0")/nix-out.sh" .#codex-agent)
 printf '%s' "$out/bin/codex-acp"
