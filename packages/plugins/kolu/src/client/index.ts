@@ -475,7 +475,7 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
         deps.beating?.(everyMs)
       },
     },
-    { now: () => Date.now(), say: deps.say },
+    { now: () => Date.now(), say: deps.say, warn: deps.warn },
   )
   /** The malformed-set last said, joined for a one-line compare: the vault
    *  re-derives on every keystroke, and saying the same malformed value on

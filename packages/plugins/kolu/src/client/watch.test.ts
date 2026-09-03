@@ -400,9 +400,14 @@ describe("the subscription watcher", () => {
     watch.stop()
   })
 
-  it("a run whose fence settles REJECTED is said once — no interval of ours ever re-fires it", async () => {
+  it("a run whose fence REJECTS is said once, to the owner — no interval of ours ever re-fires it", async () => {
     const seen = collected()
-    const watch = makeWatch(seen.sink, { now: () => EPOCH, say: (line) => seen.said.push(line) })
+    const warned: Array<string> = []
+    const watch = makeWatch(seen.sink, {
+      now: () => EPOCH,
+      say: (line) => seen.said.push(line),
+      warn: (line) => warned.push(line),
+    })
     watch.reconfigure(tiny())
     const refusing = {
       surface: {
@@ -411,10 +416,11 @@ describe("the subscription watcher", () => {
     } as unknown as PadiSurfaceClient
     watch.attach(refusing)
     await sleep(120)
-    // ONE LINE, on the log channel — the pill's amber is the alarm; the
-    // gap's own discipline (kill the dial) is the PR's stated deferral.
-    const ended = seen.said.filter((line) => line.includes("subscription ended"))
-    expect(ended.length).toBe(1)
+    // ONE LINE, on the OWNER's channel — a rejecting `done` is the shape
+    // the framework's own table says a consumer must hear, and the pill's
+    // amber cannot tell it from a quiet capped fleet on purpose. The
+    // kill-the-dial half is the PR's stated deferral.
+    expect(warned.filter((line) => line.includes("subscription ended")).length).toBe(1)
     expect(seen.events.length).toBe(0)
     watch.stop()
   })

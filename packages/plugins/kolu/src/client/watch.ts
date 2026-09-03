@@ -85,11 +85,12 @@
  * states answer a face may keep. The doorbell's filter FILE silences
  * conversations, not the watch.
  *
- * RETRY POLICY of its own for a run that fails its fence and settles: said
- * once on the log channel, and the pill goes amber on schedule. That is a
- * gap the mirror answers for its own members by ending the whole dial;
- * wiring the same kill for the watch's run runs through two more sink
- * verbs and is named in the PR's deferrals instead.
+ * RETRY POLICY of its own for a run that fails its fence and REJECTS:
+ * said once on the OWNER's channel (a dead subscription is not chatter,
+ * which the framework's own G5 table names as the shape a consumer must
+ * hear), and the pill goes amber on schedule. Ending the whole dial for
+ * it — the mirror's own answer for its members — runs through the
+ * composition root and is named in the PR's deferrals instead.
  */
 
 import { watchAgentStates } from "@kolu/padi-client/watch"
@@ -237,7 +238,15 @@ interface Run {
 
 export const makeWatch = (
   sink: WatchSink,
-  options: { readonly now: () => number; readonly say?: (line: string) => void },
+  options: {
+    readonly now: () => number
+    readonly say?: (line: string) => void
+    /** A run ENDED. A subscription that settles (rather than being aborted
+     *  by us) has run out of its own retries — the failure the pill's amber
+     *  is supposed to see, said on the owner's channel rather than the
+     *  trace's. */
+    readonly warn?: (line: string) => void
+  },
 ): Watch => {
   /** The knob set in force. Defaults until the vault's walk reconfigures —
    *  which is also what an absent `_olai/Kolu.olai` reconfigures TO. */
@@ -373,12 +382,16 @@ export const makeWatch = (
       next.controller.signal,
       (line) => options.say?.(line),
     ).then(
+      // Aborted is teardown, not news — the framework's own rule (its G5
+      // table: interruption is silent by design).
       () => {},
       // THE FENCE'S OWN LAST RESORT. `mirrorRemoteSurface` retries a dead
-      // subscription and re-leads with a snapshot, so a promise that settles
-      // in our hands has run out of options of its own — one log line, and
-      // the pill's amber says the rest: no interval of ours ever re-fires.
-      (err) => options.say?.(`kolu watch: the subscription ended (${String(err)})`),
+      // subscription and re-leads with a snapshot, so a promise that
+      // REJECTS in our hands has run out of options of its own — that is
+      // the failure the pill's amber-face tie with a quiet fleet cannot
+      // spell, so it goes to the owner's channel, not the trace's: one
+      // warning, and no interval of ours ever re-fires.
+      (err) => options.warn?.(`kolu watch: the subscription ended (${String(err)})`),
     )
   }
 
