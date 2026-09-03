@@ -62,9 +62,14 @@ export { BROWSER_ROWS } from "./rows.generated.ts"
  * server half has had since the bundle became rows — and the reason a face no
  * longer takes the app's furniture as a prop.
  *
- * `name` is the row's `id` and the sibling key; the plugin is bound under it, so
- * it is the stamp the slot table and the client lookup are minted from — never
- * anything a caller supplies.
+ * THE NAME IS THE PLUGIN'S AND THERE IS ONE OF IT. `default.name` is the row's
+ * `id` and the sibling key; the plugin is bound under it, so it is the stamp the
+ * slot table and the client lookup are minted from — never anything a caller
+ * supplies. This interface carried a SECOND `name` beside it for one round, and
+ * the two had to agree: the tab keyed its sibling clients and its mount table by
+ * the outer one while the runtime bound the plugin under the inner one, so
+ * `Wired.client()` answering a real client rested on an equality nothing checked
+ * and no type expressed. One name, and the question cannot be asked.
  *
  * `surface` is the same value the server half serves, and it is here because the
  * tab has to DIAL this sibling before its faces can read anything. That is why
@@ -72,7 +77,6 @@ export { BROWSER_ROWS } from "./rows.generated.ts"
  * both dials and mounts, in one fetch.
  */
 export interface BrowserHalf {
-  readonly name: string
   readonly surface: { readonly spec: unknown }
   readonly default: Plugin
 }

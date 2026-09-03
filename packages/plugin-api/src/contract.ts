@@ -248,17 +248,6 @@ export type ConversationSeen =
   }
 
 /**
- * THE WATCHING BUS — subscribe to {@link ConversationSeen}, get an unsubscribe.
- *
- * Fire-and-forget on the plugin's side: the handler is a sink, like
- * {@link Deliveries.deliver}. Core does not wait for whatever the plugin
- * does with the event.
- */
-export interface Watching {
-  readonly subscribe: (handler: (event: ConversationSeen) => void) => () => void
-}
-
-/**
  * ONE GENERIC CAPABILITY: DELIVER A MESSAGE INTO A CONVERSATION — the whole of
  * what core grows so that a plugin can ring a doorbell.
  *

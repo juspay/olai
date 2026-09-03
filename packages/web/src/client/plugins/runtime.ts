@@ -142,7 +142,7 @@ export const composeTo = async (
   clientFor: (plugin: string) => unknown,
 ): Promise<void> => {
   clients = clientFor
-  const wanted = new Map(halves.map((half) => [half.name, half] as const))
+  const wanted = new Map(halves.map((half) => [half.default.name, half] as const))
   // OUT FIRST, so a plugin that left has unwound its registrations before a
   // plugin that arrived can claim a key it was holding. The two orders differ
   // only for a kind word two plugins could both claim, which the loader already

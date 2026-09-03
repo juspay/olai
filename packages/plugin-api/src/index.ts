@@ -76,7 +76,6 @@ export type {
   PropKind,
   StdioServer,
   Wake,
-  Watching,
 } from "./contract.ts"
 export { exposeMapsOf, KIND_SEPARATOR, kindWordOf, surfacesOf } from "./contract.ts"
 export type {

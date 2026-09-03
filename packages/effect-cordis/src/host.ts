@@ -157,13 +157,23 @@ export const mountPlugin = (host: Host, plugin: Plugin): Effect.Effect<Mounted> 
  */
 export type RowState = "running" | "waiting" | "failed" | "off"
 
-/** One row's state, and the plugin's own words if its start threw. */
-export interface RowReport {
-  readonly state: RowState
-  /** VERBATIM, and only on `failed` — what the plugin threw, with nothing
-   *  composed around it. Absent where it threw something with no message. */
-  readonly fault?: string
-}
+/**
+ * One row's state, and the plugin's own words if its start failed.
+ *
+ * A UNION AND NOT A PRODUCT, because `fault`'s validity has a precondition on
+ * `state` and a doc sentence is not a type. It was `{ state; fault?: string }`,
+ * which made `{ state: "running", fault: "…" }` constructible and left every
+ * consumer keeping the rule by hand — the shape where each field reads honest
+ * alone and the lie lives in the joint distribution. The dependent fact exists
+ * only on the arm that grounds it now, and `reportOf` below already built
+ * exactly these two shapes.
+ *
+ * VERBATIM on that arm — what the plugin threw, with nothing composed around it.
+ * Absent where it threw something with no message.
+ */
+export type RowReport =
+  | { readonly state: Exclude<RowState, "failed"> }
+  | { readonly state: "failed"; readonly fault?: string }
 
 /**
  * EVERY NAMED ROW'S STATE, off the live registry.

@@ -242,10 +242,7 @@ export const Vault = serviceTag<Vault>("vault")
  * and `deliver` is a no-op, which is the honest machine-without-the-tool state
  * and needs no failure channel on a verb that cannot fail.
  */
-export interface Deliveries {
-  readonly scopes: () => ReturnType<DeliveryDoor["scopes"]>
-  readonly deliver: (...args: Parameters<DeliveryDoor["deliver"]>) => Effect.Effect<void>
-}
+export interface Deliveries extends DeliveryDoor {}
 export const Deliveries = serviceTag<Deliveries>("deliveries")
 
 /**
@@ -753,6 +750,5 @@ export type {
   PropKind,
   StdioServer,
   Wake,
-  Watching as WatchingDoor,
 } from "./contract.ts"
 export { exposeMapsOf, kindWordOf, surfacesOf } from "./contract.ts"

@@ -705,14 +705,19 @@ const stateOf = (
       // THE LOADER DECLINED TO LOAD IT, and `pinned` is the only thing left
       // that can say who wrote the `disabled` it declined on.
       return { state: offered.pinned === null ? "optIn" : "off" }
-    default:
-      // `running` in the snapshot and absent from the live reading: a fiber
-      // that is ACTIVE and registered no sibling surface. Somebody asked for
-      // it and it did load, so it is not `optIn`; nothing of it reached the
-      // wire, so it is not `running` either. `off` is the honest word, and it
-      // is the one every other absence already wears.
+    case "running":
+      // `running` in the snapshot and absent from the live reading: a plugin
+      // that started and registered no sibling surface. Somebody asked for it
+      // and it did load, so it is not `optIn`; nothing of it reached the wire,
+      // so it is not `running` either. `off` is the honest word, and it is the
+      // one every other absence already wears.
       return { state: "off" }
   }
+  // NO `default` ARM, and that is the guard rather than an omission: the four
+  // words are `@olai/effect-cordis`'s `RowState`, and a catch-all here would
+  // absorb a fifth added upstream into `off` in silence — which is the exact
+  // failure `@olai/surface`'s own `STATES` array is written to prevent one wall
+  // over. Without one, a fifth word is a `tsc` error on this function.
 }
 
 /** One of those, as `implementSurface` wants it. A bound member is called with
