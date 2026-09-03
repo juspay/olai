@@ -17,7 +17,9 @@
 #
 # Building on demand rather than in shell.nix is the other half: the dev shell
 # is entered by every recipe and its cold `nix develop` is deliberately about a
-# second, which an adapter closure in its inputs would end.
+# second, which an adapter closure in its inputs would end. stdout is the path
+# the recipe captures; scripts/nix-out.sh names the `nix build` on stderr so a
+# cold `just run` is not a spinner with no subject.
 set -eu
 
 if [ -n "${OLAI_ACP_AGENT+set}" ]; then
@@ -25,5 +27,5 @@ if [ -n "${OLAI_ACP_AGENT+set}" ]; then
   exit 0
 fi
 
-out=$(nix build .#acp-agent --no-link --print-out-paths --accept-flake-config)
+out=$(sh "$(dirname "$0")/nix-out.sh" .#acp-agent)
 printf '%s' "$out/bin/claude-agent-acp"
