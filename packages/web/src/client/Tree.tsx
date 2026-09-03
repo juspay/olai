@@ -825,7 +825,15 @@ function Branch(props: {
                   // preference, arriving as the one thing it means here.
                   preview={showsPreview(density())}
                   onToggle={note.toggle}
-                  onEdit={() => editor.open(props.row, "desc")}
+                  // The caret, where the clamp's words were clicked; a press
+                  // in the rendered body's pane has none, which is the end.
+                  onEdit={(caret) =>
+                    editor.open(
+                      props.row,
+                      "desc",
+                      caret === undefined ? undefined : { caret },
+                    )}
+
                   // The `×` on a `see` link the expanded note draws — one op,
                   // `set_see`'s own removal, through the row's own edge editing
                   // so a refusal lands in the same line the panel's writes use.
@@ -850,6 +858,7 @@ function Branch(props: {
               {(draft) => (
                 <DescEditor
                   text={draft().text}
+                  caret={draft().caret}
                   onInput={editor.type}
                   onKey={keyHandler("block", editor.press)}
                   onBlur={(left) => editor.blur({ row: props.row.at.node.id, field: "desc" }, left)}

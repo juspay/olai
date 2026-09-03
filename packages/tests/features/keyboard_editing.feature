@@ -340,6 +340,25 @@ Feature: Keyboard editing
     # always been the body.
     And the row "order" is folded
 
+  Scenario: A click on a note's clamped line measures the caret the way a title's click does
+    # The door the pilcrow's was one click longer than it needed to be: the
+    # line itself holds the words the note opens with, so the click is
+    # measured against THEM — the same question a title's click has answered
+    # since #475 — and the caret lands where the finger pointed, not at the
+    # end of the source.
+    When I click the note of "order" near its end
+    Then the note of "order" is being typed
+    And the note being typed holds the source of "order"
+    And the note's caret is at offset 15
+    # The same measurement, the other end of the line — and no click through
+    # the open state in between, which is the whole deal.
+    When I press "Escape"
+    And I click the note of "order" near its start
+    Then the note of "order" is being typed
+    And the note's caret is at offset 0
+    When I press "Escape"
+    Then there should be no page errors
+
   Scenario: Shift+Enter writes the note, and the rendering comes back
     When I click the title of "handles"
     And I press "Shift+Enter"

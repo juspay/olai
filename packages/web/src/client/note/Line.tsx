@@ -14,10 +14,14 @@
  * nothing fails over — a clamp or a tone changed in one and not the other,
  * invisible from either file.
  *
- * IT IS A BUTTON, and pressing it opens the note. A clamped line is not
- * something anybody can type into, so the caret belongs to the click after this
- * one; the press STOPS, because the cell above it is the title's click-to-edit
- * target (../NodeLine.tsx).
+ * IT IS A BUTTON, and pressing it opens where the finger named. A clamped
+ * line is not something anybody can type into, but it IS the note's own words
+ * drawn one to a character, so the click is measured against them the way the
+ * title's click has been since #475 (../edit/point.ts) and the number rides
+ * the gesture — where the line's words are not what was read (an excerpt's
+ * are: the button fills its pane), the measurement in the caller's hands says
+ * go to the end, the door's old answer. The press STOPS, because the cell
+ * above it is the title's click-to-edit target (../NodeLine.tsx).
  *
  * SOLID ELEMENTS, not `innerHTML`, which is why a note's hit is cheaper to draw
  * than a title's: a title reaches the page as an HTML string and every
@@ -28,6 +32,7 @@
 
 import { Index } from "solid-js"
 
+import { offsetAt, widthIn } from "../edit/point.ts"
 import { HIT_CLASS, type Run } from "../filter/lit.ts"
 import { TESTID } from "../testids.ts"
 import { ROW_NOTE } from "../touch.ts"
@@ -43,8 +48,11 @@ export function NoteLine(props: {
    *  two different things for a scenario to ask. */
   readonly hit?: boolean
   /** Open the note — the pilcrow's gesture, from the other end of it. Absent
-   *  wherever the row draws no open state. */
-  readonly onOpen?: () => void
+   *  wherever the row draws no open state. `at` is the click measured in the
+   *  line's own characters (`../edit/point.ts`'s arithmetic); past the drawn
+   *  words it is `undefined`, which is the caller's old gesture — the same
+   *  answer the title's click made of its filler. */
+  readonly onOpen?: (at: number | undefined) => void
 }) {
   return (
     <button
@@ -56,7 +64,15 @@ export function NoteLine(props: {
       title="show the full note"
       onClick={(event) => {
         event.stopPropagation()
-        props.onOpen?.()
+        const host = event.currentTarget
+        const rect = host.getBoundingClientRect()
+        const at = offsetAt(
+          props.runs.map((run) => run.text).join(""),
+          { left: rect.left, width: rect.width },
+          event.clientX,
+          widthIn(host),
+        )
+        props.onOpen?.(at)
       }}
     >
       {/* `Index` rather than `For`: the runs are a fresh array of fresh objects

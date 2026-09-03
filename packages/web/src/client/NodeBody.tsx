@@ -79,7 +79,7 @@ import { AgentDoor } from "./agents/Door.tsx"
 import { DocRef } from "./document/DocRef.tsx"
 import { excerptOf } from "./note/excerpt.ts"
 import { NoteLine } from "./note/Line.tsx"
-import { plainLine } from "./note/preview.ts"
+import { measuredAt, plainLine } from "./note/preview.ts"
 import { Note } from "./Note.tsx"
 import { customEntries, drawerEntries } from "./props/drawer.ts"
 import { PropsDrawer, type SetProp } from "./props/PropsDrawer.tsx"
@@ -113,10 +113,13 @@ export function NodeBody(props: {
    * over it is the caller's fact.
    */
   readonly noteHit?: ReadonlyArray<string>
-  /** Click/tap the open note to put the CARET in it: absent wherever a node is
+  /** Click/tap the note — the open body, or the clamped line's own words —
+   *  to put the CARET in it. `caret` is where the finger's word maps into the
+   *  source (`./note/preview.ts`'s walk), absent when the click was in the
+   *  rendered body's pane, which is "the end". Absent wherever a node is
    *  drawn read-only (a day page), which is the same rule `NodeLine.onEdit`
    *  follows for the title. */
-  readonly onEdit?: () => void
+  readonly onEdit?: (caret?: number) => void
   /** Drop one of the node's `see` targets — the `×` beside each link
    *  (./NodeRefs.tsx), sent by whoever owns this node's edge editing
    *  (./edges/editing.tsx). ABSENT wherever the node is drawn read-only, which
@@ -201,7 +204,26 @@ export function NodeBody(props: {
               and the pilcrow says it all. */}
           <Show when={!open() ? line() : undefined}>
             {(one) => (
-              <NoteLine runs={one().runs} hit={one().hit} onOpen={props.onToggle} />
+              <NoteLine
+                runs={one().runs}
+                hit={one().hit}
+                onOpen={(at) => {
+                  // The clamp's words are the note's own first line — a
+                  // measured click on them is one click to the caret at the
+                  // word, the pilcrow's two-click answer retired. The excerpt
+                  // the filter draws keeps the old gesture: its runs fold
+                  // whitespace (`./note/excerpt.ts`), so its characters no
+                  // longer name the note's.
+                  if (
+                    at !== undefined && !one().hit &&
+                    props.onEdit !== undefined
+                  ) {
+                    props.onEdit(measuredAt(props.shows.node.desc ?? "", at))
+                    return
+                  }
+                  props.onToggle?.()
+                }}
+              />
             )}
           </Show>
 

@@ -447,6 +447,23 @@ Then(
   },
 );
 
+Then(
+  "the note's caret is at offset {int}",
+  async function (this: OlaiWorld, offset: number) {
+    // The same promise as the title's `the caret is at offset` — the click
+    // measured the place under the finger, and the caret is expected AT it,
+    // not at the end of the source.
+    const editor = this.page.locator(DESC_EDITOR).first();
+    await this.waitUntil(
+      async () =>
+        (await editor.evaluate(
+          (element) => (element as HTMLTextAreaElement).selectionStart,
+        )) === offset,
+      `the note's caret to be at offset ${offset}`,
+    );
+  },
+);
+
 Then("no row is being edited", async function (this: OlaiWorld) {
   // The same question `Escape` is waited on with, asked as a promise — one
   // spelling of "a page with no caret in a row", which is the state ⌘Z is
