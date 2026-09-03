@@ -75,9 +75,18 @@ export { BROWSER_ROWS } from "./rows.generated.ts"
  * tab has to DIAL this sibling before its faces can read anything. That is why
  * the browser half is one chunk rather than two: what the roster names, the tab
  * both dials and mounts, in one fetch.
+ *
+ * IT IS OPTIONAL, and the absent arm is a whole kind of plugin rather than an
+ * unfinished one. An ENGINE composes no sibling surface at all: what an engine
+ * contributes to the tab is a row of the chat panel's picker, a name in the
+ * header and a sentence on the no-agent face, and every one of those already
+ * travels on the chat cell, which is CORE'S. A second surface under
+ * `surface/claude/` saying the same thing would be one fact on the wire twice.
+ * So such a half is MOUNTED and never DIALLED, and `@olai/web`'s `wire.ts`
+ * leaves it out of the sibling map it redials with.
  */
 export interface BrowserHalf {
-  readonly surface: { readonly spec: unknown }
+  readonly surface?: { readonly spec: unknown }
   readonly default: Plugin
 }
 

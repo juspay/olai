@@ -1077,7 +1077,7 @@ Feature: Talking to the agent
     # olai in it; before this feature it was unreachable, because nothing ever
     # sent a mid-turn prompt on this leg. Which pins that has been measured
     # against, and the second trigger this latch does NOT cover, are in
-    # `acp/patches/README.md` — named here rather than restated, because a
+    # `packages/plugins/claude/acp/patches/README.md` — named here rather than restated, because a
     # version number in a scenario is one more copy to re-check per bump.
     #
     # So the panel stops offering what it cannot make end. The cost is real and
@@ -1912,7 +1912,7 @@ Feature: Talking to the agent
     # Half of the fix is one layer down: the adapter used to complete such a
     # call at LAUNCH, reading the acknowledgement as the result, so there was
     # nothing on the wire for any of this to be drawn from
-    # (`acp/patches/README.md`).
+    # (`packages/plugins/claude/acp/patches/README.md`).
     When I ask the agent "watch"
     Then the chat says a background task is watching "kolu fleet watch"
     And the chat says that task is still running

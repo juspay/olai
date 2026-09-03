@@ -3,7 +3,7 @@
  *
  * The protocol tells you a call's DISPLAY title and nothing else. Two things
  * this panel needs are said somewhere else entirely — in whatever corner of a
- * frame this agent's leg reads them out of ({@link ./agents/leg.ts}) — and both
+ * frame this agent's leg reads them out of (`@olai/acp/engine`'s `Leg`) — and both
  * are needed at a moment when the frame that carried them has already gone
  * past:
  *
@@ -22,7 +22,7 @@
  * remembers both. It is true of the other agent too, for its own reason: an
  * opencode permission request names the call it is about by the same id the
  * announcement carried, and that id is where the tool's name is
- * ({@link ./agents/opencode.ts}).
+ * (`olai-plugin-opencode`'s `leg.ts`).
  *
  * ONE RULE: **a frame refines, never retracts.** The facts arrive across
  * frames and each carries what it knows — a subagent's terminal output arrives
@@ -48,12 +48,12 @@
  * one worth asserting over values.
  *
  * It knows nothing about ACP. What a frame MEANS is the LEG's
- * ({@link ./agents/leg.ts}) — handed in at construction, because which agent
+ * (`@olai/acp/engine`'s `Leg`) — handed in at construction, because which agent
  * this conversation is with is decided per conversation now — and what to do
  * with the answer is the caller's; this owns only the remembering.
  */
 
-import type { Leg, Meta } from "./agents/leg.ts"
+import type { Leg, Meta } from "@olai/acp/engine"
 
 /**
  * What is known about one call.
@@ -85,7 +85,7 @@ const NOTHING: Said = Object.freeze({})
  *  nothing is read from costs nothing to read.
  *
  *  WHAT THE ID SAYS IS NOT READ HERE, and that is the whole reason the leg has
- *  two readers for one question ({@link ./agents/leg.ts}): this is the
+ *  two readers for one question (`@olai/acp/engine`'s `Leg`): this is the
  *  remembering, and a name that is in the key needs none. Read here, an agent
  *  that names its tools in the call id would make every frame of every call
  *  news — a slice, two objects and a map write apiece, on the one path that

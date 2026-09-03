@@ -28,8 +28,8 @@ import { KEEP_FOR_MS, type Listings, make, type Where } from "./listings.ts"
 const rowFor = (id: string): Installed =>
   ({ id, name: id, adapter: { command: id, args: [] }, leg: {} } as unknown as Installed)
 
-const CLAUDE = rowFor("claude")
-const OPENCODE = rowFor("opencode")
+const ONE = rowFor("one")
+const OTHER = rowFor("other")
 
 const stored = (
   id: string,
@@ -63,7 +63,7 @@ const asking = (
   // known distance apart rather than a moment anybody reads back.
   const time = clock(1_000)
   const built: Where = {
-    roster: where.roster ?? [CLAUDE, OPENCODE],
+    roster: where.roster ?? [ONE, OTHER],
     running: where.running ?? (() => null),
     aside: where.aside ?? ((row) => {
       // The whole round trip, so a test can say whether the process was still
@@ -87,16 +87,16 @@ describe("asking every installed agent", () => {
   test("both of them, and each row says whose it is", async () => {
     const { where } = asking({
       answers: {
-        claude: [stored("cc", "2026-08-01T00:00:00Z")],
-        opencode: [stored("oc", "2026-08-22T00:00:00Z")],
+        one: [stored("cc", "2026-08-01T00:00:00Z")],
+        other: [stored("oc", "2026-08-22T00:00:00Z")],
       },
     })
     const listings = await Effect.runPromise(make(where))
     const listed = await listOf(listings)
     // Newest first, across agents — one history rather than two piles.
     expect(listed.sessions.map((row) => [row.id, row.agent])).toEqual([
-      ["oc", "opencode"],
-      ["cc", "claude"],
+      ["oc", "other"],
+      ["cc", "one"],
     ])
     expect(listed.unreachable).toEqual([])
   })
@@ -106,7 +106,7 @@ describe("asking every installed agent", () => {
     // half — the projection must drop neither.
     const { where } = asking({
       answers: {
-        claude: [
+        one: [
           stored("older", "2026-08-01T00:00:00Z", { messageCount: 47, supersededBy: "newer" }),
           stored("newer", "2026-08-02T00:00:00Z", { messageCount: 3 }),
         ],
@@ -125,8 +125,8 @@ describe("asking every installed agent", () => {
     // as "just now" would put it over every conversation that did say.
     const { where } = asking({
       answers: {
-        claude: [stored("undated", null)],
-        opencode: [stored("dated", "2026-08-01T00:00:00Z")],
+        one: [stored("undated", null)],
+        other: [stored("dated", "2026-08-01T00:00:00Z")],
       },
     })
     const listed = await listOf(await Effect.runPromise(make(where)))
@@ -137,9 +137,9 @@ describe("asking every installed agent", () => {
     // Asking it costs one round trip, and its list is the one most likely to
     // have just changed — this conversation is in it.
     const { where, running } = asking({
-      answers: { opencode: [stored("oc", null)] },
+      answers: { other: [stored("oc", null)] },
       running: (row) =>
-        row.id === "claude" ? Effect.succeed([stored("live", null)]) : null,
+        row.id === "one" ? Effect.succeed([stored("live", null)]) : null,
     })
     const listed = await listOf(await Effect.runPromise(make(where)))
     expect(listed.sessions.map((row) => row.id)).toEqual(["live", "oc"])
@@ -149,23 +149,23 @@ describe("asking every installed agent", () => {
 
 describe("what an answer is worth", () => {
   test("an agent that had to be STARTED is not started again for a while", async () => {
-    const { where, asked, time } = asking({ answers: { claude: [stored("cc", null)] } })
+    const { where, asked, time } = asking({ answers: { one: [stored("cc", null)] } })
     const listings = await Effect.runPromise(make(where))
     await listOf(listings)
     await listOf(listings)
-    expect(asked.filter((id) => id === "claude")).toHaveLength(1)
+    expect(asked.filter((id) => id === "one")).toHaveLength(1)
     time.pass(KEEP_FOR_MS)
     await listOf(listings)
     // The list's whole warrant is that the agent's answer is the only one that
-    // is right — a terminal `claude --resume` in this directory changes it.
-    expect(asked.filter((id) => id === "claude")).toHaveLength(2)
+    // is right — a terminal session opened in this directory changes it.
+    expect(asked.filter((id) => id === "one")).toHaveLength(2)
   })
 
   test("AN EMPTY ANSWER IS AN ANSWER", async () => {
     // An agent with no stored conversation has answered as definitely as one
     // with ten. Read as "nothing kept", every open of the picker would pay a
     // handshake to be told the same nothing.
-    const { where, asked } = asking({ answers: { claude: [], opencode: [] } })
+    const { where, asked } = asking({ answers: { one: [], other: [] } })
     const listings = await Effect.runPromise(make(where))
     await listOf(listings)
     await listOf(listings)
@@ -177,7 +177,7 @@ describe("what an answer is worth", () => {
     // whose list this panel is actively changing.
     const { where, asked } = asking({
       answers: {},
-      roster: [CLAUDE],
+      roster: [ONE],
       running: () => Effect.succeed([stored("live", null)]),
     })
     const listings = await Effect.runPromise(make(where))
@@ -190,22 +190,22 @@ describe("what an answer is worth", () => {
     // A cache is only ever wrong in one direction that matters: a list that
     // does not name the conversation you were just in reads as a lost one,
     // which is the complaint this module exists to answer.
-    const { where, asked } = asking({ answers: { claude: [stored("cc", null)] } })
+    const { where, asked } = asking({ answers: { one: [stored("cc", null)] } })
     const listings = await Effect.runPromise(make(where))
     await listOf(listings)
-    listings.forget("claude")
+    listings.forget("one")
     await listOf(listings)
-    expect(asked.filter((id) => id === "claude")).toHaveLength(2)
+    expect(asked.filter((id) => id === "one")).toHaveLength(2)
   })
 
   test("one agent's answer says nothing about another's", async () => {
-    const { where, asked } = asking({ answers: { claude: [stored("cc", null)] } })
+    const { where, asked } = asking({ answers: { one: [stored("cc", null)] } })
     const listings = await Effect.runPromise(make(where))
     await listOf(listings)
-    listings.forget("claude")
+    listings.forget("one")
     await listOf(listings)
-    // opencode was asked once and kept; only claude was asked twice.
-    expect(asked.filter((id) => id === "opencode")).toHaveLength(1)
+    // the other was asked once and kept; only the first was asked twice.
+    expect(asked.filter((id) => id === "other")).toHaveLength(1)
   })
 })
 
@@ -216,8 +216,8 @@ describe("an answer the caller says not to keep", () => {
     // and caching that answer would be caching the list this panel is busy
     // changing — the very thing the bound agent is never cached for.
     const { where, asked } = asking({
-      answers: { claude: [stored("cc", null)] },
-      roster: [CLAUDE],
+      answers: { one: [stored("cc", null)] },
+      roster: [ONE],
       aside: (row) =>
         Effect.map(
           Effect.suspend(() => {
@@ -230,7 +230,7 @@ describe("an answer the caller says not to keep", () => {
     const listings = await Effect.runPromise(make(where))
     expect((await listOf(listings)).sessions.map((row) => row.id)).toEqual(["cc"])
     await listOf(listings)
-    expect(asked.filter((id) => id === "claude")).toHaveLength(2)
+    expect(asked.filter((id) => id === "one")).toHaveLength(2)
   })
 })
 
@@ -240,13 +240,13 @@ describe("an agent that could not be asked", () => {
     // for "we never reached them" is the picker's oldest bug.
     const { where } = asking({
       answers: {
-        claude: new AgentGone({ gone: "unreachable", why: "the conversation store is unreadable" }),
-        opencode: [stored("oc", null)],
+        one: new AgentGone({ gone: "unreachable", why: "the conversation store is unreadable" }),
+        other: [stored("oc", null)],
       },
     })
     const listed = await listOf(await Effect.runPromise(make(where)))
     expect(listed.unreachable).toEqual([
-      { agent: "claude", why: "the conversation store is unreadable" },
+      { agent: "one", why: "the conversation store is unreadable" },
     ])
   })
 
@@ -255,8 +255,8 @@ describe("an agent that could not be asked", () => {
     // a list that vanishes because something else broke.
     const { where } = asking({
       answers: {
-        claude: new AgentGone({ gone: "unreachable", why: "not running" }),
-        opencode: [stored("mine", null)],
+        one: new AgentGone({ gone: "unreachable", why: "not running" }),
+        other: [stored("mine", null)],
       },
     })
     const listed = await listOf(await Effect.runPromise(make(where)))
@@ -267,12 +267,12 @@ describe("an agent that could not be asked", () => {
     // An agent held broken for fifteen seconds is one that stays broken on
     // screen after it has been mended.
     const { where, asked } = asking({
-      answers: { claude: new AgentGone({ gone: "unreachable", why: "not running" }) },
+      answers: { one: new AgentGone({ gone: "unreachable", why: "not running" }) },
     })
     const listings = await Effect.runPromise(make(where))
     await listOf(listings)
     await listOf(listings)
-    expect(asked.filter((id) => id === "claude")).toHaveLength(2)
+    expect(asked.filter((id) => id === "one")).toHaveLength(2)
   })
 
   test("and the one being talked to is named the same way", async () => {
@@ -280,11 +280,11 @@ describe("an agent that could not be asked", () => {
     // call. It is the same sentence about the same subject.
     const { where } = asking({
       answers: {},
-      roster: [CLAUDE],
+      roster: [ONE],
       running: () => Effect.fail(new AgentGone({ gone: "refused", why: "no" })),
     })
     const listed = await listOf(await Effect.runPromise(make(where)))
-    expect(listed.unreachable).toEqual([{ agent: "claude", why: "no" }])
+    expect(listed.unreachable).toEqual([{ agent: "one", why: "no" }])
     expect(listed.sessions).toEqual([])
   })
 })
@@ -296,7 +296,7 @@ describe("what opening the list costs", () => {
     let live = 0
     let most = 0
     const { where } = asking({
-      answers: { claude: [], opencode: [] },
+      answers: { one: [], other: [] },
       aside: () =>
         Effect.gen(function*() {
           most = Math.max(most, ++live)

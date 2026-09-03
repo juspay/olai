@@ -16,60 +16,45 @@
  * installed, and nothing else on the page is affected; this is a capability
  * that is switched off, or one nobody has installed yet, explained where
  * somebody went looking for it.
+ *
+ * ## THE ROWS ARE THE ENGINES' OWN FACES, and that is the phase
+ *
+ * There was a `WHERE_FROM` record here, keyed by a closed `AgentId` union
+ * exported from `@olai/surface`, holding a sentence and a URL for each of the
+ * three engines olai shipped — the other half of a table that package carried
+ * for the names. Both are gone: an engine is a PLUGIN, and
+ * `packages/bundle/src/fence.test.ts` holds as an equality per package that no
+ * general package spells one in code.
+ *
+ * So each row is a face the engine's own browser half hung in
+ * `chat.agent.install` ({@link ../plugins/agents.ts}), and this file draws the
+ * LIST — the item, the mark, the testid a scenario reads. The sentence inside is
+ * the plugin's whole words, the same string its server half registers as its
+ * `missing`, spelled once in that plugin's package.
+ *
+ * IT IS STRICTLY MORE HONEST THAN THE TABLE it replaces, and the reason is the
+ * tab following the roster: this list is the engines this SERVE composed, not
+ * the engines this BUILD has. A serve started `--plugins=opencode,pi` never
+ * fetches the Claude chunk, so no Claude row is drawn — where a compiled-in
+ * record would have gone on offering an engine this serve could not mount, with
+ * nothing in core knowing why.
  */
 
-import { For } from "solid-js"
+import { Dynamic } from "solid-js/web"
+import { For, Show } from "solid-js"
 
-import { AGENTS, type AgentId } from "@olai/surface"
-
+import { installs } from "../plugins/agents.ts"
 import { TESTID } from "../testids.ts"
 import { AgentMark } from "./AgentMark.tsx"
 
-/** The variable, spelled the way the server spells it (`chat/adapter.ts`). One
+/** The variable, spelled the way the server spells it (`@olai/acp/engine`). One
  *  string in two packages that never import each other — but it is a NAME a
  *  person types, not a contract two ends agree on, and the message is worth
  *  nothing if it does not print it. */
 const AGENT_ENV = "OLAI_ACP_AGENT"
 
-/**
- * Where a person GETS each agent olai knows how to talk to.
- *
- * Only the half neither end could answer for the other: the server says which
- * agents are installed and this face is drawn precisely when the answer was
- * NONE, so there is nothing on the wire to draw from — and a URL and a sentence
- * are drawing rather than facts about a machine.
- *
- * KEYED BY `AgentId`, which is what stops it drifting. The ids and the NAMES
- * are the wire's own table (`@olai/surface`'s `AGENTS`, which says why it lives
- * there), so this record is exhaustive by the type checker: a third agent added
- * to the roster stops this file compiling rather than quietly not being
- * mentioned in the one face that explains agents.
- */
-const WHERE_FROM: { readonly [K in AgentId]: { readonly how: string; readonly where: string } } = {
-  claude: {
-    how: "comes with olai — every documented way of starting it bakes the adapter in",
-    where: "https://claude.com/claude-code",
-  },
-  opencode: {
-    how: "put `opencode` on this server's PATH",
-    where: "https://opencode.ai",
-  },
-  pi: {
-    // The ADAPTER comes with olai like the claude one's does; the AGENT it
-    // wraps is the thing a machine must have. Both halves are the row's.
-    how: "put `pi` on this server's PATH — the adapter for it comes with olai",
-    where: "https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent",
-  },
-}
-
-/** ... and the rows to draw, in the table's own order. */
-const KNOWN = (Object.keys(WHERE_FROM) as ReadonlyArray<AgentId>).map((id) => ({
-  id,
-  name: AGENTS[id].name,
-  ...WHERE_FROM[id],
-}))
-
 export function NoAgent() {
+  const known = () => installs()
   return (
     <div
       class="olai-scroll min-h-0 flex-1 overflow-y-auto px-4 py-6 text-sm text-muted"
@@ -82,36 +67,34 @@ export function NoAgent() {
         directory does not need an agent. This panel is the part that does.
       </p>
 
-      <p class="m-0 mb-2 text-ink">Agents olai can talk to:</p>
-      <ul class="m-0 mb-4 flex list-none flex-col gap-2 p-0">
-        <For each={KNOWN}>
-          {(agent) => (
-            <li
-              class="flex items-start gap-2"
-              data-testid={TESTID.chatInstall}
-              data-agent={agent.id}
-            >
-              <span class="mt-0.5">
-                <AgentMark id={agent.id} />
-              </span>
-              <span class="min-w-0">
-                <a
-                  class="text-ink underline underline-offset-2"
-                  href={agent.where}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {agent.name}
-                </a>
-                <span> — {agent.how}</span>
-              </span>
-            </li>
-          )}
-        </For>
-      </ul>
+      {/* NOTHING AT ALL IS A STATE, and it is the one `--plugins=` with no
+          engine row named composes to: this serve has no engine to offer, so
+          there is nothing to list and the paragraph that would have introduced
+          the list is not drawn either. */}
+      <Show when={known().length > 0}>
+        <p class="m-0 mb-2 text-ink">Agents olai can talk to:</p>
+        <ul class="m-0 mb-4 flex list-none flex-col gap-2 p-0">
+          <For each={known()}>
+            {(engine) => (
+              <li
+                class="flex items-start gap-2"
+                data-testid={TESTID.chatInstall}
+                data-agent={engine.plugin}
+              >
+                <span class="mt-0.5">
+                  <AgentMark id={engine.plugin} />
+                </span>
+                <span class="min-w-0">
+                  <Dynamic component={engine.face} />
+                </span>
+              </li>
+            )}
+          </For>
+        </ul>
+      </Show>
 
       <p class="m-0 mb-1">
-        Seeing this with Claude Code installed usually means one of two things:
+        Seeing this with an agent installed usually means one of two things:
       </p>
 
       <ul class="m-0 mb-3 list-disc pl-5">
@@ -120,7 +103,8 @@ export function NoAgent() {
           which is the explicit way to turn chat off;
         </li>
         <li>
-          olai was started by hand, without the wrapper that bakes the adapter in.
+          olai was started by hand, without the wrapper that bakes the pinned
+          adapters in.
         </li>
       </ul>
 

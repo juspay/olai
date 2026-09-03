@@ -10,7 +10,7 @@
  * quietly re-decided by a reader who assumes rather than measures.
  *
  *   1. **the adapter completes a background task's call at LAUNCH** — which is
- *      why olai carries a patch on its pin (`acp/patches/README.md`), and
+ *      why olai carries a patch on its pin (`packages/plugins/claude/acp/patches/README.md`), and
  *      which stops being true the day upstream lands one of its own;
  *   2. **a resumed subagent is the same call, going round again.** A subagent
  *      that has reported can be sent more work; the harness starts its task a
@@ -212,7 +212,7 @@ const heard = (message: Record<string, unknown>): void => {
     // WHAT NEVER ARRIVES is the point of the whole driver, so the driver
     // CHECKS rather than trusts: a frame the harness sent carrying the
     // monitor's own output would print here and falsify the claim in
-    // `acp/patches/README.md`, and the day one does this line is how anybody
+    // `packages/plugins/claude/acp/patches/README.md`, and the day one does this line is how anybody
     // finds out.
     //
     // The model's OWN frames are excluded, and that exclusion is the whole

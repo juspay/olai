@@ -1,6 +1,10 @@
 # @olai/plugin-api — what a plugin is written against
 
-olai integrates with three things that are not olai: [kolu](https://kolu.dev), which runs coding agents in terminals and serves them over MCP; [odu](https://github.com/juspay/odu), which runs CI; and [Xyne Spaces](https://github.com/xynehq/xyne), the org.s team chat. The part of that integration which is genuinely **olai's own judgement about an appliance** — what an absent padi means, which vault file is kolu's by convention, which property wears which face — belongs neither to the appliance nor to core, and this is the interface it is written against.
+olai integrates with things that are not olai, and every one of them is a PLUGIN written against this interface. They come in two kinds and the system tells them apart nowhere.
+
+**TENANTS** are olai's own judgement about an appliance: [kolu](https://kolu.dev), which runs coding agents in terminals and serves them over MCP; [odu](https://github.com/juspay/odu), which runs CI; and [Xyne Spaces](https://github.com/xynehq/xyne), the org.s team chat. What an absent padi means, which vault file is kolu's by convention, which property wears which face — none of that belongs to the appliance or to core.
+
+**ENGINES** are the ACP agents the chat panel can seat: `claude`, `opencode`, `pi`. Each is one directory and one row, because they share no release clock — the Claude adapter's pin moved five times in a month and opencode's has never moved — and because `--plugins` then enables them one at a time: `--plugins=opencode,pi` is a serve with no Claude row, no probe of one, and no mark for one anywhere. What an engine hands over is DATA and pure functions (`agents.register` below); it never spawns, sends or sees a transcript, which is `@olai/chat`'s.
 
 **This package names no plugin.** That is the whole of why a plugin may import it, and it is a reversal: for several rounds this package was the interface AND the registry, so a plugin importing it back was a cycle the manifests could not express and a manifest was therefore a plain `as const` object proved by the registry's `satisfies`. The registry is [`@olai/bundle`](../bundle/README.md) now, and what the reversal buys is that both halves can name the services they need. The `satisfies` did not survive the second move: there is no compiled-in list left to check a plugin against — the rows name MODULES and the loader resolves them at mount — so a half that does not export what the runtime believes it does fails where the runtime would fail, by the row's own name (`@olai/bundle`'s `tree.testlib.ts` imports exactly as the loader does), rather than on a line in a list nobody maintains.
 
@@ -21,12 +25,14 @@ One thing is reached past this door, by `@olai/bundle` and nobody else: `@olai/e
 
 [`src/contract.ts`](src/contract.ts) is what both halves share — `PropKind`, `Probed`, `NotHere`, `StdioServer`, `Deliveries`, `Wake`, `PluginWire`, and the word a kind is composed into. Data shapes with no runtime behind them, so neither process pays for the other's graph.
 
+One of those is no longer DECLARED here: `NotHere` — a thing this host does not have and the finder's whole sentence about it — is [`@olai/acp`](../acp/README.md)'s `./engine` door, re-exported. That door is also where an ENGINE's registration lives (`Leg`, `Adapter`, `Where`, `PromptChannel`), and it is there rather than here for a reason this package could not solve: an engine plugin writes those and `@olai/chat` reads them, and neither may import the other. The shape both spell had to live under both, which is the protocol package — an engine is an ACP agent and how to reach one.
+
 ## The server half is an Effect
 
 ```ts
 export default definePlugin({
   name,
-  needs: [Clock, Deliveries, Env, Kinds, SessionStart.key, Surfaces, Vault, Wakes],
+  needs: [Clock, Deliveries, Env, Kinds, SessionStart, Surfaces, Vault, Wakes],
   apply: Effect.gen(function*() { … }),
 })
 ```
@@ -56,6 +62,7 @@ Three properties fall out of that, and none of them is a convenience.
 | `wakes` | `register(wake)` — the sentence the strip draws, and the two a broken scope is owed |
 | `watching` | `subscribe(handler)` — conversation events, PUSHED: a doorbell that landed, an orchestrator reply that settled, a turn that started or ended. Never a human message, and never a read |
 | `held` | `load` / `save(record)` — a small opaque record this plugin keeps about this serve, in the state home rather than the vault, minted from the calling plugin's own word |
+| `agents` | `register(engine)` — one ACP engine this build can seat: a `Leg` that reads its wire, a probe that answers `Adapter | null` for this host, the whole install sentence for a machine that has none, and the channel the standing prompt rides. The ID is the fiber's word and there is no field to spell one in |
 
 **There is no `log` service, and its absence is the phase.** It was `say` and `warn`, wired by the composition root to `ring(Effect.logDebug(line))` and `ring(Effect.logWarning(line))` — an Effect run from a callback, per line, because the plugin had no fiber to emit from. A plugin's `apply` IS a fiber, so `Effect.logDebug` and `Effect.logWarning` are what a plugin says its lines with and they arrive with the level the operator asked for, the annotations the serve set and the span it was inside. WHICH level a sentence goes at is still the plugin's decision and still the same one.
 
@@ -67,7 +74,7 @@ Three properties fall out of that, and none of them is a convenience.
 | --- | --- | --- |
 | `vault.revision(handler)` | door | `PluginServer.revision(snapshot)`. The whole published snapshot; every listener narrows it in its own signature to the part it reads — a CLAIM about what the root rings rather than a check, because the door's payload is the handler's to name (one `as` in the provision, where three casts in three plugins used to be; `src/services.ts` argues what a checked one would cost) |
 | `vault.unloaded(handler)` | door | `PluginServer.unloaded()`. **Not teardown** — it means the STORE has never published, so a reading derived from the vault is yesterday's while what a plugin holds from its own daemon is untouched. Unloading the PLUGIN is its scope closing, which unwinds every registration above |
-| `SessionStart` | waterfall (Effect middleware) | `PluginServerHalf.probe`. A listener pushes a THUNK — its name and what it would ask — and the list is collected per session open, so a plugin that unloaded between conversations contributes nothing to the next one |
+| `SessionStart.ask(probe)` | keyed registration | `PluginServerHalf.probe`, and then a `chat/session-start` waterfall a listener pushed a THUNK onto. It is a registration now, keyed by the fiber like every other door: the plugin hands over the Effect it would run and nothing else — no name to sign, no promise to wrap — and the list is READ per session open, so a plugin that unloaded between conversations contributes nothing to the next one. The waterfall.s own powers (transform, short-circuit) were never used here and could not honestly be, since the order its links ran in was the order two dynamic imports came back in |
 
 Both vault doors are registrations on the calling plugin's scope, so a plugin the
 roster stops naming stops hearing revisions without remembering to say so. Both

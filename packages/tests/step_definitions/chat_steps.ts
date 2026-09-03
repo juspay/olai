@@ -3402,9 +3402,18 @@ Then(
     // BY ID rather than by the name on the row: what a scenario is about is
     // that this machine's opencode is offered, and the words beside it are a
     // brand's to change.
-    await this.page
-      .locator(`${CHAT_CHOOSE_AGENT}${attr("data-agent", id)}`)
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const row = this.page.locator(`${CHAT_CHOOSE_AGENT}${attr("data-agent", id)}`);
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    // ...AND IT SAYS SOMETHING, which is the half an id alone cannot see. The
+    // words are the ENGINE PLUGIN's own now — a face in the `chat.agent.row`
+    // slot, drawn out of that plugin's own browser chunk — so a chunk the tab
+    // never fetched, or a half whose `apply` failed, would leave a pressable
+    // row with a mark and nothing to read. Not the exact words, for the reason
+    // above: what is asserted is that a person has something to press ON.
+    assert.ok(
+      oneLine(await row.innerText()).length > 0,
+      `the picker's row for "${id}" is empty — the engine's own face did not draw`,
+    );
   },
 );
 
@@ -3467,9 +3476,19 @@ Then("the header draws that agent's own mark", async function (this: OlaiWorld) 
 Then(
   "the panel tells me how to install {string}",
   async function (this: OlaiWorld, id: string) {
-    await this.page
-      .locator(`${CHAT_INSTALL}${attr("data-agent", id)}`)
-      .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const row = this.page.locator(`${CHAT_INSTALL}${attr("data-agent", id)}`);
+    await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    // ...AND IT SAYS HOW, which is the whole of what this face is for and the
+    // half an id alone cannot see. The sentence is the ENGINE PLUGIN's own — a
+    // face in the `chat.agent.install` slot, spelled once in that plugin's
+    // package and registered a second time as its `missing` — so a row drawn
+    // with an id and no words would be the face reporting on nothing. Not the
+    // exact words: they are that plugin's to change, and core composes no
+    // clause of them.
+    assert.ok(
+      oneLine(await row.innerText()).length > 0,
+      `the install row for "${id}" is empty — the engine's own sentence did not draw`,
+    );
   },
 );
 

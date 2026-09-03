@@ -79,12 +79,22 @@ export interface StdioServer {
  * compiled-in list. It is the same trade {@link ./browser.ts}'s four services
  * make in the other direction: a plugin re-declares only the part it reads, and
  * contravariance makes the narrower spelling the stronger claim.
+ *
+ * ## ...AND IT IS THE ONE OF THE THREE THAT STOPPED BEING SPELLED HERE
+ *
+ * It is `@olai/acp/engine`'s now, re-exported, because the agents phase gave it
+ * a SECOND caller with the same problem and the opposite geometry: an ENGINE
+ * PLUGIN says how to get itself for the face drawn when this host has no agent
+ * at all, and `@olai/chat` reads exactly that shape for an MCP server a
+ * conversation was meant to be handed. Both ends were forbidden the other's
+ * package, so the shape went to the floor package under BOTH — which is where a
+ * word two walls need belongs, and which the other two here have no equivalent
+ * of. Nothing about the arrangement above changed: `@olai/chat` still declares
+ * {@link StdioServer} and {@link Probed} for itself.
  */
-export interface NotHere {
-  readonly name: string
-  readonly where: string | null
-  readonly why: string
-}
+import type { NotHere } from "@olai/acp/engine"
+
+export type { NotHere }
 
 /** WHAT A PROBE FOUND — both halves at once, because they are one reading.
  *

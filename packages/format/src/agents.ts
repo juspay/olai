@@ -30,9 +30,9 @@
  * been given a session is expressible IN THE VAULT rather than by the absence
  * of a row in a file somewhere else.
  *
- * SPLIT ON THE FIRST COLON, and only the first: an engine id is one of olai's
- * own slugs (`@olai/surface`'s `AGENTS`) and holds no colon, while a session id
- * is somebody else's opaque string and may hold several.
+ * SPLIT ON THE FIRST COLON, and only the first: an engine id is a PLUGIN'S OWN
+ * WORD — one row of `olai.yml`, so a lower-case slug with no colon in it — while
+ * a session id is somebody else's opaque string and may hold several.
  *
  * ## Why the binding is in the vault at all, and what a second machine sees
  *
@@ -150,7 +150,7 @@ export const NodeAgent = Schema.Struct({
   title: Schema.String,
   /**
    * WHICH ENGINE this node's agent runs on — the first half of the property's
-   * value, and one of `@olai/surface`'s `AGENTS` ids where the vault names one
+   * value, and one of the ENABLED ENGINE PLUGINS' ids where the vault names one
    * this machine has.
    *
    * NOT resolved to an installed agent here, and that is the honest half: the

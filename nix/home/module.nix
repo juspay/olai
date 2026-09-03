@@ -143,6 +143,12 @@ in
         probe, no chrome pill, and every property that would have worn a live
         face drawing as the text it always was.
 
+        THE ACP ENGINES ARE ROWS TOO (`claude`, `opencode`, `pi`), so a list
+        that names none of them is an instance with no chat panel — the flag
+        doing what it says rather than a trap, but worth knowing before you
+        write `[ "odu" ]` and wonder where the agent went. Name the engines you
+        want beside the appliances.
+
         Run `olai web --help` for the names this build has.
       '';
     };

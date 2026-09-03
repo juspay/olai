@@ -3,7 +3,7 @@
  *
  * A listing's rows carry `supersededBy` when the AGENT says so: olai's pinned
  * Claude Code adapter reports a `/clear` in its own corner of `session/list`
- * ({@link ./events.ts}'s `Stored`, `acp/patches/session-list-info.patch`), and
+ * ({@link ./events.ts}'s `Stored`, `packages/plugins/claude/acp/patches/session-list-info.patch`), and
  * every other agent says nothing, in which case a row carries `null` and the
  * picker draws no line. That is a fact somebody SENT, and the list has always
  * drawn nothing else — never a relationship inferred here from two rows that

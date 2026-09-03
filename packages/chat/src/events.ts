@@ -37,8 +37,8 @@ export interface Command {
  *
  * `messageCount` and `supersededBy` come from the adapter's OWN corner of the
  * answer (`_meta.claudeCode` on the pinned Claude Code adapter —
- * `acp/patches/session-list-info.patch`, the lane in
- * {@link ./agents/claude.ts}'s `listedIn`), so they are facts that exist only
+ * `packages/plugins/claude/acp/patches/session-list-info.patch`, the lane in
+ * `olai-plugin-claude`'s `leg.ts`'s `listedIn`), so they are facts that exist only
  * where an adapter chooses to volunteer them. `null` — the reading's losing
  * direction — is what the request's absence produces, and the picker's answer
  * for it is to draw nothing rather than a zero or a guessed pair.
@@ -110,7 +110,7 @@ export type AgentEvent =
      * exists: a subagent's calls arrive on the same flat feed as everything
      * else, so without it a turn that spawned three agents is drawn as one
      * agent doing everything, and the reader cannot tell that the other three
-     * were ever there ({@link ./agents/leg.ts}'s `parentToolUse`).
+     * were ever there (`@olai/acp/engine`'s `Leg`'s `parentToolUse`).
      *
      * `undefined` reads as "unchanged" here like every field beside it, which
      * costs nothing: a call is made where it is made, so nothing ever needs
@@ -119,7 +119,7 @@ export type AgentEvent =
     readonly parent: string | undefined
     /**
      * ... and, the other way round, that this call SENT one out
-     * ({@link ./agents/leg.ts}'s `spawned`).
+     * (`@olai/acp/engine`'s `Leg`'s `spawned`).
      *
      * The two are not one field with two directions: `parent` is answered by
      * frames a subagent produced, so it says nothing at all until the subagent
@@ -136,7 +136,7 @@ export type AgentEvent =
     readonly spawned: Spawned | undefined
     /**
      * ... and that it ARMED A BACKGROUND TASK — a monitor, a background shell,
-     * an agent sent out to run past this turn ({@link ./agents/leg.ts}'s
+     * an agent sent out to run past this turn (`@olai/acp/engine`'s `Leg`'s
      * `backgroundTask`).
      *
      * The third thing a call can leave behind and the only one that goes on
@@ -192,7 +192,7 @@ export type AgentEvent =
    * running agent the panel cannot work out for itself.
    *
    * Not `initialize`'s payload and deliberately not near it: what crosses is
-   * two booleans a leg read ({@link ./agents/leg.ts}), so nothing above this
+   * two booleans a leg read (`@olai/acp/engine`'s `Leg`), so nothing above this
    * file learns that agents advertise anything, let alone where.
    *
    * ONCE PER AGENT rather than per session, because that is when it is said:
@@ -229,7 +229,7 @@ export type AgentEvent =
    * the only source there was: ACP's `session/new` answers with a session id
    * and says nothing per server. One agent does say — the Claude Code adapter
    * forwards a status per server on its CLI's `system`/`init`
-   * ({@link ./agents/claude.ts}) — and that arrives per turn, after the session
+   * (`olai-plugin-claude`'s `leg.ts`) — and that arrives per turn, after the session
    * is open. So this is no longer a fact settled at session open; it is one
    * that can be refined by whoever knows better, and only ever by them
    * ({@link ./servers.ts}'s `movedBy`).

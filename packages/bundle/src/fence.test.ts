@@ -1171,8 +1171,11 @@ describe("an appliance's product tier stays inside its tenant", () => {
     expect(
       Object.fromEntries([...TENANTS].map(([name, members]) => [name, [...members].sort()])),
     ).toEqual({
+      claude: ["plugins/claude"],
       kolu: ["plugins/kolu"],
       odu: ["plugins/odu"],
+      opencode: ["plugins/opencode"],
+      pi: ["plugins/pi"],
       "xyne-spaces": ["plugins/xyne-spaces"],
     })
     // ...and each APPLIANCE tenant has a TIER, which is the other way this
@@ -1185,8 +1188,15 @@ describe("an appliance's product tier stays inside its tenant", () => {
         (TIERS.get(name) ?? new Set()).size > 0,
       ])),
     ).toEqual({
+      // AN ENGINE HYDRATES NOTHING and neither does Spaces: a plugin that talks
+      // a protocol, or HTTP, has no vendored client to confine. An empty tier
+      // there is the truth rather than a missed pin, and the two `true`s are
+      // what keep the derivation from being empty everywhere.
+      claude: false,
       kolu: true,
       odu: true,
+      opencode: false,
+      pi: false,
       "xyne-spaces": false,
     })
   })
@@ -1308,16 +1318,22 @@ describe("an appliance's product tier stays inside its tenant", () => {
         .filter((door) => doors[door] !== undefined)
         .map((door) => path.join(pkg, doors[door]!))
     }).sort()
-    // THREE PLUGIN `./wire` DOORS PLUS EACH DIAL'S `./appliance/wire`. A floor
+    // THE TENANTS' `./wire` DOORS PLUS EACH DIAL'S `./appliance/wire`. A floor
     // of `> PLUGIN_NAMES.length` used to catch the extra tenant packages; after
-    // the fold those packages are gone and the extra doors are the dials. The
-    // appliance-wire count is the half that still fails if a dial's wire
+    // the fold those packages are gone and the extra doors are the dials, and
+    // after the ENGINES arrived the plugin count stopped being a floor at all —
+    // an engine composes no sibling, so it declares no `./wire` and the two
+    // numbers went the wrong way past each other. What the floor is FOR is
+    // unchanged: a derivation that came back empty would make the emptiness
+    // asserted below mean nothing. So it is stated against the other derived
+    // count instead — there are tenant `./wire` doors BEYOND the dials' — and
+    // the appliance-wire count is the half that still fails if a dial's wire
     // leaves the graph.
     const applianceWires = [...TENANT_MEMBERS].filter((pkg) => {
       const manifest = manifestAt(path.join(PACKAGES, pkg))
       return manifest !== undefined && doorsOf(manifest)["./appliance/wire"] !== undefined
     })
-    expect(wireDoors.length).toBeGreaterThan(PLUGIN_NAMES.length)
+    expect(wireDoors.length).toBeGreaterThan(applianceWires.length)
     expect(applianceWires.length).toBeGreaterThan(1)
     expect(wireDoors.filter((file) => !reached.has(file))).toEqual([])
   })
@@ -1431,15 +1447,72 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     ]),
   )
 
-  /** A plugin's name as it would be SPELLED: any identifier or string that
-   *  begins with it, case-folded, so `koluHalf`, `KoluUi`, `wiring.kolu` and
-   *  `"odu"` all count. No trailing boundary, because the defect this is
-   *  written against was `koluHalf` rather than a bare word. */
+  /**
+   * A plugin's name as it would be SPELLED — the WHOLE word, case-folded, in
+   * whatever it is glued to: `koluHalf`, `KoluUi`, `wiring.kolu` and `"odu"` all
+   * count.
+   *
+   * ## The trailing rule, and the engine that made one necessary
+   *
+   * There was NO trailing boundary, on the argument that the defect this is
+   * written against was `koluHalf` rather than a bare word. That was true and
+   * the pattern was wrong anyway, and the engines are what showed it: `pi` is a
+   * plugin name now, and `\bpi` matches `pin`, `picker`, `pieces`, `pill` — a
+   * hundred and forty-nine files in the client alone, none of them about an ACP
+   * engine. A fence that reports the whole tree reports nothing.
+   *
+   * So the name must END, and "end" is the boundary a reader's eye already uses:
+   * anything that is not a lower-case letter or a digit. A CASE CHANGE ends it
+   * (`koluHalf`, `piMark`), and so does a separator, a quote, a dot or a line
+   * (`"odu"`, `kolu-terminal`, `wiring.kolu`, `plugins:odu:ci`). What it declines
+   * to call a spelling is the name swallowed into a longer lower-case word,
+   * which is a different word — and the direction that costs is the safe one to
+   * be wrong in only because the corpus is swept for EVERY plugin: a general
+   * package that had genuinely grown a `pistate` would be reaching for something
+   * it would have to import to use, and claims 1 and 6 are what read imports.
+   *
+   * ## THREE CASINGS, EACH WITH ITS OWN END — and `prove-fence.sh` wrote both
+   * halves of this
+   *
+   * The obvious spelling is `/\bkolu(?![a-z0-9])/i`, and it is wrong in the one
+   * direction a fence may not be: `i` applies to the LOOKAHEAD too, so
+   * `[a-z0-9]` matches the `H` of `koluHalf` and the pattern refuses the exact
+   * defect it was written for. Both name mutations went `GREEN — THE FENCE DID
+   * NOT SEE IT`.
+   *
+   * Made case-SENSITIVE with each letter as `[xX]`, it caught those and then
+   * caught eighteen files that are not about a plugin at all — `PICTURE`,
+   * `PINNED`, `PILL`. A SHOUTED identifier has no case change in it, so "the
+   * next character is upper-case" ends a lower-case name and continues an
+   * upper-case one, and one lookahead cannot mean both.
+   *
+   * So the name is spelled in the three casings an identifier is written in, and
+   * each carries the end that belongs to it:
+   *
+   *   - `kolu`, `Kolu` — a lower-case run, ended by anything that is not
+   *     `[a-z0-9]`: a case change (`koluHalf`, `KoluUi`, `piMark`), a
+   *     separator, a quote, a dot, a line;
+   *   - `KOLU` — an upper-case run, ended by anything that is not `[A-Z0-9]`:
+   *     `KOLU_KIND` and `PI_ACP_PI_COMMAND` are spellings, `PINNED` and
+   *     `PICTURE` are words that begin with two of the same letters.
+   *
+   * What it still cannot tell apart is a shouted name that ENDS a word —
+   * `Math.PI` — which is why {@link NOT_A_PLUGIN} records one file.
+   */
+  const casings = (name: string): ReadonlyArray<string> => {
+    const capital = `${name.charAt(0).toUpperCase()}${name.slice(1)}`
+    return [
+      `${name}(?![a-z0-9])`,
+      ...(capital === name ? [] : [`${capital}(?![a-z0-9])`]),
+      `${name.toUpperCase()}(?![A-Z0-9])`,
+    ]
+  }
   // Built ONCE per plugin rather than once per file: the filter below runs it
   // across the whole compiled corpus, which was fourteen hundred `RegExp`
   // constructions a run for two distinct patterns.
-  const SPELLING = new Map(PLUGIN_NAMES.map((name) => [name, new RegExp(`\\b${name}`, "i")]))
-  const spellingOf = (name: string) => SPELLING.get(name) ?? new RegExp(`\\b${name}`, "i")
+  const spelling = (name: string) => new RegExp(`\\b(?:${casings(name).join("|")})`)
+  const SPELLING = new Map(PLUGIN_NAMES.map((name) => [name, spelling(name)]))
+  const spellingOf = (name: string) => SPELLING.get(name) ?? spelling(name)
 
   test("the corpus actually compiled, and the subtraction did not empty it", () => {
     // Not vacuous, twice over: a transpiler that threw on everything, or a
@@ -1460,6 +1533,49 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     }
   })
 
+  /**
+   * WHERE THE WORD IS NOT THE PLUGIN — recorded, because the engines gave a
+   * plugin two names that were already English.
+   *
+   * The header's standing rule is that PROSE IS ALLOWED, which is why this claim
+   * reads what a file COMPILES TO rather than what it says. A string literal
+   * survives that, and it should: `koluHalf(…)` and
+   * `olai.cells["plugins:odu:ci"]` are strings, and they are exactly what this
+   * hunt is for. What it cannot tell apart is a plugin's name from a word that
+   * happens to be spelled the same, and the tenants never produced one:
+   * `kolu`, `odu` and `xyne-spaces` are nobody else's words.
+   *
+   * The engines produce two, and they are different kinds of collision:
+   *
+   *   - **`claude` in a VAULT'S OWN VOCABULARY.** `prop:agent=claude-opus` is
+   *     the search grammar's worked example of a CUSTOM property — a lane's own
+   *     `agent` key, free text, nothing to do with which ACP engine a chat panel
+   *     seats. It appears in the search documentation, in a refusal's advice
+   *     line, and in two MCP tool descriptions an agent reads. That is
+   *     somebody's outline quoted in product copy, which the header's rule
+   *     already protects one door over ("a plugin's KIND words are deliberately
+   *     out of scope… they are ordinary English").
+   *   - **`pi` in `Math.PI`.** A two-letter plugin name collides with the
+   *     language, and no reading of a compiled file can say that this `PI` is a
+   *     constant and that one would have been an engine.
+   *
+   * RECORDED AS AN EQUALITY rather than excused with a pattern, which is the
+   * move {@link DEBT} makes and for the same reason: a fifth file is red, a
+   * different plugin's name in any of these four is red, and the day the example
+   * is reworded this entry is red until it is deleted. A regex tightened until
+   * both of these fell out would have been the fence quietly agreeing not to
+   * look at `claude-agent-acp` or `piHalf` either — and the two directions this
+   * claim can fail in are not symmetric.
+   */
+  const NOT_A_PLUGIN: Readonly<Record<string, ReadonlyArray<string>>> = {
+    claude: [
+      "format/src/filter.ts",
+      "format/src/searching.ts",
+      "ops/src/tools.ts",
+    ],
+    pi: ["web/src/client/theme/tagInk.ts"],
+  }
+
   test("no package outside the registry and the plugin's own tenant spells it", () => {
     for (const name of PLUGIN_NAMES) {
       const mine = TENANTS.get(name) ?? new Set<string>()
@@ -1470,9 +1586,23 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
             .filter((one) => spellingOf(name).test(one.code))
             .map((one) => one.file)
         )
-      // An EQUALITY against the empty list, like every claim above: a pattern
-      // that rotted would report nothing and pass.
-      expect(spelled.sort(), name).toEqual([])
+      // An EQUALITY against the recorded answer — `[]` for all but the two
+      // collisions above — never a filter asserted empty: a pattern that rotted
+      // would report nothing and pass.
+      expect(spelled.sort(), name).toEqual([...(NOT_A_PLUGIN[name] ?? [])])
+    }
+  })
+
+  test("every recorded collision is a plugin and a file that still exist", () => {
+    // A recorded exception naming a file nobody has is an exception nobody can
+    // retire, and it would forgive the next breach in that package in silence.
+    // The equality above catches a file that stopped spelling the word; this
+    // catches one that stopped being a file, and a name that stopped being a
+    // plugin.
+    const seen = new Set([...compiled.values()].flat().map((one) => one.file))
+    for (const [name, files] of Object.entries(NOT_A_PLUGIN)) {
+      expect(PLUGIN_NAMES.includes(name), name).toBe(true)
+      for (const file of files) expect([file, seen.has(file)]).toEqual([file, true])
     }
   })
 })

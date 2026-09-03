@@ -1,0 +1,15 @@
+/* THIS PLUGIN'S SHEET — a `@source` at this directory and nothing else.
+ *
+ * Every row of `olai.yml` contributes one of these and the generated chain
+ * imports them all (`packages/bundle/generate.ts`), because Tailwind emits ONLY
+ * the utilities it can SEE and `@olai/web`'s own `@source "./"` covers the app's
+ * tree alone. A face that moved out of that tree and that nothing points at
+ * renders with no layout and nothing errors — which is why this is a file per
+ * plugin rather than a note in a README.
+ *
+ * WHAT IT ACTUALLY EMITS FOR THIS PLUGIN IS NOTHING TODAY, and that is honest
+ * rather than wasteful: the one face here is an SVG `<g>` of strokes with no
+ * utility class on it, drawn inside core's own sized element. The line stays
+ * because the door is the contract — the day this engine draws something with a
+ * class on it, the sheet is already pointed at the right directory. */
+@source "./";

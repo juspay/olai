@@ -399,7 +399,7 @@ Feature: Choosing an agent
     # and ACP's SessionInfo answers four fields and stops — so the list used
     # to answer "which of these two is the live one" with nothing. What the
     # fixture carries is the pinned adapter's own answer (the patch olai
-    # ships, `acp/patches/session-list-info.patch`): the count per row, and
+    # ships, `packages/plugins/claude/acp/patches/session-list-info.patch`): the count per row, and
     # on the OLDER of the pair, which conversation replaced it.
     When I choose the agent "claude"
     And I open the unassigned chats
@@ -508,12 +508,12 @@ Feature: Choosing an agent
     # THE PIN'S BRIDGE, answered: pi-acp (0.0.33) stores the session's
     # handed mcpServers and wires them nowhere — the pin patches its
     # `session/new` spawn into `-e <bridge>` + the servers in the process
-    # env (acp/patches/README.md's pi-mcp-servers section), and the bridge
+    # env (packages/plugins/pi/acp/patches/README.md's pi-mcp-servers section), and the bridge
     # registers them on pi's own extension API under the SAME names this
     # surface already reads. The scenario mirrors the wire the patch mints:
     # an `olai_read_node:0` call — pending, in_progress, completed, with
     # the tool's answer riding its card. The round trip that is protocol-
-    # true lives down in acp/mcp-bridge/roundtrip.test.js, one SDK pair
+    # true lives down in packages/plugins/pi/acp/mcp-bridge/roundtrip.test.js, one SDK pair
     # away from the real servers.
     When I choose the agent "pi"
     And I ask the agent "mcp read title install"

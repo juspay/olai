@@ -31,8 +31,10 @@ import type { Chat, Faulted, Scoped } from "@olai/chat"
 import { DEFAULT_BUNDLE_NAMES } from "@olai/bundle"
 import type { RowReport } from "@olai/bundle/bundle"
 import { BUNDLE_NAMES as PLUGIN_NAMES } from "@olai/bundle"
+import type { Leg } from "@olai/acp/engine"
 import type { Deliveries, Plugins } from "@olai/plugin-api/services"
 import {
+  Agents,
   definePlugin,
   Deliveries as DeliveriesTag,
   mountPlugin,
@@ -113,7 +115,10 @@ const withRuntime = <A>(
    */
   extra: {
     readonly chat?: Chat
-    readonly plugins?: ReadonlyArray<ReturnType<typeof doubleCalled>>
+    readonly plugins?: ReadonlyArray<{
+      readonly name: string
+      readonly plugin: ReturnType<typeof definePlugin>
+    }>
     /** The vault's half of the node-agent roster ({@link ./agents.ts}) —
      *  absent for every case that is not about a binding, which is what a
      *  serve with no ACP agent is handed too. */
@@ -917,6 +922,44 @@ test("no wake declarations is no sentence, and every row is still there", () => 
   expect(all.built.every((row) => row.wake === undefined)).toBe(true)
 })
 
+/**
+ * A PLUGIN THAT COMPOSES NO SIBLING IS STILL `running`, IF IT CONTRIBUTED —
+ * which is what an ENGINE is, and what the word had stopped covering.
+ *
+ * The live half of `running` used to be the SIBLING TABLE alone, and that was
+ * exact while every plugin composed a surface. An engine composes none: what it
+ * contributes to a tab — a row of the picker, a name in the header, a sentence
+ * on the no-agent face — already travels on the chat cell, which is core's, and
+ * a second surface under `surface/claude/` would be one fact on the wire twice.
+ *
+ * Read off the siblings alone, every engine row said `off` while its fiber ran.
+ * That is not merely a wrong word on a preferences row: the TAB fetches a
+ * plugin's chunk only when the roster names it, so the panel drew the generic
+ * mark for an agent whose own shape was sitting in a chunk nobody had asked
+ * for. The e2e suite is where it was caught; this is where it is held.
+ *
+ * BOTH KINDS IN ONE CASE, so what is asserted is a union rather than a swap: a
+ * tenant that registers a sibling and an engine that registers only an engine
+ * are both `running`, and neither reading has quietly replaced the other.
+ */
+test("a plugin that contributed an ENGINE and no sibling is running", () =>
+  withRuntime(
+    { "a.olai": OUTLINE },
+    ({ wired }) =>
+      Effect.gen(function*() {
+        const get = wired.bound.handlers["surface/plugins/get"]
+        if (get === undefined) throw new Error("the plugins cell has no `get`")
+        const open = yield* watching(get({}) as Stream.Stream<PluginRoster>)
+        const built = (yield* open.take).built
+        expect(built.map((row) => [row.name, row.state, row.running])).toEqual([
+          ["an-engine", "running", true],
+          ["a-tenant", "running", true],
+        ])
+        yield* Fiber.interrupt(open.reader)
+      }),
+    { plugins: [engineCalled("an-engine"), doubleCalled("a-tenant")] },
+  ))
+
 /** ...and the cell a browser actually reads carries it. The one member on this
  *  surface with no connector: the flag is read once, before the runtime exists,
  *  so there is nothing for a subscription to hear. */
@@ -1158,6 +1201,35 @@ const doubleCalled = (name: string, wake?: typeof RINGING) => {
 }
 
 /**
+ * ONE DOUBLE THAT COMPOSES NO SIBLING — an ENGINE, which is the other kind of
+ * plugin and the one that made `running` stop meaning "registered a surface".
+ *
+ * What it registers is the whole of what an engine registers and nothing else:
+ * a name a person reads, a leg (opaque here — this file asserts on the ROSTER
+ * and never reads a wire), a probe that answers "not on this host", no install
+ * sentence, and the channel every engine olai ships rides. It is `at: () =>
+ * null` deliberately: a plugin that CONTRIBUTED is `running` whether or not the
+ * machine turned out to have the agent, which is the distinction the panel's
+ * row and the chat's roster keep apart.
+ */
+const engineCalled = (name: string) => ({
+  name,
+  plugin: definePlugin({
+    name,
+    needs: [Agents],
+    apply: Effect.gen(function*() {
+      yield* (yield* Agents).register({
+        name: ` (a name)`,
+        leg: {} as Leg,
+        at: () => null,
+        missing: null,
+        prompt: { kind: "first-turn" },
+      })
+    }),
+  }),
+})
+
+/**
  * A PLUGIN RUNTIME WITH `doubles` MOUNTED — what a composition root is handed,
  * built for one case.
  *
@@ -1172,7 +1244,7 @@ const doubleCalled = (name: string, wake?: typeof RINGING) => {
  * against a second one.
  */
 const mounting = (
-  doubles: ReadonlyArray<ReturnType<typeof doubleCalled>>,
+  doubles: ReadonlyArray<{ readonly plugin: ReturnType<typeof definePlugin> }>,
   chat: () => Chat | null,
   onChange: { run: () => void },
 ): Effect.Effect<Plugins, never, Scope.Scope> =>

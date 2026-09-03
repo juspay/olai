@@ -593,7 +593,14 @@ export const rosterOf = (
   offered: Wiring["plugins"],
   /**
    * WHICH PLUGINS ARE MOUNTED RIGHT NOW — the names whose fibers are ACTIVE and
-   * have registered a sibling surface.
+   * have CONTRIBUTED something: a sibling surface, or an ACP engine.
+   *
+   * IT WAS THE SIBLINGS ALONE, which was exact while every plugin composed one.
+   * An engine composes no surface (its contribution travels on the chat cell,
+   * which is core.s), so a reading taken off the sibling table alone said `off`
+   * about every engine row while its fiber ran — and the tab, which fetches a
+   * plugin.s chunk only when the roster names it, drew the generic mark for an
+   * agent whose own shape was in a chunk nobody asked for.
    *
    * READ, NOT DERIVED, and that is the change this phase makes to the meaning
    * of `running`. It used to be `isEnabled(pin, name)` — a re-reading of the
@@ -707,10 +714,10 @@ const stateOf = (
       return { state: offered.pinned === null ? "optIn" : "off" }
     case "running":
       // `running` in the snapshot and absent from the live reading: a plugin
-      // that started and registered no sibling surface. Somebody asked for it
-      // and it did load, so it is not `optIn`; nothing of it reached the wire,
-      // so it is not `running` either. `off` is the honest word, and it is the
-      // one every other absence already wears.
+      // that started and CONTRIBUTED NOTHING — no sibling surface, no engine.
+      // Somebody asked for it and it did load, so it is not `optIn`; nothing of
+      // it reached anybody, so it is not `running` either. `off` is the honest
+      // word, and it is the one every other absence already wears.
       return { state: "off" }
   }
   // NO `default` ARM, and that is the guard rather than an omission: the four
@@ -1379,7 +1386,33 @@ export const bind = (
      * and the cell is republished ({@link republishPlugins}).
      */
     const roster = (): PluginRoster =>
-      rosterOf(offered, siblings().map((one) => one.name), rings())
+      rosterOf(offered, composing(), rings())
+
+    /**
+     * WHICH PLUGINS HAVE CONTRIBUTED SOMETHING RIGHT NOW — the live half of the
+     * word `running`.
+     *
+     * IT WAS THE SIBLING TABLE ALONE, and that was exact while every plugin
+     * composed a sibling surface. An ENGINE composes none: what it contributes
+     * to a tab — a row of the picker, a name in the header, a sentence on the
+     * no-agent face — already travels on the chat cell, which is core's, so a
+     * second surface under `surface/claude/` would be one fact on the wire
+     * twice. Read off the siblings alone, every engine row said `off` while its
+     * fiber was `running`, and the tab never fetched its chunk: the panel drew
+     * the generic mark for an agent whose own shape was sitting in a chunk the
+     * roster had declined to name.
+     *
+     * A UNION rather than a second word on the row, because `running` means what
+     * it always meant — this plugin's contribution is live — and the two
+     * registries are two ways of contributing rather than two kinds of running.
+     * A plugin that registers NEITHER is `off`, which is what
+     * {@link stateOf}'s snapshot arm has always said about a fiber that started
+     * and put nothing on the wire.
+     */
+    const composing = (): ReadonlyArray<string> => [
+      ...siblings().map((one) => one.name),
+      ...(plugins?.engines() ?? []).map((one) => one.id),
+    ]
     /**
      * EVERY CONNECTOR BELOW READS `store.reads`, and every frame on it is a
      * pair: the set, and how old it is (`@olai/store`'s `Aged`). These take

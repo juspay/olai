@@ -113,7 +113,7 @@ describe("the roster as the agent's own report leaves it", () => {
   const handed = rosterOf([OLAI, ALPHA], [])
 
   test("the agent's own verdict is what puts a tick on a row", () => {
-    // WHICH WORD meant yes was the leg's to decide (`./agents/claude.test.ts`),
+    // WHICH WORD meant yes was the leg's to decide (`olai-plugin-claude`'s `leg.test.ts`),
     // because it is true of one agent. What is asserted here is the half that
     // is true of every agent: a verdict of yes becomes `connected`, and nothing
     // else does.

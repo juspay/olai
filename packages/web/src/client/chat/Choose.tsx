@@ -26,6 +26,16 @@
  * `../../../../chat/src/chat.ts` for why answering the panel's own question is
  * not the same verb as asking for a new chat.
  *
+ * ## THE ROWS' WORDS ARE THE ENGINES' OWN
+ *
+ * An engine is a PLUGIN, and what it is CALLED is a fact its own package knows;
+ * `packages/bundle/src/fence.test.ts` holds as an equality that no general
+ * package spells a plugin's name in code. So each row's contents come out of the
+ * `chat.agent.row` slot that engine's browser half hung them in, and what stays
+ * here is the row itself — the button, the press, the mark, and the ORDER, which
+ * is the roster's and is what keeps the picker's promise that every row it draws
+ * is an agent this machine has.
+ *
  * ## Not a picker of one
  *
  * A roster of one agent never reaches this component: the server has already
@@ -33,10 +43,12 @@
  * is friction with no answer behind it — see `Talking`'s `asking` arm.
  */
 
+import { Dynamic } from "solid-js/web"
 import { For, Show } from "solid-js"
 
 import type { AgentChoice } from "@olai/surface"
 
+import { rowOf } from "../plugins/agents.ts"
 import { TESTID } from "../testids.ts"
 import { AgentMark } from "./AgentMark.tsx"
 
@@ -87,7 +99,21 @@ export function Choose(props: {
                 onClick={() => props.onPick(agent.id)}
               >
                 <AgentMark id={agent.id} />
-                <span class="truncate">{agent.name}</span>
+                {/* THE ROW'S WORDS ARE THE ENGINE'S OWN, out of the slot its
+                    browser half hung them in (`../plugins/agents.ts`). What
+                    stays here is the row: the button, the press, the mark
+                    beside it, and the ORDER — which is the roster's, so the
+                    picker still offers exactly the agents this machine has.
+
+                    THE FALLBACK IS THE WIRE'S `name`, and it is a real state
+                    rather than a guard: an engine whose browser chunk the
+                    roster did not name, or whose half failed to start, has hung
+                    no face — and the server already told us what it is called.
+                    Drawing that is the same bargain the generic mark makes one
+                    element over. */}
+                <Show when={rowOf(agent.id)} fallback={<span class="truncate">{agent.name}</span>}>
+                  {(row) => <Dynamic component={row()} />}
+                </Show>
               </button>
             </li>
           )}

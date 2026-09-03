@@ -266,7 +266,7 @@ export type Spawned = typeof Spawned.Type
  *
  * It is on the wire because the WIRE says it: the pinned adapter stamps the
  * harness's own `task_started` onto the call it names, and the call stays
- * running until the harness reports a terminal state (`acp/patches/README.md`).
+ * running until the harness reports a terminal state (`packages/plugins/claude/acp/patches/README.md`).
  * Nothing here is inferred from a tool's name or from an argument — a client
  * that guessed would be putting a live face on somebody's ordinary call.
  *
@@ -741,7 +741,7 @@ export const ToolEntry = Schema.Struct({
    * for as long as it lives (`chat/src/agents/claude.ts`'s `parentToolUseId`),
    * so a resumed agent is one row, one lane and one face rather than a second
    * of each. The adapter reopens that call when the harness says the task
-   * started again (`acp/patches/README.md`), which is what puts the agent back
+   * started again (`packages/plugins/claude/acp/patches/README.md`), which is what puts the agent back
    * on the strip through the membership rule that was already there.
    *
    * WHAT IT COSTS IS THE CLOCK, which is what this field is. `since` is the
@@ -1011,7 +1011,7 @@ export const isTaskOut = (entry: ToolEntry): boolean =>
  * The sibling of {@link isTaskOut}, one field over, and the reason it is not
  * spelled in terms of that one: **a spawn does not have to arm anything.**
  * Only an ASYNCHRONOUS `Agent` launch registers a background task with the
- * harness (`acp/patches/README.md`'s `BACKGROUND_LAUNCHES` table — a
+ * harness (`packages/plugins/claude/acp/patches/README.md`'s `BACKGROUND_LAUNCHES` table — a
  * synchronous subagent answers ordinarily and arms nothing), so a rule that
  * asked about `armed` would carry a fan-out's agents on some wires and none of
  * them on others, and which of the two you got would be a fact about a patch
@@ -1181,7 +1181,7 @@ export type Conversation = typeof Conversation.Type
  */
 export const SessionInfo = Schema.Struct({
   ...Conversation.fields,
-  /** One of {@link AGENTS}' ids. */
+  /** One of the enabled engines' ids — an engine plugin's own word. */
   agent: Schema.String,
   /** How many messages the conversation holds, as the agent counts them —
    *  `null` when nothing says: an agent without a count, or a transcript it
@@ -1208,7 +1208,7 @@ export type SessionInfo = typeof SessionInfo.Type
  * reached it. Both halves are the same rule, one layer apart.
  */
 export const Unreachable = Schema.Struct({
-  /** One of {@link AGENTS}' ids. */
+  /** One of the enabled engines' ids — an engine plugin's own word. */
   agent: Schema.String,
   /** The agent's own reason, as a person reads it. */
   why: Schema.String,
@@ -1227,37 +1227,44 @@ export const Listed = Schema.Struct({
 export type Listed = typeof Listed.Type
 
 /**
- * EVERY AGENT olai knows how to talk to, and what a person reads.
+ * WHERE AN ENGINE'S OWN WORDS COME FROM — a note rather than a schema, because
+ * none of them crosses this wire.
  *
- * HERE, on the wire, because it is the one vocabulary BOTH ENDS keep a table
- * over and neither owns: the server's roster says how to find each of them and
- * how to read its frames (`../../chat/src/agents/roster.ts`), and the client
- * draws a mark for each and — when NONE of them is installed, which is the one
- * moment nothing can be sent — says where to get one
- * (`../../web/src/client/chat/NoAgent.tsx`). Two tables keyed alike, in two
- * packages that never otherwise meet, is exactly the contract that breaks
- * silently: adding a third agent server-side would leave the face that explains
- * agents quietly not mentioning it.
+ * ## What was here, and why a table could not stay
  *
- * A RECORD, so both tables are `{ [K in AgentId]: … }` and the type checker is
- * what enforces coverage — the same arrangement `@olai/format`'s `FILE_KINDS`
- * and `MARKS` already make for their own cross-package names, and for the same
- * reason. What is NOT here is anything either end can answer alone: how to find
- * an agent, how to read its wire, what mark to draw, where to download it.
+ * `AGENTS`: a compiled-in record of `{ claude, opencode, pi }` right here, with
+ * `AgentId = keyof typeof AGENTS` beside it — a CLOSED UNION that keyed every
+ * table over agents in the tree, so a fourth engine was a core PR in this
+ * package and a matching one in `@olai/web`, whose no-agent face carried the
+ * other half of the same table (where to download each). Two tables keyed alike
+ * in two packages that never meet was the contract that broke silently, and the
+ * fix here was the type checker holding them equal.
  *
- * The NAME travels on the wire too ({@link AgentChoice}), and that is not this
- * table being ignored: a browser draws what the server SENT, because the server
- * is what knows which agents are actually here. This is the fallback for the
- * face drawn when nothing was sent, and the one spelling both sides use.
+ * An engine is a PLUGIN now — `packages/plugins/claude/`, `opencode/`, `pi/` —
+ * so neither table can exist: `packages/bundle/src/fence.test.ts` holds as an
+ * equality per package that no general package spells a plugin's name in code.
+ *
+ * ## ...and why nothing replaced it HERE
+ *
+ * A member carrying each engine's install sentence was the obvious answer and is
+ * the weaker one. What an engine is CALLED and how a person gets it are the same
+ * kind of fact as the MARK it wears: a drawing about a plugin, which the plugin
+ * draws. So each engine's browser half hangs its own row in `chat.agent.row` and
+ * `chat.agent.install` (`@olai/plugin-api`'s `SLOTS`), and the tab draws what the
+ * ROSTER named rather than what this wire listed.
+ *
+ * That is strictly more honest than a member would have been, and the reason is
+ * the tab following the roster: a serve started `--plugins=opencode,pi` never
+ * fetches the Claude chunk, so no Claude row is drawn on either face — where a
+ * list on this cell would have had to be filtered by something, and a compiled-in
+ * record would have gone on offering an engine this serve could not mount.
+ *
+ * WHAT DOES STILL CROSS is {@link AgentChoice}: an id and a name per INSTALLED
+ * agent, on {@link ChatState.roster}. That is a fact about this MACHINE — which
+ * agents are here — and only the server can answer it; the `name` is what a
+ * picker row falls back to when a tab has no face for one, and what the header
+ * says beside the model.
  */
-export const AGENTS = {
-  claude: { name: "Claude Code" },
-  opencode: { name: "opencode" },
-  pi: { name: "pi" },
-} as const
-
-/** One of them. Every table over agents is keyed by this. */
-export type AgentId = keyof typeof AGENTS
 
 /**
  * ONE AGENT a conversation can be with — a row of the picker, and, once one is
@@ -1754,7 +1761,8 @@ export const ChatState = Schema.Struct({
    * maintain, no path to set for an agent that is simply installed), and sent
    * whole because it is what the picker IS. Empty only in {@link CHAT_OFF} —
    * with no agent at all there is no chat, and the panel draws the face that
-   * says so and says how to install one.
+   * says so and says how to install one, out of each engine plugin's own
+   * face (`@olai/web`'s `chat/NoAgent.tsx`, over the `chat.agent.install` slot).
    */
   roster: Schema.Array(AgentChoice),
   /**
@@ -1805,7 +1813,7 @@ export const ChatState = Schema.Struct({
    * the strip twice under one key.
    *
    * WHY THE SECOND MEMBERSHIP IS NOT SPELLED OVER `armed`: only an ASYNCHRONOUS
-   * spawn registers a task with the harness (`acp/patches/README.md`'s
+   * spawn registers a task with the harness (`packages/plugins/claude/acp/patches/README.md`'s
    * `BACKGROUND_LAUNCHES` — a synchronous subagent answers ordinarily and arms
    * nothing), so a rule that asked about `armed` would carry a fan-out's agents
    * on some wires and none of them on others, and which you got would be a fact

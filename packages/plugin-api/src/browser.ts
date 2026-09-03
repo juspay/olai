@@ -25,14 +25,21 @@
  * a plugin the roster stops naming unwinds its own faces on the way out and the
  * app re-reads what is left.
  *
- * ## THE SIX SLOTS, and why the table is data
+ * ## THE EIGHT SLOTS, and why the table is data
  *
- * A slot is a place in this app where a plugin's face may hang. There are six
+ * A slot is a place in this app where a plugin's face may hang. There are eight
  * and they are DECLARED ({@link SLOTS}) rather than implied by four hooks on an
  * interface, because a registration has to be checkable against something: a
  * plugin hanging a chip in the header is a mistake somebody should be told
  * about at the moment they make it, and an interface with an optional field per
  * hook can only be wrong silently.
+ *
+ * THE LAST THREE ARE THE CHAT PANEL'S, and they arrived with the engines: an
+ * ACP agent is a plugin now, so the mark over a sentence it spoke, its row in
+ * the *which agent?* question, and its row on the face drawn when this machine
+ * has no agent at all are all drawings ABOUT a plugin — which core may not hold
+ * a table of. What each of them keeps is the SHAPE (the sixteen-unit box, the
+ * pressable row, the list) and what arrives is the words.
  *
  * THERE WERE SEVEN. `app.drawer` — the panel a header readout's press opens —
  * was declared and READ BY NOBODY: the chrome walk draws `app.header` and the
@@ -43,11 +50,12 @@
  * as a walk beside `PluginHeaders` on the day one does.
  *
  * Each slot declares WHAT KEYS IT — and there are exactly two rules, which is
- * why there are two register doors rather than six:
+ * why there are two register doors rather than eight:
  *
  *   - **`plugin`** — one face per plugin, keyed by the fiber's own name. The
- *     header readout, the tab half wrapped around the page, and the mark a
- *     delivered sentence wears. The key is the plugin's own word, minted into
+ *     header readout, the tab half wrapped around the page, the mark a
+ *     delivered sentence wears, and an engine's two rows in the chat panel.
+ *     The key is the plugin's own word, minted into
  *     the service before the plugin ran, for the reason {@link ./services.ts}'s
  *     doors are minted that way: a key a caller supplies is a key one plugin can
  *     sign another's registration with.
@@ -112,7 +120,7 @@ import type {
 export * from "./runtime.ts"
 
 /**
- * WHERE A FACE CAN HANG — the six, and what keys each.
+ * WHERE A FACE CAN HANG — the eight, and what keys each.
  *
  * DATA rather than a union alone, because the key rule is the thing a reader
  * and the service both need and a union could only carry the names. The gloss
@@ -137,9 +145,18 @@ export const SLOTS = {
   /** The shapes drawn over a sentence this plugin delivered into somebody's
    *  conversation — a `<g>` in a sixteen-unit box, never a whole `<svg>`. */
   "chat.speaker.mark": { keyedBy: "plugin" },
+  /** THIS ENGINE'S ROW in the panel's *which agent?* question — the words
+   *  inside the row, where the row itself, its press and its place in the list
+   *  are the panel's. Drawn only for an engine this machine actually has. */
+  "chat.agent.row": { keyedBy: "plugin" },
+  /** ...and THIS ENGINE'S ROW on the face drawn when the machine has NONE: how
+   *  a person gets it. The plugin's whole sentence, spelled in its own package
+   *  and spent a second time here — the first is the `missing` its server half
+   *  registers on `Agents`. */
+  "chat.agent.install": { keyedBy: "plugin" },
 } as const satisfies Readonly<Record<string, { readonly keyedBy: "plugin" | "kind" }>>
 
-/** One of the six. */
+/** One of the eight. */
 export type SlotName = keyof typeof SLOTS
 
 /** ...the three a PLUGIN keys, one face each. */
@@ -172,6 +189,8 @@ export interface SlotFaces {
   "app.header": () => JSX.Element
   "app.mount": (props: { readonly children: JSX.Element }) => JSX.Element
   "chat.speaker.mark": () => JSX.Element
+  "chat.agent.row": () => JSX.Element
+  "chat.agent.install": () => JSX.Element
 }
 
 /** One face, with the plugin that hung it — what a walk over a plugin-keyed

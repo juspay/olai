@@ -95,7 +95,7 @@ effects* onto its own `Scope`, and declares which services it needs:
 // packages/plugins/odu/src/server.ts  (abridged)
 export default definePlugin({
   name,
-  needs: [Clock, Deliveries, Env, Kinds, SessionStart.key, Surfaces, Vault, Wakes],
+  needs: [Clock, Deliveries, Env, Kinds, SessionStart, Surfaces, Vault, Wakes],
   apply: Effect.gen(function*() {
     const env = yield* Env
     const vault = yield* Vault
@@ -104,12 +104,7 @@ export default definePlugin({
     yield* (yield* Wakes).register(wake)
     yield* (yield* Surfaces).register({ surface, faces, deps: half.handlers })
     yield* vault.revision((snapshot) => Effect.sync(() => half.revision(…)))
-    yield* (yield* SessionStart.key).use((start, next) =>
-      Effect.suspend(() => {
-        start.asking.push({ name, ask: () => probe(env.vars) })
-        return next(start)
-      })
-    )
+    yield* (yield* SessionStart).ask(Effect.promise(() => probe(env.vars)))
   }),
 })
 ```
@@ -170,7 +165,7 @@ The hooks, and what each replaced:
 | --- | --- | --- |
 | `vault.revision(handler)` | door | `PluginServer.revision(snapshot)` |
 | `vault.unloaded(handler)` | door | `PluginServer.unloaded()` — and it is **not teardown**: it means the STORE has never published, so what a plugin derived from the vault is yesterday's reading, while what it holds from its own daemon is untouched |
-| `SessionStart` | waterfall (Effect middleware) | `PluginServerHalf.probe` |
+| `SessionStart.ask(probe)` | keyed registration | `PluginServerHalf.probe`, then a `chat/session-start` waterfall |
 | `watching.subscribe(handler)` | door | `PluginServices.watching`'s hand-rolled `Set` and the unsubscribe a plugin had to remember to call |
 
 **The doors take handlers that answer Effects, and the publisher awaits them.**
@@ -211,8 +206,8 @@ Skim the table; the sections after it give one example each.
 
 | Word | What it means |
 | --- | --- |
-| **plugin** | one integration, two halves, one shape: each is a `definePlugin` over an Effect |
-| **name** | the plugin's one word — `"kolu"`, `"odu"`. Also the **sibling key**, the **row id**, the **fiber's name** and the address of its docs page |
+| **plugin** | one integration, two halves, one shape: each is a `definePlugin` over an Effect. TWO KINDS of them today — a **tenant** (olai's judgement about somebody else's appliance: kolu, odu, xyne-spaces) and an **engine** (an ACP agent the chat panel can seat: claude, opencode, pi) — and nothing in the system tells them apart |
+| **name** | the plugin's one word — `"kolu"`, `"claude"`. Also the **sibling key**, the **row id**, the **fiber's name** and the address of its docs page |
 | **row** | one line of `packages/bundle/olai.yml`: an `id` and the module the loader mounts. The build's list, as data |
 | **fiber** | one mounted plugin, with a lifecycle. A composition root sees four words for it — `running`, `waiting`, `failed`, `off` — and the engine's six states are `@olai/effect-cordis`'s business |
 | **service** | an Effect tag a plugin yields — `Vault`, `Kinds`, `Surfaces`. What `PluginServices` dissolved into. The tag carries the engine's key, so `needs` and the requirement channel are one declaration |
@@ -221,13 +216,15 @@ Skim the table; the sections after it give one example each.
 | **surface** | a whole `defineSurface(...)` contract, declared inside the plugin's package |
 | **member** | one thing on a surface: a cell, a collection, a stream, a procedure |
 | **face** | *who* may see which members — `browser`, `agent`. Default-deny |
-| **probe** | "is this tool on this host?" — pushed onto the `chat/session-start` waterfall, asked once per conversation |
+| **probe** | "is this tool on this host?" — an Effect registered on `SessionStart`, read afresh and asked once per conversation. The plugin's NAME is stamped off the fiber, like every other keyed door |
+| **engine** | one ACP agent olai can seat, as a plugin: a `Leg` that reads its wire, a probe that finds it on this host, an install sentence, and the channel its standing prompt rides. `claude`, `opencode`, `pi` — one directory and one row each |
 | **kind** | a word a plugin teaches the vault's vocabulary. Contributed BARE (`terminal`) and composed by `Kinds` with the plugin's own name (`kolu-terminal`) |
 | **claim** | the key a kind declares by convention — its own composed word, so mounting a plugin turns its faces on with no file to edit |
 | **dressing** | what a live property *wears* in the browser: a chip, a pane, a block |
 | **chrome** | what a plugin hangs in the app's header bar |
 | **mount** | the plugin's own half of the tab — one subscription per tab |
-| **mark** | the plugin's FACE — the glyph over a sentence it delivered into a conversation |
+| **mark** | the plugin's FACE — the glyph over a sentence it delivered into a conversation, and the one an ENGINE wears in the picker and the header |
+| **engine rows** | an engine's two other faces: its row in the panel's *which agent?* question, and its row on the face drawn when this machine has no agent at all. Core keeps the shape — the pressable row, the list, the mark, the order — and the words arrive from the plugin |
 | **watching** (`Watching`) | the read-shaped door that is not a read: core PUSHES what happened in a conversation — a doorbell that landed, an orchestrator reply that settled, a turn that started or ended — and a human message is not among them |
 | **held** (`Held`) | a small opaque record a plugin keeps about this serve, in the state home rather than the vault |
 | **doorbell** (`Deliveries`) | the write-only door a plugin speaks INTO a conversation through: which conversations opted in to it, and one verb that puts a whole sentence in one. Minted from the calling plugin's own word |
@@ -292,37 +289,34 @@ shared nothing is a debug line on a screen.
 
 A plugin with no probe is a whole plugin: the absent arm is a machine that
 simply does not have the tool, and that state already had to work. Both
-tenants here have one.
+tenants here have one; no engine does.
 
-It is not a FIELD any more. A plugin adds one link to the `SessionStart`
-waterfall and pushes a THUNK — its own name, and what it would ask:
+It is not a FIELD any more. A plugin REGISTERS what it would ask:
 
 ```ts
-yield* (yield* SessionStart.key).use((start, next) =>
-  Effect.suspend(() => {
-    start.asking.push({ name, ask: () => probe(env.vars) })
-    return next(start)
-  })
-)
+yield* (yield* SessionStart).ask(Effect.promise(() => probe(env.vars)))
 ```
 
-The list is collected per session open, so a plugin that unloaded between
-conversations contributes nothing to the next one and nobody keeps a second list.
-A thunk rather than an answer, because the ASKING is `@olai/chat`.s to schedule:
-a probe starts a subprocess on the session-open path, and a waterfall that
-awaited each listener in turn would multiply that window by the number of
+The list is read afresh per session open, so a plugin that unloaded between
+conversations contributes nothing to the next one and nobody keeps a second
+list. The ASKING rather than an answer, because the SCHEDULING is
+`@olai/chat`.s: a probe starts a subprocess on the session-open path, and
+running them one after another would multiply that window by the number of
 plugins — the same defect the bound concurrency exists to prevent, wearing a
 different shape. `Probed`.s two halves still come off ONE reading.
 
-**This is the last door where a plugin signs its own name, and the last thing a
-plugin hands over that is a promise.** Both come from the payload being a plain
-record: a waterfall carries what its type says, so neither the per-fiber stamp
-every keyed door has nor the effect channel everything else uses is anything
-this door can enforce. Neither is fixed here — the `name` goes when the
-collector keys the list by the fiber that pushed, and the `Promise` goes when
-`@olai/chat` runs the thunks as Effects with its bound expressed as Effect
-concurrency, and both of those are edits to the session-open path rather than to
-the door. That path is the agents phase's, and it takes them.
+**It was the last door where a plugin signed its own name, and the last thing a
+plugin handed over that was a promise.** Both came from the payload being a
+plain record: it was a WATERFALL, so what a link put in the record was whatever
+the record.s type said, and neither the per-fiber stamp every keyed door has nor
+the effect channel everything else uses was anything the door could enforce. The
+agents phase took both, and what fixed them is that this stopped being a
+waterfall: the waterfall.s own powers — transform what the later links see,
+short-circuit the rest — were never used here and could not honestly be, since
+the order the links ran in was the order two dynamic imports came back in. What
+the event IS is a collection, and a collection keyed by the calling plugin is
+the shape `Kinds`, `Wakes` and `Watching` already had. The waterfall PRIMITIVE
+stays in `@olai/effect-cordis` for the delivery policy the design names next.
 
 ### kind
 
@@ -911,6 +905,11 @@ that matters.
 1. **`packages/plugins/<name>/src/wire.ts`** — `name`, a
    `defineSurface`, and the `faces` map. This file may not import SolidJS, an
    appliance client, or a `node:` builtin.
+
+   AN ENGINE HAS NO SUCH FILE. What an engine contributes to a tab — a row of
+   the picker, a name in the header, a sentence on the no-agent face — already
+   travels on the chat cell, which is core's, so it composes no sibling surface
+   at all and puts its `name` in `src/index.ts` instead. See step 6.
 2. **`packages/plugins/<name>/src/server.ts`** — a `default` export of
    `definePlugin({ name, needs, apply })`, where `apply` is one Effect. This is
    where the appliance's client is called, where `Surfaces.register(...)` puts
@@ -919,7 +918,8 @@ that matters.
    conversation. Yield each service you named; the compiler refuses one you did
    not. Register a `wake` or the strip draws no picker for you and `chat.scope`
    refuses your name — which is the gate working, not a bug. Add a link to
-   `SessionStart` if you have a tool to probe for. Say your lines with
+   `SessionStart` if you have a tool to probe for; register on `Agents` if what
+   you are adding is an ACP ENGINE (step 6). Say your lines with
    `Effect.logDebug` and `Effect.logWarning`, which arrive with the level the
    operator asked for. If your appliance calls you back from a timer or a socket,
    take `detached` once and start your Effects through it. Everything you
@@ -929,7 +929,8 @@ that matters.
 3. **`packages/plugins/<name>/src/browser.tsx`** — the browser half, the same
    shape: a `name` and a `surface` re-exported off `./wire.ts`, and a `default`
    `definePlugin` whose Effect registers your faces into `Slots`. Browser graph,
-   and its own chunk.
+   and its own chunk. An ENGINE re-exports only its `name` and registers three
+   faces: its mark, its picker row and its install sentence (step 6).
 4. **`packages/plugins/<name>/docs.md`** — the user page, plus a
    symlink at `docs/plugins/<name>.md` and a line in `docs/index.md`.
    `packages/tests/plugin_docs.test.ts` fails if you skip either.
@@ -943,6 +944,37 @@ that matters.
    `./all.css` — the generator derives all four subpaths from the row's module
    name) and one line in `packages/bundle/package.json`'s `dependencies`,
    without which the generated `import()` does not resolve.
+
+6. **IF IT IS AN ENGINE** — an ACP agent the chat panel can seat rather than an
+   appliance olai has a judgement about — the shape is smaller and the rules are
+   the same. There is no `./wire`, no surface and no `faces`: `src/index.ts` is
+   the plugin's word and nothing else. `src/leg.ts` is a `Leg`
+   (`@olai/acp/engine`) — every bet about that agent's wire, each a pure function
+   with a unit test, each safe to lose in ONE direction: an agent that says none
+   of it matches nothing, and what happens then is that a person is asked.
+   `src/server.ts` registers `{ name, leg, at, missing, prompt }` on `Agents`:
+   what a person reads, the leg, a probe that answers `Adapter | null` for this
+   host, the whole install sentence for a machine that has none, and the channel
+   the standing prompt rides. `src/browser.tsx` hangs THREE faces, and all three
+   are drawings ABOUT this engine rather than data about it: its MARK
+   (`chat.speaker.mark`), its ROW in the *which agent?* question
+   (`chat.agent.row`), and its SENTENCE on the face drawn when the machine has
+   no agent at all (`chat.agent.install`). Core keeps the shape of each — the
+   sixteen-unit box, the pressable row, the list, the order — and none of the
+   words crosses the wire, so `--plugins` naming other engines draws a panel with
+   nothing of yours anywhere in it. Spell the install sentence ONCE, in a
+   `src/install.ts` both halves open: the server registers it as `missing` and
+   the browser draws it. Its `testids` table is legitimately empty — an engine
+   draws inside core's own elements, under core's own ids, with `data-agent`
+   carrying its word. And if olai SHIPS an
+   adapter for it, the pin's patches and the rigs that generate them go in
+   `packages/plugins/<name>/acp/`, with a row in `nix/acp-agent.nix` — while the
+   npm shim stays the shared `acp/` (that directory's README says why).
+
+   THE ORDER OF THE ENGINE ROWS IS LOAD-BEARING, unlike a tenant's: it is the
+   order the picker draws and the order the install face lists, and the FIRST
+   row is what a conversation note that names no agent at all is read as being
+   about.
 
 Then run `bun test packages/bundle` and let the fence tell you what you got
 wrong. It will be specific.

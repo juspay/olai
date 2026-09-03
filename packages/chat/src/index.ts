@@ -44,7 +44,7 @@
  * ({@link ./probes.ts}).
  */
 
-export { type Adapter, AGENT_ENV, whyNoAgent } from "./adapter.ts"
+export { AGENT_ENV, whyNoAgent } from "./adapter.ts"
 export {
   type Conversing,
   forDirectory as sessionsIn,

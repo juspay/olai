@@ -43,7 +43,7 @@
  *  that what a reader is told cannot drift between them — and a rule one package
  *  owns stops being owned the moment a fourth caller outside it can spell it. */
 export { type Bus, broadcast, type Listen } from "./broadcast.ts"
-export { registry, type Registry } from "./registry.ts"
+export { registry, type Registry, roster, type Roster } from "./registry.ts"
 export {
   type Host,
   type Mounted,

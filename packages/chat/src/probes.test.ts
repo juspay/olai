@@ -43,11 +43,11 @@ const answering = (
   afterMs = 0,
 ): Probe => ({
   name,
-  ask: () =>
-    new Promise((resolve) => {
-      if (afterMs === 0) resolve(found)
-      else setTimeout(() => resolve(found), afterMs)
-    }),
+  // AN EFFECT, like everything a plugin hands core — the delay is the same
+  // promise it always was, wrapped once at this edge rather than at every call.
+  ask: afterMs === 0
+    ? Effect.succeed(found)
+    : Effect.promise(() => new Promise<Probed>((resolve) => setTimeout(() => resolve(found), afterMs))),
 })
 
 const run = <A>(effect: Effect.Effect<A>): Promise<A> => Effect.runPromise(effect)
@@ -75,10 +75,10 @@ describe("asking what this host is running", () => {
     let asked = 0
     const counting: Probe = {
       name: "alpha",
-      ask: async () => {
+      ask: Effect.sync(() => {
         asked += 1
         return { server: ALPHA, missing: null }
-      },
+      }),
     }
 
     const found = await run(probed([counting]))

@@ -1,147 +1,137 @@
 /**
- * Which agents a machine offers, over values.
+ * Which of the engines this build has a machine offers, over values.
  *
- * The table is a pure function of an environment and a probe ({@link
- * ./roster.ts}'s `Where`), which is the whole reason it is written that way:
- * what a person is offered depends on two variables and a filesystem, and none
- * of those is a thing to arrange in order to check that the off switch is still
- * the off switch.
+ * The reading is a pure function of an environment, a probe
+ * (`@olai/acp/engine`'s `Where`) and THE ENGINES IT IS HANDED, which is the
+ * whole reason it is written that way: what a person is offered depends on two
+ * variables, a filesystem and a bundle, and none of those is a thing to arrange
+ * in order to check that the off switch is still the off switch.
  *
- * {@link onPath} gets its own tests against a real directory, because what it
- * is about is the disk: a file that is not executable, a directory with the
- * right name, an empty PATH entry. It is one line over `Bun.which` and the
- * tests are still here deliberately — what they assert is not that Bun works
- * but that the answers olai DEPENDS on are the ones it gives, which is a claim
- * about this feature rather than about that function.
+ * ## The engines here are MADE UP, and that is the phase
+ *
+ * This file used to assert what each of the three rows made of an environment —
+ * the variable one, the PATH one, the pair — because the three were a table in
+ * this directory. Each is a plugin now, with its own directory and its own
+ * release clock, and each of those claims is asserted beside the plugin that
+ * answers it (`packages/plugins/<engine>/src/server.test.ts`). What is left here
+ * is what CORE decides, and the fakes below are what make that visible: the off
+ * switch, the order, and that a row is offered exactly when its own probe
+ * answered.
+ *
+ * {@link onPath} gets its own tests against a real directory, because what it is
+ * about is the disk: a file that is not executable, a directory with the right
+ * name, an empty PATH entry. It is one line over `Bun.which` and the tests are
+ * still here deliberately — what they assert is not that Bun works but that the
+ * answers olai DEPENDS on are the ones it gives, which is a claim about this
+ * feature rather than about that function.
  */
 
+import type { Adapter, Engine, Leg, Where } from "@olai/acp/engine"
 import { describe, expect, test } from "bun:test"
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { delimiter, join } from "node:path"
 
-import { AGENT_ENV, AGENT_PATH_ENV, PI_AGENT_ENV } from "../adapter.ts"
-import { BEFORE_THE_ROSTER, onPath, rosterOf } from "./roster.ts"
+import { AGENT_ENV, AGENT_PATH_ENV } from "../adapter.ts"
+import { onPath, rosterOf } from "./roster.ts"
 
 const CWD = "/vault"
 
 /** Nothing on the machine's PATH. */
 const nowhere = () => null
 
+/** A leg is DATA about how to read a wire, and nothing here reads one — so the
+ *  cases below need a value rather than a behaviour, and the value travels
+ *  through {@link rosterOf} untouched. */
+const NO_LEG = {} as Leg
+
+/** One made-up engine, offered where `at` says so. The three real ones are three
+ *  directories; what this file is about is what core does with any of them. */
+const engine = (id: string, at: (where: Where) => Adapter | null): Engine => ({
+  id,
+  name: `${id} (a name)`,
+  leg: NO_LEG,
+  at,
+  missing: null,
+  prompt: { kind: "first-turn" },
+})
+
+/** ...one that is always here, and one that is never. */
+const here = (id: string): Engine => engine(id, () => ({ command: `/bin/${id}`, args: [] }))
+const absent = (id: string): Engine => engine(id, () => null)
+
 describe("who is offered", () => {
-  test("the configured ACP agent is the Claude row", () => {
-    const found = rosterOf({
-      env: { [AGENT_ENV]: "/nix/store/x/bin/claude-agent-acp" },
-      cwd: CWD,
-      found: nowhere,
-    })
-    expect(found.map((row) => row.id)).toEqual(["claude"])
-    expect(found[0]?.name).toBe("Claude Code")
-    expect(found[0]?.adapter).toEqual({
-      command: "/nix/store/x/bin/claude-agent-acp",
-      args: [],
-    })
+  test("an engine whose probe answers is a row, carrying what the probe said", () => {
+    const found = rosterOf({ env: {}, cwd: CWD, found: nowhere }, [
+      engine("one", (where) => ({ command: "/bin/one", args: ["--cwd", where.cwd] })),
+    ])
+    expect(found.map((row) => row.id)).toEqual(["one"])
+    expect(found[0]?.adapter).toEqual({ command: "/bin/one", args: ["--cwd", CWD] })
   })
 
-  test("an opencode on the search path is a row of its own, started for THIS directory", () => {
-    const found = rosterOf({
-      env: { [AGENT_ENV]: "/adapter" },
-      cwd: CWD,
-      found: (name) => name === "opencode" ? "/usr/bin/opencode" : null,
-    })
-    expect(found.map((row) => row.id)).toEqual(["claude", "opencode"])
-    expect(found[1]?.adapter).toEqual({
-      command: "/usr/bin/opencode",
-      // `--cwd` on the command line is the only cwd opencode's session list
-      // hears — see the table.
-      args: ["acp", "--cwd", CWD],
-    })
+  test("...and one whose probe says nothing is simply absent", () => {
+    // `null` from a probe is NOT A FAULT: a machine that is not running the tool
+    // has had nothing go wrong, and what a person is owed about it is the
+    // engine's own install sentence on the no-agent face rather than a row that
+    // would fail at every `session/new`.
+    expect(rosterOf({ env: {}, cwd: CWD, found: nowhere }, [absent("one")])).toEqual([])
   })
 
-  test("opencode alone is a perfectly good roster", () => {
-    // Nothing baked in and nothing set: a hand-rolled start on a machine that
-    // has opencode is a working panel rather than an empty one.
-    const found = rosterOf({
-      env: {},
-      cwd: CWD,
-      found: () => "/usr/bin/opencode",
-    })
-    expect(found.map((row) => row.id)).toEqual(["opencode"])
+  test("every row carries the engine's own name and prompt channel, untouched", () => {
+    const found = rosterOf({ env: {}, cwd: CWD, found: nowhere }, [here("one")])
+    expect(found[0]?.name).toBe("one (a name)")
+    expect(found[0]?.prompt).toEqual({ kind: "first-turn" })
   })
 
-  test("pi is the pinned adapter PLUS a found `pi` — either one missing is no row", () => {
-    // Adapter without agent: a row that failed at every `session/new` would
-    // be offered, which is the one promise the picker may not make.
-    expect(
-      rosterOf({ env: { [PI_AGENT_ENV]: "/store/bin/pi-acp" }, cwd: CWD, found: nowhere })
-        .map((row) => row.id),
-    ).toEqual([])
-    // Agent without adapter: the variable is the adapter's whole door, the
-    // way `OLAI_ACP_AGENT` is the claude row's.
-    expect(
-      rosterOf({ env: {}, cwd: CWD, found: (name) => name === "pi" ? "/usr/bin/pi" : null })
-        .map((row) => row.id),
-    ).toEqual([])
+  test("the probe is handed the SERVE's own lookup, not one of its own", () => {
+    // Where this process may look is a fact about the serve — olai's PATH is not
+    // your shell's — so an engine asks the `found` it is given and never
+    // resolves a name for itself.
+    const asked: Array<string> = []
+    const found = (word: string): string | null => {
+      asked.push(word)
+      return "/bin/x"
+    }
+    rosterOf(
+      { env: {}, cwd: CWD, found },
+      [engine("one", (where) => where.found("one") === null ? null : { command: "x", args: [] })],
+    )
+    expect(asked).toEqual(["one"])
   })
 
-  test("a pi on the search path with the adapter named is a row, wrapping the pi the probe found", () => {
-    const found = rosterOf({
-      env: { [PI_AGENT_ENV]: "/store/bin/pi-acp --flag" },
-      cwd: CWD,
-      found: (name) => name === "pi" ? "/home/u/.npm-global/bin/pi" : null,
-    })
-    expect(found.map((row) => row.id)).toEqual(["pi"])
-    expect(found[0]?.adapter).toEqual({
-      command: "/store/bin/pi-acp",
-      args: ["--flag"],
-      // The EXACT executable the probe found — otherwise pi-acp resolves the
-      // word `pi` against its child's PATH, which is olai's and no other.
-      env: { PI_ACP_PI_COMMAND: "/home/u/.npm-global/bin/pi" },
-    })
-  })
-
-  test("the empty pi variable is as much 'no pi row' as an absent one", () => {
-    expect(
-      rosterOf({
-        env: { [PI_AGENT_ENV]: "" },
-        cwd: CWD,
-        found: (name) => name === "pi" ? "/usr/bin/pi" : null,
-      }).map((row) => row.id),
-    ).toEqual([])
-  })
-
-  test("nothing installed is nothing offered", () => {
-    expect(rosterOf({ env: {}, cwd: CWD, found: nowhere })).toEqual([])
+  test("no engines at all is a whole state, and it is the empty roster", () => {
+    // `--plugins=` with nothing named, or a build with every engine row
+    // disabled. The panel draws the face that says so; nothing here refuses.
+    expect(rosterOf({ env: {}, cwd: CWD, found: () => "/bin/anything" }, [])).toEqual([])
   })
 
   test("the EMPTY variable is the whole off switch, not one missing row", () => {
-    // The documented way to turn chat off. A machine with opencode installed
-    // must not get opencode instead of the "off" somebody asked for — and
-    // nothing is probed at all.
+    // The documented way to turn chat off. A machine with an engine installed
+    // must not get that engine instead of the "off" somebody asked for — and
+    // nothing is probed at all, whichever engines the build has.
     let probed = false
-    const found = rosterOf({
-      env: { [AGENT_ENV]: "" },
-      cwd: CWD,
-      found: () => {
+    const found = rosterOf(
+      { env: { [AGENT_ENV]: "" }, cwd: CWD, found: nowhere },
+      [engine("one", () => {
         probed = true
-        return "/usr/bin/opencode"
-      },
-    })
+        return { command: "/bin/one", args: [] }
+      })],
+    )
     expect(found).toEqual([])
     expect(probed).toBe(false)
   })
 
-  test("the order is the table's, so the picker draws the same list every time", () => {
-    const found = rosterOf({
-      env: { [AGENT_ENV]: "/adapter", [PI_AGENT_ENV]: "/store/bin/pi-acp" },
-      cwd: CWD,
-      found: () => "/usr/bin/opencode",
-    })
-    expect(found.map((row) => row.name)).toEqual(["Claude Code", "opencode", "pi"])
-  })
-
-  test("a memory that names no agent is about the row that used to be the only one", () => {
-    expect(BEFORE_THE_ROSTER).toBe("claude")
+  test("the order is the CALLER's, so the picker draws the same list every time", () => {
+    // Registration order is the order two dynamic imports came back in, which is
+    // a fact about the filesystem on the day; the composition root sorts against
+    // the bundle's own rows before handing the list over, and this function
+    // preserves whatever it was given (`@olai/server`'s `probes.ts` argues it).
+    const found = rosterOf({ env: {}, cwd: CWD, found: nowhere }, [
+      here("first"),
+      absent("skipped"),
+      here("second"),
+    ])
+    expect(found.map((row) => row.id)).toEqual(["first", "second"])
   })
 })
 
@@ -165,7 +155,7 @@ describe("finding an executable on a search path", () => {
     expect(onPath("opencode", [first, second].join(delimiter))).toBe(join(first, "opencode"))
   })
 
-  test("the pi probe asks the same question of the same path", () => {
+  test("a second engine's probe asks the same question of the same path", () => {
     expect(onPath("pi", [first, second].join(delimiter))).toBeNull()
     runnable(first, "pi")
     expect(onPath("pi", [first, second].join(delimiter))).toBe(join(first, "pi"))

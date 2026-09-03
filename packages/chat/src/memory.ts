@@ -99,8 +99,6 @@
 import { canonical, fileFor, readHeld, writeHeld } from "@olai/state"
 import { Data, Effect } from "effect"
 
-import { BEFORE_THE_ROSTER } from "./agents/roster.ts"
-
 /** Remembering, or reading back, went wrong. Reported to a person and never
  *  fatal — see the header. */
 export class MemoryFailure extends Data.TaggedError("MemoryFailure")<{
@@ -167,7 +165,8 @@ const CHAT = "chat"
  *  olai remembered one says nothing about it, which is what `null` means
  *  everywhere else here. The AGENT is optional too, for a sharper version of
  *  the same reason — a file written before olai had a roster names no agent,
- *  and there was exactly one it could have been ({@link BEFORE_THE_ROSTER}). */
+ *  and there was exactly one it could have been ({@link forDirectory}'s
+ *  `before`). */
 interface Written {
   readonly agent?: string
   readonly session: string
@@ -182,21 +181,21 @@ interface Written {
  * "nothing says", the same as an absent field. A file whose model went strange
  * is one the panel opens on whatever the agent offers, which is the behaviour
  * of every olai before this one; refusing the whole memory over it would cost
- * the conversation too. The AGENT is read leniently too, and lands on
- * {@link BEFORE_THE_ROSTER} when nothing readable says — which is not a default
- * standing in for a choice, it is the only agent a file that names none can be
- * about.
+ * the conversation too. The AGENT is read leniently too, and lands on `before`
+ * when nothing readable says — which is not a default standing in for a choice,
+ * it is the only agent a file that names none can be about.
  */
 const parsed = (
   at: string,
   held: Record<string, unknown>,
+  before: string,
 ): Effect.Effect<Held, MemoryFailure> => {
   const written = held as Partial<Written>
   if (typeof written.session !== "string" || written.session === "") {
     return Effect.fail(new MemoryFailure({ why: `\`${at}\` names no conversation` }))
   }
   return Effect.succeed({
-    agent: word(written.agent) ?? BEFORE_THE_ROSTER,
+    agent: word(written.agent) ?? before,
     session: written.session,
     model: word(written.model) ?? null,
   })
@@ -222,7 +221,24 @@ const parsed = (
 export const word = (value: unknown): string | null =>
   typeof value === "string" && value !== "" ? value : null
 
-export const forDirectory = (spelling: string): Memory => {
+/**
+ * A directory's memory — and the agent a note that names none is about.
+ *
+ * `before` IS AN ARGUMENT and used to be a constant in this package
+ * (`BEFORE_THE_ROSTER = "claude"`). It could not stay one: an engine is a plugin
+ * now, and `@olai/chat` may not spell one. What replaces it is the FIRST ENGINE
+ * THE BUILD LISTS, handed in by {@link ./chat.ts} off the same ordered list the
+ * picker is drawn from — which is the honest reading of the same fact rather
+ * than a fallback standing in for a choice. A note written before olai
+ * remembered which agent a conversation belonged to was written by an olai that
+ * had exactly ONE: the ACP agent `OLAI_ACP_AGENT` names, which is the row
+ * `olai.yml` puts first and says so.
+ *
+ * A build whose first row is some other engine reads such a note as that engine's
+ * — which is a build that never wrote one, since the note predates the roster
+ * and the roster predates every engine but the first.
+ */
+export const forDirectory = (spelling: string, before: string): Memory => {
   // ONE spelling from here down — the name of the file and what a read is
   // checked against — and it is `@olai/state`'s, which is the same answer the
   // one-brain lock is named by. It resolves symlinks, where this package's own
@@ -235,7 +251,7 @@ export const forDirectory = (spelling: string): Memory => {
 
   const recall: Effect.Effect<Held | null, MemoryFailure> = Effect.flatMap(
     Effect.mapError(readHeld(at, cwd), (failure) => new MemoryFailure(failure)),
-    (held) => held === null ? Effect.succeed(null) : parsed(at, held),
+    (held) => held === null ? Effect.succeed(null) : parsed(at, held, before),
   )
 
   const remember = (held: Held): Effect.Effect<void, MemoryFailure> =>
