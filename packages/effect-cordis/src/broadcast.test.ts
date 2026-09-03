@@ -12,9 +12,7 @@ import { expect, test } from "bun:test"
 import { Cause, Effect, Exit, Logger, Scope } from "effect"
 
 import { broadcast } from "./broadcast.ts"
-import { standing } from "./host.ts"
-
-
+import { standing } from "./standing.ts"
 
 test("every handler is told, in subscription order, and the caller waits", async () => {
   const said: Array<string> = []

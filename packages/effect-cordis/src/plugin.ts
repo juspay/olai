@@ -18,10 +18,10 @@
  *
  * ## `inject` and the requirement channel are one declaration
  *
- * `needs` is a list of {@link ServiceKey}s. The `inject` array Cordis holds the
- * fiber `PENDING` against is `needs.map(key => key.cordis)`; the `R` the
- * compiler holds `apply` against is the union of the same list's identifiers.
- * A plugin that yields a tag it did not list is a type error at its own
+ * `needs` is a list of {@link ./service.ts}'s `ServiceKey`s. The `inject` array
+ * Cordis holds the fiber `PENDING` against is `needs.map(key => key.cordis)`;
+ * the `R` the compiler holds `apply` against is the union of the same list's
+ * identifiers. A plugin that yields a tag it did not list is a type error at its own
  * `definePlugin` call, with the plugin's file in the message — which is the
  * guarantee `as const satisfies` used to buy at a registry, moved to the one
  * place both halves are in hand.
@@ -40,7 +40,7 @@ import { Cause, Context, Effect, Exit, FiberSet, Scope } from "effect"
 
 import { failed } from "./broadcast.ts"
 import { held } from "./host.ts"
-import type { AnyKey, ServiceKey } from "./service.ts"
+import type { AnyKey } from "./service.ts"
 
 /**
  * THE PLUGIN'S OWN WORD, INSIDE THIS PACKAGE — the name the registry bound this
@@ -161,16 +161,26 @@ export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>>(
   name: spec.name,
   inject: spec.needs.map((key) => key.cordis),
   apply: async (ctx: CordisContext) => {
-    const host = held(ctx)
+    const opened = held(ctx)
     // THE STAMP, READ ONCE, off the registry binding — never off anything the
     // plugin supplied. Every keyed service below is minted from it.
     const who = ctx.fiber.name
     const scope = Scope.makeUnsafe()
-    let services: Context.Context<never> = Context.merge(
-      host.services,
-      Context.make(PluginName, who),
+    // THE TWO AMBIENT ONES KEEP THEIR TYPES, because both are known here: the
+    // context that comes out of this says it carries a plugin name and a scope,
+    // and nothing is asserted to get there.
+    //
+    // The LOOP is where the tracking genuinely ends — a provision is resolved by
+    // a runtime string off a Cordis context, so what a key is a key FOR is not a
+    // thing the compiler can follow — and that is the one place the assertion
+    // belongs. It was written four times, once after each `merge` and `add`,
+    // which made a reader check three identical casts to find the one that meant
+    // something.
+    let services = Context.add(
+      Context.merge(opened, Context.make(PluginName, who)),
+      Scope.Scope,
+      scope,
     ) as Context.Context<never>
-    services = Context.add(services, Scope.Scope, scope) as Context.Context<never>
     for (const key of spec.needs) {
       const provision = (ctx as unknown as Record<string, unknown>)[key.cordis]
       if (typeof provision !== "function") {
@@ -203,14 +213,14 @@ export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>>(
       // then read on the preferences row, was the CLEANUP's defect rather than
       // the plugin's. The plugin's failure is the subject of this whole arm; it
       // wins, and a finalizer that died on the way out is said beside it.
-      const unwound = await Effect.runPromiseExitWith(host.services)(Scope.close(scope, exit))
+      const unwound = await Effect.runPromiseExitWith(opened)(Scope.close(scope, exit))
       if (Exit.isFailure(unwound)) {
-        await Effect.runPromiseWith(host.services)(
+        await Effect.runPromiseWith(opened)(
           failed(who, "unwinding after a failed start", unwound.cause),
         )
       }
       throw Cause.squash(exit.cause)
     }
-    return () => Effect.runPromiseWith(host.services)(Scope.close(scope, Exit.void))
+    return () => Effect.runPromiseWith(opened)(Scope.close(scope, Exit.void))
   },
 })

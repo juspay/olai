@@ -43,36 +43,31 @@ import type { Provision, ServiceKey } from "./service.ts"
  *  any derived context without the host being a service a plugin could name. */
 const HELD: unique symbol = Symbol.for("olai.effect-cordis.host")
 
-/** WHAT A HOST HANGS ON ITSELF — the Effect services in force where it was
- *  opened, and nothing else.
- *
- *  It carried the Cordis context beside them for a round, which was a
- *  self-reference the type hid: a host IS that context ({@link openHost} casts
- *  one), so `held(host).ctx === host` always. {@link ctxOf} is that cast, spelled
- *  once. */
-interface Held {
-  readonly services: Context.Context<never>
-}
-
 /**
  * ONE PLUGIN RUNTIME. Opaque on purpose — see the header.
+ *
+ * What it hangs on itself is the Effect services and NOTHING ELSE, so that is
+ * what the symbol holds rather than a record with one field on it. It carried
+ * the Cordis context beside them for a round, which was a self-reference the
+ * type hid: a host IS that context ({@link openHost} casts one), so the field
+ * was always `host` itself. {@link ctxOf} is that cast, spelled once — and when
+ * it went, the wrapper it had shared was a box with one thing in it.
  */
 export interface Host {
-  readonly [HELD]: Held
+  readonly [HELD]: Context.Context<never>
 }
 
 /**
- * WHAT A HOST IS HOLDING — read off a host, or off any context a fiber was
- * handed, which is how `definePlugin` finds the services it must run the
- * plugin's Effect under.
+ * WHAT A HOST IS HOLDING — read off any context a fiber was handed, which is how
+ * `definePlugin` finds the services it must run the plugin's Effect under.
  *
- * ONE function for both, because they are one read: `extend` puts the root on
- * the prototype chain, so a derived context resolves the same symbol off the
- * same object. It was two, differing only in the declared parameter and in
- * whether they threw — so a caller picked by whichever cast it happened to hold.
+ * A CORDIS CONTEXT is what every caller has, and a host is one: `extend` puts
+ * the root on the prototype chain, so a derived context resolves the same symbol
+ * off the same object, and {@link ctxOf} spells the other direction where the
+ * three verbs below need it.
  */
-export const held = (of: Host | CordisContext): Held => {
-  const found = (of as unknown as Record<symbol, Held | undefined>)[HELD]
+export const held = (of: CordisContext): Context.Context<never> => {
+  const found = (of as unknown as Record<symbol, Context.Context<never> | undefined>)[HELD]
   if (found === undefined) {
     throw new Error(
       "effect-cordis: this plugin was mounted on a context that is not a host — "
@@ -99,9 +94,9 @@ export const ctxOf = (host: Host): CordisContext => host as unknown as CordisCon
 export const openHost: Effect.Effect<Host> = Effect.map(
   Effect.context<never>(),
   (services) => {
-    const host = new CordisContext() as unknown as Host & { [HELD]: Held }
-    host[HELD] = { services }
-    return host
+    const host = new CordisContext() as unknown as { [HELD]: Context.Context<never> }
+    host[HELD] = services
+    return host as unknown as Host
   },
 )
 
@@ -260,30 +255,3 @@ const faultOf = (reason: unknown): string | undefined => {
   return trimmed === "" ? undefined : trimmed
 }
 
-/**
- * A SCOPE THAT OUTLIVES ITS CALLER, and the one way to run against it from code
- * that is not an Effect.
- *
- * ## What it is for
- *
- * Everything this package hands back is `Effect<_, never, Scope>`: a host, a
- * service, a bus, a mounted plugin. Every one of those is opened by something
- * that is NOT an Effect and that owns the runtime for its own lifetime — a tab's
- * module scope, a bench's case, a composition root's boot. That crossing was
- * written out seven times in one commit, byte for byte, and a seam re-invented
- * per caller is a seam nobody can change; {@link detached} is the same argument
- * about the other direction, and it is one function.
- *
- * ## The scope is never closed, and that is the shape rather than a leak
- *
- * A standing runtime lives as long as the thing that opened it: a page until it
- * navigates away, a case until it ends, a serve until the process does. What the
- * scope is FOR is that every registration a plugin makes hangs off ITS OWN
- * scope, inside this one, and unwinds when that plugin is dropped. A caller that
- * genuinely wants to close the whole runtime holds an `Effect.scoped` instead
- * and never reaches for this.
- */
-export const standing = (): <A>(work: Effect.Effect<A, never, Scope.Scope>) => Promise<A> => {
-  const scope = Scope.makeUnsafe()
-  return (work) => Effect.runPromise(Effect.provideService(work, Scope.Scope, scope))
-}
