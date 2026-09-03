@@ -16,7 +16,7 @@ import { type Agent, make } from "./agent.ts"
 import type { Leg } from "@olai/acp/engine"
 import { QUEUES } from "./agents/legs.testlib.ts"
 import type { Installed } from "./agents/roster.ts"
-import { make as makeChat } from "./chat.ts"
+import { makePanel as makeChat } from "./chat.ts"
 import type { Memory } from "./memory.ts"
 
 const FIXTURE = join(import.meta.dirname, "fixtures", "lifecycle-agent.ts")

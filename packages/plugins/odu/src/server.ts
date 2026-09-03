@@ -203,6 +203,13 @@ export default definePlugin({
      *  pointer read on the revisions the declarations file did not move on. */
     let declaring: PropDeclarations = NO_TYPING
 
+    type ScopeRow = ReturnType<typeof deliveries.scopes>[number]
+    const sameScope = (left: ScopeRow, right: ScopeRow): boolean =>
+      left.agent === right.agent
+      && left.session === right.session
+      && left.file === right.file
+      && left.under === right.under
+
     /**
      * THE WORDS, DERIVED AFRESH AT THE MOMENT THEY ENTER A CONVERSATION.
      *
@@ -223,11 +230,12 @@ export default definePlugin({
      * calls it at the delivery moment from inside its own fiber, and there is
      * nothing in here to log, dial or write.
      */
-    const said = (file: string, notice: RunNotice): string | null => {
+    const said = (scope: ScopeRow, notice: RunNotice): string | null => {
       const at = derived
       if (at === undefined) return null
-      const claim = claimingIn(claimedIn(declaring, at, file)).get(notice.run.id)
+      const claim = claimingIn(claimedIn(declaring, at, scope.file)).get(notice.run.id)
       if (claim === undefined) return null
+      if (!deliveries.ringing(scope.file, claim.node).some((row) => sameScope(row, scope))) return null
       if (notice.kind === "first-red") {
         return bodyFor(notice, claim, clock.now(), countsFor(half.rows(), notice))
       }
@@ -265,12 +273,17 @@ export default definePlugin({
           perFile.set(file, fresh)
           return fresh
         }
-        for (const scope of deliveries.scopes()) {
-          if (claimingFor(scope.file).get(notice.run.id) === undefined) continue
+        const scopes = deliveries.scopes()
+        for (const scope of scopes) {
+          const claim = claimingFor(scope.file).get(notice.run.id)
+          if (
+            claim === undefined
+            || !deliveries.ringing(scope.file, claim.node).some((row) => sameScope(row, scope))
+          ) continue
           yield* deliveries.deliver(
             { agent: scope.agent, session: scope.session },
             // ASKED AGAIN AT THE MOMENT IT GOES IN — see {@link said}.
-            () => said(scope.file, notice),
+            () => said(scope, notice),
             { coalesce: coalesceOf(notice) },
           )
         }

@@ -18,6 +18,7 @@ import {
   type Status,
   isTagName,
   mayHoldTag,
+  nearestAtOrAbove,
   TAG_SIGILS,
   tagOpensAt,
   tagText,
@@ -37,6 +38,17 @@ const statusesOf = (contents: string): ReadonlyMap<string, Status> =>
 
 const ids = (nodes: ReadonlyArray<Located>): ReadonlyArray<string> =>
   nodes.map((located) => located.node.id)
+
+test("the nearest selected node may be the node itself or its closest ancestor", () => {
+  const derived = derive(nodesOf(
+    `{"id":"root","ord":"a","title":"root"}\n` +
+      `{"id":"middle","parent":"root","ord":"a","title":"middle"}\n` +
+      `{"id":"leaf","parent":"middle","ord":"a","title":"leaf"}`,
+  ))
+  expect(nearestAtOrAbove(derived, "leaf", new Set(["root", "middle"]))).toBe("middle")
+  expect(nearestAtOrAbove(derived, "leaf", new Set(["root", "leaf"]))).toBe("leaf")
+  expect(nearestAtOrAbove(derived, "leaf", new Set(["elsewhere"]))).toBeNull()
+})
 
 /** A reverse index's members as a LIST — spread rather than compared as a set,
  *  because those indexes promise an order as well as a membership and

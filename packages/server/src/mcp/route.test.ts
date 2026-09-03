@@ -42,6 +42,7 @@ import { hostname } from "../hostname.ts"
 import { bind, gitWiring, writerAt } from "../runtime.ts"
 import { clientOver, serveFace } from "./face.ts"
 import { currentLogin, fromLoopback, MCP_PATH, mcpAllowed, mcpTransport } from "./route.ts"
+import { type Ticket, ticketing } from "./tickets.ts"
 import { bespokeFrom } from "./tools.ts"
 
 /** The codec this suite validates through — the vocabulary of a build that
@@ -62,6 +63,7 @@ interface Served {
     message: unknown,
     headers?: Record<string, string>,
   ) => Promise<Response>
+  readonly mintTicket: (under: string) => Ticket
   readonly url: string
 }
 
@@ -108,16 +110,18 @@ const withRoute = <A>(
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
 
     const transport = mcpTransport()
+    const panel = clientOver(
+      { group: wired.bound.group, handlers: writerAt(wired.bound, ops, { writer: "mcp", fence: null }) },
+      wired.faces.agent,
+    )
+    const tickets = ticketing({ bound: wired.bound, face: wired.faces.agent, ops, token: TOKEN })
     yield* serveFace({
-      client: () =>
-        clientOver(
-          { group: wired.bound.group, handlers: writerAt(wired.bound, ops, "mcp") },
-          wired.faces.agent,
-        ),
+      client: () => panel,
       tools: bespokeFrom(TOOLS, {
         login: currentLogin,
         root,
         vintage: Effect.map(store.read("verified"), (aged) => aged.vintage),
+        fenced: tickets.doorAt,
       }),
       transport,
     })
@@ -147,6 +151,10 @@ const withRoute = <A>(
       use({
         root,
         url,
+        mintTicket: (under) => tickets.mint(
+          () => ({ under, forbidden: [] }),
+          () => null,
+        ),
         post: (message, headers) =>
           fetch(url, {
             method: "POST",
@@ -301,6 +309,43 @@ test("from loopback a wrong token is still accepted", async () => {
   await withRoute(async ({ post }) => {
     const response = await post(initialize, { authorization: "Bearer wrong" })
     expect(response.status).toBe(200)
+  })
+})
+
+test("releasing a node ticket closes it without changing arbitrary loopback tokens", async () => {
+  await withRoute(async ({ mintTicket, post, root }) => {
+    await post(initialize)
+    await post({ jsonrpc: "2.0", method: "notifications/initialized" })
+
+    const ticket = mintTicket("kitchen")
+    const call = (id: number, key: string, bearer: string) =>
+      post({
+        jsonrpc: "2.0",
+        id,
+        method: "tools/call",
+        params: { name: "set_prop", arguments: { id: "kitchen", key, value: "yes" } },
+      }, { authorization: `Bearer ${bearer}` })
+
+    const active = await call(20, "active-ticket", ticket.bearer)
+    expect((await active.json() as { error?: unknown }).error).toBeUndefined()
+    ticket.release()
+
+    const stale = await call(21, "stale-ticket", ticket.bearer)
+    const refused = await stale.json() as {
+      result?: { isError?: boolean; structuredContent?: { reason?: string } }
+    }
+    expect(refused.result?.isError).toBe(true)
+    expect(refused.result?.structuredContent?.reason).toContain("conversation has been reaped")
+
+    // The old local-client affordance is a different namespace and remains
+    // unfenced; recognizing stale node tickets must not redefine it.
+    const local = await call(22, "local-token", "arbitrary-local-token")
+    expect((await local.json() as { error?: unknown }).error).toBeUndefined()
+
+    const contents = fs.readFileSync(path.join(root, "house.olai"), "utf8")
+    expect(contents).toContain("active-ticket")
+    expect(contents).not.toContain("stale-ticket")
+    expect(contents).toContain("local-token")
   })
 })
 
