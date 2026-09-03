@@ -2765,12 +2765,16 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       reply(id, {
         protocolVersion: 1,
         agentCapabilities: {
-          loadSession: stored(),
+          // Node sessions are resumable even when this scenario did not ask
+          // for the two canned rows in `session/list`: the lanes fixture has a
+          // durable `agent-session` pointer of its own, and phase 6 reopens it
+          // in a per-node process instead of inheriting the boot process.
+          loadSession: true,
           mcpCapabilities: { http: true },
           // The LIST is always answerable: an empty one is the ordinary truth
-          // of a fresh directory, not a capability missing. `loadSession`
-          // stays the stored knob's because it chooses the boot path — see the
-          // header and {@link minted}.
+          // of a fresh directory, not a capability missing. Which canned rows
+          // it returns stays the stored knob's — see the header and
+          // {@link minted}.
           sessionCapabilities: { list: {} },
           // IT HOLDS A PROMPT SENT WHILE IT IS BUSY — said where the real
           // adapter says it, inside the capabilities, in its own `_meta`

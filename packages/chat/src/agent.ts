@@ -397,7 +397,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     const remembering = yield* Semaphore.make(1)
 
     let live: Live | null = null
-    let session: string | null = null
+    // Per ACP client instance. The scheduler owns many such instances now;
+    // this is no longer the package-wide answer to which session is live.
+    let activeSession: string | null = null
     /**
      * Sessions this panel has LEFT, still named so a leftover notification
      * about one can be recognised after `session` has gone null.
@@ -429,7 +431,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *  one, plus whatever the event itself carries. */
     const about = (extra: Record<string, unknown> = {}): Record<string, unknown> => ({
       agent: options.id,
-      ...(session === null ? {} : { session }),
+      ...(activeSession === null ? {} : { session: activeSession }),
       ...extra,
     })
     /** The annotated line, for a fiber (`yield*`) and a callback (`tell`) alike. */
@@ -552,7 +554,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       // call sites used to null it and THEN call this, which made the closed
       // set a no-op. {@link fromElsewhere} is what a leftover is recognised
       // by, and it reads this set.
-      if (session !== null) closed.add(session)
+      if (activeSession !== null) closed.add(activeSession)
       questions.withdrawAll()
       calls.forget()
       forgetModel()
@@ -675,7 +677,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       // conversation nobody had spoken in. Replay is not this — a load
       // un-closes the id it is about to replay, below, before the frames
       // land.
-      if (fromElsewhere(notification.sessionId, session, closed)) return
+      if (fromElsewhere(notification.sessionId, activeSession, closed)) return
       const update = notification.update
       switch (update.sessionUpdate) {
         case "agent_message_chunk": {
@@ -1058,7 +1060,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      */
     const elsewhere = (params: unknown): boolean => {
       const named = (params as { readonly sessionId?: unknown } | null)?.sessionId
-      return fromElsewhere(named, session, closed)
+      return fromElsewhere(named, activeSession, closed)
     }
 
     const readLiveServers = (params: unknown): void => {
@@ -1151,7 +1153,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           // that was never a process (#367 NIT 6).
           if (child.failed() !== undefined) return
           const ours = live?.child === child
-          const id = ours ? session : null
+          const id = ours ? activeSession : null
           if (ours) {
             live = null
             // Before anything else it emits: a form left live on a dead wire is a
@@ -1159,7 +1161,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             // out. {@link leaving} names the session being left, so it runs
             // before `session` is cleared.
             leaving()
-            session = null
+            activeSession = null
           }
           tell(
             Effect.logInfo("chat agent exited"),
@@ -1479,7 +1481,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       how: "new" | "loaded",
     ): Effect.Effect<void> =>
       Effect.gen(function*() {
-        session = id
+        activeSession = id
         // Coming back into a conversation we left makes its leftovers news
         // about THIS visit. Load un-closes before the replay too, because the
         // frames land before this runs.
@@ -1806,7 +1808,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       // alone: a stopped agent that is still holding an open session would
       // otherwise answer this verb as if nothing were wrong.
       if (stopped) return yield* shuttingDown()
-      if (live !== null && session !== null) return
+      if (live !== null && activeSession !== null) return
       const started = yield* bringUpProcess
       // `onError` hands the fiber's CAUSE, not the failure — `String` on one
       // of those is `Cause([Fail(…)])` with the reason buried in it, which
@@ -1916,7 +1918,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       use: (at: Live, id: string) => Effect.Effect<A, AgentGone>,
     ): Effect.Effect<A, AgentGone> =>
       withLive((at) => {
-        const id = session
+        const id = activeSession
         return id === null
           ? Effect.fail(new AgentGone({ gone: "unreachable", why: "the agent has no session open" }))
           : use(at, id)
@@ -2040,7 +2042,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
 
     const cancel = Effect.suspend(() => {
       const at = live
-      const id = session
+      const id = activeSession
       if (at === null || id === null) {
         // Nothing to cancel yet — remember it for the prompt that is still
         // being handshaked into place.
@@ -2064,7 +2066,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       const at = live
       live = null
       leaving()
-      session = null
+      activeSession = null
       if (at === null) return
       at.connection.close()
       await at.child.stop()
@@ -2083,7 +2085,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           // `session` is cleared — nulling first is what used to turn the
           // leftover fence off for the whole of the next open.
           leaving()
-          session = null
+          activeSession = null
           emit({ _tag: "sessionOver", why: "new" })
           yield* fresh(at)
         })
@@ -2100,7 +2102,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             const stored = yield* storedFor(at)
             const wanted = stored.find((entry) => entry.id === id)
             leaving()
-            session = null
+            activeSession = null
             emit({ _tag: "sessionOver", why: "load" })
             // Re-opening the conversation this panel is the memory OF puts it
             // back on its model, exactly as a restart does; opening any other
@@ -2460,4 +2462,3 @@ export const mcpServersOf = (
     env: Object.entries(one.env).map(([name, value]) => ({ name, value })),
   })),
 ]
-

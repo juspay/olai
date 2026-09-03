@@ -768,6 +768,7 @@ export const openPlugins = (
 
     yield* provide(host, Deliveries, (plugin) => ({
       scopes: () => config.doorFor?.(plugin)?.scopes() ?? [],
+      ringing: (file, node) => config.doorFor?.(plugin)?.ringing(file, node) ?? [],
       // ASKED PER CALL and not captured — the chat is built after the plugins
       // are mounted, and a machine with no ACP agent never builds one at all.
       // What comes back is the chat's OWN Effect, straight through: there is no

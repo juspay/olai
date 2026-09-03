@@ -223,6 +223,7 @@ import {
   declaresKind,
   type Derived,
   follow,
+  insideSubtree,
   type LocatedRegular,
   type PropDeclarations,
   type Settled,
@@ -1297,8 +1298,13 @@ export const terminalsIn = (
   declarations: PropDeclarations,
   derived: Derived,
   file: string,
+  under?: string,
 ): number => {
-  const said = new Set(claimedIn(declarations, derived, file).map((claim) => claim.value))
+  const said = new Set(
+    claimedIn(declarations, derived, file)
+      .filter((claim) => under === undefined || insideSubtree(derived, claim.node, under))
+      .map((claim) => claim.value),
+  )
   // A PREFIX AND THE ID IT NAMES ARE ONE TERMINAL, not two. The board writes
   // eight characters far more often than a whole uuid, and one file may carry
   // both spellings — a lane row abbreviating what a step row wrote out. Counting
@@ -1342,6 +1348,7 @@ export interface Conversation {
  *  that list, which is the whole of how this module learns to stop. */
 export interface Scoped extends Conversation {
   readonly file: string
+  readonly under?: string
 }
 
 /**
@@ -1571,7 +1578,7 @@ export const makeHeartbeat = (deps: {
   /** {@link terminalsIn} against the CURRENT revision, or `null` where there
    *  is no revision to derive off. The caller's closure, because the vault is
    *  the caller's — this module is handed the number and never the store. */
-  readonly terminals: (file: string) => number | null
+  readonly terminals: (scope: Scoped) => number | null
   readonly now: () => string
   /** The coalesce key, minted by the caller under its own plugin name — ONE
    *  word for every heartbeat, because core files a held slot under the pair
@@ -1659,7 +1666,7 @@ export const makeHeartbeat = (deps: {
           trace("beat-passed", { file: scope.file, agent: scope.agent, why: "spoke-this-window" })
           continue
         }
-        if (deps.terminals(scope.file) === null) {
+        if (deps.terminals(scope) === null) {
           trace("beat-passed", { file: scope.file, agent: scope.agent, why: "no-revision" })
           continue
         }
@@ -1680,7 +1687,7 @@ export const makeHeartbeat = (deps: {
               trace("beat-dropped", { agent: scope.agent, why: "unscoped-since" })
               return null
             }
-            const terminals = deps.terminals(now.file)
+            const terminals = deps.terminals(now)
             if (terminals === null) {
               trace("beat-dropped", { file: now.file, agent: scope.agent, why: "no-revision" })
               return null
@@ -1705,5 +1712,3 @@ export const makeHeartbeat = (deps: {
     },
   }
 }
-
-

@@ -196,6 +196,15 @@ const WHOSE = new AsyncLocalStorage<string | null>()
  *  invented attribution is not. */
 export const currentLogin = (): string | null => WHOSE.getStore() ?? null
 
+/** The opaque session bearer presented by the current request. Kept beside
+ * login because both must survive only the request's own async span. */
+const HANDED = new AsyncLocalStorage<string | null>()
+
+export const currentTicket = (): string | null => HANDED.getStore() ?? null
+
+export const bearerIn = (authorization: string | undefined): string | null =>
+  authorization?.startsWith("Bearer ") === true ? authorization.slice("Bearer ".length) : null
+
 export interface Options {
   /** The transport the face is connected to, built by {@link mcpTransport} and
    *  driven here. One object for the lifetime of the process: it holds no
@@ -288,8 +297,12 @@ export const mcpRoute = (options: Options): Layer.Layer<never, never, HttpRouter
           // capture from a terminal and a chip in a browser cannot disagree
           // about who is looking.
           const who = whoOf(request.headers, options.identity)
+          const held = bearerIn(request.headers["authorization"])
           const reply = yield* Effect.promise(() =>
-            WHOSE.run(who === null ? null : who.login, () => options.transport.ask(body.success))
+            WHOSE.run(
+              who === null ? null : who.login,
+              () => HANDED.run(held, () => options.transport.ask(body.success)),
+            )
           )
           // A notification has no reply, and the transport says so with a 202
           // and an empty body rather than with a null JSON-RPC frame.

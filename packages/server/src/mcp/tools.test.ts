@@ -196,7 +196,7 @@ const withTools = <A>(
     yield* serveFace({
       client: () =>
         clientOver(
-          { group: wired.bound.group, handlers: writerAt(wired.bound, ops, "mcp") },
+          { group: wired.bound.group, handlers: writerAt(wired.bound, ops, { writer: "mcp", fence: null }) },
           wired.faces.agent,
         ),
       tools: bespokeFrom(TOOLS, {
@@ -207,6 +207,7 @@ const withTools = <A>(
         // here would make every assertion about a read's `vintage` an
         // assertion about the stub.
         vintage: Effect.map(store.read("verified"), (aged) => aged.vintage),
+        fenced: (client) => client,
       }),
       transport: serverSide,
     })

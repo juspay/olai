@@ -94,9 +94,9 @@ import { LOOK, type Row } from "./roster.ts"
 export function AgentDoor(props: { readonly node: string }) {
   // ONE LOOKUP, and that is the whole of what a row does here. This component
   // is mounted for EVERY node of the outline and answers nothing on nearly all
-  // of them, so what it may cost is a map read: the two cells are subscribed
-  // once and joined once for the whole app (`./answered.tsx`, which argues what
-  // joining per row cost).
+  // of them, so what it may cost is a map read: the roster is subscribed once
+  // for the whole app (`./answered.tsx`, which argues what subscribing per
+  // row would cost).
   const roster = useAgents()
   // THE GESTURE AND ITS LINE, held HERE rather than inside the door: the line
   // has to outlive the row it was about (`./focus.ts`), and this wrapper is
