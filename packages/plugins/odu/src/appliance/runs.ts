@@ -15,9 +15,10 @@
  * that finds nothing is news worth a three-armed cell. odu's belongs to a RUN:
  * it appears at `odu run` and ends with the coordinator — which MAY outlive
  * the settle on purpose (`--linger`) — so for any given checkout absence is
- * the ordinary answer and the great majority of the time. `dialRun` is shaped for that — it answers `null` rather than rejecting
- * — and this module spends the distinction rather than flattening it: `null`
- * is silence, and anything that RAISES is said once, at warning level, and
+ * the ordinary answer and the great majority of the time. `dialRun` is
+ * shaped for that — it answers `null` rather than rejecting — and this
+ * module spends the distinction rather than flattening it: `null` is
+ * silence, and anything that RAISES is said once, at warning level, and
  * then treated as silence too. Nothing here can fail; an effect that failed
  * would end the sweep on the ordinary case of a machine with no CI running.
  *
