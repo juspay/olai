@@ -78,7 +78,7 @@ export default definePlugin({
     const app: KoluApp = {
       desktop: bar.desktop,
       pill: bar.pill,
-      createPopover: bar.popover,
+      popover: bar.popover,
       FileLink: links.File,
     }
     // THE TERMINAL DOOR — a BLOCK, because a terminal owns its row whether or not

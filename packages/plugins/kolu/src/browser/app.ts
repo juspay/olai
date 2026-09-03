@@ -106,6 +106,6 @@ export type FileLink = (props: {
 export interface KoluApp {
   readonly desktop: () => boolean
   readonly pill: PillLook
-  readonly createPopover: () => AppPopover
+  readonly popover: () => AppPopover
   readonly FileLink: FileLink
 }

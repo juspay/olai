@@ -36,14 +36,14 @@
  *      INTERFACE.** The first is what keeps the direction a DAG the manifests
  *      express: `@olai/bundle` imports every plugin, so a plugin that imported
  *      back would be a cycle. The second is the arrow that made the split
- *      necessary — a server half is a Cordis plugin whose `inject` names
- *      services `@olai/plugin-api` declares — and it is asserted to EXIST,
+ *      necessary — a server half is an Effect whose `needs` names service tags
+ *      `@olai/plugin-api` declares — and it is asserted to EXIST,
  *      because a fence that only forbade would pass on a tree where the
  *      services door had quietly stopped being reachable.
  *
  *      **"No plugin imports another plugin" is NOT among these any more.**
- *      The Cordis proposal overturns it: `inject` is the dependency arm and it
- *      is reactive, so the half-wired state the ban feared is `PENDING`. What
+ *      The Cordis proposal overturns it: `needs` is the dependency arm and it
+ *      is reactive, so the half-wired state the ban feared is `waiting`. What
  *      the ban protected is claim 6's: an appliance's TIER stays inside its
  *      tenant, so a plugin reaching into another's `./server` drags that
  *      appliance's client onto its own graph and goes red there.
@@ -761,8 +761,8 @@ describe("only the registry knows a plugin's name", () => {
    * ## What fell, and why it is not a hole
    *
    * "No plugin imports another plugin" was an equality here. The Cordis proposal
-   * overturns it: `inject` is the dependency arm and it is REACTIVE, so the
-   * half-wired state the ban feared is `PENDING` — a legitimate, inspectable
+   * overturns it: `needs` is the dependency arm and it is REACTIVE, so the
+   * half-wired state the ban feared is `waiting` — a legitimate, inspectable
    * state the runtime resolves or reports. The first edge that needs it is the
    * spaces-mirror lane, which wants kolu's fleet beside odu's runs and which the
    * old shape could only wire by hand at the composition root.
@@ -1005,7 +1005,7 @@ const ROOT_DECLARED: ReadonlySet<string> = new Set(dependencyNames(manifestAt(RE
  *
  *  It is not the framework any more; it is an ENGINE, behind one package. olai
  *  is written in Effect, and `@olai/effect-cordis` is the translation: a plugin
- *  is an Effect, `inject` is the requirement channel, and nothing else in this
+ *  is an Effect, `needs` is the requirement channel, and nothing else in this
  *  tree names Cordis at all. So the specifier goes back to being an ordinary
  *  hydrated one — confined, like `@kolu/padi-client` and `@odu/run-client`, by
  *  the claims below — with {@link BRIDGE} as the one package allowed to reach

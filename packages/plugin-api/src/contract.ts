@@ -8,13 +8,12 @@ import type { Effect } from "effect"
  *
  * `./plugin.ts` is the BROWSER half's interface and its fields return
  * `JSX.Element`, so it names `solid-js`. `./services.ts` is the SERVER half's
- * and it names `effect` and the bridge. Neither process wants the other's graph
- * — a server
- * that evaluated a `.tsx` dies on `react/jsx-dev-runtime` before it has served
- * anything, which is not hypothetical (`@olai/server`'s `pluginPolicy.ts`
- * carries that hazard on the import that looked innocent). What both halves
- * genuinely share is a handful of DATA shapes with no runtime behind them at
- * all, and this is them.
+ * and it names `effect` and the bridge. Neither process wants the other's
+ * graph — a server that evaluated a `.tsx` dies on `react/jsx-dev-runtime`
+ * before it has served anything, which is not hypothetical (`@olai/server`'s
+ * `pluginPolicy.ts` carries that hazard on the import that looked innocent).
+ * What both halves genuinely share is a handful of DATA shapes with no runtime
+ * behind them at all, and this is them.
  *
  * ## And why they are in this package rather than in the registry
  *
@@ -185,13 +184,13 @@ export interface PropKind {
    *
    * A plugin writes the bare word once and the composition happens where the
    * plugin's own name is: inside the service, minted from the word the registry
-   * bound it under, never off an argument a caller supplied. What each plugin does spell for itself is a copy
-   * of that composition for its own vault walk — a constant beside the bare word
-   * (`olai-plugin-odu`'s `WORKTREE_TYPE`), which it wrote when it could not
-   * import this package at all and still writes now that it can, because the
-   * walk wants the composed word at module scope and a registration has not
-   * happened yet there. `@olai/bundle`'s `kinds.test.ts` holds the two spellings
-   * equal.
+   * bound it under, never off an argument a caller supplied. What each plugin
+   * does spell for itself is a copy of that composition for its own vault walk —
+   * a constant beside the bare word (`olai-plugin-odu`'s `WORKTREE_TYPE`), which
+   * it wrote when it could not import this package at all and still writes now
+   * that it can, because the walk wants the composed word at module scope and a
+   * registration has not happened yet there. `@olai/bundle`'s `kinds.test.ts`
+   * holds the two spellings equal.
    */
   readonly kind: string
   /** What the clause naming this kind says in a refusal — `` `kolu-terminal` (a

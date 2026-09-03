@@ -21,9 +21,9 @@
  * server half already is. A plugin the roster does not name is never mounted,
  * so it registers nothing, so there is nothing to license: *no fiber, no
  * surface, no handler* has an exact browser twin, which is *no fiber, no slot
- * entry*. Every registration below is a finalizer on the plugin's own scope, so a plugin the roster
- * stops naming unwinds its own faces on the way out and the app re-reads what
- * is left.
+ * entry*. Every registration below is a finalizer on the plugin's own scope, so
+ * a plugin the roster stops naming unwinds its own faces on the way out and the
+ * app re-reads what is left.
  *
  * ## THE SIX SLOTS, and why the table is data
  *
@@ -54,8 +54,9 @@
  *   - **`kind`** — one face per property KIND, keyed by the word this plugin's
  *     bare kind composes to. The chip beside a value, the pane its press opens,
  *     and the block that owns a row. The composition is `kindWordOf`, the same
- *     function {@link ./services.ts}'s `Kinds` uses on the server, so the word a face is looked up
- *     by and the word a vault declares cannot be two spellings.
+ *     function {@link ./services.ts}'s `Kinds` uses on the server, so the
+ *     word a face is looked up by and the word a vault declares cannot be two
+ *     spellings.
  *
  * ## The four services, and why they are four rather than one blob
  *

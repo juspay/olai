@@ -388,8 +388,8 @@ run 3 "a plugin imports the REGISTRY back (the cycle)" \
 
 # MUTATION 4 IS GONE, and its absence is a ruling rather than a gap. It was "a
 # plugin imports ANOTHER plugin", aimed at a claim the Cordis proposal
-# overturned: `inject` is the dependency arm and it is REACTIVE, so the
-# half-wired state the ban feared is `PENDING` — a legitimate, inspectable state
+# overturned: `needs` is the dependency arm and it is REACTIVE, so the
+# half-wired state the ban feared is `waiting` — a legitimate, inspectable state
 # the runtime resolves or reports. A mutation kept against a retired claim would
 # score `GREEN — THE FENCE DID NOT SEE IT` for ever, which is a harness accusing
 # a lint of missing something nobody asked it to look for.
@@ -487,7 +487,7 @@ run 15 "the turnkey SEAM stops being called" \
 
 # THE ENGINE, REACHED DIRECTLY. The human's ruling is that Cordis is an engine
 # nobody outside one package sees, and the whole of phase 4 rests on it: a plugin
-# is an Effect, `inject` is the requirement channel, and the translation lives in
+# is an Effect, `needs` is the requirement channel, and the translation lives in
 # one package. A plugin that imports `cordis` to type its own `apply` again is
 # exactly the shape that ruling forbids, and it is the shape the tree HAD.
 #

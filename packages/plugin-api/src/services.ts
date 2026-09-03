@@ -530,7 +530,8 @@ export interface PluginsConfig {
 }
 
 /**
- * OPEN THE PLUGIN RUNTIME — the host, the ten services on it, and the doors back.
+ * OPEN THE PLUGIN RUNTIME — the host, the nine services on it, and the doors
+ * back.
  *
  * SCOPED, because every `provide` is: the services stand for as long as the
  * enclosing scope is open, and a plugin whose service is revoked unloads. In a

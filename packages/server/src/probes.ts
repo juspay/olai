@@ -29,9 +29,8 @@
  * ## Why sort rather than dispatch in order
  *
  * Because the dispatcher is the runtime's and the registration is a plugin's.
- * There
- * is no seam between them that could be told to call kolu's listener before
- * odu's, and inventing one would mean core holding a second list of plugin
+ * There is no seam between them that could be told to call kolu's listener
+ * before odu's, and inventing one would mean core holding a second list of plugin
  * names — the one thing `olai.yml` exists to be the only copy of. Collecting
  * whatever arrives and then reading it against the build's list keeps the
  * knowledge in the file that has it.

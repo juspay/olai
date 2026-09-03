@@ -28,9 +28,9 @@
  *
  * No `: OlaiPlugin` on the value below, and no annotation left to put there:
  * the type retired with the manifest object it described — a browser half is a
- * plugin written as an Effect now (`./browser.tsx`) — and the registry whose `satisfies`
- * proved the fit retired with it, because `@olai/bundle` is rows naming modules
- * a loader resolves rather than a list of imported halves.
+ * plugin written as an Effect now (`./browser.tsx`) — and the registry whose
+ * `satisfies` proved the fit retired with it, because `@olai/bundle` is rows
+ * naming modules a loader resolves rather than a list of imported halves.
  *
  * The direction that argument was made of still holds and only its far end
  * moved: it was `@olai/plugin-api` that imported every plugin, so a plugin
