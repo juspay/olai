@@ -175,15 +175,19 @@ export type RunNotice =
      *  this notice's `run.live` is `true` — the row's `live` is the socket's
      *  truth and the truth here is that it's still up.
      *
-     *  Once per settlement: a lingering coordinator's rerun un-settles the
-     *  run and the drain after it rings again. The HOLD'S OWN END is silent
-     *  exactly when it ends settled — the settle was said on its frame, and
-     *  an idle reap or `odu cancel` is not a second one. An end that arrives
-     *  UN-SETTLED rings one last account with `live: false`: the socket died
-     *  before any settling frame, or a rerun un-settled the run and the
-     *  coordinator died in flight — either reading is a run that DIED, whose
-     *  verdict word (`ok` / `red` / `ended`) is the owning plugin's fold of
-     *  the row, exactly as the chip's is.
+     *  Once per settlement PER HOLD: a lingering coordinator's rerun
+     *  un-settles the run and the drain after it rings again — and a NEW
+     *  hold on a coordinator still serving a settled run (an olai restart
+     *  inside the linger window, a re-dial) reads the settle on its first
+     *  frame and rings it, the same ruling first-red takes for a restart:
+     *  a new hold is a new watch. The HOLD'S OWN END is silent exactly when
+     *  it ends settled — the settle was said on its frame, and an idle reap
+     *  or `odu cancel` is not a second one. An end that arrives UN-SETTLED
+     *  rings one last account with `live: false`: the socket died before any
+     *  settling frame, or a rerun un-settled the run and the coordinator
+     *  died in flight — either reading is a run that DIED, whose verdict
+     *  word (`ok` / `red` / `ended`) is the owning plugin's fold of the row,
+     *  exactly as the chip's is.
      */
     readonly kind: "settled"
     readonly run: CiRun

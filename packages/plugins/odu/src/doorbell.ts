@@ -339,7 +339,7 @@ export function bodyFor(
   if (reran.length > 0) lines.push("", ...reran)
   lines.push(
     "",
-    "These land once per settlement — a lingering rerun settles again and rings again. The lane's next run rings again when it first goes red and when it settles. Clearing the file on this conversation's wake control stops both.",
+    "These land once per settlement, per hold — a lingering rerun settles again and rings again, and an olai restart is a new hold: a run still settled when it re-dials says so once more. The lane's next run rings again when it first goes red and when it settles. Clearing the file on this conversation's wake control stops both.",
   )
   return lines.join("\n")
 }
