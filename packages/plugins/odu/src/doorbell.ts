@@ -59,8 +59,12 @@
  * design: a lingering coordinator's rerun un-settles and re-settles the run,
  * and the later account — rung later, carrying the hold's whole red record —
  * is the same run's newer truth, so the replacement is the wake saying the
- * newest thing rather than a swallow. A RED spell and then another on the
- * same run cannot double up by construction: first-red is once per hold.
+ * newest thing rather than a swallow. What the displaced account took with
+ * it is its failed recipes' log paths — and those are already stale: the
+ * path is `logPathFor(sha7, node)`, per run and node and not per attempt,
+ * so the rerun overwrote the very files it would have pointed at. A RED
+ * spell and then another on the same run cannot double up by construction:
+ * first-red is once per hold.
  *
  * What is re-derived at the delivery moment is only what time can
  * legitimately move: the CLAIM (a lane finished while the wake queued is a
