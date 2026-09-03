@@ -381,7 +381,8 @@ Feature: A node with an `agent-session` property IS an agent
     # unreachable half of the bargain. This serve has nothing stored, so the
     # row starts absent; one conversation later the listing has something to
     # say, and saying so must not take a tab reload.
-    Given I open the app
+    Given the listing counter is armed
+    And I open the app
     And the agent panel is open
     And the roster offers no unassigned chats
     When I ask the agent "hello"

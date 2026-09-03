@@ -2806,10 +2806,15 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       // COUNTED, one line per time asked — refused or not, the asking is the
       // pin: a scenario notes the file, settles another turn of a
       // conversation the last answer already names, and the count must not
-      // have moved. Appended-line shaped rather than a rewritten counter
-      // because several adapters on one directory each answer their own; the
-      // dot-file idiom keeps the store's walk out of it.
-      appendFileSync(join(cwd, ".agent-list-asks"), "1\n")
+      // have moved. ARMED by the file's own existence and otherwise silent:
+      // the commit pill counts the whole repository (`commit-whole-repo`), so
+      // a counter that rode into every served directory unasked would add one
+      // to every count the suite asserts. Existence IS the arming — one
+      // empty write, the same idiom as the refuse/forget releases, no second
+      // file — and the dot prefix keeps the store's walk out of it.
+      if (existsSync(join(cwd, ".agent-list-asks"))) {
+        appendFileSync(join(cwd, ".agent-list-asks"), "1\n")
+      }
       // An agent that CANNOT say what it has stored — asked, and refusing.
       // Distinct from an agent with nothing stored, which answers an empty
       // list, and the whole point of the scenario that arms it: the two used

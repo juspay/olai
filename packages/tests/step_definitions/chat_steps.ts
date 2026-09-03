@@ -330,6 +330,15 @@ When(
   },
 );
 
+/** ARM the fake agent's listing counter by making the file: it appends one
+ *  line per `session/list` only where the file exists — existence is the
+ *  arming, one write and no second file, the refuse/forget idiom — so the
+ *  count rides in exactly the scenario that asks for it and never into
+ *  another's commit pill. */
+Given("the listing counter is armed", function (this: OlaiWorld) {
+  fs.writeFileSync(path.join(this.scratch(), ".agent-list-asks"), "");
+});
+
 /** How many times the agents have been ASKED FOR THEIR LISTING so far, off
  *  the line the fake appends on every one (`packages/tests/agent/fake-acp-agent.ts`
  *  — an absent file is an agent never asked, which is zero). The count is the
