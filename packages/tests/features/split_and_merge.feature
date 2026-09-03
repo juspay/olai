@@ -35,6 +35,33 @@ Feature: Splitting and merging a row
     And the page has not reloaded
     And there should be no page errors
 
+  Scenario: A split in the middle of a bullet with children stays on the next line
+    # The defect: the head keeps its children, so the tail as the next SIBLING
+    # landed below the whole subtree — the caret at the bottom of the page, a
+    # screen away from the sentence it was just in. When the children are on
+    # screen the tail is the head's FIRST CHILD instead, which is the very next
+    # line a reader's eye is already on.
+    When I click the title of "install"
+    And I put the caret after "install"
+    And I press "Enter"
+    Then the node "install" has the title "install"
+    And "house.olai" holds a node titled " the cabinets" under "install"
+    And the row being typed holds " the cabinets"
+    And the caret is at offset 0
+    And the row being typed is drawn immediately after "install"
+    And the node "handles" is a child of "install"
+    And the page has not reloaded
+    And there should be no page errors
+    # And the way back is not the sibling split's merge (a first child has no
+    # sibling above to join onto): the head's title is put back, guarded, and
+    # the tail's record goes to the Trash — where the sibling split's merge
+    # puts it too.
+    When I press "Escape"
+    And I press "ControlOrMeta+z"
+    Then the node "install" has the title "install the cabinets"
+    And "house.olai" holds no node titled " the cabinets"
+    And "_olai/Trash.olai" holds a node titled " the cabinets"
+
   Scenario: The half that comes off is a bare bullet, and everything else stays
     # `install` carries an attached document, an `after` edge and three
     # children. All of them describe THAT node, so all of them stay with the

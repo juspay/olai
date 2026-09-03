@@ -594,7 +594,11 @@ export const SplitRequest = Schema.Struct({
   }),
   rest: Schema.String.annotate({
     description:
-      "What comes OFF it — the second half, verbatim, written as a brand-new node placed immediately after this one among its siblings. It is born a bullet: no mark, no note, no date, nothing under it.",
+      "What comes OFF it — the second half, verbatim, written as a brand-new node placed immediately after this one among its siblings (or as its FIRST CHILD with `under`). It is born a bullet: no mark, no note, no date, nothing under it.",
+  }),
+  under: Schema.optional(Schema.Boolean).annotate({
+    description:
+      "`true` makes the tail the head's FIRST CHILD instead of its next sibling — the reading a browser asks for when the head's children are on screen, so the line that comes off lands on the very next line a reader sees rather than below the whole subtree. Absent is the sibling.",
   }),
 })
 

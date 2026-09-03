@@ -344,7 +344,7 @@ export const Edit = Schema.Union([
    * is. Where the tail lands otherwise is the ops layer's (immediately after
    * the head), so nothing is resolved behind this verb.
    */
-  Schema.Struct({
+   Schema.Struct({
     verb: Schema.Literal("split"),
     id: Id,
     /** What the row KEEPS — everything before the caret, verbatim. */
@@ -352,6 +352,12 @@ export const Edit = Schema.Union([
     /** What comes OFF it — everything after the caret, verbatim, as the new
      *  sibling's whole title. */
     rest: Schema.String,
+    /** The tail's PLACE: `true` is the head's FIRST CHILD rather than its next
+     *  sibling — the one placement the browser asks for, when the head's
+     *  children are drawn (an expanded parent's next line is its first child,
+     *  not the sibling the fold hides behind it). Absent is the sibling, the
+     *  reading every other caller keeps. */
+    under: Schema.optional(Schema.Boolean),
   }),
   /**
    * `Backspace` AT THE START OF A LINE: this row joins the one above it.

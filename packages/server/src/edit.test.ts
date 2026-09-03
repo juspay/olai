@@ -1058,6 +1058,19 @@ test("a split is taken back by merging the half it made", () => {
     .toEqual([{ verb: "merge", id: "n1" }])
 })
 
+test("an `under` split is taken back by the guarded title and the un-create", () => {
+  // The tail went UNDER the head — a first child has no sibling above it to
+  // merge into, so the ordinary answer would refuse. The pair instead: the
+  // head's title put back guarded by what the split made it, then the tail
+  // as the un-created row it is.
+  expect(
+    inverse({ verb: "split", id: "order", title: "order ", rest: "the cabinets", under: true }, "n1"),
+  ).toEqual([
+    { verb: "title", id: "order", title: "order the cabinets", was: "order " },
+    { verb: "remove", id: "n1" },
+  ])
+})
+
 test("a merge is taken back by a whole sequence, and every step is already a verb", () => {
   // `install` merges into `order`, which is `doing`, dated, and carries a note.
   // None of those is copied anywhere by the merge — they are on the two records

@@ -3534,6 +3534,29 @@ describe("split", () => {
     expect(result.summary).toBe("split: order the cabinets")
   })
 
+  test("an `under` split lands the tail as the head's FIRST CHILD", () => {
+    // The browser's ask when the head's children are on screen: the very next
+    // line under an expanded row IS its first child, and the next sibling is a
+    // scroll away. `kitchen` already has children in this house — the new node
+    // front of them, not after the subtree.
+    const nodes = fileOf(
+      planned(house(), { op: "split", id: "kitchen", title: "Kit", rest: "chen", under: true }),
+      "house.olai",
+    )
+    expect(record(nodes, "kitchen").title).toBe("Kit")
+    expect(record(nodes, "n1").parent).toBe("kitchen")
+    expect(childOrder(nodes, "kitchen")).toEqual(["n1", "demo", "order", "install"])
+  })
+
+  test("an `under` split of a childless head makes the tail its only child", () => {
+    const nodes = fileOf(
+      planned(house(), { op: "split", id: "loose", title: "a node", rest: " of no use", under: true }),
+      "house.olai",
+    )
+    expect(record(nodes, "n1").parent).toBe("loose")
+    expect(childOrder(nodes, "loose")).toEqual(["n1"])
+  })
+
   test("everything that DESCRIBED the node stays with the head", () => {
     const set = setOf({
       "house.olai": [

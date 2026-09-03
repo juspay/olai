@@ -3167,7 +3167,8 @@ const containing = (scope: Scope, id: string, parent: string): string | null => 
 // ── split and merge ────────────────────────────────────────────────────
 
 /**
- * One node into two: the head it keeps, and the tail as the sibling after it.
+ * One node into two: the head it keeps, and the tail beside it — as the
+ * sibling after it, or, with `under`, as its FIRST CHILD.
  *
  * ONE PLAN, and that is the reason this is an op rather than a `set_title`
  * followed by an `add`. Those are two writes at two revisions, and both ways of
@@ -3183,6 +3184,15 @@ const containing = (scope: Scope, id: string, parent: string): string | null => 
  * and what came off it is a new line that has not been said anything about yet.
  * The alternative — carrying the mark or the note across — would be this op
  * inventing a claim about a node nobody has described.
+ *
+ * THE TWO PLACEMENTS, and which one is a fact about the CALLER. The sibling is
+ * the op's own default, exactly as it always was — an MCP `split_node` asks for
+ * no other. `under` is the browser's, sent when the head's children are on
+ * screen: the first line under an expanded head IS its first child, and the
+ * sibling lands below the whole subtree — the teleport a mid-line `Enter` on a
+ * parent used to be. The fold itself never leaves the browser; what crosses
+ * the wire is the answer it produced, one boolean the ops layer need not
+ * second-guess.
  */
 const planSplit = (
   scope: Scope,
@@ -3215,17 +3225,24 @@ const planSplit = (
   }
 
   const id = freshId(scope, new Set())
+  const under = request.under === true
+  // The head's children, as they sit — what an `under` tail is placed FIRST
+  // among. Read off the same derived tree the sibling case reads from, so the
+  // two arms are one snapshot's two answers.
+  const children = under ? scope.derived.children.get(node.id) ?? [] : []
   const ords = placed(
-    siblingsOf(scope.derived, file, node.parent),
+    siblingsOf(scope.derived, file, under ? node.id : node.parent),
     id,
-    { after: node.id },
+    under
+      ? (children.length === 0 ? {} : { before: (children[0] as Located).node.id })
+      : { after: node.id },
   )
   if (Result.isFailure(ords)) return Result.fail(ords.failure)
 
   const head: RegularNode = { ...node, title: request.title }
   const tail: RegularNode = {
     id,
-    ...(node.parent === undefined ? {} : { parent: node.parent }),
+    ...(under ? { parent: node.id } : node.parent === undefined ? {} : { parent: node.parent }),
     ord: ordFor(ords.success, id),
     title: request.rest,
     // A node coming into being, so it is CREATED rather than changed — the same
@@ -3238,9 +3255,11 @@ const planSplit = (
   // retitle, then the tail as a new root (typeless, so the bootstrap
   // names it). Asked here so a split cannot mint a vocabulary the next
   // load will refuse, with a generic write-gate sentence instead of the
-  // offenders.
-  const bent = declarationRefused(scope, file, head)
-    ?? declarationRefused(scope, file, tail)
+  // offenders. An `under` tail is not a root, so only the head is asked;
+  // what it may be a variant OF is the load's own fence, the same one every
+  // `add` under the head meets.
+  const bent = declarationRefused(scope, file, head) ??
+    (under ? undefined : declarationRefused(scope, file, tail))
   if (bent !== undefined) return Result.fail(bent)
 
   return Result.succeed({

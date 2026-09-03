@@ -226,6 +226,7 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
         id: edit.id,
         title: edit.title,
         rest: edit.rest,
+        ...(edit.under === true ? { under: true } : {}),
       })
     case "merge":
       return Result.succeed({ op: "merge", id: edit.id })
@@ -993,7 +994,26 @@ export const inverseOf = (
     // rather than refusing. Closing it means guarding `merge` itself — on both
     // faces, so an agent's `merge_node` gets the same field — which is a change
     // to the op rather than to this arm.
+    // ...unless the tail went UNDER the head (the expanded-parent reading a
+    // browser asks for). A first child has no sibling above it, so the merge
+    // this arm answers with would be refused — and refusing a ⌘Z of a split
+    // that just landed would be the regression this branch exists to not
+    // introduce. The way back is the pair the removed-comment's alternative
+    // had, in its safe habitat: the head's title put back GUARDED (the same
+    // spelling every text undo uses), then the tail as the un-create it is.
+    // `remove`'s own inverse carries the parent-or-file, and the tail sits
+    // first under the head — the placement ⌘⇧Z has to reproduce.
     case "split":
+      if (edit.under === true) {
+        return [
+          // Every text the pair the sibling path's merge conjures for itself:
+          // the original title is the two halves joined, guarded against the
+          // head the split left behind. No reading of the tree — the edit and
+          // the id it minted are all the sentence needs.
+          { verb: "title", id: edit.id, title: edit.title + edit.rest, was: edit.title },
+          { verb: "remove", id: applied },
+        ]
+      }
       return [{ verb: "merge", id: applied }]
     // A merge is the one write here whose inverse is a SEQUENCE, and it is a
     // sequence because the write is a compound the surface has no single

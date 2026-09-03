@@ -663,7 +663,20 @@ export const createEditor = (
     const title = held.text.slice(0, at.start)
     const rest = held.text.slice(at.end)
     idle.clear()
-    const done = await redrawing({ verb: "split", id: held.row, title, rest }, slotOf(held))
+    // WHERE THE TAIL LANDS is this browser's one addition to what the key
+    // has always sent — and it is a fact about what is ON SCREEN, which is
+    // why it is read here and never on the server: an expanded head's next
+    // line is its first CHILD, so a tail placed as the next sibling would
+    // land below the whole subtree and carry the caret a page away. A folded
+    // or childless head keeps the sibling, which on those pages IS the next
+    // line.
+    const underRow = row()
+    const under = underRow !== undefined && underRow.children.length > 0 &&
+      !page.collapsed().has(foldIdOf(underRow))
+    const done = await redrawing(
+      { verb: "split", id: held.row, title, rest, ...(under ? { under: true } : {}) },
+      slotOf(held),
+    )
     if (done === null) return
     setDraft(opening(done, 0))
     setCaret((n) => n + 1)
