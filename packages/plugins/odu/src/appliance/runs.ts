@@ -399,14 +399,13 @@ export const makeWatch = (deps: WatchDeps): Watch => {
         }
         const tally = tallyOf(row.cells)
         const settling = settledOf(tally)
+        // THE RING rides the rise; the bit re-latches on every frame. A
+        // rerun's mid-rerun frames are un-settling, so a re-settlement rises
+        // again and rings rather than being swallowed.
         if (settling && !wasSettled) {
-          wasSettled = true
           deps.rang({ kind: "settled", run: row, reddened: [...reddened] })
         }
-        // NOT an else: a run that settled and then took a rerun is live
-        // again on the very next frame, and the drain after it must ring
-        // again. The level is re-read per frame; only the RING is edge-keyed.
-        if (!settling) wasSettled = false
+        wasSettled = settling
       }
       // Published BEFORE the first frame: a coordinator that is up but has not
       // stamped a header yet is a run in `unstarted`, and drawing nothing for
