@@ -23,7 +23,7 @@ import Include from "@cordisjs/plugin-include"
 import Loader from "@cordisjs/plugin-loader"
 import { Effect } from "effect"
 
-import { heldBy, type Host } from "./host.ts"
+import { ctxOf, type Host } from "./host.ts"
 
 /**
  * ONE ROW OF A DECLARATIVE BUNDLE — `id` and the MODULE the loader mounts,
@@ -79,7 +79,7 @@ export const mountRows = (host: Host, options: {
   readonly resolve: (specifier: string) => Promise<unknown>
 }): Effect.Effect<void> =>
   Effect.promise(async () => {
-    const ctx = heldBy(host).ctx
+    const ctx = ctxOf(host)
     ctx.baseUrl = options.baseUrl
     await ctx.plugin(Loader)
     ;(ctx.loader as unknown as { internal: unknown }).internal = {

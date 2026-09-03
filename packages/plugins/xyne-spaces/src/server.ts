@@ -135,10 +135,16 @@ export default definePlugin({
   name,
   needs: [Clock, Deliveries, Env, Held, Surfaces, Vault, Watching],
   apply: Effect.gen(function*() {
+    // EVERY SERVICE THIS PLUGIN NAMED, YIELDED ONCE, at the top — the same list
+    // `needs` carries, in the same order, so a reader checks the two against each
+    // other by looking at one screen.
     const clock = yield* Clock
     const deliveries = yield* Deliveries
     const environment = yield* Env
     const held = yield* Held
+    const surfaces = yield* Surfaces
+    const vault = yield* Vault
+    const watching = yield* Watching
     /** THE ONE SEAM ACROSS THE BOUNDARY — `@olai/effect-cordis`'s `detached`.
      *  `makeMirror` is not written in Effect: it calls back to save a snapshot
      *  and to say a fault, and both of those are Effects on this side. */
@@ -288,14 +294,14 @@ export default definePlugin({
      *  exists, and a REGISTRATION rather than a handle. `subscribe` attaches to
      *  this plugin's scope, so a plugin that unloads stops being told without
      *  anything here remembering to say so. */
-    yield* (yield* Watching).subscribe(onSeen)
+    yield* watching.subscribe(onSeen)
 
     /** THE SIBLING SURFACE — one cell. `deps` is annotated against THIS package's
      *  own spec, so a cell the mirror re-shaped is a type error in this file
      *  rather than a boot crash in somebody's composition root. No `published`:
      *  this half writes to its member from inside the framework's own
      *  connector. */
-    yield* (yield* Surfaces).register({
+    yield* surfaces.register({
       surface,
       faces,
       deps: {
@@ -317,7 +323,7 @@ export default definePlugin({
      *  THE PAYLOAD IS NARROWED HERE, in this plugin's own signature: core rings
      *  the whole published snapshot and {@link VaultRevision} names the parts
      *  this half touches. */
-    yield* (yield* Vault).revision((snapshot) =>
+    yield* vault.revision((snapshot) =>
       Effect.gen(function*() {
         const revision = snapshot as VaultRevision
         reading = spacesConfigIn(revision.value.derived)

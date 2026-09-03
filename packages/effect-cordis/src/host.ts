@@ -4,16 +4,15 @@
  *
  * ## What a host IS, and why it is opaque
  *
- * Two things at once, and they have to be minted together. The first is the
- * Cordis context: the registry a plugin is a fiber in, the reflect store an
- * `inject` resolves against, the loader the rows are mounted through. The
- * second is the Effect CONTEXT in force where the host was opened — the logger,
- * the minimum level the operator asked for, the annotations and spans the
- * enclosing scope set. A plugin's `apply` is an Effect and Cordis will call it
- * from a promise chain with no fiber under it, so the services have to be
- * captured somewhere while there IS a fiber, once, and that is here.
+ * A host IS the Cordis context — the registry a plugin is a fiber in, the
+ * reflect store an `inject` resolves against, the loader the rows are mounted
+ * through — with ONE thing hung on it: the Effect CONTEXT in force where it was
+ * opened (the logger, the minimum level the operator asked for, the annotations
+ * and spans the enclosing scope set). A plugin's `apply` is an Effect and Cordis
+ * will call it from a promise chain with no fiber under it, so the services have
+ * to be captured somewhere while there IS a fiber, once, and that is here.
  *
- * Nothing outside this package may reach either half, which is why {@link Host}
+ * Nothing outside this package may reach either, which is why {@link Host}
  * carries no public field. A composition root that could reach the Cordis
  * context would be a second package that knows Cordis, and the whole of this
  * package's reason is that there is exactly one.
@@ -44,9 +43,14 @@ import type { Provision, ServiceKey } from "./service.ts"
  *  any derived context without the host being a service a plugin could name. */
 const HELD: unique symbol = Symbol.for("olai.effect-cordis.host")
 
-/** What {@link Host} actually is, on the inside. */
+/** WHAT A HOST HANGS ON ITSELF — the Effect services in force where it was
+ *  opened, and nothing else.
+ *
+ *  It carried the Cordis context beside them for a round, which was a
+ *  self-reference the type hid: a host IS that context ({@link openHost} casts
+ *  one), so `held(host).ctx === host` always. {@link ctxOf} is that cast, spelled
+ *  once. */
 interface Held {
-  readonly ctx: CordisContext
   readonly services: Context.Context<never>
 }
 
@@ -57,22 +61,31 @@ export interface Host {
   readonly [HELD]: Held
 }
 
-/** The two halves, for this package's own use. */
-export const heldBy = (host: Host): Held => host[HELD]
-
-/** ...and the same reading from any context a fiber was handed, which is how
- *  `definePlugin` finds the services it must run the plugin's Effect under. */
-export const heldOn = (ctx: CordisContext): Held => {
-  const held = (ctx as unknown as Record<symbol, Held | undefined>)[HELD]
-  if (held === undefined) {
+/**
+ * WHAT A HOST IS HOLDING — read off a host, or off any context a fiber was
+ * handed, which is how `definePlugin` finds the services it must run the
+ * plugin's Effect under.
+ *
+ * ONE function for both, because they are one read: `extend` puts the root on
+ * the prototype chain, so a derived context resolves the same symbol off the
+ * same object. It was two, differing only in the declared parameter and in
+ * whether they threw — so a caller picked by whichever cast it happened to hold.
+ */
+export const held = (of: Host | CordisContext): Held => {
+  const found = (of as unknown as Record<symbol, Held | undefined>)[HELD]
+  if (found === undefined) {
     throw new Error(
       "effect-cordis: this plugin was mounted on a context that is not a host — "
         + "mount through `mountPlugin` or the loader, which is what captures the "
         + "Effect services a plugin's `apply` runs under.",
     )
   }
-  return held
+  return found
 }
+
+/** ...and the host AS the context it is, which is the one cast this package
+ *  makes about its own opaque type. */
+export const ctxOf = (host: Host): CordisContext => host as unknown as CordisContext
 
 /**
  * OPEN A HOST, under the services of the fiber that opens it.
@@ -86,9 +99,8 @@ export const heldOn = (ctx: CordisContext): Held => {
 export const openHost: Effect.Effect<Host> = Effect.map(
   Effect.context<never>(),
   (services) => {
-    const ctx = new CordisContext()
-    const host = ctx as unknown as Host & { [HELD]: Held }
-    host[HELD] = { ctx, services }
+    const host = new CordisContext() as unknown as Host & { [HELD]: Held }
+    host[HELD] = { services }
     return host
   },
 )
@@ -108,7 +120,7 @@ export const provide = <Shape>(
   provision: Provision<Shape>,
 ): Effect.Effect<void, never, Scope.Scope> =>
   Effect.acquireRelease(
-    Effect.sync(() => heldBy(host).ctx.provide(key.cordis, provision)),
+    Effect.sync(() => ctxOf(host).provide(key.cordis, provision)),
     (revoke) => Effect.promise(async () => void await revoke()),
   ).pipe(Effect.asVoid)
 
@@ -131,7 +143,7 @@ export interface Mounted {
  */
 export const mountPlugin = (host: Host, plugin: Plugin): Effect.Effect<Mounted> =>
   Effect.promise(async () => {
-    const fiber: Fiber = heldBy(host).ctx.plugin(plugin)
+    const fiber: Fiber = ctxOf(host).plugin(plugin)
     // SWALLOWED, and it is the containment claim rather than a shrug: a plugin
     // whose `apply` failed lands in `FAILED` having installed nothing, and its
     // siblings — and the boot — are untouched. What it threw is not lost; it is
@@ -198,15 +210,15 @@ export const rowReport = (
   Effect.promise(async () => {
     const wanted = new Set(ids)
     const fibers = new Map<string, Fiber>()
-    heldBy(host).ctx.registry.forEach((runtime) => {
+    ctxOf(host).registry.forEach((runtime) => {
       const id = runtime.name
-      if (id === undefined || !wanted.has(id)) return
+      if (id === undefined || !wanted.has(id) || fibers.has(id)) return
       // The FIRST fiber, and a row has exactly one: a bundle mounts each module
       // once. A second would mean two rows naming one module, which the entry
-      // ids already forbid.
-      for (const fiber of runtime.fibers) {
-        if (!fibers.has(id)) fibers.set(id, fiber)
-      }
+      // ids already forbid — so this reads the first and does not loop looking
+      // for one it has already refused to replace.
+      const [first] = runtime.fibers
+      if (first !== undefined) fibers.set(id, first)
     })
     const table = new Map<string, RowReport>()
     for (const id of ids) {

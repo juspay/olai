@@ -68,7 +68,7 @@ import { type DialRun, oduHalf, type RunNotice } from "olai-plugin-odu/appliance
 import { bodyFor, claimedIn, claimingIn, coalesceOf, countsFor } from "./doorbell.ts"
 import { probe } from "./probe.ts"
 import { wake } from "./wake.ts"
-import { kinds, ownKinds } from "./kinds.ts"
+import { kinds as ours, ownKinds } from "./kinds.ts"
 import { faces, name, surface } from "./wire.ts"
 import { worktreesIn } from "./worktrees.ts"
 
@@ -162,10 +162,17 @@ export default definePlugin({
   name,
   needs: [Clock, Deliveries, Env, Kinds, SessionStart.key, Surfaces, Vault, Wakes],
   apply: Effect.gen(function*() {
+    // EVERY SERVICE THIS PLUGIN NAMED, YIELDED ONCE, at the top — the same list
+    // `needs` carries, in the same order, so a reader checks the two against each
+    // other by looking at one screen.
     const clock = yield* Clock
     const deliveries = yield* Deliveries
     const env = yield* Env
+    const kinds = yield* Kinds
+    const opening = yield* SessionStart.key
+    const surfaces = yield* Surfaces
     const vault = yield* Vault
+    const wakes = yield* Wakes
     /**
      * THE ONE SEAM ACROSS THE BOUNDARY — see `@olai/effect-cordis`'s `detached`.
      *
@@ -306,15 +313,14 @@ export default definePlugin({
      *  composes the word from the plugin's own — the registry binding — so what
      *  this file hands over is the BARE word and the prefix is never this file's
      *  to spell. */
-    const vocabulary = yield* Kinds
-    for (const kind of kinds) yield* vocabulary.register(kind)
+    for (const kind of ours) yield* kinds.register(kind)
 
     /** ...AND THE SENTENCE THE STRIP DRAWS, on the same terms. It was a field on
      *  the server door read off the enabled halves at composition; it is a
      *  registration now, so a scope written for a plugin that has since unloaded
      *  is refused by the same check that refuses one for a plugin that never
      *  declared a wake. */
-    yield* (yield* Wakes).register(wake)
+    yield* wakes.register(wake)
 
     /** THE SIBLING SURFACE. `deps` is THE ONE MEMBER HANDLER, straight through,
      *  and the annotation is where this plugin's agreement with the framework is
@@ -331,7 +337,7 @@ export default definePlugin({
      *  sibling key is the plugin's own word, read by the service off the registry
      *  binding, so this half cannot register under a name that is not the one it
      *  was mounted as. */
-    yield* (yield* Surfaces).register({
+    yield* surfaces.register({
       surface,
       faces,
       deps: half.handlers satisfies ImplementSurfaceDeps<typeof surface.spec>,
@@ -391,7 +397,7 @@ export default definePlugin({
      *  `env.vars` and not `process.env`: a probe that read the environment itself
      *  would answer a different question than the one a session's spawn will
      *  ask. */
-    yield* (yield* SessionStart.key).use((start, next) =>
+    yield* opening.use((start, next) =>
       Effect.suspend(() => {
         start.asking.push({ name, ask: () => probe(env.vars) })
         return next(start)

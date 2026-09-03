@@ -38,7 +38,7 @@
 import type { Context as CordisContext } from "cordis"
 import { Cause, Context, Effect, Exit, FiberSet, Scope } from "effect"
 
-import { heldOn } from "./host.ts"
+import { held } from "./host.ts"
 import type { ServiceKey } from "./service.ts"
 
 /**
@@ -140,13 +140,13 @@ export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>>(
   name: spec.name,
   inject: spec.needs.map((key) => key.cordis),
   apply: async (ctx: CordisContext) => {
-    const held = heldOn(ctx)
+    const host = held(ctx)
     // THE STAMP, READ ONCE, off the registry binding — never off anything the
     // plugin supplied. Every keyed service below is minted from it.
     const who = ctx.fiber.name
     const scope = Scope.makeUnsafe()
     let services: Context.Context<never> = Context.merge(
-      held.services,
+      host.services,
       Context.make(PluginName, who),
     ) as Context.Context<never>
     services = Context.add(services, Scope.Scope, scope) as Context.Context<never>
@@ -173,9 +173,9 @@ export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>>(
       // which is what "lands FAILED having installed nothing" means when the
       // plugin got halfway. Closing with the failing exit is also what tells a
       // finalizer it is unwinding rather than shutting down.
-      await Effect.runPromiseWith(held.services)(Scope.close(scope, exit))
+      await Effect.runPromiseWith(host.services)(Scope.close(scope, exit))
       throw Cause.squash(exit.cause)
     }
-    return () => Effect.runPromiseWith(held.services)(Scope.close(scope, Exit.void))
+    return () => Effect.runPromiseWith(host.services)(Scope.close(scope, Exit.void))
   },
 })

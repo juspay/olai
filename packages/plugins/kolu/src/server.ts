@@ -219,10 +219,17 @@ export default definePlugin({
   name,
   needs: [Clock, Deliveries, Env, Kinds, SessionStart.key, Surfaces, Vault, Wakes],
   apply: Effect.gen(function*() {
+    // EVERY SERVICE THIS PLUGIN NAMED, YIELDED ONCE, at the top — the same list
+    // `needs` carries, in the same order, so a reader checks the two against each
+    // other by looking at one screen.
     const clock = yield* Clock
     const deliveries = yield* Deliveries
     const env = yield* Env
+    const vocabulary = yield* Kinds
+    const opening = yield* SessionStart.key
+    const surfaces = yield* Surfaces
     const vault = yield* Vault
+    const wakes = yield* Wakes
     /** THE ONE SEAM ACROSS THE BOUNDARY — see this module's header. */
     const run = yield* detached
 
@@ -702,14 +709,13 @@ export default definePlugin({
      *  to spell. Its own built-in declaration can therefore claim `kolu-terminal`
      *  and nothing else, which is what makes a person's own `terminal` column
      *  untouchable by a flag on the machine. */
-    const vocabulary = yield* Kinds
     for (const kind of kinds) yield* vocabulary.register(kind)
 
     /** ...AND THE SENTENCE THE STRIP DRAWS. It was a field on the server door; it
      *  is a registration now, so a scope written for a plugin that has since
      *  unloaded is refused by the same check that refuses one for a plugin that
      *  never declared a wake. */
-    yield* (yield* Wakes).register(wake)
+    yield* wakes.register(wake)
 
     /**
      * THE SIBLING SURFACE, and the two things that ride with it.
@@ -733,7 +739,7 @@ export default definePlugin({
      * the one it was mounted as — and there is no line anywhere for the two to
      * drift apart on.
      */
-    yield* (yield* Surfaces).register({
+    yield* surfaces.register({
       surface,
       faces,
       deps: half.handlers satisfies ImplementSurfaceDeps<typeof surface.spec>,
@@ -811,7 +817,7 @@ export default definePlugin({
      *  session rather than once per boot. `env.vars` and not `process.env`: a
      *  probe that read the environment itself would answer a different question
      *  than the one a session's spawn will ask. */
-    yield* (yield* SessionStart.key).use((start, next) =>
+    yield* opening.use((start, next) =>
       Effect.suspend(() => {
         start.asking.push({ name, ask: () => probe(env.vars) })
         return next(start)
