@@ -61,7 +61,16 @@
  * changes when somebody works in this directory — a `claude --resume` in a
  * terminal — so the list is re-asked when a person OPENS it
  * ({@link Roster.askChats}), which is the same bargain the list this replaced
- * made on every open.
+ * made on every open. And there is a THIRD ask, because the second one can be
+ * unreachable: the row the press refreshes draws only on a non-empty answer,
+ * so in a fresh vault — or any tab that mounted before its first conversation
+ * existed — OPENING can never fire. The event the empty answer cannot survive
+ * is a SETTLED TURN: the conversation that just ran is a file the listing has
+ * not seen, so when the last answer names neither it nor a node claiming it,
+ * the ask goes out again there. One ask per settled turn of a conversation
+ * the answer does not name, and none for one it does: the ordinary state of
+ * every directory this is asked about, which is the same rule the cache keeps
+ * one layer down — nothing is re-asked about what the answer already says.
  *
  * WHAT COULD NOT BE ASKED IS KEPT, in both of its sizes. One agent that could
  * not answer is a row of the answer ({@link Roster.unreachable}) and the whole
@@ -85,9 +94,11 @@
 import {
   type Accessor,
   createContext,
+  createEffect,
   createMemo,
   createSignal,
   type JSX,
+  on,
   useContext,
 } from "solid-js"
 
@@ -103,7 +114,7 @@ import {
 import { createChatState } from "../chat/state.ts"
 import { run } from "../run.ts"
 import { olai } from "../wire.ts"
-import { type Chatting, unassignedIn } from "./lineage.ts"
+import { type Chatting, chatKey, claimedIn, unassignedIn } from "./lineage.ts"
 import { type Row, rowsOf } from "./roster.ts"
 
 /** The roster as this tab has it: the list, one node's row, and the chats
@@ -152,7 +163,10 @@ export interface Roster {
    *  subscription. */
   readonly openChat: Accessor<Chatting | null>
   /** Ask the agents again — what a person opening the list gets, because a
-   *  conversation started in a terminal a moment ago should be in it. */
+   *  conversation started in a terminal a moment ago should be in it. Called
+   *  on the press, and by the provider itself when a settled turn lands the
+   *  panel in a conversation the last answer does not name and no node claims
+   *  — the ask a row that is not drawn yet can never take. */
   readonly askChats: () => void
 }
 
@@ -190,7 +204,29 @@ export function AgentsProvider(props: { readonly children: JSX.Element }) {
    */
   const [chats, setChats] = createSignal<Listed | null>(null)
   const [chatsRefusal, setChatsRefusal] = createSignal<string | null>(null)
+  /** An ask in flight right now, and whether an event queued one behind it.
+   *  Not signals: which frame an ask settles on is bookkeeping, and painting
+   *  it would redraw the page for a wire a reader never sees. */
+  let asking = false
+  let held = false
   const askChats = (): void => {
+    // COALESCED, not stacked: while one ask is in flight a second says nothing
+    // the settle will not say fresher — and the settle RE-FIRES when anything
+    // queued, because the queue is how an event that raced an in-flight ask
+    // (the first turn ending inside the mount ask's round trip, say) still
+    // gets its answer rather than a window nobody re-opens.
+    if (asking) {
+      held = true
+      return
+    }
+    asking = true
+    const settled = (): void => {
+      asking = false
+      if (held) {
+        held = false
+        askChats()
+      }
+    }
     run(
       olai.procedures.chat.sessions(),
       // A REFUSAL LEAVES THE LAST ANSWER STANDING rather than emptying the
@@ -198,17 +234,52 @@ export function AgentsProvider(props: { readonly children: JSX.Element }) {
       // assigned — and it is KEPT, because the list is the one place those
       // conversations are now and a stale one with nothing said over it would
       // be the same lie the picker's own refusal arm exists to prevent.
-      (failure) => setChatsRefusal(failure.message),
+      (failure) => {
+        setChatsRefusal(failure.message)
+        settled()
+      },
       (listed) => {
         setChatsRefusal(null)
         setChats(listed)
+        settled()
       },
     )
   }
-  // ONCE, on the frame this provider mounts. It is the only unprompted round
-  // trip in this module, and what it buys is the count on a row nobody has
-  // pressed yet — see the header.
+  // ONCE, on the frame this provider mounts: what it buys is the count on a
+  // row nobody has pressed yet — see the header.
   askChats()
+
+  // ... AND THE OTHER EVENT THAT CAN MAKE THAT ANSWER STALE. A conversation
+  // this tab (or a sibling — the cell is the server's, so every tab sees the
+  // turn) just worked in is a file the listing has not seen, and a SETTLED
+  // TURN is when that is true: not the mount ask, which can land before the
+  // first transcript exists, and never a clock, which the header rules out.
+  //
+  // The GATE, and not the turn, is the frugality: re-ask only when the last
+  // answer names neither the conversation nor a node claiming it — which is
+  // true of a conversation nobody has listed yet and of nothing else. A
+  // conversation the answer already names pays nothing per turn, and that is
+  // every directory once its listing has landed; an agent's FIRST unlisted
+  // conversation pays one probe per settled turn until the answer catches up,
+  // which is exactly what pressing the row would have cost.
+  createEffect(
+    on(
+      () => chat().status,
+      (now, before) => {
+        if (before !== "thinking" || now === "thinking") return
+        const pair = openChat()
+        const listed = chats()
+        if (pair === null || listed === null) return
+        const named = listed.sessions.some(
+          (row) => row.agent === pair.agent && row.id === pair.session,
+        )
+        const claimed = claimedIn(listed.sessions, cell.value() ?? NO_AGENT_ROSTER)
+          .has(chatKey(pair.agent, pair.session))
+        if (!named && !claimed) askChats()
+      },
+      { defer: true },
+    ),
+  )
 
   /** The answer's own arm, read once here — see {@link Roster.unreachable}. */
   const unreachable = createMemo((): ReadonlyArray<Unreachable> => chats()?.unreachable ?? [])

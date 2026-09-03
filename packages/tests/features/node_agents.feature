@@ -371,6 +371,25 @@ Feature: A node with an `agent-session` property IS an agent
     And the unassigned list does not hold "the last conversation"
     And the list does not claim every conversation belongs to a node agent
 
+  @scratch:chat
+  Scenario: A conversation started after the tab mounted draws the row, with no reload
+    # THE HOLE pi found driving panel-live's section 7 on a fresh vault
+    # (2026-09-02, ruled a chat bug by the human): the count was asked ONCE,
+    # at tab load — when a fresh vault's listing is empty — and the only
+    # re-ask was pressing the row, which the empty answer does not draw. A row
+    # that cannot be opened because it is not there makes its own refresh the
+    # unreachable half of the bargain. This serve has nothing stored, so the
+    # row starts absent; one conversation later the listing has something to
+    # say, and saying so must not take a tab reload.
+    Given I open the app
+    And the agent panel is open
+    And the roster offers no unassigned chats
+    When I ask the agent "hello"
+    And the agent is idle
+    Then the roster offers 1 unassigned chats
+    When I open the unassigned chats
+    Then the unassigned list holds "hello"
+
   # ── what the list must not swallow ────────────────────────────────────
 
   @agent-stored @scratch:lanes
