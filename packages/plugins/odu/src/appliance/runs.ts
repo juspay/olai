@@ -13,9 +13,9 @@
  *
  * padi's socket belongs to a per-host daemon that is meant to be up, so a dial
  * that finds nothing is news worth a three-armed cell. odu's belongs to a RUN:
- * it appears at `odu run` and is gone the moment the run settles, so for any
- * given checkout absence is the ordinary answer and the great majority of the
- * time. `dialRun` is shaped for that — it answers `null` rather than rejecting
+ * it appears at `odu run` and ends with the coordinator — which MAY outlive
+ * the settle on purpose (`--linger`) — so for any given checkout absence is
+ * the ordinary answer and the great majority of the time. `dialRun` is shaped for that — it answers `null` rather than rejecting
  * — and this module spends the distinction rather than flattening it: `null`
  * is silence, and anything that RAISES is said once, at warning level, and
  * then treated as silence too. Nothing here can fail; an effect that failed
@@ -62,11 +62,21 @@
  * the moment any frame carries a red cell. A run that was already red when olai
  * first dialed it says it on the first frame — the same acceptance the fleet
  * watcher makes of a terminal held when olai booted: pre-existence is not a
- * pardon. Settle is said where the row is stamped, and it carries the ids of
- * every node this hold EVER saw red, which is the watch's own record — the
- * same provenance the chip's last-verdict rule states: a node that failed and
- * went green on a rerun is a fact the hold observed, not an inference anybody
- * ran afterwards.
+ * pardon. Settle is said when THE RUN says it: the frame carrying every node
+ * terminal is the run's OWN settlement — the fold odu's coordinator runs over
+ * the very cell this hold follows, and the moment odu's ledger stamps
+ * `finishedAt`. It is NOT said at the socket's death, which was this watch's
+ * founding approximation: exact before odu grew `--linger`, and wrong after —
+ * a lingering coordinator holds the socket open PAST the settle on purpose,
+ * so one node can be re-run, and a settle read off the socket was said when
+ * the coordinator happened to END (a cancel, or the idle reap ~30 minutes
+ * later), never when the run did. The socket's death keeps ONE reading: a run
+ * that never settled on this hold DIED (`@odu/run-client`'s `deadRun`,
+ * juspay/odu#98, is the same reading made first-class), and its account rings
+ * where the hold ends. Each settle carries the ids of every node this hold
+ * EVER saw red, which is the watch's own record — the same provenance the
+ * chip's last-verdict rule states: a node that failed and went green on a
+ * rerun is a fact the hold observed, not an inference anybody ran afterwards.
  *
  * An UNBOARDED run rings nothing, and it is silent by the same authority the
  * cell saves: both emission sites sit behind the `wanted` guard the frame
@@ -85,7 +95,7 @@ import { Cause, Duration, Effect, Fiber, Schedule, type Scope, Stream } from "ef
 
 import { runOf, wentOf } from "./project.ts"
 import { type Worktree, worktreeAt } from "./resolve.ts"
-import type { CiRun, RunCell } from "./wire/index.ts"
+import { type CiRun, type RunCell, tallyOf } from "./wire/index.ts"
 
 /**
  * How long between sweeps.
@@ -156,10 +166,21 @@ export type RunNotice =
   }
   | {
     /**
-     * THE RUN SETTLED — the socket is gone, the row stamped `live: false`
-     *  with the last verdict it supported. The verdict word itself (`ok` /
-     *  `red` / `ended`) is the owning plugin's fold of the row, exactly as
-     *  the chip's is.
+     * THE RUN SETTLED — on the RUN's word, never on the socket's: the frame
+     *  whose every node is terminal is the settlement (the fold odu's own
+     *  `checkSettled` runs over the same cell; the moment the ledger stamps
+     *  `finishedAt`). Rung on THAT frame, however long the coordinator
+     *  outlives it: with `--linger` the socket stays serving on purpose, so
+     *  this notice's `run.live` is `true` — the row's `live` is the socket's
+     *  truth and the truth here is that it's still up. The settle arrives
+     *  with `live: false` only in the OTHER case: the socket died before any
+     *  settling frame, which is what a coordinator killed mid-run says.
+     *
+     *  Once per settlement: a lingering coordinator's rerun un-settles the
+     *  run and the drain after it rings again — and its own later end rings
+     *  nothing, whether it settled the hold (already said) or outlived one.
+     *  The verdict word (`ok` / `red` / `ended`) is the owning plugin's fold
+     *  of the row, exactly as the chip's is.
      */
     readonly kind: "settled"
     readonly run: CiRun
@@ -311,6 +332,32 @@ export const makeWatch = (deps: WatchDeps): Watch => {
        */
       const reddened = new Set<string>()
       /**
+       * THE HOLD'S OWN READ OF THE RUN'S SETTLEMENT — a crossing, not a level.
+       *
+       * THE RUN SAYS IT, over the same socket it pushed the frames on: a frame
+       * whose every node is terminal IS the settlement — the same fold odu's
+       * coordinator runs its `checkSettled` and its agent face's
+       * `wait_for_settle` on, and the moment odu's ledger stamps
+       * `finishedAt`. Reading the SOCKET's death for it instead was this
+       * watcher's founding approximation, exact until odu grew `--linger`:
+       * then the coordinator holds the socket open ON PURPOSE past the settle,
+       * so one node can be re-run — and a settle read off the socket arrived
+       * when the coordinator happened to END (a cancel, or the idle reap,
+       * ~30 minutes on), never when the run did.
+       *
+       * Folded over the ROW's cells — the complement of the two non-terminal
+       * words is `tallyOf`'s to state, exactly as the chip counts it, so the
+       * ink and the wake cannot disagree about WHEN: they never could about
+       * WHAT. A run that has not yet published a node (`total === 0`) has not
+       * settled — an empty frame is a run starting, not one ending.
+       *
+       * A CROSSING, so a lingering coordinator's rerun is a NEW settlement:
+       * the frame that un-settles the run re-arms it, and the drain after a
+       * re-run rings again — odu's own `onSettledEach` reads each drain the
+       * same way.
+       */
+      let wasSettled = false
+      /**
        * THE BOARD IS THE AUTHORITY, checked on every write and not only on the
        * sweep's clock.
        *
@@ -328,8 +375,9 @@ export const makeWatch = (deps: WatchDeps): Watch => {
        * gives: one `worktree` string can name two checkouts across a re-add,
        * and a hold on the old one may not write a row about the new.
        *
-       * Named `apply` because `settle` is the run ending — the notice this
-       * hold rings when the socket goes. This is one frame becoming a row.
+       * Named `apply` — one frame becoming a row, and the transitions the
+       * frame CARRIES (first-red, settle) said on it. Some holds end with a
+       * word the frames never said: that one lives where the hold ends.
        */
       const apply = (): void => {
         if (wanted.get(watched.id)?.at !== watched.at) return
@@ -349,6 +397,16 @@ export const makeWatch = (deps: WatchDeps): Watch => {
         if (first !== undefined && !seen) {
           deps.rang({ kind: "first-red", run: row, cell: first })
         }
+        const tally = tallyOf(row.cells)
+        const settling = tally.total > 0 && tally.settled === tally.total
+        if (settling && !wasSettled) {
+          wasSettled = true
+          deps.rang({ kind: "settled", run: row, reddened: [...reddened] })
+        }
+        // NOT an else: a run that settled and then took a rerun is live
+        // again on the very next frame, and the drain after it must ring
+        // again. The level is re-read per frame; only the RING is edge-keyed.
+        if (!settling) wasSettled = false
       }
       // Published BEFORE the first frame: a coordinator that is up but has not
       // stamped a header yet is a run in `unstarted`, and drawing nothing for
@@ -378,8 +436,8 @@ export const makeWatch = (deps: WatchDeps): Watch => {
               }),
           ),
         ).pipe(
-          // A subscription that DIES is how a settling run says goodbye — the
-          // coordinator drops the socket mid-stream — so the failure is the
+          // A subscription that DIES is how the coordinator says goodbye —
+          // settled and torn down, or killed mid-run — so the failure is the
           // ordinary path here rather than an error one. Said at debug for
           // that reason, and swallowed so the sweep survives it.
           Effect.catchCause((cause) =>
@@ -402,11 +460,18 @@ export const makeWatch = (deps: WatchDeps): Watch => {
         const went = wentOf(last)
         rows.set(watched.id, went)
         publish()
-        // SETTLED: the verdict is the owner's fold of the row; what this hold
-        // adds is the one thing the row alone cannot still say — every node
-        // it ever saw red, so a flaked node that went green on a rerun is a
-        // fact and not a secret.
-        deps.rang({ kind: "settled", run: went, reddened: [...reddened] })
+        // THE SOCKET'S DEATH SAYS ONE THING NOW: the run DIED. A coordinator
+        // that settled on a frame already rang it there — its end (torn down
+        // at settle, or a lingering run later cancelled or idle-reaped) is not
+        // a second settlement. Ringing here at all is for the hold that never
+        // saw a settle: a coordinator killed mid-run, whose row's verdict is
+        // the owner's fold as ever — `ended` for a run that decided nothing.
+        // What this hold adds, either way, is the one thing the row alone
+        // cannot still say — every node it ever saw red, so a flaked node
+        // that went green on a rerun is a fact and not a secret.
+        if (!wasSettled) {
+          deps.rang({ kind: "settled", run: went, reddened: [...reddened] })
+        }
       }
     }).pipe(
       // EVERY WAY A DIAL CAN END. `catchCause` rather than `catch` for

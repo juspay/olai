@@ -213,9 +213,11 @@ export const verdictOf = (tally: RunTally): string | null => {
  * filesystem. Where it RESOLVED to rides beside it as {@link CiRun.at}, for
  * the hollow state's own question: "looked where?".
  *
- * A ROW SURVIVES ITS RUN. When the socket goes — which is what a settling run
- * DOES, unlike padi's long-lived one — the row stays with `live: false` and
- * whatever verdict the last frame supported. That is the "last verdict"
+ * A ROW SURVIVES ITS RUN. When the socket goes — which a settling run does at
+ * once, UNLESS the coordinator is lingering to serve a rerun, in which case
+ * the run is settled and the socket up at the same time (see `live`) — the
+ * row stays with `live: false` and whatever verdict the last frame supported.
+ * That is the "last verdict"
  * `@olai/odu-client`'s header argues for, and its provenance is stated rather
  * than implied: it is what OLAI WATCHED, never a read of odu's on-disk ledger
  * (see that header on why the ledger is not this package's to parse).
@@ -230,7 +232,9 @@ export const CiRun = Schema.Struct({
   at: Schema.String,
   /** Whether a coordinator is serving that checkout's socket RIGHT NOW.
    *  `false` is the ORDINARY state and never an error: odu's socket belongs to
-   *  a run, so it appears at `odu run` and is gone the moment the run settles. */
+   *  a run, so it appears at `odu run` and ends with the coordinator — which
+   *  MAY outlive the run's settle on purpose (`--linger` re-runs one node),
+   *  so `true` is no promise that the run is still working. */
   live: Schema.Boolean,
   /** The pipeline's name, as the run states it. */
   name: Schema.String,

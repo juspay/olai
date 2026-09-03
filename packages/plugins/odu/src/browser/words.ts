@@ -119,9 +119,13 @@ const whatOf = (
   return verdict ?? "waiting"
 }
 
-/** ...and the ink it is said in. */
+/** ...and the ink it is said in. The verdict's ink belongs to the RUN's own
+ *  settlement, not to the socket's: a `--linger` coordinator keeps serving
+ *  past it on purpose, and a green run receding into the done ink must not
+ *  wait on however long the coordinator stays up after. */
 const toneOf = (run: CiRun, tally: RunTally, verdict: string | null): CiTone => {
   if (tally.red > 0) return "red"
+  if (tally.total > 0 && tally.settled === tally.total) return "ok"
   if (!run.live) return verdict === "ok" ? "ok" : "quiet"
   return "going"
 }
