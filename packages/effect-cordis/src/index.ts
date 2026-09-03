@@ -39,6 +39,7 @@
  */
 
 export { type Bus, broadcast, failed, type Listen } from "./broadcast.ts"
+export { registry, type Registry } from "./registry.ts"
 export {
   type Host,
   type Mounted,

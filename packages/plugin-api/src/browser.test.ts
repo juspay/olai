@@ -284,3 +284,54 @@ test("a plugin that unwinds and re-registers is not refused", async () => {
   expect((await run(again.report)).state).toBe("running")
   expect(app.hung("app.header")).toHaveLength(1)
 })
+
+/**
+ * A FACE THE APP REFUSED LEAVES THE TABLE, and the plugin that hung it is the
+ * only one that fails.
+ *
+ * ## The defect this is about
+ *
+ * `register` set the entry and then told the app it had changed, from inside
+ * `acquire`. A failure in `acquire` is a resource that was never acquired, so
+ * the release never runs — which means an app that REFUSES (a re-read that
+ * throws) left the face in the table while the plugin landed `failed`. The next
+ * plugin to register would then be drawn over a table still holding a face
+ * nothing mounted.
+ *
+ * The server's sibling table documented that rule at length and this one had the
+ * same reachable failure with no comment near it. It is `@olai/effect-cordis`'s
+ * `registry` for both now, so the rule is mechanical rather than remembered —
+ * and this is the case that says so on the side that was missing it.
+ */
+test("a face the app refused leaves the table, and takes only its own plugin down", async () => {
+  const face = () => null
+  let refusing = false
+  const { app, run } = await opened(() => {
+    if (refusing) throw new Error("the app refuses this frame")
+  })
+  await run(mountPlugin(
+    app.host,
+    definePlugin({
+      name: "neighbour",
+      needs: [Slots],
+      apply: Effect.gen(function*() {
+        yield* (yield* Slots).register("app.header", face)
+      }),
+    }),
+  ))
+  refusing = true
+  const refused = await run(mountPlugin(
+    app.host,
+    definePlugin({
+      name: "refused",
+      needs: [Slots],
+      apply: Effect.gen(function*() {
+        yield* (yield* Slots).register("app.header", face)
+      }),
+    }),
+  ))
+  expect((await run(refused.report)).state).toBe("failed")
+  // The refused face is gone from the table, so nothing downstream can draw it
+  // — and the neighbour's is untouched.
+  expect(app.hung("app.header")).toEqual([{ plugin: "neighbour", face }])
+})

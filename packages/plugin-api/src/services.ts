@@ -89,6 +89,7 @@ import {
   type Plugin,
   PluginName,
   provide,
+  registry,
   serviceTag,
   waterfall,
 } from "@olai/effect-cordis"
@@ -579,91 +580,56 @@ export const openPlugins = (
         Effect.suspend(() => config.doorFor?.(plugin)?.deliver(...args) ?? Effect.void),
     }))
 
-    const kinds = new Map<string, ComposedKind>()
+    const kinds = registry<string, ComposedKind>()
     yield* provide(host, Kinds, (plugin) => ({
       register: (kind) =>
-        Effect.acquireRelease(
-          Effect.suspend(() => {
-            const word = kindWordOf(plugin, kind.kind)
-            // UNCONDITIONALLY, including a plugin claiming its own word twice —
-            // which is the reachable half on a well-formed bundle, since the
-            // prefix IS the row's id and the loader will not mount two rows
+        Effect.suspend(() => {
+          const word = kindWordOf(plugin, kind.kind)
+          return kinds.claim(
+            word,
+            { ...kind, kind: word, claims: word, by: plugin },
+            // REFUSED UNCONDITIONALLY, including a plugin claiming its own word
+            // twice — which is the reachable half on a well-formed bundle, since
+            // the prefix IS the row's id and the loader will not mount two rows
             // under one. A plugin that unloads and comes back is not this case:
             // its finalizer took the word out of the table before its `apply`
             // ran again.
-            const already = kinds.get(word)
-            if (already !== undefined) {
-              return Effect.die(
-                new Error(
-                  `plugins: "${already.by}" and "${plugin}" both contribute the property `
-                    + `kind "${word}" — a vault declaring it would be judged by whichever `
-                    + "was composed last, which the assembly resolves silently.",
-                ),
-              )
-            }
-            kinds.set(word, { ...kind, kind: word, claims: word, by: plugin })
-            return Effect.succeed(word)
-          }),
-          (word) => Effect.sync(() => void kinds.delete(word)),
-        ).pipe(Effect.asVoid),
+            (already) =>
+              `plugins: "${already.by}" and "${plugin}" both contribute the property `
+                + `kind "${word}" — a vault declaring it would be judged by whichever `
+                + "was composed last, which the assembly resolves silently.",
+          )
+        }),
     }))
 
-    const siblings = new Map<string, Registered>()
+    const siblings = registry<string, Registered>(config.changed)
     yield* provide(host, Surfaces, (plugin) => ({
       register: (sibling) =>
-        Effect.acquireRelease(
-          Effect.suspend(() => {
-            if (siblings.has(plugin)) {
-              return Effect.die(
-                new Error(
-                  `plugins: "${plugin}" registered a second sibling surface — a plugin is `
-                    + "one sibling under one key, and the second would silently replace the "
-                    + "first.",
-                ),
-              )
-            }
-            siblings.set(plugin, { ...sibling, name: plugin })
-            try {
-              config.changed?.()
-            } catch (refused) {
-              // THE ENTRY GOES BEFORE THE THROW DOES, and this is the one place
-              // it can: a failure in `acquire` is a resource that was never
-              // acquired, so the release below never runs and the entry would
-              // stay.
-              //
-              // What that cost is worth spelling out, because it is not the
-              // obvious one. The refusing plugin lands `FAILED`, which is what
-              // the containment claim says — and its sibling was still in the
-              // table, so the NEXT plugin to register re-ran the composition
-              // root's re-compose, which retried the same refused mount and
-              // threw inside THAT plugin's `apply`. One mis-shaped surface took
-              // down every plugin that arrived after it, each failing on
-              // somebody else's refusal, and the table went on reporting the
-              // refused one as composed to a roster that draws it.
-              //
-              // NOT re-notified on the way out: the root never mounted this
-              // sibling, so deleting it puts the table back exactly where the
-              // last successful composition left it and there is nothing for a
-              // re-compose to do.
-              siblings.delete(plugin)
-              return Effect.die(refused)
-            }
-            return Effect.void
-          }),
+        siblings.claim(
+          plugin,
+          { ...sibling, name: plugin },
           () =>
-            Effect.sync(() => {
-              siblings.delete(plugin)
-              config.changed?.()
-            }),
-        ).pipe(Effect.asVoid),
+            `plugins: "${plugin}" registered a second sibling surface — a plugin is `
+              + "one sibling under one key, and the second would silently replace the "
+              + "first.",
+        ),
     }))
 
-    const wakes = new Map<string, Wake>()
+    // KEYED BY THE PLUGIN AND REFUSED THE SAME WAY, which it was not: this table
+    // was a bare `set`, so a second declaration replaced the first silently and
+    // the FIRST registration's finalizer then deleted the SECOND's entry. Both
+    // are unreachable on a well-formed bundle for the reason the sibling above
+    // gives — one row, one plugin, one `apply` — and the asymmetry with its three
+    // neighbours was the only thing keeping it so.
+    const wakes = registry<string, Wake>()
     yield* provide(host, Wakes, (plugin) => ({
       register: (wake) =>
-        Effect.acquireRelease(
-          Effect.sync(() => void wakes.set(plugin, wake)),
-          () => Effect.sync(() => void wakes.delete(plugin)),
+        wakes.claim(
+          plugin,
+          wake,
+          () =>
+            `plugins: "${plugin}" declared a second wake — a plugin rings under one `
+              + "declaration, and the second would silently replace the first.",
         ),
     }))
 
@@ -684,9 +650,9 @@ export const openPlugins = (
 
     return {
       host,
-      kinds: () => new Map(kinds),
-      composed: () => [...siblings.values()],
-      declared: () => new Map(wakes),
+      kinds: kinds.read,
+      composed: () => [...siblings.read().values()],
+      declared: wakes.read,
       published: revisions.tell,
       quiet: quieted.tell(undefined),
       saw: seen.tell,

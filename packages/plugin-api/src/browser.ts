@@ -85,7 +85,16 @@
  */
 
 
-import { definePlugin, type Host, mountPlugin, openHost, provide, serviceTag } from "@olai/effect-cordis"
+import {
+  definePlugin,
+  type Host,
+  mountPlugin,
+  openHost,
+  provide,
+  registry,
+  type Registry,
+  serviceTag,
+} from "@olai/effect-cordis"
 import { Effect, Scope } from "effect"
 
 import { kindWordOf } from "./contract.ts"
@@ -376,48 +385,46 @@ export interface AppConfig {
 export const openApp = (config: AppConfig = {}): Effect.Effect<App, never, Scope.Scope> =>
   Effect.gen(function*() {
     const host = yield* openHost
-    /** Slot → key → face. Two levels rather than one composite key, because the
-     *  walks read a whole slot and never a single composite. */
-    const table = new Map<SlotName, Map<string, unknown>>()
+    /**
+     * ONE TABLE PER SLOT, and a slot IS a table — the six are declared
+     * ({@link SLOTS}), so they are opened here rather than grown on demand.
+     *
+     * They are `@olai/effect-cordis`'s `registry` rather than six hand-written
+     * `Map`s, which is what makes the three rules mechanical instead of
+     * remembered. The one that had gone missing here is the third: this table
+     * told the app it had changed from INSIDE `acquire`, and an app that refuses
+     * throws out of that call — so the entry stayed while the plugin landed
+     * `failed`, which is the cascade the server's sibling table documents at
+     * length and this one had with no comment anywhere near it.
+     *
+     * Two levels rather than one composite key, because the walks read a whole
+     * slot and never a single composite: `dressed` is asked per drawn property
+     * value, and a flat table would make it a scan.
+     */
+    const tables = new Map<SlotName, Registry<string, unknown>>(
+      (Object.keys(SLOTS) as ReadonlyArray<SlotName>)
+        .map((slot) => [slot, registry<string, unknown>(config.changed)] as const),
+    )
+    const at = (slot: SlotName): Registry<string, unknown> => tables.get(slot)!
 
     yield* provide(host, Slots, (plugin) => ({
       register: (slot: SlotName, second: unknown, third?: unknown) =>
-        Effect.acquireRelease(
-          Effect.suspend(() => {
-            const keyed = SLOTS[slot].keyedBy === "kind"
-            const key = keyed ? kindWordOf(plugin, second as string) : plugin
-            const face = keyed ? third : second
-            // THE TABLE AND THE TEST ARE BOTH READ HERE, inside `acquire`, and
-            // the second half of that was wrong for a round: they were computed
-            // where `register` was CALLED, which made them a snapshot of that
-            // moment rather than of the moment the registration takes. A plugin
-            // that unloads and comes back re-runs its `apply` after its
-            // finalizers have taken the key back out; a captured `already` would
-            // still say `true` and refuse the face it had just unwound, and a
-            // captured `held` would write into a `Map` this table had already
-            // dropped when the slot emptied — an entry that exists for the
-            // plugin and is invisible to every reader.
-            const held = table.get(slot) ?? new Map<string, unknown>()
-            if (held.has(key)) {
-              return Effect.die(
-                new Error(
-                  `plugins: "${plugin}" hangs two faces in "${slot}" under "${key}" — `
-                    + "the second would replace the first with nothing said.",
-                ),
-              )
-            }
-            held.set(key, face)
-            table.set(slot, held)
-            config.changed?.()
-            return Effect.succeed({ held, key })
-          }),
-          ({ held, key }) =>
-            Effect.sync(() => {
-              held.delete(key)
-              if (held.size === 0) table.delete(slot)
-              config.changed?.()
-            }),
-        ).pipe(Effect.asVoid),
+        Effect.suspend(() => {
+          // THE KEY RULE IS THE SLOT'S, and the word a KIND-keyed slot is filed
+          // under is composed here with the plugin's own name — the same
+          // `kindWordOf` the server's `Kinds` uses, so the word a face is looked
+          // up by and the word a vault declares cannot be two spellings.
+          const keyed = SLOTS[slot].keyedBy === "kind"
+          const key = keyed ? kindWordOf(plugin, second as string) : plugin
+          const face = keyed ? third : second
+          return at(slot).claim(
+            key,
+            face,
+            () =>
+              `plugins: "${plugin}" hangs two faces in "${slot}" under "${key}" — `
+                + "the second would replace the first with nothing said.",
+          )
+        }),
     } as Slots))
 
     yield* provide(host, Wired, (plugin) => ({
@@ -426,13 +433,10 @@ export const openApp = (config: AppConfig = {}): Effect.Effect<App, never, Scope
 
     return {
       host,
-      hung: <S extends PluginSlot>(slot: S): ReadonlyArray<Hung<SlotFaces[S]>> => {
-        const held = table.get(slot)
-        if (held === undefined) return []
-        return [...held].map(([plugin, face]) => ({ plugin, face: face as SlotFaces[S] }))
-      },
+      hung: <S extends PluginSlot>(slot: S): ReadonlyArray<Hung<SlotFaces[S]>> =>
+        [...at(slot).read()].map(([plugin, face]) => ({ plugin, face: face as SlotFaces[S] })),
       dressed: <S extends KindSlot>(slot: S): ReadonlyMap<string, SlotFaces[S]> =>
-        new Map(table.get(slot) ?? []) as ReadonlyMap<string, SlotFaces[S]>,
+        at(slot).read() as ReadonlyMap<string, SlotFaces[S]>,
       furnish: (furniture) =>
         Effect.gen(function*() {
           yield* provide(host, Clocks, () => furniture.clocks)

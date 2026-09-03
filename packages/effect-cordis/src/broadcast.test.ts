@@ -9,7 +9,7 @@
  */
 
 import { expect, test } from "bun:test"
-import { Cause, Effect, Logger, Scope } from "effect"
+import { Cause, Effect, Exit, Logger, Scope } from "effect"
 
 import { broadcast } from "./broadcast.ts"
 
@@ -69,7 +69,7 @@ test("a handler leaves with the scope that registered it", async () => {
   )
   await Effect.runPromise(bus.tell("x"))
   expect(said).toEqual(["leaver"])
-  await Effect.runPromise(Scope.close(scope, Effect.exitVoid))
+  await Effect.runPromise(Scope.close(scope, Exit.void))
   await Effect.runPromise(bus.tell("x"))
   expect(said).toEqual(["leaver"])
 })
