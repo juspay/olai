@@ -276,7 +276,8 @@ export const makeWatch = (
   /** The standing subscription, while one is running. */
   let run: Run | null = null
   /** The fleet rows as last observed — the join the frozen event reads off.
-   *  Never evicted, for the header's stated reason. */
+   *  Insertion-ordered, capped at `WATCH_LANES` like every place here: an
+   *  evicted id draws the synthesized pip, the margin's spelled answer. */
   const rows = new Map<string, FleetTerminal>()
   /** The ring. Insertion-ordered Map, capped at `WATCH_RING`. */
   const ring = new Map<string, KoluEvent>()
