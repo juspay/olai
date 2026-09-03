@@ -221,10 +221,11 @@ describe("the subscription watcher", () => {
 
     await Effect.runPromise(Queue.offer(queue, [ev("transition", "t1", { at: EPOCH + 500 })]))
     await sleep(30)
-    // THE FRAME'S OWN INSTANT, per batch — not a clock of ours, and not the
-    // cadence the pill reads the AGE against (that one is `everyMs`).
+    // STAMPED AT RECEIPT — one clock, ours. Liveness is "when did the
+    // subscription last answer", and the daemon's `at` rides the content
+    // (the event), not the pulse.
     expect(seen.beats.length).toBe(2)
-    expect(seen.beats[1]?.at).toBe(new Date(EPOCH + 500).toISOString())
+    expect(seen.beats[1]?.at).toBe(new Date(EPOCH).toISOString())
     watch.stop()
   })
 

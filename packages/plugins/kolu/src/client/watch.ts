@@ -34,10 +34,13 @@
  *     evicted: an event about a terminal that has since shut still wants
  *     its draw facts. (A lanes-day's churn is hundreds of rows at two
  *     kilobytes each; eviction would buy nothing.)
- *   - THE BEAT STAMP. There is no interval to pace one on any more, so it
- *     is stamped when the SUBSCRIPTION says something — every batch,
- *     including the arriving frame that found nothing matching, which is
- *     the member's own answer to "is it live". The pulse cell changes
+   *   - THE BEAT STAMP. There is no interval to pace one on any more, so it
+   *     is stamped when the SUBSCRIPTION says something — every batch,
+   *     including the arriving frame that found nothing matching, which is
+   *     the member's own answer to "is it live". The stamp is RECEIPT time:
+   *     liveness is a fact of this clock, and the daemon's `at` stays what
+   *     it is — the content's instant, riding each event. The pulse cell
+   *     changes
  *     neither shape nor cadence knob: the pill still reads
  *     `age > everyMs * 2` against the vault's `heartbeat` window, which is
  *     why the knob survives with its word. The knob paces nothing remotely
@@ -138,8 +141,9 @@ export interface WatchSink {
   readonly emit: (event: KoluEvent) => void
   /** Fired ONLY on a ring eviction: events are never edited, only dropped. */
   readonly evict: (id: string) => void
-  /** The subscription answered. Stamped once per BATCH — the frame's own
-   *  instant and the vault's heartbeat window beside it. */
+  /** The subscription answered. Stamped once per BATCH, at RECEIPT — "when
+   *  did we last hear from padi" is a fact about THIS clock, and the daemon's
+   *  `at` already rides each event beside it as content. */
   readonly beat: (at: string, everyMs: number) => void
 }
 
@@ -320,11 +324,13 @@ export const makeWatch = (
   /** One BATCH through the ring, then the beat the batch earns. The beat is
    *  stamped LAST so a conversation rung by this frame is already said
    *  before its floor is asked about — the events-first ordering the ledger
-   *  reads. */
+   *  reads — and it is stamped at RECEIPT: "the subscription answered" is a
+   *  fact of THIS clock, whereas the batch's daemon `at` is content and
+   *  rides each event. */
   const onBatch = (token: Run, batch: readonly PadiStateEvent[]): void => {
     if (run !== token) return
     for (const ev of batch) push(translate(ev))
-    sink.beat(new Date(batch[0]?.at ?? options.now()).toISOString(), config.heartbeatMs)
+    sink.beat(new Date(options.now()).toISOString(), config.heartbeatMs)
   }
 
   /** Start (or re-run) the standing subscription against the live face,
