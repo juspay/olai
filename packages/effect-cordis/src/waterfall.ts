@@ -99,18 +99,48 @@ export const waterfall = <A>(cordis: string): Waterfall<A> => {
           const step = (at: number, value: A): Effect.Effect<A> =>
             at >= links.length ? Effect.succeed(value) : Effect.gen(function*() {
               const link = links[at]!
-              return yield* link.middleware(value, (passed) => step(at + 1, passed)).pipe(
+              // DID IT CALL THROUGH? — the one fact the recovery below turns on,
+              // and it can only be known by watching. See the arm for why.
+              let continued = false
+              const next = (passed: A): Effect.Effect<A> => {
+                continued = true
+                return step(at + 1, passed)
+              }
+              return yield* link.middleware(value, next).pipe(
                 // CONTAINED, and the SENTENCE is {@link ./broadcast.ts}'s — one
                 // line for every plugin bus in the tree rather than one per
                 // dispatch mode, because the thing that must not drift is what a
-                // reader is told, not how each mode recovers. What each mode
-                // recovers TO is genuinely its own: a broadcast has nothing to
-                // hand back, and this chain carries on from where it stood,
-                // which is the value this link was handed — a link that died may
-                // have done half of what it meant to, and there is nothing
-                // honest to do with a half-transformed value but leave it alone.
+                // reader is told, not how each mode recovers.
+                //
+                // WHAT IT RECOVERS TO IS THE REST OF THE CHAIN, and for a round
+                // it was not. A death was caught and the value handed back as it
+                // stood — which took every LATER link down with the dying one,
+                // silently, exactly as a voluntary short-circuit would. Four
+                // written claims said otherwise, including this file's own
+                // header and a bench whose title asserted the opposite of its
+                // assertion, and the code was the outlier.
+                //
+                // It matters beyond the prose because registration order RACES:
+                // a row's `apply` runs when its `import()` comes back, so WHICH
+                // plugins lost their say to somebody else's defect moved between
+                // boots. "One plugin's broken listener is one plugin's absence"
+                // is only true if the ones after it are still asked.
+                //
+                // So a link that died WITHOUT calling through has not consulted
+                // the rest, and they are not its to skip: the chain resumes at
+                // the next link with the value this one was handed. A link that
+                // died AFTER calling through already got its answer, and the
+                // ones after it have already run — asking them again is the
+                // double-ask this waterfall exists to make impossible — so that
+                // arm hands back the value as it stood. Either way a link that
+                // dies may have done half of what it meant to, and there is
+                // nothing honest to do with a half-transformed value but leave
+                // it alone.
                 Effect.catchCause((cause) =>
-                  Effect.as(failed(link.plugin, `the "${cordis}" waterfall`, cause), value)
+                  Effect.flatMap(
+                    failed(link.plugin, `the "${cordis}" waterfall`, cause),
+                    () => continued ? Effect.succeed(value) : step(at + 1, value),
+                  )
                 ),
               )
             })
