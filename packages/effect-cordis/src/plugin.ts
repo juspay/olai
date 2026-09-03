@@ -40,19 +40,30 @@ import { Cause, Context, Effect, Exit, FiberSet, Scope } from "effect"
 
 import { failed } from "./broadcast.ts"
 import { held } from "./host.ts"
-import type { ServiceKey } from "./service.ts"
+import type { AnyKey, ServiceKey } from "./service.ts"
 
 /**
- * THE PLUGIN'S OWN WORD — the name the registry bound this fiber under, read
- * off the fiber once and provided to the Effect.
+ * THE PLUGIN'S OWN WORD, INSIDE THIS PACKAGE — the name the registry bound this
+ * fiber under, read off the fiber once and provided into the Effect.
  *
  * A `Reference` rather than a service, so it is AMBIENT: it never appears in a
- * plugin's `needs`, because there is no arrangement in which a plugin is
- * running and does not have one. What it is FOR is the handful of places a
- * plugin has to spell its own identity into a value core does not stamp for it
- * — a coalesce key, a sentence about itself — and using this rather than a
- * module constant is what keeps that word the registry binding rather than a
- * second copy of it.
+ * plugin's `needs`, because there is no arrangement in which a plugin is running
+ * and does not have one.
+ *
+ * ## NOT ON THE DOOR, and that is the point rather than an omission
+ *
+ * It was exported, and re-exported onto the door plugins open, so a plugin had
+ * TWO documented ways to ask who it was. The other is {@link ./service.ts}'s
+ * `Provision`, which answers the same question WITHOUT the plugin being able to
+ * spell it — and that inability is the whole design: a keyed service has no
+ * parameter for "who", so one plugin cannot sign another's registration. A
+ * second channel where the word IS spellable weakens the first for a use no
+ * plugin has (the three in this tree spell their own `name` import, which they
+ * already hold from `./wire.ts`).
+ *
+ * What it is FOR is HERE: {@link detached} needs the word to say whose detached
+ * work failed, and it is inside the facade rather than on the plugin's side of
+ * it. In-package, so this package's own bench can assert the stamp through it.
  *
  * The default is `"root"`, which is the word Cordis's own root fiber answers
  * with; nothing mounted through this package ever reads it.
@@ -109,12 +120,6 @@ export const detached: Effect.Effect<Detach, never, Scope.Scope> = Effect.gen(fu
     run(Effect.catchCause(work, (cause) => failed(who, "detached work", cause)))
   }
 })
-
-/** ANY SERVICE KEY, whatever it is a key FOR — the constraint {@link needs}
- *  takes, and the reason it is written as an intersection is that both halves
- *  are load-bearing: the Effect side is what `R` is computed from, and
- *  `cordis` is what `inject` is. */
-export type AnyKey = Context.Service.Any & { readonly cordis: string }
 
 /**
  * WHAT CORDIS MOUNTS — a plain object with the three fields the registry reads.

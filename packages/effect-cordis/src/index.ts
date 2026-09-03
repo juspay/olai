@@ -51,6 +51,6 @@ export {
   rowReport,
   standing,
 } from "./host.ts"
-export { type AnyKey, type Detach, definePlugin, detached, type Plugin, PluginName } from "./plugin.ts"
-export { type Provision, serviceTag, type ServiceKey } from "./service.ts"
+export { type Detach, definePlugin, detached, type Plugin } from "./plugin.ts"
+export { type AnyKey, type Provision, serviceTag, type ServiceKey } from "./service.ts"
 export { type Chain, type Dispatch, type Middleware, waterfall, type Waterfall } from "./waterfall.ts"

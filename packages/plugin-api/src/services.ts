@@ -87,7 +87,6 @@ import {
   mountPlugin,
   openHost,
   type Plugin,
-  PluginName,
   provide,
   registry,
   serviceTag,
@@ -113,7 +112,7 @@ import {
  *  is the one thing the bridge exists to stop being true. What it imports is
  *  olai's interface; that the interface is built on a translation of Cordis is
  *  this file's business and nobody else's. */
-export { definePlugin, type Detach, detached, type Plugin, PluginName, serviceTag, standing }
+export { definePlugin, type Detach, detached, type Plugin, serviceTag, standing }
 
 /**
  * WHAT THE PROCESS CAN SEE, plus the one seam a test fills.

@@ -70,3 +70,15 @@ export type Provision<Shape> = (plugin: string) => Shape
  */
 export const serviceTag = <Shape>(cordis: string): ServiceKey<Shape> =>
   Object.assign(Context.Service<Shape>(`effect-cordis/${cordis}`), { cordis })
+
+/** ANY SERVICE KEY, whatever it is a key FOR — the constraint `definePlugin`'s
+ *  `needs` takes, and the reason it is written as an intersection is that both
+ *  halves are load-bearing: the Effect side is what `R` is computed from, and
+ *  {@link ServiceKey.cordis} is what `inject` is.
+ *
+ *  BESIDE THE FAMILY IT DESCRIBES rather than beside the one function that spends
+ *  it. Keys are minted here and `ServiceKey` is declared here, so this is the
+ *  module that owns the concept; putting it in `./plugin.ts` left that module
+ *  with two concerns (turning an Effect into a plugin, AND naming the type family
+ *  it takes) and left this one unable to describe its own. */
+export type AnyKey = Context.Service.Any & { readonly cordis: string }
