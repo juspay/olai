@@ -231,7 +231,13 @@ import {
   textDeclaredAs,
 } from "@olai/format"
 import { heldStateOf } from "olai-plugin-kolu/appliance"
-import { type FleetTerminal, type KoluEvent, resolveTerminal, whoOf } from "olai-plugin-kolu/appliance/wire"
+import {
+  type FleetTerminal,
+  type KoluEvent,
+  reminderAccount,
+  resolveTerminal,
+  whoOf,
+} from "olai-plugin-kolu/appliance/wire"
 import { nodeRef } from "@olai/plugin-kit/ref"
 
 import { TERMINAL_TYPE } from "./kinds.ts"
@@ -846,8 +852,10 @@ export const claimingIn = (
  * vocabulary. Comparing the event's id against a value the vault wrote is the
  * mistake this whole pair of functions is shaped to make unspellable.
  *
- * A `heartbeat` carries no row and means nothing here: the watcher is alive,
- * which is the pill's news and not a conversation's. A `nag` means exactly
+ * A `heartbeat` carries no row and means nothing here: alive is the pill's
+ * news and not a conversation's. Nothing mints one any more — liveness is
+ * the subscription's own stamps now — but a ring served from before the
+ * fold can still carry one, and the arm is its home. A `nag` means exactly
  * what its `transition` meant — the derivation is idempotent and the body is
  * standing state, so a nag costs a walk and rings the same bell, which is
  * what a nag is FOR.
@@ -992,6 +1000,7 @@ export const bodyFor = (
   standing: ReadonlyArray<Standing>,
   file: string,
   now: string,
+  event?: KoluEvent,
 ): string => {
   const many = standing.length !== 1
   const subject = many ? `${standing.length} terminals` : "One terminal"
@@ -1005,10 +1014,12 @@ export const bodyFor = (
     } is doing — ${
       many ? "they are" : "it is"
     } lawfully parked, so this is a note and not a call:`
+  const reminder = reminderOf(event)
   return [
     essenceOf(meaning, standing),
     "",
     `Written by olai's kolu watcher at ${stampOf(now)}, not by a person.`,
+    ...(reminder === null ? [] : ["", reminder]),
     "",
     opening,
     "",
@@ -1016,6 +1027,49 @@ export const bodyFor = (
     "",
     `These are read off the un-done nodes of ${file}, mirrors followed to their targets. It is the whole standing set and not only the terminal that moved just now; clearing the file on this conversation's wake control stops it.`,
   ].join("\n")
+}
+
+/**
+ * WHICH REMINDER THIS IS, as its own line — and `null` where there is no
+ * counting to say.
+ *
+ * THE FIRST REPORT CARRIES NONE. The event padi counts from is the
+ * `transition` (or a re-lead `snapshot`): a cap is a cap on a repetition,
+ * and the one the repetition repeats is it. So the count is said from the
+ * first REMINDER on, out loud, in the same body the standing set is in —
+ * the caller reads it straight off the event's own `nag` field rather than
+ * counting anything itself, because the daemon's accounting is the one
+ * that survives a restart ({@link ./client/watch.ts}'s header).
+ *
+ * THE LAST ONE SAYS SO IN WORDS. A capped nag that ends well is
+ * indistinguishable from a watcher gone quiet unless this clause says so —
+ * and misreading it is precisely the failure the floor under silence is
+ * not allowed to hide behind (the heartbeat counts a reminder as speech,
+ * so after this one, only a real quiet follows).
+ *
+ * AND THE CLAUSE NAMES ITS TERMINAL. The body it rides in is about the
+ * whole STANDING set — it may list four rows — and a reminder line whose
+ * subject stays unspoken pastes one event's count onto every one of them.
+ * The id is the event's own: the reader sees exactly which row the count
+ * is about.
+ */
+const reminderOf = (event: KoluEvent | undefined): string | null => {
+  // The ACCOUNT is the wire's fold (`reminderAccount`, beside the schema);
+  // this is only the body's own wording of it, with the event's own row
+  // named as the subject. GATED BY KIND the exact way the drawer's stamp
+  // is — the flat schema will still decode a `transition` bearing `nag`,
+  // and while translate strips the pairing one hop upstream, no reader of
+  // this body may spell a count onto a kind the other face refused.
+  const account = reminderAccount(event?.kind === "nag" ? event.nag : undefined)
+  if (account === null || event?.row === null || event === undefined) return null
+  const id = event.row.terminal
+  if (account.total === null) {
+    return `This is reminder ${account.index} of an uncapped nag for \`${id}\` — it repeats on this interval while the state holds (a cap is spelled \`nag: 30m/3\` in _olai/Kolu.olai).`
+  }
+  if (account.last) {
+    return `This is reminder ${account.index} of ${account.index} for \`${id}\`, the last — this doorbell goes quiet about that terminal until its state changes.`
+  }
+  return `This is reminder ${account.index} of ${account.total} for \`${id}\`.`
 }
 
 /**
@@ -1436,24 +1490,30 @@ const suffixed = (from: string, to: string, word: string): string => {
  *
  * ## What a beat does, in one breath
  *
- * The watcher already beats every `heartbeat` ms and has since the pill was
- * drawn ({@link ../../kolu-client/src/watch.ts}'s `pulse`). This rides THAT
- * beat: on each one, every scoped conversation that heard nothing since the
- * previous beat is delivered the four facts, and every conversation that heard
- * something is passed over and its window reset. There is no second timer and
- * no second knob — a heartbeat cadence a person could set apart from the one
- * they already set would be two answers to one question, and the second of
- * them would be the one nobody knew about.
+ * The watcher's tap fires when the SUBSCRIPTION answers — per batch, never
+ * on an interval of anybody's ({@link ./client/watch.ts}'s header). This loop
+ * rides that tap and owns the cadence the knob promises by itself: the FIRST
+ * beat of the process only ARMS the window (the timered watcher's `begun`
+ * gate swallowed its boot pulse for the same reason — a floor that dropped
+ * seconds after the dial would make the body's "the whole watch window"
+ * line a lie told about seconds), and a beat that lands inside the window
+ * is COLLAPSED, because the daemon's speech rate is not the vault's cadence.
+ * On each accepted beat, every scoped conversation that heard nothing since
+ * the previous one is delivered the four facts, and every conversation that
+ * heard something is passed over and its window reset. There is no second
+ * timer and no second knob — a heartbeat cadence a person could set apart
+ * from the one they already set would be two answers to one question, and
+ * the second of them would be the one nobody knew about.
  *
  * ## THE WINDOW IS MEASURED IN BEATS, not in milliseconds
  *
  * `delivered` is the whole ledger: a conversation is in {@link spoken} when
  * words of this plugin's actually entered it, and the set is cleared at the
- * end of every beat. So "in the window" means "since the previous beat", which
- * needs no arithmetic, no second clock and no stamp to compare — and it cannot
- * drift against the interval the watcher is actually running, because it IS
- * that interval. See the header on why a ledger of this process's own actions
- * is not the standing set the header forbids.
+ * end of every accepted beat. So "in the window" means "since the previous
+ * accepted beat", which needs no arithmetic past the arm/collapse gate —
+ * and it cannot drift against the interval the watcher is actually running,
+ * because it IS that interval. See the header on why a ledger of this
+ * process's own actions is not the standing set the header forbids.
  *
  * IT IS MARKED WHERE THE WORDS GO IN, not where the delivery was handed over,
  * and that is `./server.ts`'s to call from inside its own thunk. A body that
@@ -1533,7 +1593,7 @@ export const makeHeartbeat = (deps: {
 }): Heartbeat => {
   /** WHEN THIS PROCESS BEGAN WATCHING — read once, here, because this
    *  constructor runs in the same breath as the watcher's own
-   *  ({@link ../../kolu-client/src/index.ts}'s `koluHalf`). A restart re-dates
+   *  ({@link ./client/index.ts}'s `koluHalf`). A restart re-dates
    *  it, which is exactly the fact a reader wants: an uptime that keeps
    *  resetting is a process somebody keeps killing. */
   const since = deps.now()
@@ -1546,6 +1606,10 @@ export const makeHeartbeat = (deps: {
    *  beat. Cleared whole at the end of every beat, which is both the window's
    *  reset and its bound. */
   const spoken = new Set<string>()
+  /** THE WINDOW'S OTHER EDGE — the instant of the last ACCEPTED beat, or
+   *  `null` before the first. `null` is the arming rule: the first beat of
+   *  the process opens the count rather than closing one. */
+  let armedAt: number | null = null
   /** The ledger's key. `\0` as an ESCAPE and never as the byte: a literal NUL
    *  makes this file read as BINARY to grep and to review tooling, which is how
    *  a reviewer stops being able to see it at all. `../../chat/src/deliveries.ts`
@@ -1560,6 +1624,23 @@ export const makeHeartbeat = (deps: {
       spoken.add(keyOf(to))
     },
     beat: (everyMs) => {
+      // THE CADENCE IS THE KNOB'S AND NOT THE SUBSCRIPTION'S SPEECH RATE:
+      // the tap fires per batch now, and a fleet padi has things to say
+      // about can beat several times inside one window. An unreadable
+      // clock falls through and behaves as the interval old beats did —
+      // a floor married to a broken clock says what it can rather than
+      // going silent on a stamp it could not subtract.
+      const nowMs = Date.parse(deps.now())
+      if (armedAt === null) {
+        armedAt = nowMs
+        trace("beat-armed", { every: everyMs })
+        return
+      }
+      if (nowMs - armedAt < everyMs) {
+        trace("beat-collapsed", { every: everyMs })
+        return
+      }
+      armedAt = nowMs
       const scopes = deps.scopes()
       // THE HEAD OF THE BEAT, before the walk decides anything: the cadence in
       // force, how many conversations core lists, and how many of them this

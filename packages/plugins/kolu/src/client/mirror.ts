@@ -52,7 +52,7 @@ import {
 } from "@kolu/padi-client/attention"
 
 import { type Claimant, claimsIn, rowOf } from "./fleet.ts"
-import { type Dial, type PadiAttachFrame, runLink, type Sink } from "./link.ts"
+import { type Dial, type PadiAttachFrame, type PadiSurfaceClient, runLink, type Sink } from "./link.ts"
 import { screenText } from "./screen.ts"
 
 export interface MirrorSink {
@@ -62,11 +62,17 @@ export interface MirrorSink {
   readonly upsert: (id: string, row: FleetTerminal) => void
   /** A row left — wired to the same collection's `remove`. */
   readonly remove: (id: string) => void
+  /** THE DIALED CLIENT, whole — pushed on the dial's own edges, for the one
+   *  consumer that is not this mirror's rows: the watcher, whose
+   *  `watchStates` subscription lives and dies with the link
+   *  (`./watch.ts`). The mirror's own projections read their two members
+   *  off the same value. */
+  readonly face: (padi: PadiSurfaceClient | null) => void
   /** THE FLAP's row leave: the fleet went whole because the LINK did, which is
    *  a different event from any one terminal closing. The collection's rows
-   *  read the same emptiness as `remove`; what this door is FOR is whoever is
-   *  hanging semantic money on the difference — the watcher, whose holds
-   *  pause through a flap rather than re-firing after one (`./watch.ts`). */
+   *  read the same emptiness as `remove`; the door stays apart so a reader
+   *  hanging semantics on the difference can tell a shut terminal from a
+   *  dropped link. */
   readonly clearedRow: (id: string) => void
   /** Routine narration, wired to the server's log. */
   readonly say: (line: string) => void
@@ -138,12 +144,11 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
    *  three terminals were open resolves the moment two of them close, and the
    *  claim itself never changed. */
   let claimants: ReadonlyArray<Claimant> = []
-  /** The live padi face, or `null` — what makes `screen` a read or a refusal. */
-  let reader: Parameters<typeof screenText>[0] = null
-  /** The live-attach face, or `null` — what makes a pane a window or a
-   *  refusal. Pushed on the same edges the reader is, because a subscription
-   *  is only meaningful while there is a link under it. */
-  let attacher: Parameters<Sink["attacher"]>[0] = null
+  /** The live padi client, or `null` — pushed whole on the dial's edges
+   *  (`./link.ts`'s `Sink.face`): what makes `screen` a read or a refusal
+   *  and a pane a window or a refusal, since both are subscriptions that
+   *  are only meaningful while there is a link under them. */
+  let padiFace: PadiSurfaceClient | null = null
   /**
    * WHO IS WATCHING A TERMINAL'S GRID — the foreign-resize channel, and the
    * whole of finding 8's answer on this side.
@@ -316,11 +321,12 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
   const linkSink: Sink = {
     link: sink.link,
     say: sink.say,
-    attacher: (face) => {
-      attacher = face
-    },
-    reader: (face) => {
-      reader = face
+    // ONE PUSH, two projections: the dial hands the client over whole and
+    // takes it back whole; the mirror keeps it for its own two verbs and
+    // forwards it for the watcher's one.
+    face: (next) => {
+      padiFace = next
+      sink.face(next)
     },
     dialed: () => {
       dials += 1
@@ -387,18 +393,15 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
     },
     cleared: () => {
       // EVERY row goes, one call each — but on `clearedRow`, not `remove`:
-      // the LINK went, so each row's leaving is a suspension, not a
-      // shutting down, and a reader hanging semantics on the difference (the
-      // watcher, `./watch.ts`) needs the door to tell them apart. The one the
-      // chip WEARS is the `kolu` cell's own `absent`, which `linkSink` moves
-      // the same breath.
+      // the LINK went, so each row's leaving is the fleet becoming unknown,
+      // not a shutting down. The one the chip WEARS is the `kolu` cell's own
+      // `absent`, which `linkSink` moves the same breath.
       for (const id of [...rows.keys()]) {
         rows.delete(id)
         sink.clearedRow(id)
       }
       records.clear()
-      reader = null
-      attacher = null
+      padiFace = null
       // THE PARTITION GOES WITH THEM, and it has to be said rather than left:
       // a frame is a fact about a padi, and the padi is gone. Keeping the last
       // one would mean the next connect painted its first rows from a partition
@@ -435,7 +438,7 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
       // kolu with nothing open also has, so resolving first would answer "no
       // such terminal" for every click on a laptop that is not running kolu.
       // `screenText`'s own no-padi arm is the one spelling of that sentence.
-      if (reader === null) return screenText(null, terminal, lines, now)
+      if (padiFace === null) return screenText(null, terminal, lines, now)
       const found = resolveTerminal(terminal, records.keys())
       if (found.kind === "many") {
         return Effect.fail(
@@ -455,7 +458,7 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
           }),
         )
       }
-      return screenText(reader, found.id, lines, now)
+      return screenText(padiFace.surface.screen.text, found.id, lines, now)
     },
     /**
      * THE LIVE ATTACH — the same three refusals as `screen`, then padi's own
@@ -468,7 +471,7 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
      * confusion the hollow dot was retired for, one rung up.
      */
     attach: (terminal, grid) => {
-      if (attacher === null) {
+      if (padiFace === null) {
         return refused("olai is not connected to a padi, so there is no terminal to watch.")
       }
       const found = resolveTerminal(terminal, records.keys())
@@ -495,7 +498,7 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
       // it refuses escaped past the `catchCause` below — and the pane, which
       // has no arm for an exception coming out of a constructor, sat open and
       // empty. The e2e found it on the refusal scenario.
-      const face = attacher
+      const face = padiFace.surface.terminalAttach.get
       const id = found.id
       /**
        * ONE ATTACH PER EPOCH, and an epoch is a foreign resize.

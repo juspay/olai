@@ -97,22 +97,34 @@ test("the three durations parse the vault's grammar", () => {
   })
   expect(reading.config).toEqual({
     heldForMs: 30_000,
-    nagMs: 600_000,
+    nagMs: { ms: 600_000 },
     heartbeatMs: 1_800_000,
   })
   expect(reading.malformed).toEqual([])
 })
 
-test("a malformed duration keeps the default and earns its sentence", () => {
+test("the nag's CAP is spelled inside its interval, and the two cross as one", () => {
+  const reading = setOf({
+    "_olai/Kolu.olai": [
+      rec("watch", { nag: "30m/3" }),
+    ].join("\n"),
+  })
+  expect(reading.config.nagMs).toEqual({ ms: 1_800_000, count: 3 })
+  expect(reading.malformed).toEqual([])
+})
+
+test("a malformed duration keeps the default and earns KOLU'S OWN sentence", () => {
   const reading = setOf({
     "_olai/Kolu.olai": [
       rec("watch", { "held-for": "soon" }),
     ].join("\n"),
   })
   expect(reading.config.heldForMs).toEqual(DEFAULT_WATCH.heldForMs)
-  expect(reading.malformed).toEqual([
-    "kolu: `held-for: soon` in _olai/Kolu.olai is not a duration — write <n>s, <n>m or <n>h.",
-  ])
+  // NOT the vault half's own composing: the parsers the `kolu watch` face
+  // reads compose the sentence, and this is the wrap that names WHERE.
+  expect(reading.malformed.length).toBe(1)
+  expect(reading.malformed[0]).toContain("kolu: `held-for: soon` in _olai/Kolu.olai:")
+  expect(reading.malformed[0]).toContain("held-for \"soon\" is not a duration")
 })
 
 test("`0s` is held-for's own spell, and not the intervals'", () => {
@@ -121,13 +133,16 @@ test("`0s` is held-for's own spell, and not the intervals'", () => {
       rec("watch", { "held-for": "0s", nag: "0s", heartbeat: "0s" }),
     ].join("\n"),
   })
-  expect(zeros.config.heldForMs).toEqual(0)
+  expect(zeros.config.heldForMs).toBe(0)
   expect(zeros.config.nagMs).toEqual(DEFAULT_WATCH.nagMs)
   expect(zeros.config.heartbeatMs).toEqual(DEFAULT_WATCH.heartbeatMs)
-  expect(zeros.malformed).toEqual([
-    "kolu: `nag: 0s` in _olai/Kolu.olai is not an interval its timer allows — padi refuses a nag of 0 as the spin it is.",
-    "kolu: `heartbeat: 0s` in _olai/Kolu.olai is not an interval its timer allows — padi refuses a heartbeat of 0 as the spin it is.",
-  ])
+  expect(zeros.malformed.length).toBe(2)
+  // BOTH refusals are kolu's own spin sentences — a nag of zero loops and a
+  // heartbeat of zero paces nothing; the vault is told in the face's words.
+  expect(zeros.malformed[0]).toContain("kolu: `nag: 0s` in _olai/Kolu.olai:")
+  expect(zeros.malformed[0]).toContain("spin")
+  expect(zeros.malformed[1]).toContain("kolu: `heartbeat: 0s` in _olai/Kolu.olai:")
+  expect(zeros.malformed[1]).toContain("paces nothing")
 })
 
 test("a duration past the timer ceiling is the malformed half rather than a knob", () => {
@@ -137,7 +152,51 @@ test("a duration past the timer ceiling is the malformed half rather than a knob
     ].join("\n"),
   })
   expect(reading.config.nagMs).toEqual(DEFAULT_WATCH.nagMs)
-  expect(reading.malformed[0]).toMatch(/is not a duration/)
+  expect(reading.malformed[0]).toContain("overflows the timer")
+})
+
+test("an orphaned or off-grammar cap is the malformed nag, not a negotiated half", () => {
+  const reading = setOf({
+    "_olai/Kolu.olai": [
+      rec("watch", { nag: "/3" }),
+    ].join("\n"),
+  })
+  expect(reading.config.nagMs).toEqual(DEFAULT_WATCH.nagMs)
+  expect(reading.malformed.length).toBe(1)
+  expect(reading.malformed[0]).toContain("kolu: `nag: /3` in _olai/Kolu.olai:")
+  expect(reading.malformed[0]).toContain("the count after the slash caps")
+})
+
+test("a BARE number is refused: the CLI's default-to-ms is for flags, and a file is not a flag", () => {
+  // `nag: 10` as milliseconds is a 10ms re-fire spin — the argv-consistency
+  // leniency kolu's parser carries reads the other way in a property file:
+  // the vault says rather than doing.
+  const reading = setOf({
+    "_olai/Kolu.olai": [
+      rec("watch", { nag: "10", heartbeat: "30" }),
+    ].join("\n"),
+  })
+  expect(reading.config.nagMs).toEqual(DEFAULT_WATCH.nagMs)
+  expect(reading.config.heartbeatMs).toEqual(DEFAULT_WATCH.heartbeatMs)
+  expect(reading.malformed.length).toBe(2)
+  expect(reading.malformed[0]).toContain("kolu: `nag: 10` in _olai/Kolu.olai: spell a number and a unit")
+  expect(reading.malformed[1]).toContain("kolu: `heartbeat: 30` in _olai/Kolu.olai: spell a number and a unit")
+})
+
+test("a bare number trailing WHITESPACE is still the bare number: the gate looks at what the parser would", () => {
+  // Kolu's parsers trim before judging, so `10 ` without a gate that trims
+  // too parses to 10ms — the spin the refusal exists to stop, dressed as
+  // a typo. The sentence quotes the file's own spelling, paper included.
+  const reading = setOf({
+    "_olai/Kolu.olai": [
+      rec("watch", { nag: "10 ", "held-for": " 5" }),
+    ].join("\n"),
+  })
+  expect(reading.config.nagMs).toEqual(DEFAULT_WATCH.nagMs)
+  expect(reading.config.heldForMs).toEqual(DEFAULT_WATCH.heldForMs)
+  expect(reading.malformed.length).toBe(2)
+  expect(reading.malformed[0]).toContain("kolu: `held-for:  5` in _olai/Kolu.olai: spell a number and a unit")
+  expect(reading.malformed[1]).toContain("kolu: `nag: 10 ` in _olai/Kolu.olai: spell a number and a unit")
 })
 
 // ── ONE file decides — including a silent one ─────────────────────────────
@@ -155,7 +214,7 @@ test("the deepest duplicate loses by convention while sharing the name", () => {
     "_olai/Kolu.olai": [rec("watch", { nag: "10m" })].join("\n"),
     "pieces/kolu.olai": [rec("watch", { nag: "1m" })].join("\n"),
   })
-  expect(reading.config.nagMs).toEqual(10 * 60_000)
+  expect(reading.config.nagMs).toEqual({ ms: 10 * 60_000 })
 })
 
 test("the convention is by NAME, the way the shelf's is: a silent front-runner decides, and deeper said ones do not", () => {

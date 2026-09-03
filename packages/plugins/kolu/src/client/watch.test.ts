@@ -1,49 +1,53 @@
 /**
- * THE ATTENTION WATCHER — the brief's five cases, and the timers.
+ * THE SUBSCRIPTION'S OWN END — the cases `./watch.ts` is still accountable
+ * for, after the timers went to padi.
  *
- * What is driven HERE are the semantics `./watch.ts` owns; what is proved
- * over `./mirror.test.ts`'s ground is the CHAIN: padi's attention words,
- * folded by the mirror, seen by the watcher the way the mirror publishes —
- * which is the defeat the brief plans the daemon's own watcher being named
- * for: nothing in `./watch.ts` can make a bell out of bytes.
+ * The pacing is NOT here, and that is the point of the file. Kolu's helper
+ * (`watchAgentStates`) carries a test of its own against a real daemon; what
+ * THIS suite drives by hand are the breaths that remain ours: batches
+ * translate into `KoluEvent`s and are folded into the ring, the beat is
+ * stamped per received batch, a knob edit re-asks padi exactly when the
+ * wire's question moved, and a dead run is said once rather than retried
+ * with a timer of our own.
  *
- * ## The clocks
+ * ## The drive: one queue per subscription
  *
- * The hold clock is REAL but SMALL — the tests spell forty to ninety
- * milliseconds for sixty seconds — because this module takes a clock for
- * the WORDS only (`options.now`) and real timers for the pacing; small real
- * timers is the honest trade — an injected scheduler would prove the watch
- * obeys the clock it was given, rather than that the holds arm and die in
- * the order they were armed, which is the whole question. Bun's per-test
- * five seconds are plenty for each.
+ * The face is structural — kolu's helper is handed a `padi` whose
+ * `watchStates` member returns a `Stream.fromQueue`, and a test pushes
+ * BATCHES into that queue. That is exactly the honesty the fake-padi
+ * process holds at socket scale: padi's wire answers in batches, the
+ * member's leading frame may be empty, and the count a nag carries is the
+ * daemon's own — so the assertions here are about OUR folds over padi's
+ * facts, never about re-computed time.
  */
 
 import { describe, expect, it } from "bun:test"
-import { Effect, Fiber, Stream } from "effect"
+import { Effect, Fiber, Queue, Stream } from "effect"
 
 import { koluHalf } from "./index.ts"
-import { type Dial, SPEAKS } from "./link.ts"
+import type { PadiSurfaceClient } from "./link.ts"
 import { makeMirror } from "./mirror.ts"
-import { DEFAULT_WATCH, makeWatch, type WatchConfig } from "./watch.ts"
+import { type Dial, SPEAKS } from "./link.ts"
+import { DEFAULT_WATCH, makeWatch, WATCH_LANES, type WatchConfig } from "./watch.ts"
 import type { FleetTerminal, KoluEvent } from "./wire/index.ts"
 import { UNOWNED } from "./wire/index.ts"
 
-/** One timed wait, small and honest — see the header. */
+import type { PadiStateEvent, PadiWatchStatesInput } from "@kolu/padi-client/surface"
+
+/** One timed wait, small and honest: kolu's helper subscribes through an
+ *  effect runtime, so landing on "the callback has run" is a breath wide. */
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
-/** A KNOB SET shortened to test scale: a minute is 40 ms, ten is 110, half an
- *  hour is a breath's width of 400 — the HOLD windows only; the heartbeat
- *  stays parked at "far away" unless a case is about its cadence. */
+/** A KNOB SET at test scale — the intervals are padi's pacing, which this
+ *  drive never waits for; what matters is WHAT ASKS, not how long. */
 const tiny = (extra?: Partial<WatchConfig>): WatchConfig => ({
-  heldForMs: 40,
-  nagMs: 110,
+  heldForMs: 60_000,
+  nagMs: { ms: 600_000 },
   heartbeatMs: 60_000,
   ...extra,
 })
 
-/** A FLEET ROW, wire-shaped: what the mirror's `rows().get(id)` holds and
- *  what `./watch.ts` reads. The four fields the watcher computes off, and a
- *  quiet working face for the rest. */
+/** A FLEET ROW, wire-shaped — the draw facts the frozen event joins. */
 const row = (id: string, agentState: string | null, label = ""): FleetTerminal => {
   const word = agentState ?? "idle"
   const held = agentState === "awaiting_user" || agentState === "waiting"
@@ -78,33 +82,57 @@ const row = (id: string, agentState: string | null, label = ""): FleetTerminal =
   }
 }
 
+const EPOCH = 1_700_000_000_000
+const HELD_SINCE = 1_699_999_000_000
+
+/** ONE `PadiStateEvent`, as the daemon would stamp it: a ms-epoch clock,
+ *  the bucket as the state, the reminder accounting on nags. */
+const ev = (
+  kind: "snapshot" | "transition" | "nag",
+  terminal: string,
+  options?: { state?: string; at?: number; since?: number; nag?: { index: number; left?: number } },
+): PadiStateEvent => ({
+  seq: 1,
+  id: terminal,
+  kind,
+  state: options?.state ?? "awaiting",
+  since: options?.since ?? HELD_SINCE,
+  at: options?.at ?? EPOCH,
+  ...(options?.nag === undefined ? {} : { nag: options.nag }),
+}) as never
+
 /**
- * The events and the ring, collected. `sets` is every event as it went;
- * `ring()` is the live view, eviction included — the two halves of "the
- * watcher's arrivals", as `./watch.ts`'s sink given a writer.
+ * THE FAR END: a `padi` whose `watchStates` answers every subscription
+ * with frames from ONE queue the test holds. `asks` records the inputs the
+ * watch actually named — the tests about "did the question move" are
+ * counters here, never about time.
  */
+const faceWith = (queue: Queue.Queue<ReadonlyArray<PadiStateEvent>>, asks?: Array<PadiWatchStatesInput>) => ({
+  surface: {
+    watchStates: {
+      get: (input: PadiWatchStatesInput) => {
+        asks?.push(input)
+        return Stream.fromQueue(queue)
+      },
+    },
+  },
+}) as unknown as PadiSurfaceClient
+
+/** The events and beats the sink hands us, two collectors for the ring's
+ *  own two breaths. `sets` keeps ids for order questions. */
 const collected = () => {
-  const sets: Array<string> = []
-  /** The MIRROR's channel, not the watcher's: the sink lost its `say` with
-   *  the ambiguous-mute sentence, and the one case below that drives the
-   *  chain still has to give `makeMirror` somewhere to talk. */
-  const said: Array<string> = []
-  const sets_full: Array<KoluEvent> = []
-  const ring = new Map<string, KoluEvent>()
-  /** Every beat as it landed on the sink: the pill's recency, which LIVES
-   *  here since the beat came out of the ring (see `./watch.ts`'s header). */
+  const events: Array<KoluEvent> = []
   const beats: Array<{ at: string; everyMs: number }> = []
+  const said: Array<string> = []
+  const ring = new Map<string, KoluEvent>()
   return {
-    sets,
-    said,
-    say: (line: string) => said.push(line),
-    events: sets_full,
+    events,
     beats,
+    said,
     ring: () => new Map(ring),
     sink: {
       emit: (event: KoluEvent) => {
-        sets.push(event.id)
-        sets_full.push(event)
+        events.push(event)
         ring.set(event.id, event)
       },
       evict: (id: string) => {
@@ -117,484 +145,388 @@ const collected = () => {
   }
 }
 
-describe("the attention watcher", () => {
-  it("boots with a heartbeat and tells no other lies", () => {
+describe("the subscription watcher", () => {
+  it("a leading frame translates, frozen — both report kinds fold onto the one the wire keeps", async () => {
     const seen = collected()
-    const watch = makeWatch(seen.sink, { now: () => 1_700_000_000_000 })
-    // THE BEAT IS IMMEDIATE — the pill stamps once at boot, and the RING
-    // holds attention only: a feed opened one breath in answers "quiet"
-    // with a pulse, never with a ring row.
-    expect(seen.beats.length).toBe(1)
-    expect(seen.beats[0]?.at).toBe(new Date(1_700_000_000_000).toISOString())
-    expect(seen.beats[0]?.everyMs).toBe(DEFAULT_WATCH.heartbeatMs)
-    expect(seen.events.filter((e) => e.kind === "heartbeat").length).toBe(0)
-    watch.stop()
-  })
-
-  it("fires a `transition` only once the state has HELD past the window", async () => {
-    const seen = collected()
-    const watch = makeWatch(seen.sink, { now: () => Date.now() })
+    const queue = await Effect.runPromise(Queue.unbounded<ReadonlyArray<PadiStateEvent>>())
+    const watch = makeWatch(seen.sink, { now: () => EPOCH })
     watch.reconfigure(tiny())
+    watch.attach(faceWith(queue))
+    await sleep(30)
 
-    watch.observe("t1", row("t1", "awaiting_user"))
-    await sleep(18)
-    // WITHIN THE WINDOW: the terminal is waiting, but the rule is that it
-    // has been so for long enough to say so — forty ms on a test clock.
-    expect(seen.events.filter((e) => e.kind === "transition").length).toBe(0)
+    watch.observe("t1", row("t1", "awaiting_user", "the terminal door"))
+    await Effect.runPromise(Queue.offer(queue, [
+      ev("snapshot", "t1"),
+      ev("nag", "t2", { state: "waiting", nag: { index: 1 } }),
+    ]))
+    await sleep(30)
 
-    await sleep(60)
-    const fired = seen.events.filter((e) => e.kind === "transition")
-    expect(fired.length).toBe(1)
-    // The event says what it saw — `state` is the BUCKET, carried whole.
-    expect(fired[0]?.row?.state).toBe("awaiting")
+    const fired = seen.events
+    expect(fired.length).toBe(2)
+    // SNAPSHOT folds onto "transition" — a first report of an episode,
+    // whether the watch was present for the edge.
+    expect(fired[0]?.kind).toBe("transition")
     expect(fired[0]?.row?.terminal).toBe("t1")
-    // The FROZEN draw: live flags stamped out. See `./watch.ts`'s stamp —
-    // a two-hour-old event must not flash LIVE.
+    expect(fired[0]?.row?.state).toBe("awaiting")
+    expect(fired[0]?.row?.agentState).toBe("awaiting_user")
+    expect(fired[0]?.row?.label).toBe("the terminal door")
+    // The FROZEN draw: live flags stamped out — a row hours old must not
+    // flash motion for a moment that passed.
     expect(fired[0]?.row?.pip?.active).toBe(false)
     expect(fired[0]?.row?.pip?.bytesLive).toBe(false)
-    watch.stop()
-  })
+    // The daemon's own observation clock, relayed as the ISO the wire keeps.
+    expect(fired[0]?.row?.since).toBe(new Date(HELD_SINCE).toISOString())
+    // THE ACCOUNTING, verbatim — the cap is padi's sentence, never ours.
+    expect(fired[1]?.kind).toBe("nag")
+    expect(fired[1]?.nag).toEqual({ index: 1 })
 
-  it("does not fire at all if the state eases inside the window", async () => {
-    const seen = collected()
-    const watch = makeWatch(seen.sink, { now: () => Date.now() })
-    watch.reconfigure(tiny())
-
-    watch.observe("t1", row("t1", "awaiting_user"))
-    await sleep(18)
-    // The agent moved on — the window closed silently.
-    watch.observe("t1", row("t1", "thinking"))
-    await sleep(60)
-    expect(seen.events.filter((e) => e.kind === "transition").length).toBe(0)
-    watch.stop()
-  })
-
-  it("answers a long hold with one transition, then `nag`s on the cadence", async () => {
-    const seen = collected()
-    const watch = makeWatch(seen.sink, { now: () => Date.now() })
-    watch.reconfigure(tiny())
-
-    watch.observe("t1", row("t1", "waiting"))
-    await sleep(40 + 30)
-    expect(seen.events.filter((e) => e.kind === "transition").length).toBe(1)
-
-    await sleep(110 + 50)
-    // FIRST NAG: still waiting, one interval later.
-    expect(seen.events.filter((e) => e.kind === "nag").length).toBe(1)
-    expect(seen.events.at(-1)?.row?.state).toBe("waiting")
-
-    await sleep(110 + 50)
-    // THE NEXT ONE. The cadence is measured from the LAST thing said, never
-    // from the first — see `fireNag`'s doc. Small real timers are
-    // calibration, not arithmetic, so the count is a floor rather than an
-    // equality: two full intervals beyond the transition, at least.
-    expect(seen.events.filter((e) => e.kind === "nag").length).toBeGreaterThanOrEqual(2)
-    watch.stop()
-  })
-
-  it("fires for a SECOND held bucket too — waiting → awaiting is a new hold", async () => {
-    const seen = collected()
-    const watch = makeWatch(seen.sink, { now: () => Date.now() })
-    watch.reconfigure(tiny())
-
-    watch.observe("t1", row("t1", "waiting"))
-    await sleep(40 + 30)
-    expect(seen.events.filter((e) => e.kind === "transition").length).toBe(1)
-
-    // The state CHANGED held buckets, mid-nag: the nag's craft is over and
-    // a new debounce is on. Two buckets are spelled two ways for a reason.
-    watch.observe("t1", { ...row("t1", "awaiting_user"), bucket: "awaiting" })
-    await sleep(18)
-    // The second window has not battened yet — one nag's worth of noise is
-    // feared, not hoped: nothing has earned a second event YET.
-    expect(seen.events.filter((e) => e.kind === "transition").length).toBe(1)
-    await sleep(60)
-    expect(seen.events.filter((e) => e.kind === "transition").length).toBe(2)
-    expect(seen.events.at(-1)?.row?.state).toBe("awaiting")
-    watch.stop()
-  })
-
-  it("pulses on the heartbeat's cadence, not a keystroke's", async () => {
-    const seen = collected()
-    const watch = makeWatch(seen.sink, { now: () => Date.now() })
-    watch.reconfigure(tiny({ heartbeatMs: 200 }))
-
-    // The test's arrival at t≈0 includes the DETAIL of the eat: the
-    // reconfigure MOVES the heartbeat (200 ≠ default) — `rearmHeartbeat`'s
-    // the-forward-fond eat is the answer it gives ON the eat. Then 120 ms
-    // into the new 200-cycle: the two of them, and nothing else. An echoed
-    // knob (what every vault keystroke hands the watch) leaves the
-    // in-flight interval alone, so the next beat lands 80 ms hence — a
-    // clear-then-re-arm would charge a full 200, and the count is where
-    // that shows.
-    await sleep(120)
-    expect(seen.beats.length).toBe(2)
-    watch.reconfigure(tiny({ heartbeatMs: 200 }))
-    await sleep(90)
-    expect(seen.beats.length).toBe(3)
-
-    // Raising the knob answers with ONE beat — `reconfigure`'s echo
-    // guard eats the keystroke (beats stay 3), but the moved knob
-    // `rearmHeartbeat` restsamp at once AND lands a 4th one: the eat's
-    // stamp says the new cadence NOW, so the door never has to read the
-    // shorter one's margin off the previous `everyMs` for two whole
-    // windows)
-    watch.reconfigure(tiny({ heartbeatMs: 10_000 }))
-    expect(seen.beats.length).toBe(4)
-    expect(seen.beats[3]?.everyMs).toBe(10_000)
-    await sleep(100)
-    expect(seen.beats.length).toBe(4)
-    // The ring holds the ATTENTION rows, and nothing else — the beat is
-    // not a row, and never was one (see the header).
-    expect(seen.events.filter((e) => e.kind === "heartbeat").length).toBe(0)
-    watch.stop()
-  })
-
-  it("a LOWERED `held-for` re-arms the debounce without re-asking TIME", async () => {
-    const seen = collected()
-    const watch = makeWatch(seen.sink, { now: () => Date.now() })
-    // Long window first, then the LOWERED edit while the hold is settled.
-    // (A raised one sits out the difference — see `reconfigure`.)
-    watch.reconfigure(tiny({ heldForMs: 400 }))
-    watch.observe("t1", row("t1", "awaiting_user"))
+    // ...and it is the KIND that decides it carries accounting at all: a
+    // first report with a count riding it drops the count at the fold, so
+    // no reader downstream ever spells a "reminder" of a first saying.
+    await Effect.runPromise(Queue.offer(queue, [
+      ev("transition", "t3", { nag: { index: 5, left: 0 } }),
+    ]))
     await sleep(30)
-    watch.reconfigure(tiny({ heldForMs: 50 }))
-    // The hold has 20 ms left under the new knob — a re-DATED hold (the
-    // easy bug) would have answered at 480 ms, and nothing would have seen.
-    await sleep(80)
-    expect(seen.events.filter((e) => e.kind === "transition").length).toBe(1)
+    expect(seen.events.at(-1)?.nag).toBeUndefined()
     watch.stop()
   })
 
-  it("removes a terminal's hold with the terminal", async () => {
+  it("an event about a terminal the mirror never published still draws — a quiet synthesized pip", async () => {
     const seen = collected()
-    const watch = makeWatch(seen.sink, { now: () => Date.now() })
-    watch.reconfigure(tiny())
+    const queue = await Effect.runPromise(Queue.unbounded<ReadonlyArray<PadiStateEvent>>())
+    const watch = makeWatch(seen.sink, { now: () => EPOCH })
+    watch.attach(faceWith(queue))
+    await sleep(30)
 
-    watch.observe("t1", row("t1", "awaiting_user"))
-    await sleep(20)
-    watch.remove("t1")
-    await sleep(80)
-    expect(seen.events.filter((e) => e.kind === "transition").length).toBe(0)
+    await Effect.runPromise(Queue.offer(queue, [ev("transition", "never-seen")]))
+    await sleep(30)
+
+    const fired = seen.events[0]
+    expect(fired?.row?.terminal).toBe("never-seen")
+    expect(fired?.row?.agentState).toBe("awaiting")
+    expect(fired?.row?.pip?.glyph).toBe("terminal")
+    expect(fired?.row?.pip?.active).toBe(false)
+    expect(fired?.row?.pip?.bytesLive).toBe(false)
+    expect(fired?.row?.pip?.hasAgent).toBe(true)
     watch.stop()
   })
 
-  it("editing `held-for` mid-lodge does not touch a fired hold's nag pace", async () => {
+  it("the beat is stamped PER RECEIVED BATCH — and an empty leading frame is a stamp too", async () => {
     const seen = collected()
-    const watch = makeWatch(seen.sink, { now: () => Date.now() })
-    watch.reconfigure(tiny({ heldForMs: 40, nagMs: 80 }))
+    const queue = await Effect.runPromise(Queue.unbounded<ReadonlyArray<PadiStateEvent>>())
+    const watch = makeWatch(seen.sink, { now: () => EPOCH })
+    watch.reconfigure(tiny({ heartbeatMs: 30_000 }))
+    watch.attach(faceWith(queue))
+    await sleep(30)
 
-    watch.observe("t1", row("t1", "waiting"))
-    await sleep(190)
-    // FIRED, the debounce spent; the first nag lands at emission+80.
-    expect(seen.events.filter((e) => e.kind === "transition").length).toBe(1)
-    expect(seen.events.filter((e) => e.kind === "nag").length).toBe(1)
+    // "Nothing currently matches" is a FRAME — the member's own answer to
+    // "is it live". The pill must still pace on it.
+    await Effect.runPromise(Queue.offer(queue, []))
+    await sleep(30)
+    expect(seen.beats.length).toBe(1)
+    expect(seen.beats[0]?.at).toBe(new Date(EPOCH).toISOString())
+    expect(seen.beats[0]?.everyMs).toBe(30_000)
+    expect(seen.events.length).toBe(0)
 
-    // A knob the nag does not care about must not push it out. A re-ARM by
-    // now+nag would put the next one 80 ms from the edit; the cadence
-    // keeps — measured from the last EMISSION through `armNag`.
-    watch.reconfigure(tiny({ heldForMs: 400, nagMs: 80 }))
-    await sleep(60)
-    expect(seen.events.filter((e) => e.kind === "nag").length).toBeGreaterThanOrEqual(2)
+    await Effect.runPromise(Queue.offer(queue, [ev("transition", "t1", { at: EPOCH + 500 })]))
+    await sleep(30)
+    // STAMPED AT RECEIPT — one clock, ours. Liveness is "when did the
+    // subscription last answer", and the daemon's `at` rides the content
+    // (the event), not the pulse.
+    expect(seen.beats.length).toBe(2)
+    expect(seen.beats[1]?.at).toBe(new Date(EPOCH).toISOString())
     watch.stop()
   })
 
-  it("a moved nag knob re-arms from the LAST EMISSION, not from the edit", async () => {
+  it("the count a nag carries is folded verbatim — three rounds, index and left", async () => {
     const seen = collected()
-    const watch = makeWatch(seen.sink, { now: () => Date.now() })
-    watch.reconfigure(tiny({ heldForMs: 40, nagMs: 200 }))
+    const queue = await Effect.runPromise(Queue.unbounded<ReadonlyArray<PadiStateEvent>>())
+    const watch = makeWatch(seen.sink, { now: () => EPOCH })
+    watch.observe("t1", row("t1", "waiting", "parked reviewer"))
+    watch.attach(faceWith(queue))
+    await sleep(30)
 
-    watch.observe("t1", row("t1", "waiting"))
-    await sleep(60)
-    expect(seen.events.filter((e) => e.kind === "transition").length).toBe(1)
-
-    // The transition fired; the editor lowers `nag` 60 ms later, so the
-    // next one lands at emission+100 — not EDIT+100, which is opus's
-    // minute-long typing of one file, shelved at a hundredth the clock.
-    await sleep(60)
-    watch.reconfigure(tiny({ heldForMs: 40, nagMs: 100 }))
-    await sleep(50)
-    expect(seen.events.filter((e) => e.kind === "nag").length).toBeGreaterThanOrEqual(1)
-    watch.stop()
-  })
-
-  it("the ring caps and evicts, in both directions", async () => {
-    const seen = collected()
-    const watch = makeWatch(seen.sink, { now: () => Date.now() })
-    watch.reconfigure(tiny({ heldForMs: 5, nagMs: 60_000 }))
-    // 208 arrivals into a ring of 200, for the evict-on-eight-threshold the
-    // assertions below count on. ( beats never REACH the ring now — the
-    // fill is attention rows or nothing. )
-    for (let i = 1; i <= 208; i += 1) {
-      watch.observe(`t${i}`, row(`t${i}`, "waiting"))
+    await Effect.runPromise(Queue.offer(queue, [ev("snapshot", "t1", { state: "waiting" })]))
+    await sleep(30)
+    for (const nag of [{ index: 1, left: 2 }, { index: 2, left: 1 }, { index: 3, left: 0 }]) {
+      await Effect.runPromise(Queue.offer(queue, [ev("nag", "t1", { state: "waiting", nag })]))
+      await sleep(15)
     }
-    await sleep(70)
-    // The two halves of "the cap fired": the oldest ids are GONE from the
-    // live ring (the deltas saw them drop) and the newest arrived.
+
+    const nags = seen.events.filter((event) => event.kind === "nag")
+    expect(seen.events.filter((event) => event.kind === "transition").length).toBe(1)
+    expect(nags.length).toBe(3)
+    expect(nags.map((event) => event.nag)).toEqual([{ index: 1, left: 2 }, { index: 2, left: 1 }, { index: 3, left: 0 }])
+    // A beat per round's batch, counted — the pill's read while it nags.
+    expect(seen.beats.length).toBe(4)
+    watch.stop()
+  })
+
+  it("reconfigure re-asks padi ONLY when a wire knob moved — an echoed edit changes nothing", async () => {
+    const seen = collected()
+    const asks: Array<PadiWatchStatesInput> = []
+    const queues: Array<Queue.Queue<ReadonlyArray<PadiStateEvent>>> = []
+    const face = {
+      surface: {
+        watchStates: {
+          get: (input: PadiWatchStatesInput) => {
+            asks.push(input)
+            const queue = Effect.runSync(Queue.unbounded<ReadonlyArray<PadiStateEvent>>())
+            queues.push(queue)
+            return Stream.fromQueue(queue)
+          },
+        },
+      },
+    } as unknown as PadiSurfaceClient
+
+    const watch = makeWatch(seen.sink, { now: () => EPOCH })
+    watch.reconfigure(tiny({ nagMs: { ms: 600_000, count: 3 } }))
+    watch.attach(face)
+    await sleep(30)
+    expect(asks.length).toBe(1)
+    expect(asks[0]).toEqual({ heldForMs: 60_000, nagMs: 600_000, nagCount: 3 })
+
+    // AN ECHO: the vault re-derives on every keystroke; the question did
+    // not move.
+    watch.reconfigure(tiny({ nagMs: { ms: 600_000, count: 3 } }))
+    await sleep(30)
+    expect(asks.length).toBe(1)
+
+    // THE HEARTBEAT IS NOT ON THE WIRE — its move costs the stamped window
+    // of future batches and nothing padi-side: no new subscription.
+    watch.reconfigure(tiny({ nagMs: { ms: 600_000, count: 3 }, heartbeatMs: 1_800_000 }))
+    await sleep(30)
+    expect(asks.length).toBe(1)
+
+    // A MOVED QUESTION: the debounce is padi's knob, so the subscription
+    // ends and is re-specified.
+    watch.reconfigure(tiny({ heldForMs: 0, nagMs: { ms: 600_000, count: 3 }, heartbeatMs: 1_800_000 }))
+    await sleep(30)
+    expect(asks.length).toBe(2)
+    expect(asks[1]).toEqual({ heldForMs: 0, nagMs: 600_000, nagCount: 3 })
+    const old = seen.events.length
+    // A LATE batch from the predecessor's queue is stamped with the new
+    // question's arrival, never ingrafted — the token guards it: frames
+    // published by the dead run appear in NEITHER collector.
+    await Effect.runPromise(Queue.offer(queues[0]!, [ev("transition", "ghost")]))
+    await sleep(30)
+    expect(seen.events.length).toBe(old)
+    watch.stop()
+  })
+
+  it("attach(null) sunders the run; a re-attach re-asks with the question in force", async () => {
+    const seen = collected()
+    const asks: Array<PadiWatchStatesInput> = []
+    const queues: Array<Queue.Queue<ReadonlyArray<PadiStateEvent>>> = []
+    const makeFace = () => ({
+      surface: {
+        watchStates: {
+          get: (input: PadiWatchStatesInput) => {
+            asks.push(input)
+            const queue = Effect.runSync(Queue.unbounded<ReadonlyArray<PadiStateEvent>>())
+            queues.push(queue)
+            return Stream.fromQueue(queue)
+          },
+        },
+      },
+    } as unknown as PadiSurfaceClient)
+    const watch = makeWatch(seen.sink, { now: () => EPOCH })
+    watch.reconfigure(tiny())
+    watch.attach(makeFace())
+    await sleep(30)
+    expect(asks.length).toBe(1)
+
+    // DETACHED — the link's own drop pushes this. Nothing under a dead
+    // face counts as the fleet asking for attention.
+    watch.attach(null)
+    await sleep(30)
+    const ghost = queues[0]!
+    await Effect.runPromise(Queue.offer(ghost, [ev("transition", "during-the-flap")]))
+    await sleep(30)
+    expect(seen.events.length).toBe(0)
+
+    // And back. The re-lead is padi's fresh snapshot — the ring ingrafts it
+    // without any memory of the flap, daemon-side `since` carrying the hold.
+    watch.attach(makeFace())
+    await sleep(30)
+    expect(asks.length).toBe(2)
+    const fresh = queues[1]!
+    await Effect.runPromise(Queue.offer(fresh, [ev("snapshot", "t1")]))
+    await sleep(30)
+    expect(seen.events.length).toBe(1)
+    expect(seen.events[0]?.row?.terminal).toBe("t1")
+
+    // ONE RING PER EPISODE, per question: the fence says t1's episode again
+    // on the NEXT flap, and olai does not — it said that ring once.
+    await Effect.runPromise(Queue.offer(fresh, [ev("snapshot", "t1")]))
+    await sleep(30)
+    expect(seen.events.length).toBe(1)
+    // ...but an episode whose daemon `since` moved on is a NEW holding, and
+    // a knob edit is a NEW question whose leading frame re-reports what
+    // stands: neither is a retelling.
+    await Effect.runPromise(Queue.offer(fresh, [ev("snapshot", "t1", { since: HELD_SINCE + 60_000 })]))
+    await sleep(30)
+    expect(seen.events.length).toBe(2)
+    watch.reconfigure(tiny({ heldForMs: 0 }))
+    await sleep(30)
+    const third = queues[2]!
+    await Effect.runPromise(Queue.offer(third, [ev("snapshot", "t1")]))
+    await sleep(30)
+    expect(seen.events.length).toBe(3)
+    watch.stop()
+  })
+
+  it("the ring caps and evicts — a batch of 208 arrivals is the same breaths the timers used to give", async () => {
+    const seen = collected()
+    const queue = await Effect.runPromise(Queue.unbounded<ReadonlyArray<PadiStateEvent>>())
+    const watch = makeWatch(seen.sink, { now: () => EPOCH })
+    watch.attach(faceWith(queue))
+    await sleep(30)
+    await Effect.runPromise(Queue.offer(
+      queue,
+      Array.from({ length: 208 }, (_, i) => ev("transition", `t${i + 1}`, { at: EPOCH + i })),
+    ))
+    await sleep(50)
+
     const live = watch.events()
     expect(live.size).toBe(200)
-    const ghosted = seen.events.slice(0, 8).filter((e) => !live.has(e.id))
-    expect(ghosted.length).toBe(8)
-    expect(live.has(seen.events.at(-1)!.id)).toBe(true)
-    // And the view a subscriber rebuilt from deltas alone agrees —
-    // `readAll` cannot name what the wire evicted.
+    // The OLDEST EIGHT are out; the view a subscriber rebuilt from deltas
+    // alone agrees — `readAll` cannot name what the wire evicted.
     expect(seen.ring().size).toBe(200)
-    expect(seen.ring().has(seen.events.at(-1)!.id)).toBe(true)
+    expect(live.has(seen.events[0]!.id)).toBe(false)
+    expect(live.has(seen.events.at(-1)!.id)).toBe(true)
+    // The BEAT counts BATCHES, not events: one frame, one stamp.
+    expect(seen.beats.length).toBe(1)
     watch.stop()
   })
 
-  it("stops cleanly — no timer outlives it", async () => {
+  it("a run whose fence REJECTS is said once, to the owner — no interval of ours ever re-fires it", async () => {
     const seen = collected()
-    const watch = makeWatch(seen.sink, { now: () => Date.now() })
-    watch.reconfigure(tiny({ heartbeatMs: 45 }))
-    watch.observe("t1", row("t1", "awaiting_user"))
-    await sleep(18)
-    watch.stop()
-    // What the ring SAYS at stop time, before any timer could count down.
-    const atStop = seen.events.length
+    const warned: Array<string> = []
+    const watch = makeWatch(seen.sink, {
+      now: () => EPOCH,
+      say: (line) => seen.said.push(line),
+      warn: (line) => warned.push(line),
+    })
+    watch.reconfigure(tiny())
+    const refusing = {
+      surface: {
+        watchStates: { get: () => Stream.fail(new Error("boom") as never) },
+      },
+    } as unknown as PadiSurfaceClient
+    watch.attach(refusing)
     await sleep(120)
-    expect(seen.events.length).toBe(atStop)
+    // ONE LINE, on the OWNER's channel — a rejecting `done` is the shape
+    // the framework's own table says a consumer must hear, and the pill's
+    // amber cannot tell it from a quiet capped fleet on purpose. The
+    // kill-the-dial half is the PR's stated deferral.
+    expect(warned.filter((line) => line.includes("subscription ended")).length).toBe(1)
+    expect(seen.events.length).toBe(0)
+    watch.stop()
   })
 })
 
-describe("a link drop is not a closing fleet", () => {
-  it("the flap fires nothing — no transition the wire already said", async () => {
+  it("the caches are BOUNDED like the ring — an evicted row falls onto the synthesized arm, which already has its own answer", async () => {
     const seen = collected()
-    const watch = makeWatch(seen.sink, { now: () => Date.now() })
-    watch.reconfigure(tiny({ heldForMs: 40, nagMs: 110 }))
-    watch.observe("t1", row("t1", "awaiting_user"))
-    await sleep(70)
-    expect(seen.events.filter((e) => e.kind === "transition").length).toBe(1)
-    const saidSince = seen.events.find((e) => e.kind === "transition")!.row!.since
-
-    // THE FLAP: rows fall, the link says nothing, time alone talks. Through
-    // the blind span, the nag arm would have fired — save no.
-    watch.suspend("t1")
-    await sleep(140)
-    expect(seen.events.filter((e) => e.kind === "nag").length).toBe(0)
-
-    // AND RESUME. A re-dated hold would answer at once; the hold's own
-    // clock keeps ticking — the DEBT of the nag the blind span swallowed
-    // folds especially: the row was waiting through the flap, so the
-    // next said is fired on the row's return, by the same arithmetic the
-    // soak's own `kolu watch` runs on a reconnect of its own daemon.
-    watch.observe("t1", row("t1", "awaiting_user"))
-    await sleep(40)
-    expect(seen.events.filter((e) => e.kind === "transition").length).toBe(1)
-    const nags = seen.events.filter((e) => e.kind === "nag")
-    expect(nags.length).toBe(1)
-    // And the said hands the ORIGINAL `since` — the flap's lie is exactly
-    // what it doesn't say.
-    expect(nags[0]!.row!.since).toBe(saidSince)
-    await sleep(120)
-    // And the cadence resumes: the next one rides emission+110 from THAT
-    // emission — its own.
-    expect(seen.events.filter((e) => e.kind === "nag").length).toBeGreaterThanOrEqual(2)
-    watch.stop()
-  })
-
-  it("a hold that crossed its window while the fleet was blind fires on its return", async () => {
-    const seen = collected()
-    const watch = makeWatch(seen.sink, { now: () => Date.now() })
-    watch.reconfigure(tiny({ heldForMs: 40, nagMs: 110 }))
-    watch.observe("t1", row("t1", "awaiting_user"))
-    await sleep(20)
-    // Suspended INSIDE the debounce at 20 of 40; the blind span swallows
-    // five times the window.
-    watch.suspend("t1")
-    await sleep(200)
-    expect(seen.events.filter((e) => e.kind === "transition").length).toBe(0)
-    // On the resume the math reads left from `since + heldFor`: the debt
-    // lands at once, once — not re-deferred the flap's length.
-    watch.observe("t1", row("t1", "awaiting_user"))
+    const queue = await Effect.runPromise(Queue.unbounded<ReadonlyArray<PadiStateEvent>>())
+    const watch = makeWatch(seen.sink, { now: () => EPOCH })
+    watch.attach(faceWith(queue))
     await sleep(30)
-    expect(seen.events.filter((e) => e.kind === "transition").length).toBe(1)
+    // Fill past the lane bound: every id observed once, in order — the
+    // oldest goes first (insertion order: a re-set is a long-standing
+    // lane, and living longer is the bias both caches want).
+    for (let i = 0; i < WATCH_LANES; i += 1) watch.observe(`lane-${i}`, row(`lane-${i}`, "working"))
+    watch.observe("lane-late", row("lane-late", "working"))
+    // The FIRST lane's facts are gone — and its event still draws: not
+    // `undefined` facts, the synthesized quiet arm the margin already spells.
+    await Effect.runPromise(Queue.offer(queue, [ev("transition", "lane-0")]))
+    await sleep(30)
+    const fired = seen.events[0]
+    expect(fired?.row?.agentState).toBe("awaiting")
+    expect(fired?.row?.pip?.glyph).toBe("terminal")
+    expect(fired?.row?.pip?.hasAgent).toBe(true)
     watch.stop()
   })
 
-  it("a preserved hold answers only to its own bucket — a different one is a renewed hold", async () => {
-    const seen = collected()
-    const watch = makeWatch(seen.sink, { now: () => Date.now() })
-    watch.reconfigure(tiny({ heldForMs: 40, nagMs: 110 }))
-    watch.observe("t1", row("t1", "awaiting_user"))
-    await sleep(70)
-    const flappedAt = seen.events.filter((e) => e.kind === "transition").length
-    expect(flappedAt).toBe(1)
-
-    // The flap, and the id RETURNS in the OTHER held bucket: it is the rule
-    // `observe` always holds — one hold closes, another opens with its own
-    // since — and the flap changes nothing about it.
-    watch.suspend("t1")
-    await sleep(100)
-    watch.observe("t1", row("t1", "waiting"))
-    await sleep(70)
-    expect(seen.events.filter((e) => e.kind === "transition").length).toBe(2)
-    watch.stop()
-  })
-})
-
-// ── Over the mirror's own records ─────────────────────────────────────────
-
-/**
- * THE CHAIN: padi's record → the mirror's row → the watch's event.
- *
- * The unit cases above drive rows by hand; this one proves the wiring that
- * `koluHalf`'s four lines (`./index.ts`'s `upsert`) describe — the watch is
- * fed by the mirror's publications, same tick, same row — by standing both
- * on the same fake far end: a real `makeMirror` drive against `face = the
- * near side of padi`, exactly `./mirror.test.ts`'s idiom, and a flip from
- * the idle agent record to `awaiting_user` the watch then reports.
- */
-
-const faceFlipping = (record1: object, record2: object) => ({
-  padi: {
-    surface: {
-      terminalAttach: { get: () => Stream.never },
-      urgency: {
-        get: () =>
-          Stream.concat(
-            Stream.make({
-              awaitingIds: [],
-              finishedIds: [],
-              workingIds: [],
-              lingerIds: [],
-            }),
-            Stream.never,
-          ),
-      },
-      activity: {
-        get: () => Stream.concat(Stream.make([] as ReadonlyArray<string>), Stream.never),
-      },
-      terminals: {
-        keys: () => Stream.concat(Stream.make(["t1"]), Stream.never),
-        get: (_input: { key: string }) =>
-          // TWO RECORDS — padi's `get` is a WATCH: the first frame is what
-          // it remembers, every later frame is a move, and the mirror folds
-          // each one as it lands.
-          Stream.concat(
-            Stream.concat(Stream.make(record1 as never), Stream.make(record2 as never)),
-            Stream.never,
-          ),
-      },
-      screen: { text: () => Effect.succeed("") },
-    },
-  },
-})
-
-const dialTo = (record1: object, record2: object): Dial =>
-() =>
-  Effect.succeed({
-    client: faceFlipping(record1, record2),
-    identity: { stateRoot: "/run/padi", surfaceVersion: SPEAKS },
-    startedAt: 0,
-    onClose: () => {},
-    dispose: () => {},
-  } as never)
-
-describe("the watcher's chain through the mirror", () => {
-  it("a flip to `awaiting_user` over the wire is one `transition`", async () => {
-    const seen = collected()
-    const watch = makeWatch(seen.sink, { now: () => Date.now() })
-    watch.reconfigure(tiny({ heartbeatMs: 10_000 }))
-    const mirror = makeMirror(
-      {
-        link: () => {},
-        upsert: (id: string, row: FleetTerminal) => watch.observe(id, row),
-        remove: (id: string) => watch.remove(id),
-        clearedRow: (id: string) => watch.suspend(id),
-        say: seen.say,
-      },
-      {
-        env: {},
-        now: () => new Date().toISOString(),
-        dial: dialTo(
-          {
-            state: "active",
-            agent: null,
-            pr: { kind: "absent" },
-            cwd: "/tmp/a",
-            git: null,
-            lastActivityAt: null,
-          },
-          {
-            state: "active",
-            agent: { kind: "claude-code", state: "awaiting_user", summary: null },
-            pr: { kind: "absent" },
-            cwd: "/tmp/b",
-            git: null,
-            lastActivityAt: null,
-          },
-        ),
-      },
-    )
-
-    const fiber = Effect.runFork(Effect.scoped(mirror.run))
-    await sleep(80)
-    // The FIRST frame is the idle agent record — the debounce has not armed
-    // (nothing has been said); the flip arrives INSIDE the first window.
-    const fired = () => seen.events.filter((e) => e.kind === "transition")
-    await sleep(80)
-    expect(fired().length).toBe(1)
-    expect(fired()[0]?.row?.state).toBe("awaiting")
-    await Effect.runPromise(Fiber.interrupt(fiber))
-    watch.stop()
-  })
-})
-
-/**
- * THE BEAT'S SECOND READER — the tap `olai-plugin-kolu`'s doorbell hangs its
- * floor-under-silence on.
- *
- * The pill has always drawn the beat; what is new is that a conversation's
- * quiet is now measured in the SAME beats, through `KoluDeps.beating`. These
- * two cases are about that seam rather than about the watcher's pacing: that
- * the tap rides the beat the sink already publishes, and that it carries the
- * cadence IN FORCE rather than the one the process booted on — a doorbell told
- * "thirty minutes" while the vault now says one would report a silence half an
- * hour longer than the one it is actually about.
- *
- * WHY NOT A SECOND TIMER, which is the alternative this closes: a heartbeat
- * armed one package up would be a second cadence beside the `heartbeat` knob,
- * and the day the two disagreed there would be no way to say which one the
- * person who edited the vault had meant.
- */
-describe("the beat's doorbell tap", () => {
-  /** A LINKLESS half — no dial, no fleet, no surface. The watcher is built for
-   *  every face (`./index.ts` says why), so the beat is the one thing that
-   *  happens on a machine with no kolu at all, which is exactly the case a
-   *  floor under silence has to survive. */
-  const halfBeating = (knob: () => number, beats: Array<number>) =>
+describe("the ring through the half", () => {
+  it("a linkless face never beats — folding, not counting: the tap is the subscription's stamp, and a no-padi machine has none", () => {
+    const beats: Array<number> = []
     koluHalf<never>({
       options: null,
       fleet: () => undefined,
       events: () => undefined,
       pulse: () => undefined,
       claimants: () => [],
-      config: () => ({ config: { ...DEFAULT_WATCH, heartbeatMs: knob() }, malformed: [] }),
+      config: () => ({ config: DEFAULT_WATCH, malformed: [] }),
       beating: (everyMs) => {
         beats.push(everyMs)
       },
       say: () => {},
       warn: () => {},
     })
-
-  it("beats once at boot, with the cadence the defaults name", () => {
-    const beats: Array<number> = []
-    halfBeating(() => DEFAULT_WATCH.heartbeatMs, beats)
-    expect(beats).toEqual([DEFAULT_WATCH.heartbeatMs])
+    // NO BOOT BEAT. The old watcher pulsed once from its own constructor;
+    // the pill on a machine with no padi reads the link cell's amber,
+    // which is where the no-padi machine is already drawn.
+    expect(beats).toEqual([])
   })
 
-  it("carries the cadence a knob move put in force, and a keystroke is not a beat", () => {
-    const beats: Array<number> = []
-    let knob = DEFAULT_WATCH.heartbeatMs
-    const half = halfBeating(() => knob, beats)
-    knob = 60_000
-    half.revision([], null)
-    expect(beats).toEqual([DEFAULT_WATCH.heartbeatMs, 60_000])
-    // The vault re-derives on every keystroke; only a MOVED knob re-arms, which
-    // is this module's own echo-guard seen from the doorbell's end. Without it a
-    // busy vault would beat per keystroke and no window would ever be quiet.
-    half.revision([], null)
-    expect(beats.length).toBe(2)
+  it("wires the dial's edges into attach/detach — the subscription is a link-long thing", async () => {
+    const queue = await Effect.runPromise(Queue.unbounded<ReadonlyArray<PadiStateEvent>>())
+    /** A face BOTH readers can stand on — the attention feeds, quiet, beside
+     *  the watch's own stream member (`padi.surface.…`, the Dial's own
+     *  shape). */
+    const face = {
+      padi: {
+        surface: {
+          terminalAttach: { get: () => Stream.never },
+          urgency: {
+            get: () => Stream.concat(
+              Stream.make({ awaitingIds: [], finishedIds: [], workingIds: [], lingerIds: [] }),
+              Stream.never,
+            ),
+          },
+          activity: { get: () => Stream.concat(Stream.make([] as ReadonlyArray<string>), Stream.never) },
+          terminals: { keys: () => Stream.concat(Stream.make([]), Stream.never), get: () => Stream.never },
+          watchStates: { get: (_input: unknown) => Stream.fromQueue(queue) },
+          screen: { text: () => Effect.succeed("") },
+        },
+      },
+    }
+    let closed: (() => void) | undefined
+    const dial: Dial = () =>
+      Effect.succeed({
+        client: face,
+        identity: { stateRoot: "/run/padi", surfaceVersion: SPEAKS },
+        startedAt: 0,
+        onClose: (cb: () => void) => {
+          closed = cb
+        },
+        dispose: () => {},
+      } as never)
+    const edges: Array<PadiSurfaceClient | null> = []
+    const mirror = makeMirror(
+      {
+        link: () => {},
+        upsert: () => {},
+        remove: () => {},
+        clearedRow: () => {},
+        face: (theFace) => {
+          edges.push(theFace)
+        },
+        say: () => {},
+      },
+      { env: {}, now: () => new Date(EPOCH).toISOString(), dial },
+    )
+    const fiber = Effect.runFork(Effect.scoped(mirror.run))
+    await sleep(60)
+    // THE CONNECT EDGE: the live face, handed over whole.
+    expect(edges.length).toBe(1)
+    expect(edges[0]).not.toBe(null)
+    // THE DROP EDGE: the link ends, and the watch's face goes with it — the
+    // subscription's own "a live run for a dead padi cannot sit around".
+    closed!()
+    await sleep(60)
+    expect(edges.at(-1)).toBe(null)
+    await Effect.runPromise(Fiber.interrupt(fiber))
   })
 })
