@@ -231,7 +231,13 @@ import {
   textDeclaredAs,
 } from "@olai/format"
 import { heldStateOf } from "olai-plugin-kolu/appliance"
-import { type FleetTerminal, type KoluEvent, resolveTerminal, whoOf } from "olai-plugin-kolu/appliance/wire"
+import {
+  type FleetTerminal,
+  type KoluEvent,
+  reminderAccount,
+  resolveTerminal,
+  whoOf,
+} from "olai-plugin-kolu/appliance/wire"
 import { nodeRef } from "@olai/plugin-kit/ref"
 
 import { TERMINAL_TYPE } from "./kinds.ts"
@@ -1040,15 +1046,17 @@ export const bodyFor = (
  * so after this one, only a real quiet follows).
  */
 const reminderOf = (nag: KoluEvent["nag"] | undefined): string | null => {
-  if (nag === undefined) return null
-  if (nag.left === undefined) {
-    return `This is reminder ${nag.index} of an uncapped nag — it repeats on this interval while the state holds (a cap is spelled ` +
-      `\`nag: 30m/3\` in _olai/Kolu.olai).`
+  // The ACCOUNT is the wire's fold (`reminderAccount`, beside the schema);
+  // this is only the body's own wording of it.
+  const account = reminderAccount(nag)
+  if (account === null) return null
+  if (account.total === null) {
+    return `This is reminder ${account.index} of an uncapped nag — it repeats on this interval while the state holds (a cap is spelled \`nag: 30m/3\` in _olai/Kolu.olai).`
   }
-  if (nag.left === 0) {
-    return `This is reminder ${nag.index} of ${nag.index}, the last — this doorbell goes quiet about this terminal until its state changes.`
+  if (account.last) {
+    return `This is reminder ${account.index} of ${account.index}, the last — this doorbell goes quiet about this terminal until its state changes.`
   }
-  return `This is reminder ${nag.index} of ${nag.index + nag.left}.`
+  return `This is reminder ${account.index} of ${account.total}.`
 }
 
 /**

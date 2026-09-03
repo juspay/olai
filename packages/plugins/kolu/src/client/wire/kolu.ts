@@ -619,6 +619,29 @@ export const KoluEvent = Schema.Struct({
 })
 export type KoluEvent = typeof KoluEvent.Type
 
+/**
+ * THE REMINDER'S ACCOUNT — which reminder, of how many, and whether it is
+ * the last — derived ONCE, beside the schema whose prose defines it.
+ *
+ * Two faces spell the account in their own words: the events drawer's
+ * ` — reminder 2 of 3` row suffix, and the doorbell body's
+ * `This is reminder 2 of 3.` line. Each keeps its own wording — that is
+ * its judgement — but the RULE is this fold twice no longer: `null` for an
+ * event carrying no counting; `total: null` for an uncapped nag (an
+ * uncapped sentence has no end to name). `whoOf`'s header tells why two
+ * spellings of one fold drift, and it tells it about this very pair.
+ */
+export const reminderAccount = (
+  nag: KoluEvent["nag"],
+): { readonly index: number; readonly total: number | null; readonly last: boolean } | null => {
+  if (nag === undefined) return null
+  return {
+    index: nag.index,
+    total: nag.left === undefined ? null : nag.index + nag.left,
+    last: nag.left === 0,
+  }
+}
+
 // ── The live pane ─────────────────────────────────────────────────────────
 
 /**

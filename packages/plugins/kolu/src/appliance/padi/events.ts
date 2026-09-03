@@ -45,7 +45,7 @@
 import { narrowAgentState, recencyText } from "@kolu/solid-dockrow/rowValues"
 
 import type { KoluEvent } from "olai-plugin-kolu/appliance/wire"
-import { whoOf } from "olai-plugin-kolu/appliance/wire"
+import { reminderAccount, whoOf } from "olai-plugin-kolu/appliance/wire"
 
 /** One line of the feed, folded. The rendering takes it whole. */
 export interface EventLine {
@@ -110,19 +110,16 @@ export const eventLine = (event: KoluEvent, now: number): EventLine => {
   // watcher's own observation clock — so no row folds here without one.
   const held = recencyText("wait-chip", Date.parse(row.since), atMs)
   const word = stateWord(row.agentState, row.state)
-  // THE REMINDER ACCOUNTING, when the event carries it — the same count
-  // the doorbell's sentence spells, because padi's `nag` field is the ONE
-  // accounting both faces read: a drawer that folded its own would drift
-  // the day the server's wording moved. On an UNCAPPED nag `left` is
-  // absent and there is no end to name; the count alone is said.
-  const nag = event.nag
-  const count = nag === undefined || event.kind !== "nag"
+  // THE REMINDER ACCOUNTING, when the event carries it — the same account
+  // the doorbell's sentence spells, because both faces read the wire's own
+  // fold (`reminderAccount`, beside the schema): two faces folding their own
+  // was the two spellings this file's header has already watched drift.
+  const account = reminderAccount(event.kind === "nag" ? event.nag : undefined)
+  const count = account === null
     ? ""
-    : nag.left === undefined
-    ? ` — reminder ${nag.index}`
-    : nag.left === 0
-    ? ` — reminder ${nag.index} of ${nag.index}, the last`
-    : ` — reminder ${nag.index} of ${nag.index + nag.left}`
+    : account.total === null
+    ? ` — reminder ${account.index}`
+    : ` — reminder ${account.index} of ${account.total}${account.last ? ", the last" : ""}`
   const words = event.kind === "nag"
     ? `still ${word} for ${held}${count}`
     : `has been ${word} for ${held}`
