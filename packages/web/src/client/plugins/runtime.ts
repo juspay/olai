@@ -48,7 +48,7 @@
  * which is also what stops it being a second call somebody can forget.
  */
 
-import { BUNDLE_NAMES, type BrowserHalf } from "@olai/bundle"
+import { type BrowserHalf, bundleRank } from "@olai/bundle"
 import {
   type App,
   type Hung,
@@ -224,22 +224,15 @@ export const composeTo = async (
  * read it against the build's own list. The table cannot see the bundle and must
  * not claim to; this can, so the claim lives here.
  *
- * A name the bundle does not know sorts LAST, in the order it was hung — the
- * behaviour an out-of-tree plugin will want the day `olai plugin add` lands.
+ * THE COMPARATOR IS `@olai/bundle`'S, beside the list it reads — `bundleRank`,
+ * which is also what `@olai/server`'s `probes.ts` puts the session's servers in
+ * order with. It was written out at both ends, in two processes, and one copy
+ * cited the other; the stranger rule and the stability argument live with the
+ * list now.
  */
 export const hung = <S extends PluginSlot>(slot: S): ReadonlyArray<Hung<SlotFaces[S]>> => {
   moved()
-  return [...app.hung(slot)].sort((one, other) => rank(one.plugin) - rank(other.plugin))
-}
-
-/** WHERE A NAME SITS IN THE BUILD'S LIST, and `BUNDLE_NAMES.length` for one that
- *  is not in it — so a stranger sorts after every row rather than before every
- *  one of them, which is what a bare `indexOf` and its `-1` would do.
- *  `Array.prototype.sort` is stable, so two strangers keep the order they were
- *  hung in. */
-const rank = (plugin: string): number => {
-  const at = BUNDLE_NAMES.indexOf(plugin)
-  return at === -1 ? BUNDLE_NAMES.length : at
+  return [...app.hung(slot)].sort((one, other) => bundleRank(one.plugin) - bundleRank(other.plugin))
 }
 
 /** ...and what dresses each composed KIND WORD, the same way. */

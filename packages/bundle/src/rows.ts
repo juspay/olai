@@ -138,6 +138,34 @@ import { ROWS } from "./rows.generated.ts"
  */
 export const BUNDLE_NAMES: ReadonlyArray<string> = ROWS.map((row) => row.id)
 
+/** ...as a lookup, built once, so {@link bundleRank} is not a linear scan run
+ *  inside a comparator. */
+const RANKS: ReadonlyMap<string, number> = new Map(BUNDLE_NAMES.map((id, at) => [id, at]))
+
+/**
+ * WHERE A NAME SITS IN THE BUILD'S LIST — the comparator every list of plugin
+ * names is put in bundle order with.
+ *
+ * ## Why it is here and not at either of the two places that sort
+ *
+ * Because there are two, in two different processes: the session's servers
+ * (`@olai/server`'s `probes.ts`) and the tab's plugin-keyed slots (`@olai/web`'s
+ * plugin runtime). Both were written out — the same `indexOf`, the same `-1`
+ * arm, the same two paragraphs — and one cited the other. `BUNDLE_NAMES` is this
+ * module's, so the ORDER over it is too, and the rule is stated once for both
+ * ends.
+ *
+ * A stranger sorts LAST: `BUNDLE_NAMES.length` rather than the `-1` a bare
+ * `indexOf` gives, which would put a name the build never heard of before every
+ * name it did. That is the behaviour an out-of-tree plugin will want the day
+ * `olai plugin add` lands.
+ *
+ * `Array.prototype.sort` is stable, so two strangers keep the order they
+ * arrived in. That is the only order there is to keep for them: the build has no
+ * opinion about a plugin it never named.
+ */
+export const bundleRank = (name: string): number => RANKS.get(name) ?? BUNDLE_NAMES.length
+
 /**
  * ...AND WHAT OMITTING THE FLAG RUNS, which is not necessarily all of them.
  *

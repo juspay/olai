@@ -35,13 +35,15 @@
  * whatever arrives and then reading it against the build's list keeps the
  * knowledge in the file that has it.
  *
- * A name the bundle does not know sorts LAST, in the order it was pushed. That
- * is not a case this build can reach — every fiber is a row — and it is the
- * behaviour an out-of-tree plugin will want the day `olai plugin add` lands: a
- * stranger goes after everything the build shipped rather than being dropped.
+ * THE COMPARATOR ITSELF IS `@olai/bundle`'S, and it was written out here. The
+ * tab sorts its plugin-keyed slots by the same rule for the same reason, and the
+ * two copies — the same `indexOf`, the same `-1` arm, the same paragraph about
+ * strangers — sat in two different processes with one citing the other. The list
+ * is that package's, so the order over it is too: `bundleRank` is where the
+ * stranger rule and the stability argument now live.
  */
 
-import { BUNDLE_NAMES } from "@olai/bundle"
+import { bundleRank } from "@olai/bundle"
 import type { Plugins, SessionStart } from "@olai/plugin-api/services"
 import { Effect } from "effect"
 
@@ -63,19 +65,7 @@ import { Effect } from "effect"
 export const askingAt = (plugins: Plugins): Effect.Effect<SessionStart["asking"]> =>
   Effect.map(
     plugins.sessionStart,
-    (start) => [...start.asking].sort((one, other) => rank(one.name) - rank(other.name)),
+    (start) =>
+      [...start.asking].sort((one, other) => bundleRank(one.name) - bundleRank(other.name)),
   )
 
-/**
- * WHERE A NAME SITS IN THE BUILD'S LIST, and `BUNDLE_NAMES.length` for a name
- * that is not in it — so a stranger sorts after every row rather than before
- * every one of them, which is what a bare `indexOf` and its `-1` would do.
- *
- * `Array.prototype.sort` is stable, so two names with the same rank (two
- * strangers) keep the order they were pushed in. That is the only order there
- * is to keep for them: the build has no opinion about a plugin it never named.
- */
-const rank = (name: string): number => {
-  const at = BUNDLE_NAMES.indexOf(name)
-  return at === -1 ? BUNDLE_NAMES.length : at
-}
