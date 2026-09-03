@@ -311,6 +311,12 @@ could serve.
 
 ## `lanes/` — a board whose steps name terminals
 
+`backlog.olai` is the bare SECOND page this corpus owes the sidebar press: it
+carries no terminal and no `agent-session`, so the vault's roster is still the
+nine of `lanes.olai` — its whole job is to be a page none of those agents live
+on, so that pressing one from the roster has somewhere to CARRY the reader and
+the navigation half of the gesture is assertable rather than vacuous.
+
 Four lane steps in three states, each carrying a `terminal`, and one line of
 `_olai/Properties.olai` that makes them mean anything:
 
