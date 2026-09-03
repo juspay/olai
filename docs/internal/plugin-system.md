@@ -14,13 +14,14 @@ authoritative arguments live in the code, mostly in
 
 ## 1. The problem
 
-olai talks to two things that are not olai:
+olai talks to things that are not olai:
 
 - **kolu** — runs coding agents in terminals, and serves them over MCP.
 - **odu** — runs CI.
+- **xyne-spaces** — mirrors a conversation outward into a bound channel.
 
-Both were once "extracted into their own packages", and both left a residue
-behind in the general ones:
+The first two were once "extracted into their own packages", and both left a
+residue behind in the general ones:
 
 | Where | What was there |
 | --- | --- |

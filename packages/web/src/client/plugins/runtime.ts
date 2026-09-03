@@ -185,7 +185,7 @@ export const composeTo = async (
       await run(plugin.dispose)
       mounted.delete(name)
       // ...AND IT SAYS SO. The containment is right and the SILENCE was not: a
-      // half whose `apply` threw registers no faces, so the plugin is simply
+      // half whose `apply` died registers no faces, so the plugin is simply
       // absent from the page — while the panel two chips over reads the SERVER's
       // answer and says `running`, because on the server it is. Two ends, two
       // truths, and nothing on screen or in the console reconciling them.

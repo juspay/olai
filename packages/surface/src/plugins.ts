@@ -82,7 +82,7 @@ export const BuiltPlugin = Schema.Struct({
    *
    * A plugin is a fiber now, and `false` covers four different mornings:
    * the operator's flag left it out, the BUILD leaves it out until somebody
-   * asks, its `apply` threw, or it is still waiting on a service that has not
+   * asks, its `apply` DIED, or it is still waiting on a service that has not
    * arrived. Those want four different sentences under the row, and one of them
    * wants an alarm — so the word travels rather than being guessed at the far
    * end from a boolean that has already thrown the distinction away.
@@ -104,12 +104,12 @@ export const BuiltPlugin = Schema.Struct({
    */
   state: Schema.optionalKey(Schema.String),
   /**
-   * ...AND THE PLUGIN'S OWN WORDS, when its start threw — verbatim, with core
+   * ...AND THE PLUGIN'S OWN WORDS, when its start died — verbatim, with core
    * composing nothing around them.
    *
    * Only on a row whose state is `failed`. The panel draws it under the row's
    * sentence and quotes it as the plugin's; a serve that failed a plugin with
-   * no message to give sends none, and the row says a start threw without
+   * no message to give sends none, and the row says a start failed without
    * inventing what it said. That is the same rule the delivery doors keep:
    * failure prose is the plugin's, and core's job is to carry it.
    */
@@ -193,10 +193,11 @@ export type BuiltPlugin = typeof BuiltPlugin.Type
  *                is why it is not the same word as `off`: a row nobody chose is
  *                not a row somebody turned off, and only one of the two is
  *                worth a person's attention when they went looking for a chip.
- *   - `failed`   its `apply` threw. The one word that is a FAULT: it was asked
+ *   - `failed`   its `apply` DIED, which the registry records as a throw out of
+ *                the mount. The one word that is a FAULT: it was asked
  *                for, it is absent, and nothing else on screen says so.
  *   - `waiting`  the plugin is waiting on a service that has not arrived. Not
- *                reachable while everything a plugin injects is mounted before
+ *                reachable while every service a plugin NAMES is provided before
  *                the bundle is, and declared here because the runtime that can
  *                produce it is already the one running.
  *

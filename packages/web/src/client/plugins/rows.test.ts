@@ -182,10 +182,10 @@ test("every arm is one short line", () => {
  * one of them.
  *
  * `running: false` covers the flag leaving it out, the BUILD leaving it out
- * until somebody asks, a start that threw, and a plugin still waiting on a
+ * until somebody asks, a start that died, and a plugin still waiting on a
  * service. All four cost exactly the same — total absence — so the account of
  * the cost is the same in each; what differs is the WHY, which is the only
- * thing a person can act on and the only thing the boolean threw away.
+ * thing a person can act on and the only thing the boolean discarded.
  */
 test("each absence says its own why, and they are four different whys", () => {
   const optIn = row("optIn")
@@ -209,7 +209,7 @@ test("each absence says its own why, and they are four different whys", () => {
  * THE PLUGIN'S OWN WORDS, QUOTED — core composes no clause of them, which is
  * the rule the doorbell's three strings already keep.
  *
- * A start that threw is the one arm that is a FAULT rather than a policy, and
+ * A start that died is the one arm that is a FAULT rather than a policy, and
  * it is the one arm where the useful half of the sentence is not core's to
  * write. A throw with nothing to say is quoted as nothing rather than as core's
  * paraphrase of it — `String(reason)` on a bare `Error` would put the word

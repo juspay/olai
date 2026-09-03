@@ -13,7 +13,9 @@ olai integrates with three things that are not olai: [kolu](https://kolu.dev), w
 
 A server that reached the first door would evaluate a `.tsx` and die on `Cannot find module 'react/jsx-dev-runtime'` before it served anything. `@olai/bundle`'s [`fence.test.ts`](../bundle/src/fence.test.ts) walks the services door and holds it to the same list a server door is held to.
 
-**Neither door names the plugin runtime.** olai is written in Effect, and the runtime under a plugin is Cordis; the translation between them is one package, [`@olai/effect-cordis`](../effect-cordis/README.md), and this package is the only one that imports it. What a plugin gets is olai's tags and olai's `definePlugin`; that there is an engine at all is this package's business. `@olai/bundle`'s [`fence.test.ts`](../bundle/src/fence.test.ts) holds *Cordis is an engine nobody outside one package sees* as an equality over every package in the tree.
+**Neither door names the plugin runtime.** olai is written in Effect, and the runtime under a plugin is Cordis; the translation between them is one package, [`@olai/effect-cordis`](../effect-cordis/README.md), and this package is the only one a PLUGIN reaches it through. What a plugin gets is olai's tags and olai's `definePlugin`; that there is an engine at all is this package's business.
+
+The bridge has one other importer, and it is not an exception to anything: `@olai/bundle` opens its root door to read a row's state and its `./loader` door to mount the rows. A composition root mounting plugins is what a plugin runtime is FOR. The ruling being kept is about **`cordis`**, not about the bridge — `@olai/bundle`'s [`fence.test.ts`](../bundle/src/fence.test.ts) holds *Cordis is an engine nobody outside one package sees* as an equality over every package in the tree, and `scripts/prove-fence.sh`'s mutation 16 is a plugin importing the engine directly.
 
 [`src/contract.ts`](src/contract.ts) is what both halves share — `PropKind`, `Probed`, `NotHere`, `StdioServer`, `Deliveries`, `Wake`, `PluginWire`, and the word a kind is composed into. Data shapes with no runtime behind them, so neither process pays for the other's graph.
 
