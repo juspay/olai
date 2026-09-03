@@ -314,6 +314,16 @@ awaited each listener in turn would multiply that window by the number of
 plugins — the same defect the bound concurrency exists to prevent, wearing a
 different shape. `Probed`.s two halves still come off ONE reading.
 
+**This is the last door where a plugin signs its own name, and the last thing a
+plugin hands over that is a promise.** Both come from the payload being a plain
+record: a waterfall carries what its type says, so neither the per-fiber stamp
+every keyed door has nor the effect channel everything else uses is anything
+this door can enforce. Neither is fixed here — the `name` goes when the
+collector keys the list by the fiber that pushed, and the `Promise` goes when
+`@olai/chat` runs the thunks as Effects with its bound expressed as Effect
+concurrency, and both of those are edits to the session-open path rather than to
+the door. That path is the agents phase's, and it takes them.
+
 ### kind
 
 `@olai/format` owns seven property kinds — `text`, `date`, `int`, `path`, `doc`,

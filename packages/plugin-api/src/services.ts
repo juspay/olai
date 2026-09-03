@@ -465,6 +465,23 @@ export const Held = serviceTag<Held>("held")
  * subprocess on the session-open path, and a waterfall that awaited each
  * listener in turn would multiply that window by the number of plugins — the
  * same defect the bound exists to prevent, with a different shape.
+ *
+ * ## THE TWO THINGS THIS DOOR STILL HAS THAT NO OTHER DOES
+ *
+ * A plugin SIGNS ITS OWN NAME here — `asking.push({ name, ask })` — where every
+ * other keyed door reads the word off the fiber and gives the caller no
+ * parameter to put one in. And `ask` answers a PROMISE, where everything else a
+ * plugin hands over is an Effect.
+ *
+ * Both are the same fact about the payload: this is a waterfall over a plain
+ * record, so what a link puts in the record is whatever the record's type says,
+ * and neither the stamp nor the effect channel is anything the door can enforce.
+ * Fixing them is not a rewording — the `name` goes when the collector keys the
+ * list by the fiber that pushed, and the `Promise` goes when `@olai/chat` runs
+ * the thunks as Effects with its bound expressed as Effect concurrency. Both
+ * are edits to the CALLER of this door, not to this door, and the caller is the
+ * chat's session-open path, which the agents phase is about. It takes them; the
+ * shape is named here so that phase does not have to find it.
  */
 export interface SessionStart {
   /** What to ask this host, one thunk per plugin that has something to ask.
