@@ -27,13 +27,13 @@
  *   - THE RING. Batches translate into `KoluEvent`s, newest kept, capped —
  *     the collection's `readAll` reads this map exactly as it did when the
  *     timers pushed here, so none of the wire moves for its own sake.
- *   - THE FROZEN ROW. A `PadiStateEvent` is thin by contract (the recipient
- *     reads the screen itself) — olai joins the live fleet row at FIRE time
- *     the way `emitHold` always did, frozen with its live flags stamped
- *     out. Rows are remembered as they were last observed and never
- *     evicted: an event about a terminal that has since shut still wants
- *     its draw facts. (A lanes-day's churn is hundreds of rows at two
- *     kilobytes each; eviction would buy nothing.)
+   *   - THE FROZEN ROW. A `PadiStateEvent` is thin by contract (the recipient
+   *     reads the screen itself) — olai joins the live fleet row at FIRE time
+   *     the way `emitHold` always did, frozen with its live flags stamped
+   *     out. Rows are remembered as they were last observed, bounded like
+   *     every other place in this module (`WATCH_LANES`): an event about a
+   *     evicted terminal falls onto the synthesized-pip arm, which is the
+   *     spelled answer for an unknown id at zero additional cost.
    *   - THE BEAT STAMP. There is no interval to pace one on any more, so it
    *     is stamped when the SUBSCRIPTION says something — every batch,
    *     including the arriving frame that found nothing matching, which is
@@ -136,6 +136,25 @@ export const DEFAULT_WATCH: WatchConfig = {
 
 /** The ring's cap — the brief's `~200`. */
 export const WATCH_RING = 200
+
+/** The CACHES' cap: rows as last observed, and the episode ledger. Both
+ *  places grow with terminal-id churn over the SERVER's life, which is a
+ *  longer horizon than a lanes-day — and losing one never loses a fact the
+ *  code needs: it opens the margin whose synthesized-pip answer
+ *  {@link translate} already spells, and a moved-on episode honestly
+ *  reads as a first report again. */
+export const WATCH_LANES = 2000
+
+/** Insertion-ordered eviction, the ring's own discipline one level down:
+ *  a re-set keeps the original position — a long-standing lane lives
+ *  longer, which is the accurate bias both caches want. */
+const cap = <K, V>(map: Map<K, V>, bound: number): void => {
+  while (map.size > bound) {
+    const oldest = map.keys().next().value
+    if (oldest === undefined) break
+    map.delete(oldest)
+  }
+}
 
 /** What the watcher hands over. The three verbs are exactly what the
  *  timered watcher had — the ring's two, and the beat: same breaths, a new
@@ -271,7 +290,10 @@ export const makeWatch = (
 
   /** One event onto the ring, evicting the oldest while the cap is full. */
   const push = (event: KoluEvent): void => {
-    if (event.row !== null) episodes.set(event.row.terminal, event.row.since)
+    if (event.row !== null) {
+      episodes.set(event.row.terminal, event.row.since)
+      cap(episodes, WATCH_LANES)
+    }
     ring.set(event.id, event)
     sink.emit(event)
     while (ring.size > WATCH_RING) {
@@ -402,6 +424,7 @@ export const makeWatch = (
     },
     observe: (id, row) => {
       rows.set(id, row)
+      cap(rows, WATCH_LANES)
     },
     reconfigure: (next) => {
       const moved = !sameQuestion(next, config)

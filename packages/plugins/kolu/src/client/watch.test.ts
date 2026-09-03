@@ -28,7 +28,7 @@ import { koluHalf } from "./index.ts"
 import type { PadiSurfaceClient } from "./link.ts"
 import { makeMirror } from "./mirror.ts"
 import { type Dial, SPEAKS } from "./link.ts"
-import { DEFAULT_WATCH, makeWatch, type WatchConfig } from "./watch.ts"
+import { DEFAULT_WATCH, makeWatch, WATCH_LANES, type WatchConfig } from "./watch.ts"
 import type { FleetTerminal, KoluEvent } from "./wire/index.ts"
 import { UNOWNED } from "./wire/index.ts"
 
@@ -425,6 +425,28 @@ describe("the subscription watcher", () => {
     watch.stop()
   })
 })
+
+  it("the caches are BOUNDED like the ring — an evicted row falls onto the synthesized arm, which already has its own answer", async () => {
+    const seen = collected()
+    const queue = await Effect.runPromise(Queue.unbounded<ReadonlyArray<PadiStateEvent>>())
+    const watch = makeWatch(seen.sink, { now: () => EPOCH })
+    watch.attach(faceWith(queue))
+    await sleep(30)
+    // Fill past the lane bound: every id observed once, in order — the
+    // oldest goes first (insertion order: a re-set is a long-standing
+    // lane, and living longer is the bias both caches want).
+    for (let i = 0; i < WATCH_LANES; i += 1) watch.observe(`lane-${i}`, row(`lane-${i}`, "working"))
+    watch.observe("lane-late", row("lane-late", "working"))
+    // The FIRST lane's facts are gone — and its event still draws: not
+    // `undefined` facts, the synthesized quiet arm the margin already spells.
+    await Effect.runPromise(Queue.offer(queue, [ev("transition", "lane-0")]))
+    await sleep(30)
+    const fired = seen.events[0]
+    expect(fired?.row?.agentState).toBe("awaiting")
+    expect(fired?.row?.pip?.glyph).toBe("terminal")
+    expect(fired?.row?.pip?.hasAgent).toBe(true)
+    watch.stop()
+  })
 
 describe("the ring through the half", () => {
   it("a linkless face never beats — folding, not counting: the tap is the subscription's stamp, and a no-padi machine has none", () => {
