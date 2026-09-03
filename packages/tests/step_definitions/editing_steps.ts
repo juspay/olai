@@ -623,6 +623,29 @@ Then(
   },
 );
 
+/** HOW DEEP on the page the new row sits: measured at its own box against the
+ *  row named. The first child of a folded-out branch is drawn indented past
+ *  the row it was made against, which is what one precision of the page's
+ *  "child" is: any WIDER game about its indent is the rail's own width, which
+ *  does not move. */
+Then(
+  "the row being typed is drawn at the child depth of {string}",
+  async function (this: OlaiWorld, id: string) {
+    const row = this.node(id);
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.waitUntil(async () => {
+      const draft = this.page.locator(NEW_ROW).first();
+      if ((await draft.count()) === 0) return false;
+      const box = await draft.boundingBox();
+      const li = await row.boundingBox();
+      if (box === null || li === null) return false;
+      // The LI of the row spans the whole branch beneath it; the blank's box
+      // starts INSIDE, past the indent strip beside the branch.
+      return box.x > li.x + 4 && box.y > li.y + 4;
+    }, `the new row to be drawn at a child depth of "${id}"`);
+  },
+);
+
 /** WHERE the row a split made is drawn — asked of the page in document order,
  *  because the node it names has an id nobody chose and a title assertion
  *  cannot say which line it is on. The half that came off has to be the very

@@ -213,10 +213,12 @@ test("Enter at column 0 is before the ROW, not after its subtree", () => {
     .toEqual({ kind: "before", id: "echo" })
 })
 
-test("a pending next to a row is after or before it, never both", () => {
+test("a pending next to a row is at its furniture — its under-seat too", () => {
   expect(besideOf({ kind: "after", id: "order" })).toEqual({ kind: "after", id: "order" })
   expect(besideOf({ kind: "before", id: "order" })).toEqual({ kind: "before", id: "order" })
-  expect(besideOf({ kind: "under", id: "order" })).toBeNull()
+  // Untrue once, invisible from every write-side pin: the Tab's own seat at a
+  // CHILDLESS row — the editor that turned nothing-visible is ~/493-bug.mov.
+  expect(besideOf({ kind: "under", id: "order" })).toEqual({ kind: "under", id: "order" })
   expect(besideOf({ kind: "first", file: "a.olai" })).toBeNull()
 })
 

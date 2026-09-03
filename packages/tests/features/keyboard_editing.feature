@@ -216,6 +216,19 @@ Feature: Keyboard editing
     Then "house.olai" holds a node titled "measure twice"
     And "house.olai" holds a node titled "measure twice" under "install"
 
+  Scenario: the Tab seat of a CHILDLESS row is drawn, not air
+    # The seat the first Tab gives a blank under a childless row must be ON
+    # THE PAGE — an editor nobody can see, minted fresh by the Tab, is the
+    # bug ~/493-bug.mov showed. Since a parked blank drawn under a row and a
+    # live one at its ABSENT seat are told apart purely by geometry, the
+    # depth is measured by the box, on the page, e2e.
+    When I click the title of "knobs"
+    And I press "Enter"
+    And I press "Tab"
+    Then a new row is being typed
+    And the row being typed is drawn immediately above the title of "kitchen-herbs"
+    And the row being typed is drawn at the child depth of "knobs"
+
   Scenario: A blank takes Shift+Tab back out, before it is written
     # The same shape key the other way: the indent was the shape's, not a
     # write's — so the un-indent is the blank's too, and nothing on disk moved.
