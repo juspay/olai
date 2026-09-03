@@ -1464,7 +1464,7 @@ Before(
       });
     }
     this.page.on("pageerror", (error) => {
-      this.errors.push(`pageerror: ${error.message}`);
+      this.errors.push(`pageerror: ${error.message}\n${error.stack ?? "(no stack)"}`);
     });
     this.page.on("console", (message) => {
       if (message.type() === "error") {
