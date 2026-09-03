@@ -1,0 +1,21 @@
+{
+  "name": "@olai/effect-cordis",
+  "//name": "THE ONE PACKAGE THAT SEES CORDIS. olai is written in Effect; the plugin runtime under it is Cordis; and this is the translation between them, in one directory, with no olai noun in it. Every other package in the tree — the interface a plugin is written against, the bundle that mounts the rows, the composition root, the tab — names THIS package and never `cordis`, which `packages/bundle/src/fence.test.ts` holds as an equality rather than as a paragraph. The instability upstream has its one home here too: a pin bump that moves the API changes this package and nothing else.",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "//exports": "TWO DOORS, and they are TWO GRAPHS. The ROOT is the RUNTIME — a host, the services on it, a plugin as an Effect, a waterfall — and it is what the TAB opens too, because a browser half is a plugin exactly as a server half is. `./loader` is the declarative bundle: `@cordisjs/plugin-loader` and `-include` read a file off a disk and resolve module specifiers, so that door carries `node:url`, `node:fs` and a YAML parser. Behind one door a tab's chunk would carry all of it, and it does not fail at a boundary claim — it fails at `bun build`, on a browser polyfill that has no `pathToFileURL`.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./loader": "./src/loader.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "//dependencies": "`effect` only. `cordis` and `@cordisjs/plugin-loader`/`-include` are NOT declared and that is not an omission — they are hydrated from the npins pin (nix/cordis.nix) into the ROOT node_modules the way every `@kolu/*` member is, and a manifest naming one would send bun to a registry that does not have it. `scripts/check-hydrated-deps.sh` is what holds their versions; the fence is what holds the fact that this package is the only one allowed to name them.",
+  "dependencies": {
+    "effect": "4.0.0-rc.112"
+  }
+}

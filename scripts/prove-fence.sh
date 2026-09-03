@@ -276,7 +276,7 @@ unnamed=0
 # exited 0. A selector that names no mutation printing a clean pass is exactly
 # the failure this list was made static to prevent, and it was doing it for one
 # number.
-DECLARED="1 2 3 5 6 7 8 9 10 11 12 13 14 15"
+DECLARED="1 2 3 5 6 7 8 9 10 11 12 13 14 15 16"
 for want in $only; do
   case " $DECLARED " in
     *" $want "*) ;;
@@ -484,6 +484,19 @@ run 14 "a wire MECHANIC the framework performs comes back" \
 run 15 "the turnkey SEAM stops being called" \
   'the seam that performs them is called, exactly once' \
   unname_the_seam
+
+# THE ENGINE, REACHED DIRECTLY. The human's ruling is that Cordis is an engine
+# nobody outside one package sees, and the whole of phase 4 rests on it: a plugin
+# is an Effect, `inject` is the requirement channel, and the translation lives in
+# one package. A plugin that imports `cordis` to type its own `apply` again is
+# exactly the shape that ruling forbids, and it is the shape the tree HAD.
+#
+# The SERVER half rather than the browser one, because that is where the import
+# was: `import type { Context } from "cordis"` above every plugin's `apply`.
+run 16 "a plugin imports the ENGINE directly" \
+  'an engine nobody outside one package sees' \
+  append "$plugin_a/src/server.ts" 'import "cordis"'
+
 echo
 echo "$passed of $((passed + failed + unnamed)) mutations were caught."
 [ "$unnamed" -eq 0 ] || echo "$unnamed went red without the claim it names, which is not a catch." >&2

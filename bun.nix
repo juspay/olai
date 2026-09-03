@@ -352,6 +352,7 @@
   "@olai/bundle" = copyPathToStore ./packages/bundle;
   "@olai/chat" = copyPathToStore ./packages/chat;
   "@olai/child" = copyPathToStore ./packages/child;
+  "@olai/effect-cordis" = copyPathToStore ./packages/effect-cordis;
   "@olai/fonts" = copyPathToStore ./packages/fonts;
   "@olai/format" = copyPathToStore ./packages/format;
   "@olai/git" = copyPathToStore ./packages/git;

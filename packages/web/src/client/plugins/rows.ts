@@ -27,7 +27,7 @@
  *
  * A row used to draw one sentence off a boolean and share a second sentence
  * with every other row. That was exact while a plugin's presence was decided
- * once, by one flag, before anything ran. A plugin is a Cordis fiber now, and
+ * once, by one flag, before anything ran. A plugin is a fiber now, and
  * `running: false` covers four different mornings — the flag left it out, the
  * BUILD leaves it out until somebody asks, its `apply` threw, or it is waiting
  * on a service — of which exactly one is a fault and exactly one is something a

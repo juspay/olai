@@ -1,6 +1,6 @@
 /**
  * WHAT A BROWSER HALF IS WRITTEN AGAINST — the SLOTS a face is hung in and the
- * four services the app hands over, as Cordis services.
+ * four services the app hands over, as Effect tags.
  *
  * ## What this replaces, and why the manifest could not survive
  *
@@ -21,7 +21,7 @@
  * server half already is. A plugin the roster does not name is never mounted,
  * so it registers nothing, so there is nothing to license: *no fiber, no
  * surface, no handler* has an exact browser twin, which is *no fiber, no slot
- * entry*. Every registration below is an `ctx.effect`, so a plugin the roster
+ * entry*. Every registration below is a finalizer on the plugin's own scope, so a plugin the roster
  * stops naming unwinds its own faces on the way out and the app re-reads what
  * is left.
  *
@@ -36,7 +36,7 @@
  *
  * THERE WERE SEVEN. `app.drawer` — the panel a header readout's press opens —
  * was declared and READ BY NOBODY: the chrome walk draws `app.header` and the
- * one plugin with a panel hangs it on `ctx.bar.popover()`, which is the app's
+ * one plugin with a panel hangs it on {@link Bar}'s `popover()`, which is the app's
  * whole portalled panel rather than a slot. A slot nobody reads is a face
  * registered into silence, which is the failure `live/dressings.ts` names about
  * this very table — so it is gone until something wants it, and it comes back
@@ -47,14 +47,14 @@
  *
  *   - **`plugin`** — one face per plugin, keyed by the fiber's own name. The
  *     header readout, the tab half wrapped around the page, and the mark a
- *     delivered sentence wears. The key is read INSIDE the
- *     service off `this.ctx.fiber.name`, never off an argument, for the reason
- *     {@link ./services.ts}'s doors read it there: a key a caller supplies is a
- *     key one plugin can sign another's registration with.
+ *     delivered sentence wears. The key is the plugin's own word, minted into
+ *     the service before the plugin ran, for the reason {@link ./services.ts}'s
+ *     doors are minted that way: a key a caller supplies is a key one plugin can
+ *     sign another's registration with.
  *   - **`kind`** — one face per property KIND, keyed by the word this plugin's
  *     bare kind composes to. The chip beside a value, the pane its press opens,
  *     and the block that owns a row. The composition is `kindWordOf`, the same
- *     function `ctx.kinds` uses on the server, so the word a face is looked up
+ *     function {@link ./services.ts}'s `Kinds` uses on the server, so the word a face is looked up
  *     by and the word a vault declares cannot be two spellings.
  *
  * ## The four services, and why they are four rather than one blob
@@ -62,8 +62,8 @@
  * They were one — `AppFurniture`, handed to every face as a prop — and the blob
  * was right while a plugin's faces were values the app called: there was
  * nothing to inject them INTO. A fiber has an `inject`, so a browser half now
- * NAMES what it needs and Cordis holds it `PENDING` until it exists, which is
- * the same guarantee its server half already has. Four rather than five because
+ * NAMES what it needs and the runtime holds it `waiting` until it exists, which
+ * is the same guarantee its server half already has. Four rather than five because
  * the blob's `desktop` is the bar's own fact and travels with the bar's
  * geometry.
  *
@@ -72,19 +72,20 @@
  * signatures as small as they are — a header readout is `() => JSX.Element`,
  * because everything it used to be handed is on the context that registered it.
  *
- * ## THE AUGMENTATION IS SHARED WITH THE SERVER'S, and that is not a leak
+ * ## THE TWO DOORS DO NOT SHARE A CONTEXT TYPE ANY MORE, and that is the tags
  *
- * `declare module "cordis"` merges globally, so a file that imports either door
- * sees `ctx.slots` beside `ctx.vault`. It is TYPE-ONLY — no runtime graph edge
- * either way — and the alternative (a branded context type per process) buys a
- * compile error for a mistake neither process can make: a server context never
- * has `slots` provided, so `ctx.slots` there is `undefined` at the first read,
- * and a browser context never has `vault`. What the fence actually holds is the
- * GRAPH, and the graph is what `@olai/bundle`'s `fence.test.ts` walks.
+ * There used to be a `declare module "cordis"` on each door, merging globally, so
+ * a file that imported either one saw `ctx.slots` beside `ctx.vault`. A tag is a
+ * VALUE: this door's tags are the ones a browser half yields and the server's are
+ * the ones a server half yields, and a half that names the wrong one does not
+ * typecheck rather than reading `undefined` at its first access. What the fence
+ * holds is still the GRAPH, and the graph is what `@olai/bundle`'s
+ * `fence.test.ts` walks.
  */
 
-import { Service } from "cordis"
-import type { Context } from "cordis"
+
+import { definePlugin, type Host, mountPlugin, openHost, provide, serviceTag } from "@olai/effect-cordis"
+import { Effect, Scope } from "effect"
 
 import { kindWordOf } from "./contract.ts"
 import type {
@@ -97,6 +98,11 @@ import type {
   PropChip,
   PropPane,
 } from "./plugin.ts"
+
+/** WHAT A BROWSER HALF IS WRITTEN WITH, re-exported so it opens ONE door — the
+ *  same argument `./services.ts` makes for the server's. */
+export { definePlugin, mountPlugin }
+export type { Host }
 
 /**
  * WHERE A FACE CAN HANG — the six, and what keys each.
@@ -171,115 +177,51 @@ export interface Hung<F> {
 }
 
 /**
- * EVERY FACE THIS TAB HAS RIGHT NOW — the browser's twin of `ctx.surfaces`, and
- * the one service whose registrations move the page.
+ * EVERY FACE THIS TAB HAS RIGHT NOW — the browser's twin of `Surfaces`, and the
+ * one service whose registrations move the page.
  *
  * ## The re-read is the APP's and not this service's
  *
- * This holds the table and says when it moved; what re-reads it is `@olai/web`,
- * through the `changed` callback below. That is exactly the split `Surfaces`
- * keeps on the server and for the same reason: a service that re-rendered would
- * be a service that knew what a render is, and this one has never heard of
- * Solid. The app wires `changed` to a signal, and every walk over a slot is a
- * read of it.
+ * The runtime holds the table and says when it moved; what re-reads it is
+ * `@olai/web`, through {@link AppConfig.changed}. That is exactly the split
+ * `Surfaces` keeps on the server and for the same reason: a service that
+ * re-rendered would be a service that knew what a render is, and this one has
+ * never heard of Solid. The app wires `changed` to a signal, and every walk over
+ * a slot is a read of it.
  *
  * ## A DUPLICATE IS REFUSED, unconditionally
  *
  * Two plugins hanging a chip on one composed kind word cannot happen — the
  * prefix is the row's id and the loader will not mount two rows under one — so
  * the reachable case is a plugin registering the same slot twice, which is a
- * mistake in that plugin and is worth a throw at the moment it is made. The
- * throw happens inside `ctx.effect`'s body, which lands the fiber in `FAILED`
- * having installed nothing: one plugin's faces are absent, and every other
- * plugin's are untouched.
+ * mistake in that plugin and is worth refusing at the moment it is made. The
+ * refusal DIES inside `acquire`, which lands the plugin in `failed` having
+ * installed nothing: one plugin's faces are absent, and every other plugin's are
+ * untouched.
+ *
+ * ## THE KEY IS NEVER AN ARGUMENT
+ *
+ * A plugin-keyed slot takes no key at all and a kind-keyed one takes the BARE
+ * word, which is composed here with the plugin's own name — the same
+ * `kindWordOf` the server's `Kinds` uses, so the word a face is looked up by and
+ * the word a vault declares cannot be two spellings. The name comes off the
+ * registry binding, which is what makes "a plugin cannot sign another's
+ * registration" a shape rather than a rule.
  */
-export class Slots extends Service {
-  /** Slot → key → face. Two levels rather than one composite key, because the
-   *  walks read a whole slot and never a single composite. */
-  private readonly table = new Map<SlotName, Map<string, unknown>>()
-
-  constructor(ctx: Context, public config: Slots.Config = {}) {
-    super(ctx, "slots")
-  }
-
-  /** Hang this plugin's one face in a plugin-keyed slot, for as long as the
-   *  calling fiber is loaded. */
-  register<S extends PluginSlot>(slot: S, face: SlotFaces[S]): () => void
-  /** ...or dress one of this plugin's KINDS, by its bare word — composed here
-   *  with the fiber's name, the way `ctx.kinds` composes it on the server. */
-  register<S extends KindSlot>(slot: S, kind: string, face: SlotFaces[S]): () => void
-  register(slot: SlotName, second: unknown, third?: unknown): () => void {
-    const plugin = this.ctx.fiber.name
-    const keyed = SLOTS[slot].keyedBy === "kind"
-    const key = keyed ? kindWordOf(plugin, second as string) : plugin
-    const face = keyed ? third : second
-    return this.ctx.effect(() => {
-      // THE TABLE AND THE TEST ARE BOTH READ HERE, and the second half of that
-      // was wrong for a round: `held` and `already` were computed OUTSIDE the
-      // effect, which made them a snapshot of the moment `register` was called
-      // rather than of the moment the registration takes.
-      //
-      // A fiber's effect body RE-EXECUTES — on a reload, on an `update`, when a
-      // service it injects leaves and returns — and its disposer runs first,
-      // taking the key back out. A captured `already` would still say `true` on
-      // the second pass and refuse a plugin re-registering the face it had just
-      // unwound; a captured `held` would write into a `Map` this table had
-      // already dropped when the slot emptied, so the entry would exist for the
-      // fiber and be invisible to every reader. Neither is theoretical: the
-      // server's `Surfaces` had the same shape and the review that found it
-      // there is the reason this one is written this way.
-      const held = this.table.get(slot) ?? new Map<string, unknown>()
-      // The refusal is INSIDE the body so it is the fiber's own failure — a
-      // throw at the call site would land after registrations the runtime would
-      // then have to unwind by hand.
-      if (held.has(key)) {
-        throw new Error(
-          `plugins: "${plugin}" hangs two faces in "${slot}" under "${key}" — `
-            + `the second would replace the first with nothing said.`,
-        )
-      }
-      held.set(key, face)
-      this.table.set(slot, held)
-      this.config.changed?.()
-      return () => {
-        held.delete(key)
-        if (held.size === 0) this.table.delete(slot)
-        this.config.changed?.()
-      }
-    })
-  }
-
-  /**
-   * WHAT IS HUNG IN A PLUGIN-KEYED SLOT, in mount order.
-   *
-   * Mount order is BUNDLE order, because that is the order the rows are mounted
-   * in — so the bar's cluster and the mount fold read top-down as the file
-   * reads, and a plugin whose half must sit inside another's is expressed by
-   * moving a row. Nothing needs to today, and the ordering is stated rather
-   * than left to a `Map`'s insertion order being noticed later.
-   */
-  hung<S extends PluginSlot>(slot: S): ReadonlyArray<Hung<SlotFaces[S]>> {
-    const held = this.table.get(slot)
-    if (held === undefined) return []
-    return [...held].map(([plugin, face]) => ({ plugin, face: face as SlotFaces[S] }))
-  }
-
-  /** ...and what dresses each COMPOSED KIND WORD in a kind-keyed slot. Keyed
-   *  rather than ordered: a value wears at most one of these and the lookup is
-   *  by the word the page's licence carries. */
-  dressed<S extends KindSlot>(slot: S): ReadonlyMap<string, SlotFaces[S]> {
-    return new Map(this.table.get(slot) ?? []) as ReadonlyMap<string, SlotFaces[S]>
+export interface Slots {
+  /** Hang this plugin's one face in a plugin-keyed slot, for as long as it is
+   *  loaded. */
+  readonly register: {
+    <S extends PluginSlot>(slot: S, face: SlotFaces[S]): Effect.Effect<void, never, Scope.Scope>
+    /** ...or dress one of this plugin's KINDS, by its bare word. */
+    <S extends KindSlot>(
+      slot: S,
+      kind: string,
+      face: SlotFaces[S],
+    ): Effect.Effect<void, never, Scope.Scope>
   }
 }
-
-export namespace Slots {
-  export interface Config {
-    /** TOLD WHEN A FACE ARRIVES OR LEAVES. The app wires it to a signal; this
-     *  service has never heard of Solid, which is the same split `Surfaces`
-     *  keeps one door over. */
-    readonly changed?: () => void
-  }
-}
+export const Slots = serviceTag<Slots>("slots")
 
 /**
  * THE APP'S CLOCK, and the register it ticks in.
@@ -289,77 +231,19 @@ export namespace Slots {
  * whose duration ladder drifted reads plausibly and is wrong, and nothing
  * anywhere goes red.
  *
- * ## ITS FUNCTIONS ARE BOUND, and that is a bug this shape caused once
+ * ## THE FACADE IS GONE, and with it a whole class of bug
  *
- * These three services replaced a plain RECORD the app handed every face
- * (`AppFurniture`), and a record's fields are values: `clocks.tickingOf` was a
- * function you could hold, pass to a helper, or hand to a component. A class's
- * prototype METHOD is not — detached from its receiver it reads `this.config`
- * off `undefined` — so the same expression that had been correct for the life
- * of the feature started throwing the moment the record became a service, deep
- * inside a render, on a page that happened to draw a live CI chip:
+ * This was a CLASS that restated every member of the record it wrapped, and a
+ * class's prototype method is not a value: `clocks.tickingOf`, detached from its
+ * receiver, read `this.config` off `undefined` and threw deep inside a render,
+ * on a page that happened to draw a live CI chip. Every function had to be
+ * re-declared as a bound `=` property to get back what the record already was.
  *
- *     TypeError: Cannot read properties of undefined (reading 'config')
- *
- * The call site was not wrong; the seam changed underneath it. So the fix is
- * here rather than at the one caller that happened to be found: every function
- * a plugin may hold is an `=` property, bound at construction, and holding one
- * is exactly as safe as it was when this was a record.
- *
- * ## WHY `Wired` IS NOT LIKE THIS
- *
- * Because binding it would replace a loud failure with a quiet wrong answer.
- * `Wired.client()` reads `this.ctx.fiber.name` — the CALLING fiber, through
- * Cordis's tracker proxy — so a bound copy would capture the service's own
- * context and hand every plugin whichever client the service was constructed
- * under. A method that throws when it is passed around is the right shape for
- * something whose answer depends on who is asking; a value is the right shape
- * for arithmetic. `./browser.test.ts` holds both halves.
+ * A tag's shape IS the record. There is nothing to restate, nothing to bind, and
+ * no line for a new field to fail to appear on.
  */
-/*
- * `implements AppClocks` IS THE FACADE'S ONLY GUARD, and it costs two words.
- *
- * This class restates every member of the record it wraps, and the rule "each
- * one reaches the service" was held by nobody: a field added to `AppClocks` in
- * `./plugin.ts` would silently fail to appear on `ctx.clocks`, and the first
- * thing to notice would be a plugin package's typecheck — the wrong file, in
- * the wrong repository half, naming the wrong side of the seam. The keyword
- * emits nothing and moves the failure here, onto the line that forgot.
- *
- * `Bar` deliberately does NOT carry one: its config field is `createPopover`
- * and its member is `popover`, and that rename is argued where it is spelled.
- * `implements Bar.Config` would be a different claim wearing this one's clothes.
- * `Slots` and `Wired` are not facades at all — their configs are callbacks the
- * service consumes rather than members it re-publishes.
- */
-export class Clocks extends Service implements AppClocks {
-  constructor(ctx: Context, public config: AppClocks) {
-    super(ctx, "clocks")
-  }
-
-  get SECOND(): number {
-    return this.config.SECOND
-  }
-
-  get MINUTE(): number {
-    return this.config.MINUTE
-  }
-
-  // BOUND, and every one of them — see {@link Clocks}' header. These are `=`
-  // properties rather than prototype methods so that `clocks.tickingOf` is a
-  // value a caller may hold, which is what the record they replaced already was.
-  readonly createTicking = (every: number, when?: () => boolean): (() => number) =>
-    this.config.createTicking(every, when)
-
-  readonly createNow = (started: () => string | number | null | undefined): (() => number) =>
-    this.config.createNow(started)
-
-  readonly wordsOf = (seconds: number): string => this.config.wordsOf(seconds)
-
-  readonly exactOf = (seconds: number): string => this.config.exactOf(seconds)
-
-  readonly tickingOf = (elapsedMs: number): string => this.config.tickingOf(elapsedMs)
-}
+export type Clocks = AppClocks
+export const Clocks = serviceTag<Clocks>("clocks")
 
 /**
  * THE BAR — its geometry, its breakpoint and the popover that shares its one
@@ -368,72 +252,40 @@ export class Clocks extends Service implements AppClocks {
  * Three facts about one place, which is why they are one service and the clock
  * is another: a readout that wants the pill's classes wants the breakpoint and
  * the panel too, and a plugin that draws no chrome at all wants none of the
- * three and says so by leaving this out of its `inject`.
+ * three and says so by leaving this out of its `needs`.
  *
  * `desktop` is here rather than on its own because it is the BAR's fact: the
- * pills are desktop-only, and a plugin answering that out of its own media
- * query would be a second answer to the app's breakpoint.
+ * pills are desktop-only, and a plugin answering that out of its own media query
+ * would be a second answer to the app's breakpoint.
  */
-export class Bar extends Service {
-  constructor(ctx: Context, public config: Bar.Config) {
-    super(ctx, "bar")
-  }
-
-  /** Whether this is a desktop bar. BOUND, for {@link Clocks}' reason: a
-   *  readout that hands `bar.desktop` to a `<Show when={…}>` is holding a
-   *  value, which is what it was when this was a record. */
-  readonly desktop = (): boolean => this.config.desktop()
-
+export interface Bar {
+  readonly desktop: () => boolean
   /** The pill's classes — the box is the bar's and what is drawn inside it is
    *  the plugin's, which is why this is classes rather than a component. */
-  get pill(): PillLook {
-    return this.config.pill
-  }
-
+  readonly pill: PillLook
   /** A panel that hangs off a chrome pill, whole: the portal, the layer, the
-   *  anchor and the focus cycle already spent. BOUND, for {@link Clocks}'
-   *  reason — a plugin composing its own furniture record out of these hands
-   *  the factory on, and `createPopover: ctx.bar.popover` must keep working. */
-  readonly popover = (): AppPopover => this.config.createPopover()
+   *  anchor and the focus cycle already spent. */
+  readonly popover: () => AppPopover
 }
-
-export namespace Bar {
-  export interface Config {
-    readonly desktop: () => boolean
-    readonly pill: PillLook
-    readonly createPopover: () => AppPopover
-  }
-}
+export const Bar = serviceTag<Bar>("bar")
 
 /** A DOOR ONTO A SERVED FILE — the app's router and its address grammar as the
  *  one thing a plugin wants out of them. Its own service rather than a field on
  *  the bar because it has nothing to do with the bar: a chip deep in a property
  *  run links to a file, and it draws nowhere near the chrome. */
-export class Links extends Service implements Links.Config {
-  constructor(ctx: Context, public config: Links.Config) {
-    super(ctx, "links")
-  }
-
-  get File(): FileLink {
-    return this.config.File
-  }
+export interface Links {
+  readonly File: FileLink
 }
-
-export namespace Links {
-  export interface Config {
-    readonly File: FileLink
-  }
-}
+export const Links = serviceTag<Links>("links")
 
 /**
- * THIS PLUGIN'S OWN SIBLING CLIENT — the browser twin of `ctx.surfaces`, read
- * the way `ctx.deliveries` is read.
+ * THIS PLUGIN'S OWN SIBLING CLIENT — the browser twin of `Surfaces`, read the
+ * way `Deliveries` is read.
  *
- * KEYED BY THE FIBER and not by an argument, for that door's reason exactly: a
+ * KEYED BY THE PLUGIN and not by an argument, for that door's reason exactly: a
  * client addressed by a name a caller supplies is a client one plugin can ask
  * for another's members through. The key is the sibling key the framework
- * composed this plugin's members under, which is the one word core has about
- * it.
+ * composed this plugin's members under, which is the one word core has about it.
  *
  * `unknown`, and the honesty of that is the point: core cannot type a plugin's
  * client without learning its members, which is the one thing this arrangement
@@ -442,52 +294,149 @@ export namespace Links {
  *
  * `null` is a plugin whose sibling this wire does not carry, which after the
  * roster drives the mount is a state that should not be reachable — the tab
- * mounts a fiber only for a name the roster named, and it dials that name in
- * the same breath. It is `null` rather than a throw because the honest answer
+ * mounts a plugin only for a name the roster named, and it dials that name in
+ * the same breath. It is `null` rather than a failure because the honest answer
  * to "your members are not on this wire" is a plugin that draws its
- * nothing-here arm, and a throw would take the whole fiber down for a state the
- * page can survive.
+ * nothing-here arm.
  *
- * ## CALL IT; NEVER PASS IT — the one service whose method is not bound
+ * ## A FUNCTION, and holding one is safe now
  *
- * `Clocks`, `Bar` and `Links` hand out BOUND functions, because a plugin used
- * to hold those as record fields and a prototype method detached from its
- * receiver throws (that header records the crash). This one is deliberately not
- * bound, and the difference is which failure you get for the same mistake.
- *
- * `client()` reads `this.ctx.fiber.name` — the CALLING fiber, through Cordis's
- * tracker proxy — so a bound copy would capture the service's OWN context and
- * hand every plugin whichever client the service was constructed under. That is
- * a quiet wrong answer: one plugin reading another's members, with nothing
- * anywhere going red. Unbound, `const c = ctx.wired.client; c()` throws at the
- * first call and names the line.
- *
- * A value is the right shape for arithmetic; a method is the right shape for
- * something whose answer depends on who is asking. `./browser.test.ts` holds
- * both halves, so neither can quietly become the other.
+ * It was a prototype method deliberately left unbound, because it read the
+ * CALLING fiber off a tracker proxy and a bound copy would have handed every
+ * plugin whichever client the service was constructed under — a quiet wrong
+ * answer where an unbound one at least threw. There is no proxy: this plugin's
+ * client was resolved from this plugin's own word before the plugin ever ran, so
+ * `const c = wired.client; c()` is exactly as correct as calling it in place.
  */
-export class Wired extends Service {
-  constructor(ctx: Context, public config: Wired.Config) {
-    super(ctx, "wired")
-  }
+export interface Wired {
+  readonly client: () => unknown
+}
+export const Wired = serviceTag<Wired>("wired")
 
-  client(): unknown {
-    return this.config.clientFor(this.ctx.fiber.name) ?? null
-  }
+/**
+ * THE TAB'S SIDE OF THE TABLE — what `@olai/web` holds, and the other end of
+ * every door above.
+ *
+ * The registries are READ here and WRITTEN by the plugins, which is why they are
+ * two different shapes rather than one: `Slots` has a `register` and no `hung`,
+ * and this has `hung` and no `register`.
+ */
+export interface App {
+  /** Where the plugins hang — handed to `mountPlugin` and opaque to everybody. */
+  readonly host: Host
+  /**
+   * WHAT IS HUNG IN A PLUGIN-KEYED SLOT, in mount order.
+   *
+   * Mount order is BUNDLE order, because that is the order the rows are mounted
+   * in — so the bar's cluster and the mount fold read top-down as the file
+   * reads, and a plugin whose half must sit inside another's is expressed by
+   * moving a row.
+   */
+  readonly hung: <S extends PluginSlot>(slot: S) => ReadonlyArray<Hung<SlotFaces[S]>>
+  /** ...and what dresses each COMPOSED KIND WORD in a kind-keyed slot. Keyed
+   *  rather than ordered: a value wears at most one of these and the lookup is
+   *  by the word the page's licence carries. */
+  readonly dressed: <S extends KindSlot>(slot: S) => ReadonlyMap<string, SlotFaces[S]>
+  /**
+   * ...AND THE APP'S OWN FURNITURE, provided in a SECOND call.
+   *
+   * Two calls rather than one config, and the reason is a GRAPH rather than
+   * taste: the clock, the bar and the file door are assembled in a `.tsx` (a
+   * link is a component and a popover portals one), and the module that opens
+   * this runtime is a `.ts` reached by the chat panel — so a static import from
+   * there would put a JSX factory on the graph of a suite that only wanted a
+   * lookup. A plugin that beats this call sits `waiting` on the service it named
+   * and starts when it arrives, which is the runtime's own guarantee rather than
+   * something an ordering has to be careful about.
+   */
+  readonly furnish: (
+    furniture: { readonly clocks: Clocks; readonly bar: Bar; readonly links: Links },
+  ) => Effect.Effect<void, never, Scope.Scope>
 }
 
-export namespace Wired {
-  export interface Config {
-    readonly clientFor: (plugin: string) => unknown
-  }
+/** WHAT THE TAB SUPPLIES — everything a plugin must not reach for itself. */
+export interface AppConfig {
+  /** TOLD WHEN A FACE ARRIVES OR LEAVES. The app wires it to a signal; this
+   *  runtime has never heard of Solid, which is the same split `Surfaces` keeps
+   *  one door over. */
+  readonly changed?: () => void
+  /** One plugin's own sibling client, by name — `null` where this wire does not
+   *  carry it. */
+  readonly clientFor?: (plugin: string) => unknown
 }
 
-declare module "cordis" {
-  interface Context {
-    bar: Bar
-    clocks: Clocks
-    links: Links
-    slots: Slots
-    wired: Wired
-  }
-}
+/**
+ * OPEN THE TAB'S PLUGIN RUNTIME — the host, the services on it, and the two
+ * reads back.
+ *
+ * SCOPED, because every `provide` is; in a tab that scope is the page's, which
+ * is the process.
+ */
+export const openApp = (config: AppConfig = {}): Effect.Effect<App, never, Scope.Scope> =>
+  Effect.gen(function*() {
+    const host = yield* openHost
+    /** Slot → key → face. Two levels rather than one composite key, because the
+     *  walks read a whole slot and never a single composite. */
+    const table = new Map<SlotName, Map<string, unknown>>()
+
+    yield* provide(host, Slots, (plugin) => ({
+      register: (slot: SlotName, second: unknown, third?: unknown) =>
+        Effect.acquireRelease(
+          Effect.suspend(() => {
+            const keyed = SLOTS[slot].keyedBy === "kind"
+            const key = keyed ? kindWordOf(plugin, second as string) : plugin
+            const face = keyed ? third : second
+            // THE TABLE AND THE TEST ARE BOTH READ HERE, inside `acquire`, and
+            // the second half of that was wrong for a round: they were computed
+            // where `register` was CALLED, which made them a snapshot of that
+            // moment rather than of the moment the registration takes. A plugin
+            // that unloads and comes back re-runs its `apply` after its
+            // finalizers have taken the key back out; a captured `already` would
+            // still say `true` and refuse the face it had just unwound, and a
+            // captured `held` would write into a `Map` this table had already
+            // dropped when the slot emptied — an entry that exists for the
+            // plugin and is invisible to every reader.
+            const held = table.get(slot) ?? new Map<string, unknown>()
+            if (held.has(key)) {
+              return Effect.die(
+                new Error(
+                  `plugins: "${plugin}" hangs two faces in "${slot}" under "${key}" — `
+                    + "the second would replace the first with nothing said.",
+                ),
+              )
+            }
+            held.set(key, face)
+            table.set(slot, held)
+            config.changed?.()
+            return Effect.succeed({ held, key })
+          }),
+          ({ held, key }) =>
+            Effect.sync(() => {
+              held.delete(key)
+              if (held.size === 0) table.delete(slot)
+              config.changed?.()
+            }),
+        ).pipe(Effect.asVoid),
+    } as Slots))
+
+    yield* provide(host, Wired, (plugin) => ({
+      client: () => config.clientFor?.(plugin) ?? null,
+    }))
+
+    return {
+      host,
+      hung: <S extends PluginSlot>(slot: S): ReadonlyArray<Hung<SlotFaces[S]>> => {
+        const held = table.get(slot)
+        if (held === undefined) return []
+        return [...held].map(([plugin, face]) => ({ plugin, face: face as SlotFaces[S] }))
+      },
+      dressed: <S extends KindSlot>(slot: S): ReadonlyMap<string, SlotFaces[S]> =>
+        new Map(table.get(slot) ?? []) as ReadonlyMap<string, SlotFaces[S]>,
+      furnish: (furniture) =>
+        Effect.gen(function*() {
+          yield* provide(host, Clocks, () => furniture.clocks)
+          yield* provide(host, Bar, () => furniture.bar)
+          yield* provide(host, Links, () => furniture.links)
+        }),
+    }
+  })

@@ -47,7 +47,8 @@
 
 import { declaredKinds } from "@olai/bundle/bundle"
 import type { KindVocabulary } from "@olai/format"
-import type { Context } from "cordis"
+import type { Plugins } from "@olai/plugin-api/services"
+import { Effect } from "effect"
 
 /**
  * The vocabulary, for a runtime whose plugins are already mounted.
@@ -63,7 +64,10 @@ import type { Context } from "cordis"
  * importing every plugin's server module to find out what words it would have
  * taught.
  */
-export const propKinds = async (ctx: Context | null): Promise<KindVocabulary> =>
-  ctx === null
-    ? { built: new Map(), enabled: new Map() }
-    : { built: await declaredKinds(), enabled: ctx.kinds.table() }
+export const propKinds = (plugins: Plugins | null): Effect.Effect<KindVocabulary> =>
+  plugins === null
+    ? Effect.succeed({ built: new Map(), enabled: new Map() })
+    : Effect.map(
+      declaredKinds,
+      (built) => ({ built, enabled: plugins.kinds() }),
+    )

@@ -6,7 +6,7 @@
  *
  * `OlaiPlugin` was a VALUE: an object with `dressings`, `chrome`, `mount` and
  * `mark` on it, listed in a compiled-in registry and walked by four modules in
- * `@olai/web`. A browser half is a Cordis FIBER now — `name`, `inject`,
+ * `@olai/web`. A browser half is a PLUGIN now — `name`, `needs`,
  * `apply(ctx)`, exactly its server half — and what it used to declare it now
  * REGISTERS, into the six slots `./browser.ts` declares. So the hooks retired
  * with the object that carried them and what stayed here is the DRAWING
@@ -84,7 +84,7 @@
  * it at one line of one list in a package the plugin's author was not editing.
  *
  * It is what the SERVER half already does, and there the import is not
- * optional: a server half is a Cordis plugin now, and `inject` names the
+ * optional: a server half is an Effect now, and `needs` names the
  * services in `./services.ts`.
  *
  * ## Everything is optional but the name, the surface and its faces
@@ -241,8 +241,8 @@ export type FileLink = (props: {
  * on the other side of the wire: a field per appliance is a general package
  * naming one. That argument is intact and is not what retired it. What retired
  * it is that a browser half is a FIBER now, so there is something to inject
- * INTO — a plugin NAMES what it needs in its `inject` and Cordis holds it
- * `PENDING` until it exists, which is the same guarantee its server half has
+ * INTO — a plugin NAMES what it needs in its `needs` and the runtime holds it
+ * `waiting` until it exists, which is the same guarantee its server half has
  * had since the bundle became rows. `./browser.ts` declares the four; the
  * shapes above are what each of them carries, unchanged. */
 

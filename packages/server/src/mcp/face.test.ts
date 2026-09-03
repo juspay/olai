@@ -92,7 +92,7 @@ interface Face {
 const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
   Effect.gen(function*() {
     const root = served()
-    const { store } = yield* openDirectory(root, yield* Effect.promise(() => propKinds(null)))
+    const { store } = yield* openDirectory(root, yield* propKinds(null))
     // A real ops layer with commits OFF: this face is about READING, and `off`
     // is the one mode that asks git nothing at all. The edit procedures are
     // bound to it too and this face exposes none of them, so what they cost

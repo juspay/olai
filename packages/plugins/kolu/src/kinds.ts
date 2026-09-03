@@ -48,7 +48,7 @@
  * validator and the write planner, and from `./browser.tsx` for the WORD alone
  * — the face is registered under it, so one constant serves the probe and the
  * face. (It was `./plugin.ts` on that second door, when a browser half was a
- * manifest object; the half is a Cordis plugin now and the constant it wants is
+ * manifest object; the half is an Effect now and the constant it wants is
  * the same one.) What it may not do is drag this plugin's SolidJS faces onto the
  * graph of a process that renders nothing, and it does not: what it imports is
  * one constant from `@olai/kolu-client/wire`, which is schemas and names.

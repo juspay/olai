@@ -25,8 +25,8 @@
  * `PLUGINS`, `WIRES` and `SERVERS` — the three lists that named every plugin
  * this build has — are `@olai/bundle`'s now, beside the `.yml` the server's
  * loader mounts them from. What made the split necessary is that a plugin
- * IMPORTS this package: its server half is a Cordis plugin whose `inject` names
- * the services in {@link ./services.ts}, and a package that both named every
+ * IMPORTS this package: its server half is an Effect whose `needs` names the
+ * service tags in {@link ./services.ts}, and a package that both named every
  * plugin and was named by every plugin is a cycle the manifests decline to
  * express. So the interface stayed and the registry moved, and the arrow
  * between them runs one way.
@@ -56,13 +56,14 @@
  * ## THE TWO DOORS
  *
  * This one is what a BROWSER half is written against: the SLOTS its faces hang
- * in and the services it names in its `inject` ({@link ./browser.ts}), the face
+ * in and the service tags it names in its `needs` ({@link ./browser.ts}), the face
  * types that say what each of those faces is handed ({@link ./plugin.ts}, whose
  * fields return `JSX.Element`), and the shapes both halves share
  * ({@link ./contract.ts}). {@link ./services.ts} is what a SERVER half is
- * written against, and it names `cordis` and no browser face where this one
+ * written against, and it names `effect` and no browser face where this one
  * names `solid-js` as well: a server that reached a browser face would evaluate
- * a `.tsx` and die on `react/jsx-dev-runtime` before it served anything.
+ * a `.tsx` and die on `react/jsx-dev-runtime` before it served anything. Neither
+ * names `cordis`: the plugin runtime is `@olai/effect-cordis`'s alone.
  */
 
 export type {
@@ -98,10 +99,23 @@ export type {
  *  is handed. Both come through this door because both are what a browser half
  *  is written against, and neither is reachable from `./services.ts`. */
 export type {
+  App,
+  AppConfig,
+  Host,
   Hung,
   KindSlot,
   PluginSlot,
   SlotFaces,
   SlotName,
 } from "./browser.ts"
-export { Bar, Clocks, Links, SLOTS, Slots, Wired } from "./browser.ts"
+export {
+  Bar,
+  Clocks,
+  definePlugin,
+  Links,
+  mountPlugin,
+  openApp,
+  SLOTS,
+  Slots,
+  Wired,
+} from "./browser.ts"

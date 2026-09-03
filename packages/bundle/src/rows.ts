@@ -48,33 +48,33 @@
  * holding, and the tab is no longer holding it.
  */
 
-import type { Context } from "cordis"
+import type { Plugin } from "@olai/effect-cordis"
 
 export { BROWSER_ROWS } from "./rows.generated.ts"
 
 /**
- * ONE PLUGIN'S BROWSER HALF, as the tab mounts it — a Cordis plugin, exactly
- * the shape its SERVER half is, plus the surface the tab dials it by.
+ * ONE PLUGIN'S BROWSER HALF, as the tab mounts it — the module a row's chunk
+ * resolves to, which is a plugin and the surface the tab dials it by.
  *
- * `name` is the row's `id` and the sibling key; the fiber is bound under it, so
- * it is the stamp `ctx.slots` and `ctx.wired` read off `ctx.fiber.name` — never
- * off anything a caller supplies.
+ * `default` is the plugin, exactly the shape its SERVER half is: `definePlugin`
+ * over an Effect whose `needs` the runtime holds it `waiting` against, and whose
+ * registrations are finalizers on its own scope. That is the same guarantee its
+ * server half has had since the bundle became rows — and the reason a face no
+ * longer takes the app's furniture as a prop.
  *
- * `surface` is the same value the server half serves, and it is here because
- * the tab has to DIAL this sibling before its faces can read anything. That is
- * why the browser half is one chunk rather than two: what the roster names, the
- * tab both dials and mounts, in one fetch.
+ * `name` is the row's `id` and the sibling key; the plugin is bound under it, so
+ * it is the stamp the slot table and the client lookup are minted from — never
+ * anything a caller supplies.
  *
- * `inject` and `apply` are Cordis's own. A browser half that names `slots` in
- * its `inject` is held `PENDING` until the app has provided it, which is the
- * same guarantee its server half has had since the bundle became rows — and the
- * reason a face no longer takes the app's furniture as a prop.
+ * `surface` is the same value the server half serves, and it is here because the
+ * tab has to DIAL this sibling before its faces can read anything. That is why
+ * the browser half is one chunk rather than two: what the roster names, the tab
+ * both dials and mounts, in one fetch.
  */
 export interface BrowserHalf {
   readonly name: string
   readonly surface: { readonly spec: unknown }
-  readonly inject?: ReadonlyArray<string>
-  readonly apply: (ctx: Context) => void | (() => void)
+  readonly default: Plugin
 }
 
 /**

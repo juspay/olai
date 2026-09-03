@@ -80,7 +80,7 @@ export const BuiltPlugin = Schema.Struct({
    * WHY, IN ONE WORD — the five states {@link pluginState} narrows to, and the
    * one thing `running` cannot say.
    *
-   * A plugin is a Cordis fiber now, and `false` covers four different mornings:
+   * A plugin is a fiber now, and `false` covers four different mornings:
    * the operator's flag left it out, the BUILD leaves it out until somebody
    * asks, its `apply` threw, or it is still waiting on a service that has not
    * arrived. Those want four different sentences under the row, and one of them
@@ -195,7 +195,7 @@ export type BuiltPlugin = typeof BuiltPlugin.Type
  *                worth a person's attention when they went looking for a chip.
  *   - `failed`   its `apply` threw. The one word that is a FAULT: it was asked
  *                for, it is absent, and nothing else on screen says so.
- *   - `waiting`  the fiber is `PENDING` on a service that has not arrived. Not
+ *   - `waiting`  the plugin is waiting on a service that has not arrived. Not
  *                reachable while everything a plugin injects is mounted before
  *                the bundle is, and declared here because the runtime that can
  *                produce it is already the one running.

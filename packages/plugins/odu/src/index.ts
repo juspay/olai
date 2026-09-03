@@ -28,7 +28,7 @@
  *
  * No `: OlaiPlugin` on the value below, and no annotation left to put there:
  * the type retired with the manifest object it described — a browser half is a
- * Cordis plugin now (`./browser.tsx`) — and the registry whose `satisfies`
+ * plugin written as an Effect now (`./browser.tsx`) — and the registry whose `satisfies`
  * proved the fit retired with it, because `@olai/bundle` is rows naming modules
  * a loader resolves rather than a list of imported halves.
  *

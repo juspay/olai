@@ -31,16 +31,22 @@ import type { Chat, Faulted, Scoped } from "@olai/chat"
 import { DEFAULT_BUNDLE_NAMES } from "@olai/bundle"
 import type { RowReport } from "@olai/bundle/bundle"
 import { BUNDLE_NAMES as PLUGIN_NAMES } from "@olai/bundle"
-import type { Deliveries } from "@olai/plugin-api/services"
-import { DeliveryDoors, Surfaces, Vault, Wakes } from "@olai/plugin-api/services"
-import { Context, FiberState } from "cordis"
+import type { Deliveries, Plugins } from "@olai/plugin-api/services"
+import {
+  definePlugin,
+  Deliveries as DeliveriesTag,
+  mountPlugin,
+  openPlugins,
+  Surfaces,
+  Wakes,
+} from "@olai/plugin-api/services"
 import type { CollectionDeltasMsg } from "@kolu/surface/define"
 import { defineSurface } from "@kolu/surface/define"
 import { NO_KINDS } from "@olai/format"
 import * as Store from "@olai/store"
 import { NodeServices } from "@effect/platform-node"
 import { expect, mock, test } from "bun:test"
-import { Effect, Fiber, Queue, Schema, Stream, SubscriptionRef } from "effect"
+import { Effect, Fiber, Queue, Schema, Scope, Stream, SubscriptionRef } from "effect"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
@@ -88,7 +94,7 @@ const withRuntime = <A>(
      *  is composed, which is the only way to reach the live re-compose from
      *  here. Every other case gets its plugins mounted before `bind` and has no
      *  use for it. */
-    readonly plugins: Context | null
+    readonly plugins: Plugins | null
   }) => Effect.Effect<A, unknown>,
   /**
    * The two slots the doorbell's gates need and no other test here does —
@@ -100,7 +106,7 @@ const withRuntime = <A>(
    * reading test here is that machine. `plugins` is WHICH DOUBLES to mount:
    * `undefined` is no plugin runtime at all ({@link rosterOf}'s `NO_ROSTER`),
    * `[]` is a mounted runtime with nothing in it, and a list is the doubles a
-   * case built. What is behind a name is a Cordis plugin object with no
+   * case built. What is behind a name is a plugin with no
    * appliance under it ({@link doubleCalled}) — this harness mounts what the
    * runtime is handed and never looks inside it.
    */
@@ -141,7 +147,7 @@ const withRuntime = <A>(
      *  see the `plugins` field the harness yields. */
     const mounted = extra.plugins === undefined
       ? null
-      : yield* Effect.promise(() => mounting(extra.plugins ?? [], () => extra.chat ?? null, onChange))
+      : yield* mounting(extra.plugins ?? [], () => extra.chat ?? null, onChange)
     const wired = yield* bind({
       store,
       chat: extra.chat ?? null,
@@ -162,7 +168,7 @@ const withRuntime = <A>(
       // what stands behind their names is a double with no appliance under it
       // ({@link doubleCalled}).
       plugins: mounted === null ? null : {
-        ctx: mounted,
+        plugins: mounted,
         onChange,
         built: (extra.plugins ?? []).map((one) => one.name),
         pinned: null,
@@ -647,17 +653,25 @@ test("a revision that changes no pin sends no frame", () =>
  * WHAT A COMPOSITION ROOT HANDS THE ROSTER — the two facts a browser is told,
  * with an inert runtime behind them.
  *
- * `ctx` is a bare Cordis context with nothing mounted on it, because these
- * cases are about the ROSTER's arithmetic and never about a fiber: what is
- * running is the second argument, handed in, so a case can say "the flag left
- * it on and nothing mounted" — which is a real state and the one the old
- * derivation could not express.
+ * `plugins` is a runtime with nothing mounted on it, because these cases are
+ * about the ROSTER's arithmetic and never about a plugin: what is running is the
+ * second argument, handed in, so a case can say "the flag left it on and nothing
+ * mounted" — which is a real state and the one the old derivation could not
+ * express.
  */
+const EMPTY_PLUGINS: Plugins = Effect.runSync(
+  Effect.provideService(
+    openPlugins({ vars: {}, now: () => STARTED, served: "/tmp" }),
+    Scope.Scope,
+    Scope.makeUnsafe(),
+  ),
+)
+
 const offering = (
   pinned: ReadonlyArray<string> | null = null,
   report: ReadonlyMap<string, RowReport> = new Map(),
 ): PluginRuntime => ({
-  ctx: new Context(),
+  plugins: EMPTY_PLUGINS,
   onChange: { run: () => {} },
   built: PLUGIN_NAMES,
   pinned,
@@ -960,42 +974,44 @@ test("a sibling the rooted bundle refuses takes only its own fiber down, and the
         // A surface with a cell and DEPS THAT DO NOT MENTION IT — the shape a
         // plugin's own `satisfies` makes unspellable in its own package, which
         // is why reaching it here takes a double rather than a tenant.
-        const bad = {
+        const bad = definePlugin({
           name: "refused",
-          inject: ["surfaces"] as const,
-          apply(ctx: Context) {
-            ctx.surfaces.register({
+          needs: [Surfaces],
+          apply: Effect.gen(function*() {
+            yield* (yield* Surfaces).register({
               surface: defineSurface({ cells: { fleet: { schema: Schema.String, default: "" } } }),
               faces: {},
               deps: {},
             })
-          },
-        }
-        const refused = plugins.plugin(bad)
-        // `Fiber.await()` rethrows what the fiber landed on, and what this case
-        // is about is the STATE and the TABLE rather than that rethrow.
-        yield* Effect.promise(() => refused.await().catch(() => {}))
+          }),
+        })
+        const refused = yield* mountPlugin(plugins.host, bad)
 
-        // FAILED, and nothing of it on the wire. The ENUM rather than `3`: this
-        // phase deleted olai's own numbering of a fiber's states in favour of
-        // the pin's, and a literal here would be that numbering reintroduced as
-        // a magic number — silently wrong the day upstream inserts a state.
-        expect(refused.state).toBe(FiberState.FAILED)
-        expect(plugins.surfaces.composed().map((one) => one.name)).toEqual([])
+        // FAILED, and nothing of it on the wire. The WORD rather than a fiber
+        // state: this file holds what a composition root can see, and what a
+        // composition root can see is the four words the bridge answers with.
+        expect((yield* refused.report).state).toBe("failed")
+        expect(plugins.composed().map((one) => one.name)).toEqual([])
         expect(Object.keys(wired.bound.handlers).length).toBe(before)
 
         // ...and the next plugin in is untouched by it, which is the half that
         // was false: it composes, its tag is served, and the roster says so.
-        const healthy = plugins.plugin({
-          name: "healthy",
-          inject: ["surfaces"] as const,
-          apply(ctx: Context) {
-            ctx.surfaces.register({ surface: defineSurface({}), faces: {}, deps: {} })
-          },
-        })
-        yield* Effect.promise(() => healthy.await().catch(() => {}))
-        expect(healthy.state).toBe(FiberState.ACTIVE)
-        expect(plugins.surfaces.composed().map((one) => one.name)).toEqual(["healthy"])
+        const healthy = yield* mountPlugin(
+          plugins.host,
+          definePlugin({
+            name: "healthy",
+            needs: [Surfaces],
+            apply: Effect.gen(function*() {
+              yield* (yield* Surfaces).register({
+                surface: defineSurface({}),
+                faces: {},
+                deps: {},
+              })
+            }),
+          }),
+        )
+        expect((yield* healthy.report).state).toBe("running")
+        expect(plugins.composed().map((one) => one.name)).toEqual(["healthy"])
 
         // The roster a browser reads carries the truth about both: the build has
         // no rows here (these doubles are not the bundle's), so what it says is
@@ -1105,32 +1121,31 @@ const RINGING = {
  * revision is its own bench; what this file owns is that core drives it.
  */
 const doubleCalled = (name: string, wake?: typeof RINGING) => {
-  let door: { scopes: Deliveries["scopes"]; deliver: Deliveries["deliver"] } | undefined
+  let door: { scopes: Deliveries["scopes"]; deliver: (...args: Parameters<Deliveries["deliver"]>) => void } | undefined
   return {
     name,
-    plugin: {
+    plugin: definePlugin({
       name,
-      inject: ["deliveries", "surfaces", "wakes"] as const,
-      apply(ctx: Context) {
-        // The door is the SERVICE, reached through this fiber's own context —
-        // so what is recorded is exactly what this plugin can do, keyed by the
-        // name the registry bound it under and by nothing this file passed in.
+      needs: [DeliveriesTag, Surfaces, Wakes],
+      apply: Effect.gen(function*() {
+        // The door is the SERVICE, as this plugin's own `needs` handed it over —
+        // so what is recorded is exactly what this plugin can do, minted from the
+        // name the registry bound it under and from nothing this file passed in.
+        const deliveries = yield* DeliveriesTag
         door = {
-          scopes: () => ctx.deliveries.scopes(),
-          deliver: (to, say, options) => ctx.deliveries.deliver(to, say, options),
+          scopes: () => deliveries.scopes(),
+          // RUN, because a case reads this door from outside an Effect: the
+          // service's `deliver` is one, and the harness is the boundary.
+          deliver: (...args) => void Effect.runFork(deliveries.deliver(...args)),
         }
-        if (wake !== undefined) ctx.wakes.register(wake)
-        ctx.surfaces.register({ surface: NOTHING, faces: {}, deps: {} })
-        // NO VAULT DOORS HERE. This double used to `ctx.on` the two vault
-        // EVENTS, which cost nothing because an event needs no `inject`. They
-        // are `ctx.vault` doors now, and naming `vault` in the list above would
-        // hold this fiber PENDING in a harness that mounts no `Vault` — so the
-        // double would never apply, and every doorbell case here would fail
-        // saying no plugin rings. Nothing in this file asserted on them anyway;
-        // what they are FOR — containment, and leaving with the fiber — is
-        // `@olai/plugin-api`'s `services.test.ts`, against a real `Vault`.
-      },
-    },
+        if (wake !== undefined) yield* (yield* Wakes).register(wake)
+        yield* (yield* Surfaces).register({ surface: NOTHING, faces: {}, deps: {} })
+        // NO VAULT DOORS HERE, and no `Vault` in the list above. Nothing in this
+        // file asserts on them; what they are FOR — containment, and leaving with
+        // the plugin — is `@olai/plugin-api`'s `services.test.ts`, against the
+        // real ones.
+      }),
+    }),
     /** The door this double's fiber was handed. THROWS rather than answering an
      *  empty one, because a case that reaches for it before anything mounted
      *  this plugin is asking a question with no answer, and should say so where
@@ -1143,49 +1158,36 @@ const doubleCalled = (name: string, wake?: typeof RINGING) => {
 }
 
 /**
- * A CONTEXT WITH THE SERVICES ON IT AND `doubles` MOUNTED — what a composition
- * root is handed, built for one case.
+ * A PLUGIN RUNTIME WITH `doubles` MOUNTED — what a composition root is handed,
+ * built for one case.
  *
- * Every service the doubles inject, and no more: this is the harness saying out
- * loud that a plugin sees what it names. `deliveries` is the one with anything
- * behind it, and its `doorFor` is the chat the case built — asked per call, the
- * way `./serve.ts` asks it, so a door minted before the chat existed is not a
- * door frozen empty.
+ * The whole runtime is opened, exactly as `./serve.ts` opens one: the doubles
+ * name what they name and see what they named, which is the harness saying that
+ * out loud rather than assembling a subset by hand. `doorFor` is the chat the
+ * case built — asked per call, the way `./serve.ts` asks it, so a door minted
+ * before the chat existed is not a door frozen empty.
+ *
+ * SCOPED to the case: the scope is never closed, because a runtime.test's
+ * runtimes live as long as the case does and there is nothing here to hold open
+ * against a second one.
  */
-const mounting = async (
+const mounting = (
   doubles: ReadonlyArray<ReturnType<typeof doubleCalled>>,
   chat: () => Chat | null,
   onChange: { run: () => void },
-): Promise<Context> => {
-  const ctx = new Context()
-  await ctx.plugin(DeliveryDoors, {
-    doorFor: (who) => {
-      const door = chat()?.doorFor(who)
-      if (door === undefined) return null
-      // THE SAME BRIDGE `./serve.ts` MAKES, and for the same reason: the chat`s
-      // `deliver` is an Effect and a plugin`s caller is a watcher sink with
-      // nowhere to put one. A harness that skipped it would be a harness in
-      // which every delivery silently never happened.
-      return {
-        scopes: door.scopes,
-        deliver: (to, say, options) => {
-          Effect.runFork(door.deliver(to, say, options))
-        },
-      }
-    },
-  })
-  await ctx.plugin(Wakes)
-  // THE VAULT, because the composition root reaches for its doors on every
-  // published revision — `plugins.vault.published(snapshot)`. It used to reach
-  // for an EVENT, which needed nothing mounted, so this harness could leave the
-  // service out; a door cannot be called on a service that is not there, and
-  // the doorbell cases below drive their faults through exactly that call.
-  // `served` is the double's own directory, which none of these cases reads.
-  await ctx.plugin(Vault, { served: "/tmp" })
-  await ctx.plugin(Surfaces, { changed: () => onChange.run() })
-  for (const one of doubles) await ctx.plugin(one.plugin)
-  return ctx
-}
+): Effect.Effect<Plugins> =>
+  Effect.gen(function*() {
+    const plugins = yield* openPlugins({
+      vars: {},
+      now: () => STARTED,
+      // The double's own directory, which none of these cases reads.
+      served: "/tmp",
+      doorFor: (who) => chat()?.doorFor(who) ?? null,
+      changed: () => onChange.run(),
+    })
+    for (const one of doubles) yield* mountPlugin(plugins.host, one.plugin)
+    return plugins
+  }).pipe(Effect.provideService(Scope.Scope, Scope.makeUnsafe()))
 
 /** The one conversation every case below is about — a PAIR, because a session
  *  id means nothing to the wrong agent (`@olai/chat`'s `scopes.ts`). */

@@ -260,7 +260,8 @@ export interface Options {
    * a daemon started after olai is picked up by the next conversation instead of
    * at the next restart.
    *
-   * A THUNK — and an ASYNC one — rather than the list itself, and that is the
+   * A THUNK — and one that answers an EFFECT — rather than the list itself, and
+   * that is the
    * second half of the same sentence. The list used to be built once at boot, which was exact
    * while the set of integrations could not move; it can now — a plugin is a
    * fiber on the root.s side of this wall, and one that unloads takes its probe
@@ -268,11 +269,14 @@ export interface Options {
    * copy. What it costs is nothing here: the answer was already asked per
    * session, and now the QUESTION is too.
    *
-   * ASYNC because the root may have to WAIT to answer it, and a synchronous
+   * AN EFFECT because the root may have to WAIT to answer it, and a synchronous
    * signature would make that unsayable — the caller would collect whatever had
    * been settled by the time it returned and drop the rest, silently, on a path
    * whose whole subject is a tool that is missing. One microtask per session
-   * open buys that away.
+   * open buys that away. It is an Effect rather than a promise because the root's
+   * answer is one: the plugins are Effects, the waterfall that collects their
+   * thunks is an Effect, and a promise here would be a bridge with a fiber on
+   * both sides of it.
    *
    * OMITTED IS EMPTY, and that is the useful default rather than a convenience.
    * Every test in this package opens sessions against a fixture agent and has no
@@ -281,7 +285,7 @@ export interface Options {
    * `beforeEach` to stop one, which is a test reaching into the process to
    * silence a dependency it could not name.
    */
-  readonly probes?: () => Promise<ReadonlyArray<Probe>>
+  readonly probes?: () => Effect.Effect<ReadonlyArray<Probe>>
   /** Where "which conversation is the panel's" is kept between one serve of
    *  this directory and the next ({@link ./memory.ts}). Handed in rather than
    *  built here for the reason the tool server is: this module is the one that
@@ -1501,7 +1505,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       // ({@link Options.probes}). What comes back is the same list `probed` has
       // always taken, and the bounded concurrency below is untouched.
       Effect.flatMap(
-        Effect.promise(() => options.probes?.() ?? Promise.resolve([])),
+        options.probes?.() ?? Effect.succeed([]),
         probed,
       ),
       // ONE probing answers both halves, and both are read off the ONE array

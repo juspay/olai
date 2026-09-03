@@ -26,9 +26,9 @@
  */
 
 import { kindWordOf, type PropKind } from "@olai/plugin-api"
-import { Kinds } from "@olai/plugin-api/services"
+import { definePlugin, Kinds, mountPlugin, openPlugins } from "@olai/plugin-api/services"
 import { expect, test } from "bun:test"
-import { Context } from "cordis"
+import { Effect, Scope } from "effect"
 
 import { declaredKinds } from "./bundle.ts"
 import { ROWS } from "./rows.ts"
@@ -44,24 +44,39 @@ const kind = (word: string): PropKind => ({
   admits: () => true,
 })
 
-/** A context with the kinds registry on it and `teaching` mounted as fibers —
- *  which is the only way a word gets into the table now, and the reason these
- *  cases build a runtime rather than call a function. */
+/** ONE PLUGIN THAT TEACHES WORDS — exactly the shape a real one is, because
+ *  registering a kind IS what a real one does with this service. */
+const teacher = (name: string, words: ReadonlyArray<PropKind>) =>
+  definePlugin({
+    name,
+    needs: [Kinds],
+    apply: Effect.gen(function*() {
+      const vocabulary = yield* Kinds
+      for (const each of words) yield* vocabulary.register(each)
+    }),
+  })
+
+/** A runtime with `teaching` mounted — which is the only way a word gets into
+ *  the table, and the reason these cases build one rather than call a function.
+ *
+ *  ONE SCOPE for the whole case, and the Effects are run at the EDGE: a case is
+ *  an ordinary `async` test, and what it wants to read afterwards is a plain
+ *  table. */
 const taught = async (
   teaching: ReadonlyArray<{ readonly name: string; readonly kinds: ReadonlyArray<PropKind> }>,
-): Promise<Context> => {
-  const ctx = new Context()
-  await ctx.plugin(Kinds)
+) => {
+  const scope = Scope.makeUnsafe()
+  const run = <A>(work: Effect.Effect<A, never, Scope.Scope>): Promise<A> =>
+    Effect.runPromise(Effect.provideService(work, Scope.Scope, scope))
+  const plugins = await run(openPlugins({ vars: {}, now: () => "", served: "/" }))
+  const mounted = new Map<string, Awaited<ReturnType<typeof run<{
+    readonly report: Effect.Effect<{ readonly state: string; readonly fault?: string }>
+    readonly dispose: Effect.Effect<void>
+  }>>>>()
   for (const one of teaching) {
-    await ctx.plugin({
-      name: one.name,
-      inject: ["kinds"] as const,
-      apply(inner: Context) {
-        for (const each of one.kinds) inner.kinds.register(each)
-      },
-    })
+    mounted.set(one.name, await run(mountPlugin(plugins.host, teacher(one.name, one.kinds))))
   }
-  return ctx
+  return { table: plugins.kinds, mounted, run }
 }
 
 const KOLU = { name: "kolu", kinds: [kind("terminal")] }
@@ -71,63 +86,49 @@ test("the word a vault declares is the plugin's own, PREFIXED with the plugin", 
   // What a person writes in `_olai/Properties.olai`, and what a page's licence
   // carries. The bare word is the plugin's contribution and never reaches a
   // vault by itself.
-  const ctx = await taught([KOLU, ODU])
-  expect([...ctx.kinds.table().keys()].sort()).toEqual(["kolu-terminal", "odu-worktree"])
+  const { table } = await taught([KOLU, ODU])
+  expect([...table().keys()].sort()).toEqual(["kolu-terminal", "odu-worktree"])
   // ...and the entry says the composed word too, so a reader that took the
   // ENTRY rather than the key gets one answer rather than the bare one.
-  expect(ctx.kinds.table().get("kolu-terminal")?.kind).toBe("kolu-terminal")
+  expect(table().get("kolu-terminal")?.kind).toBe("kolu-terminal")
 })
 
 test("...and the KEY it claims by convention is that same word, exactly", async () => {
   // THE HUMAN'S RULING, as an equality rather than a sentence: a mounted plugin
   // auto-declares one key and it carries the plugin's name. There is no
   // arrangement of rows under which mounting kolu declares `terminal`.
-  const ctx = await taught([KOLU, ODU])
-  for (const [word, entry] of ctx.kinds.table()) expect([word, entry.claims]).toEqual([word, word])
+  const { table } = await taught([KOLU, ODU])
+  for (const [word, entry] of table()) expect([word, entry.claims]).toEqual([word, word])
 })
 
 test("the prefix is the FIBER's name and not anything the plugin passed in", async () => {
   // The stamp that used to be threaded by a composition root. A plugin hands
   // over a bare word and has no way to say what it is prefixed with: the
-  // service reads `this.ctx.fiber.name`, which is the word the registry bound
-  // this fiber under. So a plugin mounted as `odu` claims `odu-…` whatever it
-  // calls itself inside.
-  const ctx = new Context()
-  await ctx.plugin(Kinds)
-  await ctx.plugin({
-    // The runtime binds the fiber under THIS name…
-    name: "odu",
-    inject: ["kinds"] as const,
-    apply(inner: Context) {
-      // …and the row the plugin hands over says nothing about a prefix at all.
-      inner.kinds.register(kind("worktree"))
-    },
-  })
-  expect([...ctx.kinds.table().keys()]).toEqual(["odu-worktree"])
+  // service the plugin is handed was MINTED from the word the registry bound
+  // this fiber under, so there is no argument on `register` for a prefix to
+  // arrive through. A plugin mounted as `odu` claims `odu-…` whatever it calls
+  // itself inside.
+  //
+  // The runtime binds the fiber under `odu`, and the row the plugin hands over
+  // says nothing about a prefix at all.
+  const { table } = await taught([{ name: "odu", kinds: [kind("worktree")] }])
+  expect([...table().keys()]).toEqual(["odu-worktree"])
 })
 
 test("a word leaves the vocabulary when its plugin unloads", async () => {
-  // The registration is an EFFECT, which is the whole difference between a
-  // registry and a runtime: what a plugin taught goes with it, in reverse, with
-  // nothing on the other side of the wall to remember to do it.
-  const ctx = new Context()
-  await ctx.plugin(Kinds)
-  const fiber = ctx.plugin({
-    name: "kolu",
-    inject: ["kinds"] as const,
-    apply(inner: Context) {
-      inner.kinds.register(kind("terminal"))
-    },
-  })
-  await fiber.await()
-  expect([...ctx.kinds.table().keys()]).toEqual(["kolu-terminal"])
-  await fiber.dispose()
-  expect(ctx.kinds.table().size).toBe(0)
+  // The registration is a FINALIZER on the plugin's scope, which is the whole
+  // difference between a registry and a runtime: what a plugin taught goes with
+  // it, in reverse, with nothing on the other side of the wall to remember to do
+  // it.
+  const { table, mounted, run } = await taught([KOLU])
+  expect([...table().keys()]).toEqual(["kolu-terminal"])
+  await run(mounted.get("kolu")!.dispose)
+  expect(table().size).toBe(0)
 })
 
 test("a plugin that teaches no word contributes nothing, which is a whole plugin", async () => {
-  const ctx = await taught([{ name: "quiet", kinds: [] }])
-  expect(ctx.kinds.table().size).toBe(0)
+  const { table } = await taught([{ name: "quiet", kinds: [] }])
+  expect(table().size).toBe(0)
 })
 
 test("THE COMPOSITION IS INJECTIVE — the separator is refused inside either half", () => {
@@ -167,36 +168,16 @@ test("...so the only reachable collision is one WORD twice, and it names both pl
   // shape is a build whose bundle names two plugins whose prefixes collide,
   // which cannot happen while the prefix IS the id. What is left, and what this
   // holds, is that the refusal is there and says who.
-  const ctx = new Context()
-  await ctx.plugin(Kinds)
-  await ctx.plugin({
-    name: "kolu",
-    inject: ["kinds"] as const,
-    apply(inner: Context) {
-      inner.kinds.register(kind("terminal"))
-    },
-  })
-  // A SECOND FIBER under a name a first one already claimed a word for. It
-  // throws in `apply`, which lands THIS fiber in `FAILED` with the first
-  // untouched — a plugin's collision is that plugin's failure and not the
-  // boot's.
-  let refused: unknown
-  const second = ctx.plugin({
-    name: "kolu",
-    inject: ["kinds"] as const,
-    apply(inner: Context) {
-      try {
-        inner.kinds.register(kind("terminal"))
-      } catch (thrown) {
-        refused = thrown
-      }
-    },
-  })
-  await second.await()
-  expect(String(refused)).toContain("kolu-terminal")
+  // A SECOND PLUGIN under a name a first one already claimed a word for. It DIES
+  // in its `apply`, which lands THIS plugin in `failed` with the first untouched
+  // — a plugin's collision is that plugin's failure and not the boot's.
+  const { table, mounted } = await taught([KOLU, { name: "kolu", kinds: [kind("terminal")] }])
+  const second = await Effect.runPromise(mounted.get("kolu")!.report)
+  expect(second.state).toBe("failed")
+  expect(String(second.fault)).toContain("kolu-terminal")
   // ...and the first plugin's word is still in the table, judged by the first
   // plugin — which is the property the silence would have taken away.
-  expect([...ctx.kinds.table().keys()]).toEqual(["kolu-terminal"])
+  expect([...table().keys()]).toEqual(["kolu-terminal"])
 })
 
 /**
@@ -214,7 +195,7 @@ test("...so the only reachable collision is one WORD twice, and it names both pl
  * filtered by anything.
  */
 test("the built vocabulary carries every row's words, whatever the flag said", async () => {
-  const built = await declaredKinds()
+  const built = await Effect.runPromise(declaredKinds)
   // Not vacuous: this build's rows teach words, and the walk above found them.
   expect(ROWS.length).toBeGreaterThan(0)
   expect(built.size).toBeGreaterThan(0)
@@ -238,7 +219,7 @@ test("the built vocabulary carries every row's words, whatever the flag said", a
  * drift and the real plugins can.
  */
 test("a plugin's own composed word is the one the bundle composes", async () => {
-  const built = await declaredKinds()
+  const built = await Effect.runPromise(declaredKinds)
   const expected = WIRES.flatMap((wire) => {
     const row = ROWS.find((one) => one.id === wire.name)
     if (row === undefined) throw new Error(`no bundle row for ${wire.name}`)

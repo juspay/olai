@@ -995,18 +995,32 @@ const ROOT_DECLARED: ReadonlySet<string> = new Set(dependencyNames(manifestAt(RE
  *  claims is about is theirs — so they are imported anywhere, like `effect`.
  *  Confining them would be confining the framework to a tenant.
  *
- *  `cordis` and `@cordisjs/plugin-*` are the SAME TIER and the arm is
- *  PERMANENT, which is the one thing that changed about this rule this phase.
- *  It arrived in the spike as a note saying "drop the two arms the day the
- *  spike is deleted"; the spike is deleted and the arms stayed, because Cordis
- *  is now the runtime olai's server composition is built on — a plugin imports
- *  it to type its own `apply`, the composition root mounts the bundle on it,
- *  and the interface package's services extend its `Service`. Confining it to a
- *  tenant would be confining the framework to a tenant, which is exactly the
- *  sentence above one pin over. It is hydrated from the npins pin
- *  (`nix/cordis.nix`) the way every `@kolu/*` member is, which is why it needs
- *  the arm at all. */
-const FRAMEWORK = /^(?:@kolu\/surface(-[a-z]+)*|cordis|@cordisjs\/plugin-[a-z]+)(\/|$)/
+ *  `cordis` AND `@cordisjs/plugin-*` USED TO BE ON THIS LINE, and taking them
+ *  off is this phase. The arm arrived in the spike as a note saying "drop it the
+ *  day the spike is deleted"; the spike was deleted and the arm stayed, because
+ *  Cordis had become the runtime the server composition was built on — a plugin
+ *  imported it to type its own `apply`, the composition root mounted the bundle
+ *  on it, the interface package's services extended its `Service`, and confining
+ *  a framework to a tenant is exactly what the sentence above refuses.
+ *
+ *  It is not the framework any more; it is an ENGINE, behind one package. olai
+ *  is written in Effect, and `@olai/effect-cordis` is the translation: a plugin
+ *  is an Effect, `inject` is the requirement channel, and nothing else in this
+ *  tree names Cordis at all. So the specifier goes back to being an ordinary
+ *  hydrated one — confined, like `@kolu/padi-client` and `@odu/run-client`, by
+ *  the claims below — with {@link BRIDGE} as the one package allowed to reach
+ *  it. */
+const FRAMEWORK = /^@kolu\/surface(-[a-z]+)*(\/|$)/
+
+/** THE ENGINE, and the one package that may see it.
+ *
+ *  Not a tenant and not a tier: `packages/effect-cordis` is a general package
+ *  every other one may import, and what is confined is the specifier rather than
+ *  the package. The exemption is written as an equality below rather than only
+ *  as this arm, so a second package reaching for `cordis` is red BY NAME rather
+ *  than merely uncounted. */
+const BRIDGE = "effect-cordis"
+const ENGINE = /^(?:cordis|@cordisjs\/plugin-[a-z]+)(\/|$)/
 
 /** Is this specifier, named by this package, a HYDRATED one — copied into the
  *  root `node_modules` from a Nix pin, where every package resolves it whether
@@ -1023,6 +1037,9 @@ const isHydrated = (pkg: string, spec: string, own: ReadonlySet<string>): boolea
   if (spec.startsWith("node:") || spec.startsWith("bun:") || spec === "bun") return false
   if (spec.startsWith("@olai/")) return false
   if (FRAMEWORK.test(spec)) return false
+  // THE ENGINE, INSIDE ITS ONE PACKAGE — see {@link BRIDGE}. Everywhere else it
+  // is an ordinary hydrated specifier and the claims below refuse it.
+  if (pkg === BRIDGE && ENGINE.test(spec)) return false
   const name = packageOf(spec)
   if (ROOT_DECLARED.has(name) || own.has(name)) return false
   return existsSync(path.join(REPO, "node_modules", name))
@@ -1172,6 +1189,46 @@ describe("an appliance's product tier stays inside its tenant", () => {
       odu: true,
       "xyne-spaces": false,
     })
+  })
+
+  /**
+   * THE ENGINE IS BEHIND ONE PACKAGE — the claim the human's ruling is, as an
+   * equality.
+   *
+   * *olai uses Effect; for an architecture with no hacks or escape hatches,
+   * plugins are written in Effect and Cordis is an engine nobody outside one
+   * package sees.* Everything about that sentence is checkable and nothing about
+   * it is checked by the confinement arm above on its own: `isHydrated` exempts
+   * the bridge, so a second package naming `cordis` goes red as an unconfined
+   * hydrated specifier — which is true, and reads as a tier failure rather than
+   * as the thing it is.
+   *
+   * So the set is written down. A package that starts naming the engine is red
+   * HERE, by name, with the ruling in the failure; and the day the bridge is
+   * renamed or split, this line is the one that says so rather than a tenancy
+   * arithmetic three claims down.
+   *
+   * BOTH GRAMMARS, because both are how a name gets in: what a source IMPORTS
+   * (any of the four forms `specifiersOf` reads) and what a manifest DECLARES.
+   * The bridge declares neither — the engine is hydrated from the npins pin into
+   * the ROOT `node_modules`, and a manifest naming it would send bun to a
+   * registry that does not have it — so the manifest half of this is empty
+   * everywhere, including in the one package the import half allows.
+   */
+  test("Cordis is an engine nobody outside one package sees", () => {
+    const naming = packages.filter((pkg) =>
+      (tree.get(pkg) ?? []).some((source) => source.specs.some((spec) => ENGINE.test(spec)))
+    )
+    expect(naming).toEqual([BRIDGE])
+    // ...and the bridge is a real package with the engine really on its graph,
+    // so the equality above is not passing over a name nobody uses at all.
+    expect(packages).toContain(BRIDGE)
+    for (const pkg of packages) {
+      expect(
+        dependencyNames(manifestAt(path.join(PACKAGES, pkg))).filter((one) => ENGINE.test(one)),
+        pkg,
+      ).toEqual([])
+    }
   })
 
   test("every DEBT key is a package, and none of them is exempt anyway", () => {
