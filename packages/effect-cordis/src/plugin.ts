@@ -38,6 +38,7 @@
 import type { Context as CordisContext } from "cordis"
 import { Cause, Context, Effect, Exit, FiberSet, Scope } from "effect"
 
+import { failed } from "./broadcast.ts"
 import { held } from "./host.ts"
 import type { ServiceKey } from "./service.ts"
 
@@ -83,16 +84,31 @@ export const PluginName = Context.Reference<string>("effect-cordis/PluginName", 
  * FIRE AND FORGET, because every caller is a sink with nowhere to put a
  * failure. The work's error channel is `never` for the same reason: a callback
  * from somebody else's timer is not a place to decide what a failure means.
+ *
+ * ## ...AND FORGET IS NOT SILENT
+ *
+ * It was. The fiber this forks is discarded, a failing one only settles a
+ * `Deferred` nobody joins, and effect's error reporting is opt-in — so a defect
+ * in detached work vanished: no log, no fault, no row. That is the one seam
+ * every plugin drives its real work through (a doorbell walk, a snapshot the
+ * mirror persists, a heartbeat), and it was the only one of the three
+ * fire-and-forget edges in this package that said nothing, where a bus and a
+ * waterfall both name the plugin and carry the cause.
+ *
+ * So the work is wrapped in the same {@link ./broadcast.ts}'s `contained` the
+ * other two use, with this plugin's own word on the line — read off
+ * {@link PluginName}, which is provided into every `apply` before it runs.
  */
 export type Detach = (work: Effect.Effect<void>) => void
 
 /** The seam, for the scope that yields it. */
-export const detached: Effect.Effect<Detach, never, Scope.Scope> = Effect.map(
-  FiberSet.makeRuntime<never, void, never>(),
-  (run) => (work) => {
-    run(work)
-  },
-)
+export const detached: Effect.Effect<Detach, never, Scope.Scope> = Effect.gen(function*() {
+  const who = yield* PluginName
+  const run = yield* FiberSet.makeRuntime<never, void, never>()
+  return (work) => {
+    run(Effect.catchCause(work, (cause) => failed(who, "detached work", cause)))
+  }
+})
 
 /** ANY SERVICE KEY, whatever it is a key FOR — the constraint {@link needs}
  *  takes, and the reason it is written as an intersection is that both halves
@@ -173,7 +189,21 @@ export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>>(
       // which is what "lands FAILED having installed nothing" means when the
       // plugin got halfway. Closing with the failing exit is also what tells a
       // finalizer it is unwinding rather than shutting down.
-      await Effect.runPromiseWith(host.services)(Scope.close(scope, exit))
+      //
+      // AND THE UNWIND MAY FAIL TOO, which is why this is `Exit` rather than a
+      // bare await. `Scope.close` is typed `Effect<void>` and is not infallible:
+      // it collects every finalizer's exit and ends on their combination, so one
+      // dying finalizer made this promise REJECT — and the `throw` below never
+      // ran, so what Cordis recorded as the row's fault, and what an operator
+      // then read on the preferences row, was the CLEANUP's defect rather than
+      // the plugin's. The plugin's failure is the subject of this whole arm; it
+      // wins, and a finalizer that died on the way out is said beside it.
+      const unwound = await Effect.runPromiseExitWith(host.services)(Scope.close(scope, exit))
+      if (Exit.isFailure(unwound)) {
+        await Effect.runPromiseWith(host.services)(
+          failed(who, "unwinding after a failed start", unwound.cause),
+        )
+      }
       throw Cause.squash(exit.cause)
     }
     return () => Effect.runPromiseWith(host.services)(Scope.close(scope, Exit.void))

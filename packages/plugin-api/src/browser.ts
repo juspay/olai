@@ -336,12 +336,16 @@ export interface App {
   /** Where the plugins hang — handed to `mountPlugin` and opaque to everybody. */
   readonly host: Host
   /**
-   * WHAT IS HUNG IN A PLUGIN-KEYED SLOT, in mount order.
+   * WHAT IS HUNG IN A PLUGIN-KEYED SLOT, in REGISTRATION order — which is
+   * arrival order, and is deliberately not a promise to anybody.
    *
-   * Mount order is BUNDLE order, because that is the order the rows are mounted
-   * in — so the bar's cluster and the mount fold read top-down as the file
-   * reads, and a plugin whose half must sit inside another's is expressed by
-   * moving a row.
+   * It said "mount order is BUNDLE order, because that is the order the rows are
+   * mounted in". The first clause is true of a first load and false of every
+   * frame after one: a re-compose skips the plugins already up, so a plugin that
+   * arrives later is appended after them whatever the file says. A caller that
+   * needs the bundle.s order imposes it on the RESULT, against a list that is
+   * written down — `@olai/web`.s `hung` does, the way `@olai/server`.s
+   * `probes.ts` does for the session.s servers.
    */
   readonly hung: <S extends PluginSlot>(slot: S) => ReadonlyArray<Hung<SlotFaces[S]>>
   /** ...and what dresses each COMPOSED KIND WORD in a kind-keyed slot. Keyed

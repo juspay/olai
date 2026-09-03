@@ -29,7 +29,7 @@
  * its own word so it cannot be asked for under another plugin's name.
  *
  * They are provided BEFORE any plugin, which is what makes a `waiting` plugin
- * unreachable in this phase and is the same order `/server`'s `serve.ts`
+ * unreachable in this phase and is the same order `@olai/server`'s `serve.ts`
  * keeps. A plugin that named a service nobody provides would simply never
  * start, and the preferences row would say `waiting`.
  *
@@ -48,7 +48,7 @@
  * which is also what stops it being a second call somebody can forget.
  */
 
-import type { BrowserHalf } from "@olai/bundle"
+import { BUNDLE_NAMES, type BrowserHalf } from "@olai/bundle"
 import {
   type App,
   type Hung,
@@ -168,9 +168,17 @@ export const composeTo = async (
       // — not on the next roster frame, not after a redial that rebuilt
       // everything else. Nothing about the failure says it is permanent: a half
       // whose `apply` reached for a member the wire had not settled, or died on
-      // a value one frame of the roster carried, deserves the next frame. The
-      // runtime has already unwound whatever it had registered, so dropping the
-      // entry leaves no residue behind it.
+      // a value one frame of the roster carried, deserves the next frame.
+      //
+      // DISPOSED BEFORE IT IS DROPPED, and the line above used to say the
+      // disposal was unnecessary: *the runtime has already unwound whatever it
+      // had registered, so dropping the entry leaves no residue.* That is true
+      // of the plugin's own SCOPE — its finalizers ran — and false of the fiber
+      // the registry is holding, which stays with its error retained. Every
+      // redial that re-tried a permanently broken half appended another, for the
+      // life of the tab, and `rowReport`'s "a row has exactly one fiber" stopped
+      // being true of that name.
+      await run(plugin.dispose)
       mounted.delete(name)
       // ...AND IT SAYS SO. The containment is right and the SILENCE was not: a
       // half whose `apply` threw registers no faces, so the plugin is simply
@@ -196,12 +204,42 @@ export const composeTo = async (
   }
 }
 
-/** WHAT IS HUNG IN A PLUGIN-KEYED SLOT, in mount order — tracked, so a caller
- *  reading it inside a memo or a component re-reads when a plugin arrives or
- *  leaves. */
+/**
+ * WHAT IS HUNG IN A PLUGIN-KEYED SLOT, IN THE BUNDLE'S ORDER — tracked, so a
+ * caller reading it inside a memo or a component re-reads when a plugin arrives
+ * or leaves.
+ *
+ * ## The order is IMPOSED here, and it was only claimed
+ *
+ * The slot table hands its entries back in REGISTRATION order, and the header
+ * over it said that was the bundle's "because that is the order the rows are
+ * mounted in". The first clause is true and the second does not follow:
+ * {@link composeTo} skips survivors, so a plugin that arrives on a LATER roster
+ * frame is appended after every plugin already up, whatever the file says. Two
+ * rosters — `[odu]`, then `[odu, kolu]` — and `app.mount` folds kolu inside odu
+ * where the file asks for the reverse.
+ *
+ * This is the same defect `@olai/server`'s `probes.ts` diagnosed for the
+ * session's servers and answered the same way: collect whatever arrives, then
+ * read it against the build's own list. The table cannot see the bundle and must
+ * not claim to; this can, so the claim lives here.
+ *
+ * A name the bundle does not know sorts LAST, in the order it was hung — the
+ * behaviour an out-of-tree plugin will want the day `olai plugin add` lands.
+ */
 export const hung = <S extends PluginSlot>(slot: S): ReadonlyArray<Hung<SlotFaces[S]>> => {
   moved()
-  return app.hung(slot)
+  return [...app.hung(slot)].sort((one, other) => rank(one.plugin) - rank(other.plugin))
+}
+
+/** WHERE A NAME SITS IN THE BUILD'S LIST, and `BUNDLE_NAMES.length` for one that
+ *  is not in it — so a stranger sorts after every row rather than before every
+ *  one of them, which is what a bare `indexOf` and its `-1` would do.
+ *  `Array.prototype.sort` is stable, so two strangers keep the order they were
+ *  hung in. */
+const rank = (plugin: string): number => {
+  const at = BUNDLE_NAMES.indexOf(plugin)
+  return at === -1 ? BUNDLE_NAMES.length : at
 }
 
 /** ...and what dresses each composed KIND WORD, the same way. */
