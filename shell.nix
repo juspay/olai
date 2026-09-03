@@ -120,6 +120,7 @@ pkgs.mkShell {
   # there is nothing here to declare.
   packages = with pkgs; [
     bun
+    git # scripts/e2e-fast-remote.sh initialises each copied worktree
     just
     jq # scripts/check-hydrated-deps.sh — the one thing that reads a pin's JSON
     nixpkgs-fmt
