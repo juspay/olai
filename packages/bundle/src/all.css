@@ -1,4 +1,4 @@
-/* THE PLUGINS' SHEETS — the fourth door, and the one no reading of a `.ts`
+/* THE PLUGINS' SHEETS — the third door, and the one no reading of a `.ts`
  * file can see.
  *
  * ## Why the app cannot import them directly
@@ -24,15 +24,24 @@
  * one floor down and the rule its header states: a package that ships a
  * stylesheet carries its own prerequisites and points Tailwind at ITSELF.
  *
- * ## Every BUILT plugin, not every ENABLED one
+ * ## Every BUILT plugin, not every ENABLED one — and this is the ONE door
+ * where that is still true
  *
  * `--plugins` is a decision the SERVE makes and a stylesheet is built once for
  * the bundle, so a serve with a plugin switched off still ships its classes.
- * That is the honest cost of compiled-in plugins and it is the same one the wire
- * already pays — the browser dials every plugin the BUILD has, and what a serve
- * leaves out is a sibling whose members are simply not there (`@olai/web`'s
- * `client/wire.ts` argues that in full). Unused utility classes are bytes;
- * a face drawn with none of them is a bug. */
-@import "olai-plugin-kolu/all.css";
-@import "olai-plugin-odu/all.css";
-@import "olai-plugin-xyne-spaces/all.css";
+ * Everything else about a disabled plugin in the tab has stopped costing
+ * anything at all — its code is its own chunk and the roster is what fetches
+ * one, so an off plugin is never evaluated and registers nothing
+ * (`./rows.ts`). A stylesheet cannot be that: CSS has no roster and no chunk to
+ * be told about one, and utilities Tailwind emitted at build time are in the
+ * sheet whoever asks for it. Unused utility classes are bytes; a face drawn
+ * with none of them is a bug.
+ *
+ * ## The chain is GENERATED, and this file is the door
+ *
+ * The three `@import` lines were hand-written, which made this one of the
+ * places `olai.yml` was not the only place a plugin is named.
+ * `../generate.ts` writes them now, out of the same rows the server mounts and
+ * the tab loads, into `./all.generated.css`. What stays here is the argument,
+ * because a generated file is a bad place to keep one. */
+@import "./all.generated.css";

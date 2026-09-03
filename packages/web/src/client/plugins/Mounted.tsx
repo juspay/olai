@@ -16,88 +16,58 @@
  * `olai.clients.kolu`, which is a general package writing a plugin's name in
  * its own App, and the second would have to read `clients.odu.cells.ci`, which
  * is core spelling a plugin's member. Neither is allowed and neither is
- * necessary: the app hands each plugin ITS OWN CLIENT, addressed by the one
- * word core has, and what is behind the word is that plugin's business
- * (`@olai/plugin-api`'s `PluginMount`).
+ * necessary: a plugin reaches its OWN client through `ctx.wired`, keyed by its
+ * fiber, and this file hands over nothing but the page.
  *
  * ## A FOLD, not a list
  *
  * The mounts nest — each wraps the page and whatever is already inside — so the
- * composition is a right fold over the registry rather than a fixed number of
- * JSX levels. Registry ORDER is the nesting order, outermost first, and that is
- * a fact worth stating rather than an accident: it is the order `PLUGINS` is
- * written in, so a plugin whose half must sit inside another's would be
- * expressed by moving a line in the registry — and today nothing needs to,
- * because no plugin's mount reads another's context.
+ * composition is a right fold over the slot rather than a fixed number of JSX
+ * levels. MOUNT ORDER is the nesting order, outermost first, and that is a fact
+ * worth stating rather than an accident: it is the order `olai.yml` lists its
+ * rows in, so a plugin whose half must sit inside another's would be expressed
+ * by moving a row — and today nothing needs to, because no plugin's mount reads
+ * another's context.
  *
  * What it must NOT be is a `.map()` into siblings — these wrap, they do not sit
  * beside each other.
  *
- * ## THE FOLD IS OVER WHAT THIS SERVE COMPOSED, and waits to find out
+ * ## THE WAIT IS GONE, and so is the licence that needed it
  *
- * It was over the BUILD, and grok's review named the gap. A plugin's mount is
- * where its members are BOUND — kolu's takes five, odu's takes one — so folding
- * the build subscribes every plugin the binary has, whatever the serve is
- * running. On a `--plugins=odu` serve that is a subscription to a sibling the
- * wire does not carry: the server answers that one request with `Unknown
- * request tag`, the retry fence correctly declines to retry a non-transport
- * failure, and the readout goes `degraded` NAMING A SIBLING THE OPERATOR TURNED
- * OFF — for the life of the page, because the failure is the fiber's exit and
- * no frame can follow one. That is a complaint about a tool somebody removed
- * where the ruling is the ordinary machine-without-it state, and it is the same
- * defect the terminal door had before the evidence run found it, one layer up.
+ * This fold used to be over the BUILD's manifests, gated on a subscribe licence
+ * that answered `undefined` until the roster had spoken — because a plugin's
+ * mount is where its members are BOUND, and a subscription to a sibling this
+ * serve did not compose fails with `Unknown request tag` and LATCHES a
+ * `degraded` readout for the life of the page. So the fold waited, and the
+ * page was drawn once without providers and again with them.
  *
- * So the fold waits. `createComposed` answers `undefined` until the roster has
- * spoken and the names afterwards, and this component mounts nothing until it
- * has an answer. THE GENEROUS DEFAULT IS NOT AVAILABLE HERE, which is the
- * asymmetry with the dressing table one package over: a face drawn early and
- * taken away is a flicker, and a subscription opened early cannot be closed
- * back into the health fact. `../plugins/running.ts` argues the pair.
- *
- * ## What that costs, said out loud
- *
- * ONE re-creation of the page, on load. While the roster is unknown this draws
- * `children` with no plugin provider around them, and when the answer lands the
- * fold changes and Solid builds the subtree again inside the providers. The
- * alternative — draw NOTHING until the roster lands — was rejected because the
- * freeze overlay is inside this component (`../App.tsx`): a tab that cannot
- * reach its server has to be able to say so, and blanking the page to protect a
- * subscription would take the sentence away with it.
- *
- * The cost is bounded by two things rather than hoped away. The signature the
- * memo compares is a STRING, so a server republishing an identical roster — a
- * reconnect does — moves nothing; and the roster rides the same socket as every
- * other first frame, so the subtree being rebuilt is the one that was a beat
- * old. What it is NOT bounded by is arrival order: a page frame that lands
- * before the roster is drawn and then rebuilt, which is a flash on a cold load
- * and is the honest price of not latching a permanent lie.
+ * Neither the wait nor the rebuild is here. A plugin's fiber is mounted only
+ * after `../wire.ts` has dialled its sibling, so a face in this slot is a face
+ * whose members are on the wire by construction — the sequencing does what the
+ * licence was standing in for. A slot that is empty is a page with no plugin
+ * providers around it, which is the true state of a tab that has not been told
+ * yet and the permanent state of a serve running none.
  *
  * ## A plugin with no mount is not a lesser plugin
  *
- * `mount` is optional. A plugin whose faces are pure — no subscription of its
- * own, nothing to hold once per tab — contributes nothing here and the fold
- * skips it, which is the same absent arm every other hook on a manifest has.
+ * The `app.mount` slot is optional like every other. A plugin whose faces are
+ * pure — no subscription of its own, nothing to hold once per tab — registers
+ * nothing here and the fold skips it.
  */
 
-import { type JSX, Show } from "solid-js"
+import { createMemo, type JSX, Show } from "solid-js"
 
-import { FURNITURE } from "./furniture.tsx"
-import { ROSTER } from "./roster.ts"
-import { createComposed } from "./running.ts"
-import { clientFor } from "../wire.ts"
+import type { Hung, SlotFaces } from "@olai/plugin-api"
+
+import { hung } from "./runtime.ts"
 
 /** The page, with every plugin's tab half wrapped around it. */
 export function PluginsMounted(props: { readonly children: JSX.Element }): JSX.Element {
-  // A right fold: the LAST plugin's mount is innermost, so registry order reads
-  // top-down as the nesting reads outside-in. `children` is read through the
-  // props each time rather than captured, so Solid's own laziness over the tree
-  // is untouched — a mount that never draws its children costs nothing below it.
-  //
   // THUNKS, NOT ELEMENTS, and this is the whole correctness of the nesting.
   //
-  // The obvious spelling folds over `props.children` directly — seed the
-  // reduce with the page and wrap it a mount at a time. It compiles, it renders
-  // the right DOM, and every context is silently WRONG: interpolating an
+  // The obvious spelling folds over `props.children` directly — seed the reduce
+  // with the page and wrap it a mount at a time. It compiles, it renders the
+  // right DOM, and every context is silently WRONG: interpolating an
   // already-built `inner` means the page was CREATED in this component's owner,
   // before any plugin's provider existed, and Solid resolves a context against
   // the owner a component was created under. So every face a plugin draws deep
@@ -113,48 +83,36 @@ export function PluginsMounted(props: { readonly children: JSX.Element }): JSX.E
   // Folding over THUNKS fixes it at the root: `{inner()}` inside the JSX is
   // compiled to a getter, so each level's children are built when the mount
   // above them renders them — inside that mount's owner, under its providers.
-  const composed = createComposed()
-  // `keyed`, so the subtree is rebuilt exactly when the ANSWER moves and never
-  // when the cell merely publishes: `createComposed` hands back one array
-  // identity per distinct roster, so a reconnect that republishes the same one
-  // moves nothing here. The FALLBACK is the roster not having spoken — the
-  // children alone, with no provider around them and therefore no plugin
-  // subscription, which is the whole of what this waits for.
   //
-  // `<Show>` rather than a memo returning JSX, and it is not a style choice: a
-  // memo that BUILDS a subtree tracks every signal the components it creates
-  // read at setup, so the page would rebuild for reasons that have nothing to
-  // do with the roster. `Show` runs its children untracked, which is the same
-  // guarantee a component body has and the one the old module-scope fold got
-  // for free.
+  // The MEMO is over the slot's FACES and never over a built subtree: a memo
+  // that BUILDS one tracks every signal the components it creates read at
+  // setup, so the page would rebuild for reasons that have nothing to do with
+  // the roster. `Show` runs its children untracked, which is the same guarantee
+  // a component body has and the one the old module-scope fold got for free;
+  // `keyed` is what rebuilds the subtree exactly when a plugin's mount arrives
+  // or leaves, since `hung` hands back a fresh array only on a real change.
+  //
+  // `props.children` is read through the props each time rather than captured,
+  // so Solid's own laziness over the tree is untouched — a mount that never
+  // draws its children costs nothing below it.
+  const mounts = createMemo(() => hung("app.mount"))
   return (
-    <Show when={composed()} keyed fallback={props.children}>
-      {(names) => chainOver(names, () => props.children)()}
+    <Show when={mounts()} keyed>
+      {(faces) => chainOver(faces, () => props.children)()}
     </Show>
   )
 }
 
-/** The nesting, for the plugins this serve composed — a right fold, so registry
- *  order reads top-down as the nesting reads outside-in. */
+/** The nesting — a right fold, so mount order reads top-down as the nesting
+ *  reads outside-in. */
 const chainOver = (
-  names: ReadonlyArray<string>,
+  faces: ReadonlyArray<Hung<SlotFaces["app.mount"]>>,
   page: () => JSX.Element,
-): (() => JSX.Element) => {
-  const on = new Set(names)
-  return ROSTER.filter((plugin) => on.has(plugin.name)).reduceRight<() => JSX.Element>(
-    (inner, plugin) => {
-      const Mount = plugin.mount
-      if (Mount === undefined) return inner
-      // The client is addressed by the plugin's NAME, which is the sibling key
-      // the framework composed its members under and the only word this package
-      // has about it. It is handed over opaque: `@olai/plugin-api` types it
-      // `unknown` and the plugin narrows it once, at its own edge.
-      return () => (
-        <Mount client={clientFor(plugin.name)} app={FURNITURE}>
-          {inner()}
-        </Mount>
-      )
+): (() => JSX.Element) =>
+  faces.reduceRight<() => JSX.Element>(
+    (inner, one) => {
+      const Mount = one.face
+      return () => <Mount>{inner()}</Mount>
     },
     page,
   )
-}

@@ -67,7 +67,7 @@
  * press opens. Every one of those used to sit in a general package under a
  * kolu-shaped filename, and none of them names a `@kolu/*` package —
  * everything reaches kolu through this one and `olai-plugin-kolu`, which is what
- * `packages/plugin-api/src/fence.test.ts`'s tenancy claim holds as a fact rather
+ * `packages/bundle/src/fence.test.ts`'s tenancy claim holds as a fact rather
  * than a habit — and holds by DERIVING the tenant from the registry rather than
  * by carrying a list somebody typed.
  */

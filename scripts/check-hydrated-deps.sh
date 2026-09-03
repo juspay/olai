@@ -2,8 +2,8 @@
 # ONE PIN'S VERSION AGREEMENT — asked the same way of every pin, and asking it
 # is the whole of this script's job.
 #
-# olai consumes two pinned trees as RAW TYPESCRIPT: kolu's thirty-two members
-# (nix/kolu.nix) and `@odu/run-client` (nix/odu.nix). Neither is in bun.lock.
+# olai consumes three pinned trees as RAW TYPESCRIPT: kolu's thirty-two members
+# (nix/kolu.nix), `@odu/run-client` (nix/odu.nix) and Cordis's four (nix/cordis.nix). None of them is in bun.lock.
 # The isolated linker (bunfig.toml has the full argument) puts only the ROOT
 # package's direct dependencies into the one node_modules those hydrated
 # sources resolve from by walking up — so an external they need is olai's root
@@ -31,7 +31,7 @@
 # with `rg … 2>/dev/null || true` over `packages/*/src` — a fence that passes
 # GREEN on a machine with no ambient ripgrep (it is not in shell.nix's package
 # list) and that never saw `packages/tests`, the one member with no `src/`.
-# Those two now live in `packages/plugin-api/src/fence.test.ts`, under the pinned
+# Those two now live in `packages/bundle/src/fence.test.ts`, under the pinned
 # bun, walking the PACKAGE, with the allowed set DERIVED from the plugin
 # registry rather than typed out twice. What is left here is the half that
 # genuinely wants a shell: reading JSON out of the Nix store and comparing it

@@ -9,19 +9,28 @@
  * settings popover, whose shape this adopts: its rows read and write wire
  * singletons, because its preferences are the server's.
  *
- * **THE INSTANCE'S ROWS ARE THE EXCEPTION**, and there are two kinds of them:
- * the two GIT rows, and one row per plugin this build has. Both are this
+ * **THE INSTANCE'S ROWS ARE THE EXCEPTION**, and there are two GIT ones: this
  * INSTANCE's policy, set at launch (a flag, the nix module, or the built-in
  * default), the same in every browser, always read-only. Never hidden: a policy
  * a reader cannot see is one they cannot ask anybody about. Nothing is SENT;
- * the policy arrives on the `git` and `plugins` cells, which this panel READS
- * and never writes. Theme, font, size, notes and done are untouched by any of
- * it — those are personal view choices and there is nothing about them for a
- * server to have an opinion on. The read-only row presentation is generic
- * (`./Row.tsx`'s `setBy`) and so are the words under it (`./instance.ts`),
- * which is what let the plugin rows join without either one being widened —
- * "a future instance setting can join them" was the claim, and this is it
- * arriving.
+ * the policy arrives on the `git` cell, which this panel READS and never
+ * writes. Theme, font, size, notes and done are untouched by any of it — those
+ * are personal view choices and there is nothing about them for a server to
+ * have an opinion on.
+ *
+ * THERE WAS A THIRD KIND and it left: a row per plugin this build has. The
+ * read-only presentation is generic (`./Row.tsx`'s `setBy`) and so are the
+ * words under it (`./instance.ts`), so they JOINED without either being
+ * widened — "a future instance setting can join them" was the claim, and they
+ * were it arriving. What that showed is that the mechanism generalises and the
+ * PANEL does not: git policy is about THIS DIRECTORY, which is what the rest of
+ * this panel is about, so a person setting how their pages read is in the right
+ * place to be told what happens when they write one. Which integrations the
+ * instance runs is a different question with a different owner, and a
+ * read-only strip among live ones reads as a preference somebody disabled
+ * rather than as a fact about the serve. They are their own control in the bar
+ * now (`../plugins/Plugins.tsx`), and they took their reading and their
+ * subscription with them.
  *
  * WHAT IS ON IT is a narrower question than "every client-local value", and the
  * answer is: the ones that are a CHOICE and have nowhere else to be made. The
@@ -45,12 +54,7 @@
  * so they are rows here rather than switches on the Commit panel. TWO rows and
  * not one strip of three, because they are two independent facts: pushing a
  * commit you made by hand is the shipped case, and folding them into a single
- * Off / Auto-commit / both would take it away. The PLUGIN rows pass the same
- * test from the other side: they are not a choice this browser has, and the
- * question they answer — "why is the integration the docs describe not on this
- * screen" — has nowhere else to be asked, because what a disabled plugin leaves
- * behind is nothing at all: no chip, no pane, no error. A panel that drew only
- * the settings a reader can change would answer that by staying silent. The layout values
+ * Off / Auto-commit / both would take it away. The layout values
  * in `../layout/prefs.ts` are
  * stored the same way and are deliberately NOT here — a sidebar width is set
  * by dragging the sidebar, and a panel being open is set by the control that
@@ -71,13 +75,10 @@
 import { For, Show } from "solid-js"
 
 import { type Anchor, styleOf } from "../anchor.ts"
-import { LAYER } from "../layer.ts"
+import { PANEL_BOX } from "../readout.ts"
 import type { GitState } from "@olai/format"
 
-import { NO_ROSTER, type PluginRoster } from "@olai/surface"
-
 import { createGitPolicy } from "../commit/state.ts"
-import { olai } from "../wire.ts"
 import { askToNotify, notifyConsent } from "../notify.ts"
 import { alertsOn, alertSoundOn, setAlertsOn, setAlertSoundOn } from "./alerts.ts"
 import { density, type Density, setDensity } from "./density.ts"
@@ -89,12 +90,11 @@ import {
   pushOn,
   pushSetBy,
 } from "./policy.ts"
-import { pluginHint, pluginRows, pluginsSetBy } from "./plugins.ts"
 import { QUIET_MS } from "@olai/format"
 import { Row } from "./Row.tsx"
 import { Segmented } from "./Segmented.tsx"
 import { TARGET } from "../touch.ts"
-import { pluginPref, TESTID } from "../testids.ts"
+import { TESTID } from "../testids.ts"
 import { FontSelect } from "../theme/FontSelect.tsx"
 import { currentTypeface } from "../theme/fontState.ts"
 import { currentSize, currentTypeSize, pickSize } from "../theme/sizeState.ts"
@@ -146,15 +146,6 @@ const PUSH_CHOICES = [
   { value: "on", label: "Auto-push" },
 ] as const
 
-/** A plugin: Off / On — running, or not there at all. The same two words the
- *  alert rows use, and deliberately not `Enabled` / `Disabled`: what the strip
- *  says is whether the thing is happening, which is the reading every other row
- *  on this panel is written to. */
-const PLUGIN_CHOICES = [
-  { value: "off", label: "Off" },
-  { value: "on", label: "On" },
-] as const
-
 /** The quiet window in the words the hint says it in. Read off the value the
  *  server's loop actually waits (`@olai/format`) rather than spelled again, so
  *  the sentence cannot promise a span the loop does not keep. */
@@ -176,23 +167,14 @@ export function Panel(props: {
    *  back, so there is no signal here either. */
   const policy = createGitPolicy()
   const git = policy.git
-  /** ...and the plugin rows' door, which is the whole cell and no seam at all.
-   *
-   *  A DIRECT `use()` rather than a constructor beside `createGitPolicy`: there
-   *  is nothing to press, nothing to remember and no second reader, so a seam
-   *  would be a module wrapping one subscription. The git one exists because
-   *  the commit pill reads the same cell and calls the same `resume`; this cell
-   *  is read here and nowhere else in the app.
-   *
-   *  Before the first frame the roster is empty (`@olai/surface`'s
-   *  `NO_ROSTER`), so the panel draws no plugin rows at all rather than a set of
-   *  rows claiming everything is off. */
-  const roster = olai.cells.plugins.use()
-  const plugins = (): PluginRoster => roster.value() ?? NO_ROSTER
+  // THE `plugins` CELL IS NOT READ HERE ANY MORE. It was, for the rows that
+  // are now their own panel — and it is worth the line, because a panel that
+  // still subscribed to a cell it draws nothing from is a frame decoded per
+  // publish for nobody. The subscription moved with the rows.
   return (
     <section
       ref={props.inside}
-      class={`fixed ${LAYER.over} flex min-h-0 flex-col gap-4 overflow-y-auto overflow-x-hidden overscroll-contain rounded-2xl border-0 bg-panel p-4 text-sm shadow-xl ring-1 ring-rule/40 focus:outline-none`}
+      class={`${PANEL_BOX} gap-4`}
       style={styleOf(props.at)}
       // Focusable, and never in the tab order: opening puts the caret here so a
       // keyboard is standing IN the panel rather than beside it (`../popover.ts`
@@ -327,41 +309,15 @@ export function Panel(props: {
         />
       </Row>
 
-      {/* ONE ROW PER PLUGIN THIS BUILD HAS, and every one of them the
-          instance's — `--plugins` is CLI/nix only, so there is no verb for a
-          press to call and the strips are frozen exactly as the two git rows
-          above are (`./plugins.ts`).
-
-          A WALK, not a list: what the cell carries is a row per plugin, and
-          this file spells no plugin's name. A third plugin arrives here with
-          nothing in `@olai/web` moving, which is the same claim the fence one
-          package over holds as an equality.
-
-          THE LABEL IS THE NAME, VERBATIM — not prettified into `Kolu`. It is
-          the word `--plugins` takes, the namespace its members are composed
-          under and the docs slug, and a label that title-cased it would be the
-          one spelling of a plugin's name coming apart on the one screen that
-          tells you what to type.
-
-          NO HEADING over them, and no `Show` around them: a build with no
-          plugins draws nothing at all rather than an empty section, and a
-          heading would be a second thing to hide. */}
-      <For each={pluginRows(plugins())}>
-        {(plugin) => (
-          <Row
-            label={plugin.name}
-            pref={pluginPref(plugin.name)}
-            hint={pluginHint(plugin)}
-            setBy={pluginsSetBy(plugins())}
-          >
-            <Segmented
-              choices={PLUGIN_CHOICES}
-              value={plugin.running ? "on" : "off"}
-              frozen
-            />
-          </Row>
-        )}
-      </For>
+      {/* THE PLUGIN ROWS LEFT, and they are a control of their own in the bar
+          now (`../plugins/Plugins.tsx`). They were here, frozen, under the two
+          git rows — and the two cases look alike and are not. Git policy is
+          about THIS DIRECTORY, which is what the rest of this panel is about,
+          so a person setting how their pages read is in the right place to be
+          told what happens when they write one. Which integrations the
+          INSTANCE runs is a different question with a different owner, and a
+          read-only strip among live ones reads as a preference somebody
+          disabled rather than as a fact about the serve. */}
 
       {/* WHAT THE SERVER WOULD NOT TAKE, beside the row that asked. Resume is
           the one remaining git gesture on this panel, and a dropped socket or
@@ -384,18 +340,19 @@ export function Panel(props: {
           it: they are always the instance's, and a caveat about a feature
           nobody is using is not a caveat here — every serve has them.
 
-          THE PLUGIN ROWS ARE NAMED THE SAME WAY and in the same breath, because
-          they are the same exception rather than a second one: one launch, one
-          kind of policy, one sentence. Naming them separately would be two
-          caveats a reader has to tell apart, and the row's own line already
-          says which flag set it. They are named as a CLASS and not counted,
-          since how many there are is the build's business. */}
+          THE PLUGIN ROWS WERE NAMED HERE TOO, in the same breath, while they
+          were on this panel — the same exception rather than a second one. They
+          are a panel of their own now and this sentence stops reaching for
+          them: a caveat about rows a reader cannot see from here is a caveat
+          about nothing, and it would send somebody looking down the panel for a
+          section that is not on it. Their panel needs no line of its own —
+          `../plugins/Panel.tsx` says why. */}
       <p class="border-t border-rule pt-3 text-xs text-muted" data-testid={TESTID.prefsScope}>
         These are this browser's. They are stored here, reach every tab you have
-        olai open in, and are never sent to the server. The two git rows and the
-        plugin rows are this instance's policy, set at launch — a flag, the nix
-        module, or the built-in default. They are the same in every browser and
-        cannot be changed from one.
+        olai open in, and are never sent to the server. The two git rows are
+        this instance's policy, set at launch — a flag, the nix module, or the
+        built-in default. They are the same in every browser and cannot be
+        changed from one.
       </p>
     </section>
   )
@@ -442,8 +399,7 @@ function AllowNotify() {
  *  say which is which and not which is ON, and the ring that says so
  *  is a ring on a chip the size of a word. */
 const themeHint = (): string =>
-  `${currentTheme()} is in force. Every colour on the page is this one table, ` +
-  `so a pick repaints all of them at once.`
+  `${currentTheme()} is in use. Every colour on the page comes from it.`
 
 const fontHint = (): string => currentTypeface().hint
 
@@ -454,24 +410,17 @@ const fontHint = (): string => currentTypeface().hint
 const densityHint = (): string => {
   switch (density()) {
     case "compact":
-      return "A row is its title. A node with a note says so with a ¶ beside " +
-        "it — press that, or Space with it focused, to open the row."
+      return "Rows show titles only. Press the ¶ to open one."
     case "cozy":
-      return "A row is its title and the first line of its note, clamped — " +
-        "the shape every row had before this switch existed. The ¶ opens the " +
-        "rest, with the node's properties."
+      return "Rows show the title and one line of the note. The ¶ opens the rest."
     case "open":
-      return "Every note you have not folded yourself is already open: the " +
-        "node's properties, then the note in full. The ¶ folds one back."
+      return "Rows are already open, notes in full. The ¶ folds one back."
   }
 }
 
 /**
- * WHAT ALERTS IN FORCE MEANS, and the two things a reader has to be told: what
- * actually happens, and — the part nobody would guess — that nothing happens
- * while they are looking at the panel. A person who switches this on, watches
- * a question arrive in front of them and hears nothing would reasonably decide
- * it is broken.
+ * WHAT ALERTS IN FORCE MEANS, in one sentence: what happens when a question
+ * arrives you are not looking at.
  *
  * The banner is named as the half that needs the browser's permission, and
  * only where the browser has not granted it: on a page that can already draw
@@ -480,26 +429,20 @@ const densityHint = (): string => {
  */
 const alertsHint = (): string => {
   if (!alertsOn()) {
-    return "The agent stopping on a question is silent. The panel still says so " +
-      "where you can see it: the header's agent button, and the composer."
+    return "A question from the agent arrives silently. The header button still " +
+      "shows it."
   }
-  const said = "A question you cannot see — the panel put away, the window " +
-    "behind something else — chimes, raises a system notification, and marks " +
-    "the app's icon until you come back. A question that arrives in front of " +
-    "you does none of that: the form appearing is the alert."
+  const said = "A question you cannot see chimes, raises a notification and " +
+    "marks the app icon."
   switch (notifyConsent()) {
     case "granted":
       return said
     case "denied":
-      return `${said} This browser has refused notifications for this site, so ` +
-        "there is no banner — the chime and the icon need no permission and " +
-        "still work."
+      return `${said} You have blocked notifications here, so there is no banner.`
     case "unsupported":
-      return `${said} This browser has no system notifications, so there is no ` +
-        "banner — the chime and the icon do not need one."
+      return `${said} This browser has no notifications, so there is no banner.`
     default:
-      return `${said} The banner needs this browser's permission, which it has ` +
-        "not been asked for yet."
+      return `${said} The banner needs this browser's permission.`
   }
 }
 
@@ -507,28 +450,23 @@ const alertsHint = (): string => {
  *  rather than absent: the choice is still on screen, it just has nothing to
  *  be about. */
 const soundHint = (): string => {
-  if (!alertsOn()) return "Alerts are off, so there is nothing to make a sound."
+  if (!alertsOn()) return "Alerts are off, so nothing will sound."
   return alertSoundOn()
-    ? "One short chime with the notification. Browsers will not play a sound " +
-      "on a page nobody has touched yet, so the first one lands after your " +
-      "first click or keystroke here."
-    : "The notification and the icon mark, without a sound."
+    ? "A short chime with each notification. The first plays only after you " +
+      "click the page."
+    : "Notifications, but no sound."
 }
 
 /** What Done in force MEANS: the default, and the one way a page out-votes
  *  it — the flip beside its filter, not another row here. */
 const doneHint = (): string =>
   doneHidden()
-    ? "Finished work is hidden — a row not drawn, never a node marked or a " +
-      "file written. A page can say otherwise beside its own filter."
-    : "Finished work is shown, the page's flip beside its filter excepted."
+    ? "Finished work is hidden. A page can show it anyway from its own filter."
+    : "Finished work is shown. A page can hide it from its own filter."
 
 
-/** What Auto-commit in force MEANS, and the three things a reader has to be
- *  told: WHEN it records, that a burst is ONE commit, and that it sweeps every
- *  change in the repository rather than only the ones typed here. The last is
- *  the one nobody would guess — an agent writing over MCP restarts the same
- *  window and lands in the same commit. */
+/** What Auto-commit in force MEANS: WHEN it records, and the one gesture that
+ *  starts it again after git refuses. */
 const commitHint = (git: GitState): string => {
   // `--commit=off` FIRST, because it is not a third setting of this row — it is
   // the row having nothing to be about. Sending a reader to the Commit button
@@ -536,19 +474,15 @@ const commitHint = (git: GitState): string => {
   // a commit in; the two arms below both assume there is a history to record
   // into (`./policy.ts`'s `commitsOff`).
   if (commitsOff(git)) {
-    return "olai never touches git in this directory, so nothing is waiting " +
-      "and there is nothing here to record."
+    return "olai never touches git in this directory."
   }
   return commitOn(git)
-    ? `The server records what is waiting when writes stop arriving for ${QUIET_SECONDS} ` +
-      "seconds, so a burst of work is one commit — including writes an agent " +
-      "made, and with no browser open. A commit or a push git refuses pauses " +
-      "it until you press Resume."
-    : "A write waits. Record it with the Commit button, in the pill."
+    ? `The server records what is waiting ${QUIET_SECONDS} seconds after writes ` +
+      "stop. If git refuses one, press Resume to start it again."
+    : "A write waits for the Commit button."
 }
 
 const pushHint = (git: GitState): string =>
   pushOn(git)
-    ? "Every commit olai makes here is pushed after it is recorded — the " +
-      "button's, an agent's, and the server's own."
-    : "A commit waits. Push it from the panel."
+    ? "Every commit made here is pushed automatically."
+    : "A commit waits for the Push button."

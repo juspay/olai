@@ -43,6 +43,8 @@
  */
 
 import { existsSync, readFileSync } from "node:fs"
+
+import { ROWS } from "./rows.ts"
 import * as path from "node:path"
 
 /** Where every workspace member lives. */
@@ -341,6 +343,27 @@ const resolveWorkspace = (spec: string): Landing => {
   return { kind: "module", path: path.join(dir, target) }
 }
 
+/**
+ * ONE EDGE the walk found, with the one thing that decides whether it is
+ * followed.
+ *
+ * `dynamic` is a `import("…")` rather than an `import … from "…"`, and the
+ * difference is a BUNDLER'S: a static edge is code the door's consumer pays
+ * for at load, and a dynamic one is a CHUNK — a literal the bundler can split
+ * on and a module nothing fetches until somebody calls the thunk. That is the
+ * whole mechanism behind "a plugin the roster does not name is never
+ * evaluated" (`./rows.ts`), so a walk that followed both would be a walk that
+ * could not see it.
+ *
+ * Both are RECORDED, and only the static ones are FOLLOWED. A claim about what
+ * a door names reads every edge; a claim about what it costs reads the files
+ * the walk visited.
+ */
+export interface Edge {
+  readonly spec: string
+  readonly dynamic: boolean
+}
+
 /** One transpiler per grammar — the `ts` loader refuses JSX. The walk reads
  *  imports the RUNTIME's way (`scanImports`) rather than by position, and
  *  that is the difference between this reading and the one above it: a
@@ -355,10 +378,13 @@ export const transpilers = {
   tsx: new Bun.Transpiler({ loader: "tsx" }),
 } as const
 export const runtimeImportsOf = (file: string, text: string): ReadonlyArray<string> =>
+  edgesOf(file, text).map((one) => one.spec)
+
+/** ...and the same reading with the kind kept — see {@link Edge}. */
+export const edgesOf = (file: string, text: string): ReadonlyArray<Edge> =>
   transpilers[grammarOf(file) === "tsx" ? "tsx" : "ts"]
     .scanImports(text)
-    .map((one) => one.path)
-
+    .map((one) => ({ spec: one.path, dynamic: one.kind === "dynamic-import" }))
 /**
  * ...memoised for the WALK ALONE, keyed by the absolute path it visits.
  *
@@ -376,11 +402,11 @@ export const runtimeImportsOf = (file: string, text: string): ReadonlyArray<stri
  * either walk visited would make it answer one caller with the other's reading.
  * A cache is a mutable place; this one has exactly one writer.
  */
-const WALKED = new Map<string, ReadonlyArray<string>>()
-const importsOfModule = (file: string, text: string): ReadonlyArray<string> => {
+const WALKED = new Map<string, ReadonlyArray<Edge>>()
+const importsOfModule = (file: string, text: string): ReadonlyArray<Edge> => {
   const held = WALKED.get(file)
   if (held !== undefined) return held
-  const found = runtimeImportsOf(file, text)
+  const found = edgesOf(file, text)
   WALKED.set(file, found)
   return found
 }
@@ -415,12 +441,12 @@ const importsOfModule = (file: string, text: string): ReadonlyArray<string> => {
  * disagree about what the graph is.
  */
 export const graphFrom = (entry: string): {
-  reached: ReadonlyArray<{ file: string; spec: string }>
+  reached: ReadonlyArray<{ file: string; spec: string; dynamic: boolean }>
   files: ReadonlyArray<string>
   unresolved: ReadonlyArray<string>
 } => {
   const seen = new Set<string>()
-  const reached: Array<{ file: string; spec: string }> = []
+  const reached: Array<{ file: string; spec: string; dynamic: boolean }> = []
   const unresolved: Array<string> = []
   const visit = (file: string): void => {
     if (seen.has(file)) return
@@ -435,9 +461,15 @@ export const graphFrom = (entry: string): {
       unresolved.push(`${path.relative(PACKAGES, file)}: could not be read`)
       return
     }
-    for (const spec of importsOfModule(file, text)) {
+    for (const { spec, dynamic } of importsOfModule(file, text)) {
       const rel = path.relative(PACKAGES, file)
-      reached.push({ file: rel, spec })
+      reached.push({ file: rel, spec, dynamic })
+      // A DYNAMIC edge is RECORDED AND NOT FOLLOWED — see `Edge`. It is a
+      // chunk boundary: the specifier is a literal the bundler splits on and
+      // the module behind it is fetched by whoever calls the thunk, so a walk
+      // that crossed it would be measuring what a door NAMES as if it were
+      // what a door COSTS.
+      if (dynamic) continue
       if (spec.startsWith(".")) {
         visit(path.normalize(path.join(path.dirname(file), spec)))
         continue
@@ -459,3 +491,33 @@ export const graphFrom = (entry: string): {
 export const walkFrom = (entry: string): ReadonlyArray<{ file: string; spec: string }> =>
   graphFrom(entry).reached
 
+
+/**
+ * EVERY PLUGIN'S SERVER MODULE, LOADED — what a test reads now that no door in
+ * this package statically imports a plugin.
+ *
+ * `WIRES` used to be a compiled-in tuple of each plugin's wire half, and a test
+ * that wanted a plugin's own values read it. There is no such tuple: the rows
+ * name modules, the composition root's loader resolves them at mount and the
+ * tab's generated table resolves them at fetch, and a static import anywhere in
+ * this package would be the thing the fence now asserts is absent.
+ *
+ * So a test does what the runtime does, which is also the stronger claim: it
+ * IMPORTS BY THE ROW'S OWN NAME. A row whose module does not export what this
+ * package believes it does fails here, in the same grammar the loader would
+ * fail in, rather than at a `satisfies` on a list nobody maintains.
+ *
+ * The SERVER half, because that is the one that carries `faces` — which face
+ * may see which member is a serve's question, and a browser half answers none
+ * of it.
+ */
+export const serverHalves = async (): Promise<ReadonlyArray<ServerHalf>> =>
+  Promise.all(ROWS.map((row) => import(row.name) as Promise<ServerHalf>))
+
+/** As much of a server half as the tests in this package read. */
+export interface ServerHalf {
+  readonly name: string
+  readonly surface: { readonly spec: unknown }
+  readonly faces: Readonly<Record<string, Readonly<Record<string, unknown>>>>
+  readonly kinds?: ReadonlyArray<{ readonly kind: string }>
+}

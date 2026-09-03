@@ -1,6 +1,24 @@
 /**
- * WHAT A PLUGIN IS, as a type — the whole of what core knows about kolu, odu,
- * and xyne-spaces.
+ * WHAT A PLUGIN DRAWS, as types — the shapes on both sides of the browser
+ * seam, and the whole of what core knows about kolu, odu and xyne-spaces.
+ *
+ * ## THE MANIFEST IS GONE, and this file is what is left of it
+ *
+ * `OlaiPlugin` was a VALUE: an object with `dressings`, `chrome`, `mount` and
+ * `mark` on it, listed in a compiled-in registry and walked by four modules in
+ * `@olai/web`. A browser half is a Cordis FIBER now — `name`, `inject`,
+ * `apply(ctx)`, exactly its server half — and what it used to declare it now
+ * REGISTERS, into the six slots `./browser.ts` declares. So the hooks retired
+ * with the object that carried them and what stayed here is the DRAWING
+ * contract: what a face is handed, what it may answer with, and the three
+ * paragraphs about a mark that are the whole of what makes one column of them
+ * legible.
+ *
+ * Why the object could not survive is one sentence: a manifest is present
+ * whether or not this serve composed the plugin, so every walk over it had to
+ * carry a LICENCE beside it — and the two licences pointed opposite ways, which
+ * took a module of its own to argue. A fiber the roster never named registers
+ * nothing, so there is nothing to license.
  *
  * ## Why there is an interface at all, which reverses a ruling
  *
@@ -21,7 +39,8 @@
  * `...oduMembers.cells` is two lines that say exactly what is in the spec — and
  * a registry is one line that does not. The trade is bought back by the
  * framework's own composition, which was here the whole time
- * ({@link ./composition.test.ts}): a plugin declares a WHOLE SURFACE in its own package
+ * (`@olai/bundle`'s `composition.test.ts`, which moved with the registry): a
+ * plugin declares a WHOLE SURFACE in its own package
  * and core composes it as a SIBLING under the plugin's name, so what reaches
  * the wire is `surface/kolu/fleet/get` — computed by
  * `composeSurfaceContracts` and by nothing olai wrote. The composed group
@@ -38,23 +57,35 @@
  * `/` in a member name for the first of those reasons and offers sibling
  * composition for the rest; taking the offer is the whole of this design.
  *
- * ## The plugin does NOT import this file
+ * ## The plugin MAY import this file now, and that reverses a second ruling
  *
- * A plugin package declares its manifest as a plain `as const` object and
- * never writes `: OlaiPlugin`, because `@olai/plugin-api` imports every plugin
- * and a plugin that imported back would be a cycle the manifests could not
- * express. The agreement is proved at the REGISTRY instead
- * ({@link ./registry.ts}'s `satisfies`), which is the same move `@olai/ops`
- * makes with the surface's `Status` — *"typed as the surface's own shape,
- * which `@olai/ops` declares structurally: the two drifting is a type error
- * here rather than a mapping to maintain"* — and the same one
- * `olai-plugin-kolu`'s `appliance/props/block.ts` already makes with the drawer's entry.
+ * It could not, for one reason: this package held the REGISTRY as well as the
+ * interface, so a plugin that imported it would be a cycle the manifests could
+ * not express. A plugin's half was therefore a plain `as const` object with no
+ * annotation on it, and the agreement was proved at the registry's `satisfies`
+ * instead — the same move `@olai/ops` makes with the surface's `Status`, and the
+ * same one `olai-plugin-kolu`'s `appliance/props/block.ts` makes with the
+ * drawer's entry.
  *
- * A structural fit is a weaker guarantee than an annotation in exactly one
- * way: a typo in a member name is named at the registry rather than at the
- * plugin. It is a stronger one in the way that matters here, which is that the
- * direction of the dependency is physics rather than discipline — the wall the
- * sixth sitting ruled for, one floor up.
+ * The registry moved to `@olai/bundle` and the premise went with it. This
+ * package names no plugin at all now, so the arrow is one-way and a plugin
+ * importing what it is written against is an ordinary import — which is what
+ * every tenant's `./server.ts` and `./browser.tsx` do.
+ *
+ * The `satisfies` did not survive the move and could not have: `@olai/bundle` is
+ * ROWS, each naming a module a loader resolves at mount, and there is no list of
+ * imported halves left for a type to be asserted over. That is a stronger
+ * arrangement rather than a lost check, because the proof went to the line that
+ * is wrong instead of to a list far from it: a half hands its `surface` and its
+ * `faces` to `ctx.surfaces.register` ({@link ./services.ts}) and its drawn faces
+ * to `ctx.slots.register` ({@link ./browser.ts}), so a member name it got wrong
+ * or a slot this app does not declare is red in that plugin's own package, on
+ * the call that made the mistake — where the `satisfies` could only ever report
+ * it at one line of one list in a package the plugin's author was not editing.
+ *
+ * It is what the SERVER half already does, and there the import is not
+ * optional: a server half is a Cordis plugin now, and `inject` names the
+ * services in `./services.ts`.
  *
  * ## Everything is optional but the name, the surface and its faces
  *
@@ -65,162 +96,7 @@
  */
 
 import type { JSX } from "solid-js"
-import type { PluginWire } from "./surfaces.ts"
 
-/**
- * AN MCP SERVER TO SPAWN, in olai's terms — `@olai/chat` renders it into what
- * ACP wants, the same way it does olai's own.
- *
- * This shape was `Kolu.Server` and it never had anything kolu about it: a
- * name, an absolute path, an argv and an environment is what every stdio
- * server is. It is here because the second one to arrive would otherwise have
- * declared it again.
- *
- * `command` is ABSOLUTE, and that is load-bearing rather than tidy: it is the
- * file that answered the probe, not a word to resolve again. Handing the bare
- * word would leave the agent free to resolve it against a different PATH and
- * spawn a different build than the one that answered.
- */
-export interface StdioServer {
-  readonly name: string
-  /** Absolute: the file that answered the probe, not a word to resolve again. */
-  readonly command: string
-  readonly args: ReadonlyArray<string>
-  /** What to set when launching it, beyond what it inherits. */
-  readonly env: Readonly<Record<string, string>>
-}
-
-/**
- * ...and the other half: a server that was expected here and is not usable.
- *
- * The two arms are not the same answer, which is why a probe answers with both
- * and not with a `StdioServer | null`. A host that never had the tool had
- * nothing go wrong and is owed no sentence; a tool that is HERE and would not
- * answer is the one worth telling somebody about.
- *
- * `why` is a WHOLE SENTENCE and it is the PLUGIN'S. Core displays it and never
- * composes it — there is no template here that a plugin fills a noun into,
- * because the four ways a padi fails and the four ways a coordinator does have
- * nothing in common but that they failed, and a sentence built out of that
- * shared nothing is the debug line on a screen.
- *
- * `where` is `null` for the ways of failing that never reached a file. A path
- * is what a reader most wants and is not always a thing that exists.
- *
- * `@olai/chat` and each plugin spell this shape THEMSELVES, and the three
- * declarations are the arrangement rather than a duplication to tidy away. A
- * plugin may not import this package ({@link OlaiPlugin}'s header: the registry
- * imports every plugin), and `@olai/chat` is a general package one floor down
- * that the composition root hands a list to — so the agreement is proved where
- * the two ends meet, at `@olai/plugin-api/server`'s `probesOf` and the registry's
- * `satisfies`, and nothing below this floor learns that a plugin system exists.
- * It is the same trade {@link AppFurniture} makes in the other direction.
- */
-export interface NotHere {
-  readonly name: string
-  readonly where: string | null
-  readonly why: string
-}
-
-/** WHAT A PROBE FOUND — both halves at once, because they are one reading.
- *
- *  Two fields rather than a union, and it is an invariant with an incident
- *  behind it (`@olai/chat`'s `agent.ts`: one probe, two reads). A registry
- *  that asked once for the handing list and again for the missing list would
- *  spawn the tool twice per conversation and could answer the two questions
- *  about two different moments. */
-export interface Probed {
-  /** The server to hand a session, or `null` where there is none to hand. */
-  readonly server: StdioServer | null
-  /** What a person is owed about the one they did not get, or `null` where an
-   *  absence is the ordinary case and no fault. */
-  readonly missing: NotHere | null
-}
-
-/**
- * A PROPERTY KIND this plugin contributes to the vault's vocabulary.
- *
- * `@olai/format` owns seven kinds — `text`, `date`, `int`, `path`, `doc`,
- * `ref`, `node` — and none of them is a terminal. A plugin's vault walk USED TO
- * READ ONE HARDCODED KEY, which is name-matching, and the way that went wrong
- * was not hypothetical: `brief` and `worktree` are both `path` and only one of
- * them names a checkout to probe, so nothing could tell them apart.
- *
- * So a plugin contributes a KIND, the vault declares it in
- * `_olai/Properties.olai` like any other, and the face follows the kind
- * whatever the property is called. `@olai/format` imports no plugin — its kind
- * vocabulary is a PARAMETER and the server hands it this table as data, which
- * is the same move `KoluDeps` makes with the vault walks.
- *
- * WHAT THAT COSTS A VAULT IS NOTHING, and the two layers are why. A kind
- * claims the key equal to its own composed word ({@link ./server.ts}'s
- * `kindsOf`), so an enabled plugin declares `kolu-terminal` / `odu-worktree` for
- * a vault that has said nothing about them — and olai never writes anybody's
- * vault to do it. A row of the vault's own always wins, which is how a kind
- * moves onto a short key and how a face is taken away again.
- *
- * There is still deliberately NO FALLBACK to the key's NAME, which is a
- * different thing from the claim and is worth keeping apart: a fallback would
- * read a key's spelling and guess, where the claim is a DECLARATION like any
- * other — one a plugin can only ever make about a key carrying its own name.
- *
- * A kind whose plugin is DISABLED validates as plain text. The value is still
- * a name, nothing breaks, and it wears no face — which is exactly the state a
- * vault that declared nothing is already in.
- *
- * ## Two vocabularies, and which question reads which
- *
- * The table core assembles out of these has two halves, and the distance
- * between them is what `--plugins` means one more time ({@link ./server.ts}'s
- * `kindsOf`). A DECLARATION is refused against every kind this BINARY was built
- * with, so `{"type":"kolu-terminal"}` is a legal row on a serve running only odu and
- * `{"type":"banana"}` is refused naming every legal word; a VALUE is held to
- * the kinds this serve is RUNNING, because {@link PropKind.admits} is a promise
- * only a plugin that is here can make. A file's verdict may not depend on a
- * flag on the machine, and that split is the whole of how it does not.
- *
- * ## It is reached on the SERVER door
- *
- * Declared here, because a kind is part of what a plugin IS. Reached through
- * {@link ./server.ts}, for {@link OlaiPlugin.probe}'s reason: the vocabulary is
- * spent by the validator and the write planner, which is a process that renders
- * nothing, and a manifest carries this plugin's SolidJS faces. The browser
- * needs none of it — a vault's declarations deliberately do not travel
- * (`@olai/format`'s `meaning.ts`). What the browser gets instead is the same
- * consult's ANSWER per drawn value, which is what the dressing table one floor
- * up is keyed by ({@link Dressing}): the WORD, never the property key.
- */
-export interface PropKind {
-  /**
-   * THE BARE WORD THIS PLUGIN CONTRIBUTES — `terminal`, not `kolu-terminal`.
-   *
-   * The registry PREFIXES it with the plugin's name ({@link ./surfaces.ts}'s
-   * `kindWordOf`), so what a vault declares is `kolu-terminal` and what the
-   * page's licence carries is the same. It is the move the wire already makes
-   * with a member — a plugin declares `fleet` and the framework composes
-   * `surface/kolu/fleet/get` — and it buys the same two things here:
-   *
-   *   - two plugins cannot collide on a word, because two names cannot; and
-   *   - a plugin's BUILT-IN declaration can only ever claim a key carrying its
-   *     own name, so enabling one can never take over a column somebody has
-   *     been using for something of their own.
-   *
-   * A plugin writes the bare word once and the composition happens where the
-   * registry is. What each plugin does spell for itself is a copy of that
-   * composition for its own vault walk — it may not import this package — and
-   * `./kinds.test.ts` holds the two spellings equal.
-   */
-  readonly kind: string
-  /** What the clause naming this kind says in a refusal — `` `kolu-terminal` (a
-   *  padi terminal id)``. The plugin's own words, spent at BOTH doors (the
-   *  live write's refusal and the broken file's error), because a person
-   *  moving between them must read one sentence. It names the COMPOSED word,
-   *  because that is the one a person has to type. */
-  readonly takes: string
-  /** Whether a value fits. `false` is refused at the plan and reported by the
-   *  validator, in one sentence, {@link PropKind.takes}'. */
-  readonly admits: (value: string) => boolean
-}
 
 /**
  * WHAT THE APP HANDS A PLUGIN'S BROWSER HALF — the furniture, and the whole of
@@ -250,15 +126,24 @@ export interface PropKind {
  *
  * ## STRUCTURAL on the plugin's side, and each declares only its own half
  *
- * No plugin imports this file — {@link OlaiPlugin}'s header argues the direction
- * — so a plugin re-declares the parts of the furniture it reads, exactly as
- * `olai-plugin-kolu`'s `appliance/props/block.ts` already does with the drawer's entry. That is a
- * STRONGER agreement than a shared import rather than a weaker one: a plugin's
- * own declaration names exactly what it touches, function parameters are
- * contravariant, and so a plugin asking for something the app does not hand over
- * is a type error at the registry's `satisfies` with that plugin's name on the
- * line — while the app's richer furniture satisfies every narrower reading and
- * no plugin can see a field it did not ask for.
+ * A plugin MAY import this file (the registry moved to `@olai/bundle`, so the
+ * arrow is one-way), and several still re-declare what they read instead — so a
+ * plugin re-declares the parts of the furniture it reads, exactly as
+ * `olai-plugin-kolu`'s `appliance/props/block.ts` already does with the drawer's
+ * entry. That is a STRONGER agreement than a shared import rather than a weaker
+ * one: a plugin's own declaration names exactly what it touches, function
+ * parameters are contravariant, and so a plugin asking for something the app
+ * does not hand over is a type error — while the app's richer furniture
+ * satisfies every narrower reading and no plugin can see a field it did not ask
+ * for.
+ *
+ * WHERE that error lands moved with the manifest. It used to be the registry's
+ * `satisfies`, one line of one list, with the plugin's name on it; there is no
+ * such list, and the reading is now composed inside the plugin's own `apply` out
+ * of the services it injected (`olai-plugin-kolu`'s `browser.tsx` builds its
+ * `KoluApp` from `ctx.bar`, `ctx.clocks` and `ctx.links`). So a field asked for
+ * that the app does not hand over is red on the line that composes it, in the
+ * package that asked, which is nearer the mistake than the registry ever was.
  */
 export interface AppClocks {
   /** The ladders' units, read rather than re-typed: a readout spelling `1000`
@@ -349,22 +234,17 @@ export type FileLink = (props: {
   readonly children: JSX.Element
 }) => JSX.Element
 
-/** THE WHOLE OF WHAT A PLUGIN'S BROWSER HALF IS HANDED — see {@link AppClocks}'
- *  header for why it is handed at all.
+/* THE BLOB IS GONE, and the four services took its place.
  *
- *  ONE BLOB rather than a slot per tenant, for the reason {@link PluginServices}
- *  is one blob on the other side of the wire: a field per appliance is a general
- *  package naming one. */
-export interface AppFurniture {
-  /** Whether this is a desktop bar. The pills are desktop-only — on a phone the
-   *  bar is the wordmark, the burger and search — and a plugin deciding that
-   *  for itself would be a second answer to the app's own breakpoint. */
-  readonly desktop: () => boolean
-  readonly clocks: AppClocks
-  readonly pill: PillLook
-  readonly createPopover: () => AppPopover
-  readonly FileLink: FileLink
-}
+ * `AppFurniture` was one record with five fields, handed to every face as a
+ * prop, and the argument for one blob was the argument `PluginServices` made
+ * on the other side of the wire: a field per appliance is a general package
+ * naming one. That argument is intact and is not what retired it. What retired
+ * it is that a browser half is a FIBER now, so there is something to inject
+ * INTO — a plugin NAMES what it needs in its `inject` and Cordis holds it
+ * `PENDING` until it exists, which is the same guarantee its server half has
+ * had since the bundle became rows. `./browser.ts` declares the four; the
+ * shapes above are what each of them carries, unchanged. */
 
 /** ONE PROPERTY, as the drawer hands it to a face — the four fields a dressing
  *  may read and no more. A face that needed the node, the page or the wire would
@@ -423,135 +303,31 @@ export type PropPane = (context: BlockContext) => JSX.Element
 /** ...and a face that owns a row whether or not anything is happening. */
 export type PropBlock = (context: BlockContext) => JSX.Element
 
-/**
- * A LIVE PROPERTY'S CLOTHES, and the word the seam looks them up by.
- *
- * The three faces are `@olai/web`'s seam's, unchanged, and their argument lives
- * there: a CHIP draws in the run beside the property's own chip, a PANE draws
- * below the run when the chip's press opens it, and a BLOCK owns a row always.
- * Every field is optional and a dressing with none of them is a property that
- * draws exactly as it always did.
- *
- * ## The word is the KIND, at both ends
- *
- * It is {@link PropKind}'s word — the same one the vault walks and the value
- * gate follow, and the same one a declaration writes. One spelling, one
- * authority, so a plugin's face and its probe cannot come apart.
- *
- * IT WAS THE PROPERTY KEY for one PR window, and the reason is worth keeping
- * because it was a good reason that produced a bad shape. A vault's
- * declarations deliberately do not travel to a tab (`@olai/format`'s
- * `meaning.ts` argues why the question is settled where the set is), so the
- * browser had nothing but the key to look a face up by — and the two halves
- * therefore agreed only while a vault happened to name its key after the kind.
- * A vault declaring `terminal` on a key called `pty` was walked, probed and
- * gated, and drew nothing.
- *
- * What closed it is neither a declaration on the wire nor a member on a
- * plugin's surface: the page's own consult mints an ANSWER PER DRAWN VALUE —
- * `from`, `prop`, `value` → the word, when a running plugin's kind claims it —
- * beside the doors table it is a twin of (`@olai/format`'s `Licence`). The tab
- * still receives answers and still cannot re-derive a rule; what changed is
- * only which question the answer is to.
- */
-export interface Dressing {
-  /** The BARE KIND this dressing is looked up by — this plugin's own constant,
-   *  the same one its {@link PropKind} contributes, and never a literal at the
-   *  call site.
-   *
-   *  BARE, like the kind: the app composes it with the plugin's name when it
-   *  registers (`@olai/web`'s `live/dressings.ts`, through the registry's own
-   *  `kindWordOf`), so the table is keyed by the word a declaration writes and
-   *  the page's licence carries. A manifest spelling its own prefix would be a
-   *  second copy of the one rule that makes plugin-owned names unable to
-   *  collide or capture. */
-  readonly kind: string
-  readonly Chip?: PropChip
-  readonly Pane?: PropPane
-  readonly Block?: PropBlock
-}
 
 /**
- * THE APP'S CHROME, and what a plugin hangs in it.
+ * WHAT THE PLUGIN'S OWN FACE IS, and the three paragraphs that are the whole of
+ * the contract — kept here rather than on a slot's value type because they are
+ * about DRAWING, and `./browser.ts` is about where a drawing hangs.
  *
- * Two slots and no more: a HEADER readout (kolu's padi pill, spaces' link
- * pill) and the DRAWER a press opens (kolu's events feed). A plugin that hangs
- * neither is not a lesser plugin — odu has neither. Spaces hangs a Header with
- * no Drawer: a readout that opened nothing would be a control that lied.
- *
- * ONE ARGUMENT, and it is the furniture ({@link AppFurniture}). A slot that took
- * the plugin's own data as props would be the app reading a plugin's members to
- * fill them, which is the one thing no general package may do; a slot that took
- * nothing at all could not wear the bar's geometry. So what crosses is the app's
- * contract, and what the readout is ABOUT the plugin reads from its own half —
- * mounted once per tab by {@link PluginMount}.
- */
-export interface Chrome {
-  readonly Header?: ChromeFace
-  readonly Drawer?: ChromeFace
-}
-
-/** One thing hung in the app's chrome — see {@link Chrome} for why the furniture
- *  is its only argument. */
-export type ChromeFace = (props: { readonly app: AppFurniture }) => JSX.Element
-
-/**
- * THE PLUGIN'S OWN FACE — the mark drawn beside a sentence this plugin put into
- * somebody's conversation.
- *
- * A plugin may write into a person's chat lane ({@link Deliveries}), and the
- * panel draws such a row as a THIRD speaker beside the human and the agent.
- * Every speaker in that transcript is named by a mark, and this is where a
- * plugin's comes from: the plugin, and nowhere else.
- *
- * ## Why the manifest rather than a table in core
- *
- * `./fence.test.ts` holds it as an equality per package — no general package
- * spells a plugin's name in code — so a `MARKS = { … }` in the panel is not a
- * shortcut somebody tidies later, it is red the day it is written. That fence
- * is not pedantry here: what a tenant looks like is a drawing decision about
- * that tenant, made where somebody knows what it IS, and a core table of them
- * is a core file edited every time a plugin core has never heard of ships.
- *
- * ## Why it is not a wire member
- *
- * The wire door ({@link ./surfaces.ts}) carries a plugin's NAME and its schema
- * so a process that renders nothing can read them; a mark is SolidJS and could
- * not cross it if anybody wanted it to. It does not need to. The browser holds
- * the manifests directly (`@olai/web`'s `plugins/roster.ts` widens the
- * registry) and looks the mark up by the name core already stamped on the row
- * — one walk over one registry, which is what every other browser hook here
- * already is.
- *
- * ## Why no argument at all, where {@link ChromeFace} takes the furniture
- *
- * A chrome slot wears the bar's geometry and therefore has to be handed it. A
- * mark is a glyph at the size of the line it sits on: it takes that line's
- * colour through `currentColor` and its box from the element the panel draws it
- * inside, so there is nothing for the app to hand over. A parameter offered
- * against a future need would be a contract core then has to keep — and the
- * alternative costs nothing, since a plugin that later needs data reads its own
- * half through the mount it already has ({@link PluginMount}).
+ * A plugin may write a sentence into a person's chat lane
+ * ({@link ./contract.ts}'s `Deliveries`), and the panel draws such a row as a
+ * THIRD speaker beside the human and the agent. Every speaker there wears a
+ * mark, and this is where a plugin's comes from: the plugin, and nowhere else.
+ * A plugin that hangs none is drawn with a plain generic, which is the same
+ * bargain an agent olai has no shape for already gets — and never another
+ * plugin's mark, which would teach a reader something false the first time a
+ * third tenant arrived.
  *
  * ## What it answers with: the SHAPES, inside a `0 0 16 16` box
  *
- * Not a whole `<svg>`, and this is the one part of the contract worth spelling.
- * The marks in a transcript are read as a COLUMN — the person, the agent, the
- * plugin, one under another — so they must be one size and one stroke weight,
- * and a plugin that answered with its own `<svg>` would own the two attributes
- * that decide both. So the app draws the element and the plugin fills it: a
- * `<g>` of paths in a sixteen-unit square, `currentColor` throughout, which is
- * exactly the shape `@olai/web`'s own `chat/AgentMark.tsx` gives every agent's.
- * A plugin wanting a different size is asking for its row to look unlike the
- * rows around it, which is a request the panel should refuse. Both halves of
- * that sentence are the DEFAULT rather than the whole rule, and the three
- * paragraphs below say exactly where each bends and what it costs — the size
- * and the weight are the two things that never do.
- *
- * A plugin that contributes none is drawn with a plain generic, which is the
- * same bargain an agent olai has no shape for already gets — and never another
- * plugin's mark, which would teach a reader something false the first time a
- * third tenant arrived.
+ * Not a whole `<svg>`, and this is the part worth spelling. The marks in a
+ * transcript are read as a COLUMN — the person, the agent, the plugin, one
+ * under another — so they must be one size and one stroke weight, and a plugin
+ * that answered with its own `<svg>` would own the two attributes that decide
+ * both. So the app draws the element and the plugin fills it: a `<g>` of paths
+ * in a sixteen-unit square, `currentColor` throughout. A plugin wanting a
+ * different size is asking for its row to look unlike the rows around it, which
+ * is a request the panel should refuse.
  *
  * ### The sixteen-unit square is CORE'S VIEWPORT, not the plugin's coordinates
  *
@@ -571,10 +347,9 @@ export type ChromeFace = (props: { readonly app: AppFurniture }) => JSX.Element
  * loophole the first real asset routed around. `width="100%"`/`height="100%"`
  * resolve against whatever viewport core established, so the plugin still never
  * spells `16`, and `preserveAspectRatio="xMidYMid meet"` centres and fits the
- * artwork without distorting it. The `<g>` stays, because that is what this type
- * returns and what `<Dynamic>` renders: a plugin still does not get to be the
- * outer `<svg>`, and still cannot touch the two attributes that decide the
- * column's size and weight.
+ * artwork without distorting it. The `<g>` stays: a plugin still does not get to
+ * be the outer `<svg>`, and still cannot touch the two attributes that decide
+ * the column's size and weight.
  *
  * ### `currentColor` is the DEFAULT, not the rule
  *
@@ -592,553 +367,11 @@ export type ChromeFace = (props: { readonly app: AppFurniture }) => JSX.Element
  * document, so a plugin shipping `id="lift"` has claimed that word from every
  * other element on the page — and the mark is drawn once per rung row, so two
  * rows are two claims. Core cannot namespace it: computing an address out of a
- * plugin's name is precisely what `./fence.test.ts` exists to refuse, in the
- * very file whose reason for existing is that core learns nothing about a
- * tenant. So the uniqueness is the plugin's, held by the plugin's own build and
+ * plugin's name is precisely what `@olai/bundle`'s `fence.test.ts` exists to
+ * refuse. So the uniqueness is the plugin's, held by the plugin's own build and
  * minted at its own render (`createUniqueId`).
  */
 export type PluginMark = () => JSX.Element
-
-/**
- * THE TAB'S OWN HALF OF THIS PLUGIN, mounted once around the page.
- *
- * A plugin's faces are LEAVES — a chip drawn per row, a pill in a bar — and a
- * subscription per leaf is what a shell mount exists to refuse: an outline can
- * carry a `worktree` on a dozen rows and a `terminal` on forty. So the plugin
- * subscribes ONCE, here, and hands every leaf an accessor over the answer, which
- * is the arrangement `olai-plugin-kolu`'s `appliance/props/fleet.tsx` and `@olai/web`'s `served.tsx`
- * both already are.
- *
- * `client` is this plugin's OWN sibling client, typed by its OWN spec — the
- * browser twin of {@link PluginServer.published}, and `unknown` HERE for that
- * field's reason: core cannot type a plugin's client without learning its
- * members, which is the one thing this arrangement exists to prevent. It travels
- * opaque and is narrowed by the plugin at its own edge, once.
- */
-export type PluginMount = (props: {
-  readonly client: unknown
-  readonly app: AppFurniture
-  readonly children: JSX.Element
-}) => JSX.Element
-
-/**
- * WHAT CORE OFFERS EVERY PLUGIN'S SERVER HALF — the whole of it, and the same
- * blob whoever is asking.
- *
- * ## Why there is one shape rather than a slot per tenant
- *
- * `@olai/server`'s `Wiring` used to carry a field per appliance: a `kolu` half
- * holding an environment, a clock and an injectable dial, and an `odu` half
- * holding an environment, the served directory and an injectable dial. Two
- * records with three fields between them and the nouns changed — which is what
- * a NAMED SLOT is, and naming one is the thing a general package must stop
- * doing. What the two actually asked for was the same list: **what the process
- * can see** (the environment), **what time it is**, **which directory this
- * serve is about**, **two log channels**, **a way for a test to hand the
- * dial a fake**, and **a small record this plugin keeps about this serve**.
- * So that is the list, spelled once, and a third plugin is handed it without
- * core learning a word.
- *
- * Every field is here because one of the tenants would otherwise have had
- * to be asked for it separately, and none is here for a plugin that does not
- * exist: `served` is odu's today (half of where a relative `worktree`
- * resolves), `now` is kolu's (what a link's `since` is stamped from), and
- * `held` is spaces' (the thread map and the outbound queue). Each is offered
- * to every plugin because those are questions about the SERVE and not about
- * an appliance. A plugin reads what it needs and its own signature says
- * which — see {@link PluginServer}.
- *
- * ## Why a composition root hands these in rather than a plugin reading them
- *
- * The same rule every other seam in this tree is built on, and it is not
- * negotiable at this boundary: a plugin that read `process.env` or called
- * `new Date()` would be a plugin a test cannot drive, and the two halves that
- * exist today are both already written the other way round
- * (`@olai/kolu-client`'s `MirrorOptions`, `@olai/odu-client`'s `OduDeps`).
- * What is new is only that the list has one spelling.
- */
-export interface PluginServices {
-  /** WHAT THE PROCESS CAN SEE. `$PADI_SOCKET`, `$OLAI_REPOS_DIR` — the
-   *  variables an appliance's rendezvous is decided from, handed in so a test
-   *  owns them and a composition root is the one place a real environment is
-   *  reached for. */
-  readonly env: Record<string, string | undefined>
-  /** THE CLOCK, as ISO-8601. What a link's `since` is stamped from, and the
-   *  reason a test that asserts "connected · just now" can own the instant it
-   *  was rendered from. */
-  readonly now: () => string
-  /** THE DIRECTORY THIS SERVE IS ABOUT — the vault. Half of where a relative
-   *  path in a property resolves to, and a fact about the serve rather than
-   *  about whoever asked: a plugin that read it off the store would be a
-   *  second answer to a question the composition root already holds. */
-  readonly served: string
-  /** ROUTINE NARRATION, at debug. On a machine that is not running the tool
-   *  this is a line every few seconds and it is not news. */
-  readonly say: (line: string) => void
-  /** THE SENTENCES THE OWNER MUST READ — a malformed value in the vault, a
-   *  socket that IS being served and refused us. Wired to a level the default
-   *  console turns on, because a broken spell behind `OLAI_LOG_LEVEL=debug` is
-   *  a sentence nobody is told. */
-  readonly warn: (line: string) => void
-  /**
-   * THE INJECTABLE, for a test — a fake padi, a fake coordinator, whatever
-   * this plugin dials.
-   *
-   * `unknown`, and the honesty of that is the point rather than a gap: core
-   * cannot type a plugin's own test double without learning what the plugin
-   * talks to, which is the one thing this whole arrangement exists to prevent.
-   * It travels opaque and is NARROWED by the plugin, once, at its own edge —
-   * the same trade every other `unknown` on {@link OlaiPlugin} makes, and the
-   * only one a test ever fills.
-   */
-  readonly dial?: unknown
-  /**
-   * THE DOORBELL'S DOOR — which conversations opted into THIS plugin's wakes,
-   * and the one write-only verb that reaches them ({@link Deliveries}).
-   *
-   * The second field on this blob built PER PLUGIN rather than handed out whole
-   * ({@link dial} is the first), and for that one's reason turned around: a door
-   * keyed by nobody would hand one plugin the conversations a person scoped to
-   * another. The key is the plugin's `name`, which is the one word core knows,
-   * and the composition root closes over it exactly where it already closes over
-   * it for `dial` — so this is not a second lookup, it is the same one.
-   *
-   * REQUIRED, unlike `dial`, and the difference is about what CAN be absent. A
-   * real serve legitimately dials nothing; there is no serve where the door is
-   * missing. What varies is whether anybody walked through it — a machine with
-   * no agent installed answers `scopes()` with the empty list forever, which is
-   * the honest machine-without-the-tool state and needs no failure channel on a
-   * verb that cannot fail.
-   */
-  readonly deliveries: Deliveries
-  /**
-   * CONVERSATION EVENTS, PUSHED — doorbells that landed, agent replies that
-   * settled, turns that started or ended ({@link Watching}).
-   *
-   * A plugin that mirrors a conversation never reads one. Core pushes what
-   * happened, and human messages are simply not among the events. WRITE-ONLY
-   * `deliveries` stays write-only; this is a second door, the other direction,
-   * still not a transcript.
-   *
-   * REQUIRED like {@link deliveries}: there is no serve where the bus is
-   * missing. A machine with no chat never fires, which is the honest
-   * machine-without-the-tool state.
-   */
-  readonly watching: Watching
-  /**
-   * A SMALL RECORD THIS PLUGIN KEEPS about this serve, in the state home —
-   * not the vault.
-   *
-   * Core owns the file (`@olai/state`, keyed by this plugin's `name` the way
-   * {@link deliveries} is). What the record SAYS is the plugin's. `load` is
-   * the last snapshot that landed, or `null` on a first serve and on a file
-   * that would not parse (core has already warned). `save` is fire-and-forget
-   * and ORDERED: successive snapshots of one in-memory state land in the
-   * order they were handed over, so a drain that persisted `queue:[B]` and
-   * then `queue:[]` cannot have the empty lose the rename race to the
-   * earlier one and come back on the next boot as a digest already posted.
-   *
-   * REQUIRED like {@link deliveries}: there is no serve where the home is
-   * missing. A machine that cannot write the file warns; the plugin is not
-   * asked to care.
-   */
-  readonly held: PluginHeld
-}
-
-/**
- * THE HELD DOOR — one opaque record per plugin per vault.
- *
- * Core does not open it. The plugin parses what it wrote.
- */
-export interface PluginHeld {
-  readonly load: () => Record<string, unknown> | null
-  readonly save: (value: Record<string, unknown>) => void
-}
-
-/**
- * WHAT HAPPENED IN A CONVERSATION, as a plugin that mirrors one is told.
- *
- * Three kinds, and none of them is a human message. `delivered` is a doorbell
- * that actually went into the conversation (the thunk answered, the row was
- * written). `replied` is an orchestrator turn that settled, with the full
- * reply. `turn` is the ephemeral working signal, start and end.
- */
-export type ConversationSeen =
-  | {
-    readonly kind: "delivered"
-    /** The transcript row, so a later mark on the same doorbell is not a second digest. */
-    readonly id: string
-    readonly from: string
-    readonly agent: string
-    readonly session: string
-    readonly body: string
-  }
-  | {
-    readonly kind: "replied"
-    /** The agent row THIS turn produced — not the newest agent row in the transcript. */
-    readonly id: string
-    readonly agent: string
-    readonly session: string
-    readonly text: string
-  }
-  | {
-    readonly kind: "turn"
-    readonly agent: string
-    readonly session: string
-    readonly status: "working" | "done"
-  }
-
-/**
- * THE WATCHING BUS — subscribe to {@link ConversationSeen}, get an unsubscribe.
- *
- * Fire-and-forget on the plugin's side: the handler is a sink, like
- * {@link Deliveries.deliver}. Core does not wait for whatever the plugin
- * does with the event.
- */
-export interface Watching {
-  readonly subscribe: (handler: (event: ConversationSeen) => void) => () => void
-}
-
-/**
- * ONE GENERIC CAPABILITY: DELIVER A MESSAGE INTO A CONVERSATION — the whole of
- * what core grows so that a plugin can ring a doorbell.
- *
- * ## It speaks conversations and files, and it will never speak anything else
- *
- * There is no terminal here, no fleet, no board and no watcher — and that is the
- * fence rather than an accident of today's one caller: the door is generic or it
- * does not land. A plugin says WHO to reach and WHAT to say; core knows how a
- * conversation takes a message and knows nothing about why this one was worth
- * sending. The same bar the rest of this file keeps, one capability later: core
- * may know a plugin's name, and may not know anything else about it.
- *
- * ## Two bare strings and not a `Conversation`
- *
- * A conversation is the PAIR `(agent, session)`, because a session id means
- * nothing to the wrong agent — core's own identity for the thing, spelled the
- * way `@olai/chat`'s note already spells it rather than minted a second time.
- * It is two fields here rather than a type imported from `@olai/surface` because
- * this package declares no dependency on the wire and says so on purpose in its
- * manifest; a schema pulled in to name a pair of strings would be that wall
- * coming down for a pair of strings.
- *
- * ## WRITE-ONLY, and that is the load-bearing half
- *
- * There is no `read`, no `transcript`, no `history`, and there is no arm of this
- * interface where one could be added without saying so in the type. A plugin can
- * put a sentence INTO a conversation and can never learn what is in one — not
- * what a person typed, not what the agent answered, not whether anybody read it.
- * A capability that could do both would be the appliance reading the human's
- * mail, and no amount of care at the call site takes that back afterwards.
- */
-export interface Deliveries {
-  /**
-   * THE CONVERSATIONS THAT OPTED INTO THIS PLUGIN'S WAKES, each with the file a
-   * person picked to filter by.
-   *
-   * SYNCHRONOUS, and that shapes what is behind it: the composition root builds
-   * this blob inside a plain `.map`, and the caller is a watcher sink with no
-   * Effect around it. So core mirrors the table in memory and the disk copy
-   * follows the write rather than leading the read.
-   *
-   * The list is the WHOLE of the scope. A conversation is on it because somebody
-   * picked a file for it, and it leaves when somebody clears it: there is no
-   * serve-level default, and no way for an AGENT to add one — the member that
-   * writes this is drawn for the browser and refused to the agent face, which is
-   * where that reads as physics rather than as a promise. A fresh conversation's
-   * doorbell is off, and the only thing that turns it on is a person.
-   */
-  readonly scopes: () => ReadonlyArray<{
-    readonly agent: string
-    readonly session: string
-    readonly file: string
-  }>
-  /**
-   * ONE MACHINE-MARKED MESSAGE INTO ONE CONVERSATION. Core owns the mechanics;
-   * the plugin owns every word.
-   *
-   * WHAT CORE DOES WITH IT, in three arms: a conversation this panel is in whose
-   * agent is idle takes it as a turn; one whose agent is mid-turn HOLDS it and
-   * lets it in at the turn boundary, behind whatever the human queued first; a
-   * conversation nobody is in holds it until somebody opens it, and it arrives
-   * as that session's first message. Which arm a body took is not reported back,
-   * because there is no arm a plugin would answer differently.
-   *
-   * FIRE AND FORGET, like {@link PluginServices.say} and
-   * {@link PluginServices.warn} beside it, and for their reason: the caller is a
-   * sink with nowhere to put a failure, and a rejected promise nobody has a
-   * reason to catch is an unhandled rejection in somebody's server log.
-   *
-   * THE BODY MUST CARRY ITS OWN ATTRIBUTION, and this is the one thing this door
-   * asks of the words. Core marks the row, and the mark is a live affordance the
-   * browser draws a face from — but a conversation resumed from the agent's own
-   * store rebuilds its rows out of message chunks, and the mark is not among
-   * them. So the WORDS have to say who is speaking, or a replayed transcript
-   * puts the plugin's words in the person's mouth.
-   *
-   * CARRY, not OPEN, and the difference is one a round of use taught. The rule
-   * said the first line, and the panel draws a mark and a byline above the row —
-   * so a first line that named its author spent the one line a glance gets on a
-   * question already answered twice above it. Anywhere in the body satisfies the
-   * replay, because a replay rebuilds the whole text; the first line is the one
-   * a reader gets for free, and it is better spent saying what happened.
-   */
-  readonly deliver: (
-    to: { readonly agent: string; readonly session: string },
-    /**
-     * THE WORDS, COMPOSED AT THE MOMENT THEY ENTER THE CONVERSATION — not when
-     * this was called.
-     *
-     * ## Why a thunk and not a string
-     *
-     * A body can WAIT: through a running turn, or until somebody opens the
-     * conversation, which may be hours. A string handed over at ring time is a
-     * claim about the world drafted then and read now, and the world moves — a
-     * delivery was found arriving about two terminals that had been killed and
-     * a lane that had been merged and closed while it queued. A message the
-     * agent reads has to be true when it is READ, which is the same was-clause
-     * honesty the board's own writes keep.
-     *
-     * So core asks for the words at the last possible moment and the plugin
-     * derives afresh. It is the no-standing-set rule spent one floor over: a
-     * plugin holding its own answer between the drafting and the delivery would
-     * be keeping a second copy of a truth that had already changed.
-     *
-     * `null` DROPS THE DELIVERY. A body whose subject has entirely gone — every
-     * terminal it was about settled while it waited — is not a shorter message,
-     * it is no message, and a plugin says so by answering with nothing. Where
-     * several bodies were coalescing into one, only the ones that still answer
-     * are joined; if none does, no row is written at all.
-     */
-    say: () => string | null,
-    options?: {
-      /**
-       * MESSAGES SHARING A KEY, WHILE STILL UNDELIVERED, REPLACE EACH OTHER —
-       * in place, so the one that lands keeps the position the first one took
-       * and arrival order survives the replacing.
-       *
-       * It is what lets a plugin send a fresh whole sentence per event and have
-       * a person read ONE message rather than five. Composing the combined
-       * sentence stays the plugin's authorship; holding exactly one stays core's
-       * mechanics.
-       *
-       * ## THE KEY IS SCOPED TO THE PLUGIN, and a plugin never spells that
-       *
-       * Core files a held slot under the PAIR `(plugin, coalesce)` — `@olai/chat`'s
-       * `holding` mints the identity out of both — so a key is chosen among this
-       * plugin's OWN messages and nothing else. Two plugins that both say `digest`
-       * are two subjects with two slots, and neither can swallow the other's
-       * sentence; a word as ordinary as that one is safe to pick without
-       * consulting anybody. It is the same pairing that makes the held-slot cap
-       * and the turn-it-off drop per plugin rather than per conversation, and a
-       * caller that spells its own name into the key is repeating what core
-       * already did rather than earning anything by it.
-       *
-       * ## AND NO KEY IS A REAL ARM, but not the one a doorbell takes
-       *
-       * A body sent with no key is filed under a fresh identity of core's own: it
-       * never replaces and is never replaced. That arm is for a plugin whose
-       * sentences are each about a DIFFERENT thing, where the newer one does not
-       * contain the older and replacing would lose what the first said. A plugin
-       * whose body is a fresh derivation of standing state is in the other case
-       * and should key BOTH its meanings — the newest sentence already says
-       * everything its predecessor said, so replacing costs nothing and reading
-       * five near-identical messages costs a person something.
-       *
-       * IT USED TO say a wake takes the no-key arm, from a draft in which a body
-       * was an account of one event rather than of everything standing. The only
-       * caller has keyed both of its meanings since, and this line agreeing with
-       * it is the difference between a doc a caller can follow and one it
-       * contradicts.
-       */
-      readonly coalesce?: string
-    },
-  ) => void
-}
-
-/**
- * ...AND WHAT COMES BACK — one plugin's server half, as core drives it.
- *
- * Four fields, and core inspects none of what passes through them. `deps` is
- * handed straight to `implementSurfaces` under this plugin's name; `published`
- * gives the half back its OWN write face the moment that sibling exists;
- * `revision` and `unloaded` are the two things that can happen to a vault.
- *
- * ## `deps` is `unknown` HERE and exact THERE
- *
- * The framework's `SurfaceDepsFor` types a deps record against each sibling's
- * own spec, which is precise for a LITERAL map and says nothing about a record
- * assembled by walking a registry — core's keys are runtime data. So the
- * agreement is kept where it CAN be checked: a plugin's own server module
- * annotates its return as `ImplementSurfaceDeps<typeof surface.spec>` against
- * its OWN surface, so a member it forgot or mis-shaped is a type error in that
- * plugin's package with that plugin's name on the file. Core carries the value
- * and never opens it — the division {@link OlaiPlugin} makes everywhere else.
- *
- * ## Why `published` exists, and why it is not the named slot it replaces
- *
- * `runtime.ts` used to hand kolu three read-back closures —
- * `fleet: () => published?.collections.fleet` and two more — because a half
- * has to WRITE to the members it answers for, and the surface does not exist
- * until it has been implemented. That was core naming another package's
- * members, three times, in a file that must not know one.
- *
- * A sibling composition removes the NAMING and not the ordering:
- * `implementSurfaces` returns a ctx per plugin KEY, so what core hands back is
- * one opaque value that is already this plugin's own, addressed by the only
- * word core knows about it. The plugin narrows it to its own surface's ctx,
- * which is a type it declares itself.
- *
- * It is called AFTER the composition rather than during it, which is the same
- * window the read-back closures were written for: the framework starts a
- * cell's connectors INSIDE `implementSurfaces`, so a half whose first beat
- * lands before the call returns must tolerate having no ctx yet. Both tenants
- * already do — that tolerance is what those closures were.
- */
-export interface PluginServer<Revision> {
-  /** This plugin's `ImplementSurfaceDeps`, against its own spec — see above
-   *  for why the type is opaque on this side of the wall. */
-  readonly deps: unknown
-  /** This plugin's OWN ctx, handed back the moment its sibling is implemented.
-   *  Absent on a half with nothing to publish. */
-  readonly published?: (ctx: unknown) => void
-  /**
-   * A VAULT REVISION LANDED.
-   *
-   * ONE HOOK, and it carries the RICHER of the two readings the two tenants
-   * ask for today: kolu wants the node list and which served file its owned
-   * convention names, odu wants the whole derivation because the walk it feeds
-   * asks the vault what it DECLARES as well as what it records. A core that
-   * offered each of them their own argument would be a core that knew what
-   * each plugin reads.
-   *
-   * So the hook is PARAMETRIC and every plugin narrows it at its own
-   * signature: what core passes is the whole revision, and the type a plugin
-   * writes is the part of it that plugin touches — a claim the compiler checks
-   * rather than a comment. `Revision` is never named in this package for the
-   * reason `@olai/format` is not a dependency of it: the vocabulary of a vault
-   * record belongs downstairs, and a floor package that imported it would be
-   * the interface learning what an outline is.
-   */
-  readonly revision: (revision: Revision) => void
-  /** The store has NEVER published — the directory's read failed outright.
-   *  Whatever this half derived FROM the vault is yesterday's reading and says
-   *  so; what it holds from its own daemon is untouched. */
-  readonly unloaded: () => void
-}
-
-/**
- * ONE PLUGIN, as the BROWSER and the registry see it.
- *
- * Read top to bottom this is the whole surface between core and an appliance's
- * FACES: a name, what it puts on the wire, which face may see which of its
- * members, what its kinds wear, what it hangs in the chrome, and what it mounts
- * around the page. Nothing else crosses this door, and the fence proves it
- * (`packages/plugin-api/src/fence.test.ts`).
- *
- * ## It extends {@link PluginWire}, because a plugin is ONE identity
- *
- * The same three fields the wire door reads, declared once and inherited here
- * exactly as {@link PluginServerHalf} inherits them one file over. That is the
- * type catching up with the graphs: there are three doors onto a plugin because
- * there are three GRAPHS (`./wire.ts`, `./server.ts`, and this one), and a
- * reader could be forgiven for taking three doors for three plugins. They are
- * one, keyed by one word, and the interfaces now say so.
- *
- * ## WHAT IS NOT HERE, and where it went
- *
- * A server half, a probe and a kind table used to be declared here as `unknown`
- * — hooks the manifest NAMED while their values lived on `./server.ts`. That
- * was a ghost of a field: it could not be read (its type says nothing), it
- * could not be written (nothing type-checks against `unknown`), and it invited
- * a reader to look for a value the door does not carry. They are declared once
- * now, on {@link PluginServerHalf}, where their graph is.
- *
- * Two more are simply GONE. `ownedFile` was a shape with no consumer: which
- * basename a plugin claims by convention turned out to be the plugin's own
- * business, and the carry runs inside the plugin that owns it (`@olai/server`'s
- * `runtime.ts` records the move). `testDrivers` had a population of zero — a
- * field designed for a caller that never arrived, which is the one thing an
- * interface may not carry on the strength of an argument.
- *
- * ## The room that IS deliberate
- *
- * Every field below but the two inherited ones is optional, and that is not a
- * staging convenience: the ABSENT arm of every hook is the state a machine
- * without the tool already shows, and that state already had to work. The
- * interface is also roomier than its tenants need, and the room is not
- * speculation either — a chat AGENT (today a second hardcoded roster in
- * `@olai/chat`'s `agents/`) is a probe whose answer carries its own failure
- * sentence plus a per-conversation attach, which is this shape with most of the
- * fields empty. Ruled: design for it, migrate later. The roster is untouched
- * here.
- *
- * ## THE USER PAGE is the NAME, and is deliberately not a field
- *
- * A plugin's user docs live at `packages/plugins/olai-plugin-<name>/docs.md`, which LOOKS
- * like the shape `@olai/server`'s `main.ts` ruled against — *"a page beside a
- * binary is a page that goes stale, and the one thing a person always has to
- * hand is `--help`"* (ruled, human 2026-08-23) — so the counter-case is argued
- * here rather than left implied.
- *
- * What that ruling refuses is a SECOND ACCOUNT. The CLI already accounts for
- * itself: `--help` is composed from the tool list and cannot describe a verb the
- * binary does not have, so a prose page standing beside it is a second telling
- * with nothing holding the two together. A plugin has no `--help`. `docs.md` is
- * its ONLY account, and the ruling's premise is absent rather than overridden.
- *
- * What the premise DOES apply to is DISTANCE, and that is what puts the page in
- * the plugin's package instead of in `docs/`: the terminal block, the sentences
- * an absent padi is owed and the words a run matrix prints are that package's,
- * changed in that package's diffs, and a page two directories away is one nobody
- * editing them has open.
- *
- * It is still SERVED, because `just serve` serves `docs/` as a vault and a path
- * outside it is not served at all — a link to one draws as text rather than as a
- * door. So `docs/plugins/<name>.md` is a SYMLINK onto the plugin's own
- * `docs.md`: one file with two names, the served page and the page beside the
- * code the same bytes, and drift not a thing that can happen. A COPY under
- * `docs/` was the alternative and loses on the ruling's own argument — two
- * files, and the one nobody has open is the one that is read; a GENERATOR that
- * wrote the copy loses too, since there is none in this tree and a checked-in
- * artefact of one is stale for as long as nobody runs it.
- *
- * And there is no `docs` FIELD, which replaces an earlier reading. A
- * `{slug, title, gloss}` on the manifest was the first shape and it was wrong
- * twice over. The slug was a second spelling of the NAME. And the other two
- * could not be read by anything that would spend them: the index is a general
- * page and the sweep that keeps it honest is a general sweep, and BOTH sit
- * where a manifest cannot be reached — this door carries SolidJS components and
- * a terminal emulator, and importing it from a process that renders nothing does
- * not merely cost bytes, it kills the boot (`@olai/server`'s `pluginPolicy.ts`
- * carries that hazard on the import that looked innocent; a `bun test` at the
- * root dies the same way, on `react/jsx-dev-runtime`). What a general reader CAN
- * have is {@link ./surfaces.ts}' `PLUGIN_NAMES`, on the browser-safe door —
- * which is the name, and which is the whole address. So the page's existence and
- * its reachability are held by a sweep over the tree rather than by a field:
- * `packages/tests/plugin_docs.test.ts`, which is the stronger claim anyway — a
- * field can be filled in beside a page that was never written.
- */
-export interface OlaiPlugin extends PluginWire {
-  /** What its kinds wear in the browser. TYPED, where the server door's hooks
-   *  are opaque, and that is the difference between a value core CARRIES and
-   *  one core DRAWS: the app mounts these faces, so the shape it mounts them
-   *  against is a contract rather than a blob ({@link Dressing}). */
-  readonly dressings?: ReadonlyArray<Dressing>
-  /** What it hangs in the app's chrome. Typed for {@link Dressing}'s reason. */
-  readonly chrome?: Chrome
-  /** THE TAB'S OWN HALF, around the page — one subscription however many
-   *  leaves draw ({@link PluginMount}). Absent on a plugin with nothing to
-   *  hold, which is a plugin whose faces are all pure. */
-  readonly mount?: PluginMount
-  /** WHAT IT LOOKS LIKE WHEN IT SPEAKS — the mark over a sentence this plugin
-   *  delivered into a conversation ({@link PluginMark}). Typed for
-   *  {@link Dressing}'s reason: the app draws it. Absent on a plugin that
-   *  delivers nothing, and on one content to wear the generic. The nested
-   *  viewport and the pressable-id spelling are `@olai/plugin-kit`'s, so a
-   *  tenant that fills this field is not inventing a second face grammar. */
-  readonly mark?: PluginMark
-}
 
 /** Solid's element type, re-exported so a plugin's component fields have a
  *  return type without every reader of this file importing `solid-js` for the

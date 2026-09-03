@@ -23,21 +23,32 @@
  * ## A CELL, and read-only
  *
  * One value about the served INSTANCE rather than about any file in it — the
- * shape `manifest` and `git` already are. It is read once, at the composition
- * root, out of the flag and the registry; it moves at most once per serve,
- * which is why it has no connector and needs no `equals` (`@olai/server`'s
- * `runtime.ts` seeds it and nothing republishes it).
+ * shape `manifest` and `git` already are. It is seeded at the composition root,
+ * out of the flag and the rows, and REPUBLISHED from every re-compose
+ * (`@olai/server`'s `runtime.ts`): a plugin is a fiber, so a register or a
+ * dispose moves the roster and the word on a row is read live.
+ *
+ * It therefore has both of the things it was once documented as needing
+ * neither of. A CONNECTOR, because a cell that is only seeded goes on saying
+ * what the flag said while rows change state underneath it — the connector
+ * hands the cell to the runtime and `recompose` is the one clock that moves it.
+ * And an `equals` ({@link sameRoster}): a republish used to be a thing that
+ * never happened, so a comparator would have been dead weight with a comment
+ * explaining why it was there. The fiber ended that, and the TAB following the
+ * roster made it load-bearing — an identical republish costs a `redial` and a
+ * rebuilt page unless something says the two rosters are one. {@link
+ * sameRoster} carries the whole of that argument.
  *
  * Read-only on the wire because `--plugins` is CLI/nix ONLY — no settings file,
  * no browser toggle, the git policy's shape one setting over. What a browser
  * does with it is draw a row per plugin, frozen, naming where it is changed
- * (`@olai/web`'s `client/settings/`).
+ * (`@olai/web`'s `client/plugins/Panel.tsx`).
  *
  * ## NOTHING HERE SPELLS A PLUGIN'S NAME
  *
  * The names are DATA. They arrive from the registry at the composition root and
  * travel as strings; this file — a general one — declares that there ARE names
- * and knows none of them, which is the same fence `@olai/plugin-api`'s
+ * and knows none of them, which is the same fence `@olai/bundle`'s
  * `fence.test.ts` holds as an equality per package. A row is drawn by walking
  * what the cell carries, so a third plugin reaches the panel without a line of
  * this or of the panel moving.
@@ -65,6 +76,44 @@ export const BuiltPlugin = Schema.Struct({
    *  drawn, its probe ran, and a property declared with its kind is held to it.
    *  `false` is total absence rather than a degraded arm. */
   running: Schema.Boolean,
+  /**
+   * WHY, IN ONE WORD — the five states {@link pluginState} narrows to, and the
+   * one thing `running` cannot say.
+   *
+   * A plugin is a Cordis fiber now, and `false` covers four different mornings:
+   * the operator's flag left it out, the BUILD leaves it out until somebody
+   * asks, its `apply` threw, or it is still waiting on a service that has not
+   * arrived. Those want four different sentences under the row, and one of them
+   * wants an alarm — so the word travels rather than being guessed at the far
+   * end from a boolean that has already thrown the distinction away.
+   *
+   * `running` STAYS, and is not redundant: it is the boolean the tab follows
+   * its roster by — which plugins to load a chunk for, dial, and mount a fiber
+   * for (`@olai/web`'s `client/wire.ts`) — and that reading must not have to
+   * know five words to answer one question. The two cannot disagree: the
+   * composition root writes `running` from what actually registered a sibling
+   * and derives this from the same reading.
+   *
+   * A PLAIN STRING, and OPTIONAL, for the two reasons `wake` is: a tab left
+   * open across a downgrade is talking to a serve that declares none, and a
+   * serve may one day name a sixth word this build has never heard of. Neither
+   * may fail the roster's DECODE, because the roster is what every plugin's
+   * mount hangs off. {@link pluginState} is the one reading, and it answers an
+   * absent or unknown word out of `running` — which is exactly what this field
+   * refines and never contradicts.
+   */
+  state: Schema.optionalKey(Schema.String),
+  /**
+   * ...AND THE PLUGIN'S OWN WORDS, when its start threw — verbatim, with core
+   * composing nothing around them.
+   *
+   * Only on a row whose state is `failed`. The panel draws it under the row's
+   * sentence and quotes it as the plugin's; a serve that failed a plugin with
+   * no message to give sends none, and the row says a start threw without
+   * inventing what it said. That is the same rule the delivery doors keep:
+   * failure prose is the plugin's, and core's job is to carry it.
+   */
+  fault: Schema.optionalKey(Schema.String),
   /**
    * THE DOORBELL'S SENTENCE, when this plugin can wake a conversation — the
    * plugin's own words, travelling as data.
@@ -133,11 +182,84 @@ export const BuiltPlugin = Schema.Struct({
 export type BuiltPlugin = typeof BuiltPlugin.Type
 
 /**
+ * THE FIVE WORDS A ROW CAN BE IN, and each is a different morning.
+ *
+ *   - `running`  composed: members on the wire, faces drawn, probe run, kinds
+ *                held. The ordinary state and the only one that is good news.
+ *   - `off`      the operator's flag did not name it. Total absence, asked for.
+ *   - `optIn`    this BUILD leaves it off until somebody asks — the row's own
+ *                `disabled`, which is the built-in default living in the file
+ *                the loader reads. Also total absence, and NOBODY ASKED, which
+ *                is why it is not the same word as `off`: a row nobody chose is
+ *                not a row somebody turned off, and only one of the two is
+ *                worth a person's attention when they went looking for a chip.
+ *   - `failed`   its `apply` threw. The one word that is a FAULT: it was asked
+ *                for, it is absent, and nothing else on screen says so.
+ *   - `waiting`  the fiber is `PENDING` on a service that has not arrived. Not
+ *                reachable while everything a plugin injects is mounted before
+ *                the bundle is, and declared here because the runtime that can
+ *                produce it is already the one running.
+ *
+ * ## The LIST is the declaration, and the type is derived from it
+ *
+ * It was the other way round: a union, and a `Set` built from it. Those are two
+ * spellings of one vocabulary, and only one of them was checked — `new
+ * Set<PluginState>([…])` does not demand exhaustiveness, so a sixth word added
+ * to the union and to the composition root would compile clean while the set
+ * still held five, and the new word would fall silently through
+ * {@link pluginState}'s narrowing to `running`/`off`.
+ *
+ * That is the exact failure the narrowing exists to prevent, arriving through
+ * the narrowing's own vocabulary. One `as const` array, the type read off it,
+ * and a sixth word is one edit that cannot be half-made.
+ */
+const STATES = ["running", "off", "optIn", "failed", "waiting"] as const
+
+export type PluginState = (typeof STATES)[number]
+
+/** The five, as a set — what {@link pluginState} asks. */
+const KNOWN: ReadonlySet<string> = new Set<string>(STATES)
+
+/**
+ * WHAT WORD A ROW IS IN — the one reading of {@link BuiltPlugin.state}, and the
+ * one place an absent or unknown word is answered.
+ *
+ * ## Why it narrows rather than decodes
+ *
+ * The field is a plain optional string precisely so that neither an older serve
+ * (which declares none) nor a newer one (which may name a sixth) can fail the
+ * roster's decode — and a roster that fails to decode takes EVERY plugin's
+ * mount down, not this row's. That decision is only worth making if somebody
+ * then narrows, which is here: a word this build does not know falls back to
+ * what `running` already said, so the worst a strange serve can do is draw the
+ * row the way this app drew every row before the field existed.
+ *
+ * ## And why the fallback is `running`, not `off`
+ *
+ * `running` is the field the two ends have always agreed on and the one the
+ * mount licences are read from. A narrowing that answered `off` for a row whose
+ * `running` is `true` would put the panel and the page into two different
+ * stories about the same plugin — a chip in the bar, and a row saying it is not
+ * there. So this refines `running` and can never contradict it.
+ */
+export const pluginState = (plugin: BuiltPlugin): PluginState => {
+  const word = plugin.state
+  if (word !== undefined && KNOWN.has(word)) {
+    // ...and a serve that says `running` while `running` is false, or the other
+    // way round, is not a state this can carry either: the boolean wins, for
+    // the reason above. Only the four ABSENT words are refinements of `false`.
+    const claimed = word as PluginState
+    if ((claimed === "running") === plugin.running) return claimed
+  }
+  return plugin.running ? "running" : "off"
+}
+
+/**
  * THE ROSTER: every plugin compiled in, in registry order, and what the
  * operator said.
  *
- * Registry order rather than sorted, because the registry is a source file
- * (`@olai/plugin-api`'s `surfaces.ts`) and the order a build lists its plugins in is
+ * Registry order rather than sorted, because the registry is a FILE
+ * (`@olai/bundle`'s `olai.yml`) and the order a build lists its plugins in is
  * the order `--help` names them in — a panel that re-sorted would put the rows
  * in an order nothing else in the product uses.
  */
@@ -211,3 +333,31 @@ export const watchable = (kinds: ReadonlyArray<string>, file: string): boolean =
  * makes for seeding the git cell with the setting face rather than the fault.
  */
 export const NO_ROSTER: PluginRoster = { built: [], pinned: null }
+
+/**
+ * TWO ROSTERS THAT SAY THE SAME THING ARE ONE — and this cell needs an `equals`
+ * now, where for its whole life it did not.
+ *
+ * It moved at most once per serve: the flag was read at the composition root
+ * and nothing afterwards could change what it said, so a republish was a thing
+ * that never happened and an `equals` would have been dead weight with a
+ * comment explaining why it was there.
+ *
+ * That stopped being true in two steps. A plugin is a FIBER, so the roster is
+ * republished from the re-compose — every register and every dispose — and the
+ * word on a row is read live. And the TAB now MOVES on it: a roster change is a
+ * `redial`, which builds a new wire, tears down every standing subscription on
+ * the old one and rebuilds the page's whole tree. A republish that carries the
+ * identical value would do all of that for nothing, and it is not a rare case:
+ * a reconnect republishes, and so does any re-compose that ended where it
+ * started.
+ *
+ * `Schema.toEquivalence` rather than a hand-written walk, for the reason every
+ * other `equals` on this spec takes it: the shape is the schema's, so a
+ * comparison written out here would be a second reading of it, free to miss the
+ * field somebody adds. The optional keys are part of that — a row whose `state`
+ * moved from `waiting` to `running` is a different roster, and a hand-rolled
+ * comparison of `name` and `running` would have called it the same one.
+ */
+export const sameRoster: (a: PluginRoster, b: PluginRoster) => boolean = Schema
+  .toEquivalence(PluginRoster)

@@ -12,7 +12,7 @@
  *
  * kolu's row IS a component — `@kolu/solid-dockrow`, with `@kolu/solid-statepip`
  * for the pip — and this file may not name either. Those are PRODUCT-TIER
- * imports, confined by `packages/plugin-api/src/fence.test.ts` to the two
+ * imports, confined by `packages/bundle/src/fence.test.ts` to the two
  * packages that are kolu's tenancy (`@olai/kolu-client` and
  * `olai-plugin-kolu`), which is the whole arrangement that lets a serve run
  * without kolu at all. A core face reaching for kolu's row would put an

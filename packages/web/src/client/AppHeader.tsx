@@ -111,6 +111,7 @@ import { desktop } from "./layout/media.ts"
 import type { Route } from "./routes.ts"
 import { HeaderSearch } from "./search/HeaderSearch.tsx"
 import { connectionReadout } from "./wire.ts"
+import { Plugins } from "./plugins/Plugins.tsx"
 import { Preferences } from "./settings/Preferences.tsx"
 import { TESTID } from "./testids.ts"
 import { TARGET_BOX } from "./touch.ts"
@@ -228,11 +229,23 @@ export function AppHeader(props: {
               tick on this page. A healthy phone does not wear it. */}
           <Uptime />
           <ChatToggle />
+          {/* WHICH INTEGRATIONS THIS SERVER IS RUNNING, beside the door to how
+              this browser reads — two doors because two questions, and only one
+              of them is a preference (`./plugins/Plugins.tsx` argues it). It is
+              before `Preferences` rather than after because the two are read as
+              a pair and preferences is the one a reader reaches for by habit:
+              the habitual door stays where the hand already goes. */}
+          <Plugins />
           <Preferences />
         </Show>
         {/* Phone screens with no directory drawer (the error report, the
             waiting page) still need a door into preferences. When the
-            drawer exists the trigger lives at the foot of it. */}
+            drawer exists the trigger lives at the foot of it.
+            PREFERENCES ONLY, and the asymmetry is deliberate: these are the
+            two pages a reader lands on when something is wrong, and the one
+            thing they may need there is the theme or the type. Which plugins
+            an instance runs is not actionable on a page that could not draw
+            itself, and the phone bar has no room for a chip that is not. */}
         <Show when={!desktop() && props.menu === undefined}>
           <Preferences />
         </Show>

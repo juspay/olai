@@ -58,7 +58,7 @@
  * ({@link ./plugin.ts}), so a probe reachable through it would put
  * `node:child_process` — and kolu's whole detect surface — into the tab's
  * bundle. That is the same graph split the runtime half takes, for the same
- * reason, and `packages/plugin-api/src/fence.test.ts` walks both closures.
+ * reason, and `packages/bundle/src/fence.test.ts` walks both closures.
  */
 
 import type { ChildProcess } from "node:child_process"

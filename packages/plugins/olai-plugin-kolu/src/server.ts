@@ -34,9 +34,12 @@
  * reached the runtime half through the manifest would pull a UI runtime and an
  * emulator onto the graph of a process that renders nothing, which is the exact
  * hazard `@olai/kolu-client/wire`'s own fence was written for one floor down.
- * So the runtime half is reached HERE, and `@olai/plugin-api`'s own `./server` door
- * is what a composition root opens (`packages/plugin-api/src/fence.test.ts` walks
- * that closure and asserts the claim rather than trusting this paragraph).
+ * So the runtime half is reached HERE, and it is reached BY NAME:
+ * `@olai/bundle`'s `olai.yml` carries the row `olai-plugin-kolu/server` and the
+ * loader mounts this module as a fiber. What this door imports from
+ * `@olai/plugin-api` is the SERVICES half — `cordis` and a handful of data
+ * shapes, no `solid-js` — and `packages/bundle/src/fence.test.ts` walks the
+ * closure and asserts the claim rather than trusting this paragraph.
  *
  * ## What did NOT move, and why the wall is where it is
  *
@@ -59,6 +62,8 @@
  */
 
 import type { ImplementSurfaceDeps, SurfaceCtx } from "@kolu/surface/server"
+import type {} from "@olai/plugin-api/services"
+import type { Context } from "cordis"
 import {
   type Convention,
   conventionServed,
@@ -86,14 +91,16 @@ import {
   terminalsIn,
   whyOut,
 } from "./doorbell.ts"
+import { probe } from "./probe.ts"
 import { listed, type Trace, tracing } from "./trace.ts"
-import { name, surface } from "./wire.ts"
+import { wake } from "./wake.ts"
+import { faces, name, surface } from "./wire.ts"
 
 /** The kinds this plugin teaches a vault, reached on this door — see
- *  {@link ./kinds.ts} for the word, and `@olai/plugin-api`'s `server.ts` for why
+ *  {@link ./kinds.ts} for the word, and `@olai/plugin-api`'s `services.ts` for why
  *  the table is assembled here rather than off the manifest. */
 export { kinds } from "./kinds.ts"
-import { ownKinds } from "./kinds.ts"
+import { kinds, ownKinds } from "./kinds.ts"
 
 /** The wire half, re-exported so a composition root reads ONE entry per plugin
  *  — and so the sibling key the surface is composed under and the key its deps
@@ -128,73 +135,35 @@ export { probe } from "./probe.ts"
 export { wake } from "./wake.ts"
 
 /**
- * WHAT THIS HALF ASKS CORE FOR — a subset of what core offers every plugin, and
- * the subset IS the documentation.
+ * WHAT THIS HALF NAMES, out of what core offers every plugin — and the subset
+ * IS the documentation.
  *
- * Core's blob (`@olai/plugin-api`'s `PluginServices`) carries six fields and an
- * injectable; this signature names the five kolu reads and leaves `served` off,
- * because where a relative path resolves is odu's question and not this one's.
- * That is not a courtesy: a parameter is CONTRAVARIANT, so a half that asked for
- * something core does not offer would be a type error at the registry, and a
- * half that stopped needing a field says so by deleting a line here.
+ * It was a `Services` interface: a hand-written subset of core's seven-field
+ * blob, and the argument for writing it out was that a parameter is
+ * CONTRAVARIANT, so a half that asked for something core does not offer was a
+ * type error at the registry. `inject` makes the same claim without a shadow
+ * type — the runtime holds this fiber PENDING until every name here resolves,
+ * and a name core does not provide is a fiber that never activates and says so
+ * on `ctx.registry`.
  *
- * `dial` arrives as `unknown` and is narrowed BELOW, once. Core cannot type a
- * plugin's own test double without learning what the plugin talks to, which is
- * the one thing the wall exists to prevent — so the narrowing is this package's,
- * at this package's edge, where `Dial` is a word that means something.
+ * `vault` is here where the old subset deliberately left `served` OFF: kolu
+ * reads the served SET on every revision (`conventionServed`, for the file it
+ * owns by convention), and the vault service is where that reading arrives.
+ * `env` carries the injectable too — `ctx.env.dial()` answers THIS fiber's
+ * double, keyed by the registry binding rather than by a word this file
+ * supplies, and it is narrowed to `Dial` once, below, at this package's own
+ * edge.
  */
-export interface Services {
-  readonly env: Record<string, string | undefined>
-  readonly now: () => string
-  readonly say: (line: string) => void
-  readonly warn: (line: string) => void
-  readonly dial?: unknown
-  readonly deliveries: Deliveries
-}
-
-/**
- * THE DOORBELL'S DOOR, re-declared STRUCTURALLY — `@olai/plugin-api`'s
- * `Deliveries`, spelled here because this package must not import that one.
- *
- * The cycle is the whole reason and it is the same one {@link Services} itself
- * is written under: `@olai/plugin-api` imports THIS package, so a dependency back
- * would be a shape the manifests could not express. What holds the two in step
- * is the registry's `satisfies`, where a parameter's contravariance turns a
- * field this half asked for and core does not offer into a type error with this
- * plugin's name on the line.
- *
- * TWO MEMBERS, AND ONE OF THEM CANNOT READ. `deliver` puts a sentence INTO a
- * conversation and there is no verb here for getting one back out — no
- * transcript, no history, not even whether anybody read it. That is core's
- * fence rather than this plugin's restraint, and re-declaring it faithfully is
- * how this side says it accepts it: a plugin that could both ring a doorbell
- * and read the answers would be the appliance reading the human's mail.
- */
-export interface Deliveries {
-  /** The conversations somebody scoped to this plugin, each with the file
-   *  they picked to filter by. Synchronous, because the caller is a watcher
-   *  sink with no Effect around it. Empty forever on a machine nobody scoped,
-   *  which is the honest state and needs no failure channel. */
-  readonly scopes: () => ReadonlyArray<{
-    readonly agent: string
-    readonly session: string
-    readonly file: string
-  }>
-  /** One machine-marked message into one conversation. Fire-and-forget, like
-   *  {@link Services.say} and {@link Services.warn} beside it and for their
-   *  reason. `coalesce` names the slot an UNDELIVERED body may be replaced
-   *  in — a slot core files under the PAIR of this plugin and the word, so the
-   *  word is chosen among this plugin's own messages and no neighbour's key
-   *  can collide with it. See {@link ./doorbell.ts} on why a fixed key per
-   *  meaning is lossless here and would not be for a plugin that
-   *  accumulated. */
-  readonly deliver: (
-    to: { readonly agent: string; readonly session: string },
-    /** Asked at the moment the words go in, never before — see {@link said}. */
-    say: () => string | null,
-    options?: { readonly coalesce?: string },
-  ) => void
-}
+export const inject = [
+  "clock",
+  "deliveries",
+  "env",
+  "kinds",
+  "log",
+  "surfaces",
+  "vault",
+  "wakes",
+] as const
 
 /**
  * ONE REVISION OF THE VAULT, as much of it as this half reads.
@@ -253,18 +222,13 @@ type Ctx = SurfaceCtx<typeof surface.spec>
  * answer hollowly. The state a reader sees is the stronger of the two: a member
  * that is absent rather than a member that is present and empty.
  */
-export const serve = (services: Services): {
-  readonly deps: ImplementSurfaceDeps<typeof surface.spec>
-  readonly published: (ctx: unknown) => void
-  readonly revision: (revision: VaultRevision) => void
-  readonly unloaded: () => void
-} => {
+export function apply(ctx: Context): void {
   /** This sibling's own write face, filled the moment it is implemented. A
    *  FUNCTION reads it below rather than a captured value, because the surface
    *  does not exist while this is being built and the mirror's first row can
    *  move before it does — the arrangement the three read-back closures in
    *  `runtime.ts` were, with core no longer in the middle of it. */
-  let ctx: Ctx | undefined
+  let mine: Ctx | undefined
 
   /**
    * WHETHER THE WATCH HAS BEGUN — one boolean, and it is the boot beat's gate
@@ -288,19 +252,19 @@ export const serve = (services: Services): {
 
   const half = koluHalf<Located>({
     options: {
-      env: services.env,
-      now: services.now,
+      env: ctx.env.vars,
+      now: () => ctx.clock.now(),
       // THE ONE NARROWING, and the only cast in this package. Core carries a
       // plugin's test double opaquely because typing it would mean knowing what
       // this plugin dials; `Dial` is that word, and this is the edge that owns
       // it. A test that hands a fake padi through is checked against `Dial` by
       // `makeMirror` on the next line down, so a wrong value is a type error at
       // the harness rather than a silent no-op here.
-      dial: services.dial as Dial | undefined,
+      dial: ctx.env.dial() as Dial | undefined,
     },
-    fleet: () => ctx?.collections.fleet,
-    events: () => ctx?.collections.events,
-    pulse: () => ctx?.cells.pulse,
+    fleet: () => mine?.collections.fleet,
+    events: () => mine?.collections.events,
+    pulse: () => mine?.cells.pulse,
     // THE VAULT WALKS, passed in — the appliance's own ruling, and this package
     // is now where both sides of it live. `claimants.ts` reads outline records,
     // which is a thing the package that dials padi must not learn; what crosses
@@ -336,12 +300,12 @@ export const serve = (services: Services): {
     // seconds and it is not news. What IS news — a connect, a skew, a link that
     // dropped — is the same channel, because the alternative is this module
     // deciding which of padi's sentences matter.
-    say: services.say,
+    say: (line) => ctx.log.say(line),
     // What the OWNER must read: a malformed `_olai/Kolu.olai` value — the
     // sentences whose promise lives in this package's `docs.md`. Rare by latch
     // (one line per new shape), and the default console level is `info`, so the
     // channel is `warning`, not `debug`.
-    warn: services.warn,
+    warn: (line) => ctx.log.warn(line),
   })
 
   /** WHICH SERVED OUTLINE IS `_olai/Kolu.olai`, carried across revisions.
@@ -382,7 +346,7 @@ export const serve = (services: Services): {
    * hands each serve its own channel, and a tracer minted at module scope would
    * be one process's log for however many serves a test stands up.
    */
-  const trace: Trace = tracing(services.say)
+  const trace: Trace = tracing((line) => ctx.log.say(line))
 
 
     /**
@@ -437,7 +401,7 @@ export const serve = (services: Services): {
       standing: standing.length,
       terminals: listed(standing.map((one) => one.terminal)),
     })
-    return bodyFor(meaning, standing, file, services.now())
+    return bodyFor(meaning, standing, file, ctx.clock.now())
   }
 
 /**
@@ -571,7 +535,7 @@ export const serve = (services: Services): {
         perStanding.set(key, fresh)
         return fresh
       }
-      const scopes = services.deliveries.scopes()
+      const scopes = ctx.deliveries.scopes()
       trace("scopes", {
         terminal: event.row.terminal,
         scoped: scopes.length,
@@ -621,7 +585,7 @@ export const serve = (services: Services): {
           session: scope.session,
           coalesce: `${name}:${meaning}`,
         })
-        services.deliveries.deliver(
+        ctx.deliveries.deliver(
           { agent: scope.agent, session: scope.session },
           // ... AND ASKED AGAIN AT THE MOMENT IT GOES IN, which is what this
           // closure is for. A body can wait through a running turn or until
@@ -668,7 +632,7 @@ export const serve = (services: Services): {
         )
       }
     } catch (thrown) {
-      services.warn(
+      ctx.log.warn(
         `kolu: the doorbell could not ring for this fleet event — ${String(thrown)}`,
       )
     }
@@ -701,10 +665,10 @@ export const serve = (services: Services): {
    * buys legibility in a dump and nothing else.
    */
   const heart: Heartbeat = makeHeartbeat({
-    scopes: () => services.deliveries.scopes(),
-    deliver: (to, say, options) => services.deliveries.deliver(to, say, options),
+    scopes: () => ctx.deliveries.scopes(),
+    deliver: (to, say, options) => ctx.deliveries.deliver(to, say, options),
     terminals,
-    now: services.now,
+    now: () => ctx.clock.now(),
     coalesce: `${name}:heartbeat`,
     trace,
   })
@@ -722,7 +686,7 @@ export const serve = (services: Services): {
     try {
       heart.beat(everyMs)
     } catch (thrown) {
-      services.warn(
+      ctx.log.warn(
         `kolu: the doorbell could not beat for this watch window — ${String(thrown)}`,
       )
     }
@@ -732,78 +696,120 @@ export const serve = (services: Services): {
   // see `begun` above for why the watcher's own boot pulse must find it shut.
   begun = true
 
-  return {
-    /**
-     * THE FIVE MEMBER HANDLERS, straight through — and the annotation on this
-     * function's return type is where the agreement between this plugin and the
-     * framework is actually proved. `ImplementSurfaceDeps<typeof surface.spec>`
-     * is written against THIS package's own surface, so a member the appliance
-     * renamed, dropped or re-shaped is a type error in this file with this
-     * plugin's name on it. Core carries the value as `unknown` and never opens
-     * it, which is why the check has to be here.
-     */
-    deps: half.handlers,
-    /** This sibling's ctx, the moment `implementSurfaces` has minted it. The
-     *  cast is this package narrowing an opaque value to its OWN surface's write
-     *  face — the mirror image of the `dial` narrowing above, and safe for the
-     *  same reason: core addresses it by the only word it knows about this
-     *  plugin, which is the key it composed the surface under. */
+
+  /** THE KINDS THIS PLUGIN TEACHES THE VAULT, as effects. `ctx.kinds` composes
+   *  each word from `ctx.fiber.name` — the registry binding — so what this file
+   *  hands over is the BARE word and the prefix is never this file's to spell.
+   *  Its own built-in declaration can therefore claim `kolu-terminal` and
+   *  nothing else, which is what makes a person's own `terminal` column
+   *  untouchable by a flag on the machine. */
+  for (const kind of kinds) ctx.kinds.register(kind)
+
+  /** ...AND THE SENTENCE THE STRIP DRAWS. It was a field on the server door;
+   *  it is a registration now, so a scope written for a plugin that has since
+   *  unloaded is refused by the same check that refuses one for a plugin that
+   *  never declared a wake. */
+  ctx.wakes.register(wake)
+
+  /**
+   * THE SIBLING SURFACE, and the two things that ride with it.
+   *
+   * `deps` is THE FIVE MEMBER HANDLERS, straight through, and the `satisfies`
+   * is where the agreement between this plugin and the framework is actually
+   * proved: `ImplementSurfaceDeps<typeof surface.spec>` is written against THIS
+   * package's own surface, so a member the appliance renamed, dropped or
+   * re-shaped is a type error in this file with this plugin's name on it. Core
+   * carries the value as `unknown` and never opens it, which is why the check
+   * has to be here.
+   *
+   * `published` is this sibling's ctx, the moment the runtime has minted it.
+   * The cast is this package narrowing an opaque value to its OWN surface's
+   * write face — the mirror image of the `dial` narrowing above, and safe for
+   * the same reason: core addresses it by the only word it knows about this
+   * plugin, which is the key it composed the surface under.
+   *
+   * NO NAME. The sibling key is `ctx.fiber.name`, read by the service off the
+   * registry binding, so this half cannot register under a name that is not the
+   * one it was mounted as — and there is no line anywhere for the two to drift
+   * apart on.
+   */
+  ctx.surfaces.register({
+    surface,
+    faces,
+    deps: half.handlers satisfies ImplementSurfaceDeps<typeof surface.spec>,
     published: (bound) => {
-      ctx = bound as Ctx
+      mine = bound as Ctx
     },
-    /**
-     * A VAULT REVISION LANDED — re-derive who claims which terminal, and what
-     * the watcher's knobs now say.
-     *
-     * It walks every node and publishes almost nothing: the mirror compares each
-     * row's owner before it upserts, so a keystroke that landed in a note costs
-     * one walk and zero frames. What it costs on the revision a `terminal`
-     * property is actually written is one frame for that terminal's row.
-     *
-     * The FILE is asked of the SERVED outlines rather than of the records
-     * (`served`, not `recorded`): a file the codec tore apart still names itself,
-     * and the foot's wrench over it must not fall away WITH the nodes.
-     */
-    revision: (revision) => {
-      file = conventionServed(koluFileIn, revision.value.set, revision, file)
-      declaring = declarationsOf(revision.value.derived, ownKinds)
-      // ...AND THE READING ITSELF, held for the doorbell. It is the same
-      // pointer the two walks above are about, kept because the doorbell's
-      // walk runs on the WATCHER's clock rather than on this hook — a fleet
-      // event arrives between revisions, and the vault it is joined against
-      // has to be the last one that landed.
-      derived = revision.value.derived
-      half.revision(revision.value.derived.nodes, file.file ?? null)
-    },
-    /**
-     * The store has NEVER published — the vault's kolu verdict goes out with
-     * the canvas: yesterday's wrench, aimed at a file this serve can no longer
-     * say it read, is a claim the store cannot vouch for. The watch knobs are
-     * NOT touched — their timers hold their last hand-off while the mirror,
-     * equally starved, has nothing new for them to gate.
-     *
-     * ## The two `let`s go with it, and the DOORBELL is why
-     *
-     * {@link ring} runs on the WATCHER's clock rather than on a revision, so
-     * `derived` and `file` are exactly the pair a fleet event arriving after a
-     * disown would be joined against. Leaving them set means the doorbell
-     * keeps walking a vault the store has explicitly stopped vouching for and
-     * ringing somebody about claims read out of it — the same stale wrench the
-     * paragraph above refuses, arriving by the one door that does not go
-     * through the mirror. `undefined` is the doorbell's own first gate
-     * ({@link ring} returns on it), so clearing it is how the walk is told.
-     *
-     * IT USED TO CLEAR NEITHER, and only called through to the half. The
-     * comment claimed the verdict went out with the canvas and the code did
-     * not: a serve whose store stopped publishing pinned the last whole
-     * `Derived` — nodes, `byId`, `byFile`, `children`, `status` — for the life
-     * of the process, with the disowned-vault doorbell walk as the only thing
-     * that would ever read it again.
-     */
-    unloaded: () => {
-      derived = undefined
-      file = undefined
-      half.unloaded()
-    },
-  }
+  })
+
+  /**
+   * A VAULT REVISION LANDED — re-derive who claims which terminal, and what the
+   * watcher's knobs now say.
+   *
+   * It walks every node and publishes almost nothing: the mirror compares each
+   * row's owner before it upserts, so a keystroke that landed in a note costs
+   * one walk and zero frames. What it costs on the revision a `terminal`
+   * property is actually written is one frame for that terminal's row.
+   *
+   * The FILE is asked of the SERVED outlines rather than of the records
+   * (`served`, not `recorded`): a file the codec tore apart still names itself,
+   * and the foot's wrench over it must not fall away WITH the nodes.
+   *
+   * THE PAYLOAD IS NARROWED HERE, in this plugin's own signature: core emits the
+   * whole published snapshot and {@link VaultRevision} names the parts kolu
+   * touches, which is a claim the compiler checks rather than a comment.
+   */
+  ctx.vault.revision((snapshot) => {
+    const revision = snapshot as VaultRevision
+    file = conventionServed(koluFileIn, revision.value.set, revision, file)
+    declaring = declarationsOf(revision.value.derived, ownKinds)
+    // ...AND THE READING ITSELF, held for the doorbell. It is the same pointer
+    // the two walks above are about, kept because the doorbell's walk runs on
+    // the WATCHER's clock rather than on this listener — a fleet event arrives
+    // between revisions, and the vault it is joined against has to be the last
+    // one that landed.
+    derived = revision.value.derived
+    half.revision(revision.value.derived.nodes, file.file ?? null)
+  })
+
+  /**
+   * THE STORE HAS NEVER PUBLISHED — and this is NOT teardown.
+   *
+   * The vault's kolu verdict goes out with the canvas: yesterday's wrench, aimed
+   * at a file this serve can no longer say it read, is a claim the store cannot
+   * vouch for. The watch knobs are NOT touched — their timers hold their last
+   * hand-off while the mirror, equally starved, has nothing new for them to
+   * gate.
+   *
+   * ## The two `let`s go with it, and the DOORBELL is why
+   *
+   * {@link ring} runs on the WATCHER's clock rather than on a revision, so
+   * `derived` and `file` are exactly the pair a fleet event arriving after a
+   * disown would be joined against. Leaving them set means the doorbell keeps
+   * walking a vault the store has explicitly stopped vouching for and ringing
+   * somebody about claims read out of it. `undefined` is the doorbell's own
+   * first gate ({@link ring} returns on it), so clearing it is how the walk is
+   * told.
+   *
+   * UNLOADING THIS PLUGIN IS A DIFFERENT THING, and the event's name is what
+   * keeps them apart. A disposed fiber unwinds every effect above — the sibling
+   * surface, the kinds, the wake, these listeners — and what this listener does
+   * is none of that: it says the DISK went away, not that kolu did.
+   */
+  ctx.vault.unloaded(() => {
+    derived = undefined
+    file = undefined
+    half.unloaded()
+  })
+
+  /** IS KOLU'S MCP SERVER HERE, asked once per conversation opening — the
+   *  `chat/session-start` waterfall, and a THUNK rather than an answer so the
+   *  asking stays `@olai/chat`'s to schedule and the list is collected per
+   *  session rather than once per boot. `ctx.env.vars` and not `process.env`:
+   *  a probe that read the environment itself would answer a different question
+   *  than the one a session's spawn will ask. */
+  ctx.on("chat/session-start", (start, next) => {
+    start.asking.push({ name, ask: () => probe(ctx.env.vars) })
+    return next()
+  })
 }

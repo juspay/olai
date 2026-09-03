@@ -35,7 +35,7 @@
  * prevent.
  */
 
-import type { PluginTestId } from "@olai/plugin-api/testids"
+import type { PluginTestId } from "@olai/bundle/testids"
 
 export const TESTID = {
   /** The app header: wordmark, and on desktop the connection, agent,
@@ -651,10 +651,33 @@ export const TESTID = {
   prefsTrigger: "prefs-trigger",
   /** The panel it opens (portalled out of the header). */
   prefsPanel: "prefs-panel",
-  /** One preference on it; `data-pref` is which — `theme`, `font`, `size`,
-   *  `density`, `done`, `git-commit`, `git-push`, and one `plugin-<name>` per
-   *  plugin this build has ({@link pluginPref}, which is why that tail is open
-   *  and this list is not). */
+  /** ...AND THE PLUGINS' OWN DOOR, beside it in the bar.
+   *
+   *  The rows were ON the preferences panel and are a control of their own now.
+   *  Two triggers rather than one because they answer two different questions:
+   *  preferences is HOW THIS BROWSER READS, and every row on it is this
+   *  browser's to change; plugins is WHAT THIS INSTANCE IS RUNNING, which no
+   *  browser may change at all. A panel that mixed them made the frozen rows
+   *  read as preferences somebody had disabled rather than as facts about the
+   *  serve.
+   *
+   *  It keeps the `prefsRow` / `prefsHint` names for what it draws, because a
+   *  row is the same object with the same three parts and a second grammar for
+   *  it would be a second thing for a scenario to know. */
+  pluginsTrigger: "plugins-trigger",
+  /** The panel it opens (portalled out of the header, like the one beside it). */
+  pluginsPanel: "plugins-panel",
+  /** One row on EITHER panel; `data-pref` is which. On preferences: `theme`,
+   *  `font`, `size`, `density`, `done`, `git-commit`, `git-push`. On plugins:
+   *  one `plugin-<name>` per plugin this build has ({@link pluginPref}, which
+   *  is why that tail is open and this list is not).
+   *
+   *  ONE NAME ACROSS TWO PANELS, deliberately. The plugin rows drew here until
+   *  they became a control of their own, and a row is the same object either
+   *  side of that move — a label, a control, what the choice in force means,
+   *  and who set it. A second grammar for the same four parts would be a second
+   *  thing for every scenario to know, and the two are told apart by the panel
+   *  they are found inside, which is what a scenario already scopes by. */
   prefsRow: "prefs-row",
   /** That row's hint: what the choice IN FORCE means, re-read whenever the
    *  control moves. Its own name because it is the half of a settings row that
@@ -1817,7 +1840,7 @@ export const selector = (id: TestId | PluginTestId): string => `[data-testid="${
  * The plugin roster is the one part of this panel whose rows are not known when
  * this file is written: there is a row per plugin the BUILD has, walked off the
  * `plugins` cell, and neither the panel nor the suite may spell a plugin's name
- * (`@olai/plugin-api`'s `fence.test.ts` holds that as an equality per package). So
+ * (`@olai/bundle`'s `fence.test.ts` holds that as an equality per package). So
  * the row's handle is a GRAMMAR rather than a name — `{@link PLUGIN_PREF}`
  * followed by whatever the server said — and a scenario finds the rows with the
  * prefix and reads the names off the DOM, which is the only way to assert on a

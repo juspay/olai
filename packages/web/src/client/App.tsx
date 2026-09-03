@@ -68,6 +68,7 @@ import { createRouter, RouterProvider } from "./router.tsx"
 import { runAsync } from "./run.ts"
 import { ServedProvider } from "./served.tsx"
 import { PluginsMounted } from "./plugins/Mounted.tsx"
+import { Plugins } from "./plugins/Plugins.tsx"
 import { Preferences } from "./settings/Preferences.tsx"
 import { Sidebar } from "./Sidebar.tsx"
 import { TodayProvider } from "./today.tsx"
@@ -449,7 +450,17 @@ export default function App() {
                         open={desktop() ? true : menuOpen()}
                         onClose={() => setMenuOpen(false)}
                         foot={
-                          desktop() ? undefined : <Preferences where="closet" />
+                          // THE CLOSET, on a phone: the two doors the header
+                          // cannot afford a chip for. Plugins under
+                          // preferences, which is the order the desktop bar
+                          // reads left to right — a reader who learnt one
+                          // arrangement does not have to learn a second.
+                          desktop() ? undefined : (
+                            <>
+                              <Preferences where="closet" />
+                              <Plugins where="closet" />
+                            </>
+                          )
                         }
                       >
                         <Calendar today={today()} open={openDay()} />

@@ -24,12 +24,24 @@
  * `odu` in its dressing table, its testids, its App and its claims sweep. The
  * wall is here now, and it confines what it was always about.
  *
- * ## The manifest is structural
+ * ## The fit is structural, and it is proved where the values are SPENT
  *
- * No `: OlaiPlugin` on the value: `@olai/plugin-api` imports this package, and
- * the fit is proved at the registry's `satisfies`. `olai-plugin-kolu`'s
- * header argues the direction in full.
+ * No `: OlaiPlugin` on the value below, and no annotation left to put there:
+ * the type retired with the manifest object it described — a browser half is a
+ * Cordis plugin now (`./browser.tsx`) — and the registry whose `satisfies`
+ * proved the fit retired with it, because `@olai/bundle` is rows naming modules
+ * a loader resolves rather than a list of imported halves.
+ *
+ * The direction that argument was made of still holds and only its far end
+ * moved: it was `@olai/plugin-api` that imported every plugin, so a plugin
+ * could not import back; the registry left for `@olai/bundle` and this package
+ * imports the interface now (`./browser.tsx` takes the declaration merging that
+ * types `ctx.slots`). What proves the fit is the pair of `register` calls that
+ * spend these values — `ctx.surfaces.register` in `./server.ts`, whose
+ * `Sibling` types `surface` and `faces`, and `ctx.slots.register` in
+ * `./browser.tsx`, which refuses a slot the app does not declare — each of them
+ * red in this package with this plugin's name on the file.
+ * `olai-plugin-kolu`'s header argues the direction in full.
  */
 
 export { faces, name, surface } from "./wire.ts"
-export { plugin } from "./plugin.ts"

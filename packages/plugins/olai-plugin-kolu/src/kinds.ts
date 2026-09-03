@@ -45,34 +45,48 @@
  * ## This module's graph
  *
  * It is reached from `./server.ts`, where the vocabulary is spent by the
- * validator and the write planner, and from `./plugin.ts` for the WORD alone —
- * the dressing is looked up by it, so one constant serves the probe and the
- * face. What it may not do is drag this plugin's SolidJS faces onto the graph of
- * a process that renders nothing, and it does not: what it imports is one
- * constant from `@olai/kolu-client/wire`, which is schemas and names.
+ * validator and the write planner, and from `./browser.tsx` for the WORD alone
+ * — the face is registered under it, so one constant serves the probe and the
+ * face. (It was `./plugin.ts` on that second door, when a browser half was a
+ * manifest object; the half is a Cordis plugin now and the constant it wants is
+ * the same one.) What it may not do is drag this plugin's SolidJS faces onto the
+ * graph of a process that renders nothing, and it does not: what it imports is
+ * one constant from `@olai/kolu-client/wire`, which is schemas and names.
  *
- * The shape it satisfies is `@olai/plugin-api`'s `PropKind`, and a plugin may not
- * import that package, so the fit is proved at the registry like every other
- * half of this manifest.
+ * The shape it satisfies is `@olai/plugin-api`'s `PropKind`. That used to be an
+ * agreement nothing here could annotate — the package held the REGISTRY as well
+ * as the interface, so a plugin importing it was a cycle, and the fit was proved
+ * at the registry's `satisfies`. The registry is `@olai/bundle`'s now and this
+ * package imports the interface for real, so the fit is proved where the row is
+ * SPENT: `ctx.kinds.register` takes a `PropKind` (`./server.ts`), and a row that
+ * stopped fitting is red on that line rather than on a list's.
  */
 
 import { name } from "./wire.ts"
 
-/** The BARE word this plugin contributes. The registry prefixes it with this
- *  plugin's name, so what a vault actually writes is {@link TERMINAL_TYPE}. */
+/** The BARE word this plugin contributes. The SERVICE prefixes it with this
+ *  plugin's name — read off the registering fiber rather than off anything
+ *  handed in — so what a vault actually writes is {@link TERMINAL_TYPE}. */
 export const TERMINAL_KIND = "terminal"
 
 /**
  * ...and the word a DECLARATION writes:
  * `{"title":"terminal","custom":{"type":"kolu-terminal"}}`.
  *
- * `@olai/plugin-api`'s `kindWordOf` composes this at the registry, and this is the
- * SAME composition spelled a second time — because this package's own walk
- * ({@link ./claimants.ts}) reads declarations, and a plugin may not import
- * `@olai/plugin-api` (the registry imports every plugin; a dependency back is a
- * cycle). The two spellings are held equal by `@olai/plugin-api`'s `kinds.test.ts`,
- * which is the same trade every other structural agreement in this package
- * makes.
+ * `@olai/plugin-api`'s `kindWordOf` composes this inside the SERVICE, off the
+ * registering fiber's own name — `ctx.kinds` on the server and `ctx.slots` in
+ * the tab, so one word cannot become two spellings — and the constant here is
+ * that SAME composition spelled a second time, for this package's own walk
+ * ({@link ./claimants.ts}), which reads declarations.
+ *
+ * It was written when a plugin could not import `@olai/plugin-api` at all: that
+ * package held the registry as well as the interface, and the registry imports
+ * every plugin, so a dependency back was a cycle. That premise is gone — the
+ * registry is `@olai/bundle`'s — and the second spelling stays anyway, for a
+ * reason of its own: the walk wants the composed word at MODULE SCOPE, where no
+ * registration has happened and there is no fiber to compose it off. The two
+ * spellings are held equal by `@olai/bundle`'s `kinds.test.ts`, which is the
+ * same trade every other structural agreement in this package makes.
  */
 export const TERMINAL_TYPE = `${name}-${TERMINAL_KIND}`
 
@@ -95,9 +109,9 @@ export const TERMINAL_TYPE = `${name}-${TERMINAL_KIND}`
 export const admitsTerminal = (value: string): boolean => /^[0-9a-fA-F-]+$/.test(value)
 
 /**
- * The contribution, as `@olai/plugin-api`'s registry reads it — one entry, spent at
- * three doors: the live write's refusal, the broken file's error, and the fold
- * that decides what a key is declared as.
+ * The contribution, as `ctx.kinds` takes it — one entry, spent at three doors:
+ * the live write's refusal, the broken file's error, and the fold that decides
+ * what a key is declared as.
  *
  * `claims` IS THE BUILT-IN DECLARATION, and the key it claims is
  * {@link TERMINAL_TYPE} — `kolu-terminal`, never the bare `terminal`. A vault
@@ -107,8 +121,12 @@ export const admitsTerminal = (value: string): boolean => /^[0-9a-fA-F-]+$/.test
  * draw, and **nothing ever writes anybody's vault**.
  *
  * THE CLAIMED KEY IS THE COMPOSED WORD ITSELF, and it is not a choice this
- * plugin gets to make: `@olai/plugin-api`'s `kindsOf` sets `claims` equal to the
- * word it just composed. That equality is what makes a built-in declaration
+ * plugin gets to make: nothing in this row says `claims` at all.
+ * `ctx.kinds.register` sets it equal to the word it just composed
+ * (`@olai/plugin-api`'s `services.ts`), out of the registering fiber's own name
+ * — it was a `kindsOf` over two lists a composition root held, and it is a
+ * registration off the fiber now, which is what made the field unspellable here
+ * rather than merely unspelt. That equality is what makes a built-in declaration
  * safe — enabling kolu can only ever declare `kolu-terminal`, so a column
  * somebody else calls `terminal` is untouchable by a flag on the machine.
  *

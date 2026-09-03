@@ -138,7 +138,7 @@
  * repeated frame just the same. `plugins` is the odd one in that list, and it
  * declares on purpose: it is minted once per serve, so no frame of it ever
  * repeats and the merge has nothing to decide today — but a plugin row IS its
- * name (no two plugins may share one, which is `@olai/plugin-api`'s own fence), and
+ * name (no two plugins may share one, which is `@olai/bundle`'s own fence), and
  * a member that later grew a second frame would otherwise start replacing every
  * row silently. The members that declare NOTHING each say why
  * where they are declared, and three of them share one reason worth stating
@@ -230,7 +230,7 @@ import { MovingAnswer, MovingRequest, PageReading, PageRequest } from "./page.ts
 import { App } from "./app.ts"
 import { NarrowingAnswer, NarrowingRequest } from "./narrowing.ts"
 import { SearchAnswer, SearchRequest } from "./search.ts"
-import { NO_ROSTER, PluginRoster } from "./plugins.ts"
+import { NO_ROSTER, PluginRoster, sameRoster } from "./plugins.ts"
 import { Who } from "./who.ts"
 
 /**
@@ -537,7 +537,7 @@ export const LOADED: Manifest = {}
  * drawing the same server's answer about the same directory, and `off` above is
  * already exactly that answer wearing the repository's clothes. What a browser
  * does with it — draw the two git preference rows read-only, naming a given
- * flag or the built-in default — is `web/src/client/settings/`.
+ * flag or the built-in default — is `web/src/client/plugins/`.
  *
  * A CELL, and read-only on the wire, for the reason the manifest is: one value
  * the server owns, about the directory rather than about any file in it. It
@@ -782,7 +782,16 @@ export const surface = defineSurface({
      * A CELL for the reason the two above it are: one value about the served
      * INSTANCE rather than about any file in it. It is the sharpest case of it
      * on this spec — the flag is read once, at the composition root, so this
-     * moves at most once per serve and carries no connector and no `equals`.
+     * flag is read once at the composition root and nothing on that side
+     * republishes it by itself.
+     *
+     * IT NO LONGER MOVES AT MOST ONCE, and the `equals` below is what that
+     * costs. A plugin is a fiber, so the roster is republished from the
+     * re-compose — every register and every dispose — and the tab MOVES on it:
+     * a roster change is a `redial`, which builds a new wire and rebuilds the
+     * page's whole tree under it. A republish carrying the identical value
+     * must not do any of that, and it is not a rare case — a reconnect
+     * republishes. {@link sameRoster} argues it in full.
      *
      * Wire-read-only, and here that is more than the usual: `--plugins` is
      * CLI/nix ONLY, so there is no verb a browser could call and no settings
@@ -800,9 +809,12 @@ export const surface = defineSurface({
       schema: PluginRoster,
       default: NO_ROSTER,
       verbs: ["get"],
+      // TWO ROSTERS THAT SAY THE SAME THING ARE ONE — see the paragraph above
+      // and `sameRoster`.
+      equals: sameRoster,
       /** A ROW IS ITS `name`, and the fence one package over is what makes
        *  that an identity rather than a hope: no two plugins may share a name
-       *  (`@olai/plugin-api`'s `fence.test.ts`), because the name is the sibling
+       *  (`@olai/bundle`'s `fence.test.ts`), because the name is the sibling
        *  key every one of its tags is composed under. */
       arrayKey: "name",
     },
@@ -1755,8 +1767,18 @@ export { App, appName } from "./app.ts"
  *
  *  `watchable` is the one reading of a row's `wake.kinds`, and it is exported
  *  because the two ends that ask it — the browser's picker and the serve's
- *  per-revision fault — must agree and cannot see each other. */
-export { BuiltPlugin, NO_ROSTER, PluginRoster, watchable } from "./plugins.ts"
+ *  per-revision fault — must agree and cannot see each other. `pluginState` is
+ *  the same arrangement one field over: the composition root writes the word
+ *  and the panel narrows it, and a narrowing spelled twice is a panel that can
+ *  disagree with the serve about which of five mornings a row is having. */
+export {
+  BuiltPlugin,
+  NO_ROSTER,
+  type PluginState,
+  pluginState,
+  PluginRoster,
+  watchable,
+} from "./plugins.ts"
 
 /** Where the hashed browser bundle lives, and what the bundler names a split
  *  chunk in it — see {@link ./bundle.ts}. One spelling, both halves of the

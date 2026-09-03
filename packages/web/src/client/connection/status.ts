@@ -118,3 +118,22 @@ export const lookOf = (readout: SurfaceReadout): Look =>
  *  file's table, and `claims.test.ts` holds it shut. */
 export const isDegraded = (readout: SurfaceReadout): boolean =>
   readout.status === DEGRADED
+
+/**
+ * THE PAGE, BETWEEN WIRES — the one readout this app MINTS rather than folds.
+ *
+ * A roster change is a `redial` (`../wire.ts`), and a superseded connection's
+ * own readout reads `retired` from the instant it is replaced. That is right
+ * for a wire that is gone and a LIE about a page on its way to another one:
+ * `retired` carries `needsReload`, and the reload screen rides `needsReload`,
+ * so a reader would be told to reload something that is about to come back by
+ * itself.
+ *
+ * `reconnecting` rather than `connecting`, because the page HAS been connected
+ * — which is the same distinction {@link LOOK} already draws between the two.
+ *
+ * IT IS HERE AND NOT IN `../wire.ts` for this module's own rule: the five words
+ * are spelled in one file, and `claims.test.ts` holds that as an equality. A
+ * wire that minted its own would be the sixth state's first hiding place.
+ */
+export const BETWEEN_WIRES: SurfaceReadout = { status: "reconnecting", needsReload: false }

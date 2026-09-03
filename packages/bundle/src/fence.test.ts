@@ -27,33 +27,54 @@
  *
  * ## What it claims
  *
- *   1. **Only `@olai/plugin-api` names a plugin.** Held as an EQUALITY per
+ *   1. **Only `@olai/bundle` names a plugin.** Held as an EQUALITY per
  *      package — `[]` for every general one — and never as a filtered list
  *      asserted empty: a pattern that rotted would report nothing found and
  *      pass, which is the failure mode the sweeps in `@olai/tests` were
  *      written after two days of exactly it.
- *   2. **No plugin imports another plugin**, and none imports `@olai/plugin-api`.
- *      The second is what keeps the direction a DAG the manifests express: the
- *      registry imports every plugin, so a plugin that imported back would be
- *      a cycle, and the manifests are where that is refused rather than here.
- *      This holds the SOURCES to the same answer the manifests give.
+ *   2. **No plugin imports the REGISTRY, and every plugin imports the
+ *      INTERFACE.** The first is what keeps the direction a DAG the manifests
+ *      express: `@olai/bundle` imports every plugin, so a plugin that imported
+ *      back would be a cycle. The second is the arrow that made the split
+ *      necessary — a server half is a Cordis plugin whose `inject` names
+ *      services `@olai/plugin-api` declares — and it is asserted to EXIST,
+ *      because a fence that only forbade would pass on a tree where the
+ *      services door had quietly stopped being reachable.
+ *
+ *      **"No plugin imports another plugin" is NOT among these any more.**
+ *      The Cordis proposal overturns it: `inject` is the dependency arm and it
+ *      is reactive, so the half-wired state the ban feared is `PENDING`. What
+ *      the ban protected is claim 6's: an appliance's TIER stays inside its
+ *      tenant, so a plugin reaching into another's `./server` drags that
+ *      appliance's client onto its own graph and goes red there.
  *   3. **A plugin is a SIBLING, and core computes none of its addresses.**
  *      Each plugin composes under its own name, no two share one, and a name
  *      is a legal tag segment because it becomes one. The framework would
  *      catch a collision at boot with a duplicate-tag throw; here it is a test,
  *      in a process that has not started yet.
- *   4. **The wire door stays a wire door.** What a composition root reaches
- *      through `@olai/plugin-api/wire` may not pull a UI runtime onto the
- *      server's graph or an appliance's client onto the browser's — the same
- *      claim `check-kolu-deps.sh`'s fifth assertion makes about the slice one
- *      floor down, made here about the door that composes them.
- *   5. **...and the server door stays a server door.** What `@olai/server`
- *      reaches through `@olai/plugin-api/server` MAY pull an appliance's client,
- *      the vault's format and a `node:` builtin — that is what a runtime half
- *      is made of — and may not pull a browser face onto the graph of a
- *      process that renders nothing. It is the complement of claim 4 rather
- *      than a repetition of it, and the two together are why there are three
- *      doors.
+ *   4. **The browser's door names every plugin and imports none, and each
+ *      plugin's own chunk stays a browser chunk.** It was one claim about one
+ *      door — *the wire door stays a wire door*, `@olai/bundle/wire` being what
+ *      every listener pulled in statically, forbidden a UI runtime because a
+ *      SERVER read it and an appliance's client because a BROWSER did. There is
+ *      no such door: the root is one ROW per plugin with a dynamic `import()`
+ *      behind it, so its closure reaches no plugin at all and the bound is
+ *      satisfied by there being nothing to bound — which is why the door must
+ *      also SPELL every plugin, asserted first, and why what the browser
+ *      actually opens is walked separately, per tenant, as the `./browser`
+ *      chunk a roster fetches. The confinement went there with it: no `node:`
+ *      builtin, and no appliance's product tier — the same claim
+ *      `check-kolu-deps.sh`'s fifth assertion makes about the slice one floor
+ *      down, made here about the door that would ship it to a reader.
+ *   5. **...and the server door stays a server door.** The modules the bundle's
+ *      ROWS name MAY pull an appliance's client, the vault's format and a
+ *      `node:` builtin — that is what a runtime half is made of — and may not
+ *      pull a browser face onto the graph of a process that renders nothing.
+ *      It is the complement of claim 4 rather than a repetition of it, and the
+ *      two together are why there are three doors. It is walked as each ROW's
+ *      module rather than as one array's import graph, because there is no
+ *      array: a row names a specifier the loader resolves at mount, so what is
+ *      walked is every module this build will actually mount.
  *   6. **An appliance's PRODUCT TIER stays inside its tenant**, and the tenant
  *      is COMPUTED. Which packages may name `@kolu/padi-client` or
  *      `@odu/run-client` used to be two hand-written `grep -v` path
@@ -123,7 +144,26 @@ import * as path from "node:path"
 
 import { describe, expect, test } from "bun:test"
 
-import { PLUGIN_NAMES, WIRES } from "./surfaces.ts"
+import { BUNDLE_NAMES as PLUGIN_NAMES, ROWS } from "./rows.ts"
+
+/**
+ * THIS FILE IMPORTS NO PLUGIN, and that is a property of the FALSIFIER rather
+ * than a tidiness.
+ *
+ * It briefly did — a `serverHalves()` that imported each row's module, so the
+ * two claims about a plugin's own VALUES (its sibling key, its face maps) could
+ * read them. `prove-fence.sh` caught what that cost: mutation 8 appends a
+ * `.tsx` import to a server half to trip the component claim, and mutation 10
+ * appends an appliance's client to the wrong tenant's dial. With the plugins
+ * imported here, both of those killed this MODULE at load — the suite died
+ * rather than refused, and a fence that dies is a fence that named nothing.
+ *
+ * So the value claims moved to `./composition.test.ts`, which already loads the
+ * halves and is about what they compose to. What is left here is a sweep over
+ * the tree as TEXT plus a walk over module graphs, neither of which evaluates a
+ * plugin — so a plugin that will not load at all still gets every claim in this
+ * file run against it, which is exactly when a fence is most worth having.
+ */
 import {
   cssImportsOf,
   dependencyNames,
@@ -149,9 +189,19 @@ import {
  *  directories because that is what the walk below has; both are DERIVED —
  *  the registry from the manifest that owns this file, the tenants from the
  *  packages the registry names — so a rename moves them without an edit here. */
-const REGISTRY = MEMBER_OF_PACKAGE.get("@olai/plugin-api") ??
+const REGISTRY = MEMBER_OF_PACKAGE.get("@olai/bundle") ??
   (() => {
-    throw new Error("fence: `@olai/plugin-api` is not a workspace member, so there is no registry to fence")
+    throw new Error("fence: `@olai/bundle` is not a workspace member, so there is no registry to fence")
+  })()
+
+/** ...and the INTERFACE, which is the package the registry used to be half of.
+ *  It names no plugin, which is what lets a plugin import it — so it is
+ *  excused from the "no package outside the registry" claims below by being a
+ *  different package, and holds a claim of its own instead: its SERVICES door
+ *  pulls no browser face. */
+const INTERFACE = MEMBER_OF_PACKAGE.get("@olai/plugin-api") ??
+  (() => {
+    throw new Error("fence: `@olai/plugin-api` is not a workspace member, so there is no interface to fence")
   })()
 
 /**
@@ -279,34 +329,172 @@ const FORBIDDEN = [
  */
 const componentsOn = (door: { files: ReadonlyArray<string> }): ReadonlyArray<string> =>
   door.files.filter((file) => file.endsWith(".tsx"))
+/**
+ * THE BROWSER'S DOOR, walked ONCE. `graphFrom`'s whole argument is that one
+ * traversal answers both readings; walking the same entry again per test would
+ * be the argument undercut by its own callers.
+ *
+ * It was `src/wire.ts`, and the claim it carried was that a door every listener
+ * pulls in reaches each plugin's own `./wire` subpath and STOPS. There is no
+ * such door: the browser's rows carry a dynamic `import()` per plugin, so the
+ * closure below reaches no plugin at all and the claim gets stronger rather
+ * than moving.
+ */
+const BROWSER_DOOR = graphFrom(path.join(PACKAGES, REGISTRY, "src", "rows.ts"))
 
-/** The two doors, walked ONCE each. `graphFrom`'s whole argument is that one
- *  traversal answers both readings; walking the same entry again per test would
- *  be the argument undercut by its own callers, and the file re-read three
- *  times over. */
-const WIRE_DOOR = graphFrom(path.join(PACKAGES, REGISTRY, "src", "wire.ts"))
-const SERVER_DOOR = graphFrom(path.join(PACKAGES, REGISTRY, "src", "server.ts"))
+/**
+ * ...AND EACH PLUGIN'S OWN BROWSER DOOR, which is where the browser's
+ * confinement claim went when `./wire` collapsed — and it went there because
+ * `prove-fence.sh` said so.
+ *
+ * The old `./wire` door was walked with a list that forbade FIVE things, and
+ * each was there for one of two reasons: `solid-js` because a SERVER read that
+ * door, and `@olai/format`, `node:` builtins and every appliance client because
+ * a BROWSER did. When the door collapsed, the server half of that list survived
+ * intact — a server half re-exports its own `./wire`, so `NOT_ON_A_SERVER` is
+ * what catches a UI runtime there now. The browser half survived NOTHING: a
+ * plugin's `./wire` could pull `node:fs` and land it in the tab's chunk with no
+ * claim in the tree to say otherwise.
+ *
+ * The falsifier found it rather than a reviewer: mutation 6 appends
+ * `@olai/format` to a plugin's `./wire` and went GREEN — *the fence did not see
+ * it* — where every other mutation was caught. That is exactly what a mutation
+ * harness is for, and it is the second time this file has been corrected by one.
+ *
+ * So the door being walked is the one the TAB actually opens: each plugin's
+ * `./browser`, which is the chunk a roster fetches. What it may carry is
+ * genuinely different from what `./wire` could, and the list below says how.
+ */
+const BROWSER_DOORS: ReadonlyArray<{ readonly name: string; readonly door: Door }> = TENANTS_OF
+  .map((tenant) => ({
+    name: tenant.name,
+    door: graphFrom(path.join(PACKAGES, tenant.dir, "src", "browser.tsx")),
+  }))
 
-describe("the wire door stays a wire door", () => {
-  const reached = WIRE_DOOR.reached
+/** One walked door, as the two claims below read it. */
+type Door = ReturnType<typeof graphFrom>
 
-  test("the walk actually crossed into both plugins", () => {
-    // Not vacuous: a resolver that answered `undefined` for every workspace
-    // specifier would walk one file and pass every claim below.
+/**
+ * WHAT MUST NOT BE ON A PLUGIN'S BROWSER CHUNK — the old wire door's list with
+ * the two entries removed that a browser face legitimately IS.
+ *
+ * `solid-js` is gone from it, and so is the `.tsx` claim: a browser half is
+ * components, which is the whole reason it is a chunk of its own. `@xterm/*` is
+ * gone for the same reason one tenant over — kolu's terminal door draws a
+ * terminal, and the emulator is precisely the 344 KB this split exists to keep
+ * off every other machine.
+ *
+ * What is LEFT is the half of the old list that was always about the browser:
+ *
+ *   - a `node:` builtin is not a thing a browser bundle may contain, and it is
+ *     the sharpest entry because it fails at RUNTIME in the tab rather than at
+ *     any build step;
+ *   - `@odu/*` and `@kolu/padi-client` are an appliance's PRODUCT TIER, which
+ *     stays behind that appliance's client package — the claim
+ *     `check-kolu-deps.sh` used to make about a `-client`, held here about the
+ *     door that would ship it to a reader.
+ *
+ * `@olai/format` is NOT on this list, and its absence is a measured decision
+ * rather than an oversight: odu's chip reads the vault's own file-kind words to
+ * decide what a run is about, so the format is on that chunk today and is
+ * legitimately there. The old wire door forbade it because the SERVER read that
+ * door and a floor package has no business teaching a daemon a vocabulary; the
+ * browser is the end that spends it. Mutation 6 therefore moves to a `node:`
+ * builtin, which is the entry that still means something here.
+ */
+const NOT_IN_A_TAB = [
+  /^node:/,
+  /^@odu\//,
+  /^@kolu\/padi-client(\/|$)/,
+] as const
+
+/**
+ * ...AND THE SERVER DOOR, which is no longer a FILE in this package.
+ *
+ * It was `src/server.ts`: an array of statically imported server halves, whose
+ * import graph this walk followed. There is no such array — the rows in
+ * `olai.yml` name each plugin's server module as a SPECIFIER and the loader
+ * mounts it at runtime — so what is walked is each ROW's module, resolved off
+ * the bundle rather than off an import.
+ *
+ * The claim it holds is unchanged and the reading is stronger: it used to be
+ * "whatever the registry's `./server.ts` happened to pull in", and it is now
+ * "every module this build will actually mount". A row naming a module that
+ * does not exist is a walk that cannot read it, which the `unresolved` claim
+ * below is about.
+ */
+const SERVER_DOOR = ((): ReturnType<typeof graphFrom> => {
+  const graphs = ROWS.map((row) => {
+    // `olai-plugin-kolu/server` → `packages/plugins/olai-plugin-kolu/src/server.ts`.
+    // The one piece of arithmetic, and it is the ecosystem's rather than this
+    // file's: a package's `./server` subpath is `src/server.ts` in every member
+    // of this tree, and a row whose module does not resolve that way is a row
+    // this walk reports rather than skips.
+    const dir = MEMBER_OF_PACKAGE.get(packageOf(row.name))
+    if (dir === undefined) throw new Error(`fence: the bundle row \`${row.id}\` names no workspace member`)
+    return graphFrom(path.join(PACKAGES, dir, "src", "server.ts"))
+  })
+  return {
+    reached: graphs.flatMap((one) => one.reached),
+    files: [...new Set(graphs.flatMap((one) => one.files))],
+    unresolved: graphs.flatMap((one) => one.unresolved),
+  }
+})()
+
+
+/**
+ * THE BROWSER'S DOOR NAMES EVERY PLUGIN AND IMPORTS NONE — the claim that
+ * replaced "the wire door stays a wire door", and it is stronger rather than
+ * different.
+ *
+ * The old door reached each plugin's `./wire` subpath and STOPPED, and the
+ * claims were about where it stopped: no UI runtime, no appliance's client, no
+ * format, no `node:` builtin, no component. Every one of those was a bound on a
+ * graph that genuinely contained two plugins.
+ *
+ * This door contains none. A row is an `id` and a thunk, and the thunk's
+ * specifier is a string until somebody calls it — so the bounds below are
+ * satisfied by there being nothing to bound, which would be a fence passing by
+ * being empty if that were all that was asserted. It is not: the door must also
+ * SPELL every plugin, which is the property that makes the emptiness a design
+ * rather than a mistake, and it is asserted first.
+ */
+describe("the browser's door names every plugin and imports none", () => {
+  const reached = BROWSER_DOOR.reached
+
+  test("it spells every plugin, in a specifier a bundler can split on", () => {
+    // THE FLOOR, and the one that matters here. A generated table that had
+    // dropped a row, or spelled a package that does not exist, would satisfy
+    // every bound below by naming nothing — so what is asserted is the
+    // EQUALITY: the packages this door names are exactly the tenants.
+    //
+    // A dynamic import's specifier is a `spec` on the walk like any other; what
+    // makes it different is that `graphFrom` follows a static one into the
+    // file and leaves this one as a name. That IS the split: a literal the
+    // bundler can see, and a module nothing pulls until the roster asks.
+    const named = new Set(reached.filter((one) => namesAPlugin(one.spec)).map((one) => one.spec))
+    expect([...named].sort()).toEqual(PLUGIN_PACKAGES.map((pkg) => `${pkg}/browser`).sort())
+  })
+
+  test("...and the walk did NOT cross into any of them", () => {
+    // The complement, and the whole of what a chunk buys: a plugin's module is
+    // named here and reached from here by nobody. The old door's own floor was
+    // the opposite assertion — that the walk HAD crossed into both plugins —
+    // which is the clearest way to say what changed.
     const files = new Set(reached.map((one) => one.file))
-    for (const tenant of TENANTS_OF) {
-      expect([...files].some((f) => f.startsWith(`${tenant.dir}${path.sep}`)), tenant.name)
-        .toBe(true)
-    }
+    const crossed = [...files].filter((file) =>
+      PLUGIN_DIRS.some((dir) => file.startsWith(`${dir}${path.sep}`))
+    )
+    expect(crossed.sort()).toEqual([])
   })
 
   test("the walk resolved every edge it followed", () => {
-    // THE PRECONDITION UNDER BOTH CLAIMS BELOW, and an equality like every
+    // THE PRECONDITION UNDER THE CLAIMS BELOW, and an equality like every
     // other one in this file. A specifier this walk could not follow is a hole
     // in the graph, and a graph with holes satisfies a confinement list by
     // being empty — which is the fence passing by not running, one traversal
     // down. `external` is the legitimate terminus and is not in this list.
-    expect(WIRE_DOOR.unresolved).toEqual([])
+    expect(BROWSER_DOOR.unresolved).toEqual([])
   })
 
   test("nothing on it is a UI runtime, an appliance's client, or the format", () => {
@@ -317,7 +505,47 @@ describe("the wire door stays a wire door", () => {
   })
 
   test("...and no file on it is a component at all", () => {
-    expect(componentsOn(WIRE_DOOR)).toEqual([])
+    expect(componentsOn(BROWSER_DOOR)).toEqual([])
+  })
+})
+
+/**
+ * A PLUGIN'S OWN BROWSER CHUNK STAYS A BROWSER CHUNK — the claim the `./wire`
+ * door used to make for the tab, kept, and aimed at the door the tab now opens.
+ *
+ * See {@link BROWSER_DOORS} for why it is here and what the falsifier had to
+ * say about it being nowhere.
+ */
+describe("a plugin's browser chunk stays a browser chunk", () => {
+  test("the walk crossed into every tenant's faces, and resolved every edge", () => {
+    // NOT VACUOUS, in both directions at once: a resolver that answered nothing
+    // would walk one file per tenant and satisfy the list below by being empty,
+    // and an entry that does not exist would do the same more quietly. Every
+    // tenant has a browser half — it is what its row's chunk IS — so an absent
+    // one is a defect rather than a plugin that happens to draw nothing.
+    for (const { name, door } of BROWSER_DOORS) {
+      expect([name, door.unresolved]).toEqual([name, []])
+      expect([name, door.files.length > 1]).toEqual([name, true])
+    }
+  })
+
+  test("nothing on one is a `node:` builtin or an appliance's product tier", () => {
+    const bad = BROWSER_DOORS.flatMap(({ name, door }) =>
+      door.reached
+        .filter((one) => NOT_IN_A_TAB.some((rule) => rule.test(one.spec)))
+        .map((one) => `${name}: ${one.file}: ${one.spec}`)
+    )
+    expect([...new Set(bad)].sort()).toEqual([])
+  })
+
+  test("...and each one DOES carry components, which is what a chunk is for", () => {
+    // The complement, said out loud: this door exists to carry exactly what the
+    // composition root's may not. A version of it that reached nothing would
+    // pass the claim above by being empty, and the faces would be on somebody
+    // else's graph — which is the arrangement the split replaced.
+    for (const { name, door } of BROWSER_DOORS) {
+      expect([name, componentsOn(door).length > 0]).toEqual([name, true])
+    }
   })
 })
 
@@ -384,13 +612,19 @@ describe("the server door pulls no browser face", () => {
     // `componentsOn` is the only claim in this file that reads the files a walk
     // VISITED rather than the specifiers it evaluated, so it gets its own
     // floor: a version of that reading which resolved nothing would report no
-    // components by reporting no files at all. The MANIFEST door is where the
-    // components legitimately are, so the same reading over that entry is the
-    // positive control — it must find some.
+    // components by reporting no files at all.
     expect(SERVER_DOOR.files.length).toBeGreaterThan(10)
-    expect(WIRE_DOOR.files.length).toBeGreaterThan(5)
-    expect(componentsOn(graphFrom(path.join(PACKAGES, REGISTRY, "src", "index.ts"))).length)
-      .toBeGreaterThan(0)
+    // THE POSITIVE CONTROL MOVED, and where it moved to is the phase. It used
+    // to be this package's own manifest door, which held every plugin's browser
+    // faces and was therefore where the components legitimately were. There is
+    // no manifest door: a plugin's faces are behind its OWN `./browser`, on a
+    // chunk nothing here imports. So the control is that entry — derived from
+    // the tenant list rather than spelled — and it must find some.
+    const tenant = TENANTS_OF[0]
+    if (tenant === undefined) throw new Error("fence: this build has no plugins")
+    const faces = graphFrom(path.join(PACKAGES, tenant.dir, "src", "browser.tsx"))
+    expect(faces.unresolved).toEqual([])
+    expect(componentsOn(faces).length).toBeGreaterThan(0)
   })
 
   test("it DOES reach each appliance's client, which is the point of the door", () => {
@@ -415,7 +649,9 @@ describe("the server door pulls no browser face", () => {
  * walk would have had `plugins` meaning the fence's subject in one line and the
  * thing it fences in the next. So the interface moved out to `@olai/plugin-api`
  * and `packages/plugins/` became the container — one directory, one kind of
- * thing in it.
+ * thing in it. The REGISTRY then moved again, to `@olai/bundle`, when a plugin
+ * started importing the interface; the container is unaffected, and the package
+ * a plugin may not import is `@olai/bundle` now.
  *
  * Held BOTH WAYS, because each direction fails differently and silently:
  *
@@ -469,7 +705,7 @@ describe("only the registry knows a plugin's name", () => {
     expect(files).toBeGreaterThan(400)
   })
 
-  test("no package outside packages/plugin-api imports a plugin", () => {
+  test("no package outside the registry imports a plugin", () => {
     for (const pkg of packages) {
       if (pkg === REGISTRY) continue
       const reached = tree.get(pkg)?.flatMap((s) => s.plugins.map((p) => `${s.file}: ${p}`)) ?? []
@@ -479,7 +715,7 @@ describe("only the registry knows a plugin's name", () => {
     }
   })
 
-  test("no package outside packages/plugin-api declares a plugin in its manifest", () => {
+  test("no package outside the registry declares a plugin in its manifest", () => {
     for (const pkg of packages) {
       if (pkg === REGISTRY) continue
       expect(declaredBy(pkg), pkg).toEqual([])
@@ -492,97 +728,144 @@ describe("only the registry knows a plugin's name", () => {
     expect([...declaredBy(REGISTRY)].sort()).toEqual([...PLUGIN_PACKAGES].sort())
   })
 
-  test("a plugin imports neither another plugin nor the registry", () => {
-    for (const { dir, pkg } of TENANTS_OF) {
-      // ITS OWN NAME comes off the record rather than being spelled out of the
-      // directory. It used to be `@olai/${dir}`, which was the tenant's real
-      // package name only while a tenant was `packages/plugin-<name>` and
-      // scoped — after the fold that arithmetic composes
-      // `@olai/plugins/olai-plugin-kolu`, which is not a specifier anything can
-      // produce, so the exclusion silently stopped excluding: a tenant that
-      // reached its own package by name would be reported as importing a
-      // FOREIGN plugin. Which is exactly the shape the tenancy claim's own
-      // header cites — "a plugin package grew a testlib that served its own
-      // appliance's real surface" — so the wrong failure would arrive on the
-      // day the right one was meant to be forgiven.
-      const foreign = tree.get(dir)?.flatMap((s) =>
-        s.plugins.filter((p) => p !== pkg && !p.startsWith(`${pkg}/`)).map((p) => `${s.file}: ${p}`)
-      ) ?? []
-      expect(foreign, dir).toEqual([])
-      // The registry imports every plugin, so a plugin importing it back is
-      // the cycle the manifests decline to express. Held over the sources too,
-      // because a type-only import is a cycle a bundler forgives and a reader
-      // does not — which is why this reads `specs` (the positional grammar,
-      // which sees a type-only import) rather than the walk's `scanImports`.
+  /**
+   * A PLUGIN MAY NOT IMPORT THE REGISTRY — and MAY import another plugin, which
+   * is the one claim of this file the phase RETIRED.
+   *
+   * ## What fell, and why it is not a hole
+   *
+   * "No plugin imports another plugin" was an equality here. The Cordis proposal
+   * overturns it: `inject` is the dependency arm and it is REACTIVE, so the
+   * half-wired state the ban feared is `PENDING` — a legitimate, inspectable
+   * state the runtime resolves or reports. The first edge that needs it is the
+   * spaces-mirror lane, which wants kolu's fleet beside odu's runs and which the
+   * old shape could only wire by hand at the composition root.
+   *
+   * What the ban was PROTECTING is still protected, by a claim further down: an
+   * appliance's product TIER stays inside its TENANT, so a plugin that reached
+   * into another's `./server` would drag that appliance's client onto its own
+   * graph and go red there. The protection moved; it did not leave.
+   *
+   * ## What stands
+   *
+   * THE REGISTRY IS STILL FORBIDDEN. `@olai/bundle` imports every plugin, so a
+   * plugin importing it back is the cycle the manifests decline to express.
+   * Held over the sources too, because a type-only import is a cycle a bundler
+   * forgives and a reader does not — which is why this reads `specs` (the
+   * positional grammar, which sees a type-only import) rather than the walk's
+   * `scanImports`.
+   */
+  test("a plugin does not import the registry", () => {
+    for (const { dir } of TENANTS_OF) {
       const back = tree.get(dir)?.flatMap((s) =>
         s.specs
-          .filter((spec) => spec === "@olai/plugin-api" || spec.startsWith("@olai/plugin-api/"))
+          .filter((spec) => spec === "@olai/bundle" || spec.startsWith("@olai/bundle/"))
           .map((spec) => `${s.file}: ${spec}`)
       ) ?? []
       expect(back, dir).toEqual([])
     }
   })
-})
 
-/**
- * ...AND THE MANIFEST DOOR IS OPENED BY THE THING THAT RENDERS, AND BY NOTHING
- * ELSE.
- *
- * The three doors are three graphs and the fence above walks two of them from
- * the INSIDE — what `./wire.ts` and `./server.ts` may reach. This is the same
- * claim from the OUTSIDE, and it is here because the inside walk cannot see it:
- * a consumer that opens the wrong door is a consumer's line, not this package's.
- *
- * The failure it prevents is not a stylistic one. The root carries every
- * plugin's browser faces — SolidJS components, and behind kolu's a terminal
- * emulator — so a server process that reaches it evaluates a `.tsx`, and Bun's
- * default JSX runtime is React's: the boot dies on `Cannot find module
- * 'react/jsx-dev-runtime'` before the server has served anything. That is not
- * hypothetical; it is what `@olai/server`'s `pluginPolicy.ts` did the day the
- * manifests grew faces, reaching the root for a list of STRINGS that `./wire`
- * exports too.
- *
- * So the rule is stated as an EQUALITY per package, for the reason every claim
- * in this file is: `@olai/web` renders, and may open the manifests; every other
- * package outside this one reaches a SUBPATH or nothing. A subpath is not
- * matched, because that is the whole point — `./wire`, `./server`, `./testids`
- * and `./all.css` are exactly what a consumer is meant to name.
- */
-describe("only the renderer opens the manifest door", () => {
-  /** The one package whose job is to draw a plugin's faces. Spelled as a
-   *  directory name because that is what the walk has. */
-  const RENDERER = "web"
-
-  test("no package but the browser imports `@olai/plugin-api` itself", () => {
-    for (const pkg of packages) {
-      if (pkg === REGISTRY || pkg === RENDERER) continue
-      // The BARE specifier alone. A subpath is the supported reach and is
-      // deliberately not matched — a claim that caught `@olai/plugin-api/wire`
-      // would forbid the door this whole split exists to offer.
-      //
-      // Read off `Named.specs`, which is the corpus read ONCE at module scope in
-      // whichever grammar each file has. Re-reading here to ask a second
-      // question of the same text is what that field's own comment forbids, and
-      // it is the most expensive thing in this file when it happens.
-      const reached = tree.get(pkg)?.flatMap((s) =>
-        s.specs.filter((spec) => spec === "@olai/plugin-api").map(() => s.file)
+  /**
+   * ...AND IT DOES IMPORT THE INTERFACE, which is the positive half and is not
+   * decoration.
+   *
+   * A version of this fence that only forbade things would pass on a tree where
+   * the services door had quietly stopped being reachable — a plugin written
+   * against a copy of the shapes, structurally, the way `olai-plugin-odu`'s
+   * `server.ts` re-declared `Deliveries` for a while precisely because the
+   * import WAS a cycle. So the arrow is asserted to exist.
+   */
+  test("...and every plugin does import the interface", () => {
+    for (const { dir } of TENANTS_OF) {
+      const named = tree.get(dir)?.flatMap((s) =>
+        s.specs
+          .filter((spec) => spec === "@olai/plugin-api" || spec.startsWith("@olai/plugin-api/"))
+          .map((spec) => `${s.file}: ${spec}`)
       ) ?? []
-      expect(reached, pkg).toEqual([])
+      expect(named.length, dir).toBeGreaterThan(0)
     }
   })
 })
 
-describe("a plugin is a sibling, and core computes none of its addresses", () => {
-  test("every plugin is composed under its own name, and no two share one", () => {
-    const names: ReadonlyArray<string> = WIRES.map((wire) => wire.name)
-    expect([...names].sort()).toEqual([...PLUGIN_NAMES].sort())
-    // The sibling KEY is the wire prefix, so two plugins with one name is two
-    // sets of members at one address — which `composeSurfaceContracts` would
-    // catch at boot with a duplicate-tag throw, in a process that has already
-    // started. Here it is a test.
-    expect(new Set(names).size, names.join(", ")).toBe(names.length)
+/**
+ * THE ROOT DOOR IS SAFE FOR ANY PACKAGE TO OPEN — which reverses a claim, and
+ * the reversal is the phase.
+ *
+ * It used to be an EQUALITY per package: `@olai/web` renders and may open the
+ * manifests; every other package outside this one reaches a SUBPATH or nothing.
+ * The reason was sharp and was not hypothetical — the root carried every
+ * plugin's browser half, which is SolidJS and, behind kolu's, a terminal
+ * emulator, so a server process that reached it evaluated a `.tsx` and Bun's
+ * default JSX runtime is React's: the boot died on `Cannot find module
+ * 'react/jsx-dev-runtime'` before the server served anything. That is what
+ * `@olai/server`'s `pluginPolicy.ts` did the day the manifests grew faces,
+ * reaching the root for a list of STRINGS.
+ *
+ * There are no manifests. The root is one row per plugin with a dynamic
+ * `import()` of its browser half, so its static closure carries no plugin, no
+ * component and no UI runtime — which the describe above holds as five claims.
+ * A door that cannot hurt anybody has no business forbidding anybody, and
+ * `pluginPolicy.ts` reaching it for a list of strings is now the ORDINARY use
+ * rather than the hazard.
+ *
+ * So what is left to assert is the other direction, and it is the one that
+ * would go quiet if the door ever grew teeth again: that packages outside this
+ * one DO open it. A claim about a door nobody opens is a claim about nothing.
+ */
+describe("the root door is opened by packages that render nothing", () => {
+  /** The one package whose job is to draw a plugin's faces. Spelled as a
+   *  directory name because that is what the walk has. */
+  const RENDERER = "web"
+
+  test("more than the renderer opens `@olai/bundle`, and that is the point", () => {
+    // Read off `Named.specs`, which is the corpus read ONCE at module scope in
+    // whichever grammar each file has. Re-reading here to ask a second question
+    // of the same text is what that field's own comment forbids, and it is the
+    // most expensive thing in this file when it happens.
+    const openers = packages.filter((pkg) =>
+      pkg !== REGISTRY
+      && (tree.get(pkg) ?? []).some((s) => s.specs.includes("@olai/bundle"))
+    )
+    // NOT AN EQUALITY, deliberately, and this is the one claim in the file that
+    // is not. The old rule named the packages allowed to open the door; this
+    // one says the door is open, and pinning WHICH packages walk through it
+    // would be a list that has to be edited every time somebody wants a plugin
+    // name — for no defect it could catch, since the closure claims above are
+    // what make the walk-through harmless.
+    expect(openers.length).toBeGreaterThan(0)
+    // ...and at least one of them renders nothing at all, which is the whole
+    // reversal: the old claim's counter-example is this one's floor.
+    const headless = openers.filter((pkg) => pkg !== RENDERER)
+    expect(headless.length, openers.join(", ")).toBeGreaterThan(0)
   })
 
+  /**
+   * ...AND THE SERVICES DOOR PULLS NO BROWSER FACE, which is the claim the
+   * INTERFACE package owes now that it is one.
+   *
+   * `@olai/plugin-api` is two doors: the root is what a browser half is written
+   * against and its fields return `JSX.Element`, and `./services` is what a
+   * SERVER half is written against. A server that reached the first would
+   * evaluate a `.tsx` and die on `react/jsx-dev-runtime` before it served
+   * anything — the same hazard the three-door split has always been about, one
+   * package over — so the services door is walked and held to the same list a
+   * server door is.
+   */
+  test("the services door pulls no browser face", () => {
+    const door = graphFrom(path.join(PACKAGES, INTERFACE, "src", "services.ts"))
+    expect(door.unresolved).toEqual([])
+    const bad = door.reached
+      .filter((one) => NOT_ON_A_SERVER.some((rule) => rule.test(one.spec)))
+      .map((one) => `: `)
+    expect([...new Set(bad)].sort()).toEqual([])
+    expect(componentsOn(door)).toEqual([])
+    // Not vacuous: the door reaches at least the contract beside it.
+    expect(door.files.length).toBeGreaterThan(1)
+  })
+})
+
+describe("a plugin is a sibling, and core computes none of its addresses", () => {
   test("a plugin's name is a legal tag segment, because it becomes one", () => {
     // `assertTagSegment` refuses an empty name and one containing "/", and it
     // refuses at boot. The framework's reason is the sharper one and it is
@@ -591,25 +874,26 @@ describe("a plugin is a sibling, and core computes none of its addresses", () =>
     // could not see. A plugin's name is also its preferences row and its docs
     // slug, so the bar this holds it to is a little higher than the
     // framework's — a word, not a path.
-    for (const wire of WIRES) {
-      expect([wire.name, /^[a-z][a-z0-9-]*$/.test(wire.name)]).toEqual([wire.name, true])
+    //
+    // OFF THE ROWS and not off the loaded modules, which is the whole of why
+    // this claim stayed here while the two beside it left. The row's `id` is
+    // the sibling key — it is what the fiber is bound under and what every one
+    // of its tags is composed from — so the name this holds to the grammar is
+    // the name that becomes a tag, and reading it costs no import.
+    for (const name of PLUGIN_NAMES) {
+      expect([name, /^[a-z][a-z0-9-]*$/.test(name)]).toEqual([name, true])
     }
+    // ...and no two rows claim one word. Two plugins with one name is two sets
+    // of members at one address, which `composeSurfaceContracts` would catch at
+    // boot with a duplicate-tag throw, in a process that has already started.
+    expect(new Set(PLUGIN_NAMES).size, PLUGIN_NAMES.join(", ")).toBe(PLUGIN_NAMES.length)
   })
 
-  test("every face a plugin names is a face it wrote a map for", () => {
-    // An empty map and an ABSENT map mean the same thing to `exposeFaces`
-    // (deny in full) and different things to a reader: an empty one asserts
-    // the plugin considered the face and declined, which is a claim worth
-    // being able to make, but a face key holding nothing at all is more
-    // likely a half-finished edit. This is the one shape check on a value the
-    // compiler sees only as a record of records.
-    for (const wire of WIRES) {
-      for (const [face, map] of Object.entries(wire.faces)) {
-        expect([`${wire.name}/${face}`, Object.keys(map).length > 0])
-          .toEqual([`${wire.name}/${face}`, true])
-      }
-    }
-  })
+  // THE TWO CLAIMS THAT READ A PLUGIN'S OWN VALUES ARE IN
+  // `./composition.test.ts` — that every module answers to the name its row
+  // binds it under, and that every face a plugin declares is a face it wrote a
+  // map for. They need the modules LOADED, and this file may not load one: see
+  // the note at the top on what `prove-fence.sh` found when it did.
 })
 
 /**
@@ -682,8 +966,20 @@ const ROOT_DECLARED: ReadonlySet<string> = new Set(dependencyNames(manifestAt(RE
  *  `@kolu/surface`, `-app`, `-cli`, `-mcp`, `-daemon`, `-daemon-supervisor`:
  *  olai's app is BUILT on them — the surface composition every one of these
  *  claims is about is theirs — so they are imported anywhere, like `effect`.
- *  Confining them would be confining the framework to a tenant. */
-const FRAMEWORK = /^@kolu\/surface(-[a-z]+)*(\/|$)/
+ *  Confining them would be confining the framework to a tenant.
+ *
+ *  `cordis` and `@cordisjs/plugin-*` are the SAME TIER and the arm is
+ *  PERMANENT, which is the one thing that changed about this rule this phase.
+ *  It arrived in the spike as a note saying "drop the two arms the day the
+ *  spike is deleted"; the spike is deleted and the arms stayed, because Cordis
+ *  is now the runtime olai's server composition is built on — a plugin imports
+ *  it to type its own `apply`, the composition root mounts the bundle on it,
+ *  and the interface package's services extend its `Service`. Confining it to a
+ *  tenant would be confining the framework to a tenant, which is exactly the
+ *  sentence above one pin over. It is hydrated from the npins pin
+ *  (`nix/cordis.nix`) the way every `@kolu/*` member is, which is why it needs
+ *  the arm at all. */
+const FRAMEWORK = /^(?:@kolu\/surface(-[a-z]+)*|cordis|@cordisjs\/plugin-[a-z]+)(\/|$)/
 
 /** Is this specifier, named by this package, a HYDRATED one — copied into the
  *  root `node_modules` from a Nix pin, where every package resolves it whether
@@ -900,7 +1196,7 @@ describe("an appliance's product tier stays inside its tenant", () => {
     }
   })
 
-  test("the wire door reaches every tenant door named `./wire`", () => {
+  test("the composed doors reach every tenant door named `./wire`", () => {
     // What `check-kolu-deps.sh`'s fifth assertion and `check-odu-deps.sh`'s
     // third were FOR, kept: they read `packages/<appliance>-client/src/wire`
     // directly, and the walk above reads it only if the plugin still imports
@@ -908,9 +1204,16 @@ describe("an appliance's product tier stays inside its tenant", () => {
     // would make the purity claim above pass over a graph that no longer
     // contains the module it was written about. The doors are derived: a tenant
     // package whose manifest opens `./wire` must be on that graph.
-    const reached = new Set(
-      walkFrom(path.join(PACKAGES, REGISTRY, "src", "wire.ts")).map((one) => memberOf(one.file)),
-    )
+    //
+    // THE GRAPH IS THE ROWS' NOW. It used to be this package's `src/wire.ts`,
+    // which imported every plugin's `./wire` statically; there is no such file,
+    // because the browser's rows name a chunk instead. So the walk is the one
+    // the composition root actually performs — each ROW's module, which is the
+    // same reading `SERVER_DOOR` is built from — and it is a wider net rather
+    // than a narrower one: a server half re-exports its own `./wire`, and it
+    // reaches its appliance's client, which is where the second half of these
+    // doors live.
+    const reached = new Set(SERVER_DOOR.files.map((file) => memberOf(file)))
     const wireDoors = [...TENANT_MEMBERS].filter((pkg) => {
       const manifest = manifestAt(path.join(PACKAGES, pkg))
       return manifest !== undefined && doorsOf(manifest)["./wire"] !== undefined
@@ -1010,7 +1313,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
    * asserts kolu's Dock-row attributes by name. A claim that forbade it to
    * spell `kolu` would be a claim that forbade it to test kolu. Its own
    * manifest already argues the narrower carve-out it keeps (names only,
-   * through `@olai/plugin-api/testids`), which is the import half of the same
+   * through `@olai/bundle/testids`), which is the import half of the same
    * question and is held by claim 1.
    *
    * `.css` is left to claim 1, which reads `@import` in the grammar CSS has.

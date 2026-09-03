@@ -10,7 +10,7 @@
 # that came back short is a check that did not run" failure both of those files
 # carry paragraphs against.
 #
-# `packages/plugin-api/src/tree.testlib.ts` keeps its own reading and is not a
+# `packages/bundle/src/tree.testlib.ts` keeps its own reading and is not a
 # third copy of this one: it is a `bun test` corpus, and a corpus that shelled
 # out would make every equality in the fence depend on a subprocess. What is
 # shared is the RULE, not the code — both refuse a glob that matched nothing,

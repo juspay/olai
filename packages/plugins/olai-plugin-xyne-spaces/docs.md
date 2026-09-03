@@ -47,7 +47,7 @@ olai never writes this property. Turning the plugin on without it is a connected
 
 A kolu heartbeat ("the watcher is alive") is not a digest and does not post. Human messages never mirror.
 
-**One thread per bound conversation.** The thread key is the olai `(agent, session)` pair that already rides the watching event — not a title parsed out of the digest. The conversation's first digest opens the Spaces thread; later digests reply into it. Lane threads and the outbound queue are persisted through `PluginServices.held` — core owns the file in the state home (one hold per plugin per vault), the plugin parses the snapshot, and successive writes land in the order they were made. A restart opens the same thread and still has the queued digests. Olai never writes `xyne-channel`.
+**One thread per bound conversation.** The thread key is the olai `(agent, session)` pair that already rides the watching event — not a title parsed out of the digest. The conversation's first digest opens the Spaces thread; later digests reply into it. Lane threads and the outbound queue are persisted through `ctx.held` — core owns the file in the state home (one hold per plugin per vault), the plugin parses the snapshot, and successive writes land in the order they were made. A restart opens the same thread and still has the queued digests. Olai never writes `xyne-channel`.
 
 **Orchestrator replies and doorbell bodies, trimmed**: each is capped at the first ~500 Unicode code points with an ellipsis, and an open code fence the cut would have left is closed. Working-notes still produce the ephemeral signal below rather than a stored wall of fragments.
 

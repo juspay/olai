@@ -29,3 +29,15 @@ node_modules
 # `just install` (the nix build regenerates it in its sandbox).
 /packages/plugins/olai-plugin-kolu/src/browser/mark.generated.ts
 /packages/plugins/olai-plugin-odu/src/browser/mark.generated.ts
+
+# The browser's rows, the stylesheet chain and the merged testid table:
+# GENERATED from packages/bundle/olai.yml by packages/bundle/generate.ts, so
+# that file is the only place a plugin is named. Written by `just install`
+# (the nix build rewrites them in its sandbox).
+/packages/bundle/src/rows.generated.ts
+/packages/bundle/src/all.generated.css
+/packages/bundle/src/testids.generated.ts
+
+# The unit suite, to a log rather than to the terminal — `just test-log` says
+# why, and the rule generalises to every long leg.
+/.test.log

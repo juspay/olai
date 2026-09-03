@@ -63,7 +63,7 @@
  * press opens. Every one of those used to sit in a general package under a
  * kolu-shaped filename, and none of them names a `@kolu/*` package —
  * everything reaches kolu through this one and `olai-plugin-kolu`, which is what
- * `packages/plugin-api/src/fence.test.ts` holds as a fact rather than a habit —
+ * `packages/bundle/src/fence.test.ts` holds as a fact rather than a habit —
  * it absorbed the assertion `scripts/check-kolu-deps.sh` used to make, and the
  * script that kept the name asks about manifests now, not imports. It holds it
  * by DERIVING the tenant from the registry, so the fold that moved kolu's faces

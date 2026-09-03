@@ -48,12 +48,22 @@ export interface OduClocks {
   readonly tickingOf: (elapsedMs: number) => string
 }
 
-/** ...and the whole of what this plugin is handed. One field today, which is
- *  the honest shape: nothing odu draws is in the app's bar, so it asks for no
- *  pill, no popover and no door onto a file. */
-export interface OduApp {
-  readonly clocks: OduClocks
-}
+/*
+ * THERE IS NO `OduApp` ANY MORE, and what replaced it is the same claim said to
+ * the runtime instead of to the type checker.
+ *
+ * It was a record with one field — `clocks` — and its comment said that one
+ * field was the honest shape, because nothing odu draws is in the app's bar so
+ * it asks for no pill, no popover and no door onto a file. That is still
+ * exactly true, and it is now `export const inject = ["slots", "clocks",
+ * "wired"]` in `../browser.tsx`: a list Cordis holds this plugin's fiber
+ * `PENDING` on until every name is provided.
+ *
+ * So the narrowness is enforced rather than declared. A record could only ever
+ * have been over-wide; an `inject` that names a service nobody provides is a
+ * plugin that never starts, and one that omits a service it then reaches for is
+ * `undefined` at the first call.
+ */
 
 /** THE RUN'S OWN CONTRACT, as a face wears it — `@olai/web`'s `BlockChrome`,
  *  re-declared for this file's reason. Nothing here draws the handle today (the
@@ -69,14 +79,18 @@ export interface BlockChrome {
   readonly valueId: string
 }
 
-/** One property, as the drawer hands it over. The CHIP reads `value` — the
- *  board's own word, which is what the server keyed the row by precisely so a
- *  browser never has to resolve a path — and nothing else. */
+/** One property, as the drawer hands it over — ONE FIELD, because the chip
+ *  reads `value` and nothing else: the board's own word, which is what the
+ *  server keyed the row by precisely so a browser never has to resolve a path.
+ *
+ *  It declared four for a while, and the comment saying "and nothing else" sat
+ *  above three of them. A narrow re-declaration is the whole point of these
+ *  types (`olai-plugin-kolu`'s `appliance/props/block.ts` keeps two), and it is
+ *  the SAFE direction: a face's parameter is contravariant, so asking for less
+ *  than the drawer hands over always fits, while asking for more is the thing
+ *  that fails — at the seam, naming this plugin. */
 export interface PropEntry {
-  readonly key: string
   readonly value: string
-  readonly values: ReadonlyArray<string>
-  readonly system: boolean
 }
 
 /** What a PANE face is handed. */

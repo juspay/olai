@@ -36,8 +36,7 @@
  * a sentence trailing off at a full stop.
  */
 export const setByServer = (flag: string): string =>
-  `Set by the server: ${flag}. This is the instance's policy, so it ` +
-  `is the same in every browser and cannot be changed from one.`
+  `Set by the server: ${flag}. It cannot be changed from a browser.`
 
 /**
  * ... and for a flag nobody gave: the built-in default, with the flag that
@@ -47,6 +46,4 @@ export const setByServer = (flag: string): string =>
  * what tells them apart: the value appears only where somebody typed one.
  */
 export const builtInDefault = (flag: string): string =>
-  `Nobody gave ${flag}, so this is the built-in default. It is the ` +
-  `instance's policy: the same in every browser, and it cannot be changed ` +
-  `from one.`
+  `The built-in default: no ${flag} given. It cannot be changed from a browser.`

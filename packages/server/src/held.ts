@@ -14,7 +14,7 @@
 import { Effect } from "effect"
 import { readFileSync } from "node:fs"
 
-import type { PluginHeld } from "@olai/plugin-api/server"
+import type { PluginHeld } from "@olai/plugin-api"
 import {
   canonical,
   fileForHold,

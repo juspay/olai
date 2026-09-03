@@ -5,8 +5,9 @@ core learning any of their names.*
 
 This page is for people working on olai. It is a tour, not a specification: the
 authoritative arguments live in the code, mostly in
-[`packages/plugin-api/src/plugin.ts`](../../packages/plugin-api/src/plugin.ts) and its
-[README](../../packages/plugin-api/README.md). If you only read one thing, read
+[`packages/plugin-api/src/plugin.ts`](../../packages/plugin-api/src/plugin.ts) and
+[`services.ts`](../../packages/plugin-api/src/services.ts) beside it, plus
+`@olai/bundle`.s [README](../../packages/bundle/README.md). If you only read one thing, read
 **Vocabulary** and **How a live property gets its face**.
 
 ---
@@ -35,65 +36,168 @@ what an absent padi means, which vault file is kolu's, which property wears whic
 face. What was missing was a *place to put a judgement about an appliance that is
 neither the appliance nor the core*.
 
-`packages/plugin-api/` is that place, and it is the only one — and the tenants that
-stand on it live one directory over, in [`packages/plugins/`](../../packages/plugins/README.md).
+`packages/plugin-api/` is that place, and it is the only one. `packages/bundle/`
+is the second half of what that package used to be — the list of which plugins
+this build has — and it moved out the day a plugin started importing the
+interface. The tenants that stand on both live one directory over, in
+[`packages/plugins/`](../../packages/plugins/README.md).
 
 > **The bar:** a general package may know a plugin's **name**. It may not know
 > anything else about it — not a member, not a key, not a constructor.
 
 ---
 
-## 2. The shape, in one breath
+## 2. The shape, in two breaths
 
-A plugin is a **value**. Its first field is a `name`; its second is a whole
-`surface` of its own. Everything else is optional.
+A plugin has two halves, written against two different things — the browser's
+faces and the server's services — and ONE shape.
 
-```ts
-// packages/plugins/olai-plugin-odu/src/plugin.ts  (abridged)
-export const plugin = {
-  name,                                   // "odu"
-  surface,                                // a whole surface, declared here
-  faces,                                  // which face may see which member
-  dressings: [{ kind: WORKTREE_KIND, Chip: CiChip, Pane: RunMatrix }],
-  mount: OduMount,
-} as const
-```
-
-Core never writes `: OlaiPlugin` on that object, and the plugin never imports
-`@olai/plugin-api`. The registry imports every plugin, so a dependency back would be
-a cycle. The fit is proved at the registry instead:
+**BOTH HALVES ARE CORDIS PLUGINS** — `name`, `inject`, `apply(ctx)` — and the
+browser one registers into declared SLOTS where it used to be a manifest object
+a compiled-in registry held:
 
 ```ts
-// packages/plugin-api/src/registry.ts
-export const PLUGINS = [kolu, odu, spaces] as const satisfies ReadonlyArray<OlaiPlugin>
+// packages/plugins/olai-plugin-odu/src/browser.tsx  (abridged)
+export { name, surface } from "./wire.ts"
+export const inject = ["slots", "clocks", "wired"] as const
+
+export function apply(ctx: Context): void {
+  ctx.slots.register("outline.row.chip", WORKTREE_KIND, CiChip)
+  ctx.slots.register("outline.row.pane", WORKTREE_KIND, RunMatrix)
+  ctx.slots.register("chat.speaker.mark", OduMark)
+  ctx.slots.register("app.mount", (props) => /* one subscription per tab */)
+}
 ```
 
-A plugin that stops fitting is a type error on **that line**, naming the plugin.
+The manifest could not survive the tab following the roster: a value is present
+whether or not this serve composed the plugin, so every walk over it carried a
+LICENCE beside it — and the two licences pointed opposite ways, because a face
+drawn early and taken away is a flicker while a subscription opened early
+latches a `degraded` readout for the life of the page. A fiber the roster never
+named registers nothing, so there is nothing left to license.
+
+`inject` is the same narrowness the old structural `OduApp` record declared,
+said to the RUNTIME instead of to the type checker: Cordis holds the fiber
+`PENDING` until every name is provided, so a half that asks for a service nobody
+gives simply never starts, and the preferences row says `waiting`.
+
+**The server half is the same shape** — a function that installs *revertible
+effects* into a shared context, and declares which services it needs:
+
+```ts
+// packages/plugins/olai-plugin-odu/src/server.ts  (abridged)
+export const name = "odu"
+export const inject = ["clock", "deliveries", "env", "kinds", "log", "surfaces", "vault", "wakes"]
+
+export function apply(ctx: Context) {
+  const half = oduHalf({ options: { env: ctx.env.vars, served: ctx.vault.served }, … })
+  for (const kind of kinds) ctx.kinds.register(kind)
+  ctx.wakes.register(wake)
+  ctx.surfaces.register({ surface, faces, deps: half.handlers })
+  ctx.vault.revision((snapshot) => half.revision(…))
+  ctx.on("chat/session-start", (start, next) => {
+    start.asking.push({ name, ask: () => probe(ctx.env.vars) })
+    return next()
+  })
+}
+```
+
+Every one of those `register` calls returns a disposer the runtime holds, so
+unloading the plugin unregisters exactly what it registered, in reverse. It used
+to be a `serve(services)` that returned a blob core took apart.
+
+**The plugin imports `@olai/plugin-api`,** which reverses an earlier ruling. It
+could not, while that package was also the registry — the registry imports every
+plugin, so a dependency back was a cycle the manifests could not express. The
+registry is `@olai/bundle` now and the interface names no plugin, so the arrow
+runs one way and a server half can name the services it injects.
 
 ---
 
-## 3. Vocabulary
+---
+
+## 3. The runtime under all of it
+
+The server's plugin system is a **Cordis** runtime (`cordis`, hydrated from
+`npins` like every `@kolu/*` member — `nix/cordis.nix`). Three of its ideas do
+all the work, and each replaced something olai used to hand-write.
+
+**A registration is a revertible effect.** `ctx.kinds.register(kind)` returns a
+disposer the runtime attaches to the calling fiber. Unloading a plugin runs every
+disposer it accrued, in reverse. There is no teardown to write and none to forget,
+and a plugin whose `apply` throws before it reached a `register` installed
+nothing at all.
+
+**`inject` is a reactive dependency.** A plugin lists the services it needs; the
+runtime holds its fiber `PENDING` until they exist, unloads it when one leaves,
+and re-applies it when one returns. A plugin that does not name `deliveries`
+cannot reach the doorbell — which is the part a blob handed to everyone could not
+express.
+
+**The per-plugin STAMP is the fiber's name.** `ctx.deliveries.deliver(...)`,
+`ctx.env.dial()`, `ctx.kinds.register(...)` and `ctx.surfaces.register(...)` all
+read `ctx.fiber.name` inside the service — the word the loader bound the row
+under, never an argument the caller supplied. The composition root used to close
+over a name to build `doorFor(plugin.name)` and `dials[plugin.name]`, which put a
+fence's keying in a file that must not know what it was keying. Same guarantee,
+one fewer place to get it wrong.
+
+The hooks, and what each replaced:
+
+| Hook | Mode | Was |
+| --- | --- | --- |
+| `ctx.vault.revision(handler)` | door | `PluginServer.revision(snapshot)` |
+| `ctx.vault.unloaded(handler)` | door | `PluginServer.unloaded()` — and it is **not teardown**: it means the STORE has never published, so what a plugin derived from the vault is yesterday's reading, while what it holds from its own daemon is untouched |
+| `chat/session-start` | waterfall | `PluginServerHalf.probe` |
+| `ctx.watching.saw(event)` | (a service, not an event) | `PluginServices.watching`'s hand-rolled `Set` and the unsubscribe a plugin had to remember to call |
+
+**The two vault hooks are DOORS, not emits, and that is a correction.** They were
+emits, under a claim this page made in as many words: *both are emits, so a
+listener that throws is one listener's problem — the dispatcher contains it.*
+Cordis's `emit` is a bare `Reflect.apply` loop with no `try`, so it contains
+nothing. One plugin throwing on a revision took down every LATER plugin's
+reading of that revision, and the owned directory fiber that published it. The
+service wraps each listener once and warns with the calling fiber's name, and
+the two events are **gone from the `Events` table** rather than left beside the
+doors as an uncontained second way in. `surfaces/published` is gone too: it was
+declared and emitted by nothing, so a plugin that listened waited forever.
+
+`--plugins`, the bundle's rows, and everything above are **phase 2** of a longer
+plan (the Cordis proposal's §6). Browser slots are here as well — `ctx.slots` in
+`@olai/plugin-api/browser`, with the tab following the roster. What is
+deliberately NOT here: HMR (no Bun cache bust exists), interception on the
+vault, and node-agent scopes.
+
+
+## 4. Vocabulary
 
 Skim the table; the sections after it give one example each.
 
 | Word | What it means |
 | --- | --- |
-| **plugin** | one value describing one integration |
-| **name** | the plugin's one word — `"kolu"`, `"odu"`. Also the **sibling key** and the address of its docs page |
+| **plugin** | one integration: a browser half (a value) and a server half (a Cordis plugin) |
+| **name** | the plugin's one word — `"kolu"`, `"odu"`. Also the **sibling key**, the **row id**, the **fiber's name** and the address of its docs page |
+| **row** | one line of `packages/bundle/olai.yml`: an `id` and the module the loader mounts. The build's list, as data |
+| **fiber** | one mounted plugin, with a lifecycle: `PENDING` → `LOADING` → `ACTIVE`, or `FAILED`, or disposed |
+| **service** | a key on the context a plugin reads — `ctx.vault`, `ctx.kinds`, `ctx.surfaces`. What `PluginServices` dissolved into |
+| **inject** | the services a plugin names. The runtime holds its fiber `PENDING` until they exist and unloads it when one leaves |
+| **effect** | a registration that carries its own undo. Every `register` returns one, attached to the calling fiber |
 | **surface** | a whole `defineSurface(...)` contract, declared inside the plugin's package |
 | **member** | one thing on a surface: a cell, a collection, a stream, a procedure |
 | **face** | *who* may see which members — `browser`, `agent`. Default-deny |
-| **probe** | "is this tool on this host?" — asked once per chat session |
-| **kind** | a word a plugin teaches the vault's vocabulary. Contributed BARE (`terminal`) and composed by the registry with the plugin's name (`kolu-terminal`) |
-| **claim** | the key a kind declares by convention — its own composed word, so enabling a plugin turns its faces on with no file to edit |
+| **probe** | "is this tool on this host?" — pushed onto the `chat/session-start` waterfall, asked once per conversation |
+| **kind** | a word a plugin teaches the vault's vocabulary. Contributed BARE (`terminal`) and composed by `ctx.kinds` with the plugin's fiber name (`kolu-terminal`) |
+| **claim** | the key a kind declares by convention — its own composed word, so mounting a plugin turns its faces on with no file to edit |
 | **dressing** | what a live property *wears* in the browser: a chip, a pane, a block |
 | **chrome** | what a plugin hangs in the app's header bar |
 | **mount** | the plugin's own half of the tab — one subscription per tab |
 | **mark** | the plugin's FACE — the glyph over a sentence it delivered into a conversation |
-| **doorbell** (`deliveries`) | the write-only door a plugin speaks INTO a conversation through: which conversations opted in to it, and one verb that puts a whole sentence in one |
+| **watching** (`ctx.watching`) | the read-shaped door that is not a read: core PUSHES what happened in a conversation — a doorbell that landed, an orchestrator reply that settled, a turn that started or ended — and a human message is not among them |
+| **held** (`ctx.held`) | a small opaque record a plugin keeps about this serve, in the state home rather than the vault |
+| **doorbell** (`ctx.deliveries`) | the write-only door a plugin speaks INTO a conversation through: which conversations opted in to it, and one verb that puts a whole sentence in one. Keyed by the calling fiber |
 | **wake** | the plugin's own words for the control a person points that doorbell with — three pieces, and core composes none of them |
-| **roster** | which plugins this build has, and which this serve runs |
-| **built vs enabled** | what the binary carries vs what `--plugins` turned on |
+| **roster** | which plugins this build has, and which this serve is running |
+| **built vs running** | what the bundle's rows list vs which of them mounted |
 | **licence** | permission for a face to draw, answered per drawn value |
 
 ### name
@@ -112,7 +216,7 @@ export const surface = defineSurface({ cells: { ci: { /* … */ } } })
 
 Core composes it as a **sibling** under the plugin's name, so it reaches the wire
 as `surface/odu/ci/get`. Nothing in olai computed that string — the framework did,
-out of the plugin's own name. See §5.
+out of the plugin's own name. See §6.
 
 ### face
 
@@ -153,6 +257,24 @@ shared nothing is a debug line on a screen.
 A plugin with no probe is a whole plugin: the absent arm is a machine that
 simply does not have the tool, and that state already had to work. Both
 tenants here have one.
+
+It is not a FIELD any more. A plugin listens on the `chat/session-start`
+waterfall and pushes a THUNK — its own name, and what it would ask:
+
+```ts
+ctx.on("chat/session-start", (start, next) => {
+  start.asking.push({ name, ask: () => probe(ctx.env.vars) })
+  return next()
+})
+```
+
+The list is collected per session open, so a plugin that unloaded between
+conversations contributes nothing to the next one and nobody keeps a second list.
+A thunk rather than an answer, because the ASKING is `@olai/chat`.s to schedule:
+a probe starts a subprocess on the session-open path, and a waterfall that
+awaited each listener in turn would multiply that window by the number of
+plugins — the same defect the bound concurrency exists to prevent, wearing a
+different shape. `Probed`.s two halves still come off ONE reading.
 
 ### kind
 
@@ -352,29 +474,33 @@ can read it without dialling anything.
 
 ---
 
-## 4. Three doors, because three graphs
+## 5. Three doors, because three graphs — and the fourth thing, which is data
 
-`@olai/plugin-api` has three code entry points, and a plugin has three to match.
-This is the one place the design costs something: a third plugin is **three
-lines**, not one.
+A plugin has three code entry points, and there are two packages behind them.
 
 ```
                         ┌──────────────────────────────────────────┐
-   @olai/plugin-api/wire   │  name · surface · faces                  │
+   @olai/bundle/wire    │  name · surface · faces                  │
    ─────────────────▶   │  no SolidJS, no appliance client         │
-   read by: the server's│  no node: builtins                       │
-   composition root AND └──────────────────────────────────────────┘
-   the browser's wire
+   read by: the         │  no node: builtins                       │
+   browser's wire       └──────────────────────────────────────────┘
 
                         ┌──────────────────────────────────────────┐
-   @olai/plugin-api/server │  + serve() · probe() · kinds · wake      │
-   ─────────────────▶   │  MAY pull the appliance's client,        │
-   read by: a server    │  @olai/format, node: builtins            │
-   process              │  may NOT pull a browser face             │
+   packages/bundle/     │  a ROW: id · the module to mount         │
+   olai.yml             │  DATA. No import graph at all — the      │
+   ─────────────────▶   │  loader resolves the specifier at mount  │
+   read by: the loader  └──────────────────────────────────────────┘
+                                       │
+                                       ▼  olai-plugin-<name>/server
+                        ┌──────────────────────────────────────────┐
+   the plugin's ./server│  name · inject · apply()                 │
+                        │  MAY pull the appliance's client,        │
+                        │  @olai/format, node: builtins            │
+                        │  may NOT pull a browser face             │
                         └──────────────────────────────────────────┘
 
                         ┌──────────────────────────────────────────┐
-   @olai/plugin-api        │  + dressings · chrome · mount · mark     │
+   @olai/bundle (root)  │  + dressings · chrome · mount · mark     │
    ─────────────────▶   │  SolidJS, and behind one face            │
    read by: the browser │  a terminal emulator                     │
                         └──────────────────────────────────────────┘
@@ -388,14 +514,34 @@ theoretical: importing the manifest door from the server **kills the boot** with
 Two more entries are routing rather than graphs: `./all.css` chains each plugin's
 stylesheet, and `./testids` merges each plugin's names-only testid table.
 
-The three rosters (`WIRES`, `SERVERS`, `PLUGINS`) must hold the same plugins in
-the same order —
-[`rosters.test.ts`](../../packages/plugin-api/src/rosters.test.ts) is the lid, because
-a plugin added to two of them is a compile error nowhere.
+**`@olai/plugin-api` is not on that picture, and that is the point.** It is the
+INTERFACE a plugin is written against — the browser-face types at its root, and
+the Cordis services at `./services` — and it names no plugin at all. That is what
+lets a plugin import it, which the registry could never allow while the two were
+one package.
+
+**`olai.yml` is the whole list, and a fourth plugin is ONE ROW.** The browser
+kept two `as const` arrays for one round — a browser bundle is built ahead of
+time and there is no loader in the tab — held equal to the rows by a
+`rosters.test.ts`. That test was a monument to the duplication rather than a fix
+for it, and it is deleted with the lists.
+
+What the tab reads instead is WRITTEN from the rows at build time
+([`generate.ts`](../../packages/bundle/generate.ts)): the browser's rows with a
+dynamic `import()` per plugin, the stylesheet chain, and the merged testid table
+with its pairwise disjointness proof. All three are gitignored and produced by
+`just install` and by the nix build in its own sandbox, beside the tenants'
+marks and for the same reason — a generated file is never in the store copy of
+the tree, so a packaged build cannot ship a stale one.
+
+The literal specifier is what makes each plugin its own **chunk**, which is the
+browser's exact twin of *no fiber, no surface, no handler*: a plugin the roster
+does not name is never fetched, never evaluated, and registers nothing. kolu's
+terminal emulator is 336 KB a machine that does not run kolu never downloads.
 
 ---
 
-## 5. The wire: one root, N siblings
+## 6. The wire: one root, N siblings
 
 Core does **not** become a sibling. Its tags are byte-unchanged, because an MCP
 client already writes `surface://collections/documents` and the suite asserts
@@ -415,31 +561,55 @@ four, and the framework forbids a `/` inside any name. That is a proof, and it i
 counted anyway — the merge underneath is last-writer-wins, and a silently dropped
 tag is a member that answers nothing with nobody told.
 
-This whole shape is the framework's, end to end (juspay/kolu#2222):
+This whole shape is the framework's, end to end (juspay/kolu#2222, #2223):
 
 | Where | What does it |
 | --- | --- |
-| server composes | `mergeDisjointGroups({ core, plugins })` |
+| server composes | `implementRootedSurfaces(core, base, deps)` — one call |
+| server mounts a sibling | `runtime.mount(key, surface, deps)`, which hands back its own undo |
 | server gates | `exposeRootedFaces(core, coreMap, siblings, siblingMaps)` |
 | browser dials | `connectSurfaces({ core, surfaces })` — **one call**, watchdog included |
 
-olai spelled all three by hand for one PR window and now spells none of them.
-[`mechanics.test.ts`](../../packages/plugin-api/src/mechanics.test.ts) is the standing
+olai spelled all of it by hand for two PR windows and now spells none of it.
+[`mechanics.test.ts`](../../packages/bundle/src/mechanics.test.ts) is the standing
 lint that it stays that way.
+
+**The roster MOVES**, which is why the serve side needed a door of its own. A
+plugin is a fiber: it can fail, or be disposed, and its sibling goes with it. The
+shape a consumer reaches for when the framework has no door — re-implement the
+whole map over the survivors — silently forks every survivor's handler values,
+cell stores, channels and running sources, and leaves an already-open connection
+answering out of the previous copy. `mount` walks the ARRIVING sibling only.
+
+A DROP is live all the way down: each of a sibling's tags is bound to a handler
+that refuses from the instant of the drop, so a connection accepted before it
+gets a `SurfaceSiblingDropped` defect on a new call and an in-flight subscription
+dies with the same defect rather than hanging on a producer nobody drives. A
+sibling ARRIVING after the listener has bound is the other half, and it is a
+**reconnect**: `serveSurfaceApp` takes the group and the handlers at the moment it
+listens, and `connectSurfaces` bakes its own at the dial. The roster cell moving
+is what tells a browser to; `SurfacesConnection.redial(surfaces)` is what the
+browser calls when it moves. `packages/web/src/client/wire.ts` holds that loop:
+it dials with no siblings, reads the roster cell, loads exactly the named
+browser halves, redials with their surfaces, and only then mounts their fibers —
+so a fiber is never started over a wire that does not carry its sibling. A
+second roster frame arriving mid-redial is queued behind the first rather than
+starting a second redial on one connection.
 
 ---
 
-## 6. Built vs enabled
+## 7. Built vs default vs running
 
-Two lists, and the distance between them is the whole of what `--plugins` means.
-
-```
-  BUILT      what the binary carries      = the registry, compiled in
-  ENABLED    what THIS serve runs         = --plugins, or all of BUILT
-```
+THREE lists, and the distance between them is the whole of what `--plugins` means.
 
 ```
-olai web ~/outlines                    # every plugin this build has
+  BUILT      what the binary carries      = every row in packages/bundle/olai.yml
+  DEFAULT    what omitting the flag runs  = the rows without their own `disabled`
+  RUNNING    what THIS serve mounted      = the fibers that reached ACTIVE
+```
+
+```
+olai web ~/outlines                    # the built-in default
 olai web ~/outlines --plugins=odu      # odu only
 olai web ~/outlines --plugins=         # none — said out loud
 ```
@@ -450,8 +620,42 @@ once and forgotten:
 ```nix
   services.olai.plugins = [ "odu" ];   # odu only
   services.olai.plugins = [ ];         # none
-  # omit it                            — every plugin this build has
+  # omit it                            — the built-in default
 ```
+
+**The flag is a PATCH now, not a filter.** It writes a `disabled` onto every row
+on the way in, through `@cordisjs/plugin-include`, so what an operator said and
+what the build has stay two readable things rather than one list already
+narrowed. A disabled row never mounts, which is the same absence `--plugins`
+always meant — reached by the loader declining to load rather than by a
+`.filter` in a general package.
+
+**And that is also where the built-in DEFAULT lives.** A plugin that needs a
+secret this machine may not have is off until somebody asks for it, and it says
+so in its own row:
+
+```yaml
+- id: xyne-spaces
+  name: olai-plugin-xyne-spaces/server
+  disabled: true
+```
+
+The alternative was a `defaultOn: false` on the wire half — a field core reads to
+build a default list — and the row wins because it is the SAME FIELD the patch
+writes. One mechanism, two writers: the file says what the build does by
+default, the patch says what the operator asked for, and there is no second
+spelling for the two to disagree across. It also means turning an opt-in plugin
+ON is not a special path: `--plugins=xyne-spaces` writes `disabled: false` over a
+row the file set `true`, which is the same line that turns another row off.
+[`rows.test.ts`](../../packages/bundle/src/rows.test.ts) holds both directions.
+
+**RUNNING is read off the runtime, not off the flag.** It used to be
+`isEnabled(pin, name)`, a second reading of what the operator typed, which was
+exact while the filter ran once and nothing could move. A fiber can sit `PENDING`
+on a service that never arrived, or land in `FAILED` because its `apply` threw,
+and in both the flag still says yes while the wire carries no `surface/<name>/` at
+all. The roster reports what is composed, and the cell is republished whenever
+that changes.
 
 **Omitting is not the same as listing everything.** Preferences draws a row per
 built plugin and says either *the flag you gave* or *the built-in default* — a
@@ -469,15 +673,21 @@ This split matters and is easy to get backwards:
 | Question | Judged against | Why |
 | --- | --- | --- |
 | Is `{"type":"kolu-terminal"}` a legal declaration? | **BUILT** | a file's verdict may not depend on a flag it cannot see |
-| Does this value fit the kind? | **ENABLED** | `admits` is a promise only a plugin that is *here* can make |
-| May this value's face draw? | **ENABLED** | see §7 |
+| Does this value fit the kind? | **RUNNING** | `admits` is a promise only a plugin that is *here* can make |
+| May this value's face draw? | **RUNNING** | see §8 |
 
 So `{"type":"kolu-terminal"}` is a clean row on a machine running `--plugins=odu`, and
 `{"type":"banana"}` is a broken file either way.
 
+The two halves come from two places, and that is the shape rather than an
+asymmetry to tidy: BUILT is read off every ROW's module — including the rows this
+serve disabled, because a disabled row never mounts and its words have to be
+reachable some other way — and RUNNING is the live `ctx.kinds` registry, which
+holds exactly what the fibers that mounted registered.
+
 ---
 
-## 7. How a live property gets its face
+## 8. How a live property gets its face
 
 This is the subtlest path in the system, and it is worth following end to end.
 
@@ -578,12 +788,13 @@ guess costs:
 
 ---
 
-## 8. What a disabled plugin is
+## 9. What a disabled plugin is
 
-**Absent.** Not parked, not half-wired, not degraded.
+**Absent.** Not parked, not half-wired, not degraded — and now at every moment
+rather than only at boot.
 
 ```
-  --plugins=odu   ⇒   kolu is not in the record the framework composes from
+  --plugins=odu   ⇒   kolu's row is patched `disabled` and never mounts
 
                       no sibling surface        no probe run
                       no wire tag               no chrome pill
@@ -597,20 +808,28 @@ The outline it would have owned is an ordinary outline. The properties it would
 have dressed draw as the text they always were — still stored, still greppable,
 still editable. **The connection indicator stays green.**
 
-This costs no mechanism, and that is the design's best property: every composition
-door in the framework takes a plain keyed object of surfaces, so `--plugins` is a
-filter over that object and nothing else. *Disabled is a state the framework's own
-composition already expresses;* olai only has to not add the entry.
+This costs no mechanism, and that is the design's best property. It used to be
+true because every composition door in the framework takes a plain keyed object
+of surfaces, so `--plugins` was a filter over that object and nothing else. It is
+true for a stronger reason now: **every registration a plugin makes is an effect
+with its own undo**, so a fiber that is disposed drops its sibling, its kinds, its
+wake declaration and its listeners in reverse, and the sentence above is as true
+after the boot as during it. The old arrangement could only claim it at boot,
+because the filter ran once.
+
+A plugin whose `apply` THROWS is the same absence reached from the other side: the
+fiber lands in `FAILED` having installed nothing, and every sibling stays ACTIVE.
+A padi socket that is not there at boot can no longer be a server that will not
+start.
 
 And the degenerate case is the same code as every other: a runtime with **no**
-plugins hands `implementSurfaces` an empty record, which composes to a group with
-no requests and leaves core's own surface byte for byte what it was. That is what
-every `olai surface`, every headless MCP face and every server test already runs
-as.
+plugins mounts no sibling on the rooted bundle, which leaves core's own surface
+byte for byte what it was. That is what every `olai surface`, every headless MCP
+face and every server test already runs as.
 
 ---
 
-## 9. Adding a plugin
+## 10. Adding a plugin
 
 The whole checklist. Two of its artifacts live outside `packages/` (a symlink and
 a docs line, step 4) and no GENERAL package changes at all, which is the claim
@@ -625,36 +844,44 @@ that matters.
    container, held to the registry's roster in both directions by
    `fence.test.ts`'s ninth claim. Copy either tenant's manifest for the shape:
    `main`, `types`, a `typecheck` script, and an `exports` map of five entries
-   (`.`, `./wire`, `./server`, `./testids`, `./all.css`). Declare your
-   appliance's client, `@olai/format` if you walk the vault, `solid-js` if you
-   draw, and **everything else your own sources import** — the isolated linker
-   gives a member exactly what its manifest names, and `effect` resolving by
-   walking up to the root is a hole rather than a shortcut. Never declare
-   `@olai/plugin-api`, which imports you.
+   (`.`, `./wire`, `./server`, `./testids`, `./all.css`). Declare
+   `@olai/plugin-api` — the interface, which your server half imports for the
+   services it injects — your appliance's client, `@olai/format` if you walk the
+   vault, `solid-js` if you draw, and **everything else your own sources import**:
+   the isolated linker gives a member exactly what its manifest names, and
+   `effect` resolving by walking up to the root is a hole rather than a shortcut.
+   Never declare `@olai/bundle`, which imports you.
 1. **`packages/plugins/olai-plugin-<name>/src/wire.ts`** — `name`, a
    `defineSurface`, and the `faces` map. This file may not import SolidJS, an
    appliance client, or a `node:` builtin.
-2. **`packages/plugins/olai-plugin-<name>/src/server.ts`** — `serve()`, and
-   optionally `probe()`, `kinds` and `wake`. This is where the appliance's
-   client is called, and where `services.deliveries` is rung if the plugin has
-   anything to say into a conversation. Declare `wake` or the strip draws no
-   picker for you and `chat.scope` refuses your name — which is the gate
-   working, not a bug.
-3. **`packages/plugins/olai-plugin-<name>/src/plugin.ts`** — the manifest: the
-   wire half plus `dressings`, `chrome`, `mount`, `mark`. Browser graph.
+2. **`packages/plugins/olai-plugin-<name>/src/server.ts`** — `name`, `inject` and
+   `apply(ctx)`. This is where the appliance's client is called, where
+   `ctx.surfaces.register(...)` puts your sibling on the wire, where
+   `ctx.kinds.register(...)` teaches the vault a word, and where
+   `ctx.deliveries` is rung if the plugin has anything to say into a
+   conversation. Register a `wake` or the strip draws no picker for you and
+   `chat.scope` refuses your name — which is the gate working, not a bug. Push a
+   thunk onto `chat/session-start` if you have a tool to probe for. Everything
+   you register comes back out when your fiber unloads, and you write no teardown
+   for any of it.
+3. **`packages/plugins/olai-plugin-<name>/src/browser.tsx`** — the browser half:
+   `name`, `surface`, `inject`, and an `apply(ctx)` that registers your faces
+   into `ctx.slots`. Browser graph, and its own chunk.
 4. **`packages/plugins/olai-plugin-<name>/docs.md`** — the user page, plus a
    symlink at `docs/plugins/<name>.md` and a line in `docs/index.md`.
    `packages/tests/plugin_docs.test.ts` fails if you skip either.
-5. **Six edits in `packages/plugin-api/`**, not three — each roster is an
-   `import` line AND an array entry, and three files beside them:
-   `surfaces.ts`'s `WIRES`, `server.ts`'s `SERVERS`, `registry.ts`'s `PLUGINS`,
-   `testids.ts`'s spread into `PLUGIN_TESTID`, one `@import` in `src/all.css`
-   (a face outside the scan path renders with **no layout while nothing
-   errors**), and `package.json`'s `dependencies` — without which the three
-   roster imports do not resolve at all.
+5. **ONE ROW in `packages/bundle/olai.yml`** — `id: <name>`, `name:
+   olai-plugin-<name>/server`, and a `disabled: true` if your plugin needs a
+   secret this machine may not have and should be off until `--plugins` names
+   it. That is the whole of it: the browser's rows, the stylesheet chain and the
+   merged testid table are WRITTEN from that row by `generate.ts`, so the four
+   hand-edits this step used to list are gone. What you do still write is your
+   own package's `exports` (`./wire`, `./server`, `./browser`, `./testids`,
+   `./all.css` — the generator derives all four subpaths from the row's module
+   name) and one line in `packages/bundle/package.json`'s `dependencies`,
+   without which the generated `import()` does not resolve.
 
-
-Then run `bun test packages/plugin-api` and let the fence tell you what you got
+Then run `bun test packages/bundle` and let the fence tell you what you got
 wrong. It will be specific.
 
 Everything in steps 1–3 but the name and the surface is **optional**. A plugin
@@ -664,34 +891,35 @@ to work.
 
 ---
 
-## 10. Where the rules are actually enforced
+## 11. Where the rules are actually enforced
 
 Every claim on this page is a test, not a paragraph. If you break one, the failure
 names the file.
 
 | File | Holds |
 | --- | --- |
-| `packages/plugin-api/src/fence.test.ts` | no general package **imports** a plugin (four grammars: imports, `scanImports`, CSS `@import`, manifests) — no general package **spells** one in production code — and `packages/plugins/` holds the tenants and nothing else, both directions |
+| `packages/bundle/src/fence.test.ts` | no general package **imports** a plugin (four grammars: imports, `scanImports`, CSS `@import`, manifests) — no general package **spells** one in production code — a plugin imports the INTERFACE and never the REGISTRY, and does import the interface — the services door pulls no browser face — and `packages/plugins/` holds the tenants and nothing else, both directions |
 | `scripts/prove-fence.sh` | the fence and the mechanics lint go RED when they should. Not a `just check` leg: it mutates tracked files and puts them back, and `check` runs its legs in parallel. Run it when the fence CHANGES — a sweep's one failure mode is going quiet, and a fence that stopped running looks exactly like a fence that is holding |
-| `packages/plugin-api/src/mechanics.test.ts` | olai names no wire mechanic the framework performs |
-| `packages/plugin-api/src/tree.testlib.ts` | not a claim — the READING both of the above stand on (workspace members, manifests, sources, the module graph). Split out so the two files above are their claims and nothing else, and so the source walk is written once |
-| `packages/plugin-api/src/rosters.test.ts` | the three doors list the same plugins, in the same order |
-| `packages/plugin-api/src/composition.test.ts` | an empty roster composes, and core's tags do not move |
-| `packages/plugin-api/src/testids.test.ts` | the plugins’ testid tables are disjoint — and one layer further out, `packages/web/src/client/testids.test.ts` holds the app’s own table disjoint from theirs, which is the seam `selector()` actually spends |
+| `packages/bundle/src/mechanics.test.ts` | olai names no wire mechanic the framework performs |
+| `packages/bundle/src/tree.testlib.ts` | not a claim — the READING both of the above stand on (workspace members, manifests, sources, the module graph). Split out so the two files above are their claims and nothing else, and so the source walk is written once |
+| `packages/bundle/src/report.test.ts` | what became of each row, off real Cordis fibers: a row nothing mounted reads `off`, one whose `apply` threw reads `failed` and carries the plugin's own message verbatim, one short of a service it injects reads `waiting` — the words the preferences row's five are composed from |
+| `packages/bundle/src/kinds.test.ts` | the word a vault declares is composed from the FIBER's name; a word leaves the vocabulary when its plugin unloads; the BUILT half carries every row's words whatever the flag said |
+| `packages/bundle/src/composition.test.ts` | an empty roster composes, core's tags do not move, and — the two claims that need the modules LOADED — every module answers to the name its row binds it under, and every face a plugin declares is a face it wrote a map for. There is no `rosters.test.ts` any more: it held three hand-written lists equal, and two of the three are generated from the third |
+| `packages/bundle/src/testids.test.ts` | the plugins’ testid tables are disjoint — and one layer further out, `packages/web/src/client/testids.test.ts` holds the app’s own table disjoint from theirs, which is the seam `selector()` actually spends |
 | `packages/plugins/olai-plugin-kolu/src/testids.ts` | a tenant’s two testid halves share no key and no value — a TYPE-level assertion, so a collision is a `tsc` error naming the offender rather than a test somebody keeps green |
 | `packages/plugins/olai-plugin-kolu/src/faces.test.ts` | the tenant’s own two face directories stay apart — `src/browser/` names no part of the appliance’s tier, and `src/appliance/` names none of the vault’s vocabulary, which is the wall `@olai/kolu-ui`’s manifest kept before the fold. In the TENANT, not in the fence: a per-directory rule up there would be the fence inventing a layout convention and enforcing its own invention |
 | `packages/tests/plugin_docs.test.ts` | every plugin's docs page exists, is served, and is linked |
 | `packages/server/src/faces.test.ts` | `chat.scope` is named on the **browser** face and nowhere else — the agent face is pinned as an exact set, so an agent-settable doorbell is a red suite rather than a rule somebody has to remember |
-| `packages/server/src/runtime.test.ts` | a `wake` sentence reaches the roster only for a plugin this serve is RUNNING, so no picker is offered for a doorbell nothing would ring |
+| `packages/server/src/runtime.test.ts` | a `wake` sentence reaches the roster only for a plugin this serve MOUNTED, so no picker is offered for a doorbell nothing would ring — and a plugin the flag left on that nothing mounted draws as off, which is the row the old derivation could not express |
 | `packages/chat/src/deliveries.test.ts` | a body delivered mid-turn is HELD and the conversation keeps its interruption — the one claim a machine speaking into a person's lane could quietly cost them |
-| `scripts/check-hydrated-deps.sh` | the appliance dependency walls, per pin |
+| `scripts/check-hydrated-deps.sh` | the appliance dependency walls, per pin — kolu, odu, and cordis |
 
 ---
 
 ## See also
 
-- [`packages/plugin-api/README.md`](../../packages/plugin-api/README.md) — the same
+- [`packages/bundle/README.md`](../../packages/bundle/README.md) — the same
   subject at implementation depth.
 - [architecture.md](../architecture.md) — how every package fits, plugins included.
-- [live-properties.md](../live-properties.md) — the user-facing half of §7.
+- [live-properties.md](../live-properties.md) — the user-facing half of §8.
 - [running.md](../running.md) — `--plugins` as an operator sees it.

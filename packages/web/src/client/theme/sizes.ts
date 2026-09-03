@@ -47,19 +47,19 @@ export const SIZES: ReadonlyArray<TypeSize> = [
     name: "medium",
     label: "Medium",
     root: "1rem",
-    hint: "The browser's own size — what olai was set in before there was a choice.",
+    hint: "Your browser's own text size.",
   },
   {
     name: "large",
     label: "Large",
     root: "1.125rem",
-    hint: "A notch up from the browser's own size, and olai's default: a column of titles read all day is not a document.",
+    hint: "One notch up from your browser's size. olai's default.",
   },
   {
     name: "larger",
     label: "Larger",
     root: "1.25rem",
-    hint: "Two notches up. Everything scales with it — the rows, the gutter, the panels.",
+    hint: "Two notches up. The whole page scales with it.",
   },
 ]
 

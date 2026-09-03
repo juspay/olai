@@ -92,6 +92,26 @@ const MECHANICS: ReadonlyArray<string> = [
   // `exposeRootedFaces` respectively.
   "fuseGroups",
   "fuseFaces",
+  // ...and the FIVE the composition root spelled to fuse a root with a sibling
+  // bundle, retired by `implementRootedSurfaces` (juspay/kolu#2223). `runtime.ts`
+  // called `implementSurface` for the root, `implementSurfaces` over a keyed map
+  // of every sibling, `mergeDisjointGroups` to fuse the two groups, a
+  // `{...a, ...b}` spread with `assertHandlersMatchGroup` after it, and
+  // `superviseTerminalSource` to fold the two runtimes' supervision. The spread
+  // is the one worth naming: a handler record is keyed by nothing but tags, so
+  // it is a last-writer-wins merge with the same silence `RpcGroup.merge` has,
+  // and the assertion after it proved the route SET rather than which side won a
+  // shared tag. The framework counts both axes.
+  //
+  // `implementSurface` and `implementSurfaces` are NOT on this list, and their
+  // absence is deliberate rather than an oversight: both are still the right
+  // door for a surface that is not a rooted bundle, and the tests in this
+  // package that ask what a standalone or a fixed sibling map composes to are
+  // asking a real question about the framework. What olai's own composition
+  // root may not do is spell the FUSION, and these three are that fusion.
+  "mergeDisjointGroups",
+  "assertHandlersMatchGroup",
+  "superviseTerminalSource",
 ]
 
 /** Every MEMBER's own sources, root-relative, so a failure reads as a path

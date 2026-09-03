@@ -19,7 +19,7 @@
 
 import { describe, expect, it } from "bun:test"
 
-import { ALL_RUNNING, dressingFor, layOut, type Licensed, registerLive } from "./seam.ts"
+import { dressingFor, type Dressing, type Dressings, layOut, type Licensed } from "./seam.ts"
 import type { Entry } from "../props/drawer.ts"
 
 const entry = (over: Partial<Entry> = {}): Entry => ({
@@ -35,10 +35,23 @@ const entry = (over: Partial<Entry> = {}): Entry => ({
  *  DRAWS, which is the whole of what it buys. */
 const NOTHING = () => null
 const ALSO_NOTHING = () => null
-const BUILT = { Block: NOTHING }
-const RUNNING = { Chip: NOTHING, Pane: ALSO_NOTHING }
-registerLive("built", BUILT, "probe")
-registerLive("running", RUNNING, "probe")
+const BUILT: Dressing = { Block: NOTHING }
+const RUNNING: Dressing = { Chip: NOTHING, Pane: ALSO_NOTHING }
+
+/**
+ * WHAT DRESSES A WORD, as the drawer hands it down.
+ *
+ * It used to be a MODULE TABLE this file wrote into with `registerLive`, and
+ * the seam owned it. It owns none now: a face is registered by its plugin's own
+ * fiber into `ctx.slots`, `../live/dressings.ts` joins the three slots into one
+ * lookup, and what the seam takes is that lookup. So a case here builds the
+ * answer it is about rather than mutating a table every other case can see —
+ * which is a better test as well as a smaller seam.
+ */
+const dressing = (table: Readonly<Record<string, Dressing>>): Dressings => (word) => table[word]
+
+/** The two the cases below are about, under the two words a page can claim. */
+const DRESSED = dressing({ built: BUILT, running: RUNNING })
 
 /**
  * A PAGE'S ANSWERS, as the drawer hands them down — the file already spent, so
@@ -59,24 +72,24 @@ describe("which properties are live", () => {
   it("answers by the WORD the page says claims the value, not by the key", () => {
     // Two halves of one claim, and each was a live wrong answer before the
     // licence travelled. A key called `pty` wears the face its vault declared…
-    expect(dressingFor(entry({ key: "pty" }), ALL_RUNNING, DECLARED)).toBe(BUILT)
+    expect(dressingFor(entry({ key: "pty" }), DECLARED, DRESSED)).toBe(BUILT)
     // …and a key that merely SPELLS a registered word wears nothing, because a
     // vault that declared nothing has promised nothing. This is the behaviour
     // change a reader is most likely to notice, and it is the point: a property
     // somebody happened to call `terminal` is text until the vault says
     // otherwise.
-    expect(dressingFor(entry({ key: "built" }), ALL_RUNNING, DECLARED)).toBeUndefined()
+    expect(dressingFor(entry({ key: "built" }), DECLARED, DRESSED)).toBeUndefined()
   })
 
   it("answers nothing for a word no dressing was registered under", () => {
     // A plugin that contributes a kind and no face — or a kind whose face this
     // BUILD does not carry. The value is claimed and draws as the chip it is.
     const stray = claiming({ k: "unregistered" })
-    expect(dressingFor(entry(), ALL_RUNNING, stray)).toBeUndefined()
+    expect(dressingFor(entry(), stray, DRESSED)).toBeUndefined()
   })
 
   it("leaves SYSTEM entries alone — those are fields with verbs of their own", () => {
-    expect(dressingFor(entry({ key: "pty", system: true }), ALL_RUNNING, DECLARED))
+    expect(dressingFor(entry({ key: "pty", system: true }), DECLARED, DRESSED))
       .toBeUndefined()
   })
 
@@ -86,8 +99,8 @@ describe("which properties are live", () => {
     expect(
       dressingFor(
         entry({ key: "pty", value: "a, b", values: ["a", "b"] }),
-        ALL_RUNNING,
         DECLARED,
+        DRESSED,
       ),
     ).toBeUndefined()
   })
@@ -101,8 +114,8 @@ describe("which properties are live", () => {
     const perValue: Licensed = (key, value) =>
       key === "pty" && value === "c56b6183" ? "built" : undefined
     const naming = (value: string) => entry({ key: "pty", value, values: [value] })
-    expect(dressingFor(naming("c56b6183"), ALL_RUNNING, perValue)).toBe(BUILT)
-    expect(dressingFor(naming("a note about it"), ALL_RUNNING, perValue)).toBeUndefined()
+    expect(dressingFor(naming("c56b6183"), perValue, DRESSED)).toBe(BUILT)
+    expect(dressingFor(naming("a note about it"), perValue, DRESSED)).toBeUndefined()
   })
 })
 
@@ -112,7 +125,7 @@ describe("laying a drawer out", () => {
       entry({ key: "agent" }),
       entry({ key: "pty" }),
       entry({ key: "pr" }),
-    ], undefined, ALL_RUNNING, DECLARED)
+    ], undefined, DECLARED, DRESSED)
     expect(laid.run.map((one) => one.entry.key)).toEqual(["agent", "pr"])
     expect(laid.blocks.map((one) => one.entry.key)).toEqual(["pty"])
   })
@@ -125,8 +138,8 @@ describe("laying a drawer out", () => {
     const laid = layOut(
       [entry({ key: "checkout" }), entry({ key: "agent" })],
       undefined,
-      ALL_RUNNING,
       DECLARED,
+      DRESSED,
     )
     expect(laid.run.map((one) => one.entry.key)).toEqual(["checkout", "agent"])
     expect(laid.blocks).toEqual([])
@@ -142,47 +155,55 @@ describe("laying a drawer out", () => {
     // The read/write split: a dressing is the read face and the chip is the
     // write face, so no face has to grow a text box of its own.
     const entries = [entry({ key: "pty" }), entry({ key: "checkout" })]
-    const editing = layOut(entries, "pty", ALL_RUNNING, DECLARED)
+    const editing = layOut(entries, "pty", DECLARED, DRESSED)
     expect(editing.run.map((one) => one.entry.key)).toEqual(["pty", "checkout"])
     expect(editing.blocks).toEqual([])
     // A chip dressing was already in the run, so what editing takes off it is
     // its FACE — the live half goes quiet while somebody is typing the value
     // it is derived from.
-    expect(layOut(entries, "checkout", ALL_RUNNING, DECLARED).run[0]?.chip).toBeUndefined()
+    expect(layOut(entries, "checkout", DECLARED, DRESSED).run[0]?.chip).toBeUndefined()
     // ...and it all comes back the moment the editor closes.
-    expect(layOut(entries, undefined, ALL_RUNNING, DECLARED).blocks.map((one) => one.entry.key))
+    expect(layOut(entries, undefined, DECLARED, DRESSED).blocks.map((one) => one.entry.key))
       .toEqual(["pty"])
-    expect(layOut(entries, undefined, ALL_RUNNING, DECLARED).run[0]?.chip).toBe(NOTHING)
+    expect(layOut(entries, undefined, DECLARED, DRESSED).run[0]?.chip).toBe(NOTHING)
   })
 
   it("hands back an empty run rather than nothing, so a drawer of only blocks draws", () => {
-    const laid = layOut([entry({ key: "pty" })], undefined, ALL_RUNNING, DECLARED)
+    const laid = layOut([entry({ key: "pty" })], undefined, DECLARED, DRESSED)
     expect(laid.run).toEqual([])
     expect(laid.blocks).toHaveLength(1)
   })
-
-  it("a face whose plugin this serve is not running draws as a plain chip", () => {
-    // THE SECOND LICENCE, and it is the whole of what `--plugins` means in a
-    // browser. It is also the case that proves the two are not one question
-    // said twice: the page HAS claimed this value, so whoever contributed the
-    // word is running — and the plugin that registered the FACE is not. A tab
-    // registers what the BUILD has, because import time is all it has, and asks
-    // at the DRAW whether the serve composed the plugin whose face it is about.
+  it("a word nothing dresses draws as the plain chip it always did", () => {
+    // WHAT THE SECOND LICENCE USED TO PIN, and the state that replaced it.
     //
-    // The failure this pins is not "a face is missing" — it is a face DRAWING ITS
-    // OWN nothing-here arm, which is a row complaining about a daemon somebody
-    // deliberately turned off rather than the plain chip an undressed property
-    // has always shown. A live serve with `--plugins=` is what found it, because
-    // it is invisible to a suite that only asks whether the table has an entry.
-    registerLive("licensed", BUILT, "absent-tenant")
+    // This case was "a face whose plugin this serve is not running draws as a
+    // plain chip", and it was the whole of what `--plugins` meant in a browser:
+    // the tab registered what the BUILD had, because import time was all it
+    // had, and asked at the DRAW whether the serve had composed the plugin
+    // whose face it was about. The failure it pinned was not a missing face —
+    // it was a face DRAWING ITS OWN nothing-here arm, which is a row
+    // complaining about a daemon somebody deliberately turned off rather than
+    // the plain chip an undressed property has always shown. A live serve with
+    // `--plugins=` is what found it.
+    //
+    // A tab registers nothing at import time any more: a face is registered by
+    // its plugin's own fiber, and a plugin the roster does not name has no
+    // fiber, so the lookup simply has no entry. That is the same drawn result
+    // through a state that cannot be got wrong — and it is what this case now
+    // asserts, because the licence it used to spend does not exist to be
+    // tested.
     const claimed = claiming({ pty: "licensed" })
-    const off = (plugin: string): boolean => plugin !== "absent-tenant"
-    expect(dressingFor(entry({ key: "pty" }), off, claimed)).toBeUndefined()
-    expect(dressingFor(entry({ key: "pty" }), ALL_RUNNING, claimed)).toBe(BUILT)
-    // ...and it leaves the run: no block, an ordinary chip, nothing else moved.
-    const laid = layOut([entry({ key: "pty" })], undefined, off, claimed)
+    expect(dressingFor(entry({ key: "pty" }), claimed, DRESSED)).toBeUndefined()
+    // ...and the entry stays in the run: no block, an ordinary chip, nothing
+    // else moved.
+    const laid = layOut([entry({ key: "pty" })], undefined, claimed, DRESSED)
     expect(laid.blocks).toEqual([])
     expect(laid.run.map((one) => one.entry.key)).toEqual(["pty"])
     expect(laid.run[0]?.chip).toBeUndefined()
+    // ...where the SAME page answer against a lookup that HAS the word draws
+    // the face, which is what keeps the case above about the table rather than
+    // about the licence.
+    expect(dressingFor(entry({ key: "pty" }), claimed, dressing({ licensed: BUILT })))
+      .toBe(BUILT)
   })
 })

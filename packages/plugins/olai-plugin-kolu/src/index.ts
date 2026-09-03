@@ -43,24 +43,39 @@
  * a cycle, and a face that spelled the app's contract itself would be a second
  * spelling free to drift with the app's suite green.
  *
- * ## The manifest is structural
+ * ## The fit is still structural, and where it is PROVED has moved
  *
- * There is no `: OlaiPlugin` on the value below and there must not be:
- * `@olai/plugin-api` imports this package, so an import back would be a cycle the
- * manifests could not express. The fit is proved at the registry's
- * `satisfies`, which is the same structural agreement `@olai/ops` keeps with
- * the surface's `Status` and `./appliance/`'s `props/block.ts` already keeps with the drawer's
- * entry — and it means a manifest that stopped fitting is named on the
- * registry's line, with this plugin's name on it.
+ * There is no `: OlaiPlugin` on the value below because there is no such type
+ * any more. A browser half was a manifest OBJECT and is a Cordis plugin now
+ * (`./browser.tsx` — `name`, `inject`, `apply(ctx)`), so the interface a
+ * manifest used to be annotated against retired with the thing it described.
+ * What used to prove the agreement went with it: the fit was caught at a
+ * compiled-in registry's `satisfies`, one line per plugin, and there is no such
+ * list — `@olai/bundle` is ROWS, each naming a module a loader resolves at
+ * mount, and a row cannot `satisfies` anything about a module nobody has
+ * imported yet.
+ *
+ * The DIRECTION that paragraph argued is still the shape of this tree and only
+ * the package at the far end changed. It was `@olai/plugin-api` that imported
+ * every plugin, which is exactly why a plugin could not import it back; the
+ * registry left for `@olai/bundle` and what stayed there is the interface, which
+ * names no plugin at all. So this package DOES import it — `./server.ts`'s
+ * `inject` names the services it declares, and `./browser.tsx` takes the
+ * declaration merging that types `ctx.slots` — and the one-way arrow is
+ * `@olai/bundle`'s now: the bundle names every plugin, and a plugin naming the
+ * bundle would be the cycle the manifests decline to express.
+ *
+ * What the `satisfies` used to catch is caught where these values are SPENT,
+ * inside this package and with this package's name on the file. `surface` and
+ * `faces` go to `ctx.surfaces.register`, whose `Sibling` types both and whose
+ * `deps` carries its own `satisfies ImplementSurfaceDeps<typeof surface.spec>`
+ * (`./server.ts`); a face hung in a slot the app does not declare is a type
+ * error on its own `ctx.slots.register` line, and the reading of the app this
+ * half composes out of `ctx.bar`, `ctx.clocks` and `ctx.links`
+ * (`./browser/app.ts`) fails on the line that composes it. It is the same
+ * structural agreement `@olai/ops` keeps with the surface's `Status` and
+ * `./appliance/`'s `props/block.ts` keeps with the drawer's entry — read at the
+ * line that is wrong rather than at a registry's.
  */
 
 export { faces, name, surface } from "./wire.ts"
-
-/** The manifest, as `@olai/plugin-api`'s registry spreads it. It carries the name
- *  and the mounted members today and grows the probe, the failure sentences,
- *  the runtime half, the owned file, the kinds, the dressings and the chrome
- *  as the sweep reaches each of them. Every field but those two is optional,
- *  which is not a staging convenience: a plugin that contributes only a cell
- *  is a whole plugin, and the absent arm of every other hook is the state a
- *  machine without kolu already shows. */
-export { plugin } from "./plugin.ts"

@@ -98,7 +98,26 @@ plugins=$(
     done
   done
 )
-container=$(dirname "$(echo "$plugins" | sed -n 1p)")
+# THE CONTAINER: the directory MOST of those declarations sit in, rather than the
+# one the first of them sits in.
+#
+# `dirname` of the first entry is what this was, and the comment above warned
+# about exactly the day that would stop working: `jq -r keys[]` sorts
+# `@olai/…` ahead of `olai-plugin-…`, so the first entry is whichever `@olai/*`
+# sibling the registry declares. It declared none for a while and declares one
+# now — `@olai/plugin-api`, the INTERFACE, which is a package the registry
+# depends on and is not a tenant — so the first entry's dirname became
+# `packages` and the filter below dropped both real plugins, leaving the harness
+# to die on "fewer than two plugins found".
+#
+# The MODE is the derivation that survives that, and it survives it for the
+# reason the container exists at all: the tenants are the many and everything
+# else the registry declares is the few. It is still derived rather than typed,
+# which is the property this whole block is written for — a harness that
+# re-derived from the fence's own arithmetic would prove nothing.
+container=$(
+  for m in $plugins; do dirname "$m"; done | sort | uniq -c | sort -rn | head -n 1 | awk '{print $2}'
+)
 plugins=$(for m in $plugins; do if [ "$(dirname "$m")" = "$container" ]; then echo "$m"; fi; done)
 plugin_a=$(echo "$plugins" | sed -n 1p)
 plugin_b=$(echo "$plugins" | sed -n 2p)
@@ -128,8 +147,9 @@ case "$plugins" in *"$registry"*) echo "prove-fence: the registry came back as a
 # has no separate appliance-face directory and needs none). Without these, a missing one dies
 # mid-run on `cp`/`sed` rather than here, with this block's own diagnostic.
 for path in "$registry" "$plugin_a" "$plugin_b" "$general_src" "$sheet" "$other_dial" \
-  "$container" "$plugin_a/src/plugin.ts" "$plugin_a/src/wire.ts" "$plugin_b/src/wire.ts" \
-  "$plugin_a/src/server.ts" "$plugin_b/src/server.ts" "$plugin_b/src/browser/mount.tsx"; do
+  "$container" "$plugin_a/src/browser.tsx" "$plugin_b/src/browser.tsx" \
+  "$plugin_a/src/wire.ts" "$plugin_a/src/server.ts" "$plugin_b/src/server.ts" \
+  "$plugin_b/src/browser/Mark.tsx"; do
   [ -e "$path" ] || { echo "prove-fence: derived path $path does not exist" >&2; exit 1; }
 done
 
@@ -247,7 +267,15 @@ unnamed=0
 # a typo. The set is static; the check can be too. And a selector that named no
 # mutation used to print `0 of 0 mutations were caught.` and exit 0, which is
 # this script's own indictment of the lints reproduced on its one argument.
-DECLARED="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15"
+#
+# FOUR IS NOT IN IT, and its absence is the same argument one step on. Mutation
+# 4 was retired with the claim it was about (a plugin importing another plugin),
+# and it was dropped from the `run` calls below — but not from here, so
+# `prove-fence.sh 4` selected a mutation that does not exist, ran nothing, and
+# exited 0. A selector that names no mutation printing a clean pass is exactly
+# the failure this list was made static to prevent, and it was doing it for one
+# number.
+DECLARED="1 2 3 5 6 7 8 9 10 11 12 13 14 15"
 for want in $only; do
   case " $DECLARED " in
     *" $want "*) ;;
@@ -335,36 +363,85 @@ run() {
 # the door split exists to prevent.
 
 run 1 "a general package IMPORTS a plugin" \
-  'outside packages/plugin-api imports a plugin' \
+  'outside the registry imports a plugin' \
   append "$general_src" "import \"$name_a/wire\""
 
 run 2 "a general package DECLARES a plugin in its manifest" \
   'declares a plugin in its manifest' \
   declare_dep "$general" "$name_a"
 
-# The two DIRECTION mutations go in the manifest module rather than in `./wire`,
-# and the reason is worth reading: `fence.test.ts` IMPORTS `./surfaces.ts`,
-# which imports every plugin's `./wire` — so a cycle put there is refused by the
-# module loader before a single claim runs, and the proof would read "red"
-# without any claim having seen it. `src/plugin.ts` is on the browser graph,
-# which no test in the registry imports (that is the whole reason
-# `rosters.test.ts` reads its three rosters as TEXT), so a defect there is
-# caught by the sweep and NAMED by it.
+# THE DIRECTION MUTATION goes in the BROWSER half rather than in `./wire`, and
+# the reason has changed with the doors. It used to be that `fence.test.ts`
+# imported `./surfaces.ts`, which imported every plugin's `./wire`, so a cycle
+# put there was refused by the module loader before a single claim ran and the
+# proof read "red" without any claim having seen it. There is no `surfaces.ts`
+# — but the suite still LOADS each plugin's server half (`serverHalves`, which
+# imports by the row's own name), and a server half re-exports its `./wire`.
+# `src/browser.tsx` is on the browser graph, which nothing in the registry
+# imports at all now: the root door names that module in a dynamic `import()`
+# and the walk records it without following it. So a defect there is caught by
+# the sweep and NAMED by it, which is exactly what this mutation has to prove.
 run 3 "a plugin imports the REGISTRY back (the cycle)" \
-  'imports neither another plugin nor the registry' \
-  append "$plugin_a/src/plugin.ts" "import \"$registry_name\""
+  'a plugin does not import the registry' \
+  append "$plugin_a/src/browser.tsx" "import \"$registry_name\""
 
-run 4 "a plugin imports ANOTHER plugin" \
-  'imports neither another plugin nor the registry' \
-  append "$plugin_a/src/plugin.ts" "import \"$name_b/wire\""
+# MUTATION 4 IS GONE, and its absence is a ruling rather than a gap. It was "a
+# plugin imports ANOTHER plugin", aimed at a claim the Cordis proposal
+# overturned: `inject` is the dependency arm and it is REACTIVE, so the
+# half-wired state the ban feared is `PENDING` — a legitimate, inspectable state
+# the runtime resolves or reports. A mutation kept against a retired claim would
+# score `GREEN — THE FENCE DID NOT SEE IT` for ever, which is a harness accusing
+# a lint of missing something nobody asked it to look for.
+#
+# What the ban PROTECTED is mutation 10's: an appliance's TIER stays inside its
+# tenant, so a plugin that reached into another's `./server` drags that
+# appliance's client onto its own graph and goes red there. The protection
+# moved; it did not leave.
 
-run 5 "the WIRE door pulls a UI runtime onto the server's graph" \
-  'UI runtime, an appliance' \
+# MUTATIONS 5 AND 6 WERE ONE DOOR AND ARE NOW TWO, and the split is the whole
+# story of what this PR did to the fence.
+#
+# There used to be a `./wire` door: `@olai/bundle` exported a subpath that
+# statically imported every plugin's own `./wire`, and one confinement list was
+# walked over it. That list forbade five things for TWO different reasons held
+# in one place — `solid-js` because a SERVER read that door, and `@olai/format`,
+# `node:` builtins and every appliance's client because a BROWSER read it too.
+# One graph, two audiences, one list; which entry was there for which reader was
+# a thing you had to know rather than a thing the file said.
+#
+# The door is gone. The browser now fetches each plugin's `./browser` as its own
+# dynamic-import chunk, so the two audiences no longer share a graph — and the
+# old list came apart along the seam it always had:
+#
+#   - THE SERVER HALF SURVIVED WHERE IT STOOD. A plugin's `./server` re-exports
+#     its own `./wire`, so `./wire` is still on the server's graph and a UI
+#     runtime put there is still refused — by `NOT_ON_A_SERVER`, through the
+#     server door, rather than by a wire door that no longer exists. Mutation 5
+#     keeps its edit unchanged for exactly that reason: the DEFECT is the same
+#     defect, reached by the same line; only the claim that answers it has a new
+#     address, and a mutation that named the old one scored
+#     `RED, BUT NOT BY THE CLAIM IT NAMES` — red for the right reason, counted
+#     as a miss, which is the harness accusing a lint that was doing its job.
+#
+#   - THE BROWSER HALF MOVED TO THE CHUNK. What a tab may not carry is now held
+#     over each plugin's `./browser` by `NOT_IN_A_TAB`, and mutation 6 follows
+#     it there. Its old subject stopped being a defect: `@olai/format` on a
+#     plugin's `./wire` is legal twice over — the server may read the vault's
+#     format, and the tab may too, because odu's chip spends those file-kind
+#     words to say what a run is about. So the mutation is re-aimed at the entry
+#     that DID survive and is sharpest: a `node:` builtin, which no bundler can
+#     satisfy for a browser and which fails in the reader's tab rather than at
+#     any build step. This mutation is also why that list exists at all — it
+#     went GREEN against the tree that had no browser-chunk claim, which is the
+#     second time this harness has written a line of `fence.test.ts`.
+
+run 5 "a plugin's WIRE pulls a UI runtime, and its SERVER re-exports it" \
+  'UI runtime or a component library' \
   append "$plugin_a/src/wire.ts" 'import "solid-js"'
 
-run 6 "the WIRE door pulls the vault's format" \
-  'UI runtime, an appliance' \
-  append "$plugin_b/src/wire.ts" 'import "@olai/format"'
+run 6 "a plugin's BROWSER CHUNK pulls a node: builtin" \
+  'builtin or an appliance' \
+  append "$plugin_b/src/browser.tsx" 'import "node:fs"'
 
 run 7 "the SERVER door pulls an emulator" \
   'UI runtime or a component library' \
@@ -372,7 +449,7 @@ run 7 "the SERVER door pulls an emulator" \
 
 run 8 "the SERVER door pulls a COMPONENT (the .tsx claim)" \
   'no file on it is a component at all' \
-  append "$plugin_b/src/server.ts" 'import "./browser/mount.tsx"'
+  append "$plugin_b/src/server.ts" 'import "./browser/Mark.tsx"'
 
 run 9 "a general package names an appliance's PRODUCT TIER" \
   'outside a tenant names a hydrated specifier' \
@@ -387,7 +464,7 @@ run 11 "a general package SPELLS a plugin's name in code" \
   append "$general_src" 'export const koluHalf = () => null'
 
 run 12 "a general package reaches a plugin's SHEET (the CSS grammar)" \
-  'outside packages/plugin-api imports a plugin' \
+  'outside the registry imports a plugin' \
   append "$sheet" "@import \"$name_a/all.css\";"
 
 # ONE DIRECTION of an equality, and the other is not mutated here: moving a

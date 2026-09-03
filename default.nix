@@ -7,6 +7,7 @@
 let
   kolu = import ./nix/kolu.nix { inherit pkgs; };
   odu = import ./nix/odu.nix { inherit pkgs b2n; };
+  cordis = import ./nix/cordis.nix { inherit pkgs; };
   version = (pkgs.lib.importJSON ./package.json).version;
 
   # @kolu/surface-app's own helper for stamping a build's commit into the
@@ -80,7 +81,16 @@ let
     # ...and `@odu/run-client` beside them, through the SAME script: the copier
     # takes (src, dest) pairs and knows nothing about which repo a source came
     # from, which is why odu needs no second one (nix/odu.nix).
-    # ...and kolu's MARK on a third line, which is the same errand for an asset
+    # ...and CORDIS on a third line, four packages out of one pin
+    # (nix/cordis.nix): the runtime the server's plugin composition is built
+    # on, hydrated as raw TypeScript like everything else olai pins.
+    # ...and THE ROWS, AS CODE: the browser's rows, the stylesheet chain and the
+    # merged testid table, written out of packages/bundle/olai.yml so that file
+    # is the only place a plugin is named (packages/bundle/generate.ts). Here
+    # rather than in buildPhase for the mark's reason one line down — the
+    # generated files are gitignored, so they are never in the store copy of the
+    # tree, and a packaged build cannot ship a stale one.
+    # ...and kolu's MARK on a fourth line, which is the same errand for an asset
     # rather than for sources. It must run here rather than in buildPhase
     # because `bun packages/web/src/build.ts` bundles it as a module: the
     # generated file is gitignored and `fileset.toSource` above takes tracked
@@ -89,6 +99,8 @@ let
     postBunNodeModulesInstallPhase = ''
       sh ${kolu.hydrateScript} ${kolu.hydrateArgs}
       sh ${kolu.hydrateScript} ${odu.hydrateArgs}
+      sh ${kolu.hydrateScript} ${cordis.hydrateArgs}
+      bun packages/bundle/generate.ts
       install -m 644 ${kolu-mark}/mark.generated.ts packages/plugins/olai-plugin-kolu/src/browser/mark.generated.ts
       install -m 644 ${odu-mark}/mark.generated.ts packages/plugins/olai-plugin-odu/src/browser/mark.generated.ts
     '';

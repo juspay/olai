@@ -1,0 +1,28 @@
+{
+  "name": "@olai/bundle",
+  "//name": "THE BUILD'S SET OF PLUGINS, and the one place either tenant's name is spelled — which since the browser half followed the roster means `olai.yml` and nothing else a person edits. It was the back half of `@olai/plugin-api`, which held both the INTERFACE a plugin is written against and the REGISTRY that names every plugin — an arrangement that could not survive a plugin importing the interface, because the registry imports the plugin and the manifests decline to express a cycle. So the interface stayed where it was and the registry moved here. `bundle` is the proposal's own word for it and dsh's (a profile stacks bundles, each a list of rows plus the code they mount); it is deliberately NOT the `@kolu/surface` sense of the word, where a rooted bundle is a composed wire — see src/bundle.ts's header, which is the one place the two could be confused.",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/rows.ts",
+  "types": "./src/rows.ts",
+  "//exports": "TWO CODE DOORS, and it was three. Three because three GRAPHS: the manifests whole (SolidJS, and behind kolu's a terminal emulator), the browser-safe wire half, and the composition root's rows. Two of those have collapsed into the ROOT, and the reason is that the graph got EMPTIER rather than fuller — the root is one row per plugin with a dynamic `import()` of its browser half, so nothing behind it statically imports a plugin at all and each plugin is its own CHUNK, fetched only when the roster names it. `./bundle` is what a COMPOSITION ROOT reads: the base bundle's ROWS, the loader that mounts them, the `--plugins` patch, and the per-row state report the preferences panel's word is made of. Neither door carries a plugin's code; both SPELL every plugin, because a module specifier a loader resolves and a dynamic import's literal both survive where a static import's is stripped. TWO more entries are routing rather than graphs, because the fence is about a NAME in any grammar: `./all.css` is the plugins' stylesheets chained, and `./testids` is the same routing in a third — a `data-testid` is spent in `@olai/tests`, which may not name a plugin either, and the door is NAMES ONLY so a suite with no browser in it never pulls a component. Both are GENERATED from the rows now (../generate.ts). src/fence.test.ts walks each closure rather than trusting this sentence.",
+  "exports": {
+    ".": "./src/rows.ts",
+    "./bundle": "./src/bundle.ts",
+    "./all.css": "./src/all.css",
+    "./testids": "./src/testids.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "//": "WHAT A PLUGIN'S NAME MAY BE SPELLED IN — olai.yml is the build's rows and the only hand-written spelling; generate.ts writes the other three (the browser's rows, the stylesheet chain and the testid merge) out of it; and src/fence.test.ts is what refuses a general package that names a tenant before a reviewer has to notice.",
+  "//dependencies": "The three plugins, the interface they are written against, and the runtime that mounts them. The plugin dependencies are declared even though nothing here imports one STATICALLY any more: a dynamic `import()` and a loader-resolved specifier are both real edges, and a manifest that did not declare them would be a package whose install could not resolve its own generated rows. `js-yaml` is NOT declared and is not an omission — it is the cordis pin.s, read from the root the way every hydrated package.s runtime dependency is, and `../generate.ts` reads the rows with the same one. `@olai/plugin-api` is the INTERFACE and is a dependency in this direction only — it names no plugin, which is what makes the arrow one-way and the cycle unrepresentable. `effect` is for the schemas a contributed member is declared in. `cordis` and `@cordisjs/plugin-loader`/`-include` are NOT declared here and are not omissions: they are hydrated from the npins pin (nix/cordis.nix) into the root node_modules, the way every `@kolu/*` member is, and scripts/check-hydrated-deps.sh is what holds their versions.",
+  "dependencies": {
+    "@olai/plugin-api": "workspace:*",
+    "olai-plugin-kolu": "workspace:*",
+    "olai-plugin-odu": "workspace:*",
+    "olai-plugin-xyne-spaces": "workspace:*",
+    "effect": "4.0.0-rc.112"
+  }
+}

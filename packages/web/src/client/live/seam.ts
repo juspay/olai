@@ -52,7 +52,7 @@
  * at all. That rule is unchanged and the way it is KEPT has got stronger: the
  * two dressings this app installs are not folders beside this one any more, they
  * are packages (`olai-plugin-kolu`, `olai-plugin-odu`), and this package may
- * not name one — `packages/plugin-api/src/fence.test.ts` holds that as an equality
+ * not name one — `packages/bundle/src/fence.test.ts` holds that as an equality
  * per package rather than as a habit. So the direction is physics here rather
  * than discipline.
  *
@@ -96,21 +96,26 @@
  * The tab still receives answers and still cannot re-derive a rule; #395 is
  * untouched. What changed is only which question the answer is to.
  *
- * SO THERE ARE TWO LICENCES AND THEY ASK ABOUT TWO DIFFERENT PLUGINS, both
- * spent in {@link dressingFor}. The page's says THIS VALUE is claimed by that
- * word, which is a fact about the vault and about whoever CONTRIBUTED the kind.
- * The roster's ({@link Running}) says this serve is running whoever REGISTERED
- * the face.
+ * SO THERE WERE TWO LICENCES AND THERE IS NOW ONE. The page's says THIS VALUE
+ * is claimed by that word, which is a fact about the vault and about whoever
+ * CONTRIBUTED the kind; it is spent in {@link dressingFor} and it stays.
  *
- * Those are the same plugin for both of today's dressings, and it would be easy
- * to read the second as redundant — a word can only be claimed by a kind whose
- * plugin is enabled, so the page's answer already implies a running plugin.
- * That reasoning is wrong by one step: nothing says a dressing is registered by
- * the plugin that taught the vault the word. A plugin may dress another's kind
- * (the vocabulary is a table core assembles, not a private field), and then the
- * word is claimed while the face's owner is off. The roster is what answers that
- * one, and it is also what keeps a face off the page in the instant before a
- * roster has landed — the two answers arrive on different frames.
+ * THE ROSTER'S IS GONE, and it is worth saying exactly what it was for, because
+ * the reasoning that made it necessary was subtle and is now moot. It asked
+ * whether the serve was running whoever REGISTERED the face — which is not the
+ * same plugin as the one that taught the vault the word, since nothing says a
+ * dressing is registered by the plugin whose kind it dresses. A plugin may
+ * dress another's kind (the vocabulary is a table core assembles, not a private
+ * field), and then the word is claimed while the face's owner is off.
+ *
+ * What made that a question at all is that the table was filled from the BUILD,
+ * at import time, by a walk over compiled-in manifests. It is filled by running
+ * FIBERS now: a plugin the roster does not name is never fetched, so it
+ * registers nothing, so a face IN the table is a face whose owner is running by
+ * construction — including in the instant before a roster has landed, when the
+ * table is simply empty. The subtle case above closes with it: a plugin
+ * dressing another's kind is registering from its own fiber, and its fiber is
+ * there or it is not.
  *
  * ## Three rules a dressing must satisfy, and they are the chip's own
  *
@@ -217,59 +222,24 @@ export interface Dressing {
 }
 
 /**
- * WHICH PROPERTIES ARE LIVE.
+ * WHAT DRESSES A COMPOSED KIND WORD — handed in, never held here.
  *
- * Registered rather than imported by the drawer, so adding one is this line
- * and a component — the drawer is closed to modification and open to
- * extension, which is the whole of what a dressing table buys.
+ * This module used to KEEP the table: a `DRESSINGS` map, filled at import time
+ * by a walk over the build's manifests, and read at draw behind a LICENCE
+ * asking whether the plugin that registered a face was one this serve actually
+ * composed. Both halves are gone, and the licence went with the table.
+ *
+ * A face is registered by a plugin's own FIBER now (`@olai/plugin-api`'s
+ * `Slots`), and a plugin the roster does not name has no fiber in this tab — so
+ * the table holds exactly what may be drawn, and there is nothing left to ask
+ * about a face that is in it. `./dressings.ts` is the one reading of the three
+ * slots; this module takes the answer.
+ *
+ * It crosses as a FUNCTION rather than a map because the reading is reactive: a
+ * plugin arriving or leaving moves the table, and a map captured once would pin
+ * whichever answer the page happened to be built on.
  */
-const DRESSINGS = new Map<string, { readonly dressing: Dressing; readonly plugin: string }>()
-
-/** Dress a contributed KIND. Called once per dressing, at module load, from the
- *  module that owns the app's table (`./dressings.ts`) — never from the
- *  component itself: a self-registrant would put an appliance in charge of the
- *  app's table, and the import direction would be a lie told by an `import "…"`
- *  with no binding.
- *
- *  THE WORD IS THE PLUGIN'S OWN CONSTANT, arriving on its manifest — the same
- *  one its `kinds` table declares and its server walk follows, which is the
- *  whole of the fix: one spelling, one authority. It was the property KEY for
- *  one PR window, because a tab had nothing else, and the two halves silently
- *  disagreed for any vault that named a key something other than the kind.
- *  Before that it was re-exported from here, as `TERMINAL_KEY` and
- *  `WORKTREE_KEY` off `@olai/surface`, so a registration could read in one line;
- *  that re-export is gone with the registrations, and the reason is the
- *  direction rather than tidiness — this package may not name a plugin, and a
- *  general seam holding two tenants' words was the last place core spelled
- *  one. */
-export const registerLive = (word: string, dressing: Dressing, plugin: string): void => {
-  DRESSINGS.set(word, { dressing, plugin })
-}
-
-/**
- * IS THE PLUGIN THAT OWNS THIS FACE ACTUALLY RUNNING — asked at DRAW, not at
- * registration, and the difference is the whole of what `--plugins` means in a
- * browser.
- *
- * A tab registers what the BUILD has, because that is all it can know at import
- * time: the enabled set is a fact about the SERVE, and it arrives on a cell
- * after the wire is up (`../wire.ts` argues why the browser does not wait for
- * it). So registration is the build's and the LICENCE is the serve's, and this
- * is where the second one is spent.
- *
- * Without it a disabled plugin's face still draws — in its own "nothing here"
- * arm, which is a row that says there is no daemon rather than the plain chip
- * an undressed property has always drawn. That is not the absent state; it is a
- * complaint about a tool the operator deliberately turned off, and it took a
- * screenshot of a serve with `--plugins=` to see it.
- */
-export type Running = (plugin: string) => boolean
-
-/** What a page with no roster yet answers: everything the build has. It is the
- *  same answer the built-in default gives, so a tab that has not yet heard from
- *  the server draws what it will keep drawing in the ordinary case rather than
- *  flashing every face off and on. */
-export const ALL_RUNNING: Running = () => true
+export type Dressings = (word: string) => Dressing | undefined
 
 /**
  * WHAT WORD CLAIMS A VALUE ON THIS PAGE — the page's own answer, narrowed to the
@@ -286,14 +256,22 @@ export type Licensed = (key: string, value: string) => string | undefined
 /**
  * The dressing for one entry, or `undefined` where it draws as a plain chip.
  *
- * FOUR RULES, here rather than in the drawer so every future dressing gets them
- * without restating them: the three the header lists, plus the licence — which
- * is really two questions of two authorities, and the header says why both.
+ * THREE RULES, here rather than in the drawer so every future dressing gets
+ * them without restating them: the ones the header lists, plus the licence —
+ * the page's own answer to *what word claims this value*.
+ *
+ * IT WAS FOUR. The fourth asked whether the plugin that registered the face was
+ * one this serve had composed, because the table was filled from the BUILD at
+ * import time and a face for a plugin the operator had turned off drew its own
+ * "nothing here" arm — a complaint about a tool nobody asked for, where the
+ * ruling is the ordinary machine-without-it state. The table is filled by
+ * running FIBERS now, so it holds nothing that may not be drawn and the
+ * question has no subject.
  */
 export const dressingFor = (
   entry: Entry,
-  running: Running,
   licensed: Licensed,
+  dressings: Dressings,
 ): Dressing | undefined => {
   if (entry.system) return undefined
   // The single value is read out here rather than asked for twice: it is the
@@ -302,10 +280,7 @@ export const dressingFor = (
   const [value, ...rest] = entry.values
   if (value === undefined || rest.length > 0) return undefined
   const word = licensed(entry.key, value)
-  if (word === undefined) return undefined
-  const held = DRESSINGS.get(word)
-  if (held === undefined) return undefined
-  return running(held.plugin) ? held.dressing : undefined
+  return word === undefined ? undefined : dressings(word)
 }
 
 /** One entry, ready to draw: the entry and whatever it wears. */
@@ -341,15 +316,15 @@ export interface Laid {
 export const layOut = (
   entries: ReadonlyArray<Entry>,
   editing: string | undefined,
-  running: Running,
   licensed: Licensed,
+  dressings: Dressings,
 ): Laid => {
   const run: Laid["run"][number][] = []
   const blocks: { entry: Entry; block: PropBlock }[] = []
   for (const entry of entries) {
     const dressing = entry.key === editing
       ? undefined
-      : dressingFor(entry, running, licensed)
+      : dressingFor(entry, licensed, dressings)
     if (dressing?.Block !== undefined) blocks.push({ entry, block: dressing.Block })
     else run.push({ entry, chip: dressing?.Chip, pane: dressing?.Pane })
   }

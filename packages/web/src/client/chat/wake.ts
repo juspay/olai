@@ -19,7 +19,7 @@
  * arrives in three pieces rather than as one string with a hole in it: a hole
  * would make core the author of everything around it. The same restraint the
  * settings panel's rows keep (`../settings/plugins.ts`), for the same reason —
- * `@olai/plugin-api`'s `fence.test.ts` holds it as an equality per package, and this
+ * `@olai/bundle`'s `fence.test.ts` holds it as an equality per package, and this
  * module is written so there is nothing for it to catch.
  *
  * ## A ROW IS OFFERED ONLY FOR A PLUGIN THAT IS RUNNING
@@ -132,7 +132,7 @@ export interface Ringer {
  * The rows to draw, in the order the build lists its plugins.
  *
  * ROSTER ORDER, and not the order the scopes arrived in: the roster is a source
- * file (`@olai/plugin-api`'s `surfaces.ts`) and the order it lists plugins in is the
+ * file (`@olai/bundle`'s `olai.yml`) and the order it lists plugins in is the
  * order `--help` names them in, while `ChatState.wake` is written as people
  * pick — so ordering by the scopes would move a row somebody was reading when
  * an unrelated one was scoped.

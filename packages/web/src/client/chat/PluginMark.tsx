@@ -10,7 +10,7 @@
  *
  * The agent marks are BUNDLED and OURS — drawn in that file, in a few SVG
  * shapes, against a roster olai ships. A plugin's is not olai's to draw.
- * `@olai/plugin-api`'s `fence.test.ts` holds as an equality per package that no
+ * `@olai/bundle`'s `fence.test.ts` holds as an equality per package that no
  * general package spells a plugin's name in code, so the table an agent's mark
  * is looked up in cannot exist here — and that fence is the right rule rather
  * than an obstacle: what a tenant looks like is a decision made where somebody

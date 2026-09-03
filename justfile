@@ -41,7 +41,7 @@ default:
 [macos]
 [parallel]
 [metadata("ci")]
-check: typecheck test e2e kolu-deps odu-deps fmt-check nix bun-nix-fresh hm-module
+check: typecheck test e2e kolu-deps odu-deps cordis-deps fmt-check nix bun-nix-fresh hm-module
 
 # Install deps (bun) and hydrate the @kolu/* sources from the npins kolu pin.
 # The `npm ci` in the acp/ pin is the adapter tree's half: the MCP bridge's
@@ -58,9 +58,10 @@ check: typecheck test e2e kolu-deps odu-deps fmt-check nix bun-nix-fresh hm-modu
 # — so the expansion is deliberately unquoted.
 #
 # `@odu/run-client` rides the SAME script on a second line — one copier, two
-# pins (nix/odu.nix says why odu brings no script of its own). Two invocations
-# rather than one concatenated argv so a failure names which pin it was
-# hydrating.
+# pins (nix/odu.nix says why odu brings no script of its own). Cordis is a
+# third pin on a third line, four packages out of one repository
+# (nix/cordis.nix). Separate invocations rather than one concatenated argv so
+# a failure names which pin it was hydrating.
 #
 # The LAST lines are the same errand for an ASSET rather than for sources:
 # each tenant's own logo, already turned into a TypeScript module by
@@ -75,6 +76,8 @@ install:
       && (cd acp && npm ci --ignore-scripts) \
       && sh $OLAI_KOLU_HYDRATE_SCRIPT $OLAI_KOLU_HYDRATE \
       && sh $OLAI_KOLU_HYDRATE_SCRIPT $OLAI_ODU_HYDRATE \
+      && sh $OLAI_KOLU_HYDRATE_SCRIPT $OLAI_CORDIS_HYDRATE \
+      && bun packages/bundle/generate.ts \
       && install -m 644 "$OLAI_KOLU_MARK_DIR/mark.generated.ts" packages/plugins/olai-plugin-kolu/src/browser/mark.generated.ts \
       && install -m 644 "$OLAI_ODU_MARK_DIR/mark.generated.ts" packages/plugins/olai-plugin-odu/src/browser/mark.generated.ts'
 
@@ -146,6 +149,35 @@ test: install
       ./packages/web/src/client/chat/declared.browsertest.ts \
       ./packages/plugins/olai-plugin-kolu/src/appliance/props/held.browsertest.ts
 
+# The same suite, TO A LOG — for an agent, or for anyone who wants to read the
+# failures more than once.
+#
+# NEVER PIPE A LONG RUN THROUGH `tail` OR `head`. A truncated run throws away
+# the very lines you needed, so the next thing you do is run it AGAIN to see
+# them — which on this suite is two minutes bought for nothing. Redirect ONCE
+# and interrogate the file as many times as you like:
+#
+#     just test-log
+#     grep -E '^\(fail\)' .test.log          # which cases failed
+#     grep -B 20 '^(fail)' .test.log         # ...and why
+#     grep -E '^ +[0-9]+ (pass|fail)' .test.log
+#
+# Same rule for `just typecheck` and `just e2e`: `> some.log 2>&1`, then grep.
+#
+# The log is gitignored and overwritten per run. It is deliberately NOT `| tee`:
+# a tee still floods the terminal (and an agent's context) with the passing
+# lines, and the passing lines are never what anybody came for.
+
+# The unit suite to .test.log, printing only the failures — never pipe a long run through tail/head
+test-log:
+    #!/usr/bin/env bash
+    set -uo pipefail
+    {{ nix_shell }} bun test > .test.log 2>&1
+    status=$?
+    grep -E '^\(fail\)|^ +[0-9]+ (pass|fail)' .test.log || true
+    echo "full output: .test.log"
+    exit $status
+
 # Every dependency the hydrated @kolu/* sources declare, checked against the
 # root package.json, every workspace manifest and the root `overrides` block
 # (bunfig.toml explains why they have to be there). Reads the pinned sources in
@@ -164,7 +196,7 @@ test: install
 #
 # WHAT THESE LEGS NO LONGER DO: the import fence. Which package may name
 # `@kolu/padi-client` or `@odu/*`, and the `/wire` entries staying
-# schemas-and-types, moved to `packages/plugin-api/src/fence.test.ts` — a `bun test`
+# schemas-and-types, moved to `packages/bundle/src/fence.test.ts` — a `bun test`
 # under the `test` leg. Two reasons, both about the old shape rather than about
 # tidiness: every one of those greps ended `rg … 2>/dev/null || true` and
 # `ripgrep` is not in shell.nix's package list, so on a machine with no ambient
@@ -185,6 +217,15 @@ kolu-deps:
 # every manifest's honesty cosmetic in exactly the way it already did for kolu.
 odu-deps:
     {{ nix_shell }} sh -c 'sh scripts/check-hydrated-deps.sh @odu/run-client "$OLAI_ODU_MANIFEST"'
+
+# ...and the same three questions about the four hydrated Cordis packages, over
+# the UNION of what they declare (nix/cordis.nix builds it): `cosmokit`,
+# `@standard-schema/spec` and `js-yaml`. The four resolve those by walking up
+# into the one root node_modules exactly as the @kolu/* members do, so a
+# version that drifted here is two `cosmokit`s — the same failure the other two
+# legs watch for, read off a third pin.
+cordis-deps:
+    {{ nix_shell }} sh -c 'sh scripts/check-hydrated-deps.sh cordis "$OLAI_CORDIS_MANIFEST"'
 
 # Build the browser bundle into packages/web/dist. The nix build runs this
 # same script in its own sandbox (default.nix), so there is one bundler and not

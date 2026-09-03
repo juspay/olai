@@ -1,0 +1,42 @@
+# THE BASE BUNDLE — every plugin this build has, as rows.
+#
+# One row per plugin, and this file is the whole of the list — the ONLY place a
+# plugin is named by hand. It replaced three `as const` arrays that had to agree
+# in order (`WIRES`, `PLUGINS`, `SERVERS`, six edits per plugin), and then the
+# two the browser kept for one more round: those are WRITTEN from this file at
+# build time now (`../generate.ts` — the browser's rows with a dynamic import
+# per plugin, the stylesheet chain, and the merged testid table), so a plugin is
+# ONE ROW and there is no second list to keep in step. `src/fence.test.ts` is
+# what refuses a name spelled anywhere else.
+#
+#   id        the sibling key. It IS the plugin's name: the word `--plugins`
+#             takes, the row preferences draws, the namespace every one of its
+#             members reaches the wire under, and the address of its docs page.
+#             The fiber is bound under it, so it is also the stamp
+#             `ctx.deliveries` and `ctx.kinds` read off `ctx.fiber.name` — never
+#             off anything a caller supplies.
+#   name      the MODULE the loader mounts. A specifier and not an import: the
+#             loader resolves it at mount through the bundle's own resolver
+#             (`src/bundle.ts`), which is what makes a plugin's presence a
+#             runtime fact and is the seam an out-of-tree `olai plugin add`
+#             lands on later.
+#   disabled  OFF UNLESS THE FLAG NAMES IT. Absent is the ordinary case and
+#             means on; `true` is a plugin that is opt-in.
+#
+# `--plugins` does NOT edit this file. It is a PATCH applied over these rows on
+# the way in — one `disabled` per row, set from whether the flag named it — so
+# what an operator said and what the build has stay two readable things, and
+# `--dump-config` can later show both. Omitting the flag writes no patch at all,
+# which is how a row's own `disabled` survives being the built-in default.
+- id: kolu
+  name: olai-plugin-kolu/server
+- id: odu
+  name: olai-plugin-odu/server
+# OFF BY DEFAULT, and the row is where that is said rather than a `defaultOn`
+# field on a manifest: a Spaces app JWT is a secret this machine may not have,
+# and a pill in every bar for an integration nobody pointed at is the wrong
+# default. `--plugins=xyne-spaces` is what turns it on, which is the patch
+# mechanism doing exactly what it is for.
+- id: xyne-spaces
+  name: olai-plugin-xyne-spaces/server
+  disabled: true

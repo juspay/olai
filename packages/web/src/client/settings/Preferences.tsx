@@ -18,75 +18,29 @@
  * connection and the commit pill, whose facts are invisible unless a control
  * says them and which therefore may never be a gesture away.
  *
- * WHERE THE PANEL GOES is not the header's to decide: the bar is `sticky` with
- * a z-index, which makes it a stacking context and a 3rem-tall box. So the
- * panel is portalled out of it and positioned against the VIEWPORT
- * (`../anchor.ts`), exactly as the Commit panel beside it is, and it opens
- * downward because that is the side with the room.
- *
- * Dismissal is a pointer outside it, Escape, or the trigger again — and the two
- * that a keyboard can reach put focus back on the trigger, because somebody who
- * opened this, tabbed into it and pressed Escape would otherwise land on
- * `<body>`. That behaviour came with the theme popover this replaced; it is
- * kept here rather than lost with it, and it is `../popover.ts` rather than
- * anything of this file's, because the Commit panel two pills along is the
- * same object and had its own half of it.
+ * WHAT A DOOR IN THIS BAR IS — the two shapes, the portal out of a stacking
+ * context, and the focus cycle it shares with the Commit panel two pills along
+ * — is `../BarDoor.tsx` now. This was the canonical one and the plugins door
+ * was written as a copy of it; the shared half moved out from under both.
  */
 
-import { Show } from "solid-js"
-import { Portal } from "solid-js/web"
-
-import { ENTRY_SHAPE, ROW_GAP } from "../layout/entry.ts"
-import { ICON_BUTTON } from "../readout.ts"
+import { BarDoor } from "../BarDoor.tsx"
 import { Panel } from "./Panel.tsx"
-import { createPopover } from "../popover.ts"
 import { TESTID } from "../testids.ts"
 
 export function Preferences(props: {
   /** `closet` is the phone drawer row. Default is the header chip. */
   readonly where?: "header" | "closet"
 }) {
-  // Whether it is up, where it goes, and the three ways it shuts —
-  // `../popover.ts`, shared with the Commit panel beside this in the bar.
-  const popover = createPopover()
-  const open = popover.open
-
-  const closet = () => props.where === "closet"
-
   return (
-    <>
-      <button
-        type="button"
-        ref={popover.setTrigger}
-        // Header: the bar's icon-button shape (`../readout.ts`), which the
-        // agent toggle beside it wears too. Closet: a directory row, because
-        // it is a row of that column now, not a chip that escaped the bar.
-        class={
-          closet()
-            ? `${ENTRY_SHAPE} ${ROW_GAP} w-full text-paper/80`
-            : `${ICON_BUTTON} border ${
-              open() ? "border-accent text-paper" : "border-paper/25"
-            }`
-        }
-        data-testid={TESTID.prefsTrigger}
-        aria-expanded={open()}
-        aria-haspopup="true"
-        title="preferences: theme, type, finished work, and whether git commits and pushes on its own"
-        onClick={() => popover.toggle()}
-      >
-        <span aria-hidden="true">⚙</span>
-        <span class={closet() ? undefined : "sr-only sm:not-sr-only"}>
-          {closet() ? "preferences" : "prefs"}
-        </span>
-      </button>
-      {/* Out of the header entirely — see this file's header. */}
-      <Show when={open() ? popover.at() : null}>
-        {(at) => (
-          <Portal>
-            <Panel at={at()} inside={popover.setPanel} />
-          </Portal>
-        )}
-      </Show>
-    </>
+    <BarDoor
+      where={props.where}
+      glyph="⚙"
+      header="prefs"
+      closet="preferences"
+      testid={TESTID.prefsTrigger}
+      title="preferences: theme, type, finished work, and whether git commits and pushes on its own"
+      panel={(at, inside) => <Panel at={at} inside={inside} />}
+    />
   )
 }
