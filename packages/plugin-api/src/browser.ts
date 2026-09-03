@@ -110,10 +110,10 @@ import type {
   PropPane,
 } from "./plugin.ts"
 
-/** WHAT A BROWSER HALF IS WRITTEN WITH, re-exported so it opens ONE door — the
- *  same argument `./services.ts` makes for the server's. */
-export { definePlugin, mountPlugin, standing }
-export type { Host }
+/** WHAT A BROWSER HALF IS WRITTEN WITH, re-exported so it opens ONE door —
+ *  {@link ./runtime.ts}, which is the same list `./services.ts` hands the server
+ *  half. This module's own bench opens it here; a plugin opens `./index.ts`. */
+export * from "./runtime.ts"
 
 /**
  * WHERE A FACE CAN HANG — the six, and what keys each.

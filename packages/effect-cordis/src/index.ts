@@ -38,7 +38,11 @@
  * other consistent answer and is not taken.
  */
 
-export { type Bus, broadcast, failed, type Listen } from "./broadcast.ts"
+/** `failed` is deliberately NOT here. It is the sentence a contained plugin
+ *  failure is said with, shared by this package's three fire-and-forget edges so
+ *  that what a reader is told cannot drift between them — and a rule one package
+ *  owns stops being owned the moment a fourth caller outside it can spell it. */
+export { type Bus, broadcast, type Listen } from "./broadcast.ts"
 export { registry, type Registry } from "./registry.ts"
 export {
   type Host,

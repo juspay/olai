@@ -53,13 +53,13 @@ import {
   type App,
   type Hung,
   type KindSlot,
+  type Mounted,
   mountPlugin,
   openApp,
   type PluginSlot,
   type SlotFaces,
   standing,
 } from "@olai/plugin-api"
-import type { Effect } from "effect"
 import { createSignal } from "solid-js"
 
 /** WHEN A FACE ARRIVED OR LEFT — the one signal every slot read is tracked
@@ -106,8 +106,12 @@ export const app: App = await run(
  *  the whole runtime down and rebuilding it. A survivor keeping its plugin is
  *  the browser's half of the rule the server's re-compose keeps: a plugin that
  *  has been drawing since boot must not be restarted because a different plugin
- *  arrived. */
-const mounted = new Map<string, { readonly dispose: Effect.Effect<void> }>()
+ *  arrived.
+ *
+ *  `Mounted` is the runtime's own word for what `mountPlugin` hands back. It was
+ *  written out here as the one field this module reads, which is a shape that
+ *  agrees with the real one until the day it does not. */
+const mounted = new Map<string, Mounted>()
 
 /**
  * MOUNT EXACTLY THESE, and drop everything else.

@@ -105,14 +105,10 @@ import {
   type Wake,
 } from "./contract.ts"
 
-/** WHAT A PLUGIN IS WRITTEN WITH, re-exported so a server half opens ONE door.
- *
- *  A plugin that had to name `@olai/effect-cordis` for `definePlugin` and this
- *  package for its tags would be a plugin that knows there is a bridge — which
- *  is the one thing the bridge exists to stop being true. What it imports is
- *  olai's interface; that the interface is built on a translation of Cordis is
- *  this file's business and nobody else's. */
-export { definePlugin, type Detach, detached, type Plugin, serviceTag, standing }
+/** WHAT A PLUGIN IS WRITTEN WITH, re-exported so a server half opens ONE door —
+ *  {@link ./runtime.ts}, which is the same list `./index.ts` hands the browser
+ *  half and which argues there why it is one list. */
+export * from "./runtime.ts"
 
 /**
  * WHAT THE PROCESS CAN SEE, plus the one seam a test fills.
@@ -659,14 +655,6 @@ export const openPlugins = (
       sessionStart: Effect.suspend(() => sessionStart({ asking: [] })),
     }
   })
-
-/** MOUNTING ONE PLUGIN DIRECTLY, which is what a plugin's own BENCH does — the
- *  bundle's rows are `@olai/bundle`'s business and it opens the bridge itself.
- *  Re-exported here so a plugin package can drive its own half without declaring
- *  the bridge: a plugin that had to name `@olai/effect-cordis` to test itself
- *  would be a plugin that knows there is one. */
-export { mountPlugin }
-export type { Host }
 
 export type {
   ConversationSeen,

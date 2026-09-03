@@ -99,23 +99,14 @@ export type {
  *  is written against, and neither is reachable from `./services.ts`. */
 export type {
   App,
-  AppConfig,
-  Host,
   Hung,
   KindSlot,
   PluginSlot,
   SlotFaces,
   SlotName,
 } from "./browser.ts"
-export {
-  Bar,
-  Clocks,
-  definePlugin,
-  Links,
-  mountPlugin,
-  openApp,
-  SLOTS,
-  Slots,
-  standing,
-  Wired,
-} from "./browser.ts"
+export { Bar, Clocks, Links, openApp, SLOTS, Slots, Wired } from "./browser.ts"
+/** ...and the bridge's own half of it, which is {@link ./runtime.ts}'s one list
+ *  rather than this door's copy of it — see that module on why both doors read
+ *  from one place. */
+export * from "./runtime.ts"
