@@ -12,7 +12,7 @@
 
 import { expect, test } from "bun:test"
 
-import { type CiRun, type CiRuns, NO_RUNS, sameCi, tallyOf, verdictOf } from "./index.ts"
+import { type CiRun, type CiRuns, NO_RUNS, sameCi, settledOf, tallyOf, verdictOf } from "./index.ts"
 
 const cell = (over: Partial<CiRun["cells"][number]> = {}) => ({
   id: "e2e@p",
@@ -98,6 +98,12 @@ test("the two folds count over the cells, and nothing else does", () => {
     cell({ id: "c@p", status: "running" }),
   ]
   expect(tallyOf(cells)).toEqual({ total: 3, settled: 2, ok: 1, red: 1 })
+  // SETTLED is its own reading: a red run settles too — the wake's question
+  // is not the verdict's. An empty run has not settled (the empty-set trap).
+  expect(settledOf(tallyOf(cells))).toBe(false)
+  expect(settledOf(tallyOf([cell({ id: "d@p", status: "ok" })]))).toBe(true)
+  expect(settledOf(tallyOf([cell({ id: "e@p", status: "failed", red: true })]))).toBe(true)
+  expect(settledOf(tallyOf([]))).toBe(false)
   expect(verdictOf(tallyOf(cells))).toBe("red")
   expect(verdictOf(tallyOf([]))).toBeNull()
 })

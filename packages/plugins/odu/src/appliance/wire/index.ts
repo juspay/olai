@@ -177,6 +177,14 @@ export const tallyOf = (cells: ReadonlyArray<RunCell>): RunTally => {
   return { total: cells.length, settled, ok, red }
 }
 
+/** THE RUN'S SETTLE, read: every node terminal, and at least one — the limb
+ *  of the answer the wake needs raw, because a RED run settles too while its
+ *  verdict is not `ok`. Folded HERE, beside `tallyOf`, for the fold's own
+ *  reason: a second spelling of this reading in any consumer would be a
+ *  second answer, and the two could drift. */
+export const settledOf = (tally: RunTally): boolean =>
+  tally.total > 0 && tally.settled === tally.total
+
 /**
  * WHAT THE RUN CAME TO, or `null` while it has not — the second fold, over
  * the first, and here for the first one's reason.
@@ -189,8 +197,16 @@ export const tallyOf = (cells: ReadonlyArray<RunCell>): RunTally => {
  *
  * A run with NO nodes has no verdict of any colour. A `provisioning` run that
  * has published a roster and nothing else would otherwise read `ok`, which is
- * the empty-set trap the counting form falls into and the reason this is a
- * branch rather than `red === 0 && settled === total`.
+ * the empty-set trap the counting form falls into; `settledOf` guards it in
+ * one place, so no consumer of the reading repeats the guard.
+ *
+ * `ok` is knowingly LOOSER than odu's own green: a node that settles through
+ * `cancelled` goes home without going red — a deliberate lane drop is not a
+ * failure (`./project.ts` reads odu's own hue table) — where odu's settle
+ * verdict counts the run as not-passed (juspay/odu#68). This fold's question
+ * is the face's — "did anything FAIL" — and the wording of the counts keeps
+ * the difference visible (`2/3 ok`, one cancelled, is not rendered `3/3`).
+ * The day a face must call this case out, the WORD has room:
  *
  * A WORD rather than a boolean, because the day a third outcome matters
  * (odu's `cancelled` is already a distinct status) a boolean has no room for
@@ -198,8 +214,7 @@ export const tallyOf = (cells: ReadonlyArray<RunCell>): RunTally => {
  */
 export const verdictOf = (tally: RunTally): string | null => {
   if (tally.red > 0) return "red"
-  if (tally.total === 0) return null
-  return tally.settled === tally.total ? "ok" : null
+  return settledOf(tally) ? "ok" : null
 }
 
 /**
@@ -213,9 +228,11 @@ export const verdictOf = (tally: RunTally): string | null => {
  * filesystem. Where it RESOLVED to rides beside it as {@link CiRun.at}, for
  * the hollow state's own question: "looked where?".
  *
- * A ROW SURVIVES ITS RUN. When the socket goes — which is what a settling run
- * DOES, unlike padi's long-lived one — the row stays with `live: false` and
- * whatever verdict the last frame supported. That is the "last verdict"
+ * A ROW SURVIVES ITS RUN. When the socket goes — which a settling run does at
+ * once, UNLESS the coordinator is lingering to serve a rerun, in which case
+ * the run is settled and the socket up at the same time (see `live`) — the
+ * row stays with `live: false` and whatever verdict the last frame supported.
+ * That is the "last verdict"
  * `@olai/odu-client`'s header argues for, and its provenance is stated rather
  * than implied: it is what OLAI WATCHED, never a read of odu's on-disk ledger
  * (see that header on why the ledger is not this package's to parse).
@@ -230,7 +247,9 @@ export const CiRun = Schema.Struct({
   at: Schema.String,
   /** Whether a coordinator is serving that checkout's socket RIGHT NOW.
    *  `false` is the ORDINARY state and never an error: odu's socket belongs to
-   *  a run, so it appears at `odu run` and is gone the moment the run settles. */
+   *  a run, so it appears at `odu run` and ends with the coordinator — which
+   *  MAY outlive the run's settle on purpose (`--linger` re-runs one node),
+   *  so `true` is no promise that the run is still working. */
   live: Schema.Boolean,
   /** The pipeline's name, as the run states it. */
   name: Schema.String,

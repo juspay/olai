@@ -135,6 +135,17 @@ describe("a live run", () => {
     expect(said.tone).toBe("red")
     expect(said.text).toBe("ci · e2e 1:01 · 0/3 ok")
   })
+
+  it("takes the done ink the moment the run SETTLES, however long the socket outlives it", () => {
+    // A `--linger` coordinator holds the socket open past the settle on
+    // purpose: `live` stays true — and the run's own settlement, not the
+    // socket's death, is when a green run recedes into the done ink.
+    const said = wordsFor(run({ live: true, cells: many(10, "ok") }), 10_000)
+    expect(said.text).toBe("ci · ok · 10/10 ok")
+    expect(said.tone).toBe("ok")
+    // ...and the hover still says the truth: the coordinator IS up.
+    expect(said.title).toContain("the run is up")
+  })
 })
 
 describe("a run whose socket is gone", () => {

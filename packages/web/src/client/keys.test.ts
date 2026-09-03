@@ -164,10 +164,14 @@ test("a pick has no duplicate: bulk verbs are buttons in this app, not chords", 
   expect(selectKey(key("d", { ctrl: true, shift: true }))).toBeNull()
 })
 
-test("the bare arrows move between rows; modified ones do not", () => {
+test("the bare arrows move between rows; a Ctrl+arrow on a Mac is the OS's", () => {
   expect(editKey(key("ArrowUp"), "line")).toBe("prev")
   expect(editKey(key("ArrowDown"), "line")).toBe("next")
-  expect(editKey(key("ArrowDown", { ctrl: true }), "line")).toBeNull()
+  // Pinned to Apple, where Mission Control owns the chord and the fold pair
+  // lives on ⌘ instead: it must stay nobody's rather than quietly working on
+  // the one platform where the keypress never arrives.
+  expect(editKey(key("ArrowDown", { ctrl: true }), "line", undefined, "MacIntel")).toBeNull()
+  expect(editKey(key("ArrowUp", { ctrl: true }), "line", undefined, "MacIntel")).toBeNull()
 })
 
 test("one arrow, three readings, told apart by what is held", () => {
@@ -177,6 +181,66 @@ test("one arrow, three readings, told apart by what is held", () => {
   expect(editKey(key("ArrowUp", { shift: true }), "line")).toBe("selectUp")
   expect(editKey(key("ArrowDown", { shift: true }), "line")).toBe("selectDown")
   expect(editKey(key("ArrowUp", { alt: true, shift: true }), "line")).toBe("up")
+})
+
+test("the move's second spelling is ⌘⇧, and it is Apple's alone", () => {
+  // What Workflowy's own table gives a Mac reader; a Windows browser never
+  // hears bare Meta, so there is nothing to answer there.
+  expect(editKey(key("ArrowUp", { meta: true, shift: true }), "line", undefined, "MacIntel")).toBe("up")
+  expect(editKey(key("ArrowDown", { meta: true, shift: true }), "line", undefined, "MacIntel")).toBe("down")
+  expect(selectKey(key("ArrowUp", { meta: true, shift: true }), "MacIntel")).toBe("up")
+  expect(selectKey(key("ArrowDown", { meta: true, shift: true }), "MacIntel")).toBe("down")
+  expect(editKey(key("ArrowUp", { meta: true, shift: true }), "line", undefined, "Linux x86_64")).toBeNull()
+  expect(selectKey(key("ArrowUp", { meta: true, shift: true }), "Linux x86_64")).toBeNull()
+  // Alt+Shift goes on working on both — it is the spelling this app has
+  // always had, and nothing here takes a chord away.
+  expect(editKey(key("ArrowUp", { alt: true, shift: true }), "line", undefined, "MacIntel")).toBe("up")
+  expect(selectKey(key("ArrowUp", { alt: true, shift: true }), "MacIntel")).toBe("up")
+})
+
+test("the zoom pair is Alt on one side of the OS line and ⌘ on the other", () => {
+  // The split is the platform's own doing: on a Mac ⌥ is the text modifier —
+  // ⌥. types ≥ — so the chord a Workflowy hand reaches for there is ⌘.
+  expect(editKey(key(".", { alt: true }), "line", undefined, "Linux x86_64")).toBe("zoomIn")
+  expect(editKey(key(",", { alt: true }), "line", undefined, "Linux x86_64")).toBe("zoomOut")
+  expect(editKey(key(".", { meta: true }), "line", undefined, "MacIntel")).toBe("zoomIn")
+  expect(editKey(key(",", { meta: true }), "line", undefined, "MacIntel")).toBe("zoomOut")
+  // ...and each platform's other spelling is nobody's: not claimed by the
+  // row, free to stay the OS's or the character's.
+  expect(editKey(key(".", { meta: true }), "line", undefined, "Linux x86_64")).toBeNull()
+  expect(editKey(key(",", { meta: true }), "line", undefined, "Linux x86_64")).toBeNull()
+  expect(editKey(key(".", { alt: true }), "line", undefined, "MacIntel")).toBeNull()
+  expect(editKey(key(",", { alt: true }), "line", undefined, "MacIntel")).toBeNull()
+})
+
+test("Ctrl+Space folds, on both platforms, with no other modifier", () => {
+  for (const platform of ["MacIntel", "Linux x86_64"]) {
+    expect(editKey(key(" ", { ctrl: true }), "line", undefined, platform)).toBe("fold")
+    // Shift or ⌘ on top is a different chord nobody has yet given a meaning —
+    // unclaimed rather than read as the fold.
+    expect(editKey(key(" ", { ctrl: true, shift: true }), "line", undefined, platform)).toBeNull()
+    expect(editKey(key(" ", { ctrl: true, meta: true }), "line", undefined, platform)).toBeNull()
+  }
+  expect(editKey(key(" "), "line")).toBeNull()
+})
+
+test("the fold arrows are Ctrl up and down on one side, ⌘ on the other", () => {
+  expect(editKey(key("ArrowUp", { ctrl: true }), "line", undefined, "Linux x86_64")).toBe("collapse")
+  expect(editKey(key("ArrowDown", { ctrl: true }), "line", undefined, "Linux x86_64")).toBe("expand")
+  expect(editKey(key("ArrowUp", { meta: true }), "line", undefined, "MacIntel")).toBe("collapse")
+  expect(editKey(key("ArrowDown", { meta: true }), "line", undefined, "MacIntel")).toBe("expand")
+  // And the cross spellings stay dead — see the pinned test above for why.
+  expect(editKey(key("ArrowUp", { ctrl: true }), "line", undefined, "MacIntel")).toBeNull()
+  expect(editKey(key("ArrowDown", { meta: true }), "line", undefined, "Linux x86_64")).toBeNull()
+})
+
+test("the zoom and fold keys are nobody's in a note", () => {
+  // A note is prose; the keys that edit a ROW are the row's — and a page
+  // chord has no business reaching through one either.
+  expect(editKey(key(".", { alt: true }), "block", undefined, "Linux x86_64")).toBeNull()
+  expect(editKey(key(" ", { ctrl: true }), "block", undefined, "Linux x86_64")).toBeNull()
+  expect(editKey(key("ArrowUp", { ctrl: true }), "block", undefined, "Linux x86_64")).toBeNull()
+  expect(editKey(key("ArrowDown", { meta: true, shift: true }), "block", undefined, "MacIntel")).toBeNull()
 })
 
 test("a note keeps Enter and the arrows for itself", () => {
@@ -343,6 +407,11 @@ test("every editing key is written down for a person", () => {
     "out",
     "up",
     "down",
+    "zoomIn",
+    "zoomOut",
+    "fold",
+    "collapse",
+    "expand",
     "toggle",
     "cancel-mark",
     "walk",

@@ -212,8 +212,9 @@ export default definePlugin({
      * wake nobody owes — `null` drops the delivery), and a first-red's counts
      * are the LIVE row's own where the row is still this run's, never the values
      * the notice's frame closed over. The settle notice's counts are its own
-     * final account and are deliberately NOT re-read: the last frame is the
-     * story it has to tell.
+     * account of the settling frame and are deliberately NOT re-read: that frame
+     * is the story it has to tell, and a lingering rerun's frames could only mix
+     * into it.
      *
      * STILL A PLAIN FUNCTION, because it is a derivation and not an effect: core
      * calls it at the delivery moment from inside its own fiber, and there is
