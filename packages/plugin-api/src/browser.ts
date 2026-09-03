@@ -84,17 +84,13 @@
  * `fence.test.ts` walks.
  */
 
-
 import {
-  definePlugin,
   type Host,
-  mountPlugin,
   openHost,
   provide,
   registry,
   type Registry,
   serviceTag,
-  standing,
 } from "@olai/effect-cordis"
 import { Effect, Scope } from "effect"
 

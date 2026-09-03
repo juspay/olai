@@ -322,10 +322,10 @@ export default definePlugin({
      *
      *  THE PAYLOAD IS NARROWED HERE, in this plugin's own signature: core rings
      *  the whole published snapshot and {@link VaultRevision} names the parts
-     *  this half touches. */
-    yield* vault.revision((snapshot) =>
+     *  this half touches. The door is generic in its payload, so that signature
+     *  IS the narrowing — inferred, rather than asserted inside the handler. */
+    yield* vault.revision((revision: VaultRevision) =>
       Effect.gen(function*() {
-        const revision = snapshot as VaultRevision
         reading = spacesConfigIn(revision.value.derived)
         if (!missingEnv) return
         if (reading.named.length > 0) yield* deliverFault(sayUnconfigured(), "fault")

@@ -763,11 +763,11 @@ export default definePlugin({
      *
      * THE PAYLOAD IS NARROWED HERE, in this plugin's own signature: core rings
      * the whole published snapshot and {@link VaultRevision} names the parts kolu
-     * touches, which is a claim the compiler checks rather than a comment.
+     * touches. The door is generic in its payload, so that signature IS the
+     * narrowing — inferred from the handler rather than asserted inside it.
      */
-    yield* vault.revision((snapshot) =>
+    yield* vault.revision((revision: VaultRevision) =>
       Effect.sync(() => {
-        const revision = snapshot as VaultRevision
         file = conventionServed(koluFileIn, revision.value.set, revision, file)
         declaring = declarationsOf(revision.value.derived, ownKinds)
         // ...AND THE READING ITSELF, held for the doorbell. It is the same pointer

@@ -79,18 +79,13 @@
 
 import {
   broadcast,
-  definePlugin,
-  type Detach,
-  detached,
   type Host,
   type Middleware,
-  mountPlugin,
   openHost,
-  type Plugin,
   provide,
+  type Provision,
   registry,
   serviceTag,
-  standing,
   waterfall,
 } from "@olai/effect-cordis"
 import { Effect, Scope } from "effect"
@@ -195,10 +190,27 @@ export interface Vault {
   /** The directory, resolved — what every path answer downstream is relative
    *  to. */
   readonly served: string
-  /** A published revision reached the store — for as long as this plugin is
-   *  loaded. */
-  readonly revision: (
-    handler: (snapshot: unknown) => Effect.Effect<void>,
+  /**
+   * A published revision reached the store — for as long as this plugin is
+   * loaded.
+   *
+   * THE PAYLOAD IS THE HANDLER'S TO NAME, and each of the three halves that
+   * takes one names a different part of it: a snapshot carries the whole
+   * published world, and no plugin wants all of it. So the narrowing is
+   * INFERRED from the handler's own signature and written in the plugin's own
+   * file, which is where a reader looking for what this half reads would go.
+   *
+   * It was `unknown`, and every plugin opened its handler with the same
+   * `snapshot as VaultRevision` under a paragraph claiming the compiler checked
+   * it — three casts, three copies of the claim, and `as` is the one thing that
+   * is not checked. This is exactly as unsound as the cast it replaces and no
+   * more; what changes is that the unsoundness is in ONE place and the prose is
+   * true. The sound version is a schema the root supplies and each half decodes,
+   * which is a decode that can FAIL and so is a behaviour change, not this
+   * phase's.
+   */
+  readonly revision: <A>(
+    handler: (snapshot: A) => Effect.Effect<void>,
   ) => Effect.Effect<void, never, Scope.Scope>
   /** ...and the store has never published. NOT teardown — see the header. */
   readonly unloaded: (
@@ -498,8 +510,38 @@ export interface Plugins {
   readonly sessionStart: Effect.Effect<SessionStart>
 }
 
-/** WHAT THE ROOT SUPPLIES, which is everything a plugin must not reach for
- *  itself. */
+/**
+ * WHAT THE ROOT SUPPLIES, which is everything a plugin must not reach for
+ * itself.
+ *
+ * ## Why it is one field per service rather than a shape
+ *
+ * Because the alternative is the composition root calling `provide(host,
+ * Deliveries, plugin => …)` for itself, which puts the PER-PLUGIN KEYING back in
+ * the root — and the keying is the fence. One package decides what a plugin's
+ * own view of a service is; this interface is the price of that, and the price
+ * is a field count.
+ *
+ * ## The two late ones are {@link ./runtime.ts}'s `Provision`, spelled
+ *
+ * `doorFor` and `heldFor` are `(plugin: string) => X`, which is the bridge's own
+ * name for exactly that. They are typed with it rather than re-described, so a
+ * reader who has met the shape once meets it once.
+ *
+ * ## ...AND THERE ARE TWO ANSWERS HERE TO "NOT READY YET", which is deliberate
+ *
+ * `./browser.ts` answers it with a SECOND PROVIDE — `App.furnish` provides the
+ * chrome services later, and a half that beat the call simply sits `waiting` on
+ * the runtime's own PENDING mechanism. This file answers it with a LOOKUP ASKED
+ * PER CALL, so `Deliveries` is always present and answers `[]` and a no-op where
+ * there is no chat.
+ *
+ * The difference is not an oversight and the two are not interchangeable: a
+ * machine with no ACP agent never builds a chat AT ALL, so a late `provide`
+ * would leave kolu and odu PENDING for ever rather than running against a door
+ * that honestly says there is nowhere to deliver. Where the service does
+ * eventually arrive, PENDING is the better answer and the browser takes it.
+ */
 export interface PluginsConfig {
   /** The variables, as the process was started with them. */
   readonly vars: Record<string, string | undefined>
@@ -509,12 +551,12 @@ export interface PluginsConfig {
   readonly served: string
   /** The chat's own door for one plugin, or `null` where there is no chat —
    *  asked PER CALL rather than captured, because the chat is built after the
-   *  fibers are mounted. */
-  readonly doorFor?: (plugin: string) => DeliveryDoor | null
+   *  fibers are mounted. See the header on why this one is not a late provide. */
+  readonly doorFor?: Provision<DeliveryDoor | null>
   /** One plugin's machine-local record, by name — minted ONCE per plugin, which
    *  is what orders its writes. Where a machine keeps olai's own files is not a
    *  plugin's business. */
-  readonly heldFor?: (plugin: string) => PluginHeld
+  readonly heldFor?: Provision<PluginHeld>
   /** Told after every surface register and every dispose — the composition
    *  root's re-compose. Absent on a runtime nobody is serving from, which is
    *  every test that only wants the table. */
@@ -560,7 +602,11 @@ export const openPlugins = (
 
     yield* provide(host, Vault, (plugin) => ({
       served: config.served,
-      revision: revisions.listen(plugin),
+      // THE ONE ASSERTION, and it used to be three — one in each plugin, each
+      // under a paragraph saying the compiler had checked it. The bus carries a
+      // whole published snapshot; what a half names is the part of it that half
+      // touches, and that narrowing is inferred from the handler it hands over.
+      revision: revisions.listen(plugin) as Vault["revision"],
       // The other door takes no value, so a plugin hands over the Effect itself
       // rather than a function of nothing.
       unloaded: (handler) => quieted.listen(plugin)(() => handler),

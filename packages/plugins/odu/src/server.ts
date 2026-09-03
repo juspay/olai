@@ -356,11 +356,11 @@ export default definePlugin({
      *
      *  THE PAYLOAD IS NARROWED HERE, in this plugin's own signature: core rings
      *  the whole published snapshot, and {@link VaultRevision} names the one
-     *  field odu touches. "Each plugin takes what it needs" is a claim the
-     *  compiler checks rather than a comment. */
-    yield* vault.revision((snapshot) =>
+     *  field odu touches. "Each plugin takes what it needs" is INFERRED from the
+     *  handler below rather than asserted inside it — the door is generic in its
+     *  payload, so this signature IS the narrowing. */
+    yield* vault.revision((revision: VaultRevision) =>
       Effect.sync(() => {
-        const revision = snapshot as VaultRevision
         declaring = declarationsOf(revision.value.derived, ownKinds)
         derived = revision.value.derived
         half.revision(revision.value.derived)
