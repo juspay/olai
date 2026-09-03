@@ -44,6 +44,7 @@ export type KeyAction =
   | "redo"
   | "closePane"
   | "pin"
+  | "done"
 
 export interface KeyMatch {
   readonly action: KeyAction
@@ -57,6 +58,12 @@ export const isApplePlatform = (
 ): boolean => /Mac|iPhone|iPad|iPod/i.test(platform)
 
 const wantsMeta = (): boolean => isApplePlatform()
+
+/** Which side THIS press is on: asked of the live browser unless the caller
+ *  pins a platform (tests do), so "is absent" is spelled once for every
+ *  matcher rather than in each of them. */
+const onApple = (platform?: string): boolean =>
+  platform !== undefined ? isApplePlatform(platform) : wantsMeta()
 
 /**
  * The reserved chords, as a table.
@@ -118,6 +125,15 @@ export const CHORDS: ReadonlyArray<
   // a pane is not a tab. The close button and the palette row are the
   // pointer faces of the same verb.
   { key: "w", action: "closePane", whileEditing: true, shift: true },
+  // ⌘O / Ctrl+O — Workflowy's "show or hide completed", on the FOCUSED page:
+  // the strip's Done flip (filter/DoneFlip.tsx) by key instead of by pointer.
+  // `whileEditing: true`, for the flip's own reason: "what about here?" is a
+  // question about the page under the caret, not about the caret — and the
+  // letter claims nothing a text field means, so a draft being typed is left
+  // exactly where it is. On a page with no flip (a day, a document, the
+  // agenda) the chord says nothing: the pick was never about those
+  // (settings/done.ts's pageFileOf).
+  { key: "o", action: "done", whileEditing: true },
 ]
 
 /**
@@ -135,7 +151,7 @@ export const matchKey = (
   event: KeyboardEvent,
   platform?: string,
 ): KeyMatch | null => {
-  const apple = platform !== undefined ? isApplePlatform(platform) : wantsMeta()
+  const apple = onApple(platform)
   const mod = apple
     ? event.metaKey && !event.ctrlKey
     : event.ctrlKey && !event.metaKey
@@ -174,9 +190,25 @@ export const isEditingTarget = (target: EventTarget | null): boolean => {
  *     the one above it. The one position where `Backspace` has nothing of its
  *     own to delete, which is why it is safe to claim there and nowhere else.
  *   - `in` / `out` — `Tab` / `Shift+Tab`.
- *   - `up` / `down` — `Alt+Shift+↑/↓`, moving among siblings. The four names
- *     are the surface's own `move` verbs, spelled once
- *     ({@link ../../../surface/src/edit.ts}).
+ *   - `up` / `down` — `Alt+Shift+↑/↓`, moving among siblings — and `⌘⇧↑/↓`
+ *     beside it ON APPLE, which is the spelling Workflowy trained a Mac
+ *     reader's hands to reach for. The four names are the surface's own
+ *     `move` verbs, spelled once ({@link ../../../surface/src/edit.ts}).
+ *   - `zoomIn` / `zoomOut` — `Alt+.` / `Alt+,` on Windows and Linux, `⌘.` /
+ *     `⌘,` on Apple: the bullet's page and back, by key rather than by
+ *     pointer — the same two doors as a click on the bullet and the last
+ *     breadcrumb. Two spellings because Alt is busy on a Mac (`⌥.` types
+ *     `≥`), exactly as Workflowy splits them. The pair leaves the caret
+ *     behind: the zoomed page's heading is not an editor, so there is
+ *     nothing on arrival to hold one — the click's job to open again, as
+ *     every pointer zoom has always worked.
+ *   - `fold` — `Ctrl+Space`, on both platforms: collapse the branch the caret
+ *     is in, or unfurl it — the triangle in the gutter by key. One chord,
+ *     reading the fold's own memory the way the triangle reads it.
+ *   - `collapse` / `expand` — `Ctrl+↑/↓` on Windows and Linux, `⌘↑/↓` on
+ *     Apple: the one-way halves of the toggle, for the hand that knows which
+ *     way it wants the branch. ⌘ rather than Ctrl on a Mac because the OS
+ *     took Ctrl+arrow for Mission Control before any app could ask.
  *   - `toggle` — `Ctrl+Enter` (and `⌘+Enter`, which is what Workflowy trains
  *     an Apple reader's hands to reach for; neither collides with the three
  *     reserved chords above, none of which is `Enter`).
@@ -243,6 +275,11 @@ export type EditAction =
   | "out"
   | "up"
   | "down"
+  | "zoomIn"
+  | "zoomOut"
+  | "fold"
+  | "collapse"
+  | "expand"
   | "toggle"
   | "cancel-mark"
   | "walk"
@@ -298,7 +335,13 @@ export const editKey = (
    *  goes on opening the next line, `Backspace` stays the field's own, and
    *  `⌘A` stays the platform's. */
   at?: Caret,
+  /** Which modifiers the platform's hands can actually press: the zoom pair
+   *  is Alt on one side and ⌘ on the other, because a Mac's ⌥ is a text
+   *  modifier. Absent is "ask the browser", the way {@link matchKey} reads
+   *  it; tests pin it. */
+  platform?: string,
 ): EditAction | null => {
+  const apple = onApple(platform)
   // Order matters: every branch below is a more specific reading of a key a
   // later branch also matches, and the modifiers are what tell them apart.
   if (event.key === "Escape") return "cancel"
@@ -333,6 +376,26 @@ export const editKey = (
     (event.key === "m" || event.key === "M") && (event.ctrlKey || event.metaKey) &&
     event.shiftKey && !event.altKey
   ) return "moveTo"
+
+  // Alt+. / Alt+, — ZOOM, and the one modifier split this file makes on
+  // purpose: on a Mac the same keys are ⌘. and ⌘,, because ⌥ is macOS's text
+  // modifier (⌥. types ≥) and a chord that eats a character is not one a
+  // reader can learn to trust. Workflowy's own pair, in both its spellings.
+  if (
+    (event.key === "." || event.key === ",") && !event.shiftKey &&
+    (apple
+      ? event.metaKey && !event.ctrlKey && !event.altKey
+      : event.altKey && !event.ctrlKey && !event.metaKey)
+  ) return event.key === "." ? "zoomIn" : "zoomOut"
+
+  // Ctrl+Space — the fold's own chord, on BOTH platforms: Workflowy has no
+  // second spelling of it, and a Mac's OS-level claim on it (the input
+  // switch) is one a reader has long since remapped or never met. No shift:
+  // the toggle reads the fold's memory and needs no direction from the key.
+  if (
+    event.key === " " && event.ctrlKey && !event.metaKey && !event.altKey &&
+    !event.shiftKey
+  ) return "fold"
 
   if (event.key === "Enter") {
     if (event.ctrlKey || event.metaKey) return event.shiftKey ? "walk" : "toggle"
@@ -376,8 +439,20 @@ export const editKey = (
     // Alt+Shift is the MOVE; the bare arrow is the caret; SHIFT alone leaves
     // the caret and picks rows. Three readings of one key, and the modifiers
     // are the whole grammar — so a reader whose hands are on any of them never
-    // has to reach for a mouse to do the others.
+    // has to reach for a mouse to do the others. On Apple the move has a
+    // second spelling, ⌘⇧: the one Workflowy's own table gives it.
     if (event.altKey && event.shiftKey) return down ? "down" : "up"
+    if (apple && event.metaKey && event.shiftKey && !event.ctrlKey && !event.altKey) {
+      return down ? "down" : "up"
+    }
+    // The FOLD pair: one level quieter on the way up, one back on the way
+    // down. Ctrl on Windows and Linux, ⌘ on Apple — macOS claimed Ctrl+arrow
+    // for Mission Control long before any page could, so each platform's
+    // reader presses the modifier their OS actually lets through.
+    if (
+      (apple ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey) &&
+      !event.altKey && !event.shiftKey
+    ) return down ? "expand" : "collapse"
     if (event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey) {
       return down ? "selectDown" : "selectUp"
     }
@@ -434,7 +509,8 @@ export type SelectAction =
   | "all"
   | "clear"
 
-export const selectKey = (event: KeyboardEvent): SelectAction | null => {
+export const selectKey = (event: KeyboardEvent, platform?: string): SelectAction | null => {
+  const apple = onApple(platform)
   if (event.key === "Escape") return "clear"
   if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && !event.shiftKey) {
     return "complete"
@@ -445,6 +521,11 @@ export const selectKey = (event: KeyboardEvent): SelectAction | null => {
   if (event.key === "ArrowUp" || event.key === "ArrowDown") {
     const down = event.key === "ArrowDown"
     if (event.altKey && event.shiftKey) return down ? "down" : "up"
+    // The row layer's second spelling of the move, the pick's way: every key
+    // here is the row key over several rows, and this one is no exception.
+    if (apple && event.metaKey && event.shiftKey && !event.ctrlKey && !event.altKey) {
+      return down ? "down" : "up"
+    }
     if (event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey) {
       return down ? "growDown" : "growUp"
     }
@@ -557,6 +638,10 @@ export const SHORTCUTS: ReadonlyArray<{
         what: "pin this page to the sidebar, or unpin it — a narrowed one asks what to call it",
       },
       { keys: "⌘⇧W / Ctrl+⇧W", what: "close the focused pane" },
+      {
+        keys: "⌘O / Ctrl+O",
+        what: "show this page's finished work, or hide it again",
+      },
     ],
   },
   {
@@ -581,8 +666,13 @@ export const SHORTCUTS: ReadonlyArray<{
       },
       { keys: "Tab", what: "indent under the row above", action: "in" },
       { keys: "Shift+Tab", what: "outdent, after the old parent", action: "out" },
-      { keys: "Alt+Shift+↑", what: "move up among its siblings", action: "up" },
-      { keys: "Alt+Shift+↓", what: "move down among its siblings", action: "down" },
+      { keys: "Alt+Shift+↑ (Mac: ⌘⇧↑ too)", what: "move up among its siblings", action: "up" },
+      { keys: "Alt+Shift+↓ (Mac: ⌘⇧↓ too)", what: "move down among its siblings", action: "down" },
+      { keys: "⌘. / Alt+.", what: "zoom into this row", action: "zoomIn" },
+      { keys: "⌘, / Alt+,", what: "zoom out of it again", action: "zoomOut" },
+      { keys: "Ctrl+Space", what: "fold this branch, or unfurl it", action: "fold" },
+      { keys: "⌘↑ / Ctrl+↑", what: "fold this branch", action: "collapse" },
+      { keys: "⌘↓ / Ctrl+↓", what: "unfold it again", action: "expand" },
       { keys: "⌘Enter / Ctrl+Enter", what: "tick it off, or take that back", action: "toggle" },
       {
         keys: "⌥Enter / Alt+Enter",
@@ -649,7 +739,7 @@ export const SHORTCUTS: ReadonlyArray<{
       { keys: "Shift+↑ / Shift+↓", what: "take one more row, or give one back" },
       { keys: "⌘A / Ctrl+A", what: "widen to the whole page" },
       { keys: "Tab / Shift+Tab", what: "indent them, or take them out again" },
-      { keys: "Alt+Shift+↑ / ↓", what: "move them among their siblings" },
+      { keys: "Alt+Shift+↑/↓ (Mac: ⌘⇧↑/↓ too)", what: "move them among their siblings" },
       { keys: "⌘Enter / Ctrl+Enter", what: "tick them off, or take that back" },
       { keys: "Escape", what: "put the pick away" },
     ],
