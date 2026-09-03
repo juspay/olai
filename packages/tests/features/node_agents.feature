@@ -401,6 +401,60 @@ Feature: A node with an `agent-session` property IS an agent
     When I open the unassigned chats
     Then the unassigned list holds "hello"
 
+  # ── the press's other face: the roster row itself ────────────────────
+
+  @agent-stored @scratch:lanes
+  Scenario: Pressing an agent in the sidebar does BOTH halves of what it means
+    # The sibling of *A conversation no node claims has no sessions of its
+    # own*, from the press's other face. A door press switches the panel and
+    # navigates nowhere — the reader is already on the node; a SIDEBAR press
+    # owes both at once: the outline at the agent's own row AND the panel
+    # switched to its conversation (`@olai/web`'s `agents/focus.ts`). The
+    # failure this catches is exactly one half of that working: a press that
+    # navigates and leaves the panel where it was looks, to a person, exactly
+    # like a press that worked — because the page moved — and an assertion of
+    # the navigation alone would pass straight over it.
+    #
+    # It starts on `backlog.olai`, not `lanes.olai`: the navigation half is
+    # real only if the press has to CARRY the reader somewhere, and every
+    # agent in this vault lives on the one board it used to have, so the
+    # row's route used to resolve to the page the reader was already on. The
+    # panel half is anchored the door scenario's way: the boot came up in a
+    # stored conversation NO NODE claims, so the sessions pill afterwards is
+    # the panel having MOVED — not the panel happening to be showing the
+    # conversation anyway.
+    Given I open the outline "backlog.olai"
+    And the agent panel is open
+    Then the panel offers no sessions of its own
+    When I press the agent "door-live"
+    Then the sidebar marks the outline "lanes.olai" as the one open
+    When I open the session picker
+    Then the panel offers a fresh session, saying "memory is the subtree"
+
+  @corpus:lanes
+  Scenario: An unbound agent's sidebar press navigates, and says nothing
+    # The half-press, which is the documented intent and not a degradation:
+    # `open()` returns early on a null session, so a row with nothing bound
+    # does the half it can — it takes the reader to the node — and refuses
+    # nothing, because nothing was asked of it that it could not do. The
+    # SILENCE is the assertable half of that: a refusal drawn here would be
+    # a press punishing the reader for a row that was always pressable, and
+    # the roster's refused line is where it would have to say so.
+    #
+    # The panel is first PUT in a provable somewhere — this serve boots into
+    # `door-live`'s own conversation — so "did not move" is a fact after the
+    # press rather than an absence of evidence: the standing stays `idle`,
+    # and the picker is still that conversation's.
+    Given I open the outline "backlog.olai"
+    And the agent panel is open
+    Then the agent "door-live" stands "idle"
+    When I press the agent "door-implement"
+    Then the sidebar marks the outline "lanes.olai" as the one open
+    And the agent "door-live" stands "idle"
+    And the agents roster says nothing
+    When I open the session picker
+    Then the panel offers a fresh session, saying "memory is the subtree"
+
   # ── what the list must not swallow ────────────────────────────────────
 
   @agent-stored @scratch:lanes

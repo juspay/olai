@@ -90,6 +90,24 @@ Then(
   },
 );
 
+/** WHICH outline the tree says is open — `aria-current`, which is what the
+ *  entry's wash is drawn from, read where the press that moved it was ALLOWED
+ *  to leave the address a frame behind: asked only after the route has
+ *  settled, so `waitUntil` rather than one read. The `.html` sibling of this
+ *  step lives in `html_steps.ts`, on the preview's own idiom. */
+Then(
+  "the sidebar marks the outline {string} as the one open",
+  async function (this: OlaiWorld, file: string) {
+    await this.showSidebar();
+    const entry = this.outlineLink(file);
+    await entry.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    await this.waitUntil(
+      async () => (await entry.getAttribute("aria-current")) === "page",
+      `the sidebar entry for ${file} to be the one marked as open`,
+    );
+  },
+);
+
 /** A row of THIS file — the swap, not any outline-tree still held from the
  *  page before. Shared by the click and the open so they cannot drift. */
 const treeOf = (world: OlaiWorld, file: string) =>
