@@ -12,8 +12,9 @@ import { BusyFailure, type NodeAgent, type NodeAgents, UsageFailure } from "@ola
 import type { OpFailure } from "@olai/surface"
 import { Duration, Effect, Exit, Fiber, Scope, Semaphore } from "effect"
 
-import type { Panel, PanelOptions } from "./chat.ts"
+import type { Panel, PanelOptions, WakeScope } from "./chat.ts"
 import { makePanel } from "./chat.ts"
+import * as Memory from "./memory.ts"
 import type { Change } from "./transcript.ts"
 
 /** Long enough not to churn an ordinary working set, finite so sleeping agents
@@ -52,7 +53,10 @@ export interface Options extends PanelOptions {
    * be able to wake a scope that has no process yet. */
   readonly nodes: () => NodeAgents
   /** Mint the MCP credential acquired and released with a node scope. */
-  readonly ticket?: (node: string) => ToolTicket
+  readonly ticket: (node: string) => ToolTicket
+  /** The nearest candidate node at or above an arbitrary claim node. The
+   * server answers from its current derived vault reading. */
+  readonly nearestAt: (node: string, candidates: ReadonlySet<string>) => string | null
   /** The idle lifetime of a node scope. */
   readonly idle?: Duration.Input
   /** Maximum concurrently acquired node scopes. */
@@ -72,6 +76,13 @@ interface NodeSlot {
   timer: Fiber.Fiber<void, never> | null
 }
 
+interface PendingDelivery {
+  readonly plugin: string
+  readonly to: { readonly agent: string; readonly session: string }
+  readonly say: () => string | null
+  readonly options?: { readonly coalesce?: string }
+}
+
 const empty: Change = { upserts: [], removes: [], appends: [] }
 
 /** Build the scheduler. Focused state-machine tests call `makePanel` directly;
@@ -81,22 +92,24 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     const {
       capacity = DEFAULT_CAPACITY,
       idle = DEFAULT_IDLE,
+      nearestAt,
       nodeAt,
       nodes: nodesAt,
       onLive,
       ticket: mintTicket,
-      ...panelOptions
+      ...givenPanelOptions
     } = options
+    const memory = givenPanelOptions.memory
+      ?? Memory.forDirectory(givenPanelOptions.cwd, givenPanelOptions.engines[0] ?? "")
+    const panelOptions: PanelOptions = { ...givenPanelOptions, memory }
     const gate = yield* Semaphore.make(1)
     const nodes = new Map<string, NodeSlot>()
+    const pending = new Map<string, Array<PendingDelivery>>()
     let stopped = false
     let active: { readonly kind: "root"; readonly panel: Panel } | {
       readonly kind: "node"
       readonly slot: NodeSlot
     }
-    let migrateRemembered: (state: ReturnType<Panel["state"]>) => void = () => {}
-    let migrationPaused = 0
-    let migrationFiber: Fiber.Fiber<void, never> | null = null
 
     const rootPanel = () => Effect.gen(function*() {
       let panel!: Panel
@@ -105,7 +118,6 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         onState: (state) => {
           if (active?.kind === "root" && active.panel === panel) {
             panelOptions.onState(state)
-            migrateRemembered(state)
           }
         },
         onTranscript: (change) => {
@@ -230,21 +242,17 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         }
         yield* room()
         const scope = Scope.makeUnsafe()
-        const ticket = mintTicket?.(node.id)
-        if (ticket !== undefined) {
-          yield* Effect.addFinalizer(() => Effect.sync(ticket.release)).pipe(
-            Effect.provideService(Scope.Scope, scope),
-          )
-        }
+        const ticket = mintTicket(node.id)
+        yield* Effect.addFinalizer(() => Effect.sync(ticket.release)).pipe(
+          Effect.provideService(Scope.Scope, scope),
+        )
         let slot!: NodeSlot
         const panel = yield* Effect.acquireRelease(
           makePanel({
             ...panelOptions,
             tools: () => {
               const server = panelOptions.tools()
-              return server === null || ticket === undefined
-                ? server
-                : { ...server, token: ticket.bearer }
+              return server === null ? null : { ...server, token: ticket.bearer }
             },
             onState: (state) => {
               slot.state = state
@@ -287,38 +295,30 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       session: string,
     ): NodeAgent | null => panelOptions.agentAt?.({ agent, session }) ?? null
 
-    let migrating: string | null = null
-    migrateRemembered = (state) => {
-      if (migrationPaused > 0) return
-      const talking = state.talking
-      if (state.status !== "idle" || state.session === null || talking?.kind !== "agent") return
-      const session = state.session.id
-      const node = nodeFor(talking.id, session)
-      if (node === null) return
-      const old = root
-      if (active.kind !== "root" || active.panel !== old) return
-      const key = `${talking.id}\0${session}`
-      if (migrating === key) return
-      migrating = key
-      let fiber!: Fiber.Fiber<void, never>
-      fiber = Effect.runFork(
-        Effect.catch(
-          Effect.gen(function*() {
-            const { slot } = yield* acquire(node)
-            if (active.kind === "root" && active.panel === old) activate(slot)
-            yield* old.stop
-            root = yield* rootPanel()
-            yield* slot.panel.loadSession(talking.id, session)
-          }),
-          (failure) =>
-            Effect.logWarning(`the remembered node agent could not be scoped: ${failure.message}`),
-        ).pipe(Effect.ensuring(Effect.sync(() => {
-          if (migrating === key) migrating = null
-          if (migrationFiber === fiber) migrationFiber = null
-        }))),
-      )
-      migrationFiber = fiber
+    const hold = (node: string, delivery: PendingDelivery): void => {
+      const held = pending.get(node) ?? []
+      const key = delivery.options?.coalesce
+      const replace = key === undefined
+        ? -1
+        : held.findIndex((one) =>
+          one.plugin === delivery.plugin && one.options?.coalesce === key
+        )
+      if (replace < 0) held.push(delivery)
+      else held[replace] = delivery
+      pending.set(node, held)
     }
+
+    const flush = (slot: NodeSlot): Effect.Effect<void> =>
+      Effect.gen(function*() {
+        const held = pending.get(slot.node)
+        if (held === undefined) return
+        pending.delete(slot.node)
+        for (const delivery of held) {
+          if (nodeFor(delivery.to.agent, delivery.to.session)?.id !== slot.node) continue
+          yield* slot.panel.doorFor(delivery.plugin)
+            .deliver(delivery.to, delivery.say, delivery.options)
+        }
+      })
 
     const ensureNode = (
       node: NodeAgent,
@@ -329,16 +329,40 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         const { slot, fresh } = yield* acquire(node)
         if (foreground) activate(slot)
         if (fresh) yield* open(slot.panel)
+        yield* flush(slot)
         return slot
       })
 
     const foreground = <A>(use: (panel: Panel) => Effect.Effect<A, OpFailure>) =>
       Effect.suspend(() => use(panelOf()))
 
-    const start = root.start
+    const start = Effect.gen(function*() {
+      const recalled = yield* Effect.result(memory.recall)
+      if (recalled._tag === "Failure" || recalled.success === null) {
+        yield* root.start
+        return
+      }
+      const held = recalled.success
+      const node = nodeFor(held.agent, held.session)
+      if (node === null) {
+        yield* root.start
+        return
+      }
+      yield* Effect.forkDetach(
+        Effect.catch(
+          Effect.asVoid(ensureNode(
+            node,
+            (panel) => panel.loadSession(held.agent, held.session),
+            true,
+          )),
+          (failure) =>
+            Effect.logWarning(`the remembered node agent could not open: ${failure.message}`),
+        ),
+      )
+    })
 
-    const scopedDoor = (plugin: string) => ({
-      scopes: () => {
+    const scopedDoor = (plugin: string) => {
+      const scopes = (): ReadonlyArray<WakeScope> => {
         const manual = root.doorFor(plugin).scopes()
           .filter((scope) => nodeFor(scope.agent, scope.session) === null)
         const derived = nodesAt().flatMap((node) =>
@@ -347,26 +371,42 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             : [{ agent: node.engine, session: node.session, file: node.file, under: node.id }]
         )
         return [...manual, ...derived]
-      },
-      deliver: (
-        to: { readonly agent: string; readonly session: string },
-        say: () => string | null,
-        how?: { readonly coalesce?: string },
-      ): Effect.Effect<void> => {
-        const node = nodeFor(to.agent, to.session)
-        if (node === null) return root.doorFor(plugin).deliver(to, say, how)
-        return Effect.catch(Effect.gen(function*() {
-          const slot = yield* ensureNode(
-            node,
-            (panel) => panel.loadSession(to.agent, to.session),
-            false,
+      }
+      return {
+        scopes,
+        ringing: (file: string, node: string): ReadonlyArray<WakeScope> => {
+          const rows = scopes().filter((scope) => scope.file === file)
+          const candidates = new Set(rows.flatMap((scope) => scope.under ?? []))
+          const nearest = nearestAt(node, candidates)
+          return rows.filter((scope) => scope.under === undefined || scope.under === nearest)
+        },
+        deliver: (
+          to: { readonly agent: string; readonly session: string },
+          say: () => string | null,
+          how?: { readonly coalesce?: string },
+        ): Effect.Effect<void> => {
+          const node = nodeFor(to.agent, to.session)
+          if (node === null) return root.doorFor(plugin).deliver(to, say, how)
+          return Effect.catch(Effect.gen(function*() {
+            const slot = yield* ensureNode(
+              node,
+              (panel) => panel.loadSession(to.agent, to.session),
+              false,
+            )
+            yield* slot.panel.doorFor(plugin).deliver(to, say, how)
+          }),
+            (failure) =>
+              Effect.sync(() => hold(node.id, { plugin, to, say, options: how })).pipe(
+                Effect.andThen(
+                  Effect.logWarning(
+                    `node agent ${node.id} could not wake: ${failure.message}; its delivery is held`,
+                  ),
+                ),
+              ),
           )
-          yield* slot.panel.doorFor(plugin).deliver(to, say, how)
-        }),
-          (failure) => Effect.logWarning(`node agent ${node.id} could not wake: ${failure.message}`),
-        )
-      },
-    })
+        },
+      }
+    }
 
     return {
       entries: () => panelOf().entries(),
@@ -394,17 +434,16 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         return found === null
           ? Effect.sync(() => {
             activateRoot()
-            migrationPaused++
           }).pipe(
             Effect.andThen(root.newSession(agent)),
-            Effect.ensuring(Effect.sync(() => migrationPaused--)),
           )
           : Effect.flatMap(
             acquire(found),
-            ({ slot }) => {
+            ({ slot }) => Effect.gen(function*() {
               activate(slot)
-              return slot.panel.newSession(agent)
-            },
+              yield* slot.panel.newSession(agent)
+              yield* flush(slot)
+            }),
           )
       },
       chooseAgent: (agent) => {
@@ -419,13 +458,14 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         }
         return Effect.flatMap(
           acquire(node),
-          ({ slot }) => {
+          ({ slot }) => Effect.gen(function*() {
             activate(slot)
             const state = slot.panel.state()
-            return state.session?.id === session && state.status !== "gone"
-              ? Effect.void
-              : slot.panel.loadSession(agent, session)
-          },
+            if (state.session?.id !== session || state.status === "gone") {
+              yield* slot.panel.loadSession(agent, session)
+            }
+            yield* flush(slot)
+          }),
         )
       },
       reopen: foreground((panel) => panel.reopen),
@@ -445,7 +485,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       start,
       stop: Effect.gen(function*() {
         stopped = true
-        if (migrationFiber !== null) yield* Fiber.interrupt(migrationFiber)
+        pending.clear()
         yield* root.stop
         yield* Effect.forEach([...nodes.values()], close, { discard: true })
       }),

@@ -100,6 +100,8 @@ export interface Roster {
   readonly nodeAt: (node: string) => NodeAgent | null
   /** Every durable row, including sleeping agents with no acquired scope. */
   readonly nodes: () => NodeAgents
+  /** The nearest candidate node at or above an arbitrary node. */
+  readonly nearestAt: (node: string, candidates: ReadonlySet<string>) => string | null
   /** The nearest node agent strictly above this one, named for a refusal. */
   readonly above: (node: string) => string | null
   /** The rows the cell carries: the vault's half, wearing what olai overheard
@@ -119,6 +121,8 @@ export const roster = (): Roster => {
   // this, and the teaching asks in the middle of a send.
   let held: NodeAgents = NO_AGENTS
   let reading: Derived | null = null
+  const nearest = (node: string, candidates: ReadonlySet<string>): string | null =>
+    reading === null ? null : nearestAtOrAbove(reading, node, candidates)
   return {
     seen: (derived) => {
       reading = derived
@@ -128,14 +132,15 @@ export const roster = (): Roster => {
       held.find((one) => one.engine === to.agent && one.session === to.session) ?? null,
     nodeAt: (node) => held.find((one) => one.id === node) ?? null,
     nodes: () => held,
+    nearestAt: nearest,
     above: (node) => {
       if (reading === null) return null
       const agents = new Set(held.map((one) => one.id))
       agents.delete(node)
-      const nearest = nearestAtOrAbove(reading, node, agents)
-      if (nearest === null) return null
-      const agent = held.find((one) => one.id === nearest)
-      return agent === undefined ? null : `“${agent.title}” (\`${nearest}\`)`
+      const parent = nearest(node, agents)
+      if (parent === null) return null
+      const agent = held.find((one) => one.id === parent)
+      return agent === undefined ? null : `“${agent.title}” (\`${parent}\`)`
     },
     rowsWith: (overheard, live) => joined(held, overheard, live),
   }

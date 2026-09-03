@@ -128,6 +128,14 @@ import { sameWatching, watching } from "./watching.ts"
 
 export type { ToolServer } from "./agent.ts"
 
+/** One conversation a plugin may wake, optionally narrowed to a node scope. */
+export interface WakeScope {
+  readonly agent: string
+  readonly session: string
+  readonly file: string
+  readonly under?: string
+}
+
 /** Everything one conversation needs. Pooling, eviction and per-node
  * credentials belong to the scheduler above this constructor. */
 export interface PanelOptions {
@@ -168,6 +176,10 @@ export interface PanelOptions {
    *  the panel was in is keyed by ({@link ./memory.ts}), which is what makes
    *  "the conversation you were last in" survive a restart. */
   readonly cwd: string
+  /** This directory's remembered conversation. The scheduler supplies one
+   * shared instance so it can route boot before any panel starts; a standalone
+   * panel builds the ordinary state-home implementation itself. */
+  readonly memory?: Memory.Memory
   /** The internal MCP server to hand the session, or nothing yet. A THUNK,
    *  because its address is not known until the listener has bound and the
    *  session is opened after that. */
@@ -432,12 +444,10 @@ export interface Panel {
      * sentences this whole feature exists to keep apart. Neither end has to
      * remember that: the row is simply not here.
      */
-    readonly scopes: () => ReadonlyArray<{
-      readonly agent: string
-      readonly session: string
-      readonly file: string
-      readonly under?: string
-    }>
+    readonly scopes: () => ReadonlyArray<WakeScope>
+    /** Which scopes hear a claim at one node. A single panel has only manual
+     * whole-file scopes; the scheduler above adds nearest-node precedence. */
+    readonly ringing: (file: string, node: string) => ReadonlyArray<WakeScope>
     /**
      * ONE MACHINE-MARKED MESSAGE INTO ONE CONVERSATION.
      *
@@ -818,7 +828,8 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
     // off the same ordered list the picker is drawn from. The empty string on a
     // build with no engine rows is a note that resolves to nothing, which is a
     // chat that was never built.
-    const memory = Memory.forDirectory(options.cwd, options.engines[0] ?? "")
+    const memory = options.memory
+      ?? Memory.forDirectory(options.cwd, options.engines[0] ?? "")
     const tell = yield* Effect.annotateLogs(emitter, { surface: "chat" })
 
     /** One agent, built from the roster row that named it. The handler is
@@ -3113,8 +3124,8 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // argument — see {@link Panel.doorFor}. Both halves of the keying live
       // here, in the module that owns the mark, so neither is a thing a
       // composition root does on the way past.
-      doorFor: (plugin) => ({
-        scopes: () =>
+      doorFor: (plugin) => {
+        const scopes = (): ReadonlyArray<WakeScope> =>
           (options.scoping?.rows() ?? [])
             // ... AND NOT A ROW THAT IS NOT BEING WATCHED. There is nothing to watch,
             // so there is nothing for this plugin to derive — and everything a
@@ -3127,9 +3138,13 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
             // The `plugin` column goes on the way out: a door is already
             // ABOUT one plugin, so carrying its name back to it would be the
             // caller's own question answered a second time.
-            .map(({ agent, file, session }) => ({ agent, file, session })),
-        deliver: (to, say, how) => deliverTo(to, say, plugin, how),
-      }),
+            .map(({ agent, file, session }) => ({ agent, file, session }))
+        return {
+          scopes,
+          ringing: (file) => scopes().filter((scope) => scope.file === file),
+          deliver: (to, say, how) => deliverTo(to, say, plugin, how),
+        }
+      },
       /**
        * A person pointed a doorbell at a file — or took it off one.
        *

@@ -8,14 +8,16 @@
  */
 
 import type { NodeAgent } from "@olai/format"
+import { collector } from "@olai/log/testlib"
 import { afterEach, beforeEach, expect, test } from "bun:test"
-import { Effect } from "effect"
+import { Effect, References } from "effect"
 import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
 import { QUEUES } from "./agents/legs.testlib.ts"
 import type { Installed } from "./agents/roster.ts"
+import { forDirectory } from "./memory.ts"
 import { make } from "./scoped.ts"
 
 const FIXTURE = join(import.meta.dirname, "fixtures", "doorbell-agent.ts")
@@ -66,6 +68,7 @@ test("two node scopes work together, then an idle one is reaped and woken in pla
     tools: () => null,
     nodeAt: (id) => nodes.find((node) => node.id === id) ?? null,
     nodes: () => nodes,
+    nearestAt: (id, candidates) => candidates.has(id) ? id : null,
     agentAt: ({ agent, session }) =>
       nodes.find((node) => node.engine === agent && node.session === session) ?? null,
     ticket: (node) => ({ bearer: `ticket-${node}`, release: () => released.push(node) }),
@@ -120,4 +123,115 @@ test("two node scopes work together, then an idle one is reaped and woken in pla
   }
 
   expect(released.toSorted()).toEqual(["one", "one", "two"])
+})
+
+test("boot routes a remembered node session before spawning any panel", async () => {
+  const nodes: ReadonlyArray<NodeAgent> = [{
+    id: "one",
+    file: "Work.olai",
+    title: "one",
+    engine: "alpha",
+    session: "remembered",
+    memory: 2,
+  }]
+  const memory = forDirectory(cwd, "alpha")
+  await run(memory.remember({ agent: "alpha", session: "remembered", model: null }))
+
+  const { layer, said } = collector()
+  const logged = <A, E>(effect: Effect.Effect<A, E>): Promise<A> => Effect.runPromise(
+    effect.pipe(
+      Effect.provideService(References.MinimumLogLevel, "Info"),
+      Effect.provide(layer),
+    ),
+  )
+  const chat = await logged(make({
+    roster: [installed("alpha")],
+    engines: ["alpha"],
+    cwd,
+    memory,
+    tools: () => null,
+    nodeAt: (id) => nodes.find((node) => node.id === id) ?? null,
+    nodes: () => nodes,
+    nearestAt: (id, candidates) => candidates.has(id) ? id : null,
+    agentAt: ({ agent, session }) =>
+      nodes.find((node) => node.engine === agent && node.session === session) ?? null,
+    ticket: (node) => ({ bearer: `ticket-${node}`, release: () => {} }),
+    onState: () => {},
+    onTranscript: () => {},
+  }))
+
+  try {
+    await logged(chat.start)
+    await until("the remembered node session to load", () =>
+      chat.state().bound === "one" && chat.state().status === "idle")
+    expect(said.filter((line) => line.message.includes("chat agent spawned"))).toHaveLength(1)
+    expect(said.filter((line) => line.message.includes("conversation opened"))).toHaveLength(1)
+  } finally {
+    await logged(chat.stop)
+  }
+})
+
+test("the cap reaps an idle scope, refuses a busy one, and holds its one-shot wake", async () => {
+  let nodes: ReadonlyArray<NodeAgent> = [
+    { id: "one", file: "Work.olai", title: "one", engine: "alpha", session: null, memory: 2 },
+    { id: "two", file: "Work.olai", title: "two", engine: "beta", session: null, memory: 3 },
+  ]
+  const released: Array<string> = []
+  const chat = await run(make({
+    roster: [installed("alpha"), installed("beta")],
+    engines: ["alpha", "beta"],
+    cwd,
+    tools: () => null,
+    nodeAt: (id) => nodes.find((node) => node.id === id) ?? null,
+    nodes: () => nodes,
+    nearestAt: (id, candidates) => candidates.has(id) ? id : null,
+    agentAt: ({ agent, session }) =>
+      nodes.find((node) => node.engine === agent && node.session === session) ?? null,
+    ticket: (node) => ({ bearer: `ticket-${node}`, release: () => released.push(node) }),
+    capacity: 1,
+    idle: "30 seconds",
+    onState: () => {},
+    onTranscript: () => {},
+  }))
+
+  try {
+    await run(chat.start)
+    await run(chat.startAgentSession("one", "alpha"))
+    const oneSession = chat.state().session?.id ?? ""
+    nodes = nodes.map((node) => node.id === "one" ? { ...node, session: oneSession } : node)
+    chat.reread()
+
+    // Leave the first slot idle and off-screen. The second acquisition must
+    // make room by closing that whole scope, ticket included.
+    await run(chat.startAgentSession("not-a-node", "beta"))
+    await run(chat.startAgentSession("two", "beta"))
+    const twoSession = chat.state().session?.id ?? ""
+    nodes = nodes.map((node) => node.id === "two" ? { ...node, session: twoSession } : node)
+    chat.reread()
+    expect(released).toEqual(["one"])
+
+    await run(chat.send("wait:2000", [], []))
+    await until("the only slot to be busy", () => chat.live().get("two")?.status === "thinking")
+    await run(chat.startAgentSession("not-a-node", "alpha"))
+
+    const refused = await run(Effect.result(chat.loadSession("alpha", oneSession)))
+    expect(refused._tag).toBe("Failure")
+    if (refused._tag === "Failure") {
+      expect(refused.failure.message).toContain("1 node agents are already live")
+    }
+
+    // This edge fires once. The same full-cap refusal must retain its thunk,
+    // and opening the node after the busy slot settles must flush it.
+    await run(chat.doorFor("odu").deliver(
+      { agent: "alpha", session: oneSession },
+      () => "one-shot first-red",
+    ))
+    await until("the busy slot to settle", () => chat.live().get("two")?.status === "idle")
+    await run(chat.loadSession("alpha", oneSession))
+    await until("the held wake to enter the conversation", () =>
+      JSON.stringify([...chat.entries().values()]).includes("one-shot first-red"))
+    expect(released).toEqual(["one", "two"])
+  } finally {
+    await run(chat.stop)
+  }
 })

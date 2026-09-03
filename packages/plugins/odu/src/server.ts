@@ -59,8 +59,6 @@ import {
 import {
   declarationsOf,
   type Derived,
-  insideSubtree,
-  nearestAtOrAbove,
   NO_TYPING,
   type PropDeclarations,
 } from "@olai/format"
@@ -206,18 +204,11 @@ export default definePlugin({
     let declaring: PropDeclarations = NO_TYPING
 
     type ScopeRow = ReturnType<typeof deliveries.scopes>[number]
-    const nearest = (
-      at: Derived,
-      scopes: ReadonlyArray<ScopeRow>,
-      scope: ScopeRow,
-      node: string,
-    ): boolean => {
-      if (scope.under === undefined) return true
-      const candidates = new Set(scopes.flatMap((one) =>
-        one.file === scope.file && one.under !== undefined ? [one.under] : []
-      ))
-      return nearestAtOrAbove(at, node, candidates) === scope.under
-    }
+    const sameScope = (left: ScopeRow, right: ScopeRow): boolean =>
+      left.agent === right.agent
+      && left.session === right.session
+      && left.file === right.file
+      && left.under === right.under
 
     /**
      * THE WORDS, DERIVED AFRESH AT THE MOMENT THEY ENTER A CONVERSATION.
@@ -244,7 +235,7 @@ export default definePlugin({
       if (at === undefined) return null
       const claim = claimingIn(claimedIn(declaring, at, scope.file)).get(notice.run.id)
       if (claim === undefined) return null
-      if (scope.under !== undefined && !insideSubtree(at, claim.node, scope.under)) return null
+      if (!deliveries.ringing(scope.file, claim.node).some((row) => sameScope(row, scope))) return null
       if (notice.kind === "first-red") {
         return bodyFor(notice, claim, clock.now(), countsFor(half.rows(), notice))
       }
@@ -285,7 +276,10 @@ export default definePlugin({
         const scopes = deliveries.scopes()
         for (const scope of scopes) {
           const claim = claimingFor(scope.file).get(notice.run.id)
-          if (claim === undefined || !nearest(at, scopes, scope, claim.node)) continue
+          if (
+            claim === undefined
+            || !deliveries.ringing(scope.file, claim.node).some((row) => sameScope(row, scope))
+          ) continue
           yield* deliveries.deliver(
             { agent: scope.agent, session: scope.session },
             // ASKED AGAIN AT THE MOMENT IT GOES IN — see {@link said}.

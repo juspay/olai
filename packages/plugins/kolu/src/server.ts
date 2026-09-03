@@ -83,8 +83,6 @@ import {
   NO_TYPING,
   type OutlineSet,
   type PropDeclarations,
-  insideSubtree,
-  nearestAtOrAbove,
 } from "@olai/format"
 import { Effect } from "effect"
 import { type Dial, koluHalf } from "olai-plugin-kolu/appliance"
@@ -341,25 +339,17 @@ export default definePlugin({
     let derived: Derived | undefined
 
     type ScopeRow = ReturnType<typeof deliveries.scopes>[number]
-    const nearest = (
-      at: Derived,
-      scopes: ReadonlyArray<ScopeRow>,
-      scope: ScopeRow,
-      node: string,
-    ): boolean => {
-      if (scope.under === undefined) return true
-      const candidates = new Set(scopes.flatMap((one) =>
-        one.file === scope.file && one.under !== undefined ? [one.under] : []
-      ))
-      return nearestAtOrAbove(at, node, candidates) === scope.under
-    }
-    const narrowed = (
-      at: Derived,
+    const sameScope = (left: ScopeRow, right: ScopeRow): boolean =>
+      left.agent === right.agent
+      && left.session === right.session
+      && left.file === right.file
+      && left.under === right.under
+    const claimsFor = (
       scope: ScopeRow,
       claiming: Ringing["claiming"],
-    ): Ringing["claiming"] => scope.under === undefined
-      ? claiming
-      : new Map([...claiming].filter(([, claim]) => insideSubtree(at, claim.node, scope.under as string)))
+    ): Ringing["claiming"] => new Map([...claiming].filter(([, claim]) =>
+      deliveries.ringing(scope.file, claim.node).some((row) => sameScope(row, scope))
+    ))
 
     /**
      * THE DOORBELL'S OWN ACCOUNT — every seam below says what it did, on the
@@ -419,7 +409,7 @@ export default definePlugin({
       }
       const rows = half.rows()
       const ringing = ringingIn(declaring, at, file, [...rows.keys()], trace)
-      const standing = standingIn(narrowed(at, scope, ringing.claiming), rows, meaning)
+      const standing = standingIn(claimsFor(scope, ringing.claiming), rows, meaning)
       if (standing.length === 0) {
         trace("dropped", { file, meaning, why: "nobody-standing" })
         return null
@@ -572,8 +562,12 @@ export default definePlugin({
         for (const scope of scopes) {
           const whole = ringingFor(scope.file)
           const eventClaim = whole.claiming.get(event.row.terminal)
-          if (eventClaim === undefined || !nearest(at, scopes, scope, eventClaim.node)) continue
-          const ringing = { ...whole, claiming: narrowed(at, scope, whole.claiming) }
+          if (
+            eventClaim === undefined
+            || !deliveries.ringing(scope.file, eventClaim.node)
+              .some((row) => sameScope(row, scope))
+          ) continue
+          const ringing = { ...whole, claiming: claimsFor(scope, whole.claiming) }
           const meaning = classify(event, ringing.claiming)
           // THE ONE LINE THE P1 WOULD HAVE BEEN FOUND BY, beside `derived` above.
           // SILENCE IS NO CALL AT ALL — not a quieter body, not a warning about an

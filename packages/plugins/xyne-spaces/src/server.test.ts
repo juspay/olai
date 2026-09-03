@@ -92,7 +92,11 @@ const mounted = async (doubles: Doubles) => {
     now: doubles.now,
     served: doubles.served,
     dials: { "xyne-spaces": doubles.dial },
-    doorFor: () => ({ scopes: () => [], deliver: doubles.deliver ?? (() => Effect.void) }),
+    doorFor: () => ({
+      scopes: () => [],
+      ringing: () => [],
+      deliver: doubles.deliver ?? (() => Effect.void),
+    }),
     heldFor: () => held,
   }))
   const plugin = await run(mountPlugin(plugins.host, spaces))
@@ -295,4 +299,3 @@ test("dropping the bind without env returns the pill to absent", async () => {
   expect(half.link().status).toBe("absent")
   await half.dispose()
 })
-

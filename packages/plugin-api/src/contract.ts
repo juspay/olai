@@ -334,6 +334,13 @@ export interface Deliveries {
      * for an unassigned conversation. */
     readonly under?: string
   }>
+  /** The scopes that hear a claim made by `node` in `file`. Manual whole-file
+   * scopes all hear it; among nested node scopes only the nearest ancestor does.
+   * Core owns that precedence so every doorbell asks the same question. */
+  readonly ringing: (
+    file: string,
+    node: string,
+  ) => ReturnType<Deliveries["scopes"]>
   /**
    * ONE MACHINE-MARKED MESSAGE INTO ONE CONVERSATION. Core owns the mechanics;
    * the plugin owns every word.

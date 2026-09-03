@@ -1401,6 +1401,10 @@ const chatKeeping = (kept: ReadonlyArray<Scoped>): {
         rows
           .filter((row) => row.plugin === plugin && row.fault === undefined)
           .map(({ agent, file, session }) => ({ agent, file, session })),
+      ringing: (file) =>
+        rows
+          .filter((row) => row.plugin === plugin && row.fault === undefined && row.file === file)
+          .map(({ agent, file, session }) => ({ agent, file, session })),
       deliver: (to: { readonly agent: string; readonly session: string }, say: () => string | null) =>
         Effect.suspend(() => {
           // THE THUNK IS ASKED HERE, at the moment the words would enter the
@@ -1781,6 +1785,7 @@ const rosterOfNodes = (rows: ReadonlyArray<NodeAgent>): Roster => ({
   agentAt: () => null,
   nodeAt: (node) => rows.find((row) => row.id === node) ?? null,
   nodes: () => rows,
+  nearestAt: (node, candidates) => candidates.has(node) ? node : null,
   above: () => null,
   rowsWith: () => [],
 })
@@ -1850,7 +1855,7 @@ const chatOpening = (opens: ReadonlyArray<string>): {
     scope: () => elsewhere,
     start: Effect.void,
     stop: Effect.void,
-    doorFor: () => ({ scopes: () => [], deliver: () => elsewhere }),
+    doorFor: () => ({ scopes: () => [], ringing: () => [], deliver: () => elsewhere }),
     faults: () => elsewhere,
   }
   return { chat, assigned, replaced }

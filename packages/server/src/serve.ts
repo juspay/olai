@@ -419,6 +419,7 @@ export const serve = (options: ServeOptions) =>
       agentAt: (to) => nodeAgents.agentAt(to),
       nodeAt: (node) => nodeAgents.nodeAt(node),
       nodes: () => nodeAgents.nodes(),
+      nearestAt: (node, candidates) => nodeAgents.nearestAt(node, candidates),
       ticket: (node) => {
         if (mintNodeTicket === null) throw new Error("node session opened before MCP tickets were bound")
         return mintNodeTicket(node)
