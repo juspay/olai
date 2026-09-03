@@ -691,6 +691,48 @@ test("a lingering coordinator that is later CANCELLED does not ring a second set
   )
 })
 
+test("a coordinator that dies MID-RUN rings the run's death where the hold ends, on a lane still boarded", () => {
+  // The socket's death keeps the run's death: the hold never read a settling
+  // frame, so its end says the one word the frames could not — once, with
+  // `live: false`, and the verdict a mid-run row's own (`ended`, the words
+  // say of a `null`). The lane stays on the board for the whole case: not
+  // one reclaim's silence, and not a died reading confused with one.
+  const it = bench(async () => ({
+    client: {
+      surface: {
+        // Two running frames and the stream simply ENDS — the coordinator
+        // was killed.
+        nodes: {
+          get: () => Stream.make(redState(), midwayState()),
+        },
+        header: { get: () => Stream.concat(Stream.make(header()), Stream.never) },
+      },
+    },
+    close: async () => {},
+  }) as never)
+  const watch = makeWatch(it.deps)
+  watch.reclaim([named()])
+  return Effect.runPromise(
+    Effect.scoped(Effect.gen(function*() {
+      yield* watch.sweep
+      yield* settle
+      // First the frame's word, then the socket's — two notices, in order.
+      expect(it.noticed.map((one) => one.kind)).toEqual(["first-red", "settled"])
+      const died = it.noticed[1]
+      expect(died?.kind).toBe("settled")
+      if (died?.kind !== "settled") return
+      // The died reading: `live` already the socket's truth, the verdict a
+      // mid-run row's own, and the hold's WHOLE red record riding the last
+      // account — `b@p` went green before the kill, and that is not a secret.
+      expect(died.run.live).toBe(false)
+      expect(verdictOf(tallyOf(died.run.cells))).toBeNull()
+      expect(died.reddened).toEqual(["b@p"])
+      // The published row carries the same stamp once the hold is gone.
+      expect(watch.rows()[0]?.live).toBe(false)
+    })),
+  )
+})
+
 test("a rerun re-arms the settle: the drain after it is a NEW settlement, rung once", () => {
   // linger's own economy: the run settled, a node is re-run through the
   // still-serving socket, and the run settles again. Two settlements, two
