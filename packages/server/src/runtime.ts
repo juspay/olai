@@ -1642,9 +1642,11 @@ export const bind = (
                 // AN `Effect.gen` AND NOT AN `Effect.sync`, because two of the
                 // statements below are Effects: telling every plugin a revision
                 // landed, and telling them the store has none. Both are AWAITED
-                // here, which is what keeps the rest of this block reading as one
-                // statement — the collections, the heads and the roster below are
-                // written over a world every plugin has already re-derived.
+                // here, and what the await buys is the statements that come
+                // AFTER the ring — `faulted`, and the cell write that puts this
+                // manifest on the wire — seeing a world every plugin has already
+                // re-derived. The collections and the heads are written above
+                // it, in the order master had them; nothing about that moved.
                 Effect.gen(function*() {
                   if (snapshot === null) {
                     // No published set at all: every plugin's reading OF THE
