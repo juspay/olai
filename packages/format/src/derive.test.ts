@@ -1,6 +1,8 @@
 import { expect, test } from "bun:test"
 
 import {
+  ancestorsOf,
+  ancestryOver,
   blockersOf,
   countedChildren,
   derive,
@@ -1758,4 +1760,69 @@ test("hiding what is done does not shrink what an archive would take", () => {
   expect(underRow(showing, "kitchen").children.some((row) => row.at.node.id === "demo"))
     .toBe(false)
   expect(underRow(showing, "kitchen").under).toBe(5)
+})
+
+/**
+ * THE ANCESTRY WALK OVER AN INDEX THAT IS NOT THE DERIVATION.
+ *
+ * `ancestorsOf` is `ancestryOver` with `byId.get` bound, so its own cases are
+ * everything that reads a crumb list anywhere in this repository. What is left
+ * to claim is the reason the lookup became a parameter: `@olai/ops`' subtree
+ * write fence asks where a record WOULD hang once a plan lands, and an arriving
+ * record's ancestry is in the plan's own records rather than in `byId`. These
+ * say that the same walk answers that question, and that the stopping rules
+ * came with it rather than staying behind with the derivation.
+ */
+const walkOver = (records: ReadonlyArray<Located>): ((id: string) => Located | undefined) => {
+  const byId = new Map(records.map((at) => [at.node.id, at]))
+  return (id) => byId.get(id)
+}
+
+const HOUSE = [
+  `{"id":"house","ord":"a0","title":"house"}`,
+  `{"id":"kitchen","parent":"house","ord":"a0","title":"kitchen"}`,
+  `{"id":"sink","parent":"kitchen","ord":"a0","title":"sink"}`,
+  `{"id":"shed","ord":"a1","title":"shed"}`,
+].join("\n")
+
+test("the ancestry walk climbs whatever index it is handed", () => {
+  const standing = nodesOf(HOUSE)
+  expect(ids(ancestryOver(walkOver(standing), "sink"))).toEqual(["house", "kitchen"])
+  // The same walk bound to the derivation is the export everything else uses,
+  // and it must answer identically about the set it was derived from.
+  expect(ids(ancestorsOf(derive(standing), "sink"))).toEqual(["house", "kitchen"])
+})
+
+test("…so a record that has not been written yet has an ancestry", () => {
+  // The after side of a `move`: nothing on disk says the sink hangs off the
+  // shed, and this is the only index that does.
+  const planned = nodesOf(HOUSE.replace(`"parent":"kitchen"`, `"parent":"shed"`))
+  expect(ids(ancestryOver(walkOver(planned), "sink"))).toEqual(["shed"])
+  // ...and the standing derivation still says what it always said, which is the
+  // whole reason the fence has to ask both sides.
+  expect(ids(ancestorsOf(derive(nodesOf(HOUSE)), "sink"))).toEqual(["house", "kitchen"])
+})
+
+test("the stopping rules travelled with the walk, not with the derivation", () => {
+  // A MIRROR is not climbed through — the rule that keeps an agent fenced to a
+  // subtree from reaching whatever somebody else placed inside it.
+  const mirrored = nodesOf([
+    `{"id":"house","ord":"a0","title":"house"}`,
+    `{"id":"ghost","parent":"house","ord":"a0","mirror":"shed"}`,
+    `{"id":"sink","parent":"ghost","ord":"a0","title":"sink"}`,
+  ].join("\n"))
+  expect(ids(ancestryOver(walkOver(mirrored), "sink"))).toEqual([])
+
+  // A PARENT LOOP terminates, and does so over this index the same way it does
+  // over `byId`: a set the validator refuses is still a set this walk is asked
+  // about while somebody is being told why.
+  const looped = nodesOf([
+    `{"id":"one","parent":"two","ord":"a0","title":"one"}`,
+    `{"id":"two","parent":"one","ord":"a1","title":"two"}`,
+  ].join("\n"))
+  expect(ids(ancestryOver(walkOver(looped), "one"))).toEqual(["two"])
+
+  // An id NOTHING in the index claims has no ancestry rather than an error,
+  // which is what a plan that removed a record leaves behind.
+  expect(ids(ancestryOver(walkOver(nodesOf(HOUSE)), "nobody"))).toEqual([])
 })

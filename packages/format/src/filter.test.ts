@@ -3,6 +3,7 @@ import { expect, test } from "bun:test"
 import { datedIn, datedOn, type DayGroup } from "./dates.ts"
 import { derive, type Derived, type Row, rowsOf } from "./derive.ts"
 import {
+  insideSubtree,
   keeping,
   keepingDated,
   litBy,
@@ -17,7 +18,7 @@ import {
 } from "./filter.ts"
 import { nodesOfFiles, seeded } from "./fixtures.testlib.ts"
 import { declarationsOf, NO_KINDS } from "./typing.ts"
-import { isPutAway } from "./node.ts"
+import { isMirror, isPutAway } from "./node.ts"
 
 /** One corpus, standing in for a directory: marks, dates, notes, edges, tags,
  *  a repeat rule, a mirror, an archive beside it — and a chain of `after`
@@ -2315,4 +2316,69 @@ test("a date span selects exactly the lanes whose stored date is in it", () => {
       .map((lane) => lane.id)
     expect({ text, asked }).toEqual({ text, asked: oracle })
   }
+})
+
+/**
+ * WHAT `under:` MEANS, asked directly.
+ *
+ * These are here rather than in a suite of their own because the predicate IS
+ * `scoping`'s expression: `./scope.test.ts` holds the differential that says
+ * the two walks select the same records, and what is left to claim is what the
+ * lifted export answers for a caller that is not a search — `@olai/ops`' write
+ * fence, whose whole containment ruling is the last case below.
+ */
+test("a node is at or under itself, which is what `under:` means", () => {
+  expect(insideSubtree(derived, "kitchen", "kitchen")).toBe(true)
+})
+
+test("…and so is everything beneath it, however deep", () => {
+  expect(insideSubtree(derived, "install", "kitchen")).toBe(true)
+  expect(insideSubtree(derived, "hinges", "kitchen")).toBe(true)
+  expect(insideSubtree(derived, "basil", "garden")).toBe(true)
+})
+
+test("a node in another tree is outside, and so is one in the trash", () => {
+  expect(insideSubtree(derived, "garden", "kitchen")).toBe(false)
+  expect(insideSubtree(derived, "gone", "kitchen")).toBe(false)
+  // The other direction of the same fact: an ancestor is not inside its own
+  // descendant, which is the corner a fence gets wrong by reading the walk
+  // backwards.
+  expect(insideSubtree(derived, "kitchen", "install")).toBe(false)
+})
+
+test("a subtree does not reach through a mirror placed inside it", () => {
+  // `kitchen-herbs` is a placement of `herbs` under `kitchen`, so the herb bed
+  // is DRAWN inside the remodel and is not IN it. The walk stops at the
+  // placement, which is the one thing the fence and `search under:` must agree
+  // about: were this true, an agent fenced to `kitchen` could rewrite the
+  // garden by following a mirror somebody else placed.
+  expect(insideSubtree(derived, "kitchen-herbs", "kitchen")).toBe(true)
+  expect(insideSubtree(derived, "herbs", "kitchen")).toBe(false)
+  expect(insideSubtree(derived, "basil", "kitchen")).toBe(false)
+})
+
+test("the predicate selects exactly what `search under:` selects", () => {
+  // `under:` is answered by DESCENDING (`descendedFrom`) and this predicate
+  // climbs, so the two are the same walk read in opposite directions and this
+  // is the claim that they meet. A query rather than an empty one, because
+  // nothing typed selects nothing at all: `e` is in every title in the corpus,
+  // so the scope is the only thing narrowing either side.
+  const ids = derived.nodes.map((at) => at.node.id)
+  let scoped = 0
+  for (const under of ids) {
+    const asked = matching(derived, parseFilter("e", TODAY), { under, trashed: true })
+      .map(({ at }) => at.node.id)
+    // The search walk yields no placements at all, so the oracle drops them
+    // here rather than the predicate answering differently about one.
+    const oracle = derived.nodes
+      .filter((at) => !isMirror(at.node) && insideSubtree(derived, at.node.id, under))
+      .map((at) => at.node.id)
+    expect({ under, asked: [...asked].sort() }).toEqual({ under, asked: [...oracle].sort() })
+    scoped += asked.length
+  }
+  // Non-vacuity: a run where every scope selected nothing would assert nothing,
+  // and one where every scope held the whole corpus would prove nothing about
+  // the narrowing.
+  expect(scoped).toBeGreaterThan(ids.length)
+  expect(scoped).toBeLessThan(ids.length * ids.length)
 })

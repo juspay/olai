@@ -304,6 +304,38 @@ export interface ContributedKind {
    * word a vault is expected to hang wherever it likes.
    */
   readonly claims?: string
+  /**
+   * THE KEY THIS KIND USED TO BE SPELLED AS, before it was a kind at all.
+   *
+   * A word core owned outright and a plugin now teaches — chat's `agent-session`
+   * is the first — leaves every existing vault holding records under the OLD
+   * key with nothing declaring it. Those values go on being plain text, which
+   * is safe and is also silent: the face is gone, the fence is gone, and
+   * nothing in the vault says why.
+   *
+   * **IT IS NOT A SECOND {@link ContributedKind.claims}, AND IT MAY NOT BE
+   * ONE.** A claim is set by the registry equal to the composed word
+   * (`@olai/plugin-api`'s `Kinds` service, off the registering fiber's own
+   * name), so an enabled plugin can only ever declare a key CARRYING ITS OWN
+   * NAME — which is exactly what makes a built-in declaration safe, since a
+   * column somebody else calls `agent-session` is then untouchable by a flag on
+   * the machine. A legacy key is a bare word any vault might be using for
+   * something of its own, so olai declares it for nobody. What it does instead
+   * is SAY SO: {@link ./rules.ts}'s `reportLegacyKeys` meets a value under this
+   * key that no declaration judges, and names the one row that ends it. The
+   * person writes the row, or declares the key `text` and takes the sentence
+   * away; nothing ever writes anybody's vault either way.
+   *
+   * DATA, LIKE EVERY OTHER FACT ABOUT A CONTRIBUTED KIND. This package spells
+   * no plugin's word — a rule here that grepped for `agent-session` would be
+   * the name-matching the whole `PropKind` arrangement exists to end — so the
+   * old spelling rides the kind's own row and arrives as a string on a table
+   * handed down, beside the word it became.
+   *
+   * Absent is a kind with no history, which is every kind that was a kind from
+   * the day it was written.
+   */
+  readonly wasCalled?: string
 }
 
 /**
@@ -1444,13 +1476,26 @@ const wrongRef = (
  * Eight, because the enums this is really for have two to four members and the
  * cap should never fire on one — a refusal that says "and 0 more" would be a
  * cap that had started deciding things.
+ *
+ * EXPORTED BESIDE {@link listed} and for its reason: a finding that names
+ * records in its sentence AND as related sites has to cap both at one number,
+ * or the sentence says eight and the error view draws two hundred rows.
  */
-const NAMED_AT_MOST = 8
+export const NAMED_AT_MOST = 8
 
 /** The variants a refusal shows, capped — the first few and a count, never a
  *  wall. `join`ed with the separator the sentence is built around, since a sum
- *  reads as `a | b` and a roster as a list. */
-const listed = (all: ReadonlyArray<string>, between: string): string =>
+ *  reads as `a | b` and a roster as a list.
+ *
+ *  EXPORTED FOR ONE OTHER SENTENCE, and it is the same sentence-shaped problem
+ *  rather than a general-purpose helper escaping: {@link ./rules.ts}'s
+ *  `reportLegacyKeys` names the records still holding a retired key, and a
+ *  vault with two hundred of them would put its whole node list in one finding
+ *  — the very failure the cap above was added for. One cap, one wording, one
+ *  place to move them both. It is NOT on the package's surface
+ *  ({@link ./index.ts} lists what leaves), because a caller outside the
+ *  validator wording a refusal of its own is not a thing this idiom is for. */
+export const listed = (all: ReadonlyArray<string>, between: string): string =>
   all.slice(0, NAMED_AT_MOST).map((one) => `\`${one}\``).join(between) +
   (all.length > NAMED_AT_MOST ? `, and ${all.length - NAMED_AT_MOST} more` : "")
 

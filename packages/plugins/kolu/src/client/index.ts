@@ -294,6 +294,39 @@ export interface KoluHalf<N> {
    *  KNOBS are not touched — the standing subscription asks its last
    *  question while the mirror, equally starved, has nothing new for it. */
   readonly unloaded: () => void
+  /**
+   * THIS HALF IS GOING AWAY — every timer its construction armed, cleared.
+   *
+   * ## Why it is not {@link unloaded}, and why the two may never be folded
+   *
+   * `unloaded` says the DISK went away: no revision to derive off, so the
+   * wrench's door closes and the timers deliberately hold their last
+   * hand-off, because a starved mirror has nothing new for them to gate.
+   * This says the HALF went away, and the honest consequence is the
+   * opposite one — a watcher nobody owns must not still be beating.
+   * Folding the two would make a store that stopped publishing kill the
+   * heartbeat a person's pill reads, or leave a disposed half beating,
+   * depending on which sentence won.
+   *
+   * ## Why the connector's own stop is not enough
+   *
+   * {@link connect} already ends the watcher: it runs for the surface
+   * runtime's life and `Effect.ensuring` calls `watch.stop()` on its
+   * interruption. But the watcher is armed by `makeWatch` INSIDE this
+   * constructor — `rearmHeartbeat` arms and beats in one breath — and this
+   * constructor runs when the caller builds the half, which is long before
+   * anything binds and may be long before anything ever does. A half built
+   * and dropped without a bind (a plugin whose apply failed, a plugin
+   * disposed in a cascade before the surface bound) left a `setInterval`
+   * running with no path to it at all. This is that path, and it is
+   * idempotent: `Watch.stop` clears timers it already cleared.
+   *
+   * The LINK is not this door's to close, and there is nothing here to
+   * close it with: the socket lives inside the connector's own fiber, so
+   * its death is that fiber's interruption. What is armed without a fiber
+   * is the watcher, and that is exactly what this stops.
+   */
+  readonly stop: () => void
 }
 
 /**
@@ -526,6 +559,12 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
         Stream.make({ kind: "refused", says: NO_LINK.says } as TerminalFrame),
       revision,
       unloaded,
+      // THE LINKLESS FACE ARMS A TIMER TOO, which is the whole reason this
+      // arm gets the door as well: `makeWatch` above runs before the branch,
+      // so a machine with no kolu is heartbeating exactly like one with — and
+      // a half nobody ever binds is precisely the one whose interval has no
+      // connector to die with.
+      stop: () => watch.stop(),
       handlers: linklessHandlers(watch, () => pulse, knobsStore, knobsConnect),
     }
   }
@@ -571,6 +610,11 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
     attach: mirror.attach,
     revision,
     unloaded,
+    // The same door on the linked face, and the same one call: `connect`'s
+    // `ensuring` says the identical sentence for the bound life, so a half
+    // that was bound and then disposed stops its watcher twice and neither
+    // call minds ({@link KoluHalf.stop} argues why the door exists anyway).
+    stop: () => watch.stop(),
     handlers: handlersOf({
       connect,
       rows: mirror.rows,

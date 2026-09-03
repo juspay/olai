@@ -570,6 +570,22 @@ export interface Publishers {
  * an HTTP `/mcp` client, an in-process dispatch is whichever agent the
  * composition root built it for. So the writer is decided where the face is,
  * which is where every other fact about a face is decided.
+ *
+ * ...AND SO IS HOW FAR THE DOOR REACHES, which is the second half of the same
+ * argument and arrives in the same record ({@link @olai/ops}'s `Caller`). A
+ * subtree fence is one more fact about who is asking, and a caller could no more
+ * name its own than it could name its own writer. `fence` is REQUIRED with no
+ * default: `@olai/ops` reads an absent fence as "this door has no session" —
+ * which is the honest reading of a keystroke, its derived undo, a plugin write
+ * or a repeat roll, and the WRONG reading of an agent whose face forgot to say.
+ * Every face in this tree is composed through this function or {@link writerAt}
+ * below it, so a forgotten fence is a compile error and never a silently
+ * unfenced agent.
+ *
+ * `git.commit` takes no fence and that is a named hole rather than an omission:
+ * a commit moves no served byte and takes free-form paths, so a fenced agent can
+ * still put another writer's pending work into history under its own trailer.
+ * The fence's subject is the records the vault serves.
  */
 const writing = (ops: Ops, caller: Caller) => ({
   ops: { run: (request: Request) => ops.run(request, caller.writer, caller.fence ?? undefined) },
@@ -1078,7 +1094,13 @@ export const bind = (
         // tab used to be refused naming a file the OTHER tab had just minted,
         // which is the resolver's own answer going stale rather than anything
         // the person who pressed the key did.
-        runResolved(wiring.ops, wiring.writer, (at) => requestFor(at, edit), reresolves(edit)),
+        // A KEYSTROKE HAS NO SESSION, which is what `fence: null` says out loud.
+        runResolved(
+          wiring.ops,
+          { writer: wiring.writer, fence: null },
+          (at) => requestFor(at, edit),
+          reresolves(edit),
+        ),
         ({ at, request, done }) => {
           // AFTER the run, because an `add`'s inverse names the row the write
           // brought into being — and from the reading the winning request was

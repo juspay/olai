@@ -109,6 +109,7 @@ import {
   reportAfterCycles,
   reportDeclarations,
   reportDocs,
+  reportLegacyKeys,
   reportMirrorCycles,
   reportParentCycles,
   reportParents,
@@ -121,6 +122,7 @@ import {
   type KindVocabulary,
   type PropDeclarations,
   sameTyping,
+  type Typed,
 } from "./typing.ts"
 
 /**
@@ -319,12 +321,18 @@ export const incrementally = (
   // those can turn a bad value good and none of them can turn a good one bad,
   // so none of them is here.
   const walkingProps = !sameTyping(ledger.typing, typing) || walking || shrank(gone, derived)
-  reportPropValues(walkingProps ? derived.nodes : fresh, {
-    declarations: typing,
-    derived,
-    documents: known,
-    kinds,
-  }, errors)
+  // BOUND ONCE and handed to both value rules below, which is the same argument
+  // the full arm's `wholly` makes about the records: two literals here would be
+  // two readings of one vault, free to disagree about what a key is declared as.
+  const typed: Typed = { declarations: typing, derived, documents: known, kinds }
+  reportPropValues(walkingProps ? derived.nodes : fresh, typed, errors)
+  // …and the retired-spelling rule over THE SAME SET, which is what keeps the
+  // two arms from naming different records in one sentence
+  // ({@link ./rules.ts}'s `reportLegacyKeys` argues why that set is exact
+  // here: fact 2 means an untouched offender would have been in the verdict
+  // this run narrowed from, and the only other way one appears is the
+  // declaration leaving, which moves `typing` and opens this very gate).
+  reportLegacyKeys(walkingProps ? derived.nodes : fresh, typed, errors)
 
   return { ledger: { errors, known, typing }, walked: moving || walking || walkingProps }
 }

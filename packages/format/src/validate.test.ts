@@ -3,7 +3,7 @@ import { Result } from "effect"
 
 import { rowsOf } from "./derive.ts"
 import { bodiedDocument, type Document } from "./document.ts"
-import { implicatedBy, isCrossFile, type OutlineError } from "./errors.ts"
+import { blamedOn, implicatedBy, isCrossFile, type OutlineError } from "./errors.ts"
 import { blamed, type Verdict, verdictOf } from "./verdict.ts"
 import {
   decodedOf,
@@ -23,6 +23,7 @@ import {
   outlinesIn,
   withDocuments,
 } from "./set.ts"
+import type { ContributedKind, KindVocabulary } from "./typing.ts"
 import { following, type Previous, type Reading, reading, validate } from "./validate.ts"
 
 /**
@@ -896,6 +897,191 @@ test("the declarations file is found by name wherever it sits", () => {
   })
   expect(codes(errors)).toEqual(["bad-prop"])
   expect(errors[0]?.file).toBe("lanes.olai")
+})
+
+// ── a key a kind used to be spelled as ─────────────────────────────────
+//
+// A word core owned outright becomes a plugin's, the plugin's kind composes to
+// a new one, and every vault already using the OLD key keeps values nothing
+// declares. The plugin may not claim that key back — a claim is set by the
+// registry equal to the composed word, so enabling a plugin can never take over
+// a column somebody has been using for something of their own — so olai names
+// the row instead (`./typing.ts`'s `ContributedKind.wasCalled`, `./rules.ts`'s
+// `reportLegacyKeys`).
+//
+// THE VOCABULARY IS A PARAMETER, which is why these cases do not go through
+// `errorsOf`: `validatedOf` composes no plugin, and every rule here is about
+// what a serve RUNNING one says. The kind below is a toy carrying the one field
+// under test, in this package's own made-up-on-purpose register — nothing in
+// `@olai/format` may spell a real plugin's word.
+
+const RETIRED: ContributedKind = {
+  kind: "widget-sprocket",
+  takes: "`widget-sprocket` (a sprocket id)",
+  admits: () => true,
+  claims: "widget-sprocket",
+  wasCalled: "sprocket",
+}
+
+/** A serve running the plugin, which is the only vocabulary these cases need:
+ *  the rule reads `enabled` and nothing else. */
+const RUNNING: KindVocabulary = {
+  built: new Map([[RETIRED.kind, RETIRED]]),
+  enabled: new Map([[RETIRED.kind, RETIRED]]),
+}
+
+/** {@link validatedOf}, with a vocabulary — the one argument that helper does
+ *  not take, because nearly every case in this file is about a build with no
+ *  plugin in it and this handful is not. */
+const setRunning = (
+  files: Record<string, string>,
+  kinds: KindVocabulary = RUNNING,
+): OutlineSet => {
+  const answered = validate(setOf(files), undefined, kinds)
+  if (Result.isFailure(answered)) {
+    throw new Error("a validation answers with a set, whatever it finds")
+  }
+  return answered.success.set
+}
+
+/** …and {@link errorsOf}'s door onto it. */
+const errorsRunning = (
+  files: Record<string, string>,
+  kinds: KindVocabulary = RUNNING,
+): ReadonlyArray<OutlineError> => findingsIn(setRunning(files, kinds))
+
+test("a retired key still held, and declared by nobody, is named ONCE with the row that ends it", () => {
+  const errors = errorsRunning({
+    "_olai/Properties.olai": `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`,
+    "lanes.olai": [
+      `{"id":"one","ord":"a0","title":"one","custom":{"sprocket":"claude"}}`,
+      `{"id":"two","ord":"a1","title":"two","custom":{"sprocket":"claude:sess-1"}}`,
+    ].join("\n"),
+  })
+  // ONE finding for two records, and that is the whole shape: a finding per
+  // record would darken `lanes.olai` and take every row on it off the screen
+  // over a migration nobody has done yet.
+  expect(codes(errors)).toEqual(["legacy-key"])
+  expect(errors[0]?.file).toBe("_olai/Properties.olai")
+  // No record to point at — the site is the file, and `hasLine` is the rule.
+  expect(errors[0]?.line).toBe(0)
+  // THE WORD COMES OFF THE VOCABULARY, and the row is the one a person pastes.
+  expect(errors[0]?.message).toContain("`sprocket` is held by 2 records")
+  expect(errors[0]?.message).toContain(
+    `{"id":"prop-sprocket","ord":"a0","title":"sprocket","custom":{"type":"widget-sprocket"}}`,
+  )
+  expect(errors[0]?.message).toContain("Declaring it `text` instead")
+})
+
+test("the records holding it are NAMED and not broken, so the board stays lit", () => {
+  const set = setRunning({
+    "_olai/Properties.olai": `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`,
+    "lanes.olai": `{"id":"one","ord":"a0","title":"one","custom":{"sprocket":"claude"}}`,
+  })
+  const finding = findingsIn(set)[0] as OutlineError
+  expect(finding.related).toEqual([
+    { file: "lanes.olai", line: 1, note: "held here", broken: false },
+  ])
+  // The two planes, the way `bad-prop`'s pair are asserted in `./errors.test.ts`
+  // — and this is the one code in that file's list the shared corpus cannot
+  // provoke, because it composes no plugin.
+  expect(implicatedBy(finding)).toEqual(["_olai/Properties.olai", "lanes.olai"])
+  expect(blamedOn(finding)).toEqual(["_olai/Properties.olai"])
+  // …which is the fact the whole shape rests on: the board keeps its content
+  // and its writes, and the file with the missing row is the one that went dark.
+  expect(set.broken.map((entry) => entry.file)).toEqual(["_olai/Properties.olai"])
+  expect(brokenIn(set, "lanes.olai")).toBeUndefined()
+  expect(documentAt(set, "lanes.olai")).toEqual(
+    outlineOf(`{"id":"one","ord":"a0","title":"one","custom":{"sprocket":"claude"}}`, "lanes.olai"),
+  )
+})
+
+test("a vault with no declarations file is told where one would be minted", () => {
+  const errors = errorsRunning({
+    "lanes.olai": `{"id":"one","ord":"a0","title":"one","custom":{"sprocket":"claude"}}`,
+  })
+  // The first finding in this package filed on a path the set does not hold,
+  // and it is the honest place for it: the fix is to CREATE that file, and
+  // `mintedInto` is the one answer to where a file olai names goes.
+  expect(codes(errors)).toEqual(["legacy-key"])
+  expect(errors[0]?.file).toBe("_olai/Properties.olai")
+  expect(errors[0]?.message).toContain("one row in `_olai/Properties.olai` moves it")
+})
+
+test("A ROW OF ANY KIND ENDS IT, including one that declares the key `text`", () => {
+  // The vault has spoken, and that is the whole answer — the rule reads the
+  // FOLDED map every other reader takes, after both layers are folded, so it
+  // cannot tell a row that migrates from a row that says "this key is prose".
+  // Declaring it `text` is the escape hatch, in the place a reader looks.
+  for (const said of ["widget-sprocket", "text", "path"]) {
+    expect(codes(errorsRunning({
+      "_olai/Properties.olai":
+        `{"id":"p","ord":"a0","title":"sprocket","custom":{"type":"${said}"}}`,
+      "lanes.olai": `{"id":"one","ord":"a0","title":"one","custom":{"sprocket":"claude"}}`,
+    }))).toEqual([])
+  }
+  // …and the key is FOLDED on both sides, so a vault that wrote `Sprocket` has
+  // spoken about the same key (`keyOf`, the reconciliation every reader makes).
+  expect(codes(errorsRunning({
+    "_olai/Properties.olai": `{"id":"p","ord":"a0","title":"Sprocket","custom":{"type":"text"}}`,
+    "lanes.olai": `{"id":"one","ord":"a0","title":"one","custom":{"SPROCKET":"claude"}}`,
+  }))).toEqual([])
+})
+
+test("a serve NOT running the plugin says nothing, so a flag cannot decide a verdict", () => {
+  const files = {
+    "lanes.olai": `{"id":"one","ord":"a0","title":"one","custom":{"sprocket":"claude"}}`,
+  }
+  // Built but not enabled — the state `--plugins=` leaves, and byte-identical
+  // to a vault that never heard of the plugin. A finding here would make one
+  // directory broken on one machine and clean on the next.
+  expect(codes(errorsRunning(files, { built: RUNNING.built, enabled: new Map() }))).toEqual([])
+  // …and a build with no plugin at all, which is what nearly every case in this
+  // file runs under: the rule is why they all still pass.
+  expect(codes(errorsOf(files))).toEqual([])
+})
+
+test("a kind with no history is silent, which is every kind that was always one", () => {
+  const always: ContributedKind = { ...RETIRED, wasCalled: undefined }
+  expect(codes(errorsRunning({
+    "lanes.olai": `{"id":"one","ord":"a0","title":"one","custom":{"sprocket":"claude"}}`,
+  }, { built: new Map([[always.kind, always]]), enabled: new Map([[always.kind, always]]) })))
+    .toEqual([])
+})
+
+test("nothing holds the key, so nothing is said — the rule MEETS a value or it is quiet", () => {
+  // A fresh vault that never used the old spelling owes no migration, and a nag
+  // it could do nothing about would be permanent.
+  expect(codes(errorsRunning({
+    "lanes.olai": `{"id":"one","ord":"a0","title":"one","custom":{"pr":"193"}}`,
+  }))).toEqual([])
+})
+
+test("one record is one record, however many spellings of the key it wrote", () => {
+  // A hand-edited node carrying both, which is the only way to get there — the
+  // key is folded on the way in, so the two are one key and one thing to fix,
+  // and a count that said two would be a sentence a person cannot act on.
+  const errors = errorsRunning({
+    "lanes.olai": `{"id":"one","ord":"a0","title":"one","custom":{"Sprocket":"a","sprocket":"b"}}`,
+  })
+  expect(errors[0]?.message).toContain("held by 1 record and")
+  expect(errors[0]?.related?.length).toBe(1)
+})
+
+test("the records it names are capped, and the count is not", () => {
+  // The idiom a refusal over a roster already uses (`./typing.ts`'s `listed`):
+  // a vault with two hundred of them would otherwise put its whole node list in
+  // one sentence. The COUNT is the honest number either way.
+  const errors = errorsRunning({
+    "lanes.olai": Array.from(
+      { length: 11 },
+      (_, at) => `{"id":"n${at}","ord":"a${at}","title":"n","custom":{"sprocket":"claude"}}`,
+    ).join("\n"),
+  })
+  expect(codes(errors)).toEqual(["legacy-key"])
+  expect(errors[0]?.message).toContain("held by 11 records")
+  expect(errors[0]?.message).toContain("and 3 more")
+  expect(errors[0]?.related?.length).toBe(8)
 })
 
 // ── the reading a WRITE leaves ─────────────────────────────────────────

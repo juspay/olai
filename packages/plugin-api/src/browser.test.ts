@@ -35,6 +35,7 @@ import {
   Bar,
   Clocks,
   definePlugin,
+  Faces,
   Links,
   mountPlugin,
   openApp,
@@ -69,9 +70,11 @@ const PILL = {
 
 /** A tab's runtime with the furniture on it, as `@olai/web` opens one. The
  *  Effects run at the EDGE: a case is an ordinary `async` test. */
-const opened = async (changed?: () => void) => {
+const opened = async (changed?: () => void, reading?: () => void) => {
   const run = standing()
-  const app = await run(openApp({ changed, clientFor: (plugin) => `client:${plugin}` }))
+  const app = await run(
+    openApp({ changed, reading, clientFor: (plugin) => `client:${plugin}` }),
+  )
   await run(app.furnish({
     clocks: CLOCKS,
     bar: { desktop: () => true, pill: PILL, popover: () => ({}) as never },
@@ -342,4 +345,179 @@ test("a face the app refused leaves the table, and takes only its own plugin dow
   // The refused face is gone from the table, so nothing downstream can draw it
   // — and the neighbour's is untouched.
   expect(app.hung("app.header")).toEqual([{ plugin: "neighbour", face }])
+})
+
+/**
+ * THE OTHER TWO CARDINALITIES — a LIST, where one plugin may hang as many as it
+ * has, and a SINGLE, where the whole app has room for one.
+ *
+ * Neither was expressible while every slot was one face per key: a plugin's
+ * second sidebar section landed it in `failed` with the duplicate message, and
+ * "one panel across all plugins" had no key that two plugins could both claim.
+ * The cases below are the two halves of that — that a list refuses nothing, and
+ * that the single slot refuses in words a reader can act on.
+ */
+
+/** A LIST TAKES AS MANY AS ARRIVE, from one plugin or from several, in the order
+ *  they were hung — the arrival order the table promises, which `@olai/web`
+ *  re-sorts by the bundle's rank at the read. */
+test("a list slot takes every face a plugin hangs, and each carries its name", async () => {
+  const { app, run } = await opened()
+  const section = (said: string) => ({ said, body: () => null })
+  await run(mountPlugin(
+    app.host,
+    definePlugin({
+      name: "alpha",
+      needs: [Slots],
+      apply: Effect.gen(function*() {
+        const slots = yield* Slots
+        yield* slots.register("sidebar.section", section("one"))
+        yield* slots.register("sidebar.section", section("other"))
+      }),
+    }),
+  ))
+  await run(mountPlugin(
+    app.host,
+    definePlugin({
+      name: "beta",
+      needs: [Slots],
+      apply: Effect.gen(function*() {
+        yield* (yield* Slots).register("sidebar.section", section("beta's"))
+      }),
+    }),
+  ))
+  // Both of alpha's, and neither took the other down — which is the whole
+  // difference between this and a keyed slot.
+  expect(app.hung("sidebar.section").map((one) => [one.plugin, one.face.said])).toEqual([
+    ["alpha", "one"],
+    ["alpha", "other"],
+    ["beta", "beta's"],
+  ])
+})
+
+/** ...AND A LIST ENTRY LEAVES WITH ITS PLUGIN, and the app is told — which is
+ *  the `changed` the roster underneath was written without. A list a page draws
+ *  from that moved without saying so is a section on screen after its plugin
+ *  unloaded. */
+test("a list face goes when its plugin does, and the app is told", async () => {
+  const moved: Array<number> = []
+  const { app, run } = await opened(() => moved.push(1))
+  const leaver = await run(mountPlugin(
+    app.host,
+    definePlugin({
+      name: "leaver",
+      needs: [Slots],
+      apply: Effect.gen(function*() {
+        const slots = yield* Slots
+        yield* slots.register("sidebar.section", { said: "one", body: () => null })
+        yield* slots.register("sidebar.section", { said: "other", body: () => null })
+      }),
+    }),
+  ))
+  expect(app.hung("sidebar.section")).toHaveLength(2)
+  // Told on the way IN, once per entry: a page that drew after the first would
+  // otherwise never hear about the second.
+  expect(moved.length).toBe(2)
+  await run(leaver.dispose)
+  expect(app.hung("sidebar.section")).toEqual([])
+  expect(moved.length).toBe(4)
+})
+
+/** THE APP'S ONE PANEL IS ONE, whoever asks — and the refusal names BOTH
+ *  plugins, because the key is the slot's own name and carries neither. A
+ *  sentence naming only the loser tells a reader nothing about what to take
+ *  out. */
+test("a second plugin claiming the app's single slot is refused, naming both", async () => {
+  const { app, run } = await opened()
+  const panel = () => null
+  await run(mountPlugin(
+    app.host,
+    definePlugin({
+      name: "alpha",
+      needs: [Slots],
+      apply: Effect.gen(function*() {
+        yield* (yield* Slots).register("app.panel", panel)
+      }),
+    }),
+  ))
+  const second = await run(mountPlugin(
+    app.host,
+    definePlugin({
+      name: "beta",
+      needs: [Slots],
+      apply: Effect.gen(function*() {
+        yield* (yield* Slots).register("app.panel", () => null)
+      }),
+    }),
+  ))
+  const report = await run(second.report)
+  expect(report.state).toBe("failed")
+  const fault = report.state === "failed" ? report.fault ?? "" : ""
+  expect(fault).toContain("beta")
+  expect(fault).toContain("alpha")
+  expect(fault).toContain("app.panel")
+  // ...and the seat is still alpha's, with the plugin's word on the row: `only`
+  // answers one face and not an array, because "there is at most one" is the
+  // thing the slot exists to say.
+  expect(app.only("app.panel")).toEqual({ plugin: "alpha", face: panel })
+})
+
+/** AN UNOCCUPIED SLOT IS A LEGITIMATE STATE — a serve running one plugin has
+ *  nobody in most of this table, and every read answers its own empty rather
+ *  than failing or handing back `undefined` for a caller to test. */
+test("a slot nobody has hung a face in reads empty, whatever its cardinality", async () => {
+  const { app } = await opened()
+  expect(app.hung("app.header")).toEqual([])
+  expect(app.hung("app.keys")).toEqual([])
+  expect(app.dressed("outline.row.door").size).toBe(0)
+  expect(app.only("app.panel")).toBe(null)
+})
+
+/**
+ * A PLUGIN READS A SLOT IT DOES NOT OWN — the door the chat panel becomes the
+ * far side of.
+ *
+ * Six plugins hang a mark and the panel that draws all six is about to be a
+ * seventh plugin, which no shape in this file could spell while `Slots` had a
+ * `register` and nothing else. What is held here is that the reader sees the
+ * REGISTRATIONS and not a privileged view of anything: the same three reads the
+ * tab has, off the same tables, with the registering plugin's word beside each
+ * face and no way to write one.
+ */
+test("a plugin reads what other plugins hung, and its read is tracked like the app's", async () => {
+  const reads: Array<number> = []
+  const { app, run } = await opened(undefined, () => reads.push(1))
+  const mark = () => null
+  await run(mountPlugin(
+    app.host,
+    definePlugin({
+      name: "alpha",
+      needs: [Slots],
+      apply: Effect.gen(function*() {
+        yield* (yield* Slots).register("chat.speaker.mark", mark)
+      }),
+    }),
+  ))
+  const seen: Array<unknown> = []
+  await run(mountPlugin(
+    app.host,
+    definePlugin({
+      name: "reader",
+      needs: [Faces],
+      apply: Effect.gen(function*() {
+        const faces = yield* Faces
+        seen.push(faces.hung("chat.speaker.mark"))
+        // ...and nothing on this door writes: a reader has `hung`, `dressed` and
+        // `only`, and `register` is on the other tag, keyed by the fiber that
+        // calls it.
+        seen.push("register" in faces)
+      }),
+    }),
+  ))
+  expect(seen[0]).toEqual([{ plugin: "alpha", face: mark }])
+  expect(seen[1]).toBe(false)
+  // The app was told the read happened, which is how a plugin's draw re-runs
+  // when a sibling arrives or leaves — the signal is `@olai/web`'s and this
+  // runtime has still never heard of Solid.
+  expect(reads.length).toBeGreaterThan(0)
 })

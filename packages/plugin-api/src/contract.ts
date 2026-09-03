@@ -212,6 +212,11 @@ export interface PropKind {
    *     own name, so enabling one can never take over a column somebody has
    *     been using for something of their own.
    *
+   * THE BARE WORD MAY ITSELF CARRY A HYPHEN — chat's is `agent-session`, and
+   * what a vault declares is `chat-agent-session`. The separator is fenced out
+   * of the PLUGIN half only, which is where the whole of the injectivity lives;
+   * {@link kindWordOf}'s body argues that asymmetry and names its one cost.
+   *
    * A plugin writes the bare word once and the composition happens where the
    * plugin's own name is: inside the service, minted from the word the registry
    * bound it under, never off an argument a caller supplied. What each plugin
@@ -545,37 +550,76 @@ export const exposeMapsOf = (
  * because a plugin's walk runs where core's table is not; `@olai/bundle`'s
  * `kinds.test.ts` holds the two spellings equal.
  *
- * THE SEPARATOR IS FORBIDDEN INSIDE EITHER HALF, which is what makes the
- * composition injective and the collision unreachable rather than merely
- * counted — see the refusals in the body.
+ * THE SEPARATOR IS FORBIDDEN INSIDE THE PLUGIN HALF — that half alone, and the
+ * asymmetry is what makes the composition injective and the collision
+ * unreachable rather than merely counted. It used to be forbidden inside BOTH,
+ * and the argument for that was sound but stronger than it needed to be; the
+ * body says which half, why, and what the human's `chat-agent-session` ruling
+ * costs a plugin whose own name carries a hyphen.
  */
 export const KIND_SEPARATOR = "-"
 
 export const kindWordOf = (plugin: string, kind: string): string => {
-  // THE SEGMENTS MAY NOT CARRY THE SEPARATOR, which is `assertTagSegment`'s
-  // rule on the wire and is here for the identical reason: without it the
-  // composition is AMBIGUOUS, and ambiguity is what makes a collision possible
-  // at all. `kindWordOf("ab", "c-d")` and `kindWordOf("ab-c", "d")` both compose
-  // to `ab-c-d`, so two plugins whose names genuinely differ could still land on
-  // one word — the count in `./services.ts`'s `Kinds` would catch it, but a refusal about a
-  // word neither author wrote is a refusal nobody can act on.
-  //
-  // Refused HERE rather than counted downstream, so the composition is INJECTIVE
-  // and the collision is unreachable rather than merely reported. A plugin name
-  // is already held to this by the wire (a name is a sibling key, and
-  // `assertTagSegment` forbids a `/` in one); a kind word had nothing of the
-  // sort, and this is it.
+  // NEITHER HALF MAY BE EMPTY, and this is not hygiene — it is half of the
+  // proof below. An empty plugin name would put the joint at index 0 and an
+  // empty kind would leave nothing after it, so either way the word names a
+  // half that is not there, and it would still be a legal `type` for a vault to
+  // write.
   for (const [what, segment] of [["plugin name", plugin], ["kind", kind]] as const) {
     if (segment.length === 0) {
       throw new Error(`plugins: a ${what} may not be empty — it is half of a composed kind word.`)
     }
-    if (segment.includes(KIND_SEPARATOR)) {
-      throw new Error(
-        `plugins: the ${what} "${segment}" carries "${KIND_SEPARATOR}", which is the ` +
-          "separator a kind word is composed with — two halves that may carry it compose " +
-          "ambiguously, and two different plugins could land on one word.",
-      )
-    }
+  }
+  // ONE HALF MUST CARRY NO SEPARATOR, AND IT IS THE PLUGIN'S.
+  //
+  // The argument this refusal was born with is still true and is exactly why
+  // one half stays fenced: without a fence the composition is AMBIGUOUS, and
+  // ambiguity is what makes a collision possible at all. `kindWordOf("ab",
+  // "c-d")` and `kindWordOf("ab-c", "d")` both spell `ab-c-d`, so two plugins
+  // whose names genuinely differ could still land on one word — the count in
+  // `./services.ts`'s `Kinds` would catch it, but a refusal about a word
+  // neither author wrote is a refusal nobody can act on.
+  //
+  // What that argument does not establish is that BOTH halves need the fence,
+  // which is what this function used to refuse. Fix the split direction — a
+  // composed word decomposes at its FIRST separator — and fencing the plugin
+  // half alone is sufficient: the first separator in `${plugin}-${kind}` is
+  // then always the joint, the prefix before it is the whole plugin name and
+  // the rest is the whole kind, so the pair is recovered from the word and no
+  // two pairs can spell one. That is injectivity, and `@olai/bundle`'s
+  // `kinds.test.ts` holds it as a round-trip rather than as this paragraph.
+  //
+  // WHY THE PLUGIN HALF AND NOT THE KIND: because the human ruled the word.
+  // Chat contributes the bare kind `agent-session` and a vault declares
+  // `chat-agent-session`, with existing vaults keeping their bare key by one
+  // row, `{"title":"agent-session","custom":{"type":"chat-agent-session"}}`. A
+  // kind fenced against the separator makes that spelling unconstructible, and
+  // the honest alternative — rename the bare kind to `session` and let the row
+  // read `chat-session` — is a spelling the human did not rule. It is also the
+  // wrong half to fence on the merits: a kind word is a plugin author's noun
+  // and hyphens are how English nouns compound, while a plugin name is already
+  // a wire sibling key with a grammar of its own.
+  //
+  // AND WHAT IT COSTS, said plainly because it is a real loss: A PLUGIN WHOSE
+  // NAME CARRIES A HYPHEN MAY NO LONGER CONTRIBUTE A KIND AT ALL. A name is
+  // held to `/^[a-z][a-z0-9-]*$/` (`@olai/bundle`'s `fence.test.ts`), which
+  // admits one, and `xyne-spaces` in this tree has one. It registers no kind
+  // today, so this build refuses nothing; a hyphenated plugin that later wants
+  // a word must be renamed first. The alternative was to narrow the plugin-name
+  // grammar to a hyphen-free word for everyone, and that is a rename of a
+  // shipped sibling key — its tags, its preferences row, its docs slug, its
+  // `olai.yml` row — charged to every plugin to buy a fence only the
+  // kind-contributing ones need. So it is refused HERE, where the name is
+  // spent, and the message names the plugin, so an author reads it about their
+  // own plugin rather than about the grammar.
+  if (plugin.includes(KIND_SEPARATOR)) {
+    throw new Error(
+      `plugins: the plugin name "${plugin}" carries "${KIND_SEPARATOR}", which is the ` +
+        "separator a kind word is composed with, and the plugin name is the half that may " +
+        "not carry it — a composed word is split at its FIRST separator, so a name carrying " +
+        "one would leave two plugins' words indistinguishable. A plugin whose name has a " +
+        "hyphen contributes no kind; rename the plugin, or contribute none.",
+    )
   }
   return `${plugin}${KIND_SEPARATOR}${kind}`
 }

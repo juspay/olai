@@ -90,6 +90,7 @@ import {
   reportDeclarations,
   reportDocs,
   reportDuplicateIds,
+  reportLegacyKeys,
   reportMirrorCycles,
   reportOf,
   reportParentCycles,
@@ -236,6 +237,13 @@ const whole = (set: OutlineSet, view: Derived): ReadonlyArray<OutlineError> => {
   reportDocs(all, known, errors)
   reportDeclarations(view, NO_KINDS, errors)
   reportPropValues(all, typed, errors)
+  // The third typing rule, here for the paragraph above's reason and no other:
+  // this arm has to be every rule `wholly` runs or the ratio is flattered. It
+  // measures nothing under `NO_KINDS` — a build with no plugin has no retired
+  // spelling to answer for, so the rule returns on its first guard — and that
+  // is the honest reading of what a vault WITH one costs, since the answer is
+  // "one map read" until a plugin carries `wasCalled`.
+  reportLegacyKeys(all, typed, errors)
   return errors
 }
 
