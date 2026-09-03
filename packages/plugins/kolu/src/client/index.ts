@@ -599,7 +599,6 @@ export {
   WATCH_RING,
   type Watch,
   type WatchConfig,
-  type WatchNag,
 } from "./watch.ts"
 /** KOLU'S OWN DURATION GRAMMAR, re-opened at the root door: the vault walk
  *  (`../../config.ts`) lives in the judgement half, which the repo's fence
