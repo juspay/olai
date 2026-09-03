@@ -55,17 +55,21 @@
  * never stamped): two sequential settles of one lane through one busy turn
  * are two subjects, and collapsing one into the other would lose what the
  * first said — the exact arm of core's `deliver` contract that a fresh
- * derivation never needs. A RED spell and then another on the same run
- * cannot double up by construction: first-red is once per hold, so there is
- * at most one body per (kind, run) in flight at all.
+ * derivation never needs. Two settlements of ONE RUN share their key by
+ * design: a lingering coordinator's rerun un-settles and re-settles the run,
+ * and the later account — rung later, carrying the hold's whole red record —
+ * is the same run's newer truth, so the replacement is the wake saying the
+ * newest thing rather than a swallow. A RED spell and then another on the
+ * same run cannot double up by construction: first-red is once per hold.
  *
  * What is re-derived at the delivery moment is only what time can
  * legitimately move: the CLAIM (a lane finished while the wake queued is a
  * wake nobody owes — `null` drops the delivery), and, for first-red, the
  * COUNTS: a body that says "so far" must say it of the moment it enters the
  * conversation, so it reads the live row again where the row is still this
- * run's. The settle notice's row is its own final account — the one sentence
- * in this file deliberately frozen at emission, because it IS the last frame.
+ * run's. The settle notice's row is the one sentence in this file
+ * deliberately frozen at emission: the settling frame's own account, which
+ * a re-read at the delivery moment could only mix with the rerun's frames.
  *
  * ## Plain text, and no markdown anywhere
  *
@@ -322,7 +326,7 @@ export function bodyFor(
       "",
       `The run is \`${which}\`, live in ${run.at}. ${cap(laneOf(claim))} claims it — the un-done row ${nodeRef(claim.node)} of ${claim.file} names its checkout — and \`${notice.cell.id}\` (${notice.cell.name} on ${notice.cell.platform}) is the first of its nodes to go red.`,
       "",
-      `This lands once per hold. When the run settles, one more account follows: the verdict, the final counts, and the log path of every failed recipe. Clearing the file on this conversation's wake control stops both.`,
+      `This lands once per hold. Each settlement of the run — a lingering rerun's included — follows with its own account: the verdict, the final counts, and the log path of every failed recipe. Clearing the file on this conversation's wake control stops both.`,
     )
     return lines.join("\n")
   }
@@ -335,7 +339,7 @@ export function bodyFor(
   if (reran.length > 0) lines.push("", ...reran)
   lines.push(
     "",
-    "These land once per hold. The lane's next run rings again when it first goes red and when it settles. Clearing the file on this conversation's wake control stops both.",
+    "These land once per settlement — a lingering rerun settles again and rings again. The lane's next run rings again when it first goes red and when it settles. Clearing the file on this conversation's wake control stops both.",
   )
   return lines.join("\n")
 }
@@ -348,6 +352,7 @@ const claimLine = (claim: Claim): string =>
 
 /** The slot an undelivered body is filed under — per KIND AND PER RUN, so two
  *  sequential settles of one lane through one busy turn are two subjects.
+ *  Two settlements of ONE run share it by design — see the header.
  *  `identityOf` degenerates to the bare name only for a run odu never stamped. */
 export const coalesceOf = (notice: RunNotice): string =>
   `${name}:${notice.kind}:${identityOf(notice.run)}`

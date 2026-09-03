@@ -172,15 +172,17 @@ export type RunNotice =
      *  `finishedAt`). Rung on THAT frame, however long the coordinator
      *  outlives it: with `--linger` the socket stays serving on purpose, so
      *  this notice's `run.live` is `true` — the row's `live` is the socket's
-     *  truth and the truth here is that it's still up. The settle arrives
-     *  with `live: false` only in the OTHER case: the socket died before any
-     *  settling frame, which is what a coordinator killed mid-run says.
+     *  truth and the truth here is that it's still up.
      *
      *  Once per settlement: a lingering coordinator's rerun un-settles the
-     *  run and the drain after it rings again — and its own later end rings
-     *  nothing, whether it settled the hold (already said) or outlived one.
-     *  The verdict word (`ok` / `red` / `ended`) is the owning plugin's fold
-     *  of the row, exactly as the chip's is.
+     *  run and the drain after it rings again. The HOLD'S OWN END is silent
+     *  exactly when it ends settled — the settle was said on its frame, and
+     *  an idle reap or `odu cancel` is not a second one. An end that arrives
+     *  UN-SETTLED rings one last account with `live: false`: the socket died
+     *  before any settling frame, or a rerun un-settled the run and the
+     *  coordinator died in flight — either reading is a run that DIED, whose
+     *  verdict word (`ok` / `red` / `ended`) is the owning plugin's fold of
+     *  the row, exactly as the chip's is.
      */
     readonly kind: "settled"
     readonly run: CiRun
