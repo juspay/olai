@@ -1,6 +1,6 @@
 /**
  * THE AGENTS ROSTER, ASSEMBLED — the vault's `prop:agent-session` reading with
- * the one line this machine overheard joined onto it.
+ * each session's live state and the last line this machine overheard.
  *
  * The roster is the one answer on this wire whose two halves are kept in two
  * different packages, deliberately and for a reason each of them argues at
@@ -11,11 +11,9 @@
  *     `agent-session` property, what they are called, which engine and which
  *     session the property names, how big their subtrees are — a reading of the
  *     set, moving on every published revision.
- *   - `@olai/chat`'s `sessions.ts` is the MACHINE-LOCAL half, and it is now one
- *     fact wide: the last line olai HEARD one of those sessions say. It is
- *     bookkeeping rather than config — a board written to on every turn is a
- *     board committed on every turn — which is exactly why the ruling left it
- *     on the machine.
+ *   - `@olai/chat` supplies the MACHINE-LOCAL half: `sessions.ts` keeps the last
+ *     line olai heard, and the scheduler reports every acquired node scope's
+ *     status and questions. Both are runtime facts, not vault configuration.
  *
  * Neither package may hold the other's: the format has never seen a session and
  * the chat has never seen an outline. So the join is HERE, at the composition
@@ -44,7 +42,8 @@
  *
  * ## The join itself is PURE and is the interesting part
  *
- * {@link joined} takes two lists and answers the wire's rows, so what an agent
+ * {@link joined} takes the durable list, overheard rows and live scopes and
+ * answers the wire's rows, so what an agent
  * nobody has started a session for says, and what happens to a line olai heard
  * in a session the property no longer names, are decided in a unit test rather
  * than by serving a directory.
@@ -53,8 +52,8 @@
 import type { Conversing, LiveSession, Overheard } from "@olai/chat"
 import {
   agentsOf,
-  ancestorsOf,
   type Derived,
+  nearestAtOrAbove,
   NO_AGENTS,
   type NodeAgent,
   type NodeAgents,
@@ -132,9 +131,11 @@ export const roster = (): Roster => {
     above: (node) => {
       if (reading === null) return null
       const agents = new Set(held.map((one) => one.id))
-      const nearest = [...ancestorsOf(reading, node)].reverse()
-        .find((one) => agents.has(one.node.id))
-      return nearest === undefined ? null : `“${nearest.node.title}” (\`${nearest.node.id}\`)`
+      agents.delete(node)
+      const nearest = nearestAtOrAbove(reading, node, agents)
+      if (nearest === null) return null
+      const agent = held.find((one) => one.id === nearest)
+      return agent === undefined ? null : `“${agent.title}” (\`${nearest}\`)`
     },
     rowsWith: (overheard, live) => joined(held, overheard, live),
   }

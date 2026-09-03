@@ -1,5 +1,5 @@
 /**
- * @olai/chat — one conversation with one ACP agent, and what it did.
+ * @olai/chat — node-scoped ACP conversations and what they did.
  *
  * Four exports and no more, because the composition root should be able to say
  * "an agent, wired to the surface" in a handful of lines:
@@ -8,9 +8,8 @@
  *     a PATH probe per agent olai knows, plus the one `OLAI_ACP_AGENT` names.
  *     Detecting them is the caller's move (it owns the process); deciding what
  *     a detected one looks like is this package's;
- *   - {@link make} builds the conversation over an agent factory it is handed,
- *     and everything else — the transcript, the protocol, the session — is
- *     behind it;
+ *   - {@link make} builds the scheduler over an agent factory it is handed;
+ *     each acquired node owns one lower-level panel and Effect scope;
  *   - `Change` is exported because the surface collection is seeded from the
  *     transcript this package keeps, and a caller that publishes what changed
  *     has to be able to name it. The `Transcript` itself is NOT exported —
@@ -53,8 +52,8 @@ export {
   type Sessions,
 } from "./sessions.ts"
 export { type Installed, roster, type Roster } from "./agents/roster.ts"
-export { type Chat, type LiveSession, type Options, type ToolServer, type ToolTicket } from "./chat.ts"
-export { DEFAULT_CAPACITY, DEFAULT_IDLE, make } from "./scoped.ts"
+export { type ToolServer } from "./chat.ts"
+export { type Chat, DEFAULT_CAPACITY, DEFAULT_IDLE, type LiveSession, make, type Options, type ToolTicket } from "./scoped.ts"
 export type { Probe, Probed, StdioServer } from "./probes.ts"
 export { type Fault, type Faulted, forDirectory as scopesIn, type Scoped, type Scopes } from "./scopes.ts"
 export type { Change } from "./transcript.ts"

@@ -671,7 +671,7 @@ Assigning a chat does not start anything by itself. The first press or derived w
 
 **A node agent's doorbells are its subtree, automatically.** The manual file picker exists only for conversations no node claims. A claim under nested node agents wakes the nearest one; an ancestor node agent catches claims that have no nearer agent, so a root orchestrator remains the backstop without hearing every child's own work.
 
-**Its tool writes are fenced to that same subtree.** Reads still see the vault, but a write at a node outside the subtree, a file or document write, and any attempt to change `agent-session` are refused before the store gate. The refusal names the nearest node agent above to ask. The credential is acquired with the session scope and tombstoned when reaped, so an old bearer becomes a closed door rather than an unfenced one. This is a protocol fence, not a sandbox: loopback MCP retains its documented unfenced door.
+**Its tool writes are fenced to that same subtree.** Reads still see the vault, but a write at a node outside the subtree, a file or document write, and any attempt to change `agent-session` are refused before the store gate. The refusal names the nearest node agent above to ask. The credential and its composed write door are acquired with the session scope and removed when it is reaped; a recognizable node-ticket prefix keeps an old bearer closed without retaining every expired credential. This is a protocol fence, not a sandbox: loopback MCP retains its documented unfenced door.
 
 ### What is not here yet, and in what order it comes
 

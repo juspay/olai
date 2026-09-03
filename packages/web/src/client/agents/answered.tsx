@@ -1,6 +1,6 @@
 /**
- * THE AGENTS ROSTER AS THIS TAB HAS IT — the two cells joined ONCE, and a
- * context over the answer.
+ * THE AGENTS ROSTER AS THIS TAB HAS IT — one subscription, and a context over
+ * the server's answer.
  *
  * `../pins/answered.tsx`'s arrangement, for its reasons, and they hold harder
  * here. The readers are scattered and none of them is near the other: the
@@ -10,26 +10,18 @@
  * would make every component's signature a function of what one descendant
  * needs.
  *
- * ## What is joined here rather than at each face
- *
- * How an agent STANDS is a fact about a pair — the `agents` cell and the `chat`
- * cell (`./roster.ts`) — and this is where the pair is read. It has to be one
- * place rather than one per face, and the reason is a measurement rather than a
- * preference: the DOOR is drawn for every node in the outline (it answers
- * nothing on the rows that carry no `agent-session` property, which is nearly all of
- * them). A door that joined for itself meant a chat-cell SUBSCRIPTION per row
- * and a whole-roster join per row per frame — a thousand subscriptions and a
- * thousand joins on a big board, for three agents' worth of answer, on a cell
- * that moves several times a turn. That is precisely the cost `../plugins/`
- * exists to refuse for a property chip: subscribe ONCE, here, and hand every
- * leaf an accessor.
+ * The DOOR is drawn for every node in the outline and answers nothing for
+ * nearly all of them. Subscribing there would mean a thousand subscriptions on
+ * a big board for three agents' worth of answer. Subscribe once here and hand
+ * every leaf an accessor. Standing is already on each row: several node scopes
+ * may be live, so the foreground chat cell cannot derive that answer.
  *
  * ## Two readings, because two questions are asked
  *
  * {@link Roster.rows} is the list, in the order the vault answers — what the
  * sidebar draws. {@link Roster.at} is one node's row — what a door and the
  * panel's header ask, both of which hold a node id and want nothing else. The
- * lookup is a MAP built with the join rather than a scan per asker, for the
+ * lookup is a MAP built with the list rather than a scan per asker, for the
  * reason `../doors.ts` builds one: the askers are per drawn row and the answer
  * is per frame.
  *
@@ -120,7 +112,7 @@ import { createChatState } from "../chat/state.ts"
 import { run } from "../run.ts"
 import { olai } from "../wire.ts"
 import { type Chatting, chatKey, claimedIn, unassignedIn } from "./lineage.ts"
-import { type Row, rowsOf } from "./roster.ts"
+import type { Row } from "./roster.ts"
 
 /** The roster as this tab has it: the list, one node's row, and the chats
  *  nobody has given a node yet. */
@@ -185,7 +177,7 @@ export function AgentsProvider(props: { readonly children: JSX.Element }) {
   // that folded the conversation to paint three dots would be paying the
   // panel's whole cost for the panel's chrome.
   const chat = createChatState()
-  const rows = createMemo(() => rowsOf(cell.value() ?? NO_AGENT_ROSTER, chat()))
+  const rows = createMemo(() => cell.value() ?? NO_AGENT_ROSTER)
   const byNode = createMemo(() => new Map(rows().map((row) => [row.id, row])))
   // OFF THE SAME FRAME, and a memo rather than a read at each asker so that a
   // chat frame which moved a dot does not re-run the menu's catalog: the list
@@ -349,10 +341,8 @@ export function AgentsProvider(props: { readonly children: JSX.Element }) {
   )
 }
 
-/** The roster as the server last answered it, joined with what the open
- *  conversation is doing — or a throw when a consumer is drawn outside the
- *  provider, which is a bug in this app rather than a state a reader can
- *  reach. */
+/** The roster as the server last answered it — or a throw when a consumer is
+ * drawn outside the provider, which is a bug rather than a reachable state. */
 export const useAgents = (): Roster => {
   const roster = useContext(AgentsContext)
   if (roster === undefined) throw new Error("an agents lookup outside <AgentsProvider>")

@@ -1879,6 +1879,20 @@ export const ancestorsOf = (
   id: string,
 ): ReadonlyArray<LocatedRegular> => ancestryOver((key) => derived.byId.get(key), id)
 
+/** The nearest selected node at or above `id`, or `null` when its ancestry
+ * contains none. This is the one precedence rule used by nested node-agent
+ * scopes and by the refusal that names the agent immediately above one. */
+export const nearestAtOrAbove = (
+  derived: Derived,
+  id: string,
+  selected: ReadonlySet<string>,
+): string | null => {
+  if (selected.has(id)) return id
+  const nearest = [...ancestorsOf(derived, id)].reverse()
+    .find((crumb) => selected.has(crumb.node.id))
+  return nearest?.node.id ?? null
+}
+
 /** The canonical ancestry walk over an arbitrary id index. Plans use this to
  * judge their after-side with exactly the same rules as a standing reading. */
 export const ancestryOver = (

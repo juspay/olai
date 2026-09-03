@@ -1,5 +1,5 @@
-/** Per-node session credentials. Releasing one tombstones it, so reaping can
- * only close authority and can never turn a stale token into an unfenced one. */
+/** Per-node session credentials. The ticket registry owns the narrowed door,
+ * so releasing a node scope drops its whole MCP footprint at once. */
 import type { FaceExposure } from "@kolu/surface/expose"
 import type { Fence, Ops } from "@olai/ops"
 import { randomBytes } from "node:crypto"
@@ -29,51 +29,49 @@ export const ticketing = (options: {
   readonly ops: Ops
   readonly token: string
 }): Tickets => {
-  const tickets = new Map<string, (() => Fence) | null>()
-  const doors = new Map<string, OlaiSurfaceClient>()
+  const prefix = "olai-node-"
+  const tickets = new Map<string, OlaiSurfaceClient>()
 
   const composed = (fence: Fence): OlaiSurfaceClient => clientOver({
     group: options.bound.group,
     handlers: writerAt(options.bound, options.ops, { writer: "chat-agent", fence }),
   }, options.face)
 
-  const doorFor = (fence: Fence): OlaiSurfaceClient => {
-    if (fence.under === null) return composed(fence)
-    const held = doors.get(fence.under)
-    if (held !== undefined) return held
-    const made = composed(fence)
-    doors.set(fence.under, made)
-    return made
-  }
+  const closed = composed({ under: null, ask: () => null, forbidden: new Set() })
 
   return {
     mint: (seated, above) => {
-      const bearer = randomBytes(24).toString("hex")
-      tickets.set(bearer, () => {
-        const seat = seated()
-        return {
-          under: seat.under,
-          ask: () => above(seat.under),
-          forbidden: new Set(seat.forbidden),
-        }
-      })
+      const bearer = `${prefix}${randomBytes(24).toString("hex")}`
+      const fence: Fence = {
+        get under() {
+          return seated().under
+        },
+        ask: () => above(seated().under),
+        get forbidden() {
+          return new Set(seated().forbidden)
+        },
+      }
+      tickets.set(bearer, composed(fence))
+      let released = false
       return {
         bearer,
         release: () => {
-          if (tickets.has(bearer)) tickets.set(bearer, null)
+          if (released) return
+          released = true
+          tickets.delete(bearer)
         },
       }
     },
     doorAt: (held) => {
       const bearer = currentTicket()
       if (bearer === null || bearer === options.token) return held
-      const fence = tickets.get(bearer)
+      const door = tickets.get(bearer)
       // Preserve the route's existing loopback affordance for arbitrary tokens.
-      if (fence === undefined) return held
-      if (fence === null) {
-        return doorFor({ under: null, ask: () => null, forbidden: new Set() })
-      }
-      return doorFor(fence())
+      if (door !== undefined) return door
+      // A released (or forged) node-shaped credential stays closed without a
+      // tombstone per historical token. Other arbitrary loopback tokens keep
+      // the route's longstanding unfenced behaviour.
+      return bearer.startsWith(prefix) ? closed : held
     },
   }
 }

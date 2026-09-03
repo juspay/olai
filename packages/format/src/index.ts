@@ -458,6 +458,7 @@ export {
   /** The crumbs' titles, outermost first — what every reader of an ancestry
    *  actually draws, said once. */
   ancestorTitles,
+  nearestAtOrAbove,
   /** What one node is WAITING ON — the reading side of `Derived.blocked`, so no
    *  caller has to know that absence is how that index spells "nothing".
    *

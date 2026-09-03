@@ -76,7 +76,6 @@ import {
 } from "@olai/plugin-api/services"
 import {
   type Convention,
-  ancestorsOf,
   conventionServed,
   declarationsOf,
   type Derived,
@@ -85,6 +84,7 @@ import {
   type OutlineSet,
   type PropDeclarations,
   insideSubtree,
+  nearestAtOrAbove,
 } from "@olai/format"
 import { Effect } from "effect"
 import { type Dial, koluHalf } from "olai-plugin-kolu/appliance"
@@ -351,8 +351,7 @@ export default definePlugin({
       const candidates = new Set(scopes.flatMap((one) =>
         one.file === scope.file && one.under !== undefined ? [one.under] : []
       ))
-      const path = [node, ...ancestorsOf(at, node).map((one) => one.node.id).reverse()]
-      return path.find((id) => candidates.has(id)) === scope.under
+      return nearestAtOrAbove(at, node, candidates) === scope.under
     }
     const narrowed = (
       at: Derived,

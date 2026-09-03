@@ -36,7 +36,7 @@ import type { ChatEntry, ChatState } from "@olai/surface"
 
 import { QUEUES } from "./agents/legs.testlib.ts"
 import type { Installed } from "./agents/roster.ts"
-import { type Chat, make as makeChat } from "./chat.ts"
+import { makePanel as makeChat, type Panel } from "./chat.ts"
 import { forDirectory as sessionsIn } from "./sessions.ts"
 import { teachingFor } from "./teaching.ts"
 
@@ -106,7 +106,7 @@ const run = <A, E>(effect: Effect.Effect<A, E>): Promise<A> => Effect.runPromise
 const settle = (ms = 250) => Effect.runPromise(Effect.sleep(`${ms} millis`))
 
 interface Seat {
-  readonly chat: Chat
+  readonly chat: Panel
   /** Every row the chat published, in order — a test's transcript. */
   readonly rows: () => ReadonlyArray<ChatEntry>
   readonly state: () => ChatState

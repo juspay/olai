@@ -10,24 +10,10 @@
  * machines, because the vault does — the session pointer included, since the
  * human's 2026-09-02 ruling put every piece of config in the vault.
  *
- * WHAT THIS MACHINE ADDS is one line: the last thing olai HEARD that agent say.
- * It is bookkeeping rather than config — nothing configures it and nothing else
- * can reconstruct it — so it stays in this machine's own state
- * (`@olai/chat`'s `sessions.ts`) and reaches a browser only here, joined onto
- * the vault's row by the server that holds both.
- *
- * ## What is NOT on this row, and where it is instead
- *
- * The LIVE state — working, needs-you, idle — is not here, and the omission is
- * the point. Olai runs ONE conversation at a time, so at most one row of this
- * roster is a session that is actually up, and what it is doing is already the
- * whole subject of the `chat` cell: a status, a count of questions waiting, the
- * turn in flight. Copying any of that onto every row would be that cell's
- * answer restated per node, republished per token, and free to disagree with
- * the header drawn beside it. The browser JOINS instead
- * (`@olai/web`'s `agents/roster.ts`): this row says which conversation the node
- * is bound to, {@link ChatState.bound} says which node the open conversation
- * belongs to, and the state falls out of whether those are the same row.
+ * WHAT THIS MACHINE ADDS is the session's live standing, its waiting-question
+ * count, and the last thing olai HEARD it say. None is vault configuration and
+ * none can be reconstructed by a browser, so the server that owns the node
+ * scopes joins all three onto the durable row.
  *
  * ## A CELL, for the shelf's reason
  *
@@ -41,6 +27,17 @@
 
 import { NodeAgent } from "@olai/format"
 import { Schema } from "effect"
+
+export const AgentStanding = Schema.Union([
+  Schema.Literal("needs-you"),
+  Schema.Literal("working"),
+  Schema.Literal("waking"),
+  Schema.Literal("idle"),
+  Schema.Literal("gone"),
+  Schema.Literal("asleep"),
+  Schema.Literal("unbound"),
+])
+export type AgentStanding = typeof AgentStanding.Type
 
 /**
  * ONE ROW OF THE ROSTER: the node agent as the set knows it, plus what this
@@ -60,17 +57,9 @@ import { Schema } from "effect"
  */
 export const NodeAgentRow = Schema.Struct({
   ...NodeAgent.fields,
-  /** Session lifecycle is per node now, so it travels on the row rather than
-   * being inferred from whichever conversation the panel happens to show. */
-  standing: Schema.Union([
-    Schema.Literal("needs-you"),
-    Schema.Literal("working"),
-    Schema.Literal("waking"),
-    Schema.Literal("idle"),
-    Schema.Literal("gone"),
-    Schema.Literal("asleep"),
-    Schema.Literal("unbound"),
-  ]),
+  /** Session lifecycle is per node, so it travels on the row rather than being
+   * inferred from whichever conversation the foreground panel happens to show. */
+  standing: AgentStanding,
   waiting: Schema.Int,
   /**
    * THE LAST LINE OLAI HEARD THIS AGENT SAY, or `null` before it has heard one.

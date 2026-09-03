@@ -57,10 +57,10 @@ import {
   Wakes,
 } from "@olai/plugin-api/services"
 import {
-  ancestorsOf,
   declarationsOf,
   type Derived,
   insideSubtree,
+  nearestAtOrAbove,
   NO_TYPING,
   type PropDeclarations,
 } from "@olai/format"
@@ -216,8 +216,7 @@ export default definePlugin({
       const candidates = new Set(scopes.flatMap((one) =>
         one.file === scope.file && one.under !== undefined ? [one.under] : []
       ))
-      const path = [node, ...ancestorsOf(at, node).map((one) => one.node.id).reverse()]
-      return path.find((id) => candidates.has(id)) === scope.under
+      return nearestAtOrAbove(at, node, candidates) === scope.under
     }
 
     /**

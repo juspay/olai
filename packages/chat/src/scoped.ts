@@ -8,11 +8,11 @@
  * inbox in one finalizer.
  */
 
-import { BusyFailure, type NodeAgent, UsageFailure } from "@olai/format"
+import { BusyFailure, type NodeAgent, type NodeAgents, UsageFailure } from "@olai/format"
 import type { OpFailure } from "@olai/surface"
 import { Duration, Effect, Exit, Fiber, Scope, Semaphore } from "effect"
 
-import type { Chat, LiveSession, Options } from "./chat.ts"
+import type { Panel, PanelOptions } from "./chat.ts"
 import { makePanel } from "./chat.ts"
 import type { Change } from "./transcript.ts"
 
@@ -21,11 +21,51 @@ import type { Change } from "./transcript.ts"
 export const DEFAULT_IDLE = Duration.minutes(15)
 export const DEFAULT_CAPACITY = 8
 
+/** A per-node credential owned by the node scope that receives it. */
+export interface ToolTicket {
+  readonly bearer: string
+  readonly release: () => void
+}
+
+/** The part of a node session's state that the roster reads. */
+export interface LiveSession {
+  readonly status: ReturnType<Panel["state"]>["status"]
+  readonly asking: number
+}
+
+/** The public chat is the scheduler over panels, with every acquired node
+ * scope exposed for the server's roster projection. */
+export interface Chat extends Panel {
+  readonly live: () => ReadonlyMap<string, LiveSession>
+  readonly startAgentSession: (
+    node: string,
+    agent: string,
+  ) => Effect.Effect<void, OpFailure>
+}
+
+/** The scheduler's policy and dependencies. Unlike a panel, this always owns
+ * a node pool; there is no optional field that changes which lifecycle `make`
+ * constructs. */
+export interface Options extends PanelOptions {
+  readonly nodeAt: (node: string) => NodeAgent | null
+  /** All durable node agents, including sleeping ones. Derived doorbells must
+   * be able to wake a scope that has no process yet. */
+  readonly nodes: () => NodeAgents
+  /** Mint the MCP credential acquired and released with a node scope. */
+  readonly ticket?: (node: string) => ToolTicket
+  /** The idle lifetime of a node scope. */
+  readonly idle?: Duration.Input
+  /** Maximum concurrently acquired node scopes. */
+  readonly capacity?: number
+  /** A background node session changed standing. */
+  readonly onLive?: () => void
+}
+
 interface NodeSlot {
   readonly node: string
   readonly scope: Scope.Closeable
-  readonly panel: Chat
-  state: ReturnType<Chat["state"]>
+  readonly panel: Panel
+  state: ReturnType<Panel["state"]>
   touched: number
   generation: number
   closing: boolean
@@ -34,59 +74,59 @@ interface NodeSlot {
 
 const empty: Change = { upserts: [], removes: [], appends: [] }
 
-/** Build the old panel where no vault-side node lookup was supplied; otherwise
- * build the scheduler. This keeps the package's lower-level fixtures honest:
- * they still exercise exactly one conversation and none accidentally grows a
- * second lifecycle. */
+/** Build the scheduler. Focused state-machine tests call `makePanel` directly;
+ * package consumers always get the node-scoped lifecycle. */
 export const make = (options: Options): Effect.Effect<Chat, never, never> =>
-  options.nodeAt === undefined ? makePanel(options) : makeScoped(options)
-
-const makeScoped = (options: Options): Effect.Effect<Chat, never, never> =>
   Effect.gen(function*() {
-    const nodeAt = options.nodeAt as (node: string) => NodeAgent | null
-    const idle = options.idle ?? DEFAULT_IDLE
-    const capacity = options.capacity ?? DEFAULT_CAPACITY
+    const {
+      capacity = DEFAULT_CAPACITY,
+      idle = DEFAULT_IDLE,
+      nodeAt,
+      nodes: nodesAt,
+      onLive,
+      ticket: mintTicket,
+      ...panelOptions
+    } = options
     const gate = yield* Semaphore.make(1)
     const nodes = new Map<string, NodeSlot>()
     let stopped = false
-    let active: { readonly kind: "root"; readonly panel: Chat } | {
+    let active: { readonly kind: "root"; readonly panel: Panel } | {
       readonly kind: "node"
       readonly slot: NodeSlot
     }
-    let migrateRemembered: (state: ReturnType<Chat["state"]>) => void = () => {}
+    let migrateRemembered: (state: ReturnType<Panel["state"]>) => void = () => {}
     let migrationPaused = 0
     let migrationFiber: Fiber.Fiber<void, never> | null = null
 
     const rootPanel = () => Effect.gen(function*() {
-      let panel!: Chat
+      let panel!: Panel
       panel = yield* makePanel({
-        ...options,
-        nodeAt: undefined,
+        ...panelOptions,
         onState: (state) => {
           if (active?.kind === "root" && active.panel === panel) {
-            options.onState(state)
+            panelOptions.onState(state)
             migrateRemembered(state)
           }
         },
         onTranscript: (change) => {
-          if (active?.kind === "root" && active.panel === panel) options.onTranscript(change)
+          if (active?.kind === "root" && active.panel === panel) panelOptions.onTranscript(change)
         },
       })
       return panel
     })
-    let root!: Chat
+    let root!: Panel
     root = yield* rootPanel()
     active = { kind: "root", panel: root }
 
-    const panelOf = (): Chat => active.kind === "root" ? active.panel : active.slot.panel
+    const panelOf = (): Panel => active.kind === "root" ? active.panel : active.slot.panel
 
-    const publishSwitch = (before: Chat, after: Chat): void => {
+    const publishSwitch = (before: Panel, after: Panel): void => {
       const gone = [...before.entries().keys()]
-      if (gone.length > 0) options.onTranscript({ ...empty, removes: gone })
+      if (gone.length > 0) panelOptions.onTranscript({ ...empty, removes: gone })
       const arrived = [...after.entries()]
-      if (arrived.length > 0) options.onTranscript({ ...empty, upserts: arrived })
-      options.onState(after.state())
-      options.onLive?.()
+      if (arrived.length > 0) panelOptions.onTranscript({ ...empty, upserts: arrived })
+      panelOptions.onState(after.state())
+      onLive?.()
     }
 
     const activateRoot = (): void => {
@@ -110,7 +150,7 @@ const makeScoped = (options: Options): Effect.Effect<Chat, never, never> =>
         slot.closing = true
         nodes.delete(slot.node)
         if (active.kind === "node" && active.slot === slot) activateRoot()
-        options.onLive?.()
+        onLive?.()
         const timer = slot.timer
         slot.timer = null
         return Effect.andThen(
@@ -190,7 +230,7 @@ const makeScoped = (options: Options): Effect.Effect<Chat, never, never> =>
         }
         yield* room()
         const scope = Scope.makeUnsafe()
-        const ticket = options.ticket?.(node.id)
+        const ticket = mintTicket?.(node.id)
         if (ticket !== undefined) {
           yield* Effect.addFinalizer(() => Effect.sync(ticket.release)).pipe(
             Effect.provideService(Scope.Scope, scope),
@@ -199,10 +239,9 @@ const makeScoped = (options: Options): Effect.Effect<Chat, never, never> =>
         let slot!: NodeSlot
         const panel = yield* Effect.acquireRelease(
           makePanel({
-            ...options,
-            nodeAt: undefined,
+            ...panelOptions,
             tools: () => {
-              const server = options.tools()
+              const server = panelOptions.tools()
               return server === null || ticket === undefined
                 ? server
                 : { ...server, token: ticket.bearer }
@@ -219,11 +258,11 @@ const makeScoped = (options: Options): Effect.Effect<Chat, never, never> =>
               } else {
                 slot.generation++
               }
-              if (active.kind === "node" && active.slot === slot) options.onState(state)
-              options.onLive?.()
+              if (active.kind === "node" && active.slot === slot) panelOptions.onState(state)
+              onLive?.()
             },
             onTranscript: (change) => {
-              if (active.kind === "node" && active.slot === slot) options.onTranscript(change)
+              if (active.kind === "node" && active.slot === slot) panelOptions.onTranscript(change)
             },
           }),
           (made) => made.stop,
@@ -239,14 +278,14 @@ const makeScoped = (options: Options): Effect.Effect<Chat, never, never> =>
           timer: null,
         }
         nodes.set(node.id, slot)
-        options.onLive?.()
+        onLive?.()
         return { slot, fresh: true }
       }))
 
     const nodeFor = (
       agent: string,
       session: string,
-    ): NodeAgent | null => options.agentAt?.({ agent, session }) ?? null
+    ): NodeAgent | null => panelOptions.agentAt?.({ agent, session }) ?? null
 
     let migrating: string | null = null
     migrateRemembered = (state) => {
@@ -283,7 +322,7 @@ const makeScoped = (options: Options): Effect.Effect<Chat, never, never> =>
 
     const ensureNode = (
       node: NodeAgent,
-      open: (panel: Chat) => Effect.Effect<void, OpFailure>,
+      open: (panel: Panel) => Effect.Effect<void, OpFailure>,
       foreground: boolean,
     ): Effect.Effect<NodeSlot, OpFailure> =>
       Effect.gen(function*() {
@@ -293,7 +332,7 @@ const makeScoped = (options: Options): Effect.Effect<Chat, never, never> =>
         return slot
       })
 
-    const foreground = <A>(use: (panel: Chat) => Effect.Effect<A, OpFailure>) =>
+    const foreground = <A>(use: (panel: Panel) => Effect.Effect<A, OpFailure>) =>
       Effect.suspend(() => use(panelOf()))
 
     const start = root.start
@@ -302,7 +341,7 @@ const makeScoped = (options: Options): Effect.Effect<Chat, never, never> =>
       scopes: () => {
         const manual = root.doorFor(plugin).scopes()
           .filter((scope) => nodeFor(scope.agent, scope.session) === null)
-        const derived = (options.nodes?.() ?? []).flatMap((node) =>
+        const derived = nodesAt().flatMap((node) =>
           node.session === null
             ? []
             : [{ agent: node.engine, session: node.session, file: node.file, under: node.id }]
