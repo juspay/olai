@@ -46,9 +46,12 @@
  * door in this package keeps, in a third grammar.
  */
 
-import type { PropKind } from "@olai/plugin-api"
-import { kindWordOf } from "@olai/plugin-api"
-import { type Host, type RowReport, rowReport } from "@olai/effect-cordis"
+import type { Host, PropKind, RowReport } from "@olai/plugin-api"
+import { kindWordOf, rowReport } from "@olai/plugin-api"
+// THE ONE REACH PAST `@olai/plugin-api`, and the only one in the tree: the
+// loader carries `node:url`, `node:fs` and a YAML parser, so it cannot be
+// re-exported through a package a TAB imports. Everything else this file spends
+// of the bridge comes through the door above.
 import { mountRows } from "@olai/effect-cordis/loader"
 import { Effect } from "effect"
 
@@ -85,7 +88,7 @@ export { BUNDLE_NAMES, type BundleRow, DEFAULT_BUNDLE_NAMES, ROWS } from "./rows
  *  default and the operator's flag are the same field by design
  *  ({@link pluginsPatch}), so the only thing that can tell them apart is whether
  *  a flag was given at all, which is the composition root's to hold. */
-export type { RowReport, RowState } from "@olai/effect-cordis"
+export type { RowReport, RowState } from "@olai/plugin-api"
 
 /**
  * `--plugins`, AS A PATCH — the overlay an operator's flag writes over the rows.

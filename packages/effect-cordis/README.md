@@ -77,7 +77,7 @@ in flight when it unloads goes with it.
 
 | door | what it carries |
 | --- | --- |
-| `.` | the RUNTIME: a host, `provide`, `mountPlugin`, `rowReport`, `definePlugin`, `serviceTag`, `broadcast`, `waterfall`, `detached`. This is what the TAB opens too, because a browser half is a plugin exactly as a server half is |
+| `.` | the RUNTIME: a host, `provide`, `mountPlugin`, `rowReport`, `definePlugin`, `serviceTag`, `broadcast`, `waterfall`, `detached` |
 | `./loader` | `mountRows` — a declarative bundle, through `@cordisjs/plugin-loader` and `-include` |
 
 The split is not tidiness. The loader reads a file off a disk and resolves module
@@ -85,6 +85,14 @@ specifiers, so it carries `node:url`, `node:fs` and a YAML parser. Behind one do
 a tab's chunk would carry all of it, and it does not fail at a boundary claim — it
 fails at `bun build`, on `Browser polyfill for module "node:url" doesn't have a
 matching export named "pathToFileURL"`.
+
+**Who opens them.** The root door has exactly one importer,
+[`@olai/plugin-api`](../plugin-api/README.md), whose `src/runtime.ts` re-exports
+the runtime list verbatim onto both of its own doors — so a plugin, a tab and a
+composition root all spend the same names from the same place, and the two the
+bridge keeps back (`openHost`, `provide`) are the two that could mint a host or
+a service. `./loader` is opened by `@olai/bundle` directly, for the graph reason
+above and for no other.
 
 ## What is deliberately NOT here
 

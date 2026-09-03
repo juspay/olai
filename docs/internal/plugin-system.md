@@ -557,8 +557,13 @@ INTERFACE a plugin is written against — the browser-face types and slots at it
 root, and the server's service tags at `./services` — and it names no plugin at
 all. That is what lets a plugin import it, which the registry could never allow
 while the two were one package. `/effect-cordis` is not on it either, and
-for the mirror reason: it is the ENGINE, it has never heard of a vault, and one
-package sees it.
+for the mirror reason: it is the ENGINE, it has never heard of a vault, and its
+runtime door has exactly one importer — `@olai/plugin-api`, which re-exports
+that list onto both of its own doors, so a plugin, a tab and a composition root
+all spend it from the same place. The one reach past that door is
+`@olai/bundle` opening `/effect-cordis/loader` to mount the rows, because the
+loader carries `node:fs` and a YAML parser and cannot travel through a package
+a tab imports.
 
 **`olai.yml` is the whole list, and a fourth plugin is ONE ROW.** The browser
 kept two `as const` arrays for one round — a browser bundle is built ahead of

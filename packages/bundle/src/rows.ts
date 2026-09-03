@@ -48,7 +48,7 @@
  * holding, and the tab is no longer holding it.
  */
 
-import type { Plugin } from "@olai/effect-cordis"
+import type { Plugin } from "@olai/plugin-api"
 
 export { BROWSER_ROWS } from "./rows.generated.ts"
 
