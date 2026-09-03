@@ -1,11 +1,12 @@
 /**
- * The one conversation, and the surface it is served through.
+ * One conversation, and the surface it is served through.
  *
- * olai is a single-user app, so there is ONE session (resolved 2026-08-09): not
- * one per tab, not one per outline. Every browser watching sees the same
- * transcript, which is why nothing here is per-connection and why a second tab
- * needs no catch-up protocol — it subscribes to the same collection and gets
- * the conversation in its first frame.
+ * This is deliberately the state machine for ONE panel. {@link ./scoped.ts}
+ * composes one for each acquired node scope and one ordinary root panel; this
+ * lower layer knows nothing about that scheduling. A panel is still never per
+ * browser connection: every browser watching it sees the same transcript, so
+ * a second tab needs no catch-up protocol — it subscribes to the same
+ * collection and gets the conversation in its first frame.
  *
  * This file is the join, and it is the only place that knows both halves:
  * {@link ./agent.ts} speaks ACP and emits typed events; {@link ./transcript.ts}
@@ -127,7 +128,17 @@ import { sameWatching, watching } from "./watching.ts"
 
 export type { ToolServer } from "./agent.ts"
 
-export interface Options {
+/** One conversation a plugin may wake, optionally narrowed to a node scope. */
+export interface WakeScope {
+  readonly agent: string
+  readonly session: string
+  readonly file: string
+  readonly under?: string
+}
+
+/** Everything one conversation needs. Pooling, eviction and per-node
+ * credentials belong to the scheduler above this constructor. */
+export interface PanelOptions {
   /** Which agents this machine has, already detected
    *  ({@link ./agents/roster.ts}). Detecting them is the caller's move — it is
    *  the caller that owns this process's environment — and what a detected one
@@ -165,6 +176,10 @@ export interface Options {
    *  the panel was in is keyed by ({@link ./memory.ts}), which is what makes
    *  "the conversation you were last in" survive a restart. */
   readonly cwd: string
+  /** This directory's remembered conversation. The scheduler supplies one
+   * shared instance so it can route boot before any panel starts; a standalone
+   * panel builds the ordinary state-home implementation itself. */
+  readonly memory?: Memory.Memory
   /** The internal MCP server to hand the session, or nothing yet. A THUNK,
    *  because its address is not known until the listener has bound and the
    *  session is opened after that. */
@@ -191,7 +206,7 @@ export interface Options {
    * put the read on a boot that has no plugin to read it for.
    *
    * `null` — or absent — is a chat that keeps none: every doorbell is off, the
-   * strip draws no row, and {@link Chat.scope} refuses. That is the state every
+   * strip draws no row, and {@link Panel.scope} refuses. That is the state every
    * test in this package is in, and it is the honest one for a serve composed
    * without plugins at all.
    */
@@ -244,7 +259,9 @@ export interface Options {
   readonly onTranscript: (change: Change) => void
 }
 
-export interface Chat {
+/** One conversation and one ACP process. The scheduler adds the node-pool
+ * reading; this lower seam has no pretend empty pool of its own. */
+export interface Panel {
   /** The transcript as it stands — what a fresh subscription is seeded with. */
   readonly entries: () => ReadonlyMap<string, ChatEntry>
   readonly state: () => ChatState
@@ -288,13 +305,13 @@ export interface Chat {
    * ... and OLAI REPLACED ONE WITH ANOTHER — write down which conversation took
    * this one's place, for the *fresh session* affordance.
    *
-   * Same shape and same silence as {@link Chat.assigned}, and what a lost write
+   * Same shape and same silence as {@link Panel.assigned}, and what a lost write
    * costs here is one old session appearing under Unassigned as a conversation
    * nobody claims, which somebody can see and nothing acts on.
    */
   readonly replaced: (to: Conversing, by: string) => Effect.Effect<void>
   /**
-   * THE SET MOVED — ask {@link Options.agentAt} again, and publish if the
+   * THE SET MOVED — ask {@link PanelOptions.agentAt} again, and publish if the
    * answer changed.
    *
    * `ChatState.bound` is the vault's answer to *whose conversation is this*,
@@ -310,7 +327,7 @@ export interface Chat {
    */
   readonly reread: () => void
   /** Prompt the agent with what was typed, with the pictures already
-   *  attached to this conversation — by the paths {@link Chat.attach}
+   *  attached to this conversation — by the paths {@link Panel.attach}
    *  answered with, which are re-checked here before any of them reaches a
    *  prompt — and with the nodes the message is ABOUT.
    *
@@ -352,7 +369,7 @@ export interface Chat {
   /** Answer the question the panel is holding: THIS is the agent, now open the
    *  conversation you would have opened.
    *
-   *  Not {@link Chat.newSession} with the same argument, and the difference is
+   *  Not {@link Panel.newSession} with the same argument, and the difference is
    *  the whole of why both exist. A boot that could not say which agent to
    *  start has not decided to start a NEW conversation — it has been stopped
    *  before it could adopt the one this directory was in. So the answer opens
@@ -363,7 +380,7 @@ export interface Chat {
   /** Move to one of the stored conversations — WITH the agent whose it is,
    *  because the list spans every installed agent and a session id means
    *  nothing to the wrong one. Opening another agent's conversation switches
-   *  this panel to that agent, the way {@link Chat.newSession} does. */
+   *  this panel to that agent, the way {@link Panel.newSession} does. */
   readonly loadSession: (agent: string, id: string) => Effect.Effect<void, OpFailure>
   /** Try the refused OPEN again — the one `ChatState.unopened` is about. It
    *  takes no argument because the attempt is kept here, beside the reason:
@@ -417,7 +434,7 @@ export interface Chat {
      * a plain `.map` and read from a watcher sink with no Effect around it.
      *
      * A ROW WHOSE DOORBELL CANNOT WATCH WHAT IT NAMES IS NOT ON THIS LIST
-     * ({@link Chat.faults}) — the file is gone, or it is served and is not a
+     * ({@link Panel.faults}) — the file is gone, or it is served and is not a
      * kind this plugin reads — and that omission is the boundary between the
      * two things a quiet conversation can mean, kept by construction rather
      * than by care. There is nothing to derive and nothing to ring about; and
@@ -427,11 +444,10 @@ export interface Chat {
      * sentences this whole feature exists to keep apart. Neither end has to
      * remember that: the row is simply not here.
      */
-    readonly scopes: () => ReadonlyArray<{
-      readonly agent: string
-      readonly session: string
-      readonly file: string
-    }>
+    readonly scopes: () => ReadonlyArray<WakeScope>
+    /** Which scopes hear a claim at one node. A single panel has only manual
+     * whole-file scopes; the scheduler above adds nearest-node precedence. */
+    readonly ringing: (file: string, node: string) => ReadonlyArray<WakeScope>
     /**
      * ONE MACHINE-MARKED MESSAGE INTO ONE CONVERSATION.
      *
@@ -439,7 +455,7 @@ export interface Chat {
      * differently: a body that could not be handed over is HELD, and a body
      * held is not a failure — it is the second of three arms and the ordinary
      * one while a turn is running. The caller is a watcher sink with nowhere to
-     * put a refusal, which is why {@link Chat.send}'s vocabulary is deliberately
+     * put a refusal, which is why {@link Panel.send}'s vocabulary is deliberately
      * not borrowed here.
      *
      * THREE ARMS, decided in one step: this panel's own conversation with an
@@ -502,7 +518,7 @@ export interface Chat {
    * somebody's terminals is a sentence core may not compose — what goes into
    * the conversation is the string the plugin DECLARED for that cause
    * (`@olai/plugin-api`'s `PluginServerHalf.wake.faults`),
-   * carried verbatim through the door {@link Chat.doorFor} already hands out.
+   * carried verbatim through the door {@link Panel.doorFor} already hands out.
    * This member is the join between those two and composes nothing itself.
    *
    * ## A JUDGEMENT rather than the paths that went missing
@@ -528,7 +544,7 @@ export interface Chat {
    *
    * The caller is a revision connector, not a gesture. A record that will not
    * take the mark is one warning and no rows — the discipline the boot read
-   * keeps ({@link ./scopes.ts}) and the exact opposite of {@link Chat.scope},
+   * keeps ({@link ./scopes.ts}) and the exact opposite of {@link Panel.scope},
    * which refuses because somebody is waiting to hear whether their pick stuck.
    * Nothing is marked when the write fails, so the same edge is still there for
    * the next revision to find.
@@ -554,7 +570,6 @@ export interface Chat {
   readonly start: Effect.Effect<void>
   readonly stop: Effect.Effect<void>
 }
-
 
 /**
  * TWO WAKE READINGS, THE SAME OR NOT — the guard on a publish that would
@@ -584,7 +599,7 @@ const sameWake = (
  *
  * A window on silence rather than on the turn: an agent still streaming is
  * still working towards the stop it was asked for however long that takes
- * ({@link Chat.cancel} owns that argument), so this is only how long a
+ * ({@link Panel.cancel} owns that argument), so this is only how long a
  * genuinely quiet one gets before somebody is told. Short enough that a person
  * who pressed a button is not left wondering, long enough that the gap between
  * two chunks of ordinary streaming is never mistaken for it.
@@ -740,7 +755,7 @@ const silence = (agent: string): string =>
  * than handed to anybody ({@link ./sessions.ts}'s own rule for its writers).
  *
  * ONE SPELLING for every writer that keeps that rule: the two migration marks
- * ({@link Chat.assigned}, {@link Chat.replaced}). What they share is why
+ * ({@link Panel.assigned}, {@link Panel.replaced}). What they share is why
  * neither of them refuses — each runs AFTER the half of its gesture that
  * mattered has already landed, so a refusal here would be telling somebody
  * their assignment, or their turn, failed when it did not. What differs is
@@ -782,7 +797,7 @@ const replaceLost = (failure: Memory.MemoryFailure): string =>
   `(${failure.why}) — the new session is bound, and the old one will show under Unassigned ` +
   `as a conversation no node claims`
 
-export const make = (options: Options): Effect.Effect<Chat, never, never> =>
+export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, never> =>
   Effect.gen(function*() {
     /**
      * Where this panel writes down what it was in, and what it reads back at a
@@ -813,7 +828,8 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     // off the same ordered list the picker is drawn from. The empty string on a
     // build with no engine rows is a note that resolves to nothing, which is a
     // chat that was never built.
-    const memory = Memory.forDirectory(options.cwd, options.engines[0] ?? "")
+    const memory = options.memory
+      ?? Memory.forDirectory(options.cwd, options.engines[0] ?? "")
     const tell = yield* Effect.annotateLogs(emitter, { surface: "chat" })
 
     /** One agent, built from the roster row that named it. The handler is
@@ -1395,7 +1411,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           waiting: counted.get(row.plugin) ?? 0,
           // THE FAULT TRAVELS, AND SO DOES ITS CAUSE, so the control can stop
           // drawing as enabled and can say which of the two things happened
-          // ({@link Chat.faults}). NULLABLE on the wire where the record carries
+          // ({@link Panel.faults}). NULLABLE on the wire where the record carries
           // the word-or-absent: the wire is a decoded value a browser reads per
           // frame, and an optional key there would be one more state for a face
           // to have an opinion about. The two unions are held equal by this
@@ -2682,7 +2698,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     })
 
     /**
-     * A plugin's sentence, into a conversation. See {@link Chat.deliverTo}.
+     * A plugin's sentence, into a conversation. See {@link Panel.deliverTo}.
      *
      * IT ALWAYS HOLDS FIRST, and then flushes. Two arms written out separately
      * — offer, and hold if that fails — would be two orders: a body offered past
@@ -3033,7 +3049,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       // The answer to the panel's own question, which is not the same verb: a
       // boot that stopped to ask has not asked for a NEW conversation, so what
       // this opens is the one that agent's own boot would have adopted —
-      // {@link Chat.chooseAgent}. `boot` is idempotent and picks its own, which
+      // {@link Panel.chooseAgent}. `boot` is idempotent and picks its own, which
       // is why it is also what a refused one is retried with.
       chooseAgent: (id: string) => openWith(id, (agent) => agent.boot),
       // NAMED by the id the browser pressed, which is the only thing this end
@@ -3043,7 +3059,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       // WITH the agent whose conversation it is, because the list spans all of
       // them now: a row picked out of it may belong to the agent this panel is
       // not talking to, and opening it is a change of agent as well as of
-      // conversation. `openWith` is what {@link Chat.newSession} already goes
+      // conversation. `openWith` is what {@link Panel.newSession} already goes
       // through, so the switch, the stale-tab refusal and the permit are the
       // same ones — the only thing that differs is what is opened at the end.
       loadSession: (agentId: string, id: string) =>
@@ -3105,11 +3121,11 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           )),
 
       // ONE CLOSURE PER PLUGIN, and the name is in it rather than in an
-      // argument — see {@link Chat.doorFor}. Both halves of the keying live
+      // argument — see {@link Panel.doorFor}. Both halves of the keying live
       // here, in the module that owns the mark, so neither is a thing a
       // composition root does on the way past.
-      doorFor: (plugin) => ({
-        scopes: () =>
+      doorFor: (plugin) => {
+        const scopes = (): ReadonlyArray<WakeScope> =>
           (options.scoping?.rows() ?? [])
             // ... AND NOT A ROW THAT IS NOT BEING WATCHED. There is nothing to watch,
             // so there is nothing for this plugin to derive — and everything a
@@ -3117,14 +3133,18 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             // heartbeat that fired for a broken scope would be the panel saying
             // "alive and quiet" about a doorbell that is watching nothing. The
             // filter is how those two are kept apart by construction rather
-            // than by every caller remembering ({@link Chat.faults}).
+            // than by every caller remembering ({@link Panel.faults}).
             .filter((row) => row.plugin === plugin && row.fault === undefined)
             // The `plugin` column goes on the way out: a door is already
             // ABOUT one plugin, so carrying its name back to it would be the
             // caller's own question answered a second time.
-            .map(({ agent, file, session }) => ({ agent, file, session })),
-        deliver: (to, say, how) => deliverTo(to, say, plugin, how),
-      }),
+            .map(({ agent, file, session }) => ({ agent, file, session }))
+        return {
+          scopes,
+          ringing: (file) => scopes().filter((scope) => scope.file === file),
+          deliver: (to, say, how) => deliverTo(to, say, plugin, how),
+        }
+      },
       /**
        * A person pointed a doorbell at a file — or took it off one.
        *
@@ -3139,7 +3159,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
        * panel's own session can move under a picker somebody left open (a boot
        * opens one with no verb called at all), and a pick attached to a
        * conversation a person was not looking at is worse than a refusal. It is
-       * the same pair {@link Chat.loadSession} takes and for the same stated
+       * the same pair {@link Panel.loadSession} takes and for the same stated
        * reason.
        *
        * The read-back is not an overlay: this ends in `move`, so what the strip
@@ -3189,7 +3209,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           move({ wake: wakeOf() })
         }),
       /**
-       * A revision, judged against the picks. See {@link Chat.faults} for what
+       * A revision, judged against the picks. See {@link Panel.faults} for what
        * it is for; what is here is the three things this package owns about it.
        *
        * IT ANSWERS EMPTY FOR A PANEL WITH NO SCOPE TABLE, rather than refusing:
@@ -3199,7 +3219,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
        *
        * A WRITE THAT FAILS IS A WARNING AND NO ROWS. Nobody is standing at the
        * screen — this is a revision and not a gesture — so it takes the boot
-       * read's arm and not {@link Chat.scope}'s. Nothing is marked when the
+       * read's arm and not {@link Panel.scope}'s. Nothing is marked when the
        * write fails ({@link ./scopes.ts}), so the same edge is still there next
        * revision and the only cost is a delay.
        *
@@ -3240,63 +3260,63 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         }),
       start: Effect.gen(function*() {
         // Eager, on the server's own start, because the panel is meant to show
-        // your last conversation before anybody types into it. On its own
-        // fiber: pages serve while it happens, and a boot that fails changes
-        // nothing — the next prompt retries it exactly as a crash does.
-        yield* Effect.forkDetach(
-          Effect.gen(function*() {
-            const chosen = yield* startsWith
-            if (chosen === null) {
-              // NOBODY IS CHOSEN and nobody will be chosen for you: the panel
-              // asks, and holds no conversation until it is answered. IDLE
-              // rather than `booting`, because nothing is happening — this is
-              // a state that has settled, and it settles until somebody presses
-              // something.
-              move({ status: "idle", talking: { kind: "asking" } })
-              return
+        // your last conversation before anybody types into it. The listener is
+        // already serving while this runs. The EFFECT settles with the boot so
+        // a scheduler above this panel can route a session whose identity was
+        // not knowable until `session/new` answered; the scheduler decides
+        // whether its whole boot belongs on a detached fiber.
+        yield* Effect.gen(function*() {
+          const chosen = yield* startsWith
+          if (chosen === null) {
+            // NOBODY IS CHOSEN and nobody will be chosen for you: the panel
+            // asks, and holds no conversation until it is answered. IDLE
+            // rather than `booting`, because nothing is happening — this is
+            // a state that has settled, and it settles until somebody presses
+            // something.
+            move({ status: "idle", talking: { kind: "asking" } })
+            return
+          }
+          // Serialized against every other way an agent is bound by
+          // {@link using}'s own permit, and NOT by the directory's: this boot
+          // runs while the listener serves pages, and a shutdown must not
+          // queue behind it.
+          // The other place a conversation is opened, and the one no click
+          // reaches. It takes {@link opening} for the reason the two verbs do
+          // — a page is served while this runs, so somebody can be typing
+          // into a panel whose conversation is still being replayed — and
+          // deliberately NOT the directory's permit, so a shutdown does not
+          // queue behind a boot.
+          const outcome = yield* opening.withPermit(Effect.result(
+            Effect.flatMap(using(chosen), (agent) => agent.boot),
+          ))
+          if (outcome._tag === "Failure") {
+            // A warning rather than an error: the panel is already showing
+            // this, and the next prompt retries the boot exactly as a crash
+            // does. Nothing has stopped.
+            yield* Effect.logWarning(outcome.failure.message).pipe(
+              Effect.annotateLogs({ agent: chosen.id }),
+            )
+            // The same distinction the session verbs make, at the other place
+            // a conversation is opened: an agent that ANSWERED the open with
+            // a no is running, and a boot that never reached one is not.
+            // What a boot was trying to open is nobody's by name — it adopts
+            // its own — so the face names no conversation, and trying again
+            // is the boot itself, which is idempotent and re-opens.
+            if (outcome.failure.gone === "refused") {
+              refusedOpen(outcome.failure, null, Effect.flatMap(using(chosen), (a) => a.boot))
+            } else {
+              wentAway(outcome.failure.message)
             }
-            // Serialized against every other way an agent is bound by
-            // {@link using}'s own permit, and NOT by the directory's: this boot
-            // runs while the listener serves pages, and a shutdown must not
-            // queue behind it.
-            // The other place a conversation is opened, and the one no click
-            // reaches. It takes {@link opening} for the reason the two verbs do
-            // — a page is served while this runs, so somebody can be typing
-            // into a panel whose conversation is still being replayed — and
-            // deliberately NOT the directory's permit, so a shutdown does not
-            // queue behind a boot.
-            const outcome = yield* opening.withPermit(Effect.result(
-              Effect.flatMap(using(chosen), (agent) => agent.boot),
-            ))
-            if (outcome._tag === "Failure") {
-              // A warning rather than an error: the panel is already showing
-              // this, and the next prompt retries the boot exactly as a crash
-              // does. Nothing has stopped.
-              yield* Effect.logWarning(outcome.failure.message).pipe(
-                Effect.annotateLogs({ agent: chosen.id }),
-              )
-              // The same distinction the session verbs make, at the other place
-              // a conversation is opened: an agent that ANSWERED the open with
-              // a no is running, and a boot that never reached one is not.
-              // What a boot was trying to open is nobody's by name — it adopts
-              // its own — so the face names no conversation, and trying again
-              // is the boot itself, which is idempotent and re-opens.
-              if (outcome.failure.gone === "refused") {
-                refusedOpen(outcome.failure, null, Effect.flatMap(using(chosen), (a) => a.boot))
-              } else {
-                wentAway(outcome.failure.message)
-              }
-              return
-            }
-            settled()
-            // ... and the other place a conversation is opened flushes for the
-            // same reason and at the same point: after the permit, never from
-            // inside the event ({@link changeSession}). A BOOT is how a doorbell
-            // reaches the conversation this directory was last in without
-            // anybody pressing anything.
-            yield* Effect.forkDetach(flushing)
-          }),
-        )
+            return
+          }
+          settled()
+          // ... and the other place a conversation is opened flushes for the
+          // same reason and at the same point: after the permit, never from
+          // inside the event ({@link changeSession}). A BOOT is how a doorbell
+          // reaches the conversation this directory was last in without
+          // anybody pressing anything.
+          yield* Effect.forkDetach(flushing)
+        })
       }),
       stop: Effect.gen(function*() {
         closing = true

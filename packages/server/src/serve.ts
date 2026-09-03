@@ -25,7 +25,7 @@
 
 import { surface } from "@olai/surface"
 import { roster, whyNoAgent } from "@olai/chat"
-import type { GitPin } from "@olai/format"
+import { AGENT_PROP, type GitPin } from "@olai/format"
 import type { IdentityConfig } from "@olai/identity"
 import { fixedPolicy, make as makeOps, TOOLS } from "@olai/ops"
 import { BUNDLE_NAMES, mountBundle, reportBundle } from "@olai/bundle/bundle"
@@ -45,6 +45,7 @@ import { hostname } from "./hostname.ts"
 import { listen } from "./listener.ts"
 import { clientOver, serveFace } from "./mcp/face.ts"
 import { currentLogin, MCP_PATH, mcpTransport } from "./mcp/route.ts"
+import { ticketing } from "./mcp/tickets.ts"
 import { bespokeFrom } from "./mcp/tools.ts"
 import { enginesAt } from "./engines.ts"
 import { askingAt } from "./probes.ts"
@@ -305,14 +306,25 @@ export const serve = (options: ServeOptions) =>
     // Minted per process and handed only to the session we spawn: the write
     // surface is not something any page that can reach loopback may call.
     const token = randomBytes(24).toString("hex")
+    let mintNodeTicket: ((node: string) => Chat.ToolTicket) | null = null
     /** Filled once the listener has bound — see the thunk on the chat's
      *  options. Until then there is no session to hand it to. */
     let tools: Chat.ToolServer | null = null
     /** THE VAULT'S HALF OF THE AGENTS ROSTER, held here because two things
-     *  read it and they are built at different moments: the chat's teaching,
-     *  through the thunk below, and the runtime's own cell, which is also what
-     *  keeps it current ({@link ./agents.ts}). */
+     *  read it and they are built at different moments: the chat's teaching
+     *  and boot router, through the thunks below, and the runtime's own cell,
+     *  which is also what keeps it current ({@link ./agents.ts}).
+     *
+     *  SEED IT BEFORE BUILDING THE CHAT. The runtime subscription starts with
+     *  the current store reading, but its connector is lazy: no browser has
+     *  asked for the agents cell when `chat.start` routes remembered memory.
+     *  Leaving this carrier empty then makes a bound conversation look
+     *  unassigned, starts it in the root panel, and leaves the node asleep.
+     *  This cheap read is the same standing snapshot the subscription will
+     *  hand over; the subscription remains the one owner of later movement. */
     const nodeAgents = agentsRoster()
+    const initial = yield* store.read("cheap")
+    nodeAgents.seen(initial.snapshot === null ? null : initial.snapshot.value.derived)
 
     chat = installed.length === 0 ? null : yield* Chat.make({
       roster: installed,
@@ -408,15 +420,22 @@ export const serve = (options: ServeOptions) =>
        * ... and WHOSE NODE AGENT a conversation is, which is what tells the
        * panel there is a contract to teach at all ({@link ./agents.ts}).
        *
-       * A THUNK OVER A CARRIER, and the carrier is written by the runtime built
-       * a few lines below: the chat is constructed first because the surface
-       * binds to it, so the earlier of the two asks the later one's question
-       * through a closure. What it answers with is a row of the reading the
-       * roster cell is drawn from — one reading, two readers, no second walk.
+       * A THUNK OVER A CARRIER, seeded from the store above and kept current by
+       * the runtime built a few lines below. What it answers with is a row of
+       * the reading the roster cell is drawn from — one derived reading, two
+       * readers, no second walk.
        */
       agentAt: (to) => nodeAgents.agentAt(to),
+      nodeAt: (node) => nodeAgents.nodeAt(node),
+      nodes: () => nodeAgents.nodes(),
+      nearestAt: (node, candidates) => nodeAgents.nearestAt(node, candidates),
+      ticket: (node) => {
+        if (mintNodeTicket === null) throw new Error("node session opened before MCP tickets were bound")
+        return mintNodeTicket(node)
+      },
       onState: (state) => publishing().state(state),
       onTranscript: (change) => publishing().transcript(change),
+      onLive: () => publishing().live(),
     })
 
     // The surface is bound to everything it reports on or writes through: the
@@ -500,8 +519,16 @@ export const serve = (options: ServeOptions) =>
     // Built ONCE and handed back on every ask: this face has no transport to
     // drop, so re-dialling would only re-run the gate over the same handlers.
     const panel = clientOver(
-      { group: wired.bound.group, handlers: writerAt(wired.bound, ops, "chat-agent") },
+      {
+        group: wired.bound.group,
+        handlers: writerAt(wired.bound, ops, { writer: "chat-agent", fence: null }),
+      },
       wired.faces.agent,
+    )
+    const tickets = ticketing({ bound: wired.bound, face: wired.faces.agent, ops, token })
+    mintNodeTicket = (node) => tickets.mint(
+      () => ({ under: node, forbidden: [AGENT_PROP] }),
+      nodeAgents.above,
     )
     yield* serveFace({
       client: () => panel,
@@ -559,6 +586,7 @@ export const serve = (options: ServeOptions) =>
         login: currentLogin,
         root,
         vintage: Effect.map(store.read("verified"), (aged) => aged.vintage),
+        fenced: tickets.doorAt,
       }),
       transport,
     })

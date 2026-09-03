@@ -44,6 +44,8 @@ test("the VAULT leads: every node agent is a row, with a session or without one"
       engine: "grok",
       session: "sess-1",
       memory: 14,
+      standing: "asleep",
+      waiting: 0,
       said: { text: "the mirror lane is in flight", at: "2026-09-01T16:41:00Z" },
     },
     {
@@ -53,6 +55,8 @@ test("the VAULT leads: every node agent is a row, with a session or without one"
       engine: "opus",
       session: null,
       memory: 3,
+      standing: "unbound",
+      waiting: 0,
       said: null,
     },
   ])
@@ -81,6 +85,25 @@ test("nothing overheard at all is every row with no line, which is a fresh machi
 
 test("a directory with no node agent has no roster, whatever was overheard", () => {
   expect(joined([], [HEARD])).toEqual([])
+})
+
+test("two node sessions are live at once, each with its own standing and questions", () => {
+  const live = new Map([
+    ["spaces", { status: "thinking" as const, asking: 0 }],
+    ["odu", { status: "thinking" as const, asking: 2 }],
+  ])
+  const rows = joined([
+    AGENTS[0]!,
+    { ...AGENTS[1]!, session: "sess-2" },
+  ], [], live)
+  expect(rows.map((row) => [row.standing, row.waiting])).toEqual([
+    ["working", 0],
+    ["needs-you", 2],
+  ])
+})
+
+test("a reaped node scope reads asleep while its binding remains durable", () => {
+  expect(joined(AGENTS, [], new Map())[0]?.standing).toBe("asleep")
 })
 
 test("the fact olai writes back travels as null rather than as an absent key", () => {
@@ -114,6 +137,22 @@ test("a conversation no property names is nobody's, which is nearly every one", 
   const carrier = roster()
   carrier.seen(SEEN)
   expect(carrier.agentAt({ agent: "grok", session: "sess-9" })).toBeNull()
+})
+
+test("the nearest node agent above is named from the current vault reading", () => {
+  const nested = derive(recordsOf(setOf({
+    "lanes.olai": [
+      `{"id":"root","ord":"a0","title":"Root","custom":{"agent-session":"claude:r"}}`,
+      `{"id":"child","parent":"root","ord":"a0","title":"Child","custom":{"agent-session":"claude:c"}}`,
+      `{"id":"leaf","parent":"child","ord":"a0","title":"Leaf","custom":{"agent-session":"claude:l"}}`,
+    ].join("\n"),
+  })))
+  const carrier = roster()
+  carrier.seen(nested)
+  expect(carrier.nearestAt("leaf", new Set(["root", "child"]))).toBe("child")
+  expect(carrier.nearestAt("leaf", new Set(["root"]))).toBe("root")
+  expect(carrier.above("leaf")).toBe("“Child” (`child`)")
+  expect(carrier.above("root")).toBeNull()
 })
 
 test("a store that has never loaded has no node agents rather than an unknown number", () => {

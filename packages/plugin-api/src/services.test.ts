@@ -393,6 +393,7 @@ test("the doorbell's door is keyed by the plugin, with no way to spell another's
         asked.push(plugin)
         return {
           scopes: () => [{ agent: "a", session: "s", file: `${plugin}.olai` }],
+          ringing: (file) => [{ agent: "a", session: "s", file }],
           deliver: () => Effect.void,
         }
       },

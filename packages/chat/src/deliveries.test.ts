@@ -36,7 +36,7 @@ import { join } from "node:path"
 import type { Leg } from "@olai/acp/engine"
 import { QUEUES } from "./agents/legs.testlib.ts"
 import type { Installed } from "./agents/roster.ts"
-import { type Chat, make as makeChat } from "./chat.ts"
+import { makePanel as makeChat, type Panel } from "./chat.ts"
 import { SLOTS } from "./deliveries.ts"
 import type { Faulted, Scoped, Scopes } from "./scopes.ts"
 import { MemoryFailure } from "./memory.ts"
@@ -127,7 +127,7 @@ const SCOPED = scoping([{
 }])
 
 /** The machine-marked rows, in the order the transcript holds them. */
-const rung = (chat: Chat): ReadonlyArray<UserEntry> =>
+const rung = (chat: Panel): ReadonlyArray<UserEntry> =>
   [...chat.entries().values()].flatMap((entry) =>
     entry.kind === "user" && entry.rang !== undefined ? [entry] : []
   )
@@ -136,7 +136,7 @@ const rung = (chat: Chat): ReadonlyArray<UserEntry> =>
  *  at all, which is the third arm's whole premise. */
 const panel = async (
   options: { readonly scoping?: Scopes; readonly start?: boolean } = {},
-): Promise<Chat> => {
+): Promise<Panel> => {
   const chat = await run(makeChat({
     roster: [ROW],
     engines: [],
@@ -154,7 +154,7 @@ const panel = async (
 }
 
 /** WHICH conversation the panel is in, as a delivery is addressed. */
-const open = (chat: Chat) => ({ agent: "opencode", session: chat.state().session?.id ?? "" })
+const open = (chat: Panel) => ({ agent: "opencode", session: chat.state().session?.id ?? "" })
 
 /** Send something the fixture holds, and WAIT UNTIL THE TURN IS RUNNING.
  *
@@ -164,12 +164,12 @@ const open = (chat: Chat) => ({ agent: "opencode", session: chat.state().session
  *  OWN — which is correct behaviour and the wrong precondition for every test
  *  below, each of which is about what happens to a body that arrives while a
  *  turn is already running. */
-const holding = async (chat: Chat): Promise<void> => {
+const holding = async (chat: Panel): Promise<void> => {
   await run(chat.send("wait:900", [], []))
   await until("the turn to be running", () => chat.state().status === "thinking")
 }
 
-const closing = async (chat: Chat, body: () => Promise<void>): Promise<void> => {
+const closing = async (chat: Panel, body: () => Promise<void>): Promise<void> => {
   try {
     await body()
   } finally {

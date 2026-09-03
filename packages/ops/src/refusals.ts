@@ -33,6 +33,7 @@ import {
   didYouMean,
   didYouMeanDeclared,
   isOutline,
+  isMirror,
   markdownIn,
   NotFoundFailure,
   type OpFailure,
@@ -46,6 +47,38 @@ import {
 import { Result } from "effect"
 
 import type { Asked } from "./asked.ts"
+import type { Fence, Outside } from "./fenced.ts"
+
+export const fenceRefusal = (
+  derived: Derived,
+  fence: Fence,
+  reached: Outside,
+): string => {
+  if (reached.why === "closed") {
+    return "this conversation has been reaped, so the door it was handed is closed and nothing may be written through it."
+  }
+  const under = fence.under as string
+  const at = derived.byId.get(under)
+  const seat = at === undefined || isMirror(at.node) ? undefined : at.node.title
+  const mine = seat === undefined ? `\`${under}\`` : `“${seat}” (\`${under}\`)`
+  const you = `you are the node agent for ${mine}, and your writes land at or under that node`
+  const above = fence.ask()
+  const then = above === null
+    ? ` There is no node agent above ${mine}, so say what you need in the panel.`
+    : ` Ask ${above}, the nearest node agent above you, to make this change.`
+  switch (reached.why) {
+    case "seat":
+      return `${mine} — the node you are the agent for — is not in the loaded set any more, so there is nothing this door may write.${then}`
+    case "record":
+      return `\`${reached.id}\` (“${reached.title}”, in \`${reached.file}\`) is not inside your subtree, so this write is refused: ${you}.${then}`
+    case "file":
+      return `\`${reached.path}\` is a file, and a file is inside nobody's subtree: ${you}.${then}`
+    case "document":
+      return `\`${reached.path}\` is a document, and a document is inside nobody's subtree: ${you}.${then}`
+    case "key":
+      return `\`${reached.key}\` is a property this door may not write — it is what seats a conversation on a node, and that is a person's gesture in the panel, on “${reached.title}” (\`${reached.id}\`) as anywhere else.${then}`
+  }
+}
 
 /**
  * An id nothing in the set declares — ONE refusal, whatever the id was doing.

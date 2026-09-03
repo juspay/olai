@@ -33,6 +33,7 @@ import {
   type DatedRequest,
   type HomesAnswer,
   type HomesRequest,
+  inboxIn,
   type KindVocabulary,
   NO_KINDS,
   type MovingAnswer,
@@ -44,6 +45,8 @@ import {
   NOTHING_WRONG,
   type OpFailure,
   type OutlineError,
+  outlineNames,
+  outlinePaths,
   type Owed,
   type OwedRequest,
   type PageReading,
@@ -55,6 +58,7 @@ import {
   stampOf,
   type TagsAnswer,
   type TagsRequest,
+  UsageFailure,
   ValidationFailure,
   type Verdict,
   type Writer,
@@ -65,6 +69,7 @@ import { open as openIndex } from "@olai/index"
 import { type Duration, Effect, Result, SubscriptionRef } from "effect"
 
 import type { Store } from "./deps.ts"
+import { type Fence, outsideFence } from "./fenced.ts"
 import {
   type Committing,
   type GitState,
@@ -74,6 +79,7 @@ import {
 } from "./pending.ts"
 import { type Context, plan, scoping } from "./plan.ts"
 import * as Query from "./query.ts"
+import { fenceRefusal } from "./refusals.ts"
 import { standing } from "./standing.ts"
 import { sortOfWrite } from "./sorted.ts"
 import { asking, type Asking } from "./tools.ts"
@@ -315,6 +321,7 @@ export interface Ops extends Asking {
   readonly run: (
     request: Request,
     writer: Writer,
+    fence?: Fence,
   ) => Effect.Effect<Applied, OpFailure>
   /**
    * No {@link run} is in flight.
@@ -530,6 +537,7 @@ export const make = (options: Options): Ops => {
   const run = (
     request: Request,
     writer: Writer,
+    fence?: Fence,
   ): Effect.Effect<Applied, OpFailure> =>
     Effect.gen(function*() {
       let repairs = REPAIRS
@@ -651,6 +659,21 @@ export const make = (options: Options): Ops => {
           return yield* planned.failure
         }
         const { files, documents = [], removed = [], ...about } = planned.success
+
+        if (fence !== undefined) {
+          const outside = outsideFence(
+            fence,
+            snapshot.value.derived,
+            outlineNames(snapshot.value.set),
+            inboxIn(outlinePaths(snapshot.value.set)),
+            planned.success,
+          )
+          if (outside !== null) {
+            return yield* new UsageFailure({
+              reason: fenceRefusal(snapshot.value.derived, fence, outside),
+            })
+          }
+        }
 
         // Outlines go through the format's writer; a document IS its text, so
         // it goes to disk verbatim — there is no serialiser for a writer to
@@ -844,11 +867,12 @@ export const make = (options: Options): Ops => {
   const reported = (
     request: Request,
     writer: Writer,
+    fence?: Fence,
   ): Effect.Effect<Applied, OpFailure> =>
     options.onRefusal === undefined
-      ? run(request, writer)
+      ? run(request, writer, fence)
       : Effect.tapError(
-        run(request, writer),
+        run(request, writer, fence),
         (failure) => options.onRefusal!(request, failure),
       )
 
@@ -883,10 +907,11 @@ export const make = (options: Options): Ops => {
   const tracked = (
     request: Request,
     writer: Writer,
+    fence?: Fence,
   ): Effect.Effect<Applied, OpFailure> =>
     Effect.suspend(() => {
       beginWrite()
-      return Effect.ensuring(reported(request, writer), Effect.sync(endWrite))
+      return Effect.ensuring(reported(request, writer, fence), Effect.sync(endWrite))
     })
 
   return {
