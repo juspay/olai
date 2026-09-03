@@ -646,6 +646,32 @@ Then(
   },
 );
 
+/** How TALL a line of the outline is, asked of the page. Two consecutive
+ *  sibling rows give the outline's own line pitch; the blank that Enter
+ *  opened must sit one whole pitch below the row that opened it — the bug
+ *  this pins was the blank lacking the row's `my-0.5`/`py-1`, standing 12px
+ *  shorter than every neighbour. */
+Then(
+  "the row being typed stands the same line below {string} as that row stands below {string}",
+  async function (this: OlaiWorld, below: string, above: string) {
+    const belowTitle = this.nodeTitle(below);
+    const aboveTitle = this.nodeTitle(above);
+    await belowTitle.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await aboveTitle.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.waitUntil(async () => {
+      const editor = this.page.locator(TITLE_EDITOR).first();
+      if ((await editor.count()) === 0) return false;
+      const b = await belowTitle.boundingBox();
+      const a = await aboveTitle.boundingBox();
+      const g = await editor.boundingBox();
+      if (a === null || b === null || g === null) return false;
+      const rhythm = b.y - a.y;
+      const stood = g.y - b.y;
+      return Math.abs(stood - rhythm) <= 2;
+    }, `the draft to stand one line below "${below}" — the spacing a row keeps`);
+  },
+);
+
 /** WHERE the row a split made is drawn — asked of the page in document order,
  *  because the node it names has an id nobody chose and a title assertion
  *  cannot say which line it is on. The half that came off has to be the very

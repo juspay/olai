@@ -229,6 +229,17 @@ Feature: Keyboard editing
     And the row being typed is drawn immediately above the title of "kitchen-herbs"
     And the row being typed is drawn at the child depth of "knobs"
 
+  Scenario: a blank among rows keeps the outline's line rhythm
+    # Reported on the #493 build: gaps between lines wobbled wherever a draft
+    # stood — "inconsistent gap between list items overall (empty ones in
+    # particular)". The blank carried the row's gutter WIDTHS but not its
+    # line arithmetic: no `my-0.5` around it, no `py-1` on the line — 12px
+    # shorter than every neighbour. Measured against two real rows.
+    When I click the title of "knobs"
+    And I press "Enter"
+    Then a new row is being typed
+    And the row being typed stands the same line below "knobs" as that row stands below "hinges"
+
   Scenario: A blank takes Shift+Tab back out, before it is written
     # The same shape key the other way: the indent was the shape's, not a
     # write's — so the un-indent is the blank's too, and nothing on disk moved.

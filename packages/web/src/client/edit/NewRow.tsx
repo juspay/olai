@@ -5,7 +5,11 @@
  * the one it was opened above, or on the start line of a page with no rows —
  * with the same gutter arithmetic every
  * other row uses (`../touch.ts`), so the line a person is typing on sits
- * exactly where the line they are making it will sit. What it deliberately
+ * exactly where the line they are making it will sit. The vertical rhythm is
+ * that same ruling: `my-0.5` around the whole thing and `py-1` on the line
+ * are the `li` and row-line classes from `../Tree.tsx`, and without them an
+ * empty line stood 12px shorter than its neighbours — spacing that wobbled
+ * wherever a draft was parked. What it deliberately
  * does NOT have is a glyph that goes anywhere or says a mark: those are
  * affordances of a node, and there is no node here until this has a title and
  * gets committed.
@@ -36,8 +40,8 @@ export function NewRow(props: {
   readonly onActivate?: () => void
 }) {
   return (
-    <div>
-      <div class={`flex items-center ${GUTTER_GAP}`} data-testid={TESTID.newRow}>
+    <div class="my-0.5">
+      <div class={`flex items-center py-1 ${GUTTER_GAP}`} data-testid={TESTID.newRow}>
         {/* The hover strip's PLACE, cell for cell: a row reserves the `•••`
             (pointer devices only, `hidden md:` exactly as the menu hides
             itself) and the collapse triangle, and a draft that reserved one
