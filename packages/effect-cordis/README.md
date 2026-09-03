@@ -45,6 +45,15 @@ closed with that exit — every finalizer it had already installed runs, in reve
 — and the failure is re-thrown into the runtime, which lands it `failed` with its
 siblings running.
 
+What that does NOT buy is interruption *inside* `apply`, and the reason is the
+engine's rather than this package's. A loading fiber holds an `inertia` promise,
+and a revocation that arrives while it is loading does not start the unload — it
+is queued behind the load and runs when the load settles (`fiber.ts`'s
+`_setEpoch` returns early while `inertia` is set). So an `apply` that blocks on
+something slow delays the stop by however long it blocks, and no `Scope` here
+can shorten that: the scope it would unwind is the one the load has not finished
+filling. An `apply` does its slow work on a finalizer-owning fork, not in line.
+
 **`broadcast(what)` and `waterfall(key)`** — the two dispatch modes. A BROADCAST
 tells every handler, in subscription order, and AWAITS all of them: the caller
 rings it from inside a statement whose next lines assume every plugin has already
@@ -72,6 +81,11 @@ and those libraries are not olai's and are not wrapped. This is where an Effect 
 started from a plain function — under the plugin's own services, so a line carries
 the level the operator asked for, and forked onto the plugin's own scope, so work
 in flight when it unloads goes with it.
+
+One fiber per call, so two calls are not ordered: the caller has no fiber for a
+second one to be a continuation of. That is what the appliances spend it on —
+chatter, where each line stands alone — and where an order is load-bearing the
+answer is one Effect that does both things rather than two calls.
 
 ## Two doors, because two graphs
 

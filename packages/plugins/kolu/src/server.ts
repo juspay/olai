@@ -308,6 +308,13 @@ export default definePlugin({
       // seconds and it is not news. What IS news — a connect, a skew, a link that
       // dropped — is the same channel, because the alternative is this module
       // deciding which of padi's sentences matter.
+      //
+      // A FORK PER LINE, and both channels below are: `run` starts each one on
+      // its own fiber, so two lines the same callback said may reach the sink in
+      // either order. That is the seam's shape rather than this wiring's (the
+      // bridge's `detached` argues it), and it is affordable here because these
+      // lines stand alone. A pair that has to be read in order is one Effect
+      // saying both, not two calls.
       say: (line) => run(Effect.logDebug(line)),
       // What the OWNER must read: a malformed `_olai/Kolu.olai` value — the
       // sentences whose promise lives in this package's `docs.md`. Rare by latch

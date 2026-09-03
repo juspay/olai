@@ -109,6 +109,21 @@ export const PluginName = Context.Reference<string>("effect-cordis/PluginName", 
  * So the work is wrapped in the same {@link ./broadcast.ts}'s `contained` the
  * other two use, with this plugin's own word on the line — read off
  * {@link PluginName}, which is provided into every `apply` before it runs.
+ *
+ * ## ONE FIBER PER CALL, so two calls are not ordered
+ *
+ * Each call forks. Two of them from one callback are two fibers, and nothing
+ * sequences them: the lines they write may reach the sink in either order, and
+ * a second call is not a continuation of the first. That is what a seam out of
+ * somebody else's callback can be, not a shortcoming of this one — the caller
+ * has no fiber to be a continuation OF.
+ *
+ * It is why the appliances spend this on CHATTER, where each line stands alone
+ * and a swapped pair costs a reader nothing. Where an order is load-bearing,
+ * the answer is one Effect that does both things rather than two calls: inside
+ * an Effect the sequencing is Effect's, which is the whole reason a plugin's
+ * real work is `apply` and its registrations are finalizers rather than a pile
+ * of forks.
  */
 export type Detach = (work: Effect.Effect<void>) => void
 

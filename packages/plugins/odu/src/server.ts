@@ -305,6 +305,11 @@ export default definePlugin({
       // few seconds and it is not news — which on this appliance is even more true
       // than on kolu's, because a checkout with no live run is the ORDINARY state
       // of every checkout.
+      //
+      // A FORK PER LINE, here as one appliance over: `run` starts each line on
+      // its own fiber, so two the same callback said may land in either order.
+      // Affordable on lines that stand alone; an order that matters is one
+      // Effect rather than two calls (the bridge's `detached` argues why).
       say: (line) => run(Effect.logDebug(line)),
       // What the OWNER must read: a dial that failed for a reason that is not
       // absence — a socket somebody IS serving that refused us, a path a broken
