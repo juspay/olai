@@ -1240,8 +1240,8 @@ export type Listed = typeof Listed.Type
  * in two packages that never meet was the contract that broke silently, and the
  * fix here was the type checker holding them equal.
  *
- * An engine is a PLUGIN now — `packages/plugins/claude/`, `opencode/`, `pi/` —
- * so neither table can exist: `packages/bundle/src/fence.test.ts` holds as an
+ * An engine is a PLUGIN now — `packages/plugins/claude/`, `codex/`, `opencode/`,
+ * `pi/` — so neither table can exist: `packages/bundle/src/fence.test.ts` holds as an
  * equality per package that no general package spells a plugin's name in code.
  *
  * ## ...and why nothing replaced it HERE

@@ -258,6 +258,9 @@ serve dir="docs" *args: build-client
     # packaged binary does — scripts/acp-agent.sh is the one place that is
     # decided, and `OLAI_ACP_AGENT` overrides it (empty disables).
     export OLAI_ACP_AGENT="$(sh scripts/acp-agent.sh)"
+    # Codex is shipped from the pin inside its plugin, with a separate override
+    # so the historical whole-chat off switch above remains exactly that.
+    export OLAI_ACP_CODEX="$(sh scripts/acp-codex.sh)"
     # The pi row's adapter, the other half of the same pin — a machine with a
     # `pi` on the search path gets the row, every other machine gets nothing
     # new (scripts/acp-pi.sh says why the roster probes for the agent).
@@ -292,6 +295,7 @@ run dir="docs" *args: build-client
     #!/usr/bin/env bash
     set -euo pipefail
     export OLAI_ACP_AGENT="$(sh scripts/acp-agent.sh)"
+    export OLAI_ACP_CODEX="$(sh scripts/acp-codex.sh)"
     export OLAI_ACP_PI="$(sh scripts/acp-pi.sh)"
     # The pinned odu on PATH, the same errand one recipe over — see `serve`
     # for why the export is two lines.
@@ -336,6 +340,19 @@ nix:
       exit 1
     fi
     echo "packaged default agent: $agent"
+    # The shipped Codex adapter gets its own row and its own off/override
+    # variable; it must be baked into the same packaged wrapper.
+    codex=$(sed -n "s|.*OLAI_ACP_CODEX=\${OLAI_ACP_CODEX-'\(.*\)'}.*|\1|p" "$out/bin/olai")
+    if [ -z "$codex" ]; then
+      echo "the packaged binary does not bake OLAI_ACP_CODEX into its wrapper." >&2
+      cat "$out/bin/olai" >&2
+      exit 1
+    fi
+    if [ ! -x "$codex" ]; then
+      echo "the wrapper's baked OLAI_ACP_CODEX is not executable: $codex" >&2
+      exit 1
+    fi
+    echo "packaged codex adapter: $codex"
     # THE OTHER SHIPPED ADAPTER, checked the same way: the pi row is a no-op
     # on a machine without `pi`, but on one that has it the row spawns
     # whatever this names, so it has to be there and be runnable.

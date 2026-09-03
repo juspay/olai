@@ -8,7 +8,7 @@ It sits BESIDE `@olai/ops` rather than above or below it. A conversation and an 
 
 ## Which agent, and when it starts
 
-The roster is DETECTED rather than configured (ruled 2026-08-21): olai looks for each agent it knows — the ACP agent `OLAI_ACP_AGENT` names, which every documented way of starting olai bakes the pinned Claude Code adapter into, and an `opencode` on its own search path — and what it finds is what you can choose between. Finding nothing has a face of its own: the panel draws, says so, and says how to install one.
+The roster is DETECTED rather than configured (ruled 2026-08-21): olai looks for each agent its engine plugins know — the pinned Claude Code and Codex adapters, an `opencode` on its own search path, and the pinned pi adapter paired with a `pi` found there — and what it finds is what you can choose between. Finding nothing has a face of its own: the panel draws, says so, and says how to install one.
 
 The state machine in `chat.ts` still holds one conversation with one ACP process. `scoped.ts` is the scheduler above it: node-bound conversations get one Effect scope each, are acquired lazily on the first press or wake, and may run concurrently. The working set is capped at eight; an idle, unwatched, non-foreground scope is reaped after fifteen minutes and a later wake respawns it from the durable session. Closing the scope releases the panel, ACP process, optional MCP servers, attachments, inbox and per-session tool credential together. Unassigned conversations keep the ordinary single foreground panel. Where an unassigned conversation's choice comes from, in order:
 
@@ -20,24 +20,24 @@ The state machine in `chat.ts` still holds one conversation with one ACP process
 
 ### The legs
 
-A `Leg` is one interface with one implementation per agent, and it is where every bet that is true of ONE agent lives. **Neither the shape nor any implementation is in this package any more.** The shape is [`@olai/acp`](../acp/README.md)'s `./engine` door — an engine plugin writes one and this package reads it, and neither may import the other — and each implementation is its own plugin's `src/leg.ts`, beside the adapter pin and the patches it is written against ([`olai-plugin-claude`](../plugins/claude/), `olai-plugin-opencode`, `olai-plugin-pi`). Reading two of them side by side is still the point: what differs between them is exactly what differs between the agents.
+A `Leg` is one interface with one implementation per agent, and it is where every bet that is true of ONE agent lives. **Neither the shape nor any implementation is in this package any more.** The shape is [`@olai/acp`](../acp/README.md)'s `./engine` door — an engine plugin writes one and this package reads it, and neither may import the other — and each implementation is its own plugin's `src/leg.ts`, beside the adapter pin and the patches it is written against ([`olai-plugin-claude`](../plugins/claude/), `olai-plugin-codex`, `olai-plugin-opencode`, `olai-plugin-pi`). Reading them side by side is still the point: what differs between them is exactly what differs between the agents.
 
 What is left here is the reading, not the bets: this package is HANDED an array of engines by the composition root and never learns that a plugin system exists.
 
-| | claude | opencode |
-|---|---|---|
-| a tool's programmatic name | `_meta.claudeCode.toolName` | the head of the `toolCallId` (`bash:0`) |
-| an MCP server's tools | `mcp__<server>__<tool>` | `<server>_<tool>` |
-| who made a call | `_meta.claudeCode.parentToolUseId` | nothing says; fan-outs render flat |
-| auto-approval mode | `bypassPermissions` | none — `session/set_mode` refuses (`-32602`) |
-| a message sent while it is busy | held behind the running turn, in order (advertised: `promptQueueing`) | the same, verified against 1.17.9 |
-| interrupting the running turn | `_session/steering`, advertised in `initialize`'s top-level `_meta` | none (`-32601`); one gesture where the other has two |
-| the agent's own messages | forwarded, subscribed at `session/new`/`load` | none; settings come back in method responses |
-| which servers it attached | the `init` message's status per server | nothing says; every row stays *handed over* |
+| | claude | codex | opencode | pi |
+|---|---|---|---|---|
+| a tool's programmatic name | `_meta.claudeCode.toolName` | not exposed in a stable approval field | head of `toolCallId` (`bash:0`) | head of `toolCallId` (`edit:1`) |
+| an MCP server's tools | `mcp__<server>__<tool>` | display title only; never inferred for approval | `<server>_<tool>` | `<server>_<tool>` |
+| who made a call | `_meta.claudeCode.parentToolUseId` | thread metadata cannot prove the spawning call | nothing says | nothing says |
+| auto-approval mode | `bypassPermissions` | none selected; adapter default retained | none | none |
+| busy-turn prompt queueing | advertised | not advertised | verified against 1.17.9 | announced by the adapter |
+| interrupting the running turn | advertised `_session/steering` | advertised `_session/steering` | none | none |
+| the agent's own messages | forwarded subscription | none | none | startup banner only |
+| which servers it attached | `init` status per server | nothing says | nothing says | nothing says |
 
 The rule survives the split, word for word: **nothing is ever approved by failing to recognise it.** A leg that answered a tool name it had not positively recognised, or an allow-option for a tool it could not name, would be approving somebody's permissions on their behalf — the one failure in this package that is not recoverable by pressing something. `_` is a weak separator, so opencode's rule is written as narrowly as it can be (the server names are olai's own, the prefix must be followed by something, and the match is a prefix rather than a contains) and pinned by the near misses that would widen it.
 
-The MODEL is neither leg's. Both agents put it in ACP's own `configOptions`, so the machinery for reading one is `agents/models.ts` — which entry is the model, what the agent calls each value, whether two strings name one model. The ALIAS BRIDGING is not: `sonnet` naming `claude-sonnet-5` is one CLI's vocabulary, so it lives in `olai-plugin-claude`'s own `models.ts` and reaches this package as the `ModelReading` on that engine's leg. An agent whose picker values are the ids it reports takes the default reading and never has an alias tier at all.
+The MODEL is no leg's machinery. Every engine that exposes one puts it in ACP's own `configOptions`, so the machinery for reading one is `agents/models.ts` — which entry is the model, what the agent calls each value, whether two strings name one model. The ALIAS BRIDGING is not: `sonnet` naming `claude-sonnet-5` is one CLI's vocabulary, so it lives in `olai-plugin-claude`'s own `models.ts` and reaches this package as the `ModelReading` on that engine's leg. An agent whose picker values are the ids it reports takes the default reading and never has an alias tier at all.
 
 ## One session per node scope
 

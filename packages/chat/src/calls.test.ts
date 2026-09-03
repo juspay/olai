@@ -136,7 +136,7 @@ describe("what nothing here reads", () => {
 describe("a leg that reads the call id instead of a meta", () => {
   test("a tool name off the id is remembered like any other", () => {
     // The same registry, the same rule, a different place the name was written
-    // down: two of the three engines olai ships send no `_meta` at all and put
+    // down: two of the four engines olai ships send no `_meta` at all and put
     // the tool at the head of the call id. What a later permission request is
     // answered with is the same lookup either way.
     const calls = new Calls(NAMES_IN_ID)

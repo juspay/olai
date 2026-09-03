@@ -903,7 +903,7 @@ export { exposeMapsOf, kindWordOf, surfacesOf } from "./contract.ts"
  * the argument that a server half should "open one door for its whole
  * registration" — and none of the four was ever imported from here by anything.
  * The door was not one either: the re-export is types-only and a probe needs
- * VALUES, so two of the three engines go to `@olai/acp/engine` for `adapterFrom`
+ * VALUES, so three of the four engines go to `@olai/acp/engine` for `adapterFrom`
  * and `AGENT_ENV` regardless. A convenience nobody walked through, arguing a
  * property it did not have.
  */

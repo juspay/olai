@@ -14,11 +14,11 @@
  *
  * There was a `KINDS` array here — three rows, each naming a leg and a probe —
  * beside `@olai/surface`'s `AGENTS` record, which made every agent id a CLOSED
- * UNION that only a core PR could widen. So a fourth engine was an edit in two
+ * UNION that only a core PR could widen. Adding another engine was an edit in two
  * general packages, and a bump of ONE adapter's pin was an edit in a file the
  * other two shared.
  *
- * Each engine is a PLUGIN now — `packages/plugins/claude/`, `opencode/`, `pi/`,
+ * Each engine is a PLUGIN now — `packages/plugins/claude/`, `codex/`, `opencode/`, `pi/`,
  * one row each in `olai.yml` — and what arrives here is whatever those plugins
  * registered on the `Agents` service (`@olai/plugin-api`'s `services.ts`). This
  * package never learns that a plugin system exists: it is handed
