@@ -59,6 +59,12 @@ export const isApplePlatform = (
 
 const wantsMeta = (): boolean => isApplePlatform()
 
+/** Which side THIS press is on: asked of the live browser unless the caller
+ *  pins a platform (tests do), so "is absent" is spelled once for every
+ *  matcher rather than in each of them. */
+const onApple = (platform?: string): boolean =>
+  platform !== undefined ? isApplePlatform(platform) : wantsMeta()
+
 /**
  * The reserved chords, as a table.
  *
@@ -145,7 +151,7 @@ export const matchKey = (
   event: KeyboardEvent,
   platform?: string,
 ): KeyMatch | null => {
-  const apple = platform !== undefined ? isApplePlatform(platform) : wantsMeta()
+  const apple = onApple(platform)
   const mod = apple
     ? event.metaKey && !event.ctrlKey
     : event.ctrlKey && !event.metaKey
@@ -332,7 +338,7 @@ export const editKey = (
    *  it; tests pin it. */
   platform?: string,
 ): EditAction | null => {
-  const apple = platform !== undefined ? isApplePlatform(platform) : wantsMeta()
+  const apple = onApple(platform)
   // Order matters: every branch below is a more specific reading of a key a
   // later branch also matches, and the modifiers are what tell them apart.
   if (event.key === "Escape") return "cancel"
@@ -501,7 +507,7 @@ export type SelectAction =
   | "clear"
 
 export const selectKey = (event: KeyboardEvent, platform?: string): SelectAction | null => {
-  const apple = platform !== undefined ? isApplePlatform(platform) : wantsMeta()
+  const apple = onApple(platform)
   if (event.key === "Escape") return "clear"
   if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && !event.shiftKey) {
     return "complete"
