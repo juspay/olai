@@ -72,4 +72,14 @@ jobs:
             echo "::error::nix build produced no output paths"
             exit 1
           fi
-          printf '%s\n' "$paths" | attic push --stdin oss
+          # Runtime closures of the outputs, plus each output's realized
+          # build-time inputs (bun-pkg FODs a rebuild still needs). attic's
+          # upstream filter drops anything already on cache.nixos.org.
+          {
+            printf '%s\n' "$paths"
+            while IFS= read -r p; do
+              drv=$(nix-store -q --deriver "$p")
+              [ -n "$drv" ] && [ "$drv" != unknown-deriver ] || continue
+              nix-store -qR --include-outputs "$drv"
+            done <<< "$paths"
+          } | awk 'NF && !seen[$0]++' | attic push --stdin oss
