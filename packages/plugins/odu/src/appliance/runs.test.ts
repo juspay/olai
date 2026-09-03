@@ -105,6 +105,18 @@ const node = (id: string, name: string, status: PipelineState["nodes"][string]["
   status,
 })
 
+/** A run still GOING: one node running, nothing red. The mid-run weather of
+ *  every healthy hold — and, ever since the settle is read off the frame
+ *  rather than the socket, the fixture any case about something ELSE needs
+ *  for a run that must not settle under it. */
+const runningState = (): PipelineState => ({
+  ...EMPTY_STATE,
+  name: "ci",
+  sha7: "8f8fe56",
+  order: ["e2e@p"],
+  nodes: { "e2e@p": node("e2e@p", "e2e", "running") },
+})
+
 /** A three-node run in one frame, one of them red. */
 const redState = (): PipelineState => ({
   ...EMPTY_STATE,
@@ -409,7 +421,9 @@ test("two lanes naming ONE checkout are one run — the second claim is the mist
 // ── The two notices a hold rings ─────────────────────────────────────────
 
 test("a frame carrying NO red says nothing", () => {
-  const it = bench(coordinator(state(), header(), null))
+  // No red in the frame, and the run not settled either: BOTH kinds are
+  // quiet on this one.
+  const it = bench(coordinator(runningState(), header(), null))
   const watch = makeWatch(it.deps)
   watch.reclaim([named()])
   return Effect.runPromise(
@@ -429,11 +443,16 @@ test("the moment a frame carries red, FIRST-RED rings — once per run, never pe
   const frames = new Promise<void>((resolve) => {
     push = () => resolve()
   })
+  // The SECOND red arrives mid-run: a fourth node is still going, so the
+  // frame reddens without settling — the one first-red is this case's whole
+  // account either way.
   const secondRed = (): PipelineState => ({
     ...redState(),
+    order: [...redState().order, "d@p"],
     nodes: {
       ...redState().nodes,
       "c@p": node("c@p", "fmt-check", "errored"),
+      "d@p": node("d@p", "bench", "running"),
     },
   })
   const it = bench(async () => ({
@@ -492,10 +511,12 @@ test("a run ALREADY red when olai first dialed says so on the first frame", () =
   )
 })
 
-test("SETTLED rings where the row is stamped, carrying every node the hold EVER saw red", () => {
+test("SETTLED rings on the frame that settles the run, carrying every node the hold EVER saw red", () => {
   // The run reddened and then — after a rerun — went green: the final frame
   // is clean, and the notice still names `b@p`, because that is the hold's
-  // own record and not an inference anybody ran afterwards.
+  // own record and not an inference anybody ran afterwards. And it rings ON
+  // that frame: the socket is still serving (the coordinator tears down a
+  // beat later, or lingers), and the run's own settlement is the signal.
   let push = (): void => {}
   const frames = new Promise<void>((resolve) => {
     push = () => resolve()
@@ -533,16 +554,264 @@ test("SETTLED rings where the row is stamped, carrying every node the hold EVER 
       yield* settle
       push()
       yield* settle
+      const settled_ = it.noticed.find((one) => one.kind === "settled")
+      expect(settled_?.kind).toBe("settled")
+      if (settled_?.kind !== "settled") return
+      // Rung BEFORE the socket went: `live` is the socket's truth, and its
+      // truth at the settlement is that the coordinator is still up.
+      expect(settled_.run.live).toBe(true)
+      expect(verdictOf(tallyOf(settled_.run.cells))).toBe("ok")
+      expect(settled_.reddened).toEqual(["b@p"])
       settled()
+      yield* settle
+      // ...the socket's death after a settled run is its own silence: the
+      // whole stream of notices for this run is first-red, settled.
+      expect(it.noticed.map((one) => one.kind)).toEqual(["first-red", "settled"])
+    })),
+  )
+})
+
+/** Two-thirds home and the last node still going: the frame just before the
+ *  settle — no red anywhere, so a case can say the ONLY thing its frames do
+ *  is settle. */
+const midwayState = (): PipelineState => ({
+  ...redState(),
+  nodes: {
+    "a@p": node("a@p", "typecheck", "ok"),
+    "b@p": node("b@p", "e2e", "ok"),
+    "c@p": node("c@p", "fmt-check", "running"),
+  },
+})
+
+test("a run that SETTLES while its coordinator keeps serving rings settled at the last node's frame", () => {
+  // THE INCIDENT (2026-09-02): two green runs — juspay/odu#98 and olai#474's
+  // run 4 — reached the chat as settled only when their coordinators were
+  // CANCELLED, six to eleven minutes after the last node went green. Both
+  // were `odu run --linger`: the coordinator keeps the socket open ON PURPOSE
+  // after the run settles, so one node can be re-run. Read off the socket's
+  // death, the settle is only ever said then — and the doorbell is silent
+  // for a run that finished minutes ago.
+  //
+  // The coordinator below SETTLES and then keeps serving: the socket never
+  // closes for the whole case. The settle must be said at the frame that
+  // settles the run — not at a socket death that never comes.
+  let push = (): void => {}
+  const frames = new Promise<void>((resolve) => {
+    push = () => resolve()
+  })
+  const it = bench(async () => ({
+    client: {
+      surface: {
+        nodes: {
+          get: () =>
+            Stream.concat(
+              Stream.make(midwayState()),
+              Stream.concat(
+                Stream.fromEffect(Effect.promise(() => frames)).pipe(Stream.drain),
+                Stream.concat(Stream.make(greenState()), Stream.never),
+              ),
+            ),
+        },
+        header: { get: () => Stream.concat(Stream.make(header()), Stream.never) },
+      },
+    },
+    close: async () => {},
+  }) as never)
+  const watch = makeWatch(it.deps)
+  watch.reclaim([named()])
+  return Effect.runPromise(
+    Effect.scoped(Effect.gen(function*() {
+      yield* watch.sweep
+      yield* settle
+      expect(it.noticed).toEqual([])
+      push()
       yield* settle
       const settled_ = it.noticed.find((one) => one.kind === "settled")
       expect(settled_?.kind).toBe("settled")
       if (settled_?.kind !== "settled") return
-      expect(settled_.run.live).toBe(false)
+      // The verdict is the settling frame's own, and the socket is still UP:
+      // the row's `live` is the socket's truth, and with linger its truth
+      // outlives the settle.
       expect(verdictOf(tallyOf(settled_.run.cells))).toBe("ok")
-      expect(settled_.reddened).toEqual(["b@p"])
-      // ...and the whole stream of notices for this run: first-red, settled.
+      expect(settled_.run.live).toBe(true)
+      expect(watch.rows()[0]?.live).toBe(true)
+    })),
+  )
+})
+
+test("a lingering coordinator that is later CANCELLED does not ring a second settle", () => {
+  // The other half of the same ruling: the socket's going after the run has
+  // ALREADY settled is not a settlement — the idle reap (~30 minutes on) and
+  // `odu cancel` alike end the hold without a second account.
+  let push = (): void => {}
+  const frames = new Promise<void>((resolve) => {
+    push = () => resolve()
+  })
+  let closed = (): void => {}
+  const ends = new Promise<void>((resolve) => {
+    closed = () => resolve()
+  })
+  const it = bench(async () => ({
+    client: {
+      surface: {
+        nodes: {
+          get: () =>
+            Stream.concat(
+              Stream.make(redState()),
+              Stream.concat(
+                Stream.fromEffect(Effect.promise(() => frames)).pipe(Stream.drain),
+                Stream.concat(
+                  Stream.make(greenState()),
+                  Stream.fromEffect(Effect.promise(() => ends)).pipe(Stream.drain),
+                ),
+              ),
+            ),
+        },
+        header: { get: () => Stream.concat(Stream.make(header()), Stream.never) },
+      },
+    },
+    close: async () => {},
+  }) as never)
+  const watch = makeWatch(it.deps)
+  watch.reclaim([named()])
+  return Effect.runPromise(
+    Effect.scoped(Effect.gen(function*() {
+      yield* watch.sweep
+      yield* settle
+      push()
+      yield* settle
       expect(it.noticed.map((one) => one.kind)).toEqual(["first-red", "settled"])
+      // The coordinator is cancelled (or idle-reaped): the row stops being
+      // live, and that is ALL that happens.
+      closed()
+      yield* settle
+      expect(watch.rows()[0]?.live).toBe(false)
+      expect(it.noticed.map((one) => one.kind)).toEqual(["first-red", "settled"])
+    })),
+  )
+})
+
+test("a coordinator that dies MID-RUN rings the run's death where the hold ends, on a lane still boarded", () => {
+  // The socket's death keeps the run's death: the hold never read a settling
+  // frame, so its end says the one word the frames could not — once, with
+  // `live: false`, and the verdict a mid-run row's own (`ended`, the words
+  // say of a `null`). The lane stays on the board for the whole case: not
+  // one reclaim's silence, and not a died reading confused with one.
+  const it = bench(async () => ({
+    client: {
+      surface: {
+        // Two running frames and the stream simply ENDS — the coordinator
+        // was killed.
+        nodes: {
+          get: () => Stream.make(redState(), midwayState()),
+        },
+        header: { get: () => Stream.concat(Stream.make(header()), Stream.never) },
+      },
+    },
+    close: async () => {},
+  }) as never)
+  const watch = makeWatch(it.deps)
+  watch.reclaim([named()])
+  return Effect.runPromise(
+    Effect.scoped(Effect.gen(function*() {
+      yield* watch.sweep
+      yield* settle
+      // First the frame's word, then the socket's — two notices, in order.
+      expect(it.noticed.map((one) => one.kind)).toEqual(["first-red", "settled"])
+      const died = it.noticed[1]
+      expect(died?.kind).toBe("settled")
+      if (died?.kind !== "settled") return
+      // The died reading: `live` already the socket's truth, the verdict a
+      // mid-run row's own, and the hold's WHOLE red record riding the last
+      // account — `b@p` went green before the kill, and that is not a secret.
+      expect(died.run.live).toBe(false)
+      expect(verdictOf(tallyOf(died.run.cells))).toBeNull()
+      expect(died.reddened).toEqual(["b@p"])
+      // The published row carries the same stamp once the hold is gone.
+      expect(watch.rows()[0]?.live).toBe(false)
+    })),
+  )
+})
+
+test("a rerun re-arms the settle: the drain after it is a NEW settlement, rung once", () => {
+  // linger's own economy: the run settled, a node is re-run through the
+  // still-serving socket, and the run settles again. Two settlements, two
+  // accounts — `reddened` is the hold's WHOLE record both times, so the
+  // second one still names the node the first one was about.
+  let drained = (): void => {}
+  const drain1 = new Promise<void>((resolve) => {
+    drained = () => resolve()
+  })
+  let reran = (): void => {}
+  const drain2 = new Promise<void>((resolve) => {
+    reran = () => resolve()
+  })
+  /** The first drain: settled and RED — b@p failed, everything else home. */
+  const settledRed = (): PipelineState => ({
+    ...redState(),
+    nodes: {
+      "a@p": node("a@p", "typecheck", "ok"),
+      "b@p": node("b@p", "e2e", "failed"),
+      "c@p": node("c@p", "fmt-check", "ok"),
+    },
+  })
+  /** b@p re-running: the flip that UN-settles the run. */
+  const rerunning = (): PipelineState => ({
+    ...redState(),
+    nodes: {
+      "a@p": node("a@p", "typecheck", "ok"),
+      "b@p": node("b@p", "e2e", "running"),
+      "c@p": node("c@p", "fmt-check", "ok"),
+    },
+  })
+  const it = bench(async () => ({
+    client: {
+      surface: {
+        nodes: {
+          get: () =>
+            Stream.concat(
+              Stream.make(redState()),
+              Stream.concat(
+                Stream.fromEffect(Effect.promise(() => drain1)).pipe(Stream.drain),
+                Stream.concat(
+                  Stream.make(settledRed()),
+                  Stream.concat(
+                    Stream.fromEffect(Effect.promise(() => drain2)).pipe(Stream.drain),
+                    // Both frames ride the one release: un-settled, then drained
+                    // again — the coordinator pushes them back to back too.
+                    Stream.concat(Stream.make(rerunning()), Stream.make(greenState())),
+                  ),
+                ),
+              ),
+            ),
+        },
+        header: { get: () => Stream.concat(Stream.make(header()), Stream.never) },
+      },
+    },
+    close: async () => {},
+  }) as never)
+  const watch = makeWatch(it.deps)
+  watch.reclaim([named()])
+  return Effect.runPromise(
+    Effect.scoped(Effect.gen(function*() {
+      yield* watch.sweep
+      yield* settle
+      drained()
+      yield* settle
+      expect(it.noticed.map((one) => one.kind)).toEqual(["first-red", "settled"])
+      const first = it.noticed[1]
+      expect(first?.kind).toBe("settled")
+      if (first?.kind !== "settled") return
+      expect(verdictOf(tallyOf(first.run.cells))).toBe("red")
+      reran()
+      yield* settle
+      const settles = it.noticed.filter((one) => one.kind === "settled")
+      expect(settles).toHaveLength(2)
+      const second = settles[1]
+      expect(second?.kind).toBe("settled")
+      if (second?.kind !== "settled") return
+      expect(verdictOf(tallyOf(second.run.cells))).toBe("ok")
+      expect(second.reddened).toEqual(["b@p"])
     })),
   )
 })
