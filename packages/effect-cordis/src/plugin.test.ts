@@ -19,9 +19,9 @@
  */
 
 import { expect, test } from "bun:test"
-import { Effect, Scope } from "effect"
+import { Cause, Effect, Logger, Scope } from "effect"
 
-import { definePlugin, PluginName } from "./plugin.ts"
+import { definePlugin, detached, PluginName } from "./plugin.ts"
 import { mountPlugin, openHost, provide } from "./host.ts"
 import { serviceTag } from "./service.ts"
 
@@ -184,6 +184,83 @@ test("a plugin whose Effect dies lands failed, having installed nothing", async 
     // ...and the sibling never heard about it.
     expect(yield* sibling.report).toEqual({ state: "running" })
   })))
+})
+
+test("a finalizer that dies on the way out does not steal the plugin's fault", async () => {
+  // THE ARM THIS IS ABOUT is the one where BOTH halves fail: the `apply` dies,
+  // and a finalizer it had already installed dies on the unwind. `Scope.close`
+  // is typed `Effect<void>` and is not infallible — it ends on the combination
+  // of every finalizer's exit — so the promise it is run through REJECTED, the
+  // re-throw below it never ran, and what Cordis recorded as the row's fault was
+  // the CLEANUP's defect. An operator read "the disk went away" on the
+  // preferences row of a plugin that had failed because a socket was missing.
+  //
+  // The plugin's failure is the subject; it wins, and the unwind is said beside
+  // it on the log rather than in place of it.
+  const said: Array<string> = []
+  const collector = Logger.make<unknown, void>(({ message }) => {
+    said.push(Array.isArray(message) ? message.map(String).join(" ") : String(message))
+  })
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const host = yield* openHost
+    yield* provide(host, Ledger, ledgerOf([]))
+    const broken = yield* mountPlugin(
+      host,
+      definePlugin({
+        name: "broken",
+        needs: [Ledger],
+        apply: Effect.gen(function*() {
+          yield* Effect.addFinalizer(() => Effect.die(new Error("the disk went away")))
+          return yield* Effect.die(new Error("the socket is not there"))
+        }),
+      }),
+    )
+    // THE PLUGIN'S OWN WORDS, not the finalizer's.
+    expect(yield* broken.report).toEqual({
+      state: "failed",
+      fault: "the socket is not there",
+    })
+  })).pipe(Effect.provide(Logger.layer([collector]))))
+  // ...and the unwind is not silent either: it is said, with the plugin's word
+  // on it, beside the failure rather than instead of it.
+  expect(said.some((line) => line.includes("unwinding after a failed start"))).toBe(true)
+  expect(said.some((line) => line.includes(`"broken"`))).toBe(true)
+})
+
+test("a defect in detached work is said, with the plugin's word on it", async () => {
+  // FIRE AND FORGET IS NOT SILENT, and for a round it was: the fiber `detached`
+  // forks is discarded and effect's error reporting is opt-in, so a defect in
+  // the one seam every plugin drives its real work through — a doorbell walk, a
+  // snapshot the mirror persists, a heartbeat — vanished entirely. No log, no
+  // fault, no row.
+  const said: Array<string> = []
+  const collector = Logger.make<unknown, void>(({ message, cause }) => {
+    const line = Array.isArray(message) ? message.map(String).join(" ") : String(message)
+    said.push(cause === undefined ? line : `${line} ${String(Cause.squash(cause))}`)
+  })
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const host = yield* openHost
+    yield* provide(host, Ledger, ledgerOf([]))
+    yield* mountPlugin(
+      host,
+      definePlugin({
+        name: "scribe",
+        needs: [Ledger],
+        apply: Effect.gen(function*() {
+          const run = yield* detached
+          run(Effect.die(new Error("the watcher threw")))
+        }),
+      }),
+    )
+    // The work is forked, so it settles a beat after the `apply` returns.
+    yield* Effect.sleep("10 millis")
+  })).pipe(Effect.provide(Logger.layer([collector]))))
+  // THE PLUGIN'S WORD, THE OCCASION, AND THE CAUSE — the same sentence the bus
+  // and the waterfall say, which is the point of it being one function.
+  const detachedLine = said.find((line) => line.includes("detached work"))
+  expect(detachedLine).toBeDefined()
+  expect(detachedLine).toContain(`"scribe"`)
+  expect(detachedLine).toContain("the watcher threw")
 })
 
 test("a scope a plugin opened is closed by the disposer, not by the fiber", async () => {
