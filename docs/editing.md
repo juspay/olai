@@ -9,7 +9,11 @@ Click a title and the caret is where you clicked. From there it is the outliner'
 | **Enter, mid-line** | split the row in two, there |
 | **Backspace, at the start** | join this row onto the one above |
 | **Tab** / **Shift+Tab** | indent under the row above, or out again |
-| **Alt+Shift+↑/↓** | move a row among its siblings |
+| **Alt+Shift+↑/↓** (Mac: **⌘⇧↑/↓** too) | move a row among its siblings |
+| **⌘.** / **Alt+.** | zoom into this row (⌘ on a Mac, Alt elsewhere) |
+| **⌘,** / **Alt+,** | zoom out: to the page of the row's parent, or one zoom up |
+| **Ctrl+Space** | fold this branch, or unfurl it |
+| **⌘↑/↓** / **Ctrl+↑/↓** | fold this branch, or unfurl it — the one way you meant |
 | **⌘Enter** / **Ctrl+Enter** | tick it off, or take that back |
 | **⌥Enter** / **Alt+Enter** | call it off, or take that back |
 | **⌘⇧Enter** / **Ctrl+⇧Enter** | walk the mark on: to do, then doing, then none |
@@ -21,6 +25,7 @@ Click a title and the caret is where you clicked. From there it is the outliner'
 | **⌘Z** / **Ctrl+Z** | take back your last edit on this outline |
 | **⌘⇧Z** / **Ctrl+⇧Z** | put it back |
 | **⌘⇧P** / **Ctrl+⇧P** | pin this page to the sidebar, or unpin it |
+| **⌘O** / **Ctrl+O** | show this page's finished work, or hide it again |
 | **Alt+click** | open a link in the pane to the right |
 | **Alt+Shift+click** | open it in a new pane to the right |
 | **Alt+←** / **Alt+→** | move focus to the neighbouring pane |

@@ -68,6 +68,7 @@ import { createRouter, RouterProvider } from "./router.tsx"
 import { runAsync } from "./run.ts"
 import { ServedProvider } from "./served.tsx"
 import { PluginsMounted } from "./plugins/Mounted.tsx"
+import { pageFileOf } from "./settings/done.ts"
 import { Plugins } from "./plugins/Plugins.tsx"
 import { Preferences } from "./settings/Preferences.tsx"
 import { Sidebar } from "./Sidebar.tsx"
@@ -362,6 +363,7 @@ export default function App() {
       <Palette
         zoomed={zoomed()}
         names={names()}
+        doneAt={pageFileOf(focused()?.shows)}
         go={(route) => router.go(route)}
         toggleDirectory={() => {
           if (desktop()) toggleSidebar()

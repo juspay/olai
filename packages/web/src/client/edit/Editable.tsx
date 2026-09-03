@@ -68,9 +68,11 @@ import { createSweeping } from "../drag/sweeping.ts"
 import { isEditingTarget, type SelectAction, selectKey } from "../keys.ts"
 import { createMoving, MovingProvider } from "../move/moving.tsx"
 import { useFrames } from "../reading.tsx"
+import { useGo } from "../router.tsx"
+import { atFile, atNode } from "../routes.ts"
 import { createSelection, type Selection, SelectionProvider } from "../select/selection.ts"
 import { SelectionBar } from "../select/SelectionBar.tsx"
-import { createEditor, EditorProvider } from "./editing.tsx"
+import { createEditor, EditorProvider, type Zooming } from "./editing.tsx"
 
 export function Editable(props: {
   /** What is drawn — half of where `↑`/`↓` go, of where a row that has moved
@@ -117,7 +119,24 @@ export function Editable(props: {
   // made on the next line — a keyboard door that left focus on `<body>` is the
   // gap both reviews of #245 named, and this is the one line that closes it.
   const moving = createMoving(page, (row) => editor.open(row, "title"))
-  const editor = createEditor(page, selection, moving)
+  /**
+   * The two ZOOM keys' destinations — the editor knows how to leave a row
+   * and not where that goes, so the ROUTES are spelled here: the node a
+   * zoom-in names is an id the editor already holds, and "the page above"
+   * is `within`'s one crumb short of the subject — or the file itself, or
+   * nothing on a whole outline.
+   */
+  const go = useGo()
+  const zooming: Zooming = {
+    go: (id) => go(id === null ? atFile(props.file) : atNode(id)),
+    above: () =>
+      props.within.length >= 2
+        ? props.within[props.within.length - 2]
+        : props.within.length === 1
+          ? null
+          : undefined,
+  }
+  const editor = createEditor(page, selection, moving, zooming)
   const dragging = createDragging({ selection })
   const sweeping = createSweeping(selection, () => surface)
 

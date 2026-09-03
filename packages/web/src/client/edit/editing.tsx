@@ -59,6 +59,8 @@ import {
 import { Result } from "effect"
 
 import { datePick } from "../date/pick.ts"
+import { setFolded } from "../fold/memory.ts"
+import { foldIdOf, foldOf } from "../fold/rows.ts"
 import type { Caret, EditAction } from "../keys.ts"
 import { runAsync } from "../run.ts"
 import type { Moving } from "../move/moving.tsx"
@@ -159,6 +161,25 @@ export interface OpenAt {
 }
 
 /**
+ * Where the two ZOOM keys land, handed in because what they name is a ROUTE:
+ * this module knows how to leave a row cleanly and knows nothing about
+ * addresses (the same split {@link createEditor}'s `moving` argument keeps:
+ * the shape of leaving is the editor's, the destination is the page's).
+ *
+ * The two halves are the two shapes a zoom-out can have. `go(null)` is the
+ * page's own FILE — the outline a zoom pops all the way back to — and
+ * `above` names the node ONE page up when "out" is asked of a row that has
+ * no parent row drawn on this page: the node the page's subject sits under.
+ * `undefined` there is an answer too — an outline has no page above it — and
+ * the key then says nothing: a zoom-out at the widest zoom is a no-op, the
+ * way the last breadcrumb is.
+ */
+export interface Zooming {
+  readonly go: (id: string | null) => void
+  readonly above: () => string | null | undefined
+}
+
+/**
  * Where the caret is — the part of a draft a ROW has to know, split out from
  * the part it must not read.
  *
@@ -251,6 +272,12 @@ export const createEditor = (
    * that eventually lands.
    */
   moving: Pick<Moving, "open">,
+  /**
+   * The page's two answers to the ZOOM keys ({@link Zooming}), handed in for
+   * the reason `moving` above is: this file knows how to leave a row cleanly;
+   * where that goes is an address, and addresses are the page's.
+   */
+  zooming: Zooming,
 ): Editor => {
   const [draft, setDraft] = createSignal<Draft | null>(null)
   const [ghosts, setGhosts] = createSignal<ReadonlyArray<Pending>>([])
@@ -823,6 +850,21 @@ export const createEditor = (
       enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "up" }), at)),
     down: (at) =>
       enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "down" }), at)),
+    // The BULLET's page, from the key rather than the pointer — and the row
+    // being zoomed INTO is the one being typed in, which is why this is
+    // `picking`'s three steps exactly: commit, leave the caret, then let the
+    // address do the work. The destination is the row's own RECORD, the same
+    // reading the bullet's click makes — mirrors included.
+    zoomIn: () => enqueue(() => picking((_, record) => zooming.go(record))),
+    // ...and the way back, which needs the row the caret was in BEFORE the
+    // commit closes it — see `outOf`.
+    zoomOut: () => enqueue(() => outOf()),
+    // The fold trio writes to the BROWSER's own memory and nowhere else — no
+    // queue, no commit: folding hides the row's CHILDREN, so the row with the
+    // caret never leaves the screen and the draft is simply left on it.
+    fold: () => foldCaret("toggle"),
+    collapse: () => foldCaret(true),
+    expand: () => foldCaret(false),
   }
 
   /**
@@ -898,6 +940,55 @@ export const createEditor = (
     idle.clear()
     setDraft(null)
     pick(from, held.row)
+  }
+
+  /**
+   * The three fold keys, one write: the same call the triangle in the gutter
+   * makes (`../Tree.tsx`), answered off the same READING the tree folds by —
+   * which is the page's `collapsed`, node ids and all (`../fold/reading.ts`).
+   * A row with no children folds nothing, for the reason the gutter draws no
+   * triangle on one.
+   */
+  const foldCaret = (to: boolean | "toggle"): void => {
+    const at = row()
+    if (at === undefined || at.children.length === 0) return
+    setFolded(
+      [foldOf(at)],
+      to === "toggle" ? !page.collapsed().has(foldIdOf(at)) : to,
+    )
+  }
+
+  /**
+   * `⌘,` / `Alt+,`: zoom OUT — to the nearest page that still shows the row
+   * the caret is in.
+   *
+   * TWO SHAPES, and the caret's key chain decides which: a row drawn under a
+   * parent row goes to THAT row's page (its `at.node.id`, the record, the
+   * same reading `zoomIn` makes) — on the page of `install`, the caret in
+   * `handles` goes to `install`. A row with NO parent on this page — one of
+   * the page's own top lines — goes to the page ABOVE its subject, which is
+   * `zooming.above()`'s to say: the crumb the Breadcrumbs row would offer,
+   * the file itself, or nothing on a whole outline. A zoom from a mirror
+   * lands where a click on the breadcrumb lands (the node's canonical page),
+   * one address per node, the page's promise.
+   *
+   * DECIDED BEFORE THE COMMIT: the parent row is looked up in `drawn`, which
+   * is the tree through the caret's eyes and answers with nothing the moment
+   * the draft closes (`drawn`'s `where` gate, above) — so the destination is
+   * worked out while the caret is still standing in it, and only then is the
+   * line let go. `picking` could not order that: its callback runs after the
+   * draft is gone.
+   */
+  const outOf = async (): Promise<void> => {
+    const held = draft()
+    if (held === null || held.kind !== "row" || held.place === null) return
+    const parentKey = held.place.slice(0, held.place.lastIndexOf("/"))
+    const target = parentKey !== ""
+      ? drawn().find((one) => one.key === parentKey)?.at.node.id
+      : zooming.above()
+    if (target === undefined) return
+    if (!(await commit())) return
+    zooming.go(target)
   }
 
   /** The arrows: the next row the eye would reach, folds and all. */
