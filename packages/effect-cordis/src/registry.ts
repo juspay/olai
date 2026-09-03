@@ -38,9 +38,56 @@
  * so deleting it puts the table back exactly where the last successful change
  * left it and there is nothing for a re-read to do. Telling it again would be
  * re-entering it from inside a failure.
+ *
+ * ## ...AND THE HALF UNDERNEATH BOTH OF THEM
+ *
+ * {@link roster} is what is left of the paragraph above when the key stops
+ * meaning anything: *an entry held for as long as the scope that made it*. That
+ * is the whole of what a bus's handler list and a waterfall's chain are, and
+ * this module's own argument — that the registration half was written three
+ * times before it had a name — was still true one level down, inside the
+ * package that made it. It is not on the door: {@link ./broadcast.ts} and
+ * {@link ./waterfall.ts} are what a host holds, and this is what they are built
+ * from.
  */
 
 import { Effect, Scope } from "effect"
+
+/** AN APPEND-ONLY TABLE OF SCOPE-HELD ENTRIES, read in registration order. */
+export interface Roster<V> {
+  /** Hold this entry for as long as the calling plugin's scope is open. Nothing
+   *  comes back, because there is no key worth naming: an entry is identified by
+   *  the scope that made it. */
+  readonly hold: (value: V) => Effect.Effect<void, never, Scope.Scope>
+  /** Every entry held right now, in the order they were made. A COPY, which is
+   *  what makes it safe to walk while a plugin unloading underneath removes one
+   *  — and what a dispatch wants anyway, since what a dispatch is ABOUT is the
+   *  set of plugins that were mounted when it started. */
+  readonly read: () => ReadonlyArray<V>
+}
+
+/**
+ * Open one.
+ *
+ * Keyed by a fresh symbol rather than held in an array, so a release is a delete
+ * rather than an `indexOf` and a `splice` — two plugins holding the same entry
+ * VALUE are two entries, and dropping one leaves the other.
+ */
+export const roster = <V>(): Roster<V> => {
+  const held = new Map<symbol, V>()
+  return {
+    hold: (value) =>
+      Effect.acquireRelease(
+        Effect.sync(() => {
+          const at = Symbol()
+          held.set(at, value)
+          return at
+        }),
+        (at) => Effect.sync(() => void held.delete(at)),
+      ).pipe(Effect.asVoid),
+    read: () => [...held.values()],
+  }
+}
 
 /** ONE TABLE. */
 export interface Registry<K, V> {

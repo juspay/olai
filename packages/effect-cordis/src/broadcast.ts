@@ -39,6 +39,8 @@
 
 import { type Cause, Effect, Scope } from "effect"
 
+import { roster } from "./registry.ts"
+
 /** WHAT A PLUGIN'S HALF OF A BUS IS — one verb, and it is a registration rather
  *  than a subscription: what comes back is nothing, and what holds it is the
  *  calling plugin's scope. */
@@ -67,26 +69,22 @@ export interface Bus<A> {
  * about the BUS: every failure on one is a failure on the same occasion.
  */
 export const broadcast = <A>(what: string): Bus<A> => {
-  /** A `Map` keyed by a fresh symbol rather than a `Set`, so two plugins
-   *  registering the same handler VALUE are two registrations and dropping one
-   *  leaves the other. */
-  const handlers = new Map<symbol, (value: A) => Effect.Effect<void>>()
+  /** {@link ./registry.ts}'s `roster` — an entry held by the scope that made it,
+   *  which is the whole of what a handler list is. It was written out here, with
+   *  a paragraph arguing for the symbol key that is now that module's to make. */
+  const handlers = roster<(value: A) => Effect.Effect<void>>()
   return {
+    // WRAPPED ONCE, AT REGISTRATION, with the registering plugin's own word — so
+    // containment is a property of the bus rather than a discipline each
+    // subscriber is asked to keep, and no ring can forget it.
     listen: (plugin) => (handler) =>
-      Effect.acquireRelease(
-        Effect.sync(() => {
-          const at = Symbol()
-          handlers.set(at, (value) => contained(plugin, what, handler(value)))
-          return at
-        }),
-        (at) => Effect.sync(() => void handlers.delete(at)),
-      ).pipe(Effect.asVoid),
+      handlers.hold((value) => contained(plugin, what, handler(value))),
     // SUSPENDED, because the list is read at the moment the bus is rung rather
     // than at the moment it was opened: every subscriber arrives afterwards.
     tell: (value) =>
-      Effect.suspend(() =>
-        Effect.forEach([...handlers.values()], (handler) => handler(value), { discard: true })
-      ),
+      Effect.suspend(() => Effect.forEach(handlers.read(), (handler) => handler(value), {
+        discard: true,
+      })),
   }
 }
 

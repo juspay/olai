@@ -38,6 +38,7 @@ import { Effect, Scope } from "effect"
 
 import { failed } from "./broadcast.ts"
 import { type Host, provide } from "./host.ts"
+import { roster } from "./registry.ts"
 import { serviceTag, type ServiceKey } from "./service.ts"
 
 /**
@@ -79,29 +80,22 @@ export const waterfall = <A>(cordis: string): Waterfall<A> => {
          *  is deliberately NOT a promise to anybody: a row's `apply` runs when
          *  the loader's `import()` for that row comes back, so two rows race and
          *  the order moves between boots. A caller that needs an order imposes
-         *  one on the RESULT, against a list that is written down. */
-        const chain: Array<{ readonly plugin: string; readonly middleware: Middleware<A> }> = []
+         *  one on the RESULT, against a list that is written down.
+         *
+         *  {@link ./registry.ts}'s `roster` holds it — the same entry-held-by-a-
+         *  scope this used to write out as an array with an `indexOf` and a
+         *  `splice` behind it, which is the O(n) removal the keyed table exists
+         *  to be instead of. */
+        const chain = roster<{ readonly plugin: string; readonly middleware: Middleware<A> }>()
         yield* provide(host, key, (plugin) => ({
-          use: (middleware) =>
-            Effect.acquireRelease(
-              Effect.sync(() => {
-                const link = { plugin, middleware }
-                chain.push(link)
-                return link
-              }),
-              (link) =>
-                Effect.sync(() => {
-                  const at = chain.indexOf(link)
-                  if (at !== -1) chain.splice(at, 1)
-                }),
-            ).pipe(Effect.asVoid),
+          use: (middleware) => chain.hold({ plugin, middleware }),
         }))
         return (initial: A) => {
-          // A SNAPSHOT, taken at the dispatch. A plugin that unloads mid-chain
-          // would otherwise re-index the array under the walk; and what a
+          // A SNAPSHOT, taken at the dispatch — `read` copies, so a plugin that
+          // unloads mid-chain cannot re-index the walk underneath it. What a
           // dispatch is ABOUT is the set of plugins that were mounted when it
           // started.
-          const links = [...chain]
+          const links = chain.read()
           const step = (at: number, value: A): Effect.Effect<A> =>
             at >= links.length ? Effect.succeed(value) : Effect.gen(function*() {
               const link = links[at]!
