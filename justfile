@@ -49,6 +49,12 @@ check: typecheck test e2e kolu-deps odu-deps cordis-deps fmt-check nix bun-nix-f
 # bun one — and `bun test` discovers them with everything else, so a fresh
 # machine's first `just test` needs both trees standing. It is the same
 # lockfile the FOD builds from; nothing here drifts.
+# `npm ci` is announced on stderr before it starts, then run with
+# `--loglevel=http`: `nix develop -c` is not a TTY, so npm turns progress
+# off and notice-level is silent until "added N packages in 5m" — a cold
+# fetch of the adapter tree is the wait `just run` used to look hung on.
+# `--no-audit --no-fund` drop a second registry round-trip that is not
+# the lockfile.
 # Every bun leg depends on this one recipe, so concurrent legs share a single
 # install rather than racing on node_modules.
 #
@@ -73,7 +79,8 @@ check: typecheck test e2e kolu-deps odu-deps cordis-deps fmt-check nix bun-nix-f
 # `chmod`.
 install:
     {{ nix_shell }} sh -c 'bun install --frozen-lockfile \
-      && (cd acp && npm ci --ignore-scripts) \
+      && echo >&2 "cd acp && npm ci --ignore-scripts --loglevel=http --progress=false --no-audit --no-fund" \
+      && (cd acp && npm ci --ignore-scripts --loglevel=http --progress=false --no-audit --no-fund) \
       && sh $OLAI_KOLU_HYDRATE_SCRIPT $OLAI_KOLU_HYDRATE \
       && sh $OLAI_KOLU_HYDRATE_SCRIPT $OLAI_ODU_HYDRATE \
       && sh $OLAI_KOLU_HYDRATE_SCRIPT $OLAI_CORDIS_HYDRATE \
@@ -314,7 +321,8 @@ run dir="docs" *args: build-client
 nix:
     #!/usr/bin/env bash
     set -euo pipefail
-    out=$(nix build .#olai --no-link --print-out-paths --accept-flake-config)
+    out=$(sh scripts/nix-out.sh .#olai)
+    echo >&2 "nix run .#olai -- --help"
     nix run .#olai --accept-flake-config -- --help > /dev/null
     # The packaged DEFAULT AGENT, as a checked fact rather than a claim in a
     # doc: `nix run` has to come with the pinned Claude Code adapter, so the
@@ -705,7 +713,7 @@ dev-bin:
     mkdir -p "$dir"
     # The same build-on-demand scripts/olai-path.sh's header spends a
     # paragraph defending: here at WRITE time rather than each spawn.
-    odu_dir="$(nix build .#odu-bin --no-link --print-out-paths --accept-flake-config)/bin"
+    odu_dir="$(sh scripts/nix-out.sh .#odu-bin)/bin"
     printf '#!/usr/bin/env bash\n' > "$dir/bin"
     printf 'export OLAI_ODU_BIN="${OLAI_ODU_BIN-%s}"\n' "$odu_dir" >> "$dir/bin"
     printf '%s\n' 'if [ -n "$OLAI_ODU_BIN" ]; then if [ -d "$OLAI_ODU_BIN" ]; then export PATH="$OLAI_ODU_BIN${PATH:+:$PATH}"; else echo "olai: OLAI_ODU_BIN=$OLAI_ODU_BIN is not a directory — no odu goes on the PATH of this serve" >&2; fi; fi' >> "$dir/bin"
@@ -728,7 +736,7 @@ dev-bin:
 e2e: install nix
     #!/usr/bin/env bash
     set -euo pipefail
-    bin="$(nix build .#olai --no-link --print-out-paths --accept-flake-config)/bin/olai"
+    bin="$(sh scripts/nix-out.sh .#olai)/bin/olai"
     cd packages/tests
     # `cd` rather than `bun --cwd`: with --cwd, bun swallows the script name and
     # prints its own help with status 0, which reads as a passing leg that ran

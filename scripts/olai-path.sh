@@ -34,7 +34,8 @@
 # Building on demand rather than in shell.nix is scripts/acp-agent.sh's
 # argument verbatim: entering the dev shell stays a second, and `just
 # serve` pays the build on the run rather than `nix develop` paying it on
-# every recipe.
+# every recipe. scripts/nix-out.sh is the one `nix build`: stdout is the
+# path, stderr names the attr.
 set -eu
 
 if [ -n "${OLAI_ODU_BIN+set}" ]; then
@@ -52,5 +53,5 @@ if [ -n "${OLAI_ODU_BIN+set}" ]; then
   exit 0
 fi
 
-out=$(nix build .#odu-bin --no-link --print-out-paths --accept-flake-config)
+out=$(sh "$(dirname "$0")/nix-out.sh" .#odu-bin)
 printf '%s' "$out/bin${PATH:+:$PATH}"
