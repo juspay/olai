@@ -401,12 +401,18 @@ export const openApp = (config: AppConfig = {}): Effect.Effect<App, never, Scope
      * Two levels rather than one composite key, because the walks read a whole
      * slot and never a single composite: `dressed` is asked per drawn property
      * value, and a flat table would make it a scan.
+     *
+     * A RECORD rather than a `Map`, because {@link SLOTS} already proves every
+     * key is there. A `Map` threw that away and every read needed a `!` to
+     * re-assert it — an assertion whose only ground was the line that filled the
+     * map, four statements up. Keyed by the same declaration, `at(slot)` is a
+     * property read the compiler already knows the answer to.
      */
-    const tables = new Map<SlotName, Registry<string, unknown>>(
+    const tables = Object.fromEntries(
       (Object.keys(SLOTS) as ReadonlyArray<SlotName>)
         .map((slot) => [slot, registry<string, unknown>(config.changed)] as const),
-    )
-    const at = (slot: SlotName): Registry<string, unknown> => tables.get(slot)!
+    ) as Record<SlotName, Registry<string, unknown>>
+    const at = (slot: SlotName): Registry<string, unknown> => tables[slot]
 
     yield* provide(host, Slots, (plugin) => ({
       register: (slot: SlotName, second: unknown, third?: unknown) =>
