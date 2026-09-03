@@ -123,18 +123,23 @@ export function Editable(props: {
    * The two ZOOM keys' destinations — the editor knows how to leave a row
    * and not where that goes, so the ROUTES are spelled here: the node a
    * zoom-in names is an id the editor already holds, and "the page above"
-   * is `within`'s one crumb short of the subject — or the file itself, or
-   * nothing on a whole outline.
+   * is `within`'s one crumb short of the subject — or the file itself. On a
+   * whole outline there IS none, so `out` is left ABSENT, which is the
+   * answer the key then has: nothing.
    */
   const go = useGo()
   const zooming: Zooming = {
-    go: (id) => go(id === null ? atFile(props.file) : atNode(id)),
-    above: () =>
-      props.within.length >= 2
-        ? props.within[props.within.length - 2]
-        : props.within.length === 1
-          ? null
-          : undefined,
+    into: (id) => go(atNode(id)),
+    ...(props.within.length === 0
+      ? {}
+      : {
+          out: () =>
+            go(
+              props.within.length >= 2
+                ? atNode(props.within[props.within.length - 2]!)
+                : atFile(props.file),
+            ),
+        }),
   }
   const editor = createEditor(page, selection, moving, zooming)
   const dragging = createDragging({ selection })

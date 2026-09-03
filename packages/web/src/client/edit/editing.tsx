@@ -166,17 +166,15 @@ export interface OpenAt {
  * addresses (the same split {@link createEditor}'s `moving` argument keeps:
  * the shape of leaving is the editor's, the destination is the page's).
  *
- * The two halves are the two shapes a zoom-out can have. `go(null)` is the
- * page's own FILE — the outline a zoom pops all the way back to — and
- * `above` names the node ONE page up when "out" is asked of a row that has
- * no parent row drawn on this page: the node the page's subject sits under.
- * `undefined` there is an answer too — an outline has no page above it — and
- * the key then says nothing: a zoom-out at the widest zoom is a no-op, the
- * way the last breadcrumb is.
+ * The two verbs. `into` names a record the editor already holds — the page
+ * of the zoomed row. `out` is the page ABOVE, and it is OPTIONAL for one
+ * reason: an outline has none. Its ABSENCE is that answer, so a zoom-out at
+ * the widest zoom reads as "not there" rather than as a sentinel a second
+ * member would have to be taught to read.
  */
 export interface Zooming {
-  readonly go: (id: string | null) => void
-  readonly above: () => string | null | undefined
+  readonly into: (id: string) => void
+  readonly out?: () => void
 }
 
 /**
@@ -855,7 +853,7 @@ export const createEditor = (
     // `picking`'s three steps exactly: commit, leave the caret, then let the
     // address do the work. The destination is the row's own RECORD, the same
     // reading the bullet's click makes — mirrors included.
-    zoomIn: () => enqueue(() => picking((_, record) => zooming.go(record))),
+    zoomIn: () => enqueue(() => picking((_, record) => zooming.into(record))),
     // ...and the way back, which needs the row the caret was in BEFORE the
     // commit closes it — see `outOf`.
     zoomOut: () => enqueue(() => outOf()),
@@ -967,10 +965,11 @@ export const createEditor = (
    * same reading `zoomIn` makes) — on the page of `install`, the caret in
    * `handles` goes to `install`. A row with NO parent on this page — one of
    * the page's own top lines — goes to the page ABOVE its subject, which is
-   * `zooming.above()`'s to say: the crumb the Breadcrumbs row would offer,
-   * the file itself, or nothing on a whole outline. A zoom from a mirror
-   * lands where a click on the breadcrumb lands (the node's canonical page),
-   * one address per node, the page's promise.
+   * `zooming.out`'s to say: the crumb the Breadcrumbs row would offer, the
+   * file itself, and nothing at all on a whole outline, where `out` is
+   * absent and the key says nothing. A zoom from a mirror lands where a
+   * click on the breadcrumb lands (the node's canonical page), one address
+   * per node, the page's promise.
    *
    * DECIDED BEFORE THE COMMIT: the parent row is looked up in `drawn`, which
    * is the tree through the caret's eyes and answers with nothing the moment
@@ -983,12 +982,16 @@ export const createEditor = (
     const held = draft()
     if (held === null || held.kind !== "row" || held.place === null) return
     const parentKey = held.place.slice(0, held.place.lastIndexOf("/"))
-    const target = parentKey !== ""
-      ? drawn().find((one) => one.key === parentKey)?.at.node.id
-      : zooming.above()
-    if (target === undefined) return
+    if (parentKey !== "") {
+      const parent = drawn().find((one) => one.key === parentKey)
+      if (parent === undefined) return
+      if (!(await commit())) return
+      zooming.into(parent.at.node.id)
+      return
+    }
+    if (zooming.out === undefined) return
     if (!(await commit())) return
-    zooming.go(target)
+    zooming.out()
   }
 
   /** The arrows: the next row the eye would reach, folds and all. */
