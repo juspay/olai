@@ -33,7 +33,7 @@ const tags = process.env.CUCUMBER_TAGS || "not @skip";
 // A retry that hides a reproducible failure is worse than a red run.
 const retry = parseInt(process.env.CUCUMBER_RETRY || "0", 10);
 
-// The remote just recipe gives each host one slice of the same scenario list.
+// Odu gives each borrowed execution slot one slice of the same scenario list.
 // Cucumber owns the assignment: its native sharder distributes pickles
 // round-robin, so an outline's expanded examples count and a feature move does
 // not leave a hand-maintained partition lopsided.

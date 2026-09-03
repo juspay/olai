@@ -10,15 +10,12 @@
 # already hydrated one file over. One directory, copied; no expansion to ask
 # for, and nothing for a seed list to compute.
 #
-# THE PIN TRACKS MASTER, exactly as the kolu pin beside it does, and that is
-# the second state this pin has been in rather than its first. `@odu/run-client`
-# shipped in juspay/odu#94 as a DRAFT, so the pin began FROZEN at an exact sha
-# (the human's ruling, 2026-08-29: exact sha, re-pin at fold — reproducible at
-# every point) precisely because a draft's branch head moves under a merge that
-# has not happened yet. #94 merged (squash, `b1c3e70f`), the reason expired
-# with it, and the pin became an ordinary tracking one: `just update-pins`
-# walks it forward with everything else, and `npins/sources.json` records the
-# revision either way, so what this tree compiled against is always in the diff.
+# THE PIN IS TEMPORARILY FROZEN at juspay/odu#100's exact SHA while this PR
+# exercises its sharded-recipe design end to end. This is the same rule the
+# `@odu/run-client` pin used while #94 was a draft: a moving branch head is not
+# a reproducible integration test. The `branch` field remains `master`, so once
+# #100 merges the next ordinary `just update-pins` returns this to tracking
+# master; `npins/sources.json` records the tested revision in this diff.
 #
 # WHY THE SCRIPT IS KOLU'S. The copier is generic — `<src> <dest>` pairs, `cp
 # -rL` so a hydrated source's own imports resolve up into the root
