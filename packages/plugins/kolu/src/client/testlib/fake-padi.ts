@@ -12,8 +12,8 @@
  * `socketDuplexLink` over `padiDaemonGroup` → the frozen control core's
  * `hello` → the compatibility gate → the two typed faces. That is deliberately
  * kolu's own consumer smoke (`@kolu/padi-client`'s `dialLoopback.test.ts`)
- * grown one member: it serves the CONTROL sibling AND `terminals` and
- * `screen.text`, which is exactly the slice olai reads.
+ * grown three members: it serves the CONTROL sibling AND `terminals`,
+ * `screen.text` and `watchStates`, which is the slice olai reads.
  *
  * What differs from a real padi is what it ANSWERS and nothing else — so a
  * scenario that passes here is a scenario about olai, and a change to padi's
@@ -44,7 +44,10 @@ import {
   padiSurfaceSibling,
   TerminalNotFound,
 } from "@kolu/padi-client/surface"
-import { Effect, Stream } from "effect"
+import { Effect, Queue, Stream } from "effect"
+
+import { agentBucket, WATCH_DEFAULT_STATES } from "@kolu/terminal-vocab/agentProjection"
+import type { PadiStateEvent } from "@kolu/padi-client/surface"
 
 /** What the fixture hands over: the terminals, and what each one's screen
  *  says. Two maps rather than one record with the screen on it, because padi's
@@ -76,6 +79,103 @@ interface ScreenTextInput {
   readonly startLine?: number
   readonly endLine?: number
 }
+
+/** THE LOCAL SUBSTITUTE for padi's `stateWatch` engine — ~thirty lines where
+ *  the daemon is a hub, a retained buffer and a settle detector. It exists
+ *  because this fake's fleet is STATIC: a record that never moves is one
+ *  where every episode began at its `startedAt` and never ends, so the whole
+ *  engine reduces to "honor the deadline once, then count the nag".
+ *
+ *  IT IS NOT A SECOND SEMANTICS — it is the WIRE's semantics: the spec answers
+ *  what a subscription does with an already-standing match (a leading
+ *  `snapshot` frame), when it counts (the daemon's observation clock, which
+ *  this stream reads off `agent.startedAt` so `heldForMs: 0` and `60s` both
+ *  answer a fixture whose agents started in 2023), and how the cap is said
+ *  (`nag: { index, left }` on each nag event, `left` absent on an uncapped
+ *  run). A scenario that edits a knob and waits for the re-lead — the
+ *  doorbell's `held-for: 0s` gesture — works because a re-SUBSCRIPTION here
+ *  is a fresh source, exactly as a changed question re-leads daemon-side. */
+interface WatchInput {
+  readonly states?: ReadonlyArray<string>
+  readonly heldForMs?: number
+  readonly nagMs?: number
+  readonly nagCount?: number
+  readonly ignoreIds?: ReadonlyArray<string>
+  readonly id?: string
+}
+
+/** The fixture's own record shape, narrowed to the two fields this engine
+ *  reads: the agent's word, and when padi says it began. */
+interface AgentRecord {
+  readonly agent?: { readonly state?: string; readonly startedAt?: number } | null
+}
+
+/** THE DAEMON'S SEQUENCE — one counter across subscriptions, as the wire's
+ *  `seq` doc asks ("monotonic per-daemon"). */
+let stateSeq = 0
+
+const watchStates = (input: WatchInput): Stream.Stream<ReadonlyArray<PadiStateEvent>> =>
+  Stream.callback<ReadonlyArray<PadiStateEvent>>((queue) =>
+    Effect.gen(function*() {
+      const wanted = new Set(input.states ?? WATCH_DEFAULT_STATES)
+      const heldForMs = input.heldForMs ?? 0
+      const ignored = new Set(input.ignoreIds ?? [])
+      /** THE MATCHED SET, static: every terminal whose agent's bucket the
+       *  question names, whose episode outlived the deadline, and that the
+       *  scope does not exclude. */
+      const matched: ReadonlyArray<{ readonly id: string; readonly state: string; readonly since: number }> =
+        Object.entries(fleet.terminals)
+          .filter(([id, record]: [string, unknown]) => {
+            if ((input.id !== undefined && id !== input.id) || ignored.has(id)) return false
+            const agent = (record as AgentRecord).agent
+            if (agent?.state === undefined || agent.state === null) return false
+            if (!wanted.has(agentBucket(agent.state as never))) return false
+            return (agent.startedAt ?? Date.now()) + heldForMs <= Date.now()
+          })
+          .map(([id, record]: [string, unknown]) => {
+            const agent = (record as AgentRecord).agent as NonNullable<AgentRecord["agent"]>
+            return { id, state: agentBucket(agent.state as never), since: agent.startedAt ?? Date.now() }
+          })
+      const event = (
+        kind: "snapshot" | "transition" | "nag",
+        one: (typeof matched)[number],
+        nag?: { readonly index: number; readonly left?: number },
+      ): PadiStateEvent => {
+        stateSeq += 1
+        return {
+          seq: stateSeq as never,
+          id: one.id as never,
+          kind,
+          state: one.state as never,
+          since: one.since as never,
+          at: Date.now() as never,
+          ...(nag === undefined ? {} : { nag }),
+        } as never
+      }
+      // THE LEADING FRAME — even an EMPTY one: "nothing matches" is a frame,
+      // not a silence (the spec's own sentence about the member's first act).
+      Queue.offerUnsafe(queue, matched.map((one) => event("snapshot", one)))
+      // THE NAG: one round per interval, a batch per round, until the cap —
+      // and the stream's own scope closes the timers, so a cancelled
+      // subscription's still-armed round dies with it rather than a timer
+      // firing into a successor's queue.
+      const timers: Array<ReturnType<typeof setTimeout>> = []
+      if (input.nagMs !== undefined && matched.length > 0) {
+        const cap = input.nagCount
+        const arm = (index: number): void => {
+          timers.push(setTimeout(() => {
+            Queue.offerUnsafe(queue, matched.map((one) => event("nag", one, {
+              index: index as never,
+              ...(cap === undefined ? {} : { left: (cap - index) as never }),
+            })))
+            if (cap === undefined || index < cap) arm(index + 1)
+          }, input.nagMs))
+        }
+        arm(1)
+      }
+      yield* Effect.addFinalizer(() => Effect.sync(() => timers.forEach(clearTimeout)))
+    }),
+  )
 
 /**
  * KAVAL'S REAL CLAMP, and the fake is worth nothing without it.
@@ -137,18 +237,18 @@ const control = implementSurface(padiControlSibling, {
 })
 
 /**
- * PADI'S OWN SURFACE — the two members olai reads, and a floor under all the
+ * PADI'S OWN SURFACE — the members olai reads, and a floor under all the
  * rest.
  *
  * `implementSurface` walks the WHOLE spec and refuses a member with no deps, so
  * a fake that supplied only `terminals` and `screen.text` would not boot. It
  * would also be a fake that quietly stopped booting the day padi grew a member,
  * which is not the kind of breakage worth having: what these scenarios are
- * about is two members, and every other one existing is padi's business.
+ * about is three, and every other one existing is padi's business.
  *
  * So the floor is DERIVED from the spec rather than listed. Each cell gets its
  * own declared default, each collection an empty map, each stream and event a
- * source that never emits, and each procedure a refusal. Then the two members
+ * source that never emits, and each procedure a refusal. Then the members
  * that matter are written over the top. A padi that grows a tenth cell changes
  * nothing here; a padi that changes what `terminals` HOLDS breaks these
  * scenarios, which is exactly the sensitivity a fixture should have.
@@ -165,8 +265,9 @@ const floor = <T,>(keys: Iterable<string>, one: (key: string) => T): Record<stri
   Object.fromEntries([...keys].map((key) => [key, one(key)]))
 
 /** Nothing to say, forever — what a stream this fixture does not serve does.
- *  Not an error: a subscriber to `watchStates` here is not wrong, there is
- *  simply nothing happening. */
+ *  `watchStates` is spelled ABOVE the floor ({@link watchStates}), because a
+ *  subscriber there is answered with its leading frame — an empty one is the
+ *  honest "nothing", and `Stream.never` is the one thing it is not. */
 const silent = () => Stream.never
 
 /** Nothing is asking of anyone — the partition a fixture that says nothing
@@ -210,6 +311,12 @@ const padi = implementSurface(padiSurfaceSibling, {
   },
   streams: {
     ...floor(Object.keys(spec.streams ?? {}), () => ({ source: silent })),
+    // THE AGENT-STATE WATCH — the member the doorbell's watcher subscribes
+    // to, served by the static-fleet engine above ({@link watchStates}). The
+    // floor's `silent` would have answered it with a stream that never says
+    // anything, which is the fixture LYING where padi would answer a leading
+    // frame — so this one is spelled.
+    watchStates: { source: (input: WatchInput) => watchStates(input) },
     /**
      * THE LIVE ATTACH — one snapshot frame, then the stream holds open.
      *

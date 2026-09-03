@@ -178,23 +178,24 @@ export interface KoluDeps<N> {
    *
    * OPTIONAL, like {@link MirrorOptions}' own dial: a face that rings
    * nobody passes nothing and pays nothing, and every existing caller keeps
-   * compiling. `heartbeat` events arrive here too — `row` is `null` on them
-   * and it is the READER's job to know that means no terminal moved, since
-   * filtering here would be this package deciding which of its own events
-   * matter to somebody else.
+   * compiling. What arrives is `transition` and `nag` — the `heartbeat`
+   * kind survives on the wire so a ring served from before the fold still
+   * decodes, and LOOKS just the way it always did (`row` is `null` on it,
+   * which meant then what it means now: no terminal moved).
    */
   readonly rang?: (event: KoluEvent) => void
   /**
    * THE HEARTBEAT'S TAP, and the same boundary once more — the watcher's own
    * beat, handed to whoever wants to prove liveness with it.
    *
-   * It rides the beat that already exists ({@link ./watch.ts}'s `pulse`,
-   * armed at `heartbeatMs`) rather than minting a second one: a second timer
-   * would be a second cadence, and the day the two disagreed there would be no
-   * way to say which one the vault's `heartbeat` knob had meant. What is on the
-   * other end of this — `olai-plugin-kolu`'s doorbell, delivering four derived
-   * facts into a conversation that has heard nothing for a window — is not this
-   * package's business, exactly as {@link KoluDeps.rang}'s reader is not.
+   * It rides the beat that already exists — the subscription's per-batch
+   * stamp ({@link ./watch.ts}'s header) — rather than minting a timer of
+   * its own: under a capped, quiet fleet the tap goes SILENT, which is the
+   * design docs.md names: the window a doorbell's floor guards is then the
+   * pill's amber face, not this callback. What is on the other end of this
+   * — `olai-plugin-kolu`'s doorbell, re-imposing the knob's cadence in
+   * `makeHeartbeat`'s own gate — is not this package's business, exactly
+   * as {@link KoluDeps.rang}'s reader is not.
    *
    * ONLY THE CADENCE CROSSES, and the beat's own `at` deliberately does not.
    * `WatchSink.beat` carries the stamp because the PILL draws it — the pill is
@@ -290,8 +291,8 @@ export interface KoluHalf<N> {
   /** The store has NEVER published — the directory's read failed outright.
    *  The wrench's door onto a file the server can no longer see is a page
    *  the store cannot vouch for: the reading resets to nothing. The watch
-   *  KNOBS are not touched — their timers hold their last hand-off while
-   *  the mirror, equally starved, has nothing new for them to gate. */
+   *  KNOBS are not touched — the standing subscription asks its last
+   *  question while the mirror, equally starved, has nothing new for it. */
   readonly unloaded: () => void
 }
 
@@ -383,11 +384,12 @@ const NO_LINK = new SnapshotRefused({
 const NO_ROWS = new Map<string, FleetTerminal>()
 
 export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
-  /** THE WATCHER, built for every face — linked or not. On a machine with
-   *  no kolu the collection is not dead, it is heartbeating, and a UI
-   *  stating recently in that case is a healthy fresh-install preview. The
-   *  clock is the wall: the tests that need a vocabulary of their own get
-   *  it through `./watch.ts`'s `options.now`, not through here. */
+  /** THE WATCHER, built for every face — linked or not, though SUBSCRIBING
+   *  only when one binds: on a machine with no kolu the collection is not
+   *  dead, it is empty, and the pill reads the LINK cell for why (`absent`),
+   *  which is the register that was already drawn. The clock is the wall:
+   *  the tests that need a vocabulary of their own get it through
+   *  `./watch.ts`'s `options.now`, not through here. */
   /** The beat's LAST value, so the cell's snapshot answer is the one the
    *  live broadcast ate: the setter publishes to open subscribers and the
    *  store answers a fresh one — the events collection's two paths, one
@@ -474,7 +476,7 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
         deps.beating?.(everyMs)
       },
     },
-    { now: () => Date.now() },
+    { now: () => Date.now(), say: deps.say, warn: deps.warn },
   )
   /** The malformed-set last said, joined for a one-line compare: the vault
    *  re-derives on every keystroke, and saying the same malformed value on
@@ -535,25 +537,19 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
   mirror = makeMirror(
     {
       link: (state) => cell?.set(state),
-      // Every row the mirror moves is an observation, in the same breath
-      // — that is the whole of the watcher's economy, and it is why the
-      // watcher is sure its view is what the fleet tabs see. The two
-      // leave-shapes are kept apart on the same breath: a row CLOSING is
-      // `remove`, a fleet emptied by the link dying is `suspend` — the
-      // difference a restart's `since` would re-date, which `./watch.ts`'s
-      // header argues.
+      // Every row the mirror moves is one the watcher may need when a padi
+      // event about that terminal lands: the frozen row a `KoluEvent`
+      // carries is this map's latest read, in the same breath (`./watch.ts`).
+      // THE LEAVE HALVES KEEP IT: an event about a just-closed terminal
+      // still wants its draw, which is why neither remove shape reaches the
+      // watcher.
       upsert: (id, row) => {
         deps.fleet()?.upsert(id, row)
         watch.observe(id, row)
       },
-      remove: (id) => {
-        deps.fleet()?.remove(id)
-        watch.remove(id)
-      },
-      clearedRow: (id) => {
-        deps.fleet()?.remove(id)
-        watch.suspend(id)
-      },
+      remove: (id) => deps.fleet()?.remove(id),
+      clearedRow: (id) => deps.fleet()?.remove(id),
+      face: (padi) => watch.attach(padi),
       say: deps.say,
     },
     deps.options,
@@ -605,6 +601,12 @@ export {
   type Watch,
   type WatchConfig,
 } from "./watch.ts"
+/** KOLU'S OWN DURATION GRAMMAR, re-opened at the root door: the vault walk
+ *  (`../../config.ts`) lives in the judgement half, which the repo's fence
+ *  keeps from importing an `@kolu` package — so the parsers and nothing
+ *  else of the `@kolu` tier cross here. What the walk refuses is said in
+ *  kolu's own words. */
+export { parseDuration, parseNag } from "@kolu/padi-client/watchDuration"
 
 /**
  * THE HANDLERS, built from the verbs.

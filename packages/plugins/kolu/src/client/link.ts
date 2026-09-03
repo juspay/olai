@@ -54,13 +54,15 @@
  * value on arrival. Merging them would invalidate every class-only reader on
  * every byte tick.
  *
- * `watchStates` (the hold-and-nag engine) is still not mirrored: phase 2 wants
- * it, and a mirror of a member nobody reads is a subscription paid for
- * nothing. The mirror grows when a reader does.
+ * `watchStates` (the hold-and-nag engine) is CONSUMED now, but beside the
+ * mirror rather than inside it: the watcher needs re-specification and
+ * abort control `mirrorRemoteSurface` does not hand out, so it takes the
+ * whole client at the edge ({@link Sink.face}) and runs its own. The
+ * mirror grows when a reader does, and this reader did not.
  */
 
 import { mirrorRemoteSurface } from "@kolu/surface/mirror"
-import { connectPadi } from "@kolu/padi-client/dial"
+import { connectPadi, type PadiSurfaceClient } from "@kolu/padi-client/dial"
 import {
   PADI_SURFACE_VERSION,
   padiSurface,
@@ -73,7 +75,7 @@ import {
   isContractSkewError,
 } from "@kolu/surface-daemon-supervisor/dial"
 import { KOLU_UNDIALED, type KoluLink } from "./wire/index.ts"
-import { Cause, Duration, Effect, Schedule, type Stream } from "effect"
+import { Cause, Duration, Effect, Schedule } from "effect"
 
 import { rendezvousIn } from "./socket.ts"
 
@@ -127,20 +129,20 @@ export interface Sink {
   readonly cleared: () => void
   /** Routine narration, wired to the server's own log. */
   readonly say: (line: string) => void
-  /** THE LIVE FACE, handed over on every connect and taken back (`null`) on
-   *  every drop. It is what turns the snapshot verb from a read into a
-   *  refusal, and it is pushed rather than pulled for the same reason the
-   *  records are: nothing here knows when the link will move.
+  /** THE LIVE FACE, whole — handed over on every connect and taken back
+   *  (`null`) on every drop, for the same reason the records are pushed:
+   *  nothing here knows when the link will move.
    *
-   *  Typed as padi's `screen.text` call and nothing wider, so what leaves this
-   *  module is one verb rather than a whole daemon client — a caller that
-   *  could reach `lifecycle.kill` through a field named `reader` is a caller
-   *  that can, one refactor later. */
-  readonly reader: (
-    face:
-      | null
-      | ((input: { id: string; startLine?: number; endLine?: number }) => Effect.Effect<string, unknown>),
-  ) => void
+   *  It was three verbs (`reader` / `attacher` / `watchable`), one per
+   *  consumer, each typed narrowly so no caller could reach
+   *  `lifecycle.kill` through a field named `reader`. But the DIAL always
+   *  has the client whole or not at all, and three verbs are three
+   *  lockstep obligations: one drop arm once nulled two and leaked the
+   *  third against a dead padi. So the pushing is ONE here and the
+   *  narrowing is at the READ: the mirror projects `screen.text` and
+   *  `terminalAttach.get` off it for its own two verbs, and the watcher
+   *  runs `watchStates` beside them (`./mirror.ts`, `./watch.ts`). */
+  readonly face: (padi: PadiSurfaceClient | null) => void
   /**
    * PADI'S ATTENTION PARTITION MOVED — the `urgency` cell, whole.
    *
@@ -162,22 +164,6 @@ export interface Sink {
    * class a terminal is in must not be woken by it.
    */
   readonly live: (ids: ReadonlyArray<string>) => void
-  /** THE ATTACH FACE, handed over and taken back on the same edges as
-   *  {@link Sink.reader} and for the same reason — a live pane's subscription
-   *  is only meaningful while there is a link under it.
-   *
-   *  Typed as padi's `terminalAttach` stream and nothing wider, so what leaves
-   *  this module is one member rather than a whole daemon client. The frames
-   *  are padi's own shape; the projection into olai's is `./mirror.ts`'s, at
-   *  the same seam the records are projected. */
-  readonly attacher: (
-    face:
-      | null
-      | ((input: {
-        id: string
-        resizeTo?: { cols: number; rows: number }
-      }) => Stream.Stream<PadiAttachFrame, unknown>),
-  ) => void
   /** A dial ATTEMPT was made. Counted by the caller; see `./mirror.ts`'s
    *  header for why the count is worth a callback. */
   readonly dialed: () => void
@@ -198,6 +184,11 @@ export const SPEAKS: string = PADI_SURFACE_VERSION
  * one-connection claim becomes an assertion instead of a sentence.
  */
 export type Dial = typeof connectPadi
+
+/** `PadiSurfaceClient`, aliased at the door the Sink types it off — one
+ *  import for the two fans that need to name it (`./mirror.ts`'s forward
+ *  and `./watch.ts`'s runner), so the type identity is kolu's own. */
+export type { PadiSurfaceClient } from "@kolu/padi-client/dial"
 
 /** The link state for a dial that found nothing there. */
 const absent = (socket: string, told: boolean, since: string): KoluLink => ({
@@ -291,8 +282,7 @@ const dialOnce = (
       speaks: SPEAKS,
       since: now(),
     })
-    sink.reader(connection.client.padi.surface.screen.text)
-    sink.attacher(connection.client.padi.surface.terminalAttach.get)
+    sink.face(connection.client.padi)
     sink.say(`olai: padi connected at ${socket}`)
 
     const abort = new AbortController()
@@ -359,8 +349,7 @@ const dialOnce = (
     // Whichever way the hold ended, the fleet is no longer a reading of
     // anything. Said before the link state moves, so a reader never sees
     // `absent` beside rows it would still draw dots for.
-    sink.reader(null)
-    sink.attacher(null)
+    sink.face(null)
     sink.cleared()
     sink.link(absent(socket, told, now()))
   }).pipe(
@@ -387,7 +376,7 @@ const dialOnce = (
         // The failure or the defect, whichever this was — `Cause.squash` is
         // how this repo already reads one (`@olai/log`'s `cause.ts`).
         const err: unknown = Cause.squash(cause)
-        sink.reader(null)
+        sink.face(null)
         sink.cleared()
         const skew = skewOf(err)
         if (skew !== null) {

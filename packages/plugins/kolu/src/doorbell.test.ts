@@ -971,6 +971,80 @@ test("a clock this runtime cannot read passes through VERBATIM", () => {
   )
 })
 
+// ── THE REMINDER'S OWN LINES ─────────────────────────────────────────────
+
+test("a first report carries NO count — the cap the count counts against is padi's restatement of it, and a count absent from the event is absent from the body", () => {
+  const standing = standingFor({
+    ...DECLARED,
+    "lanes.olai": marked("step", "reproduce", "doing", { terminal: "11111111" }),
+  }, fleetOf(row("11111111", "waiting")), "wake")
+  const body = bodyFor("wake", standing, "lanes.olai", "2026-08-31T14:32:07.001Z")
+  expect(body).not.toContain("reminder")
+})
+
+test("a count on a kind that is not a nag does not become a reminder in the body", () => {
+  // The flat schema will still decode a `transition` bearing `nag`; translate
+  // strips the pairing one hop upstream, AND the body refuses it — the wake's
+  // clause and the drawer's stamp fold by one rule.
+  const standing = standingFor({
+    ...DECLARED,
+    "lanes.olai": marked("step", "reproduce", "doing", { terminal: "11111111" }),
+  }, fleetOf(row("11111111", "waiting")), "wake")
+  const body = bodyFor(
+    "wake",
+    standing,
+    "lanes.olai",
+    "2026-08-31T14:32:07.001Z",
+    { ...fired("11111111"), nag: { index: 2, left: 1 } },
+  )
+  expect(body).not.toContain("This is reminder")
+})
+
+test("a capped nag spells the count, spell for spell the last one — and names the terminal it is about", () => {
+  const standing = standingFor({
+    ...DECLARED,
+    "lanes.olai": marked("step", "reproduce", "doing", { terminal: "11111111" }),
+  }, fleetOf(row("11111111", "waiting")), "wake")
+  const second = bodyFor(
+    "wake",
+    standing,
+    "lanes.olai",
+    "2026-08-31T14:32:07.001Z",
+    { ...fired("11111111"), kind: "nag", nag: { index: 2, left: 1 } },
+  )
+  expect(second).toContain("This is reminder 2 of 3 for `11111111`.")
+  // THE LAST ONE says so in words — the difference between a cap spent well
+  // and a watcher gone quiet is exactly where this sentence is true. And the
+  // id anchors it: the body lists the whole standing set, so the count's
+  // subject is named rather than borrowed.
+  const last = bodyFor(
+    "wake",
+    standing,
+    "lanes.olai",
+    "2026-08-31T14:32:07.001Z",
+    { ...fired("11111111"), kind: "nag", nag: { index: 3, left: 0 } },
+  )
+  expect(last).toContain("This is reminder 3 of 3 for `11111111`, the last — this doorbell goes quiet about that terminal until its state changes.")
+  // ...AND NOTHING OF IT IS MARKDOWN: the cap's own clause rides a body
+  // that is a message, not a render.
+  expect(last).not.toContain("**")
+})
+
+test("an UNCAPPED nag has no end to name — the count alone, in padi's own clause", () => {
+  const standing = standingFor({
+    ...DECLARED,
+    "lanes.olai": marked("step", "reproduce", "doing", { terminal: "11111111" }),
+  }, fleetOf(row("11111111", "waiting")), "wake")
+  const body = bodyFor(
+    "wake",
+    standing,
+    "lanes.olai",
+    "2026-08-31T14:32:07.001Z",
+    { ...fired("11111111"), kind: "nag", nag: { index: 4 } },
+  )
+  expect(body).toContain("This is reminder 4 of an uncapped nag for `11111111`")
+})
+
 // ── THE LOGGING HALF'S OWN REPRODUCE-RED-FIRST ────────────────────────────
 //
 // `ringingIn` is the seam that emits the `derived` line this PR exists to add,
@@ -1108,7 +1182,7 @@ const TWO_CLAIMS = {
  * loop promises is that it re-reads them, so a bench that could not move them
  * underneath it would prove nothing.
  */
-const bench = (files: Record<string, string>) => {
+const bench = (files: Record<string, string>, opts?: { readonly armless?: boolean }) => {
   let clock = Date.parse("2026-08-31T09:00:00.000Z")
   let vault: Derived | null = readingOf(setOf(files)).derived
   let scoped: ReadonlyArray<Scoped> = []
@@ -1134,6 +1208,11 @@ const bench = (files: Record<string, string>) => {
     now: () => new Date(clock).toISOString(),
     coalesce: "kolu:heartbeat",
   })
+  // EVERY BENCH COMES WITH ITS FIRST BATCH: the subscription's arriving frame
+  // is what arms the loop in life — the first beat opens the count and says
+  // nothing — so the tests below drive the same pair of edges. The arming
+  // rule's own tests opt out, or they could not see it.
+  if (opts?.armless !== true) heart.beat(WINDOW)
   return {
     heart,
     held,
@@ -1339,6 +1418,36 @@ test("a file that claims NOTHING is still beaten for — the zero is the evidenc
 })
 
 
+test("the FIRST beat only arms the window — the timered watcher's `begun` swallow, moved down here with the pulse it swallowed", () => {
+  // Otherwise a floor could land seconds after the dial and say "no wake has
+  // gone in for 30 minutes, which is the whole watch window" about a
+  // conversation watched for seconds: the body's one hard claim would be a
+  // lie told at the exact moment a reader first meets it.
+  const it = bench(ONE_CLAIM, { armless: true })
+  it.scope(SEAT)
+  it.after(WINDOW)
+  it.heart.beat(WINDOW)
+  expect(it.held.length).toBe(0)
+  it.after(WINDOW)
+  it.heart.beat(WINDOW)
+  expect(it.held.length).toBe(1)
+})
+
+test("the cadence is the KNOB's, not the subscription's speech rate: a beat inside the window is collapsed", () => {
+  // The tap fires per BATCH now — a fleet padi has things to say about beats
+  // several times inside a window, and a floor paced on those would re-say
+  // itself at the daemon's rate while its body keeps claiming the knob's.
+  const it = bench(ONE_CLAIM)
+  it.scope(SEAT)
+  it.after(1_000)
+  it.heart.beat(WINDOW)
+  expect(it.held.length).toBe(0)
+  expect(it.lines.at(-1)).toBe("kolu doorbell beat-collapsed every=1800000")
+  it.after(WINDOW - 1_000)
+  it.heart.beat(WINDOW)
+  expect(it.held.length).toBe(1)
+})
+
 // ── WHAT THE BEAT SAID IT DID ──────────────────────────────────────────────
 
 test("a beat says what it did — the head, then one line per conversation it decided about", () => {
@@ -1351,10 +1460,13 @@ test("a beat says what it did — the head, then one line per conversation it de
   it.scope(SEAT)
   it.after(WINDOW)
   it.heart.beat(WINDOW)
-  expect(it.lines[0]).toBe(
+  // The bench's arm beat wrote the first line — the arming IS an accounted
+  // moment, or "this process's first window" is another invisible hollow.
+  expect(it.lines[0]).toBe("kolu doorbell beat-armed every=1800000")
+  expect(it.lines[1]).toBe(
     "kolu doorbell beat every=1800000 scopes=1 spoken=0 lastEvent=none",
   )
-  expect(it.lines[1]).toBe("kolu doorbell beating file=lanes.olai agent=olai session=s-1")
+  expect(it.lines[2]).toBe("kolu doorbell beating file=lanes.olai agent=olai session=s-1")
   // ...and the count is said at SEND time, not at beat time, which is where the
   // body reads it — so the line and the sentence can never disagree.
   expect(it.lines).not.toContain("kolu doorbell beat-said file=lanes.olai agent=olai terminals=1")
@@ -1369,6 +1481,7 @@ test("... and a conversation passed over says WHICH of the two reasons it was", 
   const it = bench(ONE_CLAIM)
   it.scope(SEAT)
   it.heart.delivered({ agent: "olai", session: "s-1" })
+  it.after(WINDOW)
   it.heart.beat(WINDOW)
   expect(it.lines).toContain(
     "kolu doorbell beat-passed file=lanes.olai agent=olai why=spoke-this-window",
@@ -1378,6 +1491,7 @@ test("... and a conversation passed over says WHICH of the two reasons it was", 
   const starved = bench(ONE_CLAIM)
   starved.scope(SEAT)
   starved.unload()
+  starved.after(WINDOW)
   starved.heart.beat(WINDOW)
   expect(starved.lines).toContain(
     "kolu doorbell beat-passed file=lanes.olai agent=olai why=no-revision",
