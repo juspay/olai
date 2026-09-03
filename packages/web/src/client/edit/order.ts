@@ -134,17 +134,10 @@ export const wired = (
   collapsed: ReadonlySet<string>,
   drafts: ReadonlyArray<Pending>,
 ): ReadonlyArray<Wire> => {
-  if (drafts.length === 0) {
-    const out: Array<Wire> = []
-    const lay0 = (level: ReadonlyArray<Row>, depth: number): void => {
-      for (const row of level) {
-        out.push({ kind: "row", row, depth })
-        if (!collapsed.has(foldIdOf(row))) lay0(row.children, depth + 1)
-      }
-    }
-    lay0(rows, 0)
-    return out
-  }
+  // One walk for an empty page and a sketched one: when there are no drafts
+  // the slots below are an empty map's three misses per row, which is the
+  // walk {@link flatten} always did with the shapes a walk is cheaper to
+  // keep in one place.
   const keyed = new Map<string, Pending[]>()
   const slot = (under: string, draft: Pending) => {
     const at = keyed.get(under) ?? []

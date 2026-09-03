@@ -251,15 +251,15 @@ export const isEditingTarget = (target: EventTarget | null): boolean => {
  *     panel, and what lands is chosen in it.
  *   - `note` — `Shift+Enter`: open the note under the row, and close it again
  *     from inside.
-  *   - `prev` / `next` — the bare arrows, moving the caret between rows. The
-  *     title editor is ONE LINE, so ↑ and ↓ have nothing else they could mean
-  *     there, which is why they need no caret-position test.
-  *   - `left` / `right` — the bare horizontal arrows, crossing INTO the line
-  *     beside: the sentence's two directions are the same two as the rows'.
-  *     Claimed ONLY at the line's edge — a caret with text to walk through
-  *     keeps the platform's own movement, which is where every hand already
-  *     is — so these two are boundary-readings of {@link Caret} the way
-  *     `merge` is of `Backspace`, not claims on the key itself.
+ *   - `prev` / `next` — the bare arrows, moving the caret between rows. The
+ *     title editor is ONE LINE, so ↑ and ↓ have nothing else they could mean
+ *     there, which is why they need no caret-position test.
+ *   - `left` / `right` — the bare horizontal arrows, crossing INTO the line
+ *     beside: the sentence's two directions are the same two as the rows'.
+ *     Claimed ONLY at the line's edge — a caret with text to walk through
+ *     keeps the platform's own movement, which is where every hand already
+ *     is — so these two are boundary-readings of {@link Caret} the way
+ *     `merge` is of `Backspace`, not claims on the key itself.
  *   - `cancel` — `Escape`: abandon the draft.
  *   - `selectUp` / `selectDown` — `Shift+↑/↓`: leave the caret and PICK rows,
  *     which is Workflowy's own gesture. A title editor is one line, so a
