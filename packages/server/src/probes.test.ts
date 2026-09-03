@@ -42,24 +42,20 @@ import {
 
 import { askingAt } from "./probes.ts"
 
-/** A plugin that pushes its one thunk, exactly as `olai-plugin-kolu` and
- *  `olai-plugin-odu` do — the whole of what a server half contributes here. */
+/** A plugin that registers its one probe, exactly as `olai-plugin-kolu` and
+ *  `olai-plugin-odu` do — the whole of what a server half contributes here. The
+ *  NAME the ordering reads is the one the runtime binds the fiber under, not one
+ *  this plugin writes: there is no parameter to write one in. */
 const asks = (name: string) =>
   definePlugin({
     name,
-    needs: [SessionStart.key],
+    needs: [SessionStart],
     apply: Effect.gen(function*() {
-      yield* (yield* SessionStart.key).use((start, next) =>
-        Effect.suspend(() => {
-          // What the thunk ANSWERS is not this module's subject — the ordering
-          // happens before any of them is called — so it is the shape's own
-          // "nothing to hand over, and no fault in that".
-          start.asking.push({
-            name,
-            ask: async (): Promise<Probed> => ({ server: null, missing: null }),
-          })
-          return next(start)
-        })
+      // What the probe ANSWERS is not this module's subject — the ordering
+      // happens before any of them is run — so it is the shape's own "nothing to
+      // hand over, and no fault in that".
+      yield* (yield* SessionStart).ask(
+        Effect.succeed<Probed>({ server: null, missing: null }),
       )
     }),
   })

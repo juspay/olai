@@ -65,12 +65,20 @@ import { describe, expect, test } from "bun:test"
 import { exposeMapsOf, surfacesOf } from "@olai/plugin-api"
 
 import { BUNDLE_NAMES } from "./rows.ts"
-import { type ServerHalf, serverHalves } from "./tree.testlib.ts"
+import { composing, type ServerHalf, serverHalves } from "./tree.testlib.ts"
 
 /** The real roster, LOADED — no door in this package imports a plugin
  *  statically any more, so a test that wants their values does what the runtime
  *  does and imports them by the row's own name (`./tree.testlib.ts`). */
-const WIRES: ReadonlyArray<ServerHalf> = await serverHalves()
+const HALVES: ReadonlyArray<ServerHalf> = await serverHalves()
+
+/** ...and the ones that compose a SIBLING, which is what every claim below
+ *  about the composed wire is about. An ENGINE composes none — what it
+ *  contributes to a tab travels on the chat cell, which is core's — so it is
+ *  absent from the sibling map, the expose maps and every tag they produce.
+ *  That absence is the same absence a plugin the roster left out has, which is
+ *  what makes it a state rather than a case. */
+const WIRES = composing(HALVES)
 
 /** A stand-in for olai's own surface — one cell, which is enough to ask every
  *  question here. The real one is `@olai/surface`'s and is deliberately not
@@ -300,7 +308,9 @@ describe("a plugin answers to the name its row binds it under", () => {
     // door's key, the sibling key its members compose under. A module whose own
     // `name` disagreed would serve its members at one address and be stamped at
     // another, with nothing between the two to notice.
-    expect([...WIRES.map((wire) => wire.name)].sort()).toEqual([...BUNDLE_NAMES].sort())
+    // OVER EVERY HALF, not only the composing ones: the stamp is what a fiber
+    // is bound under, and an engine's fiber is bound exactly as a tenant's is.
+    expect([...HALVES.map((half) => half.name)].sort()).toEqual([...BUNDLE_NAMES].sort())
   })
 
   test("every face a plugin names is a face it wrote a map for", () => {
@@ -310,8 +320,12 @@ describe("a plugin answers to the name its row binds it under", () => {
     // being able to make, but a face key holding nothing at all is more
     // likely a half-finished edit. This is the one shape check on a value the
     // compiler sees only as a record of records.
+    // ...AND A HALF WITH NO SURFACE HAS NO MAPS TO WRITE, which is not the
+    // same shape as a half-finished edit: `composing` is what tells the two
+    // apart, so a plugin with a `surface` and no `faces` is red HERE rather
+    // than quietly skipped.
     for (const wire of WIRES) {
-      for (const [face, map] of Object.entries(wire.faces as Record<string, object>)) {
+      for (const [face, map] of Object.entries((wire.faces ?? {}) as Record<string, object>)) {
         expect([`${wire.name}/${face}`, Object.keys(map).length > 0])
           .toEqual([`${wire.name}/${face}`, true])
       }

@@ -266,9 +266,33 @@ Feature: Choosing an agent
     Then the panel says there is no agent
     And the panel tells me how to install "opencode"
     And the panel explains how to configure one, naming "OLAI_ACP_AGENT"
+    # ...and it says WHICH of the three ways it got here rather than hedging
+    # across them. This one is the off switch, and the sentence is about that.
+    And the panel says the agent is switched off
     And there is nothing to type into
     # And the outlines are unaffected: serving a directory never depended on an
     # agent being installed.
+    And the outline list is shown
+
+  @plugins:odu @scratch:chat
+  Scenario: A serve that enabled no engine says THAT, rather than guessing
+    # THE CASE THE FACE USED TO MISS ENTIRELY, and the commonest real one now
+    # that every engine is a plugin: all three engine rows are ENABLED BY
+    # DEFAULT, so the way to end up with no agent is to name a `--plugins` list
+    # without one in it. Nothing reads `OLAI_ACP_AGENT` in that state — there is
+    # no claude fiber to read it — so the old copy's advice ("point it at an
+    # executable that speaks ACP") would have changed nothing, and its other
+    # guess, a start that skipped the wrapper, cannot happen at all: every
+    # documented way of starting olai bakes the pinned adapter in.
+    #
+    # The server is the only end that can tell this apart from the other two —
+    # it holds the engine registry — so it sends which, and the panel says it.
+    Then the panel says there is no agent
+    And the panel says this serve enabled no agent engine
+    # ...and there is nothing to list, because an engine's install sentence is
+    # its own browser half's and no engine half was fetched.
+    And the panel offers no way to install one
+    And there is nothing to type into
     And the outline list is shown
 
   @opencode @scratch:chat
@@ -399,7 +423,7 @@ Feature: Choosing an agent
     # and ACP's SessionInfo answers four fields and stops — so the list used
     # to answer "which of these two is the live one" with nothing. What the
     # fixture carries is the pinned adapter's own answer (the patch olai
-    # ships, `acp/patches/session-list-info.patch`): the count per row, and
+    # ships, `packages/plugins/claude/acp/patches/session-list-info.patch`): the count per row, and
     # on the OLDER of the pair, which conversation replaced it.
     When I choose the agent "claude"
     And I open the unassigned chats
@@ -508,12 +532,12 @@ Feature: Choosing an agent
     # THE PIN'S BRIDGE, answered: pi-acp (0.0.33) stores the session's
     # handed mcpServers and wires them nowhere — the pin patches its
     # `session/new` spawn into `-e <bridge>` + the servers in the process
-    # env (acp/patches/README.md's pi-mcp-servers section), and the bridge
+    # env (packages/plugins/pi/acp/patches/README.md's pi-mcp-servers section), and the bridge
     # registers them on pi's own extension API under the SAME names this
     # surface already reads. The scenario mirrors the wire the patch mints:
     # an `olai_read_node:0` call — pending, in_progress, completed, with
     # the tool's answer riding its card. The round trip that is protocol-
-    # true lives down in acp/mcp-bridge/roundtrip.test.js, one SDK pair
+    # true lives down in packages/plugins/pi/acp/mcp-bridge/roundtrip.test.js, one SDK pair
     # away from the real servers.
     When I choose the agent "pi"
     And I ask the agent "mcp read title install"

@@ -16,7 +16,7 @@
  * ORDER MATTERS HERE, and it is the driver's own subject rather than a
  * convenience: the interrupt is asserted BEFORE anything has queued and before
  * any `Monitor` has been armed, because each of those leaves the pinned
- * adapter unable to settle a steered turn (`acp/patches/README.md` has both
+ * adapter unable to settle a steered turn (`packages/plugins/claude/acp/patches/README.md` has both
  * triggers and what was measured). Run the same assertions in the other order
  * and the driver hangs — which is the panel hanging, which is how this one
  * was found in the first place.

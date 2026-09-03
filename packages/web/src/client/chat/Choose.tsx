@@ -26,6 +26,28 @@
  * `../../../../chat/src/chat.ts` for why answering the panel's own question is
  * not the same verb as asking for a new chat.
  *
+ * ## THE ROWS' WORDS ARE THE ENGINES' OWN, and they arrive as DATA
+ *
+ * An engine is a PLUGIN, and what it is CALLED is a fact its own package knows;
+ * `packages/bundle/src/fence.test.ts` holds as an equality that no general
+ * package spells a plugin's name in code. This file spells none: a row says
+ * `agent.name`, which is the string the engine's own `Registering.name` put on
+ * the chat cell, per agent this machine actually has. Drawing a word the server
+ * handed over is not knowing it.
+ *
+ * THERE WAS A SLOT HERE and it is worth knowing why it went. `chat.agent.row`
+ * let each engine hang the words itself, and all three hung
+ * `<span class="truncate">{NAME}</span>` — the same markup around the same
+ * string this file already had, from the same constant. One word with two
+ * authored sources and nothing holding them equal is how a picker and a header
+ * come to disagree about who you are talking to. The mark beside the row and the
+ * sentence on the no-agent face are still slots, because core can compose
+ * neither.
+ *
+ * What stays here is the row itself — the button, the press, the mark, and the
+ * ORDER, which is the roster's and is what keeps the picker's promise that every
+ * row it draws is an agent this machine has.
+ *
  * ## Not a picker of one
  *
  * A roster of one agent never reaches this component: the server has already
@@ -87,6 +109,12 @@ export function Choose(props: {
                 onClick={() => props.onPick(agent.id)}
               >
                 <AgentMark id={agent.id} />
+                {/* THE ROW'S WORDS ARE THE ENGINE'S OWN — its
+                    `Registering.name`, carried here per installed agent on the
+                    chat cell. What stays here is the row: the button, the
+                    press, the mark beside it, and the ORDER, which is the
+                    roster's. See the header for the slot that used to sit
+                    between the two and drew this exact markup. */}
                 <span class="truncate">{agent.name}</span>
               </button>
             </li>

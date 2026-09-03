@@ -138,6 +138,27 @@ export interface Options {
    *  install one. A chat with an empty roster would be a panel that can never
    *  answer anything, holding a subprocess-shaped hole. */
   readonly roster: ReadonlyArray<Installed>
+  /**
+   * ...AND EVERY ENGINE THIS BUILD HAS, by id, in the bundle's own order —
+   * INSTALLED OR NOT, and read for exactly one thing.
+   *
+   * WHICH AGENT A NOTE NAMING NONE IS ABOUT ({@link ./memory.ts}'s `before`) is
+   * the FIRST row: a note written before olai remembered which agent a
+   * conversation belonged to was written by an olai that had exactly one, and
+   * the first row is the one it had. `@olai/chat` may not spell an engine, so
+   * the answer arrives as data from the composition root.
+   *
+   * NOTHING ELSE READS IT and nothing of it crosses the wire. What a person is
+   * told about an engine this machine has NOT installed is that engine's own
+   * face, hung in the tab's `chat.agent.install` slot by its browser half —
+   * which is what makes `--plugins=opencode,pi` a panel with no Claude row on
+   * any face, with nothing in core knowing why.
+   *
+   * MAY BE EMPTY where {@link roster} may not: a serve whose engine rows are all
+   * disabled has no chat at all, and a test that only wants a conversation has
+   * no engine list to give.
+   */
+  readonly engines: ReadonlyArray<string>
   /** Where to start it: the served directory, exactly. An agent keys its
    *  stored sessions by the directory it was started in, which is what makes
    *  them findable at all — and it is what olai's own note of WHICH of them
@@ -784,7 +805,15 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * because those are facts about a session only the thing holding one can
      * act on. One writer per field, and the write is the agent's.
      */
-    const memory = Memory.forDirectory(options.cwd)
+    // THE SECOND ARGUMENT is which agent a note that names NONE is about, and
+    // it is the build's FIRST ENGINE ROW rather than a constant in that module:
+    // a note written before olai remembered which agent a conversation belonged
+    // to was written by an olai that had exactly one, and the first row is the
+    // one it had. `@olai/chat` may not spell an engine, so the answer arrives
+    // off the same ordered list the picker is drawn from. The empty string on a
+    // build with no engine rows is a note that resolves to nothing, which is a
+    // chat that was never built.
+    const memory = Memory.forDirectory(options.cwd, options.engines[0] ?? "")
     const tell = yield* Effect.annotateLogs(emitter, { surface: "chat" })
 
     /** One agent, built from the roster row that named it. The handler is
@@ -858,7 +887,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * change to what the panel OFFERS rather than a fact about the adapter,
      * so it waits on a ruling. The measurement — every history tried, both
      * pins, and the pristine run that says whose bug it is — is written once,
-     * in `acp/patches/README.md`, because it is a fact about the pin.
+     * in `packages/plugins/claude/acp/patches/README.md`, because it is a fact about the pin.
      *
      * Before this PR the combination was unreachable — olai never sent a
      * mid-turn `session/prompt` on this leg — so the queue is what makes it
@@ -895,7 +924,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * It goes when the adapter is FIXED, which is not the same as when the
      * pin moves: the 0.66.0 → 0.70.0 bump moved it four releases and #1039
      * stayed open. 0.70.0 → 0.73.0 is a different swallow (#958, candidate
-     * #1065), not this latch. `acp/patches/README.md` is where each bump
+     * #1065), not this latch. `packages/plugins/claude/acp/patches/README.md` is where each bump
      * records whether it re-measured this.
      */
     let queuedHere = false
@@ -1163,7 +1192,27 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       if (row?.taught === true) return null
       const node = options.agentAt?.(to) ?? null
       if (node === null) return null
-      return { to, lines: teachingFor(node, row?.assigned === true ? "assigned" : "opened") }
+      const lines = teachingFor(node, row?.assigned === true ? "assigned" : "opened")
+      // ...AND WHICH CHANNEL THIS ENGINE'S STANDING PROMPT RIDES, which is the
+      // engine's own answer and not an assumption of this file's
+      // (`@olai/acp/engine`'s `PromptChannel`). The switch is EXHAUSTIVE on
+      // purpose: every engine olai ships rides the first turn, because ACP has
+      // no system prompt on any wire — and the day one grows a real slot, the
+      // arm added there is a `tsc` error HERE rather than a branch on an
+      // engine's id somewhere in core.
+      //
+      // NO AGENT BOUND IS NOT AN ARM OF THAT, and it used to be spelled as one:
+      // `talking?.row.prompt.kind ?? "first-turn"` put core's own guess where an
+      // engine's answer goes, and it was the hole in the promise above — the day
+      // a second channel exists the compiler would flag the switch and say
+      // nothing about the `??`, which would go on quietly meaning first-turn for
+      // an engine nobody had asked. There is nothing to teach with no agent
+      // bound anyway, so the answer is that there is no teaching.
+      if (talking === null) return null
+      switch (talking.row.prompt.kind) {
+        case "first-turn":
+          return { to, lines }
+      }
     }
 
     /**

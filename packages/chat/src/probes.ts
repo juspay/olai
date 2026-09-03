@@ -84,25 +84,32 @@ export interface Probed {
 
 /** ONE THING TO ASK — the caller's own name for it, and the question.
  *
- *  The name is for the log line and for nothing else. What a ROSTER row is
- *  called comes off the answer, where whoever found the server named it. */
+ *  The name is for the log line and for the ORDER, and for nothing else. What a
+ *  ROSTER row is called comes off the answer, where whoever found the server
+ *  named it. */
 export interface Probe {
   readonly name: string
   /**
-   * Ask this host. IT NEVER REJECTS: every way of failing is an ARM of
+   * Ask this host. IT NEVER FAILS: every way of failing is an ARM of
    * {@link Probed}, which is the whole reason that type has two fields rather
    * than an error channel — "the tool is not here" is an answer and not a
    * fault, and "it is here and would not work" is a SENTENCE somebody has to
    * read.
    *
-   * The contract is the prober's rather than this file's to enforce, and
-   * deliberately: a rejection caught here could only become silence (which
+   * AN EFFECT, and it used to be a thunk over a `Promise`. Both halves of that
+   * change are the same fact: everything a plugin hands core is an Effect now,
+   * so the bound below is expressed as Effect concurrency over the Effects
+   * themselves rather than as a `forEach` that wraps each thunk on the way past
+   * — one fewer shape between the plugin that answers and the fiber that asks.
+   *
+   * The no-failure contract is the prober's rather than this file's to enforce,
+   * and deliberately: a defect caught here could only become silence (which
    * loses the one thing worth saying) or a sentence this package composed
    * (which is the one thing it may not do). `@kolu/detect` states the same
    * guarantee one wall down — *never throws and never logs* — and a plugin's
    * probe is the piece that keeps it.
    */
-  readonly ask: () => Promise<Probed>
+  readonly ask: Effect.Effect<Probed>
 }
 
 /**
@@ -140,11 +147,7 @@ export const probed = (
 ): Effect.Effect<ReadonlyArray<Probed>> =>
   Effect.forEach(
     probes,
-    (one) =>
-      Effect.tap(
-        Effect.promise(() => one.ask()),
-        (found) => said(one.name, found),
-      ),
+    (one) => Effect.tap(one.ask, (found) => said(one.name, found)),
     { concurrency: AT_ONCE },
   )
 

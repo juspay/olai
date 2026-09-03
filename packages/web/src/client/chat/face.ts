@@ -23,7 +23,7 @@
  * away at the point it is drawn.
  */
 
-import type { ChatState, Unopened } from "@olai/surface"
+import type { ChatState, OffBecause, Unopened } from "@olai/surface"
 
 /**
  * WHAT THIS TAB HAS DECIDED — the two bodies the SERVER knows nothing about.
@@ -45,10 +45,18 @@ export interface Showing {
 
 /** The five things the panel's body can be. */
 export type Face =
-  /** This machine has no agent at all — none installed, or chat switched off.
-   *  Nothing was attempted, so nothing was refused; what is owed is the
-   *  explanation and how to get one. */
-  | { readonly kind: "no-agent" }
+  /**
+   * This serve has no agent at all. Nothing was attempted, so nothing was
+   * refused; what is owed is the explanation and, on the one arm where it is
+   * the answer, how to get one.
+   *
+   * WHY IS ON THE ARM, which is this module's own rule taken to the one face
+   * that had been guessing: an empty roster has three causes — the off switch,
+   * no engine plugin mounted, every engine asked and none installed — and only
+   * the SERVER can tell them apart. `null` where it has not said yet, which is
+   * a page before its first frame and is not one of the three.
+   */
+  | { readonly kind: "no-agent"; readonly off: OffBecause | null }
   /** The conversations no node claims, and the gesture that gives one a node
    *  (`../agents/Unassigned.tsx`). Not a conversation at all, which is why it
    *  outranks every face below it: somebody asked for this and nothing else. */
@@ -124,7 +132,7 @@ export type Face =
  * directory was in.
  */
 export const faceOf = (state: ChatState, showing: Showing): Face => {
-  if (state.status === "off") return { kind: "no-agent" }
+  if (state.status === "off") return { kind: "no-agent", off: state.off }
   if (showing.unassigned) return { kind: "unassigned" }
   const unopened = state.unopened
   if (unopened !== null && state.status !== "gone") return { kind: "unopened", unopened }

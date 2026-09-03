@@ -4,6 +4,14 @@
  * the conversation just closed — a forwarded `init` with servers `connected`,
  * and a `session/update` chunk of the last turn — and only then answers.
  *
+ * ITS PRIVATE CHANNEL IS MADE UP, and deliberately: it used to be the Claude
+ * Code adapter's own `_claude/sdkMessage`, which put one engine's spelling in a
+ * core package after the engines became plugins. What this fixture is about is
+ * a WINDOW in `agent.ts` — a message forwarded for a conversation that has
+ * closed — and any wire that forwards messages has it. The leg the bench reads
+ * it with is the matching fixture (`../agents/legs.testlib.ts`'s `FORWARDS`);
+ * each real engine's own spelling is asserted in that engine's package.
+ *
  * That is the load-shaped window the conversations-servers flake sits in:
  * olai has already announced the next roster as `handed` and emptied the
  * transcript, and `session` is still null waiting for this answer. Pre-fix,
@@ -26,13 +34,11 @@ const notify = (method: string, params: unknown): void => {
 }
 
 const leftoverInit = (sessionId: string): void => {
-  notify("_claude/sdkMessage", {
+  notify("_x/agentMessage", {
     sessionId,
-    message: {
-      type: "system",
-      subtype: "init",
+    opened: {
       model: "fake-model-1",
-      mcp_servers: [{ name: "olai", status: "connected" }],
+      servers: [{ name: "olai", live: true }],
     },
   })
 }
@@ -64,7 +70,7 @@ process.stdin.on("data", (chunk: string) => {
       readonly params?: {
         readonly prompt?: ReadonlyArray<{ readonly text?: string }>
         readonly sessionId?: string
-        readonly _meta?: { readonly claudeCode?: { readonly emitRawSDKMessages?: unknown } }
+        readonly _meta?: { readonly forward?: unknown }
       }
     }
     switch (message.method) {

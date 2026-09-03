@@ -1585,8 +1585,11 @@
     url = "https://registry.npmjs.org/object-inspect/-/object-inspect-1.13.4.tgz";
     hash = "sha512-W67iLl4J2EXEGTbfeHCffrjDfitvLANg0UlX3wFUUSTx92KXRFegMHUVgSqE+wvhAbi4WqjGg9czysTV2Epbew==";
   };
+  "olai-plugin-claude" = copyPathToStore ./packages/plugins/claude;
   "olai-plugin-kolu" = copyPathToStore ./packages/plugins/kolu;
   "olai-plugin-odu" = copyPathToStore ./packages/plugins/odu;
+  "olai-plugin-opencode" = copyPathToStore ./packages/plugins/opencode;
+  "olai-plugin-pi" = copyPathToStore ./packages/plugins/pi;
   "olai-plugin-xyne-spaces" = copyPathToStore ./packages/plugins/xyne-spaces;
   "on-finished@2.4.1" = fetchurl {
     url = "https://registry.npmjs.org/on-finished/-/on-finished-2.4.1.tgz";

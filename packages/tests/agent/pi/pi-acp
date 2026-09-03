@@ -19,14 +19,14 @@
  *     expected to drop it: the response's own field is what makes the match
  *     exact. A `session/load` answers the corner `null`.
  *   - **the handed `mcpServers` reach pi through the pin's bridge** —
- *     pi-acp patched the way acp/patches/README.md's `pi-mcp-servers` section
+ *     pi-acp patched the way packages/plugins/pi/acp/patches/README.md's `pi-mcp-servers` section
  *     describes (the spiked answer of Route A): every session spawns with
  *     `PI_ACP_MCP_SERVERS` in its env and a bridge on its `-e` line that
  *     registers them as pi tools. A fake never RUNS pi — the wire shape
  *     it carries from that world is the CAPABILITY answer
  *     (`mcpCapabilities: {http,sse}: true`) and the round trip's three
  *     frames under an `olai_<tool>` id; the protocol-true mid-cheek is
- *     `acp/mcp-bridge/roundtrip.test.js` (a real SDK pair).
+ *     `packages/plugins/pi/acp/mcp-bridge/roundtrip.test.js` (a real SDK pair).
  *   - **no bypass mode, no steering**: `session/set_mode` answers `-32602`
  *     (the modes are pi's thinking levels) and `_session/steering` `-32601`.
  *     `/steering` in this adapter is a slash command about pi's own message

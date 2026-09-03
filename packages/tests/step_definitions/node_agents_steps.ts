@@ -33,6 +33,7 @@ const ROSTER = selector(TESTID.agentRoster);
 const ROW = selector(TESTID.agentRow);
 const DOOR = selector(TESTID.agentDoor);
 const SAID = selector(TESTID.agentSaid);
+const REFUSED = selector(TESTID.agentRefused);
 const CHAT_SESSIONS = selector(TESTID.chatSessions);
 const CHAT_INPUT = selector(TESTID.chatInput);
 
@@ -171,6 +172,17 @@ Then(
 When("I press the agent {string}", async function (this: OlaiWorld, node: string) {
   await this.showSidebar();
   await this.press(rowFor(this, node));
+});
+
+/** ... and the one claim that gesture may only make by NOT drawing: a press
+ *  that could not do something says so on the roster's own refused line
+ *  (`TESTID.agentRefused`), so an unbound row — pressed the way it is
+ *  SUPPOSED to be pressed — leaves exactly nothing there. Read after the
+ *  press's other halves have settled: a refusal worth reading about would
+ *  have arrived before the route moved. */
+Then("the agents roster says nothing", async function (this: OlaiWorld) {
+  await this.showSidebar();
+  assert.strictEqual(await this.page.locator(REFUSED).count(), 0);
 });
 
 /** ... and the other face of the same press: the DOOR under the agent's own

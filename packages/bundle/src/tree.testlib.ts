@@ -44,6 +44,8 @@
 
 import { existsSync, readFileSync } from "node:fs"
 
+import type { PluginWire } from "@olai/plugin-api"
+
 import { ROWS } from "./rows.ts"
 import * as path from "node:path"
 
@@ -515,10 +517,39 @@ export const walkFrom = (entry: string): ReadonlyArray<{ file: string; spec: str
 export const serverHalves = async (): Promise<ReadonlyArray<ServerHalf>> =>
   Promise.all(ROWS.map((row) => import(row.name) as Promise<ServerHalf>))
 
-/** As much of a server half as the tests in this package read. */
+/**
+ * As much of a server half as the tests in this package read.
+ *
+ * `surface` and `faces` are OPTIONAL, and the absent arm is a whole kind of
+ * plugin rather than an unfinished one: an ENGINE composes no sibling surface —
+ * what it contributes to a tab already travels on the chat cell, which is
+ * core's, and a second surface under `surface/claude/` saying the same thing
+ * would be one fact on the wire twice. Every claim in this package about a
+ * sibling therefore reads {@link composing}, which is the halves that HAVE one.
+ */
 export interface ServerHalf {
   readonly name: string
-  readonly surface: { readonly spec: unknown }
-  readonly faces: Readonly<Record<string, Readonly<Record<string, unknown>>>>
+  readonly surface?: { readonly spec: unknown }
+  readonly faces?: Readonly<Record<string, Readonly<Record<string, unknown>>>>
   readonly kinds?: ReadonlyArray<{ readonly kind: string }>
 }
+
+/**
+ * ...and the halves that compose a SIBLING, which is what every claim about the
+ * composed wire is about — as the shape the composition doors take.
+ *
+ * TWO ABSENCES AND ONLY ONE OF THEM IS A STATE. A half with NEITHER a surface
+ * nor faces is an engine, and drops out. A half with a surface and no faces is
+ * half an edit — a sibling on the wire that every face is denied in full — and
+ * throwing here is what stops it being silently skipped by a filter.
+ */
+export const composing = (
+  halves: ReadonlyArray<ServerHalf>,
+): ReadonlyArray<ServerHalf & PluginWire> =>
+  halves.flatMap((half) => {
+    if (half.surface === undefined) return []
+    if (half.faces === undefined) {
+      throw new Error(`${half.name}: a half with a surface and no \`faces\` composes a sibling nobody may see`)
+    }
+    return [{ ...half, surface: half.surface, faces: half.faces }]
+  })

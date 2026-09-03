@@ -79,6 +79,36 @@ export interface StdioServer {
  * compiled-in list. It is the same trade {@link ./browser.ts}'s four services
  * make in the other direction: a plugin re-declares only the part it reads, and
  * contravariance makes the narrower spelling the stronger claim.
+ *
+ * ## IT WENT TO `@olai/acp` FOR A REVISION, AND CAME BACK
+ *
+ * The agents phase read it as a shape TWO WALLS needed — an engine plugin
+ * saying how to get itself, and `@olai/chat` saying what an absent MCP server
+ * was — and moved it to the floor package under both. The second reader turned
+ * out not to exist: an engine's install sentence is drawn by that engine's own
+ * BROWSER half out of a slot, so no server-side registration ever needed the
+ * shape, and `@olai/chat` had gone on declaring its own copy the whole time
+ * (`servers.ts`, the contravariant re-spelling this header argues for).
+ *
+ * So it is back here, beside the probe that is its only reader, and
+ * `@olai/acp`'s door is the poorer for one fewer word that was never the
+ * protocol's. An engine plugin that wants the shape for its install sentence
+ * takes it from HERE, which it already imports for `Agents`.
+ *
+ * `why` IS A WHOLE SENTENCE and nothing composes around it. The words belong to
+ * whoever found out — the five ways a padi can fail are `olai-plugin-kolu`'s to
+ * word, and where to get opencode is `olai-plugin-opencode`'s — because a
+ * sentence built out of a core template with a plugin's noun dropped into it is
+ * a debug log line on a screen. **Core displays a sentence and never composes
+ * one.**
+ */
+
+/**
+ * SOMETHING THIS HOST DOES NOT HAVE, and what a person is owed about it.
+ *
+ * `where` is where the thing WOULD be, in whichever way makes sense for it: the
+ * file a probe asked for, or the page a person downloads it from. `null` for the
+ * ways of being absent that name no place at all.
  */
 export interface NotHere {
   readonly name: string

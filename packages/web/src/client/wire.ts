@@ -260,12 +260,23 @@ const rerostNow = async (want: ReadonlyArray<string>, signature: string): Promis
 /** The halves' surfaces, keyed by name — the shape every composition door
  *  takes. Built here rather than through `@olai/plugin-api`'s `surfacesOf`
  *  because a browser half carries no `faces`: which face may see which member
- *  is a SERVE's question, and there is one face in a tab. */
+ *  is a SERVE's question, and there is one face in a tab.
+ *
+ *  A HALF WITH NO SURFACE IS LEFT OUT rather than entered as `undefined`, and it
+ *  is a whole kind of plugin: an ENGINE composes no sibling, because what it
+ *  contributes to the tab already travels on the chat cell (`@olai/bundle`'s
+ *  `BrowserHalf`). Such a half is mounted and never dialled, and an entry
+ *  holding `undefined` would be a sibling key the framework was asked to
+ *  compose nothing under. */
 const surfaceMapOf = (
   halves: ReadonlyArray<BrowserHalf>,
 ): Record<string, Surface<SurfaceSpec>> =>
   Object.fromEntries(
-    halves.map((half) => [half.default.name, half.surface as Surface<SurfaceSpec>]),
+    halves.flatMap((half) =>
+      half.surface === undefined
+        ? []
+        : [[half.default.name, half.surface as Surface<SurfaceSpec>] as const]
+    ),
   )
 
 /**

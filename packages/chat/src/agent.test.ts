@@ -22,7 +22,7 @@ import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 
 import { adopt, fromElsewhere, goneOf, make } from "./agent.ts"
-import { CLAUDE } from "./agents/claude.ts"
+import { SAYS_NOTHING } from "./agents/legs.testlib.ts"
 import type { Stored } from "./events.ts"
 import type { Memory } from "./memory.ts"
 
@@ -83,8 +83,8 @@ describe("an agent that will not start", () => {
   test("refuses with the file it was pointed at, not with our end of the pipe", async () => {
     const agent = await Effect.runPromise(
       make({
-        id: "claude",
-        leg: CLAUDE,
+        id: "an-agent",
+        leg: SAYS_NOTHING,
         command: NOWHERE,
         args: [],
         cwd: process.cwd(),

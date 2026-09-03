@@ -217,7 +217,7 @@ type Ctx = SurfaceCtx<typeof surface.spec>
  */
 export default definePlugin({
   name,
-  needs: [Clock, Deliveries, Env, Kinds, SessionStart.key, Surfaces, Vault, Wakes],
+  needs: [Clock, Deliveries, Env, Kinds, SessionStart, Surfaces, Vault, Wakes],
   apply: Effect.gen(function*() {
     // EVERY SERVICE THIS PLUGIN NAMED, YIELDED ONCE, at the top — the same list
     // `needs` carries, in the same order, so a reader checks the two against each
@@ -226,7 +226,7 @@ export default definePlugin({
     const deliveries = yield* Deliveries
     const env = yield* Env
     const vocabulary = yield* Kinds
-    const opening = yield* SessionStart.key
+    const opening = yield* SessionStart
     const surfaces = yield* Surfaces
     const vault = yield* Vault
     const wakes = yield* Wakes
@@ -814,16 +814,13 @@ export default definePlugin({
     }))
 
     /** IS KOLU'S MCP SERVER HERE, asked once per conversation opening — the
-     *  `chat/session-start` waterfall, and a THUNK rather than an answer so the
-     *  asking stays `@olai/chat`'s to schedule and the list is collected per
-     *  session rather than once per boot. `env.vars` and not `process.env`: a
-     *  probe that read the environment itself would answer a different question
-     *  than the one a session's spawn will ask. */
-    yield* opening.use((start, next) =>
-      Effect.suspend(() => {
-        start.asking.push({ name, ask: () => probe(env.vars) })
-        return next(start)
-      })
-    )
+     *  `chat/session-start` door, and what is registered is the ASKING rather
+     *  than an answer, so the asking stays `@olai/chat`'s to schedule and the
+     *  list is read per session rather than once per boot. THE PLUGIN'S NAME IS
+     *  NOT WRITTEN HERE: the door stamps it off the fiber, like every other
+     *  keyed registration. `env.vars` and not `process.env`: a probe that read
+     *  the environment itself would answer a different question than the one a
+     *  session's spawn will ask. */
+    yield* opening.ask(Effect.promise(() => probe(env.vars)))
   }),
 })

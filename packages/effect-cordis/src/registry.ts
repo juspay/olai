@@ -72,6 +72,12 @@ export interface Roster<V> {
  * Keyed by a fresh symbol rather than held in an array, so a release is a delete
  * rather than an `indexOf` and a `splice` — two plugins holding the same entry
  * VALUE are two entries, and dropping one leaves the other.
+ *
+ * NO `changed`, unlike its keyed sibling, and the asymmetry is real rather than
+ * an omission: nothing is SERVED from a roster. Its two readers ask it fresh at
+ * the moment they need an answer — once per conversation opening for the
+ * session-start probes, once per dispatch for a bus — so there is no derived
+ * value sitting downstream that could go stale between reads.
  */
 export const roster = <V>(): Roster<V> => {
   const held = new Map<symbol, V>()

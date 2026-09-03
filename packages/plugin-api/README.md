@@ -1,6 +1,10 @@
 # @olai/plugin-api — what a plugin is written against
 
-olai integrates with three things that are not olai: [kolu](https://kolu.dev), which runs coding agents in terminals and serves them over MCP; [odu](https://github.com/juspay/odu), which runs CI; and [Xyne Spaces](https://github.com/xynehq/xyne), the org.s team chat. The part of that integration which is genuinely **olai's own judgement about an appliance** — what an absent padi means, which vault file is kolu's by convention, which property wears which face — belongs neither to the appliance nor to core, and this is the interface it is written against.
+olai integrates with things that are not olai, and every one of them is a PLUGIN written against this interface. They come in two kinds and the system tells them apart nowhere.
+
+**TENANTS** are olai's own judgement about an appliance: [kolu](https://kolu.dev), which runs coding agents in terminals and serves them over MCP; [odu](https://github.com/juspay/odu), which runs CI; and [Xyne Spaces](https://github.com/xynehq/xyne), the org.s team chat. What an absent padi means, which vault file is kolu's by convention, which property wears which face — none of that belongs to the appliance or to core.
+
+**ENGINES** are the ACP agents the chat panel can seat: `claude`, `opencode`, `pi`. Each is one directory and one row, because they share no release clock — the Claude adapter's pin moved five times in a month and opencode's has never moved — and because `--plugins` then enables them one at a time: `--plugins=opencode,pi` is a serve with no Claude row, no probe of one, and no mark for one anywhere. What an engine hands over is DATA and pure functions (`agents.register` below); it never spawns, sends or sees a transcript, which is `@olai/chat`'s.
 
 **This package names no plugin.** That is the whole of why a plugin may import it, and it is a reversal: for several rounds this package was the interface AND the registry, so a plugin importing it back was a cycle the manifests could not express and a manifest was therefore a plain `as const` object proved by the registry's `satisfies`. The registry is [`@olai/bundle`](../bundle/README.md) now, and what the reversal buys is that both halves can name the services they need. The `satisfies` did not survive the second move: there is no compiled-in list left to check a plugin against — the rows name MODULES and the loader resolves them at mount — so a half that does not export what the runtime believes it does fails where the runtime would fail, by the row's own name (`@olai/bundle`'s `tree.testlib.ts` imports exactly as the loader does), rather than on a line in a list nobody maintains.
 
@@ -8,7 +12,7 @@ olai integrates with three things that are not olai: [kolu](https://kolu.dev), w
 
 | door | who opens it | what it carries |
 | --- | --- | --- |
-| `.` | a plugin's BROWSER half, and `@olai/web` | the six SLOTS a face hangs in and the service TAGS a half names in its `needs` ([`src/browser.ts`](src/browser.ts)), plus the face TYPES that say what each of those faces is handed ([`src/plugin.ts`](src/plugin.ts)). It was `OlaiPlugin` — a manifest VALUE carrying `dressings`, `chrome`, `mount` and `mark` — beside `AppFurniture`, the one record the app handed every face as a prop; **neither is exported any more**, and the section below says what retired them. Every face returns `JSX.Element`, so this door names `solid-js`; it also carries `definePlugin`, because a browser half is a plugin exactly as a server half is |
+| `.` | a plugin's BROWSER half, and `@olai/web` | the seven SLOTS a face hangs in and the service TAGS a half names in its `needs` ([`src/browser.ts`](src/browser.ts)), plus the face TYPES that say what each of those faces is handed ([`src/plugin.ts`](src/plugin.ts)). It was `OlaiPlugin` — a manifest VALUE carrying `dressings`, `chrome`, `mount` and `mark` — beside `AppFurniture`, the one record the app handed every face as a prop; **neither is exported any more**, and the section below says what retired them. Every face returns `JSX.Element`, so this door names `solid-js`; it also carries `definePlugin`, because a browser half is a plugin exactly as a server half is |
 | `./services` | a plugin's SERVER half, and `@olai/server`'s composition root | the Effect service TAGS a plugin's `needs` lists, the one waterfall it may add a link to, `definePlugin` and `detached` — and, for a composition root, `openPlugins`, which is the other end of every door on it. This door names `effect` and no browser face |
 
 A server that reached the first door would evaluate a `.tsx` and die on `Cannot find module 'react/jsx-dev-runtime'` before it served anything. `@olai/bundle`'s [`fence.test.ts`](../bundle/src/fence.test.ts) walks the services door and holds it to the same list a server door is held to.
@@ -21,12 +25,14 @@ One thing is reached past this door, by `@olai/bundle` and nobody else: `@olai/e
 
 [`src/contract.ts`](src/contract.ts) is what both halves share — `PropKind`, `Probed`, `NotHere`, `StdioServer`, `Deliveries`, `Wake`, `PluginWire`, and the word a kind is composed into. Data shapes with no runtime behind them, so neither process pays for the other's graph.
 
+An ENGINE.s registration is NOT among them: `Leg`, `Adapter`, `Where`, `Registering` and `PromptChannel` are [`@olai/acp`](../acp/README.md).s `./engine` door, and they are there rather than here for a reason this package could not solve — an engine plugin writes them and `@olai/chat` reads them, and neither may import the other. The shape both spell had to live under both, which is the protocol package: an engine is an ACP agent and how to reach one. `NotHere` went there too for one revision, on the theory that an engine.s install sentence and an absent MCP server were one shape two walls needed. They were not: the sentence is drawn by the engine.s own BROWSER half out of a slot, so no server-side registration ever carried it anywhere, and `@olai/chat` had gone on declaring its own copy throughout. It is back here, beside `Probed`, which is its one reader.
+
 ## The server half is an Effect
 
 ```ts
 export default definePlugin({
   name,
-  needs: [Clock, Deliveries, Env, Kinds, SessionStart.key, Surfaces, Vault, Wakes],
+  needs: [Clock, Deliveries, Env, Kinds, SessionStart, Surfaces, Vault, Wakes],
   apply: Effect.gen(function*() { … }),
 })
 ```
@@ -56,6 +62,7 @@ Three properties fall out of that, and none of them is a convenience.
 | `wakes` | `register(wake)` — the sentence the strip draws, and the two a broken scope is owed |
 | `watching` | `subscribe(handler)` — conversation events, PUSHED: a doorbell that landed, an orchestrator reply that settled, a turn that started or ended. Never a human message, and never a read |
 | `held` | `load` / `save(record)` — a small opaque record this plugin keeps about this serve, in the state home rather than the vault, minted from the calling plugin's own word |
+| `agents` | `register(engine)` — one ACP engine this build can seat: a `Leg` that reads its wire, a probe that answers `Adapter | null` for this host, and the channel the standing prompt rides. The ID is the fiber.s word and there is no field to spell one in. How a person GETS the engine is NOT here: that sentence is drawn by the engine.s own browser half out of `chat.agent.install`, and a copy on this registration was read by nothing |
 
 **There is no `log` service, and its absence is the phase.** It was `say` and `warn`, wired by the composition root to `ring(Effect.logDebug(line))` and `ring(Effect.logWarning(line))` — an Effect run from a callback, per line, because the plugin had no fiber to emit from. A plugin's `apply` IS a fiber, so `Effect.logDebug` and `Effect.logWarning` are what a plugin says its lines with and they arrive with the level the operator asked for, the annotations the serve set and the span it was inside. WHICH level a sentence goes at is still the plugin's decision and still the same one.
 
@@ -67,7 +74,7 @@ Three properties fall out of that, and none of them is a convenience.
 | --- | --- | --- |
 | `vault.revision(handler)` | door | `PluginServer.revision(snapshot)`. The whole published snapshot; every listener narrows it in its own signature to the part it reads — a CLAIM about what the root rings rather than a check, because the door's payload is the handler's to name (one `as` in the provision, where three casts in three plugins used to be; `src/services.ts` argues what a checked one would cost) |
 | `vault.unloaded(handler)` | door | `PluginServer.unloaded()`. **Not teardown** — it means the STORE has never published, so a reading derived from the vault is yesterday's while what a plugin holds from its own daemon is untouched. Unloading the PLUGIN is its scope closing, which unwinds every registration above |
-| `SessionStart` | waterfall (Effect middleware) | `PluginServerHalf.probe`. A listener pushes a THUNK — its name and what it would ask — and the list is collected per session open, so a plugin that unloaded between conversations contributes nothing to the next one |
+| `SessionStart.ask(probe)` | keyed registration | `PluginServerHalf.probe`, and then a `chat/session-start` waterfall a listener pushed a THUNK onto. It is a registration now, keyed by the fiber like every other door: the plugin hands over the Effect it would run and nothing else — no name to sign, no promise to wrap — and the list is READ per session open, so a plugin that unloaded between conversations contributes nothing to the next one. The waterfall.s own powers (transform, short-circuit) were never used here and could not honestly be, since the order its links ran in was the order two dynamic imports came back in |
 
 Both vault doors are registrations on the calling plugin's scope, so a plugin the
 roster stops naming stops hearing revisions without remembering to say so. Both
@@ -105,7 +112,7 @@ export default definePlugin({
 
 The three properties the server half gets fall out here unchanged. Every `slots.register(...)` is an `Effect.acquireRelease` on the plugin's scope, so a plugin the roster stops naming unwinds its own faces on the way out and the app re-reads what is left; `needs` holds it `waiting` until the app's services exist, so a half that names `Bar` cannot draw before there is one; and the key a face is hung under comes from the plugin's own word rather than from an argument, so one plugin cannot sign a registration with another's name. A half whose `apply` fails lands in `failed` having installed nothing, and its siblings keep drawing.
 
-**A face hangs in a DECLARED slot.** There are six ([`src/browser.ts`](src/browser.ts)'s `SLOTS`), and they are a table of DATA rather than four optional fields on an interface, because a registration has to be checkable against something: a plugin hanging a chip in the header is a mistake somebody should be told about at the moment they make it, and an optional field per hook can only be wrong silently.
+**A face hangs in a DECLARED slot.** There are seven ([`src/browser.ts`](src/browser.ts)'s `SLOTS`), and they are a table of DATA rather than four optional fields on an interface, because a registration has to be checkable against something: a plugin hanging a chip in the header is a mistake somebody should be told about at the moment they make it, and an optional field per hook can only be wrong silently.
 
 | slot | keyed by | what hangs there |
 | --- | --- | --- |
@@ -115,10 +122,13 @@ The three properties the server half gets fall out here unchanged. Every `slots.
 | `app.header` | plugin | a readout in the app's bar. WHERE it sits in the cluster is the app's decision and always was; what a plugin gets is a seat |
 | `app.mount` | plugin | the tab's own half of this plugin, wrapped ONCE around the page — one subscription however many leaves draw. These NEST; the app folds them |
 | `chat.speaker.mark` | plugin | the shapes drawn over a sentence this plugin delivered into somebody's conversation — a `<g>` in a sixteen-unit box, never a whole `<svg>` |
+| `chat.agent.install` | plugin | an ENGINE plugin's row on the face the chat panel draws when this machine has NO agent at all: how a person gets it, as a `NotHere` and NOT a drawing — the one row on this table that carries a value. Core owns every stroke (the list, the mark, whether the name is a link); the plugin owns every word, and core composes no clause of them |
 
-**There were seven.** `app.drawer` — the panel a header readout's press opens — was declared and read by NOBODY: the chrome walk draws `app.header`, and the one plugin with a panel hangs it on `Bar`'s `popover()`, which is the app's whole portalled panel rather than a slot. A slot nobody reads is a face registered into silence — the failure the app's own dressings walk names about this very table — so it is gone until something wants it and comes back as a walk beside `PluginHeaders` on the day one does.
+**A slot is for what core CANNOT compose,** and two are gone for the two ways of failing that. `chat.agent.row` — the words inside an engine's row in the *which agent?* question — lasted one revision: all three engines hung the same markup around the same string the server was already sending as `AgentChoice.name`, which is one word with two authored sources and a picker that can come to disagree with the header beside it. A name the wire carries is core's to draw.
 
-Two key rules, which is why there are two register doors and not six. A **plugin**-keyed slot holds one face per plugin, under the plugin's own name. A **kind**-keyed one holds one face per property KIND, under the word this plugin's bare kind composes to — composed by `Slots` with `kindWordOf`, the same function `Kinds` uses on the server, so the word a face is looked up by and the word a vault declares cannot be two spellings. A second face in one slot under one key is refused inside `acquire`, which fails that plugin and leaves every other plugin's faces untouched.
+`app.drawer` — the panel a header readout's press opens — failed the other way, and was declared and read by NOBODY: the chrome walk draws `app.header`, and the one plugin with a panel hangs it on `Bar`'s `popover()`, which is the app's whole portalled panel rather than a slot. A slot nobody reads is a face registered into silence — the failure the app's own dressings walk names about this very table — so it is gone until something wants it and comes back as a walk beside `PluginHeaders` on the day one does.
+
+Two key rules, which is why there are two register doors and not seven. A **plugin**-keyed slot holds one face per plugin, under the plugin's own name. A **kind**-keyed one holds one face per property KIND, under the word this plugin's bare kind composes to — composed by `Slots` with `kindWordOf`, the same function `Kinds` uses on the server, so the word a face is looked up by and the word a vault declares cannot be two spellings. A second face in one slot under one key is refused inside `acquire`, which fails that plugin and leaves every other plugin's faces untouched.
 
 ## What is deliberately not here
 

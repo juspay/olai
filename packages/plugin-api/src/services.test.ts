@@ -187,53 +187,52 @@ test("a kind refused for collision leaves the first plugin's word standing and a
 })
 
 /**
- * A LISTENER THAT AWAITS BEFORE IT CONTRIBUTES IS STILL COUNTED — the
- * `chat/session-start` contract, held where it can be false.
+ * WHAT A PLUGIN REGISTERS IS ON THE LIST, AND IT IS STAMPED WITH ITS NAME —
+ * the `chat/session-start` contract, held where it can be false.
  *
- * ## The defect this is about
+ * ## The two defects this is about, one retired and one made unrepresentable
  *
- * The composition root fired the waterfall and returned the payload without
- * awaiting the dispatch. That worked, and would go on working, for exactly as
- * long as every listener was synchronous up to its `next()`.
+ * It was a WATERFALL, and the composition root fired it and returned the
+ * payload without awaiting the dispatch — which worked for exactly as long as
+ * every listener was synchronous up to its `next()`. A plugin that yielded
+ * anything before its push would have been silently absent from EVERY session,
+ * for ever, with nothing red, on the one path whose whole subject is a tool that
+ * is missing. Registration is an ordinary `acquireRelease` on the plugin's scope
+ * now, so there is no dispatch to fail to await.
  *
- * A plugin that yielded anything before its push would be silently absent from
- * EVERY session, for ever, with nothing red — on the one path whose whole
- * subject is a tool that is missing. That is a contract nobody told a plugin
- * author about, enforced by a coincidence. An Effect chain cannot be got wrong
- * that way, and this is the case that says so.
+ * And a plugin SIGNED ITS OWN NAME into that payload, where every other keyed
+ * door reads the word off the fiber. It cannot: the door takes an Effect and
+ * nothing else, and the name below is the one the runtime bound each plugin
+ * under.
  */
-test("a listener that yields before it contributes is on the list, not dropped", async () => {
+test("what a plugin asks is on the list, under the name its fiber was bound with", async () => {
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const plugins = yield* runtime()
     const order: Array<string> = []
     const asking = (name: string, slow: boolean) =>
       definePlugin({
         name,
-        needs: [SessionStart.key],
+        needs: [SessionStart],
         apply: Effect.gen(function*() {
-          yield* (yield* SessionStart.key).use((start, next) =>
-            Effect.gen(function*() {
-              // A yield of any kind before the push — which is what a listener
-              // that read a file, or asked another service, would do.
-              if (slow) yield* Effect.yieldNow
-              order.push(name)
-              start.asking.push({ name, ask: () => Promise.resolve(NOTHING_FOUND) })
-              return yield* next(start)
-            })
-          )
+          // A yield of any kind before the registration — which is what a
+          // plugin that read a file, or asked another service, would do.
+          if (slow) yield* Effect.yieldNow
+          order.push(name)
+          // NO NAME IS WRITTEN HERE, and there is no parameter to write one in.
+          yield* (yield* SessionStart).ask(Effect.succeed(NOTHING_FOUND))
         }),
       })
     yield* mountPlugin(plugins.host, asking("prompt", false))
     yield* mountPlugin(plugins.host, asking("slow", true))
 
-    const start = yield* plugins.sessionStart
-    expect(start.asking.map((one) => one.name)).toEqual(["prompt", "slow"])
+    const asked = yield* plugins.sessionStart
+    expect(asked.map((one) => one.name)).toEqual(["prompt", "slow"])
     expect(order).toEqual(["prompt", "slow"])
   })))
 })
 
 /** ...and a plugin that has unloaded contributes nothing to the next session,
- *  which is the whole reason the list is collected per dispatch rather than once
+ *  which is the whole reason the list is READ per session open rather than once
  *  at boot. */
 test("an unloaded plugin is off the next session's list", async () => {
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
@@ -242,20 +241,15 @@ test("an unloaded plugin is off the next session's list", async () => {
       plugins.host,
       definePlugin({
         name: "kolu",
-        needs: [SessionStart.key],
+        needs: [SessionStart],
         apply: Effect.gen(function*() {
-          yield* (yield* SessionStart.key).use((start, next) =>
-            Effect.suspend(() => {
-              start.asking.push({ name: "kolu", ask: () => Promise.resolve(NOTHING_FOUND) })
-              return next(start)
-            })
-          )
+          yield* (yield* SessionStart).ask(Effect.succeed(NOTHING_FOUND))
         }),
       }),
     )
-    expect((yield* plugins.sessionStart).asking.map((one) => one.name)).toEqual(["kolu"])
+    expect((yield* plugins.sessionStart).map((one) => one.name)).toEqual(["kolu"])
     yield* mounted.dispose
-    expect((yield* plugins.sessionStart).asking).toEqual([])
+    expect(yield* plugins.sessionStart).toEqual([])
   })))
 })
 

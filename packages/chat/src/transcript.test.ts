@@ -742,7 +742,7 @@ describe("an agent that was sent out", () => {
     // ... AND IT IS PUT BACK WHEN THIS OUTING ENDS, which is the other half and
     // the one a test that only watched the clearing would let rot: the harness
     // reports the second ending exactly as it reported the first
-    // (`acp/patches/README.md` — the settle of a reopened call stamps it), so
+    // (`packages/plugins/claude/acp/patches/README.md` — the settle of a reopened call stamps it), so
     // the row is a call that has ended again rather than one that quietly
     // stopped being a task.
     transcript.tool("toolu_01AGENT", {
@@ -1213,7 +1213,7 @@ describe("when a row arrived", () => {
   test("A CALL THAT WAS OVER AND IS RUNNING AGAIN is stamped with the moment", () => {
     // A subagent that reported and was sent MORE WORK. The call that answers
     // for it is the one that SPAWNED it — the adapter reopens that very call
-    // when the harness starts its task again (`acp/patches/README.md`), because
+    // when the harness starts its task again (`packages/plugins/claude/acp/patches/README.md`), because
     // everything the agent does goes on being stamped with it — so the row goes
     // from over to running again, which is a transition nothing else makes.
     //
