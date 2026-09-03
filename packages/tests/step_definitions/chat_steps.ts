@@ -3521,12 +3521,13 @@ Then(
     const row = this.page.locator(`${CHAT_INSTALL}${attr("data-agent", id)}`);
     await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     // ...AND IT SAYS HOW, which is the whole of what this face is for and the
-    // half an id alone cannot see. The sentence is the ENGINE PLUGIN's own — a
-    // face in the `chat.agent.install` slot, spelled once in that plugin's
-    // package and registered a second time as its `missing` — so a row drawn
-    // with an id and no words would be the face reporting on nothing. Not the
-    // exact words: they are that plugin's to change, and core composes no
-    // clause of them.
+    // half an id alone cannot see. The sentence is the ENGINE PLUGIN's own —
+    // the `NotHere` it hung in the `chat.agent.install` slot, spelled once in
+    // that plugin's `install.ts` and spent once, here — so a row drawn with an
+    // id and no words would be the face reporting on nothing. Not the exact
+    // words: they are that plugin's to change, and core composes no clause of
+    // them. What IS core's is every stroke around them, which is why this
+    // reads the row's text rather than looking for an anchor.
     assert.ok(
       oneLine(await row.innerText()).length > 0,
       `the install row for "${id}" is empty — the engine's own sentence did not draw`,

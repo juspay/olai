@@ -1,12 +1,22 @@
 /**
- * WHO THIS ENGINE IS, AND HOW A PERSON GETS IT — spelled once, spent twice.
+ * WHO THIS ENGINE IS, AND HOW A PERSON GETS IT — spelled once, spent once.
  *
- * BOTH HALVES NEED IT and they share no graph: the server half registers it as
- * the `missing` on `Agents` (so a log line and a future reader of the registry
- * have it), and the browser half draws it on the face the panel shows when this
- * machine has no agent at all. A module with no imports of its own is what a
- * `./server` and a `./browser` can both open without either learning what the
- * other is made of.
+ * THE BROWSER HALF IS THE ONE THAT SPENDS IT: {@link ./browser.tsx} hangs this
+ * value in the `chat.agent.install` slot, and `@olai/web` draws the row on the
+ * face the panel shows when this machine has no agent at all. **The server half
+ * does not touch it** — {@link ./server.ts} opens this module for {@link NAME}
+ * and nothing else.
+ *
+ * IT WAS SPENT TWICE for one revision: `Registering.missing`, on the `Agents`
+ * registration, beside the browser's copy. No serve, log line or cell ever read
+ * that field, so what the second spending bought was a second authored source
+ * for one sentence. `./server.test.ts` asserts these words off THIS constant,
+ * which is the thing with a reader.
+ *
+ * A MODULE OF ITS OWN rather than lines inside `./browser.tsx`, because that
+ * bench must not open the browser door: `packages/tests` runs under a process
+ * with no browser in it, and a claim about two strings would drag SolidJS onto
+ * its graph.
  *
  * IT IS A WHOLE SENTENCE and core composes no clause of it. **Core displays a
  * sentence and never composes one** — the same rule an absent MCP server's

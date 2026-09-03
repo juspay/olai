@@ -738,7 +738,7 @@ export const ToolEntry = Schema.Struct({
    * A subagent that has reported can be sent more work — the harness wakes it
    * and starts the same task again — and the call that answers for it is the
    * one that SPAWNED it: everything the agent does is stamped with that call
-   * for as long as it lives (`chat/src/agents/claude.ts`'s `parentToolUseId`),
+   * for as long as it lives (`olai-plugin-claude`'s `src/leg.ts`, its `parentToolUseId`),
    * so a resumed agent is one row, one lane and one face rather than a second
    * of each. The adapter reopens that call when the harness says the task
    * started again (`packages/plugins/claude/acp/patches/README.md`), which is what puts the agent back
@@ -1425,7 +1425,7 @@ export type Command = typeof Command.Type
  *     tool it is writes the words).
  *
  * POSITIVE RECOGNITION, which is the rule the legs already read permissions by
- * (`../../chat/src/agents/leg.ts`): `connected` is claimed only where an agent
+ * (`@olai/acp`'s `./engine` door, where the `Leg` shape lives): `connected` is claimed only where an agent
  * said that word, and every other word it could send falls to `unattached`.
  * A tick on this panel is one somebody asserted, never one inferred from
  * silence — the losing direction being an agent whose servers are all fine

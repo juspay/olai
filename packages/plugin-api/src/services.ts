@@ -574,8 +574,21 @@ export interface SessionStart {
    * IT NEVER FAILS: every way of failing is an ARM of {@link Probed}, which is
    * the whole reason that type has two fields rather than an error channel —
    * "the tool is not here" is an answer and not a fault, and "it is here and
-   * would not work" is a SENTENCE somebody has to read. A probe that dies is
-   * contained by the caller and costs that plugin its row.
+   * would not work" is a SENTENCE somebody has to read.
+   *
+   * AND NOTHING CONTAINS A PROBE THAT DIES, which is why the type is the whole
+   * of the contract rather than a preference. This line used to end "a probe
+   * that dies is contained by the caller and costs that plugin its row", and no
+   * such containment exists: the chain from here is `askingAt`
+   * (`@olai/server`'s `probes.ts`) into `@olai/chat`'s `probed`, which is an
+   * `Effect.forEach` with no `catchAllDefect` anywhere on it, and its answer is
+   * awaited inside `session/new`. So a defect here does not cost one plugin its
+   * row — it fails the conversation open, for every plugin and for the person.
+   *
+   * Answer the arms. A probe that cannot say what it found says
+   * `{ server: null, missing: … }` and describes the failure in `missing.why`,
+   * which is the sentence somebody reads; a probe that throws is a bug in that
+   * plugin with a blast radius this door cannot shrink for it.
    */
   readonly ask: (probe: Effect.Effect<Probed>) => Effect.Effect<void, never, Scope.Scope>
 }
