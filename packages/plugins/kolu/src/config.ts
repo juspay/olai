@@ -132,6 +132,17 @@ export const watchConfigIn = (
   const inside = nodes.filter(isRegular).filter((located) => located.file === file)
   const watch = inside.find(({ node }) => node.title === WATCH_TITLE)
   const malformed: Array<string> = []
+  /** THE VAULT'S OWN SHAPE GATE, before either parser: the grammar WITHOUT
+   *  the bare-number arm — everything else with a bad shape is kolu's own
+   *  sentence to spell. Its parsers take `10000` for 10000ms because the
+   *  `kolu` binary's other four flags already mean ms — an argv-consistency
+   *  argument. A hand-edited file reads the other way: a truncated `nag: 10`
+   *  defaults into a 10-ms re-fire spin, which is the one mistake a property
+   *  file must say rather than do. */
+  const vaultShape = /^\d+$/
+  const spellUnit = (key: "held-for" | "nag" | "heartbeat", value: string): void => {
+    malformed.push(`kolu: \`${key}: ${value}\` in ${watch?.file}: spell a number and a unit (500ms, 30s, 10m, 2h, 1d)`)
+  }
   /** KOLU'S OWN PARSERS, wrapped in the vault's own address. A value that is
    *  not the grammar names the file, the node and the sentence kolu itself
    *  composes (`parseDuration`/`parseNag`), so a `kolu watch` user and a
@@ -146,6 +157,10 @@ export const watchConfigIn = (
     if (watch === undefined) return fallback
     const value = customText(watch.node, key)
     if (value === undefined) return fallback
+    if (!vaultShape.test(value)) {
+      spellUnit(key, value)
+      return fallback
+    }
     const read = parseDuration(key, value, min, effect)
     if (read.kind === "error") {
       malformed.push(`kolu: \`${key}: ${value}\` in ${watch.file}: ${read.message}`)
@@ -160,6 +175,10 @@ export const watchConfigIn = (
     if (watch === undefined) return DEFAULT_WATCH.nagMs
     const value = customText(watch.node, "nag")
     if (value === undefined) return DEFAULT_WATCH.nagMs
+    if (!vaultShape.test(value)) {
+      spellUnit("nag", value)
+      return DEFAULT_WATCH.nagMs
+    }
     const read = parseNag("nag", value)
     if (read.kind === "error") {
       malformed.push(`kolu: \`nag: ${value}\` in ${watch.file}: ${read.message}`)

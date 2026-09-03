@@ -167,6 +167,22 @@ test("an orphaned or off-grammar cap is the malformed nag, not a negotiated half
   expect(reading.malformed[0]).toContain("the count after the slash caps")
 })
 
+test("a BARE number is refused: the CLI's default-to-ms is for flags, and a file is not a flag", () => {
+  // `nag: 10` as milliseconds is a 10ms re-fire spin — the argv-consistency
+  // leniency kolu's parser carries reads the other way in a property file:
+  // the vault says rather than doing.
+  const reading = setOf({
+    "_olai/Kolu.olai": [
+      rec("watch", { nag: "10", heartbeat: "30" }),
+    ].join("\n"),
+  })
+  expect(reading.config.nagMs).toEqual(DEFAULT_WATCH.nagMs)
+  expect(reading.config.heartbeatMs).toEqual(DEFAULT_WATCH.heartbeatMs)
+  expect(reading.malformed.length).toBe(2)
+  expect(reading.malformed[0]).toContain("kolu: `nag: 10` in _olai/Kolu.olai: spell a number and a unit")
+  expect(reading.malformed[1]).toContain("kolu: `heartbeat: 30` in _olai/Kolu.olai: spell a number and a unit")
+})
+
 // ── ONE file decides — including a silent one ─────────────────────────────
 
 test("nodes hanging in another file answer on their own, as not the file's", () => {
