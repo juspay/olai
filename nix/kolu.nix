@@ -80,7 +80,7 @@ let
     # it credited `@kolu/detect`, whose closure is ONE member, itself. Nothing
     # was missing, because the six-seed union is the same 32 either way; but an
     # edit that believed it and dropped the dock row would hydrate a tree with no
-    # `@kolu/padi-client` in it while `@olai/kolu-client` still imports it, and
+    # `@kolu/padi-client` in it while `olai-plugin-kolu/appliance` still imports it, and
     # the sibling walk that used to catch exactly that is gone by design.
     seeds = [
       "@kolu/detect"

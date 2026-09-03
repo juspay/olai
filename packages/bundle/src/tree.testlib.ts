@@ -133,7 +133,7 @@ export const dependencyNames = (manifest: Record<string, unknown> | undefined): 
 
 /**
  * EVERY WORKSPACE MEMBER, as its directory relative to `packages/` — so a
- * top-level member is `web` and a nested tenant is `plugins/olai-plugin-kolu`.
+ * top-level member is `web` and a nested tenant is `plugins/kolu`.
  *
  * READ OUT OF THE ROOT'S OWN `workspaces` GLOBS, and that is the point rather
  * than an implementation detail. This file used to walk `readdirSync(PACKAGES)`
@@ -191,7 +191,7 @@ export const MEMBERS: ReadonlyArray<string> = (() => {
 })()
 
 /** Which member a `packages/`-relative path belongs to — the LONGEST member
- *  that prefixes it, because `plugins/olai-plugin-kolu` and a hypothetical
+ *  that prefixes it, because `plugins/kolu` and a hypothetical
  *  `plugins` would both prefix a tenant's file and only one of them is its
  *  package. `undefined` for a path under no member at all. */
 export const memberOf = (file: string): string | undefined =>
@@ -325,7 +325,8 @@ type Landing =
 const resolveWorkspace = (spec: string): Landing => {
   // WHICH MEMBER a specifier names is a lookup rather than a pattern, because
   // the two families of workspace name do not share one: core is `@olai/<x>`
-  // and a tenant is the unscoped `olai-plugin-<x>` its directory is called.
+  // and a tenant is the unscoped `olai-plugin-<x>` — the directory is the plugin
+  // word; the package name stays `olai-plugin-<x>`.
   // A regex over the first family alone would answer "external" for every
   // plugin door, which is not a walk that stops — it is a walk that never
   // starts, and every purity claim below would pass over one file.
@@ -369,7 +370,7 @@ export interface Edge {
  *  that is the difference between this reading and the one above it: a
  *  positional match over-includes, which fails CLOSED for "does anything
  *  reach for X" and fails OPEN for a WALK — an `@olai/surface` spelled inside
- *  a comment in `@olai/kolu-client/wire` sent the first draft of this walk
+ *  a comment in `olai-plugin-kolu/appliance/wire` sent the first draft of this walk
  *  straight into a package the door does not reach. `scanImports` sees no
  *  comments and elides type-only imports, which is the right instrument for a claim about what a listener actually EVALUATES. */
 

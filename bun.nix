@@ -357,9 +357,7 @@
   "@olai/git" = copyPathToStore ./packages/git;
   "@olai/identity" = copyPathToStore ./packages/identity;
   "@olai/index" = copyPathToStore ./packages/index;
-  "@olai/kolu-client" = copyPathToStore ./packages/kolu-client;
   "@olai/log" = copyPathToStore ./packages/log;
-  "@olai/odu-client" = copyPathToStore ./packages/odu-client;
   "@olai/ops" = copyPathToStore ./packages/ops;
   "@olai/plugin-api" = copyPathToStore ./packages/plugin-api;
   "@olai/plugin-kit" = copyPathToStore ./packages/plugin-kit;
@@ -1586,9 +1584,9 @@
     url = "https://registry.npmjs.org/object-inspect/-/object-inspect-1.13.4.tgz";
     hash = "sha512-W67iLl4J2EXEGTbfeHCffrjDfitvLANg0UlX3wFUUSTx92KXRFegMHUVgSqE+wvhAbi4WqjGg9czysTV2Epbew==";
   };
-  "olai-plugin-kolu" = copyPathToStore ./packages/plugins/olai-plugin-kolu;
-  "olai-plugin-odu" = copyPathToStore ./packages/plugins/olai-plugin-odu;
-  "olai-plugin-xyne-spaces" = copyPathToStore ./packages/plugins/olai-plugin-xyne-spaces;
+  "olai-plugin-kolu" = copyPathToStore ./packages/plugins/kolu;
+  "olai-plugin-odu" = copyPathToStore ./packages/plugins/odu;
+  "olai-plugin-xyne-spaces" = copyPathToStore ./packages/plugins/xyne-spaces;
   "on-finished@2.4.1" = fetchurl {
     url = "https://registry.npmjs.org/on-finished/-/on-finished-2.4.1.tgz";
     hash = "sha512-oVlzkg3ENAhCk2zdv7IJwd/QUD4z2RxRwpkcGY8psCVcCYZNq4wYnVWALHM+brtuJjePWiYF/ClmuDr8Ch5+kg==";

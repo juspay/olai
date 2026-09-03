@@ -78,8 +78,8 @@ install:
       && sh $OLAI_KOLU_HYDRATE_SCRIPT $OLAI_ODU_HYDRATE \
       && sh $OLAI_KOLU_HYDRATE_SCRIPT $OLAI_CORDIS_HYDRATE \
       && bun packages/bundle/generate.ts \
-      && install -m 644 "$OLAI_KOLU_MARK_DIR/mark.generated.ts" packages/plugins/olai-plugin-kolu/src/browser/mark.generated.ts \
-      && install -m 644 "$OLAI_ODU_MARK_DIR/mark.generated.ts" packages/plugins/olai-plugin-odu/src/browser/mark.generated.ts'
+      && install -m 644 "$OLAI_KOLU_MARK_DIR/mark.generated.ts" packages/plugins/kolu/src/browser/mark.generated.ts \
+      && install -m 644 "$OLAI_ODU_MARK_DIR/mark.generated.ts" packages/plugins/odu/src/browser/mark.generated.ts'
 
 # TypeScript type checking — every workspace member, from the glob bun
 # installs from
@@ -147,7 +147,7 @@ test: install
       ./packages/web/src/client/chat/attention/asked.browsertest.ts \
       ./packages/web/src/client/chat/attention/elsewhere.browsertest.ts \
       ./packages/web/src/client/chat/declared.browsertest.ts \
-      ./packages/plugins/olai-plugin-kolu/src/appliance/props/held.browsertest.ts
+      ./packages/plugins/kolu/src/appliance/props/held.browsertest.ts
 
 # The same suite, TO A LOG — for an agent, or for anyone who wants to read the
 # failures more than once.

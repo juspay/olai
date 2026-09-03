@@ -1,1 +1,1 @@
-../../packages/plugins/olai-plugin-xyne-spaces/docs.md
+../../packages/plugins/xyne-spaces/docs.md

@@ -5,9 +5,9 @@ directory holds plugins and nothing else, and a manifest at this path would put
 a workspace member at `packages/plugins`, which is the name the appliance fold
 moved the interface OUT of.
 
-What goes in it: one directory per plugin, named `olai-plugin-<name>`, and the
-package inside is called the same thing — unscoped. The population today is
-`olai-plugin-kolu`, `olai-plugin-odu` and `olai-plugin-xyne-spaces`. `@olai/*` is the scope for
+What goes in it: one directory per plugin, named the plugin word (`kolu`,
+`odu`, `xyne-spaces`), and the package inside is called `olai-plugin-<name>` —
+unscoped. The population today is `kolu`, `odu` and `xyne-spaces`. `@olai/*` is the scope for
 the packages that ARE olai; a tenant is olai's judgement about somebody else's
 appliance, which is the closest thing in this tree to a plugin written outside
 it, so it is named the way one would be.

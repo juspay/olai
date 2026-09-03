@@ -27,7 +27,7 @@
 # mistake will be made), it is the prefix instead of the pin; set to the
 # EMPTY string, it is the explicit off switch — the ambient PATH answers
 # as-is, and a PATH with no odu is then a DRAWN row, by design
-# (packages/plugins/olai-plugin-odu/src/probe.ts). The packaged wrapper
+# (packages/plugins/odu/src/probe.ts). The packaged wrapper
 # reads the same variable in the same three states (default.nix) — one
 # knob, both faces.
 #

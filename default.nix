@@ -28,8 +28,8 @@ let
   # that answers "what does the pin currently say the logo is", which
   # matters because the generated file is gitignored and a pin bump therefore
   # shows no diff of its own.
-  kolu-mark = import ./packages/plugins/olai-plugin-kolu { inherit pkgs; };
-  odu-mark = import ./packages/plugins/olai-plugin-odu { inherit pkgs; };
+  kolu-mark = import ./packages/plugins/kolu { inherit pkgs; };
+  odu-mark = import ./packages/plugins/odu { inherit pkgs; };
 
   src = pkgs.lib.fileset.toSource {
     root = ./.;
@@ -101,8 +101,8 @@ let
       sh ${kolu.hydrateScript} ${odu.hydrateArgs}
       sh ${kolu.hydrateScript} ${cordis.hydrateArgs}
       bun packages/bundle/generate.ts
-      install -m 644 ${kolu-mark}/mark.generated.ts packages/plugins/olai-plugin-kolu/src/browser/mark.generated.ts
-      install -m 644 ${odu-mark}/mark.generated.ts packages/plugins/olai-plugin-odu/src/browser/mark.generated.ts
+      install -m 644 ${kolu-mark}/mark.generated.ts packages/plugins/kolu/src/browser/mark.generated.ts
+      install -m 644 ${odu-mark}/mark.generated.ts packages/plugins/odu/src/browser/mark.generated.ts
     '';
 
     buildPhase = ''

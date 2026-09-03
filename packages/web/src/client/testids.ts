@@ -1801,7 +1801,7 @@ export type TestId = (typeof TESTID)[keyof typeof TESTID]
  * matches two different components, and the scenario that spends it is green
  * about the wrong element. The inner two layers already refuse that — a tenant
  * refuses a collision between its own halves
- * (`olai-plugin-kolu/src/testids.ts`), and the registry holds the plugins'
+ * (`packages/plugins/kolu/src/testids.ts`), and the registry holds the plugins'
  * doors disjoint from each other — and nothing compared either with THIS table,
  * which is the outermost and the one a scenario actually writes.
  *

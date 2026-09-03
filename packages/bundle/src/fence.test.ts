@@ -425,7 +425,7 @@ const NOT_IN_A_TAB = [
  */
 const SERVER_DOOR = ((): ReturnType<typeof graphFrom> => {
   const graphs = ROWS.map((row) => {
-    // `olai-plugin-kolu/server` → `packages/plugins/olai-plugin-kolu/src/server.ts`.
+    // `olai-plugin-kolu/server` → `packages/plugins/kolu/src/server.ts`.
     // The one piece of arithmetic, and it is the ecosystem's rather than this
     // file's: a package's `./server` subpath is `src/server.ts` in every member
     // of this tree, and a row whose module does not resolve that way is a row
@@ -566,7 +566,7 @@ describe("a plugin's browser chunk stays a browser chunk", () => {
  * inherits rather than invents: `@kolu/solid-dockrow/rowValues` is that
  * package's own "pure half — every fold a consumer needs, with no JSX in the
  * import graph", split off for exactly the reason this test exists, and
- * `@olai/kolu-client` has always reached it for its row folds. Matching the
+ * `olai-plugin-kolu/appliance` has always reached it for its row folds. Matching the
  * bare specifier is what separates "somebody imported the components" from
  * "somebody imported the arithmetic".
  */
@@ -633,8 +633,8 @@ describe("the server door pulls no browser face", () => {
     // claim above by being empty, and the runtime halves would be somewhere
     // else — which is the arrangement this whole split replaced.
     const specs = new Set(reached.map((one) => one.spec))
-    expect(specs.has("@olai/kolu-client")).toBe(true)
-    expect(specs.has("@olai/odu-client")).toBe(true)
+    expect(specs.has("olai-plugin-kolu/appliance")).toBe(true)
+    expect(specs.has("olai-plugin-odu/appliance")).toBe(true)
   })
 })
 
@@ -705,20 +705,46 @@ describe("only the registry knows a plugin's name", () => {
     expect(files).toBeGreaterThan(400)
   })
 
+  /**
+   * THE FOLDED TESTLIB DOOR, recorded rather than widened.
+   *
+   * `@olai/tests` already imported `@olai/kolu-client/testlib` — the fake padi
+   * the e2e spawn stands on. Those files now live behind the plugin, so the
+   * same two files import `olai-plugin-kolu/appliance/testlib` and the suite
+   * declares that plugin for that door. An equality against those two lines
+   * (and that one declaration) is the opposite of letting a general package
+   * import a plugin: a third file, a different subpath, or a second plugin
+   * is red. `packages/server` is still `[]`.
+   */
+  const TESTLIB_IMPORTS: Readonly<Record<string, ReadonlyArray<string>>> = {
+    tests: [
+      "tests/support/hooks.ts: olai-plugin-kolu/appliance/testlib",
+      "tests/support/world.ts: olai-plugin-kolu/appliance/testlib",
+    ],
+  }
+  const TESTLIB_DECLARED: Readonly<Record<string, ReadonlyArray<string>>> = {
+    tests: ["olai-plugin-kolu"],
+  }
+
   test("no package outside the registry imports a plugin", () => {
     for (const pkg of packages) {
       if (pkg === REGISTRY) continue
+      // A plugin importing its own doors — `olai-plugin-kolu/appliance` after
+      // the fold — is not a general package naming a plugin. Plugins may also
+      // import each other; that ban retired. This claim is the general side.
+      if (PLUGIN_DIRS.includes(pkg)) continue
       const reached = tree.get(pkg)?.flatMap((s) => s.plugins.map((p) => `${s.file}: ${p}`)) ?? []
-      // An EQUALITY against the empty list, never a length on a filter: a
-      // pattern that rotted would report nothing and pass.
-      expect(reached, pkg).toEqual([])
+      // An EQUALITY against the recorded answer — `[]` for all but the folded
+      // testlib door — never a length on a filter: a pattern that rotted would
+      // report nothing and pass.
+      expect([...reached].sort(), pkg).toEqual([...(TESTLIB_IMPORTS[pkg] ?? [])])
     }
   })
 
   test("no package outside the registry declares a plugin in its manifest", () => {
     for (const pkg of packages) {
       if (pkg === REGISTRY) continue
-      expect(declaredBy(pkg), pkg).toEqual([])
+      expect(declaredBy(pkg), pkg).toEqual([...(TESTLIB_DECLARED[pkg] ?? [])])
     }
   })
 
@@ -905,8 +931,8 @@ describe("a plugin is a sibling, and core computes none of its addresses", () =>
  *
  * The human's ruling, the sixth sitting: *"a directory wall can be broken
  * easily by importing; package walls cannot, and are conceptually
- * self-explanatory."* padi lives behind `@olai/kolu-client` and odu's run client
- * behind `@olai/odu-client` — each names no olai package at all, and the
+ * self-explanatory."* padi lives behind `olai-plugin-kolu/appliance` and odu's run client
+ * behind `olai-plugin-odu/appliance` — each names no olai package at all, and the
  * resolver, not a sweep, is what proves it. The plugin package on top of each is
  * olai's own judgement ABOUT that appliance, and since the appliance fold it is
  * also every face that appliance wears: `@olai/kolu-ui` folded into
@@ -922,7 +948,8 @@ describe("a plugin is a sibling, and core computes none of its addresses", () =>
  * ## Why both lists are derived, which is the whole point of doing this again
  *
  * The two shell fences each carried the answer BY HAND — a `PRODUCT=` alternation
- * of six specifiers in one, and `grep -v '/packages/odu-client/'` in the other.
+ * of six specifiers in one, and `grep -v '/packages/odu-client/'` in the other
+ * (that path is gone; the dial is `plugins/odu/src/appliance/` now).
  * A hand copy of an architecture is precisely what a fence exists to prevent,
  * and this one failed the way hand copies fail: a plugin package grew a testlib
  * that served its own appliance's real surface, which is the tenancy working
@@ -937,8 +964,8 @@ describe("a plugin is a sibling, and core computes none of its addresses", () =>
  *     packages the walk reaches. A package reached from TWO plugins is general
  *     by construction (`@olai/format` is: both plugins' vault walks read
  *     records) and drops out. What is left for kolu is
- *     `plugins/olai-plugin-kolu` and `kolu-client`; for odu,
- *     `plugins/olai-plugin-odu` and `odu-client`. Nobody typed those.
+ *     `plugins/kolu`; for odu, `plugins/odu`; for Spaces,
+ *     `plugins/xyne-spaces`. Nobody typed those.
  *
  *   - **A TIER is computed from the tenant.** Whatever a tenant names that
  *     resolves out of the ROOT `node_modules` and is declared in NO manifest —
@@ -1127,9 +1154,9 @@ describe("an appliance's product tier stays inside its tenant", () => {
     expect(
       Object.fromEntries([...TENANTS].map(([name, members]) => [name, [...members].sort()])),
     ).toEqual({
-      kolu: ["kolu-client", "plugins/olai-plugin-kolu"],
-      odu: ["odu-client", "plugins/olai-plugin-odu"],
-      "xyne-spaces": ["plugins/olai-plugin-xyne-spaces"],
+      kolu: ["plugins/kolu"],
+      odu: ["plugins/odu"],
+      "xyne-spaces": ["plugins/xyne-spaces"],
     })
     // ...and each APPLIANCE tenant has a TIER, which is the other way this
     // derivation comes back empty: a `node_modules` that was never hydrated.
@@ -1185,7 +1212,7 @@ describe("an appliance's product tier stays inside its tenant", () => {
 
   test("no tenant names another appliance's tier", () => {
     // The claim the two shell scripts could not make at all, because each knew
-    // about one appliance: `@olai/odu-client` may not reach padi, and
+    // about one appliance: `olai-plugin-odu/appliance` may not reach padi, and
     // `olai-plugin-kolu` may not dial a coordinator. Derived, so a third appliance
     // is fenced against the first two on the day it arrives.
     for (const [name, tier] of TIERS) {
@@ -1199,11 +1226,13 @@ describe("an appliance's product tier stays inside its tenant", () => {
   test("the composed doors reach every tenant door named `./wire`", () => {
     // What `check-kolu-deps.sh`'s fifth assertion and `check-odu-deps.sh`'s
     // third were FOR, kept: they read `packages/<appliance>-client/src/wire`
-    // directly, and the walk above reads it only if the plugin still imports
-    // it. Without this, a plugin that stopped re-exporting its appliance's wire
-    // would make the purity claim above pass over a graph that no longer
-    // contains the module it was written about. The doors are derived: a tenant
-    // package whose manifest opens `./wire` must be on that graph.
+    // directly (those packages folded; the dials are `./appliance/wire` now),
+    // and the walk above reads it only if the plugin still imports it. Without
+    // this, a plugin that stopped re-exporting its appliance's wire would make
+    // the purity claim above pass over a graph that no longer contains the
+    // module it was written about. The doors are derived: a tenant package
+    // whose manifest opens `./wire` or `./appliance/wire` must have that
+    // target on the graph.
     //
     // THE GRAPH IS THE ROWS' NOW. It used to be this package's `src/wire.ts`,
     // which imported every plugin's `./wire` statically; there is no such file,
@@ -1213,13 +1242,27 @@ describe("an appliance's product tier stays inside its tenant", () => {
     // than a narrower one: a server half re-exports its own `./wire`, and it
     // reaches its appliance's client, which is where the second half of these
     // doors live.
-    const reached = new Set(SERVER_DOOR.files.map((file) => memberOf(file)))
-    const wireDoors = [...TENANT_MEMBERS].filter((pkg) => {
+    const reached = new Set(SERVER_DOOR.files)
+    const wireDoors = [...TENANT_MEMBERS].flatMap((pkg) => {
       const manifest = manifestAt(path.join(PACKAGES, pkg))
-      return manifest !== undefined && doorsOf(manifest)["./wire"] !== undefined
+      if (manifest === undefined) return []
+      const doors = doorsOf(manifest)
+      return (["./wire", "./appliance/wire"] as const)
+        .filter((door) => doors[door] !== undefined)
+        .map((door) => path.join(pkg, doors[door]!))
     }).sort()
+    // THREE PLUGIN `./wire` DOORS PLUS EACH DIAL'S `./appliance/wire`. A floor
+    // of `> PLUGIN_NAMES.length` used to catch the extra tenant packages; after
+    // the fold those packages are gone and the extra doors are the dials. The
+    // appliance-wire count is the half that still fails if a dial's wire
+    // leaves the graph.
+    const applianceWires = [...TENANT_MEMBERS].filter((pkg) => {
+      const manifest = manifestAt(path.join(PACKAGES, pkg))
+      return manifest !== undefined && doorsOf(manifest)["./appliance/wire"] !== undefined
+    })
     expect(wireDoors.length).toBeGreaterThan(PLUGIN_NAMES.length)
-    expect(wireDoors.filter((pkg) => !reached.has(pkg))).toEqual([])
+    expect(applianceWires.length).toBeGreaterThan(1)
+    expect(wireDoors.filter((file) => !reached.has(file))).toEqual([])
   })
 })
 
@@ -1260,7 +1303,7 @@ describe("an appliance's product tier stays inside its tenant", () => {
  * negative, which is the one direction a fence may never fail in.
  *
  * SPECIFIERS ARE SUBTRACTED for the same reason, using the same parser:
- * `olai-plugin-kolu` and `@olai/kolu-client` are import paths, which claims 1
+ * `olai-plugin-kolu` and `olai-plugin-kolu/appliance` are import paths, which claims 1
  * and 6 already govern with a derived tenant and an exact recorded breach.
  * Counting them again here would be this claim reporting on a decision that is
  * not its own, and would make its failures unreadable.

@@ -56,7 +56,7 @@ import type { Browser } from "playwright";
 
 import { ALERTS, recordAlerts } from "./alerts.ts";
 import { BROWSER_ARGS } from "./browser.ts";
-import { type LivePadi, startPadi } from "@olai/kolu-client/testlib";
+import { type LivePadi, startPadi } from "olai-plugin-kolu/appliance/testlib";
 import { ILLEGIBLE_PX, PAINTS, recordPaints, WAITING } from "./paints.ts";
 import {
   alreadyShared,

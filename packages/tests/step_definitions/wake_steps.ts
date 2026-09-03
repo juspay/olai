@@ -15,7 +15,7 @@
  * ## THE RING IS A GESTURE, NOT A CLOCK
  *
  * `held-for` is a debounce before a held terminal is reported, and the watcher
- * re-arms a standing hold when the knob MOVES DOWN (`@olai/kolu-client`'s
+ * re-arms a standing hold when the knob MOVES DOWN (`olai-plugin-kolu/appliance`'s
  * `watch.ts`). So the scenario lowers it and the fire is immediate and caused —
  * rather than setting a small interval at boot and waiting one out, which is the
  * shape that goes green on a laptop and red on a loaded box.
@@ -131,7 +131,7 @@ Then(
  * a terminal must sit in a state before it is worth saying anything about. The
  * fixture's fleet already holds one — `review: grok`'s terminal, which padi says
  * is blocked on a person — so lowering the debounce re-arms that standing hold
- * and it fires at once (`@olai/kolu-client`'s `watch.ts`: "a LOWERED `held-for`
+ * and it fires at once (`olai-plugin-kolu/appliance`'s `watch.ts`: "a LOWERED `held-for`
  * fires at once").
  *
  * `0s` and not `1s`, because a second is a race: the assertion after this step
