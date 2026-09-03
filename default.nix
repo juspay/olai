@@ -145,6 +145,10 @@ let
   # nix-built olai needs nothing ambient, and two machines run the same adapter.
   acp-agent = pkgs.callPackage ./nix/acp-agent.nix { };
 
+  # Codex owns a separate pin and derivation: its adapter and native CLI move
+  # on one release clock, independently of the patched Claude/Pi bundle above.
+  codex-agent = pkgs.callPackage ./packages/plugins/codex/acp { };
+
   # The pinned odu BINARY, the second half of what the odu pin vendors
   # (nix/odu.nix): the chat probe resolves `odu` on the SERVER's PATH, so a
   # packaged olai puts it there itself rather than asking a host to have one —
@@ -182,11 +186,12 @@ let
       --add-flags "${base}/packages/server/src/main.ts" \
       --set OLAI_DIST_DIR "${olai-client}" \
       --set-default OLAI_ACP_AGENT "${acp-agent}/bin/claude-agent-acp" \
+      --set-default OLAI_ACP_CODEX "${codex-agent}/bin/codex-acp" \
       --set-default OLAI_ACP_PI "${acp-agent}/bin/pi-acp" \
       --set-default OLAI_ODU_BIN "${odu-bin}/bin" \
       --run 'if [ -n "$OLAI_ODU_BIN" ]; then if [ -d "$OLAI_ODU_BIN" ]; then export PATH="$OLAI_ODU_BIN''${PATH:+:$PATH}"; else echo "olai: OLAI_ODU_BIN=$OLAI_ODU_BIN is not a directory — no odu goes on the PATH of this serve" >&2; fi; fi'
   '';
 in
 {
-  inherit olai olai-client olai-fonts kolu-mark odu-mark base acp-agent odu-bin;
+  inherit olai olai-client olai-fonts kolu-mark odu-mark base acp-agent codex-agent odu-bin;
 }

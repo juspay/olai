@@ -148,15 +148,16 @@ curl -s http://127.0.0.1:7714/mcp \
 ## The agents
 
 **Which agents this machine has is DETECTED**, once, when the server starts: the
-ACP agent `OLAI_ACP_AGENT` names, plus a probe per agent olai knows how to read
-(`opencode` today, started as `opencode acp --cwd …`). A conversation is bound
+shipped ACP adapters (`OLAI_ACP_AGENT` for Claude Code and `OLAI_ACP_CODEX`
+for Codex), plus a probe per agent olai knows how to read (`opencode`, and `pi`
+paired with its shipped adapter). A conversation is bound
 to one of them, chosen when it is created; with several installed every new chat
 asks, and with one there is nothing to ask. Where the probes look is
 `OLAI_AGENT_PATH`, defaulting to `PATH` and REPLACING it when set — because this
 process's PATH is not your shell's under a user service, which is the same trap
 kolu detection documents from the other side. Nothing found at all is a state
-with a face: the panel draws and says how to install one. The table lives in
-`@olai/chat`'s `agents/roster.ts`.
+with a face: the panel draws and says how to install one. Each engine plugin
+contributes its registration; `@olai/chat`'s `agents/roster.ts` only reads them.
 
 **One agent at a time is true of the PROCESS, not of the history.** Only the
 conversation's own agent is kept running, and the stored-conversations list spans all of
@@ -174,7 +175,7 @@ not: the turn comes back successful with nothing in it, which the panel now
 names rather than drawing as an ordinary turn. `docs/running.md` has the
 `environmentFile` for a user service.
 
-**The default is Claude Code, on every documented launch path.** The adapter is pinned (`nix/acp-agent.nix`) and the packaged binary's wrapper bakes it in with `--set-default`, exactly as the racket reference's `default.nix` did; `just serve` and `just run` resolve the same derivation on demand through `scripts/acp-agent.sh`. Nobody following a documented path has to know the variable exists — and the `nix` CI lane asserts it rather than trusting this paragraph: the wrapper must carry the assignment and the path it names must be executable.
+**The shipped defaults are Claude Code and Codex, on every documented launch path.** Each adapter is pinned behind its own executable output — the established Claude/Pi bundle in `nix/acp-agent.nix`, Codex in its plugin's [`acp/default.nix`](../plugins/codex/acp/default.nix) — and the packaged binary's wrapper bakes both in with `--set-default`. `just serve` and `just run` resolve the same outputs through their `scripts/acp-*.sh` helpers. Nobody following a documented path has to install either adapter or CLI, and a Codex pin move neither rebuilds nor rewrites the other adapters.
 
 `OLAI_ACP_AGENT` overrides that, and it has two useful shapes:
 
