@@ -26,7 +26,12 @@
  * every face hangs; `Clocks`, the app's duration ladder; `Bar`, the chrome's
  * geometry and the panel that hangs off it; `Links`, the door onto a served
  * file — plus `Wired`, which hands a plugin its own sibling client minted from
- * its own word so it cannot be asked for under another plugin's name.
+ * its own word so it cannot be asked for under another plugin's name, and
+ * `Faces`, the READ side of the slot table for a plugin that draws what other
+ * plugins hung. That last one is the tab losing its monopoly on reading: this
+ * module's `hung` and `dressed` below are no longer the only walks over those
+ * tables, and `@olai/plugin-api`'s `Faces` is where the fence on what a reader
+ * may learn is argued.
  *
  * They are provided BEFORE any plugin, which is what makes a `waiting` plugin
  * unreachable in this phase and is the same order `@olai/server`'s `serve.ts`
@@ -53,10 +58,12 @@ import {
   type App,
   type Hung,
   type KindSlot,
+  type ListSlot,
   type Mounted,
   mountPlugin,
   openApp,
   type PluginSlot,
+  type SingleSlot,
   type SlotFaces,
   standing,
 } from "@olai/plugin-api"
@@ -97,6 +104,15 @@ const run = standing()
 export const app: App = await run(
   openApp({
     changed: () => setMoved((at) => at + 1),
+    // ...AND HOW A READ IS TRACKED, which is the same signal from the other
+    // side. The walks below read it themselves, and could go on doing so alone
+    // — what could not is a PLUGIN's read: `Faces` hands the chat panel the
+    // marks six other plugins hung, and that panel cannot reach a module-scoped
+    // signal in `@olai/web` (a plugin may not import this package at all). So the
+    // tracking is told to the runtime once, here, and every read through that
+    // door — a plugin's and this module's alike — is inside the same reactive
+    // graph the app already re-renders from.
+    reading: () => void moved(),
     clientFor: (plugin) => clients?.(plugin) ?? null,
   }),
 )
@@ -209,9 +225,22 @@ export const composeTo = async (
 }
 
 /**
- * WHAT IS HUNG IN A PLUGIN-KEYED SLOT, IN THE BUNDLE'S ORDER — tracked, so a
- * caller reading it inside a memo or a component re-reads when a plugin arrives
- * or leaves.
+ * WHAT IS HUNG IN A PLUGIN-KEYED OR LIST SLOT, IN THE BUNDLE'S ORDER — tracked,
+ * so a caller reading it inside a memo or a component re-reads when a plugin
+ * arrives or leaves.
+ *
+ * ## A LIST SLOT IS READ HERE TOO, and that is not a widening for its own sake
+ *
+ * A list hands back the same {@link Hung} rows a plugin-keyed slot does, for the
+ * reason the sort below is the same sort: the bundle's order is imposed on the
+ * plugin's WORD, and a list entry carries it because a list has no key to carry
+ * it in. Two readers over one shape would be two places for the sort argument
+ * below to be re-made and, one day, made differently.
+ *
+ * THE SORT IS STABLE (`Array.prototype.sort`), which is the whole of what a
+ * list slot needs from it: one plugin's three chords stay in the order that
+ * plugin registered them, and two plugins' sections come out in the order
+ * `olai.yml` names the rows.
  *
  * ## The order is IMPOSED here, and it was only claimed
  *
@@ -234,7 +263,9 @@ export const composeTo = async (
  * under its own paragraph re-arguing one thing; the stranger rule, the stability
  * argument and the comparator all live with the list now.
  */
-export const hung = <S extends PluginSlot>(slot: S): ReadonlyArray<Hung<SlotFaces[S]>> => {
+export const hung = <S extends PluginSlot | ListSlot>(
+  slot: S,
+): ReadonlyArray<Hung<SlotFaces[S]>> => {
   moved()
   return inBundleOrder(app.hung(slot), (one) => one.plugin)
 }
@@ -243,6 +274,20 @@ export const hung = <S extends PluginSlot>(slot: S): ReadonlyArray<Hung<SlotFace
 export const dressed = <S extends KindSlot>(slot: S): ReadonlyMap<string, SlotFaces[S]> => {
   moved()
   return app.dressed(slot)
+}
+
+/**
+ * ...AND THE ONE FACE IN A SINGLE SLOT, or `null` where nobody has taken the
+ * seat — the same way, and with no sort, because there is nothing to order.
+ *
+ * NO READER YET, and it is exported anyway: `app.panel` is declared by this lane
+ * and filled by the next one, so this is the other half of that declaration
+ * rather than a face registered into silence. The table's own header is where
+ * that bargain is argued and where it is dated.
+ */
+export const only = <S extends SingleSlot>(slot: S): Hung<SlotFaces[S]> | null => {
+  moved()
+  return app.only(slot)
 }
 
 /**

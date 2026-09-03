@@ -25,7 +25,7 @@
  * unreachable; the count is what makes that a fact rather than a belief.
  */
 
-import { kindWordOf, type PropKind } from "@olai/plugin-api"
+import { KIND_SEPARATOR, kindWordOf, type PropKind } from "@olai/plugin-api"
 import { definePlugin, Kinds, mountPlugin, openPlugins, standing } from "@olai/plugin-api/services"
 import { expect, test } from "bun:test"
 import { Effect, Scope } from "effect"
@@ -129,35 +129,87 @@ test("a plugin that teaches no word contributes nothing, which is a whole plugin
   expect(table().size).toBe(0)
 })
 
-test("THE COMPOSITION IS INJECTIVE — the separator is refused inside either half", () => {
+test("the separator is refused inside the PLUGIN half, and the refusal names the plugin", () => {
   // grok's round-3 finding, and the reason a count is not enough on its own:
   // `ab` + `c-d` and `ab-c` + `d` both spell `ab-c-d`, so two plugins whose
   // NAMES genuinely differ could still land on one word. The assembly would
   // catch it and refuse — naming a word neither author wrote, which is a
-  // refusal nobody can act on.
+  // refusal nobody can act on. So the ambiguity is refused where it is created,
+  // exactly as `assertTagSegment` refuses a `/` inside a sibling key on the
+  // wire.
   //
-  // So the ambiguity is refused where it is created, exactly as
-  // `assertTagSegment` refuses a `/` inside a sibling key on the wire. With the
-  // separator gone from both halves the composition is injective, and the
-  // collision below is unreachable rather than merely reported.
-  expect(() => kindWordOf("ab", "c-d")).toThrow(/carries "-"/)
+  // ONE HALF IS ENOUGH, AND IT IS THIS ONE. The case used to refuse a separator
+  // in the KIND half too, and phase 6 took that back: chat contributes the bare
+  // kind `agent-session` by the human's ruling, so a vault declares
+  // `chat-agent-session`. With the plugin half fenced and the split fixed at the
+  // FIRST separator the composition is injective anyway — which the next case
+  // proves rather than asserts — and the collision below is unreachable rather
+  // than merely reported.
   expect(() => kindWordOf("ab-c", "d")).toThrow(/carries "-"/)
-  // The message says WHICH half, because the two are fixed in different files.
-  expect(() => kindWordOf("ab-c", "d")).toThrow(/plugin name/)
-  expect(() => kindWordOf("ab", "c-d")).toThrow(/kind/)
+  // The message says WHICH half and names the plugin, because the reader is the
+  // author of a plugin whose NAME is now the thing to change: a hyphenated name
+  // may contribute no kind at all. `xyne-spaces` is that name in this tree and
+  // contributes none, which is the whole of why this costs the build nothing.
+  expect(() => kindWordOf("xyne-spaces", "space")).toThrow(/plugin name "xyne-spaces"/)
+  // A hyphenated KIND, on the other hand, composes — this is the word the plan
+  // spells and the vault's migration row writes.
+  expect(kindWordOf("chat", "agent-session")).toBe("chat-agent-session")
   // An empty half composes a word with a bare separator on one end, which names
-  // nothing and would be a legal `type` for a vault to write.
+  // nothing and would be a legal `type` for a vault to write — and it is also
+  // what would put the joint at index 0, or leave nothing after it, so these two
+  // refusals are load-bearing for the split and not hygiene.
   expect(() => kindWordOf("", "terminal")).toThrow(/may not be empty/)
   expect(() => kindWordOf("kolu", "")).toThrow(/may not be empty/)
-  // ...and the ordinary composition still is one, which is what keeps the four
+  // ...and the ordinary composition still is one, which is what keeps the
   // refusals above from being a function that refuses everything.
   expect(kindWordOf("kolu", "terminal")).toBe("kolu-terminal")
 })
 
+/**
+ * THE SPLIT, spelled once and only here: a composed word decomposes at its
+ * FIRST separator, because the plugin half may not carry one.
+ *
+ * Nothing in the tree splits a composed word today — the three call sites all
+ * compose (`Kinds` off the fiber, `Slots` off the plugin's own name,
+ * `declaredKinds` off the row's `id`) and every consumer downstream reads the
+ * word whole. It is written here, in the test, for that exact reason: the
+ * direction is what the plugin-half refusal BUYS, and a rule whose payoff is
+ * only prose is a rule the next reader may split from the other end.
+ */
+const halvesOf = (word: string): readonly [string, string] => {
+  const at = word.indexOf(KIND_SEPARATOR)
+  return [word.slice(0, at), word.slice(at + KIND_SEPARATOR.length)]
+}
+
+test("...so THE COMPOSITION IS INJECTIVE: every legal pair round-trips through its word", () => {
+  // Injectivity is not "two spellings throw" — it is that no two DIFFERENT
+  // pairs spell one word, and that follows from the round-trip: a word that
+  // gives its pair back cannot also have come from another pair. So these are
+  // chosen to press exactly where the old both-halves rule refused — a kind
+  // with one separator, with two, with one at each end, and a plugin name that
+  // is a prefix of the word another pair composes.
+  const pairs = [
+    ["kolu", "terminal"],
+    ["chat", "agent-session"],
+    ["chat", "a-b-c"],
+    ["chat", "-leading"],
+    ["chat", "trailing-"],
+    ["ab", "c-d"],
+    ["a", "b-ab-c"],
+  ] as const
+  const words = pairs.map(([plugin, kind]) => kindWordOf(plugin, kind))
+  for (const [at, pair] of pairs.entries()) {
+    expect([words[at], halvesOf(words[at]!)]).toEqual([words[at], [...pair]])
+  }
+  // ...and no two of those pairs landed on one word, which is the claim itself
+  // read off the other side.
+  expect(new Set(words).size).toBe(words.length)
+})
+
 test("...so the only reachable collision is one WORD twice, and it names both plugins", async () => {
-  // With the halves fenced, two DIFFERENT plugin names cannot compose to one
-  // word — that is what injective means, and it is the claim the case above
-  // establishes. What is left is two entries under one word, which the assembly
+  // With the plugin half fenced, two DIFFERENT plugin names cannot compose to
+  // one word — that is what injective means, and it is the claim the two cases
+  // above establish. What is left is two entries under one word, which the assembly
   // must not resolve silently: the underlying `Map.set` would let one plugin's
   // `admits` judge the other's values with nothing red anywhere.
   //

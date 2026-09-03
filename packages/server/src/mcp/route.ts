@@ -196,6 +196,39 @@ const WHOSE = new AsyncLocalStorage<string | null>()
  *  invented attribution is not. */
 export const currentLogin = (): string | null => WHOSE.getStore() ?? null
 
+/**
+ * ...AND THE BEARER THIS REQUEST PRESENTED, for the same span and by the same
+ * mechanism — a second storage beside {@link WHOSE} rather than a second field
+ * on the first, because the two answer different questions and are read by
+ * different things.
+ *
+ * THE RULE THIS ROUTE KEEPS, and it is the only thing this module knows about
+ * the value: {@link mcpAllowed} decides WHETHER a request reaches the tools and
+ * this decides AS WHOM it writes, and the second may never make the first
+ * stricter. A request admitted above is admitted; what a credential MEANS is
+ * asked of the composition root, per request, and the affordance in this file's
+ * header ("a loopback request that carries one is accepted the same as one that
+ * does not") is true byte for byte after this.
+ *
+ * WHOSE BEARER IT IS IS NOT THIS MODULE'S QUESTION. A route that resolved a
+ * token to a session would be the transport learning what a conversation is,
+ * which is the same reason the login travels as a string rather than as a
+ * person. This carries an opaque value from the wire to the one place that can
+ * say what it stands for.
+ */
+const HANDED = new AsyncLocalStorage<string | null>()
+
+/** The bearer on the request being served, or `null` for one that presented
+ *  none. Read SYNCHRONOUSLY, on the request's own stack, exactly where the
+ *  login is and for the identical reason ({@link WHOSE}'s note). */
+export const currentTicket = (): string | null => HANDED.getStore() ?? null
+
+/** The token out of an `Authorization` header, or `null` — the one line of
+ *  parsing this file does, spelled here so that {@link mcpAllowed}'s comparison
+ *  and this one cannot come to disagree about what "presenting a bearer" is. */
+export const bearerIn = (authorization: string | undefined): string | null =>
+  authorization?.startsWith("Bearer ") === true ? authorization.slice("Bearer ".length) : null
+
 export interface Options {
   /** The transport the face is connected to, built by {@link mcpTransport} and
    *  driven here. One object for the lifetime of the process: it holds no
@@ -288,8 +321,15 @@ export const mcpRoute = (options: Options): Layer.Layer<never, never, HttpRouter
           // capture from a terminal and a chip in a browser cannot disagree
           // about who is looking.
           const who = whoOf(request.headers, options.identity)
+          // ...and the credential on THIS request, for the length of THIS
+          // dispatch, nested inside the login's span rather than beside it so
+          // the two are one scope and cannot be entered independently.
+          const held = bearerIn(request.headers["authorization"])
           const reply = yield* Effect.promise(() =>
-            WHOSE.run(who === null ? null : who.login, () => options.transport.ask(body.success))
+            WHOSE.run(
+              who === null ? null : who.login,
+              () => HANDED.run(held, () => options.transport.ask(body.success)),
+            )
           )
           // A notification has no reply, and the transport says so with a 202
           // and an empty body rather than with a null JSON-RPC frame.

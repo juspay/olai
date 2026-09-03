@@ -79,6 +79,7 @@
 
 import type { Engine, Registering } from "@olai/acp/engine"
 import {
+  type AnyKey,
   broadcast,
   type Host,
   openHost,
@@ -87,8 +88,9 @@ import {
   registry,
   roster,
   serviceTag,
+  type ServiceKey,
 } from "@olai/effect-cordis"
-import { Effect, Scope } from "effect"
+import { Deferred, Effect, Exit, Scope } from "effect"
 
 import {
   type ConversationSeen,
@@ -393,9 +395,35 @@ export const Surfaces = serviceTag<Surfaces>("surfaces")
  * that is no longer mounted is refused by the same check that refuses one for a
  * plugin that never declared a wake — rather than by a second list somebody
  * remembered to update.
+ *
+ * ## ...AND IT IS THE ONE REGISTRY WITH A READ SIDE ON THE PLUGIN'S DOOR
+ *
+ * Every other table on this page is written by plugins and read only by a
+ * composition root, and the asymmetry is the fence: a plugin cannot read the
+ * vocabulary, cannot enumerate the siblings, cannot list the engines. This one
+ * is different because the thing that ASKS the question is moving.
+ *
+ * `chat.scope` refuses a scope written for a plugin that declared no wake, and
+ * the fault walk composes a doorbell's two broken-scope sentences out of the same
+ * table. Both are the CHAT's readings, and the chat is becoming a row — so either
+ * this door grows a read side or those two procedures stay behind in a
+ * composition root that has stopped owning them.
+ *
+ * READ AFRESH, in the grain of {@link Plugins.sessionStart} and for the same
+ * reason: a plugin that unloaded between one scope check and the next has taken
+ * its declaration with it, and a caller holding a snapshot would go on offering
+ * a doorbell nobody is behind.
+ *
+ * It is a READ and not a capability. What comes back is what plugins declared
+ * about themselves — the sentence the strip draws and the two a broken scope is
+ * owed — and there is no arm of it that reaches a conversation, a vault or
+ * another plugin's registrations.
  */
 export interface Wakes {
   readonly register: (wake: Wake) => Effect.Effect<void, never, Scope.Scope>
+  /** What every ringing plugin declared right now, keyed by its name. A name
+   *  with no entry is a plugin that wakes nobody, which is a whole plugin. */
+  readonly declared: Effect.Effect<ReadonlyMap<string, Wake>>
 }
 export const Wakes = serviceTag<Wakes>("wakes")
 
@@ -500,10 +528,16 @@ export const Watching = serviceTag<Watching>("watching")
  * successive snapshots of one in-memory state land in the order they were handed
  * over, so a drain that persisted `queue:[B]` and then `queue:[]` cannot have
  * the empty lose the rename race to the earlier one and come back on the next
- * boot as a digest already posted. THE DOOR IS MINTED ONCE per plugin, which is
- * what makes that true: it was minted per CALL, and the chain that orders the
- * writes lives on the door, so every save was starting a fresh chain and the
- * ordering the paragraph promised was not happening.
+ * boot as a digest already posted. THE DOOR IS MINTED ONCE PER PLUGIN NAME, which
+ * is what makes that true: the chain that orders the writes lives on the door, so
+ * a second door is a second chain and orders nothing against the first.
+ *
+ * It was minted per CALL — every save started a fresh chain and the ordering this
+ * paragraph promised was not happening at all — and then per ACTIVATION, which
+ * closed the reachable half and left the other one open: a plugin that unloads
+ * and comes back is two fibers writing ONE FILE, and the file does not care which
+ * fiber a snapshot came from. Keyed by the NAME, because the name is what the
+ * file is keyed by.
  */
 export interface Held {
   readonly load: Effect.Effect<Record<string, unknown> | null>
@@ -618,6 +652,159 @@ export interface Asked {
 }
 
 /**
+ * THE FOUR DOORS A ROW MAY STAND BEHIND — a CLOSED table, and the closedness is
+ * most of the safety.
+ *
+ * Only these four are promises a plugin can keep: what engines this build seats,
+ * where a doorbell may deliver, what a plugin may be told a conversation did, and
+ * what to ask this host when one opens. Every other service on this page is a
+ * fact about the process, the vault or the machine, which core knows before any
+ * row is mounted — so there is nothing a row could offer that core is not already
+ * a better answer for, and everything to lose by letting one try.
+ */
+export const OFFERABLE = [Agents, Deliveries, SessionStart, Watching] as const
+
+/**
+ * THE ONE CAPABILITY A PLUGIN MAY NAME — standing behind a service key that OTHER
+ * plugins name, for as long as the offering plugin is loaded.
+ *
+ * ## Against a written ruling, and narrower than the thing it was written about
+ *
+ * {@link ./runtime.ts} withholds `openHost` and `provide`, and the argument there
+ * is sharper than "a plugin could provide itself what it names": `mountPlugin` IS
+ * on that door and its first argument is a `Host`, while the per-plugin stamp is
+ * `ctx.fiber.name` read once with no parameter anywhere. A plugin holding a host
+ * could mount `{ name: "kolu", … }` and every keyed service in this file would
+ * stamp its registrations `kolu`. The forgery the whole keying design exists to
+ * prevent is one export away, and is unreachable today only because no plugin can
+ * obtain a host.
+ *
+ * So a plugin gets `offer`, never `provide`, and it is narrower in four ways:
+ *
+ *   - THE KEY SET IS CLOSED ({@link OFFERABLE}). Core's own tags can never be
+ *     shadowed, replaced or raced by a row.
+ *   - THERE IS NO HOST. It is closed over in `openPlugins`, in the package the
+ *     ruling names as the one that spends the capability.
+ *   - IT IS REFUSABLE, IN OLAI'S WORDS. Cordis refuses a second provide on its
+ *     own, and its sentence is `service "deliveries" has been registered at
+ *     <root>` — which names neither author and points at a fiber no person has
+ *     heard of. The claim is taken here FIRST, so a refused offer never reaches
+ *     cordis and what a person reads names both rows and the key.
+ *   - IT IS IN `needs`. A plugin that stands behind a door SAYS SO in the one
+ *     list a reader, the fence and `@olai/bundle`'s table all read — and the
+ *     standing unwinds with the plugin, because `provide` is an `acquireRelease`
+ *     on the CALLING fiber's scope and inside an `apply` that scope is the
+ *     plugin's.
+ *
+ * ## Why FOUR OVERLOADS and not one generic
+ *
+ * Because `ServiceKey` and `Provision` are NOT on a plugin's door, and this is
+ * the door that would have put them there. A generic `offer<S>(key:
+ * ServiceKey<S>, door: Provision<S>)` is spellable only by a caller who can name
+ * both, so every offering plugin would import the bridge's own type vocabulary to
+ * write one line — which is the arrow {@link ./runtime.ts} exists to be the only
+ * one of. Four overloads land the same cast at the provision and let a plugin
+ * write `(who) => ({ … })` and nothing else. It is `./browser.ts`'s `Slots`
+ * shape, one level up.
+ */
+export interface Offers {
+  /** Stand behind one door, for as long as the calling plugin is loaded. */
+  readonly offer: {
+    (key: typeof Agents, door: Provision<Agents>): Effect.Effect<void, never, Scope.Scope>
+    (
+      key: typeof Deliveries,
+      door: Provision<DeliveryDoor>,
+    ): Effect.Effect<void, never, Scope.Scope>
+    (
+      key: typeof SessionStart,
+      door: Provision<SessionStart>,
+    ): Effect.Effect<void, never, Scope.Scope>
+    (key: typeof Watching, door: Provision<Watching>): Effect.Effect<void, never, Scope.Scope>
+  }
+}
+export const Offers = serviceTag<Offers>("offers")
+
+/**
+ * AN MCP SERVER TO HAND A SESSION, in olai's terms — the vault's own tools, as an
+ * address and a bearer token.
+ *
+ * ## Re-declared here rather than imported, and that is the fence rather than a
+ * ## duplication
+ *
+ * The shape is `@olai/chat`'s (`agent.ts`'s `ToolServer`, which `mcpServersOf`
+ * renders into what the protocol wants). This package may not import it and never
+ * will: `@olai/chat` is on its way to being a ROW, and a core tag that imported a
+ * plugin-to-be would be the registry arrow pointing backwards — the exact cycle
+ * `@olai/plugin-api` names no plugin in order to avoid.
+ *
+ * Three fields, structurally identical, and contravariance makes the agreement
+ * the STRONG direction: whoever completes {@link PluginsConfig.tools} hands over
+ * a value that has to satisfy both spellings at the composition root, so a drift
+ * between them is a type error in the one file that holds both.
+ */
+export interface ToolServer {
+  readonly name: string
+  readonly url: string
+  /** Presented as a bearer token. The route is on the same loopback listener as
+   *  everything else, and a WRITE surface any page could POST at is a different
+   *  bargain from a read-only one. */
+  readonly token: string
+}
+
+/**
+ * THE VAULT'S OWN MCP TOOL SERVER, once the listener has bound.
+ *
+ * AN EFFECT THAT WAITS, and that is the design rather than a convenience. The
+ * address is not knowable until `listen` returns, which is long after every
+ * plugin fiber was mounted — so the tag is PROVIDED EARLY and RESOLVED LATE.
+ *
+ * The earliness is load-bearing and it has a defect behind it. A plugin naming a
+ * key nobody has provided sits PENDING, and the vocabulary is read two statements
+ * after the bundle is mounted — so a `Tools` that only appeared after `listen`
+ * would leave every plugin that named it un-applied at exactly the moment the
+ * store's codec is built, and the codec holds its answer for the life of the
+ * process. A tenant's property kind would go missing from a serve, silently,
+ * until the next start.
+ *
+ * READING IT IS ALSO THE ONE SIGNAL CORE HAS THAT THE SERVE IS UP, which is what
+ * a boot conversation wants to be gated on: the composition root's hand-kept
+ * "the chat is built, the surface is bound, and only then is the agent started"
+ * becomes an Effect dependency that a reader can see rather than a comment
+ * guarded by a loud throw.
+ */
+export interface Tools {
+  readonly server: Effect.Effect<ToolServer>
+}
+export const Tools = serviceTag<Tools>("tools")
+
+/**
+ * WHERE A PLUGIN SITS IN THE BUILD'S OWN LIST OF ROWS.
+ *
+ * Registration order is the order two dynamic `import()`s came back in — a fact
+ * about the filesystem and the module cache on the day rather than about
+ * `olai.yml` — and {@link Asked} records what that cost: a person reads these
+ * lists, and a list that reshuffles itself between boots is a list nobody can
+ * read twice. There is an e2e failure behind that sentence.
+ *
+ * Imposing the bundle's order was the composition root's job while the root owned
+ * the tables. A plugin that owns them owns the readings, and it may not import
+ * `@olai/bundle` — the registry imports every plugin, so the arrow cannot point
+ * back. So the rank arrives as DATA, the same way the kind vocabulary does.
+ *
+ * A RANK AND NOT A ROW LIST, deliberately. `rows(): ReadonlyArray<string>` would
+ * answer every question this one does and one more — who my siblings are — and
+ * nothing in this tree should hand a plugin that. The next reader would key
+ * something by it.
+ *
+ * A stranger ranks LAST rather than first, which is what an out-of-tree plugin
+ * will want the day `olai plugin add` lands.
+ */
+export interface Bundle {
+  readonly rank: (plugin: string) => number
+}
+export const Bundle = serviceTag<Bundle>("bundle")
+
+/**
  * WHAT A COMPOSITION ROOT HOLDS — the other end of every door above, plus the
  * host the bundle is mounted on.
  *
@@ -690,6 +877,19 @@ export interface Plugins {
  * would leave kolu and odu PENDING for ever rather than running against a door
  * that honestly says there is nowhere to deliver. Where the service does
  * eventually arrive, PENDING is the better answer and the browser takes it.
+ *
+ * ## ...AND {@link Offers} IS THE ANSWER TO THAT, NOT A THIRD RIVAL
+ *
+ * The paragraph above is right about the shapes and its FEAR is answered rather
+ * than overturned. What it is afraid of is a provider that might never exist; a
+ * chat that is a ROW always mounts and therefore always exists, and the emptiness
+ * moves inside the door — `scopes()` is the empty list and `deliver` is a no-op,
+ * which is the same honest machine-without-the-tool answer this lookup gives, one
+ * closure further in. A serve with no chat ROW is a different thing and is a
+ * ruling rather than a defect: kolu sits `waiting`, and its row says so.
+ *
+ * So {@link doorFor} is scaffolding with a date on it, and the note beside
+ * `stand` in `openPlugins` says which phase carries it out.
  */
 export interface PluginsConfig {
   /** The variables, as the process was started with them. */
@@ -706,6 +906,31 @@ export interface PluginsConfig {
    *  is what orders its writes. Where a machine keeps olai's own files is not a
    *  plugin's business. */
   readonly heldFor?: Provision<PluginHeld>
+  /**
+   * THE VAULT'S MCP SERVER, COMPLETED AFTER `listen` — see {@link Tools}.
+   *
+   * A `Deferred` rather than a value or a thunk, because the two facts about it
+   * are "not knowable yet" and "knowable exactly once", and that is what a
+   * Deferred IS. A thunk answering `ToolServer | null` would put the waiting back
+   * on every caller and give each of them a null arm to invent an answer for.
+   *
+   * OPTIONAL, and absent means NO LISTENER EVER: a root that serves nothing (the
+   * headless faces, every bench in this tree) has no address, so {@link
+   * Tools.server} never settles and a plugin gated on it stays gated. That is the
+   * honest reading rather than a fabricated address, and it is not a failure —
+   * nothing in a process with no listener was going to talk to one.
+   */
+  readonly tools?: Deferred.Deferred<ToolServer>
+  /**
+   * WHERE EACH PLUGIN SITS IN THE BUILD'S LIST OF ROWS — see {@link Bundle}.
+   *
+   * OPTIONAL, and absent means ONE RANK FOR EVERYBODY: a root with no bundle
+   * behind it has no list to be a position in, and `Array.prototype.sort` is
+   * stable, so a plugin sorting by it gets arrival order back. A default of `0`
+   * rather than a refusal, because "this root has no opinion" is a real state
+   * (every bench here) and not a misconfiguration.
+   */
+  readonly rank?: (plugin: string) => number
   /** Told after every surface register and every dispose — the composition
    *  root's re-compose. Absent on a runtime nobody is serving from, which is
    *  every test that only wants the table. */
@@ -716,8 +941,7 @@ export interface PluginsConfig {
 }
 
 /**
- * OPEN THE PLUGIN RUNTIME — the host, the nine services on it, and the doors
- * back.
+ * OPEN THE PLUGIN RUNTIME — the host, the services on it, and the doors back.
  *
  * SCOPED, because every `provide` is: the services stand for as long as the
  * enclosing scope is open, and a plugin whose service is revoked unloads. In a
@@ -766,7 +990,64 @@ export const openPlugins = (
       unloaded: (handler) => quieted.listen(plugin)(() => handler),
     }))
 
-    yield* provide(host, Deliveries, (plugin) => ({
+    /**
+     * ...AND THE FOUR THAT CORE IS ONLY STANDING IN FOR, each on a scope of its
+     * own so that it can STEP ASIDE.
+     *
+     * ## What this is, and the date it stops being anything
+     *
+     * All four of {@link OFFERABLE} are on their way OUT of this function and
+     * into the chat's own row, which is the one thing in this build that can
+     * honestly keep any of these promises. Until that row exists, core keeps
+     * standing behind them — a serve where nothing provides `deliveries` is a
+     * serve where kolu and odu sit PENDING for ever, which is the state this
+     * arrangement was written to prevent.
+     *
+     * So for one phase there are two candidates for one key, and cordis has an
+     * opinion about that: a second `provide` throws. The choice is REPLACE or
+     * REFUSE, and it is replace, one way and at most once:
+     *
+     *   - REFUSE would mean `offer` cannot succeed at all while these four lines
+     *     stand, so the mechanism the next phase depends on would land unproven
+     *     and every bench for it would have to be a bench for the refusal.
+     *   - REPLACE is what the next phase's state already is. A row that offers
+     *     takes the door, core's standing-in ends, and core does NOT come back
+     *     when that row unloads: the key goes unprovided and its dependents sit
+     *     PENDING, which is exactly what they will do when these lines are gone.
+     *     The stand-in is scaffolding, and scaffolding that comes back would be a
+     *     behaviour this build has to keep explaining.
+     *
+     * WHAT THE NEXT PHASE DELETES is this helper, the map, the four `stand` calls
+     * and {@link PluginsConfig.doorFor} — and `offer` loses its one branch, which
+     * is the branch below that finds something to close.
+     *
+     * THE CHURN IS REAL AND IT IS UNREACHABLE. Revoking a service unloads every
+     * fiber that named it and the offering plugin's own `provide` re-applies
+     * them, so a hand-over costs one unload/re-apply of the dependents. Nothing
+     * in this build offers anything yet, and nothing will while these lines
+     * stand at the same time as something that does — so the cost is paid in the
+     * seam between two phases and in no serve.
+     *
+     * A CHILD SCOPE rather than a revoke handle, because `provide` hands back no
+     * handle and should not: it is an `acquireRelease` on the CALLER's scope, and
+     * "revocable by exactly one other party" is spelled by giving that provision
+     * a scope of its own hanging off this one. Closing this function's scope
+     * still takes all four down, in order, as it did when they were four plain
+     * statements.
+     */
+    const standIn = new Map<string, Scope.Closeable>()
+    const mine = yield* Scope.Scope
+    const stand = <Shape>(
+      key: ServiceKey<Shape>,
+      provision: Provision<Shape>,
+    ): Effect.Effect<void> =>
+      Effect.gen(function*() {
+        const own = yield* Scope.fork(mine)
+        yield* Scope.provide(provide(host, key, provision), own)
+        standIn.set(key.cordis, own)
+      })
+
+    yield* stand(Deliveries, (plugin) => ({
       scopes: () => config.doorFor?.(plugin)?.scopes() ?? [],
       // ASKED PER CALL and not captured — the chat is built after the plugins
       // are mounted, and a machine with no ACP agent never builds one at all.
@@ -827,13 +1108,17 @@ export const openPlugins = (
             `plugins: "${plugin}" declared a second wake — a plugin rings under one `
               + "declaration, and the second would silently replace the first.",
         ),
+      // READ AFRESH, and the same `read` a composition root gets: this table has
+      // one truth and both ends of the wall are looking at it. A copy is handed
+      // over, so a reader that wrote into it would be writing into its own.
+      declared: Effect.sync(wakes.read),
     }))
 
     // KEYED BY THE PLUGIN AND REFUSED LIKE ITS THREE NEIGHBOURS — the id an
     // engine is offered under is the word the fiber was bound under and is
     // stamped here, so `Registering` has no field a caller could put one in.
     const engines = registry<string, Engine>()
-    yield* provide(host, Agents, (plugin) => ({
+    yield* stand(Agents, (plugin) => ({
       register: (engine) =>
         engines.claim(
           plugin,
@@ -844,27 +1129,109 @@ export const openPlugins = (
         ),
     }))
 
-    yield* provide(host, Watching, (plugin) => ({ subscribe: seen.listen(plugin) }))
-
-    yield* provide(host, Held, (plugin) => {
-      // ONCE PER PLUGIN, not once per call — the write chain that orders the
-      // saves lives on the door, so a door minted per call is a door that orders
-      // nothing.
-      const door = config.heldFor?.(plugin) ?? null
-      return {
-        load: Effect.sync(() => door?.load() ?? null),
-        save: (value) => Effect.sync(() => void door?.save(value)),
-      }
-    })
+    yield* stand(Watching, (plugin) => ({ subscribe: seen.listen(plugin) }))
 
     // WHAT EACH PLUGIN WOULD ASK THIS HOST, keyed by the plugin that registered
     // it — a `roster` rather than a `registry` because a plugin may legitimately
     // register more than one probe, and because there is no key here to collide
     // on: the stamp is the answer, not the address.
     const asking = roster<Asked>()
-    yield* provide(host, SessionStart, (plugin) => ({
+    yield* stand(SessionStart, (plugin) => ({
       ask: (probe) => asking.hold({ name: plugin, ask: probe }),
     }))
+
+    // WHO STANDS BEHIND WHAT, keyed by the door and refused like its neighbours.
+    // Cordis refuses a second provide on its own — but its sentence is `service
+    // "deliveries" has been registered at <root>`, which names neither author,
+    // and what a person reads on a preferences row is supposed to be this tree's.
+    // So the claim is taken FIRST and the provide below it can no longer be the
+    // thing that throws; a refused offer never reaches cordis at all, and a
+    // revoke takes the claim and the standing down together.
+    const offered = registry<string, string>()
+    yield* provide(host, Offers, (plugin) => ({
+      offer: (key: AnyKey, door: Provision<never>) =>
+        Effect.suspend(() => {
+          // THE TABLE IS CLOSED AND THE REFUSAL IS A DEATH, not a failure
+          // channel: a plugin that offered a key nobody may offer is a mistake in
+          // that plugin, and it lands that fiber `failed` having installed
+          // nothing while its siblings keep running — the same shape a duplicate
+          // kind word gets two registries up.
+          if (!OFFERABLE.some((one) => one.cordis === key.cordis)) {
+            return Effect.die(
+              new Error(
+                `plugins: "${plugin}" offered to stand behind "${key.cordis}", which is `
+                  + "not one of the doors a row may hold. Core provides every other "
+                  + "service before any row is mounted, and a plugin that could stand "
+                  + "behind one could stand behind the services it is meant to name.",
+              ),
+            )
+          }
+          return offered.claim(
+            key.cordis,
+            plugin,
+            (already) =>
+              `plugins: "${already}" and "${plugin}" both offer "${key.cordis}" — a `
+                + "service stands behind one row, and the second would leave every "
+                + "plugin that named it holding whichever was mounted last.",
+          ).pipe(
+            // ...AND CORE STEPS ASIDE, at most once and for good. See the
+            // paragraph on `stand` above: this branch is the whole of the
+            // coexistence, and it is what the next phase deletes.
+            Effect.flatMap(() => {
+              const inPlace = standIn.get(key.cordis)
+              if (inPlace === undefined) return Effect.void
+              standIn.delete(key.cordis)
+              return Scope.close(inPlace, Exit.void)
+            }),
+            // ...AND THE PROVIDE, on the CALLING plugin's scope: the acquire
+            // hangs the service on the host's root fiber and the release revokes
+            // it, which unloads every fiber that named it — the same finalizer
+            // discipline that takes a kind word out of the vocabulary.
+            Effect.flatMap(() => provide(host, key as ServiceKey<never>, door)),
+          )
+        }),
+      // THE CAST IS WHAT AN OVERLOAD SET IS. `Offers.offer` declares four call
+      // signatures and no implementation signature — because a plugin must never
+      // be able to spell a fifth — and the body underneath an overload set is
+      // always one wider function that the declarations narrow. TypeScript will
+      // not check the two against each other here (the widening runs through
+      // `never`, which overlaps nothing), so this is the same unchecked step a
+      // `function` declaration with four overloads takes, written where the
+      // reader can see it.
+    } as unknown as Offers))
+
+    yield* provide(host, Tools, () => ({
+      // NEVER, and not a null: a root with no listener has no address, and a
+      // plugin gated on one is gated for the life of that process. See
+      // {@link PluginsConfig.tools}.
+      server: config.tools === undefined ? Effect.never : Deferred.await(config.tools),
+    }))
+
+    yield* provide(host, Bundle, () => ({ rank: config.rank ?? (() => 0) }))
+
+    // ...AND ONE HELD DOOR PER PLUGIN NAME, not per activation. The write chain
+    // that orders a plugin's saves lives on the door, and this provision runs
+    // once per ACTIVATION — so a plugin that unloads and comes back used to get a
+    // second chain, and a save still in flight could land after a later one, on
+    // the same file, with the earlier record winning. That is precisely the
+    // defect {@link Held}'s own paragraph says was fixed by minting the door once
+    // per plugin; it was fixed per CALL and left open per ACTIVATION.
+    //
+    // Unreachable while nothing unloaded a server half mid-serve — and a row that
+    // stands behind another row's doors is one blip away from making it routine.
+    //
+    // KEYED BY THE NAME rather than by the fiber, because the name is what the
+    // FILE is keyed by: two activations of one plugin are two fibers writing one
+    // path, which is the whole of what has to be ordered.
+    const holds = new Map<string, PluginHeld | null>()
+    yield* provide(host, Held, (plugin) => {
+      if (!holds.has(plugin)) holds.set(plugin, config.heldFor?.(plugin) ?? null)
+      const door = holds.get(plugin) ?? null
+      return {
+        load: Effect.sync(() => door?.load() ?? null),
+        save: (value) => Effect.sync(() => void door?.save(value)),
+      }
+    })
 
     return {
       host,

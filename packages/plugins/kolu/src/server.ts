@@ -834,5 +834,48 @@ export default definePlugin({
      *  the environment itself would answer a different question than the one a
      *  session's spawn will ask. */
     yield* opening.ask(Effect.promise(() => probe(env.vars)))
+
+    /**
+     * ...AND THIS HALF'S OWN TEARDOWN, which is the one thing the runtime
+     * cannot do for it — `olai-plugin-xyne-spaces`'s `server.ts` is the
+     * precedent and this is the same argument about a different timer.
+     *
+     * ## What is armed here that no registration above unwinds
+     *
+     * Every `yield*` above this line is a REGISTRATION and carries its own
+     * undo: the kinds, the wake, the sibling surface, the two vault listeners,
+     * the session-start ask. `koluHalf` is not one of them. It is CONSTRUCTED,
+     * at apply time, and its watcher arms a `setInterval` inside its own
+     * constructor (`./client/watch.ts`'s `rearmHeartbeat`, which arms and beats
+     * in one breath — the same fact the `begun` gate above exists to survive).
+     * Nothing in the accumulator knows that interval is there.
+     *
+     * ## Why the connector's stop does not reach it
+     *
+     * `koluHalf`'s only other stop hangs on the sibling connector's
+     * interruption (`./client/index.ts`'s `connect`, which runs for the surface
+     * runtime's life). That is the right teardown for the SOCKET and no
+     * teardown at all for a plugin that never bound: a cascade during
+     * `mountBundle` runs before `bind`, so the connector has not run and now
+     * never will, and the watcher beats on in a process that has disposed the
+     * fiber that owns it. The same hole opens the day chat provides `Deliveries`
+     * and the rest — a chat that unloads unloads kolu with it, and a chat that
+     * returns re-applies it, so the interval would be re-armed once per chat and
+     * cleared never.
+     *
+     * ## LAST REGISTERED, SO FIRST RUN
+     *
+     * The accumulator unwinds in reverse. That order is load-bearing here and
+     * not merely tidy: a beat that lands mid-teardown forks {@link beats}
+     * through the detached seam and `heart.beat` reads `deliveries.scopes()` and
+     * may hand core a delivery — a doorbell ringing out of a plugin that is
+     * being taken down. Stopping the timers before the surface, the wake and
+     * the listeners come off is what makes the last beat the last one.
+     *
+     * `Effect.sync`, because `stop` is the appliance's plain function and
+     * clearing a timer cannot fail; it is idempotent, so a bound half that
+     * stops here and again on its connector's interruption is fine.
+     */
+    yield* Effect.addFinalizer(() => Effect.sync(() => half.stop()))
   }),
 })

@@ -190,6 +190,11 @@ test("the line/set split is exactly the two halves of the codec", () => {
     // that does not say a type this format knows — one code for the two ends
     // of one arrangement (`./typing.ts`).
     "bad-prop",
+    // A key a contributed kind used to be spelled as, still held and declared
+    // by nobody. `set`, because the vocabulary, the declarations and the keys
+    // records wrote are all readings of the whole set — and never a guess: a
+    // file that did not parse can hide such a record but cannot invent one.
+    "legacy-key",
     // Not about the format at all — the DIRECTORY could not be read — and
     // `set` for the reason the split exists: it is a fact about the whole
     // load rather than about one record, and nothing about it is waiting on a
@@ -230,6 +235,18 @@ const NAMES_WITHOUT_BREAKING: ReadonlyArray<ErrorCode> = [
   // The declaration that judged the value is the judgement's ground: named so
   // the fixer knows who said no, lit and writable because it said no.
   "bad-prop",
+  // …and the same pair the other way up. This one is filed on the declarations
+  // file — the row that is MISSING is the fault — and names the records still
+  // holding the retired key as its ground. Those records are legal, their
+  // values are plain text, and no edit to them is the fix, so darkening them
+  // would take a board off the screen over a migration nobody has done yet.
+  //
+  // IT IS NOT PROVOKED BY THE CORPUS BELOW, and it is the one entry in this
+  // list that is not: the rule fires only for a vocabulary carrying a retired
+  // spelling, and `validatedOf` composes no plugin. Its own case is in
+  // `./validate.test.ts`, which can hand the validator a vocabulary, and it
+  // asserts the two planes there rather than taking this comment's word.
+  "legacy-key",
 ]
 
 test("every code says whether it can name a file it does not break", () => {

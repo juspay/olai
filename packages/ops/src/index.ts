@@ -34,12 +34,23 @@
 
 export { codecFor } from "./codec.ts"
 export type { Store } from "./deps.ts"
+/** THE SUBTREE WRITE FENCE, as the two records a caller composes and the one
+ *  question the gate asks of them. `Caller` is what every FACE hands over —
+ *  who is writing and how far they reach, in one record, so a face cannot
+ *  compose the first and forget the second; `Fence` is the narrowing itself.
+ *  `outsideFence` is exported for its own suite and for nothing else: the
+ *  enforcement point is inside `run`, which is the only place all four of the
+ *  caller, the reading, the plan and a refusal channel are in hand. */
+export { type Caller, type Fence, type Outside, outsideFence } from "./fenced.ts"
 export { make, type Ops, type Options } from "./ops.ts"
 /** The two refusals a caller ABOVE this layer meets too, about an id: one the
  *  set does not declare, and one that names a PLACEMENT rather than a node.
  *  Exported so the keystroke resolver and the chat context resolver in
  *  `@olai/server` say what a tool call says. */
 export { notANode, notFound, noSuchDocument } from "./refusals.ts"
+/** ...and the fence's sentence, exported for the suite that reads it back.
+ *  `run` is the only caller: a face composes a fence and never a refusal. */
+export { fenceRefusal } from "./refusals.ts"
 /** What a `merge` WOULD DO — which row it joins, which branch that row adopts,
  *  and the two texts it ends up with. The keystroke resolver needs all three to
  *  say what would take a merge BACK, and one spelling is what keeps an undo from

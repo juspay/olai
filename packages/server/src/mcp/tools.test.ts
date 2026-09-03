@@ -196,12 +196,19 @@ const withTools = <A>(
     yield* serveFace({
       client: () =>
         clientOver(
-          { group: wired.bound.group, handlers: writerAt(wired.bound, ops, "mcp") },
+          {
+            group: wired.bound.group,
+            handlers: writerAt(wired.bound, ops, { writer: "mcp", fence: null }),
+          },
           wired.faces.agent,
         ),
       tools: bespokeFrom(TOOLS, {
         login: () => login,
         root,
+        // UNFENCED, said out loud: this suite is about what a tool ANSWERS, and
+        // the fence's own end-to-end case is `./route.test.ts`'s, where a real
+        // credential rides a real header.
+        fenced: (client) => client,
         // The face's own currency, composed the way `../serve.ts` composes it:
         // the store's read socket at the class a tool answer deserves. A stub
         // here would make every assertion about a read's `vintage` an

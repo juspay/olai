@@ -33,6 +33,7 @@ import {
   type DatedRequest,
   type HomesAnswer,
   type HomesRequest,
+  inboxIn,
   type KindVocabulary,
   NO_KINDS,
   type MovingAnswer,
@@ -44,6 +45,8 @@ import {
   NOTHING_WRONG,
   type OpFailure,
   type OutlineError,
+  outlineNames,
+  outlinePaths,
   type Owed,
   type OwedRequest,
   type PageReading,
@@ -55,6 +58,7 @@ import {
   stampOf,
   type TagsAnswer,
   type TagsRequest,
+  UsageFailure,
   ValidationFailure,
   type Verdict,
   type Writer,
@@ -65,6 +69,7 @@ import { open as openIndex } from "@olai/index"
 import { type Duration, Effect, Result, SubscriptionRef } from "effect"
 
 import type { Store } from "./deps.ts"
+import { type Fence, outsideFence } from "./fenced.ts"
 import {
   type Committing,
   type GitState,
@@ -74,6 +79,7 @@ import {
 } from "./pending.ts"
 import { type Context, plan, scoping } from "./plan.ts"
 import * as Query from "./query.ts"
+import { fenceRefusal } from "./refusals.ts"
 import { standing } from "./standing.ts"
 import { sortOfWrite } from "./sorted.ts"
 import { asking, type Asking } from "./tools.ts"
@@ -315,6 +321,21 @@ export interface Ops extends Asking {
   readonly run: (
     request: Request,
     writer: Writer,
+    /** ...and HOW FAR THIS DOOR REACHES, or absent for a door that writes the
+     *  whole vault ({@link ./fenced.ts}).
+     *
+     *  OPTIONAL HERE AND REQUIRED AT THE FACE, and the asymmetry is the design
+     *  rather than a shortcut. This gate has many doors and only one kind of
+     *  them has a session behind it: a keystroke, the undo derived from it, a
+     *  plugin's property write, a repeat roll. Forcing every one of those to
+     *  say "no fence" is one more place to say the wrong thing, and the ABSENCE
+     *  of a fence is the honest reading of "this door has no session" rather
+     *  than of "somebody forgot". Where a caller IS a face, saying it is
+     *  compulsory: `@olai/server`'s `writing`, `writerAt` and `runResolved`
+     *  take a {@link ./fenced.ts}`.Caller` whose `fence` has no default, so a
+     *  face composed without one does not compile — and every face in the tree
+     *  goes through one of those three. */
+    fence?: Fence,
   ) => Effect.Effect<Applied, OpFailure>
   /**
    * No {@link run} is in flight.
@@ -530,6 +551,7 @@ export const make = (options: Options): Ops => {
   const run = (
     request: Request,
     writer: Writer,
+    fence?: Fence,
   ): Effect.Effect<Applied, OpFailure> =>
     Effect.gen(function*() {
       let repairs = REPAIRS
@@ -651,6 +673,41 @@ export const make = (options: Options): Ops => {
           return yield* planned.failure
         }
         const { files, documents = [], removed = [], ...about } = planned.success
+
+        /**
+         * THE FENCE, and this is the only point in the tree where it can be
+         * asked: the caller's authority, the standing reading with its
+         * derivation, the plan's would-be records per file, and a refusal
+         * channel both faces render are all four in hand here and nowhere else.
+         *
+         * INSIDE THE ROUND rather than above the loop, so a re-planned round
+         * after a lost race is judged against the set it was actually planned
+         * off. BEFORE the gate, so a refused write costs one plan and touches
+         * no disk.
+         *
+         * A `UsageFailure` — words about what was ASKED — which is what the
+         * paragraph one door up already calls this exact case ("a typo, a
+         * misuse, a fence the write ran into"). So the resync door stays shut
+         * for it: a stale copy cannot invent a usage fault, and re-planning
+         * would refuse the same way against a fresher set. {@link reported}'s
+         * tap is what then puts it in front of the person, which is the other
+         * reason this is inside `run` and not in whichever face composed the
+         * door: a refused write is never silent.
+         */
+        if (fence !== undefined) {
+          const reached = outsideFence(
+            fence,
+            snapshot.value.derived,
+            outlineNames(snapshot.value.set),
+            inboxIn(outlinePaths(snapshot.value.set)),
+            planned.success,
+          )
+          if (reached !== null) {
+            return yield* new UsageFailure({
+              reason: fenceRefusal(snapshot.value.derived, fence, reached),
+            })
+          }
+        }
 
         // Outlines go through the format's writer; a document IS its text, so
         // it goes to disk verbatim — there is no serialiser for a writer to
@@ -844,11 +901,12 @@ export const make = (options: Options): Ops => {
   const reported = (
     request: Request,
     writer: Writer,
+    fence?: Fence,
   ): Effect.Effect<Applied, OpFailure> =>
     options.onRefusal === undefined
-      ? run(request, writer)
+      ? run(request, writer, fence)
       : Effect.tapError(
-        run(request, writer),
+        run(request, writer, fence),
         (failure) => options.onRefusal!(request, failure),
       )
 
@@ -883,10 +941,11 @@ export const make = (options: Options): Ops => {
   const tracked = (
     request: Request,
     writer: Writer,
+    fence?: Fence,
   ): Effect.Effect<Applied, OpFailure> =>
     Effect.suspend(() => {
       beginWrite()
-      return Effect.ensuring(reported(request, writer), Effect.sync(endWrite))
+      return Effect.ensuring(reported(request, writer, fence), Effect.sync(endWrite))
     })
 
   return {

@@ -87,11 +87,29 @@ second one to be a continuation of. That is what the appliances spend it on —
 chatter, where each line stands alone — and where an order is load-bearing the
 answer is one Effect that does both things rather than two calls.
 
+## ...and one verb that translates nothing
+
+**`settled(host, rows)`** is a composition root's, not a plugin author's, and it
+is here because it reads a fiber's `inertia` — the runtime's own record that a
+row is mid-reload or mid-unload — which no other package may name. Mounting a
+bundle awaits each row's module and the creation of its fiber; it does not await
+the fiber, and the loader's own `await()` walks a tree the rows were never linked
+into. That was harmless while every row's `apply` finished inside the mount's own
+microtask chain, and stops being harmless the moment one ROW provides a service
+another row names: the second row is woken a turn later, so a caller reading the
+kind registry on the next line reads it a plugin short, silently and for the life
+of the process.
+
+So `settled` waits out MOVEMENT — in bounded passes, warning by name rather than
+hanging — and decides nothing. A row still `waiting` when it returns is waiting
+on a key nothing in this build offers, which is a legitimate resting state and is
+what `rowReport` is about to say.
+
 ## Two doors, because two graphs
 
 | door | what it carries |
 | --- | --- |
-| `.` | the RUNTIME: a host, `provide`, `mountPlugin`, `rowReport`, `definePlugin`, `serviceTag`, `broadcast`, `waterfall`, `detached` |
+| `.` | the RUNTIME: a host, `provide`, `mountPlugin`, `settled`, `rowReport`, `definePlugin`, `serviceTag`, `broadcast`, `waterfall`, `detached` |
 | `./loader` | `mountRows` — a declarative bundle, through `@cordisjs/plugin-loader` and `-include` |
 
 The split is not tidiness. The loader reads a file off a disk and resolves module
@@ -100,13 +118,15 @@ a tab's chunk would carry all of it, and it does not fail at a boundary claim �
 fails at `bun build`, on `Browser polyfill for module "node:url" doesn't have a
 matching export named "pathToFileURL"`.
 
-**Who opens them.** The root door has exactly one importer,
+**Who opens them.** The root door's importer is
 [`@olai/plugin-api`](../plugin-api/README.md), whose `src/runtime.ts` re-exports
 the runtime list verbatim onto both of its own doors — so a plugin, a tab and a
-composition root all spend the same names from the same place, and the two the
-bridge keeps back (`openHost`, `provide`) are the two that could mint a host or
-a service. `./loader` is opened by `@olai/bundle` directly, for the graph reason
-above and for no other.
+composition root all spend the same names from the same place, and what the
+bridge keeps back (`openHost`, `provide`, `settled`) is what could mint a host,
+mint a service, or make a plugin wait on its own siblings. `@olai/bundle` opens
+both doors directly: `./loader` for the graph reason above, and the root door for
+`settled` alone, which it spends beside `mountRows` in one function
+(`src/bundle.ts`'s `mountBundle`) because the two of them are one promise.
 
 ## What is deliberately NOT here
 
@@ -134,9 +154,14 @@ member is; `scripts/check-hydrated-deps.sh` holds their versions, and the fence
 holds the fact that this package is the only one allowed to name them. A pin bump
 that moves the API changes this package and nothing else.
 
-Two couplings are worth a reviewer's eye at a bump, and both are spelled where
-they are made: the module-resolution seam `mountRows` fills
+Three couplings are worth a reviewer's eye at a bump, and each is spelled where
+it is made: the module-resolution seam `mountRows` fills
 ([`src/loader.ts`](src/loader.ts) — verified against
 `@cordisjs/plugin-loader@1.0.0-rc.6`, and a cast, so a moved slot fails at RUNTIME
-rather than at typecheck), and the `FiberState` reading `rowReport` collapses into
-four words ([`src/host.ts`](src/host.ts)).
+rather than at typecheck); the `FiberState` reading `rowReport` collapses into
+four words ([`src/host.ts`](src/host.ts)); and `settled`'s reading of a fiber's
+`inertia` as the runtime's own record of movement, which is a claim that the
+field is CLEARED when a transition finishes. That last one is bounded rather than
+trusted — a revision that left a settled promise on the field turns the loop into
+a warning and a slow boot instead of a hang at every start — and the bound is
+argued beside it.

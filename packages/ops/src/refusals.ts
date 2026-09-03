@@ -32,6 +32,7 @@ import {
   type Derived,
   didYouMean,
   didYouMeanDeclared,
+  isMirror,
   isOutline,
   markdownIn,
   NotFoundFailure,
@@ -46,6 +47,7 @@ import {
 import { Result } from "effect"
 
 import type { Asked } from "./asked.ts"
+import type { Fence, Outside } from "./fenced.ts"
 
 /**
  * An id nothing in the set declares — ONE refusal, whatever the id was doing.
@@ -278,3 +280,74 @@ export const notLoaded = (
       `with. Fix the file first.`,
     verdict: verdictOf(errors),
   })
+
+/**
+ * A WRITE THAT REACHED OUTSIDE ITS OWN SUBTREE — one sentence, six shapes.
+ *
+ * HERE rather than beside {@link ./fenced.ts} for this module's own rule: a
+ * refusal more than one caller owes lives here, and this one is owed by every
+ * write door a session can reach — the twenty write tools, the capture arm, and
+ * a batch of any of them.
+ *
+ * IT NAMES THREE THINGS, because that is what the refusal has to be actionable
+ * about: the record the write reached for, the node this session writes at or
+ * under, and the ancestor to ask instead. The seat's own title is read off the
+ * derivation, which is holding it anyway; the ANCESTOR is the one thing this
+ * layer cannot derive, because "which node above is an agent" is a reading of a
+ * word a plugin contributes — so it arrives as a thunk on the fence and is spent
+ * only here, on the path where it is worth walking the vault for.
+ *
+ * A `UsageFailure` — words about what was ASKED, which is exactly what {@link
+ * ./ops.ts} already calls this case in the paragraph that classifies plan
+ * refusals ("a typo, a misuse, a fence the write ran into"). Two consequences
+ * fall out of that arm for free: the stale-set repair door is not entered (a
+ * stale copy cannot invent a usage fault, and re-planning would refuse the same
+ * way against a fresher set), and the refusal is answered rather than retried.
+ */
+export const fenceRefusal = (
+  derived: Derived,
+  fence: Fence,
+  reached: Outside,
+): string => {
+  if (reached.why === "closed") {
+    return "this conversation has been reaped, so the door it was handed is " +
+      "closed and nothing may be written through it."
+  }
+  // Not `null` past the arm above: {@link outsideFence} answers `closed` first
+  // and every other shape after it.
+  const under = fence.under as string
+  const at = derived.byId.get(under)
+  // A seat that is GONE, or that turned out to be a placement, still has a
+  // sentence owed about it — the bare id, which is the only true thing left to
+  // say about a node the set no longer holds.
+  const seat = at === undefined || isMirror(at.node) ? undefined : at.node.title
+  const mine = seat === undefined ? `\`${under}\`` : `“${seat}” (\`${under}\`)`
+  const you = `you are the node agent for ${mine}, and your writes land at or ` +
+    `under that node`
+  const above = fence.ask()
+  // MOST NODE AGENTS SIT NEAR A ROOT, so the no-ancestor tail is the common one
+  // and is a whole sentence rather than a hedge: there is nobody to ask, and
+  // the person reading the panel is who the agent is actually talking to.
+  const then = above === null
+    ? ` There is no node agent above ${mine}, so say what you need in the panel.`
+    : ` Ask ${above}, the nearest node agent above you, to make this change.`
+
+  switch (reached.why) {
+    case "seat":
+      return `${mine} — the node you are the agent for — is not in the loaded ` +
+        `set any more, so there is nothing this door may write.${then}`
+    case "record":
+      return `\`${reached.id}\` (“${reached.title}”, in \`${reached.file}\`) is ` +
+        `not inside your subtree, so this write is refused: ${you}.${then}`
+    case "file":
+      return `\`${reached.path}\` is a file, and a file is inside nobody's ` +
+        `subtree: ${you}.${then}`
+    case "document":
+      return `\`${reached.path}\` is a document, and a document is inside ` +
+        `nobody's subtree: ${you}.${then}`
+    case "key":
+      return `\`${reached.key}\` is a property this door may not write — it is ` +
+        `what seats a conversation on a node, and that is a person's gesture in ` +
+        `the panel, on “${reached.title}” (\`${reached.id}\`) as anywhere else.${then}`
+  }
+}

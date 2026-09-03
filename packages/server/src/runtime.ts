@@ -92,7 +92,14 @@ import {
   shelfIn,
   type Verdict,
 } from "@olai/format"
-import { type Ops, type Policy, type Request, type Status, type Store } from "@olai/ops"
+import {
+  type Caller,
+  type Ops,
+  type Policy,
+  type Request,
+  type Status,
+  type Store,
+} from "@olai/ops"
 import type {
   CommitRequest,
   Pending,
@@ -568,10 +575,28 @@ export interface Publishers {
  * an HTTP `/mcp` client, an in-process dispatch is whichever agent the
  * composition root built it for. So the writer is decided where the face is,
  * which is where every other fact about a face is decided.
+ *
+ * ...AND SO IS HOW FAR THE DOOR REACHES, which is the second half of the same
+ * argument and arrives in the same record ({@link @olai/ops}'s `Caller`). A
+ * subtree fence is one more fact about who is asking, and a caller could no more
+ * name its own than it could name its own writer. `fence` is REQUIRED with no
+ * default: `@olai/ops` reads an absent fence as "this door has no session" —
+ * which is the honest reading of a keystroke, its derived undo, a plugin write
+ * or a repeat roll, and the WRONG reading of an agent whose face forgot to say.
+ * Every face in this tree is composed through this function or {@link writerAt}
+ * below it, so a forgotten fence is a compile error and never a silently
+ * unfenced agent.
+ *
+ * `git.commit` takes no fence and that is a named hole rather than an omission:
+ * a commit moves no served byte and takes free-form paths, so a fenced agent can
+ * still put another writer's pending work into history under its own trailer.
+ * The fence's subject is the records the vault serves.
  */
-const writing = (ops: Ops, writer: Writer) => ({
-  ops: { run: (request: Request) => ops.run(request, writer) },
-  git: { commit: (request: CommitRequest) => ops.commit(request, writer) },
+const writing = (ops: Ops, caller: Caller) => ({
+  ops: {
+    run: (request: Request) => ops.run(request, caller.writer, caller.fence ?? undefined),
+  },
+  git: { commit: (request: CommitRequest) => ops.commit(request, caller.writer) },
 })
 
 /**
@@ -771,11 +796,11 @@ const impl =
 export const writerAt = (
   bound: Pick<Bound, "handlers">,
   ops: Ops,
-  writer: Writer,
+  caller: Caller,
 ): SurfaceHandlers => {
   const handlers = emptyHandlers()
   for (const [tag, handler] of Object.entries(bound.handlers)) handlers[tag] = handler
-  for (const [namespace, verbs] of Object.entries(writing(ops, writer))) {
+  for (const [namespace, verbs] of Object.entries(writing(ops, caller))) {
     for (const [verb, handler] of Object.entries(verbs)) {
       handlers[surfaceTag(surface.tagPrefix, namespace, verb)] = handler as SurfaceHandler
     }
@@ -1073,7 +1098,13 @@ export const bind = (
         // tab used to be refused naming a file the OTHER tab had just minted,
         // which is the resolver's own answer going stale rather than anything
         // the person who pressed the key did.
-        runResolved(wiring.ops, wiring.writer, (at) => requestFor(at, edit), reresolves(edit)),
+        // A KEYSTROKE HAS NO SESSION, which is what `fence: null` says out loud.
+        runResolved(
+          wiring.ops,
+          { writer: wiring.writer, fence: null },
+          (at) => requestFor(at, edit),
+          reresolves(edit),
+        ),
         ({ at, request, done }) => {
           // AFTER the run, because an `add`'s inverse names the row the write
           // brought into being — and from the reading the winning request was
@@ -2303,7 +2334,12 @@ export const bind = (
          * there, and {@link writerAt}.
          */
         ops: {
-          run: impl(writing(wiring.ops, wiring.writer).ops.run),
+          // `fence: null` is a WORD here and not a gap: this is the surface this
+          // runtime was composed with, and what reaches it is a keystroke or a
+          // procedure call from something in this process. A face with a session
+          // behind it is composed by {@link writerAt} out of a fence the
+          // composition root resolved per request (`./mcp/tickets.ts`).
+          run: impl(writing(wiring.ops, { writer: wiring.writer, fence: null }).ops.run),
           outlines: () => wiring.ops.outlines,
           // The plan arm's reading, and the one member here answering no tool:
           // which files the inbox convention is read off. It is a procedure of
@@ -2325,7 +2361,7 @@ export const bind = (
           // claim about itself. What republishes afterwards is NOT here: it is
           // the `settled` subscription above, so the agent's tool and the quiet
           // window get it too.
-          commit: impl(writing(wiring.ops, wiring.writer).git.commit),
+          commit: impl(writing(wiring.ops, { writer: wiring.writer, fence: null }).git.commit),
           // The Push button's door, and it takes no input at all — one verb,
           // the current branch, the upstream it already has. It republishes
           // through the same subscription for the same reason: pushing moves no

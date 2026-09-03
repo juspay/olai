@@ -53,6 +53,7 @@ export {
   type RowReport,
   type RowState,
   rowReport,
+  settled,
 } from "./host.ts"
 export { standing } from "./standing.ts"
 export { type Detach, definePlugin, detached, type Plugin } from "./plugin.ts"

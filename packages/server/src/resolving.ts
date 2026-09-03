@@ -54,8 +54,8 @@
  * what a verb MEANS is that file's, and this one only knows how to run one.
  */
 
-import type { OpFailure, Reading, Writer } from "@olai/format"
-import type { Applied, Ops, Request } from "@olai/ops"
+import type { OpFailure, Reading } from "@olai/format"
+import type { Applied, Caller, Ops, Request } from "@olai/ops"
 import { Effect, Result } from "effect"
 
 /** A write that landed, with the reading it was resolved against and the
@@ -73,7 +73,7 @@ export interface Written {
  * is the whole of what its two callers differ by.
  *
  * `runResolved` below reads a whole {@link Reading} out of a local `Ops` and
- * runs under a writer; the `capture` tool reads a LISTING over a surface client
+ * runs under a caller; the `capture` tool reads a LISTING over a surface client
  * that may be a socket away and runs without naming one. Neither difference is
  * about the algorithm, and spelling the algorithm twice put the argument in this
  * header a file away from one of the two places it governs — so the reading is
@@ -112,13 +112,25 @@ export const resolvedWrite = <A>(
     return { at: now, request: again.success, done }
   })
 
-/** {@link resolvedWrite} against a local `Ops`, under one writer — the
+/** {@link resolvedWrite} against a local `Ops`, under one caller — the
  *  browser's half, whose reading is the whole set and whose caller needs that
- *  reading back to derive an undo. */
+ *  reading back to derive an undo.
+ *
+ *  A {@link Caller} and not a bare writer, because this composes a WRITING FACE
+ *  and a face says both halves of who is asking: which writer records it, and
+ *  how far the door reaches. `fence` has no default here for the reason
+ *  `./runtime.ts`'s `writing` gives — an absent fence means "this door has no
+ *  session", which is true of a keystroke and false of an agent, and the
+ *  difference must not be spellable by omission. */
 export const runResolved = (
   ops: Pick<Ops, "read" | "run">,
-  writer: Writer,
+  caller: Caller,
   resolve: (at: Reading) => Result.Result<Request, OpFailure>,
   reresolves: boolean,
 ): Effect.Effect<Written, OpFailure> =>
-  resolvedWrite(ops.read, resolve, (request) => ops.run(request, writer), reresolves)
+  resolvedWrite(
+    ops.read,
+    resolve,
+    (request) => ops.run(request, caller.writer, caller.fence ?? undefined),
+    reresolves,
+  )

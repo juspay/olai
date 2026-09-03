@@ -580,8 +580,12 @@ describe("the beat's doorbell tap", () => {
 
   it("beats once at boot, with the cadence the defaults name", () => {
     const beats: Array<number> = []
-    halfBeating(() => DEFAULT_WATCH.heartbeatMs, beats)
+    const half = halfBeating(() => DEFAULT_WATCH.heartbeatMs, beats)
     expect(beats).toEqual([DEFAULT_WATCH.heartbeatMs])
+    // ...and the case takes its own timer back out, which is the sentence the
+    // case below is entirely about: a half a test built and walked away from
+    // left a half-hour interval armed in the suite's process.
+    half.stop()
   })
 
   it("carries the cadence a knob move put in force, and a keystroke is not a beat", () => {
@@ -596,5 +600,39 @@ describe("the beat's doorbell tap", () => {
     // busy vault would beat per keystroke and no window would ever be quiet.
     half.revision([], null)
     expect(beats.length).toBe(2)
+    half.stop()
+  })
+
+  /**
+   * THE HALF'S OWN TEARDOWN — the case the leak was found by, and the one the
+   * plugin's finalizer exists to spend.
+   *
+   * The watcher arms its interval inside `makeWatch`, which `koluHalf` calls
+   * inside ITS constructor, so a half is beating from the moment it is built —
+   * before anything binds, and whether or not anything ever does. Its only
+   * other stop hangs on the sibling connector's interruption, and a half
+   * disposed before the surface bound has no connector to be interrupted: the
+   * interval simply outlived the thing that armed it, with nothing left holding
+   * a reference to either. `olai-plugin-kolu`'s `server.ts` hangs
+   * `Effect.addFinalizer` on this door for exactly that reason.
+   *
+   * A REAL TIMER at test scale, this file's own trade (see the header): twenty
+   * milliseconds for half an hour, and the claim is about arming and clearing
+   * rather than about the pacing, which the cases above own.
+   */
+  it("stops beating when the half stops, so a half nobody bound is not still armed", async () => {
+    const beats: Array<number> = []
+    const half = halfBeating(() => 20, beats)
+    // The boot beat is at the DEFAULTS: the knob only enters through a
+    // revision, which is the seam the case above establishes.
+    half.revision([], null)
+    await sleep(70)
+    const beating = beats.length
+    expect(beating).toBeGreaterThan(2)
+    half.stop()
+    // ...and NOTHING after it. Without the door this asserts, this window would
+    // carry three more beats out of a half nobody owns any more.
+    await sleep(70)
+    expect(beats.length).toBe(beating)
   })
 })

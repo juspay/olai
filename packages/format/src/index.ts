@@ -454,6 +454,12 @@ export { PROPERTIES, propertiesIn } from "./node.ts"
 
 export {
   ancestorsOf,
+  /** The same climb over an index that is not the derivation — what a record's
+   *  ancestry WOULD be once a plan lands, which the standing `byId` cannot
+   *  answer because the arriving records are not in it. Exported so that
+   *  `@olai/ops`' write fence asks this walk, with its cycle guard and its
+   *  refusal to climb through a mirror, rather than writing a fourth one. */
+  ancestryOver,
   /** The crumbs' titles, outermost first — what every reader of an ancestry
    *  actually draws, said once. */
   ancestorTitles,
@@ -586,6 +592,11 @@ export {
    *  as it reaches `@olai/index` — that package looks text up, this one decides
    *  what a query means, and the seam between them is a superset. */
   hayOf,
+  /** WHAT `under:` MEANS, as one predicate two faces share: is this record at
+   *  or under that node. Exported for the second caller, which is not a search
+   *  — `@olai/ops`' subtree write fence — so that what an agent may WRITE and
+   *  what `search under:` calls its memory cannot come apart. */
+  insideSubtree,
   keeping,
   keepingDated,
   /** Where a query's words LAND in a piece of text, in the fold the matcher

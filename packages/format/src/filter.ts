@@ -2897,6 +2897,10 @@ export const ranked = (
  * condemned), and one that walked straight through would put a node in a scope
  * the `path` on its own hit says it is not in. {@link descendedFrom} is that
  * same walk read backwards, and its header is where the two are held together.
+ *
+ * The one line that expressed it is {@link insideSubtree} below, EXPORTED — not
+ * for this file's sake, which was fine with it inline, but because a second
+ * caller arrived that is not a search: the subtree write fence. See there.
  */
 const scoping = (
   derived: Derived,
@@ -2907,12 +2911,38 @@ const scoping = (
   return (at) => {
     if (file !== undefined && at.file !== file) return false
     if (under === undefined) return true
-    // At OR under: "everything beneath `install`" includes `install`, which is
-    // what a reader filtering a zoomed page is looking at.
-    return at.node.id === under ||
-      ancestorsOf(derived, at.node.id).some((crumb) => crumb.node.id === under)
+    return insideSubtree(derived, at.node.id, under)
   }
 }
+
+/**
+ * IS THIS RECORD AT OR UNDER THAT NODE — the one predicate `under:` search and
+ * `@olai/ops`' subtree write fence share.
+ *
+ * LIFTED out of {@link scoping}'s body rather than copied, for the reason
+ * {@link descendedFrom}'s header gives for being the same walk backwards: three
+ * answers to one question already live in this package and are held equal by
+ * `./scope.testlib.ts`. A fourth, written for the fence over in `@olai/ops`,
+ * would put records in an agent's memory that `search under:` says are outside
+ * — and then the two faces would disagree about what an agent's memory IS.
+ * `ancestorsOf`'s stopping rules are the substance of that agreement: it climbs
+ * no further than a parent that is missing or is a MIRROR, so a mirrored
+ * subtree hanging inside a corner does not thereby join it, on either face.
+ *
+ * AT or under, which is what `under:` means ("everything beneath `install`"
+ * includes `install`, which is what a reader filtering a zoomed page is looking
+ * at). A caller wanting STRICTLY under spells `id !== under` itself, so that
+ * ruling is legible where it is made rather than hidden behind a flag here. The
+ * fence does not want it: an agent may write the node it IS — retitle it, note
+ * it, mark it — and what it may not write there is a KEY, not a place.
+ */
+export const insideSubtree = (
+  derived: Derived,
+  id: string,
+  under: string,
+): boolean =>
+  id === under ||
+  ancestorsOf(derived, id).some((crumb) => crumb.node.id === under)
 
 // ── what a filtered page looks like ────────────────────────────────────
 

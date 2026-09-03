@@ -9,6 +9,22 @@
  *
  * A plugin never imports `@olai/state`. The door is keyed by the plugin's
  * `name` the way `deliveries` is.
+ *
+ * ## THE CHAIN IS PER DOOR, SO THE DOOR HAS TO BE PER PLUGIN — and this file
+ * ## cannot make that true on its own
+ *
+ * `saving` below is a closure variable, so every call to this function mints a
+ * fresh chain and two doors for one plugin order nothing against each other. The
+ * ordering above is therefore a claim about the CALLER: `@olai/plugin-api`'s
+ * `openPlugins` memoises the door by plugin NAME, and its own paragraph argues
+ * why by name rather than per activation — a plugin that unloads and comes back
+ * is two fibers writing one path, and the file does not care which fiber a
+ * snapshot came from.
+ *
+ * It was memoised per CALL first, which fixed the reachable half and left the
+ * other one open for as long as no server half could unload mid-serve. A row
+ * that stands behind another row's doors makes that routine, which is what
+ * closed it.
  */
 
 import { Effect } from "effect"

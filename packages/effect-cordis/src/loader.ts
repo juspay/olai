@@ -64,7 +64,22 @@ export interface Row {
  * consumer whose module graph the loader cannot walk is a supported case rather
  * than a cast.
  *
- * It RETURNS once every row that is going to load has loaded.
+ * ## What it RETURNS having done, exactly
+ *
+ * Every row this build has: its module imported, and its fiber created. That is
+ * the whole of the guarantee and it is less than it reads: `Entry.init` starts
+ * the fiber and deliberately does not await it, and `ctx.loader.await()` walks
+ * the LOADER's tree, which the include's rows were never linked into (the
+ * argument is `./host.ts`'s `fibersOf`, which reads the registry instead and for
+ * the same reason). So an `apply` that finishes inside this call's own microtask
+ * chain is covered, and one that awaits anything at all is not — nor is a row
+ * woken by a service a SIBLING ROW provides, which is a whole turn later.
+ *
+ * The sentence here used to be "it returns once every row that is going to load
+ * has loaded", which read as the second thing and promised the first. WAITING
+ * OUT THE REST is `./host.ts`'s `settled`, and `@olai/bundle`'s `mountBundle` is
+ * the two of them — which is where a bundle's whole promise is now made and
+ * kept.
  */
 export const mountRows = (host: Host, options: {
   /** Where the rows live — the loader's `baseUrl` and what `path` is relative to. */

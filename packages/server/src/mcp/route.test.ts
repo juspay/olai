@@ -42,6 +42,7 @@ import { hostname } from "../hostname.ts"
 import { bind, gitWiring, writerAt } from "../runtime.ts"
 import { clientOver, serveFace } from "./face.ts"
 import { currentLogin, fromLoopback, MCP_PATH, mcpAllowed, mcpTransport } from "./route.ts"
+import { ticketing, type Tickets } from "./tickets.ts"
 import { bespokeFrom } from "./tools.ts"
 
 /** The codec this suite validates through — the vocabulary of a build that
@@ -49,7 +50,15 @@ import { bespokeFrom } from "./tools.ts"
  *  (`@olai/ops`' `codecFor`, and `@olai/format`'s `NO_KINDS`). */
 const codec = codecFor(NO_KINDS)
 
-const HOUSE = `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}\n`
+/** A house with a subtree in it, so the fence has a corner to be about: a
+ *  session seated on `kitchen` writes `sink` and does not write `roof`. */
+const HOUSE = [
+  `{"id":"house","ord":"a0","title":"House"}`,
+  `{"id":"kitchen","parent":"house","ord":"a0","title":"Kitchen remodel"}`,
+  `{"id":"sink","parent":"kitchen","ord":"a0","title":"the sink"}`,
+  `{"id":"roof","parent":"house","ord":"a1","title":"the roof"}`,
+  ``,
+].join("\n")
 
 const TOKEN = "test-token"
 
@@ -57,11 +66,16 @@ interface Served {
   /** The directory this route is serving — so a case can read back what a call
    *  actually wrote, rather than trusting the answer it was given. */
   readonly root: string
-  /** POST one JSON-RPC message, with the token unless told otherwise. */
+  /** POST one JSON-RPC message, with the token unless told otherwise. A header
+   *  given as `undefined` is SENT AS ABSENT, which is how a case says "no
+   *  credential at all" rather than "the empty one". */
   readonly post: (
     message: unknown,
-    headers?: Record<string, string>,
+    headers?: Record<string, string | undefined>,
   ) => Promise<Response>
+  /** The real ticket table this route resolves credentials through — so a case
+   *  mints its own and presents it, rather than asserting about a stub. */
+  readonly tickets: Tickets
   readonly url: string
 }
 
@@ -108,16 +122,29 @@ const withRoute = <A>(
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
 
     const transport = mcpTransport()
+    // THE REAL TABLE, over the real face, with the real process token — so what
+    // a fenced case proves is that the credential reached the WRITE, and not
+    // that a closure read a value.
+    const tickets = ticketing({
+      bound: wired.bound,
+      face: wired.faces.agent,
+      ops,
+      token: TOKEN,
+    })
     yield* serveFace({
       client: () =>
         clientOver(
-          { group: wired.bound.group, handlers: writerAt(wired.bound, ops, "mcp") },
+          {
+            group: wired.bound.group,
+            handlers: writerAt(wired.bound, ops, { writer: "mcp", fence: null }),
+          },
           wired.faces.agent,
         ),
       tools: bespokeFrom(TOOLS, {
         login: currentLogin,
         root,
         vintage: Effect.map(store.read("verified"), (aged) => aged.vintage),
+        fenced: tickets.doorAt,
       }),
       transport,
     })
@@ -147,15 +174,21 @@ const withRoute = <A>(
       use({
         root,
         url,
+        tickets,
         post: (message, headers) =>
           fetch(url, {
             method: "POST",
-            headers: {
-              "content-type": "application/json",
-              accept: "application/json, text/event-stream",
-              authorization: `Bearer ${TOKEN}`,
-              ...headers,
-            },
+            // An `undefined` value is dropped rather than sent as the word
+            // "undefined", which is what lets a case present NO credential —
+            // the loopback affordance's own shape — over the same door.
+            headers: Object.fromEntries(
+              Object.entries({
+                "content-type": "application/json",
+                accept: "application/json, text/event-stream",
+                authorization: `Bearer ${TOKEN}`,
+                ...headers,
+              }).filter((entry): entry is [string, string] => entry[1] !== undefined),
+            ),
             body: JSON.stringify(message),
           }),
       })
@@ -560,5 +593,214 @@ test("…and two people behind one proxy do not get each other's", async () => {
     expect(rows.find((row) => row.title === "grace's line")?.custom).toEqual({
       "captured-by": "grace@example.com",
     })
+  })
+})
+
+/**
+ * THE CREDENTIAL, AND WHICH DOOR IT OPENS — three answers and no fourth.
+ *
+ * The claim these cases make together is the one the whole arrangement stands
+ * on: a bearer read off a header on the request's own stack selects the handler
+ * set the WRITE lands through. Anything less than a real POST at the real route
+ * would be an assertion about a closure reading a value, and the load-bearing
+ * part is what happens two layers down from there.
+ *
+ * NOTHING MINTS A TICKET IN THE SERVER YET — the chat plugin does, when a
+ * session's MCP entry is built — so the fences below are minted by hand, which
+ * is also the honest way to bench a table: `mint` takes a thunk and no node,
+ * because a session is opened before it is bound and a caller that could name
+ * one fence could name another session's.
+ */
+
+/** A tool call over the route, with whatever credential the case wants. */
+const calling = (
+  post: Served["post"],
+  name: string,
+  args: Record<string, unknown>,
+  headers?: Record<string, string | undefined>,
+) =>
+  post({ jsonrpc: "2.0", id: 9, method: "tools/call", params: { name, arguments: args } }, headers)
+
+/** What a tool answered, in the two halves a refusal is read by. */
+const said = async (response: Response) => {
+  const body = await response.json() as {
+    result?: {
+      isError?: boolean
+      structuredContent?: Record<string, unknown>
+      content?: ReadonlyArray<{ type: string; text?: string }>
+    }
+  }
+  return {
+    refused: body.result?.isError === true,
+    detail: body.result?.structuredContent,
+    text: (body.result?.content ?? []).map((part) => part.text ?? "").join("\n"),
+  }
+}
+
+/** The handshake every case below opens with. */
+const shook = async (post: Served["post"]) => {
+  await post(initialize)
+  await post({ jsonrpc: "2.0", method: "notifications/initialized" })
+}
+
+/** A session seated on `kitchen` with no node agent above it — the common
+ *  shape, and the one whose refusal points at the panel. */
+const seated = (tickets: Tickets, under = "kitchen") =>
+  tickets.mint(() => ({ under, forbidden: [] }), () => null)
+
+test("a ticket the table minted fences the write it rides on", async () => {
+  await withRoute(async ({ post, tickets, root }) => {
+    await shook(post)
+    const ticket = seated(tickets)
+    const bearer = { authorization: `Bearer ${ticket.bearer}` }
+
+    // INSIDE: the write lands, and lands on disk — not merely "was not
+    // refused", because the door being selected and the door being USED are
+    // two different claims and only the second one matters.
+    const inside = await said(await calling(post, "set_done", { id: "sink" }, bearer))
+    expect(inside.refused).toBe(false)
+    expect(fs.readFileSync(path.join(root, "house.olai"), "utf8")).toContain(`"id":"sink"`)
+    expect(fs.readFileSync(path.join(root, "house.olai"), "utf8")).toContain(`"done"`)
+
+    // OUTSIDE: refused, as an ANSWER rather than a transport fault, naming the
+    // record it reached for and the node this session writes under.
+    const outside = await said(await calling(post, "set_done", { id: "roof" }, bearer))
+    expect(outside.refused).toBe(true)
+    expect(outside.detail).toMatchObject({ kind: "usage" })
+    expect(outside.text).toContain("`roof`")
+    expect(outside.text).toContain("“Kitchen remodel” (`kitchen`)")
+    // ...and the roof is not done, which is the half a refusal that answered
+    // nicely and wrote anyway would still pass without.
+    expect(fs.readFileSync(path.join(root, "house.olai"), "utf8"))
+      .not.toContain(`"id":"roof","ord":"a1","title":"the roof","done"`)
+  })
+})
+
+test("…and names the ancestor to ask, when the plugin says there is one", async () => {
+  await withRoute(async ({ post, tickets }) => {
+    await shook(post)
+    // `above` is the CALLER's words — core spells no sentence about what a node
+    // agent is — and it is asked only here, on the refusal path.
+    const ticket = tickets.mint(
+      () => ({ under: "kitchen", forbidden: [] }),
+      (node) => (node === "kitchen" ? "“House” (`house`)" : null),
+    )
+    const answer = await said(
+      await calling(post, "set_done", { id: "roof" }, {
+        authorization: `Bearer ${ticket.bearer}`,
+      }),
+    )
+    expect(answer.refused).toBe(true)
+    expect(answer.text).toContain("Ask “House” (`house`), the nearest node agent above you")
+  })
+})
+
+test("a reaped session's ticket is a closed door, not a forgotten one", async () => {
+  await withRoute(async ({ post, tickets }) => {
+    await shook(post)
+    const ticket = seated(tickets)
+    const bearer = { authorization: `Bearer ${ticket.bearer}` }
+    expect((await said(await calling(post, "set_done", { id: "sink" }, bearer))).refused)
+      .toBe(false)
+
+    // THE TOMBSTONE. Deleting the row instead would let reaping WIDEN what a
+    // stale credential can do — the wrong direction for reaping to move
+    // anything — because an unknown bearer is served the unfenced door.
+    ticket.release()
+    const after = await said(await calling(post, "set_done", { id: "roof" }, bearer))
+    expect(after.refused).toBe(true)
+    expect(after.text).toContain("this conversation has been reaped")
+    // ...and not even inside its own former subtree.
+    expect((await said(await calling(post, "set_todo", { id: "sink" }, bearer))).refused)
+      .toBe(true)
+  })
+})
+
+test("a bearer nobody minted is served the unfenced door, exactly as today", async () => {
+  await withRoute(async ({ post }) => {
+    await shook(post)
+    // THE AFFORDANCE THIS FILE'S HEADER PROMISES: `mcpAllowed` decides WHETHER
+    // and the ticket table decides AS WHOM, and the second may never make the
+    // first stricter. A `.mcp.json` client on loopback with a stale token
+    // writes the whole vault, which is what it does today.
+    const answer = await said(
+      await calling(post, "set_done", { id: "roof" }, { authorization: "Bearer nobody-minted" }),
+    )
+    expect(answer.refused).toBe(false)
+  })
+})
+
+test("…and so is one that presents no credential at all, and the process token", async () => {
+  await withRoute(async ({ post }) => {
+    await shook(post)
+    expect(
+      (await said(await calling(post, "set_done", { id: "roof" }, { authorization: undefined })))
+        .refused,
+    ).toBe(false)
+    // The process's own token is not a ticket and never resolves as one: it is
+    // what the chat and an attached client send, and their door is the vault.
+    expect((await said(await calling(post, "set_done", { id: "sink" }))).refused).toBe(false)
+  })
+})
+
+test("two tickets in flight at once do not see each other's fence", async () => {
+  // The shape `WHOSE` is already asserted for one storage over, and for the same
+  // reason: two conversations writing through one face, one transport and one
+  // set of handlers is the ordinary case, and a write fenced to the wrong node
+  // is not a crash, not a refusal and not discoverable afterwards.
+  //
+  // WHAT THIS DOES NOT PROVE, said out loud because the sibling case says it:
+  // it does not demonstrate that the `AsyncLocalStorage` is load-bearing. The
+  // bearer is read SYNCHRONOUSLY at the top of the tool builder, on the
+  // request's own stack, before anything can yield to the other request — and
+  // that is what actually keeps them apart. The storage is the structural half:
+  // it survives a reader that starts asking later.
+  await withRoute(async ({ post, tickets, root }) => {
+    await shook(post)
+    const kitchen = seated(tickets, "kitchen")
+    const roof = seated(tickets, "roof")
+
+    const [inKitchen, onRoof] = await Promise.all([
+      calling(post, "set_done", { id: "sink" }, { authorization: `Bearer ${kitchen.bearer}` }),
+      calling(post, "set_done", { id: "roof" }, { authorization: `Bearer ${roof.bearer}` }),
+    ])
+    expect((await said(inKitchen)).refused).toBe(false)
+    expect((await said(onRoof)).refused).toBe(false)
+
+    // ...and each is refused the other's corner.
+    expect(
+      (await said(
+        await calling(post, "set_todo", { id: "roof" }, {
+          authorization: `Bearer ${kitchen.bearer}`,
+        }),
+      )).refused,
+    ).toBe(true)
+    expect(
+      (await said(
+        await calling(post, "set_todo", { id: "sink" }, {
+          authorization: `Bearer ${roof.bearer}`,
+        }),
+      )).refused,
+    ).toBe(true)
+
+    const held = fs.readFileSync(path.join(root, "house.olai"), "utf8")
+    expect(held).toContain(`"done"`)
+  })
+})
+
+test("a fence that claims no node is the person's own door, which is the vault", async () => {
+  await withRoute(async ({ post, tickets }) => {
+    await shook(post)
+    // An unassigned conversation — the panel's own. The thunk answers `null`
+    // and the caller gets what it has today, which is why the thunk may answer
+    // `null` at all rather than the table refusing to mint.
+    const ticket = tickets.mint(() => null, () => null)
+    expect(
+      (await said(
+        await calling(post, "set_done", { id: "roof" }, {
+          authorization: `Bearer ${ticket.bearer}`,
+        }),
+      )).refused,
+    ).toBe(false)
   })
 })

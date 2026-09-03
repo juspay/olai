@@ -1873,18 +1873,40 @@ export const withoutDone = (
  *
  * Cycle-safe, like every walk here. A parent loop is a set the validator
  * rejects, but the crumbs are drawn from sets its own error messages describe.
+ *
+ * ...and the LOOKUP is a parameter now ({@link ancestryOver}), because there
+ * are two indexes that answer this and only one of them is a derivation.
+ * `@olai/ops`' subtree write fence has to ask where a record WOULD hang after a
+ * plan, and an arriving record's ancestry does not exist in {@link
+ * Derived.byId} yet. A second walk written over there would be a fourth answer
+ * to a question this package already answers three times and proves equal once
+ * (`./filter.ts`'s `insideSubtree` and `descendedFrom`, `./scope.testlib.ts`) —
+ * and it would be a MIRROR-BLIND fourth, which is how an agent's memory comes
+ * to mean one thing to `search under:` and another to the write gate.
+ *
+ * The stopping rules travel with the walk, which is the whole reason to have
+ * one of it: a parent that is missing or is a mirror is a set the validator has
+ * already condemned, and the cycle guard is here rather than remembered.
  */
 export const ancestorsOf = (
   derived: Derived,
   id: string,
+): ReadonlyArray<LocatedRegular> => ancestryOver((key) => derived.byId.get(key), id)
+
+/** ...over whatever index holds the records — {@link ancestorsOf}'s body,
+ *  verbatim, with `derived.byId.get` as an argument. `derived.byId.get` for the
+ *  standing set; the plan's own records for a set that does not exist yet. */
+export const ancestryOver = (
+  at: (id: string) => Located | undefined,
+  id: string,
 ): ReadonlyArray<LocatedRegular> => {
   const chain: Array<LocatedRegular> = []
   const seen = new Set<string>([id])
-  let next = derived.byId.get(id)?.node.parent
+  let next = at(id)?.node.parent
 
   while (next !== undefined && !seen.has(next)) {
     seen.add(next)
-    const located = derived.byId.get(next)
+    const located = at(next)
     // A parent that is missing, or is a mirror, is a set the validator has
     // already condemned. Stop at the last crumb that is really there rather
     // than inventing one or walking through a placement.

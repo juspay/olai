@@ -29,9 +29,10 @@ import type { GitPin } from "@olai/format"
 import type { IdentityConfig } from "@olai/identity"
 import { fixedPolicy, make as makeOps, TOOLS } from "@olai/ops"
 import { BUNDLE_NAMES, mountBundle, reportBundle } from "@olai/bundle/bundle"
+import { bundleRank } from "@olai/bundle"
 import { emitter } from "@olai/log"
 import { openPlugins } from "@olai/plugin-api/services"
-import { Effect, SubscriptionRef } from "effect"
+import { Deferred, Effect, SubscriptionRef } from "effect"
 import { randomBytes } from "node:crypto"
 import { resolve } from "node:path"
 
@@ -45,6 +46,7 @@ import { hostname } from "./hostname.ts"
 import { listen } from "./listener.ts"
 import { clientOver, serveFace } from "./mcp/face.ts"
 import { currentLogin, MCP_PATH, mcpTransport } from "./mcp/route.ts"
+import { ticketing } from "./mcp/tickets.ts"
 import { bespokeFrom } from "./mcp/tools.ts"
 import { enginesAt } from "./engines.ts"
 import { askingAt } from "./probes.ts"
@@ -137,6 +139,23 @@ export const serve = (options: ServeOptions) =>
      */
     const say = yield* emitter
     /**
+     * THE VAULT'S OWN MCP SERVER, PROMISED HERE AND ADDRESSED AT THE BOTTOM.
+     *
+     * A `Deferred` and not a mutable slot, because the two facts about this
+     * address are "not knowable until `listen` returns" and "knowable exactly
+     * once", and that is what a Deferred is. `let tools` below is the mutable
+     * slot, and it survives only because the chat this file still builds reads it
+     * through a thunk it was handed before either existed.
+     *
+     * MADE BEFORE `openPlugins` because the SERVICE has to stand before any row
+     * is mounted: a plugin naming a key nobody has provided sits PENDING, and the
+     * vocabulary is read two statements after `mountBundle` — so a `tools` that
+     * only appeared down there would leave a tenant's property kind out of the
+     * store's codec for the life of the process, silently. Provided early,
+     * completed late.
+     */
+    const toolsReady = yield* Deferred.make<Chat.ToolServer>()
+    /**
      * THE PLUGIN RUNTIME, OPENED — before the store, before the chat, before
      * anything reads a file.
      *
@@ -186,6 +205,12 @@ export const serve = (options: ServeOptions) =>
       vars: process.env,
       now: () => new Date().toISOString(),
       served,
+      tools: toolsReady,
+      // WHERE EACH ROW SITS IN THIS BUILD'S OWN LIST, handed over as the function
+      // `@olai/bundle` already exports rather than as the list itself: a plugin
+      // that owns a table a person reads has to be able to order it, and nothing
+      // here should hand a plugin the ability to enumerate its siblings.
+      rank: bundleRank,
       // The chat is built further down and a machine with no ACP agent never
       // builds one at all, so the door is asked for per call rather than
       // captured — which is also what makes a plugin that unloads and comes back
@@ -500,9 +525,27 @@ export const serve = (options: ServeOptions) =>
     // Built ONCE and handed back on every ask: this face has no transport to
     // drop, so re-dialling would only re-run the gate over the same handlers.
     const panel = clientOver(
-      { group: wired.bound.group, handlers: writerAt(wired.bound, ops, "chat-agent") },
+      // THE PROCESS'S OWN DOOR: unfenced, and it says so out loud. What a
+      // `.mcp.json` client on loopback, `olai surface` and the panel's own
+      // conversation are handed — the whole vault, which is what they have
+      // today.
+      {
+        group: wired.bound.group,
+        handlers: writerAt(wired.bound, ops, { writer: "chat-agent", fence: null }),
+      },
       wired.faces.agent,
     )
+    /**
+     * ...AND THE TABLE THAT SAYS WHEN IT IS NOT THAT DOOR.
+     *
+     * Nothing mints a ticket yet, so every request resolves to `panel` and
+     * behaviour is exactly what it was. The table is here rather than arriving
+     * with its first minter because it is CORE'S: what a bearer stands for is
+     * asked of whoever holds the session, per request, and the composition root
+     * is the only thing that may compose a door out of the answer
+     * (`./mcp/tickets.ts` argues all of it).
+     */
+    const tickets = ticketing({ bound: wired.bound, face: wired.faces.agent, ops, token })
     yield* serveFace({
       client: () => panel,
       /**
@@ -559,6 +602,7 @@ export const serve = (options: ServeOptions) =>
         login: currentLogin,
         root,
         vintage: Effect.map(store.read("verified"), (aged) => aged.vintage),
+        fenced: tickets.doorAt,
       }),
       transport,
     })
@@ -603,11 +647,29 @@ export const serve = (options: ServeOptions) =>
       )
     }
 
+    /**
+     * THE ADDRESS, now that we know what we bound — and the promise made before
+     * `openPlugins` kept.
+     *
+     * TOLD UNCONDITIONALLY, and deliberately not from inside the `chat !== null`
+     * arm below. Whether THIS process has an ACP agent is a fact about the
+     * machine; whether the vault's own tools are reachable is a fact about the
+     * SERVE, and a plugin waiting on the second must not be held for ever by the
+     * first. The chat's own slot is still filled below, out of the same value, so
+     * the name a session is handed and the name a plugin is handed cannot drift.
+     *
+     * `name: "olai"` is load-bearing beyond this line: every engine's auto-allow
+     * prefix is built from it (`@olai/acp`'s `leg.ts`), so a machine where this
+     * word changed is a machine where a person approves every write olai makes.
+     */
+    const address: Chat.ToolServer = { name: "olai", url: `${url}${MCP_PATH}`, token }
+    yield* Deferred.succeed(toolsReady, address)
+
     // `chat` is non-null exactly when this machine has an agent to talk to.
     if (chat !== null) {
       // LAST, and after the listener is up: the session is handed the MCP
       // server's address, which is only knowable once we know what we bound.
-      tools = { name: "olai", url: `${url}${MCP_PATH}`, token }
+      tools = address
       yield* Effect.addFinalizer(() => chat.stop)
       yield* chat.start
       yield* Effect.annotateLogs(Effect.logInfo("chat agents detected"), {

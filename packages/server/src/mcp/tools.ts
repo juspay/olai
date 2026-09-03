@@ -101,11 +101,30 @@ export const bespokeFrom = (
     ) => [
       tool.name,
       verb(tool, (args, client) => {
-        // READ HERE, synchronously, on the request's own stack — see
-        // `./route.ts`'s `WHOSE`. Deferring it into the Effect would read
-        // whichever request happened to be running when the scheduler got to
-        // it, which is a capture attributed to the wrong person.
-        const said = answer(tool, doorFor(client as OlaiSurfaceClient), args, at.login())
+        // BOTH READ HERE, synchronously, on the request's own stack — see
+        // `./route.ts`'s `WHOSE` and its sibling storage. Deferring either into
+        // the Effect would read whichever request happened to be running when
+        // the scheduler got to it: a capture attributed to the wrong person,
+        // and a write fenced to the wrong node.
+        //
+        // AND THIS IS WHY THE FENCE IS A DOOR AND NOT A PROVISION. The adapter
+        // evaluates this closure as an ARGUMENT to its request edge and then
+        // runs what it returns with `Effect.runPromise` on a FRESH FIBER WITH AN
+        // EMPTY CONTEXT, so a service provided anywhere upstream is gone by the
+        // time the write gate would read it. This line runs before that, and
+        // what it selects is a handler set that already closed over the
+        // narrowing — the same thing `../runtime.ts`'s `writerAt` does for the
+        // writer, and for the same reason.
+        //
+        // `doorFor`'s `WeakMap` keys on the client, so each fenced door
+        // memoises its own `Door` for free rather than building ten Effects per
+        // tool call.
+        const said = answer(
+          tool,
+          doorFor(at.fenced(client as OlaiSurfaceClient)),
+          args,
+          at.login(),
+        )
         if (tool.kind !== "read") return Effect.map(said, (it) => named(it, at.root))
         // THE AGE IS ESTABLISHED FIRST, and that order is the honest one: the
         // look happens, then the read runs against a set that is at least as
@@ -121,8 +140,8 @@ export const bespokeFrom = (
     ]),
   )
 
-/** What the FACE knows about itself — the two facts a tool's answer needs that
- *  no caller may supply.
+/** What the FACE knows about itself — the three facts a tool's answer needs
+ *  that no caller may supply, and the door it writes through.
  *
  *  `login` is who the door knows (below); `root` is which directory this server
  *  is serving, and it rides every answer out because "which vault answered" was
@@ -153,6 +172,22 @@ export interface Served {
    * handler would have to word.
    */
   readonly vintage: Effect.Effect<Vintage>
+  /**
+   * THE DOOR THIS REQUEST WRITES THROUGH, given the one the adapter holds.
+   *
+   * Identity for a face nobody fenced — which keeps the adapter's client
+   * authoritative and the face's re-dial argument intact. A face that DOES fence
+   * answers with the door the composition root composed for this caller
+   * (`./tickets.ts`), and a caller can no more name its own fence than it can
+   * name its own writer.
+   *
+   * REQUIRED, with no default, and that is the whole of how a forgotten fence is
+   * prevented: `@olai/ops` reads an absent fence as "this door has no session",
+   * which is the honest reading for a keystroke and the wrong one for an agent.
+   * A face is where every other fact about who is asking is already decided, so
+   * it is where a missing answer must be a compile error.
+   */
+  readonly fenced: (client: OlaiSurfaceClient) => OlaiSurfaceClient
 }
 
 /**
