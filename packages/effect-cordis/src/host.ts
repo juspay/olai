@@ -85,11 +85,29 @@ export const ctxOf = (host: Host): CordisContext => host as unknown as CordisCon
 /**
  * OPEN A HOST, under the services of the fiber that opens it.
  *
- * NOT SCOPED, and that is a phase boundary rather than an oversight: the
- * composition root mounts its plugins before the store opens and lets the
- * process own them for its life, exactly as it did before this package existed.
- * A host that closed its fibers on scope exit would be a behaviour change on
- * every shutdown path in the tree, which is not this phase's to make.
+ * ## NOT SCOPED — and what that does and does not leave undone
+ *
+ * A host has no close. What it holds is a registry and the Effect services in
+ * force where it was opened; neither is a resource, and both go with the
+ * process.
+ *
+ * ITS PLUGINS DO COME DOWN, and by the reactive half rather than by anything
+ * here. {@link provide} is an `acquireRelease` on the CALLER's scope, so a
+ * composition root that closes that scope on the way out revokes every service
+ * it provided, and revoking one unloads every fiber that named it — which
+ * closes each plugin's own scope and runs its finalizers, in reverse. That is
+ * the shutdown path in this tree: `@olai/server`'s `main.ts` runs the whole
+ * command under `Effect.scoped`, and `runMain` interrupts it on SIGINT and
+ * SIGTERM, so the unwind is the ordinary one. `plugin.test.ts`'s replaced-
+ * provider bench is the same mechanism, two lines apart.
+ *
+ * WHAT IS LEFT is a plugin whose `needs` is EMPTY: it depends on nothing that
+ * can be revoked, so nothing unloads it but the disposer its mount handed back.
+ * There is no such plugin in this tree — every half, in both processes, names at
+ * least one service — and the bench beside that one pins the shape so the claim
+ * is checkable rather than remembered. A host that closed its own fibers would
+ * close that gap and would also be a behaviour change on every shutdown path,
+ * which is the loader surface's to make when it owns one.
  */
 export const openHost: Effect.Effect<Host> = Effect.map(
   Effect.context<never>(),

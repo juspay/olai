@@ -147,6 +147,43 @@ test("a replaced provider unloads the plugin and applies it again", async () => 
   })))
 })
 
+/**
+ * ...AND THE ONE SHAPE THAT REVOCATION CANNOT REACH, which is the residue in
+ * `openHost`'s "not scoped" paragraph made checkable.
+ *
+ * A composition root's provisions are scoped, so the shutdown above unwinds
+ * every plugin that NAMES one — that is the reactive half doing its job, and it
+ * is what makes "the process owns its plugins for its life" a statement about a
+ * host rather than about its plugins. A plugin with an empty `needs` depends on
+ * nothing that can be revoked, so nothing brings it down but the disposer the
+ * mount handed back.
+ */
+test("a plugin that names no service is nobody's to revoke", async () => {
+  const lines: Array<string> = []
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const host = yield* openHost
+    const mounted = yield* mountPlugin(
+      host,
+      definePlugin({
+        name: "hermit",
+        needs: [],
+        apply: Effect.gen(function*() {
+          lines.push("hermit: up")
+          yield* Effect.addFinalizer(() => Effect.sync(() => void lines.push("hermit: down")))
+        }),
+      }),
+    )
+    expect(lines).toEqual(["hermit: up"])
+    // A provision comes and goes — the shutdown path, for every plugin that
+    // named it. This one named nothing, so the revocation has no dependent.
+    yield* Effect.scoped(provide(host, Ledger, ledgerOf(lines)))
+    yield* Effect.sleep("10 millis")
+    expect(lines).toEqual(["hermit: up"])
+    yield* mounted.dispose
+    expect(lines).toEqual(["hermit: up", "hermit: down"])
+  })))
+})
+
 test("a plugin whose Effect dies lands failed, having installed nothing", async () => {
   const lines: Array<string> = []
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
