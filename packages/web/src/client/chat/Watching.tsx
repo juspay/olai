@@ -43,7 +43,7 @@
  * WHAT IT DOES NOT DRAW, and cannot: **when a task last did something.** A
  * monitor's events are on no wire olai can reach — they go to the model and to
  * the task's own output file, and no message underneath the adapter carries one
- * (`acp/patches/README.md` records the measurement). A "last event 20s ago"
+ * (`packages/plugins/claude/acp/patches/README.md` records the measurement). A "last event 20s ago"
  * that was really "armed 20s ago" would be the panel inventing the one fact a
  * person would trust it for. So the strip says what it knows: this is out, and
  * this is how long it has been. An AGENT is the case where that limit does not
@@ -136,8 +136,8 @@ function Strip(props: { readonly chat: Chat }) {
              * press the agent, and its work opens in the shelf below. A
              * background task has nothing behind that door and never will: its
              * events reach the model and the task's own output file, and no
-             * message underneath the adapter carries one (`acp/patches/
-             * README.md` records the measurement). A control that opened an
+             * message underneath the adapter carries one (`packages/plugins/claude/acp/
+             * patches/README.md` records the measurement). A control that opened an
              * empty box would be worse than no control, so the two are drawn
              * as what they are — one pressable, one not.
              */

@@ -6,7 +6,7 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
-  "//exports": "FIVE, and the split is the tree's three-door rule with nothing added. `./server` is what the row mounts: the leg, the pair of probes this row is (the pinned adapter from `OLAI_ACP_PI`, the wrapped agent from the search path), and the install sentence — no `solid-js` anywhere on that graph. `./browser` is the chunk the tab fetches when the roster names this plugin, and it carries exactly one face: the mark this engine wears in a transcript's speaker column. The ROOT is the wire identity and nothing more — this plugin composes no sibling surface. `./testids` and `./all.css` are the two contracts the generated bundle files need of every row.",
+  "//exports": "FIVE, and the split is the tree's three-door rule with nothing added. `./server` is what the row mounts: the leg, the pair of probes this row is (the pinned adapter from `OLAI_ACP_PI`, the wrapped agent from the search path), and the install sentence — no `solid-js` anywhere on that graph. `./browser` is the chunk the tab fetches when the roster names this plugin, and it carries TWO things and only one of them is a face: the MARK this engine wears in a transcript's speaker column (a `<g>`, which is genuinely this plugin's drawing), and its INSTALL SENTENCE for the panel's no-agent face (a `NotHere` VALUE — core draws every stroke of that row and this package writes every word of it). The ROOT is the wire identity and nothing more — this plugin composes no sibling surface. `./testids` and `./all.css` are the two contracts the generated bundle files need of every row.",
   "exports": {
     ".": "./src/index.ts",
     "./server": "./src/server.ts",

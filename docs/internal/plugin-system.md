@@ -892,8 +892,12 @@ that matters.
    goes in `packages/plugins/` and nowhere else — that directory is the tenant
    container, held to the registry's roster in both directions by
    `fence.test.ts`'s ninth claim. Copy either tenant's manifest for the shape:
-   `main`, `types`, a `typecheck` script, and an `exports` map of five entries
-   (`.`, `./wire`, `./server`, `./testids`, `./all.css`). Declare
+   `main`, `types`, a `typecheck` script, and an `exports` map of the five
+   doors EVERY plugin has — `.`, `./server`, `./browser`, `./testids`,
+   `./all.css` — plus `./wire` if you compose a sibling surface. An ENGINE does
+   not (step 6). `./browser` is the one to get right: it is the subpath
+   `packages/bundle/generate.ts` emits the tab's dynamic `import()` against, so a
+   manifest without it generates a browser row that will not resolve. Declare
    `@olai/plugin-api` — the interface, which both halves import for the tags they
    name and the `definePlugin` that turns an Effect into a plugin — `effect`,
    your appliance's client, `@olai/format` if you walk the vault, `solid-js` if

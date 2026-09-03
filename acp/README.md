@@ -1,6 +1,6 @@
 # `acp/` — the npm shim the shipped ACP adapters are pinned through
 
-Two files, and they are the whole of this directory: a `package.json` naming
+Two files besides this README, and they are the whole of what is committed here: a `package.json` naming
 the adapters olai ships, and the lockfile npm resolved them to. Nothing here is
 imported by any olai source. `nix/acp-agent.nix` builds it — one fixed-output
 derivation for the tarballs, nothing fetched at build time, no `npx` at run

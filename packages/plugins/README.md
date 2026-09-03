@@ -19,12 +19,15 @@ apart — same shape, same doors, same five states in the preferences panel, sam
   `xyne-spaces`. Each composes a sibling surface and draws faces on rows.
 - **ENGINES** — an ACP agent the chat panel can seat: `claude`, `opencode`,
   `pi`. Each hands over a `Leg` (how to read that agent's wire), a probe that
-  finds it on this host, the whole sentence for a machine that has not installed
-  it, and the channel its standing prompt rides. It composes NO surface: what it
+  finds it on this host, and the channel its standing prompt rides — and, on its
+  browser half, the mark it wears and the whole sentence for a machine that has
+  not installed it. It composes NO surface: what it
   contributes to a tab already travels on the chat cell, which is core's. One
   directory each because they share no release clock — the Claude adapter's pin
   moved five times in a month and opencode's has never moved — and because
   `--plugins` then enables them one at a time.
+
+**A TENANT HAS A `README.md` AND AN ENGINE DOES NOT**, which is a ruling rather than an omission. A tenant's README is olai's account of somebody else's appliance — five ways a padi can fail, which vault file is kolu's by convention — and there is nowhere else for that to live. An engine's account of itself is two things that already exist: its `docs.md` (the user page, symlinked into `docs/plugins/`), and [`@olai/acp`](../acp/README.md)'s `./engine` door, which is where the shape every engine fills in is argued once for all of them. A third telling per engine would be the same paragraph three times, drifting.
 
 What does NOT go in it: the interface those tenants are written against. That is
 [`@olai/plugin-api`](../plugin-api/README.md), one directory over, with the registry that lists them in [`@olai/bundle`](../bundle/README.md) beside it, and the

@@ -290,7 +290,7 @@ export const taskNotificationIn = (text: string, meta: Meta): TaskNotice | null 
  *
  * THE THIRD READING of that same `_meta` corner, and the one that is not in
  * the adapter as it ships: `_meta.claudeCode.backgroundTask` is written by the
- * patch olai carries on its pin (`acp/patches/README.md`), which is PR #941's
+ * patch olai carries on its pin (`../acp/patches/README.md`), which is PR #941's
  * approach extended to every task the harness registers. Without it the wire
  * says a `Monitor` COMPLETED at the instant it started — the acknowledgement
  * read as the result — so an armed watch and a finished one are the same row,
@@ -442,7 +442,7 @@ const wordIn = (
  *
  * The SECOND reading of this corner that comes from the patch olai carries on
  * its pin (the first is {@link backgroundTaskIn}): that the list has anything
- * more to say at all is the patch's own news (`acp/patches/README.md`),
+ * more to say at all is the patch's own news (`../acp/patches/README.md`),
  * because ACP's `SessionInfo` answers `{sessionId, cwd, title, updatedAt}`
  * and stops, and the picker's per-row count and `superseded by` pair had
  * nothing to read (`@olai/chat`'s `events.ts`'s `Stored` is where the two land).

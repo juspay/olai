@@ -117,7 +117,7 @@ describe("when it says nothing", () => {
     // The row is the same row and its birth is where the record starts — an
     // agent sent out this morning, which reported, and which was sent more work
     // three hours later. The adapter reopens the call that spawned it
-    // (`acp/patches/README.md`), so the clock has two instants to choose from
+    // (`packages/plugins/claude/acp/patches/README.md`), so the clock has two instants to choose from
     // and only one of them answers *how long has this been out*: a readout off
     // the birth would say 3h under an agent that went out a minute ago, and it
     // would go on being wronger every minute. The strip above the scroll counts

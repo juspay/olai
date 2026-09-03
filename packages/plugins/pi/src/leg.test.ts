@@ -46,7 +46,7 @@ describe("which tool a call is", () => {
 
 describe("which permissions are answered without asking", () => {
   test("NONE — olai's tools ARE pi's own now, and pi never asks on this wire", () => {
-    // The pin's bridge (acp/patches/README.md) registerTools the handed
+    // The pin's bridge (../acp/patches/README.md) registerTools the handed
     // servers INTO the agent under the same names the other agents answer
     // by — and pi-acp still mints NO permission requests about calls on
     // such a wire: its own settings govern its tools, not an answering
