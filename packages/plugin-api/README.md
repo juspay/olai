@@ -8,80 +8,102 @@ olai integrates with three things that are not olai: [kolu](https://kolu.dev), w
 
 | door | who opens it | what it carries |
 | --- | --- | --- |
-| `.` | a plugin's BROWSER half, and `@olai/web` | the six SLOTS a face hangs in and the services a half names in its `inject` ([`src/browser.ts`](src/browser.ts)), plus the face TYPES that say what each of those faces is handed ([`src/plugin.ts`](src/plugin.ts)). It was `OlaiPlugin` — a manifest VALUE carrying `dressings`, `chrome`, `mount` and `mark` — beside `AppFurniture`, the one record the app handed every face as a prop; **neither is exported any more**, and the section below says what retired them. Every face returns `JSX.Element`, so this door names `solid-js`, and it names `cordis` too now that the slot table is a `Service` a browser half is loaded into |
-| `./services` | a plugin's SERVER half, and `@olai/server`'s composition root | the Cordis `Service` classes a plugin's `inject` names, the events it listens on, and the declaration merging that types `ctx.vault`. This door names `cordis` and no browser face |
+| `.` | a plugin's BROWSER half, and `@olai/web` | the six SLOTS a face hangs in and the service TAGS a half names in its `needs` ([`src/browser.ts`](src/browser.ts)), plus the face TYPES that say what each of those faces is handed ([`src/plugin.ts`](src/plugin.ts)). It was `OlaiPlugin` — a manifest VALUE carrying `dressings`, `chrome`, `mount` and `mark` — beside `AppFurniture`, the one record the app handed every face as a prop; **neither is exported any more**, and the section below says what retired them. Every face returns `JSX.Element`, so this door names `solid-js`; it also carries `definePlugin`, because a browser half is a plugin exactly as a server half is |
+| `./services` | a plugin's SERVER half, and `@olai/server`'s composition root | the Effect service TAGS a plugin's `needs` lists, the one waterfall it may add a link to, `definePlugin` and `detached` — and, for a composition root, `openPlugins`, which is the other end of every door on it. This door names `effect` and no browser face |
 
 A server that reached the first door would evaluate a `.tsx` and die on `Cannot find module 'react/jsx-dev-runtime'` before it served anything. `@olai/bundle`'s [`fence.test.ts`](../bundle/src/fence.test.ts) walks the services door and holds it to the same list a server door is held to.
 
+**Neither door names the plugin runtime.** olai is written in Effect, and the runtime under a plugin is Cordis; the translation between them is one package, [`@olai/effect-cordis`](../effect-cordis/README.md), and **this package is the door onto it** — for a plugin, and for a composition root too. [`src/runtime.ts`](src/runtime.ts) is that one list, re-exported verbatim by both doors above. What a plugin gets is olai's tags and olai's `definePlugin`; that there is an engine at all is this package's business.
+
+Two of the bridge's exports are deliberately not on that list, and they are the only two that could not be: `openHost` and `provide` are the CAPABILITY rather than the vocabulary — a plugin that could open a host could provide itself the services it is meant to name. This package spends both on the caller's behalf, in `openPlugins` and `openApp`. Everything else it re-exports, `rowReport` and the row types included, is either what a plugin writes with or what a root reads afterwards.
+
+One thing is reached past this door, by `@olai/bundle` and nobody else: `@olai/effect-cordis/loader`, to mount the rows. That is a GRAPH and not an exemption — the loader carries `node:url`, `node:fs` and a YAML parser, so re-exporting it from here would put all of it on the door a tab opens, and that does not fail at a boundary claim, it fails at `bun build`. The ruling being kept is about **`cordis`**, not about the bridge — `@olai/bundle`'s [`fence.test.ts`](../bundle/src/fence.test.ts) holds *Cordis is an engine nobody outside one package sees* as an equality over every package in the tree, and `scripts/prove-fence.sh`'s mutation 16 is a plugin importing the engine directly.
+
 [`src/contract.ts`](src/contract.ts) is what both halves share — `PropKind`, `Probed`, `NotHere`, `StdioServer`, `Deliveries`, `Wake`, `PluginWire`, and the word a kind is composed into. Data shapes with no runtime behind them, so neither process pays for the other's graph.
 
-## The server half is a Cordis plugin
+## The server half is an Effect
 
 ```ts
-export const name = "odu"
-export const inject = ["clock", "deliveries", "env", "kinds", "log", "surfaces", "vault", "wakes"]
-
-export function apply(ctx: Context) { … }
+export default definePlugin({
+  name,
+  needs: [Clock, Deliveries, Env, Kinds, SessionStart.key, Surfaces, Vault, Wakes],
+  apply: Effect.gen(function*() { … }),
+})
 ```
+
+`definePlugin` is re-exported from this package rather than reached for in
+[`@olai/effect-cordis`](../effect-cordis/README.md), and that is deliberate: a
+plugin that had to name the bridge would be a plugin that knows there is one.
+What it imports is olai's interface; that the interface is built on a
+translation of a plugin runtime is this package's business and nobody else's.
 
 Three properties fall out of that, and none of them is a convenience.
 
-**A registration carries its own undo.** Every `register` method returns a disposer, attached by the service to the CALLING fiber with `ctx.effect`. Unloading a plugin unregisters exactly what it registered, in reverse; a plugin whose `apply` throws before it reached a `register` installed nothing at all, and its siblings stay ACTIVE. There is no teardown to write and none to forget. It replaced a `serve(services)` that returned a blob core took apart — a `deps`, a `published` hand-back, and two hooks a revision drove.
+**A registration carries its own undo.** Every `register` is an `Effect.acquireRelease` on the calling plugin's own `Scope`. Unloading a plugin closes that scope, which unregisters exactly what it registered, in reverse; a plugin whose `apply` failed before it reached a `register` installed nothing at all, and its siblings stay running. There is no teardown to write and none to forget — and where a half genuinely holds something the runtime cannot see, it writes one `Effect.addFinalizer` and nothing else (`olai-plugin-xyne-spaces` does, for its mirrors). It replaced a `serve(services)` that returned a blob core took apart — a `deps`, a `published` hand-back, and two hooks a revision drove.
 
-**`inject` is a reactive dependency.** The runtime holds the fiber `PENDING` until every named service exists, unloads it when one leaves, and re-applies it when one returns. A plugin that does not name `deliveries` cannot reach the doorbell — which is the part `PluginServices` could not express, because every plugin received every field whether it had a use for one or not.
+**`needs` is a reactive dependency AND the requirement channel.** The runtime holds the plugin `waiting` until every named service exists, unloads it when one leaves, and re-applies it when one returns; and the compiler computes the `R` of `apply` from the SAME array, so a service yielded and not named is a `tsc` error at the `definePlugin` call. A plugin that does not name `Deliveries` cannot reach the doorbell — which is the part `PluginServices` could not express, because every plugin received every field whether it had a use for one or not, and two hand-written declarations could disagree about.
 
-**The per-plugin STAMP is read inside the service.** `ctx.deliveries.deliver(...)`, `ctx.env.dial()`, `ctx.kinds.register(...)` and `ctx.surfaces.register(...)` all read `ctx.fiber.name` — the word the loader bound the row under, never an argument the caller supplied. The composition root used to close over a name to build `doorFor(plugin.name)` and `dials[plugin.name]`, which put a fence's keying in a file that must not know what it was keying. Same guarantee; nobody threads it.
+**The per-plugin STAMP is not an argument and cannot be spelled.** A keyed service is a *provision* — a function from the plugin's own word to that plugin's view of it — which the facade calls once, with the name it read off the fiber. So `deliveries.deliver(...)` has no parameter for "who", `env.dial` is already this plugin's double, and `kinds.register(...)` takes the bare word and composes the prefix itself. The composition root used to close over a name to build `doorFor(plugin.name)` and `dials[plugin.name]`, which put a fence's keying in a file that must not know what it was keying. Same guarantee, and now nowhere to put it wrong.
 
 | service | what it is |
 | --- | --- |
 | `env` | what the process can see, plus `dial()` — a test's injectable for THIS fiber |
 | `clock` | `now()`, as ISO-8601 |
-| `log` | `say` (routine, at debug) and `warn` (what the owner must read). Which of its own sentences goes where is the plugin's; which channel each level IS is the root's |
 | `vault` | the served directory, and the two doors its revisions ring |
-| `deliveries` | the doorbell — `scopes()` and `deliver(...)`, keyed by the calling fiber |
-| `kinds` | `register(kind)`, composing the word from the fiber's name |
+| `deliveries` | the doorbell — `scopes()` and `deliver(...)`, minted from the calling plugin's own word |
+| `kinds` | `register(kind)`, composing the word from the plugin's own name |
 | `surfaces` | `register({surface, faces, deps, published?})` — one sibling per plugin |
 | `wakes` | `register(wake)` — the sentence the strip draws, and the two a broken scope is owed |
 | `watching` | `subscribe(handler)` — conversation events, PUSHED: a doorbell that landed, an orchestrator reply that settled, a turn that started or ended. Never a human message, and never a read |
-| `held` | `load()` / `save(record)` — a small opaque record this plugin keeps about this serve, in the state home rather than the vault, keyed by the calling fiber |
+| `held` | `load` / `save(record)` — a small opaque record this plugin keeps about this serve, in the state home rather than the vault, minted from the calling plugin's own word |
+
+**There is no `log` service, and its absence is the phase.** It was `say` and `warn`, wired by the composition root to `ring(Effect.logDebug(line))` and `ring(Effect.logWarning(line))` — an Effect run from a callback, per line, because the plugin had no fiber to emit from. A plugin's `apply` IS a fiber, so `Effect.logDebug` and `Effect.logWarning` are what a plugin says its lines with and they arrive with the level the operator asked for, the annotations the serve set and the span it was inside. WHICH level a sentence goes at is still the plugin's decision and still the same one.
+
+**And one seam is named rather than reinvented.** An appliance is not written in Effect and is not wrapped, so where one fires a callback that has to start an Effect, a plugin takes `detached` once: it forks under the plugin's own services and onto the plugin's own scope, so a line carries the operator's level and work in flight when the plugin unloads goes with it.
 
 ## The hooks
 
 | hook | mode | what it replaced |
 | --- | --- | --- |
-| `ctx.vault.revision(handler)` | door | `PluginServer.revision(snapshot)`. The whole published snapshot; every listener narrows it in its own signature to the part it reads |
-| `ctx.vault.unloaded(handler)` | door | `PluginServer.unloaded()`. **Not teardown** — it means the STORE has never published, so a reading derived from the vault is yesterday's while what a plugin holds from its own daemon is untouched. Unloading the PLUGIN is the fiber being disposed, which unwinds every effect above |
-| `chat/session-start` | waterfall | `PluginServerHalf.probe`. A listener pushes a THUNK — its name and what it would ask — and the list is collected per session open, so a plugin that unloaded between conversations contributes nothing to the next one |
+| `vault.revision(handler)` | door | `PluginServer.revision(snapshot)`. The whole published snapshot; every listener narrows it in its own signature to the part it reads — a CLAIM about what the root rings rather than a check, because the door's payload is the handler's to name (one `as` in the provision, where three casts in three plugins used to be; `src/services.ts` argues what a checked one would cost) |
+| `vault.unloaded(handler)` | door | `PluginServer.unloaded()`. **Not teardown** — it means the STORE has never published, so a reading derived from the vault is yesterday's while what a plugin holds from its own daemon is untouched. Unloading the PLUGIN is its scope closing, which unwinds every registration above |
+| `SessionStart` | waterfall (Effect middleware) | `PluginServerHalf.probe`. A listener pushes a THUNK — its name and what it would ask — and the list is collected per session open, so a plugin that unloaded between conversations contributes nothing to the next one |
 
-Both vault hooks return an unsubscribe and are attached to the calling fiber, so
-a plugin the roster stops naming stops hearing revisions without remembering to
-say so.
+Both vault doors are registrations on the calling plugin's scope, so a plugin the
+roster stops naming stops hearing revisions without remembering to say so. Both
+take a handler that answers an Effect, and the publisher AWAITS every one of
+them: the root rings a revision from inside the directory binding's own
+connector, and the statements after it write a world every plugin has already
+re-derived. That is why they are not `Stream`s — a stream subscriber is a fiber
+of its own, and the publisher could only offer and walk on.
 
 **Why they are doors rather than events.** They were `ctx.on("vault/revision")`
-and `ctx.on("vault/unloaded")`, defended by a sentence that turned out to be
+and `ctx.on("vault/unloaded")` on the engine's own bus, defended by a sentence
+that turned out to be
 wrong: *both are emits, so a listener that throws is one listener's problem —
 the dispatcher contains it.* Cordis's `emit` is a bare `Reflect.apply` loop with
 no `try`. A plugin throwing on a revision silenced every plugin after it on that
 revision and failed the owned directory fiber that published it. Every listener
-is wrapped once inside the service now, warned with the calling fiber's name;
+is wrapped once inside the door now, warned with the calling plugin's name;
 the two events are removed from `Events` rather than kept beside the doors as an
 uncontained second way in. `surfaces/published` was declared and never emitted,
 so it is gone rather than implemented.
 
-## The browser half is a Cordis plugin too
+## The browser half is an Effect too
 
 ```tsx
-export const name = "odu"
-export const inject = ["slots", "clocks", "wired"]
-
-export function apply(ctx: Context) {
-  ctx.slots.register("outline.row.chip", WORKTREE_KIND, CiChip)
-}
+export default definePlugin({
+  name,
+  needs: [Slots, Clocks, Wired],
+  apply: Effect.gen(function*() {
+    yield* (yield* Slots).register("outline.row.chip", WORKTREE_KIND, CiChip)
+  }),
+})
 ```
 
 **It was a VALUE.** An `OlaiPlugin` manifest — `dressings`, `chrome`, `mount` and `mark` on one object — listed in a compiled-in registry and walked by four modules inside `@olai/web`. That shape was right while a browser half was a thing the tab HAD, and it stopped being right the day the tab followed the ROSTER. A manifest is present whether or not this serve composed the plugin, so every one of those four walks had to carry a LICENCE argument beside it — and the two licences pointed opposite ways, because a face drawn early and taken away is a flicker while a subscription opened early **latches** a `degraded` readout for the life of the page. Four walks, two licences, one `undefined`-means-wait, and a module of prose arguing the asymmetry, all because the tab held things it had no licence to use. A fiber the roster never named registers nothing, so there is nothing left to license: *no fiber, no surface, no handler* has an exact twin in the tab, which is *no fiber, no slot entry*.
 
-The three properties the server half gets fall out here unchanged. Every `ctx.slots.register(...)` is a `ctx.effect`, so a plugin the roster stops naming unwinds its own faces on the way out and the app re-reads what is left; `inject` holds the fiber PENDING until the app's services exist, so a half that names `bar` cannot draw before there is one; and the key a face is hung under is read INSIDE the service off `ctx.fiber.name`, never off an argument, so one plugin cannot sign a registration with another's name. A half whose `apply` throws lands in FAILED having installed nothing, and its siblings keep drawing.
+The three properties the server half gets fall out here unchanged. Every `slots.register(...)` is an `Effect.acquireRelease` on the plugin's scope, so a plugin the roster stops naming unwinds its own faces on the way out and the app re-reads what is left; `needs` holds it `waiting` until the app's services exist, so a half that names `Bar` cannot draw before there is one; and the key a face is hung under comes from the plugin's own word rather than from an argument, so one plugin cannot sign a registration with another's name. A half whose `apply` fails lands in `failed` having installed nothing, and its siblings keep drawing.
 
 **A face hangs in a DECLARED slot.** There are six ([`src/browser.ts`](src/browser.ts)'s `SLOTS`), and they are a table of DATA rather than four optional fields on an interface, because a registration has to be checkable against something: a plugin hanging a chip in the header is a mistake somebody should be told about at the moment they make it, and an optional field per hook can only be wrong silently.
 
@@ -94,9 +116,9 @@ The three properties the server half gets fall out here unchanged. Every `ctx.sl
 | `app.mount` | plugin | the tab's own half of this plugin, wrapped ONCE around the page — one subscription however many leaves draw. These NEST; the app folds them |
 | `chat.speaker.mark` | plugin | the shapes drawn over a sentence this plugin delivered into somebody's conversation — a `<g>` in a sixteen-unit box, never a whole `<svg>` |
 
-**There were seven.** `app.drawer` — the panel a header readout's press opens — was declared and read by NOBODY: the chrome walk draws `app.header`, and the one plugin with a panel hangs it on `ctx.bar.popover()`, which is the app's whole portalled panel rather than a slot. A slot nobody reads is a face registered into silence — the failure the app's own dressings walk names about this very table — so it is gone until something wants it and comes back as a walk beside `PluginHeaders` on the day one does.
+**There were seven.** `app.drawer` — the panel a header readout's press opens — was declared and read by NOBODY: the chrome walk draws `app.header`, and the one plugin with a panel hangs it on `Bar`'s `popover()`, which is the app's whole portalled panel rather than a slot. A slot nobody reads is a face registered into silence — the failure the app's own dressings walk names about this very table — so it is gone until something wants it and comes back as a walk beside `PluginHeaders` on the day one does.
 
-Two key rules, which is why there are two register doors and not six. A **plugin**-keyed slot holds one face per plugin, under the fiber's own name. A **kind**-keyed one holds one face per property KIND, under the word this plugin's bare kind composes to — composed by `ctx.slots` with `kindWordOf`, the same function `ctx.kinds` uses on the server, so the word a face is looked up by and the word a vault declares cannot be two spellings. A second face in one slot under one key is refused inside the effect body, which fails that fiber and leaves every other plugin's faces untouched.
+Two key rules, which is why there are two register doors and not six. A **plugin**-keyed slot holds one face per plugin, under the plugin's own name. A **kind**-keyed one holds one face per property KIND, under the word this plugin's bare kind composes to — composed by `Slots` with `kindWordOf`, the same function `Kinds` uses on the server, so the word a face is looked up by and the word a vault declares cannot be two spellings. A second face in one slot under one key is refused inside `acquire`, which fails that plugin and leaves every other plugin's faces untouched.
 
 ## What is deliberately not here
 
@@ -110,17 +132,17 @@ A plugin's tool is not necessarily on the machine olai is serving from, so a plu
 
 It replaces three fields. A `probe` beside an `mcpServer` was those two readings; and a `failures` table — `Record<tag, string>` — **cannot hold the sentences that exist**, because three of kolu's five carry a deadline, a cause or the daemon's own refusal, none of which is knowable before the failing. A table core looked a tag up in would leave core composing what it must not compose. So the sentence rides on the answer, whole, and core displays it.
 
-The probe takes **what the process can see** — `ctx.env.vars`, and nothing else. Finding an executable depends on the environment and on nothing else, and a probe that read `process.env` itself would answer a different question than the one a session.s own spawn will ask.
+The probe takes **what the process can see** — `Env`'s `vars`, and nothing else. Finding an executable depends on the environment and on nothing else, and a probe that read `process.env` itself would answer a different question than the one a session.s own spawn will ask.
 
 `@olai/chat` declares the shape of the question and each plugin declares its own answer, and **neither imports this package**: a plugin may not (the registry imports every plugin), and chat is a general package a floor below the plugin system that is handed a list. The two spellings meet in one expression at the composition root, where a drift between them is a type error.
 
 ## One doorbell, and what it may say
 
-A plugin may put a **sentence into a conversation**, and that is the whole of the capability: [`ctx.deliveries`](src/contract.ts) is `scopes()` — which conversations opted into *this* plugin's wakes, each with the file a person picked to filter by — and `deliver(to, body, options?)`. There is no terminal here, no fleet, no board and no watcher; the door is generic or it does not land.
+A plugin may put a **sentence into a conversation**, and that is the whole of the capability: [`Deliveries`](src/contract.ts) is `scopes()` — which conversations opted into *this* plugin's wakes, each with the file a person picked to filter by — and `deliver(to, body, options?)`. There is no terminal here, no fleet, no board and no watcher; the door is generic or it does not land.
 
 **Write-only, and that is the load-bearing half.** There is no `read`, no `transcript`, no `history`, and no arm of the interface where one could be added without saying so in the type. A plugin can put words INTO a conversation and can never learn what is in one — not what a person typed, not what the agent answered, not whether anybody read it. A capability that could do both would be the appliance reading the human's mail, and no amount of care at the call site takes that back afterwards.
 
-**Keyed by the CALLING FIBER**, beside `dial` and by the same rule: the service reads `this.ctx.fiber.name`, which is the word the loader bound the row under and not something a caller can spell. An unkeyed door would hand one plugin the conversations a person scoped to another, and a door keyed by an argument would let one plugin sign another.s name onto a row that reaches an agent. The composition root used to close over the name; it does not any more, which takes a fence.s keying out of a file that must not know what it is keying. It is **required** rather than optional, unlike `dial`: a real serve legitimately dials nothing, and there is no serve where the door is missing — a machine with no ACP agent answers `scopes()` with the empty list forever, which is the honest machine-without-the-tool state and needs no failure channel on a verb that cannot fail.
+**Minted from the calling plugin's own word**, beside `dial` and by the same rule: the provision is called once with the name the registry bound the plugin under, so neither verb has a parameter a caller could spell. An unkeyed door would hand one plugin the conversations a person scoped to another, and a door keyed by an argument would let one plugin sign another.s name onto a row that reaches an agent. The composition root used to close over the name; it does not any more, which takes a fence.s keying out of a file that must not know what it is keying. It is **required** rather than optional, unlike `dial`: a real serve legitimately dials nothing, and there is no serve where the door is missing — a machine with no ACP agent answers `scopes()` with the empty list forever, which is the honest machine-without-the-tool state and needs no failure channel on a verb that cannot fail.
 
 What core does with a body is three arms, and which one it took is never reported back — there is no arm a plugin would answer differently. A conversation whose agent is **idle** takes it as a turn of its own, on a row marked with the plugin's name (`@olai/surface`'s `rang`, stamped by core from the registry binding, never by the caller). A conversation whose agent is **mid-turn** HOLDS it until the turn boundary, because a message that arrived alongside a running turn would spend the human's interruption with nobody having typed anything ([`@olai/chat`](../chat/README.md)'s `queuedHere`). A conversation **nobody is in** holds it until somebody opens it. Bodies sharing a `coalesce` key replace each other in place while they are still held, which is what lets a plugin send a fresh whole sentence per event and have a person read one message rather than five.
 
@@ -134,7 +156,7 @@ What core does with a body is three arms, and which one it took is never reporte
 
 ## One hold, and it is core's file
 
-A plugin may keep a **small record about this serve** — thread ids, a queue — and that record lives in the state home, not the vault. `ctx.held` ([`src/services.ts`](src/services.ts)) is `load()` and `save(value)`: core owns the file ([`@olai/state`](../state/README.md), keyed by the CALLING FIBER the way `deliveries` is), the plugin parses what it wrote. `save` is fire-and-forget and **ordered**, so successive snapshots of one in-memory state land in the order they were handed over. `@olai/state` stays out of every tenant: a plugin that imported it would become the sole reacher and the package would silently join that tenant's exemption set.
+A plugin may keep a **small record about this serve** — thread ids, a queue — and that record lives in the state home, not the vault. `Held` ([`src/services.ts`](src/services.ts)) is `load` and `save(value)`: core owns the file ([`@olai/state`](../state/README.md), minted per plugin the way `Deliveries` is), the plugin parses what it wrote. `save` is fire-and-forget and **ordered**, so successive snapshots of one in-memory state land in the order they were handed over. `@olai/state` stays out of every tenant: a plugin that imported it would become the sole reacher and the package would silently join that tenant's exemption set.
 
 Required like `deliveries`. A machine that cannot write the file warns; the plugin is not asked to care.
 
@@ -160,20 +182,22 @@ A plugin's browser half draws a chip that TICKS, a pill in the app's bar, a pane
 | `clocks` | the app's own duration arithmetic — the two-speed live clock, the ladder a settled span is said in, and the register a running one ticks in |
 | `bar` | the chrome pill's classes, the desktop breakpoint, and a popover already wearing the bar's portal, layer, anchor and one focus cycle |
 | `links` | a door onto a served file: the app's router and its address grammar as the one thing a plugin wants out of them |
-| `wired` | this plugin's OWN sibling client, keyed by the fiber so it cannot be asked for under another plugin's name. Not furniture — the browser twin of `ctx.surfaces` |
+| `wired` | this plugin's OWN sibling client, minted from its own word so it cannot be asked for under another plugin's name. Not furniture — the browser twin of `Surfaces` |
 
-**It was ONE record.** `AppFurniture`, five fields, handed to every face as a prop — and the blob was right while a plugin's faces were values the app CALLED, because there was nothing to inject them into. A fiber has an `inject`, so a half now names what it needs and Cordis holds it PENDING until it exists, which is the same guarantee its server half has had since the bundle became rows. That is `PluginServices`' argument arriving on the browser side one round later: a plugin that draws no chrome names no `bar`, exactly as a plugin that cannot ring names no `deliveries`. Four rather than five because the blob's `desktop` is the BAR's own fact and travels with the bar's geometry.
+**It was ONE record.** `AppFurniture`, five fields, handed to every face as a prop — and the blob was right while a plugin's faces were values the app CALLED, because there was nothing to give them to. A plugin has a `needs`, so a half now names what it wants and the runtime holds it `waiting` until it exists, which is the same guarantee its server half has had since the bundle became rows. That is `PluginServices`' argument arriving on the browser side one round later: a plugin that draws no chrome names no `bar`, exactly as a plugin that cannot ring names no `deliveries`. Four rather than five because the blob's `desktop` is the BAR's own fact and travels with the bar's geometry.
 
 **A face is handed less than it was, and closes over the rest.** A header readout is `() => JSX.Element` now, because everything it used to be given as a prop is on the context its own `apply` was handed. The three `outline.row.*` faces still take the drawer's context, and that is structural rather than a leftover: a chip is drawn per value and cannot close over WHICH value.
 
-**Every function a plugin may HOLD is bound**, and that is a bug this shape caused once. A record's fields are values, so `clocks.tickingOf` was a function a face could pass to a helper; a class's prototype method detached from its receiver reads `this.config` off `undefined`. The same expression that had been correct for the life of the feature started throwing deep inside a render, on a page that happened to draw a live CI chip, because the seam changed underneath it. So `Clocks`, `Bar` and `Links` hand out `=` properties bound at construction. `Wired.client()` deliberately is NOT one, and the difference is which failure the same mistake buys: it reads the CALLING fiber's name through Cordis's tracker proxy, so a bound copy would hand every plugin whichever client the service was constructed under — one plugin reading another's members with nothing going red — where an unbound method throws at the first call and names the line.
+**Every function a plugin may HOLD is holdable**, and that is a bug this shape caused once. A record's fields are values, so `clocks.tickingOf` was a function a face could pass to a helper; when the record became service CLASSES it became a prototype method, and a method detached from its receiver reads `this.config` off `undefined`. The same expression that had been correct for the life of the feature started throwing deep inside a render, on a page that happened to draw a live CI chip, because the seam changed underneath it — and every function had to be re-declared as a bound `=` property to get back what the record already was.
+
+There are no classes left: a tag's shape IS the record, provided as one. `Wired.client` was the exception that had to stay unbound — it read the CALLING fiber through a tracker proxy, so a bound copy would have handed every plugin one plugin's client, quietly and forever — and it is not an exception any more either: this plugin's client was resolved from this plugin's own word before the plugin ever ran. [`src/browser.test.ts`](src/browser.test.ts) holds both halves anyway, because what they are about is the SEAM's promise rather than the mechanism that happened to keep it.
 
 That whole arrangement is `@olai/web`'s own `BlockChrome` scaled up — the drawer already hands a face its fact line rather than letting the face spell `"prop"` — and it is the only shape available: the app mounts every plugin, so a plugin that imported the app for those names would be a cycle. Each plugin still re-declares the part it reads, structurally, and contravariance makes that the **stronger** agreement: a plugin asking for something the app does not hand over is a type error with that plugin's name on the file. What moved is WHERE that error lands — it was the registry's `satisfies` over a manifest, and it is now the line in the plugin's own `apply` that composes its reading out of the services it injected ([`olai-plugin-kolu`](../plugins/kolu/README.md)'s `src/browser/app.ts`).
 
 
 ## One watching bus, and what it is not
 
-A plugin that MIRRORS a conversation — into team chat, into a log, into anything — needs to know what happened in one. `ctx.watching.subscribe(handler)` is that, and the shape of it is the whole argument: core **pushes**, in three kinds (`delivered`, `replied`, `turn`), and **a human message is not among them**.
+A plugin that MIRRORS a conversation — into team chat, into a log, into anything — needs to know what happened in one. `Watching`'s `subscribe(handler)` is that, and the shape of it is the whole argument: core **pushes**, in three kinds (`delivered`, `replied`, `turn`), and **a human message is not among them**.
 
 That keeps `deliveries`' write-only promise exactly where it was. A plugin can put words into a conversation and be told what the MACHINE did in one; it still cannot learn what a person typed. Two doors, opposite directions, and neither is a transcript — which is a stronger claim than "we chose not to expose it", because there is no arm of either interface where the person's words could be added without saying so in the type.
 
@@ -181,6 +205,6 @@ The subscription is an **effect**: it returns a disposer attached to the calling
 
 ## One held record, and core does not open it
 
-`ctx.held` is a small opaque record per plugin per vault, in the **state home** rather than the vault — `@olai/state`'s file, which no plugin imports. Core owns the file and keys it by the calling fiber, the way the doorbell's door is keyed and for the same reason: a record keyed by nobody would let one plugin read and overwrite another's.
+`Held` is a small opaque record per plugin per vault, in the **state home** rather than the vault — `@olai/state`'s file, which no plugin imports. Core owns the file and mints the door from the calling plugin's own word, the way the doorbell's door is minted and for the same reason: a record keyed by nobody would let one plugin read and overwrite another's. The door is minted ONCE per plugin, which is what makes the ordering below true — it was minted per CALL, and the chain that orders the writes lives on the door.
 
 `save` is fire-and-forget and **ordered**. Successive snapshots of one in-memory state land in the order they were handed over, so a drain that persisted `queue:[B]` and then `queue:[]` cannot have the empty lose the rename race to the earlier one and come back on the next boot as a digest already posted.

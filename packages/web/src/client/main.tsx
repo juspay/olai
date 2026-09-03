@@ -117,7 +117,7 @@ if (root === null) throw new Error("no #root element")
 // THE APP'S OWN CONTRACT, on the plugin context, before anything renders — the
 // clock and its duration register, the chrome pill's geometry and the popover
 // that shares the bar's focus cycle, and a door onto a served file. A browser
-// half NAMES these in its `inject` and Cordis holds its fiber `PENDING` until
+// half NAMES these in its `needs` and the runtime holds it `waiting` until
 // they exist, so this could in principle be late; it is awaited here because a
 // face that draws a beat after its neighbours is a flicker nobody chose, and
 // because the ORDER is then a line somebody can read rather than a race

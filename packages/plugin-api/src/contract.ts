@@ -1,3 +1,5 @@
+import type { Effect } from "effect"
+
 /**
  * THE SHAPES BOTH HALVES OF A PLUGIN SHARE — what a probe answers, what a kind
  * is, what a doorbell may do, and the three fields that ARE a plugin's identity.
@@ -6,12 +8,12 @@
  *
  * `./plugin.ts` is the BROWSER half's interface and its fields return
  * `JSX.Element`, so it names `solid-js`. `./services.ts` is the SERVER half's
- * and it names `cordis`. Neither process wants the other's graph — a server
- * that evaluated a `.tsx` dies on `react/jsx-dev-runtime` before it has served
- * anything, which is not hypothetical (`@olai/server`'s `pluginPolicy.ts`
- * carries that hazard on the import that looked innocent). What both halves
- * genuinely share is a handful of DATA shapes with no runtime behind them at
- * all, and this is them.
+ * and it names `effect` and the bridge. Neither process wants the other's
+ * graph — a server that evaluated a `.tsx` dies on `react/jsx-dev-runtime`
+ * before it has served anything, which is not hypothetical (`@olai/server`'s
+ * `pluginPolicy.ts` carries that hazard on the import that looked innocent).
+ * What both halves genuinely share is a handful of DATA shapes with no runtime
+ * behind them at all, and this is them.
  *
  * ## And why they are in this package rather than in the registry
  *
@@ -168,8 +170,8 @@ export interface PropKind {
    * THE BARE WORD THIS PLUGIN CONTRIBUTES — `terminal`, not `kolu-terminal`.
    *
    * The SERVICE prefixes it with the registering fiber's own name
-   * ({@link kindWordOf}, this file's, called by `ctx.kinds` on the server and by
-   * `ctx.slots` in the tab so that one word cannot become two spellings), so
+   * ({@link kindWordOf}, this file's, called by the `Kinds` service on the server
+   * and by `Slots` in the tab so that one word cannot become two spellings), so
    * what a vault declares is `kolu-terminal` and what the page's licence carries
    * is the same. It is the move the wire already makes
    * with a member — a plugin declares `fleet` and the framework composes
@@ -181,14 +183,14 @@ export interface PropKind {
    *     been using for something of their own.
    *
    * A plugin writes the bare word once and the composition happens where the
-   * FIBER's name is: inside the service, off `ctx.fiber.name`, never off an
-   * argument a caller supplied. What each plugin does spell for itself is a copy
-   * of that composition for its own vault walk — a constant beside the bare word
-   * (`olai-plugin-odu`'s `WORKTREE_TYPE`), which it wrote when it could not
-   * import this package at all and still writes now that it can, because the
-   * walk wants the composed word at module scope and a registration has not
-   * happened yet there. `@olai/bundle`'s `kinds.test.ts` holds the two spellings
-   * equal.
+   * plugin's own name is: inside the service, minted from the word the registry
+   * bound it under, never off an argument a caller supplied. What each plugin
+   * does spell for itself is a copy of that composition for its own vault walk —
+   * a constant beside the bare word (`olai-plugin-odu`'s `WORKTREE_TYPE`), which
+   * it wrote when it could not import this package at all and still writes now
+   * that it can, because the walk wants the composed word at module scope and a
+   * registration has not happened yet there. `@olai/bundle`'s `kinds.test.ts`
+   * holds the two spellings equal.
    */
   readonly kind: string
   /** What the clause naming this kind says in a refusal — `` `kolu-terminal` (a
@@ -244,17 +246,6 @@ export type ConversationSeen =
     readonly session: string
     readonly status: "working" | "done"
   }
-
-/**
- * THE WATCHING BUS — subscribe to {@link ConversationSeen}, get an unsubscribe.
- *
- * Fire-and-forget on the plugin's side: the handler is a sink, like
- * {@link Deliveries.deliver}. Core does not wait for whatever the plugin
- * does with the event.
- */
-export interface Watching {
-  readonly subscribe: (handler: (event: ConversationSeen) => void) => () => void
-}
 
 /**
  * ONE GENERIC CAPABILITY: DELIVER A MESSAGE INTO A CONVERSATION — the whole of
@@ -321,12 +312,17 @@ export interface Deliveries {
    * as that session's first message. Which arm a body took is not reported back,
    * because there is no arm a plugin would answer differently.
    *
-   * FIRE AND FORGET, like {@link ./services.ts}'s `Log.say` and `Log.warn`
-   * beside it — the two that were `PluginServices` fields when this was one blob
-   * of seven, and are a service of their own now — and for their reason: the
-   * caller is a
-   * sink with nowhere to put a failure, and a rejected promise nobody has a
-   * reason to catch is an unhandled rejection in somebody's server log.
+   * AN EFFECT THAT CANNOT FAIL, which is the same "fire and forget" the two log
+   * channels beside it once were, said in the type. It is an Effect because BOTH
+   * ends of it are one: `@olai/chat`'s own door hands one back, and a plugin
+   * `yield*`s it from inside its own fiber. It used to answer `void`, which meant
+   * a composition root stood between the two forking the chat's Effect for the
+   * plugin — a bridge with a fiber on both sides of it, and the one place a
+   * dropped return value was silent.
+   *
+   * `never` in the error channel is the honest half rather than an omission: the
+   * caller is a doorbell with nowhere to put a refusal, and there is no arm of
+   * the three below a plugin would answer differently.
    *
    * THE BODY MUST CARRY ITS OWN ATTRIBUTION, and this is the one thing this door
    * asks of the words. Core marks the row, and the mark is a live affordance the
@@ -412,7 +408,7 @@ export interface Deliveries {
        */
       readonly coalesce?: string
     },
-  ) => void
+  ) => Effect.Effect<void>
 }
 
 /** One plugin's wire half — its sibling key, its surface, and which of its

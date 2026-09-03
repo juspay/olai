@@ -265,7 +265,7 @@ const surfaceMapOf = (
   halves: ReadonlyArray<BrowserHalf>,
 ): Record<string, Surface<SurfaceSpec>> =>
   Object.fromEntries(
-    halves.map((half) => [half.name, half.surface as Surface<SurfaceSpec>]),
+    halves.map((half) => [half.default.name, half.surface as Surface<SurfaceSpec>]),
   )
 
 /**

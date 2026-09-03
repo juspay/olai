@@ -57,10 +57,9 @@
 import { Show } from "solid-js"
 import { Portal } from "solid-js/web"
 
-import type { AppClocks, AppPopover, FileLink } from "@olai/plugin-api"
-import { Bar, Clocks, Links } from "@olai/plugin-api"
+import type { AppClocks, AppPopover, Bar, FileLink, Links } from "@olai/plugin-api"
 
-import { ctx } from "./runtime.ts"
+import { furnish } from "./runtime.ts"
 
 import { styleOf } from "../anchor.ts"
 import { createTicking, MINUTE, SECOND } from "../clock.ts"
@@ -133,7 +132,7 @@ const panelPopover = (): AppPopover => {
   }
 }
 
-/** THE APP'S CLOCK AND THE REGISTER IT TICKS IN, as `ctx.clocks` carries it. */
+/** THE APP'S CLOCK AND THE REGISTER IT TICKS IN, as `Clocks` carries it. */
 export const CLOCKS: AppClocks = {
   SECOND,
   MINUTE,
@@ -145,8 +144,8 @@ export const CLOCKS: AppClocks = {
 }
 
 /** THE BAR — its breakpoint, its geometry and the panel that hangs off it, as
- *  `ctx.bar` carries them. */
-export const BAR: Bar.Config = {
+ *  `Bar` carries them. */
+export const BAR: Bar = {
   desktop,
   pill: {
     PILL,
@@ -158,11 +157,15 @@ export const BAR: Bar.Config = {
     DOT_HOLLOW_ALARM,
     TEXT_ALARM,
   },
-  createPopover: panelPopover,
+  // `popover` and not `createPopover`: the config field and the member used to
+  // be two words for one thing, because a facade class renamed it on the way
+  // through. There is no facade — the tag's shape IS this record — so there is
+  // one word.
+  popover: panelPopover,
 }
 
-/** ...and the door onto a served file, as `ctx.links` carries it. */
-export const LINKS: Links.Config = { File: FileDoor }
+/** ...and the door onto a served file, as `Links` carries it. */
+export const LINKS: Links = { File: FileDoor }
 
 /**
  * ...AND THE THREE, MOUNTED — the one thing this module does rather than
@@ -180,12 +183,10 @@ export const LINKS: Links.Config = { File: FileDoor }
  *
  * ORDER, said out loud: `./main.tsx` awaits this before it renders, and the
  * roster cannot arrive before it — the first frame is a network round trip
- * away. A plugin fiber that DID beat it would sit `PENDING` on the service it
- * injects and start when it arrived, which is Cordis's own guarantee rather
- * than something this ordering has to be careful about.
+ * away. A plugin that DID beat it would sit `waiting` on the service it names
+ * and start when it arrived, which is the runtime's own guarantee rather than
+ * something this ordering has to be careful about.
  */
 export const provideFurniture = async (): Promise<void> => {
-  await ctx.plugin(Clocks, CLOCKS)
-  await ctx.plugin(Bar, BAR)
-  await ctx.plugin(Links, LINKS)
+  await furnish({ clocks: CLOCKS, bar: BAR, links: LINKS })
 }

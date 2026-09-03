@@ -6,13 +6,30 @@
  * `@olai/server` are about the WIRING; what is left, and what is here, is the
  * one thing neither can ask: whether a service's table tells the truth after a
  * registration that did not take.
+ *
+ * ## The plugins here are Effects, which is what makes half of this readable
+ *
+ * A case builds the runtime with {@link openPlugins}, mounts a plugin written
+ * exactly as a real one is, and reads the doors. What it does NOT do is reach
+ * for a Cordis context: there is none to reach for, in this package or in any
+ * other but one.
  */
 
 import { expect, test } from "bun:test"
-import { Context, FiberState } from "cordis"
+import { Cause, Effect, Layer, Logger } from "effect"
 
-import type { SessionStart } from "./services.ts"
-import { Kinds, Surfaces, Vault } from "./services.ts"
+import {
+  Deliveries,
+  Held,
+  definePlugin,
+  Kinds,
+  mountPlugin,
+  openPlugins,
+  type PluginsConfig,
+  SessionStart,
+  Surfaces,
+  Vault,
+} from "./services.ts"
 
 /** What a probe answers on a machine that simply does not have the tool — the
  *  ordinary arm, and the one these cases need because none of them is about
@@ -23,138 +40,150 @@ const NOTHING_FOUND = { server: null, missing: null }
  *  is about a surface. */
 const NOTHING = { surface: { spec: {} }, faces: {}, deps: {} }
 
-/** A context with `surfaces` on it, whose `changed` refuses one name.
- *
- *  A REFUSAL AND NOT A CRASH is what the composition root actually does: the
- *  rooted bundle's `mount` is transactional, so a sibling with deps that do not
- *  match its surface, or a key already mounted, throws out of the re-compose —
- *  which is the callback below, standing in for it. */
-const refusing = async (bad: string) => {
-  const seen: Array<number> = []
-  const ctx = new Context()
-  await ctx.plugin(Surfaces, {
-    changed: () => {
-      seen.push(ctx.surfaces.composed().length)
-      if (ctx.surfaces.composed().some((one) => one.name === bad)) {
-        throw new Error(`re-compose refuses ${bad}`)
-      }
-    },
+/** WHAT WAS LOGGED, for the containment cases. Inlined rather than borrowed from
+ *  `@olai/log`, because this package declares nothing but `effect` and
+ *  `solid-js` and a bench is not a reason to grow that. */
+const collector = (): { readonly layer: Layer.Layer<never>; readonly said: Array<string> } => {
+  const said: Array<string> = []
+  const logger = Logger.make<unknown, void>(({ cause, logLevel, message }) => {
+    if (logLevel !== "Warn") return
+    // THE CAUSE IS ITS OWN FIELD, not part of the message — which is exactly the
+    // arrangement these cases are about: the door says WHOSE handler failed and
+    // the runtime carries WHAT it failed with, and a line has to have both.
+    const words = (Array.isArray(message) ? message : [message]).map(String)
+    if (cause.reasons.length > 0) words.push(String(Cause.squash(cause)))
+    said.push(words.join(" "))
   })
-  return { ctx, seen }
+  return { layer: Logger.layer([logger]), said }
 }
 
-/** Settle a fiber without letting its own failure escape — `Fiber.await()`
- *  rethrows the error it landed on, and every case here is about the STATE and
- *  the TABLE rather than about that rethrow. */
-const settled = async (fiber: { await: () => Promise<unknown> }): Promise<void> => {
-  await fiber.await().catch(() => {})
-}
+/** The ordinary runtime for a case: nothing the plugins here name is a real
+ *  thing, because none of these cases is about one. */
+const runtime = (config: Partial<PluginsConfig> = {}) =>
+  openPlugins({
+    vars: {},
+    now: () => "2026-09-02T00:00:00.000Z",
+    served: "/tmp/x",
+    ...config,
+  })
 
 /** One plugin that registers a sibling, mounted under `name`. */
-const registering = (name: string) => ({
-  name,
-  inject: ["surfaces"] as const,
-  apply(ctx: Context) {
-    ctx.surfaces.register(NOTHING)
-  },
-})
+const registering = (name: string) =>
+  definePlugin({
+    name,
+    needs: [Surfaces],
+    apply: Effect.gen(function*() {
+      yield* (yield* Surfaces).register(NOTHING)
+    }),
+  })
 
 /**
- * A SIBLING THE ROOT REFUSED IS NOT IN THE TABLE, and the plugin that
- * registered it is the only one that fails.
+ * A SIBLING THE ROOT REFUSED IS NOT IN THE TABLE, and the plugin that registered
+ * it is the only one that fails.
  *
  * ## The defect this is about
  *
- * `register` set the entry, called `changed()`, and returned the disposer. A
- * `changed()` that threw exited the effect body BEFORE the disposer existed, so
- * Cordis had nothing to unwind and the entry stayed. The fiber landed `FAILED`,
- * which is what the containment claim says — and its sibling was still in
- * `composed()`, so the NEXT plugin to register re-ran the re-compose, which
- * retried the bad mount and threw inside THAT plugin's `apply`. One plugin's
- * mis-shaped surface took down every plugin that arrived after it, each of them
- * failing on somebody else's refusal.
+ * `register` set the entry, told the root, and returned. A `changed()` that
+ * threw left the entry in the table, because a failure in `acquire` is a
+ * resource that was never acquired and its release never runs. The plugin landed
+ * `failed`, which is what the containment claim says — and its sibling was still
+ * composed, so the NEXT plugin to register re-ran the re-compose, which retried
+ * the bad mount and threw inside THAT plugin's `apply`. One plugin's mis-shaped
+ * surface took down every plugin that arrived after it, each of them failing on
+ * somebody else's refusal.
  *
- * The claim the phase makes — "a plugin whose `apply` throws installed nothing,
- * and its siblings stay ACTIVE" — was false on exactly this path, which is why
+ * The claim the phase makes — "a plugin whose `apply` fails installed nothing,
+ * and its siblings stay running" — was false on exactly this path, which is why
  * it is a case rather than a paragraph.
  */
-test("a sibling the composition root refused leaves the table, and takes only its own fiber down", async () => {
-  const { ctx, seen } = await refusing("bad")
+test("a sibling the composition root refused leaves the table, and takes only its own plugin down", async () => {
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const seen: Array<number> = []
+    // A REFUSAL AND NOT A CRASH is what the composition root actually does: the
+    // rooted bundle's `mount` is transactional, so a sibling with deps that do
+    // not match its surface, or a key already mounted, throws out of the
+    // re-compose — which is this callback, standing in for it.
+    // A HOLDER, because the callback is handed over before the thing it reads
+    // exists — which is the same order the composition root keeps, and the reason
+    // its own re-compose arrives through one.
+    const table: { composed: () => ReadonlyArray<{ readonly name: string }> } = { composed: () => [] }
+    const opened = yield* runtime({
+      changed: () => {
+        seen.push(table.composed().length)
+        if (table.composed().some((one) => one.name === "bad")) {
+          throw new Error("re-compose refuses bad")
+        }
+      },
+    })
+    table.composed = opened.composed
 
-  const good = ctx.plugin(registering("good"))
-  await settled(good)
-  const bad = ctx.plugin(registering("bad"))
-  await settled(bad)
-  const later = ctx.plugin(registering("later"))
-  await settled(later)
+    const good = yield* mountPlugin(opened.host, registering("good"))
+    const bad = yield* mountPlugin(opened.host, registering("bad"))
+    const later = yield* mountPlugin(opened.host, registering("later"))
 
-  // The refused one is gone from the table, so nothing downstream can be told
-  // it is composed — the roster reads this list, and a row saying `running`
-  // about a sibling with no tag on the wire is the one thing it may not say.
-  expect(ctx.surfaces.composed().map((one) => one.name)).toEqual(["good", "later"])
+    // The refused one is gone from the table, so nothing downstream can be told
+    // it is composed — the roster reads this list, and a row saying `running`
+    // about a sibling with no tag on the wire is the one thing it may not say.
+    expect(opened.composed().map((one) => one.name)).toEqual(["good", "later"])
 
-  // ...and the failure is exactly one fiber's. The ENUM rather than the numbers
-  // it happens to have: this phase deleted olai's own numbering of a fiber's
-  // states in favour of the pin's, so literals here would be that numbering
-  // reintroduced as magic numbers in the file that asserts the states matter.
-  expect([good.state, bad.state, later.state]).toEqual([
-    FiberState.ACTIVE,
-    FiberState.FAILED,
-    FiberState.ACTIVE,
-  ])
+    // ...and the failure is exactly one plugin's.
+    expect([
+      (yield* good.report).state,
+      (yield* bad.report).state,
+      (yield* later.report).state,
+    ]).toEqual(["running", "failed", "running"])
 
-  // The re-compose was told about every registration, including the one it
-  // refused — so the case is not passing because nothing was ever composed.
-  expect(seen.length).toBeGreaterThanOrEqual(3)
+    // The re-compose was told about every registration, including the one it
+    // refused — so the case is not passing because nothing was ever composed.
+    expect(seen.length).toBeGreaterThanOrEqual(3)
+  })))
 })
 
 /**
- * ...AND THE ORDINARY DISPOSE still takes a sibling out, which is what keeps
- * the case above from passing over a `register` that never wrote anything.
+ * ...AND THE ORDINARY DISPOSE still takes a sibling out, which is what keeps the
+ * case above from passing over a `register` that never wrote anything.
  */
 test("an unloaded plugin's sibling leaves the table too", async () => {
-  const ctx = new Context()
-  await ctx.plugin(Surfaces)
-  const fiber = ctx.plugin(registering("kolu"))
-  await settled(fiber)
-  expect(ctx.surfaces.composed().map((one) => one.name)).toEqual(["kolu"])
-  await fiber.dispose()
-  expect(ctx.surfaces.composed()).toEqual([])
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const plugins = yield* runtime()
+    const mounted = yield* mountPlugin(plugins.host, registering("kolu"))
+    expect(plugins.composed().map((one) => one.name)).toEqual(["kolu"])
+    yield* mounted.dispose
+    expect(plugins.composed()).toEqual([])
+  })))
 })
 
 /**
- * THE SAME QUESTION ASKED OF `kinds`, because it is the other service whose
- * `register` can refuse — and the answer is different, which is worth pinning
- * rather than leaving a reader to assume symmetry.
+ * THE SAME QUESTION ASKED OF `kinds`, because it is the other registration that
+ * can refuse — and the answer is different, which is worth pinning rather than
+ * leaving a reader to assume symmetry.
  *
- * `Kinds.register` refuses BEFORE it opens an effect (a second claim on one word
- * is a throw with both plugins named), so there is no half-written entry for a
- * throw to leave behind. What this holds is that the refusing fiber's OWN word
- * is not in the table either, and the first plugin's is.
+ * `register` refuses BEFORE it acquires anything (a second claim on one word is
+ * a death with both plugins named), so there is no half-written entry for a
+ * failure to leave behind. What this holds is that the refusing plugin's OWN
+ * word is not in the table either, and the first plugin's is.
  */
 test("a kind refused for collision leaves the first plugin's word standing and adds none", async () => {
-  const ctx = new Context()
-  await ctx.plugin(Kinds)
-  const kind = { kind: "terminal", takes: "a terminal", admits: () => true }
-  const first = ctx.plugin({
-    name: "kolu",
-    inject: ["kinds"] as const,
-    apply(inner: Context) {
-      inner.kinds.register(kind)
-    },
-  })
-  await settled(first)
-  const second = ctx.plugin({
-    name: "kolu",
-    inject: ["kinds"] as const,
-    apply(inner: Context) {
-      inner.kinds.register(kind)
-    },
-  })
-  await settled(second)
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const plugins = yield* runtime()
+    const kind = { kind: "terminal", takes: "a terminal", admits: () => true }
+    const teaching = (name: string) =>
+      definePlugin({
+        name,
+        needs: [Kinds],
+        apply: Effect.gen(function*() {
+          yield* (yield* Kinds).register(kind)
+        }),
+      })
+    const first = yield* mountPlugin(plugins.host, teaching("kolu"))
+    const second = yield* mountPlugin(plugins.host, teaching("kolu"))
 
-  expect([...ctx.kinds.table().keys()]).toEqual(["kolu-terminal"])
-  expect([first.state, second.state]).toEqual([2, 3])
+    expect([...plugins.kinds().keys()]).toEqual(["kolu-terminal"])
+    expect([(yield* first.report).state, (yield* second.report).state]).toEqual([
+      "running",
+      "failed",
+    ])
+  })))
 })
 
 /**
@@ -165,136 +194,127 @@ test("a kind refused for collision leaves the first plugin's word standing and a
  *
  * The composition root fired the waterfall and returned the payload without
  * awaiting the dispatch. That worked, and would go on working, for exactly as
- * long as every listener was synchronous up to its `next()`: cordis runs the
- * chain inline, so the pushes land before the caller's next statement.
+ * long as every listener was synchronous up to its `next()`.
  *
- * A plugin written `async (start, next) => { await something; start.asking.push(…) }`
- * would be silently absent from EVERY session, for ever, with nothing red — on
- * the one path whose whole subject is a tool that is missing. That is a
- * contract nobody told a plugin author about, enforced by a coincidence.
- *
- * So the dispatch is awaited and this is the case that says so. It is a
- * property of the EVENT rather than of the root, which is why it is asked here:
- * the payload is the interface's, the shape is the interface's, and a second
- * composition root would have to get it right too.
+ * A plugin that yielded anything before its push would be silently absent from
+ * EVERY session, for ever, with nothing red — on the one path whose whole
+ * subject is a tool that is missing. That is a contract nobody told a plugin
+ * author about, enforced by a coincidence. An Effect chain cannot be got wrong
+ * that way, and this is the case that says so.
  */
-test("an async listener's contribution is on the list, not dropped", async () => {
-  const ctx = new Context()
-  const order: Array<string> = []
-
-  await ctx.plugin({
-    name: "prompt",
-    apply(inner: Context) {
-      inner.on("chat/session-start", (start, next) => {
-        order.push("prompt")
-        start.asking.push({ name: "prompt", ask: () => Promise.resolve(NOTHING_FOUND) })
-        return next()
+test("a listener that yields before it contributes is on the list, not dropped", async () => {
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const plugins = yield* runtime()
+    const order: Array<string> = []
+    const asking = (name: string, slow: boolean) =>
+      definePlugin({
+        name,
+        needs: [SessionStart.key],
+        apply: Effect.gen(function*() {
+          yield* (yield* SessionStart.key).use((start, next) =>
+            Effect.gen(function*() {
+              // A yield of any kind before the push — which is what a listener
+              // that read a file, or asked another service, would do.
+              if (slow) yield* Effect.yieldNow
+              order.push(name)
+              start.asking.push({ name, ask: () => Promise.resolve(NOTHING_FOUND) })
+              return yield* next(start)
+            })
+          )
+        }),
       })
-    },
-  })
-  await ctx.plugin({
-    name: "slow",
-    apply(inner: Context) {
-      inner.on("chat/session-start", async (start, next) => {
-        // A yield of any kind before the push — which is what a listener that
-        // read a file, or asked another service, would do.
-        await Promise.resolve()
-        order.push("slow")
-        start.asking.push({ name: "slow", ask: () => Promise.resolve(NOTHING_FOUND) })
-        return next()
-      })
-    },
-  })
+    yield* mountPlugin(plugins.host, asking("prompt", false))
+    yield* mountPlugin(plugins.host, asking("slow", true))
 
-  const start: SessionStart = { asking: [] }
-  await ctx.waterfall("chat/session-start", start, async () => start)
-
-  // BOTH, and in dispatch order — which is registration order, which is the
-  // bundle's. A roster that reshuffled itself per conversation would be a panel
-  // nobody can read twice.
-  expect(start.asking.map((one) => one.name)).toEqual(["prompt", "slow"])
-  expect(order).toEqual(["prompt", "slow"])
+    const start = yield* plugins.sessionStart
+    expect(start.asking.map((one) => one.name)).toEqual(["prompt", "slow"])
+    expect(order).toEqual(["prompt", "slow"])
+  })))
 })
 
 /** ...and a plugin that has unloaded contributes nothing to the next session,
- *  which is the whole reason the list is collected per dispatch rather than
- *  once at boot. */
+ *  which is the whole reason the list is collected per dispatch rather than once
+ *  at boot. */
 test("an unloaded plugin is off the next session's list", async () => {
-  const ctx = new Context()
-  const fiber = ctx.plugin({
-    name: "kolu",
-    apply(inner: Context) {
-      inner.on("chat/session-start", (start, next) => {
-        start.asking.push({ name: "kolu", ask: () => Promise.resolve(NOTHING_FOUND) })
-        return next()
-      })
-    },
-  })
-  await settled(fiber)
-
-  const first: SessionStart = { asking: [] }
-  await ctx.waterfall("chat/session-start", first, async () => first)
-  expect(first.asking.map((one) => one.name)).toEqual(["kolu"])
-
-  await fiber.dispose()
-  const second: SessionStart = { asking: [] }
-  await ctx.waterfall("chat/session-start", second, async () => second)
-  expect(second.asking).toEqual([])
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const plugins = yield* runtime()
+    const mounted = yield* mountPlugin(
+      plugins.host,
+      definePlugin({
+        name: "kolu",
+        needs: [SessionStart.key],
+        apply: Effect.gen(function*() {
+          yield* (yield* SessionStart.key).use((start, next) =>
+            Effect.suspend(() => {
+              start.asking.push({ name: "kolu", ask: () => Promise.resolve(NOTHING_FOUND) })
+              return next(start)
+            })
+          )
+        }),
+      }),
+    )
+    expect((yield* plugins.sessionStart).asking.map((one) => one.name)).toEqual(["kolu"])
+    yield* mounted.dispose
+    expect((yield* plugins.sessionStart).asking).toEqual([])
+  })))
 })
 
 /**
- * A LISTENER THAT THROWS IS ONE LISTENER'S PROBLEM — which the composition
- * root's header asserted for a year and the dispatcher did not hold.
+ * A LISTENER THAT FAILS IS ONE LISTENER'S PROBLEM — which the composition root's
+ * header asserted for a year and the dispatcher did not hold.
  *
  * `vault/revision` and `vault/unloaded` were Cordis EMITS, and the root said of
  * them: *"Both are EMITS, so a listener that throws is one listener's problem —
  * the dispatcher contains it."* Cordis's `emit` is a bare loop of
- * `Reflect.apply` with no `try` in it, so a plugin that threw on a revision
- * took two things that were never its to take:
+ * `Reflect.apply` with no `try` in it, so a plugin that threw on a revision took
+ * two things that were never its to take: every LATER plugin on that revision,
+ * and the directory fiber that published it.
  *
- *   - EVERY LATER PLUGIN on that revision, which never heard it; and
- *   - THE DIRECTORY FIBER, because both emits sit inside the `manifest`
- *     connector's `Effect.sync` and a throw there fails `store.reads` — the
- *     fiber the composition root reads as structural damage when it settles.
- *
- * All three plugins in this tree listen with no `try` of their own, and none of
- * them is wrong to. So the two events became doors on `ctx.vault` that wrap
- * once, and this is the case that says so: the arrangement is only worth
- * anything if a THROWN handler leaves its neighbour and its caller standing.
+ * The doors wrap once, and this is the case that says so: the arrangement is
+ * only worth anything if a handler that dies leaves its neighbour and its caller
+ * standing.
  */
-test("a vault listener that throws costs the next plugin nothing", async () => {
-  const said: Array<string> = []
+test("a vault listener that dies costs the next plugin nothing", async () => {
   const heard: Array<string> = []
-  const ctx = new Context()
-  await ctx.plugin(Vault, { served: "/tmp/x", warn: (line) => said.push(line) })
+  const { layer, said } = collector()
+  await Effect.runPromise(
+    Effect.scoped(Effect.gen(function*() {
+      const plugins = yield* runtime()
+      // TWO PLUGINS, and the failing one FIRST: the failure this pins is a loop
+      // that stops, so a case with the thrower last would pass over a dispatcher
+      // that contains nothing at all.
+      yield* mountPlugin(
+        plugins.host,
+        definePlugin({
+          name: "thrower",
+          needs: [Vault],
+          apply: Effect.gen(function*() {
+            yield* (yield* Vault).revision(() =>
+              Effect.die(new Error("a walk this plugin could not finish"))
+            )
+          }),
+        }),
+      )
+      yield* mountPlugin(
+        plugins.host,
+        definePlugin({
+          name: "neighbour",
+          needs: [Vault],
+          apply: Effect.gen(function*() {
+            yield* (yield* Vault).revision(() => Effect.sync(() => void heard.push("neighbour")))
+          }),
+        }),
+      )
 
-  // TWO PLUGINS, and the throwing one FIRST: the failure this pins is a loop
-  // that stops, so a case with the thrower last would pass over a dispatcher
-  // that contains nothing at all.
-  await ctx.plugin({
-    name: "thrower",
-    inject: ["vault"],
-    apply: (own: Context) => {
-      own.vault.revision(() => {
-        throw new Error("a walk this plugin could not finish")
-      })
-    },
-  })
-  await ctx.plugin({
-    name: "neighbour",
-    inject: ["vault"],
-    apply: (own: Context) => {
-      own.vault.revision(() => heard.push("neighbour"))
-    },
-  })
-
-  // THE CALLER IS STILL STANDING, which is the half that matters most: this
-  // call is made inside the store's own fiber, and a throw out of it fails the
-  // directory read rather than one plugin's walk.
-  expect(() => ctx.vault.published({ rev: 1 })).not.toThrow()
+      // THE CALLER IS STILL STANDING, which is the half that matters most: this
+      // is rung inside the store's own fiber, and a failure out of it would fail
+      // the directory read rather than one plugin's walk.
+      yield* plugins.published({ rev: 1 })
+    })).pipe(Effect.provide(layer)),
+  )
   // ...the neighbour heard the revision the thrower did not finish...
   expect(heard).toEqual(["neighbour"])
-  // ...and the throw was SAID, on the owner's channel, with the plugin's name
+  // ...and the failure was SAID, on the owner's channel, with the plugin's name
   // on it. A contained fault nobody is told about is the same silence the
   // uncontained one had, one layer in.
   expect(said).toHaveLength(1)
@@ -307,49 +327,138 @@ test("a vault listener that throws costs the next plugin nothing", async () => {
 /** ...and the same for the store going quiet, which is the other door and the
  *  one whose NAME has been misread before: `unloaded` says the STORE has never
  *  published, not that the plugin is being torn down. */
-test("an unloaded listener that throws costs the next plugin nothing", async () => {
-  const said: Array<string> = []
+test("an unloaded listener that dies costs the next plugin nothing", async () => {
   const heard: Array<string> = []
-  const ctx = new Context()
-  await ctx.plugin(Vault, { served: "/tmp/x", warn: (line) => said.push(line) })
-  await ctx.plugin({
-    name: "thrower",
-    inject: ["vault"],
-    apply: (own: Context) => {
-      own.vault.unloaded(() => {
-        throw new Error("nope")
-      })
-    },
-  })
-  await ctx.plugin({
-    name: "neighbour",
-    inject: ["vault"],
-    apply: (own: Context) => {
-      own.vault.unloaded(() => heard.push("neighbour"))
-    },
-  })
-  expect(() => ctx.vault.quiet()).not.toThrow()
+  const { layer, said } = collector()
+  await Effect.runPromise(
+    Effect.scoped(Effect.gen(function*() {
+      const plugins = yield* runtime()
+      yield* mountPlugin(
+        plugins.host,
+        definePlugin({
+          name: "thrower",
+          needs: [Vault],
+          apply: Effect.gen(function*() {
+            yield* (yield* Vault).unloaded(Effect.die(new Error("nope")))
+          }),
+        }),
+      )
+      yield* mountPlugin(
+        plugins.host,
+        definePlugin({
+          name: "neighbour",
+          needs: [Vault],
+          apply: Effect.gen(function*() {
+            yield* (yield* Vault).unloaded(Effect.sync(() => void heard.push("neighbour")))
+          }),
+        }),
+      )
+      yield* plugins.quiet
+    })).pipe(Effect.provide(layer)),
+  )
   expect(heard).toEqual(["neighbour"])
   expect(said[0]).toContain("thrower")
 })
 
-/** A LISTENER LEAVES WITH ITS FIBER, like every other registration here — the
- *  subscription is an `ctx.effect`, so unloading the plugin takes it out of the
- *  set and nothing has to remember to. */
+/** A LISTENER LEAVES WITH ITS PLUGIN, like every other registration here — the
+ *  subscription is a finalizer on the plugin's scope, so unloading it takes the
+ *  subscription out of the set and nothing has to remember to. */
 test("a vault listener goes when its plugin does", async () => {
-  const heard: Array<string> = []
-  const ctx = new Context()
-  await ctx.plugin(Vault, { served: "/tmp/x" })
-  const fiber = await ctx.plugin({
-    name: "leaver",
-    inject: ["vault"],
-    apply: (own: Context) => {
-      own.vault.revision(() => heard.push("leaver"))
-    },
-  })
-  ctx.vault.published({ rev: 1 })
-  expect(heard).toEqual(["leaver"])
-  await fiber.dispose()
-  ctx.vault.published({ rev: 2 })
-  expect(heard).toEqual(["leaver"])
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const heard: Array<string> = []
+    const plugins = yield* runtime()
+    const mounted = yield* mountPlugin(
+      plugins.host,
+      definePlugin({
+        name: "leaver",
+        needs: [Vault],
+        apply: Effect.gen(function*() {
+          yield* (yield* Vault).revision(() => Effect.sync(() => void heard.push("leaver")))
+        }),
+      }),
+    )
+    yield* plugins.published({ rev: 1 })
+    expect(heard).toEqual(["leaver"])
+    yield* mounted.dispose
+    yield* plugins.published({ rev: 2 })
+    expect(heard).toEqual(["leaver"])
+  })))
+})
+
+/**
+ * THE STAMP IS THE FIBER'S, asked of the door where getting it wrong costs the
+ * most: a plugin's doorbell reaches conversations somebody scoped to THAT
+ * plugin, and there is no argument on either verb by which one could name
+ * another.
+ */
+test("the doorbell's door is keyed by the plugin, with no way to spell another's", async () => {
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const asked: Array<string> = []
+    const plugins = yield* runtime({
+      doorFor: (plugin) => {
+        asked.push(plugin)
+        return {
+          scopes: () => [{ agent: "a", session: "s", file: `${plugin}.olai` }],
+          deliver: () => Effect.void,
+        }
+      },
+    })
+    const seen: Array<string> = []
+    const looking = (name: string) =>
+      definePlugin({
+        name,
+        needs: [Deliveries],
+        apply: Effect.gen(function*() {
+          for (const scope of (yield* Deliveries).scopes()) seen.push(scope.file)
+        }),
+      })
+    yield* mountPlugin(plugins.host, looking("kolu"))
+    yield* mountPlugin(plugins.host, looking("odu"))
+    expect(seen).toEqual(["kolu.olai", "odu.olai"])
+    expect(asked).toEqual(["kolu", "odu"])
+  })))
+})
+
+/** THE HELD DOOR IS MINTED ONCE per plugin, which is what orders its writes —
+ *  the chain that keeps a later snapshot from losing a rename race to an earlier
+ *  one lives on the door, so a door minted per CALL orders nothing. It was
+ *  minted per call. */
+test("a plugin's held door is one door, however many times it is used", async () => {
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    let minted = 0
+    const plugins = yield* runtime({
+      heldFor: () => {
+        minted += 1
+        let record: Record<string, unknown> | null = null
+        return { load: () => record, save: (value) => void (record = value) }
+      },
+    })
+    yield* mountPlugin(
+      plugins.host,
+      definePlugin({
+        name: "spaces",
+        needs: [Held],
+        apply: Effect.gen(function*() {
+          const held = yield* Held
+          yield* held.save({ queue: ["B"] })
+          yield* held.save({ queue: [] })
+          expect(yield* held.load).toEqual({ queue: [] })
+        }),
+      }),
+    )
+    // ONE door for the whole plugin, three uses of it.
+    expect(minted).toBe(1)
+    // ...and a second plugin gets its own, which is the other half of the keying.
+    yield* mountPlugin(
+      plugins.host,
+      definePlugin({
+        name: "other",
+        needs: [Held],
+        apply: Effect.gen(function*() {
+          expect(yield* (yield* Held).load).toBeNull()
+        }),
+      }),
+    )
+    expect(minted).toBe(2)
+  })))
 })

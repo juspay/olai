@@ -6,9 +6,9 @@
  *
  * `serve(services)` was a function this file called with a blob of doubles, and
  * the half handed back a `revision` hook, an `unloaded` hook and a `link()` for
- * the bench to read. None of those exists: the half is a Cordis plugin, so the
- * bench builds a CONTEXT with double services on it, mounts the plugin, rings
- * `ctx.vault.published(…)` and reads the pill off the cell the browser reads.
+ * the bench to read. None of those exists: the half is a plugin, so the bench
+ * opens a RUNTIME with double services on it, mounts the plugin, rings
+ * `plugins.published(…)` and reads the pill off the cell the browser reads.
  *
  * What that buys is that the cases drive the path a serve drives. The old shape
  * could pass with a `revision` hook nothing called and an `unloaded` that tore
@@ -24,21 +24,11 @@ import { join } from "node:path"
 import { readingOf, setOf } from "@olai/format/testlib"
 import type { ConversationSeen, Deliveries, PluginHeld } from "@olai/plugin-api"
 import type { SpacesLink } from "./wire.ts"
-import {
-  Clock,
-  DeliveryDoors,
-  Env,
-  Held,
-  Log,
-  type Registered,
-  Surfaces,
-  Vault,
-  Watchers,
-} from "@olai/plugin-api/services"
+import { mountPlugin, openPlugins, type Registered, standing } from "@olai/plugin-api/services"
 import { expect, test } from "bun:test"
-import { Context } from "cordis"
+import { Effect, Scope } from "effect"
 
-import * as spaces from "./server.ts"
+import spaces from "./server.ts"
 import { listen } from "./testlib/fake-spaces.ts"
 
 const served = (): string => mkdtempSync(join(tmpdir(), "spaces-served-"))
@@ -72,43 +62,46 @@ interface Doubles {
   readonly env: Record<string, string | undefined>
   readonly served: string
   readonly now: () => string
-  readonly warn?: (line: string) => void
   readonly deliver?: Deliveries["deliver"]
   readonly dial?: unknown
   readonly held?: PluginHeld
 }
 
 /**
- * ONE MOUNTED PLUGIN, on a context this case owns — what a serve does, with
+ * ONE MOUNTED PLUGIN, on a runtime this case owns — what a serve does, with
  * doubles behind the services rather than a machine behind them.
  *
- * `emit` is the composition root's end of the watching bus: `ctx.watching.saw`,
- * which is what `@olai/server`'s `runtime.ts` calls off a transcript frame. The
- * subscription the plugin makes is an effect on its own fiber, so a case that
- * disposes the fiber stops the bus without this harness doing anything.
+ * `emit` is the composition root's end of the watching bus (`plugins.saw`),
+ * which is what `@olai/server`'s `runtime.ts` rings off a transcript frame. The
+ * subscription the plugin makes is a finalizer on its own scope, so a case that
+ * disposes the plugin stops the bus without this harness doing anything.
+ *
+ * ## The Effects are run at the EDGE, and the cases stay promises
+ *
+ * `openPlugins` and the two doors are Effects; a case is an ordinary `async`
+ * test. So the harness holds one scope for the whole case and runs each door as
+ * a promise — which is also what makes a case AWAIT a revision, and that is the
+ * honest shape rather than a convenience: the root awaits every plugin's
+ * re-derivation before the statement that published it returns.
  */
 const mounted = async (doubles: Doubles) => {
-  const ctx = new Context()
-  await ctx.plugin(Env, { vars: doubles.env, dials: { "xyne-spaces": doubles.dial } })
-  await ctx.plugin(Clock, { now: doubles.now })
-  await ctx.plugin(Log, { say: () => {}, warn: doubles.warn ?? (() => {}) })
-  await ctx.plugin(Vault, { served: doubles.served })
-  await ctx.plugin(DeliveryDoors, {
-    doorFor: () => ({ scopes: () => [], deliver: doubles.deliver ?? (() => {}) }),
-  })
-  await ctx.plugin(Held, { doorFor: () => doubles.held ?? memoryHeld() })
-  await ctx.plugin(Watchers)
-  await ctx.plugin(Surfaces)
-  const fiber = ctx.plugin(spaces)
-  await fiber.await()
+  const run = standing()
+  const held = doubles.held ?? memoryHeld()
+  const plugins = await run(openPlugins({
+    vars: doubles.env,
+    now: doubles.now,
+    served: doubles.served,
+    dials: { "xyne-spaces": doubles.dial },
+    doorFor: () => ({ scopes: () => [], deliver: doubles.deliver ?? (() => Effect.void) }),
+    heldFor: () => held,
+  }))
+  const plugin = await run(mountPlugin(plugins.host, spaces))
   const sibling = (): Registered => {
-    const one = ctx.surfaces.composed()[0]
+    const one = plugins.composed()[0]
     if (one === undefined) throw new Error("the spaces plugin registered no sibling")
     return one
   }
   return {
-    ctx,
-    fiber,
     /** The pill, read off the CELL the browser reads — one reading, so a case
      *  cannot pass while what a person sees is wrong. */
     link: (): SpacesLink => {
@@ -117,30 +110,29 @@ const mounted = async (doubles: Doubles) => {
       }
       return deps.cells.link.store.get()
     },
-    /** A published revision, the way the composition root emits one. The
-     *  DEFAULT is the bound board every case but one wants; a case that is
-     *  about the bind going away hands its own. */
-    revision: (snapshot?: unknown): void => {
-      if (snapshot !== undefined) {
-        ctx.vault.published(snapshot)
-        return
-      }
+    /** A published revision, the way the composition root rings one. The DEFAULT
+     *  is the bound board every case but one wants; a case that is about the bind
+     *  going away hands its own. */
+    revision: (snapshot?: unknown): Promise<void> => {
+      if (snapshot !== undefined) return run(plugins.published(snapshot))
       const reading = readingOf(setOf({
         "board.olai": rec("orch", {
           "agent-session": "claude:s-1",
           "xyne-channel": "ch-team",
         }),
       }))
-      ctx.vault.published({
+      return run(plugins.published({
         value: { set: reading.set, derived: reading.derived },
         changed: ["board.olai"],
         removed: [],
-      })
+      }))
     },
     /** ...and one conversation event, the way it pushes one. */
-    emit: (event: ConversationSeen): void => {
-      ctx.watching.saw(event)
-    },
+    emit: (event: ConversationSeen): Promise<void> => run(plugins.saw(event)),
+    /** ...and the plugin going away, which is what every case ends with: the
+     *  mirrors stop, the subscription comes off the bus, and the sibling leaves
+     *  the table. */
+    dispose: (): Promise<void> => run(plugin.dispose),
   }
 }
 
@@ -152,13 +144,14 @@ test("a doorbell in the bound conversation posts; a heartbeat and this plugin's 
       env: { OLAI_SPACES_URL: spaces.url, OLAI_SPACES_TOKEN: "tok" },
       served: served(),
       now: () => "2026-09-01T12:00:00Z",
-      deliver: (_to, say) => {
-        const body = say()
-        if (body !== null) faults.push(body)
-      },
+      deliver: (_to, say) =>
+        Effect.sync(() => {
+          const body = say()
+          if (body !== null) faults.push(body)
+        }),
     })
-    half.revision()
-    half.emit({
+    await half.revision()
+    await half.emit({
       kind: "delivered",
       id: "d-1",
       from: "kolu",
@@ -166,7 +159,7 @@ test("a doorbell in the bound conversation posts; a heartbeat and this plugin's 
       session: "s-1",
       body: "Lane dispatched: **odu doorbell**",
     })
-    half.emit({
+    await half.emit({
       kind: "delivered",
       id: "d-2",
       from: "kolu",
@@ -174,7 +167,7 @@ test("a doorbell in the bound conversation posts; a heartbeat and this plugin's 
       session: "s-1",
       body: "The kolu watcher is alive: 30 minutes with nothing to say.",
     })
-    half.emit({
+    await half.emit({
       kind: "delivered",
       id: "d-3",
       from: "xyne-spaces",
@@ -189,7 +182,7 @@ test("a doorbell in the bound conversation posts; a heartbeat and this plugin's 
       "Lane dispatched",
     )
     expect(faults).toEqual([])
-    await half.fiber.dispose()
+    await half.dispose()
   } finally {
     spaces.close()
   }
@@ -203,8 +196,8 @@ test("a conversation the bind does not name is not mirrored", async () => {
       served: served(),
       now: () => "2026-09-01T12:00:00Z",
     })
-    half.revision()
-    half.emit({
+    await half.revision()
+    await half.emit({
       kind: "delivered",
       id: "d-1",
       from: "kolu",
@@ -214,7 +207,7 @@ test("a conversation the bind does not name is not mirrored", async () => {
     })
     await Bun.sleep(40)
     expect(spaces.requests).toHaveLength(0)
-    await half.fiber.dispose()
+    await half.dispose()
   } finally {
     spaces.close()
   }
@@ -229,7 +222,7 @@ test("no env and no bind is honestly absent — nothing is posted", async () => 
       now: () => "2026-09-01T12:00:00Z",
     })
     expect(half.link().status).toBe("absent")
-    half.emit({
+    await half.emit({
       kind: "delivered",
       id: "d-1",
       from: "kolu",
@@ -240,7 +233,7 @@ test("no env and no bind is honestly absent — nothing is posted", async () => 
     await Bun.sleep(40)
     expect(spaces.requests).toHaveLength(0)
     expect(half.link().status).toBe("absent")
-    await half.fiber.dispose()
+    await half.dispose()
   } finally {
     spaces.close()
   }
@@ -254,17 +247,18 @@ test("a bind without env is a fault, named, and said once into the conversation"
       env: {},
       served: served(),
       now: () => "2026-09-01T12:00:00Z",
-      deliver: (_to, say) => {
-        const body = say()
-        if (body !== null) faults.push(body)
-      },
+      deliver: (_to, say) =>
+        Effect.sync(() => {
+          const body = say()
+          if (body !== null) faults.push(body)
+        }),
     })
-    half.revision()
+    await half.revision()
     expect(half.link().status).toBe("fault")
     expect(half.link().why).toContain("xyne-channel")
     expect(half.link().why).toContain("board.olai")
     expect(half.link().why).toContain("OLAI_SPACES_URL, OLAI_SPACES_TOKEN")
-    half.emit({
+    await half.emit({
       kind: "delivered",
       id: "d-1",
       from: "kolu",
@@ -278,7 +272,7 @@ test("a bind without env is a fault, named, and said once into the conversation"
     expect(faults[0]).toContain("xyne-channel")
     expect(faults[0]).toContain("board.olai")
     expect(faults[0]).toContain("OLAI_SPACES_URL, OLAI_SPACES_TOKEN")
-    await half.fiber.dispose()
+    await half.dispose()
   } finally {
     spaces.close()
   }
@@ -290,15 +284,15 @@ test("dropping the bind without env returns the pill to absent", async () => {
     served: served(),
     now: () => "2026-09-01T12:00:00Z",
   })
-  half.revision()
+  await half.revision()
   expect(half.link().status).toBe("fault")
   const empty = readingOf(setOf({}))
-  half.revision({
+  await half.revision({
     value: { set: empty.set, derived: empty.derived },
     changed: [],
     removed: ["board.olai"],
   })
   expect(half.link().status).toBe("absent")
-  await half.fiber.dispose()
+  await half.dispose()
 })
 

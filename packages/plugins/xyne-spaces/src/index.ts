@@ -15,17 +15,17 @@
  *
  * No `: OlaiPlugin` on the value below, and nothing left to annotate it with:
  * the type retired with the manifest object it described — a browser half is a
- * Cordis plugin now (`./browser.tsx`) — and so did the compiled-in registry
+ * plugin written as an Effect now (`./browser.tsx`) — and so did the compiled-in registry
  * whose `satisfies` proved the fit, because `@olai/bundle` is rows naming
  * modules a loader resolves rather than a list of imported halves.
  *
  * The direction the old argument was made of holds and only its far end moved:
  * it was `@olai/plugin-api` that imported every plugin, so a plugin could not
  * import back; the registry left for `@olai/bundle`, and this package imports
- * the interface now (`./server.ts` names `ConversationSeen` and the declaration
- * merging that types `ctx.surfaces`). What proves the fit is where these values
- * are spent — `ctx.surfaces.register` in `./server.ts`, whose `Sibling` types
- * `surface` and `faces`, and `ctx.slots.register` in `./browser.tsx`, which
+ * the interface now (`./server.ts` names `ConversationSeen` and the tags its
+ * own `needs` yields). What proves the fit is where these values
+ * are spent — `surfaces.register` in `./server.ts`, whose `Sibling` types
+ * `surface` and `faces`, and `slots.register` in `./browser.tsx`, which
  * refuses a slot the app does not declare — with this plugin's name on the file
  * either way. `olai-plugin-kolu`'s header argues the direction in full.
  */

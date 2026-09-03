@@ -44,7 +44,7 @@
  *
  * The pills leave the phone bar together and `AppHeader` already draws its
  * standing cluster inside a `desktop()` gate. A face gets the same predicate
- * anyway (`ctx.bar.desktop()`), because a readout that wants to draw a phone
+ * anyway (the `Bar` service's `desktop()`), because a readout that wants to draw a phone
  * face one day should not have to ask the bar for permission — and because a
  * plugin deciding the breakpoint FOR itself, out of its own media query, would
  * be a second answer to the app's own.

@@ -56,8 +56,8 @@ export interface OduClocks {
  * field was the honest shape, because nothing odu draws is in the app's bar so
  * it asks for no pill, no popover and no door onto a file. That is still
  * exactly true, and it is now `export const inject = ["slots", "clocks",
- * "wired"]` in `../browser.tsx`: a list Cordis holds this plugin's fiber
- * `PENDING` on until every name is provided.
+ * "wired"]` in `../browser.tsx`: a list the runtime holds this plugin
+ * `waiting` on until every name is provided.
  *
  * So the narrowness is enforced rather than declared. A record could only ever
  * have been over-wide; an `inject` that names a service nobody provides is a

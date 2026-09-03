@@ -149,7 +149,7 @@ import { cadence } from "@olai/chat"
  * THE ONLY PLACE THIS FILE MEETS AN APPLIANCE, and it meets none of them by
  * name — nor, now, by list.
  *
- * What arrives is a mounted RUNTIME ({@link Wiring.plugins}): a Cordis context
+ * What arrives is a mounted RUNTIME ({@link Wiring.plugins}): olai's own doors
  * whose services every plugin fiber has already registered itself into. This
  * file reads three of those registries — the sibling surfaces, the wake
  * declarations and the kinds — and drives two events. It composes no list, it
@@ -163,9 +163,9 @@ import { cadence } from "@olai/chat"
  * the services themselves are constructed in `./serve.ts`, which is where the
  * environment, the clock and the two log channels are reached for.
  */
-import type { ConversationSeen, Registered, Wake } from "@olai/plugin-api/services"
+import type { ConversationSeen, Plugins, Registered, Wake } from "@olai/plugin-api/services"
 import type { RowReport } from "@olai/bundle/bundle"
-import type { Context } from "cordis"
+
 
 import type { Cadence, Change, Chat } from "@olai/chat"
 import { type Emit, emitter } from "@olai/log"
@@ -252,44 +252,54 @@ const apply = <T>(
 
 
 /**
- * THE PLUGIN RUNTIME, as this file is handed one — a Cordis context with every
- * service on it and every enabled plugin already mounted.
+ * THE PLUGIN RUNTIME, as this file is handed one — every service standing and
+ * every enabled plugin already mounted.
  *
- * ## Why a CONTEXT and not a list
+ * ## Why a RUNTIME and not a list
  *
  * A list is what a composition root reads when composition happens once. This
- * one does not: a plugin is a fiber, a registration is an effect, and a fiber
- * that is disposed unwinds its sibling surface, its kinds, its wake declaration
- * and its listeners without asking anybody. So what this file holds is the
- * thing those registries hang on, and it reads them at the moment it needs
- * them rather than copying them at boot.
+ * one does not: a plugin is a fiber, a registration is a finalizer on that
+ * plugin's scope, and a plugin that is disposed unwinds its sibling surface, its
+ * kinds, its wake declaration and its listeners without asking anybody. So what
+ * this file holds is the thing those registries hang on, and it reads them at
+ * the moment it needs them rather than copying them at boot.
  *
  * ## The three registries it reads
  *
- * `ctx.surfaces.composed()` — the siblings to mount on the rooted bundle.
- * `ctx.wakes.declared()` — which plugins ring, and what each says when its
- * doorbell stops watching. `ctx.kinds` is read one floor up, in `./serve.ts`,
- * because the store validates through it and the store opens first.
+ * `composed()` — the siblings to mount on the rooted bundle. `declared()` —
+ * which plugins ring, and what each says when its doorbell stops watching.
+ * `kinds()` is read one floor up, in `./serve.ts`, because the store validates
+ * through it and the store opens first.
  *
- * ## ...and the two vault doors it drives
+ * ## ...and the three doors it drives
  *
- * `ctx.vault.published(snapshot)` on every published revision,
- * `ctx.vault.quiet()` when the store has never published. These are the root's
- * half of `ctx.vault.revision(…)` and `ctx.vault.unloaded(…)`, and they are
- * DOORS rather than emits for a reason this header used to have backwards: it
- * said "both are EMITS, so a listener that throws is one listener's problem —
- * the dispatcher contains it", and Cordis's `emit` is a bare `Reflect.apply`
- * loop with no `try`, so it contains nothing. One plugin throwing on a revision
- * took every LATER plugin's reading of it down, and the owned fiber that called
- * `published` with it. The service wraps each listener once instead, so the
- * sentence this header always wanted to say is now true.
+ * `published(snapshot)` on every published revision, `quiet` when the store has
+ * never published, and `saw(event)` for every conversation event. All three are
+ * EFFECTS, and the first two are awaited where they are rung: the statements
+ * after them write a world every plugin has already re-derived.
  *
- * Neither is a teardown hook (`@olai/plugin-api`'s `Vault` argues why the
- * second one's name matters).
+ * They are DOORS rather than events for a reason an earlier header had
+ * backwards: it said "both are EMITS, so a listener that throws is one
+ * listener's problem — the dispatcher contains it", and Cordis's `emit` is a
+ * bare `Reflect.apply` loop with no `try`, so it contained nothing. One plugin
+ * throwing on a revision took every LATER plugin's reading of it down, and the
+ * owned fiber that published it. The door wraps each handler once instead, so
+ * the sentence that header always wanted to say is now true.
+ *
+ * Neither of the first two is a teardown hook (`@olai/plugin-api`'s `Vault`
+ * argues why the second one's name matters).
+ *
+ * ## AND THIS FILE HAS NEVER HEARD OF CORDIS
+ *
+ * It held a `Context` and reached `ctx.surfaces`, `ctx.wakes`, `ctx.vault` and
+ * `ctx.watching` off it — which meant the composition root was the second
+ * package in the tree that knew what the plugin runtime is written on. What it
+ * holds now is `Plugins`: olai's own doors, in Effect, and the engine under them
+ * is `@olai/effect-cordis`'s business alone.
  */
 export interface PluginRuntime {
-  /** The context every service hangs on, and every mounted plugin's parent. */
-  readonly ctx: Context
+  /** The doors every service hangs behind — `@olai/plugin-api`'s `Plugins`. */
+  readonly plugins: Plugins
   /**
    * TOLD WHEN A SIBLING ARRIVES OR LEAVES — the re-compose, filled in by
    * {@link bind}.
@@ -299,7 +309,7 @@ export interface PluginRuntime {
    * (a plugin teaches the vault its vocabulary, and the store validates through
    * it), and the thing that knows how to re-compose is the rooted bundle, which
    * does not exist until this runtime is built. So `./serve.ts` makes the
-   * holder, hands it to `ctx.surfaces` as its `changed` callback, and hands it
+   * holder, hands it to `openPlugins` as its `changed` callback, and hands it
    * here; {@link bind} fills it in and every later register or dispose comes
    * through it.
    */
@@ -695,14 +705,19 @@ const stateOf = (
       // THE LOADER DECLINED TO LOAD IT, and `pinned` is the only thing left
       // that can say who wrote the `disabled` it declined on.
       return { state: offered.pinned === null ? "optIn" : "off" }
-    default:
-      // `running` in the snapshot and absent from the live reading: a fiber
-      // that is ACTIVE and registered no sibling surface. Somebody asked for
-      // it and it did load, so it is not `optIn`; nothing of it reached the
-      // wire, so it is not `running` either. `off` is the honest word, and it
-      // is the one every other absence already wears.
+    case "running":
+      // `running` in the snapshot and absent from the live reading: a plugin
+      // that started and registered no sibling surface. Somebody asked for it
+      // and it did load, so it is not `optIn`; nothing of it reached the wire,
+      // so it is not `running` either. `off` is the honest word, and it is the
+      // one every other absence already wears.
       return { state: "off" }
   }
+  // NO `default` ARM, and that is the guard rather than an omission: the four
+  // words are `@olai/effect-cordis`'s `RowState`, and a catch-all here would
+  // absorb a fifth added upstream into `off` in silence — which is the exact
+  // failure `@olai/surface`'s own `STATES` array is written to prevent one wall
+  // over. Without one, a fifth word is a `tsc` error on this function.
 }
 
 /** One of those, as `implementSurface` wants it. A bound member is called with
@@ -928,7 +943,7 @@ export const bind = (
     let agentsCell: { set: (value: Agents) => void } | null = null
     /** The PLUGINS cell, held for the agents cell's reason: its clock is a
      *  fiber arriving or leaving, which reaches this file as a callback off
-     *  `ctx.surfaces` rather than as a stream ({@link republishPlugins}). */
+     *  `openPlugins`'s `changed` rather than as a stream ({@link republishPlugins}). */
     let pluginsCell: { set: (value: PluginRoster) => void } | null = null
 
     /**
@@ -958,7 +973,7 @@ export const bind = (
      * an empty one.
      *
      * A serve with no plugin runtime never calls this at all — there is no
-     * `ctx.surfaces` for anything to move on — and its cell holds `NO_ROSTER`
+     * `changed` for anything to move on — and its cell holds `NO_ROSTER`
      * for the life of the process, which is what a runtime that composes no
      * sibling has to say.
      */
@@ -1142,7 +1157,7 @@ export const bind = (
     /** The plugin context, or `null`. Named rather than reached through
      *  `offered` at each use, because the four readings below are one question
      *  asked at four moments and a reader should see that they are. */
-    const plugins = offered?.ctx ?? null
+    const plugins = offered?.plugins ?? null
     /**
      * EVERY SIBLING COMPOSED RIGHT NOW — read, never cached.
      *
@@ -1153,14 +1168,14 @@ export const bind = (
      * spike's own defect — a roster copied at boot, read forever, and quietly
      * wrong the first time anything moved.
      */
-    const siblings = (): ReadonlyArray<Registered> => plugins?.surfaces.composed() ?? []
+    const siblings = (): ReadonlyArray<Registered> => plugins?.composed() ?? []
     /**
      * THE WATCHING BUS, as this file reaches it — conversation events, pushed to
      * every plugin that subscribed. Human messages are not among them.
      *
      * The SET of subscribers is not here any more. It was a `Set` and a
      * `subscribe` returning an unsubscribe the plugin had to remember to call;
-     * it is `ctx.watching` now, where a subscription is an effect on the
+     * it is the `Watching` door now, where a subscription is an effect on the
      * subscribing fiber and a plugin that unloads stops being told without
      * anybody remembering anything. What is left for a composition root is the
      * OTHER end: saying what happened, once, to whoever is listening.
@@ -1168,7 +1183,7 @@ export const bind = (
      * `null` on a serve with no plugin runtime, where there is nobody to tell.
      */
     const seen = (event: ConversationSeen): void => {
-      plugins?.watching.saw(event)
+      if (plugins !== null) ring(plugins.saw(event))
     }
     const whoOf = (state: ChatState): { agent: string; session: string } | null =>
       state.session !== null && state.talking?.kind === "agent"
@@ -1216,7 +1231,7 @@ export const bind = (
      * words to ring it with, so the row is marked and nobody is told, which is
      * the honest arm rather than core reaching for a sentence of its own.
      */
-    const rings = (): ReadonlyMap<string, Wake> => plugins?.wakes.declared() ?? new Map()
+    const rings = (): ReadonlyMap<string, Wake> => plugins?.declared() ?? new Map()
     /** ...and the same question asked about ONE name, which is what the member
      *  that writes a scope asks. */
     const composedWake = (name: string): boolean => rings().has(name)
@@ -1624,7 +1639,15 @@ export const bind = (
             Stream.runForEach(
               wiring.store.reads,
               ({ snapshot }) =>
-                Effect.sync(() => {
+                // AN `Effect.gen` AND NOT AN `Effect.sync`, because two of the
+                // statements below are Effects: telling every plugin a revision
+                // landed, and telling them the store has none. Both are AWAITED
+                // here, and what the await buys is the statements that come
+                // AFTER the ring — `faulted`, and the cell write that puts this
+                // manifest on the wire — seeing a world every plugin has already
+                // re-derived. The collections and the heads are written above
+                // it, in the order master had them; nothing about that moved.
+                Effect.gen(function*() {
                   if (snapshot === null) {
                     // No published set at all: every plugin's reading OF THE
                     // VAULT goes out with the canvas. What each of them makes
@@ -1633,7 +1656,7 @@ export const bind = (
                     // file neither knows nor composes it; what it knows is that
                     // a claim derived from a directory the store can no longer
                     // see is a claim nobody may vouch for.
-                    plugins?.vault.quiet()
+                    if (plugins !== null) yield* plugins.quiet
                     return cell.set(null)
                   }
                   // THE PROJECTION CONSUMES WHAT IT IS HANDED, so these two
@@ -1683,9 +1706,11 @@ export const bind = (
                   // served file its own convention names, the other hands its
                   // walk the whole derivation because the question it asks
                   // includes what the vault DECLARES. Each narrows the argument
-                  // in its own signature, which is a claim the compiler checks;
-                  // a hook per plugin here would be this file knowing what each
-                  // of them reads.
+                  // in its own signature — a claim that half makes about what
+                  // this line rings and not one the compiler holds it to (the
+                  // vault door's `revision` says why, and where the one `as`
+                  // lives); a hook per plugin here would be this file knowing
+                  // what each of them reads.
                   //
                   // IT COSTS ALMOST NOTHING ON ALMOST EVERY REVISION, and that
                   // is the plugins' own arrangement rather than a promise made
@@ -1693,7 +1718,7 @@ export const bind = (
                   // a keystroke that landed in a note costs one walk per plugin
                   // and zero frames, and the sockets are the sweeps' business
                   // on their own clocks.
-                  plugins?.vault.published(snapshot)
+                  if (plugins !== null) yield* plugins.published(snapshot)
                   // ...AND THE PICKS THIS REVISION BROKE, which is core's own
                   // reading of the same snapshot and the one thing above that
                   // is not a plugin's. It is HERE, on the revision hook, for
@@ -2472,8 +2497,10 @@ export const bind = (
         // leave — on the OWNER's channel, because a sibling still holding a
         // source after it has left the roster is a thing a person can act on.
         void mount.drop().catch((thrown: unknown) => {
-          plugins?.log.warn(
-            `plugins: "${key}" left the wire and its teardown failed — ${String(thrown)}`,
+          ring(
+            Effect.logWarning(
+              `plugins: "${key}" left the wire and its teardown failed — ${String(thrown)}`,
+            ),
           )
         })
       }
@@ -2491,7 +2518,7 @@ export const bind = (
      * {@link PluginRuntime.onChange} carries.
      *
      * A HOLDER and not a callback passed at construction, and the order is the
-     * reason: `ctx.surfaces` needs to be told what to call before any plugin can
+     * reason: `openPlugins` needs to be told what to call before any plugin can
      * register, and the thing to call does not exist until here.
      */
     recompose()

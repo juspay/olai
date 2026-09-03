@@ -60,7 +60,7 @@ export function Padi(props: { readonly app: KoluApp }) {
   const fleet = useFleet()
   const said = () => padiSaid(fleet.link(), fleet.pulse(), fleet.now())
   const quiet = () => said().beat?.kind === "quiet"
-  const popover = props.app.createPopover()
+  const popover = props.app.popover()
   const pill = props.app.pill
   return (
     <Show when={props.app.desktop()}>

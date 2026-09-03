@@ -6,7 +6,7 @@
  *
  * `OlaiPlugin` was a VALUE: an object with `dressings`, `chrome`, `mount` and
  * `mark` on it, listed in a compiled-in registry and walked by four modules in
- * `@olai/web`. A browser half is a Cordis FIBER now — `name`, `inject`,
+ * `@olai/web`. A browser half is a PLUGIN now — `name`, `needs`,
  * `apply(ctx)`, exactly its server half — and what it used to declare it now
  * REGISTERS, into the six slots `./browser.ts` declares. So the hooks retired
  * with the object that carried them and what stayed here is the DRAWING
@@ -77,14 +77,14 @@
  * imported halves left for a type to be asserted over. That is a stronger
  * arrangement rather than a lost check, because the proof went to the line that
  * is wrong instead of to a list far from it: a half hands its `surface` and its
- * `faces` to `ctx.surfaces.register` ({@link ./services.ts}) and its drawn faces
- * to `ctx.slots.register` ({@link ./browser.ts}), so a member name it got wrong
+ * `faces` to `Surfaces.register` ({@link ./services.ts}) and its drawn faces
+ * to `Slots.register` ({@link ./browser.ts}), so a member name it got wrong
  * or a slot this app does not declare is red in that plugin's own package, on
  * the call that made the mistake — where the `satisfies` could only ever report
  * it at one line of one list in a package the plugin's author was not editing.
  *
  * It is what the SERVER half already does, and there the import is not
- * optional: a server half is a Cordis plugin now, and `inject` names the
+ * optional: a server half is an Effect now, and `needs` names the
  * services in `./services.ts`.
  *
  * ## Everything is optional but the name, the surface and its faces
@@ -140,8 +140,8 @@ import type { JSX } from "solid-js"
  * WHERE that error lands moved with the manifest. It used to be the registry's
  * `satisfies`, one line of one list, with the plugin's name on it; there is no
  * such list, and the reading is now composed inside the plugin's own `apply` out
- * of the services it injected (`olai-plugin-kolu`'s `browser.tsx` builds its
- * `KoluApp` from `ctx.bar`, `ctx.clocks` and `ctx.links`). So a field asked for
+ * of the services it named (`olai-plugin-kolu`'s `browser.tsx` builds its
+ * `KoluApp` from the `Bar`, `Clocks` and `Links` tags). So a field asked for
  * that the app does not hand over is red on the line that composes it, in the
  * package that asked, which is nearer the mistake than the registry ever was.
  */
@@ -241,8 +241,8 @@ export type FileLink = (props: {
  * on the other side of the wire: a field per appliance is a general package
  * naming one. That argument is intact and is not what retired it. What retired
  * it is that a browser half is a FIBER now, so there is something to inject
- * INTO — a plugin NAMES what it needs in its `inject` and Cordis holds it
- * `PENDING` until it exists, which is the same guarantee its server half has
+ * INTO — a plugin NAMES what it needs in its `needs` and the runtime holds it
+ * `waiting` until it exists, which is the same guarantee its server half has
  * had since the bundle became rows. `./browser.ts` declares the four; the
  * shapes above are what each of them carries, unchanged. */
 

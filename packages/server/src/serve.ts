@@ -30,19 +30,7 @@ import type { IdentityConfig } from "@olai/identity"
 import { fixedPolicy, make as makeOps, TOOLS } from "@olai/ops"
 import { BUNDLE_NAMES, mountBundle, reportBundle } from "@olai/bundle/bundle"
 import { emitter } from "@olai/log"
-import {
-  Clock,
-  DeliveryDoors,
-  Env,
-  Held,
-  Kinds,
-  Log,
-  Surfaces,
-  Vault,
-  Wakes,
-  Watchers,
-} from "@olai/plugin-api/services"
-import { Context } from "cordis"
+import { openPlugins } from "@olai/plugin-api/services"
 import { Effect, SubscriptionRef } from "effect"
 import { randomBytes } from "node:crypto"
 import { resolve } from "node:path"
@@ -101,150 +89,130 @@ export interface ServeOptions {
  */
 export const serve = (options: ServeOptions) =>
   Effect.gen(function*() {
-    /**
-     * THE PLUGIN RUNTIME, MOUNTED — before the store, before the chat, before
-     * anything reads a file.
-     *
-     * ## Why this is the first thing that happens
-     *
-     * A plugin teaches the vault its VOCABULARY, and the store validates
-     * through it ({@link ./propKinds.ts}): a codec built without it would judge
-     * the boot's own load against a vocabulary that has never heard of a
-     * terminal, and every value under a contributed kind would be text until
-     * something re-validated. That ordering was already here — `propKinds` ran
-     * first — and what changed is where the words come from. They used to be a
-     * static field on a compiled-in list; they are registrations a mounted fiber
-     * makes, so the fibers have to be up.
-     *
-     * Nothing in an `apply` touches the disk or dials anything: each half is
-     * MADE eagerly and STARTED lazily, and starting is a cell's connector, which
-     * the framework runs when the surface binds. So mounting here costs the
-     * import of two modules and a handful of `Map.set`s.
-     *
-     * ## The services, and the ONE place a process reaches for the real world
-     *
-     * This is it, which is the rule every seam in this tree is built on: a
-     * plugin that read `process.env` or called `new Date()` would be a plugin a
-     * test cannot drive. What changed is only that the values arrive once, at
-     * the service, instead of once per plugin — and that the two KEYED ones (the
-     * doorbell's door, and a test's injectable dial) are keyed by the CALLING
-     * FIBER inside the service rather than by a name a composition root closed
-     * over.
-     *
-     * THERE IS ALWAYS A CONTEXT HERE, and `--plugins=` is not the exception:
-     * saying NONE out loud is every row patched `disabled`, so the services
-     * stand and nothing mounts into them, which is exactly the state the roster
-     * has to be able to draw. The face that composes no runtime at all is the
-     * one that never calls this function — `olai surface`, the headless faces,
-     * every test in this package — and it passes `null` to `bind` directly.
-     */
-    /**
-     * THE ONE BRIDGE from an Effect to a sink that has no fiber under it — the
-     * two log channels the services carry, and the doorbell's delivery.
-     *
-     * `Emit` names its argument a line because logging is what most callers do
-     * with it; what it IS is "run this Effect later, under the services this
-     * fiber has". A delivery reaching core from a plugin's watcher sink is in
-     * precisely the position `@olai/log`'s `emit.ts` was written for: a plain
-     * callback with no fiber under it, where an empty context would mean the
-     * DEFAULT logger at the DEFAULT level — so every line the delivery's own
-     * turn emits would escape an `OLAI_LOG_LEVEL` the operator typed and arrive
-     * in a different shape than the same line from a person's send. One
-     * conversation would keep two journals, told apart by who started the turn.
-     *
-     * A `let`, RE-CAPTURED after the directory is open, and that is not
-     * bookkeeping: `openDirectory` annotates this scope with the root
-     * (`./directory.ts` owns the reason it must happen before the store forks
-     * anything), and an emitter captured before it closes over a context
-     * without that annotation. The services are constructed FIRST — they have
-     * to be, because a plugin teaches the vault its vocabulary — so the first
-     * capture is what stands for the handful of lines a plugin's `apply` could
-     * emit, and every line after the directory is open says which directory it
-     * was about.
-     */
-    let ring = yield* emitter
     /** THE CHAT, built further down and `null` forever on a machine with no ACP
      *  agent. It is declared UP HERE because two things below reach for it out
-     *  of order: the delivery service asks for a plugin.s door per call, and the
-     *  refusal observer is installed on the ops layer, which is built before the
-     *  chat that draws its refusals. */
+     *  of order: the delivery door is asked for per call, and the refusal
+     *  observer is installed on the ops layer, which is built before the chat
+     *  that draws its refusals. */
     let chat: Chat.Chat | null = null
     /** The re-compose, filled in by `bind` — `./runtime.ts`'s `PluginRuntime`
      *  argues why it is a holder rather than a callback passed here. */
     const onChange = { run: (): void => {} }
     /** WHERE A RELATIVE PATH RESOLVES FROM, resolved the way `openDirectory`
-     *  resolves it and BEFORE it, because the services are constructed first.
+     *  resolves it and BEFORE it, because the plugin runtime is opened first.
      *  One spelling of `resolve` in two places is a hazard; two answers to which
      *  directory this serve is about is a worse one, and `./directory.ts` is
      *  handed the same string. */
     const served = resolve(options.root)
-    const plugins = new Context()
-    yield* Effect.promise(async () => {
-        await plugins.plugin(Env, { vars: process.env })
-        await plugins.plugin(Clock, { now: () => new Date().toISOString() })
-        // The two log LEVELS are this file's and the sentences are not. Routine
-        // narration goes at `debug`, because on a machine that is not running
-        // the tool it is a line every few seconds and it is not news; what the
-        // OWNER must read goes at `warning`, because the default console level
-        // is `info` and a malformed value in somebody's vault sitting behind
-        // `OLAI_LOG_LEVEL=debug` is a sentence nobody is told.
-        await plugins.plugin(Log, {
-          say: (line) => ring(Effect.logDebug(line)),
-          warn: (line) => ring(Effect.logWarning(line)),
-        })
-        await plugins.plugin(Vault, { served, warn: (line) => ring(Effect.logWarning(line)) })
-        // The chat is built further down and a machine with no ACP agent never
-        // builds one at all, so the door is asked for per call rather than
-        // captured — which is also what makes a plugin that unloads and comes
-        // back get the door that is live rather than the one that was.
-        await plugins.plugin(DeliveryDoors, {
-          doorFor: (plugin) => {
-            const door = chat?.doorFor(plugin)
-            if (door === undefined) return null
-            // The chat`s `deliver` is an EFFECT and a plugin`s caller is a
-            // watcher sink with nowhere to put one, so the bridge is here —
-            // the one thing that genuinely belongs to a composition root. The
-            // KEYING is not: `ctx.deliveries` mints the door off the calling
-            // fiber, so what this line does is hand over the chat`s own door
-            // for the name it was asked about and nothing else.
-            return {
-              scopes: door.scopes,
-              deliver: (to, say, options) => {
-                ring(door.deliver(to, say, options))
-              },
-            }
-          },
-        })
-        // THE WATCHING BUS. Its subscribers are plugin fibers, so a plugin that
-        // unloads stops being told without anything here remembering to say so;
-        // what a handler throws is contained and said on the owner.s channel,
-        // because a mirror that threw on one event must not take a
-        // conversation.s turn down with it.
-        await plugins.plugin(Watchers, { warn: (line) => ring(Effect.logWarning(line)) })
-        // ...and the small record a plugin keeps about this serve, in the state
-        // home rather than the vault. Core owns the file and keys it by the
-        // calling fiber; `./held.ts` orders the writes so the last snapshot
-        // handed over is the one that lands.
-        await plugins.plugin(Held, {
-          doorFor: (plugin) => heldFor(plugin, served, (line) => ring(Effect.logWarning(line))),
-        })
-        await plugins.plugin(Kinds)
-        await plugins.plugin(Wakes)
-        await plugins.plugin(Surfaces, { changed: () => onChange.run() })
-      await mountBundle(plugins, options.plugins)
+    /**
+     * WHICH DIRECTORY EVERY LINE BELOW IS ABOUT, annotated BEFORE the plugin
+     * runtime rather than only inside `openDirectory`.
+     *
+     * `openDirectory` sets the same annotation and owns the ordering rule that
+     * matters most — it has to be in force before `Store.make` forks its watcher,
+     * or those fibers say nothing about which directory they were probing. This
+     * line is the same fact one step earlier, and it is here because a plugin's
+     * `apply` runs BEFORE the store opens: the plugin runtime captures this
+     * fiber's services once, and every line a plugin emits for the life of the
+     * process is emitted under them. Annotating afterwards would leave exactly
+     * the lines that name somebody's vault as the ones that do not say which.
+     *
+     * The value is `openDirectory`'s own — `resolve(options.root)`, computed
+     * once, above — so the two cannot disagree.
+     */
+    yield* Effect.annotateLogsScoped({ root: served })
+    /**
+     * CORE'S OWN LINE FROM A CHAIN THAT IS NOT AN EFFECT — the one emitter this
+     * file still holds, and what is left of a `let ring` that used to carry every
+     * plugin service's two channels.
+     *
+     * `./held.ts` orders a plugin's writes on a promise chain, because the
+     * ordering is the point and a fire-and-forget save must not wait on a disk. A
+     * write that fails there has no fiber under it, which is the exact position
+     * `@olai/log`'s `emit.ts` was written for: without this the line would be
+     * emitted against the defaults and escape an `OLAI_LOG_LEVEL` the operator
+     * typed. It is core's own file and core's own failure — no plugin service
+     * carries a callback any more.
+     */
+    const say = yield* emitter
+    /**
+     * THE PLUGIN RUNTIME, OPENED — before the store, before the chat, before
+     * anything reads a file.
+     *
+     * ## Why this is the first thing that happens
+     *
+     * A plugin teaches the vault its VOCABULARY, and the store validates through
+     * it ({@link ./propKinds.ts}): a codec built without it would judge the
+     * boot's own load against a vocabulary that has never heard of a terminal,
+     * and every value under a contributed kind would be text until something
+     * re-validated. That ordering was already here — `propKinds` ran first — and
+     * what changed is where the words come from. They used to be a static field
+     * on a compiled-in list; they are registrations a mounted plugin makes, so
+     * the plugins have to be up.
+     *
+     * Nothing in an `apply` touches the disk or dials anything: each half is MADE
+     * eagerly and STARTED lazily, and starting is a cell's connector, which the
+     * framework runs when the surface binds. So mounting here costs the import of
+     * two modules and a handful of `Map.set`s.
+     *
+     * ## The ONE place a process reaches for the real world
+     *
+     * This is it, which is the rule every seam in this tree is built on: a plugin
+     * that read `process.env` or called `new Date()` would be a plugin a test
+     * cannot drive. What changed is only that the values arrive once, at the
+     * runtime, instead of once per plugin — and that the KEYED ones (the
+     * doorbell's door, the machine-local record, a test's injectable dial) are
+     * minted from the CALLING PLUGIN'S OWN WORD inside the service rather than
+     * from a name a composition root closed over.
+     *
+     * ## No `Effect.promise`, and no callbacks back out
+     *
+     * Both are the phase. Opening the runtime and mounting the bundle are
+     * Effects; every service a plugin names is an Effect service; and the two log
+     * channels that used to be `ring(Effect.logDebug(line))` callbacks on a `Log`
+     * service are Effect's own logger, reached by the plugin from inside its own
+     * fiber. The one bridge that survives is the chat's `deliver`, which is an
+     * Effect a plugin now `yield*`s rather than a promise core forks for it.
+     *
+     * THERE IS ALWAYS A RUNTIME HERE, and `--plugins=` is not the exception:
+     * saying NONE out loud is every row patched `disabled`, so the services stand
+     * and nothing mounts into them, which is exactly the state the roster has to
+     * be able to draw. The face that composes no runtime at all is the one that
+     * never calls this function — `olai surface`, the headless faces, every test
+     * in this package — and it passes `null` to `bind` directly.
+     */
+    const plugins = yield* openPlugins({
+      vars: process.env,
+      now: () => new Date().toISOString(),
+      served,
+      // The chat is built further down and a machine with no ACP agent never
+      // builds one at all, so the door is asked for per call rather than
+      // captured — which is also what makes a plugin that unloads and comes back
+      // get the door that is live rather than the one that was.
+      //
+      // The KEYING is not this line's: the service mints a plugin's door from
+      // the word the registry bound it under, so what this does is hand over the
+      // chat's own door for the name it was asked about and nothing else.
+      doorFor: (plugin) => chat?.doorFor(plugin) ?? null,
+      // ...and the small record a plugin keeps about this serve, in the state
+      // home rather than the vault. Core owns the file and keys it by the calling
+      // plugin; `./held.ts` orders the writes so the last snapshot handed over is
+      // the one that lands, and the service mints ONE door per plugin, which is
+      // what makes that ordering true.
+      heldFor: (plugin) => heldFor(plugin, served, (line) => say(Effect.logWarning(line))),
+      changed: () => onChange.run(),
+      // NO `dials`: the injectables are a test's, and this is the product.
     })
+    yield* mountBundle(plugins.host, options.plugins)
     // WHAT BECAME OF EACH ROW, read once the bundle has settled — the word a
     // preferences row wears when a plugin is not running, and the plugin's own
-    // sentence when its start threw. A snapshot rather than a live read
-    // because a failed fiber's error is private and reachable only by awaiting
-    // it; `./runtime.ts`'s `PluginRuntime.report` argues why that is honest in
-    // this phase and names the phase it stops being.
-    const report = yield* Effect.promise(() => reportBundle(plugins))
-    const kinds = yield* Effect.promise(() => propKinds(plugins))
+    // sentence when its start failed. A snapshot rather than a live read because
+    // a failed fiber's error is private and reachable only by awaiting it;
+    // `./runtime.ts`'s `PluginRuntime.report` argues why that is honest in this
+    // phase and names the phase it stops being.
+    const report = yield* reportBundle(plugins.host)
+    const kinds = yield* propKinds(plugins)
     const { root, store } = yield* openDirectory(options.root, kinds)
-    // ...and the SECOND capture, now the root annotation is in force — see the
-    // `let` above for why there are two.
-    ring = yield* emitter
 
     // The chat publishes through the surface, and the surface is seeded from
     // the chat. One mutable slot resolves that, and it is safe because nothing
@@ -466,7 +434,7 @@ export const serve = (options: ServeOptions) =>
       // THE PLUGINS, already mounted — and this is no longer the place a
       // process reaches for the real environment on their behalf. That happens
       // at the top of this function, where the services are constructed, and
-      // what crosses here is the context they hang on plus the two facts a
+      // what crosses here is the runtime's own doors plus the two facts a
       // BROWSER has to be told: which plugins the build has, and whether
       // anybody typed the flag.
       //
@@ -476,10 +444,8 @@ export const serve = (options: ServeOptions) =>
       // `surface/<name>/` on the wire at all — the true answer for a process
       // that has no business dialing somebody's daemon on its way to printing a
       // node.
-      //
-      // NO `dials`: the injectables are a test's, and this is the product.
       plugins: {
-        ctx: plugins,
+        plugins,
         onChange,
         built: BUNDLE_NAMES,
         pinned: options.plugins,

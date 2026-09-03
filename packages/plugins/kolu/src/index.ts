@@ -60,18 +60,18 @@
  * every plugin, which is exactly why a plugin could not import it back; the
  * registry left for `@olai/bundle` and what stayed there is the interface, which
  * names no plugin at all. So this package DOES import it — `./server.ts`'s
- * `inject` names the services it declares, and `./browser.tsx` takes the
- * declaration merging that types `ctx.slots` — and the one-way arrow is
+ * `needs` names the services it declares, and `./browser.tsx` names the tags
+ * its own `needs` yields — and the one-way arrow is
  * `@olai/bundle`'s now: the bundle names every plugin, and a plugin naming the
  * bundle would be the cycle the manifests decline to express.
  *
  * What the `satisfies` used to catch is caught where these values are SPENT,
  * inside this package and with this package's name on the file. `surface` and
- * `faces` go to `ctx.surfaces.register`, whose `Sibling` types both and whose
+ * `faces` go to `surfaces.register`, whose `Sibling` types both and whose
  * `deps` carries its own `satisfies ImplementSurfaceDeps<typeof surface.spec>`
  * (`./server.ts`); a face hung in a slot the app does not declare is a type
- * error on its own `ctx.slots.register` line, and the reading of the app this
- * half composes out of `ctx.bar`, `ctx.clocks` and `ctx.links`
+ * error on its own `slots.register` line, and the reading of the app this
+ * half composes out of the `Bar`, `Clocks` and `Links` tags
  * (`./browser/app.ts`) fails on the line that composes it. It is the same
  * structural agreement `@olai/ops` keeps with the surface's `Status` and
  * `./appliance/`'s `props/block.ts` keeps with the drawer's entry — read at the
