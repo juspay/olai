@@ -139,7 +139,7 @@ export const watchConfigIn = (
    *  argument. A hand-edited file reads the other way: a truncated `nag: 10`
    *  defaults into a 10-ms re-fire spin, which is the one mistake a property
    *  file must say rather than do. */
-  const vaultShape = /^\d+$/
+  const bareDigits = /^\d+$/
   const spellUnit = (key: "held-for" | "nag" | "heartbeat", value: string): void => {
     malformed.push(`kolu: \`${key}: ${value}\` in ${watch?.file}: spell a number and a unit (500ms, 30s, 10m, 2h, 1d)`)
   }
@@ -157,7 +157,7 @@ export const watchConfigIn = (
     if (watch === undefined) return fallback
     const value = customText(watch.node, key)
     if (value === undefined) return fallback
-    if (!vaultShape.test(value)) {
+    if (bareDigits.test(value)) {
       spellUnit(key, value)
       return fallback
     }
@@ -175,7 +175,7 @@ export const watchConfigIn = (
     if (watch === undefined) return DEFAULT_WATCH.nagMs
     const value = customText(watch.node, "nag")
     if (value === undefined) return DEFAULT_WATCH.nagMs
-    if (!vaultShape.test(value)) {
+    if (bareDigits.test(value)) {
       spellUnit("nag", value)
       return DEFAULT_WATCH.nagMs
     }
