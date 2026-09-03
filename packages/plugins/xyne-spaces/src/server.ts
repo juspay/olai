@@ -318,17 +318,35 @@ export default definePlugin({
       } satisfies ImplementSurfaceDeps<typeof surface.spec>,
     })
 
-    /** A VAULT REVISION LANDED — the bind rows and the trim, re-read.
+    /**
+     * A VAULT REVISION LANDED — the bind rows and the trim, re-read.
      *
-     *  THE PAYLOAD IS NARROWED HERE, in this plugin's own signature: core rings
-     *  the whole published snapshot and {@link VaultRevision} names the parts
-     *  this half touches. The door is generic in its payload, so that signature
-     *  IS the narrowing — inferred, rather than asserted inside the handler. */
+     * THE PAYLOAD IS NARROWED HERE, in this plugin's own signature: core rings
+     * the whole published snapshot and {@link VaultRevision} names the parts
+     * this half touches. The door is generic in its payload, so that signature
+     * IS the narrowing — inferred, rather than asserted inside the handler.
+     *
+     * ## THE RE-DERIVE IS THE HANDLER; THE FAULT IS DETACHED
+     *
+     * The door AWAITS every handler and the root awaits the door, so whatever
+     * this function yields is a statement the directory fiber waits for before
+     * it writes the collections, the heads and the roster. What that await is
+     * FOR is *"every plugin has re-derived"* — and the re-derive here is the one
+     * synchronous assignment above, the same shape kolu's and odu's handlers
+     * keep.
+     *
+     * The fault is not that. `deliverFault` is a `deliveries.deliver`, which
+     * flushes into a conversation — and when `lastBound` is the idle on-screen
+     * one, that means writing a transcript row and BEGINNING A TURN. Yielded
+     * here, a misconfigured channel put an agent turn on the directory fiber's
+     * critical path, once per revision. It was fire-and-forget before this
+     * phase and it is again, through the one named seam.
+     */
     yield* vault.revision((revision: VaultRevision) =>
-      Effect.gen(function*() {
+      Effect.sync(() => {
         reading = spacesConfigIn(revision.value.derived)
         if (!missingEnv) return
-        if (reading.named.length > 0) yield* deliverFault(sayUnconfigured(), "fault")
+        if (reading.named.length > 0) run(deliverFault(sayUnconfigured(), "fault"))
         else if (current.status !== "absent") paint(env.link)
       })
     )
