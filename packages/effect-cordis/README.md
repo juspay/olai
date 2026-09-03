@@ -55,6 +55,16 @@ word on the line and the same sentence for both modes (`failed`), and the rest
 carry on — which the engine's own dispatcher could not do, because its `emit` is
 a bare `Reflect.apply` loop with no `try` in it.
 
+"The rest carry on" is exact in the waterfall, and turns on whether the dying
+link had called through. One that died BEFORE `next` has not consulted the ones
+after it, so the chain resumes at the next link with the value this one was
+handed: one plugin's broken listener is one plugin's absence, and not also
+everybody registered behind it — which would otherwise depend on a registration
+order that races. One that died AFTER `next` has already had its answer and the
+rest have already run, so they are not asked again; the value comes back as the
+dying link was handed it, because a half-transformed value is not something to
+pass on.
+
 **`detached`** — the one seam across the boundary, named once so it is not
 re-invented per plugin. What drives a plugin at runtime is frequently not Effect:
 an appliance's watcher fires a callback, a timer beats, a socket says something,
