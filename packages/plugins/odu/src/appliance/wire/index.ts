@@ -177,6 +177,14 @@ export const tallyOf = (cells: ReadonlyArray<RunCell>): RunTally => {
   return { total: cells.length, settled, ok, red }
 }
 
+/** THE RUN'S SETTLE, read: every node terminal, and at least one — the limb
+ *  of the answer the wake needs raw, because a RED run settles too while its
+ *  verdict is not `ok`. Folded HERE, beside `tallyOf`, for the fold's own
+ *  reason: a second spelling of this reading in any consumer would be a
+ *  second answer, and the two could drift. */
+export const settledOf = (tally: RunTally): boolean =>
+  tally.total > 0 && tally.settled === tally.total
+
 /**
  * WHAT THE RUN CAME TO, or `null` while it has not — the second fold, over
  * the first, and here for the first one's reason.
@@ -189,8 +197,8 @@ export const tallyOf = (cells: ReadonlyArray<RunCell>): RunTally => {
  *
  * A run with NO nodes has no verdict of any colour. A `provisioning` run that
  * has published a roster and nothing else would otherwise read `ok`, which is
- * the empty-set trap the counting form falls into and the reason this is a
- * branch rather than `red === 0 && settled === total`.
+ * the empty-set trap the counting form falls into; `settledOf` guards it in
+ * one place, so no consumer of the reading repeats the guard.
  *
  * A WORD rather than a boolean, because the day a third outcome matters
  * (odu's `cancelled` is already a distinct status) a boolean has no room for
@@ -198,8 +206,7 @@ export const tallyOf = (cells: ReadonlyArray<RunCell>): RunTally => {
  */
 export const verdictOf = (tally: RunTally): string | null => {
   if (tally.red > 0) return "red"
-  if (tally.total === 0) return null
-  return tally.settled === tally.total ? "ok" : null
+  return settledOf(tally) ? "ok" : null
 }
 
 /**

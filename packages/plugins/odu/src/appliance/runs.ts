@@ -95,7 +95,7 @@ import { Cause, Duration, Effect, Fiber, Schedule, type Scope, Stream } from "ef
 
 import { runOf, wentOf } from "./project.ts"
 import { type Worktree, worktreeAt } from "./resolve.ts"
-import { type CiRun, type RunCell, tallyOf } from "./wire/index.ts"
+import { type CiRun, type RunCell, settledOf, tallyOf } from "./wire/index.ts"
 
 /**
  * How long between sweeps.
@@ -398,7 +398,7 @@ export const makeWatch = (deps: WatchDeps): Watch => {
           deps.rang({ kind: "first-red", run: row, cell: first })
         }
         const tally = tallyOf(row.cells)
-        const settling = tally.total > 0 && tally.settled === tally.total
+        const settling = settledOf(tally)
         if (settling && !wasSettled) {
           wasSettled = true
           deps.rang({ kind: "settled", run: row, reddened: [...reddened] })
