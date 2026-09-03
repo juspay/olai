@@ -1172,6 +1172,7 @@ describe("an appliance's product tier stays inside its tenant", () => {
       Object.fromEntries([...TENANTS].map(([name, members]) => [name, [...members].sort()])),
     ).toEqual({
       claude: ["plugins/claude"],
+      codex: ["plugins/codex"],
       kolu: ["plugins/kolu"],
       odu: ["plugins/odu"],
       opencode: ["plugins/opencode"],
@@ -1193,6 +1194,7 @@ describe("an appliance's product tier stays inside its tenant", () => {
       // there is the truth rather than a missed pin, and the two `true`s are
       // what keep the derivation from being empty everywhere.
       claude: false,
+      codex: false,
       kolu: true,
       odu: true,
       opencode: false,

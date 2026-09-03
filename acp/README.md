@@ -6,18 +6,18 @@ imported by any olai source. `nix/acp-agent.nix` builds it — one fixed-output
 derivation for the tarballs, nothing fetched at build time, no `npx` at run
 time — so a nix-built olai needs nothing ambient.
 
-## Why one lockfile carries two adapters
+## Why one lockfile carries three adapters
 
 Because a lockfile is a fixed-output derivation and a hash, and there is
 nothing about *which engine* in either of them. Splitting this into
-`packages/plugins/claude/acp/` and `packages/plugins/pi/acp/` would buy no
+per-engine lockfiles would buy no
 separation the phase asked for — the pin VERSIONS are already one line each,
 and each engine's patches and patch sources already live in that engine's
-directory — while costing two large FODs and two `npmDepsHash` values to keep
-in step by hand. One shim, two dependencies, one hash.
+directory — while costing three large FODs and three `npmDepsHash` values to keep
+in step by hand. One shim, three adapter dependencies, one hash.
 
-What that costs, said plainly: bumping either adapter regenerates the lockfile
-and moves the hash for both. `nix/acp-agent.nix`'s `version` names both pins for
+What that costs, said plainly: bumping any adapter regenerates the lockfile
+and moves the hash for all three. `nix/acp-agent.nix`'s `version` names all pins for
 exactly that reason, so the store path cannot go on claiming one version after
 the other moved.
 
@@ -29,6 +29,9 @@ An engine is a plugin, and its adapter's patches move on its own release clock:
   (`background-tasks-visible`, `session-list-info`), the `session-list-info/`
   rig that generates the second, and a `patches/README.md` that is also where
   every pin move is recorded.
+- **Codex** — `packages/plugins/codex/`: no patch. The official `codex-acp`
+  adapter and the `@openai/codex` executable it wraps are both carried by this
+  lockfile; the Nix wrapper pins the latter through `CODEX_PATH`.
 - **pi** — `packages/plugins/pi/acp/`: one patch (`pi-mcp-servers`), the
   `mcp-bridge/` extension that is its other half, and their own README.
 - **opencode** — nothing. Olai ships no adapter for it and pins nothing: it is

@@ -13,7 +13,7 @@
  * THE PATH IS LONGER THAN IT WAS, and that is the agents phase: this rig
  * moved into `olai-plugin-pi` with the patch it is the other half of,
  * because an engine's adapter work travels with its engine. What did NOT
- * move is the npm SHIM — one lockfile, two adapters, one fixed-output
+ * move is the npm SHIM — one lockfile, three adapters, one fixed-output
  * derivation (`acp/README.md` argues it) — so the pinned tree these
  * imports must resolve against is still the repository's own `acp/`.
  *

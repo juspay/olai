@@ -182,6 +182,7 @@ let
       --add-flags "${base}/packages/server/src/main.ts" \
       --set OLAI_DIST_DIR "${olai-client}" \
       --set-default OLAI_ACP_AGENT "${acp-agent}/bin/claude-agent-acp" \
+      --set-default OLAI_ACP_CODEX "${acp-agent}/bin/codex-acp" \
       --set-default OLAI_ACP_PI "${acp-agent}/bin/pi-acp" \
       --set-default OLAI_ODU_BIN "${odu-bin}/bin" \
       --run 'if [ -n "$OLAI_ODU_BIN" ]; then if [ -d "$OLAI_ODU_BIN" ]; then export PATH="$OLAI_ODU_BIN''${PATH:+:$PATH}"; else echo "olai: OLAI_ODU_BIN=$OLAI_ODU_BIN is not a directory — no odu goes on the PATH of this serve" >&2; fi; fi'

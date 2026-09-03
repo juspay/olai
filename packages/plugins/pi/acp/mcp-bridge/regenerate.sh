@@ -30,7 +30,7 @@ set -euo pipefail
 # `packages/plugins/pi/acp/mcp-bridge/`, so the plugin's own `acp/` is one up
 # and the REPOSITORY is four. The npm shim whose lockfile pins the version is
 # still the shared one at the repository root (`acp/README.md` says why one
-# lockfile carries two adapters).
+# lockfile carries three adapters).
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo="$(cd "$here/../../../../.." && pwd)"
 out="$here/../patches/pi-mcp-servers.patch"

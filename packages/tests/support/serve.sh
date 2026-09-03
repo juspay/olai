@@ -80,6 +80,7 @@ olai_serve() {
   # miss if we return without setting.
   unset OLAI_URL
   OLAI_DIST_DIR="$root/packages/web/dist" OLAI_ACP_AGENT="${AGENT:-}" \
+    OLAI_ACP_CODEX= OLAI_ACP_PI= \
     OLAI_AGENT_PATH= \
     OLAI_DIE_WITH_PARENT=$$ \
     bun "$root/packages/server/src/main.ts" web "$vault" --port "$port" \

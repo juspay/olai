@@ -48,6 +48,7 @@
         "@olai/plugin-api": "workspace:*",
         "effect": "4.0.0-rc.112",
         "olai-plugin-claude": "workspace:*",
+        "olai-plugin-codex": "workspace:*",
         "olai-plugin-kolu": "workspace:*",
         "olai-plugin-odu": "workspace:*",
         "olai-plugin-opencode": "workspace:*",
@@ -177,6 +178,16 @@
       },
       "devDependencies": {
         "@agentclientprotocol/sdk": "^1.3.0",
+      },
+    },
+    "packages/plugins/codex": {
+      "name": "olai-plugin-codex",
+      "version": "0.1.0",
+      "dependencies": {
+        "@olai/acp": "workspace:*",
+        "@olai/plugin-api": "workspace:*",
+        "effect": "4.0.0-rc.112",
+        "solid-js": "^1.9.0",
       },
     },
     "packages/plugins/kolu": {
@@ -1153,6 +1164,8 @@
     "object-inspect": ["object-inspect@1.13.4", "", {}, "sha512-W67iLl4J2EXEGTbfeHCffrjDfitvLANg0UlX3wFUUSTx92KXRFegMHUVgSqE+wvhAbi4WqjGg9czysTV2Epbew=="],
 
     "olai-plugin-claude": ["olai-plugin-claude@workspace:packages/plugins/claude"],
+
+    "olai-plugin-codex": ["olai-plugin-codex@workspace:packages/plugins/codex"],
 
     "olai-plugin-kolu": ["olai-plugin-kolu@workspace:packages/plugins/kolu"],
 

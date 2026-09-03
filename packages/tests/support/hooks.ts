@@ -142,7 +142,7 @@ const FAKE_KOLU_DIR = path.resolve(import.meta.dirname, "..", "agent", "kolu");
  * olai probes with, and because the default has to be "nothing": every other
  * scenario spawns with `OLAI_AGENT_PATH` set to the EMPTY string, which finds
  * no agent anywhere and leaves the roster as the one `OLAI_ACP_AGENT` names —
- * a roster of one, which is what every olai in the world is running today and
+ * a roster of one, which the rest of this suite deliberately stages and
  * the state the rest of this suite is written against.
  */
 const FAKE_OPENCODE_DIR = path.resolve(import.meta.dirname, "..", "agent", "opencode");
@@ -670,6 +670,10 @@ const startServerChild = async (
         // turning chat off would set — so the no-agent scenario reaches that
         // state the same way rather than through a hole in the harness.
         OLAI_ACP_AGENT: spawnOptions.agent === false ? "" : FAKE_AGENT,
+        // The packaged binary now carries Codex too. Every scenario here is
+        // deterministic against the scripted engine(s) it explicitly asks
+        // for, so its real baked adapter must not silently add a picker row.
+        OLAI_ACP_CODEX: "",
         ...(spawnOptions.stored === true ? { OLAI_FAKE_ACP_STORED: "yes" } : {}),
         // WHERE OLAI LOOKS FOR AGENTS, and by default nowhere: the empty
         // string is "look on no path at all", so a developer's own opencode

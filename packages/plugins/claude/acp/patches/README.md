@@ -14,7 +14,7 @@ is the agents phase: an engine is a plugin now, with its own release clock —
 this adapter's pin moved five times in a month and no other engine's did —
 so its patches and the sources they are generated from travel with it. What
 is still shared is the npm SHIM (`acp/package.json` and its lockfile) — one
-lockfile, two adapters, one fixed-output derivation — and `acp/README.md`
+lockfile, three adapters, one fixed-output derivation — and `acp/README.md`
 says why. The pi adapter's one patch is one directory over, in
 `packages/plugins/pi/acp/patches/`.
 

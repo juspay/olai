@@ -206,7 +206,7 @@ Skim the table; the sections after it give one example each.
 
 | Word | What it means |
 | --- | --- |
-| **plugin** | one integration, two halves, one shape: each is a `definePlugin` over an Effect. TWO KINDS of them today — a **tenant** (olai's judgement about somebody else's appliance: kolu, odu, xyne-spaces) and an **engine** (an ACP agent the chat panel can seat: claude, opencode, pi) — and nothing in the system tells them apart |
+| **plugin** | one integration, two halves, one shape: each is a `definePlugin` over an Effect. TWO KINDS of them today — a **tenant** (olai's judgement about somebody else's appliance: kolu, odu, xyne-spaces) and an **engine** (an ACP agent the chat panel can seat: claude, codex, opencode, pi) — and nothing in the system tells them apart |
 | **name** | the plugin's one word — `"kolu"`, `"claude"`. Also the **sibling key**, the **row id**, the **fiber's name** and the address of its docs page |
 | **row** | one line of `packages/bundle/olai.yml`: an `id` and the module the loader mounts. The build's list, as data |
 | **fiber** | one mounted plugin, with a lifecycle. A composition root sees four words for it — `running`, `waiting`, `failed`, `off` — and the engine's six states are `@olai/effect-cordis`'s business |
@@ -217,7 +217,7 @@ Skim the table; the sections after it give one example each.
 | **member** | one thing on a surface: a cell, a collection, a stream, a procedure |
 | **face** | *who* may see which members — `browser`, `agent`. Default-deny |
 | **probe** | "is this tool on this host?" — an Effect registered on `SessionStart`, read afresh and asked once per conversation. The plugin's NAME is stamped off the fiber, like every other keyed door |
-| **engine** | one ACP agent olai can seat, as a plugin: a `Leg` that reads its wire, a probe that finds it on this host, and the channel its standing prompt rides — plus, on its browser half, the mark it wears and the sentence about how to get it. `claude`, `opencode`, `pi` — one directory and one row each |
+| **engine** | one ACP agent olai can seat, as a plugin: a `Leg` that reads its wire, a probe that finds it on this host, and the channel its standing prompt rides — plus, on its browser half, the mark it wears and the sentence about how to get it. `claude`, `codex`, `opencode`, `pi` — one directory and one row each |
 | **kind** | a word a plugin teaches the vault's vocabulary. Contributed BARE (`terminal`) and composed by `Kinds` with the plugin's own name (`kolu-terminal`) |
 | **claim** | the key a kind declares by convention — its own composed word, so mounting a plugin turns its faces on with no file to edit |
 | **dressing** | what a live property *wears* in the browser: a chip, a pane, a block |

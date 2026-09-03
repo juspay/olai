@@ -27,7 +27,7 @@
  *
  * The standing prompt's TEXT ({@link PromptChannel} carries only the channel it
  * rides), because that is one instruction versioned with the binary and not a
- * thing three engines should be free to say three ways. And the SPAWN: what to
+ * thing four engines should be free to say four ways. And the SPAWN: what to
  * do with an {@link Adapter} once you have one is `@olai/chat`'s, which is the
  * package that speaks the protocol out loud.
  *

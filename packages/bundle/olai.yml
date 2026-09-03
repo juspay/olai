@@ -38,12 +38,14 @@
 # agent at all is read as being about: a note written before olai had a roster
 # was written by an olai that had exactly one, and this is the row it had.
 #
-# Each is a row rather than three rows of one "agents" plugin because they share
+# Each is a row rather than four rows of one "agents" plugin because they share
 # no release clock: the Claude adapter's pin moved five times in a month and
-# opencode's has never moved. `--plugins=opencode,pi` is a serve with no Claude
-# row, no probe of one, and no mark for one anywhere.
+# opencode's has never moved. `--plugins=codex,opencode,pi` is a serve with no
+# Claude row, no probe of one, and no mark for one anywhere.
 - id: claude
   name: olai-plugin-claude/server
+- id: codex
+  name: olai-plugin-codex/server
 - id: opencode
   name: olai-plugin-opencode/server
 - id: pi
