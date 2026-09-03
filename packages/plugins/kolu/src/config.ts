@@ -158,11 +158,16 @@ export const watchConfigIn = (
     if (watch === undefined) return fallback
     const value = customText(watch.node, key)
     if (value === undefined) return fallback
-    if (bareDigits.test(value)) {
+    // The GATE AND THE PARSE read one trimmed value: kolu's parser trims
+    // before judging, so a `10 ` trailing the paper slips every check
+    // that reads the property raw — both eyes agree; only the sentence
+    // keeps the file's own spelling, with the whitespace that made it.
+    const raw = value.trim()
+    if (bareDigits.test(raw)) {
       spellUnit(key, value)
       return fallback
     }
-    const read = parseDuration(key, value, min, effect)
+    const read = parseDuration(key, raw, min, effect)
     if (read.kind === "error") {
       malformed.push(`kolu: \`${key}: ${value}\` in ${watch.file}: ${read.message}`)
       return fallback
@@ -176,11 +181,12 @@ export const watchConfigIn = (
     if (watch === undefined) return DEFAULT_WATCH.nagMs
     const value = customText(watch.node, "nag")
     if (value === undefined) return DEFAULT_WATCH.nagMs
-    if (bareDigits.test(value)) {
+    const raw = value.trim()
+    if (bareDigits.test(raw)) {
       spellUnit("nag", value)
       return DEFAULT_WATCH.nagMs
     }
-    const read = parseNag("nag", value)
+    const read = parseNag("nag", raw)
     if (read.kind === "error") {
       malformed.push(`kolu: \`nag: ${value}\` in ${watch.file}: ${read.message}`)
       return DEFAULT_WATCH.nagMs

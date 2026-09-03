@@ -183,6 +183,22 @@ test("a BARE number is refused: the CLI's default-to-ms is for flags, and a file
   expect(reading.malformed[1]).toContain("kolu: `heartbeat: 30` in _olai/Kolu.olai: spell a number and a unit")
 })
 
+test("a bare number trailing WHITESPACE is still the bare number: the gate looks at what the parser would", () => {
+  // Kolu's parsers trim before judging, so `10 ` without a gate that trims
+  // too parses to 10ms — the spin the refusal exists to stop, dressed as
+  // a typo. The sentence quotes the file's own spelling, paper included.
+  const reading = setOf({
+    "_olai/Kolu.olai": [
+      rec("watch", { nag: "10 ", "held-for": " 5" }),
+    ].join("\n"),
+  })
+  expect(reading.config.nagMs).toEqual(DEFAULT_WATCH.nagMs)
+  expect(reading.config.heldForMs).toEqual(DEFAULT_WATCH.heldForMs)
+  expect(reading.malformed.length).toBe(2)
+  expect(reading.malformed[0]).toContain("kolu: `held-for:  5` in _olai/Kolu.olai: spell a number and a unit")
+  expect(reading.malformed[1]).toContain("kolu: `nag: 10 ` in _olai/Kolu.olai: spell a number and a unit")
+})
+
 // ── ONE file decides — including a silent one ─────────────────────────────
 
 test("nodes hanging in another file answer on their own, as not the file's", () => {
