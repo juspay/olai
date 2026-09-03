@@ -19,9 +19,11 @@
 # `packages/plugins/claude/acp/patches/` and `packages/plugins/pi/acp/patches/`
 # now, beside the sources they are generated from, because an adapter's patch
 # set moves on that adapter's own release clock — this one's pin moved five
-# times in a month and the other's has not moved at all. Each patch is named as
-# a PATH so the derivation depends on the patch's own hash and a change to it
-# rebuilds the adapter.
+# times in a month and the other's has not moved at all. This file names no
+# patch: it READS each engine's own directory (`patchesFor` below), so adding
+# one is a file in the plugin and nothing here. Each is still a PATH, so the
+# derivation depends on the patch's own hash and a change to it rebuilds the
+# adapter.
 #
 # **The npm SHIM did not.** `acp/package.json` and its lockfile stay one file
 # with two dependencies in it, and that is a decision rather than a leftover:
@@ -58,8 +60,8 @@ buildNpmPackage {
 
   # ../acp would also pull in whatever else lands in that directory; keep the
   # src (and its hash) to just the two files the build actually reads. The
-  # patches are NOT in there and never were — they are named as paths below, so
-  # each gets its own store input.
+  # patches are NOT in there and never were — they are read from each plugin's
+  # own directory below, so each gets its own store input.
   src = lib.cleanSourceWith {
     name = "acp";
     src = ../acp;
@@ -105,23 +107,50 @@ buildNpmPackage {
       mcpBridgeDir = "${mods}/olai-pi-mcp-bridge";
       bridge = ../packages/plugins/pi/acp/mcp-bridge;
 
+      # EVERY `.patch` IN THAT PLUGIN'S OWN DIRECTORY, in name order — read
+      # rather than listed.
+      #
+      # The rows below used to name each patch file by path, which meant adding
+      # one was two edits in two directories: the file, and a line here. The
+      # patches moved into the plugin the day the engines became plugins, and
+      # naming them a second time from outside kept exactly the coupling that
+      # move was for. Now a patch is ONE FILE in `packages/plugins/<name>/acp/
+      # patches/`, and this picks it up.
+      #
+      # SORTED, because the order patches apply in is a fact somebody depends on
+      # the moment two of them touch one file, and `readDir` has no order worth
+      # relying on. `builtins.sort` over the names gives the same sequence on
+      # every machine and every eval; a patch that must land after another is
+      # named to sort after it, which is the same discipline a migrations
+      # directory keeps.
+      #
+      # A DIRECTORY THAT IS NOT THERE is an engine with no patches — `opencode`
+      # ships nothing, being found on the PATH rather than pinned — so the
+      # absence answers the empty list rather than failing the eval.
+      patchesFor = plugin:
+        let dir = ../packages/plugins + "/${plugin}/acp/patches";
+        in
+        if !builtins.pathExists dir then [ ]
+        else
+          map (name: dir + "/${name}")
+            (builtins.sort (a: b: a < b)
+              (builtins.attrNames
+                (lib.filterAttrs (name: kind: kind == "regular" && lib.hasSuffix ".patch" name)
+                  (builtins.readDir dir))));
+
       # ONE ROW PER SHIPPED ADAPTER — the same shape `olai.yml` gives a plugin,
-      # one wall down. `plugin` is only ever printed in a failure; `package` is
-      # where npm put it; `patches` are that engine's own, from that engine's
-      # own directory; `entry` is the file the wrapper runs; `bin` is the
-      # wrapper's name, which is what `scripts/acp-*.sh` prints and what
-      # `default.nix` bakes into `OLAI_ACP_AGENT` / `OLAI_ACP_PI`; `env` is
-      # whatever that wrapper must set.
+      # one wall down. `plugin` names the directory its patches are read from
+      # and is what a failure prints; `package` is where npm put it; `entry` is
+      # the file the wrapper runs; `bin` is the wrapper's name, which is what
+      # `scripts/acp-*.sh` prints and what `default.nix` bakes into
+      # `OLAI_ACP_AGENT` / `OLAI_ACP_PI`; `env` is whatever that wrapper must
+      # set. Nothing here spells a patch: that is the plugin's directory.
       engines = [
         {
           plugin = "claude";
           package = "@agentclientprotocol/claude-agent-acp";
           entry = "dist/index.js";
           bin = "claude-agent-acp";
-          patches = [
-            ../packages/plugins/claude/acp/patches/background-tasks-visible.patch
-            ../packages/plugins/claude/acp/patches/session-list-info.patch
-          ];
           # Node is pinned and so is the CLI the SDK drives (the adapter reads
           # CLAUDE_CODE_EXECUTABLE before it goes looking); nothing here
           # resolves off PATH. The rest is what nixpkgs' claude-code sets: no
@@ -141,7 +170,6 @@ buildNpmPackage {
           package = "pi-acp";
           entry = "dist/index.js";
           bin = "pi-acp";
-          patches = [ ../packages/plugins/pi/acp/patches/pi-mcp-servers.patch ];
           # PI_ACP_MCP_EXTENSION is the ONE arming knob the patched adapter
           # reads: this wrapper sets it, so every documented way of starting
           # olai gets an adapter whose `mcpCapabilities` answer http/sse TRUE in
@@ -170,7 +198,7 @@ buildNpmPackage {
         adapter="${mods}/${engine.package}"
         entry="$adapter/${engine.entry}"
         test -f "$entry"
-        ${lib.concatMapStringsSep "\n" (patch: ''patch -p1 -F0 -d "$adapter" < ${patch}'') engine.patches}
+        ${lib.concatMapStringsSep "\n" (patch: ''patch -p1 -F0 -d "$adapter" < ${patch}'') (patchesFor engine.plugin)}
         makeWrapper ${nodejs}/bin/node "$out/bin/${engine.bin}" \
           --add-flags "$entry" \
           ${lib.concatStringsSep " \\\n          " engine.env}

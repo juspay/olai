@@ -647,36 +647,6 @@ export interface Plugins {
    *  thunks are (`@olai/server`'s `probes.ts` argues it, and that argument has
    *  an e2e failure behind it). */
   readonly engines: () => ReadonlyArray<Engine>
-  /**
-   * WHICH PLUGINS HAVE PUT SOMETHING ON THIS SERVE right now, by name — the
-   * union over every registry above.
-   *
-   * ## Why the union is answered HERE and not by whoever asks
-   *
-   * Because it is a question about the registries, and this is where all of
-   * them are. A composition root computed it once by naming two of them by hand
-   * (`siblings ∪ engines`), and that word is load-bearing in a place a reader
-   * would not guess: `@olai/web`'s plugin runtime mounts a browser half ONLY
-   * when the roster names its plugin running, so a plugin missing from this
-   * union never has its chunk fetched, hangs none of its faces, and the tab
-   * silently draws core's generic — which is exactly the defect the engines
-   * phase hit, when the union was the sibling table alone and every engine row
-   * read `off` while its fiber ran.
-   *
-   * The hand-written version was right for the plugins that exist and wrong by
-   * construction: a plugin whose only contribution is a `Kinds` word, a
-   * `SessionStart` probe or a `Wakes` declaration is reported `off` while its
-   * fiber runs, and nothing fails loudly. A seventh registry added to this
-   * interface would be forgotten by a file in another package that has no
-   * reason to know it exists. Answered here, it cannot be.
-   *
-   * A NAME AND NOT A KIND. `running` means what it always meant — this
-   * plugin's contribution is live — and the registries are ways of
-   * contributing rather than kinds of running. A fiber that registered NOTHING
-   * is absent, which is what a plugin that started and put nothing on the wire
-   * has always been.
-   */
-  readonly contributing: () => ReadonlyArray<string>
   /** TELL EVERY PLUGIN A REVISION LANDED, and wait for each of them — see
    *  {@link Vault}. */
   readonly published: (snapshot: unknown) => Effect.Effect<void>
@@ -806,7 +776,7 @@ export const openPlugins = (
         Effect.suspend(() => config.doorFor?.(plugin)?.deliver(...args) ?? Effect.void),
     }))
 
-    const kinds = registry<string, ComposedKind>(config.changed)
+    const kinds = registry<string, ComposedKind>()
     yield* provide(host, Kinds, (plugin) => ({
       register: (kind) =>
         Effect.suspend(() => {
@@ -847,7 +817,7 @@ export const openPlugins = (
     // are unreachable on a well-formed bundle for the reason the sibling above
     // gives — one row, one plugin, one `apply` — and the asymmetry with its three
     // neighbours was the only thing keeping it so.
-    const wakes = registry<string, Wake>(config.changed)
+    const wakes = registry<string, Wake>()
     yield* provide(host, Wakes, (plugin) => ({
       register: (wake) =>
         wakes.claim(
@@ -862,7 +832,7 @@ export const openPlugins = (
     // KEYED BY THE PLUGIN AND REFUSED LIKE ITS THREE NEIGHBOURS — the id an
     // engine is offered under is the word the fiber was bound under and is
     // stamped here, so `Registering` has no field a caller could put one in.
-    const engines = registry<string, Engine>(config.changed)
+    const engines = registry<string, Engine>()
     yield* provide(host, Agents, (plugin) => ({
       register: (engine) =>
         engines.claim(
@@ -891,7 +861,7 @@ export const openPlugins = (
     // it — a `roster` rather than a `registry` because a plugin may legitimately
     // register more than one probe, and because there is no key here to collide
     // on: the stamp is the answer, not the address.
-    const asking = roster<Asked>(config.changed)
+    const asking = roster<Asked>()
     yield* provide(host, SessionStart, (plugin) => ({
       ask: (probe) => asking.hold({ name: plugin, ask: probe }),
     }))
@@ -902,26 +872,6 @@ export const openPlugins = (
       composed: () => [...siblings.read().values()],
       declared: wakes.read,
       engines: () => [...engines.read().values()],
-      // THE UNION, over every table above and in one place because this is the
-      // only place there is one. A caller naming two of them by hand is a
-      // caller that will not be edited when a sixth is added here — and the
-      // word it computes decides whether a browser half's chunk is ever
-      // fetched, so getting it short is a plugin that is running and invisible.
-      contributing: () => [
-        ...new Set<string>([
-          // Each table says WHOSE an entry is in its own way — a kind carries
-          // the plugin that taught it, a wake is keyed by it, a sibling and an
-          // engine and a probe each carry it on the row — and every one of
-          // those spellings is the stamp this file put there. Reading them one
-          // by one is the price of the union being right; a shared accessor
-          // would be a sixth shape for the five to agree with.
-          ...[...kinds.read().values()].map((one) => one.by),
-          ...[...siblings.read().values()].map((one) => one.name),
-          ...wakes.read().keys(),
-          ...[...engines.read().values()].map((one) => one.id),
-          ...asking.read().map((one) => one.name),
-        ]),
-      ],
       published: revisions.tell,
       quiet: quieted.tell(undefined),
       saw: seen.tell,

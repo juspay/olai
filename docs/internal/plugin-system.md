@@ -224,7 +224,7 @@ Skim the table; the sections after it give one example each.
 | **chrome** | what a plugin hangs in the app's header bar |
 | **mount** | the plugin's own half of the tab — one subscription per tab |
 | **mark** | the plugin's FACE — the glyph over a sentence it delivered into a conversation, and the one an ENGINE wears in the picker and the header |
-| **engine rows** | an engine's two other faces: its row in the panel's *which agent?* question, and its row on the face drawn when this machine has no agent at all. Core keeps the shape — the pressable row, the list, the mark, the order — and the words arrive from the plugin |
+| **engine install row** | an engine's line on the face drawn when this machine has no agent at all: how a person gets it. A `NotHere` VALUE in `chat.agent.install`, not a drawing — core owns every stroke (the list, the mark, whether the name is a link) and the plugin owns every word. Its row in the panel's *which agent?* question is NOT one of these: those words are the engine's `name`, which the server already sends per installed agent, so core draws a string it was handed rather than a face it was hung |
 | **watching** (`Watching`) | the read-shaped door that is not a read: core PUSHES what happened in a conversation — a doorbell that landed, an orchestrator reply that settled, a turn that started or ended — and a human message is not among them |
 | **held** (`Held`) | a small opaque record a plugin keeps about this serve, in the state home rather than the vault |
 | **doorbell** (`Deliveries`) | the write-only door a plugin speaks INTO a conversation through: which conversations opted in to it, and one verb that puts a whole sentence in one. Minted from the calling plugin's own word |

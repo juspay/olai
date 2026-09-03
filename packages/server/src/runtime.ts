@@ -601,34 +601,38 @@ const writing = (ops: Ops, writer: Writer) => ({
  * plugins as `running: false` there would be this file inventing a policy
  * nobody set, and asserting it is why this reading is exported rather than
  * inlined at its one call site.
+ *
+ * ## `running` IS THE FIBER'S STATE, and it took two wrong answers to get here
+ *
+ * It was `isEnabled(pin, name)` — a re-reading of the FLAG, exact only because
+ * the filter ran once and nothing could move afterwards. Then it was WHAT A
+ * PLUGIN HAD CONTRIBUTED: the sibling table, and later a union of that with the
+ * engine registry. Both of those are proxies for the question, and each was
+ * wrong for the first plugin that did not fit it — the flag says yes about a
+ * fiber that is `PENDING` on a service, or `FAILED` in its own `apply`; the
+ * union says no about a fiber that is running perfectly and happens to register
+ * nothing this file thought to ask about. That second one is not hypothetical
+ * and it is not behind us: the engines hit it (a picker row said `off` while its
+ * agent answered), and a browser-only plugin — one whose server half registers
+ * nothing at all — hits it again, invisibly, because the tab fetches a chunk
+ * only for a row this says is running.
+ *
+ * So it is neither proxy now. `@olai/effect-cordis`'s `rowReport` asks the
+ * FIBER, which is the thing the word is about, and this reads its answer.
+ * `running` and {@link PluginRow.state} then come off ONE reading rather than
+ * two clocks that could disagree — which is what the arm this deleted was
+ * papering over (a row `running` in the report and absent from the live table
+ * used to be reported `off`).
+ *
+ * WHAT IT COSTS is stated where it is owed: the report is a BOOT SNAPSHOT
+ * (`@olai/bundle`'s `reportBundle` says so at its own door), so a fiber that
+ * unloads mid-serve keeps its row until the next start. Nothing unloads a
+ * server half mid-serve today, and the day something can — the preferences
+ * toggle — that door and this reading move together, which is the arrangement
+ * `reportBundle`'s header already names itself as one half of.
  */
 export const rosterOf = (
   offered: Wiring["plugins"],
-  /**
-   * WHICH PLUGINS ARE MOUNTED RIGHT NOW — the names whose fibers are ACTIVE and
-   * have CONTRIBUTED something: a sibling surface, or an ACP engine.
-   *
-   * IT WAS THE SIBLINGS ALONE, which was exact while every plugin composed one.
-   * An engine composes no surface (its contribution travels on the chat cell,
-   * which is core.s), so a reading taken off the sibling table alone said `off`
-   * about every engine row while its fiber ran — and the tab, which fetches a
-   * plugin.s chunk only when the roster names it, drew the generic mark for an
-   * agent whose own shape was in a chunk nobody asked for.
-   *
-   * READ, NOT DERIVED, and that is the change this phase makes to the meaning
-   * of `running`. It used to be `isEnabled(pin, name)` — a re-reading of the
-   * flag, which was exact only because the filter ran once and nothing could
-   * move afterwards. A plugin is a fiber now: it can be `PENDING` on a service
-   * that has not arrived, `FAILED` because its `apply` threw, or disposed
-   * because its row was turned off — and in every one of those the flag still
-   * says yes while the wire carries no `surface/<name>/` at all. So the row
-   * says what is composed, which is what the word on it has always claimed.
-   *
-   * OPTIONAL and empty by default, because the callers that only ever asked
-   * "which plugins does this build have" are asking a different question and
-   * should not have to name a list to get an answer they already had.
-   */
-  running: ReadonlyArray<string> = [],
   /**
    * ...and what each of THOSE declared about a wake — the one thing a row
    * carries that a name cannot answer: what this plugin's doorbell WAKES ON, in
@@ -644,12 +648,16 @@ export const rosterOf = (
 ): PluginRoster =>
   offered === null ? NO_ROSTER : {
     built: offered.built.map((name) => {
-      const composed = running.includes(name)
-      const wake = composed ? wakes.get(name) : undefined
-      const said = stateOf(offered, name, composed)
+      // A row the report has nothing to say about never loaded, and that
+      // absence IS `off` rather than a missing case (`@olai/effect-cordis`'s
+      // `rowReport`).
+      const report = offered.report.get(name) ?? { state: "off" as const }
+      const said = stateOf(offered, report)
+      const live = said.state === "running"
+      const wake = live ? wakes.get(name) : undefined
       return {
         name,
-        running: composed,
+        running: live,
         // THE WORD, beside the boolean it refines — never instead of it. The
         // licences a browser reads its mounts out of ask the boolean; the panel
         // asks the word; and `@olai/surface`'s `pluginState` is what holds the
@@ -707,13 +715,8 @@ export const rosterOf = (
  */
 const stateOf = (
   offered: NonNullable<Wiring["plugins"]>,
-  name: string,
-  composed: boolean,
+  report: RowReport,
 ): { readonly state: PluginState; readonly fault?: string } => {
-  if (composed) return { state: "running" }
-  // A row the snapshot has nothing to say about is `off`, which is what
-  // `running: false` on its own has always meant.
-  const report = offered.report.get(name) ?? { state: "off" as const }
   switch (report.state) {
     case "failed":
       return report.fault === undefined
@@ -726,12 +729,7 @@ const stateOf = (
       // that can say who wrote the `disabled` it declined on.
       return { state: offered.pinned === null ? "optIn" : "off" }
     case "running":
-      // `running` in the snapshot and absent from the live reading: a plugin
-      // that started and CONTRIBUTED NOTHING — no sibling surface, no engine.
-      // Somebody asked for it and it did load, so it is not `optIn`; nothing of
-      // it reached anybody, so it is not `running` either. `off` is the honest
-      // word, and it is the one every other absence already wears.
-      return { state: "off" }
+      return { state: "running" }
   }
   // NO `default` ARM, and that is the guard rather than an omission: the four
   // words are `@olai/effect-cordis`'s `RowState`, and a catch-all here would
@@ -1399,29 +1397,8 @@ export const bind = (
      * and the cell is republished ({@link republishPlugins}).
      */
     const roster = (): PluginRoster =>
-      rosterOf(offered, plugins?.contributing() ?? [], rings())
+      rosterOf(offered, rings())
 
-    /*
-     * WHICH PLUGINS HAVE CONTRIBUTED SOMETHING — the live half of the word
-     * `running` — is `Plugins.contributing()` above, and this file asks rather
-     * than composes it.
-     *
-     * IT WAS THE SIBLING TABLE ALONE, which was exact while every plugin
-     * composed a sibling surface. An ENGINE composes none: what it contributes
-     * to a tab already travels on the chat cell, which is core's, so a second
-     * surface under `surface/claude/` would be one fact on the wire twice. Read
-     * off the siblings alone, every engine row said `off` while its fiber ran,
-     * and the tab never fetched its chunk — the panel drew the generic mark for
-     * an agent whose own shape sat in a chunk the roster had declined to name.
-     *
-     * The fix was a hand-written union of two registries, HERE, and it was right
-     * for the plugins that exist and wrong by construction: this file has no
-     * reason to know how many registries `@olai/plugin-api` holds, and a plugin
-     * whose only contribution is a `Kinds` word, a `SessionStart` probe or a
-     * `Wakes` declaration was reported `off` while its fiber ran. The union is
-     * answered where the tables are; a sixth cannot be forgotten by a file one
-     * package over.
-     */
     /**
      * EVERY CONNECTOR BELOW READS `store.reads`, and every frame on it is a
      * pair: the set, and how old it is (`@olai/store`'s `Aged`). These take

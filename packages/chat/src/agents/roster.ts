@@ -65,15 +65,25 @@
  * Both are core's because both are about the SERVE rather than about one engine:
  * whether there is a panel at all, and where this process may look.
  *
- * ## Once, at the start
+ * ## READ ONCE, at boot, and that is a phase boundary
  *
- * Detection runs when the chat is built and not again. That is deliberate rather
- * than lazy: the roster is what decides whether the panel has an agent at all,
- * and re-deciding that under a reader would flip the panel's whole face — from a
- * conversation to install instructions and back — because somebody's
- * `$HOME/.local/bin` was being written to. An agent installed while olai runs is
- * offered by the next start, which is the same bargain `OLAI_ACP_AGENT` has
- * always made.
+ * TWO THINGS ARE READ ONCE HERE and they are worth telling apart. The MACHINE's
+ * half — which agents are installed — is a deliberate refusal to re-decide: the
+ * roster is what decides whether the panel has an agent at all, and re-deciding
+ * it under a reader would flip the panel's whole face, from a conversation to
+ * install instructions and back, because somebody's `$HOME/.local/bin` was being
+ * written to. An agent installed while olai runs is offered by the next start,
+ * which is the same bargain `OLAI_ACP_AGENT` has always made.
+ *
+ * The BUILD's half is the phase boundary. The engines this function is handed
+ * are read off the plugin registry once, in `@olai/server`'s `serve.ts`, before
+ * the store opens — so an engine plugin that unloads mid-serve leaves its row in
+ * the picker until the next boot, and one that arrives is not offered. Nothing
+ * in this phase can do either (the bundle is mounted before the chat is built
+ * and nothing turns a row off afterwards), and the day something can — the
+ * preferences toggle — this is one of the places that has to learn to move,
+ * beside `@olai/server`'s `propKinds.ts`, which says the same of the vocabulary,
+ * and its `runtime.ts`, which says it of the row a person reads.
  */
 
 import { AGENT_ENV, type Adapter, type Engine, type Leg, type PromptChannel, type Where } from "@olai/acp/engine"

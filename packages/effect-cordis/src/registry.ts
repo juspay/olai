@@ -73,13 +73,13 @@ export interface Roster<V> {
  * rather than an `indexOf` and a `splice` — two plugins holding the same entry
  * VALUE are two entries, and dropping one leaves the other.
  *
- * `changed` is rung after every hold and every release, for {@link registry}'s
- * reason exactly: whoever computes a live reading OVER this table has no other
- * way to learn the table moved, and a reading that goes stale silently is worse
- * than one that is recomputed too often. Optional, because a table nothing is
- * derived from has nobody to tell.
+ * NO `changed`, unlike its keyed sibling, and the asymmetry is real rather than
+ * an omission: nothing is SERVED from a roster. Its two readers ask it fresh at
+ * the moment they need an answer — once per conversation opening for the
+ * session-start probes, once per dispatch for a bus — so there is no derived
+ * value sitting downstream that could go stale between reads.
  */
-export const roster = <V>(changed?: () => void): Roster<V> => {
+export const roster = <V>(): Roster<V> => {
   const held = new Map<symbol, V>()
   return {
     hold: (value) =>
@@ -87,14 +87,9 @@ export const roster = <V>(changed?: () => void): Roster<V> => {
         Effect.sync(() => {
           const at = Symbol()
           held.set(at, value)
-          changed?.()
           return at
         }),
-        (at) =>
-          Effect.sync(() => {
-            held.delete(at)
-            changed?.()
-          }),
+        (at) => Effect.sync(() => void held.delete(at)),
       ).pipe(Effect.asVoid),
     read: () => [...held.values()],
   }

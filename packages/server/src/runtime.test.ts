@@ -39,6 +39,7 @@ import {
   Deliveries as DeliveriesTag,
   mountPlugin,
   openPlugins,
+  rowReport,
   standing,
   Surfaces,
   Wakes,
@@ -182,11 +183,13 @@ const withRuntime = <A>(
         onChange,
         built: (extra.plugins ?? []).map((one) => one.name),
         pinned: null,
-        // NOTHING TO SAY ABOUT ANY ROW: these runtimes mount doubles directly
-        // rather than through the bundle, so there is no loader reading to
-        // snapshot. An empty report is what `running: false` has always meant
-        // on its own, which is the state every row here is in.
-        report: new Map(),
+        // THE DOUBLES' OWN FIBERS, asked the way a serve asks the bundle's.
+        // These runtimes mount doubles directly rather than through the loader,
+        // so `reportBundle` (which walks `BUNDLE_NAMES`) has nothing to say
+        // about them — but the reading underneath it takes the ids it is given,
+        // and asking it here is what makes these cases exercise the same
+        // derivation a real boot does rather than a hand-made map.
+        report: yield* rowReport(mounted.host, (extra.plugins ?? []).map((one) => one.name)),
       },
       git: gitWiring(
         ops,
@@ -676,6 +679,15 @@ const EMPTY_PLUGINS: Plugins = await standing()(
   openPlugins({ vars: {}, now: () => STARTED, served: "/tmp" }),
 )
 
+/** A REPORT SAYING THESE FIBERS ARE UP, which is what `running` is read off.
+ *
+ *  The roster asks the FIBER (through `@olai/bundle`'s `reportBundle`) rather
+ *  than guessing from what a plugin happened to register. It guessed twice
+ *  before — from the flag, then from the sibling and engine tables — and each
+ *  guess was wrong for the first plugin that did not fit it. */
+const mounted = (names: ReadonlyArray<string>): ReadonlyMap<string, RowReport> =>
+  new Map(names.map((name) => [name, { state: "running" as const }]))
+
 const offering = (
   pinned: ReadonlyArray<string> | null = null,
   report: ReadonlyMap<string, RowReport> = new Map(),
@@ -704,7 +716,7 @@ test("every plugin the build has is on the roster, running or not", () => {
   // every plugin this binary was built with, since a row may carry its own
   // `disabled` and be opt-in. The roster carries a row for every one of them
   // either way, which is the whole reason the two lists are separate arguments.
-  const all = rosterOf(offering(), [...DEFAULT_BUNDLE_NAMES])
+  const all = rosterOf(offering(null, mounted(DEFAULT_BUNDLE_NAMES)))
   expect(all.built.map((one) => one.name)).toEqual([...PLUGIN_NAMES])
   expect(all.built.filter((one) => one.running).map((one) => one.name))
     .toEqual([...DEFAULT_BUNDLE_NAMES])
@@ -722,7 +734,7 @@ test("every plugin the build has is on the roster, running or not", () => {
   // reports the runtime rather than re-reading the reason.
   const first = PLUGIN_NAMES[0]
   if (first === undefined) throw new Error("this build has no plugins to pin")
-  const one = rosterOf(offering([first]), [first])
+  const one = rosterOf(offering([first], mounted([first])))
   expect(one.built.map((row) => row.name)).toEqual([...PLUGIN_NAMES])
   expect(one.built.filter((row) => row.running).map((row) => row.name)).toEqual([first])
   expect(one.pinned).toEqual([first])
@@ -741,7 +753,7 @@ test("every plugin the build has is on the roster, running or not", () => {
  * about it.
  */
 test("a plugin the flag left on but nothing mounted draws as off", () => {
-  const roster = rosterOf(offering(), [])
+  const roster = rosterOf(offering())
   expect(roster.built.map((row) => row.name)).toEqual([...PLUGIN_NAMES])
   expect(roster.built.some((row) => row.running)).toBe(false)
   // ...and the flag is still reported as nobody having said, because nobody
@@ -756,7 +768,7 @@ test("a plugin the flag left on but nothing mounted draws as off", () => {
  * apart is the line under the row.
  */
 test("an empty flag crosses as an empty list, not as nobody having said", () => {
-  const none = rosterOf(offering([]), [])
+  const none = rosterOf(offering([]))
   expect(none.pinned).toEqual([])
   expect(none.built.some((row) => row.running)).toBe(false)
   expect(none.built.map((row) => row.name)).toEqual([...PLUGIN_NAMES])
@@ -796,20 +808,19 @@ test("a row that is not running says which of the four absences it is", () => {
 
   // NOBODY SAID, and the loader declined to load it: that can only be the row's
   // own `disabled`, which is this build leaving it off until somebody asks.
-  const optIn = rosterOf(offering(null, new Map([[first, { state: "off" }]])), [])
+  const optIn = rosterOf(offering(null, new Map([[first, { state: "off" }]])))
   expect(optIn.built.find((row) => row.name === first)?.state).toBe("optIn")
   expect(optIn.built.find((row) => row.name === first)?.running).toBe(false)
 
   // ...and the SAME snapshot under a flag is `off`, because somebody asked and
   // did not ask for this. One field, two layers, and `pinned` is the only thing
   // that can say which of them wrote it.
-  const off = rosterOf(offering([second], new Map([[first, { state: "off" }]])), [second])
+  const off = rosterOf(offering([second], new Map([[first, { state: "off" }], [second, { state: "running" }]])))
   expect(off.built.find((row) => row.name === first)?.state).toBe("off")
 
   // A START THAT THREW carries the plugin's own words, verbatim.
   const failed = rosterOf(
     offering(null, new Map([[first, { state: "failed", fault: "no socket at /run/x" }]])),
-    [],
   )
   const row = failed.built.find((one) => one.name === first)
   expect(row?.state).toBe("failed")
@@ -818,37 +829,55 @@ test("a row that is not running says which of the four absences it is", () => {
 
   // ...and a throw with no message says a start threw and quotes nobody, rather
   // than putting core's paraphrase on screen as if the plugin had said it.
-  const silent = rosterOf(offering(null, new Map([[first, { state: "failed" }]])), [])
+  const silent = rosterOf(offering(null, new Map([[first, { state: "failed" }]])))
   expect(silent.built.find((one) => one.name === first)?.state).toBe("failed")
   expect(silent.built.find((one) => one.name === first)?.fault).toBeUndefined()
 
   // STILL WAITING is not the same as off: it was asked for, it did load, and it
   // is short of something it injects.
-  const waiting = rosterOf(offering(null, new Map([[first, { state: "waiting" }]])), [])
+  const waiting = rosterOf(offering(null, new Map([[first, { state: "waiting" }]])))
   expect(waiting.built.find((one) => one.name === first)?.state).toBe("waiting")
 })
 
 /**
- * THE LIVE READING WINS, and the snapshot is spent only on the rows that are
- * absent — which is what keeps the word and the boolean from disagreeing.
+ * THE BOOLEAN AND THE WORD COME OFF ONE READING, which is what makes them
+ * unable to disagree.
  *
- * `running` is read off what registered a sibling surface, at the moment the
- * roster is built; the report is a snapshot taken once when the bundle settled.
- * A snapshot that has gone stale in the direction of failure would otherwise
- * put an alarm under a plugin whose chip is in the bar.
+ * They used to come off two: `running` was the LIVE registry — what a plugin had
+ * contributed — and `state` was the report. Keeping them coherent then took an
+ * arm (a row the report called `running` and the live table did not know was
+ * reported `off`), and the pair could still be read in an order that made them
+ * contradict. Both are the FIBER now.
+ *
+ * IT IS ALSO WHY THE WORD IS NOT A GUESS. What a plugin registered is a proxy
+ * for whether its fiber is up, and every proxy was wrong for the first plugin
+ * that did not fit it: the flag said yes about a fiber `PENDING` on a service;
+ * the sibling table said no about an ACP engine, which composes no surface, and
+ * would say no about a browser-only plugin, whose server half registers nothing
+ * at all. A row this reading calls `off` is a chunk the tab never fetches, so
+ * that plugin is invisible with nothing failing anywhere.
  */
-test("a composed plugin says running however the snapshot remembers it", () => {
+test("a plugin's row is its fiber's state, not what it happened to register", () => {
   const first = PLUGIN_NAMES[0]
   if (first === undefined) throw new Error("this build has no plugins")
-  const roster = rosterOf(
-    offering(null, new Map([[first, { state: "failed", fault: "it threw once" }]])),
-    [first],
-  )
-  const row = roster.built.find((one) => one.name === first)
+
+  // A fiber that is UP is running, whether or not it put anything in a table
+  // this file could have looked in.
+  const up = rosterOf(offering(null, mounted([first])))
+  const row = up.built.find((one) => one.name === first)
   expect(row?.running).toBe(true)
   expect(row?.state).toBe("running")
-  // ...and the fault does not ride along on a row that is running.
   expect(row?.fault).toBeUndefined()
+
+  // ...and a fiber that FAILED is not running, whatever it managed to register
+  // before it threw — the case the old two-clock reading could get backwards.
+  const threw = rosterOf(
+    offering(null, new Map([[first, { state: "failed", fault: "it threw once" }]])),
+  )
+  const bad = threw.built.find((one) => one.name === first)
+  expect(bad?.running).toBe(false)
+  expect(bad?.state).toBe("failed")
+  expect(bad?.fault).toBe("it threw once")
 })
 
 /**
@@ -857,7 +886,7 @@ test("a composed plugin says running however the snapshot remembers it", () => {
  * but this section's is, and what a serve that mounted doubles directly is.
  */
 test("an empty report leaves the rows saying exactly what the boolean did", () => {
-  const roster = rosterOf(offering([]), [])
+  const roster = rosterOf(offering([]))
   expect(roster.built.every((row) => row.state === "off")).toBe(true)
   expect(roster.built.every((row) => row.fault === undefined)).toBe(true)
 })
@@ -900,7 +929,7 @@ test("a wake sentence reaches the roster, and never for a plugin this serve left
   }
   const wakes = new Map([[first, wake]])
 
-  const all = rosterOf(offering(), [...PLUGIN_NAMES], wakes)
+  const all = rosterOf(offering(null, mounted(PLUGIN_NAMES)), wakes)
   // WHAT THE PICKER IS MADE OF, and not the sentences. A roster that carried a
   // delivered sentence would be putting a message on the wire for a reader that
   // never sends one — and the wire's own schema has no key for either.
@@ -911,7 +940,7 @@ test("a wake sentence reaches the roster, and never for a plugin this serve left
 
   // ... and the row is still THERE when the flag leaves it out, saying it does
   // not run — with no picker on it.
-  const pinned = rosterOf(offering([second]), [second], wakes)
+  const pinned = rosterOf(offering([second], mounted([second])), wakes)
   expect(pinned.built.map((row) => row.name)).toEqual([...PLUGIN_NAMES])
   expect(pinned.built.find((row) => row.name === first)?.running).toBe(false)
   expect(pinned.built.find((row) => row.name === first)?.wake).toBeUndefined()
@@ -921,30 +950,31 @@ test("a wake sentence reaches the roster, and never for a plugin this serve left
  *  by naming no wakes. The four cases above are that caller, and this is the
  *  claim they make read out loud. */
 test("no wake declarations is no sentence, and every row is still there", () => {
-  const all = rosterOf(offering(), [...PLUGIN_NAMES])
+  const all = rosterOf(offering(null, mounted(PLUGIN_NAMES)))
   expect(all.built.map((row) => row.name)).toEqual([...PLUGIN_NAMES])
   expect(all.built.every((row) => row.wake === undefined)).toBe(true)
 })
 
 /**
- * A PLUGIN THAT COMPOSES NO SIBLING IS STILL `running`, IF IT CONTRIBUTED —
- * which is what an ENGINE is, and what the word had stopped covering.
+ * A PLUGIN THAT COMPOSES NO SIBLING IS STILL `running` — which is what an
+ * ENGINE is, and what the word had stopped covering.
  *
- * The live half of `running` used to be the SIBLING TABLE alone, and that was
- * exact while every plugin composed a surface. An engine composes none: what it
- * contributes to a tab — a row of the picker, a name in the header, a sentence
- * on the no-agent face — already travels on the chat cell, which is core's, and
- * a second surface under `surface/claude/` would be one fact on the wire twice.
+ * `running` used to be read off the SIBLING TABLE, which was exact while every
+ * plugin composed a surface. An engine composes none: what it contributes to a
+ * tab already travels on the chat cell, which is core's, and a second surface
+ * under `surface/claude/` would be one fact on the wire twice. So every engine
+ * row said `off` while its fiber ran — and that is not merely a wrong word on a
+ * preferences row: the TAB fetches a plugin's chunk only when the roster names
+ * it, so the panel drew the generic mark for an agent whose own shape was
+ * sitting in a chunk nobody had asked for. The e2e suite caught it; this is
+ * where it is held.
  *
- * Read off the siblings alone, every engine row said `off` while its fiber ran.
- * That is not merely a wrong word on a preferences row: the TAB fetches a
- * plugin's chunk only when the roster names it, so the panel drew the generic
- * mark for an agent whose own shape was sitting in a chunk nobody had asked
- * for. The e2e suite is where it was caught; this is where it is held.
- *
- * BOTH KINDS IN ONE CASE, so what is asserted is a union rather than a swap: a
- * tenant that registers a sibling and an engine that registers only an engine
- * are both `running`, and neither reading has quietly replaced the other.
+ * IT IS THE FIBER NOW rather than a wider guess at what counts as contributing,
+ * which is why this case is stated over the two kinds rather than over the two
+ * registries: a tenant that registers a sibling and an engine that registers
+ * only an engine are both up, and a browser-only plugin — one whose server half
+ * registers nothing at all — would be too, without this file learning a third
+ * thing to look for.
  */
 test("a plugin that contributed an ENGINE and no sibling is running", () =>
   withRuntime(

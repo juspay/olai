@@ -76,7 +76,7 @@ describe("finding the Claude Code adapter on a host", () => {
     expect(INSTALL).toEqual({
       name: "Claude Code",
       where: "https://claude.com/claude-code",
-      why: "comes with olai — every documented way of starting it bakes the adapter in",
+      why: "not found — olai was started without the wrapper that carries the pinned adapter",
     })
   })
 

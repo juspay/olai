@@ -37,4 +37,6 @@ A version bump makes the patches FAIL rather than silently drop the behaviour, w
 
 ## Where to get it
 
-It comes with olai. Seeing *no agent is installed for this panel* with Claude Code on your machine usually means `OLAI_ACP_AGENT` is set to the empty string, or olai was started by hand without the wrapper that bakes the adapter in.
+It comes with olai: every documented way of starting it bakes the pinned adapter in, so there is nothing to install for this row.
+
+The panel says which of three things happened when there is no agent, so you should not have to guess — but for this row in particular, *not found* means the start went round every documented path (the packaged binary, `just serve`, the home-manager unit). *Chat is switched off* means `OLAI_ACP_AGENT` is set to the empty string. And *this serve has no agent engine* means `--plugins` named none of them, which turns this row off along with the rest.

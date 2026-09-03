@@ -36,13 +36,19 @@ export const NAME = "Claude Code"
 /**
  * ...AND WHAT A MACHINE THAT HAS NONE IS TOLD.
  *
- * Not `null`, even though this engine ships with olai: the face this feeds is
- * drawn exactly when NOTHING answered, and the most useful thing it can say
- * about the engine that is supposed to come baked in is that it is supposed to
- * come baked in. `where` is the page, because that is where this one is got.
+ * IT SAYS THE CAUSE rather than the ordinary case, and the difference matters
+ * because of WHEN it is read. This engine does ship with olai — the adapter is
+ * baked into the wrapper on every documented way of starting it — so the only
+ * way anybody reaches this sentence is a start that went round all of them. A
+ * row that said "comes with olai" would be telling a person the thing that is
+ * true everywhere except where they are standing, which is the shape of an
+ * error message that reads as correct and helps nobody.
+ *
+ * `where` is the page, because that is where this one is got if it really is
+ * absent.
  */
 export const INSTALL: NotHere = {
   name: NAME,
   where: "https://claude.com/claude-code",
-  why: "comes with olai — every documented way of starting it bakes the adapter in",
+  why: "not found — olai was started without the wrapper that carries the pinned adapter",
 }
