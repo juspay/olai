@@ -346,6 +346,24 @@ describe("the subscription watcher", () => {
     await sleep(30)
     expect(seen.events.length).toBe(1)
     expect(seen.events[0]?.row?.terminal).toBe("t1")
+
+    // ONE RING PER EPISODE, per question: the fence says t1's episode again
+    // on the NEXT flap, and olai does not — it said that ring once.
+    await Effect.runPromise(Queue.offer(fresh, [ev("snapshot", "t1")]))
+    await sleep(30)
+    expect(seen.events.length).toBe(1)
+    // ...but an episode whose daemon `since` moved on is a NEW holding, and
+    // a knob edit is a NEW question whose leading frame re-reports what
+    // stands: neither is a retelling.
+    await Effect.runPromise(Queue.offer(fresh, [ev("snapshot", "t1", { since: HELD_SINCE + 60_000 })]))
+    await sleep(30)
+    expect(seen.events.length).toBe(2)
+    watch.reconfigure(tiny({ heldForMs: 0 }))
+    await sleep(30)
+    const third = queues[2]!
+    await Effect.runPromise(Queue.offer(third, [ev("snapshot", "t1")]))
+    await sleep(30)
+    expect(seen.events.length).toBe(3)
     watch.stop()
   })
 

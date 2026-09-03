@@ -61,12 +61,16 @@
  * doorbell says again where the timers used to re-arm silently.
  *
  * The transparent retry inside `watchAgentStates` (`mirrorRemoteSurface`'s
- * fence, re-snapshot on reconnect) is everything this module needs for a
- * link flap: the re-lead is a fresh snapshot, and the daemon's `since`
- * survives a CLIENT reconnect — so the ring re-ingrafts the standing set
- * and no clock re-dates. `attach(null)`, pushed on the dial's own edges,
- * is the whole of the flap's door: a live subscription for a dead padi
- * cannot sit around.
+ * fence, re-snapshot on reconnect) re-leads the standing set — and a re-lead
+ * says nothing twice: the episode ledger keys what this ring already rang
+ * by the daemon's own episode stamp (`since`, which survives a CLIENT
+ * reconnect — a padi restart is the only re-date, and that one honestly
+ * wants the re-telling), so a flap's repetition is dropped at the door
+ * while the batch's beat lands as usual. A knob edit is a NEW question and
+ * wipes the ledger: the re-ask's leading frame re-reports, as the section
+ * above argues. `attach(null)`, pushed on the dial's own edges, is the
+ * whole of the flap's door: a live subscription for a dead padi cannot sit
+ * around.
  *
  * ## What is deliberately not done here
  *
@@ -247,12 +251,18 @@ export const makeWatch = (
   const rows = new Map<string, FleetTerminal>()
   /** The ring. Insertion-ordered Map, capped at `WATCH_RING`. */
   const ring = new Map<string, KoluEvent>()
+  /** THE EPISODE LEDGER, for the question in force: terminal → the
+   *  daemon's `since` of the episode this ring last said. Wiped by a moved
+   *  question, kept across flaps — the distinction the header and
+   *  {@link makeWatch}'s `reconfigure` argue. */
+  const episodes = new Map<string, string>()
   /** One counter for the whole watcher, so the ring's keys read in fire
    *  order and are unique per shot. */
   let seq = 0
 
   /** One event onto the ring, evicting the oldest while the cap is full. */
   const push = (event: KoluEvent): void => {
+    if (event.row !== null) episodes.set(event.row.terminal, event.row.since)
     ring.set(event.id, event)
     sink.emit(event)
     while (ring.size > WATCH_RING) {
@@ -274,9 +284,10 @@ export const makeWatch = (
    *
    * `snapshot` folds onto the wire's `transition` arm: both are a first
    * report of an episode, told apart on padi's side by whether the watch
-   * was there for the edge, and olai's wire has no reader for the
-   * difference — ring, drawer and doorbell treat a re-lead of standing
-   * neglect and a watched edge as one thing to say.
+   * was there for the edge. The drawer's wire KIND has no reader for the
+   * difference; the doorbell does — {@link onBatch} drops a re-lead of an
+   * episode the ring already rang, so the discrimination lives in one
+   * ledger here rather than in one more kind on the wire.
    */
   const translate = (ev: PadiStateEvent): KoluEvent => {
     const row = rows.get(ev.id)
@@ -329,7 +340,15 @@ export const makeWatch = (
    *  rides each event. */
   const onBatch = (token: Run, batch: readonly PadiStateEvent[]): void => {
     if (run !== token) return
-    for (const ev of batch) push(translate(ev))
+    for (const ev of batch) {
+      // ONE RING PER EPISODE, per question: padi re-leads the standing set
+      // on every (re)open and the fence re-leads on every flap — the
+      // episode's daemon `since` is what makes a re-telling of an
+      // already-said episode knowable as one. A miss is a NEW episode (or
+      // a re-dated daemon) and rings as one.
+      if (ev.kind === "snapshot" && episodes.get(ev.id) === new Date(ev.since).toISOString()) continue
+      push(translate(ev))
+    }
     sink.beat(new Date(options.now()).toISOString(), config.heartbeatMs)
   }
 
@@ -372,8 +391,13 @@ export const makeWatch = (
       config = next
       // Only a knob padi ANSWERS TO warrants a run: editing `heartbeat`
       // costs the stamped window and nothing else — the subscription
-      // stays, and the next batch stamps the new cadence.
-      if (moved) kick()
+      // stays, and the next batch stamps the new cadence. A MOVED one
+      // closes the episode ledger with the old question: the re-ask's
+      // leading frame is a first report of everything standing.
+      if (moved) {
+        episodes.clear()
+        kick()
+      }
     },
     events: () => ring,
     stop: () => {
