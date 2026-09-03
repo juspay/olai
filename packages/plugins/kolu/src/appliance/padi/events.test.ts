@@ -30,6 +30,7 @@ const heldEvent = (
     ageMs?: number
     label?: string
     repo?: string | null
+    nag?: { index: number; left?: number }
   } = {},
 ): KoluEvent => {
   const ageMs = opts.ageMs ?? 4 * 60_000
@@ -38,6 +39,7 @@ const heldEvent = (
     id: "ev-1",
     kind,
     at: new Date(T0 - ageMs).toISOString(),
+    ...(opts.nag !== undefined ? { nag: opts.nag } : {}),
     row: {
       terminal: "dffa1c90",
       state: opts.state ?? "waiting",
@@ -63,9 +65,28 @@ const heldEvent = (
 }
 
 test("a `nag` is a hold made louder, not one made new", () => {
+  // The additive-decode arm: a ring served from before the field arrives
+  // without `nag`, and folds the count-less suffix away.
   const line = eventLine(heldEvent("nag"), T0)
   expect(line.words).toBe("still waiting for input for 38m")
   expect(line.asking).toBe(true)
+})
+
+test("a carrying nag's sentence is the account the wire spelled", () => {
+  expect(eventLine(heldEvent("nag", { nag: { index: 2, left: 1 } }), T0).words)
+    .toBe("still waiting for input for 38m — reminder 2 of 3")
+  expect(eventLine(heldEvent("nag", { nag: { index: 3, left: 0 } }), T0).words)
+    .toBe("still waiting for input for 38m — reminder 3 of 3, the last")
+  expect(eventLine(heldEvent("nag", { nag: { index: 4 } }), T0).words)
+    .toBe("still waiting for input for 38m — reminder 4")
+})
+
+test("a count on a kind that is not a nag does not become a reminder", () => {
+  // The flat schema CAN decode `transition` + `nag`; translate strips the
+  // pairing before olai — and the fold ALSO refuses it, so the sentence a
+  // language-count cannot disagree with itself about keeps "has been".
+  expect(eventLine(heldEvent("transition", { nag: { index: 2, left: 1 } }), T0).words)
+    .toBe("has been waiting for input for 38m")
 })
 
 test("a `transition` says has been", () => {

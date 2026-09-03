@@ -4,7 +4,8 @@
  * HERE rather than in `@olai/kolu-client` for `./claimants.ts`'s reason,
  * one shelf below: the config file is a reading of the SET and nothing
  * to do with kolu. The package that dials padi gets the derived
- * intervals — three numbers — and never learns that an outline record
+ * intervals — the held-for and the heartbeat as numbers, the nag as one
+ * `{ ms, count? }` pair — and never learns that an outline record
  * exists.
  *
  * ...and here rather than in `@olai/server`, where it was, under the
@@ -27,8 +28,9 @@
  *
  *   - watch                            ← the knobs, properties:
  *     - held-for: "60s"                ← debounce before a held state fires
- *     - nag: "10m"                     ← re-fire while a fired state holds
- *     - heartbeat: "30m"               ← proof-of-life when nothing holds
+ *     - nag: "30m/3"                   ← re-fire while a fired state holds,
+ *                                        three reminders, then quiet
+ *     - heartbeat: "30m"               ← the window a silent watch is judged by
  *
  * IT USED TO READ A SECOND NODE, `mutes`, whose children named terminals
  * the watcher was to keep quiet about — values verbatim for the timers'
@@ -41,10 +43,12 @@
  * and the global one was the weaker, because it could only ever say
  * "never" where the filter says "not for this seat".
  *
- * The knobs are DURATIONS — `<n>s`, `<n>m` or `<n>h`, the same grammar
- * padi's `heldForMs` documents its own watch flags in — and a value that
- * is not one is a malformed value: the default stands and the line it
- * earns is returned, for the caller to SAY (`koluHalf`'s `revision`,
+ * The knobs are DURATIONS, read with KOLU'S OWN PARSERS
+ * (`@kolu/padi-client`'s `parseDuration`, and `parseNag` for the one knob
+ * that is an interval AND its cap — `nag: 30m/3`) so a `kolu watch` hand
+ * and a vault writer read one grammar, taught in one spelling. A value
+ * that is not one is a malformed value: the default stands and the line
+ * it earns is returned, for the caller to SAY (`koluHalf`'s `revision`,
  * which is where the "log line" the brief promises lives). The vault
  * text is authoritative-as-written rather than repaired: olai does not
  * edit the person's file.
@@ -55,11 +59,11 @@
  * owner's mistake, not a precedence question.
  *
  * The VALUES also answer padi's grammar, besides the vault's: `held-for`
- * accepts `0` the way padi's own `heldForMs` does — the instant report —
- * and `nag` and `heartbeat` do not, because a nag every 0 ms is the spin
- * padi itself refuses. Every duration is capped at `MAX_TIMER_MS`: past
- * that, the timer wrap fires near-instantly forever and it is the
- * malformed half rather than a knob.
+ * accepts `0` the way padi's own `heldForMs` does — the instant report,
+ * which the doorbell e2e's gesture depends on — and `nag` and `heartbeat`
+ * do not, because an interval of 0 ms is the spin padi itself refuses.
+ * Every duration is capped at the timer ceiling kolu's parser itself
+ * enforces.
  *
  * WHAT THIS WALK DOES NOT ANSWER is which file it read. That is the
  * CALLER's question (`koluFileIn`, below, over the SERVED outline paths)
@@ -69,36 +73,13 @@
  */
 
 import { customText, isRegular, type Located } from "@olai/format"
-import { DEFAULT_WATCH, type WatchConfig } from "olai-plugin-kolu/appliance"
+import { DEFAULT_WATCH, parseDuration, parseNag, type WatchConfig } from "olai-plugin-kolu/appliance"
 
 /** The basename the convention answers to, case-folded at the caller's end. */
 const FILE_BASENAME = "kolu.olai"
 
 /** The one node title, exact and case-sensitive, `outlineCalled`'s rule. */
 const WATCH_TITLE = "watch"
-
-/** One duration written as the vault writes it, `<n>s|m|h`, in ms. */
-const DURATION = /^(\d+)(s|m|h)$/
-const UNIT_MS: Readonly<Record<string, number>> = { s: 1_000, m: 60_000, h: 3_600_000 }
-
-/** The timer ceiling padi's own schema documents: past it a `setTimeout`
- *  wraps to a near-instant fire-forever. Spelled locally: the `@kolu`
- *  product tier is confined by the repo's fence to the two kolu packages.
- */
-const MAX_TIMER_MS = 2_147_483_647
-
-/** Each prop's floor, in padi's own reading: `held-for` is a debounce and
- *  `0` is its legal "say it the instant it holds"; `nag` and `heartbeat`
- *  are INTERVALS, whose zero cannot be spelled into a loop the timers are
- *  then asked to hold. */
-const FLOORS: Readonly<Record<WatchProp, number>> = {
-  "held-for": 0,
-  nag: 1,
-  heartbeat: 1,
-}
-
-/** The three props `watch` carries, in the order a reader sets them. */
-type WatchProp = "held-for" | "nag" | "heartbeat"
 
 /** What {@link watchConfigIn} returns — the config itself plus the malformed
  *  VALUE LINES, said by the caller so a vault typo is a sentence on the
@@ -152,42 +133,84 @@ export const watchConfigIn = (
   const inside = nodes.filter(isRegular).filter((located) => located.file === file)
   const watch = inside.find(({ node }) => node.title === WATCH_TITLE)
   const malformed: Array<string> = []
-  /** One prop, defensively: the default stands, and a line names the file,
-   *  the node, the value and the grammar it violated. The vault is left
-   *  with its word — a repair is the editor's, not this reader's. */
-  const readDuration = (key: WatchProp, fallback: number): number => {
+  /** THE VAULT'S OWN SHAPE GATE, before either parser: the grammar WITHOUT
+   *  the bare-number arm — everything else with a bad shape is kolu's own
+   *  sentence to spell. Its parsers take `10000` for 10000ms because the
+   *  `kolu` binary's other four flags already mean ms — an argv-consistency
+   *  argument. A hand-edited file reads the other way: a truncated `nag: 10`
+   *  defaults into a 10-ms re-fire spin, which is the one mistake a property
+   *  file must say rather than do. */
+  const bareDigits = /^\d+$/
+  const spellUnit = (key: "held-for" | "nag" | "heartbeat", value: string): void => {
+    malformed.push(`kolu: \`${key}: ${value}\` in ${watch?.file}: spell a number and a unit (500ms, 30s, 10m, 2h, 1d)`)
+  }
+  /** KOLU'S OWN PARSERS, wrapped in the vault's own address. A value that is
+   *  not the grammar names the file, the node and the sentence kolu itself
+   *  composes (`parseDuration`/`parseNag`), so a `kolu watch` user and a
+   *  vault writer are taught one rule in one spelling. The default stands;
+   *  the vault is left with its word, and the sentence is the only penalty. */
+  const readDuration = (
+    key: "held-for" | "heartbeat",
+    min: { readonly ms: number; readonly why: string },
+    effect: string,
+    fallback: number,
+  ): number => {
     if (watch === undefined) return fallback
     const value = customText(watch.node, key)
     if (value === undefined) return fallback
-    const match = DURATION.exec(value.trim())
-    if (match === null) {
-      malformed.push(
-        `kolu: \`${key}: ${value}\` in ${watch.file} is not a duration — write <n>s, <n>m or <n>h.`,
-      )
+    // The GATE AND THE PARSE read one trimmed value: kolu's parser trims
+    // before judging, so a `10 ` trailing the paper slips every check
+    // that reads the property raw — both eyes agree; only the sentence
+    // keeps the file's own spelling, with the whitespace that made it.
+    const raw = value.trim()
+    if (bareDigits.test(raw)) {
+      spellUnit(key, value)
       return fallback
     }
-    const [, amount, unit] = match
-    if (amount === undefined || unit === undefined) return fallback
-    const ms = Number(amount) * (UNIT_MS[unit] ?? 1_000)
-    if (ms < FLOORS[key]) {
-      malformed.push(
-        `kolu: \`${key}: ${value}\` in ${watch.file} is not an interval its timer allows — padi refuses a ${key} of 0 as the spin it is.`,
-      )
+    const read = parseDuration(key, raw, min, effect)
+    if (read.kind === "error") {
+      malformed.push(`kolu: \`${key}: ${value}\` in ${watch.file}: ${read.message}`)
       return fallback
     }
-    if (ms > MAX_TIMER_MS) {
-      malformed.push(
-        `kolu: \`${key}: ${value}\` in ${watch.file} is past the ~24.8-day timer ceiling — it over-writes a setTimeout into a steady fire.`,
-      )
-      return fallback
+    return read.value
+  }
+  /** The nag, one knock further: `parseNag` splits the interval from its
+   *  CAP (`30m/3` — three reminders past the first report, then quiet), so
+   *  the two can neither be spelled apart nor drift. */
+  const readNag = (): WatchConfig["nagMs"] => {
+    if (watch === undefined) return DEFAULT_WATCH.nagMs
+    const value = customText(watch.node, "nag")
+    if (value === undefined) return DEFAULT_WATCH.nagMs
+    const raw = value.trim()
+    if (bareDigits.test(raw)) {
+      spellUnit("nag", value)
+      return DEFAULT_WATCH.nagMs
     }
-    return ms
+    const read = parseNag("nag", raw)
+    if (read.kind === "error") {
+      malformed.push(`kolu: \`nag: ${value}\` in ${watch.file}: ${read.message}`)
+      return DEFAULT_WATCH.nagMs
+    }
+    return read.value
   }
   return {
     config: {
-      heldForMs: readDuration("held-for", DEFAULT_WATCH.heldForMs),
-      nagMs: readDuration("nag", DEFAULT_WATCH.nagMs),
-      heartbeatMs: readDuration("heartbeat", DEFAULT_WATCH.heartbeatMs),
+      heldForMs: readDuration(
+        "held-for",
+        { ms: 0, why: "unused — a hold of zero is padi's own legal instant report" },
+        "its debounce fires",
+        DEFAULT_WATCH.heldForMs,
+      ),
+      nagMs: readNag(),
+      heartbeatMs: readDuration(
+        "heartbeat",
+        {
+          ms: 1,
+          why: "a heartbeat of zero paces nothing — the knob is the window a silent watch is judged against, not an interval padi is poked at.",
+        },
+        "the stamp ages out",
+        DEFAULT_WATCH.heartbeatMs,
+      ),
     },
     malformed,
   }

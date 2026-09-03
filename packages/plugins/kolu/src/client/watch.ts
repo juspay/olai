@@ -1,88 +1,101 @@
 /**
- * THE WATCHER — olai's own computation of the attention events the
- * orchestrator today gets from a hand-armed `kolu watch`.
+ * THE WATCHER — olai's end of padi's standing `watchStates` subscription.
  *
- * ## What it reads, and why that is the whole economy
+ * ## What it reads, and why the mirror reading was given up
  *
- * It reads the MIRROR — the rows `./mirror.ts` already publishes to the
- * `fleet` collection — and nothing else. No second subscription and no
- * second dial: `koluHalf`'s sink hands every row the mirror moves to this
- * beside the collection, so the events are computed over exactly what ten
- * tabs on a lanes page already see, in the same breath.
+ * This module USED to compute the attention events itself: every fleet row
+ * the mirror moved was observed here, holds were debounced by one timer
+ * apiece, the nag was a second timer, and the heartbeat a third. That was
+ * the deliberate #421 choice — *a reading of the mirror, not a subscription
+ * to padi's watch member*: the mirror's rows are the mirror's problem, and
+ * the day padi's watch member changed shape this module would not move.
  *
- * That is a deliberate difference from padi's own `watchStates` member,
- * which computes the same events DAEMON-side from its own records. What
- * olai computes here is deliberately a READING of the mirror rather than a
- * subscription to that member: the mirror's rows are the mirror's problem,
- * and the day padi's watch member changes shape this module does not move.
- * What is lost is the daemon's `since` clock — the daemon has watched the
- * state since IT saw it enter, and olai restarting re-dates every standing
- * hold. `KoluEvent.row.since` says so on its own doc.
+ * What the mirror can never give it back is the daemon's own memory of an
+ * episode. The nag is FINITE now (`nag: 30m/3` in `_olai/Kolu.olai` — three
+ * reminders past the first report, then quiet about that terminal), and
+ * which reminder a terminal is on is an answer only the daemon holds: it
+ * survives an olai restart, it survives a reconnect, and only a state
+ * CHANGE re-arms it. Re-deriving all of that client-side would be a second
+ * copy of the one engine, counting from a second clock — and the whole
+ * discipline of the member is exactly that no face does that. So the
+ * reading was given up for the subscription: the daemon does the holding,
+ * the nagging and the counting; this module chooses nothing but the knobs,
+ * and it holds NO TIMER of its own.
  *
- * ## The semantics, in one breath
+ * What is consequently ours to keep honest:
  *
- * For every terminal whose row enters a held bucket — `awaiting`
- * or `waiting`, the two that need a person
- * (`@kolu/terminal-vocab`'s WATCH_DEFAULT_STATES, spelled out so that the
- * fold's home need not be imported for one set) — start a hold clocked from
- * the first observation of it. Held past `heldForMs`: emit a `transition`.
- * Still held another `nagMs`: emit a `nag`, and keep re-emitting until the
- * row says otherwise. A terminal that leaves the bucket inside the window
- * is never said at all — that is the debounce padi's `heldForMs` documents
- * and the soak runs beside.
+ *   - THE RING. Batches translate into `KoluEvent`s, newest kept, capped —
+ *     the collection's `readAll` reads this map exactly as it did when the
+ *     timers pushed here, so none of the wire moves for its own sake.
+   *   - THE FROZEN ROW. A `PadiStateEvent` is thin by contract (the recipient
+   *     reads the screen itself) — olai joins the live fleet row at FIRE time
+   *     the way `emitHold` always did, frozen with its live flags stamped
+   *     out. Rows are remembered as they were last observed, bounded like
+   *     every other place in this module (`WATCH_LANES`): an event about a
+   *     evicted terminal falls onto the synthesized-pip arm, which is the
+   *     spelled answer for an unknown id at zero additional cost.
+   *   - THE BEAT STAMP. There is no interval to pace one on any more, so it
+   *     is stamped when the SUBSCRIPTION says something — every batch,
+   *     including the arriving frame that found nothing matching, which is
+   *     the member's own answer to "is it live". The stamp is RECEIPT time:
+   *     liveness is a fact of this clock, and the daemon's `at` stays what
+   *     it is — the content's instant, riding each event. The pulse cell
+   *     changes
+ *     neither shape nor cadence knob: the pill still reads
+ *     `age > everyMs * 2` against the vault's `heartbeat` window, which is
+ *     why the knob survives with its word. The knob paces nothing remotely
+ *     — a healthy watch on a capped, parked fleet WILL read amber two
+ *     windows after the last reminder; that is the register's face under
+ *     finite nagging, and docs.md says so.
  *
- * A beat is said every `heartbeatMs` (immediately once, at boot) — into
- * the SINK's `beat`, not the ring. Liveness lives on the pill (the wire's
- * `pulse` member); the ring holds ATTENTION events only, so a feed drawn
- * over a dead fleet is a page that had nothing to say, not a beat failing
- * to reach it.
+ * ## One knob edit is one re-specification, and padi starts the count fresh
  *
- * ## A link drop is not a closing fleet
+ * `reconfigure` derives the subscription input from the config and re-runs
+ * `watchAgentStates` when a knob that reaches the wire MOVED — `held-for`,
+ * `nag`'s interval or its count. Resubscribing with a different question
+ * is padi's own fresh-episode door: the arriving frame re-reports the
+ * standing set as a snapshot, and the cap counts from zero. That is the
+ * idempotence the e2e owes its gesture to (`held-for: 0s` answers an
+ * already-standing hold at once, with no timer waited out), and it answers
+ * why a `held-for` keystroke reload now arrives as a `transition` the
+ * doorbell says again where the timers used to re-arm silently.
  *
- * There are TWO ways a row leaves the fleet, and the watcher reads them
- * apart (`./mirror.ts`'s `remove` vs `clearedRow`). A row leave against a
- * standing fleet is a terminal that SHUT: its hold goes with it. A fleet
- * emptied whole — the padi socket reboot under olai's hands — leaves the
- * waiting exactly where it was: the daemon re-dates nothing, and neither
- * does this module. The hold's clock is the watcher's own, not the
- * record's: `suspend` freezes it timerless, a returning `observe` in the
- * same bucket resumes it from its own `since`, and nothing in the flap
- * interval ever fires. The soak (`kolu watch`'s `PadiStateEvent` snapshot
- * semantics) behaves the same, which is the comparison the events are
- * soaked against.
+ * The transparent retry inside `watchAgentStates` (`mirrorRemoteSurface`'s
+ * fence, re-snapshot on reconnect) re-leads the standing set — and a re-lead
+ * says nothing twice: the episode ledger keys what this ring already rang
+ * by the daemon's own episode stamp (`since`, which survives a CLIENT
+ * reconnect — a padi restart is the only re-date, and that one honestly
+ * wants the re-telling), so a flap's repetition is dropped at the door
+ * while the batch's beat lands as usual. A knob edit is a NEW question and
+ * wipes the ledger: the re-ask's leading frame re-reports, as the section
+ * above argues. `attach(null)`, pushed on the dial's own edges, is the
+ * whole of the flap's door: a live subscription for a dead padi cannot sit
+ * around.
  *
- * ## What is deliberately not computed here
+ * ## What is deliberately not done here
  *
- * The KNOB reading. `_olai/Kolu.olai` is outline records, and this package
- * has no business knowing what one is (`./index.ts`'s header): the server
- * walks the vault (`@olai/server`'s `koluConfig.ts`, beside `claimants.ts`)
- * and hands over the derived config — malformed values already defaulted
- * and named. This module takes the intervals, compares them, reconfigures,
- * and owns the timers.
+ * THE KNOB READING. `_olai/Kolu.olai` is outline records, and this package
+ * has no business knowing what one is: the server walks the vault
+ * (`../../config.ts`, beside `claimants.ts`) and hands over the derived
+ * config — malformed values already defaulted and named.
  *
- * THE SILENCE HALF. There was a mute list here — `WatchConfig.muted`, values
- * resolved against the live roster per observation, holds killed under it. It
- * went with the second doorbell (2026-08-31): what a person wants quiet is
- * decided by the wake FILTER FILE a conversation is scoped to, one package up,
- * and a second silence aimed at the same fleet from the same config file is one
- * mechanism too many. What is left here is a watcher that says everything it
- * sees and lets its readers choose.
+ * A FILTER OF ANY KIND. `states`, `ignoreIds` and `id` are padi's knobs
+ * and olai names none of them: the fleet is watched whole under the
+ * member's own default states — the advertised default, which is the only
+ * states answer a face may keep. The doorbell's filter FILE silences
+ * conversations, not the watch.
  *
- * PERSISTENCE. The ring is a standing thing per server — `WATCH_RING`
- * events, newest kept, snapshot-then-deltas on the wire. A server restart
- * re-sees the fleet cold: no memory of last night's holds, and a terminal
- * still `waiting` at dawn fires as a fresh hold under the same rules as a
- * fresh transition.
- *
- * ## The timers, and how they die
- *
- * Every timer a terminal owns lives on its hold; every release path —
- * bucket left, row removed, watcher stopped — runs through
- * `releaseHold`, so a nag cannot fire into a state that already ended. The
- * one timer that is not a hold's is the heartbeat's interval, and
- * `stop` clears it.
+ * RETRY POLICY of its own for a run that fails its fence and REJECTS:
+ * said once on the OWNER's channel (a dead subscription is not chatter,
+ * which the framework's own G5 table names as the shape a consumer must
+ * hear), and the pill goes amber on schedule. Ending the whole dial for
+ * it — the mirror's own answer for its members — runs through the
+ * composition root and is named in the PR's deferrals instead.
  */
 
+import { watchAgentStates } from "@kolu/padi-client/watch"
+import type { PadiSurfaceClient } from "./link.ts"
+import type { PadiStateEvent, PadiWatchStatesInput } from "@kolu/padi-client/surface"
 import { narrowAgentState } from "@kolu/solid-dockrow/rowValues"
 import { agentBucket, WATCH_DEFAULT_STATES } from "@kolu/terminal-vocab/agentProjection"
 
@@ -91,144 +104,131 @@ import type { FleetTerminal, KoluEvent } from "./wire/index.ts"
 // ── The config, as the vault walk hands it over ──────────────────────────
 
 /**
+ * The nag interval AND its optional reminder cap, as ONE value — exactly
+ * the shape kolu's own `parseNag` answers (`nag: 30m/3`): the count rides
+ * the interval's own spelling, so the two can never be spelled apart and
+ * can never drift. The wire carries them as the separate `nagMs` /
+ * `nagCount` fields; this file is the only place they meet.
+ */
+export interface WatchNag {
+  readonly ms: number
+  readonly count?: number
+}
+
+/**
  * The watcher's knob set, DERIVED ELSEWHERE — see the header for why this
  * shape never names a vault node.
  */
 export interface WatchConfig {
   readonly heldForMs: number
-  readonly nagMs: number
+  readonly nagMs: WatchNag
   readonly heartbeatMs: number
 }
 
 /** The knobs when `_olai/Kolu.olai` is absent, torn or quiet — the brief's
- *  own numbers, one constant, not three defaults remembered in two places. */
+ *  own numbers, one constant, not three defaults remembered in two places.
+ *  A bare interval: the nag repeats forever until a vault spells the cap. */
 export const DEFAULT_WATCH: WatchConfig = {
   heldForMs: 60_000,
-  nagMs: 600_000,
+  nagMs: { ms: 600_000 },
   heartbeatMs: 1_800_000,
 }
 
 /** The ring's cap — the brief's `~200`. */
 export const WATCH_RING = 200
 
-/** The buckets a hold may be about: `WATCH_DEFAULT_STATES`, THE set the
- *  fold's home pins for every face (its own doc: read this one constant,
- *  or advertise a default nothing applies). The one exclusion in it —
- *  `working` — is the flood every watch feature was written to replace.
- *  Held as a Set so `heldBucketOf`'s membership ask is one hash, not a
- *  scan. */
-const HELD_BUCKETS: ReadonlySet<string> = new Set(WATCH_DEFAULT_STATES)
+/** The CACHES' cap: rows as last observed, and the episode ledger. Both
+ *  places grow with terminal-id churn over the SERVER's life, which is a
+ *  longer horizon than a lanes-day — and losing one never loses a fact the
+ *  code needs: it opens the margin whose synthesized-pip answer
+ *  {@link translate} already spells, and a moved-on episode honestly
+ *  reads as a first report again. */
+export const WATCH_LANES = 2000
 
-/** What the watcher emits. `emit`/`evict` are the events collection's two
- *  verbs — a fresh row, and the row the ring dropped — so `./index.ts`
- *  closes over this and nothing else.
- *
- *  THREE VERBS AND NO `say`. There was a fourth — the ambiguous-mute
- *  sentence, which was the only thing this module ever had to tell an
- *  owner. The mutes went (see the header) and the channel went with them:
- *  a watcher that says everything it sees has nothing to warn about. */
+/** Insertion-ordered eviction, the ring's own discipline one level down:
+ *  a re-set keeps the original position — a long-standing lane lives
+ *  longer, which is the accurate bias both caches want. */
+const cap = <K, V>(map: Map<K, V>, bound: number): void => {
+  while (map.size > bound) {
+    const oldest = map.keys().next().value
+    if (oldest === undefined) break
+    map.delete(oldest)
+  }
+}
+
+/** What the watcher hands over. The three verbs are exactly what the
+ *  timered watcher had — the ring's two, and the beat: same breaths, a new
+ *  driver for the third (see the header). Attentive value (`at` + the
+ *  cadence it was stamped under) rides beside the beat, which is the
+ *  pill's whole read. */
 export interface WatchSink {
   readonly emit: (event: KoluEvent) => void
   /** Fired ONLY on a ring eviction: events are never edited, only dropped. */
   readonly evict: (id: string) => void
-  /** The beat: the watcher is alive. Attentive value (`at` + the cadence it
-   *  was stamped under) rides beside it, which is the pill's whole read. */
+  /** The subscription answered. Stamped once per BATCH, at RECEIPT — "when
+   *  did we last hear from padi" is a fact about THIS clock, and the daemon's
+   *  `at` already rides each event beside it as content. */
   readonly beat: (at: string, everyMs: number) => void
 }
 
 export interface Watch {
-  /** A fleet row MOVED — start, refresh or kill a hold, according to its
-   *  bucket. An id that was SUSPENDED returns through this same door: a
-   *  resume, rather than a re-dating. */
+  /** The live padi face — the dial hands it over on every connect and
+   *  takes it back (`null`) on every drop. The subscription runs only
+   *  while one is alive. */
+  readonly attach: (client: PadiSurfaceClient | null) => void
+  /** A fleet row MOVED — remembered for the frozen rows the events join.
+   *  An id never leaves the map: a fired event about a long-gone terminal
+   *  still draws the row as the event saw it. */
   readonly observe: (id: string, row: FleetTerminal) => void
-  /** A row left the fleet underneath a STANDING link — a terminal that
-   *  shut. Its hold goes with it, silently: a terminal that left is not
-   *  waiting for anything. */
-  readonly remove: (id: string) => void
-  /** The LINK fell, carrying every row with it. The waiting underneath did
-   *  not move: the holds PAUSE — no timer fires while there is no fleet to
-   *  watch — and a returning `observe` in the same bucket resumes from the
-   *  hold's own clock. Holds whose id never returns keep no timer and hold
-   *  only their memory; `stop` clears them with the rest. */
-  readonly suspend: (id: string) => void
   /** The config the vault NOW says, freshly derived on every revision. */
   readonly reconfigure: (config: WatchConfig) => void
   /** The ring, oldest first — the collection's `readAll` reads it
    *  verbatim, which is the same typed-mutable life the fleet's rows lead. */
   readonly events: () => Map<string, KoluEvent>
-  /** Stops every timer. Called when the runtime that owns this watcher
-   *  closes. */
+  /** Aborts the standing subscription. Called when the runtime that owns
+   *  this watcher closes. */
   readonly stop: () => void
 }
 
-/**
- * One terminal's in-flight hold.
- *
- * `row` is the LAST observed row, refreshed on every observe: the event
- * freezes facts at FIRE time, so an intent the terminal was handed after
- * the state began is on the event that names it.
- *
- * `holdTimer` and `nagTimer` are disjoint by construction — the debounce
- * arms until the transition fires, the nag from then on — and `fired` is
- * the line between them. Keeping the two arms separate is what lets a
- * config edit re-pace the nag without re-debouncing a state already said.
- */
-interface Hold {
-  readonly id: string
-  /** The held bucket — `awaiting` | `waiting`. */
-  readonly state: string
-  /** The verbatim agent state the row spelled when the hold began — the
-   *  typed literal {@link heldStateOf} narrowed out of the row's word, which
-   *  IS the verbatism for a known state. */
-  agentState: string
-  /** Epoch ms of the FIRST observation in this hold. */
-  readonly since: number
-  /** Epoch ms of the LAST emission. Seeded with `since` so an unfired hold's
-   *  arithmetic needs no third field; set by every `emitHold`, which is the
-   *  sole producer of events — and the seam by which both a `reconfigure`
-   *  re-arm and a flap RESUME measure from the emission that already
-   *  happened rather than the moment somebody edited a knob. */
-  lastEmittedAt: number
-  /** The draw facts, refreshed per observation, frozen into the event at
-   *  fire time. */
-  row: FleetTerminal
-  /** Whether the `transition` has been said. */
-  fired: boolean
-  holdTimer: ReturnType<typeof setTimeout> | undefined
-  nagTimer: ReturnType<typeof setTimeout> | undefined
-}
+/** The subscription's own knob set — what actually crosses the wire. Two
+ *  stays home: `states` (the member's default is the one advertised set)
+ *  and the scope (`ignoreIds`/`id`) — olai watches the whole fleet. */
+const inputOf = (config: WatchConfig): PadiWatchStatesInput => ({
+  heldForMs: config.heldForMs,
+  nagMs: config.nagMs.ms,
+  ...(config.nagMs.count === undefined ? {} : { nagCount: config.nagMs.count }),
+})
+
+/** Do two configs ask padi the same question? The heartbeat window is NOT
+ *  on the wire — it paces the stamped beat's readout and nothing padi-side,
+ *  so moving it re-runs nothing here. */
+const sameQuestion = (a: WatchConfig, b: WatchConfig): boolean =>
+  a.heldForMs === b.heldForMs && a.nagMs.ms === b.nagMs.ms && a.nagMs.count === b.nagMs.count
+
+/** The buckets a hold may be about: `WATCH_DEFAULT_STATES`, THE set the
+ *  fold's home pins for every face (its own doc: read this one constant,
+ *  or advertise a default nothing applies). The one exclusion in it —
+ *  `working` — is the flood every watch feature was written to replace.
+ *  Held as a Set so `heldStateOf`'s membership ask is one hash, not a
+ *  scan. */
+const HELD_BUCKETS: ReadonlySet<string> = new Set(WATCH_DEFAULT_STATES)
 
 /**
- * The HOLDABLE state a row folds to, or `null` when there is none to
- * hold: no agent in the row, a state this build's vocabulary does not know
- * (a newer padi — `narrowAgentState` keeps the word verbatim and marks it
- * unknown), or a bucket that is not `HELD_BUCKETS` — `other`, and
- * `working`, the flood this whole feature exists to replace.
+ * What the DOORBELL's standing read needs, folded the exact way the wire's
+ * `rows` answer it — EXPORTED FOR THE ONE READER THAT MUST NOT RE-DERIVE
+ * IT.
  *
- * The ONE fold in this file, and there is exactly one of it: `observe`'s
- * gate asks this and nothing else.
- */
-export interface HeldState {
-  /** The bucket the hold is about — one of `HELD_BUCKETS`. */
-  readonly bucket: string
-  /** The state the row spelled, as the narrowed LITERAL — the same word the
-   *  wire's verbatim contract already promises. */
-  readonly spelled: string
-}
-/**
- * EXPORTED FOR THE ONE READER THAT MUST NOT RE-DERIVE IT — the doorbell in
- * `olai-plugin-kolu`, which composes a sentence naming every claimed
- * terminal that is HELD RIGHT NOW and reads that off the live fleet rows
- * (`KoluHalf.rows()`) rather than off any memory of its own.
- *
- * A SECOND SPELLING WOULD BE A SECOND ANSWER. The buckets are
- * `@kolu/terminal-vocab`'s, reached through `narrowAgentState` and
- * `agentBucket`, and `olai-plugin-kolu` does not depend on either — nor
- * should it: which words a padi build spells is exactly the knowledge the
- * package wall keeps on this side. So the fold crosses as a FUNCTION, the
- * way {@link ../fleet.ts}'s `Claimant` crosses as four strings, and the
- * doorbell's answer about what is held and the watcher's gate on the same
- * question cannot come apart.
+ * A SECOND SPELLING WOULD BE A SECOND ANSWER. The doorbell in
+ * `olai-plugin-kolu` composes a sentence naming every claimed terminal
+ * that is HELD RIGHT NOW, read off the live fleet rows
+ * (`KoluHalf.rows()`) rather than off any memory of its own — and the
+ * folds that decide held-ness are kolu's, reached through
+ * `narrowAgentState` and `agentBucket`, which the judgement package does
+ * not depend on: which words a padi build spells is exactly the knowledge
+ * the package wall keeps on this side. So the fold crosses as a FUNCTION,
+ * the way {@link ../fleet.ts}'s `Claimant` crosses as four strings: one
+ * answer to "is this row held", so a body's facts and a padi event's
+ * facts cannot come apart.
  */
 export const heldStateOf = (row: FleetTerminal): HeldState | null => {
   const narrowed = narrowAgentState(row.agentState)
@@ -237,30 +237,65 @@ export const heldStateOf = (row: FleetTerminal): HeldState | null => {
   return HELD_BUCKETS.has(bucket) ? { bucket, spelled: narrowed.state } : null
 }
 
+/** One held reading — what {@link heldStateOf} answers when it is not
+ *  `null`. */
+export interface HeldState {
+  /** The bucket the hold is about — one of `HELD_BUCKETS`. */
+  readonly bucket: string
+  /** The verbatim agent word the row spelled, narrowed rather than
+   *  retyped. */
+  readonly spelled: string
+}
+
+/** One run of the standing subscription, and the token late batches from a
+ *  re-specified predecessor die on: an `AbortController` stops the fence's
+ *  loop, and a competitor's frame that arrived before the abort is dropped
+ *  here rather than ingrafted over the new question's snapshot. */
+interface Run {
+  readonly input: WatchConfig
+  readonly controller: AbortController
+}
+
 export const makeWatch = (
   sink: WatchSink,
-  options: { readonly now: () => number },
+  options: {
+    readonly now: () => number
+    readonly say?: (line: string) => void
+    /** A run ENDED. A subscription that settles (rather than being aborted
+     *  by us) has run out of its own retries — the failure the pill's amber
+     *  is supposed to see, said on the owner's channel rather than the
+     *  trace's. */
+    readonly warn?: (line: string) => void
+  },
 ): Watch => {
   /** The knob set in force. Defaults until the vault's walk reconfigures —
    *  which is also what an absent `_olai/Kolu.olai` reconfigures TO. */
   let config: WatchConfig = DEFAULT_WATCH
-  /** The holds, keyed by fleet id. */
-  const holds = new Map<string, Hold>()
-  /** The suspended-half of the same book: holds whose fleet emptied under a
-   *  flap (see the `suspend` doc). No timer lives here — one is armed at
-   *  resume or at the hold's death, and `stop()` clears them. */
-  const suspended = new Map<string, Hold>()
-  /** The ring. Insertion-ordered Map, capped at `WATCH_RING` — a Map key
-   *  iteration order is insertion order, and the eviction asks the first
-   *  key. */
+  /** The live padi face, or `null` while the dial is down. */
+  let client: PadiSurfaceClient | null = null
+  /** The standing subscription, while one is running. */
+  let run: Run | null = null
+  /** The fleet rows as last observed — the join the frozen event reads off.
+   *  Insertion-ordered, capped at `WATCH_LANES` like every place here: an
+   *  evicted id draws the synthesized pip, the margin's spelled answer. */
+  const rows = new Map<string, FleetTerminal>()
+  /** The ring. Insertion-ordered Map, capped at `WATCH_RING`. */
   const ring = new Map<string, KoluEvent>()
+  /** THE EPISODE LEDGER, for the question in force: terminal → the
+   *  daemon's `since` of the episode this ring last said. Wiped by a moved
+   *  question, kept across flaps — the distinction the header and
+   *  {@link makeWatch}'s `reconfigure` argue. */
+  const episodes = new Map<string, string>()
   /** One counter for the whole watcher, so the ring's keys read in fire
    *  order and are unique per shot. */
   let seq = 0
-  let heartbeatTimer: ReturnType<typeof setInterval> | undefined
 
   /** One event onto the ring, evicting the oldest while the cap is full. */
   const push = (event: KoluEvent): void => {
+    if (event.row !== null) {
+      episodes.set(event.row.terminal, event.row.since)
+      cap(episodes, WATCH_LANES)
+    }
     ring.set(event.id, event)
     sink.emit(event)
     while (ring.size > WATCH_RING) {
@@ -271,214 +306,145 @@ export const makeWatch = (
     }
   }
 
-  /** One hold's event row, stamped at fire time — see `Hold.row` for why
-   *  the facts are read NOW rather than held from the first observation. */
-  const emitHold = (hold: Hold, kind: "transition" | "nag"): void => {
-    const at = options.now()
-    hold.lastEmittedAt = at
-    seq += 1
-    push({
-      id: `ev-${seq}`,
-      kind,
-      at: new Date(at).toISOString(),
-      row: {
-        terminal: hold.id,
-        state: hold.state,
-        agentState: hold.agentState,
-        // The LIVE flags stamped out: an event that went on for hours
-        // would otherwise flash motion for a moment that passed long ago.
-        // Variant, glyph, asking, ink and the label are the whole of what
-        // the past is allowed to say.
-        pip: { ...hold.row.pip, active: false, bytesLive: false },
-        bucket: hold.row.bucket,
-        label: hold.row.label,
-        labelColor: hold.row.labelColor,
-        repo: hold.row.repo,
-        since: new Date(hold.since).toISOString(),
-      },
-    })
-  }
-
-  /** The heart: attention events are not its to say — one stamp per
-   *  beat, onto the sink's `beat`, with the cadence eaten beside it. No
-   *  row, no terminal, no nag — the watcher's whole answer to the
-   *  door's quiet face. */
-  const pulse = (): void => {
-    sink.beat(new Date(options.now()).toISOString(), config.heartbeatMs)
-  }
-
-  /** Re-arm the heartbeat under the config in force — called only when
-   *  `heartbeat` MOVED (`reconfigure`'s echo-guard's job), so the eat is
-   *  a real knob move and never a vault keystroke: the interval is
-   *  re-called cleanly rather than inheriting a staggered one, and one
-   *  beat says the eat at once: the stamp carries `everyMs` with it, so a
-   *  LENGTHENED cadence (the edit to 120s in the evidence's own run)
-   *  would leave the door remembering the shorter one's margin in the
-   *  meantime without this.
+  /**
+   * THE TRANSLATE, one `PadiStateEvent` to one `KoluEvent` — and it is a
+   * RELAY, not a computation: padi already decided the kind, the state, the
+   * `since` (its own observation clock, which survives OUR client
+   * reconnect — a padi restart is the only thing that re-dates it) and the
+   * reminder accounting. What olai adds is the frozen row at fire time, the
+   * live flags of it stamped out — a log row must not flash motion for a
+   * moment that passed.
+   *
+   * `snapshot` folds onto the wire's `transition` arm: both are a first
+   * report of an episode, told apart on padi's side by whether the watch
+   * was there for the edge. The drawer's wire KIND has no reader for the
+   * difference; the doorbell does — {@link onBatch} drops a re-lead of an
+   * episode the ring already rang, so the discrimination lives in one
+   * ledger here rather than in one more kind on the wire.
    */
-  const rearmHeartbeat = (): void => {
-    if (heartbeatTimer !== undefined) clearInterval(heartbeatTimer)
-    pulse()
-    heartbeatTimer = setInterval(pulse, config.heartbeatMs)
-  }
-
-  /** Arm one hold's nag timer under the config in force, anchored at the
-   *  LAST EMISSION: the interval is measured from the line that already
-   *  ran, so a re-arm in a knob edit (or on resume, through a flap) cannot
-   *  push a nag out by another full window. */
-  const armNag = (hold: Hold): void => {
-    const remaining = hold.lastEmittedAt + config.nagMs - options.now()
-    hold.nagTimer = setTimeout(() => fireNag(hold), Math.max(0, remaining))
-  }
-
-  /** Re-arm ONE hold's timers under the knob set now in force — the one fold
-   *  of the pacing that `reconfigure` (an interval moved) and resume (a
-   *  fleet came back) both walk. */
-  const rearmHold = (hold: Hold): void => {
-    if (hold.holdTimer !== undefined) clearTimeout(hold.holdTimer)
-    if (hold.nagTimer !== undefined) clearTimeout(hold.nagTimer)
-    hold.holdTimer = undefined
-    hold.nagTimer = undefined
-    if (hold.fired) {
-      armNag(hold)
-    } else {
-      const remaining = hold.since + config.heldForMs - options.now()
-      hold.holdTimer = setTimeout(() => fireTransition(hold), Math.max(0, remaining))
+  const translate = (ev: PadiStateEvent): KoluEvent => {
+    const row = rows.get(ev.id)
+    seq += 1
+    return {
+      id: `ev-${seq}`,
+      kind: ev.kind === "nag" ? "nag" : "transition",
+      at: new Date(ev.at).toISOString(),
+      row: {
+        terminal: ev.id,
+        state: ev.state,
+        // The agent's VERBATIM word if the mirror has one (a padi event
+        // implies an agent, but the mirror row may lag or spell no word);
+        // otherwise the bucket the event itself claims (`awaiting_user`
+        // where known, else the event's own `state`). Never null — the
+        // feed's subline wording reads it.
+        agentState: row === undefined ? ev.state : (narrowAgentState(row.agentState).state ?? ev.state),
+        pip: row === undefined
+          // NO ROW SEEN YET — the subscription's arriving frame named a
+          // terminal the mirror has not published in this margin. The draw
+          // is the narrowing's quiet face: the pip is the narrowing-fall
+          // bag with the same live edits the frozen rows keep.
+          ? {
+            variant: "idle",
+            glyph: "terminal",
+            active: false,
+            asking: ev.state === "awaiting",
+            bytesLive: false,
+            hasAgent: true,
+            sleeping: false,
+            alert: false,
+            alertLabel: "",
+          }
+          : { ...row.pip, active: false, bytesLive: false },
+        bucket: row?.bucket ?? ev.state,
+        label: row?.label ?? ev.intent ?? "",
+        labelColor: row?.labelColor ?? "",
+        repo: row?.repo ?? null,
+        since: new Date(ev.since).toISOString(),
+      },
+      // THE KIND DECIDES THE ACCOUNTING, here and not per reader: the wire
+      // schema is a flat `{kind, nag?}` whose pairing rule the doc states,
+      // so the fold is the one place the rule is ENFORCED — a first report
+      // that arrived with counting on it carries it no further.
+      ...(ev.kind === "nag" && ev.nag !== undefined ? { nag: ev.nag } : {}),
     }
   }
 
-  // ARM IT AT CONSTRUCTION: `rearmHeartbeat` pulses once when it eats
-  // the arm, so the boot's answer needs no second call of its own.
-  rearmHeartbeat()
-
-  /** Cancel ONE hold's timers and forget it. Idempotent, and the ONLY
-   *  door out of both maps the indices will say it lives in. */
-  const releaseHold = (hold: Hold): void => {
-    if (hold.holdTimer !== undefined) clearTimeout(hold.holdTimer)
-    if (hold.nagTimer !== undefined) clearTimeout(hold.nagTimer)
-    hold.holdTimer = undefined
-    hold.nagTimer = undefined
-    if (holds.get(hold.id) === hold) holds.delete(hold.id)
-    if (suspended.get(hold.id) === hold) suspended.delete(hold.id)
+  /** One BATCH through the ring, then the beat the batch earns. The beat is
+   *  stamped LAST so a conversation rung by this frame is already said
+   *  before its floor is asked about — the events-first ordering the ledger
+   *  reads — and it is stamped at RECEIPT: "the subscription answered" is a
+   *  fact of THIS clock, whereas the batch's daemon `at` is content and
+   *  rides each event. */
+  const onBatch = (token: Run, batch: readonly PadiStateEvent[]): void => {
+    if (run !== token) return
+    for (const ev of batch) {
+      // ONE RING PER EPISODE, per question: padi re-leads the standing set
+      // on every (re)open and the fence re-leads on every flap — the
+      // episode's daemon `since` is what makes a re-telling of an
+      // already-said episode knowable as one. A miss is a NEW episode (or
+      // a re-dated daemon) and rings as one.
+      if (ev.kind === "snapshot" && episodes.get(ev.id) === new Date(ev.since).toISOString()) continue
+      push(translate(ev))
+    }
+    sink.beat(new Date(options.now()).toISOString(), config.heartbeatMs)
   }
 
-  /** What a fired timer must first ask: is this hold still live? A nag
-   *  the microsecond after a `releaseHold` is the bug this single line
-   *  exists against. */
-  const liveHold = (hold: Hold): boolean => holds.get(hold.id) === hold
-
-  const fireTransition = (hold: Hold): void => {
-    if (!liveHold(hold)) return
-    hold.fired = true
-    hold.holdTimer = undefined
-    emitHold(hold, "transition")
-    armNag(hold)
-  }
-
-  const fireNag = (hold: Hold): void => {
-    if (!liveHold(hold)) return
-    hold.nagTimer = undefined
-    emitHold(hold, "nag")
-    armNag(hold)
+  /** Start (or re-run) the standing subscription against the live face,
+   *  under the question the config NOW asks. Old runs of a competitor die
+   *  by abort: the helper ends with a cancelled fence rather than a
+   *  failure, and the token guards any batch already in flight. */
+  const kick = (): void => {
+    if (run !== null) run.controller.abort()
+    run = null
+    if (client === null) return
+    const next: Run = { input: config, controller: new AbortController() }
+    run = next
+    watchAgentStates(
+      client,
+      inputOf(config),
+      (batch) => onBatch(next, batch),
+      next.controller.signal,
+      (line) => options.say?.(line),
+    ).then(
+      // Aborted is teardown, not news — the framework's own rule (its G5
+      // table: interruption is silent by design).
+      () => {},
+      // THE FENCE'S OWN LAST RESORT. `mirrorRemoteSurface` retries a dead
+      // subscription and re-leads with a snapshot, so a promise that
+      // REJECTS in our hands has run out of options of its own — that is
+      // the failure the pill's amber-face tie with a quiet fleet cannot
+      // spell, so it goes to the owner's channel, not the trace's: one
+      // warning, and no interval of ours ever re-fires.
+      (err) => options.warn?.(`kolu watch: the subscription ended (${String(err)})`),
+    )
   }
 
   return {
+    attach: (face) => {
+      client = face
+      kick()
+    },
     observe: (id, row) => {
-      const state = heldStateOf(row)
-      // FIRST: an id whose fleet fell out from under it is a resume, not a
-      // reopen — the daemon's own `since` does not move on a reconnect, and
-      // neither does ours. Same bucket: the hold returns with the timer
-      // re-armed off its own clock. A different bucket is what `observe`
-      // always takes it for: one hold closes and another opens, herein
-      // falling through to it as usual.
-      const suspendedHold = suspended.get(id)
-      if (suspendedHold !== undefined) {
-        suspended.delete(id)
-        if (state !== null && state.bucket === suspendedHold.state) {
-          suspendedHold.row = row
-          holds.set(id, suspendedHold)
-          rearmHold(suspendedHold)
-          return
-        }
-        releaseHold(suspendedHold)
-      }
-      const previous = holds.get(id)
-      if (state === null) {
-        if (previous !== undefined) releaseHold(previous)
-        return
-      }
-      if (previous !== undefined && previous.state === state.bucket) {
-        // Still the same hold — refresh the facts and let the timers run.
-        previous.row = row
-        return
-      }
-      // A DIFFERENT held bucket is a new hold, not a continuation:
-      // `waiting` → `awaiting` is the terminal asking either way, but the
-      // states are spelled two ways for a reason, and the event says
-      // which one.
-      if (previous !== undefined) releaseHold(previous)
-      const hold: Hold = {
-        id,
-        state: state.bucket,
-        agentState: state.spelled,
-        since: options.now(),
-        lastEmittedAt: options.now(),
-        row,
-        fired: false,
-        holdTimer: undefined,
-        nagTimer: undefined,
-      }
-      holds.set(id, hold)
-      hold.holdTimer = setTimeout(() => fireTransition(hold), config.heldForMs)
-    },
-    remove: (id) => {
-      const hold = holds.get(id)
-      if (hold !== undefined) releaseHold(hold)
-      const gone = suspended.get(id)
-      if (gone !== undefined) {
-        suspended.delete(id)
-        releaseHold(gone)
-      }
-    },
-    suspend: (id) => {
-      const hold = holds.get(id)
-      if (hold === undefined) return
-      holds.delete(id)
-      if (hold.holdTimer !== undefined) clearTimeout(hold.holdTimer)
-      if (hold.nagTimer !== undefined) clearTimeout(hold.nagTimer)
-      hold.holdTimer = undefined
-      hold.nagTimer = undefined
-      suspended.set(id, hold)
+      rows.set(id, row)
+      cap(rows, WATCH_LANES)
     },
     reconfigure: (next) => {
-      // WHICH KNOBS MOVED, asked BEFORE the swap — load-bearing in exactly
-      // this shape: `revision` calls this on every keystroke that lands in
-      // the vault, and a pacing reset per keystroke under a busy vault is
-      // a nag (and a heartbeat) that never fires. A moved KNOB re-paces;
-      // a keystroke does not. The TWO interval guards stay apart: `held-for`
-      // is an arm altogether beside `nag` — each moves its OWN holds.
-      const heldForMoved = next.heldForMs !== config.heldForMs
-      const nagMoved = next.nagMs !== config.nagMs
-      const heartbeatMoved = next.heartbeatMs !== config.heartbeatMs
+      const moved = !sameQuestion(next, config)
       config = next
-      if (heartbeatMoved) rearmHeartbeat()
-      if (!heldForMoved && !nagMoved) return
-      // Re-pace, ONE pass, through the one re-arm fold: each hold asks the
-      // interval its own timers run on, and only a moved knob wakes it.
-      // Two inherited semantics worth naming: a debounce measures from
-      // `since` — the hold did not move — so a LOWERED `held-for` fires at
-      // once and a RAISED one sits out the difference; a nag measures from
-      // `lastEmittedAt` — so a knob edit can never push the next one out
-      // another full window, no matter how the file is typed.
-      for (const hold of holds.values()) {
-        if (hold.fired ? nagMoved : heldForMoved) rearmHold(hold)
+      // Only a knob padi ANSWERS TO warrants a run: editing `heartbeat`
+      // costs the stamped window and nothing else — the subscription
+      // stays, and the next batch stamps the new cadence. A MOVED one
+      // closes the episode ledger with the old question: the re-ask's
+      // leading frame is a first report of everything standing.
+      if (moved) {
+        episodes.clear()
+        kick()
       }
     },
     events: () => ring,
     stop: () => {
-      if (heartbeatTimer !== undefined) clearInterval(heartbeatTimer)
-      heartbeatTimer = undefined
-      for (const hold of [...holds.values(), ...suspended.values()]) releaseHold(hold)
+      run?.controller.abort()
+      run = null
     },
   }
 }

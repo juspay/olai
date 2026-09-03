@@ -240,25 +240,10 @@ export default definePlugin({
      *  `runtime.ts` were, with core no longer in the middle of it. */
     let mine: Ctx | undefined
 
-    /**
-     * WHETHER THE WATCH HAS BEGUN — one boolean, and it is the boot beat's gate
-     * rather than a state machine.
-     *
-     * The watcher pulses ONCE from inside its own constructor (the appliance's
-     * `rearmHeartbeat`, which arms and beats in one breath), so the first beat
-     * arrives while `koluHalf` is still returning — before `half`, before
-     * `heart`, before every `const` below this line exists. Calling into any of
-     * them there is a reference to a binding in its own temporal dead zone,
-     * which is a crash in a constructor rather than a bug with a symptom.
-     *
-     * SWALLOWING IT IS ALSO THE SEMANTICS, which is why this is a gate and not a
-     * deferral: the first WINDOW is the first full interval this process
-     * watches, and a boot beat is the start of it rather than the end of one. A
-     * heartbeat there would report an uptime of nothing and a fleet nobody has
-     * mirrored yet — four facts about a watcher that has not watched.
-     */
-    let begun = false
-
+    /** THERE IS NO BOOT BEAT TO GATE ON — that was the timered watcher's boot
+     *  pulse, and the subscription has none: a beat is stamped when a
+     *  `watchStates` BATCH arrives, and one cannot arrive before a dial does,
+     *  which is after every binding below exists. */
     const half = koluHalf<Located>({
       options: {
         env: env.vars,
@@ -302,7 +287,7 @@ export default definePlugin({
       // second timer and no second knob: the cadence a person set for the pill
       // is the window a conversation's quiet is measured in, by construction.
       beating: (everyMs) => {
-        if (begun) run(beats(everyMs))
+        run(beats(everyMs))
       },
       // Chatter, at debug: on a machine with no kolu this is a line every few
       // seconds and it is not news. What IS news — a connect, a skew, a link that
@@ -397,7 +382,7 @@ export default definePlugin({
      * A PLAIN FUNCTION, because it is a derivation: the only thing in it that is
      * not one is the trace, which goes out through the seam.
      */
-    const said = (file: string, meaning: Meaning): string | null => {
+    const said = (file: string, meaning: Meaning, event: KoluEvent): string | null => {
       const at = derived
       if (at === undefined) {
         // The store has never published, or an `unloaded` disowned the last
@@ -419,9 +404,11 @@ export default definePlugin({
         file,
         meaning,
         standing: standing.length,
+        nag: event.nag?.index ?? null,
+        terminal: event.row?.terminal ?? null,
         terminals: listed(standing.map((one) => one.terminal)),
       })
-      return bodyFor(meaning, standing, file, clock.now())
+      return bodyFor(meaning, standing, file, clock.now(), event)
     }
 
     /**
@@ -462,11 +449,13 @@ export default definePlugin({
      * would have carried the name into a key where it mattered rather than where
      * it merely reads well.
      *
-     * AND IT CANNOT FAIL INTO A TIMER. This is forked from `emitHold`, which is a
-     * `setTimeout` callback in the watcher — a defect escaping here would take
-     * the process down with no evidence and stop every other hold's timer on the
-     * way. So the whole walk is caught once, at this package's edge, and said on
-     * the owner's channel: a doorbell that failed is worth a line, and it is
+     * AND IT CANNOT FAIL INTO A LOG'S TEETH. `run` forks it, so the subscription
+     * callback that fires it (`watchAgentStates`'s own funnel) never takes the
+     * truth of it personally — but a defect escaping on the fork kills a fiber
+     * with no evidence either, and a doorbell's failure is the call that does not
+     * happen, which is never logged by anybody else. So the whole walk is caught
+     * once, at this package's edge, and said on the owner's channel: a doorbell
+     * that failed is worth a line, and it is
      * worth exactly one.
      */
     const ring = (event: KoluEvent): Effect.Effect<void> =>
@@ -626,7 +615,13 @@ export default definePlugin({
             // that settled while it waited, and neither is visible from either end
             // alone.
             () => {
-              const body = said(scope.file, meaning)
+              // The REMINDER ACCOUNTING rides the event verbatim at delivery
+              // time exactly as the meaning does: it is the event's own fact
+              // (padi counted it, not us) — what is re-derived is who it is
+              // still true of, never the counting (`./doorbell.ts`'s
+              // `reminderOf` spells it, naming the event's own terminal so a
+              // coalesced body of many rows can never borrow one row's count).
+              const body = said(scope.file, meaning, event)
               // AND THE WINDOW RESETS HERE, where the words actually go in rather
               // than where the delivery was handed over. A body core coalesced
               // away, or one that derived to `null` because the fleet settled
@@ -679,7 +674,8 @@ export default definePlugin({
      * prefix buys legibility in a dump and nothing else.
      *
      * `deliver` goes out through the detached seam because the heartbeat is
-     * driven from the watcher's own interval and composes its sentence there.
+     * driven off the watcher tap's batches — paced by {@link ./doorbell.ts}'s
+     * own arm/collapse gate — and composes its sentence there.
      */
     const heart: Heartbeat = makeHeartbeat({
       scopes: () => deliveries.scopes(),
@@ -691,13 +687,12 @@ export default definePlugin({
     })
 
     /**
-     * ONE BEAT, RUNG THROUGH — and it cannot fail into a timer either.
+     * ONE BEAT, RUNG THROUGH — and it cannot fail into a log's teeth either.
      *
-     * {@link ring}'s last paragraph, applied to the other clock: this is forked
-     * from `pulse`, which is a `setInterval` callback inside the watcher, so a
-     * defect escaping here would take the process down with no evidence and stop
-     * every hold's timer on the way out. A heartbeat that failed is worth a line
-     * on the owner's channel, and worth exactly one.
+     * {@link ring}'s last paragraph, applied to the second drive: the beat that
+     * forks this is the subscription's per-batch stamp, so the same funnel
+     * argument holds and the same evidence argument stands. A heartbeat that
+     * failed is worth a line on the owner's channel, and worth exactly one.
      */
     const beats = (everyMs: number): Effect.Effect<void> =>
       Effect.sync(() => heart.beat(everyMs)).pipe(
@@ -705,10 +700,6 @@ export default definePlugin({
           Effect.logWarning("kolu: the doorbell could not beat for this watch window", cause)
         ),
       )
-
-    // THE GATE OPENS LAST, once every binding the beat reaches through exists —
-    // see `begun` above for why the watcher's own boot pulse must find it shut.
-    begun = true
 
     /** THE KINDS THIS PLUGIN TEACHES THE VAULT, as registrations. The service
      *  composes each word from this plugin's own — the registry binding — so what
