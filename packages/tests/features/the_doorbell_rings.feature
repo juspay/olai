@@ -6,11 +6,12 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
   that is the lane a prompt goes out on and the one every word about its fate is
   already written for.
 
-  WHICH conversation hears it is one person's answer, given in one place. The
-  wake strip under the panel's other two is that place: a file per conversation,
-  picked by hand. No serve scopes anybody, no agent can, and a conversation
-  nobody has scoped hears nothing — which is why the strip's ordinary state is
-  `off` and is still drawn.
+  WHICH unassigned conversation hears it is one person's answer, given in one
+  place. The wake strip under the panel's other two is that place: a file per
+  conversation, picked by hand. A node agent instead inherits its own subtree
+  and has no picker. No serve scopes an unassigned conversation, and one nobody
+  has scoped hears nothing — which is why the strip's ordinary state is `off`
+  and is still drawn.
 
   ONE SCENARIO, and the whole of the rest is unit-tested. What a filter file
   CLAIMS, what a wake MEANS and what the sentence says are pure functions over a
@@ -31,7 +32,7 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
   re-arms a hold that is already standing — so writing the config is the gesture
   that fires the watcher, and this scenario never sits out a clock.
 
-  @scratch:lanes @padi:lanes
+  @agent-stored @scratch:lanes @padi:lanes
   Scenario: The conversation I pointed at the board hears from it, and my half-typed message does not move
     Given I open the outline "lanes.olai"
     And the agent panel is open

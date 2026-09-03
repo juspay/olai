@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
- * A tiny ACP agent for the doorbell tests: initialize, session/new,
- * session/prompt, session/cancel.
+ * A tiny ACP agent for the doorbell and scoped-scheduler tests: initialize,
+ * session/new, session/load, session/prompt, session/cancel.
  *
  * Two things it does that `lifecycle-agent.ts` does not, and both are what the
  * delivery arms are asserted through:
@@ -46,14 +46,20 @@ process.stdin.on("data", (chunk: string) => {
     const message = JSON.parse(line) as {
       readonly id?: unknown
       readonly method?: string
-      readonly params?: { readonly prompt?: ReadonlyArray<{ readonly text?: string }> }
+      readonly params?: {
+        readonly sessionId?: string
+        readonly prompt?: ReadonlyArray<{ readonly text?: string }>
+      }
     }
     switch (message.method) {
       case "initialize":
-        respond(message.id, { protocolVersion: 1, agentCapabilities: {} })
+        respond(message.id, { protocolVersion: 1, agentCapabilities: { loadSession: true } })
         continue
       case "session/new":
         respond(message.id, { sessionId: `sess-${++minted}` })
+        continue
+      case "session/load":
+        respond(message.id, { sessionId: message.params?.sessionId })
         continue
       case "session/cancel": {
         for (const [id, timer] of running) {

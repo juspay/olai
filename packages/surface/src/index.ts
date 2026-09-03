@@ -1826,7 +1826,7 @@ export type { Pinned } from "@olai/format"
  *  answer is spent. `AGENT_PROP` does, because the browser draws the property's
  *  own name where it explains what put a row on this roster. */
 export { AGENT_PROP } from "@olai/format"
-export { Agents, NO_AGENT_ROSTER, NodeAgentRow } from "./agents.ts"
+export { AgentStanding, Agents, NO_AGENT_ROSTER, NodeAgentRow } from "./agents.ts"
 
 /** HOW FULL THE INBOX IS as the `inbox` cell carries it — the floor's
  *  shape, re-exported for the shelf's reason. `sameInboxHeld` does NOT

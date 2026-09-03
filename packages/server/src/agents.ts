@@ -1,6 +1,6 @@
 /**
  * THE AGENTS ROSTER, ASSEMBLED — the vault's `prop:agent-session` reading with
- * the one line this machine overheard joined onto it.
+ * each session's live state and the last line this machine overheard.
  *
  * The roster is the one answer on this wire whose two halves are kept in two
  * different packages, deliberately and for a reason each of them argues at
@@ -11,11 +11,9 @@
  *     `agent-session` property, what they are called, which engine and which
  *     session the property names, how big their subtrees are — a reading of the
  *     set, moving on every published revision.
- *   - `@olai/chat`'s `sessions.ts` is the MACHINE-LOCAL half, and it is now one
- *     fact wide: the last line olai HEARD one of those sessions say. It is
- *     bookkeeping rather than config — a board written to on every turn is a
- *     board committed on every turn — which is exactly why the ruling left it
- *     on the machine.
+ *   - `@olai/chat` supplies the MACHINE-LOCAL half: `sessions.ts` keeps the last
+ *     line olai heard, and the scheduler reports every acquired node scope's
+ *     status and questions. Both are runtime facts, not vault configuration.
  *
  * Neither package may hold the other's: the format has never seen a session and
  * the chat has never seen an outline. So the join is HERE, at the composition
@@ -44,14 +42,22 @@
  *
  * ## The join itself is PURE and is the interesting part
  *
- * {@link joined} takes two lists and answers the wire's rows, so what an agent
+ * {@link joined} takes the durable list, overheard rows and live scopes and
+ * answers the wire's rows, so what an agent
  * nobody has started a session for says, and what happens to a line olai heard
  * in a session the property no longer names, are decided in a unit test rather
  * than by serving a directory.
  */
 
-import type { Conversing, Overheard } from "@olai/chat"
-import { agentsOf, type Derived, NO_AGENTS, type NodeAgent, type NodeAgents } from "@olai/format"
+import type { Conversing, LiveSession, Overheard } from "@olai/chat"
+import {
+  agentsOf,
+  type Derived,
+  nearestAtOrAbove,
+  NO_AGENTS,
+  type NodeAgent,
+  type NodeAgents,
+} from "@olai/format"
 import { type Agents, NO_AGENT_ROSTER } from "@olai/surface"
 
 export interface Roster {
@@ -92,9 +98,18 @@ export interface Roster {
    * re-read per revision, asked once per gesture.
    */
   readonly nodeAt: (node: string) => NodeAgent | null
+  /** Every durable row, including sleeping agents with no acquired scope. */
+  readonly nodes: () => NodeAgents
+  /** The nearest candidate node at or above an arbitrary node. */
+  readonly nearestAt: (node: string, candidates: ReadonlySet<string>) => string | null
+  /** The nearest node agent strictly above this one, named for a refusal. */
+  readonly above: (node: string) => string | null
   /** The rows the cell carries: the vault's half, wearing what olai overheard
    *  the sessions it names say. */
-  readonly rowsWith: (overheard: ReadonlyArray<Overheard>) => Agents
+  readonly rowsWith: (
+    overheard: ReadonlyArray<Overheard>,
+    live?: ReadonlyMap<string, LiveSession>,
+  ) => Agents
 }
 
 /** The carrier and the two readings over it — one per served directory, built
@@ -105,14 +120,29 @@ export const roster = (): Roster => {
   // woken — the cell's connector is already running on the revision that moved
   // this, and the teaching asks in the middle of a send.
   let held: NodeAgents = NO_AGENTS
+  let reading: Derived | null = null
+  const nearest = (node: string, candidates: ReadonlySet<string>): string | null =>
+    reading === null ? null : nearestAtOrAbove(reading, node, candidates)
   return {
     seen: (derived) => {
+      reading = derived
       held = derived === null ? NO_AGENTS : agentsOf(derived)
     },
     agentAt: (to) =>
       held.find((one) => one.engine === to.agent && one.session === to.session) ?? null,
     nodeAt: (node) => held.find((one) => one.id === node) ?? null,
-    rowsWith: (overheard) => joined(held, overheard),
+    nodes: () => held,
+    nearestAt: nearest,
+    above: (node) => {
+      if (reading === null) return null
+      const agents = new Set(held.map((one) => one.id))
+      agents.delete(node)
+      const parent = nearest(node, agents)
+      if (parent === null) return null
+      const agent = held.find((one) => one.id === parent)
+      return agent === undefined ? null : `“${agent.title}” (\`${parent}\`)`
+    },
+    rowsWith: (overheard, live) => joined(held, overheard, live),
   }
 }
 
@@ -137,10 +167,13 @@ export const roster = (): Roster => {
 export const joined = (
   agents: NodeAgents,
   overheard: ReadonlyArray<Overheard>,
+  live: ReadonlyMap<string, LiveSession> = new Map(),
 ): Agents => {
   if (agents.length === 0) return NO_AGENT_ROSTER
   return agents.map((agent) => ({
     ...agent,
+    standing: standingOf(agent, live.get(agent.id)),
+    waiting: live.get(agent.id)?.asking ?? 0,
     // The one fact olai writes back that a face draws, `null`-on-the-wire
     // where the record carries an absent key: the wire is a decoded value a
     // browser reads per frame, and an optional key there would be one more
@@ -151,4 +184,16 @@ export const joined = (
       : overheard.find((row) => row.agent === agent.engine && row.session === agent.session)
         ?.said) ?? null,
   }))
+}
+
+const standingOf = (
+  agent: NodeAgent,
+  live: LiveSession | undefined,
+): Agents[number]["standing"] => {
+  if (agent.session === null) return "unbound"
+  if (live === undefined) return "asleep"
+  if (live.status === "off" || live.status === "gone") return "gone"
+  if (live.status === "booting") return "waking"
+  if (live.asking > 0) return "needs-you"
+  return live.status === "thinking" ? "working" : "idle"
 }

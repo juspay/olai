@@ -76,9 +76,8 @@ import { LOOK, type Row } from "./roster.ts"
 import { showUnassigned } from "./showing.ts"
 
 export function Agents() {
-  // THE JOIN IS THE PROVIDER'S, once for the whole app (`./answered.tsx`), so
-  // this column and every door on the page are reading one answer rather than
-  // each folding the same two cells for itself.
+  // THE ROSTER SUBSCRIPTION IS THE PROVIDER'S, once for the whole app
+  // (`./answered.tsx`), so this column and every door read one answer.
   const { rows, unassigned, unreachable, askChats } = useAgents()
   /** Whether the last row has anything to say — chats waiting for a node, or
    *  an agent nobody could ask what it has. The second is why it is not simply

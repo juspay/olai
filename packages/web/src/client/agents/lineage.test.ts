@@ -43,6 +43,8 @@ const bound = (session: string | null, engine = "claude"): Agents => [{
   engine,
   memory: 14,
   session,
+  standing: session === null ? "unbound" : "asleep",
+  waiting: 0,
   said: null,
 }]
 
