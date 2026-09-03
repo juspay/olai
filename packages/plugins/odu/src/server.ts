@@ -147,7 +147,7 @@ export interface VaultRevision {
  * than from anything this file supplies. `clock` stamps a wake's attribution at
  * the moment the words go in. `kinds`, `surfaces` and `wakes` are the three
  * registries this plugin writes itself into. `deliveries` is the doorbell's
- * door. `SessionStart.key` is the one waterfall.
+ * door. `SessionStart` is the door a probe is registered on.
  *
  * A FAILURE IN HERE IS NOT A BOOT FAILURE. The fiber lands in `FAILED` having
  * installed nothing — the finalizers it had already put up are run — and every
@@ -163,7 +163,7 @@ export interface VaultRevision {
  */
 export default definePlugin({
   name,
-  needs: [Clock, Deliveries, Env, Kinds, SessionStart.key, Surfaces, Vault, Wakes],
+  needs: [Clock, Deliveries, Env, Kinds, SessionStart, Surfaces, Vault, Wakes],
   apply: Effect.gen(function*() {
     // EVERY SERVICE THIS PLUGIN NAMED, YIELDED ONCE, at the top — the same list
     // `needs` carries, in the same order, so a reader checks the two against each
@@ -172,7 +172,7 @@ export default definePlugin({
     const deliveries = yield* Deliveries
     const env = yield* Env
     const kinds = yield* Kinds
-    const opening = yield* SessionStart.key
+    const opening = yield* SessionStart
     const surfaces = yield* Surfaces
     const vault = yield* Vault
     const wakes = yield* Wakes
@@ -398,20 +398,17 @@ export default definePlugin({
 
     /** IS ODU'S `mcp` HERE, asked once per conversation opening.
      *
-     *  A THUNK and not an answer: the list is collected per session open, so a
-     *  plugin that unloaded between conversations contributes nothing to the next
-     *  one, and the asking is `@olai/chat`'s to schedule under its own bounded
-     *  concurrency ({@link Probed}'s two halves still come off ONE reading, which
-     *  is the invariant the old `probe()` field existed to hold).
+     *  WHAT IS REGISTERED IS THE ASKING and not an answer: the list is read
+     *  afresh per session open, so a plugin that unloaded between conversations
+     *  contributes nothing to the next one, and the asking is `@olai/chat`'s to
+     *  schedule under its own bounded concurrency ({@link Probed}'s two halves
+     *  still come off ONE reading, which is the invariant the old `probe()`
+     *  field existed to hold). THE PLUGIN'S NAME IS NOT WRITTEN HERE — the door
+     *  stamps it off the fiber, like every other keyed registration.
      *
      *  `env.vars` and not `process.env`: a probe that read the environment itself
      *  would answer a different question than the one a session's spawn will
      *  ask. */
-    yield* opening.use((start, next) =>
-      Effect.suspend(() => {
-        start.asking.push({ name, ask: () => probe(env.vars) })
-        return next(start)
-      })
-    )
+    yield* opening.ask(Effect.promise(() => probe(env.vars)))
   }),
 })

@@ -168,6 +168,9 @@ const withTools = <A>(
     const wired = yield* bind({
       store,
       chat: null,
+      // This bench is not about the chat panel at all; the arm is the one a serve
+      // with no engine plugin mounted would send.
+      noAgent: { kind: "no-engine" },
       ops,
       writer: "mcp",
       hostname: hostname(),

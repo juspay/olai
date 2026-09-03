@@ -213,6 +213,7 @@ import {
   ChatFailure,
   ChatServer,
   ChatState,
+  OffBecause,
   OpFailure,
   Conversation,
   Listed,
@@ -1672,10 +1673,8 @@ export const surface = defineSurface({
 })
 
 export {
-  AGENTS,
   AgentChoice,
   AgentEntry,
-  type AgentId,
   agentIn,
   Armed,
   Ask,
@@ -1703,6 +1702,7 @@ export {
   kindOf,
   NodeContext,
   NoticeEntry,
+  OffBecause,
   OpFailure,
   outSince,
   RefusalEntry,

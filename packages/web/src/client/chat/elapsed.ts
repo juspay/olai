@@ -26,7 +26,7 @@
  * acknowledgement read as its result, so the longest-running thing in the
  * conversation was the one row with no clock on it. Nothing here could
  * honestly have drawn one; what changed is the wire, in the patch olai carries
- * on its pinned adapter (`acp/patches/README.md`), and this rule then ticks on
+ * on its pinned adapter (`packages/plugins/claude/acp/patches/README.md`), and this rule then ticks on
  * such a call for the same reason it ticks on a grep — because the wire says
  * the call has not come back. It reads no `_meta` and knows no tool names to
  * do it.

@@ -13,8 +13,8 @@ import { join } from "node:path"
 import { collector, findSaid, type Logged } from "@olai/log/testlib"
 
 import { type Agent, make } from "./agent.ts"
-import type { Leg } from "./agents/leg.ts"
-import { OPENCODE } from "./agents/opencode.ts"
+import type { Leg } from "@olai/acp/engine"
+import { QUEUES } from "./agents/legs.testlib.ts"
 import type { Installed } from "./agents/roster.ts"
 import { make as makeChat } from "./chat.ts"
 import type { Memory } from "./memory.ts"
@@ -49,7 +49,7 @@ type Run = <A, E>(effect: Effect.Effect<A, E>) => Promise<A>
  *  reaching into the process to silence a dependency it could not name. */
 const options = () => ({
   id: "opencode" as const,
-  leg: OPENCODE,
+  leg: QUEUES,
   command: process.execPath,
   args: [FIXTURE],
   cwd,
@@ -223,11 +223,13 @@ describe("a message that queues behind a running turn", () => {
       id: "opencode",
       name: "opencode",
       adapter: { command: process.execPath, args: [FIXTURE] },
-      leg: OPENCODE,
+      leg: QUEUES,
+      prompt: { kind: "first-turn" },
     }
     const chat = await run(
       makeChat({
         roster: [row],
+        engines: [],
         cwd,
         tools: () => null,
         onState: () => {},
@@ -276,7 +278,7 @@ describe("a message that queues behind a running turn", () => {
     // `advertises.steers && !queuedHere`, so an agent that offers no
     // interruption cannot show one being withdrawn. Nothing here ever steers.
     const leg: Leg = {
-      ...OPENCODE,
+      ...QUEUES,
       steering: {
         method: "_session/steering",
         meta: undefined,
@@ -290,9 +292,11 @@ describe("a message that queues behind a running turn", () => {
       name: "opencode",
       adapter: { command: process.execPath, args: [FIXTURE] },
       leg,
+      prompt: { kind: "first-turn" },
     }
     const chat = await Effect.runPromise(makeChat({
       roster: [row],
+      engines: [],
       cwd,
       tools: () => null,
       onState: () => {},

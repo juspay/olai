@@ -48,7 +48,7 @@
  * which is also what stops it being a second call somebody can forget.
  */
 
-import { type BrowserHalf, bundleRank } from "@olai/bundle"
+import { type BrowserHalf, inBundleOrder } from "@olai/bundle"
 import {
   type App,
   type Hung,
@@ -228,15 +228,15 @@ export const composeTo = async (
  * read it against the build's own list. The table cannot see the bundle and must
  * not claim to; this can, so the claim lives here.
  *
- * THE COMPARATOR IS `@olai/bundle`'S, beside the list it reads — `bundleRank`,
- * which is also what `@olai/server`'s `probes.ts` puts the session's servers in
- * order with. It was written out at both ends, in two processes, and one copy
- * cited the other; the stranger rule and the stability argument live with the
- * list now.
+ * THE SORT IS `@olai/bundle`'S, beside the list it reads — `inBundleOrder`,
+ * which is also what `@olai/server` puts the session's servers and this build's
+ * engines in order with. It was written out at every end, in two processes, each
+ * under its own paragraph re-arguing one thing; the stranger rule, the stability
+ * argument and the comparator all live with the list now.
  */
 export const hung = <S extends PluginSlot>(slot: S): ReadonlyArray<Hung<SlotFaces[S]>> => {
   moved()
-  return [...app.hung(slot)].sort((one, other) => bundleRank(one.plugin) - bundleRank(other.plugin))
+  return inBundleOrder(app.hung(slot), (one) => one.plugin)
 }
 
 /** ...and what dresses each composed KIND WORD, the same way. */

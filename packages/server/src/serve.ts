@@ -24,7 +24,7 @@
  */
 
 import { surface } from "@olai/surface"
-import { AGENT_ENV, roster, whyNoAgent } from "@olai/chat"
+import { roster, whyNoAgent } from "@olai/chat"
 import type { GitPin } from "@olai/format"
 import type { IdentityConfig } from "@olai/identity"
 import { fixedPolicy, make as makeOps, TOOLS } from "@olai/ops"
@@ -46,6 +46,7 @@ import { listen } from "./listener.ts"
 import { clientOver, serveFace } from "./mcp/face.ts"
 import { currentLogin, MCP_PATH, mcpTransport } from "./mcp/route.ts"
 import { bespokeFrom } from "./mcp/tools.ts"
+import { enginesAt } from "./engines.ts"
 import { askingAt } from "./probes.ts"
 import { bind, gitWiring, type Publishers, writerAt } from "./runtime.ts"
 
@@ -278,14 +279,28 @@ export const serve = (options: ServeOptions) =>
         chat === null ? Effect.void : chat.recordRefusal(request.op, failure),
     })
 
-    // WHICH agents this machine has, once, before anything is spawned: a PATH
-    // probe per agent olai knows, plus the one `OLAI_ACP_AGENT` names
-    // (`@olai/chat`'s `agents/roster.ts`, which owns the rule and the two
-    // variables). Nothing found is the state the panel has a face for — it
-    // draws, and says how to install one — so it is a line in the log and never
-    // a refusal to serve.
-    const installed = roster(root)
-    if (installed.length === 0) yield* Effect.logInfo(whyNoAgent(process.env[AGENT_ENV]))
+    // WHICH ENGINES this build has, in the bundle's own order — the registry
+    // the engine plugins wrote themselves into, sorted against `olai.yml`
+    // ({@link ./engines.ts} says why the sort is not optional). It used to be a
+    // hardcoded table inside `@olai/chat`; each engine is a plugin now, so this
+    // is a reading of what mounted rather than a list anybody keeps.
+    const engines = enginesAt(plugins)
+    // ...and WHICH OF THEM THIS MACHINE HAS, once, before anything is spawned:
+    // each engine's own probe, plus the off switch `OLAI_ACP_AGENT` is when it
+    // is empty (`@olai/chat`'s `agents/roster.ts`, which owns that rule and the
+    // search path). Nothing found is the state the panel has a face for — it
+    // draws, and says how to install one, out of each engine's own sentence —
+    // so it is a line in the log and never a refusal to serve.
+    // ...ONE ANSWER WITH THE REASON ON THE ARM. A serve with no agent has one
+    // of three causes and only this end can tell them apart, so the roster
+    // hands over which — spent twice and never re-derived: the journal line
+    // here, and the chat cell the panel draws its opening sentence out of
+    // (`bind`'s `noAgent`, below). A screen and a journal disagreeing about one
+    // boot is how a person ends up debugging the wrong thing.
+    const found = roster(root, engines)
+    const installed = found.kind === "here" ? found.installed : []
+    const noAgent = found.kind === "none" ? found.because : null
+    if (noAgent !== null) yield* Effect.logInfo(whyNoAgent(noAgent))
 
     // Minted per process and handed only to the session we spawn: the write
     // surface is not something any page that can reach loopback may call.
@@ -301,11 +316,16 @@ export const serve = (options: ServeOptions) =>
 
     chat = installed.length === 0 ? null : yield* Chat.make({
       roster: installed,
+      // ...AND EVERY ENGINE ROW THIS BUILD HAS, by id, in order — read for one
+      // thing only: which agent a note that names none is about. What a person
+      // is TOLD about an engine this machine has not installed is that engine's
+      // own face in the tab, hung by its browser half.
+      engines: engines.map((one) => one.id),
       cwd: root,
       tools: () => tools,
       /**
        * ...AND WHATEVER ELSE THIS HOST IS RUNNING, asked once per conversation
-       * — the `chat/session-start` waterfall, collected here.
+       * — the `chat/session-start` registrations, read here.
        *
        * The one place the two halves meet: `@olai/chat` declares the SHAPE of
        * the question — is your tool here, and what am I owed if it is not — and
@@ -318,24 +338,26 @@ export const serve = (options: ServeOptions) =>
        * It used to be a list built once at boot: `probesOf(enabled(SERVERS,
        * pin), env)`, filtered by the flag, held for the life of the process.
        * That was exact while the set could not change. A plugin is a fiber now,
-       * so the list is collected PER SESSION OPEN by dispatching the waterfall —
-       * a plugin that unloaded between conversations contributes nothing to the
-       * next one, and nobody keeps a second list for it to fall out of step
-       * with.
+       * so the list is read PER SESSION OPEN off the registry the plugins
+       * registered themselves into — a plugin that unloaded between
+       * conversations contributes nothing to the next one, and nobody keeps a
+       * second list for it to fall out of step with.
        *
-       * ## What each plugin pushes, and what it does NOT
+       * ## What each plugin registers, and what it does NOT
        *
-       * A thunk, not an answer. The asking stays `@olai/chat`'s to schedule
-       * under its own bounded concurrency, which is load-bearing rather than
-       * tidy: a probe starts a subprocess on the session-open path, and a
-       * waterfall that awaited each listener in turn would multiply that window
-       * by the number of plugins — the same defect the bound exists to prevent,
-       * wearing a different shape. `Probed`'s two halves still come off ONE
-       * reading, which is the invariant `probe()` existed to hold.
+       * The ASKING, not an answer. The scheduling stays `@olai/chat`'s, which is
+       * load-bearing rather than tidy: a probe starts a subprocess on the
+       * session-open path, and running them one after another would multiply
+       * that window by the number of plugins — the same defect the bound exists
+       * to prevent, wearing a different shape. `Probed`'s two halves still come
+       * off ONE reading, which is the invariant `probe()` existed to hold.
+       *
+       * AND NO PLUGIN SIGNS ITS NAME HERE any more: the door is keyed by the
+       * fiber like every other one, so what a plugin hands over is one Effect
+       * and there is no parameter to put a name in.
        *
        * NO FILTER BY THE PIN, and its absence is the phase: a plugin left out of
-       * `--plugins` has no fiber, so it has no listener on this event, so it
-       * never probes — which is what the registry always claimed an absent
+       * `--plugins` has no fiber, so it registered nothing, so it never probes — which is what the registry always claimed an absent
        * plugin meant, now true by construction rather than by a `.filter`.
        *
        * The ENVIRONMENT is not read here either. It is `ctx.env.vars`, on the
@@ -421,6 +443,9 @@ export const serve = (options: ServeOptions) =>
     const wired = yield* bind({
       store,
       chat,
+      // ...and WHY there is none, where there is none — the value the log line
+      // above was made from, so the panel says exactly what the journal says.
+      noAgent,
       // The carrier the chat's teaching already reads. The runtime is what
       // KEEPS it current — one reading per published revision, taken where the
       // roster cell is filled — so the two readers cannot be looking at two

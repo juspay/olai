@@ -33,8 +33,8 @@ import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
-import { OPENCODE } from "./agents/opencode.ts"
-import type { Leg } from "./agents/leg.ts"
+import type { Leg } from "@olai/acp/engine"
+import { QUEUES } from "./agents/legs.testlib.ts"
 import type { Installed } from "./agents/roster.ts"
 import { type Chat, make as makeChat } from "./chat.ts"
 import { SLOTS } from "./deliveries.ts"
@@ -59,7 +59,7 @@ const FIXTURE = join(import.meta.dirname, "fixtures", "doorbell-agent.ts")
  * from.
  */
 const STEERS: Leg = {
-  ...OPENCODE,
+  ...QUEUES,
   steering: {
     method: "_session/steering",
     meta: undefined,
@@ -74,6 +74,7 @@ const ROW: Installed = {
   name: "opencode",
   adapter: { command: process.execPath, args: [FIXTURE] },
   leg: STEERS,
+  prompt: { kind: "first-turn" },
 }
 
 /** A body the fixture answers immediately — anything that is not `wait:<ms>`. */
@@ -138,6 +139,7 @@ const panel = async (
 ): Promise<Chat> => {
   const chat = await run(makeChat({
     roster: [ROW],
+    engines: [],
     cwd,
     tools: () => null,
     scoping: options.scoping ?? null,

@@ -350,7 +350,7 @@ export class Transcript {
    *  BY THE ROW rather than by the task's own id, which is what it was. A call
    *  that armed a task and a call that sent an agent out are two ways of
    *  ending, and an ASYNCHRONOUS `Agent` launch is both at once
-   *  (`acp/patches/README.md`) — so keyed by task id the two guards would be in
+   *  (`packages/plugins/claude/acp/patches/README.md`) — so keyed by task id the two guards would be in
    *  two key spaces, unable to see each other, and the one death a person
    *  actually watches for would be reported to them twice. Every ending has a
    *  row; only one of them has a task. */
@@ -384,7 +384,7 @@ export class Transcript {
    *
    * A subagent that has reported can be sent more work, and the call that
    * answers for it is the one that SPAWNED it: the adapter reopens that call
-   * when the harness starts the same task again (`acp/patches/README.md`'s
+   * when the harness starts the same task again (`packages/plugins/claude/acp/patches/README.md`'s
    * "a task's second life"), because everything that agent does goes on being
    * stamped with the spawning call and a second row for it would be one agent
    * drawn twice. So the row goes from over to running again — which is a
@@ -874,7 +874,7 @@ export class Transcript {
     // of the merges below: four of them are scoped to an OUTING, and each of
     // the four is a face that lies if it survives into the next one.
     //
-    // It is one shape and one adapter's ({@link ../../../acp/patches/README.md}):
+    // It is one shape and one adapter's (`packages/plugins/claude/acp/patches/README.md`):
     // a subagent that reported is sent more work, and the call reopened for it
     // is the one that SPAWNED it, because that is the call everything the agent
     // does is stamped with for as long as it lives.
@@ -1006,8 +1006,8 @@ export class Transcript {
     }
     // A CALL THAT WAS OVER AND IS RUNNING AGAIN is a call going round a
     // SECOND time, and the moment it starts is written down here ({@link
-    // #outings}). It is one shape and one adapter's ({@link
-    // ../../../acp/patches/README.md}): a subagent that reported is sent more
+    // #outings}). It is one shape and one adapter's
+    // (`packages/plugins/claude/acp/patches/README.md`): a subagent that reported is sent more
     // work, and the call reopened for it is the one that SPAWNED it, because
     // that is the call everything the agent does is stamped with for as long
     // as it lives. Nothing else about the row moves — this is the same call,

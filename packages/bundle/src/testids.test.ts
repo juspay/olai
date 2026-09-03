@@ -9,6 +9,11 @@
  * reason: a proof that rests on an argument nobody re-checks is the class of
  * thing this repo keeps turning into a test.
  *
+ * A table may be EMPTY, and one kind of plugin's always is: an engine draws
+ * its mark inside core's own element under core's own id, so it has no id of its
+ * own to declare. What is checked is that no two tables COLLIDE, which an empty
+ * one trivially does not — and that the sweep read every door there is.
+ *
  * Both HALVES are checked. Two plugins must not share a KEY (the spread would
  * drop one), and they must not share a VALUE either (two keys resolving to one
  * `[data-testid=…]` is a selector that matches two different components, which
@@ -46,11 +51,21 @@ const TABLES: ReadonlyArray<readonly [string, Readonly<Record<string, string>>]>
 )
 
 describe("the plugins' testids are disjoint", () => {
-  test("the sweep is actually reading both tables", () => {
-    // Not vacuous: an empty table would pass every claim below.
-    for (const [name, table] of TABLES) {
-      expect(Object.keys(table).length, name).toBeGreaterThan(0)
-    }
+  test("the sweep is actually reading the tables, and some of them have rows", () => {
+    // NOT VACUOUS, and the shape of that claim changed with the engines. It
+    // used to be "every table has a key", which was true while every plugin was
+    // a tenant drawing faces of its own. An ENGINE draws one thing in the tab —
+    // its mark — and that mark is drawn inside core's own element, under core's
+    // own `data-testid`, with `data-mark` carrying the plugin's word. So there
+    // is no id a scenario could only reach through such a package, and an empty
+    // table is the truthful answer rather than a forgotten one.
+    //
+    // What still has to hold is that the sweep READ something: a resolver that
+    // answered `{}` for every door, or a roster that came back short, would
+    // make every claim below pass over nothing.
+    expect(TABLES.length).toBe(PLUGIN_NAMES.length)
+    expect(TABLES.filter(([, table]) => Object.keys(table).length > 0).length)
+      .toBeGreaterThan(1)
   })
 
   test("no two plugins claim one KEY — a spread would drop one silently", () => {

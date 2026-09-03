@@ -20,7 +20,7 @@
 import { expect, test } from "bun:test"
 
 import { pluginsPatch } from "./bundle.ts"
-import { BUNDLE_NAMES, DEFAULT_BUNDLE_NAMES, ROWS } from "./rows.ts"
+import { BUNDLE_NAMES, DEFAULT_BUNDLE_NAMES, inBundleOrder, ROWS } from "./rows.ts"
 
 /** What a patch says about one row, as a reader would ask it. `undefined` is a
  *  row the patch does not mention, which is what "nobody said" writes. */
@@ -69,4 +69,48 @@ test("a named pin writes BOTH directions, which is how an opt-in row is opted in
   for (const row of ROWS) expect(patched([], row.id)).toBe(true)
   // ...and naming everything turns everything on, opt-in rows included.
   for (const row of ROWS) expect(patched([...BUNDLE_NAMES], row.id)).toBe(false)
+})
+
+/**
+ * THE ORDER THREE READERS TAKE, and the two properties it is not obvious about.
+ *
+ * The sort exists because registration order is the order two dynamic `import()`s
+ * came back in, and three separate readings — the session's servers, the tab's
+ * plugin-keyed faces, this build's engines — are lists a PERSON reads and has to
+ * be able to read twice. The comparator was written out at all three of those
+ * before it lived here; what those copies could not state, and this can, is what
+ * happens at the edges.
+ */
+test("the build's own list decides, whatever order things arrived in", () => {
+  const arrived = [...BUNDLE_NAMES].reverse().map((name) => ({ id: name }))
+  expect(inBundleOrder(arrived, (one) => one.id).map((one) => one.id)).toEqual([...BUNDLE_NAMES])
+})
+
+test("a name this build never heard of sorts LAST, not first", () => {
+  // The `-1` a bare `indexOf` gives would put a stranger before every row the
+  // build DOES have, which is the wrong end: the day `olai plugin add` lands,
+  // an out-of-tree plugin belongs after the ones that shipped.
+  const first = BUNDLE_NAMES[0] ?? "claude"
+  const sorted = inBundleOrder(
+    [{ id: "not-a-plugin-this-build-has" }, { id: first }],
+    (one) => one.id,
+  )
+  expect(sorted.map((one) => one.id)).toEqual([first, "not-a-plugin-this-build-has"])
+})
+
+test("...and two strangers keep the order they arrived in", () => {
+  // The only order there is to keep for them: the build has no opinion about a
+  // plugin it never named, so the sort must not invent one. `Array.sort` is
+  // stable, and this is the claim that says we are relying on that.
+  const sorted = inBundleOrder([{ id: "zeta-x" }, { id: "alpha-x" }], (one) => one.id)
+  expect(sorted.map((one) => one.id)).toEqual(["zeta-x", "alpha-x"])
+})
+
+test("the input is not reordered under its owner", () => {
+  // Three callers hand over a live registry's own array (`plugins.engines()`,
+  // `app.hung(slot)`); a sort in place would reorder somebody else's table as a
+  // side effect of reading it.
+  const arrived = [{ id: "zeta-x" }, { id: BUNDLE_NAMES[0] ?? "claude" }]
+  inBundleOrder(arrived, (one) => one.id)
+  expect(arrived.map((one) => one.id)).toEqual(["zeta-x", BUNDLE_NAMES[0] ?? "claude"])
 })

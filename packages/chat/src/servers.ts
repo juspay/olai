@@ -22,7 +22,7 @@
  *     with a session id and not one word per server, which is why #140 could
  *     only ever report the failures olai found ITSELF. One agent does say —
  *     the Claude Code adapter forwards its CLI's `system`/`init`, and that
- *     message carries a status per server ({@link ./agents/claude.ts}) — and an
+ *     message carries a status per server (`olai-plugin-claude`'s `leg.ts`) — and an
  *     agent that says nothing leaves every row at `handed`, which is an honest
  *     answer rather than a degraded one.
  *   - **what the AGENT brought of its own** is in neither, and is not in this
@@ -40,7 +40,7 @@
 import type { McpServer } from "@agentclientprotocol/sdk"
 import { type ChatServer, sameStanding, type ServerStanding } from "@olai/surface"
 
-import type { Reported } from "./agents/leg.ts"
+import type { Reported } from "@olai/acp/engine"
 
 /**
  * A server this host was meant to give a session and could not, as the PROBE
@@ -200,7 +200,7 @@ const asSaid = (
   const reported = said.find((one) => one.name === server.name)
   if (reported === undefined) return server
   // WHICH WORD MEANT YES was decided by the leg, which is the file allowed to
-  // be wrong about one agent ({@link ./agents/leg.ts}). What is left here is
+  // be wrong about one agent (`@olai/acp/engine`'s `Leg`). What is left here is
   // the mapping onto a standing, which is true of every agent.
   const standing: ServerStanding = reported.attached
     ? { kind: "connected" }

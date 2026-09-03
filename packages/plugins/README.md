@@ -1,16 +1,33 @@
-# `packages/plugins/` — the tenant container
+# `packages/plugins/` — the plugin container
 
 **Not a package.** There is no `package.json` here and there must not be: this
 directory holds plugins and nothing else, and a manifest at this path would put
 a workspace member at `packages/plugins`, which is the name the appliance fold
 moved the interface OUT of.
 
-What goes in it: one directory per plugin, named the plugin word (`kolu`,
-`odu`, `xyne-spaces`), and the package inside is called `olai-plugin-<name>` —
-unscoped. The population today is `kolu`, `odu` and `xyne-spaces`. `@olai/*` is the scope for
-the packages that ARE olai; a tenant is olai's judgement about somebody else's
-appliance, which is the closest thing in this tree to a plugin written outside
-it, so it is named the way one would be.
+What goes in it: one directory per plugin, named the plugin word, and the
+package inside is called `olai-plugin-<name>` — unscoped. `@olai/*` is the scope
+for the packages that ARE olai; a plugin is olai's judgement about somebody
+else's software, which is the closest thing in this tree to a plugin written
+outside it, so it is named the way one would be.
+
+The population today is SIX, in two kinds, and nothing in the system tells them
+apart — same shape, same doors, same five states in the preferences panel, same
+`--plugins` word:
+
+- **TENANTS** — olai's judgement about an appliance: `kolu`, `odu`,
+  `xyne-spaces`. Each composes a sibling surface and draws faces on rows.
+- **ENGINES** — an ACP agent the chat panel can seat: `claude`, `opencode`,
+  `pi`. Each hands over a `Leg` (how to read that agent's wire), a probe that
+  finds it on this host, and the channel its standing prompt rides — and, on its
+  browser half, the mark it wears and the whole sentence for a machine that has
+  not installed it. It composes NO surface: what it
+  contributes to a tab already travels on the chat cell, which is core's. One
+  directory each because they share no release clock — the Claude adapter's pin
+  moved five times in a month and opencode's has never moved — and because
+  `--plugins` then enables them one at a time.
+
+**A TENANT HAS A `README.md` AND AN ENGINE DOES NOT**, which is a ruling rather than an omission. A tenant's README is olai's account of somebody else's appliance — five ways a padi can fail, which vault file is kolu's by convention — and there is nowhere else for that to live. An engine's account of itself is two things that already exist: its `docs.md` (the user page, symlinked into `docs/plugins/`), and [`@olai/acp`](../acp/README.md)'s `./engine` door, which is where the shape every engine fills in is argued once for all of them. A third telling per engine would be the same paragraph three times, drifting.
 
 What does NOT go in it: the interface those tenants are written against. That is
 [`@olai/plugin-api`](../plugin-api/README.md), one directory over, with the registry that lists them in [`@olai/bundle`](../bundle/README.md) beside it, and the

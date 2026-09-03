@@ -12,7 +12,7 @@
  * Three sentences are worth saying about such a call, and each is drawn from a
  * fact the WIRE carries rather than from a guess about somebody else's process
  * ({@link ../../../../surface/src/chat.ts}'s `Armed`, put there by the pinned
- * adapter's patch — `acp/patches/README.md`):
+ * adapter's patch — `packages/plugins/claude/acp/patches/README.md`):
  *
  *   - **what is being watched** — {@link watchOf}, the description the task was
  *     armed with, which is the sentence a person recognises it by and which the
@@ -35,7 +35,7 @@
  * WHAT IS NOT HERE, and cannot be honestly drawn from anywhere: **the task's
  * own events, one by one.** A monitor's every line reaches the model and the
  * task's output file, and nothing at all in the SDK stream carries it — measured
- * against the pinned CLI, and written down in `acp/patches/README.md`, because
+ * against the pinned CLI, and written down in `packages/plugins/claude/acp/patches/README.md`, because
  * the next person to look will assume the adapter is dropping it. What the
  * panel gets instead is the agent's own prose about each event, in the
  * autonomous turns the harness wakes it for, which lands in the transcript as

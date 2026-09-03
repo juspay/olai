@@ -65,50 +65,56 @@ const only = (): string => {
  *  `attachments.test.ts` reads its own verbs through. */
 const outcome = <A, E>(effect: Effect.Effect<A, E>) => Effect.runPromise(Effect.result(effect))
 
+/** WHICH AGENT A NOTE THAT NAMES NONE IS ABOUT, handed in rather than known
+ *  here: it is the build's first engine row, and `@olai/chat` may not spell an
+ *  engine (`./memory.ts`'s `forDirectory`). Any word does for these cases; what
+ *  they assert is that the FALLBACK is what an unnamed note reads as. */
+const BEFORE = "the-first-engine"
+
 const HERE = "/tmp/olai-somewhere"
 const ELSEWHERE = "/tmp/olai-somewhere-else"
 
 /** A conversation with nothing said about its model, which is what ENTERING one
  *  writes: the model is learned afterwards, from the agent, or never. Its AGENT
  *  is always written — a note this olai wrote knows which agent it is about. */
-const IN = (session: string): Held => ({ agent: "claude", session, model: null })
+const IN = (session: string): Held => ({ agent: "an-agent", session, model: null })
 
 describe("the panel's own conversation, across a restart", () => {
   test("a directory that has never been served remembers nothing", async () => {
-    const memory = forDirectory(HERE)
+    const memory = forDirectory(HERE, BEFORE)
     expect(await Effect.runPromise(memory.recall)).toBe(null)
   })
 
   test("what was entered is what comes back", async () => {
-    await Effect.runPromise(forDirectory(HERE).remember(IN("session-a")))
+    await Effect.runPromise(forDirectory(HERE, BEFORE).remember(IN("session-a")))
     // A SECOND memory over the same directory: the point is the disk, not the
     // closure — the next boot is a different process.
-    expect(await Effect.runPromise(forDirectory(HERE).recall)).toEqual(IN("session-a"))
+    expect(await Effect.runPromise(forDirectory(HERE, BEFORE).recall)).toEqual(IN("session-a"))
   })
 
   test("the last conversation entered is the one remembered", async () => {
-    const memory = forDirectory(HERE)
+    const memory = forDirectory(HERE, BEFORE)
     await Effect.runPromise(memory.remember(IN("session-a")))
     await Effect.runPromise(memory.remember(IN("session-b")))
-    expect(await Effect.runPromise(forDirectory(HERE).recall)).toEqual(IN("session-b"))
+    expect(await Effect.runPromise(forDirectory(HERE, BEFORE).recall)).toEqual(IN("session-b"))
   })
 
   test("a trailing slash is the same directory, not a second one", async () => {
-    await Effect.runPromise(forDirectory(HERE).remember(IN("session-a")))
-    expect(await Effect.runPromise(forDirectory(`${HERE}/`).recall)).toEqual(IN("session-a"))
+    await Effect.runPromise(forDirectory(HERE, BEFORE).remember(IN("session-a")))
+    expect(await Effect.runPromise(forDirectory(`${HERE}/`, BEFORE).recall)).toEqual(IN("session-a"))
     // ... and one file rather than two, which is the fact behind it.
     expect(files().length).toBe(1)
   })
 
   test("another directory's panel is not this one's", async () => {
-    await Effect.runPromise(forDirectory(HERE).remember(IN("session-a")))
-    expect(await Effect.runPromise(forDirectory(ELSEWHERE).recall)).toBe(null)
+    await Effect.runPromise(forDirectory(HERE, BEFORE).remember(IN("session-a")))
+    expect(await Effect.runPromise(forDirectory(ELSEWHERE, BEFORE).recall)).toBe(null)
   })
 
   test("nothing is written under the served directory", async () => {
     const served = mkdtempSync(join(tmpdir(), "olai-served-"))
     try {
-      await Effect.runPromise(forDirectory(served).remember(IN("session-a")))
+      await Effect.runPromise(forDirectory(served, BEFORE).remember(IN("session-a")))
       // The served directory is somebody's outline set — the store probes it
       // and a commit would commit it. The memory goes to the state home.
       expect(readdirSync(served)).toEqual([])
@@ -129,14 +135,14 @@ describe("the model that conversation was on", () => {
 
   test("the model comes back with the conversation it was on", async () => {
     await Effect.runPromise(
-      forDirectory(HERE).remember({
-        agent: "claude",
+      forDirectory(HERE, BEFORE).remember({
+        agent: "an-agent",
         session: "session-a",
         model: "claude-fable-5",
       }),
     )
-    expect(await Effect.runPromise(forDirectory(HERE).recall)).toEqual({
-      agent: "claude",
+    expect(await Effect.runPromise(forDirectory(HERE, BEFORE).recall)).toEqual({
+      agent: "an-agent",
       session: "session-a",
       model: "claude-fable-5",
     })
@@ -146,14 +152,14 @@ describe("the model that conversation was on", () => {
     // Which is not the same as saying it is on the default: it is the panel
     // having heard nothing yet, and the agent's own answer standing.
     await Effect.runPromise(
-      forDirectory(HERE).remember({
-        agent: "claude",
+      forDirectory(HERE, BEFORE).remember({
+        agent: "an-agent",
         session: "session-a",
         model: "claude-fable-5",
       }),
     )
-    await Effect.runPromise(forDirectory(HERE).remember(IN("session-b")))
-    expect(await Effect.runPromise(forDirectory(HERE).recall)).toEqual(IN("session-b"))
+    await Effect.runPromise(forDirectory(HERE, BEFORE).remember(IN("session-b")))
+    expect(await Effect.runPromise(forDirectory(HERE, BEFORE).recall)).toEqual(IN("session-b"))
   })
 
   test("a memory written before olai remembered models still opens", async () => {
@@ -161,18 +167,22 @@ describe("the model that conversation was on", () => {
     // has right now: a conversation and no model. It must read as "nothing says
     // which model" rather than as damage — the conversation is the load-bearing
     // half and it is right there.
-    await Effect.runPromise(forDirectory(HERE).remember(IN("session-a")))
+    await Effect.runPromise(forDirectory(HERE, BEFORE).remember(IN("session-a")))
     writeFileSync(only(), `{"cwd":"${HERE}","session":"session-a"}\n`)
-    expect(await Effect.runPromise(forDirectory(HERE).recall)).toEqual(IN("session-a"))
+    // ...and its AGENT reads as the fallback, because a file that old names
+    // none either — which is the case the last block of this file is about.
+    expect(await Effect.runPromise(forDirectory(HERE, BEFORE).recall))
+      .toEqual({ ...IN("session-a"), agent: BEFORE })
   })
 
   test("a model that is not a name is nothing said, not a refusal", async () => {
     // The lenient half of the read, and the reason for it: a strange `model`
     // costs a restart on the agent's own model, while refusing the whole file
     // over one would cost the conversation too.
-    await Effect.runPromise(forDirectory(HERE).remember(IN("session-a")))
+    await Effect.runPromise(forDirectory(HERE, BEFORE).remember(IN("session-a")))
     writeFileSync(only(), `{"cwd":"${HERE}","session":"session-a","model":7}\n`)
-    expect(await Effect.runPromise(forDirectory(HERE).recall)).toEqual(IN("session-a"))
+    expect(await Effect.runPromise(forDirectory(HERE, BEFORE).recall))
+      .toEqual({ ...IN("session-a"), agent: BEFORE })
   })
 })
 
@@ -183,9 +193,9 @@ describe("a memory that cannot be trusted", () => {
   }
 
   test("a file that is not JSON is a reason, not a shrug", async () => {
-    await Effect.runPromise(forDirectory(HERE).remember(IN("session-a")))
+    await Effect.runPromise(forDirectory(HERE, BEFORE).remember(IN("session-a")))
     damage("{ half a fi")
-    const answer = await outcome(forDirectory(HERE).recall)
+    const answer = await outcome(forDirectory(HERE, BEFORE).recall)
     expect(Result.isFailure(answer)).toBe(true)
     if (!Result.isFailure(answer)) return
     // The path, because that is the thing somebody can go and look at.
@@ -193,9 +203,9 @@ describe("a memory that cannot be trusted", () => {
   })
 
   test("JSON that names no conversation is a reason too", async () => {
-    await Effect.runPromise(forDirectory(HERE).remember(IN("session-a")))
+    await Effect.runPromise(forDirectory(HERE, BEFORE).remember(IN("session-a")))
     damage(`{"cwd":"${HERE}"}`)
-    expect(Result.isFailure(await outcome(forDirectory(HERE).recall))).toBe(true)
+    expect(Result.isFailure(await outcome(forDirectory(HERE, BEFORE).recall))).toBe(true)
   })
 
   test("a note about another directory is not this panel's memory", async () => {
@@ -203,9 +213,9 @@ describe("a memory that cannot be trusted", () => {
     // it is read back as a guard: whatever put this file here, it is not about
     // us, so the honest answer is that nothing says — never a refusal, and
     // never somebody else's conversation.
-    await Effect.runPromise(forDirectory(HERE).remember(IN("session-a")))
+    await Effect.runPromise(forDirectory(HERE, BEFORE).remember(IN("session-a")))
     damage(`{"cwd":"${ELSEWHERE}","session":"session-b"}`)
-    expect(await Effect.runPromise(forDirectory(HERE).recall)).toBe(null)
+    expect(await Effect.runPromise(forDirectory(HERE, BEFORE).recall)).toBe(null)
   })
 
   test("a state directory that will not take a write refuses out loud", async () => {
@@ -215,7 +225,7 @@ describe("a memory that cannot be trusted", () => {
     if (typeof process.getuid === "function" && process.getuid() === 0) return
     chmodSync(state, 0o500)
     try {
-      expect(Result.isFailure(await outcome(forDirectory(HERE).remember(IN("session-a")))))
+      expect(Result.isFailure(await outcome(forDirectory(HERE, BEFORE).remember(IN("session-a")))))
         .toBe(true)
     } finally {
       chmodSync(state, 0o700)
@@ -226,9 +236,9 @@ describe("a memory that cannot be trusted", () => {
 describe("which agent the conversation is with", () => {
   test("comes back with the conversation, so the right subprocess is started", async () => {
     await Effect.runPromise(
-      forDirectory(HERE).remember({ agent: "opencode", session: "ses_x", model: null }),
+      forDirectory(HERE, BEFORE).remember({ agent: "opencode", session: "ses_x", model: null }),
     )
-    expect(await Effect.runPromise(forDirectory(HERE).recall)).toEqual({
+    expect(await Effect.runPromise(forDirectory(HERE, BEFORE).recall)).toEqual({
       agent: "opencode",
       session: "ses_x",
       model: null,
@@ -240,18 +250,18 @@ describe("which agent the conversation is with", () => {
     // there was exactly one it could be about — reading it as that one is what
     // makes an upgrade come back into the conversation it was in, rather than
     // into a question.
-    await Effect.runPromise(forDirectory(HERE).remember(IN("session-a")))
+    await Effect.runPromise(forDirectory(HERE, BEFORE).remember(IN("session-a")))
     writeFileSync(only(), `{"cwd":"${HERE}","session":"session-a"}\n`)
-    expect(await Effect.runPromise(forDirectory(HERE).recall)).toEqual({
-      agent: "claude",
+    expect(await Effect.runPromise(forDirectory(HERE, BEFORE).recall)).toEqual({
+      agent: BEFORE,
       session: "session-a",
       model: null,
     })
   })
 
   test("an agent that is not a name reads the same way", async () => {
-    await Effect.runPromise(forDirectory(HERE).remember(IN("session-a")))
+    await Effect.runPromise(forDirectory(HERE, BEFORE).remember(IN("session-a")))
     writeFileSync(only(), `{"cwd":"${HERE}","agent":7,"session":"session-a"}\n`)
-    expect((await Effect.runPromise(forDirectory(HERE).recall))?.agent).toBe("claude")
+    expect((await Effect.runPromise(forDirectory(HERE, BEFORE).recall))?.agent).toBe(BEFORE)
   })
 })

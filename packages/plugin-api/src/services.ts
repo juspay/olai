@@ -7,7 +7,7 @@
  * ```ts
  * export default definePlugin({
  *   name,
- *   needs: [Clock, Deliveries, Env, Kinds, SessionStart.key, Surfaces, Vault, Wakes],
+ *   needs: [Clock, Deliveries, Env, Kinds, SessionStart, Surfaces, Vault, Wakes],
  *   apply: Effect.gen(function*() {
  *     const kinds = yield* Kinds
  *     for (const kind of ours) yield* kinds.register(kind)
@@ -77,16 +77,16 @@
  * it arrives with node-agent scopes.
  */
 
+import type { Engine, Registering } from "@olai/acp/engine"
 import {
   broadcast,
   type Host,
-  type Middleware,
   openHost,
   provide,
   type Provision,
   registry,
+  roster,
   serviceTag,
-  waterfall,
 } from "@olai/effect-cordis"
 import { Effect, Scope } from "effect"
 
@@ -400,6 +400,72 @@ export interface Wakes {
 export const Wakes = serviceTag<Wakes>("wakes")
 
 /**
+ * WHICH ACP ENGINES THIS BUILD CAN SEAT — one registration per engine plugin,
+ * and the table `@olai/chat`'s roster is read off.
+ *
+ * ## What it replaced, and why the shape had to change
+ *
+ * A hardcoded `KINDS` array in `@olai/chat`, three rows deep, with
+ * `@olai/surface`'s `AGENTS` beside it as a closed union so that every table
+ * keyed by an agent id — the picker's rows, the install face, the marks, the
+ * memory's fallback — was keyed by a type only a core PR could widen. A fourth
+ * engine was an edit in two general packages plus a nix patch set; a THIRD
+ * engine's adapter bump was an edit in a file the other two share.
+ *
+ * The engines are plugins now, and the three arguments for that are the same
+ * three the tenants make. They share no release clock (the Claude adapter's pin
+ * moved five times in a month and opencode's has never moved). `--plugins`
+ * enables them one at a time, so `--plugins=opencode,pi` is a serve with no
+ * Claude row, no probe of it, and no mark for it anywhere. And each brings its
+ * own adapter pin, its own patches and its own install sentence into its own
+ * directory, so nothing general spells an engine at all.
+ *
+ * ## What a registration is, and what it deliberately is NOT
+ *
+ * {@link Registering} — a name a person reads, the leg that reads this agent's
+ * wire, a probe that answers `Adapter | null` for this host, and the channel its
+ * standing prompt rides. NOT how a person GETS it: that sentence rode this
+ * registration for one revision and was read by nothing, because the face that
+ * draws it is the engine's own browser half's (`chat.agent.install`).
+ * The ID IS THE FIBER'S WORD and there is no field for one, so a plugin cannot
+ * register under another's name.
+ *
+ * What is NOT here is anything about a CONVERSATION. An engine plugin does not
+ * spawn, does not send, does not remember and never sees a transcript: it hands
+ * over data and pure functions, and `@olai/chat` does the talking. That is the
+ * same wall {@link Deliveries} keeps from the other side.
+ *
+ * ## Two plugins may not claim one id, which is unreachable and counted anyway
+ *
+ * The id is the row's, and the loader will not mount two rows under one word —
+ * so the reachable case is a plugin registering twice, which is a mistake in
+ * that plugin. It DIES out of `register`, landing that fiber in `FAILED` with
+ * its siblings untouched, exactly as the three registries above it do.
+ */
+export interface Agents {
+  /**
+   * Offer this engine, for as long as the calling plugin is loaded.
+   *
+   * READ ONCE, WHEN THE CHAT IS BUILT, and the sentence that said otherwise is
+   * worth keeping as a warning: it read "unloading it takes the row out of the
+   * picker". The registry entry is genuinely scope-held and disappears from
+   * `Plugins.engines()` on unload — but `@olai/chat` is handed a LIST at
+   * `Chat.make` and holds it for the life of the process, on purpose
+   * (`agents/roster.ts`'s "Once, at the start": re-deciding the roster under a
+   * reader would flip the panel's whole face while somebody was using it). So
+   * an engine plugin that unloads leaves its row in a chat already built, and a
+   * promise this door could not keep is worse than the bargain it can: **an
+   * engine offered mid-serve is offered by the next start.**
+   *
+   * The BROWSER half is the half that does unwind — its faces are finalizers on
+   * its own scope, so a mark and an install sentence do leave the tab. The
+   * asymmetry is real and is the roster's, not this door's.
+   */
+  readonly register: (engine: Registering) => Effect.Effect<void, never, Scope.Scope>
+}
+export const Agents = serviceTag<Agents>("agents")
+
+/**
  * CONVERSATION EVENTS, PUSHED — doorbells that landed, agent replies that
  * settled, turns that started or ended ({@link ConversationSeen}).
  *
@@ -446,70 +512,110 @@ export interface Held {
 export const Held = serviceTag<Held>("held")
 
 /**
- * ONE CONVERSATION OPENING, as the plugins fill it in — the waterfall that
- * replaced `probe()`.
+ * WHAT TO ASK THIS HOST WHEN A CONVERSATION OPENS — the door that replaced
+ * `probe()`.
  *
  * `probe` had to answer both halves at once, an invariant with an incident
  * behind it: a caller that asked once for the entry to hand over and again for
  * the sentence would start somebody's daemon twice per conversation and could
- * answer the two questions about two different instants. One dispatch per
- * session open is that invariant for free.
+ * answer the two questions about two different instants. ONE READING per session
+ * open is that invariant for free — {@link Probed}'s two fields come off one
+ * answer, because there is only one answer in hand to read.
  *
- * ## THUNKS, and not answers
+ * ## WHAT IS REGISTERED IS THE ASKING, and not the answer
  *
- * A listener pushes what it would ask rather than what it found, and the reasons
- * are two. The list is collected per SESSION OPEN, so a plugin that unloaded
- * between conversations contributes nothing to the next one without anybody
- * keeping a second list. And the asking is then the caller's to schedule:
- * `@olai/chat` runs them with a bounded concurrency because a probe starts a
- * subprocess on the session-open path, and a waterfall that awaited each
- * listener in turn would multiply that window by the number of plugins — the
- * same defect the bound exists to prevent, with a different shape.
+ * A plugin hands over the Effect it WOULD run rather than what it found, and the
+ * reasons are two. The list is collected per SESSION OPEN, so a plugin that
+ * unloaded between conversations contributes nothing to the next one without
+ * anybody keeping a second list. And the asking is then the caller's to
+ * schedule: `@olai/chat` runs them with a bounded concurrency because a probe
+ * starts a subprocess on the session-open path, and running them one after
+ * another would multiply that window by the number of plugins — the same defect
+ * the bound exists to prevent, with a different shape.
  *
- * ## THE TWO THINGS THIS DOOR STILL HAS THAT NO OTHER DOES
+ * ## THE TWO THINGS THIS DOOR USED TO HAVE THAT NO OTHER DID
  *
- * A plugin SIGNS ITS OWN NAME here — `asking.push({ name, ask })` — where every
- * other keyed door reads the word off the fiber and gives the caller no
- * parameter to put one in. And `ask` answers a PROMISE, where everything else a
+ * A plugin SIGNED ITS OWN NAME here — `start.asking.push({ name, ask })` — where
+ * every other keyed door reads the word off the fiber and gives the caller no
+ * parameter to put one in. And `ask` answered a PROMISE, where everything else a
  * plugin hands over is an Effect.
  *
- * Both are the same fact about the payload: this is a waterfall over a plain
- * record, so what a link puts in the record is whatever the record's type says,
- * and neither the stamp nor the effect channel is anything the door can enforce.
- * Fixing them is not a rewording — the `name` goes when the collector keys the
- * list by the fiber that pushed, and the `Promise` goes when `@olai/chat` runs
- * the thunks as Effects with its bound expressed as Effect concurrency. Both
- * are edits to the CALLER of this door, not to this door, and the caller is the
- * chat's session-open path, which the agents phase is about. It takes them; the
- * shape is named here so that phase does not have to find it.
+ * Both were the same fact about the shape: it was a WATERFALL over a plain
+ * record, so what a link put in the record was whatever the record's type said,
+ * and neither the stamp nor the effect channel was anything the door could
+ * enforce. Both are gone, and what fixed them is that this stopped being a
+ * waterfall.
+ *
+ * ## Why a keyed REGISTRATION rather than a waterfall
+ *
+ * The waterfall's own powers — transform what the later links see, decline to
+ * call through and short-circuit the rest — were never used here and could not
+ * honestly be: the order the links run in is the order two dynamic imports came
+ * back in, so a link that short-circuited would silence a set of plugins that
+ * moved between boots. What this event actually is is a COLLECTION, and a
+ * collection keyed by the calling plugin is the shape every other door on this
+ * page already has: `Kinds`, `Wakes`, `Watching`, `Surfaces`.
+ *
+ * So the name is stamped by the provision, out of the word the registry bound
+ * the fiber under, and there is no parameter to put one in; the registration is
+ * a finalizer on the calling plugin's scope, so a plugin that unloads stops
+ * being asked; and `ask` is an Effect because everything a plugin hands core is.
+ *
+ * The waterfall PRIMITIVE stays where it was (`@olai/effect-cordis`), because it
+ * is the translation of a Cordis dispatch mode rather than this event's
+ * mechanism — the delivery policy the design names next (`chat/deliver`, whose
+ * rules genuinely do short-circuit one another) is what it is for.
  */
 export interface SessionStart {
-  /** What to ask this host, one thunk per plugin that has something to ask.
+  /**
+   * Ask this host, once per conversation opening, for as long as the calling
+   * plugin is loaded.
    *
-   *  IN NO ORDER, and the line that said otherwise is worth keeping as a
-   *  warning: it read "pushed in dispatch order, which is registration order,
-   *  which is the bundle's". The first two clauses are true and the third does
-   *  not follow — a listener registers when its plugin's `apply` runs, and a
-   *  row's `apply` runs when the loader's `import()` for that row comes back.
-   *  Two rows raced, a conversation drew the winner, and the servers a session
-   *  reported changed between boots of one serve.
+   * IT NEVER FAILS: every way of failing is an ARM of {@link Probed}, which is
+   * the whole reason that type has two fields rather than an error channel —
+   * "the tool is not here" is an answer and not a fault, and "it is here and
+   * would not work" is a SENTENCE somebody has to read.
    *
-   *  A plugin pushing here may not assume where it lands, and nothing that READS
-   *  this list may take the order it arrives in as meaningful. Ordering it is the
-   *  composition root's, against the build's own list of rows, because that list
-   *  is the one place a plugin's position is written down. */
-  readonly asking: Array<{
-    readonly name: string
-    readonly ask: () => Promise<Probed>
-  }>
+   * AND NOTHING CONTAINS A PROBE THAT DIES, which is why the type is the whole
+   * of the contract rather than a preference. This line used to end "a probe
+   * that dies is contained by the caller and costs that plugin its row", and no
+   * such containment exists: the chain from here is `askingAt`
+   * (`@olai/server`'s `probes.ts`) into `@olai/chat`'s `probed`, which is an
+   * `Effect.forEach` with no `catchAllDefect` anywhere on it, and its answer is
+   * awaited inside `session/new`. So a defect here does not cost one plugin its
+   * row — it fails the conversation open, for every plugin and for the person.
+   *
+   * Answer the arms. A probe that cannot say what it found says
+   * `{ server: null, missing: … }` and describes the failure in `missing.why`,
+   * which is the sentence somebody reads; a probe that throws is a bug in that
+   * plugin with a blast radius this door cannot shrink for it.
+   */
+  readonly ask: (probe: Effect.Effect<Probed>) => Effect.Effect<void, never, Scope.Scope>
 }
+export const SessionStart = serviceTag<SessionStart>("chat/session-start")
 
-/** THE WATERFALL ITSELF — `SessionStart.key` is what a plugin puts in its
- *  `needs`, and `SessionStart.open` is what the composition root holds. */
-export const SessionStart = waterfall<SessionStart>("chat/session-start")
-
-/** ONE LINK of it, for a plugin that wants to name the type. */
-export type SessionStarting = Middleware<SessionStart>
+/**
+ * ONE THING TO ASK, as the collector holds it — the plugin's own word and the
+ * Effect it registered.
+ *
+ * THE NAME IS FOR THE LOG LINE and for the ORDER, and for nothing else. What a
+ * roster row is called comes off the ANSWER, where whoever found the server
+ * named it.
+ *
+ * IN NO ORDER, and the line that said otherwise is worth keeping as a warning:
+ * it read "pushed in dispatch order, which is registration order, which is the
+ * bundle's". The first two clauses were true and the third does not follow — a
+ * plugin registers when its `apply` runs, and a row's `apply` runs when the
+ * loader's `import()` for that row comes back. Two rows raced, a conversation
+ * drew the winner, and the servers a session reported changed between boots of
+ * one serve. Nothing that reads {@link Plugins.sessionStart} may take the order
+ * it arrives in as meaningful; imposing one is the composition root's, against
+ * the build's own list of rows.
+ */
+export interface Asked {
+  readonly name: string
+  readonly ask: Effect.Effect<Probed>
+}
 
 /**
  * WHAT A COMPOSITION ROOT HOLDS — the other end of every door above, plus the
@@ -531,6 +637,16 @@ export interface Plugins {
   /** What each ringing plugin declared, keyed by its name. A name with no entry
    *  is a plugin that wakes nobody, which is a whole plugin. */
   readonly declared: () => ReadonlyMap<string, Wake>
+  /** EVERY ENGINE OFFERED RIGHT NOW, in registration order — what the chat's
+   *  roster is detected from and what the panel's install face is drawn from.
+   *
+   *  IN REGISTRATION ORDER, which a caller may not read as meaningful: a
+   *  plugin's `apply` runs when the loader's `import()` for its row comes back,
+   *  and two rows race. What a person SEES is ordered by the composition root
+   *  against the build's own list of rows, the same way the session-start
+   *  thunks are (`@olai/server`'s `probes.ts` argues it, and that argument has
+   *  an e2e failure behind it). */
+  readonly engines: () => ReadonlyArray<Engine>
   /** TELL EVERY PLUGIN A REVISION LANDED, and wait for each of them — see
    *  {@link Vault}. */
   readonly published: (snapshot: unknown) => Effect.Effect<void>
@@ -538,8 +654,9 @@ export interface Plugins {
   readonly quiet: Effect.Effect<void>
   /** One conversation event to every subscriber, in subscription order. */
   readonly saw: (event: ConversationSeen) => Effect.Effect<void>
-  /** ONE DISPATCH of the session-start waterfall — see {@link SessionStart}. */
-  readonly sessionStart: Effect.Effect<SessionStart>
+  /** WHAT TO ASK THIS HOST when a conversation opens, read afresh per opening —
+   *  see {@link SessionStart} and {@link Asked}. */
+  readonly sessionStart: Effect.Effect<ReadonlyArray<Asked>>
 }
 
 /**
@@ -712,6 +829,21 @@ export const openPlugins = (
         ),
     }))
 
+    // KEYED BY THE PLUGIN AND REFUSED LIKE ITS THREE NEIGHBOURS — the id an
+    // engine is offered under is the word the fiber was bound under and is
+    // stamped here, so `Registering` has no field a caller could put one in.
+    const engines = registry<string, Engine>()
+    yield* provide(host, Agents, (plugin) => ({
+      register: (engine) =>
+        engines.claim(
+          plugin,
+          { ...engine, id: plugin },
+          () =>
+            `plugins: "${plugin}" offered a second ACP engine — a plugin is one engine `
+              + "under one id, and the second would silently replace the first.",
+        ),
+    }))
+
     yield* provide(host, Watching, (plugin) => ({ subscribe: seen.listen(plugin) }))
 
     yield* provide(host, Held, (plugin) => {
@@ -725,17 +857,28 @@ export const openPlugins = (
       }
     })
 
-    const sessionStart = yield* SessionStart.open(host)
+    // WHAT EACH PLUGIN WOULD ASK THIS HOST, keyed by the plugin that registered
+    // it — a `roster` rather than a `registry` because a plugin may legitimately
+    // register more than one probe, and because there is no key here to collide
+    // on: the stamp is the answer, not the address.
+    const asking = roster<Asked>()
+    yield* provide(host, SessionStart, (plugin) => ({
+      ask: (probe) => asking.hold({ name: plugin, ask: probe }),
+    }))
 
     return {
       host,
       kinds: kinds.read,
       composed: () => [...siblings.read().values()],
       declared: wakes.read,
+      engines: () => [...engines.read().values()],
       published: revisions.tell,
       quiet: quieted.tell(undefined),
       saw: seen.tell,
-      sessionStart: Effect.suspend(() => sessionStart({ asking: [] })),
+      // READ AFRESH PER OPENING, which is what makes a plugin that unloaded
+      // between conversations contribute nothing to the next one without
+      // anybody keeping a second list.
+      sessionStart: Effect.sync(asking.read),
     }
   })
 
@@ -750,3 +893,18 @@ export type {
   Wake,
 } from "./contract.ts"
 export { exposeMapsOf, kindWordOf, surfacesOf } from "./contract.ts"
+
+/**
+ * WHAT AN ENGINE PLUGIN HANDS {@link Agents} — the one name off
+ * `@olai/acp/engine` this door repeats, because it is the argument of a verb
+ * declared here.
+ *
+ * IT WAS FIVE. `Adapter`, `Engine`, `PromptChannel` and `Where` came with it, on
+ * the argument that a server half should "open one door for its whole
+ * registration" — and none of the four was ever imported from here by anything.
+ * The door was not one either: the re-export is types-only and a probe needs
+ * VALUES, so two of the three engines go to `@olai/acp/engine` for `adapterFrom`
+ * and `AGENT_ENV` regardless. A convenience nobody walked through, arguing a
+ * property it did not have.
+ */
+export type { Registering } from "@olai/acp/engine"

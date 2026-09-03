@@ -34,7 +34,7 @@ import type { NodeAgent } from "@olai/format"
 import { canonical, digestOf } from "@olai/state"
 import type { ChatEntry, ChatState } from "@olai/surface"
 
-import { OPENCODE } from "./agents/opencode.ts"
+import { QUEUES } from "./agents/legs.testlib.ts"
 import type { Installed } from "./agents/roster.ts"
 import { type Chat, make as makeChat } from "./chat.ts"
 import { forDirectory as sessionsIn } from "./sessions.ts"
@@ -57,7 +57,8 @@ const ROW: Installed = {
   id: "opencode",
   name: "opencode",
   adapter: { command: process.execPath, args: [FIXTURE] },
-  leg: OPENCODE,
+  leg: QUEUES,
+  prompt: { kind: "first-turn" },
 }
 
 let cwd = ""
@@ -123,6 +124,7 @@ const withChat = async (body: (seat: Seat) => Promise<void>): Promise<void> => {
   let published: ChatState | null = null
   const chat = await run(makeChat({
     roster: [ROW],
+    engines: [],
     cwd,
     tools: () => null,
     overheard: await run(sessionsIn(cwd)),

@@ -28,6 +28,27 @@
 # what an operator said and what the build has stay two readable things, and
 # `--dump-config` can later show both. Omitting the flag writes no patch at all,
 # which is how a row's own `disabled` survives being the built-in default.
+# THE ENGINES, FIRST AND IN THE ORDER THE PICKER DRAWS THEM.
+#
+# One row per ACP agent olai can seat, and ORDER IS LOAD-BEARING HERE in a way
+# it is not for the tenants below: this list is what `@olai/server` sorts the
+# registry by, so it decides the order of the picker's rows and the order of the
+# install sentences on the no-agent face — the agent olai SHIPS first, and
+# everything found on the machine after it. It is also what a memory naming no
+# agent at all is read as being about: a note written before olai had a roster
+# was written by an olai that had exactly one, and this is the row it had.
+#
+# Each is a row rather than three rows of one "agents" plugin because they share
+# no release clock: the Claude adapter's pin moved five times in a month and
+# opencode's has never moved. `--plugins=opencode,pi` is a serve with no Claude
+# row, no probe of one, and no mark for one anywhere.
+- id: claude
+  name: olai-plugin-claude/server
+- id: opencode
+  name: olai-plugin-opencode/server
+- id: pi
+  name: olai-plugin-pi/server
+# ...AND THE TENANTS: olai's judgement about somebody else's appliance.
 - id: kolu
   name: olai-plugin-kolu/server
 - id: odu

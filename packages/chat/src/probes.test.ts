@@ -43,11 +43,12 @@ const answering = (
   afterMs = 0,
 ): Probe => ({
   name,
-  ask: () =>
-    new Promise((resolve) => {
-      if (afterMs === 0) resolve(found)
-      else setTimeout(() => resolve(found), afterMs)
-    }),
+  // AN EFFECT, like everything a plugin hands core — and the delay is Effect's
+  // own. It was a `setTimeout` inside `Effect.promise`, which is a raw promise
+  // and therefore UNINTERRUPTIBLE: the one helper that stages the overlap these
+  // cases are about was staging it with the one shape the runtime cannot
+  // cancel, under the fiber pool whose bounded concurrency is the subject.
+  ask: Effect.delay(Effect.succeed(found), `${afterMs} millis`),
 })
 
 const run = <A>(effect: Effect.Effect<A>): Promise<A> => Effect.runPromise(effect)
@@ -75,10 +76,10 @@ describe("asking what this host is running", () => {
     let asked = 0
     const counting: Probe = {
       name: "alpha",
-      ask: async () => {
+      ask: Effect.sync(() => {
         asked += 1
         return { server: ALPHA, missing: null }
-      },
+      }),
     }
 
     const found = await run(probed([counting]))

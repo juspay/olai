@@ -293,6 +293,20 @@ function Face(props: { readonly chat: Chat }) {
     const chosen = face()
     return chosen.kind === "choose" ? chosen.asked : undefined
   }
+  /**
+   * ...and WHY there is no agent, where that is the body.
+   *
+   * READ BESIDE THE ARM rather than matched on, which is the one place the
+   * shape above does not fit: `null` is a legitimate value INSIDE this face —
+   * a page whose first frame has not landed holds `CHAT_OFF`, whose reason is
+   * "not told yet" — and a `<Match>` on the payload would drop the whole face
+   * for it, leaving the panel blank exactly during the paint the face exists
+   * for.
+   */
+  const noAgentBecause = () => {
+    const chosen = face()
+    return chosen.kind === "no-agent" ? chosen.off : null
+  }
   /** The roster, for whichever door is asking. */
   const agents = (): ReadonlyArray<AgentChoice> => props.chat.state().roster
   return (
@@ -320,7 +334,7 @@ function Face(props: { readonly chat: Chat }) {
       <Wake chat={props.chat} />
       <Switch fallback={<Body chat={props.chat} />}>
         <Match when={face().kind === "no-agent"}>
-          <NoAgent />
+          <NoAgent off={noAgentBecause()} />
         </Match>
         {/* THE CHATS NOBODY CLAIMS, where somebody pressed the roster's last
             row ({@link ../agents/Unassigned.tsx}) — where it sits in the

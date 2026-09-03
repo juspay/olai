@@ -45,7 +45,7 @@ check: typecheck test e2e kolu-deps odu-deps cordis-deps fmt-check nix bun-nix-f
 
 # Install deps (bun) and hydrate the @kolu/* sources from the npins kolu pin.
 # The `npm ci` in the acp/ pin is the adapter tree's half: the MCP bridge's
-# tests (acp/mcp-bridge) resolve the SDK from ITS lockfile, not the root's
+# tests (packages/plugins/pi/acp/mcp-bridge) resolve the SDK from ITS lockfile, not the root's
 # bun one — and `bun test` discovers them with everything else, so a fresh
 # machine's first `just test` needs both trees standing. It is the same
 # lockfile the FOD builds from; nothing here drifts.

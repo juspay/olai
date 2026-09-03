@@ -2676,6 +2676,48 @@ Then(
   },
 );
 
+/**
+ * WHICH OF THE THREE, and the reason these are two steps rather than one with a
+ * parameter: what a person is owed differs per cause, so what a scenario should
+ * be able to say is that THIS cause produced THIS sentence — and a step taking
+ * the sentence as an argument would let a scenario assert whichever words
+ * happened to be there.
+ *
+ * The claim is deliberately about a PHRASE rather than the whole copy: the words
+ * are core's to reword (all three causes are facts about the SERVE, not about an
+ * engine), and what must not change is that the face commits to one of them.
+ * Before this, it hedged across two guesses, one of them unreachable.
+ */
+const saysNoAgentBecause = async (world: OlaiWorld, phrase: string, why: string): Promise<void> => {
+  const said = oneLine(await world.page.locator(CHAT_NO_AGENT).innerText());
+  assert.ok(
+    said.toLowerCase().includes(phrase.toLowerCase()),
+    `the no-agent face does not say ${why}. A face that will not name which of ` +
+      `the three ways of having no agent this is leaves a person guessing at the ` +
+      `one thing they could do about it. It reads: ${said}`,
+  );
+};
+
+Then("the panel says the agent is switched off", async function (this: OlaiWorld) {
+  await saysNoAgentBecause(this, "switched off", "that chat was switched off");
+});
+
+Then("the panel says this serve enabled no agent engine", async function (this: OlaiWorld) {
+  await saysNoAgentBecause(this, "no agent engine", "that this serve composed no engine plugin");
+});
+
+Then("the panel offers no way to install one", async function (this: OlaiWorld) {
+  // An engine's install sentence is its OWN browser half's, out of the
+  // `chat.agent.install` slot — so a serve that mounted no engine fetched no
+  // half and has nothing to list. Drawing an empty list, or a heading over one,
+  // would be core inventing a row for a plugin that is not here.
+  await this.waitUntil(
+    async () => (await this.page.locator(CHAT_INSTALL).count()) === 0,
+    "the no-agent face to list no engine at all",
+    HYDRATION_TIMEOUT,
+  );
+});
+
 // ── a conversation the agent would not open ────────────────────────────
 //
 // The panel's third body, and the one that is about a LIVE agent: it answered,
@@ -3402,9 +3444,18 @@ Then(
     // BY ID rather than by the name on the row: what a scenario is about is
     // that this machine's opencode is offered, and the words beside it are a
     // brand's to change.
-    await this.page
-      .locator(`${CHAT_CHOOSE_AGENT}${attr("data-agent", id)}`)
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const row = this.page.locator(`${CHAT_CHOOSE_AGENT}${attr("data-agent", id)}`);
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    // ...AND IT SAYS SOMETHING, which is the half an id alone cannot see. The
+    // words are the ENGINE PLUGIN's own — its `Registering.name`, which the
+    // server puts on the chat cell per installed agent — so a roster row that
+    // arrived without one would leave a pressable row with a mark and nothing
+    // to read. Not the exact words, for the reason above: what is asserted is
+    // that a person has something to press ON.
+    assert.ok(
+      oneLine(await row.innerText()).length > 0,
+      `the picker's row for "${id}" is empty — the engine's own face did not draw`,
+    );
   },
 );
 
@@ -3467,9 +3518,20 @@ Then("the header draws that agent's own mark", async function (this: OlaiWorld) 
 Then(
   "the panel tells me how to install {string}",
   async function (this: OlaiWorld, id: string) {
-    await this.page
-      .locator(`${CHAT_INSTALL}${attr("data-agent", id)}`)
-      .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const row = this.page.locator(`${CHAT_INSTALL}${attr("data-agent", id)}`);
+    await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    // ...AND IT SAYS HOW, which is the whole of what this face is for and the
+    // half an id alone cannot see. The sentence is the ENGINE PLUGIN's own —
+    // the `NotHere` it hung in the `chat.agent.install` slot, spelled once in
+    // that plugin's `install.ts` and spent once, here — so a row drawn with an
+    // id and no words would be the face reporting on nothing. Not the exact
+    // words: they are that plugin's to change, and core composes no clause of
+    // them. What IS core's is every stroke around them, which is why this
+    // reads the row's text rather than looking for an anchor.
+    assert.ok(
+      oneLine(await row.innerText()).length > 0,
+      `the install row for "${id}" is empty — the engine's own sentence did not draw`,
+    );
   },
 );
 

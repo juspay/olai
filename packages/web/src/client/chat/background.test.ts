@@ -9,7 +9,7 @@
  *
  * The rows here are the shapes the wire actually produces — a real `Monitor`
  * and a real `Bash(run_in_background)`, recorded 2026-08-24 through the pinned
- * adapter and its patch (`acp/patches/README.md`).
+ * adapter and its patch (`packages/plugins/claude/acp/patches/README.md`).
  */
 
 import { describe, expect, test } from "bun:test"

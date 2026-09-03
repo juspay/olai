@@ -33,13 +33,13 @@
  *     this host answered a probe with — is allowed immediately, and everything
  *     else is a person's to answer. What is HERE is
  *     that the two paths exist and which one a request took; the rule that
- *     tells them apart is this agent's LEG ({@link ./agents/leg.ts}), where it is a pure function
+ *     tells them apart is this agent's LEG (`@olai/acp/engine`'s `Leg`), where it is a pure function
  *     with unit tests rather than a branch inside a subprocess's callback.
  *   - **reading the payloads**: which update kind this is, what a content block
  *     says, how a session list sorts. An event carries what was READ, never the
  *     raw protocol value. What any of it means to the CLAUDE CODE adapter in
  *     particular — its `_meta`, its tool naming, the message it forwards, which
- *     config option its picker is — is its LEG's ({@link ./agents/leg.ts}); what is still
+ *     config option its picker is — is its LEG's (`@olai/acp/engine`'s `Leg`); what is still
  *     here is what those readings are REMEMBERED as, which is a session's job.
  *
  * The MCP servers a session is given are olai's own internal one — the standard
@@ -106,15 +106,8 @@ import { emitter, reasonOf } from "@olai/log"
 import type { AskAnswer, ChatServer } from "@olai/surface"
 import { Data, type Duration, Effect, Semaphore } from "effect"
 
-import type { Leg, Meta } from "./agents/leg.ts"
-import {
-  MODEL_CONFIG,
-  modelNameIn,
-  modelPickerIn,
-  type Picker,
-  pickerValueFor,
-  sameModel,
-} from "./agents/models.ts"
+import type { Leg, Meta, ModelReading } from "@olai/acp/engine"
+import { modelPickerIn, type Picker, pickerValueFor, sameModel } from "./agents/models.ts"
 import { Calls } from "./calls.ts"
 import { sameDirectory } from "./directory.ts"
 import type { AgentEvent, Command, Stored } from "./events.ts"
@@ -174,7 +167,7 @@ export interface ToolServer {
  * RESPONSE arrives as the SDK's own {@link RequestError}, and every other
  * rejection — a closed connection, an interrupted deadline — is silence wearing
  * an `Error`. That reading is {@link goneOf}, and it lives here rather than in
- * {@link ./agents/leg.ts} because it is the protocol SDK's vocabulary rather
+ * `@olai/acp/engine`'s `Leg` because it is the protocol SDK's vocabulary rather
  * than one adapter's extension. `unreachable` is never read off a rejection: it
  * is what this file mints when there was nothing to reject.
  */
@@ -204,7 +197,7 @@ export class AgentGone extends Data.TaggedError("AgentGone")<{
  * agent with no steering at all is one of those: it refuses the method, in its
  * own words, and the caller owes a person their words back exactly as it does
  * for a dead pipe or a deadline. The handshake's advertisement decides whether
- * anybody is OFFERED the gesture ({@link ./agents/leg.ts}'s `advertised`) and
+ * anybody is OFFERED the gesture (`@olai/acp/engine`'s `Leg`'s `advertised`) and
  * never what became of one that was made: a control has to be drawn before it
  * can be pressed, and what a request DID is the request's own to say.
  *
@@ -223,7 +216,7 @@ export interface Options {
    *  is remembered under, so that the next boot starts the same one. */
   readonly id: string
   /** ... and how to read what it sends. Every bet that is true of one agent
-   *  and not the other is behind this ({@link ./agents/leg.ts}); nothing in
+   *  and not the other is behind this (`@olai/acp/engine`'s `Leg`); nothing in
    *  this file names an adapter. */
   readonly leg: Leg
   /** The executable to run — the roster row's, which for the Claude leg is
@@ -500,7 +493,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     let replaying = false
 
     /** The prologue this conversation's OPEN announced it would double as one
-     *  ordinary chunk ({@link ./agents/leg.ts}'s `prologueIn`), or `null`.
+     *  ordinary chunk (`@olai/acp/engine`'s `Leg`'s `prologueIn`), or `null`.
      *  Armed at the open and CONSUMED by the first chunk equal to it: one
      *  banner, once, and the comparison is the string the adapter itself
      *  published — never a shape of prose. */
@@ -866,7 +859,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * decided to stop listening would sit on a stale name until the next turn.
      *
      * The picker also supplies the LABELS, and that is not a side job:
-     * {@link modelNameIn} is what turns a live API id back into the word the
+     * {@link nameFor} is what turns a live API id back into the word the
      * agent uses for it. Without it the header could only ever name a running
      * model as `claude-sonnet-5`, beside a picker calling it "Sonnet".
      *
@@ -898,6 +891,30 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     /** The picker, as value → label, kept so a LIVE id can be labelled the way
      *  the agent labels its own models. */
     let labels: ReadonlyMap<string, string> = new Map()
+
+    /**
+     * HOW TO READ THIS AGENT'S PICKER — which `configOptions` entry the model is
+     * in, and what that agent calls its own rows (`@olai/acp/engine`'s
+     * `ModelReading`). `null` for an agent with no picker at all, and every
+     * reader below takes that arm.
+     *
+     * It used to be two module-level constants in a leg-neutral file — the entry
+     * id, and one CLI's alias tiers — sitting on the path every agent's model
+     * name was read through. They are the LEG's now, because they are one
+     * adapter's spelling; the arithmetic over them is still this package's.
+     */
+    const models = options.leg.models
+
+    /** What this agent calls the model with that id, or `null` — nothing at all
+     *  for an agent with no picker, where the caller says the raw id. */
+    const nameFor = (id: string): string | null =>
+      models === null ? null : models.nameIn(labels, id)
+
+    /** ...and whether two model strings name one model. Two unnameable strings
+     *  agree only when they are the same string, which is also the whole answer
+     *  for an agent with no picker to resolve them through. */
+    const sameAs = (one: string, other: string): boolean =>
+      models === null ? one === other : sameModel(models, labels, one, other)
 
     /** Say what the header names, when it changes. */
     const show = (name: string | null): void => {
@@ -940,7 +957,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       // ... and the same model in the other source's spelling is not a move
       // either — `sonnet` and `claude-sonnet-5` are one model, judged the way
       // {@link restore} judges it rather than as two strings.
-      if (at === null || (at.model !== null && sameModel(labels, at.model, value))) return
+      if (at === null || (at.model !== null && sameAs(at.model, value))) return
       // NOR IS A MODEL A MOVE IN SOMEBODY ELSE'S CONVERSATION. What is mirrored
       // in `held` before this agent has entered anything is the note the last
       // boot left, which may be another agent's — and a frame can arrive in
@@ -967,13 +984,16 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       const switched = picked !== null
       picked = picker.picked
       if (switched && picked !== null) moved(picked)
-      show(picked === null ? null : modelNameIn(labels, picked) ?? picked)
+      show(picked === null ? null : nameFor(picked) ?? picked)
     }
 
     const readModel = (
       configOptions: ReadonlyArray<SessionConfigOption> | null | undefined,
     ): void => {
-      readPicker(modelPickerIn(configOptions))
+      // An agent with NO picker is not read at all — there is no entry to look
+      // for, so `labels` stays empty and the header names whatever the agent
+      // reports, raw.
+      if (models !== null) readPicker(modelPickerIn(models, configOptions))
     }
 
     const readLiveModel = (params: unknown): void => {
@@ -981,7 +1001,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       if (id === null || id === announced) return
       const switched = announced !== null
       announced = id
-      const name = modelNameIn(labels, id)
+      const name = nameFor(id)
       if (name === null) {
         tell(
           Effect.logWarning("the agent is running a model its picker does not offer"),
@@ -1002,7 +1022,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * an agent's private channel about it: `session/new` takes `mcpServers` and
      * answers with a session id, so whether the agent reached any of them is
      * never on the wire and `mcp-fail-visible` said as much in its own docs.
-     * One agent volunteers it ({@link ./agents/claude.ts}); an agent that does
+     * One agent volunteers it (`olai-plugin-claude`'s `leg.ts`); an agent that does
      * not leaves every row where the client put it, which reads as "handed
      * over, and nobody has said what became of it".
      *
@@ -1199,7 +1219,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           ))
           // Allowed without asking when it is one of the tools we handed this
           // session, and PUT IN FRONT OF A PERSON otherwise — the rule, and
-          // what it used to cost to get it wrong, in `./agents/leg.ts`.
+          // what it used to cost to get it wrong, in `@olai/acp/engine`.
           .onRequest(methods.client.session.requestPermission, (context) =>
             onPermission(context.params, context.signal))
           // The agent's own structured question, which is a thing it can only
@@ -1235,7 +1255,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
                 // not asked for, and the difference matters because asking is
                 // one line. It is not asked for yet because a second voice in
                 // the transcript is a feature with its own drawing to decide
-                // (`./agents/claude.ts` says what the panel does know about a
+                // (`olai-plugin-claude`'s `leg.ts` says what the panel does know about a
                 // spawn), and because the flag's absence is what guarantees a
                 // subagent's prose cannot arrive unattributed in the main
                 // agent's voice.
@@ -1646,7 +1666,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * ran during the load, is a thing that happened before we said it.
      *
      * SAID ONLY WHEN IT DISAGREES, and disagreement is judged in names rather
-     * than in strings ({@link sameModel}): what we remember is as often a live
+     * than in strings ({@link sameAs}): what we remember is as often a live
      * API id (`claude-fable-5`) as a picker value (`fable`), and those are the
      * same model. A conversation that came back on the model it left on is one
      * this says nothing about at all — no round trip, and no request to fail.
@@ -1680,11 +1700,16 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       wanted: string | null,
     ): Effect.Effect<void> =>
       Effect.gen(function*() {
-        const picker = modelPickerIn(configOptions)
+        // NOTHING TO PUT BACK on an agent with no picker: there is no config
+        // option to address the request to and no vocabulary to say it in, so
+        // the conversation opens on whatever the agent chose — which is what it
+        // did before any of this existed.
+        if (models === null) return
+        const picker = modelPickerIn(models, configOptions)
         const settled = wanted === null || picker === null ||
-            (picker.picked !== null && sameModel(picker.labels, picker.picked, wanted))
+            (picker.picked !== null && sameModel(models, picker.labels, picker.picked, wanted))
           ? picker
-          : yield* putModel(at, id, picker, wanted)
+          : yield* putModel(at, models, id, picker, wanted)
         // ONE TAIL, whichever of the three ways it got here: what the header
         // names is read from the picker that had the last word — the one the
         // load answered with, or the one the agent answered our request with.
@@ -1695,6 +1720,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *  the model the load already reported, and a memory left alone. */
     const putModel = (
       at: Live,
+      models: ModelReading,
       id: string,
       picker: Picker,
       wanted: string,
@@ -1703,13 +1729,16 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         const answered = yield* Effect.result(
           ask(at.connection, methods.agent.session.setConfigOption, {
             sessionId: id,
-            configId: MODEL_CONFIG,
-            value: pickerValueFor(picker.labels, wanted) ?? wanted,
+            // THE LEG'S OWN ENTRY ID — read to find the picker and written to
+            // move it, which is why the engine spells it once and both ends of
+            // that take it from there.
+            configId: models.config,
+            value: pickerValueFor(models, picker.labels, wanted) ?? wanted,
           }),
         )
         if (answered._tag === "Failure") {
           trouble(
-            `this conversation was on ${modelNameIn(picker.labels, wanted) ?? wanted} and ` +
+            `this conversation was on ${models.nameIn(picker.labels, wanted) ?? wanted} and ` +
               `could not be put back: ${answered.failure.why}`,
           )
           return picker
@@ -1718,7 +1747,10 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // header is read off what the agent CONFIRMED rather than off what we
         // asked for: an agent that resolved our row onto another of its own —
         // an alias, a context lane — is naming the model it actually landed on.
-        return modelPickerIn((answered.success as SetSessionConfigOptionResponse).configOptions)
+        return modelPickerIn(
+          models,
+          (answered.success as SetSessionConfigOptionResponse).configOptions,
+        )
       })
 
     /**

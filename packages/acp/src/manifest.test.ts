@@ -194,11 +194,17 @@ describe("the manifest", () => {
     }
   })
 
-  test("the protocol enters the tree in exactly two packages: acp and chat", () => {
+  test("the protocol enters the tree here, in the chat, and in an engine's bench", () => {
+    // IT WAS TWO PACKAGES, and the third and fourth are the engines phase: an
+    // engine is a PLUGIN now, and two of them stage a `PermissionOption` in
+    // their own benches to assert the one rule a leg may never widen. Their
+    // production sources name none of the SDK's types — `@olai/acp/engine`
+    // carries the ones a leg's signatures need — which is why this list can
+    // still be written down rather than becoming "every plugin".
     const speaking = [...tree.keys()].filter((pkg) =>
       sources(pkg).some((source) => source.specifiers.some(isSdk))
     )
-    expect(speaking.sort()).toEqual(["acp", "chat"])
+    expect(speaking.sort()).toEqual(["acp", "chat", "plugins/claude", "plugins/opencode"])
   })
 
   test("what may cross is enumerated: the export lists are closed and disjoint", () => {
@@ -230,6 +236,31 @@ describe("the manifest", () => {
     ])
   })
 
+  /**
+   * WHO MAY OPEN WHICH DOOR, as a table.
+   *
+   * `./engine` is the third door and the one with the most readers, which is
+   * what it is FOR: it carries the shape an ENGINE PLUGIN registers — the leg
+   * that reads one agent's wire, the adapter that starts it, the sentence for a
+   * machine that has not installed it. A plugin may not import `@olai/chat` and
+   * `@olai/chat` may not import a plugin, so the shape they both spell lives
+   * under both of them, here.
+   *
+   * `@olai/plugin-api` opens it to declare the `Agents` tag; `@olai/server`
+   * opens it to sort the registry into the bundle's order; `@olai/chat` opens it
+   * beside the projections it already had. Nothing else does, and the `[]` on
+   * every other package is what says so.
+   */
+  const MAY: Readonly<Record<string, ReadonlyArray<string>>> = {
+    surface: ["@olai/acp/wire"],
+    chat: ["@olai/acp", "@olai/acp/engine"],
+    "plugin-api": ["@olai/acp/engine"],
+    server: ["@olai/acp/engine"],
+    "plugins/claude": ["@olai/acp/engine"],
+    "plugins/opencode": ["@olai/acp/engine"],
+    "plugins/pi": ["@olai/acp/engine"],
+  }
+
   test("who may import which half is a table: surface the wire, chat the projections", () => {
     const imported = new Map<string, ReadonlySet<string>>(
       [...tree.keys()]
@@ -246,12 +277,10 @@ describe("the manifest", () => {
         ]),
     )
     for (const [pkg, specs] of imported) {
-      const may = pkg === "surface"
-        ? ["@olai/acp/wire"]
-        : pkg === "chat"
-        ? ["@olai/acp"]
-        : []
-      expect([...specs].sort(), pkg).toEqual(may)
+      expect([...specs].sort(), pkg).toEqual([...(MAY[pkg] ?? [])])
     }
+    // ...and every package the table names is one this walk actually read, so a
+    // row left behind by a rename is red rather than silently permissive.
+    for (const pkg of Object.keys(MAY)) expect([pkg, imported.has(pkg)]).toEqual([pkg, true])
   })
 })

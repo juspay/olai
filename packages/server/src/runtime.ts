@@ -112,6 +112,7 @@ import {
   type Manifest,
   NO_AGENT_ROSTER,
   NO_ROSTER,
+  type OffBecause,
   type OpFailure,
   type PluginRoster,
   type PluginState,
@@ -419,10 +420,22 @@ export interface Wiring {
    * whether anybody typed the flag.
    */
   readonly plugins: PluginRuntime | null
-  /** Absent when no ACP agent is configured: the cell stays `off` and the
+  /** Absent when this serve has no ACP agent: the cell stays `off` and the
    *  procedures answer that they are. A directory is readable whether or not
    *  an agent is installed. */
   readonly chat: Chat | null
+  /**
+   * ...AND WHY, when {@link chat} is absent — `null` beside a chat that exists.
+   *
+   * Carried rather than re-derived, and that is the whole reason it is a field.
+   * There are three ways to have no agent (`@olai/chat`'s `Roster`), a person
+   * has a different thing to do about each, and only the composition root holds
+   * both halves of the answer — the engine registry and what every probe said.
+   * The panel drew its opening sentence by GUESSING between them until this
+   * arrived, and one of its guesses named a launch path no documented way of
+   * starting olai takes.
+   */
+  readonly noAgent: OffBecause | null
   /**
    * THE NODE AGENTS' CARRIER — the vault's half of the roster, which this
    * runtime WRITES on every published revision and reads back to fill the cell
@@ -588,27 +601,38 @@ const writing = (ops: Ops, writer: Writer) => ({
  * plugins as `running: false` there would be this file inventing a policy
  * nobody set, and asserting it is why this reading is exported rather than
  * inlined at its one call site.
+ *
+ * ## `running` IS THE FIBER'S STATE, and it took two wrong answers to get here
+ *
+ * It was `isEnabled(pin, name)` — a re-reading of the FLAG, exact only because
+ * the filter ran once and nothing could move afterwards. Then it was WHAT A
+ * PLUGIN HAD CONTRIBUTED: the sibling table, and later a union of that with the
+ * engine registry. Both of those are proxies for the question, and each was
+ * wrong for the first plugin that did not fit it — the flag says yes about a
+ * fiber that is `PENDING` on a service, or `FAILED` in its own `apply`; the
+ * union says no about a fiber that is running perfectly and happens to register
+ * nothing this file thought to ask about. That second one is not hypothetical
+ * and it is not behind us: the engines hit it (a picker row said `off` while its
+ * agent answered), and a browser-only plugin — one whose server half registers
+ * nothing at all — hits it again, invisibly, because the tab fetches a chunk
+ * only for a row this says is running.
+ *
+ * So it is neither proxy now. `@olai/effect-cordis`'s `rowReport` asks the
+ * FIBER, which is the thing the word is about, and this reads its answer.
+ * `running` and {@link PluginRow.state} then come off ONE reading rather than
+ * two clocks that could disagree — which is what the arm this deleted was
+ * papering over (a row `running` in the report and absent from the live table
+ * used to be reported `off`).
+ *
+ * WHAT IT COSTS is stated where it is owed: the report is a BOOT SNAPSHOT
+ * (`@olai/bundle`'s `reportBundle` says so at its own door), so a fiber that
+ * unloads mid-serve keeps its row until the next start. Nothing unloads a
+ * server half mid-serve today, and the day something can — the preferences
+ * toggle — that door and this reading move together, which is the arrangement
+ * `reportBundle`'s header already names itself as one half of.
  */
 export const rosterOf = (
   offered: Wiring["plugins"],
-  /**
-   * WHICH PLUGINS ARE MOUNTED RIGHT NOW — the names whose fibers are ACTIVE and
-   * have registered a sibling surface.
-   *
-   * READ, NOT DERIVED, and that is the change this phase makes to the meaning
-   * of `running`. It used to be `isEnabled(pin, name)` — a re-reading of the
-   * flag, which was exact only because the filter ran once and nothing could
-   * move afterwards. A plugin is a fiber now: it can be `PENDING` on a service
-   * that has not arrived, `FAILED` because its `apply` threw, or disposed
-   * because its row was turned off — and in every one of those the flag still
-   * says yes while the wire carries no `surface/<name>/` at all. So the row
-   * says what is composed, which is what the word on it has always claimed.
-   *
-   * OPTIONAL and empty by default, because the callers that only ever asked
-   * "which plugins does this build have" are asking a different question and
-   * should not have to name a list to get an answer they already had.
-   */
-  running: ReadonlyArray<string> = [],
   /**
    * ...and what each of THOSE declared about a wake — the one thing a row
    * carries that a name cannot answer: what this plugin's doorbell WAKES ON, in
@@ -624,12 +648,16 @@ export const rosterOf = (
 ): PluginRoster =>
   offered === null ? NO_ROSTER : {
     built: offered.built.map((name) => {
-      const composed = running.includes(name)
-      const wake = composed ? wakes.get(name) : undefined
-      const said = stateOf(offered, name, composed)
+      // A row the report has nothing to say about never loaded, and that
+      // absence IS `off` rather than a missing case (`@olai/effect-cordis`'s
+      // `rowReport`).
+      const report = offered.report.get(name) ?? { state: "off" as const }
+      const said = stateOf(offered, report)
+      const live = said.state === "running"
+      const wake = live ? wakes.get(name) : undefined
       return {
         name,
-        running: composed,
+        running: live,
         // THE WORD, beside the boolean it refines — never instead of it. The
         // licences a browser reads its mounts out of ask the boolean; the panel
         // asks the word; and `@olai/surface`'s `pluginState` is what holds the
@@ -687,13 +715,8 @@ export const rosterOf = (
  */
 const stateOf = (
   offered: NonNullable<Wiring["plugins"]>,
-  name: string,
-  composed: boolean,
+  report: RowReport,
 ): { readonly state: PluginState; readonly fault?: string } => {
-  if (composed) return { state: "running" }
-  // A row the snapshot has nothing to say about is `off`, which is what
-  // `running: false` on its own has always meant.
-  const report = offered.report.get(name) ?? { state: "off" as const }
   switch (report.state) {
     case "failed":
       return report.fault === undefined
@@ -706,12 +729,7 @@ const stateOf = (
       // that can say who wrote the `disabled` it declined on.
       return { state: offered.pinned === null ? "optIn" : "off" }
     case "running":
-      // `running` in the snapshot and absent from the live reading: a plugin
-      // that started and registered no sibling surface. Somebody asked for it
-      // and it did load, so it is not `optIn`; nothing of it reached the wire,
-      // so it is not `running` either. `off` is the honest word, and it is the
-      // one every other absence already wears.
-      return { state: "off" }
+      return { state: "running" }
   }
   // NO `default` ARM, and that is the guard rather than an omission: the four
   // words are `@olai/effect-cordis`'s `RowState`, and a catch-all here would
@@ -1379,7 +1397,8 @@ export const bind = (
      * and the cell is republished ({@link republishPlugins}).
      */
     const roster = (): PluginRoster =>
-      rosterOf(offered, siblings().map((one) => one.name), rings())
+      rosterOf(offered, rings())
+
     /**
      * EVERY CONNECTOR BELOW READS `store.reads`, and every frame on it is a
      * pair: the set, and how old it is (`@olai/store`'s `Aged`). These take
@@ -1405,7 +1424,14 @@ export const bind = (
             ),
         },
         chat: {
-          store: inMemoryStore<ChatState>(chat === null ? CHAT_OFF : chat.state()),
+          // NO CHAT IS A STATE WITH A REASON, and the reason rides the same cell
+          // rather than a second one: the panel draws this face out of one value
+          // it already subscribes to, and a tab that has not heard yet holds
+          // `CHAT_OFF` itself, whose `off` is `null` — "not told" rather than
+          // any of the three ways of being off.
+          store: inMemoryStore<ChatState>(
+            chat === null ? { ...CHAT_OFF, off: wiring.noAgent } : chat.state(),
+          ),
         },
         /**
          * THE AGENTS ROSTER, re-assembled whenever EITHER of its halves moves —

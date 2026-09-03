@@ -121,6 +121,22 @@ container=$(
 plugins=$(for m in $plugins; do if [ "$(dirname "$m")" = "$container" ]; then echo "$m"; fi; done)
 plugin_a=$(echo "$plugins" | sed -n 1p)
 plugin_b=$(echo "$plugins" | sed -n 2p)
+# ...AND THE FIRST OF THEM THAT COMPOSES A SIBLING SURFACE, which is what a
+# `src/wire.ts` is.
+#
+# NOT EVERY PLUGIN HAS ONE any more, and that is the agents phase rather than an
+# irregularity: an ENGINE contributes a row of the chat panel's picker and the
+# readings behind it, all of which already travel on the chat cell, so a second
+# surface under `surface/claude/` would be one fact on the wire twice. Mutation 5
+# is about what may not ride a `./wire` onto a SERVER's graph, so it needs a
+# plugin that has one — and `plugin_a` is now alphabetically an engine.
+#
+# Derived rather than typed, like everything else in this block: the day the
+# tenants are renamed this finds them, and the guard below is what turns "none
+# of them has one" into this script's own diagnostic rather than a `cp` failing
+# mid-run.
+tenant_a=$(for m in $plugins; do if [ -f "$m/src/wire.ts" ]; then echo "$m"; fi; done | sed -n 1p)
+[ -n "$tenant_a" ] || { echo "prove-fence: no plugin composes a sibling surface" >&2; exit 1; }
 name_a=$(echo "$names" | awk -v p="$plugin_a" '$1 == p { print $2 }')
 name_b=$(echo "$names" | awk -v p="$plugin_b" '$1 == p { print $2 }')
 registry_name=$(jq -r .name "$registry/package.json")
@@ -149,7 +165,7 @@ case "$plugins" in *"$registry"*) echo "prove-fence: the registry came back as a
 # mid-run on `cp`/`sed` rather than here, with this block's own diagnostic.
 for path in "$registry" "$plugin_a" "$plugin_b" "$general_src" "$sheet" "$other_dial" \
   "$container" "$plugin_a/src/browser.tsx" "$plugin_b/src/browser.tsx" \
-  "$plugin_a/src/wire.ts" "$plugin_a/src/server.ts" "$plugin_b/src/server.ts" \
+  "$tenant_a/src/wire.ts" "$plugin_a/src/server.ts" "$plugin_b/src/server.ts" \
   "$plugin_b/src/browser/Mark.tsx"; do
   [ -e "$path" ] || { echo "prove-fence: derived path $path does not exist" >&2; exit 1; }
 done
@@ -168,7 +184,7 @@ esac
 [ -d "$container" ] || { echo "prove-fence: the container '$container' is not a directory" >&2; exit 1; }
 
 echo "registry : $registry ($registry_name)"
-echo "plugins  : $plugin_a ($name_a), $plugin_b ($name_b)"
+echo "plugins  : $plugin_a ($name_a), $plugin_b ($name_b); wire door: $tenant_a"
 echo
 
 # ── the harness ──────────────────────────────────────────────────────────────
@@ -276,7 +292,7 @@ unnamed=0
 # exited 0. A selector that names no mutation printing a clean pass is exactly
 # the failure this list was made static to prevent, and it was doing it for one
 # number.
-DECLARED="1 2 3 5 6 7 8 9 10 11 12 13 14 15 16"
+DECLARED="1 2 3 5 6 7 8 9 10 11 12 13 14 15 16 17"
 for want in $only; do
   case " $DECLARED " in
     *" $want "*) ;;
@@ -363,9 +379,13 @@ run() {
 # the shape that was actually in this tree before the extraction, or the shape
 # the door split exists to prevent.
 
+# A SUBPATH rather than the bare name, deliberately: a claim that matched only
+# `olai-plugin-<name>` would be green under the door a consumer would actually
+# reach for. `./server` rather than `./wire`, because every plugin has one and
+# an ENGINE has no `./wire` at all — `plugin_a` is alphabetically an engine now.
 run 1 "a general package IMPORTS a plugin" \
   'outside the registry imports a plugin' \
-  append "$general_src" "import \"$name_a/wire\""
+  append "$general_src" "import \"$name_a/server\""
 
 run 2 "a general package DECLARES a plugin in its manifest" \
   'declares a plugin in its manifest' \
@@ -438,7 +458,7 @@ run 3 "a plugin imports the REGISTRY back (the cycle)" \
 
 run 5 "a plugin's WIRE pulls a UI runtime, and its SERVER re-exports it" \
   'UI runtime or a component library' \
-  append "$plugin_a/src/wire.ts" 'import "solid-js"'
+  append "$tenant_a/src/wire.ts" 'import "solid-js"'
 
 run 6 "a plugin's BROWSER CHUNK pulls a node: builtin" \
   'builtin or an appliance' \
@@ -496,6 +516,21 @@ run 15 "the turnkey SEAM stops being called" \
 run 16 "a plugin imports the ENGINE directly" \
   'an engine nobody outside one package sees' \
   append "$plugin_a/src/server.ts" 'import "cordis"'
+
+# AN ACP ENGINE'S NAME, SPELLED IN A GENERAL PACKAGE. The agents phase turned
+# `claude`, `opencode` and `pi` into plugins, and claim 8 covers them the way it
+# covers a tenant — but the ENGINE names are the ones with collisions in
+# ordinary English, so the claim carries two recorded exceptions
+# (`fence.test.ts`'s `NOT_A_PLUGIN`: the vault's own `prop:agent=claude-opus`
+# worked example, and `Math.PI`). A recorded exception is a place a claim can
+# quietly widen, so the engine gets its own mutation rather than resting on
+# mutation 11's tenant.
+#
+# `packages/server` is where this defect historically WAS in its other form: the
+# composition root held the roster and the composition root named the agents.
+run 17 "a general package SPELLS AN ENGINE'S name in code" \
+  "outside the registry and the plugin's own tenant spells it" \
+  append "$general_src" 'export const claudeSeat = () => null'
 
 echo
 echo "$passed of $((passed + failed + unnamed)) mutations were caught."

@@ -22,7 +22,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 
 import { type Agent, make } from "./agent.ts"
-import { CLAUDE } from "./agents/claude.ts"
+import { FORWARDS } from "./agents/legs.testlib.ts"
 import type { AgentEvent } from "./events.ts"
 import type { Memory } from "./memory.ts"
 
@@ -59,8 +59,8 @@ const withAgent = async (
   const events: Array<AgentEvent> = []
   const agent = await Effect.runPromise(
     make({
-      id: "claude",
-      leg: CLAUDE,
+      id: "an-agent",
+      leg: FORWARDS,
       command: process.execPath,
       args: [FIXTURE],
       cwd,
