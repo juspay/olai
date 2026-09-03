@@ -188,13 +188,13 @@ export function apply(ctx: Context): void {
    * arm of it is the one {@link ./doorbell.ts}'s header spells: the CLAIM is
    * asked again of the revision in force (a lane finished while its wake
    * queued is a wake nobody owes — `null` drops the delivery), and a
-    * first-red's counts are the LIVE row's own where the row is still this
-    * run's, never the values the notice's frame closed over. The settle
-    * notice's counts are its own account of the settling frame and are
-    * deliberately NOT re-read: that frame is the story it has to tell, and a
-    * lingering rerun's frames could only mix into it.
-    */
-  const said = (file: string, notice: RunNotice): string | null => {
+   * first-red's counts are the LIVE row's own where the row is still this
+   * run's, never the values the notice's frame closed over. The settle
+   * notice's counts are its own account of the settling frame and are
+   * deliberately NOT re-read: that frame is the story it has to tell, and a
+   * lingering rerun's frames could only mix into it.
+   */
+   const said = (file: string, notice: RunNotice): string | null => {
     const at = derived
     if (at === undefined) return null
     const claim = claimingIn(claimedIn(declaring, at, file)).get(notice.run.id)
