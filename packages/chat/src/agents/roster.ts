@@ -81,11 +81,6 @@ import type { OffBecause } from "@olai/surface"
 
 import { AGENT_PATH_ENV } from "../adapter.ts"
 
-/** What a probe is given — `@olai/acp/engine`'s, re-exported because this
- *  module's own signature takes one and a reader following `rosterOf` should not
- *  have to leave the package to find its argument. */
-export type { Where }
-
 /** An agent that is installed: who it is, what to spawn, and how to read what
  *  comes back. The whole of what the rest of the package needs. */
 export interface Installed {

@@ -931,8 +931,17 @@ export type {
 } from "./contract.ts"
 export { exposeMapsOf, kindWordOf, surfacesOf } from "./contract.ts"
 
-/** WHAT AN ENGINE PLUGIN HANDS {@link Agents}, and what a composition root
- *  reads back — re-exported so a server half opens one door for its whole
- *  registration and reaches `@olai/acp/engine` only for the LEG it writes,
- *  which is that package's own subject rather than this one's. */
-export type { Adapter, Engine, PromptChannel, Registering, Where } from "@olai/acp/engine"
+/**
+ * WHAT AN ENGINE PLUGIN HANDS {@link Agents} — the one name off
+ * `@olai/acp/engine` this door repeats, because it is the argument of a verb
+ * declared here.
+ *
+ * IT WAS FIVE. `Adapter`, `Engine`, `PromptChannel` and `Where` came with it, on
+ * the argument that a server half should "open one door for its whole
+ * registration" — and none of the four was ever imported from here by anything.
+ * The door was not one either: the re-export is types-only and a probe needs
+ * VALUES, so two of the three engines go to `@olai/acp/engine` for `adapterFrom`
+ * and `AGENT_ENV` regardless. A convenience nobody walked through, arguing a
+ * property it did not have.
+ */
+export type { Registering } from "@olai/acp/engine"

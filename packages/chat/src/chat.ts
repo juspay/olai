@@ -1200,7 +1200,16 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       // no system prompt on any wire — and the day one grows a real slot, the
       // arm added there is a `tsc` error HERE rather than a branch on an
       // engine's id somewhere in core.
-      switch (talking?.row.prompt.kind ?? "first-turn") {
+      //
+      // NO AGENT BOUND IS NOT AN ARM OF THAT, and it used to be spelled as one:
+      // `talking?.row.prompt.kind ?? "first-turn"` put core's own guess where an
+      // engine's answer goes, and it was the hole in the promise above — the day
+      // a second channel exists the compiler would flag the switch and say
+      // nothing about the `??`, which would go on quietly meaning first-turn for
+      // an engine nobody had asked. There is nothing to teach with no agent
+      // bound anyway, so the answer is that there is no teaching.
+      if (talking === null) return null
+      switch (talking.row.prompt.kind) {
         case "first-turn":
           return { to, lines }
       }

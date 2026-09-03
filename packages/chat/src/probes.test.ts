@@ -43,11 +43,12 @@ const answering = (
   afterMs = 0,
 ): Probe => ({
   name,
-  // AN EFFECT, like everything a plugin hands core — the delay is the same
-  // promise it always was, wrapped once at this edge rather than at every call.
-  ask: afterMs === 0
-    ? Effect.succeed(found)
-    : Effect.promise(() => new Promise<Probed>((resolve) => setTimeout(() => resolve(found), afterMs))),
+  // AN EFFECT, like everything a plugin hands core — and the delay is Effect's
+  // own. It was a `setTimeout` inside `Effect.promise`, which is a raw promise
+  // and therefore UNINTERRUPTIBLE: the one helper that stages the overlap these
+  // cases are about was staging it with the one shape the runtime cannot
+  // cancel, under the fiber pool whose bounded concurrency is the subject.
+  ask: Effect.delay(Effect.succeed(found), `${afterMs} millis`),
 })
 
 const run = <A>(effect: Effect.Effect<A>): Promise<A> => Effect.runPromise(effect)
