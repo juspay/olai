@@ -738,8 +738,20 @@ export class Wakes extends Service {
  */
 export interface SessionStart {
   /** What to ask this host, one thunk per plugin that has something to ask.
-   *  Pushed in dispatch order, which is registration order, which is the
-   *  bundle's. */
+   *
+   *  IN NO ORDER, and the line that said otherwise is worth keeping as a
+   *  warning: it read "pushed in dispatch order, which is registration order,
+   *  which is the bundle's". The first two clauses are true and the third does
+   *  not follow — a listener registers when its plugin's `apply` runs, and a
+   *  row's `apply` runs when the loader's `import()` for that row comes back.
+   *  Two rows raced, a conversation drew the winner, and the servers a session
+   *  reported changed between boots of one serve.
+   *
+   *  A plugin pushing here may not assume where it lands, and nothing that
+   *  READS this list may take the order it arrives in as meaningful. Ordering
+   *  it is the composition root's, against the build's own list of rows
+   *  (`@olai/server`'s `probes.ts`), because that list is the one place a
+   *  plugin's position is written down. */
   readonly asking: Array<{
     readonly name: string
     readonly ask: () => Promise<import("./contract.ts").Probed>
