@@ -32,6 +32,13 @@ Feature: The rest of Workflowy's chords
     Then the address is "/#kitchen"
     And there should be no page errors
 
+  Scenario: Alt+, on a whole outline's own rows has no page to go to
+    Given I open the outline "house.olai"
+    When I click the title of "kitchen"
+    And I press "Alt+,"
+    Then the address is "/house.olai"
+    And there should be no page errors
+
   Scenario: Ctrl+Space folds and unfolds the branch the caret is in
     Given I open the outline "garden.olai"
     When I click the title of "herbs"
