@@ -509,24 +509,27 @@ export class SnapshotRefused extends Schema.TaggedError<SnapshotRefused>(
 /**
  * THE THREE THINGS THE WATCHER CAN SAY — the kinds a `KoluEvent` carries.
  *
- * The first two spell the same word padi's own state watch does
- * (`@kolu/padi-client`'s `PadiStateEvent`), and that is deliberate rather than
- * theft: olai's watcher computes over the mirror it already holds the events
- * the orchestrator today gets from a hand-armed `kolu watch`, and the soak
- * that proves the ladder runs the two in parallel — one jargon, two channels,
- * and nothing for a reader to translate.
+ * They are padi's own spellings now (`@kolu/padi-client`'s
+ * `PadiStateEvent`), and that is identity rather than translation: olai's
+ * watcher IS the `watchStates` subscription, and what padi says is what the
+ * ring says, one jargon the whole way down. One fold on the relay: padi
+ * tells a `snapshot` from a `transition` — a re-lead of a standing episode
+ * from a watched edge — and the ring says BOTH as `transition`, because to
+ * the relay the difference is padi's bookkeeping, not a fact of the fleet.
  *
- *   - `transition` — a terminal entered `awaiting` or `waiting` and HELD it
- *     for `held-for`. The debounce says this: a turn that ends and is handed
- *     more work inside the window was never said at all.
- *   - `nag` — it is STILL holding, one `nag` interval after it was last said.
- *     The level-trigger: an ignored terminal comes back instead of vanishing
- *     after one line.
+ *   - `transition` — a terminal entered a held bucket, or a re-lead said it
+ *     is standing in one. The debounce says this: a turn that ends and is
+ *     handed more work inside the window was never said at all.
+ *   - `nag` — it is STILL holding, one `nag` interval after it was last
+ *     said. The level-trigger: an ignored terminal comes back instead of
+ *     vanishing after one line — until the cap, if the vault spelled one
+ *     (`nag: 30m/3`), and the accounting of that rides the event itself
+ *     ({@link KoluEvent.nag}).
  *   - `heartbeat` — the watcher is alive and watching. It names NO terminal:
- *     a reader who has seen nothing for half an hour needs to be able to tell
- *     "nothing matched" from "nothing is running". The kind survives as the
- *     spelling; the RING eats attention events only — boot and liveness sit
- *     on the `pulse` cell instead ({ ./index.ts}'s `pulse` member).
+ *     a reader who has seen nothing for half an hour needs to be able to
+ *     tell "nothing matched" from "nothing is running". The kind survives as
+ *     the spelling; the RING eats attention events only — boot and liveness
+ *     sit on the `pulse` cell instead ({ ./index.ts}'s `pulse` member).
  */
 export const KOLU_EVENT_KINDS = ["transition", "nag", "heartbeat"] as const
 
@@ -586,15 +589,33 @@ export const KoluEvent = Schema.Struct({
      *  `null`, so the row shows what the Dock's own group shows in that
      *  case: the label alone. */
     repo: Schema.NullOr(Schema.String),
-    /** WHEN this server first saw the terminal holding this state, ISO. It is
-     *  an OBSERVATION-lifetime clock: olai's restart re-dates every standing
-     *  hold — the difference is an ordinary restart, not a lie. A LINK flap
-     *  does not: the hold's clock is the watcher's own, not the record's —
-     *  padi's daemon keeps `since` through a client reconnect, and this
-     *  clock follows that (`@olai/kolu-client`'s `A link drop is not a
-     *  closing fleet`). */
+    /** WHEN the daemon first saw the terminal holding this state, ISO.
+     *  padi's own observation clock, relayed: it survives an olai restart
+     *  AND a client reconnect — only a padi restart re-dates it, so the
+     *  first snapshot that follows one is the honest set to reconcile
+     *  against. */
     since: Schema.String,
   })),
+  /**
+   * THE REMINDER ACCOUNTING — kolu's own shape, carried verbatim.
+   *
+   * Present on `nag` events ONLY: which reminder this is (`index` — 1 is
+   * the first re-report after the first report) and, when the subscription
+   * caps the nag (`nag: 30m/3`), how many follow (`left`; `0` on the last
+   * one). On an UNCAPPED subscription `left` is absent — there is no last
+   * one to name. A first report (`transition`) carries none of it: it is
+   * not itself a reminder.
+   *
+   * ADDITIVE: a tab served from a ring older than this field decodes
+   * without it, and an older tab served by this build never becomes the
+   * wiser.
+   */
+  nag: Schema.optionalKey(
+    Schema.Struct({
+      index: Schema.Int.check(Schema.isGreaterThan(0)),
+      left: Schema.optionalKey(Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))),
+    }),
+  ),
 })
 export type KoluEvent = typeof KoluEvent.Type
 

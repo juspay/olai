@@ -14,8 +14,9 @@
  *   - `transition` — "has been waiting for input for 38m". The state is the
  *     BUCKET's word (`awaiting` / `waiting`); the duration is the hold's
  *     own clock.
- *   - `nag` — "still waiting for input for 38m". A hold that fired last
- *     interval and has not resolved; the words say nothing else has changed.
+ *   - `nag` — "still waiting for input for 38m — reminder 2 of 3". A hold
+ *     that fired last interval and has not resolved; the count is the
+ *     event's own `nag` field, folded, never counted here.
  *   - `heartbeat` — THE ARM IS GONE: the beat folds onto the pill
  *     (`./said.ts`'s `beatOf`), and a row with no terminal is skipped by
  *     the drawer's one hinge, `EventsFeed`'s filter. The kind survives
@@ -109,8 +110,21 @@ export const eventLine = (event: KoluEvent, now: number): EventLine => {
   // watcher's own observation clock — so no row folds here without one.
   const held = recencyText("wait-chip", Date.parse(row.since), atMs)
   const word = stateWord(row.agentState, row.state)
+  // THE REMINDER ACCOUNTING, when the event carries it — the same count
+  // the doorbell's sentence spells, because padi's `nag` field is the ONE
+  // accounting both faces read: a drawer that folded its own would drift
+  // the day the server's wording moved. On an UNCAPPED nag `left` is
+  // absent and there is no end to name; the count alone is said.
+  const nag = event.nag
+  const count = nag === undefined || event.kind !== "nag"
+    ? ""
+    : nag.left === undefined
+    ? ` — reminder ${nag.index}`
+    : nag.left === 0
+    ? ` — reminder ${nag.index} of ${nag.index}, the last`
+    : ` — reminder ${nag.index} of ${nag.index + nag.left}`
   const words = event.kind === "nag"
-    ? `still ${word} for ${held}`
+    ? `still ${word} for ${held}${count}`
     : `has been ${word} for ${held}`
   return {
     asking: row.pip.asking,

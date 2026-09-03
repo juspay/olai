@@ -25,7 +25,7 @@ import { Effect, Fiber, Schedule, Stream } from "effect"
 import type { FleetTerminal, KoluLink } from "./wire/index.ts"
 import { DaemonContractSkewError } from "@kolu/surface-daemon-supervisor/dial"
 
-import { type Dial, SPEAKS } from "./link.ts"
+import { type Dial, type PadiSurfaceClient, SPEAKS } from "./link.ts"
 import { frameOf, makeMirror } from "./mirror.ts"
 
 /** What the mirror pushes, collected — the server's cell and collection,
@@ -36,12 +36,14 @@ const recorder = () => {
   const removed: string[] = []
   const lines: string[] = []
   const cleared: string[] = []
+  const faces: Array<PadiSurfaceClient | null> = []
   return {
     links,
     rows,
     removed,
     cleared,
     lines,
+    faces,
     sink: {
       link: (state: KoluLink) => links.push(state),
       upsert: (id: string, row: FleetTerminal) => {
@@ -56,6 +58,11 @@ const recorder = () => {
       clearedRow: (id: string) => {
         rows.delete(id)
         cleared.push(id)
+      },
+      // THE WATCH's face, recorded — the subscription's attach/detach edges
+      // are separate news from the rows'.
+      watchable: (face: PadiSurfaceClient | null) => {
+        faces.push(face)
       },
       say: (line: string) => lines.push(line),
     },

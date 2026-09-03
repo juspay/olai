@@ -383,11 +383,12 @@ const NO_LINK = new SnapshotRefused({
 const NO_ROWS = new Map<string, FleetTerminal>()
 
 export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
-  /** THE WATCHER, built for every face — linked or not. On a machine with
-   *  no kolu the collection is not dead, it is heartbeating, and a UI
-   *  stating recently in that case is a healthy fresh-install preview. The
-   *  clock is the wall: the tests that need a vocabulary of their own get
-   *  it through `./watch.ts`'s `options.now`, not through here. */
+  /** THE WATCHER, built for every face — linked or not, though SUBSCRIBING
+   *  only when one binds: on a machine with no kolu the collection is not
+   *  dead, it is empty, and the pill reads the LINK cell for why (`absent`),
+   *  which is the register that was already drawn. The clock is the wall:
+   *  the tests that need a vocabulary of their own get it through
+   *  `./watch.ts`'s `options.now`, not through here. */
   /** The beat's LAST value, so the cell's snapshot answer is the one the
    *  live broadcast ate: the setter publishes to open subscribers and the
    *  store answers a fresh one — the events collection's two paths, one
@@ -474,7 +475,7 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
         deps.beating?.(everyMs)
       },
     },
-    { now: () => Date.now() },
+    { now: () => Date.now(), say: deps.say },
   )
   /** The malformed-set last said, joined for a one-line compare: the vault
    *  re-derives on every keystroke, and saying the same malformed value on
@@ -535,25 +536,19 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
   mirror = makeMirror(
     {
       link: (state) => cell?.set(state),
-      // Every row the mirror moves is an observation, in the same breath
-      // — that is the whole of the watcher's economy, and it is why the
-      // watcher is sure its view is what the fleet tabs see. The two
-      // leave-shapes are kept apart on the same breath: a row CLOSING is
-      // `remove`, a fleet emptied by the link dying is `suspend` — the
-      // difference a restart's `since` would re-date, which `./watch.ts`'s
-      // header argues.
+      // Every row the mirror moves is one the watcher may need when a padi
+      // event about that terminal lands: the frozen row a `KoluEvent`
+      // carries is this map's latest read, in the same breath (`./watch.ts`).
+      // THE LEAVE HALVES KEEP IT: an event about a just-closed terminal
+      // still wants its draw, which is why neither remove shape reaches the
+      // watcher.
       upsert: (id, row) => {
         deps.fleet()?.upsert(id, row)
         watch.observe(id, row)
       },
-      remove: (id) => {
-        deps.fleet()?.remove(id)
-        watch.remove(id)
-      },
-      clearedRow: (id) => {
-        deps.fleet()?.remove(id)
-        watch.suspend(id)
-      },
+      remove: (id) => deps.fleet()?.remove(id),
+      clearedRow: (id) => deps.fleet()?.remove(id),
+      watchable: (face) => watch.attach(face),
       say: deps.say,
     },
     deps.options,
@@ -604,7 +599,14 @@ export {
   WATCH_RING,
   type Watch,
   type WatchConfig,
+  type WatchNag,
 } from "./watch.ts"
+/** KOLU'S OWN DURATION GRAMMAR, re-opened at the root door: the vault walk
+ *  (`../../config.ts`) lives in the judgement half, which the repo's fence
+ *  keeps from importing an `@kolu` package — so the parsers and nothing
+ *  else of the `@kolu` tier cross here. What the walk refuses is said in
+ *  kolu's own words. */
+export { parseDuration, parseNag } from "@kolu/padi-client/watchDuration"
 
 /**
  * THE HANDLERS, built from the verbs.

@@ -971,6 +971,42 @@ test("a clock this runtime cannot read passes through VERBATIM", () => {
   )
 })
 
+// ── THE REMINDER'S OWN LINES ─────────────────────────────────────────────
+
+test("a first report carries NO count — the cap the count counts against is padi's restatement of it, and a count absent from the event is absent from the body", () => {
+  const standing = standingFor({
+    ...DECLARED,
+    "lanes.olai": marked("step", "reproduce", "doing", { terminal: "11111111" }),
+  }, fleetOf(row("11111111", "waiting")), "wake")
+  const body = bodyFor("wake", standing, "lanes.olai", "2026-08-31T14:32:07.001Z")
+  expect(body).not.toContain("reminder")
+})
+
+test("a capped nag spells the count, spell for spell the last one", () => {
+  const standing = standingFor({
+    ...DECLARED,
+    "lanes.olai": marked("step", "reproduce", "doing", { terminal: "11111111" }),
+  }, fleetOf(row("11111111", "waiting")), "wake")
+  const second = bodyFor("wake", standing, "lanes.olai", "2026-08-31T14:32:07.001Z", { index: 2, left: 1 })
+  expect(second).toContain("This is reminder 2 of 3.")
+  // THE LAST ONE says so in words — the difference between a cap spent well
+  // and a watcher gone quiet is exactly where this sentence is true.
+  const last = bodyFor("wake", standing, "lanes.olai", "2026-08-31T14:32:07.001Z", { index: 3, left: 0 })
+  expect(last).toContain("This is reminder 3 of 3, the last — this doorbell goes quiet about this terminal until its state changes.")
+  // ...AND NOTHING OF IT IS MARKDOWN: the cap's own clause rides a body
+  // that is a message, not a render.
+  expect(last).not.toContain("**")
+})
+
+test("an UNCAPPED nag has no end to name — the count alone, in padi's own clause", () => {
+  const standing = standingFor({
+    ...DECLARED,
+    "lanes.olai": marked("step", "reproduce", "doing", { terminal: "11111111" }),
+  }, fleetOf(row("11111111", "waiting")), "wake")
+  const body = bodyFor("wake", standing, "lanes.olai", "2026-08-31T14:32:07.001Z", { index: 4 })
+  expect(body).toContain("This is reminder 4 of an uncapped nag")
+})
+
 // ── THE LOGGING HALF'S OWN REPRODUCE-RED-FIRST ────────────────────────────
 //
 // `ringingIn` is the seam that emits the `derived` line this PR exists to add,

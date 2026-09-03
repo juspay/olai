@@ -52,7 +52,7 @@ import {
 } from "@kolu/padi-client/attention"
 
 import { type Claimant, claimsIn, rowOf } from "./fleet.ts"
-import { type Dial, type PadiAttachFrame, runLink, type Sink } from "./link.ts"
+import { type Dial, type PadiAttachFrame, type PadiSurfaceClient, runLink, type Sink } from "./link.ts"
 import { screenText } from "./screen.ts"
 
 export interface MirrorSink {
@@ -62,11 +62,16 @@ export interface MirrorSink {
   readonly upsert: (id: string, row: FleetTerminal) => void
   /** A row left — wired to the same collection's `remove`. */
   readonly remove: (id: string) => void
+  /** THE WATCH's face — `reader`/`attacher`'s edges for the subscription
+   *  this mirror does not run (`./watch.ts`): pushed whole, because the
+   *  projection rules here are the fleet's and the watch is olai's own
+   *  relay of padi's events rather than rows of this mirror. */
+  readonly watchable: (face: PadiSurfaceClient | null) => void
   /** THE FLAP's row leave: the fleet went whole because the LINK did, which is
    *  a different event from any one terminal closing. The collection's rows
-   *  read the same emptiness as `remove`; what this door is FOR is whoever is
-   *  hanging semantic money on the difference — the watcher, whose holds
-   *  pause through a flap rather than re-firing after one (`./watch.ts`). */
+   *  read the same emptiness as `remove`; the door stays apart so a reader
+   *  hanging semantics on the difference can tell a shut terminal from a
+   *  dropped link. */
   readonly clearedRow: (id: string) => void
   /** Routine narration, wired to the server's log. */
   readonly say: (line: string) => void
@@ -316,6 +321,7 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
   const linkSink: Sink = {
     link: sink.link,
     say: sink.say,
+    watchable: sink.watchable,
     attacher: (face) => {
       attacher = face
     },
@@ -387,11 +393,9 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
     },
     cleared: () => {
       // EVERY row goes, one call each — but on `clearedRow`, not `remove`:
-      // the LINK went, so each row's leaving is a suspension, not a
-      // shutting down, and a reader hanging semantics on the difference (the
-      // watcher, `./watch.ts`) needs the door to tell them apart. The one the
-      // chip WEARS is the `kolu` cell's own `absent`, which `linkSink` moves
-      // the same breath.
+      // the LINK went, so each row's leaving is the fleet becoming unknown,
+      // not a shutting down. The one the chip WEARS is the `kolu` cell's own
+      // `absent`, which `linkSink` moves the same breath.
       for (const id of [...rows.keys()]) {
         rows.delete(id)
         sink.clearedRow(id)

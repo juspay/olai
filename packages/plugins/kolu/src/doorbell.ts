@@ -992,6 +992,7 @@ export const bodyFor = (
   standing: ReadonlyArray<Standing>,
   file: string,
   now: string,
+  nag?: KoluEvent["nag"],
 ): string => {
   const many = standing.length !== 1
   const subject = many ? `${standing.length} terminals` : "One terminal"
@@ -1005,10 +1006,12 @@ export const bodyFor = (
     } is doing — ${
       many ? "they are" : "it is"
     } lawfully parked, so this is a note and not a call:`
+  const reminder = reminderOf(nag)
   return [
     essenceOf(meaning, standing),
     "",
     `Written by olai's kolu watcher at ${stampOf(now)}, not by a person.`,
+    ...(reminder === null ? [] : ["", reminder]),
     "",
     opening,
     "",
@@ -1016,6 +1019,36 @@ export const bodyFor = (
     "",
     `These are read off the un-done nodes of ${file}, mirrors followed to their targets. It is the whole standing set and not only the terminal that moved just now; clearing the file on this conversation's wake control stops it.`,
   ].join("\n")
+}
+
+/**
+ * WHICH REMINDER THIS IS, as its own line — and `null` where there is no
+ * counting to say.
+ *
+ * THE FIRST REPORT CARRIES NONE. The event padi counts from is the
+ * `transition` (or a re-lead `snapshot`): a cap is a cap on a repetition,
+ * and the one the repetition repeats is it. So the count is said from the
+ * first REMINDER on, out loud, in the same body the standing set is in —
+ * the caller reads it straight off the event's own `nag` field rather than
+ * counting anything itself, because the daemon's accounting is the one
+ * that survives a restart ({@link ../../client/src/watch.ts}'s header).
+ *
+ * THE LAST ONE SAYS SO IN WORDS. A capped nag that ends well is
+ * indistinguishable from a watcher gone quiet unless this clause says so —
+ * and misreading it is precisely the failure the floor under silence is
+ * not allowed to hide behind (the heartbeat counts a reminder as speech,
+ * so after this one, only a real quiet follows).
+ */
+const reminderOf = (nag: KoluEvent["nag"] | undefined): string | null => {
+  if (nag === undefined) return null
+  if (nag.left === undefined) {
+    return `This is reminder ${nag.index} of an uncapped nag — it repeats on this interval while the state holds (a cap is spelled ` +
+      `\`nag: 30m/3\` in _olai/Kolu.olai).`
+  }
+  if (nag.left === 0) {
+    return `This is reminder ${nag.index} of ${nag.index}, the last — this doorbell goes quiet about this terminal until its state changes.`
+  }
+  return `This is reminder ${nag.index} of ${nag.index + nag.left}.`
 }
 
 /**

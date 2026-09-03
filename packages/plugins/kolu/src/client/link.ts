@@ -60,7 +60,7 @@
  */
 
 import { mirrorRemoteSurface } from "@kolu/surface/mirror"
-import { connectPadi } from "@kolu/padi-client/dial"
+import { connectPadi, type PadiSurfaceClient } from "@kolu/padi-client/dial"
 import {
   PADI_SURFACE_VERSION,
   padiSurface,
@@ -181,6 +181,12 @@ export interface Sink {
   /** A dial ATTEMPT was made. Counted by the caller; see `./mirror.ts`'s
    *  header for why the count is worth a callback. */
   readonly dialed: () => void
+  /** THE WATCH'S FACE, handed over on connect and taken back (`null`) on
+   *  every drop — the same edges {@link Sink.reader} rides, for the one
+   *  reader that is not the mirror: the watcher, whose `watchStates`
+   *  subscription is only meaningful while there is a link under it
+   *  (`./watch.ts`). */
+  readonly watchable: (face: PadiSurfaceClient | null) => void
 }
 
 /** What this build of olai speaks — padi's own constant, from the contract
@@ -198,6 +204,11 @@ export const SPEAKS: string = PADI_SURFACE_VERSION
  * one-connection claim becomes an assertion instead of a sentence.
  */
 export type Dial = typeof connectPadi
+
+/** `PadiSurfaceClient`, aliased at the door the Sink types it off — one
+ *  import for the two fans that need to name it (`./mirror.ts`'s forward
+ *  and `./watch.ts`'s runner), so the type identity is kolu's own. */
+export type { PadiSurfaceClient } from "@kolu/padi-client/dial"
 
 /** The link state for a dial that found nothing there. */
 const absent = (socket: string, told: boolean, since: string): KoluLink => ({
@@ -293,6 +304,7 @@ const dialOnce = (
     })
     sink.reader(connection.client.padi.surface.screen.text)
     sink.attacher(connection.client.padi.surface.terminalAttach.get)
+    sink.watchable(connection.client.padi)
     sink.say(`olai: padi connected at ${socket}`)
 
     const abort = new AbortController()
@@ -361,6 +373,7 @@ const dialOnce = (
     // `absent` beside rows it would still draw dots for.
     sink.reader(null)
     sink.attacher(null)
+    sink.watchable(null)
     sink.cleared()
     sink.link(absent(socket, told, now()))
   }).pipe(
@@ -388,6 +401,7 @@ const dialOnce = (
         // how this repo already reads one (`@olai/log`'s `cause.ts`).
         const err: unknown = Cause.squash(cause)
         sink.reader(null)
+        sink.watchable(null)
         sink.cleared()
         const skew = skewOf(err)
         if (skew !== null) {
