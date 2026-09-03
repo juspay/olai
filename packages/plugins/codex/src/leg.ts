@@ -18,11 +18,8 @@ const fieldIn = (value: unknown, key: string): unknown =>
     ? (value as Record<string, unknown>)[key]
     : undefined
 
-export const STEER_METHOD = "_session/steering"
-export const STEER_TIMEOUT = "30 seconds"
-
 /** The extension is advertised at the initialize response's top-level meta. */
-export const STEERING_ADVERTISED = (initialized: unknown): boolean =>
+const steeringAdvertised = (initialized: unknown): boolean =>
   fieldIn(fieldIn(fieldIn(initialized, "_meta"), "steering"), "supported") === true
 
 /**
@@ -31,7 +28,7 @@ export const STEERING_ADVERTISED = (initialized: unknown): boolean =>
  * the same words twice. Unknown and failed outcomes stay fail-safe and fall
  * back to that ordinary prompt.
  */
-export const steerTaken = (answered: unknown): boolean => {
+const steerTaken = (answered: unknown): boolean => {
   const outcome = fieldIn(answered, "outcome")
   return outcome === "injected" || outcome === "startedNewTurn"
 }
@@ -50,11 +47,11 @@ export const CODEX: Leg = {
   // olai does not silently select it. Codex keeps its adapter default instead.
   bypassMode: null,
   steering: {
-    method: STEER_METHOD,
+    method: "_session/steering",
     meta: undefined,
-    timeout: STEER_TIMEOUT,
+    timeout: "30 seconds",
     taken: steerTaken,
-    advertised: STEERING_ADVERTISED,
+    advertised: steeringAdvertised,
   },
   // codex-acp advertises steering, not ordinary busy-turn prompt queueing.
   queues: () => false,

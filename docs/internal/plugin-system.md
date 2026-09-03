@@ -981,9 +981,12 @@ that matters.
    Its `testids` table is legitimately empty — an engine
    draws inside core's own elements, under core's own ids, with `data-agent`
    carrying its word. And if olai SHIPS an
-   adapter for it, the pin's patches and the rigs that generate them go in
-   `packages/plugins/<name>/acp/`, with a row in `nix/acp-agent.nix` — while the
-   npm shim stays the shared `acp/` (that directory's README says why).
+   adapter for it, its volatile packaging belongs in
+   `packages/plugins/<name>/acp/`: patches and their rigs in every case, and a
+   standalone lock and derivation when the adapter has its own release and
+   platform clock (Codex). The older Claude/Pi pair still shares the root
+   `acp/` shim and the rows in `nix/acp-agent.nix`; that directory's README
+   states the shared reason.
 
    THE ORDER OF THE ENGINE ROWS IS LOAD-BEARING, unlike a tenant's: it is the
    order the picker draws and the order the install face lists, and the FIRST

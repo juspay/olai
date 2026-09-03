@@ -258,8 +258,8 @@ serve dir="docs" *args: build-client
     # packaged binary does — scripts/acp-agent.sh is the one place that is
     # decided, and `OLAI_ACP_AGENT` overrides it (empty disables).
     export OLAI_ACP_AGENT="$(sh scripts/acp-agent.sh)"
-    # Codex is shipped through the same pin, with a separate override so the
-    # historical whole-chat off switch above remains exactly that.
+    # Codex is shipped from the pin inside its plugin, with a separate override
+    # so the historical whole-chat off switch above remains exactly that.
     export OLAI_ACP_CODEX="$(sh scripts/acp-codex.sh)"
     # The pi row's adapter, the other half of the same pin — a machine with a
     # `pi` on the search path gets the row, every other machine gets nothing

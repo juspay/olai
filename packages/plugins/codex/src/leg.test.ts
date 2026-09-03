@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 
-import { CODEX, STEERING_ADVERTISED, steerTaken } from "./leg.ts"
+import { CODEX } from "./leg.ts"
 
 const HANDSHAKE = {
   protocolVersion: 1,
@@ -10,19 +10,22 @@ const HANDSHAKE = {
 }
 
 describe("Codex steering", () => {
+  const steering = CODEX.steering
+
   test("is offered only from the adapter's positive advertisement", () => {
-    expect(STEERING_ADVERTISED(HANDSHAKE)).toBe(true)
-    expect(STEERING_ADVERTISED({ _meta: { steering: {} } })).toBe(false)
-    expect(STEERING_ADVERTISED({ agentCapabilities: { steering: { supported: true } } }))
+    expect(steering?.advertised(HANDSHAKE)).toBe(true)
+    expect(steering?.advertised({ _meta: { steering: {} } })).toBe(false)
+    expect(steering?.advertised({ agentCapabilities: { steering: { supported: true } } }))
       .toBe(false)
-    expect(STEERING_ADVERTISED(null)).toBe(false)
+    expect(steering?.advertised(null)).toBe(false)
   })
 
   test("does not duplicate either outcome that consumed the message", () => {
-    expect(steerTaken({ outcome: "injected" })).toBe(true)
-    expect(steerTaken({ outcome: "startedNewTurn" })).toBe(true)
-    expect(steerTaken({ outcome: "failed" })).toBe(false)
-    expect(steerTaken({ outcome: "future" })).toBe(false)
+    expect(steering?.taken({ outcome: "injected" })).toBe(true)
+    expect(steering?.taken({ outcome: "startedNewTurn" })).toBe(true)
+    expect(steering?.taken({ outcome: "failed" })).toBe(false)
+    expect(steering?.taken({ outcome: "future" })).toBe(false)
+    expect(steering).toMatchObject({ method: "_session/steering", timeout: "30 seconds" })
   })
 })
 

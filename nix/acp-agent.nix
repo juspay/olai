@@ -1,6 +1,6 @@
 # The ACP adapters `olai web` spawns — one derivation, PARAMETERISED BY THE ROW.
 #
-# npm is the only channel these adapters ship through, so all get the same
+# npm is the only channel either adapter ships through, so both get the same
 # treatment every other pin here does: a committed lockfile in `acp/`, one
 # fixed-output derivation for the tarballs, nothing fetched at build time and no
 # `npx` at run time. A nix-built olai therefore needs nothing ambient — no PATH
@@ -8,7 +8,7 @@
 #
 # ## What the agents phase changed, and what it deliberately did not
 #
-# An ENGINE IS A PLUGIN now — `packages/plugins/claude/`, `codex/`, `opencode/`, `pi/`,
+# An ENGINE IS A PLUGIN now — `packages/plugins/claude/`, `opencode/`, `pi/`,
 # one row each in `olai.yml` — and this file follows that: the per-adapter work
 # is a LIST OF ROWS (`engines` below), each naming its package inside the
 # installed tree, the patches it carries, whatever else it needs installed
@@ -26,7 +26,7 @@
 # adapter.
 #
 # **The npm SHIM did not.** `acp/package.json` and its lockfile stay one file
-# with three dependencies in it, and that is a decision rather than a leftover:
+# with two dependencies in it, and that is a decision rather than a leftover:
 # one lockfile is ONE fixed-output derivation and one `npmDepsHash`, and
 # splitting it would buy nothing this phase asks for while costing two large
 # FODs and two hashes to keep in step. `acp/README.md` argues it where a person
@@ -50,13 +50,13 @@
 
 buildNpmPackage {
   pname = "olai-acp-agent";
-  # One lockfile, THREE adapters. The version names every pin rather than
-  # claiming the build is the claude one alone: a bump of any adapter line in
+  # One lockfile, TWO adapters. The version names both pins rather than
+  # claiming the build is the claude one alone: a bump of either line of
   # acp/package.json moves the store path's NAME, not only its hash — a
   # pi-acp bump that left the path stamped "0.73.0" would be the old claim
   # living on after its evidence.
-  # tracks acp/package.json: claude-agent-acp + codex-acp + pi-acp
-  version = "0.73.0+codex-1.8.0+pi-0.0.33";
+  # tracks acp/package.json: @agentclientprotocol/claude-agent-acp + pi-acp
+  version = "0.73.0+pi-0.0.33";
 
   # ../acp would also pull in whatever else lands in that directory; keep the
   # src (and its hash) to just the two files the build actually reads. The
@@ -68,9 +68,9 @@ buildNpmPackage {
     filter = path: _type:
       baseNameOf path == "package.json" || baseNameOf path == "package-lock.json";
   };
-  npmDepsHash = "sha256-1BIktjMIGPKDXA+sXHCTpzR8z/YlVmx5TNKciH466iU=";
+  npmDepsHash = "sha256-dCiEbsKRiCWle/OFr1qypIZQ7lrGhxStLli3zlck+GY=";
 
-  # acp/ is a shim around its three pinned adapter dependencies: nothing to compile,
+  # acp/ is a shim around its two pinned dependencies: nothing to compile,
   # and no package in the tree has an install script to run.
   dontNpmBuild = true;
   npmFlags = [ "--ignore-scripts" ];
@@ -88,16 +88,6 @@ buildNpmPackage {
       # npm's own platform naming: linux-x64, darwin-arm64, …
       nodeArch = "${stdenv.hostPlatform.node.platform}-${stdenv.hostPlatform.node.arch}";
       mods = "$out/lib/node_modules/olai-acp/node_modules";
-      # codex-acp depends on @openai/codex, whose optional host package carries
-      # one static native binary under Rust's target spelling. Pin it explicitly
-      # through CODEX_PATH so the adapter cannot drift to an ambient `codex`.
-      codexTarget =
-        if stdenv.hostPlatform.isLinux then
-          if stdenv.hostPlatform.isx86_64 then "x86_64-unknown-linux-musl"
-          else "aarch64-unknown-linux-musl"
-        else if stdenv.hostPlatform.isx86_64 then "x86_64-apple-darwin"
-        else "aarch64-apple-darwin";
-      codexBin = "${mods}/@openai/codex-${nodeArch}/vendor/${codexTarget}/bin/codex";
 
       # THE OTHER HALF OF PI'S PATCH: the extension pi loads and the vocabulary
       # module it shares with the pin's test rig. Installed one directory up
@@ -153,9 +143,8 @@ buildNpmPackage {
       # and is what a failure prints; `package` is where npm put it; `entry` is
       # the file the wrapper runs; `bin` is the wrapper's name, which is what
       # `scripts/acp-*.sh` prints and what `default.nix` bakes into
-      # `OLAI_ACP_AGENT` / `OLAI_ACP_CODEX` / `OLAI_ACP_PI`; `env` is whatever
-      # that wrapper must set. Nothing here spells a patch: that is the plugin's
-      # directory.
+      # `OLAI_ACP_AGENT` / `OLAI_ACP_PI`; `env` is whatever that wrapper must
+      # set. Nothing here spells a patch: that is the plugin's directory.
       engines = [
         {
           plugin = "claude";
@@ -175,13 +164,6 @@ buildNpmPackage {
             "--set USE_BUILTIN_RIPGREP 0"
             ''--prefix PATH : "${lib.makeBinPath [ ripgrep procps ]}"''
           ];
-        }
-        {
-          plugin = "codex";
-          package = "@agentclientprotocol/codex-acp";
-          entry = "dist/index.js";
-          bin = "codex-acp";
-          env = [ ''--set-default CODEX_PATH "${codexBin}"'' ];
         }
         {
           plugin = "pi";
@@ -237,7 +219,6 @@ buildNpmPackage {
 
       claude="${mods}/@anthropic-ai/claude-agent-sdk-${nodeArch}/claude"
       test -x "$claude"
-      test -x "${codexBin}"
     '' + lib.optionalString stdenv.hostPlatform.isLinux ''
       patchelf --set-interpreter \
         "$(cat "${stdenv.cc}/nix-support/dynamic-linker")" "$claude"
@@ -248,8 +229,8 @@ buildNpmPackage {
   # that unfree would make `nix build` demand allowUnfree from every consumer of
   # this flake.
   meta = {
-    description = "The ACP adapters olai ships: Claude Code, Codex and pi, pinned together";
-    homepage = "https://github.com/juspay/olai";
+    description = "The ACP adapters olai ships: claude-code-acp and pi-acp, pinned together";
+    homepage = "https://github.com/zed-industries/claude-code-acp";
     mainProgram = "claude-agent-acp";
     platforms = lib.platforms.unix;
   };

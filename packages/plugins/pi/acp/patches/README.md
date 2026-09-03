@@ -13,7 +13,7 @@ derivation's `postInstall`, so every documented way of starting olai —
 is the agents phase: an engine is a plugin now, with its own release clock,
 so its adapter's patches and the sources they are generated from travel with
 it. What is still shared is the npm SHIM (`acp/package.json` and its
-lockfile) — one lockfile, three adapters, one fixed-output derivation — and
+lockfile) — one lockfile, two adapters, one fixed-output derivation — and
 `acp/README.md` says why. The Claude Code adapter's two patches are one
 directory over, in `packages/plugins/claude/acp/patches/`.
 
@@ -89,3 +89,4 @@ Inside the bridge:
   adjacent ask is svkozak/pi-acp#38 (extra CLI args), and the Bridge's
   shape stands on this pin until upstream chooses one (Route B stays
   gated, per this lane's instructions).
+

@@ -8,7 +8,7 @@ This page records what is specific to this engine. The shared conversation model
 
 `OLAI_ACP_CODEX` names the ACP adapter for this row. The packaged wrapper sets it to the Nix-built `codex-acp`; the development recipes resolve the same derivation. Set it to another command line to test another adapter, or to the empty string to omit only the Codex row.
 
-The adapter itself wraps the Codex app server. Olai's pin also gives it the matching native Codex executable through `CODEX_PATH`, so neither half drifts to an ambient install. Authentication and Codex configuration continue to use Codex's own normal files and environment.
+The adapter itself wraps the Codex app server. The plugin's `acp/` directory owns both its npm lock and Nix derivation, including the matching native Codex executable supplied through `CODEX_PATH`, so neither half drifts to an ambient install. This pin is separate from the patched Claude/Pi adapter bundle: their release clocks and platform rules do not force one another to rebuild. Authentication and Codex configuration continue to use Codex's own normal files and environment.
 
 Turning this row off is also possible through the plugin roster: `olai web --plugins=claude,opencode,pi` mounts no Codex server half, performs no probe and loads no Codex browser chunk.
 

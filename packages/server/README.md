@@ -175,7 +175,7 @@ not: the turn comes back successful with nothing in it, which the panel now
 names rather than drawing as an ordinary turn. `docs/running.md` has the
 `environmentFile` for a user service.
 
-**The shipped defaults are Claude Code and Codex, on every documented launch path.** Their adapters are pinned together (`nix/acp-agent.nix`) and the packaged binary's wrapper bakes both in with `--set-default`; `just serve` and `just run` resolve the same derivation on demand through their `scripts/acp-*.sh` helpers. Nobody following a documented path has to install either adapter or CLI — and the `nix` CI lane asserts both assignments and executables rather than trusting this paragraph.
+**The shipped defaults are Claude Code and Codex, on every documented launch path.** Each adapter is pinned behind its own executable output — the established Claude/Pi bundle in `nix/acp-agent.nix`, Codex in its plugin's [`acp/default.nix`](../plugins/codex/acp/default.nix) — and the packaged binary's wrapper bakes both in with `--set-default`. `just serve` and `just run` resolve the same outputs through their `scripts/acp-*.sh` helpers. Nobody following a documented path has to install either adapter or CLI, and a Codex pin move neither rebuilds nor rewrites the other adapters.
 
 `OLAI_ACP_AGENT` overrides that, and it has two useful shapes:
 
