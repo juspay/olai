@@ -57,7 +57,7 @@ browser one registers into declared SLOTS where it used to be a manifest object
 a compiled-in registry held:
 
 ```ts
-// packages/plugins/olai-plugin-odu/src/browser.tsx  (abridged)
+// packages/plugins/odu/src/browser.tsx  (abridged)
 export { name, surface } from "./wire.ts"
 export const inject = ["slots", "clocks", "wired"] as const
 
@@ -85,7 +85,7 @@ gives simply never starts, and the preferences row says `waiting`.
 effects* into a shared context, and declares which services it needs:
 
 ```ts
-// packages/plugins/olai-plugin-odu/src/server.ts  (abridged)
+// packages/plugins/odu/src/server.ts  (abridged)
 export const name = "odu"
 export const inject = ["clock", "deliveries", "env", "kinds", "log", "surfaces", "vault", "wakes"]
 
@@ -835,8 +835,8 @@ The whole checklist. Two of its artifacts live outside `packages/` (a symlink an
 a docs line, step 4) and no GENERAL package changes at all, which is the claim
 that matters.
 
-0. **`packages/plugins/olai-plugin-<name>/package.json`** — the package is called
-   `olai-plugin-<name>`, unscoped, and the directory is called the same thing.
+0. **`packages/plugins/<name>/package.json`** — the package is called
+   `olai-plugin-<name>`, unscoped, and the directory is the plugin word.
    `@olai/*` is the scope for the packages that ARE olai; a tenant is olai's
    judgement about somebody else's appliance, which is the closest thing in this
    tree to a plugin written outside it, so it is named the way one would be. It
@@ -851,10 +851,10 @@ that matters.
    the isolated linker gives a member exactly what its manifest names, and
    `effect` resolving by walking up to the root is a hole rather than a shortcut.
    Never declare `@olai/bundle`, which imports you.
-1. **`packages/plugins/olai-plugin-<name>/src/wire.ts`** — `name`, a
+1. **`packages/plugins/<name>/src/wire.ts`** — `name`, a
    `defineSurface`, and the `faces` map. This file may not import SolidJS, an
    appliance client, or a `node:` builtin.
-2. **`packages/plugins/olai-plugin-<name>/src/server.ts`** — `name`, `inject` and
+2. **`packages/plugins/<name>/src/server.ts`** — `name`, `inject` and
    `apply(ctx)`. This is where the appliance's client is called, where
    `ctx.surfaces.register(...)` puts your sibling on the wire, where
    `ctx.kinds.register(...)` teaches the vault a word, and where
@@ -864,10 +864,10 @@ that matters.
    thunk onto `chat/session-start` if you have a tool to probe for. Everything
    you register comes back out when your fiber unloads, and you write no teardown
    for any of it.
-3. **`packages/plugins/olai-plugin-<name>/src/browser.tsx`** — the browser half:
+3. **`packages/plugins/<name>/src/browser.tsx`** — the browser half:
    `name`, `surface`, `inject`, and an `apply(ctx)` that registers your faces
    into `ctx.slots`. Browser graph, and its own chunk.
-4. **`packages/plugins/olai-plugin-<name>/docs.md`** — the user page, plus a
+4. **`packages/plugins/<name>/docs.md`** — the user page, plus a
    symlink at `docs/plugins/<name>.md` and a line in `docs/index.md`.
    `packages/tests/plugin_docs.test.ts` fails if you skip either.
 5. **ONE ROW in `packages/bundle/olai.yml`** — `id: <name>`, `name:
@@ -906,8 +906,8 @@ names the file.
 | `packages/bundle/src/kinds.test.ts` | the word a vault declares is composed from the FIBER's name; a word leaves the vocabulary when its plugin unloads; the BUILT half carries every row's words whatever the flag said |
 | `packages/bundle/src/composition.test.ts` | an empty roster composes, core's tags do not move, and — the two claims that need the modules LOADED — every module answers to the name its row binds it under, and every face a plugin declares is a face it wrote a map for. There is no `rosters.test.ts` any more: it held three hand-written lists equal, and two of the three are generated from the third |
 | `packages/bundle/src/testids.test.ts` | the plugins’ testid tables are disjoint — and one layer further out, `packages/web/src/client/testids.test.ts` holds the app’s own table disjoint from theirs, which is the seam `selector()` actually spends |
-| `packages/plugins/olai-plugin-kolu/src/testids.ts` | a tenant’s two testid halves share no key and no value — a TYPE-level assertion, so a collision is a `tsc` error naming the offender rather than a test somebody keeps green |
-| `packages/plugins/olai-plugin-kolu/src/faces.test.ts` | the tenant’s own two face directories stay apart — `src/browser/` names no part of the appliance’s tier, and `src/appliance/` names none of the vault’s vocabulary, which is the wall `@olai/kolu-ui`’s manifest kept before the fold. In the TENANT, not in the fence: a per-directory rule up there would be the fence inventing a layout convention and enforcing its own invention |
+| `packages/plugins/kolu/src/testids.ts` | a tenant’s two testid halves share no key and no value — a TYPE-level assertion, so a collision is a `tsc` error naming the offender rather than a test somebody keeps green |
+| `packages/plugins/kolu/src/faces.test.ts` | the tenant’s own two face directories stay apart — `src/browser/` names no part of the appliance’s tier, and `src/appliance/` names none of the vault’s vocabulary, which is the wall `@olai/kolu-ui`’s manifest kept before the fold. In the TENANT, not in the fence: a per-directory rule up there would be the fence inventing a layout convention and enforcing its own invention |
 | `packages/tests/plugin_docs.test.ts` | every plugin's docs page exists, is served, and is linked |
 | `packages/server/src/faces.test.ts` | `chat.scope` is named on the **browser** face and nowhere else — the agent face is pinned as an exact set, so an agent-settable doorbell is a red suite rather than a rule somebody has to remember |
 | `packages/server/src/runtime.test.ts` | a `wake` sentence reaches the roster only for a plugin this serve MOUNTED, so no picker is offered for a doorbell nothing would ring — and a plugin the flag left on that nothing mounted draws as off, which is the row the old derivation could not express |

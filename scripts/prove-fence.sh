@@ -130,14 +130,15 @@ registry_name=$(jq -r .name "$registry/package.json")
 # computed, on purpose: `packages/server` is the composition root, which is
 # where every one of these defects historically WAS; `styles.css` is the app's
 # one sheet, which is the grammar a TypeScript reading is blind to; and
-# `odu-client` is the SECOND appliance's dial, which is the only way to write
-# the cross-tenant mutation. A derived "first member that is neither registry
-# nor plugin" would pick alphabetically and mean nothing. The guard below is
-# what keeps a typed path from becoming a silent skip.
+# `packages/plugins/odu/src/appliance/index.ts` is the SECOND appliance's
+# folded dial, which is the only way to write the cross-tenant mutation. A
+# derived "first member that is neither registry nor plugin" would pick
+# alphabetically and mean nothing. The guard below is what keeps a typed path
+# from becoming a silent skip.
 general=packages/server
 general_src=$general/src/main.ts
 sheet=packages/web/src/client/styles.css
-other_dial=packages/odu-client/src/index.ts
+other_dial=packages/plugins/odu/src/appliance/index.ts
 
 [ -n "$plugin_b" ] || { echo "prove-fence: fewer than two plugins found" >&2; exit 1; }
 case "$plugins" in *"$registry"*) echo "prove-fence: the registry came back as a plugin" >&2; exit 1 ;; esac

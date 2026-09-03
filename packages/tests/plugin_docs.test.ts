@@ -5,7 +5,7 @@
  * ## What is being kept honest, and why prose alone could not
  *
  * A plugin's user docs live in the plugin's own package
- * (`packages/plugins/olai-plugin-<name>/docs.md`), and `@olai/plugin-api`'s `OlaiPlugin.name`
+ * (`packages/plugins/<name>/docs.md`), and `@olai/plugin-api`'s `OlaiPlugin.name`
  * argues that placement against the standing ruling it looks like a breach of
  * — *"a page beside a binary is a page that goes stale"* (`@olai/server`'s
  * `main.ts`, ruled human 2026-08-23). The counter-case is that a plugin has no
@@ -37,7 +37,7 @@
  *
  * ## …so a plugin's page is authored at its SERVED address
  *
- * A page written in `packages/plugins/olai-plugin-<name>/` is READ at `docs/plugins/`, so
+ * A page written in `packages/plugins/<name>/` is READ at `docs/plugins/`, so
  * its relative links are the served set's (`../format.md`, and a sibling
  * plugin as `odu.md`). That is the real cost of the symlink, and it is checked
  * here rather than left to be discovered — which is more than any other page
@@ -78,7 +78,7 @@ import { ROOT } from "./support/sweep.ts";
  *  which IS the page's address (`@olai/plugin-api`'s `OlaiPlugin.name`), so
  *  nothing here spells a tenant. */
 const authored = (name: string): string =>
-  path.join("packages", "plugins", `olai-plugin-${name}`, "docs.md");
+  path.join("packages", "plugins", name, "docs.md");
 const served = (name: string): string => path.join("docs", "plugins", `${name}.md`);
 
 const at = (file: string): string => path.join(ROOT, file);

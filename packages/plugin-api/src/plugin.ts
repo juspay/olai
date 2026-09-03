@@ -22,7 +22,7 @@
  *
  * ## Why there is an interface at all, which reverses a ruling
  *
- * `@olai/kolu-client`'s wire header says, in as many words: *"A generic
+ * `olai-plugin-kolu/appliance`'s wire header says, in as many words: *"A generic
  * extension mechanism was considered and killed 3-0. The framework already
  * owns that axis, and there is no second foreign slice anywhere in git or the
  * roadmap — a plug-in system with a population of one is speculative

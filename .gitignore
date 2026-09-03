@@ -27,8 +27,8 @@ node_modules
 # A tenant's own mark, as a TypeScript module: GENERATED from that tenant's
 # npins pin by packages/plugin-kit/default.nix, and copied into place by
 # `just install` (the nix build regenerates it in its sandbox).
-/packages/plugins/olai-plugin-kolu/src/browser/mark.generated.ts
-/packages/plugins/olai-plugin-odu/src/browser/mark.generated.ts
+/packages/plugins/kolu/src/browser/mark.generated.ts
+/packages/plugins/odu/src/browser/mark.generated.ts
 
 # The browser's rows, the stylesheet chain and the merged testid table:
 # GENERATED from packages/bundle/olai.yml by packages/bundle/generate.ts, so

@@ -115,22 +115,8 @@
         "@olai/format": "workspace:*",
       },
     },
-    "packages/kolu-client": {
-      "name": "@olai/kolu-client",
-      "version": "0.1.0",
-      "dependencies": {
-        "effect": "4.0.0-rc.112",
-      },
-    },
     "packages/log": {
       "name": "@olai/log",
-      "version": "0.1.0",
-      "dependencies": {
-        "effect": "4.0.0-rc.112",
-      },
-    },
-    "packages/odu-client": {
-      "name": "@olai/odu-client",
       "version": "0.1.0",
       "dependencies": {
         "effect": "4.0.0-rc.112",
@@ -167,12 +153,11 @@
         "solid-js": "^1.9.0",
       },
     },
-    "packages/plugins/olai-plugin-kolu": {
+    "packages/plugins/kolu": {
       "name": "olai-plugin-kolu",
       "version": "0.1.0",
       "dependencies": {
         "@olai/format": "workspace:*",
-        "@olai/kolu-client": "workspace:*",
         "@olai/plugin-api": "workspace:*",
         "@olai/plugin-kit": "workspace:*",
         "@xterm/addon-fit": "^0.11.0",
@@ -184,21 +169,21 @@
         "@types/node": "^22.0.0",
       },
     },
-    "packages/plugins/olai-plugin-odu": {
+    "packages/plugins/odu": {
       "name": "olai-plugin-odu",
       "version": "0.1.0",
       "dependencies": {
         "@olai/format": "workspace:*",
-        "@olai/odu-client": "workspace:*",
         "@olai/plugin-api": "workspace:*",
         "@olai/plugin-kit": "workspace:*",
+        "effect": "4.0.0-rc.112",
         "solid-js": "^1.9.0",
       },
       "devDependencies": {
         "@olai/surface": "workspace:*",
       },
     },
-    "packages/plugins/olai-plugin-xyne-spaces": {
+    "packages/plugins/xyne-spaces": {
       "name": "olai-plugin-xyne-spaces",
       "version": "0.1.0",
       "dependencies": {
@@ -272,10 +257,10 @@
         "@olai/fonts": "workspace:*",
         "@olai/format": "workspace:*",
         "@olai/identity": "workspace:*",
-        "@olai/kolu-client": "workspace:*",
         "@olai/plugin-api": "workspace:*",
         "@olai/surface": "workspace:*",
         "@olai/web": "workspace:*",
+        "olai-plugin-kolu": "workspace:*",
       },
       "devDependencies": {
         "@cucumber/cucumber": "^12.8.1",
@@ -505,11 +490,7 @@
 
     "@olai/index": ["@olai/index@workspace:packages/index"],
 
-    "@olai/kolu-client": ["@olai/kolu-client@workspace:packages/kolu-client"],
-
     "@olai/log": ["@olai/log@workspace:packages/log"],
-
-    "@olai/odu-client": ["@olai/odu-client@workspace:packages/odu-client"],
 
     "@olai/ops": ["@olai/ops@workspace:packages/ops"],
 
@@ -1119,11 +1100,11 @@
 
     "object-inspect": ["object-inspect@1.13.4", "", {}, "sha512-W67iLl4J2EXEGTbfeHCffrjDfitvLANg0UlX3wFUUSTx92KXRFegMHUVgSqE+wvhAbi4WqjGg9czysTV2Epbew=="],
 
-    "olai-plugin-kolu": ["olai-plugin-kolu@workspace:packages/plugins/olai-plugin-kolu"],
+    "olai-plugin-kolu": ["olai-plugin-kolu@workspace:packages/plugins/kolu"],
 
-    "olai-plugin-odu": ["olai-plugin-odu@workspace:packages/plugins/olai-plugin-odu"],
+    "olai-plugin-odu": ["olai-plugin-odu@workspace:packages/plugins/odu"],
 
-    "olai-plugin-xyne-spaces": ["olai-plugin-xyne-spaces@workspace:packages/plugins/olai-plugin-xyne-spaces"],
+    "olai-plugin-xyne-spaces": ["olai-plugin-xyne-spaces@workspace:packages/plugins/xyne-spaces"],
 
     "on-finished": ["on-finished@2.4.1", "", { "dependencies": { "ee-first": "1.1.1" } }, "sha512-oVlzkg3ENAhCk2zdv7IJwd/QUD4z2RxRwpkcGY8psCVcCYZNq4wYnVWALHM+brtuJjePWiYF/ClmuDr8Ch5+kg=="],
 

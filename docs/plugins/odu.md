@@ -1,1 +1,1 @@
-../../packages/plugins/olai-plugin-odu/docs.md
+../../packages/plugins/odu/docs.md

@@ -94,7 +94,7 @@ const sourcesUnder = (dir: string): ReadonlyArray<string> =>
 
 /**
  * EVERY WORKSPACE MEMBER, as its directory relative to `packages/` — so a
- * top-level member is `web` and a nested tenant is `plugins/olai-plugin-kolu`.
+ * top-level member is `web` and a nested tenant is `plugins/kolu`.
  *
  * Read off the ROOT MANIFEST'S OWN `workspaces` globs, because a one-level
  * `readdirSync(PACKAGES)` stopped being the same set the day the tenants moved

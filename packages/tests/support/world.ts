@@ -39,12 +39,13 @@ import {
 // scenario asserting on the padi pill is asserting on `olai-plugin-kolu`'s
 // output, not on the app's — and they route through the registry because
 // `packages/bundle/src/fence.test.ts` holds, as an equality per package, that
-// nothing outside it names a plugin. The door is NAMES ONLY, which is what
-// keeps a component (and behind kolu's, a terminal emulator) off the graph of a
-// process with no browser in it.
+// nothing outside it names a plugin except this suite's `./appliance/testlib`
+// door. The testid door is NAMES ONLY, which is what keeps a component (and
+// behind kolu's, a terminal emulator) off the graph of a process with no
+// browser in it.
 import { PLUGIN_TESTID } from "@olai/bundle/testids";
 import { listenHeaderProxy, type HeaderProxy } from "./headerProxy.ts";
-import type { LivePadi } from "@olai/kolu-client/testlib";
+import type { LivePadi } from "olai-plugin-kolu/appliance/testlib";
 import {
   setDefaultTimeout,
   setWorldConstructor,

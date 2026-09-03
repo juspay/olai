@@ -6,8 +6,8 @@ let
   cordis = import ./nix/cordis.nix { inherit pkgs; };
   pins = import ./npins;
   olaiFonts = import ./packages/fonts { inherit pkgs; };
-  koluMark = import ./packages/plugins/olai-plugin-kolu { inherit pkgs; };
-  oduMark = import ./packages/plugins/olai-plugin-odu { inherit pkgs; };
+  koluMark = import ./packages/plugins/kolu { inherit pkgs; };
+  oduMark = import ./packages/plugins/odu { inherit pkgs; };
 in
 pkgs.mkShell {
   name = "olai-shell";
@@ -85,10 +85,10 @@ pkgs.mkShell {
     OLAI_FONTS_DIR = "${olaiFonts}";
 
     # KOLU'S OWN MARK, already a TypeScript module. The plugin's own
-    # `packages/plugins/olai-plugin-kolu/default.nix` reads the pinned kolu's
+    # `packages/plugins/kolu/default.nix` reads the pinned kolu's
     # `packages/client/favicon.svg` — the same pin the @kolu/* sources above
     # come from — and writes `mark.generated.ts`; `just install` copies that
-    # one file into `packages/plugins/olai-plugin-kolu/src/browser/`, beside the component
+    # one file into `packages/plugins/kolu/src/browser/`, beside the component
     # that draws it, exactly as the hydrate calls copy the sources. A logo is
     # updated by bumping the pin and nothing else.
     #
