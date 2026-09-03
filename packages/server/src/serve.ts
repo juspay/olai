@@ -434,7 +434,7 @@ export const serve = (options: ServeOptions) =>
       // THE PLUGINS, already mounted — and this is no longer the place a
       // process reaches for the real environment on their behalf. That happens
       // at the top of this function, where the services are constructed, and
-      // what crosses here is the context they hang on plus the two facts a
+      // what crosses here is the runtime's own doors plus the two facts a
       // BROWSER has to be told: which plugins the build has, and whether
       // anybody typed the flag.
       //
@@ -444,8 +444,6 @@ export const serve = (options: ServeOptions) =>
       // `surface/<name>/` on the wire at all — the true answer for a process
       // that has no business dialing somebody's daemon on its way to printing a
       // node.
-      //
-      // NO `dials`: the injectables are a test's, and this is the product.
       plugins: {
         plugins,
         onChange,

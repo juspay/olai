@@ -309,7 +309,7 @@ export interface PluginRuntime {
    * (a plugin teaches the vault its vocabulary, and the store validates through
    * it), and the thing that knows how to re-compose is the rooted bundle, which
    * does not exist until this runtime is built. So `./serve.ts` makes the
-   * holder, hands it to `ctx.surfaces` as its `changed` callback, and hands it
+   * holder, hands it to `openPlugins` as its `changed` callback, and hands it
    * here; {@link bind} fills it in and every later register or dispose comes
    * through it.
    */
@@ -943,7 +943,7 @@ export const bind = (
     let agentsCell: { set: (value: Agents) => void } | null = null
     /** The PLUGINS cell, held for the agents cell's reason: its clock is a
      *  fiber arriving or leaving, which reaches this file as a callback off
-     *  `ctx.surfaces` rather than as a stream ({@link republishPlugins}). */
+     *  `openPlugins`'s `changed` rather than as a stream ({@link republishPlugins}). */
     let pluginsCell: { set: (value: PluginRoster) => void } | null = null
 
     /**
@@ -973,7 +973,7 @@ export const bind = (
      * an empty one.
      *
      * A serve with no plugin runtime never calls this at all — there is no
-     * `ctx.surfaces` for anything to move on — and its cell holds `NO_ROSTER`
+     * `changed` for anything to move on — and its cell holds `NO_ROSTER`
      * for the life of the process, which is what a runtime that composes no
      * sibling has to say.
      */
@@ -1175,7 +1175,7 @@ export const bind = (
      *
      * The SET of subscribers is not here any more. It was a `Set` and a
      * `subscribe` returning an unsubscribe the plugin had to remember to call;
-     * it is `ctx.watching` now, where a subscription is an effect on the
+     * it is the `Watching` door now, where a subscription is an effect on the
      * subscribing fiber and a plugin that unloads stops being told without
      * anybody remembering anything. What is left for a composition root is the
      * OTHER end: saying what happened, once, to whoever is listening.
@@ -2514,7 +2514,7 @@ export const bind = (
      * {@link PluginRuntime.onChange} carries.
      *
      * A HOLDER and not a callback passed at construction, and the order is the
-     * reason: `ctx.surfaces` needs to be told what to call before any plugin can
+     * reason: `openPlugins` needs to be told what to call before any plugin can
      * register, and the thing to call does not exist until here.
      */
     recompose()

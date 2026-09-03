@@ -90,7 +90,7 @@ export type FileLink = (props: {
  * THE CLOCK IS NOT ON THIS RECORD, and it used to be — a `KoluClocks` with the
  * two facts the mount spends, on a `KoluApp.clocks` beside the rest.
  *
- * Nothing ever read it out of here. The mount spends `ctx.clocks` DIRECTLY at
+ * Nothing ever read it out of here. The mount spends the `Clocks` service DIRECTLY at
  * `../browser.tsx`, which is where the cadence is decided, and every `app.*`
  * read in this package is one of the four below. The field was the record
  * carrying a service reference past every face that wanted it, to nobody.

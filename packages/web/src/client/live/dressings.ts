@@ -22,7 +22,7 @@
  * LICENCE asking whether it should be drawn.
  *
  * It is a READ OF THE SLOT TABLE now. A plugin registers its own faces from its
- * own fiber, through `ctx.slots`, and a plugin the roster does not name has no
+ * own fiber, through the `Slots` service, and a plugin the roster does not name has no
  * fiber in this tab — so the table holds exactly what may be drawn and there is
  * nothing to license. This module does not register anything; it joins the
  * three slots into the one lookup the seam takes.

@@ -5,7 +5,7 @@
  * It used to be one function (`kindsOf`) over two lists a composition root
  * held. It is two readings now, and the split is the phase rather than a
  * refactor: the ENABLED half is what the mounted fibers registered
- * (`ctx.kinds`), and the BUILT half is read off every row of the bundle
+ * (the `Kinds` service), and the BUILT half is read off every row of the bundle
  * ({@link ./bundle.ts}'s `declaredKinds`) INCLUDING the rows this serve
  * disabled. Three claims are worth pinning.
  *
@@ -188,7 +188,7 @@ test("...so the only reachable collision is one WORD twice, and it names both pl
  * the file cannot see — while its VALUES are plain text, because `admits` is a
  * promise only a plugin that is here can make.
  *
- * A disabled row never mounts, so its words are not in `ctx.kinds` and cannot
+ * A disabled row never mounts, so its words are not in `Kinds` and cannot
  * be. {@link declaredKinds} is the other reading, and it is deliberately not
  * filtered by anything.
  */
@@ -198,7 +198,7 @@ test("the built vocabulary carries every row's words, whatever the flag said", a
   expect(ROWS.length).toBeGreaterThan(0)
   expect(built.size).toBeGreaterThan(0)
   // Every word is prefixed with the row's own `id`, which is the same
-  // composition `ctx.kinds` performs off the fiber.
+  // composition `Kinds` performs off the fiber.
   for (const word of built.keys()) {
     expect(ROWS.some((row) => word.startsWith(`${row.id}-`)), word).toBe(true)
   }

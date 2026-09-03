@@ -939,7 +939,7 @@ test("the roster is served on the plugins cell", () =>
  * Every other case in this file mounts its doubles BEFORE `bind`, which is what
  * a real serve does: the bundle's rows are fibers before the store opens,
  * because a plugin teaches the vault its vocabulary. A sibling that arrives
- * AFTER that goes through `ctx.surfaces.register` → the root's `recompose` →
+ * AFTER that goes through `surfaces.register` → the root's `recompose` →
  * `runtime.mount`, and `mount` is TRANSACTIONAL: a surface whose deps do not
  * match it throws, with the roster and the running sources untouched.
  *
@@ -1033,7 +1033,7 @@ test("a sibling the rooted bundle refuses takes only its own fiber down, and the
  *
  * ## The two things under test
  *
- * `ctx.wakes.register(…)` is a REGISTRATION rather than a field, and it has a
+ * `wakes.register(…)` is a REGISTRATION rather than a field, and it has a
  * server reader that is the only one there is: the member that writes a scope
  * refuses a plugin this serve did not compose, and refuses one that declared no
  * wake (`./runtime.ts`'s `composedWake`). Either pick would store a row nothing
@@ -1041,7 +1041,7 @@ test("a sibling the rooted bundle refuses takes only its own fiber down, and the
  * give — and the first of them is now free rather than checked, because a
  * plugin that is not mounted has no registration in the table at all.
  *
- * `ctx.deliveries` is keyed by the CALLING FIBER, and the key is a fence rather
+ * The `Deliveries` door is keyed by the CALLING FIBER, and the key is a fence rather
  * than a filing convention: an unkeyed door would hand one plugin the
  * conversations a person scoped to ANOTHER, and would let one plugin sign
  * another's name onto a row that reaches an agent. The composition root used to

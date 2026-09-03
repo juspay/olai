@@ -49,8 +49,9 @@ import { RunsProvider } from "./browser/runs.tsx"
 import { RunMatrix } from "./browser/RunMatrix.tsx"
 import { WORKTREE_KIND } from "./kinds.ts"
 
-export { name, surface } from "./wire.ts"
-import { name } from "./wire.ts"
+import { name, surface } from "./wire.ts"
+
+export { name, surface }
 
 /**
  * THE MEMBER this plugin's browser half reads, structurally.

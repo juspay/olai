@@ -170,8 +170,8 @@ export interface PropKind {
    * THE BARE WORD THIS PLUGIN CONTRIBUTES — `terminal`, not `kolu-terminal`.
    *
    * The SERVICE prefixes it with the registering fiber's own name
-   * ({@link kindWordOf}, this file's, called by `ctx.kinds` on the server and by
-   * `ctx.slots` in the tab so that one word cannot become two spellings), so
+   * ({@link kindWordOf}, this file's, called by the `Kinds` service on the server
+   * and by `Slots` in the tab so that one word cannot become two spellings), so
    * what a vault declares is `kolu-terminal` and what the page's licence carries
    * is the same. It is the move the wire already makes
    * with a member — a plugin declares `fleet` and the framework composes

@@ -35,10 +35,10 @@
  * The direction that argument was made of still holds and only its far end
  * moved: it was `@olai/plugin-api` that imported every plugin, so a plugin
  * could not import back; the registry left for `@olai/bundle` and this package
- * imports the interface now (`./browser.tsx` takes the declaration merging that
- * types `ctx.slots`). What proves the fit is the pair of `register` calls that
- * spend these values — `ctx.surfaces.register` in `./server.ts`, whose
- * `Sibling` types `surface` and `faces`, and `ctx.slots.register` in
+ * imports the interface now (`./browser.tsx` names the `Slots` tag its own
+ * `needs` yields). What proves the fit is the pair of `register` calls that
+ * spend these values — `surfaces.register` in `./server.ts`, whose
+ * `Sibling` types `surface` and `faces`, and `slots.register` in
  * `./browser.tsx`, which refuses a slot the app does not declare — each of them
  * red in this package with this plugin's name on the file.
  * `olai-plugin-kolu`'s header argues the direction in full.

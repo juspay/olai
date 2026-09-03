@@ -29,7 +29,7 @@
  * asymmetry to tidy. `built` is read off the BUNDLE — every row's module,
  * including the rows this serve disabled, because a disabled row never mounts
  * and its words have to be reachable some other way. `enabled` is read off the
- * live `ctx.kinds` registry, which holds exactly what the fibers that ACTUALLY
+ * live `Kinds` registry, which holds exactly what the fibers that ACTUALLY
  * MOUNTED registered: a plugin that is `PENDING` on a missing service, or that
  * landed in `FAILED` because its `apply` threw, teaches no word — which is
  * right, since `PropKind.admits` is a promise only a plugin that is here can

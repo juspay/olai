@@ -58,7 +58,7 @@
  * as the interface, so a plugin importing it was a cycle, and the fit was proved
  * at the registry's `satisfies`. The registry is `@olai/bundle`'s now and this
  * package imports the interface for real, so the fit is proved where the row is
- * SPENT: `ctx.kinds.register` takes a `PropKind` (`./server.ts`), and a row that
+ * SPENT: `kinds.register` takes a `PropKind` (`./server.ts`), and a row that
  * stopped fitting is red on that line rather than on a list's.
  */
 
@@ -74,7 +74,7 @@ export const TERMINAL_KIND = "terminal"
  * `{"title":"terminal","custom":{"type":"kolu-terminal"}}`.
  *
  * `@olai/plugin-api`'s `kindWordOf` composes this inside the SERVICE, off the
- * registering fiber's own name — `ctx.kinds` on the server and `ctx.slots` in
+ * registering fiber's own name — the `Kinds` service on the server and `Slots` in
  * the tab, so one word cannot become two spellings — and the constant here is
  * that SAME composition spelled a second time, for this package's own walk
  * ({@link ./claimants.ts}), which reads declarations.
@@ -109,7 +109,7 @@ export const TERMINAL_TYPE = `${name}-${TERMINAL_KIND}`
 export const admitsTerminal = (value: string): boolean => /^[0-9a-fA-F-]+$/.test(value)
 
 /**
- * The contribution, as `ctx.kinds` takes it — one entry, spent at three doors:
+ * The contribution, as the `Kinds` service takes it — one entry, spent at three doors:
  * the live write's refusal, the broken file's error, and the fold that decides
  * what a key is declared as.
  *
@@ -122,7 +122,7 @@ export const admitsTerminal = (value: string): boolean => /^[0-9a-fA-F-]+$/.test
  *
  * THE CLAIMED KEY IS THE COMPOSED WORD ITSELF, and it is not a choice this
  * plugin gets to make: nothing in this row says `claims` at all.
- * `ctx.kinds.register` sets it equal to the word it just composed
+ * `kinds.register` sets it equal to the word it just composed
  * (`@olai/plugin-api`'s `services.ts`), out of the registering fiber's own name
  * — it was a `kindsOf` over two lists a composition root held, and it is a
  * registration off the fiber now, which is what made the field unspellable here

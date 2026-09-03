@@ -43,7 +43,7 @@ const RUNNING: Dressing = { Chip: NOTHING, Pane: ALSO_NOTHING }
  *
  * It used to be a MODULE TABLE this file wrote into with `registerLive`, and
  * the seam owned it. It owns none now: a face is registered by its plugin's own
- * fiber into `ctx.slots`, `../live/dressings.ts` joins the three slots into one
+ * fiber into the `Slots` service, `../live/dressings.ts` joins the three slots into one
  * lookup, and what the seam takes is that lookup. So a case here builds the
  * answer it is about rather than mutating a table every other case can see —
  * which is a better test as well as a smaller seam.

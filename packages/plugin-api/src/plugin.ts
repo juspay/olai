@@ -77,8 +77,8 @@
  * imported halves left for a type to be asserted over. That is a stronger
  * arrangement rather than a lost check, because the proof went to the line that
  * is wrong instead of to a list far from it: a half hands its `surface` and its
- * `faces` to `ctx.surfaces.register` ({@link ./services.ts}) and its drawn faces
- * to `ctx.slots.register` ({@link ./browser.ts}), so a member name it got wrong
+ * `faces` to `Surfaces.register` ({@link ./services.ts}) and its drawn faces
+ * to `Slots.register` ({@link ./browser.ts}), so a member name it got wrong
  * or a slot this app does not declare is red in that plugin's own package, on
  * the call that made the mistake — where the `satisfies` could only ever report
  * it at one line of one list in a package the plugin's author was not editing.
@@ -140,8 +140,8 @@ import type { JSX } from "solid-js"
  * WHERE that error lands moved with the manifest. It used to be the registry's
  * `satisfies`, one line of one list, with the plugin's name on it; there is no
  * such list, and the reading is now composed inside the plugin's own `apply` out
- * of the services it injected (`olai-plugin-kolu`'s `browser.tsx` builds its
- * `KoluApp` from `ctx.bar`, `ctx.clocks` and `ctx.links`). So a field asked for
+ * of the services it named (`olai-plugin-kolu`'s `browser.tsx` builds its
+ * `KoluApp` from the `Bar`, `Clocks` and `Links` tags). So a field asked for
  * that the app does not hand over is red on the line that composes it, in the
  * package that asked, which is nearer the mistake than the registry ever was.
  */
