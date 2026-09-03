@@ -45,12 +45,15 @@ closed with that exit — every finalizer it had already installed runs, in reve
 — and the failure is re-thrown into the runtime, which lands it `failed` with its
 siblings running.
 
-**`waterfall(key)`** — around-middleware as Effects. A link is handed the value
-and a `next`; returning without calling through short-circuits, which is the half
-a plain event bus cannot express. A link that DIES is contained here, said on the
-owner's channel with the plugin's own word on the line, and the chain carries on —
-which the engine's own dispatcher could not do, because its `emit` is a bare
-`Reflect.apply` loop with no `try` in it.
+**`broadcast(what)` and `waterfall(key)`** — the two dispatch modes. A BROADCAST
+tells every handler, in subscription order, and AWAITS all of them: the caller
+rings it from inside a statement whose next lines assume every plugin has already
+re-derived. A WATERFALL threads the payload through with a `next`, so a link may
+transform what the ones after it see or decline to call through. Either way a
+link that DIES is contained, said on the owner's channel with the plugin's own
+word on the line and the same sentence for both modes (`failed`), and the rest
+carry on — which the engine's own dispatcher could not do, because its `emit` is
+a bare `Reflect.apply` loop with no `try` in it.
 
 **`detached`** — the one seam across the boundary, named once so it is not
 re-invented per plugin. What drives a plugin at runtime is frequently not Effect:
@@ -64,7 +67,7 @@ in flight when it unloads goes with it.
 
 | door | what it carries |
 | --- | --- |
-| `.` | the RUNTIME: a host, `provide`, `mountPlugin`, `rowReport`, `definePlugin`, `serviceTag`, `waterfall`, `detached`. This is what the TAB opens too, because a browser half is a plugin exactly as a server half is |
+| `.` | the RUNTIME: a host, `provide`, `mountPlugin`, `rowReport`, `definePlugin`, `serviceTag`, `broadcast`, `waterfall`, `detached`. This is what the TAB opens too, because a browser half is a plugin exactly as a server half is |
 | `./loader` | `mountRows` — a declarative bundle, through `@cordisjs/plugin-loader` and `-include` |
 
 The split is not tidiness. The loader reads a file off a disk and resolves module
@@ -82,11 +85,14 @@ olai noun in it. The moment something here grows one, it belongs in
 [`@olai/plugin-api`](../plugin-api/README.md), which is the package on the other
 side of exactly that line.
 
-**`eventStream`.** The phase's design lists it beside `waterfall`, and it is not
-built: olai has no fire-and-forget plugin event left to translate. The two vault
-emits became doors, `surfaces/published` was declared and never fired and is gone,
-and the one event that remains is a waterfall. It arrives the day something needs
-it, rather than as an unused arm with a test written to keep it alive.
+**Nothing, now that `broadcast` has landed.** The phase's design listed
+`eventStream` beside `waterfall`, and this package shipped the waterfall and
+declined the emit, on the stated grounds that olai had no fire-and-forget plugin
+event left to translate. That was wrong in the way a survey is wrong:
+`@olai/plugin-api` had three of them — a vault revision, the store going quiet, a
+conversation event — each hand-rolled beside the others, so the count came out at
+zero because nobody had a name to count. `broadcast` is that name, and the three
+doors are declarations now.
 
 ## Where the pin's instability lives
 

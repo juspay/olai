@@ -78,6 +78,7 @@
  */
 
 import {
+  broadcast,
   definePlugin,
   type Detach,
   detached,
@@ -550,16 +551,22 @@ export const openPlugins = (
     }))
     yield* provide(host, Clock, () => ({ now: config.now }))
 
-    // THE TWO VAULT DOORS. One list each, in subscription order, and each
-    // handler wrapped ONCE — containment is a property of the door rather than a
-    // discipline every plugin is asked to keep.
-    const onRevision = new Map<symbol, (snapshot: unknown) => Effect.Effect<void>>()
-    const onUnloaded = new Map<symbol, Effect.Effect<void>>()
+    // THE THREE BUSES, and they are one primitive rather than three hand-rolled
+    // copies of it ({@link @olai/effect-cordis}'s `broadcast`). Each holds its
+    // handlers in subscription order, wraps every one of them ONCE with the
+    // registering plugin's word, and AWAITS all of them when it is rung —
+    // containment as a property of the bus rather than a discipline every plugin
+    // is asked to keep, and one sentence rather than three.
+    const revisions = broadcast<unknown>("a vault revision")
+    const quieted = broadcast<void>("the vault going quiet")
+    const seen = broadcast<ConversationSeen>("a conversation event")
+
     yield* provide(host, Vault, (plugin) => ({
       served: config.served,
-      revision: (handler) =>
-        keep(onRevision, (snapshot) => contained(plugin, "a vault revision", handler(snapshot))),
-      unloaded: (handler) => keep(onUnloaded, contained(plugin, "the vault going quiet", handler)),
+      revision: revisions.listen(plugin),
+      // The other door takes no value, so a plugin hands over the Effect itself
+      // rather than a function of nothing.
+      unloaded: (handler) => quieted.listen(plugin)(() => handler),
     }))
 
     yield* provide(host, Deliveries, (plugin) => ({
@@ -660,11 +667,7 @@ export const openPlugins = (
         ),
     }))
 
-    const watchers = new Map<symbol, (event: ConversationSeen) => Effect.Effect<void>>()
-    yield* provide(host, Watching, (plugin) => ({
-      subscribe: (handler) =>
-        keep(watchers, (event) => contained(plugin, "a conversation event", handler(event))),
-    }))
+    yield* provide(host, Watching, (plugin) => ({ subscribe: seen.listen(plugin) }))
 
     yield* provide(host, Held, (plugin) => {
       // ONCE PER PLUGIN, not once per call — the write chain that orders the
@@ -684,54 +687,12 @@ export const openPlugins = (
       kinds: () => new Map(kinds),
       composed: () => [...siblings.values()],
       declared: () => new Map(wakes),
-      // SUSPENDED, all three: the list is read at the moment the door is rung
-      // rather than at the moment it is built, because every subscriber arrives
-      // after this function has returned.
-      published: (snapshot) =>
-        Effect.suspend(() =>
-          Effect.forEach([...onRevision.values()], (handler) => handler(snapshot), {
-            discard: true,
-          })
-        ),
-      quiet: Effect.suspend(() =>
-        Effect.forEach([...onUnloaded.values()], (handler) => handler, { discard: true })
-      ),
-      saw: (event) =>
-        Effect.suspend(() =>
-          Effect.forEach([...watchers.values()], (handler) => handler(event), { discard: true })
-        ),
+      published: revisions.tell,
+      quiet: quieted.tell(undefined),
+      saw: seen.tell,
       sessionStart: Effect.suspend(() => sessionStart({ asking: [] })),
     }
   })
-
-/** ONE SUBSCRIPTION, held for as long as the calling plugin's scope is open.
- *
- *  A `Map` keyed by a fresh symbol rather than a `Set`, so two plugins
- *  subscribing with the same handler value are two subscriptions and dropping
- *  one leaves the other. */
-const keep = <H>(into: Map<symbol, H>, sink: H): Effect.Effect<void, never, Scope.Scope> =>
-  Effect.acquireRelease(
-    Effect.sync(() => {
-      const at = Symbol()
-      into.set(at, sink)
-      return at
-    }),
-    (at) => Effect.sync(() => void into.delete(at)),
-  ).pipe(Effect.asVoid)
-
-/** ONE HANDLER, WRAPPED — the containment claim, spelled once for all three
- *  doors. The plugin's word is on the line because a line about a misbehaving
- *  handler has to say whose it was, and no caller can sign another plugin's name
- *  to one. */
-const contained = (
-  plugin: string,
-  what: string,
-  work: Effect.Effect<void>,
-): Effect.Effect<void> =>
-  Effect.catchCause(
-    work,
-    (cause) => Effect.logWarning(`plugins: "${plugin}" failed on ${what}`, cause),
-  )
 
 /** MOUNTING ONE PLUGIN DIRECTLY, which is what a plugin's own BENCH does — the
  *  bundle's rows are `@olai/bundle`'s business and it opens the bridge itself.

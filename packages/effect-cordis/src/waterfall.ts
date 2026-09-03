@@ -36,6 +36,7 @@
 
 import { Effect, Scope } from "effect"
 
+import { failed } from "./broadcast.ts"
 import { type Host, provide } from "./host.ts"
 import { serviceTag, type ServiceKey } from "./service.ts"
 
@@ -105,19 +106,17 @@ export const waterfall = <A>(cordis: string): Waterfall<A> => {
             at >= links.length ? Effect.succeed(value) : Effect.gen(function*() {
               const link = links[at]!
               return yield* link.middleware(value, (passed) => step(at + 1, passed)).pipe(
-                // CONTAINED, with the plugin's own word on the line — see the
-                // header. The chain carries on from where it stood, which is
-                // the value this link was handed: a link that died may have
-                // done half of what it meant to, and there is nothing honest to
-                // do with a half-transformed value but leave it alone.
+                // CONTAINED, and the SENTENCE is {@link ./broadcast.ts}'s — one
+                // line for every plugin bus in the tree rather than one per
+                // dispatch mode, because the thing that must not drift is what a
+                // reader is told, not how each mode recovers. What each mode
+                // recovers TO is genuinely its own: a broadcast has nothing to
+                // hand back, and this chain carries on from where it stood,
+                // which is the value this link was handed — a link that died may
+                // have done half of what it meant to, and there is nothing
+                // honest to do with a half-transformed value but leave it alone.
                 Effect.catchCause((cause) =>
-                  Effect.as(
-                    Effect.logWarning(
-                      `plugins: "${link.plugin}" failed on the "${cordis}" waterfall`,
-                      cause,
-                    ),
-                    value,
-                  )
+                  Effect.as(failed(link.plugin, `the "${cordis}" waterfall`, cause), value)
                 ),
               )
             })

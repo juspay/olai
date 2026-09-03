@@ -38,6 +38,7 @@
  * other consistent answer and is not taken.
  */
 
+export { type Bus, broadcast, failed, type Listen } from "./broadcast.ts"
 export {
   type Host,
   type Mounted,
