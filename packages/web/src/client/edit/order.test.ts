@@ -28,7 +28,11 @@ const row = (id: string, key: string, children: ReadonlyArray<Row> = []): Row =>
 //   └ a2
 //   b
 const tree: ReadonlyArray<Row> = [
-  row("a", "/a", [row("a1", "/a/a1", [row("a1x", "/a/a1/a1x")]), row("a2", "/a/a2")]),
+  row("a", "/a", [
+    row("a1", "/a/a1", [row("a1x", "/a/a1/a1x")]),
+    row("a2", "/a/a2"),
+    row("a3", "/a/a3"),
+  ]),
   row("b", "/b"),
 ]
 
@@ -40,6 +44,7 @@ test("the drawn order is the order they are painted in", () => {
     "/a/a1",
     "/a/a1/a1x",
     "/a/a2",
+    "/a/a3",
     "/b",
   ])
 })
@@ -49,6 +54,7 @@ test("a folded branch's children are not on screen, so they are not in it", () =
     "/a",
     "/a/a1",
     "/a/a2",
+    "/a/a3",
     "/b",
   ])
 })
@@ -61,6 +67,7 @@ test("the fold set is read by NODE, not by the place the row sits in", () => {
     "/a/a1",
     "/a/a1/a1x",
     "/a/a2",
+    "/a/a3",
     "/b",
   ])
 })
@@ -69,8 +76,8 @@ test("the arrows step through what is drawn, across levels", () => {
   // The one thing worth getting wrong: `↓` from the last child of a branch
   // lands on the next row wherever it is in the shape.
   expect(neighbour(flatten(tree, new Set()), "/a/a1/a1x", 1)?.key).toBe("/a/a2")
-  expect(neighbour(flatten(tree, new Set()), "/a/a2", 1)?.key).toBe("/b")
-  expect(neighbour(flatten(tree, new Set()), "/b", -1)?.key).toBe("/a/a2")
+  expect(neighbour(flatten(tree, new Set()), "/a/a3", 1)?.key).toBe("/b")
+  expect(neighbour(flatten(tree, new Set()), "/b", -1)?.key).toBe("/a/a3")
 })
 
 test("`↓` over a folded branch skips what it is hiding", () => {
@@ -107,6 +114,7 @@ test("a draft stands exactly where its ghost is drawn", () => {
     "/a/a1/a1x",
     "(d2)", // at the FLOOR of the subtree the anchor parents
     "/a/a2",
+    "/a/a3",
     "/b",
     "(d3)", // the first-child's seat
   ])
@@ -115,7 +123,7 @@ test("a draft stands exactly where its ghost is drawn", () => {
 test("a folded branch's floor is the row itself", () => {
   expect(
     spelled(wired(tree, new Set(["a1"]), [emptyPending({ kind: "after", id: "a1" }, "d1")])),
-  ).toEqual(["/a", "/a/a1", "(d1)", "/a/a2", "/b"])
+  ).toEqual(["/a", "/a/a1", "(d1)", "/a/a2", "/a/a3", "/b"])
 })
 
 test("drafts on the same spot keep the order they were laid out in", () => {
@@ -128,7 +136,7 @@ test("drafts on the same spot keep the order they were laid out in", () => {
       emptyPending({ kind: "after", id: "a2" }, "d2"),
       emptyPending({ kind: "after", id: "a2" }, "d3"),
     ])),
-  ).toEqual(["/a", "/a/a1", "/a/a1/a1x", "/a/a2", "(d1)", "(d2)", "(d3)", "/b"])
+  ).toEqual(["/a", "/a/a1", "/a/a1/a1x", "/a/a2", "(d1)", "(d2)", "(d3)", "/a/a3", "/b"])
 })
 
 test("an empty page's start line is the whole walk", () => {
@@ -146,10 +154,10 @@ test("no drafts is the flattening itself, and the same values it answers", () =>
 // ── the structure keys over a blank ───────────────────────────────────
 
 test("Tab joins the flight of the row directly above the blank", () => {
-  // `a` has a subtree — the floor-seat's blank trails a1, a1x, a2: Tab joins
-  // the LAST of those, one level deeper than the seat.
+  // `a` has a subtree — the floor-seat's blank trails a1, a1x, a2, a3: Tab
+  // joins the LAST of those, one level deeper than the seat.
   expect(reanchored(tree, new Set(), { kind: "after", id: "a" }, "in"))
-    .toEqual({ kind: "after", id: "a2" })
+    .toEqual({ kind: "after", id: "a3" })
   // The row above at the blank's OWN depth: Tab slips under it — first-child's
   // seat.
   expect(reanchored(tree, new Set(), { kind: "after", id: "a1x" }, "in"))
@@ -177,11 +185,17 @@ test("Alt+Shift walks the blank one slot within its sibling list", () => {
   // the seat the eye already saw it in ONE place rather than two.
   expect(reanchored(tree, new Set(), { kind: "after", id: "a1" }, "up"))
     .toEqual({ kind: "before", id: "a1" })
-  // Two slots up from after-a2: past a2's whole subtree and above it.
+  // Past a1x's whole subtree and above it — one slot deeper than a row.
   expect(reanchored(tree, new Set(), { kind: "after", id: "a1x" }, "up"))
     .toEqual({ kind: "before", id: "a1x" })
   expect(reanchored(tree, new Set(), { kind: "after", id: "a2" }, "up"))
     .toEqual({ kind: "after", id: "a1" })
+  // THE THREE-SIBLING PIN (grok's review of #493): three rows above the seat,
+  // one press is one slot — past a3 and above its subtree, `after a2` — NOT
+  // the walk's own first sibling, which is what one press used to make of a
+  // two-sibling list by coincidence of the seat.
+  expect(reanchored(tree, new Set(), { kind: "after", id: "a3" }, "up"))
+    .toEqual({ kind: "after", id: "a2" })
   expect(reanchored(tree, new Set(), { kind: "before", id: "a2" }, "down"))
     .toEqual({ kind: "after", id: "a2" })
   // Both ENDS are where the key says nothing — the blank does not wrap round

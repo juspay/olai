@@ -254,18 +254,20 @@ export const reanchored = (
       if (step.depth < theSeat.depth) break
       if (step.depth === theSeat.depth) below.push(step.row)
     }
-    const slot = above.length
     if (way === "up") {
       // `above` is collected walking BACKWARD: above[0] is the row directly
-      // above the seat, above[last] the one at the list's top. One slot up: the
-      // seat's floor becomes the row on the seat's own other side — `after` it,
-      // or `before` the one direct neighbour when the seat was second in the
-      // list (that is the first-child's seat, written in a row's own name).
-      if (slot === 0) return undefined
+      // above the seat, above[1] the sibling two up, above[last] the one at
+      // the list's top. One slot up: the seat's floor becomes the row ONE
+      // further above — `before` the nearest when the seat was second in the
+      // list (the first-child's seat, written in a row's own name), `after`
+      // the one TWO up otherwise, so the blank lands between the two. The
+      // one-press-two-slots answer `above[last]` made is the one grok's
+      // review of #493 caught: every test tree that pinned this sat the
+      // blank at most two slots in, where the two spellings coincide.
       const top = above[0]
-      const over = above[slot - 1]
-      if (top === undefined || over === undefined) return undefined
-      return slot === 1
+      if (top === undefined) return undefined
+      const over = above[1]
+      return over === undefined
         ? { kind: "before", id: top.at.node.id }
         : { kind: "after", id: over.at.node.id }
     }

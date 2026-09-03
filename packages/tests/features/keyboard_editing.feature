@@ -231,14 +231,18 @@ Feature: Keyboard editing
   Scenario: Alt+Shift+Up moves a blank among its would-be siblings
     # The reorder pair, for the blank too: it goes up without becoming a write,
     # so the skeleton a person is sketching can be moved whole before one word
-    # of it is on disk.
-    When I click the title of "handles"
+    # of it is on disk. Pressed from AFTER THE THIRD sibling: hinges above and
+    # knobs below is the one slot the key says — from two above it is two
+    # (grok's review of #493: every tree the keys were pinned with sat the
+    # press at most two slots in, where the two counts coincide).
+    When I click the title of "knobs"
     And I press "Enter"
     And I press "Alt+Shift+ArrowUp"
     And I type "fetch a mallet"
     And I press "Enter"
     Then "house.olai" holds a node titled "fetch a mallet"
-    And the node titled "fetch a mallet" comes before the node titled "handles"
+    And the node titled "fetch a mallet" comes before the node titled "pick the knobs"
+    And the node titled "pick the hinges" comes before the node titled "fetch a mallet"
 
   Scenario: Ctrl+Enter ticks a row off, and again takes it back
     When I click the title of "handles"
