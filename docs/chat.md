@@ -498,11 +498,11 @@ wake on terminal activity · terminals from  [ lanes.olai ▾ ]   3 fleet events
 wake on CI runs · runs from  [ lanes.olai ▾ ]
 ```
 
-**Off is the state you start in, and it is drawn rather than hidden.** No serve turns this on for you, no setting does, and no agent can — the verb behind the picker is the browser's alone. A new conversation, and one you cleared, wakes on nothing until you pick a file, and the row says `off` so that the control is somewhere you can find it before you have ever used it. `clear` is the way back, and it is the same one fact with an empty value rather than a second switch.
+**For an unassigned conversation, off is the state you start in, and it is drawn rather than hidden.** No serve turns a manual scope on for you, no setting does, and no agent can — the verb behind the picker is the browser's alone. A new unassigned conversation, and one you cleared, wakes on nothing until you pick a file, and the row says `off` so that the control is somewhere you can find it before you have ever used it. A node agent has no picker here because its subtree is the answer. `clear` is the way back for the manual case, and it is the same one fact with an empty value rather than a second switch.
 
 **The picker offers the files that could actually be a scope, and that is fewer than the directory holds.** A plugin says which KINDS of file its doorbell can be pointed at — kolu says outlines, because what it reads is the terminals a file's un-done rows claim and only an outline has rows — so a document is not on the list. It used to be: a `.md` sat between the outlines, and a conversation pointed at one heard nothing for ever while the heartbeat below went on saying the watch was running, which is the one thing that must never happen. Beyond the kind, the list is the outlines *you* keep: what is in the Trash and any leftover `Archive.olai` are left out, because a lane you put away claiming a terminal is history rather than live work, and so are the files olai made for itself under `_olai/` — the shelf, the property declarations, the inbox, kolu's own knobs — which are outlines that will never carry a lane. Everything else you have is offered, in full, because which of your outlines is a board is not something olai can know and it will not guess.
 
-**The file is the whole of the scope, and what it MEANS is the plugin's business.** olai never opens it. kolu reads the terminals your board's un-done rows claim and tells this conversation when one of them has stopped and is waiting on a person — see [kolu's own page](plugins/kolu.md) for exactly what it says and when. odu reads the `odu-worktree` values on those same un-done rows and rings when a claimed run first goes red, and again when it settles — [odu's own page](plugins/odu.md#the-ci-doorbell). Pick the board you are working from and you hear about the lanes on it; pick nothing and you hear nothing. That also means picking a *different* file is how you go quiet about one board without going quiet about the tool.
+**For a manual scope, the file is the whole of it, and what it MEANS is the plugin's business.** olai never opens it. kolu reads the terminals your board's un-done rows claim and tells this conversation when one of them has stopped and is waiting on a person — see [kolu's own page](plugins/kolu.md) for exactly what it says and when. odu reads the `odu-worktree` values on those same un-done rows and rings when a claimed run first goes red, and again when it settles — [odu's own page](plugins/odu.md#the-ci-doorbell). Pick the board you are working from and you hear about the lanes on it; pick nothing and you hear nothing. That also means picking a *different* file is how you go quiet about one board without going quiet about the tool. Node-agent scopes take the same derivations and narrow them to the agent's subtree automatically.
 
 **A message a machine sent looks like one.** It is in the same lane your own messages are in — that is the lane a prompt goes out on — but it is drawn as the full column on the left, never the tinted bubble on the right that means *you said this*, and it opens by naming who is speaking and when. That opening line is not decoration: a conversation you resume later is rebuilt out of the agent's own store, which carries the words and not the mark, so the sentence has to say for itself who wrote it. There is no *send again* under it either — what it says is how something STOOD when it rang, and re-sending that an hour later would be re-sending a claim that has stopped being true. Whatever rang will ring again.
 
@@ -550,10 +550,10 @@ Each row says the node's title, the engine, **how the agent stands**, and how ma
 | **starting…** | its agent is coming up — a subprocess, a handshake, a replay |
 | **idle** | the conversation is open and ready |
 | **not running** | its agent is not there; this is the one that needs a person |
-| **asleep** | it has a session and this is not the conversation olai is in |
+| **asleep** | it has a session on disk and no live scope right now |
 | **no session bound** | nobody has started a session for it yet |
 
-The last two are worth reading twice. **Olai runs one conversation at a time**, so at most one node agent has a process at all and every other one is asleep — which is not broken: the session is on disk, and pressing the row opens it. The count beside a row is **what is waiting on you**, and it is honest about what it can be: an agent with no process cannot have said anything since you last looked, so the only thing that accumulates unseen is a question you have not answered.
+The last two are worth reading twice. **Node agents run independently**: several rows may be working or waiting on you at once, while *asleep* means the durable session has no process right now. A scope is acquired lazily on the first press or wake, up to eight live scopes; an idle background scope is reaped after fifteen minutes and the next wake resumes the same session from disk. The count beside each row is that node's own unanswered questions, including while another conversation is in the panel.
 
 ### The door on the row
 
@@ -665,14 +665,17 @@ What it costs is what the contract has been saying all along: nothing that was w
 
 A conversation no node claims has no such control at all — it has no history of its own, and its siblings are one press away in the column.
 
-### It is still one conversation at a time
+### Node agents are live scopes
 
-Assigning a chat does not start anything. Olai runs **one conversation at a time**, so a node agent that is not the open one is *asleep* — its session is on disk, pressing its row opens it, and nothing is happening in it in the meantime. Migrating ten chats gives you ten node agents whose memories are ten subtrees and whose sessions are ten files; it does not give you ten running agents. That is [the next phase](#what-is-not-here-yet-and-in-what-order-it-comes), and everything above is honest without it.
+Assigning a chat does not start anything by itself. The first press or derived wake acquires an Effect scope for that node, and everything belonging to the live session is released together when it is reaped. The panel is a foreground pointer rather than the owner of liveness: switching away does not stop a working agent, and a wake acts even when its row is offscreen.
+
+**A node agent's doorbells are its subtree, automatically.** The manual file picker exists only for conversations no node claims. A claim under nested node agents wakes the nearest one; an ancestor node agent catches claims that have no nearer agent, so a root orchestrator remains the backstop without hearing every child's own work.
+
+**Its tool writes are fenced to that same subtree.** Reads still see the vault, but a write at a node outside the subtree, a file or document write, and any attempt to change `agent-session` are refused before the store gate. The refusal names the nearest node agent above to ask. The credential is acquired with the session scope and tombstoned when reaped, so an old bearer becomes a closed door rather than an unfenced one. This is a protocol fence, not a sandbox: loopback MCP retains its documented unfenced door.
 
 ### What is not here yet, and in what order it comes
 
 The rest is a plan rather than a list of gaps:
 
-1. **Concurrent agents** — the agent module holds a map of live sessions instead of one, the panel routes turns and deliveries by node, and the roster's live states become true for many rows at once. Everything below presumes it: a wake acted on while nobody is looking, an agent that dispatches.
-2. **Derived wakes** — a node agent's [doorbell scope](#what-this-conversation-wakes-on) becomes its subtree, and an agentless wake climbs to the nearest ancestor node agent. The manual control survives for conversations no node claims.
-3. **Agency** — a node agent creates child nodes and puts agents on them, writing only inside its own subtree and asking its ancestor for anything above.
+1. **Agency** — a node agent creates child nodes and puts agents on them; the lifecycle and write boundary are in place, but the dispatch gesture is not.
+2. **Relocation** — the scheduler is deliberately implemented in place in `@olai/chat`; moving it behind its eventual plugin boundary is the next architectural phase, not part of this one.

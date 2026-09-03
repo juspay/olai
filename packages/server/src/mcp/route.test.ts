@@ -111,13 +111,14 @@ const withRoute = <A>(
     yield* serveFace({
       client: () =>
         clientOver(
-          { group: wired.bound.group, handlers: writerAt(wired.bound, ops, "mcp") },
+          { group: wired.bound.group, handlers: writerAt(wired.bound, ops, { writer: "mcp", fence: null }) },
           wired.faces.agent,
         ),
       tools: bespokeFrom(TOOLS, {
         login: currentLogin,
         root,
         vintage: Effect.map(store.read("verified"), (aged) => aged.vintage),
+        fenced: (client) => client,
       }),
       transport,
     })

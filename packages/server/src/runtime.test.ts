@@ -274,7 +274,7 @@ test("app.get answers the box and the start this runtime was minted with", () =>
 test("a face served under another writer differs by exactly the members that record one", () =>
   withRuntime({ "a.olai": OUTLINE }, ({ wired, ops }) =>
     Effect.gen(function*() {
-      const agent = writerAt(wired.bound, ops, "mcp")
+      const agent = writerAt(wired.bound, ops, { writer: "mcp", fence: null })
 
       // The RECORD is the group's, exactly — which is also what `restrictHandlers`
       // asserts before any face binds, so a mis-derived tag is a boot crash rather
@@ -1362,6 +1362,7 @@ const chatKeeping = (kept: ReadonlyArray<Scoped>): {
   const chat: Chat = {
     entries: () => new Map(),
     state: () => CHAT_OFF,
+    live: () => new Map(),
     // Olai has overheard nothing in a case about doorbells, and an empty table
     // is the honest answer rather than a death: the roster cell asks this on
     // every revision these cases publish, and a stub that died on it would fail
@@ -1379,6 +1380,7 @@ const chatKeeping = (kept: ReadonlyArray<Scoped>): {
     resend: () => elsewhere,
     cancel: elsewhere,
     newSession: () => elsewhere,
+    startAgentSession: () => elsewhere,
     chooseAgent: () => elsewhere,
     loadSession: () => elsewhere,
     reopen: elsewhere,
@@ -1778,6 +1780,8 @@ const rosterOfNodes = (rows: ReadonlyArray<NodeAgent>): Roster => ({
   seen: () => {},
   agentAt: () => null,
   nodeAt: (node) => rows.find((row) => row.id === node) ?? null,
+  nodes: () => rows,
+  above: () => null,
   rowsWith: () => [],
 })
 
@@ -1826,6 +1830,7 @@ const chatOpening = (opens: ReadonlyArray<string>): {
         ? null
         : { id: opens[at] as string, title: null, updatedAt: null },
     }),
+    live: () => new Map(),
     overheard: () => [],
     assigned: (to) => Effect.sync(() => void assigned.push(to)),
     replaced: (to, by) => Effect.sync(() => void replaced.push({ ...to, by })),
@@ -1835,6 +1840,7 @@ const chatOpening = (opens: ReadonlyArray<string>): {
     resend: () => elsewhere,
     cancel: elsewhere,
     newSession: () => Effect.sync(() => void (at += 1)),
+    startAgentSession: () => Effect.sync(() => void (at += 1)),
     chooseAgent: () => elsewhere,
     loadSession: () => elsewhere,
     reopen: elsewhere,

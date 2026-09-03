@@ -1203,8 +1203,10 @@ const bench = (files: Record<string, string>, opts?: { readonly armless?: boolea
     },
     // The REAL derivation, over whatever vault the test last set — the
     // server's own closure, which is one `undefined` check and this call.
-    terminals: (file) =>
-      vault === null ? null : terminalsIn(declarationsOf(vault, ownKinds), vault, file),
+    terminals: (scope) =>
+      vault === null
+        ? null
+        : terminalsIn(declarationsOf(vault, ownKinds), vault, scope.file, scope.under),
     now: () => new Date(clock).toISOString(),
     coalesce: "kolu:heartbeat",
   })

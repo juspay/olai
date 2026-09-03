@@ -60,6 +60,18 @@ import { Schema } from "effect"
  */
 export const NodeAgentRow = Schema.Struct({
   ...NodeAgent.fields,
+  /** Session lifecycle is per node now, so it travels on the row rather than
+   * being inferred from whichever conversation the panel happens to show. */
+  standing: Schema.Union([
+    Schema.Literal("needs-you"),
+    Schema.Literal("working"),
+    Schema.Literal("waking"),
+    Schema.Literal("idle"),
+    Schema.Literal("gone"),
+    Schema.Literal("asleep"),
+    Schema.Literal("unbound"),
+  ]),
+  waiting: Schema.Int,
   /**
    * THE LAST LINE OLAI HEARD THIS AGENT SAY, or `null` before it has heard one.
    *

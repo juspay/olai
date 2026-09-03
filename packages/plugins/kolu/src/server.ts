@@ -76,6 +76,7 @@ import {
 } from "@olai/plugin-api/services"
 import {
   type Convention,
+  ancestorsOf,
   conventionServed,
   declarationsOf,
   type Derived,
@@ -83,6 +84,7 @@ import {
   NO_TYPING,
   type OutlineSet,
   type PropDeclarations,
+  insideSubtree,
 } from "@olai/format"
 import { Effect } from "effect"
 import { type Dial, koluHalf } from "olai-plugin-kolu/appliance"
@@ -338,6 +340,28 @@ export default definePlugin({
      *  but the honest answer costs one comparison. */
     let derived: Derived | undefined
 
+    type ScopeRow = ReturnType<typeof deliveries.scopes>[number]
+    const nearest = (
+      at: Derived,
+      scopes: ReadonlyArray<ScopeRow>,
+      scope: ScopeRow,
+      node: string,
+    ): boolean => {
+      if (scope.under === undefined) return true
+      const candidates = new Set(scopes.flatMap((one) =>
+        one.file === scope.file && one.under !== undefined ? [one.under] : []
+      ))
+      const path = [node, ...ancestorsOf(at, node).map((one) => one.node.id).reverse()]
+      return path.find((id) => candidates.has(id)) === scope.under
+    }
+    const narrowed = (
+      at: Derived,
+      scope: ScopeRow,
+      claiming: Ringing["claiming"],
+    ): Ringing["claiming"] => scope.under === undefined
+      ? claiming
+      : new Map([...claiming].filter(([, claim]) => insideSubtree(at, claim.node, scope.under as string)))
+
     /**
      * THE DOORBELL'S OWN ACCOUNT — every seam below says what it did, on the
      * owner's debug channel ({@link ./trace.ts} argues the level and the shape).
@@ -382,7 +406,8 @@ export default definePlugin({
      * A PLAIN FUNCTION, because it is a derivation: the only thing in it that is
      * not one is the trace, which goes out through the seam.
      */
-    const said = (file: string, meaning: Meaning, event: KoluEvent): string | null => {
+    const said = (scope: ScopeRow, meaning: Meaning, event: KoluEvent): string | null => {
+      const file = scope.file
       const at = derived
       if (at === undefined) {
         // The store has never published, or an `unloaded` disowned the last
@@ -395,7 +420,7 @@ export default definePlugin({
       }
       const rows = half.rows()
       const ringing = ringingIn(declaring, at, file, [...rows.keys()], trace)
-      const standing = standingIn(ringing.claiming, rows, meaning)
+      const standing = standingIn(narrowed(at, scope, ringing.claiming), rows, meaning)
       if (standing.length === 0) {
         trace("dropped", { file, meaning, why: "nobody-standing" })
         return null
@@ -525,11 +550,11 @@ export default definePlugin({
         // been "is there anybody to say this to", and that is a length.
         const perStanding = new Map<string, number>()
         const standingFor = (
-          file: string,
+          scope: ScopeRow,
           meaning: Meaning,
           claiming: Ringing["claiming"],
         ): number => {
-          const key = `${meaning}:${file}`
+          const key = `${meaning}:${scope.file}:${scope.under ?? "*"}`
           const held = perStanding.get(key)
           if (held !== undefined) return held
           // The event's own terminal is held by construction, so this is zero only
@@ -546,7 +571,10 @@ export default definePlugin({
           files: listed(new Set(scopes.map((scope) => scope.file))),
         })
         for (const scope of scopes) {
-          const ringing = ringingFor(scope.file)
+          const whole = ringingFor(scope.file)
+          const eventClaim = whole.claiming.get(event.row.terminal)
+          if (eventClaim === undefined || !nearest(at, scopes, scope, eventClaim.node)) continue
+          const ringing = { ...whole, claiming: narrowed(at, scope, whole.claiming) }
           const meaning = classify(event, ringing.claiming)
           // THE ONE LINE THE P1 WOULD HAVE BEEN FOUND BY, beside `derived` above.
           // SILENCE IS NO CALL AT ALL — not a quieter body, not a warning about an
@@ -578,7 +606,7 @@ export default definePlugin({
           // was asked. This said `withheld` here and `dropped` there, which is two
           // names for one thing and a reader left wondering which of the two they
           // were looking at. The seam a line came from is already in the line.
-          if (standingFor(scope.file, meaning, ringing.claiming) === 0) {
+          if (standingFor(scope, meaning, ringing.claiming) === 0) {
             trace("dropped", { file: scope.file, meaning, why: "nobody-standing" })
             continue
           }
@@ -621,7 +649,7 @@ export default definePlugin({
               // still true of, never the counting (`./doorbell.ts`'s
               // `reminderOf` spells it, naming the event's own terminal so a
               // coalesced body of many rows can never borrow one row's count).
-              const body = said(scope.file, meaning, event)
+              const body = said(scope, meaning, event)
               // AND THE WINDOW RESETS HERE, where the words actually go in rather
               // than where the delivery was handed over. A body core coalesced
               // away, or one that derived to `null` because the fleet settled
@@ -657,9 +685,9 @@ export default definePlugin({
      * in the shape a number-returning closure can spell it, and it is why a
      * heartbeat cannot go out with a hole where its count belongs.
      */
-    const terminals = (file: string): number | null => {
+    const terminals = (scope: ScopeRow): number | null => {
       const at = derived
-      return at === undefined ? null : terminalsIn(declaring, at, file)
+      return at === undefined ? null : terminalsIn(declaring, at, scope.file, scope.under)
     }
 
     /**

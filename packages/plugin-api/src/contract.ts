@@ -330,6 +330,9 @@ export interface Deliveries {
     readonly agent: string
     readonly session: string
     readonly file: string
+    /** A derived node-agent scope. Absent means a person picked the whole file
+     * for an unassigned conversation. */
+    readonly under?: string
   }>
   /**
    * ONE MACHINE-MARKED MESSAGE INTO ONE CONVERSATION. Core owns the mechanics;

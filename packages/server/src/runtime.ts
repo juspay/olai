@@ -92,7 +92,7 @@ import {
   shelfIn,
   type Verdict,
 } from "@olai/format"
-import { type Ops, type Policy, type Request, type Status, type Store } from "@olai/ops"
+import { type Caller, type Ops, type Policy, type Request, type Status, type Store } from "@olai/ops"
 import type {
   CommitRequest,
   Pending,
@@ -549,6 +549,8 @@ export const gitWiring = (
 export interface Publishers {
   readonly state: (state: ChatState) => void
   readonly transcript: (change: Change) => void
+  /** A background node scope changed without moving the foreground panel. */
+  readonly live: () => void
 }
 
 /**
@@ -569,9 +571,9 @@ export interface Publishers {
  * composition root built it for. So the writer is decided where the face is,
  * which is where every other fact about a face is decided.
  */
-const writing = (ops: Ops, writer: Writer) => ({
-  ops: { run: (request: Request) => ops.run(request, writer) },
-  git: { commit: (request: CommitRequest) => ops.commit(request, writer) },
+const writing = (ops: Ops, caller: Caller) => ({
+  ops: { run: (request: Request) => ops.run(request, caller.writer, caller.fence ?? undefined) },
+  git: { commit: (request: CommitRequest) => ops.commit(request, caller.writer) },
 })
 
 /**
@@ -771,11 +773,11 @@ const impl =
 export const writerAt = (
   bound: Pick<Bound, "handlers">,
   ops: Ops,
-  writer: Writer,
+  caller: Caller,
 ): SurfaceHandlers => {
   const handlers = emptyHandlers()
   for (const [tag, handler] of Object.entries(bound.handlers)) handlers[tag] = handler
-  for (const [namespace, verbs] of Object.entries(writing(ops, writer))) {
+  for (const [namespace, verbs] of Object.entries(writing(ops, caller))) {
     for (const [verb, handler] of Object.entries(verbs)) {
       handlers[surfaceTag(surface.tagPrefix, namespace, verb)] = handler as SurfaceHandler
     }
@@ -978,7 +980,10 @@ export const bind = (
       const cell = agentsCell
       const carrier = wiring.agents
       if (cell === null || carrier === undefined || carrier === null) return
-      cell.set(carrier.rowsWith(chat === null ? [] : chat.overheard()))
+      cell.set(carrier.rowsWith(
+        chat === null ? [] : chat.overheard(),
+        chat === null ? new Map() : chat.live(),
+      ))
     }
 
     /**
@@ -2131,7 +2136,7 @@ export const bind = (
             withChat((open) =>
               Effect.gen(function*() {
                 const was = wiring.agents?.nodeAt(input.node) ?? null
-                yield* open.newSession(input.agent)
+                yield* open.startAgentSession(input.node, input.agent)
                 const now = open.state().session
                 if (now === null) {
                   return yield* new UsageFailure({
@@ -2303,7 +2308,7 @@ export const bind = (
          * there, and {@link writerAt}.
          */
         ops: {
-          run: impl(writing(wiring.ops, wiring.writer).ops.run),
+          run: impl(writing(wiring.ops, { writer: wiring.writer, fence: null }).ops.run),
           outlines: () => wiring.ops.outlines,
           // The plan arm's reading, and the one member here answering no tool:
           // which files the inbox convention is read off. It is a procedure of
@@ -2325,7 +2330,7 @@ export const bind = (
           // claim about itself. What republishes afterwards is NOT here: it is
           // the `settled` subscription above, so the agent's tool and the quiet
           // window get it too.
-          commit: impl(writing(wiring.ops, wiring.writer).git.commit),
+          commit: impl(writing(wiring.ops, { writer: wiring.writer, fence: null }).git.commit),
           // The Push button's door, and it takes no input at all — one verb,
           // the current branch, the upstream it already has. It republishes
           // through the same subscription for the same reason: pushing moves no
@@ -2621,6 +2626,7 @@ export const bind = (
         return facesOf(siblings())
       },
       publish: {
+        live: republishAgents,
         state: (state) => {
           runtime.ctx.cells.chat.set(state)
           // ... AND THE ROSTER WITH IT, because this is the one door every chat

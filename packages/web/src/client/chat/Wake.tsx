@@ -209,7 +209,7 @@ export function Wake(props: { readonly chat: Chat }) {
     props.chat.scope(at.agent, at.session, plugin, file)
   }
   return (
-    <Show when={rows().length > 0 && to() !== undefined}>
+    <Show when={rows().length > 0 && to() !== undefined && props.chat.state().bound === null}>
       <section
         // `relative` is the picker's containing block: the list hangs from
         // this strip's box the way the sessions list hangs from the header's.

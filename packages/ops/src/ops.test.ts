@@ -47,6 +47,7 @@ import { Deferred, Effect, Fiber, Result, SubscriptionRef } from "effect"
 
 import { codecFor } from "./codec.ts"
 import type { Store as OutlineStore } from "./deps.ts"
+import type { Fence } from "./fenced.ts"
 import { repoAt, STAMP, STAMP_SHAPE, steady } from "./fixtures.testlib.ts"
 import * as Ops from "./ops.ts"
 import { fixedPolicy } from "./pending.ts"
@@ -232,6 +233,24 @@ test("the shown kinds join the set as paths; a `.md` brings its text", () =>
 
 test("PIN (idle): idle is already true when nothing is writing", () =>
   withOps({ "house.olai": HOUSE }, (fixture) => fixture.ops.idle))
+
+test("a run carries its node fence through refusal reporting and write tracking", () =>
+  withOps({ "house.olai": HOUSE }, (fixture) =>
+    Effect.gen(function*() {
+      const fence: Fence = {
+        under: "demo",
+        ask: () => null,
+        forbidden: new Set(),
+      }
+      const failure = yield* Effect.flip(
+        fixture.ops.run({ op: "done", id: "order" }, "mcp", fence),
+      )
+      expect(failure._tag).toBe("UsageFailure")
+      expect(failure.message).toContain("is not inside your subtree")
+      expect(fixture.refusals).toEqual(["done: UsageFailure"])
+      expect(fixture.read("house.olai")).toBe(HOUSE)
+      yield* fixture.ops.idle
+    })))
 
 test("PIN (idle): idle does not complete while a run is in the gate", () => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-ops-idle-")))

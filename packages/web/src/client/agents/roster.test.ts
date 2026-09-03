@@ -21,9 +21,18 @@ const SPACES = {
   engine: "grok",
   memory: 14,
   session: "sess-1",
+  standing: "asleep" as const,
+  waiting: 0,
   said: { text: "the mirror lane is in flight", at: "2026-09-01T16:41:00Z" },
 }
-const ODU = { ...SPACES, id: "odu", title: "Odu — the CI family", session: null, said: null }
+const ODU = {
+  ...SPACES,
+  id: "odu",
+  title: "Odu — the CI family",
+  session: null,
+  standing: "unbound" as const,
+  said: null,
+}
 
 const roster: Agents = [SPACES, ODU]
 
@@ -42,7 +51,7 @@ test("a node agent nobody has bound a session to is UNBOUND, not asleep", () => 
 test("a bound agent that is not the open conversation is ASLEEP", () => {
   // The panel is in `spaces`' conversation; `odu`'s is on disk and has no
   // process. Bound, and asleep.
-  const bound: Agents = [SPACES, { ...ODU, session: "sess-2" }]
+  const bound: Agents = [SPACES, { ...ODU, session: "sess-2", standing: "asleep" }]
   expect(standingOf(bound, panel({ status: "thinking", bound: "spaces" }), "odu")).toBe("asleep")
 })
 
@@ -54,7 +63,7 @@ test("every row is asleep or unbound while the panel is in nobody's conversation
 // ── and the four the panel decides ─────────────────────────────────────
 
 test("the open conversation working is WORKING", () => {
-  expect(standingOf(roster, panel({ status: "thinking", bound: "spaces" }), "spaces"))
+  expect(standingOf([{ ...SPACES, standing: "working" }, ODU], panel({}), "spaces"))
     .toBe("working")
 })
 
@@ -62,36 +71,34 @@ test("a turn stopped on a question is NEEDS-YOU, which outranks working", () => 
   // Both are true at once on the wire — `asking` is only ever nonzero while a
   // turn is in flight — and the roster must say the half that is somebody's
   // move, exactly as the header does.
-  const asked = panel({ status: "thinking", asking: 2, bound: "spaces" })
-  expect(standingOf(roster, asked, "spaces")).toBe("needs-you")
+  expect(standingOf([{ ...SPACES, standing: "needs-you", waiting: 2 }, ODU], panel({}), "spaces"))
+    .toBe("needs-you")
 })
 
 test("the agent starting is WAKING, which is not the same as ready", () => {
-  expect(standingOf(roster, panel({ status: "booting", bound: "spaces" }), "spaces"))
+  expect(standingOf([{ ...SPACES, standing: "waking" }, ODU], panel({}), "spaces"))
     .toBe("waking")
 })
 
 test("the open conversation with nothing in flight is IDLE", () => {
-  expect(standingOf(roster, panel({ status: "idle", bound: "spaces" }), "spaces")).toBe("idle")
+  expect(standingOf([{ ...SPACES, standing: "idle" }, ODU], panel({}), "spaces")).toBe("idle")
 })
 
 test("an agent that is not running is GONE, and so is a panel with none configured", () => {
-  expect(standingOf(roster, panel({ status: "gone", bound: "spaces" }), "spaces")).toBe("gone")
-  expect(standingOf(roster, panel({ status: "off", bound: "spaces" }), "spaces")).toBe("gone")
+  expect(standingOf([{ ...SPACES, standing: "gone" }, ODU], panel({}), "spaces")).toBe("gone")
 })
 
 // ── what is waiting on you ─────────────────────────────────────────────
 
 test("the count is the OPEN conversation's questions, and zero everywhere else", () => {
-  const asked = panel({ status: "thinking", asking: 2, bound: "spaces" })
-  const drawn = rowsOf(roster, asked)
+  const drawn = rowsOf([{ ...SPACES, standing: "needs-you", waiting: 2 }, ODU], panel({}))
   expect(drawn.map((row) => row.waiting)).toEqual([2, 0])
 })
 
 test("a sleeping agent's row never wears the open conversation's count", () => {
   // The panel is asking two questions of `spaces`; `odu` is a different agent
   // and has nothing waiting, whatever the panel is doing.
-  const bound: Agents = [SPACES, { ...ODU, session: "sess-2" }]
+  const bound: Agents = [SPACES, { ...ODU, session: "sess-2", standing: "asleep" }]
   const asked = panel({ status: "thinking", asking: 2, bound: "spaces" })
   expect(rowsOf(bound, asked).find((row) => row.id === "odu")?.waiting).toBe(0)
 })

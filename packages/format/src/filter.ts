@@ -2909,10 +2909,18 @@ const scoping = (
     if (under === undefined) return true
     // At OR under: "everything beneath `install`" includes `install`, which is
     // what a reader filtering a zoomed page is looking at.
-    return at.node.id === under ||
-      ancestorsOf(derived, at.node.id).some((crumb) => crumb.node.id === under)
+    return insideSubtree(derived, at.node.id, under)
   }
 }
+
+/** Whether a node is the root itself or a canonical descendant of it. This is
+ * the one subtree predicate shared by search, node-agent wakes and writes. */
+export const insideSubtree = (
+  derived: Derived,
+  id: string,
+  under: string,
+): boolean =>
+  id === under || ancestorsOf(derived, id).some((crumb) => crumb.node.id === under)
 
 // ── what a filtered page looks like ────────────────────────────────────
 

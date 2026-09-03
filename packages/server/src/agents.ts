@@ -50,8 +50,15 @@
  * than by serving a directory.
  */
 
-import type { Conversing, Overheard } from "@olai/chat"
-import { agentsOf, type Derived, NO_AGENTS, type NodeAgent, type NodeAgents } from "@olai/format"
+import type { Conversing, LiveSession, Overheard } from "@olai/chat"
+import {
+  agentsOf,
+  ancestorsOf,
+  type Derived,
+  NO_AGENTS,
+  type NodeAgent,
+  type NodeAgents,
+} from "@olai/format"
 import { type Agents, NO_AGENT_ROSTER } from "@olai/surface"
 
 export interface Roster {
@@ -92,9 +99,16 @@ export interface Roster {
    * re-read per revision, asked once per gesture.
    */
   readonly nodeAt: (node: string) => NodeAgent | null
+  /** Every durable row, including sleeping agents with no acquired scope. */
+  readonly nodes: () => NodeAgents
+  /** The nearest node agent strictly above this one, named for a refusal. */
+  readonly above: (node: string) => string | null
   /** The rows the cell carries: the vault's half, wearing what olai overheard
    *  the sessions it names say. */
-  readonly rowsWith: (overheard: ReadonlyArray<Overheard>) => Agents
+  readonly rowsWith: (
+    overheard: ReadonlyArray<Overheard>,
+    live?: ReadonlyMap<string, LiveSession>,
+  ) => Agents
 }
 
 /** The carrier and the two readings over it — one per served directory, built
@@ -105,14 +119,24 @@ export const roster = (): Roster => {
   // woken — the cell's connector is already running on the revision that moved
   // this, and the teaching asks in the middle of a send.
   let held: NodeAgents = NO_AGENTS
+  let reading: Derived | null = null
   return {
     seen: (derived) => {
+      reading = derived
       held = derived === null ? NO_AGENTS : agentsOf(derived)
     },
     agentAt: (to) =>
       held.find((one) => one.engine === to.agent && one.session === to.session) ?? null,
     nodeAt: (node) => held.find((one) => one.id === node) ?? null,
-    rowsWith: (overheard) => joined(held, overheard),
+    nodes: () => held,
+    above: (node) => {
+      if (reading === null) return null
+      const agents = new Set(held.map((one) => one.id))
+      const nearest = [...ancestorsOf(reading, node)].reverse()
+        .find((one) => agents.has(one.node.id))
+      return nearest === undefined ? null : `“${nearest.node.title}” (\`${nearest.node.id}\`)`
+    },
+    rowsWith: (overheard, live) => joined(held, overheard, live),
   }
 }
 
@@ -137,10 +161,13 @@ export const roster = (): Roster => {
 export const joined = (
   agents: NodeAgents,
   overheard: ReadonlyArray<Overheard>,
+  live: ReadonlyMap<string, LiveSession> = new Map(),
 ): Agents => {
   if (agents.length === 0) return NO_AGENT_ROSTER
   return agents.map((agent) => ({
     ...agent,
+    standing: standingOf(agent, live.get(agent.id)),
+    waiting: live.get(agent.id)?.asking ?? 0,
     // The one fact olai writes back that a face draws, `null`-on-the-wire
     // where the record carries an absent key: the wire is a decoded value a
     // browser reads per frame, and an optional key there would be one more
@@ -151,4 +178,16 @@ export const joined = (
       : overheard.find((row) => row.agent === agent.engine && row.session === agent.session)
         ?.said) ?? null,
   }))
+}
+
+const standingOf = (
+  agent: NodeAgent,
+  live: LiveSession | undefined,
+): Agents[number]["standing"] => {
+  if (agent.session === null) return "unbound"
+  if (live === undefined) return "asleep"
+  if (live.status === "off" || live.status === "gone") return "gone"
+  if (live.status === "booting") return "waking"
+  if (live.asking > 0) return "needs-you"
+  return live.status === "thinking" ? "working" : "idle"
 }

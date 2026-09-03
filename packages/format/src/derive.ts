@@ -1877,14 +1877,21 @@ export const withoutDone = (
 export const ancestorsOf = (
   derived: Derived,
   id: string,
+): ReadonlyArray<LocatedRegular> => ancestryOver((key) => derived.byId.get(key), id)
+
+/** The canonical ancestry walk over an arbitrary id index. Plans use this to
+ * judge their after-side with exactly the same rules as a standing reading. */
+export const ancestryOver = (
+  at: (id: string) => Located | undefined,
+  id: string,
 ): ReadonlyArray<LocatedRegular> => {
   const chain: Array<LocatedRegular> = []
   const seen = new Set<string>([id])
-  let next = derived.byId.get(id)?.node.parent
+  let next = at(id)?.node.parent
 
   while (next !== undefined && !seen.has(next)) {
     seen.add(next)
-    const located = derived.byId.get(next)
+    const located = at(next)
     // A parent that is missing, or is a mirror, is a set the validator has
     // already condemned. Stop at the last crumb that is really there rather
     // than inventing one or walking through a placement.

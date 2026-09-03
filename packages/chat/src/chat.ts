@@ -102,7 +102,7 @@ import {
   type Listed,
   type Talking,
 } from "@olai/surface"
-import { BusyFailure, type NodeAgent, UsageFailure } from "@olai/format"
+import { BusyFailure, type NodeAgent, type NodeAgents, UsageFailure } from "@olai/format"
 import { emitter } from "@olai/log"
 import { Deferred, Effect, Fiber, Semaphore } from "effect"
 
@@ -126,6 +126,12 @@ import { type Turn, Turns } from "./turns.ts"
 import { sameWatching, watching } from "./watching.ts"
 
 export type { ToolServer } from "./agent.ts"
+
+/** A per-node credential owned by the node scope that receives it. */
+export interface ToolTicket {
+  readonly bearer: string
+  readonly release: () => void
+}
 
 export interface Options {
   /** Which agents this machine has, already detected
@@ -232,6 +238,20 @@ export interface Options {
    * telling it nothing.
    */
   readonly agentAt?: (to: Conversing) => NodeAgent | null
+  /** Read one node agent by its durable node id. Supplying this turns the
+   * single-conversation panel into the node-scoped scheduler exported by
+   * {@link make}; tests and embeddings that omit it keep the ordinary panel. */
+  readonly nodeAt?: (node: string) => NodeAgent | null
+  /** All durable node agents, including sleeping ones. Derived doorbells must
+   * be able to wake a scope that has no process yet. */
+  readonly nodes?: () => NodeAgents
+  /** Mint the MCP credential acquired and released with a node scope. */
+  readonly ticket?: (node: string) => ToolTicket
+  /** The idle lifetime of a node scope. The default is deliberately a policy
+   * of the scheduler rather than of the ACP client. */
+  readonly idle?: import("effect").Duration.Input
+  /** Maximum concurrently acquired node scopes. */
+  readonly capacity?: number
   /** Publish the state cell. Called on every change; the surface dedups. */
   readonly onState: (state: ChatState) => void
   /** Publish transcript changes — ALL THREE of the things one carries: rows
@@ -242,12 +262,23 @@ export interface Options {
    *  what this comment used to do and what the guard below used to ask, and it
    *  cost every token of every answer. */
   readonly onTranscript: (change: Change) => void
+  /** A background node session changed standing. Kept separate from
+   * `onState`: the foreground panel did not move, but the agents cell did. */
+  readonly onLive?: () => void
+}
+
+/** The part of a node session's state that the roster reads. */
+export interface LiveSession {
+  readonly status: ChatState["status"]
+  readonly asking: number
 }
 
 export interface Chat {
   /** The transcript as it stands — what a fresh subscription is seeded with. */
   readonly entries: () => ReadonlyMap<string, ChatEntry>
   readonly state: () => ChatState
+  /** Every acquired node scope, keyed by its durable node id. */
+  readonly live: () => ReadonlyMap<string, LiveSession>
   /**
    * WHAT OLAI HAS OVERHEARD, as this machine's record holds it
    * ({@link ./sessions.ts}) — empty for a chat built without one.
@@ -349,6 +380,11 @@ export interface Chat {
    *  chat asks which one — there is no default to fall back on, and a verb that
    *  could be called without one would be a place for a default to grow. */
   readonly newSession: (agent: string) => Effect.Effect<void, OpFailure>
+  /** Start a fresh conversation inside this node's own scope. */
+  readonly startAgentSession: (
+    node: string,
+    agent: string,
+  ) => Effect.Effect<void, OpFailure>
   /** Answer the question the panel is holding: THIS is the agent, now open the
    *  conversation you would have opened.
    *
@@ -431,6 +467,7 @@ export interface Chat {
       readonly agent: string
       readonly session: string
       readonly file: string
+      readonly under?: string
     }>
     /**
      * ONE MACHINE-MARKED MESSAGE INTO ONE CONVERSATION.
@@ -782,7 +819,7 @@ const replaceLost = (failure: Memory.MemoryFailure): string =>
   `(${failure.why}) — the new session is bound, and the old one will show under Unassigned ` +
   `as a conversation no node claims`
 
-export const make = (options: Options): Effect.Effect<Chat, never, never> =>
+export const makePanel = (options: Options): Effect.Effect<Chat, never, never> =>
   Effect.gen(function*() {
     /**
      * Where this panel writes down what it was in, and what it reads back at a
@@ -2993,6 +3030,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     return {
       entries: () => transcript.entries(),
       state: () => state,
+      live: () => new Map(),
       overheard: () => options.overheard?.rows() ?? [],
       // THE TWO MARKS THE MIGRATION GESTURES LEAVE, and both are written the
       // way everything else in this record is: behind a gesture that has
@@ -3030,6 +3068,8 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       // is no arm here that picks one. An id off a stale tab is refused in
       // words rather than started.
       newSession: (id: string) => openWith(id, (agent) => agent.newSession),
+      startAgentSession: (_node: string, id: string) =>
+        openWith(id, (agent) => agent.newSession),
       // The answer to the panel's own question, which is not the same verb: a
       // boot that stopped to ask has not asked for a NEW conversation, so what
       // this opens is the one that agent's own boot would have adopted —
@@ -3315,3 +3355,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       }),
     }
   })
+
+/** The single-panel constructor remains a module-level seam for the focused
+ * state-machine tests. Package consumers use the scheduler exported by index. */
+export const make = makePanel

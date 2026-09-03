@@ -105,7 +105,12 @@ export const bespokeFrom = (
         // `./route.ts`'s `WHOSE`. Deferring it into the Effect would read
         // whichever request happened to be running when the scheduler got to
         // it, which is a capture attributed to the wrong person.
-        const said = answer(tool, doorFor(client as OlaiSurfaceClient), args, at.login())
+        const said = answer(
+          tool,
+          doorFor(at.fenced(client as OlaiSurfaceClient)),
+          args,
+          at.login(),
+        )
         if (tool.kind !== "read") return Effect.map(said, (it) => named(it, at.root))
         // THE AGE IS ESTABLISHED FIRST, and that order is the honest one: the
         // look happens, then the read runs against a set that is at least as
@@ -153,6 +158,9 @@ export interface Served {
    * handler would have to word.
    */
   readonly vintage: Effect.Effect<Vintage>
+  /** Select the per-request write door before the adapter starts a fresh Effect
+   * fiber and request-local context is no longer available. */
+  readonly fenced: (client: OlaiSurfaceClient) => OlaiSurfaceClient
 }
 
 /**

@@ -454,6 +454,7 @@ export { PROPERTIES, propertiesIn } from "./node.ts"
 
 export {
   ancestorsOf,
+  ancestryOver,
   /** The crumbs' titles, outermost first — what every reader of an ancestry
    *  actually draws, said once. */
   ancestorTitles,
@@ -586,6 +587,7 @@ export {
    *  as it reaches `@olai/index` — that package looks text up, this one decides
    *  what a query means, and the seam between them is a superset. */
   hayOf,
+  insideSubtree,
   keeping,
   keepingDated,
   /** Where a query's words LAND in a piece of text, in the fold the matcher

@@ -53,8 +53,6 @@
  */
 
 import type { Agents, ChatState, NodeAgentRow } from "@olai/surface"
-
-import { busyIn } from "../chat/busy.ts"
 import type { Look } from "../readout.ts"
 
 /**
@@ -160,15 +158,8 @@ export const LOOK: Record<Standing, Look> = {
  * machine has never heard of: the property is a fact about the board and
  * travels, and a roster that hid one would be hiding a node somebody wrote.
  */
-export const rowsOf = (agents: Agents, chat: ChatState): ReadonlyArray<Row> =>
-  agents.map((row) => {
-    const live = chat.bound !== null && chat.bound === row.id
-    return {
-      ...row,
-      standing: standingOf(row, chat, live),
-      waiting: live ? chat.asking : 0,
-    }
-  })
+export const rowsOf = (agents: Agents, _chat: ChatState): ReadonlyArray<Row> =>
+  agents.map((row) => ({ ...row }))
 
 /**
  * WHICH STANDING, and the order of the questions is the argument.
@@ -189,15 +180,3 @@ export const rowsOf = (agents: Agents, chat: ChatState): ReadonlyArray<Row> =>
  * itself would be a second answer free to disagree with the header drawn beside
  * it — and the one that disagreed would be the one nobody was looking at.
  */
-const standingOf = (row: NodeAgentRow, chat: ChatState, live: boolean): Standing => {
-  if (row.session === null) return "unbound"
-  if (!live) return "asleep"
-  // `off` is a serve with no ACP agent at all and `gone` is one whose agent
-  // died: two reasons, one thing a person can do about them, and the panel's
-  // own header says them apart one click away.
-  if (chat.status === "off" || chat.status === "gone") return "gone"
-  const doing = busyIn(chat)
-  if (doing === null) return "idle"
-  return doing.kind === "starting" ? "waking" : doing.kind === "waiting" ? "needs-you" : "working"
-}
-

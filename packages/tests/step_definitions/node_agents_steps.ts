@@ -79,7 +79,10 @@ Then(
     await this.showSidebar();
     const row = rowFor(this, node);
     await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    assert.strictEqual(await row.getAttribute("data-standing"), standing);
+    await this.waitUntil(
+      async () => (await row.getAttribute("data-standing")) === standing,
+      `the agent ${node} to stand ${standing}, and it stands ${await row.getAttribute("data-standing")}`,
+    );
   },
 );
 

@@ -53,7 +53,8 @@ export {
   type Sessions,
 } from "./sessions.ts"
 export { type Installed, roster, type Roster } from "./agents/roster.ts"
-export { type Chat, make, type Options, type ToolServer } from "./chat.ts"
+export { type Chat, type LiveSession, type Options, type ToolServer, type ToolTicket } from "./chat.ts"
+export { DEFAULT_CAPACITY, DEFAULT_IDLE, make } from "./scoped.ts"
 export type { Probe, Probed, StdioServer } from "./probes.ts"
 export { type Fault, type Faulted, forDirectory as scopesIn, type Scoped, type Scopes } from "./scopes.ts"
 export type { Change } from "./transcript.ts"

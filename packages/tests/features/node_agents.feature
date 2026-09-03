@@ -153,6 +153,7 @@ Feature: A node with an `agent-session` property IS an agent
     # The binding took: the roster says this agent is the conversation the
     # panel is in, which is the half `bound` answers.
     Then the agent "door-live" stands "idle"
+    And the panel offers no manual wake scope
     When I ask the agent "what is blocking the connector?"
     Then the agent was told its contract 1 time
     And the contract names "watch the connector" and its subtree
@@ -165,6 +166,59 @@ Feature: A node with an `agent-session` property IS an agent
     # than whenever something else next moves the panel. The scripted agent
     # says back what it was given, so the last thing olai heard is the question.
     And the door on "door-live" last said "and now?"
+
+  # ── the subtree is both wake scope and write boundary ────────────────
+
+  @scratch:lanes
+  Scenario: A node agent cannot write a sibling outside its subtree
+    # The agent can read the whole vault, but the bearer on this ACP process
+    # is seated at `door-live`. `door-review` is a sibling, so the refusal is
+    # made after planning and before the store gate; the row stays untouched.
+    Given I open the outline "lanes.olai"
+    And the agent panel is open
+    Then the agent "door-live" stands "idle"
+    When I ask the agent "ready"
+    And the agent is idle
+    When I ask the agent "done door-review"
+    Then the agent is idle
+    And the chat shows a refusal
+    And the node "door-review" has status "todo"
+
+  @scratch:lanes
+  Scenario: A node agent may write its own subtree
+    # At the root counts as inside. This is the same MCP tool and the same
+    # writer as the refused sibling call above; only the planned footprint
+    # differs.
+    Given I open the outline "lanes.olai"
+    And I show the done nodes
+    And the agent panel is open
+    Then the agent "door-live" stands "idle"
+    When I ask the agent "ready"
+    And the agent is idle
+    When I ask the agent "done door-live"
+    Then the agent is idle
+    And the node "door-live" has status "done"
+    And the chat shows no refusal
+
+  @agent-stored @scratch:lanes
+  Scenario: Two node agents converse at once, with both roster rows live
+    # The current unassigned conversation becomes `lane-fresh`'s. Its slow
+    # turn then stays alive while the panel moves to `door-live`, whose own
+    # process loads its own conversation and answers independently.
+    Given I open the outline "lanes.olai"
+    And the agent panel is open
+    When I open the unassigned chats
+    And I assign the conversation "the last conversation" to the node titled "a lane nobody has put an agent on", searching for "lane nobody"
+    And I close the unassigned chats
+    And I ask the agent "slow"
+    Then the agent "lane-fresh" stands "working"
+    When I press the agent "door-live"
+    Then the agent "lane-fresh" stands "working"
+    And the agent "door-live" stands "idle"
+    When I ask the agent "the second conversation"
+    Then the agent has answered "the second conversation" exactly once
+    And the agent "lane-fresh" stands "working"
+    When the agent is released
 
   @scratch:lanes
   Scenario: ... and a restart does not say it again
