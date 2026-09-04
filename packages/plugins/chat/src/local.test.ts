@@ -70,7 +70,7 @@ describe("chat's one machine-local document", () => {
   test("a refused write reaches chat and leaves its snapshot where it landed", async () => {
     const door: LocalState = {
       load: Effect.succeed({ memory: { session: "sess-1" } }),
-      save: () => Effect.fail({ _tag: "StateFailure", reason: "the state home is read-only" }),
+      save: () => Effect.fail({ _tag: "StateFailure", why: "the state home is read-only" }),
     }
     const local = await run(openLocalState(door))
 

@@ -39,8 +39,10 @@ const object = (value: unknown): Record<string, unknown> =>
     : {}
 
 const reasonOf = (failure: Refusal): string => {
-  const reason = (failure as { readonly reason?: unknown }).reason
-  return typeof reason === "string" ? reason : String(failure)
+  const shaped = failure as { readonly reason?: unknown; readonly why?: unknown }
+  if (typeof shaped.reason === "string") return shaped.reason
+  if (typeof shaped.why === "string") return shaped.why
+  return String(failure)
 }
 
 /** Open the one document once for this activation. */
