@@ -39,7 +39,7 @@
 export type KeyAction =
   | "palette"
   | "sidebar"
-  | "chat"
+  | "panel"
   | "undo"
   | "redo"
   | "closePane"
@@ -106,7 +106,7 @@ export const CHORDS: ReadonlyArray<
 > = [
   { key: "k", action: "palette", whileEditing: true },
   { key: "\\", action: "sidebar", whileEditing: false },
-  { key: "j", action: "chat", whileEditing: false },
+  { key: "j", action: "panel", whileEditing: false },
   { key: "z", action: "undo", whileEditing: false },
   { key: "z", action: "redo", whileEditing: false, shift: true },
   // ⌘⇧P / Ctrl+⇧P — put the page on the shelf, or take it off (`pins/`). With

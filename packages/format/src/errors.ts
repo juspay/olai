@@ -393,12 +393,12 @@ const filesOf = (
 export const isCrossFile = (error: OutlineError): boolean => blamedOn(error).length > 1
 
 /** A `line` of 0 means there is no record to point at — the site is the path
- *  itself. Two codes have that (`unreadable-directory`, about a DIRECTORY,
- *  and `unreadable-file`, about one FILE that will not open), and the rule
- *  lives here rather than in whichever renderer noticed first, which is the
- *  same argument {@link errorLine} makes: the browser's rows and an agent's
- *  one-liner must not disagree about whether `plan.olai:0` is a line number
- *  somebody could go and look for.
+ *  itself. Two codes have that: `unreadable-directory`, about a DIRECTORY, and
+ *  `unreadable-file`, about one FILE that will not open. A made-up 1 would
+ *  point at somebody's first record. The rule lives here rather than in whichever renderer noticed
+ *  first, which is the same argument {@link errorLine} makes: the browser's
+ *  rows and an agent's one-liner must not disagree about whether `plan.olai:0`
+ *  is a line number somebody could go and look for.
  *
  *  Asked of a {@link Site} rather than of an error: the `line` it reads is the
  *  PLACE's field, and an error is only where the question happens to come up.

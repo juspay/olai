@@ -40,9 +40,9 @@
  *   - **The five SENTENCES** ({@link whyOf}) — one per way a `kolu` that WAS
  *     found failed to be this host's.
  *
- * ## Why this is the plugin's file and no longer `@olai/chat`'s
+ * ## Why this is the plugin's file and no longer `olai-plugin-chat`'s
  *
- * It was `packages/chat/src/kolu.ts`, and 341 lines of it were the word `kolu`
+ * It was `packages/plugins/chat/src/kolu.ts`, and 341 lines of it were the word `kolu`
  * inside a package whose whole subject is one conversation with one ACP agent.
  * The seam that stays there is generic — a list of things that answer *is your
  * tool here, and what am I owed if not* — and what a chat does with the answer
@@ -108,7 +108,7 @@ export interface NotHere {
 /** WHAT THE PROBE FOUND — both halves at once, because they are one reading.
  *
  *  Two fields rather than a union, and the invariant has an incident behind it
- *  (`@olai/chat`'s `agent.ts`: one probe, two reads). A caller that asked once
+ *  (`olai-plugin-chat`'s `agent.ts`: one probe, two reads). A caller that asked once
  *  for the server to hand over and again for the sentence would start `kolu`
  *  twice per conversation and could answer the two questions about two
  *  different moments. */

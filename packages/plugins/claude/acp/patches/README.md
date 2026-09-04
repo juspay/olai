@@ -472,7 +472,7 @@ RE-APPLIED and neither was retired.** `pi-mcp-servers.patch` is untouched: the
 ### The steering hang has a second trigger, and the guard does not cover it
 
 **THE ONE PLACE THIS IS WRITTEN DOWN.** It is a fact about the pinned adapter,
-so it lives with the pin; `packages/chat`'s `queuedHere` and
+so it lives with the pin; `packages/plugins/chat`'s `queuedHere` and
 `packages/tests/panel-live.ts` each say what it costs THEM and point here for
 the measurement. Six copies of one measurement is five that go stale at the
 next bump.
@@ -488,7 +488,7 @@ exactly the kind of claim this section exists to stop.)
 [claude-agent-acp#1039](https://github.com/agentclientprotocol/claude-agent-acp/issues/1039)
 — a `_session/steering` into a session that has once held a QUEUED prompt
 leaves that turn's `session/prompt` unanswered forever — is what olai's
-`queuedHere` latch guards (`packages/chat/src/chat.ts`). Found while proving
+`queuedHere` latch guards (`packages/plugins/chat/src/chat.ts`). Found while proving
 the panel on this bump: **a session in which a turn armed a `Monitor` hangs
 the same way, with nothing ever queued** — so the latch is still open and the
 panel still offers the interruption that will hang it.

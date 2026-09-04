@@ -41,7 +41,7 @@
  * panel, where those differ.
  */
 
-import type { OpFailure } from "@olai/surface"
+import type { OpFailure } from "@olai/format"
 import { type Accessor, createSignal, onCleanup } from "solid-js"
 
 /** The two moods anything this client says is in: `alarm` for a refusal, which

@@ -129,6 +129,41 @@ Feature: A node with an `agent-session` property IS an agent
     And the door on "door-implement" reads "claude"
     And the door on "door-implement" does not read "no session bound"
 
+  @scratch:lanes
+  Scenario: ... and the conversation is opened in the node's own scope, not moved into it
+    # THE BUG A SCRIPTED AGENT ALMOST CANNOT SHOW, and what it cost: against the
+    # adapter olai SHIPS this gesture did not work at all.
+    #
+    # A bare node is on no roster — the roster is the query over the binding
+    # property, and this gesture is what WRITES one — so the scheduler read
+    # "not a node agent" as "not a node", opened the conversation in the
+    # unscoped panel, wrote the property, and then MOVED the conversation into
+    # the node's scope. Moving one is `session/load`, and no engine has written
+    # a session it has only just minted and nobody has spoken into: the load
+    # came back `Resource not found`, and the node was left naming a
+    # conversation nothing could open.
+    #
+    # This agent loads any id it is handed, so the shape is unreachable head-on.
+    # Told to REFUSE a load it becomes reachable exactly: a gesture that opens
+    # its conversation where it belongs never asks for a load at all, and one
+    # that has to move it asks for the one thing this agent will not do. The
+    # refusal is armed BEFORE the press, so it is the relocation's own load that
+    # meets it and not some later verb's.
+    Given I open the outline "lanes.olai"
+    And the agent panel is open
+    When the agent refuses to load a conversation
+    And I open the node menu of "lane-fresh"
+    And I choose "Start an agent session" from the node menu
+    # The two acts in their order, unchanged: the conversation, then the
+    # property that names it.
+    Then the node "lane-fresh" shows the property "agent-session" holding "claude:fake-session-1"
+    And the agent "lane-fresh" stands "idle"
+    # THE CLAIM. Nothing was re-opened, so nothing was refused — and the panel
+    # is in a conversation rather than on the third body explaining why it is
+    # not.
+    And the panel shows no such refusal
+    And there is somewhere to type into
+
   @corpus:lanes
   Scenario: A node agent that already has a session is not offered a new one
     # The fence read from the other side. `door-live`'s property names a
@@ -379,6 +414,58 @@ Feature: A node with an `agent-session` property IS an agent
     And the panel offers a fresh session, saying "the transcript becomes history"
 
   @agent-stored @scratch:lanes
+  Scenario: A node agent whose conversation the engine has lost can still be got out of
+    # THE TRAP, and it is a trap rather than a refusal: every part of it is
+    # working as designed and the person cannot move.
+    #
+    # A node's property names a conversation. The engine no longer has that
+    # conversation — a `claude --resume` store cleared, a machine changed, an id
+    # that was never theirs — so `session/load` answers `no such conversation`
+    # and the panel draws the refusal, which is right. What it offers is *try
+    # again*, which asks for the SAME thing and will be refused for ever.
+    #
+    # The one gesture that CAN move — a fresh session, which re-points the
+    # property — was reachable from two places and neither of them is open:
+    #
+    #   - the panel's session picker, which is drawn only where the conversation
+    #     belongs to a node, and a refused load means there is no conversation;
+    #   - the row's `•••`, which withholds *Start an agent session* precisely
+    #     because the node HAS a session (`one agent, one current session`).
+    #
+    # So the two rules that are each correct alone close on a person together.
+    # This scenario is the trap and its way out.
+    #
+    # `@agent-stored` is what puts the panel somewhere ELSE first: boot adopts a
+    # stored conversation, so pressing the agent is a real `session/load` of the
+    # one its property names rather than a press on the conversation already
+    # open. That is also how a person arrives — a tab that was reading something
+    # else, and an agent whose conversation is gone.
+    Given I open the outline "lanes.olai"
+    And the agent panel is open
+    When the agent refuses to load a conversation
+    And I press the agent "door-live"
+    Then the panel says the conversation could not be opened
+    And the refusal is in the agent's own words, "no such conversation"
+    # THE FIRST CLAIM, and the whole of the trap: the panel knows WHOSE
+    # conversation it could not open. The header goes on naming the node agent,
+    # which is what draws that agent's own session control — a refused open used
+    # to drop the binding along with the conversation, and the control with it.
+    And the panel header names the node agent "watch the connector"
+    # THE WAY OUT, under the words that make it safe to press. It is the picker's
+    # own fresh session, unmoved: the memory is the subtree, so nothing a person
+    # wrote is being thrown away, and *try again* is still there beside it for an
+    # engine that had merely lost its store for a moment.
+    When I open the session picker
+    Then the panel offers a fresh session, saying "memory is the subtree"
+    # ...and pressing it moves. A fresh conversation is `session/new`, which this
+    # agent never refused — it said no to the old one — so the node comes back to
+    # a conversation and the refusal is off the screen.
+    When I start a fresh session
+    Then the panel shows no such refusal
+    And the agent "door-live" stands "idle"
+    And the node "door-live" shows the property "agent-session" holding "claude:fake-session-1"
+
+  @agent-stored @scratch:lanes
   Scenario: ... and names the conversations this agent has had before this one
     # Assigning claims the `/clear` chain in one gesture, so *past sessions* is
     # populated from day one rather than starting empty and filling as somebody
@@ -540,3 +627,45 @@ Feature: A node with an `agent-session` property IS an agent
     Then the panel refuses, saying "a turn is running"
     When the agent is released
     Then the agent is idle
+
+  @scratch:lanes
+  Scenario: A board that predates the rename is told the row, in its own column
+    # THE MIGRATION EVERY EXISTING VAULT IS OWED, and where it is said.
+    #
+    # `agent-session` was a key core owned outright. It is chat's kind
+    # `chat-agent-session` now, and a plugin may only ever declare a key
+    # carrying its own name — which is what makes enabling a plugin unable to
+    # take over a column somebody has been using for something of their own —
+    # so olai declares this one for nobody and says so instead.
+    #
+    # IT IS THE PLUGIN THAT SAYS IT, and that is the whole of this scenario. It
+    # was a validator finding for a revision, and a finding BREAKS the file it
+    # is filed on: the only honest file for this one is the declarations page,
+    # so the notice put that page into errors-only and refused every other write
+    # to it until somebody pasted the row. A notice that darkens the page it is
+    # asking you to edit costs more than the thing it is about.
+    Given I open the outline "lanes.olai"
+    When the vault has not declared the binding key yet
+    # THE AGENTS ARE GONE, which is the state the sentence is about — the roster
+    # is the query over the DECLARED key, so there is nothing to list.
+    Then the agents roster holds 0 agents
+    # ...and the section draws anyway, for this alone. A person who came looking
+    # for an agent that stopped appearing finds the reason where they looked.
+    And the agents section says "This board has"
+    And the agents section says "holding"
+    And the agents section says "agent-session"
+    And the agents section says "chat-agent-session"
+    # THE ROW ITSELF, asserted apart from the prose so a reworded sentence
+    # cannot quietly change the JSON a person is about to paste.
+    And the agents section offers the row:
+      """
+      {"id":"prop-agent-session","ord":"a0","title":"agent-session","custom":{"type":"chat-agent-session"}}
+      """
+    # ...AND THE OTHER ANSWER is offered too, because it is a real one: a board
+    # that never meant these as bindings says so and stops hearing about it.
+    And the agents section says "Declaring it"
+    # THE FIX, taken the way a person takes it — and both halves land together,
+    # because the notice and the roster are one reading of one declaration.
+    When I paste that row into the declarations
+    Then the agents roster lists "door-live"
+    And the door on "door-live" reads "claude"

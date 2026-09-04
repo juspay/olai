@@ -17,7 +17,7 @@
  * Here: how to find it, how to spawn it, how to read its wire ({@link ./leg.ts})
  * and the mark it wears ({@link ./browser.tsx}). Not here, and never: a session,
  * a prompt, a transcript. An engine plugin hands over data and pure functions;
- * `@olai/chat` does the talking.
+ * `olai-plugin-chat` does the talking.
  */
 
 import { Agents, definePlugin, type Registering } from "@olai/plugin-api/services"
@@ -45,7 +45,7 @@ export const ENGINE: Registering = {
     // reads it for WHICH SESSIONS THE DIRECTORY HAS as well as for where to
     // run: `session/list` ignores the `cwd` a request carries, so the one on
     // the command line is the only one it hears. (The client-side filter over
-    // that answer is mandatory either way — see `@olai/chat`'s `agent.ts` and
+    // that answer is mandatory either way — see `olai-plugin-chat`'s `agent.ts` and
     // its `storedFor`.)
     return { command: bin, args: ["acp", "--cwd", where.cwd] }
   },

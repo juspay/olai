@@ -5,9 +5,9 @@
  * (`@olai/acp/engine`'s `Where`), so whether this row is offered — and what it
  * would spawn — is a claim a test can make without a filesystem.
  *
- * IT LIVES HERE and not in `@olai/chat` because the row does: each engine's
+ * IT LIVES HERE and not in `olai-plugin-chat` because the row does: each engine's
  * probe is one plugin's fact now, and what is left in core is the off switch and
- * the shape of the reading (`@olai/chat`'s `agents/roster.test.ts`).
+ * the shape of the reading (`olai-plugin-chat`'s `agents/roster.test.ts`).
  */
 
 import { describe, expect, test } from "bun:test"
@@ -59,7 +59,7 @@ describe("finding opencode on a host", () => {
     // THE PLUGIN'S WHOLE SENTENCE — core displays one and never composes one.
     // Asserted off the CONSTANT rather than off the registration: it is spelled
     // once here and spent once, by the browser half that hangs it in
-    // `chat.agent.install`. It rode the server registration too for a revision,
+    // `engine.install`. It rode the server registration too for a revision,
     // read by nothing, which is exactly one authored copy too many.
     expect(INSTALL).toEqual({
       name: "opencode",

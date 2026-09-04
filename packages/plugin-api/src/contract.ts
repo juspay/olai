@@ -27,7 +27,7 @@ import type { Effect } from "effect"
  */
 
 /**
- * AN MCP SERVER TO SPAWN, in olai's terms — `@olai/chat` renders it into what
+ * AN MCP SERVER TO SPAWN, in olai's terms — `olai-plugin-chat` renders it into what
  * ACP wants, the same way it does olai's own.
  *
  * This shape was `Kolu.Server` and it never had anything kolu about it: a
@@ -66,12 +66,12 @@ export interface StdioServer {
  * `where` is `null` for the ways of failing that never reached a file. A path
  * is what a reader most wants and is not always a thing that exists.
  *
- * `@olai/chat` and each plugin spell this shape THEMSELVES, and the three
+ * `olai-plugin-chat` and each plugin spell this shape THEMSELVES, and the three
  * declarations are the arrangement rather than a duplication to tidy away. It
  * used to be that a plugin COULD NOT import this package — it held the registry
  * too, and the registry imports every plugin — and that premise left with the
  * registry ({@link ./plugin.ts}'s header argues the reversal); the three
- * spellings stayed, because `@olai/chat` is a general package one floor down
+ * spellings stayed, because `olai-plugin-chat` is a general package one floor down
  * that is handed a list and must not learn that a plugin system exists. So the
  * agreement is still proved where the two ends meet, which is now the
  * `chat/session-start` waterfall a server half pushes its thunk onto
@@ -83,11 +83,11 @@ export interface StdioServer {
  * ## IT WENT TO `@olai/acp` FOR A REVISION, AND CAME BACK
  *
  * The agents phase read it as a shape TWO WALLS needed — an engine plugin
- * saying how to get itself, and `@olai/chat` saying what an absent MCP server
+ * saying how to get itself, and `olai-plugin-chat` saying what an absent MCP server
  * was — and moved it to the floor package under both. The second reader turned
  * out not to exist: an engine's install sentence is drawn by that engine's own
  * BROWSER half out of a slot, so no server-side registration ever needed the
- * shape, and `@olai/chat` had gone on declaring its own copy the whole time
+ * shape, and `olai-plugin-chat` had gone on declaring its own copy the whole time
  * (`servers.ts`, the contravariant re-spelling this header argues for).
  *
  * So it is back here, beside the probe that is its only reader, and
@@ -119,7 +119,7 @@ export interface NotHere {
 /** WHAT A PROBE FOUND — both halves at once, because they are one reading.
  *
  *  Two fields rather than a union, and it is an invariant with an incident
- *  behind it (`@olai/chat`'s `agent.ts`: one probe, two reads). A registry
+ *  behind it (`olai-plugin-chat`'s `agent.ts`: one probe, two reads). A registry
  *  that asked once for the handing list and again for the missing list would
  *  spawn the tool twice per conversation and could answer the two questions
  *  about two different moments. */
@@ -212,6 +212,11 @@ export interface PropKind {
    *     own name, so enabling one can never take over a column somebody has
    *     been using for something of their own.
    *
+   * THE BARE WORD MAY ITSELF CARRY A HYPHEN — chat's is `agent-session`, and
+   * what a vault declares is `chat-agent-session`. The separator is fenced out
+   * of the PLUGIN half only, which is where the whole of the injectivity lives;
+   * {@link kindWordOf}'s body argues that asymmetry and names its one cost.
+   *
    * A plugin writes the bare word once and the composition happens where the
    * plugin's own name is: inside the service, minted from the word the registry
    * bound it under, never off an argument a caller supplied. What each plugin
@@ -242,6 +247,63 @@ export interface PropKind {
 export interface PluginHeld {
   readonly load: () => Record<string, unknown> | null
   readonly save: (value: Record<string, unknown>) => void
+}
+
+/**
+ * ONE PROPERTY, WRITTEN — the narrowest door onto the vault's write gate, and
+ * deliberately not the gate itself.
+ *
+ * The two gestures that bind a node to a conversation are a property write plus
+ * something else: *start an agent session* opens the conversation and then names
+ * it on the node, and *assign to node…* names one that already exists and then
+ * marks it. Both used to be composed in `@olai/server`'s `runtime.ts`, because
+ * that was the only place both halves were in hand — the chat's verb and the ops
+ * layer's request. A plugin that owns the first half needs the second.
+ *
+ * WHAT IT IS NOT is `@olai/ops`' `Ops`, handed over. A plugin holding the write
+ * gate could trash a node, move a subtree or empty an archive; what these two
+ * gestures do is set ONE key on ONE node, and a door shaped like the gesture is a
+ * door with nothing else behind it. The write still goes through the same
+ * planner, the same validator and the same ledger commit a keystroke does —
+ * this is the narrowing of WHAT may be asked, not of who judges it.
+ */
+export interface PropWrite {
+  /** The node the key is set on. */
+  readonly node: string
+  /** The property's key, as the vault spells it. */
+  readonly key: string
+  /** ...and its value, whole. Not conditional: a caller that wanted
+   *  compare-and-set would be asking for a second decision this door does not
+   *  make. */
+  readonly value: string
+}
+
+/**
+ * A REFUSAL, AS THE WRITE GATE ANSWERS ONE — `@olai/format`'s `OpFailure`,
+ * spelled structurally.
+ *
+ * Re-declared rather than imported, for {@link ../services.ts}'s `ToolServer`
+ * reason and `Vault.revision`'s: this package does not depend on `@olai/format`,
+ * because the vault's grammar travels to a plugin as DATA and a floor package
+ * importing the vocabulary would be the format learning what a terminal is. What
+ * survives the structural spelling is the one field Effect's own narrowing uses —
+ * error matching in this tree is `_tag`-structural precisely so two module
+ * instances cannot stop recognising each other's classes — so a plugin that
+ * imports `@olai/format` itself (every plugin that writes does) narrows this to
+ * the real union at its own edge, once, and says so where it does it.
+ */
+export interface Refusal {
+  readonly _tag: string
+}
+
+/** ...AND ONE THIS SERVE ACTUALLY REFUSED, as a plugin watching writes is told.
+ *
+ *  `op` is the ops request's own verb (`set_prop`, `add_node`, …) and is a word
+ *  rather than a union for the reason above: the vocabulary is the ops layer's,
+ *  and a copy of it here would be a second list to keep in step. */
+export interface Refused {
+  readonly op: string
+  readonly failure: Refusal
 }
 
 /**
@@ -294,7 +356,7 @@ export type ConversationSeen =
  *
  * A conversation is the PAIR `(agent, session)`, because a session id means
  * nothing to the wrong agent — core's own identity for the thing, spelled the
- * way `@olai/chat`'s note already spells it rather than minted a second time.
+ * way `olai-plugin-chat`'s note already spells it rather than minted a second time.
  * It is two fields here rather than a type imported from `@olai/surface` because
  * this package declares no dependency on the wire and says so on purpose in its
  * manifest; a schema pulled in to name a pair of strings would be that wall
@@ -336,7 +398,9 @@ export interface Deliveries {
   }>
   /** The scopes that hear a claim made by `node` in `file`. Manual whole-file
    * scopes all hear it; among nested node scopes only the nearest ancestor does.
-   * Core owns that precedence so every doorbell asks the same question. */
+   * ONE ANSWER BEHIND ONE DOOR, so every doorbell asks the same question and
+   * none of them spells the precedence: it is the row that OFFERS `deliveries`
+   * that owns it, which is the chat's, and it was core's while the chat was. */
   readonly ringing: (
     file: string,
     node: string,
@@ -354,7 +418,7 @@ export interface Deliveries {
    *
    * AN EFFECT THAT CANNOT FAIL, which is the same "fire and forget" the two log
    * channels beside it once were, said in the type. It is an Effect because BOTH
-   * ends of it are one: `@olai/chat`'s own door hands one back, and a plugin
+   * ends of it are one: `olai-plugin-chat`'s own door hands one back, and a plugin
    * `yield*`s it from inside its own fiber. It used to answer `void`, which meant
    * a composition root stood between the two forking the chat's Effect for the
    * plugin — a bridge with a fiber on both sides of it, and the one place a
@@ -419,7 +483,7 @@ export interface Deliveries {
        *
        * ## THE KEY IS SCOPED TO THE PLUGIN, and a plugin never spells that
        *
-       * Core files a held slot under the PAIR `(plugin, coalesce)` — `@olai/chat`'s
+       * Core files a held slot under the PAIR `(plugin, coalesce)` — `olai-plugin-chat`'s
        * `holding` mints the identity out of both — so a key is chosen among this
        * plugin's OWN messages and nothing else. Two plugins that both say `digest`
        * are two subjects with two slots, and neither can swallow the other's
@@ -545,37 +609,76 @@ export const exposeMapsOf = (
  * because a plugin's walk runs where core's table is not; `@olai/bundle`'s
  * `kinds.test.ts` holds the two spellings equal.
  *
- * THE SEPARATOR IS FORBIDDEN INSIDE EITHER HALF, which is what makes the
- * composition injective and the collision unreachable rather than merely
- * counted — see the refusals in the body.
+ * THE SEPARATOR IS FORBIDDEN INSIDE THE PLUGIN HALF — that half alone, and the
+ * asymmetry is what makes the composition injective and the collision
+ * unreachable rather than merely counted. It used to be forbidden inside BOTH,
+ * and the argument for that was sound but stronger than it needed to be; the
+ * body says which half, why, and what the human's `chat-agent-session` ruling
+ * costs a plugin whose own name carries a hyphen.
  */
 export const KIND_SEPARATOR = "-"
 
 export const kindWordOf = (plugin: string, kind: string): string => {
-  // THE SEGMENTS MAY NOT CARRY THE SEPARATOR, which is `assertTagSegment`'s
-  // rule on the wire and is here for the identical reason: without it the
-  // composition is AMBIGUOUS, and ambiguity is what makes a collision possible
-  // at all. `kindWordOf("ab", "c-d")` and `kindWordOf("ab-c", "d")` both compose
-  // to `ab-c-d`, so two plugins whose names genuinely differ could still land on
-  // one word — the count in `./services.ts`'s `Kinds` would catch it, but a refusal about a
-  // word neither author wrote is a refusal nobody can act on.
-  //
-  // Refused HERE rather than counted downstream, so the composition is INJECTIVE
-  // and the collision is unreachable rather than merely reported. A plugin name
-  // is already held to this by the wire (a name is a sibling key, and
-  // `assertTagSegment` forbids a `/` in one); a kind word had nothing of the
-  // sort, and this is it.
+  // NEITHER HALF MAY BE EMPTY, and this is not hygiene — it is half of the
+  // proof below. An empty plugin name would put the joint at index 0 and an
+  // empty kind would leave nothing after it, so either way the word names a
+  // half that is not there, and it would still be a legal `type` for a vault to
+  // write.
   for (const [what, segment] of [["plugin name", plugin], ["kind", kind]] as const) {
     if (segment.length === 0) {
       throw new Error(`plugins: a ${what} may not be empty — it is half of a composed kind word.`)
     }
-    if (segment.includes(KIND_SEPARATOR)) {
-      throw new Error(
-        `plugins: the ${what} "${segment}" carries "${KIND_SEPARATOR}", which is the ` +
-          "separator a kind word is composed with — two halves that may carry it compose " +
-          "ambiguously, and two different plugins could land on one word.",
-      )
-    }
+  }
+  // ONE HALF MUST CARRY NO SEPARATOR, AND IT IS THE PLUGIN'S.
+  //
+  // The argument this refusal was born with is still true and is exactly why
+  // one half stays fenced: without a fence the composition is AMBIGUOUS, and
+  // ambiguity is what makes a collision possible at all. `kindWordOf("ab",
+  // "c-d")` and `kindWordOf("ab-c", "d")` both spell `ab-c-d`, so two plugins
+  // whose names genuinely differ could still land on one word — the count in
+  // `./services.ts`'s `Kinds` would catch it, but a refusal about a word
+  // neither author wrote is a refusal nobody can act on.
+  //
+  // What that argument does not establish is that BOTH halves need the fence,
+  // which is what this function used to refuse. Fix the split direction — a
+  // composed word decomposes at its FIRST separator — and fencing the plugin
+  // half alone is sufficient: the first separator in `${plugin}-${kind}` is
+  // then always the joint, the prefix before it is the whole plugin name and
+  // the rest is the whole kind, so the pair is recovered from the word and no
+  // two pairs can spell one. That is injectivity, and `@olai/bundle`'s
+  // `kinds.test.ts` holds it as a round-trip rather than as this paragraph.
+  //
+  // WHY THE PLUGIN HALF AND NOT THE KIND: because the human ruled the word.
+  // Chat contributes the bare kind `agent-session` and a vault declares
+  // `chat-agent-session`, with existing vaults keeping their bare key by one
+  // row, `{"title":"agent-session","custom":{"type":"chat-agent-session"}}`. A
+  // kind fenced against the separator makes that spelling unconstructible, and
+  // the honest alternative — rename the bare kind to `session` and let the row
+  // read `chat-session` — is a spelling the human did not rule. It is also the
+  // wrong half to fence on the merits: a kind word is a plugin author's noun
+  // and hyphens are how English nouns compound, while a plugin name is already
+  // a wire sibling key with a grammar of its own.
+  //
+  // AND WHAT IT COSTS, said plainly because it is a real loss: A PLUGIN WHOSE
+  // NAME CARRIES A HYPHEN MAY NO LONGER CONTRIBUTE A KIND AT ALL. A name is
+  // held to `/^[a-z][a-z0-9-]*$/` (`@olai/bundle`'s `fence.test.ts`), which
+  // admits one, and `xyne-spaces` in this tree has one. It registers no kind
+  // today, so this build refuses nothing; a hyphenated plugin that later wants
+  // a word must be renamed first. The alternative was to narrow the plugin-name
+  // grammar to a hyphen-free word for everyone, and that is a rename of a
+  // shipped sibling key — its tags, its preferences row, its docs slug, its
+  // `olai.yml` row — charged to every plugin to buy a fence only the
+  // kind-contributing ones need. So it is refused HERE, where the name is
+  // spent, and the message names the plugin, so an author reads it about their
+  // own plugin rather than about the grammar.
+  if (plugin.includes(KIND_SEPARATOR)) {
+    throw new Error(
+      `plugins: the plugin name "${plugin}" carries "${KIND_SEPARATOR}", which is the ` +
+        "separator a kind word is composed with, and the plugin name is the half that may " +
+        "not carry it — a composed word is split at its FIRST separator, so a name carrying " +
+        "one would leave two plugins' words indistinguishable. A plugin whose name has a " +
+        "hyphen contributes no kind; rename the plugin, or contribute none.",
+    )
   }
   return `${plugin}${KIND_SEPARATOR}${kind}`
 }
@@ -701,7 +804,7 @@ export interface Wake {
  * sentence and a compile error
  *
  * Core does not choose between these; it INDEXES them, by the cause its own
- * walk recorded on the row (`@olai/chat`'s `Scoped.fault`, which travels as
+ * walk recorded on the row (`olai-plugin-chat`'s `Scoped.fault`, which travels as
  * `@olai/surface`'s `Wake.fault`). That is the whole reason the keys are the
  * cause's own words rather than two prose-shaped names: a third way for a
  * doorbell to stop watching adds a member to that union, and every plugin's
@@ -722,7 +825,7 @@ export interface Wake {
  * This is not drawn anywhere. It is a MESSAGE, put into a conversation
  * through the door core already built for this plugin, and a message is
  * whole authored paragraphs or it is core writing prose
- * (`@olai/chat`'s `deliveries.ts`, whose `joined` joins them and composes
+ * (`olai-plugin-chat`'s `deliveries.ts`, whose `joined` joins them and composes
  * none). So core carries this string and delivers it: no lead-in, no
  * count, no naming of the file, no abbreviation.
  *
@@ -754,7 +857,7 @@ export interface Wake {
  * this PR retires the hand-run fleet watch that was the second opinion. A
  * quiet doorbell and a broken one must not look alike, so the broken one
  * says so, once, in the conversation it stopped ringing
- * (`@olai/chat`'s `Chat.faults`).
+ * (`olai-plugin-chat`'s `Chat.faults`).
  */
   readonly faults: {
     /** THE FILE IS NOT SERVED ANY MORE — renamed, moved or deleted while the
@@ -785,3 +888,53 @@ export interface Wake {
     readonly unwatchable: string
   }
 }
+
+/**
+ * WHERE A SESSION IS SEATED — the subtree its writes are fenced to, and the keys
+ * it may not touch inside it.
+ *
+ * Re-declared here for {@link Refusal}'s reason: the shape is
+ * `@olai/server`'s (`mcp/tickets.ts`), and it is three fields of strings that
+ * both ends have to spell. Contravariance makes the agreement the strong
+ * direction — whoever completes the ticket door hands over a value that has to
+ * satisfy both spellings at the composition root, so a drift is a type error in
+ * the one file that holds both.
+ *
+ * `forbidden` is inside the fence rather than beside it: a node agent may write
+ * anywhere under its own node and still may not rewrite the property that says
+ * WHICH conversation it is, because that is the binding rather than the work.
+ */
+export interface Seated {
+  readonly under: string
+  readonly forbidden: ReadonlyArray<string>
+}
+
+/** ...AND THE CREDENTIAL ITSELF. `release` is the session's teardown, which is
+ *  why this is a value and not a string: reaping a node scope drops its MCP
+ *  footprint in the same breath. */
+export interface MintedTicket {
+  readonly bearer: string
+  readonly release: () => void
+}
+
+/** WHAT A WRITE IS REFUSED WITH where there is no vault to write to at all — the
+ *  bench arm of {@link ../services.ts}'s `Ops.prop`, said once here so the door
+ *  does not compose a sentence inside a provision. */
+export const NOWHERE_TO_WRITE: Refusal & { readonly reason: string } = {
+  _tag: "UsageFailure",
+  reason: "this process is serving no directory, so there is nothing to write to",
+}
+
+/** ...AND WHAT A CREDENTIAL IS where there is no MCP face to narrow — the bench
+ *  and headless arm of {@link ../services.ts}'s `Tools.ticket`.
+ *
+ *  THE BEARER IS EMPTY RATHER THAN ABSENT so the type stays one shape, and the
+ *  empty string is a value a caller must TEST: handed to a tool door it is a
+ *  session the door cannot place, so the subtree write fence is off for it —
+ *  seated, and unfenced, which is the one thing a seat may not be.
+ *
+ *  The one caller in this tree tests it (`olai-plugin-chat`'s `scoped.ts`, which
+ *  hands no MCP face at all rather than an unfenced one). It said so here for a
+ *  while when that caller did not, which is how a sentence about a fence stops
+ *  being a fence. */
+export const NO_TICKET: MintedTicket = { bearer: "", release: () => {} }

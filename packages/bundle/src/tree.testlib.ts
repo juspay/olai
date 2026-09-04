@@ -319,6 +319,18 @@ export const grammarOf = (file: string): Named["grammar"] =>
  * `Bun.build` metafile would make every such crossing an unresolved edge and
  * every purity claim pass over the truncated graph.
  */
+/** WHERE THE ONE `*` IS, or `-1` for a string that has none or has two.
+ *
+ *  Node's subpath patterns allow exactly one asterisk per key and substitute the
+ *  matched segment verbatim; a pattern with two is not a wider pattern, it is a
+ *  malformed one. Answering `-1` for both is what lets the caller treat "not a
+ *  pattern" and "not a pattern I will guess at" as the one thing they are: a
+ *  door this walk does not resolve, reported rather than half-honoured. */
+const onlyStar = (of: string): number => {
+  const at = of.indexOf("*")
+  return at === -1 || of.indexOf("*", at + 1) !== -1 ? -1 : at
+}
+
 type Landing =
   | { readonly kind: "external" }
   | { readonly kind: "module"; readonly path: string }
@@ -340,10 +352,47 @@ const resolveWorkspace = (spec: string): Landing => {
   const subpath = spec.slice(packageOf(spec).length)
   const door = subpath === "" ? "." : `.${subpath}`
   const target = doorsOf(manifest)[door] ?? (door === "." ? mainOf(manifest) : undefined)
-  if (target === undefined) {
-    return { kind: "unresolved", why: `${member} opens no ${door} door` }
+  if (target !== undefined) return { kind: "module", path: path.join(dir, target) }
+  // ...AND A WILDCARD DOOR, which the shell opens and nothing else does.
+  //
+  // `@olai/web`'s `exports` carries `"./client/*": "./src/client/*"`, because a
+  // plugin's browser half draws inside this app and draws with this app's
+  // furniture — sixty modules for the chat panel alone, and a hand-kept
+  // re-export list of sixty names would be a second roster (that manifest's own
+  // `//shell` note argues it). A resolver that only read literal keys read every
+  // one of those edges as "no such door", which is precisely the third of the
+  // three failures this type exists to keep apart: the walk would have stopped
+  // at the panel's front door and every purity claim below would have passed
+  // over one file.
+  //
+  // ONE `*` AND NOTHING CLEVER. Node's own subpath patterns allow exactly one
+  // asterisk per key and substitute the matched segment verbatim; that is what
+  // is implemented here and a key with two would be refused rather than
+  // half-honoured, because a resolver that guessed would be the second module
+  // resolver this header spends a paragraph refusing to be.
+  for (const [key, value] of Object.entries(doorsOf(manifest))) {
+    const at = onlyStar(key)
+    if (at === -1) continue
+    const head = key.slice(0, at)
+    const tail = key.slice(at + 1)
+    if (!door.startsWith(head) || !door.endsWith(tail)) continue
+    if (door.length < head.length + tail.length) continue
+    if (typeof value !== "string") continue
+    // THE TARGET IS HELD TO THE SAME ONE-STAR RULE as the key, and it is spliced
+    // rather than `replace`d. `String.replace` with a string pattern substitutes
+    // the FIRST occurrence and walks past the rest — which for a target with two
+    // stars would resolve half of it and answer a path that is not the door. The
+    // spec allows exactly one on each side; refusing the rest is the same
+    // sentence the key already gets, and a splice cannot express anything else.
+    const into = onlyStar(value)
+    if (into === -1) continue
+    const matched = door.slice(head.length, door.length - tail.length)
+    return {
+      kind: "module",
+      path: path.join(dir, value.slice(0, into) + matched + value.slice(into + 1)),
+    }
   }
-  return { kind: "module", path: path.join(dir, target) }
+  return { kind: "unresolved", why: `${member} opens no ${door} door` }
 }
 
 /**

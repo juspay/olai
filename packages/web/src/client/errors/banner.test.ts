@@ -186,6 +186,17 @@ test("nothing wrong is no banner at all", () => {
  * It reads the sources rather than the types because that is the shape of the
  * mistake: the rows are still on the verdict, still reachable, and still right
  * to draw in the two places above.
+ *
+ * A THIRD ENTITLED CALLER WENT WITH THE PANEL and is not on this list any more:
+ * the chat's `Refusal.tsx`, which draws the rows a write gate judged for the
+ * person whose write it refused — not a banner over anybody's page, which is
+ * why it was ever allowed. It is `olai-plugin-chat`'s file now and reaches
+ * `Rows` through `@olai/web/client/errors/Report.tsx`, so this walk of
+ * `src/client/` cannot see it. What must not follow it out is the CLAIM: the
+ * rows are exported to every package that draws in this app, and a fourth
+ * caller over there floods a page exactly as a fourth caller here would. The
+ * same sweep over the panel's tree, where that one file is the whole list, is
+ * in `packages/plugins/chat/src/browser/claims.test.ts`.
  */
 test("only the error page and a broken outline's own pane draw the rows", () => {
   const here = path.dirname(new URL(import.meta.url).pathname)
@@ -211,8 +222,5 @@ test("only the error page and a broken outline's own pane draw the rows", () => 
     "errors/Page.tsx",
     // One outline's own place, in the tree's stead.
     "errors/Broken.tsx",
-    // A refused WRITE, in the chat panel — the rows the gate judged, shown to
-    // the person whose write they refused. Not a banner over anybody's page.
-    "chat/Refusal.tsx",
   ].sort())
 })

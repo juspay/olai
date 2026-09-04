@@ -16,19 +16,24 @@
  */
 
 import { expect, test } from "bun:test"
-import { Cause, Effect, Layer, Logger } from "effect"
+import { Cause, Effect, Layer, Logger, type Scope } from "effect"
 
 import {
   Deliveries,
   Held,
   definePlugin,
   Kinds,
+  type Mounted,
   mountPlugin,
+  Offers,
   openPlugins,
+  Ops,
   type PluginsConfig,
   SessionStart,
   Surfaces,
   Vault,
+  Wakes,
+  Watching,
 } from "./services.ts"
 
 /** What a probe answers on a machine that simply does not have the tool — the
@@ -39,6 +44,16 @@ const NOTHING_FOUND = { server: null, missing: null }
 /** A sibling with nothing on it — what these cases register, since none of them
  *  is about a surface. */
 const NOTHING = { surface: { spec: {} }, faces: {}, deps: {} }
+
+/** A whole wake, because every field of one is required and none of the cases
+ *  below is about the words. */
+const WAKING = {
+  subject: "terminal activity",
+  from: "terminals from",
+  waiting: { one: "line", many: "lines" },
+  kinds: ["outline"] as readonly [string, ...Array<string>],
+  faults: { gone: "the file left", unwatchable: "not an outline" },
+}
 
 /** WHAT WAS LOGGED, for the containment cases. Inlined rather than borrowed from
  *  `@olai/log`, because this package declares nothing but `effect` and
@@ -185,7 +200,6 @@ test("a kind refused for collision leaves the first plugin's word standing and a
     ])
   })))
 })
-
 /**
  * WHAT A PLUGIN REGISTERS IS ON THE LIST, AND IT IS STAMPED WITH ITS NAME —
  * the `chat/session-start` contract, held where it can be false.
@@ -204,10 +218,45 @@ test("a kind refused for collision leaves the first plugin's word standing and a
  * door reads the word off the fiber. It cannot: the door takes an Effect and
  * nothing else, and the name below is the one the runtime bound each plugin
  * under.
+ *
+ * ## THE LIST IS THE OFFERING ROW'S, which is what makes this a claim about core
+ *
+ * `session-start` is one of the four a row offers, and core provides none of
+ * them — so the collecting end below is a plugin, exactly as the chat row is,
+ * and what is on trial here is the only part that is still core's: the STAMP.
+ * The provision is called once per NAMING plugin with the word the loader bound
+ * that fiber under, so `ask` has no parameter to sign and none of these plugins
+ * could sign one. It reads its own list back because there is nowhere else the
+ * list could be.
  */
+const collecting = (asked: Array<{ readonly name: string }>) =>
+  definePlugin({
+    name: "chat",
+    needs: [Offers],
+    apply: Effect.gen(function*() {
+      yield* (yield* Offers).offer(SessionStart, (plugin) => ({
+        // THE ONLY THING THE CALLER GIVES IS THE PROBE. The name is this
+        // provision's argument, which is the fiber's own word.
+        ask: () =>
+          Effect.acquireRelease(
+            Effect.sync(() => {
+              asked.push({ name: plugin })
+            }),
+            () =>
+              Effect.sync(() => {
+                const at = asked.findIndex((one) => one.name === plugin)
+                if (at >= 0) asked.splice(at, 1)
+              }),
+          ),
+      }))
+    }),
+  })
+
 test("what a plugin asks is on the list, under the name its fiber was bound with", async () => {
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const plugins = yield* runtime()
+    const asked: Array<{ readonly name: string }> = []
+    yield* mountPlugin(plugins.host, collecting(asked))
     const order: Array<string> = []
     const asking = (name: string, slow: boolean) =>
       definePlugin({
@@ -225,18 +274,19 @@ test("what a plugin asks is on the list, under the name its fiber was bound with
     yield* mountPlugin(plugins.host, asking("prompt", false))
     yield* mountPlugin(plugins.host, asking("slow", true))
 
-    const asked = yield* plugins.sessionStart
     expect(asked.map((one) => one.name)).toEqual(["prompt", "slow"])
     expect(order).toEqual(["prompt", "slow"])
   })))
 })
 
 /** ...and a plugin that has unloaded contributes nothing to the next session,
- *  which is the whole reason the list is READ per session open rather than once
- *  at boot. */
+ *  which is the whole reason the registration is a finalizer on its own scope
+ *  rather than an entry somebody remembers to remove. */
 test("an unloaded plugin is off the next session's list", async () => {
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const plugins = yield* runtime()
+    const asked: Array<{ readonly name: string }> = []
+    yield* mountPlugin(plugins.host, collecting(asked))
     const mounted = yield* mountPlugin(
       plugins.host,
       definePlugin({
@@ -247,9 +297,9 @@ test("an unloaded plugin is off the next session's list", async () => {
         }),
       }),
     )
-    expect((yield* plugins.sessionStart).map((one) => one.name)).toEqual(["kolu"])
+    expect(asked.map((one) => one.name)).toEqual(["kolu"])
     yield* mounted.dispose
-    expect(yield* plugins.sessionStart).toEqual([])
+    expect(asked).toEqual([])
   })))
 })
 
@@ -384,20 +434,33 @@ test("a vault listener goes when its plugin does", async () => {
  * most: a plugin's doorbell reaches conversations somebody scoped to THAT
  * plugin, and there is no argument on either verb by which one could name
  * another.
+ *
+ * THROUGH THE ROW THAT OFFERS IT, because that is the only way `deliveries`
+ * exists — core provides none of the four. So the provision under test is a
+ * plugin's, and what is core's is the thing being asserted: it is called once
+ * per NAMING plugin, with the word the loader bound that fiber under.
  */
 test("the doorbell's door is keyed by the plugin, with no way to spell another's", async () => {
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const asked: Array<string> = []
-    const plugins = yield* runtime({
-      doorFor: (plugin) => {
-        asked.push(plugin)
-        return {
-          scopes: () => [{ agent: "a", session: "s", file: `${plugin}.olai` }],
-          ringing: (file) => [{ agent: "a", session: "s", file }],
-          deliver: () => Effect.void,
-        }
-      },
-    })
+    const plugins = yield* runtime()
+    yield* mountPlugin(
+      plugins.host,
+      definePlugin({
+        name: "chat",
+        needs: [Offers],
+        apply: Effect.gen(function*() {
+          yield* (yield* Offers).offer(Deliveries, (plugin) => {
+            asked.push(plugin)
+            return {
+              scopes: () => [{ agent: "a", session: "s", file: `${plugin}.olai` }],
+              ringing: (file) => [{ agent: "a", session: "s", file }],
+              deliver: () => Effect.void,
+            }
+          })
+        }),
+      }),
+    )
     const seen: Array<string> = []
     const looking = (name: string) =>
       definePlugin({
@@ -455,5 +518,380 @@ test("a plugin's held door is one door, however many times it is used", async ()
       }),
     )
     expect(minted).toBe(2)
+  })))
+})
+
+/**
+ * ...AND ONE DOOR PER PLUGIN NAME, which is the half the case above could not
+ * see: it minted per ACTIVATION, and one plugin can activate twice.
+ *
+ * A plugin that unloads and comes back is two fibers writing ONE FILE, and the
+ * chain that orders those writes lives on the door — so a second door is a second
+ * chain and a save still in flight from the first activation can land after one
+ * handed over by the second. Unreachable while nothing unloaded a server half
+ * mid-serve; a row that stands behind another row's doors makes it routine.
+ */
+test("a plugin that comes back writes down the chain it was already writing down", async () => {
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    let minted = 0
+    const plugins = yield* runtime({
+      heldFor: () => {
+        minted += 1
+        let record: Record<string, unknown> | null = null
+        return { load: () => record, save: (value) => void (record = value) }
+      },
+    })
+    const spaces = definePlugin({
+      name: "spaces",
+      needs: [Held],
+      apply: Effect.gen(function*() {
+        yield* (yield* Held).save({ queue: ["B"] })
+      }),
+    })
+    const first = yield* mountPlugin(plugins.host, spaces)
+    yield* first.dispose
+    const again = yield* mountPlugin(plugins.host, spaces)
+    expect((yield* again.report).state).toBe("running")
+    expect(minted).toBe(1)
+  })))
+})
+
+/**
+ * WHAT EVERY RINGING PLUGIN DECLARED, READ BY A PLUGIN — the one read side on
+ * this door, and the reason it is READ AFRESH rather than handed over as a table.
+ *
+ * The reading that needs it refuses a conversation scope written for a plugin
+ * that declared no wake, and a plugin that unloaded between one refusal and the
+ * next has taken its declaration with it. A snapshot would go on offering a
+ * doorbell nobody is behind, which is the silence the whole fault machinery
+ * exists to break.
+ */
+test("what a plugin reads off wakes is what is declared right now, not what was", async () => {
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const plugins = yield* runtime()
+    const ringing = yield* mountPlugin(
+      plugins.host,
+      definePlugin({
+        name: "kolu",
+        needs: [Wakes],
+        apply: Effect.gen(function*() {
+          yield* (yield* Wakes).register(WAKING)
+        }),
+      }),
+    )
+    // THE READER IS A PLUGIN TOO, holding the Effect rather than its answer —
+    // which is the only way to ask the question twice.
+    let asking: Effect.Effect<ReadonlyMap<string, unknown>> = Effect.succeed(new Map())
+    yield* mountPlugin(
+      plugins.host,
+      definePlugin({
+        name: "chat",
+        needs: [Wakes],
+        apply: Effect.gen(function*() {
+          asking = (yield* Wakes).declared
+        }),
+      }),
+    )
+    expect([...(yield* asking).keys()]).toEqual(["kolu"])
+    yield* ringing.dispose
+    expect([...(yield* asking).keys()]).toEqual([])
+  })))
+})
+
+/** ONE PLUGIN'S ROW, as the word and the sentence a person would read.
+ *
+ *  A refusal in `offer` is a DEATH — the fiber lands `failed` carrying what it
+ *  threw, verbatim — so the cases below assert the WORDS rather than a boolean
+ *  about them: the whole reason the claim is taken in this file rather than left
+ *  to the runtime is that the runtime's own sentence names neither author. An
+ *  empty second element is a row that did not fail, which is what the cases that
+ *  expect `running` read. */
+const rowOf = (mounted: Mounted) =>
+  Effect.map(mounted.report, (report) => [
+    report.state,
+    report.state === "failed" ? report.fault ?? "" : "",
+  ] as const)
+
+/**
+ * A PLUGIN MAY NOT SPELL A KEY OUTSIDE THE TABLE, and the fence is not the type.
+ *
+ * {@link Offers.offer} is four overloads, so a plugin cannot WRITE this line —
+ * which is the whole reason the shape is overloads rather than a generic. The
+ * cast below is what it would take to get past that, and the point of the case is
+ * that getting past the compiler buys nothing: the table is read at the call, in
+ * olai's own words, and the offering row is the only thing that falls over.
+ *
+ * `kinds` is the key it tries for on purpose. A row standing behind the
+ * VOCABULARY would be a row deciding what every vault in this serve validates
+ * against, which is the worst thing on the page and the reason the table is
+ * closed rather than merely documented.
+ */
+/**
+ * A REFUSED WRITE REACHES WHOEVER IS WATCHING WRITES — and the seam is new, so
+ * this is the claim that says it is connected at all.
+ *
+ * ## The wire it replaced was a direct call
+ *
+ * `@olai/server`'s ops layer used to hand a refusal straight to the chat, in one
+ * statement, because the composition root held both: `onRefusal: (request,
+ * failure) => chat.recordRefusal(request.op, failure)`. The chat is a ROW now,
+ * so the refusal crosses a bus — the root rings {@link Plugins.refused} and the
+ * plugin subscribes on {@link Ops.refused} — and a bus that was wired to nothing
+ * would look exactly like a serve nobody has refused a write in. What a person
+ * would see is a tool call turned down and a transcript that never says so.
+ *
+ * ## Two things at once, and both are the seam rather than the payload
+ *
+ * That a subscriber is TOLD, with the write's own verb and its failure carried
+ * through untouched; and that a plugin which unloaded is not — the subscription
+ * is a finalizer on the calling plugin's scope, which is what makes "a plugin
+ * that left stops being told" true without anybody remembering to say so.
+ */
+test("a refused write reaches every plugin watching writes, and stops when one leaves", async () => {
+  const heard: Array<{ readonly who: string; readonly op: string; readonly tag: string }> = []
+  await Effect.runPromise(
+    Effect.scoped(Effect.gen(function*() {
+      const plugins = yield* runtime()
+      const watching = (name: string) =>
+        definePlugin({
+          name,
+          needs: [Ops],
+          apply: Effect.gen(function*() {
+            yield* (yield* Ops).refused((refusal) =>
+              Effect.sync(() => {
+                heard.push({ who: name, op: refusal.op, tag: refusal.failure._tag })
+              })
+            )
+          }),
+        })
+      const mirror = yield* mountPlugin(plugins.host, watching("mirror"))
+      yield* mountPlugin(plugins.host, watching("panel"))
+
+      yield* plugins.refused({ op: "prop", failure: { _tag: "UsageFailure" } })
+      // BOTH, in subscription order, each with the verb and the failure's own
+      // tag — the payload is carried and not composed around.
+      expect(heard).toEqual([
+        { who: "mirror", op: "prop", tag: "UsageFailure" },
+        { who: "panel", op: "prop", tag: "UsageFailure" },
+      ])
+
+      // ...and a plugin that leaves stops being told, which is the half a
+      // hand-rolled bus gets wrong.
+      heard.length = 0
+      yield* mirror.dispose
+      yield* plugins.refused({ op: "trash", failure: { _tag: "ValidationFailure" } })
+      expect(heard).toEqual([{ who: "panel", op: "trash", tag: "ValidationFailure" }])
+    })),
+  )
+})
+
+test("a plugin that offers a door core keeps is refused, and only that plugin falls over", async () => {
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const plugins = yield* runtime()
+    const greedy = yield* mountPlugin(
+      plugins.host,
+      definePlugin({
+        name: "kolu",
+        needs: [Offers],
+        apply: Effect.gen(function*() {
+          const offers = yield* Offers
+          // WHAT A PLUGIN WOULD HAVE TO WRITE to try, spelled out rather than
+          // hidden in a helper: there is no overload for this and there is no
+          // arm of the interface where one could be added.
+          const past = offers.offer as unknown as (
+            key: unknown,
+            door: unknown,
+          ) => Effect.Effect<void, never, Scope.Scope>
+          yield* past(Kinds, () => ({ register: () => Effect.void }))
+        }),
+      }),
+    )
+    const [state, fault] = yield* rowOf(greedy)
+    expect(state).toBe("failed")
+    expect(fault).toContain("\"kolu\"")
+    expect(fault).toContain("\"kinds\"")
+    expect(fault).toContain("not one of the doors a row may hold")
+
+    // ...and the vocabulary is untouched: the refusal happened before anything
+    // was provided, so `kinds` is still core's and a plugin that teaches a word
+    // still can.
+    const teaching = yield* mountPlugin(
+      plugins.host,
+      definePlugin({
+        name: "odu",
+        needs: [Kinds],
+        apply: Effect.gen(function*() {
+          yield* (yield* Kinds).register({ kind: "worktree", takes: "a checkout", admits: () => true })
+        }),
+      }),
+    )
+    expect((yield* teaching.report).state).toBe("running")
+    expect([...plugins.kinds().keys()]).toEqual(["odu-worktree"])
+  })))
+})
+
+/**
+ * TWO ROWS MAY NOT STAND BEHIND ONE DOOR, and the refusal NAMES BOTH — which is
+ * the entire reason the claim is taken here rather than left to the runtime.
+ *
+ * Cordis refuses the second `provide` on its own, and its sentence is `service
+ * "watching" has been registered at <root>`: it names neither author, and
+ * `<root>` is a fiber no person has ever heard of. What a person reads on a
+ * preferences row has to be this tree's, so the claim goes first and cordis is
+ * never reached.
+ */
+test("two plugins standing behind one door: the second is refused, naming both and the key", async () => {
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const plugins = yield* runtime()
+    const offering = (name: string) =>
+      definePlugin({
+        name,
+        needs: [Offers],
+        apply: Effect.gen(function*() {
+          yield* (yield* Offers).offer(Watching, () => ({ subscribe: () => Effect.void }))
+        }),
+      })
+    const first = yield* mountPlugin(plugins.host, offering("chat"))
+    const second = yield* mountPlugin(plugins.host, offering("mirror"))
+
+    expect((yield* first.report).state).toBe("running")
+    const [state, fault] = yield* rowOf(second)
+    expect(state).toBe("failed")
+    expect(fault).toContain("\"chat\"")
+    expect(fault).toContain("\"mirror\"")
+    expect(fault).toContain("\"watching\"")
+  })))
+})
+
+/**
+ * WHAT A ROW OFFERS IS WHAT ITS DEPENDENTS GET, which is the half that makes the
+ * mechanism worth anything — and, for exactly one phase, the half that says core
+ * has STEPPED ASIDE rather than won the race.
+ *
+ * Core provides `deliveries` nowhere, so there is exactly one candidate and the
+ * question is whether the HAND-OVER keeps the keying: the offering row writes
+ * one provision, and every consumer must be handed its own view of it, stamped
+ * with its own word. This case reads the door on the far side to say so.
+ */
+test("the door a plugin stands behind is the door its dependents are handed", async () => {
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const seen: Array<string> = []
+    const plugins = yield* runtime()
+    yield* mountPlugin(
+      plugins.host,
+      definePlugin({
+        name: "chat",
+        needs: [Offers],
+        apply: Effect.gen(function*() {
+          yield* (yield* Offers).offer(Deliveries, (who) => ({
+            // STAMPED BY THE OFFERING ROW'S PROVISION with the word the registry
+            // bound the CONSUMER under — the keying survives the hand-over,
+            // which is the property that would be worth nothing if it did not.
+            scopes: () => [{ agent: "a", session: "s", file: `${who}.olai` }],
+            ringing: () => [],
+            deliver: () => Effect.void,
+          }))
+        }),
+      }),
+    )
+    const looking = yield* mountPlugin(
+      plugins.host,
+      definePlugin({
+        name: "kolu",
+        needs: [Deliveries],
+        apply: Effect.gen(function*() {
+          for (const scope of (yield* Deliveries).scopes()) seen.push(scope.file)
+        }),
+      }),
+    )
+    expect((yield* looking.report).state).toBe("running")
+    expect(seen).toEqual(["kolu.olai"])
+  })))
+})
+
+/**
+ * A DOOR GOES WHEN THE ROW BEHIND IT GOES, and everything that named it goes
+ * `waiting` — the cascade the whole arrangement is bought with, and the one a
+ * reader should be able to see happen rather than take on trust.
+ *
+ * There is no undo written anywhere for this: the offer is an `acquireRelease` on
+ * the offering plugin's own scope, so disposing it revokes the standing, and
+ * revoking a service unloads every fiber that named it. `waiting` and not
+ * `failed` is the whole distinction — nothing went wrong, there is simply nobody
+ * behind the door, which is exactly what a serve started with `--plugins=kolu`
+ * looks like.
+ */
+test("a plugin that unloads takes its door with it, and its dependents go waiting", async () => {
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const plugins = yield* runtime()
+    const standing = yield* mountPlugin(
+      plugins.host,
+      definePlugin({
+        name: "chat",
+        needs: [Offers],
+        apply: Effect.gen(function*() {
+          yield* (yield* Offers).offer(Watching, () => ({ subscribe: () => Effect.void }))
+        }),
+      }),
+    )
+    const mirror = yield* mountPlugin(
+      plugins.host,
+      definePlugin({
+        name: "spaces",
+        needs: [Watching],
+        apply: Effect.gen(function*() {
+          yield* (yield* Watching).subscribe(() => Effect.void)
+        }),
+      }),
+    )
+    expect((yield* mirror.report).state).toBe("running")
+
+    yield* standing.dispose
+    expect((yield* mirror.report).state).toBe("waiting")
+  })))
+})
+
+/**
+ * ...AND A ROW THAT COMES BACK STANDS BEHIND ITS DOOR AGAIN, which is the claim's
+ * own half of the same sentence.
+ *
+ * The claim is released by the finalizer that runs on the way out, and
+ * `Registry.claim` reads the table at the moment the claim TAKES rather than
+ * where it was written — so a plugin re-applying after its own unwind finds the
+ * key free. A snapshot taken at the call would refuse a plugin the entry it had
+ * just given back, and that failure looks exactly like a genuine collision on
+ * every channel there is.
+ */
+test("a plugin that comes back stands behind its door again", async () => {
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const plugins = yield* runtime()
+    const chat = definePlugin({
+      name: "chat",
+      needs: [Offers],
+      apply: Effect.gen(function*() {
+        yield* (yield* Offers).offer(Watching, () => ({ subscribe: () => Effect.void }))
+      }),
+    })
+    const first = yield* mountPlugin(plugins.host, chat)
+    expect((yield* first.report).state).toBe("running")
+    yield* first.dispose
+
+    const again = yield* mountPlugin(plugins.host, chat)
+    const [state, fault] = yield* rowOf(again)
+    expect([state, fault]).toEqual(["running", ""])
+
+    // ...and a dependent mounted after the return is running against the SECOND
+    // standing, so the case is not passing over a claim nobody re-took.
+    const mirror = yield* mountPlugin(
+      plugins.host,
+      definePlugin({
+        name: "spaces",
+        needs: [Watching],
+        apply: Effect.gen(function*() {
+          yield* (yield* Watching).subscribe(() => Effect.void)
+        }),
+      }),
+    )
+    expect((yield* mirror.report).state).toBe("running")
   })))
 })

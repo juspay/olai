@@ -137,7 +137,7 @@ import {
 
 import type { InboxHeld, Owed } from "@olai/surface"
 
-import { Agents } from "./agents/Agents.tsx"
+import { PluginSections } from "./plugins/Seats.tsx"
 import { markOf, unchanged } from "./agenda/owed.ts"
 import { NewDocument } from "./document/NewDocument.tsx"
 import { NewOutline } from "./outline/NewOutline.tsx"
@@ -370,16 +370,17 @@ export function Sidebar(props: {
               />
             )}
           </Show>
-          {/* THE AGENTS ROSTER, with the journal's two questions rather than
-              with the reader's own short list below them — the query
-              `prop:agent-session`, drawn (`./agents/Agents.tsx`, which argues the
-              placement). A row reading *needs you* is the same kind of fact as
-              the agenda's alarm and the inbox's count, and the shelf's own
-              2026-08-19 ruling is exactly about what may NOT come ahead of
-              those. It draws nothing at all in a directory with no node agent,
-              which is every directory that has not made one — so the column's
-              budget is untouched where the feature is unused. */}
-          <Agents />
+          {/* WHAT THE PLUGINS HANG HERE, in the bundle's order — the agents
+              roster is the first and, today, the only one. A row reading *needs
+              you* is the same kind of fact as the agenda's alarm and the
+              inbox's count, and the shelf's own 2026-08-19 ruling is exactly
+              about what may NOT come ahead of those, which is why the seat is
+              HERE rather than at the foot. A section draws nothing at all where
+              its plugin has nothing to say — the roster does in a directory
+              with no node agent — so the column's budget is untouched where a
+              feature is unused, and a serve running no chat has no section at
+              all (`./plugins/Seats.tsx`). */}
+          <PluginSections />
           {props.children}
 
           {/* THE SHELF, between the month and the files — which is where a

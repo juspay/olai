@@ -56,7 +56,7 @@ import { type Accessor, createMemo, createSignal, Index, onMount, Show } from "s
 import { SaidLine } from "../SaidLine.tsx"
 import { listKey } from "../keys.ts"
 import { Refused } from "../Refused.tsx"
-import type { TestId } from "../testids.ts"
+import type { AnyTestId } from "../testids.ts"
 import { TARGET } from "../touch.ts"
 import { createCursor } from "./cursor.ts"
 import { createSearch } from "./nodes.ts"
@@ -71,12 +71,19 @@ import { type HitRow, hitRow } from "./row.ts"
  * call site off `../testids.ts`, rather than three arguments a caller can pass
  * in the wrong order — and a door that passed the box's name and forgot the
  * failure line's would draw a sentence no test could reach.
+ *
+ * The ids are {@link AnyTestId} rather than this app's own `TestId`, and that
+ * is the widget being SHARED taken seriously: the *assign to node…* list is
+ * `olai-plugin-chat`'s door, dressed in that plugin's names, and a field typed
+ * `TestId` would have said only core may dress this box. Still a closed union
+ * either way, so a typo at a call site is a type error rather than a selector
+ * that matches nothing.
  */
 export interface ShortlistTestids {
-  readonly box: TestId
+  readonly box: AnyTestId
   readonly row: RowTestids
   /** A refused SEARCH, in the server's words. */
-  readonly failed: TestId
+  readonly failed: AnyTestId
 }
 
 export function Shortlist(props: {
@@ -106,7 +113,7 @@ export function Shortlist(props: {
    */
   readonly refusing?: {
     readonly why: (hit: NodeHit) => string | null
-    readonly testid: TestId
+    readonly testid: AnyTestId
     /**
      * WHICH HITS are on screen — absent for a door whose verdicts are pure over
      * the hit it is handed.

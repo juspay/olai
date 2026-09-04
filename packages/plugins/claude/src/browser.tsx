@@ -56,7 +56,7 @@ export default definePlugin({
     // conversation with". The key is never an argument: the slot service stamps
     // it from the registry binding, so a plugin cannot hang a face under
     // another's name.
-    yield* slots.register("chat.speaker.mark", ClaudeMark)
+    yield* slots.register("delivery.mark", ClaudeMark)
     // ...AND THIS ENGINE'S ROW ON THE NO-AGENT FACE — the SENTENCE and not a
     // drawing, which is the one slot on the table that takes a value. Core owns
     // every stroke of that row: the list, the mark beside it, and whether the
@@ -70,6 +70,6 @@ export default definePlugin({
     // THERE IS NO PICKER-ROW FACE BESIDE IT. A picker row's words are this
     // engine's `name`, which the server already sends per installed agent, so
     // a face for it would be a second author for one string.
-    yield* slots.register("chat.agent.install", INSTALL)
+    yield* slots.register("engine.install", INSTALL)
   }),
 })

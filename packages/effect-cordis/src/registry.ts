@@ -49,6 +49,13 @@
  * package that made it. It is not on the door: {@link ./broadcast.ts} and
  * {@link ./waterfall.ts} are what a host holds, and this is what they are built
  * from.
+ *
+ * The one rule of the three that a roster does NOT have is the first, and it is
+ * the definition rather than an omission: there is no key, so there is nothing
+ * to claim twice, and a plugin holding two entries is two entries. The other two
+ * are the same rule word for word wherever a `changed` is passed — which is the
+ * asymmetry the roster's own header used to argue it would never need, and no
+ * longer does.
  */
 
 import { Effect, Scope } from "effect"
@@ -73,23 +80,57 @@ export interface Roster<V> {
  * rather than an `indexOf` and a `splice` — two plugins holding the same entry
  * VALUE are two entries, and dropping one leaves the other.
  *
- * NO `changed`, unlike its keyed sibling, and the asymmetry is real rather than
- * an omission: nothing is SERVED from a roster. Its two readers ask it fresh at
- * the moment they need an answer — once per conversation opening for the
- * session-start probes, once per dispatch for a bus — so there is no derived
- * value sitting downstream that could go stale between reads.
+ * ## `changed` IS A PARAMETER NOW, and this paragraph said it never would be
+ *
+ * It said: *no `changed`, unlike its keyed sibling, and the asymmetry is real
+ * rather than an omission — nothing is SERVED from a roster. Its two readers ask
+ * it fresh at the moment they need an answer, once per conversation opening for
+ * the session-start probes and once per dispatch for a bus, so there is no
+ * derived value sitting downstream that could go stale between reads.*
+ *
+ * Every clause of that is true of the two readers this package had, and none of
+ * it is a property of the SHAPE. The tab's list slots
+ * (`@olai/plugin-api`'s `SLOTS`) are a roster a PAGE DRAWS FROM, and a drawing
+ * is precisely the derived value sitting downstream: a section whose plugin
+ * unloaded stays on screen until something says the table moved. The keyed
+ * sibling has been telling its host that since it was written; a list slot needs
+ * the same sentence for the same reason, and the alternative — a synthetic
+ * `plugin#2` key so that a list could ride on {@link registry} — buys the
+ * notification by giving up the one rule the key was for, and leaves a
+ * claim-once refusal message that can no longer be true.
+ *
+ * So it is a PARAMETER: absent for the two readers that ask fresh, which pay
+ * nothing and are told nothing, and present for a table something is served
+ * from. What it brings with it is the other two rules verbatim — THE ENTRY GOES
+ * BEFORE THE FAILURE DOES, and no re-notification on the way out of a refusal —
+ * because a host that refuses a re-read throws out of `changed` here exactly as
+ * it does one function down, and an `acquire` that failed never runs its
+ * release.
  */
-export const roster = <V>(): Roster<V> => {
+export const roster = <V>(changed?: () => void): Roster<V> => {
   const held = new Map<symbol, V>()
   return {
     hold: (value) =>
       Effect.acquireRelease(
-        Effect.sync(() => {
+        // SUSPENDED for its sibling's reason: the entry is made at the moment
+        // the hold TAKES rather than where `hold` was called, so a plugin that
+        // unloaded and came back is holding again rather than holding twice.
+        Effect.suspend(() => {
           const at = Symbol()
           held.set(at, value)
-          return at
+          try {
+            changed?.()
+          } catch (refused) {
+            held.delete(at)
+            return Effect.die(refused)
+          }
+          return Effect.succeed(at)
         }),
-        (at) => Effect.sync(() => void held.delete(at)),
+        (at) =>
+          Effect.sync(() => {
+            held.delete(at)
+            changed?.()
+          }),
       ).pipe(Effect.asVoid),
     read: () => [...held.values()],
   }

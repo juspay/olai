@@ -522,24 +522,24 @@ wake on CI runs · runs from  [ lanes.olai ▾ ]
 
 ## Node agents
 
-**Put an `agent-session` property on a node and that node has an agent.** There is nothing else to create, nowhere to register it, and no file to edit first: the node's title is the agent's name, its note is its charter, and its **subtree is its memory**. A chat session bound to it is cattle — it can be thrown away and made again at any time, because what the agent knows is written in the outline rather than in a transcript.
+**Put a `chat-agent-session` property on a node and that node has an agent.** There is nothing else to create, nowhere to register it, and no file to edit first: the node's title is the agent's name, its note is its charter, and its **subtree is its memory**. A chat session bound to it is cattle — it can be thrown away and made again at any time, because what the agent knows is written in the outline rather than in a transcript.
 
 ```jsonl
-{"id":"spaces","ord":"a0","title":"Xyne Spaces — the org OS","custom":{"agent-session":"grok"}}
+{"id":"spaces","ord":"a0","title":"Xyne Spaces — the org OS","custom":{"chat-agent-session":"grok"}}
 ```
 
-`agent-session` is the one custom key olai reads, and [format.md](format.md#properties) names it as the exception it is. **One key carries both halves** — which engine, and which conversation — split on the first colon:
+`chat-agent-session` is the one custom kind this plugin contributes, and [format.md](format.md#properties) names it as the exception it is. A vault written before chat became a plugin carries the bare key `agent-session` and keeps it with one declaration row ([plugins/chat.md](plugins/chat.md#an-existing-vault-needs-one-row)). **One key carries both halves** — which engine, and which conversation — split on the first colon:
 
 ```
-agent-session: grok                 a node agent nobody has started a session for
-agent-session: grok:0f3c8d21-…      ...and one that is talking through that conversation
+chat-agent-session: grok            a node agent nobody has started a session for
+chat-agent-session: grok:0f3c8d…    ...and one that is talking through that conversation
 ```
 
 The engine is required and the session is optional, so writing the property by hand is how a node agent comes into being and [starting a session](#starting-a-session) is how it gets its second half. The engine travels with the vault, so a board naming an engine this machine has never heard of is a node agent whose row says so rather than one that disappears.
 
 ### The AGENTS roster
 
-The sidebar grows an **Agents** section, with the agenda and the inbox rather than beside the pinned shelf, because a row that says *needs you* is the same kind of news they are. **It is literally the query `prop:agent-session`**: put the property on a node and the row is there on the frame the write lands, rename the node and the row says the new name, take the property off and the row is gone. A directory with no node agent has no section at all — not an empty box, not a heading.
+The sidebar grows an **Agents** section, with the agenda and the inbox rather than beside the pinned shelf, because a row that says *needs you* is the same kind of news they are. **It is literally the query `prop:chat-agent-session`**: put the property on a node and the row is there on the frame the write lands, rename the node and the row says the new name, take the property off and the row is gone. A directory with no node agent has no section at all — not an empty box, not a heading.
 
 Each row says the node's title, the engine, **how the agent stands**, and how many questions are waiting on you. The standing is a word and a dot, never a dot alone:
 
@@ -553,7 +553,7 @@ Each row says the node's title, the engine, **how the agent stands**, and how ma
 | **asleep** | it has a session on disk and no live scope right now |
 | **no session bound** | nobody has started a session for it yet |
 
-The last two are worth reading twice. **Node agents run independently**: several rows may be working or waiting on you at once, while *asleep* means the durable session has no process right now. A scope is acquired lazily on the first press or wake, up to `DEFAULT_CAPACITY` live scopes; an idle background scope is reaped after `DEFAULT_IDLE` and the next wake resumes the same session from disk. Both defaults live beside the scheduler in `packages/chat/src/scoped.ts`. The count beside each row is that node's own unanswered questions, including while another conversation is in the panel.
+The last two are worth reading twice. **Node agents run independently**: several rows may be working or waiting on you at once, while *asleep* means the durable session has no process right now. A scope is acquired lazily on the first press or wake, up to `DEFAULT_CAPACITY` live scopes; an idle background scope is reaped after `DEFAULT_IDLE` and the next wake resumes the same session from disk. Both defaults live beside the scheduler in `packages/plugins/chat/src/scoped.ts`. The count beside each row is that node's own unanswered questions, including while another conversation is in the panel.
 
 ### The door on the row
 
@@ -579,10 +579,10 @@ An agent with no session can only do half of that, and does the half that exists
 
 ### Starting a session
 
-**Any row's `•••` menu offers *Start an agent session*.** Pressing it opens a fresh conversation and writes it onto that node's `agent-session` property, in that order, so the vault never names a session that was not opened. **The press writes the property; it does not require one** — so this is how a node agent is created, not only how an existing one is given a session.
+**Any row's `•••` menu offers *Start an agent session*.** Pressing it opens a fresh conversation and writes it onto that node's `chat-agent-session` property, in that order, so the vault never names a session that was not opened. **The press writes the property; it does not require one** — so this is how a node agent is created, not only how an existing one is given a session.
 
 ```
-(no property)               →  agent-session: claude:0f3c8d21-…
+(no property)               →  chat-agent-session: claude:0f3c…
 agent-session: claude       →  agent-session: claude:0f3c8d21-…
 ```
 
@@ -596,7 +596,7 @@ agent-session: claude       →  agent-session: claude:0f3c8d21-…
 
 ### Where the binding lives, and what a second machine sees
 
-**In the vault, on the node, in the same property.** All of olai's configuration lives in `.olai` files or their properties, and which conversation a node agent is talking through is configuration — so it is the second half of `agent-session` rather than a file somewhere else. Write the property and the binding is there on the frame the write lands; there is no record to keep in step, nothing to restart, and nothing to hand-edit outside the board.
+**In the vault, on the node, in the same property.** All of olai's configuration lives in `.olai` files or their properties, and which conversation a node agent is talking through is configuration — so it is the second half of `chat-agent-session` rather than a file somewhere else. Write the property and the binding is there on the frame the write lands; there is no record to keep in step, nothing to restart, and nothing to hand-edit outside the board.
 
 **A session id is machine-local content in a board-durable place, and that is stated rather than hidden.** A vault served from two machines carries **one** pointer, and it is shaped by whichever machine wrote it:
 
@@ -628,7 +628,7 @@ Migration is **association, not conversion**. Nothing moves on disk, no transcri
 
 ### Unassigned
 
-**The Agents section ends with an *Unassigned* row**, counting every conversation in this directory that no node agent claims — [the whole stored list](#which-conversation-you-come-back-to) minus what the roster already has: the conversation each node's `agent-session` names, and the conversations behind it (below).
+**The Agents section ends with an *Unassigned* row**, counting every conversation in this directory that no node agent claims — [the whole stored list](#which-conversation-you-come-back-to) minus what the roster already has: the conversation each node's `chat-agent-session` names, and the conversations behind it (below).
 
 - **it draws only where there is something to say.** A directory whose chats all belong to a node ends the section at its agents; a directory with neither draws no section at all. An agent that could not be *asked* what it has stored is something to say, so the row draws for that too — with its reason in the list rather than a count on the row.
 - **...and it draws even with no node agent at all**, which is where a person migrating actually starts. A doorway that appeared only once you had made your first node agent by hand would be a doorway nobody finds.
@@ -640,7 +640,7 @@ Migration is **association, not conversion**. Nothing moves on disk, no transcri
 **Opening it lists those conversations in the panel** — grouped by whose they are, each saying how big it is and when it was last touched, exactly as the picker draws them. Pressing a title opens it, because the honest first question about a chat from three weeks ago is *which one is this*. Under it is **assign to node…**, which opens the same node search the [edge panel and the move picker](search.md) use: type words, take a row.
 
 ```
-(no property)               →  agent-session: claude:0f3c8d21-…
+(no property)               →  chat-agent-session: claude:0f3c…
 agent-session: grok         →  agent-session: claude:0f3c8d21-…
 ```
 
@@ -671,11 +671,11 @@ Assigning a chat does not start anything by itself. The first press or derived w
 
 **A node agent's doorbells are its subtree, automatically.** The manual file picker exists only for conversations no node claims. A claim under nested node agents wakes the nearest one; an ancestor node agent catches claims that have no nearer agent, so a root orchestrator remains the backstop without hearing every child's own work.
 
-**Its tool writes are fenced to that same subtree.** Reads still see the vault, but a write at a node outside the subtree, a file or document write, and any attempt to change `agent-session` are refused before the store gate. The refusal names the nearest node agent above to ask. The credential and its composed write door are acquired with the session scope and removed when it is reaped; a recognizable node-ticket prefix keeps an old bearer closed without retaining every expired credential. This is a protocol fence, not a sandbox: loopback MCP retains its documented unfenced door.
+**Its tool writes are fenced to that same subtree.** Reads still see the vault, but a write at a node outside the subtree, a file or document write, and any attempt to change `chat-agent-session` are refused before the store gate. The refusal names the nearest node agent above to ask. The credential and its composed write door are acquired with the session scope and removed when it is reaped; a recognizable node-ticket prefix keeps an old bearer closed without retaining every expired credential. This is a protocol fence, not a sandbox: loopback MCP retains its documented unfenced door.
 
 ### What is not here yet, and in what order it comes
 
 The rest is a plan rather than a list of gaps:
 
 1. **Agency** — a node agent creates child nodes and puts agents on them; the lifecycle and write boundary are in place, but the dispatch gesture is not.
-2. **Relocation** — the scheduler is deliberately implemented in place in `@olai/chat`; moving it behind its eventual plugin boundary is the next architectural phase, not part of this one.
+2. **Relocation** — the scheduler is deliberately implemented in place in `olai-plugin-chat`; moving it behind its eventual plugin boundary is the next architectural phase, not part of this one.

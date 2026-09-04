@@ -31,7 +31,8 @@
  * is the same shape the row editor uses one level down.
  */
 
-import type { Applied, Edit, OpFailure } from "@olai/surface"
+import type { Applied, Edit } from "@olai/surface"
+import type { OpFailure } from "@olai/format"
 import { Result } from "effect"
 
 import { runAsync } from "./run.ts"

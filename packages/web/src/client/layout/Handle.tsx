@@ -15,10 +15,10 @@ import { onCleanup } from "solid-js"
 import { WITHIN } from "../layer.ts"
 import { TESTID, type TestId } from "../testids.ts"
 import {
-  CHAT_MAX_PX,
-  CHAT_MIN_PX,
-  chatWidth,
-  setChatWidth,
+  PANEL_MAX_PX,
+  PANEL_MIN_PX,
+  panelWidth,
+  setPanelWidth,
   setSidebarWidth,
   SIDEBAR_MAX_PX,
   SIDEBAR_MIN_PX,
@@ -41,17 +41,17 @@ export function SidebarHandle() {
   )
 }
 
-export function ChatHandle() {
+export function PanelHandle() {
   return (
     <ResizeHandle
       edge="left"
-      testid={TESTID.chatResize}
+      testid={TESTID.panelResize}
       label="resize the agent panel"
-      width={chatWidth}
-      min={CHAT_MIN_PX}
-      max={CHAT_MAX_PX}
-      onLive={(px) => setChatWidth(px, { persist: false })}
-      onCommit={(px) => setChatWidth(px, { persist: true })}
+      width={panelWidth}
+      min={PANEL_MIN_PX}
+      max={PANEL_MAX_PX}
+      onLive={(px) => setPanelWidth(px, { persist: false })}
+      onCommit={(px) => setPanelWidth(px, { persist: true })}
     />
   )
 }

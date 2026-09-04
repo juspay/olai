@@ -84,7 +84,7 @@
 
 import { connectSurfaces } from "@kolu/surface-app/solid"
 import type { Surface, SurfaceSpec } from "@kolu/surface/define"
-import { BROWSER_ROWS, type BrowserHalf } from "@olai/bundle"
+import type { BrowserHalf, BrowserRow } from "@olai/bundle"
 import { surface } from "@olai/surface"
 import { createEffect, createRoot, createSignal } from "solid-js"
 
@@ -222,6 +222,34 @@ const rerost = async (want: ReadonlyArray<string>): Promise<void> => {
 }
 
 /** The tail of {@link rerost}, entered only when no other redial is running. */
+/**
+ * THE BUILD'S BROWSER ROWS, told rather than imported — see the note beside
+ * {@link useBrowserRows}.
+ *
+ * Empty until the entry has said, and that is not a window anything falls
+ * through: the redial below runs off a roster frame, which arrives over a wire
+ * this module dials on the entry's own import, and `./main.tsx` says this
+ * before it awaits the first roster.
+ */
+let rows: ReadonlyArray<BrowserRow> = []
+
+/**
+ * WHICH PLUGINS THIS BUILD HAS, from the one module that may know.
+ *
+ * `@olai/bundle` names every plugin, so a package a PLUGIN imports may not
+ * import it back — and a plugin's browser half imports this app, because a face
+ * that draws inside this app draws with this app's furniture. That is one
+ * sentence and it is the whole reason this is a setter rather than an import:
+ * without it every plugin is on every other plugin's graph, and the fence's
+ * tenant derivation says so before a reader would ever notice.
+ *
+ * `./main.tsx` is the one caller. It is the app's ENTRY — nothing imports it —
+ * so it is the one place in this package that may still name the registry.
+ */
+export const useBrowserRows = (built: ReadonlyArray<BrowserRow>): void => {
+  rows = built
+}
+
 let inFlight: Promise<void> = Promise.resolve()
 
 const rerostNow = async (want: ReadonlyArray<string>, signature: string): Promise<void> => {
@@ -231,7 +259,7 @@ const rerostNow = async (want: ReadonlyArray<string>, signature: string): Promis
   setRedialing(true)
   try {
     const halves = await Promise.all(
-      BROWSER_ROWS.filter((row) => want.includes(row.id)).map((row) => row.load()),
+      rows.filter((row) => want.includes(row.id)).map((row) => row.load()),
     )
     // The cast is what a tab that follows the roster costs at the type level,
     // and it is worth naming rather than hiding. The old arrangement recovered

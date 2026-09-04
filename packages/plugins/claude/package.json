@@ -18,7 +18,7 @@
     "typecheck": "tsc --noEmit"
   },
   "//": "THE CLAUDE CODE ENGINE — the leg that reads its wire, the two model bets its picker needs, the adapter olai ships pinned, and the mark it wears. One directory, one row, one release clock: this adapter's pin moved five times in a month and no other engine's did, which is the whole argument for a plugin per engine rather than one roster plugin.",
-  "//dependencies": "`@olai/acp/engine` is the shape both ends spell — the leg, the adapter, the registration — and it is a floor package under both this plugin and `@olai/chat`, which is what lets neither import the other. `@olai/plugin-api` is the door: the `Agents` tag its `./server` registers into, and the slot service its `./browser` hangs a mark in. `effect` because a plugin's `apply` is one. `solid-js` because the mark is a component.",
+  "//dependencies": "`@olai/acp/engine` is the shape both ends spell — the leg, the adapter, the registration — and it is a floor package under both this plugin and `olai-plugin-chat`, which is what lets neither import the other. `@olai/plugin-api` is the door: the `Agents` tag its `./server` registers into, and the slot service its `./browser` hangs a mark in. `effect` because a plugin's `apply` is one. `solid-js` because the mark is a component.",
   "dependencies": {
     "@olai/acp": "workspace:*",
     "@olai/plugin-api": "workspace:*",

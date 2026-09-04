@@ -24,19 +24,22 @@
  */
 
 import { surface } from "@olai/surface"
-import { roster, whyNoAgent } from "@olai/chat"
-import { AGENT_PROP, type GitPin } from "@olai/format"
+import type { GitPin } from "@olai/format"
 import type { IdentityConfig } from "@olai/identity"
-import { fixedPolicy, make as makeOps, TOOLS } from "@olai/ops"
+import { fixedPolicy, make as makeOps, type Ops, TOOLS } from "@olai/ops"
 import { BUNDLE_NAMES, mountBundle, reportBundle } from "@olai/bundle/bundle"
+import { bundleRank } from "@olai/bundle"
 import { emitter } from "@olai/log"
-import { openPlugins } from "@olai/plugin-api/services"
-import { Effect, SubscriptionRef } from "effect"
+import {
+  NOWHERE_TO_WRITE,
+  openPlugins,
+  type PropWrite,
+  type ToolServer,
+} from "@olai/plugin-api/services"
+import { Deferred, Effect, SubscriptionRef } from "effect"
 import { randomBytes } from "node:crypto"
 import { resolve } from "node:path"
 
-import * as Chat from "@olai/chat"
-import { roster as agentsRoster } from "./agents.ts"
 import { heldFor } from "./held.ts"
 import { openDirectory } from "./directory.ts"
 import { propKinds } from "./propKinds.ts"
@@ -45,11 +48,9 @@ import { hostname } from "./hostname.ts"
 import { listen } from "./listener.ts"
 import { clientOver, serveFace } from "./mcp/face.ts"
 import { currentLogin, MCP_PATH, mcpTransport } from "./mcp/route.ts"
-import { ticketing } from "./mcp/tickets.ts"
+import { ticketing, type Tickets } from "./mcp/tickets.ts"
 import { bespokeFrom } from "./mcp/tools.ts"
-import { enginesAt } from "./engines.ts"
-import { askingAt } from "./probes.ts"
-import { bind, gitWiring, type Publishers, writerAt } from "./runtime.ts"
+import { bind, gitWiring, writerAt } from "./runtime.ts"
 
 export interface ServeOptions {
   /** The directory to serve, recursively. */
@@ -91,15 +92,24 @@ export interface ServeOptions {
  */
 export const serve = (options: ServeOptions) =>
   Effect.gen(function*() {
-    /** THE CHAT, built further down and `null` forever on a machine with no ACP
-     *  agent. It is declared UP HERE because two things below reach for it out
-     *  of order: the delivery door is asked for per call, and the refusal
-     *  observer is installed on the ops layer, which is built before the chat
-     *  that draws its refusals. */
-    let chat: Chat.Chat | null = null
     /** The re-compose, filled in by `bind` — `./runtime.ts`'s `PluginRuntime`
      *  argues why it is a holder rather than a callback passed here. */
     const onChange = { run: (): void => {} }
+    /** Minted per process and handed only to the sessions a row spawns: the
+     *  write surface is not something any page that can reach loopback may
+     *  call. */
+    const token = randomBytes(24).toString("hex")
+    /** THE FENCED CREDENTIAL MINT, filled once the MCP face exists — see the
+     *  line beside `ticketing` below. `null` until then, which the door hands
+     *  a plugin verbatim: a session spawned before the listener bound has
+     *  nothing to be fenced against, and inventing a bearer for it would be a
+     *  credential onto a face that does not exist yet. */
+    let mintTicket: Tickets["mint"] | null = null
+    /** THE WRITE GATE, filled the moment it is built. Held rather than passed,
+     *  because the plugin runtime is opened BEFORE the store the layer is over —
+     *  the vocabulary a store validates with is what the rows contribute — so
+     *  the door a row names is asked per call. */
+    let opsLayer: Ops | null = null
     /** WHERE A RELATIVE PATH RESOLVES FROM, resolved the way `openDirectory`
      *  resolves it and BEFORE it, because the plugin runtime is opened first.
      *  One spelling of `resolve` in two places is a hazard; two answers to which
@@ -137,6 +147,23 @@ export const serve = (options: ServeOptions) =>
      * carries a callback any more.
      */
     const say = yield* emitter
+    /**
+     * THE VAULT'S OWN MCP SERVER, PROMISED HERE AND ADDRESSED AT THE BOTTOM.
+     *
+     * A `Deferred` and not a mutable slot, because the two facts about this
+     * address are "not knowable until `listen` returns" and "knowable exactly
+     * once", and that is what a Deferred is. `let tools` below is the mutable
+     * slot, and it survives only because the chat this file still builds reads it
+     * through a thunk it was handed before either existed.
+     *
+     * MADE BEFORE `openPlugins` because the SERVICE has to stand before any row
+     * is mounted: a plugin naming a key nobody has provided sits PENDING, and the
+     * vocabulary is read two statements after `mountBundle` — so a `tools` that
+     * only appeared down there would leave a tenant's property kind out of the
+     * store's codec for the life of the process, silently. Provided early,
+     * completed late.
+     */
+    const toolsReady = yield* Deferred.make<ToolServer>()
     /**
      * THE PLUGIN RUNTIME, OPENED — before the store, before the chat, before
      * anything reads a file.
@@ -187,15 +214,51 @@ export const serve = (options: ServeOptions) =>
       vars: process.env,
       now: () => new Date().toISOString(),
       served,
-      // The chat is built further down and a machine with no ACP agent never
-      // builds one at all, so the door is asked for per call rather than
-      // captured — which is also what makes a plugin that unloads and comes back
-      // get the door that is live rather than the one that was.
-      //
-      // The KEYING is not this line's: the service mints a plugin's door from
-      // the word the registry bound it under, so what this does is hand over the
-      // chat's own door for the name it was asked about and nothing else.
-      doorFor: (plugin) => chat?.doorFor(plugin) ?? null,
+      tools: toolsReady,
+      // ...AND THE FENCE MINTED OFF IT. Read per call rather than captured,
+      // because the mint does not exist until the MCP face does — and the row
+      // that seats sessions is mounted long before that.
+      ticketFor: (seated, above) => mintTicket?.(seated, above) ?? null,
+      // THE WRITE GATE, as narrow as the two gestures that need it: the reading
+      // a message's armed ids are resolved against, and one property on one
+      // node. The ops layer is built a few statements down, so both are asked
+      // per call — the same shape the doorbell's door had before it became the
+      // chat row's own.
+      ops: {
+        // THE REFUSAL IS NOT THE PLUGIN'S TO SEE. A reading that failed is a
+        // store that has never loaded, which reaches a plugin as the same
+        // "nothing yet" a process with no directory answers — the door has one
+        // arm for both because a plugin has nothing different to do about them.
+        reading: Effect.suspend(() =>
+          opsLayer === null
+            ? Effect.succeed(null)
+            : Effect.catch(opsLayer.read, () => Effect.succeed(null))
+        ),
+        prop: (write: PropWrite) =>
+          Effect.suspend(() =>
+            opsLayer === null
+              ? Effect.fail(NOWHERE_TO_WRITE)
+              // A KEYSTROKE HAS NO SESSION, and neither does this: the gesture
+              // is a person's in the panel, so the write is recorded under this
+              // face's own writer and is fenced by nothing. A session's own
+              // writes reach the gate through the MCP face and its ticket.
+              : Effect.asVoid(opsLayer.run(
+                { op: "prop", id: write.node, key: write.key, value: write.value },
+                "web",
+              ))
+          ),
+      },
+      // WHERE EACH ROW SITS IN THIS BUILD'S OWN LIST, handed over as the function
+      // `@olai/bundle` already exports rather than as the list itself: a plugin
+      // that owns a table a person reads has to be able to order it, and nothing
+      // here should hand a plugin the ability to enumerate its siblings.
+      rank: bundleRank,
+      // NO `doorFor`, and its absence is this lane: where a doorbell may
+      // deliver is a promise the CHAT ROW keeps, offered from its own `apply`
+      // (`@olai/plugin-api`'s `Offers`). A serve composing no chat row composes
+      // no `deliveries` at all, so kolu and odu sit `waiting` and the
+      // preferences panel says on whose account — which is the paper's rule and
+      // the ruling that took this phase.
       // ...and the small record a plugin keeps about this serve, in the state
       // home rather than the vault. Core owns the file and keys it by the calling
       // plugin; `./held.ts` orders the writes so the last snapshot handed over is
@@ -216,38 +279,6 @@ export const serve = (options: ServeOptions) =>
     const kinds = yield* propKinds(plugins)
     const { root, store } = yield* openDirectory(options.root, kinds)
 
-    // The chat publishes through the surface, and the surface is seeded from
-    // the chat. One mutable slot resolves that, and it is safe because nothing
-    // publishes before `bind` returns: the agent is started at the very end.
-    let publish: Publishers | null = null
-
-    /**
-     * The publishers, ONCE THEY EXIST — and a loud stop if they do not.
-     *
-     * The reads used to be `publish?.state(…)`, which is the invariant above
-     * spelled as a shrug: if it ever stopped holding, the optional chain threw
-     * the event away and said nothing, and what a person would see is a
-     * transcript missing a row or a header stuck on the state before last,
-     * forever, with a green pill over it.
-     *
-     * A throw rather than a buffer, because there is nothing here to buffer
-     * FOR: the order in this file is fixed and deliberate (the chat is built,
-     * the surface is bound, and only then is the agent started), so an event
-     * arriving early is a mistake in that order and not a race to smooth over.
-     * A buffered slot would make the mistake survivable and therefore
-     * permanent. This one fails at boot, on a developer's machine, naming
-     * itself.
-     */
-    const publishing = (): Publishers => {
-      if (publish === null) {
-        throw new Error(
-          "olai serve: something published before the surface was bound — the " +
-            "order in serve.ts is chat, then bind, then start the agent",
-        )
-      }
-      return publish
-    }
-
     // Bumped whenever anything about git settled — a commit by whichever door
     // (the button, the agent's tool, the quiet window), a push, a refusal of
     // either, or the loop stopping. None of them moves a served file, so
@@ -260,7 +291,7 @@ export const serve = (options: ServeOptions) =>
      *  that layer asks it on every decision it makes. */
     const policy = fixedPolicy(options.pin)
 
-    const ops = makeOps({
+    const ops: Ops = makeOps({
       store,
       root,
       policy,
@@ -272,171 +303,15 @@ export const serve = (options: ServeOptions) =>
       onSettled: () => {
         Effect.runSync(SubscriptionRef.update(settled, (count) => count + 1))
       },
-      // A refusal reaches the agent as its tool result AND the panel as a row:
-      // what the agent then says about it is prose, and the unfinished
-      // children are data. On OPS rather than on the MCP server, because it is
-      // writes this is a property of — a second writer would report nothing.
-      onRefusal: (request, failure) =>
-        chat === null ? Effect.void : chat.recordRefusal(request.op, failure),
+      // A refusal reaches the agent as its tool result AND whoever is watching
+      // writes. On OPS rather than on the MCP server, because it is writes this
+      // is a property of — a second writer would report nothing. What a plugin
+      // makes of it is its own: the chat row draws a row in the transcript.
+      onRefusal: (request, failure) => plugins.refused({ op: request.op, failure }),
     })
-
-    // WHICH ENGINES this build has, in the bundle's own order — the registry
-    // the engine plugins wrote themselves into, sorted against `olai.yml`
-    // ({@link ./engines.ts} says why the sort is not optional). It used to be a
-    // hardcoded table inside `@olai/chat`; each engine is a plugin now, so this
-    // is a reading of what mounted rather than a list anybody keeps.
-    const engines = enginesAt(plugins)
-    // ...and WHICH OF THEM THIS MACHINE HAS, once, before anything is spawned:
-    // each engine's own probe, plus the off switch `OLAI_ACP_AGENT` is when it
-    // is empty (`@olai/chat`'s `agents/roster.ts`, which owns that rule and the
-    // search path). Nothing found is the state the panel has a face for — it
-    // draws, and says how to install one, out of each engine's own sentence —
-    // so it is a line in the log and never a refusal to serve.
-    // ...ONE ANSWER WITH THE REASON ON THE ARM. A serve with no agent has one
-    // of three causes and only this end can tell them apart, so the roster
-    // hands over which — spent twice and never re-derived: the journal line
-    // here, and the chat cell the panel draws its opening sentence out of
-    // (`bind`'s `noAgent`, below). A screen and a journal disagreeing about one
-    // boot is how a person ends up debugging the wrong thing.
-    const found = roster(root, engines)
-    const installed = found.kind === "here" ? found.installed : []
-    const noAgent = found.kind === "none" ? found.because : null
-    if (noAgent !== null) yield* Effect.logInfo(whyNoAgent(noAgent))
-
-    // Minted per process and handed only to the session we spawn: the write
-    // surface is not something any page that can reach loopback may call.
-    const token = randomBytes(24).toString("hex")
-    let mintNodeTicket: ((node: string) => Chat.ToolTicket) | null = null
-    /** Filled once the listener has bound — see the thunk on the chat's
-     *  options. Until then there is no session to hand it to. */
-    let tools: Chat.ToolServer | null = null
-    /** THE VAULT'S HALF OF THE AGENTS ROSTER, held here because two things
-     *  read it and they are built at different moments: the chat's teaching
-     *  and boot router, through the thunks below, and the runtime's own cell,
-     *  which is also what keeps it current ({@link ./agents.ts}).
-     *
-     *  SEED IT BEFORE BUILDING THE CHAT. The runtime subscription starts with
-     *  the current store reading, but its connector is lazy: no browser has
-     *  asked for the agents cell when `chat.start` routes remembered memory.
-     *  Leaving this carrier empty then makes a bound conversation look
-     *  unassigned, starts it in the root panel, and leaves the node asleep.
-     *  This cheap read is the same standing snapshot the subscription will
-     *  hand over; the subscription remains the one owner of later movement. */
-    const nodeAgents = agentsRoster()
-    const initial = yield* store.read("cheap")
-    nodeAgents.seen(initial.snapshot === null ? null : initial.snapshot.value.derived)
-
-    chat = installed.length === 0 ? null : yield* Chat.make({
-      roster: installed,
-      // ...AND EVERY ENGINE ROW THIS BUILD HAS, by id, in order — read for one
-      // thing only: which agent a note that names none is about. What a person
-      // is TOLD about an engine this machine has not installed is that engine's
-      // own face in the tab, hung by its browser half.
-      engines: engines.map((one) => one.id),
-      cwd: root,
-      tools: () => tools,
-      /**
-       * ...AND WHATEVER ELSE THIS HOST IS RUNNING, asked once per conversation
-       * — the `chat/session-start` registrations, read here.
-       *
-       * The one place the two halves meet: `@olai/chat` declares the SHAPE of
-       * the question — is your tool here, and what am I owed if it is not — and
-       * each plugin answers it in its own package, in its own words. This line
-       * is where a drift between the two spellings is a type error, which is why
-       * neither of them imports the other.
-       *
-       * ## A THUNK, and the reason is that the list can move
-       *
-       * It used to be a list built once at boot: `probesOf(enabled(SERVERS,
-       * pin), env)`, filtered by the flag, held for the life of the process.
-       * That was exact while the set could not change. A plugin is a fiber now,
-       * so the list is read PER SESSION OPEN off the registry the plugins
-       * registered themselves into — a plugin that unloaded between
-       * conversations contributes nothing to the next one, and nobody keeps a
-       * second list for it to fall out of step with.
-       *
-       * ## What each plugin registers, and what it does NOT
-       *
-       * The ASKING, not an answer. The scheduling stays `@olai/chat`'s, which is
-       * load-bearing rather than tidy: a probe starts a subprocess on the
-       * session-open path, and running them one after another would multiply
-       * that window by the number of plugins — the same defect the bound exists
-       * to prevent, wearing a different shape. `Probed`'s two halves still come
-       * off ONE reading, which is the invariant `probe()` existed to hold.
-       *
-       * AND NO PLUGIN SIGNS ITS NAME HERE any more: the door is keyed by the
-       * fiber like every other one, so what a plugin hands over is one Effect
-       * and there is no parameter to put a name in.
-       *
-       * NO FILTER BY THE PIN, and its absence is the phase: a plugin left out of
-       * `--plugins` has no fiber, so it registered nothing, so it never probes — which is what the registry always claimed an absent
-       * plugin meant, now true by construction rather than by a `.filter`.
-       *
-       * The ENVIRONMENT is not read here either. It is `ctx.env.vars`, on the
-       * service, reached by the plugin that asks — a composition root is still
-       * where a process reaches for the real environment (one screen up, where
-       * `Env` is constructed), and a probe still sees what a session's own spawn
-       * will resolve against.
-       *
-       * ## The ORDER is `./probes.ts`'s, and it had to be taken off this line
-       *
-       * The dispatch was written out here, handing back the array the listeners
-       * had pushed onto — which is registration order, which is the order two
-       * dynamic imports resolved in, which is nothing a person can read twice.
-       * A conversation SHOWS that order, so the same serve reported its servers
-       * one way at boot and the other way at the next. `askingAt` imposes the
-       * build's own list on it; that file argues why the knowledge lives there.
-       */
-      probes: () => askingAt(plugins),
-      /**
-       * ... AND WHICH CONVERSATIONS SOMEBODY POINTED A PLUGIN'S DOORBELL AT.
-       *
-       * Built HERE, beside the chat, because `root` is in hand and a
-       * `StateFailure` can be answered — the record is read once, at boot, and a
-       * directory whose picks will not read comes up with its doorbells off and
-       * one warning rather than not at all.
-       *
-       * NOT in `bind`: that call's error channel is `never`, and the served
-       * directory only exists inside its nullable plugins block, while the
-       * member that writes a pick is on every face it binds.
-       *
-       * INSIDE THIS TERNARY, so a machine with no ACP agent on PATH builds no
-       * store at all — no read, no write, and no way for a boot without an agent
-       * to touch somebody's picks. The empty-roster arm is `null` all the way
-       * down.
-       */
-      scoping: yield* Chat.scopesIn(root),
-      /**
-       * ... AND WHAT OLAI HAS OVERHEARD EACH CONVERSATION DO.
-       *
-       * Built here for the picks' reason above, word for word: `root` is in
-       * hand, the record is read once at boot, and a directory whose record
-       * will not read comes up teaching each node agent its contract once more
-       * and one warning rather than not at all. Inside the same ternary, so a
-       * machine with no ACP agent opens nobody's record.
-       */
-      overheard: yield* Chat.sessionsIn(root),
-      /**
-       * ... and WHOSE NODE AGENT a conversation is, which is what tells the
-       * panel there is a contract to teach at all ({@link ./agents.ts}).
-       *
-       * A THUNK OVER A CARRIER, seeded from the store above and kept current by
-       * the runtime built a few lines below. What it answers with is a row of
-       * the reading the roster cell is drawn from — one derived reading, two
-       * readers, no second walk.
-       */
-      agentAt: (to) => nodeAgents.agentAt(to),
-      nodeAt: (node) => nodeAgents.nodeAt(node),
-      nodes: () => nodeAgents.nodes(),
-      nearestAt: (node, candidates) => nodeAgents.nearestAt(node, candidates),
-      ticket: (node) => {
-        if (mintNodeTicket === null) throw new Error("node session opened before MCP tickets were bound")
-        return mintNodeTicket(node)
-      },
-      onState: (state) => publishing().state(state),
-      onTranscript: (change) => publishing().transcript(change),
-      onLive: () => publishing().live(),
-    })
+    // ...AND THE DOOR THE ROWS ASK THROUGH, filled the moment the layer exists.
+    // See the holder above on why it is a slot rather than an argument.
+    opsLayer = ops
 
     // The surface is bound to everything it reports on or writes through: the
     // store it reads, the chat it draws, what git is doing for the directory,
@@ -461,15 +336,6 @@ export const serve = (options: ServeOptions) =>
     const startedAt = new Date(Date.now() - process.uptime() * 1000).toISOString()
     const wired = yield* bind({
       store,
-      chat,
-      // ...and WHY there is none, where there is none — the value the log line
-      // above was made from, so the panel says exactly what the journal says.
-      noAgent,
-      // The carrier the chat's teaching already reads. The runtime is what
-      // KEEPS it current — one reading per published revision, taken where the
-      // roster cell is filled — so the two readers cannot be looking at two
-      // different vaults.
-      agents: nodeAgents,
       ops,
       writer: "web",
       hostname: theMachine,
@@ -496,7 +362,6 @@ export const serve = (options: ServeOptions) =>
         report,
       },
     })
-    publish = wired.publish
 
     // A faulted runtime is unrecoverable structural damage, and telling that
     // apart from the ordinary settle of a shutdown is `fault.ts`'s whole job.
@@ -526,10 +391,14 @@ export const serve = (options: ServeOptions) =>
       wired.faces.agent,
     )
     const tickets = ticketing({ bound: wired.bound, face: wired.faces.agent, ops, token })
-    mintNodeTicket = (node) => tickets.mint(
-      () => ({ under: node, forbidden: [AGENT_PROP] }),
-      nodeAgents.above,
-    )
+    // ...AND THE MINT, HANDED TO WHOEVER HOLDS THE SESSIONS. What a bearer
+    // stands for is asked per request of the plugin that seated the session —
+    // its subtree, and the ancestor a refusal names — and the composition root
+    // is the only thing that may compose a door out of the answer. It is filled
+    // HERE, after the face exists, and reads `null` before that: a plugin that
+    // spawned a session before the listener bound would be asking for a bearer
+    // onto nothing.
+    mintTicket = tickets.mint
     yield* serveFace({
       client: () => panel,
       /**
@@ -631,23 +500,30 @@ export const serve = (options: ServeOptions) =>
       )
     }
 
-    // `chat` is non-null exactly when this machine has an agent to talk to.
-    if (chat !== null) {
-      // LAST, and after the listener is up: the session is handed the MCP
-      // server's address, which is only knowable once we know what we bound.
-      tools = { name: "olai", url: `${url}${MCP_PATH}`, token }
-      yield* Effect.addFinalizer(() => chat.stop)
-      yield* chat.start
-      yield* Effect.annotateLogs(Effect.logInfo("chat agents detected"), {
-        // The whole roster, because which agents a person is offered is the
-        // question this line now answers — and because "olai cannot see the
-        // opencode I installed" is a PATH question a log has to be able to
-        // settle (`@olai/chat`'s `agents/roster.ts` says why olai's PATH is not
-        // your shell's).
-        agents: installed.map((row) => `${row.id}=${row.adapter.command}`).join(" "),
-        mcp: tools.url,
-      })
-    }
+    /**
+     * THE ADDRESS, now that we know what we bound — and the promise made before
+     * `openPlugins` kept.
+     *
+     * TOLD UNCONDITIONALLY, and deliberately not from inside the `chat !== null`
+     * arm below. Whether THIS process has an ACP agent is a fact about the
+     * machine; whether the vault's own tools are reachable is a fact about the
+     * SERVE, and a plugin waiting on the second must not be held for ever by the
+     * first. The chat's own slot is still filled below, out of the same value, so
+     * the name a session is handed and the name a plugin is handed cannot drift.
+     *
+     * `name: "olai"` is load-bearing beyond this line: every engine's auto-allow
+     * prefix is built from it (`@olai/acp`'s `leg.ts`), so a machine where this
+     * word changed is a machine where a person approves every write olai makes.
+     */
+    const address: ToolServer = { name: "olai", url: `${url}${MCP_PATH}`, token }
+    // ...AND THAT IS THE WHOLE OF THE BOOT CONVERSATION'S ORDER NOW. It was
+    // fourteen lines here — detect the roster, build the chat, hold its stop,
+    // start it, and say what was found — and every one of them is
+    // `olai-plugin-chat`'s. What core has left is this settle: the row's own
+    // `apply` awaits `Tools.server`, which is what "the surface is bound and
+    // only then is the agent started" became when it stopped being a comment
+    // guarded by a loud throw.
+    yield* Deferred.succeed(toolsReady, address)
 
     return runtime.faulted
   }).pipe(Effect.withLogSpan("serve"))

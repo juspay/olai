@@ -70,3 +70,32 @@ Feature: The second doorbell — a plugin rings a conversation somebody scoped
     When I open that sentence
     Then that sentence names the terminal "22222222-2222-4222-8222-222222222222"
     And there should be no page errors
+
+  @scratch:lanes @plugins:kolu
+  Scenario: A serve that composed no chat row says which door kolu is waiting behind
+    # THE RULING'S ACCEPTED COST, and the sentence that makes it payable.
+    #
+    # `deliveries`, `agents`, `watching` and `session-start` are the CHAT ROW's
+    # to offer; core provides none of them. So a serve composed without chat is
+    # a serve where kolu names a service nobody is behind, and the rule is that
+    # it sits `waiting` — not `failed`, because nothing went wrong, and not
+    # quietly running against a door that swallows every delivery, which is what
+    # core standing in for the row used to give it.
+    #
+    # What makes that a cost somebody can pay rather than a mystery is the
+    # panel. A row that says only *waiting for something it needs* sends a
+    # person to the source; naming the door is naming the plugin one step
+    # removed — a service is offered by a row — and that step is a person's to
+    # take. The runtime has known which tags all along.
+    Given I open the outline "lanes.olai"
+    # THE OUTLINER IS WHOLE, which is the other half of the ruling: what a serve
+    # without chat gives up is the conversation, not the product.
+    Then the outline list is shown
+    When I open the plugins panel
+    # BOTH DOORS kolu named, because it names two and a sentence that owned up
+    # to one would send somebody to compose a row that fixes half of it.
+    Then the plugins panel says "kolu" is "Waiting for deliveries, session-start"
+    And the plugins panel says "kolu" is "no plugin in this build offers them"
+    # THE CHAT ROW ITSELF is a different absence and gets a different sentence:
+    # nobody asked for it, so there is nothing to fix and nothing amber.
+    And the plugins panel says "chat" is "was not asked for"

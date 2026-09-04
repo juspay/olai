@@ -38,7 +38,7 @@
  * procedure is called from.
  */
 
-import { BusyFailure, isOpFailure, type OpFailure } from "@olai/surface"
+import { BusyFailure, isOpFailure, type OpFailure } from "@olai/format"
 import { Cause, Effect, Exit, Result } from "effect"
 
 import { quiescence } from "./quiescence.ts"

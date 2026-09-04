@@ -16,13 +16,20 @@
  * downstream all rest on: the STAMP a keyed service is minted with is the word
  * the registry bound the fiber under, and there is no argument by which a plugin
  * could supply another.
+ *
+ * And a sixth, which is the four halves above asked about a PLUGIN rather than
+ * about a composition root: one plugin standing behind a key another plugin
+ * names. A host's own provision is there before anything is mounted, so the
+ * `waiting` above is only ever entered and left once; a plugin's arrives while
+ * the runtime is already moving, and leaves when it unloads. `settled` is the
+ * verb that waits that out, and the last two cases are its two directions.
  */
 
 import { expect, test } from "bun:test"
 import { Cause, Effect, Logger, Scope } from "effect"
 
 import { definePlugin, detached, PluginName } from "./plugin.ts"
-import { mountPlugin, openHost, provide } from "./host.ts"
+import { mountPlugin, openHost, provide, settled } from "./host.ts"
 import { serviceTag } from "./service.ts"
 
 /** A TOY SERVICE, and it is keyed by the calling plugin so the stamp claim has
@@ -55,7 +62,9 @@ test("a plugin waits for the service it names, and starts when one arrives", asy
       }),
     })
     const mounted = yield* mountPlugin(host, plugin)
-    expect(yield* mounted.report).toEqual({ state: "waiting" })
+    // ...and the report SAYS WHAT IT IS SHORT OF, which is the half of `waiting`
+    // a person can act on: the key, read back off the fiber's own `inject`.
+    expect(yield* mounted.report).toEqual({ state: "waiting", missing: ["ledger"] })
     expect(lines).toEqual([])
 
     yield* provide(host, Ledger, ledgerOf(lines))
@@ -324,5 +333,122 @@ test("a scope a plugin opened is closed by the disposer, not by the fiber", asyn
     expect(lines).toEqual([])
     yield* mounted.dispose
     expect(lines).toEqual(["scribe: closed"])
+  })))
+})
+
+/**
+ * ONE PLUGIN BEHIND A KEY ANOTHER PLUGIN NAMES — and the mount alone does not
+ * cover it.
+ *
+ * This is the bundle's shape once a ROW provides a service, written with two
+ * hand-mounted plugins because the fact is the runtime's and not the loader's.
+ * Mounting the provider awaits the PROVIDER's fiber and nothing else — Cordis's
+ * `await()` loops on a fiber's own inertia — so the dependent it woke is still
+ * inside its `apply` when the mount returns, and everything a caller reads on
+ * the next line (a report, a kind registry, a surface table) is read early.
+ *
+ * THE MACROTASK IS THE SUBJECT rather than decoration. Without one the whole
+ * cascade finishes inside the mount's own microtask chain and every reading is
+ * accidentally right, which is exactly the coincidence this tree was relying on
+ * before `settled` existed.
+ */
+test("a plugin behind a key another names is running once the mounts have settled", async () => {
+  const lines: Array<string> = []
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const host = yield* openHost
+    yield* provide(host, Ledger, ledgerOf(lines))
+    const consumer = yield* mountPlugin(
+      host,
+      definePlugin({
+        name: "consumer",
+        needs: [Counter],
+        apply: Effect.gen(function*() {
+          const counter = yield* Counter
+          yield* Effect.sleep("5 millis")
+          yield* counter.bump
+        }),
+      }),
+    )
+    expect(yield* consumer.report).toEqual({ state: "waiting", missing: ["counter"] })
+
+    const provider = yield* mountPlugin(
+      host,
+      definePlugin({
+        name: "provider",
+        needs: [Ledger],
+        apply: Effect.gen(function*() {
+          const ledger = yield* Ledger
+          yield* Effect.sleep("5 millis")
+          yield* provide(host, Counter, () => ({ bump: ledger.write("bumped") }))
+        }),
+      }),
+    )
+    // THE FINDING, HELD AS A CLAIM: the provider is up and its key is behind the
+    // door, and the plugin that named it has not finished starting.
+    expect(yield* provider.report).toEqual({ state: "running" })
+    expect(yield* consumer.report).toEqual({ state: "waiting" })
+    expect(lines).toEqual([])
+
+    yield* settled(host, ["provider", "consumer"])
+    expect(yield* consumer.report).toEqual({ state: "running" })
+    expect(lines).toEqual(["provider: bumped"])
+  })))
+})
+
+/**
+ * ...AND THE CASCADE, BOTH WAYS — a provider that leaves takes its dependents
+ * down, and one that comes back brings them up again, from scratch.
+ *
+ * The replaced-provider case above asks this of a COMPOSITION ROOT's provision,
+ * which is there before anything is mounted. This asks it of a PLUGIN's, which
+ * is what a row standing behind a door is, and the answer a plugin owes because
+ * of it is not idempotence: it is that an `apply` must be re-runnable from
+ * scratch after its previous scope has closed. The assertion is the whole list
+ * in order, because "the finalizer ran BEFORE the second apply" is a fact about
+ * the sequence and not about the multiset.
+ *
+ * THE DOWN NEEDS NO SETTLE and the UP DOES, which is worth knowing rather than
+ * hiding behind one call: revoking a service awaits every dependent fiber's
+ * unload, so the provider's own disposer does not answer until the finalizers
+ * have run — while nothing awaits the reload the provision triggers on the way
+ * back in.
+ */
+test("a provider that unloads takes its dependents with it, and brings them back", async () => {
+  const lines: Array<string> = []
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const host = yield* openHost
+    yield* provide(host, Ledger, ledgerOf(lines))
+    const provider = definePlugin({
+      name: "provider",
+      needs: [Ledger],
+      apply: Effect.gen(function*() {
+        const ledger = yield* Ledger
+        yield* provide(host, Counter, () => ({ bump: ledger.write("bumped") }))
+      }),
+    })
+    const dependent = definePlugin({
+      name: "dependent",
+      needs: [Counter],
+      apply: Effect.gen(function*() {
+        yield* Counter
+        yield* Effect.sleep("5 millis")
+        lines.push("dependent: up")
+        yield* Effect.addFinalizer(() => Effect.sync(() => void lines.push("dependent: down")))
+      }),
+    })
+
+    const first = yield* mountPlugin(host, provider)
+    yield* mountPlugin(host, dependent)
+    expect(lines).toEqual(["dependent: up"])
+
+    yield* first.dispose
+    yield* settled(host, ["provider", "dependent"])
+    expect(lines).toEqual(["dependent: up", "dependent: down"])
+
+    yield* mountPlugin(host, provider)
+    // The mount awaited the PROVIDER; the dependent is a turn behind it, and
+    // without the line below the list is read one entry short.
+    yield* settled(host, ["provider", "dependent"])
+    expect(lines).toEqual(["dependent: up", "dependent: down", "dependent: up"])
   })))
 })

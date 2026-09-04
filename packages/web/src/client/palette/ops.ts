@@ -49,7 +49,7 @@
 import type { Situated } from "@olai/format"
 import { NO_PINS } from "@olai/surface"
 
-import { NO_ENGINES, subjectOfZoom, writeVerbs } from "../menu/verbs.ts"
+import { subjectOfZoom, writeVerbs } from "../menu/verbs.ts"
 import type { PaletteItem } from "./items.ts"
 import { atOnce } from "../settled.ts"
 
@@ -72,13 +72,14 @@ export const opItems = (
   // catalog that reads it is the pin, and the pin is dropped one line below —
   // so an empty shelf is not a stub here, it is the honest argument.
   //
-  // NOR ARE THE INSTALLED AGENTS, for the same reason read one filter down:
-  // the only verb they decide is *start an agent session*, which is not an
-  // `edit` and so is dropped by the guard below whatever this list says. A
-  // palette that offered it would also be a second door onto a gesture whose
-  // whole point is being on the ROW — the node it would bind is the page, and
-  // the page's own `•••` is where a node is bound from.
-  return writeVerbs(subjectOfZoom(zoomed), under, NO_PINS, NO_ENGINES).flatMap((verb) =>
+  // THE INSTALLED AGENTS WERE A THIRD ARGUMENT here, always empty, for the one
+  // verb they decided — *start an agent session*. That verb is
+  // `olai-plugin-chat`'s now, hung in `outline.row.action`, so this catalog has
+  // nothing to say about agents and there is no list to hand it. What has not
+  // changed is why a palette would not have offered it anyway: it is a gesture
+  // whose whole point is being on the ROW, and the node it would bind here is
+  // the page.
+  return writeVerbs(subjectOfZoom(zoomed), under, NO_PINS).flatMap((verb) =>
     // AND THE SHELF'S VERB IS LEFT OUT, which is the one exclusion by NAME in
     // this file and needs its own sentence because of that. The palette
     // already carries a pin row, and that one is about the PAGE

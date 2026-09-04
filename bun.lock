@@ -47,6 +47,7 @@
         "@olai/effect-cordis": "workspace:*",
         "@olai/plugin-api": "workspace:*",
         "effect": "4.0.0-rc.112",
+        "olai-plugin-chat": "workspace:*",
         "olai-plugin-claude": "workspace:*",
         "olai-plugin-codex": "workspace:*",
         "olai-plugin-kolu": "workspace:*",
@@ -54,24 +55,6 @@
         "olai-plugin-opencode": "workspace:*",
         "olai-plugin-pi": "workspace:*",
         "olai-plugin-xyne-spaces": "workspace:*",
-      },
-    },
-    "packages/chat": {
-      "name": "@olai/chat",
-      "version": "0.1.0",
-      "dependencies": {
-        "@agentclientprotocol/sdk": "^1.3.0",
-        "@olai/acp": "workspace:*",
-        "@olai/child": "workspace:*",
-        "@olai/format": "workspace:*",
-        "@olai/log": "workspace:*",
-        "@olai/state": "workspace:*",
-        "@olai/surface": "workspace:*",
-        "effect": "4.0.0-rc.112",
-        "zod": "^4.0.0",
-      },
-      "devDependencies": {
-        "@types/node": "^22.0.0",
       },
     },
     "packages/child": {
@@ -167,6 +150,32 @@
         "solid-js": "^1.9.0",
       },
     },
+    "packages/plugins/chat": {
+      "name": "olai-plugin-chat",
+      "version": "0.1.0",
+      "dependencies": {
+        "@agentclientprotocol/sdk": "^1.3.0",
+        "@kobalte/core": "^0.13.13",
+        "@olai/acp": "workspace:*",
+        "@olai/child": "workspace:*",
+        "@olai/format": "workspace:*",
+        "@olai/log": "workspace:*",
+        "@olai/ops": "workspace:*",
+        "@olai/plugin-api": "workspace:*",
+        "@olai/plugin-kit": "workspace:*",
+        "@olai/state": "workspace:*",
+        "@olai/surface": "workspace:*",
+        "@olai/web": "workspace:*",
+        "@solid-primitives/keyed": "^1.5.3",
+        "@solid-primitives/scheduled": "^1.5.3",
+        "effect": "4.0.0-rc.112",
+        "solid-js": "^1.9.0",
+        "zod": "^4.0.0",
+      },
+      "devDependencies": {
+        "@types/node": "^22.0.0",
+      },
+    },
     "packages/plugins/claude": {
       "name": "olai-plugin-claude",
       "version": "0.1.0",
@@ -250,6 +259,7 @@
         "@olai/format": "workspace:*",
         "@olai/plugin-api": "workspace:*",
         "effect": "4.0.0-rc.112",
+        "olai-plugin-chat": "workspace:*",
         "solid-js": "^1.9.0",
       },
     },
@@ -260,7 +270,6 @@
         "@effect/platform-node": "4.0.0-rc.112",
         "@olai/acp": "workspace:*",
         "@olai/bundle": "workspace:*",
-        "@olai/chat": "workspace:*",
         "@olai/format": "workspace:*",
         "@olai/identity": "workspace:*",
         "@olai/log": "workspace:*",
@@ -321,6 +330,7 @@
         "@olai/plugin-api": "workspace:*",
         "@olai/surface": "workspace:*",
         "@olai/web": "workspace:*",
+        "olai-plugin-chat": "workspace:*",
         "olai-plugin-kolu": "workspace:*",
       },
       "devDependencies": {
@@ -536,8 +546,6 @@
     "@olai/acp": ["@olai/acp@workspace:packages/acp"],
 
     "@olai/bundle": ["@olai/bundle@workspace:packages/bundle"],
-
-    "@olai/chat": ["@olai/chat@workspace:packages/chat"],
 
     "@olai/child": ["@olai/child@workspace:packages/child"],
 
@@ -1162,6 +1170,8 @@
     "object-assign": ["object-assign@4.1.1", "", {}, "sha512-rJgTQnkUnH1sFw8yT6VSU3zD3sWmu6sZhIseY8VX+GRu3P6F7Fu+JNDoXfklElbLJSnc3FUQHVe4cU5hj+BcUg=="],
 
     "object-inspect": ["object-inspect@1.13.4", "", {}, "sha512-W67iLl4J2EXEGTbfeHCffrjDfitvLANg0UlX3wFUUSTx92KXRFegMHUVgSqE+wvhAbi4WqjGg9czysTV2Epbew=="],
+
+    "olai-plugin-chat": ["olai-plugin-chat@workspace:packages/plugins/chat"],
 
     "olai-plugin-claude": ["olai-plugin-claude@workspace:packages/plugins/claude"],
 

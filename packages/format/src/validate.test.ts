@@ -3,7 +3,7 @@ import { Result } from "effect"
 
 import { rowsOf } from "./derive.ts"
 import { bodiedDocument, type Document } from "./document.ts"
-import { implicatedBy, isCrossFile, type OutlineError } from "./errors.ts"
+import { blamedOn, implicatedBy, isCrossFile, type OutlineError } from "./errors.ts"
 import { blamed, type Verdict, verdictOf } from "./verdict.ts"
 import {
   decodedOf,
@@ -23,6 +23,7 @@ import {
   outlinesIn,
   withDocuments,
 } from "./set.ts"
+import type { ContributedKind, KindVocabulary } from "./typing.ts"
 import { following, type Previous, type Reading, reading, validate } from "./validate.ts"
 
 /**
@@ -897,6 +898,7 @@ test("the declarations file is found by name wherever it sits", () => {
   expect(codes(errors)).toEqual(["bad-prop"])
   expect(errors[0]?.file).toBe("lanes.olai")
 })
+
 
 // ── the reading a WRITE leaves ─────────────────────────────────────────
 //

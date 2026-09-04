@@ -18,7 +18,7 @@
     "typecheck": "tsc --noEmit"
   },
   "//": "THE OPENCODE ENGINE — the leg that reads its wire, the probe that finds it on this host, and the mark it wears. The plainest of the three: plain ACP over stdio, no pin of olai's, no adapter to ship, and a leg that is mostly `null`s — each of which was a request that would otherwise be sent and refused.",
-  "//dependencies": "`@olai/acp/engine` is the shape both ends spell — the leg, the adapter, the registration — and it is a floor package under both this plugin and `@olai/chat`, which is what lets neither import the other. `@olai/plugin-api` is the door: the `Agents` tag its `./server` registers into, and the slot service its `./browser` hangs a mark in. `effect` because a plugin's `apply` is one. `solid-js` because the mark is a component.",
+  "//dependencies": "`@olai/acp/engine` is the shape both ends spell — the leg, the adapter, the registration — and it is a floor package under both this plugin and `olai-plugin-chat`, which is what lets neither import the other. `@olai/plugin-api` is the door: the `Agents` tag its `./server` registers into, and the slot service its `./browser` hangs a mark in. `effect` because a plugin's `apply` is one. `solid-js` because the mark is a component.",
   "dependencies": {
     "@olai/acp": "workspace:*",
     "@olai/plugin-api": "workspace:*",

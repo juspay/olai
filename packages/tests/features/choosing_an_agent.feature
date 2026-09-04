@@ -274,12 +274,17 @@ Feature: Choosing an agent
     # agent being installed.
     And the outline list is shown
 
-  @plugins:odu @scratch:chat
+  @plugins:chat,odu @scratch:chat
   Scenario: A serve that enabled no engine says THAT, rather than guessing
     # THE CASE THE FACE USED TO MISS ENTIRELY, and the commonest real one now
-    # that every engine is a plugin: all three engine rows are ENABLED BY
+    # that every engine is a plugin: all four engine rows are ENABLED BY
     # DEFAULT, so the way to end up with no agent is to name a `--plugins` list
-    # without one in it. Nothing reads `OLAI_ACP_AGENT` in that state — there is
+    # without one in it.
+    #
+    # THE LIST NAMES `chat`, and that is the phase rather than noise: the panel
+    # is a row too, so a list without it is a serve with no panel at all — which
+    # is a different sentence and has its own scenario. What this one is about
+    # is a serve that HAS a conversation and no engine to hold one with. Nothing reads `OLAI_ACP_AGENT` in that state — there is
     # no claude fiber to read it — so the old copy's advice ("point it at an
     # executable that speaks ACP") would have changed nothing, and its other
     # guess, a start that skipped the wrapper, cannot happen at all: every

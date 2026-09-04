@@ -7,7 +7,7 @@
  * should hear about it is a fact about the VAULT — and joining the two is
  * this module, which is exactly the judgement-about-kolu this package exists
  * to hold ({@link ./index.ts}). `@olai/kolu-client` hands over the event and
- * the live rows; `@olai/chat` takes a string. Nothing in between knows what
+ * the live rows; `olai-plugin-chat` takes a string. Nothing in between knows what
  * an outline record is or what a conversation is, and neither of them has to.
  *
  * ## THE FILTER FILE IS THE WHOLE OF THE SCOPE
@@ -1619,7 +1619,7 @@ export const makeHeartbeat = (deps: {
   let armedAt: number | null = null
   /** The ledger's key. `\0` as an ESCAPE and never as the byte: a literal NUL
    *  makes this file read as BINARY to grep and to review tooling, which is how
-   *  a reviewer stops being able to see it at all. `../../chat/src/deliveries.ts`
+   *  a reviewer stops being able to see it at all. `../chat/src/deliveries.ts`
    *  learned that one round earlier and this file re-learned it — the separator
    *  is right, the spelling was not. */
   const keyOf = (to: Conversation): string => `${to.agent}\0${to.session}`

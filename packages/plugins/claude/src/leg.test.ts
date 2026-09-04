@@ -672,7 +672,7 @@ describe("which model a turn is running on", () => {
  * real CLI, which would have to be talked into failing to connect to something.
  *
  * What is being locked is that the STATUS SURVIVES VERBATIM. The one word that
- * means yes is matched one layer up (`@olai/chat`'s `servers.ts`); this file's job is to
+ * means yes is matched one layer up (`olai-plugin-chat`'s `servers.ts`); this file's job is to
  * hand that layer the CLI's own spelling and to drop anything it cannot read,
  * rather than to translate a set that grows on somebody else's release
  * schedule.

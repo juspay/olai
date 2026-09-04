@@ -7,7 +7,7 @@
  * olai integrates with two things that are not olai: kolu, which runs coding
  * agents in terminals and serves them over MCP, and odu, which runs CI. Both
  * were extracted into packages of their own once and both left a residue behind
- * — a `kolu.ts` in `@olai/chat`, a `koluConfig.ts` in `@olai/server`, a named
+ * — a `kolu.ts` in `olai-plugin-chat`, a `koluConfig.ts` in `@olai/server`, a named
  * `wiring.kolu` slot and a `koluHalf(…)` call beside it, four `...koluMembers`
  * spreads in the middle of core's wire spec, a row per plugin member in the
  * server's expose map, a `padi/` folder in `@olai/web`, and one property key
@@ -93,19 +93,33 @@ export type {
   PropEntry,
   PropPane,
 } from "./plugin.ts"
-/** THE RUNTIME A BROWSER HALF INSTALLS ITSELF INTO — the six slots and the
- *  four services, beside the shapes above that say what a face drawn into one
+/** THE RUNTIME A BROWSER HALF INSTALLS ITSELF INTO — the twelve slots and the
+ *  services, beside the shapes above that say what a face drawn into one
  *  is handed. Both come through this door because both are what a browser half
- *  is written against, and neither is reachable from `./services.ts`. */
+ *  is written against, and neither is reachable from `./services.ts`.
+ *
+ *  The four slot-name types are here rather than derived per caller because the
+ *  cardinality is what a caller writes its own signature against: `@olai/web`'s
+ *  `hung` takes a plugin-keyed or a list slot and its `only` takes the single
+ *  one, and a package that had to spell those unions itself would be a second
+ *  reading of `SLOTS` that can disagree with the first. */
 export type {
   App,
+  AppChord,
+  AppCommand,
   Hung,
   KindSlot,
+  ListSlot,
   PluginSlot,
+  RowAction,
+  RowActions,
+  SidebarSection,
+  SingleSlot,
   SlotFaces,
+  SlotKey,
   SlotName,
 } from "./browser.ts"
-export { Bar, Clocks, Links, openApp, SLOTS, Slots, Wired } from "./browser.ts"
+export { Bar, Clocks, Faces, Links, openApp, SLOTS, Slots, Wired } from "./browser.ts"
 /** ...and the bridge's own half of it, which is {@link ./runtime.ts}'s one list
  *  rather than this door's copy of it — see that module on why both doors read
  *  from one place. */

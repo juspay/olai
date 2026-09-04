@@ -30,8 +30,21 @@
 import { chromium } from "playwright"
 
 import { selector, type TestId } from "@olai/web/testlib"
+// ...and the PLUGINS' half of the same namespace, which is where every `chat-*`
+// name below now lives: the panel became `olai-plugin-chat` and its ids went
+// with it. This driver spells them as LITERALS rather than off a table
+// (`selectors.test.ts` draws that line — a driver's ids are its own, and
+// nothing a reader typed ever reaches them), so what the union buys is what it
+// always did: a typo here is a type error rather than a sixty-second wait for
+// an element that was never going to appear.
+import type { PluginTestId } from "@olai/bundle/testids"
 
 import { BROWSER_ARGS } from "./support/browser.ts"
+
+/** An id from either table — which is what the four reads below have to take
+ *  now that the panel they read is a plugin's and the app shell around it is
+ *  still core's. */
+type Named = TestId | PluginTestId
 
 const BASE = process.env["BASE"]
 if (BASE === undefined) {
@@ -76,7 +89,7 @@ p.on("pageerror", (e) => console.log(`${at()}  PAGE ERROR  ${e.message}`))
  * bare it is a wait, and the difference is whether the panel getting there is
  * something this driver is asserting or something it is standing on.
  */
-const drawn = (name: TestId, ms = 60_000): Promise<string | null> =>
+const drawn = (name: Named, ms = 60_000): Promise<string | null> =>
   p.waitForSelector(selector(name), { timeout: ms })
     .then((el) => el.innerText())
     .then((words) => words.replace(/\s+/g, " ").trim())
@@ -84,19 +97,19 @@ const drawn = (name: TestId, ms = 60_000): Promise<string | null> =>
 /** ... and the same read for a row's own DATA, which is what a claim asserts
  *  wherever the words are the panel's sentence and the attribute is the fact.
  *  `null` is the same answer either way — the datum was not there. */
-const attr = (name: TestId, key: string, ms = 60_000): Promise<string | null> =>
+const attr = (name: Named, key: string, ms = 60_000): Promise<string | null> =>
   p.waitForSelector(selector(name), { timeout: ms }).then((el) => el.getAttribute(key)).catch(() => null)
 /** ... and the way OUT of a state, which waits exactly as hard: two pieces of
  *  panel state need not land in one revision, so "it has gone" asked the
  *  instant its cause arrived is the same race read backwards. */
-const gone = (name: TestId, ms = 60_000): Promise<boolean> =>
+const gone = (name: Named, ms = 60_000): Promise<boolean> =>
   p.waitForSelector(selector(name), { state: "hidden", timeout: ms }).then(() => true).catch(() => false)
 /** ... and whether a row's words have MOVED, which is the only one of the three
  *  about a VALUE rather than a presence. Polls with {@link drawn} rather than
  *  reading the DOM its own way, so both sides of the comparison come from the
  *  same read. What it replaces was a flat four-second sleep: the very race the
  *  other two exist to refuse, holding a stopwatch. */
-const changed = async (name: TestId, from: string | null, ms = 30_000): Promise<string | null> => {
+const changed = async (name: Named, from: string | null, ms = 30_000): Promise<string | null> => {
   const until = Date.now() + ms
   for (;;) {
     const now = await drawn(name, 5_000)

@@ -706,24 +706,59 @@ describe("only the registry knows a plugin's name", () => {
   })
 
   /**
-   * THE FOLDED TESTLIB DOOR, recorded rather than widened.
+   * THE FOLDED TESTLIB DOORS, recorded rather than widened.
    *
-   * `@olai/tests` already imported `@olai/kolu-client/testlib` — the fake padi
-   * the e2e spawn stands on. Those files now live behind the plugin, so the
-   * same two files import `olai-plugin-kolu/appliance/testlib` and the suite
-   * declares that plugin for that door. An equality against those two lines
-   * (and that one declaration) is the opposite of letting a general package
-   * import a plugin: a third file, a different subpath, or a second plugin
-   * is red. `packages/server` is still `[]`.
+   * `@olai/tests` reaches two plugins by name, and each is a claim rather than a
+   * hole. KOLU's is the fake padi the e2e spawn stands on. CHAT's is the panel's
+   * own two constants — how close to the foot of the transcript still counts as
+   * following, and which trigger the composer has armed — which were on
+   * `@olai/web`'s curated list until the panel became a row, and which a step
+   * must read from the client rather than re-decide (a number typed twice
+   * eventually disagrees).
+   *
+   * An equality against those three lines and two declarations is the opposite
+   * of letting a general package import a plugin: a fourth file, a different
+   * subpath, or a third plugin is red. `packages/server` is still `[]`.
    */
   const TESTLIB_IMPORTS: Readonly<Record<string, ReadonlyArray<string>>> = {
     tests: [
+      "tests/step_definitions/chat_steps.ts: olai-plugin-chat/testlib",
       "tests/support/hooks.ts: olai-plugin-kolu/appliance/testlib",
+      "tests/support/world.ts: olai-plugin-chat/testlib",
       "tests/support/world.ts: olai-plugin-kolu/appliance/testlib",
     ],
   }
   const TESTLIB_DECLARED: Readonly<Record<string, ReadonlyArray<string>>> = {
-    tests: ["olai-plugin-kolu"],
+    tests: ["olai-plugin-chat", "olai-plugin-kolu"],
+  }
+
+  /**
+   * ONE PLUGIN DECLARING ANOTHER — recorded here, because the manifest door has
+   * no carve-out for it and should not get one.
+   *
+   * The IMPORT claim above skips every tenant outright: *plugins may import each
+   * other; that ban retired*. The MANIFEST claim below cannot afford the same
+   * blanket, and the asymmetry is deliberate rather than an oversight left in
+   * place. A manifest line is how a dependency is really declared — `workspace:*`
+   * is what a resolver reads, and a package that dropped the import but kept the
+   * line is still standing on the far side of the wall — so an equality here is
+   * the only reading that stays exact when the sources move.
+   *
+   * ONE EDGE, and it is the one the Cordis phase named. `olai-plugin-xyne-spaces`
+   * mirrors what a node agent's conversation says, so it has to know which column
+   * that binding is in — and the column is chat's kind (`chat-agent-session`),
+   * composed from chat's own name. The alternative was a hand-copied constant in
+   * the mirror, which is the one thing that can silently disagree. The edge was
+   * already real without it: this half names the `Watching` door, which chat's
+   * row OFFERS, so it is `waiting` without chat either way.
+   *
+   * The subpath is `olai-plugin-chat/binding`, which is two strings behind a door
+   * that imports nothing — so what crosses is a name, not a graph, and the tenant
+   * claim below is what holds that. A second plugin declaring chat, or this one
+   * declaring a second plugin, is red on this line with the argument beside it.
+   */
+  const PLUGIN_DECLARED: Readonly<Record<string, ReadonlyArray<string>>> = {
+    "plugins/xyne-spaces": ["olai-plugin-chat"],
   }
 
   test("no package outside the registry imports a plugin", () => {
@@ -744,7 +779,10 @@ describe("only the registry knows a plugin's name", () => {
   test("no package outside the registry declares a plugin in its manifest", () => {
     for (const pkg of packages) {
       if (pkg === REGISTRY) continue
-      expect(declaredBy(pkg), pkg).toEqual([...(TESTLIB_DECLARED[pkg] ?? [])])
+      expect(declaredBy(pkg), pkg).toEqual([
+        ...(TESTLIB_DECLARED[pkg] ?? []),
+        ...(PLUGIN_DECLARED[pkg] ?? []),
+      ])
     }
   })
 
@@ -1099,17 +1137,78 @@ const CLOSURES: ReadonlyMap<string, ReadonlySet<string>> = new Map(
   }),
 )
 
-/** THE TENANTS. A package one plugin reaches and no other does — everything
- *  shared drops out, which is what makes this a derivation rather than a
- *  restatement. The registry is excluded by name because it reaches every
- *  plugin by definition and is the one package that may. */
+/**
+ * THE TENANTS. A package one plugin reaches, no other plugin reaches, AND NO
+ * GENERAL PACKAGE REACHES — everything shared drops out, which is what makes
+ * this a derivation rather than a restatement.
+ *
+ * ## The third clause, and the row that made it necessary
+ *
+ * It was two clauses: reached by this plugin, reached by no other. That was
+ * exact while every plugin was a TENANT over a vendored appliance — kolu's
+ * closure is padi's client and nothing core wanted — and it stopped being exact
+ * the day the CHAT became a row. Chat is a plugin over core's own floor: it
+ * reaches `@olai/ops`, `@olai/surface`, `@olai/state`, `@olai/log`,
+ * `@olai/child`, `@olai/index` and `@olai/web`, and no other plugin does. Under
+ * two clauses all seven became "chat's tenant members" — which is an EXEMPTION
+ * set, so seven general packages would have been quietly excused from the
+ * hydrated-specifier equality, the manifest one beside it, and the name sweep.
+ *
+ * A tenant member is a package that exists FOR one plugin. A package the
+ * composition root, the store or the format also reaches exists for olai, and
+ * one plugin happening to be its only plugin-side reader does not change that.
+ * So the third clause asks the general side: a package any non-plugin member
+ * reaches is not anybody's tenant.
+ *
+ * The registry is excluded by name because it reaches every plugin by
+ * definition and is the one package that may.
+ */
+const GENERAL_REACH: ReadonlySet<string> = new Set(
+  packages
+    .filter((pkg) => pkg !== REGISTRY && !PLUGIN_DIRS.includes(pkg))
+    .flatMap((pkg) => [...reachedBy(codeDoorsOf(path.join(PACKAGES, pkg)))])
+    // A PLUGIN'S OWN DIRECTORY IS NEVER SOMEBODY ELSE'S GENERAL PACKAGE, whoever
+    // reaches it. The suite reaches two of them by name — the fake padi and the
+    // panel's two constants, both recorded as equalities one claim up — and
+    // without this line those two rows would drop out of their own tenant sets
+    // and take their appliances' hydrated tiers with them.
+    .filter((pkg) => !PLUGIN_DIRS.includes(pkg)),
+)
+
 const TENANTS: ReadonlyMap<string, ReadonlySet<string>> = new Map(
-  [...CLOSURES].map(([name, own]) => [
+  TENANTS_OF.map(({ name, dir }) => [
     name,
     new Set(
-      [...own].filter((pkg) =>
+      [...(CLOSURES.get(name) ?? [])].filter((pkg) =>
         pkg !== REGISTRY &&
-        ![...CLOSURES].some(([other, theirs]) => other !== name && theirs.has(pkg))
+        !GENERAL_REACH.has(pkg) &&
+        // A PLUGIN'S OWN DIRECTORY IS ITS OWN TENANT MEMBER, whoever else
+        // reaches it — the twin of the line {@link GENERAL_REACH} already keeps
+        // about the general side, and it is needed for the same reason from the
+        // other direction.
+        //
+        // The shared-package clause below asks "does another plugin reach this",
+        // and while a plugin was a tenant over a VENDORED APPLIANCE that was
+        // exact: nothing another plugin wanted was in kolu's closure. The Cordis
+        // phase retired *no plugin consumes a plugin* — `needs` is a reactive
+        // dependency arm — and the first edge it licensed is the spaces mirror
+        // reaching `olai-plugin-chat/binding` for the word a node agent's
+        // binding is declared under. Under the clause alone that one import
+        // emptied CHAT'S OWN TENANT, and an empty tenant is not a small thing
+        // here: three claims consult `TENANTS` as an exemption set, so the name
+        // sweep instantly reported sixty-two files of `plugins/chat` for
+        // spelling `chat`. A plugin losing its own directory because somebody
+        // imported one string from it is the derivation answering a question
+        // nobody asked.
+        //
+        // What the clause is FOR is unchanged and still runs on everything else:
+        // a package two plugins share is general by construction and drops out.
+        // A plugin's own package is never that — it exists for exactly one
+        // plugin by definition, which is the sentence a tenant IS. What a
+        // consumer may reach across that edge is bounded by the claims above:
+        // no other tenant's product tier, and no door that drags one.
+        (pkg === dir ||
+          ![...CLOSURES].some(([other, theirs]) => other !== name && theirs.has(pkg)))
       ),
     ),
   ]),
@@ -1171,6 +1270,7 @@ describe("an appliance's product tier stays inside its tenant", () => {
     expect(
       Object.fromEntries([...TENANTS].map(([name, members]) => [name, [...members].sort()])),
     ).toEqual({
+      chat: ["plugins/chat"],
       claude: ["plugins/claude"],
       codex: ["plugins/codex"],
       kolu: ["plugins/kolu"],
@@ -1193,6 +1293,10 @@ describe("an appliance's product tier stays inside its tenant", () => {
       // a protocol, or HTTP, has no vendored client to confine. An empty tier
       // there is the truth rather than a missed pin, and the two `true`s are
       // what keep the derivation from being empty everywhere.
+      // CHAT HYDRATES NOTHING either, and it is the sharpest instance of the
+      // sentence below: it is a plugin over olai's OWN floor rather than over
+      // somebody else's vendored client, so there is no vendored tier to confine.
+      chat: false,
       claude: false,
       codex: false,
       kolu: true,
@@ -1576,6 +1680,40 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "ops/src/tools.ts",
     ],
     pi: ["web/src/client/theme/tagInk.ts"],
+    /**
+     * `chat` IS AN ENGLISH WORD, and these five are the three ways that costs.
+     *
+     * **THE WRITER, in the ledger.** `chat-agent` is what a commit made through
+     * the panel's own MCP face is recorded as — a word written into trailers on
+     * a disk, in repositories that already have thousands of them. Renaming it
+     * would put two spellings of one writer into one repository's history, on
+     * the release that shipped the rename, and buy nothing: the word is a fact
+     * about WHO asked, and the answer is still "the agent in the conversation".
+     * `format/src/committing.ts` declares it; `server/src/serve.ts` binds the
+     * face under it and `server/src/mcp/tickets.ts` binds the fenced one.
+     *
+     * **SOMEBODY ELSE'S ROUTES.** Xyne Spaces posts to `/api/apps/chat/…` —
+     * that is their API, read off their own source and never guessed, and the
+     * two files that spell it are that plugin's own dial and the fake server its
+     * bench stands up. It is the same case as `prop:agent=claude-opus` in the
+     * search grammar three rows up: a word in somebody else's vocabulary that
+     * happens to be a plugin's name here.
+     *
+     * RECORDED AS AN EQUALITY rather than excused with a pattern, which is the
+     * move the two above make and for the same reason: a sixth file is red, a
+     * different plugin's name in any of these is red, and the day the writer
+     * word is retired this entry is red until it is deleted.
+     */
+    chat: [
+      "format/src/committing.ts",
+      "ops/src/pending.ts",
+      "plugins/xyne-spaces/src/client.ts",
+      "plugins/xyne-spaces/src/testlib/fake-spaces.ts",
+      "server/src/mcp/tickets.ts",
+      "server/src/serve.ts",
+      "web/src/client/commit/said.ts",
+      "web/src/client/layout/prefs.ts",
+    ],
   }
 
   test("no package outside the registry and the plugin's own tenant spells it", () => {

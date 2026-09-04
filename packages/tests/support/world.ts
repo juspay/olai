@@ -26,23 +26,31 @@ import * as os from "node:os";
 // Aliased: `NODE_REF` below is the see/after reference ELEMENT (`NodeRefs.tsx`),
 // and this is the ATTRIBUTE a pressable node reference in the chat panel
 // carries. Two different things, one word — so the import says which.
+import { NODE_REF as CHAT_NODE_REF_ATTR } from "olai-plugin-chat/testlib";
 import {
   LONG_PRESS_MS,
-  NODE_REF as CHAT_NODE_REF_ATTR,
   REFERRINGS,
   ROW_TESTID,
   selector,
   TESTID,
   type TestId,
 } from "@olai/web/testlib";
-// ...and the PLUGINS' half of the same table. The ids split by RENDERER — a
-// scenario asserting on the padi pill is asserting on `olai-plugin-kolu`'s
-// output, not on the app's — and they route through the registry because
-// `packages/bundle/src/fence.test.ts` holds, as an equality per package, that
-// nothing outside it names a plugin except this suite's `./appliance/testlib`
-// door. The testid door is NAMES ONLY, which is what keeps a component (and
-// behind kolu's, a terminal emulator) off the graph of a process with no
-// browser in it.
+// ...and the PLUGINS' half of the same table, which is where the bulk of this
+// file's selectors now come from. The ids split by RENDERER — a scenario
+// asserting on the padi pill is asserting on `olai-plugin-kolu`'s output, not
+// on the app's — and the chat panel became a row on that same line, so the
+// hundred-odd `CHAT_*` constants below are read off `olai-plugin-chat`'s door
+// rather than off `@olai/web`'s. One `chat*` name is still the app's and is
+// imported above with the rest of them: {@link PANEL_RESIZE} is the dock's drag
+// handle, which `client/layout/Handle.tsx` draws beside the sidebar's off the
+// same stored width — the column's chrome, not the conversation's.
+//
+// They route through the REGISTRY rather than through each plugin's own door
+// because `packages/bundle/src/fence.test.ts` holds, as an equality per
+// package, that nothing outside it names a plugin except this suite's two
+// recorded testlib imports. The testid door is NAMES ONLY, which is what keeps
+// a component (and behind kolu's, a terminal emulator) off the graph of a
+// process with no browser in it.
 import { PLUGIN_TESTID } from "@olai/bundle/testids";
 import { listenHeaderProxy, type HeaderProxy } from "./headerProxy.ts";
 import type { LivePadi } from "olai-plugin-kolu/appliance/testlib";
@@ -140,7 +148,7 @@ export const BACKSTOP_TIMEOUT = 90_000;
  * deliver: a message put to an agent that took it and never answered.
  *
  * A fourth axis, on the same argument as the third. There is exactly one way to
- * see that face and it is to wait out `@olai/chat`'s own deadline
+ * see that face and it is to wait out `olai-plugin-chat`'s own deadline
  * (the Claude leg's `STEER_TIMEOUT`, `olai-plugin-claude`'s `src/leg.ts`, thirty
  * seconds — the number is a claim about that agent's steering extension, not
  * about this suite, so it is not shortened to suit a test), and folding that wait into `HYDRATION_TIMEOUT` would make every
@@ -855,7 +863,7 @@ export const APP_CHROME_CONTROLS: ReadonlyArray<string> = [
   // second process-start chip would be the redundancy this list exists to
   // stop.
   TESTID.uptime,
-  TESTID.chatToggle,
+  PLUGIN_TESTID.chatToggle,
   TESTID.prefsTrigger,
   // Who is looking, last — an icon about the request, not about git.
   TESTID.identity,
@@ -892,6 +900,8 @@ export const FAULT_HOME = selector(TESTID.faultHome);
  */
 export const PREFS_TRIGGER = selector(TESTID.prefsTrigger);
 export const PREFS_PANEL = selector(TESTID.prefsPanel);
+export const PLUGINS_TRIGGER = selector(TESTID.pluginsTrigger);
+export const PLUGINS_PANEL = selector(TESTID.pluginsPanel);
 export const PREFS_ROW = selector(TESTID.prefsRow);
 export const PREFS_HINT = selector(TESTID.prefsHint);
 export const PREFS_CHOICE = selector(TESTID.prefsChoice);
@@ -948,14 +958,14 @@ export const COMMIT_AUTO_ARMED = selector(TESTID.commitAutoArmed);
 /** The agent panel. Absent entirely when no ACP agent is configured, which is
  *  a state the suite never runs in: every server it spawns is pointed at the
  *  scripted agent (`support/hooks.ts`). */
-export const CHAT_TOGGLE = selector(TESTID.chatToggle);
-export const CHAT_PANEL = selector(TESTID.chatPanel);
-export const CHAT_PILL = selector(TESTID.chatPill);
-export const CHAT_STRIP = selector(TESTID.chatStrip);
-export const CHAT_RESIZE = selector(TESTID.chatResize);
-export const CHAT_SHEET = selector(TESTID.chatSheet);
-export const CHAT_SHEET_SCRIM = selector(TESTID.chatSheetScrim);
-export const CHAT_SHEET_HANDLE = selector(TESTID.chatSheetHandle);
+export const CHAT_TOGGLE = selector(PLUGIN_TESTID.chatToggle);
+export const CHAT_PANEL = selector(PLUGIN_TESTID.chatPanel);
+export const CHAT_PILL = selector(PLUGIN_TESTID.chatPill);
+export const CHAT_STRIP = selector(PLUGIN_TESTID.chatStrip);
+export const PANEL_RESIZE = selector(TESTID.panelResize);
+export const CHAT_SHEET = selector(PLUGIN_TESTID.chatSheet);
+export const CHAT_SHEET_SCRIM = selector(PLUGIN_TESTID.chatSheetScrim);
+export const CHAT_SHEET_HANDLE = selector(PLUGIN_TESTID.chatSheetHandle);
 export const PALETTE = selector(TESTID.palette);
 export const PALETTE_ITEM = selector(TESTID.paletteItem);
 export const PALETTE_LIST = selector(TESTID.paletteList);
@@ -974,140 +984,140 @@ export const HEADER_SEARCH_OPEN = selector(TESTID.headerSearchOpen);
 export const HEADER_SEARCH_RESULTS = selector(TESTID.headerSearchResults);
 export const PIN_SHELF = selector(TESTID.pinShelf);
 
-export const CHAT_TITLE = selector(TESTID.chatTitle);
-export const CHAT_WORKING = selector(TESTID.chatWorking);
-export const CHAT_MODEL = selector(TESTID.chatModel);
+export const CHAT_TITLE = selector(PLUGIN_TESTID.chatTitle);
+export const CHAT_WORKING = selector(PLUGIN_TESTID.chatWorking);
+export const CHAT_MODEL = selector(PLUGIN_TESTID.chatModel);
 /** WHO the conversation is with, beside the model. `data-agent` is the roster's
  *  own id, so a scenario names an agent rather than reading a brand name. */
-export const CHAT_AGENT = selector(TESTID.chatAgent);
+export const CHAT_AGENT = selector(PLUGIN_TESTID.chatAgent);
 /** The mark in front of that name — its own selector because "icon and name"
  *  is the ruling, and a name with no mark passes an assertion about the name. */
-export const CHAT_AGENT_MARK = selector(TESTID.chatAgentMark);
+export const CHAT_AGENT_MARK = selector(PLUGIN_TESTID.chatAgentMark);
 /** The picker: which agent this conversation is with. */
-export const CHAT_CHOOSE = selector(TESTID.chatChoose);
+export const CHAT_CHOOSE = selector(PLUGIN_TESTID.chatChoose);
 /** One agent in it. */
-export const CHAT_CHOOSE_AGENT = selector(TESTID.chatChooseAgent);
+export const CHAT_CHOOSE_AGENT = selector(PLUGIN_TESTID.chatChooseAgent);
 /** The way out of the picker `+ new` raised — absent when the panel is asking
  *  because it HAS no conversation. */
-export const CHAT_CHOOSE_CANCEL = selector(TESTID.chatChooseCancel);
+export const CHAT_CHOOSE_CANCEL = selector(PLUGIN_TESTID.chatChooseCancel);
 /** One agent the no-agent face tells you how to install. */
-export const CHAT_INSTALL = selector(TESTID.chatInstall);
+export const CHAT_INSTALL = selector(PLUGIN_TESTID.chatInstall);
 /** The composer PROMISING that a message sent now waits its turn at the agent
  *  and is got to when the running turn is over — drawn while a turn runs, for
  *  an agent whose queue is a fact olai has rather than a guess. */
-export const CHAT_QUEUES = selector(TESTID.chatQueues);
+export const CHAT_QUEUES = selector(PLUGIN_TESTID.chatQueues);
 /** The strip between the transcript and the box while the panel is busy —
  *  what a person sees when a turn or a boot is in flight and nothing has
  *  arrived to look at yet. */
-export const CHAT_BUSY = selector(TESTID.chatBusy);
-export const CHAT_SESSIONS = selector(TESTID.chatSessions);
-export const CHAT_SESSION_LIST = selector(TESTID.chatSessionList);
-export const CHAT_SESSIONS_REFUSED = selector(TESTID.chatSessionsRefused);
-export const CHAT_SESSION = selector(TESTID.chatSession);
+export const CHAT_BUSY = selector(PLUGIN_TESTID.chatBusy);
+export const CHAT_SESSIONS = selector(PLUGIN_TESTID.chatSessions);
+export const CHAT_SESSION_LIST = selector(PLUGIN_TESTID.chatSessionList);
+export const CHAT_SESSIONS_REFUSED = selector(PLUGIN_TESTID.chatSessionsRefused);
+export const CHAT_SESSION = selector(PLUGIN_TESTID.chatSession);
 /** The heading over one agent's rows in the unassigned list. Drawn only where more
  *  than one agent has conversations here. */
-export const CHAT_SESSION_AGENT = selector(TESTID.chatSessionAgent);
+export const CHAT_SESSION_AGENT = selector(PLUGIN_TESTID.chatSessionAgent);
 /** One agent in that list that could not be asked what it has stored. Its own
  *  selector and not the whole call's refusal, because the two are two states:
  *  this one leaves every other agent's conversations on the screen. */
-export const CHAT_SESSION_UNREACHABLE = selector(TESTID.chatSessionUnreachable);
+export const CHAT_SESSION_UNREACHABLE = selector(PLUGIN_TESTID.chatSessionUnreachable);
 /** The line under one row saying WHICH conversation replaced this one — it
  *  carries `data-successor`, because the successor need not be on the screen
  *  and the sentence alone could not pick it out of two sharing a title. */
-export const CHAT_SESSION_SUPERSEDED = selector(TESTID.chatSessionSuperseded);
-export const CHAT_TRANSCRIPT = selector(TESTID.chatTranscript);
+export const CHAT_SESSION_SUPERSEDED = selector(PLUGIN_TESTID.chatSessionSuperseded);
+export const CHAT_TRANSCRIPT = selector(PLUGIN_TESTID.chatTranscript);
 /** The strip under the chat header: which MCP servers this conversation has.
  *  Drawn on every conversation, so its absence means there is none. */
-export const CHAT_ROSTER = selector(TESTID.chatRoster);
+export const CHAT_ROSTER = selector(PLUGIN_TESTID.chatRoster);
 /** One server on it. `data-server` is its name and `data-standing` is how it
  *  stands — the state as data, because which glyph says "connected" is a
  *  decision about pixels. */
-export const CHAT_SERVER = selector(TESTID.chatServer);
+export const CHAT_SERVER = selector(PLUGIN_TESTID.chatServer);
 /** The line saying the list is not the whole of what the agent can reach. */
-export const CHAT_ROSTER_OWN = selector(TESTID.chatRosterOwn);
-export const CHAT_MISSING = selector(TESTID.chatMissing);
-export const CHAT_MISSING_SERVER = selector(TESTID.chatMissingServer);
-export const CHAT_MISSING_WHY = selector(TESTID.chatMissingWhy);
-export const CHAT_NO_AGENT = selector(TESTID.chatNoAgent);
-export const CHAT_UNOPENED = selector(TESTID.chatUnopened);
-export const CHAT_UNOPENED_WHY = selector(TESTID.chatUnopenedWhy);
-export const CHAT_REOPEN = selector(TESTID.chatReopen);
-export const CHAT_ENTRY = selector(TESTID.chatEntry);
-export const CHAT_NEW = selector(TESTID.chatNew);
+export const CHAT_ROSTER_OWN = selector(PLUGIN_TESTID.chatRosterOwn);
+export const CHAT_MISSING = selector(PLUGIN_TESTID.chatMissing);
+export const CHAT_MISSING_SERVER = selector(PLUGIN_TESTID.chatMissingServer);
+export const CHAT_MISSING_WHY = selector(PLUGIN_TESTID.chatMissingWhy);
+export const CHAT_NO_AGENT = selector(PLUGIN_TESTID.chatNoAgent);
+export const CHAT_UNOPENED = selector(PLUGIN_TESTID.chatUnopened);
+export const CHAT_UNOPENED_WHY = selector(PLUGIN_TESTID.chatUnopenedWhy);
+export const CHAT_REOPEN = selector(PLUGIN_TESTID.chatReopen);
+export const CHAT_ENTRY = selector(PLUGIN_TESTID.chatEntry);
+export const CHAT_NEW = selector(PLUGIN_TESTID.chatNew);
 export const CHAT_ENTRY_STREAMING =
-  `${selector(TESTID.chatEntry)}[data-kind="agent"][data-streaming="true"]`;
-export const CHAT_TOOL = selector(TESTID.chatTool);
-export const CHAT_TOOL_FOLD = selector(TESTID.chatToolFold);
-export const CHAT_TOOL_DETAIL = selector(TESTID.chatToolDetail);
-export const CHAT_TOOL_PROGRESS = selector(TESTID.chatToolProgress);
-export const CHAT_TOOL_REPORT = selector(TESTID.chatToolReport);
-export const CHAT_TOOL_LOCATIONS = selector(TESTID.chatToolLocations);
-export const CHAT_TOOL_ELAPSED = selector(TESTID.chatToolElapsed);
-export const CHAT_LANE = selector(TESTID.chatLane);
-export const CHAT_LANE_LABEL = selector(TESTID.chatLaneLabel);
-export const CHAT_LANE_DOOR = selector(TESTID.chatLaneDoor);
-export const CHAT_PREVIEW = selector(TESTID.chatPreview);
-export const CHAT_PREVIEW_OF = selector(TESTID.chatPreviewOf);
-export const CHAT_PREVIEW_ASKED = selector(TESTID.chatPreviewAsked);
-export const CHAT_PREVIEW_NOTHING = selector(TESTID.chatPreviewNothing);
-export const CHAT_SPAWN = selector(TESTID.chatSpawn);
-export const CHAT_SPAWN_WORKING = selector(TESTID.chatSpawnWorking);
-export const CHAT_ARMED = selector(TESTID.chatArmed);
-export const CHAT_WATCHING = selector(TESTID.chatWatching);
-export const CHAT_WATCHING_TASK = selector(TESTID.chatWatchingTask);
-export const CHAT_WATCHING_FOR = selector(TESTID.chatWatchingFor);
-export const CHAT_ARMED_ENDED = selector(TESTID.chatArmedEnded);
-export const CHAT_ARMED_STILL = selector(TESTID.chatArmedStill);
+  `${selector(PLUGIN_TESTID.chatEntry)}[data-kind="agent"][data-streaming="true"]`;
+export const CHAT_TOOL = selector(PLUGIN_TESTID.chatTool);
+export const CHAT_TOOL_FOLD = selector(PLUGIN_TESTID.chatToolFold);
+export const CHAT_TOOL_DETAIL = selector(PLUGIN_TESTID.chatToolDetail);
+export const CHAT_TOOL_PROGRESS = selector(PLUGIN_TESTID.chatToolProgress);
+export const CHAT_TOOL_REPORT = selector(PLUGIN_TESTID.chatToolReport);
+export const CHAT_TOOL_LOCATIONS = selector(PLUGIN_TESTID.chatToolLocations);
+export const CHAT_TOOL_ELAPSED = selector(PLUGIN_TESTID.chatToolElapsed);
+export const CHAT_LANE = selector(PLUGIN_TESTID.chatLane);
+export const CHAT_LANE_LABEL = selector(PLUGIN_TESTID.chatLaneLabel);
+export const CHAT_LANE_DOOR = selector(PLUGIN_TESTID.chatLaneDoor);
+export const CHAT_PREVIEW = selector(PLUGIN_TESTID.chatPreview);
+export const CHAT_PREVIEW_OF = selector(PLUGIN_TESTID.chatPreviewOf);
+export const CHAT_PREVIEW_ASKED = selector(PLUGIN_TESTID.chatPreviewAsked);
+export const CHAT_PREVIEW_NOTHING = selector(PLUGIN_TESTID.chatPreviewNothing);
+export const CHAT_SPAWN = selector(PLUGIN_TESTID.chatSpawn);
+export const CHAT_SPAWN_WORKING = selector(PLUGIN_TESTID.chatSpawnWorking);
+export const CHAT_ARMED = selector(PLUGIN_TESTID.chatArmed);
+export const CHAT_WATCHING = selector(PLUGIN_TESTID.chatWatching);
+export const CHAT_WATCHING_TASK = selector(PLUGIN_TESTID.chatWatchingTask);
+export const CHAT_WATCHING_FOR = selector(PLUGIN_TESTID.chatWatchingFor);
+export const CHAT_ARMED_ENDED = selector(PLUGIN_TESTID.chatArmedEnded);
+export const CHAT_ARMED_STILL = selector(PLUGIN_TESTID.chatArmedStill);
 /** THE STRIP UNDER THOSE: what this conversation WAKES ON. One line per
  *  running plugin that declares a doorbell, and the file a person pointed it
  *  at. Absent where there is no conversation to be scoped. */
-export const CHAT_WAKE = selector(TESTID.chatWake);
+export const CHAT_WAKE = selector(PLUGIN_TESTID.chatWake);
 /** One plugin's control on it. `data-plugin` is whose doorbell and `data-file`
  *  is the path or the word `off` — the STATE AS DATA, because the words around
  *  it are the plugin's own sentence and a scenario asserting those would be
  *  asserting somebody else's vocabulary. */
-export const CHAT_WAKE_PICKER = selector(TESTID.chatWakePicker);
+export const CHAT_WAKE_PICKER = selector(PLUGIN_TESTID.chatWakePicker);
 /** In the file list it opens: the box that narrows it, and one offered file
  *  (`data-file` is the path a press scopes this conversation to). */
-export const CHAT_WAKE_QUERY = selector(TESTID.chatWakeQuery);
-export const CHAT_WAKE_FILE = selector(TESTID.chatWakeFile);
-export const CHAT_DIFF = selector(TESTID.chatDiff);
-export const CHAT_DIFF_LINE = selector(TESTID.chatDiffLine);
-export const CHAT_DIFF_GUTTER = selector(TESTID.chatDiffGutter);
-export const CHAT_DIFF_MARK = selector(TESTID.chatDiffMark);
-export const CHAT_DIFF_TEXT = selector(TESTID.chatDiffText);
-export const CHAT_DIFF_EXPAND = selector(TESTID.chatDiffExpand);
-export const CHAT_DIFF_WHOLESALE = selector(TESTID.chatDiffWholesale);
-export const CHAT_OUTLINE_DIFF = selector(TESTID.chatOutlineDiff);
-export const CHAT_OUTLINE_CHANGE = selector(TESTID.chatOutlineChange);
-export const CHAT_WROTE = selector(TESTID.chatWrote);
-export const CHAT_NUDGE = selector(TESTID.chatNudge);
-export const CHAT_REFUSAL = selector(TESTID.chatRefusal);
-export const CHAT_USAGE = selector(TESTID.chatUsage);
-export const CHAT_TROUBLE = selector(TESTID.chatTrouble);
-export const CHAT_ASK = selector(TESTID.chatAsk);
-export const CHAT_ASK_CHOICE = selector(TESTID.chatAskChoice);
-export const CHAT_ASK_TEXT = selector(TESTID.chatAskText);
-export const CHAT_ASK_SUBMIT = selector(TESTID.chatAskSubmit);
-export const CHAT_ASK_DISMISS = selector(TESTID.chatAskDismiss);
-export const CHAT_ASK_OUTCOME = selector(TESTID.chatAskOutcome);
-export const CHAT_INPUT = selector(TESTID.chatInput);
+export const CHAT_WAKE_QUERY = selector(PLUGIN_TESTID.chatWakeQuery);
+export const CHAT_WAKE_FILE = selector(PLUGIN_TESTID.chatWakeFile);
+export const CHAT_DIFF = selector(PLUGIN_TESTID.chatDiff);
+export const CHAT_DIFF_LINE = selector(PLUGIN_TESTID.chatDiffLine);
+export const CHAT_DIFF_GUTTER = selector(PLUGIN_TESTID.chatDiffGutter);
+export const CHAT_DIFF_MARK = selector(PLUGIN_TESTID.chatDiffMark);
+export const CHAT_DIFF_TEXT = selector(PLUGIN_TESTID.chatDiffText);
+export const CHAT_DIFF_EXPAND = selector(PLUGIN_TESTID.chatDiffExpand);
+export const CHAT_DIFF_WHOLESALE = selector(PLUGIN_TESTID.chatDiffWholesale);
+export const CHAT_OUTLINE_DIFF = selector(PLUGIN_TESTID.chatOutlineDiff);
+export const CHAT_OUTLINE_CHANGE = selector(PLUGIN_TESTID.chatOutlineChange);
+export const CHAT_WROTE = selector(PLUGIN_TESTID.chatWrote);
+export const CHAT_NUDGE = selector(PLUGIN_TESTID.chatNudge);
+export const CHAT_REFUSAL = selector(PLUGIN_TESTID.chatRefusal);
+export const CHAT_USAGE = selector(PLUGIN_TESTID.chatUsage);
+export const CHAT_TROUBLE = selector(PLUGIN_TESTID.chatTrouble);
+export const CHAT_ASK = selector(PLUGIN_TESTID.chatAsk);
+export const CHAT_ASK_CHOICE = selector(PLUGIN_TESTID.chatAskChoice);
+export const CHAT_ASK_TEXT = selector(PLUGIN_TESTID.chatAskText);
+export const CHAT_ASK_SUBMIT = selector(PLUGIN_TESTID.chatAskSubmit);
+export const CHAT_ASK_DISMISS = selector(PLUGIN_TESTID.chatAskDismiss);
+export const CHAT_ASK_OUTCOME = selector(PLUGIN_TESTID.chatAskOutcome);
+export const CHAT_INPUT = selector(PLUGIN_TESTID.chatInput);
 /** The strip on a `user` row that did not land, saying WHICH way in
  *  `data-delivery`, and the button that tries again — which only one of the two
  *  faces has. The words stay in the bubble above both. */
-export const CHAT_DELIVERY = selector(TESTID.chatDelivery);
+export const CHAT_DELIVERY = selector(PLUGIN_TESTID.chatDelivery);
 /** The strip on a `user` row the agent has not started on: it went out while a
  *  turn was running and is waiting its turn there. Not a delivery — nothing has
  *  failed — and it goes away when the agent takes the message up. */
-export const CHAT_QUEUED = selector(TESTID.chatQueued);
-export const CHAT_RESEND = selector(TESTID.chatResend);
-export const CHAT_WAITING = selector(TESTID.chatWaiting);
-export const CHAT_SEND = selector(TESTID.chatSend);
+export const CHAT_QUEUED = selector(PLUGIN_TESTID.chatQueued);
+export const CHAT_RESEND = selector(PLUGIN_TESTID.chatResend);
+export const CHAT_WAITING = selector(PLUGIN_TESTID.chatWaiting);
+export const CHAT_SEND = selector(PLUGIN_TESTID.chatSend);
 /** The other send: put these words INTO the turn the agent is running. Drawn
  *  only while there is a turn to interrupt and only for an agent that said it
  *  takes one — the visible door onto Alt+Enter, which is the same gesture. */
-export const CHAT_INTERRUPT = selector(TESTID.chatInterrupt);
-export const CHAT_CANCEL = selector(TESTID.chatCancel);
+export const CHAT_INTERRUPT = selector(PLUGIN_TESTID.chatInterrupt);
+export const CHAT_CANCEL = selector(PLUGIN_TESTID.chatCancel);
 /** The shortlist over the message box, and one row of it. Both lists the
  *  composer completes draw the same box — the agent's commands under a `/`,
  *  what the directory holds under an `@` — so the row is named by its
@@ -1115,47 +1125,47 @@ export const CHAT_CANCEL = selector(TESTID.chatCancel);
  *  box by its `data-kind`. The `@` list holds two BLOCKS, each with a label
  *  over its first row (`data-section`), which is a label and never a row: the
  *  arrows do not land on it. */
-export const CHAT_COMPLETION = selector(TESTID.chatCompletion);
-export const CHAT_COMPLETION_ROW = selector(TESTID.chatCompletionRow);
-export const CHAT_COMPLETION_SECTION = selector(TESTID.chatCompletionSection);
+export const CHAT_COMPLETION = selector(PLUGIN_TESTID.chatCompletion);
+export const CHAT_COMPLETION_ROW = selector(PLUGIN_TESTID.chatCompletionRow);
+export const CHAT_COMPLETION_SECTION = selector(PLUGIN_TESTID.chatCompletionSection);
 /** A picture on a message — pending in the composer, or sent, on the row. Its
  *  `data-name` is the file name, which is the only thing about it every tab
  *  agrees on; the preview is drawn ONLY by the tab that has the Blob. */
-export const CHAT_ATTACHMENT = selector(TESTID.chatAttachment);
-export const CHAT_ATTACHMENT_PREVIEW = selector(TESTID.chatAttachmentPreview);
+export const CHAT_ATTACHMENT = selector(PLUGIN_TESTID.chatAttachment);
+export const CHAT_ATTACHMENT_PREVIEW = selector(PLUGIN_TESTID.chatAttachmentPreview);
 /** How big a NON-picture attachment is, beside its name — what a document
  *  chip says where a picture shows itself. */
-export const CHAT_ATTACHMENT_SIZE = selector(TESTID.chatAttachmentSize);
+export const CHAT_ATTACHMENT_SIZE = selector(PLUGIN_TESTID.chatAttachmentSize);
 /** The `+` beside the box: the file picker, and one of the two way-ins on a
  *  phone. */
-export const CHAT_ATTACH_BUTTON = selector(TESTID.chatAttachButton);
+export const CHAT_ATTACH_BUTTON = selector(PLUGIN_TESTID.chatAttachButton);
 /** The camera beside the `+` — drawn only where the primary pointer is
  *  coarse (`web/src/client/chat/camera.ts`): on a desktop it is absent by
  *  design, which is the fact a desktop scenario asserts. */
-export const CHAT_CAMERA_BUTTON = selector(TESTID.chatCameraButton);
+export const CHAT_CAMERA_BUTTON = selector(PLUGIN_TESTID.chatCameraButton);
 /** The panel saying a dragged file would land HERE. Present only while a drag
  *  carrying files is over the panel's body. */
-export const CHAT_DROP = selector(TESTID.chatDrop);
+export const CHAT_DROP = selector(PLUGIN_TESTID.chatDrop);
 /** A node a message is ABOUT — armed in the composer, or sent, on the row.
  *  `data-node` is the id, which is what was armed and what was sent. */
-export const CHAT_CONTEXT = selector(TESTID.chatContext);
-export const CHAT_CONTEXT_CHIP = selector(TESTID.chatContextChip);
-export const CHAT_CONTEXT_REMOVE = selector(TESTID.chatContextRemove);
+export const CHAT_CONTEXT = selector(PLUGIN_TESTID.chatContext);
+export const CHAT_CONTEXT_CHIP = selector(PLUGIN_TESTID.chatContextChip);
+export const CHAT_CONTEXT_REMOVE = selector(PLUGIN_TESTID.chatContextRemove);
 /** What the agent said, rendered. Reached by the scenarios that ask whether an
  *  id INSIDE it became a reference — everything else about an answer is read
  *  off the transcript as text. */
-export const CHAT_SAID = selector(TESTID.chatSaid);
+export const CHAT_SAID = selector(PLUGIN_TESTID.chatSaid);
 /** What YOU typed, quoted. The other half of `CHAT_SAID`: a scenario that
  *  asks whether the human's words sat apart from the agent's finds them here,
  *  never by filtering the transcript for a string both speakers might use. */
-export const CHAT_MINE = selector(TESTID.chatMine);
+export const CHAT_MINE = selector(PLUGIN_TESTID.chatMine);
 /** ... and the third speaker in that lane: a sentence a PLUGIN put there
  *  through the doorbell somebody scoped this conversation to. It is a `user`
  *  row like `CHAT_MINE` and deliberately not drawn as one — the full column, on
  *  the left, never the accent bubble that means *you said this* — so a scenario
  *  asking "did I say this" is never handed a machine's words. `data-rang-by` is
  *  which plugin rang. */
-export const CHAT_RANG = selector(TESTID.chatRang);
+export const CHAT_RANG = selector(PLUGIN_TESTID.chatRang);
 /** ... FOLDED to one line, and the control that opens it. A machine's row draws
  *  its essence line and nothing else until somebody asks — the discipline a
  *  tool row already keeps, and the reason a delivery is not a paragraph wall in
@@ -1164,15 +1174,15 @@ export const CHAT_RANG = selector(TESTID.chatRang);
 /** The MARK over a machine's row — whose face is talking. `data-mark` is the
  *  plugin's own name where the plugin contributed one, and `generic` where it
  *  did not. */
-export const CHAT_PLUGIN_MARK = selector(TESTID.chatPluginMark);
+export const CHAT_PLUGIN_MARK = selector(PLUGIN_TESTID.chatPluginMark);
 /** The head a machine's row is folded TO — the plain sentence a glance reads,
  *  and where the one pressable reference lives. */
-export const CHAT_RANG_BYLINE = selector(TESTID.chatRangByline);
-export const CHAT_RANG_FOLD = selector(TESTID.chatRangFold);
+export const CHAT_RANG_BYLINE = selector(PLUGIN_TESTID.chatRangByline);
+export const CHAT_RANG_FOLD = selector(PLUGIN_TESTID.chatRangFold);
 /** What the fold holds back — the ids, the marks, the derivation. NOT IN THE
  *  PAGE until the row is open, which is what lets a scenario assert the fold
  *  without asserting a word the plugin wrote. */
-export const CHAT_RANG_BODY = selector(TESTID.chatRangBody);
+export const CHAT_RANG_BODY = selector(PLUGIN_TESTID.chatRangBody);
 /** A node named in the panel and pressable, by the id it points at. One
  *  selector for all three shapes — a chip, the node an olai write was about,
  *  and an id the agent wrote in its own prose — because they are one

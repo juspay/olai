@@ -199,29 +199,29 @@ const keyingsOf = (name: string): ReadonlyMap<string, Keying> => {
 
 test("every declaration names a field its own schema carries, and no other member declares", () => {
   const declaring = MEMBERS.filter((one) => one.arrayKey !== undefined)
-  // THE WHOLE LIST, asserted as a list: this is what says the five below are
+  // THE WHOLE LIST, asserted as a list: this is what says the four below are
   // every one there is, so a sixth member arriving with a declaration cannot
-  // slip past a suite that only knows five names.
+  // slip past a suite that only knows four names.
   //
   // CORE'S OWN MEMBERS, and only those. `cells.ci` was on this list until the
-  // extraction, and it is not a member this spec declares any more: a plugin
-  // brings a whole surface of its own and core composes it as a sibling, so
-  // odu's cell is declared — and its two array depths held — in
-  // `olai-plugin-odu`'s own suite, against the schema it actually ships. The
-  // walk both suites spend is one walk, published through this package's
-  // `./testlib` door, so there is no second opinion about it.
+  // extraction, and `cells.chat` and `cells.agents` came off it when chat
+  // became a row: neither is a member this spec declares any more, because a
+  // plugin brings a whole surface of its own and core composes it as a sibling.
+  // Odu's cell is declared — and its two array depths held — in
+  // `olai-plugin-odu`'s own suite, and chat's two in `olai-plugin-chat`'s,
+  // each against the schema it actually ships. The walk all three suites spend
+  // is one walk, published through this package's `./testlib` door, so there is
+  // no second opinion about it.
   //
   // The members that declare NOTHING declare nothing on purpose and each says
   // why where it is declared —
-  // `errors` has no field that identifies a row, and `outlines`, `heads` and
-  // `transcript` are read through the batched `deltas` delivery, which replaces
+  // `errors` has no field that identifies a row, and `outlines` and `heads`
+  // are read through the batched `deltas` delivery, which replaces
   // each named leaf whole rather than merging, so there is no merge for a key to
   // govern. `documents` is served per key and would honour one, but a document
   // entry is a revision and a body; `manifest`, `git`, `dated`, `owed`,
   // `inbox` and `moving` carry no array of objects at all.
   expect(declaring.map((one) => `${one.name} → ${one.arrayKey}`).sort()).toEqual([
-    "cells.agents → id",
-    "cells.chat → name",
     "cells.pending → path",
     "cells.pins → id",
     "cells.plugins → name",
@@ -304,13 +304,6 @@ test("the pending cell is keyed by the one name its two row lists share", () => 
   // identity by collision, exactly as `file` would on `errors`.
   const pending = MEMBERS.find((one) => one.name === "cells.pending")!
   expect(keyings(pending.value, "file").get("changes")).toBe("keyed")
-})
-
-test("the chat cell is keyed by the field both of its lists carry", () => {
-  expect(surface.spec.cells.chat.arrayKey).toBe("name")
-  const found = keyingsOf("cells.chat")
-  expect(found.get("commands")).toBe("keyed")
-  expect(found.get("servers")).toBe("keyed")
 })
 
 // ── which plugins this build has, and which this serve runs ────────────

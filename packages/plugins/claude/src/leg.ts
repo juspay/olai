@@ -3,7 +3,7 @@
  * (`@olai/acp/engine`'s `Leg`), meaning unchanged from the day it was the only
  * one.
  *
- * This is the part of `@olai/chat`'s `agent.ts` that would be wrong if somebody
+ * This is the part of `olai-plugin-chat`'s `agent.ts` that would be wrong if somebody
  * pointed olai at a different agent: a `_meta` extension one adapter writes, a
  * tool-naming convention one CLI uses, a message one wrapper forwards because
  * we asked it to. The protocol proper is read where it is spoken; the VALUES
@@ -32,7 +32,7 @@
  * in a payload, and they are named where they are relied on. The MODEL PICKER's
  * MACHINERY is not here either, and that is a move rather than an omission:
  * every agent puts the model in ACP's own `configOptions`, so READING one is
- * `@olai/chat`'s. What is only true of this adapter — which entry, and the
+ * `olai-plugin-chat`'s. What is only true of this adapter — which entry, and the
  * aliases its picker offers for the ids its CLI reports — is {@link ./models.ts},
  * beside this file, and rides over on {@link Leg.models}.
  */
@@ -235,7 +235,7 @@ export const spawnedIn = (meta: Meta, input: unknown): Spawn | null => {
   //
   // Read here rather than left to the row's title for the reason the title
   // cannot be moved: it is PINNED at the first frame that carries one
-  // (`@olai/chat`'s `transcript.ts`'s `#named`), deliberately, so that a call cannot
+  // (`olai-plugin-chat`'s `transcript.ts`'s `#named`), deliberately, so that a call cannot
   // rename itself twice while somebody is reading it.
   const said = args?.description
   return {
@@ -269,6 +269,29 @@ export const spawnedIn = (meta: Meta, input: unknown): Spawn | null => {
  * notification (`onto: null`): it must not become a user bubble, and it
  * has no row to file the report under.
  */
+/**
+ * WHAT SITS BETWEEN THE FIRST OPENING TAG AND THE LAST CLOSING ONE — a scan
+ * rather than a regular expression, and the difference is a cost rather than a
+ * meaning.
+ *
+ * It was `/<result>([\s\S]*)<\/result>/`. A greedy run followed by a literal is
+ * the shape a backtracking engine walks quadratically: on a payload that OPENS
+ * the tag many times and never closes it, the engine re-tries the tail from
+ * every one of them. The text is an agent's own tool result — arbitrarily long,
+ * and not ours — so the cost is somebody else's to hand us
+ * (`js/polynomial-redos`).
+ *
+ * Two index scans answer the same question in one pass, and the LAST closing tag
+ * is deliberate: a report may quote its own closing tag, and what the harness
+ * wrapped is everything up to the outermost one.
+ */
+const betweenIn = (text: string, open: string, close: string): string => {
+  const from = text.indexOf(open)
+  if (from === -1) return ""
+  const to = text.lastIndexOf(close)
+  return to < from + open.length ? "" : text.slice(from + open.length, to)
+}
+
 export const taskNotificationIn = (text: string, meta: Meta): TaskNotice | null => {
   const kind = wordIn(fieldIn(claudeIn(meta), "origin"), "kind")
   const xml = text.trim()
@@ -276,7 +299,7 @@ export const taskNotificationIn = (text: string, meta: Meta): TaskNotice | null 
   if (kind !== "task-notification" && !(kind === null && wrapped)) return null
   const toolUseId = (xml.match(/<tool-use-id>([^<]*)<\/tool-use-id>/u)?.[1] ?? "").trim()
   const task = (xml.match(/<task-id>([^<]*)<\/task-id>/u)?.[1] ?? "").trim()
-  const report = xml.match(/<result>([\s\S]*)<\/result>/u)?.[1] ?? ""
+  const report = betweenIn(xml, "<result>", "</result>")
   return toolUseId === "" || task === ""
     ? { onto: null }
     : { onto: { toolUseId, task, report } }
@@ -309,7 +332,7 @@ export const taskNotificationIn = (text: string, meta: Meta): TaskNotice | null 
  * assembled here: the arming frame names the task, its kind and the description
  * it was armed with; the settling frame names the task and how it ENDED. A
  * frame answers about itself, an absent field reads as "unchanged", and
- * `@olai/chat`'s `transcript.ts` is what holds the row together — which is the rule
+ * `olai-plugin-chat`'s `transcript.ts` is what holds the row together — which is the rule
  * every other field on a tool row already follows.
  *
  * An agent that is not this adapter says nothing here and gets nothing: its
@@ -445,7 +468,7 @@ const wordIn = (
  * more to say at all is the patch's own news (`../acp/patches/README.md`),
  * because ACP's `SessionInfo` answers `{sessionId, cwd, title, updatedAt}`
  * and stops, and the picker's per-row count and `superseded by` pair had
- * nothing to read (`@olai/chat`'s `events.ts`'s `Stored` is where the two land).
+ * nothing to read (`olai-plugin-chat`'s `events.ts`'s `Stored` is where the two land).
  *
  * Each fact is said for itself, the way the patch attaches it: an entry whose
  * transcript never yielded a count still has every protocol field, and an
@@ -665,7 +688,7 @@ export const liveModelIn = (params: unknown): string | null => {
  * that message and no other, and it carries both. So this costs one more read
  * of a message already being read, on a channel already open, and an agent
  * that stops sending the field answers `null` — which leaves every row exactly
- * where the client put it (`@olai/chat`'s `servers.ts`).
+ * where the client put it (`olai-plugin-chat`'s `servers.ts`).
  *
  * `mcp_servers` is `{ name, status }[]` on the SDK's own `SDKSystemMessage`,
  * where `status` is typed as a bare `string`: an OPEN SET, whose members today
@@ -722,7 +745,7 @@ const initIn = (params: unknown): { readonly [key: string]: unknown } | undefine
 // ── the leg ────────────────────────────────────────────────────────────
 
 /**
- * Everything above, as the one shape `@olai/chat`'s `agent.ts` talks to.
+ * Everything above, as the one shape `olai-plugin-chat`'s `agent.ts` talks to.
  *
  * A VALUE assembled at the bottom rather than a class or a namespace, because
  * every member is already a pure function or a constant and this is the list of

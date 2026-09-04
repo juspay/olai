@@ -1,6 +1,6 @@
 /**
- * THE NODE AGENTS OF A SET — every node carrying an `agent-session` property,
- * which is the whole of what makes one.
+ * THE NODE AGENTS OF A SET — every node carrying a property this vault declares
+ * a node-agent SESSION, which is the whole of what makes one.
  *
  * A node agent is not a thing olai stores anywhere: it is a NODE, and the
  * property is the association. The node's title is the agent's name, its `desc`
@@ -10,7 +10,7 @@
  * (https://github.com/juspay/oss.olai/blob/main/brainstorming/node-agents.md).
  *
  * So the roster is a QUERY and this module is that query, answered where the
- * set is: `prop:agent-session`, in the search grammar's own words
+ * set is: `prop:<the declared key>`, in the search grammar's own words
  * (docs/search.md), read off the derivation instead of typed into a box. Which
  * is also why there is nothing to store and nothing to keep in step — put the
  * property on a node and the row is there on the frame the store publishes;
@@ -18,11 +18,11 @@
  *
  * ## ONE KEY, AND IT CARRIES BOTH HALVES
  *
- * `agent-session` says which ENGINE this node's agent runs on and WHICH
- * CONVERSATION it is talking through, in one value:
+ * One value says which ENGINE this node's agent runs on and WHICH CONVERSATION
+ * it is talking through:
  *
- *     agent-session: claude                     a node agent with no session yet
- *     agent-session: claude:0f3c8d21-…          ...and one that is bound
+ *     <the key>: claude                     a node agent with no session yet
+ *     <the key>: claude:0f3c8d21-…          ...and one that is bound
  *
  * The engine is required and the session is optional, which is what lets one
  * key do the work two were doing: the value's presence is what makes the node a
@@ -54,55 +54,58 @@
  *
  * What is NOT in the vault is anything olai learns per turn: what an agent last
  * said, and whether a session has been taught its contract, stay in this
- * machine's own state (`@olai/chat`'s `sessions.ts`) because they are
+ * machine's own state (`olai-plugin-chat`'s `sessions.ts`) because they are
  * bookkeeping rather than config — and because a board written to on every turn
  * is a board committed on every turn.
  *
- * ## The one custom key olai reads, named as the exception it is
+ * ## THE KEY ARRIVES AS DATA, which is what this module stopped owning
  *
- * `./custom.ts` says that nothing in olai reads a key inside `custom`, and that
- * sentence is the whole difference between a system field and a person's own
- * fact. This is the exception the human ruled on 2026-09-01, and it is ONE key
- * wide. It is written down in three places rather than assumed — here, on that
- * module's header, and in docs/format.md's Properties — because an exception
- * nobody can find is how a rule quietly stops being one.
+ * There was an `AGENT_PROP` here — the literal `"agent-session"` — spelled once
+ * and read by four packages, on the argument that a node agent is CORE'S: the
+ * panel's own subject rather than an appliance's face, so *put an
+ * `agent-session` prop on a node* had to be true of every vault, or the sentence
+ * that creates a node agent would need a second sentence about declaring one
+ * first.
  *
- * The key is `agent-session` and not `agent`, and the rename is the amendment's
- * quietest and most useful consequence: `agent` is a word a board already uses
- * for something else. The orchestrator's own vault puts `agent` on every
- * dispatched roadmap item — 114 of them, mostly shipped — so a roster over that
- * key listed a hundred finished lanes and pushed the file tree off the sidebar
- * (photographed on #461). A key that says `agent-session` is claimed by this
- * feature and by nothing else, and the collision dissolves at its root rather
- * than being narrowed away by a rule about which rows to hide.
+ * The chat panel is a PLUGIN now, and the premise went with it. A key's
+ * SPELLING is not a licence, and this key carries the sharpest one in the tree:
+ * a value here decides which node a session is fenced to, which subtree it may
+ * write in, and which ancestor a refusal names. A vault that happens to call a
+ * column `agent-session` and means something else by it was, until that phase, a
+ * vault whose column olai read as a binding. So it is a CONTRIBUTED KIND like
+ * every other one ({@link ./typing.ts}, docs/live-properties.md): the plugin
+ * teaches the word, the registry composes it under that plugin's own name, and a
+ * vault row moves it to whatever column a person likes.
+ * `olai-plugin-chat`'s `kinds.ts` argues the whole of it and holds both
+ * spellings.
  *
- * WHY NOT A DECLARED KIND, which is the machinery that already exists for
- * exactly this shape (`./typing.ts`, docs/live-properties.md): a kind is
- * CONTRIBUTED by a plugin, and a vault row moves it to whatever key a person
- * likes. Both halves are wrong here. A node agent is core's — it is the panel's
- * own subject, not an appliance's face — and the association is a ruled
- * spelling rather than a column somebody names: "put an `agent-session` prop on
- * a node" has to be true of every vault, or the sentence that creates a node
- * agent would need a second sentence about declaring one first.
+ * WHICH LEAVES THIS PACKAGE WITH NO WORD TO SPELL, deliberately. The reading
+ * below takes the vault's DECLARATIONS and the kind's WORD from its caller, the
+ * way every other plugin-facing reading here does ({@link ./typing.ts}'s
+ * `textDeclaredAs`, which is how the key is actually found, and
+ * `olai-plugin-kolu`'s `claimantsIn` one property over). A general package
+ * holding a constant that spelled a plugin's word would be the name-matching the
+ * kind arrangement exists to end, wearing a `const`.
+ *
+ * WHAT AN OLDER VAULT OWES IS ONE ROW —
+ * `{"title":"agent-session","custom":{"type":"chat-agent-session"}}` — and olai
+ * writes it for nobody, because a tool that edited somebody's declarations file
+ * to keep its own feature working would be that vault's judgement overruled by a
+ * release. What olai does instead is SAY SO, and it is the PLUGIN that says it:
+ * the kind is chat's, the retired spelling is chat's and the word to paste is
+ * chat's composed claim, so the sentence is drawn in chat's own column
+ * (`olai-plugin-chat`'s `server/agents.ts`). This package spells none of it, and
+ * the validator files no finding for it — one used to, and darkened the
+ * declarations page it was asking a person to edit.
  */
 import { Schema } from "effect"
 
-import { customText } from "./custom.ts"
 import { type Derived, under } from "./derive.ts"
 import { isPutAway, isRegular } from "./node.ts"
+import { declaresKind, type PropDeclarations, textDeclaredAs } from "./typing.ts"
 
 /**
- * THE KEY, spelled once.
- *
- * A CONSTANT because three packages have to agree about it and one of them is a
- * browser: this reading finds the rows, the gesture that starts a session
- * writes it (`@olai/server`), and the panel quotes the property back to the
- * agent it is teaching (`@olai/chat`). None of them may spell it for itself.
- */
-export const AGENT_PROP = "agent-session"
-
-/**
- * ONE `agent-session` VALUE, read — or `null` for a value that is not one.
+ * ONE BINDING VALUE, read — or `null` for a value that is not one.
  *
  * TOTAL over any string, because a `custom` value is somebody's prose: an empty
  * value, and one whose engine half is empty (`:sess-1`), name no engine and so
@@ -112,6 +115,11 @@ export const AGENT_PROP = "agent-session"
  *
  * THE FIRST COLON and only the first, so a session id carrying its own colons
  * survives the round trip.
+ *
+ * IT IS ALSO THE KIND'S OWN ADMISSION RULE, spent rather than spelled twice:
+ * `olai-plugin-chat`'s `kinds.ts` admits exactly the values this answers about,
+ * because a value the kind took and this reading refused would be two answers
+ * about one string.
  */
 export const sessionIn = (
   value: string,
@@ -125,7 +133,8 @@ export const sessionIn = (
 
 /** ...and the value a WRITER composes, which is the same rule read backwards —
  *  spelled here so the gesture that binds a node and the reading that draws it
- *  cannot come to disagree about a colon (`@olai/server`'s `agents.ts`). */
+ *  cannot come to disagree about a colon (`olai-plugin-chat`'s
+ *  `server/binding.ts`). */
 export const sessionValue = (engine: string, session: string | null): string =>
   session === null ? engine : `${engine}:${session}`
 
@@ -190,7 +199,7 @@ export type NodeAgent = typeof NodeAgent.Type
  * BESIDE THE FIELD rather than at either reader, and that is the whole reason
  * it is here: three surfaces say this number out loud — the roster row and the
  * door in the browser, and the standing instruction an agent is taught
- * (`@olai/chat`'s `teaching.ts`) — and they were two spellings of one plural,
+ * (`olai-plugin-chat`'s `teaching.ts`) — and they were two spellings of one plural,
  * in two packages, agreeing by hand. A count with two spellings is a count that
  * will one day be `1 rows` in exactly one of them.
  *
@@ -222,8 +231,31 @@ export const sameAgents: (a: NodeAgents, b: NodeAgents) => boolean = Schema
   .toEquivalence(NodeAgents)
 
 /**
- * THE ROSTER: every node of the set carrying an `agent-session` property, in
- * corpus order.
+ * THE ROSTER: every node of the set carrying a property this vault declares the
+ * given kind, in corpus order.
+ *
+ * ## What the two extra arguments are, and why they are not one key
+ *
+ * `declarations` is the vault's own vocabulary with the enabled plugins' claims
+ * already folded into it ({@link ./typing.ts}'s `declarationsOf`, a memo on the
+ * derivation, and `withClaims`, which is the one place precedence lives).
+ * `word` is the kind's COMPOSED word — `<plugin>-<kind>` — which the caller
+ * knows and this package may not spell.
+ *
+ * TWO ARGUMENTS RATHER THAN A RESOLVED KEY, and the difference is what a vault
+ * mid-migration looks like. A key is not one string there: a board can declare
+ * the kind on the bare `agent-session` it has been using while the key the kind
+ * CLAIMS is declared too, and a record may have written either spelling.
+ * Handing one key down would make this reading pick a winner the caller could
+ * not see; {@link textDeclaredAs} asks each RECORD which of its own keys is
+ * declared this kind, folding the case exactly as `prop:` and the write gate do.
+ *
+ * THE LICENCE IS ASKED BEFORE THE LOOP ({@link declaresKind}), so a vault that
+ * declares no such key — every vault on a serve running no chat, and every vault
+ * that has declared the key something else — pays one walk of its declarations
+ * rather than one per record, and allocates nothing. That is
+ * `olai-plugin-kolu`'s `claimantsIn` and `olai-plugin-odu`'s `worktreesIn`
+ * arrangement, one property over and deliberately the same shape.
  *
  * A WHOLE-SET WALK, deliberately and measured against the alternative: there is
  * no index over custom keys and building one would be a map maintained per
@@ -242,30 +274,38 @@ export const sameAgents: (a: NodeAgents, b: NodeAgents) => boolean = Schema
  *     offer a door into a record that is gone.
  *   - an EMPTY value, and a value that is a LIST. `custom` takes a list
  *     (`./custom.ts`), and "which engine" has no answer that is three of them —
- *     so a list-valued `agent-session` is a property this reading has nothing to
- *     say about rather than one it picks the first of.
+ *     so a list-valued binding is a property this reading has nothing to say
+ *     about rather than one it picks the first of. It is {@link textDeclaredAs}
+ *     that steps over the list, at the same door every other single-value
+ *     reader of a declared kind does.
  *   - a value NAMING NO ENGINE, which is {@link sessionIn}'s own refusal
  *     (`:sess-1`): the engine half is what makes the node a node agent, and a
  *     pointer with nobody to point it at names nothing to talk to.
  *
  * WHAT IS NOT LEFT OUT is a node that is DONE. The roster is the query and the
- * query is `prop:agent-session`; a finished lane whose row is still on the
+ * query is `prop:<the declared key>`; a finished lane whose row is still on the
  * roster is a property somebody has not taken off, which is a thing they can
  * see and fix, where a roster that quietly dropped it would be this reading
  * deciding something the query did not say.
  *
- * That rule used to cost something, and the rename is what stopped it: the key
- * was `agent`, which the orchestrator's own board puts on every dispatched
- * roadmap item, so this reading listed a hundred finished lanes and pushed the
- * file tree off the sidebar. `agent-session` is claimed by this feature and by
- * nothing else, so the collision dissolved at its root rather than being
- * narrowed away by a rule about which rows to hide.
+ * That rule used to cost something, and the key is what stopped it: it was
+ * `agent`, which the orchestrator's own board puts on every dispatched roadmap
+ * item, so this reading listed a hundred finished lanes and pushed the file tree
+ * off the sidebar (photographed on #461). A DECLARED kind ends that collision at
+ * its root twice over — the claimed word carries a plugin's name, and a board
+ * that wants the column called something else writes one row — rather than it
+ * being narrowed away by a rule about which rows to hide.
  */
-export const agentsOf = (derived: Derived): NodeAgents =>
-  derived.nodes.flatMap((located) => {
+export const agentsIn = (
+  derived: Derived,
+  declarations: PropDeclarations,
+  word: string,
+): NodeAgents => {
+  if (!declaresKind(declarations, word)) return NO_AGENTS
+  return derived.nodes.flatMap((located) => {
     if (isPutAway(located.file)) return []
     if (!isRegular(located)) return []
-    const held = customText(located.node, AGENT_PROP)
+    const held = textDeclaredAs(declarations, located.node, word)
     const said = held === undefined ? null : sessionIn(held)
     if (said === null) return []
     return [{
@@ -277,3 +317,28 @@ export const agentsOf = (derived: Derived): NodeAgents =>
       memory: under(derived, located.node.id),
     }]
   })
+}
+
+/**
+ * COULD A NODE AGENT BE SEATED HERE — the same three tests {@link agentsIn}
+ * applies, minus the one about the property.
+ *
+ * ONE CALLER and one gesture: *start an agent session*, which names the node it
+ * is for and is the gesture that WRITES the property. Asked of the roster —
+ * which is the query OVER that property — a bare node answers `null`, and that
+ * answer used to be read as "this is not a node", routing the new conversation
+ * to the unscoped panel to be moved into the node's scope afterwards. Moving a
+ * conversation between scopes is `session/load`, and no engine has written a
+ * session it has only just minted and nobody has spoken into.
+ *
+ * So the question a scope needs answering is not *is this already an agent* but
+ * *is this a record an agent could sit at*, and the two had been the same
+ * function. Put-away and mirrors are out on the same grounds they are out of the
+ * roster: a placement has no subtree of its own to be the memory of, and a
+ * trashed record is not somewhere to seat a process.
+ */
+export const seatableIn = (derived: Derived, node: string): boolean => {
+  const located = derived.byId.get(node)
+  if (located === undefined) return false
+  return !isPutAway(located.file) && isRegular(located)
+}

@@ -93,7 +93,7 @@ export default definePlugin({
     yield* slots.register("app.header", () => <Padi app={app} />)
     // KOLU'S FACE IN A TRANSCRIPT — the mark over a sentence its doorbell
     // delivered into somebody's conversation.
-    yield* slots.register("chat.speaker.mark", KoluMark)
+    yield* slots.register("delivery.mark", KoluMark)
     // THE TAB'S KOLU HALF — one subscription however many rows draw. `KoluUi`
     // binds the three cells, the two collections, the screen read and the pane's
     // un-enrolled stream, and its own header argues each.

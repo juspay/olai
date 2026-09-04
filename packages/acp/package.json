@@ -5,7 +5,7 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
-  "//exports": "Three entries, DISJOINT. `./wire` is the vocabulary WITHOUT the payload readers — the ask and diff shapes travel olai's wire, so @olai/surface re-exports them and the browser ends up importing this half. The main entry is the projections over the protocol's own payloads, which only @olai/chat has any business reading; it does not re-offer the wire shapes, because everyone who wants those has them through the surface and a second door to the same word is a door somebody eventually uses. The same carve-out @olai/git makes with `./state`, sharpened one notch. `./engine` is the third and it is a door for a DIFFERENT reader: what one ENGINE PLUGIN hands over — the leg that reads its wire, the adapter that starts it, the sentence for a machine that has not installed it — spelled here because the plugin may not import @olai/chat and @olai/chat may not import the plugin, and because an engine is an ACP agent and how to reach one. src/engine.ts argues it at length.",
+  "//exports": "Three entries, DISJOINT. `./wire` is the vocabulary WITHOUT the payload readers — the ask and diff shapes travel olai's wire, so @olai/surface re-exports them and the browser ends up importing this half. The main entry is the projections over the protocol's own payloads, which only olai-plugin-chat has any business reading; it does not re-offer the wire shapes, because everyone who wants those has them through the surface and a second door to the same word is a door somebody eventually uses. The same carve-out @olai/git makes with `./state`, sharpened one notch. `./engine` is the third and it is a door for a DIFFERENT reader: what one ENGINE PLUGIN hands over — the leg that reads its wire, the adapter that starts it, the sentence for a machine that has not installed it — spelled here because the plugin may not import olai-plugin-chat and olai-plugin-chat may not import the plugin, and because an engine is an ACP agent and how to reach one. src/engine.ts argues it at length.",
   "exports": {
     ".": "./src/index.ts",
     "./wire": "./src/wire.ts",
@@ -14,7 +14,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
-  "//dependencies": "A LEAF that speaks ACP: `effect` for the schemas the wire half is declared in, and the protocol SDK for the payload TYPES the projections read — type-only imports, so no zod and no runtime SDK code enters this package's closure (the subprocess that runs the protocol lives in @olai/chat, which is where the SDK's runtime and its zod peer stay declared). No @olai/* sibling, deliberately: the domain's words must not enter — this package refuses in its own `Refused`, and @olai/chat translates to `UsageFailure` at the seam. Machine-checked by src/manifest.test.ts, not remembered.",
+  "//dependencies": "A LEAF that speaks ACP: `effect` for the schemas the wire half is declared in, and the protocol SDK for the payload TYPES the projections read — type-only imports, so no zod and no runtime SDK code enters this package's closure (the subprocess that runs the protocol lives in olai-plugin-chat, which is where the SDK's runtime and its zod peer stay declared). No @olai/* sibling, deliberately: the domain's words must not enter — this package refuses in its own `Refused`, and olai-plugin-chat translates to `UsageFailure` at the seam. Machine-checked by src/manifest.test.ts, not remembered.",
   "dependencies": {
     "@agentclientprotocol/sdk": "^1.3.0",
     "effect": "4.0.0-rc.112"

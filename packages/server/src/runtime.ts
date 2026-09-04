@@ -99,34 +99,13 @@ import type {
   PushResult,
   Writer,
 } from "@olai/format"
+import { type Applied, type Edit, GIT_OFF, type GitState, LOADED, type Manifest, NO_ROSTER, type PluginRoster, type PluginState, surface, watchable, type Who } from "@olai/surface"
+import { type OpFailure } from "@olai/format"
 import {
-  type Agents,
-  type Applied,
-  type ChatEntry,
-  CHAT_OFF,
-  type ChatState,
-  type Edit,
-  GIT_OFF,
-  type GitState,
-  LOADED,
-  type Manifest,
-  NO_AGENT_ROSTER,
-  NO_ROSTER,
-  type OffBecause,
-  type OpFailure,
-  type PluginRoster,
-  type PluginState,
-  surface,
-  watchable,
-  type Who,
-} from "@olai/surface"
-import {
-  AGENT_PROP,
   customText,
   isRegular,
   type Located,
   type Reading,
-  sessionValue,
   UsageFailure,
 } from "@olai/format"
 import type { Snapshot } from "@olai/store"
@@ -145,7 +124,6 @@ import {
 } from "@kolu/surface/server"
 import { Duration, Effect, Result, type Scope, Stream, SubscriptionRef } from "effect"
 
-import { cadence } from "@olai/chat"
 /**
  * THE ONLY PLACE THIS FILE MEETS AN APPLIANCE, and it meets none of them by
  * name — nor, now, by list.
@@ -168,11 +146,8 @@ import type { ConversationSeen, Plugins, Registered, Wake } from "@olai/plugin-a
 import type { RowReport } from "@olai/bundle/bundle"
 
 
-import type { Cadence, Change, Chat } from "@olai/chat"
 import { type Emit, emitter } from "@olai/log"
-import type { Roster } from "./agents.ts"
 import * as Bodies from "./bodies.ts"
-import { contextFor } from "./context.ts"
 import { inverseOf, reresolves, requestFor } from "./edit.ts"
 import { runResolved } from "./resolving.ts"
 import {
@@ -420,37 +395,6 @@ export interface Wiring {
    * whether anybody typed the flag.
    */
   readonly plugins: PluginRuntime | null
-  /** Absent when this serve has no ACP agent: the cell stays `off` and the
-   *  procedures answer that they are. A directory is readable whether or not
-   *  an agent is installed. */
-  readonly chat: Chat | null
-  /**
-   * ...AND WHY, when {@link chat} is absent — `null` beside a chat that exists.
-   *
-   * Carried rather than re-derived, and that is the whole reason it is a field.
-   * There are three ways to have no agent (`@olai/chat`'s `Roster`), a person
-   * has a different thing to do about each, and only the composition root holds
-   * both halves of the answer — the engine registry and what every probe said.
-   * The panel drew its opening sentence by GUESSING between them until this
-   * arrived, and one of its guesses named a launch path no documented way of
-   * starting olai takes.
-   */
-  readonly noAgent: OffBecause | null
-  /**
-   * THE NODE AGENTS' CARRIER — the vault's half of the roster, which this
-   * runtime WRITES on every published revision and reads back to fill the cell
-   * ({@link ./agents.ts}).
-   *
-   * Handed in rather than built here because the CHAT is built before this
-   * runtime is, and the chat asks it a question of its own: what a node agent
-   * is, for the standing instruction it teaches a session. One carrier, two
-   * readers, composed where both are in hand.
-   *
-   * Absent — like {@link Wiring.chat}, and usually with it — is a runtime that
-   * publishes an empty roster: no vault reading is taken, so the cell says
-   * there are no node agents, which is what a directory with none says.
-   */
-  readonly agents?: Roster | null
   /** The one writer. The edit procedures are the browser's door to it, and
    *  they hold nothing of their own: what a keystroke MEANT is resolved
    *  against this layer's own reading (`./edit.ts`) and run as one op. */
@@ -542,17 +486,6 @@ export const gitWiring = (
   settled,
 })
 
-/** The chat, plus the two publishers the surface hands back once it exists.
- *  {@link bind} fills them in — the chat is built before the surface, because
- *  the surface's collection is seeded from the transcript, and the surface is
- *  what the chat publishes through. */
-export interface Publishers {
-  readonly state: (state: ChatState) => void
-  readonly transcript: (change: Change) => void
-  /** A background node scope changed without moving the foreground panel. */
-  readonly live: () => void
-}
-
 /**
  * Every member whose answer RECORDS who asked, bound to one writer.
  *
@@ -570,6 +503,22 @@ export interface Publishers {
  * an HTTP `/mcp` client, an in-process dispatch is whichever agent the
  * composition root built it for. So the writer is decided where the face is,
  * which is where every other fact about a face is decided.
+ *
+ * ...AND SO IS HOW FAR THE DOOR REACHES, which is the second half of the same
+ * argument and arrives in the same record ({@link @olai/ops}'s `Caller`). A
+ * subtree fence is one more fact about who is asking, and a caller could no more
+ * name its own than it could name its own writer. `fence` is REQUIRED with no
+ * default: `@olai/ops` reads an absent fence as "this door has no session" —
+ * which is the honest reading of a keystroke, its derived undo, a plugin write
+ * or a repeat roll, and the WRONG reading of an agent whose face forgot to say.
+ * Every face in this tree is composed through this function or {@link writerAt}
+ * below it, so a forgotten fence is a compile error and never a silently
+ * unfenced agent.
+ *
+ * `git.commit` takes no fence and that is a named hole rather than an omission:
+ * a commit moves no served byte and takes free-form paths, so a fenced agent can
+ * still put another writer's pending work into history under its own trailer.
+ * The fence's subject is the records the vault serves.
  */
 const writing = (ops: Ops, caller: Caller) => ({
   ops: { run: (request: Request) => ops.run(request, caller.writer, caller.fence ?? undefined) },
@@ -671,6 +620,12 @@ export const rosterOf = (
         // are the plugin's: a sentence with a hole in it would make core the
         // author of everything around the hole.
         ...(said.fault === undefined ? {} : { fault: said.fault }),
+        // ...and, on the one word that is a WAIT, the services it is short of.
+        // Core names these because they are core's own vocabulary — a tag is a
+        // key in this tree's table, not a plugin's prose — and naming them is
+        // what turns "waiting for something" into a sentence somebody can act
+        // on.
+        ...(said.missing === undefined ? {} : { missing: said.missing }),
         // WHAT THE PICKER IS MADE OF, named one at a time rather than spread
         // whole — and the omission is the point. The three strings the strip
         // draws, plus the KINDS the picker may offer, because that is the one
@@ -718,14 +673,27 @@ export const rosterOf = (
 const stateOf = (
   offered: NonNullable<Wiring["plugins"]>,
   report: RowReport,
-): { readonly state: PluginState; readonly fault?: string } => {
+): {
+  readonly state: PluginState
+  readonly fault?: string
+  readonly missing?: ReadonlyArray<string>
+} => {
   switch (report.state) {
     case "failed":
       return report.fault === undefined
         ? { state: "failed" }
         : { state: "failed", fault: report.fault }
     case "waiting":
-      return { state: "waiting" }
+      // ...AND WHAT IT IS SHORT OF, which the reading has and this arm used to
+      // drop. A row is `waiting` because a service it named has nobody behind
+      // it, and the one sentence a person needs is WHICH — under
+      // `--plugins=kolu` the answer is `deliveries`, and the answer to that is
+      // "compose the chat row". Empty is not absent: a fiber PENDING with
+      // nothing named is a settle still in flight, and a row claiming to wait
+      // on nothing would be worse than one that says only that it is waiting.
+      return report.missing === undefined || report.missing.length === 0
+        ? { state: "waiting" }
+        : { state: "waiting", missing: report.missing }
     case "off":
       // THE LOADER DECLINED TO LOAD IT, and `pinned` is the only thing left
       // that can say who wrote the `disabled` it declined on.
@@ -790,7 +758,6 @@ export const bind = (
 ): Effect.Effect<
   {
     readonly bound: Bound
-    readonly publish: Publishers
     /**
      * THE TWO WIRE FACES, over exactly the surface this call composed.
      *
@@ -812,7 +779,6 @@ export const bind = (
     // the current value before any update, so peeking at the ref here as well
     // would be the same read twice with a window between them.
     const errors = inMemoryStore<Verdict>(NOTHING_WRONG)
-    const chat = wiring.chat
     /** This runtime's own log line, for the one place below that reports from
      *  outside an Effect — a stream's re-read, which the framework calls on a
      *  promise. What it SAYS is {@link ./report.ts}'s. */
@@ -922,69 +888,16 @@ export const bind = (
      *  above has it. */
     let published: SurfaceRuntime<typeof surface.spec>["ctx"] | null = null
 
-    /**
-     * WHAT A GROWING ROW COSTS THE WIRE — the transcript's changes, turned
-     * into frames on a clock ({@link @olai/chat}'s `cadence`, which argues the
-     * whole thing).
-     *
-     * HERE rather than in `../serve.ts`, beside the two collections it writes,
-     * because what it decides is a delivery question and this is the module
-     * that owns every other one: which member a fact lands on, in what order,
-     * and what a new subscriber is seeded with. The chat knows only that it
-     * published a change.
-     *
-     * ROWS BEFORE PIECES, and that is the whole of what the ordering has to
-     * promise: a row's upsert carries its text whole and supersedes every piece
-     * of it, so the removes must not reach a reader first — the join is
-     * idempotent either way, but only this order never shows a paragraph
-     * getting shorter while somebody is reading it.
-     */
-    const saying: Cadence = cadence({
-      onFrame: (frame) => {
-        const collections = published?.collections
-        apply(collections?.transcript, frame.rows)
-        apply(collections?.saying, frame.pieces)
-      },
-    })
-    // A window still open when this runtime closes is a piece nothing will ever
-    // be published to. Registered here, beside the thing it stops, rather than
-    // left to a timer that would fire into a closed surface.
-    yield* Effect.addFinalizer(() => Effect.sync(() => saying.stop()))
-
     /** The two git cells, once their connectors have been handed them. Held
      *  rather than reached for through `ctx` because the commit procedure has to
      *  republish the moment it is done — a commit changes what is waiting
      *  without changing one byte on disk, so no revision will ever say so. */
     let pendingCell: { set: (value: Pending) => void } | null = null
     let gitCell: { set: (value: GitState) => void } | null = null
-    /** The AGENTS cell, held for the same reason and one stronger: its second
-     *  clock is the chat, which reaches this file as a callback rather than as
-     *  a stream ({@link republishAgents}). */
-    let agentsCell: { set: (value: Agents) => void } | null = null
-    /** The PLUGINS cell, held for the agents cell's reason: its clock is a
+    /** The PLUGINS cell, held for the git cells' reason and one stronger: its clock is a
      *  fiber arriving or leaving, which reaches this file as a callback off
      *  `openPlugins`'s `changed` rather than as a stream ({@link republishPlugins}). */
     let pluginsCell: { set: (value: PluginRoster) => void } | null = null
-
-    /**
-     * THE ROSTER, ASSEMBLED AND PUBLISHED — the one place the two halves are
-     * put together, called from both of the clocks that move either
-     * ({@link ./agents.ts}).
-     *
-     * Nothing at all before the cell's connector has run, and nothing at all
-     * for a serve with no carrier: a chat frame arriving before the first
-     * revision has no vault reading to join against, and publishing an empty
-     * roster for it would be a sidebar that flickered empty on the first turn.
-     */
-    const republishAgents = (): void => {
-      const cell = agentsCell
-      const carrier = wiring.agents
-      if (cell === null || carrier === undefined || carrier === null) return
-      cell.set(carrier.rowsWith(
-        chat === null ? [] : chat.overheard(),
-        chat === null ? new Map() : chat.live(),
-      ))
-    }
 
     /**
      * ...AND THE PLUGIN ROSTER, on its own clock — a fiber arriving or leaving.
@@ -1031,21 +944,6 @@ export const bind = (
         ),
     )
 
-    /** A chat verb, when there may be no chat. The cell already reads `off`, so
-     *  a browser has been told; a stray call is answered as a REFUSAL rather
-     *  than as a runtime defect, because "chat is off" is a thing a caller can
-     *  be told and the vocabulary already covers it. */
-    const withChat = <A>(
-      use: (chat: Chat) => Effect.Effect<A, OpFailure>,
-    ): Effect.Effect<A, OpFailure> =>
-      chat === null
-        ? Effect.fail(
-          new UsageFailure({
-            reason: "chat is off: no ACP agent is configured for this directory",
-          }),
-        )
-        : use(chat)
-
     /**
      * One keystroke, all the way through: read the set, work out which op the
      * intent names ({@link ./edit.ts}), run it — and say what would take it
@@ -1078,7 +976,13 @@ export const bind = (
         // tab used to be refused naming a file the OTHER tab had just minted,
         // which is the resolver's own answer going stale rather than anything
         // the person who pressed the key did.
-        runResolved(wiring.ops, wiring.writer, (at) => requestFor(at, edit), reresolves(edit)),
+        // A KEYSTROKE HAS NO SESSION, which is what `fence: null` says out loud.
+        runResolved(
+          wiring.ops,
+          { writer: wiring.writer, fence: null },
+          (at) => requestFor(at, edit),
+          reresolves(edit),
+        ),
         ({ at, request, done }) => {
           // AFTER the run, because an `add`'s inverse names the row the write
           // brought into being — and from the reading the winning request was
@@ -1193,201 +1097,26 @@ export const bind = (
      */
     const siblings = (): ReadonlyArray<Registered> => plugins?.composed() ?? []
     /**
-     * THE WATCHING BUS, as this file reaches it — conversation events, pushed to
-     * every plugin that subscribed. Human messages are not among them.
-     *
-     * The SET of subscribers is not here any more. It was a `Set` and a
-     * `subscribe` returning an unsubscribe the plugin had to remember to call;
-     * it is the `Watching` door now, where a subscription is an effect on the
-     * subscribing fiber and a plugin that unloads stops being told without
-     * anybody remembering anything. What is left for a composition root is the
-     * OTHER end: saying what happened, once, to whoever is listening.
-     *
-     * `null` on a serve with no plugin runtime, where there is nobody to tell.
-     */
-    const seen = (event: ConversationSeen): void => {
-      if (plugins !== null) ring(plugins.saw(event))
-    }
-    const whoOf = (state: ChatState): { agent: string; session: string } | null =>
-      state.session !== null && state.talking?.kind === "agent"
-        ? { agent: state.talking.id, session: state.session.id }
-        : null
-    let lastStatus: ChatState["status"] | undefined
-    /** Agent rows already in the transcript when the current turn started —
-     *  `replied` is the row THIS turn produced, not the newest agent row in
-     *  the whole conversation (a cancel / gone / failed turn has no prose). */
-    let agentSeqAtTurn = -1
-    /** Doorbell rows already pushed, so a later mark on the same entry
-     *  (`transcript.refused`) is not a second digest. */
-    const deliveredIds = new Set<string>()
-    let deliveredFor: string | undefined
-    /**
      * WHICH COMPOSED PLUGINS RING AT ALL, and what each says when its doorbell
      * stops watching — read the same way {@link siblings} is and for the same
      * reason.
      *
-     * A scope written for anybody else would be a row nothing will ever read, so
-     * the member that writes one refuses it. The declaration is carried WHOLE
-     * rather than as three tables, because the two members are asked in one
-     * breath: {@link faulted} judges a row by the kinds and then reaches for the
-     * sentence that judgement names.
+     * ## What this is still FOR, now that the doorbell's picks are a row's
      *
-     * ## One registry where there were two lists that had to agree
-     *
-     * The gate used to be built from `SERVERS` and the roster's rows from
-     * `PLUGIN_NAMES` — two doors, held equal by a test, because routing the gate
-     * through the roster would have made a doorbell depend on the plugin also
-     * being on the wire door. Both are this registry now. A plugin that
-     * registered a wake rings; one that did not, or that has since unloaded,
-     * does not; and there is no second list for the two to disagree across.
+     * ONE READER, and it is the preferences panel: {@link roster} draws each
+     * row's watchability out of the declaration, so a plugin that rings and one
+     * that does not are two different rows on a screen. Everything else this
+     * table used to answer — whether a scope may be written for a name, and
+     * which sentence a broken scope says — went with the picks, which are
+     * `olai-plugin-chat`'s record. That half asks the SAME registry through
+     * `@olai/plugin-api`'s `Wakes.declared`, so there is one table and no second
+     * list for the two to disagree across.
      *
      * A TABLE OF WORDS THE PLUGIN WROTE, which is the only kind of table core is
      * allowed to keep about words: nothing here is composed, joined, abbreviated
-     * or interpolated into. The whole of what this file does with a sentence out
-     * of it is hand it back through {@link Chat.doorFor}'s `deliver`, and the
-     * whole of what it does with the kinds is COMPARE them against `fileKind`'s
-     * answer — a registry lookup, not a reading.
-     *
-     * A name with no entry gets nothing said — a pick stored against a plugin
-     * this serve did not compose, which is a row the strip already declines to
-     * draw (`@olai/web`'s `wake.ts`). There is no half here to ring it and no
-     * words to ring it with, so the row is marked and nobody is told, which is
-     * the honest arm rather than core reaching for a sentence of its own.
+     * or interpolated into.
      */
     const rings = (): ReadonlyMap<string, Wake> => plugins?.declared() ?? new Map()
-    /** ...and the same question asked about ONE name, which is what the member
-     *  that writes a scope asks. */
-    const composedWake = (name: string): boolean => rings().has(name)
-    /**
-     * A SCOPE ITS DOORBELL CANNOT WATCH — found here, said by the plugin, once.
-     *
-     * ## Why core is the one that detects
-     *
-     * Core owns every half of both questions and no plugin owns any: the SERVED
-     * SET is this connector's own revision, the KINDS a doorbell can watch are
-     * a declaration the plugin handed this file at composition, and the PICKS
-     * are `@olai/chat`'s record. A doorbell asked to notice its own file had
-     * gone would be a doorbell deriving from a file it cannot find, which is
-     * precisely the state that produces no signal at all — that is the defect,
-     * not a place to fix it ({@link Chat.faults} tells the whole story).
-     *
-     * ## TWO CAUSES, ONE WALK
-     *
-     * The file is not in the set at all — renamed, moved, deleted — or it is in
-     * the set and `fileKind` says it is not one of the kinds that doorbell
-     * declared. The second is the state the picker used to be able to produce:
-     * every served file was offered, so a person could scope a conversation to
-     * a `.md`, and a wake that derives its set from a file's NODES then watched
-     * the empty set for ever while the heartbeat went on reporting a live
-     * watcher. The picker offers only the declared kinds now (`@olai/web`'s
-     * `chat/scopable.ts`); this arm is what answers for the picks that were
-     * stored before it did, and for a stale tab or a hand-edited record.
-     *
-     * GONE IS ASKED FIRST, because a file that is not served has no kind and
-     * "renamed" is the more actionable of the two things to be told.
-     *
-     * ## `documentAt`, and not `derived.byFile`
-     *
-     * "Still served" is asked of the SET, which is every file the directory
-     * holds a place for. `byFile` groups PARSED RECORDS, so a file that is
-     * present and EMPTY — or present and torn — has no entry in it, and a scope
-     * pointed at one would read as gone: a person who emptied their lane file
-     * for a minute would be told their doorbell had broken, and told again
-     * never, because the flag is a once. The set is the honest source and it is
-     * the same disagreement {@link conventionServed} and `conventionRecorded`
-     * are two doors for one member above.
-     *
-     * A BINARY SEARCH PER PICK, and no walk. `documentAt` searches the set's
-     * own path-ordered list, and the picks are a few dozen at most — so the
-     * question costs the SCOPES rather than the DIRECTORY, which is what makes
-     * it affordable on a hook that fires for every keystroke that lands in an
-     * outline. Handing `@olai/chat` a set of missing paths instead would have
-     * meant walking the directory here to build one. The kind question is
-     * cheaper still and does not change that arithmetic: a lookup in a table
-     * built once at composition, and `fileKind` over one name.
-     *
-     * ## ON ITS OWN FIBER, and what that costs
-     *
-     * The mark is a filesystem write and this connector is synchronous, so the
-     * work is forked under this fiber's services ({@link ring}, for the reason
-     * it exists). What that means is that the mark lands SHORTLY after the
-     * revision that made it true, not during it — so a plugin deriving on this
-     * same revision still sees the scope on its door for one pass. That costs
-     * nothing under either cause, and for one reason: the derivation finds
-     * nothing to say. A file that is gone is not in the revision at all, and a
-     * file of a kind the doorbell cannot read is one it could never derive
-     * anything from, which is the whole of why it is a fault. From the next
-     * revision the row is off the door entirely ({@link Chat.doorFor}).
-     */
-    const faulted = chat === null ? (): void => {} : (snapshot: VaultRevision): void => {
-      ring(Effect.flatMap(
-        chat.faults(
-          (plugin, file) => {
-            if (documentAt(snapshot.value.set, file) === undefined) return "gone"
-            // THE DECLARATION, ASKED THE WAY THE PICKER ASKS IT — `watchable` is
-            // the wire member's own reading (`@olai/surface`'s `plugins.ts`),
-            // and it is shared rather than spelled here because these two are
-            // the ends that must agree: a serve judging by a rule of its own
-            // would fault on a pick the browser had just offered. A plugin with
-            // no entry is not judged at all — `sayable` has already left its
-            // rows alone.
-            const kinds = rings().get(plugin)?.kinds
-            if (kinds === undefined) return null
-            return watchable(kinds, file) ? null : "unwatchable"
-          },
-          // A ROW WHOSE TENANT CANNOT SPEAK IS NOT MARKED. `rings` holds a
-          // declaration only for a plugin this serve COMPOSED and that made
-          // one, so a serve run without a tenant leaves its rows alone rather
-          // than burning their one signal unheard.
-          (plugin) => rings().has(plugin),
-        ),
-        (fell) =>
-          Effect.forEach(fell, (row) => {
-            const wake = rings().get(row.plugin)
-            if (wake === undefined) return Effect.void
-            // WHICH SENTENCE, INDEXED BY THE CAUSE the walk recorded on the row
-            // (`@olai/chat`'s `Scoped.fault`) — never chosen between arms here.
-            // The declaration is keyed by the fault's own word, so this line
-            // cannot answer for a cause nobody wrote a sentence for: a third one
-            // is a type error in every plugin that rings, where a ternary would
-            // have fallen through and told somebody their file was renamed while
-            // it sat in front of them.
-            const words = wake.faults[row.fault]
-            // A THUNK, ASKED WHEN THE WORDS GO IN, which is the whole reason
-            // `deliver` takes one: this body may wait out a running turn, or
-            // wait for somebody to open the conversation at all, and by then
-            // the file may be back. A scope that healed is on its plugin's door
-            // again, so its absence from that list is what "still broken" means
-            // — and answering `null` keeps the sentence out of the transcript
-            // rather than telling a person their doorbell is broken over a
-            // strip that is already drawing it fine.
-            //
-            // The other two ways this row can stop deserving the sentence —
-            // somebody cleared the doorbell, or pointed it elsewhere — need
-            // nothing here: every scope write takes back what that doorbell was
-            // holding (`@olai/chat`'s `Holding.dropped`), so the body is gone
-            // before it can be asked.
-            const healed = (): boolean =>
-              chat.doorFor(row.plugin).scopes().some((one) =>
-                one.agent === row.agent && one.session === row.session && one.file === row.file
-              )
-            const still = (): string | null => healed() ? null : words
-            // NO COALESCING KEY. A held body with one replaces the last body
-            // under it, which is right for a digest that re-derives itself and
-            // wrong for this: two faults on one conversation are two separate
-            // things that happened, and the second must not swallow the first.
-            // This is the arm `@olai/chat`'s `deliveries.ts` describes as a
-            // sentence about a moment that cannot be re-derived.
-            // THE PAIR AND NOT THE ROW. A delivery is addressed to a
-            // conversation, and handing the whole scope over would put this
-            // plugin's own `plugin` and `file` columns on an address — the
-            // caller's question answered a second time, in the one place the
-            // keying is the safety property.
-            return chat.doorFor(row.plugin)
-              .deliver({ agent: row.agent, session: row.session }, still)
-          }, { discard: true }),
-      ))
-    }
     /**
      * ...and the same two facts as the value a browser draws its read-only rows
      * off — every plugin this binary HAS, which of them this serve is RUNNING,
@@ -1426,67 +1155,6 @@ export const bind = (
             Stream.runForEach(
               SubscriptionRef.changes(wiring.store.errors),
               (next) => Effect.sync(() => cell.set(next ?? NOTHING_WRONG)),
-            ),
-        },
-        chat: {
-          // NO CHAT IS A STATE WITH A REASON, and the reason rides the same cell
-          // rather than a second one: the panel draws this face out of one value
-          // it already subscribes to, and a tab that has not heard yet holds
-          // `CHAT_OFF` itself, whose `off` is `null` — "not told" rather than
-          // any of the three ways of being off.
-          store: inMemoryStore<ChatState>(
-            chat === null ? { ...CHAT_OFF, off: wiring.noAgent } : chat.state(),
-          ),
-        },
-        /**
-         * THE AGENTS ROSTER, re-assembled whenever EITHER of its halves moves —
-         * the one cell on this surface with two clocks.
-         *
-         * A published revision moves the vault's half: a node gains the `agent`
-         * property, is renamed, or grows a child. A CHAT FRAME moves the
-         * machine's half: a conversation opens, an agent's last line is written
-         * down, a session is taught. Both go through {@link republishAgents},
-         * which is the whole reason it is a named closure rather than two
-         * bodies — two assemblers over one carrier would be two answers to what
-         * the roster is, and the one that disagreed would be the one nobody was
-         * looking at.
-         *
-         * The chat's clock is not a subscription: `publish.state` below is
-         * already the one door every chat frame comes through, so the roster is
-         * republished from there rather than by watching the cell this runtime
-         * itself writes. A cell that watched its own sibling would be a loop
-         * waiting to be closed by somebody adding a line to the wrong place.
-         *
-         * A revision that moved no node agent, and a chat frame that moved no
-         * binding, write the same value — which the cell's `equals` swallows
-         * (`@olai/surface`'s spec). The chat cell moves several times a turn, so
-         * that equality is what makes hanging this off it affordable at all.
-         *
-         * NO CARRIER IS NO ROSTER, which is a serve with no ACP agent: nothing
-         * reads the vault for a feature whose other half cannot exist, and the
-         * sidebar draws no section — the same thing a directory with no `agent`
-         * property anywhere draws.
-         */
-        agents: {
-          store: inMemoryStore<Agents>(NO_AGENT_ROSTER),
-          connect: (cell) =>
-            Stream.runForEach(
-              wiring.store.reads,
-              ({ snapshot }) =>
-                Effect.sync(() => {
-                  agentsCell = cell
-                  wiring.agents?.seen(snapshot === null ? null : snapshot.value.derived)
-                  // THE CHAT'S OWN HALF OF THE SAME MOVE, and it is the second
-                  // clock the ruling added: which node agent the OPEN
-                  // conversation belongs to is now a PROPERTY, so a revision
-                  // can change it — the `•••` verb writes one, and so does
-                  // anybody editing a chip. Without this the panel would go on
-                  // saying it belonged to nobody until the next time a session
-                  // opened, and the row it had just bound would draw as asleep.
-                  // It publishes only when the answer moved ({@link Chat.reread}).
-                  chat?.reread()
-                  republishAgents()
-                }),
             ),
         },
         /**
@@ -1750,21 +1418,6 @@ export const bind = (
                   // and zero frames, and the sockets are the sweeps' business
                   // on their own clocks.
                   if (plugins !== null) yield* plugins.published(snapshot)
-                  // ...AND THE PICKS THIS REVISION BROKE, which is core's own
-                  // reading of the same snapshot and the one thing above that
-                  // is not a plugin's. It is HERE, on the revision hook, for
-                  // the reason every line in this block is: a revision is
-                  // exactly when a file can have stopped being served, and a
-                  // second clock asking the same question would be a second
-                  // answer to what the directory says ({@link faulted}).
-                  //
-                  // NOT ON THE `null` ARM ABOVE. A store with no snapshot has
-                  // never loaded, and marking every scope in the directory
-                  // broken because this process cannot see the disk yet would
-                  // be a fault storm at boot about files that are all still
-                  // there. What that arm says is that nobody may vouch for a
-                  // derived claim, and this is a derived claim.
-                  faulted(snapshot)
                   // Written last, which is NOT the order they arrive in: a cell
                   // publishes on this stack while the collection's frame is
                   // coalesced into one delta on a microtask, so the manifest
@@ -1908,44 +1561,6 @@ export const bind = (
           upsert: () => {},
           remove: () => {},
         },
-        // Server-authored, one writer: `readAll` reads the transcript itself,
-        // so a fresh subscription is seeded from the same object every later
-        // upsert moves. There is no second copy to keep in step.
-        transcript: {
-          readAll: () => new Map(chat === null ? [] : chat.entries()),
-          // The wire never calls these — the collection's write verbs are not
-          // exposed — but the surface needs somewhere to persist a `ctx` write,
-          // and the transcript has already recorded it by the time we publish.
-          upsert: () => {},
-          remove: () => {},
-        },
-        /**
-         * The pieces of the row still being said — everything the cadence has
-         * PUT on the wire and not taken off again ({@link @olai/chat}'s
-         * `cadence`).
-         *
-         * IT OVERLAPS THE ROW ABOVE, and that is the point of it rather than
-         * something it gets away with. The transcript hands a new subscriber
-         * the row's text WHOLE, so most of what this hands them is characters
-         * they already have — and the join drops those, because a piece that
-         * ends inside its row's own text adds nothing (`@olai/surface`'s
-         * `Saying`).
-         *
-         * What it is FOR is the gap between the two reads. A tab subscribes to
-         * the two members one after the other, and a piece published in
-         * between belongs to neither: it is past the text the row snapshot
-         * carried, and it was on the wire before this member's stream opened.
-         * Seeded empty, that piece is text nobody ever hands over, and the
-         * paragraph is short a word until the row is published whole at the
-         * end of it. Seeded with what is live, there is no gap to fall into —
-         * which is why this is a read of the pieces that are OUT rather than
-         * an empty map with a comment about idempotence over it.
-         */
-        saying: {
-          readAll: () => new Map(saying.onWire()),
-          upsert: () => {},
-          remove: () => {},
-        },
       },
       /**
        * A poll-shape stream is three things and the framework wires them into
@@ -2056,204 +1671,6 @@ export const bind = (
       // than defaulted, which is the boot-time spelling of the error rule.
       onStreamReadError: (error, { stream }) => readFailed(stream, error, say),
       procedures: {
-        chat: {
-          // The ids the composer was armed with become NODES here, over the
-          // same reading a keystroke's write is resolved against
-          // ({@link ./context.ts}) — so what the agent is told is the set's
-          // answer rather than the tab's, and an id nothing declares refuses
-          // the send instead of quietly sending a message with no subject.
-          send: ({ input }) =>
-            withChat((open) =>
-              Effect.flatMap(wiring.ops.read, (at) => {
-                const context = contextFor(at, input.context ?? [])
-                if (Result.isFailure(context)) return Effect.fail(context.failure)
-                return open.send(
-                  input.text,
-                  input.attachments ?? [],
-                  context.success,
-                  // Straight through: whether this send interrupts the turn in
-                  // flight is a gesture a person made, and this end has no
-                  // second opinion about what they meant by it.
-                  input.steer ?? false,
-                )
-              })
-            ),
-          // The chunk goes straight through, and so does the answer: what a
-          // chunk MEANS — which file it continues, whether that file is this
-          // conversation's, what the file ends up being called — belongs to
-          // the chat, and re-deciding any of it here would be a second opinion
-          // about the same bytes.
-          attach: ({ input }) => withChat((open) => open.attach(input)),
-          // Straight through, like the chunk above and for its reason: which
-          // row is still undelivered, and what the prompt behind it was, is
-          // the chat's own record — a second opinion here would be a second
-          // answer to "what did that message actually say".
-          resend: ({ input }) => withChat((open) => open.resend(input.id)),
-          cancel: () => withChat((open) => open.cancel),
-          // WITH the agent the browser named — every new chat asks which one,
-          // and this end has no default to fall back on if it did not.
-          newSession: ({ input }) => withChat((open) => open.newSession(input.agent)),
-          /**
-           * A NODE AGENT'S SESSION, STARTED — the one gesture that binds a node
-           * to a conversation, and the only procedure here that is two verbs
-           * rather than a pass-through.
-           *
-           * IT IS COMPOSED HERE because this is the only place both halves are
-           * in hand: `newSession` is the chat's, writing a property is the ops
-           * layer's, and neither package has ever seen the other. The same
-           * arrangement the roster's own join is under ({@link ./agents.ts}).
-           *
-           * SESSION FIRST AND THE PROPERTY AFTER IT, which is the guarantee the
-           * surface promises: `newSession` has RESOLVED by the time the state
-           * is read, so the id written down is a conversation that exists. The
-           * other order would leave a property naming a session nobody opened
-           * every time the agent failed to start.
-           *
-           * THE STATE IS READ RATHER THAN ANSWERED, because the chat's verb
-           * hands back nothing — a conversation is a thing the panel enters,
-           * not a value a call returns, and every other reader learns which one
-           * from the same cell. `null` there is an open that landed on no
-           * conversation, which nothing has ever produced and which must not
-           * become a property naming the empty string.
-           *
-           * NOT CONDITIONAL. `was` is omitted, so this overwrites whatever the
-           * key holds: the property is what the person just pressed a menu
-           * entry to set, and the value it held is the engine that press named
-           * anyway.
-           *
-           * ... WHICH IS ALSO THE *FRESH SESSION* AFFORDANCE, and the only
-           * thing that makes it one is the node already having a session: the
-           * panel's header offers this verb on a bound node under a label
-           * saying what it means, and the same two acts run. What the bound
-           * case owes besides is the LINEAGE — the conversation being replaced
-           * must not come back as a chat nobody claims — so the binding is read
-           * BEFORE the open, and the session it named is written down as
-           * superseded by the one that took its place (`@olai/chat`'s
-           * `succession.ts`). Read before, because by the time the property has
-           * been rewritten the roster's answer is the new session.
-           */
-          startAgentSession: ({ input }) =>
-            withChat((open) =>
-              Effect.gen(function*() {
-                const was = wiring.agents?.nodeAt(input.node) ?? null
-                yield* open.startAgentSession(input.node, input.agent)
-                const now = open.state().session
-                if (now === null) {
-                  return yield* new UsageFailure({
-                    reason: `${input.agent} opened no conversation to bind to this node`,
-                  })
-                }
-                yield* applyEdit({
-                  verb: "prop",
-                  id: input.node,
-                  key: AGENT_PROP,
-                  value: sessionValue(input.agent, now.id),
-                })
-                // WHAT THIS ONE REPLACED, where it replaced anything: only a
-                // node that WAS bound has a predecessor, and only to a
-                // conversation that is not the one just opened — an agent that
-                // answers `session/new` with an id it already had (the scripted
-                // one does) must not supersede a session with itself.
-                if (was?.session != null && was.session !== now.id) {
-                  yield* open.replaced(
-                    { agent: was.engine, session: was.session },
-                    now.id,
-                  )
-                }
-              })
-            ),
-          /**
-           * A CONVERSATION THAT ALREADY EXISTS, GIVEN A NODE — the migration
-           * gesture, and the other procedure here that is two verbs.
-           *
-           * COMPOSED HERE for its sibling's reason exactly: the property is the
-           * ops layer's, the mark is the chat's record, and neither package has
-           * seen the other. What differs is the ORDER and why it is that way
-           * round. Nothing has to be opened, so both halves are about things
-           * that already exist — and the durable one goes first, because the
-           * assignment IS the property: a mark written before a write that then
-           * failed would be a session believing it had been assigned to a node
-           * that never claimed it.
-           *
-           * THE REFUSAL IS READ HERE and not taken from the browser, against
-           * the roster's own reading rather than the tab's: a node already
-           * talking through a conversation keeps it, and *one agent, one
-           * current session* is the whole sentence. The list dims such a node
-           * where somebody can see it before pressing, which is a courtesy; the
-           * check that must not be racing is this one.
-           *
-           * THE VALUE IS WRITTEN WHOLE — engine and session, off the chat — so
-           * a node that named another engine is re-pointed rather than left
-           * naming one engine and another's conversation.
-           */
-          assignSession: ({ input }) =>
-            withChat((open) =>
-              Effect.gen(function*() {
-                const held = wiring.agents?.nodeAt(input.node) ?? null
-                if (held?.session != null) {
-                  return yield* new UsageFailure({
-                    reason: `“${held.title}” is already talking through a conversation — ` +
-                      `one agent, one current session. Give it a fresh session from the ` +
-                      `panel, or take the session off its \`${AGENT_PROP}\` property first.`,
-                  })
-                }
-                yield* applyEdit({
-                  verb: "prop",
-                  id: input.node,
-                  key: AGENT_PROP,
-                  value: sessionValue(input.agent, input.session),
-                })
-                // ... AND THAT IT ARRIVED BY ASSIGNMENT, which is what the
-                // session is taught on its next message (`@olai/chat`'s
-                // `teaching.ts`). After the write and never refusing: the
-                // assignment has landed, and a mark that could not be written
-                // costs the migration contract rather than the binding.
-                yield* open.assignedTo(input.node, {
-                  agent: input.agent,
-                  session: input.session,
-                })
-              })
-            ),
-          // ... and the answer to the panel's own question, which opens the
-          // conversation that agent's boot would have adopted rather than a
-          // fresh one. Two verbs because they mean two things — see the
-          // surface's declaration.
-          chooseAgent: ({ input }) => withChat((open) => open.chooseAgent(input.agent)),
-          loadSession: ({ input }) =>
-            withChat((open) => open.loadSession(input.agent, input.id)),
-          // No input, for the reason the member says: which open was refused is
-          // the chat's own record, and a browser naming one would be picking a
-          // conversation nobody asked for.
-          reopen: () => withChat((open) => open.reopen),
-          sessions: () => withChat((open) => open.sessions),
-          answer: ({ input }) => withChat((open) => open.answer(input.id, input.answers)),
-          decline: ({ input }) => withChat((open) => open.answer(input.id, null)),
-          // WHOSE doorbell is checked HERE and nowhere below, because this is
-          // the only place that has the composed list: a name this serve did not
-          // compose, or one whose half declares no wake, would store a pick
-          // nothing will ever read. Refused in words, the same treatment
-          // `chooseAgent` gives an agent id this machine does not have — a stale
-          // tab is not a fault.
-          //
-          // The conversation goes straight through as the pair the chat's own
-          // verb takes. What this end must NOT do is substitute "whichever
-          // conversation is open": the panel's session can move under a picker
-          // somebody left open, and the chat is where that race is answered.
-          scope: ({ input }) =>
-            withChat((open) =>
-              composedWake(input.plugin)
-                ? open.scope(
-                  { agent: input.agent, session: input.session },
-                  input.plugin,
-                  input.file,
-                )
-                : Effect.fail(
-                  new UsageFailure({
-                    reason: `no plugin called \`${input.plugin}\` rings a conversation here`,
-                  }),
-                )
-            ),
-        },
         // One verb, over the union the wire declares — so a verb added there
         // is answered by `requestFor` or it does not compile, and there is no
         // binding here to forget. What the answer NARROWS the ops layer's to
@@ -2627,68 +2044,6 @@ export const bind = (
        */
       get faces() {
         return facesOf(siblings())
-      },
-      publish: {
-        live: republishAgents,
-        state: (state) => {
-          runtime.ctx.cells.chat.set(state)
-          // ... AND THE ROSTER WITH IT, because this is the one door every chat
-          // frame comes through and the bindings move behind exactly these
-          // frames: a session opening, a contract taught, a line written down
-          // at the end of a turn. The cell's `equals` is what makes it free on
-          // the frames that moved nothing, which is nearly all of them
-          // ({@link republishAgents}).
-          republishAgents()
-          const who = whoOf(state)
-          if (who !== null) {
-            if (state.status === "thinking" && lastStatus !== "thinking") {
-              agentSeqAtTurn = Math.max(
-                -1,
-                ...[...(chat?.entries().values() ?? [])]
-                  .filter((entry): entry is Extract<ChatEntry, { kind: "agent" }> =>
-                    entry.kind === "agent"
-                  )
-                  .map((entry) => entry.seq),
-              )
-              seen({ kind: "turn", ...who, status: "working" })
-            }
-            if (lastStatus === "thinking" && state.status !== "thinking") {
-              seen({ kind: "turn", ...who, status: "done" })
-              const produced = [...(chat?.entries().values() ?? [])]
-                .filter((entry): entry is Extract<ChatEntry, { kind: "agent" }> =>
-                  entry.kind === "agent" && entry.seq > agentSeqAtTurn
-                )
-                .sort((a, b) => a.seq - b.seq)
-                .at(-1)
-              if (produced !== undefined && produced.text !== "") {
-                seen({ kind: "replied", id: produced.id, ...who, text: produced.text })
-              }
-            }
-          }
-          lastStatus = state.status
-        },
-        // Through the CADENCE, never straight onto the collection: a row that
-        // grows reaches the wire as pieces on a clock rather than as itself
-        // once per token (`transcript-stream-quadratic`). What comes back out
-        // is a frame, and {@link apply} writes it in the one order that
-        // never shows a paragraph getting shorter.
-        transcript: (change) => {
-          saying.publish(change)
-          const who = chat === null ? null : whoOf(chat.state())
-          if (who === null) return
-          const whoKey = `${who.agent}/${who.session}`
-          if (deliveredFor !== whoKey) {
-            deliveredIds.clear()
-            deliveredFor = whoKey
-          }
-          for (const [, entry] of change.upserts) {
-            if (entry.kind === "user" && entry.rang !== undefined && entry.text !== "") {
-              if (deliveredIds.has(entry.id)) continue
-              deliveredIds.add(entry.id)
-              seen({ kind: "delivered", id: entry.id, from: entry.rang, ...who, body: entry.text })
-            }
-          }
-        },
       },
     }
   })
