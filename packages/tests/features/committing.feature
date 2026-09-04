@@ -156,11 +156,7 @@ Feature: Committing on purpose
     # republished, which is what says the push landed rather than sitting in
     # flight.
     Given the served repository has a remote
-    When I open the preferences
-    Then the Git push row explains that a commit "is pushed"
-    And this browser has stored nothing about git
-    When I press Escape on the preferences
-    Then the preferences are shut
+    Then this browser has stored nothing about git
     When I rewrite "notes.md" as:
       """
       the herb bed needs splitting again
@@ -214,14 +210,10 @@ Feature: Committing on purpose
     # The loop is the SERVER's, driven by flags, not a preference. `headless.test.ts`
     # in @olai/server is the other half — the same window, with no browser anywhere.
     Given the served repository has a remote
-    When I open the preferences
-    Then the Git commit row explains that a write "records what is waiting"
-    # NOTHING IS STORED HERE. The rows draw the instance's policy, so a key of
-    # either name in this browser is the shape this feature retired — a quiet
-    # window that only ran while a tab was open.
-    And this browser has stored nothing about git
-    When I press Escape on the preferences
-    Then the preferences are shut
+    # NOTHING IS STORED HERE. A key of either git name in this browser is the
+    # shape this feature retired — a quiet window that only ran while a tab
+    # was open.
+    Then this browser has stored nothing about git
     And the commit pill says auto-commit is "armed"
     When I rewrite "garden.olai" as:
       """
@@ -271,10 +263,7 @@ Feature: Committing on purpose
     # its own and the pill carries the honest count of what is recorded here and
     # nowhere else — which is the fact the header exists to surface.
     Given the served repository has a remote
-    When I open the preferences
-    Then the Git push row explains that a commit "waits"
-    When I press Escape on the preferences
-    And I rewrite "notes.md" as:
+    When I rewrite "notes.md" as:
       """
       the herb bed needs splitting again
       """
@@ -345,8 +334,8 @@ Feature: Committing on purpose
     When I reload the page
     Then the commit pill says auto-commit is "paused"
     And the commit pill says the push was refused
-    When I open the preferences
-    Then the preferences offer to resume auto-commit
+    When I open the commit panel
+    Then the commit panel offers to resume auto-commit
     When I resume auto-commit
     Then the commit pill says auto-commit is "armed"
     And there should be no page errors

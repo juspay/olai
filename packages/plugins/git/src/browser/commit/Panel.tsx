@@ -41,9 +41,9 @@
 import { isReady } from "@olai/format"
 import { createSignal, Show } from "solid-js"
 
-import { agoOf } from "./ago.ts"
-import { type Anchor, styleOf } from "../anchor.ts"
-import { PANEL_BOX } from "../readout.ts"
+import { agoOf } from "@olai/web/client/ago.ts"
+import { type Anchor, styleOf } from "@olai/web/client/anchor.ts"
+import { PANEL_BOX } from "@olai/web/client/readout.ts"
 import {
   AUTO_ARMED,
   AUTO_STOPPED,
@@ -59,7 +59,7 @@ import { Others } from "./Others.tsx"
 import { Outlines } from "./Outlines.tsx"
 import { createSelection } from "./selection.ts"
 import { canRecord, type Commit } from "./state.ts"
-import { TESTID } from "../testids.ts"
+import { TESTID } from "../../testids.ts"
 import { Unpushed } from "./Unpushed.tsx"
 
 export function Panel(props: {
@@ -207,6 +207,14 @@ export function Panel(props: {
         <p class="text-xs text-alarm" data-testid={TESTID.commitAutoPaused}>
           ⚠ {AUTO_STOPPED}
         </p>
+        <button
+          type="button"
+          class="self-start rounded border border-rule px-3 py-1.5 text-xs hover:text-ink"
+          data-testid={TESTID.commitResume}
+          onClick={() => props.commit.resume()}
+        >
+          Resume
+        </button>
       </Show>
 
       {/* Why the button is disabled — said, rather than left for somebody to

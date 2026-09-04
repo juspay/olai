@@ -17,10 +17,9 @@
  * what the SERVE is running, for everybody looking at it — which is a different
  * kind of thing from a theme, and still wants a door of its own.
  *
- * The two git rows stay on preferences and are frozen the same way they always
- * were, which looks like the case this panel used to be and is not any more:
- * they are policy over THIS DIRECTORY, which is what the rest of that panel is
- * about, and they are still the server's alone.
+ * A row's config is drawn under it, read-only, as data: core knows none of
+ * the plugin's words. `--commit=auto` is `commit: auto` on the git row.
+ * User-editable settings are a later phase.
  *
  * ## THE ROWS ARE A SWITCH NOW
  *
@@ -144,7 +143,14 @@ import { Row } from "../settings/Row.tsx"
 import { pluginPref, TESTID } from "../testids.ts"
 import { olai } from "../wire.ts"
 
-import { type PluginPick, pluginHint, pluginRows, pluginsStarted, pluginSwitch } from "./rows.ts"
+import {
+  type PluginPick,
+  pluginConfig,
+  pluginHint,
+  pluginRows,
+  pluginsStarted,
+  pluginSwitch,
+} from "./rows.ts"
 
 /** The two words a plugin's strip can read. LIVE in both directions now: a row
  *  that is off can be started and a row that is running can be stopped, and the
@@ -274,6 +280,7 @@ export function Panel(props: {
               // one fact for the panel and is at the foot. Neither prop being
               // passed is why these rows are a name and a switch on one line.
               hint={pluginHint(plugin)}
+              under={<Config values={pluginConfig(plugin)} />}
             >
               <Segmented
                 choices={PLUGIN_CHOICES}
@@ -338,6 +345,31 @@ export function Panel(props: {
         </p>
       </Show>
     </section>
+  )
+}
+
+/** A ROW'S CONFIG, as key/value pairs. Nothing renders nothing — a row with
+ *  no config is a name and a switch, and an empty `<dl>` would be a box. */
+function Config(props: {
+  readonly values: ReadonlyArray<readonly [string, string]>
+}) {
+  return (
+    <Show when={props.values.length > 0}>
+      <dl class="mt-1.5 text-xs leading-relaxed text-muted">
+        <For each={props.values}>
+          {([key, value]) => (
+            <div
+              class="flex gap-x-2"
+              data-testid={TESTID.pluginConfig}
+              data-config={key}
+            >
+              <dt>{key}</dt>
+              <dd>{value}</dd>
+            </div>
+          )}
+        </For>
+      </dl>
+    </Show>
   )
 }
 

@@ -777,8 +777,10 @@ export { biggestOf, changesOf, Field, NodeChange, Sort } from "./changes.ts"
 export type { Records } from "./changes.ts"
 
 export {
+  COMMIT_BUTTON,
   COMMIT_DEFAULT,
   COMMIT_MODES,
+  COMMIT_TOOL,
   type CommitMode,
   CommitRequest,
   CommitResult,

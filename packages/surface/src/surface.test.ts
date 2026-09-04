@@ -2,13 +2,11 @@ import { expect, test } from "bun:test"
 
 import { Schema, SchemaAST } from "effect"
 
-import { DEFAULT_POLICY, NO_PIN } from "@olai/format"
 import { keyings, type Keying } from "./keyings.testlib.ts"
 
 import {
   ASSET_PREFIX,
   DocumentEntry,
-  type GitState,
   LOADED,
   Manifest,
   NO_ROSTER,
@@ -78,56 +76,6 @@ test("the manifest carries nothing, and knows when it has not changed", () => {
   expect(surface.spec.cells.manifest.equals?.(LOADED, {})).toBe(true)
   expect(surface.spec.cells.manifest.equals?.(LOADED, null)).toBe(false)
 })
-
-// The OTHER half of the one survey the header's git indicator draws.
-//
-// `pending` declares an `equals` so the server's thirty-second sweep does not
-// frame every open tab with what it already knew. This cell is recomputed by
-// the SAME statement on the SAME two clocks (`server/runtime.ts`'s
-// `republishGit` sets both), and a derivation is a fresh object every time — so
-// without one of its own it framed every tab twice a minute saying `repo`,
-// which is what restarted Auto-commit's quiet window on a frame nobody typed.
-test("what git is doing knows when it has not changed", () => {
-  const healthy: GitState = GIT_OFF_REPO
-  expect(surface.spec.cells.git.equals?.(healthy, { ...GIT_OFF_REPO })).toBe(true)
-  // ... and the two states it must still tell apart: the fault, and the words
-  // on it, which are the whole of what #108 fought for.
-  expect(
-    surface.spec.cells.git.equals?.(healthy, { ...healthy, status: "error" }),
-  ).toBe(false)
-  expect(
-    surface.spec.cells.git.equals?.(
-      { ...healthy, status: "error", said: "no user.email" },
-      { ...healthy, status: "error", said: "gpg failed" },
-    ),
-  ).toBe(false)
-  // ... and every fact this cell carries BESIDE the repository's own state,
-  // each of which a page draws something different for. A frame that swallowed
-  // one of these is a control left saying the last thing it was told: a live
-  // preference row over a frozen one, a running loop over a stopped one, or —
-  // the one this feature is named after — `✓ committed` over a failing push.
-  for (
-    const moved of [
-      { pinned: { commit: "auto", push: null } },
-      { policy: { commit: "auto", push: "off" } },
-      { pushSaid: "! [rejected] main -> main" },
-      { paused: "! [rejected] main -> main" },
-    ] as const
-  ) {
-    expect(surface.spec.cells.git.equals?.(healthy, { ...healthy, ...moved })).toBe(false)
-  }
-})
-
-/** A perfectly ordinary repository, and the baseline every case above moves one
- *  field of. */
-const GIT_OFF_REPO: GitState = {
-  status: "repo",
-  said: null,
-  pinned: NO_PIN,
-  policy: DEFAULT_POLICY,
-  pushSaid: null,
-  paused: null,
-}
 
 // snapshot-scale, as a test of the DECLARATION. `deltas` opens with a snapshot
 // of every entry, and a documents entry is a `.md` body — so declaring it here
@@ -219,10 +167,10 @@ test("every declaration names a field its own schema carries, and no other membe
   // are read through the batched `deltas` delivery, which replaces
   // each named leaf whole rather than merging, so there is no merge for a key to
   // govern. `documents` is served per key and would honour one, but a document
-  // entry is a revision and a body; `manifest`, `git`, `dated`, `owed`,
-  // `inbox` and `moving` carry no array of objects at all.
+  // entry is a revision and a body; `manifest`, `dated`, `owed`,
+  // `inbox` and `moving` carry no array of objects at all. Git's cells left
+  // with the plugin (`olai-plugin-git`'s own suite holds them).
   expect(declaring.map((one) => `${one.name} → ${one.arrayKey}`).sort()).toEqual([
-    "cells.pending → path",
     "cells.pins → id",
     "cells.plugins → name",
     "streams.page → key",
@@ -289,23 +237,6 @@ test("the pins cell is keyed by the field a Pinned carries", () => {
   expect(keyingsOf("cells.pins").get("")).toBe("keyed")
 })
 
-test("the pending cell is keyed by the one name its two row lists share", () => {
-  expect(surface.spec.cells.pending.arrayKey).toBe("path")
-  const found = keyingsOf("cells.pending")
-  // BOTH lists, because one field per member has to key both or key neither —
-  // and `@olai/format`'s `Other` already promises they spell it the same way.
-  expect(found.get("outlines")).toBe("keyed")
-  expect(found.get("others")).toBe("keyed")
-  expect(found.get("changes")).toBe("positional")
-  expect(found.get("wrote")).toBe("positional")
-  // `file` is the near-miss, and it is not a taste: it keys `outlines` too, and
-  // it REPEATS inside `changes` — several node changes per file, since
-  // `changesOf` matches by id across files — which is a key that decides
-  // identity by collision, exactly as `file` would on `errors`.
-  const pending = MEMBERS.find((one) => one.name === "cells.pending")!
-  expect(keyings(pending.value, "file").get("changes")).toBe("keyed")
-})
-
 // ── which plugins this build has, and which this serve runs ────────────
 
 // The roster is minted once per serve, so no frame of it repeats and the merge
@@ -323,9 +254,8 @@ test("the plugin roster is keyed by the one word core knows about a plugin", () 
  *
  * A seed listing the build's plugins as `running: false` would flash "kolu is
  * off" at a serve that is running kolu, on the panel whose whole job is saying
- * which are on — the same mistake `GIT_OFF` avoids by seeding the git cell with
- * the setting face rather than the fault. An empty roster draws no rows at all,
- * which is also exactly what a runtime composing no plugins publishes.
+ * which are on. An empty roster draws no rows at all, which is also exactly
+ * what a runtime composing no plugins publishes.
  */
 test("a page that has heard nothing has no plugin rows and no flag to name", () => {
   expect(surface.spec.cells.plugins.default).toEqual(NO_ROSTER)

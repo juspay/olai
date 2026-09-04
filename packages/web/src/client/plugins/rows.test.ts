@@ -31,6 +31,7 @@ import { NO_ROSTER, type PluginRoster } from "@olai/surface"
 import { expect, test } from "bun:test"
 
 import {
+  pluginConfig,
   pluginHint,
   PLUGINS_SESSION_ONLY,
   pluginRows,
@@ -519,4 +520,16 @@ test("no row repeats what the panel says once", () => {
     // correct at the import and is false on screen.
     expect([said, said.includes("cannot be changed")]).toEqual([said, false])
   }
+})
+
+test("a row's config is pairs of the keys it carries, and nothing without one", () => {
+  expect(pluginConfig({ name: "alpha", running: true })).toEqual([])
+  expect(pluginConfig({
+    name: "alpha",
+    running: true,
+    config: { commit: "auto", push: "off" },
+  })).toEqual([
+    ["commit", "auto"],
+    ["push", "off"],
+  ])
 })

@@ -276,19 +276,12 @@ describe("the plugins this binary was built with", () => {
     }
   })
 
-  test("no plugin asks for the agent's face, and the denial is the DATA", () => {
-    // Neither tenant writes an `agent` map, so `exposeMapsOf` answers with an
-    // empty record and the constructor denies every sibling in full — the
-    // universe still names their tags, so the face binds and each member answers
-    // `SurfaceMemberNotExposed` to whoever asks. Nothing in `@olai/server` says
-    // "plugins are browser-only"; the day one of them decides otherwise it
-    // writes the map in its own package and the composition changes nothing.
+  test("no plugin is on the agent's face", () => {
+    // Chat, the appliances, and git are browser-only. MCP tools stay named
+    // `commit` / `push` (ops table) and call through that door; nothing in
+    // `@olai/server` writes an agent map, and no plugin ships one.
     expect(exposeMapsOf(WIRES, "agent")).toEqual({})
-    const denied = siblingFace("agent")
-    expect(denied.tags.size).toBe(0)
-    expect(contributed(denied.universe).length).toBeGreaterThan(0)
-    // ...and the browser's is not empty, so the assertion above is about a
-    // decision rather than about a helper that answers nothing.
+    expect(siblingFace("agent").tags.size).toBe(0)
     expect(siblingFace("browser").tags.size).toBeGreaterThan(0)
   })
 })

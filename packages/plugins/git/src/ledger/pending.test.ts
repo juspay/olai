@@ -28,11 +28,14 @@ import * as Store from "@olai/store"
 import { describe, expect, test } from "bun:test"
 import { Effect, type Scope } from "effect"
 
-import { codecFor } from "./codec.ts"
-import type { Store as OutlineStore } from "./deps.ts"
-import { GIT_IDENT, GIT_IDENT_KEYS, gitIn, repoAt, writerOf } from "./fixtures.testlib.ts"
-import * as Ops from "./ops.ts"
-import { COMMIT_TOOL, fixedPolicy, whyOf } from "./pending.ts"
+import { codecFor } from "@olai/ops"
+import type { Reading, Verdict } from "@olai/format"
+import type * as StoreModule from "@olai/store"
+import { GIT_IDENT, GIT_IDENT_KEYS, gitIn, repoAt, writerOf } from "../git/fixtures.testlib.ts"
+import * as Ops from "@olai/ops"
+import { COMMIT_TOOL, fixedPolicy, make as makeLedger, whyOf } from "./pending.ts"
+
+type OutlineStore = StoreModule.Store<Reading, Verdict>
 
 /** The codec this suite validates through — the vocabulary of a build that
  *  composed no plugin, which is what every test in this package runs under
@@ -46,8 +49,13 @@ const HOUSE = [
   "",
 ].join("\n")
 
+type GitOps = Ops.Ops & Pick<
+  ReturnType<typeof makeLedger>,
+  "pending" | "status" | "observe" | "loop" | "git" | "catchUp"
+>
+
 interface Fixture {
-  readonly ops: Ops.Ops
+  readonly ops: GitOps
   /** The REPOSITORY root. Every path a test writes and every `git` it runs is
    *  relative to this, which is what lets a served-subdirectory scenario write
    *  a file above the served root. */
@@ -146,17 +154,37 @@ const withRepo = <A>(
       watch: false,
       settle: "10 millis",
     })
-    const ops = Ops.make({
-      store,
-      root: served,
-      policy: fixedPolicy({
-        commit: options.commits ?? "manual",
-        push: options.pushes ?? null,
-      }),
-      ...(options.quiet === undefined ? {} : { quiet: options.quiet }),
-      onSettled,
-      context: { mint: () => "minted", now: () => "2026-08-10T09:00:00-04:00" },
+    const policy = fixedPolicy({
+      commit: options.commits ?? "manual",
+      push: options.pushes ?? null,
     })
+    const ledger = makeLedger({
+      at: Effect.map(store.read("cheap"), (s) => s.snapshot?.value ?? null),
+      root: served,
+      policy,
+      onSettled,
+      ...(options.quiet === undefined ? {} : { quiet: options.quiet }),
+    })
+    const ops: GitOps = {
+      ...Ops.make({
+        store,
+        root: served,
+        ledger: {
+          wrote: ledger.wrote,
+          whyWaiting: ledger.whyWaiting,
+          record: ledger.commit,
+          push: ledger.push,
+          resume: ledger.resume,
+        },
+        context: { mint: () => "minted", now: () => "2026-08-10T09:00:00-04:00" },
+      }),
+      pending: ledger.pending,
+      status: ledger.status,
+      observe: ledger.observe,
+      loop: ledger.loop,
+      git: ledger.git,
+      catchUp: ledger.catchUp,
+    }
     return yield* use({
       ops,
       root,

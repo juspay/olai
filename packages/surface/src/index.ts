@@ -48,11 +48,6 @@
  *     the entries: a set that stops validating leaves the last good tree on
  *     screen underneath a banner, which is only expressible if the two arrive
  *     separately.
- *   - `git` is a CELL, for the same reason and about the other half of what a
- *     write costs: whether this directory is a repository, and whether the last
- *     commit worked. A directory that is not one, or a git that cannot be run,
- *     is news a reader is owed rather than a line in a server log
- *     ({@link GitState}).
  *   - `pins` is a CELL, and it is the first member here that carries a READING
  *     of the set rather than the set: the sidebar's shelf, recomputed per
  *     revision and sent when it changed by value. It is where
@@ -89,13 +84,8 @@
  * install manifest's `name` all draw the one spelling the name answers
  * with; the header's quiet uptime chip ticks from the instant.
  *
- * One more is GIT, and it is a cell with two verbs beside it rather than a
- * member: a `pending` cell — what is waiting to be committed, and what is
- * committed and not pushed, derived from git on the server and never stored —
- * plus `git.commit` and `git.push`, which are the Commit and Push buttons' half
- * of the same two actions the agent reaches through MCP tools. They are
- * PROCEDURES rather than write verbs on the cell because each is an act with
- * four answers, three of which are refusals a reader has to be shown.
+ * Git left this spec with the plugin: the two cells and the three verbs live
+ * on `olai-plugin-git`'s own sibling surface. Core names none of them.
  *
  * Three more are the chat, and they are declared next door in
  * {@link ./chat.ts} because they are a subject of their own: a `transcript`
@@ -122,7 +112,7 @@
  *     about any page.
  *
  * FIVE MEMBERS DECLARE WHAT IDENTIFIES A ROW — `page` by `key`, `pins` by
- * `id`, `pending` by `path`, `chat` and `plugins` by `name` — and that is the one thing about
+ * `id`, `plugins` by `name` — and that is the one thing about
  * this spec that is not about the wire at all. `arrayKey` is read where a
  * browser MERGES a frame into its store (`@kolu/surface`'s `writeValue.ts`,
  * juspay/kolu#2190): undeclared, a frame replaces every element of every array
@@ -144,8 +134,8 @@
  * into it — a `fold` consumer may be holding that very object — so there is no
  * merge there for a key to govern. `documents` is served per key and would
  * honour one; a document entry is a revision and a body, and holds no array.
- * `manifest`, `git`, `inbox` and `moving` carry no array of OBJECTS at all —
- * an empty struct, two strings, one integer, and a nullable row beside a list of nullable
+ * `manifest`, `inbox` and `moving` carry no array of OBJECTS at all — an
+ * empty struct, two integers, and a nullable row beside a list of nullable
  * strings — so there is nothing there for identity to be about. `surface.test.ts` reads the declaring set off this
  * spec rather than off a list, so the sentence above is checked rather than
  * kept by hand.
@@ -168,13 +158,7 @@
 
 import {
   BrokenFile,
-  CommitRequest,
-  CommitResult,
   Face,
-  GIT_OFF,
-  GitPin,
-  GitPolicy,
-  GitState,
   HomesAnswer,
   HomesRequest,
   InboxHeld,
@@ -184,14 +168,9 @@ import {
   NO_INBOX,
   NO_PINS,
   OpFailure,
-  NOTHING_PENDING,
   NOTHING_WRONG,
-  Pending,
-  PushResult,
 
-  sameGit,
   sameInboxHeld,
-  samePending,
   sameShelf,
   Shelf,
   TagsAnswer,
@@ -505,48 +484,6 @@ export type Manifest = typeof Manifest.Type
 /** A directory that has loaded, as the one value there is of it. */
 export const LOADED: Manifest = {}
 
-/**
- * What git is doing for the served directory.
- *
- * A member because of a bug: writes came back `committed: false` with nothing
- * on screen saying so, on a directory its owner knew was a repository, and the
- * reason went to the server log where a browser reader never sees it. Every
- * cause looked the same from out here — no work tree, no git on the service's
- * PATH, a refused commit, an identity nobody set — so the page could not have
- * told the truth even if it had wanted to. Now the server says which, and the
- * four states are four different things to draw — on the ONE control the header
- * has for git, which reads this beside `pending` (`web/src/client/commit/`):
- *
- *   - `off` — `--no-commit`. An owner's choice, so it is drawn as a setting:
- *     dim, inert, and never a warning.
- *   - `repo` — a work tree, and writes are committing. Quiet: this is the
- *     healthy default and a page that shouted it would teach a reader to
- *     ignore the thing that matters.
- *   - `none` — not a work tree. Calm and informational: "no git here".
- *   - `error` — git tried and could not, and `said` is its own words. The one
- *     face that warns, and the words ride its tip and its `aria-label`.
- *
- * It carries a FIFTH fact that is not one of those four and is not about the
- * repository at all: `pinned`, which is the `--commit` / `--push` flags this
- * server was started with, `null` for each one nobody gave. It rides this cell
- * rather than a cell of its own because the preferences panel that draws it is
- * drawing the same server's answer about the same directory, and `off` above is
- * already exactly that answer wearing the repository's clothes. What a browser
- * does with it — draw the two git preference rows read-only, naming a given
- * flag or the built-in default — is `web/src/client/plugins/`.
- *
- * A CELL, and read-only on the wire, for the reason the manifest is: one value
- * the server owns, about the directory rather than about any file in it. It
- * moves twice at most in an ordinary serve — once when the directory is probed,
- * and again if a commit ever refuses — so nothing here is a stream of anything.
- *
- * The shape is `@olai/format`'s, re-exported rather than declared, the way
- * `Pending` and `RepoState` are — one declaration on the floor this spec and
- * the ops layer both stand on, so there is no second spelling to drift. Its
- * before-first-frame default `GIT_OFF` travels with it.
- */
-export { GIT_OFF, GitPin, GitPolicy, GitState }
-
 /** When two answers are the same answer, so the cell can stay quiet. There is
  *  exactly one thing this value can say, so there is exactly one thing that can
  *  change about it: whether there is a set. */
@@ -595,73 +532,6 @@ export const surface = defineSurface({
       default: null,
       verbs: ["get"],
       equals: sameSet,
-    },
-    /** What git is doing for this directory — see {@link GitState}. Wire-read-only:
-     *  it is the server's reading of somebody's working tree, and nothing a
-     *  browser could set. Derived from the same survey {@link pending} is, so
-     *  the one control that reads both cannot contradict itself. */
-    git: {
-      schema: GitState,
-      default: GIT_OFF,
-      verbs: ["get"],
-      /** The same `equals` the pending cell below declares, and the omission it
-       *  is fixing is the pair coming apart: both are recomputed from ONE
-       *  survey by ONE statement, on every revision AND on the server's
-       *  thirty-second sweep, and a derivation is a fresh object every time. So
-       *  without this a healthy repository framed every open tab twice a minute
-       *  saying `repo` — which is what restarted the quiet window on a frame
-       *  nobody typed, back when that window lived in a browser tab. It is the
-       *  server's now, and re-arms on a reading that says something new
-       *  rather than on a frame (`@olai/format`'s `armedOn`), so this is the
-       *  wire staying quiet rather than the loop's only defence. */
-      equals: sameGit,
-    },
-    /**
-     * What is waiting to be committed — the count in the chrome, and every row
-     * the Commit panel draws.
-     *
-     * A CELL because it is one value about the whole served directory, and
-     * wire-read-only because it is DERIVED: the server recomputes it from git
-     * on every published revision and on a slow sweep of its own (nothing
-     * watches `.git`), and a browser that could write it would be a browser
-     * holding a second answer to a question git already answers.
-     *
-     * Its default is the empty one rather than `null`, and there is no third
-     * state to tell apart: a page that has not heard yet, a directory that is
-     * not a repository and a server with `--commit=off` all draw the same
-     * thing, which is nothing at all.
-     */
-    pending: {
-      schema: Pending,
-      default: NOTHING_PENDING,
-      verbs: ["get"],
-      /** The server recomputes this on a timer as well as on every revision,
-       *  and a derivation is a fresh object every time — so without an
-       *  `equals` every open tab would get a frame every thirty seconds
-       *  saying exactly what it already knew. */
-      equals: samePending,
-      /** A DIRTY ROW IS ITS `path` — and the two lists of rows this cell
-       *  carries agree about that already, deliberately: `@olai/format`'s
-       *  `Other` docstring says `path` "is spelled the same as
-       *  {@link DirtyOutline}'s `path` and means the same thing… the two lists
-       *  are two kinds of ROW and one namespace of keys". One declaration
-       *  therefore keys both, which is what one field per member needs.
-       *
-       *  What it stops: `commit/Outlines.tsx` and `commit/Others.tsx` both draw
-       *  `<For>`, which is keyed by REFERENCE, so a frame that named one newly
-       *  dirty file tore down and rebuilt every other row of the panel — every
-       *  tick somebody had put in it among them. `changes` and `wrote` carry no
-       *  `path` and merge by position, which is what their consumers read them
-       *  as.
-       *
-       *  `file` IS THE NEAR-MISS, and it is refused for `errors`' reason rather
-       *  than on taste: it keys `outlines` too, and it REPEATS inside `changes`
-       *  — `@olai/format`'s `changesOf` matches by id ACROSS files, so several
-       *  node changes share one — which is a key deciding identity by
-       *  collision. `surface.test.ts` pins that it would have keyed `changes`,
-       *  so the reason this field and not that one is a fact rather than a
-       *  memory. */
-      arrayKey: "path",
     },
     /**
      * THE PINNED SHELF — the rows of the directory's `Pins.olai`, and the live
@@ -1120,63 +990,15 @@ export const surface = defineSurface({
       },
     },
     /**
-     * The other door to the same action the agent's `commit` tool opens.
-     *
-     * A PROCEDURE rather than a write verb on the cell above: committing is
-     * not "set pending to something", it is an act with four possible answers,
-     * and three of them are refusals a reader has to be shown. What it changes
-     * is `pending`, which the server republishes the moment it is done.
-     */
-    git: {
-      commit: {
-        input: CommitRequest,
-        output: CommitResult,
-        error: OpFailure,
-      },
-      /**
-       * The other verb, and the one the human said was the last reason to leave
-       * olai for a terminal.
-       *
-       * No input at all, which is the design rather than an omission: the
-       * current branch to the upstream it already has, and nothing to choose.
-       * What it changes is `pending` — the unpushed count both the panel and the
-       * header draw — which the server republishes the moment it is done, for
-       * the same reason a commit does.
-       */
-      push: {
-        input: Schema.Struct({}),
-        output: PushResult,
-        error: OpFailure,
-      },
-      /**
-       * Start the quiet-window loop again after git stopped it.
-       *
-       * A PROCEDURE rather than a side effect of some other gesture, and that
-       * is what moving the pause to the server costs and buys: the stop is a
-       * fact about the directory, so turning a toggle off and on in one browser
-       * cannot be what clears it, and a Resume pressed in one tab clears it in
-       * every other one.
-       */
-      resume: {
-        input: Schema.Struct({}),
-        // ... and nothing comes back from this one either. What a person needs
-        // to see is that the loop is running again, which is the chip going
-        // from `paused` to `armed` on the same republish — in this tab and in
-        // every other one, which a return value could never have done.
-        output: Schema.Struct({}),
-        error: OpFailure,
-      },
-    },
-    /**
      * TURN ONE PLUGIN ON OR OFF ON THE RUNNING SERVE — the panel's switch, and
      * the one verb this build has that moves a fiber after the boot.
      *
-     * A PROCEDURE beside the cell of the same name, exactly as `git` is: the
-     * cell says what is running and this says *make it so*, and the answer to
-     * the second is the first moving. Nothing comes back but the acknowledgement
-     * — what a person is owed is the roster, which the serve republishes once
-     * the bundle has stopped moving, and a return value would be that same fact
-     * arriving on a second clock.
+     * A PROCEDURE beside the cell of the same name: the cell says what is
+     * running and this says *make it so*, and the answer to the second is the
+     * first moving. Nothing comes back but the acknowledgement — what a person
+     * is owed is the roster, which the serve republishes once the bundle has
+     * stopped moving, and a return value would be that same fact arriving on a
+     * second clock.
      *
      * ## IT WRITES NOTHING, and that is a ruling rather than an omission
      *
@@ -1472,8 +1294,7 @@ export { HomesAnswer, HomesRequest } from "@olai/format"
  *  re-exported for the same reason, so the sidebar draws the rows the reading
  *  produced rather than a second description of them. `sameShelf` does NOT come
  *  through this door: a cell declares its `equals` in the spec above, which is
- *  the only place that answer is spent (`samePending` is imported here and
- *  re-exported by nobody, for the same reason). */
+ *  the only place that answer is spent. */
 export { NO_PINS, Shelf } from "@olai/format"
 export type { Pinned } from "@olai/format"
 

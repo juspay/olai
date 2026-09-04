@@ -31,12 +31,15 @@ import { NO_KINDS } from "@olai/format"
 import * as Store from "@olai/store"
 import { Effect } from "effect"
 
-import { codecFor } from "./codec.ts"
+import { codecFor } from "@olai/ops"
+import type { Reading, Verdict } from "@olai/format"
+import type * as StoreModule from "@olai/store"
 import { type Counted, counting, forgetful } from "./committed.testlib.ts"
 import { remembering } from "./committed.ts"
-import type { Store as OutlineStore } from "./deps.ts"
-import { GIT_IDENT, GIT_IDENT_KEYS, gitIn, repoAt } from "./fixtures.testlib.ts"
+import { GIT_IDENT, GIT_IDENT_KEYS, gitIn, repoAt } from "../git/fixtures.testlib.ts"
 import { type Committing, fixedPolicy, make } from "./pending.ts"
+
+type OutlineStore = StoreModule.Store<Reading, Verdict>
 
 /** The codec this suite validates through — the vocabulary of a build that
  *  composed no plugin, which is what every test in this package runs under
@@ -117,6 +120,7 @@ export const withArms = <A>(
     const policy = fixedPolicy({ commit: "manual", push: null })
     const cachedSide = counting(remembering())
     const plainSide = counting(forgetful())
+    const at = Effect.map(store.read("cheap"), (s) => s.snapshot?.value ?? null)
     return yield* use({
       session: {
         root,
@@ -125,8 +129,8 @@ export const withArms = <A>(
         git,
       },
       settle: Effect.orDie(store.refresh("cheap")),
-      cached: make({ store, root: served, policy, committed: cachedSide.committed }),
-      plain: make({ store, root: served, policy, committed: plainSide.committed }),
+      cached: make({ at, root: served, policy, committed: cachedSide.committed }),
+      plain: make({ at, root: served, policy, committed: plainSide.committed }),
       cachedSide,
       plainSide,
       head: headOf,

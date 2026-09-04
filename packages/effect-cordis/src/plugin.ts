@@ -36,7 +36,7 @@
  */
 
 import type { Context as CordisContext } from "cordis"
-import { Cause, Context, Effect, Exit, FiberSet, Scope } from "effect"
+import { Cause, Context, Effect, Exit, FiberSet, Schema, Scope } from "effect"
 
 import { failed } from "./broadcast.ts"
 import { held } from "./host.ts"
@@ -137,18 +137,58 @@ export const detached: Effect.Effect<Detach, never, Scope.Scope> = Effect.gen(fu
 })
 
 /**
- * WHAT CORDIS MOUNTS — a plain object with the three fields the registry reads.
+ * WHAT CORDIS MOUNTS — a plain object with the fields the registry reads.
  *
  * Deliberately structural and deliberately not exported as a class: this is the
  * value a bundle row's module hands the loader (as its `default`), and the
  * loader's own contract is "a function, or an object with an `apply`". Nothing
  * about it is this package's to make ceremonious.
+ *
+ * `Config` is the row's `config:` validated at load, Standard Schema so the
+ * loader refuses an invalid value with a sentence before `apply` runs. Absent
+ * when the plugin has no config.
  */
 export interface Plugin {
   readonly name: string
   readonly inject: ReadonlyArray<string>
-  readonly apply: (ctx: CordisContext) => Promise<() => Promise<void>>
+  /** Standard Schema, so Cordis validates the row's `config:` at load. */
+  readonly Config?: {
+    readonly "~standard": {
+      readonly version: 1
+      readonly vendor: string
+      readonly validate: (
+        value: unknown,
+      ) => { readonly value: unknown } | { readonly issues: ReadonlyArray<{ readonly message: string }> }
+    }
+  }
+  readonly apply: (ctx: CordisContext, config?: unknown) => Promise<() => Promise<void>>
 }
+
+type NeedsOf<Keys extends ReadonlyArray<AnyKey>> =
+  | Scope.Scope
+  | Context.Service.Identifier<Keys[number]>
+
+/** Wrap an Effect schema as the Standard Schema Cordis validates at load.
+ *  Absent / null config becomes `{}`, so a row with no `config:` still
+ *  decodes to the schema's defaults; an invalid value fails with a sentence. */
+const standardOf = (schema: Schema.Schema<unknown>): NonNullable<Plugin["Config"]> => ({
+  "~standard": {
+    version: 1,
+    vendor: "effect-cordis",
+    validate: (value: unknown) => {
+      try {
+        const decode = Schema.decodeUnknownSync as (
+          schema: Schema.Schema<unknown>,
+        ) => (value: unknown) => unknown
+        return { value: decode(schema)(value ?? {}) }
+      } catch (error) {
+        return {
+          issues: [{ message: error instanceof Error ? error.message : String(error) }],
+        }
+      }
+    },
+  },
+})
 
 /**
  * DEFINE ONE.
@@ -156,26 +196,25 @@ export interface Plugin {
  * `name` is the word the fiber is bound under — for a bundle row, the row's
  * `id`, which is also the sibling key, the docs slug and the stamp every keyed
  * service reads.
+ *
+ * `config` is the schema a row's `config:` is validated against at load.
+ * Defaults live on the fields; an invalid value fails the load with a
+ * sentence. The decoded value is handed to `apply`.
  */
-export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>>(
+export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>, Config = unknown>(
   spec: {
     readonly name: string
-    /** The services this plugin needs, as keys. Both declarations come off this
-     *  one list, so they cannot disagree. */
     readonly needs: Keys
-    /** ...and the plugin itself. `never` in the error channel because a plugin
-     *  has nobody to fail TO: what it cannot survive is a defect, which lands
-     *  the fiber in `FAILED` and says so on the row. */
-    readonly apply: Effect.Effect<
-      void,
-      never,
-      Scope.Scope | Context.Service.Identifier<Keys[number]>
-    >
+    readonly config?: Schema.Schema<Config>
+    readonly apply:
+      | Effect.Effect<void, never, NeedsOf<Keys>>
+      | ((config: Config) => Effect.Effect<void, never, NeedsOf<Keys>>)
   },
 ): Plugin => ({
   name: spec.name,
   inject: spec.needs.map((key) => key.cordis),
-  apply: async (ctx: CordisContext) => {
+  ...(spec.config === undefined ? {} : { Config: standardOf(spec.config as Schema.Schema<unknown>) }),
+  apply: async (ctx: CordisContext, config?: unknown) => {
     const opened = held(ctx)
     // THE STAMP, READ ONCE, off the registry binding — never off anything the
     // plugin supplied. Every keyed service below is minted from it.
@@ -211,8 +250,11 @@ export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>>(
         (provision as (plugin: string) => unknown)(who),
       ) as Context.Context<never>
     }
+    const work = Effect.isEffect(spec.apply)
+      ? spec.apply
+      : spec.apply((config ?? {}) as Config)
     const exit = await Effect.runPromiseExitWith(services)(
-      spec.apply as Effect.Effect<void>,
+      work as Effect.Effect<void>,
     )
     if (Exit.isFailure(exit)) {
       // EVERY FINALIZER IT HAD ALREADY INSTALLED, before the throw goes out —

@@ -16,7 +16,7 @@
  * because the pill wears it too.
  *
  * What is NOT here is what either of them SAYS. The tables live beside the
- * thing they report on (`./connection/status.ts`, `./commit/said.ts`), because
+ * thing they report on (`./connection/status.ts`), because
  * a state's appearance is an argument about that state — and neither of them
  * should have to be edited to add a third readout.
  */

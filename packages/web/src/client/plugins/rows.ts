@@ -16,17 +16,15 @@
  * still the only way a serve STARTS with a plugin on or off. A flip here is the
  * INSTANCE's, for as long as this process runs, and a restart comes back to how
  * the server was started. So the row still owes a reader the boot default —
- * which is what {@link pluginSetBy} says now, having stopped saying the half
+ * which is what {@link pluginsStarted} says now, having stopped saying the half
  * that is no longer true.
  *
- * That is also why these rows no longer share `../settings/instance.ts` with
- * the two git rows. Both of that module's sentences END with *it cannot be
- * changed from a browser*, which is the whole doctrine it exists to keep in one
- * copy — and it is still exactly right for git policy, which is still the
- * server's alone. A plugin row that borrowed the sentence and then drew a live
- * switch under it would be the panel contradicting itself, and softening the
- * shared sentence to fit would soften it for the rows that still mean it. Two
- * doctrines, two spellings; the git rows keep theirs untouched.
+ * Git policy is not on this panel. It travels with the git plugin's commit
+ * panel, so these rows no longer share a sentence with a frozen instance row
+ * (`../settings/instance.ts` still means *it cannot be changed from a
+ * browser*, and that is still right for anything that stays the server's
+ * alone). A plugin row that borrowed that sentence and then drew a live switch
+ * under it would be the panel contradicting itself.
  *
  * ## A ROW WITH NOTHING TO SAY SAYS NOTHING, and that took a screenshot
  *
@@ -65,14 +63,13 @@
  * an equality per package (`@olai/bundle`'s `fence.test.ts`); this module is
  * written so there is nothing for it to catch.
  *
- * **PURE FUNCTIONS OF THE CELL, and nothing else** — the shape `../settings/policy.ts`
- * keeps and for the same reason. There is no state here, no store, and no
- * subscription: the one reader is `./Panel.tsx`, which holds the cell and the
- * one signal a press needs, and a unit test asks these with a roster built by
- * hand. {@link pluginSwitch} is the newest of them and is the reason the press
- * did not drag state in here with it: what a strip SHOWS and whether it may be
- * pressed are a function of the row and one boolean, so they are asked here and
- * proved here rather than read off a rendered panel.
+ * **PURE FUNCTIONS OF THE CELL, and nothing else.** There is no state here, no
+ * store, and no subscription: the one reader is `./Panel.tsx`, which holds the
+ * cell and the one signal a press needs, and a unit test asks these with a
+ * roster built by hand. {@link pluginSwitch} is the newest of them and is the
+ * reason the press did not drag state in here with it: what a strip SHOWS and
+ * whether it may be pressed are a function of the row and one boolean, so they
+ * are asked here and proved here rather than read off a rendered panel.
  *
  * ## TWO QUESTIONS PER ROW, and they were one
  *
@@ -142,9 +139,8 @@ export type PluginPick = "on" | "off"
  *
  * `flipping` is true between the press and the server's answer. It is not a
  * fact about the serve — it is about the button under this reader's finger,
- * which must not be pressed twice — which is precisely the distinction
- * `../commit/state.ts` draws for Commit and Push, and it is a signal in
- * `./Panel.tsx` for the same reason.
+ * which must not be pressed twice — and it is a signal in `./Panel.tsx` for
+ * that reason.
  *
  * **The roster's own republish cannot stand in for it.** The serve does not
  * move the roster until the bundle has SETTLED — a flip disposes a row, and
@@ -164,6 +160,18 @@ export const pluginSwitch = (
   value: plugin.running ? "on" : "off",
   frozen: flipping,
 })
+
+/**
+ * THE ROW'S CONFIG, as pairs core can draw without knowing any plugin's
+ * words. Empty when the row has none — the panel draws nothing extra.
+ */
+export const pluginConfig = (
+  plugin: BuiltPlugin,
+): ReadonlyArray<readonly [string, string]> => {
+  const config = plugin.config
+  if (config === undefined) return []
+  return Object.entries(config).map(([key, value]) => [key, String(value)] as const)
+}
 
 /**
  * WHAT THIS ROW ADDS TO WHAT THE SWITCH ALREADY SAYS — one short line, or

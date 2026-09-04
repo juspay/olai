@@ -26,7 +26,7 @@
  */
 
 import { expect, test } from "bun:test"
-import { Cause, Effect, Logger, Scope } from "effect"
+import { Cause, Effect, Logger, Schema, Scope } from "effect"
 
 import { definePlugin, detached, PluginName } from "./plugin.ts"
 import { mountPlugin, openHost, provide, settled } from "./host.ts"
@@ -451,4 +451,29 @@ test("a provider that unloads takes its dependents with it, and brings them back
     yield* settled(host, ["provider", "dependent"])
     expect(lines).toEqual(["dependent: up", "dependent: down", "dependent: up"])
   })))
+})
+
+test("a plugin with Config is handed the decoded value, and invalid config fails with a sentence", async () => {
+  let seen: unknown
+  const plugin = definePlugin({
+    name: "scribe",
+    needs: [],
+    config: Schema.Struct({
+      commit: Schema.optionalKey(Schema.Literals(["off", "manual", "auto"])),
+    }),
+    apply: (config) => Effect.sync(() => {
+      seen = config
+    }),
+  })
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const host = yield* openHost
+    yield* mountPlugin(host, plugin)
+  })))
+  expect(seen).toEqual({})
+
+  const standard = (plugin.Config as {
+    readonly "~standard": { readonly validate: (value: unknown) => { readonly issues?: unknown } }
+  })["~standard"]
+  expect(standard.validate({ commit: "auto" }).issues).toBeUndefined()
+  expect(standard.validate({ commit: "nope" }).issues).toBeDefined()
 })

@@ -26,12 +26,12 @@
  * subscription test is a sequence and not a race.
  */
 
-import { fixedPolicy, make as makeOps } from "@olai/ops"
+import { make as makeOps } from "@olai/ops"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import { ResourceUpdatedNotificationSchema } from "@modelcontextprotocol/sdk/types.js"
 import { expect, test } from "bun:test"
-import { Effect, SubscriptionRef } from "effect"
+import { Effect } from "effect"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
@@ -40,7 +40,7 @@ import { openDirectory } from "../directory.ts"
 import { propKinds } from "../propKinds.ts"
 import { watchFault } from "../fault.ts"
 import { hostname } from "../hostname.ts"
-import { bind, gitWiring, writerAt } from "../runtime.ts"
+import { bind, writerAt } from "../runtime.ts"
 import { SERVER_LAYERS } from "../serve.testlib.ts"
 import { clientOver, serveFace } from "./face.ts"
 
@@ -97,7 +97,7 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
     // is the one mode that asks git nothing at all. The edit procedures are
     // bound to it too and this face exposes none of them, so what they cost
     // here is a binding nobody can reach.
-    const ops = makeOps({ store, root, policy: fixedPolicy({ commit: "off", push: null }) })
+    const ops = makeOps({ store, root })
     const wired = yield* bind({
       store,
       ops,
@@ -112,11 +112,6 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
       // an empty sibling record composes to no tag, no handler and no expose
       // row, so olai's own group is byte for byte what it always was.
       plugins: null,
-      git: gitWiring(
-        ops,
-        fixedPolicy({ commit: "off", push: null }),
-        yield* SubscriptionRef.make(0),
-      ),
     })
     // Not optional, and not ceremony copied from `serve.ts`: the runtime's
     // `done` REJECTS when it is closed, so something has to be holding the
@@ -174,13 +169,11 @@ const textOf = async (client: Client, uri: string): Promise<string> => {
 const readJson = async (client: Client, uri: string): Promise<unknown> =>
   JSON.parse(await textOf(client, uri))
 
-test("the served resources are exactly the five the allowlist names", async () => {
+test("the served resources are exactly the allowlist names", async () => {
   await withFace(async ({ client }) => {
     const listed = await client.listResources()
     expect(listed.resources.map((r) => r.uri).sort()).toEqual([
       "surface://cells/errors",
-      "surface://cells/git",
-      "surface://cells/pending",
       "surface://collections/documents",
       "surface://collections/outlines",
     ])
