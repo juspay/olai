@@ -122,11 +122,10 @@ export interface DynamicRuntime {
   readonly defined: (name: string) => Defined | null
 }
 
-/** ONE PLUGIN THAT IS UP — what was mounted, at which version, with the chunk
- *  its face is served from. NOTHING ABOUT ITS STATE: that is the registry's and
- *  is read afresh (see {@link DynamicRuntime.rows}). */
+/** ONE PLUGIN THAT IS UP — what was mounted, with the chunk its face is served
+ *  from. NOTHING ABOUT ITS STATE: that is the registry's and is read afresh
+ *  (see {@link DynamicRuntime.rows}). */
 interface Live {
-  readonly version: string
   readonly mounted: Mounted
   readonly chunk: string | null
   readonly path: string | null
@@ -143,10 +142,20 @@ interface Live {
  * combinations mean three different things, kept in step by hand at four call
  * sites. A name that ended up in both, or in neither by accident, was a row
  * drawn from a state nothing could name.
+ *
+ * ## BOTH ARMS CARRY THE VERSION, and the failed one did not
+ *
+ * The version is what says *this is the attempt for that source*, and an attempt
+ * that FAILED is as much an attempt as one that mounted. Without it, {@link
+ * follow} had nothing to compare a broken definition against, so it built it
+ * again on every revision — the Solid transform re-run on every keystroke
+ * anywhere in the vault, for as long as somebody's `browser.tsx` had a syntax
+ * error in it. With it, a failure is remembered exactly as a mount is: tried at
+ * this version, and not tried again until the version moves.
  */
 type Started =
-  | ({ readonly up: true } & Live)
-  | { readonly up: false; readonly why: string }
+  | ({ readonly up: true; readonly version: string } & Live)
+  | { readonly up: false; readonly version: string; readonly why: string }
 
 /**
  * OPEN THE DYNAMIC HALF over a host.
@@ -165,17 +174,16 @@ export const openDynamic = (host: Host, built: ReadonlyArray<string>): DynamicRu
    *  vault says. */
   const stopped = new Set<string>()
 
-  /** The one that is UP, or nothing — the read every caller below wants and the
-   *  only place the union is narrowed. */
-  const upAt = (name: string): Live | null => {
-    const one = started.get(name)
-    return one === undefined || !one.up ? null : one
-  }
-
   const follow = (defined: ReadonlyArray<Defined>): Effect.Effect<boolean> =>
     Effect.gen(function*() {
+      // WHAT THE ROWS SAID BEFORE, so that a definition ARRIVING is a movement
+      // even though no fiber moved. This answer gates the re-compose, and a
+      // re-compose is what republishes the roster — so without it the first
+      // thing that happens in this whole phase, an agent writing a definition
+      // nobody has approved, reached the panel of an open tab never.
+      const said = wordsOf(seen)
       seen = defined
-      let moved = false
+      let moved = wordsOf(defined) !== said
       const wanted = new Map(
         defined
           .filter((one) => one.fault === null && isApproved(one) && !stopped.has(one.name))
@@ -185,27 +193,23 @@ export const openDynamic = (host: Host, built: ReadonlyArray<string>): DynamicRu
       // registration it made before its successor claims the same kind word,
       // the same sibling key and the same held record. The browser runtime
       // keeps the same order one process over and for the same reason.
+      //
+      // A FAILED ATTEMPT IS AN ATTEMPT, and leaves on the same comparison: its
+      // version is the source it was made against, so an unchanged broken
+      // definition is skipped by the loop below rather than compiled again.
       for (const [name, one] of [...started]) {
-        if (!one.up) {
-          // A WORD THAT FAILED and is no longer wanted stops being a word this
-          // runtime has anything to say about; one that is still wanted keeps
-          // its sentence until the attempt below replaces it.
-          if (!wanted.has(name)) started.delete(name)
-          continue
-        }
         if (wanted.get(name)?.version === one.version) continue
         started.delete(name)
+        if (!one.up) continue
         yield* one.mounted.dispose
         moved = true
       }
       for (const [name, one] of wanted) {
-        if (upAt(name) !== null) continue
-        const before = started.get(name)
-        const now = yield* start(host, one)
-        started.set(name, now)
-        // MOVED means the roster has something new to say — a plugin that
-        // mounted, or one whose sentence is not the sentence it had.
-        moved = moved || now.up || before === undefined || before.up || before.why !== now.why
+        if (started.has(name)) continue
+        started.set(name, yield* start(host, one))
+        // EITHER WAY: a word that was not up is now mounted or is now failed
+        // with a sentence, and both are rows that say something they did not.
+        moved = true
       }
       return moved
     })
@@ -220,6 +224,7 @@ export const openDynamic = (host: Host, built: ReadonlyArray<string>): DynamicRu
       for (const one of started.values()) if (one.up && one.path === path) return one.chunk
       return null
     },
+
     set: (name, enabled) =>
       Effect.suspend(() => {
         if (!seen.some((one) => one.name === name)) return Effect.succeed(false)
@@ -230,6 +235,23 @@ export const openDynamic = (host: Host, built: ReadonlyArray<string>): DynamicRu
     defined: (name) => seen.find((one) => one.name === name) ?? null,
   }
 }
+
+/**
+ * WHAT THE ROWS THIS RUNTIME DRAWS SAY, as one string — the comparison that
+ * decides whether a revision moved anything.
+ *
+ * EVERY FIELD {@link rowOf} READS off a definition, and nothing else: the word,
+ * where it lives, the version, what the approval property says and the shape
+ * fault. `version` is a content hash of both halves, so the SOURCE is in here
+ * without the source being in here.
+ *
+ * A comparison rather than a diff, because the answer is one boolean: the caller
+ * re-composes or it does not.
+ */
+const wordsOf = (defined: ReadonlyArray<Defined>): string =>
+  defined
+    .map((one) => [one.name, one.node, one.file, one.version, one.approved, one.fault].join(" "))
+    .join("\n")
 
 /**
  * BUILD AND MOUNT ONE DEFINITION — and the answer is what came of it, either
@@ -247,7 +269,7 @@ export const openDynamic = (host: Host, built: ReadonlyArray<string>): DynamicRu
  */
 const start = (host: Host, one: Defined): Effect.Effect<Started> =>
   Effect.gen(function*() {
-    const faulted = (why: string): Started => ({ up: false, why })
+    const faulted = (why: string): Started => ({ up: false, version: one.version, why })
     const server = yield* Effect.promise(() => buildHalf("server", one.server))
     if (!server.ok) return faulted(server.why)
     const browser = one.browser === null

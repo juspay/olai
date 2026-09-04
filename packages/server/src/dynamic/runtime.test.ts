@@ -265,6 +265,78 @@ describe("a browser half is compiled and served", () => {
   })
 })
 
+/**
+ * WHAT `follow` ANSWERS is what makes the roster move, and a row that changed
+ * with nothing to answer reached nobody.
+ *
+ * The composition root re-composes — which is what republishes the `plugins`
+ * cell, which is what an open tab redials on — only when this says something
+ * moved. So "moved" has to mean *the rows this runtime draws are not the rows it
+ * drew*, and it used to mean *a fiber moved*: the first thing that happens in
+ * the whole phase, an agent writing a definition nobody has approved, moved no
+ * fiber and so reached the panel of an open tab never.
+ */
+describe("a revision that changes what the rows say is a movement", () => {
+  test("a definition arriving, and being approved, and then saying nothing new", async () => {
+    const said = await bench((dynamic) =>
+      Effect.gen(function*() {
+        // Nothing is mounted by either of the first two: the first is the
+        // definition appearing, the second is a person approving it.
+        const arrived = yield* dynamic.follow(vault({}))
+        const approved = yield* dynamic.follow(vault({ approved: versionOf(SERVER, null) }))
+        const again = yield* dynamic.follow(vault({ approved: versionOf(SERVER, null) }))
+        return { arrived, approved, again }
+      })
+    )
+    expect(said.arrived).toBe(true)
+    expect(said.approved).toBe(true)
+    // ...and a revision that touched some other file says so, so a keystroke
+    // elsewhere does not redial every tab.
+    expect(said.again).toBe(false)
+  })
+
+  /**
+   * A DEFINITION THAT WILL NOT BUILD IS TRIED ONCE PER VERSION.
+   *
+   * The failed arm carried no version, so `follow` had nothing to compare it
+   * against and ran the Solid transform again on every revision — every
+   * keystroke anywhere in the vault paying for one broken `browser.tsx`, for as
+   * long as it stayed broken. The version is on both arms now, so a failure is
+   * remembered exactly as a mount is.
+   */
+  test("a broken definition is compiled once, not once per revision", async () => {
+    const said = await bench((dynamic, now) =>
+      Effect.gen(function*() {
+        const broken = { server: `import pad from "left-pad"\n${SERVER}`, approved: ALWAYS }
+        const first = yield* dynamic.follow(vault(broken))
+        const second = yield* dynamic.follow(vault(broken))
+        return { first, second, rows: yield* now() }
+      })
+    )
+    expect(said.first).toBe(true)
+    // NOTHING MOVED, which is the assertion: an unchanged broken definition is
+    // skipped rather than rebuilt, and the row goes on saying what it said.
+    expect(said.second).toBe(false)
+    expect(said.rows[0]?.state).toBe("failed")
+    expect(said.rows[0]?.fault).toContain(`"left-pad"`)
+  })
+
+  test("...and is tried again the moment its source moves", async () => {
+    const said = await bench((dynamic, now) =>
+      Effect.gen(function*() {
+        yield* dynamic.follow(
+          vault({ server: `import pad from "left-pad"\n${SERVER}`, approved: ALWAYS }),
+        )
+        // Fixed, and approved for every version, so the next follow builds it.
+        const fixed = yield* dynamic.follow(vault({ approved: ALWAYS }))
+        return { fixed, rows: yield* now() }
+      })
+    )
+    expect(said.fixed).toBe(true)
+    expect(said.rows[0]?.state).toBe("running")
+  })
+})
+
 describe("what goes wrong lands on the row, with a sentence", () => {
   test("a module olai does not bind is refused by name", async () => {
     const rows = await bench((dynamic, now) =>

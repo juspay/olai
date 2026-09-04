@@ -165,6 +165,52 @@ describe("a built half is a module that runs", () => {
     expect(BROWSER_MODULES).toContain("solid-js/web")
   })
 
+  /**
+   * A COMMENTED-OUT IMPORT IS NOT AN IMPORT, all the way through — and it took
+   * being read through `buildHalf` to see that it was not.
+   *
+   * The gate is a real parse and answered this correctly from the first line;
+   * the bench beside it (`a specifier in a comment or a string is not an
+   * import`) asks `unresolvable` and passes either way. What it could not see is
+   * that babel PRESERVES comments, so the comment reached `bind` — which reads
+   * emitted text and is not a parser — and the build was refused naming a module
+   * the author had deliberately commented out.
+   *
+   * Two steps, two answers, and only the composition of them is the product.
+   */
+  test("a commented-out import is not an import to the compiler either", async () => {
+    const built = await buildHalf(
+      "browser",
+      [
+        `/*`,
+        `import pad from "left-pad"`,
+        `*/`,
+        `// import { readFile } from "node:fs"`,
+        `import { createSignal } from "solid-js"`,
+        `export const Chip = () => <span>{createSignal(1)[0]()}</span>`,
+      ].join("\n"),
+    )
+    expect(built.ok).toBe(true)
+    if (!built.ok) return
+    expect(built.text).not.toContain("left-pad")
+    expect(built.text).not.toContain("node:fs")
+  })
+
+  /** ...and the same on the server half, which gets there by a different road:
+   *  `Bun.Transpiler` strips comments on its way through, so nothing downstream
+   *  ever sees one. Benched anyway, because what is being kept is the PRODUCT's
+   *  behaviour and not either compiler's. */
+  test("...and on the server half, which strips them a step earlier", async () => {
+    const built = await buildHalf(
+      "server",
+      [`/* import pad from "left-pad" */`, `import { Effect } from "effect"`, `export default Effect`]
+        .join("\n"),
+    )
+    expect(built.ok).toBe(true)
+    if (!built.ok) return
+    expect(built.text).not.toContain("left-pad")
+  })
+
   test("a syntax error is the author's own sentence", async () => {
     const built = await buildHalf("browser", `export const Chip = () => <span>`)
     expect(built.ok).toBe(false)

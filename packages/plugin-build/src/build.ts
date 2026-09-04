@@ -95,6 +95,30 @@ const drawn = async (source: string): Promise<string> => {
     filename: "browser.tsx",
     babelrc: false,
     configFile: false,
+    /**
+     * NO COMMENTS IN THE EMIT, and this is a correctness option rather than a
+     * size one.
+     *
+     * babel preserves comments by default. `./bind.ts` reads the emitted text
+     * for `import` at the head of a line, and it is not a parser — it cannot be,
+     * and its post-condition is written on that admission — so a browser half
+     * carrying
+     *
+     *     \/*
+     *     import pad from "left-pad"
+     *     *\/
+     *
+     * passed the gate honestly (a specifier in a comment is not an import, and
+     * `Bun.Transpiler.scan` says so) and was then refused by the BIND, naming a
+     * module the author never imported. A refusal that quotes a line somebody
+     * commented OUT is the worst kind of wrong: it is about the one part of
+     * their file that does nothing.
+     *
+     * The server half does not need this — `Bun.Transpiler` strips comments on
+     * its way through — which is why the two halves differ here and nowhere
+     * else.
+     */
+    comments: false,
     presets: [[babelSolid, {}], [babelTypeScript, {}]],
   })
   if (result?.code == null) {
