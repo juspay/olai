@@ -42,6 +42,33 @@ test("the built-in default is the rows that did not opt out", () => {
   expect(DEFAULT_BUNDLE_NAMES.length).toBeLessThan(BUNDLE_NAMES.length)
 })
 
+/**
+ * THE CHAT ROW IS ON, NAMED — the rule above holds it for every row, and this
+ * holds it for the one row whose being off is a different product.
+ *
+ * A serve without chat has no panel, no transcript, no agents section and no
+ * conversation anywhere, and every engine and every tenant sits `waiting`
+ * behind the doors it offers. That is a legitimate serve and there is a
+ * scenario for it (`features/the_doorbell_rings.feature`) — reached by an
+ * operator typing `--plugins`, and by nothing else. A `disabled: true` left on
+ * this row by somebody debugging would ship that serve as the DEFAULT, and
+ * every claim about it would still pass: the rule above would simply agree that
+ * an opted-out row is opted out.
+ *
+ * FIRST, too, because the file is read by people and the thing everything else
+ * waits on reads first. Nothing depends on the order — the runtime is reactive
+ * and a row that mounts late is picked up when its `apply` provides — so this
+ * is a claim about the FILE rather than about the boot.
+ */
+test("the chat row is on by default, and reads first", () => {
+  expect(DEFAULT_BUNDLE_NAMES).toContain("chat")
+  expect(ROWS.find((row) => row.id === "chat")?.disabled).toBeUndefined()
+  expect(ROWS[0]?.id).toBe("chat")
+  // ...and an omitted flag leaves it that way, which is the other half: the
+  // default is what a person gets by typing nothing.
+  expect(patched(null, "chat")).toBeUndefined()
+})
+
 test("nobody having said writes no patch at all, so the rows' own default stands", () => {
   // The distinction the whole flag is shaped around, as a fact about the patch:
   // an omitted flag leaves the file's answer alone, so a browser drawing the row
