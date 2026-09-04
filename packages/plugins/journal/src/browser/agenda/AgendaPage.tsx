@@ -55,11 +55,11 @@
 import { type Agenda, nothingDue } from "@olai/format"
 import { Show } from "solid-js"
 
-import { Empty } from "../Empty.tsx"
-import { useNarrowed } from "../filter/narrowed.tsx"
-import { unfiltered } from "../filter/why.ts"
-import { PAGE_TITLE } from "../look.ts"
-import { TESTID } from "../testids.ts"
+import { Empty } from "@olai/web/client/Empty.tsx"
+import { useNarrowed } from "@olai/web/client/filter/narrowed.tsx"
+import { unfiltered } from "@olai/web/client/filter/why.ts"
+import { PAGE_TITLE } from "@olai/web/client/look.ts"
+import { TESTID } from "../../testids.ts"
 import { Spine } from "./Spine.tsx"
 
 export function AgendaPage(props: {

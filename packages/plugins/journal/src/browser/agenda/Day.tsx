@@ -47,14 +47,14 @@ import { isOverdue, owedFact, type Standing } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import { createMemo, Show } from "solid-js"
 
-import { CRUMB } from "../Breadcrumbs.tsx"
+import { CRUMB } from "@olai/web/client/Breadcrumbs.tsx"
 import { DayNode } from "../day/DayNode.tsx"
 import { placeOf } from "../day/place.ts"
-import { useNarrowed } from "../filter/narrowed.tsx"
-import { unfiltered } from "../filter/why.ts"
-import { Link } from "../router.tsx"
-import { TESTID } from "../testids.ts"
-import { useToday } from "../today.tsx"
+import { useNarrowed } from "@olai/web/client/filter/narrowed.tsx"
+import { unfiltered } from "@olai/web/client/filter/why.ts"
+import { Link } from "@olai/web/client/router.tsx"
+import { TESTID } from "../../testids.ts"
+import { useToday } from "@olai/web/client/today.tsx"
 import {
   QUIET_INDENT,
   SPINE_CELL,
@@ -64,6 +64,7 @@ import {
   SPINE_NOW,
 } from "./gutter.ts"
 import { inkOf, lineOf, NOW_RING, type Rung, rowsOn } from "./spine.ts"
+import { dayRoute } from "../routes.ts"
 
 /** How one side of now is drawn — see the header. Each field is a VALUE the
  *  markup uses rather than a flag it branches on again, which is what keeps
@@ -183,7 +184,7 @@ export function Day(props: {
           <span class="flex min-w-0 items-baseline gap-2">
             {/* The way THROUGH: the day's own page is the fuller answer. */}
             <Link
-              route={{ kind: "day", date: props.rung.day.date }}
+              route={dayRoute(props.rung.day.date)}
               class={`${CRUMB} ${face().heading}`}
             >
               {/* ONE inline box inside the link, and it is load-bearing: the

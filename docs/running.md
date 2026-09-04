@@ -236,11 +236,13 @@ Almost everything olai does beyond reading and writing your outlines is a plugin
 
 **The CONVERSATION is one** ([plugins/chat.md](plugins/chat.md)) — the panel, the transcript, the agents section, the door on an agent's row, *Ask agent* and the palette's `>`. It is on by default like the rest, and it is the row everything else on this list leans on: an engine, a doorbell and a mirror each name a door the chat row stands behind, so a serve that leaves chat out leaves those `waiting`, and the plugins panel says so per row.
 
+**The JOURNAL is one** ([plugins/journal.md](plugins/journal.md)) — the calendar, `/today`, day pages, Agenda and its owed badge. It is also on by default. Leaving `journal` out removes those routes and faces while leaving the `date` and `repeat` fields in your files untouched.
+
 Beside it are the APPLIANCES — kolu ([plugins/kolu.md](plugins/kolu.md)), odu ([plugins/odu.md](plugins/odu.md)), Xyne Spaces ([plugins/xyne-spaces.md](plugins/xyne-spaces.md)) — and the ACP ENGINES the panel can seat: Claude Code ([plugins/claude.md](plugins/claude.md)), Codex ([plugins/codex.md](plugins/codex.md)), opencode ([plugins/opencode.md](plugins/opencode.md)) and pi ([plugins/pi.md](plugins/pi.md)).
 
 ```
 olai web ~/outlines --plugins=odu                        # odu only — and no panel at all
-olai web ~/outlines --plugins=chat,claude,kolu,odu       # a conversation, one engine, the usual appliances
+olai web ~/outlines --plugins=journal,chat,claude,kolu,odu # journal, a conversation, one engine and the appliances
 olai web ~/outlines --plugins=chat,codex,opencode,pi     # no Claude row, no probe for one
 olai web ~/outlines --plugins=                          # none
 ```

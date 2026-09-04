@@ -4,8 +4,8 @@
  * A URL here is an ADDRESS with a slash in front of it. `@olai/format`'s
  * `address.ts` owns the grammar — `[document]#[element]`, one currency for
  * every feature that has to name something — and this module owns everything
- * a BROWSER adds to it: which addresses are pages of this app, the computed
- * pages that name nothing on disk, and the one thing that rides in a query.
+ * a BROWSER adds to it: which addresses are pages of this app, the routes
+ * mounted plugins contribute, and the one thing that rides in a query.
  *
  * | URL | Page |
  * |---|---|
@@ -19,8 +19,8 @@
  *
  * Two things, and everything below is one of them:
  *
- *   - a PLACE — an address in the served directory, or one of the computed
- *     pages, which are questions asked of the set and spell a word instead;
+ *   - a PLACE — an address in the served directory, a core computed page, or
+ *     a route whose grammar was registered by a mounted plugin;
  *   - a NARROWING — `?q=`, and nothing else rides in a query here.
  *
  * The bijection is over that pair, in both directions, which is why
@@ -81,17 +81,12 @@
  * `assets/` opens as a page. The prefix is one spelling (`@olai/surface`'s
  * `ASSET_PREFIX`), taken by the build and pinned by the server.
  *
- * ## The computed pages, which name nothing on disk
+ * ## Computed pages, which name nothing on disk
  *
- * `/d/<ISO-date>` names a DAY, which is not a thing on disk: it is a question
- * asked of every dated node in the set, answered at view time. `/today` is the
- * same page and a different address — it names no day, it names the day it IS,
- * which is what a bookmark, a home screen and an agent can all keep. Resolving
- * it needs a clock, and a clock is exactly what parsing a URL must not have.
- *
- * `/agenda` names no day either, and unlike `/today` it never will: it is the
- * same dates read FORWARD, so it spells nothing at all. A horizon in the URL
- * would be an address that meant something different tomorrow.
+ * Core owns `/trash`. Mounted plugins may contribute more grammars through
+ * `app.route`; journal contributes `/today`, `/d/<ISO-date>` and `/agenda`.
+ * When that plugin is absent those words are ordinary unrecognised addresses,
+ * and core has no day or agenda route arm to fall back to.
  *
  * `/trash` spells nothing for the same reason: it is a question asked of the
  * set — every `_olai/Trash.olai` under the directory — not a file's address. The
@@ -99,8 +94,8 @@
  * outline), and what such an address opens is the trash view, because an
  * archive is not a place you edit (`page.ts` decides that, not this parser).
  *
- * They are READ FIRST, which is the whole of the precedence rule: a computed
- * page is a word this app claimed, and an address is everything else.
+ * Computed and plugin pages are READ FIRST, which is the whole precedence rule;
+ * an address in the served directory is everything else.
  *
  * ## The query, which sits between the two halves of an address
  *
@@ -141,6 +136,9 @@ import {
   splitAddress,
   writtenAddress,
 } from "@olai/format"
+import type { AppRoute } from "@olai/plugin-api"
+
+import { hung } from "./plugins/runtime.ts"
 
 export type Route =
   /**
@@ -163,17 +161,19 @@ export type Route =
    * the document arm alone.
    */
   | { readonly kind: "at"; readonly address: Address | null; readonly filter?: string }
-  /** One day of the journal, by its ISO date. */
-  | { readonly kind: "day"; readonly date: string; readonly filter?: string }
-  /** Whichever day it is when this is read. */
-  | { readonly kind: "today"; readonly filter?: string }
-  /** What is owed, read forward from whatever day it is. */
-  | { readonly kind: "agenda"; readonly filter?: string }
   /** What was put away: every `_olai/Trash.olai` under the directory, read-only.
    *  It spells no file for the reason `/agenda` spells no horizon — which
    *  archives exist is the set's answer, and an address that named one would
    *  mean something different the day a subdirectory gets its own. */
   | { readonly kind: "trash"; readonly filter?: string }
+  /** A page whose grammar, reading and face are owned by a mounted plugin. */
+  | {
+    readonly kind: "plugin"
+    readonly plugin: string
+    readonly page: string
+    readonly value: unknown
+    readonly filter?: string
+  }
 
 /** The front page: the address that names no place at all, and what every
  *  string this cannot read comes back as. */
@@ -188,11 +188,8 @@ const HOME = "/"
  * the front page. Nothing fails when they disagree, which is why it is worth
  * making impossible rather than watching for.
  *
- * It is a table because this is the VOLATILE half of the URL space. What an
- * address is has settled — it is the format's grammar now, and a statement
- * about the directory — while this list has grown three times in as many
- * releases (the trash, the agenda, today) and will grow again the day another
- * question about the set is worth a bookmark. The `satisfies` is the socket:
+ * Core's table is deliberately small: journal's volatile address vocabulary
+ * now arrives through `app.route`. The `satisfies` is the socket:
  * a kind named in {@link Named} and missing here is a compile error at the one
  * place the app says which words it has taken.
  *
@@ -200,11 +197,9 @@ const HOME = "/"
  * this table, it has exactly one consumer, and a file per twenty lines is
  * decomposition by size rather than by what changes together.
  */
-type Named = Extract<Route, { readonly kind: "today" | "agenda" | "trash" }>["kind"]
+type Named = Extract<Route, { readonly kind: "trash" }>["kind"]
 
 const NAMED = {
-  today: "/today",
-  agenda: "/agenda",
   trash: "/trash",
 } as const satisfies { readonly [K in Named]: `/${string}` }
 
@@ -214,17 +209,10 @@ const NAMED_AT = new Map<string, Named>(
   Object.entries(NAMED).map(([kind, at]) => [at, kind as Named]),
 )
 
-/** Whether a route is one of the pages that spell a word — asked of the table
- *  itself, so the three kinds are not written out a second time and the answer
+/** Whether a route is a core page that spells a word — asked of the table
+ *  itself, so its kind is not written out a second time and the answer
  *  narrows the type rather than casting it away. */
 const isNamed = (kind: Route["kind"]): kind is Named => Object.hasOwn(NAMED, kind)
-
-/**
- * The one computed page that carries a VALUE, so it is a prefix rather than a
- * row of the table above: a day is named by its date, and reading one back
- * needs the totality rule a bare word does not ({@link spelled}).
- */
-const DAY_PREFIX = "/d/"
 
 /**
  * The query key the FILTER rides in — the one thing in an address here that is
@@ -258,6 +246,14 @@ const FILTER_KEY = "q"
  */
 const addressNamed = (route: Route): Address | null =>
   route.kind === "at" ? route.address : null
+
+/** The mounted tenant for a plugin route, or null after that tenant left. */
+export const routeFace = (route: Route): AppRoute | null => {
+  if (route.kind !== "plugin") return null
+  return hung("app.route").find(
+    (one) => one.plugin === route.plugin && one.face.id === route.page,
+  )?.face ?? null
+}
 
 /** The front page: the address that names no place. One value, since it is
  *  only ever read. */
@@ -300,10 +296,10 @@ export const atElement = (file: string, element: string | null): Route =>
  */
 export const hrefOf = (route: Route): string => {
   const narrowed = narrowing(filterOf(route))
-  if (isNamed(route.kind)) return NAMED[route.kind] + narrowed
-  if (route.kind === "day") {
-    return DAY_PREFIX + encodeURIComponent(route.date) + narrowed
+  if (route.kind === "plugin") {
+    return (routeFace(route)?.href(route.value) ?? HOME) + narrowed
   }
+  if (isNamed(route.kind)) return NAMED[route.kind] + narrowed
   const address = addressNamed(route)
   if (address === null) return HOME + narrowed
   const { path, element } = writtenAddress(address)
@@ -427,33 +423,33 @@ export const routeOf = (address: string): Route => {
  * it had recognised anything, and both callers want that answer for opposite
  * reasons.
  *
- * THE COMPUTED PAGES ARE READ FIRST, and that ordering is the only precedence
- * in this file: `/today`, `/agenda`, `/trash` and `/d/…` are words this app
- * claimed, and everything else is asked of the address grammar. They cannot
- * collide with a file — a served file carries a suffix the registry claims and
- * these spell none — so the order is a reading order and not a rule.
+ * PLUGIN AND CORE COMPUTED PAGES ARE READ FIRST, and that ordering is the only
+ * precedence in this file. They cannot collide with a file — a served file
+ * carries a suffix the registry claims and these spell none — so the order is
+ * a reading order and not a rule.
  */
 const routeNamed = (parts: Split): Route | null => {
   const { pathname, search, fragment } = parts
   const narrowed = narrowedBy(search)
 
-  const word = NAMED_AT.get(pathname)
-  if (word !== undefined) return { kind: word, ...narrowed }
-  if (pathname.startsWith(DAY_PREFIX)) {
-    // TOTAL, for the reason the grammar's own reading is (`@olai/format`'s
-    // `parseAddress`): `decodeURIComponent` throws on a malformed escape, and
-    // a throw during render is a blank app rather than a bad address. Written
-    // here rather than borrowed, because a DATE is not a place in the
-    // directory and nothing over there reads one — and inline rather than
-    // behind a helper, because it is the only address of this app that is not
-    // the format's.
-    try {
-      const date = decodeURIComponent(pathname.slice(DAY_PREFIX.length))
-      return { kind: "day", date, ...narrowed }
-    } catch {
-      return null
+  // Plugin grammars get the same precedence computed pages historically had.
+  // The bundle order makes two claims deterministic; a route tenant should
+  // choose a spelling no other tenant owns.
+  for (const one of hung("app.route")) {
+    const value = one.face.parse(pathname)
+    if (value !== null) {
+      return {
+        kind: "plugin",
+        plugin: one.plugin,
+        page: one.face.id,
+        value,
+        ...(one.face.narrowable ? narrowed : UNNARROWED),
+      }
     }
   }
+
+  const word = NAMED_AT.get(pathname)
+  if (word !== undefined) return { kind: word, ...narrowed }
   if (!pathname.startsWith(HOME)) return null
   // The front page names no file — "whichever outline was found first" — which
   // is a page of this app and not a fallback, so a link may be written to it.
@@ -496,6 +492,7 @@ const routeNamed = (parts: Split): Route | null => {
  * going through {@link narrowedTo}, which asks this.
  */
 export const narrowable = (route: Route): boolean => {
+  if (route.kind === "plugin") return routeFace(route)?.narrowable ?? false
   const address = addressNamed(route)
   return address === null || address.kind === "node" ||
     fileKind(address.path) === "outline"

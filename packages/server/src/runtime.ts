@@ -83,10 +83,8 @@ import {
   NOTHING_PENDING,
   NOTHING_WRONG,
   pinsIn,
-  sameDated,
   sameMoving,
   sameNarrowing,
-  sameOwed,
   samePageReading,
   type Shelf,
   shelfIn,
@@ -99,7 +97,7 @@ import type {
   PushResult,
   Writer,
 } from "@olai/format"
-import { type Applied, type Edit, GIT_OFF, type GitState, LOADED, type Manifest, NO_ROSTER, type PluginRoster, type PluginState, surface, watchable, type Who } from "@olai/surface"
+import { type Applied, type CorePageReading, type Edit, GIT_OFF, type GitState, LOADED, type Manifest, NO_ROSTER, type PluginRoster, type PluginState, surface, watchable, type Who } from "@olai/surface"
 import { type OpFailure } from "@olai/format"
 import {
   customText,
@@ -1613,16 +1611,6 @@ export const bind = (
        * watching, and it is never silence.
        */
       streams: {
-        dated: {
-          read: (input) => Effect.runPromise(wiring.ops.dated(input)),
-          install: (_input, onEvent) => revisions.consume({ onEvent, onError: NEVER }),
-          isEqual: sameDated,
-        },
-        owed: {
-          read: (input) => Effect.runPromise(wiring.ops.owed(input)),
-          install: (_input, onEvent) => revisions.consume({ onEvent, onError: NEVER }),
-          isEqual: sameOwed,
-        },
         /**
          * ONE OPEN PAGE, re-read per revision — the member
          * `https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md` was written for, and three
@@ -1636,7 +1624,9 @@ export const bind = (
          * has just stopped doing.
          */
         page: {
-          read: (input) => Effect.runPromise(wiring.ops.page(input)),
+          read: (input) => Effect.runPromise(
+            Effect.map(wiring.ops.page(input), (reading) => reading as CorePageReading),
+          ),
           install: (_input, onEvent) => revisions.consume({ onEvent, onError: NEVER }),
           isEqual: samePageReading,
         },

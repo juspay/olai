@@ -108,7 +108,7 @@ import { SearchCount } from "../search/Count.tsx"
 import { createCursor } from "../search/cursor.ts"
 import { createSearch } from "../search/nodes.ts"
 import { Result, type RowTestids } from "../search/Result.tsx"
-import { spend } from "../settled.ts"
+import { atOnce, spend } from "../settled.ts"
 import {
   askInPalette,
   closePalette,
@@ -398,6 +398,14 @@ export function Palette(props: {
       ...opRows(),
       pinItem(router.route(), pins(), called()),
       ...SHELL_ITEMS,
+      ...hung("app.palette").map(({ face }) => ({
+        id: face.id,
+        label: face.label,
+        ...(face.hint === undefined ? {} : { hint: face.hint }),
+        action: { kind: "route" as const, route: face.route as Route },
+        taking: atOnce,
+        search: face.search,
+      })),
     ]
     // THEN THE HITS, which is the order they can be ANSWERED in: the commands
     // are matched in this tab off a list it already holds, and a hit is a

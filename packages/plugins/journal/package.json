@@ -1,0 +1,27 @@
+{
+  "name": "olai-plugin-journal",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./wire": "./src/wire.ts",
+    "./server": "./src/server.ts",
+    "./browser": "./src/browser.tsx",
+    "./testids": "./src/testids.ts",
+    "./all.css": "./src/browser/all.css"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@olai/format": "workspace:*",
+    "@olai/plugin-api": "workspace:*",
+    "@olai/web": "workspace:*",
+    "effect": "4.0.0-rc.112",
+    "solid-js": "^1.9.0",
+    "@solid-primitives/keyed": "^1.5.3"
+  }
+}

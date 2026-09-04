@@ -56,16 +56,13 @@
 import {
   captureInto,
   customOf as customOfNode,
-  dailyNotePathFor,
   type Derived,
   isTrashed,
   TRASH_FILE,
-  isDay,
   isMirror,
   type Located,
   type LocatedRegular,
   markdownAt,
-  markdownIn,
   mintedInto,
   nodeNamed,
   nodesOf,
@@ -276,9 +273,8 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
       return markRequest(at.derived, edit)
     case "remove":
       return removeRequest(at.derived, edit)
-    // The documents' three. The first two resolve nothing — a file is named
-    // as the caller named it, and the ops layer's own refusals judge it — and
-    // the third is the one derivation a calendar cell cannot make for itself.
+    // The documents' two resolve nothing — a file is named as the caller named
+    // it, and the ops layer's own refusals judge it.
     case "doc":
       return Result.succeed({
         op: "doc",
@@ -295,26 +291,6 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
     // empty file offers (`Anchor`'s `first`).
     case "outlineNew":
       return Result.succeed({ op: "create", file: edit.file })
-    case "docDay": {
-      // The day's shape is checked HERE because the path it derives would
-      // otherwise be judged instead: a garbage date fed to the convention
-      // walk would refuse as "not a relative `.md` path", which teaches a
-      // reader about the wrong field.
-      if (!isDay(edit.date)) {
-        return Result.fail(
-          refusal(`\`${edit.date}\` is not a day (YYYY-MM-DD), so there is no note to mint for it`),
-        )
-      }
-      // WHERE the vault keeps its daily notes is a fact about the set — the
-      // newest existing note's own path is the convention — so it is read off
-      // the reading this write is judged against, exactly as every other
-      // placement is, and an agent makes the same two moves by hand.
-      const file = dailyNotePathFor(
-        markdownIn(at.set).map((document) => document.path),
-        edit.date,
-      )
-      return Result.succeed({ op: "create-doc", file })
-    }
     // THE ONE DELETE OF RECORDS, and the one that resolves the MOST: what
     // the browser sends is "empty the Trash" and nothing else, because which
     // archives this directory holds — and which of them have anything in
@@ -1079,7 +1055,6 @@ export const inverseOf = (
     // refuses for anything else. So the entry answers nothing rather than
     // leaving a ⌘Z that quietly reaches around the planner's own guards.
     case "docNew":
-    case "docDay":
     // A minted OUTLINE is the same answer for the same reason, and it is the
     // one an existing arm already relies on: quick capture into a directory
     // with no inbox mints `_olai/Inbox.olai`, and its ⌘Z takes the LINE back

@@ -240,22 +240,6 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     search: "go home outline first",
   },
   {
-    id: "nav-today",
-    label: "Go to today",
-    hint: "journal for this day",
-    action: { kind: "route", route: { kind: "today" } },
-    taking: atOnce,
-    search: "go to today journal day calendar",
-  },
-  {
-    id: "nav-agenda",
-    label: "Go to the agenda",
-    hint: "what is due",
-    action: { kind: "route", route: { kind: "agenda" } },
-    taking: atOnce,
-    search: "go to agenda due overdue upcoming owed",
-  },
-  {
     id: "nav-trash",
     label: "Go to the Trash",
     hint: "what was put away",

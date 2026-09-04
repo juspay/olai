@@ -1273,6 +1273,7 @@ describe("an appliance's product tier stays inside its tenant", () => {
       chat: ["plugins/chat"],
       claude: ["plugins/claude"],
       codex: ["plugins/codex"],
+      journal: ["plugins/journal"],
       kolu: ["plugins/kolu"],
       odu: ["plugins/odu"],
       opencode: ["plugins/opencode"],
@@ -1299,6 +1300,7 @@ describe("an appliance's product tier stays inside its tenant", () => {
       chat: false,
       claude: false,
       codex: false,
+      journal: false,
       kolu: true,
       odu: true,
       opencode: false,
@@ -1680,6 +1682,14 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "ops/src/tools.ts",
     ],
     pi: ["web/src/client/theme/tagInk.ts"],
+    /** `journal` is also an ordinary domain word: patch/search/tool metadata
+     * use it in their own vocabularies, unrelated to the plugin row. */
+    journal: [
+      "format/src/patch.ts",
+      "format/src/searching.ts",
+      "ops/src/tools.ts",
+      "sigterm/src/sigterm.ts",
+    ],
     /**
      * `chat` IS AN ENGLISH WORD, and these five are the three ways that costs.
      *

@@ -247,6 +247,12 @@ export const serve = (options: ServeOptions) =>
                 "web",
               ))
           ),
+        document: (file: string) =>
+          Effect.suspend(() =>
+            opsLayer === null
+              ? Effect.fail(NOWHERE_TO_WRITE)
+              : opsLayer.run({ op: "create-doc", file }, "web")
+          ),
       },
       // WHERE EACH ROW SITS IN THIS BUILD'S OWN LIST, handed over as the function
       // `@olai/bundle` already exports rather than as the list itself: a plugin

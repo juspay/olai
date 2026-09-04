@@ -93,24 +93,9 @@ test("a URL leaves the app", () => {
     })
 })
 
-test("a date opens that day, and a datetime opens the day it is on", () => {
-  expect(ROOT("2026-08-31"))
-    .toEqual({
-      kind: "day",
-      route: { kind: "day", date: "2026-08-31" },
-      says: "what is on 2026-08-31",
-      face: "2026-08-31",
-    })
-  // THE FACE KEEPS THE MINUTE while the door opens the day — the words on a
-  // chip are the record's words, and only a declared reference changes that
-  // (`./door.ts`).
-  expect(ROOT("2026-08-24 16:20"))
-    .toEqual({
-      kind: "day",
-      route: { kind: "day", date: "2026-08-24" },
-      says: "what is on 2026-08-24",
-      face: "2026-08-24 16:20",
-    })
+test("a date has no door when the journal route is not registered", () => {
+  expect(ROOT("2026-08-31")).toBeNull()
+  expect(ROOT("2026-08-24 16:20")).toBeNull()
 })
 
 /** Where a door in this app GOES, as the URL a click follows — the route's own

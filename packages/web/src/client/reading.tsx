@@ -51,6 +51,7 @@
  */
 
 import type { PageReading, PageRequest } from "@olai/format"
+import type { AppPageStream } from "@olai/plugin-api"
 import {
   type Accessor,
   createContext,
@@ -227,8 +228,11 @@ export const createReading = (
    * been.
    */
   holding?: Accessor<boolean>,
+  stream?: AppPageStream,
 ): Reading => {
-  const answer = olai.streams.page.use(request)
+  const answer = (
+    stream?.use(request as () => unknown | null) ?? olai.streams.page.use(request)
+  ) as ReturnType<typeof olai.streams.page.use>
   /** The generation — see {@link Reading.at}. `changed` rather than `updated`
    *  because the payload is the one thing this does not want, and the handler
    *  survives an input change (the framework resets the tracker, which re-arms

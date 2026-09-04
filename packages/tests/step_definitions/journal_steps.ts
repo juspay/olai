@@ -20,6 +20,9 @@ import { Given, Then, When } from "@cucumber/cucumber";
 import { isoDayOf } from "@olai/web/testlib";
 
 import {
+  AGENDA_LINK,
+  AGENDA_OWED,
+  AGENDA_PAGE,
   CALENDAR,
   CALENDAR_NEXT,
   CALENDAR_PREV,
@@ -33,8 +36,10 @@ import {
   NODE,
   nodeSelector,
   oneLine,
+  OUTLINE_TREE,
   POLL_TIMEOUT,
   readable,
+  SIDEBAR_BODY,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
@@ -59,6 +64,39 @@ Then("the day is empty", async function (this: OlaiWorld) {
   await this.page
     .locator(DAY_EMPTY)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+/** The plugin's whole shell contribution, absent together when its row was not
+ * composed. Wait for core's sidebar before counting so an undrawn app cannot
+ * satisfy an absence assertion. */
+Then("the journal chrome is absent", async function (this: OlaiWorld) {
+  await this.showSidebar();
+  await this.page
+    .locator(SIDEBAR_BODY)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await this.waitForFrame();
+  for (const [selector, label] of [
+    [CALENDAR, "calendar"],
+    [AGENDA_LINK, "Agenda entry"],
+    [AGENDA_OWED, "owed badge"],
+  ] as const) {
+    assert.strictEqual(
+      await this.page.locator(selector).count(),
+      0,
+      `the journal plugin is disabled, but the ${label} is drawn`,
+    );
+  }
+});
+
+/** `/today`, `/d/...` and `/agenda` fall through to core's home route when the
+ * tenant is absent. Require the outliner before checking that neither plugin
+ * page appeared. */
+Then("no journal page is drawn", async function (this: OlaiWorld) {
+  await this.page
+    .locator(OUTLINE_TREE)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.strictEqual(await this.page.locator(DAY_PAGE).count(), 0);
+  assert.strictEqual(await this.page.locator(AGENDA_PAGE).count(), 0);
 });
 
 // ── what a day holds ───────────────────────────────────────────────────

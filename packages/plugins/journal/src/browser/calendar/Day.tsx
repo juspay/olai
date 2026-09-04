@@ -32,10 +32,11 @@
  * a reader moves through it.
  */
 
-import { Link } from "../router.tsx"
-import { TESTID } from "../testids.ts"
-import { TARGET } from "../touch.ts"
+import { Link } from "@olai/web/client/router.tsx"
+import { TESTID } from "../../testids.ts"
+import { TARGET } from "@olai/web/client/touch.ts"
 import { dayNumber } from "./month.ts"
+import { dayRoute } from "../routes.ts"
 
 /** The cell itself, in every state: same size, same place, centred. It carries
  *  no colour of its own — every property the marks below touch is decided in
@@ -155,7 +156,7 @@ export function Day(props: {
       data-open={String(props.open)}
     >
       <Link
-        route={{ kind: "day", date: props.date }}
+        route={dayRoute(props.date)}
         class={look()}
         title={props.date}
         label={said()}

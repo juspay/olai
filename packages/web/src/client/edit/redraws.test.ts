@@ -51,8 +51,6 @@ const of = (verb: Edit["verb"]): Edit => {
       return { verb, file: "a.md", text: "" }
     case "docNew":
       return { verb, file: "a.md" }
-    case "docDay":
-      return { verb, date: "2026-09-01" }
     case "emptyTrash":
       return { verb }
     default:
@@ -118,7 +116,7 @@ test("emptying the trash moves no row an editor could be standing in", () => {
 // tree. Stated rather than left to the default, because "not in the list" and
 // "asked and answered no" read the same from the call site.
 test("a document write is not a row moving", () => {
-  for (const verb of ["doc", "docNew", "docDay"] as const) {
+  for (const verb of ["doc", "docNew"] as const) {
     expect(redraws(of(verb))).toBe(false)
   }
 })

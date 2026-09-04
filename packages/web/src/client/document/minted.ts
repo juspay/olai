@@ -22,6 +22,7 @@
  */
 
 import type { Edit } from "@olai/surface"
+import type { OpFailure } from "@olai/format"
 import { Result } from "effect"
 
 import type { Undo } from "../edit/undoing.ts"
@@ -64,7 +65,7 @@ export const consumeMinted = (file: string): boolean => {
  * caller keeps only its own place to put a sentence.
  */
 export const mintAndOpen = async (
-  edit: Extract<Edit, { verb: "docNew" | "docDay" }>,
+  edit: Extract<Edit, { verb: "docNew" }>,
   record: Undo["record"],
   go: Router["go"],
 ): Promise<string | null> => {
@@ -73,5 +74,18 @@ export const mintAndOpen = async (
   const file = outcome.success.id
   mintedDocument(file)
   go(atFile(file))
+  return null
+}
+
+/** Open a document minted by a plugin's deliberately narrow procedure. New
+ * files have no inverse, so the plugin answer carries only its path. */
+export const openMintedFile = async (
+  asked: Promise<Result.Result<{ readonly file: string }, OpFailure>>,
+  go: Router["go"],
+): Promise<string | null> => {
+  const outcome = await asked
+  if (Result.isFailure(outcome)) return outcome.failure.message
+  mintedDocument(outcome.success.file)
+  go(atFile(outcome.success.file))
   return null
 }

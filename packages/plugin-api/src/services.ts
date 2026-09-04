@@ -842,6 +842,10 @@ export interface Ops {
   /** ONE PROPERTY, WRITTEN — see {@link PropWrite} on why the door is the
    *  gesture's shape rather than the layer's. */
   readonly prop: (write: PropWrite) => Effect.Effect<void, Refusal>
+  /** Mint one document at a path the calling plugin derived from the current
+   * reading. This is the second deliberately narrow write shape: it cannot
+   * edit rows, properties, or an existing file. */
+  readonly document: (file: string) => Effect.Effect<unknown, Refusal>
   /** A WRITE THIS SERVE REFUSED, for as long as the calling plugin is loaded.
    *
    *  ON THE WRITE GATE and not on the MCP server, because it is WRITES this is
@@ -1004,7 +1008,7 @@ export interface PluginsConfig {
    * nothing and refuses a write, which is what a plugin asking one of a process
    * that serves no directory should be told.
    */
-  readonly ops?: Pick<Ops, "reading" | "prop">
+  readonly ops?: Pick<Ops, "reading" | "prop" | "document">
   /**
    * WHERE EACH PLUGIN SITS IN THE BUILD'S LIST OF ROWS — see {@link Bundle}.
    *
@@ -1229,6 +1233,7 @@ export const openPlugins = (
     yield* provide(host, Ops, (plugin) => ({
       reading: config.ops?.reading ?? Effect.succeed(null),
       prop: (write) => config.ops?.prop(write) ?? Effect.fail(NOWHERE_TO_WRITE),
+      document: (file) => config.ops?.document(file) ?? Effect.fail(NOWHERE_TO_WRITE),
       refused: refusals.listen(plugin),
     }))
 

@@ -26,9 +26,6 @@ test("an address this app would mint is a pin, whatever page it names", () => {
     "/#herbs",
     "/notes/finishes.md",
     "/garden.olai",
-    "/d/2026-08-18",
-    "/today",
-    "/agenda",
     "/trash",
     "/",
   ]) {
@@ -67,14 +64,14 @@ test("a title carrying an address gets the link's own answer — one grammar, on
 })
 
 test("the query rides along, and is read back as the filter it is", () => {
-  const route = addressIn("/agenda?q=is%3Atodo")
-  expect(route).toEqual({ kind: "agenda", filter: "is:todo" })
+  const route = addressIn("/trash?q=is%3Atodo")
+  expect(route).toEqual({ kind: "trash", filter: "is:todo" })
 })
 
 test("a query somebody wrote by hand is the same pin as the one a browser mints", () => {
   // `?q=is:todo` and `?q=is%3Atodo` are one filter spelled two ways, and a
   // shelf that told them apart would refuse a pin for its punctuation.
-  expect(addressIn("/agenda?q=is:todo")).toEqual(addressIn("/agenda?q=is%3Atodo"))
+  expect(addressIn("/trash?q=is:todo")).toEqual(addressIn("/trash?q=is%3Atodo"))
 })
 
 test("a title that merely begins with a slash is a title, not a door", () => {
@@ -101,15 +98,15 @@ test("ordinary prose is not a pin", () => {
 })
 
 test("a markdown link is a NAMED pin; a blank label is no name", () => {
-  const named = "[What is late](/agenda?q=is%3Atodo)"
-  expect(hrefOf(addressIn(named)!)).toBe("/agenda?q=is%3Atodo")
+  const named = "[What is discarded](/trash?q=is%3Atodo)"
+  expect(hrefOf(addressIn(named)!)).toBe("/trash?q=is%3Atodo")
   expect(addressIn("[](/#herbs)")).toEqual(atNode("herbs"))
 })
 
 test("prose either side of a link is a sentence, not a pin", () => {
   // A row of `Pins.olai` may be a note about the shelf. Reading one as a door
   // would put a sentence in the sidebar.
-  expect(addressIn("see [the agenda](/agenda) tomorrow")).toBeUndefined()
+  expect(addressIn("see [the trash](/trash) tomorrow")).toBeUndefined()
 })
 
 // ── and what the outline draws a face for ──────────────────────────────
@@ -123,7 +120,7 @@ test("both spellings name the same place — the label is the only difference", 
 })
 
 test("the label somebody wrote is a name; a blank one is not", () => {
-  expect(labelIn("[What is late](/agenda?q=is%3Atodo)")).toBe("What is late")
+  expect(labelIn("[What is discarded](/trash?q=is%3Atodo)")).toBe("What is discarded")
   expect(labelIn("[](/#herbs)")).toBeUndefined()
   expect(labelIn("/#herbs")).toBeUndefined()
 })
@@ -157,9 +154,6 @@ test("a file is called by its own name, not by its path", () => {
 
 test("the pages that are not files are called what a reader calls them", () => {
   expect(nameOf(HOME_ROUTE, undefined)).toBe("Home")
-  expect(nameOf({ kind: "day", date: "2026-08-18" }, undefined)).toBe("2026-08-18")
-  expect(nameOf({ kind: "today" }, undefined)).toBe("Today")
-  expect(nameOf({ kind: "agenda" }, undefined)).toBe("Agenda")
   expect(nameOf({ kind: "trash" }, undefined)).toBe("Trash")
 })
 
@@ -183,7 +177,7 @@ test("nothing to say, said the same way three times", () => {
   // point at it — and two addresses that are not a node's at all.
   expect(shownIn(named("the herb bed"), atNode("gone"))).toBeUndefined()
   expect(shownIn(named("the herb bed"), atFile("notes/finishes.md"))).toBeUndefined()
-  expect(shownIn(named("the herb bed"), { kind: "agenda" })).toBeUndefined()
+  expect(shownIn(named("the herb bed"), { kind: "trash" })).toBeUndefined()
 })
 
 // A landed row page is what the PALETTE names, and the palette is handed the
@@ -192,7 +186,7 @@ test("nothing to say, said the same way three times", () => {
 // never hold the id. The width answers with the FILE — the heading arm's own
 // answer, and the opposite of the raw href this used to fall through to.
 test("a landed row page is named by its file — the request the table answered held no row", () => {
-  expect(requestFor(routeOf("/house.olai#install"), "2026-08-29")).toEqual({
+  expect(requestFor(routeOf("/house.olai#install"))).toEqual({
     kind: "at",
     address: addressOf("house.olai", null),
   })

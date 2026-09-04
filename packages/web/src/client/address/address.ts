@@ -26,7 +26,7 @@
 import { addressWritten, basenameOf, linkedTitle } from "@olai/format"
 
 import type { Names } from "../names.ts"
-import { hrefOf, type Route, routeIn } from "../routes.ts"
+import { hrefOf, type Route, routeFace, routeIn } from "../routes.ts"
 
 /**
  * The address a title names, or `undefined`.
@@ -206,14 +206,10 @@ export const nameOf = (
       // a pin to that document as far as a row four columns wide is concerned.
       return basenameOf(address.path)
     }
-    case "day":
-      return route.date
-    case "today":
-      return "Today"
-    case "agenda":
-      return "Agenda"
     case "trash":
       return "Trash"
+    case "plugin":
+      return routeFace(route)?.breadcrumb(route.value) ?? hrefOf(route)
   }
 }
 

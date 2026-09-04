@@ -135,10 +135,9 @@ import {
   Switch,
 } from "solid-js"
 
-import type { InboxHeld, Owed } from "@olai/surface"
+import type { InboxHeld } from "@olai/surface"
 
-import { PluginSections } from "./plugins/Seats.tsx"
-import { markOf, unchanged } from "./agenda/owed.ts"
+import { PluginEntries, PluginSections } from "./plugins/Seats.tsx"
 import { NewDocument } from "./document/NewDocument.tsx"
 import { NewOutline } from "./outline/NewOutline.tsx"
 import { ROW_TESTID } from "./file/kinds.ts"
@@ -148,8 +147,8 @@ import { ancestorDirs, dirsIn, type FileRow, fileTree } from "./fileTree.ts"
 import { openFolders, toggleFolder } from "./fold/folders.ts"
 import { LAYER, WITHIN } from "./layer.ts"
 import { CHIP_QUIET } from "./layout/chip.ts"
-import { CountChip } from "./layout/CountChip.tsx"
 import { ENTRY_SHAPE, REGION, ROW_GAP } from "./layout/entry.ts"
+import { CountChip } from "./layout/CountChip.tsx"
 import { SidebarHandle } from "./layout/Handle.tsx"
 import { setSidebarOpen } from "./layout/prefs.ts"
 import { Shelf } from "./pins/Shelf.tsx"
@@ -195,18 +194,12 @@ interface TreeView {
 export function Sidebar(props: {
   readonly active: string | undefined
   readonly broken: ReadonlyMap<string, BrokenFile>
-  /** What is owed as of today, counted where the set is (./dates.ts's `owed`
-   *  stream) — the app's ONE subscription to it, so the column and the rail it
-   *  collapses into cannot say different numbers. `undefined` only while the
-   *  first frame is still arriving, and then the entry claims nothing. */
-  readonly owed: Owed | undefined
   /** How full the inbox is, counted where the set is (`./inbox.ts`'s cell) —
    *  the rows marked `todo` or `doing`, at any depth; zero when there is
    *  none or nothing is marked. The door's presence is still a
    *  question about the PATHS (`inboxIn`); this is only the number it
    *  wears. */
   readonly inboxHeld: InboxHeld
-  readonly children?: JSX.Element
   /**
    * Phone drawer footer. App chrome that is not the directory — preferences —
    * is composed here by the caller so this column does not import it.
@@ -359,7 +352,7 @@ export function Sidebar(props: {
           // open several without reopening the drawer each time.
           onClick={() => props.onClose()}
         >
-          <Agenda owed={props.owed} />
+          <PluginEntries place="top" />
           <Show when={inbox()}>
             {(file) => (
               <Inbox
@@ -381,7 +374,7 @@ export function Sidebar(props: {
               feature is unused, and a serve running no chat has no section at
               all (`./plugins/Seats.tsx`). */}
           <PluginSections />
-          {props.children}
+          <PluginEntries place="bottom" />
 
           {/* THE SHELF, between the month and the files — which is where a
               reader's own short list belongs (human, 2026-08-19). Inbox used
@@ -483,72 +476,6 @@ export function Sidebar(props: {
         </Show>
       </nav>
     </>
-  )
-}
-
-/** The way to what is owed, above the month — and, when something IS owed, the
- *  news that it is.
- *
- *  Whether it is the page being read is asked of the ROUTE rather than passed
- *  down beside the open file: the agenda belongs to no outline — it crosses all
- *  of them — so `active` has nothing to say about it, and the router is already
- *  what every link in this column goes through.
- *
- *  What it MARKS is not asked of anything: the two numbers arrive as a prop,
- *  off the one `owed` subscription this client opens (../dates.ts). A count
- *  derived here would be a second reading of the same directory, free to
- *  disagree with the page one click away — which is the whole of why this entry
- *  takes the COUNTS and not a set to walk, and since `vault-in-browser`'s PR 4
- *  there is no set on this side to walk anyway.
- *
- *  The facts ride a WRAPPER rather than the link, the way a calendar cell
- *  carries its four (./calendar/Day.tsx): `<Link>` spells the `data-` it knows
- *  about, and "how many are late" is not a fact about links.
- *
- *  ON THE AGENDA ITSELF the current-page wash wins the row and the alarm keeps
- *  the chip, and that is the cascade doing what it should: `aria-[current=page]`
- *  is an attribute-qualified selector and outranks a plain utility, so the entry
- *  says "you are here" while the chip goes on saying how many. A reader standing
- *  on the page has the OVERDUE section itself in front of them; the alarm's job
- *  is to reach somebody who is somewhere else. */
-function Agenda(props: { readonly owed: Owed | undefined }) {
-  const router = useRouter()
-  // A memo, and it holds its answer by the COUNTS rather than by identity: a
-  // mark is minted afresh on every frame, so one compared by reference would
-  // rewrite this entry's class, label, title and three `data-` facts for a
-  // frame that said what the last one did (`./agenda/owed.ts`'s `unchanged`).
-  const mark = createMemo(() => markOf(props.owed), undefined, { equals: unchanged })
-
-  return (
-    <div
-      class="mb-1"
-      data-testid={TESTID.agendaOwed}
-      data-owed={mark().face}
-      data-overdue={String(mark().owed.overdue)}
-      data-today={String(mark().owed.today)}
-    >
-      <Link
-        route={{ kind: "agenda" }}
-        // The SHAPE plus the mark's ink and ground: one utility per property,
-        // whichever face it is wearing.
-        class={`${ENTRY_SHAPE} ${mark().entry}`}
-        testid={TESTID.agendaLink}
-        current={router.route().kind === "agenda"}
-        label={mark().said}
-        title={mark().said}
-      >
-        Agenda
-        {/* Whether there is a chip at all is the table's ruling, read off the
-            paint it did or did not hand back — never a second reading of the
-            face here. The chip itself is the column's one count badge
-            (`./layout/CountChip.tsx`), so Inbox cannot spell a lookalike. */}
-        <CountChip
-          count={mark().count}
-          paint={mark().chip}
-          testid={TESTID.agendaCount}
-        />
-      </Link>
-    </div>
   )
 }
 
