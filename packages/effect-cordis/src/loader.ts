@@ -44,6 +44,9 @@ import { ctxOf, type Host } from "./host.ts"
 export interface Row {
   readonly id: string
   readonly disabled?: boolean
+  /** The plugin's own config, validated at load against the schema it
+   *  exports beside `apply`. Absent is the ordinary case. */
+  readonly config?: unknown
 }
 
 /**
@@ -98,10 +101,10 @@ export const mountRows = (host: Host, options: {
   readonly baseUrl: string
   /** The bundle file, relative to {@link baseUrl}. */
   readonly path: string
-  /** Overlays applied over the rows on the way in — `{ id, disabled }` copied
-   *  onto the matching row. An empty list is nobody having said anything, and
-   *  the rows' own defaults stand. */
-  readonly patches: ReadonlyArray<Partial<Row>>
+  /** Overlays applied over the rows on the way in — `{ id, disabled }` or
+   *  `{ id, config }` copied onto the matching row. An empty list is nobody
+   *  having said anything, and the rows' own defaults stand. */
+  readonly patches: ReadonlyArray<Partial<Row> & { readonly id: string }>
   /** How a row's module specifier becomes a module — see the header. */
   readonly resolve: (specifier: string) => Promise<unknown>
 }): Effect.Effect<void> =>
@@ -255,3 +258,31 @@ export const flipRow = (host: Host, id: string, disabled: boolean): Effect.Effec
  *  different loops over the same pinned field and a shared constant would read
  *  as one rule rather than two applications of one argument. */
 const PASSES = 100
+
+/**
+ * EACH ROW'S CONFIG, off the live entries — what `olai.yml` and the CLI
+ * patches left on the row, before the plugin's schema folds defaults in.
+ *
+ * A LIVE READ of the loader entries, so a patch applied at mount is what a
+ * roster draws. A row with no `config:` is absent from the map rather than
+ * present-and-empty: the panel draws values only where somebody set them.
+ */
+export const rowConfigs = (
+  host: Host,
+): ReadonlyMap<string, Readonly<Record<string, unknown>>> => {
+  const table = new Map<string, Readonly<Record<string, unknown>>>()
+  for (const entry of entriesOf(host)) {
+    const id = entry.options.id
+    const config = (entry.options as { readonly config?: unknown }).config
+    if (
+      typeof id === "string"
+      && config !== undefined
+      && config !== null
+      && typeof config === "object"
+      && !Array.isArray(config)
+    ) {
+      table.set(id, config as Readonly<Record<string, unknown>>)
+    }
+  }
+  return table
+}

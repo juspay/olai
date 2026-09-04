@@ -20,7 +20,7 @@ import { For } from "solid-js"
 import { Moved } from "./Moved.tsx"
 import { HOW, HOW_TONE } from "./said.ts"
 import type { Selection } from "./selection.ts"
-import { TESTID } from "../testids.ts"
+import { TESTID } from "../../testids.ts"
 import { Tick } from "./Tick.tsx"
 
 export function Others(props: {

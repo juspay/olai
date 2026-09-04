@@ -14,11 +14,10 @@
  *     this is the layer that holds both, and because the write gate validates
  *     through it on every commit;
  *   - `make` — the ops service: one `run` that plans, writes and retries, plus
- *     `pending` and `commit`, which are what a write WAITS for now that a commit
- *     is something somebody asks for, and one `git` saying what git is doing for
- *     the directory at all. The planner behind `run`, and the git plumbing
- *     behind the other three, are deliberately NOT exported: they are the inside
- *     of this one, and their own tests reach them directly;
+ *     `commit` / `push` / `resume` through a ledger door the git plugin stands
+ *     behind (or refuse in words when nobody does). The planner behind `run`
+ *     is deliberately NOT exported: it is the inside of this one, and its own
+ *     tests reach it directly;
  *   - `Query` — how a reader that is not a browser sees the set, over parsed
  *     nodes and never over bytes;
  *   - `TOOLS` — the closed list of what an agent may do, each entry carrying
@@ -35,7 +34,7 @@
 export { codecFor } from "./codec.ts"
 export type { Store } from "./deps.ts"
 export { type Caller, type Fence, type Outside, outsideFence } from "./fenced.ts"
-export { make, type Ops, type Options } from "./ops.ts"
+export { make, NO_LEDGER, type Ledger, type Ops, type Options } from "./ops.ts"
 export { standing, type Standing } from "./standing.ts"
 /** The two refusals a caller ABOVE this layer meets too, about an id: one the
  *  set does not declare, and one that names a PLACEMENT rather than a node.
@@ -49,23 +48,7 @@ export { fenceRefusal } from "./refusals.ts"
  *  naming the row above the one it meant, putting a branch back in a different
  *  order, or carrying a guard that stopped matching. */
 export { type Merging, merging } from "./plan.ts"
-/** When writes reach git, and what git is doing for the directory they reach.
- *  The POLICY is passed IN — what this server does, and the flags the operator
- *  gave, in `@olai/format`'s own vocabulary — and the state comes back OUT; the
- *  subprocesses between them, and the quiet window over them, are this layer's
- *  business. */
-export {
-  COMMIT_BUTTON,
-  COMMIT_TOOL,
-  COMMIT_MODES,
-  commitDoor,
-  commitDoors,
-  type CommitFace,
-  type CommitMode,
-  fixedPolicy,
-  type Policy,
-  type Status,
-} from "./pending.ts"
+
 /** The write vocabulary, under the names this layer's own answers use. It
  *  lives on the FLOOR (`@olai/format`'s `writing.ts`, which says why): the
  *  surface carries these to an agent's door, so a package the browser bundles

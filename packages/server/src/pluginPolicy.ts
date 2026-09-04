@@ -110,11 +110,11 @@ export const pluginsSaid = (): string =>
  *  about the flag and two copies of it is one place for it to be softened.
  *
  *  IT NO LONGER MATCHES `./gitPolicy.ts` WORD FOR WORD, and the divergence is
- *  the loader surface. That one still ends "every browser draws that preference
- *  row read-only", which is true of the git rows and is no longer true here: the
- *  plugins panel has a switch. What a `--help` page owes a person about a flag
- *  whose value can be moved out from under it is which of the two is the LASTING
- *  answer, so that is what this says. */
+ *  the loader surface. That one still ends "every browser draws it read-only",
+ *  which is true of the git row's config. This flag's panel has a switch. What
+ *  a `--help` page owes a person about a flag whose value can be moved out
+ *  from under it is which of the two is the LASTING answer, so that is what
+ *  this says. */
 const INSTANCE =
   "This is what the serve STARTS with. The plugins panel can turn one on or " +
   "off while the process runs; that lasts as long as the process, and a " +

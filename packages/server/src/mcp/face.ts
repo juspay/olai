@@ -37,7 +37,6 @@ import { directDispatch } from "@kolu/surface/links/direct"
 import { restrictHandlers } from "@kolu/surface/expose"
 import type { SurfaceDispatch } from "@kolu/surface/link"
 import type { SurfaceReadFace } from "@kolu/surface/project"
-import type { SurfaceHandlers } from "@kolu/surface/server"
 import { type BespokeTool, type ClientOrConnection, serveSurfaceAsMcp } from "@kolu/surface-mcp"
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js"
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js"
@@ -108,7 +107,9 @@ export type OlaiSurfaceClient = {
 /** Build the typed face over any dispatch — the in-process one the HTTP
  *  route uses. THE one place the structural cast lives, so nothing
  *  downstream re-derives it. */
-export const clientOn = (dispatch: SurfaceDispatch): OlaiSurfaceClient =>
+export const clientOn = (
+  dispatch: SurfaceDispatch,
+): OlaiSurfaceClient =>
   buildSurfaceFace(surface, dispatch) as unknown as OlaiSurfaceClient
 
 /** The in-process case: dispatch straight at the handlers this process bound.
@@ -138,12 +139,10 @@ export const clientOn = (dispatch: SurfaceDispatch): OlaiSurfaceClient =>
 export const clientOver = (
   bound: Pick<Bound, "group" | "handlers">,
   face: FaceExposure,
-): OlaiSurfaceClient =>
-  clientOn(
-    directDispatch({
-      handlers: restrictHandlers(bound.group, bound.handlers, face),
-    }),
-  )
+): OlaiSurfaceClient => {
+  const handlers = restrictHandlers(bound.group, bound.handlers, face)
+  return clientOn(directDispatch({ handlers }))
+}
 
 /** What this server calls itself. The version is the binary's, spelled here
  *  because the adapter has no other way to learn it. */

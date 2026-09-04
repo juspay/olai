@@ -9,36 +9,18 @@
  * settings popover, whose shape this adopts: its rows read and write wire
  * singletons, because its preferences are the server's.
  *
- * **THE INSTANCE'S ROWS ARE THE EXCEPTION**, and there are two GIT ones: this
- * INSTANCE's policy, set at launch (a flag, the nix module, or the built-in
- * default), the same in every browser, always read-only. Never hidden: a policy
- * a reader cannot see is one they cannot ask anybody about. Nothing is SENT;
- * the policy arrives on the `git` cell, which this panel READS and never
- * writes. Theme, font, size, notes and done are untouched by any of it — those
- * are personal view choices and there is nothing about them for a server to
- * have an opinion on.
- *
- * THERE WAS A THIRD KIND and it left: a row per plugin this build has. The
- * read-only presentation is generic (`./Row.tsx`'s `setBy`) and so are the
- * words under it (`./instance.ts`), so they JOINED without either being
- * widened — "a future instance setting can join them" was the claim, and they
- * were it arriving. What that showed is that the mechanism generalises and the
- * PANEL does not: git policy is about THIS DIRECTORY, which is what the rest of
- * this panel is about, so a person setting how their pages read is in the right
- * place to be told what happens when they write one. Which integrations the
- * instance runs is a different question with a different owner, and a
- * read-only strip among live ones reads as a preference somebody disabled
- * rather than as a fact about the serve. They are their own control in the bar
- * now (`../plugins/Plugins.tsx`), and they took their reading and their
- * subscription with them.
+ * THERE WAS AN INSTANCE KIND and it left twice: a row per plugin this build
+ * has, and the two git-policy rows. The plugin rows are their own control in
+ * the bar now (`../plugins/Plugins.tsx`). Git policy travels with the git
+ * plugin's commit panel — this package does not import that plugin, and a
+ * serve without the row has no policy to draw.
  *
  * WHAT IS ON IT is a narrower question than "every client-local value", and the
  * answer is: the ones that are a CHOICE and have nowhere else to be made. The
  * theme, the typeface, how much of a row is drawn by default, what the page in
- * front of you does with finished work, whether the agent stopping on a
- * question is announced and whether that makes a sound, and the two git rows —
- * whether what is waiting records itself, and whether a commit from here is
- * pushed. The two ALERT rows meet the test the same way the reader's rows do:
+ * front of you does with finished work, and whether the agent stopping on a
+ * question is announced and whether that makes a sound. The two ALERT rows
+ * meet the test the same way the reader's rows do:
  * "tell me when the agent needs me" is a claim about the reader, and the
  * surface it is about is a drawer that is SHUT in exactly the case the setting
  * is for — so a switch on the panel would be a control you can only reach when
@@ -49,12 +31,7 @@
  * the day page too. The DONE row here says the Default: a page with its own
  * say-so draws its flip beside its filter (../filter/DoneFlip.tsx), and the
  * row a reader comes to change the DEFAULT on is the one door that always
- * holds still. The two GIT rows are the same kind of claim
- * — "I do not want to press Commit", "I want a commit I make here to be sent" —
- * so they are rows here rather than switches on the Commit panel. TWO rows and
- * not one strip of three, because they are two independent facts: pushing a
- * commit you made by hand is the shipped case, and folding them into a single
- * Off / Auto-commit / both would take it away. The layout values
+ * holds still. The layout values
  * in `../layout/prefs.ts` are
  * stored the same way and are deliberately NOT here — a sidebar width is set
  * by dragging the sidebar, and a panel being open is set by the control that
@@ -72,25 +49,15 @@
  * worse than two words for one. This is the surface; that is the mechanism.
  */
 
-import { For, Show } from "solid-js"
+import { Show } from "solid-js"
 
 import { type Anchor, styleOf } from "../anchor.ts"
 import { PANEL_BOX } from "../readout.ts"
-import type { GitState } from "@olai/format"
-
-import { createGitPolicy } from "../commit/state.ts"
 import { askToNotify, notifyConsent } from "../notify.ts"
 import { alertsOn, alertSoundOn, setAlertsOn, setAlertSoundOn } from "./alerts.ts"
 import { density, type Density, setDensity } from "./density.ts"
 import { doneHidden, setDoneHidden } from "./done.ts"
-import {
-  commitOn,
-  commitSetBy,
-  commitsOff,
-  pushOn,
-  pushSetBy,
-} from "./policy.ts"
-import { QUIET_MS } from "@olai/format"
+
 import { Row } from "./Row.tsx"
 import { Segmented } from "./Segmented.tsx"
 import { TARGET } from "../touch.ts"
@@ -132,25 +99,6 @@ const ALERT_CHOICES = [
   { value: "on", label: "On" },
 ] as const
 
-/** Git commit: Off / Auto-commit — a write waits for a press, or what is
- *  waiting records itself once writes stop arriving. */
-const COMMIT_CHOICES = [
-  { value: "off", label: "Off" },
-  { value: "on", label: "Auto-commit" },
-] as const
-
-/** Git push: Off / Auto-push — a commit waits to be sent, or every commit olai
- *  makes here is followed by the same push the panel already offers. */
-const PUSH_CHOICES = [
-  { value: "off", label: "Off" },
-  { value: "on", label: "Auto-push" },
-] as const
-
-/** The quiet window in the words the hint says it in. Read off the value the
- *  server's loop actually waits (`@olai/format`) rather than spelled again, so
- *  the sentence cannot promise a span the loop does not keep. */
-const QUIET_SECONDS = Math.round(QUIET_MS / 1000)
-
 export function Panel(props: {
   /** Where to sit, in viewport pixels — see `../anchor.ts` for why this is not
    *  a matter of CSS alone. */
@@ -159,14 +107,6 @@ export function Panel(props: {
    *  not a descendant of the control that opened it. */
   readonly inside: (el: HTMLElement | undefined) => void
 }) {
-  /** The two git rows' door — what the server says about git, and the two verbs
-   *  that move it (`../commit/state.ts`). The SEAM rather than the whole
-   *  committer: this panel draws nothing that is waiting, and the committer
-   *  opens a `pending` subscription it would decode a full frame of per publish
-   *  for nobody. `./policy.ts`'s readings are pure functions of what it hands
-   *  back, so there is no signal here either. */
-  const policy = createGitPolicy()
-  const git = policy.git
   // THE `plugins` CELL IS NOT READ HERE ANY MORE. It was, for the rows that
   // are now their own panel — and it is worth the line, because a panel that
   // still subscribed to a cell it draws nothing from is a frame decoded per
@@ -251,100 +191,11 @@ export function Panel(props: {
         />
       </Row>
 
-      {/* The two git rows, in the order the two verbs happen in — and the only
-          two on this panel that are about the INSTANCE rather than about the
-          reader, so they draw the server's policy read-only (`./policy.ts`). */}
-      <Row
-        label="Git commit"
-        pref="git-commit"
-        hint={commitHint(git())}
-        setBy={commitSetBy(git())}
-        // SAID IN A WORD, where it used to fall out of `setBy` being present.
-        // The two came apart when the plugins panel grew rows that carry a
-        // source line AND a live switch (`../settings/Row.tsx` argues it); these
-        // two are still the server's alone, so they still say so.
-        frozen
-        under={
-          /* THE ONE GESTURE THAT STARTS THE LOOP AGAIN. A refused commit or
-             push stops the quiet window and nothing clears that on olai's own
-             initiative — a loop that un-paused itself is a blind retry wearing
-             a different hat.
-
-             It used to be two gestures: the stop was this TAB's, so turning the
-             browser's own toggle off and on again cleared it, and only a PINNED
-             row (which has no toggle) carried this button. The stop is the
-             directory's now, so neither a toggle nor a reload can clear it and
-             this is the gesture on every deployment — which is also what makes
-             it work from any tab, for a loop any tab can see is stopped.
-
-             Drawn ONLY while the loop is actually stopped: a button offering to
-             resume a loop that is running is a control with nothing to do. */
-          <Show when={git().paused !== null}>
-            <button
-              type="button"
-              // `mt-2` here rather than on a wrapper in `./Row.tsx`: the slot is
-              // rendered bare, so a row whose Resume is not showing draws
-              // nothing at all — see there.
-              class={`${TARGET} mt-2 rounded-full border border-rule px-3 text-xs text-ink hover:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent md:min-h-0 md:py-1`}
-              data-testid={TESTID.prefsResume}
-              onClick={() => policy.resume()}
-            >
-              Resume auto-commit
-            </button>
-          </Show>
-        }
-      >
-        <Segmented
-          choices={COMMIT_CHOICES}
-          value={commitOn(git()) ? "on" : "off"}
-          frozen
-        />
-      </Row>
-
-      <Row
-        label="Git push"
-        pref="git-push"
-        hint={pushHint(git())}
-        setBy={pushSetBy(git())}
-        frozen
-      >
-        <Segmented
-          choices={PUSH_CHOICES}
-          value={pushOn(git()) ? "on" : "off"}
-          frozen
-        />
-      </Row>
-
-      {/* THE PLUGIN ROWS LEFT, and they are a control of their own in the bar
-          now (`../plugins/Plugins.tsx`). They were here, frozen, under the two
-          git rows — and the two cases look alike and are not. Git policy is
-          about THIS DIRECTORY, which is what the rest of this panel is about,
-          so a person setting how their pages read is in the right place to be
-          told what happens when they write one. Which integrations the
-          INSTANCE runs is a different question with a different owner, and a
-          read-only strip among live ones reads as a preference somebody
-          disabled rather than as a fact about the serve. */}
-
-      {/* WHAT THE SERVER WOULD NOT TAKE, beside the row that asked. Resume is
-          the one remaining git gesture on this panel, and a dropped socket or
-          a usage refusal would be a button that did nothing with no words
-          anywhere. */}
-      <Show when={policy.refused()}>
-        {(said) => (
-          <p class="wrap-anywhere text-xs text-alarm" data-testid={TESTID.prefsGitRefused}>
-            {said()}
-          </p>
-        )}
-      </Show>
 
       {/* One sentence for the whole panel, because it is one fact about every
           row on it and repeating it per row would be three copies of the
           doctrine. It is here at all because "where did this go" is exactly
           what a person wonders about a setting they just changed.
-
-          The git rows are named as the exception rather than left to contradict
-          it: they are always the instance's, and a caveat about a feature
-          nobody is using is not a caveat here — every serve has them.
 
           THE PLUGIN ROWS WERE NAMED HERE TOO, in the same breath, while they
           were on this panel — the same exception rather than a second one. They
@@ -355,10 +206,7 @@ export function Panel(props: {
           `../plugins/Panel.tsx` says why. */}
       <p class="border-t border-rule pt-3 text-xs text-muted" data-testid={TESTID.prefsScope}>
         These are this browser's. They are stored here, reach every tab you have
-        olai open in, and are never sent to the server. The two git rows are
-        this instance's policy, set at launch — a flag, the nix module, or the
-        built-in default. They are the same in every browser and cannot be
-        changed from one.
+        olai open in, and are never sent to the server.
       </p>
     </section>
   )
@@ -379,8 +227,7 @@ export function Panel(props: {
  *
  * Drawn only while there is something for it to do — alerts on, and a browser
  * that has neither granted nor refused. A button offering to ask a question
- * that has been answered is a control with nothing to do, which is the same
- * argument the Resume button two rows down makes.
+ * that has been answered is a control with nothing to do.
  */
 function AllowNotify() {
   return (
@@ -469,26 +316,3 @@ const doneHint = (): string =>
   doneHidden()
     ? "Finished work is hidden. A page can show it anyway from its own filter."
     : "Finished work is shown. A page can hide it from its own filter."
-
-
-/** What Auto-commit in force MEANS: WHEN it records, and the one gesture that
- *  starts it again after git refuses. */
-const commitHint = (git: GitState): string => {
-  // `--commit=off` FIRST, because it is not a third setting of this row — it is
-  // the row having nothing to be about. Sending a reader to the Commit button
-  // there points them at a pill that is inert and a directory olai never writes
-  // a commit in; the two arms below both assume there is a history to record
-  // into (`./policy.ts`'s `commitsOff`).
-  if (commitsOff(git)) {
-    return "olai never touches git in this directory."
-  }
-  return commitOn(git)
-    ? `The server records what is waiting ${QUIET_SECONDS} seconds after writes ` +
-      "stop. If git refuses one, press Resume to start it again."
-    : "A write waits for the Commit button."
-}
-
-const pushHint = (git: GitState): string =>
-  pushOn(git)
-    ? "Every commit made here is pushed automatically."
-    : "A commit waits for the Push button."
