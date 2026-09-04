@@ -60,7 +60,7 @@ import { listen } from "./listener.ts"
 import { clientOver, serveFace } from "./mcp/face.ts"
 import { currentLogin, MCP_PATH, mcpTransport } from "./mcp/route.ts"
 import { ticketing, type Tickets } from "./mcp/tickets.ts"
-import { bespokeFrom } from "./mcp/tools.ts"
+import { bespokeFrom, pluginTools } from "./mcp/tools.ts"
 import { gitConfigPatch } from "./gitPolicy.ts"
 import { bind, writerAt } from "./runtime.ts"
 
@@ -576,14 +576,21 @@ export const serve = (options: ServeOptions) =>
        * shape — a harness putting a fixture back under a live server — already
        * knocks.
        */
-      tools: bespokeFrom(TOOLS, {
-        login: currentLogin,
-        root,
-        vintage: Effect.map(store.read("verified"), (aged) => aged.vintage),
-        fenced: tickets.doorAt,
-        record: (request) => ops.commit(request, "chat-agent"),
-        push: ops.push,
-      }),
+      tools: {
+        ...bespokeFrom(TOOLS, {
+          login: currentLogin,
+          root,
+          vintage: Effect.map(store.read("verified"), (aged) => aged.vintage),
+          fenced: tickets.doorAt,
+          record: (request) => ops.commit(request, "chat-agent"),
+          push: ops.push,
+        }),
+        // ...AND CORE'S OWN THREE, which are not operations on a vault and so
+        // are not rows in the ops layer's table (`./mcp/tools.ts` argues where
+        // they live). Without them the section of `docs/dynamic-plugins.md`
+        // written FOR a node agent named three verbs no node agent could call.
+        ...pluginTools(),
+      },
       transport,
     })
 

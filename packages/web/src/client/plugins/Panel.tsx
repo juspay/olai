@@ -235,6 +235,21 @@ export function Panel(props: {
   const [approving, setApproving] = createSignal<string | null>(null)
 
   /**
+   * WHICH VERSION OF EACH DEFINITION THIS READER HAS BEEN SHOWN.
+   *
+   * It lives HERE rather than inside the block it is about, and that placement
+   * is the whole of what it buys: the rows come off the roster, which is a fresh
+   * array on every publish, so `For` rebuilds the components under it and a
+   * signal inside one would reset on exactly the frame an edit arrived — which
+   * is the frame it exists to survive.
+   *
+   * See {@link Defined}'s `moved` for what it is FOR. The short of it: a live
+   * roster swaps the source under a reader, and a verb that stayed armed across
+   * that swap approves what is there now rather than what was read.
+   */
+  const [read, setRead] = createSignal<ReadonlyMap<string, string>>(new Map())
+
+  /**
    * SAY YES TO A PLUGIN THE VAULT DEFINES.
    *
    * The VERSION goes with the press — the one this panel drew, off the roster it
@@ -310,7 +325,16 @@ export function Panel(props: {
           code and not a hint. The rows stay one line each and this hangs under
           them. */}
       <For each={rows().filter((one) => one.source !== undefined)}>
-        {(plugin) => <Defined plugin={plugin} approving={approving} approve={approve} />}
+        {(plugin) => (
+          <Defined
+            plugin={plugin}
+            approving={approving}
+            approve={approve}
+            read={read().get(plugin.name)}
+            onRead={(name, version) =>
+              setRead((was) => new Map(was).set(name, version))}
+          />
+        )}
       </For>
 
       {/* A BUILD WITH NO PLUGINS SAYS SO, where on the preferences panel it
@@ -416,52 +440,100 @@ function Defined(props: {
   readonly plugin: BuiltPlugin
   readonly approving: () => string | null
   readonly approve: (name: string, version: string, forever: boolean) => void
+  /** WHICH VERSION OF THIS DEFINITION THE READER HAS BEEN SHOWN — see
+   *  {@link Panel}'s `read`. */
+  readonly read: string | undefined
+  readonly onRead: (name: string, version: string) => void
 }) {
   const source = () => props.plugin.source
   const pending = () => pluginState(props.plugin) === "pending"
   const frozen = () => props.approving() !== null
+  /**
+   * HAS WHAT IS ON SCREEN MOVED SINCE THE READER STARTED READING IT.
+   *
+   * The row is drawn off the roster and the roster is live, so an edit that
+   * lands while somebody has this block open REPLACES the source under them —
+   * and the verbs beside it went on being armed, sending whatever version was
+   * current at the moment of the press. The version on the wire was therefore
+   * always the one the serve already had, which made the serve's own guard
+   * (*this has been edited since this page drew it*) unreachable from the one
+   * client that exists, and made the gesture *approve whatever is there now*
+   * rather than *approve what I read*.
+   *
+   * So the block remembers the version it first showed this reader, and an
+   * arrival disarms rather than swapping quietly. What re-arms it is reading
+   * again, which is a press of its own.
+   */
+  const moved = () => props.read !== undefined && props.read !== source()?.version
   return (
     <Show when={source()}>
-      {(said) => (
-        <details
-          open={pending()}
-          class="rounded border border-line/60 p-2 text-xs"
-          data-testid={TESTID.pluginsSource}
-          data-plugin={props.plugin.name}
-        >
-          <summary class="cursor-pointer text-muted">
-            {props.plugin.name} — {said().file}, version {said().version}
-            {said().approved ? "" : " (not approved)"}
-          </summary>
-          <pre class="mt-2 max-h-64 overflow-auto wrap-anywhere whitespace-pre-wrap">
-            {`// ${PLUGIN_SERVER_NODE}\n${said().server}${
-              said().browser === undefined ? "" : `\n\n// ${PLUGIN_BROWSER_NODE}\n${said().browser}`
-            }`}
-          </pre>
-          <Show when={pending()}>
-            <div class="mt-2 flex gap-2">
-              <button
-                type="button"
-                class="rounded border border-line px-2 py-1"
-                disabled={frozen()}
-                data-testid={TESTID.pluginsApprove}
-                onClick={() => props.approve(props.plugin.name, said().version, false)}
+      {(said) => {
+        // WHAT THIS READER HAS SEEN, recorded the first time this definition is
+        // drawn for them and never afterwards — recording it again on every
+        // frame is exactly the swap this exists to refuse.
+        if (props.read === undefined) props.onRead(props.plugin.name, said().version)
+        return (
+          <details
+            open={pending()}
+            class="rounded border border-line/60 p-2 text-xs"
+            data-testid={TESTID.pluginsSource}
+            data-plugin={props.plugin.name}
+            data-version={said().version}
+          >
+            <summary class="cursor-pointer text-muted">
+              {props.plugin.name} — {said().file}, version {said().version}
+              {said().approved ? "" : " (not approved)"}
+            </summary>
+            <pre class="mt-2 max-h-64 overflow-auto wrap-anywhere whitespace-pre-wrap">
+              {`// ${PLUGIN_SERVER_NODE}\n${said().server}${
+                said().browser === undefined
+                  ? ""
+                  : `\n\n// ${PLUGIN_BROWSER_NODE}\n${said().browser}`
+              }`}
+            </pre>
+            <Show when={pending()}>
+              <Show
+                when={!moved()}
+                fallback={
+                  <div class="mt-2 flex items-center gap-2" data-testid={TESTID.pluginsMoved}>
+                    <p class="text-alarm">
+                      This changed while you were reading it. Above is what it says now.
+                    </p>
+                    <button
+                      type="button"
+                      class="rounded border border-line px-2 py-1"
+                      onClick={() => props.onRead(props.plugin.name, said().version)}
+                    >
+                      I have read it
+                    </button>
+                  </div>
+                }
               >
-                Approve this version
-              </button>
-              <button
-                type="button"
-                class="rounded border border-line px-2 py-1"
-                disabled={frozen()}
-                data-testid={TESTID.pluginsApproveAlways}
-                onClick={() => props.approve(props.plugin.name, said().version, true)}
-              >
-                Approve always
-              </button>
-            </div>
-          </Show>
-        </details>
-      )}
+                <div class="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    class="rounded border border-line px-2 py-1"
+                    disabled={frozen()}
+                    data-testid={TESTID.pluginsApprove}
+                    onClick={() => props.approve(props.plugin.name, said().version, false)}
+                  >
+                    Approve this version
+                  </button>
+                  <button
+                    type="button"
+                    class="rounded border border-line px-2 py-1"
+                    disabled={frozen()}
+                    data-testid={TESTID.pluginsApproveAlways}
+                    onClick={() => props.approve(props.plugin.name, said().version, true)}
+                  >
+                    Approve always
+                  </button>
+                </div>
+              </Show>
+            </Show>
+          </details>
+        )
+      }}
     </Show>
   )
 }

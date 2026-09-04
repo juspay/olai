@@ -620,6 +620,11 @@ export const TESTID = {
    *  the app. */
   pluginsApprove: "plugins-approve",
   pluginsApproveAlways: "plugins-approve-always",
+  /** ...and what stands where those two do when the definition MOVED while
+   *  somebody was reading it. The roster is live, so an edit replaces the source
+   *  under a reader; the verbs disarm rather than swapping quietly, and reading
+   *  again is a press of its own. */
+  pluginsMoved: "plugins-moved",
   /** One row on EITHER panel; `data-pref` is which. On preferences: `theme`,
    *  `font`, `size`, `density`, `done`. On plugins:
    *  one `plugin-<name>` per plugin this build has ({@link pluginPref}, which

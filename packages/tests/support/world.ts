@@ -911,6 +911,16 @@ export const PLUGINS_STARTED = selector(TESTID.pluginsStarted);
 export const PLUGINS_REFUSED = selector(TESTID.pluginsRefused);
 /** A row's config, as data under it. `data-config` is the key. */
 export const PLUGIN_CONFIG = selector(TESTID.pluginConfig);
+/** THE SOURCE OF A PLUGIN THE VAULT DEFINES, drawn under the rows — the two
+ *  halves as somebody wrote them, which is the thing a person is being asked to
+ *  read. `data-plugin` is the word and `data-version` is the hash it is
+ *  showing. */
+export const PLUGINS_SOURCE = selector(TESTID.pluginsSource);
+/** ...and the two verbs beside it, and what stands where they do when the
+ *  definition moved while somebody was reading it. */
+export const PLUGINS_APPROVE = selector(TESTID.pluginsApprove);
+export const PLUGINS_APPROVE_ALWAYS = selector(TESTID.pluginsApproveAlways);
+export const PLUGINS_MOVED = selector(TESTID.pluginsMoved);
 export const PREFS_ROW = selector(TESTID.prefsRow);
 export const PREFS_HINT = selector(TESTID.prefsHint);
 export const PREFS_CHOICE = selector(TESTID.prefsChoice);
