@@ -605,13 +605,12 @@ Then(
     const title = this.nodeTitle(id);
     await title.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await this.waitUntil(async () => {
-      const editor = this.page.locator(TITLE_EDITOR).first();
+      // The LIVE ghost — the one with the caret in it. Parked ones are
+      // inputs too, so the unadorned selector finds all of them: picking
+      // `.first()` answered with a PARKED line the day a scenario drew two.
+      const editor = this.page.locator(`${NEW_ROW}:focus-within`).first();
       if ((await editor.count()) === 0) return false;
-      const draft = editor.locator(
-        `xpath=ancestor::*[@data-testid='${TESTID.newRow}'][1]`,
-      );
-      if ((await draft.count()) === 0) return false;
-      const above = await draft.boundingBox();
+      const above = await editor.boundingBox();
       const of = await title.boundingBox();
       if (above === null || of === null) return false;
       // Adjacent and above: one row's padding, not a layout assertion. The
@@ -634,7 +633,8 @@ Then(
     const row = this.node(id);
     await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await this.waitUntil(async () => {
-      const draft = this.page.locator(NEW_ROW).first();
+      // The LIVE ghost — parked ones hold inputs too, and `.first()` draws // one of them out of a cluster, not the line being typed.
+      const draft = this.page.locator(`${NEW_ROW}:focus-within`).first();
       if ((await draft.count()) === 0) return false;
       const box = await draft.boundingBox();
       const li = await row.boundingBox();

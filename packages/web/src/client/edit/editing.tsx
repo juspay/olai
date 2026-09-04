@@ -516,8 +516,13 @@ export const createEditor = (
   ): void => {
     const sketch = emptyPendingOf(draft())
     if (sketch !== null) {
-      const next = reanchored(page.rows(), page.collapsed(), sketch.at, how)
+      const next = reanchored(page.rows(), page.collapsed(), sketch.at, how, ghosts())
       if (next === undefined) return
+      // The seat is a drawing address — if the branch that holds it reads
+      // COLLAPSED, the key lifts the fold first: the ghost must be ON the
+      // page it says it is at, and the row `Enter` commits may not land in
+      // a fold (Workflowy's own answer, the review of #493's demand).
+      if (next.open !== undefined) setFolded([next.open], false)
       idle.clear()
       // A NEW SLOT for the new seat. The anchor IS a drawing address, so the
       // blank jumps somewhere else on the page and the input remounts there —
@@ -527,7 +532,7 @@ export const createEditor = (
       // because the old element and the new one genuinely hold different
       // addresses now. Keeping one slot made the remount's blur park the very
       // draft the key was rearranging.
-      setDraft({ ...sketch, at: next, slot: mintSlot() })
+      setDraft({ ...sketch, at: next.at, slot: mintSlot() })
       return
     }
     enqueue(() => structural(name, at))

@@ -20,7 +20,8 @@
 import type { Row } from "@olai/format"
 import type { Anchor } from "@olai/surface"
 
-import { foldIdOf } from "../fold/rows.ts"
+import { foldIdOf, foldOf } from "../fold/rows.ts"
+import type { Fold } from "../fold/rows.ts"
 import { emptyPending } from "./draft.ts"
 import type { Pending } from "./draft.ts"
 
@@ -179,6 +180,25 @@ export const wired = (
 }
 
 /**
+ * Where a BLANK's seat goes when the structure keys hit it.
+ *
+ * `at` is the anchor the key writes — the blank's drawing address — and
+ * `open`, when present, is the fold that must lift for the seat to be ON the
+ * page at all: Tab into a collapsed branch answers with the row the branch
+ * would append to (below), and that row is not drawn until the fold goes —
+ * Workflowy's own answer to indent-into-folded. Without it the ghost draws
+ * nothing while its anchor says it sits under a triangle that reads closed,
+ * and the first `Enter` writes into a fold nobody can see the result in
+ * (the human's review of #493).
+ */
+export interface Reseating {
+  readonly at: Anchor
+  /** The node whose fold holds the seat — to be lifted exactly when this
+   *  seat is taken (`../fold/rows.ts`'s half of the id+file pair). */
+  readonly open?: Fold
+}
+
+/**
  * Where a BLANK's anchor goes when the structure keys hit it: Tab (`in`),
  * Shift+Tab (`out`), Alt+Shift+↑/↓ (`up` / `down`), all LOCAL. Nothing here is
  * a write — a sketch is re-arranged as a sketch, on screen, and the ONE write
@@ -187,42 +207,62 @@ export const wired = (
  * Measured on the WIRE — the same list the eye and the arrows read — because
  * "the row above the blank" is a drawing question, not a tree one:
  *
- *   - `in`: the row DIRECTLY above the blank. Deeper than the blank's own
- *     seat (an `after:X` blank sitting at a subtree's FLOOR has that
- *     subtree's last rows trailing above it) → the blank joins THEIR flight,
- *     anchored after the last of them. The same depth (the row above is the
-     * seat's own neighbour) → under it, the first-child seat. Shallower →
- *     the blank already sits at the first-child seat of its own side, and
- *     there is nothing closer to the parent to stand on: the key says nothing.
+ *   - `in`: ONE LEVEL, always — the server's own `move in`: "become a child
+ *     of the row above AT THE SEAT'S OWN DEPTH, last among its new siblings".
+ *     The row above at the seat's depth is the previous sibling — an
+ *     `after:X` seat's floor may trail X's subtree for levels — so the walk
+ *     skips that flight and names X: last child by anchor, or the `under`
+ *     seat when X has none. An older spelling answered after the last DRAWN
+ *     row of the flight: three levels on one keystroke in a three-deep tree,
+ *     and Shift+Tab did not put the blank back — the review of #493 probed
+ *     both, and the same blank typed+Tabbed answered a THIRD way on disk. A
+ *     row SHALLOWER than the seat first: the seat IS that side's first
+ *     child, and the key has nothing to say.
  *
  *   - `out`: the blank slips out of the sibling list it sits in, into the
  *     parent's own after-slot — drawn right below that whole branch, as the
  *     row Shift+Tab makes of a bullet.
  *
- *   - `up` / `down`: one slot within the seat's own sibling list — the first
- *     slot is the `under` seat (a `first` at a bare page) and the last is
- *     `after` the last drawn child, and both ends are where the key has
- *     nothing to say: a blank at the foot of its list does not wrap around
- *     any more than a row does ({@link neighbour}).
+ *   - `up` / `down`: one slot within the seat's own sibling list. A PARKED
+ *     blank at the seat's depth in the way is a WALL: anchors name records,
+ *     and "between d1 and d2" is a place no anchor can spell — one press
+ *     that crossed it would jump a whole sketch the arrows stop on line by
+ *     line, two keys reading two pages (the review's other half). The
+ *     ordering between blanks at one seat is the PR's stated deferral, and
+ *     a parked line at a DEEPER seat rides its row's flight like any child
+ *     of it. The first slot is the `under` seat (a `first` at a bare page)
+ *     and the last is `after` the last drawn child, and both ends are where
+ *     the key has nothing to say ({@link neighbour}).
+ *
+ * `drafts` are the other parked blanks, so this wire is the one the arrows
+ * read — one page, not two measuring sticks.
  */
 export const reanchored = (
   rows: ReadonlyArray<Row>,
   collapsed: ReadonlySet<string>,
   at: Anchor,
   way: "in" | "out" | "up" | "down",
-): Anchor | undefined => {
-  const walk = wired(rows, collapsed, [emptyPending(at, "sizing")])
-  const me = walk.findIndex((step) => step.kind === "draft")
+  drafts: ReadonlyArray<Pending> = [],
+): Reseating | undefined => {
+  const walk = wired(rows, collapsed, [...drafts, emptyPending(at, "sizing")])
+  const me = walk.findIndex((step) => step.kind === "draft" && step.pending.slot === "sizing")
   const theSeat = walk[me]
   if (theSeat === undefined) return undefined
 
   if (way === "in") {
     for (let i = me - 1; i >= 0; i--) {
-      const step = rowAt(walk, i)
-      if (step === undefined) continue
-      if (step.depth > theSeat.depth) return { kind: "after", id: step.row.at.node.id }
-      if (step.depth === theSeat.depth) return { kind: "under", id: step.row.at.node.id }
-      return undefined
+      const step = walk[i]
+      if (step === undefined || step.kind !== "row") continue
+      // The flight trails the sibling this seat floors; keep walking.
+      if (step.depth > theSeat.depth) continue
+      if (step.depth < theSeat.depth) return undefined
+      const last = step.row.children[step.row.children.length - 1]
+      return last === undefined
+        ? { at: { kind: "under", id: step.row.at.node.id } }
+        : {
+          at: { kind: "after", id: last.at.node.id },
+          ...(collapsed.has(foldIdOf(step.row)) ? { open: foldOf(step.row) } : {}),
+        }
     }
     return undefined
   }
@@ -230,7 +270,7 @@ export const reanchored = (
     for (let i = me - 1; i >= 0; i--) {
       const step = rowAt(walk, i)
       if (step !== undefined && step.depth < theSeat.depth) {
-        return { kind: "after", id: step.row.at.node.id }
+        return { at: { kind: "after", id: step.row.at.node.id } }
       }
     }
     return undefined
@@ -238,42 +278,52 @@ export const reanchored = (
 
   // The siblings: everything at the seat's depth between one parent boundary
   // and the next. `up` slips the blank one slot over the rows ABOVE it; `down`
-  // over the ones below. Either end of the list is undrawable territory.
-  if (way === "up" || way === "down") {
+  // over the ones below. Either end of the list is undrawable territory. The
+  // two arms are separate loops — each holds the wall rule for ITS direction,
+  // and a draft in the OTHER direction is none of this key's business.
+  if (way === "up") {
     const above: Array<Row> = []
     for (let i = me - 1; i >= 0; i--) {
-      const step = rowAt(walk, i)
+      const step = walk[i]
       if (step === undefined) continue
+      if (step.kind === "draft") {
+        if (step.depth === theSeat.depth) return undefined
+        continue
+      }
       if (step.depth < theSeat.depth) break
       if (step.depth === theSeat.depth) above.push(step.row)
     }
+    // `above` is collected walking BACKWARD: above[0] is the row directly
+    // above the seat, above[1] the sibling two up, above[last] the one at
+    // the list's top. One slot up: the seat's floor becomes the row ONE
+    // further above — `before` the nearest when the seat was second in the
+    // list (the first-child's seat, written in a row's own name), `after`
+    // the one TWO up otherwise, so the blank lands between the two. The
+    // one-press-two-slots answer `above[last]` made is the one grok's
+    // review of #493 caught: every test tree that pinned this sat the
+    // blank at most two slots in, where the two spellings coincide.
+    const top = above[0]
+    if (top === undefined) return undefined
+    const over = above[1]
+    return over === undefined
+      ? { at: { kind: "before", id: top.at.node.id } }
+      : { at: { kind: "after", id: over.at.node.id } }
+  }
+  if (way === "down") {
     const below: Array<Row> = []
     for (let i = me + 1; i < walk.length; i++) {
-      const step = rowAt(walk, i)
+      const step = walk[i]
       if (step === undefined) continue
+      if (step.kind === "draft") {
+        if (step.depth === theSeat.depth) return undefined
+        continue
+      }
       if (step.depth < theSeat.depth) break
       if (step.depth === theSeat.depth) below.push(step.row)
     }
-    if (way === "up") {
-      // `above` is collected walking BACKWARD: above[0] is the row directly
-      // above the seat, above[1] the sibling two up, above[last] the one at
-      // the list's top. One slot up: the seat's floor becomes the row ONE
-      // further above — `before` the nearest when the seat was second in the
-      // list (the first-child's seat, written in a row's own name), `after`
-      // the one TWO up otherwise, so the blank lands between the two. The
-      // one-press-two-slots answer `above[last]` made is the one grok's
-      // review of #493 caught: every test tree that pinned this sat the
-      // blank at most two slots in, where the two spellings coincide.
-      const top = above[0]
-      if (top === undefined) return undefined
-      const over = above[1]
-      return over === undefined
-        ? { kind: "before", id: top.at.node.id }
-        : { kind: "after", id: over.at.node.id }
-    }
     const next = below[0]
     if (next === undefined) return undefined
-    return { kind: "after", id: next.at.node.id }
+    return { at: { kind: "after", id: next.at.node.id } }
   }
   return undefined
 }

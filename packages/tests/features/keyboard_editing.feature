@@ -229,6 +229,45 @@ Feature: Keyboard editing
     And the row being typed is drawn immediately above the title of "kitchen-herbs"
     And the row being typed is drawn at the child depth of "knobs"
 
+  Scenario: Tab seats a blank as the last child of the row above, one level in
+    # `kitchen`'s subtree ends with kitchen-herbs' WHOLE flight — under the
+    # wrong reading one Tab sat the blank at the floor of THAT, two levels
+    # deep (the human's review of #493). One level: the child `kitchen`
+    # would append, which is the rule a written row's Tab already follows.
+    When I click the title of "kitchen"
+    And I press "Enter"
+    And I press "Tab"
+    And I type "the mugs go in the old pantry"
+    And I press "Enter"
+    Then "house.olai" holds a node titled "the mugs go in the old pantry"
+    And "house.olai" holds a node titled "the mugs go in the old pantry" under "kitchen"
+
+  Scenario: Tab UNFOLDS the branch it seats a blank in
+    # Indenting into a collapsed branch must not commit a caret into an
+    # invisible fold — Workflowy's answer: the branch opens on the way.
+    When I collapse the node "install"
+    And I click the title of "install"
+    And I press "Enter"
+    And I press "Tab"
+    Then the node "install" is expanded
+    And a new row is being typed
+    When I type "mount the crown moulding"
+    And I press "Enter"
+    Then "house.olai" holds a node titled "mount the crown moulding" under "install"
+
+  Scenario: Alt+Shift+Up does not jump the parked blanks the arrows stop on
+    # Three empties at one anchor are three LINES — the plain arrows stop on
+    # each. A move key may not cross one: an anchor cannot name a blank, so
+    # no answer spells "between them" — the press says nothing at all.
+    When I click the title of "knobs"
+    And I press "Enter"
+    And I press "Enter"
+    And I press "Enter"
+    Then a new row is being typed
+    When I press "Alt+Shift+ArrowUp"
+    Then a new row is being typed
+    And the row being typed is drawn immediately above the title of "kitchen-herbs"
+
   Scenario: a blank among rows keeps the outline's line rhythm
     # Reported on the #493 build: gaps between lines wobbled wherever a draft
     # stood — "inconsistent gap between list items overall (empty ones in
