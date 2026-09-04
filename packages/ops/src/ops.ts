@@ -29,8 +29,6 @@ import {
   implicatedBy,
   type CommitRequest,
   type CommitResult,
-  type DatedAnswer,
-  type DatedRequest,
   type HomesAnswer,
   type HomesRequest,
   inboxIn,
@@ -47,8 +45,6 @@ import {
   type OutlineError,
   outlineNames,
   outlinePaths,
-  type Owed,
-  type OwedRequest,
   type PageReading,
   type PageRequest,
   type Pending,
@@ -219,29 +215,6 @@ export interface Ops extends Asking {
   readonly homes: (
     request: HomesRequest,
   ) => Effect.Effect<HomesAnswer, OpFailure>
-  /**
-   * THE CALENDAR'S DOTS and WHAT IS OWED — the two date readings the sidebar
-   * used to take off the browser's own copy of the set
-   * (`https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md`, PR 4).
-   *
-   * HERE RATHER THAN ON {@link Asking}, beside {@link narrowing} and for its
-   * argument word for word: `Asking` is what a TOOL may ask, and neither of
-   * these is a tool. A month of dots is a paint instruction for a grid somebody
-   * is looking at, and two integers about today are a badge — an agent asking
-   * what is late asks `search_nodes` with a date clause and is answered with
-   * the nodes. So they hang off the layer the SERVER holds, are exposed on the
-   * browser face alone (`@olai/server`'s `faces.ts`), and `mcp-bridge`'s door
-   * is not obliged to implement members no agent face offers.
-   *
-   * TWO members and not one, though one sidebar draws both. They are answers to
-   * two different questions with two different arguments — a month somebody
-   * paged to, and the day somebody is standing on — and folding them into one
-   * would make paging the calendar a question about what is late.
-   */
-  readonly dated: (
-    request: DatedRequest,
-  ) => Effect.Effect<DatedAnswer, OpFailure>
-  readonly owed: (request: OwedRequest) => Effect.Effect<Owed, OpFailure>
   /**
    * WHAT ONE PAGE SHOWS — the reading a browser draws, for the address it is
    * drawing (`@olai/format`'s `page.ts`, and
@@ -952,13 +925,6 @@ export const make = (options: Options): Ops => {
     // alone — `Query.homes` argues it, and it is the near miss this member
     // exists to avoid.
     homes: (request) => Effect.map(read, (at) => Query.homes(at, request)),
-    // The SIDEBAR's two date readings, over the same gated read and over the
-    // derivation alone: a dot and a count are both about records, and the other
-    // half of the set is prose. The day they are counted against is the
-    // REQUEST's, never `context.now()` — the reader's clock is the only one
-    // that can say what is late for them (`./query.ts`'s `owed`).
-    dated: (request) => Effect.map(read, (at) => views.dated(at, request)),
-    owed: (request) => Effect.map(read, (at) => views.owed(at, request)),
     // THE PAGE, over the same gated read — the WHOLE reading rather than the
     // derivation alone, because two of the questions a page asks are about
     // files rather than about records: which paths the directory serves, and

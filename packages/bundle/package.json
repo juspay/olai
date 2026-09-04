@@ -26,6 +26,7 @@
     "olai-plugin-claude": "workspace:*",
     "olai-plugin-codex": "workspace:*",
     "olai-plugin-kolu": "workspace:*",
+    "olai-plugin-journal": "workspace:*",
     "olai-plugin-odu": "workspace:*",
     "olai-plugin-opencode": "workspace:*",
     "olai-plugin-pi": "workspace:*",

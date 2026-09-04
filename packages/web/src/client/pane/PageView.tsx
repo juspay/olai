@@ -14,10 +14,9 @@ import { createMemo, Match, Show, Switch } from "solid-js"
 
 import { parseFilter, samePageRequest } from "@olai/format"
 
-import { AgendaPage } from "../agenda/AgendaPage.tsx"
 import { CLEARANCE } from "../connection/Indicator.tsx"
-import { DayPage } from "../day/DayPage.tsx"
 import { DocumentPage } from "../document/DocumentPage.tsx"
+import { Empty } from "../Empty.tsx"
 import { Broken } from "../errors/Broken.tsx"
 import { createAsked } from "../filter/asking.ts"
 import { FilterBar } from "../filter/FilterBar.tsx"
@@ -34,7 +33,7 @@ import { drawnBy, requestFor } from "../page.ts"
 import { createReading, ReadingProvider, useReadings } from "../reading.tsx"
 import { OutlinePage } from "../OutlinePage.tsx"
 import { useFollow, useHere, useRouter } from "../router.tsx"
-import { filterOf, hrefOf, narrowable, narrowedTo, samePage } from "../routes.ts"
+import { filterOf, hrefOf, type MountedAppPage, narrowable, narrowedTo, routeFace, samePage } from "../routes.ts"
 import { panesOf } from "../workspace.ts"
 import { pageFileOf, visibleIn } from "../settings/done.ts"
 import { TESTID } from "../testids.ts"
@@ -43,10 +42,23 @@ import { TrashPage } from "../trash/TrashPage.tsx"
 export function PageView() {
   const router = useRouter()
   const here = useHere()
+  const route = createMemo(() => panesOf(router.workspace())[here()]!.route)
+  const source = createMemo(() => routeFace(route()))
+  return (
+    <Show when={source()} keyed fallback={<PageAt source={null} />}>
+      {(tenant) => <PageAt source={tenant} />}
+    </Show>
+  )
+}
+
+function PageAt(props: { readonly source: MountedAppPage | null }) {
+  const router = useRouter()
+  const here = useHere()
   const follow = useFollow()
   const today = useToday()
   const route = createMemo(() => panesOf(router.workspace())[here()]!.route)
   const opened = createMemo(route, undefined, { equals: samePage })
+  const missing = createMemo(() => props.source === null && opened().kind === "plugin")
 
   /**
    * THIS PANE'S OWN QUESTION, and its own subscription to the answer
@@ -68,8 +80,15 @@ export function PageView() {
   // is the same one (`../page.ts`'s `requestFor`). A memo comparing by
   // reference would re-open the stream for it, blank the pane and unmount the
   // body the reader was being scrolled into.
-  const request = createMemo(() => requestFor(opened(), today()), undefined, {
-    equals: samePageRequest,
+  const request = createMemo(() => {
+    const open = opened()
+    if (props.source !== null && open.kind === "plugin") {
+      return props.source.route.request(open.value, today())
+    }
+    return requestFor(open)
+  }, undefined, {
+    equals: (before, after) =>
+      before === null || after === null ? before === after : samePageRequest(before, after),
   })
   /**
    * THE BOX, READ ONCE — and both things made of it built off that one value:
@@ -141,7 +160,7 @@ export function PageView() {
    * licenses for a navigation). {@link together} covers the other, which is
    * measured NOT to happen; what it buys is that the page below may assert so.
    */
-  const reading = createReading(request, asked.awaiting)
+  const reading = createReading(request, asked.awaiting, props.source?.route.stream)
   // …and the pane joins the workspace's register with it, so the chrome outside
   // the panes can read whichever one is focused — the page AND the names table
   // derived beside it (`../App.tsx`).
@@ -199,8 +218,6 @@ export function PageView() {
   })
 
   const rows = () => only(narrowing.drawn(), "tree")?.rows ?? []
-  const day = () => only(narrowing.drawn(), "day")
-  const owed = () => only(narrowing.drawn(), "agenda")?.agenda
   const trash = () => only(narrowing.drawn(), "trash")
 
   const narrow = (text: string): void => {
@@ -266,10 +283,23 @@ export function PageView() {
             draws. */}
         <Show
           when={page()}
-          fallback={<p class="m-0 py-8 text-muted">Reading…</p>}
+          fallback={
+            <Show
+              when={missing()}
+              fallback={<p class="m-0 py-8 text-muted">Reading…</p>}
+            >
+              <Empty testid={TESTID.nothing} line="No such page here." />
+            </Show>
+          }
         >
           {(open) => (
             <Switch>
+              <Match when={props.source}>
+                {(source) => {
+                  const Face = source().face
+                  return <Face page={open()} drawn={narrowing.drawn()} today={today()} />
+                }}
+              </Match>
               <Match when={only(open(), "broken")}>
                 {(file) => <Broken file={file().file} />}
               </Match>
@@ -287,26 +317,6 @@ export function PageView() {
               </Match>
               <Match when={only(open(), "document")}>
                 {(open) => <DocumentPage file={open().file} custom={open().props} />}
-              </Match>
-              <Match when={only(open(), "day")}>
-                {(open) => (
-                  <DayPage
-                    date={open().date}
-                    groups={day()?.groups ?? []}
-                    notes={day()?.notes ?? []}
-                    noted={open().notes.length > 0}
-                    today={today()}
-                  />
-                )}
-              </Match>
-              <Match when={only(open(), "agenda")}>
-                {(open) => (
-                  <Show when={owed()}>
-                    {(stretches) => (
-                      <AgendaPage agenda={stretches()} today={open().date} />
-                    )}
-                  </Show>
-                )}
               </Match>
               <Match when={only(open(), "trash")}>
                 <TrashPage

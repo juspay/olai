@@ -9,9 +9,9 @@
  * `https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md` is taking away — the browser may
  * hold at most the page in front of somebody — and this is its PR 4 (§3's
  * Sidebar row, §6's item 4). The WALKS did not move: they are
- * `@olai/format`'s still, called on the other side of the wire by `@olai/ops`'
- * `Query.dated` / `Query.owed`, which is the same arrangement search landed in
- * one PR earlier (`./filter/asking.ts`).
+ * `@olai/format`'s still, called on the other side of the wire by this plugin's
+ * `readings.ts`, which is the same arrangement search landed in one PR earlier
+ * (`@olai/web`'s `filter/asking.ts`).
  *
  * ## Three questions, and the third crosses no wire
  *
@@ -87,10 +87,10 @@
 import { type Accessor, createMemo } from "solid-js"
 
 import { dailyNoteDays } from "@olai/format"
-import type { Owed } from "@olai/surface"
+import type { Owed } from "@olai/format"
 
-import { useServed } from "./served.tsx"
-import { olai } from "./wire.ts"
+import { useServed } from "@olai/web/client/served.tsx"
+import { journalWire } from "./wire.ts"
 
 /**
  * Which days of the shown month have something on them.
@@ -115,7 +115,7 @@ export const createDated = (month: Accessor<string>): Accessor<ReadonlySet<strin
   // fresh one — the framework's own rule for a reactive input — and the server
   // is watching exactly the month somebody is looking at. A month nobody has
   // scrolled to costs nothing at either end.
-  const answer = olai.streams.dated.use(() => ({ month: month() }))
+  const answer = journalWire().streams.dated.use(() => ({ month: month() }))
   return createMemo(() => new Set(answer()?.days ?? []))
 }
 
@@ -170,7 +170,7 @@ export const createOwed = (
    *  reset the badge on frames that changed nothing. */
   today: Accessor<string | undefined>,
 ): Accessor<Owed | undefined> => {
-  const answer = olai.streams.owed.use(() => {
+  const answer = journalWire().streams.owed.use(() => {
     const day = today()
     return day === undefined ? null : { today: day }
   })

@@ -2,7 +2,7 @@
  * THE DIFFERENTIAL: one op corpus, two wirings, and a room full of tabs.
  *
  * `perf-streams-per-tab` changed WHO PAYS for a standing view and nothing about
- * what one says. The five readings used to be rebuilt once per subscriber per
+ * what one says. The three readings used to be rebuilt once per subscriber per
  * published revision; they are now answered once per QUESTION per revision and
  * shared, and a revision that moved nothing an answer read does not rebuild it
  * at all ({@link ./standing.ts}). That is a claim about cost, so the test worth
@@ -11,7 +11,7 @@
  * every one of them to the same sequence.
  *
  * WHAT IS KEPT HERE IS THE REBUILD ({@link ./standing.ts}'s `rebuilding`) —
- * the same five answers with none of the sharing in front of them, which is
+ * the same three answers with none of the sharing in front of them, which is
  * what the wiring did before. It lives in the module under test rather than in
  * a copy over here, for `@olai/format`'s `scope.testlib.ts` reason one layer
  * down: a reference written out beside the harness would be a second opinion
@@ -146,7 +146,7 @@ const DAYS: ReadonlyArray<string> = Array.from({ length: 3 * 28 }, (_, at) => {
 })
 
 /**
- * A vault with all five readings' subjects in it: trees, marks, days, tags,
+ * A vault with all three readings' subjects in it: trees, marks, days, tags,
  * ordering edges, placements, documents — and, deliberately, whole files with
  * NO days in them at all.
  *
@@ -256,11 +256,10 @@ const decodeOne = (
  * serialise every revision from the state the last step left. The step and the
  * publish happen together or the corpus is one directory repeated.
  *
- * Every arm is a shape one of the five answers depends on differently, which is
- * the whole design of it. A retitle moves what a page draws and not what is
- * owed; a mark moves what is owed and not what the calendar shows; a day moves
- * both of those and no page two files away; a file born moves the front page
- * and every listing. A corpus of retitles would prove the pre-check correct
+ * Every arm is a shape one of the three answers depends on differently, which is
+ * the whole design of it. A retitle moves what a page draws; a mark changes an
+ * agenda page; a day moves both day and agenda pages but no page two files
+ * away; a file born moves the front page and every listing. A corpus of retitles would prove the pre-check correct
  * about one kind of revision and silent about the rest.
  *
  * AND ONE ARM MOVES NOTHING: a file re-written with the bytes it already had,
@@ -547,8 +546,6 @@ const published = (
 
 /** ONE QUESTION a tab holds open — the member, and the request. */
 export type Question =
-  | { readonly which: "dated"; readonly request: { readonly month: string } }
-  | { readonly which: "owed"; readonly request: { readonly today: string } }
   | { readonly which: "page"; readonly request: PageRequest }
   | { readonly which: "narrowing"; readonly request: NarrowingRequest }
   | { readonly which: "moving"; readonly request: MovingRequest }
@@ -567,17 +564,13 @@ export interface Watched {
   readonly framed: ReadonlyArray<boolean>
 }
 
-/** One ask, through whichever wiring is being driven — the five members'
+/** One ask, through whichever wiring is being driven — the three members'
  *  signatures collapsed to one, so the replay below is written once. Exported
- *  because `./standing.bench.ts` drives the same five the same way, and a bench
+ *  because `./standing.bench.ts` drives the same three the same way, and a bench
  *  with a switch of its own would be a second answer to which member a question
  *  names. */
 export const asking = (views: Standing, at: Reading, question: Question): unknown => {
   switch (question.which) {
-    case "dated":
-      return views.dated(at, question.request)
-    case "owed":
-      return views.owed(at, question.request)
     case "page":
       return views.page(at, question.request)
     case "narrowing":
@@ -877,8 +870,6 @@ const reusing = (
     return fresh
   }
   return {
-    dated: (at, request) => ask("dated", at, request, () => rebuild.dated(at, request)) as never,
-    owed: (at, request) => ask("owed", at, request, () => rebuild.owed(at, request)) as never,
     page: (at, request) => ask("page", at, request, () => rebuild.page(at, request)) as never,
     narrowing: (at, request) =>
       ask("narrowing", at, request, () => rebuild.narrowing(at, request)) as never,
@@ -899,8 +890,6 @@ const keyed = (now: () => string, key: (which: Asked) => string): Standing => {
     return fresh
   }
   return {
-    dated: (at, request) => ask("dated", at, () => rebuild.dated(at, request)) as never,
-    owed: (at, request) => ask("owed", at, () => rebuild.owed(at, request)) as never,
     page: (at, request) => ask("page", at, () => rebuild.page(at, request)) as never,
     narrowing: (at, request) => ask("narrowing", at, () => rebuild.narrowing(at, request)) as never,
     moving: (at, request) => ask("moving", at, () => rebuild.moving(at, request)) as never,
@@ -929,17 +918,13 @@ export const tabsOver = (at: Reading): ReadonlyArray<Tab> => {
   const pageAt = (path: string): PageRequest => ({ kind: "at", address: addressOf(path, null) })
   const one: Question = { which: "page", request: pageAt(first) }
   const two: Question = { which: "page", request: pageAt(second) }
-  const dated: Question = { which: "dated", request: { month: day.slice(0, 7) } }
-  const owed: Question = { which: "owed", request: { today: day } }
   return [
-    { says: "tab one (the first outline)", holds: [one, dated, owed] },
-    { says: "tab two (the same outline)", holds: [one, dated, owed] },
+    { says: "tab one (the first outline)", holds: [one] },
+    { says: "tab two (the same outline)", holds: [one] },
     {
       says: "tab three (another outline, filtered)",
       holds: [
         two,
-        dated,
-        owed,
         { which: "narrowing", request: { page: pageAt(second), text: "record" } },
       ],
     },

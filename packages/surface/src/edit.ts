@@ -899,21 +899,6 @@ export const Edit = Schema.Union([
     verb: Schema.Literal("docNew"),
     file: Schema.String,
   }),
-  /**
-   * The day page's + day note, pressed — mint that day's note. The verb carries the
-   * DATE and not a path, and that asymmetry is the whole design: where the
-   * vault keeps its daily notes is a fact about the set (the newest existing
-   * note's own path is the convention, `@olai/format`'s `dailyNotePathFor`),
-   * so it is read on the server, against the reading the write is judged on,
-   * rather than computed in a tab from a document list some frames old — the
-   * same argument that makes `Tab` say "indent this". An agent minting a note
-   * makes the same two moves by hand: read the paths, `create_document`.
-   */
-  Schema.Struct({
-    verb: Schema.Literal("docDay"),
-    date: Schema.String,
-  }),
-
   // ── and the OUTLINE's one ────────────────────────────────────────────
 
   /**

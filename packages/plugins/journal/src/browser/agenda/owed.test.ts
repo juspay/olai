@@ -9,10 +9,10 @@
  * (`https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md`'s PR 4), which changes what this file is a test OF and
  * not what it is a test over: the mark's table is still the browser's, so this
  * is still the place its faces, its loud-wins-whole ruling and its sentence are
- * pinned. The fixture calls the same two `@olai/format` functions the server's
- * reading calls (`@olai/ops`' `Query.owed`), so a change to either still
- * reaches every case here. What that reading answers over a real snapshot is
- * pinned beside it, in `packages/ops/src/query.test.ts`.
+ * pinned. The fixture calls the same two `@olai/format` functions the journal's
+ * server reading calls, so a change to either still reaches every case here.
+ * What that reading answers over a real snapshot is pinned beside it in
+ * `../../readings.test.ts`.
  */
 
 import { agendaOf, derive, owedOf } from "@olai/format"

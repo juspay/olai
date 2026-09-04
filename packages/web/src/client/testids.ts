@@ -121,8 +121,6 @@ export const TESTID = {
   pinRename: "pin-rename",
   /** The line that says where a dragged pin would land. */
   pinDropLine: "pin-drop-line",
-  /** Rail icon: jump to today. */
-  railCalendar: "rail-calendar",
   /** Rail icon: open outlines / home. */
   railOutlines: "rail-outlines",
   /** Rail icon: open the directory (documents). */
@@ -785,91 +783,6 @@ export const TESTID = {
   zoomTitle: "zoom-title",
   breadcrumbs: "breadcrumbs",
   crumb: "crumb",
-  /** The month in the sidebar. Its `data-month` is the month on screen, which
-   *  paging moves and nothing else does. */
-  calendar: "calendar",
-  /** One day of it. Everything the four marks say is a `data-` fact:
-   *  `data-date`, `data-dated` (a node of the set is on it), `data-noted` (a
-   *  document is named for it — the day's own note), `data-today`, `data-open`
-   *  (this is the day being read) — never the colour it is painted, which is a
-   *  styling decision a refactor may change. */
-  calendarDay: "calendar-day",
-  calendarPrev: "calendar-prev",
-  calendarNext: "calendar-next",
-  /** One day, as a page. `data-date` is the day it turned out to be, which
-   *  `/today` does not spell. */
-  dayPage: "day-page",
-  /** The day page's way to a note that does not exist yet — shown on any day
-   *  without a note, entries or not. The calendar cell never writes. */
-  dayMint: "day-mint",
-  /** Why minting one did not happen — the ops layer's words, beside the
-   *  button. */
-  dayMintSaid: "day-mint-said",
-  /** The nodes of one outline dated that day; `data-file` is which. The same
-   *  name on the agenda, which draws the same group under the same heading
-   *  rule — one widget, so a scenario asks for it one way. */
-  dayGroup: "day-group",
-  /** THE day's note, drawn above those groups: a document named for the date
-   *  itself. `data-file` is its path; its body carries `documentBody`, being
-   *  the same pipeline drawn a third place. */
-  dayNote: "day-note",
-  /** The heading of that note — the way from the day to the document's own
-   *  page. Its own name rather than the sidebar's or a node reference's, so a
-   *  selector never has to say which of the three it meant. */
-  dayNoteLink: "day-note-link",
-  /** Said in place of the list when nothing is dated that day. */
-  dayEmpty: "day-empty",
-  /** The agenda, as a page: the same dates read forward. `data-date` is the
-   *  day it was answered for, which `/agenda` does not spell. */
-  agendaPage: "agenda-page",
-  /** THE LINE, drawn exactly when something is owed — so its absence is the
-   *  page's claim that there is nothing to draw one for, and never a layout
-   *  accident. It replaced `agenda-section`: the page has no boxes on it
-   *  (`agenda-spine`, 2026-08-18). */
-  agendaSpine: "agenda-spine",
-  /** ONE DAY on that line — every one of them now, where this used to name only
-   *  a day inside Upcoming. `data-date` is which day, and `data-when` is which
-   *  side of now it is on (`late`, `today`, `ahead`), which is a fact about the
-   *  day where `data-section` was a heading it had been filed under. Its own
-   *  heading is the link to that day's own page, where the note and the
-   *  finished work the agenda leaves out are read.
-   *
-   *  A day is drawn exactly when it owes something — except TODAY, which is
-   *  drawn whenever the line is, because now is a place on it. */
-  agendaDay: "agenda-day",
-  /** A SILENCE worth naming, beside the line: `data-days` is how long the wait
-   *  was, and the words are how long it FELT ("two quiet weeks"). Absent
-   *  wherever a gap is too short to be worth a word — the whitespace is still
-   *  there and still grows with the wait. */
-  agendaQuiet: "agenda-quiet",
-  /** Said in place of the line when nothing is late, on today, or coming. */
-  agendaEmpty: "agenda-empty",
-  /** The way to the agenda from the directory column, above the month — the
-   *  journal's two questions, side by side. */
-  agendaLink: "agenda-link",
-  /** What that entry has to REPORT, wrapped around the link the way a calendar
-   *  cell wraps its day. Three facts, and none of them a colour: `data-owed` is
-   *  which face it wears — `overdue` (something has slipped: the app's alarm,
-   *  and the count on it is the late one), `today` (the quiet chip: a nudge,
-   *  not an alarm) or `quiet` (nothing owed, nothing said) — while
-   *  `data-overdue` and `data-today` are the two counts THEMSELVES, so a
-   *  scenario can hold the number that is shown and the one that is only
-   *  spoken. They are what the agenda page's own rows add up to (`owedNow`) —
-   *  on the SERVER since `vault-in-browser`'s PR 4, over the same set the page
-   *  reads, and off an index the patcher keeps since
-   *  `perf-agenda-history-walk`, which is what makes them affordable per
-   *  revision. Held to the page's own count by a differential rather than by
-   *  being the same call (`@olai/format`'s `occasion.test.ts`, `@olai/ops`'
-   *  `owed.index.test.ts`). */
-  agendaOwed: "agenda-owed",
-  /** The number ON that entry — the chip itself, so "the count is drawn" is a
-   *  promise a scenario can hold rather than an attribute it infers. Absent
-   *  entirely when nothing is owed: an agenda with nothing on it wears no
-   *  chip, not a zero. */
-  agendaCount: "agenda-count",
-  /** Rail icon: the same way in when the column is collapsed, wearing the same
-   *  `data-owed` faces as a dot — no room for a count in three rem. */
-  railAgenda: "rail-agenda",
   /** The way to the trash, at the foot of the directory column — below the
    *  file tree because that is where a trash sits, and OUTSIDE it because an
    *  archive is not an outline you open and edit. Drawn whether or not

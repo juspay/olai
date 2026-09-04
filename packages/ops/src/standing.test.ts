@@ -8,9 +8,9 @@
  * revision number in a two-hundred-step replay.
  *
  * THE PRE-CHECK'S POSITIVE SPACE IS HERE TOO, and it is the pairing that
- * matters: for each of the five, an edit that MUST move the answer, and the
+ * matters: for each of the three, an edit that MUST move the answer, and the
  * assertion that the answer moved. The differential proves the pre-check never
- * held over a moved answer across a whole corpus; these say that the five
+ * held over a moved answer across a whole corpus; these say that the three
  * particular movements everybody would think of are among them, by name, so a
  * pre-check that quietly stopped noticing marks would fail a sentence rather
  * than a statistic.
@@ -41,14 +41,13 @@ const directory = (): {
    *  would refuse (and a refused revision publishes nothing, so a test built on
    *  one would be asserting about a directory that never moved). */
   readonly leaf: Modelled
-  readonly day: string
 } => {
   const vault = vaultFor({ files: 6, records: 6 })
   const { publish, revisions } = publishing(vault)
   const first = (revisions[0] as { reading: Reading }).reading
-  // A file that HAS a day on it, so the two date readings have something in
-  // this file to be about — a third of the generated files deliberately have
-  // none (`./standing.testlib.ts`).
+  // A file that HAS a day on it, so the day and agenda page readings have
+  // something in this file to be about — a third of the generated files
+  // deliberately have none (`./standing.testlib.ts`).
   const path = [...vault.outlines.keys()].find((one) =>
     (vault.outlines.get(one) ?? []).some((record) => record.date !== null)
   ) as string
@@ -67,7 +66,6 @@ const directory = (): {
     path,
     record,
     leaf,
-    day: record.date as string,
   }
 }
 
@@ -146,18 +144,18 @@ test("an edit in another file leaves this page's answer alone", () => {
   expect(views.page(next, pageAt(path))).toBe(before)
 })
 
-// ── the pre-check's positive space: five edits that must be noticed ────
+// ── the pre-check's positive space: three edits that must be noticed ───
 
 /** One case: make the edit, publish, and say whether the answer moved. Written
- *  once so the five below are a sentence each and the shape they share is not
- *  spelled five times. */
+ *  once so the three below are a sentence each and the shape they share is not
+ *  spelled three times. */
 const noticed = <A>(
   edit: (vault: Vault, one: Subject) => void,
   ask: (views: ReturnType<typeof standing>, at: Reading, one: Subject) => A,
 ): { readonly before: A; readonly after: A } => {
-  const { vault, first, path, record, leaf, day, publish } = directory()
+  const { vault, first, path, record, leaf, publish } = directory()
   const views = standing(() => FIXED, NO_KINDS)
-  const subject: Subject = { path, day, record, leaf }
+  const subject: Subject = { path, record, leaf }
   const before = ask(views, first, subject)
   edit(vault, subject)
   const next = publish("the edit", [path])
@@ -168,35 +166,13 @@ const noticed = <A>(
   return { before, after: ask(views, next, subject) }
 }
 
-/** What one of those cases addresses — the file, a day on it, the dated record
- *  and the one that can be taken away. */
+/** What one of those cases addresses — the file, a record in it, and the one
+ *  that can be taken away. */
 interface Subject {
   readonly path: string
-  readonly day: string
   readonly record: Modelled
   readonly leaf: Modelled
 }
-
-test("a mark that moved is noticed by what is owed", () => {
-  const { before, after } = noticed(
-    (_vault, one) => {
-      one.record.mark = one.record.mark === "done" ? "todo" : "done"
-    },
-    (views, at, one) => views.owed(at, { today: one.day }),
-  )
-  expect(after).not.toBe(before)
-})
-
-test("a day that moved is noticed by the calendar", () => {
-  const { before, after } = noticed(
-    (_vault, one) => {
-      one.record.date = null
-    },
-    (views, at, one) => views.dated(at, { month: one.day.slice(0, 7) }),
-  )
-  expect(after).not.toBe(before)
-  expect(after).not.toEqual(before)
-})
 
 test("a title that moved is noticed by the page it is on", () => {
   const { before, after } = noticed(

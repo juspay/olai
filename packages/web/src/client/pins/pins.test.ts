@@ -20,7 +20,7 @@ import { atNode } from "../routes.ts"
 const ANSWERED: Shelf = [
   { id: "p-herbs", title: "/#herbs", shows: { id: "herbs", name: "the herb bed" } },
   { id: "p-doc", title: "/notes/finishes.md" },
-  { id: "p-late", title: "[What is late](/agenda?q=is%3Atodo)" },
+  { id: "p-late", title: "[What is late](/trash?q=is%3Atodo)" },
   { id: "p-note", title: "the ones I keep coming back to" },
   { id: "p-gone", title: "/#gone" },
 ]
@@ -75,7 +75,7 @@ test("a name is spent only where THIS parser agrees the row addresses that node"
 test("…and the shelf drawn over one is the shelf without it", () => {
   const shelf: Shelf = [
     { id: "p-bad", title: "/%" },
-    { id: "p-good", title: "/agenda" },
+    { id: "p-good", title: "/trash" },
   ]
   expect(pinsOf(shelf).map((pin) => pin.id)).toEqual(["p-good"])
 })
@@ -88,11 +88,11 @@ test("a directory with no shelf, and one whose shelf holds nothing, both draw no
 
 test("a page is pinned when the shelf holds its address, however either is spelled", () => {
   expect(pinnedAt(ANSWERED, atNode("herbs"))?.id).toBe("p-herbs")
-  expect(pinnedAt(ANSWERED, { kind: "agenda", filter: "is:todo" })?.id).toBe("p-late")
+  expect(pinnedAt(ANSWERED, { kind: "trash", filter: "is:todo" })?.id).toBe("p-late")
   // The SAME page without its query is a different page, and a different pin.
-  expect(pinnedAt(ANSWERED, { kind: "agenda" })).toBeUndefined()
+  expect(pinnedAt(ANSWERED, { kind: "trash" })).toBeUndefined()
   expect(pinnedAt(ANSWERED, atNode("kitchen"))).toBeUndefined()
   // And a shelf that has answered nothing has nothing pinned, rather than a
   // caller having to ask whether there is one first.
-  expect(pinnedAt(NO_PINS, { kind: "agenda" })).toBeUndefined()
+  expect(pinnedAt(NO_PINS, { kind: "trash" })).toBeUndefined()
 })

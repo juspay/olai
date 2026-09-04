@@ -32,9 +32,7 @@ import {
 } from "solid-js"
 
 import { AppHeader } from "./AppHeader.tsx"
-import { Calendar } from "./calendar/Calendar.tsx"
 import { createToday } from "./clock.ts"
-import { createOwed } from "./dates.ts"
 import { createInboxHeld } from "./inbox.ts"
 import { Offline } from "./connection/Offline.tsx"
 import { createDirectory } from "./directory.ts"
@@ -172,37 +170,8 @@ export default function App() {
    */
   const focused = createMemo(() => readings.at(router.workspace().focus))
 
-  /**
-   * The day the counts are asked FOR, or `undefined` while there is nothing to
-   * ask about.
-   *
-   * A MEMO rather than the expression written into the call below, and that is
-   * not tidiness: a subscription re-opens whenever its input NOTIFIES, not when
-   * the input's value changes, so an inline reading of the manifest would tear
-   * the stream down and blank the badge on any frame that cell moved. A memo
-   * over a string makes that impossible.
-   */
-  const askedOn = createMemo(() => (loaded() ? today() : undefined))
-
-  /**
-   * What the column and the rail wear — the app's ONE subscription to it, so
-   * the two faces of the directory cannot say different numbers (`./dates.ts`).
-   *
-   * ASKED ONLY OF A DIRECTORY THAT LOADED, which is the gate the walk it
-   * replaced carried inline: a set that never loaded gets the error report
-   * instead of a column, so there is no mark on screen to answer and a question
-   * asked anyway would be a refused subscription ambering the connection pill
-   * over a page where nothing is missing.
-   *
-   * The MONTH's dots are not here: their question is the month the calendar
-   * itself is showing, so that subscription lives with the state that decides
-   * it (`./calendar/Calendar.tsx`) — and the calendar is only ever mounted
-   * under the same gate, one branch down.
-   */
-  const owed = createOwed(askedOn)
   /** How full the inbox is — the door beside Agenda wears this number. One
-   *  subscription, created here with owed, so a second reader cannot open a
-   *  second cell. */
+   *  subscription, so a second reader cannot open a second cell. */
   const inboxHeld = createInboxHeld()
 
   /**
@@ -274,29 +243,6 @@ export default function App() {
    * duplicate Map and a second copy on every navigation (`./reading.tsx`).
    */
   const names = () => readings.names(router.workspace().focus)
-
-  /**
-   * The day the calendar opens on, when the focused pane is a day page — the
-   * cell that is filled, and the month the grid anchors to.
-   *
-   * THE ADDRESS ANSWERS THIS ONE WHOLE, and it is asked with the SAME function
-   * the pane asks its own question with (`./page.ts`'s `requestFor`): a day page
-   * is `/d/<date>`, which spells its day, or `/today`, which spells the day it
-   * IS — and who says which day that is is the reader's own clock, which is why
-   * that function takes it as an argument.
-   *
-   * READ THROUGH THE REQUEST rather than re-mapped here, so the month the grid
-   * opens on and the page the pane asked for cannot come to two answers about
-   * one address — and so the arms that say which routes name a day are
-   * exhaustive over the route in exactly one place.
-   *
-   * Read off the PAGE, as it was, this went `day → undefined → day` on every
-   * click of a second day: the month is stamped on the day being read
-   * (`./calendar/Calendar.tsx`), so the grid flipped to today's month and back
-   * on the way past, rebuilding all thirty-odd cells twice and tearing the
-   * month's own subscription down with them.
-   */
-  const openDay = createMemo(() => only(requestFor(router.route(), today()), "day")?.date)
 
   const split = () => !isLone(router.workspace())
 
@@ -438,13 +384,12 @@ export default function App() {
                     }}
                   >
                     <Show when={desktop() && !sidebarOpen()}>
-                      <Rail go={(route) => router.go(route)} owed={owed()} />
+                      <Rail go={(route) => router.go(route)} />
                     </Show>
                     <Show when={desktop() ? sidebarOpen() : true}>
                       <Sidebar
                         active={openFile()}
                         broken={directory.broken()}
-                        owed={owed()}
                         inboxHeld={inboxHeld()}
                         open={desktop() ? true : menuOpen()}
                         onClose={() => setMenuOpen(false)}
@@ -461,9 +406,7 @@ export default function App() {
                             </>
                           )
                         }
-                      >
-                        <Calendar today={today()} open={openDay()} />
-                      </Sidebar>
+                      />
                     </Show>
                     <Panes trouble={trouble()} />
                   </div>

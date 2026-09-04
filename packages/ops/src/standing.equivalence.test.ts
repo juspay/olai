@@ -100,14 +100,14 @@ test("the shared arm actually shared, and the rebuilding arm actually did not", 
   expect(rebuilt.carried).toBe(0)
   expect(answered.shared).toBeGreaterThan(0)
   expect(answered.carried).toBeGreaterThan(0)
-  // Two tabs hold the same three questions and a third shares two of them, so
-  // the share alone is about a third of the asks; with the carry, what is left
-  // is the answers this corpus genuinely had to build. A LOOSE floor on
+  // Two tabs hold the same page question and later revisions carry answers
+  // whose taped reads did not move. What is left is the answers this corpus
+  // genuinely had to build. A LOOSE floor on
   // purpose — the exact fraction is a fact about this corpus and belongs in the
   // bench, and a tight one here would fail the day somebody adds a step shape.
   // What it fences is the vacuous pass: a wiring that reused nothing.
   const built = answered.asks - answered.shared - answered.carried
-  expect(built).toBeLessThan(answered.asks / 3)
+  expect(built).toBeLessThan(answered.asks / 2)
 })
 
 test("the differential catches a pre-check that never fires a rebuild", () => {

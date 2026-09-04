@@ -19,7 +19,7 @@
  * one table quietly falling behind the other.
  */
 
-import type { Route } from "../routes.ts"
+import { type Route, routeFace } from "../routes.ts"
 
 export const labelOf = (route: Route): string => {
   if (route.kind === "at") {
@@ -27,8 +27,6 @@ export const labelOf = (route: Route): string => {
     if (address === null) return "outline"
     return address.kind === "node" ? address.id : address.path
   }
-  if (route.kind === "day") return route.date
-  if (route.kind === "today") return "today"
-  if (route.kind === "agenda") return "agenda"
+  if (route.kind === "plugin") return routeFace(route)?.route.breadcrumb(route.value) ?? "plugin"
   return "trash"
 }

@@ -1294,20 +1294,6 @@ test("a new document names its path outright", () => {
     .toEqual({ op: "create-doc", file: "ideas.md" })
 })
 
-test("a docDay resolves to the vault's own convention, read off this set", () => {
-  expect(asked({ verb: "docDay", date: "2026-09-01" }, vault()))
-    .toEqual({ op: "create-doc", file: "Daily/2026/09/2026-09-01.md" })
-  // A vault with no daily note yet starts the convention at the root.
-  expect(asked({ verb: "docDay", date: "2026-09-01" }))
-    .toEqual({ op: "create-doc", file: "2026-09-01.md" })
-})
-
-test("a docDay that is not a day is refused about the DATE, not the path", () => {
-  const failure = refused({ verb: "docDay", date: "someday" }, vault())
-  expect(failure.message).toContain("someday")
-  expect(failure.message).toContain("not a day")
-})
-
 test("a document commit's inverse is the text it replaced, guarded by what it wrote", () => {
   expect(
     inverse({ verb: "doc", file: "notes.md", text: "new" }, "notes.md", vault()),
@@ -1317,9 +1303,6 @@ test("a document commit's inverse is the text it replaced, guarded by what it wr
 test("nothing takes a minted document back — an un-create is not a delete", () => {
   expect(inverse({ verb: "docNew", file: "ideas.md" }, "ideas.md", vault()))
     .toEqual([])
-  expect(
-    inverse({ verb: "docDay", date: "2026-09-01" }, "x.md", vault()),
-  ).toEqual([])
 })
 
 test("a fileDelete asks for the op, word for word — the guards are the planner's", () => {

@@ -25,9 +25,9 @@
  * a plugin the roster stops naming unwinds its own faces on the way out and the
  * app re-reads what is left.
  *
- * ## THE TWELVE SLOTS, and why the table is data
+ * ## THE SIXTEEN SLOTS, and why the table is data
  *
- * A slot is a place in this app where a plugin's face may hang. There are twelve
+ * A slot is a place in this app where a plugin's face may hang. There are sixteen
  * and they are DECLARED ({@link SLOTS}) rather than implied by four hooks on an
  * interface, because a registration has to be checkable against something: a
  * plugin hanging a chip in the header is a mistake somebody should be told
@@ -67,7 +67,7 @@
  * this very table — so it is gone until something wants it, and it comes back
  * as a walk beside `PluginHeaders` on the day one does.
  *
- * ## FIVE OF THE TWELVE HAVE NO OCCUPANT AND NO READER YET, deliberately
+ * ## FIVE OF THE SIXTEEN HAD NO OCCUPANT AND NO READER YET, deliberately
  *
  * `app.panel`, `sidebar.section`, `outline.row.door`, `outline.row.action` and
  * `app.keys` are where the CHAT PANEL is going to hang: the right panel, the
@@ -192,7 +192,7 @@ export * from "./runtime.ts"
 export type SlotKey = "plugin" | "kind" | "app" | "nothing"
 
 /**
- * WHERE A FACE CAN HANG — the twelve, and what keys each.
+ * WHERE A FACE CAN HANG — the sixteen, and what keys each.
  *
  * DATA rather than a union alone, because the key rule is the thing a reader
  * and the service both need and a union could only carry the names. The gloss
@@ -240,6 +240,12 @@ export const SLOTS = {
    *  that could place its row anywhere in that list could place it under a
    *  reader's thumb. */
   "outline.row.action": { keyedBy: "nothing" },
+  /** A PAGE KIND which owns an address grammar, a standing reading and the
+   * drawing of that reading. Several kinds may come from one plugin. */
+  "app.route": { keyedBy: "nothing" },
+  /** A directory door above the app's own entries. Placement is deliberately
+   * a small vocabulary interpreted by the shell, never arbitrary ordering. */
+  "sidebar.entry": { keyedBy: "nothing" },
   /** A SECTION IN THE SIDEBAR, under the app's own — the agents section is the
    *  first. A list, and ordered by the bundle's rank at the read, so two plugins
    *  with a section are in the order `olai.yml` names them rather than in the
@@ -312,6 +318,8 @@ export const SLOTS = {
    * "did that work" is a thing the palette says in one voice for every prefix.
    */
   "app.command": { keyedBy: "nothing" },
+  /** A navigation row in the ordinary command-palette list. */
+  "app.palette": { keyedBy: "nothing" },
   /** The tab's own half of this plugin, wrapped ONCE around the page — one
    *  subscription however many leaves draw. These NEST; the app folds them. */
   "app.mount": { keyedBy: "plugin" },
@@ -332,7 +340,7 @@ export const SLOTS = {
   "engine.install": { keyedBy: "plugin" },
 } as const satisfies Readonly<Record<string, { readonly keyedBy: SlotKey }>>
 
-/** One of the twelve. */
+/** One of the sixteen. */
 export type SlotName = keyof typeof SLOTS
 
 /** The rows of {@link SLOTS} one key rule holds — the four names below are this
@@ -345,10 +353,10 @@ type SlotsKeyedBy<K extends SlotKey> = {
 /** ...the four a PLUGIN keys, one face each. */
 export type PluginSlot = SlotsKeyedBy<"plugin">
 
-/** ...the four a property KIND keys. */
+/** ...the three a property KIND keys. */
 export type KindSlot = SlotsKeyedBy<"kind">
 
-/** ...the three nothing keys, which is what makes them lists. */
+/** ...the eight nothing keys, which is what makes them lists. */
 export type ListSlot = SlotsKeyedBy<"nothing">
 
 /** ...and the one the APP keys, which is what makes it the only one. */
@@ -395,14 +403,77 @@ export interface SlotFaces {
   "outline.row.block": PropBlock
   "outline.row.door": (props: { readonly node: string }) => JSX.Element
   "outline.row.action": RowActions
+  "app.route": AppPage
+  "sidebar.entry": SidebarEntry
   "sidebar.section": SidebarSection
   "app.panel": () => JSX.Element
   "app.header": () => JSX.Element
   "app.keys": AppChord
   "app.command": AppCommand
+  "app.palette": AppPalette
   "app.mount": (props: { readonly children: JSX.Element }) => JSX.Element
   "delivery.mark": () => JSX.Element
   "engine.install": NotHere
+}
+
+/** The transport-shaped part of a standing page reading. Kept structural so
+ * the plugin API does not import either Solid or the vault's format. */
+export interface AppPageAnswer {
+  (): unknown | undefined
+  readonly changed?: (handler: () => void) => () => void
+}
+
+export interface AppPageStream {
+  readonly use: (input: () => unknown | null) => AppPageAnswer
+}
+
+/** One declarative claim on the app's URL namespace. Exact words and prefixes
+ * are enough for the address grammars plugins can own, and unlike an arbitrary
+ * parser they can be checked against every other mounted claim. */
+export type AppRouteClaim =
+  | { readonly kind: "exact"; readonly path: `/${string}` }
+  | { readonly kind: "prefix"; readonly path: `/${string}` }
+
+/** One plugin-owned URL grammar and standing reading. The heterogeneous value
+ * positions are deliberately erased at this floor; `@olai/web`'s
+ * `defineAppRoute` is the typed adapter that may construct one. */
+export interface AppRoute {
+  readonly claims: ReadonlyArray<AppRouteClaim>
+  readonly parse: (pathname: string) => unknown | null
+  readonly href: (page: unknown) => string
+  readonly breadcrumb: (page: unknown) => string
+  readonly narrowable: boolean
+  readonly request: (page: unknown, today: string) => unknown
+  readonly stream: AppPageStream
+}
+
+/** The complete page registration: one route source and the drawing of its
+ * answer, acquired and released in the same plugin scope. */
+export interface AppPage {
+  readonly route: AppRoute
+  readonly face: (props: {
+    readonly page: unknown
+    readonly drawn: unknown
+    readonly today: string
+  }) => JSX.Element
+}
+
+/** A plugin-owned directory entry. The shell decides where the two supported
+ * placements sit; the optional rail face travels with the same entry. */
+export interface SidebarEntry {
+  readonly place: "top" | "bottom"
+  readonly body: () => JSX.Element
+  readonly rail?: () => JSX.Element
+}
+
+/** An ordinary palette navigation row. A URL is the shared navigation currency;
+ * the shell resolves it against the same exclusive claims as the address bar. */
+export interface AppPalette {
+  readonly id: string
+  readonly label: string
+  readonly hint?: string
+  readonly search: string
+  readonly href: `/${string}`
 }
 
 /**
@@ -888,10 +959,10 @@ export const openApp = (config: AppConfig = {}): Effect.Effect<App, never, Scope
   Effect.gen(function*() {
     const host = yield* openHost
     /**
-     * ONE TABLE PER SLOT, and a slot IS a table — the twelve are declared
+     * ONE TABLE PER SLOT, and a slot IS a table — the sixteen are declared
      * ({@link SLOTS}), so they are opened here rather than grown on demand.
      *
-     * They are `@olai/effect-cordis`'s tables rather than twelve hand-written
+     * They are `@olai/effect-cordis`'s tables rather than sixteen hand-written
      * `Map`s, which is what makes the rules mechanical instead of remembered. The
      * one that had gone missing here is the last: this table told the app it had
      * changed from INSIDE `acquire`, and an app that refuses throws out of that

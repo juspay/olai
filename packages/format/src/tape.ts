@@ -1,8 +1,8 @@
 /**
  * WHAT AN ANSWER READ, AND WHETHER THE NEXT REVISION COULD HAVE MOVED IT.
  *
- * A standing view — the page in front of somebody, the filter over it, the
- * calendar's dots, what is owed, the move picker's preview — is a pure function
+ * A core standing view — the page in front of somebody, the filter over it, or
+ * the move picker's preview — is a pure function
  * of one {@link Reading} and the question asked of it. The server re-reads
  * every one of them on every published revision, and nearly every revision
  * leaves nearly every one of them exactly where it was: a keystroke in one

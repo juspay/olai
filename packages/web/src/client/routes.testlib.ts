@@ -30,20 +30,12 @@ export const ROUTES: ReadonlyArray<Route> = [
   atFile("notes/deep/plan.md"),
   atNode("kitchen"),
   atNode("a-minted_id9"),
-  { kind: "day", date: "2026-08-10" },
-  { kind: "today" },
-  { kind: "agenda" },
   { kind: "trash" },
   // ...and the same pages, narrowed. The filter is part of the address, so it
   // is part of the round trip: a query the app writes into the bar and cannot
   // read back is a page that loses its filter on reload.
   { ...atFile("house.olai"), filter: "is:done" },
-  // The four that grew one under `search-everywhere`. A day and the agenda are
-  // date questions and the trash is read-only, and neither of those is a reason
-  // not to be able to look through what they are showing.
-  { kind: "day", date: "2026-08-10", filter: "is:todo" },
-  { kind: "today", filter: "#home" },
-  { kind: "agenda", filter: "is:blocked" },
+  // The computed page remains narrowable even though it is read-only.
   { kind: "trash", filter: "hinges" },
   { ...HOME_ROUTE, filter: "#home -is:done" },
   // A narrowed NODE page is the case the query's position is decided by: the

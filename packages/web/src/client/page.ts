@@ -14,44 +14,34 @@
  * second and third are `@olai/format`'s `page.ts` — answered where the set is —
  * and this module is what stands between them and the components.
  *
- * A route is text and so is a DAY, which is why `today` is an argument to
- * {@link requestFor} rather than a clock read further down: `/today` and
- * `/d/<date>` are the same page, and the only difference between them is who
- * says which day it is. That is the reader's own clock, and it is read on the
- * reader's own side.
+ * Core translates file, node and trash routes here. A mounted plugin translates
+ * its own routes directly in `PageView`, so core never has to learn their page
+ * vocabulary.
  */
 
 import type {
   Agenda,
   DayGroup,
-  PageRequest,
   Row,
   Shown,
   TrashGroup,
 } from "@olai/format"
+import type { CorePageRequest } from "@olai/surface"
 
 import { atElement, type Route } from "./routes.ts"
 
 /**
  * WHAT THE SERVER IS ASKED, for the route this pane is showing.
  *
- * The one translation this app makes on the way out, and it is exactly the half
- * the grammar down there cannot read: the words this app claimed for itself. A
- * `/today` becomes the day it IS, because a clock belongs to the reader; the
- * agenda carries the day it is counted against, for the same reason; and
- * everything else is the address, handed over as the parser read it.
+ * File and node addresses are handed over as the parser read them. Trash is
+ * core's one computed page; plugin routes bypass this function and ask their
+ * sibling streams directly.
  *
  * THE NARROWING IS DROPPED, deliberately: a `?q=` is a second question with a
  * door of its own (`./filter/asking.ts`), so a page reading that carried it
  * would re-ask the whole page on every keystroke.
  */
-export const requestFor = (
-  route: Route,
-  /** What day it is, as text. The one thing here that is not a fact about the
-   *  address — and the only reason `/today` can be an address rather than a
-   *  redirect that would put yesterday in someone's history. */
-  today: string,
-): PageRequest => {
+export const requestFor = (route: Route): CorePageRequest | null => {
   switch (route.kind) {
     case "at": {
       const address = route.address
@@ -73,14 +63,13 @@ export const requestFor = (
           : address,
       }
     }
-    case "day":
-      return { kind: "day", date: route.date }
-    case "today":
-      return { kind: "day", date: today }
-    case "agenda":
-      return { kind: "agenda", today }
     case "trash":
       return { kind: "trash" }
+    case "plugin":
+      // A mounted route tenant supplies its own request in PageView. This arm
+      // is only the total fallback for a route whose tenant disappeared. It
+      // asks nothing: the vanished tenant is not core's front page.
+      return null
   }
 }
 

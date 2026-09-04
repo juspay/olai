@@ -50,6 +50,7 @@
         "olai-plugin-chat": "workspace:*",
         "olai-plugin-claude": "workspace:*",
         "olai-plugin-codex": "workspace:*",
+        "olai-plugin-journal": "workspace:*",
         "olai-plugin-kolu": "workspace:*",
         "olai-plugin-odu": "workspace:*",
         "olai-plugin-opencode": "workspace:*",
@@ -195,6 +196,19 @@
       "dependencies": {
         "@olai/acp": "workspace:*",
         "@olai/plugin-api": "workspace:*",
+        "effect": "4.0.0-rc.112",
+        "solid-js": "^1.9.0",
+      },
+    },
+    "packages/plugins/journal": {
+      "name": "olai-plugin-journal",
+      "version": "0.1.0",
+      "dependencies": {
+        "@olai/format": "workspace:*",
+        "@olai/plugin-api": "workspace:*",
+        "@olai/surface": "workspace:*",
+        "@olai/web": "workspace:*",
+        "@solid-primitives/keyed": "^1.5.3",
         "effect": "4.0.0-rc.112",
         "solid-js": "^1.9.0",
       },
@@ -1176,6 +1190,8 @@
     "olai-plugin-claude": ["olai-plugin-claude@workspace:packages/plugins/claude"],
 
     "olai-plugin-codex": ["olai-plugin-codex@workspace:packages/plugins/codex"],
+
+    "olai-plugin-journal": ["olai-plugin-journal@workspace:packages/plugins/journal"],
 
     "olai-plugin-kolu": ["olai-plugin-kolu@workspace:packages/plugins/kolu"],
 

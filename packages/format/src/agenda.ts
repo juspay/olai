@@ -267,7 +267,7 @@ export const owedOf = (agenda: Agenda): Owed => ({
  * disagreement impossible also made the answer cost the page. What replaces it
  * is not an argument but a GATE: the two spellings are held to each other over
  * generated corpora and over a corpus of real writes, at every boundary either
- * of them can move on (`./occasion.test.ts`, `@olai/ops`' `owed.index.test.ts`),
+ * of them can move on (`./occasion.test.ts`, `olai-plugin-journal`'s `owed.index.test.ts`),
  * and `./dates.bench.ts` divides one by the other. A house that keeps one
  * reading gets agreement for free; a house that keeps two has to prove it, and
  * the proof is the reason this is allowed to exist.

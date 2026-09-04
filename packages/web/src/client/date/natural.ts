@@ -64,9 +64,12 @@ import {
   shiftDay,
   shiftDayByMonth,
   weekdayOf,
+  WEEKDAYS,
 } from "@olai/format"
 
-import { WEEKDAY_NAMES } from "../calendar/month.ts"
+const WEEKDAY_NAMES = WEEKDAYS.map(
+  (name) => `${name[0]?.toUpperCase() ?? ""}${name.slice(1)}`,
+)
 
 /** One day a phrase names. */
 export interface Named {

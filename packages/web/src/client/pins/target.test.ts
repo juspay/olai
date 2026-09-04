@@ -17,13 +17,10 @@
  * feature this design moved it for.
  *
  * **What cannot hold is the converse**, and it is worth writing down rather than
- * discovering: the browser applies precedence the format cannot see. `/d/…`,
- * `/today`, `/agenda` and `/trash` are words THIS APP claimed, read before the
- * address grammar is asked at all — so `/d/2026-08-20.olai#x` is a day page up
- * here and an outline's node down there. The server over-answers by
- * construction, and the narrowing that makes that harmless is `./pins.ts`'s
- * `showing`: an answered name is spent only where this parser agrees the row
- * addresses that node. The last test below is that case end to end.
+ * discovering: the browser applies precedence the format cannot see. `/trash`
+ * is a word THIS APP claims before the address grammar is asked at all. The
+ * server can therefore over-answer by construction, and `./pins.ts`'s
+ * `showing` spends an answered name only where this parser agrees.
  *
  * A unit test rather than a scenario — a browser has nothing to add to a
  * disagreement between two pure functions.
@@ -33,7 +30,6 @@ import { pinTargetIn } from "@olai/format"
 import { expect, test } from "bun:test"
 
 import { addressIn } from "../address/address.ts"
-import { pinsOf } from "./pins.ts"
 
 /** What the BROWSER's parser says this title's node is, if it says one — the
  *  reference the answer is judged against. A ROW names a node too (the
@@ -65,13 +61,7 @@ const TITLES = [
   "/notes/finishes.md",
   "/notes/finishes.md#install",
   "/garden.olai",
-  "/agenda",
-  "/agenda?q=is%3Atodo",
-  "[What is late](/agenda?q=is%3Atodo)",
-  "/today",
   "/trash",
-  "/d/2026-08-20",
-  "/d/2026-08-20#anything",
   "/",
   "/?q=is%3Atodo",
   // …and titles that are not addresses at all.
@@ -82,7 +72,7 @@ const TITLES = [
   "/%",
   "/%ZZ.md",
   "",
-  "see [the agenda](/agenda) tomorrow",
+  "see [the trash](/trash) tomorrow",
   "[a b](/#herbs) and more",
   "#herbs",
 ]
@@ -99,19 +89,4 @@ test("…and the corpus above actually exercises that direction", () => {
   const named = TITLES.filter((title) => nodeIn(title) !== undefined)
   expect(named.length).toBeGreaterThan(6)
   expect(named.length).toBeLessThan(TITLES.length)
-})
-
-// The converse, as a fact rather than a hope: this app claims `/d/…` before the
-// address grammar is asked, and the grammar down there reads the same string as
-// an outline with an element on it.
-test("the server over-answers where this app claimed a word, and the row ignores it", () => {
-  const claimed = "/d/2026-08-20.olai#x"
-  expect(pinTargetIn(claimed)).toBe("x")
-  expect(nodeIn(claimed)).toBeUndefined()
-
-  // What that costs a reader: nothing. The row is drawn as the page THIS parser
-  // read — a day — and the name answered about a node it does not address is
-  // not spent.
-  const drawn = pinsOf([{ id: "p", title: claimed, shows: { id: "x", name: "the kitchen" } }])
-  expect(drawn.map((pin) => [pin.route.kind, pin.name])).toEqual([["day", "2026-08-20.olai"]])
 })

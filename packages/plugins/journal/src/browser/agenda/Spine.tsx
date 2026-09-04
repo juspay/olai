@@ -21,7 +21,7 @@ import type { Agenda } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import { createMemo } from "solid-js"
 
-import { TESTID } from "../testids.ts"
+import { TESTID } from "../../testids.ts"
 import { Day } from "./Day.tsx"
 import { SPINE_LINE } from "./gutter.ts"
 import { rungsOf, TAIL, tailOf } from "./spine.ts"
