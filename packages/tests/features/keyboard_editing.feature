@@ -292,10 +292,14 @@ Feature: Keyboard editing
     And I press "Enter"
     Then "house.olai" holds a node titled "mount the crown moulding" under "install"
 
-  Scenario: Alt+Shift+Up does not jump the parked blanks the arrows stop on
-    # Three empties at one anchor are three LINES — the plain arrows stop on
-    # each. A move key may not cross one: an anchor cannot name a blank, so
-    # no answer spells "between them" — the press says nothing at all.
+  Scenario: Alt+Shift+Up steps past the parked blanks to the row above
+    # Three empties at one anchor: the plain arrows stop on each of them,
+    # because a blank is a line the eye lands on. The SHAPE keys do not, and
+    # it is the same rule all four of them keep — what one answers with is an
+    # anchor, anchors name records, and "between two lines nobody has written"
+    # is a place no anchor can spell. So the press crosses the sketch to the
+    # nearest real row and seats the blank one slot over it: above `knobs`,
+    # which is where `hinges` already ends.
     When I click the title of "knobs"
     And I press "Enter"
     And I press "Enter"
@@ -303,7 +307,7 @@ Feature: Keyboard editing
     Then a new row is being typed
     When I press "Alt+Shift+ArrowUp"
     Then a new row is being typed
-    And the row being typed is drawn immediately above the title of "kitchen-herbs"
+    And the row being typed is drawn immediately above the title of "knobs"
 
   Scenario: a blank among rows keeps the outline's line rhythm
     # Reported on the #493 build: gaps between lines wobbled wherever a draft
