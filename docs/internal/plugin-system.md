@@ -767,6 +767,30 @@ published once when the settle is done. Without that the tab would redial onto a
 wire still coming apart, asking for members that had already left. It is the same
 promise `mountBundle` makes at the boot, kept for a press.
 
+**The listener serves the generation that is live at each accept, and that took a
+kolu change.** `serveSurfaceApp` used to read the served `{group, handlers,
+expose}` once, when the port bound, and build every later connection over that
+snapshot — exact for a fixed surface, and the reason a re-mounted sibling was
+unreachable for the life of the process: its tags still resolved to the retired
+mount's refusing handler, on every socket accepted afterwards including a
+reloaded page's. Sub-phase 8a made those three accessors, re-read together at
+each accept, with the restriction memoized by generation identity so an unchanged
+roster costs a pointer comparison. olai's listener hands over the getters the
+rooted runtime already exposes.
+
+All three, and always together: the group is what a per-connection `RpcServer` is
+built over, the handler record is what it dispatches through, and the face is a
+default-deny allowlist derived from the sibling set — so two of them re-read with
+the third stale is the set inequality `restrictHandlers` exists to refuse. It is
+also why a façade over the handlers alone was declined: a row absent at boot has
+no tags in the group, so there would have been nothing to route to.
+
+A connection accepted BEFORE a flip keeps the generation it was built over until
+the client redials, which is the honest half of Effect RPC — a group is baked
+into each `RpcServer` at construction. Nothing closes those sockets server-side:
+the drop has already bound their tags to refusing handlers, and the tab's redial,
+driven by the roster cell moving, is the client half of the same revert.
+
 **It writes nothing and it is the browser's alone.** A flip lasts as long as the
 process: no settings file, no edit to `olai.yml`, nothing in the state home, and a
 restart comes back to the flag, the nix option and the rows' own defaults (the

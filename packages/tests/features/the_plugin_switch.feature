@@ -75,45 +75,39 @@ Feature: A plugin is turned on and off while the serve runs
     # streams down with it.
     And no member of this page has gone silent
 
-  @skip
   @scratch:lanes @padi:lanes
   Scenario: A row that comes back is served again
-    # SKIPPED, AND THE SKIP IS THE POINT — this is the half of "off and on" the
-    # WIRE does not yet keep, recorded where it can be run the moment it does
-    # rather than only in a comment somewhere.
+    # THE OTHER HALF OF "OFF AND ON", and the one the WIRE had to learn.
     #
-    # The fibers do all of it: the module is re-imported, the `apply` runs
-    # again, the kind is claimed again, the sibling surface is registered again
-    # and kolu's own padi link dials and reports connected a second time. Every
-    # one of those is proved at unit level in this PR.
+    # The fibers always did all of it: the module is re-imported, the `apply`
+    # runs again, the kind is claimed again, the sibling surface is registered
+    # again and kolu's own padi link dials and reports connected a second time.
+    # What did not follow was the listener. `serveSurfaceApp` snapshotted the
+    # served `{group, handlers, expose}` when it bound and served that ONE
+    # generation for its whole life — exact until this phase, because until now
+    # olai's served set never moved. So a re-mounted sibling's tags still
+    # resolved to the RETIRED mount's handler, whose whole job is to refuse, and
+    # a page RELOAD did not help either: the stale table was the SERVER's, which
+    # is what proved the fault was not in the browser.
     #
-    # What does not follow is the listener. `serveSurfaceApp` snapshots the
-    # served `{group, handlers}` pair when it binds and serves that ONE
-    # generation for its whole life — which it says out loud, and which was
-    # exact until this phase, because until now olai's served set never moved.
-    # So a re-mounted sibling's tags still resolve to the RETIRED mount's
-    # handler, whose whole job is to refuse. A page RELOAD does not help: the
-    # stale table is the server's, not the tab's, which is what proved the fault
-    # is not in the browser.
+    # THE RULING (sub-phase 8a) put the fix upstream rather than working around
+    # it here, and the two cheaper answers are worth knowing about because both
+    # look adequate from where this scenario sits. A façade over the HANDLERS
+    # reaches neither the group a per-connection `RpcServer` is built from nor
+    # the face gate, so a row that was off at boot would still have nothing to
+    # route. And restricting the switch to rows that were running at boot is
+    # exactly the boot-time snapshot this phase exists to remove, moved one
+    # layer down and written into a rule.
     #
-    # THE RULING is sub-phase 8a: the fix is upstream, in kolu —
-    # `serveSurfaceApp` takes the served set as accessors read at each accept,
-    # so a socket accepted after a flip is built over the current generation.
-    # The two cheaper answers were declined and it is worth knowing why, because
-    # both look adequate from here: a façade over the HANDLERS reaches neither
-    # the group a per-connection `RpcServer` is built from nor the face gate, so
-    # a row that was off at boot would still have nothing to route; and
-    # restricting the switch to rows that were running at boot is exactly the
-    # boot-time snapshot this phase exists to remove, moved one layer down and
-    # written into a rule.
+    # What the listener hands over now is the ACCESSORS it already held, all
+    # three together: the group, the handler record and the gate are one
+    # generation, and two of them re-read with the third stale is the set
+    # inequality `restrictHandlers` refuses on.
     #
-    # UNSKIP THIS at the pin bump, when the listener hands over the getters it
-    # already holds instead of their values. Nothing about the scenario should
-    # need to change — which is why it is written out in full rather than left
-    # as a sentence — and the LAST assertion is the one that goes red today.
-    #
-    # It covers both halves the ruling asks for: a row switched off and back on,
-    # and (in the scenario that follows the pin) a row that was off at boot.
+    # THE LAST ASSERTION IS THE ONE THAT WAS RED. The two before it are about
+    # kolu; that one is about every member this page is subscribed to, which is
+    # what caught the blast radius in the first place — flipping the CHAT row
+    # silenced a tenant that was never pressed.
     Given I open the outline "lanes.olai"
     And I show the done nodes
     Then the terminal row on "door-implement" is working
@@ -135,6 +129,39 @@ Feature: A plugin is turned on and off while the serve runs
     # about kolu; this is about every member on the page, and it is what goes
     # red today — the app itself reports that nothing is arriving on kolu's
     # five members, and on odu's when it is the chat row that was pressed.
+    And no member of this page has gone silent
+    And there should be no page errors
+
+  @scratch:lanes @plugins:kolu,odu
+  Scenario: A row the flag left out is switched on, and is served
+    # THE DIRECTION NOBODY WOULD GUESS IS AVAILABLE, and the one the transport
+    # could not have done at all before sub-phase 8a — not by an oversight but
+    # in principle. A row absent at boot has no tags in the group the listener
+    # bound, so there was nothing to route to even if its handlers had been
+    # live: that is why a façade over the handler record was declined and the
+    # whole served set became accessors instead.
+    #
+    # `--plugins=kolu,odu` is a serve with no conversation in it at all. The
+    # tenants name chat's doors, so they come up `waiting` — which is the
+    # doorbell feature's own scenario, and the state this one starts from.
+    Given I open the outline "lanes.olai"
+    Then the conversation is gone-from the header
+    When I open the plugins panel
+    Then the plugins panel says "kolu" is "Waiting for deliveries, session-start"
+    # ...and the panel says the row is off because a flag left it out, which is
+    # a different morning from a press and from the build's own default.
+    And the plugins panel says "chat" is "was not asked for"
+
+    When I switch the plugin "chat" on
+    # A ROW THAT WAS NEVER MOUNTED IN THIS PROCESS, arriving on a listener that
+    # bound before it existed. The tenants come out of `waiting` because the
+    # doors they named have arrived; the conversation's own chrome is drawn
+    # because its members are on the wire and the tab's redial reached them.
+    Then the plugins panel says nothing more about "kolu"
+    And the conversation is in the header
+    # THE ASSERTION THAT WOULD HAVE BEEN RED WHATEVER ELSE PASSED. The rest of
+    # this scenario can be satisfied by chrome that mounted off a roster frame;
+    # this one asks whether the members behind it are being served.
     And no member of this page has gone silent
     And there should be no page errors
 

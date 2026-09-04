@@ -130,7 +130,10 @@ const withRoute = <A>(
     // to present a valid one could not get it.
     const base = yield* Effect.orDie(listen({
       bound: wired.bound,
-      expose: wired.faces.browser,
+      // A THUNK, as the listener takes it now: a face is derived from the
+      // sibling set, so it is read at each accept beside the group it describes
+      // rather than once at bind (`../listener.ts`).
+      expose: () => wired.faces.browser,
       clientDist: root,
       root,
       hostname: hostname(),

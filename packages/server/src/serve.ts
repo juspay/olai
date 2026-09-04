@@ -532,7 +532,7 @@ export const serve = (options: ServeOptions) =>
         // The face for the group on the line above, from the one call that
         // composed both (`./runtime.ts`'s `bind`) — a second reading of which
         // plugins are on is the boot refusal `restrictHandlers` exists to raise.
-        expose: wired.faces.browser,
+        expose: () => wired.faces.browser,
         hostname: theMachine,
         mcp: { transport, token, identity: options.identity },
         // `POST /olai/resync` — force a re-read of the disk. Waits for
