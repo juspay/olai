@@ -48,6 +48,7 @@ export {
   type Host,
   type Mounted,
   mountPlugin,
+  namedBy,
   openHost,
   provide,
   type RowReport,

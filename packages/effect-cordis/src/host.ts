@@ -281,6 +281,54 @@ export const settled = (host: Host, ids: ReadonlyArray<string>): Effect.Effect<v
   )
 
 /**
+ * WHICH SERVICES EACH NAMED ROW IS STANDING ON — every key its `needs` declared,
+ * whether or not somebody is behind it.
+ *
+ * ## What it is for, and why it is not a field on {@link RowReport}
+ *
+ * The panel wants to tell a person what turning a row OFF would cost: chat
+ * stands behind four doors, so the row that offers them has to name the rows
+ * that would go `waiting` without it. That join has two halves and this is the
+ * one the runtime holds — WHO NAMES WHAT. The other half, who stands behind
+ * what, is core's own offers table, and the composition root is where they meet
+ * (`@olai/server`'s `runtime.ts`).
+ *
+ * It is not on the report because the report is about one row's STATE, and this
+ * is a fact about a row that is perfectly healthy. `RowReport.missing` is the
+ * same vocabulary narrowed to the one arm where it is a complaint; this is the
+ * whole declaration, on every arm, and folding it in would put a field on three
+ * states that have no use for it.
+ *
+ * ## A ROW WITH NO FIBER IS ABSENT, and that is the honest reading
+ *
+ * `needs` is declared on the plugin and the plugin is inside the module, so a
+ * row nobody imported has no readable declaration at all — and it cannot be
+ * carried by anything anyway, because it is already off. What the join wants is
+ * exactly the rows that would MOVE, which is exactly the rows that have fibers.
+ *
+ * `fiber.inject` is the pin's public field and this package only ever produces
+ * REQUIRED injects (`needs.map(key => key.cordis)`, one list), so every key here
+ * is one the row genuinely stands on.
+ *
+ * ## NOT AN EFFECT, and it is the only verb on this door that is not
+ *
+ * Its three neighbours are Effects because each of them genuinely does
+ * something: `rowReport` awaits a failed fiber's private error, `settled` waits
+ * out a transition, `provide` acquires and releases. This walks a map. Wrapping
+ * it would make the one caller — a roster built synchronously from inside a
+ * re-compose a registry change drove — spend an `Effect.runSync` at the
+ * composition root to get a value back out, which is a wrapper and its own
+ * unwrapping written for the shape of the file rather than for anything true.
+ */
+export const namedBy = (
+  host: Host,
+  ids: ReadonlyArray<string>,
+): ReadonlyMap<string, ReadonlyArray<string>> =>
+  new Map(
+    [...fibersOf(host, ids)].map(([id, fiber]) => [id, Object.keys(fiber.inject)] as const),
+  )
+
+/**
  * WHAT BECAME OF ONE ROW — deliberately four states rather than the runtime's
  * six.
  *
