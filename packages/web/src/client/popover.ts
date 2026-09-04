@@ -63,6 +63,39 @@ import { type Accessor, createEffect, createSignal, onCleanup } from "solid-js"
 import { type Anchor, anchoredTo } from "./anchor.ts"
 import { dismissOn } from "./dismiss.ts"
 
+/**
+ * WHETHER A PANEL IS UP, HELD SOMEWHERE ELSE — the one seam this file has, and
+ * exactly one door uses it.
+ *
+ * ## Why a popover would ever not own its own open state
+ *
+ * Because one of these panels contains the control that DESTROYS it. The
+ * plugins panel's switch moves the roster, a roster change is a redial, and the
+ * whole tree is rebuilt under a keyed `<Show>` (`./main.tsx`) — so a press
+ * inside the panel unmounts the component holding "this panel is open", and the
+ * panel a person was using vanishes at the moment they used it. That is not a
+ * cost of the rebuild being wrong; the rebuild is what makes a plugin's arrival
+ * and departure real in the tab. It is the open state being in the wrong place:
+ * *which door is open* is a fact about the PAGE, and it was being kept in
+ * something the page throws away.
+ *
+ * ## And why the other two doors do NOT take it
+ *
+ * Preferences and Commit hold no control that can cause a redial, so their
+ * panels are only ever unmounted by somebody shutting them or by a reload —
+ * both of which SHOULD forget. Hoisting their state would be turning a thing
+ * that has never been wrong into shared page state for no reason, and would
+ * make a reload leave a panel hanging open over a fresh boot.
+ *
+ * So this is an OPTION with a per-caller default rather than a change to what a
+ * popover is: absent, {@link createPopover} makes its own signal and behaves
+ * exactly as it always has.
+ */
+export interface HeldOpen {
+  readonly open: Accessor<boolean>
+  readonly setOpen: (up: boolean) => void
+}
+
 export interface Popover {
   readonly open: Accessor<boolean>
   /** Where the panel goes, in viewport pixels — `null` until the trigger has
@@ -94,14 +127,28 @@ const TABBABLE =
   'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), ' +
   'textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
 
+/** THE ORDINARY ARM: this popover's own open state, shut, disposed with the
+ *  component that made it. Written as a function rather than inline so the two
+ *  arms of the choice read as one line at the call. */
+const ownOpen = (): HeldOpen => {
+  const [open, setOpen] = createSignal(false)
+  return { open, setOpen }
+}
+
 /** Whether two placements would draw the same box. */
 const sameBox = (a: Anchor | null, b: Anchor | null): boolean =>
   a === b ||
   (a !== null && b !== null && a.left === b.left && a.width === b.width &&
     a.maxHeight === b.maxHeight && a.side === b.side && a.offset === b.offset)
 
-export const createPopover = (): Popover => {
-  const [open, setOpen] = createSignal(false)
+export const createPopover = (options: {
+  /** Where "is it up" lives, when it must outlive this component — see
+   *  {@link HeldOpen}. Absent on every door but one, and the absent arm is a
+   *  fresh signal owned by the caller, which is what a popover has always
+   *  been. */
+  readonly held?: HeldOpen
+} = {}): Popover => {
+  const { open, setOpen } = options.held ?? ownOpen()
   // Compared by VALUE, because `measure` mints a fresh box every time it runs
   // and it runs on every scroll event in the document: by identity, a scroll
   // that moved the trigger nowhere would still rebuild the panel's five style
