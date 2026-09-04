@@ -311,8 +311,27 @@ export const serve = (options: ServeOptions) =>
       Effect.gen(function*() {
         const found = yield* setRow(plugins.host, id, enabled)
         report = yield* reportBundle(plugins.host)
+        // ...AND WHO ASKED, remembered for as long as this process runs.
+        //
+        // A row's `disabled` has three authors and is one field, so the panel
+        // could not tell a press from the build's own default and told a person
+        // who had just switched kolu off that the BUILD ships it off — with a
+        // flag to type. This is the only place that knows, because it is where
+        // the press arrived (`./runtime.ts`'s `PluginRuntime.switched`).
+        //
+        // WRITTEN ONLY WHEN THE FLIP TOOK, so a refused press about a row this
+        // build does not have leaves nothing behind. Cleared on the way back on,
+        // rather than kept as a log: what a row says is about its state now, and
+        // a row somebody switched off and then on again is simply running.
+        if (found) {
+          if (enabled) switched.delete(id)
+          else switched.add(id)
+        }
         return found
       })
+    /** ...the set itself. `Set` rather than a `Ref` for {@link report}'s reason:
+     *  one writer, on one fiber, read synchronously by the roster. */
+    const switched = new Set<string>()
     const kinds = yield* propKinds(plugins)
     const { root, store } = yield* openDirectory(options.root, kinds)
 
@@ -404,6 +423,7 @@ export const serve = (options: ServeOptions) =>
         // the offers table, which the runtime reads through `Plugins`.
         names: () => rowsNaming(plugins.host),
         set: flipped,
+        switched: () => switched,
       },
     })
 

@@ -367,6 +367,29 @@ export interface PluginRuntime {
    * Cordis, a loader, or a row's module. What crosses is a verb.
    */
   readonly set: (id: string, enabled: boolean) => Effect.Effect<boolean>
+  /**
+   * WHICH ROWS A PERSON HAS TURNED OFF HERE, and not turned back on.
+   *
+   * ## The third author of "absent"
+   *
+   * A row that is not running is absent for one of a small number of reasons,
+   * and until the switch there were two: the operator's flag left it out, or
+   * this build ships it off until somebody asks. {@link Wiring.plugins.pinned}
+   * tells those apart, because the row's own `disabled` and the flag's patch are
+   * the same field and only *whether a flag was given* survives downstream of it.
+   *
+   * The switch writes that same field, which is what makes a flip and a flag one
+   * mechanism — and it is why nothing downstream could tell a press from the
+   * built-in default. So under no flag, a person who had just switched kolu off
+   * was told by the panel that *this build ships it off by default*, and given a
+   * flag to type. The composition root is the only place that knows better,
+   * because it is the place the press arrived.
+   *
+   * KEPT AS THE SET OF ROWS TURNED OFF rather than a log of presses: what a row
+   * needs to say is about its state now, and a row somebody switched off and
+   * then on again is simply running. It is per PROCESS, like the flip itself.
+   */
+  readonly switched: () => ReadonlySet<string>
 }
 export interface Wiring {
   /** THE SERVED word: the machine this process runs on, minted ONCE per
@@ -649,7 +672,7 @@ export const rosterOf = (
       // absence IS `off` rather than a missing case (`@olai/effect-cordis`'s
       // `rowReport`).
       const report = offered.report().get(name) ?? { state: "off" as const }
-      const said = stateOf(offered, report)
+      const said = stateOf(offered, name, report)
       const live = said.state === "running"
       const wake = live ? wakes.get(name) : undefined
       const carrying = live ? carriedBy(name, offered.built, names, offers) : []
@@ -774,6 +797,7 @@ const carriedBy = (
  */
 const stateOf = (
   offered: NonNullable<Wiring["plugins"]>,
+  name: string,
   report: RowReport,
 ): {
   readonly state: PluginState
@@ -797,9 +821,25 @@ const stateOf = (
         ? { state: "waiting" }
         : { state: "waiting", missing: report.missing }
     case "off":
-      // THE LOADER DECLINED TO LOAD IT, and `pinned` is the only thing left
-      // that can say who wrote the `disabled` it declined on.
-      return { state: offered.pinned === null ? "optIn" : "off" }
+      // THE LOADER DECLINED TO LOAD IT, and the `disabled` it declined on has
+      // three possible authors: a person at the panel, the operator's flag, and
+      // the build. They are ONE FIELD by design, so nothing downstream of the
+      // patch can tell them apart — what can is whether the press came through
+      // this process ({@link PluginRuntime.switched}) and whether a flag was
+      // given at all (`pinned`), both of which are here.
+      //
+      // THE PRESS WINS, and the order is the point rather than an accident: a
+      // person who switched a row off a moment ago is owed a sentence about
+      // that, not about the flag they typed an hour ago or the default the
+      // build ships — both of which are still true and neither of which is why
+      // this row is absent NOW.
+      return {
+        state: offered.switched().has(name)
+          ? "switched"
+          : offered.pinned === null
+          ? "optIn"
+          : "off",
+      }
     case "running":
       return { state: "running" }
   }
@@ -2092,12 +2132,46 @@ export const bind = (
      * dropped live, and the ROSTER MOVING is what tells a browser to redial. The
      * flip is that path taken deliberately rather than at boot.
      *
-     * What it did need is {@link moving}, one wall down.
+     * What it did need is {@link moving}, one wall down, and {@link leaving} —
+     * because a key can now be mounted a SECOND time, and the framework refuses
+     * that over a generation that has not finished coming down.
      */
     const recompose = (): void => {
       const wanted = new Map(siblings().map((one) => [one.name, one] as const))
       for (const [key, one] of wanted) {
         if (mounted.has(key)) continue
+        /**
+         * A KEY WHOSE PREVIOUS GENERATION IS STILL LEAVING waits for it, and
+         * the wait is a CONTINUATION rather than a block.
+         *
+         * `implementRootedSurfaces` refuses a mount over an unsettled drop, and
+         * says why in the refusal: the old generation's sources are still
+         * supervised, so its teardown fault is still this runtime's, and nothing
+         * in the roster would say why. It also names the fix — *`await drop()`
+         * is the whole fix at the call site* — which this file declined to take,
+         * with an argument that was exact until this phase: a re-compose that
+         * waited for a teardown would hold up the fiber that triggered it, and
+         * nothing could ever mount a key twice.
+         *
+         * The switch mounts a key twice. So the drop is remembered, and a mount
+         * that lands on one is deferred behind it rather than thrown into the
+         * registry callback that asked for it. Nothing blocks: the arriving
+         * sibling is mounted from the drop's own continuation, and the roster is
+         * republished then — which is a frame later than the rest of the
+         * re-compose and is the honest one, because until that mount the wire
+         * genuinely does not carry this sibling.
+         */
+        const settling = leaving.get(key)
+        if (settling !== undefined) {
+          void settling.then(() => {
+            // ...AND NOTHING IF THE WORLD MOVED AGAIN. A row switched off, on
+            // and off again while a teardown was in flight arrives here wanting
+            // the middle state; asking the registry afresh is what makes the
+            // last press the one that stands.
+            if (!mounted.has(key)) recompose()
+          })
+          continue
+        }
         const mount = runtime.mount(
           key,
           // The two casts are the honest spelling rather than a gap, and they
@@ -2126,6 +2200,10 @@ export const bind = (
         // is about to publish. So there is nothing here to AWAIT — a re-compose
         // that waited for a teardown would hold up the fiber that triggered it.
         //
+        // WHAT IS REMEMBERED INSTEAD is the promise, because a key can now be
+        // mounted a second time and the framework refuses that until this has
+        // settled (the arrival path above says what it refuses with, and why).
+        //
         // There IS something to catch. The framework says a teardown fault
         // reaches `runtime.done`, the one owned-fault channel, exactly as a
         // finalizer faulting during `close()` does; what it does not say is that
@@ -2135,16 +2213,50 @@ export const bind = (
         // thing this file can honestly do with it is say WHICH sibling failed to
         // leave — on the OWNER's channel, because a sibling still holding a
         // source after it has left the roster is a thing a person can act on.
-        void mount.drop().catch((thrown: unknown) => {
+        //
+        // A FAILED TEARDOWN STILL CLEARS THE WAIT, which is why the catch is
+        // inside the promise this remembers rather than beside it: the mount
+        // that is queued behind it would otherwise wait for ever on a drop that
+        // has already finished going wrong, and the framework's own refusal —
+        // said at the mount, naming the key — is a better place for that to be
+        // decided than a queue nobody can see.
+        const settling = mount.drop().catch((thrown: unknown) => {
           ring(
             Effect.logWarning(
               `plugins: "${key}" left the wire and its teardown failed — ${String(thrown)}`,
             ),
           )
         })
+        leaving.set(key, settling)
+        void settling.then(() => {
+          // ...and the key stops being one that is leaving, unless a LATER drop
+          // has already claimed it — which is a row switched off, on and off
+          // again faster than a teardown settles.
+          if (leaving.get(key) === settling) leaving.delete(key)
+        })
       }
       if (!moving) republishPlugins()
     }
+
+    /**
+     * WHICH KEYS ARE STILL COMING DOWN, and the promise that says when each one
+     * has — the bookkeeping a key that can be mounted TWICE needs.
+     *
+     * `implementRootedSurfaces` keys a mount's channels by GENERATION rather
+     * than by name precisely because a key can be recycled, and refuses a mount
+     * over a generation whose teardown has not settled. Until the switch,
+     * nothing in this tree could recycle one: the bundle mounted once, before
+     * the store opened, and a sibling that left never came back. So the drop was
+     * floated and the refusal was unreachable.
+     *
+     * It is reachable now, and reachable in the one shape a person makes on
+     * purpose — off, then on. What that cost, before this: the row came back as
+     * a FIBER (its kinds, its wake, its browser chunk all returned) and its
+     * SIBLING did not, so the tab dialled a plugin whose members were not on the
+     * wire and a collection nothing fills read empty for the life of the process.
+     * Nothing said so anywhere.
+     */
+    const leaving = new Map<string, Promise<void>>()
 
     /**
      * IS THE BUNDLE MID-FLIP — the one thing that holds a republish back, and

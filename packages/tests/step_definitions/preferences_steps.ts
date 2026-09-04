@@ -969,9 +969,16 @@ Then(
         .locator(`${PREFS_HINT}:has-text(${JSON.stringify(said)})`)
         .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     } catch {
+      // ...AND THE SWITCH BESIDE IT, which is the half that turns "it says
+      // nothing" into a sentence somebody can act on: a row with no hint is a
+      // running row that carries nobody, and a reader of this failure needs to
+      // know whether the serve disagrees about the STATE or only about the
+      // words. There is a real failure behind that — a scenario waiting for a
+      // `waiting` row was told only that the row said `""`.
       assert.fail(
         `the row for ${JSON.stringify(plugin)} to say ${JSON.stringify(said)}, ` +
-          `and it says ${JSON.stringify(await hintOn(this, plugin))}`,
+          `and it says ${JSON.stringify(await hintOn(this, plugin))} ` +
+          `with its switch reading ${JSON.stringify(await switchOn(this, plugin))}`,
       );
     }
   },
@@ -1037,6 +1044,18 @@ const hintOn = async (world: OlaiWorld, plugin: string): Promise<string> => {
   const hint = row.locator(PREFS_HINT);
   if ((await hint.count()) === 0) return "";
   return (await hint.innerText()).replaceAll("\n", " ");
+};
+
+/** WHICH WAY ONE ROW'S SWITCH IS READING — `on`, `off`, or `neither` for a
+ *  strip that is drawn but has no segment pressed, which is not a state the
+ *  panel has and is worth saying rather than guessing at. */
+const switchOn = async (world: OlaiWorld, plugin: string): Promise<string> => {
+  const pressed = rowFor(world, plugin).locator(
+    `${PREFS_CHOICE}${attr("aria-pressed", "true")}`,
+  );
+  return (await pressed.count()) === 0
+    ? "neither"
+    : (await pressed.first().getAttribute("data-value")) ?? "neither";
 };
 
 /**

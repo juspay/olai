@@ -185,6 +185,7 @@ const withRuntime = <A>(
         // and end to end, because what it is FOR is a real bundle settling.
         names: () => new Map(),
         set: () => Effect.succeed(false),
+        switched: () => new Set(),
       },
       git: gitWiring(
         ops,
@@ -697,6 +698,9 @@ const offering = (
   // sentence has its own case below, where both halves of the join are supplied.
   names: () => new Map(),
   set: () => Effect.succeed(false),
+  // NOBODY PRESSED ANYTHING in these cases, which is the state every serve is
+  // in until somebody does. The word a press produces has its own case below.
+  switched: () => new Set(),
 })
 
 /**
@@ -1011,6 +1015,59 @@ test("a running row that offers a door names the rows that would stop with it", 
     new Map([[first, ["aDoor"]], [second, ["aDoor"]]]),
   )
   expect(itself.built.find((row) => row.name === first)?.carrying).toEqual([second])
+})
+
+/**
+ * A ROW A PERSON TURNED OFF SAYS SO, rather than blaming the build — the third
+ * author of "absent", and the one the panel used to attribute to the wrong one.
+ *
+ * ## The failure this is written from
+ *
+ * Under no flag at all, switching a row off at the panel made its row read
+ * *"Off by default — `--plugins=kolu` starts it at boot"*. Every clause of that
+ * is false about the row a person is looking at: this build does not ship kolu
+ * off, nobody needs a flag to start it, and the reason it is absent is the press
+ * they made a second ago. `stateOf` answered `optIn` for any absent row under no
+ * flag, which was exact while absence had two authors and the flag told them
+ * apart.
+ *
+ * The press is the third, and it WINS: the flag somebody typed an hour ago and
+ * the default the build ships are both still true and neither is why this row is
+ * absent now.
+ */
+test("a row a person switched off is not the build's default", () => {
+  const [first] = PLUGIN_NAMES
+  if (first === undefined) throw new Error("this claim needs a build with a row")
+  const absent = new Map([[first, { state: "off" as const }]])
+
+  // NOBODY PRESSED ANYTHING and no flag was given: the build's own default,
+  // which is the reading this case is distinguishing itself from.
+  expect(rosterOf(offering(null, absent)).built.find((row) => row.name === first)?.state)
+    .toBe("optIn")
+
+  // ...and the same row, same flag, after a press.
+  const pressed = rosterOf({ ...offering(null, absent), switched: () => new Set([first]) })
+  expect(pressed.built.find((row) => row.name === first)?.state).toBe("switched")
+  expect(pressed.built.find((row) => row.name === first)?.running).toBe(false)
+
+  // IT WINS OVER THE FLAG TOO, which is the other half: a serve started
+  // `--plugins=<this row>` and then switched off is not a row the operator
+  // declined to ask for.
+  const underAFlag = rosterOf({
+    ...offering([first], absent),
+    switched: () => new Set([first]),
+  })
+  expect(underAFlag.built.find((row) => row.name === first)?.state).toBe("switched")
+
+  // ...AND IT IS ONLY ABOUT AN ABSENT ROW. A row switched off and then on again
+  // is simply running, which is why the set is cleared on the way back rather
+  // than kept as a log of presses — but a set that had not been cleared must not
+  // be able to say `switched` about a fiber that is up.
+  const back = rosterOf({
+    ...offering(null, mounted([first])),
+    switched: () => new Set([first]),
+  })
+  expect(back.built.find((row) => row.name === first)?.state).toBe("running")
 })
 
 /**

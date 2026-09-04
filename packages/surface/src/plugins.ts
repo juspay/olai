@@ -89,20 +89,21 @@ export const BuiltPlugin = Schema.Struct({
    *  `false` is total absence rather than a degraded arm. */
   running: Schema.Boolean,
   /**
-   * WHY, IN ONE WORD — the five states {@link pluginState} narrows to, and the
+   * WHY, IN ONE WORD — the six states {@link pluginState} narrows to, and the
    * one thing `running` cannot say.
    *
-   * A plugin is a fiber now, and `false` covers four different mornings:
+   * A plugin is a fiber now, and `false` covers five different mornings:
    * the operator's flag left it out, the BUILD leaves it out until somebody
-   * asks, its `apply` DIED, or it is still waiting on a service that has not
-   * arrived. Those want four different sentences under the row, and one of them
-   * wants an alarm — so the word travels rather than being guessed at the far
-   * end from a boolean that has already thrown the distinction away.
+   * asks, a PERSON turned it off at the panel, its `apply` DIED, or it is still
+   * waiting on a service that has not arrived. Those want five different
+   * sentences under the row, and one of them wants an alarm — so the word
+   * travels rather than being guessed at the far end from a boolean that has
+   * already thrown the distinction away.
    *
    * `running` STAYS, and is not redundant: it is the boolean the tab follows
    * its roster by — which plugins to load a chunk for, dial, and mount a fiber
    * for (`@olai/web`'s `client/wire.ts`) — and that reading must not have to
-   * know five words to answer one question. The two cannot disagree: the
+   * know six words to answer one question. The two cannot disagree: the
    * composition root writes `running` from what actually registered a sibling
    * and derives this from the same reading.
    *
@@ -248,7 +249,7 @@ export const BuiltPlugin = Schema.Struct({
 export type BuiltPlugin = typeof BuiltPlugin.Type
 
 /**
- * THE FIVE WORDS A ROW CAN BE IN, and each is a different morning.
+ * THE SIX WORDS A ROW CAN BE IN, and each is a different morning.
  *
  *   - `running`  composed: members on the wire, faces drawn, probe run, kinds
  *                held. The ordinary state and the only one that is good news.
@@ -259,6 +260,16 @@ export type BuiltPlugin = typeof BuiltPlugin.Type
  *                is why it is not the same word as `off`: a row nobody chose is
  *                not a row somebody turned off, and only one of the two is
  *                worth a person's attention when they went looking for a chip.
+ *   - `switched` A PERSON TURNED IT OFF HERE, at the panel, on this serve. Also
+ *                total absence, and the third author of it — which is the whole
+ *                reason it needed a word. Absence used to have exactly two
+ *                authors, the flag and the build, and `pinned` told them apart;
+ *                the switch is a third, and without this the panel told a person
+ *                who had just pressed the switch that the BUILD ships this off
+ *                by default and named a flag they should type. It is the one of
+ *                the four absences that undoes itself: a restart brings the row
+ *                back to whatever the flag and the file say, and pressing the
+ *                switch again brings it back now.
  *   - `failed`   its `apply` DIED, which the registry records as a throw out of
  *                the mount. The one word that is a FAULT: it was asked
  *                for, it is absent, and nothing else on screen says so.
@@ -280,11 +291,11 @@ export type BuiltPlugin = typeof BuiltPlugin.Type
  * the narrowing's own vocabulary. One `as const` array, the type read off it,
  * and a sixth word is one edit that cannot be half-made.
  */
-const STATES = ["running", "off", "optIn", "failed", "waiting"] as const
+const STATES = ["running", "off", "optIn", "failed", "waiting", "switched"] as const
 
 export type PluginState = (typeof STATES)[number]
 
-/** The five, as a set — what {@link pluginState} asks. */
+/** The six, as a set — what {@link pluginState} asks. */
 const KNOWN: ReadonlySet<string> = new Set<string>(STATES)
 
 /**
