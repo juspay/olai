@@ -773,10 +773,12 @@ expose}` once, when the port bound, and build every later connection over that
 snapshot — exact for a fixed surface, and the reason a re-mounted sibling was
 unreachable for the life of the process: its tags still resolved to the retired
 mount's refusing handler, on every socket accepted afterwards including a
-reloaded page's. Sub-phase 8a made those three accessors, re-read together at
-each accept, with the restriction memoized by generation identity so an unchanged
-roster costs a pointer comparison. olai's listener hands over the getters the
-rooted runtime already exposes.
+reloaded page's. Sub-phase 8a made the served set a *source* rather than a
+value: a caller with a fixed surface passes the generation itself, and one whose
+served set moves passes a function naming the generation that is current then.
+olai's listener passes that function, over the getters the rooted runtime already
+exposes. The restriction is re-applied at every accept, which is what an accept
+costs and is not something a consumer can shorten from its side.
 
 All three, and always together: the group is what a per-connection `RpcServer` is
 built over, the handler record is what it dispatches through, and the face is a

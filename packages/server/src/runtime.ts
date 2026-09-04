@@ -2316,14 +2316,26 @@ export const bind = (
      * neither side, so the gate and the group are one generation BY
      * CONSTRUCTION rather than by two readings happening to agree.
      *
-     * ## ...AND IT IS WHY THE UPSTREAM MEMO HITS
+     * ## HELD FOR CORRECTNESS, and the cost of an accept is not this file's
      *
-     * `serveSurfaceApp` memoizes the restricted handler record by the identity
-     * of the triple it was given, so an unchanged roster costs a pointer
-     * comparison per accept rather than a walk of every tag. `facesOf` mints a
-     * fresh exposure on every call, so a getter that called it per read defeated
-     * that silently — the claim was upstream's and it was not true of this
-     * consumer. One value per re-compose makes it true.
+     * The value is held per generation because ONE GATE BELONGS TO ONE GROUP,
+     * which is the paragraph above — not to save work. `restrictServedGeneration`
+     * walks every tag at every accept, unconditionally, so what an accept costs
+     * is upstream's and there is nothing this consumer can do about it from
+     * here.
+     *
+     * That is worth stating because it was briefly otherwise. The revision this
+     * lane was proved against memoized the restricted record by the identity of
+     * the triple it was handed, and a getter that minted a fresh exposure per
+     * read defeated that silently — which made "hold one value per re-compose"
+     * look like a performance fix as well as a correctness one. The upstream
+     * refactor that landed folded the three options into one
+     * `ServedGenerationSource` and dropped the memo with them. Only the
+     * correctness half survives, and it was always the half that mattered.
+     *
+     * IF THAT WALK EVER SHOWS UP IN A PROFILE it is a one-line ask upstream,
+     * keyed on `ServedGeneration` — and this holder is already what would make
+     * such a memo hit, which is the one thing worth remembering about it.
      */
     let gates = facesOf([])
     /** ...and the derivation, spelled once. `roster` is the framework's own

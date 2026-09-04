@@ -1290,14 +1290,18 @@ test("a sibling the rooted bundle refuses takes only its own fiber down, and the
  * what is held here is the derivation's other consequence, which is the half
  * that was silently untrue and that no scenario would ever have caught.
  *
- * ## ...AND THE IDENTITY, which is the other half and is easy to lose
+ * ## ...AND THE IDENTITY, which is what "one generation" MEANS
  *
- * The upstream memo is BY IDENTITY: an unchanged triple costs a pointer
- * comparison per accept rather than a walk of every tag. `facesOf` mints a
- * fresh exposure per call, so a getter that called it per read defeated that
- * silently — the claim was upstream's and simply was not true of this consumer,
- * with nothing anywhere going red. One value per re-compose is what makes it
- * true, and a `toBe` is the only assertion that can say so.
+ * The `toBe` assertions are not about cost. They are how "one gate belongs to
+ * one group" is stated in a test at all: a gate that is a fresh object per read
+ * is a gate nobody can say is the same gate, and the only way to assert that a
+ * value moves exactly when its generation moves — and not otherwise — is by
+ * identity.
+ *
+ * It also happens to be what a memo would need, and for one revision upstream
+ * had one, keyed on the triple. The refactor that landed dropped it: the
+ * restriction is walked at every accept now, so an accept's cost is upstream's
+ * and no assertion here should pretend this consumer can move it.
  */
 test("the browser gate names exactly what the group serves, and is one value per generation", () =>
   withRuntime(
@@ -1331,8 +1335,9 @@ test("the browser gate names exactly what the group serves, and is one value per
         expect(gateFits).not.toThrow()
         expect(groupCarries("gated")).toBe(false)
 
-        // ...AND THE SAME OBJECT while nothing has moved, which is what the
-        // upstream memo is keyed on.
+        // ...AND THE SAME OBJECT while nothing has moved, which is how "one
+        // gate for one group" is sayable in a test at all: a gate that is a
+        // fresh object per read is a gate nobody can say is the same gate.
         expect(wired.faces.browser).toBe(first)
 
         // A SIBLING ARRIVES through the real `recompose`.
