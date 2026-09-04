@@ -1274,10 +1274,25 @@ export const createEditor = (
         // the answer was "somebody else is typing" about the same caret with
         // the same words in it, so the click-away wrote the line and left the
         // caret in it.
+        //
+        // The `isConnected` read that made this a click (`left`) is not the
+        // whole truth either: the browser answers a redraw taking the row out
+        // from under a focused input with the same blur, and when the just
+        // born line is the one being moved, it answers with the element STILL
+        // attached. What says the two apart is what changed since: a redraw
+        // MOVED the row (the place the caret is now is not the place the blur
+        // came from) — a click did not.
         // An empty pending is parked: click-away is not Escape, and a
         // skeleton of blanks should survive leaving the last one.
         setDraft((held) => {
           if (held === null || !stillAt(held, from) || held.text !== before.text) {
+            return held
+          }
+          if (
+            held.kind === "row" &&
+            before.kind === "row" &&
+            held.place !== before.place
+          ) {
             return held
           }
           parkIfEmpty(held)

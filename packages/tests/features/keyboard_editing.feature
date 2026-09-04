@@ -328,6 +328,22 @@ Feature: Keyboard editing
     Then "house.olai" holds a node titled "regrout the bar"
     And the node titled "regrout the bar" comes before "kitchen-herbs"
 
+  Scenario: Shift+Tab of a line with words keeps the caret in it
+    # The written half: the line exists the moment the key asks for it, so
+    # the press is a commit and a `move out` — and the row is redrawn where
+    # the file says it now is, which in a browser takes the focus off it.
+    # Reported on the #493 build: the outdent landed and the caret went
+    # nowhere — the next keystroke had no editor.
+    When I click the title of "knobs"
+    And I press "Enter"
+    And I type "regrout the bar"
+    And I press "Shift+Tab"
+    Then the node titled "regrout the bar" comes before "kitchen-herbs"
+    And the row being typed holds "regrout the bar"
+    And the row being typed has the focus
+    And no other row holds the caret
+    And there should be no page errors
+
   Scenario: Alt+Shift+Up moves a blank among its would-be siblings
     # The reorder pair, for the blank too: it goes up without becoming a write,
     # so the skeleton a person is sketching can be moved whole before one word

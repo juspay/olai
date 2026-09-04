@@ -395,6 +395,20 @@ Then(
   },
 );
 
+/** An open editor is not yet a TYPING one: a keys' write can redraw the row
+ *  out from under the input it opened, and the browser's answer to a removed
+ *  focus is `<body>` — silent unless somebody looks. */
+Then("the row being typed has the focus", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () =>
+      this.page.evaluate(
+        (sel) => document.activeElement?.matches(sel) ?? false,
+        TITLE_EDITOR,
+      ),
+    "the caret to be in the row being typed",
+  );
+});
+
 /** Where a line's text starts, on screen. What "the same depth" means to a
  *  person reading the outline: two lines whose text begins at the same x. */
 const textLeftOf = async (world: OlaiWorld, locator: Locator): Promise<number> => {
@@ -588,8 +602,18 @@ const idTitled = async (world: OlaiWorld, title: string): Promise<string | null>
   const n = await rows.count();
   for (let i = 0; i < n; i++) {
     const row = rows.nth(i);
-    const text = (await row.locator(NODE_TITLE).first().textContent()) ?? "";
-    if (text.includes(title)) return row.getAttribute("data-node-id");
+    // A row holding its caret draws the title as the EDITOR, not the span.
+    const shown = row.locator(NODE_TITLE);
+    if ((await shown.count()) > 0) {
+      const text = (await shown.first().textContent()) ?? "";
+      if (text.includes(title)) return row.getAttribute("data-node-id");
+      continue;
+    }
+    const typing = row.locator(TITLE_EDITOR);
+    if ((await typing.count()) > 0) {
+      const text = (await typing.first().inputValue()) ?? "";
+      if (text.includes(title)) return row.getAttribute("data-node-id");
+    }
   }
   return null;
 };
