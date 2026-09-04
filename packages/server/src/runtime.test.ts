@@ -45,6 +45,9 @@ import {
 } from "@olai/plugin-api/services"
 import type { CollectionDeltasMsg } from "@kolu/surface/define"
 import { defineSurface } from "@kolu/surface/define"
+import { restrictHandlers } from "@kolu/surface/expose"
+import { facesOf } from "./faces.ts"
+import { inMemoryStore } from "@kolu/surface/server"
 import { NO_KINDS } from "@olai/format"
 import * as Store from "@olai/store"
 import { NodeServices } from "@effect/platform-node"
@@ -79,7 +82,7 @@ const STARTED = "2026-08-29T09:31:00.000Z"
 const withRuntime = <A>(
   files: Readonly<Record<string, string>>,
   use: (bound: {
-    readonly wired: { readonly bound: Bound }
+    readonly wired: { readonly bound: Bound; readonly faces: ReturnType<typeof facesOf> }
     readonly ops: Ops
     readonly store: OutlineStore
     /** The directory this runtime is serving, for the one test that rewrites a
@@ -1248,6 +1251,128 @@ test("a sibling the rooted bundle refuses takes only its own fiber down, and the
     { plugins: [] },
   ))
 
+
+/**
+ * THE GATE AND THE GROUP ARE ONE GENERATION — the pairing the listener now
+ * rests on at every accept, rather than once at bind.
+ *
+ * ## Why this became a claim
+ *
+ * `serveSurfaceApp` reads the served `{group, handlers, expose}` together at
+ * each accept and `restrictHandlers` THROWS on any set inequality between them
+ * — a socket terminated, not a member refused. Before that it was read once, at
+ * a moment when the two were equal by construction, so nothing had to hold.
+ *
+ * The two are derived from different tables and they are not the same table.
+ * `siblings()` is the sibling REGISTRY: a plugin's `apply` registered, so it is
+ * in there the instant the fiber applies. The group is what is MOUNTED. This
+ * file's own `leaving` map is what pulls them apart — a row switched off and on
+ * again before the previous generation's drop has settled is registered and not
+ * yet mounted — and a gate read off the registry then names tags the group does
+ * not carry, on every socket accepted until the deferred mount lands.
+ *
+ * So the gate is derived from what is SERVED rather than from what is
+ * registered, and with that there is no window: a deferred row is on neither
+ * side.
+ *
+ * ## WHAT THIS CASE DOES AND DOES NOT REACH, said plainly
+ *
+ * It asserts that the gate FITS the group — through `restrictHandlers`, the
+ * same call the transport makes at every accept — at rest, after a sibling
+ * arrives and after it leaves. It does NOT reach the deferred window itself,
+ * and that was measured rather than assumed: disposing a toy sibling and
+ * re-mounting it in the same breath finds the drop already settled, so the
+ * mount is never deferred and the case would be asserting about a state it
+ * had not produced. Reaching it needs a sibling whose sources take a real
+ * moment to finalize, which is a plugin with an appliance behind it.
+ *
+ * The window is therefore held END TO END (`the_plugin_switch.feature`), and
+ * what is held here is the derivation's other consequence, which is the half
+ * that was silently untrue and that no scenario would ever have caught.
+ *
+ * ## ...AND THE IDENTITY, which is the other half and is easy to lose
+ *
+ * The upstream memo is BY IDENTITY: an unchanged triple costs a pointer
+ * comparison per accept rather than a walk of every tag. `facesOf` mints a
+ * fresh exposure per call, so a getter that called it per read defeated that
+ * silently — the claim was upstream's and simply was not true of this consumer,
+ * with nothing anywhere going red. One value per re-compose is what makes it
+ * true, and a `toBe` is the only assertion that can say so.
+ */
+test("the browser gate names exactly what the group serves, and is one value per generation", () =>
+  withRuntime(
+    { "a.olai": OUTLINE },
+    ({ plugins, wired }) =>
+      Effect.gen(function*() {
+        if (plugins === null) throw new Error("this case needs the plugin runtime")
+
+        /**
+         * DOES THE GATE FIT THE GROUP — asked through the function that
+         * enforces it rather than by reading either side.
+         *
+         * `restrictHandlers` is what `serveSurfaceApp` runs at every accept, and
+         * it THROWS on any set inequality between the exposure and the group it
+         * gates. So this is not a proxy for the property, it is the property, on
+         * the same call the transport makes — and it says nothing about how a
+         * `FaceExposure` is shaped, which is not this case's business and would
+         * be a second thing to keep in step if it were.
+         */
+        const gateFits = (): void => {
+          restrictHandlers(wired.bound.group, wired.bound.handlers, wired.faces.browser)
+        }
+        /** ...and whether the group carries a sibling's tags at all, which is
+         *  what makes the fit above a claim about something rather than about an
+         *  empty set. `surface/<sibling>/<member>/<verb>` is how they compose. */
+        const groupCarries = (key: string): boolean =>
+          [...wired.bound.group.requests.keys()].some((tag) => tag.startsWith(`surface/${key}/`))
+
+        // AT REST, with no sibling at all.
+        const first = wired.faces.browser
+        expect(gateFits).not.toThrow()
+        expect(groupCarries("gated")).toBe(false)
+
+        // ...AND THE SAME OBJECT while nothing has moved, which is what the
+        // upstream memo is keyed on.
+        expect(wired.faces.browser).toBe(first)
+
+        // A SIBLING ARRIVES through the real `recompose`.
+        const gatedDouble = definePlugin({
+          name: "gated",
+          needs: [Surfaces],
+          apply: Effect.gen(function*() {
+            yield* (yield* Surfaces).register({
+              surface: defineSurface({
+                cells: { seen: { schema: Schema.String, default: "", verbs: ["get"] } },
+              }),
+              faces: { browser: { seen: "resource" } },
+              deps: { cells: { seen: { store: inMemoryStore("") } } },
+            })
+          }),
+        })
+        const mounted = yield* mountPlugin(plugins.host, gatedDouble)
+
+        // THE GATE MOVED WITH IT — a new value, naming the sibling the group
+        // now carries. Both halves matter: a gate that did not move would refuse
+        // the member, and one that moved without the group would refuse the
+        // whole socket.
+        expect(wired.faces.browser).not.toBe(first)
+        expect(gateFits).not.toThrow()
+        expect(groupCarries("gated")).toBe(true)
+
+        // ...and it is one value again until the next re-compose.
+        const second = wired.faces.browser
+        expect(wired.faces.browser).toBe(second)
+
+        // AND IT LEAVES WITH IT. A gate that kept naming a departed sibling
+        // would name tags the group no longer carries, which is the same set
+        // inequality from the other side and refuses the socket just as hard.
+        yield* mounted.dispose
+        expect(gateFits).not.toThrow()
+        expect(groupCarries("gated")).toBe(false)
+
+      }),
+    { plugins: [] },
+  ))
 
 // ── the doubles every case above mounts ────────────────────────────────
 

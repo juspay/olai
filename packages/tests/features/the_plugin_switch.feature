@@ -216,8 +216,8 @@ Feature: A plugin is turned on and off while the serve runs
     And the plugins panel says "chat" is "Turning it off also stops"
     # THE CHROME COMES BACK, and that is all this claims. The browser half is
     # mounted again and draws off the roster; whether the MEMBERS behind it are
-    # being served again is the listener's question, and it is the skipped
-    # scenario above that asks it. Saying so here rather than letting a reader
-    # take this line for more than it is.
+    # being served again is the listener's question, and the two scenarios above
+    # are the ones that ask it. Saying so here rather than letting a reader take
+    # this line for more than it is.
     And the conversation is in the header
     And there should be no page errors

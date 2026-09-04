@@ -795,6 +795,39 @@ const carriedBy = (
  * this). A person who went looking for a chip is owed that difference: one of
  * them names a flag they typed, and the other names one they have not.
  */
+/**
+ * WHO AUTHORED THIS ROW'S ABSENCE — the one question with three answers, and
+ * the only thing `off`, `optIn` and `switched` differ by.
+ *
+ * The loader declined to load the row and the `disabled` it declined on is ONE
+ * FIELD with three possible authors, which is exactly what makes a flip and a
+ * flag one mechanism and exactly why nothing downstream of the patch can tell
+ * them apart. What can is whether the press came through this process
+ * ({@link PluginRuntime.switched}) and whether a flag was given at all
+ * (`pinned`), both of which the composition root holds.
+ *
+ * ## The order is the answer, not an accident
+ *
+ * A person who switched a row off a moment ago is owed a sentence about THAT,
+ * not about the flag they typed an hour ago or the default the build ships —
+ * both of which are still true and neither of which is why this row is absent
+ * now. So the press wins, and the flag beats the build for the same reason one
+ * step down.
+ *
+ * ITS OWN FUNCTION rather than a ternary in the arm it serves, because it is a
+ * different question from the one {@link stateOf} is answering. That one asks
+ * which of six words a row is in; this asks who put it there, and only for the
+ * rows that are absent. Written inline the two read as one nested condition,
+ * and a reader has to hold both to check either.
+ */
+const whoTurnedItOff = (
+  offered: NonNullable<Wiring["plugins"]>,
+  name: string,
+): PluginState => {
+  if (offered.switched().has(name)) return "switched"
+  return offered.pinned === null ? "optIn" : "off"
+}
+
 const stateOf = (
   offered: NonNullable<Wiring["plugins"]>,
   name: string,
@@ -828,18 +861,7 @@ const stateOf = (
       // this process ({@link PluginRuntime.switched}) and whether a flag was
       // given at all (`pinned`), both of which are here.
       //
-      // THE PRESS WINS, and the order is the point rather than an accident: a
-      // person who switched a row off a moment ago is owed a sentence about
-      // that, not about the flag they typed an hour ago or the default the
-      // build ships — both of which are still true and neither of which is why
-      // this row is absent NOW.
-      return {
-        state: offered.switched().has(name)
-          ? "switched"
-          : offered.pinned === null
-          ? "optIn"
-          : "off",
-      }
+      return { state: whoTurnedItOff(offered, name) }
     case "running":
       return { state: "running" }
   }
@@ -2259,7 +2281,57 @@ export const bind = (
           if (leaving.get(key) === settling) leaving.delete(key)
         })
       }
+      // THE GATE, RE-DERIVED WITH THE GENERATION IT GATES — before the roster
+      // moves, because the roster moving is what sends every tab back to accept
+      // a socket against it.
+      gates = gatesFor()
       if (!moving) republishPlugins()
+    }
+
+    /**
+     * THE TWO FACE GATES, AS ONE VALUE PER GENERATION — held rather than
+     * computed per read, and derived from what is SERVED rather than from what
+     * is REGISTERED.
+     *
+     * ## The two tables are not the same table, and they used to be
+     *
+     * `siblings()` is the sibling REGISTRY: a plugin's `apply` registered, so it
+     * is in there. `runtime.roster` is what this bundle is SERVING: mounted, and
+     * not a generation still coming down. Before the listener read the served set
+     * per accept those two were equal wherever anybody looked, because the gate
+     * and the group were read together once at bind, when nothing could have
+     * moved between them.
+     *
+     * They are not equal in the window {@link leaving} creates. A row switched
+     * off and on again before the previous generation's drop has settled is
+     * REGISTERED — its `apply` ran — and its mount is deferred behind that drop.
+     * A gate read off the registry then names `surface/<row>/…` tags the group
+     * does not carry, and `restrictHandlers` runs at every accept now and throws
+     * on exactly that set inequality: the socket is terminated and a
+     * `SocketError` reported, on the one gesture a person makes on purpose, until
+     * the deferred mount lands and the tab reconnects. Self-healing and still
+     * wrong, and the deferral it rides on is this file's own.
+     *
+     * Derived from `runtime.roster` there is no window: a deferred row is on
+     * neither side, so the gate and the group are one generation BY
+     * CONSTRUCTION rather than by two readings happening to agree.
+     *
+     * ## ...AND IT IS WHY THE UPSTREAM MEMO HITS
+     *
+     * `serveSurfaceApp` memoizes the restricted handler record by the identity
+     * of the triple it was given, so an unchanged roster costs a pointer
+     * comparison per accept rather than a walk of every tag. `facesOf` mints a
+     * fresh exposure on every call, so a getter that called it per read defeated
+     * that silently — the claim was upstream's and it was not true of this
+     * consumer. One value per re-compose makes it true.
+     */
+    let gates = facesOf([])
+    /** ...and the derivation, spelled once. `roster` is the framework's own
+     *  answer to what is served, which is what makes this the gate for the group
+     *  rather than a second opinion about it. */
+    const gatesFor = (): ReturnType<typeof facesOf> => {
+      const served = new Set(runtime.roster)
+      return facesOf(siblings().filter((one) => served.has(one.name)))
     }
 
     /**
@@ -2393,16 +2465,17 @@ export const bind = (
         close: runtime.close,
       },
       /**
-       * ...and the two face gates, over the SAME registry the composition reads.
+       * ...and the two face gates, over the generation this runtime is SERVING.
        *
        * A getter for `bound`'s reason: a face is a default-deny allowlist
        * derived from the sibling set, so a roster that moved and a gate that did
        * not is a serve refusing members it composes or naming members it does
-       * not. Whoever reads this after a change gets the gate for the roster that
-       * is up.
+       * not. Whoever reads this after a change gets the gate for the set that is
+       * up. What it is derived FROM is {@link gates}, and reading that paragraph
+       * is the difference between the two tables this used to conflate.
        */
       get faces() {
-        return facesOf(siblings())
+        return gates
       },
     }
   })

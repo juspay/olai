@@ -307,17 +307,26 @@ export const serve = (options: ServeOptions) =>
      * in hand, and a runtime that could reach a loader would be a second package
      * that knows what the plugin runtime is written on.
      */
+    /**
+     * WHICH ROWS A PERSON HAS TURNED OFF HERE — the third author of a row's
+     * `disabled`, and the only one downstream of the patch cannot infer.
+     *
+     * A row's `disabled` has three authors and is ONE FIELD, which is what makes
+     * a flip and a flag one mechanism — and is why nothing past it could tell a
+     * press from the build's own default. Without this, a person who had just
+     * switched kolu off was told by the panel that the BUILD ships it off, with
+     * a flag to go and type. This is the only place that knows, because it is
+     * where the press arrives (`./runtime.ts`'s `PluginRuntime.switched`).
+     *
+     * A `Set` rather than a `Ref` for {@link report}'s reason: one writer, on
+     * one fiber, read synchronously by the roster.
+     */
+    const switched = new Set<string>()
     const flipped = (id: string, enabled: boolean) =>
       Effect.gen(function*() {
         const found = yield* setRow(plugins.host, id, enabled)
         report = yield* reportBundle(plugins.host)
-        // ...AND WHO ASKED, remembered for as long as this process runs.
-        //
-        // A row's `disabled` has three authors and is one field, so the panel
-        // could not tell a press from the build's own default and told a person
-        // who had just switched kolu off that the BUILD ships it off — with a
-        // flag to type. This is the only place that knows, because it is where
-        // the press arrived (`./runtime.ts`'s `PluginRuntime.switched`).
+        // ...AND WHO ASKED — see {@link switched}, declared above it.
         //
         // WRITTEN ONLY WHEN THE FLIP TOOK, so a refused press about a row this
         // build does not have leaves nothing behind. Cleared on the way back on,
@@ -329,9 +338,6 @@ export const serve = (options: ServeOptions) =>
         }
         return found
       })
-    /** ...the set itself. `Set` rather than a `Ref` for {@link report}'s reason:
-     *  one writer, on one fiber, read synchronously by the roster. */
-    const switched = new Set<string>()
     const kinds = yield* propKinds(plugins)
     const { root, store } = yield* openDirectory(options.root, kinds)
 
