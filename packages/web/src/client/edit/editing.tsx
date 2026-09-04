@@ -747,6 +747,16 @@ export const createEditor = (
    * before it can be joined onto anything. That is the ordinary "I meant
    * this on the previous line" gesture: `Enter`, type, `Home`, `Backspace`.
    *
+   * The ONE case the commit would die on is the case the text is the point:
+   * a title ERASED to nothing — select-all, Backspace, then the joining
+   * Backspace on what is now an empty line. The erase was the intent; the
+   * refusal "a node needs a title" that used to meet it answered a question
+   * nobody asked (the human's report on #493). So nothing is committed:
+   * the merge CARRIES what the row says now — nothing — the survivor's
+   * title stands untouched, and the record keeps its title in the archive,
+   * which is what ⌘Z puts back. It is the blank's answer one layer up, to
+   * the same key.
+   *
    * The caret lands on the SEAM, which is the length of what the row above
    * says now minus the length of what was joined onto it. Both numbers come
    * from the write: the row's own text is what this tab was typing in, and
@@ -783,6 +793,20 @@ export const createEditor = (
       // the end of any walk is.
       if (title === undefined) return
       setDraft(opened(above.row, "title", { caret: title.length }))
+      return
+    }
+    // An ERASED title: what the row says NOW is the nothing it was emptied
+    // to — commit would refuse it, and the record's title must not be what
+    // joins. The merge carries it (the docstring above), and the caret is
+    // where any merge's seam is.
+    if (before.kind === "row" && before.text.trim() === "") {
+      const done = await redrawing(
+        { verb: "merge", id: before.row, title: before.text },
+        slotOf(before),
+      )
+      if (done === null) return
+      setDraft(opening(done, done.title.length - before.text.length))
+      setCaret((n) => n + 1)
       return
     }
     if (!(await commit())) return

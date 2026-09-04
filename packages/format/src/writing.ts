@@ -620,7 +620,11 @@ export const SplitRequest = Schema.Struct({
  * WHAT SURVIVES, and it is the whole of the semantics:
  *
  *   - the TITLES are concatenated, in reading order, with nothing put between
- *     them (Workflowy's own join — the two halves were one line);
+ *     them (Workflowy's own join — the two halves were one line) — unless the
+ *     caller CARRIES what this node says now: an editor whose title was just
+ *     erased to nothing joins that nothing, and the survivor's title stands
+ *     untouched. The record's own title is never lost either way — it is on
+ *     the record, in the archive;
  *   - the NOTES are concatenated too, one blank line apart, and a node with
  *     none simply takes the other's. A note that vanished from the page would
  *     be the silent loss this codebase refuses, and the trash is not where
@@ -638,6 +642,10 @@ export const MergeRequest = Schema.Struct({
   id: Schema.String.annotate({
     description:
       "The `id` of the node to merge INTO THE SIBLING ABOVE IT. Its title is appended to that sibling's, its note joined to that sibling's, its children moved under it — and its own record goes to `_olai/Trash.olai`, keeping its id, mark, date and edges.",
+  }),
+  title: Schema.optional(Schema.String).annotate({
+    description:
+      "What this node CONTRIBUTES to the join, verbatim — carried when what the caller is looking at is not the record's title: a title erased to nothing in the editor joins nothing, and the survivor's title stands. Absent is the record's own title — the reading every other caller keeps.",
   }),
 })
 

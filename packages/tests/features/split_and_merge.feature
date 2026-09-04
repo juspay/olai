@@ -290,3 +290,28 @@ Feature: Splitting and merging a row
     Then the row being typed holds "pick the hinges"
     And the caret is at offset 15
     And the outline "house.olai" shows exactly the nodes "kitchen, demo, order, install, handles, hinges, knobs, kitchen-herbs"
+
+  Scenario: Erasing a title and Backspacing the empty line takes the row away
+    # The human's second report on the #493 build: click a row, erase its
+    # title to nothing, Backspace at what is now an empty line — the refusal
+    # "a node needs a title" answered a question that was not asked. The row
+    # was emptied ON PURPOSE: the merge it asked for joins what the row says
+    # NOW — nothing — and the record keeps its title in the archive, which
+    # is what ⌘Z puts back.
+    When I click the title of "handles"
+    And I select all and type ""
+    And I press "Backspace"
+    # `handles` is install's FIRST child: the row above it on the page is the
+    # PARENT, which is where the caret lands and why its title is untouched.
+    Then the row being typed holds "install the cabinets"
+    And the caret is at offset 20
+    And "house.olai" holds a node titled "install the cabinets"
+    And "house.olai" no longer holds the node "handles"
+    # A TRASH rather than a shredder, exactly as a merge with words: the
+    # record kept its title, its id — everything an undo needs.
+    And "_olai/Trash.olai" holds the node "handles"
+    When I click away from the editor
+    And I press "ControlOrMeta+z"
+    Then the node "handles" has the title "choose the handles"
+    And the node "handles" comes before "hinges"
+    And there should be no page errors

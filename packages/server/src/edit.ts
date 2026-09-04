@@ -229,7 +229,13 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
         ...(edit.under === true ? { under: true } : {}),
       })
     case "merge":
-      return Result.succeed({ op: "merge", id: edit.id })
+      // The one caller that carries a title is the browser's erased-title
+      // Backspace; the carry is the op's to read, not here to judge.
+      return Result.succeed({
+        op: "merge",
+        id: edit.id,
+        ...(edit.title === undefined ? {} : { title: edit.title }),
+      })
     case "unmirror":
       return Result.succeed({ op: "unmirror", id: edit.id })
     case "mirror":
@@ -1010,7 +1016,7 @@ export const inverseOf = (
     // opposite for — `split` cannot mint a node that already exists in the
     // trash carrying its own mark, note and edges.
     case "merge":
-      return unmergeOf(at.derived, edit.id)
+      return unmergeOf(at.derived, edit.id, edit.title)
     // BOTH removals answer with the way back out of the trash, now that there
     // is one (`parity-unarchive`): `unarchive`, carrying where the row SITS as
     // this reading stands — its parent, or its file at top level — because
@@ -1226,7 +1232,7 @@ const unarchiveOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
  * for a row with nothing above it: those are the merge's own refusals, so there
  * is no write to take back.
  */
-const unmergeOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
+const unmergeOf = (derived: Derived, id: string, carried?: string): ReadonlyArray<Edit> => {
   const located = derived.byId.get(id)
   if (located === undefined || isMirror(located.node)) return []
   // EVERY fact about the merge is the ops layer's — which row it joins, what
@@ -1234,8 +1240,8 @@ const unmergeOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
   // answer the write is about to be planned from. Re-derived here they would be
   // a second scan of the sibling row, a second spelling of the join and a second
   // reading of the branch, and each would be wrong in exactly the case an undo
-  // is for.
-  const joined = merging(derived, located as LocatedRegular)
+  // is for. The CARRIED title goes with it: it is what the join joined.
+  const joined = merging(derived, located as LocatedRegular, carried)
   if (Result.isFailure(joined)) return []
   const { into, adopted, title, desc } = joined.success
   return [
@@ -1260,7 +1266,11 @@ const unmergeOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
     // The two texts, put back the way EVERY text undo is put back — `textOf`
     // carries the `was` convention and the "an absent note is `null`" rule, and
     // a second copy of them here would be a second place to keep those true.
-    ...textOf(derived, { verb: "title", id: into.id, title }),
+    // Only when the merge MOVED the title, though — the note's rule one block
+    // down, one field up: a merge that carried NOTHING left it alone, and a
+    // retype of what is already there is a write that says `was` about a
+    // field nothing changed (the erased-title Backspace, the human's #493).
+    ...(title === into.title ? [] : textOf(derived, { verb: "title", id: into.id, title })),
     // Only when the merge MOVED it. A row whose note is untouched — because the
     // row below had none — needs no second write, and one that said `was` for a
     // note it did not change would be refused by nothing and mean nothing.

@@ -1087,6 +1087,28 @@ test("a merge is taken back by a whole sequence, and every step is already a ver
   ])
 })
 
+test("a merge that carried NOTHING leaves the survivor's title alone — and says so by editing nothing", () => {
+  // The erased-title Backspace (the human's report on #493): the join added
+  // nothing to `order`, so there is no text write to take back — the same
+  // rule the note arm one test down states for a note nothing moved. The
+  // record comes back with the title it always had, because the archive
+  // never let go of it.
+  expect(inverse({ verb: "merge", id: "install", title: "" })).toEqual([
+    { verb: "untrash", id: "install", parent: "kitchen" },
+    { verb: "place", id: "install", parent: "kitchen", after: "order" },
+    { verb: "place", id: "handles", parent: "install", after: null },
+  ])
+})
+
+test("an erased FIRST CHILD's merge is taken back to the top of its old list", () => {
+  // `handles` is install's first child: the untrash lands it LAST, the place
+  // then names the top of the list — `after: null` — the parent-join slot.
+  expect(inverse({ verb: "merge", id: "handles", title: "" })).toEqual([
+    { verb: "untrash", id: "handles", parent: "install" },
+    { verb: "place", id: "handles", parent: "install", after: null },
+  ])
+})
+
 test("a merge that MOVED the note puts the note back too, and one that did not says nothing", () => {
   const notes = reading(setOf({
     "house.olai": [

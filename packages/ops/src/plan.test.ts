@@ -3646,6 +3646,20 @@ describe("merge", () => {
     expect(result.nudge).toBeUndefined()
   })
 
+  test("a CARRIED title joins instead of the record's own", () => {
+    // The keystroke that erased the row first — select-all, Backspace, the
+    // joining Backspace (the human's report on #493): the words are gone, so
+    // the survivor stays exactly what it said, while the RECORD holds its
+    // title still — it is in the archive, and that is what ⌘Z puts back.
+    const result = planned(house(), { op: "merge", id: "install", title: "" })
+    expect(record(fileOf(result, "house.olai"), "order").title)
+      .toBe("order the cabinets")
+    expect(record(fileOf(result, "_olai/Trash.olai"), "install").title)
+      .toBe("install them")
+    expect(result.id).toBe("order")
+    expect(result.title).toBe("order the cabinets")
+  })
+
   test("the children move, in order, to the end of the survivor's own", () => {
     const set = setOf({
       "house.olai": [

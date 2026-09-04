@@ -3339,7 +3339,7 @@ const planMerge = (
   const mayArchive = writable(scope, archive)
   if (Result.isFailure(mayArchive)) return Result.fail(mayArchive.failure)
 
-  const joined = merging(scope.derived, target.success)
+  const joined = merging(scope.derived, target.success, request.title)
   if (Result.isFailure(joined)) return Result.fail(joined.failure)
   const { into, adopted, title, desc } = joined.success
 
@@ -3430,7 +3430,10 @@ export interface Merging {
  *
  * The joins themselves are the semantics. The titles run together with nothing
  * between them: they were one line before somebody split them, and any
- * separator invented here is text the caller did not type. The notes take a
+ * separator invented here is text the caller did not type — and the one caller
+ * that carries a `title` says what the row says NOW, which a CARRIED nothing
+ * joins as nothing: the survivor's title stands (the erased-title Backspace,
+ * the human's report on #493). The notes take a
  * blank line, because they are markdown blocks and running two paragraphs
  * together would change what they say — and a node with no note simply takes
  * the other's, which is the case that matters most.
@@ -3443,6 +3446,13 @@ export interface Merging {
 export const merging = (
   derived: Derived,
   at: LocatedRegular,
+  /**
+   * What the node CONTRIBUTES to the join, when the caller says it is not
+   * the record's title: the browser's erased-title Backspace carries the
+   * nothing it is looking at (the human's report on #493). Absent — and for
+   * every other caller — it is the record's own title.
+   */
+  carried?: string,
 ): Result.Result<Merging, OpFailure> => {
   const row = siblingsOf(derived, at.file, at.node.parent)
   const above = row[row.findIndex((sibling) => sibling.node.id === at.node.id) - 1]
@@ -3480,7 +3490,7 @@ export const merging = (
   const into = over.node
   return Result.succeed({
     into,
-    title: into.title + at.node.title,
+    title: into.title + (carried ?? at.node.title),
     desc: into.desc === undefined
       ? at.node.desc
       : at.node.desc === undefined
