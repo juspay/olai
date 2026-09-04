@@ -50,6 +50,7 @@ import { randomBytes } from "node:crypto"
 import { resolve } from "node:path"
 
 import { localStateFor } from "./localState.ts"
+import { saveSettings as persistSettings } from "./settings.ts"
 import { openDirectory } from "./directory.ts"
 import { openDynamic } from "./dynamic/runtime.ts"
 import { pluginChunks } from "./dynamic/route.ts"
@@ -288,6 +289,12 @@ export const serve = (options: ServeOptions) =>
       // the one that lands, and the service mints ONE door per plugin, which is
       // what makes that ordering true.
       localStateFor: (plugin) => localStateFor(plugin, served, (line) => say(Effect.logWarning(line))),
+      saveSettings: (plugin, overlay) =>
+        Effect.suspend(() =>
+          opsLayer === null
+            ? Effect.fail(NOWHERE_TO_WRITE)
+            : persistSettings(opsLayer, "web")(plugin, overlay)
+        ),
       changed: () => onChange.run(),
       // NO `dials`: the injectables are a test's, and this is the product.
     })

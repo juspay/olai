@@ -19,7 +19,7 @@
  *
  * A row's config is drawn under it, read-only, as data: core knows none of
  * the plugin's words. `--commit=auto` is `commit: auto` on the git row.
- * User-editable settings are a later phase.
+ * User-editable settings sit beside that, rendered from the plugin's schema.
  *
  * ## THE ROWS ARE A SWITCH NOW
  *
@@ -136,10 +136,13 @@ import { createSignal, For, Show } from "solid-js"
 import {
   type BuiltPlugin,
   NO_ROSTER,
+  NO_SETTINGS,
   PLUGIN_BROWSER_NODE,
   PLUGIN_SERVER_NODE,
   type PluginRoster,
   pluginState,
+  type SettingsField,
+  type SettingsRoster,
 } from "@olai/surface"
 
 import { type Anchor, styleOf } from "../anchor.ts"
@@ -149,6 +152,8 @@ import { Segmented } from "../settings/Segmented.tsx"
 import { Row } from "../settings/Row.tsx"
 import { pluginPref, TESTID } from "../testids.ts"
 import { olai } from "../wire.ts"
+
+import { hung } from "./runtime.ts"
 
 import {
   type PluginPick,
@@ -224,6 +229,10 @@ export function Panel(props: {
   const roster = olai.cells.plugins.use()
   const plugins = (): PluginRoster => roster.value() ?? NO_ROSTER
   const rows = () => pluginRows(plugins())
+  const settings = olai.cells.settings.use()
+  const sections = (): SettingsRoster => settings.value() ?? NO_SETTINGS
+  const sectionOf = (name: string) =>
+    sections().sections.find((one) => one.plugin === name)
 
   /** WHOSE PRESS IS STILL IN THE AIR — the row's name, or `null`.
    *
@@ -324,7 +333,16 @@ export function Panel(props: {
               // one fact for the panel and is at the foot. Neither prop being
               // passed is why these rows are a name and a switch on one line.
               hint={pluginHint(plugin)}
-              under={<Config values={pluginConfig(plugin)} />}
+              under={
+                <>
+                  <Config values={pluginConfig(plugin)} />
+                  <Section
+                    plugin={plugin.name}
+                    fields={sectionOf(plugin.name)?.fields ?? []}
+                    onRefused={setRefused}
+                  />
+                </>
+              }
             >
               <Segmented
                 choices={PLUGIN_CHOICES}
@@ -397,6 +415,93 @@ export function Panel(props: {
         </p>
       </Show>
     </section>
+  )
+}
+
+/** A PLUGIN'S SETTINGS, under the row. Core draws the schema; a plugin that
+ *  hung its own face in `plugins.row.settings` takes the seat instead. */
+function Section(props: {
+  readonly plugin: string
+  readonly fields: ReadonlyArray<SettingsField>
+  readonly onRefused: (said: string | null) => void
+}) {
+  const custom = () => hung("plugins.row.settings").find((one) => one.plugin === props.plugin)
+  return (
+    <Show when={custom()} fallback={<Fields fields={props.fields} plugin={props.plugin} onRefused={props.onRefused} />}>
+      {(one) => one().face()}
+    </Show>
+  )
+}
+
+function Fields(props: {
+  readonly plugin: string
+  readonly fields: ReadonlyArray<SettingsField>
+  readonly onRefused: (said: string | null) => void
+}) {
+  const set = (key: string, value: unknown): void => {
+    props.onRefused(null)
+    run(
+      olai.procedures.settings.set({ plugin: props.plugin, patch: { [key]: value } }),
+      (failure) => props.onRefused(failure.message),
+      () => {},
+    )
+  }
+  return (
+    <Show when={props.fields.length > 0}>
+      <div class="mt-1.5 flex flex-col gap-1.5">
+        <For each={props.fields}>
+          {(field) => <Field field={field} onSet={(value) => set(field.key, value)} />}
+        </For>
+      </div>
+    </Show>
+  )
+}
+
+function Field(props: {
+  readonly field: SettingsField
+  readonly onSet: (value: unknown) => void
+}) {
+  const field = () => props.field
+  return (
+    <label
+      class="flex items-center gap-x-2 text-xs leading-relaxed text-muted"
+      data-testid={TESTID.pluginSetting}
+      data-setting={field().key}
+    >
+      <span class="shrink-0">{field().key}</span>
+      <Show when={field().kind === "choice" && field().choices}>
+        {(choices) => (
+          <Segmented
+            choices={choices().map((value) => ({ value, label: value }))}
+            value={String(field().value ?? "")}
+            onPick={(value) => props.onSet(value)}
+          />
+        )}
+      </Show>
+      <Show when={field().kind === "boolean"}>
+        <Segmented
+          choices={[{ value: "false", label: "Off" }, { value: "true", label: "On" }]}
+          value={field().value === true ? "true" : "false"}
+          onPick={(value) => props.onSet(value === "true")}
+        />
+      </Show>
+      <Show when={field().kind === "string" || field().kind === "number"}>
+        <input
+          type={field().secret ? "password" : field().kind === "number" ? "number" : "text"}
+          class="min-w-0 flex-1 rounded border border-line bg-transparent px-1.5 py-0.5 text-ink"
+          value={field().secret ? "" : String(field().value ?? "")}
+          placeholder={field().secret ? (field().set ? "set" : "") : ""}
+          onChange={(event) => {
+            const raw = event.currentTarget.value
+            if (field().secret && raw === "") return
+            props.onSet(field().kind === "number" ? Number(raw) : raw)
+          }}
+        />
+      </Show>
+      <Show when={field().pending}>
+        <span class="text-alarm" data-testid={TESTID.pluginSettingPending}>pending restart</span>
+      </Show>
+    </label>
   )
 }
 

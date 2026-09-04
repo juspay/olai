@@ -27,7 +27,7 @@
  *
  * ## THE SIXTEEN SLOTS, and why the table is data
  *
- * A slot is a place in this app where a plugin's face may hang. There are sixteen
+ * A slot is a place in this app where a plugin's face may hang. There are seventeen
  * and they are DECLARED ({@link SLOTS}) rather than implied by four hooks on an
  * interface, because a registration has to be checkable against something: a
  * plugin hanging a chip in the header is a mistake somebody should be told
@@ -195,7 +195,7 @@ export * from "./runtime.ts"
  *  header carries the argument. */
 export { SLOTS, type SlotKey } from "./slots.ts"
 
-/** One of the sixteen. */
+/** One of the seventeen. */
 export type SlotName = keyof typeof SLOTS
 
 /** The rows of {@link SLOTS} one key rule holds — the four names below are this
@@ -205,7 +205,7 @@ type SlotsKeyedBy<K extends SlotKey> = {
   [S in SlotName]: (typeof SLOTS)[S]["keyedBy"] extends K ? S : never
 }[SlotName]
 
-/** ...the four a PLUGIN keys, one face each. */
+/** ...the five a PLUGIN keys, one face each. */
 export type PluginSlot = SlotsKeyedBy<"plugin">
 
 /** ...the three a property KIND keys. */
@@ -269,6 +269,7 @@ export interface SlotFaces {
   "app.mount": (props: { readonly children: JSX.Element }) => JSX.Element
   "delivery.mark": () => JSX.Element
   "engine.install": NotHere
+  "plugins.row.settings": () => JSX.Element
 }
 
 /** The transport-shaped part of a standing page reading. Kept structural so
@@ -814,10 +815,10 @@ export const openApp = (config: AppConfig = {}): Effect.Effect<App, never, Scope
   Effect.gen(function*() {
     const host = yield* openHost
     /**
-     * ONE TABLE PER SLOT, and a slot IS a table — the sixteen are declared
+     * ONE TABLE PER SLOT, and a slot IS a table — the seventeen are declared
      * ({@link SLOTS}), so they are opened here rather than grown on demand.
      *
-     * They are `@olai/effect-cordis`'s tables rather than sixteen hand-written
+     * They are `@olai/effect-cordis`'s tables rather than seventeen hand-written
      * `Map`s, which is what makes the rules mechanical instead of remembered. The
      * one that had gone missing here is the last: this table told the app it had
      * changed from INSIDE `acquire`, and an app that refuses throws out of that

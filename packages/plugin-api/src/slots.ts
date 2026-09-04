@@ -28,7 +28,7 @@
 export type SlotKey = "plugin" | "kind" | "app" | "nothing"
 
 /**
- * WHERE A FACE CAN HANG — the sixteen, and what keys each.
+ * WHERE A FACE CAN HANG — the seventeen, and what keys each.
  *
  * DATA rather than a union alone, because the key rule is the thing a reader
  * and the service both need and a union could only carry the names. The gloss
@@ -174,4 +174,12 @@ export const SLOTS = {
    *  source — the machine has no agent, so there is no roster to have carried
    *  one — which is exactly what makes it a slot. */
   "engine.install": { keyedBy: "plugin" },
+  /**
+   * A PLUGIN'S OWN SETTINGS FACE, under its row on the plugins panel.
+   *
+   * Core draws the schema's fields with no plugin words. A plugin that wants
+   * a face of its own hangs it here, keyed by its name — dsh's card, one
+   * seat. Absent is the ordinary state: the schema is enough.
+   */
+  "plugins.row.settings": { keyedBy: "plugin" },
 } as const satisfies Readonly<Record<string, { readonly keyedBy: SlotKey }>>

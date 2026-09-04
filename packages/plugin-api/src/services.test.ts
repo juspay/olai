@@ -16,7 +16,7 @@
  */
 
 import { expect, test } from "bun:test"
-import { Cause, Effect, Layer, Logger, type Scope } from "effect"
+import { Cause, Effect, Layer, Logger, Schema, type Scope } from "effect"
 
 import {
   Deliveries,
@@ -29,7 +29,9 @@ import {
   openPlugins,
   Ops,
   type PluginsConfig,
+  secret,
   SessionStart,
+  Settings,
   Surfaces,
   Vault,
   Wakes,
@@ -899,5 +901,54 @@ test("a plugin that comes back stands behind its door again", async () => {
       }),
     )
     expect((yield* mirror.report).state).toBe("running")
+  })))
+})
+
+const Knobs = Schema.Struct({
+  heartbeat: Schema.optionalKey(Schema.String),
+  token: Schema.optionalKey(secret(Schema.String)),
+})
+
+test("a settings section is observed live, a secret never reaches the page, and a restart field is pending", async () => {
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const seen: Array<string> = []
+    const plugins = yield* runtime()
+    yield* mountPlugin(
+      plugins.host,
+      definePlugin({
+        name: "kolu",
+        needs: [Settings],
+        apply: Effect.gen(function*() {
+          const settings = yield* Settings
+          yield* settings.register(Knobs, {}, {
+            defaults: { heartbeat: "30m" },
+            applies: { token: "restart" },
+          })
+          expect(yield* settings.get).toEqual({ heartbeat: "30m" })
+          yield* settings.watch((value) =>
+            Effect.sync(() => {
+              if (typeof value.heartbeat === "string") seen.push(value.heartbeat)
+            })
+          )
+          yield* Effect.orDie(settings.update({ heartbeat: "10m", token: "s3cret" }))
+          expect((yield* settings.get).heartbeat).toBe("10m")
+          // `token` applies on restart: the plugin still holds the register-time
+          // value, and the page badges the stored one as pending.
+          expect((yield* settings.get).token).toBeUndefined()
+        }),
+      }),
+    )
+    expect(seen).toEqual(["10m"])
+    const page = plugins.settings.page()
+    expect(page).toHaveLength(1)
+    expect(page[0]?.plugin).toBe("kolu")
+    const heartbeat = page[0]?.fields.find((one) => one.key === "heartbeat")
+    const token = page[0]?.fields.find((one) => one.key === "token")
+    expect(heartbeat?.value).toBe("10m")
+    expect(token?.secret).toBe(true)
+    expect(token?.value).toBeUndefined()
+    expect(token?.set).toBe(true)
+    expect(token?.pending).toBe(true)
+    expect(heartbeat?.pending).toBe(false)
   })))
 })

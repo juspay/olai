@@ -313,6 +313,10 @@ test("the agent's face is what it can SEE plus the doors its tools land through"
   expect(Object.keys(BROWSER)).toContain("plugins.set")
   expect(Object.keys(AGENT)).not.toContain("plugins.set")
   expect(Object.keys(AGENT)).not.toContain("plugins")
+  expect(Object.keys(BROWSER)).toContain("settings")
+  expect(Object.keys(BROWSER)).toContain("settings.set")
+  expect(Object.keys(AGENT)).not.toContain("settings")
+  expect(Object.keys(AGENT)).not.toContain("settings.set")
 })
 
 // ── The property, over a real browser socket ────────────────────────────

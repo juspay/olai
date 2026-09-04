@@ -911,6 +911,8 @@ export const PLUGINS_STARTED = selector(TESTID.pluginsStarted);
 export const PLUGINS_REFUSED = selector(TESTID.pluginsRefused);
 /** A row's config, as data under it. `data-config` is the key. */
 export const PLUGIN_CONFIG = selector(TESTID.pluginConfig);
+export const PLUGIN_SETTING = selector(TESTID.pluginSetting);
+export const PLUGIN_SETTING_PENDING = selector(TESTID.pluginSettingPending);
 /** THE SOURCE OF A PLUGIN THE VAULT DEFINES, drawn under the rows — the two
  *  halves as somebody wrote them, which is the thing a person is being asked to
  *  read. `data-plugin` is the word and `data-version` is the hash it is

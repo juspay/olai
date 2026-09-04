@@ -611,6 +611,11 @@ export const TESTID = {
    *  with core knowing none of the plugin's words. `data-config` is the
    *  key. Absent when the row has no config. */
   pluginConfig: "plugin-config",
+  /** A plugin's editable settings field, under its row. `data-setting` is
+   *  the key. Absent when the plugin has registered no section. */
+  pluginSetting: "plugin-setting",
+  /** A `restart` field whose stored value is not the running one. */
+  pluginSettingPending: "plugin-setting-pending",
   /** THE SOURCE OF A PLUGIN THE VAULT DEFINES, under its row — the two halves
    *  as they are written, which is the thing a person is being asked to read
    *  before they approve it. Present on a definition's row and on no other. */

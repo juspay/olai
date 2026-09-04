@@ -90,7 +90,7 @@ import {
   serviceTag,
   type ServiceKey,
 } from "@olai/effect-cordis"
-import { Deferred, Effect, Exit, Scope } from "effect"
+import { Deferred, Effect, Exit, Schema, Scope, Semaphore } from "effect"
 
 import {
   type ConversationSeen,
@@ -107,6 +107,19 @@ import {
   type Seated,
   type Wake,
 } from "./contract.ts"
+import {
+  defaultsOf,
+  type FieldSpec,
+  fieldsOf,
+  pageFields,
+  type PageField,
+  resolve,
+  type SettingsDocument,
+  type SettingsOptions,
+  stringify,
+  tryDecode,
+  usage,
+} from "./settings.ts"
 
 /** WHAT A PLUGIN IS WRITTEN WITH, re-exported so a server half opens ONE door —
  *  {@link ./runtime.ts}, which is the same list `./index.ts` hands the browser
@@ -554,6 +567,54 @@ export interface LocalState {
 export const LocalState = serviceTag<LocalState>("localState")
 
 /**
+ * A PLUGIN'S SETTINGS SECTION — what a person may change while it runs.
+ *
+ * Phase 10's row `config:` is what a deployment runs a plugin with. This is
+ * the second layer: a schema the plugin registers, a document in the vault
+ * (`_olai/Settings.olai`), and a live reading the plugin observes without a
+ * restart. Host facts (paths, secrets-as-policy, git's commit/push) stay on
+ * the row.
+ *
+ * `register` is the calling fiber's, stamped by name and released with the
+ * scope — the same shape `Kinds.register` is. `get` / `watch` are the resolved
+ * value: schema defaults, then the row's config (the base), then the vault's
+ * edits. `update` / `unset` write one section, serialized, and observers are
+ * told after the document has the new overlay.
+ *
+ * A field may apply `restart`: `get` keeps the value from register-time until
+ * the process comes back, and the page badges the stored change as pending.
+ * A field marked secret never reaches a page; this door still hands the
+ * plugin the real value.
+ */
+export interface Settings<T = Record<string, unknown>> {
+  readonly register: (
+    schema: Schema.Schema<T>,
+    base: Partial<T>,
+    options?: SettingsOptions<T>,
+  ) => Effect.Effect<void, never, Scope.Scope>
+  readonly get: Effect.Effect<T>
+  readonly watch: (
+    handler: (value: T) => Effect.Effect<void>,
+  ) => Effect.Effect<void, never, Scope.Scope>
+  readonly update: (patch: Partial<T>) => Effect.Effect<void, Refusal>
+  readonly unset: (keys: ReadonlyArray<keyof T & string>) => Effect.Effect<void, Refusal>
+}
+export const Settings = serviceTag<Settings>("settings")
+
+/** ONE SECTION, as the composition root publishes it onto the settings cell. */
+export interface SettingsPage {
+  readonly plugin: string
+  readonly fields: ReadonlyArray<PageField>
+}
+
+/** What the root does with a section write — persist the overlay into the
+ *  vault, or hold it in memory when nothing is being served. */
+export type SettingsSave = (
+  plugin: string,
+  overlay: Readonly<Record<string, string>>,
+) => Effect.Effect<void, Refusal>
+
+/**
  * WHAT TO ASK THIS HOST WHEN A CONVERSATION OPENS — the door that replaced
  * `probe()`.
  *
@@ -970,6 +1031,24 @@ export interface Plugins {
    *  {@link Ops.refused}. Rung by whoever owns the write gate, which is the
    *  composition root; nothing on this page can refuse a write. */
   readonly refused: (refusal: Refused) => Effect.Effect<void>
+  /**
+   * THE SETTINGS DOCUMENT, as the root feeds it and as the panel reads it.
+   *
+   * `ingest` is a vault revision's overlay — one record per plugin node in
+   * `_olai/Settings.olai`. `page` is the secret-stripped view the settings
+   * cell publishes. `set` is the panel's verb, already stamped by plugin
+   * name. `changed` is the clock the cell republishes on.
+   */
+  readonly settings: {
+    readonly ingest: (document: SettingsDocument) => Effect.Effect<void>
+    readonly page: () => ReadonlyArray<SettingsPage>
+    readonly set: (
+      plugin: string,
+      patch: Readonly<Record<string, unknown>>,
+      unset: ReadonlyArray<string>,
+    ) => Effect.Effect<void, Refusal>
+    readonly changed: (handler: () => void) => () => void
+  }
 }
 
 /**
@@ -1079,6 +1158,12 @@ export interface PluginsConfig {
   /** One injectable per plugin, keyed by the plugin's name — a test's, never a
    *  product serve's. */
   readonly dials?: Readonly<Record<string, unknown>>
+  /**
+   * PERSIST ONE SECTION'S OVERLAY. Absent, updates land in memory and a
+   * restart forgets them — which is every bench that only wants the table,
+   * and is not a product serve.
+   */
+  readonly saveSettings?: SettingsSave
 }
 
 /**
@@ -1317,6 +1402,170 @@ export const openPlugins = (
       }
     })
 
+    /**
+     * SETTINGS, KEYED BY PLUGIN NAME. The overlay lives in the vault; this
+     * table is the schemas that judge it, released with each fiber. Writes
+     * to one section are serialized so two fields edited in one breath
+     * cannot land out of order.
+     */
+    interface HeldSection {
+      readonly schema: Schema.Schema<unknown>
+      readonly fields: ReadonlyArray<FieldSpec>
+      readonly base: Record<string, unknown>
+      readonly defaults: Record<string, unknown>
+      readonly options: SettingsOptions<Record<string, unknown>>
+      readonly secrets: ReadonlySet<string>
+      /** The resolved value at register-time, for `restart` fields. */
+      running: Record<string, unknown>
+      readonly gate: Semaphore.Semaphore
+    }
+    const held = new Map<string, HeldSection>()
+    const order: Array<string> = []
+    let overlay: SettingsDocument = {}
+    const watchers = broadcast<{ readonly plugin: string; readonly value: Record<string, unknown> }>(
+      "a settings section",
+    )
+    const pageWatchers = new Set<() => void>()
+    const tellPage = (): void => {
+      for (const one of pageWatchers) one()
+    }
+    const overlayOf = (plugin: string): Readonly<Record<string, string>> | undefined =>
+      overlay[plugin]
+    const resolvedOf = (section: HeldSection, plugin: string): Record<string, unknown> =>
+      resolve(section.schema, section.defaults, section.base, overlayOf(plugin), section.fields)
+    const liveOf = (section: HeldSection, plugin: string): Record<string, unknown> => {
+      const resolved = resolvedOf(section, plugin)
+      const applies = section.options.applies ?? {}
+      const live: Record<string, unknown> = { ...section.running }
+      for (const field of section.fields) {
+        if ((applies[field.key] ?? "live") === "live") live[field.key] = resolved[field.key]
+      }
+      return live
+    }
+    const pageOf = (): ReadonlyArray<SettingsPage> =>
+      order.filter((plugin) => held.has(plugin)).map((plugin) => {
+        const section = held.get(plugin)!
+        return {
+          plugin,
+          fields: pageFields(
+            section.fields,
+            resolvedOf(section, plugin),
+            section.running,
+            overlayOf(plugin),
+            section.base,
+            section.options.applies ?? {},
+            section.secrets,
+          ),
+        }
+      })
+    const writeOverlay = (
+      plugin: string,
+      next: Record<string, string>,
+    ): Effect.Effect<void, Refusal> => {
+      const apply = (): void => {
+        if (Object.keys(next).length === 0) {
+          const rest = { ...overlay }
+          delete rest[plugin]
+          overlay = rest
+        } else {
+          overlay = { ...overlay, [plugin]: next }
+        }
+      }
+      if (config.saveSettings === undefined) {
+        apply()
+        return Effect.void
+      }
+      return Effect.gen(function*() {
+        yield* config.saveSettings!(plugin, next)
+        apply()
+      })
+    }
+    const applyPatch = (
+      plugin: string,
+      patch: Readonly<Record<string, unknown>>,
+      unset: ReadonlyArray<string>,
+    ): Effect.Effect<void, Refusal> => {
+      const section = held.get(plugin)
+      if (section === undefined) {
+        return Effect.fail(usage(`no plugin called "${plugin}" has registered a settings section`))
+      }
+      return section.gate.withPermits(1)(Effect.gen(function*() {
+        const current = { ...(overlayOf(plugin) ?? {}) }
+        for (const key of unset) delete current[key]
+        for (const [key, value] of Object.entries(patch)) {
+          if (value === undefined || value === null) delete current[key]
+          else current[key] = stringify(value)
+        }
+        const next = resolve(
+          section.schema,
+          section.defaults,
+          section.base,
+          current,
+          section.fields,
+        )
+        const invalid = section.options.validate?.(next as never) ?? null
+        if (invalid !== null) return yield* Effect.fail(usage(invalid))
+        if (tryDecode(section.schema, next) === null) {
+          return yield* Effect.fail(usage(`that is not a value this plugin's settings accept`))
+        }
+        yield* writeOverlay(plugin, current)
+        const live = liveOf(section, plugin)
+        yield* watchers.tell({ plugin, value: live })
+        tellPage()
+      }))
+    }
+
+    yield* provide(host, Settings, (plugin) => ({
+      register: (schema, base, options = {}) =>
+        Effect.suspend(() => {
+          const fields = fieldsOf(schema as Schema.Schema<unknown>)
+          const secrets = new Set<string>([
+            ...fields.filter((one) => one.secret).map((one) => one.key),
+            ...(options.secret ?? []),
+          ])
+          const defaults = defaultsOf(
+            schema as Schema.Schema<unknown>,
+            options.defaults as Record<string, unknown> | undefined,
+          )
+          const heldBase = { ...(base as Record<string, unknown>) }
+          const section: HeldSection = {
+            schema: schema as Schema.Schema<unknown>,
+            fields,
+            base: heldBase,
+            defaults,
+            options: options as SettingsOptions<Record<string, unknown>>,
+            secrets,
+            running: {},
+            gate: Semaphore.makeUnsafe(1),
+          }
+          section.running = resolvedOf(section, plugin)
+          return Effect.acquireRelease(
+            Effect.sync(() => {
+              held.set(plugin, section)
+              if (!order.includes(plugin)) order.push(plugin)
+              tellPage()
+            }),
+            () =>
+              Effect.sync(() => {
+                held.delete(plugin)
+                const at = order.indexOf(plugin)
+                if (at >= 0) order.splice(at, 1)
+                tellPage()
+              }),
+          )
+        }),
+      get: Effect.sync(() => {
+        const section = held.get(plugin)
+        return (section === undefined ? {} : liveOf(section, plugin)) as never
+      }),
+      watch: (handler) =>
+        watchers.listen(plugin)((event) =>
+          event.plugin === plugin ? handler(event.value as never) : Effect.void
+        ),
+      update: (patch) => applyPatch(plugin, patch as Record<string, unknown>, []),
+      unset: (keys) => applyPatch(plugin, {}, keys as ReadonlyArray<string>),
+    }))
+
     return {
       host,
       kinds: kinds.read,
@@ -1326,8 +1575,27 @@ export const openPlugins = (
       published: revisions.tell,
       quiet: quieted.tell(undefined),
       refused: refusals.tell,
+      settings: {
+        ingest: (document) =>
+          Effect.gen(function*() {
+            overlay = document
+            for (const [plugin, section] of held) {
+              yield* watchers.tell({ plugin, value: liveOf(section, plugin) })
+            }
+            tellPage()
+          }),
+        page: pageOf,
+        set: applyPatch,
+        changed: (handler) => {
+          pageWatchers.add(handler)
+          return () => pageWatchers.delete(handler)
+        },
+      },
     }
   })
+
+export type { SettingsDocument, SettingsOptions } from "./settings.ts"
+export { SECRET, secret } from "./settings.ts"
 
 export type {
   ConversationSeen,
@@ -1397,6 +1665,7 @@ export const SERVICES = [
   Agents,
   Watching,
   LocalState,
+  Settings,
   SessionStart,
   Offers,
   Tools,

@@ -73,6 +73,7 @@
  */
 
 import { customText, isRegular, type Located } from "@olai/format"
+import { Schema } from "effect"
 import { DEFAULT_WATCH, parseDuration, parseNag, type WatchConfig } from "olai-plugin-kolu/appliance"
 
 /** The basename the convention answers to, case-folded at the caller's end. */
@@ -80,6 +81,21 @@ const FILE_BASENAME = "kolu.olai"
 
 /** The one node title, exact and case-sensitive, `outlineCalled`'s rule. */
 const WATCH_TITLE = "watch"
+
+/** Schema defaults, as the panel draws them. */
+export const DEFAULT_FIELDS = {
+  "held-for": "60s",
+  nag: "10m",
+  heartbeat: "30m",
+} as const
+
+/** Kolu's settings section — duration strings in padi's grammar. */
+export const WatchSettings = Schema.Struct({
+  "held-for": Schema.optionalKey(Schema.String),
+  nag: Schema.optionalKey(Schema.String),
+  heartbeat: Schema.optionalKey(Schema.String),
+})
+export type WatchSettings = typeof WatchSettings.Type
 
 /** What {@link watchConfigIn} returns — the config itself plus the malformed
  *  VALUE LINES, said by the caller so a vault typo is a sentence on the
@@ -112,27 +128,19 @@ export const koluFileIn = (paths: Iterable<string>): string | undefined => {
 }
 
 /**
- * What the vault says the watcher's knobs are, read off one revision's
- * nodes, inside the file the convention named (`koluFileIn`, above — the
- * caller computes it off the SERVED outlines and hands it in, so a file
- * that parses to nothing still feeds the foot its wrench while handing
- * this walk an empty inside).
- *
- * ABSENT means the defaults. `DEFAULT_WATCH` returns as itself, not a copy:
- * there is exactly one "the vault said nothing" answer, so there is exactly
- * one object for it, and the check that catches it is a `===`.
- *
- * Within the named file the FIRST `watch` node decides; a second is the
- * owner's mistake, not a precedence question.
+ * THE KNOBS, from a settings overlay rather than a `watch` node. Absent
+ * fields are the defaults. A malformed value keeps the default and earns
+ * a sentence, the way a hand-edited `_olai/Kolu.olai` did.
  */
-export const watchConfigIn = (
-  nodes: ReadonlyArray<Located>,
-  file: string | null,
+export const watchFromFields = (
+  fields: Readonly<Record<string, unknown>>,
+  where = "_olai/Settings.olai",
 ): WatchReading => {
-  if (file === null) return { config: DEFAULT_WATCH, malformed: [] }
-  const inside = nodes.filter(isRegular).filter((located) => located.file === file)
-  const watch = inside.find(({ node }) => node.title === WATCH_TITLE)
   const malformed: Array<string> = []
+  const text = (key: string): string | undefined => {
+    const value = fields[key]
+    return typeof value === "string" ? value : undefined
+  }
   /** THE VAULT'S OWN SHAPE GATE, before either parser: the grammar WITHOUT
    *  the bare-number arm — everything else with a bad shape is kolu's own
    *  sentence to spell. Its parsers take `10000` for 10000ms because the
@@ -142,7 +150,7 @@ export const watchConfigIn = (
    *  file must say rather than do. */
   const bareDigits = /^\d+$/
   const spellUnit = (key: "held-for" | "nag" | "heartbeat", value: string): void => {
-    malformed.push(`kolu: \`${key}: ${value}\` in ${watch?.file}: spell a number and a unit (500ms, 30s, 10m, 2h, 1d)`)
+    malformed.push(`kolu: \`${key}: ${value}\` in ${where}: spell a number and a unit (500ms, 30s, 10m, 2h, 1d)`)
   }
   /** KOLU'S OWN PARSERS, wrapped in the vault's own address. A value that is
    *  not the grammar names the file, the node and the sentence kolu itself
@@ -155,8 +163,7 @@ export const watchConfigIn = (
     effect: string,
     fallback: number,
   ): number => {
-    if (watch === undefined) return fallback
-    const value = customText(watch.node, key)
+    const value = text(key)
     if (value === undefined) return fallback
     // The GATE AND THE PARSE read one trimmed value: kolu's parser trims
     // before judging, so a `10 ` trailing the paper slips every check
@@ -169,7 +176,7 @@ export const watchConfigIn = (
     }
     const read = parseDuration(key, raw, min, effect)
     if (read.kind === "error") {
-      malformed.push(`kolu: \`${key}: ${value}\` in ${watch.file}: ${read.message}`)
+      malformed.push(`kolu: \`${key}: ${value}\` in ${where}: ${read.message}`)
       return fallback
     }
     return read.value
@@ -178,8 +185,7 @@ export const watchConfigIn = (
    *  CAP (`30m/3` — three reminders past the first report, then quiet), so
    *  the two can neither be spelled apart nor drift. */
   const readNag = (): WatchConfig["nagMs"] => {
-    if (watch === undefined) return DEFAULT_WATCH.nagMs
-    const value = customText(watch.node, "nag")
+    const value = text("nag")
     if (value === undefined) return DEFAULT_WATCH.nagMs
     const raw = value.trim()
     if (bareDigits.test(raw)) {
@@ -188,7 +194,7 @@ export const watchConfigIn = (
     }
     const read = parseNag("nag", raw)
     if (read.kind === "error") {
-      malformed.push(`kolu: \`nag: ${value}\` in ${watch.file}: ${read.message}`)
+      malformed.push(`kolu: \`nag: ${value}\` in ${where}: ${read.message}`)
       return DEFAULT_WATCH.nagMs
     }
     return read.value
@@ -214,4 +220,24 @@ export const watchConfigIn = (
     },
     malformed,
   }
+}
+
+/**
+ * The old walk, kept for the parser's own bench: a `watch` node in
+ * `_olai/Kolu.olai` is no longer what the serve reads.
+ */
+export const watchConfigIn = (
+  nodes: ReadonlyArray<Located>,
+  file: string | null,
+): WatchReading => {
+  if (file === null) return watchFromFields({})
+  const inside = nodes.filter(isRegular).filter((located) => located.file === file)
+  const watch = inside.find(({ node }) => node.title === WATCH_TITLE)
+  if (watch === undefined) return watchFromFields({}, file)
+  const fields: Record<string, string> = {}
+  for (const key of ["held-for", "nag", "heartbeat"] as const) {
+    const value = customText(watch.node, key)
+    if (value !== undefined) fields[key] = value
+  }
+  return watchFromFields(fields, file)
 }

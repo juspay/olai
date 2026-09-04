@@ -42,6 +42,7 @@ import {
   CHAT_TOGGLE,
   PADI_PILL,
   PLUGIN_CONFIG,
+  PLUGIN_SETTING,
   PLUGINS_PANEL,
   PLUGINS_REFUSED,
   PLUGINS_STARTED,
@@ -973,6 +974,37 @@ Then(
  * with and how long a press here lasts. A scenario that asserted it through a
  * row would be asserting the arrangement this panel was rewritten to end.
  */
+Then(
+  "the plugins panel shows {string} setting {string} as {string}",
+  async function (this: OlaiWorld, plugin: string, key: string, value: string) {
+    const row = rowFor(this, plugin);
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const field = row.locator(`${PLUGIN_SETTING}${attr("data-setting", key)}`);
+    await field.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const said = (await field.innerText()).replaceAll("\n", " ");
+    const typed = await field.locator("input").inputValue().catch(() => "");
+    assert.ok(
+      said.includes(value) || typed === value,
+      `the ${JSON.stringify(plugin)} row to show setting ${JSON.stringify(key)} as ${
+        JSON.stringify(value)
+      }, and it says ${JSON.stringify(said)} (input ${JSON.stringify(typed)})`,
+    );
+  },
+);
+
+When(
+  "I set the plugin {string} setting {string} to {string}",
+  async function (this: OlaiWorld, plugin: string, key: string, value: string) {
+    const row = rowFor(this, plugin);
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const field = row.locator(`${PLUGIN_SETTING}${attr("data-setting", key)}`);
+    await field.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const input = field.locator("input");
+    await input.fill(value);
+    await input.blur();
+  },
+);
+
 Then(
   "the plugins panel shows {string} configured {string} as {string}",
   async function (this: OlaiWorld, plugin: string, key: string, value: string) {

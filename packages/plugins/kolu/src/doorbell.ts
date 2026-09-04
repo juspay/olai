@@ -1065,7 +1065,7 @@ const reminderOf = (event: KoluEvent | undefined): string | null => {
   if (account === null || event?.row === null || event === undefined) return null
   const id = event.row.terminal
   if (account.total === null) {
-    return `This is reminder ${account.index} of an uncapped nag for \`${id}\` — it repeats on this interval while the state holds (a cap is spelled \`nag: 30m/3\` in _olai/Kolu.olai).`
+    return `This is reminder ${account.index} of an uncapped nag for \`${id}\` — it repeats on this interval while the state holds (a cap is spelled \`nag: 30m/3\` in _olai/Settings.olai).`
   }
   if (account.last) {
     return `This is reminder ${account.index} of ${account.index} for \`${id}\`, the last — this doorbell goes quiet about that terminal until its state changes.`

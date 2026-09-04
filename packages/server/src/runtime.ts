@@ -88,7 +88,7 @@ import {
 } from "@olai/format"
 import { type Caller, type Ops, type Request, type Store } from "@olai/ops"
 import type { Writer } from "@olai/format"
-import { type Applied, type BuiltPlugin, type CorePageReading, type Edit, LOADED, type Manifest, NO_ROSTER, type PluginRoster, type PluginState, surface, watchable, type Who } from "@olai/surface"
+import { type Applied, type BuiltPlugin, type CorePageReading, type Edit, LOADED, type Manifest, NO_ROSTER, NO_SETTINGS, type PluginRoster, type PluginState, type SettingsRoster, surface, watchable, type Who } from "@olai/surface"
 import { type OpFailure } from "@olai/format"
 import {
   customText,
@@ -99,6 +99,7 @@ import {
   UsageFailure,
 } from "@olai/format"
 import type { Snapshot } from "@olai/store"
+import { settingsDocumentOf } from "./settings.ts"
 import { type SurfaceSpec, surfaceTag } from "@kolu/surface/define"
 import {
   emptyHandlers,
@@ -1033,6 +1034,7 @@ export const bind = (
      *  fiber arriving or leaving, which reaches this file as a callback off
      *  `openPlugins`'s `changed` rather than as a stream ({@link republishPlugins}). */
     let pluginsCell: { set: (value: PluginRoster) => void } | null = null
+    let settingsCell: { set: (value: SettingsRoster) => void } | null = null
 
     /**
      * ...AND THE PLUGIN ROSTER, on its own clock — a fiber arriving or leaving.
@@ -1193,6 +1195,10 @@ export const bind = (
      *  `offered` at each use, because the four readings below are one question
      *  asked at four moments and a reader should see that they are. */
     const plugins = offered?.plugins ?? null
+    const republishSettings = (): void => {
+      settingsCell?.set({ sections: plugins?.settings.page() ?? [] })
+    }
+    plugins?.settings.changed(republishSettings)
     /**
      * EVERY SIBLING COMPOSED RIGHT NOW — read, never cached.
      *
@@ -1341,6 +1347,14 @@ export const bind = (
         plugins: {
           store: inMemoryStore<PluginRoster>(roster()),
           connect: (cell) => Effect.sync(() => pluginsCell = cell),
+        },
+        settings: {
+          store: inMemoryStore<SettingsRoster>(NO_SETTINGS),
+          connect: (cell) =>
+            Effect.sync(() => {
+              settingsCell = cell
+              republishSettings()
+            }),
         },
         /**
          * THE PINNED SHELF, re-read per published revision — over a file this
@@ -1505,7 +1519,10 @@ export const bind = (
                   // a keystroke that landed in a note costs one walk per plugin
                   // and zero frames, and the sockets are the sweeps' business
                   // on their own clocks.
-                  if (plugins !== null) yield* plugins.published(snapshot)
+                  if (plugins !== null) {
+                    yield* plugins.settings.ingest(settingsDocumentOf(snapshot.value))
+                    yield* plugins.published(snapshot)
+                  }
                   // ...AND THE PLUGINS THE VAULT ITSELF DEFINES, on the same
                   // statement and for the same reason: a revision is exactly
                   // when a definition can have arrived, changed, been approved
@@ -2013,6 +2030,36 @@ export const bind = (
                   named: input.name,
                 }),
               )
+            }),
+        },
+        settings: {
+          set: ({ input }) =>
+            Effect.gen(function*() {
+              if (plugins === null) {
+                return yield* Effect.fail(
+                  new NotFoundFailure({
+                    reason: `this serve has no plugin called "${input.plugin}"`,
+                    named: input.plugin,
+                  }),
+                )
+              }
+              const written = yield* Effect.result(plugins.settings.set(
+                input.plugin,
+                input.patch ?? {},
+                input.unset ?? [],
+              ))
+              if (written._tag === "Failure") {
+                const error = written.failure as { readonly reason?: unknown }
+                return yield* Effect.fail(
+                  new UsageFailure({
+                    reason: typeof error.reason === "string"
+                      ? error.reason
+                      : `that settings write was refused`,
+                  }),
+                )
+              }
+              republishSettings()
+              return {}
             }),
         },
         /**

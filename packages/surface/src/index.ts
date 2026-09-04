@@ -186,6 +186,7 @@ import { App } from "./app.ts"
 import { NarrowingAnswer, NarrowingRequest } from "./narrowing.ts"
 import { SearchAnswer, SearchRequest } from "./search.ts"
 import { NO_ROSTER, PluginRoster, sameRoster } from "./plugins.ts"
+import { NO_SETTINGS, sameSettings, SettingsRoster } from "./settings.ts"
 import { Who } from "./who.ts"
 
 /** Core owns only pages addressed by a file/node and Trash. Journal's day and
@@ -667,6 +668,24 @@ export const surface = defineSurface({
        *  (`@olai/bundle`'s `fence.test.ts`), because the name is the sibling
        *  key every one of its tags is composed under. */
       arrayKey: "name",
+    },
+    /**
+     * EACH PLUGIN'S SETTINGS SECTION — see {@link SettingsRoster}.
+     *
+     * Its own cell, not a field on the roster, because a setting changing
+     * is not a plugin arriving or leaving and must not redial. Secrets are
+     * stripped before they reach this schema. A plugin that has not
+     * registered a section is absent from `sections`.
+     *
+     * THE BROWSER'S ALONE: an agent that could read a secret-stripped
+     * section could still learn that a secret is set, and writing one is
+     * a person's, at the panel.
+     */
+    settings: {
+      schema: SettingsRoster,
+      default: NO_SETTINGS,
+      verbs: ["get"],
+      equals: sameSettings,
     },
   },
   collections: {
@@ -1175,6 +1194,33 @@ export const surface = defineSurface({
       },
     },
     /**
+     * WRITE ONE PLUGIN'S SETTINGS SECTION — the panel's editable fields,
+     * and the one verb that moves `_olai/Settings.olai`.
+     *
+     * A PROCEDURE beside the cell of the same name: the cell says what is
+     * stored and this says *make it so*. `patch` sets keys; `unset` removes
+     * them so the schema default (or the row's config) stands again. The
+     * write is one section, serialized, judged by the plugin's schema, and
+     * committed by the ledger like any vault write.
+     *
+     * THE BROWSER'S ALONE, for `plugins.set`'s reason: a plugin's settings
+     * are a person's, in front of the panel. Host facts stay on the row.
+     */
+    settings: {
+      set: {
+        input: Schema.Struct({
+          /** The plugin's `name` — the row's own word. */
+          plugin: Schema.String,
+          /** Keys to set. Absent or empty is a no-op on this arm. */
+          patch: Schema.optionalKey(Schema.Record(Schema.String, Schema.Unknown)),
+          /** Keys to take off, so the default stands. */
+          unset: Schema.optionalKey(Schema.Array(Schema.String)),
+        }),
+        output: Schema.Struct({}),
+        error: OpFailure,
+      },
+    },
+    /**
      * WHO IS LOOKING on this connection — the login a reverse proxy stamped
      * on the upgrade, already resolved down the picture ladder.
      *
@@ -1260,6 +1306,18 @@ export {
   PluginRoster,
   watchable,
 } from "./plugins.ts"
+
+/** A plugin's settings section, as the plugins panel draws it — see
+ *  {@link ./settings.ts}. */
+export {
+  NO_SETTINGS,
+  type SettingsApplies,
+  type SettingsField,
+  type SettingsKind,
+  SettingsRoster,
+  type SettingsSection,
+  type SettingsSource,
+} from "./settings.ts"
 
 /** Where the hashed browser bundle lives, and what the bundler names a split
  *  chunk in it — see {@link ./bundle.ts}. One spelling, both halves of the

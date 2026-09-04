@@ -39,7 +39,7 @@
  * `surface/kolu/fleet/get` with no name arithmetic in any general package.
  *
  * Beside those, a plugin contributes property KINDS the format takes as data
- * and never imports, FACES it hangs in the app's sixteen declared slots
+ * and never imports, FACES it hangs in the app's seventeen declared slots
  * ({@link ./browser.ts}) — dressing a kind it contributed, or keyed by its own
  * name — a SERVER HALF that installs itself into the services here, and a PROBE
  * — one reading that answers with the MCP server a chat session is handed AND
@@ -92,7 +92,7 @@ export type {
   PropEntry,
   PropPane,
 } from "./plugin.ts"
-/** THE RUNTIME A BROWSER HALF INSTALLS ITSELF INTO — the sixteen slots and the
+/** THE RUNTIME A BROWSER HALF INSTALLS ITSELF INTO — the seventeen slots and the
  *  services, beside the shapes above that say what a face drawn into one
  *  is handed. Both come through this door because both are what a browser half
  *  is written against, and neither is reachable from `./services.ts`.

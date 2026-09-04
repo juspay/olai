@@ -70,6 +70,7 @@ import {
   Env,
   Kinds,
   SessionStart,
+  Settings,
   Surfaces,
   Vault,
   Wakes,
@@ -89,7 +90,7 @@ import { type Dial, koluHalf } from "olai-plugin-kolu/appliance"
 import type { KoluEvent } from "olai-plugin-kolu/appliance/wire"
 
 import { claimantsIn } from "./claimants.ts"
-import { koluFileIn, watchConfigIn } from "./config.ts"
+import { DEFAULT_FIELDS, koluFileIn, WatchSettings, watchFromFields } from "./config.ts"
 import {
   bodyFor,
   classify,
@@ -217,7 +218,7 @@ type Ctx = SurfaceCtx<typeof surface.spec>
  */
 export default definePlugin({
   name,
-  needs: [Clock, Deliveries, Env, Kinds, SessionStart, Surfaces, Vault, Wakes],
+  needs: [Clock, Deliveries, Env, Kinds, SessionStart, Settings, Surfaces, Vault, Wakes],
   apply: Effect.gen(function*() {
     // EVERY SERVICE THIS PLUGIN NAMED, YIELDED ONCE, at the top — the same list
     // `needs` carries, in the same order, so a reader checks the two against each
@@ -230,8 +231,21 @@ export default definePlugin({
     const surfaces = yield* Surfaces
     const vault = yield* Vault
     const wakes = yield* Wakes
+    const settings = yield* Settings
     /** THE ONE SEAM ACROSS THE BOUNDARY — see this module's header. */
     const run = yield* detached
+    let knobs = watchFromFields(DEFAULT_FIELDS)
+    yield* settings.register(WatchSettings, {}, {
+      defaults: { ...DEFAULT_FIELDS },
+      validate: (value) => watchFromFields(value).malformed[0] ?? null,
+    })
+    knobs = watchFromFields(yield* settings.get)
+    yield* settings.watch((value) =>
+      Effect.sync(() => {
+        knobs = watchFromFields(value)
+        for (const line of knobs.malformed) run(Effect.logWarning(line))
+      })
+    )
 
     /** This sibling's own write face, filled the moment it is implemented. A
      *  FUNCTION reads it below rather than a captured value, because the surface
@@ -272,7 +286,7 @@ export default definePlugin({
       // the convention below — the same `let`, set on the same revision, and read
       // synchronously inside the very call that set it.
       claimants: (nodes) => claimantsIn(declaring, nodes),
-      config: watchConfigIn,
+      config: () => knobs,
       // THE DOORBELL'S TAP, and the THIRD instance of the same boundary: what
       // crosses into this package is the wire's own frozen `KoluEvent`, and what
       // this side does with it — join it against the un-done nodes of a file
@@ -301,7 +315,7 @@ export default definePlugin({
       // lines stand alone. A pair that has to be read in order is one Effect
       // saying both, not two calls.
       say: (line) => run(Effect.logDebug(line)),
-      // What the OWNER must read: a malformed `_olai/Kolu.olai` value — the
+      // What the OWNER must read: a malformed `_olai/Settings.olai` value — the
       // sentences whose promise lives in this package's `docs.md`. Rare by latch
       // (one line per new shape), and the default console level is `info`, so the
       // channel is `warning`, not `debug`.

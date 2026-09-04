@@ -292,6 +292,9 @@ test("a page that has heard nothing has no plugin rows and no flag to name", () 
 test("the roster cell is read-only and the switch is the procedure beside it", () => {
   expect(tags).toContain("surface/plugins/get")
   expect(tags).toContain("surface/plugins/set")
+  expect(tags).toContain("surface/settings/get")
+  expect(tags).toContain("surface/settings/set")
+  expect(surface.spec.cells.settings.verbs).toEqual(["get"])
   // The cell offers `get` and nothing else — so the tag above is the
   // procedure's, and there is no second member in the build that could mint it.
   expect(surface.spec.cells.plugins.verbs).toEqual(["get"])
