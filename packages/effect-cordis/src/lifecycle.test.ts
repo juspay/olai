@@ -154,3 +154,39 @@ for (const shutdown of [false, true]) {
     expect(yield* Effect.promise(() => readFile(path, "utf8"))).toBe(source)
   })))
 }
+
+test("host close joins cleanup that already left the registry", () => run(Effect.gen(function*() {
+  const host = yield* openHost
+  const cleaning = Deferred.makeUnsafe<void>()
+  let released = false
+  const mounted = yield* mountPlugin(host, definePlugin({ name: "departing", needs: [], apply: Effect.addFinalizer(() => Effect.gen(function*() {
+    yield* Deferred.succeed(cleaning, undefined)
+    yield* Effect.sleep("20 millis")
+    released = true
+  })) }))
+  yield* mounted.dispose.pipe(Effect.forkScoped)
+  yield* Deferred.await(cleaning)
+  yield* closeHost(host)
+  expect(released).toBe(true)
+})))
+
+test("host close interrupts active background work before resource release", () => run(Effect.gen(function*() {
+  const host = yield* openHost
+  const entered = Deferred.makeUnsafe<void>()
+  const order: string[] = []
+  yield* mountPlugin(host, definePlugin({ name: "background", needs: [], apply: Effect.gen(function*() {
+    yield* Effect.addFinalizer(() => Effect.sync(() => { order.push("resource released") }))
+    const detach = yield* detached
+    detach(Effect.gen(function*() {
+      yield* Effect.addFinalizer(() => Effect.gen(function*() {
+        yield* Effect.sleep("10 millis")
+        order.push("background stopped")
+      }))
+      yield* Deferred.succeed(entered, undefined)
+      yield* Effect.never
+    }).pipe(Effect.scoped))
+  }) }))
+  yield* Deferred.await(entered)
+  yield* closeHost(host)
+  expect(order).toEqual(["background stopped", "resource released"])
+})))

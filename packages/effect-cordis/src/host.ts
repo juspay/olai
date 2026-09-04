@@ -36,7 +36,7 @@ import { Context as CordisContext, FiberState } from "cordis"
 import type { Fiber } from "cordis"
 import { Context, Effect, Queue, Scope, Stream } from "effect"
 
-import { interrupt } from "./lifecycle.ts"
+import { hostActivations, interrupt } from "./lifecycle.ts"
 import type { Plugin } from "./plugin.ts"
 import type { Provision, ServiceKey } from "./service.ts"
 
@@ -131,10 +131,12 @@ export const closeHost = (host: Host): Effect.Effect<void> => Effect.promise(() 
   let task = closing.get(host)
   if (task === undefined) {
     const ctx = ctxOf(host)
-    ctx.registry.forEach((runtime) => {
-      for (const fiber of runtime.fibers) interrupt(fiber)
+    task = Promise.resolve().then(async () => {
+      const active = hostActivations(ctx)
+      for (const activation of active) activation.interrupt()
+      await ctx.fiber.dispose()
+      await Promise.all(active.map((activation) => activation.drained))
     })
-    task = ctx.fiber.dispose()
     closing.set(host, task)
   }
   return task
@@ -385,7 +387,7 @@ export const namedBy = (
  * six.
  *
  * `off` is a row the loader declined to load and a fiber on its way out alike:
- * both have unwound every registration they made, and a reader has no use for
+ * cleanup is awaited by disposal, not proved by this state word. A reader has no use for
  * the difference. `waiting` is one WORD over `PENDING` (a service it names is not
  * there) and `LOADING` (it has not finished starting), because a row that has not
  * started has not started — the two are told apart by what {@link RowReport}

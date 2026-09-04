@@ -84,6 +84,7 @@ import {
   type Host,
   openHost,
   hostChanges,
+  closeHost,
   offer,
   provide,
   type Provision,
@@ -935,6 +936,8 @@ export interface Plugins {
   readonly host: Host
   /** Runtime transitions, including asynchronous initialization completing. */
   readonly changes: Stream.Stream<void>
+  /** Drain plugins before the composition root releases their host resources. */
+  readonly close: Effect.Effect<void>
   /** Every word registered right now, composed. */
   readonly kinds: () => ReadonlyMap<string, ComposedKind>
   /** Every sibling composed right now, in registration order. */
@@ -1312,6 +1315,7 @@ export const openPlugins = (
       declared: wakes.read,
       offers: () => new Map([...offered].map(([key, owner]) => [key, owner.plugin])),
       changes: hostChanges(host),
+      close: closeHost(host),
       published: revisions.tell,
       quiet: quieted.tell(undefined),
       refused: refusals.tell,

@@ -30,6 +30,10 @@ export const drainDependents = async (activation: Activation): Promise<void> => 
     .filter((other) => other.dependencies.has(activation.ctx.fiber))
     .map((other) => other.drained))
 }
+/** Include activations whose disposal already removed their registry entry. */
+export const hostActivations = (ctx: CordisContext): ReadonlyArray<Activation> =>
+  [...activations.values()].filter((activation) => activation.ctx.root.fiber === ctx.root.fiber)
+
 export const interrupt = (fiber: CordisFiber): void => activations.get(fiber)?.interrupt()
 
 /** Provide on the calling fiber, withholding the value until it is ACTIVE.
