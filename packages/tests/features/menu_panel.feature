@@ -72,13 +72,18 @@ Feature: The ••• menu opens and shuts
     And the node menu's "Move to Trash" has the caret
 
   Scenario: ArrowDown walks the entries in order
-    # Two down from `Zoom in` is `Collapse` (`menu_verbs.feature` holds the
+    # ONE DOWN FROM `Zoom in` is `Collapse` (`menu_verbs.feature` holds the
     # whole list, in order): a walk that stopped short or ran on would choose
     # something else, and every entry around it does something visible.
+    #
+    # It was two, and the entry between them was `Ask agent` — which is a
+    # PLUGIN's verb since the chat panel became a row, hung in
+    # `outline.row.action` and placed at the end of core's own reads rather than
+    # second among them. The walk is what this scenario is about and it is
+    # unchanged; what moved is one entry, and the count follows it.
     Given the node "kitchen" is expanded
     When I open the node menu of "kitchen" with the keyboard
     And I press "Home"
-    And I press "ArrowDown"
     And I press "ArrowDown"
     And I press "Enter"
     Then the node "kitchen" is collapsed

@@ -44,6 +44,7 @@ import { setPanelOpen } from "@olai/web/client/layout/prefs.ts"
 import { runAsync } from "@olai/web/client/run.ts"
 import { Result } from "effect"
 
+import { useAgents } from "./agents/answered.tsx"
 import { armNode, releaseArmed, restoreArmed } from "./chat/armed.ts"
 import { createChatState } from "./chat/state.ts"
 import { chatWire } from "./wire.ts"
@@ -66,8 +67,14 @@ import { chatWire } from "./wire.ts"
  * answer at "no engines", which is what every machine looks like before its
  * first roster frame.
  */
-export const rowVerbs = (): ReadonlyArray<RowAction> => {
+export const rowVerbs = (node: string): ReadonlyArray<RowAction> => {
   const state = createChatState()
+  // WHAT THIS ROW IS ALREADY TALKING THROUGH, off the roster this half
+  // subscribes to once for the whole tab (`./agents/answered.tsx`). It is the
+  // ROSTER rather than the record's own property, and the two agree by
+  // construction: the roster IS the query over that property, answered where the
+  // set is, so a row that is on it is a row that carries one.
+  const bound = useAgents().at(node)
   const verbs: Array<RowAction> = [{
     // THE COMPOSER, ARMED WITH THIS NODE — a READ, and it writes nothing at
     // all. What happens to the node afterwards is whatever is typed next,
@@ -90,7 +97,24 @@ export const rowVerbs = (): ReadonlyArray<RowAction> => {
       setPanelOpen(true)
     },
   }]
-  const engines = state().roster
+  /**
+   * WHICH ENGINES THIS ROW MAY BE STARTED ON — three answers, and the third is
+   * the one a flat list of every engine gets wrong.
+   *
+   * A row ALREADY TALKING through a conversation is offered none: *one agent,
+   * one current session* is the whole rule, and the server refuses this gesture
+   * on such a node anyway — an entry whose only outcome is that refusal teaches
+   * nobody anything. A row that NAMES an engine and has no session yet is
+   * offered that engine and no other, because the choice was already made and
+   * re-asking it is a way to point a node at two. A BARE row is offered every
+   * engine this machine has, which is the ordinary case and the one that
+   * CREATES a node agent.
+   */
+  const engines = bound?.session != null
+    ? []
+    : bound?.engine != null
+    ? state().roster.filter((one) => one.id === bound.engine)
+    : state().roster
   for (const engine of engines) {
     verbs.push({
       id: `start-agent-${engine.id}`,
@@ -98,9 +122,10 @@ export const rowVerbs = (): ReadonlyArray<RowAction> => {
       // a property in the directory, so it sits below the rule with core's own
       // writes.
       writes: true,
-      // The label carries the agent's name only when there is a choice to make.
-      // Naming it on a machine with one agent would be answering a question
-      // nobody asked, in the one place a menu has no room for it.
+      // The label carries the agent's name only when there is a CHOICE to make.
+      // Naming it on a machine with one agent, or on a row whose engine is
+      // already decided, would be answering a question nobody was asked, in the
+      // one place a menu has no room for it.
       label: engines.length === 1
         ? "Start an agent session"
         : `Start an agent session — ${engine.name}`,

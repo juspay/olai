@@ -422,6 +422,17 @@ export interface SlotFaces {
  * machine with no agent installed offers no *start* row at all, and an entry
  * whose only outcome is "there is nothing to start" teaches nobody anything.
  *
+ * ## AND IT TAKES THE NODE, because the count depends on the row as well
+ *
+ * A node already talking through a conversation is offered no *start* at all,
+ * and one that names an engine is offered THAT engine rather than a choice —
+ * three different lists on three rows of one outline. The reading answered
+ * nothing for one revision and could not express any of it; what it costs to
+ * take the node is nothing, because the walk is per row already.
+ *
+ * THE NODE THE ROW SHOWS, which is the same id a press is handed and is core’s
+ * arithmetic over mirrors and folds, spent once before either call.
+ *
  * The plugin-facing subset of what `@olai/web`'s own catalog builds. There is no
  * `divider` and no `confirm`: a rule is core's statement about which half of its
  * own list a reader is in, and the question a verb asks before it runs is drawn
@@ -462,7 +473,7 @@ export interface SlotFaces {
  * plugin's verb needs to report a refusal in the menu, this is the line that
  * grows.
  */
-export type RowActions = () => ReadonlyArray<RowAction>
+export type RowActions = (node: string) => ReadonlyArray<RowAction>
 
 /** One of them. */
 export interface RowAction {

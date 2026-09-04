@@ -299,12 +299,15 @@ export const nodeMenuActions = (args: {
    * scenario naming a plugin's verb names whose it is.
    */
   for (const { plugin, face } of hung("outline.row.action")) {
-    // A READING, ASKED HERE. The face answers the verbs that plugin offers RIGHT
-    // NOW, which for the chat panel is one per installed engine plus the ask —
-    // a count that is not knowable when a plugin registers, because the roster
-    // that decides it arrives over a wire the tab dials afterwards. This walk is
-    // already inside a tracked read, so a list that moves moves the menu.
-    for (const verb of face()) {
+    // A READING, ASKED HERE, AND ASKED ABOUT THIS ROW. The face answers the
+    // verbs that plugin offers on this node right now — which for the chat panel
+    // is one *start* per installed engine on a bare row, one on a row that names
+    // an engine, and none at all on a row already talking through a conversation.
+    // None of that is knowable when a plugin registers: the roster arrives over a
+    // wire the tab dials afterwards, and the row is this walk's own. It is the
+    // NODE THE ROW SHOWS, the same id a press is handed, so core's arithmetic
+    // over mirrors and folds is spent once and no tenant can get it wrong.
+    for (const verb of face(foldIdOf(args.row))) {
       const entry = {
         id: `${plugin}:${verb.id}`,
         label: verb.label,
