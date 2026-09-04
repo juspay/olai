@@ -37,7 +37,7 @@ import {
   spacesConfigIn,
   type SpacesReading,
 } from "./config.ts"
-import { recordAll, snapshotsOf } from "./local.ts"
+import { openLocalState } from "./local.ts"
 import { laneOf, makeMirror, skipHeartbeat, unconfiguredBody, type Mirror } from "./mirror.ts"
 import {
   name,
@@ -141,7 +141,7 @@ export default definePlugin({
     const clock = yield* Clock
     const deliveries = yield* Deliveries
     const environment = yield* Env
-    const localState = yield* LocalState
+    const localState = yield* openLocalState(yield* LocalState)
     const surfaces = yield* Surfaces
     const vault = yield* Vault
     const watching = yield* Watching
@@ -227,7 +227,7 @@ export default definePlugin({
         const existing = mirrors.get(channel)
         if (existing !== undefined) return existing
         const client = makeClient(env.url, env.token, environment.dial as Dial | undefined)
-        const loaded = snapshotsOf(yield* localState.load).get(channel)
+        const loaded = localState.load(channel)
         const mirror = makeMirror({
           client,
           channel,
@@ -236,11 +236,7 @@ export default definePlugin({
           hold: {
             load: () => loaded,
             save: (snapshot) =>
-              run(Effect.gen(function*() {
-                const next = snapshotsOf(yield* localState.load)
-                next.set(snapshot.channel, snapshot)
-                yield* Effect.ignore(localState.save(recordAll(next)))
-              })),
+              run(Effect.ignore(localState.save(snapshot))),
           },
           deliverFault: (body, coalesce) => {
             if (coalesce === "fault") {

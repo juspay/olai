@@ -1,9 +1,12 @@
 import { expect, test } from "bun:test"
+import type { LocalState } from "@olai/plugin-api/services"
+import { Effect, Result } from "effect"
 
-import { recordAll, recordOf, snapshotOf, snapshotsOf } from "./local.ts"
+import { openLocalState, recordOf, snapshotOf, snapshotsOf } from "./local.ts"
 import { laneOf, type MirrorSnapshot } from "./mirror.ts"
 
 const LANE = laneOf("claude", "s-1")
+const run = <A, E>(effect: Effect.Effect<A, E>): Promise<A> => Effect.runPromise(effect)
 
 test("a missing record is a fresh map", () => {
   expect(snapshotOf(null)).toBeUndefined()
@@ -60,7 +63,7 @@ test("two channels survive as two snapshots, and the old one-channel shape is on
     droppedTotal: 0,
   }
   const b: MirrorSnapshot = { ...a, channel: "ch-b", threads: [] }
-  const all = snapshotsOf(recordAll(new Map([["ch-a", a], ["ch-b", b]])))
+  const all = snapshotsOf({ mirrors: [recordOf(a), recordOf(b)] })
   expect(all.get("ch-a")?.channel).toBe("ch-a")
   expect(all.get("ch-b")?.channel).toBe("ch-b")
   expect(snapshotsOf(recordOf(a)).get("ch-a")?.channel).toBe("ch-a")
@@ -81,4 +84,49 @@ test("recordOf is what snapshotOf reads back", () => {
     queue: [{ op: "post", lane: LANE, kind: "dispatched", text: "held" }],
     droppedTotal: 3,
   })
+})
+
+test("simultaneous channel writes share one lane", async () => {
+  let record: Record<string, unknown> = {}
+  const door: LocalState = {
+    load: Effect.succeed(null),
+    save: (next) => Effect.gen(function*() {
+      yield* Effect.yieldNow
+      record = next
+    }),
+  }
+  const local = await run(openLocalState(door))
+  const a: MirrorSnapshot = {
+    channel: "ch-a",
+    lastLane: LANE,
+    threads: [],
+    queue: [],
+    droppedTotal: 0,
+  }
+  const b: MirrorSnapshot = { ...a, channel: "ch-b" }
+
+  await Promise.all([run(local.save(a)), run(local.save(b))])
+
+  expect([...snapshotsOf(record).keys()].sort()).toEqual(["ch-a", "ch-b"])
+})
+
+test("a refused write leaves the last landed snapshot in memory", async () => {
+  const before: MirrorSnapshot = {
+    channel: "ch-team",
+    lastLane: LANE,
+    threads: [],
+    queue: [],
+    droppedTotal: 0,
+  }
+  const door: LocalState = {
+    load: Effect.succeed(recordOf(before)),
+    save: () => Effect.fail({ _tag: "StateFailure", reason: "the state home is read-only" }),
+  }
+  const local = await run(openLocalState(door))
+  const after = { ...before, droppedTotal: 1 }
+
+  const answer = await Effect.runPromise(Effect.result(local.save(after)))
+
+  expect(Result.isFailure(answer)).toBe(true)
+  expect(local.load("ch-team")).toEqual(before)
 })

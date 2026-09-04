@@ -6,6 +6,9 @@
  * skipped rather than the file.
  */
 
+import type { LocalState, Refusal } from "@olai/plugin-api/services"
+import { Effect, Semaphore } from "effect"
+
 import type { MirrorSnapshot, Outbound, Thread } from "./mirror.ts"
 
 const isThread = (value: unknown): value is Thread => {
@@ -87,6 +90,28 @@ export const snapshotsOf = (
   return map
 }
 
-export const recordAll = (snapshots: ReadonlyMap<string, MirrorSnapshot>): Record<string, unknown> => ({
+const recordAll = (snapshots: ReadonlyMap<string, MirrorSnapshot>): Record<string, unknown> => ({
   mirrors: [...snapshots.values()].map(recordOf),
 })
+
+export interface MirrorLocalState {
+  readonly load: (channel: string) => MirrorSnapshot | undefined
+  readonly save: (snapshot: MirrorSnapshot) => Effect.Effect<void, Refusal>
+}
+
+/** Open Xyne's document once and keep its channels behind one write permit. */
+export const openLocalState = (door: LocalState): Effect.Effect<MirrorLocalState> =>
+  Effect.gen(function*() {
+    let snapshots = snapshotsOf(yield* door.load)
+    const writing = yield* Semaphore.make(1)
+    return {
+      load: (channel) => snapshots.get(channel),
+      save: (snapshot) =>
+        writing.withPermit(Effect.gen(function*() {
+          const next = new Map(snapshots)
+          next.set(snapshot.channel, snapshot)
+          yield* door.save(recordAll(next))
+          snapshots = next
+        })),
+    }
+  })
