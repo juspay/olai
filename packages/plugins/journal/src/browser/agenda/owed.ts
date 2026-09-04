@@ -46,9 +46,9 @@
  * click away, on the page that is the answer.
  */
 
-import type { Owed } from "@olai/surface"
+import type { Owed } from "@olai/format"
 
-import { CHIP_ALARM, CHIP_QUIET } from "../layout/chip.ts"
+import { CHIP_ALARM, CHIP_QUIET } from "@olai/web/client/layout/chip.ts"
 
 /** Which of the three the entry is wearing. `quiet` is today's entry, unchanged
  *  — an agenda with nothing late and nothing on today is a door, not news. */

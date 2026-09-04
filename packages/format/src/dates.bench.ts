@@ -42,7 +42,7 @@
  * `owedOf` over the agenda arm above them, and reading them off the index the
  * patcher keeps is the whole of what the node asked for. Two spellings of one
  * number, so what holds them together is a differential rather than a shape
- * (`./occasion.test.ts`, `@olai/ops`' `owed.index.test.ts`) — and the guard
+ * (`./occasion.test.ts`, `olai-plugin-journal`'s `owed.index.test.ts`) — and the guard
  * below, which checks all three arms of every reading answer the same value.
  *
  * The walk arms are the code that stood before the index, kept once in

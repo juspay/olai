@@ -35,7 +35,7 @@
 import type { Meaning } from "@olai/format"
 
 import type { Names } from "../names.ts"
-import { atFile, atNode, type Route } from "../routes.ts"
+import { atFile, atNode, type Route, routeIn } from "../routes.ts"
 
 /**
  * WHAT A CHIP DRAWS FOR A VALUE THAT NAMES SOMETHING — where the click goes,
@@ -93,17 +93,29 @@ interface Drawn {
  * rather than a sentence about GitHub, which is the same rule applied to the
  * one door whose value and destination are spelled differently.
  */
-export const doorFor = (opens: Meaning, value: string, names: Names): Door => {
+export function doorFor(
+  opens: Extract<Meaning, { readonly kind: "day" }>,
+  value: string,
+  names: Names,
+): Door | null
+export function doorFor(
+  opens: Exclude<Meaning, { readonly kind: "day" }>,
+  value: string,
+  names: Names,
+): Door
+export function doorFor(opens: Meaning, value: string, names: Names): Door | null
+export function doorFor(opens: Meaning, value: string, names: Names): Door | null {
   switch (opens.kind) {
     case "away":
       return { kind: "away", href: opens.href, says: opens.href, face: value }
     case "day":
-      return {
+      const route = routeIn(`/d/${encodeURIComponent(opens.date)}`)
+      return route === null ? null : {
         kind: "day",
         // The route is written out here as the two other links to a day write
         // it (`../calendar/Day.tsx`, `../agenda/Day.tsx`): `/d/<ISO>` has no
         // constructor because a day carries a value and the named pages do not.
-        route: { kind: "day", date: opens.date },
+        route,
         says: `what is on ${opens.date}`,
         face: value,
       }

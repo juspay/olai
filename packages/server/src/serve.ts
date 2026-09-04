@@ -24,7 +24,7 @@
  */
 
 import { surface } from "@olai/surface"
-import type { GitPin } from "@olai/format"
+import { type GitPin, type PageRequest } from "@olai/format"
 import type { IdentityConfig } from "@olai/identity"
 import { make as makeOps, NO_LEDGER, type Ledger as OpsLedger, type Ops, TOOLS } from "@olai/ops"
 import {
@@ -227,9 +227,9 @@ export const serve = (options: ServeOptions) =>
       // because the mint does not exist until the MCP face does — and the row
       // that seats sessions is mounted long before that.
       ticketFor: (seated, above) => mintTicket?.(seated, above) ?? null,
-      // THE WRITE GATE, as narrow as the two gestures that need it: the reading
-      // a message's armed ids are resolved against, and one property on one
-      // node. The ops layer is built a few statements down, so both are asked
+      // THE NARROW OPS DOOR: the reading a message's armed ids are resolved
+      // against, a page read through core's standing cache, one property on one
+      // node, and a document mint. The ops layer is built below, so all are asked
       // per call — the same shape the doorbell's door had before it became the
       // chat row's own.
       ops: {
@@ -242,6 +242,12 @@ export const serve = (options: ServeOptions) =>
             ? Effect.succeed(null)
             : Effect.catch(opsLayer.read, () => Effect.succeed(null))
         ),
+        page: (request: unknown) =>
+          Effect.suspend(() =>
+            opsLayer === null
+              ? Effect.fail(NOWHERE_TO_WRITE)
+              : opsLayer.page(request as PageRequest)
+          ),
         prop: (write: PropWrite) =>
           Effect.suspend(() =>
             opsLayer === null
@@ -254,6 +260,12 @@ export const serve = (options: ServeOptions) =>
                 { op: "prop", id: write.node, key: write.key, value: write.value },
                 "web",
               ))
+          ),
+        document: (file: string) =>
+          Effect.suspend(() =>
+            opsLayer === null
+              ? Effect.fail(NOWHERE_TO_WRITE)
+              : Effect.asVoid(opsLayer.run({ op: "create-doc", file }, "web"))
           ),
       },
       // WHERE EACH ROW SITS IN THIS BUILD'S OWN LIST, handed over as the function

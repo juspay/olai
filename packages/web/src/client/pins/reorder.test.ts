@@ -15,10 +15,10 @@ import { gapAt, placing } from "./reorder.ts"
 
 const pin = (id: string): Pin => ({
   id,
-  route: { kind: "agenda" },
-  name: "Agenda",
-  at: "/agenda",
-  bare: "Agenda",
+  route: { kind: "trash" },
+  name: "Trash",
+  at: "/trash",
+  bare: "Trash",
   written: false,
 })
 const SHELF = ["a", "b", "c", "d"].map(pin)

@@ -51,6 +51,7 @@
         "olai-plugin-claude": "workspace:*",
         "olai-plugin-codex": "workspace:*",
         "olai-plugin-git": "workspace:*",
+        "olai-plugin-journal": "workspace:*",
         "olai-plugin-kolu": "workspace:*",
         "olai-plugin-odu": "workspace:*",
         "olai-plugin-opencode": "workspace:*",
@@ -202,6 +203,25 @@
       "devDependencies": {
         "@effect/platform-node": "4.0.0-rc.112",
         "@olai/ops": "workspace:*",
+        "@olai/surface": "workspace:*",
+        "@types/node": "^22.0.0",
+      },
+    },
+    "packages/plugins/journal": {
+      "name": "olai-plugin-journal",
+      "version": "0.1.0",
+      "dependencies": {
+        "@olai/format": "workspace:*",
+        "@olai/plugin-api": "workspace:*",
+        "@olai/web": "workspace:*",
+        "@solid-primitives/keyed": "^1.5.3",
+        "effect": "4.0.0-rc.112",
+        "solid-js": "^1.9.0",
+      },
+      "devDependencies": {
+        "@effect/platform-node": "4.0.0-rc.112",
+        "@olai/ops": "workspace:*",
+        "@olai/store": "workspace:*",
         "@types/node": "^22.0.0",
       },
     },
@@ -290,6 +310,7 @@
       "devDependencies": {
         "@olai/child": "workspace:*",
         "@types/node": "^22.0.0",
+        "olai-plugin-git": "workspace:*",
       },
     },
     "packages/sigterm": {
@@ -1182,6 +1203,8 @@
     "olai-plugin-codex": ["olai-plugin-codex@workspace:packages/plugins/codex"],
 
     "olai-plugin-git": ["olai-plugin-git@workspace:packages/plugins/git"],
+
+    "olai-plugin-journal": ["olai-plugin-journal@workspace:packages/plugins/journal"],
 
     "olai-plugin-kolu": ["olai-plugin-kolu@workspace:packages/plugins/kolu"],
 

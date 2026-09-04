@@ -6,14 +6,13 @@
  * directory situated, and the answer counted and thrown away — and it is
  * `owedNow` over an index the patcher keeps now (`@olai/format`'s
  * `Derived.owedByDay`). Two spellings of one number where there was one, and
- * this door is where the second is read (`./query.ts`'s `owed`, per subscriber
- * per published revision).
+ * this door is where the journal reads the second (`./readings.ts`'s `owed`).
  *
  * `@olai/format`'s `./occasion.test.ts` holds them to each other over GENERATED
  * corpora, which proves the fold. This file makes the same claim where the
  * writes are REAL — a temp directory, a store watching it, ops planning and
  * committing into it — and after every op it asks the question twice: once
- * through {@link Query.owed}, which is the index, and once through the corpus
+ * through {@link owed}, which is the index, and once through the corpus
  * walk that reading replaced (`@olai/format/testlib`'s `walkedAgenda`, kept
  * because the benchmark divides by it too).
  *
@@ -44,15 +43,13 @@ import * as path from "node:path"
 import { NodeServices } from "@effect/platform-node"
 import { NO_KINDS, type Owed, owedOf, type WriteRequest } from "@olai/format"
 import { walkedAgenda, walkedDays } from "@olai/format/testlib"
+import { codecFor, make, type Store } from "@olai/ops"
+import { steady } from "@olai/ops/testlib"
 import * as StoreModule from "@olai/store"
 import { expect, test } from "bun:test"
 import { Effect, SubscriptionRef } from "effect"
 
-import { codecFor } from "./codec.ts"
-import type { Store } from "./deps.ts"
-import { steady } from "./fixtures.testlib.ts"
-import * as Ops from "./ops.ts"
-import * as Query from "./query.ts"
+import { dated, owed } from "./readings.ts"
 
 /** The codec this suite validates through — the vocabulary of a build that
  *  composed no plugin, which is what every test in this package runs under
@@ -131,7 +128,7 @@ const same = (store: Store): Effect.Effect<number> =>
     const derived = snapshot.value.derived
     let counted = 0
     for (const today of TODAYS) {
-      const indexed: Owed = Query.owed(derived, { today })
+      const indexed: Owed = owed(derived, { today })
       const walked = owedOf(walkedAgenda(derived, today))
       // The day rides the comparison, so a failure names the boundary it
       // happened at rather than only the two numbers.
@@ -139,7 +136,7 @@ const same = (store: Store): Effect.Effect<number> =>
       counted += indexed.overdue + indexed.today
     }
     for (const month of MONTHS) {
-      expect([month, Query.dated(derived, { month }).days])
+      expect([month, dated(derived, { month }).days])
         .toEqual([month, walkedDays(derived, month)])
     }
     return counted
@@ -223,7 +220,7 @@ test("every write leaves the counted door answering what the corpus walk does", 
 
   return Effect.gen(function*() {
     const store = yield* StoreModule.make({ root, codec, watch: false, settle: "10 millis" })
-    const ops = Ops.make({
+    const ops = make({
       store,
       root,
       context: steady(),

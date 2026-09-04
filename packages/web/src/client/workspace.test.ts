@@ -28,8 +28,7 @@ import {
 const house: Route = atFile("house.olai")
 const kitchen: Route = atNode("kitchen")
 const garden: Route = atFile("garden.olai")
-const agenda: Route = { kind: "agenda" }
-const today: Route = { kind: "today" }
+const trash: Route = { kind: "trash" }
 const doc: Route = atElement("notes/finishes.md", "beds")
 const filtered: Route = { ...atFile("house.olai"), filter: "is:done" }
 
@@ -37,7 +36,7 @@ test("a lone page is exactly the address it always was", () => {
   expect(hrefOfWorkspace(lone(house))).toBe("/house.olai")
   expect(hrefOfWorkspace(lone(filtered))).toBe("/house.olai?q=is%3Adone")
   expect(hrefOfWorkspace(lone(doc))).toBe("/notes/finishes.md#beds")
-  expect(hrefOfWorkspace(lone(agenda))).toBe("/agenda")
+  expect(hrefOfWorkspace(lone(trash))).toBe("/trash")
   expect(workspaceOf("/house.olai")).toEqual(lone(house))
   expect(workspaceOf("/house.olai?q=is%3Adone")).toEqual(lone(filtered))
   expect(workspaceOf("/notes/finishes.md#beds")).toEqual(lone(doc))
@@ -49,9 +48,6 @@ test("every existing page address is a workspace of one", () => {
     "/house.olai",
     "/#kitchen",
     "/finishes.md",
-    "/d/2026-08-10",
-    "/today",
-    "/agenda",
     "/trash",
     "/house.olai?q=%23home",
     "/?q=is:done#kitchen",
@@ -87,12 +83,12 @@ test("a pane's own filter and a document fragment survive the split", () => {
 
 test("three panes, a width split and a collapsed rail round-trip", () => {
   let ws = openRight(lone(house), 0, kitchen)
-  ws = openRight(ws, 1, agenda, true)
+  ws = openRight(ws, 1, trash, true)
   ws = resizeTo(ws, [0.5, 0.5, 0])
   ws = focusAt(ws, 2)
   const href = hrefOfWorkspace(ws)
   const back = workspaceOf(href)
-  expect(panesOf(back).map((pane) => pane.route)).toEqual([house, kitchen, agenda])
+  expect(panesOf(back).map((pane) => pane.route)).toEqual([house, kitchen, trash])
   expect(back.focus).toBe(2)
   expect(isCollapsed(panesOf(back)[2]!)).toBe(true)
   expect(panesOf(back)[0]!.width).toBeCloseTo(0.5, 5)
@@ -151,8 +147,8 @@ test("closing the last remaining pane is a no-op", () => {
 
 test("navigateIn writes the pane you named, and focuses it", () => {
   const two = openRight(lone(house), 0, kitchen)
-  const next = navigateIn(two, 0, today)
-  expect(panesOf(next)[0]!.route).toEqual(today)
+  const next = navigateIn(two, 0, garden)
+  expect(panesOf(next)[0]!.route).toEqual(garden)
   expect(panesOf(next)[1]!.route).toEqual(kitchen)
   expect(next.focus).toBe(0)
 })

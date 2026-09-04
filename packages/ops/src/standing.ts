@@ -2,15 +2,14 @@
  * THE STANDING VIEWS — one answer per revision per QUESTION, however many tabs
  * are watching it.
  *
- * Five of this layer's readings are not asked once and answered: they are held
- * open. A page, the filter over it, the calendar's dots, what is owed and the
- * move picker's preview are each a poll-shape stream (`@olai/server`'s
+ * Three of this layer's readings are not asked once and answered: they are held
+ * open. A page, the filter over it, and the move picker's preview are each a poll-shape stream (`@olai/server`'s
  * `runtime.ts`), re-read on every published revision and sent on when they
  * moved by value. The framework gives every SUBSCRIBER its own poll loop, which
  * is the right shape for it and the wrong cost for this: three tabs on one page
  * were three identical rebuilds of that page per keystroke, and every tab in
- * the directory rebuilt what is owed — the most expensive of the five — on
- * every write anybody made (roadmap `perf-streams-per-tab`).
+ * the directory rebuilt the same shared pages on every write anybody made
+ * (roadmap `perf-streams-per-tab`).
  *
  * Two things happen here and they are separate claims:
  *
@@ -88,7 +87,7 @@
  *
  * ## What it rests on
  *
- * That each of the five is a pure function of the reading, the request and the
+ * That each of the three is a pure function of the reading, the request and the
  * clock — which is what {@link ./query.ts} is, and what the layer below it is
  * built to be (`@olai/format` derives, and nothing under `Reading` is written
  * to). The reuse is held to that by a differential: `./standing.testlib.ts`
@@ -98,22 +97,16 @@
  */
 
 import {
-  type DatedAnswer,
-  type DatedRequest,
   type KindVocabulary,
   type MovingAnswer,
   type MovingRequest,
   type NarrowingAnswer,
   type NarrowingRequest,
-  type Owed,
-  type OwedRequest,
   type PageReading,
   type PageRequest,
   type Reading,
-  sameDated,
   sameMoving,
   sameNarrowing,
-  sameOwed,
   samePageReading,
   stillHolds,
   type Tape,
@@ -147,16 +140,6 @@ interface Question<I, A> {
   readonly same: (a: A, b: A) => boolean
 }
 
-const DATED: Question<DatedRequest, DatedAnswer> = {
-  answer: (at, request) => Query.dated(at.derived, request),
-  same: sameDated,
-}
-
-const OWED: Question<OwedRequest, Owed> = {
-  answer: (at, request) => Query.owed(at.derived, request),
-  same: sameOwed,
-}
-
 const PAGE: Question<PageRequest, PageReading> = {
   answer: (at, request, _now, kinds) => Query.page(at, request, kinds),
   same: samePageReading,
@@ -180,26 +163,22 @@ const MOVING: Question<MovingRequest, MovingAnswer> = {
   same: sameMoving,
 }
 
-/** The five, by the name the wire calls each of them — which is also what
+/** The three, by the name the wire calls each of them — which is also what
  *  keeps two members' questions from colliding in one map. */
 const ASKED = {
-  dated: DATED,
-  owed: OWED,
   page: PAGE,
   narrowing: NARROWING,
   moving: MOVING,
 } as const
 
-/** Which of the five, by name. Exported for the harness and the bench, which
+/** Which of the three, by name. Exported for the harness and the bench, which
  *  drive every one of them rather than picking a favourite. */
 export type Asked = keyof typeof ASKED
 
-/** What this layer answers, and it is the same five signatures {@link Ops}
+/** What this layer answers, and it is the same three signatures {@link Ops}
  *  declares with the reading passed in rather than read: the gate above stays
  *  where it is, and nothing here reaches for a store. */
 export interface Standing {
-  readonly dated: (at: Reading, request: DatedRequest) => DatedAnswer
-  readonly owed: (at: Reading, request: OwedRequest) => Owed
   readonly page: (at: Reading, request: PageRequest) => PageReading
   readonly narrowing: (at: Reading, request: NarrowingRequest) => NarrowingAnswer
   readonly moving: (at: Reading, request: MovingRequest) => MovingAnswer
@@ -218,7 +197,7 @@ interface Held {
 }
 
 /**
- * The five, sharing per revision — one of these per served directory, built
+ * The three, sharing per revision — one of these per served directory, built
  * where the ops layer is ({@link ./ops.ts}).
  *
  * It takes the CLOCK rather than reading one, for the reason every other
@@ -286,8 +265,6 @@ export const standing = (now: () => string, kinds: KindVocabulary): Standing => 
   }
 
   return {
-    dated: (reading, request) => ask("dated", DATED, reading, request),
-    owed: (reading, request) => ask("owed", OWED, reading, request),
     page: (reading, request) => ask("page", PAGE, reading, request),
     narrowing: (reading, request) => ask("narrowing", NARROWING, reading, request),
     moving: (reading, request) => ask("moving", MOVING, reading, request),
@@ -300,15 +277,13 @@ export const standing = (now: () => string, kinds: KindVocabulary): Standing => 
  *
  * It is the differential's reference arm and it lives HERE rather than in the
  * harness beside it, for the reason `@olai/format`'s `scope.testlib.ts` keeps
- * the walk it replaced: the reference has to be the same five answers reached
+ * the walk it replaced: the reference has to be the same three answers reached
  * the same way, and a copy written out over there would be a second opinion
  * about the thing under test. It is what the bench times its "before" arm with
  * too, so the figure a reader re-runs is a pair rather than one laptop's
  * milliseconds.
  */
 export const rebuilding = (now: () => string, kinds: KindVocabulary): Standing => ({
-  dated: (at, request) => DATED.answer(at, request, now, kinds),
-  owed: (at, request) => OWED.answer(at, request, now, kinds),
   page: (at, request) => PAGE.answer(at, request, now, kinds),
   narrowing: (at, request) => NARROWING.answer(at, request, now, kinds),
   moving: (at, request) => MOVING.answer(at, request, now, kinds),

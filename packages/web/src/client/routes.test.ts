@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { atElement, atFile, atNode, filterOf, HOME_ROUTE, hrefOf, narrowedTo, type Route, routeIn, routeOf, samePage } from "./routes.ts"
+import { atElement, atFile, atNode, defineAppPage, defineAppRoute, filterOf, HOME_ROUTE, hrefOf, narrowedTo, type Route, routeIn, routeOf, samePage, settleRoutePages } from "./routes.ts"
 import { ROUTES } from "./routes.testlib.ts"
 
 test("every route survives being written to a URL and read back", () => {
@@ -22,9 +22,6 @@ test("the addresses are the documented ones", () => {
   expect(hrefOf(atElement("garden.md", "beds"))).toBe(
     "/garden.md#beds",
   )
-  expect(hrefOf({ kind: "day", date: "2026-08-10" })).toBe("/d/2026-08-10")
-  expect(hrefOf({ kind: "today" })).toBe("/today")
-  expect(hrefOf({ kind: "agenda" })).toBe("/agenda")
   expect(hrefOf({ kind: "trash" })).toBe("/trash")
 })
 
@@ -100,13 +97,8 @@ test("a filtered page spells it in the query, in front of any fragment", () => {
 // Narrowing is asked of the module that knows which routes may carry one: a
 // filter typed on a document page has nowhere to go, and spreading it on anyway
 // would mint an address `hrefOf` drops and `routeOf` never returns.
-test("every route but a document's takes a filter, and a blank one takes it off", () => {
+test("every narrowable core route takes a filter, and a blank one takes it off", () => {
   expect(narrowedTo(atNode("kitchen"), "#home")).toEqual({ ...atNode("kitchen"), filter: "#home" })
-  expect(narrowedTo({ kind: "day", date: "2026-08-10" }, "#home")).toEqual({
-    kind: "day",
-    date: "2026-08-10",
-    filter: "#home",
-  })
   expect(narrowedTo({ kind: "trash" }, "hinges")).toEqual({
     kind: "trash",
     filter: "hinges",
@@ -152,31 +144,42 @@ test("the trash is one address, and an archive's path is still an outline's", ()
   expect(routeOf("/_olai/Trash.olai")).toEqual(atFile("_olai/Trash.olai"))
 })
 
-// `/agenda` spells nothing at all — not a day, not a horizon. An address that
-// carried how far ahead it looked would be a link that meant something else
-// tomorrow, and the answer is derived from the clock either way.
-test("the agenda is one address, and it names no date", () => {
-  expect(routeOf("/agenda")).toEqual({ kind: "agenda" })
-  expect(routeOf("/agenda/2026-08-12")).toEqual(HOME_ROUTE)
-})
-
-// `/today` names no day: it names the day it IS, and which day that is takes a
-// clock. Reading the URL must not have one, or the same address would parse as
-// a different route tomorrow and the page it opened could never be cached,
-// linked or reasoned about here.
-test("`/today` parses as itself, not as a date", () => {
-  expect(routeOf("/today")).toEqual({ kind: "today" })
-  expect(routeOf("/today/")).toEqual(HOME_ROUTE)
-})
-
-// The computed pages are words this app claimed and are read FIRST; every
-// other path is asked of the address grammar. The two cannot collide, because
-// a served file carries a suffix the registry claims and a computed page
-// spells none — so a file that WOULD collide is one this app never serves.
-test("a computed page is not a document, and a document is not a day", () => {
+test("a core document is not a journal route", () => {
   expect(routeOf("/today.md")).toEqual(atFile("today.md"))
-  expect(routeOf("/d/2026-08-10")).toEqual({ kind: "day", date: "2026-08-10" })
   expect(routeOf("/agenda.olai")).toEqual(atFile("agenda.olai"))
+})
+
+test("journal addresses are absent when no journal route is registered", () => {
+  for (const address of ["/today", "/agenda", "/d/2026-08-10"]) {
+    expect(routeOf(address)).toEqual(HOME_ROUTE)
+    expect(routeIn(address)).toBeNull()
+  }
+})
+
+test("a colliding plugin route is dropped without taking the claim table down", () => {
+  const page = (claims: ReadonlyArray<{ readonly kind: "exact" | "prefix"; readonly path: `/${string}` }>) => {
+    const route = defineAppRoute({
+      claims,
+      parse: () => "page",
+      href: () => "/page" as const,
+      breadcrumb: () => "page",
+      narrowable: false,
+      request: () => ({ kind: "trash" } as const),
+      stream: { use: () => () => undefined },
+    })
+    return defineAppPage(route, () => null)
+  }
+  const logged: Array<string> = []
+  const settled = settleRoutePages([
+    { plugin: "first", face: page([{ kind: "exact", path: "/today" }]) },
+    { plugin: "second", face: page([{ kind: "prefix", path: "/tod" }]) },
+    { plugin: "third", face: page([{ kind: "exact", path: "/agenda" }]) },
+  ], (message) => logged.push(message))
+
+  expect(settled.map((one) => one.plugin)).toEqual(["first", "third"])
+  expect(logged).toEqual([
+    "app route prefix /tod from second overlaps first's exact /today; keeping first and dropping second",
+  ])
 })
 
 // A directory separator stays a separator, so the URL bar shows the path a
@@ -204,13 +207,10 @@ test("an unrecognised path is the default outline", () => {
 // the same test a title that NAMES a place is read by.
 test("a link on the page is a route when it names a page of this app", () => {
   expect(routeIn("/notes/plan.md")).toEqual(atFile("notes/plan.md"))
-  // Every kind of page, because a pin may be written as a link and pressing one
-  // opens the address (human, 2026-08-19).
+  // Every core kind of page, because a pin may be written as a link and
+  // pressing one opens the address (human, 2026-08-19).
   expect(routeIn("/#herbs")).toEqual(atNode("herbs"))
   expect(routeIn("/house.olai")).toEqual(atFile("house.olai"))
-  expect(routeIn("/d/2026-08-10")).toEqual({ kind: "day", date: "2026-08-10" })
-  expect(routeIn("/agenda?q=is%3Atodo")).toEqual({ kind: "agenda", filter: "is:todo" })
-  expect(routeIn("/today")).toEqual({ kind: "today" })
   for (
     const href of [
       "https://example.com",

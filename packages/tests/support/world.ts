@@ -288,7 +288,7 @@ export const SIDEBAR_EXPAND = selector(TESTID.sidebarExpand);
 export const SIDEBAR_RAIL = selector(TESTID.sidebarRail);
 /** The rail's way to the agenda — the collapsed column's face of the entry,
  *  carrying the same `data-owed` as a dot. */
-export const RAIL_AGENDA = selector(TESTID.railAgenda);
+export const RAIL_AGENDA = selector(PLUGIN_TESTID.railAgenda);
 /** The rail's two ways INTO the directory — the collapsed column's outlines
  *  and documents buttons, which draw the tree's own glyphs. */
 export const RAIL_OUTLINES = selector(TESTID.railOutlines);
@@ -694,34 +694,34 @@ export const CRUMB = selector(TESTID.crumb);
 /** The month in the sidebar, and one day of it. A day says what it is in
  *  `data-` facts — `data-dated`, `data-today`, `data-open` — never in the
  *  colour it is painted. */
-export const CALENDAR = selector(TESTID.calendar);
-export const CALENDAR_DAY = selector(TESTID.calendarDay);
-export const CALENDAR_PREV = selector(TESTID.calendarPrev);
-export const CALENDAR_NEXT = selector(TESTID.calendarNext);
+export const CALENDAR = selector(PLUGIN_TESTID.calendar);
+export const CALENDAR_DAY = selector(PLUGIN_TESTID.calendarDay);
+export const CALENDAR_PREV = selector(PLUGIN_TESTID.calendarPrev);
+export const CALENDAR_NEXT = selector(PLUGIN_TESTID.calendarNext);
 /** One day, as a page: `/d/<date>` and `/today`. */
-export const DAY_PAGE = selector(TESTID.dayPage);
+export const DAY_PAGE = selector(PLUGIN_TESTID.dayPage);
 /** The day page's + day note — shown on any day without a note. */
-export const DAY_MINT = selector(TESTID.dayMint);
+export const DAY_MINT = selector(PLUGIN_TESTID.dayMint);
 /** Why minting one did not happen, beside the button. */
-export const DAY_MINT_SAID = selector(TESTID.dayMintSaid);
-export const DAY_GROUP = selector(TESTID.dayGroup);
-export const DAY_EMPTY = selector(TESTID.dayEmpty);
+export const DAY_MINT_SAID = selector(PLUGIN_TESTID.dayMintSaid);
+export const DAY_GROUP = selector(PLUGIN_TESTID.dayGroup);
+export const DAY_EMPTY = selector(PLUGIN_TESTID.dayEmpty);
 /** The agenda: the same dates read forward. `data-date` is the day it was
  *  answered for, which `/agenda` does not spell. */
-export const AGENDA_PAGE = selector(TESTID.agendaPage);
+export const AGENDA_PAGE = selector(PLUGIN_TESTID.agendaPage);
 /** THE LINE, drawn exactly when something is owed — so its absence is a claim
  *  the page makes and not a layout accident. */
-export const AGENDA_SPINE = selector(TESTID.agendaSpine);
+export const AGENDA_SPINE = selector(PLUGIN_TESTID.agendaSpine);
 /** One day ON that line. `data-date` is which day, `data-when` is which side of
  *  now it sits on, and its heading is the link to that day's own page. */
-export const AGENDA_DAY = selector(TESTID.agendaDay);
+export const AGENDA_DAY = selector(PLUGIN_TESTID.agendaDay);
 /** A silence worth naming beside the line; `data-days` is how long the wait
  *  was. Absent wherever a gap is too short to be worth a word. */
-export const AGENDA_QUIET = selector(TESTID.agendaQuiet);
+export const AGENDA_QUIET = selector(PLUGIN_TESTID.agendaQuiet);
 /** Said in place of the line when nothing is due. */
-export const AGENDA_EMPTY = selector(TESTID.agendaEmpty);
+export const AGENDA_EMPTY = selector(PLUGIN_TESTID.agendaEmpty);
 /** The way to it from the directory column, above the month. */
-export const AGENDA_LINK = selector(TESTID.agendaLink);
+export const AGENDA_LINK = selector(PLUGIN_TESTID.agendaLink);
 /** The padi chrome readout — desktop, between connection and the Commit pill. */
 export const PADI_PILL = selector(PLUGIN_TESTID.padi);
 /** The spaces chrome readout — desktop, beside padi, same cluster. */
@@ -734,10 +734,10 @@ export const PADI_FEED_WRENCH = selector(PLUGIN_TESTID.padiFeedWrench);
 /** What that entry REPORTS, wrapped round the link: `data-owed` is the face it
  *  wears (`overdue` / `today` / `quiet`) and `data-overdue` / `data-today` are
  *  the two counts, whichever of them is on screen. */
-export const AGENDA_OWED = selector(TESTID.agendaOwed);
+export const AGENDA_OWED = selector(PLUGIN_TESTID.agendaOwed);
 /** The number on it. Absent when nothing is owed — a quiet entry wears no chip
  *  rather than a zero. */
-export const AGENDA_COUNT = selector(TESTID.agendaCount);
+export const AGENDA_COUNT = selector(PLUGIN_TESTID.agendaCount);
 /** The trash: the one `_olai/Trash.olai` the directory holds, read-only, one verb. */
 export const TRASH_PAGE = selector(TESTID.trashPage);
 /** One row of it — a trashed node; `data-node-id` is which. */
@@ -779,9 +779,9 @@ export const INBOX_HELD = selector(TESTID.inboxHeld);
 export const INBOX_COUNT = selector(TESTID.inboxCount);
 /** THE day's note, above those groups: a document named for the date itself.
  *  `data-file` is which. */
-export const DAY_NOTE = selector(TESTID.dayNote);
+export const DAY_NOTE = selector(PLUGIN_TESTID.dayNote);
 /** Its heading — the way from the day to the document's own page. */
-export const DAY_NOTE_LINK = selector(TESTID.dayNoteLink);
+export const DAY_NOTE_LINK = selector(PLUGIN_TESTID.dayNoteLink);
 /** Shown when the address names no file the directory holds. The sidebar stays.
  *  Distinct from {@link NOT_FOUND}, which is a `/#id` that names no node. */
 export const NOTHING = selector(TESTID.nothing);

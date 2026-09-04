@@ -52,23 +52,24 @@
 import { type DayEntry, isOverdue } from "@olai/format"
 import { Show } from "solid-js"
 
-import { Aside } from "../Aside.tsx"
-import { blockedIds, WAITING_DIM } from "../blocked.ts"
-import { Breadcrumbs } from "../Breadcrumbs.tsx"
-import { useNarrowed } from "../filter/narrowed.tsx"
-import { behindTheMark, lighting, matchedAttr } from "../filter/why.ts"
-import { Glyph } from "../Glyph.tsx"
-import { hotOf } from "../hot.ts"
-import { NoteMark } from "../note/Mark.tsx"
-import { createNoteExpand } from "../note/expand.ts"
-import { NodeBody } from "../NodeBody.tsx"
-import { NodeLine } from "../NodeLine.tsx"
-import { hasBody } from "../body.ts"
-import { density, showsPreview, startsOpen } from "../settings/density.ts"
-import { TESTID } from "../testids.ts"
-import { useToday } from "../today.tsx"
-import { TookChip } from "../live/duration/index.ts"
-import { GUTTER_GAP, PAST_BULLET } from "../touch.ts"
+import { Aside } from "@olai/web/client/Aside.tsx"
+import { blockedIds, WAITING_DIM } from "@olai/web/client/blocked.ts"
+import { Breadcrumbs } from "@olai/web/client/Breadcrumbs.tsx"
+import { useNarrowed } from "@olai/web/client/filter/narrowed.tsx"
+import { behindTheMark, lighting, matchedAttr } from "@olai/web/client/filter/why.ts"
+import { Glyph } from "@olai/web/client/Glyph.tsx"
+import { hotOf } from "@olai/web/client/hot.ts"
+import { NoteMark } from "@olai/web/client/note/Mark.tsx"
+import { createNoteExpand } from "@olai/web/client/note/expand.ts"
+import { NodeBody } from "@olai/web/client/NodeBody.tsx"
+import { NodeLine } from "@olai/web/client/NodeLine.tsx"
+import { hasBody } from "@olai/web/client/body.ts"
+import { density, showsPreview, startsOpen } from "@olai/web/client/settings/density.ts"
+import { TESTID } from "../../testids.ts"
+import { TESTID as WEB_TESTID } from "@olai/web/client/testids.ts"
+import { useToday } from "@olai/web/client/today.tsx"
+import { TookChip } from "@olai/web/client/live/duration/index.ts"
+import { GUTTER_GAP, PAST_BULLET } from "@olai/web/client/touch.ts"
 
 export function DayNode(props: {
   readonly dated: DayEntry
@@ -97,7 +98,7 @@ export function DayNode(props: {
   return (
     <li
       class="mb-3"
-      data-testid={TESTID.node}
+      data-testid={WEB_TESTID.node}
       data-node-id={node().id}
       data-status={props.dated.status}
       data-file={props.dated.shows.file}
@@ -116,7 +117,7 @@ export function DayNode(props: {
 
       <div
         class={`flex items-baseline ${GUTTER_GAP} ${WAITING_DIM(props.dated.blocked)}`}
-        data-testid={TESTID.nodeGutter}
+          data-testid={WEB_TESTID.nodeGutter}
       >
         <Glyph
           id={node().id}

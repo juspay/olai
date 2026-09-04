@@ -40,7 +40,7 @@ import {
   type Tone,
 } from "@olai/format"
 
-import { tokenValue } from "../theme/css.ts"
+import { tokenValue } from "@olai/web/client/theme/css.ts"
 
 /** How much room the line takes before the FIRST day of the page — the stretch
  *  it fades in over, so the page does not open on a line that starts mid-air. */

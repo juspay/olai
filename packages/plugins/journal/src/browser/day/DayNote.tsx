@@ -32,12 +32,13 @@
 import { proseIn } from "@olai/format"
 import { createMemo, Show } from "solid-js"
 
-import { BodyRefused } from "../document/BodyRefused.tsx"
-import { isServed, useDocument } from "../document/documents.tsx"
-import { Markdown } from "../markdown/Markdown.tsx"
-import { Link } from "../router.tsx"
-import { TESTID } from "../testids.ts"
-import { atFile } from "../routes.ts"
+import { BodyRefused } from "@olai/web/client/document/BodyRefused.tsx"
+import { isServed, useDocument } from "@olai/web/client/document/documents.tsx"
+import { Markdown } from "@olai/web/client/markdown/Markdown.tsx"
+import { Link } from "@olai/web/client/router.tsx"
+import { TESTID } from "../../testids.ts"
+import { TESTID as WEB_TESTID } from "@olai/web/client/testids.ts"
+import { atFile } from "@olai/web/client/routes.ts"
 
 export function DayNote(props: { readonly file: string }) {
   // The body is asked for by the page SHOWING it, exactly as a `doc` reference
@@ -73,7 +74,7 @@ export function DayNote(props: { readonly file: string }) {
             source={proseIn(served().text)}
             from={props.file}
             class="olai-md-compact"
-            testid={TESTID.documentBody}
+            testid={WEB_TESTID.documentBody}
           />
         )}
       </Show>

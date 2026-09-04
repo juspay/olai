@@ -142,23 +142,6 @@ test("the inbox count cell is the browser's alone", () => {
   expect(resolved().resources.map((r) => r.key)).not.toContain("inbox")
 })
 
-test("the two date streams are the browser's alone", () => {
-  // Not a restatement of the exactness test above — same shape as the `heads`
-  // fence beside it, and the same job: exposing one later trips a failure that
-  // explains itself. A month of dots and two integers about the READER's own
-  // today are questions only something with a screen asks; an agent asking what
-  // is late asks `search_nodes` with a date clause and is answered with the
-  // nodes. They also take an input, and the `surface://` resource vocabulary
-  // has nowhere to put one.
-  expect(BROWSER["dated"]).toBe("resource")
-  expect(BROWSER["owed"]).toBe("resource")
-  expect(Object.keys(MCP)).not.toContain("dated")
-  expect(Object.keys(MCP)).not.toContain("owed")
-  const keys = resolved().resources.map((r) => r.key)
-  expect(keys).not.toContain("dated")
-  expect(keys).not.toContain("owed")
-})
-
 test("the page and moving streams are the browser's alone", () => {
   // The same fence one more time, and the sharpest instance of it: what `page`
   // answers is a SCREEN — rows carrying the fold keys of the places they are

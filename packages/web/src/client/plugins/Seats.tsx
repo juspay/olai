@@ -79,6 +79,33 @@ export function PluginSections() {
   )
 }
 
+/** Plugin-owned directory doors, in the shell's two ruled placements. */
+export function PluginEntries(props: { readonly place: "top" | "bottom" }) {
+  const entries = createMemo(() =>
+    hung("sidebar.entry").filter((one) => one.face.place === props.place)
+  )
+  return (
+    <For each={entries()}>
+      {(one) => <div data-plugin={one.plugin}>{one.face.body()}</div>}
+    </For>
+  )
+}
+
+/** The collapsed drawing that travels with the same directory entry. */
+export function PluginRailEntries(props: { readonly place: "top" | "bottom" }) {
+  const entries = createMemo(() =>
+    hung("sidebar.entry").filter((one) => one.face.place === props.place)
+  )
+  return (
+    <For each={entries()}>
+      {(one) => {
+        const Rail = one.face.rail
+        return Rail === undefined ? null : <Rail />
+      }}
+    </For>
+  )
+}
+
 /**
  * THE DOORS UNDER A ROW'S PROPERTY RUN — every registered one, drawn for every
  * row, each answering for the node it is handed.

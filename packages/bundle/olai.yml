@@ -60,6 +60,11 @@
 # the tenants).
 - id: git
   name: olai-plugin-git/server
+# THE JOURNAL — the date-shaped reading of the vault. Its server half owns the
+# four live readings and daily-note mint; its browser half owns the three URLs,
+# agenda entry, calendar section and palette navigation.
+- id: journal
+  name: olai-plugin-journal/server
 # THE ENGINES, FIRST AND IN THE ORDER THE PICKER DRAWS THEM.
 #
 # One row per ACP agent olai can seat, and ORDER IS LOAD-BEARING HERE in a way

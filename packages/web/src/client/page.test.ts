@@ -15,38 +15,38 @@ import type { Agenda, Row, Shown } from "@olai/format"
 import { expect, test } from "bun:test"
 
 import { drawnBy, fileOf, opensAt, requestFor } from "./page.ts"
-import { atElement, atFile, atNode, HOME_ROUTE } from "./routes.ts"
+import { atElement, atFile, atNode, defineAppRoute, HOME_ROUTE } from "./routes.ts"
 
 const TODAY = "2026-08-10"
 
 // ── what the server is asked ───────────────────────────────────────────
 
 test("an address goes over as the address the parser read", () => {
-  expect(requestFor(atFile("house.olai"), TODAY))
+  expect(requestFor(atFile("house.olai")))
     .toEqual({ kind: "at", address: addressOf("house.olai", null) })
-  expect(requestFor(HOME_ROUTE, TODAY)).toEqual({ kind: "at", address: null })
+  expect(requestFor(HOME_ROUTE)).toEqual({ kind: "at", address: null })
 })
 
-// `/today` names no date, and the clock that says which day it is belongs to
-// the reader — so the two routes reach the server as ONE question.
-test("`/today` is the day it is, and `/d/<date>` is the same question", () => {
-  expect(requestFor({ kind: "today" }, TODAY))
-    .toEqual(requestFor({ kind: "day", date: TODAY }, TODAY))
-})
-
-// The agenda counts against the reader's own today, for `OwedRequest`'s reason:
-// what is late is late where the person is standing.
-test("the agenda carries the day it is counted against", () => {
-  expect(requestFor({ kind: "agenda" }, TODAY)).toEqual({ kind: "agenda", today: TODAY })
+test("a plugin route whose tenant vanished is not core's front page", () => {
+  const plugin = defineAppRoute({
+    claims: [{ kind: "exact", path: "/plugin" }],
+    parse: () => "plugin",
+    href: () => "/plugin" as const,
+    breadcrumb: () => "plugin",
+    narrowable: false,
+    request: () => ({ kind: "trash" } as const),
+    stream: { use: () => () => undefined },
+  })
+  expect(requestFor(plugin.to("plugin"))).toBeNull()
 })
 
 // A `?q=` is a second question with a door of its own (`filter/asking.ts`), so
 // it must not reach this one — a page reading that carried the query would be
 // the whole page re-asked on every keystroke.
 test("the narrowing is dropped: it is not part of which page this is", () => {
-  expect(requestFor({ ...atFile("house.olai"), filter: "is:todo" }, TODAY))
-    .toEqual(requestFor(atFile("house.olai"), TODAY))
-  expect(requestFor({ kind: "trash", filter: "is:todo" }, TODAY)).toEqual({ kind: "trash" })
+  expect(requestFor({ ...atFile("house.olai"), filter: "is:todo" }))
+    .toEqual(requestFor(atFile("house.olai")))
+  expect(requestFor({ kind: "trash", filter: "is:todo" })).toEqual({ kind: "trash" })
 })
 
 // The ROUTE keeps the row — `landingOf` answers from it — and the request
@@ -54,8 +54,8 @@ test("the narrowing is dropped: it is not part of which page this is", () => {
 // outline its file spelled. Sent whole, a link to a row would re-ask the page
 // for each row of it.
 test("a row is the outline it sits in: its element is a landing, not a page", () => {
-  expect(requestFor(atElement("house.olai", "install"), TODAY))
-    .toEqual(requestFor(atFile("house.olai"), TODAY))
+  expect(requestFor(atElement("house.olai", "install")))
+    .toEqual(requestFor(atFile("house.olai")))
 })
 
 // ── which sidebar entry lights up ──────────────────────────────────────

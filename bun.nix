@@ -1587,6 +1587,7 @@
   "olai-plugin-claude" = copyPathToStore ./packages/plugins/claude;
   "olai-plugin-codex" = copyPathToStore ./packages/plugins/codex;
   "olai-plugin-git" = copyPathToStore ./packages/plugins/git;
+  "olai-plugin-journal" = copyPathToStore ./packages/plugins/journal;
   "olai-plugin-kolu" = copyPathToStore ./packages/plugins/kolu;
   "olai-plugin-odu" = copyPathToStore ./packages/plugins/odu;
   "olai-plugin-opencode" = copyPathToStore ./packages/plugins/opencode;
