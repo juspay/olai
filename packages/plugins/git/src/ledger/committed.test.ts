@@ -13,7 +13,7 @@
  * the claim: a commit's copy of a file is a key, and a key does not change.
  */
 
-import type { Shown } from "@olai/git"
+import type { Shown } from "../git/git.ts"
 import { expect, test } from "bun:test"
 import { Effect } from "effect"
 

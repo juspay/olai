@@ -276,20 +276,20 @@ describe("the plugins this binary was built with", () => {
     }
   })
 
-  test("no plugin asks for the agent's face, and the denial is the DATA", () => {
-    // Neither tenant writes an `agent` map, so `exposeMapsOf` answers with an
-    // empty record and the constructor denies every sibling in full — the
-    // universe still names their tags, so the face binds and each member answers
-    // `SurfaceMemberNotExposed` to whoever asks. Nothing in `@olai/server` says
-    // "plugins are browser-only"; the day one of them decides otherwise it
-    // writes the map in its own package and the composition changes nothing.
-    expect(exposeMapsOf(WIRES, "agent")).toEqual({})
-    const denied = siblingFace("agent")
-    expect(denied.tags.size).toBe(0)
-    expect(contributed(denied.universe).length).toBeGreaterThan(0)
-    // ...and the browser's is not empty, so the assertion above is about a
-    // decision rather than about a helper that answers nothing.
-    expect(siblingFace("browser").tags.size).toBeGreaterThan(0)
+  test("git is the first plugin on the agent's face; the others stay off it", () => {
+    // Chat and the appliances are browser-only. Git's cells are on the agent
+    // face too — what is waiting, and what git is doing — so an agent can ask
+    // before it records. The MCP tools stay core's `commit` / `push`. Nothing
+    // in `@olai/server` writes this map: git's own `faces.agent` does.
+    expect(exposeMapsOf(WIRES, "agent")).toEqual({
+      git: { git: "resource", pending: "resource" },
+    })
+    const agent = siblingFace("agent")
+    expect(agent.tags.size).toBeGreaterThan(0)
+    for (const tag of agent.tags) {
+      expect(tag.startsWith("surface/git/")).toBe(true)
+    }
+    expect(siblingFace("browser").tags.size).toBeGreaterThan(agent.tags.size)
   })
 })
 

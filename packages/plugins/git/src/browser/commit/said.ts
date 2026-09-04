@@ -24,7 +24,7 @@ import {
   type RepoState,
   type Writer,
 } from "@olai/format"
-import type { GitState } from "@olai/surface"
+import type { GitState } from "@olai/format"
 
 /**
  * Which of the eight things the pill is saying right now.
@@ -390,7 +390,7 @@ export const loopIn = (git: GitState): "off" | "armed" | "paused" =>
  * one this reader had. The stop is the directory's, so neither a toggle nor a
  * reload can clear it: Resume is the gesture, on every deployment.
  */
-const RESUME_GESTURE = "Press Resume in preferences to start it again."
+const RESUME_GESTURE = "Press Resume in the commit panel to start it again."
 
 /**
  * ... and the sentence the HEADER carries, which is git's own words plus that

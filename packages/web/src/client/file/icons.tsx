@@ -137,7 +137,7 @@ interface Drawn {
 /** Every kind, and everything that is true of how it is drawn — the shape this
  *  client already reaches for whenever a closed set of kinds each carries a
  *  few facts (`../marks.tsx`'s `FACE`, `../agenda/owed.ts`'s `PAINT`,
- *  `../commit/said.ts`'s `MARK`, `../chat/Diff.tsx`'s `LOOK`). It is a
+ *  `../chat/Diff.tsx`'s `LOOK`). It is a
  *  `Record` over the union for the reason `marks.tsx` spells out beside its
  *  own: a kind added to the format's registry is then a compile error here —
  *  which is exactly what this file wants to be, since a drawing is the one

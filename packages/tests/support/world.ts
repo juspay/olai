@@ -854,7 +854,7 @@ export const APP_CHROME_CONTROLS: ReadonlyArray<string> = [
   // list by one; chrome that answers a question already answered is what the
   // list exists to stop, and this is the first kind.
   PLUGIN_TESTID.padi,
-  TESTID.commitPill,
+  PLUGIN_TESTID.commitPill,
   // How long THIS process has been the one answering — furniture, beside
   // the committed pill, the same register. Added as the deliberate edit
   // this list demands: it does not answer for git (the fence below still
@@ -907,7 +907,7 @@ export const PREFS_HINT = selector(TESTID.prefsHint);
 export const PREFS_CHOICE = selector(TESTID.prefsChoice);
 export const PREFS_SCOPE = selector(TESTID.prefsScope);
 export const PREFS_SET_BY = selector(TESTID.prefsSetBy);
-export const PREFS_RESUME = selector(TESTID.prefsResume);
+export const COMMIT_RESUME = selector(PLUGIN_TESTID.commitResume);
 export const THEME_CHIP = selector(TESTID.themeChip);
 export const FONT_SELECT = selector(TESTID.fontSelect);
 
@@ -916,44 +916,44 @@ export const FONT_SELECT = selector(TESTID.fontSelect);
  *  of its eight faces it is wearing (the fault among them, since the readout
  *  retired into it), and that is what a scenario asserts on. What git SAID is
  *  its `aria-label` and its tip, never a colour. */
-export const COMMIT_PILL = selector(TESTID.commitPill);
+export const COMMIT_PILL = selector(PLUGIN_TESTID.commitPill);
 /** How long the server process has been up. Desktop furniture, beside the
  *  committed pill; absent on a phone, which is the health-silent rule. */
 export const UPTIME = selector(TESTID.uptime);
-export const GIT_NEWS = selector(TESTID.gitNews);
-export const COMMIT_PANEL = selector(TESTID.commitPanel);
+export const GIT_NEWS = selector(PLUGIN_TESTID.gitNews);
+export const COMMIT_PANEL = selector(PLUGIN_TESTID.commitPanel);
 /** What olai last recorded here, in the panel — or the words that say it never
  *  has, which is a fact no count of what is pending can express. */
-export const COMMIT_LAST = selector(TESTID.commitLast);
+export const COMMIT_LAST = selector(PLUGIN_TESTID.commitLast);
 /** One node that changed. `data-sort` is WHAT changed about it — never the
  *  words it is rendered as, which the view is entitled to reword. */
-export const COMMIT_CHANGE = selector(TESTID.commitChange);
-export const COMMIT_MESSAGE = selector(TESTID.commitMessage);
-export const COMMIT_NOW = selector(TESTID.commitNow);
-export const COMMIT_BLOCKED = selector(TESTID.commitBlocked);
+export const COMMIT_CHANGE = selector(PLUGIN_TESTID.commitChange);
+export const COMMIT_MESSAGE = selector(PLUGIN_TESTID.commitMessage);
+export const COMMIT_NOW = selector(PLUGIN_TESTID.commitNow);
+export const COMMIT_BLOCKED = selector(PLUGIN_TESTID.commitBlocked);
 /** One dirty file that is NOT a served outline — a document a person edited, a
  *  source file, an outline outside the served root. `data-path` is which and
  *  `data-how` what happened to it, never the chip's own words. */
-export const COMMIT_OTHER = selector(TESTID.commitOther);
+export const COMMIT_OTHER = selector(PLUGIN_TESTID.commitOther);
 /** The box that says whether a file is going into this commit; `data-path` is
  *  which file. Everything is ticked until somebody says otherwise. */
-export const COMMIT_TICK = selector(TESTID.commitTick);
+export const COMMIT_TICK = selector(PLUGIN_TESTID.commitTick);
 /** What the panel is a list OF — the whole repository, and the part of it olai
  *  serves. */
-export const COMMIT_SCOPE = selector(TESTID.commitScope);
+export const COMMIT_SCOPE = selector(PLUGIN_TESTID.commitScope);
 /** What is committed here and nowhere else; `data-commits` is how many. */
-export const COMMIT_UNPUSHED = selector(TESTID.commitUnpushed);
-export const COMMIT_PUSH = selector(TESTID.commitPush);
+export const COMMIT_UNPUSHED = selector(PLUGIN_TESTID.commitUnpushed);
+export const COMMIT_PUSH = selector(PLUGIN_TESTID.commitPush);
 /** What git said when it last refused a push, verbatim. Off the git cell, so
  *  it is there for whoever opens the panel rather than only for the tab that
  *  made the request. */
-export const COMMIT_PUSH_REFUSED = selector(TESTID.commitPushRefused);
+export const COMMIT_PUSH_REFUSED = selector(PLUGIN_TESTID.commitPushRefused);
 /** Why the quiet-window loop stopped, in git's own words. Absent while the loop
  *  is running, which is what makes its PRESENCE the fact a scenario asserts. */
-export const COMMIT_AUTO_PAUSED = selector(TESTID.commitAutoPaused);
+export const COMMIT_AUTO_PAUSED = selector(PLUGIN_TESTID.commitAutoPaused);
 /** What Auto-commit is about to do with what the panel is listing. Drawn only
  *  while it really is going to happen. */
-export const COMMIT_AUTO_ARMED = selector(TESTID.commitAutoArmed);
+export const COMMIT_AUTO_ARMED = selector(PLUGIN_TESTID.commitAutoArmed);
 
 /** The agent panel. Absent entirely when no ACP agent is configured, which is
  *  a state the suite never runs in: every server it spawns is pointed at the

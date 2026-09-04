@@ -45,7 +45,6 @@ import {
   PREFS_HINT,
   PREFS_PANEL,
   PREFS_ROW,
-  PREFS_RESUME,
   PREFS_SCOPE,
   PREFS_SET_BY,
   PREFS_TRIGGER,
@@ -861,49 +860,6 @@ Then(
       await inForce.getAttribute("data-value"),
       asGit(value),
       `the ${label} row is not set to "${value}"`,
-    );
-  },
-);
-
-// ── Resume, which is the one gesture that starts a stopped loop again ──
-
-Then(
-  "the preferences offer to resume auto-commit",
-  async function (this: OlaiWorld) {
-    await showPreferences(this.page);
-    await this.page
-      .locator(PREFS_RESUME)
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  },
-);
-
-Then(
-  "the preferences do not offer to resume auto-commit",
-  async function (this: OlaiWorld) {
-    await showPreferences(this.page);
-    assert.equal(
-      await this.page.locator(PREFS_RESUME).count(),
-      0,
-      "the preferences offer to resume a loop that is not stopped",
-    );
-  },
-);
-
-When("I resume auto-commit", async function (this: OlaiWorld) {
-  await showPreferences(this.page);
-  const resume = this.page.locator(PREFS_RESUME);
-  await resume.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  await this.press(resume);
-});
-
-Then(
-  "the preferences panel says two rows are the instance's",
-  async function (this: OlaiWorld) {
-    await showPreferences(this.page);
-    const said = await this.page.locator(PREFS_SCOPE).innerText();
-    assert.ok(
-      /instance's policy/i.test(said) && /cannot be changed/i.test(said),
-      `the panel says "${said}", which does not name the git rows as the instance's, read-only`,
     );
   },
 );

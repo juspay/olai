@@ -40,20 +40,17 @@ Feature: A pinned loop that git stopped can still be started again
     # ... and the gesture named is the one that exists: a frozen row has no
     # toggle, and neither does an unfrozen one any more.
     And the commit pill explains "Resume"
-    When I open the preferences
-    Then the "Git commit" row is the server's, set by "--commit=auto"
-    And the "Git commit" row cannot be changed from this browser
-    And the preferences offer to resume auto-commit
+    When I open the commit panel
+    Then the commit panel offers to resume auto-commit
     When I resume auto-commit
     Then the commit pill says auto-commit is "armed"
-    And the preferences do not offer to resume auto-commit
+    And the commit panel does not offer to resume auto-commit
     And there should be no page errors
 
   Scenario: A running loop is offered no Resume, because there is nothing to resume
     # A control with nothing to do is a control that teaches a reader to ignore
     # it — which is exactly the wrong lesson for the one button that undoes a
     # silent stop.
-    When I open the preferences
-    Then the "Git commit" row is the server's, set by "--commit=auto"
-    And the preferences do not offer to resume auto-commit
+    When I open the commit panel
+    Then the commit panel does not offer to resume auto-commit
     And there should be no page errors

@@ -149,8 +149,6 @@ export const MCP: ExposeMap<typeof surface.spec> = {
   outlines: "resource",
   documents: "resource",
   errors: "resource",
-  git: "resource",
-  pending: "resource",
 }
 
 /**
@@ -282,8 +280,6 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   inbox: "resource",
   errors: "resource",
   manifest: "resource",
-  git: "resource",
-  pending: "resource",
   // WHICH PLUGINS THIS BUILD HAS AND WHICH THIS SERVE RUNS — the preferences
   // panel's read-only rows, and the browser's alone for the reason `manifest`
   // is: it is a paint instruction, and an agent has no panel.

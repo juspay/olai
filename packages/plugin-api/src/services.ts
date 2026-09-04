@@ -659,6 +659,44 @@ export interface Asked {
 }
 
 /**
+ * THE LEDGER — what is waiting, record these with this writer, push.
+ *
+ * Core defines the door and does not stand behind it. The git row offers it;
+ * `ops.commit` / `ops.push` call through it and refuse in words when nobody
+ * is mounted, which is what `GIT_OFF` used to say with a mode.
+ *
+ * Types are structural rather than `@olai/format`'s: this package does not
+ * import the floor, and a request that has a message and a list of paths is
+ * the whole of what a record needs.
+ */
+export interface Ledger {
+  /** A write landed and is waiting. No-op when the ledger has not yet opened. */
+  readonly wrote: (writer: string) => void
+  /** Why that write is not in the history — always a sentence. */
+  readonly whyWaiting: (writer: string) => Effect.Effect<string>
+  /** Record what is waiting, or exactly these paths, signed by this writer. */
+  readonly record: (
+    request: { readonly message?: string; readonly paths?: ReadonlyArray<string> },
+    writer: string,
+  ) => Effect.Effect<unknown>
+  readonly push: Effect.Effect<unknown>
+  readonly resume: Effect.Effect<void>
+}
+export const Ledger = serviceTag<Ledger>("ledger")
+
+/**
+ * THE GIT ROW'S PIN — `--commit` and `--push` as given, `null` for a flag
+ * nobody typed. The plugin folds in the built-in defaults. Absent on a serve
+ * that has no git row is fine: the row is what reads it.
+ */
+export interface Pin {
+  readonly commit: "off" | "manual" | "auto" | null
+  readonly push: "off" | "auto" | null
+}
+export const Pin = serviceTag<Pin>("pin")
+
+
+/**
  * THE FOUR DOORS A ROW MAY STAND BEHIND — a CLOSED table, and the closedness is
  * most of the safety.
  *
@@ -669,7 +707,7 @@ export interface Asked {
  * row is mounted — so there is nothing a row could offer that core is not already
  * a better answer for, and everything to lose by letting one try.
  */
-export const OFFERABLE = [Agents, Deliveries, SessionStart, Watching] as const
+export const OFFERABLE = [Agents, Deliveries, SessionStart, Watching, Ledger] as const
 
 /**
  * THE ONE CAPABILITY A PLUGIN MAY NAME — standing behind a service key that OTHER
@@ -727,6 +765,7 @@ export interface Offers {
       door: Provision<SessionStart>,
     ): Effect.Effect<void, never, Scope.Scope>
     (key: typeof Watching, door: Provision<Watching>): Effect.Effect<void, never, Scope.Scope>
+    (key: typeof Ledger, door: Provision<Ledger>): Effect.Effect<void, never, Scope.Scope>
   }
 }
 export const Offers = serviceTag<Offers>("offers")
@@ -959,6 +998,12 @@ export interface PluginsConfig {
   readonly now: () => string
   /** The directory this serve is about, resolved. */
   readonly served: string
+  /**
+   * THE GIT ROW'S PIN — `--commit` / `--push` as given. The git plugin is
+   * what folds in the defaults; core just carries the flags. `null` on both
+   * halves is nobody having said, which is the built-in default.
+   */
+  readonly pin?: Pin
   /** One plugin's machine-local record, by name — minted ONCE per plugin, which
    *  is what orders its writes. Where a machine keeps olai's own files is not a
    *  plugin's business. */
@@ -1073,6 +1118,9 @@ export const openPlugins = (
       // rather than a function of nothing.
       unloaded: (handler) => quieted.listen(plugin)(() => handler),
     }))
+
+    const pin: Pin = config.pin ?? { commit: null, push: null }
+    yield* provide(host, Pin, () => pin)
 
 
     /**

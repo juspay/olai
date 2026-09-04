@@ -92,6 +92,7 @@ export {
   type Listen,
   type Mounted,
   mountPlugin,
+  offered,
   type Plugin,
   registry,
   type Registry,

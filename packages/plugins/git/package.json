@@ -1,0 +1,39 @@
+{
+  "name": "olai-plugin-git",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "//name": "UNSCOPED, like every other row. `@olai/*` is the scope for the packages that ARE olai; this one is a plugin the loader mounts by name off a row in `packages/bundle/olai.yml`. The directory is `packages/plugins/git` and the package name is `olai-plugin-git`.",
+  "//exports": "SIX doors. `./wire` is the member declarations: the two cells and three procedures, no UI runtime and no subprocess. `./server` is everything that runs in a server process — the plumbing, what is waiting, the quiet-window loop — and it is the module the row names. `./browser` is the pill, the phone banner and the commit panel, registered into the app's slots. The ROOT is the wire identity. `./testids` is names only. `./all.css` is the sheet. `./testlib` is a real repository for the packages that still test against one without becoming this plugin.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./wire": "./src/wire.ts",
+    "./server": "./src/server.ts",
+    "./browser": "./src/browser.tsx",
+    "./testids": "./src/testids.ts",
+    "./all.css": "./src/browser/all.css",
+    "./testlib": "./src/git/fixtures.testlib.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@olai/child": "workspace:*",
+    "@olai/format": "workspace:*",
+    "@olai/log": "workspace:*",
+    "@olai/plugin-api": "workspace:*",
+    "@olai/store": "workspace:*",
+    "@olai/web": "workspace:*",
+    "effect": "4.0.0-rc.112",
+    "solid-js": "^1.9.0"
+  },
+  "devDependencies": {
+    "@effect/platform-node": "4.0.0-rc.112",
+    "@olai/ops": "workspace:*",
+    "@olai/surface": "workspace:*",
+    "@types/node": "^22.0.0"
+  },
+  "//devDependencies": "@olai/surface for its `./testlib` door ONLY — the schema walk that holds this cell's `arrayKey` declaration honest (src/wire.test.ts). Deliberately not a runtime dependency: surface sits ABOVE the plugin packages, so a real dependency here would be the cycle the composition is shaped to make unrepresentable. @olai/ops is the same door the other way: pending tests drive the write gate through the ledger this row offers."
+}

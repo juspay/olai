@@ -17,14 +17,8 @@
  * a control they have not got; telling a web serve about only the button leaves
  * out a door it really has.
  *
- * That clause is NOT spelled here. `@olai/ops`' `commitDoors` is the one table
- * of it, beside `commitDoor` — which answers the neighbouring but different
- * question of what ONE WRITER has, for the sentence its own write carries back.
- * One face may offer two doors; one writer has one. Both are built from the same
- * two phrases, so renaming the button cannot fix half the product.
- *
- * The face is a {@link CommitFace}, which is `Writer` minus the one writer that
- * is not a subcommand — derived rather than spelled again, so a second name for
+ * The face is a {@link CommitFace}, which is `Writer` minus the writers that
+ * are not a subcommand — derived rather than spelled again, so a second name for
  * who is asking never appears, and a new writer forces a decision about whether
  * it has a `--help`.
  *
@@ -35,7 +29,7 @@
  * answers with `null` for a flag nobody typed. A single `CommitMode` here could
  * not tell the two apart: `--commit=manual` typed out loud is a team's policy
  * named as a flag, while the same mode arrived at by saying nothing is the
- * default. What the server then DOES with the pin is `@olai/ops`' `fixedPolicy`.
+ * default. What the git plugin then DOES with the pin is its own `fixedPolicy`.
  */
 
 import {
@@ -46,8 +40,25 @@ import {
   type PushMode,
   QUIET_MS,
 } from "@olai/format"
-import { type CommitFace, commitDoors } from "@olai/ops"
 import { Flag } from "effect/unstable/cli"
+
+/** The subcommands that take these flags — `Writer` minus the two that are not
+ *  a face a person can start. */
+export type CommitFace = "web" | "mcp"
+
+const COMMIT_BUTTON = "the Commit button"
+const COMMIT_TOOL = "the `commit` tool"
+
+export const commitDoors = (face: CommitFace): string => {
+  switch (face) {
+    case "web":
+      return `${COMMIT_BUTTON} or ${COMMIT_TOOL}`
+    case "mcp":
+      return COMMIT_TOOL
+  }
+}
+
+export { COMMIT_BUTTON, COMMIT_TOOL }
 
 /**
  * What `--commit` says for itself on one face.

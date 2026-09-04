@@ -12,7 +12,7 @@
  * travel together, because a partial `.olai` write is not a thing that exists.
  */
 
-import { TESTID } from "../testids.ts"
+import { TESTID } from "../../testids.ts"
 
 export function Tick(props: {
   /** The repo-root-relative path this box is about — the one name a file has

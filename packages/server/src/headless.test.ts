@@ -26,10 +26,44 @@ import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
+import { execFileSync } from "node:child_process"
+
 import { QUIET_MS } from "@olai/format"
-import { gitIn, repoAt, writerOf } from "@olai/ops/testlib"
 
 import { startWeb } from "./child.testlib.ts"
+
+const GIT_IDENT = {
+  GIT_AUTHOR_NAME: "olai tests",
+  GIT_AUTHOR_EMAIL: "test@olai.invalid",
+  GIT_COMMITTER_NAME: "olai tests",
+  GIT_COMMITTER_EMAIL: "test@olai.invalid",
+} as const
+
+const gitIn = (root: string) =>
+(...argv: ReadonlyArray<string>): string =>
+  execFileSync("git", argv, {
+    cwd: root,
+    encoding: "utf8",
+    env: { ...process.env, ...GIT_IDENT },
+  })
+
+const repoAt = (root: string): void => {
+  const git = (...argv: ReadonlyArray<string>) => {
+    execFileSync("git", argv, {
+      cwd: root,
+      stdio: "ignore",
+      env: { ...process.env, ...GIT_IDENT },
+    })
+  }
+  git("init", "--quiet", "--initial-branch", "main")
+  git("config", "user.email", GIT_IDENT.GIT_AUTHOR_EMAIL)
+  git("config", "user.name", GIT_IDENT.GIT_AUTHOR_NAME)
+  git("add", "-A")
+  git("commit", "--quiet", "--no-verify", "-m", "fixtures")
+}
+
+const writerOf = (root: string): string =>
+  gitIn(root)("log", "-1", "--format=%(trailers:key=X-Olai-Writer,valueonly)").trim()
 
 /** The window, plus room for a git subprocess and a slow CI runner. What is
  *  being told apart is "after the window" from "never". */

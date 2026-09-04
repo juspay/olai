@@ -20,7 +20,6 @@
 
 import {
   codecFor,
-  fixedPolicy,
   make as makeOps,
   type Ops,
   type Store as OutlineStore,
@@ -49,14 +48,14 @@ import { NO_KINDS } from "@olai/format"
 import * as Store from "@olai/store"
 import { NodeServices } from "@effect/platform-node"
 import { expect, mock, test } from "bun:test"
-import { Effect, Fiber, Queue, Schema, Scope, Stream, SubscriptionRef } from "effect"
+import { Effect, Fiber, Queue, Schema, Scope, Stream } from "effect"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
 import { watchFault } from "./fault.ts"
 import { hostname } from "./hostname.ts"
-import { type Bound, bind, gitWiring, type PluginRuntime, rosterOf, writerAt } from "./runtime.ts"
+import { type Bound, bind, type PluginRuntime, rosterOf, writerAt } from "./runtime.ts"
 
 /** The codec this suite validates through — the vocabulary of a build that
  *  composed no plugin, which is what these fixtures declare nothing about
@@ -137,7 +136,7 @@ const withRuntime = <A>(
         return opened.body(path)
       },
     }
-    const ops = makeOps({ store, root, policy: fixedPolicy({ commit: "off", push: null }) })
+    const ops = makeOps({ store, root })
     /** The re-compose holder `bind` fills in — one per boot, as `./serve.ts`
      *  makes one per serve. */
     const onChange = { run: (): void => {} }
@@ -176,11 +175,6 @@ const withRuntime = <A>(
         // derivation a real boot does rather than a hand-made map.
         report: yield* rowReport(mounted.host, (extra.plugins ?? []).map((one) => one.name)),
       },
-      git: gitWiring(
-        ops,
-        fixedPolicy({ commit: "off", push: null }),
-        yield* SubscriptionRef.make(0),
-      ),
     })
     const runtime = yield* watchFault(wired.bound)
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))

@@ -21,7 +21,7 @@
 
 import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
-import { TESTID } from "@olai/web/testlib";
+import { PLUGIN_TESTID } from "@olai/bundle/testids";
 
 import {
   APP_CHROME,
@@ -39,6 +39,7 @@ import {
   COMMIT_PILL,
   COMMIT_PUSH,
   COMMIT_PUSH_REFUSED,
+  COMMIT_RESUME,
   COMMIT_SCOPE,
   COMMIT_TICK,
   COMMIT_UNPUSHED,
@@ -172,6 +173,18 @@ When("I hover the commit pill", async function (this: OlaiWorld) {
  * Settle first: an absent element and a frame that has not arrived look
  * identical, and only one of them is the claim.
  */
+Then("the header has no git indicator", async function (this: OlaiWorld) {
+  await this.waitForFrame();
+  const header = this.page.locator(APP_HEADER);
+  const chrome = header.locator(APP_CHROME);
+  await chrome.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.equal(
+    await header.locator(COMMIT_PILL).count(),
+    0,
+    "the commit pill is still in the header of a serve that did not mount git",
+  );
+});
+
 Then("the header shows one git indicator", async function (this: OlaiWorld) {
   await this.waitForFrame();
   const header = this.page.locator(APP_HEADER);
@@ -183,7 +196,7 @@ Then("the header shows one git indicator", async function (this: OlaiWorld) {
       el.getAttribute("data-testid") ?? ""
     )
   );
-  const git = inside.filter((id) => id === TESTID.commitPill);
+  const git = inside.filter((id) => id === PLUGIN_TESTID.commitPill);
   assert.equal(
     git.length,
     1,
@@ -227,6 +240,41 @@ Then(
 /** Open it, or leave it open. The pill TOGGLES — a step that clicked
  *  unconditionally would shut a panel that was already up, which is what a
  *  scenario asking twice actually meant to avoid. */
+Then(
+  "the commit panel offers to resume auto-commit",
+  async function (this: OlaiWorld) {
+    const panel = this.page.locator(COMMIT_PANEL);
+    if (!(await panel.isVisible())) await this.page.locator(COMMIT_PILL).click();
+    await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.page
+      .locator(COMMIT_RESUME)
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+Then(
+  "the commit panel does not offer to resume auto-commit",
+  async function (this: OlaiWorld) {
+    const panel = this.page.locator(COMMIT_PANEL);
+    if (!(await panel.isVisible())) await this.page.locator(COMMIT_PILL).click();
+    await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.equal(
+      await this.page.locator(COMMIT_RESUME).count(),
+      0,
+      "the commit panel offers to resume a loop that is not stopped",
+    );
+  },
+);
+
+When("I resume auto-commit", async function (this: OlaiWorld) {
+  const panel = this.page.locator(COMMIT_PANEL);
+  if (!(await panel.isVisible())) await this.page.locator(COMMIT_PILL).click();
+  await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const resume = this.page.locator(COMMIT_RESUME);
+  await resume.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await this.press(resume);
+});
+
 When("I open the commit panel", async function (this: OlaiWorld) {
   const panel = this.page.locator(COMMIT_PANEL);
   if (!(await panel.isVisible())) await this.page.locator(COMMIT_PILL).click();

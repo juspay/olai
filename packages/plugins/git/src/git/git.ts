@@ -78,7 +78,7 @@ import { Effect, Semaphore } from "effect"
 import * as fs from "node:fs"
 import { join, resolve } from "node:path"
 
-import type { How, Reason, RepoState } from "./state.ts"
+import type { How, Reason, RepoState } from "@olai/format"
 
 /** How long git gets. A commit in a notes directory is milliseconds; the
  *  budget is here so a wedged hook or a lock held by another process cannot

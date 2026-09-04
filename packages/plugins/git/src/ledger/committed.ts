@@ -75,7 +75,7 @@
  */
 
 import { type Node, parseOutline } from "@olai/format"
-import type { Shown } from "@olai/git"
+import type { Shown } from "../git/git.ts"
 import { Effect, Result } from "effect"
 
 /**

@@ -33,12 +33,13 @@ import {
   type Pending,
   type PushResult,
 } from "@olai/format"
-import { GIT_OFF } from "@olai/surface"
+import { GIT_OFF } from "@olai/format"
 import { type Accessor, createSignal } from "solid-js"
 
+import { gitWire } from "../wire.ts"
 import { waitingIn } from "./said.ts"
-import { run } from "../run.ts"
-import { olai } from "../wire.ts"
+import { run } from "@olai/web/client/run.ts"
+import { olai } from "@olai/web/client/wire.ts"
 
 /**
  * WHAT GIT IS DOING HERE, and the Resume verb — the two preference rows'
@@ -152,7 +153,7 @@ export const canRecord = (working: boolean, pushing: boolean): boolean =>
  * open and close of the popover.
  */
 export const createGitPolicy = (): GitPolicySeam => {
-  const git = olai.cells.git.use()
+  const git = gitWire().cells.git.use()
   const [refused, setRefused] = createSignal<string | null>(null)
 
   return {
@@ -166,7 +167,7 @@ export const createGitPolicy = (): GitPolicySeam => {
 }
 
 export const createCommit = (): Commit => {
-  const cell = olai.cells.pending.use()
+  const cell = gitWire().cells.pending.use()
   const policy = createGitPolicy()
   const [working, setWorking] = createSignal(false)
   const [pushing, setPushing] = createSignal(false)

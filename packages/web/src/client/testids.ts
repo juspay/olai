@@ -598,7 +598,7 @@ export const TESTID = {
   /** The panel it opens (portalled out of the header, like the one beside it). */
   pluginsPanel: "plugins-panel",
   /** One row on EITHER panel; `data-pref` is which. On preferences: `theme`,
-   *  `font`, `size`, `density`, `done`, `git-commit`, `git-push`. On plugins:
+   *  `font`, `size`, `density`, `done`. On plugins:
    *  one `plugin-<name>` per plugin this build has ({@link pluginPref}, which
    *  is why that tail is open and this list is not).
    *
@@ -622,14 +622,6 @@ export const TESTID = {
    *  built-in default, and that a browser cannot change it. Absent on every
    *  row this browser owns. */
   prefsSetBy: "prefs-set-by",
-  /** Start Auto-commit again after git refused something, on the Git commit
-   *  row. Drawn only while the loop is actually stopped — Resume is the one
-   *  remaining git gesture on this panel. */
-  prefsResume: "prefs-resume",
-  /** What the server would not take from Resume — a dropped socket or a usage
-   *  refusal. Absent while nothing has been refused, which is what makes its
-   *  PRESENCE the fact. */
-  prefsGitRefused: "prefs-git-refused",
   /** Ask this browser for permission to draw system notifications, on the
    *  Alerts row. Drawn only while alerts are on and the browser has not
    *  answered yet — a default-on preference has no "first enable" press to
@@ -999,91 +991,12 @@ export const TESTID = {
    *  case. */
   faultHome: "fault-home",
 
-  // ── the Commit button ────────────────────────────────────────────────
-  /** The pill in the desktop chrome, and the header's ONE answer to "what is
-   *  git doing here" (`one-git-indicator` retired the `● git` readout that
-   *  used to sit beside it). ALWAYS drawn on desktop — the feature is an
-   *  audit trail, so "there is no audit trail here" is the most important
-   *  thing it can say, and a control that disappeared is how nobody would
-   *  ever find that out. On a phone the healthy faces are silent and the
-   *  news faces are `gitNews`.
-   *  `data-auto` says what Auto-commit is doing in this browser — `off`,
-   *  `armed`, or `paused` — which is a fact about the READER rather than
-   *  about the directory, and so is its own attribute rather than a ninth face.
-   *  `data-state` carries which face this is — `off`, `no-repo`, `error`,
-   *  `never`, `committed`, `waiting`, `blocked`, and `unknown` for a page that
-   *  has not heard from the server yet — `data-uncommitted` the count, and
-   *  `data-repo` the repository's own state. What git SAID rides the tip and
-   *  the `aria-label`, never a colour. */
-  commitPill: "commit-pill",
   /** How long the olai SERVER has been up — process start, not this tab's.
    *  Desktop only, furniture: `up 2h`, the exact start instant in a
    *  visually-hidden span (and on the tip). `data-started` is the ISO
    *  the wire sent, so a scenario asserts the instant rather than the
    *  ticking phrase. */
   uptime: "uptime",
-  /** The panel it opens. One row per node, never a text diff. */
-  commitPanel: "commit-panel",
-  /** Phone git banner — only while there is news (uncommitted, blocked, a
-   *  fault, unpushed). Absent on a healthy tree, and absent on desktop. */
-  gitNews: "git-news",
-  /** What olai last recorded here — message, writer, how long ago, short sha.
-   *  Says so in words when there is nothing: "never committed here" is a fact a
-   *  count of what is pending cannot express. */
-  commitLast: "commit-last",
-  /** One outline's worth of those rows; `data-file` is what the store calls it
-   *  and `data-path` what the repository does — the second is what a tick
-   *  names, because the two namespaces can collide. */
-  commitGroup: "commit-group",
-  /** One dirty file that is NOT a served outline: a document, a source file, an
-   *  outline outside the served root. `data-path` is its repo-root-relative
-   *  name and `data-how` what happened to it — `modified`, `untracked`,
-   *  `deleted` — never the word it is rendered as. A path-level row and
-   *  deliberately nothing more: there is no text diff here. */
-  commitOther: "commit-other",
-  /** The box that says whether a file is going into this commit. `data-path`
-   *  is which file; ALL of them are ticked until somebody says otherwise. */
-  commitTick: "commit-tick",
-  /** What the list is a list OF — the whole repository, and which part of it
-   *  olai serves. */
-  commitScope: "commit-scope",
-  /** What is committed here and nowhere else. `data-commits` is how many, and
-   *  the line is absent when there is nothing to send or nowhere to send it. */
-  commitUnpushed: "commit-unpushed",
-  /** The Push button. One verb, current branch, no arguments. */
-  commitPush: "commit-push",
-  /** What a refused push said, in git's own words. */
-  commitPushRefused: "commit-push-refused",
-  /** One node that changed. `data-node-id` is which, and `data-sort` is what
-   *  changed about it — `done`, `noted`, `archived` — never the word it is
-   *  rendered as, which is the view's to reword. */
-  commitChange: "commit-change",
-  /** Dirty outlines whose working copy does not parse. */
-  commitUnreadable: "commit-unreadable",
-  /** Who has written since the last commit. Intent, not truth: empty after a
-   *  restart, and blind to an edit made in an editor. */
-  commitWriters: "commit-writers",
-  /** Why the repository cannot take a commit right now. */
-  commitBlocked: "commit-blocked",
-  commitMessage: "commit-message",
-  /** The button itself. */
-  commitNow: "commit-now",
-  /** What git said when it last refused a COMMIT here — the directory's, off
-   *  the git cell, so it is the same words in every tab and after a reload. */
-  commitRefused: "commit-refused",
-  /** ... and what the SERVER would not take from this tab: a call the wire
-   *  dropped, or a usage refusal. About this press rather than about the
-   *  directory. */
-  commitCallRefused: "commit-call-refused",
-  /** Why the quiet-window loop stopped, when it has — and the one gesture that
-   *  resumes it. Absent while the loop is running, and absent for a directory
-   *  whose policy is not `auto`. */
-  commitAutoPaused: "commit-auto-paused",
-  /** What Auto-commit is about to do with what is waiting. Drawn only while
-   *  the preference is on and the loop is running — a line that said so with
-   *  the loop stopped would be a promise the app is not keeping. */
-  commitAutoArmed: "commit-auto-armed",
-
   // ── the second column, which the conversation is only a tenant of ────
   /** Drag handle on the chat dock's left edge — the sibling of
    *  `sidebarResize`, drawn by the same component off the same stored width

@@ -90,38 +90,11 @@ test("errors is a cell resource", () => {
   )
 })
 
-test("git is a cell resource", () => {
-  // Whether the writes this agent makes are reaching a history. One status and
-  // at most a sentence, so it passes the cost rule twice over — and an agent
-  // that can ask before writing is one that can say so instead of committing
-  // nothing quietly.
-  expect(resolved().resources).toContainEqual(
-    expect.objectContaining({ uri: "surface://cells/git", kind: "cell", key: "git" }),
-  )
-})
-
-test("pending is a cell resource, and it is the `commit` tool's other half", () => {
-  // How an agent knows there is work to record and what the record will say —
-  // and, through `last`, whether this directory has ever been recorded in at
-  // all. Without it an agent under the default mode commits blind or shells out
-  // to `git status`, which is the file access this surface exists not to have.
-  // Its cost bound is argued in `./faces.ts`: O(what is dirty), not O(corpus).
-  expect(resolved().resources).toContainEqual(
-    expect.objectContaining({
-      uri: "surface://cells/pending",
-      kind: "cell",
-      key: "pending",
-    }),
-  )
-})
-
 test("nothing else is exposed, and the set is exact", () => {
   const { resources, resourceTemplates, tools } = resolved()
 
   expect(resources.map((r) => r.uri).sort()).toEqual([
     "surface://cells/errors",
-    "surface://cells/git",
-    "surface://cells/pending",
     "surface://collections/documents",
     "surface://collections/outlines",
   ])

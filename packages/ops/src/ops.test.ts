@@ -4,9 +4,8 @@
  *
  * {@link ./plan.test.ts} already proves what each op DECIDES, so nothing here
  * re-asserts that. What is only true end to end is what these tests are for:
- * that the bytes on disk are what a reader can read back, that a write racing
- * another writer re-derives instead of losing, and that git gets a commit with
- * the message the convention says.
+ * that the bytes on disk are what a reader can read back, and that a write
+ * racing another writer re-derives instead of losing.
  *
  * The TOOL surface used to be proved here too, because this package used to own
  * an MCP server. It does not any more — the table is projected onto
@@ -16,7 +15,6 @@
  * through a dispatch function.
  */
 
-import { execFileSync } from "node:child_process"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
@@ -48,9 +46,8 @@ import { Deferred, Effect, Fiber, Result, SubscriptionRef } from "effect"
 import { codecFor } from "./codec.ts"
 import type { Store as OutlineStore } from "./deps.ts"
 import type { Fence } from "./fenced.ts"
-import { repoAt, STAMP, STAMP_SHAPE, steady } from "./fixtures.testlib.ts"
+import { STAMP, STAMP_SHAPE, steady } from "./fixtures.testlib.ts"
 import * as Ops from "./ops.ts"
-import { fixedPolicy } from "./pending.ts"
 
 /** The codec this suite validates through — the vocabulary of a build that
  *  composed no plugin, which is what every test in this package runs under
@@ -96,12 +93,7 @@ const withOps = <A>(
   // `@olai/store`'s own fixture.
   use: (fixture: Fixture) => Effect.Effect<A, unknown>,
   options: {
-    readonly git?: boolean
     readonly realClock?: boolean
-    /** `false` inits the repository with an EMPTY identity, which is git's own
-     *  "Author identity unknown" — the commit failure a person actually hits,
-     *  reproduced without depending on the developer's global config. */
-    readonly identity?: boolean
   } = {},
 ): Promise<A> => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-ops-")))
@@ -111,22 +103,12 @@ const withOps = <A>(
   }
   for (const [file, contents] of Object.entries(files)) write(file, contents)
 
-  if (options.git === true) {
-    repoAt(root, ...(options.identity === false ? [{ identity: false }] : []))
-  }
-
   return Effect.gen(function*() {
     const store = yield* Store.make({ root, codec, watch: false, settle: "10 millis" })
     const refusals: Array<string> = []
     const ops = Ops.make({
       store,
       root,
-      // `auto` where there is a repository, so what these tests see is the
-      // policy a directory with the window on runs under. Nothing commits a
-      // write on its own under it — the loop is forked by a composition root
-      // and none of these forks one — so a commit here is one this file asked
-      // for. The window itself is `./pending.test.ts`'s subject.
-      policy: fixedPolicy({ commit: options.git === true ? "auto" : "off", push: null }),
       // The planner's own fixture context by default — ids from `n1`, one fixed
       // instant — so an assertion can name what a mark stamps. `realClock`
       // hands the layer back its OWN: the one test that is about what that
@@ -171,11 +153,6 @@ const run = (
     Effect.die(
       new Error(`\`${request.op}\` was refused: ${failure._tag} — ${failure.message}`),
     ))
-
-const gitLog = (root: string): ReadonlyArray<string> =>
-  execFileSync("git", ["log", "--format=%s"], { cwd: root, encoding: "utf8" })
-    .trim()
-    .split("\n")
 
 // ── what one load holds ────────────────────────────────────────────────
 
@@ -252,6 +229,21 @@ test("a run carries its node fence through refusal reporting and write tracking"
       yield* fixture.ops.idle
     })))
 
+test("commit without a ledger refuses in words", () =>
+  withOps({ "house.olai": HOUSE }, (fixture) =>
+    Effect.gen(function*() {
+      const done = yield* fixture.ops.commit({}, "mcp")
+      expect(done._tag).toBe("Failed")
+      if (done._tag === "Failed") {
+        expect(done.said).toContain("no git plugin")
+      }
+      const pushed = yield* fixture.ops.push
+      expect(pushed._tag).toBe("Failed")
+      if (pushed._tag === "Failed") {
+        expect(pushed.said).toContain("no git plugin")
+      }
+    })))
+
 test("PIN (idle): idle does not complete while a run is in the gate", () => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-ops-idle-")))
   fs.writeFileSync(path.join(root, "house.olai"), HOUSE)
@@ -275,7 +267,6 @@ test("PIN (idle): idle does not complete while a run is in the gate", () => {
     const ops = Ops.make({
       store: gated,
       root,
-      policy: fixedPolicy({ commit: "off", push: null }),
       context: steady(),
     })
     yield* ops.idle
@@ -427,7 +418,6 @@ test("a new outline arrives holding its whole tree, or does not arrive", () =>
       // Not an empty outline, not a partial one: no file.
       expect(fixture.read("shed.olai")).toBeNull()
       expect(outlinePaths(yield* fixture.set())).toEqual(["house.olai"])
-      expect(gitLog(fixture.root)).toEqual(["fixtures"])
       // And the outline that WAS there is untouched, byte for byte.
       expect(fixture.read("house.olai")).toBe(HOUSE)
 
@@ -451,8 +441,7 @@ test("a new outline arrives holding its whole tree, or does not arrive", () =>
       // yet, because no write commits itself: what records is the quiet window
       // over the whole repository (`./pending.test.ts`).
       expect(applied.rev).toBe(2)
-      expect(gitLog(fixture.root)).toEqual(["fixtures"])
-    }), { git: true }))
+    })))
 
 test("creating an empty outline is a zero-byte file the sidebar can list", () =>
   withOps({ "house.olai": HOUSE }, (fixture) =>
@@ -551,8 +540,7 @@ test("a subtree captured in one call is one revision and one commit", () =>
 
       // ONE REVISION for the whole subtree, and nothing in the log yet: a
       // write waits, whichever mode this directory is in.
-      expect(gitLog(fixture.root)).toEqual(["fixtures"])
-    }), { git: true }))
+    })))
 
 test("a refusal writes nothing and comes back with its structured detail", () =>
   withOps({ "house.olai": HOUSE }, (fixture) =>
@@ -1264,18 +1252,6 @@ describe("a document's write cannot lose bytes (the 2026-09-01 incident)", () =>
     "",
   ].join("\n")
 
-  /** Everything waiting, committed — the same sweep `the git seam` makes. */
-  const sweep = (fixture: Fixture): Effect.Effect<void> =>
-    Effect.flatMap(fixture.ops.commit({}, "mcp"), (done) =>
-      done._tag === "Committed"
-        ? Effect.void
-        : Effect.die(new Error(`the commit did not land: ${JSON.stringify(done)}`)))
-
-  /** The committed content of one file — the other half of "the write is in
-   *  history", asked of git rather than of the disk the test already owns. */
-  const committed = (root: string, file: string): string =>
-    execFileSync("git", ["show", `HEAD:${file}`], { cwd: root, encoding: "utf8" })
-
   /**
    * THE GUARANTEE, pinned at the seam that makes it: each incident shape this
    * block drives passes at HEAD — the incident itself did not reproduce — so
@@ -1330,7 +1306,6 @@ describe("a document's write cannot lose bytes (the 2026-09-01 incident)", () =>
         const ops = Ops.make({
           store: wrapped,
           root,
-          policy: fixedPolicy({ commit: "off", push: null }),
           context: steady(),
         })
         const failure = yield* Effect.flip(ops.run(request, "mcp"))
@@ -1402,7 +1377,6 @@ describe("a document's write cannot lose bytes (the 2026-09-01 incident)", () =>
           const ops = Ops.make({
             store: wrapped,
             root,
-            policy: fixedPolicy({ commit: "off", push: null }),
             context: steady(),
           })
           return yield* Effect.flip(ops.run({ op: "doc", file: "notes/plan.md", text: BRIEF }, "mcp"))
@@ -1420,7 +1394,7 @@ describe("a document's write cannot lose bytes (the 2026-09-01 incident)", () =>
     })
   })
 
-  test("the baseline: the body is on disk with the answer, and in HEAD once committed", () =>
+  test("the baseline: the body is on disk with the answer", () =>
     withOps({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         expect(BRIEF.length).toBeGreaterThan(1800)
@@ -1440,9 +1414,7 @@ describe("a document's write cannot lose bytes (the 2026-09-01 incident)", () =>
           "briefs/doorbell-missing-claim.md",
         ])
 
-        yield* sweep(fixture)
-        expect(committed(fixture.root, "briefs/doorbell-missing-claim.md")).toBe(BRIEF)
-      }), { git: true }))
+      })))
 
   test("the batch: a create racing a delete of ANOTHER document keeps its body", () =>
     withOps(
@@ -1489,7 +1461,6 @@ describe("a document's write cannot lose bytes (the 2026-09-01 incident)", () =>
       fs.writeFileSync(path.join(root, file), contents)
     }
     write("house.olai", HOUSE)
-    repoAt(root)
     const booted = <A>(use: (ops: Ops.Ops) => Effect.Effect<A, unknown>): Promise<A> =>
       Effect.gen(function*() {
         const store = yield* Store.make({
@@ -1501,7 +1472,6 @@ describe("a document's write cannot lose bytes (the 2026-09-01 incident)", () =>
         return yield* use(Ops.make({
           store,
           root,
-          policy: fixedPolicy({ commit: "auto", push: null }),
           context: steady(),
         }))
       }).pipe(
@@ -1526,33 +1496,21 @@ describe("a document's write cannot lose bytes (the 2026-09-01 incident)", () =>
         .toBe(BRIEF)
 
       // Boot two: the next serve finds the file as its own, still holding its
-      // body — and the commit the first boot never made is the second's to
-      // sweep, carrying every byte.
+      // body. Recording it is the ledger plugin's; this layer only promises
+      // the bytes survive a restart.
       await booted((ops) =>
         Effect.gen(function*() {
-          const done = yield* ops.commit({}, "mcp")
-          expect(done._tag).toBe("Committed")
+          const set = yield* Effect.orDie(ops.read)
+          expect([...set.set.documents.map((d) => String(d.path))]).toContain(
+            "briefs/doorbell-missing-claim.md",
+          )
         }))
-      expect(committed(root, "briefs/doorbell-missing-claim.md")).toBe(BRIEF)
     } finally {
       fs.rmSync(root, { recursive: true, force: true })
     }
   })
 })
 
-// ── git ────────────────────────────────────────────────────────────────
-
-/**
- * The git seam at THIS layer: what a write says about the history it is not in
- * yet, and what a commit somebody asked for puts there.
- *
- * These used to be the `--commit=auto` scenarios and asserted `committed: true`
- * on each write. That mode is retired — nothing commits a write inside the
- * write gate any more — so the same properties are asserted about a commit
- * ASKED for, which is the only kind there is: one prefix, one sweep, and a
- * refusal that lands where a reader can see it. The quiet window that makes
- * those commits unasked-for is `./pending.test.ts`.
- */
 describe("delete, against a real directory", () => {
   test("the file goes — from the disk, from the set the next read answers, and `gone` is what the reply calls it", () =>
     withOps({ "house.olai": HOUSE, "ideas.md": "# Ideas\n" }, (fixture) =>
@@ -1608,213 +1566,6 @@ describe("delete, against a real directory", () => {
         expect(fixture.read("report.html")).toBe("<h1>x</h1>\n")
       })))
 })
-
-describe("the git seam", () => {
-  /** Everything waiting, committed, or the test dies naming what git said —
-   *  the sweep this layer makes for the button, the tool and the window
-   *  alike. */
-  const sweep = (fixture: Fixture): Effect.Effect<void> =>
-    Effect.flatMap(fixture.ops.commit({}, "mcp"), (done) =>
-      done._tag === "Committed"
-        ? Effect.void
-        : Effect.die(new Error(`the commit did not land: ${JSON.stringify(done)}`)))
-
-  test("a commit carries olai's message convention, and sweeps what is waiting", () =>
-    withOps({ "house.olai": HOUSE }, (fixture) =>
-      Effect.gen(function*() {
-        yield* run(fixture, { op: "done", id: "order" })
-        yield* sweep(fixture)
-        yield* run(fixture, { op: "add", parent: "kitchen", title: "paint" })
-        yield* sweep(fixture)
-        yield* run(fixture, {
-          op: "create",
-          file: "shed.olai",
-          seed: { title: "clear the shed" },
-        })
-        yield* sweep(fixture)
-        yield* run(fixture, { op: "trash", id: "install" })
-        yield* sweep(fixture)
-
-        // Every subject carries the `olai` prefix, which IS the audit filter:
-        // `git log --grep '^olai'` is the view of what the tool wrote, and
-        // `--invert-grep` gives back the repository's real history.
-        // The SUBJECT is composed from what the sweep found rather than from
-        // the op that produced it, which is the difference between a commit
-        // per write and a commit per piece of work — but the prefix is the
-        // same, because the audit filter is the whole reason it exists.
-        expect(gitLog(fixture.root).slice(0, 4)).toEqual([
-          "olai: 3 edits to Trash — house.olai created",
-          "olai: 1 edit to shed — clear the shed created",
-          "olai: 1 edit to house — paint created",
-          "olai: 1 edit to house — order the cabinets done",
-        ])
-        // Both files of the archive landed in ONE commit.
-        expect(
-          execFileSync("git", ["show", "--name-only", "--format=", "HEAD"], {
-            cwd: fixture.root,
-            encoding: "utf8",
-          }).trim().split("\n").sort(),
-        ).toEqual(["_olai/Trash.olai", "house.olai"])
-      }), { git: true }))
-
-  test("a write says it is waiting for the window, and git reads healthy", () =>
-    withOps({ "house.olai": HOUSE }, (fixture) =>
-      Effect.gen(function*() {
-        const applied = yield* run(fixture, { op: "done", id: "order" })
-        expect(applied.why).toContain("--commit=auto")
-        expect(yield* fixture.ops.git).toMatchObject({
-          status: "repo",
-          said: null,
-          pushSaid: null,
-          paused: null,
-          pinned: { commit: "auto", push: null },
-          policy: { commit: "auto", push: "off" },
-        })
-      }), { git: true }))
-
-  test("a directory that is not a work tree is written anyway, and says why", () =>
-    withOps({ "house.olai": HOUSE }, (fixture) =>
-      Effect.gen(function*() {
-        // `commits: "auto"`, but there is no repository here.
-        const ops = Ops.make({
-          store: fixture.store,
-          root: fixture.root,
-          policy: fixedPolicy({ commit: "auto", push: null }),
-        })
-        const applied = yield* Effect.orDie(ops.run({ op: "done", id: "order" }, "mcp"))
-        // The half that was missing: "not committed" on its own is six
-        // different pieces of news, and this is the one that says which.
-        expect(applied.why).toContain("not a git work tree")
-        expect(yield* ops.git).toMatchObject({
-          status: "none",
-          said: null,
-          pinned: { commit: "auto", push: null },
-        })
-        expect(fixture.read("house.olai")).toContain(`"done"`)
-      })))
-
-  /**
-   * The bug, end to end: a repository whose next commit cannot be made.
-   *
-   * The write lands — that is the guarantee, and no part of this may fail,
-   * delay or retry it — and everything the reader needs arrives with the
-   * COMMIT: the answer says why in git's own words, and the state the server
-   * publishes goes to `error`, which is what puts "Git error" in the app header
-   * instead of nothing at all.
-   *
-   * This is the case that CANNOT be derived from a probe, which is why the
-   * refusal is one of the things `./pending.ts` remembers: `rev-parse` answers
-   * perfectly happily in a repository with no identity, so a state derived from
-   * the directory alone would read healthy while every commit failed.
-   */
-  test("a git that refuses the commit lands the write, says why, and turns the state", () =>
-    withOps({ "house.olai": HOUSE }, (fixture) =>
-      Effect.gen(function*() {
-        yield* run(fixture, { op: "done", id: "order" })
-        const done = yield* fixture.ops.commit({}, "mcp")
-
-        expect(done).toMatchObject({ _tag: "Failed" })
-        expect(fixture.read("house.olai")).toContain(`"done"`)
-        // Nothing was refused: a git failure is not an op failure.
-        expect(fixture.refusals).toEqual([])
-        // Still the repository's own history, with nothing new in it.
-        expect(gitLog(fixture.root)).toEqual(["fixtures"])
-
-        const state = yield* fixture.ops.git
-        expect(state.status).toBe("error")
-        expect(state.said).toContain("identity")
-        // ... and the loop is stopped, because this directory's policy is the
-        // window and a window that went round again would be a blind retry.
-        expect(state.paused).not.toBeNull()
-      }), { git: true, identity: false }))
-
-  test("a git that recovers takes the state back to healthy", () =>
-    withOps({ "house.olai": HOUSE }, (fixture) =>
-      Effect.gen(function*() {
-        yield* run(fixture, { op: "done", id: "order" })
-        yield* fixture.ops.commit({}, "mcp")
-        expect((yield* fixture.ops.git).status).toBe("error")
-
-        // The identity the repository was missing, set the way a person would.
-        execFileSync("git", ["config", "user.email", "test@olai.invalid"], {
-          cwd: fixture.root,
-          stdio: "ignore",
-        })
-        execFileSync("git", ["config", "user.name", "olai tests"], {
-          cwd: fixture.root,
-          stdio: "ignore",
-        })
-
-        yield* run(fixture, { op: "add", parent: "kitchen", title: "paint" })
-        yield* sweep(fixture)
-        // Cleared by the thing that worked, which is the other half of
-        // remembering it: a refusal that outlived its cause would be a header
-        // shouting about a repository that is fine now. The STOP is not
-        // cleared with it — that is a person's to lift, through `resume`.
-        const state = yield* fixture.ops.git
-        expect(state.status).toBe("repo")
-        expect(state.said).toBeNull()
-      }), { git: true, identity: false }))
-
-  /**
-   * The default mode, at this seam: a write LANDS and WAITS, and the sentence
-   * it carries back says exactly that.
-   *
-   * The whole of `Applied.why` under `manual` is that it must not read as a
-   * fault. "Not committed" is six different pieces of news — the opt-out, no
-   * repository, a git that refuses, a busy one, the window, and this one — and
-   * this one is the feature working. A reader who saw the git-error wording
-   * here would go looking for a broken repository that is not broken.
-   */
-  test("a write under the default mode waits, and says so without sounding broken", () =>
-    withOps({ "house.olai": HOUSE }, (fixture) =>
-      Effect.gen(function*() {
-        const ops = Ops.make({
-          store: fixture.store,
-          root: fixture.root,
-          policy: fixedPolicy({ commit: "manual", push: null }),
-          context: steady(),
-        })
-        const applied = yield* Effect.orDie(ops.run({ op: "done", id: "order" }, "mcp"))
-
-        expect(applied.why).toContain("waiting to be committed")
-        // Not a fault, in either vocabulary: nothing about git failing, and the
-        // readout stays healthy.
-        expect(applied.why).not.toContain("could not")
-        expect(applied.why).not.toContain("refused")
-        expect(yield* ops.git).toMatchObject({
-          status: "repo",
-          said: null,
-          pinned: { commit: "manual", push: null },
-          policy: { commit: "manual", push: "off" },
-        })
-        // The write is on disk, and nothing is in the log yet.
-        expect(fixture.read("house.olai")).toContain(`"done"`)
-        expect(gitLog(fixture.root)).toEqual(["fixtures"])
-      }), { git: true }))
-
-  test("the opt-out writes without committing, and says that is why", () =>
-    withOps({ "house.olai": HOUSE }, (fixture) =>
-      Effect.gen(function*() {
-        const ops = Ops.make({
-          store: fixture.store,
-          root: fixture.root,
-          policy: fixedPolicy({ commit: "off", push: null }),
-        })
-        const applied = yield* Effect.orDie(ops.run({ op: "done", id: "order" }, "mcp"))
-        expect(applied.why).toContain("--commit=off")
-        expect(gitLog(fixture.root)).toEqual(["fixtures"])
-        // `off` without asking git anything: the opt-out is a state, not a
-        // probe that came back empty — which is what keeps olai out of the
-        // history of a directory whose history is somebody else's job.
-        expect(yield* ops.git).toMatchObject({
-          status: "off",
-          said: null,
-          pinned: { commit: "off", push: null },
-        })
-      }), { git: true }))
-})
-
 
 // ── a batch on the disk ────────────────────────────────────────────────
 
@@ -1907,8 +1658,7 @@ describe("apply, against a real directory", () => {
         // batch waits with everything else for the sweep.
         expect(applied.summary).toContain("apply: 2 ops")
         expect(applied.rev).toBe(2)
-        expect(gitLog(fixture.root)).toEqual(["fixtures"])
-      }), { git: true }))
+      })))
 
   test("`update` writes four fields of one node in one revision", () =>
     withOps({ "house.olai": HOUSE }, (fixture) =>

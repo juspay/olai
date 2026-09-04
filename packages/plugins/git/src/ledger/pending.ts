@@ -92,17 +92,17 @@ import {
   policyOf,
   QUIET_MS,
   type PushResult,
+  type Reading,
   type Reason,
   type RepoState,
   type Unpushed,
   Writer,
   type Wrote,
 } from "@olai/format"
-import * as Git from "@olai/git"
+import * as Git from "../git/git.ts"
 import { Duration, Effect, Stream, SubscriptionRef } from "effect"
 
 import { type Committed, remembering } from "./committed.ts"
-import type { Store } from "./deps.ts"
 import { AUDIT, signed } from "./message.ts"
 
 /**
@@ -349,7 +349,17 @@ export const commitDoor = (writer: Writer): string => {
 export interface Options {
   /** Absolute path of the directory being served — where git runs. */
   readonly root: string
-  readonly store: Store
+  /**
+   * THE SET AS IT STANDS, or nothing — the working side of the comparison.
+   *
+   * It used to be `store.read("cheap")` asked here, which is why this layer
+   * lived in `@olai/ops` beside the store. As a plugin it cannot hold the
+   * store: plugins mount before the directory opens, because they teach the
+   * vault its vocabulary. What arrives is the last published reading, or
+   * `null` before the first one, which is the same empty working side a
+   * store that has never loaded already answered with.
+   */
+  readonly at: Effect.Effect<Reading | null>
   /** WHAT THIS SERVER DOES about git, live — see {@link Policy}. */
   readonly policy: Policy
   /**
@@ -810,8 +820,7 @@ export const make = (options: Options): Committing => {
       // is waiting to be committed, and it wants the set the store is serving
       // rather than a walk of the tree per survey. What is stale here is
       // already visible on the page it draws beside.
-      const { snapshot } = yield* options.store.read("cheap")
-      const at = snapshot?.value ?? null
+      const at = yield* options.at
 
       // The revision, cut the three ways the walk below reads it: what each
       // outline holds, which files the set knows, which of them did not parse.

@@ -4,11 +4,8 @@
  * A plugin's enablement is not a preference. It is CLI/nix only — `--plugins`,
  * or the nix module that passes the same flag — with no settings file and no
  * browser toggle, so these rows draw the server's answer and are always
- * read-only. That is the git rows' arrangement exactly
- * (`../settings/policy.ts`), and it is deliberately the same one: the sentence
- * both lean on — who set this, and that a browser cannot — is
- * `../settings/instance.ts`, shared across the two panels because it is one
- * doctrine and a second copy is the copy somebody softens.
+ * read-only. The sentence they lean on — who set this, and that a browser
+ * cannot — is `../settings/instance.ts`.
  *
  * **THE ROWS ARE A WALK, and this module spells no plugin's name.** What
  * arrives on the `plugins` cell is a row per plugin the BUILD has, each saying
@@ -18,8 +15,7 @@
  * an equality per package (`@olai/bundle`'s `fence.test.ts`); this module is
  * written so there is nothing for it to catch.
  *
- * **PURE FUNCTIONS OF THE CELL, and nothing else** — the shape `../settings/policy.ts`
- * keeps and for the same reason. There is no state here, no store, and no
+ * **PURE FUNCTIONS OF THE CELL, and nothing else.** There is no state here, no store, and no
  * subscription: the one reader is `./Panel.tsx`, which already holds the cell,
  * and a unit test asks these with a roster built by hand.
  *

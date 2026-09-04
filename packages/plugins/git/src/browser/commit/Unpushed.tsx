@@ -23,7 +23,7 @@ import { Show } from "solid-js"
 
 import { unpushedOf } from "./said.ts"
 import type { Commit } from "./state.ts"
-import { TESTID } from "../testids.ts"
+import { TESTID } from "../../testids.ts"
 
 export function Unpushed(props: { readonly commit: Commit }) {
   const said = () => unpushedOf(props.commit.pending())

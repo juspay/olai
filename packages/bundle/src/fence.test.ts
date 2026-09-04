@@ -1273,6 +1273,7 @@ describe("an appliance's product tier stays inside its tenant", () => {
       chat: ["plugins/chat"],
       claude: ["plugins/claude"],
       codex: ["plugins/codex"],
+      git: ["plugins/git"],
       kolu: ["plugins/kolu"],
       odu: ["plugins/odu"],
       opencode: ["plugins/opencode"],
@@ -1299,6 +1300,7 @@ describe("an appliance's product tier stays inside its tenant", () => {
       chat: false,
       claude: false,
       codex: false,
+      git: false,
       kolu: true,
       odu: true,
       opencode: false,
@@ -1706,13 +1708,39 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
      */
     chat: [
       "format/src/committing.ts",
-      "ops/src/pending.ts",
+      "plugins/git/src/browser/commit/said.ts",
+      "plugins/git/src/ledger/pending.ts",
       "plugins/xyne-spaces/src/client.ts",
       "plugins/xyne-spaces/src/testlib/fake-spaces.ts",
       "server/src/mcp/tickets.ts",
       "server/src/serve.ts",
-      "web/src/client/commit/said.ts",
       "web/src/client/layout/prefs.ts",
+    ],
+    /**
+     * `git` IS THE COMMAND, and `GitState` / `GIT_OFF` / `gitPolicy` are the
+     * floor's names for a repository reading that stays in core: a write still
+     * waits to be recorded, and the format owns the shape. The plugin is the
+     * provider behind that door. These files spell the word as English or as
+     * those types, not as the row.
+     */
+    git: [
+      "format/src/committing.ts",
+      "format/src/index.ts",
+      "format/src/searching.ts",
+      "format/src/writing.ts",
+      "ops/src/ops.ts",
+      "ops/src/tools.ts",
+      "plugins/kolu/src/client/fleet.ts",
+      "server/src/faces.ts",
+      "server/src/gitPolicy.ts",
+      "server/src/main.ts",
+      "server/src/mcp/tools.ts",
+      "server/src/published.bench.ts",
+      "server/src/runtime.ts",
+      "surface/src/index.ts",
+      "web/src/client/file/delete.ts",
+      "web/src/client/settings/Preferences.tsx",
+      "web/src/client/trash/question.ts",
     ],
   }
 

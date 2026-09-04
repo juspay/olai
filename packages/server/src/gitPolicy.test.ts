@@ -38,7 +38,7 @@ import {
   policyOf,
   PUSH_MODES,
 } from "@olai/format"
-import { COMMIT_BUTTON, commitDoors, COMMIT_TOOL } from "@olai/ops"
+import { COMMIT_BUTTON, commitDoors, COMMIT_TOOL } from "./gitPolicy.ts"
 import { BOOT_TIMEOUT, startWeb } from "./child.testlib.ts"
 import { commitsSaid, gitPin, pushesSaid } from "./gitPolicy.ts"
 import { served } from "./serve.testlib.ts"

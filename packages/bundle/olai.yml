@@ -48,6 +48,12 @@
 # read by people, and the thing everything else waits on reads first.
 - id: chat
   name: olai-plugin-chat/server
+# THE LEDGER — git as a row. Off is "no provider mounted": writes land and
+# nobody records them. `--commit` / `--push` are this row's pin, not a mode
+# of core. It sits next to chat so the pill stays in the bar cluster it has
+# always occupied (after the conversation toggle, before the tenants).
+- id: git
+  name: olai-plugin-git/server
 # THE ENGINES, FIRST AND IN THE ORDER THE PICKER DRAWS THEM.
 #
 # One row per ACP agent olai can seat, and ORDER IS LOAD-BEARING HERE in a way

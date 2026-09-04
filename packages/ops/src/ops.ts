@@ -51,7 +51,6 @@ import {
   type OwedRequest,
   type PageReading,
   type PageRequest,
-  type Pending,
   type PushResult,
   type Reading,
   serializeOutline,
@@ -66,17 +65,10 @@ import {
   type WriteResult as Applied,
 } from "@olai/format"
 import { open as openIndex } from "@olai/index"
-import { type Duration, Effect, Result, SubscriptionRef } from "effect"
+import { Effect, Result, SubscriptionRef } from "effect"
 
 import type { Store } from "./deps.ts"
 import { type Fence, outsideFence } from "./fenced.ts"
-import {
-  type Committing,
-  type GitState,
-  make as makeCommits,
-  type Policy,
-  type Status,
-} from "./pending.ts"
 import { type Context, plan, scoping } from "./plan.ts"
 import * as Query from "./query.ts"
 import { fenceRefusal } from "./refusals.ts"
@@ -84,32 +76,46 @@ import { standing } from "./standing.ts"
 import { sortOfWrite } from "./sorted.ts"
 import { asking, type Asking } from "./tools.ts"
 
+/**
+ * THE LEDGER DOOR, as this layer calls it — record, push, and the two things
+ * a write needs of a history. Core does not stand behind it; the git plugin
+ * does. Absent is "no provider mounted": writes land and are recorded by
+ * nobody, and {@link Ops.commit} / {@link Ops.push} refuse in words.
+ */
+export interface Ledger {
+  readonly wrote: (writer: Writer) => void
+  readonly whyWaiting: (writer: Writer) => Effect.Effect<string>
+  readonly record: (
+    request: CommitRequest,
+    writer: Writer,
+  ) => Effect.Effect<CommitResult>
+  readonly push: Effect.Effect<PushResult>
+  readonly resume: Effect.Effect<void>
+}
+
+const NO_LEDGER: Ledger = {
+  wrote: () => {},
+  whyWaiting: () =>
+    Effect.succeed("this serve has no git plugin, so writes land and are recorded by nobody"),
+  record: () =>
+    Effect.succeed({
+      _tag: "Failed",
+      said: "this serve has no git plugin, so there is nobody to record a write",
+    }),
+  push: Effect.succeed({
+    _tag: "Failed",
+    said: "this serve has no git plugin, so there is nobody to push",
+  }),
+  resume: Effect.void,
+}
+
 export interface Options {
   readonly store: Store
-  /** Absolute path of the served directory — where git runs. */
+  /** Absolute path of the served directory — kept because every call site
+   *  already has it, and the write gate's fence reads paths against it. */
   readonly root: string
-  /**
-   * How writes reach git in this directory, and who decided — the live policy
-   * ({@link ./pending.ts}'s `Policy`).
-   *
-   * `now()` is what this server DOES: `manual` is the point of the whole thing
-   * (a write lands on disk and WAITS, and something asks for a commit — the
-   * button, or the agent's `commit` tool), `auto` is the quiet-window loop, and
-   * `off` is `--no-commit`, for a directory whose history is somebody else's
-   * job.
-   *
-   * `pin` travels FURTHER than that: a flag that was given freezes the two git
-   * rows in every browser's preferences, read-only and naming the flag
-   * (`vault-level-settings`). That is why both halves arrive — "nobody said" is
-   * a thing a browser has to be told, and it cannot be recovered from a mode
-   * with the default already filled in.
-   *
-   * It is spelled `policy` at every layer it crosses — `@olai/server`'s
-   * `gitPolicy.ts` composes it, `ServeOptions` takes it, this layer passes it
-   * down and `./pending.ts` reads it — because one value with three names is
-   * one grep that finds a third of its call sites.
-   */
-  readonly policy: Policy
+  /** The ledger, or nobody. Absent is {@link NO_LEDGER}. */
+  readonly ledger?: Ledger
   /** Overridable so tests are deterministic: the id a new node gets and the
    *  instant a mark is stamped with are the only two things about an op that
    *  are not a function of the snapshot. */
@@ -141,13 +147,6 @@ export interface Options {
    * front of the person watching.
    */
   readonly onRefusal?: (request: Request, failure: OpFailure) => Effect.Effect<void>
-  /** Told whenever anything about git settled — a commit by whichever door, a
-   *  push, a refusal of either, or the loop stopping — see
-   *  {@link ./pending.ts}'s `Options`. */
-  readonly onSettled?: () => void
-  /** The quiet window, for a test that cannot wait fifteen seconds — see
-   *  {@link ./pending.ts}'s `Options`. */
-  readonly quiet?: Duration.Input
 }
 
 /**
@@ -333,45 +332,16 @@ export interface Ops extends Asking {
    * leftover) rather than at the tree the next reader will be served.
    */
   readonly idle: Effect.Effect<void>
-  /**
-   * BOTH chrome answers, from one look at the repository.
-   *
-   * What a publisher takes. Asking `pending` and `git` separately meant two
-   * surveys — two reads of the git directory and two `symbolic-ref` spawns per
-   * republish, for one question — with a window between them where the two
-   * controls could disagree about the directory they are both describing. That
-   * window is what the arrangement exists to close, so it is closed by taking
-   * them together rather than by asking carefully.
-   */
-  readonly status: Effect.Effect<Status>
-  /** What is waiting, alone — {@link status}' first half, for a caller that
-   *  wants only it. Derived from git every time it is asked, so nothing above
-   *  this layer holds a copy that could be wrong. */
-  readonly pending: Effect.Effect<Pending>
-  /** Commit what is waiting — everything, or exactly the paths that were
-   *  picked. Both doors — the button's procedure and the MCP tool — are callers
-   *  of this one thing. */
+  /** Commit what is waiting — through the ledger, or refuse in words when
+   *  nobody stands behind it. */
   readonly commit: (
     request: CommitRequest,
     writer: Writer,
   ) => Effect.Effect<CommitResult>
-  /**
-   * Send the current branch to its upstream.
-   *
-   * One verb and no arguments, which is the whole of the decision: an audit
-   * trail that lives on one machine is worth very little, and everything else
-   * about a remote — which one, which refspec, what to do about a divergence —
-   * is a conversation in a terminal. Both doors again, and a refusal comes back
-   * as a value with git's own words on it, exactly as a refused commit does.
-   */
+  /** Send the current branch to its upstream — through the ledger, or refuse. */
   readonly push: Effect.Effect<PushResult>
-  /** The quiet-window loop and the two things around it, straight off
-   *  {@link ./pending.ts} — the effect a composition root forks, the reading
-   *  that re-arms the window, and the one way a stopped loop starts again. */
-  readonly observe: Committing["observe"]
-  readonly loop: Committing["loop"]
-  readonly catchUp: Committing["catchUp"]
-  readonly resume: Committing["resume"]
+  /** Start the quiet-window loop again after git stopped it. */
+  readonly resume: Effect.Effect<void>
   /**
    * The set as a reader sees it, or the one refusal for a directory that has
    * never loaded.
@@ -382,18 +352,6 @@ export interface Ops extends Asking {
    * has to reach into the store to find out.
    */
   readonly read: Effect.Effect<Reading, OpFailure>
-  /**
-   * What git is doing for this directory, as of now (`git-invisible`, #108) —
-   * read by the header's git indicator beside what is waiting, and by an agent
-   * in a terminal as a resource.
-   *
-   * A PROJECTION of the same survey {@link pending} runs rather than a probe of
-   * its own ({@link ./pending.ts}'s `gitOf`), because the two values are drawn
-   * together and two probes would be two answers: a page reading "no git here"
-   * beside a panel offering to commit four changes. The consistency rule,
-   * one control over.
-   */
-  readonly git: Effect.Effect<GitState>
 }
 
 /** How many LOST RACES one write survives before it gives up. Each is a fresh
@@ -512,13 +470,7 @@ export const make = (options: Options): Ops => {
    */
   const views = standing(context.now, kinds)
 
-  const commits = makeCommits({
-    store: options.store,
-    root: options.root,
-    policy: options.policy,
-    ...(options.onSettled === undefined ? {} : { onSettled: options.onSettled }),
-    ...(options.quiet === undefined ? {} : { quiet: options.quiet }),
-  })
+  const ledger = options.ledger ?? NO_LEDGER
 
   const read: Effect.Effect<Reading, OpFailure> = Effect.gen(function*() {
     const { snapshot } = yield* options.store.read("cheap")
@@ -792,7 +744,7 @@ export const make = (options: Options): Ops => {
         // business. The counter is the panel's per-writer tally, not arming:
         // what arms a pending sweep is the git survey, and the file a looted
         // write left behind is dirty there exactly as any other write's is.
-        commits.wrote(writer)
+        ledger.wrote(writer)
         for (const document of documents) {
           const held = yield* Effect.result(options.store.body(document.file))
           if (Result.isFailure(held)) {
@@ -839,7 +791,7 @@ export const make = (options: Options): Ops => {
          *  is looking rather than in the server's log. Under either waiting
          *  mode that sentence is "waiting", which is the feature working and
          *  must never render as the git-error state. */
-        const why = yield* commits.whyWaiting(writer)
+        const why = yield* ledger.whyWaiting(writer)
         // What the write CHANGED, classified the way a pending row is — off
         // the two readings this write is made of, which are both still in
         // hand. A reader that DRAWS a write rather than logging one needs a
@@ -974,14 +926,8 @@ export const make = (options: Options): Ops => {
     // and what the trash does to a count, is `@olai/format`'s `vocabulary.ts`.
     tags: (request) =>
       Effect.map(read, (at) => Query.tags(at.derived, request)),
-    status: commits.status,
-    pending: commits.pending,
-    commit: commits.commit,
-    push: commits.push,
-    observe: commits.observe,
-    loop: commits.loop,
-    catchUp: commits.catchUp,
-    resume: commits.resume,
-    git: commits.git,
+    commit: (request, writer) => ledger.record(request, writer),
+    push: ledger.push,
+    resume: ledger.resume,
   }
 }

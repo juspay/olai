@@ -1,5 +1,7 @@
 # Git integration
 
+Git is a plugin ([plugins/git.md](plugins/git.md)): one row in the build, on by default. A serve that does not name it has no pill and nobody records a write. This page is what the row *does*.
+
 Git is how you see what olai did to your files — an audit trail, not sync and not undo. Writes land on disk and WAIT to be committed: from the pill in the app header (or, on a phone, from a banner when there is something to record), or by the agent's own `commit` tool, which is the better one to use — it knows where a train of thought ended, so its message can say `olai: reconcile the roadmap with the #70–#81 merges` instead of describing edits. The server can also press that button for you when the writes stop arriving — [Auto-commit](#committing-on-its-own), below.
 
 **The two places that "not undo" is load-bearing are the emptied Trash and a deleted file** — one unit each of the two that destroy ([editing.md](editing.md)). Emptying the archive is a write like any other — the file is rewritten holding no records — and deleting a file is the same write with the rewrite step missing. So history holds them to exactly the extent it had already recorded them, and no further. A directory that is not a repository, or one served `--no-commit`, holds none of them. A directory whose file had been committed holds all of them — `git show HEAD:_olai/Trash.olai` reads a trashed row back, and the same door is the whole undo story of a deleted file. Olai will not do that for you: nothing in the app reads a commit onto disk.
@@ -66,13 +68,13 @@ The agent has the same thing: its `commit` tool takes an optional `paths`, the r
 
 ## Committing on its own
 
-*prefs → Git commit*, Auto-commit, off by default. On, what is waiting records itself when writes stop arriving for **fifteen seconds** — so a burst of typing, or a train of agent ops, is ONE commit rather than one per write. It presses the same verb the Commit button does, with the same message the panel would have suggested and the same full sweep of the repository; there is no second committer and no second kind of commit in the log.
+`--commit=auto`, off by default. On, what is waiting records itself when writes stop arriving for **fifteen seconds** — so a burst of typing, or a train of agent ops, is ONE commit rather than one per write. It presses the same verb the Commit button does, with the same message the panel would have suggested and the same full sweep of the repository; there is no second committer and no second kind of commit in the log.
 
 The span is the point rather than a setting. It has to outlast the pauses inside one piece of work — reading a line back, moving between rows, waiting on an agent's next op — or the promise breaks and one thought arrives as three commits; and it has to be short enough that what lands is still something you remember doing.
 
 **Everything waiting counts, whoever wrote it.** The window watches what is PENDING, which is derived from git for the whole repository, so an agent writing over MCP restarts it, a `.md` you edited in vim joins the same commit, and what goes in is the same sweep the button makes. That is the whole of "all my changes end up in git".
 
-**It is the INSTANCE's, not this browser's.** The row on the preferences panel is the only one there that is not a claim about you: it draws the policy this *server* runs under for this directory, always read-only, and every tab drawing the panel draws the same answer. There is no runtime door. `olai web --commit=auto` is that same row given on the command line ([running.md](running.md#the-git-policy)).
+**It is the INSTANCE's, not this browser's.** `--commit` / `--push` are the git row's pin, the same in every browser, with no runtime door. `olai web --commit=auto` is that pin given on the command line ([running.md](running.md#the-git-policy)). A stopped loop starts again from **Resume** on the commit panel.
 
 It used to be this browser's, and everything wrong with that followed from the frame. A directory recorded only while somebody had a tab open; two browsers could each have the toggle on and race one work tree (one browser's tabs contended for a Web Lock, which said nothing about the other's); and `--commit=auto` was a *different* feature with the same name — one commit per write, made inside the write gate, never pushed. There is one window now, on the server, and one of it per served directory: one olai holds a directory, so there is nothing to elect.
 

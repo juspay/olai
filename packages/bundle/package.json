@@ -29,6 +29,7 @@
     "olai-plugin-odu": "workspace:*",
     "olai-plugin-opencode": "workspace:*",
     "olai-plugin-pi": "workspace:*",
-    "olai-plugin-xyne-spaces": "workspace:*"
+    "olai-plugin-xyne-spaces": "workspace:*",
+    "olai-plugin-git": "workspace:*"
   }
 }

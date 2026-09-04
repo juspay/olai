@@ -21,7 +21,6 @@
 import { DEFAULT_IDENTITY_CONFIG, DEFAULT_IDENTITY_HEADERS } from "@olai/identity"
 import {
   codecFor,
-  fixedPolicy,
   make as makeOps,
   type Store as OutlineStore,
   TOOLS,
@@ -29,7 +28,7 @@ import {
 import { NO_KINDS } from "@olai/format"
 import * as Store from "@olai/store"
 import { expect, test } from "bun:test"
-import { Effect, Option, SubscriptionRef } from "effect"
+import { Effect, Option } from "effect"
 import * as fs from "node:fs"
 import * as http from "node:http"
 import * as os from "node:os"
@@ -39,7 +38,7 @@ import { watchFault } from "../fault.ts"
 import { listen } from "../listener.ts"
 import { SERVER_LAYERS } from "../serve.testlib.ts"
 import { hostname } from "../hostname.ts"
-import { bind, gitWiring, writerAt } from "../runtime.ts"
+import { bind, writerAt } from "../runtime.ts"
 import { clientOver, serveFace } from "./face.ts"
 import { currentLogin, fromLoopback, MCP_PATH, mcpAllowed, mcpTransport } from "./route.ts"
 import { type Ticket, ticketing } from "./tickets.ts"
@@ -81,7 +80,7 @@ const withRoute = <A>(
       watch: false,
       settle: "10 millis",
     })
-    const ops = makeOps({ store, root, policy: fixedPolicy({ commit: "off", push: null }) })
+    const ops = makeOps({ store, root })
     const wired = yield* bind({
       store,
       ops,
@@ -96,11 +95,6 @@ const withRoute = <A>(
       // an empty sibling record composes to no tag, no handler and no expose
       // row, so olai's own group is byte for byte what it always was.
       plugins: null,
-      git: gitWiring(
-        ops,
-        fixedPolicy({ commit: "off", push: null }),
-        yield* SubscriptionRef.make(0),
-      ),
     })
     const runtime = yield* watchFault(wired.bound)
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))

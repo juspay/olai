@@ -26,17 +26,19 @@
 import { surface } from "@olai/surface"
 import type { GitPin } from "@olai/format"
 import type { IdentityConfig } from "@olai/identity"
-import { fixedPolicy, make as makeOps, type Ops, TOOLS } from "@olai/ops"
+import { make as makeOps, type Ledger as OpsLedger, type Ops, TOOLS } from "@olai/ops"
 import { BUNDLE_NAMES, mountBundle, reportBundle } from "@olai/bundle/bundle"
 import { bundleRank } from "@olai/bundle"
 import { emitter } from "@olai/log"
 import {
+  Ledger,
   NOWHERE_TO_WRITE,
+  offered,
   openPlugins,
   type PropWrite,
   type ToolServer,
 } from "@olai/plugin-api/services"
-import { Deferred, Effect, SubscriptionRef } from "effect"
+import { Deferred, Effect } from "effect"
 import { randomBytes } from "node:crypto"
 import { resolve } from "node:path"
 
@@ -50,7 +52,7 @@ import { clientOver, serveFace } from "./mcp/face.ts"
 import { currentLogin, MCP_PATH, mcpTransport } from "./mcp/route.ts"
 import { ticketing, type Tickets } from "./mcp/tickets.ts"
 import { bespokeFrom } from "./mcp/tools.ts"
-import { bind, gitWiring, writerAt } from "./runtime.ts"
+import { bind, writerAt } from "./runtime.ts"
 
 export interface ServeOptions {
   /** The directory to serve, recursively. */
@@ -69,8 +71,8 @@ export interface ServeOptions {
   /** The git policy this serve runs under, as the operator PINNED it —
    *  `--commit=off | manual | auto` and `--push=off | auto`, each `null` when
    *  the flag was not given (`@olai/format`'s `GitPin`). What the server DOES
-   *  is that composed with the built-in defaults (`@olai/ops`' `fixedPolicy`);
-   *  what every browser draws read-only is the instance's policy. */
+   *  is the git row's config; what every browser draws read-only is the
+   *  instance's policy. */
   readonly pin: GitPin
   /** WHICH built-in integrations to run — `null` for nobody having said,
    *  which means the built-in default (not necessarily every plugin this
@@ -214,6 +216,7 @@ export const serve = (options: ServeOptions) =>
       vars: process.env,
       now: () => new Date().toISOString(),
       served,
+      pin: options.pin,
       tools: toolsReady,
       // ...AND THE FENCE MINTED OFF IT. Read per call rather than captured,
       // because the mint does not exist until the MCP face does — and the row
@@ -279,30 +282,17 @@ export const serve = (options: ServeOptions) =>
     const kinds = yield* propKinds(plugins)
     const { root, store } = yield* openDirectory(options.root, kinds)
 
-    // Bumped whenever anything about git settled — a commit by whichever door
-    // (the button, the agent's tool, the quiet window), a push, a refusal of
-    // either, or the loop stopping. None of them moves a served file, so
-    // nothing else in this process can say that what a reader is owed has
-    // changed.
-    const settled = yield* SubscriptionRef.make(0)
-
-    /** WHAT THIS DIRECTORY'S GIT POLICY IS: the flags plus the built-in
-     *  defaults. Immutable after boot. Built before the ops layer, because
-     *  that layer asks it on every decision it makes. */
-    const policy = fixedPolicy(options.pin)
+    const ledger = offered(plugins.host, Ledger) as OpsLedger | undefined
 
     const ops: Ops = makeOps({
       store,
       root,
-      policy,
+      ...(ledger === undefined ? {} : { ledger }),
       // THE SAME TABLE THE STORE VALIDATES WITH, so a value a page draws, a
       // value the validator reports and a value `set_prop` refuses are one
       // question asked three times. Two tables here would be the bug family
       // `@olai/format`'s `meaning.ts` is a list of, rebuilt at the root.
       kinds,
-      onSettled: () => {
-        Effect.runSync(SubscriptionRef.update(settled, (count) => count + 1))
-      },
       // A refusal reaches the agent as its tool result AND whoever is watching
       // writes. On OPS rather than on the MCP server, because it is writes this
       // is a property of — a second writer would report nothing. What a plugin
@@ -340,7 +330,7 @@ export const serve = (options: ServeOptions) =>
       writer: "web",
       hostname: theMachine,
       startedAt,
-      git: gitWiring(ops, policy, settled),
+
       // THE PLUGINS, already mounted — and this is no longer the place a
       // process reaches for the real environment on their behalf. That happens
       // at the top of this function, where the services are constructed, and
