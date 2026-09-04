@@ -52,10 +52,9 @@ Feature: Splitting and merging a row
     And the node "handles" is a child of "install"
     And the page has not reloaded
     And there should be no page errors
-    # And the way back is not the sibling split's merge (a first child has no
-    # sibling above to join onto): the head's title is put back, guarded, and
-    # the tail's record goes to the Trash — where the sibling split's merge
-    # puts it too.
+    # And the way back is the very verb the gesture would use: the tail is a
+    # first child, so the `merge` the undo replays is the parent join. The
+    # record sits in the Trash, as either split's merge puts it.
     When I press "Escape"
     And I press "ControlOrMeta+z"
     Then the node "install" has the title "install the cabinets"
@@ -142,17 +141,49 @@ Feature: Splitting and merging a row
     And the node "mint" comes before "glazing"
     And "garden.olai" no longer holds the node "frames"
 
-  Scenario: The first of its siblings has nothing above it to merge into
+  Scenario: The first of its siblings joins into the row ON the page above it — its parent
+    # `Backspace` at offset zero is claimed as `merge` at the start of ANY
+    # line, and `merging` used to refuse a first child outright — the dead
+    # key the review of #493 met on the row the expanded-parent split makes.
+    # The head is right there on screen; the join is the same join.
     When I click the title of "handles"
     And I put the caret at the start of the line
     And I press "Backspace"
+    Then the row being typed holds "install the cabinetschoose the handles"
+    # The caret lands on the SEAM — the length of what the parent said.
+    And the caret is at offset 20
+    And the node "hinges" is a child of "install"
+    And "house.olai" holds a node titled "install the cabinetschoose the handles"
+    And "house.olai" no longer holds the node "handles"
+    And the page has not reloaded
+
+  Scenario: The top of the page has nothing above it to merge into
+    When I click the title of "kitchen"
+    And I put the caret at the start of the line
+    And I press "Backspace"
     Then the refusal says "no row above it to merge into"
-    And the row being typed holds "choose the handles"
-    And "house.olai" holds a node titled "choose the handles"
+    And the row being typed holds "kitchen remodel #home"
+    And "house.olai" holds a node titled "kitchen remodel #home"
     # And the row goes on working, like every other refused key.
-    When I select all and type "choose the brass handles"
+    When I select all and type "the kitchen remodel"
     And I click away from the editor
-    Then "house.olai" holds a node titled "choose the brass handles"
+    Then "house.olai" holds a node titled "the kitchen remodel"
+
+  Scenario: Backspace at the start of the split's tail undoes the split AT ONCE
+    # The gesture a hand reaches for after an `Enter` it did not mean: the
+    # split left the caret at offset zero of the tail — the one place the key
+    # is `merge`, and the head it came off is the row directly above.
+    When I click the title of "install"
+    And I put the caret after "install"
+    And I press "Enter"
+    Then the row being typed holds " the cabinets"
+    And the caret is at offset 0
+    When I press "Backspace"
+    Then the row being typed holds "install the cabinets"
+    And the caret is at offset 7
+    And "house.olai" holds a node titled "install the cabinets"
+    And "house.olai" holds no node titled " the cabinets"
+    And the page has not reloaded
 
   Scenario: Backspace anywhere else is the field's own
     # The one position the key is claimed at is the one where it has nothing of

@@ -3721,8 +3721,18 @@ describe("merge", () => {
       .toContain("kept its document `finishes.md`")
   })
 
-  test("the first of its siblings has nothing above it", () => {
-    expect(refused(house(), { op: "merge", id: "demo" }).message)
+  test("the first of its siblings joins into the row ON the page above it — its parent", () => {
+    // Backspace at offset zero of a first child: the head is right there,
+    // and the join is the same join (review of #493).
+    const result = planned(house(), { op: "merge", id: "demo" })
+    expect(record(fileOf(result, "house.olai"), "kitchen").title)
+      .toBe("Kitchen remodeldemolition")
+    expect(record(fileOf(result, "_olai/Trash.olai"), "demo").title).toBe("demolition")
+    expect(fileOf(result, "house.olai").some((node) => node.id === "demo")).toBe(false)
+  })
+
+  test("the top of the page has nothing above it to merge into", () => {
+    expect(refused(house(), { op: "merge", id: "kitchen" }).message)
       .toContain("no row above it to merge into")
   })
 

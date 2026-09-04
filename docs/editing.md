@@ -95,7 +95,7 @@ A new row is that same idea: **Enter** opens a line where the row will go, and t
 
 At the END of a line the key is what it always was, because there is nothing after the caret to split off: a draft after this row, after the whole subtree. At the HEAD of one it inserts a blank draft *above*, and the words you were on stay where they were. That draft is still local — a node needs a title ([format.md](format.md)), so nothing is written until it has one. Cutting where one side would be nothing but spaces is the same thing as an end-of-line press, and reads the same way.
 
-**Backspace at the START of a line joins it onto the row above** — its sibling, the row your eye is on. The two titles run together with nothing between them, because that is what they were before somebody cut them; the caret lands on the seam. Anywhere else in the line, Backspace is the ordinary one and deletes a character; it means this only in the one place it has nothing of its own to do.
+**Backspace at the START of a line joins it onto the row above** — its sibling, or its PARENT when it is the first of its siblings: the row your eye is on either way. The two titles run together with nothing between them, because that is what they were before somebody cut them; the caret lands on the seam. Anywhere else in the line, Backspace is the ordinary one and deletes a character; it means this only in the one place it has nothing of its own to do.
 
 What happens to the rest of the row is the whole of the semantics, and there are no silent losses in it:
 

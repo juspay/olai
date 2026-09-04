@@ -3281,8 +3281,10 @@ const planSplit = (
 }
 
 /**
- * Two nodes into one: this node's title appended to the sibling above it, which
- * adopts what hung under it — and its own record into the trash.
+ * Two nodes into one: this node's title appended to the row above it ON THE
+ * PAGE — the sibling above, or its PARENT when it is the first of its
+ * siblings — which adopts what hung under it. Its own record goes to the
+ * trash. The top of a file has no row above it at all: refused there.
  *
  * {@link planSplit} backwards, and one plan for the same reason, with more at
  * stake: a merge is a retitle, a note, N reparentings and an archive, and a
@@ -3399,7 +3401,8 @@ const planMerge = (
 /** What merging a node would produce: the row it joins, and the two texts that
  *  row ends up carrying. */
 export interface Merging {
-  /** The sibling above — the record that survives. */
+  /** The row above — the sibling, or the PARENT for a first child, whose own
+   *  title is the seam — the record that survives. */
   readonly into: RegularNode
   /** Its title with the merged node's run onto the end. */
   readonly title: string
@@ -3443,7 +3446,17 @@ export const merging = (
 ): Result.Result<Merging, OpFailure> => {
   const row = siblingsOf(derived, at.file, at.node.parent)
   const above = row[row.findIndex((sibling) => sibling.node.id === at.node.id) - 1]
-  if (above === undefined) {
+  // The FIRST of its siblings has no sibling above it — but it is still not
+  // alone on the page: its PARENT is the row directly above it there, and the
+  // join is the same join, at the seam of its title. Without this, Backspace
+  // at offset zero was dead on the row a mid-line `Enter` just made (the tail
+  // of a split under an expanded parent IS a first child), which the human's
+  // review of #493 named "the most reversible key in the editor".
+  const parent: Located | undefined = above === undefined && at.node.parent !== undefined
+    ? derived.byId.get(at.node.parent)
+    : undefined
+  const over = above ?? parent
+  if (over === undefined) {
     return Result.fail(
       new UsageFailure({
         reason: `\`${at.node.title}\` is the first of its siblings, so there is no row ` +
@@ -3455,16 +3468,16 @@ export const merging = (
   // nothing there for a merge to land in — the ops layer's own rule about
   // mirrors, in the sentence the row above earns rather than the one the id
   // named by the caller would get.
-  if (isMirror(above.node)) {
+  if (isMirror(over.node)) {
     return Result.fail(
       new UsageFailure({
         reason: `the row above \`${at.node.title}\` is a mirror — a second placement of ` +
-          `\`${above.node.mirror}\`, with no title of its own — so there is nothing ` +
+          `\`${over.node.mirror}\`, with no title of its own — so there is nothing ` +
           `there to merge into`,
       }),
     )
   }
-  const into = above.node
+  const into = over.node
   return Result.succeed({
     into,
     title: into.title + at.node.title,
