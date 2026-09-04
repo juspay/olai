@@ -667,6 +667,7 @@ export default definePlugin({
         overheard: yield* sessionsIn(vault.served),
         agentAt: (to) => nodeAgents.agentAt(to),
         nodeAt: (node) => nodeAgents.nodeAt(node),
+        seatableAt: (node) => nodeAgents.seatableAt(node),
         nodes: () => nodeAgents.nodes(),
         nearestAt: (node, candidates) => nodeAgents.nearestAt(node, candidates),
         // EVERY KEY THIS VAULT DECLARES THE BINDING KIND ON, not the one a write

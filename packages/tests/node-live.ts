@@ -104,9 +104,12 @@ const doorOf = (node: string): string => `${selector("agent-door")}[data-agent="
  *  `opacity-0` until the row is hovered, and opacity is not something
  *  Playwright's actionability check can see through. */
 const dots = async (node: string): Promise<void> => {
+  // `.first()` is the node's OWN, which is the suite's own rule at the same
+  // reach (`support/world.ts`'s `within`): a descendant's control matches
+  // inside the scope too, and the node's own is rendered before any child's.
   const row = `${selector("node")}[data-node-id="${node}"]`
-  await p.locator(`${row} ${selector("node-gutter")}`).hover()
-  await p.locator(`${row} ${selector("node-menu")}`).click({ force: true })
+  await p.locator(`${row} ${selector("node-gutter")}`).first().hover()
+  await p.locator(`${row} ${selector("node-menu")}`).first().click({ force: true })
   await p.waitForSelector(selector("node-menu-panel"), { timeout: 30_000 })
 }
 /** ... and one entry of it, by the words a person reads off it. */
@@ -125,7 +128,13 @@ const bindingOnDisk = async (): Promise<string | null> => {
       id?: string
       custom?: Record<string, string>
     }
-    if (row.id === NODE) return row.custom?.["agent-session"] ?? null
+    // EITHER KEY, because a vault mid-migration declares two and olai writes
+    // the one the board declares (`server/agents.ts`'s `key`). This driver's
+    // vault declares nothing, so it gets the claimed word — but a reader of
+    // this file should not have to know that to believe the claim.
+    if (row.id === NODE) {
+      return row.custom?.["chat-agent-session"] ?? row.custom?.["agent-session"] ?? null
+    }
   }
   return null
 }
@@ -137,9 +146,30 @@ const pointAt = async (value: string): Promise<void> => {
     if (line.trim() === "") return line
     const row = JSON.parse(line) as { id?: string; custom?: Record<string, string> }
     if (row.id !== NODE) return line
-    return JSON.stringify({ ...row, custom: { ...row.custom, "agent-session": value } })
+    return JSON.stringify({ ...row, custom: { ...row.custom, "chat-agent-session": value } })
   })
   await Bun.write(FILE, lines.join("\n"))
+}
+
+/** POLL UNTIL A READ ANSWERS, or give up and let the claim be the finding.
+ *
+ *  The disk half of this driver needs it for a reason the screen half does not:
+ *  *start an agent session* is TWO acts in a deliberate order — the conversation
+ *  is opened, and only then is the property written, so the vault never names a
+ *  session that was not opened (`server/binding.ts`). A read taken on the press
+ *  is therefore reading before the thing it is about, every time. */
+const until = async <A>(
+  read: () => Promise<A | null>,
+  good: (a: A) => boolean,
+  ms = 120_000,
+): Promise<A | null> => {
+  const stop = Date.now() + ms
+  for (;;) {
+    const now = await read()
+    if (now !== null && good(now)) return now
+    if (Date.now() > stop) return now
+    await p.waitForTimeout(250)
+  }
 }
 
 const type = async (text: string): Promise<void> => {
@@ -178,7 +208,7 @@ const bound = await p.waitForFunction(
 ).then(() => true).catch(() => false)
 ok("one press and the node IS an agent — a row and a door", bound)
 ok("...the door names the engine", await shown(doorOf(NODE), 30_000))
-const first = await bindingOnDisk()
+const first = await until(bindingOnDisk, (held) => held.includes(":"))
 ok(
   "...and the property carries BOTH halves, which is the durable answer",
   first !== null && first.includes(":"),
@@ -189,6 +219,11 @@ await shot("2-bound")
 // ── 2. the panel follows the binding ───────────────────────────────────
 await p.locator(rowOf(NODE)).click()
 ok("pressing the agent puts the panel in its conversation", await drawn("chat-node", 60_000))
+// ...AND THAT THERE IS SOMEWHERE TO TYPE, which is its own claim rather than
+// part of the next one: the panel has three bodies without a composer in them
+// — no agent, a dead one, and a conversation the agent would not open — and a
+// person who has just made a node agent and pressed it is in none of them.
+ok("...on a conversation there is somewhere to type into", await drawn("chat-input", 120_000))
 await type("Reply with exactly BOUND and nothing else.")
 await drawn("chat-busy")
 await idle()
@@ -225,7 +260,7 @@ const moved = await p.waitForFunction(
   { timeout: 120_000 },
 ).then(() => true).catch(() => false)
 ok("the panel comes back to a conversation", moved)
-const second = await bindingOnDisk()
+const second = await until(bindingOnDisk, (held) => held !== first)
 ok(
   "...and the node names a DIFFERENT one — the property moved",
   second !== null && second !== first,

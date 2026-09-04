@@ -67,6 +67,7 @@ test("two node scopes work together, then an idle one is reaped and woken in pla
     cwd,
     tools: () => null,
     nodeAt: (id) => nodes.find((node) => node.id === id) ?? null,
+    seatableAt: (id) => nodes.some((node) => node.id === id),
     nodes: () => nodes,
     nearestAt: (id, candidates) => candidates.has(id) ? id : null,
     agentAt: ({ agent, session }) =>
@@ -155,6 +156,7 @@ test("boot routes a remembered node session before spawning any panel", async ()
     memory,
     tools: () => null,
     nodeAt: (id) => nodes.find((node) => node.id === id) ?? null,
+    seatableAt: (id) => nodes.some((node) => node.id === id),
     nodes: () => nodes,
     nearestAt: (id, candidates) => candidates.has(id) ? id : null,
     agentAt: ({ agent, session }) =>
@@ -194,6 +196,7 @@ test("boot moves a newly identified node session into its scope", async () => {
     cwd,
     tools: () => null,
     nodeAt: (id) => id === node.id ? node : null,
+    seatableAt: (id) => id === node.id,
     nodes: () => [node],
     nearestAt: (id, candidates) => candidates.has(id) ? id : null,
     agentAt: ({ agent, session }) =>
@@ -226,6 +229,7 @@ test("the cap reaps an idle scope, refuses a busy one, and holds its one-shot wa
     cwd,
     tools: () => null,
     nodeAt: (id) => nodes.find((node) => node.id === id) ?? null,
+    seatableAt: (id) => nodes.some((node) => node.id === id),
     nodes: () => nodes,
     nearestAt: (id, candidates) => candidates.has(id) ? id : null,
     agentAt: ({ agent, session }) =>

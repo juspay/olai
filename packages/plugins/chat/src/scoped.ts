@@ -53,6 +53,10 @@ export interface Chat extends Panel {
  * constructs. */
 export interface Options extends PanelOptions {
   readonly nodeAt: (node: string) => NodeAgent | null
+  /** Whether a node is a record an agent could be SEATED at — which is not the
+   * same question as whether it is one already, and is the one the gesture
+   * that creates a node agent asks (`server/agents.ts`'s `seatableAt`). */
+  readonly seatableAt: (node: string) => boolean
   /** All durable node agents, including sleeping ones. Derived doorbells must
    * be able to wake a scope that has no process yet. */
   readonly nodes: () => NodeAgents
@@ -100,6 +104,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       nodeAt,
       nodes: nodesAt,
       onLive,
+      seatableAt,
       ticket: mintTicket,
       ...givenPanelOptions
     } = options
@@ -224,11 +229,27 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         : close(reaper)
     }
 
+    /**
+     * The scope for a node, by the node's OWN id and nothing else.
+     *
+     * It took a whole `NodeAgent` and read `.id` off it four times, which made
+     * a scope look like something only an established node agent could have —
+     * and that is the shape the gesture that CREATES one fell out of: a bare
+     * node is on no roster, so *start an agent session* could not ask for its
+     * scope and opened the conversation in the root panel instead, to be moved
+     * afterwards. Moving a conversation between scopes is `session/load`, and
+     * a real engine has not written a session it has only just minted and
+     * nobody has spoken into — so the move came back `Resource not found` and
+     * left the node naming a conversation that could not be opened.
+     *
+     * A scope is a SEAT — the tools ticket minted below — and a seat is a node,
+     * agent or not. What the id gets is the thing that was always true.
+     */
     const acquire = (
-      node: NodeAgent,
+      node: string,
     ): Effect.Effect<{ readonly slot: NodeSlot; readonly fresh: boolean }, OpFailure> =>
       gate.withPermit(Effect.gen(function*() {
-        const held = nodes.get(node.id)
+        const held = nodes.get(node)
         if (held !== undefined && !held.closing) {
           held.touched = Date.now()
           if (
@@ -247,7 +268,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         }
         yield* room()
         const scope = Scope.makeUnsafe()
-        const ticket = mintTicket(node.id)
+        const ticket = mintTicket(node)
         yield* Effect.addFinalizer(() => Effect.sync(ticket.release)).pipe(
           Effect.provideService(Scope.Scope, scope),
         )
@@ -281,7 +302,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           (made) => made.stop,
         ).pipe(Effect.provideService(Scope.Scope, scope))
         slot = {
-          node: node.id,
+          node,
           scope,
           panel,
           state: panel.state(),
@@ -290,7 +311,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           closing: false,
           timer: null,
         }
-        nodes.set(node.id, slot)
+        nodes.set(node, slot)
         onLive?.()
         return { slot, fresh: true }
       }))
@@ -326,7 +347,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       })
 
     const ensureNode = (
-      node: NodeAgent,
+      node: string,
       open: (panel: Panel) => Effect.Effect<void, OpFailure>,
       foreground: boolean,
     ): Effect.Effect<NodeSlot, OpFailure> =>
@@ -371,7 +392,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
 
         relocating = true
         return Effect.gen(function*() {
-          const { slot, fresh } = yield* acquire(node)
+          const { slot, fresh } = yield* acquire(node.id)
           // Acquisition can wait behind a concurrent node operation. Do not
           // move a panel somebody switched in the meantime.
           if (active.kind !== "root" || active.panel !== old) {
@@ -410,7 +431,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       }
       yield* Effect.catch(
         Effect.asVoid(ensureNode(
-          node,
+          node.id,
           (panel) => panel.loadSession(held.agent, held.session),
           true,
         )),
@@ -446,7 +467,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           if (node === null) return root.doorFor(plugin).deliver(to, say, how)
           return Effect.catch(Effect.gen(function*() {
             const slot = yield* ensureNode(
-              node,
+              node.id,
               (panel) => panel.loadSession(to.agent, to.session),
               false,
             )
@@ -499,23 +520,41 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       resend: (id) => foreground((panel) => panel.resend(id)),
       cancel: foreground((panel) => panel.cancel),
       newSession: (agent) => foreground((panel) => panel.newSession(agent)),
-      startAgentSession: (node, agent) => {
-        const found = nodeAt(node)
-        return found === null
+      /**
+       * IN THE NAMED NODE'S OWN SCOPE, always — including the node that is not
+       * a node agent yet, which is the ordinary case: this gesture is what
+       * MAKES one.
+       *
+       * It used to ask the roster whether the node was already an agent and, on
+       * `null`, open the conversation in the root panel — leaving the binding to
+       * be written and the conversation to be MOVED into the node scope
+       * afterwards ({@link relocateRoot}). Moving one is `session/load`, and a
+       * real engine has not written a session it has only just minted and
+       * nobody has spoken into: the load came back `Resource not found`, the
+       * node was left naming a conversation nothing could open, and *start an
+       * agent session* did not work at all against the adapter olai ships.
+       * The scripted agent loads any id, so no scenario could see it.
+       *
+       * There is nothing to relocate now, because nothing was opened anywhere
+       * else. A scope is a seat and a seat is a node ({@link acquire}); which
+       * node this is for is the argument.
+       */
+      startAgentSession: (node, agent) =>
+        !seatableAt(node)
+          // A node this vault has not got. Nothing is seated, and the
+          // conversation is the unscoped panel's — which is where it went
+          // before and is what the write that follows will refuse over.
           ? Effect.sync(() => {
             activateRoot()
-          }).pipe(
-            Effect.andThen(root.newSession(agent)),
-          )
+          }).pipe(Effect.andThen(root.newSession(agent)))
           : Effect.flatMap(
-            acquire(found),
+            acquire(node),
             ({ slot }) => Effect.gen(function*() {
               activate(slot)
               yield* slot.panel.newSession(agent)
               yield* flush(slot)
             }),
-          )
-      },
+          ),
       chooseAgent: (agent) => {
         activateRoot()
         return root.chooseAgent(agent)
@@ -527,7 +566,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           return root.loadSession(agent, session)
         }
         return Effect.flatMap(
-          acquire(node),
+          acquire(node.id),
           ({ slot }) => Effect.gen(function*() {
             activate(slot)
             const state = slot.panel.state()

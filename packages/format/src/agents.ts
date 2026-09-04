@@ -315,3 +315,27 @@ export const agentsIn = (
     }]
   })
 }
+
+/**
+ * COULD A NODE AGENT BE SEATED HERE — the same three tests {@link agentsIn}
+ * applies, minus the one about the property.
+ *
+ * ONE CALLER and one gesture: *start an agent session*, which names the node it
+ * is for and is the gesture that WRITES the property. Asked of the roster —
+ * which is the query OVER that property — a bare node answers `null`, and that
+ * answer used to be read as "this is not a node", routing the new conversation
+ * to the unscoped panel to be moved into the node's scope afterwards. Moving a
+ * conversation between scopes is `session/load`, and no engine has written a
+ * session it has only just minted and nobody has spoken into.
+ *
+ * So the question a scope needs answering is not *is this already an agent* but
+ * *is this a record an agent could sit at*, and the two had been the same
+ * function. Put-away and mirrors are out on the same grounds they are out of the
+ * roster: a placement has no subtree of its own to be the memory of, and a
+ * trashed record is not somewhere to seat a process.
+ */
+export const seatableIn = (derived: Derived, node: string): boolean => {
+  const located = derived.byId.get(node)
+  if (located === undefined) return false
+  return !isPutAway(located.file) && isRegular(located)
+}

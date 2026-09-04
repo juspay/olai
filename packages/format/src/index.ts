@@ -1075,6 +1075,7 @@ export {
   NodeAgent,
   NodeAgents,
   sameAgents,
+  seatableIn,
   sessionIn,
   sessionValue,
 } from "./agents.ts"

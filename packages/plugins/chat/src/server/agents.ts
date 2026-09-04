@@ -66,6 +66,7 @@ import {
   type Derived,
   keysDeclaredAs,
   nearestAtOrAbove,
+  seatableIn,
   NO_AGENTS,
   type NodeAgent,
   type NodeAgents,
@@ -112,6 +113,17 @@ export interface Roster {
    * re-read per revision, asked once per gesture.
    */
   readonly nodeAt: (node: string) => NodeAgent | null
+  /**
+   * ...AND WHETHER A NODE COULD BE ONE, which is a different question that used
+   * to be answered with that one.
+   *
+   * {@link nodeAt} is the query over the BINDING, so it says `null` about every
+   * node that has not got one — and the gesture that WRITES a binding is
+   * precisely a gesture about such a node. What that gesture needs to know is
+   * only that there is a record there to seat an agent at
+   * (`@olai/format`'s `seatableIn`, which argues the three tests).
+   */
+  readonly seatableAt: (node: string) => boolean
   /** Every durable row, including sleeping agents with no acquired scope. */
   readonly nodes: () => NodeAgents
   /**
@@ -190,6 +202,7 @@ export const roster = (): Roster => {
     agentAt: (to) =>
       held.find((one) => one.engine === to.agent && one.session === to.session) ?? null,
     nodeAt: (node) => held.find((one) => one.id === node) ?? null,
+    seatableAt: (node) => reading !== null && seatableIn(reading, node),
     nodes: () => held,
     key: () => keys[0] ?? SESSION_TYPE,
     keys: () => keys,
