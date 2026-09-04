@@ -269,7 +269,12 @@ ok(
 await p.locator(selector("chat-sessions")).click()
 ok("...with the one it replaced kept as history", await drawn("chat-past-sessions", 30_000))
 await shot("5-fresh")
+// SHUT AND WAITED FOR, not just asked to shut. The picker closes on the next
+// pointer anywhere (`inlinePicker.ts`), so a press made while it is still up is
+// spent shutting it and the row underneath is never pressed — which is a driver
+// reading its own popover as a panel that did nothing.
 await p.keyboard.press("Escape")
+ok("the session list shuts", await gone("chat-session-list", 30_000))
 
 // ── 4. THE TRAP, against an engine that genuinely has not got it ───────
 // Not a scripted refusal: the property is pointed at an id no `claude` ever
