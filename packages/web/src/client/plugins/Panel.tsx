@@ -309,10 +309,14 @@ function Config(props: {
 }) {
   return (
     <Show when={props.values.length > 0}>
-      <dl class="mt-1.5 text-xs leading-relaxed text-muted" data-testid={TESTID.pluginConfig}>
+      <dl class="mt-1.5 text-xs leading-relaxed text-muted">
         <For each={props.values}>
           {([key, value]) => (
-            <div class="flex gap-x-2" data-config={key}>
+            <div
+              class="flex gap-x-2"
+              data-testid={TESTID.pluginConfig}
+              data-config={key}
+            >
               <dt>{key}</dt>
               <dd>{value}</dd>
             </div>
