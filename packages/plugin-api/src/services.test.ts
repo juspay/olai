@@ -27,6 +27,7 @@ import {
   mountPlugin,
   Offers,
   openPlugins,
+  Ops,
   type PluginsConfig,
   SessionStart,
   Surfaces,
@@ -577,6 +578,65 @@ const rowOf = (mounted: Mounted) =>
  * against, which is the worst thing on the page and the reason the table is
  * closed rather than merely documented.
  */
+/**
+ * A REFUSED WRITE REACHES WHOEVER IS WATCHING WRITES — and the seam is new, so
+ * this is the claim that says it is connected at all.
+ *
+ * ## The wire it replaced was a direct call
+ *
+ * `@olai/server`'s ops layer used to hand a refusal straight to the chat, in one
+ * statement, because the composition root held both: `onRefusal: (request,
+ * failure) => chat.recordRefusal(request.op, failure)`. The chat is a ROW now,
+ * so the refusal crosses a bus — the root rings {@link Plugins.refused} and the
+ * plugin subscribes on {@link Ops.refused} — and a bus that was wired to nothing
+ * would look exactly like a serve nobody has refused a write in. What a person
+ * would see is a tool call turned down and a transcript that never says so.
+ *
+ * ## Two things at once, and both are the seam rather than the payload
+ *
+ * That a subscriber is TOLD, with the write's own verb and its failure carried
+ * through untouched; and that a plugin which unloaded is not — the subscription
+ * is a finalizer on the calling plugin's scope, which is what makes "a plugin
+ * that left stops being told" true without anybody remembering to say so.
+ */
+test("a refused write reaches every plugin watching writes, and stops when one leaves", async () => {
+  const heard: Array<{ readonly who: string; readonly op: string; readonly tag: string }> = []
+  await Effect.runPromise(
+    Effect.scoped(Effect.gen(function*() {
+      const plugins = yield* runtime()
+      const watching = (name: string) =>
+        definePlugin({
+          name,
+          needs: [Ops],
+          apply: Effect.gen(function*() {
+            yield* (yield* Ops).refused((refusal) =>
+              Effect.sync(() => {
+                heard.push({ who: name, op: refusal.op, tag: refusal.failure._tag })
+              })
+            )
+          }),
+        })
+      const mirror = yield* mountPlugin(plugins.host, watching("mirror"))
+      yield* mountPlugin(plugins.host, watching("panel"))
+
+      yield* plugins.refused({ op: "prop", failure: { _tag: "UsageFailure" } })
+      // BOTH, in subscription order, each with the verb and the failure's own
+      // tag — the payload is carried and not composed around.
+      expect(heard).toEqual([
+        { who: "mirror", op: "prop", tag: "UsageFailure" },
+        { who: "panel", op: "prop", tag: "UsageFailure" },
+      ])
+
+      // ...and a plugin that leaves stops being told, which is the half a
+      // hand-rolled bus gets wrong.
+      heard.length = 0
+      yield* mirror.dispose
+      yield* plugins.refused({ op: "trash", failure: { _tag: "ValidationFailure" } })
+      expect(heard).toEqual([{ who: "panel", op: "trash", tag: "ValidationFailure" }])
+    })),
+  )
+})
+
 test("a plugin that offers a door core keeps is refused, and only that plugin falls over", async () => {
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const plugins = yield* runtime()
