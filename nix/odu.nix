@@ -12,8 +12,9 @@
 #
 # THE PIN TRACKS MASTER at the exact revision this tree compiled against.
 # `just update-pins` walks it forward; `npins/sources.json` records the tested
-# revision in this diff. The current revision includes the sharded-recipe design
-# merged in juspay/odu#100.
+# revision in this diff. This branch temporarily pins the exact revision from
+# juspay/odu#101, which lets independent sharded leaves share burst capacity;
+# return to master after that prerequisite merges.
 #
 # WHY THE SCRIPT IS KOLU'S. The copier is generic — `<src> <dest>` pairs, `cp
 # -rL` so a hydrated source's own imports resolve up into the root
