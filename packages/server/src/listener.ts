@@ -91,6 +91,12 @@ export interface ListenOptions {
    * that did not is exactly the set inequality that refusal exists to raise.
    * The two have to move together or the listener refuses every socket the
    * moment a plugin arrives.
+   *
+   * NOT OMITTABLE, even though upstream allows it: an absent exposure serves
+   * the whole surface, and that default is exactly what this listener must
+   * never fall back to. The surface carries the ops request vocabulary, and a
+   * browser must not speak it — `ops.*` is not on the browser face, so a tab
+   * that calls one is refused per request rather than finding a member missing.
    */
   readonly expose: () => FaceExposure
   /** The built browser bundle. */
@@ -164,25 +170,22 @@ export const listen = (
  *  other. */
 const app = (options: Omit<ListenOptions, "port">, port: number, say: Emit) =>
   serveSurfaceApp({
-    // THE THREE READ AT EACH ACCEPT, and never here. `LiveServed` takes a value
-    // or a thunk; a value is the generation that was current when the option
-    // was written, which is what every caller with a fixed surface wants and
-    // what this file used to pass. olai's served set moves, so all three are
-    // thunks — and they are all three, because the group, the handler record
-    // and the gate are one generation: two of them re-read and the third stale
-    // is the set inequality `restrictHandlers` refuses on.
-    group: () => options.bound.group,
-    handlers: () => options.bound.handlers,
-    // WHAT A TAB MAY CALL, and the reason this argument exists at all: the
-    // surface carries the ops request vocabulary now, and a browser must not
-    // speak it (`./faces.ts`). Everything a page draws or presses is named
-    // there; `ops.*` is not, and a tab that calls one is refused per request
-    // with `SurfaceMemberNotExposed` rather than finding a member missing.
+    // THE GENERATION, READ AT EACH ACCEPT AND NEVER HERE — one `live`, which is
+    // what a `ServedGenerationSource` is: a caller with a fixed surface passes
+    // the triple itself, and one whose served set MOVES passes a function that
+    // names the triple that is current then.
     //
-    // Not an omission-able option here even though upstream allows one: an
-    // absent `expose` serves the whole surface, and that default is exactly
-    // what this listener must never fall back to.
-    expose: () => options.expose(),
+    // ONE FUNCTION RATHER THAN THREE, and the shape is what makes the rule
+    // keepable: the group, the handler record and the gate are one generation,
+    // and two of them re-read with the third stale is the set inequality
+    // `restrictHandlers` refuses on — a socket terminated, not a member denied.
+    // Three separate accessors leave that to the caller to remember; one leaves
+    // nothing to remember.
+    live: () => ({
+      group: options.bound.group,
+      handlers: options.bound.handlers,
+      expose: options.expose(),
+    }),
     clientDist: options.clientDist,
     // The same spelling the build took — `@olai/surface`'s ASSET_PREFIX, so a
     // vault file under `assets/` is a page rather than a miss under the
