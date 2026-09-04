@@ -94,7 +94,14 @@ export const pluginHint = (plugin: BuiltPlugin): string => {
     case "failed":
       return `Failed to start. ${said(plugin.fault)}`
     case "waiting":
-      return `Starting — waiting for something it needs.`
+      // NAMED WHERE THE ROW NAMES THEM, because "something it needs" is the
+      // sentence that sends a person to the source. A service with nobody
+      // behind it is another ROW's to offer, so what this line is really saying
+      // is which plugin to compose — and it can only say it by naming the door.
+      return plugin.missing === undefined || plugin.missing.length === 0
+        ? `Starting — waiting for something it needs.`
+        : `Waiting for ${plugin.missing.join(", ")} — no plugin in this build offers `
+          + `${plugin.missing.length === 1 ? "it" : "them"}.`
     default:
       return `Off — it was not asked for. Nothing of it is drawn.`
   }

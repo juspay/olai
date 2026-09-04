@@ -620,6 +620,12 @@ export const rosterOf = (
         // are the plugin's: a sentence with a hole in it would make core the
         // author of everything around the hole.
         ...(said.fault === undefined ? {} : { fault: said.fault }),
+        // ...and, on the one word that is a WAIT, the services it is short of.
+        // Core names these because they are core's own vocabulary — a tag is a
+        // key in this tree's table, not a plugin's prose — and naming them is
+        // what turns "waiting for something" into a sentence somebody can act
+        // on.
+        ...(said.missing === undefined ? {} : { missing: said.missing }),
         // WHAT THE PICKER IS MADE OF, named one at a time rather than spread
         // whole — and the omission is the point. The three strings the strip
         // draws, plus the KINDS the picker may offer, because that is the one
@@ -667,14 +673,27 @@ export const rosterOf = (
 const stateOf = (
   offered: NonNullable<Wiring["plugins"]>,
   report: RowReport,
-): { readonly state: PluginState; readonly fault?: string } => {
+): {
+  readonly state: PluginState
+  readonly fault?: string
+  readonly missing?: ReadonlyArray<string>
+} => {
   switch (report.state) {
     case "failed":
       return report.fault === undefined
         ? { state: "failed" }
         : { state: "failed", fault: report.fault }
     case "waiting":
-      return { state: "waiting" }
+      // ...AND WHAT IT IS SHORT OF, which the reading has and this arm used to
+      // drop. A row is `waiting` because a service it named has nobody behind
+      // it, and the one sentence a person needs is WHICH — under
+      // `--plugins=kolu` the answer is `deliveries`, and the answer to that is
+      // "compose the chat row". Empty is not absent: a fiber PENDING with
+      // nothing named is a settle still in flight, and a row claiming to wait
+      // on nothing would be worse than one that says only that it is waiting.
+      return report.missing === undefined || report.missing.length === 0
+        ? { state: "waiting" }
+        : { state: "waiting", missing: report.missing }
     case "off":
       // THE LOADER DECLINED TO LOAD IT, and `pinned` is the only thing left
       // that can say who wrote the `disabled` it declined on.
