@@ -422,11 +422,25 @@ export interface SlotFaces {
  * machine with no agent installed offers no *start* row at all, and an entry
  * whose only outcome is "there is nothing to start" teaches nobody anything.
  *
- * The plugin-facing subset of what `@olai/web`'s own catalog builds, and the
- * fields it does NOT have are the argument: no `divider`, because where a
- * plugin's verb sits relative to core's reads and writes is a safety property
- * that menu owns; no `confirm`, because the question a verb asks before it runs
- * is drawn in core's words and a plugin's is not core's to compose.
+ * The plugin-facing subset of what `@olai/web`'s own catalog builds. There is no
+ * `divider` and no `confirm`: a rule is core's statement about which half of its
+ * own list a reader is in, and the question a verb asks before it runs is drawn
+ * in core's words, which a plugin's verb is not core's to compose.
+ *
+ * ## WHICH HALF, THOUGH — and that one the plugin has to say
+ *
+ * The row menu puts every READ above a rule and every WRITE below it, and the
+ * rule is a safety property rather than a habit: everything above it changes
+ * what this tab is looking at, everything below it changes the directory, and a
+ * person reaching for *Collapse all* and hitting *Move to Trash* is a mistake
+ * the ORDER prevents. Appending a plugin's verbs after both halves was the first
+ * shape here and it broke exactly that: *Ask agent* — which arms a composer and
+ * writes nothing — landed under *Move to Trash*.
+ *
+ * Core cannot tell which a verb is, and a plugin cannot be trusted with the
+ * POSITION. So {@link writes} is the one fact that crosses: the plugin says what
+ * kind of act its verb is, and core places it. That is this table's own split
+ * said once more — core keeps the shape, the plugin brings the fact.
  *
  * ## What a press is handed, and what it is not
  *
@@ -459,6 +473,18 @@ export interface RowAction {
   readonly id: string
   /** The words on the row. */
   readonly label: string
+  /**
+   * Does it change the DIRECTORY? A verb that arms a composer, opens a panel or
+   * moves this tab says `false` and sits with core's reads; one that writes a
+   * property, a record or a file says `true` and sits with core's writes, under
+   * the same rule.
+   *
+   * REQUIRED, with no default, because both answers are ordinary and the wrong
+   * one is silent: a default of `false` would put a destructive verb among the
+   * reads and a default of `true` would put a harmless one under Trash, and
+   * neither would say anything at the moment it was written.
+   */
+  readonly writes: boolean
   /** ...and what a press does, on the node the row shows. */
   readonly run: (node: string) => void | Promise<void>
 }

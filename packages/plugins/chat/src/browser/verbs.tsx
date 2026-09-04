@@ -41,6 +41,8 @@
 
 import type { AppCommand, RowAction } from "@olai/plugin-api"
 import { setPanelOpen } from "@olai/web/client/layout/prefs.ts"
+import { runAsync } from "@olai/web/client/run.ts"
+import { Result } from "effect"
 
 import { armNode, releaseArmed, restoreArmed } from "./chat/armed.ts"
 import { createChatState } from "./chat/state.ts"
@@ -78,6 +80,11 @@ export const rowVerbs = (): ReadonlyArray<RowAction> => {
     // so a plugin cannot get that distinction wrong by not knowing it exists.
     id: "ask-agent",
     label: "Ask agent",
+    // A READ, so it sits with core's — above the rule, where a press that
+    // changes what this tab is pointed at belongs. What happens to the node
+    // afterwards is whatever is typed next, through the same tools and the same
+    // gate as always.
+    writes: false,
     run: (node) => {
       armNode(node)
       setPanelOpen(true)
@@ -87,16 +94,26 @@ export const rowVerbs = (): ReadonlyArray<RowAction> => {
   for (const engine of engines) {
     verbs.push({
       id: `start-agent-${engine.id}`,
+      // ...and this one WRITES: it names the conversation on the node, which is
+      // a property in the directory, so it sits below the rule with core's own
+      // writes.
+      writes: true,
       // The label carries the agent's name only when there is a choice to make.
       // Naming it on a machine with one agent would be answering a question
       // nobody asked, in the one place a menu has no room for it.
       label: engines.length === 1
         ? "Start an agent session"
         : `Start an agent session — ${engine.name}`,
-      run: async (node) => {
-        setPanelOpen(true)
-        await chatWire().procedures.conversation.startAgentSession({ node, agent: engine.id })
-      },
+      // THROUGH THE APP'S ONE EDGE, and not awaited directly: a procedure on a
+      // surface client is an EFFECT, so `await`ing it resolves the DESCRIPTION
+      // and runs nothing at all — the panel opened, the menu closed, and the
+      // property was never written. `runAsync` is where this app runs one, and
+      // it is not a convenience: it is what holds the tab's quiescence open for
+      // the length of the call, which is what a scenario waits on.
+      run: (node) =>
+        runAsync(
+          chatWire().procedures.conversation.startAgentSession({ node, agent: engine.id }),
+        ).then(() => {}),
     })
   }
   return verbs
@@ -126,18 +143,20 @@ export const askCommand: AppCommand = {
   placeholder: "ask the agent…",
   run: async (line) => {
     const context = releaseArmed()
-    try {
-      await chatWire().procedures.conversation.send({ text: line, context })
-      setPanelOpen(true)
-      return null
-    } catch (reason) {
-      restoreArmed(context)
-      setPanelOpen(true)
-      // THE PLUGIN'S OWN WORDS, which for a refused write are the server's:
-      // every way this call is turned down is an `OpFailure` carrying a sentence
-      // somebody wrote for a person to read, and composing anything around it
-      // here would be core's template with a noun dropped in.
-      return reason instanceof Error ? reason.message : String(reason)
-    }
+    // THROUGH THE APP'S ONE EDGE — see the note on the menu verb above. It is
+    // also what turns a refusal into a VALUE rather than a rejection:
+    // `runAsync` answers a `Result`, so there is no throw here to catch and no
+    // way for one of the three exits to escape unread.
+    const outcome = await runAsync(
+      chatWire().procedures.conversation.send({ text: line, context }),
+    )
+    setPanelOpen(true)
+    if (Result.isSuccess(outcome)) return null
+    restoreArmed(context)
+    // THE PLUGIN'S OWN WORDS, which for a refused send are the server's: every
+    // way this call is turned down is an `OpFailure` carrying a sentence
+    // somebody wrote for a person to read, and composing anything around it here
+    // would be core's template with a noun dropped in.
+    return outcome.failure.message
   },
 }

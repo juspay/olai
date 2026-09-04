@@ -258,41 +258,40 @@ export const nodeMenuActions = (args: {
     })
   }
 
-  // The rule goes above the first of them, wherever the two halves meet.
-  items.push(...writes.map((verb, at) => (at === 0 ? { ...verb, divider: true } : verb)))
-
   /**
-   * ...AND WHAT THE PLUGINS HANG ON A ROW — `outline.row.action`, appended.
+   * ...AND WHAT THE PLUGINS HANG ON A ROW — `outline.row.action`, placed into
+   * the half each verb says it belongs in.
    *
    * ## What core keeps
    *
-   * THE BOX: an entry here is the same `MenuAction` every verb above is, drawn
-   * by the same panel in the same row, run through the same `./picking.ts` — so
-   * a plugin's verb that throws is worded beside the `•••` in core's voice
-   * ("couldn't ask agent") exactly as a refused clipboard write is.
+   * The POSITION, and it is a safety property rather than a preference: the rule
+   * above separates verbs that change what this tab is looking at from verbs
+   * that change the directory, and a person reaching for one and hitting the
+   * other is the mistake the ORDER prevents. A plugin's verbs sit at the END of
+   * whichever half they belong to — after core's own, in the bundle's order
+   * (`../plugins/runtime.ts`'s `hung` imposes it), and one plugin's several stay
+   * in the order it registered them.
    *
-   * THE PLACE, which is the reason this walk is at the BOTTOM of this function
-   * rather than at a line a plugin could name. The order of this list is a
-   * safety property — the reads above the rule, the writes below it, so a hand
-   * reaching for "Collapse all" cannot land on "Move to Trash" — and a slot that
-   * let a tenant choose its index would let a tenant put its own press under a
-   * reader's thumb. So every plugin's verbs come after every one of core's, in
-   * the bundle's order (`../plugins/runtime.ts`'s `hung` imposes it), and one
-   * plugin's several stay in the order it registered them.
+   * APPENDING AFTER BOTH HALVES was the first shape and it broke exactly the
+   * rule it was standing next to: *Ask agent* arms a composer and writes
+   * nothing, and it landed under *Move to Trash*. Core cannot tell which a
+   * verb is, and a plugin may not be trusted with the position — so `RowAction`
+   * carries the one fact that crosses (`writes`) and this is where it is spent.
    *
    * NO DIVIDER and NO CONFIRM, and neither is an omission: `RowAction` has
-   * neither field. A rule is core's statement about which half of ITS OWN list a
-   * reader is in, and a question asked before a verb runs is prose drawn in
-   * core's words — which a plugin's verb is not core's to compose.
+   * neither field. A rule is core's statement about where the halves meet, and a
+   * question asked before a verb runs is prose drawn in core's words — which a
+   * plugin's verb is not core's to compose.
    *
    * ## What the plugin brings
    *
-   * The words and the press, and the press is handed ONE argument: the node this
-   * row SHOWS (`../fold/rows.ts`), never the record standing there. That is the
-   * rule a mark, a fold and a pin already follow, and spending it here is what
-   * stops a tenant from having to know that a mirror is a placement with no
-   * title of its own — `Ask agent` got this right when it lived in this file and
-   * a test held it; now nothing on the other side of the slot can get it wrong.
+   * The words, the press, and which half. The press is handed ONE argument: the
+   * node this row SHOWS (`../fold/rows.ts`), never the record standing there.
+   * That is the rule a mark, a fold and a pin already follow, and spending it
+   * here is what stops a tenant from having to know that a mirror is a placement
+   * with no title of its own — `Ask agent` got this right when it lived in this
+   * file and a test held it; now nothing on the other side of the slot can get
+   * it wrong.
    *
    * THE ID IS COMPOSED, because a plugin's `id` is its own word and two plugins
    * may spell it the same. `<plugin>:<verb>` is unambiguous — a plugin's name
@@ -306,12 +305,20 @@ export const nodeMenuActions = (args: {
     // that decides it arrives over a wire the tab dials afterwards. This walk is
     // already inside a tracked read, so a list that moves moves the menu.
     for (const verb of face()) {
-      items.push({
+      const entry = {
         id: `${plugin}:${verb.id}`,
         label: verb.label,
         run: () => verb.run(foldIdOf(args.row)),
-      })
+      }
+      if (verb.writes) writes.push(entry)
+      else items.push(entry)
     }
   }
+
+  // The rule goes above the first of the writes, wherever the two halves meet —
+  // AFTER the plugins have added to both, so a serve running a plugin whose only
+  // verb writes still draws one rule in the one right place.
+  items.push(...writes.map((verb, at) => (at === 0 ? { ...verb, divider: true } : verb)))
+
   return items
 }
