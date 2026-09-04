@@ -61,8 +61,8 @@
       },
       "branch": "master",
       "submodules": false,
-      "revision": "c3a894c770fd8675c048c491cf4e3ddb6da11aef",
-      "url": "https://github.com/juspay/odu/archive/c3a894c770fd8675c048c491cf4e3ddb6da11aef.tar.gz",
+      "revision": "f5694f370923698ce240a67b258bc66b238b658b",
+      "url": "https://github.com/juspay/odu/archive/f5694f370923698ce240a67b258bc66b238b658b.tar.gz",
       "hash": "sha256-Up9rr5rdmv+YRnIC96qyBeB7aLwCMgHcpyyJtA5TASA="
     },
     "osfacts": {
