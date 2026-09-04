@@ -11,8 +11,17 @@
  */
 
 import { readingOfVault } from "@olai/format/testlib/scope"
-import { openPlugins } from "@olai/plugin-api/services"
+import {
+  Agents,
+  definePlugin,
+  type Host,
+  mountPlugin,
+  Offers,
+  openPlugins,
+  rowReport,
+} from "@olai/plugin-api/services"
 import { REGISTRY } from "@olai/plugin-build/shared"
+import type { BuiltPlugin } from "@olai/surface"
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 
@@ -67,9 +76,23 @@ const vault = (options: {
   return readingOfVault(new Map([["plugins.olai", rows.join("\n")]])).derived
 }
 
-/** One runtime over a host of its own, for the length of one bench. */
+/**
+ * ONE RUNTIME OVER A HOST OF ITS OWN, for the length of one bench — and the
+ * rows READ THE WAY A SERVE READS THEM.
+ *
+ * `rows()` takes the report rather than remembering one, so `now()` is the
+ * composition root's re-read spelled for one host: `rowReport` over whatever
+ * words the vault currently defines. That is not a convenience here, it is the
+ * subject — the state a definition's row wears comes off the live registry, and
+ * a bench that passed a map it had built itself would be asserting against its
+ * own memory of what the fiber was doing.
+ */
 const bench = <A>(
-  use: (dynamic: ReturnType<typeof openDynamic>) => Effect.Effect<A>,
+  use: (
+    dynamic: ReturnType<typeof openDynamic>,
+    now: () => Effect.Effect<ReadonlyArray<BuiltPlugin>>,
+    host: Host,
+  ) => Effect.Effect<A>,
 ): Promise<A> =>
   Effect.runPromise(
     Effect.scoped(Effect.gen(function*() {
@@ -80,16 +103,21 @@ const bench = <A>(
       })
       // NO BUILT WORDS: this bench's build has no rows, so nothing is taken and
       // the definition may have any word it likes.
-      return yield* use(openDynamic(plugins.host, []))
+      const dynamic = openDynamic(plugins.host, [])
+      return yield* use(
+        dynamic,
+        () => Effect.map(rowReport(plugins.host, dynamic.names()), dynamic.rows),
+        plugins.host,
+      )
     })),
   )
 
 describe("a definition waits for a person", () => {
   test("nobody has approved it: pending, and nothing has been imported", async () => {
-    const rows = await bench((dynamic) =>
+    const rows = await bench((dynamic, now) =>
       Effect.gen(function*() {
         yield* dynamic.follow(vault({}))
-        return dynamic.rows()
+        return yield* now()
       })
     )
     expect(rows).toHaveLength(1)
@@ -105,10 +133,10 @@ describe("a definition waits for a person", () => {
   })
 
   test("approved at this version: it mounts, and it is a row like any other", async () => {
-    const rows = await bench((dynamic) =>
+    const rows = await bench((dynamic, now) =>
       Effect.gen(function*() {
         yield* dynamic.follow(vault({ approved: versionOf(SERVER, null) }))
-        return dynamic.rows()
+        return yield* now()
       })
     )
     expect(rows[0]?.state).toBe("running")
@@ -116,14 +144,14 @@ describe("a definition waits for a person", () => {
   })
 
   test("an edit after an approval is pending again", async () => {
-    const rows = await bench((dynamic) =>
+    const rows = await bench((dynamic, now) =>
       Effect.gen(function*() {
         // Approved at the version it HAD, then edited.
         yield* dynamic.follow(vault({ approved: versionOf(SERVER, null) }))
         yield* dynamic.follow(
           vault({ approved: versionOf(SERVER, null), server: `${SERVER}\n// and more` }),
         )
-        return dynamic.rows()
+        return yield* now()
       })
     )
     expect(rows[0]?.state).toBe("pending")
@@ -131,12 +159,68 @@ describe("a definition waits for a person", () => {
   })
 })
 
+/**
+ * A ROW'S WORD IS ITS FIBER'S, AT THE MOMENT IT IS ASKED — the bench for the
+ * defect that made `rows` take the report rather than remember one.
+ *
+ * The state used to be read once, when the mount returned, and stored on the
+ * live entry. That is a second clock, and it was wrong in both directions the
+ * moment a fiber moved afterwards. This is the case that matters: a definition
+ * that NAMES a door nobody is behind mounts `waiting` — legitimately, and the
+ * runtime's reactive half will wake it — and when something stands behind that
+ * door the fiber goes ACTIVE with nothing about the definition having changed.
+ * With a remembered report the row went on saying `waiting` with `running:
+ * false`, so the tab never loaded the chunk of a plugin that was serving.
+ */
+describe("a row's word follows its fiber, not the mount", () => {
+  /** A half that names a door this bench does not provide — so it mounts and
+   *  waits, which is a legitimate resting state and not a fault. */
+  const NEEDS_A_DOOR = [
+    `import { Agents, definePlugin } from "@olai/plugin-api"`,
+    `import { Effect } from "effect"`,
+    `export default definePlugin({`,
+    `  name: "swatch",`,
+    `  needs: [Agents],`,
+    `  apply: Effect.void,`,
+    `})`,
+  ].join("\n")
+
+  test("waiting on a door, then running when somebody stands behind it", async () => {
+    const said = await bench((dynamic, now, host) =>
+      Effect.gen(function*() {
+        yield* dynamic.follow(vault({ approved: ALWAYS, server: NEEDS_A_DOOR }))
+        const waiting = (yield* now())[0]
+        // NOBODY FOLLOWS ANYTHING between these two readings. The only thing
+        // that happens is another plugin offering the door — which is a flip on
+        // a real serve — and the definition's fiber wakes on its own.
+        yield* mountPlugin(
+          host,
+          definePlugin({
+            name: "a-door",
+            needs: [Offers],
+            apply: Effect.gen(function*() {
+              const offers = yield* Offers
+              yield* offers.offer(Agents, () => ({ register: () => Effect.void }))
+            }),
+          }),
+        )
+        return { waiting, running: (yield* now())[0] }
+      })
+    )
+    expect(said.waiting?.state).toBe("waiting")
+    expect(said.waiting?.running).toBe(false)
+    expect(said.waiting?.missing).toEqual(["agents"])
+    expect(said.running?.state).toBe("running")
+    expect(said.running?.running).toBe(true)
+  })
+})
+
 describe("a browser half is compiled and served", () => {
   test("the chunk is bound to the host's own modules, and named by the version", async () => {
-    const { rows, chunk } = await bench((dynamic) =>
+    const { rows, chunk } = await bench((dynamic, now) =>
       Effect.gen(function*() {
         yield* dynamic.follow(vault({ browser: BROWSER, approved: ALWAYS }))
-        const rows = dynamic.rows()
+        const rows = yield* now()
         return { rows, chunk: dynamic.chunk(rows[0]?.source?.chunk ?? "") }
       })
     )
@@ -153,7 +237,7 @@ describe("a browser half is compiled and served", () => {
   })
 
   test("a path nothing is serving is nothing", async () => {
-    const said = await bench((dynamic) =>
+    const said = await bench((dynamic, now) =>
       Effect.gen(function*() {
         yield* dynamic.follow(vault({ browser: BROWSER, approved: ALWAYS }))
         return dynamic.chunk("/_olai/plugins/swatch-deadbeef.js")
@@ -165,12 +249,12 @@ describe("a browser half is compiled and served", () => {
 
 describe("what goes wrong lands on the row, with a sentence", () => {
   test("a module olai does not bind is refused by name", async () => {
-    const rows = await bench((dynamic) =>
+    const rows = await bench((dynamic, now) =>
       Effect.gen(function*() {
         yield* dynamic.follow(
           vault({ server: `import pad from "left-pad"\n${SERVER}`, approved: ALWAYS }),
         )
-        return dynamic.rows()
+        return yield* now()
       })
     )
     expect(rows[0]?.state).toBe("failed")
@@ -178,10 +262,10 @@ describe("what goes wrong lands on the row, with a sentence", () => {
   })
 
   test("a half with no plugin in it says what to write instead", async () => {
-    const rows = await bench((dynamic) =>
+    const rows = await bench((dynamic, now) =>
       Effect.gen(function*() {
         yield* dynamic.follow(vault({ server: `export const nothing = 1`, approved: ALWAYS }))
-        return dynamic.rows()
+        return yield* now()
       })
     )
     expect(rows[0]?.state).toBe("failed")
@@ -189,12 +273,12 @@ describe("what goes wrong lands on the row, with a sentence", () => {
   })
 
   test("a half that calls itself something else may not sign another word", async () => {
-    const rows = await bench((dynamic) =>
+    const rows = await bench((dynamic, now) =>
       Effect.gen(function*() {
         yield* dynamic.follow(
           vault({ server: SERVER.replace(`"swatch"`, `"kolu"`), approved: ALWAYS }),
         )
-        return dynamic.rows()
+        return yield* now()
       })
     )
     expect(rows[0]?.state).toBe("failed")
@@ -202,7 +286,7 @@ describe("what goes wrong lands on the row, with a sentence", () => {
   })
 
   test("an `apply` that throws is the RUNTIME's containment, and it is quoted", async () => {
-    const rows = await bench((dynamic) =>
+    const rows = await bench((dynamic, now) =>
       Effect.gen(function*() {
         yield* dynamic.follow(
           vault({
@@ -213,7 +297,7 @@ describe("what goes wrong lands on the row, with a sentence", () => {
             ),
           }),
         )
-        return dynamic.rows()
+        return yield* now()
       })
     )
     expect(rows[0]?.state).toBe("failed")
@@ -223,13 +307,13 @@ describe("what goes wrong lands on the row, with a sentence", () => {
 
 describe("the switch reaches a definition too", () => {
   test("off is off for this process, and on brings it back", async () => {
-    const said = await bench((dynamic) =>
+    const said = await bench((dynamic, now) =>
       Effect.gen(function*() {
         yield* dynamic.follow(vault({ approved: ALWAYS }))
         const found = yield* dynamic.set("swatch", false)
-        const off = dynamic.rows()[0]?.state
+        const off = (yield* now())[0]?.state
         yield* dynamic.set("swatch", true)
-        return { found, off, on: dynamic.rows()[0]?.state }
+        return { found, off, on: (yield* now())[0]?.state }
       })
     )
     expect(said.found).toBe(true)
@@ -238,7 +322,7 @@ describe("the switch reaches a definition too", () => {
   })
 
   test("a word this vault does not define is not this door's to flip", async () => {
-    const found = await bench((dynamic) =>
+    const found = await bench((dynamic, now) =>
       Effect.gen(function*() {
         yield* dynamic.follow(vault({ approved: ALWAYS }))
         return yield* dynamic.set("kolu", false)
@@ -250,11 +334,11 @@ describe("the switch reaches a definition too", () => {
 
 describe("a definition that goes away takes its fiber with it", () => {
   test("the row is gone and nothing is left mounted", async () => {
-    const rows = await bench((dynamic) =>
+    const rows = await bench((dynamic, now) =>
       Effect.gen(function*() {
         yield* dynamic.follow(vault({ approved: ALWAYS }))
         yield* dynamic.follow(readingOfVault(new Map([["plugins.olai", ""]])).derived)
-        return dynamic.rows()
+        return yield* now()
       })
     )
     expect(rows).toEqual([])

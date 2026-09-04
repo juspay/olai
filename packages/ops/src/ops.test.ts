@@ -217,7 +217,7 @@ test("a run carries its node fence through refusal reporting and write tracking"
       const fence: Fence = {
         under: "demo",
         ask: () => null,
-        forbidden: new Set(),
+        forbidden: new Map(),
       }
       const failure = yield* Effect.flip(
         fixture.ops.run({ op: "done", id: "order" }, "mcp", fence),

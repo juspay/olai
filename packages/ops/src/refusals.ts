@@ -76,7 +76,13 @@ export const fenceRefusal = (
     case "document":
       return `\`${reached.path}\` is a document, and a document is inside nobody's subtree: ${you}.${then}`
     case "key":
-      return `\`${reached.key}\` is a property this door may not write — it is what seats a conversation on a node, and that is a person's gesture in the panel, on “${reached.title}” (\`${reached.id}\`) as anywhere else.${then}`
+      // THE CLAUSE IS THE FENCE'S, carried on the ticket beside the key it is
+      // about (`./fenced.ts`'s `Fence.forbidden`). It used to be written here,
+      // in a general package, about a word a plugin owns; a second forbidden
+      // key — one that is a person's approval of code rather than a
+      // conversation's binding — is what made that one sentence untrue of half
+      // its subjects.
+      return `\`${reached.key}\` is a property this door may not write — ${reached.says}, on “${reached.title}” (\`${reached.id}\`) as anywhere else.${then}`
   }
 }
 

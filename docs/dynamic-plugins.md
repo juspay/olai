@@ -69,7 +69,7 @@ approve source nobody has read. Look again, read what it says, and approve that.
 
 Three tools, on the agent face:
 
-- **`plugins.inspect`** — what a plugin may name: the three modules, the service keys a server half may put in its `needs`, the slots a browser half may register a face into, the node layout above, and the words already taken. Read this before writing code; it is the live registry rather than a description of one.
+- **`plugins.inspect`** — what a plugin may name: the three modules, the service keys a server half may put in its `needs`, the slots a browser half may register a face into, the node layout above, and the words already taken. Read this before writing code; it is the live registry rather than a description of one. `taken` is every word this serve has — the build's rows **and** every definition in the vault, including ones other agents wrote — because a definition may take neither.
 - **`plugins.run`** — ask olai to look at a definition now and say what became of it. A definition nobody has approved answers `pending`, which is the boundary said back to the author.
 - **`plugins.stop`** — unmount one, for as long as this serve runs. It reaches **definitions only**: an agent cannot turn off the row that seats it, the row that watches its writes, or the row whose tools it is holding.
 
@@ -128,5 +128,6 @@ The kind word a vault then declares is `swatch-hex`: a plugin contributes the ba
 ## What this is not
 
 - **Not sandboxed.** See above. Approval is the boundary.
+- **Not a report of what the FACE did.** A half whose `apply` throws lands the row on `failed` with its own sentence, on the server. A face that throws while it is being *drawn* does not: the tab's fault boundary contains it the way it contains a shipped plugin's, the console says which plugin it was, and the row goes on saying `running` — because on the server it is. That is the same gap every built plugin has, and closing it wants a field on the roster row's browser reading rather than a console line, so it is written down here rather than built in this lane.
 - **Not persisted enablement.** A `plugins.stop`, or the panel's switch on a definition, lasts as long as the process. What survives a restart is the definition and its approval, which are in the vault.
 - **Not a package.** There is no `olai plugin add`, no npins pin and no out-of-tree build. A definition is two notes in a directory olai is already serving.

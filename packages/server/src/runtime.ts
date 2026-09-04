@@ -375,6 +375,21 @@ export interface PluginRuntime {
    */
   readonly set: (id: string, enabled: boolean) => Effect.Effect<boolean>
   /**
+   * TAKE {@link report} AGAIN — for the movements {@link set} is not.
+   *
+   * A row moves when a flip moves it, and {@link set} re-reads on its way out.
+   * It also moves when a plugin the VAULT defines mounts, is disposed, or is
+   * replaced by an edited version — none of which is a flip, and all of which
+   * put a fiber on this same host. So the holder is re-read there too, and this
+   * is the verb that does it.
+   *
+   * ONE READING FOR EVERY ROW ON THE HOST, which is why this is a re-read rather
+   * than a second report: a definition's fiber and a bundle row's are the same
+   * kind of thing in the same registry, and two readings of one registry is the
+   * arrangement that used to report a row `off` while it was serving.
+   */
+  readonly reread: Effect.Effect<void>
+  /**
    * WHICH ROWS A PERSON HAS TURNED OFF HERE, and not turned back on.
    *
    * ## The third author of "absent"
@@ -1224,7 +1239,16 @@ export const bind = (
      * and the cell is republished ({@link republishPlugins}).
      */
     const roster = (): PluginRoster =>
-      rosterOf(offered, rings(), plugins?.offers() ?? new Map(), dynamic?.rows() ?? [])
+      rosterOf(
+        offered,
+        rings(),
+        plugins?.offers() ?? new Map(),
+        // THE SAME REPORT the built rows are drawn from, one line up inside
+        // `rosterOf` — a definition's fiber is on the same host under its own
+        // word, so one reading answers for both and neither can be stale while
+        // the other is fresh.
+        dynamic?.rows(offered?.report() ?? new Map()) ?? [],
+      )
 
     /** THE PLUGINS THIS VAULT DEFINES, or `null` for a runtime that has none —
      *  every headless face, and every test that composes no plugin slot. */
@@ -1942,7 +1966,10 @@ export const bind = (
                   }),
                 )
               }
-              const row = (dynamic?.rows() ?? []).find((one) => one.name === input.name)
+              // OFF THE ROSTER rather than off the runtime, so an agent asking
+              // what became of what it wrote is answered from exactly the row a
+              // person is looking at — one reading, both faces.
+              const row = roster().built.find((one) => one.name === input.name)
               return {
                 name: one.name,
                 version: one.version,
@@ -2331,8 +2358,15 @@ export const bind = (
           Effect.andThen(Effect.sync(() => { moving = true }), run),
           Effect.sync(() => { moving = false }),
         )
-        if (changed) recompose()
-        return changed
+        if (!changed) return false
+        // THE REPORT, BEFORE THE ROSTER IS DRAWN FROM IT. A definition that
+        // mounted, was disposed or was replaced moved a fiber on this host, and
+        // the holder the roster reads is the composition root's — so it is taken
+        // again here for exactly the reason a flip takes it again on its way
+        // out ({@link PluginRuntime.reread}).
+        yield* offered?.reread ?? Effect.void
+        recompose()
+        return true
       })
 
     /**

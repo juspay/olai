@@ -22,7 +22,22 @@ export interface Fence {
   /** Null is a released session ticket: closed, never widened. */
   readonly under: string | null
   readonly ask: () => string | null
-  readonly forbidden: ReadonlySet<string>
+  /**
+   * THE KEYS THIS DOOR MAY NOT WRITE, each with the clause that says why.
+   *
+   * A MAP AND NOT A SET, and the value is prose. It was a set while there was
+   * one key, and the sentence that explained it was written HERE, in a general
+   * package, about a word `olai-plugin-chat` owns (*it is what seats a
+   * conversation on a node*) — which is this tree's own rule broken quietly:
+   * failure prose is the owner's, and core carries it.
+   *
+   * A second key made that visible rather than merely true. The two forbidden
+   * words are forbidden for different reasons — one is a conversation's binding,
+   * the other is a person's approval of code — and one sentence cannot be about
+   * both. So the reason travels with the key, from whoever forbade it, and
+   * `./refusals.ts` spends it instead of composing one.
+   */
+  readonly forbidden: ReadonlyMap<string, string>
 }
 
 export interface Caller {
@@ -36,7 +51,14 @@ export type Outside =
   | { readonly why: "record"; readonly id: string; readonly title: string; readonly file: string }
   | { readonly why: "file"; readonly path: string }
   | { readonly why: "document"; readonly path: string }
-  | { readonly why: "key"; readonly id: string; readonly title: string; readonly key: string }
+  | {
+    readonly why: "key"
+    readonly id: string
+    readonly title: string
+    readonly key: string
+    /** The clause the fence carried for this key — see {@link Fence.forbidden}. */
+    readonly says: string
+  }
 
 /** Judge the records a plan actually changes, plus the file-shaped operations
  * that a record diff cannot see. */
@@ -88,9 +110,15 @@ export const outsideFence = (
       }
     }
 
-    for (const key of fence.forbidden) {
+    for (const [key, says] of fence.forbidden) {
+      // BOTH DIRECTIONS, which is the comparison rather than a policy: a value
+      // that moved is a value this door wrote, and taking one off is writing it
+      // as much as putting one on. Un-approving is the fail-safe direction and
+      // would be defensible to allow; it is not a capability anything asks for,
+      // and an asymmetric rule here would be one more thing a reader of the
+      // fence has to hold.
       if (keyed(before?.node, key) !== keyed(after?.node, key)) {
-        return { why: "key", id: change.id, title: change.title, key }
+        return { why: "key", id: change.id, title: change.title, key, says }
       }
     }
   }

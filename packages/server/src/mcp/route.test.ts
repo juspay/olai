@@ -348,6 +348,53 @@ test("releasing a node ticket closes it without changing arbitrary loopback toke
 })
 
 /**
+ * A SESSION MAY NOT APPROVE THE PLUGIN IT WROTE — through the route, on a real
+ * ticket, because that is the layer the hole was in.
+ *
+ * `plugins.approve` is on the browser face and no other, and `faces.test.ts`
+ * pins that as an exact set. What that does not cover is the FACT the verb
+ * guards: an approval is an ordinary custom property on an ordinary node, a
+ * definition an agent wrote is inside that agent's own subtree by construction,
+ * and `set_prop` writes any custom key that is not spelled like a field. So the
+ * agent could approve itself through a door it already held.
+ *
+ * The fence's forbidden table is what closes it (`./tickets.ts`), and this is
+ * the test that asks the question the way an agent would: the same call, the
+ * same bearer, one key apart. The one that lands is what makes the refusal
+ * about THAT KEY rather than about the subtree.
+ */
+test("a node ticket may not write `approved`, on its own node or any other", async () => {
+  await withRoute(async ({ mintTicket, post, root }) => {
+    await post(initialize)
+    await post({ jsonrpc: "2.0", method: "notifications/initialized" })
+
+    const ticket = mintTicket("kitchen")
+    const call = (id: number, key: string) =>
+      post({
+        jsonrpc: "2.0",
+        id,
+        method: "tools/call",
+        params: { name: "set_prop", arguments: { id: "kitchen", key, value: "always" } },
+      }, { authorization: `Bearer ${ticket.bearer}` })
+
+    const ordinary = await call(30, "some-other-key")
+    expect((await ordinary.json() as { error?: unknown }).error).toBeUndefined()
+
+    const approval = await call(31, "approved")
+    const refused = await approval.json() as {
+      result?: { isError?: boolean; structuredContent?: { reason?: string } }
+    }
+    expect(refused.result?.isError).toBe(true)
+    expect(refused.result?.structuredContent?.reason).toContain("may not write")
+    expect(refused.result?.structuredContent?.reason).toContain("plugins panel")
+
+    const contents = fs.readFileSync(path.join(root, "house.olai"), "utf8")
+    expect(contents).toContain("some-other-key")
+    expect(contents).not.toContain("approved")
+  })
+})
+
+/**
  * Off loopback the bearer is still the gate.
  *
  * Bound to every interface so a request can arrive from an address that is

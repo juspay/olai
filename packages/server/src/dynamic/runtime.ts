@@ -75,10 +75,33 @@ import { type Defined, definedIn, isApproved } from "./source.ts"
 
 /** WHAT A COMPOSITION ROOT HOLDS of the dynamic half. */
 export interface DynamicRuntime {
-  /** Every plugin the vault defines, as roster rows — running or not, faulted
-   *  or not, pending or not. In corpus order, which is the order the outliner
-   *  draws them in. */
-  readonly rows: () => ReadonlyArray<BuiltPlugin>
+  /**
+   * Every plugin the vault defines, as roster rows — running or not, faulted or
+   * not, pending or not. In corpus order, which is the order the outliner draws
+   * them in.
+   *
+   * ## THE REPORT IS HANDED IN, and it is the same one the built rows read
+   *
+   * A dynamic row's fiber is on the same host under its own word, so
+   * `rowReport` answers for it exactly as it answers for a row of the bundle —
+   * and the composition root re-reads ONE map covering both at every moment
+   * anything can have moved (`@olai/server`'s `serve.ts`).
+   *
+   * It used to be taken at MOUNT and stored, which was a second clock and wrong
+   * in both directions the moment a fiber moved afterwards: a definition that
+   * `needs` a door nobody was behind mounted `waiting`, the provider was
+   * switched on later, the fiber went ACTIVE in the registry, and the row went
+   * on saying `waiting` with `running: false` — so the tab never loaded its
+   * chunk. A plugin that died after mounting said `running` for ever.
+   *
+   * A row this map has nothing to say about is one whose fiber is not in the
+   * registry, which is `off` — the same absence {@link rowReport} answers for a
+   * bundle row that never loaded.
+   */
+  readonly rows: (report: ReadonlyMap<string, RowReport>) => ReadonlyArray<BuiltPlugin>
+  /** Every word this vault defines right now — what the composition root adds to
+   *  the bundle's own list when it re-reads the report above. */
+  readonly names: () => ReadonlyArray<string>
   /** Bring the mounted set into line with a revision. Answers whether anything
    *  moved, so a caller can re-compose exactly when there is something to
    *  re-compose. */
@@ -100,11 +123,11 @@ export interface DynamicRuntime {
 }
 
 /** ONE PLUGIN THAT IS UP — what was mounted, at which version, with the chunk
- *  its face is served from. */
+ *  its face is served from. NOTHING ABOUT ITS STATE: that is the registry's and
+ *  is read afresh (see {@link DynamicRuntime.rows}). */
 interface Live {
   readonly version: string
   readonly mounted: Mounted
-  readonly report: RowReport
   readonly chunk: string | null
   readonly path: string | null
 }
@@ -164,7 +187,11 @@ export const openDynamic = (host: Host, built: ReadonlyArray<string>): DynamicRu
     })
 
   return {
-    rows: () => seen.map((one) => rowOf(one, live.get(one.name), faults.get(one.name), stopped)),
+    rows: (report) =>
+      seen.map((one) =>
+        rowOf(one, live.get(one.name), report.get(one.name), faults.get(one.name), stopped)
+      ),
+    names: () => seen.map((one) => one.name),
     follow: (derived) => follow(definedIn(derived, built)),
     again: Effect.suspend(() => follow(seen)),
     chunk: (path) => {
@@ -225,7 +252,6 @@ const start = (
     return {
       version: one.version,
       mounted,
-      report: yield* mounted.report,
       chunk: browser === null ? null : browser.text,
       path: browser === null ? null : `${PLUGIN_CHUNK_PREFIX}${one.name}-${one.version}.js`,
     }
@@ -269,11 +295,14 @@ const loaded = async (text: string): Promise<Plugin | string> => {
  * definition nobody approved, a definition with a fault in its shape, one whose
  * source would not compile, and one a person switched off. Only the fifth —
  * a plugin that mounted and then failed, or that is waiting on a door — is the
- * registry's answer, and that one is read off the fiber like any other row's.
+ * registry's answer, and that one is READ AFRESH, off the same report a bundle
+ * row's word comes from ({@link DynamicRuntime.rows} argues why it is handed in
+ * rather than remembered from the mount).
  */
 const rowOf = (
   one: Defined,
   live: Live | undefined,
+  report: RowReport | undefined,
   fault: string | undefined,
   stopped: ReadonlySet<string>,
 ): BuiltPlugin => {
@@ -290,8 +319,9 @@ const rowOf = (
   if (said !== undefined) return { name: one.name, running: false, state: "failed", fault: said, source }
   if (!isApproved(one)) return { name: one.name, running: false, state: "pending", source }
   if (stopped.has(one.name)) return { name: one.name, running: false, state: "switched", source }
-  if (live === undefined) return { name: one.name, running: false, state: "off", source }
-  const report = live.report
+  if (live === undefined || report === undefined) {
+    return { name: one.name, running: false, state: "off", source }
+  }
   return {
     name: one.name,
     running: report.state === "running",
