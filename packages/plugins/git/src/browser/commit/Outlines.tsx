@@ -24,13 +24,13 @@
 import type { DirtyOutline, NodeChange } from "@olai/format"
 import { For, Show } from "solid-js"
 
-import { GLYPH, SAID } from "../changes.ts"
-import { renderTitle } from "../markdown/title.ts"
-import { TitleHtml } from "../markdown/TitleHtml.tsx"
+import { GLYPH, SAID } from "@olai/web/client/changes.ts"
+import { renderTitle } from "@olai/web/client/markdown/title.ts"
+import { TitleHtml } from "@olai/web/client/markdown/TitleHtml.tsx"
 import { Moved } from "./Moved.tsx"
 import { HOW, HOW_TONE, localOf } from "./said.ts"
 import type { Selection } from "./selection.ts"
-import { TESTID } from "../testids.ts"
+import { TESTID } from "../../testids.ts"
 import { Tick } from "./Tick.tsx"
 
 export function Outlines(props: {

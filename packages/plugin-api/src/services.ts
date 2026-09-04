@@ -659,17 +659,44 @@ export interface Asked {
 }
 
 /**
- * THE FOUR DOORS A ROW MAY STAND BEHIND — a CLOSED table, and the closedness is
+ * THE LEDGER — what is waiting, record these with this writer, push.
+ *
+ * Core defines the door and does not stand behind it. The git row offers it;
+ * `ops.commit` / `ops.push` call through it and refuse in words when nobody
+ * is mounted, which is what `GIT_OFF` used to say with a mode.
+ *
+ * Types are structural rather than `@olai/format`'s: this package does not
+ * import the floor, and a request that has a message and a list of paths is
+ * the whole of what a record needs.
+ */
+export interface Ledger {
+  /** A write landed and is waiting. No-op when the ledger has not yet opened. */
+  readonly wrote: (writer: string) => void
+  /** Why that write is not in the history — always a sentence. */
+  readonly whyWaiting: (writer: string) => Effect.Effect<string>
+  /** Record what is waiting, or exactly these paths, signed by this writer. */
+  readonly record: (
+    request: { readonly message?: string; readonly paths?: ReadonlyArray<string> },
+    writer: string,
+  ) => Effect.Effect<unknown>
+  readonly push: Effect.Effect<unknown>
+  readonly resume: Effect.Effect<void>
+}
+export const Ledger = serviceTag<Ledger>("ledger")
+
+/**
+ * THE FIVE DOORS A ROW MAY STAND BEHIND — a CLOSED table, and the closedness is
  * most of the safety.
  *
- * Only these four are promises a plugin can keep: what engines this build seats,
- * where a doorbell may deliver, what a plugin may be told a conversation did, and
- * what to ask this host when one opens. Every other service on this page is a
- * fact about the process, the vault or the machine, which core knows before any
- * row is mounted — so there is nothing a row could offer that core is not already
- * a better answer for, and everything to lose by letting one try.
+ * Four of them are the chat row's: what engines this build seats, where a
+ * doorbell may deliver, what a plugin may be told a conversation did, and what
+ * to ask this host when one opens. The fifth is the git row's ledger. Every
+ * other service on this page is a fact about the process, the vault or the
+ * machine, which core knows before any row is mounted — so there is nothing a
+ * row could offer that core is not already a better answer for, and everything
+ * to lose by letting one try.
  */
-export const OFFERABLE = [Agents, Deliveries, SessionStart, Watching] as const
+export const OFFERABLE = [Agents, Deliveries, SessionStart, Watching, Ledger] as const
 
 /**
  * THE ONE CAPABILITY A PLUGIN MAY NAME — standing behind a service key that OTHER
@@ -703,14 +730,14 @@ export const OFFERABLE = [Agents, Deliveries, SessionStart, Watching] as const
  *     on the CALLING fiber's scope and inside an `apply` that scope is the
  *     plugin's.
  *
- * ## Why FOUR OVERLOADS and not one generic
+ * ## Why FIVE OVERLOADS and not one generic
  *
  * Because `ServiceKey` and `Provision` are NOT on a plugin's door, and this is
  * the door that would have put them there. A generic `offer<S>(key:
  * ServiceKey<S>, door: Provision<S>)` is spellable only by a caller who can name
  * both, so every offering plugin would import the bridge's own type vocabulary to
  * write one line — which is the arrow {@link ./runtime.ts} exists to be the only
- * one of. Four overloads land the same cast at the provision and let a plugin
+ * one of. Five overloads land the same cast at the provision and let a plugin
  * write `(who) => ({ … })` and nothing else. It is `./browser.ts`'s `Slots`
  * shape, one level up.
  */
@@ -727,6 +754,7 @@ export interface Offers {
       door: Provision<SessionStart>,
     ): Effect.Effect<void, never, Scope.Scope>
     (key: typeof Watching, door: Provision<Watching>): Effect.Effect<void, never, Scope.Scope>
+    (key: typeof Ledger, door: Provision<Ledger>): Effect.Effect<void, never, Scope.Scope>
   }
 }
 export const Offers = serviceTag<Offers>("offers")
@@ -1101,13 +1129,13 @@ export const openPlugins = (
       unloaded: (handler) => quieted.listen(plugin)(() => handler),
     }))
 
-
     /**
-     * ...AND THE FOUR THAT CORE DOES NOT PROVIDE AT ALL, which is the whole of
+     * ...AND THE FIVE THAT CORE DOES NOT PROVIDE AT ALL, which is the whole of
      * this phase and reads here as an absence.
      *
-     * Every one of {@link OFFERABLE} is the chat row's to keep, offered from its
-     * own `apply` ({@link Offers}). Core standing behind them was scaffolding
+     * Four of {@link OFFERABLE} are the chat row's to keep; {@link Ledger} is
+     * the git row's. Offered from the offering plugin's own `apply`
+     * ({@link Offers}). Core standing behind them was scaffolding
      * with a date on it: a stand-in whose door was `undefined` answered every
      * question with nothing — no scopes, no doorbells, and a delivery that
      * resolved into `Effect.void` — so a serve composed without a chat looked to
@@ -1221,13 +1249,13 @@ export const openPlugins = (
             Effect.flatMap(() => provide(host, key as ServiceKey<never>, door)),
           )
         }),
-      // THE CAST IS WHAT AN OVERLOAD SET IS. `Offers.offer` declares four call
+      // THE CAST IS WHAT AN OVERLOAD SET IS. `Offers.offer` declares five call
       // signatures and no implementation signature — because a plugin must never
-      // be able to spell a fifth — and the body underneath an overload set is
+      // be able to spell a sixth — and the body underneath an overload set is
       // always one wider function that the declarations narrow. TypeScript will
       // not check the two against each other here (the widening runs through
       // `never`, which overlaps nothing), so this is the same unchecked step a
-      // `function` declaration with four overloads takes, written where the
+      // `function` declaration with five overloads takes, written where the
       // reader can see it.
     } as unknown as Offers))
 

@@ -101,7 +101,6 @@ import { Show } from "solid-js"
 import { Leaf } from "./Leaf.tsx"
 import { WORDMARK } from "./look.ts"
 import { calledApp } from "./named.ts"
-import { Commit } from "./commit/Commit.tsx"
 import { Uptime } from "./Uptime.tsx"
 import { Indicator } from "./connection/Indicator.tsx"
 import { PluginHeaders } from "./plugins/Chrome.tsx"
@@ -218,7 +217,6 @@ export function AppHeader(props: {
               exactly one plugin hangs one, which is why the seat reads as it
               always did: whether this olai can see kolu's terminals. */}
           <PluginHeaders />
-          <Commit />
           {/* Furniture, last of the standing cluster: how long THIS process
               has been the one answering. Beside the committed pill because
               it is the same register — a quiet chip about the app, not a
@@ -260,7 +258,6 @@ export function AppHeader(props: {
         the page. */}
     <Show when={!desktop()}>
       <Indicator readout={connectionReadout()} />
-      <Commit />
     </Show>
     </>
   )

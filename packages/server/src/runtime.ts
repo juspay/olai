@@ -55,13 +55,10 @@
  * a file is added, removed or renamed, so it is carried with the path set it
  * describes (`conventions.ts`, and the two bindings beside the cells).
  *
- * And two facts belong to neither: what GIT is doing for the directory, and
- * what is WAITING to be committed to it. Both are the ops layer's — the only
- * thing here that commits — and both are recomputed by one connector, from one
- * survey, on the same three clocks: every published revision, every landed
- * commit, and a slow sweep because nothing watches `.git`. They are two cells
- * because two controls draw them, and one derivation because they are two
- * readings of one question (MCP and Web ops must be consistent).
+ * Git's cells and verbs left this file: they live on the git plugin's sibling
+ * surface. MCP `commit` / `push` call `ops.commit` / `ops.push` through the
+ * ledger door with the face's writer; the sibling's own browser `git.commit`
+ * binds `"web"` itself.
  *
  * Nothing here interprets an outline or an agent. It moves what the store and
  * the chat decided onto the wire, and that is all — with one exception, and it
@@ -80,7 +77,6 @@ import {
   inboxIn,
   NO_INBOX,
   NO_PINS,
-  NOTHING_PENDING,
   NOTHING_WRONG,
   pinsIn,
   sameMoving,
@@ -90,14 +86,9 @@ import {
   shelfIn,
   type Verdict,
 } from "@olai/format"
-import { type Caller, type Ops, type Policy, type Request, type Status, type Store } from "@olai/ops"
-import type {
-  CommitRequest,
-  Pending,
-  PushResult,
-  Writer,
-} from "@olai/format"
-import { type Applied, type CorePageReading, type Edit, GIT_OFF, type GitState, LOADED, type Manifest, NO_ROSTER, type PluginRoster, type PluginState, surface, watchable, type Who } from "@olai/surface"
+import { type Caller, type Ops, type Request, type Store } from "@olai/ops"
+import type { Writer } from "@olai/format"
+import { type Applied, type CorePageReading, type Edit, LOADED, type Manifest, NO_ROSTER, type PluginRoster, type PluginState, surface, watchable, type Who } from "@olai/surface"
 import { type OpFailure } from "@olai/format"
 import {
   customText,
@@ -121,7 +112,7 @@ import {
   type SurfaceHandlers,
   type SurfaceRuntime,
 } from "@kolu/surface/server"
-import { Duration, Effect, Result, type Scope, Stream, SubscriptionRef } from "effect"
+import { Effect, Result, type Scope, Stream, SubscriptionRef } from "effect"
 
 /**
  * THE ONLY PLACE THIS FILE MEETS AN APPLIANCE, and it meets none of them by
@@ -190,13 +181,6 @@ export type Bound = Omit<SurfaceRuntime<typeof surface.spec>, "ctx">
  * store does not publish fails here, naming the list.
  */
 type VaultRevision = Snapshot<Reading>
-
-/** How often the two git cells are recomputed with nothing having asked. Same
- *  argument as the store's backstop: a watcher is a latency optimisation and
- *  never a guarantee, and here there is no watcher at all — `.git` is
- *  deliberately not watched (it is the busiest thing under a served directory).
- *  A person committing in a terminal is the case this covers. */
-const SWEEP = Duration.seconds(30)
 
 /** The channel's required error choice, for a pulse that carries nothing: there
  *  is no failure to report on a publish of `void`, and the one thing that CAN
@@ -351,6 +335,15 @@ export interface PluginRuntime {
    */
   readonly names: () => ReadonlyMap<string, ReadonlyArray<string>>
   /**
+   * EACH ROW'S CONFIG, as the loader is holding it — `olai.yml` plus the CLI
+   * patch, before the plugin's schema folds defaults in.
+   *
+   * Travels onto the roster as data so the plugins panel can draw the values
+   * with no knowledge of any plugin's words. A row with no `config:` is
+   * absent rather than present-and-empty.
+   */
+  readonly configs: () => ReadonlyMap<string, Readonly<Record<string, unknown>>>
+  /**
    * TURN ONE ROW ON OR OFF while this serve runs — the loader surface's verb,
    * as this file spends it.
    *
@@ -457,85 +450,7 @@ export interface Wiring {
    *  ({@link writerAt}), which is what lets one store answer a tab and an
    *  `/mcp` client without either being recorded as the other. */
   readonly writer: Writer
-  /**
-   * The git half, taken from the ops layer rather than the layer itself: this
-   * file publishes what somebody else decided, and "what is waiting to be
-   * committed" is the whole of what it needs to know about writing.
-   *
-   * The two cells it feeds — what git is doing, and what is waiting — are
-   * recomputed TOGETHER, on the same clocks, from the same survey. That is the
-   * consistency rule made structural: two probes would be two answers, and a
-   * page reading "no git here" beside a panel offering to commit four changes
-   * is precisely the incoherence this arrangement forecloses. The header reads
-   * both into ONE control (`one-git-indicator`), which is only safe because
-   * they are published together.
-   *
-   * `state` is typed as the surface's own shape, which `@olai/ops` declares
-   * structurally: the two drifting is a type error here rather than a mapping
-   * to maintain.
-   */
-  readonly git: {
-    /** BOTH cells, from ONE survey — see `@olai/ops`' `Ops.status`. Taking them
-     *  separately meant two probes of the same repository per republish, and a
-     *  window between them in which the two controls could disagree. */
-    readonly status: Effect.Effect<Status>
-    /** The one verb here, and it takes nothing: the current branch to the
-     *  upstream it already has. What it changes is the unpushed count on
-     *  `pending`. COMMIT is deliberately not its neighbour — it records WHO
-     *  asked, so it is bound per face by {@link writing} rather than once
-     *  here. */
-    readonly push: Effect.Effect<PushResult>
-    /** WHAT THIS DIRECTORY'S GIT POLICY IS (`../gitPolicy.ts`). Flags plus
-     *  the built-in defaults, immutable after boot. There is no setter. */
-    readonly policy: Policy
-    /** The quiet-window loop, and the two things around it (`@olai/ops`):
-     *  `observe` is handed every survey so the window re-arms on what actually
-     *  moved, `loop` is the effect this file forks, and `resume` is what the
-     *  Resume button calls. */
-    readonly observe: Ops["observe"]
-    readonly loop: Ops["loop"]
-    readonly catchUp: Ops["catchUp"]
-    readonly resume: Ops["resume"]
-    /** Bumped by the ops layer whenever anything about git SETTLED — a commit
-     *  by whichever door, a push, a refusal of either, or the loop stopping.
-     *  None of them moves a served file, so this is the only thing that can say
-     *  what a reader is owed has changed. */
-    readonly settled: SubscriptionRef.SubscriptionRef<number>
-  }
 }
-
-/**
- * The git half of {@link Wiring}, from the ops layer.
- *
- * ONE spelling, because there used to be two composition roots and the
- * consistency rule is that they must not diverge. Written out twice, the day one of them
- * grew a cell would be the day the two faces quietly stopped being the same
- * product. There is one root now (`./serve.ts`); this helper is still the
- * place the git half is assembled, so a second caller cannot drift.
- *
- * IT TAKES NO WRITER, and it used to. It carried a `commit` bound to one, which
- * was the right shape while a runtime served one face — and became a leftover
- * twin of {@link writing} the moment a runtime could serve several. Nothing read
- * it: `git.commit` is answered through `writing` so that `writerAt` can rebind
- * it, and a third writer-carrying member added HERE would have looked wired and
- * would not have moved with the face. Two lists of the same thing is precisely
- * what `runtime.test.ts` fences, so the second one is deleted rather than
- * fenced as well.
- */
-export const gitWiring = (
-  ops: Pick<Ops, "status" | "push" | "observe" | "loop" | "catchUp" | "resume">,
-  policy: Policy,
-  settled: SubscriptionRef.SubscriptionRef<number>,
-): Wiring["git"] => ({
-  status: ops.status,
-  push: ops.push,
-  policy,
-  observe: ops.observe,
-  loop: ops.loop,
-  catchUp: ops.catchUp,
-  resume: ops.resume,
-  settled,
-})
 
 /**
  * Every member whose answer RECORDS who asked, bound to one writer.
@@ -566,14 +481,14 @@ export const gitWiring = (
  * below it, so a forgotten fence is a compile error and never a silently
  * unfenced agent.
  *
- * `git.commit` takes no fence and that is a named hole rather than an omission:
+ * `surface/git/git/commit` takes no fence and that is a named hole rather than an omission:
  * a commit moves no served byte and takes free-form paths, so a fenced agent can
  * still put another writer's pending work into history under its own trailer.
  * The fence's subject is the records the vault serves.
  */
-const writing = (ops: Ops, caller: Caller) => ({
-  ops: { run: (request: Request) => ops.run(request, caller.writer, caller.fence ?? undefined) },
-  git: { commit: (request: CommitRequest) => ops.commit(request, caller.writer) },
+const writing = (ops: Ops, caller: Caller): Record<string, SurfaceHandler> => ({
+  [surfaceTag(surface.tagPrefix, "ops", "run")]: (request: Request) =>
+    ops.run(request, caller.writer, caller.fence ?? undefined),
 })
 
 /**
@@ -674,6 +589,7 @@ export const rosterOf = (
       const live = said.state === "running"
       const wake = live ? wakes.get(name) : undefined
       const carrying = live ? carriedBy(name, offered.built, names, offers) : []
+      const config = offered.configs().get(name)
       return {
         name,
         running: live,
@@ -719,6 +635,10 @@ export const rosterOf = (
             kinds: wake.kinds,
           },
         }),
+        // THE ROW'S CONFIG, as data. Core draws the values and knows none of
+        // the plugin's words — a given `--commit=auto` is `commit: auto` on
+        // the git row, and a row with no config sends nothing.
+        ...(config === undefined ? {} : { config }),
       }
     }),
     pinned: offered.pinned,
@@ -907,10 +827,8 @@ export const writerAt = (
 ): SurfaceHandlers => {
   const handlers = emptyHandlers()
   for (const [tag, handler] of Object.entries(bound.handlers)) handlers[tag] = handler
-  for (const [namespace, verbs] of Object.entries(writing(ops, caller))) {
-    for (const [verb, handler] of Object.entries(verbs)) {
-      handlers[surfaceTag(surface.tagPrefix, namespace, verb)] = handler as SurfaceHandler
-    }
+  for (const [tag, handler] of Object.entries(writing(ops, caller))) {
+    if (handlers[tag] !== undefined) handlers[tag] = handler
   }
   return handlers
 }
@@ -1050,13 +968,7 @@ export const bind = (
      *  above has it. */
     let published: SurfaceRuntime<typeof surface.spec>["ctx"] | null = null
 
-    /** The two git cells, once their connectors have been handed them. Held
-     *  rather than reached for through `ctx` because the commit procedure has to
-     *  republish the moment it is done — a commit changes what is waiting
-     *  without changing one byte on disk, so no revision will ever say so. */
-    let pendingCell: { set: (value: Pending) => void } | null = null
-    let gitCell: { set: (value: GitState) => void } | null = null
-    /** The PLUGINS cell, held for the git cells' reason and one stronger: its clock is a
+    /** The PLUGINS cell, held for the reason a commit used to republish: its clock is a
      *  fiber arriving or leaving, which reaches this file as a callback off
      *  `openPlugins`'s `changed` rather than as a stream ({@link republishPlugins}). */
     let pluginsCell: { set: (value: PluginRoster) => void } | null = null
@@ -1078,33 +990,6 @@ export const bind = (
     const republishPlugins = (): void => {
       pluginsCell?.set(roster())
     }
-
-    /**
-     * Both git cells, from one round of questions.
-     *
-     * ONE statement, so they cannot be recomputed on different clocks or from
-     * different surveys — which is the whole of the coherence between the two
-     * halves of what the header says about git. `Effect.all` because they are
-     * independent asks of a layer that memoises the expensive half between them.
-     */
-    const republishGit = Effect.flatMap(
-      wiring.git.status,
-      ({ git, pending }) =>
-        Effect.flatMap(
-          Effect.sync(() => {
-            pendingCell?.set(pending)
-            gitCell?.set(git)
-          }),
-          // ... AND THE LOOP IS TOLD, off the same survey. The quiet window is
-          // armed by the arrival of a reading rather than by a clock of its
-          // own, so this is where it hears about a write, a commit, a policy a
-          // browser moved, and the resume that follows a stop. Which of those
-          // actually re-arms it is `@olai/ops`' rule (`armedOn`), not this
-          // line's: the slow sweep over a quiet directory says nothing new and
-          // must not push the window out.
-          () => wiring.git.observe(pending),
-        ),
-    )
 
     /**
      * One keystroke, all the way through: read the set, work out which op the
@@ -1337,84 +1222,13 @@ export const bind = (
          * go on saying what the flag said.
          *
          * The connector holds the cell; {@link recompose} is what calls it, on
-         * the one clock that can move this value. The flag is still CLI/nix only
-         * — `../pluginPolicy.ts` is unchanged, and a browser toggle is phase 6's
-         * — so what this republish reports is a fact about the runtime and never
-         * a setting somebody changed here.
+         * the one clock that can move this value. `--plugins` is still what a
+         * serve comes up with; {@link Deps.plugins.set} is the panel's switch
+         * while it runs, and this republish is how the cell follows either.
          */
         plugins: {
           store: inMemoryStore<PluginRoster>(roster()),
           connect: (cell) => Effect.sync(() => pluginsCell = cell),
-        },
-        /**
-         * What git is doing for this directory at all — one half of what the
-         * header's git indicator says, and what an agent in a terminal reads as
-         * a resource.
-         *
-         * It has no `connect` of its own: it is republished by the PENDING
-         * cell's connector below, from the same survey, so the two values that
-         * indicator reads can never disagree about the directory they are both
-         * describing. The seed is `off`, which is the setting face rather than
-         * a fault, so a page cannot flash "git error" at a healthy repository
-         * on its way to the truth.
-         */
-        git: {
-          store: inMemoryStore<GitState>(GIT_OFF),
-          connect: (cell) => Effect.sync(() => gitCell = cell),
-        },
-        /**
-         * What is waiting to be committed, on THREE clocks — plus the quiet
-         * window over them and the one push a boot owes.
-         *
-         * Every published revision is one — a write changes what is waiting, and
-         * that is the ordinary case. A landed commit is the second, because a
-         * commit moves no served file and so no revision would ever mention it.
-         *
-         * The slow sweep is the third, and it exists because NOTHING WATCHES
-         * `.git`: a person who commits in a terminal changes what is pending
-         * without touching an outline, and without this the panel would go on
-         * offering to commit what is already committed until the next write. It
-         * costs one `git status` on a clean directory — and on a dirty one,
-         * nothing per waiting file: what a commit holds is read once per commit
-         * (`@olai/ops`' `committed.ts`), so this sweep does not re-read the
-         * dirty list every thirty seconds either.
-         */
-        pending: {
-          store: inMemoryStore<Pending>(NOTHING_PENDING),
-          connect: (cell) =>
-            Effect.gen(function*() {
-              pendingCell = cell
-              yield* Effect.all([
-                Stream.runForEach(
-                  wiring.store.reads,
-                  () => republishGit,
-                ),
-                Stream.runForEach(
-                  SubscriptionRef.changes(wiring.git.settled),
-                  () => republishGit,
-                ),
-                Effect.forever(Effect.andThen(Effect.sleep(SWEEP), republishGit)),
-                // THE QUIET WINDOW ITSELF, forked here beside the three clocks
-                // that feed it. It is a cell connector rather than a fiber of
-                // its own because this is where the survey is: the loop watches
-                // what `republishGit` just published, and a second place that
-                // ran git would be a second answer to what is waiting.
-                //
-                // The connector starts when the surface BINDS, not when a
-                // browser subscribes (`@kolu/surface`'s owned sources), which
-                // is what makes a headless `olai web --commit=auto` commit at
-                // all — the whole point of moving the loop off a tab.
-                wiring.git.loop,
-                // ONE PUSH AT BOOT, where the policy is `auto` and there is
-                // anything to send (`@olai/ops`' `catchUp`). Nothing about a
-                // refusal is remembered across a restart, and `olai.service` is
-                // `Restart=always` — so without this a deploy would take the
-                // words with it and leave the chip reading `✓ committed · N
-                // unpushed` over a branch that has been refusing for hours.
-                // The words are re-earned rather than written down.
-                wiring.git.catchUp,
-              ], { concurrency: 5 })
-            }),
         },
         /**
          * THE PINNED SHELF, re-read per published revision — over a file this
@@ -1879,7 +1693,7 @@ export const bind = (
          * there, and {@link writerAt}.
          */
         ops: {
-          run: impl(writing(wiring.ops, { writer: wiring.writer, fence: null }).ops.run),
+          run: impl((request) => wiring.ops.run(request, wiring.writer)),
           outlines: () => wiring.ops.outlines,
           // The plan arm's reading, and the one member here answering no tool:
           // which files the inbox convention is read off. It is a procedure of
@@ -1892,25 +1706,6 @@ export const bind = (
           subtree: ({ input }) => wiring.ops.subtree(input),
           documents: () => wiring.ops.documents,
           document: ({ input }) => wiring.ops.document(input),
-        },
-        git: {
-          // The button's door, under the writer this runtime was composed with
-          // — and under a different one on a face composed for an agent, which
-          // is what {@link writing} is for. A procedure is a transport, and
-          // which transport this one is is not a thing it should be able to
-          // claim about itself. What republishes afterwards is NOT here: it is
-          // the `settled` subscription above, so the agent's tool and the quiet
-          // window get it too.
-          commit: impl(writing(wiring.ops, { writer: wiring.writer, fence: null }).git.commit),
-          // The Push button's door, and it takes no input at all — one verb,
-          // the current branch, the upstream it already has. It republishes
-          // through the same subscription for the same reason: pushing moves no
-          // served file and changes what `pending` says.
-          push: () => wiring.git.push,
-          // The Resume button's. The ops layer republishes for itself here,
-          // because clearing a stop is exactly a moment nothing else in the
-          // process would mention.
-          resume: () => Effect.as(wiring.git.resume, {}),
         },
         /**
          * THE PANEL'S SWITCH — the loader surface's one verb, and the only

@@ -129,6 +129,21 @@ export const openHost: Effect.Effect<Host> = Effect.map(
  * reactive coeffect's other end: a fiber whose `inject` names a key nobody has
  * provided sits `PENDING`, and one whose provider is revoked unloads.
  */
+/**
+ * READ AN OFFERED SERVICE, or nothing — for a composition root that is not a
+ * plugin and so cannot `yield*` a tag. The git row offers `Ledger`; ops.commit
+ * calls through it and refuses when this answers `undefined`.
+ *
+ * The provision is called with `"core"`, which is not a plugin word: a
+ * keyed door that stamped registrations from it would be a bug in that door,
+ * and the ledger does not stamp.
+ */
+export const offered = <Shape>(host: Host, key: ServiceKey<Shape>): Shape | undefined => {
+  const value = (ctxOf(host) as unknown as Record<string, unknown>)[key.cordis]
+  if (typeof value !== "function") return undefined
+  return (value as Provision<Shape>)("core")
+}
+
 export const provide = <Shape>(
   host: Host,
   key: ServiceKey<Shape>,
@@ -158,7 +173,7 @@ export interface Mounted {
  */
 export const mountPlugin = (host: Host, plugin: Plugin): Effect.Effect<Mounted> =>
   Effect.promise(async () => {
-    const fiber: Fiber = ctxOf(host).plugin(plugin)
+    const fiber: Fiber = (ctxOf(host).plugin as (plugin: Plugin) => Fiber)(plugin)
     // SWALLOWED, and it is the containment claim rather than a shrug: a plugin
     // whose `apply` failed lands in `FAILED` having installed nothing, and its
     // siblings — and the boot — are untouched. What it threw is not lost; it is

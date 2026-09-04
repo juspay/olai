@@ -58,12 +58,10 @@
  *
  * ## What is NOT here, and why
  *
- * `git.commit`, `git.push` and `search.nodes` are not, and their absence is
- * that rule paying off: a member belongs here only when the agent's version of
- * it DIFFERS from the browser's. Once the writer stops travelling, none of the
- * three does — a commit is the same act with the same request and the same
- * answer, and only the trailer differs, which the face now decides. Twins of
- * any of them would be a second spelling with nothing left to say for itself.
+ * `search.nodes` is not, and its absence is that rule paying off: a member
+ * belongs here only when the agent's version of it DIFFERS from the browser's.
+ * Git's verbs left core with the plugin. Twins of any of them would be a
+ * second spelling with nothing left to say for itself.
  */
 
 import {

@@ -16,7 +16,7 @@
 
 import type { Accessor } from "solid-js"
 
-import { createTicking, DAY, HOUR, instantOf, MINUTE } from "../clock.ts"
+import { createTicking, DAY, HOUR, instantOf, MINUTE } from "./clock.ts"
 
 /**
  * `at` as a phrase relative to `now`.
