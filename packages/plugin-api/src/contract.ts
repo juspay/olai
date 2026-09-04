@@ -240,16 +240,6 @@ export interface PropKind {
 }
 
 /**
- * THE HELD DOOR — one opaque record per plugin per vault.
- *
- * Core does not open it. The plugin parses what it wrote.
- */
-export interface PluginHeld {
-  readonly load: () => Record<string, unknown> | null
-  readonly save: (value: Record<string, unknown>) => void
-}
-
-/**
  * ONE PROPERTY, WRITTEN — the narrowest door onto the vault's write gate, and
  * deliberately not the gate itself.
  *

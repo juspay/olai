@@ -46,7 +46,7 @@
 export { AGENT_ENV, whyNoAgent } from "./adapter.ts"
 export {
   type Conversing,
-  forDirectory as sessionsIn,
+  forLocalState as sessionsIn,
   type Overheard,
   type Said,
   type Sessions,
@@ -55,6 +55,6 @@ export { type Installed, roster, type Roster } from "./agents/roster.ts"
 export { type ToolServer } from "./chat.ts"
 export { type Chat, DEFAULT_CAPACITY, DEFAULT_IDLE, type LiveSession, make, type Options, type ToolTicket } from "./scoped.ts"
 export type { Probe, Probed, StdioServer } from "./probes.ts"
-export { type Fault, type Faulted, forDirectory as scopesIn, type Scoped, type Scopes } from "./scopes.ts"
+export { type Fault, type Faulted, forLocalState as scopesIn, type Scoped, type Scopes } from "./scopes.ts"
 export type { Change } from "./transcript.ts"
 export { type Cadence, cadence, type Frame, type Pieces } from "./cadence.ts"

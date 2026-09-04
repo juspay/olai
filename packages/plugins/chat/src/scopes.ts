@@ -2,8 +2,8 @@
  * WHICH CONVERSATIONS A PERSON POINTED A DOORBELL AT, and at which file —
  * remembered across a restart.
  *
- * The second per-directory record this package keeps, beside the one that
- * remembers which conversation the panel was in ({@link ./memory.ts}). It holds
+ * The `wake` section of chat's one machine-local document, beside the section
+ * that remembers which conversation the panel was in ({@link ./memory.ts}). It holds
  * a row per (conversation, plugin) somebody picked a file for, and it is the
  * whole of what turns a doorbell on: there is no serve-level default, nothing
  * an agent can call, and no row a fresh conversation starts with. A doorbell is
@@ -57,14 +57,9 @@
  * table that no longer exists. The permit makes the four steps one step, which
  * is the only thing that makes the mirror and the file one fact.
  *
- * It also used to be justified by a second hazard, and THAT HALF IS NOW CLOSED
- * AT THE LEAF: `@olai/state`'s writer staged per PROCESS (`<file>.<pid>.tmp`)
- * rather than per call, so two overlapping writes raced through one staged
- * file and the loser reported a failure for bytes that had landed. It stages
- * per CALL now, and this file no longer inherits a rule from the file format.
- * A reader who sees that fixed must not take the permit with it: the
- * read-modify-write above is this module's own, it is over memory rather than
- * over a file, and no staging name has ever had anything to say about it.
+ * Chat's document adapter has a second permit around cross-section writes. This
+ * permit remains this state machine's own: it makes two simultaneous picks one
+ * ordered mutation before either snapshot is handed to the adapter.
  *
  * ## Capped by COUNT, and never pruned against what an agent lists
  *
@@ -82,29 +77,22 @@
  *
  * ## What it does with a failure
  *
- * A read at boot that fails is an EMPTY MIRROR and one warning, never a refusal
- * to serve: the discipline {@link ./memory.ts}'s header sets and
- * {@link ./chat.ts} already keeps for the note it reads at boot. A WRITE that
- * fails is told to the person who just made the gesture, because a pick that
- * did not stick is a thing they need told — so `set` fails and the member above
- * it refuses.
+ * A missing or malformed section is an empty mirror. Filesystem failures are
+ * logged by core's LocalState implementation; this parser owns no file IO.
  *
  * ## Two things this deliberately is not
  *
- * **Not a sidecar on the memory note.** `remember` builds a fresh
- * `{cwd, agent, session, model}` literal over a plain `JSON.stringify`, so an
- * extra key written beside it dies on the next conversation entered. Two
- * records means two files, which is what `@olai/state`'s `Kind` is a closed
- * union of.
+ * **Not a sidecar managed by this writer.** It is a section carried beside
+ * `memory` and `heard` by {@link ./local.ts}, the one owner of the whole snapshot.
  *
  * **Not a second failure vocabulary.** {@link ./memory.ts}'s `MemoryFailure` is
  * this package's word for "a kept record would not read or write", and this is
  * a second kept record rather than a second kind of problem.
  */
 
-import { canonical, fileFor, readHeld, writeHeld } from "@olai/state"
 import { Effect, Semaphore } from "effect"
 
+import type { ChatLocalState } from "./local.ts"
 import { MemoryFailure, word } from "./memory.ts"
 
 /** The `kind` these files live under in the state home — the second
@@ -347,8 +335,7 @@ export interface Scopes {
   ) => Effect.Effect<ReadonlyArray<Faulted>, MemoryFailure>
 }
 
-/** What one of these files looks like written. The rows are read leniently
- *  (see {@link picks}); the `cwd` guard is `@olai/state`'s. */
+/** What this section looks like written. The rows are read leniently. */
 interface Written {
   readonly scopes?: unknown
 }
@@ -430,31 +417,17 @@ const picks = (held: Record<string, unknown>): ReadonlyArray<Scoped> => {
 const capped = (rows: ReadonlyArray<Scoped>): ReadonlyArray<Scoped> =>
   rows.length <= ROWS ? rows : rows.slice(rows.length - ROWS)
 
-export const forDirectory = (spelling: string): Effect.Effect<Scopes> =>
+export const forLocalState = (local: ChatLocalState): Effect.Effect<Scopes> =>
   Effect.gen(function*() {
-    // ONE spelling from here down, and it is `@olai/state`'s — the same
-    // resolution {@link ./memory.ts} names its own file by, so a vault reached
-    // through a symlink is one directory to both of this package's records.
-    const cwd = canonical(spelling)
-    const at = fileFor(WAKE, cwd)
-    /** See the header: `@olai/state`'s staging file is per PROCESS, so two
-     *  overlapping writes in this one would race through it. */
     const writing = yield* Semaphore.make(1)
 
     // AN EMPTY MIRROR AND ONE WARNING, never a refusal to serve: nobody is
     // standing at the screen when a boot reads this, and a directory whose
     // doorbells cannot be read is a directory whose doorbells are off until
     // somebody picks again. The write is the opposite case and refuses.
-    const read = yield* Effect.result(readHeld(at, cwd))
+    const read = local.load(WAKE)
     let rows: ReadonlyArray<Scoped> = []
-    if (read._tag === "Failure") {
-      yield* Effect.logWarning(
-        `the doorbells this directory had on could not be read (${read.failure.why}) — ` +
-          `they are off until somebody picks again`,
-      )
-    } else if (read.success !== null) {
-      rows = picks(read.success)
-    }
+    if (read !== null) rows = picks(read)
 
     return {
       rows: () => rows,
@@ -493,10 +466,7 @@ export const forDirectory = (spelling: string): Effect.Effect<Scopes> =>
           // interleaving unobservable. The permit does keep two WRITES apart;
           // what it cannot do is take back a value a failed write left behind,
           // and the caller is told `failed` either way.
-          yield* Effect.mapError(
-            writeHeld(at, { cwd, scopes: next }),
-            (failure) => new MemoryFailure(failure),
-          )
+          yield* local.save(WAKE, { scopes: next })
           rows = next
           // ... AND WHO LEFT THE TABLE, so the caller can take back what those
           // rows' doorbells were holding. A clear and a re-point are the rows
@@ -575,10 +545,7 @@ export const forDirectory = (spelling: string): Effect.Effect<Scopes> =>
           // failed write would have the fault marked in memory and not on disk,
           // so the sentence would go out now AND again after the next restart.
           // Failing whole leaves the same edge for the next revision to find.
-          yield* Effect.mapError(
-            writeHeld(at, { cwd, scopes: next }),
-            (failure) => new MemoryFailure(failure),
-          )
+          yield* local.save(WAKE, { scopes: next })
           rows = next
           return fell
         })),

@@ -286,6 +286,14 @@ you set by hand on the command line is a policy you set once and forget:
 
 **Turning a row off takes its dependants with it, and the panel says so.** The chat row stands behind four doors ([plugins/chat.md](plugins/chat.md)), so switching it off leaves every engine, every doorbell and the mirror `waiting` — each row naming the door it is short of. Switch chat back on and they re-start themselves; nothing has to be pressed twice, and a plugin that comes back is holding the same machine-local record it left.
 
+### Machine-local state
+
+Plugins have one machine-local door, `LocalState`. Core stores its opaque document outside the vault at `$XDG_STATE_HOME/olai/<plugin>/<hash>.json` (normally `~/.local/state/olai/<plugin>/<hash>.json`), where `hash` names the served directory's real path. A plugin never opens that path itself. Core keys the door with the plugin's own name and keeps one ordered write chain across plugin flips. A save completes when its file lands; a failed save is both logged and returned to the plugin so the gesture that caused it can say what did not stick without taking the serve down.
+
+Chat's document has three sections in one JSON object: `memory` for the open agent/session/model, `wake` for scoped doorbells, and `heard` for teaching and last-line bookkeeping. Each section keeps its own cap and reading rules; one chat adapter serializes their read-modify-writes. Turning chat off and on therefore preserves the same snapshot, and a restart reads it from the same document. Xyne Spaces keeps its existing mirror snapshot under `xyne-spaces/<hash>.json`.
+
+An upgrade reads the previous paths once. The first save migrates `hold/<hash>.<plugin>.json`; for chat it also folds `chat/<hash>.json`, `wake/<hash>.json`, and `heard/<hash>.json` into the new three-section document. Xyne Spaces additionally adopts its older `mirror/<hash>.json` snapshot, including queued posts. The old files are left in place but inert, and the migration is logged.
+
 ### What being off means
 
 **A serve with an integration off is not a degraded serve**, and the word is literal: the connection indicator stays green. Nothing is parked and nothing is half-wired — the integration's members are not on the wire at all, its tab half is never mounted so nothing subscribes to them, it hangs no chip in the bar, it probes for nothing, and the kinds it teaches the vault validate as ordinary text ([live-properties.md](live-properties.md)). The outline it would have owned is an ordinary outline. That is exactly the state a machine that never had the tool is already in, which is why it costs nothing to be true — and it is the state `olai surface` and every headless face already run in.

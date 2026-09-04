@@ -227,7 +227,7 @@ Skim the table; the sections after it give one example each.
 | **mark** | the plugin's FACE — the glyph over a sentence it delivered into a conversation, and the one an ENGINE wears in the picker and the header |
 | **engine install row** | an engine's line on the face drawn when this machine has no agent at all: how a person gets it. A `NotHere` VALUE in `engine.install`, not a drawing — core owns every stroke (the list, the mark, whether the name is a link) and the plugin owns every word. Its row in the panel's *which agent?* question is NOT one of these: those words are the engine's `name`, which the server already sends per installed agent, so core draws a string it was handed rather than a face it was hung |
 | **watching** (`Watching`) | the read-shaped door that is not a read: core PUSHES what happened in a conversation — a doorbell that landed, an orchestrator reply that settled, a turn that started or ended — and a human message is not among them |
-| **held** (`Held`) | a small opaque record a plugin keeps about this serve, in the state home rather than the vault |
+| **local state** (`LocalState`) | one opaque document per plugin and served directory, in the state home rather than the vault; core owns its path and ordered write chain, and each save settles with the write's outcome |
 | **doorbell** (`Deliveries`) | the write-only door a plugin speaks INTO a conversation through: which conversations opted in to it, and one verb that puts a whole sentence in one. Minted from the calling plugin's own word |
 | **wake** | the plugin's own words for the control a person points that doorbell with — three pieces, and core composes none of them |
 | **roster** | which plugins this build has, and which this serve is running |
@@ -734,7 +734,7 @@ it stood behind, in reverse. The sibling leaves the wire, the `plugins` cell
 moves, the tab redials, and every plugin that named a door this one offered goes
 `waiting` naming the tag. On is the reverse, and the dependants re-apply
 themselves — the reactive half of the paper is exactly what makes this one verb
-rather than a restart. `Held` is keyed by NAME rather than by fiber, so a plugin
+rather than a restart. `LocalState` is keyed by NAME rather than by fiber, so a plugin
 that comes back writes the record it left.
 
 **The vocabulary follows the fibers.** `propKinds` was read once at boot and the

@@ -694,6 +694,22 @@ describe("packages/plugins is the tenant container, and holds nothing else", () 
   })
 })
 
+describe("machine-local state has one door", () => {
+  test("no plugin imports or declares the state leaf", () => {
+    for (const pkg of PLUGIN_DIRS) {
+      const reached = tree.get(pkg)?.flatMap((source) =>
+        source.specs
+          .filter((spec) => packageOf(spec) === "@olai/state")
+          .map((spec) => `${source.file}: ${spec}`)
+      ) ?? []
+      const declared = dependencyNames(manifestAt(path.join(PACKAGES, pkg)))
+        .filter((spec) => packageOf(spec) === "@olai/state")
+      expect(reached, pkg).toEqual([])
+      expect(declared, pkg).toEqual([])
+    }
+  })
+})
+
 describe("only the registry knows a plugin's name", () => {
   /** THE FLOOR. A corpus that came back short is the failure mode this file
    *  was written to not inherit — an empty sweep reports nothing found and
@@ -1151,7 +1167,7 @@ const CLOSURES: ReadonlyMap<string, ReadonlySet<string>> = new Map(
  * exact while every plugin was a TENANT over a vendored appliance — kolu's
  * closure is padi's client and nothing core wanted — and it stopped being exact
  * the day the CHAT became a row. Chat is a plugin over core's own floor: it
- * reaches `@olai/ops`, `@olai/surface`, `@olai/state`, `@olai/log`,
+ * reaches `@olai/ops`, `@olai/surface`, `@olai/log`,
  * `@olai/child`, `@olai/index` and `@olai/web`, and no other plugin does. Under
  * two clauses all seven became "chat's tenant members" — which is an EXEMPTION
  * set, so seven general packages would have been quietly excused from the
@@ -1707,6 +1723,11 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
      * `format/src/committing.ts` declares it; `server/src/serve.ts` binds the
      * face under it and `server/src/mcp/tickets.ts` binds the fenced one.
      *
+     * **THE OLD STATE LAYOUT.** The server door recognizes the former
+     * `chat/<hash>.json` path so core can fold it into the plugin document on
+     * first write. It names a historical directory, not a plugin import or
+     * address, and disappears when that migration window closes.
+     *
      * **SOMEBODY ELSE'S ROUTES.** Xyne Spaces posts to `/api/apps/chat/…` —
      * that is their API, read off their own source and never guessed, and the
      * two files that spell it are that plugin's own dial and the fake server its
@@ -1725,10 +1746,14 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "plugins/git/src/ledger/pending.ts",
       "plugins/xyne-spaces/src/client.ts",
       "plugins/xyne-spaces/src/testlib/fake-spaces.ts",
+      "server/src/localState.ts",
       "server/src/mcp/tickets.ts",
       "server/src/serve.ts",
       "web/src/client/layout/prefs.ts",
     ],
+    /** The server's expiring migration table maps the old unkeyed `mirror/`
+     * record to the tenant that wrote it. Remove with that migration row. */
+    "xyne-spaces": ["server/src/localState.ts"],
     /**
      * `git` IS THE COMMAND, and `GitState` / `GIT_OFF` / `gitPolicy` are the
      * floor's names for a repository reading that stays in core: a write still
@@ -1749,8 +1774,8 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "server/src/serve.ts",
       "web/src/client/file/delete.ts",
       "web/src/client/settings/Preferences.tsx",
-      "web/src/client/trash/question.ts",
-    ],
+       "web/src/client/trash/question.ts",
+     ],
   }
 
   test("no package outside the registry and the plugin's own tenant spells it", () => {

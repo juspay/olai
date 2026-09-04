@@ -20,7 +20,7 @@ import { Cause, Effect, Layer, Logger, type Scope } from "effect"
 
 import {
   Deliveries,
-  Held,
+  LocalState,
   definePlugin,
   Kinds,
   type Mounted,
@@ -477,30 +477,33 @@ test("the doorbell's door is keyed by the plugin, with no way to spell another's
   })))
 })
 
-/** THE HELD DOOR IS MINTED ONCE per plugin, which is what orders its writes —
+/** THE LOCAL-STATE DOOR IS MINTED ONCE per plugin, which is what orders its writes —
  *  the chain that keeps a later snapshot from losing a rename race to an earlier
  *  one lives on the door, so a door minted per CALL orders nothing. It was
  *  minted per call. */
-test("a plugin's held door is one door, however many times it is used", async () => {
+test("a plugin's local-state door is one door, however many times it is used", async () => {
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     let minted = 0
     const plugins = yield* runtime({
-      heldFor: () => {
+      localStateFor: () => {
         minted += 1
         let record: Record<string, unknown> | null = null
-        return { load: () => record, save: (value) => void (record = value) }
+        return {
+          load: Effect.sync(() => record),
+          save: (value) => Effect.sync(() => void (record = value)),
+        }
       },
     })
     yield* mountPlugin(
       plugins.host,
       definePlugin({
         name: "spaces",
-        needs: [Held],
+        needs: [LocalState],
         apply: Effect.gen(function*() {
-          const held = yield* Held
-          yield* held.save({ queue: ["B"] })
-          yield* held.save({ queue: [] })
-          expect(yield* held.load).toEqual({ queue: [] })
+          const localState = yield* LocalState
+          yield* Effect.orDie(localState.save({ queue: ["B"] }))
+          yield* Effect.orDie(localState.save({ queue: [] }))
+          expect(yield* localState.load).toEqual({ queue: [] })
         }),
       }),
     )
@@ -511,9 +514,9 @@ test("a plugin's held door is one door, however many times it is used", async ()
       plugins.host,
       definePlugin({
         name: "other",
-        needs: [Held],
+        needs: [LocalState],
         apply: Effect.gen(function*() {
-          expect(yield* (yield* Held).load).toBeNull()
+          expect(yield* (yield* LocalState).load).toBeNull()
         }),
       }),
     )
@@ -535,17 +538,20 @@ test("a plugin that comes back writes down the chain it was already writing down
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     let minted = 0
     const plugins = yield* runtime({
-      heldFor: () => {
+      localStateFor: () => {
         minted += 1
         let record: Record<string, unknown> | null = null
-        return { load: () => record, save: (value) => void (record = value) }
+        return {
+          load: Effect.sync(() => record),
+          save: (value) => Effect.sync(() => void (record = value)),
+        }
       },
     })
     const spaces = definePlugin({
       name: "spaces",
-      needs: [Held],
+      needs: [LocalState],
       apply: Effect.gen(function*() {
-        yield* (yield* Held).save({ queue: ["B"] })
+        yield* Effect.orDie((yield* LocalState).save({ queue: ["B"] }))
       }),
     })
     const first = yield* mountPlugin(plugins.host, spaces)

@@ -32,7 +32,7 @@
  * the row's `id`, the sibling key, the word the panel draws and `--plugins`
  * would take if this were a built row. It is the property rather than the title
  * because a title is prose somebody renames and a row's identity is not: the
- * `Held` records, the slot table and the approval below are all keyed by the
+ * `LocalState` records, the slot table and the approval below are all keyed by the
  * word, and a rename that moved a plugin's identity would orphan every one of
  * them.
  *
@@ -111,7 +111,7 @@ export const isApproved = (one: Defined): boolean =>
  *
  * `taken` is the words this BUILD already has — the bundle's rows. A definition
  * that claims one of them is a fault rather than an override: the roster is
- * keyed by the word, the slot table and the `Held` records are keyed by the
+ * keyed by the word, the slot table and the `LocalState` records are keyed by the
  * word, and a vault that could rename a compiled-in plugin out of existence
  * would be the vault deciding what the host runs, which is the one thing every
  * ruling in this lane refuses.

@@ -3,9 +3,9 @@
  * node agent's contract, and the last line its agent said while olai was
  * watching.
  *
- * The third per-directory record this package keeps, beside the one that
- * remembers which conversation the panel was in ({@link ./memory.ts}) and the
- * one that remembers which doorbells are on ({@link ./scopes.ts}).
+ * The `heard` section of chat's one machine-local document, beside the section
+ * that remembers which conversation the panel was in ({@link ./memory.ts}) and
+ * the one that remembers which doorbells are on ({@link ./scopes.ts}).
  *
  * ## Why these two are here and the pointer is NOT
  *
@@ -109,14 +109,13 @@
  * a third kind of problem.
  */
 
-import { canonical, fileFor, readHeld, writeHeld } from "@olai/state"
 import { Effect, Semaphore } from "effect"
 
+import type { ChatLocalState } from "./local.ts"
 import { MemoryFailure, word } from "./memory.ts"
 import { ROWS } from "./scopes.ts"
 
-/** The `kind` these files live under in the state home — the third
- *  subdirectory, beside `chat`'s and `wake`'s. */
+/** This state machine's section in chat's one machine-local document. */
 const HEARD = "heard"
 
 /** The pair that identifies a conversation everywhere in this package: a
@@ -309,13 +308,8 @@ const sameChat = (row: Conversing, to: Conversing): boolean =>
 const capped = (rows: ReadonlyArray<Overheard>): ReadonlyArray<Overheard> =>
   rows.length <= ROWS ? rows : rows.slice(rows.length - ROWS)
 
-export const forDirectory = (spelling: string): Effect.Effect<Sessions> =>
+export const forLocalState = (local: ChatLocalState): Effect.Effect<Sessions> =>
   Effect.gen(function*() {
-    // ONE spelling from here down, and it is `@olai/state`'s — the resolution
-    // this package's other two records name their files by, so a vault reached
-    // through a symlink is one directory to all three.
-    const cwd = canonical(spelling)
-    const at = fileFor(HEARD, cwd)
     /** See the header: every writer here is a read-modify-write over `rows`. */
     const writing = yield* Semaphore.make(1)
 
@@ -324,16 +318,9 @@ export const forDirectory = (spelling: string): Effect.Effect<Sessions> =>
     // directory where every node agent gets taught once more and every door
     // starts with no line on it — the honest face of exactly this failure, and
     // of a machine that has never served this vault before.
-    const held = yield* Effect.result(readHeld(at, cwd))
+    const held = local.load(HEARD)
     let rows: ReadonlyArray<Overheard> = []
-    if (held._tag === "Failure") {
-      yield* Effect.logWarning(
-        `what olai had overheard in this directory could not be read (${held.failure.why}) — ` +
-          `node agents will be taught their contract once more, and their doors start blank`,
-      )
-    } else if (held.success !== null) {
-      rows = read(held.success)
-    }
+    if (held !== null) rows = read(held)
 
     /**
      * One row replaced or ADDED, written down, and the mirror moved only if it
@@ -366,10 +353,7 @@ export const forDirectory = (spelling: string): Effect.Effect<Sessions> =>
           ...before.filter((row) => !sameChat(row, to)),
           next,
         ])
-        yield* Effect.mapError(
-          writeHeld(at, { cwd, heard: table }),
-          (failure) => new MemoryFailure(failure),
-        )
+        yield* local.save(HEARD, { heard: table })
         rows = table
       }))
 

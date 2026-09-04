@@ -21,7 +21,7 @@ import {
   Deliveries,
   detached,
   Env,
-  Held,
+  LocalState,
   Surfaces,
   Vault,
   Watching,
@@ -37,7 +37,7 @@ import {
   spacesConfigIn,
   type SpacesReading,
 } from "./config.ts"
-import { recordAll, snapshotsOf } from "./hold.ts"
+import { openLocalState } from "./local.ts"
 import { laneOf, makeMirror, skipHeartbeat, unconfiguredBody, type Mirror } from "./mirror.ts"
 import {
   name,
@@ -111,7 +111,7 @@ const linkFromEnv = (
  * from. `Watching` is the door this tenant exists to spend: conversation events,
  * pushed, with human messages simply not among them. `Deliveries` is the fault
  * path the other way — a refused post is said ONCE into the bound conversation.
- * `Held` is the thread map and the outbound queue, core's file in the state
+ * `LocalState` is the thread map and the outbound queue, core's file in the state
  * home. `Env` carries the secrets AND the test seam: `env.dial` is this plugin's
  * own fake `fetch`, resolved from the word the registry bound it under.
  *
@@ -133,7 +133,7 @@ const linkFromEnv = (
  */
 export default definePlugin({
   name,
-  needs: [Clock, Deliveries, Env, Held, Surfaces, Vault, Watching],
+  needs: [Clock, Deliveries, Env, LocalState, Surfaces, Vault, Watching],
   apply: Effect.gen(function*() {
     // EVERY SERVICE THIS PLUGIN NAMED, YIELDED ONCE, at the top — the same list
     // `needs` carries, in the same order, so a reader checks the two against each
@@ -141,7 +141,7 @@ export default definePlugin({
     const clock = yield* Clock
     const deliveries = yield* Deliveries
     const environment = yield* Env
-    const held = yield* Held
+    const localState = yield* openLocalState(yield* LocalState)
     const surfaces = yield* Surfaces
     const vault = yield* Vault
     const watching = yield* Watching
@@ -227,7 +227,7 @@ export default definePlugin({
         const existing = mirrors.get(channel)
         if (existing !== undefined) return existing
         const client = makeClient(env.url, env.token, environment.dial as Dial | undefined)
-        const loaded = snapshotsOf(yield* held.load).get(channel)
+        const loaded = localState.load(channel)
         const mirror = makeMirror({
           client,
           channel,
@@ -236,11 +236,7 @@ export default definePlugin({
           hold: {
             load: () => loaded,
             save: (snapshot) =>
-              run(Effect.gen(function*() {
-                const next = snapshotsOf(yield* held.load)
-                next.set(snapshot.channel, snapshot)
-                yield* held.save(recordAll(next))
-              })),
+              run(Effect.ignore(localState.save(snapshot))),
           },
           deliverFault: (body, coalesce) => {
             if (coalesce === "fault") {

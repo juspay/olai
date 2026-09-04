@@ -22,11 +22,12 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 
 import { readingOf, setOf } from "@olai/format/testlib"
-import type { ConversationSeen, Deliveries, PluginHeld } from "@olai/plugin-api"
+import type { ConversationSeen, Deliveries } from "@olai/plugin-api"
 import type { SpacesLink } from "./wire.ts"
 import {
   definePlugin,
   Deliveries as DeliveriesDoor,
+  type LocalState,
   mountPlugin,
   Offers,
   openPlugins,
@@ -55,13 +56,11 @@ const waitFor = async (n: () => number, want: number): Promise<void> => {
   throw new Error(`wanted ${want} events, got ${n()}`)
 }
 
-const memoryHeld = (): PluginHeld => {
+const memoryLocalState = (): LocalState => {
   let record: Record<string, unknown> | null = null
   return {
-    load: () => record,
-    save: (value) => {
-      record = value
-    },
+    load: Effect.sync(() => record),
+    save: (value) => Effect.sync(() => void (record = value)),
   }
 }
 
@@ -73,7 +72,7 @@ interface Doubles {
   readonly now: () => string
   readonly deliver?: Deliveries["deliver"]
   readonly dial?: unknown
-  readonly held?: PluginHeld
+  readonly localState?: LocalState
 }
 
 /**
@@ -95,13 +94,13 @@ interface Doubles {
  */
 const mounted = async (doubles: Doubles) => {
   const run = standing()
-  const held = doubles.held ?? memoryHeld()
+  const localState = doubles.localState ?? memoryLocalState()
   const plugins = await run(openPlugins({
     vars: doubles.env,
     now: doubles.now,
     served: doubles.served,
     dials: { "xyne-spaces": doubles.dial },
-    heldFor: () => held,
+    localStateFor: () => localState,
   }))
   // A STAND-IN CHAT ROW, because that is what a serve HAS. `deliveries` and
   // `watching` are the chat plugin's to keep and core provides neither, so a

@@ -17,43 +17,21 @@
  * assertion that the variable is honoured at all.
  */
 
-import { afterEach, beforeEach, describe, expect, test } from "bun:test"
+import { beforeEach, describe, expect, test } from "bun:test"
 import { Effect, Result } from "effect"
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
-import { mkdirSync } from "node:fs"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
 
-import { canonical, digestOf } from "@olai/state"
-
+import { type LocalHarness, localHarness } from "./local.testlib.ts"
 import { ROWS } from "./scopes.ts"
-import { forDirectory } from "./sessions.ts"
+import { forLocalState } from "./sessions.ts"
 
-let state = ""
-const was = process.env["XDG_STATE_HOME"]
+let local: LocalHarness
 
 beforeEach(() => {
-  state = mkdtempSync(join(tmpdir(), "olai-heard-"))
-  process.env["XDG_STATE_HOME"] = state
+  local = localHarness()
 })
 
-afterEach(() => {
-  if (was === undefined) delete process.env["XDG_STATE_HOME"]
-  else process.env["XDG_STATE_HOME"] = was
-  rmSync(state, { recursive: true, force: true })
-})
-
-/** Where one of these records lands — the THIRD kind under the state home,
- *  which is the whole of what `@olai/state`'s union gained. */
-const home = (): string => join(state, "olai", "heard")
-
-const files = (): ReadonlyArray<string> => {
-  try {
-    return readdirSync(home())
-  } catch {
-    return []
-  }
-}
+const forDirectory = (cwd: string) => forLocalState(local.forDirectory(cwd))
+const files = (): ReadonlyArray<string> => local.writes(HERE) === 0 ? [] : ["record"]
 
 const run = <A, E>(effect: Effect.Effect<A, E>): Promise<A> => Effect.runPromise(effect)
 const outcome = <A, E>(effect: Effect.Effect<A, E>) => Effect.runPromise(Effect.result(effect))
@@ -63,17 +41,12 @@ const ELSEWHERE = "/tmp/olai-heard-elsewhere"
 
 const IN = { agent: "claude", session: "sess-1" }
 
-/** A record already on the disk, in the shape an EARLIER SERVE left it. */
+/** A section already handed through the door, in an older shape. */
 const already = (cwd: string, heard: unknown): void => {
-  mkdirSync(home(), { recursive: true, mode: 0o700 })
-  const at = join(home(), `${digestOf(canonical(cwd))}.json`)
-  writeFileSync(at, `${JSON.stringify({ cwd: canonical(cwd), heard })}\n`)
+  local.write(cwd, "heard", { heard })
 }
 
-const written = (cwd: string): Record<string, unknown> => {
-  const at = join(home(), `${digestOf(canonical(cwd))}.json`)
-  return JSON.parse(readFileSync(at, "utf8")) as Record<string, unknown>
-}
+const written = (cwd: string): Record<string, unknown> => local.read(cwd, "heard") ?? {}
 
 describe("what a record says", () => {
   test("a directory olai has never served has overheard nothing", async () => {
@@ -107,12 +80,6 @@ describe("what it does with a file it cannot make sense of", () => {
       "not a row at all",
     ])
     expect((await run(forDirectory(HERE))).rows().map((row) => row.session)).toEqual(["sess-1"])
-  })
-
-  test("a file that will not read is an EMPTY MIRROR, never a refusal to serve", async () => {
-    mkdirSync(home(), { recursive: true, mode: 0o700 })
-    writeFileSync(join(home(), `${digestOf(canonical(HERE))}.json`), "{ not json")
-    expect((await run(forDirectory(HERE))).rows()).toEqual([])
   })
 
   test("`taught` is only `true`; anything else is a session that has not been told", async () => {

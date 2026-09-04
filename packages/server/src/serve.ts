@@ -49,7 +49,7 @@ import { Deferred, Effect } from "effect"
 import { randomBytes } from "node:crypto"
 import { resolve } from "node:path"
 
-import { heldFor } from "./held.ts"
+import { localStateFor } from "./localState.ts"
 import { openDirectory } from "./directory.ts"
 import { openDynamic } from "./dynamic/runtime.ts"
 import { pluginChunks } from "./dynamic/route.ts"
@@ -148,9 +148,10 @@ export const serve = (options: ServeOptions) =>
      * file still holds, and what is left of a `let ring` that used to carry every
      * plugin service's two channels.
      *
-     * `./held.ts` orders a plugin's writes on a promise chain, because the
-     * ordering is the point and a fire-and-forget save must not wait on a disk. A
-     * write that fails there has no fiber under it, which is the exact position
+     * `./localState.ts` orders a plugin's reads and writes under one permit.
+     * The save effect waits for its own write, while callbacks such as the Spaces
+     * mirror may deliberately detach that effect. A write that fails there can
+     * therefore have no fiber under it, which is the exact position
      * `@olai/log`'s `emit.ts` was written for: without this the line would be
      * emitted against the defaults and escape an `OLAI_LOG_LEVEL` the operator
      * typed. It is core's own file and core's own failure — no plugin service
@@ -283,10 +284,10 @@ export const serve = (options: ServeOptions) =>
       // the ruling that took this phase.
       // ...and the small record a plugin keeps about this serve, in the state
       // home rather than the vault. Core owns the file and keys it by the calling
-      // plugin; `./held.ts` orders the writes so the last snapshot handed over is
+      // plugin; `./localState.ts` orders the writes so the last snapshot handed over is
       // the one that lands, and the service mints ONE door per plugin, which is
       // what makes that ordering true.
-      heldFor: (plugin) => heldFor(plugin, served, (line) => say(Effect.logWarning(line))),
+      localStateFor: (plugin) => localStateFor(plugin, served, (line) => say(Effect.logWarning(line))),
       changed: () => onChange.run(),
       // NO `dials`: the injectables are a test's, and this is the product.
     })

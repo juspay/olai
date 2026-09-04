@@ -81,6 +81,7 @@ import {
   definePlugin,
   Env,
   Kinds,
+  LocalState,
   Offers,
   Ops,
   type Refusal,
@@ -105,8 +106,10 @@ import type { Change } from "./transcript.ts"
 import * as Chat from "./scoped.ts"
 import { whyNoAgent } from "./adapter.ts"
 import { detecting } from "./agents/roster.ts"
-import { forDirectory as scopesIn } from "./scopes.ts"
-import { forDirectory as sessionsIn } from "./sessions.ts"
+import { openLocalState } from "./local.ts"
+import { forLocalState as scopesIn } from "./scopes.ts"
+import { forLocalState as sessionsIn } from "./sessions.ts"
+import { forLocalState as memoryIn } from "./memory.ts"
 import { kinds } from "./kinds.ts"
 import { roster as agentsRoster } from "./server/agents.ts"
 import { assignSession, type Binding, startAgentSession } from "./server/binding.ts"
@@ -175,7 +178,7 @@ const asFailure = (refusal: Refusal): OpFailure => refusal as OpFailure
 
 export default definePlugin({
   name,
-  needs: [Bundle, Env, Kinds, Offers, Ops, Surfaces, Tools, Vault, Wakes],
+  needs: [Bundle, Env, Kinds, LocalState, Offers, Ops, Surfaces, Tools, Vault, Wakes],
   apply: Effect.gen(function*() {
     // EVERY SERVICE THIS PLUGIN NAMED, YIELDED ONCE, at the top — the same list
     // `needs` carries, in the same order, so a reader checks the two against
@@ -183,6 +186,7 @@ export default definePlugin({
     const bundle = yield* Bundle
     const env = yield* Env
     const kindsDoor = yield* Kinds
+    const localState = yield* openLocalState(yield* LocalState)
     const offers = yield* Offers
     const ops = yield* Ops
     const surfaces = yield* Surfaces
@@ -760,8 +764,9 @@ export default definePlugin({
               ask: one.ask,
             }))
           ),
-        scoping: yield* scopesIn(vault.served),
-        overheard: yield* sessionsIn(vault.served),
+        memory: memoryIn(localState, mounted()[0]?.id ?? ""),
+        scoping: yield* scopesIn(localState),
+        overheard: yield* sessionsIn(localState),
         agentAt: (to) => nodeAgents.agentAt(to),
         nodeAt: (node) => nodeAgents.nodeAt(node),
         seatableAt: (node) => nodeAgents.seatableAt(node),
