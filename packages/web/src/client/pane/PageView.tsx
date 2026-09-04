@@ -13,7 +13,6 @@
 import { createMemo, Match, Show, Switch } from "solid-js"
 
 import { parseFilter, samePageRequest } from "@olai/format"
-import type { AppRoute } from "@olai/plugin-api"
 
 import { CLEARANCE } from "../connection/Indicator.tsx"
 import { DocumentPage } from "../document/DocumentPage.tsx"
@@ -33,7 +32,7 @@ import { drawnBy, requestFor } from "../page.ts"
 import { createReading, ReadingProvider, useReadings } from "../reading.tsx"
 import { OutlinePage } from "../OutlinePage.tsx"
 import { useFollow, useHere, useRouter } from "../router.tsx"
-import { filterOf, hrefOf, narrowable, narrowedTo, routeFace, samePage } from "../routes.ts"
+import { filterOf, hrefOf, type MountedAppPage, narrowable, narrowedTo, routeFace, samePage } from "../routes.ts"
 import { panesOf } from "../workspace.ts"
 import { pageFileOf, visibleIn } from "../settings/done.ts"
 import { TESTID } from "../testids.ts"
@@ -51,7 +50,7 @@ export function PageView() {
   )
 }
 
-function PageAt(props: { readonly source: AppRoute | null }) {
+function PageAt(props: { readonly source: MountedAppPage | null }) {
   const router = useRouter()
   const here = useHere()
   const follow = useFollow()
@@ -82,7 +81,7 @@ function PageAt(props: { readonly source: AppRoute | null }) {
   const request = createMemo(() => {
     const open = opened()
     if (props.source !== null && open.kind === "plugin") {
-      return props.source.request(open.value, today()) as ReturnType<typeof requestFor>
+      return props.source.route.request(open.value, today())
     }
     return requestFor(open)
   }, undefined, {
@@ -158,7 +157,7 @@ function PageAt(props: { readonly source: AppRoute | null }) {
    * licenses for a navigation). {@link together} covers the other, which is
    * measured NOT to happen; what it buys is that the page below may assert so.
    */
-  const reading = createReading(request, asked.awaiting, props.source?.stream)
+  const reading = createReading(request, asked.awaiting, props.source?.route.stream)
   // …and the pane joins the workspace's register with it, so the chrome outside
   // the panes can read whichever one is focused — the page AND the names table
   // derived beside it (`../App.tsx`).

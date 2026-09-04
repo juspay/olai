@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { agenda, day } from "./routes.ts"
+import { agenda, agendaRoute, day, dayRoute, todayRoute } from "./routes.ts"
 
 test("journal owns the day address grammar", () => {
   expect(day.parse("/today")).toEqual({ today: true })
@@ -25,4 +25,11 @@ test("journal owns the agenda address grammar", () => {
     kind: "agenda",
     today: "2026-09-04",
   })
+})
+
+test("one route value owns journal navigation identity", () => {
+  expect(day.value(dayRoute("2026-09-04"))).toEqual({ date: "2026-09-04" })
+  expect(day.value(todayRoute)).toEqual({ today: true })
+  expect(agenda.value(agendaRoute)).toEqual({})
+  expect(agenda.value(todayRoute)).toBeNull()
 })

@@ -10,17 +10,18 @@ import { TESTID } from "../testids.ts"
 import { markOf, unchanged } from "./agenda/owed.ts"
 import { Calendar } from "./calendar/Calendar.tsx"
 import { createOwed } from "./dates.ts"
-import { agendaRoute, todayRoute } from "./routes.ts"
+import { agenda, agendaRoute, day, todayRoute } from "./routes.ts"
+
+const createAgendaMark = (today: () => string) => {
+  const owed = createOwed(today)
+  return createMemo(() => markOf(owed()), undefined, { equals: unchanged })
+}
 
 export function AgendaEntry() {
   const router = useRouter()
   const today = useToday()
-  const owed = createOwed(() => today())
-  const mark = createMemo(() => markOf(owed()), undefined, { equals: unchanged })
-  const current = () => {
-    const route = router.route()
-    return route.kind === "plugin" && route.plugin === "journal" && route.page === "agenda"
-  }
+  const mark = createAgendaMark(today)
+  const current = () => agenda.value(router.route()) !== null
   return (
     <div
       class="mb-1"
@@ -48,12 +49,8 @@ export function CalendarSection() {
   const router = useRouter()
   const today = useToday()
   const open = createMemo(() => {
-    const route = router.route()
-    if (route.kind !== "plugin" || route.plugin !== "journal" || route.page !== "day") {
-      return undefined
-    }
-    const value = route.value as { readonly today?: true; readonly date?: string }
-    return value.today === true ? today() : value.date
+    const value = day.value(router.route())
+    return value === null ? undefined : "today" in value ? today() : value.date
   })
   return <Calendar today={today()} open={open()} />
 }
@@ -61,8 +58,7 @@ export function CalendarSection() {
 export function JournalRail() {
   const router = useRouter()
   const today = useToday()
-  const owed = createOwed(() => today())
-  const mark = createMemo(() => markOf(owed()), undefined, { equals: unchanged })
+  const mark = createAgendaMark(today)
   return (
     <>
       <RailButton
@@ -79,7 +75,7 @@ export function JournalRail() {
         testid={TESTID.railAgenda}
         label={mark().said ?? "open the agenda"}
         title={mark().said ?? "agenda"}
-        owed={mark().face}
+        data={{ get "data-owed"() { return mark().face } }}
         onClick={() => router.go(agendaRoute)}
       >
         <svg viewBox="0 0 16 16" class="size-4" aria-hidden="true" fill="currentColor">

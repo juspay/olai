@@ -5,6 +5,7 @@ import {
   OpFailure,
   Owed,
   OwedRequest,
+  PageRequest,
   PageReading,
 } from "@olai/format"
 import { Schema } from "effect"
@@ -13,6 +14,22 @@ export const name = "journal"
 
 export const DayRequest = Schema.Struct({ date: Schema.String })
 export type DayRequest = typeof DayRequest.Type
+
+export type DayPageRequest = Extract<PageRequest, { readonly kind: "day" }>
+export const DayPageRequest = PageRequest.check(
+  Schema.makeFilter(
+    (request: PageRequest) => request.kind === "day",
+    { expected: "a journal day page request" },
+  ),
+) as typeof PageRequest & { readonly Type: DayPageRequest }
+
+export type AgendaPageRequest = Extract<PageRequest, { readonly kind: "agenda" }>
+export const AgendaPageRequest = PageRequest.check(
+  Schema.makeFilter(
+    (request: PageRequest) => request.kind === "agenda",
+    { expected: "a journal agenda page request" },
+  ),
+) as typeof PageRequest & { readonly Type: AgendaPageRequest }
 
 /** The deliberately narrow answer to minting a note. Journal needs the path
  * it derived and nothing from core's general edit protocol. */
@@ -23,8 +40,8 @@ export const surface = defineSurface({
   streams: {
     dated: { inputSchema: DatedRequest, outputSchema: DatedAnswer },
     owed: { inputSchema: OwedRequest, outputSchema: Owed },
-    day: { inputSchema: DayRequest, outputSchema: PageReading, arrayKey: "key" },
-    agenda: { inputSchema: OwedRequest, outputSchema: PageReading, arrayKey: "key" },
+    day: { inputSchema: DayPageRequest, outputSchema: PageReading, arrayKey: "key" },
+    agenda: { inputSchema: AgendaPageRequest, outputSchema: PageReading, arrayKey: "key" },
   },
   procedures: {
     note: {

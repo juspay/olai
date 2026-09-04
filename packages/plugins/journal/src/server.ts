@@ -1,17 +1,17 @@
-import type { ImplementSurfaceDeps } from "@kolu/surface/server"
+import { type ImplementSurfaceDeps, inMemoryChannel } from "@kolu/surface/server"
 import {
+  Clock,
   definePlugin,
   Ops,
   Surfaces,
   Vault,
+  Vocabulary,
 } from "@olai/plugin-api/services"
 import {
   dailyNotePathFor,
-  datedAnswer,
   isDay,
+  type KindVocabulary,
   markdownIn,
-  owedNow,
-  pageOf,
   sameDated,
   sameOwed,
   samePageReading,
@@ -19,6 +19,7 @@ import {
   type Reading,
   UsageFailure,
 } from "@olai/format"
+import { standing } from "@olai/ops"
 import { Effect } from "effect"
 
 import { faces, name, surface } from "./wire.ts"
@@ -39,60 +40,56 @@ interface VaultRevision {
 
 export default definePlugin({
   name,
-  needs: [Ops, Surfaces, Vault],
+  needs: [Clock, Ops, Surfaces, Vault, Vocabulary],
   apply: Effect.gen(function*() {
+    const clock = yield* Clock
     const ops = yield* Ops
     const surfaces = yield* Surfaces
     const vault = yield* Vault
+    const vocabulary = yield* Vocabulary
 
     // One retained revision and one pulse shared by the four readings. Keeping
     // the Reading object whole keeps its incrementally patched owed index with
     // the set and derived view it belongs to.
     let current: Reading | undefined
-    const listeners = new Set<() => void>()
-    const install = (_input: unknown, onEvent: () => void): (() => void) => {
-      listeners.add(onEvent)
-      return () => listeners.delete(onEvent)
+    const revisions = inMemoryChannel<void>()
+    const replace = (next: Reading | undefined): void => {
+      current = next
+      revisions.publish(undefined)
     }
-    const pulse = (): void => {
-      for (const listener of listeners) listener()
-    }
+    const install = (_input: unknown, onEvent: () => void): (() => void) =>
+      revisions.consume({ onEvent, onError: () => {} })
     yield* vault.revision((revision: VaultRevision) =>
-      Effect.sync(() => {
-        current = revision.value
-        pulse()
-      })
+      Effect.sync(() => replace(revision.value))
     )
-    yield* vault.unloaded(Effect.sync(() => {
-      current = undefined
-      pulse()
-    }))
+    yield* vault.unloaded(Effect.sync(() => replace(undefined)))
 
     const reading: Effect.Effect<Reading, OpFailure> = Effect.suspend(() =>
       current === undefined ? Effect.fail(noReading()) : Effect.succeed(current)
     )
+    const views = standing(clock.now, () => vocabulary.current() as KindVocabulary)
     yield* surfaces.register({
       surface,
       faces,
       deps: {
         streams: {
           dated: {
-            read: (input) => Effect.runPromise(Effect.map(reading, (at) => datedAnswer(at.derived, input.month))),
+            read: (input) => Effect.runPromise(Effect.map(reading, (at) => views.dated(at, input))),
             install,
             isEqual: sameDated,
           },
           owed: {
-            read: (input) => Effect.runPromise(Effect.map(reading, (at) => owedNow(at.derived, input.today))),
+            read: (input) => Effect.runPromise(Effect.map(reading, (at) => views.owed(at, input))),
             install,
             isEqual: sameOwed,
           },
           day: {
-            read: (input) => Effect.runPromise(Effect.map(reading, (at) => pageOf(at, { kind: "day", date: input.date }))),
+            read: (input) => Effect.runPromise(Effect.map(reading, (at) => views.page(at, input))),
             install,
             isEqual: samePageReading,
           },
           agenda: {
-            read: (input) => Effect.runPromise(Effect.map(reading, (at) => pageOf(at, { kind: "agenda", today: input.today }))),
+            read: (input) => Effect.runPromise(Effect.map(reading, (at) => views.page(at, input))),
             install,
             isEqual: samePageReading,
           },
@@ -111,9 +108,9 @@ export default definePlugin({
                 markdownIn(at.set).map((document) => document.path),
                 input.date,
               )
-              return yield* Effect.map(
+              return yield* Effect.as(
                 Effect.mapError(ops.document(file), (failure) => failure as OpFailure),
-                () => ({ file }),
+                { file },
               )
             }),
           },

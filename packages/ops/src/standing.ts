@@ -226,7 +226,10 @@ interface Held {
  * is the composition root's to decide, and a second `new Date()` down here
  * would be a clock a test could not move.
  */
-export const standing = (now: () => string, kinds: KindVocabulary): Standing => {
+export const standing = (
+  now: () => string,
+  kinds: KindVocabulary | (() => KindVocabulary),
+): Standing => {
   /** The revision every live answer is at — `null` until the first ask. */
   let at: Reading | null = null
   let live = new Map<string, Held>()
@@ -276,7 +279,8 @@ export const standing = (now: () => string, kinds: KindVocabulary): Standing => 
     }
 
     const taped = taping(reading)
-    const fresh = question.answer(taped.reading, input, now, kinds)
+    const vocabulary = typeof kinds === "function" ? kinds() : kinds
+    const fresh = question.answer(taped.reading, input, now, vocabulary)
     const answer = before !== undefined && before.askers > 1 &&
         question.same(before.answer as A, fresh)
       ? before.answer as A

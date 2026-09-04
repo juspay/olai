@@ -27,6 +27,6 @@ export const labelOf = (route: Route): string => {
     if (address === null) return "outline"
     return address.kind === "node" ? address.id : address.path
   }
-  if (route.kind === "plugin") return routeFace(route)?.breadcrumb(route.value) ?? "plugin"
+  if (route.kind === "plugin") return routeFace(route)?.route.breadcrumb(route.value) ?? "plugin"
   return "trash"
 }

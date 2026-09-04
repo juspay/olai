@@ -131,14 +131,53 @@ import {
   type Address,
   addressOf,
   fileKind,
+  type PageReading,
+  type PageRequest,
   parseAddress,
+  type Shown,
   type Split,
   splitAddress,
   writtenAddress,
 } from "@olai/format"
-import type { AppRoute } from "@olai/plugin-api"
+import type { AppPage, AppRoute, AppRouteClaim } from "@olai/plugin-api"
+import type { Accessor, JSX } from "solid-js"
+
+import type { Drawn } from "./page.ts"
 
 import { hung } from "./plugins/runtime.ts"
+
+const APP_ROUTE = Symbol("olai app route")
+const APP_PAGE = Symbol("olai app page")
+
+/** The node-page protocol the shell actually knows how to host. Plugin API's
+ * heterogeneous positions are narrowed to this protocol once, by
+ * {@link defineAppRoute}, rather than cast independently by every consumer. */
+export interface NodePageRoute {
+  readonly [APP_ROUTE]: true
+  readonly claims: ReadonlyArray<AppRouteClaim>
+  readonly parse: (pathname: string) => unknown | null
+  readonly href: (page: unknown) => string
+  readonly breadcrumb: (page: unknown) => string
+  readonly narrowable: boolean
+  readonly request: (page: unknown, today: string) => PageRequest
+  readonly stream: {
+    readonly use: (input: Accessor<PageRequest | null>) => PageAnswer
+  }
+}
+
+export interface PageAnswer {
+  (): PageReading | undefined
+  readonly changed?: (handler: () => void) => () => void
+}
+
+export interface MountedAppPage {
+  readonly route: NodePageRoute
+  readonly face: (props: {
+    readonly page: Shown
+    readonly drawn: Drawn
+    readonly today: string
+  }) => JSX.Element
+}
 
 export type Route =
   /**
@@ -169,11 +208,75 @@ export type Route =
   /** A page whose grammar, reading and face are owned by a mounted plugin. */
   | {
     readonly kind: "plugin"
-    readonly plugin: string
-    readonly page: string
+    readonly source: NodePageRoute
     readonly value: unknown
     readonly filter?: string
   }
+
+export interface DefinedAppRoute<Value, Request extends PageRequest> {
+  readonly source: NodePageRoute
+  readonly to: (value: Value) => Route
+  readonly value: (route: Route) => Value | null
+  /** Kept for the route grammar's own focused tests. */
+  readonly parse: (pathname: string) => Value | null
+  readonly href: (value: Value) => `/${string}`
+  readonly breadcrumb: (value: Value) => string
+  readonly request: (value: Value, today: string) => Request
+}
+
+/** Define one typed node-page grammar. This is the sole erasure point between
+ * a tenant's value/request types and the heterogeneous route slot. */
+export const defineAppRoute = <Value, Request extends PageRequest>(spec: {
+  readonly claims: ReadonlyArray<AppRouteClaim>
+  readonly parse: (pathname: string) => Value | null
+  readonly href: (value: Value) => `/${string}`
+  readonly breadcrumb: (value: Value) => string
+  readonly narrowable: boolean
+  readonly request: (value: Value, today: string) => Request
+  readonly stream: {
+    readonly use: (input: Accessor<Request | null>) => PageAnswer
+  }
+}): DefinedAppRoute<Value, Request> => {
+  const source: NodePageRoute = {
+    [APP_ROUTE]: true,
+    claims: spec.claims,
+    parse: spec.parse as (pathname: string) => unknown | null,
+    href: (value) => spec.href(value as Value),
+    breadcrumb: (value) => spec.breadcrumb(value as Value),
+    narrowable: spec.narrowable,
+    request: (value, today) => spec.request(value as Value, today),
+    stream: {
+      use: (input) => spec.stream.use(input as Accessor<Request | null>),
+    },
+  }
+  return {
+    source,
+    to: (value) => ({ kind: "plugin", source, value }),
+    value: (route) =>
+      route.kind === "plugin" && route.source === source ? route.value as Value : null,
+    parse: spec.parse,
+    href: spec.href,
+    breadcrumb: spec.breadcrumb,
+    request: spec.request,
+  }
+}
+
+/** Join a typed route to the face mounted in the same plugin scope. */
+export const defineAppPage = <Value, Request extends PageRequest>(
+  route: DefinedAppRoute<Value, Request>,
+  face: (props: {
+    readonly page: Extract<Shown, { readonly kind: Request["kind"] }>
+    readonly drawn: Drawn
+    readonly today: string
+  }) => JSX.Element,
+): AppPage => {
+  const page = {
+    [APP_PAGE]: true,
+    route: route.source as unknown as AppRoute,
+    face: face as AppPage["face"],
+  }
+  return page
+}
 
 /** The front page: the address that names no place at all, and what every
  *  string this cannot read comes back as. */
@@ -247,12 +350,53 @@ const FILTER_KEY = "q"
 const addressNamed = (route: Route): Address | null =>
   route.kind === "at" ? route.address : null
 
+const nodePage = (page: AppPage): MountedAppPage => {
+  if (!(APP_PAGE in page) || !(APP_ROUTE in page.route)) {
+    throw new Error("app.route entries must be built with defineAppRoute and defineAppPage")
+  }
+  return page as unknown as MountedAppPage
+}
+
+const overlaps = (a: AppRouteClaim, b: AppRouteClaim): boolean => {
+  if (a.kind === "exact" && b.kind === "exact") return a.path === b.path
+  if (a.kind === "prefix" && b.kind === "prefix") {
+    return a.path.startsWith(b.path) || b.path.startsWith(a.path)
+  }
+  const exact = a.kind === "exact" ? a.path : b.path
+  const prefix = a.kind === "prefix" ? a.path : b.path
+  return exact.startsWith(prefix)
+}
+
+/** Every mounted claim, checked as one namespace before any parser gets to
+ * choose a winner. `/trash` is core's sole computed-page claim. */
+const routePages = (): ReadonlyArray<{ readonly plugin: string; readonly page: MountedAppPage }> => {
+  const pages = hung("app.route").map((one) => ({ plugin: one.plugin, page: nodePage(one.face) }))
+  const claimed: Array<{ readonly owner: string; readonly claim: AppRouteClaim }> = [
+    { owner: "core", claim: { kind: "exact", path: "/trash" } },
+  ]
+  for (const { plugin, page } of pages) {
+    for (const claim of page.route.claims) {
+      const collision = claimed.find((one) => overlaps(one.claim, claim))
+      if (collision !== undefined) {
+        throw new Error(
+          `app route claim ${claim.kind} ${claim.path} from ${plugin} overlaps ${collision.owner}'s ${collision.claim.kind} ${collision.claim.path}`,
+        )
+      }
+      claimed.push({ owner: plugin, claim })
+    }
+  }
+  return pages
+}
+
+const claims = (route: NodePageRoute, pathname: string): boolean =>
+  route.claims.some((claim) =>
+    claim.kind === "exact" ? pathname === claim.path : pathname.startsWith(claim.path)
+  )
+
 /** The mounted tenant for a plugin route, or null after that tenant left. */
-export const routeFace = (route: Route): AppRoute | null => {
+export const routeFace = (route: Route): MountedAppPage | null => {
   if (route.kind !== "plugin") return null
-  return hung("app.route").find(
-    (one) => one.plugin === route.plugin && one.face.id === route.page,
-  )?.face ?? null
+  return routePages().find((one) => one.page.route === route.source)?.page ?? null
 }
 
 /** The front page: the address that names no place. One value, since it is
@@ -297,7 +441,7 @@ export const atElement = (file: string, element: string | null): Route =>
 export const hrefOf = (route: Route): string => {
   const narrowed = narrowing(filterOf(route))
   if (route.kind === "plugin") {
-    return (routeFace(route)?.href(route.value) ?? HOME) + narrowed
+    return (routeFace(route)?.route.href(route.value) ?? HOME) + narrowed
   }
   if (isNamed(route.kind)) return NAMED[route.kind] + narrowed
   const address = addressNamed(route)
@@ -423,28 +567,24 @@ export const routeOf = (address: string): Route => {
  * it had recognised anything, and both callers want that answer for opposite
  * reasons.
  *
- * PLUGIN AND CORE COMPUTED PAGES ARE READ FIRST, and that ordering is the only
- * precedence in this file. They cannot collide with a file — a served file
- * carries a suffix the registry claims and these spell none — so the order is
- * a reading order and not a rule.
+ * PLUGIN AND CORE COMPUTED PAGES ARE READ FIRST. A plugin claim reserves its
+ * whole exact word or prefix, including malformed paths its parser refuses;
+ * those paths do not silently become vault-file addresses. Claims are checked
+ * against every other computed-page claim before one is read.
  */
 const routeNamed = (parts: Split): Route | null => {
   const { pathname, search, fragment } = parts
   const narrowed = narrowedBy(search)
 
-  // Plugin grammars get the same precedence computed pages historically had.
-  // The bundle order makes two claims deterministic; a route tenant should
-  // choose a spelling no other tenant owns.
-  for (const one of hung("app.route")) {
-    const value = one.face.parse(pathname)
-    if (value !== null) {
-      return {
-        kind: "plugin",
-        plugin: one.plugin,
-        page: one.face.id,
-        value,
-        ...(one.face.narrowable ? narrowed : UNNARROWED),
-      }
+  const tenant = routePages().find((one) => claims(one.page.route, pathname))?.page
+  if (tenant !== undefined) {
+    const value = tenant.route.parse(pathname)
+    if (value === null) return null
+    return {
+      kind: "plugin",
+      source: tenant.route,
+      value,
+      ...(tenant.route.narrowable ? narrowed : UNNARROWED),
     }
   }
 
@@ -492,7 +632,7 @@ const routeNamed = (parts: Split): Route | null => {
  * going through {@link narrowedTo}, which asks this.
  */
 export const narrowable = (route: Route): boolean => {
-  if (route.kind === "plugin") return routeFace(route)?.narrowable ?? false
+  if (route.kind === "plugin") return routeFace(route)?.route.narrowable ?? false
   const address = addressNamed(route)
   return address === null || address.kind === "node" ||
     fileKind(address.path) === "outline"

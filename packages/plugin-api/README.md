@@ -62,6 +62,7 @@ Three properties fall out of that, and none of them is a convenience.
 | `vault` | the served directory, and the two doors its revisions ring |
 | `deliveries` | the doorbell — `scopes()` and `deliver(...)`, minted from the calling plugin's own word |
 | `kinds` | `register(kind)`, composing the word from the plugin's own name |
+| `vocabulary` | `current()` — the composition root's opaque, lazily-read property vocabulary for plugin-owned page derivations |
 | `surfaces` | `register({surface, faces, deps, published?})` — one sibling per plugin |
 | `wakes` | `register(wake)` — the sentence the strip draws, and the two a broken scope is owed — and `declared`, the one READ side on this door: a plugin that refuses a conversation scope written for a plugin nobody mounted has to be able to ask which plugins ring, and the table is read afresh so a plugin that unloaded between two checks has taken its declaration with it |
 | `watching` | `subscribe(handler)` — conversation events, PUSHED: a doorbell that landed, an orchestrator reply that settled, a turn that started or ended. Never a human message, and never a read |

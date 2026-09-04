@@ -52,7 +52,7 @@ export function Rail(props: {
         </svg>
       </RailButton>
 
-      <PluginRailEntries />
+      <PluginRailEntries place="top" />
 
       <RailButton
         testid={TESTID.railOutlines}
@@ -79,6 +79,8 @@ export function Rail(props: {
         {/* And the tree's document glyph, for the same reason. */}
         <Glyph of="document" size={ICON} />
       </RailButton>
+
+      <PluginRailEntries place="bottom" />
     </div>
   )
 }
@@ -87,11 +89,9 @@ export function RailButton(props: {
   readonly testid: string
   readonly label: string
   readonly title: string
-  /** What this button has to report, where it reports anything — a `data-`
-   *  fact for the browser tests rather than the colour it painted, exactly as
-   *  the column's own entry carries it. The FACE type and not a string: a
-   *  misspelling here is an attribute no scenario would ever match. */
-  readonly owed?: string
+  /** Optional semantic facts owned by the caller, without teaching this shell
+   * button any tenant's vocabulary. */
+  readonly data?: { readonly [key: `data-${string}`]: string | undefined }
   readonly onClick: () => void
   readonly children: import("solid-js").JSX.Element
 }) {
@@ -102,8 +102,8 @@ export function RailButton(props: {
       // containing block is declared once, here, rather than by whichever child
       // happens to need one.
       class={`${TARGET_BOX} relative inline-flex items-center justify-center rounded-xl text-paper/65 hover:bg-paper/10 hover:text-paper md:min-h-9 md:min-w-9`}
+      {...props.data}
       data-testid={props.testid}
-      data-owed={props.owed}
       aria-label={props.label}
       title={props.title}
       onClick={() => props.onClick()}

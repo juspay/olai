@@ -307,6 +307,15 @@ export interface Kinds {
 }
 export const Kinds = serviceTag<Kinds>("kinds")
 
+/** The format vocabulary assembled by the composition root. Opaque here for
+ * the same dependency-direction reason as {@link Vault}'s reading; a plugin
+ * that derives page readings narrows it at its own format boundary. */
+export interface Vocabulary {
+  /** Read at query time, after every plugin has had a chance to register. */
+  readonly current: () => unknown
+}
+export const Vocabulary = serviceTag<Vocabulary>("vocabulary")
+
 /** ONE PLUGIN'S KIND, COMPOSED — its word prefixed with the plugin's name, and
  *  the KEY it claims by convention, which is that same word. What the format
  *  reads is this rather than the bare row a plugin wrote. */
@@ -845,7 +854,7 @@ export interface Ops {
   /** Mint one document at a path the calling plugin derived from the current
    * reading. This is the second deliberately narrow write shape: it cannot
    * edit rows, properties, or an existing file. */
-  readonly document: (file: string) => Effect.Effect<unknown, Refusal>
+  readonly document: (file: string) => Effect.Effect<void, Refusal>
   /** A WRITE THIS SERVE REFUSED, for as long as the calling plugin is loaded.
    *
    *  ON THE WRITE GATE and not on the MCP server, because it is WRITES this is
@@ -1009,6 +1018,9 @@ export interface PluginsConfig {
    * that serves no directory should be told.
    */
   readonly ops?: Pick<Ops, "reading" | "prop" | "document">
+  /** The process's composed property vocabulary, read lazily because plugins
+   * mount before the directory and its codec are opened. */
+  readonly vocabulary?: () => unknown
   /**
    * WHERE EACH PLUGIN SITS IN THE BUILD'S LIST OF ROWS — see {@link Bundle}.
    *
@@ -1050,6 +1062,10 @@ export const openPlugins = (
       dial: config.dials?.[plugin],
     }))
     yield* provide(host, Clock, () => ({ now: config.now }))
+    const vocabulary = config.vocabulary
+    if (vocabulary !== undefined) {
+      yield* provide(host, Vocabulary, () => ({ current: vocabulary }))
+    }
 
     // THE THREE BUSES, and they are one primitive rather than three hand-rolled
     // copies of it ({@link @olai/effect-cordis}'s `broadcast`). Each holds its

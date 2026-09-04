@@ -403,7 +403,7 @@ export interface SlotFaces {
   "outline.row.block": PropBlock
   "outline.row.door": (props: { readonly node: string }) => JSX.Element
   "outline.row.action": RowActions
-  "app.route": AppRoute
+  "app.route": AppPage
   "sidebar.entry": SidebarEntry
   "sidebar.section": SidebarSection
   "app.panel": () => JSX.Element
@@ -427,19 +427,30 @@ export interface AppPageStream {
   readonly use: (input: () => unknown | null) => AppPageAnswer
 }
 
-/** One plugin-owned URL page. Core owns the pane and filtering chrome; the
- * tenant owns the grammar, the stream and the face inside that chrome. */
+/** One declarative claim on the app's URL namespace. Exact words and prefixes
+ * are enough for the address grammars plugins can own, and unlike an arbitrary
+ * parser they can be checked against every other mounted claim. */
+export type AppRouteClaim =
+  | { readonly kind: "exact"; readonly path: `/${string}` }
+  | { readonly kind: "prefix"; readonly path: `/${string}` }
+
+/** One plugin-owned URL grammar and standing reading. The heterogeneous value
+ * positions are deliberately erased at this floor; `@olai/web`'s
+ * `defineAppRoute` is the typed adapter that may construct one. */
 export interface AppRoute {
-  readonly id: string
+  readonly claims: ReadonlyArray<AppRouteClaim>
   readonly parse: (pathname: string) => unknown | null
   readonly href: (page: unknown) => string
   readonly breadcrumb: (page: unknown) => string
   readonly narrowable: boolean
-  /** The shared page request used for both the tenant reading and core's
-   * narrowing reading. The stream adapter may project it to its own wire
-   * input, but both subscriptions must remain about the same page. */
   readonly request: (page: unknown, today: string) => unknown
   readonly stream: AppPageStream
+}
+
+/** The complete page registration: one route source and the drawing of its
+ * answer, acquired and released in the same plugin scope. */
+export interface AppPage {
+  readonly route: AppRoute
   readonly face: (props: {
     readonly page: unknown
     readonly drawn: unknown
@@ -455,14 +466,14 @@ export interface SidebarEntry {
   readonly rail?: () => JSX.Element
 }
 
-/** An ordinary palette navigation row. `route` is opaque here for the same
- * reason AppRoute's page value is: the browser shell owns that union. */
+/** An ordinary palette navigation row. A URL is the shared navigation currency;
+ * the shell resolves it against the same exclusive claims as the address bar. */
 export interface AppPalette {
   readonly id: string
   readonly label: string
   readonly hint?: string
   readonly search: string
-  readonly route: unknown
+  readonly href: `/${string}`
 }
 
 /**

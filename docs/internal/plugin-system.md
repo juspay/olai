@@ -210,7 +210,7 @@ Skim the table; the sections after it give one example each.
 | **name** | the plugin's one word — `"kolu"`, `"claude"`. Also the **sibling key**, the **row id**, the **fiber's name** and the address of its docs page |
 | **row** | one line of `packages/bundle/olai.yml`: an `id` and the module the loader mounts. The build's list, as data |
 | **fiber** | one mounted plugin, with a lifecycle. A composition root sees four words for it — `running`, `waiting`, `failed`, `off` — and the engine's six states are `@olai/effect-cordis`'s business |
-| **service** | an Effect tag a plugin yields — `Vault`, `Kinds`, `Surfaces`. What `PluginServices` dissolved into. The tag carries the engine's key, so `needs` and the requirement channel are one declaration |
+| **service** | an Effect tag a plugin yields — `Vault`, `Kinds`, `Vocabulary`, `Surfaces`. What `PluginServices` dissolved into. The tag carries the engine's key, so `needs` and the requirement channel are one declaration |
 | **needs** | the services a plugin names. The runtime holds it `waiting` until they exist and unloads it when one leaves; the compiler computes `apply`'s requirements from the same list |
 | **effect** | a registration that carries its own undo. Every `register` is an `Effect.acquireRelease` on the calling plugin's `Scope` |
 | **surface** | a whole `defineSurface(...)` contract, declared inside the plugin's package |

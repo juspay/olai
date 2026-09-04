@@ -1,36 +1,15 @@
-import type { AppRoute } from "@olai/plugin-api"
-import type { Route } from "@olai/web/client/routes.ts"
+import { defineAppRoute, type Route } from "@olai/web/client/routes.ts"
 
-import { name } from "../wire.ts"
 import { journalWire } from "./wire.ts"
+import type { AgendaPageRequest, DayPageRequest } from "../wire.ts"
 
 type DayPage = { readonly today: true } | { readonly date: string }
 
-export const dayRoute = (date: string): Route => ({
-  kind: "plugin",
-  plugin: name,
-  page: "day",
-  value: { date },
-})
-
-export const todayRoute: Route = {
-  kind: "plugin",
-  plugin: name,
-  page: "day",
-  value: { today: true },
-}
-
-export const agendaRoute: Route = {
-  kind: "plugin",
-  plugin: name,
-  page: "agenda",
-  value: {},
-}
-
-const dayPage = (value: unknown): DayPage => value as DayPage
-
-export const day: AppRoute = {
-  id: "day",
+export const day = defineAppRoute<DayPage, DayPageRequest>({
+  claims: [
+    { kind: "exact", path: "/today" },
+    { kind: "prefix", path: "/d/" },
+  ],
   parse: (pathname) => {
     if (pathname === "/today") return { today: true }
     if (!pathname.startsWith("/d/")) return null
@@ -40,42 +19,29 @@ export const day: AppRoute = {
       return null
     }
   },
-  href: (value) => {
-    const page = dayPage(value)
-    return "today" in page ? "/today" : `/d/${encodeURIComponent(page.date)}`
-  },
-  breadcrumb: (value) => {
-    const page = dayPage(value)
-    return "today" in page ? "Today" : page.date
-  },
+  href: (page) => "today" in page ? "/today" : `/d/${encodeURIComponent(page.date)}`,
+  breadcrumb: (page) => "today" in page ? "Today" : page.date,
   narrowable: true,
-  request: (value, today) => {
-    const page = dayPage(value)
+  request: (page, today) => {
     return { kind: "day", date: "today" in page ? today : page.date }
   },
   stream: {
-    use: (input) =>
-      journalWire().streams.day.use(() => {
-        const request = input() as { readonly date: string } | null
-        return request === null ? null : { date: request.date }
-      }),
+    use: (input) => journalWire().streams.day.use(input),
   },
-  face: () => null,
-}
+})
 
-export const agenda: AppRoute = {
-  id: "agenda",
+export const agenda = defineAppRoute<Record<never, never>, AgendaPageRequest>({
+  claims: [{ kind: "exact", path: "/agenda" }],
   parse: (pathname) => pathname === "/agenda" ? {} : null,
   href: () => "/agenda",
   breadcrumb: () => "Agenda",
   narrowable: true,
   request: (_value, today) => ({ kind: "agenda", today }),
   stream: {
-    use: (input) =>
-      journalWire().streams.agenda.use(() => {
-        const request = input() as { readonly today: string } | null
-        return request === null ? null : { today: request.today }
-      }),
+    use: (input) => journalWire().streams.agenda.use(input),
   },
-  face: () => null,
-}
+})
+
+export const dayRoute = (date: string): Route => day.to({ date })
+export const todayRoute: Route = day.to({ today: true })
+export const agendaRoute: Route = agenda.to({})

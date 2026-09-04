@@ -19,6 +19,12 @@ The plugin owns three address forms:
 - `/d/YYYY-MM-DD` — one named day;
 - `/agenda` — overdue, today and upcoming work, counted from the reader's local day.
 
+Those forms are exclusive route claims. A mounted plugin cannot silently take
+`/trash` or overlap another plugin's exact path/prefix; the shell refuses the
+conflicting route vocabulary instead of choosing by bundle order. Journal's
+typed route definitions also mint the sidebar, calendar and palette destinations,
+so those affordances cannot drift from the parser that owns their URLs.
+
 The Agenda entry and its owed badge sit beside Inbox. The month calendar sits below the app's own sidebar entries. When the full sidebar is collapsed, the journal contributes its compact Today and Agenda doors to the rail. The command palette gets *Go to today* and *Go to agenda* from the same row.
 
 An empty day may mint its daily note. The browser sends only the date through `journal`'s `note.mint` procedure; the server derives the path from the vault's existing daily-note convention and returns the file it created. That write never travels through core's general `edit.apply` vocabulary.
@@ -36,3 +42,7 @@ surface/journal/note/mint       create one daily note
 ```
 
 The MCP face does not expose these screen-shaped readings. An agent reads and searches the same dated nodes through the core vault resources and tools.
+
+All four streams share the directory's standing-query cache. A revision and
+request are answered once even when several tabs ask, and page answers use the
+same composed property-kind vocabulary as validation and core pages.

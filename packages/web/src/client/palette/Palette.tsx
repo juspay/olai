@@ -84,7 +84,7 @@ import { topmostWhileOpen } from "../topmost.ts"
 import { only } from "../narrow.ts"
 import { hung } from "../plugins/runtime.ts"
 import { Refusals } from "../refusals.tsx"
-import type { Route } from "../routes.ts"
+import { type Route, routeOf } from "../routes.ts"
 import { TESTID } from "../testids.ts"
 import {
   boxOf,
@@ -402,7 +402,7 @@ export function Palette(props: {
         id: face.id,
         label: face.label,
         ...(face.hint === undefined ? {} : { hint: face.hint }),
-        action: { kind: "route" as const, route: face.route as Route },
+        action: { kind: "route" as const, route: routeOf(face.href) },
         taking: atOnce,
         search: face.search,
       })),

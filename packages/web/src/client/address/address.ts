@@ -209,7 +209,7 @@ export const nameOf = (
     case "trash":
       return "Trash"
     case "plugin":
-      return routeFace(route)?.breadcrumb(route.value) ?? hrefOf(route)
+      return routeFace(route)?.route.breadcrumb(route.value) ?? hrefOf(route)
   }
 }
 

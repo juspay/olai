@@ -24,7 +24,7 @@
  */
 
 import { surface } from "@olai/surface"
-import type { GitPin } from "@olai/format"
+import { type GitPin, type KindVocabulary, NO_KINDS } from "@olai/format"
 import type { IdentityConfig } from "@olai/identity"
 import { fixedPolicy, make as makeOps, type Ops, TOOLS } from "@olai/ops"
 import { BUNDLE_NAMES, mountBundle, reportBundle } from "@olai/bundle/bundle"
@@ -110,6 +110,9 @@ export const serve = (options: ServeOptions) =>
      *  the vocabulary a store validates with is what the rows contribute — so
      *  the door a row names is asked per call. */
     let opsLayer: Ops | null = null
+    /** Filled after every plugin has registered its kinds. Journal's standing
+     * views read through the thunk only after the surface is live. */
+    let vocabulary: KindVocabulary = NO_KINDS
     /** WHERE A RELATIVE PATH RESOLVES FROM, resolved the way `openDirectory`
      *  resolves it and BEFORE it, because the plugin runtime is opened first.
      *  One spelling of `resolve` in two places is a hazard; two answers to which
@@ -214,6 +217,7 @@ export const serve = (options: ServeOptions) =>
       vars: process.env,
       now: () => new Date().toISOString(),
       served,
+      vocabulary: () => vocabulary,
       tools: toolsReady,
       // ...AND THE FENCE MINTED OFF IT. Read per call rather than captured,
       // because the mint does not exist until the MCP face does — and the row
@@ -251,7 +255,7 @@ export const serve = (options: ServeOptions) =>
           Effect.suspend(() =>
             opsLayer === null
               ? Effect.fail(NOWHERE_TO_WRITE)
-              : opsLayer.run({ op: "create-doc", file }, "web")
+              : Effect.asVoid(opsLayer.run({ op: "create-doc", file }, "web"))
           ),
       },
       // WHERE EACH ROW SITS IN THIS BUILD'S OWN LIST, handed over as the function
@@ -283,6 +287,7 @@ export const serve = (options: ServeOptions) =>
     // phase and names the phase it stops being.
     const report = yield* reportBundle(plugins.host)
     const kinds = yield* propKinds(plugins)
+    vocabulary = kinds
     const { root, store } = yield* openDirectory(options.root, kinds)
 
     // Bumped whenever anything about git settled — a commit by whichever door

@@ -92,8 +92,10 @@ export function PluginEntries(props: { readonly place: "top" | "bottom" }) {
 }
 
 /** The collapsed drawing that travels with the same directory entry. */
-export function PluginRailEntries() {
-  const entries = createMemo(() => hung("sidebar.entry"))
+export function PluginRailEntries(props: { readonly place: "top" | "bottom" }) {
+  const entries = createMemo(() =>
+    hung("sidebar.entry").filter((one) => one.face.place === props.place)
+  )
   return (
     <For each={entries()}>
       {(one) => {
