@@ -1,33 +1,25 @@
 # Pinned nixpkgs import — managed by npins (the kolu convention: zero flake
 # inputs; sources arrive via fetchTarball). To update: `just update-pins`.
 #
-# bun is overlaid from NixOS/nixpkgs#556047 (npins pin `nixpkgs-bun`), not
-# from the nixpkgs-unstable pin. That PR started as 1.3.13 → 1.4.0 (the
-# watcher rewrite this repo is waiting on,
-# https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/watcher-fd-cost.md)
-# and the fork's `bun-1.4-update` branch now carries 1.4.1, which is the
-# first bun with `bun install --offline` — required so olai-base does not
-# contact npm from the Nix sandbox (juspay/olai#503). The extra pin records
-# the PR's head on the fork that actually carries the branch
-# (`hesprs/nixpkgs`, `bun-1.4-update`) — `nixos/nixpkgs` has no such ref,
-# so a pin that named that owner made `just update-pins` fail and update
-# nothing. `just update-pins` now follows the fork and cannot silently drop
-# the bump.
-#
-# Overlay, not a retarget of nixpkgs: #556047 also marks kilo broken, limits
+# bun 1.4.1 is overlaid from the official prebuilt zip (`nix/bun.nix`), not
+# from the nixpkgs-unstable pin (still 1.3.13). 1.4.1 is the first bun with
+# `bun install --offline`, which olai-base needs so a sandbox install is a
+# cache miss rather than DNSResolveFailed (juspay/olai#503). Overlay, not a
+# retarget of nixpkgs: NixOS/nixpkgs#556047 also marks kilo broken, limits
 # cyberstrike, and retouches anytype's hash, none of which olai's closure
-# wants, and the PR sits on weeks of master this pin has not taken.
-# callPackage of the PR's bun/package.nix against THIS nixpkgs is the
-# smaller thing — a binary zip fetch, no second nixpkgs eval.
+# wants, and that PR sits on weeks of master this pin has not taken.
+# callPackage of nixpkgs' bun/package.nix against THIS nixpkgs is a binary
+# zip fetch — autoPatchelf, Darwin ICU, completions — not a hand-unzipped
+# one-platform derivation.
 #
-# When #556047 merges, drop the extra pin and this overlay; bun then comes
-# from nixpkgs-unstable at the merge commit. That re-pin is
-# bun-nixpkgs-catchup, parked for the human, not this change.
+# When #556047 (or a 1.4.1 follow-up) reaches nixpkgs-unstable, drop
+# `nix/bun.nix` and this overlay; bun then comes from the pin. That re-pin
+# is bun-nixpkgs-catchup, parked for the human, not this change.
 let
   sources = import ../npins;
   nixpkgs = import sources.nixpkgs;
   bunFromPr = final: _prev: {
-    bun = final.callPackage (sources.nixpkgs-bun + "/pkgs/by-name/bu/bun/package.nix") { };
+    bun = final.callPackage ./bun.nix { };
   };
 in
 args: nixpkgs (args // {
