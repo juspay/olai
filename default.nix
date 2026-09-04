@@ -50,7 +50,12 @@ let
   # `b2n.fetchBunDeps` reads the committed bun.nix and builds a fake Bun cache
   # from per-tarball FODs (hashes out of the lockfile, so no network in the
   # sandbox); `b2n.hook` installs that cache with `bun install
-  # --ignore-scripts`.
+  # --ignore-scripts`. `--offline` (bun 1.4.1) is the sandbox contract: a
+  # registry round-trip is a hard error naming the missing cache entry, not
+  # DNSResolveFailed from a private netns. `--frozen-lockfile` is the other
+  # half — bun 1.4 otherwise wants to rewrite bun.lock (lockfileVersion 1→2)
+  # and that rewrite is the thing that goes looking for manifests. The hook
+  # does not pass either; olai does. See juspay/olai#503.
   base = pkgs.stdenv.mkDerivation {
     pname = "olai-base";
     inherit version src;
@@ -64,8 +69,16 @@ let
     bunDeps = b2n.fetchBunDeps { bunNix = ./bun.nix; };
 
     # Matches bunfig.toml, passed explicitly so the linker choice survives if
-    # the hook ever stops reading bunfig.toml.
-    bunInstallFlags = [ "--linker=isolated" ];
+    # the hook ever stops reading bunfig.toml. Setting bunInstallFlags
+    # replaces the hook's default, so Darwin still needs --backend=symlink
+    # (clonefile from the store cache leaves node_modules/.bun read-only).
+    bunInstallFlags = [
+      "--linker=isolated"
+      "--offline"
+      "--frozen-lockfile"
+    ] ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
+      "--backend=symlink"
+    ];
 
     # The server runs its sources directly — nothing to compile — and the
     # default fixup walk over node_modules is pure overhead. The BROWSER is the

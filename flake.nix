@@ -1,11 +1,10 @@
 # IMPORTANT: this flake has ZERO inputs *except* `bun2nix` (the kolu
-# convention). nixpkgs, the kolu source, and the bun-1.4 nixpkgs PR (on
-# hesprs/nixpkgs, branch bun-1.4-update) are pinned by npins
+# convention). nixpkgs and the kolu source are pinned by npins
 # (npins/sources.json) and imported via fetchTarball, which keeps `nix
 # develop` cold eval near a second instead of the several the flake input
-# system costs per input. Add a pin, not an input. bun itself is overlaid
-# from the `nixpkgs-bun` pin (nix/nixpkgs.nix); drop that pin and the
-# overlay when NixOS/nixpkgs#556047 merges (bun-nixpkgs-catchup).
+# system costs per input. Add a pin, not an input. bun 1.4.1 is overlaid
+# from the official prebuilt zip (`nix/bun.nix`); drop that overlay when
+# NixOS/nixpkgs#556047 reaches the nixpkgs-unstable pin (bun-nixpkgs-catchup).
 #
 # `bun2nix` is the ONE documented exception: nixpkgs has no fetchBunDeps /
 # buildBunPackage. Upstream (nix-community/bun2nix) is flake-parts-shaped
@@ -18,8 +17,12 @@
 # is why this stays the only input. Forced only when `packages.*` is
 # evaluated, so `nix develop` cold eval is unchanged.
 {
-  # Pin a release tag; do not float on master.
-  inputs.bun2nix.url = "github:nix-community/bun2nix/2.1.2";
+  # Pin a commit, not master. 2.1.2's cache has tarballs and no npm
+  # manifests, so bun 1.4.1 `bun install --offline` dies with "no cached
+  # manifest" (juspay/olai#503). nix-community/bun2nix#103 synthesizes those
+  # manifests from bun.lock; it is unreleased, so this is the PR head
+  # (synapdeck/bun2nix@34894825) until it lands and we retag.
+  inputs.bun2nix.url = "github:synapdeck/bun2nix/3489482505adf9eafd4498c8e53015b5da980e13";
 
   # Juspay's shared OSS cache, so `nix run .#bun2nix` and the kolu sources come
   # down prebuilt instead of being compiled on every lane.
