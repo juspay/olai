@@ -839,7 +839,7 @@ export default definePlugin({
 
     /** IS KOLU'S MCP SERVER HERE, asked once per conversation opening — the
      *  `chat/session-start` door, and what is registered is the ASKING rather
-     *  than an answer, so the asking stays `@olai/chat`'s to schedule and the
+     *  than an answer, so the asking stays `olai-plugin-chat`'s to schedule and the
      *  list is read per session rather than once per boot. THE PLUGIN'S NAME IS
      *  NOT WRITTEN HERE: the door stamps it off the fiber, like every other
      *  keyed registration. `env.vars` and not `process.env`: a probe that read

@@ -55,7 +55,6 @@ export { KEYS_SETTLING } from "./client/quiescence.ts"
 export { ROW_TESTID } from "./client/file/kinds.ts"
 export { type Making, MAKING_DOCUMENT, MAKING_OUTLINE } from "./client/file/making.ts"
 export { REFERRINGS } from "./client/backlinks/way.ts"
-export { NODE_REF } from "./client/chat/refs.ts"
 
 // ── the CLOCK, and the DEADLINES a wait is measured against ────────────────
 //
@@ -67,7 +66,6 @@ export { NODE_REF } from "./client/chat/refs.ts"
 export { isoDayOf } from "./client/clock.ts"
 export { IDLE_COMMIT } from "./client/edit/draft.ts"
 export { LONG_PRESS_MS } from "./client/longPress.ts"
-export { NEAR } from "./client/chat/near.ts"
 
 // ── what THIS BROWSER keeps, and the words it is kept under ────────────────
 //
@@ -87,9 +85,12 @@ export { DEFAULT_THEME, THEME_ATTRIBUTE, THEME_STORAGE_KEY } from "./client/them
 export { SIZE_STORAGE_KEY } from "./client/theme/sizes.ts"
 export { customProperty } from "./client/theme/css.ts"
 
-// ── a read where no attribute carries the fact ─────────────────────────────
+// ── THREE THAT LEFT WITH THE PANEL ─────────────────────────────────────────
 //
-// The suite asks the client's OWN question rather than re-deciding it: which
-// trigger the composer has armed for this draft.
+// `NODE_REF`, `NEAR` and `completingIn` were on this list and are
+// `olai-plugin-chat/testlib`'s now: the transcript, its autoscroll and the
+// composer's trigger are that row's, and a curated list in a general package
+// that re-exported them would be core naming a plugin. The suite reaches them
+// on the plugin's own door, recorded in `@olai/bundle`'s `fence.test.ts` the
+// way kolu's fake padi is.
 
-export { completingIn } from "./client/chat/completion.ts"

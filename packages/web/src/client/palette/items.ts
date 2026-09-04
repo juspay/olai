@@ -20,16 +20,24 @@
  * here to grep. The conclusion is the one it always was; only its premise got
  * smaller.
  *
- * TWO PREFIXES take the box away from the list, and they are the same idea
- * twice: `>` sends the rest to the agent, `+` captures the rest as a node.
- * Both are a LINE OF TEXT rather than a row to choose, which is what a prefix
- * is for — a row can only carry what it was built holding, and neither of
- * these knows what it is going to say until somebody types it. What the box is
- * doing is therefore ONE value ({@link Mode}) rather than one nullable string
- * per prefix.
+ * A PREFIX takes the box away from the list, and it is a LINE OF TEXT rather
+ * than a row to choose — which is what a prefix is for: a row can only carry
+ * what it was built holding, and a line does not know what it is going to say
+ * until somebody types it. What the box is doing is therefore ONE value
+ * ({@link Mode}) rather than one nullable string per prefix.
+ *
+ * ONE OF THEM IS CORE'S AND THE REST ARRIVE. `+` captures the rest as a node
+ * and is this app's own, because where the inbox is and what a captured line
+ * becomes are the directory's facts. `>` was the other one — it sent the rest
+ * to the agent — and it is gone from this file: a conversation is a plugin now,
+ * so the character, the words beside it and what a press does all arrive
+ * through `@olai/plugin-api`'s `app.command` slot ({@link commandsIn}), and
+ * this module's grammar is written against whatever is hanging there rather
+ * than against a second character it knows the meaning of.
  */
 
 import type { BodyKind } from "@olai/format"
+import type { AppCommand, Hung } from "@olai/plugin-api"
 import type { Edit, SearchHit } from "@olai/surface"
 
 import type { Asking } from "./asking.ts"
@@ -43,7 +51,7 @@ export type PaletteAction =
   | { readonly kind: "route"; readonly route: Route }
   | { readonly kind: "shortcuts" }
   | { readonly kind: "toggle-sidebar" }
-  | { readonly kind: "toggle-chat" }
+  | { readonly kind: "toggle-panel" }
   | { readonly kind: "reset-widths" }
   | { readonly kind: "close-pane" }
   /**
@@ -150,13 +158,74 @@ export interface PaletteItem {
   readonly search: string
 }
 
-/** The character that turns the box into an agent message. */
-const ASK_PREFIX = ">"
-
 /** The character that turns the box into a capture. `+` because that is what
  *  the gesture is — one more line — and because it is a character a title does
- *  not start with often enough to matter, which is the same bet `>` makes. */
+ *  not start with often enough to matter, which is the same bet any prefix
+ *  makes. */
 export const CAPTURE_PREFIX = "+"
+
+/**
+ * THE PREFIXES THIS PALETTE ANSWERS ITSELF, and the list a plugin's claim is
+ * held against.
+ *
+ * One, today. It is a list rather than the one constant above because it is
+ * read as a list — {@link commandsIn} refuses a plugin that claims any of them
+ * — and a second core prefix should be one entry here rather than a second
+ * comparison somebody has to remember to add beside the first.
+ */
+export const CORE_PREFIXES: ReadonlyArray<string> = [CAPTURE_PREFIX]
+
+/**
+ * WHICH `app.command` ENTRIES THE PALETTE WILL ACTUALLY DRAW — the ones whose
+ * character nothing already answers, in the order they were handed over (the
+ * bundle's, imposed by `../plugins/runtime.ts`'s `hung`).
+ *
+ * ## The refusal is the reader's, and this is the reader
+ *
+ * `app.command` is a LIST slot, so the table underneath has no key and refuses
+ * nothing: two plugins claiming `>` is not a collision anything in
+ * `@olai/plugin-api` can see, in the same way it cannot see which chords
+ * `../keys.ts` already answers. What it CAN see is that it cannot see, which is
+ * why the slot's own doc names this check and owes it to whoever reads the slot.
+ *
+ * So the check is here, and it goes the one direction it can: CORE'S OWN
+ * PREFIXES WIN. `+` is the capture, and the capture is a promise this app makes
+ * about its own directory — a plugin that took the character would not merely
+ * shadow a feature, it would silently change what a line somebody has typed a
+ * hundred times does. The first plugin to claim a free character wins it for
+ * the same reason, which makes the winner the bundle's order rather than the
+ * mount race.
+ *
+ * IT IS SAID OUT LOUD, naming both sides, because the loser is otherwise a
+ * plugin that registered a face and simply does not appear — the silence
+ * `plugins/runtime.ts` refuses for a half that failed to start, one slot over.
+ * A `warn` rather than an `error`: the plugin is running and the rest of its
+ * faces are drawn, and what is wrong is a line in somebody's `olai.yml` pairing
+ * two tenants that want one character.
+ */
+export const commandsIn = (
+  entries: ReadonlyArray<Hung<AppCommand>>,
+): ReadonlyArray<AppCommand> => {
+  /** Prefix → whoever is holding it, in the words the refusal names them by. */
+  const held = new Map<string, string>(
+    CORE_PREFIXES.map((prefix) => [prefix, "the palette itself"] as const),
+  )
+  const kept: Array<AppCommand> = []
+  for (const one of entries) {
+    const already = held.get(one.face.prefix)
+    if (already !== undefined) {
+      console.warn(
+        `olai: the plugin "${one.plugin}" claims the palette prefix `
+          + `"${one.face.prefix}", which ${already} already answers — that `
+          + "command is not drawn, and typing the character does what it did before.",
+      )
+      continue
+    }
+    held.set(one.face.prefix, `the plugin "${one.plugin}"`)
+    kept.push(one.face)
+  }
+  return kept
+}
 
 /** The shell's own rows. `atOnce` on every one of them, and it is a fact
  *  rather than a formality: a shell row IS this table, so there is no answer
@@ -203,12 +272,12 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     search: "toggle sidebar panel rail directory",
   },
   {
-    id: "panel-chat",
+    id: "panel-agent",
     label: "Toggle agent panel",
     hint: "⌘J",
-    action: { kind: "toggle-chat" },
+    action: { kind: "toggle-panel" },
     taking: atOnce,
-    search: "toggle agent panel chat",
+    search: "toggle agent panel conversation",
   },
   {
     // Racket's `olai add`, as a line in a box: the whole promise is that the
@@ -236,7 +305,7 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     hint: "defaults",
     action: { kind: "reset-widths" },
     taking: atOnce,
-    search: "reset panel widths sidebar chat default size",
+    search: "reset panel widths sidebar default size",
   },
   {
     id: "close-pane",
@@ -321,15 +390,28 @@ export const filterItems = (
  * question "is the list showing?" is `kind === "filter"` and the answer cannot
  * disagree with the text beside it.
  *
- * It is also the one place the two prefixes are compared, so their order is
- * stated once: `>` is tried first, and a line beginning `>` is a message even
- * if it goes on to mention a `+`.
+ * It is also the one place the prefixes are compared, so their order is stated
+ * once ({@link modeOf}), and a line beginning with one of them is that prefix's
+ * even if it goes on to mention another.
  */
 export type Mode =
   /** No prefix: the rest is a filter over the rows. */
   | { readonly kind: "filter" }
-  /** `>` — the rest goes to the agent. */
-  | { readonly kind: "ask"; readonly text: string }
+  /**
+   * A PLUGIN'S PREFIX — the rest is the line its `run` is about to be handed.
+   *
+   * The command TRAVELS ON THE MODE rather than being looked up again from the
+   * prefix where the line is drawn and once more where Enter sends it. Those
+   * two lookups are the same question asked of a table that moves on its own —
+   * a plugin dropped between the keystroke and the press — and the honest
+   * answer to "which verb did the reader type a line under" is the one the
+   * grammar already found.
+   */
+  | {
+    readonly kind: "command"
+    readonly command: AppCommand
+    readonly text: string
+  }
   /** `+` — the rest becomes a node in the inbox. */
   | { readonly kind: "capture"; readonly text: string }
 
@@ -348,16 +430,38 @@ export type Mode =
  */
 export type Box = Mode | { readonly kind: "answering"; readonly question: Asking }
 
-/** What the box is doing, from the two things that decide it: the question
- *  that is up, if any, and the words in it. */
-export const boxOf = (raw: string, question: Asking | null): Box =>
-  question === null ? modeOf(raw) : { kind: "answering", question }
+/** What the box is doing, from the three things that decide it: the question
+ *  that is up, if any, the words in the box, and which prefixes are on offer at
+ *  the moment they were typed. */
+export const boxOf = (
+  raw: string,
+  question: Asking | null,
+  commands: ReadonlyArray<AppCommand>,
+): Box => question === null ? modeOf(raw, commands) : { kind: "answering", question }
 
-export const modeOf = (raw: string): Mode => {
-  const asked = afterPrefix(raw, ASK_PREFIX)
-  if (asked !== null) return { kind: "ask", text: asked }
+/**
+ * The words, read as a prefix — or as a filter, which is what they are when
+ * nothing claims their first character.
+ *
+ * `commands` is REQUIRED and takes no default, which is the whole of rule four:
+ * a serve with no plugin in `app.command` hands an empty list, so the character
+ * that used to mean *send this to the agent* is ordinary text, matched against
+ * the rows like any other. A default of `[]` would say the same thing while
+ * letting a caller forget to ask — and a palette that offered a prefix nobody
+ * could answer would be an Enter that did nothing and said nothing.
+ *
+ * CORE'S OWN IS TRIED FIRST. The two lists are disjoint by the time they get
+ * here ({@link commandsIn} refuses a plugin that claims `+`), so the order
+ * decides nothing today; it is written this way round so that it would still
+ * decide the right thing for any caller that skipped that filter.
+ */
+export const modeOf = (raw: string, commands: ReadonlyArray<AppCommand>): Mode => {
   const captured = afterPrefix(raw, CAPTURE_PREFIX)
   if (captured !== null) return { kind: "capture", text: captured }
+  for (const command of commands) {
+    const line = afterPrefix(raw, command.prefix)
+    if (line !== null) return { kind: "command", command, text: line }
+  }
   return { kind: "filter" }
 }
 

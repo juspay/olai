@@ -121,7 +121,7 @@ const mounted = async (doubles: Doubles) => {
       if (snapshot !== undefined) return run(plugins.published(snapshot))
       const reading = readingOf(setOf({
         "board.olai": rec("orch", {
-          "agent-session": "claude:s-1",
+          "chat-agent-session": "claude:s-1",
           "xyne-channel": "ch-team",
         }),
       }))

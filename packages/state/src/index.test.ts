@@ -4,7 +4,7 @@
  * WHICH FILE a directory gets is what two processes have to agree on — a lock
  * and a remembered conversation over one vault — and the interesting half of
  * it is the realpath: a person types `olai web ~/notes` in one terminal and
- * `olai web .` from inside a symlink to it in another. `@olai/chat`'s memory
+ * `olai web .` from inside a symlink to it in another. `olai-plugin-chat`'s memory
  * exercises the read/write pair as its own record; what is here is the naming,
  * and the guard that keeps one directory's file from being read as another's.
  */

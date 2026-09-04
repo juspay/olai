@@ -90,7 +90,7 @@ const SPELLED = new RegExp(
  * file and not olai's.
  */
 const MAY_SPELL_IT: ReadonlyArray<string> = [
-  "packages/chat/src/attachments.test.ts",
+  "packages/plugins/chat/src/attachments.test.ts",
   "packages/format/src/kinds.ts",
   "packages/surface/src/attach.test.ts",
   "packages/surface/src/attach.ts",

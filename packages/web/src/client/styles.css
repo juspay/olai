@@ -90,7 +90,7 @@
    * the padding App reserves for it read the same custom property so they
    * cannot drift. The rail is not a preference — it is the fixed collapsed
    * face of the sidebar. */
-  --width-chat: 26rem;
+  --width-panel: 26rem;
   --width-sidebar: 20rem;
   --width-rail: 3rem;
 

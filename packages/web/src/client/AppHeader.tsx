@@ -98,7 +98,6 @@
 
 import { Show } from "solid-js"
 
-import { Toggle as ChatToggle } from "./chat/Panel.tsx"
 import { Leaf } from "./Leaf.tsx"
 import { WORDMARK } from "./look.ts"
 import { calledApp } from "./named.ts"
@@ -228,7 +227,6 @@ export function AppHeader(props: {
               process reads `up 12s`; a restart is a reload, not a second
               tick on this page. A healthy phone does not wear it. */}
           <Uptime />
-          <ChatToggle />
           {/* WHICH INTEGRATIONS THIS SERVER IS RUNNING, beside the door to how
               this browser reads — two doors because two questions, and only one
               of them is a preference (`./plugins/Plugins.tsx` argues it). It is

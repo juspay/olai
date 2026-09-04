@@ -84,7 +84,7 @@
  * out, and this paragraph is what a reader checks it against.
  *
  * AN UNOCCUPIED SLOT IS A LEGITIMATE STATE in the meantime, and always was — a
- * serve running `--plugins=kolu` has nobody in `chat.speaker.mark` either. Every
+ * serve running `--plugins=kolu` has nobody in `delivery.mark` either. Every
  * read below answers empty (an empty array, an empty map, `null`) rather than
  * failing, which is the same *no plugin, no slot entry* the whole runtime is.
  *
@@ -208,22 +208,28 @@ export const SLOTS = {
   /** A face that OWNS the property's row, whether or not anything is
    *  happening. A block wins where a plugin registers both. */
   "outline.row.block": { keyedBy: "kind" },
-  /** A face UNDER the node's property run, beside the drawer rather than inside
-   *  it — the door on a row that carries this kind, which is what an agent's
-   *  session is on the node it is seated at.
+  /**
+   * A DOOR ON A ROW — drawn under the property run, on every row, and answering
+   * nothing on nearly all of them.
    *
-   *  KEYED BY KIND like the three above and NOT by plugin, because what decides
-   *  whether it draws is the same thing that decides whether a chip draws: the
-   *  page's licence answering that this value's key means this composed word. A
-   *  plugin-keyed door would draw on every row of every outline and ask the
-   *  plugin to work out that it should not.
+   * A LIST rather than keyed by kind, and the reason is what the face actually
+   * reads. The plan named this slot `keyed`, on the shape the three
+   * `outline.row.*` faces above have: a chip is drawn per VALUE, so the value's
+   * kind is what selects it. A door is not — it is drawn per ROW, and what
+   * decides whether it says anything is a lookup in a table the plugin already
+   * subscribes to once for the whole app (the agents roster is one
+   * subscription and a map read per row, which is what its own module argues at
+   * length). Keying by kind would need the row's LICENCE at the place the door
+   * is drawn, which is a reading `@olai/web`'s property run has and the row
+   * around it does not — and it would buy nothing, because the face's answer is
+   * the same map read either way.
    *
-   *  It is a fourth kind-keyed slot rather than `outline.row.block` widened, and
-   *  the two are genuinely different places: a block sits INSIDE the drawer's
-   *  lay-out and is handed the entry it dresses, and this sits under the whole
-   *  run and is handed the NODE — which is the one thing `BlockContext` has no
-   *  field for. */
-  "outline.row.door": { keyedBy: "kind" },
+   * So the app draws every door and each answers for the node it is handed.
+   * What that costs is one closure per registered plugin per drawn row; what a
+   * kind key would cost is the licence resolution moved up a level for a face
+   * whose own answer is already a `null` on nearly every row.
+   */
+  "outline.row.door": { keyedBy: "nothing" },
   /** A VERB on the row's ••• menu, as words and a press rather than a drawing —
    *  "ask agent" is the first. A list, because a plugin with two verbs is
    *  ordinary and a plugin that landed `failed` for having two is not.
@@ -241,7 +247,7 @@ export const SLOTS = {
    *
    *  Core keeps the BOX (the region, its heading's shape, and the height budget
    *  `layout/entry.ts` argues for with an e2e scenario behind it) and the plugin
-   *  brings the heading's words and what is under it — the `chat.agent.install`
+   *  brings the heading's words and what is under it — the `engine.install`
    *  split exactly, and for that split's reason: a face here would put core's
    *  own class vocabulary inside every tenant that wants a section. */
   "sidebar.section": { keyedBy: "nothing" },
@@ -280,12 +286,38 @@ export const SLOTS = {
    *  chord the app already answers is refused there, in the app's own words, the
    *  way a duplicate key is refused here. */
   "app.keys": { keyedBy: "nothing" },
+  /**
+   * A VERB IN THE COMMAND PALETTE, behind a prefix of the plugin's own — `>`,
+   * and what `>` does is send the line to the agent.
+   *
+   * ## The one this phase's plan did not have a name for
+   *
+   * The design named five slots the shell had to declare before chat could move
+   * — the panel, the sidebar section, the row door, the row verb and the chords
+   * — and said the rest would be "named as it is found". This is the one that was
+   * found. The palette's `>` is not a chord, not a row verb and not a face in the
+   * bar: it is a LINE somebody typed, sent somewhere, and the somewhere is a
+   * conversation.
+   *
+   * A LIST, and the prefix is the key a reader dispatches on rather than a key
+   * this table holds — two plugins claiming `>` is the same silent disagreement
+   * `app.keys` describes one row up, and it is refused the same way: by the
+   * READER, in the palette's own words, because this table cannot see what
+   * prefixes core already answers.
+   *
+   * Core keeps the BOX — the input, the prefix strip, the shortlist under it,
+   * where a refusal is drawn — and the plugin brings the word, the placeholder
+   * and what a press does. What it does NOT get is the palette's own state: a
+   * verb answers a refusal and the palette decides whether to stay open, because
+   * "did that work" is a thing the palette says in one voice for every prefix.
+   */
+  "app.command": { keyedBy: "nothing" },
   /** The tab's own half of this plugin, wrapped ONCE around the page — one
    *  subscription however many leaves draw. These NEST; the app folds them. */
   "app.mount": { keyedBy: "plugin" },
   /** The shapes drawn over a sentence this plugin delivered into somebody's
    *  conversation — a `<g>` in a sixteen-unit box, never a whole `<svg>`. */
-  "chat.speaker.mark": { keyedBy: "plugin" },
+  "delivery.mark": { keyedBy: "plugin" },
   /** THIS ENGINE'S ROW on the face drawn when the machine has NO agent at all:
    *  how a person gets it, as a `NotHere` rather than a drawing. Core owns the
    *  list, the mark and whether the name is a link; the plugin owns every word,
@@ -297,7 +329,7 @@ export const SLOTS = {
    *  face for it would be a second author for one string. This face has no such
    *  source — the machine has no agent, so there is no roster to have carried
    *  one — which is exactly what makes it a slot. */
-  "chat.agent.install": { keyedBy: "plugin" },
+  "engine.install": { keyedBy: "plugin" },
 } as const satisfies Readonly<Record<string, { readonly keyedBy: SlotKey }>>
 
 /** One of the twelve. */
@@ -337,7 +369,7 @@ export type SingleSlot = SlotsKeyedBy<"app">
  *
  * ## ONE OF THEM IS NOT A FACE, and the asymmetry is the rule working
  *
- * `chat.agent.install` holds a {@link NotHere} — a name, a place and a whole
+ * `engine.install` holds a {@link NotHere} — a name, a place and a whole
  * sentence — where every other row holds a function that draws. The split the
  * whole table is under is *core keeps the SHAPE, the plugin brings the words*,
  * and for the no-agent row the shape is entirely core's: the list, the mark
@@ -362,18 +394,33 @@ export interface SlotFaces {
   "outline.row.pane": PropPane
   "outline.row.block": PropBlock
   "outline.row.door": (props: { readonly node: string }) => JSX.Element
-  "outline.row.action": RowAction
+  "outline.row.action": RowActions
   "sidebar.section": SidebarSection
   "app.panel": () => JSX.Element
   "app.header": () => JSX.Element
   "app.keys": AppChord
+  "app.command": AppCommand
   "app.mount": (props: { readonly children: JSX.Element }) => JSX.Element
-  "chat.speaker.mark": () => JSX.Element
-  "chat.agent.install": NotHere
+  "delivery.mark": () => JSX.Element
+  "engine.install": NotHere
 }
 
 /**
- * A VERB ON A ROW'S ••• MENU — `outline.row.action`.
+ * A PLUGIN'S VERBS ON A ROW'S ••• MENU — `outline.row.action`.
+ *
+ * A FUNCTION OF NOTHING THAT ANSWERS A LIST, rather than one verb per
+ * registration, and the shape is the whole of what this slot learned from its
+ * first tenant. The chat panel offers *Ask agent* always and *Start an agent
+ * session* ONCE PER INSTALLED ENGINE — a count that is not knowable when the
+ * plugin's `apply` runs, because the roster arrives over a wire the tab dials
+ * after it. A plugin registering N faces would have had to know N at
+ * registration; a plugin registering one face that ANSWERS N reads its own live
+ * state at the walk, where the app is already re-reading this table inside a
+ * tracked memo.
+ *
+ * It also makes the empty answer expressible, which the old shape could not: a
+ * machine with no agent installed offers no *start* row at all, and an entry
+ * whose only outcome is "there is nothing to start" teaches nobody anything.
  *
  * The plugin-facing subset of what `@olai/web`'s own catalog builds, and the
  * fields it does NOT have are the argument: no `divider`, because where a
@@ -401,6 +448,9 @@ export interface SlotFaces {
  * plugin's verb needs to report a refusal in the menu, this is the line that
  * grows.
  */
+export type RowActions = () => ReadonlyArray<RowAction>
+
+/** One of them. */
 export interface RowAction {
   /** This plugin's own word for the verb — a testid and a list key, never an
    *  address. Two plugins may spell it the same: what a reader keys the list by
@@ -416,7 +466,7 @@ export interface RowAction {
 /**
  * A SECTION IN THE SIDEBAR — `sidebar.section`.
  *
- * A heading and a body rather than one face, which is the `chat.agent.install`
+ * A heading and a body rather than one face, which is the `engine.install`
  * shape and is here for that shape's reason: the region's box, the heading's
  * type and the column's height budget are core's, and a face would have to carry
  * core's classes into every tenant to sit right in it — three byte-identical
@@ -458,6 +508,30 @@ export interface AppChord {
   readonly said: string
   /** ...and what a press does. */
   readonly press: () => void
+}
+
+/**
+ * A VERB BEHIND A PALETTE PREFIX — `app.command`.
+ *
+ * `prefix` is the character the palette dispatches on and is the plugin’s to
+ * choose; a collision with one core already answers is refused by the palette,
+ * in its own words, for {@link AppChord}’s reason.
+ *
+ * `run` answers the REFUSAL or nothing, which is the one place this differs
+ * from a row verb: the palette is a box a person is looking at with a line they
+ * just typed in it, so a send that was turned down has to be able to say so
+ * there rather than only in a panel that may be shut.
+ */
+export interface AppCommand {
+  /** The character that selects it — `>`. */
+  readonly prefix: string
+  /** The words for the prefix strip. */
+  readonly said: string
+  /** ...and the placeholder in the box once the prefix is typed. */
+  readonly placeholder: string
+  /** What a press does with the line. `null` is "it landed"; a string is the
+   *  refusal, in the plugin’s own words, drawn where the palette draws one. */
+  readonly run: (line: string) => Promise<string | null>
 }
 
 /** One face, with the plugin that hung it — what a walk over a plugin-keyed slot
@@ -548,7 +622,7 @@ export const Slots = serviceTag<Slots>("slots")
  * two shapes said so: `Slots` had a `register` and no `hung`, {@link App} had
  * `hung` and no `register`, and the asymmetry was the whole design. It survives
  * — neither of those two shapes has grown the other half — but the CLAIM under
- * it does not: `chat.speaker.mark` and `chat.agent.install` are read by the chat
+ * it does not: `delivery.mark` and `engine.install` are read by the chat
  * panel, and the chat panel is becoming a plugin. Six plugins register a mark
  * and the reader of all six is about to be a seventh, which no shape in this
  * file could spell.
@@ -568,7 +642,7 @@ export const Slots = serviceTag<Slots>("slots")
  * whole point — a panel cannot draw six engines' marks without the six marks.
  *
  * It may NOT learn the roster. A slot is not a census: a plugin absent from
- * `chat.speaker.mark` may be mounted, running and drawing everywhere else, and a
+ * `delivery.mark` may be mounted, running and drawing everywhere else, and a
  * plugin that read an empty slot as "kolu is not here" would be wrong on the
  * first serve where kolu simply has no mark. What is mounted is the plugins
  * panel's fact, off the server's own report, and it is not on this door.
@@ -586,7 +660,7 @@ export const Slots = serviceTag<Slots>("slots")
  * And the cost, stated rather than hidden: a plugin that reads a slot is coupled
  * to that slot's FACE TYPE, which is why every face type in this app is declared
  * HERE and not by whichever plugin happens to own the slot's tenant today. The
- * chat panel reading `chat.speaker.mark` reads `SlotFaces["chat.speaker.mark"]`
+ * chat panel reading `delivery.mark` reads `SlotFaces["delivery.mark"]`
  * — core's declaration — and takes no dependency on the six plugins filling it.
  */
 export interface Faces {

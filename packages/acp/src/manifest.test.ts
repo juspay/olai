@@ -25,10 +25,10 @@
  * `UsageFailure` cannot move in by increments — refusals leave as
  * {@link ./asks.ts}'s own `Refused`, translated at the chat seam); the
  * package speaks only ACP; the SDK is TYPES here — the runtime and its zod
- * peer stay in `@olai/chat`, which is what the architecture doc's zod
+ * peer stay in `olai-plugin-chat`, which is what the architecture doc's zod
  * paragraph rests on; the protocol enters the tree in exactly two packages;
  * the export lists are closed and disjoint; and who may import which HALF is
- * a table — `@olai/surface` the wire subpath, `@olai/chat` the projections —
+ * a table — `@olai/surface` the wire subpath, `olai-plugin-chat` the projections —
  * so the `./wire` carve-out is a fact and not a comment.
  */
 
@@ -201,10 +201,21 @@ describe("the manifest", () => {
     // production sources name none of the SDK's types — `@olai/acp/engine`
     // carries the ones a leg's signatures need — which is why this list can
     // still be written down rather than becoming "every plugin".
+    //
+    // THE CHAT MOVED AND ITS ROW DID NOT CHANGE: `chat` is `plugins/chat` since
+    // it became a row, and the fact this claim is about — which packages RUN the
+    // protocol — is exactly the same one. A conversation is the only thing in
+    // this tree that spawns an ACP subprocess, and it is a plugin now like the
+    // engines it seats.
     const speaking = [...tree.keys()].filter((pkg) =>
       sources(pkg).some((source) => source.specifiers.some(isSdk))
     )
-    expect(speaking.sort()).toEqual(["acp", "chat", "plugins/claude", "plugins/opencode"])
+    expect(speaking.sort()).toEqual([
+      "acp",
+      "plugins/chat",
+      "plugins/claude",
+      "plugins/opencode",
+    ])
   })
 
   test("what may cross is enumerated: the export lists are closed and disjoint", () => {
@@ -242,18 +253,28 @@ describe("the manifest", () => {
    * `./engine` is the third door and the one with the most readers, which is
    * what it is FOR: it carries the shape an ENGINE PLUGIN registers — the leg
    * that reads one agent's wire, the adapter that starts it, the sentence for a
-   * machine that has not installed it. A plugin may not import `@olai/chat` and
-   * `@olai/chat` may not import a plugin, so the shape they both spell lives
+   * machine that has not installed it. A plugin may not import `olai-plugin-chat` and
+   * `olai-plugin-chat` may not import a plugin, so the shape they both spell lives
    * under both of them, here.
    *
    * `@olai/plugin-api` opens it to declare the `Agents` tag; `@olai/server`
-   * opens it to sort the registry into the bundle's order; `@olai/chat` opens it
+   * opens it to sort the registry into the bundle's order; `olai-plugin-chat` opens it
    * beside the projections it already had. Nothing else does, and the `[]` on
    * every other package is what says so.
    */
   const MAY: Readonly<Record<string, ReadonlyArray<string>>> = {
-    surface: ["@olai/acp/wire"],
-    chat: ["@olai/acp", "@olai/acp/engine"],
+    // EMPTY, and it is the phase rather than an omission. `@olai/surface` used
+    // to re-export the ask, diff and usage vocabulary because the CONVERSATION
+    // was one of its members: the transcript entry carried them, the browser
+    // drew them, and every consumer took them off the spec it already imported.
+    // The conversation is a sibling now, so those members and their vocabulary
+    // are `olai-plugin-chat/wire`'s, and core's spec has no reason to name the
+    // protocol at all.
+    surface: [],
+    // THE ONE ROW WITH BOTH HALVES, and it is the row that RUNS the protocol:
+    // the projections over ACP's own payloads ride the main entry, and nothing
+    // else in this tree opens it.
+    "plugins/chat": ["@olai/acp", "@olai/acp/engine", "@olai/acp/wire"],
     "plugin-api": ["@olai/acp/engine"],
     server: ["@olai/acp/engine"],
     "plugins/claude": ["@olai/acp/engine"],
@@ -262,7 +283,7 @@ describe("the manifest", () => {
     "plugins/pi": ["@olai/acp/engine"],
   }
 
-  test("who may import which half is a table: surface the wire, chat the projections", () => {
+  test("who may import which half is a table, and the chat row is the only one with both", () => {
     const imported = new Map<string, ReadonlySet<string>>(
       [...tree.keys()]
         .filter((pkg) => pkg !== "acp")

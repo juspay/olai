@@ -340,10 +340,36 @@ const resolveWorkspace = (spec: string): Landing => {
   const subpath = spec.slice(packageOf(spec).length)
   const door = subpath === "" ? "." : `.${subpath}`
   const target = doorsOf(manifest)[door] ?? (door === "." ? mainOf(manifest) : undefined)
-  if (target === undefined) {
-    return { kind: "unresolved", why: `${member} opens no ${door} door` }
+  if (target !== undefined) return { kind: "module", path: path.join(dir, target) }
+  // ...AND A WILDCARD DOOR, which the shell opens and nothing else does.
+  //
+  // `@olai/web`'s `exports` carries `"./client/*": "./src/client/*"`, because a
+  // plugin's browser half draws inside this app and draws with this app's
+  // furniture — sixty modules for the chat panel alone, and a hand-kept
+  // re-export list of sixty names would be a second roster (that manifest's own
+  // `//shell` note argues it). A resolver that only read literal keys read every
+  // one of those edges as "no such door", which is precisely the third of the
+  // three failures this type exists to keep apart: the walk would have stopped
+  // at the panel's front door and every purity claim below would have passed
+  // over one file.
+  //
+  // ONE `*` AND NOTHING CLEVER. Node's own subpath patterns allow exactly one
+  // asterisk per key and substitute the matched segment verbatim; that is what
+  // is implemented here and a key with two would be refused rather than
+  // half-honoured, because a resolver that guessed would be the second module
+  // resolver this header spends a paragraph refusing to be.
+  for (const [key, value] of Object.entries(doorsOf(manifest))) {
+    const star = key.indexOf("*")
+    if (star === -1 || key.indexOf("*", star + 1) !== -1) continue
+    const head = key.slice(0, star)
+    const tail = key.slice(star + 1)
+    if (!door.startsWith(head) || !door.endsWith(tail)) continue
+    if (door.length < head.length + tail.length) continue
+    const matched = door.slice(head.length, door.length - tail.length)
+    if (typeof value !== "string" || !value.includes("*")) continue
+    return { kind: "module", path: path.join(dir, value.replace("*", matched)) }
   }
-  return { kind: "module", path: path.join(dir, target) }
+  return { kind: "unresolved", why: `${member} opens no ${door} door` }
 }
 
 /**

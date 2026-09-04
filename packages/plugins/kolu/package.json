@@ -24,8 +24,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
-  "//": "THE KOLU TENANT — everything that says `kolu`, on this side of the wall. THE DIAL is this package's `./appliance` door at `src/client/`. `./src/appliance/` is what KOLU renders (the Dock row a `terminal` property wears, the live pane, the fleet a tab holds once, the words the readout says) and was `@olai/kolu-ui` until the appliance fold; `./src/browser/` is what OLAI says about kolu in olai's own chrome; the rest is the judgement — what an absent padi MEANS, which vault file is kolu's, which property kind wears the terminal door — which used to be spread across `@olai/chat`, `@olai/server` and `@olai/web` under kolu-shaped filenames in general packages.",
-  "//devDependencies": "@types/node is for the `ChildProcess` type `probe.ts` names — `@kolu/detect`'s probe takes Node's own — and for the fixture executables `probe.test.ts` writes. It came with the probe from `@olai/chat`, which is where that same line used to sit.",
+  "//": "THE KOLU TENANT — everything that says `kolu`, on this side of the wall. THE DIAL is this package's `./appliance` door at `src/client/`. `./src/appliance/` is what KOLU renders (the Dock row a `terminal` property wears, the live pane, the fleet a tab holds once, the words the readout says) and was `@olai/kolu-ui` until the appliance fold; `./src/browser/` is what OLAI says about kolu in olai's own chrome; the rest is the judgement — what an absent padi MEANS, which vault file is kolu's, which property kind wears the terminal door — which used to be spread across `olai-plugin-chat`, `@olai/server` and `@olai/web` under kolu-shaped filenames in general packages.",
+  "//devDependencies": "@types/node is for the `ChildProcess` type `probe.ts` names — `@kolu/detect`'s probe takes Node's own — and for the fixture executables `probe.test.ts` writes. It came with the probe from `olai-plugin-chat`, which is where that same line used to sit.",
   "devDependencies": {
     "@types/node": "^22.0.0"
   },

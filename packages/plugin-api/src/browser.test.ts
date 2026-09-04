@@ -469,7 +469,8 @@ test("a slot nobody has hung a face in reads empty, whatever its cardinality", a
   const { app } = await opened()
   expect(app.hung("app.header")).toEqual([])
   expect(app.hung("app.keys")).toEqual([])
-  expect(app.dressed("outline.row.door").size).toBe(0)
+  expect(app.dressed("outline.row.chip").size).toBe(0)
+  expect(app.hung("outline.row.door")).toEqual([])
   expect(app.only("app.panel")).toBe(null)
 })
 
@@ -494,7 +495,7 @@ test("a plugin reads what other plugins hung, and its read is tracked like the a
       name: "alpha",
       needs: [Slots],
       apply: Effect.gen(function*() {
-        yield* (yield* Slots).register("chat.speaker.mark", mark)
+        yield* (yield* Slots).register("delivery.mark", mark)
       }),
     }),
   ))
@@ -506,7 +507,7 @@ test("a plugin reads what other plugins hung, and its read is tracked like the a
       needs: [Faces],
       apply: Effect.gen(function*() {
         const faces = yield* Faces
-        seen.push(faces.hung("chat.speaker.mark"))
+        seen.push(faces.hung("delivery.mark"))
         // ...and nothing on this door writes: a reader has `hung`, `dressed` and
         // `only`, and `register` is on the other tag, keyed by the fiber that
         // calls it.

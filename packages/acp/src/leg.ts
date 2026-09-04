@@ -2,7 +2,7 @@
  * WHAT AN AGENT MEANS by what it sends — as one interface, with one
  * implementation per agent olai knows how to talk to.
  *
- * The protocol proper is read where it is spoken (`@olai/chat`'s `agent.ts`,
+ * The protocol proper is read where it is spoken (`olai-plugin-chat`'s `agent.ts`,
  * and the rest of this package). What is read HERE is everything that is only
  * true of ONE agent: a `_meta` extension one adapter writes, a tool-naming
  * convention one CLI uses, a permission mode one of them has and the other
@@ -14,7 +14,7 @@
  * ## WHY IT IS IN THIS PACKAGE, one floor under everybody
  *
  * A leg is written by a PLUGIN — one per engine, each in its own directory,
- * with its own release clock — and it is read by `@olai/chat`, which is a
+ * with its own release clock — and it is read by `olai-plugin-chat`, which is a
  * general package a plugin may not import and which may not import a plugin.
  * The shape both ends spell has to live under both of them, and this is the
  * package that is under both: it is the PROTOCOL, and a leg is a reading of one
@@ -91,7 +91,7 @@ export interface Steering {
    * anybody presses it, and the only honest input to that is what the agent
    * said about itself. What a steer actually DID is still the request's own
    * answer, and a refusal still reaches a person as their words back
-   * (`@olai/chat`'s `agent.ts`) — so nothing here is approved by an advertisement,
+   * (`olai-plugin-chat`'s `agent.ts`) — so nothing here is approved by an advertisement,
    * which is this file's rule read the one way it survives.
    *
    * A leg with a steering method whose agent says nothing gets NO GESTURE: the
@@ -127,7 +127,7 @@ export interface RawMessages {
    * `null` — including on an agent that forwards messages but says nothing per
    * server — leaves every row where olai put it, which is an honest "handed
    * over; nobody has said what became of it" rather than a claim in either
-   * direction (`@olai/chat`'s `servers.ts`).
+   * direction (`olai-plugin-chat`'s `servers.ts`).
    */
   readonly serversIn: (params: unknown) => ReadonlyArray<Reported> | null
 }
@@ -209,7 +209,7 @@ export type TaskNotice =
  * SETTLES it names how it ended, the task-notification that follows names
  * the report — so a leg answers about the frame in front of it and never
  * accumulates. Holding a row together across frames is
- * `@olai/chat`'s `transcript.ts`'s job and nobody else's.
+ * `olai-plugin-chat`'s `transcript.ts`'s job and nobody else's.
  */
 export interface Background {
   readonly task: string
@@ -240,7 +240,7 @@ export interface ListedFacts {
  * server.
  *
  * Here beside {@link Spawn} and for its reason: this is a payload reading, and
- * what `@olai/chat`'s `servers.ts` then makes of it — a roster row, a standing, a
+ * what `olai-plugin-chat`'s `servers.ts` then makes of it — a roster row, a standing, a
  * sentence — is a fact about a conversation that no leg may know. Declared the
  * other way round, the file that is only allowed to be wrong about one agent
  * would have been importing the panel's own vocabulary.
@@ -281,7 +281,7 @@ export interface Reported {
  *
  * A leg is DATA about how to read a wire, not a strategy that acts: nothing
  * here spawns, sends or remembers. {@link ./engine.ts} is how one plugin hands
- * one over, `@olai/chat`'s `agents/roster.ts` says which of them this machine
+ * one over, `olai-plugin-chat`'s `agents/roster.ts` says which of them this machine
  * can start, and its `agent.ts` does the talking.
  */
 export interface Leg {
@@ -380,7 +380,7 @@ export interface Leg {
    * is the second kind, and drawing the double is not harmless where it looks
    * it: it is not conversation but arrives wearing conversation's clothes, and
    * a first turn that produced NOTHING but that banner is a turn the silence
-   * notice may not be told was silent (`@olai/chat`'s `agent.ts`'s silence arm counts
+   * notice may not be told was silent (`olai-plugin-chat`'s `agent.ts`'s silence arm counts
    * every chunk that reaches it).
    *
    * So the caller drops the FIRST agent chunk equal to this text, once, and
@@ -414,7 +414,7 @@ export interface Leg {
    * The bit the whole default rests on. Core ACP neither defines nor forbids a
    * mid-turn `session/prompt`, so "what happens if I send one now" is a fact
    * about the agent rather than about the protocol — which is what makes it
-   * one of these rather than something `@olai/chat`'s `agent.ts` could work out.
+   * one of these rather than something `olai-plugin-chat`'s `agent.ts` could work out.
    *
    * TAKES THE HANDSHAKE because one leg has an ADVERTISEMENT to read (the
    * pinned Claude Code adapter says `promptQueueing` in `agentCapabilities`)
@@ -452,7 +452,7 @@ export interface Leg {
  * ACP carries a session's settings as `configOptions`, a list of selects the
  * client may read and set, and every agent olai talks to puts the model in one
  * of them. The MACHINERY of that — finding the entry, reading its labels,
- * asking for a value back — is the protocol's and stays in `@olai/chat`. What is
+ * asking for a value back — is the protocol's and stays in `olai-plugin-chat`. What is
  * here is the part that is one adapter's spelling:
  *
  *   - **which entry is the model.** `SessionConfigId` is a free-form string and

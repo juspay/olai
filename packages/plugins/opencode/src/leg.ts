@@ -126,7 +126,7 @@ export const allowedWithoutAsking = allowingOurs((server) => `${server}_`)
 export const OPENCODE: Leg = {
   // NOTHING is read off a frame — there is no `_meta` on this wire, and the
   // `title` moves — so nothing about a call is remembered either: the name is
-  // in the key the question arrives under (`@olai/chat`'s `calls.ts`).
+  // in the key the question arrives under (`olai-plugin-chat`'s `calls.ts`).
   toolNameIn: () => null,
   toolNameOf,
   allowedWithoutAsking,

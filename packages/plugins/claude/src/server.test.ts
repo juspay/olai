@@ -7,11 +7,11 @@
  * neither is a thing to arrange in order to check that a hand-rolled start is
  * still an absent row.
  *
- * IT LIVES HERE and not in `@olai/chat` because the row does. The roster's own
+ * IT LIVES HERE and not in `olai-plugin-chat` because the row does. The roster's own
  * bench asked all three engines' questions when the three were a table in one
  * core file; each of them is one plugin's fact now, asserted beside the plugin
  * that answers it, and what is left in core is the OFF SWITCH and the shape of
- * the reading (`@olai/chat`'s `agents/roster.test.ts`).
+ * the reading (`olai-plugin-chat`'s `agents/roster.test.ts`).
  */
 
 import { AGENT_ENV } from "@olai/acp/engine"
@@ -62,7 +62,7 @@ describe("finding the Claude Code adapter on a host", () => {
   test("the EMPTY variable is no row here — and core makes it the whole panel", () => {
     // This function answers only about ITS row. That the empty string is the
     // documented off switch for the WHOLE roster is core's reading, taken before
-    // anything is probed (`@olai/chat`'s `agents/roster.ts`), and the two agree
+    // anything is probed (`olai-plugin-chat`'s `agents/roster.ts`), and the two agree
     // by construction because both go through the same constant.
     expect(ENGINE.at({ env: { [AGENT_ENV]: "" }, cwd: CWD, found: nowhere })).toBeNull()
   })
@@ -71,7 +71,7 @@ describe("finding the Claude Code adapter on a host", () => {
     // THE PLUGIN'S WHOLE SENTENCE — core displays one and never composes one.
     // Asserted off the CONSTANT rather than off the registration: it is spelled
     // once here and spent once, by the browser half that hangs it in
-    // `chat.agent.install`. It rode the server registration too for a revision,
+    // `engine.install`. It rode the server registration too for a revision,
     // read by nothing, which is exactly one authored copy too many.
     expect(INSTALL).toEqual({
       name: "Claude Code",

@@ -88,7 +88,7 @@ export const pluginRows = (roster: PluginRoster): ReadonlyArray<BuiltPlugin> => 
 export const pluginHint = (plugin: BuiltPlugin): string => {
   switch (pluginState(plugin)) {
     case "running":
-      return `Running — its chips, panels and chat messages all work.`
+      return `Running — its chips, panels and delivered messages all work.`
     case "optIn":
       return `Off by default — it needs something this machine may not have.`
     case "failed":

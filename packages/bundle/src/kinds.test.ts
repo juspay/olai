@@ -267,6 +267,15 @@ test("the built vocabulary carries every row's words, whatever the flag said", a
  *
  * It reads the REAL bundle rather than a fixture, because a fixture cannot
  * drift and the real plugins can.
+ *
+ * THERE ARE THREE WORDS NOW, and the third is the one that arrived without an
+ * appliance under it: chat's `agent-session`, which was a bare key core owned
+ * (`@olai/format`'s `AGENT_PROP`) until the panel became a row. Its constant is
+ * `olai-plugin-chat/binding`'s — a door with no imports at all, so the composed
+ * word there is a LITERAL rather than a composition, which is a second spelling
+ * of exactly the kind this test exists to hold. That package's own
+ * `kinds.test.ts` holds it against `kindWordOf` and lands earlier; this one
+ * holds it against what the assembled bundle actually composes.
  */
 test("a plugin's own composed word is the one the bundle composes", async () => {
   const built = await Effect.runPromise(declaredKinds)
@@ -276,9 +285,12 @@ test("a plugin's own composed word is the one the bundle composes", async () => 
     return [...built.keys()].filter((word) => word.startsWith(`${row.id}-`))
   })
   expect([...built.keys()].sort()).toEqual([...expected].sort())
-  // Not vacuous: both plugins teach a word, so the walk above compared
-  // something.
-  expect(expected.length).toBe(2)
+  // Not vacuous: three plugins teach a word — kolu's `terminal`, odu's
+  // `worktree` and chat's `agent-session` — so the walk above compared
+  // something. A COUNT and not a floor, for this file's usual reason: a
+  // derivation that came back short would satisfy the equality by comparing
+  // less, and the number is one line to move when a fourth word arrives.
+  expect(expected.length).toBe(3)
   // ...and each plugin's own constant is on that list, which is the half a
   // fixture cannot check — `takes` is written with it, and so is the walk that
   // finds the keys a vault declared.

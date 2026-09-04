@@ -156,7 +156,7 @@ const answer = (row: Row, id: string): boolean =>
  * id-to-target link in a row of some OTHER file. `named` is that answer, by
  * the chat press's own door: the node the set says the id names, `null` when
  * the set declares nothing by it, and `undefined` while the answer is
- * outstanding (`../OutlinePage.tsx` reads it off `../chat/declared.ts`'s
+ * outstanding (`../OutlinePage.tsx` reads it off `../declared.ts`'s
  * `told`, the tab's one door for the question — which resolves a placement
  * to the regular node at the end of its chain).
  *

@@ -32,10 +32,8 @@ import { recordsOf, setOf } from "@olai/format/testlib"
 import { NO_PINS } from "@olai/surface"
 import { expect, spyOn, test } from "bun:test"
 
-import { armedNodes, releaseArmed } from "../chat/armed.ts"
 import type { Relation } from "../edges/relation.ts"
 import { flatten } from "../edit/order.ts"
-import { chatOpen, setChatOpen } from "../layout/prefs.ts"
 import * as writes from "../writes.ts"
 import { nodeMenuActions } from "./actions.ts"
 
@@ -63,10 +61,6 @@ const actionsFor = (
   nodeMenuActions({
     row: row(id),
     pins: NO_PINS,
-    // A MACHINE WITH ONE AGENT, which is what makes *start an agent session* a
-    // single entry here — this file is about what RUNNING a verb does, and
-    // which verbs a row offers is `./verbs.test.ts`'s.
-    engines: [{ id: "claude", name: "Claude Code" }],
     collapsed: false,
     foldable: [],
     go: () => {},
@@ -222,28 +216,16 @@ test("a copy the browser REFUSED answers with no remark at all — it throws", a
   expect(thrown?.message).toBe("denied")
 })
 
-test("`Ask agent` arms the composer with the node the row SHOWS", () => {
-  // The rule a fold and a mark verb already follow, read one verb over: a
-  // mirror is a placement, it has no title of its own, and the node to ask
-  // about is what it is a placement OF. Arming the record instead would put an
-  // id in the prompt that `read_node` answers `missing` for.
-  releaseArmed()
-  try {
-    entry("echo", "Ask agent").run()
-    expect(armedNodes()).toEqual(["install"])
-  } finally {
-    releaseArmed()
-  }
-})
-
-test("...and it opens the panel the chip is in", () => {
-  // A chip in a panel nobody can see is a gesture that did nothing.
-  setChatOpen(false)
-  try {
-    entry("install", "Ask agent").run()
-    expect(chatOpen()).toBe(true)
-  } finally {
-    releaseArmed()
-    setChatOpen(false)
-  }
-})
+// TWO `Ask agent` CASES STOOD HERE — that it armed the composer with the node
+// the row SHOWS rather than the record standing there, and that it opened the
+// panel the chip lands in — and both have moved with their subject. The verb is
+// `olai-plugin-chat`'s browser half now, hung in `outline.row.action`, and the
+// arming and the opening are that plugin's to test.
+//
+// WHICH ID A PRESS IS HANDED did not move, and is what the deletion is safe
+// against: the walk at the bottom of `./actions.ts` spends the mirror rule ONCE
+// for every plugin's verb (`../fold/rows.ts`'s `foldIdOf`), so a tenant cannot
+// get it wrong by not knowing the distinction exists — which is a stronger
+// guarantee than the case above was, since it holds for verbs nobody has
+// written yet. A case for it here would have to register into the slot from a
+// unit process that mounts no plugins at all.

@@ -8,7 +8,7 @@
  *
  * Everything is addressed by the NODE'S OWN ID, on both faces, which is what
  * makes that possible: `data-agent` is the node id on the roster row and on the
- * door alike (`@olai/web`'s `agents/`), so one scenario names one thing twice
+ * door alike (`olai-plugin-chat`'s `browser/agents/`), so one scenario names one thing twice
  * and never a title that two faces might spell differently.
  *
  * The STANDING is read off `data-standing` rather than off the words, on this
@@ -22,20 +22,26 @@
 import assert from "node:assert/strict";
 import { Then, When } from "@cucumber/cucumber";
 
-import { selector, TESTID } from "@olai/web/testlib";
+import { selector } from "@olai/web/testlib";
+// ...and the ids themselves from the PLUGIN that draws them. The roster, the
+// door and the panel are `olai-plugin-chat`'s faces since chat became a
+// plugin, so their names are its `./testids` door, merged for this suite by the
+// registry — the same route the padi pill's ids take (`support/world.ts`
+// argues it where the import sits).
+import { PLUGIN_TESTID } from "@olai/bundle/testids";
 
 import { attr } from "../support/selectors.ts";
 import { answering } from "../support/shortlist.ts";
 import { POLL_TIMEOUT } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
-const ROSTER = selector(TESTID.agentRoster);
-const ROW = selector(TESTID.agentRow);
-const DOOR = selector(TESTID.agentDoor);
-const SAID = selector(TESTID.agentSaid);
-const REFUSED = selector(TESTID.agentRefused);
-const CHAT_SESSIONS = selector(TESTID.chatSessions);
-const CHAT_INPUT = selector(TESTID.chatInput);
+const ROSTER = selector(PLUGIN_TESTID.agentRoster);
+const ROW = selector(PLUGIN_TESTID.agentRow);
+const DOOR = selector(PLUGIN_TESTID.agentDoor);
+const SAID = selector(PLUGIN_TESTID.agentSaid);
+const REFUSED = selector(PLUGIN_TESTID.agentRefused);
+const CHAT_SESSIONS = selector(PLUGIN_TESTID.chatSessions);
+const CHAT_INPUT = selector(PLUGIN_TESTID.chatInput);
 
 /** One roster row, by the node it is about. */
 const rowFor = (world: OlaiWorld, node: string) =>
@@ -179,7 +185,7 @@ When("I press the agent {string}", async function (this: OlaiWorld, node: string
 
 /** ... and the one claim that gesture may only make by NOT drawing: a press
  *  that could not do something says so on the roster's own refused line
- *  (`TESTID.agentRefused`), so an unbound row — pressed the way it is
+ *  (`PLUGIN_TESTID.agentRefused`), so an unbound row — pressed the way it is
  *  SUPPOSED to be pressed — leaves exactly nothing there. Read after the
  *  press's other halves have settled: a refusal worth reading about would
  *  have arrived before the route moved. */
@@ -206,7 +212,7 @@ When("I press the door on {string}", async function (this: OlaiWorld, node: stri
  *
  * TWO OF THEM since migration, because there are two contracts — one for a
  * session olai OPENED for a node and one for a chat somebody ASSIGNED to it
- * (`@olai/chat`'s `teaching.ts`) — and "how many times was this session told
+ * (`olai-plugin-chat`'s `teaching.ts`) — and "how many times was this session told
  * what it is" is one question about both. WHICH of the two went out is asserted
  * by the steps under this one, where the words are the claim.
  */
@@ -298,19 +304,19 @@ Then(
 // chat by the TITLE its agent stored it under, a node by its own id — so a
 // scenario names the same thing the property does.
 
-const UNASSIGNED = selector(TESTID.agentUnassigned);
-const UNASSIGNED_COUNT = selector(TESTID.agentUnassignedCount);
-const LIST = selector(TESTID.unassignedPanel);
-const CHAT = selector(TESTID.unassignedChat);
-const ASSIGN = selector(TESTID.unassignedAssign);
-const DONE = selector(TESTID.unassignedDone);
-const EMPTY = selector(TESTID.unassignedEmpty);
-const ASSIGN_SEARCH = selector(TESTID.assignSearch);
-const ASSIGN_HIT = selector(TESTID.assignHit);
-const ASSIGN_REFUSED = selector(TESTID.assignRefused);
-const PAST = selector(TESTID.chatPastSessions);
-const PAST_SESSION = selector(TESTID.chatPastSession);
-const FRESH = selector(TESTID.chatFreshSession);
+const UNASSIGNED = selector(PLUGIN_TESTID.agentUnassigned);
+const UNASSIGNED_COUNT = selector(PLUGIN_TESTID.agentUnassignedCount);
+const LIST = selector(PLUGIN_TESTID.unassignedPanel);
+const CHAT = selector(PLUGIN_TESTID.unassignedChat);
+const ASSIGN = selector(PLUGIN_TESTID.unassignedAssign);
+const DONE = selector(PLUGIN_TESTID.unassignedDone);
+const EMPTY = selector(PLUGIN_TESTID.unassignedEmpty);
+const ASSIGN_SEARCH = selector(PLUGIN_TESTID.assignSearch);
+const ASSIGN_HIT = selector(PLUGIN_TESTID.assignHit);
+const ASSIGN_REFUSED = selector(PLUGIN_TESTID.assignRefused);
+const PAST = selector(PLUGIN_TESTID.chatPastSessions);
+const PAST_SESSION = selector(PLUGIN_TESTID.chatPastSession);
+const FRESH = selector(PLUGIN_TESTID.chatFreshSession);
 
 /** HOW MANY the row says, waited for rather than read once: the count is a
  *  difference between an answer from the agents and a cell that moves on every
@@ -529,7 +535,7 @@ Then("the unassigned list is not drawn", async function (this: OlaiWorld) {
 Then(
   "the panel refuses, saying {string}",
   async function (this: OlaiWorld, words: string) {
-    const line = this.page.locator(selector(TESTID.chatRefused));
+    const line = this.page.locator(selector(PLUGIN_TESTID.chatRefused));
     await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     assert.ok(
       (await line.innerText()).replaceAll("\n", " ").includes(words),

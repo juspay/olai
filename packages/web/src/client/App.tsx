@@ -33,7 +33,6 @@ import {
 
 import { AppHeader } from "./AppHeader.tsx"
 import { Calendar } from "./calendar/Calendar.tsx"
-import { Panel as ChatPanel } from "./chat/Panel.tsx"
 import { createToday } from "./clock.ts"
 import { createOwed } from "./dates.ts"
 import { createInboxHeld } from "./inbox.ts"
@@ -50,7 +49,7 @@ import { troubleIn } from "./errors/banner.ts"
 import { Page as ErrorPage } from "./errors/Page.tsx"
 import { publishLayoutCss } from "./layout/css.ts"
 import { desktop } from "./layout/media.ts"
-import { chatOpen, sidebarOpen, toggleSidebar } from "./layout/prefs.ts"
+import { panelOpen, sidebarOpen, toggleSidebar } from "./layout/prefs.ts"
 import { Rail } from "./layout/Rail.tsx"
 import { only } from "./narrow.ts"
 import { OpensProvider } from "./opens.tsx"
@@ -58,7 +57,6 @@ import { fileOf, opensAt, requestFor } from "./page.ts"
 import { fileNamed } from "./routes.ts"
 import { createReadings, ReadingsProvider } from "./reading.tsx"
 import { Palette } from "./palette/Palette.tsx"
-import { AgentsProvider } from "./agents/answered.tsx"
 import { PinsProvider } from "./pins/answered.tsx"
 import { pinSaid } from "./pins/pinning.ts"
 import { Panes } from "./pane/Panes.tsx"
@@ -68,6 +66,7 @@ import { createRouter, RouterProvider } from "./router.tsx"
 import { runAsync } from "./run.ts"
 import { ServedProvider } from "./served.tsx"
 import { PluginsMounted } from "./plugins/Mounted.tsx"
+import { PluginPanel } from "./plugins/Seats.tsx"
 import { Plugins } from "./plugins/Plugins.tsx"
 import { pageFileOf } from "./settings/done.ts"
 import { Preferences } from "./settings/Preferences.tsx"
@@ -313,12 +312,6 @@ export default function App() {
           row and the ⌘⇧P chord ask whether this page is on it, and every row's
           ••• asks the same about its node (./pins/answered.tsx). */}
       <PinsProvider>
-      {/* THE AGENTS ROSTER, as the server answers it — one subscription and one
-          context, around everything that reads it: the sidebar's section draws
-          the whole of it, every outline row asks whether its node is on it
-          (the door), and the panel's header asks what the node its conversation
-          belongs to is called (./agents/answered.tsx). */}
-      <AgentsProvider>
       <FieldsProvider value={fields}>
       <AirProvider value={air}>
       <OpensProvider opens={(path, at) => opensAt(directory.paths(), path, at)}>
@@ -359,7 +352,11 @@ export default function App() {
           composition decides nothing about what it paints over, because it is a
           `<dialog>` in the top layer rather than a box with a number on it. */}
       <Offline readout={connectionReadout()} />
-      <ChatPanel />
+      {/* THE PANEL IN THE SEAT THIS APP RESERVES FOR ONE — whichever plugin took
+          it, or nothing at all where none did. It was `<ChatPanel />`, an import
+          of a feature by name; the shell keeps the seat's geometry and the plugin
+          draws inside it (`./plugins/Seats.tsx`). */}
+      <PluginPanel />
       <Palette
         zoomed={zoomed()}
         names={names()}
@@ -416,7 +413,7 @@ export default function App() {
         <div
           class="flex-1"
           classList={{
-            "lg:pr-[var(--width-chat)]": chatOpen(),
+            "lg:pr-[var(--width-panel)]": panelOpen(),
             "min-h-0": split(),
           }}
         >
@@ -481,7 +478,6 @@ export default function App() {
       </OpensProvider>
       </AirProvider>
       </FieldsProvider>
-      </AgentsProvider>
       </PinsProvider>
       </ReadingsProvider>
       </RouterProvider>

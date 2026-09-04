@@ -1,6 +1,15 @@
-/** The node-agent fence as a pure plan judgement. */
+/**
+ * The node-agent fence as a pure plan judgement.
+ *
+ * THE FORBIDDEN KEY IS A LITERAL HERE, and it has to be: `Fence.forbidden` is
+ * DATA on a ticket ({@link ./fenced.ts}) and the caller that fills it is a
+ * plugin — `olai-plugin-chat`, with every key its own kind is declared on for
+ * this revision. This package spells no plugin's word and there is no core
+ * constant left to import, so the bench passes the string a real ticket would
+ * carry and asserts what the fence does with it, which is all this file was
+ * ever about.
+ */
 import {
-  AGENT_PROP,
   inboxIn,
   NO_KINDS,
   type OutlineSet,
@@ -26,10 +35,14 @@ const vault = (): OutlineSet => setOf({
   ].join("\n"),
 })
 
+/** One key a real ticket forbids: the word chat's binding kind claims, which is
+ *  what a vault that has declared nothing keeps its bindings under. */
+const SEATING = "chat-agent-session"
+
 const kitchen: Fence = {
   under: "kitchen",
   ask: () => "“House” (`house`)",
-  forbidden: new Set([AGENT_PROP]),
+  forbidden: new Set([SEATING]),
 }
 
 const asked = (request: Request, fence: Fence = kitchen) => {
@@ -64,8 +77,8 @@ describe("node-agent write fence", () => {
   })
 
   test("the seating property is forbidden even on the agent's own node", () => {
-    expect(asked({ op: "prop", id: "kitchen", key: AGENT_PROP, value: "claude:s2" }))
-      .toEqual({ why: "key", id: "kitchen", title: "Kitchen", key: AGENT_PROP })
+    expect(asked({ op: "prop", id: "kitchen", key: SEATING, value: "claude:s2" }))
+      .toEqual({ why: "key", id: "kitchen", title: "Kitchen", key: SEATING })
   })
 
   test("a released ticket is a closed door", () => {

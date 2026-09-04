@@ -2,7 +2,7 @@
  * WHAT THE CLAUDE CODE ADAPTER CALLS ITS OWN MODELS — this engine's whole
  * `ModelReading` (`@olai/acp/engine`), and nothing else's.
  *
- * The MACHINERY of the model picker is the protocol's and is `@olai/chat`'s
+ * The MACHINERY of the model picker is the protocol's and is `olai-plugin-chat`'s
  * (`agents/models.ts`): find the `configOptions` entry, read its labels, ask for
  * a value back. What is here is the two things that are only true of this
  * adapter, and both of them used to sit in that leg-neutral file under a

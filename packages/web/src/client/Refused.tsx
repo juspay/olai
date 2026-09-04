@@ -24,12 +24,17 @@
 
 import { Show } from "solid-js"
 
-import type { TestId } from "./testids.ts"
+import type { AnyTestId } from "./testids.ts"
 
 export function Refused(props: {
   /** The ops layer's own sentence, or `null` when there is nothing to say. */
   readonly said: string | null
-  readonly testid: TestId
+  /** {@link AnyTestId} rather than this app's own `TestId`, because a refusal
+   *  is drawn wherever a write is turned down and some of those places are a
+   *  PLUGIN's: the chat panel's *assign to node…* list refuses a node that is
+   *  already talking, under `olai-plugin-chat`'s own name. Still a closed
+   *  union, so a typo at a call site is a type error. */
+  readonly testid: AnyTestId
   /** The quieter box the sidebar's column wants — the panel is 16rem wide and
    *  a page's own type size in it reads as a shout. */
   readonly compact?: boolean

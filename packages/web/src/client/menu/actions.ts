@@ -34,19 +34,15 @@
  */
 
 import type { Row } from "@olai/format"
-import type { AgentChoice, Shelf } from "@olai/surface"
-import { Result } from "effect"
+import type { Shelf } from "@olai/surface"
 
-import { armNode } from "../chat/armed.ts"
 import type { Relation } from "../edges/relation.ts"
 import type { Said } from "../saying.ts"
 import type { Undo } from "../edit/undoing.ts"
 import { setFolded } from "../fold/memory.ts"
 import { type Fold, foldIdOf, foldOf } from "../fold/rows.ts"
-import { setChatOpen } from "../layout/prefs.ts"
+import { hung } from "../plugins/runtime.ts"
 import { atNode, hrefOf, type Route } from "../routes.ts"
-import { runAsync } from "../run.ts"
-import { olai } from "../wire.ts"
 import { asText } from "./subtree.ts"
 import type { MenuAction } from "./action.ts"
 import { subjectOfRow, writeVerbs } from "./verbs.ts"
@@ -77,6 +73,11 @@ const copied = (what: "link" | "text"): Said => ({ tone: "aside", text: `${what}
  * tab is looking at, everything below it changes the directory. A person
  * reaching for "Collapse all" and hitting "Move to Trash" is a mistake the
  * ORDER can prevent, so it does.
+ *
+ * ...AND THE PLUGINS' VERBS AFTER BOTH, which is the same argument once more
+ * rather than a third half: where a tenant's press sits in this list is core's
+ * decision, so it is made in one place — the walk at the end of this function,
+ * which is where the reasoning is.
  */
 export const nodeMenuActions = (args: {
   readonly row: Row
@@ -119,12 +120,6 @@ export const nodeMenuActions = (args: {
    *  every key and value it draws and a menu that is closed by the time
    *  anything has been typed could not hold one anyway. */
   readonly addProp: () => void
-  /** WHICH AGENTS THIS MACHINE HAS, for the one verb that has to pick one on a
-   *  node that names none — `../agents/answered.tsx`'s third reading, handed in
-   *  rather than subscribed to here for the reason that module exists: the
-   *  catalog is built per open menu, and the chat cell it comes off moves
-   *  several times a turn. */
-  readonly engines: ReadonlyArray<AgentChoice>
   /** Open the row's MOVE-TO picker — the same arrangement the three above are,
    *  for the same reason: a destination is a node somebody has to find, and the
    *  panel belongs to the ROW (⌘⇧M in its editor opens the same one), not to a
@@ -138,29 +133,12 @@ export const nodeMenuActions = (args: {
       label: "Zoom in",
       run: () => args.go(atNode(id)),
     },
-    {
-      // The composer, armed with this node — a READ, and it sits among the
-      // reads for exactly the reason the divider below exists: it changes what
-      // this tab is pointed at and writes nothing at all. What happens to the
-      // node afterwards is whatever is typed next, through the same tools and
-      // the same gate as always.
-      //
-      // The NODE the row shows rather than the record standing there
-      // (`../fold/rows.ts`'s rule, the one a fold and a mark already follow):
-      // a mirror is a placement, it has no title of its own, and the thing to
-      // ask about is what it is a placement OF.
-      id: "ask-agent",
-      label: "Ask agent",
-      run: () => {
-        armNode(foldIdOf(args.row))
-        // A chip in a panel nobody can see is a gesture that did nothing. The
-        // panel is where the answer to "what did that do" is, so opening it is
-        // part of the verb rather than a nicety — the palette's `>` does the
-        // same thing for the same reason.
-        setChatOpen(true)
-      },
-    },
   ]
+  // `Ask agent` STOOD HERE, second among the reads, and it is gone with the
+  // rest of chat: arming a composer is a thing a conversation has, and this
+  // catalog is core's. It is `olai-plugin-chat`'s browser half now, hung in
+  // `outline.row.action` — and it arrives back on this list at the bottom of
+  // this function, through the walk every plugin's verb comes in by.
   if (args.row.children.length > 0) {
     items.push({
       id: args.collapsed ? "expand" : "collapse",
@@ -214,7 +192,6 @@ export const nodeMenuActions = (args: {
     subjectOfRow(args.row),
     args.row.under,
     args.pins,
-    args.engines,
   ).map(
     ({ does, ...verb }) => ({
       ...verb,
@@ -257,33 +234,6 @@ export const nodeMenuActions = (args: {
           case "pick-move":
             args.pickMove()
             return
-          // THE ONE ARM THAT ANSWERS WITH A PROMISE, which is `copy-text`'s
-          // shape and not a fourth kind of entry. Both halves are one procedure
-          // at the server — open the conversation, then write the session onto
-          // the property — because a browser cannot learn which session
-          // appeared (`./verbs.ts`'s `Does`). What comes back is either nothing
-          // to say, the way an edit that lands says nothing, or the refusal in
-          // the server's own words: a stale engine, an agent that would not
-          // start, a record the ops layer will not write.
-          //
-          // THE PANEL IS OPENED first and whatever the outcome: this verb
-          // switches the conversation, and a switch nobody can see is a press
-          // that looks like it did nothing — the same reason `Ask agent` above
-          // opens it.
-          //
-          // `run` IS NOT `async`, deliberately: the arms above answer with
-          // nothing SYNCHRONOUSLY, and an `async` here would hand every one of
-          // them a resolved promise instead — which is a value, and anything
-          // but `undefined` is drawn as a sentence beside the `•••`.
-          case "start-agent":
-            setChatOpen(true)
-            return runAsync(
-              olai.procedures.chat.startAgentSession({ node: id, agent: does.engine }),
-            ).then((outcome) =>
-              Result.isSuccess(outcome)
-                ? undefined
-                : { tone: "alarm", text: outcome.failure.message, kind: outcome.failure._tag }
-            )
         }
       },
     }),
@@ -310,5 +260,58 @@ export const nodeMenuActions = (args: {
 
   // The rule goes above the first of them, wherever the two halves meet.
   items.push(...writes.map((verb, at) => (at === 0 ? { ...verb, divider: true } : verb)))
+
+  /**
+   * ...AND WHAT THE PLUGINS HANG ON A ROW — `outline.row.action`, appended.
+   *
+   * ## What core keeps
+   *
+   * THE BOX: an entry here is the same `MenuAction` every verb above is, drawn
+   * by the same panel in the same row, run through the same `./picking.ts` — so
+   * a plugin's verb that throws is worded beside the `•••` in core's voice
+   * ("couldn't ask agent") exactly as a refused clipboard write is.
+   *
+   * THE PLACE, which is the reason this walk is at the BOTTOM of this function
+   * rather than at a line a plugin could name. The order of this list is a
+   * safety property — the reads above the rule, the writes below it, so a hand
+   * reaching for "Collapse all" cannot land on "Move to Trash" — and a slot that
+   * let a tenant choose its index would let a tenant put its own press under a
+   * reader's thumb. So every plugin's verbs come after every one of core's, in
+   * the bundle's order (`../plugins/runtime.ts`'s `hung` imposes it), and one
+   * plugin's several stay in the order it registered them.
+   *
+   * NO DIVIDER and NO CONFIRM, and neither is an omission: `RowAction` has
+   * neither field. A rule is core's statement about which half of ITS OWN list a
+   * reader is in, and a question asked before a verb runs is prose drawn in
+   * core's words — which a plugin's verb is not core's to compose.
+   *
+   * ## What the plugin brings
+   *
+   * The words and the press, and the press is handed ONE argument: the node this
+   * row SHOWS (`../fold/rows.ts`), never the record standing there. That is the
+   * rule a mark, a fold and a pin already follow, and spending it here is what
+   * stops a tenant from having to know that a mirror is a placement with no
+   * title of its own — `Ask agent` got this right when it lived in this file and
+   * a test held it; now nothing on the other side of the slot can get it wrong.
+   *
+   * THE ID IS COMPOSED, because a plugin's `id` is its own word and two plugins
+   * may spell it the same. `<plugin>:<verb>` is unambiguous — a plugin's name
+   * carries no colon — and it is what reaches `data-action` on the entry, so a
+   * scenario naming a plugin's verb names whose it is.
+   */
+  for (const { plugin, face } of hung("outline.row.action")) {
+    // A READING, ASKED HERE. The face answers the verbs that plugin offers RIGHT
+    // NOW, which for the chat panel is one per installed engine plus the ask —
+    // a count that is not knowable when a plugin registers, because the roster
+    // that decides it arrives over a wire the tab dials afterwards. This walk is
+    // already inside a tracked read, so a list that moves moves the menu.
+    for (const verb of face()) {
+      items.push({
+        id: `${plugin}:${verb.id}`,
+        label: verb.label,
+        run: () => verb.run(foldIdOf(args.row)),
+      })
+    }
+  }
   return items
 }

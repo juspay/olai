@@ -298,7 +298,7 @@ export type PluginRoster = typeof PluginRoster.Type
  * feature inverts: the browser asks it to decide what the picker OFFERS
  * (`@olai/web`'s `chat/scopable.ts`), and the serve asks it per revision to
  * decide whether a STORED pick is a fault (`@olai/server`'s `runtime.ts`, over
- * `@olai/chat`'s `Chat.faults`). Spelled twice, the day they drift is the day
+ * `olai-plugin-chat`'s `Chat.faults`). Spelled twice, the day they drift is the day
  * the picker offers a file the serve faults on the instant somebody presses it
  * — a control that hands out its own error. Neither of those packages can
  * import the other; this is the member they share, so the reading lives beside

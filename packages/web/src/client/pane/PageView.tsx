@@ -25,7 +25,7 @@ import { NarrowedProvider } from "../filter/narrowed.tsx"
 import { createNarrowing } from "../filter/narrowing.ts"
 import { tagPressed } from "../filter/tag.ts"
 import { desktop } from "../layout/media.ts"
-import { chatOpen } from "../layout/prefs.ts"
+import { panelOpen } from "../layout/prefs.ts"
 import { only } from "../narrow.ts"
 import { useToday } from "../today.tsx"
 import { NodePage } from "../NodePage.tsx"
@@ -210,7 +210,7 @@ export function PageView() {
   return (
     <main
       class={`flex min-w-0 flex-1 flex-col overflow-x-clip px-5 pt-6 ${CLEARANCE} md:px-10 md:py-10 ${
-        !desktop() && !chatOpen() ? "pb-16" : ""
+        !desktop() && !panelOpen() ? "pb-16" : ""
       }`}
       data-testid={TESTID.pane}
       data-pane={String(here())}

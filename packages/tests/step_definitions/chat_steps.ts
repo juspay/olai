@@ -18,13 +18,19 @@ import * as path from "node:path";
 import { Given, Then, When } from "@cucumber/cucumber";
 import type { Locator } from "playwright";
 
-import {
-  completingIn,
-  NEAR,
-  selector,
-  TESTID,
-  type TestId,
-} from "@olai/web/testlib";
+import { selector } from "@olai/web/testlib";
+// ...and the ids this file spends, off the PLUGIN's half of the table. The
+// panel is `olai-plugin-chat`'s face since chat became a row, so its names left
+// `@olai/web`'s table with it and reach this suite through the registry's merge
+// — the same route the padi pill's ids take, and `support/world.ts` argues it
+// where that import sits.
+import { PLUGIN_TESTID, type PluginTestId } from "@olai/bundle/testids";
+// THE PANEL'S OWN TWO, off the panel's own door: the transcript's follow
+// distance and the composer's armed trigger are `olai-plugin-chat`'s since it
+// became a row, and a curated list in a general package that re-exported them
+// would be core naming a plugin (`@olai/bundle`'s `fence.test.ts` records this
+// import the way it records kolu's fake padi).
+import { completingIn, NEAR } from "olai-plugin-chat/testlib";
 
 import { retypedAndTaken } from "../support/atonce.ts";
 import { MARKER } from "../support/scripted.ts";
@@ -676,7 +682,7 @@ Then("the chat input takes typing", async function (this: OlaiWorld) {
 Then("the chat input still has the caret", async function (this: OlaiWorld) {
   const focused = await this.page.evaluate(
     (id) => document.activeElement?.getAttribute("data-testid") === id,
-    TESTID.chatInput,
+    PLUGIN_TESTID.chatInput,
   );
   assert.ok(
     focused,
@@ -2708,7 +2714,7 @@ Then("the panel says this serve enabled no agent engine", async function (this: 
 
 Then("the panel offers no way to install one", async function (this: OlaiWorld) {
   // An engine's install sentence is its OWN browser half's, out of the
-  // `chat.agent.install` slot — so a serve that mounted no engine fetched no
+  // `engine.install` slot — so a serve that mounted no engine fetched no
   // half and has nothing to list. Drawing an empty list, or a heading over one,
   // would be core inventing a row for a plugin that is not here.
   await this.waitUntil(
@@ -3028,7 +3034,7 @@ const named = (names: string): ReadonlyArray<string> =>
  */
 const deliver = async (
   world: OlaiWorld,
-  at: TestId,
+  at: PluginTestId,
   files: ReadonlyArray<string>,
   kinds: ReadonlyArray<string>,
   as: "clipboard" | "drag" = "drag",
@@ -3044,7 +3050,7 @@ const deliver = async (
         transfer.items.add(new File([bytes], spec.name, { type: spec.type }));
       }
       // Inside an `evaluate`: the world's `attr` cannot be called here, and `at`
-      // is a `TestId` — a kebab-case literal from a closed table.
+      // is a `PluginTestId` — a kebab-case literal from a closed table.
       const target = document.querySelector(`[data-testid="${at}"]`);
       for (const kind of kinds) {
         target?.dispatchEvent(
@@ -3070,14 +3076,14 @@ When(
   "I paste a picture called {string} into the chat",
   async function (this: OlaiWorld, name: string) {
     await this.page.locator(CHAT_INPUT).click();
-    await deliver(this, TESTID.chatInput, [name], ["paste"], "clipboard");
+    await deliver(this, PLUGIN_TESTID.chatInput, [name], ["paste"], "clipboard");
   },
 );
 
 When(
   "I drag {string} over the chat panel",
   async function (this: OlaiWorld, names: string) {
-    await deliver(this, TESTID.chatTranscript, named(names), ["dragenter", "dragover"]);
+    await deliver(this, PLUGIN_TESTID.chatTranscript, named(names), ["dragenter", "dragover"]);
   },
 );
 
@@ -3086,7 +3092,7 @@ When(
   async function (this: OlaiWorld, names: string) {
     // The whole gesture, in the order a browser fires it — the drop only
     // happens at all because `dragover` said it could.
-    await deliver(this, TESTID.chatTranscript, named(names), [
+    await deliver(this, PLUGIN_TESTID.chatTranscript, named(names), [
       "dragenter",
       "dragover",
       "drop",
@@ -3099,8 +3105,8 @@ When("the drag moves onto the composer", async function (this: OlaiWorld) {
   // another INSIDE it: the new element enters before the old one leaves. Fired
   // with no files (the drag is already in flight) but the same `Files` kind,
   // which is all a listener may read before the drop.
-  await deliver(this, TESTID.chatInput, ["shot.png"], ["dragenter"]);
-  await deliver(this, TESTID.chatTranscript, ["shot.png"], ["dragleave"]);
+  await deliver(this, PLUGIN_TESTID.chatInput, ["shot.png"], ["dragenter"]);
+  await deliver(this, PLUGIN_TESTID.chatTranscript, ["shot.png"], ["dragleave"]);
 });
 
 /** A drag event carrying NOTHING — no files, no kinds. Two of the three ways a
@@ -3109,9 +3115,9 @@ When("the drag moves onto the composer", async function (this: OlaiWorld) {
  *  until the drop), and a drag cancelled with Escape. Both must put the panel
  *  back, because the alternative is "drop to attach" left lit over a
  *  conversation with nothing over it. */
-const emptyDragAt = (world: OlaiWorld, at: TestId, kind: string): Promise<void> =>
+const emptyDragAt = (world: OlaiWorld, at: PluginTestId, kind: string): Promise<void> =>
   world.page.evaluate(({ at, kind }) => {
-    // `attr` is unreachable inside an `evaluate`, and `at` is a `TestId`.
+    // `attr` is unreachable inside an `evaluate`, and `at` is a `PluginTestId`.
     const target = document.querySelector(`[data-testid="${at}"]`)
     target?.dispatchEvent(
       new DragEvent(kind, {
@@ -3223,27 +3229,27 @@ Then("the composer is not offering a camera", async function (this: OlaiWorld) {
 });
 
 When("the drag leaves the panel without dropping", async function (this: OlaiWorld) {
-  await emptyDragAt(this, TESTID.chatTranscript, "dragleave");
+  await emptyDragAt(this, PLUGIN_TESTID.chatTranscript, "dragleave");
 });
 
 When("the drag is cancelled", async function (this: OlaiWorld) {
   // What a drag that STARTED in the page ends with when it is abandoned — one
   // of the panel's own attachment thumbnails, dragged and let go of nowhere.
-  await emptyDragAt(this, TESTID.chatTranscript, "dragend");
+  await emptyDragAt(this, PLUGIN_TESTID.chatTranscript, "dragend");
 });
 
 When("I drag some selected text over the chat panel", async function (this: OlaiWorld) {
   await this.page.evaluate(({ at }) => {
     const transfer = new DataTransfer();
     transfer.setData("text/plain", "a sentence being dragged");
-    // Same as above: browser-side code, and a `TestId` for a value.
+    // Same as above: browser-side code, and a `PluginTestId` for a value.
     const pane = document.querySelector(`[data-testid="${at}"]`);
     for (const kind of ["dragenter", "dragover"]) {
       pane?.dispatchEvent(
         new DragEvent(kind, { dataTransfer: transfer, bubbles: true, cancelable: true }),
       );
     }
-  }, { at: TESTID.chatTranscript });
+  }, { at: PLUGIN_TESTID.chatTranscript });
 });
 
 Then("the panel shows where the drop will land", async function (this: OlaiWorld) {
@@ -3522,7 +3528,7 @@ Then(
     await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     // ...AND IT SAYS HOW, which is the whole of what this face is for and the
     // half an id alone cannot see. The sentence is the ENGINE PLUGIN's own —
-    // the `NotHere` it hung in the `chat.agent.install` slot, spelled once in
+    // the `NotHere` it hung in the `engine.install` slot, spelled once in
     // that plugin's `install.ts` and spent once, here — so a row drawn with an
     // id and no words would be the face reporting on nothing. Not the exact
     // words: they are that plugin's to change, and core composes no clause of

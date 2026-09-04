@@ -7,7 +7,7 @@
  * olai integrates with two things that are not olai: kolu, which runs coding
  * agents in terminals and serves them over MCP, and odu, which runs CI. Both
  * were extracted into packages of their own once and both left a residue behind
- * — a `kolu.ts` in `@olai/chat`, a `koluConfig.ts` in `@olai/server`, a named
+ * — a `kolu.ts` in `olai-plugin-chat`, a `koluConfig.ts` in `@olai/server`, a named
  * `wiring.kolu` slot and a `koluHalf(…)` call beside it, four `...koluMembers`
  * spreads in the middle of core's wire spec, a row per plugin member in the
  * server's expose map, a `padi/` folder in `@olai/web`, and one property key
@@ -106,11 +106,13 @@ export type {
 export type {
   App,
   AppChord,
+  AppCommand,
   Hung,
   KindSlot,
   ListSlot,
   PluginSlot,
   RowAction,
+  RowActions,
   SidebarSection,
   SingleSlot,
   SlotFaces,

@@ -9,7 +9,7 @@
  */
 
 import { derive, rowsOf, type Row } from "@olai/format"
-import { type AgentChoice, NO_PINS, type Shelf } from "@olai/surface"
+import { NO_PINS, type Shelf } from "@olai/surface"
 import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
@@ -31,40 +31,24 @@ const GARDEN = [
   `{"id":"herbs","ord":"a0","title":"the herb bed","todo":true}`,
 ].join("\n")
 
-/** Two node agents and the difference between them: one whose property names
- *  an engine and no conversation, and one whose property names both. */
-const LANES = [
-  `{"id":"waiting","ord":"a0","title":"a node agent with no session","custom":{"agent-session":"claude"}}`,
-  `{"id":"talking","ord":"a1","title":"...and one that has one","custom":{"agent-session":"claude:sess-1"}}`,
-].join("\n")
-
 const derived = derive(
-  recordsOf(setOf({ "house.olai": HOUSE, "garden.olai": GARDEN, "lanes.olai": LANES })),
+  recordsOf(setOf({ "house.olai": HOUSE, "garden.olai": GARDEN })),
 )
 const rows = rowsOf(derived, "house.olai")
-const laneRows = rowsOf(derived, "lanes.olai")
 
 /** One row of the fixture, by id — through the client's own walk
  *  (`edit/order.ts`) with nothing folded, rather than a second one here. */
 const row = (id: string): Row => {
-  const found = flatten([...rows, ...laneRows], new Set()).find((one) => one.at.node.id === id)
+  const found = flatten(rows, new Set()).find((one) => one.at.node.id === id)
   if (found === undefined) throw new Error(`no row for \`${id}\` in the fixture`)
   return found
 }
 
-/** ONE AGENT INSTALLED, which is what a machine running olai's own default
- *  looks like — and the case *start an agent session* asks nothing in. Cases
- *  about the other two machines pass their own list. */
-const ONE: ReadonlyArray<AgentChoice> = [{ id: "claude", name: "Claude Code" }]
+const labels = (id: string): ReadonlyArray<string> =>
+  writeVerbs(subjectOfRow(row(id)), row(id).under, NO_PINS).map((verb) => verb.label)
 
-const labels = (
-  id: string,
-  engines: ReadonlyArray<AgentChoice> = ONE,
-): ReadonlyArray<string> =>
-  writeVerbs(subjectOfRow(row(id)), row(id).under, NO_PINS, engines).map((verb) => verb.label)
-
-const verb = (id: string, label: string, engines: ReadonlyArray<AgentChoice> = ONE) => {
-  const found = writeVerbs(subjectOfRow(row(id)), row(id).under, NO_PINS, engines)
+const verb = (id: string, label: string) => {
+  const found = writeVerbs(subjectOfRow(row(id)), row(id).under, NO_PINS)
     .find((one) => one.label === label)
   if (found === undefined) {
     throw new Error(`\`${id}\` offers no ${JSON.stringify(label)}: ${labels(id).join(", ")}`)
@@ -119,7 +103,6 @@ test("a node with no mark is offered the four, and nothing to clear", () => {
   // of them and the one nobody should reach by accident.
   expect(labels("install")).toEqual([
     "Pin to sidebar",
-    "Start an agent session",
     "Mark todo",
     "Mark doing",
     "Complete",
@@ -140,7 +123,6 @@ test("the mark a node already carries is not offered back to it", () => {
   // three pixels away from the menu that would have said so.
   expect(labels("kitchen")).toEqual([
     "Pin to sidebar",
-    "Start an agent session",
     "Mark todo",
     "Complete",
     "Cancel",
@@ -414,59 +396,14 @@ test("with no indexes yet there is no archive, rather than one nobody counted", 
 
 // ── starting an agent session ──────────────────────────────────────────
 //
-// The press WRITES the property; it does not require one (the human, testing
-// the deployed head on 2026-09-02). So the fence has ONE arm — a node whose
-// property already names a session — and the rest is which engine.
+// SIX CASES STOOD HERE and they have moved with their subject. *Start an agent
+// session* is `olai-plugin-chat`'s browser half now, hung in the
+// `outline.row.action` slot, so which engine it picks, the one arm of its fence
+// (a node whose property already names a session is offered nothing), the
+// label that carries an agent's name only where there is a choice, and the
+// machine with no agent installed at all are all held over there — against
+// that plugin's own roster rather than against an `engines` argument this
+// catalog no longer takes. What stays here is that core spells none of it: the
+// two label lists above are the whole of what a row offers, and neither has an
+// agent verb in it.
 
-test("a BARE node offers it, and that is the whole point of the verb", () => {
-  // `install` carries no `agent-session` at all, which is nearly every row of
-  // every outline. Requiring the property first would be the gesture asking to
-  // be performed before it will offer itself.
-  const found = verb("install", "Start an agent session")
-  expect(found.does).toEqual({ kind: "start-agent", engine: "claude" })
-})
-
-test("a node agent with no session offers it with its OWN engine, whatever is installed", () => {
-  // `waiting` carries `agent-session: claude`. It said which agent it is, and
-  // nothing here second-guesses that — so this is one entry and no ask even on
-  // a machine with three agents on it.
-  const three: ReadonlyArray<AgentChoice> = [
-    { id: "grok", name: "Grok" },
-    { id: "opencode", name: "opencode" },
-    { id: "pi", name: "pi" },
-  ]
-  const found = verb("waiting", "Start an agent session", three)
-  expect(found.does).toEqual({ kind: "start-agent", engine: "claude" })
-  expect(labels("waiting", three).filter((label) => label.startsWith("Start an agent")))
-    .toHaveLength(1)
-})
-
-test("a node agent that already has one is offered nothing — a fresh session is another verb", () => {
-  expect(labels("talking")).not.toContain("Start an agent session")
-  expect(labels("talking").some((label) => label.startsWith("Start an agent"))).toBe(false)
-})
-
-test("several agents installed is one entry each, and the menu IS the ask", () => {
-  // No panel, no picker, no second gesture: a list of choices is what a menu
-  // already is, and the name is carried only where there is a choice to make.
-  const two: ReadonlyArray<AgentChoice> = [
-    { id: "claude", name: "Claude Code" },
-    { id: "grok", name: "Grok" },
-  ]
-  expect(labels("install", two).filter((label) => label.startsWith("Start an agent")))
-    .toEqual(["Start an agent session — Claude Code", "Start an agent session — Grok"])
-  expect(verb("install", "Start an agent session — Grok", two).does)
-    .toEqual({ kind: "start-agent", engine: "grok" })
-})
-
-test("no agent installed is no entry — there is nothing to start a session with", () => {
-  expect(labels("install", []).some((label) => label.startsWith("Start an agent"))).toBe(false)
-})
-
-test("... and a node that names its own engine still offers it on that machine", () => {
-  // The one case where an empty installed list changes nothing: the node said
-  // which agent, so there is nothing to pick from. What that engine does when
-  // the machine does not have it is the server's own refusal, in its words.
-  expect(verb("waiting", "Start an agent session", []).does)
-    .toEqual({ kind: "start-agent", engine: "claude" })
-})

@@ -11,7 +11,6 @@ import App from "./App.tsx"
 import { Fault } from "./errors/Fault.tsx"
 import { followFolders } from "./fold/folders.ts"
 import { followFolds } from "./fold/memory.ts"
-import { trackCamera } from "./chat/camera.ts"
 import { trackDesktop } from "./layout/media.ts"
 import { followLayout } from "./layout/prefs.ts"
 import { followName } from "./named.ts"
@@ -25,7 +24,20 @@ import { followStoredSize } from "./theme/sizeState.ts"
 import { followStoredTheme } from "./theme/state.ts"
 import { trackVisibleViewport } from "./viewport.ts"
 import { provideFurniture } from "./plugins/furniture.tsx"
-import { connectionReadout, firstRoster, olai, wireGeneration } from "./wire.ts"
+import { connectionReadout, firstRoster, olai, useBrowserRows, wireGeneration } from "./wire.ts"
+import { useBundleOrder } from "./plugins/runtime.ts"
+// THE ONE PLACE IN THIS PACKAGE THAT MAY NAME THE REGISTRY.
+//
+// `@olai/bundle` names every plugin, and a plugin's browser half imports this
+// app — a face that draws inside it draws with its furniture — so an app module
+// that imported the registry back would put every plugin on every other
+// plugin's graph. `packages/bundle/src/fence.test.ts` says so in the claim that
+// derives each tenant's own member set.
+//
+// This file is the ENTRY. Nothing imports it, so the arrow stops here: it reads
+// the rows and the order and TELLS the two modules that spend them, before it
+// awaits the first roster.
+import { BROWSER_ROWS, bundleRank } from "@olai/bundle"
 
 // The paired half of the `/sw.js` the server serves, which is now the
 // framework's NOTIFICATION worker (packages/server/src/listener.ts says why):
@@ -82,13 +94,17 @@ followName({
 // keeps its own pick), whether the file tree draws the outlines olai named for
 // itself, what this browser has folded — of the outline and of the directory —
 // and the phone/desktop media query — document-lifetime, like the theme.
+// WHICH PLUGINS THIS BUILD HAS, and where each sits in the file's own list —
+// said before anything can read either. See the import above.
+useBrowserRows(BROWSER_ROWS)
+useBundleOrder(bundleRank)
+
 followLayout()
 followAlerts()
 followDensity()
 followDonePrefs()
 followFolds()
 followFolders()
-trackCamera()
 trackDesktop()
 
 const root = document.getElementById("root")

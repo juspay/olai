@@ -2,7 +2,7 @@
  * WHO THIS ENGINE IS, AND HOW A PERSON GETS IT — spelled once, spent once.
  *
  * THE BROWSER HALF IS THE ONE THAT SPENDS IT: {@link ./browser.tsx} hangs this
- * value in the `chat.agent.install` slot, and `@olai/web` draws the row on the
+ * value in the `engine.install` slot, and `@olai/web` draws the row on the
  * face the panel shows when this machine has no agent at all. **The server half
  * does not touch it** — {@link ./server.ts} opens this module for {@link NAME}
  * and nothing else.

@@ -21,7 +21,7 @@
  * convention, which property KIND wears the terminal door, and which of the
  * app's chrome slots the padi pill hangs in. None of that is kolu
  * implementation — it is olai deciding what to make of kolu — and none of it
- * is core's business either, which is why it used to sit in `@olai/chat`,
+ * is core's business either, which is why it used to sit in `olai-plugin-chat`,
  * `@olai/server` and `@olai/web` and make those packages spell a name they had
  * no reason to know.
  *

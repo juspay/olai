@@ -6,7 +6,7 @@
  * cases live, because it is the one whose picker offers ALIASES for the ids its
  * CLI reports; an agent whose picker offers the ids themselves matches at the
  * first tier and takes `namedExactly` instead, which is the boring case the
- * general rule also has to get right (`@olai/chat`'s `agents/models.test.ts`).
+ * general rule also has to get right (`olai-plugin-chat`'s `agents/models.test.ts`).
  *
  * What this file adds over a scenario is the near misses, cheap as values and
  * expensive to stage: a family alias against a lane-pinned row, two rows that

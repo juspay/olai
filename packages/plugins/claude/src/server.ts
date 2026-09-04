@@ -4,7 +4,7 @@
  *
  * ## What this replaced
  *
- * A row of a hardcoded `KINDS` table in `@olai/chat/src/agents/roster.ts`,
+ * A row of a hardcoded `KINDS` table in `olai-plugin-chat/src/agents/roster.ts`,
  * beside two others, under an `AGENTS` record in `@olai/surface` that made every
  * agent id a closed union. Adding an engine was a core PR in two general
  * packages; bumping THIS adapter's pin was an edit in a file the other two
@@ -17,7 +17,7 @@
  * ({@link ./leg.ts}), what its model picker calls things ({@link ./models.ts}),
  * where a person gets it, and the mark it wears ({@link ./browser.tsx}, on the
  * other door). Not here, and never: a session, a prompt, a transcript. An engine
- * plugin hands over data and pure functions; `@olai/chat` does the talking. That
+ * plugin hands over data and pure functions; `olai-plugin-chat` does the talking. That
  * is what makes every bet in this directory a thing with a unit test rather than
  * a branch reachable only by starting a subprocess.
  *
@@ -28,7 +28,7 @@
  * the variable somewhere else is still saying *read that the way you read Claude
  * Code*, which is what the override has always meant. The EMPTY STRING is not
  * this plugin's to interpret: it is the whole off switch, core's, and it is read
- * before anything is probed (`@olai/chat`'s `agents/roster.ts`). Both readings
+ * before anything is probed (`olai-plugin-chat`'s `agents/roster.ts`). Both readings
  * are argued at the constant, in `@olai/acp/engine`, which is where they meet.
  */
 
@@ -65,7 +65,7 @@ export const ENGINE: Registering = {
   at: (where) => adapterFrom(where.env[AGENT_ENV]),
   // ACP has no system prompt on any wire, this one included, so the standing
   // instruction rides the first turn — where a person can read what their agent
-  // was told. `@olai/acp/engine`'s `PromptChannel` argues it, and `@olai/chat`
+  // was told. `@olai/acp/engine`'s `PromptChannel` argues it, and `olai-plugin-chat`
   // switches on it exhaustively.
   prompt: { kind: "first-turn" },
 }

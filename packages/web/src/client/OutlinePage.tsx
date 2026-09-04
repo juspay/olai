@@ -20,7 +20,7 @@
 import { type Row, shownRecord } from "@olai/format"
 import { createEffect, createSignal, onCleanup, Show } from "solid-js"
 
-import { createDeclared } from "./chat/declared.ts"
+import { createDeclared } from "./declared.ts"
 import { setFolded } from "./fold/memory.ts"
 import { createFoldReading } from "./fold/reading.ts"
 import { aim, failedSays, missedSays, shutAlong } from "./fold/landing.ts"
@@ -95,13 +95,13 @@ export function OutlinePage(props: {
    * (`./fold/landing.ts`'s `answer`). A placement the page draws is found
    * with no wire crossed; one it does not keeps its target in a row of some
    * other file, so the act asks the set what the id names — through
-   * `./chat/declared.ts`, the tab's one door for the question (`nodes.named`
+   * `./declared.ts`, the tab's one door for the question (`nodes.named`
    * itself is queried by NOBODY but that module): asked once per landing
    * and remembered, never asked into a dead socket and asked again when it
    * returns. And ONLY THEN concludes: the answer re-runs this effect through
    * the door's known-map, and a miss is said once the answer confirms the
    * page really draws nothing by that name, never while the set is still
-   * being asked — the third state `./chat/declared.ts`'s `told` keeps for
+   * being asked — the third state `./declared.ts`'s `told` keeps for
    * exactly this scope. An id the answer says nothing about, or whose target
    * this page also does not draw, is the certain half — in two honestly
    * different degrees of it, the name nothing declares and the name this
@@ -130,7 +130,7 @@ export function OutlinePage(props: {
    *  ever until an answer lands. */
   const [lost, setLost] = createSignal<ReadonlySet<string>>(new Set())
   /** ONE SCOPE of the set's door for "what does this id name" —
-   *  `/chat/declared.ts`, the module that asks it for the chat panel's
+   *  `./declared.ts`, the module that asks it for the chat panel's
    *  spans and, as of the landing, for a page's missed row too: the
    *  batching, the ask-once-and-remember, the dead-socket ruling and the
    *  ask-again-when-it-returns are THEIRS, kept whole rather than copied
@@ -226,7 +226,7 @@ export function OutlinePage(props: {
       // very failure finds the id still inside the door's own `asking` —
       // cleared only after the promise settles — so the re-ask that
       // happens is the next revision's, incidental as the spans',
-      // (`./chat/declared.ts` rules its own span re-asks no sooner). A
+      // (`./declared.ts` rules its own span re-asks no sooner). A
       // REAL retry policy would be the door's to grow, for every scope at
       // once — this page's contract is only that the ask's loss never goes
       // untold, which the line above pays in full.

@@ -413,7 +413,7 @@ export default definePlugin({
      *
      *  WHAT IS REGISTERED IS THE ASKING and not an answer: the list is read
      *  afresh per session open, so a plugin that unloaded between conversations
-     *  contributes nothing to the next one, and the asking is `@olai/chat`'s to
+     *  contributes nothing to the next one, and the asking is `olai-plugin-chat`'s to
      *  schedule under its own bounded concurrency ({@link Probed}'s two halves
      *  still come off ONE reading, which is the invariant the old `probe()`
      *  field existed to hold). THE PLUGIN'S NAME IS NOT WRITTEN HERE — the door

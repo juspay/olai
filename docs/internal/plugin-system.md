@@ -25,7 +25,7 @@ residue behind in the general ones:
 
 | Where | What was there |
 | --- | --- |
-| `@olai/chat` | a `kolu.ts` |
+| `olai-plugin-chat` | a `kolu.ts` |
 | `@olai/server` | a `koluConfig.ts`, a `wiring.kolu` slot, a `koluHalf(…)` call |
 | `@olai/surface` | four `...koluMembers` spreads in the middle of core's wire spec |
 | `@olai/server`'s expose map | a row per plugin member |
@@ -68,7 +68,7 @@ export default definePlugin({
     const slots = yield* Slots
     yield* slots.register("outline.row.chip", WORKTREE_KIND, CiChip)
     yield* slots.register("outline.row.pane", WORKTREE_KIND, RunMatrix)
-    yield* slots.register("chat.speaker.mark", OduMark)
+    yield* slots.register("delivery.mark", OduMark)
     yield* slots.register("app.mount", (props) => /* one subscription per tab */)
   }),
 })
@@ -224,7 +224,7 @@ Skim the table; the sections after it give one example each.
 | **chrome** | what a plugin hangs in the app's header bar |
 | **mount** | the plugin's own half of the tab — one subscription per tab |
 | **mark** | the plugin's FACE — the glyph over a sentence it delivered into a conversation, and the one an ENGINE wears in the picker and the header |
-| **engine install row** | an engine's line on the face drawn when this machine has no agent at all: how a person gets it. A `NotHere` VALUE in `chat.agent.install`, not a drawing — core owns every stroke (the list, the mark, whether the name is a link) and the plugin owns every word. Its row in the panel's *which agent?* question is NOT one of these: those words are the engine's `name`, which the server already sends per installed agent, so core draws a string it was handed rather than a face it was hung |
+| **engine install row** | an engine's line on the face drawn when this machine has no agent at all: how a person gets it. A `NotHere` VALUE in `engine.install`, not a drawing — core owns every stroke (the list, the mark, whether the name is a link) and the plugin owns every word. Its row in the panel's *which agent?* question is NOT one of these: those words are the engine's `name`, which the server already sends per installed agent, so core draws a string it was handed rather than a face it was hung |
 | **watching** (`Watching`) | the read-shaped door that is not a read: core PUSHES what happened in a conversation — a doorbell that landed, an orchestrator reply that settled, a turn that started or ended — and a human message is not among them |
 | **held** (`Held`) | a small opaque record a plugin keeps about this serve, in the state home rather than the vault |
 | **doorbell** (`Deliveries`) | the write-only door a plugin speaks INTO a conversation through: which conversations opted in to it, and one verb that puts a whole sentence in one. Minted from the calling plugin's own word |
@@ -300,7 +300,7 @@ yield* (yield* SessionStart).ask(Effect.promise(() => probe(env.vars)))
 The list is read afresh per session open, so a plugin that unloaded between
 conversations contributes nothing to the next one and nobody keeps a second
 list. The ASKING rather than an answer, because the SCHEDULING is
-`@olai/chat`.s: a probe starts a subprocess on the session-open path, and
+`olai-plugin-chat`.s: a probe starts a subprocess on the session-open path, and
 running them one after another would multiply that window by the number of
 plugins — the same defect the bound concurrency exists to prevent, wearing a
 different shape. `Probed`.s two halves still come off ONE reading.
@@ -962,8 +962,8 @@ that matters.
    this registration once, read by nothing, because the face that draws it is
    your BROWSER half's. `src/browser.tsx` hangs TWO faces, and both are
    drawings ABOUT this engine rather than data about it: its MARK
-   (`chat.speaker.mark`) and its SENTENCE on the face drawn when the machine has
-   no agent at all (`chat.agent.install`, which takes a `NotHere` VALUE rather
+   (`delivery.mark`) and its SENTENCE on the face drawn when the machine has
+   no agent at all (`engine.install`, which takes a `NotHere` VALUE rather
    than a drawing: core owns every stroke of that row and you own every word).
    Core keeps the shape of each — the
    sixteen-unit box, the list, the order — and neither drawing crosses the wire,
@@ -1023,7 +1023,7 @@ names the file.
 | `packages/tests/plugin_docs.test.ts` | every plugin's docs page exists, is served, and is linked |
 | `packages/server/src/faces.test.ts` | `chat.scope` is named on the **browser** face and nowhere else — the agent face is pinned as an exact set, so an agent-settable doorbell is a red suite rather than a rule somebody has to remember |
 | `packages/server/src/runtime.test.ts` | a `wake` sentence reaches the roster only for a plugin this serve MOUNTED, so no picker is offered for a doorbell nothing would ring — and a plugin the flag left on that nothing mounted draws as off, which is the row the old derivation could not express |
-| `packages/chat/src/deliveries.test.ts` | a body delivered mid-turn is HELD and the conversation keeps its interruption — the one claim a machine speaking into a person's lane could quietly cost them |
+| `packages/plugins/chat/src/deliveries.test.ts` | a body delivered mid-turn is HELD and the conversation keeps its interruption — the one claim a machine speaking into a person's lane could quietly cost them |
 | `scripts/check-hydrated-deps.sh` | the appliance dependency walls, per pin — kolu, odu, and cordis |
 | `packages/effect-cordis/src/plugin.test.ts` | the bridge itself, on TOY services and with no olai noun in the file: a plugin sits `waiting` until the service it names is provided, its finalizers run in reverse when it unloads, a REPLACED provider re-runs it, a plugin whose Effect dies lands `failed` having installed nothing with its siblings untouched, and the stamp a keyed service is minted with is the word the registry bound it under |
 

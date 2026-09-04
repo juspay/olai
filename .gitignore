@@ -39,5 +39,9 @@ node_modules
 /packages/bundle/src/testids.generated.ts
 
 # The unit suite, to a log rather than to the terminal — `just test-log` says
-# why, and the rule generalises to every long leg.
-/.test.log
+# why, and the rule generalises to every long leg. It is written down here as a
+# GLOB for that reason: the justfile tells a reader to redirect `just typecheck`
+# and `just e2e` the same way ("`> some.log 2>&1`, then grep"), and a rule that
+# named only the one leg with a recipe left every other one a file somebody
+# commits by accident on their next `git add -A`.
+/*.log

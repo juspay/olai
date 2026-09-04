@@ -96,9 +96,16 @@ import {
   type ConversationSeen,
   type Deliveries as DeliveryDoor,
   kindWordOf,
+  type MintedTicket,
+  NO_TICKET,
+  NOWHERE_TO_WRITE,
   type PluginHeld,
   type Probed,
   type PropKind,
+  type PropWrite,
+  type Refusal,
+  type Refused,
+  type Seated,
   type Wake,
 } from "./contract.ts"
 
@@ -429,11 +436,11 @@ export const Wakes = serviceTag<Wakes>("wakes")
 
 /**
  * WHICH ACP ENGINES THIS BUILD CAN SEAT — one registration per engine plugin,
- * and the table `@olai/chat`'s roster is read off.
+ * and the table `olai-plugin-chat`'s roster is read off.
  *
  * ## What it replaced, and why the shape had to change
  *
- * A hardcoded `KINDS` array in `@olai/chat`, three rows deep, with
+ * A hardcoded `KINDS` array in `olai-plugin-chat`, three rows deep, with
  * `@olai/surface`'s `AGENTS` beside it as a closed union so that every table
  * keyed by an agent id — the picker's rows, the install face, the marks, the
  * memory's fallback — was keyed by a type only a core PR could widen. A fourth
@@ -454,13 +461,13 @@ export const Wakes = serviceTag<Wakes>("wakes")
  * wire, a probe that answers `Adapter | null` for this host, and the channel its
  * standing prompt rides. NOT how a person GETS it: that sentence rode this
  * registration for one revision and was read by nothing, because the face that
- * draws it is the engine's own browser half's (`chat.agent.install`).
+ * draws it is the engine's own browser half's (`engine.install`).
  * The ID IS THE FIBER'S WORD and there is no field for one, so a plugin cannot
  * register under another's name.
  *
  * What is NOT here is anything about a CONVERSATION. An engine plugin does not
  * spawn, does not send, does not remember and never sees a transcript: it hands
- * over data and pure functions, and `@olai/chat` does the talking. That is the
+ * over data and pure functions, and `olai-plugin-chat` does the talking. That is the
  * same wall {@link Deliveries} keeps from the other side.
  *
  * ## Two plugins may not claim one id, which is unreachable and counted anyway
@@ -477,7 +484,7 @@ export interface Agents {
    * READ ONCE, WHEN THE CHAT IS BUILT, and the sentence that said otherwise is
    * worth keeping as a warning: it read "unloading it takes the row out of the
    * picker". The registry entry is genuinely scope-held and disappears from
-   * `Plugins.engines()` on unload — but `@olai/chat` is handed a LIST at
+   * `Plugins.engines()` on unload — but `olai-plugin-chat` is handed a LIST at
    * `Chat.make` and holds it for the life of the process, on purpose
    * (`agents/roster.ts`'s "Once, at the start": re-deciding the roster under a
    * reader would flip the panel's whole face while somebody was using it). So
@@ -562,7 +569,7 @@ export const Held = serviceTag<Held>("held")
  * reasons are two. The list is collected per SESSION OPEN, so a plugin that
  * unloaded between conversations contributes nothing to the next one without
  * anybody keeping a second list. And the asking is then the caller's to
- * schedule: `@olai/chat` runs them with a bounded concurrency because a probe
+ * schedule: `olai-plugin-chat` runs them with a bounded concurrency because a probe
  * starts a subprocess on the session-open path, and running them one after
  * another would multiply that window by the number of plugins — the same defect
  * the bound exists to prevent, with a different shape.
@@ -614,7 +621,7 @@ export interface SessionStart {
    * of the contract rather than a preference. This line used to end "a probe
    * that dies is contained by the caller and costs that plugin its row", and no
    * such containment exists: the chain from here is `askingAt`
-   * (`@olai/server`'s `probes.ts`) into `@olai/chat`'s `probed`, which is an
+   * (`@olai/server`'s `probes.ts`) into `olai-plugin-chat`'s `probed`, which is an
    * `Effect.forEach` with no `catchAllDefect` anywhere on it, and its answer is
    * awaited inside `session/new`. So a defect here does not cost one plugin its
    * row — it fails the conversation open, for every plugin and for the person.
@@ -626,7 +633,7 @@ export interface SessionStart {
    */
   readonly ask: (probe: Effect.Effect<Probed>) => Effect.Effect<void, never, Scope.Scope>
 }
-export const SessionStart = serviceTag<SessionStart>("chat/session-start")
+export const SessionStart = serviceTag<SessionStart>("session-start")
 
 /**
  * ONE THING TO ASK, as the collector holds it — the plugin's own word and the
@@ -731,9 +738,9 @@ export const Offers = serviceTag<Offers>("offers")
  * ## Re-declared here rather than imported, and that is the fence rather than a
  * ## duplication
  *
- * The shape is `@olai/chat`'s (`agent.ts`'s `ToolServer`, which `mcpServersOf`
+ * The shape is `olai-plugin-chat`'s (`agent.ts`'s `ToolServer`, which `mcpServersOf`
  * renders into what the protocol wants). This package may not import it and never
- * will: `@olai/chat` is on its way to being a ROW, and a core tag that imported a
+ * will: `olai-plugin-chat` is on its way to being a ROW, and a core tag that imported a
  * plugin-to-be would be the registry arrow pointing backwards — the exact cycle
  * `@olai/plugin-api` names no plugin in order to avoid.
  *
@@ -774,8 +781,81 @@ export interface ToolServer {
  */
 export interface Tools {
   readonly server: Effect.Effect<ToolServer>
+  /**
+   * ...AND A CREDENTIAL THAT NARROWS IT TO ONE SUBTREE, for one session.
+   *
+   * The write fence phase 6 built: a node agent writes strictly inside its own
+   * subtree and asks its ancestor for anything above. The ENFORCEMENT is
+   * `@olai/ops`', between `plan` and `commit`; the CHANNEL is a bearer the MCP
+   * route resolves per request; and what is minted here is the pairing of the
+   * two, so a session handed this bearer reaches a door that is the same face
+   * with a fence on it.
+   *
+   * TWO FUNCTIONS AND NOT TWO VALUES, and both are read per request rather than
+   * closed over. `seated` is asked because a session's subtree may be re-pointed
+   * under it, and `above` because the ancestor a refusal names is a reading of a
+   * vault that moves — which is exactly the reading the plugin holding the
+   * sessions has and core does not.
+   *
+   * `release` is the session's own teardown, and it is the whole point of the
+   * ticket being a value: reaping a node scope drops its MCP footprint in the
+   * same breath rather than leaving a bearer alive for a session that is gone.
+   */
+  readonly ticket: (
+    seated: () => Seated,
+    above: (node: string) => string | null,
+  ) => MintedTicket
 }
 export const Tools = serviceTag<Tools>("tools")
+
+/**
+ * THE VAULT'S WRITE GATE, as narrow as the gestures that need it.
+ *
+ * ## What this is, and the door it deliberately is NOT
+ *
+ * `@olai/server`'s `runtime.ts` composed three things a plugin now owns: the
+ * reading a message's armed ids are resolved against, the property write that
+ * binds a node to a conversation, and the refusal a person sees in their
+ * transcript when a tool call was turned down. All three were composed there
+ * because that was the only place both halves were in hand — and a plugin that
+ * owns the conversation owns one of the halves.
+ *
+ * It is NOT `Ops` handed over. {@link PropWrite} is one key on one node, and
+ * {@link reading} answers a value rather than the layer that produced it, so
+ * nothing behind this door can trash, move or commit. What judges the write is
+ * unchanged: the same planner, the same validator, the same ledger commit a
+ * keystroke goes through, under the writer the composition root bound.
+ *
+ * ## THE READING IS OPAQUE, and it is {@link Vault.revision}'s bargain
+ *
+ * A reading is `@olai/format`'s `Reading`, which this package refuses as a
+ * dependency for the reason its manifest gives. So the value travels `unknown`
+ * and the plugin narrows it once, at its own edge, in its own file — which is
+ * where a reader looking for what a half reads would go. As with the revision
+ * door, the narrowing is a CLAIM and not a check, and this sentence is here so
+ * nobody has to find that out.
+ */
+export interface Ops {
+  /** THE READING every write is resolved against — one answer to "there is
+   *  nothing loaded yet", shared with the tools and with a keystroke. */
+  readonly reading: Effect.Effect<unknown>
+  /** ONE PROPERTY, WRITTEN — see {@link PropWrite} on why the door is the
+   *  gesture's shape rather than the layer's. */
+  readonly prop: (write: PropWrite) => Effect.Effect<void, Refusal>
+  /** A WRITE THIS SERVE REFUSED, for as long as the calling plugin is loaded.
+   *
+   *  ON THE WRITE GATE and not on the MCP server, because it is WRITES this is
+   *  a property of: a second writer would report nothing. What a plugin makes of
+   *  it is its own — the chat draws a row in the transcript, so what the agent
+   *  then says about the refusal is prose and the unfinished children are data.
+   *
+   *  Contained here, like every other bus on this page: a handler that dies
+   *  costs its plugin a line rather than the write its answer was about. */
+  readonly refused: (
+    handler: (refusal: Refused) => Effect.Effect<void>,
+  ) => Effect.Effect<void, never, Scope.Scope>
+}
+export const Ops = serviceTag<Ops>("ops")
 
 /**
  * WHERE A PLUGIN SITS IN THE BUILD'S OWN LIST OF ROWS.
@@ -844,6 +924,10 @@ export interface Plugins {
   /** WHAT TO ASK THIS HOST when a conversation opens, read afresh per opening —
    *  see {@link SessionStart} and {@link Asked}. */
   readonly sessionStart: Effect.Effect<ReadonlyArray<Asked>>
+  /** ONE REFUSED WRITE to every subscriber, in subscription order — see
+   *  {@link Ops.refused}. Rung by whoever owns the write gate, which is the
+   *  composition root; nothing on this page can refuse a write. */
+  readonly refused: (refusal: Refused) => Effect.Effect<void>
 }
 
 /**
@@ -921,6 +1005,33 @@ export interface PluginsConfig {
    * nothing in a process with no listener was going to talk to one.
    */
   readonly tools?: Deferred.Deferred<ToolServer>
+  /**
+   * ...AND THE FENCED CREDENTIAL MINTED OFF IT — see {@link Tools.ticket}.
+   *
+   * A THUNK rather than a value, and it answers `null` until the listener has
+   * bound, for the reason the address above is a `Deferred` and this is not: a
+   * ticket is minted per SESSION, at a moment the plugin chooses, and a plugin
+   * that spawned one before there was a face to fence would be asking for a
+   * bearer onto nothing. `null` is that state said out loud, and the one caller
+   * refuses to seat a session on it rather than inventing one.
+   *
+   * OPTIONAL, and absent means NO FENCE EVER — the headless faces and every
+   * bench, which have no MCP face to narrow.
+   */
+  readonly ticketFor?: (
+    seated: () => Seated,
+    above: (node: string) => string | null,
+  ) => MintedTicket | null
+  /**
+   * THE VAULT'S WRITE GATE, as narrow as the two gestures that need it — see
+   * {@link Ops}.
+   *
+   * OPTIONAL, and absent means NO VAULT IS BEING WRITTEN: a root with no store
+   * behind it (every bench that only wants the table) answers a reading of
+   * nothing and refuses a write, which is what a plugin asking one of a process
+   * that serves no directory should be told.
+   */
+  readonly ops?: Pick<Ops, "reading" | "prop">
   /**
    * WHERE EACH PLUGIN SITS IN THE BUILD'S LIST OF ROWS — see {@link Bundle}.
    *
@@ -1206,6 +1317,27 @@ export const openPlugins = (
       // plugin gated on one is gated for the life of that process. See
       // {@link PluginsConfig.tools}.
       server: config.tools === undefined ? Effect.never : Deferred.await(config.tools),
+      // ...and NULL rather than never for the fence, because this one is asked
+      // per session and a caller has somewhere to put the absence: a root with
+      // no MCP face seats a session unfenced, which is the state it was already
+      // in ({@link PluginsConfig.ticketFor}).
+      ticket: (seated, above) => config.ticketFor?.(seated, above) ?? NO_TICKET,
+    }))
+
+    // THE WRITE GATE, or a process that is writing nothing. Both arms are real
+    // states: a serve has a store behind it, and every bench that only wants the
+    // table has none — which answers a reading of nothing and refuses a write in
+    // the vocabulary the caller already speaks rather than throwing at it.
+    //
+    // The REFUSALS half is a bus here rather than a field on the root's door, so
+    // it is contained like its three neighbours: a handler that dies is caught
+    // with the registering plugin's word on the line, and a mirror that threw on
+    // one refusal cannot take down the write whose answer it was about.
+    const refusals = broadcast<Refused>("a refused write")
+    yield* provide(host, Ops, (plugin) => ({
+      reading: config.ops?.reading ?? Effect.succeed(null),
+      prop: (write) => config.ops?.prop(write) ?? Effect.fail(NOWHERE_TO_WRITE),
+      refused: refusals.listen(plugin),
     }))
 
     yield* provide(host, Bundle, () => ({ rank: config.rank ?? (() => 0) }))
@@ -1247,20 +1379,26 @@ export const openPlugins = (
       // between conversations contribute nothing to the next one without
       // anybody keeping a second list.
       sessionStart: Effect.sync(asking.read),
+      refused: refusals.tell,
     }
   })
 
 export type {
   ConversationSeen,
   Deliveries as DeliveryDoor,
+  MintedTicket,
   NotHere,
   PluginHeld,
   Probed,
   PropKind,
+  PropWrite,
+  Refusal,
+  Refused,
+  Seated,
   StdioServer,
   Wake,
 } from "./contract.ts"
-export { exposeMapsOf, kindWordOf, surfacesOf } from "./contract.ts"
+export { exposeMapsOf, kindWordOf, NO_TICKET, NOWHERE_TO_WRITE, surfacesOf } from "./contract.ts"
 
 /**
  * WHAT AN ENGINE PLUGIN HANDS {@link Agents} — the one name off

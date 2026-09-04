@@ -397,8 +397,10 @@ export type { HasCustom } from "./custom.ts"
  * that words a refusal takes it, and `NO_KINDS` is what a build with no
  * plugin composed; `declarationsOf` and
  * `variantsOf` because a reader above resolves a value the way the checker
- * does; `canonicalDate` because the one stored spelling of a date has to be one
- * function, wherever it is asked.
+ * does; `keysDeclaredAs` beside `declaresKind` and `textDeclaredAs` because a
+ * plugin that WRITES its own kind has a value and no record to ask about, and
+ * has to know which key the vault put that kind on; `canonicalDate` because the
+ * one stored spelling of a date has to be one function, wherever it is asked.
  */
 export {
   BASE_BY_DEFAULT,
@@ -410,6 +412,7 @@ export {
   declaresKind,
   declaringOf,
   isPathShaped,
+  keysDeclaredAs,
   NO_KINDS,
   NO_TYPING,
   offsetIn,
@@ -1051,19 +1054,22 @@ export { NO_PINS, pinTargetIn, sameShelf, Shelf, shelfIn, shelfOf } from "./shel
 export type { Pinned } from "./shelf.ts"
 
 /**
- * THE NODE AGENTS OF A SET — the roster, which is the query
- * `prop:agent-session` answered where the set is ({@link ./agents.ts}).
+ * THE NODE AGENTS OF A SET — the roster, which is the query `prop:<the declared
+ * key>` answered where the set is ({@link ./agents.ts}).
  *
- * `AGENT_PROP` and `sessionValue` are public for the one gesture that WRITES
- * the property rather than reading rows off it — the `•••` menu's *start an
- * agent session*, composed at the server's composition root — so the key and
- * the colon rule have one spelling for the writer and the reader both.
- * `NodeAgent` is public for the reader that widens it with the one fact a vault
- * cannot know (`@olai/surface`).
+ * THE KEY IS NOT HERE, and its absence is the phase: a node agent's property is
+ * a PLUGIN'S KIND now, so `agentsIn` takes the vault's declarations and the
+ * kind's word from whoever knows them and this package spells no plugin's word
+ * at all ({@link ./agents.ts}'s header argues the whole of it).
+ *
+ * `sessionValue` is public for the one gesture that WRITES the property rather
+ * than reading rows off it — the `•••` menu's *start an agent session* — so the
+ * colon rule has one spelling for the writer and the reader both. `NodeAgent`
+ * is public for the reader that widens it with the one fact a vault cannot know
+ * (`olai-plugin-chat`'s wire).
  */
 export {
-  AGENT_PROP,
-  agentsOf,
+  agentsIn,
   memoryOf,
   NO_AGENTS,
   NodeAgent,

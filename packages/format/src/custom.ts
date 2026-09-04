@@ -23,21 +23,30 @@
  * Here the two namespaces are two places, and which is which is a fact about
  * where the key sits rather than a rule somebody has to remember.
  *
- * NOTHING IN OLAI READS A KEY IN HERE, WITH ONE NAMED EXCEPTION. The system
- * fields are read by the journal, the checkbox, the blocking graph; these are
- * read by the person who wrote them, by `prop:` in a query, and by the drawer
- * that draws them. That is the difference, and it is very nearly the only one.
+ * NOTHING IN OLAI READS A KEY IN HERE BY NAME, AND THE ONE EXCEPTION IS GONE.
+ * The system fields are read by the journal, the checkbox, the blocking graph;
+ * these are read by the person who wrote them, by `prop:` in a query, and by
+ * the drawer that draws them. That is the difference, and it is now the only
+ * one.
  *
- * The exception is `agent-session` ({@link ./agents.ts}, ruled with the human
- * on 2026-09-01 and amended on 2026-09-02): a node carrying it IS a node agent,
- * and the roster in olai's sidebar is that query. ONE key carries both halves —
- * which engine, and which conversation — because the amendment put every piece
- * of olai's configuration in the vault, and the session pointer was the last
- * one outside it. It is written down HERE as well as there, and in
- * docs/format.md's Properties, because an exception nobody can find from the
- * rule is how a rule quietly stops being one — and because the next reading
- * that wants a key of its own has to see that there is a ruling to get, rather
- * than a precedent to follow.
+ * IT HAD AN EXCEPTION AND THE EXCEPTION WAS RETIRED, which is worth recording
+ * rather than deleting: `agent-session` was ruled in on 2026-09-01 and amended
+ * on 2026-09-02 — a node carrying that key IS a node agent, and the roster in
+ * olai's sidebar is that query — and it was written down in three places
+ * precisely because an exception nobody can find from the rule is how a rule
+ * quietly stops being one.
+ *
+ * The chat panel became a plugin, and the exception dissolved into the
+ * machinery that already existed for it: a node agent's binding is a
+ * CONTRIBUTED KIND ({@link ./typing.ts}, docs/live-properties.md). What reads
+ * it is `textDeclaredAs`, which asks the vault's DECLARATIONS which of a
+ * record's keys means what — so no reading in this package spells a key inside
+ * `custom` at all, and a board is free to keep its bindings in a column of its
+ * own name. {@link ./agents.ts}'s header argues the whole of that move.
+ *
+ * The standing lesson survives it: the next reading that wants a key of its own
+ * has a kind to contribute and a plugin to contribute it from, rather than a
+ * ruling to get or a precedent to follow.
  */
 
 import { Schema } from "effect"

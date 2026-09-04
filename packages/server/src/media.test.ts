@@ -253,7 +253,7 @@ test("a request whose host is not a host gets a policy that fetches nothing", as
 // story, told the same way.
 //
 // Root can read a 0000 file, so the assertion is skipped there rather than
-// inverted (`@olai/chat`'s `memory.test.ts` makes the same call).
+// inverted (`olai-plugin-chat`'s `memory.test.ts` makes the same call).
 test("a page that cannot be read says so, and IS in the log", async () => {
   if (typeof process.getuid === "function" && process.getuid() === 0) return
   const root = vault()

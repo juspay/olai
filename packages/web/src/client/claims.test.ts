@@ -18,6 +18,19 @@
  * Comments are stripped before matching, because these are claims about code:
  * prose is allowed to DISCUSS `connectSurface` or quote "live" while
  * explaining why nothing else may spell it.
+ *
+ * A SWEEP SEES ONE DIRECTORY, which is the limit worth stating at the top now
+ * that a face this app draws can live in another package. When the tab's chat
+ * and agents became `olai-plugin-chat`'s browser half, two claims whose every
+ * name was a `chat/` file moved out whole and three more lost a row apiece —
+ * and losing a row is the dangerous one, because the equality goes green while
+ * the rule stops being asked of the files it was written against. So each of
+ * those three says at its own list which name went with the panel, and
+ * `packages/plugins/chat/src/browser/claims.test.ts` is the sibling sweep that
+ * asks them again over that tree. A rule about something shared — this client's
+ * readout, this client's bundle, this client's dismissal stack — has to be
+ * swept on both sides of a package wall or it is only swept where nothing was
+ * going to break it.
  */
 
 import { expect, test } from "bun:test"
@@ -109,18 +122,29 @@ test("createNames is called only beside the reading", () => {
 // sixth state lands everywhere status.ts is not. The test files are the
 // legitimate spellers: their fixtures must utter the states to hold the tables
 // to them — `status.test.ts` over the look table, `reaching.test.ts` over
-// WHICH states cannot carry a question, `named.test.ts` over whether those
-// same states may send `app.get`, and `chat/declared.browsertest.ts`
-// because a module that asks nothing into a dead socket has to be handed a
-// live one to be asked at all. None of them branches on a state in the
+// WHICH states cannot carry a question, and `named.test.ts` over whether those
+// same states may send `app.get`. None of them branches on a state in the
 // app; they assert about, or stand in for, the tables that do.
+//
+// A FOURTH IS `declared.browsertest.ts`, which hands its subject a live socket
+// because a module that asks nothing into a dead one cannot be asked at all. It
+// sits HERE and not with the panel, and the pair is worth reading together: the
+// batch door it drives is `./declared.ts`, which the panel's transcript reads
+// and the outline page reads too — one question about what the SET declares,
+// asked once per message and remembered — so it stayed when the panel left, and
+// its fixture stayed beside it.
+//
+// THE CLAIM DID NOT SHRINK TO THIS DIRECTORY, which would be a monopoly held
+// only over whoever shares a folder with the definition. The panel is
+// downstream of this readout like every other face, and the same sweep runs over
+// its tree in `packages/plugins/chat/src/browser/claims.test.ts`.
 test("nothing outside connection/status.ts reads the readout's raw states", () => {
   const states = /["'`](connecting|live|degraded|reconnecting|retired)["'`]/
   expect(filesSpelling(states)).toEqual([
-    path.join("chat", "declared.browsertest.ts"),
     path.join("connection", "reaching.test.ts"),
     path.join("connection", "status.test.ts"),
     path.join("connection", "status.ts"),
+    "declared.browsertest.ts",
     "named.test.ts",
   ])
 })
@@ -304,68 +328,24 @@ test("a row's handle is marked in the gesture that owns it and the cell that wea
   ])
 })
 
-// What a tool call's status LOOKS like is the frame's; what it MEANS is
-// `@olai/surface`'s (`isRunningStatus`), because the SERVER asks it too.
-// `?? "pending"` used to be written twice in this client for one convention
-// the writer already applied; the union made the field required on a tool row
-// and the default left. What remains here is the LOOK, and the fixtures that
-// mint a tool row — they must name a status now, which is the type doing its
-// job rather than a third opinion about the wire. A production file other than
-// the frame uttering a status is a face deciding for itself what ACP meant.
+// TWO CLAIMS STOOD HERE and are `olai-plugin-chat`'s now, which is worth the
+// paragraph rather than a silent deletion: what a tool call's status may be
+// spelled as (the frame owns the LOOK, `@olai/surface` owns the MEANING, and
+// the fixtures that mint a tool row must name one), and the two callers allowed
+// to put the open agent preview away (a lifetime rather than a rule, pinned as
+// the CALL because the failure it guards against hides until two transcripts
+// mint the same key). Every name on both lists was a `chat/` file, so when the
+// panel left this client neither claim had a subject on this side — the sweeps
+// would have held empty lists, true and about nothing, while the twelve faces
+// and fixtures they were written against went unswept. Both moved with their
+// arguments intact to `packages/plugins/chat/src/browser/claims.test.ts`, which
+// is the same sweep rooted at the directory those files are in now.
 //
-// ONE ENTRY USED TO BE A DIFFERENT VOCABULARY sharing a word, and its
-// departure is worth a line rather than a silent deletion. odu names a CI node
-// that has not begun `pending` too, so the CI chip's own bench spelled it as
-// the fixture of the thing under test, and it was listed here because what this
-// sweep claims is about PRODUCTION faces and ACP's closed set — a bench naming
-// its own subject's vocabulary is what a bench does. That bench is
-// `olai-plugin-odu`'s now and this sweep reads only this client's tree, so the
-// row is gone with the file.
-//
-// The judgements it recorded did NOT leave with it, and both were about
-// PRODUCTION faces: the CI words say "the run is up" where the connection
-// readout owns the one-word spelling, and the CI chip's attribute is
-// `data-state` where `SaidLine.tsx` owns `data-tone`. Those are held where
-// they are now spelled — in that package, against that package's faces — which
-// is the same split the testids took and for the same reason.
-test("a tool call's status is spelled where it is meant and where it is drawn", () => {
-  const statuses = /["'`](pending|in_progress)["'`]/
-  expect(filesSpelling(statuses)).toEqual([
-    path.join("chat", "ToolFrame.tsx"),
-    path.join("chat", "background.test.ts"),
-    path.join("chat", "door.test.ts"),
-    path.join("chat", "elapsed.test.ts"),
-    path.join("chat", "lanes.test.ts"),
-    path.join("chat", "order.test.ts"),
-    path.join("chat", "rail.test.ts"),
-    path.join("chat", "rows.testlib.ts"),
-    path.join("chat", "spawn.test.ts"),
-  ])
-})
-
-// previewing.ts's claim — that the open shelf is put away when the conversation
-// changes. It is a LIFETIME rather than a rule, so what pins it is the CALL: the
-// module documented the clearing and nothing did it, and the reason that
-// survived a read is that the failure hides — a shelf whose key names a row this
-// conversation does not have simply draws nothing. What it cannot hide is a
-// COLLISION, the day a server restarts without a page reload and a fresh
-// transcript re-mints keys from the same counter: a shelf nobody pressed, open
-// on somebody else's third tool call.
-//
-// TWO CALLERS, and NEITHER of them is a reader putting the shelf away: the
-// shelf's own × was retired (the human, 2026-08-28) and closing is the door's
-// job now, so what is left is the question banner — which shuts this to reveal
-// the form it points at — and the cell that is the only thing which knows a
-// conversation changed. The count is the same and the list is the same; what
-// changed is that a control which meant "I am done with this AGENT" is gone
-// from it, which is the thing this test would otherwise let back in.
-test("the open preview is put away for a reason of the panel's, never as a dismissal", () => {
-  expect(filesSpelling(/closePreview\s*\(\s*\)/)).toEqual([
-    path.join("chat", "Preview.tsx"),
-    path.join("chat", "previewing.test.ts"),
-    path.join("chat", "state.ts"),
-  ])
-})
+// The three claims that did NOT move are the ones whose subject is core's and
+// whose obligation is everybody's — the readout's raw states above, the
+// bundler's literal and the dismissal stack below. Each says at its own list
+// that the panel's row went with the panel, and each is swept a second time
+// over there.
 
 // clock.ts's claim — "the one clock in the client", which for a while was a
 // claim about the DAY and silently untrue about the wall clock. The readouts
@@ -497,12 +477,21 @@ test("nothing outside the menu's chunk imports the menu's chunk", () => {
 // a quote (grok's review of this pin found that) — and the bundler cannot cut
 // on it either. A variable and a template are the same refusal: computed is
 // computed. And the SPELLERS are named, so the sweep cannot pass vacuously the
-// day both chunks fold back into the entry: the two fetch doors, two tests
-// baking their own subject in (the browsertest's literal, and
-// `inlinePicker.test.ts`, which has to stub `dismiss.ts` before the subject
-// that imports it is loaded), and `layout/Rail.tsx`'s erased TYPE import — the
-// stripper lifts comments, not types, and TypeScript already forces THAT
-// specifier to be a literal.
+// day both chunks fold back into the entry: the two fetch doors, one test
+// baking its own subject in (`inlinePicker.test.ts`, which has to stub
+// `dismiss.ts` before the subject that imports it is loaded), and
+// `layout/Rail.tsx`'s erased TYPE import — the stripper lifts comments, not
+// types, and TypeScript already forces THAT specifier to be a literal.
+//
+// A SECOND SUCH TEST IS `declared.browsertest.ts`, which mocks the wire module
+// before the subject that imports it is loaded — and the LAW is not this
+// directory's alone. The bundle is this package's build script and
+// a plugin's browser half is INSIDE it, mounted through the registry's
+// generated `import()`, which is a chunk boundary rather than an exemption: a
+// computed specifier over there cuts nothing just as surely, and this sweep
+// reads only this directory. So the same whole-shape grip is swept a second
+// time over the panel's own tree, in
+// `packages/plugins/chat/src/browser/claims.test.ts`.
 test("every dynamic import() the client spells takes a literal the bundler can read", () => {
   // The opener, then the one shape the bundler can read: a complete quoted
   // specifier — escapes allowed, the other quote allowed inside — followed by
@@ -516,7 +505,9 @@ test("every dynamic import() the client spells takes a literal the bundler can r
   ).map((one) => one.file)
   expect(offenders).toEqual([])
   expect(filesSpelling(/\bimport\s*\(/)).toEqual([
-    path.join("chat", "declared.browsertest.ts"),
+    // `mock.module` first, `await import` after — a static import would be
+    // hoisted above the mock, which is that file's own header argument.
+    "declared.browsertest.ts",
     "inlinePicker.test.ts",
     path.join("layout", "Rail.tsx"),
     path.join("markdown", "chunk.ts"),
@@ -541,14 +532,23 @@ test("only dismiss.ts reaches for Kobalte's dismissal primitives", () => {
 // ...and the other side of it: WHO JOINS THE STACK WITHOUT `dismissOn`, which
 // is the list of panels whose gestures are somebody else's. The `•••` menu's
 // are Kobalte's, one level up; the palette and the shortcuts dialog answer
-// Escape on the window and a press on their own scrims; the composer's
-// completion takes keys in the capture phase ahead of everything. Each has a reason written
-// where it joins, and the list is short on purpose — a fifth joiner is either a
-// panel that had to hand-roll its dismissal (worth arguing about) or one that
-// wanted the stack and skipped the dismissal, which is a panel nothing shuts.
+// Escape on the window and a press on their own scrims. Each has a reason
+// written where it joins, and the list is short on purpose — a fourth joiner
+// here is either a panel that had to hand-roll its dismissal (worth arguing
+// about) or one that wanted the stack and skipped the dismissal, which is a
+// panel nothing shuts.
+//
+// A FIFTH USED TO BE ON IT and is a package away: the chat composer's
+// completion list, which takes keys in the capture phase ahead of everything
+// and holds a ticket so that "first" means first among the layers on screen.
+// The panel's own file went with the panel, and the RULE did not: `topmost.ts`
+// is still this client's, the stack is still the tab's one stack, and a face in
+// a plugin that took a ticket and shut by nothing would be exactly the bug
+// `features/dismiss_stack.feature` exists about — with the difference that this
+// sweep can no longer see it. So the joiners on the far side are swept over
+// there, in `packages/plugins/chat/src/browser/claims.test.ts`.
 test("the stack is joined directly only where the gestures are not dismissOn's", () => {
   expect(filesSpelling(/topmostWhileOpen/)).toEqual([
-    path.join("chat", "CompletionMenu.tsx"),
     "dismiss.ts",
     path.join("menu", "Dropdown.tsx"),
     path.join("palette", "Palette.tsx"),

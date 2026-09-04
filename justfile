@@ -150,10 +150,10 @@ test: install
       ./packages/web/src/client/licences.browsertest.ts \
       ./packages/web/src/client/Tree.browsertest.ts \
       ./packages/web/src/client/directory.browsertest.ts \
-      ./packages/web/src/client/chat/last.browsertest.ts \
-      ./packages/web/src/client/chat/attention/asked.browsertest.ts \
-      ./packages/web/src/client/chat/attention/elsewhere.browsertest.ts \
-      ./packages/web/src/client/chat/declared.browsertest.ts \
+      ./packages/plugins/chat/src/browser/chat/last.browsertest.ts \
+      ./packages/plugins/chat/src/browser/chat/attention/asked.browsertest.ts \
+      ./packages/plugins/chat/src/browser/chat/attention/elsewhere.browsertest.ts \
+      ./packages/web/src/client/declared.browsertest.ts \
       ./packages/plugins/kolu/src/appliance/props/held.browsertest.ts
 
 # The same suite, TO A LOG — for an agent, or for anyone who wants to read the

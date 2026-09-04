@@ -53,7 +53,7 @@
  * which is also what stops it being a second call somebody can forget.
  */
 
-import { type BrowserHalf, inBundleOrder } from "@olai/bundle"
+import type { BrowserHalf } from "@olai/bundle"
 import {
   type App,
   type Hung,
@@ -267,7 +267,26 @@ export const hung = <S extends PluginSlot | ListSlot>(
   slot: S,
 ): ReadonlyArray<Hung<SlotFaces[S]>> => {
   moved()
-  return inBundleOrder(app.hung(slot), (one) => one.plugin)
+  return [...app.hung(slot)].sort((one, other) => rank(one.plugin) - rank(other.plugin))
+}
+
+/**
+ * WHERE A PLUGIN SITS IN THE BUILD'S LIST OF ROWS — told rather than imported,
+ * for {@link ../wire.ts}'s `useBrowserRows` reason exactly.
+ *
+ * The comparator was `@olai/bundle`'s `inBundleOrder`, read beside the list it
+ * sorts by. It is a RANK now, handed in by the app's entry: `@olai/bundle` names
+ * every plugin, and a package a plugin imports may not import it back.
+ *
+ * ONE RANK FOR EVERYBODY until the entry has said, which is stable — so a bench
+ * that mounts two halves and never sets one gets arrival order back rather than
+ * a shuffle, and that is the honest answer for a process with no bundle behind
+ * it.
+ */
+let rank: (plugin: string) => number = () => 0
+
+export const useBundleOrder = (order: (plugin: string) => number): void => {
+  rank = order
 }
 
 /** ...and what dresses each composed KIND WORD, the same way. */

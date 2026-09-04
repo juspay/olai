@@ -9,7 +9,7 @@
  * and consumers above go on importing them from the spec they already import.
  * THIS entry is the other half and only this half — {@link ./asks.ts},
  * {@link ./diffs.ts} and {@link ./usage.ts}, the projections between the
- * protocol's own payloads and that vocabulary, which only `@olai/chat` — the
+ * protocol's own payloads and that vocabulary, which only `olai-plugin-chat` — the
  * package that runs an ACP subprocess — consumes. The two entries are disjoint on purpose: everyone
  * who wants the vocabulary has it through the surface, so a wire shape
  * offered here as well would be a third path to the same word.

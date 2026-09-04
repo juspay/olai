@@ -19,9 +19,32 @@ import { boolCodec, createPreference, type SetOptions } from "../preference.ts"
 
 export const SIDEBAR_OPEN_KEY = "olai.sidebar.open"
 export const SIDEBAR_WIDTH_KEY = "olai.sidebar.width"
-export const CHAT_OPEN_KEY = "olai.chat.open"
-export const CHAT_WIDTH_KEY = "olai.chat.width"
-export const CHAT_SNAP_KEY = "olai.chat.snap"
+/**
+ * THE RIGHT PANEL'S THREE, and the names and the STORED WORDS deliberately
+ * disagree.
+ *
+ * The identifiers say `PANEL` because that is what this file knows: the seat on
+ * the right of the page, its width, whether it is open and where it snaps are
+ * facts about THIS APP'S LAYOUT, and they survive whichever plugin is in the
+ * seat. What used to be in it was the chat, and this file was named after it —
+ * which is a general package spelling a plugin, and `@olai/bundle`'s
+ * `fence.test.ts` is what refuses that.
+ *
+ * The STORED words stay `olai.chat.*`, and that is not an oversight left in the
+ * middle of a rename. A preference key is a promise to a browser that already
+ * has one: renaming it would silently forget the panel width every reader has
+ * dragged and every pick of open-or-shut, on the release that shipped the
+ * rename, with nothing anywhere saying so. There is no migration worth writing
+ * for three booleans, and there is no version of "read the old key once and
+ * write the new one" that does not leave both keys in every browser for ever.
+ *
+ * So the words are kept and the fence is told: `fence.test.ts` records this file
+ * as a place the word `chat` appears and is not a plugin's name, beside the two
+ * collisions the engines already produce.
+ */
+export const PANEL_OPEN_KEY = "olai.chat.open"
+export const PANEL_WIDTH_KEY = "olai.chat.width"
+export const PANEL_SNAP_KEY = "olai.chat.snap"
 
 // ── bounds & defaults ─────────────────────────────────────────────────────
 
@@ -33,8 +56,8 @@ export const SIDEBAR_MIN_PX = 180
 export const SIDEBAR_MAX_PX = 480
 
 export const CHAT_DEFAULT_PX = 416
-export const CHAT_MIN_PX = 280
-export const CHAT_MAX_PX = 720
+export const PANEL_MIN_PX = 280
+export const PANEL_MAX_PX = 720
 
 /** Minimum main-pane width so the outline stays the page. */
 export const MIN_MAIN_PX = 280
@@ -74,24 +97,24 @@ export const fitWidths = (
   sideRaw: number,
   chatRaw: number,
   sideOpen: boolean,
-  chatOpen: boolean,
+  panelOpen: boolean,
   viewport: number,
 ): { readonly side: number; readonly chat: number } => {
   const sideTaken = sideOpen ? 0 : RAIL_WIDTH_PX
   // When the full sidebar is open it takes `side`; when closed, the rail.
   let side = clamp(sideRaw, SIDEBAR_MIN_PX, SIDEBAR_MAX_PX)
-  let chat = clamp(chatRaw, CHAT_MIN_PX, CHAT_MAX_PX)
+  let chat = clamp(chatRaw, PANEL_MIN_PX, PANEL_MAX_PX)
 
-  if (sideOpen && chatOpen) {
+  if (sideOpen && panelOpen) {
     const budget = Math.max(0, viewport - MIN_MAIN_PX)
     if (side + chat > budget) {
       // Shrink chat first (the overlay), then the sidebar. Keep both at their
       // design mins when the viewport allows; only go below on a phone-width
       // desktop scale that cannot hold them.
-      if (SIDEBAR_MIN_PX + CHAT_MIN_PX <= budget) {
-        chat = clamp(chat, CHAT_MIN_PX, budget - SIDEBAR_MIN_PX)
+      if (SIDEBAR_MIN_PX + PANEL_MIN_PX <= budget) {
+        chat = clamp(chat, PANEL_MIN_PX, budget - SIDEBAR_MIN_PX)
         side = clamp(side, SIDEBAR_MIN_PX, budget - chat)
-        chat = clamp(chat, CHAT_MIN_PX, budget - side)
+        chat = clamp(chat, PANEL_MIN_PX, budget - side)
       } else {
         chat = clamp(chat, 0, budget)
         side = clamp(side, 0, budget - chat)
@@ -108,11 +131,11 @@ export const fitWidths = (
     }
   }
 
-  if (chatOpen) {
+  if (panelOpen) {
     const budget = Math.max(0, viewport - MIN_MAIN_PX - sideTaken)
     return {
       side,
-      chat: clamp(chat, Math.min(CHAT_MIN_PX, budget), Math.min(CHAT_MAX_PX, budget)),
+      chat: clamp(chat, Math.min(PANEL_MIN_PX, budget), Math.min(PANEL_MAX_PX, budget)),
     }
   }
 
@@ -138,14 +161,14 @@ const sidebarWidthPref = createPreference(SIDEBAR_WIDTH_KEY, {
   print: String,
 })
 
-const chatOpenPref = createPreference(CHAT_OPEN_KEY, boolCodec(false))
+const panelOpenPref = createPreference(PANEL_OPEN_KEY, boolCodec(false))
 
-const chatWidthPref = createPreference(CHAT_WIDTH_KEY, {
-  parse: (raw) => parsePx(raw, CHAT_DEFAULT_PX, CHAT_MIN_PX, CHAT_MAX_PX),
+const panelWidthPref = createPreference(PANEL_WIDTH_KEY, {
+  parse: (raw) => parsePx(raw, CHAT_DEFAULT_PX, PANEL_MIN_PX, PANEL_MAX_PX),
   print: String,
 })
 
-const chatSnapPref = createPreference(CHAT_SNAP_KEY, {
+const panelSnapPref = createPreference(PANEL_SNAP_KEY, {
   parse: parseSnap,
   print: (snap) => snap,
 })
@@ -164,9 +187,9 @@ export const toggleSidebar = (): void => setSidebarOpen(!sidebarOpen())
 export const sidebarWidth: Accessor<number> = () =>
   fitWidths(
     sidebarWidthPref.value(),
-    chatWidthPref.value(),
+    panelWidthPref.value(),
     sidebarOpen(),
-    chatOpen(),
+    panelOpen(),
     viewportWidth(),
   ).side
 
@@ -181,38 +204,38 @@ export const setSidebarWidth = (px: number, opts?: SetOptions): void =>
 // ── chat open (open dock/sheet vs minimized pill/strip) ───────────────────
 
 /** Is the agent panel open right now? Minimized is the other of the two states. */
-export const chatOpen: Accessor<boolean> = chatOpenPref.value
+export const panelOpen: Accessor<boolean> = panelOpenPref.value
 
-export const setChatOpen = (open: boolean): void => chatOpenPref.set(open)
+export const setPanelOpen = (open: boolean): void => panelOpenPref.set(open)
 
-export const toggleChat = (): void => setChatOpen(!chatOpen())
+export const togglePanel = (): void => setPanelOpen(!panelOpen())
 
 // ── chat width ────────────────────────────────────────────────────────────
 
 /** Live width, clamped to the current viewport. */
-export const chatWidth: Accessor<number> = () =>
+export const panelWidth: Accessor<number> = () =>
   fitWidths(
     sidebarWidthPref.value(),
-    chatWidthPref.value(),
+    panelWidthPref.value(),
     sidebarOpen(),
-    chatOpen(),
+    panelOpen(),
     viewportWidth(),
   ).chat
 
-export const setChatWidth = (px: number, opts?: SetOptions): void =>
-  chatWidthPref.set(clamp(Math.round(px), CHAT_MIN_PX, CHAT_MAX_PX), opts)
+export const setPanelWidth = (px: number, opts?: SetOptions): void =>
+  panelWidthPref.set(clamp(Math.round(px), PANEL_MIN_PX, PANEL_MAX_PX), opts)
 
 /** Reset both panels to their defaults (palette command for keyboard users). */
 export const resetPanelWidths = (): void => {
   setSidebarWidth(SIDEBAR_DEFAULT_PX)
-  setChatWidth(CHAT_DEFAULT_PX)
+  setPanelWidth(CHAT_DEFAULT_PX)
 }
 
 // ── mobile chat snap ──────────────────────────────────────────────────────
 
-export const chatSnap: Accessor<ChatSnap> = chatSnapPref.value
+export const panelSnap: Accessor<ChatSnap> = panelSnapPref.value
 
-export const setChatSnap = (snap: ChatSnap): void => chatSnapPref.set(snap)
+export const setPanelSnap = (snap: ChatSnap): void => panelSnapPref.set(snap)
 
 // ── cross-tab follow ──────────────────────────────────────────────────────
 
@@ -226,9 +249,9 @@ export const setChatSnap = (snap: ChatSnap): void => chatSnapPref.set(snap)
 export const followLayout = (): void => {
   sidebarOpenPref.follow()
   sidebarWidthPref.follow()
-  chatOpenPref.follow()
-  chatWidthPref.follow()
-  chatSnapPref.follow()
+  panelOpenPref.follow()
+  panelWidthPref.follow()
+  panelSnapPref.follow()
 
   // Re-fit on resize: accessors re-run when signals change, but a bare window
   // resize does not touch a signal, so each width is nudged with its own value
@@ -239,7 +262,7 @@ export const followLayout = (): void => {
   // than fixes.
   const onResize = () => {
     sidebarWidthPref.set(sidebarWidthPref.value(), { persist: false })
-    chatWidthPref.set(chatWidthPref.value(), { persist: false })
+    panelWidthPref.set(panelWidthPref.value(), { persist: false })
   }
   window.addEventListener("resize", onResize)
 }
