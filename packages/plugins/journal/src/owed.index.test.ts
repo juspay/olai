@@ -43,7 +43,7 @@ import * as path from "node:path"
 import { NodeServices } from "@effect/platform-node"
 import { NO_KINDS, type Owed, owedOf, type WriteRequest } from "@olai/format"
 import { walkedAgenda, walkedDays } from "@olai/format/testlib"
-import { codecFor, fixedPolicy, make, type Store } from "@olai/ops"
+import { codecFor, make, type Store } from "@olai/ops"
 import { steady } from "@olai/ops/testlib"
 import * as StoreModule from "@olai/store"
 import { expect, test } from "bun:test"
@@ -223,7 +223,6 @@ test("every write leaves the counted door answering what the corpus walk does", 
     const ops = make({
       store,
       root,
-      policy: fixedPolicy({ commit: "off", push: null }),
       context: steady(),
     })
 

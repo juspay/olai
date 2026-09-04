@@ -54,21 +54,21 @@ import { kindWordOf, rowReport } from "@olai/plugin-api"
 // `mountRows` is a GRAPH: the loader carries `node:url`, `node:fs` and a YAML
 // parser, so it cannot be re-exported through a package a TAB imports.
 //
-// `settled` and `namedBy` are CAPABILITIES, and they are withheld from the
-// plugin door on the same grounds `openHost` and `provide` are. It waits on a list of ROWS — a plugin
-// holding it could block its own `apply` until its siblings stopped moving,
-// which is a fiber waiting on the runtime that is waiting on it. A plugin's
-// answer to "is the thing I need here yet" is `needs`, and the runtime's answer
-// is `PENDING`; this is the composition root's verb for the one question a
-// plugin cannot be asking. Everything else this file spends of the bridge comes
-// through the door above.
-// ...and `namedBy` is the THIRD, arriving with the loader surface and withheld
-// on the same grounds as `settled`: it answers which service keys each row's
-// fiber is standing on, which is the bundle read from the inside. A plugin
-// holding it could enumerate what its siblings need, which is the one question
-// the keyed services are shaped to keep it from asking.
-import { namedBy, settled } from "@olai/effect-cordis"
-import { flipRow, mountRows } from "@olai/effect-cordis/loader"
+// `settled`, `namedBy` and `offered` are CAPABILITIES, and they are withheld
+// from the plugin door on the same grounds `openHost` and `provide` are.
+// `settled` waits on a list of ROWS — a plugin holding it could block its own
+// `apply` until its siblings stopped moving, which is a fiber waiting on the
+// runtime that is waiting on it. A plugin's answer to "is the thing I need
+// here yet" is `needs`, and the runtime's answer is `PENDING`; this is the
+// composition root's verb for the one question a plugin cannot be asking.
+// `namedBy` answers which service keys each row's fiber is standing on, which
+// is the bundle read from the inside. `offered` is a root-only read of any
+// offered service; a plugin holding a host could spend it, and none can.
+// Everything else this file spends of the bridge comes through the door above.
+import { namedBy, offered, settled } from "@olai/effect-cordis"
+
+export { offered }
+import { flipRow, mountRows, rowConfigs } from "@olai/effect-cordis/loader"
 import { Effect } from "effect"
 
 import { BUNDLE_NAMES, ROWS } from "./rows.ts"
@@ -205,6 +205,18 @@ export const rowsNaming = (host: Host): ReadonlyMap<string, ReadonlyArray<string
   namedBy(host, BUNDLE_NAMES)
 
 /**
+ * EACH ROW'S CONFIG, off the live entries — what a roster draws under the
+ * row, as data, with core knowing none of the plugin's words.
+ *
+ * A LIVE READ: `--commit` / `--push` are a patch onto the git row's config
+ * the way `--plugins` is a patch onto `disabled`, so what the panel shows
+ * is what the loader is holding.
+ */
+export const configsOf = (
+  host: Host,
+): ReadonlyMap<string, Readonly<Record<string, unknown>>> => rowConfigs(host)
+
+/**
  * TURN ONE ROW ON OR OFF ON THE RUNNING BUNDLE — the loader surface's verb, as a
  * composition root spends it, and this package's third door onto the bridge.
  *
@@ -287,12 +299,13 @@ export const setRow = (
 export const mountBundle = (
   host: Host,
   names: ReadonlyArray<string> | null,
+  configs: ReadonlyArray<{ readonly id: string; readonly config: unknown }> = [],
 ): Effect.Effect<void> =>
   Effect.flatMap(
     mountRows(host, {
       baseUrl: BASE_URL,
       path: BUNDLE,
-      patches: pluginsPatch(names),
+      patches: [...pluginsPatch(names), ...configs],
       resolve: importByName,
     }),
     // EVERY ROW THIS BUILD HAS, and not only the ones the flag left on: a row

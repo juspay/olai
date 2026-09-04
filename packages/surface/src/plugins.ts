@@ -245,6 +245,15 @@ export const BuiltPlugin = Schema.Struct({
      */
     kinds: Schema.optionalKey(Schema.Array(Schema.String)),
   })),
+  /**
+   * THE ROW'S CONFIG, as data — what `olai.yml` and the CLI patch left on it.
+   *
+   * Core draws the values with no knowledge of any plugin's words. Optional
+   * for the same two reasons `state` is: a serve too old to send it, and a
+   * row that has no config at all. Absent rather than empty, because an
+   * empty record would be a row claiming to have been configured as nothing.
+   */
+  config: Schema.optionalKey(Schema.Record(Schema.String, Schema.Unknown)),
 })
 export type BuiltPlugin = typeof BuiltPlugin.Type
 

@@ -7,9 +7,8 @@ let
 
   # `--commit=X` / `--push=X` only where a value was actually chosen. `null` is
   # the default on both, and it is not the same as passing the mode olai would
-  # have defaulted to: giving the flag names it under the row, and saying
-  # nothing applies the built-in default. Both rows are always read-only — the
-  # instance's policy, the same in every browser. A module that helpfully
+  # have defaulted to: giving the flag is a patch onto the git row's config,
+  # and saying nothing applies the built-in default. A module that helpfully
   # passed `--commit=manual` because that is the default would claim a flag
   # nobody typed.
   gitArgs = lib.optionals (cfg.commit != null) [ "--commit" cfg.commit ]
@@ -79,9 +78,9 @@ in
         default) passes no flag: the built-in default applies (`manual` — a
         write waits for the Commit button or the agent's commit tool).
 
-        Setting it names the flag under the row. The server tells every browser
-        which flag it was started with. Never hidden and never overridable from
-        a browser. There is no runtime door.
+        Setting it is a patch onto the git row's config, drawn under that row
+        on the plugins panel. Never hidden and never overridable from a
+        browser. There is no runtime door.
 
         manual — a write lands on disk and waits for the Commit button or the
         agent's commit tool. auto — everything waiting records itself once
@@ -98,8 +97,8 @@ in
       description = ''
         Whether a settled commit is pushed to the branch's upstream, as this
         instance's policy — null (the default) applies the built-in default
-        (`off`), and a value names the flag under the row, exactly as `commit`
-        above does. The row is always read-only.
+        (`off`), and a value is a patch onto the git row's config, exactly as
+        `commit` above is. Drawn under that row on the plugins panel.
 
         auto follows EVERY commit olai makes in this directory: the Commit
         button's, an agent's commit tool's, and the quiet window's own. So

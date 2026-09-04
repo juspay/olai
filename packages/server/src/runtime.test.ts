@@ -20,7 +20,6 @@
 
 import {
   codecFor,
-  fixedPolicy,
   make as makeOps,
   type Ops,
   type Store as OutlineStore,
@@ -52,14 +51,14 @@ import { NO_KINDS } from "@olai/format"
 import * as Store from "@olai/store"
 import { NodeServices } from "@effect/platform-node"
 import { expect, mock, test } from "bun:test"
-import { Effect, Fiber, Queue, Schema, Scope, Stream, SubscriptionRef } from "effect"
+import { Effect, Fiber, Queue, Schema, Scope, Stream } from "effect"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
 import { watchFault } from "./fault.ts"
 import { hostname } from "./hostname.ts"
-import { type Bound, bind, gitWiring, type PluginRuntime, rosterOf, writerAt } from "./runtime.ts"
+import { type Bound, bind, type PluginRuntime, rosterOf, writerAt } from "./runtime.ts"
 
 /** The codec this suite validates through — the vocabulary of a build that
  *  composed no plugin, which is what these fixtures declare nothing about
@@ -140,7 +139,7 @@ const withRuntime = <A>(
         return opened.body(path)
       },
     }
-    const ops = makeOps({ store, root, policy: fixedPolicy({ commit: "off", push: null }) })
+    const ops = makeOps({ store, root })
     /** The re-compose holder `bind` fills in — one per boot, as `./serve.ts`
      *  makes one per serve. */
     const onChange = { run: (): void => {} }
@@ -187,14 +186,10 @@ const withRuntime = <A>(
         // flip is benched where the loader is (`@olai/bundle`'s `flip.test.ts`)
         // and end to end, because what it is FOR is a real bundle settling.
         names: () => new Map(),
+        configs: () => new Map(),
         set: () => Effect.succeed(false),
         switched: () => new Set(),
       },
-      git: gitWiring(
-        ops,
-        fixedPolicy({ commit: "off", push: null }),
-        yield* SubscriptionRef.make(0),
-      ),
     })
     const runtime = yield* watchFault(wired.bound)
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
@@ -203,11 +198,11 @@ const withRuntime = <A>(
   }).pipe(Effect.scoped, Effect.provide(NodeServices.layer), Effect.runPromise)
 }
 
-/** Every member whose answer records WHO asked, as the wire spells them. A
- *  LITERAL rather than a derivation, deliberately: the thing under test is that
- *  a list somebody maintains by hand still says what they think it says, and a
- *  second derivation of it would agree with the first by construction. */
-const RECORDS_THE_WRITER = ["surface/git/commit", "surface/ops/run"]
+/** Every CORE member whose answer records WHO asked, as the wire spells them.
+ *  Git's sibling commit also records the writer, but only when the git row
+ *  minted the tag — this harness mounts no plugins, so the rebound set is
+ *  ops.run alone. A LITERAL rather than a derivation, deliberately. */
+const RECORDS_THE_WRITER = ["surface/ops/run"]
 
 const OUTLINE = `{"id":"a","ord":"a0","title":"a"}\n`
 /** A row whose parent nothing declares — a MEANING error rather than a syntax
@@ -700,6 +695,7 @@ const offering = (
   // the state every row of a real bundle but the chat row is in. The `carrying`
   // sentence has its own case below, where both halves of the join are supplied.
   names: () => new Map(),
+  configs: () => new Map(),
   set: () => Effect.succeed(false),
   // NOBODY PRESSED ANYTHING in these cases, which is the state every serve is
   // in until somebody does. The word a press produces has its own case below.
@@ -774,6 +770,16 @@ test("a plugin the flag left on but nothing mounted draws as off", () => {
  * two indistinguishable in the browser, where the only thing that tells them
  * apart is the line under the row.
  */
+test("a row's config travels on the roster as data, and a row without one sends none", () => {
+  const withConfig = rosterOf({
+    ...offering(),
+    configs: () => new Map([[PLUGIN_NAMES[0]!, { commit: "auto" }]]),
+  })
+  expect(withConfig.built[0]?.config).toEqual({ commit: "auto" })
+  expect(withConfig.built[1]?.config).toBeUndefined()
+  expect(rosterOf(offering()).built.every((row) => row.config === undefined)).toBe(true)
+})
+
 test("an empty flag crosses as an empty list, not as nobody having said", () => {
   const none = rosterOf(offering([]))
   expect(none.pinned).toEqual([])

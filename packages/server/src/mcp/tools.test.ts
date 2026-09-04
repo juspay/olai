@@ -39,7 +39,6 @@ import {
 import { readingOf, recordsOf } from "@olai/format/testlib"
 import {
   codecFor,
-  fixedPolicy,
   make as makeOps,
   type Store as OutlineStore,
   TOOLS,
@@ -48,14 +47,14 @@ import { STAMP, steady } from "@olai/ops/testlib"
 import * as Store from "@olai/store"
 import { NodeServices } from "@effect/platform-node"
 import { expect, test } from "bun:test"
-import { Effect, Result, SubscriptionRef } from "effect"
+import { Effect, Result } from "effect"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
 import { watchFault } from "../fault.ts"
 import { hostname } from "../hostname.ts"
-import { bind, gitWiring, writerAt } from "../runtime.ts"
+import { bind, writerAt } from "../runtime.ts"
 import { clientOver, serveFace } from "./face.ts"
 import { bespokeFrom } from "./tools.ts"
 
@@ -153,7 +152,6 @@ const withTools = <A>(
     const ops = makeOps({
       store,
       root,
-      policy: fixedPolicy({ commit: "off", push: null }),
       // The ops layer's own fixture context — deterministic ids and one fixed
       // instant — rather than a second spelling of it up here, which is a
       // fixture free to drift from the assertions that package is written
@@ -179,11 +177,6 @@ const withTools = <A>(
       // an empty sibling record composes to no tag, no handler and no expose
       // row, so olai's own group is byte for byte what it always was.
       plugins: null,
-      git: gitWiring(
-        ops,
-        fixedPolicy({ commit: "off", push: null }),
-        yield* SubscriptionRef.make(0),
-      ),
     })
     const runtime = yield* watchFault(wired.bound)
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
@@ -204,6 +197,8 @@ const withTools = <A>(
         // assertion about the stub.
         vintage: Effect.map(store.read("verified"), (aged) => aged.vintage),
         fenced: (client) => client,
+        record: (request) => ops.commit(request, "mcp"),
+        push: ops.push,
       }),
       transport: serverSide,
     })
@@ -396,14 +391,19 @@ test("the git verbs offer an agent what the panel offers a person", async () => 
   })
 })
 
-/** And it is reachable: under `--commit=off` the answer is `Blocked`, which is
- *  an ANSWER — `isError` is for a refused write, and every way pushing can go
- *  wrong is something a caller is entitled to read. */
-test("push answers rather than failing when there is nothing to push to", async () => {
+/** And it is reachable with nobody behind the ledger: this harness mounts no
+ *  git plugin, so the answer is `Failed` in words — `isError` is for a refused
+ *  write, and a serve with no provider is something a caller is entitled to
+ *  read. A mounted ledger with nothing to push answers `Blocked`; that case
+ *  lives with the plugin. */
+test("push answers rather than failing when nobody stands behind the ledger", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client }) => {
     const answered = await call(client, "push", {})
     expect(answered.isError).toBe(false)
-    expect(answered.structured).toMatchObject({ _tag: "Blocked", did: "push" })
+    expect(answered.structured).toMatchObject({
+      _tag: "Failed",
+      said: "nobody is recording writes here, so there is nobody to push",
+    })
   })
 })
 

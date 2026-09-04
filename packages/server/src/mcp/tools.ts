@@ -44,7 +44,15 @@
  *     truth for half an hour; what was missing was not a tool, it was this.
  */
 
-import { isOpFailure, kindOf, type OpFailure, stampOf, type Writer } from "@olai/format"
+import {
+  type CommitRequest,
+  type CommitResult,
+  isOpFailure,
+  kindOf,
+  type OpFailure,
+  type PushResult,
+  stampOf,
+} from "@olai/format"
 import { isStale, type Vintage } from "@olai/store"
 import { type Acting, type Applied, type Asking, type Planning, type Running, type Tool } from "@olai/ops"
 import { type BespokeTool, ToolFailure, type ToolInputSchema } from "@kolu/surface-mcp"
@@ -52,7 +60,7 @@ import { Effect, Result, Schema } from "effect"
 
 import type { Request } from "@olai/ops"
 import { resolvedWrite } from "../resolving.ts"
-import type { OlaiSurfaceClient } from "./face.ts"
+import { type OlaiSurfaceClient } from "./face.ts"
 
 /** The three ops-layer doors a tool call needs, together. `@olai/ops` names
  *  them one per tool arm; nothing but this projection ever wants all three, so
@@ -83,13 +91,10 @@ type Door = Running & Asking & Acting
  * same place — a tool that could name an identity could name the wrong one, and
  * an identity a CALLER could send would not be an attribution at all.
  *
- * **And it takes no writer.** It used to: `chat-agent` for the panel's
- * agent, `mcp` for somebody's own. That is still exactly the distinction the
- * `X-Olai-Writer` trailer records, and it is still decided by a composition
- * root — but by the one that composes the FACE these tools reach through
- * (`../runtime.ts`'s `writerAt`), which is where every other fact about a face
- * is decided. A tool that could name a writer could name the wrong one, and
- * this projection now has no way to name any.
+ * **`commit` / `push` call through the ledger door**, with the face's writer
+ * already bound on {@link Served}. They do not reach the git sibling by
+ * spelling its tags; a serve that did not mount the row refuses in the same
+ * words `ops.commit` / `ops.push` do.
  */
 export const bespokeFrom = (
   tools: ReadonlyArray<Tool>,
@@ -107,7 +112,7 @@ export const bespokeFrom = (
         // it, which is a capture attributed to the wrong person.
         const said = answer(
           tool,
-          doorFor(at.fenced(client as OlaiSurfaceClient)),
+          doorFor(at.fenced(client as OlaiSurfaceClient), at),
           args,
           at.login(),
         )
@@ -161,6 +166,14 @@ export interface Served {
   /** Select the per-request write door before the adapter starts a fresh Effect
    * fiber and request-local context is no longer available. */
   readonly fenced: (client: OlaiSurfaceClient) => OlaiSurfaceClient
+  /**
+   * RECORD A WRITE, with this face's writer already bound — `ops.commit`
+   * through the ledger door. A serve that did not mount the git row refuses
+   * in words.
+   */
+  readonly record: (request: CommitRequest) => Effect.Effect<CommitResult>
+  /** Send the current branch, the same door. */
+  readonly push: Effect.Effect<PushResult>
 }
 
 /**
@@ -293,13 +306,11 @@ const isRecord = (said: unknown): said is Record<string, unknown> =>
  * interfaces and this one answer the same questions, so a tool cannot behave
  * differently for being reached over a socket.
  *
- * `commit`, `push` and `search` are the members BOTH doors call (`git.*`,
- * `search.nodes`); the rest are the agent's own `ops.*`, the two document
- * reads included — a browser draws a `.md` off the `documents` COLLECTION it
- * already subscribes to, which is a different question from the listing an
- * agent asks. Which writer a landing write is recorded as is neither's
- * business — the FACE this client dispatches at decided it (`../runtime.ts`'s
- * `writerAt`).
+ * `commit` and `push` call through the ledger door with the face's writer
+ * already bound on {@link Served}; `search` is `search.nodes` on core; the
+ * rest are the agent's own `ops.*`, the two document reads included — a
+ * browser draws a `.md` off the `documents` COLLECTION it already subscribes
+ * to, which is a different question from the listing an agent asks.
  *
  * ONE PER CLIENT, not one per call. Four of the ten lines are Effect VALUES
  * rather than thunks (`push`, `outlines`, `paths`, `documents` — that is the
@@ -310,32 +321,38 @@ const isRecord = (said: unknown): said is Record<string, unknown> =>
  * name — and an Effect is an immutable description, so reuse across calls is
  * what it is for.
  */
-const doorFor = (client: OlaiSurfaceClient): Door => {
+const doorFor = (client: OlaiSurfaceClient, at: Served): Door => {
   const held = DOORS.get(client)
   if (held !== undefined) return held
-  const door = doorOver(client)
+  const door = doorOver(client, at)
   DOORS.set(client, door)
   return door
 }
 
 const DOORS = new WeakMap<OlaiSurfaceClient, Door>()
 
-const doorOver = (client: OlaiSurfaceClient): Door => ({
-  run: (request) => landed(client.surface.ops.run(request)),
-  // The act arm has NO failure channel and says so by type: every way a commit
-  // or a push can go wrong is a value the caller is entitled to see, carried on
-  // the answer. So the only thing left for these two to fail with is the
-  // transport, and `orDie` is {@link landed}'s rule with nothing to spare.
-  commit: (request) => Effect.orDie(client.surface.git.commit(request)),
-  push: Effect.orDie(client.surface.git.push({})),
-  outlines: landed(client.surface.ops.outlines(undefined)),
-  paths: landed(client.surface.ops.paths(undefined)),
-  node: (request) => landed(client.surface.ops.node(request)),
-  subtree: (request) => landed(client.surface.ops.subtree(request)),
-  search: (request) => landed(client.surface.search.nodes(request)),
-  documents: landed(client.surface.ops.documents(undefined)),
-  document: (request) => landed(client.surface.ops.document(request)),
-})
+const doorOver = (client: OlaiSurfaceClient, at: Served): Door => {
+  return {
+    run: (request) => landed(client.surface.ops.run(request)),
+    // The act arm has NO failure channel and says so by type: every way a commit
+    // or a push can go wrong is a value the caller is entitled to see, carried on
+    // the answer. So the only thing left for these two to fail with is the
+    // transport, and `orDie` is {@link landed}'s rule with nothing to spare.
+    //
+    // Through the ledger door, with this face's writer already bound. A serve
+    // that did not mount the git row refuses in the same words `ops.commit`
+    // / `ops.push` do.
+    commit: (request: CommitRequest) => Effect.orDie(at.record(request)),
+    push: Effect.orDie(at.push),
+    outlines: landed(client.surface.ops.outlines(undefined)),
+    paths: landed(client.surface.ops.paths(undefined)),
+    node: (request) => landed(client.surface.ops.node(request)),
+    subtree: (request) => landed(client.surface.ops.subtree(request)),
+    search: (request) => landed(client.surface.search.nodes(request)),
+    documents: landed(client.surface.ops.documents(undefined)),
+    document: (request) => landed(client.surface.ops.document(request)),
+  }
+}
 
 /**
  * A member call, narrowed back to the failures the ops layer declares.

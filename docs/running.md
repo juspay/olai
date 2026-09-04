@@ -197,7 +197,7 @@ On Linux the unit is `Restart=always` / `RestartSec=1s` / `SuccessExitStatus=130
 
 ## The git policy
 
-Whether what is waiting records itself, and whether a commit is pushed, are facts about the DIRECTORY ([git.md](git.md)) — the instance's, the same in every browser, always read-only. There is no runtime door.
+Whether what is waiting records itself, and whether a commit is pushed, are facts about the DIRECTORY ([git.md](git.md)) — a CLI patch onto the git row's config ([plugins/git.md](plugins/git.md)), the same in every browser, always read-only. There is no runtime door. Turning the **row** off (`--plugins` without `git`) is a different fact: no provider is mounted, so there is no pill and `ops.commit` refuses in words.
 
 The policy comes from exactly two sources: the CLI flags (`--commit` / `--push`, surfaced through the nix home-manager module) and the built-in defaults (`manual` / `off`). Stale files under `$XDG_STATE_HOME/olai/git/` from an older olai are inert.
 
@@ -214,15 +214,15 @@ services.olai = {
 };
 ```
 
-**Giving a flag sets the instance's policy; omitting it uses the built-in default.** Either way the two git rows are read-only, the same in every browser. Given, the server tells every browser which flag it was started with: *Set by the server: `--commit=auto`.* Omitted, the row names the built-in default. Never hidden — a policy a reader cannot see is one they cannot ask anybody about.
+**Giving a flag sets the instance's policy; omitting it uses the built-in default.** Either way the config is the same in every browser. Given, the plugins panel draws the value under the git row. Omitted, the built-in default applies. Never hidden — a policy a reader cannot see is one they cannot ask anybody about.
 
-The two are independent, so setting committing does not silently set pushing. `--commit=manual` typed out loud is not the same as saying nothing, even though this server behaves identically either way: the first names the flag under the row, the second is the built-in default.
+The two are independent, so setting committing does not silently set pushing. `--commit=manual` typed out loud is not the same as saying nothing, even though this server behaves identically either way: the first is a patch onto the git row's config, the second is the built-in default.
 
 `--commit` is the same flag [git.md](git.md#modes) describes, with the same three modes; `--no-commit` is `--commit=off` and names the flag in the same way. `--commit=auto` is the quiet window: everything waiting records itself once writes stop arriving for fifteen seconds, with or without a browser in front of it. It is no longer one commit per write — that mode is retired, and the per-write commit with it.
 
 **`--push` governs the SERVER**, which it did not use to. It is Auto-push — whether a settled commit is pushed to the branch's upstream — and it follows **every** commit olai makes here, whichever door made it: the Commit button, an agent's `commit` tool, and the window's own. So `olai web ~/outlines --commit=auto --push=auto` with no tab open anywhere really does record and share; before, it recorded and shared nothing, and the unpushed count grew with no way to find out why. One round trip per commit, which is affordable exactly because the window makes a burst of writes one commit. `--push` has two values and deliberately not three: a branch that is not pushed on its own is pushed by the Push button, so there is no third thing to be.
 
-**A refused commit or push pauses the loop**, and that is runtime state rather than policy: git said no, and nothing starts the loop again on olai's own initiative. The one gesture that does is **Resume**, under the Git commit row, drawn only while the loop is actually stopped — on every deployment, pinned or not.
+**A refused commit or push pauses the loop**, and that is runtime state rather than policy: git said no, and nothing starts the loop again on olai's own initiative. The one gesture that does is **Resume**, on the commit panel, drawn only while the loop is actually stopped.
 
 That pause is a fact about the DIRECTORY, held by the server. A reload does not clear it, a second tab does not clear it, and turning the row off and on again does not clear it; pressing Resume clears it for every reader at once. It used to live in the tab that made the attempt, which meant a reload was a silent retry, a second tab knew nothing about the stop, and a headless serve had no loop to stop.
 
@@ -236,12 +236,15 @@ Almost everything olai does beyond reading and writing your outlines is a plugin
 
 **The CONVERSATION is one** ([plugins/chat.md](plugins/chat.md)) — the panel, the transcript, the agents section, the door on an agent's row, *Ask agent* and the palette's `>`. It is on by default like the rest, and it is the row everything else on this list leans on: an engine, a doorbell and a mirror each name a door the chat row stands behind, so a serve that leaves chat out leaves those `waiting`, and the plugins panel says so per row.
 
+**The LEDGER is one** ([plugins/git.md](plugins/git.md)) — the pill, the commit panel, and the quiet-window loop. It is on by default. A serve that leaves it out still writes; nobody records the writes, and there is no pill.
+
 **The JOURNAL is one** ([plugins/journal.md](plugins/journal.md)) — the calendar, `/today`, day pages, Agenda and its owed badge. It is also on by default. Leaving `journal` out removes those routes and faces while leaving the `date` and `repeat` fields in your files untouched.
 
-Beside it are the APPLIANCES — kolu ([plugins/kolu.md](plugins/kolu.md)), odu ([plugins/odu.md](plugins/odu.md)), Xyne Spaces ([plugins/xyne-spaces.md](plugins/xyne-spaces.md)) — and the ACP ENGINES the panel can seat: Claude Code ([plugins/claude.md](plugins/claude.md)), Codex ([plugins/codex.md](plugins/codex.md)), opencode ([plugins/opencode.md](plugins/opencode.md)) and pi ([plugins/pi.md](plugins/pi.md)).
+Beside them are the APPLIANCES — kolu ([plugins/kolu.md](plugins/kolu.md)), odu ([plugins/odu.md](plugins/odu.md)), Xyne Spaces ([plugins/xyne-spaces.md](plugins/xyne-spaces.md)) — and the ACP ENGINES the panel can seat: Claude Code ([plugins/claude.md](plugins/claude.md)), Codex ([plugins/codex.md](plugins/codex.md)), opencode ([plugins/opencode.md](plugins/opencode.md)) and pi ([plugins/pi.md](plugins/pi.md)).
 
 ```
 olai web ~/outlines --plugins=odu                        # odu only — and no panel at all
+olai web ~/outlines --plugins=chat,claude,kolu,odu       # a conversation, one engine, the usual appliances — and no pill
 olai web ~/outlines --plugins=journal,chat,claude,kolu,odu # journal, a conversation, one engine and the appliances
 olai web ~/outlines --plugins=chat,codex,opencode,pi     # no Claude row, no probe for one
 olai web ~/outlines --plugins=                          # none

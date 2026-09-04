@@ -27,7 +27,7 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { QUIET_MS } from "@olai/format"
-import { gitIn, repoAt, writerOf } from "@olai/ops/testlib"
+import { gitIn, repoAt, writerOf } from "olai-plugin-git/testlib"
 
 import { startWeb } from "./child.testlib.ts"
 

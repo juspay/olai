@@ -40,7 +40,6 @@ import { Effect, SubscriptionRef } from "effect"
 
 import { codecFor } from "./codec.ts"
 import type { Store } from "./deps.ts"
-import { fixedPolicy } from "./pending.ts"
 import { STAMP, steady } from "./fixtures.testlib.ts"
 import * as Ops from "./ops.ts"
 import * as Query from "./query.ts"
@@ -185,7 +184,6 @@ test("every write leaves the indexed door answering what the corpus walk does", 
     const ops = Ops.make({
       store,
       root,
-      policy: fixedPolicy({ commit: "off", push: null }),
       context: steady(),
     })
 

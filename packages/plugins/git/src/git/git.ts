@@ -9,7 +9,7 @@
  * is, which commit HEAD names, what THAT commit had in one of the repository's
  * files, what was last recorded under a caller's own audit filter — then commit
  * exactly these paths with exactly this message, and push the current branch.
- * What those answers MEAN is `@olai/ops`' `pending.ts`'s.
+ * What those answers MEAN is this plugin's `ledger/pending.ts`.
  *
  * The FIFTH is the newest, and it is one question split in two on purpose
  * (`perf-git-per-write`): a caller that reads a file out of history and keeps
@@ -78,7 +78,7 @@ import { Effect, Semaphore } from "effect"
 import * as fs from "node:fs"
 import { join, resolve } from "node:path"
 
-import type { How, Reason, RepoState } from "./state.ts"
+import type { How, Reason, RepoState } from "@olai/format"
 
 /** How long git gets. A commit in a notes directory is milliseconds; the
  *  budget is here so a wedged hook or a lock held by another process cannot

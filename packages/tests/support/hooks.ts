@@ -277,8 +277,8 @@ const GIT_TAG = /^@git:(repo|none|broken)$/;
 
 /**
  * `@pin:commit=<mode>` / `@pin:push=<mode>`: this scenario's server was started
- * with a git POLICY, so every browser draws those two preference rows read-only
- * with the flag named (`vault-level-settings`).
+ * with a git POLICY, so the plugins panel draws that config under the git
+ * row, read-only, with the flag named.
  *
  * A TAG rather than a step for the reason `@git:` is one: it decides how the
  * server is STARTED, and the whole point of a pin is that a page knows before

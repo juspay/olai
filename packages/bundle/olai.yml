@@ -22,6 +22,11 @@
 #             lands on later.
 #   disabled  OFF UNLESS THE FLAG NAMES IT. Absent is the ordinary case and
 #             means on; `true` is a plugin that is opt-in.
+#   config    THE PLUGIN'S OWN SETTINGS. Absent is the ordinary case. Validated
+#             at load against a `Config` schema the plugin exports beside
+#             `apply`; an invalid value fails the load with a sentence.
+#             `--commit` / `--push` are a CLI patch onto the git row's config,
+#             the way `--plugins` is a patch onto `disabled`.
 #
 # `--plugins` does NOT edit this file. It is a PATCH applied over these rows on
 # the way in — one `disabled` per row, set from whether the flag named it — so
@@ -48,6 +53,13 @@
 # read by people, and the thing everything else waits on reads first.
 - id: chat
   name: olai-plugin-chat/server
+# THE LEDGER — git as a row. Off is "no provider mounted": writes land and
+# nobody records them. `--commit` / `--push` are a CLI patch onto this row's
+# config, not a mode of core. It sits next to chat so the pill stays in the
+# bar cluster it has always occupied (after the conversation toggle, before
+# the tenants).
+- id: git
+  name: olai-plugin-git/server
 # THE JOURNAL — the date-shaped reading of the vault. Its server half owns the
 # four live readings and daily-note mint; its browser half owns the three URLs,
 # agenda entry, calendar section and palette navigation.

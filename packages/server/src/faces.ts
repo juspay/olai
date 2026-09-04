@@ -105,39 +105,9 @@ import { exposeMapsOf, type PluginWire, surfacesOf } from "@olai/plugin-api"
  * renderers have to be kept in step about — which is the argument for putting
  * it on this cell rather than on the reply of whichever verb noticed.
  *
- * `git` is whether the writes an agent makes are reaching a history — a cell of
- * one status and at most a sentence, so the cost rule is satisfied twice over,
- * and it is the same news the app header draws. An agent gets the reason on its
- * own write's reply (`Applied.why`), which is the channel that matters for the
- * write it just made; this is what lets it ask BEFORE writing, and what lets an
- * HTTP MCP client watching this directory notice that commits have started
- * failing without making one.
- *
- * `pending` is what is WAITING to be committed, and it is the other half of the
- * `commit` tool: the tool is how an agent records its work, and this is how it
- * knows there is work to record and what the record will say. Without it an
- * agent under the default `--commit=manual` is writing into a state it cannot
- * observe — it would have to commit blind, or shell out to `git status`, which
- * is the file access this whole surface exists not to have. It also carries
- * `last`, so an agent can tell "nothing is waiting because I just committed"
- * from "nothing is waiting because olai has never recorded anything here" —
- * two facts an empty change list cannot separate, which is the same `null` the
- * pill is built around.
- *
- * **It satisfies the cost rule, but not trivially, so here is the bound.** A
- * cell is read whole on every `resources/read`. `Pending` is O(what is DIRTY),
- * not O(corpus): a clean directory is a handful of scalars, and the ordinary
- * case under manual mode is the few nodes an agent has just touched. The worst
- * case is real — a `git pull` that rewrites every outline makes every node in
- * the set a change — and it is bounded by two things rather than hoped away.
- * Committing empties it, which is the one action this resource exists to
- * prompt; and the body list a message carries is capped (`BODY_LINES` in
- * `@olai/ops`' `message.ts`) even when the change list is not. If that worst
- * case ever stops being rare, the answer is the one `manifest` got: a
- * collection keyed by file, read one at a time. It is NOT the answer today,
- * because "what is waiting" is a question about the whole directory and a
- * per-file projection of it would make an agent ask N times to learn whether to
- * commit once.
+ * Git's cells left this map with the plugin. The MCP adapter is core-spec-only
+ * (`surface://` has no sibling segment), so an agent observes the recorder
+ * through the `commit` / `push` tools rather than through those cells.
  *
  * Everything else is omitted, and three of them on purpose rather than by
  * oversight: `chat`, `transcript` and `saying` are the human's session and the
@@ -149,8 +119,6 @@ export const MCP: ExposeMap<typeof surface.spec> = {
   outlines: "resource",
   documents: "resource",
   errors: "resource",
-  git: "resource",
-  pending: "resource",
 }
 
 /**
@@ -280,8 +248,6 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   inbox: "resource",
   errors: "resource",
   manifest: "resource",
-  git: "resource",
-  pending: "resource",
   // WHICH PLUGINS THIS BUILD HAS AND WHICH THIS SERVE RUNS — the preferences
   // panel's read-only rows, and the browser's alone for the reason `manifest`
   // is: it is a paint instruction, and an agent has no panel.
@@ -327,9 +293,6 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   "nodes.named": "tool",
   "nodes.homes": "tool",
   "vocabulary.tags": "tool",
-  "git.commit": "tool",
-  "git.push": "tool",
-  "git.resume": "tool",
   "who.get": "tool",
   // `app.get` is on this face and no other for exactly `who.get`'s reason:
   // what this deployment is CALLED is a paint instruction for a person — the
@@ -352,8 +315,9 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
  *
  * The procedures added on top are the tool table's three arms, and nothing
  * else: `ops.*` (the nineteen writes and the five reads that had no procedure),
- * plus `search.nodes`, `git.commit` and `git.push` — the three members BOTH
- * doors call, because none of them has an agent-specific version.
+ * plus `search.nodes` — the member BOTH doors call, because it has no
+ * agent-specific version. Git's verbs left with the plugin: they are on
+ * that row's own agent map, and absent from this one.
  *
  * `nodes.named` and `nodes.homes` are the two members of shared groups that are
  * NOT here, and each is a fact about what an agent would do with them rather
@@ -399,7 +363,6 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
 export const AGENT: ExposeMap<typeof surface.spec> = {
   ...MCP,
   "ops.run": "tool",
-  "git.commit": "tool",
   "ops.outlines": "tool",
   // The reading the `capture` TOOL resolves against, and the one member here
   // that is not itself a tool: which outlines there are, which is what the
@@ -413,7 +376,6 @@ export const AGENT: ExposeMap<typeof surface.spec> = {
   "ops.documents": "tool",
   "ops.document": "tool",
   "search.nodes": "tool",
-  "git.push": "tool",
 }
 
 /** The name each face is known by in a plugin's own `faces` record — the key
@@ -467,16 +429,17 @@ const AGENT_KEY = "agent"
  * the serve path runs) and refuses a root that is not standalone. Both were
  * true here by construction; neither was proved.
  *
- * ## The AGENT face gets no plugin maps, and that is DATA
+ * ## The AGENT face's plugin maps are the plugins' own
  *
- * Neither tenant writes an `agent` map, so `exposeMapsOf` returns an empty
- * record for that key and `exposeFaces` denies every sibling in full — the
- * universe still names their tags, so the face binds and the members answer
- * `SurfaceMemberNotExposed` to whoever asks. There is no branch here that says
- * so, and there must not be: the day a plugin decides an agent may read one of
- * its members, it writes the map in its own package and this function composes
- * it without changing. A hardcoded "plugins are browser-only" would be core
- * holding a decision that belongs to the plugin.
+ * Git writes an `agent` map (the two cells and the commit/push verbs). Chat
+ * and the appliances do not, so `exposeMapsOf` returns no row for them and
+ * `exposeFaces` denies those siblings in full — the universe still names their
+ * tags, so the face binds and the members answer `SurfaceMemberNotExposed` to
+ * whoever asks. There is no branch here that says so, and there must not be:
+ * the day a plugin decides an agent may read one of its members, it writes the
+ * map in its own package and this function composes it without changing. A
+ * hardcoded "plugins are browser-only" would be core holding a decision that
+ * belongs to the plugin.
  *
  * The MCP adapter takes the {@link MCP} MAP itself and not one of these: it
  * needs the member KIND to resolve a `surface://` URI or a tool name, which a

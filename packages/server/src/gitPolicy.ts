@@ -17,14 +17,8 @@
  * a control they have not got; telling a web serve about only the button leaves
  * out a door it really has.
  *
- * That clause is NOT spelled here. `@olai/ops`' `commitDoors` is the one table
- * of it, beside `commitDoor` — which answers the neighbouring but different
- * question of what ONE WRITER has, for the sentence its own write carries back.
- * One face may offer two doors; one writer has one. Both are built from the same
- * two phrases, so renaming the button cannot fix half the product.
- *
- * The face is a {@link CommitFace}, which is `Writer` minus the one writer that
- * is not a subcommand — derived rather than spelled again, so a second name for
+ * The face is a {@link CommitFace}, which is `Writer` minus the writers that
+ * are not a subcommand — derived rather than spelled again, so a second name for
  * who is asking never appears, and a new writer forces a decision about whether
  * it has a `--help`.
  *
@@ -35,19 +29,36 @@
  * answers with `null` for a flag nobody typed. A single `CommitMode` here could
  * not tell the two apart: `--commit=manual` typed out loud is a team's policy
  * named as a flag, while the same mode arrived at by saying nothing is the
- * default. What the server then DOES with the pin is `@olai/ops`' `fixedPolicy`.
+ * default. What the git plugin then DOES with the pin is its own `fixedPolicy`.
  */
 
 import {
+  COMMIT_BUTTON,
   COMMIT_MODES,
+  COMMIT_TOOL,
   type CommitMode,
   type GitPin,
   PUSH_MODES,
   type PushMode,
   QUIET_MS,
+  type Writer,
 } from "@olai/format"
-import { type CommitFace, commitDoors } from "@olai/ops"
 import { Flag } from "effect/unstable/cli"
+
+/** The subcommands that take these flags — `Writer` minus the two that are not
+ *  a face a person can start. */
+export type CommitFace = Exclude<Writer, "chat-agent" | "auto">
+
+export const commitDoors = (face: CommitFace): string => {
+  switch (face) {
+    case "web":
+      return `${COMMIT_BUTTON} or ${COMMIT_TOOL}`
+    case "mcp":
+      return COMMIT_TOOL
+  }
+}
+
+export { COMMIT_BUTTON, COMMIT_TOOL }
 
 /**
  * What `--commit` says for itself on one face.
@@ -95,8 +106,8 @@ export const pushesSaid = (): string =>
 /** The clause both sentences end with. Spelled once, because it is one fact
  *  about either flag and two copies of it is one place for it to be softened. */
 const INSTANCE =
-  "This is the instance's policy: every browser draws that preference row " +
-  "read-only, the same in every browser. Giving this flag sets it; omitting " +
+  "This is the instance's policy, a patch onto the git row's config: " +
+  "every browser draws it read-only. Giving this flag sets it; omitting " +
   "it uses the built-in default."
 
 /**
@@ -159,6 +170,24 @@ export const gitPin = (
   off: boolean,
   pushes: PushMode | null,
 ): GitPin => ({ commit: off ? "off" : chosen, push: pushes })
+
+/**
+ * `--commit` / `--push` AS A PATCH onto the git row's config — the same
+ * overlay `--plugins` is onto `disabled`.
+ *
+ * Only the flags somebody typed: omitted halves stay off the patch, so the
+ * plugin's schema folds the built-in default in and the roster draws only
+ * what was given. An empty patch is nobody having said, and the row's own
+ * `config:` (or none) stands.
+ */
+export const gitConfigPatch = (
+  pin: GitPin,
+): ReadonlyArray<{ readonly id: "git"; readonly config: Record<string, unknown> }> => {
+  const config: Record<string, unknown> = {}
+  if (pin.commit !== null) config.commit = pin.commit
+  if (pin.push !== null) config.push = pin.push
+  return Object.keys(config).length === 0 ? [] : [{ id: "git", config }]
+}
 
 /** The defaults, re-exported beside the flags that decline to apply them — so a
  *  reader of this file can see what "nobody said" comes to without going two

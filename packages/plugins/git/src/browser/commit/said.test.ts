@@ -16,7 +16,7 @@
  */
 
 import { NOTHING_PENDING, type Pending, type RepoState } from "@olai/format"
-import { GIT_OFF, type GitState } from "@olai/surface"
+import { GIT_OFF, type GitState } from "@olai/format"
 import { expect, test } from "bun:test"
 
 import {

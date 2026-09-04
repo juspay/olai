@@ -716,9 +716,10 @@ describe("only the registry knows a plugin's name", () => {
    * must read from the client rather than re-decide (a number typed twice
    * eventually disagrees).
    *
-   * An equality against those three lines and two declarations is the opposite
-   * of letting a general package import a plugin: a fourth file, a different
-   * subpath, or a third plugin is red. `packages/server` is still `[]`.
+   * An equality against those lines and declarations is the opposite of
+   * letting a general package import a plugin: a fourth file, a different
+   * subpath, or a third plugin is red. `packages/server` carves the git
+   * testlib the same way, so `headless.test.ts` does not copy `gitIn`.
    */
   const TESTLIB_IMPORTS: Readonly<Record<string, ReadonlyArray<string>>> = {
     tests: [
@@ -727,9 +728,11 @@ describe("only the registry knows a plugin's name", () => {
       "tests/support/world.ts: olai-plugin-chat/testlib",
       "tests/support/world.ts: olai-plugin-kolu/appliance/testlib",
     ],
+    server: ["server/src/headless.test.ts: olai-plugin-git/testlib"],
   }
   const TESTLIB_DECLARED: Readonly<Record<string, ReadonlyArray<string>>> = {
     tests: ["olai-plugin-chat", "olai-plugin-kolu"],
+    server: ["olai-plugin-git"],
   }
 
   /**
@@ -1273,6 +1276,7 @@ describe("an appliance's product tier stays inside its tenant", () => {
       chat: ["plugins/chat"],
       claude: ["plugins/claude"],
       codex: ["plugins/codex"],
+      git: ["plugins/git"],
       journal: ["plugins/journal"],
       kolu: ["plugins/kolu"],
       odu: ["plugins/odu"],
@@ -1300,6 +1304,7 @@ describe("an appliance's product tier stays inside its tenant", () => {
       chat: false,
       claude: false,
       codex: false,
+      git: false,
       journal: false,
       kolu: true,
       odu: true,
@@ -1716,13 +1721,35 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
      */
     chat: [
       "format/src/committing.ts",
-      "ops/src/pending.ts",
+      "plugins/git/src/browser/commit/said.ts",
+      "plugins/git/src/ledger/pending.ts",
       "plugins/xyne-spaces/src/client.ts",
       "plugins/xyne-spaces/src/testlib/fake-spaces.ts",
       "server/src/mcp/tickets.ts",
       "server/src/serve.ts",
-      "web/src/client/commit/said.ts",
       "web/src/client/layout/prefs.ts",
+    ],
+    /**
+     * `git` IS THE COMMAND, and `GitState` / `GIT_OFF` / `gitPolicy` are the
+     * floor's names for a repository reading that stays in core: a write still
+     * waits to be recorded, and the format owns the shape. The plugin is the
+     * provider behind that door. These files spell the word as English or as
+     * those types, not as the row.
+     */
+    git: [
+      "format/src/committing.ts",
+      "format/src/index.ts",
+      "format/src/searching.ts",
+      "format/src/writing.ts",
+      "ops/src/tools.ts",
+      "plugins/kolu/src/client/fleet.ts",
+      "server/src/gitPolicy.ts",
+      "server/src/main.ts",
+      "server/src/published.bench.ts",
+      "server/src/serve.ts",
+      "web/src/client/file/delete.ts",
+      "web/src/client/settings/Preferences.tsx",
+      "web/src/client/trash/question.ts",
     ],
   }
 

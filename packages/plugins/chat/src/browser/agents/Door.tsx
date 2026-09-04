@@ -86,7 +86,7 @@ import { TESTID } from "../../testids.ts"
 // lives under `commit/` still because this is its second reader and not its
 // third; the day a third arrives it belongs at the client's root, with
 // `../saying.ts` and `../refusals.tsx`.
-import { agoOf, createNow } from "@olai/web/client/commit/ago.ts"
+import { agoOf, createNow } from "@olai/web/client/ago.ts"
 import { useAgents } from "./answered.tsx"
 import { createFocus, type Focus } from "./focus.ts"
 import { LOOK, type Row } from "./roster.ts"

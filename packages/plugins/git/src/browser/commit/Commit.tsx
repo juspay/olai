@@ -64,7 +64,7 @@
 import { Show } from "solid-js"
 import { Portal } from "solid-js/web"
 
-import { agoOf, createNow } from "./ago.ts"
+import { agoOf, createNow } from "@olai/web/client/ago.ts"
 import {
   AUTO_PAUSED,
   explain,
@@ -78,13 +78,13 @@ import {
   unpushedIn,
 } from "./said.ts"
 import { Panel } from "./Panel.tsx"
-import { desktop } from "../layout/media.ts"
-import { LAYER } from "../layer.ts"
-import { BANNER, PILL } from "../readout.ts"
-import { createPopover } from "../popover.ts"
+import { desktop } from "@olai/web/client/layout/media.ts"
+import { LAYER } from "@olai/web/client/layer.ts"
+import { BANNER, PILL } from "@olai/web/client/readout.ts"
+import { createPopover } from "@olai/web/client/popover.ts"
 import { createCommit } from "./state.ts"
-import { TESTID } from "../testids.ts"
-import { Tip } from "../Tip.tsx"
+import { TESTID } from "../../testids.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
 
 export function Commit() {
   const commit = createCommit()
