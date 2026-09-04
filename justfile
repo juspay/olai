@@ -763,6 +763,20 @@ e2e-fast-remote:
         "$odu" run e2e --platform x86_64-linux
     '
 
+# Full CI on the Linux fleet, through this tree's pinned Odu. This deliberately
+# keeps Odu's strict defaults: it snapshots clean, pushed HEAD and posts the
+# stable logical recipe contexts to GitHub. Shard workers and their duplicated
+# prerequisites remain visible in Odu without becoming GitHub contexts.
+ci:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ nix_shell }} bash -c '
+      odu="$(nix build .#odu-bin --no-link --print-out-paths --accept-flake-config)/bin/odu"
+      exec timeout --foreground --signal=INT --kill-after=30s \
+        "${ODU_CI_TIMEOUT:-15m}" \
+        "$odu" run --platform x86_64-linux
+    '
+
 # Format the *.nix files
 fmt:
     {{ nix_shell }} nixpkgs-fmt {{ nix_files }}
