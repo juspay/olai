@@ -278,13 +278,15 @@ Feature: Splitting and merging a row
     Then "house.olai" holds a node titled "pick the hingesand the soft-close ones"
     And the caret is at offset 15
 
-  Scenario: Backspace at the start of an EMPTY draft still writes nothing
-    # The other half of the case above, and it is not a regression: an empty
-    # new row is not a node, so there is nothing to join — the key does what the
-    # field's own Backspace at offset zero always did there, which is nothing.
+  Scenario: Backspace at the start of an EMPTY draft deletes the draft and aims above
+    # The other half of the case above: an empty new row is not a node, so
+    # there is nothing to join — and an abandoned sketch is not parked. The
+    # key used to do NOTHING there (which is what the human reported on the
+    # #493 build); now it deletes the line and leaves the caret at the end of
+    # the line above, which is where a merge with words would have left it.
     When I click the title of "hinges"
     And I press "Enter"
     And I press "Backspace"
-    Then a new row is being typed
-    And the node "hinges" has the title "pick the hinges"
+    Then the row being typed holds "pick the hinges"
+    And the caret is at offset 15
     And the outline "house.olai" shows exactly the nodes "kitchen, demo, order, install, handles, hinges, knobs, kitchen-herbs"

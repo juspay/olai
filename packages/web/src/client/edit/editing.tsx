@@ -729,25 +729,28 @@ export const createEditor = (
   /**
    * `Backspace` AT THE START OF A LINE: this row joins the one above it.
    *
-   * The commit comes FIRST here — for a row that exists AND for one that does
-   * not — and the asymmetry with a split is the ops layer's: a merge joins the
-   * two titles THE SET HOLDS and carries no text at all, so a half-typed line
-   * has to be on disk before it can be joined onto anything. That is the same
-   * order every other structural key follows, and for the same reason.
+   * AN EMPTY BLANK is the ordinary abandon — but an abandon WITH AN AIM,
+   * which is the one thing Escape is not: the sketch dies — it is NOT
+   * parked — and the caret lands on the line above it, the line the ↑ key
+   * would have walked to, at the END of its text — the seam a merge with
+   * words would have left. A PARKED blank above is a line the eye stops on
+   * too (the arrows say so), so a skeleton of blanks is deleted up one line
+   * at a time. There is nothing to commit and nothing to refuse: an empty
+   * new row is not a node, no write goes out, and "a node needs a title"
+   * answered a question this key never asks (the human's report on #493).
+   * Nothing above it — the start line is such a page — is where the key has
+   * nothing to say, as at the end of any walk.
    *
-   * A ROW THAT DOES NOT EXIST YET is the case that makes it matter, and it is
-   * the ordinary "I meant this on the previous line" gesture: `Enter`, type,
-   * `Home`, `Backspace`. The key is claimed here, so it is this function's to
-   * answer — and answering it means writing the line first, which is exactly
-   * what a blur or an idle tick would have done a moment later. A draft with
-   * NOTHING in it writes nothing, `commit` says so, and the merge stops at the
-   * guard below: the field's own `Backspace` at offset zero already did nothing
-   * there, and Escape is still what abandons.
+   * FOR A ROW THAT EXISTS, the commit comes FIRST — and the asymmetry with
+   * a split is the ops layer's: a merge joins the two titles THE SET HOLDS
+   * and carries no text at all, so a half-typed line has to be on disk
+   * before it can be joined onto anything. That is the ordinary "I meant
+   * this on the previous line" gesture: `Enter`, type, `Home`, `Backspace`.
    *
-   * The caret lands on the SEAM, which is the length of the joined title minus
-   * the length of what was joined onto it. Both numbers come from the write:
-   * the row's own text is what this tab was typing in, and what the row above
-   * says now is the answer's ({@link ../../../../surface/src/edit.ts}'s
+   * The caret lands on the SEAM, which is the length of what the row above
+   * says now minus the length of what was joined onto it. Both numbers come
+   * from the write: the row's own text is what this tab was typing in, and
+   * what the row above says is the answer's ({@link ../../../../surface/src/edit.ts}'s
    * `Applied.title`) — never this tab's reading of a tree it drew.
    */
   const merge = async () => {
@@ -757,6 +760,31 @@ export const createEditor = (
     // says the same thing one layer up — this is the guard for a caller that
     // is not the matcher.)
     if (before.kind === "row" && before.field !== "title") return
+    const sketch = emptyPendingOf(before)
+    if (sketch !== null) {
+      const list = wired(page.rows(), page.collapsed(), [...ghosts(), sketch])
+      const above =
+        list[
+          list.findIndex((one) =>
+            one.kind === "draft" && one.pending.slot === sketch.slot
+          ) - 1
+        ]
+      if (above === undefined) return
+      if (above.kind === "draft") {
+        // The line above is another parked sketch: `take` resumes it, and
+        // the one this key was pressed in just ceases — nothing parks it.
+        take(above.pending.slot)
+        return
+      }
+      const title = above.row.kind === "node" || above.row.kind === "mirror"
+        ? above.row.shows.node.title
+        : undefined
+      // A dangling row has no title to land in: as good a place to stop as
+      // the end of any walk is.
+      if (title === undefined) return
+      setDraft(opened(above.row, "title", { caret: title.length }))
+      return
+    }
     if (!(await commit())) return
     const held = draft()
     if (held === null || held.kind !== "row") return

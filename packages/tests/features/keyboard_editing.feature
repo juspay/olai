@@ -178,6 +178,43 @@ Feature: Keyboard editing
     Then no row is being edited
     And the outline "house.olai" shows exactly the nodes "kitchen, demo, order, install, handles, hinges, knobs, kitchen-herbs"
 
+  Scenario: Backspace deletes the empty blank and aims the caret at the line above
+    # Reported on the #493 build: Backspace in the line Enter had just opened
+    # met the refusal "a node needs a title". There is nothing to refuse —
+    # nothing was ever written: the key is the abandon-with-aim Escape is
+    # not. The sketch dies — it is NOT parked — and the caret lands at the
+    # END of the line above, exactly where a merging Backspace would have
+    # left it had the sketch held words.
+    When I click the title of "handles"
+    And I press "Enter"
+    Then a new row is being typed
+    When I press "Backspace"
+    Then the row being typed holds "choose the handles"
+    And the caret is at offset 18
+    # And nothing happened on the way there: no add, no refusal, no node the
+    # blank could have become.
+    And the outline "house.olai" shows exactly the nodes "kitchen, demo, order, install, handles, hinges, knobs, kitchen-herbs"
+    And there should be no page errors
+
+  Scenario: Backspace over a blank walks a skeleton back up one line at a time
+    # The same key when the line above is a PARKED blank: Enter Enter laid
+    # two empties down, and Backspace kills the live one and resumes the one
+    # above it — a blank is a line the arrow keys already stop on, and the
+    # caret aims at the next line up the eye would reach, written or not.
+    When I click the title of "handles"
+    And I press "Enter"
+    And I press "Enter"
+    Then 2 new rows are being typed
+    When I press "Backspace"
+    Then a new row is being typed
+    And the outline "house.olai" shows exactly the nodes "kitchen, demo, order, install, handles, hinges, knobs, kitchen-herbs"
+    # And the resumed line is the live one: what is typed goes into it, at
+    # the seat it was parked at.
+    When I type "measure the alcove"
+    And I press "Enter"
+    Then "house.olai" holds a node titled "measure the alcove"
+    And the node titled "measure the alcove" comes before "hinges"
+
   Scenario: Tab indents under the row above, and Shift+Tab puts it back
     When I click the title of "knobs"
     And I press "Tab"
