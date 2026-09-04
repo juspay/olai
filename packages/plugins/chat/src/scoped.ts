@@ -109,7 +109,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       ...givenPanelOptions
     } = options
     const memory = givenPanelOptions.memory
-      ?? Memory.forDirectory(givenPanelOptions.cwd, givenPanelOptions.engines[0] ?? "")
+      ?? Memory.forDirectory(givenPanelOptions.cwd, givenPanelOptions.engines()[0] ?? "")
     const panelOptions: PanelOptions = { ...givenPanelOptions, memory }
     const gate = yield* Semaphore.make(1)
     const nodes = new Map<string, NodeSlot>()
@@ -524,6 +524,24 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         )
       }),
       replaced: (to, by) => root.replaced(to, by),
+      /**
+       * EVERY PANEL, and that is the point rather than thoroughness.
+       *
+       * An engine leaving orphans a conversation wherever one is seated on it,
+       * and a node agent's is no less a conversation for being off screen — it
+       * holds a subprocess and a session exactly as the root's does. A fan-out
+       * that reached only the foreground would leave the ones a person is not
+       * looking at talking to a plugin that is gone, which is the defect this
+       * whole verb exists to close, hiding one scope deeper.
+       *
+       * SEQUENTIAL, like `reread` beside it: each panel takes its own binding
+       * permit and stops at most one subprocess, so there is nothing to overlap
+       * and an order is one less thing to reason about.
+       */
+      enginesMoved: Effect.gen(function*() {
+        yield* root.enginesMoved
+        for (const slot of [...nodes.values()]) yield* slot.panel.enginesMoved
+      }),
       reread: () => {
         root.reread()
         for (const slot of nodes.values()) slot.panel.reread()

@@ -128,16 +128,40 @@ export interface WakeScope {
 /** Everything one conversation needs. Pooling, eviction and per-node
  * credentials belong to the scheduler above this constructor. */
 export interface PanelOptions {
-  /** Which agents this machine has, already detected
-   *  ({@link ./agents/roster.ts}). Detecting them is the caller's move — it is
-   *  the caller that owns this process's environment — and what a detected one
-   *  looks like is ours.
+  /**
+   * Which agents this machine has, already detected
+   * ({@link ./agents/roster.ts}). Detecting them is the caller's move — it is
+   * the caller that owns this process's environment — and what a detected one
+   * looks like is ours.
    *
-   *  NEVER EMPTY: a caller that found nothing builds no chat at all, and what
-   *  a browser gets is the panel's `off` face, which says so and says how to
-   *  install one. A chat with an empty roster would be a panel that can never
-   *  answer anything, holding a subprocess-shaped hole. */
-  readonly roster: ReadonlyArray<Installed>
+   * ## A THUNK, and it used to be an array
+   *
+   * An engine is a PLUGIN, and a plugin can be turned off at the panel while
+   * the serve runs. Captured, this list was a boot snapshot: switching the
+   * claude row off left claude in the picker, and picking it still WORKED,
+   * because the id was looked up in the same frozen array. That is the defect
+   * a person meets — the switch says the plugin is off and the panel goes on
+   * offering it.
+   *
+   * Every reading of it is now at the moment it is asked: what the picker
+   * draws, what an id off the wire is resolved against, and the one-agent
+   * shortcut. {@link Panel.enginesMoved} is what tells this module the table
+   * has changed, because a thunk nobody re-reads is a snapshot with extra
+   * steps.
+   *
+   * ## IT MAY NOW ANSWER EMPTY, where the array never could
+   *
+   * This said: *NEVER EMPTY — a caller that found nothing builds no chat at
+   * all, and a chat with an empty roster would be a panel that can never answer
+   * anything, holding a subprocess-shaped hole.* The first half still holds and
+   * is still the caller's rule: nothing builds a panel that has never had an
+   * agent. What is new is that a panel which HAD one can watch its last engine
+   * leave, and the honest face for that is the one the state machine already
+   * carries — `off`, with `no-engine`, which is the same sentence a serve
+   * composed without an engine row shows. {@link Panel.enginesMoved} enters it
+   * and leaves it again when a row comes back.
+   */
+  readonly roster: () => ReadonlyArray<Installed>
   /**
    * ...AND EVERY ENGINE THIS BUILD HAS, by id, in the bundle's own order —
    * INSTALLED OR NOT, and read for exactly one thing.
@@ -154,11 +178,16 @@ export interface PanelOptions {
    * which is what makes `--plugins=opencode,pi` a panel with no Claude row on
    * any face, with nothing in core knowing why.
    *
-   * MAY BE EMPTY where {@link roster} may not: a serve whose engine rows are all
-   * disabled has no chat at all, and a test that only wants a conversation has
-   * no engine list to give.
+   * MAY BE EMPTY: a serve whose engine rows are all disabled builds no chat at
+   * all, and a test that only wants a conversation has no engine list to give.
+   *
+   * A THUNK for {@link roster}'s reason, though it is read once — at
+   * construction, for the memory's default. Both halves of one table read the
+   * same way is one fewer thing for a reader to check: the day this is asked a
+   * second time it is already right, where an array would have been a snapshot
+   * nobody noticed had gone stale.
    */
-  readonly engines: ReadonlyArray<string>
+  readonly engines: () => ReadonlyArray<string>
   /** Where to start it: the served directory, exactly. An agent keys its
    *  stored sessions by the directory it was started in, which is what makes
    *  them findable at all — and it is what olai's own note of WHICH of them
@@ -254,6 +283,44 @@ export interface Panel {
   /** The transcript as it stands — what a fresh subscription is seeded with. */
   readonly entries: () => ReadonlyMap<string, ChatEntry>
   readonly state: () => ChatState
+  /**
+   * THE ENGINE TABLE HAS MOVED — a plugin offering one was turned on or off
+   * while this panel was running.
+   *
+   * ## Why this exists at all
+   *
+   * {@link PanelOptions.roster} is a live reading, and a live reading nobody
+   * re-reads is a snapshot with extra steps: the picker is a PUBLISHED value,
+   * so something has to say when to publish it again. This is that something,
+   * and the caller that knows is the one holding the registration — the acquire
+   * and the release both already run at exactly the right moment, so there is no
+   * second place to keep in step.
+   *
+   * ## The two things it does, and the second is the ruling
+   *
+   * It republishes the roster, which is what puts a row into the picker or takes
+   * it out.
+   *
+   * And IT ENDS A CONVERSATION WHOSE ENGINE HAS LEFT. That is the paper's
+   * boundary rule applied where it lands: a registration is REVERTED where an
+   * emission — a file another program reads, a message already sent — is
+   * compensated or withheld, and a spawned ACP child is a process olai owns
+   * exclusively and can stop, so it is inside the boundary. And it is the
+   * invariant the whole loader surface rests on: a row somebody switched off and
+   * a row the flag never named are ONE state. Under `--plugins=` without claude
+   * there is no claude conversation, so a moment after switching claude off
+   * there must not be one either — a panel still talking to it would be the
+   * switch saying one thing and the product doing another.
+   *
+   * IT IS AN EFFECT because stopping an agent is: the subprocess is asked to go
+   * and waited for, exactly as a swap waits ({@link ./chat.ts}'s `using`).
+   *
+   * IDEMPOTENT, and asked far more often than it matters: every register and
+   * every release of any engine calls it, including the ones for engines this
+   * panel is not talking to and the ones that change nothing. What it does in
+   * that case is compare two lists and return.
+   */
+  readonly enginesMoved: Effect.Effect<void>
   /**
    * WHAT OLAI HAS OVERHEARD, as this machine's record holds it
    * ({@link ./sessions.ts}) — empty for a chat built without one.
@@ -823,7 +890,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
     // build with no engine rows is a note that resolves to nothing, which is a
     // chat that was never built.
     const memory = options.memory
-      ?? Memory.forDirectory(options.cwd, options.engines[0] ?? "")
+      ?? Memory.forDirectory(options.cwd, options.engines()[0] ?? "")
     const tell = yield* Effect.annotateLogs(emitter, { surface: "chat" })
 
     /** One agent, built from the roster row that named it. The handler is
@@ -971,7 +1038,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
     let state: ChatState = {
       ...CHAT_OFF,
       status: "booting",
-      roster: options.roster.map(said),
+      roster: options.roster().map(said),
     }
     /** The agent this panel is talking to and the row it came from, or `null`
      *  while it is talking to none — before the first choice, and in the beat
@@ -1660,7 +1727,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      *  agent this machine does not have is a STALE TAB rather than a fault, so
      *  it is refused in words rather than crashed on. */
     const rowFor = (id: string): Installed | null =>
-      options.roster.find((row) => row.id === id) ?? null
+      options.roster().find((row) => row.id === id) ?? null
 
     /**
      * The agent for this row, started if it is not the one already talking —
@@ -1739,6 +1806,79 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         return made
       }))
 
+    /**
+     * THE ENGINE TABLE MOVED — see {@link Panel.enginesMoved}, which carries the
+     * argument for both halves of this.
+     *
+     * UNDER THE SAME PERMIT AS A SWAP, and for the identical reason: this is the
+     * third place a bound agent can be stopped, and two of them interleaving
+     * would leave the panel drawing one agent's name while another's subprocess
+     * is the one that got stopped. Everything here reads or writes `talking`,
+     * which is exactly what `binding` exists to serialize.
+     */
+    const enginesMoved: Effect.Effect<void> = binding.withPermit(Effect.gen(function*() {
+      const rows = options.roster()
+      const at = talking
+      // WHOSE ENGINE HAS LEFT — asked of the LIVE list rather than of anything
+      // remembered, because the list is the only thing that moved.
+      const orphaned = at !== null && !rows.some((row) => row.id === at.row.id)
+      if (at !== null && orphaned) {
+        // THE SWAP'S OWN SEQUENCE, in the same order and for the same reasons —
+        // the cached listings are about a conversation nobody can reach, the
+        // event is what tells the transcript a session ended, and the process is
+        // asked to go rather than dropped. `why: "gone"` rather than `"new"`:
+        // nothing is replacing it.
+        listings.forget(at.row.id)
+        talking = null
+        receive({ _tag: "sessionOver", why: "gone" })
+        yield* at.agent.stop
+        advertises = SAYS_NOTHING
+      }
+      // ...AND THE FACE, which is one decision over two facts: whether anything
+      // is left to talk to at all, and whether the conversation this panel was
+      // in survived.
+      //
+      // NO ENGINE AT ALL WINS over the conversation having ended, because it is
+      // the bigger and more actionable sentence: a person whose last engine row
+      // is off wants to be told there is no agent here, not that this particular
+      // conversation stopped. It is the same face and the same `no-engine` word
+      // a serve composed without an engine row shows, which is the invariant
+      // this whole lane rests on — switched off and never named are one state.
+      if (rows.length === 0) {
+        move({
+          roster: [],
+          status: "off",
+          off: { kind: "no-engine" },
+          talking: null,
+          model: null,
+          trouble: null,
+        })
+        return
+      }
+      move({
+        roster: rows.map(said),
+        // COMING BACK is `idle` and not the status it left: `off` is the only
+        // state the panel can be in that a returning row invalidates, and what
+        // is true afterwards is a panel with a picker and no conversation, which
+        // is what `idle` with nobody bound draws.
+        ...(state.status === "off" ? { status: "idle" as const, off: null } : {}),
+        ...(orphaned
+          ? {
+            status: "gone" as const,
+            talking: null,
+            model: null,
+            // THE PLUGIN'S DEPARTURE IN WORDS, because `gone` alone is a face
+            // with no account of itself and the three ways of getting there
+            // read very differently to somebody who was mid-conversation.
+            trouble: at === null
+              ? null
+              : `${at.row.name} was switched off at the plugins panel, so this `
+                + `conversation ended. Turning it back on lets you start another.`,
+          }
+          : {}),
+      })
+    }))
+
     /** A verb that names an agent. An id that is not on this machine is a
      *  STALE TAB — the roster it was drawn from has moved, or the browser was
      *  open across a restart — so it is refused in words rather than started. */
@@ -1775,7 +1915,12 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * the panel works without one, exactly as it did before there was one.
      */
     const startsWith: Effect.Effect<Installed | null> = Effect.gen(function*() {
-      const only = options.roster.length === 1 ? options.roster[0] ?? null : null
+      // ONE READ, held: the table is live now, so asking it twice in one
+      // decision is two answers to one question — and this one branches on the
+      // length and then takes the element, which is exactly the shape that goes
+      // wrong when a row leaves between the two.
+      const rows = options.roster()
+      const only = rows.length === 1 ? rows[0] ?? null : null
       if (only !== null) return only
       const held = yield* Effect.catchTag(
         memory.recall,
@@ -3036,6 +3181,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
     return {
       entries: () => transcript.entries(),
       state: () => state,
+      enginesMoved,
       overheard: () => options.overheard?.rows() ?? [],
       // THE TWO MARKS THE MIGRATION GESTURES LEAVE, and both are written the
       // way everything else in this record is: behind a gesture that has

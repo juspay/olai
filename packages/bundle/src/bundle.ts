@@ -54,16 +54,21 @@ import { kindWordOf, rowReport } from "@olai/plugin-api"
 // `mountRows` is a GRAPH: the loader carries `node:url`, `node:fs` and a YAML
 // parser, so it cannot be re-exported through a package a TAB imports.
 //
-// `settled` is a CAPABILITY, and it is withheld from the plugin door on the same
-// grounds `openHost` and `provide` are. It waits on a list of ROWS — a plugin
+// `settled` and `namedBy` are CAPABILITIES, and they are withheld from the
+// plugin door on the same grounds `openHost` and `provide` are. It waits on a list of ROWS — a plugin
 // holding it could block its own `apply` until its siblings stopped moving,
 // which is a fiber waiting on the runtime that is waiting on it. A plugin's
 // answer to "is the thing I need here yet" is `needs`, and the runtime's answer
 // is `PENDING`; this is the composition root's verb for the one question a
 // plugin cannot be asking. Everything else this file spends of the bridge comes
 // through the door above.
-import { settled } from "@olai/effect-cordis"
-import { mountRows } from "@olai/effect-cordis/loader"
+// ...and `namedBy` is the THIRD, arriving with the loader surface and withheld
+// on the same grounds as `settled`: it answers which service keys each row's
+// fiber is standing on, which is the bundle read from the inside. A plugin
+// holding it could enumerate what its siblings need, which is the one question
+// the keyed services are shaped to keep it from asking.
+import { namedBy, settled } from "@olai/effect-cordis"
+import { flipRow, mountRows } from "@olai/effect-cordis/loader"
 import { Effect } from "effect"
 
 import { BUNDLE_NAMES, ROWS } from "./rows.ts"
@@ -166,13 +171,80 @@ const importByName = (specifier: string): Promise<unknown> => import(specifier)
 /**
  * EVERY ROW'S STATE, off the live registry — which plugin is where.
  *
- * A BOOT SNAPSHOT in every caller this phase has: a fiber's error is private and
- * reachable only by awaiting it, and nothing here mounts or fails a row after
- * the boot. The day something can (the preferences toggle) this is one of the
- * two places that has to learn to move.
+ * A LIVE READ, always was, and the sentence that used to stand here said the
+ * opposite of what this function does: *a boot snapshot in every caller this
+ * phase has… the day something can mount or fail a row after the boot, this is
+ * one of the two places that has to learn to move.* What was a snapshot is what
+ * the CALLER did with the answer, not the answer — `@olai/server`'s `serve.ts`
+ * asked once and held it, because nothing could move a row afterwards.
+ *
+ * {@link setRow} is the day named in that sentence, and the reading needed
+ * nothing: it walks the registry at the moment it is asked. What moved is one
+ * floor up, where the composition root now re-asks after every flip.
  */
 export const reportBundle = (host: Host): Effect.Effect<ReadonlyMap<string, RowReport>> =>
   rowReport(host, BUNDLE_NAMES)
+
+/**
+ * WHICH DOORS EACH ROW IS STANDING ON — every service key a running row's
+ * `needs` declared, off the live registry.
+ *
+ * One half of the join that answers *what stops if I turn this off*: the other
+ * is who stands behind each door, which is core's own offers table, and the
+ * composition root is where the two meet (`@olai/server`'s `runtime.ts`).
+ *
+ * NOT AN EFFECT, unlike every other verb on this door — `@olai/effect-cordis`'s
+ * `namedBy` argues that where it is written, and the short of it is that this
+ * walks a map and its one caller is a roster built synchronously.
+ *
+ * A ROW WITH NO FIBER IS ABSENT, which is the honest reading rather than a gap:
+ * a row nobody imported has no declaration to read, and it cannot be carried by
+ * anything anyway, because it is already off.
+ */
+export const rowsNaming = (host: Host): ReadonlyMap<string, ReadonlyArray<string>> =>
+  namedBy(host, BUNDLE_NAMES)
+
+/**
+ * TURN ONE ROW ON OR OFF ON THE RUNNING BUNDLE — the loader surface's verb, as a
+ * composition root spends it, and this package's third door onto the bridge.
+ *
+ * Answers whether there WAS such a row; `false` is a caller naming a plugin this
+ * build does not have.
+ *
+ * ## Two calls, for {@link mountBundle}'s reason exactly
+ *
+ * The flip moves ONE row. What a flip is FOR is the rows around it: turning the
+ * chat row off revokes the four doors it stands behind, which unloads every
+ * fiber that named one, and turning it back on wakes them — a whole turn later,
+ * each. So the settle is not a nicety here, it is the difference between a
+ * roster read the instant the switch was pressed and a roster read of the bundle
+ * the press produced. Without it, a panel would draw the engines `running` for
+ * one frame after the row that carries them had gone, and the tab would redial
+ * onto a wire that was still coming apart.
+ *
+ * EVERY ROW THIS BUILD HAS, and not the flipped one: the point is the siblings.
+ *
+ * ## WHAT IT DOES NOT DO
+ *
+ * It writes nothing — not `olai.yml`, not a settings file, not anywhere. A flip
+ * is the instance's for as long as the process runs, and the boot-time answer
+ * stays the rows, the flag and nix. `@olai/effect-cordis`'s `flipRow` is where
+ * that is kept true against a loader whose own instinct is to persist.
+ *
+ * And it says nothing about what came of it. A row that will not come back —
+ * a module that now throws, an `apply` that dies on a socket that has gone —
+ * lands `failed` with its own sentence, and reading that is {@link reportBundle},
+ * which the caller was going to ask anyway.
+ */
+export const setRow = (
+  host: Host,
+  id: string,
+  enabled: boolean,
+): Effect.Effect<boolean> =>
+  Effect.flatMap(
+    flipRow(host, id, !enabled),
+    (found) => found ? Effect.as(settled(host, BUNDLE_NAMES), true) : Effect.succeed(false),
+  )
 
 /**
  * MOUNT THE BUNDLE ON `host` — the rows, patched by the flag, as fibers.

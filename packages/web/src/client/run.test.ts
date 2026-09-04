@@ -91,3 +91,60 @@ test("a call that dies still rejects, with the defect itself", async () => {
   const defect = new Error("a bug, not a refusal")
   await expect(runAsync(Effect.die(defect))).rejects.toBe(defect)
 })
+
+/**
+ * ...AND THE ONE DEFECT THAT IS NOT A BUG: the sibling this call was reaching
+ * has left the bundle, because somebody switched that plugin off.
+ *
+ * The far side of the interrupt case above. A roster change produces both: the
+ * interrupt is this tab giving up on a superseded wire, and this is the server
+ * refusing a member it no longer serves — which `@olai/server`'s `runtime.ts`
+ * promises rather than warns about, since a call left hanging on a producer
+ * nobody drives would be worse. Before this arm the tab reported an uncaught
+ * `surface: "surface/chat/conversation/sessions" is no longer served` at a
+ * person who had just pressed a switch, on a page where nothing was wrong.
+ *
+ * TWO SHAPES, because a tagged error arrives as either: the value itself, whose
+ * `_tag` and `name` are both the tag, and the plain object a
+ * serialize-deserialize leaves behind, which keeps `_tag` alone. The framework's
+ * own `messageOf` reads exactly this pair, in this order, for the same reason.
+ */
+test("a call whose sibling was dropped comes back as busy, in either shape", async () => {
+  const shapes = [
+    Object.assign(new Error(`surface: "surface/chat/conversation/sessions" is no longer served`), {
+      _tag: "SurfaceSiblingDropped",
+      name: "SurfaceSiblingDropped",
+    }),
+    // ...and the same fact having crossed a wire, which keeps the tag and
+    // nothing else about the class.
+    { _tag: "SurfaceSiblingDropped", key: "chat" },
+  ]
+  for (const shape of shapes) {
+    const outcome = await runAsync(Effect.die(shape))
+    expect(Result.isFailure(outcome)).toBe(true)
+    if (!Result.isFailure(outcome)) return
+    expect(isOpFailure(outcome.failure)).toBe(true)
+    expect(outcome.failure._tag).toBe("BusyFailure")
+    // ...and it says what happened in this app's words rather than the
+    // framework's tag, which names a thing a reader has never heard of.
+    expect(String(outcome.failure.reason)).toContain("plugin")
+    expect(String(outcome.failure.reason)).not.toContain("SurfaceSiblingDropped")
+  }
+})
+
+/**
+ * ...AND THE NARROWING IS THE TAG, never the sentence — which is the half that
+ * would collapse silently.
+ *
+ * A defect that merely TALKS about a dropped sibling is still a bug, and the
+ * cheap version of this arm — matching the message, or swallowing anything
+ * transport-shaped — would fold the class of real faults into the one expected
+ * end. This is the case that fails if the recognition ever loosens to prose.
+ */
+test("a defect that only mentions a dropped sibling is still loud", async () => {
+  const impostor = new Error(
+    `surface: "surface/chat/conversation/sessions" is no longer served — ` +
+      `the sibling "chat" was dropped from this rooted bundle`,
+  )
+  await expect(runAsync(Effect.die(impostor))).rejects.toBe(impostor)
+})

@@ -337,11 +337,34 @@ test("a page that has heard nothing has no plugin rows and no flag to name", () 
   expect(Schema.is(PluginRoster)({ built: [], pinned: [] })).toBe(true)
 })
 
-// A plugin's enablement is CLI/nix only — no settings file, no browser toggle —
-// so there is no verb for a tab to call, the way there is none for `--commit`.
-test("the plugin roster is read-only on the wire", () => {
+/**
+ * THE ROSTER IS READ-ONLY AND THE SWITCH IS A PROCEDURE — two members under one
+ * word, which is the `git` arrangement and is why the collision is worth
+ * asserting rather than merely allowing.
+ *
+ * This case used to say there was no verb at all: *a plugin's enablement is
+ * CLI/nix only — no settings file, no browser toggle — so there is no verb for a
+ * tab to call, the way there is none for `--commit`.* The loader surface gave it
+ * one, and the shape it gave it is the interesting half. The cell keeps `get`
+ * alone, because a `set` on it would mean "make the roster say this", which is a
+ * browser telling a serve what its own fibers are doing; the PROCEDURE is an act
+ * with a subject and a refusal, and what comes back from it is the cell moving.
+ *
+ * ## The tag is the procedure's, and nothing else may mint it
+ *
+ * A cell's verbs and a procedure group's members compose into the same
+ * `surface/<word>/<verb>` space, so `surface/plugins/set` would be ambiguous the
+ * day somebody added `set` to the cell's `verbs`. It is not ambiguous today and
+ * must not become so — which the framework enforces at boot, since a rooted
+ * bundle counts both axes and refuses a duplicated tag. This asserts the state
+ * that refusal is protecting: one `set`, and it is the act.
+ */
+test("the roster cell is read-only and the switch is the procedure beside it", () => {
   expect(tags).toContain("surface/plugins/get")
-  expect(surface.group.requests.has("surface/plugins/set")).toBe(false)
+  expect(tags).toContain("surface/plugins/set")
+  // The cell offers `get` and nothing else — so the tag above is the
+  // procedure's, and there is no second member in the build that could mint it.
+  expect(surface.spec.cells.plugins.verbs).toEqual(["get"])
 })
 
 // The walk itself, since three tests above rest on it reading a schema

@@ -138,8 +138,8 @@ const panel = async (
   options: { readonly scoping?: Scopes; readonly start?: boolean } = {},
 ): Promise<Panel> => {
   const chat = await run(makeChat({
-    roster: [ROW],
-    engines: [],
+    roster: () => [ROW],
+    engines: () => [],
     cwd,
     tools: () => null,
     scoping: options.scoping ?? null,

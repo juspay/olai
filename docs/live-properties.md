@@ -78,6 +78,8 @@ The chip's press opens a **pane** beneath the property run — one at a time per
 
 ## When a plugin is off
 
-Live properties come from plugins, and a serve can be run without one (`--plugins` — [running.md](running.md)). A kind whose plugin is not running validates as **plain text**: the value is still a name, the file is still fine, nothing breaks, and it wears no face. That is exactly the state a vault that declared nothing is already in.
+Live properties come from plugins, and a serve can be run without one — `--plugins` at startup, or the switch on its row in the plugins panel while it runs ([running.md](running.md#the-switch-and-how-long-it-lasts)). A kind whose plugin is not running validates as **plain text**: the value is still a name, the file is still fine, nothing breaks, and it wears no face. That is exactly the state a vault that declared nothing is already in.
 
-A DECLARATION is judged differently from a VALUE, and the difference is worth knowing before you go looking for a bug: `{"type":"kolu-terminal"}` is a clean row on a serve running only odu, because a file's verdict may not depend on a flag on the machine reading it. Only the FACE is missing.
+**And it happens while you watch.** The vocabulary follows the fibers rather than the boot: switch a plugin off and its words leave the running serve with it, the values under them go back to being plain text on the next reading, and switching it back on brings both the words and the faces back. Nothing on disk moved in either direction — this is a question about which plugins are up, asked afresh, not a rewrite of anything you wrote.
+
+A DECLARATION is judged differently from a VALUE, and the difference is worth knowing before you go looking for a bug: `{"type":"kolu-terminal"}` is a clean row on a serve running only odu, because a file's verdict may not depend on a flag on the machine reading it — or on a switch somebody pressed a minute ago. Only the FACE is missing.

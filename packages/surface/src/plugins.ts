@@ -39,10 +39,22 @@
  * rebuilt page unless something says the two rosters are one. {@link
  * sameRoster} carries the whole of that argument.
  *
- * Read-only on the wire because `--plugins` is CLI/nix ONLY — no settings file,
- * no browser toggle, the git policy's shape one setting over. What a browser
- * does with it is draw a row per plugin, frozen, naming where it is changed
- * (`@olai/web`'s `client/plugins/Panel.tsx`).
+ * ## STILL READ-ONLY, and the panel is no longer frozen
+ *
+ * Those two used to be one sentence — *read-only on the wire because `--plugins`
+ * is CLI/nix ONLY, no settings file, no browser toggle* — and the loader surface
+ * separated them. There IS a browser verb now (`plugins.set`, on the root spec),
+ * and this cell still carries no write verb, because the two are about different
+ * things: a flip is an ACT with a subject and a refusal, and what comes back
+ * from it is this cell moving. A `set` on the cell would be "make the roster say
+ * this", which is a browser telling a serve what its own fibers are doing.
+ *
+ * That is the arrangement `git` already has one member over — a cell that says
+ * what git is doing, and procedures that ask it to do something — and it is why
+ * the two names collide on purpose.
+ *
+ * WHAT A BROWSER DOES WITH IT is draw a row per plugin, with a switch, naming
+ * what is in force and for how long (`@olai/web`'s `client/plugins/Panel.tsx`).
  *
  * ## NOTHING HERE SPELLS A PLUGIN'S NAME
  *
@@ -77,20 +89,21 @@ export const BuiltPlugin = Schema.Struct({
    *  `false` is total absence rather than a degraded arm. */
   running: Schema.Boolean,
   /**
-   * WHY, IN ONE WORD — the five states {@link pluginState} narrows to, and the
+   * WHY, IN ONE WORD — the six states {@link pluginState} narrows to, and the
    * one thing `running` cannot say.
    *
-   * A plugin is a fiber now, and `false` covers four different mornings:
+   * A plugin is a fiber now, and `false` covers five different mornings:
    * the operator's flag left it out, the BUILD leaves it out until somebody
-   * asks, its `apply` DIED, or it is still waiting on a service that has not
-   * arrived. Those want four different sentences under the row, and one of them
-   * wants an alarm — so the word travels rather than being guessed at the far
-   * end from a boolean that has already thrown the distinction away.
+   * asks, a PERSON turned it off at the panel, its `apply` DIED, or it is still
+   * waiting on a service that has not arrived. Those want five different
+   * sentences under the row, and one of them wants an alarm — so the word
+   * travels rather than being guessed at the far end from a boolean that has
+   * already thrown the distinction away.
    *
    * `running` STAYS, and is not redundant: it is the boolean the tab follows
    * its roster by — which plugins to load a chunk for, dial, and mount a fiber
    * for (`@olai/web`'s `client/wire.ts`) — and that reading must not have to
-   * know five words to answer one question. The two cannot disagree: the
+   * know six words to answer one question. The two cannot disagree: the
    * composition root writes `running` from what actually registered a sibling
    * and derives this from the same reading.
    *
@@ -135,6 +148,39 @@ export const BuiltPlugin = Schema.Struct({
    * claiming to wait on no one.
    */
   missing: Schema.optionalKey(Schema.Array(Schema.String)),
+  /**
+   * WHICH ROWS GO `waiting` IF THIS ONE IS TURNED OFF — the other end of
+   * {@link missing}, and the one thing a switch owes a person BEFORE it is
+   * pressed.
+   *
+   * `missing` is a row saying what it is short of, after the fact. This is the
+   * row that HAS what somebody else is short of, saying so while there is still
+   * a decision to make: turning the chat row off takes the four doors it stands
+   * behind with it, and every engine and both tenants name one. A panel that
+   * drew a switch and let a person find that out afterwards would be a control
+   * that hides its own blast radius.
+   *
+   * ## NAMES ROWS, where its counterpart names KEYS, and the asymmetry is exact
+   *
+   * `missing` may not name a plugin: which row WOULD provide a key is the
+   * bundle's business, and a general package holding that answer would be
+   * holding a list that can disagree with the fibers. This one names rows
+   * because it is not answering that question — it is reporting a JOIN the
+   * composition root made between two live readings, who stands behind what and
+   * who names what, neither of which anybody keeps by hand.
+   *
+   * ## ONLY ON A RUNNING ROW, and ABSENT rather than empty
+   *
+   * A row that is off carries nobody: what it stood behind is already revoked,
+   * and every row that named it is already `waiting` and already says so. And a
+   * running row that nothing names sends nothing at all — an empty list would
+   * be a row claiming to carry no one, which is a sentence, where absence is the
+   * ordinary state of every plugin in this build but one.
+   *
+   * OPTIONAL, for {@link state}'s two reasons: a serve too old to send it, and a
+   * roster whose decode may not fail, because every plugin's mount hangs off it.
+   */
+  carrying: Schema.optionalKey(Schema.Array(Schema.String)),
   /**
    * THE DOORBELL'S SENTENCE, when this plugin can wake a conversation — the
    * plugin's own words, travelling as data.
@@ -203,7 +249,7 @@ export const BuiltPlugin = Schema.Struct({
 export type BuiltPlugin = typeof BuiltPlugin.Type
 
 /**
- * THE FIVE WORDS A ROW CAN BE IN, and each is a different morning.
+ * THE SIX WORDS A ROW CAN BE IN, and each is a different morning.
  *
  *   - `running`  composed: members on the wire, faces drawn, probe run, kinds
  *                held. The ordinary state and the only one that is good news.
@@ -214,6 +260,16 @@ export type BuiltPlugin = typeof BuiltPlugin.Type
  *                is why it is not the same word as `off`: a row nobody chose is
  *                not a row somebody turned off, and only one of the two is
  *                worth a person's attention when they went looking for a chip.
+ *   - `switched` A PERSON TURNED IT OFF HERE, at the panel, on this serve. Also
+ *                total absence, and the third author of it — which is the whole
+ *                reason it needed a word. Absence used to have exactly two
+ *                authors, the flag and the build, and `pinned` told them apart;
+ *                the switch is a third, and without this the panel told a person
+ *                who had just pressed the switch that the BUILD ships this off
+ *                by default and named a flag they should type. It is the one of
+ *                the four absences that undoes itself: a restart brings the row
+ *                back to whatever the flag and the file say, and pressing the
+ *                switch again brings it back now.
  *   - `failed`   its `apply` DIED, which the registry records as a throw out of
  *                the mount. The one word that is a FAULT: it was asked
  *                for, it is absent, and nothing else on screen says so.
@@ -235,11 +291,11 @@ export type BuiltPlugin = typeof BuiltPlugin.Type
  * the narrowing's own vocabulary. One `as const` array, the type read off it,
  * and a sixth word is one edit that cannot be half-made.
  */
-const STATES = ["running", "off", "optIn", "failed", "waiting"] as const
+const STATES = ["running", "off", "optIn", "failed", "waiting", "switched"] as const
 
 export type PluginState = (typeof STATES)[number]
 
-/** The five, as a set — what {@link pluginState} asks. */
+/** The six, as a set — what {@link pluginState} asks. */
 const KNOWN: ReadonlySet<string> = new Set<string>(STATES)
 
 /**

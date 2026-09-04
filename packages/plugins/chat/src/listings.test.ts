@@ -63,7 +63,7 @@ const asking = (
   // known distance apart rather than a moment anybody reads back.
   const time = clock(1_000)
   const built: Where = {
-    roster: where.roster ?? [ONE, OTHER],
+    roster: where.roster ?? (() => [ONE, OTHER]),
     running: where.running ?? (() => null),
     aside: where.aside ?? ((row) => {
       // The whole round trip, so a test can say whether the process was still
@@ -177,7 +177,7 @@ describe("what an answer is worth", () => {
     // whose list this panel is actively changing.
     const { where, asked } = asking({
       answers: {},
-      roster: [ONE],
+      roster: () => [ONE],
       running: () => Effect.succeed([stored("live", null)]),
     })
     const listings = await Effect.runPromise(make(where))
@@ -217,7 +217,7 @@ describe("an answer the caller says not to keep", () => {
     // changing — the very thing the bound agent is never cached for.
     const { where, asked } = asking({
       answers: { one: [stored("cc", null)] },
-      roster: [ONE],
+      roster: () => [ONE],
       aside: (row) =>
         Effect.map(
           Effect.suspend(() => {
@@ -280,7 +280,7 @@ describe("an agent that could not be asked", () => {
     // call. It is the same sentence about the same subject.
     const { where } = asking({
       answers: {},
-      roster: [ONE],
+      roster: () => [ONE],
       running: () => Effect.fail(new AgentGone({ gone: "refused", why: "no" })),
     })
     const listed = await listOf(await Effect.runPromise(make(where)))

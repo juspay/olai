@@ -597,6 +597,18 @@ export const TESTID = {
   pluginsTrigger: "plugins-trigger",
   /** The panel it opens (portalled out of the header, like the one beside it). */
   pluginsPanel: "plugins-panel",
+  /** What the server would not take from a plugin switch — a dropped socket, or
+   *  a row this tab drew from a build the serve no longer has. Absent while
+   *  nothing has been refused, which is what makes its PRESENCE the fact. The
+   *  preferences panel's Resume keeps the same arrangement one panel over. */
+  pluginsRefused: "plugins-refused",
+  /** HOW THIS SERVE WAS STARTED AND HOW LONG A FLIP LASTS, once for the whole
+   *  panel — the flag an operator gave, or the built-in defaults, plus that a
+   *  restart comes back to it. It was a three-line block under EVERY row, which
+   *  is most of what made this panel a scroll. Drawn only where there are rows
+   *  to flip: the empty-build sentence is a different fact and would not want
+   *  this under it. */
+  pluginsStarted: "plugins-started",
   /** One row on EITHER panel; `data-pref` is which. On preferences: `theme`,
    *  `font`, `size`, `density`, `done`, `git-commit`, `git-push`. On plugins:
    *  one `plugin-<name>` per plugin this build has ({@link pluginPref}, which
@@ -616,11 +628,14 @@ export const TESTID = {
   prefsHint: "prefs-hint",
   /** One segment of a two-or-three-way choice. `data-value` is what it picks,
    *  `aria-pressed` whether it is the one in force, `aria-disabled` whether
-   *  the strip is frozen. The git rows always are. */
+   *  the strip is frozen. The git rows always are; a plugin row is frozen only
+   *  between its own press and the server's answer. */
   prefsChoice: "prefs-choice",
-  /** WHO set a row, on the rows that are the instance's — a given flag, or the
-   *  built-in default, and that a browser cannot change it. Absent on every
-   *  row this browser owns. */
+  /** WHERE a row's value came from, on the rows that are the instance's — a
+   *  given flag, or the built-in default. Absent on every row this browser
+   *  owns. It no longer implies the row is stuck: the plugins panel draws it
+   *  over a live switch, and `data-pinned` is the attribute that says which
+   *  (`settings/Row.tsx`). */
   prefsSetBy: "prefs-set-by",
   /** Start Auto-commit again after git refused something, on the Git commit
    *  row. Drawn only while the loop is actually stopped — Resume is the one
