@@ -189,59 +189,6 @@ export const fileForLocal = (plugin: string, cwd: string): string => {
   return join(stateHome(), plugin, `${digestOf(cwd)}.json`)
 }
 
-/** A pre-plugin machine-local record whose path never named its owner. It
- * cannot be migrated without guessing a plugin, so core reports it and leaves
- * it inert. */
-export const inertLocalFile = (cwd: string): string =>
-  join(stateHome(), "mirror", `${digestOf(cwd)}.json`)
-
-/** One location an older olai may have kept this plugin's record at. `section`
- *  means the old file becomes one section of the plugin's new document. */
-export interface LegacyLocalFile {
-  readonly at: string
-  readonly section?: "memory" | "wake" | "heard"
-}
-
-/**
- * The current path and the old paths it supersedes.
- *
- * The generic predecessor was `hold/<digest>.<plugin>.json`, so every plugin
- * gets that fallback without this leaf learning its identity. Chat predates
- * that door and kept three records of its own; its old memory already occupies
- * the new path, while `wake` and `heard` become sibling sections. This is a
- * layout migration, not a reading of what any section means.
- *
- * The still older `mirror/<digest>.json` is deliberately absent. Nothing in
- * that path identifies the plugin which owned it, and teaching a filesystem
- * leaf a tenant's current package name would turn migration history into a
- * dependency. Those records have already been inert since the keyed door
- * landed; callers can report them as such without guessing an owner.
- */
-export const layoutForLocal = (
-  plugin: string,
-  cwd: string,
-): {
-  readonly at: string
-  readonly unsectioned?: "memory"
-  readonly legacy: ReadonlyArray<LegacyLocalFile>
-} => {
-  const digest = digestOf(cwd)
-  const at = fileForLocal(plugin, cwd)
-  return {
-    at,
-    ...(plugin === "chat" ? { unsectioned: "memory" as const } : {}),
-    legacy: [
-      { at: join(stateHome(), "hold", `${digest}.${plugin}.json`) },
-      ...(plugin === "chat"
-        ? [
-          { at: join(stateHome(), "wake", `${digest}.json`), section: "wake" as const },
-          { at: join(stateHome(), "heard", `${digest}.json`), section: "heard" as const },
-        ]
-        : []),
-    ],
-  }
-}
-
 /** What every record here carries beside its own fields — see the header for
  *  why the path is written inside the file it is named after. */
 export interface LocalRecord {

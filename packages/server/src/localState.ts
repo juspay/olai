@@ -1,46 +1,71 @@
 /**
- * THE LOCAL-STATE DOOR — one opaque record per plugin per vault, in the state home.
+ * THE LOCAL-STATE DOOR — one opaque record per plugin per vault.
  *
- * Core owns the file. Writes are chained so the last snapshot handed over is
- * the one that lands: `@olai/state`'s staged rename cannot tear, but concurrent
- * writes are unordered ("either may win"), and a drain that persisted
- * `queue:[B]` then `queue:[]` cannot have the empty lose the rename race to
- * the earlier one and come back on the next boot as a digest already posted.
+ * Core owns the file and the ordering. The plugin owns the record's fields.
+ * One promise chain contains both the first read and every write, so a returning
+ * plugin sees the same snapshot a restart will see and a failed save is visible
+ * to the effect that asked for it.
  *
- * A plugin never imports `@olai/state`. The door is keyed by the plugin's
- * `name` the way `deliveries` is.
- *
- * ## THE CHAIN IS PER DOOR, SO THE DOOR HAS TO BE PER PLUGIN — and this file
- * ## cannot make that true on its own
- *
- * `saving` below is a closure variable, so every call to this function mints a
- * fresh chain and two doors for one plugin order nothing against each other. The
- * ordering above is therefore a claim about the CALLER: `@olai/plugin-api`'s
- * `openPlugins` memoises the door by plugin NAME, and its own paragraph argues
- * why by name rather than per activation — a plugin that unloads and comes back
- * is two fibers writing one path, and the file does not care which fiber a
- * snapshot came from.
- *
- * It was memoised per CALL first, which fixed the reachable half and left the
- * other one open for as long as no server half could unload mid-serve. A row
- * that stands behind another row's doors makes that routine, which is what
- * closed it.
+ * The caller mints this door once per plugin name. Two doors would mean two
+ * chains writing the same path; `openPlugins` keeps the name-to-door map.
  */
 
-import { Effect } from "effect"
-import { existsSync, readFileSync } from "node:fs"
+import { Effect, Result } from "effect"
+import { join } from "node:path"
 
-import type { PluginLocalState } from "@olai/plugin-api"
+import type { LocalState } from "@olai/plugin-api/services"
 import {
   canonical,
-  inertLocalFile,
-  layoutForLocal,
+  digestOf,
+  fileForLocal,
+  readLocal,
+  stateHome,
   writeLocal,
   type LocalRecord,
-  type StateFailure,
+  StateFailure,
 } from "@olai/state"
 
-const warnedInert = new Set<string>()
+type ChatSection = "memory" | "wake" | "heard"
+
+interface LegacyLocalFile {
+  readonly at: string
+  readonly section?: ChatSection
+}
+
+interface LegacyLayout {
+  /** Chat's old memory file already occupies its new path. */
+  readonly unsectioned?: "memory"
+  readonly files: ReadonlyArray<LegacyLocalFile>
+}
+
+/**
+ * Plugin history belongs at the door that knows the plugin name, not in the
+ * filesystem leaf. Remove these rows after the first release containing the
+ * LocalState layout has itself been superseded by a release.
+ */
+const legacyFor = (plugin: string, cwd: string): LegacyLayout => {
+  const digest = digestOf(cwd)
+  return {
+    ...(plugin === "chat" ? { unsectioned: "memory" as const } : {}),
+    files: [
+      { at: join(stateHome(), "hold", `${digest}.${plugin}.json`) },
+      ...(plugin === "chat"
+        ? [
+          { at: join(stateHome(), "wake", `${digest}.json`), section: "wake" as const },
+          { at: join(stateHome(), "heard", `${digest}.json`), section: "heard" as const },
+        ]
+        : []),
+      ...(plugin === "xyne-spaces"
+        ? [{ at: join(stateHome(), "mirror", `${digest}.json`) }]
+        : []),
+    ],
+  }
+}
+
+const withoutCwd = (one: Record<string, unknown>): Record<string, unknown> => {
+  const { cwd: _cwd, ...value } = one
+  return value
+}
 
 export const localStateFor = (
   plugin: string,
@@ -50,114 +75,97 @@ export const localStateFor = (
     at: string,
     local: LocalRecord & Record<string, unknown>,
   ) => Effect.Effect<void, StateFailure> = writeLocal,
-): PluginLocalState => {
+): LocalState => {
   const cwd = canonical(served)
-  const layout = layoutForLocal(plugin, cwd)
-  const at = layout.at
-  const inert = inertLocalFile(cwd)
-  if (existsSync(inert) && !warnedInert.has(inert)) {
-    warnedInert.add(inert)
-    warn(
-      `\`${inert}\` is legacy machine-local state whose path names no plugin; it remains inert`,
-    )
-  }
-  let saving = Promise.resolve()
+  const at = fileForLocal(plugin, cwd)
+  const legacy = legacyFor(plugin, cwd)
+  let chain = Promise.resolve()
   let loaded = false
   let record: Record<string, unknown> | null = null
   let migrating: ReadonlyArray<string> = []
 
-  const read = (from: string): Record<string, unknown> | null | undefined => {
-    try {
-      const raw: unknown = JSON.parse(readFileSync(from, "utf8"))
-      if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
-        warn(`plugin ${plugin}: \`${from}\` is not a local-state object`)
+  const read = (from: string): Effect.Effect<Record<string, unknown> | null | undefined> =>
+    Effect.match(readLocal(from, cwd), {
+      onFailure: (failure) => {
+        warn(`plugin ${plugin}: ${failure.why}`)
         return undefined
-      }
-      const one = raw as Record<string, unknown>
-      return one.cwd === cwd ? one : null
-    } catch (cause) {
-      if ((cause as { readonly code?: unknown }).code === "ENOENT") return null
-      warn(
-        `plugin ${plugin}: \`${from}\` could not be read: ${
-          cause instanceof Error ? cause.message : String(cause)
-        }`,
-      )
-      return undefined
-    }
-  }
+      },
+      onSuccess: (value) => value,
+    })
 
-  const withoutCwd = (one: Record<string, unknown>): Record<string, unknown> => {
-    const { cwd: _cwd, ...value } = one
-    return value
-  }
-
-  const load = (): Record<string, unknown> | null => {
-    if (loaded) return record
-    loaded = true
-    const current = read(at)
+  const readOnce: Effect.Effect<Record<string, unknown> | null> = Effect.gen(function*() {
+    const current = yield* read(at)
     if (current === undefined) return null
 
-    const sectioned = layout.unsectioned !== undefined && current !== null &&
+    const sectioned = legacy.unsectioned !== undefined && current !== null &&
       ["memory", "wake", "heard"].some((section) => section in current)
-    if (current !== null && (layout.unsectioned === undefined || sectioned)) {
-      record = current
-      return record
-    }
+    if (current !== null && (legacy.unsectioned === undefined || sectioned)) return current
 
     const merged: Record<string, unknown> = {}
     const sources: Array<string> = []
-    if (current !== null && layout.unsectioned !== undefined) {
-      merged[layout.unsectioned] = withoutCwd(current)
+    if (current !== null && legacy.unsectioned !== undefined) {
+      merged[legacy.unsectioned] = withoutCwd(current)
       sources.push(at)
     }
-    for (const legacy of layout.legacy) {
-      const old = read(legacy.at)
-      if (old === undefined) continue
-      if (old === null) continue
-      if (legacy.section === undefined) {
+    for (const old of legacy.files) {
+      const value = yield* read(old.at)
+      if (value === undefined || value === null) continue
+      if (old.section === undefined) {
         if (Object.keys(merged).length === 0) {
-          record = old
-          migrating = [legacy.at]
-          return record
+          migrating = [old.at]
+          return value
         }
         continue
       }
-      merged[legacy.section] = withoutCwd(old)
-      sources.push(legacy.at)
+      merged[old.section] = withoutCwd(value)
+      sources.push(old.at)
     }
-    if (Object.keys(merged).length > 0) {
-      record = { cwd, ...merged }
-      migrating = sources
+    if (Object.keys(merged).length === 0) return null
+    migrating = sources
+    return { cwd, ...merged }
+  })
+
+  const enqueue = <A>(work: () => Promise<A>): Promise<A> => {
+    const answer = chain.then(work, work)
+    chain = answer.then(() => undefined, () => undefined)
+    return answer
+  }
+
+  const loadOnce = async (): Promise<Record<string, unknown> | null> => {
+    if (!loaded) {
+      record = await Effect.runPromise(readOnce)
+      loaded = true
     }
     return record
   }
 
   return {
-    load,
-    save: (value) => {
-      const local = { cwd, ...value }
-      record = local
-      loaded = true
-      saving = saving.then(() =>
-        Effect.runPromise(write(at, local)).then(
-          () => {
-            if (migrating.length === 0) return
-            warn(
-              `plugin ${plugin}: migrated machine-local state from ${
-                migrating.map((from) => `\`${from}\``).join(", ")
-              } to \`${at}\`; the old files are inert`,
-            )
-            migrating = []
-          },
-          (error: unknown) => {
-            warn(
-              `plugin ${plugin}: local state could not be written (${
-                error instanceof Error ? error.message : String(error)
-              })`,
-            )
-          },
-        ),
-      )
-    },
+    load: Effect.promise(() => enqueue(loadOnce)),
+    save: (value) =>
+      Effect.tryPromise({
+        try: () =>
+          enqueue(async () => {
+            await loadOnce()
+            const local = { cwd, ...value }
+            const written = await Effect.runPromise(Effect.result(write(at, local)))
+            if (Result.isFailure(written)) {
+              warn(`plugin ${plugin}: local state could not be written (${written.failure.why})`)
+              throw written.failure
+            }
+            record = local
+            if (migrating.length > 0) {
+              warn(
+                `plugin ${plugin}: migrated machine-local state from ${
+                  migrating.map((from) => `\`${from}\``).join(", ")
+                } to \`${at}\`; the old files are inert`,
+              )
+              migrating = []
+            }
+          }),
+        catch: (cause) =>
+          cause instanceof StateFailure
+            ? cause
+            : new StateFailure({ why: cause instanceof Error ? cause.message : String(cause) }),
+      }),
   }
 }

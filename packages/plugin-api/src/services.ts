@@ -99,7 +99,6 @@ import {
   type MintedTicket,
   NO_TICKET,
   NOWHERE_TO_WRITE,
-  type PluginLocalState,
   type Probed,
   type PropKind,
   type PropWrite,
@@ -538,6 +537,8 @@ export const Watching = serviceTag<Watching>("watching")
  * boot as a digest already posted. THE DOOR IS MINTED ONCE PER PLUGIN NAME, which
  * is what makes that true: the chain that orders the writes lives on the door, so
  * a second door is a second chain and orders nothing against the first.
+ * The save effect settles only when its own write lands and returns the core
+ * refusal when it does not; a gesture can never be told success for queued IO.
  *
  * It was minted per CALL — every save started a fresh chain and the ordering this
  * paragraph promised was not happening at all — and then per ACTIVATION, which
@@ -548,7 +549,7 @@ export const Watching = serviceTag<Watching>("watching")
  */
 export interface LocalState {
   readonly load: Effect.Effect<Record<string, unknown> | null>
-  readonly save: (value: Record<string, unknown>) => Effect.Effect<void>
+  readonly save: (value: Record<string, unknown>) => Effect.Effect<void, Refusal>
 }
 export const LocalState = serviceTag<LocalState>("localState")
 
@@ -990,7 +991,7 @@ export interface PluginsConfig {
   /** One plugin's machine-local record, by name — minted ONCE per plugin, which
    *  is what orders its writes. Where a machine keeps olai's own files is not a
    *  plugin's business. */
-  readonly localStateFor?: Provision<PluginLocalState>
+  readonly localStateFor?: Provision<LocalState>
   /**
    * THE VAULT'S MCP SERVER, COMPLETED AFTER `listen` — see {@link Tools}.
    *
@@ -1277,15 +1278,14 @@ export const openPlugins = (
     // KEYED BY THE NAME rather than by the fiber, because the name is what the
     // FILE is keyed by: two activations of one plugin are two fibers writing one
     // path, which is the whole of what has to be ordered.
-    const localStates = new Map<string, PluginLocalState | null>()
+    const localStates = new Map<string, LocalState | null>()
     yield* provide(host, LocalState, (plugin) => {
       if (!localStates.has(plugin)) {
         localStates.set(plugin, config.localStateFor?.(plugin) ?? null)
       }
-      const door = localStates.get(plugin) ?? null
-      return {
-        load: Effect.sync(() => door?.load() ?? null),
-        save: (value) => Effect.sync(() => void door?.save(value)),
+      return localStates.get(plugin) ?? {
+        load: Effect.succeed(null),
+        save: () => Effect.void,
       }
     })
 
@@ -1306,7 +1306,6 @@ export type {
   Deliveries as DeliveryDoor,
   MintedTicket,
   NotHere,
-  PluginLocalState,
   Probed,
   PropKind,
   PropWrite,

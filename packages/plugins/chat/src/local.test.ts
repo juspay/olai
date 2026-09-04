@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import type { LocalState } from "@olai/plugin-api/services"
-import { Effect } from "effect"
+import { Effect, Result } from "effect"
 
 import { openLocalState } from "./local.ts"
 
@@ -65,5 +65,24 @@ describe("chat's one machine-local document", () => {
 
     expect(afterFlip.load("memory")).toEqual({ agent: "claude", session: "sess-1" })
     expect(afterFlip.load("wake")).toEqual({ scopes: [{ plugin: "kolu" }] })
+  })
+
+  test("a refused write reaches chat and leaves its snapshot where it landed", async () => {
+    const door: LocalState = {
+      load: Effect.succeed({ memory: { session: "sess-1" } }),
+      save: () => Effect.fail({ _tag: "StateFailure", reason: "the state home is read-only" }),
+    }
+    const local = await run(openLocalState(door))
+
+    const answer = await Effect.runPromise(
+      Effect.result(local.save("memory", { session: "sess-2" })),
+    )
+
+    expect(Result.isFailure(answer)).toBe(true)
+    if (Result.isFailure(answer)) {
+      expect(answer.failure._tag).toBe("MemoryFailure")
+      expect(answer.failure.why).toBe("the state home is read-only")
+    }
+    expect(local.load("memory")).toEqual({ session: "sess-1" })
   })
 })

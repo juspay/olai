@@ -8,10 +8,20 @@
  * never erase a doorbell pick or an overheard line.
  */
 
-import type { LocalState } from "@olai/plugin-api/services"
-import { Effect, Semaphore } from "effect"
+import type { LocalState, Refusal } from "@olai/plugin-api/services"
+import { Data, Effect, Semaphore } from "effect"
 
 export type LocalSection = "memory" | "wake" | "heard"
+
+/** A chat-local record could not be read or written. The panel renders this
+ * tagged failure as a transcript row rather than losing the gesture quietly. */
+export class MemoryFailure extends Data.TaggedError("MemoryFailure")<{
+  readonly why: string
+}> {
+  override get message(): string {
+    return this.why
+  }
+}
 
 export interface ChatLocalState {
   /** One section, or `null` when this machine has never written it. */
@@ -20,13 +30,18 @@ export interface ChatLocalState {
   readonly save: (
     section: LocalSection,
     value: Record<string, unknown>,
-  ) => Effect.Effect<void>
+  ) => Effect.Effect<void, MemoryFailure>
 }
 
 const object = (value: unknown): Record<string, unknown> =>
   value !== null && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
     : {}
+
+const reasonOf = (failure: Refusal): string => {
+  const reason = (failure as { readonly reason?: unknown }).reason
+  return typeof reason === "string" ? reason : String(failure)
+}
 
 /** Open the one document once for this activation. */
 export const openLocalState = (door: LocalState): Effect.Effect<ChatLocalState> =>
@@ -47,7 +62,10 @@ export const openLocalState = (door: LocalState): Effect.Effect<ChatLocalState> 
       save: (section, value) =>
         writing.withPermit(Effect.gen(function*() {
           const next = { ...snapshot, [section]: value }
-          yield* door.save(next)
+          yield* Effect.mapError(
+            door.save(next),
+            (failure) => new MemoryFailure({ why: reasonOf(failure) }),
+          )
           snapshot = next
         })),
     }

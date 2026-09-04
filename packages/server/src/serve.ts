@@ -144,9 +144,10 @@ export const serve = (options: ServeOptions) =>
      * file still holds, and what is left of a `let ring` that used to carry every
      * plugin service's two channels.
      *
-     * `./held.ts` orders a plugin's writes on a promise chain, because the
-     * ordering is the point and a fire-and-forget save must not wait on a disk. A
-     * write that fails there has no fiber under it, which is the exact position
+     * `./localState.ts` orders a plugin's reads and writes on a promise chain.
+     * The save effect waits for its own write, while callbacks such as the Spaces
+     * mirror may deliberately detach that effect. A write that fails there can
+     * therefore have no fiber under it, which is the exact position
      * `@olai/log`'s `emit.ts` was written for: without this the line would be
      * emitted against the defaults and escape an `OLAI_LOG_LEVEL` the operator
      * typed. It is core's own file and core's own failure — no plugin service

@@ -285,11 +285,11 @@ you set by hand on the command line is a policy you set once and forget:
 
 ### Machine-local state
 
-Plugins have one machine-local door, `LocalState`. Core stores its opaque document outside the vault at `$XDG_STATE_HOME/olai/<plugin>/<hash>.json` (normally `~/.local/state/olai/<plugin>/<hash>.json`), where `hash` names the served directory's real path. A plugin never opens that path itself. Core keys the door with the plugin's own name, keeps one ordered write chain across plugin flips, and logs read/write failures without taking the serve down.
+Plugins have one machine-local door, `LocalState`. Core stores its opaque document outside the vault at `$XDG_STATE_HOME/olai/<plugin>/<hash>.json` (normally `~/.local/state/olai/<plugin>/<hash>.json`), where `hash` names the served directory's real path. A plugin never opens that path itself. Core keys the door with the plugin's own name and keeps one ordered write chain across plugin flips. A save completes when its file lands; a failed save is both logged and returned to the plugin so the gesture that caused it can say what did not stick without taking the serve down.
 
 Chat's document has three sections in one JSON object: `memory` for the open agent/session/model, `wake` for scoped doorbells, and `heard` for teaching and last-line bookkeeping. Each section keeps its own cap and reading rules; one chat adapter serializes their read-modify-writes. Turning chat off and on therefore preserves the same snapshot, and a restart reads it from the same document. Xyne Spaces keeps its existing mirror snapshot under `xyne-spaces/<hash>.json`.
 
-An upgrade reads the previous paths once. The first save migrates `hold/<hash>.<plugin>.json`; for chat it also folds `chat/<hash>.json`, `wake/<hash>.json`, and `heard/<hash>.json` into the new three-section document. The old files are left in place but inert, and the migration is logged. Older `mirror/<hash>.json` records cannot be assigned safely because their path names no plugin; they are left inert with a log line.
+An upgrade reads the previous paths once. The first save migrates `hold/<hash>.<plugin>.json`; for chat it also folds `chat/<hash>.json`, `wake/<hash>.json`, and `heard/<hash>.json` into the new three-section document. Xyne Spaces additionally adopts its older `mirror/<hash>.json` snapshot, including queued posts. The old files are left in place but inert, and the migration is logged.
 
 ### What being off means
 

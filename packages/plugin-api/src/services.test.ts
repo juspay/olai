@@ -488,7 +488,10 @@ test("a plugin's local-state door is one door, however many times it is used", a
       localStateFor: () => {
         minted += 1
         let record: Record<string, unknown> | null = null
-        return { load: () => record, save: (value) => void (record = value) }
+        return {
+          load: Effect.sync(() => record),
+          save: (value) => Effect.sync(() => void (record = value)),
+        }
       },
     })
     yield* mountPlugin(
@@ -498,8 +501,8 @@ test("a plugin's local-state door is one door, however many times it is used", a
         needs: [LocalState],
         apply: Effect.gen(function*() {
           const localState = yield* LocalState
-          yield* localState.save({ queue: ["B"] })
-          yield* localState.save({ queue: [] })
+          yield* Effect.orDie(localState.save({ queue: ["B"] }))
+          yield* Effect.orDie(localState.save({ queue: [] }))
           expect(yield* localState.load).toEqual({ queue: [] })
         }),
       }),
@@ -538,14 +541,17 @@ test("a plugin that comes back writes down the chain it was already writing down
       localStateFor: () => {
         minted += 1
         let record: Record<string, unknown> | null = null
-        return { load: () => record, save: (value) => void (record = value) }
+        return {
+          load: Effect.sync(() => record),
+          save: (value) => Effect.sync(() => void (record = value)),
+        }
       },
     })
     const spaces = definePlugin({
       name: "spaces",
       needs: [LocalState],
       apply: Effect.gen(function*() {
-        yield* (yield* LocalState).save({ queue: ["B"] })
+        yield* Effect.orDie((yield* LocalState).save({ queue: ["B"] }))
       }),
     })
     const first = yield* mountPlugin(plugins.host, spaces)

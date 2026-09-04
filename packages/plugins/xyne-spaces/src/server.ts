@@ -239,7 +239,7 @@ export default definePlugin({
               run(Effect.gen(function*() {
                 const next = snapshotsOf(yield* localState.load)
                 next.set(snapshot.channel, snapshot)
-                yield* localState.save(recordAll(next))
+                yield* Effect.ignore(localState.save(recordAll(next)))
               })),
           },
           deliverFault: (body, coalesce) => {

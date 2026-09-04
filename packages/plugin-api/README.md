@@ -174,9 +174,9 @@ What core does with a body is three arms, and which one it took is never reporte
 
 ## One LocalState door, and it is core's file
 
-A plugin may keep a **small document about this serve** — thread ids, a queue, or several sections — and it lives in the state home, not the vault. `LocalState` ([`src/services.ts`](src/services.ts)) is `load` and `save(value)`: core owns `~/.local/state/olai/<plugin>/<hash>.json` ([`@olai/state`](../state/README.md)), and the plugin parses the opaque object it wrote. `save` is fire-and-forget and **ordered**. The door is memoized by plugin name across unload/reload, so a plugin flip cannot create a second write chain for the same file. `@olai/state` stays out of every tenant; the bundle fence holds that on both sources and manifests.
+A plugin may keep a **small document about this serve** — thread ids, a queue, or several sections — and it lives in the state home, not the vault. `LocalState` ([`src/services.ts`](src/services.ts)) is `load` and `save(value)`: core owns `~/.local/state/olai/<plugin>/<hash>.json` ([`@olai/state`](../state/README.md)), and the plugin parses the opaque object it wrote. `save` settles when the ordered write lands and refuses with its reason when it does not. The door is memoized by plugin name across unload/reload, so a plugin flip cannot create a second write chain for the same file. `@olai/state` stays out of every tenant; the bundle fence holds that on both sources and manifests.
 
-Required like `deliveries`. A machine that cannot write the file warns; the plugin is not asked to care.
+Required like `deliveries`. Core warns when a machine cannot write the file, and the asking effect receives the same refusal so a gesture can say what did not stick.
 
 ## One kind, and both doors ask it
 
@@ -225,4 +225,4 @@ The subscription is an **effect**: it returns a disposer attached to the calling
 
 `LocalState` is a small opaque record per plugin per vault, in the **state home** rather than the vault — `@olai/state`'s file, which no plugin imports. Core owns the file and mints the door from the calling plugin's own word, the way the doorbell's door is minted and for the same reason: a record keyed by nobody would let one plugin read and overwrite another's. The door is minted ONCE per plugin, which is what makes the ordering below true — it was minted per CALL, and the chain that orders the writes lives on the door.
 
-`save` is fire-and-forget and **ordered**. Successive snapshots of one in-memory state land in the order they were handed over, so a drain that persisted `queue:[B]` and then `queue:[]` cannot have the empty lose the rename race to the earlier one and come back on the next boot as a digest already posted.
+`save` is settled and **ordered**. Successive snapshots of one in-memory state land in the order they were handed over, so a drain that persisted `queue:[B]` and then `queue:[]` cannot have the empty lose the rename race to the earlier one and come back on the next boot as a digest already posted. Its effect completes only after its own snapshot lands; a failed write returns the leaf's refusal and leaves the door's in-memory reading at the last snapshot that did land.

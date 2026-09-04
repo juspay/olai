@@ -14,7 +14,7 @@ Every plugin has one document per served directory:
 
 Chat's one document contains three independently read sections: `memory`, `wake`, and `heard`. Their state machines keep their own caps and lenient readings, while chat's adapter carries all three through one write lane. Xyne Spaces stores the same mirror snapshot it did before under its plugin document.
 
-The first read recognizes the previous layouts. On the first save, `hold/<digest>.<plugin>.json` is written to the new plugin path; chat additionally folds `chat/<digest>.json`, `wake/<digest>.json`, and `heard/<digest>.json` into its three sections. Old files are left inert and the migration is logged. The older `mirror/<digest>.json` path names no owning plugin, so it cannot be migrated honestly; core leaves it inert and logs that fact.
+The server's first read recognizes the previous layouts. On the first save, `hold/<digest>.<plugin>.json` is written to the new plugin path; chat additionally folds `chat/<digest>.json`, `wake/<digest>.json`, and `heard/<digest>.json` into its three sections, and Xyne Spaces adopts its old `mirror/<digest>.json` snapshot. Old files are left inert and the migration is logged. Those expiring plugin-history rules live at the server door; this leaf knows only current paths and filesystem mechanics.
 
 `pruneGone()` sweeps plugin directories at boot and removes only records whose guarded `cwd` answers `ENOENT`. Unreadable records, relative guards, staged files, and unavailable mounts are left alone. This is hygiene, not validity.
 

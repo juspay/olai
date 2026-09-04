@@ -1718,7 +1718,7 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
      * `format/src/committing.ts` declares it; `server/src/serve.ts` binds the
      * face under it and `server/src/mcp/tickets.ts` binds the fenced one.
      *
-     * **THE OLD STATE LAYOUT.** The state leaf recognizes the former
+     * **THE OLD STATE LAYOUT.** The server door recognizes the former
      * `chat/<hash>.json` path so core can fold it into the plugin document on
      * first write. It names a historical directory, not a plugin import or
      * address, and disappears when that migration window closes.
@@ -1740,12 +1740,15 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "ops/src/pending.ts",
       "plugins/xyne-spaces/src/client.ts",
       "plugins/xyne-spaces/src/testlib/fake-spaces.ts",
+      "server/src/localState.ts",
       "server/src/mcp/tickets.ts",
       "server/src/serve.ts",
-      "state/src/index.ts",
       "web/src/client/commit/said.ts",
       "web/src/client/layout/prefs.ts",
     ],
+    /** The server's expiring migration table maps the old unkeyed `mirror/`
+     * record to the tenant that wrote it. Remove with that migration row. */
+    "xyne-spaces": ["server/src/localState.ts"],
   }
 
   test("no package outside the registry and the plugin's own tenant spells it", () => {

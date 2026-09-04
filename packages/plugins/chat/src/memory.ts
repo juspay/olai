@@ -61,8 +61,8 @@
  * ## What it does with a failure
  *
  * A missing section is the ordinary first-serve answer. A section that names
- * no session fails with {@link MemoryFailure}; filesystem failures are core's
- * boundary and are logged there without making a plugin own a path.
+ * no session fails with {@link MemoryFailure}; a filesystem write failure comes
+ * through the door as the same word, without making this plugin own a path.
  *
  * ## Two things this deliberately is not
  *
@@ -71,23 +71,15 @@
  * atomic replacement in core.
  *
  * **Not a second failure vocabulary.** {@link MemoryFailure} stays this
- * package's own — its one caller renders it as a row in the transcript — and is
- * the reading's own word for a malformed conversation section.
+ * package's own — its caller renders it as a row in the transcript — and is the
+ * one word for a malformed section or a write that did not land.
  */
 
-import { Data, Effect } from "effect"
+import { Effect } from "effect"
 
-import type { ChatLocalState } from "./local.ts"
+import { type ChatLocalState, MemoryFailure } from "./local.ts"
 
-/** Remembering, or reading back, went wrong. Reported to a person and never
- *  fatal — see the header. */
-export class MemoryFailure extends Data.TaggedError("MemoryFailure")<{
-  readonly why: string
-}> {
-  override get message(): string {
-    return this.why
-  }
-}
+export { MemoryFailure } from "./local.ts"
 
 /**
  * What a boot needs to know about the boot before it: which conversation, and
@@ -226,14 +218,11 @@ export const forLocalState = (local: ChatLocalState, before: string): Memory => 
   })
 
   const remember = (held: MemorySnapshot): Effect.Effect<void, MemoryFailure> =>
-    Effect.mapError(
-      local.save(CHAT, {
-        agent: held.agent,
-        session: held.session,
-        model: held.model ?? undefined,
-      }),
-      (failure) => new MemoryFailure({ why: String(failure) }),
-    )
+    local.save(CHAT, {
+      agent: held.agent,
+      session: held.session,
+      model: held.model ?? undefined,
+    })
 
   return { recall, remember }
 }

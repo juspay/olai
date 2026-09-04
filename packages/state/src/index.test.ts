@@ -19,8 +19,6 @@ import {
   canonical,
   digestOf,
   fileForLocal,
-  inertLocalFile,
-  layoutForLocal,
   pruneGone,
   readLocal,
   runtimeHome,
@@ -104,27 +102,6 @@ test("a plugin is a subdirectory of the state home, and the digest names the fil
     expect(fileForLocal("example", root)).toBe(
       path.join(home, "olai", "example", `${digestOf(root)}.json`),
     )
-    expect(inertLocalFile(root)).toBe(
-      path.join(home, "olai", "mirror", `${digestOf(root)}.json`),
-    )
-  }))
-
-test("the old generic hold and chat's three old records are migration sources", () =>
-  withState(async ({ root, home }) => {
-    const digest = digestOf(root)
-    expect(layoutForLocal("example", root)).toEqual({
-      at: path.join(home, "olai", "example", `${digest}.json`),
-      legacy: [{ at: path.join(home, "olai", "hold", `${digest}.example.json`) }],
-    })
-    expect(layoutForLocal("chat", root)).toEqual({
-      at: path.join(home, "olai", "chat", `${digest}.json`),
-      unsectioned: "memory",
-      legacy: [
-        { at: path.join(home, "olai", "hold", `${digest}.chat.json`) },
-        { at: path.join(home, "olai", "wake", `${digest}.json`), section: "wake" },
-        { at: path.join(home, "olai", "heard", `${digest}.json`), section: "heard" },
-      ],
-    })
   }))
 
 test("a plugin name that is not a filename is refused", () => {

@@ -22,11 +22,12 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 
 import { readingOf, setOf } from "@olai/format/testlib"
-import type { ConversationSeen, Deliveries, PluginLocalState } from "@olai/plugin-api"
+import type { ConversationSeen, Deliveries } from "@olai/plugin-api"
 import type { SpacesLink } from "./wire.ts"
 import {
   definePlugin,
   Deliveries as DeliveriesDoor,
+  type LocalState,
   mountPlugin,
   Offers,
   openPlugins,
@@ -55,13 +56,11 @@ const waitFor = async (n: () => number, want: number): Promise<void> => {
   throw new Error(`wanted ${want} events, got ${n()}`)
 }
 
-const memoryLocalState = (): PluginLocalState => {
+const memoryLocalState = (): LocalState => {
   let record: Record<string, unknown> | null = null
   return {
-    load: () => record,
-    save: (value) => {
-      record = value
-    },
+    load: Effect.sync(() => record),
+    save: (value) => Effect.sync(() => void (record = value)),
   }
 }
 
@@ -73,7 +72,7 @@ interface Doubles {
   readonly now: () => string
   readonly deliver?: Deliveries["deliver"]
   readonly dial?: unknown
-  readonly localState?: PluginLocalState
+  readonly localState?: LocalState
 }
 
 /**
