@@ -269,6 +269,29 @@ export const spawnedIn = (meta: Meta, input: unknown): Spawn | null => {
  * notification (`onto: null`): it must not become a user bubble, and it
  * has no row to file the report under.
  */
+/**
+ * WHAT SITS BETWEEN THE FIRST OPENING TAG AND THE LAST CLOSING ONE — a scan
+ * rather than a regular expression, and the difference is a cost rather than a
+ * meaning.
+ *
+ * It was `/<result>([\s\S]*)<\/result>/`. A greedy run followed by a literal is
+ * the shape a backtracking engine walks quadratically: on a payload that OPENS
+ * the tag many times and never closes it, the engine re-tries the tail from
+ * every one of them. The text is an agent's own tool result — arbitrarily long,
+ * and not ours — so the cost is somebody else's to hand us
+ * (`js/polynomial-redos`).
+ *
+ * Two index scans answer the same question in one pass, and the LAST closing tag
+ * is deliberate: a report may quote its own closing tag, and what the harness
+ * wrapped is everything up to the outermost one.
+ */
+const betweenIn = (text: string, open: string, close: string): string => {
+  const from = text.indexOf(open)
+  if (from === -1) return ""
+  const to = text.lastIndexOf(close)
+  return to < from + open.length ? "" : text.slice(from + open.length, to)
+}
+
 export const taskNotificationIn = (text: string, meta: Meta): TaskNotice | null => {
   const kind = wordIn(fieldIn(claudeIn(meta), "origin"), "kind")
   const xml = text.trim()
@@ -276,7 +299,7 @@ export const taskNotificationIn = (text: string, meta: Meta): TaskNotice | null 
   if (kind !== "task-notification" && !(kind === null && wrapped)) return null
   const toolUseId = (xml.match(/<tool-use-id>([^<]*)<\/tool-use-id>/u)?.[1] ?? "").trim()
   const task = (xml.match(/<task-id>([^<]*)<\/task-id>/u)?.[1] ?? "").trim()
-  const report = xml.match(/<result>([\s\S]*)<\/result>/u)?.[1] ?? ""
+  const report = betweenIn(xml, "<result>", "</result>")
   return toolUseId === "" || task === ""
     ? { onto: null }
     : { onto: { toolUseId, task, report } }

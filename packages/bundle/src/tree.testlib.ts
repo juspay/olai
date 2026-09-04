@@ -319,6 +319,18 @@ export const grammarOf = (file: string): Named["grammar"] =>
  * `Bun.build` metafile would make every such crossing an unresolved edge and
  * every purity claim pass over the truncated graph.
  */
+/** WHERE THE ONE `*` IS, or `-1` for a string that has none or has two.
+ *
+ *  Node's subpath patterns allow exactly one asterisk per key and substitute the
+ *  matched segment verbatim; a pattern with two is not a wider pattern, it is a
+ *  malformed one. Answering `-1` for both is what lets the caller treat "not a
+ *  pattern" and "not a pattern I will guess at" as the one thing they are: a
+ *  door this walk does not resolve, reported rather than half-honoured. */
+const onlyStar = (of: string): number => {
+  const at = of.indexOf("*")
+  return at === -1 || of.indexOf("*", at + 1) !== -1 ? -1 : at
+}
+
 type Landing =
   | { readonly kind: "external" }
   | { readonly kind: "module"; readonly path: string }
@@ -359,15 +371,26 @@ const resolveWorkspace = (spec: string): Landing => {
   // half-honoured, because a resolver that guessed would be the second module
   // resolver this header spends a paragraph refusing to be.
   for (const [key, value] of Object.entries(doorsOf(manifest))) {
-    const star = key.indexOf("*")
-    if (star === -1 || key.indexOf("*", star + 1) !== -1) continue
-    const head = key.slice(0, star)
-    const tail = key.slice(star + 1)
+    const at = onlyStar(key)
+    if (at === -1) continue
+    const head = key.slice(0, at)
+    const tail = key.slice(at + 1)
     if (!door.startsWith(head) || !door.endsWith(tail)) continue
     if (door.length < head.length + tail.length) continue
+    if (typeof value !== "string") continue
+    // THE TARGET IS HELD TO THE SAME ONE-STAR RULE as the key, and it is spliced
+    // rather than `replace`d. `String.replace` with a string pattern substitutes
+    // the FIRST occurrence and walks past the rest — which for a target with two
+    // stars would resolve half of it and answer a path that is not the door. The
+    // spec allows exactly one on each side; refusing the rest is the same
+    // sentence the key already gets, and a splice cannot express anything else.
+    const into = onlyStar(value)
+    if (into === -1) continue
     const matched = door.slice(head.length, door.length - tail.length)
-    if (typeof value !== "string" || !value.includes("*")) continue
-    return { kind: "module", path: path.join(dir, value.replace("*", matched)) }
+    return {
+      kind: "module",
+      path: path.join(dir, value.slice(0, into) + matched + value.slice(into + 1)),
+    }
   }
   return { kind: "unresolved", why: `${member} opens no ${door} door` }
 }

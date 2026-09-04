@@ -92,6 +92,40 @@ function readRows(): ReadonlyArray<Row> {
  *  LOADER mounts; the browser half is that package's `./browser`, and the
  *  stylesheet and the testids are two more subpaths of the same package. One
  *  spelling in the file, four doors off it. */
+/**
+ * A ROW'S OWN WORD, AS A SOURCE LITERAL — checked rather than escaped.
+ *
+ * Everything this generator emits is a quoted string in a file a compiler then
+ * reads, and `JSON.stringify` is not a JavaScript-string escaper: JSON admits
+ * U+2028 and U+2029 raw, and both are LINE TERMINATORS in source, so a value
+ * carrying one closes the literal and the rest of the row becomes code
+ * (`js/bad-code-sanitization`).
+ *
+ * The honest answer here is not a better escaper. A row's `id` is a plugin's
+ * name — the sibling key, the word `--plugins` takes, the docs slug — and its
+ * `name` is a module specifier; neither has ever been anything but letters,
+ * digits and a few separators, and a row carrying a line terminator is a
+ * malformed row rather than an exotic one. So this REFUSES it, in the file that
+ * would otherwise have written it out, and `olai.yml` is the one place a person
+ * edits.
+ *
+ * A WHITELIST and not a blacklist, for the reason every check like this is: a
+ * list of what is allowed cannot be short by one character the way a list of
+ * what is forbidden always eventually is.
+ */
+const WORDS = /^[@A-Za-z0-9._/-]+$/
+
+const quoted = (word: string): string => {
+  if (!WORDS.test(word)) {
+    throw new Error(
+      `bundle: ${JSON.stringify(word)} is not a plugin's word — a row's \`id\` and `
+        + "`name` are letters, digits, `@`, `.`, `_`, `-` and `/`, and this generator "
+        + "writes them into source rather than escaping them",
+    )
+  }
+  return `"${word}"`
+}
+
 const packageOf = (row: Row): string => {
   const at = row.name.indexOf("/")
   return at === -1 ? row.name : row.name.slice(0, at)
@@ -112,11 +146,23 @@ function rowsModule(rows: ReadonlyArray<Row>): string {
   // it. Emitting them keeps the ONE SOURCE — this generator reads the same
   // file, and `@cordisjs/plugin-include` still reads it itself at mount, which
   // is what makes `--plugins` a patch over rows rather than a filter in code.
-  const server = rows.map((row) => `  ${JSON.stringify(row)},`).join("\n")
+  // SPELLED FIELD BY FIELD, through the same check the two doors below use.
+  // `JSON.stringify(row)` emitted the whole object and was the last place a
+  // row's own words reached this file without passing {@link quoted} — the
+  // hazard is not the shape, it is that a JSON string and a JavaScript string
+  // disagree about two characters, and an object literal carries strings just as
+  // a specifier does.
+  const server = rows
+    .map((row) =>
+      `  { id: ${quoted(row.id)}, name: ${quoted(row.name)}${
+        row.disabled === true ? ", disabled: true" : ""
+      } },`
+    )
+    .join("\n")
   const entries = rows
     .map((row) =>
-      `  { id: ${JSON.stringify(row.id)}, load: () => import(${
-        JSON.stringify(`${packageOf(row)}/browser`)
+      `  { id: ${quoted(row.id)}, load: () => import(${
+        quoted(`${packageOf(row)}/browser`)
       }) },`
     )
     .join("\n")
@@ -135,7 +181,7 @@ ${entries}
 
 function styleChain(rows: ReadonlyArray<Row>): string {
   const imports = rows
-    .map((row) => `@import ${JSON.stringify(`${packageOf(row)}/all.css`)};`)
+    .map((row) => `@import ${quoted(`${packageOf(row)}/all.css`)};`)
     .join("\n")
   return `/* GENERATED from packages/bundle/olai.yml by packages/bundle/generate.ts.
  * Do not edit. ./all.css is the door and carries the argument; this is the
@@ -148,7 +194,7 @@ function testidsModule(rows: ReadonlyArray<Row>): string {
   const names = rows.map((_, at) => `p${at}`)
   const imports = rows
     .map((row, at) =>
-      `import { TESTID as p${at} } from ${JSON.stringify(`${packageOf(row)}/testids`)}`
+      `import { TESTID as p${at} } from ${quoted(`${packageOf(row)}/testids`)}`
     )
     .join("\n")
   // EVERY PAIR, because disjointness is not transitive: a and b sharing nothing

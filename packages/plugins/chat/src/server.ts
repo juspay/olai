@@ -461,13 +461,17 @@ export default definePlugin({
         Effect.mapError(ops.prop({ node, key: nodeAgents.key(), value }), asFailure),
     }
 
-    /** WHICH PLUGINS RING AT ALL — read off this plugin's own declarations table
-     *  rather than off core's, because the member that writes a scope refuses a
-     *  plugin that declared no wake and this row is the one that has the picks.
+    /** WHICH PLUGINS RING AT ALL — core's registry, read afresh at every use.
      *
-     *  The DECLARATIONS still belong to core's `Wakes` registry, which every
-     *  ringing plugin registers into; what chat needs is the reading, and it
-     *  arrives on the vault door below with the rest of the world. */
+     *  The declarations are `Wakes`' and every ringing plugin writes its own; what
+     *  this row has is the PICKS, so it is the end that judges them — the member
+     *  that writes a scope refuses a plugin that declared no wake, and the fault
+     *  walk indexes the sentence a broken one says. Two readers, one table, and no
+     *  second list for them to disagree across.
+     *
+     *  AN EFFECT AND NOT A SNAPSHOT, which is the reactive half doing its job: a
+     *  plugin that unloaded between one revision and the next declared nothing by
+     *  the time either reader asks. */
     const rings = wakes.declared
 
     const conversation = {
