@@ -144,7 +144,7 @@ export const serve = (options: ServeOptions) =>
      * file still holds, and what is left of a `let ring` that used to carry every
      * plugin service's two channels.
      *
-     * `./localState.ts` orders a plugin's reads and writes on a promise chain.
+     * `./localState.ts` orders a plugin's reads and writes under one permit.
      * The save effect waits for its own write, while callbacks such as the Spaces
      * mirror may deliberately detach that effect. A write that fails there can
      * therefore have no fiber under it, which is the exact position

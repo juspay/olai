@@ -2,7 +2,7 @@
  * THE LOCAL-STATE DOOR — one opaque record per plugin per vault.
  *
  * Core owns the file and the ordering. The plugin owns the record's fields.
- * One promise chain contains both the first read and every write, so a returning
+ * One permit contains both the first read and every write, so a returning
  * plugin sees the same snapshot a restart will see and a failed save is visible
  * to the effect that asked for it.
  *
@@ -10,7 +10,7 @@
  * chains writing the same path; `openPlugins` keeps the name-to-door map.
  */
 
-import { Effect, Result } from "effect"
+import { Effect, Semaphore } from "effect"
 import { join } from "node:path"
 
 import type { LocalState } from "@olai/plugin-api/services"
@@ -79,7 +79,7 @@ export const localStateFor = (
   const cwd = canonical(served)
   const at = fileForLocal(plugin, cwd)
   const legacy = legacyFor(plugin, cwd)
-  let chain = Promise.resolve()
+  const gate = Semaphore.makeUnsafe(1)
   let loaded = false
   let record: Record<string, unknown> | null = null
   let migrating: ReadonlyArray<string> = []
@@ -125,47 +125,34 @@ export const localStateFor = (
     return { cwd, ...merged }
   })
 
-  const enqueue = <A>(work: () => Promise<A>): Promise<A> => {
-    const answer = chain.then(work, work)
-    chain = answer.then(() => undefined, () => undefined)
-    return answer
-  }
-
-  const loadOnce = async (): Promise<Record<string, unknown> | null> => {
-    if (!loaded) {
-      record = await Effect.runPromise(readOnce)
+  const loadOnce: Effect.Effect<Record<string, unknown> | null> = Effect.suspend(() =>
+    loaded ? Effect.succeed(record) : Effect.map(readOnce, (value) => {
+      record = value
       loaded = true
-    }
-    return record
-  }
+      return value
+    }))
 
   return {
-    load: Effect.promise(() => enqueue(loadOnce)),
+    load: gate.withPermit(loadOnce),
     save: (value) =>
-      Effect.tryPromise({
-        try: () =>
-          enqueue(async () => {
-            await loadOnce()
-            const local = { cwd, ...value }
-            const written = await Effect.runPromise(Effect.result(write(at, local)))
-            if (Result.isFailure(written)) {
-              warn(`plugin ${plugin}: local state could not be written (${written.failure.why})`)
-              throw written.failure
-            }
-            record = local
-            if (migrating.length > 0) {
-              warn(
-                `plugin ${plugin}: migrated machine-local state from ${
-                  migrating.map((from) => `\`${from}\``).join(", ")
-                } to \`${at}\`; the old files are inert`,
-              )
-              migrating = []
-            }
-          }),
-        catch: (cause) =>
-          cause instanceof StateFailure
-            ? cause
-            : new StateFailure({ why: cause instanceof Error ? cause.message : String(cause) }),
-      }),
+      gate.withPermit(Effect.gen(function*() {
+        yield* loadOnce
+        const local = { cwd, ...value }
+        yield* Effect.tapError(
+          write(at, local),
+          (failure) =>
+            Effect.sync(() =>
+              warn(`plugin ${plugin}: local state could not be written (${failure.why})`)),
+        )
+        record = local
+        if (migrating.length > 0) {
+          warn(
+            `plugin ${plugin}: migrated machine-local state from ${
+              migrating.map((from) => `\`${from}\``).join(", ")
+            } to \`${at}\`; the old files are inert`,
+          )
+          migrating = []
+        }
+      })),
   }
 }

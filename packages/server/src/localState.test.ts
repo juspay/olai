@@ -108,7 +108,7 @@ test("a flip reads the same door, and a restart reads the same record from disk"
         localStateFor: (plugin) => localStateFor(plugin, served, () => {}),
       })
       let activation = 0
-      let afterFlip: Record<string, unknown> | null = null
+      const seen: Array<Record<string, unknown> | null> = []
       const plugin = definePlugin({
         name: "example",
         needs: [LocalState],
@@ -118,7 +118,7 @@ test("a flip reads the same door, and a restart reads the same record from disk"
           if (activation === 1) {
             yield* Effect.orDie(local.save({ queue: ["A"] }))
           } else {
-            afterFlip = yield* local.load
+            seen.push(yield* local.load)
           }
         }),
       })
@@ -131,10 +131,10 @@ test("a flip reads the same door, and a restart reads the same record from disk"
 
       const second = yield* mountPlugin(plugins.host, plugin)
       yield* second.dispose
-      expect(afterFlip).toEqual({ cwd: canonical(served), queue: ["A"] })
+      expect(seen).toEqual([{ cwd: canonical(served), queue: ["A"] }])
 
       writeFileSync(at, persisted)
-      expect(yield* localStateFor("example", served, () => {}).load).toEqual(afterFlip)
+      expect(yield* localStateFor("example", served, () => {}).load).toEqual(seen[0] ?? null)
     })))
   }))
 
