@@ -20,7 +20,7 @@ import { Cause, Effect, Layer, Logger, type Scope } from "effect"
 
 import {
   Deliveries,
-  Held,
+  LocalState,
   definePlugin,
   Kinds,
   type Mounted,
@@ -485,7 +485,7 @@ test("a plugin's held door is one door, however many times it is used", async ()
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     let minted = 0
     const plugins = yield* runtime({
-      heldFor: () => {
+      localStateFor: () => {
         minted += 1
         let record: Record<string, unknown> | null = null
         return { load: () => record, save: (value) => void (record = value) }
@@ -495,9 +495,9 @@ test("a plugin's held door is one door, however many times it is used", async ()
       plugins.host,
       definePlugin({
         name: "spaces",
-        needs: [Held],
+        needs: [LocalState],
         apply: Effect.gen(function*() {
-          const held = yield* Held
+          const held = yield* LocalState
           yield* held.save({ queue: ["B"] })
           yield* held.save({ queue: [] })
           expect(yield* held.load).toEqual({ queue: [] })
@@ -511,9 +511,9 @@ test("a plugin's held door is one door, however many times it is used", async ()
       plugins.host,
       definePlugin({
         name: "other",
-        needs: [Held],
+        needs: [LocalState],
         apply: Effect.gen(function*() {
-          expect(yield* (yield* Held).load).toBeNull()
+          expect(yield* (yield* LocalState).load).toBeNull()
         }),
       }),
     )
@@ -535,7 +535,7 @@ test("a plugin that comes back writes down the chain it was already writing down
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     let minted = 0
     const plugins = yield* runtime({
-      heldFor: () => {
+      localStateFor: () => {
         minted += 1
         let record: Record<string, unknown> | null = null
         return { load: () => record, save: (value) => void (record = value) }
@@ -543,9 +543,9 @@ test("a plugin that comes back writes down the chain it was already writing down
     })
     const spaces = definePlugin({
       name: "spaces",
-      needs: [Held],
+      needs: [LocalState],
       apply: Effect.gen(function*() {
-        yield* (yield* Held).save({ queue: ["B"] })
+        yield* (yield* LocalState).save({ queue: ["B"] })
       }),
     })
     const first = yield* mountPlugin(plugins.host, spaces)

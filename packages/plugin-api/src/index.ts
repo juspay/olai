@@ -70,7 +70,7 @@ export type {
   ConversationSeen,
   Deliveries,
   NotHere,
-  PluginHeld,
+  PluginLocalState,
   PluginWire,
   Probed,
   PropKind,

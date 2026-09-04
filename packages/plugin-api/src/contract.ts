@@ -240,11 +240,11 @@ export interface PropKind {
 }
 
 /**
- * THE HELD DOOR — one opaque record per plugin per vault.
+ * THE LOCAL-STATE DOOR — one opaque record per plugin per vault.
  *
  * Core does not open it. The plugin parses what it wrote.
  */
-export interface PluginHeld {
+export interface PluginLocalState {
   readonly load: () => Record<string, unknown> | null
   readonly save: (value: Record<string, unknown>) => void
 }

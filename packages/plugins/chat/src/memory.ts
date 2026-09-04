@@ -96,7 +96,7 @@
  * knowing it is a conversation.
  */
 
-import { canonical, fileFor, readHeld, writeHeld } from "@olai/state"
+import { canonical, fileFor, readLocal, writeLocal } from "@olai/state"
 import { Data, Effect } from "effect"
 
 /** Remembering, or reading back, went wrong. Reported to a person and never
@@ -250,7 +250,7 @@ export const forDirectory = (spelling: string, before: string): Memory => {
   const at = fileFor(CHAT, cwd)
 
   const recall: Effect.Effect<Held | null, MemoryFailure> = Effect.flatMap(
-    Effect.mapError(readHeld(at, cwd), (failure) => new MemoryFailure(failure)),
+    Effect.mapError(readLocal(at, cwd), (failure) => new MemoryFailure(failure)),
     (held) => held === null ? Effect.succeed(null) : parsed(at, held, before),
   )
 
@@ -260,7 +260,7 @@ export const forDirectory = (spelling: string, before: string): Memory => {
       // which is what a model nothing has said about IS on disk. The AGENT is
       // always written: a note this olai wrote knows which agent it was talking
       // to, and an absent one means something else entirely on the way back in.
-      writeHeld(at, {
+      writeLocal(at, {
         cwd,
         agent: held.agent,
         session: held.session,

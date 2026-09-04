@@ -46,7 +46,7 @@ import { Deferred, Effect, SubscriptionRef } from "effect"
 import { randomBytes } from "node:crypto"
 import { resolve } from "node:path"
 
-import { heldFor } from "./held.ts"
+import { localStateFor } from "./localState.ts"
 import { openDirectory } from "./directory.ts"
 import { propKinds } from "./propKinds.ts"
 import { watchFault } from "./fault.ts"
@@ -279,10 +279,10 @@ export const serve = (options: ServeOptions) =>
       // the ruling that took this phase.
       // ...and the small record a plugin keeps about this serve, in the state
       // home rather than the vault. Core owns the file and keys it by the calling
-      // plugin; `./held.ts` orders the writes so the last snapshot handed over is
+      // plugin; `./localState.ts` orders the writes so the last snapshot handed over is
       // the one that lands, and the service mints ONE door per plugin, which is
       // what makes that ordering true.
-      heldFor: (plugin) => heldFor(plugin, served, (line) => say(Effect.logWarning(line))),
+      localStateFor: (plugin) => localStateFor(plugin, served, (line) => say(Effect.logWarning(line))),
       changed: () => onChange.run(),
       // NO `dials`: the injectables are a test's, and this is the product.
     })

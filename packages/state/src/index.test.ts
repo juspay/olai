@@ -19,12 +19,13 @@ import {
   canonical,
   digestOf,
   fileFor,
-  fileForHold,
+  fileForLocal,
+  layoutForLocal,
   pruneGone,
-  readHeld,
+  readLocal,
   runtimeHome,
   stateHome,
-  writeHeld,
+  writeLocal,
 } from "./index.ts"
 
 /** A temp directory, and the environment put back afterwards — both homes are
@@ -98,7 +99,7 @@ test("a directory that is not there still has a name", () => {
   expect(digestOf(canonical("/no/such/place"))).toHaveLength(16)
 })
 
-test("a kind is a subdirectory of the state home, and the digest names the file", () =>
+test("a plugin is a subdirectory of the state home, and the digest names the file", () =>
   withState(async ({ root, home }) => {
     expect(fileFor("chat", root)).toBe(
       path.join(home, "olai", "chat", `${digestOf(root)}.json`),
@@ -106,27 +107,45 @@ test("a kind is a subdirectory of the state home, and the digest names the file"
     expect(fileFor("heard", root)).toBe(
       path.join(home, "olai", "heard", `${digestOf(root)}.json`),
     )
-    expect(fileForHold("example", root)).toBe(
-      path.join(home, "olai", "hold", `${digestOf(root)}.example.json`),
+    expect(fileForLocal("example", root)).toBe(
+      path.join(home, "olai", "example", `${digestOf(root)}.json`),
     )
   }))
 
+test("the old generic hold and chat's three old records are migration sources", () =>
+  withState(async ({ root, home }) => {
+    const digest = digestOf(root)
+    expect(layoutForLocal("example", root)).toEqual({
+      at: path.join(home, "olai", "example", `${digest}.json`),
+      legacy: [{ at: path.join(home, "olai", "hold", `${digest}.example.json`) }],
+    })
+    expect(layoutForLocal("chat", root)).toEqual({
+      at: path.join(home, "olai", "chat", `${digest}.json`),
+      unsectioned: "memory",
+      legacy: [
+        { at: path.join(home, "olai", "hold", `${digest}.chat.json`) },
+        { at: path.join(home, "olai", "wake", `${digest}.json`), section: "wake" },
+        { at: path.join(home, "olai", "heard", `${digest}.json`), section: "heard" },
+      ],
+    })
+  }))
+
 test("a plugin name that is not a filename is refused", () => {
-  expect(() => fileForHold("../escape", "/tmp")).toThrow(/not a filename/)
-  expect(() => fileForHold("a/b", "/tmp")).toThrow(/not a filename/)
-  expect(() => fileForHold("", "/tmp")).toThrow(/not a filename/)
+  expect(() => fileForLocal("../escape", "/tmp")).toThrow(/not a filename/)
+  expect(() => fileForLocal("a/b", "/tmp")).toThrow(/not a filename/)
+  expect(() => fileForLocal("", "/tmp")).toThrow(/not a filename/)
 })
 
 test("nothing written down is `null` rather than a failure", () =>
   withState(async ({ root }) => {
-    expect(await Effect.runPromise(readHeld(fileFor("chat", root), root))).toBeNull()
+    expect(await Effect.runPromise(readLocal(fileFor("chat", root), root))).toBeNull()
   }))
 
 test("what is written comes back, under a home that did not exist", () =>
   withState(async ({ root }) => {
     const at = fileFor("chat", root)
-    await Effect.runPromise(writeHeld(at, { cwd: root, session: "abc" }))
-    expect(await Effect.runPromise(readHeld(at, root)))
+    await Effect.runPromise(writeLocal(at, { cwd: root, session: "abc" }))
+    expect(await Effect.runPromise(readLocal(at, root)))
       .toMatchObject({ cwd: root, session: "abc" })
     // Owner-only, both the home and the file: this is somebody's state
     // directory, not a shared one.
@@ -154,12 +173,12 @@ test("two writes at once both land, and the file holds one of them whole", () =>
     const a = "a".repeat(4096)
     const b = "b".repeat(4096)
     await Effect.runPromise(Effect.all(
-      [writeHeld(at, { cwd: root, session: a }), writeHeld(at, { cwd: root, session: b })],
+      [writeLocal(at, { cwd: root, session: a }), writeLocal(at, { cwd: root, session: b })],
       { concurrency: "unbounded" },
     ))
     // A read that got a mixture would not parse, so arriving here at all is
     // half the claim; which of the two it is, is nobody's to say.
-    const held = await Effect.runPromise(readHeld(at, root))
+    const held = await Effect.runPromise(readLocal(at, root))
     expect([a, b]).toContain(held?.["session"] as string)
     // ... and neither call left its stage behind.
     expect(fs.readdirSync(path.dirname(at))).toEqual([path.basename(at)])
@@ -171,8 +190,8 @@ test("two writes at once both land, and the file holds one of them whole", () =>
 test("a record about another directory is answered as nothing", () =>
   withState(async ({ root }) => {
     const at = fileFor("chat", root)
-    await Effect.runPromise(writeHeld(at, { cwd: "/somewhere/else", session: "abc" }))
-    expect(await Effect.runPromise(readHeld(at, root))).toBeNull()
+    await Effect.runPromise(writeLocal(at, { cwd: "/somewhere/else", session: "abc" }))
+    expect(await Effect.runPromise(readLocal(at, root))).toBeNull()
   }))
 
 /** Bytes that are not JSON ARE damage, and come out the error channel with the
@@ -180,9 +199,9 @@ test("a record about another directory is answered as nothing", () =>
 test("a record that will not parse is news", () =>
   withState(async ({ root }) => {
     const at = fileFor("chat", root)
-    await Effect.runPromise(writeHeld(at, { cwd: root }))
+    await Effect.runPromise(writeLocal(at, { cwd: root }))
     fs.writeFileSync(at, "{ not json")
-    const outcome = await Effect.runPromise(Effect.result(readHeld(at, root)))
+    const outcome = await Effect.runPromise(Effect.result(readLocal(at, root)))
     expect(outcome._tag).toBe("Failure")
     if (outcome._tag === "Failure") {
       expect(outcome.failure.message).toContain(at)
@@ -202,9 +221,9 @@ test("a record whose directory answers ENOENT is pruned; a live one stays", () =
     const gone = fs.mkdtempSync(path.join(os.tmpdir(), "olai-state-gone-"))
     fs.rmSync(gone, { recursive: true, force: true })
     const dead = fileFor("chat", gone)
-    await Effect.runPromise(writeHeld(dead, { cwd: gone, session: "abc" }))
+    await Effect.runPromise(writeLocal(dead, { cwd: gone, session: "abc" }))
     const alive = fileFor("chat", root)
-    await Effect.runPromise(writeHeld(alive, { cwd: root, session: "abc" }))
+    await Effect.runPromise(writeLocal(alive, { cwd: root, session: "abc" }))
     expect(pruneGone()).toBe(1)
     expect(fs.existsSync(dead)).toBe(false)
     expect(fs.existsSync(alive)).toBe(true)
@@ -226,12 +245,12 @@ test("a sweep walks every tenant directory, not only the kinds this build knows"
     expect(fs.existsSync(foreign)).toBe(false)
   }))
 
-test("a plugin hold whose directory is gone is pruned too", () =>
+test("a plugin's local state whose directory is gone is pruned too", () =>
   withState(async () => {
     const gone = fs.mkdtempSync(path.join(os.tmpdir(), "olai-state-gone-"))
     fs.rmSync(gone, { recursive: true, force: true })
-    const at = fileForHold("example", gone)
-    await Effect.runPromise(writeHeld(at, { cwd: gone, queue: [] }))
+    const at = fileForLocal("example", gone)
+    await Effect.runPromise(writeLocal(at, { cwd: gone, queue: [] }))
     expect(pruneGone()).toBe(1)
     expect(fs.existsSync(at)).toBe(false)
   }))
@@ -250,7 +269,7 @@ test("a record whose directory merely fails to answer stays — only ENOENT is d
     fs.chmodSync(wall, 0o000)
     try {
       const at = fileFor("chat", beyond)
-      await Effect.runPromise(writeHeld(at, { cwd: beyond, session: "abc" }))
+      await Effect.runPromise(writeLocal(at, { cwd: beyond, session: "abc" }))
       expect(pruneGone()).toBe(0)
       expect(fs.existsSync(at)).toBe(true)
     } finally {

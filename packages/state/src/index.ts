@@ -29,7 +29,7 @@
  * rather than by the path itself: an encoded path is a filename that can
  * outgrow the 255 bytes a component gets, and a single index shared by every
  * directory is a read-modify-write two olai servers can lose an update through.
- * The path is written INSIDE the file ({@link Held.cwd}), which is what makes
+ * The path is written INSIDE the file ({@link LocalRecord.cwd}), which is what makes
  * these directories readable by the person whose state it is and is read back
  * as a guard: a file that is about some other directory is not this one's.
  *
@@ -192,7 +192,7 @@ export class StateFailure extends Data.TaggedError("StateFailure")<{
  * told it could not reach, and nothing but a type can say so. It also makes
  * "what does olai keep about a directory" answerable by reading one line.
  *
- * Three kinds named here, and a fourth named by {@link fileForHold}. The split
+ * Three kinds named here, and a fourth named by {@link fileForLocal}. The split
  * between them is what each SURVIVES rather than what each is about. `chat`
  * is the panel's last conversation — one record, rewritten whenever the panel
  * opens one. `wake` is which conversations a person pointed a plugin's
@@ -230,16 +230,63 @@ export const fileFor = (kind: Kind, cwd: string): string =>
  * name that is not a filename is a registry bug, not a spelling to tidy.
  * This leaf does not name any plugin.
  */
-export const fileForHold = (plugin: string, cwd: string): string => {
+export const fileForLocal = (plugin: string, cwd: string): string => {
   if (plugin.length === 0 || /[^\w.-]/.test(plugin)) {
-    throw new Error(`hold: plugin name ${JSON.stringify(plugin)} is not a filename`)
+    throw new Error(`local state: plugin name ${JSON.stringify(plugin)} is not a filename`)
   }
-  return join(stateHome(), "hold", `${digestOf(cwd)}.${plugin}.json`)
+  return join(stateHome(), plugin, `${digestOf(cwd)}.json`)
+}
+
+/** One location an older olai may have kept this plugin's record at. `section`
+ *  means the old file becomes one section of the plugin's new document. */
+export interface LegacyLocalFile {
+  readonly at: string
+  readonly section?: "memory" | "wake" | "heard"
+}
+
+/**
+ * The current path and the old paths it supersedes.
+ *
+ * The generic predecessor was `hold/<digest>.<plugin>.json`, so every plugin
+ * gets that fallback without this leaf learning its identity. Chat predates
+ * that door and kept three records of its own; its old memory already occupies
+ * the new path, while `wake` and `heard` become sibling sections. This is a
+ * layout migration, not a reading of what any section means.
+ *
+ * The still older `mirror/<digest>.json` is deliberately absent. Nothing in
+ * that path identifies the plugin which owned it, and teaching a filesystem
+ * leaf a tenant's current package name would turn migration history into a
+ * dependency. Those records have already been inert since the keyed door
+ * landed; callers can report them as such without guessing an owner.
+ */
+export const layoutForLocal = (
+  plugin: string,
+  cwd: string,
+): {
+  readonly at: string
+  readonly unsectioned?: "memory"
+  readonly legacy: ReadonlyArray<LegacyLocalFile>
+} => {
+  const digest = digestOf(cwd)
+  const at = fileForLocal(plugin, cwd)
+  return {
+    at,
+    ...(plugin === "chat" ? { unsectioned: "memory" as const } : {}),
+    legacy: [
+      { at: join(stateHome(), "hold", `${digest}.${plugin}.json`) },
+      ...(plugin === "chat"
+        ? [
+          { at: join(stateHome(), "wake", `${digest}.json`), section: "wake" as const },
+          { at: join(stateHome(), "heard", `${digest}.json`), section: "heard" as const },
+        ]
+        : []),
+    ],
+  }
 }
 
 /** What every record here carries beside its own fields — see the header for
  *  why the path is written inside the file it is named after. */
-export interface Held {
+export interface LocalRecord {
   readonly cwd: string
 }
 
@@ -258,7 +305,7 @@ export interface Held {
  * strange field means differs per record — the caller knows which of its own
  * halves it can do without.
  */
-export const readHeld = (
+export const readLocal = (
   at: string,
   cwd: string,
 ): Effect.Effect<Record<string, unknown> | null, StateFailure> =>
@@ -287,15 +334,15 @@ export const readHeld = (
             }),
         }),
         (value) => {
-          const held = value as (Partial<Held> & Record<string, unknown>) | null
-          return held?.cwd === cwd ? held : null
+          const local = value as (Partial<LocalRecord> & Record<string, unknown>) | null
+          return local?.cwd === cwd ? local : null
         },
       ),
   )
 
 /** How many records this process has staged — the tail of a staged file's
  *  name, so two overlapping writes to one destination stage through two files
- *  and only one of them is ever renamed away. See {@link writeHeld}: it has to
+ *  and only one of them is ever renamed away. See {@link writeLocal}: it has to
  *  differ from the other names in the air right now, and nothing more. */
 let staging = 0
 
@@ -351,16 +398,16 @@ let staging = 0
  * an in-memory mirror and would lose a pick without one, and `agent.ts` orders
  * two writes that must land in the order they were made.
  */
-export const writeHeld = (
+export const writeLocal = (
   at: string,
-  held: Held & Record<string, unknown>,
+  local: LocalRecord & Record<string, unknown>,
 ): Effect.Effect<void, StateFailure> =>
   Effect.tryPromise({
     try: async () => {
       await mkdir(dirname(at), { recursive: true, mode: 0o700 })
       const staged = `${at}.${process.pid}.${++staging}.tmp`
       try {
-        await writeFile(staged, `${JSON.stringify(held)}\n`, { mode: 0o600 })
+        await writeFile(staged, `${JSON.stringify(local)}\n`, { mode: 0o600 })
         await rename(staged, at)
       } catch (cause) {
         await rm(staged, { force: true })

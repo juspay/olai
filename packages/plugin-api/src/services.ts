@@ -99,7 +99,7 @@ import {
   type MintedTicket,
   NO_TICKET,
   NOWHERE_TO_WRITE,
-  type PluginHeld,
+  type PluginLocalState,
   type Probed,
   type PropKind,
   type PropWrite,
@@ -546,11 +546,11 @@ export const Watching = serviceTag<Watching>("watching")
  * fiber a snapshot came from. Keyed by the NAME, because the name is what the
  * file is keyed by.
  */
-export interface Held {
+export interface LocalState {
   readonly load: Effect.Effect<Record<string, unknown> | null>
   readonly save: (value: Record<string, unknown>) => Effect.Effect<void>
 }
-export const Held = serviceTag<Held>("held")
+export const LocalState = serviceTag<LocalState>("localState")
 
 /**
  * WHAT TO ASK THIS HOST WHEN A CONVERSATION OPENS — the door that replaced
@@ -957,7 +957,7 @@ export interface Plugins {
  *
  * ## The late one is {@link ./runtime.ts}'s `Provision`, spelled
  *
- * `heldFor` is `(plugin: string) => X`, which is the bridge's own name for
+ * `localStateFor` is `(plugin: string) => X`, which is the bridge's own name for
  * exactly that. It is typed with it rather than re-described, so a reader who has
  * met the shape once meets it once.
  *
@@ -990,7 +990,7 @@ export interface PluginsConfig {
   /** One plugin's machine-local record, by name — minted ONCE per plugin, which
    *  is what orders its writes. Where a machine keeps olai's own files is not a
    *  plugin's business. */
-  readonly heldFor?: Provision<PluginHeld>
+  readonly localStateFor?: Provision<PluginLocalState>
   /**
    * THE VAULT'S MCP SERVER, COMPLETED AFTER `listen` — see {@link Tools}.
    *
@@ -1263,12 +1263,12 @@ export const openPlugins = (
 
     yield* provide(host, Bundle, () => ({ rank: config.rank ?? (() => 0) }))
 
-    // ...AND ONE HELD DOOR PER PLUGIN NAME, not per activation. The write chain
+    // ...AND ONE LOCAL-STATE DOOR PER PLUGIN NAME, not per activation. The write chain
     // that orders a plugin's saves lives on the door, and this provision runs
     // once per ACTIVATION — so a plugin that unloads and comes back used to get a
     // second chain, and a save still in flight could land after a later one, on
     // the same file, with the earlier record winning. That is precisely the
-    // defect {@link Held}'s own paragraph says was fixed by minting the door once
+    // defect {@link LocalState}'s own paragraph says was fixed by minting the door once
     // per plugin; it was fixed per CALL and left open per ACTIVATION.
     //
     // Unreachable while nothing unloaded a server half mid-serve — and a row that
@@ -1277,10 +1277,12 @@ export const openPlugins = (
     // KEYED BY THE NAME rather than by the fiber, because the name is what the
     // FILE is keyed by: two activations of one plugin are two fibers writing one
     // path, which is the whole of what has to be ordered.
-    const holds = new Map<string, PluginHeld | null>()
-    yield* provide(host, Held, (plugin) => {
-      if (!holds.has(plugin)) holds.set(plugin, config.heldFor?.(plugin) ?? null)
-      const door = holds.get(plugin) ?? null
+    const localStates = new Map<string, PluginLocalState | null>()
+    yield* provide(host, LocalState, (plugin) => {
+      if (!localStates.has(plugin)) {
+        localStates.set(plugin, config.localStateFor?.(plugin) ?? null)
+      }
+      const door = localStates.get(plugin) ?? null
       return {
         load: Effect.sync(() => door?.load() ?? null),
         save: (value) => Effect.sync(() => void door?.save(value)),
@@ -1304,7 +1306,7 @@ export type {
   Deliveries as DeliveryDoor,
   MintedTicket,
   NotHere,
-  PluginHeld,
+  PluginLocalState,
   Probed,
   PropKind,
   PropWrite,

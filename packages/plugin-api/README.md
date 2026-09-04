@@ -174,7 +174,7 @@ What core does with a body is three arms, and which one it took is never reporte
 
 ## One hold, and it is core's file
 
-A plugin may keep a **small record about this serve** — thread ids, a queue — and that record lives in the state home, not the vault. `Held` ([`src/services.ts`](src/services.ts)) is `load` and `save(value)`: core owns the file ([`@olai/state`](../state/README.md), minted per plugin the way `Deliveries` is), the plugin parses what it wrote. `save` is fire-and-forget and **ordered**, so successive snapshots of one in-memory state land in the order they were handed over. `@olai/state` stays out of every tenant: a plugin that imported it would become the sole reacher and the package would silently join that tenant's exemption set.
+A plugin may keep a **small record about this serve** — thread ids, a queue — and that record lives in the state home, not the vault. `LocalState` ([`src/services.ts`](src/services.ts)) is `load` and `save(value)`: core owns the file ([`@olai/state`](../state/README.md), minted per plugin the way `Deliveries` is), the plugin parses what it wrote. `save` is fire-and-forget and **ordered**, so successive snapshots of one in-memory state land in the order they were handed over. `@olai/state` stays out of every tenant: a plugin that imported it would become the sole reacher and the package would silently join that tenant's exemption set.
 
 Required like `deliveries`. A machine that cannot write the file warns; the plugin is not asked to care.
 
@@ -223,6 +223,6 @@ The subscription is an **effect**: it returns a disposer attached to the calling
 
 ## One held record, and core does not open it
 
-`Held` is a small opaque record per plugin per vault, in the **state home** rather than the vault — `@olai/state`'s file, which no plugin imports. Core owns the file and mints the door from the calling plugin's own word, the way the doorbell's door is minted and for the same reason: a record keyed by nobody would let one plugin read and overwrite another's. The door is minted ONCE per plugin, which is what makes the ordering below true — it was minted per CALL, and the chain that orders the writes lives on the door.
+`LocalState` is a small opaque record per plugin per vault, in the **state home** rather than the vault — `@olai/state`'s file, which no plugin imports. Core owns the file and mints the door from the calling plugin's own word, the way the doorbell's door is minted and for the same reason: a record keyed by nobody would let one plugin read and overwrite another's. The door is minted ONCE per plugin, which is what makes the ordering below true — it was minted per CALL, and the chain that orders the writes lives on the door.
 
 `save` is fire-and-forget and **ordered**. Successive snapshots of one in-memory state land in the order they were handed over, so a drain that persisted `queue:[B]` and then `queue:[]` cannot have the empty lose the rename race to the earlier one and come back on the next boot as a digest already posted.

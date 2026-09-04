@@ -22,7 +22,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 
 import { readingOf, setOf } from "@olai/format/testlib"
-import type { ConversationSeen, Deliveries, PluginHeld } from "@olai/plugin-api"
+import type { ConversationSeen, Deliveries, PluginLocalState } from "@olai/plugin-api"
 import type { SpacesLink } from "./wire.ts"
 import {
   definePlugin,
@@ -55,7 +55,7 @@ const waitFor = async (n: () => number, want: number): Promise<void> => {
   throw new Error(`wanted ${want} events, got ${n()}`)
 }
 
-const memoryHeld = (): PluginHeld => {
+const memoryHeld = (): PluginLocalState => {
   let record: Record<string, unknown> | null = null
   return {
     load: () => record,
@@ -73,7 +73,7 @@ interface Doubles {
   readonly now: () => string
   readonly deliver?: Deliveries["deliver"]
   readonly dial?: unknown
-  readonly held?: PluginHeld
+  readonly held?: PluginLocalState
 }
 
 /**
@@ -101,7 +101,7 @@ const mounted = async (doubles: Doubles) => {
     now: doubles.now,
     served: doubles.served,
     dials: { "xyne-spaces": doubles.dial },
-    heldFor: () => held,
+    localStateFor: () => held,
   }))
   // A STAND-IN CHAT ROW, because that is what a serve HAS. `deliveries` and
   // `watching` are the chat plugin's to keep and core provides neither, so a

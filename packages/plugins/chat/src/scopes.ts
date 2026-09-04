@@ -102,7 +102,7 @@
  * a second kept record rather than a second kind of problem.
  */
 
-import { canonical, fileFor, readHeld, writeHeld } from "@olai/state"
+import { canonical, fileFor, readLocal, writeLocal } from "@olai/state"
 import { Effect, Semaphore } from "effect"
 
 import { MemoryFailure, word } from "./memory.ts"
@@ -445,7 +445,7 @@ export const forDirectory = (spelling: string): Effect.Effect<Scopes> =>
     // standing at the screen when a boot reads this, and a directory whose
     // doorbells cannot be read is a directory whose doorbells are off until
     // somebody picks again. The write is the opposite case and refuses.
-    const read = yield* Effect.result(readHeld(at, cwd))
+    const read = yield* Effect.result(readLocal(at, cwd))
     let rows: ReadonlyArray<Scoped> = []
     if (read._tag === "Failure") {
       yield* Effect.logWarning(
@@ -494,7 +494,7 @@ export const forDirectory = (spelling: string): Effect.Effect<Scopes> =>
           // what it cannot do is take back a value a failed write left behind,
           // and the caller is told `failed` either way.
           yield* Effect.mapError(
-            writeHeld(at, { cwd, scopes: next }),
+            writeLocal(at, { cwd, scopes: next }),
             (failure) => new MemoryFailure(failure),
           )
           rows = next
@@ -576,7 +576,7 @@ export const forDirectory = (spelling: string): Effect.Effect<Scopes> =>
           // so the sentence would go out now AND again after the next restart.
           // Failing whole leaves the same edge for the next revision to find.
           yield* Effect.mapError(
-            writeHeld(at, { cwd, scopes: next }),
+            writeLocal(at, { cwd, scopes: next }),
             (failure) => new MemoryFailure(failure),
           )
           rows = next

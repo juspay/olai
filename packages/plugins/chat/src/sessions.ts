@@ -109,7 +109,7 @@
  * a third kind of problem.
  */
 
-import { canonical, fileFor, readHeld, writeHeld } from "@olai/state"
+import { canonical, fileFor, readLocal, writeLocal } from "@olai/state"
 import { Effect, Semaphore } from "effect"
 
 import { MemoryFailure, word } from "./memory.ts"
@@ -324,7 +324,7 @@ export const forDirectory = (spelling: string): Effect.Effect<Sessions> =>
     // directory where every node agent gets taught once more and every door
     // starts with no line on it — the honest face of exactly this failure, and
     // of a machine that has never served this vault before.
-    const held = yield* Effect.result(readHeld(at, cwd))
+    const held = yield* Effect.result(readLocal(at, cwd))
     let rows: ReadonlyArray<Overheard> = []
     if (held._tag === "Failure") {
       yield* Effect.logWarning(
@@ -367,7 +367,7 @@ export const forDirectory = (spelling: string): Effect.Effect<Sessions> =>
           next,
         ])
         yield* Effect.mapError(
-          writeHeld(at, { cwd, heard: table }),
+          writeLocal(at, { cwd, heard: table }),
           (failure) => new MemoryFailure(failure),
         )
         rows = table
