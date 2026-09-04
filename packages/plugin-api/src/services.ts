@@ -685,18 +685,6 @@ export interface Ledger {
 export const Ledger = serviceTag<Ledger>("ledger")
 
 /**
- * THE GIT ROW'S PIN — `--commit` and `--push` as given, `null` for a flag
- * nobody typed. The plugin folds in the built-in defaults. Absent on a serve
- * that has no git row is fine: the row is what reads it.
- */
-export interface Pin {
-  readonly commit: "off" | "manual" | "auto" | null
-  readonly push: "off" | "auto" | null
-}
-export const Pin = serviceTag<Pin>("pin")
-
-
-/**
  * THE FIVE DOORS A ROW MAY STAND BEHIND — a CLOSED table, and the closedness is
  * most of the safety.
  *
@@ -1019,12 +1007,6 @@ export interface PluginsConfig {
   readonly now: () => string
   /** The directory this serve is about, resolved. */
   readonly served: string
-  /**
-   * THE GIT ROW'S PIN — `--commit` / `--push` as given. The git plugin is
-   * what folds in the defaults; core just carries the flags. `null` on both
-   * halves is nobody having said, which is the built-in default.
-   */
-  readonly pin?: Pin
   /** One plugin's machine-local record, by name — minted ONCE per plugin, which
    *  is what orders its writes. Where a machine keeps olai's own files is not a
    *  plugin's business. */
@@ -1139,10 +1121,6 @@ export const openPlugins = (
       // rather than a function of nothing.
       unloaded: (handler) => quieted.listen(plugin)(() => handler),
     }))
-
-    const pin: Pin = config.pin ?? { commit: null, push: null }
-    yield* provide(host, Pin, () => pin)
-
 
     /**
      * ...AND THE FIVE THAT CORE DOES NOT PROVIDE AT ALL, which is the whole of

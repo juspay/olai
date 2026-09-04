@@ -74,7 +74,7 @@ The span is the point rather than a setting. It has to outlast the pauses inside
 
 **Everything waiting counts, whoever wrote it.** The window watches what is PENDING, which is derived from git for the whole repository, so an agent writing over MCP restarts it, a `.md` you edited in vim joins the same commit, and what goes in is the same sweep the button makes. That is the whole of "all my changes end up in git".
 
-**It is the INSTANCE's, not this browser's.** `--commit` / `--push` are the git row's pin, the same in every browser, with no runtime door. `olai web --commit=auto` is that pin given on the command line ([running.md](running.md#the-git-policy)). A stopped loop starts again from **Resume** on the commit panel.
+**It is the INSTANCE's, not this browser's.** `--commit` / `--push` are a patch onto the git row's config, the same in every browser, with no runtime door. `olai web --commit=auto` is that patch given on the command line ([running.md](running.md#the-git-policy)). A stopped loop starts again from **Resume** on the commit panel.
 
 It used to be this browser's, and everything wrong with that followed from the frame. A directory recorded only while somebody had a tab open; two browsers could each have the toggle on and race one work tree (one browser's tabs contended for a Web Lock, which said nothing about the other's); and `--commit=auto` was a *different* feature with the same name — one commit per write, made inside the write gate, never pushed. There is one window now, on the server, and one of it per served directory: one olai holds a directory, so there is nothing to elect.
 
@@ -115,7 +115,7 @@ The agent has this one too, as a `push` tool that takes nothing at all.
   It used to be a second, differently-shaped feature with the same name: one commit per write, made inside the write gate, never pushed. **That is retired.** A train of thought arrived as a dozen commits, which is the thing manual mode was introduced to end, and there is no per-write commit left in olai.
 - `--commit=off` (or `--no-commit`) is for a directory whose history is somebody else's job. The pill says which of those two it is rather than vanishing, and nothing is ever `git init`ed on your behalf.
 
-Giving `--commit` at all — or `--push`, its neighbour — **sets** the matching row in every browser's preferences: read-only, in the state that flag comes to, with the flag itself on screen. `--commit=auto` shows it on, and both `manual` and `off` show it Off — `manual` because a write waiting for the Commit button is exactly what Off means, and `off` because a directory olai never commits in has no window to run. The line under the row names the flag either way, so the two Offs are told apart by what set them. Omitting the flag uses the built-in default; the row is still read-only. That is the instance's answer for a directory more than one person is looking at, and it is [running.md](running.md#the-git-policy)'s subject.
+Giving `--commit` at all — or `--push`, its neighbour — is a patch onto the git row's config, drawn under that row on the plugins panel, read-only. `--commit=auto` shows `commit: auto` there. Omitting the flag uses the built-in default and draws nothing extra. That is the instance's answer for a directory more than one person is looking at, and it is [running.md](running.md#the-git-policy)'s subject.
 
 ## The audit view
 

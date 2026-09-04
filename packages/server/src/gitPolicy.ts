@@ -106,8 +106,8 @@ export const pushesSaid = (): string =>
 /** The clause both sentences end with. Spelled once, because it is one fact
  *  about either flag and two copies of it is one place for it to be softened. */
 const INSTANCE =
-  "This is the instance's policy: every browser draws that preference row " +
-  "read-only, the same in every browser. Giving this flag sets it; omitting " +
+  "This is the instance's policy, a patch onto the git row's config: " +
+  "every browser draws it read-only. Giving this flag sets it; omitting " +
   "it uses the built-in default."
 
 /**
@@ -170,6 +170,24 @@ export const gitPin = (
   off: boolean,
   pushes: PushMode | null,
 ): GitPin => ({ commit: off ? "off" : chosen, push: pushes })
+
+/**
+ * `--commit` / `--push` AS A PATCH onto the git row's config — the same
+ * overlay `--plugins` is onto `disabled`.
+ *
+ * Only the flags somebody typed: omitted halves stay off the patch, so the
+ * plugin's schema folds the built-in default in and the roster draws only
+ * what was given. An empty patch is nobody having said, and the row's own
+ * `config:` (or none) stands.
+ */
+export const gitConfigPatch = (
+  pin: GitPin,
+): ReadonlyArray<{ readonly id: "git"; readonly config: Record<string, unknown> }> => {
+  const config: Record<string, unknown> = {}
+  if (pin.commit !== null) config.commit = pin.commit
+  if (pin.push !== null) config.push = pin.push
+  return Object.keys(config).length === 0 ? [] : [{ id: "git", config }]
+}
 
 /** The defaults, re-exported beside the flags that decline to apply them — so a
  *  reader of this file can see what "nobody said" comes to without going two

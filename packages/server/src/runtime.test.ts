@@ -186,6 +186,7 @@ const withRuntime = <A>(
         // flip is benched where the loader is (`@olai/bundle`'s `flip.test.ts`)
         // and end to end, because what it is FOR is a real bundle settling.
         names: () => new Map(),
+        configs: () => new Map(),
         set: () => Effect.succeed(false),
         switched: () => new Set(),
       },
@@ -694,6 +695,7 @@ const offering = (
   // the state every row of a real bundle but the chat row is in. The `carrying`
   // sentence has its own case below, where both halves of the join are supplied.
   names: () => new Map(),
+  configs: () => new Map(),
   set: () => Effect.succeed(false),
   // NOBODY PRESSED ANYTHING in these cases, which is the state every serve is
   // in until somebody does. The word a press produces has its own case below.
@@ -768,6 +770,16 @@ test("a plugin the flag left on but nothing mounted draws as off", () => {
  * two indistinguishable in the browser, where the only thing that tells them
  * apart is the line under the row.
  */
+test("a row's config travels on the roster as data, and a row without one sends none", () => {
+  const withConfig = rosterOf({
+    ...offering(),
+    configs: () => new Map([[PLUGIN_NAMES[0]!, { commit: "auto" }]]),
+  })
+  expect(withConfig.built[0]?.config).toEqual({ commit: "auto" })
+  expect(withConfig.built[1]?.config).toBeUndefined()
+  expect(rosterOf(offering()).built.every((row) => row.config === undefined)).toBe(true)
+})
+
 test("an empty flag crosses as an empty list, not as nobody having said", () => {
   const none = rosterOf(offering([]))
   expect(none.pinned).toEqual([])

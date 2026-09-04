@@ -19,9 +19,9 @@ The plugins panel — `⧉` in the header — turns it off and on **while the se
 
 **Either way you are left with an outliner whose writes wait for nobody.** There is no pill, no `surface/git/` on the wire, and nobody to record a write — not a disabled version of any of them, an absent one.
 
-## The pin
+## The config
 
-`--commit` and `--push` are this row's policy, not a mode of core. They are the same flags they were: omitted is the built-in default (`manual` / `off`); a given flag is named on the git cell. Turning the plugin off is a different fact from `--commit=off`: off is "no provider mounted", so there is no pill and no tool; `--commit=off` with the row on is a mounted ledger that has been told not to record.
+`--commit` and `--push` are a CLI patch onto this row's `config:`, the way `--plugins` is a patch onto `disabled`. They are the same flags they were: omitted is the built-in default (`manual` / `off`); a given flag is drawn under the git row on the plugins panel. Turning the plugin off is a different fact from `--commit=off`: off is "no provider mounted", so there is no pill and no tool; `--commit=off` with the row on is a mounted ledger that has been told not to record.
 
 See [running.md](../running.md#the-git-policy).
 
@@ -33,7 +33,7 @@ Git's members compose as a sibling, under its own key:
 - `surface/git/pending` — what is waiting
 - `surface/git/git/commit`, `surface/git/git/push`, `surface/git/git/resume` — the three verbs
 
-They are on the browser face, and `git` / `pending` / `commit` / `push` are on the agent face too. The MCP tools an agent calls are still named `commit` and `push` — they are the ops table's, landing on these sibling verbs when the row is mounted and refusing in words when it is not. The `surface://cells/git` and `surface://cells/pending` URIs leave with core's members; the adapter has no sibling segment.
+They are on the browser face. The MCP tools an agent calls are still named `commit` and `push` — they are the ops table's, landing on these sibling verbs when the row is mounted and refusing in words when it is not. An agent cannot see what is pending, and `commit` records everything waiting unless it passes `paths`. The `surface://cells/git` and `surface://cells/pending` URIs leave with core's members; the adapter has no sibling segment.
 
 ## Where it hangs in the tab
 

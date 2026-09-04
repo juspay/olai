@@ -52,16 +52,15 @@ import {
   type OpFailure,
   type PushResult,
   stampOf,
-  type Writer,
 } from "@olai/format"
 import { isStale, type Vintage } from "@olai/store"
-import { type Acting, type Applied, type Asking, NO_LEDGER, type Planning, type Running, type Tool } from "@olai/ops"
+import { type Acting, type Applied, type Asking, type Planning, type Running, type Tool } from "@olai/ops"
 import { type BespokeTool, ToolFailure, type ToolInputSchema } from "@kolu/surface-mcp"
 import { Effect, Result, Schema } from "effect"
 
 import type { Request } from "@olai/ops"
 import { resolvedWrite } from "../resolving.ts"
-import { heldFor, type OlaiSurfaceClient } from "./face.ts"
+import { type OlaiSurfaceClient } from "./face.ts"
 
 /** The three ops-layer doors a tool call needs, together. `@olai/ops` names
  *  them one per tool arm; nothing but this projection ever wants all three, so
@@ -92,13 +91,10 @@ type Door = Running & Asking & Acting
  * same place — a tool that could name an identity could name the wrong one, and
  * an identity a CALLER could send would not be an attribution at all.
  *
- * **And it takes no writer.** It used to: `chat-agent` for the panel's
- * agent, `mcp` for somebody's own. That is still exactly the distinction the
- * `X-Olai-Writer` trailer records, and it is still decided by a composition
- * root — but by the one that composes the FACE these tools reach through
- * (`../runtime.ts`'s `writerAt`), which is where every other fact about a face
- * is decided. A tool that could name a writer could name the wrong one, and
- * this projection now has no way to name any.
+ * **`commit` / `push` call through the ledger door**, with the face's writer
+ * already bound on {@link Served}. They do not reach the git sibling by
+ * spelling its tags; a serve that did not mount the row refuses in the same
+ * words `ops.commit` / `ops.push` do.
  */
 export const bespokeFrom = (
   tools: ReadonlyArray<Tool>,
@@ -116,7 +112,7 @@ export const bespokeFrom = (
         // it, which is a capture attributed to the wrong person.
         const said = answer(
           tool,
-          doorFor(at.fenced(client as OlaiSurfaceClient)),
+          doorFor(at.fenced(client as OlaiSurfaceClient), at),
           args,
           at.login(),
         )
@@ -170,6 +166,14 @@ export interface Served {
   /** Select the per-request write door before the adapter starts a fresh Effect
    * fiber and request-local context is no longer available. */
   readonly fenced: (client: OlaiSurfaceClient) => OlaiSurfaceClient
+  /**
+   * RECORD A WRITE, with this face's writer already bound — `ops.commit`
+   * through the ledger door. A serve that did not mount the git row refuses
+   * in words.
+   */
+  readonly record: (request: CommitRequest) => Effect.Effect<CommitResult>
+  /** Send the current branch, the same door. */
+  readonly push: Effect.Effect<PushResult>
 }
 
 /**
@@ -302,13 +306,11 @@ const isRecord = (said: unknown): said is Record<string, unknown> =>
  * interfaces and this one answer the same questions, so a tool cannot behave
  * differently for being reached over a socket.
  *
- * `commit`, `push` and `search` are the members BOTH doors call (`search.nodes`
- * on core; `commit` / `push` on the git sibling when that row is mounted);
- * the rest are the agent's own `ops.*`, the two document reads included — a
+ * `commit` and `push` call through the ledger door with the face's writer
+ * already bound on {@link Served}; `search` is `search.nodes` on core; the
+ * rest are the agent's own `ops.*`, the two document reads included — a
  * browser draws a `.md` off the `documents` COLLECTION it already subscribes
- * to, which is a different question from the listing an agent asks. Which
- * writer a landing write is recorded as is neither's business — the FACE this
- * client dispatches at decided it (`../runtime.ts`'s `writerAt`).
+ * to, which is a different question from the listing an agent asks.
  *
  * ONE PER CLIENT, not one per call. Four of the ten lines are Effect VALUES
  * rather than thunks (`push`, `outlines`, `paths`, `documents` — that is the
@@ -319,23 +321,17 @@ const isRecord = (said: unknown): said is Record<string, unknown> =>
  * name — and an Effect is an immutable description, so reuse across calls is
  * what it is for.
  */
-const doorFor = (client: OlaiSurfaceClient): Door => {
+const doorFor = (client: OlaiSurfaceClient, at: Served): Door => {
   const held = DOORS.get(client)
   if (held !== undefined) return held
-  const door = doorOver(client)
+  const door = doorOver(client, at)
   DOORS.set(client, door)
   return door
 }
 
 const DOORS = new WeakMap<OlaiSurfaceClient, Door>()
 
-const gitVerb = (tags: ReadonlySet<string>, verb: "commit" | "push"): string | undefined =>
-  [...tags].find((tag) => tag.startsWith("surface/git/") && tag.endsWith(`/${verb}`))
-
-const doorOver = (client: OlaiSurfaceClient): Door => {
-  const held = heldFor(client)
-  const commitTag = held === undefined ? undefined : gitVerb(held.tags, "commit")
-  const pushTag = held === undefined ? undefined : gitVerb(held.tags, "push")
+const doorOver = (client: OlaiSurfaceClient, at: Served): Door => {
   return {
     run: (request) => landed(client.surface.ops.run(request)),
     // The act arm has NO failure channel and says so by type: every way a commit
@@ -343,23 +339,11 @@ const doorOver = (client: OlaiSurfaceClient): Door => {
     // the answer. So the only thing left for these two to fail with is the
     // transport, and `orDie` is {@link landed}'s rule with nothing to spare.
     //
-    // Git's verbs live on the sibling. When that row is mounted, `writerAt`
-    // has already stamped the commit/push tags with this face's writer. When
-    // it is not, the ops table still advertises the tools and they refuse in
-    // the same words `ops.commit` / `ops.push` do.
-    commit: (request: CommitRequest) =>
-      Effect.orDie(
-        commitTag !== undefined && held !== undefined
-          ? held.dispatch.unary(commitTag, request) as Effect.Effect<CommitResult>
-          : NO_LEDGER.record(request, "mcp"),
-      ),
-    push: Effect.suspend(() =>
-      Effect.orDie(
-        pushTag !== undefined && held !== undefined
-          ? held.dispatch.unary(pushTag, {}) as Effect.Effect<PushResult>
-          : NO_LEDGER.push,
-      )
-    ),
+    // Through the ledger door, with this face's writer already bound. A serve
+    // that did not mount the git row refuses in the same words `ops.commit`
+    // / `ops.push` do.
+    commit: (request: CommitRequest) => Effect.orDie(at.record(request)),
+    push: Effect.orDie(at.push),
     outlines: landed(client.surface.ops.outlines(undefined)),
     paths: landed(client.surface.ops.paths(undefined)),
     node: (request) => landed(client.surface.ops.node(request)),

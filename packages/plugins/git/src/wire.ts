@@ -6,7 +6,7 @@
  * `pending` cell, and `git.commit` / `git.push` / `git.resume`. They are here
  * now. Procedures are a group then a verb, so composed they read
  * `surface/git/git/get`, `surface/git/pending/get`, `surface/git/git/commit`.
- * `writerAt` overwrites that last tag per face.
+ * The browser face binds `git.commit` as `"web"` itself.
  *
  * ## THIS ENTRY'S OWN FENCE
  *
@@ -74,11 +74,12 @@ export const surface = defineSurface({
 /**
  * WHICH FACE SEES WHAT.
  *
- * Browser and agent see the two cells and the commit/push verbs. MCP tools
- * stay named `commit` / `push` (the ops table) and land on those sibling
- * tags; the adapter has no sibling segment for `surface://` cells. `resume`
- * is the browser's alone: it is the commit panel's button, and an agent has
- * no loop of its own to restart.
+ * Browser sees the two cells and the three verbs. MCP tools stay named
+ * `commit` / `push` (the ops table) and call through that door with the
+ * face's writer; the adapter has no sibling segment for `surface://` cells,
+ * and this row puts nothing on the agent face. `resume` is the browser's
+ * alone: it is the commit panel's button, and an agent has no loop of its
+ * own to restart.
  */
 export const faces = {
   browser: {
@@ -87,11 +88,5 @@ export const faces = {
     "git.commit": "tool",
     "git.push": "tool",
     "git.resume": "tool",
-  },
-  agent: {
-    git: "resource",
-    pending: "resource",
-    "git.commit": "tool",
-    "git.push": "tool",
   },
 } as const

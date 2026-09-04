@@ -22,7 +22,7 @@
  *
  * So there is ONE arrow onto the bridge's runtime and it lands here. What that
  * costs is nothing, because what a composition root spends and what a plugin
- * spends differ by exactly two functions:
+ * spends differ by a handful of capabilities:
  *
  * ## `openHost` and `provide` are NOT here, and the reason is NAME FORGERY
  *
@@ -72,7 +72,7 @@
  * dies takes the dispatch down with it. Each of those is a defect this tree has
  * had, and each of them is a paragraph in `@olai/effect-cordis`'s own headers.
  *
- * ## The one thing reached PAST this door, and why it has to be
+ * ## What is reached PAST this door, and why it has to be
  *
  * `@olai/effect-cordis/loader`'s `mountRows`, by `@olai/bundle` and nobody else.
  * The loader reads a file off a disk and resolves module specifiers, so it
@@ -80,6 +80,13 @@
  * would put all of that on the graph of the door a TAB opens, and it does not
  * fail at a boundary claim — it fails at `bun build`. A second door on this
  * package would be the same graph with a longer name.
+ *
+ * `settled`, `namedBy` and `offered` sit beside it as CAPABILITIES, withheld
+ * on the same grounds `openHost` and `provide` are. Each needs a `Host`, so no
+ * plugin can spend them; `@olai/bundle` reaches past this door for them, and
+ * a plugin holding any one could ask a question the keyed services are shaped
+ * to keep it from asking — wait out its siblings, enumerate what they need,
+ * or read an offered door as core.
  */
 
 export {
@@ -92,7 +99,6 @@ export {
   type Listen,
   type Mounted,
   mountPlugin,
-  offered,
   type Plugin,
   registry,
   type Registry,

@@ -96,15 +96,15 @@ export interface Ledger {
 export const NO_LEDGER: Ledger = {
   wrote: () => {},
   whyWaiting: () =>
-    Effect.succeed("this serve has no git plugin, so writes land and are recorded by nobody"),
+    Effect.succeed("nobody is recording writes here, so they land and wait for nobody"),
   record: () =>
     Effect.succeed({
       _tag: "Failed",
-      said: "this serve has no git plugin, so there is nobody to record a write",
+      said: "nobody is recording writes here, so there is nobody to record a write",
     }),
   push: Effect.succeed({
     _tag: "Failed",
-    said: "this serve has no git plugin, so there is nobody to push",
+    said: "nobody is recording writes here, so there is nobody to push",
   }),
   resume: Effect.void,
 }

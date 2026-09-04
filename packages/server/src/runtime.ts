@@ -56,8 +56,9 @@
  * describes (`conventions.ts`, and the two bindings beside the cells).
  *
  * Git's cells and verbs left this file: they live on the git plugin's sibling
- * surface. `writerAt` still rebinds `surface/git/git/commit` when that tag is
- * in the group, so a face records who asked without core declaring the member.
+ * surface. MCP `commit` / `push` call `ops.commit` / `ops.push` through the
+ * ledger door with the face's writer; the sibling's own browser `git.commit`
+ * binds `"web"` itself.
  *
  * Nothing here interprets an outline or an agent. It moves what the store and
  * the chat decided onto the wire, and that is all — with one exception, and it
@@ -88,10 +89,7 @@ import {
   type Verdict,
 } from "@olai/format"
 import { type Caller, type Ops, type Request, type Store } from "@olai/ops"
-import type {
-  CommitRequest,
-  Writer,
-} from "@olai/format"
+import type { Writer } from "@olai/format"
 import { type Applied, type Edit, LOADED, type Manifest, NO_ROSTER, type PluginRoster, type PluginState, surface, watchable, type Who } from "@olai/surface"
 import { type OpFailure } from "@olai/format"
 import {
@@ -339,6 +337,15 @@ export interface PluginRuntime {
    */
   readonly names: () => ReadonlyMap<string, ReadonlyArray<string>>
   /**
+   * EACH ROW'S CONFIG, as the loader is holding it — `olai.yml` plus the CLI
+   * patch, before the plugin's schema folds defaults in.
+   *
+   * Travels onto the roster as data so the plugins panel can draw the values
+   * with no knowledge of any plugin's words. A row with no `config:` is
+   * absent rather than present-and-empty.
+   */
+  readonly configs: () => ReadonlyMap<string, Readonly<Record<string, unknown>>>
+  /**
    * TURN ONE ROW ON OR OFF while this serve runs — the loader surface's verb,
    * as this file spends it.
    *
@@ -486,9 +493,6 @@ const writing = (ops: Ops, caller: Caller): Record<string, SurfaceHandler> => ({
     ops.run(request, caller.writer, caller.fence ?? undefined),
 })
 
-const gitVerb = (tag: string, verb: "commit" | "push"): boolean =>
-  tag.startsWith("surface/git/") && tag.endsWith(`/${verb}`)
-
 /**
  * WHICH PLUGINS THIS BUILD HAS AND WHICH THIS SERVE RUNS, as the one value a
  * browser draws its read-only rows off ({@link Wiring.plugins} in, the
@@ -587,6 +591,7 @@ export const rosterOf = (
       const live = said.state === "running"
       const wake = live ? wakes.get(name) : undefined
       const carrying = live ? carriedBy(name, offered.built, names, offers) : []
+      const config = offered.configs().get(name)
       return {
         name,
         running: live,
@@ -632,6 +637,10 @@ export const rosterOf = (
             kinds: wake.kinds,
           },
         }),
+        // THE ROW'S CONFIG, as data. Core draws the values and knows none of
+        // the plugin's words — a given `--commit=auto` is `commit: auto` on
+        // the git row, and a row with no config sends nothing.
+        ...(config === undefined ? {} : { config }),
       }
     }),
     pinned: offered.pinned,
@@ -822,17 +831,6 @@ export const writerAt = (
   for (const [tag, handler] of Object.entries(bound.handlers)) handlers[tag] = handler
   for (const [tag, handler] of Object.entries(writing(ops, caller))) {
     if (handlers[tag] !== undefined) handlers[tag] = handler
-  }
-  // Git's verbs live on the sibling. Stamp whichever commit/push tags the
-  // group already serves so a rename of the inner group is not a core edit,
-  // and a serve that did not mount the row has no tag to mint.
-  for (const tag of Object.keys(handlers)) {
-    if (gitVerb(tag, "commit")) {
-      handlers[tag] = ((request: CommitRequest) =>
-        ops.commit(request, caller.writer)) as SurfaceHandler
-    } else if (gitVerb(tag, "push")) {
-      handlers[tag] = (() => ops.push) as SurfaceHandler
-    }
   }
   return handlers
 }

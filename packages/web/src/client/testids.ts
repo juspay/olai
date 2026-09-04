@@ -609,6 +609,10 @@ export const TESTID = {
    *  to flip: the empty-build sentence is a different fact and would not want
    *  this under it. */
   pluginsStarted: "plugins-started",
+  /** A row's config, drawn under it read-only — key/value pairs as data,
+   *  with core knowing none of the plugin's words. `data-config` is the
+   *  key. Absent when the row has no config. */
+  pluginConfig: "plugin-config",
   /** One row on EITHER panel; `data-pref` is which. On preferences: `theme`,
    *  `font`, `size`, `density`, `done`. On plugins:
    *  one `plugin-<name>` per plugin this build has ({@link pluginPref}, which

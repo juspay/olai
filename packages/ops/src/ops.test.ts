@@ -235,12 +235,12 @@ test("commit without a ledger refuses in words", () =>
       const done = yield* fixture.ops.commit({}, "mcp")
       expect(done._tag).toBe("Failed")
       if (done._tag === "Failed") {
-        expect(done.said).toContain("no git plugin")
+        expect(done.said).toContain("nobody is recording writes here")
       }
       const pushed = yield* fixture.ops.push
       expect(pushed._tag).toBe("Failed")
       if (pushed._tag === "Failed") {
-        expect(pushed.said).toContain("no git plugin")
+        expect(pushed.said).toContain("nobody is recording writes here")
       }
     })))
 

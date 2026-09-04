@@ -41,6 +41,7 @@ import {
   PANE,
   CHAT_TOGGLE,
   PADI_PILL,
+  PLUGIN_CONFIG,
   PLUGINS_PANEL,
   PLUGINS_REFUSED,
   PLUGINS_STARTED,
@@ -972,6 +973,32 @@ Then(
  * with and how long a press here lasts. A scenario that asserted it through a
  * row would be asserting the arrangement this panel was rewritten to end.
  */
+Then(
+  "the plugins panel shows {string} configured {string} as {string}",
+  async function (this: OlaiWorld, plugin: string, key: string, value: string) {
+    const row = rowFor(this, plugin);
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const pair = row.locator(`${PLUGIN_CONFIG}${attr("data-config", key)}`);
+    try {
+      await pair.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+      const said = (await pair.innerText()).replaceAll("\n", " ");
+      assert.ok(
+        said.includes(value),
+        `the ${JSON.stringify(plugin)} row to show ${JSON.stringify(key)} as ${
+          JSON.stringify(value)
+        }, and it says ${JSON.stringify(said)}`,
+      );
+    } catch (error) {
+      if (error instanceof assert.AssertionError) throw error
+      assert.fail(
+        `the ${JSON.stringify(plugin)} row to show ${JSON.stringify(key)} as ${
+          JSON.stringify(value)
+        }, and it has no config for that key`,
+      );
+    }
+  },
+);
+
 Then(
   "the plugins panel was started {string}",
   async function (this: OlaiWorld, said: string) {

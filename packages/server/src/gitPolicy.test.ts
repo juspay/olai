@@ -40,7 +40,7 @@ import {
 } from "@olai/format"
 import { COMMIT_BUTTON, commitDoors, COMMIT_TOOL } from "./gitPolicy.ts"
 import { BOOT_TIMEOUT, startWeb } from "./child.testlib.ts"
-import { commitsSaid, gitPin, pushesSaid } from "./gitPolicy.ts"
+import { commitsSaid, gitConfigPatch, gitPin, pushesSaid } from "./gitPolicy.ts"
 import { served } from "./serve.testlib.ts"
 
 // ── what the flags come to between them ────────────────────────────────
@@ -56,6 +56,19 @@ import { served } from "./serve.testlib.ts"
 test("no flag at all pins nothing, and the server still commits manually", () => {
   expect(gitPin(null, false, null)).toEqual(NO_PIN)
   expect(policyOf(gitPin(null, false, null)).commit).toBe(COMMIT_DEFAULT)
+  expect(gitConfigPatch(gitPin(null, false, null))).toEqual([])
+})
+
+test("a given flag is a patch onto the git row's config, and an omitted one is not", () => {
+  expect(gitConfigPatch(gitPin("auto", false, null))).toEqual([
+    { id: "git", config: { commit: "auto" } },
+  ])
+  expect(gitConfigPatch(gitPin(null, false, "auto"))).toEqual([
+    { id: "git", config: { push: "auto" } },
+  ])
+  expect(gitConfigPatch(gitPin("auto", false, "off"))).toEqual([
+    { id: "git", config: { commit: "auto", push: "off" } },
+  ])
 })
 
 /**

@@ -909,6 +909,8 @@ export const PLUGINS_PANEL = selector(TESTID.pluginsPanel);
 export const PLUGINS_STARTED = selector(TESTID.pluginsStarted);
 /** ...and what the serve would not take, when a press is refused. */
 export const PLUGINS_REFUSED = selector(TESTID.pluginsRefused);
+/** A row's config, as data under it. `data-config` is the key. */
+export const PLUGIN_CONFIG = selector(TESTID.pluginConfig);
 export const PREFS_ROW = selector(TESTID.prefsRow);
 export const PREFS_HINT = selector(TESTID.prefsHint);
 export const PREFS_CHOICE = selector(TESTID.prefsChoice);

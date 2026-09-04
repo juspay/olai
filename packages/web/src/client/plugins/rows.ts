@@ -162,6 +162,18 @@ export const pluginSwitch = (
 })
 
 /**
+ * THE ROW'S CONFIG, as pairs core can draw without knowing any plugin's
+ * words. Empty when the row has none — the panel draws nothing extra.
+ */
+export const pluginConfig = (
+  plugin: BuiltPlugin,
+): ReadonlyArray<readonly [string, string]> => {
+  const config = plugin.config
+  if (config === undefined) return []
+  return Object.entries(config).map(([key, value]) => [key, String(value)] as const)
+}
+
+/**
  * WHAT THIS ROW ADDS TO WHAT THE SWITCH ALREADY SAYS — one short line, or
  * NOTHING.
  *

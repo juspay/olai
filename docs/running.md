@@ -197,7 +197,7 @@ On Linux the unit is `Restart=always` / `RestartSec=1s` / `SuccessExitStatus=130
 
 ## The git policy
 
-Whether what is waiting records itself, and whether a commit is pushed, are facts about the DIRECTORY ([git.md](git.md)) — the git plugin's pin ([plugins/git.md](plugins/git.md)), the same in every browser, always read-only. There is no runtime door. Turning the **row** off (`--plugins` without `git`) is a different fact: no provider is mounted, so there is no pill and `ops.commit` refuses in words.
+Whether what is waiting records itself, and whether a commit is pushed, are facts about the DIRECTORY ([git.md](git.md)) — a CLI patch onto the git row's config ([plugins/git.md](plugins/git.md)), the same in every browser, always read-only. There is no runtime door. Turning the **row** off (`--plugins` without `git`) is a different fact: no provider is mounted, so there is no pill and `ops.commit` refuses in words.
 
 The policy comes from exactly two sources: the CLI flags (`--commit` / `--push`, surfaced through the nix home-manager module) and the built-in defaults (`manual` / `off`). Stale files under `$XDG_STATE_HOME/olai/git/` from an older olai are inert.
 
@@ -214,9 +214,9 @@ services.olai = {
 };
 ```
 
-**Giving a flag sets the instance's policy; omitting it uses the built-in default.** Either way the pin is the same in every browser. Given, the server tells every browser which flag it was started with. Omitted, the built-in default applies. Never hidden — a policy a reader cannot see is one they cannot ask anybody about.
+**Giving a flag sets the instance's policy; omitting it uses the built-in default.** Either way the config is the same in every browser. Given, the plugins panel draws the value under the git row. Omitted, the built-in default applies. Never hidden — a policy a reader cannot see is one they cannot ask anybody about.
 
-The two are independent, so setting committing does not silently set pushing. `--commit=manual` typed out loud is not the same as saying nothing, even though this server behaves identically either way: the first names the flag under the row, the second is the built-in default.
+The two are independent, so setting committing does not silently set pushing. `--commit=manual` typed out loud is not the same as saying nothing, even though this server behaves identically either way: the first is a patch onto the git row's config, the second is the built-in default.
 
 `--commit` is the same flag [git.md](git.md#modes) describes, with the same three modes; `--no-commit` is `--commit=off` and names the flag in the same way. `--commit=auto` is the quiet window: everything waiting records itself once writes stop arriving for fifteen seconds, with or without a browser in front of it. It is no longer one commit per write — that mode is retired, and the per-write commit with it.
 

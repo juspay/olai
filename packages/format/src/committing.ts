@@ -185,7 +185,7 @@ export const policyOf = (pin: GitPin): GitPolicy => ({
 
 /**
  * The policy in force, with no `null` left in it — what the server does, and
- * what the two preference rows draw.
+ * what the plugins panel draws under the git row.
  *
  * Its own shape beside {@link GitPin} rather than the same one narrowed,
  * because the two answer different questions and a reader holding one must not

@@ -112,6 +112,8 @@ const withRoute = <A>(
         root,
         vintage: Effect.map(store.read("verified"), (aged) => aged.vintage),
         fenced: tickets.doorAt,
+        record: (request) => ops.commit(request, "mcp"),
+        push: ops.push,
       }),
       transport,
     })

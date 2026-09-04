@@ -173,7 +173,7 @@ export interface Mounted {
  */
 export const mountPlugin = (host: Host, plugin: Plugin): Effect.Effect<Mounted> =>
   Effect.promise(async () => {
-    const fiber: Fiber = ctxOf(host).plugin(plugin)
+    const fiber: Fiber = (ctxOf(host).plugin as (plugin: Plugin) => Fiber)(plugin)
     // SWALLOWED, and it is the containment claim rather than a shrug: a plugin
     // whose `apply` failed lands in `FAILED` having installed nothing, and its
     // siblings — and the boot — are untouched. What it threw is not lost; it is

@@ -197,6 +197,8 @@ const withTools = <A>(
         // assertion about the stub.
         vintage: Effect.map(store.read("verified"), (aged) => aged.vintage),
         fenced: (client) => client,
+        record: (request) => ops.commit(request, "mcp"),
+        push: ops.push,
       }),
       transport: serverSide,
     })
@@ -400,7 +402,7 @@ test("push answers rather than failing when nobody stands behind the ledger", as
     expect(answered.isError).toBe(false)
     expect(answered.structured).toMatchObject({
       _tag: "Failed",
-      said: "this serve has no git plugin, so there is nobody to push",
+      said: "nobody is recording writes here, so there is nobody to push",
     })
   })
 })

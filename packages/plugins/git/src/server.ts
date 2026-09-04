@@ -11,10 +11,12 @@
 import type { ImplementSurfaceDeps, SurfaceCtx } from "@kolu/surface/server"
 import { inMemoryStore } from "@kolu/surface/server"
 import {
+  COMMIT_MODES,
   GIT_OFF,
   type GitState,
   NOTHING_PENDING,
   type Pending,
+  PUSH_MODES,
   type Reading,
   type Writer,
 } from "@olai/format"
@@ -23,11 +25,10 @@ import {
   detached,
   Ledger,
   Offers,
-  Pin,
   Surfaces,
   Vault,
 } from "@olai/plugin-api/services"
-import { Duration, Effect, Stream, SubscriptionRef } from "effect"
+import { Duration, Effect, Schema, Stream, SubscriptionRef } from "effect"
 
 import { type Committing, fixedPolicy, make } from "./ledger/pending.ts"
 import { faces, name, surface } from "./wire.ts"
@@ -38,23 +39,35 @@ type Ctx = SurfaceCtx<typeof surface.spec>
 
 const SWEEP = Duration.seconds(30)
 
+/** This row's `config:` — `--commit` / `--push` as given, omitted for a flag
+ *  nobody typed. Defaults are folded in by {@link fixedPolicy}. */
+export const Config = Schema.Struct({
+  commit: Schema.optionalKey(Schema.Literals(COMMIT_MODES)),
+  push: Schema.optionalKey(Schema.Literals(PUSH_MODES)),
+})
+export type Config = typeof Config.Type
+
 interface VaultRevision {
   readonly value: Reading
 }
 
 export default definePlugin({
   name,
-  needs: [Offers, Pin, Surfaces, Vault],
-  apply: Effect.gen(function*() {
+  needs: [Offers, Surfaces, Vault],
+  config: Config,
+  apply: (config: Config) =>
+    Effect.gen(function*() {
     const offers = yield* Offers
-    const pin = yield* Pin
     const surfaces = yield* Surfaces
     const vault = yield* Vault
     const detach = yield* detached
 
     let at: Reading | null = null
     let mine: Ctx | undefined
-    const policy = fixedPolicy(pin)
+    const policy = fixedPolicy({
+      commit: config.commit ?? null,
+      push: config.push ?? null,
+    })
     const settled = yield* SubscriptionRef.make(0)
     const commits: Committing = make({
       root: vault.served,
@@ -91,9 +104,9 @@ export default definePlugin({
         },
         procedures: {
           git: {
-            // `commit` is the one verb that records WHO asked. The bind-time
-            // handler is the tab's writer; `writerAt` overwrites this tag per
-            // face so an MCP client is not recorded as `web`.
+            // `commit` is the one verb that records WHO asked. The browser
+            // face binds `"web"` itself; MCP `commit` / `push` call through
+            // the ledger door with the face's writer.
             commit: ({ input }) => commits.commit(input, "web"),
             push: () => commits.push,
             resume: () => Effect.as(commits.resume, {}),

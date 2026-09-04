@@ -29,7 +29,9 @@ import type { IdentityConfig } from "@olai/identity"
 import { make as makeOps, NO_LEDGER, type Ledger as OpsLedger, type Ops, TOOLS } from "@olai/ops"
 import {
   BUNDLE_NAMES,
+  configsOf,
   mountBundle,
+  offered,
   reportBundle,
   rowsNaming,
   setRow,
@@ -39,7 +41,6 @@ import { emitter } from "@olai/log"
 import {
   Ledger,
   NOWHERE_TO_WRITE,
-  offered,
   openPlugins,
   type PropWrite,
   type ToolServer,
@@ -58,6 +59,7 @@ import { clientOver, serveFace } from "./mcp/face.ts"
 import { currentLogin, MCP_PATH, mcpTransport } from "./mcp/route.ts"
 import { ticketing, type Tickets } from "./mcp/tickets.ts"
 import { bespokeFrom } from "./mcp/tools.ts"
+import { gitConfigPatch } from "./gitPolicy.ts"
 import { bind, writerAt } from "./runtime.ts"
 
 export interface ServeOptions {
@@ -74,11 +76,9 @@ export interface ServeOptions {
    *  — the header names plus the avatar template (`@olai/identity`).
    *  Read from the environment at the composition root, once. */
   readonly identity: IdentityConfig
-  /** The git policy this serve runs under, as the operator PINNED it —
-   *  `--commit=off | manual | auto` and `--push=off | auto`, each `null` when
-   *  the flag was not given (`@olai/format`'s `GitPin`). What the server DOES
-   *  is the git row's config; what every browser draws read-only is the
-   *  instance's policy. */
+  /** `--commit` / `--push` as given — a CLI patch onto the git row's config,
+   *  the way `--plugins` is a patch onto `disabled`. `null` on both halves is
+   *  nobody having said. */
   readonly pin: GitPin
   /** WHICH built-in integrations to run — `null` for nobody having said,
    *  which means the built-in default (not necessarily every plugin this
@@ -222,7 +222,6 @@ export const serve = (options: ServeOptions) =>
       vars: process.env,
       now: () => new Date().toISOString(),
       served,
-      pin: options.pin,
       tools: toolsReady,
       // ...AND THE FENCE MINTED OFF IT. Read per call rather than captured,
       // because the mint does not exist until the MCP face does — and the row
@@ -277,7 +276,7 @@ export const serve = (options: ServeOptions) =>
       changed: () => onChange.run(),
       // NO `dials`: the injectables are a test's, and this is the product.
     })
-    yield* mountBundle(plugins.host, options.plugins)
+    yield* mountBundle(plugins.host, options.plugins, gitConfigPatch(options.pin))
     /**
      * WHAT BECAME OF EACH ROW, read once the bundle has settled — the word a
      * panel row wears when a plugin is not running, and the plugin's own
@@ -430,6 +429,7 @@ export const serve = (options: ServeOptions) =>
         // join that answers "what stops if I turn this off"; the other half is
         // the offers table, which the runtime reads through `Plugins`.
         names: () => rowsNaming(plugins.host),
+        configs: () => configsOf(plugins.host),
         set: flipped,
         switched: () => switched,
       },
@@ -528,6 +528,8 @@ export const serve = (options: ServeOptions) =>
         root,
         vintage: Effect.map(store.read("verified"), (aged) => aged.vintage),
         fenced: tickets.doorAt,
+        record: (request) => ops.commit(request, "chat-agent"),
+        push: ops.push,
       }),
       transport,
     })
