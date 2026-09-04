@@ -1,0 +1,26 @@
+{
+  "name": "@olai/plugin-build",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./shared": "./src/shared.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "//exports": "TWO DOORS, TWO GRAPHS — the same discipline every other package in this tree keeps. The ROOT is the compiler, and it carries babel; `./shared` is the three module names and the global the host binds them through, and it carries nothing at all. A TAB opens the second: `@olai/web`'s entry fills that table out of its own static imports, so a chunk the serve compiled reaches this app's Solid rather than a second copy. Behind one door the browser bundle would carry the Solid JSX transform to read four string constants.",
+  "//": "HOW A PLUGIN'S SOURCE BECOMES A MODULE — the one package that turns text somebody wrote into a half olai can mount, and the whole of what phase 12 (dynamic plugins) needs that no existing package could honestly hold.\n\nIt knows nothing about vaults, rows, approval or the wire: it takes source and answers a module's TEXT, or a refusal naming the specifier it will not resolve. That fence is what makes it testable without a serve, and it is why the vault half lives in @olai/server and the mounting in the bridge.",
+  "//dependencies": "The Solid JSX transform, and NOTHING else. `@babel/core` plus the two presets are exactly what `@olai/web`'s own build uses on the app's faces (packages/web/src/build.ts argues why Bun's transform cannot stand in: it emits `React.createElement`, which Solid does not have, and Bun's `jsxImportSource` is not honoured by `Bun.Transpiler` or `Bun.build` in the pinned version). An agent-written face has to compile the same way a shipped one does, or `@olai/plugin-api`'s slots would hold two kinds of component.\n\nThe SERVER half needs no preset: it is TypeScript with no JSX in it, and `Bun.Transpiler` is the whole of that step.\n\nDeliberately absent: `effect`, `@olai/plugin-api`, `solid-js`. This package NAMES them as the specifiers it will bind and imports none of them — they are the running binary's, reached through the registry a host puts on `globalThis` (./src/shared.ts), which is the only way a dynamically loaded chunk can share one Solid and one Effect with the app it draws inside.",
+  "dependencies": {
+    "@babel/core": "^7.25.0",
+    "@babel/preset-typescript": "^7.25.0",
+    "babel-preset-solid": "^1.9.0"
+  },
+  "devDependencies": {
+    "@types/babel__core": "^7.20.5"
+  }
+}

@@ -492,6 +492,31 @@ test("nothing outside the menu's chunk imports the menu's chunk", () => {
 // reads only this directory. So the same whole-shape grip is swept a second
 // time over the panel's own tree, in
 // `packages/plugins/chat/src/browser/claims.test.ts`.
+/**
+ * THE ONE FILE THAT COMPUTES A SPECIFIER, and it is the rule's own limit rather
+ * than a hole in it.
+ *
+ * The law above is *a computed specifier cuts no chunk*, and everything it
+ * protects rests on there BEING a chunk to cut: a module in this tree, in this
+ * bundle, that the bundler would otherwise fold back into the entry. A plugin
+ * the VAULT defines has none. Its source did not exist when this bundle was
+ * built — an agent wrote it into a directory this serve is about, and the serve
+ * compiled it — so what `wire.ts` names is a URL the ROSTER carries, answered by
+ * `/_olai/plugins/<name>-<version>.js`, and there is nothing for the build to
+ * have split.
+ *
+ * So the two failures the law exists to prevent are both unreachable here: the
+ * graph cannot fold back into `main-*.js`, because it is not in the graph, and
+ * the specifier cannot fail to resolve at runtime, because it is a URL the
+ * server just told this tab it is serving.
+ *
+ * ONE FILE, NAMED, for the reason the `filesSpelling` list below is named: an
+ * exemption that was a pattern rather than a name would quietly cover the next
+ * computed `import()` somebody writes for an ordinary chunk, which is exactly
+ * the mistake this test was written after.
+ */
+const COMPUTED_BY_DESIGN: ReadonlyArray<string> = ["wire.ts"]
+
 test("every dynamic import() the client spells takes a literal the bundler can read", () => {
   // The opener, then the one shape the bundler can read: a complete quoted
   // specifier — escapes allowed, the other quote allowed inside — followed by
@@ -499,6 +524,7 @@ test("every dynamic import() the client spells takes a literal the bundler can r
   // a computed name in a literal's clothing.
   const ARG_GEN = /^(?:"(?:\\[\s\S]|[^"\\])*"|'(?:\\[\s\S]|[^'\\])*')\s*\)/
   const offenders = SOURCES.filter((one) =>
+    !COMPUTED_BY_DESIGN.includes(one.file) &&
     [...one.code.matchAll(/\bimport\s*\(\s*/g)].some(
       (hit) => !ARG_GEN.test(one.code.slice(hit.index + hit[0].length)),
     ),
@@ -512,6 +538,10 @@ test("every dynamic import() the client spells takes a literal the bundler can r
     path.join("layout", "Rail.tsx"),
     path.join("markdown", "chunk.ts"),
     path.join("menu", "chunk.ts"),
+    // ...and the one that computes one, which is {@link COMPUTED_BY_DESIGN}'s
+    // whole argument: a plugin the vault defines is fetched from the serve that
+    // compiled it, at a URL the roster carries.
+    "wire.ts",
   ])
 })
 

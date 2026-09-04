@@ -893,10 +893,28 @@ export interface Wake {
  * `forbidden` is inside the fence rather than beside it: a node agent may write
  * anywhere under its own node and still may not rewrite the property that says
  * WHICH conversation it is, because that is the binding rather than the work.
+ *
+ * EACH KEY CARRIES ITS OWN SENTENCE, and that is not decoration. The refusal a
+ * session reads used to be composed in `@olai/ops` — a general package writing
+ * prose about a word this plugin owns — and it read as one clause because there
+ * was one key. There is more than one now, forbidden for reasons that have
+ * nothing to do with each other, and they do not rev on one clock: the seating
+ * one moves when this plugin's idea of a binding moves, and the composition
+ * root's moves when the host's own vocabulary does. So the clause travels from
+ * whoever forbade the key, which is this tree's ordinary rule — failure prose is
+ * the owner's, and core carries it.
  */
 export interface Seated {
   readonly under: string
-  readonly forbidden: ReadonlyArray<string>
+  readonly forbidden: ReadonlyArray<Forbidden>
+}
+
+/** One key a session's door may not write, and the clause that says why — spent
+ *  verbatim inside the refusal (`@olai/ops`' `fenceRefusal`), so it reads as a
+ *  reason and not as a label. */
+export interface Forbidden {
+  readonly key: string
+  readonly says: string
 }
 
 /** ...AND THE CREDENTIAL ITSELF. `release` is the session's teardown, which is

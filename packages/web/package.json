@@ -37,7 +37,8 @@
     "solid-js": "^1.9.0",
     "unified": "^11.0.5",
     "@olai/bundle": "workspace:*",
-    "@olai/plugin-api": "workspace:*"
+    "@olai/plugin-api": "workspace:*",
+    "@olai/plugin-build": "workspace:*"
   },
   "devDependencies": {
     "@babel/core": "^7.25.0",

@@ -884,6 +884,18 @@ One consequence is a RULING rather than a fallout: one node, one fold state. A m
 
 The calendar's month is the remaining stamped reading (`stamped.ts`): a value plus the thing it belongs to, read through a memo that compares them. That is what makes it start over at the right moment, with no effect watching a route to clear anything, and so no frame in which the held value and the thing it belongs to disagree. The stamp is the month it is ANCHORED to, because walking from one outline to another is no reason to snap the calendar back to today.
 
+## A plugin the vault defines, in the tab
+
+Most of what mounts here is a chunk of this bundle, split out by a literal `import()` in a generated row (`@olai/bundle`'s `rows.ts`), fetched only when the roster names it. There is one other kind: a plugin somebody wrote into the **served directory**, which the serve compiled and answers at `/_olai/plugins/<name>-<version>.js` ([dynamic-plugins.md](../../docs/dynamic-plugins.md)).
+
+`client/wire.ts` loads it exactly as it loads any other half — the roster's row carries the URL, the redial puts its sibling on the wire, and only then is its fiber composed — with two differences, both of them consequences of its source not existing when this bundle was built.
+
+**Its `import()` is computed**, which is the one place in this client that is true. `claims.test.ts` names the file and argues it: the law it breaks (*a computed specifier cuts no chunk*) rests on there BEING a chunk to cut, and this one is not in the graph at all. The URL carries the version, so an approved edit is a different URL and the signature the redial compares moves with it.
+
+**Its three imports are bound to this app's own modules.** `client/plugins/shared.ts` puts this bundle's `@olai/plugin-api`, `effect` and `solid-js` (and the `solid-js/web` the transform emits) on a global, and the serve rewrote the half's imports into reads of that table. A second Solid would be a second reactive runtime — a face drawn by it sits in this tree, reads a context this copy owns, and finds nothing, which is the exact failure `client/plugins/runtime.ts` records from the other side. So a face an agent wrote and a face this build shipped are the same kind of thing, in the same slot table, under the same providers.
+
+The panel draws the rest of it: a definition's source under its row, and the two approve verbs on a row nobody has decided about (`client/plugins/Panel.tsx`).
+
 ## One subpath, no root: `./testlib`
 
 No `.` in the exports map, on purpose: neither product here is an import. This package produces a **script** — `bun packages/web/src/build.ts <dist>`, run by `default.nix` and by `just build-client` — and the **directory** that script writes. What an export list would suggest about THIS package is a library it is not — but "no imports of the app" used to swallow a fact of its own: the browser suite shared this client's names by spelling nineteen paths into `src/`, straight past a manifest that answered for none of them. The honest shape has the one subpath and nothing else: `./testlib` (`src/suite.testlib.ts`), the curated list of names, deadlines, storage keys and two reads the suite may see — the same carve-out `@olai/format`, `@olai/git`, `@olai/log` and `@olai/ops` make, joined late for the reason `https://github.com/juspay/oss.olai/blob/main/projects/olai/lowy-electricity/debate-2026-08-19.md` records as finding 5. Widening what [`@olai/tests`](../tests/README.md) may know is adding to that list and nothing else; the fence at both ends is that package's `imports.test.ts`.

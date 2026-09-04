@@ -1339,6 +1339,7 @@ export type {
   PropWrite,
   Refusal,
   Refused,
+  Forbidden,
   Seated,
   StdioServer,
   Wake,
@@ -1359,3 +1360,53 @@ export { exposeMapsOf, kindWordOf, NO_TICKET, NOWHERE_TO_WRITE, surfacesOf } fro
  * property it did not have.
  */
 export type { Registering } from "@olai/acp/engine"
+
+/**
+ * WHAT A HALF MAY NAME — the two catalogs `plugins.inspect` answers with, and
+ * the one place either is written down.
+ *
+ * ## Why a SERVE reads them at all
+ *
+ * Phase 12: an agent writes a plugin into a vault, and before it does it asks
+ * *what may I name* (`plugins.inspect`). The honest answer is these two lists —
+ * the services a server half may put in its `needs`, and the slots a browser
+ * half may register a face into — and the only wrong way to answer is a second
+ * copy in the composition root, which would agree with these until somebody
+ * added a service and then send an agent to name a door that is not there.
+ *
+ * ## The service list is the TAGS, read for their keys
+ *
+ * A tag knows the word it is bound under, so this is the same table the runtime
+ * resolves against rather than a description of it. A tag added above and left
+ * out of this list is a service `plugins.inspect` does not mention, which is a
+ * missing sentence rather than a wrong one — and the array is `as const` so the
+ * omission is at least visible in one place.
+ *
+ * `Offers` is deliberately in it: a plugin that stands behind a door names that
+ * tag like any other, and an agent-written plugin that wanted to is written the
+ * same way a shipped one is.
+ */
+export const SERVICES = [
+  Env,
+  Clock,
+  Vault,
+  Deliveries,
+  Kinds,
+  Surfaces,
+  Wakes,
+  Agents,
+  Watching,
+  LocalState,
+  SessionStart,
+  Offers,
+  Tools,
+  Ops,
+  Bundle,
+] as const
+
+/** ...as the words a `needs` is written with. */
+export const SERVICE_KEYS: ReadonlyArray<string> = SERVICES.map((one) => one.cordis)
+
+/** THE SLOT CATALOG, from the one module both processes may open — see
+ *  `./slots.ts` on why it is not `./browser.ts`'s any more. */
+export { SLOTS, type SlotKey } from "./slots.ts"

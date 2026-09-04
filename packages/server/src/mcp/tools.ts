@@ -131,6 +131,102 @@ export const bespokeFrom = (
     ]),
   )
 
+/**
+ * CORE'S OWN THREE, and the reason they are not in `@olai/ops`' table.
+ *
+ * ## The hole this fills, which was a whole section of the doc
+ *
+ * `plugins.inspect`, `plugins.run` and `plugins.stop` are on the AGENT face and
+ * pinned there as an exact set (`../faces.test.ts`). That gates what a caller
+ * may CALL and says nothing about what it is OFFERED: an ACP engine is handed a
+ * tool list, and the tool list is `@olai/ops`' table projected by
+ * {@link bespokeFrom}. No row, no tool — so the first instruction in
+ * `docs/dynamic-plugins.md`, *read `plugins.inspect` before writing code*, named
+ * something no agent could reach, and `plugins.run`, the author's only feedback
+ * loop, went with it. A node agent working on this branch found both by trying
+ * (juspay/olai#506).
+ *
+ * ## Why they are HERE and not a row beside `capture`
+ *
+ * Because `@olai/ops` may not learn what a plugin is. Its table is the
+ * OPERATIONS ON A VAULT — the write vocabulary and the reads that resolve one —
+ * and a plugin is not an operation on a vault; it is a thing this SERVE mounts.
+ * `commit` and `push` are rows in that table for a reason that does not apply
+ * here: they are what a write is FOR, and they were there before a ledger was a
+ * plugin.
+ *
+ * So the rows live in the composition root's own projection, which is this file,
+ * and they dispatch to the surface members they name — the same procedures the
+ * panel's own face reaches, so an agent asking what became of its definition and
+ * a person looking at the row are reading one answer.
+ *
+ * ## What each of them is, in the agent's own words
+ *
+ * The descriptions below are the ones an engine reads in `tools/list`, and they
+ * are written for somebody about to write a plugin rather than for somebody
+ * reading this file. They say what the boundary is, because an author who does
+ * not know that a person has to approve the thing will read `pending` as a
+ * failure.
+ */
+export const pluginTools = (): Record<string, BespokeTool> => ({
+  inspect_plugins: {
+    title: "What a plugin may name",
+    description:
+      "Read this BEFORE writing a plugin into the vault. Answers the four lists that decide whether a "
+      + "half will mount at all: the bare modules a half may import (nothing else resolves — a vault has "
+      + "no node_modules), the service keys a server half may put in its `needs`, the slots a browser "
+      + "half may register a face into with what keys each, the node layout a definition takes (the two "
+      + "properties and the two child titles), and every plugin word this serve already has — built rows "
+      + "and other definitions alike, since a definition may take neither. Read off the live registry "
+      + "rather than a description of it.",
+    mutates: false,
+    handler: (_args, client) =>
+      asked("inspect_plugins", landed((client as OlaiSurfaceClient).surface.plugins.inspect({}))),
+  },
+  run_plugin: {
+    input: Schema.Struct({
+      name: Schema.String.annotate({
+        description: "The plugin's word — what the defining node's `plugin` property carries.",
+      }),
+    }) as unknown as ToolInputSchema<unknown>,
+    title: "Look at a plugin this vault defines",
+    description:
+      "Asks olai to read a definition as it stands now and say what became of it. THIS DOES NOT MOUNT "
+      + "ANYTHING BY ITSELF: a plugin whose current version nobody has approved answers `pending`, and "
+      + "the answer is the boundary rather than a failure — a person approves it at the plugins panel, "
+      + "with the source in front of them, because the code runs with this server's own authority. "
+      + "`state` is one of the plugin states (`pending`, `running`, `failed`, `waiting`, `switched`, "
+      + "`off`), `version` is the content hash of both halves, and `fault` is a whole sentence where "
+      + "there is one — a half that would not compile, a module olai does not bind, a half that calls "
+      + "itself another word. Write the two halves with `add_node` and `set_desc`, then call this.",
+    mutates: true,
+    handler: (args, client) =>
+      asked(
+        "run_plugin",
+        landed((client as OlaiSurfaceClient).surface.plugins.run(args as { readonly name: string })),
+      ),
+  },
+  stop_plugin: {
+    input: Schema.Struct({
+      name: Schema.String.annotate({
+        description: "The plugin's word.",
+      }),
+    }) as unknown as ToolInputSchema<unknown>,
+    title: "Stop a plugin this vault defines",
+    description:
+      "Unmounts one plugin the VAULT defines, for as long as this serve runs — its registrations unwind "
+      + "and a restart comes back to what the vault says. It reaches definitions ONLY: a plugin this "
+      + "build compiled in is not an agent's to stop, and naming one is answered as no such plugin. To "
+      + "retract a definition altogether, trash the node — the source is ordinary vault content.",
+    mutates: true,
+    handler: (args, client) =>
+      asked(
+        "stop_plugin",
+        landed((client as OlaiSurfaceClient).surface.plugins.stop(args as { readonly name: string })),
+      ),
+  },
+})
+
 /** What the FACE knows about itself — the two facts a tool's answer needs that
  *  no caller may supply.
  *
@@ -506,6 +602,14 @@ const planned = (
  * of "no" this was, and into the detail because that is what a caller asserts
  * on.
  */
+/** ONE CALL'S ANSWER, with a refusal worded the way every other tool's is —
+ *  {@link answer}'s last line for the three verbs that are not table rows. A
+ *  refusal is DATA on the way out (`isError` with its structured detail), which
+ *  is the property `refusal` exists for and the reason these three do not simply
+ *  `orDie`. */
+const asked = <A>(name: string, call: Effect.Effect<A, OpFailure>): Effect.Effect<A, ToolFailure> =>
+  Effect.mapError(call, (failure) => refusal(name, failure))
+
 const refusal = (name: string, failure: OpFailure): ToolFailure =>
   new ToolFailure(
     `\`${name}\` was refused (${kindOf(failure)}): ${failure.message}`,

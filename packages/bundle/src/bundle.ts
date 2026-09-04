@@ -182,8 +182,25 @@ const importByName = (specifier: string): Promise<unknown> => import(specifier)
  * nothing: it walks the registry at the moment it is asked. What moved is one
  * floor up, where the composition root now re-asks after every flip.
  */
-export const reportBundle = (host: Host): Effect.Effect<ReadonlyMap<string, RowReport>> =>
-  rowReport(host, BUNDLE_NAMES)
+export const reportBundle = (
+  host: Host,
+  /**
+   * ...AND WHATEVER ELSE IS ON THAT HOST, which is a plugin the served vault
+   * DEFINES (`@olai/server`'s `dynamic/`).
+   *
+   * ONE READING FOR ONE HOST, and that is the whole reason for the parameter. A
+   * row of this bundle and a row somebody wrote into a directory are the same
+   * kind of thing in the same registry — `rowReport` cannot tell them apart and
+   * must not — so the alternative is two readings on two clocks, which is
+   * exactly the defect that made a definition's word stick at whatever it was
+   * when it mounted. What this package does NOT do is learn where the extra
+   * names came from: they are strings a caller that has both lists handed over.
+   *
+   * EMPTY IS THE ORDINARY CASE and is every caller that has no vault behind it.
+   */
+  also: ReadonlyArray<string> = [],
+): Effect.Effect<ReadonlyMap<string, RowReport>> =>
+  rowReport(host, also.length === 0 ? BUNDLE_NAMES : [...BUNDLE_NAMES, ...also])
 
 /**
  * WHICH DOORS EACH ROW IS STANDING ON — every service key a running row's

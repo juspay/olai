@@ -611,6 +611,20 @@ export const TESTID = {
    *  with core knowing none of the plugin's words. `data-config` is the
    *  key. Absent when the row has no config. */
   pluginConfig: "plugin-config",
+  /** THE SOURCE OF A PLUGIN THE VAULT DEFINES, under its row — the two halves
+   *  as they are written, which is the thing a person is being asked to read
+   *  before they approve it. Present on a definition's row and on no other. */
+  pluginsSource: "plugins-source",
+  /** ...and the verb that says yes to it. Two buttons under a `pending` row —
+   *  this version, or every later one — and neither is drawn anywhere else in
+   *  the app. */
+  pluginsApprove: "plugins-approve",
+  pluginsApproveAlways: "plugins-approve-always",
+  /** ...and what stands where those two do when the definition MOVED while
+   *  somebody was reading it. The roster is live, so an edit replaces the source
+   *  under a reader; the verbs disarm rather than swapping quietly, and reading
+   *  again is a press of its own. */
+  pluginsMoved: "plugins-moved",
   /** One row on EITHER panel; `data-pref` is which. On preferences: `theme`,
    *  `font`, `size`, `density`, `done`. On plugins:
    *  one `plugin-<name>` per plugin this build has ({@link pluginPref}, which

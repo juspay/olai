@@ -42,7 +42,7 @@ import { bind, writerAt } from "../runtime.ts"
 import { clientOver, serveFace } from "./face.ts"
 import { currentLogin, fromLoopback, MCP_PATH, mcpAllowed, mcpTransport } from "./route.ts"
 import { type Ticket, ticketing } from "./tickets.ts"
-import { bespokeFrom } from "./tools.ts"
+import { bespokeFrom, pluginTools } from "./tools.ts"
 
 /** The codec this suite validates through — the vocabulary of a build that
  *  composed no plugin, which is what these fixtures declare nothing about
@@ -107,14 +107,20 @@ const withRoute = <A>(
     const tickets = ticketing({ bound: wired.bound, face: wired.faces.agent, ops, token: TOKEN })
     yield* serveFace({
       client: () => panel,
-      tools: bespokeFrom(TOOLS, {
-        login: currentLogin,
-        root,
-        vintage: Effect.map(store.read("verified"), (aged) => aged.vintage),
-        fenced: tickets.doorAt,
-        record: (request) => ops.commit(request, "mcp"),
-        push: ops.push,
-      }),
+      tools: {
+        ...bespokeFrom(TOOLS, {
+          login: currentLogin,
+          root,
+          vintage: Effect.map(store.read("verified"), (aged) => aged.vintage),
+          fenced: tickets.doorAt,
+          record: (request) => ops.commit(request, "mcp"),
+          push: ops.push,
+        }),
+        // ...composed exactly as `../serve.ts` composes them, because the
+        // question this bench asks about them is whether an AGENT can reach
+        // them at all.
+        ...pluginTools(),
+      },
       transport,
     })
     yield* Effect.addFinalizer(() => runtime.stopped)
@@ -139,6 +145,9 @@ const withRoute = <A>(
       identity: DEFAULT_IDENTITY_CONFIG,
       mcp: { transport, token: TOKEN, identity: DEFAULT_IDENTITY_CONFIG },
       resync: Effect.void,
+      // No vault-defined plugins in this bench: the route binds and answers 404,
+      // which is the same thing it does on a serve that has none.
+      plugins: null,
     }))
 
     const url = `${base}${MCP_PATH}`
@@ -341,6 +350,121 @@ test("releasing a node ticket closes it without changing arbitrary loopback toke
     expect(contents).toContain("active-ticket")
     expect(contents).not.toContain("stale-ticket")
     expect(contents).toContain("local-token")
+  })
+})
+
+/**
+ * THE THREE VERBS A PLUGIN'S AUTHOR HAS, ON THE WIRE — because being on the
+ * FACE turned out not to be the same thing as being reachable.
+ *
+ * `faces.test.ts` pins `plugins.inspect`, `plugins.run` and `plugins.stop` on
+ * the agent face, and that gates what a caller may CALL. What an ACP engine is
+ * OFFERED is the tool list, which is a different table — so the doc's first
+ * instruction to an author, *read `plugins.inspect` before writing code*, named
+ * something no agent could reach, and a node agent working on this branch found
+ * it by trying (juspay/olai#506).
+ *
+ * So the question is asked here rather than one layer up: through the route, as
+ * a `tools/call`, on a node ticket, which is exactly what a session holds.
+ */
+test("a node ticket can list and call the three plugin verbs", async () => {
+  await withRoute(async ({ mintTicket, post }) => {
+    await post(initialize)
+    await post({ jsonrpc: "2.0", method: "notifications/initialized" })
+
+    const ticket = mintTicket("kitchen")
+    const bearer = { authorization: `Bearer ${ticket.bearer}` }
+
+    // ADVERTISED, which is the half a face gate says nothing about.
+    const listed = await (await post({ jsonrpc: "2.0", id: 40, method: "tools/list" }, bearer))
+      .json() as { result?: { tools?: ReadonlyArray<{ name: string }> } }
+    const names = (listed.result?.tools ?? []).map((one) => one.name)
+    expect(names).toContain("inspect_plugins")
+    expect(names).toContain("run_plugin")
+    expect(names).toContain("stop_plugin")
+
+    // ...and answered. The catalog is read off the live registry, so the
+    // assertion is that it names the things a half is written against rather
+    // than that it names any particular one.
+    const inspected = await (await post({
+      jsonrpc: "2.0",
+      id: 41,
+      method: "tools/call",
+      params: { name: "inspect_plugins", arguments: {} },
+    }, bearer)).json() as { result?: { structuredContent?: Record<string, unknown> } }
+    const said = inspected.result?.structuredContent
+    expect(said?.modules).toEqual(["@olai/plugin-api", "effect", "solid-js"])
+    expect(said?.services).toContain("kinds")
+    expect((said?.slots as ReadonlyArray<{ name: string }>).map((one) => one.name))
+      .toContain("outline.row.chip")
+    expect(said?.layout).toEqual({
+      property: "plugin",
+      approved: "approved",
+      server: "server.ts",
+      browser: "browser.tsx",
+    })
+
+    // ...and the feedback loop, on a word this vault does not define: a refusal
+    // that says what a definition IS, which is the sentence an author who has
+    // not written one yet needs.
+    const ran = await (await post({
+      jsonrpc: "2.0",
+      id: 42,
+      method: "tools/call",
+      params: { name: "run_plugin", arguments: { name: "swatch" } },
+    }, bearer)).json() as {
+      result?: { isError?: boolean; structuredContent?: { reason?: string } }
+    }
+    expect(ran.result?.isError).toBe(true)
+    expect(ran.result?.structuredContent?.reason).toContain("defines no plugin")
+    expect(ran.result?.structuredContent?.reason).toContain("server.ts")
+  })
+})
+
+/**
+ * A SESSION MAY NOT APPROVE THE PLUGIN IT WROTE — through the route, on a real
+ * ticket, because that is the layer the hole was in.
+ *
+ * `plugins.approve` is on the browser face and no other, and `faces.test.ts`
+ * pins that as an exact set. What that does not cover is the FACT the verb
+ * guards: an approval is an ordinary custom property on an ordinary node, a
+ * definition an agent wrote is inside that agent's own subtree by construction,
+ * and `set_prop` writes any custom key that is not spelled like a field. So the
+ * agent could approve itself through a door it already held.
+ *
+ * The fence's forbidden table is what closes it (`./tickets.ts`), and this is
+ * the test that asks the question the way an agent would: the same call, the
+ * same bearer, one key apart. The one that lands is what makes the refusal
+ * about THAT KEY rather than about the subtree.
+ */
+test("a node ticket may not write `approved`, on its own node or any other", async () => {
+  await withRoute(async ({ mintTicket, post, root }) => {
+    await post(initialize)
+    await post({ jsonrpc: "2.0", method: "notifications/initialized" })
+
+    const ticket = mintTicket("kitchen")
+    const call = (id: number, key: string) =>
+      post({
+        jsonrpc: "2.0",
+        id,
+        method: "tools/call",
+        params: { name: "set_prop", arguments: { id: "kitchen", key, value: "always" } },
+      }, { authorization: `Bearer ${ticket.bearer}` })
+
+    const ordinary = await call(30, "some-other-key")
+    expect((await ordinary.json() as { error?: unknown }).error).toBeUndefined()
+
+    const approval = await call(31, "approved")
+    const refused = await approval.json() as {
+      result?: { isError?: boolean; structuredContent?: { reason?: string } }
+    }
+    expect(refused.result?.isError).toBe(true)
+    expect(refused.result?.structuredContent?.reason).toContain("may not write")
+    expect(refused.result?.structuredContent?.reason).toContain("plugins panel")
+
+    const contents = fs.readFileSync(path.join(root, "house.olai"), "utf8")
+    expect(contents).toContain("some-other-key")
+    expect(contents).not.toContain("approved")
   })
 })
 

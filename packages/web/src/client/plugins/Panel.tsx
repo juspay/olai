@@ -133,7 +133,14 @@
 
 import { createSignal, For, Show } from "solid-js"
 
-import { NO_ROSTER, type PluginRoster } from "@olai/surface"
+import {
+  type BuiltPlugin,
+  NO_ROSTER,
+  PLUGIN_BROWSER_NODE,
+  PLUGIN_SERVER_NODE,
+  type PluginRoster,
+  pluginState,
+} from "@olai/surface"
 
 import { type Anchor, styleOf } from "../anchor.ts"
 import { PANEL_BOX } from "../readout.ts"
@@ -160,6 +167,43 @@ const PLUGIN_CHOICES = [
   { value: "off", label: "Off" },
   { value: "on", label: "On" },
 ] as const
+
+/**
+ * WHICH VERSION OF EACH DEFINITION THIS READER HAS BEEN SHOWN — a fact about the
+ * PERSON AND THE DOCUMENT, and so held for as long as the document is.
+ *
+ * See {@link Defined}'s `moved` for what it is for. The short of it: a live
+ * roster swaps the source under a reader, and a verb that stayed armed across
+ * that swap approves what is there now rather than what was read.
+ *
+ * ## MODULE SCOPE, and it was measured twice getting there
+ *
+ * Inside `Defined` it resets on every publish, because the rows come off the
+ * roster and `For` rebuilds the components under a fresh array. So it moved up
+ * into {@link Panel} — and that was still not high enough, which is the part
+ * that is not obvious and that the feature file's third scenario is about.
+ *
+ * A plugin arriving or leaving CHANGES THE WIRE. The roster names the chunks a
+ * tab must load, the tab redials, and the whole tree is rebuilt keyed on the
+ * generation (`../wire.ts`). An edit to a definition takes its fiber down, which
+ * is exactly such a change — so the panel itself is remade on the very frame
+ * this is meant to survive, and a signal inside it re-pinned the reader to the
+ * source that had just arrived. Held here, the remade panel finds what the
+ * reader was shown still sitting there, and disarms.
+ *
+ * NOTHING EVICTS. A word this document has seen the source of stays seen: a
+ * definition deleted and written again at a version this reader has already
+ * read has, in fact, already been read, and the table is bounded by how many
+ * plugins one vault defines.
+ */
+const [read, setRead] = createSignal<ReadonlyMap<string, string>>(new Map())
+
+/** ...and the one way it is written: the reader has now been shown this version
+ *  of this word. Idempotent by construction — {@link Defined} records on first
+ *  draw and on the press that says so, and nothing else. */
+const nowRead = (name: string, version: string): void => {
+  setRead((was) => new Map(was).set(name, version))
+}
 
 export function Panel(props: {
   /** Where to sit, in viewport pixels — see `../anchor.ts` for why this is not
@@ -221,6 +265,39 @@ export function Panel(props: {
     )
   }
 
+  /** WHOSE APPROVAL IS IN THE AIR — {@link flipping} for the other verb, and a
+   *  second signal rather than a shared one because the two controls sit on the
+   *  same row and a person may press the switch of one plugin while another's
+   *  approval is still landing. */
+  const [approving, setApproving] = createSignal<string | null>(null)
+
+  /**
+   * SAY YES TO A PLUGIN THE VAULT DEFINES.
+   *
+   * The VERSION goes with the press — the one this panel drew, off the roster it
+   * is looking at — so a serve whose reading has moved on refuses rather than
+   * approving source nobody has read. That refusal lands in the same place every
+   * other one does, which is what makes "it changed while you were reading"
+   * something a person is told rather than something that quietly works.
+   *
+   * NOTHING COMES BACK. What a person is owed is the row moving from `pending`
+   * to `running`, and that arrives on the roster once the write has published a
+   * revision and the definition has been followed.
+   */
+  const approve = (name: string, version: string, forever: boolean): void => {
+    if (approving() !== null) return
+    setApproving(name)
+    setRefused(null)
+    run(
+      olai.procedures.plugins.approve({ name, version, forever }),
+      (failure) => {
+        setApproving(null)
+        setRefused(failure.message)
+      },
+      () => setApproving(null),
+    )
+  }
+
   return (
     <section
       ref={props.inside}
@@ -258,6 +335,27 @@ export function Panel(props: {
             </Row>
           )
         }}
+      </For>
+
+      {/* THE DEFINITIONS, WITH THEIR SOURCE — a block per plugin this VAULT
+          defines, under the rows.
+
+          It is a second walk rather than a slot inside the row above, and the
+          reason is what a row IS: a label, a control, and at most a sentence.
+          What a definition needs beside it is the two halves of its source, in
+          full, because approving one is READING it — which is a paragraph of
+          code and not a hint. The rows stay one line each and this hangs under
+          them. */}
+      <For each={rows().filter((one) => one.source !== undefined)}>
+        {(plugin) => (
+          <Defined
+            plugin={plugin}
+            approving={approving}
+            approve={approve}
+            read={read().get(plugin.name)}
+            onRead={nowRead}
+          />
+        )}
       </For>
 
       {/* A BUILD WITH NO PLUGINS SAYS SO, where on the preferences panel it
@@ -326,3 +424,138 @@ function Config(props: {
     </Show>
   )
 }
+
+/**
+ * ONE PLUGIN THE VAULT DEFINES — its source, and the verb that says yes to it.
+ *
+ * ## Why the source is drawn at all, and why it is drawn WHOLE
+ *
+ * This is the one place in this product where a person is deciding about CODE
+ * rather than about a setting, and the code will run with the server's own
+ * authority — there is no sandbox and this phase does not pretend to build one.
+ * So the decision has to be made in front of the thing being decided about. A
+ * panel that asked somebody to approve a content hash would be asking them to
+ * approve something they cannot see, which is a consent dialog and not a
+ * decision.
+ *
+ * It is a `<details>` rather than always-open because a serve with three
+ * approved definitions would otherwise draw three files' worth of code every
+ * time somebody opened this panel to flip a row — and it is OPEN by default on a
+ * row that is `pending`, which is exactly the row whose whole point is being
+ * read.
+ *
+ * ## The two verbs, and why the second one exists
+ *
+ * *`approved: <content hash>` for one version, `approved: always` for every
+ * later one* (the human, 2026-09-05). One version is the careful answer and the
+ * default reading of the button on the left; `always` is for a plugin somebody
+ * is iterating on with an agent, where re-approving every edit is a gesture that
+ * stops being read after the third time — which is the failure mode a
+ * per-version prompt has, rather than a safety property it keeps.
+ *
+ * Both write a property on the plugin's own node through the ordinary write
+ * door, so the decision travels with the vault and is in the ledger like the
+ * source it is about.
+ */
+function Defined(props: {
+  readonly plugin: BuiltPlugin
+  readonly approving: () => string | null
+  readonly approve: (name: string, version: string, forever: boolean) => void
+  /** WHICH VERSION OF THIS DEFINITION THE READER HAS BEEN SHOWN — see the
+   *  module-scope `read` above, which argues why it is held that far up. */
+  readonly read: string | undefined
+  readonly onRead: (name: string, version: string) => void
+}) {
+  const source = () => props.plugin.source
+  const pending = () => pluginState(props.plugin) === "pending"
+  const frozen = () => props.approving() !== null
+  /**
+   * HAS WHAT IS ON SCREEN MOVED SINCE THE READER STARTED READING IT.
+   *
+   * The row is drawn off the roster and the roster is live, so an edit that
+   * lands while somebody has this block open REPLACES the source under them —
+   * and the verbs beside it went on being armed, sending whatever version was
+   * current at the moment of the press. The version on the wire was therefore
+   * always the one the serve already had, which made the serve's own guard
+   * (*this has been edited since this page drew it*) unreachable from the one
+   * client that exists, and made the gesture *approve whatever is there now*
+   * rather than *approve what I read*.
+   *
+   * So the block remembers the version it first showed this reader, and an
+   * arrival disarms rather than swapping quietly. What re-arms it is reading
+   * again, which is a press of its own.
+   */
+  const moved = () => props.read !== undefined && props.read !== source()?.version
+  return (
+    <Show when={source()}>
+      {(said) => {
+        // WHAT THIS READER HAS SEEN, recorded the first time this definition is
+        // drawn for them and never afterwards — recording it again on every
+        // frame is exactly the swap this exists to refuse.
+        if (props.read === undefined) props.onRead(props.plugin.name, said().version)
+        return (
+          <details
+            open={pending()}
+            class="rounded border border-line/60 p-2 text-xs"
+            data-testid={TESTID.pluginsSource}
+            data-plugin={props.plugin.name}
+            data-version={said().version}
+          >
+            <summary class="cursor-pointer text-muted">
+              {props.plugin.name} — {said().file}, version {said().version}
+              {said().approved ? "" : " (not approved)"}
+            </summary>
+            <pre class="mt-2 max-h-64 overflow-auto wrap-anywhere whitespace-pre-wrap">
+              {`// ${PLUGIN_SERVER_NODE}\n${said().server}${
+                said().browser === undefined
+                  ? ""
+                  : `\n\n// ${PLUGIN_BROWSER_NODE}\n${said().browser}`
+              }`}
+            </pre>
+            <Show when={pending()}>
+              <Show
+                when={!moved()}
+                fallback={
+                  <div class="mt-2 flex items-center gap-2" data-testid={TESTID.pluginsMoved}>
+                    <p class="text-alarm">
+                      This changed while you were reading it. Above is what it says now.
+                    </p>
+                    <button
+                      type="button"
+                      class="rounded border border-line px-2 py-1"
+                      onClick={() => props.onRead(props.plugin.name, said().version)}
+                    >
+                      I have read it
+                    </button>
+                  </div>
+                }
+              >
+                <div class="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    class="rounded border border-line px-2 py-1"
+                    disabled={frozen()}
+                    data-testid={TESTID.pluginsApprove}
+                    onClick={() => props.approve(props.plugin.name, said().version, false)}
+                  >
+                    Approve this version
+                  </button>
+                  <button
+                    type="button"
+                    class="rounded border border-line px-2 py-1"
+                    disabled={frozen()}
+                    data-testid={TESTID.pluginsApproveAlways}
+                    onClick={() => props.approve(props.plugin.name, said().version, true)}
+                  >
+                    Approve always
+                  </button>
+                </div>
+              </Show>
+            </Show>
+          </details>
+        )
+      }}
+    </Show>
+  )
+}
+

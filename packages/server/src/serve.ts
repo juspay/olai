@@ -51,6 +51,8 @@ import { resolve } from "node:path"
 
 import { localStateFor } from "./localState.ts"
 import { openDirectory } from "./directory.ts"
+import { openDynamic } from "./dynamic/runtime.ts"
+import { pluginChunks } from "./dynamic/route.ts"
 import { propKinds } from "./propKinds.ts"
 import { watchFault } from "./fault.ts"
 import { hostname } from "./hostname.ts"
@@ -58,7 +60,7 @@ import { listen } from "./listener.ts"
 import { clientOver, serveFace } from "./mcp/face.ts"
 import { currentLogin, MCP_PATH, mcpTransport } from "./mcp/route.ts"
 import { ticketing, type Tickets } from "./mcp/tickets.ts"
-import { bespokeFrom } from "./mcp/tools.ts"
+import { bespokeFrom, pluginTools } from "./mcp/tools.ts"
 import { gitConfigPatch } from "./gitPolicy.ts"
 import { bind, writerAt } from "./runtime.ts"
 
@@ -291,6 +293,27 @@ export const serve = (options: ServeOptions) =>
     })
     yield* mountBundle(plugins.host, options.plugins, gitConfigPatch(options.pin))
     /**
+     * THE PLUGINS THIS VAULT ITSELF DEFINES — phase 12
+     * ([dynamic-plugins.md](../../../docs/dynamic-plugins.md)).
+     *
+     * Opened HERE because this is where the host is: mounting a plugin nobody
+     * compiled in is `mountPlugin` on the same registry the rows are on, and
+     * that capability is the composition root's — a plugin holding a host could
+     * mount a fiber under any word it liked (`@olai/plugin-api`'s `runtime.ts`
+     * argues it at length). `BUNDLE_NAMES` is what a definition may NOT take.
+     *
+     * BEFORE THE REPORT, and that ordering is the one thing about this line
+     * worth reading twice: a definition's fiber is on this host under its own
+     * word, so it belongs in the SAME reading the bundle's rows are reported
+     * from — and a second reading on a second clock is exactly what made a
+     * definition's row stick at whatever it said when it mounted.
+     *
+     * It mounts NOTHING until a revision has been followed and a person has
+     * approved a version, so at this point it names no rows and the reading
+     * below is the bundle's alone.
+     */
+    const dynamic = openDynamic(plugins.host, BUNDLE_NAMES)
+    /**
      * WHAT BECAME OF EACH ROW, read once the bundle has settled — the word a
      * panel row wears when a plugin is not running, and the plugin's own
      * sentence when its start failed.
@@ -307,7 +330,7 @@ export const serve = (options: ServeOptions) =>
      * synchronously by the roster, so a Ref would buy nothing but two more
      * `yield*` on a path that has no concurrency to protect against.
      */
-    let report = yield* reportBundle(plugins.host)
+    let report = yield* reportBundle(plugins.host, dynamic.names())
     /**
      * ...AND THE FLIP, which is the only thing that can move it.
      *
@@ -340,7 +363,7 @@ export const serve = (options: ServeOptions) =>
     const flipped = (id: string, enabled: boolean) =>
       Effect.gen(function*() {
         const found = yield* setRow(plugins.host, id, enabled)
-        report = yield* reportBundle(plugins.host)
+        report = yield* reportBundle(plugins.host, dynamic.names())
         // ...AND WHO ASKED — see {@link switched}, declared above it.
         //
         // WRITTEN ONLY WHEN THE FLIP TOOK, so a refused press about a row this
@@ -444,7 +467,24 @@ export const serve = (options: ServeOptions) =>
         names: () => rowsNaming(plugins.host),
         configs: () => configsOf(plugins.host),
         set: flipped,
+        // ...AND THE SAME RE-READ WITHOUT A FLIP, for the movements a plugin the
+        // vault defines makes: mounted on approval, disposed when its node goes,
+        // replaced when its source is edited. Each of those puts a fiber on this
+        // host and none of them is a press.
+        reread: Effect.gen(function*() {
+          report = yield* reportBundle(plugins.host, dynamic.names())
+        }),
         switched: () => switched,
+        // ...AND THE PLUGINS THIS VAULT ITSELF DEFINES (phase 12). It is opened
+        // HERE because this is where the host is: mounting a plugin nobody
+        // compiled in is `mountPlugin` on the same registry the rows are on, and
+        // the capability to do that is the composition root's — a plugin
+        // holding a host could mount a fiber under any word it liked
+        // (`@olai/plugin-api`'s `runtime.ts` argues that at length).
+        //
+        // `BUNDLE_NAMES` is what it may NOT take: a definition claiming a word
+        // this build already has is a fault rather than an override.
+        dynamic,
       },
     })
 
@@ -536,14 +576,21 @@ export const serve = (options: ServeOptions) =>
        * shape — a harness putting a fixture back under a live server — already
        * knocks.
        */
-      tools: bespokeFrom(TOOLS, {
-        login: currentLogin,
-        root,
-        vintage: Effect.map(store.read("verified"), (aged) => aged.vintage),
-        fenced: tickets.doorAt,
-        record: (request) => ops.commit(request, "chat-agent"),
-        push: ops.push,
-      }),
+      tools: {
+        ...bespokeFrom(TOOLS, {
+          login: currentLogin,
+          root,
+          vintage: Effect.map(store.read("verified"), (aged) => aged.vintage),
+          fenced: tickets.doorAt,
+          record: (request) => ops.commit(request, "chat-agent"),
+          push: ops.push,
+        }),
+        // ...AND CORE'S OWN THREE, which are not operations on a vault and so
+        // are not rows in the ops layer's table (`./mcp/tools.ts` argues where
+        // they live). Without them the section of `docs/dynamic-plugins.md`
+        // written FOR a node agent named three verbs no node agent could call.
+        ...pluginTools(),
+      },
       transport,
     })
 
@@ -569,6 +616,11 @@ export const serve = (options: ServeOptions) =>
         // calls it. It is for the case the watcher cannot see, which is a
         // change made where no inotify reaches.
         resync: Effect.andThen(ops.idle, store.refresh("verified")),
+        // `GET /_olai/plugins/<name>-<version>.js` — the browser half of a
+        // plugin this vault defines, compiled by this serve. The tab loads it
+        // exactly as it loads a compiled-in plugin's chunk; what differs is that
+        // its source did not exist when the bundle was built.
+        plugins: dynamic,
       }),
       () => runtime.stopped,
     )

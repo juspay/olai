@@ -23,6 +23,7 @@
     "@olai/ops": "workspace:*",
     "@olai/bundle": "workspace:*",
     "@olai/plugin-api": "workspace:*",
+    "@olai/plugin-build": "workspace:*",
     "@olai/sigterm": "workspace:*",
     "@olai/state": "workspace:*",
     "@olai/store": "workspace:*",

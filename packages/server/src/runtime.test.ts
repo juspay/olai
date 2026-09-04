@@ -188,6 +188,9 @@ const withRuntime = <A>(
         names: () => new Map(),
         configs: () => new Map(),
         set: () => Effect.succeed(false),
+        // NOTHING MOVES A FIBER IN THESE CASES beyond the mount above, so a
+        // re-read would answer what `report` already holds.
+        reread: Effect.void,
         switched: () => new Set(),
       },
     })
@@ -697,6 +700,7 @@ const offering = (
   names: () => new Map(),
   configs: () => new Map(),
   set: () => Effect.succeed(false),
+  reread: Effect.void,
   // NOBODY PRESSED ANYTHING in these cases, which is the state every serve is
   // in until somebody does. The word a press produces has its own case below.
   switched: () => new Set(),

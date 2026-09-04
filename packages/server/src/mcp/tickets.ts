@@ -4,13 +4,65 @@ import type { FaceExposure } from "@kolu/surface/expose"
 import type { Fence, Ops } from "@olai/ops"
 import { randomBytes } from "node:crypto"
 
+import { APPROVED_KEY } from "../dynamic/source.ts"
 import { type Bound, writerAt } from "../runtime.ts"
 import { clientOver, type OlaiSurfaceClient } from "./face.ts"
 import { currentTicket } from "./route.ts"
 
+/**
+ * THE WORDS NO SESSION MAY WRITE, whatever it is seated on.
+ *
+ * ## The hole this closes
+ *
+ * Phase 12 draws its boundary on a surface member: `plugins.approve` is on the
+ * BROWSER face and no other, and `faces.test.ts` pins that as an exact set. But
+ * the STATE that member guards is an ordinary custom property on an ordinary
+ * node — `approved`, recorded in the vault so it travels with it and is in the
+ * ledger like the source (the ruling, 2026-09-05) — and `set_prop` writes any
+ * custom key that is not spelled like a field. A session's fence is a SUBTREE
+ * fence, and the plugin an agent defines is inside that agent's subtree by
+ * construction. So:
+ *
+ *     set_prop {"id": "<its own plugin node>", "key": "approved", "value": "always"}
+ *
+ * is a legal write through a door the agent already holds, the revision
+ * publishes, `isApproved` reads true, and the plugin mounts with the process's
+ * authority having been read by nobody. The verb was closed and the fact was
+ * not: the boundary was drawn on one member of a face and reached around
+ * through another.
+ *
+ * ## Why it is closed HERE
+ *
+ * Because this is the one place that holds both halves. `@olai/ops` may not
+ * know what a plugin is; `olai-plugin-chat` supplies the keys a SESSION is
+ * seated on, with its own sentence for them, and has no business knowing phase
+ * 12's words; and the fence itself is minted right here, per session, by the
+ * composition root. So the ticket's forbidden table is the union of what the
+ * seat contributed and what this build's own vocabulary reserves — each half
+ * carrying the clause its own author wrote.
+ *
+ * IT IS EVERY NODE AND NOT ONLY A PLUGIN'S, deliberately. An agent that could
+ * write `approved` onto a node that is not yet a plugin could write the two
+ * halves afterwards and be approved from the first revision it was one — so a
+ * rule that asked "is this node a plugin right now" would be a rule about the
+ * order of two writes. The word is core's under phase 12 ([docs/dynamic-plugins.md]),
+ * and a word core claims is one a session's door does not write.
+ *
+ * A PERSON'S face is untouched: `plugins.approve` runs under this runtime's own
+ * writer with no fence at all, which is the same shape a keystroke has.
+ */
+const ALWAYS_FORBIDDEN: ReadonlyArray<Seated["forbidden"][number]> = [{
+  key: APPROVED_KEY,
+  says: "it is a person's approval of code that runs with this server's authority, "
+    + "and the plugins panel — with the source in front of them — is where that is decided",
+}]
+
 export interface Seated {
   readonly under: string
-  readonly forbidden: ReadonlyArray<string>
+  /** Each key this session may not write, with the clause that says why — see
+   *  `@olai/plugin-api`'s `Seated` on why the sentence travels from whoever
+   *  forbade the key rather than being composed where it is spent. */
+  readonly forbidden: ReadonlyArray<{ readonly key: string; readonly says: string }>
 }
 
 export interface Ticket {
@@ -37,7 +89,7 @@ export const ticketing = (options: {
     handlers: writerAt(options.bound, options.ops, { writer: "chat-agent", fence }),
   }, options.face)
 
-  const closed = composed({ under: null, ask: () => null, forbidden: new Set() })
+  const closed = composed({ under: null, ask: () => null, forbidden: new Map() })
 
   return {
     mint: (seated, above) => {
@@ -48,7 +100,9 @@ export const ticketing = (options: {
         },
         ask: () => above(seated().under),
         get forbidden() {
-          return new Set(seated().forbidden)
+          return new Map<string, string>(
+            [...seated().forbidden, ...ALWAYS_FORBIDDEN].map((one) => [one.key, one.says]),
+          )
         },
       }
       tickets.set(bearer, composed(fence))
