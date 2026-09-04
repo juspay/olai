@@ -168,6 +168,43 @@ const PLUGIN_CHOICES = [
   { value: "on", label: "On" },
 ] as const
 
+/**
+ * WHICH VERSION OF EACH DEFINITION THIS READER HAS BEEN SHOWN — a fact about the
+ * PERSON AND THE DOCUMENT, and so held for as long as the document is.
+ *
+ * See {@link Defined}'s `moved` for what it is for. The short of it: a live
+ * roster swaps the source under a reader, and a verb that stayed armed across
+ * that swap approves what is there now rather than what was read.
+ *
+ * ## MODULE SCOPE, and it was measured twice getting there
+ *
+ * Inside `Defined` it resets on every publish, because the rows come off the
+ * roster and `For` rebuilds the components under a fresh array. So it moved up
+ * into {@link Panel} — and that was still not high enough, which is the part
+ * that is not obvious and that the feature file's third scenario is about.
+ *
+ * A plugin arriving or leaving CHANGES THE WIRE. The roster names the chunks a
+ * tab must load, the tab redials, and the whole tree is rebuilt keyed on the
+ * generation (`../wire.ts`). An edit to a definition takes its fiber down, which
+ * is exactly such a change — so the panel itself is remade on the very frame
+ * this is meant to survive, and a signal inside it re-pinned the reader to the
+ * source that had just arrived. Held here, the remade panel finds what the
+ * reader was shown still sitting there, and disarms.
+ *
+ * NOTHING EVICTS. A word this document has seen the source of stays seen: a
+ * definition deleted and written again at a version this reader has already
+ * read has, in fact, already been read, and the table is bounded by how many
+ * plugins one vault defines.
+ */
+const [read, setRead] = createSignal<ReadonlyMap<string, string>>(new Map())
+
+/** ...and the one way it is written: the reader has now been shown this version
+ *  of this word. Idempotent by construction — {@link Defined} records on first
+ *  draw and on the press that says so, and nothing else. */
+const nowRead = (name: string, version: string): void => {
+  setRead((was) => new Map(was).set(name, version))
+}
+
 export function Panel(props: {
   /** Where to sit, in viewport pixels — see `../anchor.ts` for why this is not
    *  a matter of CSS alone. */
@@ -233,21 +270,6 @@ export function Panel(props: {
    *  same row and a person may press the switch of one plugin while another's
    *  approval is still landing. */
   const [approving, setApproving] = createSignal<string | null>(null)
-
-  /**
-   * WHICH VERSION OF EACH DEFINITION THIS READER HAS BEEN SHOWN.
-   *
-   * It lives HERE rather than inside the block it is about, and that placement
-   * is the whole of what it buys: the rows come off the roster, which is a fresh
-   * array on every publish, so `For` rebuilds the components under it and a
-   * signal inside one would reset on exactly the frame an edit arrived — which
-   * is the frame it exists to survive.
-   *
-   * See {@link Defined}'s `moved` for what it is FOR. The short of it: a live
-   * roster swaps the source under a reader, and a verb that stayed armed across
-   * that swap approves what is there now rather than what was read.
-   */
-  const [read, setRead] = createSignal<ReadonlyMap<string, string>>(new Map())
 
   /**
    * SAY YES TO A PLUGIN THE VAULT DEFINES.
@@ -331,8 +353,7 @@ export function Panel(props: {
             approving={approving}
             approve={approve}
             read={read().get(plugin.name)}
-            onRead={(name, version) =>
-              setRead((was) => new Map(was).set(name, version))}
+            onRead={nowRead}
           />
         )}
       </For>
@@ -440,8 +461,8 @@ function Defined(props: {
   readonly plugin: BuiltPlugin
   readonly approving: () => string | null
   readonly approve: (name: string, version: string, forever: boolean) => void
-  /** WHICH VERSION OF THIS DEFINITION THE READER HAS BEEN SHOWN — see
-   *  {@link Panel}'s `read`. */
+  /** WHICH VERSION OF THIS DEFINITION THE READER HAS BEEN SHOWN — see the
+   *  module-scope `read` above, which argues why it is held that far up. */
   readonly read: string | undefined
   readonly onRead: (name: string, version: string) => void
 }) {

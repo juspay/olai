@@ -81,6 +81,8 @@ Defining a plugin needs no tool of its own — it is `add_node` and `set_desc`. 
 
 The server half is compiled, evaluated, and mounted as a fiber on the same registry the bundle's rows are on. Everything downstream follows the way it does for a built row: the kind vocabulary gains its words, a sibling surface reaches the wire, the roster moves, and every open tab redials.
 
+**And the vault is read again.** Approving writes one property; nothing else on disk moved, and the reading every page is drawn from was validated a revision ago — before the fiber existed and so before the word did. So the mount is followed by a re-read of the served directory, which is what puts a face on values that were already there. Without it a plugin would mount, its kind would be in force, its values would be held to it, and its chip would not draw until the next keystroke anywhere in the vault. This is the same re-read the plugins panel's switch has always done, in the other direction: a plugin switched off takes its words with it, and its values have to go back to being plain text on the same press.
+
 The browser half is compiled to a chunk and served at `/_olai/plugins/<name>-<version>.js`. The roster carries that URL, the tab loads it exactly as it loads a built plugin's chunk, and the faces appear **without a reload**. The version is in the path, so a re-approved edit is a different URL and no cache can hand back code that was approved before the edit.
 
 A half that will not compile, a module that exports no plugin, a half that calls itself a different word, and an `apply` that throws all land the row on `failed` with the sentence that explains it, and touch no sibling.

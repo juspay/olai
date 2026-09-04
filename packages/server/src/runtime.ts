@@ -1827,52 +1827,17 @@ export const bind = (
           document: ({ input }) => wiring.ops.document(input),
         },
         /**
-         * THE PANEL'S SWITCH — the loader surface's one verb, and the only
-         * procedure in this build that moves a fiber.
+         * THE FIVE VERBS ABOUT PLUGINS — the loader surface's switch, and phase
+         * 12's four: one a person presses in the panel (`approve`) and three an
+         * agent calls (`run`, `stop`, `inspect`), which between them can define
+         * nothing and approve nothing.
          *
-         * ## The order is the whole implementation
-         *
-         * `moving` first, so the several registry changes a dispose fans out
-         * into do not each publish a roster about a bundle that is still coming
-         * apart (see it, one wall down). Then the flip, which settles the whole
-         * bundle and re-reads every row's state — that is
-         * {@link PluginRuntime.set}, and it is where the two calls live because
-         * this file has never heard of a loader. Then the re-compose, which
-         * mounts and drops the siblings that moved and publishes the roster
-         * ONCE, which is what tells every open tab to redial.
-         *
-         * `ensuring` and not a `finally`: the flag has to be cleared on an
-         * interrupt too, or a caller that walked away would leave this runtime
-         * silently never publishing a roster again.
-         *
-         * ## ...AND THEN THE VAULT'S VERDICT IS RE-TAKEN
-         *
-         * A plugin's kind words leave with its fiber (`./propKinds.ts` — the
-         * vocabulary is a live reading now), and NOTHING ON DISK MOVED, so
-         * nothing else in this process would ever re-judge the files that used
-         * to be typed by them. Without this line a vault would go on drawing
-         * `kolu-terminal` values as terminals after kolu was switched off, until
-         * the next write to that file or the next boot.
-         *
-         * `verified` is the class: the stamps are forgotten, so a look that
-         * would otherwise find nothing moved re-reads and re-validates the set.
-         * The cost is one pass over the corpus per press, which is a person's
-         * gesture and not a loop.
-         *
-         * A FAILED LOOK IS NOT THIS CALL'S TO REPORT. A directory that cannot be
-         * read is published on the store's own errors channel, which is where
-         * every other reader of it already looks; failing the flip here would
-         * tell a person their switch did not work, which is untrue — it worked,
-         * and the vault is unreadable, which is a bigger and separate piece of
-         * news.
-         *
-         * ## The refusal, and the one way to reach it
-         *
-         * A name this build does not have. The panel walks the roster, so it can
-         * only name a row this build has — which leaves a tab that outlived the
-         * build it was drawn from, and a runtime with no plugin slot at all
-         * (`olai surface`, the headless faces), where the honest answer is the
-         * same: there is no such plugin here.
+         * FOUR OF THEM MOVE A FIBER, and none of them spells out what that
+         * takes: hold the roster still, do the thing, let it go, re-read the
+         * report, re-compose, re-judge the vault. That is {@link settling}, and
+         * it is one sequence there rather than five here for the reason it
+         * became one — the day each of these spelled it out was the day each of
+         * them got a slightly different four of the six.
          */
         plugins: {
           /**
@@ -2019,38 +1984,35 @@ export const bind = (
               },
               taken: roster().built.map((row) => row.name),
             })),
+          /**
+           * THE PANEL'S SWITCH, and what is left of it once {@link settling}
+           * holds the sequence: the CHOICE OF FIBER, which is this verb's alone.
+           *
+           * A DEFINITION IS A ROW TOO, and the switch reaches it — the panel
+           * draws one strip per row and does not know which kind it is looking
+           * at. So the name is offered to the vault's definitions and then to
+           * the bundle, and each answers whether the word was one of its own.
+           *
+           * THE REFUSAL IS A NAME NEITHER HALF HAS. The panel walks the roster,
+           * so it can only name a row this build is serving — which leaves a tab
+           * that outlived the build it was drawn from, and a runtime with no
+           * plugin slot at all (`olai surface`, the headless faces), where the
+           * honest answer is the same: there is no such plugin here.
+           */
           set: ({ input }) =>
             Effect.gen(function*() {
-              // A DEFINITION IS A ROW TOO, and the switch reaches it: the panel
-              // draws one strip per row and does not know which kind it is
-              // looking at. The dynamic half answers whether the word was one of
-              // its own, so a name that is neither lands on the same refusal a
-              // stale tab has always had.
               if (dynamic !== null && (yield* settling(dynamic.set(input.name, input.enabled)))) {
                 return {}
               }
-              const flipped = offered === null ? false : yield* Effect.ensuring(
-                Effect.andThen(
-                  Effect.sync(() => {
-                    moving = true
-                  }),
-                  offered.set(input.name, input.enabled),
-                ),
-                Effect.sync(() => {
-                  moving = false
+              if (offered !== null && (yield* settling(offered.set(input.name, input.enabled)))) {
+                return {}
+              }
+              return yield* Effect.fail(
+                new NotFoundFailure({
+                  reason: `this build has no plugin named "${input.name}"`,
+                  named: input.name,
                 }),
               )
-              if (!flipped) {
-                return yield* Effect.fail(
-                  new NotFoundFailure({
-                    reason: `this build has no plugin named "${input.name}"`,
-                    named: input.name,
-                  }),
-                )
-              }
-              recompose()
-              yield* Effect.ignore(wiring.store.refresh("verified"))
-              return {}
             }),
         },
         /**
@@ -2346,11 +2308,22 @@ export const bind = (
      * because this is the first statement at which there is something to fill it
      * with — see {@link followed} for why the reference cannot be direct.
      *
-     * IT IS THE FLIP'S OWN SEQUENCE, spelled once for the other thing that moves
-     * a fiber: hold the roster still, do the thing, let it go, and re-compose
-     * only if something actually moved. `ensuring` and not a `finally`, for
-     * {@link Deps.plugins.set}'s reason: an interrupt that left the flag set
-     * would leave this runtime silently never publishing a roster again.
+     * IT IS EVERYTHING A MOVED FIBER COSTS, spelled once — and there are four
+     * things that move one now: a revision landing on a definition, a person
+     * approving, a person pressing the switch, an agent calling `plugins.stop`.
+     * Hold the roster still, do the thing, let it go, and if something actually
+     * moved: re-read the report, re-compose, re-judge the vault. Each of those
+     * three is argued at the line that does it.
+     *
+     * `moving` first, so the several registry changes a dispose fans out into do
+     * not each publish a roster about a bundle that is halfway there. `ensuring`
+     * and not a `finally`, because the flag has to be cleared on an interrupt
+     * too: a caller that walked away would otherwise leave this runtime silently
+     * never publishing a roster again.
+     *
+     * IT ANSWERS WHAT IT WAS TOLD, so a caller that has to know whether the word
+     * was one of its own still does — which is what makes the switch's two-arm
+     * choice of fiber a pair of calls to this and nothing else.
      */
     settling = (run) =>
       Effect.gen(function*() {
@@ -2366,6 +2339,32 @@ export const bind = (
         // out ({@link PluginRuntime.reread}).
         yield* offered?.reread ?? Effect.void
         recompose()
+        // ...AND THE VAULT'S VERDICT IS RE-TAKEN, because NOTHING ON DISK
+        // MOVED and a fiber just took some words with it or brought some.
+        //
+        // A plugin's kind words are a live reading now (`./propKinds.ts`), so
+        // the vocabulary is right the instant the fiber is. What is NOT right
+        // is everything already derived from it: the published reading was
+        // validated a revision ago, and `@olai/ops`'s standing views hand back
+        // the answer they cached against that very reading. So without this
+        // line a vault goes on drawing `kolu-terminal` values as terminals
+        // after kolu was switched off, and — the same hole from the other side,
+        // and this one was measured — an approved definition's kind is claimed,
+        // its values ARE held to it, and the page's licence table still says
+        // nothing about it, so the plugin's own chip does not draw until the
+        // next keystroke anywhere in the vault.
+        //
+        // `verified` is the class: the stamps are forgotten, so a look that
+        // would otherwise find nothing moved re-reads and re-validates the set.
+        // The cost is one pass over the corpus per fiber that moved, which is a
+        // person's gesture or an agent's call and not a loop.
+        //
+        // A FAILED LOOK IS NOT THIS CALL'S TO REPORT. A directory that cannot
+        // be read is published on the store's own errors channel, where every
+        // reader of it already looks; failing here would tell a person their
+        // switch did not work, which is untrue — it worked, and the vault is
+        // unreadable, which is a bigger and separate piece of news.
+        yield* Effect.ignore(wiring.store.refresh("verified"))
         return true
       })
 

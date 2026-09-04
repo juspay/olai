@@ -144,7 +144,11 @@ Then(
   "the row {string} wears a swatch for {string}",
   async function (this: OlaiWorld, node: string, value: string) {
     await this.page
-      .locator(`${nodeSelector(node)} [data-swatch="${value}"]`)
+      // `attr` rather than the selector written out, which is this suite's own
+      // rule and is checked (`../selectors.test.ts`): a value interpolated into
+      // a selector by hand is a value nothing escaped, and a colour is one of
+      // the few that could plausibly arrive carrying a quote.
+      .locator(`${nodeSelector(node)} ${attr("data-swatch", value)}`)
       .first()
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
