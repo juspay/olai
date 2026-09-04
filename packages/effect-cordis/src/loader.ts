@@ -35,6 +35,7 @@ import type { Entry } from "@cordisjs/plugin-loader"
 import Loader from "@cordisjs/plugin-loader"
 import { Effect } from "effect"
 
+import { interrupt } from "./lifecycle.ts"
 import { ctxOf, type Host } from "./host.ts"
 
 /**
@@ -246,6 +247,7 @@ export const flipRow = (host: Host, id: string, disabled: boolean): Effect.Effec
     // CAUGHT BEFORE THE UPDATE, because the update is what disposes it and a
     // disposed row is one nothing else can hand back.
     const going = disabled ? entry.fiber : undefined
+    if (going !== undefined) interrupt(going)
     await entry.update({ disabled })
     for (let pass = 0; pass < PASSES && going?.inertia !== undefined; pass += 1) {
       await going.inertia

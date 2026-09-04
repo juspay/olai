@@ -36,10 +36,11 @@
  */
 
 import type { Context as CordisContext } from "cordis"
-import { Cause, Context, Effect, Exit, FiberSet, Schema, Scope } from "effect"
+import { Cause, Context, Effect, Exit, Fiber, FiberSet, Schema, Scope } from "effect"
 
 import { failed } from "./broadcast.ts"
 import { held } from "./host.ts"
+import { Offering, track, untrack, drainDependents, type Activation } from "./lifecycle.ts"
 import type { AnyKey } from "./service.ts"
 
 /**
@@ -216,10 +217,34 @@ export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>, Config = 
   ...(spec.config === undefined ? {} : { Config: standardOf(spec.config as Schema.Schema<unknown>) }),
   apply: async (ctx: CordisContext, config?: unknown) => {
     const opened = held(ctx)
+    // Disposal can win before Cordis reaches its deferred apply call.
+    if (ctx.fiber.uid === null) return async () => {}
     // THE STAMP, READ ONCE, off the registry binding — never off anything the
     // plugin supplied. Every keyed service below is minted from it.
     const who = ctx.fiber.name
     const scope = Scope.makeUnsafe()
+    const drained = Promise.withResolvers<void>()
+    let interrupted = false
+    const activation: Activation = {
+      ctx, revokes: [], drained: drained.promise, closing: false,
+      dependencies: new Set(Object.values(ctx.fiber.store ?? {}).map((impl) => impl.fiber)),
+      interrupt: () => { interrupted = true },
+    }
+    let closing: Promise<void> | undefined
+    const close = (exit: Exit.Exit<void, never>): Promise<void> => closing ??= (async () => {
+      activation.closing = true
+      try {
+        for (const revoke of activation.revokes.reverse()) await revoke()
+        await drainDependents(activation)
+      } finally {
+        try {
+          await Effect.runPromiseWith(opened)(Scope.close(scope, exit))
+        } finally {
+          untrack(activation)
+          drained.resolve()
+        }
+      }
+    })()
     // THE TWO AMBIENT ONES KEEP THEIR TYPES, because both are known here: the
     // context that comes out of this says it carries a plugin name and a scope,
     // and nothing is asserted to get there.
@@ -231,7 +256,7 @@ export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>, Config = 
     // which made a reader check three identical casts to find the one that meant
     // something.
     let services = Context.add(
-      Context.merge(opened, Context.make(PluginName, who)),
+      Context.add(Context.merge(opened, Context.make(PluginName, who)), Offering, activation),
       Scope.Scope,
       scope,
     ) as Context.Context<never>
@@ -250,12 +275,16 @@ export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>, Config = 
         (provision as (plugin: string) => unknown)(who),
       ) as Context.Context<never>
     }
-    const work = Effect.isEffect(spec.apply)
+    track(activation)
+    const work = Effect.suspend(() => Effect.isEffect(spec.apply)
       ? spec.apply
-      : spec.apply((config ?? {}) as Config)
-    const exit = await Effect.runPromiseExitWith(services)(
-      work as Effect.Effect<void>,
-    )
+      : spec.apply((config ?? {}) as Config))
+    const running = Effect.runForkWith(services)(work as Effect.Effect<void>)
+    activation.interrupt = () => { Effect.runFork(Fiber.interrupt(running)) }
+    if (interrupted || ctx.fiber.uid === null || spec.needs.some((key) => ctx.reflect.get(key.cordis) === undefined)) {
+      activation.interrupt()
+    }
+    const exit = await Effect.runPromise(Fiber.await(running))
     if (Exit.isFailure(exit)) {
       // EVERY FINALIZER IT HAD ALREADY INSTALLED, before the throw goes out —
       // which is what "lands FAILED having installed nothing" means when the
@@ -270,14 +299,14 @@ export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>, Config = 
       // then read on the preferences row, was the CLEANUP's defect rather than
       // the plugin's. The plugin's failure is the subject of this whole arm; it
       // wins, and a finalizer that died on the way out is said beside it.
-      const unwound = await Effect.runPromiseExitWith(opened)(Scope.close(scope, exit))
+      const unwound = await Effect.runPromiseExit(Effect.promise(() => close(exit)))
       if (Exit.isFailure(unwound)) {
         await Effect.runPromiseWith(opened)(
           failed(who, "unwinding after a failed start", unwound.cause),
         )
       }
-      throw Cause.squash(exit.cause)
+      if (!Cause.hasInterruptsOnly(exit.cause)) throw Cause.squash(exit.cause)
     }
-    return () => Effect.runPromiseWith(opened)(Scope.close(scope, Exit.void))
+    return () => close(Exit.void)
   },
 })

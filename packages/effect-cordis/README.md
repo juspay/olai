@@ -45,14 +45,39 @@ closed with that exit — every finalizer it had already installed runs, in reve
 — and the failure is re-thrown into the runtime, which lands it `failed` with its
 siblings running.
 
-What that does NOT buy is interruption *inside* `apply`, and the reason is the
-engine's rather than this package's. A loading fiber holds an `inertia` promise,
-and a revocation that arrives while it is loading does not start the unload — it
-is queued behind the load and runs when the load settles (`fiber.ts`'s
-`_setEpoch` returns early while `inertia` is set). So an `apply` that blocks on
-something slow delays the stop by however long it blocks, and no `Scope` here
-can shorten that: the scope it would unwind is the one the load has not finished
-filling. An `apply` does its slow work on a finalizer-owning fork, not in line.
+Initialization runs on an Effect fiber kept by the bridge. `apply` still awaits
+it, so Cordis marks the plugin ACTIVE only after initialization succeeds. A
+stop, a loader flip, host close, or withdrawal of a required service interrupts
+that work and closes its scope. Interruption alone is not a failure: explicit
+stop reads `off`; dependency withdrawal reads `waiting` with the missing key,
+and the plugin initializes again when that service returns. Cancellation is
+cooperative: it reaches interruptible Effect yields, cannot preempt synchronous
+JavaScript, and waits for uninterruptible acquisition and finalizers.
+
+**`offer(key, provision)`** provides on the calling plugin's fiber, carried in
+its Effect environment. Consumers cannot see the provision until the provider
+is ACTIVE; failed initialization activates none. Cordis owns duplicate refusal
+and identifies the existing provider. The bridge revokes every offer and joins
+dependent cleanup **before** closing any of the provider's resource finalizers,
+including finalizers registered after the offer. During host shutdown it also
+joins departing activations already removed from Cordis's registry.
+
+This ownership has one explicit pin coupling in `src/lifecycle.ts`: the bridge
+removes `ctx.provide`'s disposer from the fiber's `_disposables` and becomes its
+only caller. Leaving it in that set would run revocation concurrently with scope
+close; calling its guarded wrapper twice cannot join the first revocation. The
+ordering tests use the provider's resource from asynchronous dependent cleanup,
+not just the fibers' state words.
+
+**`openHost` / `closeHost(host)`** own the whole registry. Opening is scoped;
+closing is idempotent and waits for loading initializers, background work and
+asynchronous cleanup, including plugins with empty `needs`. The server and tab
+inherit this lifetime through `openPlugins` and `openApp`. Direct mounting
+normally waits for initialization; `mountPlugin(host, plugin, { wait: false })`
+returns the stop handle immediately. Dynamic plugins use that form so a hung
+initializer cannot block the stop command. `hostChanges` emits an initial
+notification and subsequent status transitions, allowing the host to publish
+readiness or failure when initialization finishes later.
 
 **`broadcast(what)` and `waterfall(key)`** — the two dispatch modes. A BROADCAST
 tells every handler, in subscription order, and AWAITS all of them: the caller
@@ -100,8 +125,9 @@ another row names: the second row is woken a turn later, so a caller reading the
 kind registry on the next line reads it a plugin short, silently and for the life
 of the process.
 
-So `settled` waits out MOVEMENT — in bounded passes, warning by name rather than
-hanging — and decides nothing. A row still `waiting` when it returns is waiting
+So `settled` waits out MOVEMENT, with bounded passes between transitions, and
+decides nothing. The bound is not an initialization timeout: a caller still
+waits for each transition until it finishes or is cancelled. A row still `waiting` when it returns is waiting
 on a key nothing in this build offers, which is a legitimate resting state and is
 what `rowReport` is about to say.
 
@@ -109,7 +135,7 @@ what `rowReport` is about to say.
 
 | door | what it carries |
 | --- | --- |
-| `.` | the RUNTIME: a host, `provide`, `mountPlugin`, `settled`, `rowReport`, `definePlugin`, `serviceTag`, `broadcast`, `waterfall`, `detached` |
+| `.` | the RUNTIME: a scoped host, `closeHost`, `hostChanges`, `provide`, `offer`, `mountPlugin`, `settled`, `rowReport`, `definePlugin`, `serviceTag`, `broadcast`, `waterfall`, `detached` |
 | `./loader` | `mountRows` — a declarative bundle, through `@cordisjs/plugin-loader` and `-include` |
 
 The split is not tidiness. The loader reads a file off a disk and resolves module
@@ -122,7 +148,7 @@ matching export named "pathToFileURL"`.
 [`@olai/plugin-api`](../plugin-api/README.md), whose `src/runtime.ts` re-exports
 the runtime list verbatim onto both of its own doors — so a plugin, a tab and a
 composition root all spend the same names from the same place, and what the
-bridge keeps back (`openHost`, `provide`, `settled`) is what could mint a host,
+bridge keeps back (`openHost`, `closeHost`, `provide`, `offer`, `hostChanges`, `settled`) is what could mint a host,
 mint a service, or make a plugin wait on its own siblings. `@olai/bundle` opens
 both doors directly: `./loader` for the graph reason above, and the root door for
 `settled` alone, which it spends beside `mountRows` in one function

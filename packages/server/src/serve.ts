@@ -45,7 +45,7 @@ import {
   type PropWrite,
   type ToolServer,
 } from "@olai/plugin-api/services"
-import { Deferred, Effect } from "effect"
+import { Deferred, Effect, Stream } from "effect"
 import { randomBytes } from "node:crypto"
 import { resolve } from "node:path"
 
@@ -487,6 +487,14 @@ export const serve = (options: ServeOptions) =>
         dynamic,
       },
     })
+
+    // A dynamic mount returns its stop handle while apply is still LOADING.
+    // Publish its eventual readiness or fault even if it registers nothing else.
+    yield* Stream.runForEach(plugins.changes, () => Effect.gen(function*() {
+      report = yield* reportBundle(plugins.host, dynamic.names())
+      onChange.run()
+      yield* Effect.ignore(store.refresh("verified"))
+    })).pipe(Effect.forkScoped)
 
     // A faulted runtime is unrecoverable structural damage, and telling that
     // apart from the ordinary settle of a shutdown is `fault.ts`'s whole job.

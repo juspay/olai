@@ -736,17 +736,8 @@ test("a plugin that offers a door core keeps is refused, and only that plugin fa
   })))
 })
 
-/**
- * TWO ROWS MAY NOT STAND BEHIND ONE DOOR, and the refusal NAMES BOTH — which is
- * the entire reason the claim is taken here rather than left to the runtime.
- *
- * Cordis refuses the second `provide` on its own, and its sentence is `service
- * "watching" has been registered at <root>`: it names neither author, and
- * `<root>` is a fiber no person has ever heard of. What a person reads on a
- * preferences row has to be this tree's, so the claim goes first and cordis is
- * never reached.
- */
-test("two plugins standing behind one door: the second is refused, naming both and the key", async () => {
+/** Cordis owns duplicate refusal and identifies the existing provider. */
+test("two plugins standing behind one door: Cordis refuses the second with the owner and key", async () => {
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const plugins = yield* runtime()
     const offering = (name: string) =>
@@ -763,8 +754,7 @@ test("two plugins standing behind one door: the second is refused, naming both a
     expect((yield* first.report).state).toBe("running")
     const [state, fault] = yield* rowOf(second)
     expect(state).toBe("failed")
-    expect(fault).toContain("\"chat\"")
-    expect(fault).toContain("\"mirror\"")
+    expect(fault).toContain("<chat>")
     expect(fault).toContain("\"watching\"")
   })))
 })
