@@ -18,8 +18,8 @@ import * as path from "node:path"
 import {
   canonical,
   digestOf,
-  fileFor,
   fileForLocal,
+  inertLocalFile,
   layoutForLocal,
   pruneGone,
   readLocal,
@@ -101,14 +101,11 @@ test("a directory that is not there still has a name", () => {
 
 test("a plugin is a subdirectory of the state home, and the digest names the file", () =>
   withState(async ({ root, home }) => {
-    expect(fileFor("chat", root)).toBe(
-      path.join(home, "olai", "chat", `${digestOf(root)}.json`),
-    )
-    expect(fileFor("heard", root)).toBe(
-      path.join(home, "olai", "heard", `${digestOf(root)}.json`),
-    )
     expect(fileForLocal("example", root)).toBe(
       path.join(home, "olai", "example", `${digestOf(root)}.json`),
+    )
+    expect(inertLocalFile(root)).toBe(
+      path.join(home, "olai", "mirror", `${digestOf(root)}.json`),
     )
   }))
 
@@ -138,12 +135,12 @@ test("a plugin name that is not a filename is refused", () => {
 
 test("nothing written down is `null` rather than a failure", () =>
   withState(async ({ root }) => {
-    expect(await Effect.runPromise(readLocal(fileFor("chat", root), root))).toBeNull()
+    expect(await Effect.runPromise(readLocal(fileForLocal("chat", root), root))).toBeNull()
   }))
 
 test("what is written comes back, under a home that did not exist", () =>
   withState(async ({ root }) => {
-    const at = fileFor("chat", root)
+    const at = fileForLocal("chat", root)
     await Effect.runPromise(writeLocal(at, { cwd: root, session: "abc" }))
     expect(await Effect.runPromise(readLocal(at, root)))
       .toMatchObject({ cwd: root, session: "abc" })
@@ -167,7 +164,7 @@ test("what is written comes back, under a home that did not exist", () =>
  */
 test("two writes at once both land, and the file holds one of them whole", () =>
   withState(async ({ root }) => {
-    const at = fileFor("chat", root)
+    const at = fileForLocal("chat", root)
     // Long enough that a shared stage would show as a torn record rather than
     // one that happened to be the same length as the other.
     const a = "a".repeat(4096)
@@ -189,7 +186,7 @@ test("two writes at once both land, and the file holds one of them whole", () =>
  *  that nothing here says. */
 test("a record about another directory is answered as nothing", () =>
   withState(async ({ root }) => {
-    const at = fileFor("chat", root)
+    const at = fileForLocal("chat", root)
     await Effect.runPromise(writeLocal(at, { cwd: "/somewhere/else", session: "abc" }))
     expect(await Effect.runPromise(readLocal(at, root))).toBeNull()
   }))
@@ -198,7 +195,7 @@ test("a record about another directory is answered as nothing", () =>
  *  path on them — a caller renders it and carries on. */
 test("a record that will not parse is news", () =>
   withState(async ({ root }) => {
-    const at = fileFor("chat", root)
+    const at = fileForLocal("chat", root)
     await Effect.runPromise(writeLocal(at, { cwd: root }))
     fs.writeFileSync(at, "{ not json")
     const outcome = await Effect.runPromise(Effect.result(readLocal(at, root)))
@@ -220,9 +217,9 @@ test("a record whose directory answers ENOENT is pruned; a live one stays", () =
   withState(async ({ root, home }) => {
     const gone = fs.mkdtempSync(path.join(os.tmpdir(), "olai-state-gone-"))
     fs.rmSync(gone, { recursive: true, force: true })
-    const dead = fileFor("chat", gone)
+    const dead = fileForLocal("chat", gone)
     await Effect.runPromise(writeLocal(dead, { cwd: gone, session: "abc" }))
-    const alive = fileFor("chat", root)
+    const alive = fileForLocal("chat", root)
     await Effect.runPromise(writeLocal(alive, { cwd: root, session: "abc" }))
     expect(pruneGone()).toBe(1)
     expect(fs.existsSync(dead)).toBe(false)
@@ -268,7 +265,7 @@ test("a record whose directory merely fails to answer stays — only ENOENT is d
     fs.mkdirSync(beyond)
     fs.chmodSync(wall, 0o000)
     try {
-      const at = fileFor("chat", beyond)
+      const at = fileForLocal("chat", beyond)
       await Effect.runPromise(writeLocal(at, { cwd: beyond, session: "abc" }))
       expect(pruneGone()).toBe(0)
       expect(fs.existsSync(at)).toBe(true)

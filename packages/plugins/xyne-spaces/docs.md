@@ -47,7 +47,7 @@ olai never writes this property. Turning the plugin on without it is a connected
 
 A kolu heartbeat ("the watcher is alive") is not a digest and does not post. Human messages never mirror.
 
-**One thread per bound conversation.** The thread key is the olai `(agent, session)` pair that already rides the watching event — not a title parsed out of the digest. The conversation's first digest opens the Spaces thread; later digests reply into it. Lane threads and the outbound queue are persisted through the `LocalState` service — core owns the file in the state home (one hold per plugin per vault), the plugin parses the snapshot, and successive writes land in the order they were made. A restart opens the same thread and still has the queued digests. Olai never writes `xyne-channel`.
+**One thread per bound conversation.** The thread key is the olai `(agent, session)` pair that already rides the watching event — not a title parsed out of the digest. The conversation's first digest opens the Spaces thread; later digests reply into it. Lane threads and the outbound queue are persisted through the `LocalState` service — core owns `~/.local/state/olai/xyne-spaces/<hash>.json`, the plugin parses the snapshot, and successive writes land in the order they were made. A restart opens the same thread and still has the queued digests. Olai never writes `xyne-channel`.
 
 **Orchestrator replies and doorbell bodies, trimmed**: each is capped at the first ~500 Unicode code points with an ellipsis, and an open code fence the cut would have left is closed. Working-notes still produce the ephemeral signal below rather than a stored wall of fragments.
 
@@ -59,7 +59,7 @@ A refused post, and a bind whose process has no Spaces app, are said **once** in
 
 ## What it is not
 
-- **At-least-once on a crash.** The hold is ordered, not atomic with the send: a kill between a post landing and its persist leaves the hold naming a digest already sent, and the next serve posts it again.
+- **At-least-once on a crash.** Local state is ordered, not atomic with the send: a kill between a post landing and its persist leaves the snapshot naming a digest already sent, and the next serve posts it again.
 - **No inbound.** A message in the Spaces channel, an @mention, a DM, a slash command or a button click does not reach this olai. That is phase 2.
 - **No live test in CI.** The suite pins request shapes against a fake Spaces. Deploying against the real instance is the human's, before merge.
 - **No picker.** The prototypes showed a channel picker on the chat strip; this slice ships the `xyne-channel` property on the node agent.

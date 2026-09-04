@@ -28,16 +28,19 @@
  */
 
 import { Effect } from "effect"
-import { readFileSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 
 import type { PluginLocalState } from "@olai/plugin-api"
 import {
   canonical,
+  inertLocalFile,
   layoutForLocal,
   writeLocal,
   type LocalRecord,
   type StateFailure,
 } from "@olai/state"
+
+const warnedInert = new Set<string>()
 
 export const localStateFor = (
   plugin: string,
@@ -51,6 +54,13 @@ export const localStateFor = (
   const cwd = canonical(served)
   const layout = layoutForLocal(plugin, cwd)
   const at = layout.at
+  const inert = inertLocalFile(cwd)
+  if (existsSync(inert) && !warnedInert.has(inert)) {
+    warnedInert.add(inert)
+    warn(
+      `\`${inert}\` is legacy machine-local state whose path names no plugin; it remains inert`,
+    )
+  }
   let saving = Promise.resolve()
   let loaded = false
   let record: Record<string, unknown> | null = null

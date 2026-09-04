@@ -55,45 +55,24 @@
  * carries no field for it (`session/list` answers with an id, a cwd, a title and
  * a timestamp, and that is the whole vocabulary). It goes where a program keeps
  * state that should survive a restart and means nothing to anybody else — the
- * XDG state directory, one file per served directory, named by a digest of the
- * path and carrying that path inside it as a guard.
- *
- * ALL OF THAT IS `@olai/state`'s NOW, which is the module this file predicted
- * by name ("not a receptacle for where this machine keeps olai's state, though
- * that is what it would be at population two"). Chat is the remaining tenant of
- * the state home (a git policy used to live there too), so it is a leaf package,
- * and what is left here is the only part that was ever this package's: what one
- * of these records SAYS.
+ * state directory. Core owns that place and hands chat one `LocalState` door;
+ * this module sees only chat's `memory` section and owns what it SAYS.
  *
  * ## What it does with a failure
  *
- * Nothing here is load-bearing enough to stop a boot, and none of it is quiet
- * either — never silently ignore an error. Both verbs FAIL with a
- * reason, and the one caller turns each into a row in the transcript and carries
- * on: a memory that cannot be read means the panel opens the newest conversation
- * — the old behaviour, exactly — and says why; a memory that cannot be written
- * means this conversation will not come back after a restart, which is a thing a
- * person can be told before they find out the hard way.
- *
- * A missing file is NOT a failure. It is the answer on the first serve of a
- * directory, and the answer after the state directory has been cleaned out.
+ * A missing section is the ordinary first-serve answer. A section that names
+ * no session fails with {@link MemoryFailure}; filesystem failures are core's
+ * boundary and are logged there without making a plugin own a path.
  *
  * ## Two things this deliberately is not
  *
- * **Not `FileSystem` from `effect`**, which is what `@olai/store` reads a
- * directory through and would otherwise be the house answer: asking for that
- * service puts it in the REQUIREMENTS of every effect that touches it, and this
- * one is reached from `agent.ts`, whose verbs are `Effect<A, AgentGone>` with
- * nothing to provide them — so adopting it here means threading a layer through
- * the chat package, the composition root and back, to write eighty bytes.
- * `attachments.ts`, the sibling that owns this conversation's other directory
- * on disk, reaches for `node:fs/promises` for the same reason, and `@olai/state`
- * reaches for it below this file.
+ * **Not a filesystem client.** The plugin receives one keyed door and never
+ * imports the state leaf. That is what keeps paths, permissions, migration and
+ * atomic replacement in core.
  *
  * **Not a second failure vocabulary.** {@link MemoryFailure} stays this
  * package's own — its one caller renders it as a row in the transcript — and is
- * a rewrap of `@olai/state`'s, which says the same thing about a file without
- * knowing it is a conversation.
+ * the reading's own word for a malformed conversation section.
  */
 
 import { Data, Effect } from "effect"
@@ -156,7 +135,7 @@ export interface Memory {
 // what a read makes of it. Split across the writer and the reader they were two
 // places that had to agree about two field names, by nothing stronger than both
 // being short. WHERE it is written, that it is written atomically, and that a
-// file about some other directory is not this panel's are `@olai/state`'s.
+// the document's path, atomic replacement, and `cwd` guard are core's.
 
 /** This state machine's section in chat's one machine-local document. */
 const CHAT = "memory"

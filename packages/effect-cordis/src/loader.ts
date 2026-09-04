@@ -201,7 +201,7 @@ const entriesOf = (host: Host): ReadonlyArray<Entry> =>
  * ON re-imports the row's module and mounts a fresh fiber. The module cache
  * makes the import free and hands back the same plugin value, so what comes back
  * is a second ACTIVATION rather than a second plugin — which is the case
- * `@olai/plugin-api`'s `Held` is keyed by NAME for, and the case
+ * `@olai/plugin-api`'s `LocalState` is keyed by NAME for, and the case
  * `./registry.ts`'s claims are suspended for.
  *
  * ## IT WAITS OUT ITS OWN ROW, and `entry.update` does not
@@ -255,4 +255,3 @@ export const flipRow = (host: Host, id: string, disabled: boolean): Effect.Effec
  *  different loops over the same pinned field and a shared constant would read
  *  as one rule rather than two applications of one argument. */
 const PASSES = 100
-

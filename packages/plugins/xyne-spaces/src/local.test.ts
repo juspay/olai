@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 
-import { recordAll, recordOf, snapshotOf, snapshotsOf } from "./hold.ts"
-import { laneOf, type HeldSnapshot } from "./mirror.ts"
+import { recordAll, recordOf, snapshotOf, snapshotsOf } from "./local.ts"
+import { laneOf, type MirrorSnapshot } from "./mirror.ts"
 
 const LANE = laneOf("claude", "s-1")
 
@@ -9,7 +9,7 @@ test("a missing record is a fresh map", () => {
   expect(snapshotOf(null)).toBeUndefined()
 })
 
-test("a record missing channel or lastLane is not a hold", () => {
+test("a record missing channel or lastLane is not a snapshot", () => {
   expect(snapshotOf({ lastLane: LANE, threads: [], queue: [] })).toBeUndefined()
   expect(snapshotOf({ channel: "ch-team", threads: [], queue: [] })).toBeUndefined()
 })
@@ -41,7 +41,7 @@ test("a malformed thread or queue row is skipped, not the file", () => {
   })
 })
 
-test("a missing overflow count is zero rather than a refused hold", () => {
+test("a missing overflow count is zero rather than a refused snapshot", () => {
   const got = snapshotOf({
     channel: "ch-team",
     lastLane: LANE,
@@ -52,14 +52,14 @@ test("a missing overflow count is zero rather than a refused hold", () => {
 })
 
 test("two channels survive as two snapshots, and the old one-channel shape is one", () => {
-  const a: HeldSnapshot = {
+  const a: MirrorSnapshot = {
     channel: "ch-a",
     lastLane: LANE,
     threads: [[LANE, { conversationId: "conv-a", ciMessageId: undefined }]],
     queue: [],
     droppedTotal: 0,
   }
-  const b: HeldSnapshot = { ...a, channel: "ch-b", threads: [] }
+  const b: MirrorSnapshot = { ...a, channel: "ch-b", threads: [] }
   const all = snapshotsOf(recordAll(new Map([["ch-a", a], ["ch-b", b]])))
   expect(all.get("ch-a")?.channel).toBe("ch-a")
   expect(all.get("ch-b")?.channel).toBe("ch-b")
@@ -67,14 +67,14 @@ test("two channels survive as two snapshots, and the old one-channel shape is on
 })
 
 test("recordOf is what snapshotOf reads back", () => {
-  const held = {
+  const snapshot = {
     channel: "ch-team",
     lastLane: LANE,
     threads: [[LANE, { conversationId: "conv-1", ciMessageId: undefined }]] as const,
     queue: [{ op: "post" as const, lane: LANE, kind: "dispatched" as const, text: "held" }],
     droppedTotal: 3,
   }
-  expect(snapshotOf(recordOf(held))).toEqual({
+  expect(snapshotOf(recordOf(snapshot))).toEqual({
     channel: "ch-team",
     lastLane: LANE,
     threads: [[LANE, { conversationId: "conv-1", ciMessageId: undefined }]],

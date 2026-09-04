@@ -477,11 +477,11 @@ test("the doorbell's door is keyed by the plugin, with no way to spell another's
   })))
 })
 
-/** THE HELD DOOR IS MINTED ONCE per plugin, which is what orders its writes —
+/** THE LOCAL-STATE DOOR IS MINTED ONCE per plugin, which is what orders its writes —
  *  the chain that keeps a later snapshot from losing a rename race to an earlier
  *  one lives on the door, so a door minted per CALL orders nothing. It was
  *  minted per call. */
-test("a plugin's held door is one door, however many times it is used", async () => {
+test("a plugin's local-state door is one door, however many times it is used", async () => {
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     let minted = 0
     const plugins = yield* runtime({
@@ -497,10 +497,10 @@ test("a plugin's held door is one door, however many times it is used", async ()
         name: "spaces",
         needs: [LocalState],
         apply: Effect.gen(function*() {
-          const held = yield* LocalState
-          yield* held.save({ queue: ["B"] })
-          yield* held.save({ queue: [] })
-          expect(yield* held.load).toEqual({ queue: [] })
+          const localState = yield* LocalState
+          yield* localState.save({ queue: ["B"] })
+          yield* localState.save({ queue: [] })
+          expect(yield* localState.load).toEqual({ queue: [] })
         }),
       }),
     )

@@ -2,8 +2,8 @@
  * WHICH CONVERSATIONS A PERSON POINTED A DOORBELL AT, and at which file —
  * remembered across a restart.
  *
- * The second per-directory record this package keeps, beside the one that
- * remembers which conversation the panel was in ({@link ./memory.ts}). It holds
+ * The `wake` section of chat's one machine-local document, beside the section
+ * that remembers which conversation the panel was in ({@link ./memory.ts}). It holds
  * a row per (conversation, plugin) somebody picked a file for, and it is the
  * whole of what turns a doorbell on: there is no serve-level default, nothing
  * an agent can call, and no row a fresh conversation starts with. A doorbell is
@@ -57,14 +57,9 @@
  * table that no longer exists. The permit makes the four steps one step, which
  * is the only thing that makes the mirror and the file one fact.
  *
- * It also used to be justified by a second hazard, and THAT HALF IS NOW CLOSED
- * AT THE LEAF: `@olai/state`'s writer staged per PROCESS (`<file>.<pid>.tmp`)
- * rather than per call, so two overlapping writes raced through one staged
- * file and the loser reported a failure for bytes that had landed. It stages
- * per CALL now, and this file no longer inherits a rule from the file format.
- * A reader who sees that fixed must not take the permit with it: the
- * read-modify-write above is this module's own, it is over memory rather than
- * over a file, and no staging name has ever had anything to say about it.
+ * Chat's document adapter has a second permit around cross-section writes. This
+ * permit remains this state machine's own: it makes two simultaneous picks one
+ * ordered mutation before either snapshot is handed to the adapter.
  *
  * ## Capped by COUNT, and never pruned against what an agent lists
  *
@@ -82,20 +77,13 @@
  *
  * ## What it does with a failure
  *
- * A read at boot that fails is an EMPTY MIRROR and one warning, never a refusal
- * to serve: the discipline {@link ./memory.ts}'s header sets and
- * {@link ./chat.ts} already keeps for the note it reads at boot. A WRITE that
- * fails is told to the person who just made the gesture, because a pick that
- * did not stick is a thing they need told — so `set` fails and the member above
- * it refuses.
+ * A missing or malformed section is an empty mirror. Filesystem failures are
+ * logged by core's LocalState implementation; this parser owns no file IO.
  *
  * ## Two things this deliberately is not
  *
- * **Not a sidecar on the memory note.** `remember` builds a fresh
- * `{cwd, agent, session, model}` literal over a plain `JSON.stringify`, so an
- * extra key written beside it dies on the next conversation entered. Two
- * records means two files, which is what `@olai/state`'s `Kind` is a closed
- * union of.
+ * **Not a sidecar managed by this writer.** It is a section carried beside
+ * `memory` and `heard` by {@link ./local.ts}, the one owner of the whole snapshot.
  *
  * **Not a second failure vocabulary.** {@link ./memory.ts}'s `MemoryFailure` is
  * this package's word for "a kept record would not read or write", and this is
@@ -347,8 +335,7 @@ export interface Scopes {
   ) => Effect.Effect<ReadonlyArray<Faulted>, MemoryFailure>
 }
 
-/** What one of these files looks like written. The rows are read leniently
- *  (see {@link picks}); the `cwd` guard is `@olai/state`'s. */
+/** What this section looks like written. The rows are read leniently. */
 interface Written {
   readonly scopes?: unknown
 }

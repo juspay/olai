@@ -3,9 +3,9 @@
  * node agent's contract, and the last line its agent said while olai was
  * watching.
  *
- * The third per-directory record this package keeps, beside the one that
- * remembers which conversation the panel was in ({@link ./memory.ts}) and the
- * one that remembers which doorbells are on ({@link ./scopes.ts}).
+ * The `heard` section of chat's one machine-local document, beside the section
+ * that remembers which conversation the panel was in ({@link ./memory.ts}) and
+ * the one that remembers which doorbells are on ({@link ./scopes.ts}).
  *
  * ## Why these two are here and the pointer is NOT
  *
@@ -115,8 +115,7 @@ import type { ChatLocalState } from "./local.ts"
 import { MemoryFailure, word } from "./memory.ts"
 import { ROWS } from "./scopes.ts"
 
-/** The `kind` these files live under in the state home — the third
- *  subdirectory, beside `chat`'s and `wake`'s. */
+/** This state machine's section in chat's one machine-local document. */
 const HEARD = "heard"
 
 /** The pair that identifies a conversation everywhere in this package: a

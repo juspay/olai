@@ -11,10 +11,9 @@
  *   - a corrupt file is an EMPTY MIRROR and never a throw. Nobody is standing
  *     at the screen when this is read, and a directory whose picks will not
  *     parse must still serve;
- *   - two writes in one process must BOTH land. `@olai/state` stages per
- *     process rather than per call, so without a permit the second write's
- *     rename finds nothing and reports a failure for a pick whose bytes never
- *     arrived;
+ *   - two writes in one process must BOTH land. The section is a
+ *     read-modify-write state machine, so without its permit two picks can
+ *     derive from the same old rows and one disappears;
  *   - the cap evicts the least recently touched, because the alternative — a
  *     prune against what an agent lists — deletes live scopes. "Least recently
  *     touched" is the FRONT OF THE ARRAY and nothing else: every write
@@ -133,10 +132,8 @@ describe("a pick, across a restart", () => {
 
 describe("two picks at once", () => {
   test("both land, rather than one racing the other's staging file", async () => {
-    // `@olai/state` stages at `<file>.<pid>.tmp` — per PROCESS, not per call —
-    // so two overlapping writes here share one staging path: without the
-    // permit, one rename lands and the other fails ENOENT for a pick whose
-    // bytes never arrived. Two tabs, or a double-click on the picker.
+    // Two overlapping read-modify-writes must not both derive from the same
+    // old section. Two tabs, or a double-click on the picker.
     const scopes = await run(forDirectory(HERE))
     const both = await Promise.all([
       outcome(scopes.set(IN, "kolu", "Fleet.olai")),

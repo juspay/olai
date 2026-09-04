@@ -50,4 +50,20 @@ describe("chat's one machine-local document", () => {
       heard: { heard: [{ session: "sess-1" }] },
     })
   })
+
+  test("a fresh activation sees the record the previous one left", async () => {
+    let record: Record<string, unknown> | null = null
+    const door: LocalState = {
+      load: Effect.sync(() => record),
+      save: (next) => Effect.sync(() => void (record = next)),
+    }
+    const first = await run(openLocalState(door))
+    await run(first.save("memory", { agent: "claude", session: "sess-1" }))
+    await run(first.save("wake", { scopes: [{ plugin: "kolu" }] }))
+
+    const afterFlip = await run(openLocalState(door))
+
+    expect(afterFlip.load("memory")).toEqual({ agent: "claude", session: "sess-1" })
+    expect(afterFlip.load("wake")).toEqual({ scopes: [{ plugin: "kolu" }] })
+  })
 })

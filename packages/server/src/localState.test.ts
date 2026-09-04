@@ -9,7 +9,7 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
-import { canonical, digestOf, fileForLocal, stateHome, writeLocal } from "@olai/state"
+import { canonical, digestOf, fileForLocal, inertLocalFile, stateHome, writeLocal } from "@olai/state"
 
 import { localStateFor } from "./localState.ts"
 
@@ -91,6 +91,17 @@ test("the generic hold is read once and migrated on the first write", () =>
     local.save({ queue: [] })
     await waitFor(() => warnings.some((line) => line.includes("migrated machine-local state")))
     expect(localStateFor("example", served, () => {}).load()?.["queue"]).toEqual([])
+  }))
+
+test("an unowned mirror record is left inert and reported", () =>
+  withHome(async ({ served }) => {
+    const cwd = canonical(served)
+    await Effect.runPromise(writeLocal(inertLocalFile(cwd), { cwd, threads: [] }))
+    const warnings: Array<string> = []
+    const local = localStateFor("example", served, (line) => warnings.push(line))
+    expect(local.load()).toBeNull()
+    expect(existsSync(inertLocalFile(cwd))).toBe(true)
+    expect(warnings.some((line) => line.includes("remains inert"))).toBe(true)
   }))
 
 test("chat's three old files become three sections of one local-state document", () =>
