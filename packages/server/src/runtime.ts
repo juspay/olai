@@ -2108,28 +2108,52 @@ export const bind = (
      * producer nobody drives any more.
      *
      * A MOUNT reaches this runtime's `group` and `handlers`, which are live
-     * reads, and does NOT reach a listener that has already bound: `serveSurfaceApp`
-     * takes the pair at the moment it listens and builds each accepted socket's
-     * `RpcServer` over what it was handed. So the contract for a sibling
-     * ARRIVING after the listener is up is RECONNECT — the roster cell moving is
-     * what tells a browser to, and `SurfacesConnection.redial(surfaces)` is what
-     * a browser that boots off that cell CALLS — `@olai/web`'s `client/wire.ts`,
-     * which dials the root with no siblings at all, reads the `plugins` cell off
-     * it, loads a chunk per plugin the roster names and redials with their
-     * surfaces. That was written here as a later phase's work, on the grounds
-     * that the tab's sibling map was compiled in; the map stopped being compiled
-     * in when the browser's rows became a dynamic `import()` per row, and the
-     * consumer landed with them. Nothing in
-     * this phase mounts a plugin after the listener is up: the bundle is mounted
-     * before the store opens.
+     * reads. What it reaches on the WIRE is a question about the listener, and
+     * the answer this paragraph used to give was wrong.
+     *
+     * ## THE RECONNECT CONTRACT, WITHDRAWN
+     *
+     * It said: *a mount does not reach a listener that has already bound, so the
+     * contract for a sibling ARRIVING after the listener is up is RECONNECT — the
+     * roster cell moving is what tells a browser to.* The first clause was exact
+     * and the conclusion did not follow. `serveSurfaceApp` snapshotted the served
+     * pair when it bound and served that ONE generation for its whole life, so a
+     * RECONNECTING browser was handed the same superseded table: a re-mounted
+     * sibling's tags still resolved to the retired mount's refusing handler, and
+     * a page RELOAD did not help either, because the stale table was the
+     * server's. Reconnect was the escape and there was no escape.
+     *
+     * Measured rather than reasoned, on a flip of the kolu row: the fiber
+     * re-applied, its sibling re-registered, its connectors re-ran and its
+     * appliance link reported connected a second time — while the tab's own
+     * liveness readout named five of its members as silent, and went on naming
+     * them across a reload. Flipping the CHAT row took a neighbour's members
+     * down the same way, because the rows that name its doors unload with it and
+     * re-mount after it.
+     *
+     * THE FIX IS UPSTREAM and is sub-phase 8a: `serveSurfaceApp` takes the
+     * served set as accessors read at each accept, so a socket accepted after a
+     * flip is built over the current generation. The ruling took that over both
+     * alternatives — a façade over the handlers reaches neither the group a
+     * per-connection `RpcServer` is built from nor the face gate, and restricting
+     * the switch to rows that were running at boot is the boot-time snapshot this
+     * phase exists to remove, moved one layer down and written into a rule.
+     *
+     * ## WHAT IS TRUE ONCE IT LANDS
+     *
+     * A connection accepted BEFORE a flip is served the old generation until it
+     * redials, and the roster cell moving is what makes it redial — which is
+     * `@olai/web`'s `client/wire.ts`, dialing the root with no siblings, reading
+     * the `plugins` cell off it, loading a chunk per plugin the roster names and
+     * redialing with their surfaces. No server-side close of the old sockets is
+     * needed or wanted: the drop has already bound their tags to refusing
+     * handlers, and the tab's redial is the CLIENT half of the same revert.
      *
      * ## AND A PLUGIN IS MOUNTED AFTER THE LISTENER IS UP NOW
      *
-     * The sentence above ended "nothing in this phase mounts a plugin after the
-     * listener is up", and {@link Deps.plugins.set} is what ended it. What the
-     * paragraph promised for that day holds unchanged and is why nothing here
-     * needed rewriting: an arriving sibling is mounted, a departing one is
-     * dropped live, and the ROSTER MOVING is what tells a browser to redial. The
+     * An earlier sentence here ended "nothing in this phase mounts a plugin
+     * after the listener is up", and {@link Deps.plugins.set} is what ended it.
+     * An arriving sibling is mounted, a departing one is dropped live, and the
      * flip is that path taken deliberately rather than at boot.
      *
      * What it did need is {@link moving}, one wall down, and {@link leaving} —

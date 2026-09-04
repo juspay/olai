@@ -96,12 +96,24 @@ Feature: A plugin is turned on and off while the serve runs
     # stale table is the server's, not the tab's, which is what proved the fault
     # is not in the browser.
     #
-    # `runtime.ts` says the contract for a sibling arriving after the listener
-    # is up is RECONNECT. It is not, and cannot be, on this path.
+    # THE RULING is sub-phase 8a: the fix is upstream, in kolu —
+    # `serveSurfaceApp` takes the served set as accessors read at each accept,
+    # so a socket accepted after a flip is built over the current generation.
+    # The two cheaper answers were declined and it is worth knowing why, because
+    # both look adequate from here: a façade over the HANDLERS reaches neither
+    # the group a per-connection `RpcServer` is built from nor the face gate, so
+    # a row that was off at boot would still have nothing to route; and
+    # restricting the switch to rows that were running at boot is exactly the
+    # boot-time snapshot this phase exists to remove, moved one layer down and
+    # written into a rule.
     #
-    # UNSKIP THIS when the transport question on the PR is ruled on and the
-    # listener serves the current generation. Nothing else about the scenario
-    # should need to change — which is why it is written out in full.
+    # UNSKIP THIS at the pin bump, when the listener hands over the getters it
+    # already holds instead of their values. Nothing about the scenario should
+    # need to change — which is why it is written out in full rather than left
+    # as a sentence — and the LAST assertion is the one that goes red today.
+    #
+    # It covers both halves the ruling asks for: a row switched off and back on,
+    # and (in the scenario that follows the pin) a row that was off at boot.
     Given I open the outline "lanes.olai"
     And I show the done nodes
     Then the terminal row on "door-implement" is working
