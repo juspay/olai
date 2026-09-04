@@ -27,7 +27,13 @@ import { surface } from "@olai/surface"
 import type { GitPin } from "@olai/format"
 import type { IdentityConfig } from "@olai/identity"
 import { fixedPolicy, make as makeOps, type Ops, TOOLS } from "@olai/ops"
-import { BUNDLE_NAMES, mountBundle, reportBundle } from "@olai/bundle/bundle"
+import {
+  BUNDLE_NAMES,
+  mountBundle,
+  reportBundle,
+  rowsNaming,
+  setRow,
+} from "@olai/bundle/bundle"
 import { bundleRank } from "@olai/bundle"
 import { emitter } from "@olai/log"
 import {
@@ -269,13 +275,44 @@ export const serve = (options: ServeOptions) =>
       // NO `dials`: the injectables are a test's, and this is the product.
     })
     yield* mountBundle(plugins.host, options.plugins)
-    // WHAT BECAME OF EACH ROW, read once the bundle has settled — the word a
-    // preferences row wears when a plugin is not running, and the plugin's own
-    // sentence when its start failed. A snapshot rather than a live read because
-    // a failed fiber's error is private and reachable only by awaiting it;
-    // `./runtime.ts`'s `PluginRuntime.report` argues why that is honest in this
-    // phase and names the phase it stops being.
-    const report = yield* reportBundle(plugins.host)
+    /**
+     * WHAT BECAME OF EACH ROW, read once the bundle has settled — the word a
+     * panel row wears when a plugin is not running, and the plugin's own
+     * sentence when its start failed.
+     *
+     * A HELD READING rather than a live one, because the reading is
+     * ASYNCHRONOUS — a failed fiber's error is private and reachable only by
+     * awaiting it — and the roster is republished synchronously, from inside a
+     * re-compose that a registry change drove. So it is re-read at every moment
+     * a row can have moved, which is here and after a flip ({@link flipped}),
+     * and `./runtime.ts` reads this holder through a thunk.
+     *
+     * `let` rather than a `Ref`, deliberately: it is written by exactly one
+     * fiber (the flip, which the surface runs one call at a time) and read
+     * synchronously by the roster, so a Ref would buy nothing but two more
+     * `yield*` on a path that has no concurrency to protect against.
+     */
+    let report = yield* reportBundle(plugins.host)
+    /**
+     * ...AND THE FLIP, which is the only thing that can move it.
+     *
+     * `setRow` flips the loader's own `disabled` for that row and then settles
+     * the WHOLE bundle — because what a flip is for is the rows around it —
+     * so by the time this re-reads, every row that was going to unload or come
+     * back has. `./runtime.ts` recomposes and republishes afterwards, and holds
+     * the roster back while this runs.
+     *
+     * IT IS SPELLED HERE rather than in `./runtime.ts` for that file's own
+     * fence: the composition root is where `@olai/bundle` and the host are both
+     * in hand, and a runtime that could reach a loader would be a second package
+     * that knows what the plugin runtime is written on.
+     */
+    const flipped = (id: string, enabled: boolean) =>
+      Effect.gen(function*() {
+        const found = yield* setRow(plugins.host, id, enabled)
+        report = yield* reportBundle(plugins.host)
+        return found
+      })
     const kinds = yield* propKinds(plugins)
     const { root, store } = yield* openDirectory(options.root, kinds)
 
@@ -359,7 +396,14 @@ export const serve = (options: ServeOptions) =>
         onChange,
         built: BUNDLE_NAMES,
         pinned: options.plugins,
-        report,
+        // A THUNK over the holder above, so the roster is drawn from the last
+        // reading rather than from the boot's — see it, and the flip beside it.
+        report: () => report,
+        // WHICH DOORS EACH ROW NAMES, live off the registry — one half of the
+        // join that answers "what stops if I turn this off"; the other half is
+        // the offers table, which the runtime reads through `Plugins`.
+        names: () => rowsNaming(plugins.host),
+        set: flipped,
       },
     })
 

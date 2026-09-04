@@ -174,7 +174,17 @@ const withRuntime = <A>(
         // about them — but the reading underneath it takes the ids it is given,
         // and asking it here is what makes these cases exercise the same
         // derivation a real boot does rather than a hand-made map.
-        report: yield* rowReport(mounted.host, (extra.plugins ?? []).map((one) => one.name)),
+        report: yield* Effect.map(
+          rowReport(mounted.host, (extra.plugins ?? []).map((one) => one.name)),
+          (read) => () => read,
+        ),
+        // THESE DOUBLES ARE NOT LOADER ROWS, so there is nothing to name and
+        // nothing to flip. The join that reads `names()` answers "carries
+        // nobody" for every row, which is what these cases are about anyway; the
+        // flip is benched where the loader is (`@olai/bundle`'s `flip.test.ts`)
+        // and end to end, because what it is FOR is a real bundle settling.
+        names: () => new Map(),
+        set: () => Effect.succeed(false),
       },
       git: gitWiring(
         ops,
@@ -681,7 +691,12 @@ const offering = (
   onChange: { run: () => {} },
   built: PLUGIN_NAMES,
   pinned,
-  report,
+  report: () => report,
+  // NOTHING NAMES ANYTHING in these cases, so no row carries another — which is
+  // the state every row of a real bundle but the chat row is in. The `carrying`
+  // sentence has its own case below, where both halves of the join are supplied.
+  names: () => new Map(),
+  set: () => Effect.succeed(false),
 })
 
 /**
@@ -938,6 +953,89 @@ test("no wake declarations is no sentence, and every row is still there", () => 
   const all = rosterOf(offering(null, mounted(PLUGIN_NAMES)))
   expect(all.built.map((row) => row.name)).toEqual([...PLUGIN_NAMES])
   expect(all.built.every((row) => row.wake === undefined)).toBe(true)
+})
+
+/**
+ * WHAT STOPS IF THIS ROW STOPS — the join, and the one thing on the roster that
+ * is about a press nobody has made yet.
+ *
+ * Two live readings meet here and neither is a list anybody keeps: who stands
+ * behind which door (core's offers table, taken by a plugin's own `offer` and
+ * released by its scope) and which doors each running row is standing on (the
+ * `inject` the runtime derived from that plugin's `needs`). The panel draws the
+ * answer under the switch, so a person about to turn the chat row off is told
+ * the engines and the tenants go with it.
+ *
+ * IT IS SPELLED WITH THE BUILD'S OWN NAMES because the roster is, and this file
+ * names no plugin: the first row offers a toy door and the next two name it,
+ * which is the chat row's shape with the nouns taken out.
+ */
+test("a running row that offers a door names the rows that would stop with it", () => {
+  const [first, second, third] = PLUGIN_NAMES
+  if (first === undefined || second === undefined || third === undefined) {
+    throw new Error("this claim needs a build with three rows")
+  }
+  const carrying = (offers: ReadonlyMap<string, string>, names: ReadonlyMap<string, ReadonlyArray<string>>) =>
+    rosterOf(
+      { ...offering(null, mounted(PLUGIN_NAMES)), names: () => names },
+      new Map(),
+      offers,
+    )
+
+  const roster = carrying(
+    new Map([["aDoor", first]]),
+    new Map([[second, ["aDoor"]], [third, ["aDoor"]]]),
+  )
+  expect(roster.built.find((row) => row.name === first)?.carrying).toEqual([second, third])
+  // ...AND ABSENT ON EVERY OTHER ROW, which is the ordinary state and is why the
+  // field is optional rather than an empty array: a row that carries nobody says
+  // nothing, where an empty list would be each of them claiming to carry no one.
+  expect(roster.built.filter((row) => row.carrying !== undefined).map((row) => row.name))
+    .toEqual([first])
+
+  // IN BUNDLE ORDER, not in the order the registry answered. The registry's
+  // order is the order two dynamic imports came back in, which is a fact about
+  // the filesystem on the day; a list that reshuffles between boots is a list
+  // nobody can read twice.
+  const shuffled = carrying(
+    new Map([["aDoor", first]]),
+    new Map([[third, ["aDoor"]], [second, ["aDoor"]]]),
+  )
+  expect(shuffled.built.find((row) => row.name === first)?.carrying).toEqual([second, third])
+
+  // A ROW IS NOT IN ITS OWN ANSWER. Nothing forbids a plugin naming a door it
+  // also offers, and it does not stop when it stops — otherwise every offering
+  // row would name itself among its own casualties.
+  const itself = carrying(
+    new Map([["aDoor", first]]),
+    new Map([[first, ["aDoor"]], [second, ["aDoor"]]]),
+  )
+  expect(itself.built.find((row) => row.name === first)?.carrying).toEqual([second])
+})
+
+/**
+ * ...AND A ROW THAT IS NOT RUNNING CARRIES NOBODY, whatever the tables say.
+ *
+ * It has already stopped: what it stood behind is revoked, and every row that
+ * named it is already `waiting` and already says which door. A sentence here
+ * would be a switch offering to tell a person what turning something off would
+ * cost, about a thing that is off.
+ */
+test("a row that is not running carries nobody", () => {
+  const [first, second] = PLUGIN_NAMES
+  if (first === undefined || second === undefined) {
+    throw new Error("this claim needs a build with two rows")
+  }
+  const roster = rosterOf(
+    {
+      ...offering([second], new Map([[first, { state: "off" }], [second, { state: "running" }]])),
+      names: () => new Map([[second, ["aDoor"]]]),
+    },
+    new Map(),
+    new Map([["aDoor", first]]),
+  )
+  expect(roster.built.find((row) => row.name === first)?.running).toBe(false)
+  expect(roster.built.find((row) => row.name === first)?.carrying).toBeUndefined()
 })
 
 /**

@@ -105,6 +105,7 @@ import {
   customText,
   isRegular,
   type Located,
+  NotFoundFailure,
   type Reading,
   UsageFailure,
 } from "@olai/format"
@@ -312,31 +313,60 @@ export interface PluginRuntime {
    */
   readonly pinned: ReadonlyArray<string> | null
   /**
-   * WHAT BECAME OF EACH ROW, as the loader left it — the word a preferences row
-   * wears when `running` is `false`, and the plugin's own words when its start
-   * threw.
+   * WHAT BECAME OF EACH ROW — the word a panel row wears, and the plugin's own
+   * words when its start threw.
    *
-   * ## A BOOT SNAPSHOT, and that is a phase boundary rather than a shortcut
+   * ## A THUNK, and it used to be a value
    *
-   * `running` is read LIVE, off what has registered a sibling surface, and this
-   * is not: it is taken once, after `mountBundle` settles, because a fiber's
-   * error is private and reachable only by awaiting it, and the roster is
-   * republished synchronously from a re-compose. The two cannot disagree
-   * because {@link rosterOf} lets the live reading WIN — a name that is
-   * composed says `running` whatever the snapshot remembers, and the snapshot
-   * is spent only on the rows that are absent.
-   *
-   * Nothing in this phase mounts or fails a plugin after the boot: the bundle
-   * is mounted before the store opens and nothing turns a row off afterwards.
-   * The day something can (the preferences toggle, phase 6) this is the second
+   * The paragraph here said it was a BOOT SNAPSHOT, and named the day that
+   * would have to change: *nothing in this phase mounts or fails a plugin after
+   * the boot… the day something can (the preferences toggle) this is the second
    * of the two places that has to learn to move — `./propKinds.ts` names the
-   * first, and for the same reason.
+   * first.* Both places moved in the same lane, and this is the second.
+   *
+   * It is a THUNK rather than a live call because the reading is asynchronous —
+   * a failed fiber's error is private and reachable only by awaiting it — and
+   * the roster is republished SYNCHRONOUSLY, from inside a re-compose that a
+   * Cordis registry change drove. So the composition root re-reads after every
+   * flip and this answers what it last read. The two cannot drift, because a
+   * flip is the only thing that moves a row and the flip is what re-reads.
+   *
+   * WHAT THE THUNK IS NOT is a live read that this file could take itself:
+   * `running` and the word come off ONE reading here (`{@link rosterOf}`), and
+   * a second clock for the boolean is exactly the arrangement that used to
+   * report a row `off` while it was serving.
    *
    * EMPTY IS LEGAL and is what every caller that does not care passes: a row it
    * has nothing to say about is `off`, which is what `running: false` has always
    * meant on its own.
    */
-  readonly report: ReadonlyMap<string, RowReport>
+  readonly report: () => ReadonlyMap<string, RowReport>
+  /**
+   * WHICH DOORS EACH ROW NAMES — the live `inject` of every row that has a
+   * fiber, read off the registry.
+   *
+   * Half of the join {@link BuiltPlugin.carrying} is: this says who NAMES what,
+   * `offers()` on the doors service says who STANDS BEHIND what, and neither is
+   * a list anybody keeps. The composition root is the one place both are in
+   * hand, which is what makes it the one place the join can be made — the same
+   * sentence `./propKinds.ts` opens with, one registry over.
+   */
+  readonly names: () => ReadonlyMap<string, ReadonlyArray<string>>
+  /**
+   * TURN ONE ROW ON OR OFF while this serve runs — the loader surface's verb,
+   * as this file spends it.
+   *
+   * Answers whether there WAS such a row. It RETURNS ONCE THE BUNDLE HAS
+   * STOPPED MOVING — the flip, and then the settle over every row, because what
+   * a flip is for is the rows around it — and it re-reads {@link report} on the
+   * way out, so the roster this file publishes next is about the bundle the
+   * press produced rather than the one it started from.
+   *
+   * It is here rather than built from `@olai/bundle` at the call site for the
+   * reason every other field on this interface is: this file has never heard of
+   * Cordis, a loader, or a row's module. What crosses is a verb.
+   */
+  readonly set: (id: string, enabled: boolean) => Effect.Effect<boolean>
 }
 export interface Wiring {
   /** THE SERVED word: the machine this process runs on, minted ONCE per
@@ -575,12 +605,12 @@ const writing = (ops: Ops, caller: Caller) => ({
  * papering over (a row `running` in the report and absent from the live table
  * used to be reported `off`).
  *
- * WHAT IT COSTS is stated where it is owed: the report is a BOOT SNAPSHOT
- * (`@olai/bundle`'s `reportBundle` says so at its own door), so a fiber that
- * unloads mid-serve keeps its row until the next start. Nothing unloads a
- * server half mid-serve today, and the day something can — the preferences
- * toggle — that door and this reading move together, which is the arrangement
- * `reportBundle`'s header already names itself as one half of.
+ * WHAT IT COSTS was stated where it was owed: *the report is a boot snapshot, so
+ * a fiber that unloads mid-serve keeps its row until the next start — and the
+ * day something can unload one, that door and this reading move together.* They
+ * did. {@link PluginRuntime.report} is a thunk the flip re-reads, and the flip
+ * settles the whole bundle before it does, so what this reads is never a bundle
+ * in motion.
  */
 export const rosterOf = (
   offered: Wiring["plugins"],
@@ -596,16 +626,33 @@ export const rosterOf = (
    * is not mounted has no registration in this table either.
    */
   wakes: ReadonlyMap<string, Wake> = new Map(),
+  /**
+   * ...and WHO STANDS BEHIND WHICH DOOR — the offers table, keyed by the service
+   * tag. Joined here with {@link PluginRuntime.names} to answer the one thing a
+   * switch owes a person before it is pressed: which rows stop if this one does.
+   *
+   * A DEFAULT OF NOTHING, like the wakes beside it, because every caller that
+   * only wants the roster's shape has no doors to be about — and because a row
+   * carrying nobody is the state every plugin in this build but one is in.
+   */
+  offers: ReadonlyMap<string, string> = new Map(),
 ): PluginRoster =>
-  offered === null ? NO_ROSTER : {
+  offered === null ? NO_ROSTER : ((
+    // ONE REGISTRY WALK for the whole roster rather than one per row: every
+    // row's `carrying` is a join over the SAME two tables, and asking `names()`
+    // inside the map would walk the Cordis registry once per plugin on every
+    // re-compose — which is every register and every dispose.
+    names: ReadonlyMap<string, ReadonlyArray<string>>,
+  ) => ({
     built: offered.built.map((name) => {
       // A row the report has nothing to say about never loaded, and that
       // absence IS `off` rather than a missing case (`@olai/effect-cordis`'s
       // `rowReport`).
-      const report = offered.report.get(name) ?? { state: "off" as const }
+      const report = offered.report().get(name) ?? { state: "off" as const }
       const said = stateOf(offered, report)
       const live = said.state === "running"
       const wake = live ? wakes.get(name) : undefined
+      const carrying = live ? carriedBy(name, offered.built, names, offers) : []
       return {
         name,
         running: live,
@@ -626,6 +673,14 @@ export const rosterOf = (
         // what turns "waiting for something" into a sentence somebody can act
         // on.
         ...(said.missing === undefined ? {} : { missing: said.missing }),
+        // ...and, on a row that is RUNNING, which rows stop if it does. The
+        // other end of `missing` exactly: that one is a row saying what it is
+        // short of after the fact, and this is the row that HAS it saying so
+        // while there is still a decision to make. ABSENT rather than empty,
+        // which is the ordinary case — every row in this build but the chat row
+        // carries nobody, and an empty list would be each of them claiming to
+        // carry no one.
+        ...(carrying.length === 0 ? {} : { carrying }),
         // WHAT THE PICKER IS MADE OF, named one at a time rather than spread
         // whole — and the omission is the point. The three strings the strip
         // draws, plus the KINDS the picker may offer, because that is the one
@@ -646,7 +701,54 @@ export const rosterOf = (
       }
     }),
     pinned: offered.pinned,
-  }
+  }))(offered.names())
+
+/**
+ * WHICH ROWS WOULD GO `waiting` IF `name` WERE TURNED OFF — the join, and the
+ * one thing on the roster that is about a press nobody has made yet.
+ *
+ * ## Two live readings and no list
+ *
+ * `offers` is who stands behind which door; `names()` is which doors each
+ * running row is standing on. Neither is written down anywhere — the first is
+ * taken by a plugin's own `offer` and released by its scope, the second is the
+ * `inject` the runtime derived from that plugin's `needs` — so a row added to
+ * this build reaches this sentence with nothing here moving, and the answer
+ * cannot disagree with the fibers because it IS the fibers.
+ *
+ * The alternative, and the reason it was not taken: a `carries` declaration
+ * beside `needs`. That is the same list `RowReport.missing` refuses to carry,
+ * for the same reason — a second declaration is free to be wrong, and the one it
+ * would be wrong about is the sentence a person reads before turning something
+ * off.
+ *
+ * ## The row itself is not in its own answer
+ *
+ * A plugin may name a door it also offers (nothing forbids it, and the chat row
+ * is one blip from being one). It does not stop when it stops, so it is dropped
+ * — otherwise every offering row would name itself among its own casualties.
+ *
+ * IN BUNDLE ORDER, because a person reads it — and it is the bundle's order for
+ * free rather than by sorting: this walks {@link PluginRuntime.built}, which IS
+ * the row list, where walking `names()` would take the Cordis registry's order,
+ * which is the order two dynamic imports came back in. A list that reshuffles
+ * between boots is a list nobody can read twice, and there is an e2e failure
+ * behind that sentence (`@olai/bundle`'s `inBundleOrder`).
+ */
+const carriedBy = (
+  name: string,
+  built: ReadonlyArray<string>,
+  names: ReadonlyMap<string, ReadonlyArray<string>>,
+  offers: ReadonlyMap<string, string>,
+): ReadonlyArray<string> => {
+  const held = new Set(
+    [...offers].flatMap(([door, by]) => by === name ? [door] : []),
+  )
+  if (held.size === 0) return []
+  return built.filter((row) =>
+    row !== name && (names.get(row) ?? []).some((door) => held.has(door))
+  )
+}
 
 /**
  * WHICH OF THE FIVE WORDS ONE ROW IS IN — the live reading and the boot
@@ -1131,7 +1233,7 @@ export const bind = (
      * and the cell is republished ({@link republishPlugins}).
      */
     const roster = (): PluginRoster =>
-      rosterOf(offered, rings())
+      rosterOf(offered, rings(), plugins?.offers() ?? new Map())
 
     /**
      * EVERY CONNECTOR BELOW READS `store.reads`, and every frame on it is a
@@ -1762,6 +1864,81 @@ export const bind = (
           resume: () => Effect.as(wiring.git.resume, {}),
         },
         /**
+         * THE PANEL'S SWITCH — the loader surface's one verb, and the only
+         * procedure in this build that moves a fiber.
+         *
+         * ## The order is the whole implementation
+         *
+         * `moving` first, so the several registry changes a dispose fans out
+         * into do not each publish a roster about a bundle that is still coming
+         * apart (see it, one wall down). Then the flip, which settles the whole
+         * bundle and re-reads every row's state — that is
+         * {@link PluginRuntime.set}, and it is where the two calls live because
+         * this file has never heard of a loader. Then the re-compose, which
+         * mounts and drops the siblings that moved and publishes the roster
+         * ONCE, which is what tells every open tab to redial.
+         *
+         * `ensuring` and not a `finally`: the flag has to be cleared on an
+         * interrupt too, or a caller that walked away would leave this runtime
+         * silently never publishing a roster again.
+         *
+         * ## ...AND THEN THE VAULT'S VERDICT IS RE-TAKEN
+         *
+         * A plugin's kind words leave with its fiber (`./propKinds.ts` — the
+         * vocabulary is a live reading now), and NOTHING ON DISK MOVED, so
+         * nothing else in this process would ever re-judge the files that used
+         * to be typed by them. Without this line a vault would go on drawing
+         * `kolu-terminal` values as terminals after kolu was switched off, until
+         * the next write to that file or the next boot.
+         *
+         * `verified` is the class: the stamps are forgotten, so a look that
+         * would otherwise find nothing moved re-reads and re-validates the set.
+         * The cost is one pass over the corpus per press, which is a person's
+         * gesture and not a loop.
+         *
+         * A FAILED LOOK IS NOT THIS CALL'S TO REPORT. A directory that cannot be
+         * read is published on the store's own errors channel, which is where
+         * every other reader of it already looks; failing the flip here would
+         * tell a person their switch did not work, which is untrue — it worked,
+         * and the vault is unreadable, which is a bigger and separate piece of
+         * news.
+         *
+         * ## The refusal, and the one way to reach it
+         *
+         * A name this build does not have. The panel walks the roster, so it can
+         * only name a row this build has — which leaves a tab that outlived the
+         * build it was drawn from, and a runtime with no plugin slot at all
+         * (`olai surface`, the headless faces), where the honest answer is the
+         * same: there is no such plugin here.
+         */
+        plugins: {
+          set: ({ input }) =>
+            Effect.gen(function*() {
+              const flipped = offered === null ? false : yield* Effect.ensuring(
+                Effect.andThen(
+                  Effect.sync(() => {
+                    moving = true
+                  }),
+                  offered.set(input.name, input.enabled),
+                ),
+                Effect.sync(() => {
+                  moving = false
+                }),
+              )
+              if (!flipped) {
+                return yield* Effect.fail(
+                  new NotFoundFailure({
+                    reason: `this build has no plugin named "${input.name}"`,
+                    named: input.name,
+                  }),
+                )
+              }
+              recompose()
+              yield* Effect.ignore(wiring.store.refresh("verified"))
+              return {}
+            }),
+        },
+        /**
          * Who is looking on THIS connection. The value is the per-connection
          * `CurrentWho` the listener's `services` layer provides from the
          * upgrade headers — so a tab that is already connected does not GET
@@ -1905,6 +2082,17 @@ export const bind = (
      * consumer landed with them. Nothing in
      * this phase mounts a plugin after the listener is up: the bundle is mounted
      * before the store opens.
+     *
+     * ## AND A PLUGIN IS MOUNTED AFTER THE LISTENER IS UP NOW
+     *
+     * The sentence above ended "nothing in this phase mounts a plugin after the
+     * listener is up", and {@link Deps.plugins.set} is what ended it. What the
+     * paragraph promised for that day holds unchanged and is why nothing here
+     * needed rewriting: an arriving sibling is mounted, a departing one is
+     * dropped live, and the ROSTER MOVING is what tells a browser to redial. The
+     * flip is that path taken deliberately rather than at boot.
+     *
+     * What it did need is {@link moving}, one wall down.
      */
     const recompose = (): void => {
       const wanted = new Map(siblings().map((one) => [one.name, one] as const))
@@ -1955,8 +2143,43 @@ export const bind = (
           )
         })
       }
-      republishPlugins()
+      if (!moving) republishPlugins()
     }
+
+    /**
+     * IS THE BUNDLE MID-FLIP — the one thing that holds a republish back, and
+     * the only state this file keeps about the loader surface.
+     *
+     * ## The frame it exists to not draw
+     *
+     * A flip is one press and several movements. Disposing the chat row runs its
+     * finalizers, and each of them is a registry change that calls this
+     * re-compose — so between the press and the settle there are frames in which
+     * the sibling has left the wire and the ROW has not been re-read yet, and a
+     * roster published there says a plugin is `running` whose surface is already
+     * gone. The tab acts on that: a roster change is a redial, and it would
+     * redial asking for `surface/chat/` on a wire that no longer has it, then
+     * redial again a beat later when the truth arrived.
+     *
+     * ## Why suppressing is honest and not a hack
+     *
+     * Because the roster is a description of a SETTLED bundle, and always has
+     * been. `mountBundle` makes exactly this promise at the boot — it returns
+     * once every row that is going to load has loaded and applied — and nobody
+     * reads a roster during it. A flip is the same movement with the process
+     * already serving, so it gets the same answer: the siblings are mounted and
+     * dropped as they move, which is live and must be, and the SENTENCE about
+     * them is said once, when there is a true one to say.
+     *
+     * ## What it is not
+     *
+     * Not a lock. The re-compose still runs on every registry change while it is
+     * set, so the wire is exactly as live as it was; what is deferred is one
+     * cell's publish. And it is set and cleared inside one Effect on one fiber
+     * ({@link Deps.plugins.set}), so there is no second flip to interleave with —
+     * two tabs pressing at once are two calls the surface runs in turn.
+     */
+    let moving = false
 
     /**
      * THE FIRST COMPOSITION, and every one after it.
