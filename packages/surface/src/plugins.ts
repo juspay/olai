@@ -320,6 +320,23 @@ export type BuiltPlugin = typeof BuiltPlugin.Type
 export const PLUGIN_CHUNK_PREFIX = "/_olai/plugins/"
 
 /**
+ * THE TWO HALVES OF A VAULT-DEFINED PLUGIN, by the titles their child nodes
+ * wear — the file each would have been.
+ *
+ * Here for `PLUGIN_CHUNK_PREFIX`'s reason exactly: two ends spell them and
+ * neither may invent one. The SERVE reads them to find the halves
+ * (`@olai/server`'s `dynamic/source.ts`), the PANEL draws them as the headings
+ * over the source a person is being asked to approve, and `plugins.inspect`
+ * tells an agent what to title the children it writes. Three readers, one word
+ * each, and they were two constants a package apart under a paragraph arguing
+ * that a label and a lookup key are different things — which is true of what
+ * they are FOR and false of when they change: rename the node title and every
+ * one of the three moves on the same afternoon.
+ */
+export const PLUGIN_SERVER_NODE = "server.ts"
+export const PLUGIN_BROWSER_NODE = "browser.tsx"
+
+/**
  * THE SEVEN WORDS A ROW CAN BE IN, and each is a different morning.
  *
  *   - `running`  composed: members on the wire, faces drawn, probe run, kinds

@@ -1339,6 +1339,7 @@ export type {
   PropWrite,
   Refusal,
   Refused,
+  Forbidden,
   Seated,
   StdioServer,
   Wake,

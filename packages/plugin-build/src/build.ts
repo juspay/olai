@@ -39,17 +39,15 @@ import babelTypeScript from "@babel/preset-typescript"
 // @ts-expect-error — the babel presets ship loose types
 import babelSolid from "babel-preset-solid"
 
-import { bind } from "./bind.ts"
+import { bind, type Made } from "./bind.ts"
 import { type Half, modulesFor, unresolvable } from "./imports.ts"
 
 export type { Half } from "./imports.ts"
 
-/** A built half's text, or the sentence a person is owed instead. One shape for
- *  both halves, because every caller of either arm does the same two things with
- *  it. */
-export type Built =
-  | { readonly ok: true; readonly text: string }
-  | { readonly ok: false; readonly why: string }
+/** A built half is `./bind.ts`'s one answer shape, re-exported: what comes back
+ *  from a COMPILE and what comes back from a BIND are the same two things, and
+ *  they were two identical declarations until somebody read them side by side. */
+export type { Made } from "./bind.ts"
 
 /**
  * COMPILE ONE HALF.
@@ -63,7 +61,7 @@ export type Built =
  * failure prose: a syntax error names a line and a column, and core has nothing
  * to add to that but noise.
  */
-export const buildHalf = async (half: Half, source: string): Promise<Built> => {
+export const buildHalf = async (half: Half, source: string): Promise<Made> => {
   const refused = unresolvable(source)
   if (refused !== null) return { ok: false, why: refused }
   let text: string

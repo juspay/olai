@@ -48,9 +48,17 @@
 
 import { REGISTRY } from "./shared.ts"
 
-/** A module's text with every import bound — or the sentence that says why it
- *  could not be. */
-export type Bound =
+/**
+ * A MODULE'S TEXT, or the sentence that says why there is none — the one shape
+ * every step of this package answers with.
+ *
+ * It was two identical declarations, `Bound` here and `Built` in `./build.ts`,
+ * one per step. Two names for one concept is only worth having when the two rev
+ * on different clocks, and these cannot: what a caller does with either is the
+ * same two things, and a field added to one would be a field the other needed on
+ * the same afternoon. One name, and the door's vocabulary is one word shorter.
+ */
+export type Made =
   | { readonly ok: true; readonly text: string }
   | { readonly ok: false; readonly why: string }
 
@@ -64,7 +72,7 @@ export type Bound =
  * its own — a Solid version reaching for a helper package, say — is caught by
  * this one and by nothing else.
  */
-export const bind = (text: string, allowed: ReadonlyArray<string>): Bound => {
+export const bind = (text: string, allowed: ReadonlyArray<string>): Made => {
   let bound = ""
   let read = 0
   KEYWORD.lastIndex = 0

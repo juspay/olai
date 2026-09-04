@@ -133,7 +133,14 @@
 
 import { createSignal, For, Show } from "solid-js"
 
-import { type BuiltPlugin, NO_ROSTER, type PluginRoster, pluginState } from "@olai/surface"
+import {
+  type BuiltPlugin,
+  NO_ROSTER,
+  PLUGIN_BROWSER_NODE,
+  PLUGIN_SERVER_NODE,
+  type PluginRoster,
+  pluginState,
+} from "@olai/surface"
 
 import { type Anchor, styleOf } from "../anchor.ts"
 import { PANEL_BOX } from "../readout.ts"
@@ -427,8 +434,8 @@ function Defined(props: {
             {said().approved ? "" : " (not approved)"}
           </summary>
           <pre class="mt-2 max-h-64 overflow-auto wrap-anywhere whitespace-pre-wrap">
-            {`// ${SERVER_HALF}\n${said().server}${
-              said().browser === undefined ? "" : `\n\n// ${BROWSER_HALF}\n${said().browser}`
+            {`// ${PLUGIN_SERVER_NODE}\n${said().server}${
+              said().browser === undefined ? "" : `\n\n// ${PLUGIN_BROWSER_NODE}\n${said().browser}`
             }`}
           </pre>
           <Show when={pending()}>
@@ -459,9 +466,3 @@ function Defined(props: {
   )
 }
 
-/** The two headings the drawn source is split by — the titles the child nodes
- *  wear, so what is on screen reads as the two files a plugin is. Spelled here
- *  rather than imported from the serve: they are a LABEL in this panel, and the
- *  serve's copy is a lookup key in a vault. */
-const SERVER_HALF = "server.ts"
-const BROWSER_HALF = "browser.tsx"

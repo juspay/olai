@@ -1252,7 +1252,9 @@ export { App, appName } from "./app.ts"
 export {
   BuiltPlugin,
   NO_ROSTER,
+  PLUGIN_BROWSER_NODE,
   PLUGIN_CHUNK_PREFIX,
+  PLUGIN_SERVER_NODE,
   type PluginState,
   pluginState,
   PluginRoster,

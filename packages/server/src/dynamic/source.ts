@@ -53,11 +53,13 @@
  */
 
 import { customText, type Derived, isRegular, type RegularNode } from "@olai/format"
+import { PLUGIN_BROWSER_NODE as BROWSER_NODE, PLUGIN_SERVER_NODE as SERVER_NODE } from "@olai/surface"
 
-/** THE TWO HALVES, by the titles their child nodes wear — the file each would
- *  have been, spelled once. */
-export const SERVER_NODE = "server.ts"
-export const BROWSER_NODE = "browser.tsx"
+/** THE TWO HALVES, by the titles their child nodes wear — `@olai/surface`'s,
+ *  because the panel draws them as headings over the source and
+ *  `plugins.inspect` tells an agent what to title what it writes. Three readers,
+ *  one spelling; that member's own doc argues why. */
+export { BROWSER_NODE, SERVER_NODE }
 
 /** The property that says *this node is a plugin*, and the one that says a
  *  person approved a version of it. Core's own words, undeclared and therefore

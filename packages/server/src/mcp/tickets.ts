@@ -10,19 +10,7 @@ import { clientOver, type OlaiSurfaceClient } from "./face.ts"
 import { currentTicket } from "./route.ts"
 
 /**
- * WHY THE KEYS A SESSION SEATS ON ARE FORBIDDEN — the clause the fence carries
- * for every word a plugin handed over in {@link Seated.forbidden}.
- *
- * It used to be written inside `@olai/ops`' refusal, which is a general package
- * composing prose about a word `olai-plugin-chat` owns. It is here now because
- * this is where a ticket's MEANING is decided: the door is minted here, under
- * this writer, for this session, and what it may not touch is this file's
- * sentence to say.
- */
-const SEATS = "it is what seats a conversation on a node, and that is a person's gesture in the panel"
-
-/**
- * ...AND THE WORDS NO SESSION MAY WRITE, whatever it is seated on.
+ * THE WORDS NO SESSION MAY WRITE, whatever it is seated on.
  *
  * ## The hole this closes
  *
@@ -47,10 +35,11 @@ const SEATS = "it is what seats a conversation on a node, and that is a person's
  *
  * Because this is the one place that holds both halves. `@olai/ops` may not
  * know what a plugin is; `olai-plugin-chat` supplies the keys a SESSION is
- * seated on and has no business knowing phase 12's words; and the fence itself
- * is minted right here, per session, by the composition root. So the ticket's
- * forbidden table is the union of what the seat contributed and what this
- * build's own vocabulary reserves.
+ * seated on, with its own sentence for them, and has no business knowing phase
+ * 12's words; and the fence itself is minted right here, per session, by the
+ * composition root. So the ticket's forbidden table is the union of what the
+ * seat contributed and what this build's own vocabulary reserves — each half
+ * carrying the clause its own author wrote.
  *
  * IT IS EVERY NODE AND NOT ONLY A PLUGIN'S, deliberately. An agent that could
  * write `approved` onto a node that is not yet a plugin could write the two
@@ -62,15 +51,18 @@ const SEATS = "it is what seats a conversation on a node, and that is a person's
  * A PERSON'S face is untouched: `plugins.approve` runs under this runtime's own
  * writer with no fence at all, which is the same shape a keystroke has.
  */
-const ALWAYS_FORBIDDEN: ReadonlyArray<readonly [string, string]> = [[
-  APPROVED_KEY,
-  "it is a person's approval of code that runs with this server's authority, "
-  + "and the plugins panel — with the source in front of them — is where that is decided",
-]]
+const ALWAYS_FORBIDDEN: ReadonlyArray<Seated["forbidden"][number]> = [{
+  key: APPROVED_KEY,
+  says: "it is a person's approval of code that runs with this server's authority, "
+    + "and the plugins panel — with the source in front of them — is where that is decided",
+}]
 
 export interface Seated {
   readonly under: string
-  readonly forbidden: ReadonlyArray<string>
+  /** Each key this session may not write, with the clause that says why — see
+   *  `@olai/plugin-api`'s `Seated` on why the sentence travels from whoever
+   *  forbade the key rather than being composed where it is spent. */
+  readonly forbidden: ReadonlyArray<{ readonly key: string; readonly says: string }>
 }
 
 export interface Ticket {
@@ -108,10 +100,9 @@ export const ticketing = (options: {
         },
         ask: () => above(seated().under),
         get forbidden() {
-          return new Map<string, string>([
-            ...seated().forbidden.map((key) => [key, SEATS] as const),
-            ...ALWAYS_FORBIDDEN,
-          ])
+          return new Map<string, string>(
+            [...seated().forbidden, ...ALWAYS_FORBIDDEN].map((one) => [one.key, one.says]),
+          )
         },
       }
       tickets.set(bearer, composed(fence))

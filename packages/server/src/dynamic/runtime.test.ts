@@ -20,7 +20,7 @@ import {
   openPlugins,
   rowReport,
 } from "@olai/plugin-api/services"
-import { REGISTRY } from "@olai/plugin-build/shared"
+import { REGISTRY, SERVER_MODULES } from "@olai/plugin-build/shared"
 import type { BuiltPlugin } from "@olai/surface"
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
@@ -111,6 +111,24 @@ const bench = <A>(
       )
     })),
   )
+
+/**
+ * THE TABLE AND THE LIST HAVE TO AGREE, and nothing but this says so.
+ *
+ * `@olai/plugin-build` names the specifiers it will BIND; this module fills the
+ * table those bindings read. They are two lists on one clock — a fourth module
+ * added to one is a plugin destructuring `undefined` at its first line — and
+ * they cannot be one list, because the table's values are static imports and the
+ * compiler package must not have any of the three on its graph.
+ *
+ * So: an equality, at the one end that holds both. `@olai/web`'s own entry keeps
+ * the browser half of the same promise (`client/plugins/shared.test.ts`).
+ */
+test("this process binds every module the compiler says a server half may name", () => {
+  const table = (globalThis as Record<string, unknown>)[REGISTRY] as Record<string, unknown>
+  expect(Object.keys(table).sort()).toEqual([...SERVER_MODULES].sort())
+  for (const name of SERVER_MODULES) expect(table[name]).toBeDefined()
+})
 
 describe("a definition waits for a person", () => {
   test("nobody has approved it: pending, and nothing has been imported", async () => {

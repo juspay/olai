@@ -49,7 +49,7 @@ import type { Derived } from "@olai/format"
 import * as plugins from "@olai/plugin-api/services"
 import { type Host, type Mounted, mountPlugin, type Plugin, type RowReport } from "@olai/plugin-api/services"
 import type { BuiltPlugin } from "@olai/surface"
-import { PLUGIN_CHUNK_PREFIX } from "@olai/surface"
+import { PLUGIN_CHUNK_PREFIX, type PluginState } from "@olai/surface"
 import * as effect from "effect"
 import { Effect } from "effect"
 
@@ -133,25 +133,44 @@ interface Live {
 }
 
 /**
+ * WHAT CAME OF TRYING TO START ONE DEFINITION — ONE value, and the last time it
+ * was two it was a bug waiting.
+ *
+ * There were two maps: `live`, keyed by word, and `faults`, keyed by word, with
+ * `faults.delete(name)` before every attempt and `faults.has(name)` after one to
+ * find out whether anything had moved. That is one fact — *what happened when we
+ * last tried this word* — spread across two containers whose three reachable
+ * combinations mean three different things, kept in step by hand at four call
+ * sites. A name that ended up in both, or in neither by accident, was a row
+ * drawn from a state nothing could name.
+ */
+type Started =
+  | ({ readonly up: true } & Live)
+  | { readonly up: false; readonly why: string }
+
+/**
  * OPEN THE DYNAMIC HALF over a host.
  *
  * `built` is every word this build already has, so a definition cannot take one
  * (`./source.ts` argues why that is a fault and not an override).
  */
 export const openDynamic = (host: Host, built: ReadonlyArray<string>): DynamicRuntime => {
-  const live = new Map<string, Live>()
+  /** WHAT CAME OF THE LAST ATTEMPT AT EACH WORD — see {@link Started}. */
+  const started = new Map<string, Started>()
   /** Definitions as the last revision left them — what {@link rows} draws and
    *  what {@link again} re-follows. */
   let seen: ReadonlyArray<Defined> = []
-  /** WHY A DEFINITION IS NOT UP, where the reason is this module's rather than
-   *  the vault's: a half that would not compile, a module with no plugin in it,
-   *  an `apply` that threw. Keyed by word and cleared when that word is next
-   *  mounted. */
-  const faults = new Map<string, string>()
   /** ...and the rows a person switched off here. Per PROCESS, exactly like a
    *  built row's flip: nothing is written, and a restart comes back to what the
    *  vault says. */
   const stopped = new Set<string>()
+
+  /** The one that is UP, or nothing — the read every caller below wants and the
+   *  only place the union is narrowed. */
+  const upAt = (name: string): Live | null => {
+    const one = started.get(name)
+    return one === undefined || !one.up ? null : one
+  }
 
   const follow = (defined: ReadonlyArray<Defined>): Effect.Effect<boolean> =>
     Effect.gen(function*() {
@@ -166,36 +185,39 @@ export const openDynamic = (host: Host, built: ReadonlyArray<string>): DynamicRu
       // registration it made before its successor claims the same kind word,
       // the same sibling key and the same held record. The browser runtime
       // keeps the same order one process over and for the same reason.
-      for (const [name, one] of [...live]) {
+      for (const [name, one] of [...started]) {
+        if (!one.up) {
+          // A WORD THAT FAILED and is no longer wanted stops being a word this
+          // runtime has anything to say about; one that is still wanted keeps
+          // its sentence until the attempt below replaces it.
+          if (!wanted.has(name)) started.delete(name)
+          continue
+        }
         if (wanted.get(name)?.version === one.version) continue
-        live.delete(name)
+        started.delete(name)
         yield* one.mounted.dispose
         moved = true
       }
       for (const [name, one] of wanted) {
-        if (live.has(name)) continue
-        faults.delete(name)
-        const up = yield* start(host, one, faults)
-        if (up === null) {
-          moved = moved || faults.has(name)
-          continue
-        }
-        live.set(name, up)
-        moved = true
+        if (upAt(name) !== null) continue
+        const before = started.get(name)
+        const now = yield* start(host, one)
+        started.set(name, now)
+        // MOVED means the roster has something new to say — a plugin that
+        // mounted, or one whose sentence is not the sentence it had.
+        moved = moved || now.up || before === undefined || before.up || before.why !== now.why
       }
       return moved
     })
 
   return {
     rows: (report) =>
-      seen.map((one) =>
-        rowOf(one, live.get(one.name), report.get(one.name), faults.get(one.name), stopped)
-      ),
+      seen.map((one) => rowOf(one, started.get(one.name), report.get(one.name), stopped)),
     names: () => seen.map((one) => one.name),
     follow: (derived) => follow(definedIn(derived, built)),
     again: Effect.suspend(() => follow(seen)),
     chunk: (path) => {
-      for (const one of live.values()) if (one.path === path) return one.chunk
+      for (const one of started.values()) if (one.up && one.path === path) return one.chunk
       return null
     },
     set: (name, enabled) =>
@@ -210,32 +232,30 @@ export const openDynamic = (host: Host, built: ReadonlyArray<string>): DynamicRu
 }
 
 /**
- * BUILD AND MOUNT ONE DEFINITION, or record why not.
+ * BUILD AND MOUNT ONE DEFINITION — and the answer is what came of it, either
+ * way.
  *
- * `null` with a fault recorded is every way this can go wrong short of the
- * plugin's own `apply`, which is the runtime's to contain and does NOT come back
- * here: a fiber that failed is mounted, in `FAILED`, having installed nothing,
- * and its report is what the row draws.
+ * It used to answer `null` and write the sentence into a map its caller also
+ * held, which is the arrangement {@link Started} records being rid of: a
+ * function whose real answer is in a parameter is a function two readers have to
+ * agree about.
+ *
+ * A FAILING `apply` DOES NOT COME BACK HERE. That is the runtime's to contain: a
+ * fiber whose Effect died is mounted, in `FAILED`, having installed nothing, and
+ * what a row draws for it is the REPORT rather than anything this function knows.
+ * Every arm below is a way the definition never became a fiber at all.
  */
-const start = (
-  host: Host,
-  one: Defined,
-  faults: Map<string, string>,
-): Effect.Effect<Live | null> =>
+const start = (host: Host, one: Defined): Effect.Effect<Started> =>
   Effect.gen(function*() {
-    const faulted = (why: string): Effect.Effect<null> =>
-      Effect.sync(() => {
-        faults.set(one.name, why)
-        return null
-      })
+    const faulted = (why: string): Started => ({ up: false, why })
     const server = yield* Effect.promise(() => buildHalf("server", one.server))
-    if (!server.ok) return yield* faulted(server.why)
+    if (!server.ok) return faulted(server.why)
     const browser = one.browser === null
       ? null
       : yield* Effect.promise(() => buildHalf("browser", one.browser ?? ""))
-    if (browser !== null && !browser.ok) return yield* faulted(browser.why)
+    if (browser !== null && !browser.ok) return faulted(browser.why)
     const plugin = yield* Effect.promise(() => loaded(server.text))
-    if (typeof plugin === "string") return yield* faulted(plugin)
+    if (typeof plugin === "string") return faulted(plugin)
     // THE WORD IS THE VAULT'S, and a half that named itself something else would
     // be a fiber bound under a word no row draws — its kinds prefixed wrongly,
     // its sibling composed under a key the roster does not carry, its held
@@ -243,13 +263,14 @@ const start = (
     // everywhere else in this tree, and a definition is where this one is
     // decided, so the half does not get to disagree with it.
     if (plugin.name !== one.name) {
-      return yield* faulted(
+      return faulted(
         `this plugin's server half calls itself "${plugin.name}", but the node that defines it `
           + `says "${one.name}". The node's \`plugin\` property is the name; make the half agree with it.`,
       )
     }
     const mounted = yield* mountPlugin(host, plugin)
     return {
+      up: true,
       version: one.version,
       mounted,
       chunk: browser === null ? null : browser.text,
@@ -301,11 +322,11 @@ const loaded = async (text: string): Promise<Plugin | string> => {
  */
 const rowOf = (
   one: Defined,
-  live: Live | undefined,
+  started: Started | undefined,
   report: RowReport | undefined,
-  fault: string | undefined,
   stopped: ReadonlySet<string>,
 ): BuiltPlugin => {
+  const up = started?.up === true ? started : null
   const source = {
     node: one.node,
     file: one.file,
@@ -313,21 +334,22 @@ const rowOf = (
     approved: isApproved(one),
     server: one.server,
     ...(one.browser === null ? {} : { browser: one.browser }),
-    ...(live?.path == null ? {} : { chunk: live.path }),
+    ...(up?.path == null ? {} : { chunk: up.path }),
   }
-  const said = one.fault ?? fault
-  if (said !== undefined) return { name: one.name, running: false, state: "failed", fault: said, source }
-  if (!isApproved(one)) return { name: one.name, running: false, state: "pending", source }
-  if (stopped.has(one.name)) return { name: one.name, running: false, state: "switched", source }
-  if (live === undefined || report === undefined) {
-    return { name: one.name, running: false, state: "off", source }
-  }
-  return {
+  const at = (state: PluginState, more: Partial<BuiltPlugin> = {}): BuiltPlugin => ({
     name: one.name,
-    running: report.state === "running",
-    state: report.state,
+    running: state === "running",
+    state,
+    ...more,
+    source,
+  })
+  const said = one.fault ?? (started?.up === false ? started.why : undefined)
+  if (said !== undefined) return at("failed", { fault: said })
+  if (!isApproved(one)) return at("pending")
+  if (stopped.has(one.name)) return at("switched")
+  if (up === null || report === undefined) return at("off")
+  return at(report.state, {
     ...(report.state === "failed" && report.fault !== undefined ? { fault: report.fault } : {}),
     ...(report.state === "waiting" && report.missing !== undefined ? { missing: report.missing } : {}),
-    source,
-  }
+  })
 }
