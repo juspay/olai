@@ -24,7 +24,7 @@
  */
 
 import { surface } from "@olai/surface"
-import { type GitPin, type KindVocabulary, NO_KINDS } from "@olai/format"
+import { type GitPin, type PageRequest } from "@olai/format"
 import type { IdentityConfig } from "@olai/identity"
 import { fixedPolicy, make as makeOps, type Ops, TOOLS } from "@olai/ops"
 import { BUNDLE_NAMES, mountBundle, reportBundle } from "@olai/bundle/bundle"
@@ -110,9 +110,6 @@ export const serve = (options: ServeOptions) =>
      *  the vocabulary a store validates with is what the rows contribute — so
      *  the door a row names is asked per call. */
     let opsLayer: Ops | null = null
-    /** Filled after every plugin has registered its kinds. Journal's standing
-     * views read through the thunk only after the surface is live. */
-    let vocabulary: KindVocabulary = NO_KINDS
     /** WHERE A RELATIVE PATH RESOLVES FROM, resolved the way `openDirectory`
      *  resolves it and BEFORE it, because the plugin runtime is opened first.
      *  One spelling of `resolve` in two places is a hazard; two answers to which
@@ -217,15 +214,14 @@ export const serve = (options: ServeOptions) =>
       vars: process.env,
       now: () => new Date().toISOString(),
       served,
-      vocabulary: () => vocabulary,
       tools: toolsReady,
       // ...AND THE FENCE MINTED OFF IT. Read per call rather than captured,
       // because the mint does not exist until the MCP face does — and the row
       // that seats sessions is mounted long before that.
       ticketFor: (seated, above) => mintTicket?.(seated, above) ?? null,
-      // THE WRITE GATE, as narrow as the two gestures that need it: the reading
-      // a message's armed ids are resolved against, and one property on one
-      // node. The ops layer is built a few statements down, so both are asked
+      // THE NARROW OPS DOOR: the reading a message's armed ids are resolved
+      // against, a page read through core's standing cache, one property on one
+      // node, and a document mint. The ops layer is built below, so all are asked
       // per call — the same shape the doorbell's door had before it became the
       // chat row's own.
       ops: {
@@ -238,6 +234,12 @@ export const serve = (options: ServeOptions) =>
             ? Effect.succeed(null)
             : Effect.catch(opsLayer.read, () => Effect.succeed(null))
         ),
+        page: (request: unknown) =>
+          Effect.suspend(() =>
+            opsLayer === null
+              ? Effect.fail(NOWHERE_TO_WRITE)
+              : opsLayer.page(request as PageRequest)
+          ),
         prop: (write: PropWrite) =>
           Effect.suspend(() =>
             opsLayer === null
@@ -287,7 +289,6 @@ export const serve = (options: ServeOptions) =>
     // phase and names the phase it stops being.
     const report = yield* reportBundle(plugins.host)
     const kinds = yield* propKinds(plugins)
-    vocabulary = kinds
     const { root, store } = yield* openDirectory(options.root, kinds)
 
     // Bumped whenever anything about git settled — a commit by whichever door

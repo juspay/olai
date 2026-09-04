@@ -15,7 +15,7 @@ import type { Agenda, Row, Shown } from "@olai/format"
 import { expect, test } from "bun:test"
 
 import { drawnBy, fileOf, opensAt, requestFor } from "./page.ts"
-import { atElement, atFile, atNode, HOME_ROUTE } from "./routes.ts"
+import { atElement, atFile, atNode, defineAppRoute, HOME_ROUTE } from "./routes.ts"
 
 const TODAY = "2026-08-10"
 
@@ -25,6 +25,19 @@ test("an address goes over as the address the parser read", () => {
   expect(requestFor(atFile("house.olai")))
     .toEqual({ kind: "at", address: addressOf("house.olai", null) })
   expect(requestFor(HOME_ROUTE)).toEqual({ kind: "at", address: null })
+})
+
+test("a plugin route whose tenant vanished is not core's front page", () => {
+  const plugin = defineAppRoute({
+    claims: [{ kind: "exact", path: "/plugin" }],
+    parse: () => "plugin",
+    href: () => "/plugin" as const,
+    breadcrumb: () => "plugin",
+    narrowable: false,
+    request: () => ({ kind: "trash" } as const),
+    stream: { use: () => () => undefined },
+  })
+  expect(requestFor(plugin.to("plugin"))).toBeNull()
 })
 
 // A `?q=` is a second question with a door of its own (`filter/asking.ts`), so

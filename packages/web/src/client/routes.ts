@@ -140,7 +140,7 @@ import {
   writtenAddress,
 } from "@olai/format"
 import type { AppPage, AppRoute, AppRouteClaim } from "@olai/plugin-api"
-import type { Accessor, JSX } from "solid-js"
+import { createMemo, type Accessor, type JSX } from "solid-js"
 
 import type { Drawn } from "./page.ts"
 
@@ -367,26 +367,60 @@ const overlaps = (a: AppRouteClaim, b: AppRouteClaim): boolean => {
   return exact.startsWith(prefix)
 }
 
-/** Every mounted claim, checked as one namespace before any parser gets to
- * choose a winner. `/trash` is core's sole computed-page claim. */
-const routePages = (): ReadonlyArray<{ readonly plugin: string; readonly page: MountedAppPage }> => {
-  const pages = hung("app.route").map((one) => ({ plugin: one.plugin, page: nodePage(one.face) }))
+interface RoutePage {
+  readonly plugin: string
+  readonly page: MountedAppPage
+}
+
+const printedClaim = (claim: AppRouteClaim): string => `${claim.kind} ${claim.path}`
+
+/** Settle one snapshot of mounted route claims. Earlier plugins keep their
+ * claims; a later colliding page is omitted as a whole and named in one log
+ * sentence, so a bad tenant cannot turn a parse into a blank application. */
+export const settleRoutePages = (
+  entries: ReadonlyArray<{ readonly plugin: string; readonly face: AppPage }>,
+  report: (message: string) => void = console.error,
+): ReadonlyArray<RoutePage> => {
+  const pages: Array<RoutePage> = []
   const claimed: Array<{ readonly owner: string; readonly claim: AppRouteClaim }> = [
     { owner: "core", claim: { kind: "exact", path: "/trash" } },
   ]
-  for (const { plugin, page } of pages) {
-    for (const claim of page.route.claims) {
-      const collision = claimed.find((one) => overlaps(one.claim, claim))
-      if (collision !== undefined) {
-        throw new Error(
-          `app route claim ${claim.kind} ${claim.path} from ${plugin} overlaps ${collision.owner}'s ${collision.claim.kind} ${collision.claim.path}`,
-        )
-      }
-      claimed.push({ owner: plugin, claim })
+  for (const { plugin, face } of entries) {
+    let page: MountedAppPage
+    try {
+      page = nodePage(face)
+    } catch (error) {
+      report(`app route from ${plugin} was dropped: ${String(error)}`)
+      continue
     }
+    const own: Array<{ readonly owner: string; readonly claim: AppRouteClaim }> = []
+    let collision: { readonly owner: string; readonly claim: AppRouteClaim } | undefined
+    let colliding: AppRouteClaim | undefined
+    for (const claim of page.route.claims) {
+      collision = [...claimed, ...own].find((one) => overlaps(one.claim, claim))
+      if (collision !== undefined) {
+        colliding = claim
+        break
+      }
+      own.push({ owner: plugin, claim })
+    }
+    if (collision !== undefined && colliding !== undefined) {
+      report(
+        `app route ${printedClaim(colliding)} from ${plugin} overlaps ` +
+          `${collision.owner}'s ${printedClaim(collision.claim)}; keeping ` +
+          `${collision.owner} and dropping ${plugin}`,
+      )
+      continue
+    }
+    claimed.push(...own)
+    pages.push({ plugin, page })
   }
   return pages
 }
+
+/** The settled claim table follows the runtime's mounted-plugin revision and
+ * is shared by parsing, printing and tenant lookup until that revision moves. */
+const routePages = createMemo(() => settleRoutePages(hung("app.route")))
 
 const claims = (route: NodePageRoute, pathname: string): boolean =>
   route.claims.some((claim) =>

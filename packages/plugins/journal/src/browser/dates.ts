@@ -9,9 +9,9 @@
  * `https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md` is taking away — the browser may
  * hold at most the page in front of somebody — and this is its PR 4 (§3's
  * Sidebar row, §6's item 4). The WALKS did not move: they are
- * `@olai/format`'s still, called on the other side of the wire by `@olai/ops`'
- * `Query.dated` / `Query.owed`, which is the same arrangement search landed in
- * one PR earlier (`./filter/asking.ts`).
+ * `@olai/format`'s still, called on the other side of the wire by this plugin's
+ * `readings.ts`, which is the same arrangement search landed in one PR earlier
+ * (`@olai/web`'s `filter/asking.ts`).
  *
  * ## Three questions, and the third crosses no wire
  *

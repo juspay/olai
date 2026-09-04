@@ -20,8 +20,8 @@ The plugin owns three address forms:
 - `/agenda` — overdue, today and upcoming work, counted from the reader's local day.
 
 Those forms are exclusive route claims. A mounted plugin cannot silently take
-`/trash` or overlap another plugin's exact path/prefix; the shell refuses the
-conflicting route vocabulary instead of choosing by bundle order. Journal's
+`/trash` or overlap another plugin's exact path/prefix; the shell keeps the
+first claim and drops a later conflicting page with a diagnostic naming both. Journal's
 typed route definitions also mint the sidebar, calendar and palette destinations,
 so those affordances cannot drift from the parser that owns their URLs.
 
@@ -43,6 +43,8 @@ surface/journal/note/mint       create one daily note
 
 The MCP face does not expose these screen-shaped readings. An agent reads and searches the same dated nodes through the core vault resources and tools.
 
-All four streams share the directory's standing-query cache. A revision and
-request are answered once even when several tabs ask, and page answers use the
-same composed property-kind vocabulary as validation and core pages.
+Day and agenda pages use core's one standing page cache, so repeated asks share
+the answer and use the same composed property-kind vocabulary as validation.
+The small calendar and owed readings remain in the plugin and read its retained
+vault revision directly; no second ops standing cache or vocabulary service is
+created for them.

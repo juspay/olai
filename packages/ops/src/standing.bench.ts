@@ -1,5 +1,5 @@
 /**
- * WHAT ONE WRITE COSTS THE SERVER WITH TABS OPEN — the five standing views,
+ * WHAT ONE WRITE COSTS THE SERVER WITH TABS OPEN — the three standing views,
  * timed at one, three and ten subscribers on one question.
  *
  * The unit is the whole point of it. These readings are not asked and answered:
@@ -20,7 +20,7 @@
  *     together.
  *
  * BOTH ARMS ARE IN THE TREE and are replayed against each other before a figure
- * is quoted — `rebuilding` is the same five answers with none of the sharing in
+ * is quoted — `rebuilding` is the same three answers with none of the sharing in
  * front of them, kept in the module under test as the differential's reference
  * ({@link ./standing.testlib.ts}). The two must answer the same value at every
  * revision or the row throws rather than printing a ratio nobody may believe:
@@ -31,10 +31,8 @@
  * timing that fails a lane on a busy machine teaches nobody anything.
  *
  * Its vault is the harness's ({@link vaultFor}) rather than
- * `@olai/format/testlib`'s `vaultOf`, and the difference is load-bearing here
- * as it is over there: a third of its files hold no date at all, which is the
- * shape a real directory has and the only shape under which the calendar's and
- * the agenda's pre-check can be measured at all. Size it with
+ * `@olai/format/testlib`'s `vaultOf`, so the benchmark and differential drive
+ * the same corpus. Size it with
  * OLAI_BENCH_FILES / OLAI_BENCH_RECORDS, like the four legs that share the
  * other vault.
  */
@@ -89,13 +87,10 @@ const changing = (path: string): Modelled =>
     one.parent !== null && one.mirror === null
   ) as Modelled
 
-const day = (changing(subject).date ?? "2026-01-01")
 const pageAt = (path: string): PageRequest => ({ kind: "at", address: addressOf(path, null) })
 
-/** The five, as the questions a tab actually holds open. */
+/** The three, as the questions a tab actually holds open. */
 const QUESTIONS: ReadonlyArray<readonly [string, Question]> = [
-  ["owed", { which: "owed", request: { today: day } }],
-  ["dated", { which: "dated", request: { month: day.slice(0, 7) } }],
   ["page", { which: "page", request: pageAt(subject) }],
   ["narrowing", { which: "narrowing", request: { page: pageAt(subject), text: "record" } }],
   [
@@ -108,7 +103,7 @@ const QUESTIONS: ReadonlyArray<readonly [string, Question]> = [
 ]
 
 console.log(
-  `one write, ${TABS.join("/")} tabs on one question — what the five standing views cost`,
+  `one write, ${TABS.join("/")} tabs on one question — what the three standing views cost`,
 )
 console.log(
   `vault: ${vault.outlines.size} outlines, ${first.derived.nodes.length} records, ` +
@@ -183,15 +178,14 @@ for (const [where, into] of [["inside", subject], ["elsewhere", elsewhere]] as c
 // ── the whole room ─────────────────────────────────────────────────────
 
 /**
- * WHAT A TAB ACTUALLY HOLDS, all five at once — a page, the filter over it, the
- * calendar, what is owed and a move picker left open.
+ * WHAT A TAB ACTUALLY HOLDS here, all three at once — a page, the filter over
+ * it and a move picker left open.
  *
  * The rows above are one question at a time, which is the honest way to price
- * each of them and is not what a write costs: a browser holds the sidebar's two
- * readings whatever page it is on, so a second tab is a second EVERYTHING. This
- * is that number.
+ * each of them and is not what a write costs: a second tab is a second
+ * EVERYTHING. This is that number.
  */
-console.log("a whole tab — all five questions, per write")
+console.log("a whole tab — all three questions, per write")
 for (const [where, into] of [["inside", subject], ["elsewhere", elsewhere]] as const) {
   for (const tabs of TABS) {
     const room = (views: Standing): number => {

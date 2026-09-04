@@ -307,15 +307,6 @@ export interface Kinds {
 }
 export const Kinds = serviceTag<Kinds>("kinds")
 
-/** The format vocabulary assembled by the composition root. Opaque here for
- * the same dependency-direction reason as {@link Vault}'s reading; a plugin
- * that derives page readings narrows it at its own format boundary. */
-export interface Vocabulary {
-  /** Read at query time, after every plugin has had a chance to register. */
-  readonly current: () => unknown
-}
-export const Vocabulary = serviceTag<Vocabulary>("vocabulary")
-
 /** ONE PLUGIN'S KIND, COMPOSED — its word prefixed with the plugin's name, and
  *  the KEY it claims by convention, which is that same word. What the format
  *  reads is this rather than the bare row a plugin wrote. */
@@ -822,10 +813,10 @@ export const Tools = serviceTag<Tools>("tools")
  *
  * ## What this is, and the door it deliberately is NOT
  *
- * `@olai/server`'s `runtime.ts` composed three things a plugin now owns: the
+ * `@olai/server`'s `runtime.ts` composed the things a plugin now owns: the
  * reading a message's armed ids are resolved against, the property write that
- * binds a node to a conversation, and the refusal a person sees in their
- * transcript when a tool call was turned down. All three were composed there
+ * binds a node to a conversation, the page a plugin face draws, and the refusal
+ * a person sees in their transcript when a tool call was turned down. They were composed there
  * because that was the only place both halves were in hand — and a plugin that
  * owns the conversation owns one of the halves.
  *
@@ -848,6 +839,10 @@ export interface Ops {
   /** THE READING every write is resolved against — one answer to "there is
    *  nothing loaded yet", shared with the tools and with a keystroke. */
   readonly reading: Effect.Effect<unknown>
+  /** Read one page through core's standing cache. The request and answer are
+   * opaque for the same dependency-direction reason as {@link reading}; a
+   * plugin narrows both at its format boundary. */
+  readonly page: (request: unknown) => Effect.Effect<unknown, Refusal>
   /** ONE PROPERTY, WRITTEN — see {@link PropWrite} on why the door is the
    *  gesture's shape rather than the layer's. */
   readonly prop: (write: PropWrite) => Effect.Effect<void, Refusal>
@@ -1009,7 +1004,7 @@ export interface PluginsConfig {
     above: (node: string) => string | null,
   ) => MintedTicket | null
   /**
-   * THE VAULT'S WRITE GATE, as narrow as the two gestures that need it — see
+   * THE VAULT'S NARROW OPS DOOR — see
    * {@link Ops}.
    *
    * OPTIONAL, and absent means NO VAULT IS BEING WRITTEN: a root with no store
@@ -1017,10 +1012,7 @@ export interface PluginsConfig {
    * nothing and refuses a write, which is what a plugin asking one of a process
    * that serves no directory should be told.
    */
-  readonly ops?: Pick<Ops, "reading" | "prop" | "document">
-  /** The process's composed property vocabulary, read lazily because plugins
-   * mount before the directory and its codec are opened. */
-  readonly vocabulary?: () => unknown
+  readonly ops?: Pick<Ops, "reading" | "page" | "prop" | "document">
   /**
    * WHERE EACH PLUGIN SITS IN THE BUILD'S LIST OF ROWS — see {@link Bundle}.
    *
@@ -1062,11 +1054,6 @@ export const openPlugins = (
       dial: config.dials?.[plugin],
     }))
     yield* provide(host, Clock, () => ({ now: config.now }))
-    const vocabulary = config.vocabulary
-    if (vocabulary !== undefined) {
-      yield* provide(host, Vocabulary, () => ({ current: vocabulary }))
-    }
-
     // THE THREE BUSES, and they are one primitive rather than three hand-rolled
     // copies of it ({@link @olai/effect-cordis}'s `broadcast`). Each holds its
     // handlers in subscription order, wraps every one of them ONCE with the
@@ -1248,6 +1235,7 @@ export const openPlugins = (
     const refusals = broadcast<Refused>("a refused write")
     yield* provide(host, Ops, (plugin) => ({
       reading: config.ops?.reading ?? Effect.succeed(null),
+      page: (request) => config.ops?.page(request) ?? Effect.fail(NOWHERE_TO_WRITE),
       prop: (write) => config.ops?.prop(write) ?? Effect.fail(NOWHERE_TO_WRITE),
       document: (file) => config.ops?.document(file) ?? Effect.fail(NOWHERE_TO_WRITE),
       refused: refusals.listen(plugin),

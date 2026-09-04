@@ -44,14 +44,12 @@ import { failed, planned, readingOf, setOf, steady, succeeded } from "./fixtures
 import { folding } from "./following.ts"
 import { scoping } from "./plan.ts"
 import {
-  dated,
   detail,
   documents,
   homes,
   named,
   narrowing,
   outlines,
-  owed,
   search,
   subtree,
   tags,
@@ -1946,80 +1944,6 @@ describe("where these ids are, and which of these files the set has", () => {
 
   test("nothing asked is nothing answered", () => {
     expect(asking([], [])).toEqual({ homes: [], loaded: [] })
-  })
-})
-
-describe("the sidebar's two date readings", () => {
-  /** A directory with dates on both sides of the day below, over two outlines,
-   *  so a count of NODES is exercised across the groups an agenda comes in —
-   *  and with the two shapes the calendar's own rules turn on: a dated `done`
-   *  (which is a day with something on it even though the work is finished) and
-   *  a dated `todo` (which is not a day at all).
-   *
-   *  Fixed dates and a fixed today, for `@olai/format`'s own reason: a test
-   *  that read a clock would expire. */
-  const DAYS = (): OutlineSet =>
-    setOf({
-      "work.olai": [
-        `{"id":"permit","ord":"a0","title":"file the permit","todo":true,"date":"2026-08-03"}`,
-        `{"id":"posts","ord":"a1","title":"dig the post holes","doing":true,"date":"2026-08-09"}`,
-        `{"id":"survey","ord":"a2","title":"the boundary survey","done":"2026-08-21","date":"2026-08-28"}`,
-        `{"id":"filed","ord":"a3","title":"chase the filing","todo":"2026-08-17"}`,
-        `{"id":"next","ord":"a4","title":"pour the slab","todo":true,"date":"2026-09-02"}`,
-      ].join("\n"),
-      "life.olai": [
-        `{"id":"visas","ord":"a0","title":"send the visa forms","todo":true,"date":"2026-08-05"}`,
-        `{"id":"mum","ord":"a1","title":"mum's birthday","date":"2026-08-09"}`,
-      ].join("\n"),
-    })
-
-  test("the dots are the days of THAT month, sorted, and nothing either side", () => {
-    // SORTED is the one thing this reading adds to `datedDays`, and it is what
-    // lets the server send a frame only when the dots actually moved: the walk's
-    // own order is the set's, which a record moved between files reshuffles
-    // without lighting or darkening a single day.
-    expect(dated(derivedOf(DAYS()), { month: "2026-08" })).toEqual({
-      // `2026-08-21` is `survey`'s dated `done` and `2026-08-28` its `date` —
-      // both count, which is the format's two-fields rule. `2026-08-17` is a
-      // dated `todo` and is not a day.
-      days: ["2026-08-03", "2026-08-05", "2026-08-09", "2026-08-21", "2026-08-28"],
-    })
-    expect(dated(derivedOf(DAYS()), { month: "2026-09" })).toEqual({
-      days: ["2026-09-02"],
-    })
-  })
-
-  test("a month with nothing in it is an answer, not a refusal", () => {
-    // A reader may page back through empty years, and the grid still draws.
-    expect(dated(derivedOf(DAYS()), { month: "2019-11" })).toEqual({ days: [] })
-  })
-
-  test("what is owed counts the rows the agenda page draws", () => {
-    // Not a second walk of its own: this is `owedOf` over `agendaOf`, so the
-    // number the sidebar prints and the rows one click away are one reading.
-    // Two late over two outlines; today is `posts` (doing). `mum` is an
-    // occurrence on the same day — on the day page, not owed.
-    expect(owed(derivedOf(DAYS()), { today: "2026-08-09" }))
-      .toEqual({ overdue: 2, today: 1 })
-  })
-
-  test("the day is the READER's, so two tabs either side of midnight differ", () => {
-    // Which is the whole reason it travels on the request instead of being read
-    // off the server's clock: the dates in the files are what a person wrote
-    // down, so what is late is late where that person is standing.
-    expect(owed(derivedOf(DAYS()), { today: "2026-08-04" }))
-      .toEqual({ overdue: 1, today: 0 })
-    // …and a day before everything in the directory owes nothing at all, where
-    // the same set read a fortnight later owes plenty.
-    expect(owed(derivedOf(DAYS()), { today: "2026-08-01" }))
-      .toEqual({ overdue: 0, today: 0 })
-  })
-
-  test("upcoming is never counted, however close it is", () => {
-    // `owedOf`'s ruling read through this door: a task due tomorrow is not news
-    // today, and a count that included it could never fall to nothing.
-    expect(owed(derivedOf(DAYS()), { today: "2026-09-01" }).today).toBe(0)
-    expect(owed(derivedOf(DAYS()), { today: "2026-09-01" }).overdue).toBe(3)
   })
 })
 

@@ -41,7 +41,7 @@ import { atElement, type Route } from "./routes.ts"
  * door of its own (`./filter/asking.ts`), so a page reading that carried it
  * would re-ask the whole page on every keystroke.
  */
-export const requestFor = (route: Route): CorePageRequest => {
+export const requestFor = (route: Route): CorePageRequest | null => {
   switch (route.kind) {
     case "at": {
       const address = route.address
@@ -67,8 +67,9 @@ export const requestFor = (route: Route): CorePageRequest => {
       return { kind: "trash" }
     case "plugin":
       // A mounted route tenant supplies its own request in PageView. This arm
-      // is only the total fallback for a route whose tenant disappeared.
-      return { kind: "at", address: null }
+      // is only the total fallback for a route whose tenant disappeared. It
+      // asks nothing: the vanished tenant is not core's front page.
+      return null
   }
 }
 

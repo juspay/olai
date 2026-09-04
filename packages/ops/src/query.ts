@@ -39,9 +39,6 @@ import {
   countedChildren,
   DEFAULT_SEARCH_LIMIT,
   DEFAULT_SUBTREE_DEPTH,
-  type DatedAnswer,
-  datedAnswer,
-  type DatedRequest,
   type Derived,
   declarationsOf,
   type Detail,
@@ -79,9 +76,6 @@ import {
   nothing,
   type OpFailure,
   type OutlineError,
-  type Owed,
-  owedNow,
-  type OwedRequest,
   type OutlineSet,
   outlineNames,
   outlinePaths,
@@ -617,67 +611,6 @@ export const homes = (
   )
   return { homes, loaded }
 }
-
-// ── the directory's dates, as the sidebar asks them ────────────────────
-
-/**
- * WHICH DAYS OF ONE MONTH have something on them — the calendar's dots.
- *
- * The browser used to walk its own copy of the set for this, once per month
- * drawn and again on every published revision. It cannot any more
- * (`https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md`: the browser may hold at most the
- * page in front of somebody), so the reading runs here and the answer travels —
- * which is the whole of what changed. The READING is `@olai/format`'s
- * {@link datedDays}, unmoved: what is dated, what a mark's own date counts for
- * and what a put-away outline is excluded from are that module's rulings, read
- * once for the day page, the agenda and this.
- *
- * NOTHING IS ADDED HERE, which is the shape rather than an omission: the answer
- * and the ORDER it comes in are both `@olai/format`'s ({@link datedAnswer},
- * which is the one way to build one, beside the equivalence that rests on it).
- * What this layer contributes is the gate the request arrives through, which is
- * the whole of what a query door is.
- *
- * IT WAS A WALK OF THE WHOLE SET per call, as every date reading this layer has
- * was, and running it per subscriber per revision is exactly the pressure the
- * roadmap's `perf-dates-index` node was filed on. That node has landed: the
- * derivation carries a day index and this is a walk of one month's keys. NOTHING
- * HERE MOVED WITH IT, which is what the paragraph above predicted and is worth
- * leaving as the record of a seam that held — an index changes what a reading
- * COSTS, never what it means.
- */
-export const dated = (derived: Derived, request: DatedRequest): DatedAnswer =>
-  datedAnswer(derived, request.month)
-
-/**
- * HOW MUCH IS OWED as of the reader's own today — the two numbers the
- * directory's own entry wears (`@olai/web`'s `agenda/owed.ts`).
- *
- * `@olai/format`'s {@link owedNow} and never a count of its own, which is the
- * same restraint every other door here keeps: what is late, what a mark is and
- * which day a value falls on are that package's rulings, and this layer
- * contributes the gate the request arrives through.
- *
- * IT USED TO BE `owedOf` OVER `agendaOf` — the whole agenda read, then counted
- * — because a count taken off the page's own answer cannot disagree with the
- * page one click away. What that cost is what `perf-agenda-history-walk` was
- * filed on: building the answer means situating every overdue node in the
- * directory (an ancestry walk, a mirror resolution and a rollup each), and this
- * door is re-answered per subscriber per published revision to produce two
- * integers. The counts are an index the patcher keeps now, and the guarantee
- * that used to be structural is a GATE instead: `./owed.index.test.ts` asks
- * both spellings after every write of a real corpus, at boundaries either could
- * move on. NOTHING HERE DECIDES ANY OF THAT, which is the shape of this layer
- * and the reason this function is one line either way.
- *
- * TODAY comes from the REQUEST rather than from this layer's clock, and that is
- * the one thing this reading takes from the caller. The dates in the files are
- * what a person wrote down, so what is late is late where that person is
- * standing; a server that answered from its own zone would put a reader west of
- * it on tomorrow's arithmetic all evening ({@link OwedRequest}).
- */
-export const owed = (derived: Derived, request: OwedRequest): Owed =>
-  owedNow(derived, request.today)
 
 // ── one page, and one gesture over the whole set ───────────────────────
 
@@ -1564,4 +1497,3 @@ export const document = (
   if (broken !== undefined) return Result.fail(notLoaded(file, broken))
   return Result.succeed({ file, text: entry.body })
 }
-

@@ -16,6 +16,7 @@ import { parseFilter, samePageRequest } from "@olai/format"
 
 import { CLEARANCE } from "../connection/Indicator.tsx"
 import { DocumentPage } from "../document/DocumentPage.tsx"
+import { Empty } from "../Empty.tsx"
 import { Broken } from "../errors/Broken.tsx"
 import { createAsked } from "../filter/asking.ts"
 import { FilterBar } from "../filter/FilterBar.tsx"
@@ -57,6 +58,7 @@ function PageAt(props: { readonly source: MountedAppPage | null }) {
   const today = useToday()
   const route = createMemo(() => panesOf(router.workspace())[here()]!.route)
   const opened = createMemo(route, undefined, { equals: samePage })
+  const missing = createMemo(() => props.source === null && opened().kind === "plugin")
 
   /**
    * THIS PANE'S OWN QUESTION, and its own subscription to the answer
@@ -85,7 +87,8 @@ function PageAt(props: { readonly source: MountedAppPage | null }) {
     }
     return requestFor(open)
   }, undefined, {
-    equals: samePageRequest,
+    equals: (before, after) =>
+      before === null || after === null ? before === after : samePageRequest(before, after),
   })
   /**
    * THE BOX, READ ONCE — and both things made of it built off that one value:
@@ -280,7 +283,14 @@ function PageAt(props: { readonly source: MountedAppPage | null }) {
             draws. */}
         <Show
           when={page()}
-          fallback={<p class="m-0 py-8 text-muted">Reading…</p>}
+          fallback={
+            <Show
+              when={missing()}
+              fallback={<p class="m-0 py-8 text-muted">Reading…</p>}
+            >
+              <Empty testid={TESTID.nothing} line="No such page here." />
+            </Show>
+          }
         >
           {(open) => (
             <Switch>

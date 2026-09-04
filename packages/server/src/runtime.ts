@@ -1567,7 +1567,7 @@ export const bind = (
        * tick that moved nothing sends nothing. That is the design doc's
        * mechanism paragraph exactly — recompute on every published revision,
        * send when it changed by value (`vault-in-browser.md` §2) — and it is
-       * why the sidebar's two date readings are streams rather than a pair of
+       * why the page, its filter and the move preview are streams rather than
        * procedures a browser would have to know when to re-ask.
        *
        * THE READ IS THE OPS LAYER'S, which is the same gated read a keystroke's
@@ -1581,27 +1581,24 @@ export const bind = (
        * right one: a subscription's lifetime, its last value and whether it is
        * owed a frame are that subscriber's own. What it is NOT is a reason to
        * compute the same answer once per tab, and since `perf-streams-per-tab`
-       * it is not: these five reads go through `@olai/ops`' `standing.ts`, which
+       * it is not: these three reads go through `@olai/ops`' `standing.ts`, which
        * answers one QUESTION at one revision once however many loops ask, and
        * which asks — before rebuilding — whether the revision could have moved
        * the answer at all. Nothing here had to learn about it, and that is the
-       * point of where it went: this file still binds the same five reads to the
+       * point of where it went: this file still binds the same three reads to the
        * same pulse, and the sharing is a fact about the ops layer's answers
        * rather than a second cache on this side of the wire.
        *
-       * THE INSTALL IS ONE PULSE for both, and it carries nothing
+       * THE INSTALL IS ONE PULSE for all three, and it carries nothing
        * (`revisions`, above): a listener is told the directory moved and goes
        * back to the ops layer for what it now says.
        *
-       * THE EQUIVALENCES ARE THE SCHEMAS' — `@olai/format`'s `sameDated` and
-       * `sameOwed`, derived from the declarations rather than written out, so a
-       * field added to either answer is compared without anybody remembering to
-       * compare it. Getting that wrong in this direction is a frame that is
-       * never sent: a browser holding a stale month under a healthy socket.
-       * They are the SAME functions the standing layer compares with, which is
-       * what makes handing back a previous answer safe: a value that layer
-       * called unmoved is a value this comparison calls unmoved too, so there
-       * is no frame it can decide about on this side's behalf.
+       * THE EQUIVALENCES ARE THE SCHEMAS', derived from the declarations rather
+       * than written out, so a field added to an answer is compared without
+       * anybody remembering to compare it. They are the SAME functions the
+       * standing layer compares with, which is what makes handing back a
+       * previous answer safe: a value that layer called unmoved is a value this
+       * comparison calls unmoved too.
        *
        * AN INITIAL read failure propagates — the subscriber has no snapshot, so
        * there is nothing honest to draw and the framework fails the stream,
@@ -1617,7 +1614,7 @@ export const bind = (
          * lines because everything above it was built to make it three.
          *
          * The read is the ops layer's gated one, the install is the same pulse
-         * the two date readings use, and the equivalence is the schema's
+         * the other standing readings use, and the equivalence is the schema's
          * (`@olai/format`'s `samePageReading`). Nothing is decided here: which
          * page an address names and what it draws is the format's, and a second
          * walk of the set on this side of the wire is exactly what the browser

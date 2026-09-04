@@ -1,27 +1,25 @@
 import { type ImplementSurfaceDeps, inMemoryChannel } from "@kolu/surface/server"
 import {
-  Clock,
   definePlugin,
   Ops,
   Surfaces,
   Vault,
-  Vocabulary,
 } from "@olai/plugin-api/services"
 import {
   dailyNotePathFor,
   isDay,
-  type KindVocabulary,
   markdownIn,
   sameDated,
   sameOwed,
   samePageReading,
   type OpFailure,
+  type PageReading,
   type Reading,
   UsageFailure,
 } from "@olai/format"
-import { standing } from "@olai/ops"
 import { Effect } from "effect"
 
+import { dated, owed } from "./readings.ts"
 import { faces, name, surface } from "./wire.ts"
 
 export { faces, name, surface } from "./wire.ts"
@@ -40,17 +38,16 @@ interface VaultRevision {
 
 export default definePlugin({
   name,
-  needs: [Clock, Ops, Surfaces, Vault, Vocabulary],
+  needs: [Ops, Surfaces, Vault],
   apply: Effect.gen(function*() {
-    const clock = yield* Clock
     const ops = yield* Ops
     const surfaces = yield* Surfaces
     const vault = yield* Vault
-    const vocabulary = yield* Vocabulary
 
-    // One retained revision and one pulse shared by the four readings. Keeping
-    // the Reading object whole keeps its incrementally patched owed index with
-    // the set and derived view it belongs to.
+    // One retained revision and one pulse for the two small derived readings.
+    // Keeping the Reading object whole keeps its incrementally patched owed
+    // index with the set it describes; day and agenda pages go through core's
+    // one standing page cache below.
     let current: Reading | undefined
     const revisions = inMemoryChannel<void>()
     const replace = (next: Reading | undefined): void => {
@@ -67,29 +64,33 @@ export default definePlugin({
     const reading: Effect.Effect<Reading, OpFailure> = Effect.suspend(() =>
       current === undefined ? Effect.fail(noReading()) : Effect.succeed(current)
     )
-    const views = standing(clock.now, () => vocabulary.current() as KindVocabulary)
+    const page = (request: unknown): Effect.Effect<PageReading, OpFailure> =>
+      Effect.map(
+        Effect.mapError(ops.page(request), (failure) => failure as OpFailure),
+        (answer) => answer as PageReading,
+      )
     yield* surfaces.register({
       surface,
       faces,
       deps: {
         streams: {
           dated: {
-            read: (input) => Effect.runPromise(Effect.map(reading, (at) => views.dated(at, input))),
+            read: (input) => Effect.runPromise(Effect.map(reading, (at) => dated(at.derived, input))),
             install,
             isEqual: sameDated,
           },
           owed: {
-            read: (input) => Effect.runPromise(Effect.map(reading, (at) => views.owed(at, input))),
+            read: (input) => Effect.runPromise(Effect.map(reading, (at) => owed(at.derived, input))),
             install,
             isEqual: sameOwed,
           },
           day: {
-            read: (input) => Effect.runPromise(Effect.map(reading, (at) => views.page(at, input))),
+            read: (input) => Effect.runPromise(page(input)),
             install,
             isEqual: samePageReading,
           },
           agenda: {
-            read: (input) => Effect.runPromise(Effect.map(reading, (at) => views.page(at, input))),
+            read: (input) => Effect.runPromise(page(input)),
             install,
             isEqual: samePageReading,
           },

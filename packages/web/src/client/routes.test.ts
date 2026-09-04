@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { atElement, atFile, atNode, filterOf, HOME_ROUTE, hrefOf, narrowedTo, type Route, routeIn, routeOf, samePage } from "./routes.ts"
+import { atElement, atFile, atNode, defineAppPage, defineAppRoute, filterOf, HOME_ROUTE, hrefOf, narrowedTo, type Route, routeIn, routeOf, samePage, settleRoutePages } from "./routes.ts"
 import { ROUTES } from "./routes.testlib.ts"
 
 test("every route survives being written to a URL and read back", () => {
@@ -154,6 +154,32 @@ test("journal addresses are absent when no journal route is registered", () => {
     expect(routeOf(address)).toEqual(HOME_ROUTE)
     expect(routeIn(address)).toBeNull()
   }
+})
+
+test("a colliding plugin route is dropped without taking the claim table down", () => {
+  const page = (claims: ReadonlyArray<{ readonly kind: "exact" | "prefix"; readonly path: `/${string}` }>) => {
+    const route = defineAppRoute({
+      claims,
+      parse: () => "page",
+      href: () => "/page" as const,
+      breadcrumb: () => "page",
+      narrowable: false,
+      request: () => ({ kind: "trash" } as const),
+      stream: { use: () => () => undefined },
+    })
+    return defineAppPage(route, () => null)
+  }
+  const logged: Array<string> = []
+  const settled = settleRoutePages([
+    { plugin: "first", face: page([{ kind: "exact", path: "/today" }]) },
+    { plugin: "second", face: page([{ kind: "prefix", path: "/tod" }]) },
+    { plugin: "third", face: page([{ kind: "exact", path: "/agenda" }]) },
+  ], (message) => logged.push(message))
+
+  expect(settled.map((one) => one.plugin)).toEqual(["first", "third"])
+  expect(logged).toEqual([
+    "app route prefix /tod from second overlaps first's exact /today; keeping first and dropping second",
+  ])
 })
 
 // A directory separator stays a separator, so the URL bar shows the path a
