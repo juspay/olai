@@ -508,6 +508,19 @@ Then(
   },
 );
 
+/** PRESS THE FRESH SESSION — the one gesture that re-points a node's property,
+ *  wherever the panel is drawing it.
+ *
+ *  It has two homes and this step names neither: the session picker in the
+ *  header, and the refusal body drawn when the engine would not open the
+ *  conversation the node names. The second is the one the trap needs, and a step
+ *  that spelled a location would have to be two steps for one act. */
+When("I start a fresh session", async function (this: OlaiWorld) {
+  const fresh = this.page.locator(FRESH);
+  await fresh.first().waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await fresh.first().click();
+});
+
 /** A conversation no node claims has no sessions control at all — the header
  *  offers its own history only where there IS one, and the way to every other
  *  stored conversation is the sidebar. Waited for rather than read once: the

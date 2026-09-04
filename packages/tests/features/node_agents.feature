@@ -378,6 +378,47 @@ Feature: A node with an `agent-session` property IS an agent
     Then the panel offers a fresh session, saying "memory is the subtree"
     And the panel offers a fresh session, saying "the transcript becomes history"
 
+  @scratch:lanes
+  Scenario: A node agent whose conversation the engine has lost can still be got out of
+    # THE TRAP, and it is a trap rather than a refusal: every part of it is
+    # working as designed and the person cannot move.
+    #
+    # A node's property names a conversation. The engine no longer has that
+    # conversation — a `claude --resume` store cleared, a machine changed, an id
+    # that was never theirs — so `session/load` answers `no such conversation`
+    # and the panel draws the refusal, which is right. What it offers is *try
+    # again*, which asks for the SAME thing and will be refused for ever.
+    #
+    # The one gesture that CAN move — a fresh session, which re-points the
+    # property — was reachable from two places and neither of them is open:
+    #
+    #   - the panel's session picker, which is drawn only where the conversation
+    #     belongs to a node, and a refused load means there is no conversation;
+    #   - the row's `•••`, which withholds *Start an agent session* precisely
+    #     because the node HAS a session (`one agent, one current session`).
+    #
+    # So the two rules that are each correct alone close on a person together.
+    # This scenario is the trap and its way out.
+    Given I open the outline "lanes.olai"
+    And the agent panel is open
+    When the agent refuses to load a conversation
+    And I press the agent "door-live"
+    Then the panel says the conversation could not be opened
+    And the refusal is in the agent's own words, "no such conversation"
+    # THE WAY OUT, in the body that is drawing the refusal — beside *try again*
+    # rather than instead of it, because an engine that has merely lost its
+    # store for a moment is a real case and re-asking is the cheaper answer.
+    # It says what it MEANS for the same reason the picker's does: the memory is
+    # the subtree, so nothing a person wrote is being thrown away.
+    And the panel offers a fresh session, saying "memory is the subtree"
+    # ...and pressing it moves. The agent will open a NEW conversation — it only
+    # refused the old one — so the node ends up bound to that instead, and the
+    # panel is a conversation again.
+    When the agent will load a conversation again
+    And I start a fresh session
+    Then the agent "door-live" stands "idle"
+    And the node "door-live" shows the property "agent-session" holding "claude:fake-session-1"
+
   @agent-stored @scratch:lanes
   Scenario: ... and names the conversations this agent has had before this one
     # Assigning claims the `/clear` chain in one gesture, so *past sessions* is
