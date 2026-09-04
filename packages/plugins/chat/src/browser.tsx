@@ -69,7 +69,15 @@ import { Panel, Toggle } from "./browser/chat/Panel.tsx"
 import { holdFaces } from "./browser/faces.ts"
 import { type ChatClient, holdChatWire } from "./browser/wire.ts"
 
-export { name } from "./wire.ts"
+/** THE WIRE IDENTITY, on this door too — and `surface` is the load-bearing
+ *  half of it. The tab builds its sibling map out of what each browser half
+ *  EXPORTS (`@olai/web`'s `client/wire.ts`), so a half that names no surface is
+ *  read as an ENGINE — a plugin that composes no sibling because what it
+ *  contributes travels on somebody else's cell — and is mounted without being
+ *  dialled. For a plugin that HAS members that is not a smaller tab: its own
+ *  client is `null`, and the first face to read one throws inside a render.
+ *  `@olai/bundle`'s `composition.test.ts` holds the two doors equal. */
+export { name, surface } from "./wire.ts"
 import { name } from "./wire.ts"
 
 /** THE SIDEBAR'S HEADING, in this plugin's words. Core keeps the region, the
