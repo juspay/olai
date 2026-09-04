@@ -38,6 +38,14 @@ test("what git is doing knows when it has not changed", () => {
   }
 })
 
+test("the three verbs sit on this spec, not on core's", () => {
+  expect(Object.keys(surface.spec.procedures?.git ?? {}).sort()).toEqual([
+    "commit",
+    "push",
+    "resume",
+  ])
+})
+
 test("the pending cell is keyed by the one name its two row lists share", () => {
   expect(surface.spec.cells.pending.arrayKey).toBe("path")
   const schema = surface.spec.cells.pending.schema as unknown as {

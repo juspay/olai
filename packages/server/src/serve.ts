@@ -26,7 +26,7 @@
 import { surface } from "@olai/surface"
 import type { GitPin } from "@olai/format"
 import type { IdentityConfig } from "@olai/identity"
-import { make as makeOps, type Ledger as OpsLedger, type Ops, TOOLS } from "@olai/ops"
+import { make as makeOps, NO_LEDGER, type Ledger as OpsLedger, type Ops, TOOLS } from "@olai/ops"
 import { BUNDLE_NAMES, mountBundle, reportBundle } from "@olai/bundle/bundle"
 import { bundleRank } from "@olai/bundle"
 import { emitter } from "@olai/log"
@@ -282,12 +282,24 @@ export const serve = (options: ServeOptions) =>
     const kinds = yield* propKinds(plugins)
     const { root, store } = yield* openDirectory(options.root, kinds)
 
-    const ledger = offered(plugins.host, Ledger) as OpsLedger | undefined
+    const ledger: OpsLedger = {
+      wrote: (writer) => currentLedger().wrote(writer),
+      whyWaiting: (writer) => currentLedger().whyWaiting(writer),
+      record: (request, writer) => currentLedger().record(request, writer),
+      get push() {
+        return currentLedger().push
+      },
+      get resume() {
+        return currentLedger().resume
+      },
+    }
+    const currentLedger = (): OpsLedger =>
+      (offered(plugins.host, Ledger) as OpsLedger | undefined) ?? NO_LEDGER
 
     const ops: Ops = makeOps({
       store,
       root,
-      ...(ledger === undefined ? {} : { ledger }),
+      ledger,
       // THE SAME TABLE THE STORE VALIDATES WITH, so a value a page draws, a
       // value the validator reports and a value `set_prop` refuses are one
       // question asked three times. Two tables here would be the bug family

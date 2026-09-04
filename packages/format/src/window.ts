@@ -2,11 +2,11 @@
  * THE QUIET WINDOW: how long a directory must be quiet before what is waiting
  * records itself, and whether it would record at all right now.
  *
- * The RULE and nothing else — no timer, no git, no I/O. `@olai/ops`' `pending.ts`
- * runs it (the debounce, the two verbs, the stop) and the BROWSER draws the
- * promise off it, which is why it lives down here on the floor both stand on
- * rather than beside the loop: a browser cannot import the ops layer, whose
- * next module down reaches `node:child_process`.
+ * The RULE and nothing else — no timer, no git, no I/O. The git plugin's
+ * `ledger/pending.ts` runs it (the debounce, the two verbs, the stop) and the
+ * BROWSER draws the promise off it, which is why it lives down here on the
+ * floor both stand on rather than beside the loop: a browser cannot import
+ * the plugin, whose next module down reaches `node:child_process`.
  *
  * **It moved here from a browser tab, and that is the whole of this module's
  * existence.** Auto-commit shipped as a preference beside theme: a 15 s window
@@ -45,8 +45,8 @@ import { isReady, type CommitMode, type Pending } from "./committing.ts"
  *
  * It is deliberately not a knob. A setting here would be a second thing to
  * explain about a feature whose whole point is not having to think about it.
- * The preferences panel prints the span in the Git commit row's own sentence,
- * read off this value rather than spelled again.
+ * `--help` prints the span in the git policy sentence, read off this value
+ * rather than spelled again.
  */
 export const QUIET_MS = 15_000
 

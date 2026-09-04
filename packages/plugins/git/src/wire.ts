@@ -4,10 +4,9 @@
  *
  * The members used to sit in `@olai/surface`'s own spec: a `git` cell, a
  * `pending` cell, and `git.commit` / `git.push` / `git.resume`. They are here
- * now. Composed they read `surface/git/git/get`, `surface/git/pending/get`,
- * `surface/git/commit` — the sibling key IS this plugin's {@link name}, so a
- * procedure called `commit` keeps the tag `surface/git/commit` the writer
- * rebind already overwrites per face.
+ * now. Procedures are a group then a verb, so composed they read
+ * `surface/git/git/get`, `surface/git/pending/get`, `surface/git/git/commit`.
+ * `writerAt` overwrites that last tag per face.
  *
  * ## THIS ENTRY'S OWN FENCE
  *
@@ -18,13 +17,18 @@
 
 import { defineSurface } from "@kolu/surface/define"
 import {
+  CommitRequest,
+  CommitResult,
   GIT_OFF,
   GitState,
   NOTHING_PENDING,
+  OpFailure,
   Pending,
+  PushResult,
   sameGit,
   samePending,
 } from "@olai/format"
+import { Schema } from "effect"
 
 /** The sibling key, the preferences row, the docs slug, and the word
  *  `--plugins` takes. */
@@ -46,23 +50,48 @@ export const surface = defineSurface({
       arrayKey: "path",
     },
   },
+  procedures: {
+    git: {
+      commit: {
+        input: CommitRequest,
+        output: CommitResult,
+        error: OpFailure,
+      },
+      push: {
+        input: Schema.Struct({}),
+        output: PushResult,
+        error: OpFailure,
+      },
+      resume: {
+        input: Schema.Struct({}),
+        output: Schema.Struct({}),
+        error: OpFailure,
+      },
+    },
+  },
 })
 
 /**
  * WHICH FACE SEES WHAT.
  *
- * Browser, agent and MCP all see the two cells and the commit/push verbs —
- * they were on all three faces as core members. `resume` is the browser's
- * alone: it is the preferences panel's button, and an agent has no loop of
- * its own to restart.
+ * Browser and agent see the two cells and the commit/push verbs. MCP tools
+ * stay named `commit` / `push` (the ops table) and land on those sibling
+ * tags; the adapter has no sibling segment for `surface://` cells. `resume`
+ * is the browser's alone: it is the commit panel's button, and an agent has
+ * no loop of its own to restart.
  */
 export const faces = {
   browser: {
     git: "resource",
     pending: "resource",
+    "git.commit": "tool",
+    "git.push": "tool",
+    "git.resume": "tool",
   },
   agent: {
     git: "resource",
     pending: "resource",
+    "git.commit": "tool",
+    "git.push": "tool",
   },
 } as const

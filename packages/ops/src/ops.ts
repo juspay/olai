@@ -93,7 +93,7 @@ export interface Ledger {
   readonly resume: Effect.Effect<void>
 }
 
-const NO_LEDGER: Ledger = {
+export const NO_LEDGER: Ledger = {
   wrote: () => {},
   whyWaiting: () =>
     Effect.succeed("this serve has no git plugin, so writes land and are recorded by nobody"),
@@ -927,7 +927,7 @@ export const make = (options: Options): Ops => {
     tags: (request) =>
       Effect.map(read, (at) => Query.tags(at.derived, request)),
     commit: (request, writer) => ledger.record(request, writer),
-    push: ledger.push,
-    resume: ledger.resume,
+    push: Effect.suspend(() => ledger.push),
+    resume: Effect.suspend(() => ledger.resume),
   }
 }

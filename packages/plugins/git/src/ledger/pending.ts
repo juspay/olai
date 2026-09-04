@@ -68,7 +68,9 @@
 import {
   armedOn,
   brokenBy,
+  COMMIT_BUTTON,
   COMMIT_MODES,
+  COMMIT_TOOL,
   type CommitMode,
   type CommitRequest,
   type CommitResult,
@@ -115,7 +117,7 @@ import { AUDIT, signed } from "./message.ts"
  * preferences, so the mode is on the wire now and the vocabulary belongs on the
  * floor the spec and this layer both stand on.
  */
-export { COMMIT_MODES, type CommitMode }
+export { COMMIT_BUTTON, COMMIT_MODES, COMMIT_TOOL, type CommitMode }
 
 /**
  * What git is doing for this directory — `@olai/format`'s {@link GitState},
@@ -302,13 +304,6 @@ const busy = (reason: Reason): string =>
   reason === "detached"
     ? "the repository is on a detached HEAD"
     : `the repository is mid-${reason}`
-
-/** The two ways a commit is ever asked for. Spelled once, because both the
- *  sentence a write carries back and the help text a subcommand advertises are
- *  built out of them — and renaming the button in one place and not the other
- *  is the kind of thing nothing fails on and everybody trips over. */
-export const COMMIT_BUTTON = "the Commit button"
-export const COMMIT_TOOL = "the `commit` tool"
 
 /**
  * What ONE WRITER presses or calls — the door that caller has, for the sentence
@@ -1388,33 +1383,3 @@ const recorded = (last: Git.Recorded): LastCommit => ({
  *  answering `null` ("writer not recorded") for a writer the format had grown,
  *  which is a quiet wrong answer on a panel rather than anything that fails. */
 const WRITERS: ReadonlySet<string> = new Set<string>(Writer.literals)
-
-/**
- * What a SUBCOMMAND offers — which is not the same question {@link commitDoor}
- * answers, and the difference is where the two came apart.
- *
- * `olai web` hands its own panel agent the same `commit` tool an outside agent
- * gets (`bespokeFrom(TOOLS)`, over a face composed as `chat-agent`), so a web
- * serve genuinely has BOTH doors and its `--help` should say so. A terminal agent has
- * no browser and no button, so it has one. Keying the help text on a WRITER
- * instead read the narrower fact and quietly dropped the tool from
- * `olai web --help`.
- *
- * So: one writer has one door, one face may offer two.
- */
-export const commitDoors = (face: CommitFace): string => {
-  switch (face) {
-    case "web":
-      return `${COMMIT_BUTTON} or ${COMMIT_TOOL}`
-    case "mcp":
-      return COMMIT_TOOL
-  }
-}
-
-/** The subcommands. Derived from `Writer` rather than spelled again — one name
- *  for who is asking — minus the two that are not faces a person can start:
- *  `chat-agent` is a session `olai web` spawns and `auto` is that serve's own
- *  quiet window, so neither has a `--help` of its own. `web` and `mcp` do — and
- *  a TERMINAL is a client of `mcp` rather than a face of its own, so it has no
- *  row here either (`@olai/format`'s `Writer`). */
-export type CommitFace = Exclude<Writer, "chat-agent" | "auto">

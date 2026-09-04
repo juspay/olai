@@ -279,7 +279,7 @@ export const GitState = Schema.Struct({
    * be a signal in one tab's memory, so a reload was a silent retry and a second
    * tab never knew. The loop does not go round again while this is set — a loop
    * that un-paused itself is the blind retry wearing a different hat — and the
-   * one way out is the `git.resume` procedure, which the preferences panel's
+   * one way out is the `git.resume` procedure, which the commit panel's
    * Resume button calls.
    */
   paused: Schema.NullOr(Schema.String),
@@ -365,6 +365,13 @@ export const Writer = Schema.Literals([
   "auto",
 ])
 export type Writer = typeof Writer.Type
+
+/** The two doors a commit is ever asked through. Spelled once: `--help` and
+ *  the sentence a write carries back are built from them, and renaming the
+ *  button in one place and not the other is the kind of thing nothing fails
+ *  on and everybody trips over. */
+export const COMMIT_BUTTON = "the Commit button"
+export const COMMIT_TOOL = "the `commit` tool"
 
 /** Whether a commit could be asked for at all. */
 export const isReady = (repo: RepoState): boolean => repo._tag === "Ready"

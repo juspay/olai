@@ -39,13 +39,12 @@ import { type Accessor, createSignal } from "solid-js"
 import { gitWire } from "../wire.ts"
 import { waitingIn } from "./said.ts"
 import { run } from "@olai/web/client/run.ts"
-import { olai } from "@olai/web/client/wire.ts"
 
 /**
  * WHAT GIT IS DOING HERE, and the Resume verb — the two preference rows'
  * whole door (read-only), and the smaller half of {@link Commit}.
  *
- * Its own factory because the preferences panel wants exactly this and nothing
+ * Its own factory because the Resume control wants exactly this and nothing
  * else: it does not draw what is waiting, so building the whole committer for
  * it opened a second `pending` subscription — a full frame of every dirty file
  * decoded twice per publish while the popover is up, and a subscription pair
@@ -161,7 +160,7 @@ export const createGitPolicy = (): GitPolicySeam => {
     refused,
     resume: () => {
       setRefused(null)
-      run(olai.procedures.git.resume({}), (failure) => setRefused(failure.message))
+      run(gitWire().procedures.git.resume({}), (failure) => setRefused(failure.message))
     },
   }
 }
@@ -184,7 +183,7 @@ export const createCommit = (): Commit => {
     setPushing(true)
     setRefused(null)
     run(
-      olai.procedures.git.push({}),
+      gitWire().procedures.git.push({}),
       (failure) => {
         setPushing(false)
         setRefused(failure.message)
@@ -196,9 +195,9 @@ export const createCommit = (): Commit => {
   return {
     ...policy,
     // This committer's OWN refusals rather than the seam's: a press of Commit
-    // or Push is drawn beside those buttons, and a Resume a preferences panel
-    // made is drawn beside the row it sits on. One signal for both would be
-    // a message under whichever control the reader was not looking at.
+    // or Push is drawn beside those buttons, and a Resume is drawn beside the
+    // control that made it. One signal for both would be a message under
+    // whichever control the reader was not looking at.
     refused,
     pending,
     heard: () => cell.value() !== undefined,
@@ -212,7 +211,7 @@ export const createCommit = (): Commit => {
       setWorking(true)
       setRefused(null)
       run(
-        olai.procedures.git.commit({
+        gitWire().procedures.git.commit({
           ...(message.trim() === "" ? {} : { message }),
           ...(paths === undefined ? {} : { paths }),
         }),

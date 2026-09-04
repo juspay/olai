@@ -84,13 +84,8 @@
  * install manifest's `name` all draw the one spelling the name answers
  * with; the header's quiet uptime chip ticks from the instant.
  *
- * One more is GIT, and it is a cell with two verbs beside it rather than a
- * member: a `pending` cell — what is waiting to be committed, and what is
- * committed and not pushed, derived from git on the server and never stored —
- * plus `git.commit` and `git.push`, which are the Commit and Push buttons' half
- * of the same two actions the agent reaches through MCP tools. They are
- * PROCEDURES rather than write verbs on the cell because each is an act with
- * four answers, three of which are refusals a reader has to be shown.
+ * Git left this spec with the plugin: the two cells and the three verbs live
+ * on `olai-plugin-git`'s own sibling surface. Core names none of them.
  *
  * Three more are the chat, and they are declared next door in
  * {@link ./chat.ts} because they are a subject of their own: a `transcript`
@@ -120,7 +115,7 @@
  *     about any page.
  *
  * FIVE MEMBERS DECLARE WHAT IDENTIFIES A ROW — `page` by `key`, `pins` by
- * `id`, `pending` by `path`, `chat` and `plugins` by `name` — and that is the one thing about
+ * `id`, `plugins` by `name` — and that is the one thing about
  * this spec that is not about the wire at all. `arrayKey` is read where a
  * browser MERGES a frame into its store (`@kolu/surface`'s `writeValue.ts`,
  * juspay/kolu#2190): undeclared, a frame replaces every element of every array
@@ -142,7 +137,7 @@
  * into it — a `fold` consumer may be holding that very object — so there is no
  * merge there for a key to govern. `documents` is served per key and would
  * honour one; a document entry is a revision and a body, and holds no array.
- * `manifest`, `git`, `dated`, `owed`, `inbox` and `moving` carry no array of
+ * `manifest`, `dated`, `owed`, `inbox` and `moving` carry no array of
  * OBJECTS at all — an empty struct, two strings, a list of day strings, two
  * integers, one integer, and a nullable row beside a list of nullable
  * strings — so there is nothing there for identity to be about. `surface.test.ts` reads the declaring set off this
@@ -167,8 +162,6 @@
 
 import {
   BrokenFile,
-  CommitRequest,
-  CommitResult,
   Face,
   HomesAnswer,
   HomesRequest,
@@ -180,7 +173,6 @@ import {
   NO_PINS,
   OpFailure,
   NOTHING_WRONG,
-  PushResult,
 
   sameInboxHeld,
   sameShelf,
@@ -1030,54 +1022,6 @@ export const surface = defineSurface({
       tags: {
         input: TagsRequest,
         output: TagsAnswer,
-        error: OpFailure,
-      },
-    },
-    /**
-     * The other door to the same action the agent's `commit` tool opens.
-     *
-     * A PROCEDURE rather than a write verb on the cell above: committing is
-     * not "set pending to something", it is an act with four possible answers,
-     * and three of them are refusals a reader has to be shown. What it changes
-     * is `pending`, which the server republishes the moment it is done.
-     */
-    git: {
-      commit: {
-        input: CommitRequest,
-        output: CommitResult,
-        error: OpFailure,
-      },
-      /**
-       * The other verb, and the one the human said was the last reason to leave
-       * olai for a terminal.
-       *
-       * No input at all, which is the design rather than an omission: the
-       * current branch to the upstream it already has, and nothing to choose.
-       * What it changes is `pending` — the unpushed count both the panel and the
-       * header draw — which the server republishes the moment it is done, for
-       * the same reason a commit does.
-       */
-      push: {
-        input: Schema.Struct({}),
-        output: PushResult,
-        error: OpFailure,
-      },
-      /**
-       * Start the quiet-window loop again after git stopped it.
-       *
-       * A PROCEDURE rather than a side effect of some other gesture, and that
-       * is what moving the pause to the server costs and buys: the stop is a
-       * fact about the directory, so turning a toggle off and on in one browser
-       * cannot be what clears it, and a Resume pressed in one tab clears it in
-       * every other one.
-       */
-      resume: {
-        input: Schema.Struct({}),
-        // ... and nothing comes back from this one either. What a person needs
-        // to see is that the loop is running again, which is the chip going
-        // from `paused` to `armed` on the same republish — in this tab and in
-        // every other one, which a return value could never have done.
-        output: Schema.Struct({}),
         error: OpFailure,
       },
     },

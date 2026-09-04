@@ -55,9 +55,9 @@
  * a file is added, removed or renamed, so it is carried with the path set it
  * describes (`conventions.ts`, and the two bindings beside the cells).
  *
- * Git's cells left this file: they live on the git plugin's sibling surface.
- * The three verbs stay here so MCP tool names stay `commit` / `push` / `resume`
- * and `writerAt` can still rebind `surface/git/commit` per face.
+ * Git's cells and verbs left this file: they live on the git plugin's sibling
+ * surface. `writerAt` still rebinds `surface/git/git/commit` when that tag is
+ * in the group, so a face records who asked without core declaring the member.
  *
  * Nothing here interprets an outline or an agent. It moves what the store and
  * the chat decided onto the wire, and that is all — with one exception, and it
@@ -76,7 +76,6 @@ import {
   inboxIn,
   NO_INBOX,
   NO_PINS,
-  NOTHING_PENDING,
   NOTHING_WRONG,
   pinsIn,
   sameDated,
@@ -116,7 +115,7 @@ import {
   type SurfaceHandlers,
   type SurfaceRuntime,
 } from "@kolu/surface/server"
-import { Duration, Effect, Result, type Scope, Stream, SubscriptionRef } from "effect"
+import { Effect, Result, type Scope, Stream, SubscriptionRef } from "effect"
 
 /**
  * THE ONLY PLACE THIS FILE MEETS AN APPLIANCE, and it meets none of them by
@@ -185,13 +184,6 @@ export type Bound = Omit<SurfaceRuntime<typeof surface.spec>, "ctx">
  * store does not publish fails here, naming the list.
  */
 type VaultRevision = Snapshot<Reading>
-
-/** How often the two git cells are recomputed with nothing having asked. Same
- *  argument as the store's backstop: a watcher is a latency optimisation and
- *  never a guarantee, and here there is no watcher at all — `.git` is
- *  deliberately not watched (it is the busiest thing under a served directory).
- *  A person committing in a terminal is the case this covers. */
-const SWEEP = Duration.seconds(30)
 
 /** The channel's required error choice, for a pulse that carries nothing: there
  *  is no failure to report on a publish of `void`, and the one thing that CAN
@@ -431,15 +423,18 @@ export interface Wiring {
  * below it, so a forgotten fence is a compile error and never a silently
  * unfenced agent.
  *
- * `git.commit` takes no fence and that is a named hole rather than an omission:
+ * `surface/git/git/commit` takes no fence and that is a named hole rather than an omission:
  * a commit moves no served byte and takes free-form paths, so a fenced agent can
  * still put another writer's pending work into history under its own trailer.
  * The fence's subject is the records the vault serves.
  */
-const writing = (ops: Ops, caller: Caller) => ({
-  ops: { run: (request: Request) => ops.run(request, caller.writer, caller.fence ?? undefined) },
-  git: { commit: (request: CommitRequest) => ops.commit(request, caller.writer) },
+const writing = (ops: Ops, caller: Caller): Record<string, SurfaceHandler> => ({
+  [surfaceTag(surface.tagPrefix, "ops", "run")]: (request: Request) =>
+    ops.run(request, caller.writer, caller.fence ?? undefined),
 })
+
+const gitVerb = (tag: string, verb: "commit" | "push"): boolean =>
+  tag.startsWith("surface/git/") && tag.endsWith(`/${verb}`)
 
 /**
  * WHICH PLUGINS THIS BUILD HAS AND WHICH THIS SERVE RUNS, as the one value a
@@ -661,9 +656,18 @@ export const writerAt = (
 ): SurfaceHandlers => {
   const handlers = emptyHandlers()
   for (const [tag, handler] of Object.entries(bound.handlers)) handlers[tag] = handler
-  for (const [namespace, verbs] of Object.entries(writing(ops, caller))) {
-    for (const [verb, handler] of Object.entries(verbs)) {
-      handlers[surfaceTag(surface.tagPrefix, namespace, verb)] = handler as SurfaceHandler
+  for (const [tag, handler] of Object.entries(writing(ops, caller))) {
+    if (handlers[tag] !== undefined) handlers[tag] = handler
+  }
+  // Git's verbs live on the sibling. Stamp whichever commit/push tags the
+  // group already serves so a rename of the inner group is not a core edit,
+  // and a serve that did not mount the row has no tag to mint.
+  for (const tag of Object.keys(handlers)) {
+    if (gitVerb(tag, "commit")) {
+      handlers[tag] = ((request: CommitRequest) =>
+        ops.commit(request, caller.writer)) as SurfaceHandler
+    } else if (gitVerb(tag, "push")) {
+      handlers[tag] = (() => ops.push) as SurfaceHandler
     }
   }
   return handlers
@@ -1067,37 +1071,6 @@ export const bind = (
           store: inMemoryStore<PluginRoster>(roster()),
           connect: (cell) => Effect.sync(() => pluginsCell = cell),
         },
-        /**
-         * What git is doing for this directory at all — one half of what the
-         * header's git indicator says, and what an agent in a terminal reads as
-         * a resource.
-         *
-         * It has no `connect` of its own: it is republished by the PENDING
-         * cell's connector below, from the same survey, so the two values that
-         * indicator reads can never disagree about the directory they are both
-         * describing. The seed is `off`, which is the setting face rather than
-         * a fault, so a page cannot flash "git error" at a healthy repository
-         * on its way to the truth.
-         */
-
-        /**
-         * What is waiting to be committed, on THREE clocks — plus the quiet
-         * window over them and the one push a boot owes.
-         *
-         * Every published revision is one — a write changes what is waiting, and
-         * that is the ordinary case. A landed commit is the second, because a
-         * commit moves no served file and so no revision would ever mention it.
-         *
-         * The slow sweep is the third, and it exists because NOTHING WATCHES
-         * `.git`: a person who commits in a terminal changes what is pending
-         * without touching an outline, and without this the panel would go on
-         * offering to commit what is already committed until the next write. It
-         * costs one `git status` on a clean directory — and on a dirty one,
-         * nothing per waiting file: what a commit holds is read once per commit
-         * (`@olai/ops`' `committed.ts`), so this sweep does not re-read the
-         * dirty list every thirty seconds either.
-         */
-
         /**
          * THE PINNED SHELF, re-read per published revision — over a file this
          * connector already knows the name of (`shelfFile` beside the cells:
@@ -1572,7 +1545,7 @@ export const bind = (
          * there, and {@link writerAt}.
          */
         ops: {
-          run: impl(writing(wiring.ops, { writer: wiring.writer, fence: null }).ops.run),
+          run: impl((request) => wiring.ops.run(request, wiring.writer)),
           outlines: () => wiring.ops.outlines,
           // The plan arm's reading, and the one member here answering no tool:
           // which files the inbox convention is read off. It is a procedure of
@@ -1585,11 +1558,6 @@ export const bind = (
           subtree: ({ input }) => wiring.ops.subtree(input),
           documents: () => wiring.ops.documents,
           document: ({ input }) => wiring.ops.document(input),
-        },
-        git: {
-          commit: impl(writing(wiring.ops, { writer: wiring.writer, fence: null }).git.commit),
-          push: () => wiring.ops.push,
-          resume: () => Effect.as(wiring.ops.resume, {}),
         },
         /**
          * Who is looking on THIS connection. The value is the per-connection

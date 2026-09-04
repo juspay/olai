@@ -277,12 +277,18 @@ describe("the plugins this binary was built with", () => {
   })
 
   test("git is the first plugin on the agent's face; the others stay off it", () => {
-    // Chat and the appliances are browser-only. Git's cells are on the agent
-    // face too — what is waiting, and what git is doing — so an agent can ask
-    // before it records. The MCP tools stay core's `commit` / `push`. Nothing
-    // in `@olai/server` writes this map: git's own `faces.agent` does.
+    // Chat and the appliances are browser-only. Git's cells AND verbs are on
+    // the agent face too — what is waiting, what git is doing, and the two
+    // acts that record it. The MCP tools stay named `commit` / `push` (ops
+    // table). Nothing in `@olai/server` writes this map: git's own
+    // `faces.agent` does.
     expect(exposeMapsOf(WIRES, "agent")).toEqual({
-      git: { git: "resource", pending: "resource" },
+      git: {
+        git: "resource",
+        pending: "resource",
+        "git.commit": "tool",
+        "git.push": "tool",
+      },
     })
     const agent = siblingFace("agent")
     expect(agent.tags.size).toBeGreaterThan(0)

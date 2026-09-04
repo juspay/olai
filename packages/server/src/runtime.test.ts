@@ -183,11 +183,11 @@ const withRuntime = <A>(
   }).pipe(Effect.scoped, Effect.provide(NodeServices.layer), Effect.runPromise)
 }
 
-/** Every member whose answer records WHO asked, as the wire spells them. A
- *  LITERAL rather than a derivation, deliberately: the thing under test is that
- *  a list somebody maintains by hand still says what they think it says, and a
- *  second derivation of it would agree with the first by construction. */
-const RECORDS_THE_WRITER = ["surface/git/commit", "surface/ops/run"]
+/** Every CORE member whose answer records WHO asked, as the wire spells them.
+ *  Git's sibling commit also records the writer, but only when the git row
+ *  minted the tag — this harness mounts no plugins, so the rebound set is
+ *  ops.run alone. A LITERAL rather than a derivation, deliberately. */
+const RECORDS_THE_WRITER = ["surface/ops/run"]
 
 const OUTLINE = `{"id":"a","ord":"a0","title":"a"}\n`
 /** A row whose parent nothing declares — a MEANING error rather than a syntax

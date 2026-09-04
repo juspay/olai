@@ -9,7 +9,7 @@
  * is, which commit HEAD names, what THAT commit had in one of the repository's
  * files, what was last recorded under a caller's own audit filter — then commit
  * exactly these paths with exactly this message, and push the current branch.
- * What those answers MEAN is `@olai/ops`' `pending.ts`'s.
+ * What those answers MEAN is this plugin's `ledger/pending.ts`.
  *
  * The FIFTH is the newest, and it is one question split in two on purpose
  * (`perf-git-per-write`): a caller that reads a file out of history and keeps

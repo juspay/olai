@@ -257,15 +257,13 @@ test("the agent's face is what it can SEE plus the doors its tools land through"
       "ops.documents",
       "ops.document",
       "search.nodes",
-      "git.commit",
-      "git.push",
     ].sort(),
   )
-  // `git.commit` and `search.nodes` are SHARED with the browser and not twinned:
-  // once the writer stopped travelling with a call, an agent's commit and a
-  // person's are the same act through the same member, and only the face they
-  // arrive on decides the trailer.
-  expect(Object.keys(BROWSER)).toContain("git.commit")
+  // Git's verbs left this map with the plugin. `search.nodes` is SHARED with
+  // the browser and not twinned: once the writer stopped travelling with a
+  // call, an agent's search and a person's are the same act through the same
+  // member.
+  expect(Object.keys(BROWSER)).not.toContain("git.commit")
   // The keyboard's door, though, is the browser's alone — an agent sending
   // intents about a screen it cannot see would be the one thing this whole
   // split exists to prevent.

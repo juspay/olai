@@ -44,15 +44,24 @@
  *     truth for half an hour; what was missing was not a tool, it was this.
  */
 
-import { isOpFailure, kindOf, type OpFailure, stampOf, type Writer } from "@olai/format"
+import {
+  type CommitRequest,
+  type CommitResult,
+  isOpFailure,
+  kindOf,
+  type OpFailure,
+  type PushResult,
+  stampOf,
+  type Writer,
+} from "@olai/format"
 import { isStale, type Vintage } from "@olai/store"
-import { type Acting, type Applied, type Asking, type Planning, type Running, type Tool } from "@olai/ops"
+import { type Acting, type Applied, type Asking, NO_LEDGER, type Planning, type Running, type Tool } from "@olai/ops"
 import { type BespokeTool, ToolFailure, type ToolInputSchema } from "@kolu/surface-mcp"
 import { Effect, Result, Schema } from "effect"
 
 import type { Request } from "@olai/ops"
 import { resolvedWrite } from "../resolving.ts"
-import type { OlaiSurfaceClient } from "./face.ts"
+import { heldFor, type OlaiSurfaceClient } from "./face.ts"
 
 /** The three ops-layer doors a tool call needs, together. `@olai/ops` names
  *  them one per tool arm; nothing but this projection ever wants all three, so
@@ -293,13 +302,13 @@ const isRecord = (said: unknown): said is Record<string, unknown> =>
  * interfaces and this one answer the same questions, so a tool cannot behave
  * differently for being reached over a socket.
  *
- * `commit`, `push` and `search` are the members BOTH doors call (`git.*`,
- * `search.nodes`); the rest are the agent's own `ops.*`, the two document
- * reads included — a browser draws a `.md` off the `documents` COLLECTION it
- * already subscribes to, which is a different question from the listing an
- * agent asks. Which writer a landing write is recorded as is neither's
- * business — the FACE this client dispatches at decided it (`../runtime.ts`'s
- * `writerAt`).
+ * `commit`, `push` and `search` are the members BOTH doors call (`search.nodes`
+ * on core; `commit` / `push` on the git sibling when that row is mounted);
+ * the rest are the agent's own `ops.*`, the two document reads included — a
+ * browser draws a `.md` off the `documents` COLLECTION it already subscribes
+ * to, which is a different question from the listing an agent asks. Which
+ * writer a landing write is recorded as is neither's business — the FACE this
+ * client dispatches at decided it (`../runtime.ts`'s `writerAt`).
  *
  * ONE PER CLIENT, not one per call. Four of the ten lines are Effect VALUES
  * rather than thunks (`push`, `outlines`, `paths`, `documents` — that is the
@@ -320,22 +329,46 @@ const doorFor = (client: OlaiSurfaceClient): Door => {
 
 const DOORS = new WeakMap<OlaiSurfaceClient, Door>()
 
-const doorOver = (client: OlaiSurfaceClient): Door => ({
-  run: (request) => landed(client.surface.ops.run(request)),
-  // The act arm has NO failure channel and says so by type: every way a commit
-  // or a push can go wrong is a value the caller is entitled to see, carried on
-  // the answer. So the only thing left for these two to fail with is the
-  // transport, and `orDie` is {@link landed}'s rule with nothing to spare.
-  commit: (request) => Effect.orDie(client.surface.git.commit(request)),
-  push: Effect.orDie(client.surface.git.push({})),
-  outlines: landed(client.surface.ops.outlines(undefined)),
-  paths: landed(client.surface.ops.paths(undefined)),
-  node: (request) => landed(client.surface.ops.node(request)),
-  subtree: (request) => landed(client.surface.ops.subtree(request)),
-  search: (request) => landed(client.surface.search.nodes(request)),
-  documents: landed(client.surface.ops.documents(undefined)),
-  document: (request) => landed(client.surface.ops.document(request)),
-})
+const gitVerb = (tags: ReadonlySet<string>, verb: "commit" | "push"): string | undefined =>
+  [...tags].find((tag) => tag.startsWith("surface/git/") && tag.endsWith(`/${verb}`))
+
+const doorOver = (client: OlaiSurfaceClient): Door => {
+  const held = heldFor(client)
+  const commitTag = held === undefined ? undefined : gitVerb(held.tags, "commit")
+  const pushTag = held === undefined ? undefined : gitVerb(held.tags, "push")
+  return {
+    run: (request) => landed(client.surface.ops.run(request)),
+    // The act arm has NO failure channel and says so by type: every way a commit
+    // or a push can go wrong is a value the caller is entitled to see, carried on
+    // the answer. So the only thing left for these two to fail with is the
+    // transport, and `orDie` is {@link landed}'s rule with nothing to spare.
+    //
+    // Git's verbs live on the sibling. When that row is mounted, `writerAt`
+    // has already stamped the commit/push tags with this face's writer. When
+    // it is not, the ops table still advertises the tools and they refuse in
+    // the same words `ops.commit` / `ops.push` do.
+    commit: (request: CommitRequest) =>
+      Effect.orDie(
+        commitTag !== undefined && held !== undefined
+          ? held.dispatch.unary(commitTag, request) as Effect.Effect<CommitResult>
+          : NO_LEDGER.record(request, "mcp"),
+      ),
+    push: Effect.suspend(() =>
+      Effect.orDie(
+        pushTag !== undefined && held !== undefined
+          ? held.dispatch.unary(pushTag, {}) as Effect.Effect<PushResult>
+          : NO_LEDGER.push,
+      )
+    ),
+    outlines: landed(client.surface.ops.outlines(undefined)),
+    paths: landed(client.surface.ops.paths(undefined)),
+    node: (request) => landed(client.surface.ops.node(request)),
+    subtree: (request) => landed(client.surface.ops.subtree(request)),
+    search: (request) => landed(client.surface.search.nodes(request)),
+    documents: landed(client.surface.ops.documents(undefined)),
+    document: (request) => landed(client.surface.ops.document(request)),
+  }
+}
 
 /**
  * A member call, narrowed back to the failures the ops layer declares.

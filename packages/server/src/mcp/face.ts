@@ -105,11 +105,30 @@ export type OlaiSurfaceClient = {
     & SurfaceCollectionsReadFace<typeof surface.spec>
 }
 
+/** Dispatch plus the tags this client can actually call — so MCP's `commit`
+ *  / `push` tools can land on the git sibling when it is mounted, and fall
+ *  through to {@link @olai/ops}' `NO_LEDGER` when it is not, without core
+ *  declaring those members. */
+interface HeldDispatch {
+  readonly dispatch: SurfaceDispatch
+  readonly tags: ReadonlySet<string>
+}
+
+const HELD = new WeakMap<OlaiSurfaceClient, HeldDispatch>()
+
+export const heldFor = (client: OlaiSurfaceClient): HeldDispatch | undefined => HELD.get(client)
+
 /** Build the typed face over any dispatch — the in-process one the HTTP
  *  route uses. THE one place the structural cast lives, so nothing
  *  downstream re-derives it. */
-export const clientOn = (dispatch: SurfaceDispatch): OlaiSurfaceClient =>
-  buildSurfaceFace(surface, dispatch) as unknown as OlaiSurfaceClient
+export const clientOn = (
+  dispatch: SurfaceDispatch,
+  tags: ReadonlySet<string> = new Set(),
+): OlaiSurfaceClient => {
+  const client = buildSurfaceFace(surface, dispatch) as unknown as OlaiSurfaceClient
+  HELD.set(client, { dispatch, tags })
+  return client
+}
 
 /** The in-process case: dispatch straight at the handlers this process bound.
  *  No wire under it and that is the point — the same consumer code runs against
@@ -138,12 +157,10 @@ export const clientOn = (dispatch: SurfaceDispatch): OlaiSurfaceClient =>
 export const clientOver = (
   bound: Pick<Bound, "group" | "handlers">,
   face: FaceExposure,
-): OlaiSurfaceClient =>
-  clientOn(
-    directDispatch({
-      handlers: restrictHandlers(bound.group, bound.handlers, face),
-    }),
-  )
+): OlaiSurfaceClient => {
+  const handlers = restrictHandlers(bound.group, bound.handlers, face)
+  return clientOn(directDispatch({ handlers }), new Set(Object.keys(handlers)))
+}
 
 /** What this server calls itself. The version is the binary's, spelled here
  *  because the adapter has no other way to learn it. */

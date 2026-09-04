@@ -89,6 +89,16 @@ export default definePlugin({
           git: { store: inMemoryStore<GitState>(GIT_OFF) },
           pending: { store: inMemoryStore<Pending>(NOTHING_PENDING) },
         },
+        procedures: {
+          git: {
+            // `commit` is the one verb that records WHO asked. The bind-time
+            // handler is the tab's writer; `writerAt` overwrites this tag per
+            // face so an MCP client is not recorded as `web`.
+            commit: ({ input }) => commits.commit(input, "web"),
+            push: () => commits.push,
+            resume: () => Effect.as(commits.resume, {}),
+          },
+        },
       } satisfies ImplementSurfaceDeps<typeof surface.spec>,
       published: (bound) => {
         mine = bound as Ctx

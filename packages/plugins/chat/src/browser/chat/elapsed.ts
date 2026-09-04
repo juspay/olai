@@ -53,7 +53,7 @@
  * TWO CLOCKS, and the assumption is declared rather than hidden: the instant is
  * the SERVER's (`ChatEntry.since`) and `now` is the reader's, so a duration is
  * only as true as the two machines agree. That is the same bargain
- * `../commit/ago.ts` strikes with a stamp out of a git repository, and it is
+ * `@olai/web/client/ago.ts` strikes with a stamp out of a git repository, and it is
  * struck for the same reason — the alternative, timing from when this tab began
  * looking, is not a smaller error but a systematic one, and it gets the answer
  * wrong even when every clock is perfect. What skew CANNOT do is produce
@@ -64,7 +64,7 @@
  * function over a row — so the whole rule is a table in a unit test rather than
  * something you have to start an agent and wait a minute to see. Only
  * {@link createNow} touches a clock, and it is the same split
- * `../commit/ago.ts` makes for the same reason.
+ * `@olai/web/client/ago.ts` makes for the same reason.
  */
 
 import { type ChatEntry, outSince } from "olai-plugin-chat/wire"

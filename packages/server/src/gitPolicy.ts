@@ -33,21 +33,21 @@
  */
 
 import {
+  COMMIT_BUTTON,
   COMMIT_MODES,
+  COMMIT_TOOL,
   type CommitMode,
   type GitPin,
   PUSH_MODES,
   type PushMode,
   QUIET_MS,
+  type Writer,
 } from "@olai/format"
 import { Flag } from "effect/unstable/cli"
 
 /** The subcommands that take these flags — `Writer` minus the two that are not
  *  a face a person can start. */
-export type CommitFace = "web" | "mcp"
-
-const COMMIT_BUTTON = "the Commit button"
-const COMMIT_TOOL = "the `commit` tool"
+export type CommitFace = Exclude<Writer, "chat-agent" | "auto">
 
 export const commitDoors = (face: CommitFace): string => {
   switch (face) {

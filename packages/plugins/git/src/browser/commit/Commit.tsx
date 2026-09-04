@@ -64,7 +64,7 @@
 import { Show } from "solid-js"
 import { Portal } from "solid-js/web"
 
-import { agoOf, createNow } from "./ago.ts"
+import { agoOf, createNow } from "@olai/web/client/ago.ts"
 import {
   AUTO_PAUSED,
   explain,

@@ -41,7 +41,7 @@
 import { isReady } from "@olai/format"
 import { createSignal, Show } from "solid-js"
 
-import { agoOf } from "./ago.ts"
+import { agoOf } from "@olai/web/client/ago.ts"
 import { type Anchor, styleOf } from "@olai/web/client/anchor.ts"
 import { PANEL_BOX } from "@olai/web/client/readout.ts"
 import {
