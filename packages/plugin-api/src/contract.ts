@@ -398,7 +398,9 @@ export interface Deliveries {
   }>
   /** The scopes that hear a claim made by `node` in `file`. Manual whole-file
    * scopes all hear it; among nested node scopes only the nearest ancestor does.
-   * Core owns that precedence so every doorbell asks the same question. */
+   * ONE ANSWER BEHIND ONE DOOR, so every doorbell asks the same question and
+   * none of them spells the precedence: it is the row that OFFERS `deliveries`
+   * that owns it, which is the chat's, and it was core's while the chat was. */
   readonly ringing: (
     file: string,
     node: string,

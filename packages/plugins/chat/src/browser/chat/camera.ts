@@ -35,7 +35,8 @@ const [offered, setOffered] = createSignal(
 
 let watching = false
 
-/** Start the listener. Idempotent; called from `main.tsx`. */
+/** Start the listener. Idempotent; called from this plugin's own `apply`
+ *  (`../../browser.tsx`) — it was the app's entry when the panel was core's. */
 export const trackCamera = (): void => {
   if (watching || typeof window === "undefined") return
   watching = true
