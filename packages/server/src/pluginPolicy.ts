@@ -1,12 +1,20 @@
 /**
  * `--plugins` — WHICH OF THE BUILT-IN INTEGRATIONS THIS SERVE RUNS.
  *
- * The git policy's shape, one setting over, and deliberately so: this is a
- * CLI/nix-only decision with no settings file and no browser toggle. A browser
- * draws the rows READ-ONLY and says where they are changed, exactly as it does
- * for `--commit` and `--push`. `./gitPolicy.ts` carries the argument for that
- * arrangement in full and it is not repeated here; what IS worth stating is why
- * enablement joined that family rather than the two others available.
+ * The git policy's shape, one setting over — but only for what a BOOT is
+ * decided by, and that qualifier is the loader surface. This flag decides what
+ * the process STARTS with; the plugins panel decides what it is running, for as
+ * long as it runs. There is still no settings file and no CLI verb against a
+ * running serve, and a restart comes back to exactly what this flag and the rows
+ * say. `./gitPolicy.ts` carries the argument for the family in full and it is
+ * not repeated here; what IS worth stating is why enablement joined it rather
+ * than the two others available.
+ *
+ * The paragraph that stood here called this "a CLI/nix-only decision with no
+ * browser toggle", and half of that is now false. What survives is the half that
+ * was the reason: a plugin's enablement is the INSTANCE's and never a browser's
+ * preference — the same in every tab pointed at this server, which is exactly
+ * why the switch is a call to the SERVER and not a value kept in a browser.
  *
  * It is not an ENV VAR, which is what `OLAI_ACP_AGENT` and the origins list
  * are: those name a resource to reach, and this names a policy the instance
@@ -32,9 +40,10 @@
  * the built-in default (`DEFAULT_PLUGIN_NAMES`), which is not necessarily
  * every plugin this binary was built with. It does NOT mean an empty list.
  * Whether a flag was GIVEN is a fact a browser has to be told, because a given
- * flag is named under the preferences row (`--plugins=kolu`) while an omitted
- * one is the built-in default — both are the instance's policy, read-only, the
- * same in every browser. A `--plugins` that defaulted to the full list could
+ * flag is named under the panel's row (`--plugins=kolu`) while an omitted
+ * one is the built-in default — both are the instance's policy, the same in
+ * every browser, and both are what a restart comes back to whatever anybody
+ * pressed meanwhile. A `--plugins` that defaulted to the full list could
  * not tell those two apart, which is precisely the mistake `./gitPolicy.ts`'s
  * `Flag.withDefault(null)` comment exists to prevent one setting over.
  *
@@ -99,12 +108,18 @@ export const pluginsSaid = (): string =>
 
 /** The clause the sentence ends with. Spelled once, because it is one fact
  *  about the flag and two copies of it is one place for it to be softened.
- *  Deliberately the same claim `./gitPolicy.ts` makes, in the same words, since
- *  a person reading two read-only preference rows is owed one explanation. */
+ *
+ *  IT NO LONGER MATCHES `./gitPolicy.ts` WORD FOR WORD, and the divergence is
+ *  the loader surface. That one still ends "every browser draws that preference
+ *  row read-only", which is true of the git rows and is no longer true here: the
+ *  plugins panel has a switch. What a `--help` page owes a person about a flag
+ *  whose value can be moved out from under it is which of the two is the LASTING
+ *  answer, so that is what this says. */
 const INSTANCE =
-  "This is the instance's policy: every browser draws that preference row " +
-  "read-only, the same in every browser. Giving this flag sets it; omitting " +
-  "it uses the built-in default."
+  "This is what the serve STARTS with. The plugins panel can turn one on or " +
+  "off while the process runs; that lasts as long as the process, and a " +
+  "restart comes back to this flag. Giving it sets the starting point; " +
+  "omitting it uses the built-in default."
 
 /**
  * The flag, as one thing.

@@ -178,6 +178,43 @@ Feature: Keyboard editing
     Then no row is being edited
     And the outline "house.olai" shows exactly the nodes "kitchen, demo, order, install, handles, hinges, knobs, kitchen-herbs"
 
+  Scenario: Backspace deletes the empty blank and aims the caret at the line above
+    # Reported on the #493 build: Backspace in the line Enter had just opened
+    # met the refusal "a node needs a title". There is nothing to refuse —
+    # nothing was ever written: the key is the abandon-with-aim Escape is
+    # not. The sketch dies — it is NOT parked — and the caret lands at the
+    # END of the line above, exactly where a merging Backspace would have
+    # left it had the sketch held words.
+    When I click the title of "handles"
+    And I press "Enter"
+    Then a new row is being typed
+    When I press "Backspace"
+    Then the row being typed holds "choose the handles"
+    And the caret is at offset 18
+    # And nothing happened on the way there: no add, no refusal, no node the
+    # blank could have become.
+    And the outline "house.olai" shows exactly the nodes "kitchen, demo, order, install, handles, hinges, knobs, kitchen-herbs"
+    And there should be no page errors
+
+  Scenario: Backspace over a blank walks a skeleton back up one line at a time
+    # The same key when the line above is a PARKED blank: Enter Enter laid
+    # two empties down, and Backspace kills the live one and resumes the one
+    # above it — a blank is a line the arrow keys already stop on, and the
+    # caret aims at the next line up the eye would reach, written or not.
+    When I click the title of "handles"
+    And I press "Enter"
+    And I press "Enter"
+    Then 2 new rows are being typed
+    When I press "Backspace"
+    Then a new row is being typed
+    And the outline "house.olai" shows exactly the nodes "kitchen, demo, order, install, handles, hinges, knobs, kitchen-herbs"
+    # And the resumed line is the live one: what is typed goes into it, at
+    # the seat it was parked at.
+    When I type "measure the alcove"
+    And I press "Enter"
+    Then "house.olai" holds a node titled "measure the alcove"
+    And the node titled "measure the alcove" comes before "hinges"
+
   Scenario: Tab indents under the row above, and Shift+Tab puts it back
     When I click the title of "knobs"
     And I press "Tab"
@@ -202,6 +239,130 @@ Feature: Keyboard editing
     And I press "Alt+Shift+ArrowUp"
     Then the node "knobs" comes before "hinges"
     And the page has not reloaded
+
+  Scenario: Enter, Tab, a title, Enter writes a child of the row above
+    # A blank takes the structure keys the moment it is a blank: the shape is
+    # laid out BEFORE any words, and the ONE write holds the shape the person
+    # sketched. A blank that only a title can move is a placeholder, not a row.
+    When I click the title of "install"
+    And I press "Enter"
+    Then a new row is being typed
+    When I press "Tab"
+    And I type "measure twice"
+    And I press "Enter"
+    Then "house.olai" holds a node titled "measure twice"
+    And "house.olai" holds a node titled "measure twice" under "install"
+
+  Scenario: the Tab seat of a CHILDLESS row is drawn, not air
+    # The seat the first Tab gives a blank under a childless row must be ON
+    # THE PAGE — an editor nobody can see, minted fresh by the Tab, was the
+    # bug. Since a parked blank drawn under a row and a live one at its
+    # ABSENT seat are told apart purely by geometry, the depth is measured
+    # by the box, on the page, e2e.
+    When I click the title of "knobs"
+    And I press "Enter"
+    And I press "Tab"
+    Then a new row is being typed
+    And the row being typed is drawn immediately above the title of "kitchen-herbs"
+    And the row being typed is drawn at the child depth of "knobs"
+
+  Scenario: Tab seats a blank as the last child of the row above, one level in
+    # `kitchen`'s subtree ends with kitchen-herbs' WHOLE flight — under the
+    # wrong reading one Tab sat the blank at the floor of THAT, two levels
+    # deep (the human's review of #493). One level: the child `kitchen`
+    # would append, which is the rule a written row's Tab already follows.
+    When I click the title of "kitchen"
+    And I press "Enter"
+    And I press "Tab"
+    And I type "the mugs go in the old pantry"
+    And I press "Enter"
+    Then "house.olai" holds a node titled "the mugs go in the old pantry"
+    And "house.olai" holds a node titled "the mugs go in the old pantry" under "kitchen"
+
+  Scenario: Tab UNFOLDS the branch it seats a blank in
+    # Indenting into a collapsed branch must not commit a caret into an
+    # invisible fold — Workflowy's answer: the branch opens on the way.
+    When I collapse the node "install"
+    And I click the title of "install"
+    And I press "Enter"
+    And I press "Tab"
+    Then the node "install" is expanded
+    And a new row is being typed
+    When I type "mount the crown moulding"
+    And I press "Enter"
+    Then "house.olai" holds a node titled "mount the crown moulding" under "install"
+
+  Scenario: Alt+Shift+Up steps past the parked blanks to the row above
+    # Three empties at one anchor: the plain arrows stop on each of them,
+    # because a blank is a line the eye lands on. The SHAPE keys do not, and
+    # it is the same rule all four of them keep — what one answers with is an
+    # anchor, anchors name records, and "between two lines nobody has written"
+    # is a place no anchor can spell. So the press crosses the sketch to the
+    # nearest real row and seats the blank one slot over it: above `knobs`,
+    # which is where `hinges` already ends.
+    When I click the title of "knobs"
+    And I press "Enter"
+    And I press "Enter"
+    And I press "Enter"
+    Then a new row is being typed
+    When I press "Alt+Shift+ArrowUp"
+    Then a new row is being typed
+    And the row being typed is drawn immediately above the title of "knobs"
+
+  Scenario: a blank among rows keeps the outline's line rhythm
+    # Reported on the #493 build: gaps between lines wobbled wherever a draft
+    # stood — "inconsistent gap between list items overall (empty ones in
+    # particular)". The blank carried the row's gutter WIDTHS but not its
+    # line arithmetic: no `my-0.5` around it, no `py-1` on the line — 12px
+    # shorter than every neighbour. Measured against two real rows.
+    When I click the title of "knobs"
+    And I press "Enter"
+    Then a new row is being typed
+    And the row being typed stands the same line below "knobs" as that row stands below "hinges"
+
+  Scenario: A blank takes Shift+Tab back out, before it is written
+    # The same shape key the other way: the indent was the shape's, not a
+    # write's — so the un-indent is the blank's too, and nothing on disk moved.
+    When I click the title of "install"
+    And I press "Enter"
+    And I press "Tab"
+    And I press "Shift+Tab"
+    And I type "regrout the bar"
+    And I press "Enter"
+    Then "house.olai" holds a node titled "regrout the bar"
+    And the node titled "regrout the bar" comes before "kitchen-herbs"
+
+  Scenario: Shift+Tab of a line with words keeps the caret in it
+    # The written half: the line exists the moment the key asks for it, so
+    # the press is a commit and a `move out` — and the row is redrawn where
+    # the file says it now is, which in a browser takes the focus off it.
+    # Reported on the #493 build: the outdent landed and the caret went
+    # nowhere — the next keystroke had no editor.
+    When I click the title of "knobs"
+    And I press "Enter"
+    And I type "regrout the bar"
+    And I press "Shift+Tab"
+    Then the node titled "regrout the bar" comes before "kitchen-herbs"
+    And the row being typed holds "regrout the bar"
+    And the row being typed has the focus
+    And no other row holds the caret
+    And there should be no page errors
+
+  Scenario: Alt+Shift+Up moves a blank among its would-be siblings
+    # The reorder pair, for the blank too: it goes up without becoming a write,
+    # so the skeleton a person is sketching can be moved whole before one word
+    # of it is on disk. Pressed from AFTER THE THIRD sibling: hinges above and
+    # knobs below is the one slot the key says — from two above it is two
+    # (grok's review of #493: every tree the keys were pinned with sat the
+    # press at most two slots in, where the two counts coincide).
+    When I click the title of "knobs"
+    And I press "Enter"
+    And I press "Alt+Shift+ArrowUp"
+    And I type "fetch a mallet"
+    And I press "Enter"
+    Then "house.olai" holds a node titled "fetch a mallet"
+    And the node titled "fetch a mallet" comes before the node titled "pick the knobs"
+    And the node titled "pick the hinges" comes before the node titled "fetch a mallet"
 
   Scenario: Ctrl+Enter ticks a row off, and again takes it back
     When I click the title of "handles"
@@ -302,6 +463,25 @@ Feature: Keyboard editing
     # full rendered note is the node's own page, which is where a note has
     # always been the body.
     And the row "order" is folded
+
+  Scenario: A click on a note's clamped line measures the caret the way a title's click does
+    # The door the pilcrow's was one click longer than it needed to be: the
+    # line itself holds the words the note opens with, so the click is
+    # measured against THEM — the same question a title's click has answered
+    # since #475 — and the caret lands where the finger pointed, not at the
+    # end of the source.
+    When I click the note of "order" near its end
+    Then the note of "order" is being typed
+    And the note being typed holds the source of "order"
+    And the note's caret is at offset 15
+    # The same measurement, the other end of the line — and no click through
+    # the open state in between, which is the whole deal.
+    When I press "Escape"
+    And I click the note of "order" near its start
+    Then the note of "order" is being typed
+    And the note's caret is at offset 0
+    When I press "Escape"
+    Then there should be no page errors
 
   Scenario: Shift+Enter writes the note, and the rendering comes back
     When I click the title of "handles"
@@ -406,6 +586,55 @@ Feature: Keyboard editing
     Then the row being typed holds "pick the hinges"
     When I press "ArrowUp"
     Then the row being typed holds "choose the handles"
+
+  Scenario: Up and down carry the column, and a shorter line clamps it
+    # The vertical keys keep the caret's place in the LINE as they change the
+    # ROW — the way a person reads a column of text — and a line shorter than
+    # that place takes the caret at the end, not an error or a jump.
+    When I click the title of "handles"
+    And I put the caret after "choose the handles"
+    And I press "ArrowDown"
+    Then the row being typed holds "pick the hinges"
+    And the caret is at offset 15
+    When I press "ArrowDown"
+    Then the row being typed holds "pick the knobs"
+    And the caret is at offset 14
+    When I press "ArrowUp"
+    Then the row being typed holds "pick the hinges"
+    And the caret is at offset 14
+
+  Scenario: Left at the start and right at the end cross into the line beside
+    # A caret sitting at a line's edge has nothing left in THIS line to move
+    # through — the arrow hands it to the next line a reader would reach, so
+    # the whole outline is one long line of text to the keys.
+    When I click the title of "order"
+    And I put the caret at the start of the line
+    And I press "ArrowLeft"
+    Then the row being typed holds "take out the old counters"
+    And the caret is at offset 25
+    When I press "ArrowRight"
+    Then the row being typed holds "order the new cabinets"
+    And the caret is at offset 0
+
+  Scenario: The arrows cross a blank draft the way they cross a row
+    # A blank on the page is a place the caret can BE: walking down out of the
+    # row above must stop on it, not skip it, and walking back up must find the
+    # SAME draft again — not a fresh blank each pass.
+    When I click the title of "order"
+    And I put the caret after "order the new cabinets"
+    And I press "Enter"
+    Then a new row is being typed
+    When I press "ArrowUp"
+    Then the row being typed holds "order the new cabinets"
+    And a new row is being typed
+    When I press "ArrowDown"
+    Then a new row is being typed
+    When I type "mid sentence"
+    And I press "Enter"
+    Then "house.olai" holds a node titled "mid sentence"
+    And the node titled "mid sentence" comes before the node titled "install"
+    When I press "Escape"
+    Then there should be no page errors
 
   Scenario: Enter on a mirror makes a sibling of the PLACEMENT
     # The other half of the mirror rule: what a row SAYS belongs to the node it

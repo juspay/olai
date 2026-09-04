@@ -75,6 +75,67 @@ import { createSignal } from "solid-js"
  *  re-read. */
 const [moved, setMoved] = createSignal(0)
 
+/**
+ * HOW MANY COMPOSES ARE IN FLIGHT, and whether one of them moved the table.
+ *
+ * ## A PLUGIN'S FACES ARRIVE AND LEAVE TOGETHER, or the page is drawn from a
+ * plugin that is half here
+ *
+ * Every registration is a finalizer on the plugin's own scope, so mounting one
+ * runs N claims and disposing it runs N releases — and each of them told this
+ * signal, one at a time, synchronously. Every one of those was a re-render of
+ * the page from a table holding SOME of a plugin's faces.
+ *
+ * That was survivable while a plugin only ever arrived: the intermediate draws
+ * were of a page missing faces that were about to appear, and the last
+ * registration put them there. It stopped being survivable the moment a plugin
+ * could LEAVE a running serve, because the finalizers run LIFO — so the LAST
+ * thing a plugin registers is the FIRST thing it withdraws, and chat registers
+ * its `app.mount` provider last precisely because it wraps everything else.
+ *
+ * The page then drew like this: chat's `AgentsProvider` leaves the `app.mount`
+ * slot, `PluginsMounted`'s keyed `Show` sees a new list and rebuilds the whole
+ * page, and the rebuild re-creates chat's sidebar section — which is still in
+ * the table, four finalizers from being removed — outside the provider it was
+ * just deprived of. Its body threw `an agents lookup outside <AgentsProvider>`,
+ * the fault boundary swallowed the app, and turning chat off replaced the
+ * product with a card.
+ *
+ * ## Why the fix is here and not in the consumer
+ *
+ * Because it is a CLASS. Every plugin in this build can leave a running serve
+ * now; chat is only the first with enough faces to catch it, and the same shape
+ * is available to any plugin that registers a provider alongside things that
+ * read it — which is the ordinary way to write one. Teaching each consumer to
+ * tolerate its own provider's absence would be N fixes for one defect, each of
+ * them a face that draws a wrong-but-quiet arm at a moment nobody meant it to
+ * be drawn at.
+ *
+ * A COMPOSE IS ONE MOVEMENT OF THE TABLE, and the page is told when it has
+ * finished moving. That is the same sentence the server keeps about the roster
+ * — a flip settles the bundle before the cell moves — and it is worth having on
+ * both sides of the wire for the same reason: an intermediate state that no
+ * consumer can be shown is an intermediate state no consumer has to handle.
+ *
+ * A COUNTER rather than a boolean, because `../wire.ts` can have a second
+ * roster frame in flight behind the first, and the inner one finishing must not
+ * un-suppress the outer one.
+ */
+let composing = 0
+/** ...and whether anything was suppressed while it was, so a compose that
+ *  changed nothing does not cost a re-render of the page for nothing. */
+let missed = false
+
+/** Tell the page the table moved — unless a compose is holding it, in which
+ *  case it is told once when the compose is done. */
+const told = (): void => {
+  if (composing > 0) {
+    missed = true
+    return
+  }
+  setMoved((at) => at + 1)
+}
+
 /** THE SIBLING CLIENTS, as a holder — see the header on why they are not an
  *  import. `null` before the wire has spoken, which is every read before the
  *  first roster lands and is a state no plugin fiber can see: a fiber is
@@ -103,7 +164,7 @@ const run = standing()
  */
 export const app: App = await run(
   openApp({
-    changed: () => setMoved((at) => at + 1),
+    changed: told,
     // ...AND HOW A READ IS TRACKED, which is the same signal from the other
     // side. The walks below read it themselves, and could go on doing so alone
     // — what could not is a PLUGIN's read: `Faces` hands the chat panel the
@@ -162,6 +223,36 @@ export const composeTo = async (
   clientFor: (plugin: string) => unknown,
 ): Promise<void> => {
   clients = clientFor
+  // NOTHING IS DRAWN FROM A HALF-COMPOSED TABLE. Every claim and every release
+  // below tells the runtime, and each of those told the page; a plugin's faces
+  // therefore arrived one at a time and — far worse — LEFT one at a time, in
+  // reverse, so the provider a plugin registers last was withdrawn first and
+  // the page was rebuilt from a table where its consumers still stood. See
+  // {@link composing}, which carries the whole argument and the defect.
+  //
+  // NOT `batch()`, and it could not be: the disposes and mounts below are
+  // awaited, and Solid's batch spans a synchronous call. What this suppresses
+  // is the notification rather than the write, which is the same guarantee held
+  // across an `await`.
+  composing += 1
+  try {
+    await recompose(halves)
+  } finally {
+    composing -= 1
+    // ONE NOTIFICATION for the whole movement, and only if there was one: a
+    // redial whose roster named exactly what was already mounted moved no
+    // table, and a page rebuilt for that would be this module inventing work
+    // out of a reconnect.
+    if (composing === 0 && missed) {
+      missed = false
+      setMoved((at) => at + 1)
+    }
+  }
+}
+
+/** The movement itself — {@link composeTo} is this, with the page told once at
+ *  the end rather than once per registration. */
+const recompose = async (halves: ReadonlyArray<BrowserHalf>): Promise<void> => {
   const wanted = new Map(halves.map((half) => [half.default.name, half] as const))
   // OUT FIRST, so a plugin that left has unwound its registrations before a
   // plugin that arrived can claim a key it was holding. The two orders differ

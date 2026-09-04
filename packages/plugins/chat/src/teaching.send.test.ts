@@ -122,8 +122,8 @@ const withChat = async (body: (seat: Seat) => Promise<void>): Promise<void> => {
   const entries = new Map<string, ChatEntry>()
   let published: ChatState | null = null
   const chat = await run(makeChat({
-    roster: [ROW],
-    engines: [],
+    roster: () => [ROW],
+    engines: () => [],
     cwd,
     tools: () => null,
     overheard: await run(sessionsIn(cwd)),

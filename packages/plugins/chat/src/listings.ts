@@ -64,8 +64,14 @@ import type { Stored } from "./events.ts"
  * is what knows which agent is bound — it is the only thing that can.
  */
 export interface Where {
-  /** Every installed agent, in the order the panel offers them. */
-  readonly roster: ReadonlyArray<Installed>
+  /** Every installed agent, in the order the panel offers them.
+   *
+   *  A THUNK, and asked per fan-out: an engine is a plugin, so the set can move
+   *  between one opening of the picker and the next ({@link ../chat.ts}'s
+   *  `PanelOptions.roster` argues it). A captured array here would fan out to an
+   *  engine whose plugin has gone — starting a subprocess for a row nobody can
+   *  choose, to fill a list nobody will be shown. */
+  readonly roster: () => ReadonlyArray<Installed>
   /**
    * What the agent ALREADY RUNNING would answer — or `null` for a row that is
    * not the one being talked to, which is the row that has to be started.
@@ -224,9 +230,14 @@ export const make = (where: Where): Effect.Effect<Listings> =>
       // the rows are asked in. Held to one, the agent already running and every
       // cached answer would queue behind whichever subprocess is starting — a
       // one open costing the sum rather than the maximum.
-      all: Effect.map(
-        Effect.forEach(where.roster, storedBy, { concurrency: "unbounded" }),
-        asOneList,
+      // SUSPENDED so the table is read when the fan-out RUNS rather than when
+      // this record was built — which is the whole of what makes the thunk
+      // above worth being one. This value is made once and asked many times.
+      all: Effect.suspend(() =>
+        Effect.map(
+          Effect.forEach(where.roster(), storedBy, { concurrency: "unbounded" }),
+          asOneList,
+        )
       ),
       forget: (agent) => {
         answers.delete(agent)

@@ -35,6 +35,32 @@ Feature: Splitting and merging a row
     And the page has not reloaded
     And there should be no page errors
 
+  Scenario: A split in the middle of a bullet with children stays on the next line
+    # The defect: the head keeps its children, so the tail as the next SIBLING
+    # landed below the whole subtree — the caret at the bottom of the page, a
+    # screen away from the sentence it was just in. When the children are on
+    # screen the tail is the head's FIRST CHILD instead, which is the very next
+    # line a reader's eye is already on.
+    When I click the title of "install"
+    And I put the caret after "install"
+    And I press "Enter"
+    Then the node "install" has the title "install"
+    And "house.olai" holds a node titled " the cabinets" under "install"
+    And the row being typed holds " the cabinets"
+    And the caret is at offset 0
+    And the row being typed is drawn immediately after "install"
+    And the node "handles" is a child of "install"
+    And the page has not reloaded
+    And there should be no page errors
+    # And the way back is the very verb the gesture would use: the tail is a
+    # first child, so the `merge` the undo replays is the parent join. The
+    # record sits in the Trash, as either split's merge puts it.
+    When I press "Escape"
+    And I press "ControlOrMeta+z"
+    Then the node "install" has the title "install the cabinets"
+    And "house.olai" holds no node titled " the cabinets"
+    And "_olai/Trash.olai" holds a node titled " the cabinets"
+
   Scenario: The half that comes off is a bare bullet, and everything else stays
     # `install` carries an attached document, an `after` edge and three
     # children. All of them describe THAT node, so all of them stay with the
@@ -115,17 +141,49 @@ Feature: Splitting and merging a row
     And the node "mint" comes before "glazing"
     And "garden.olai" no longer holds the node "frames"
 
-  Scenario: The first of its siblings has nothing above it to merge into
+  Scenario: The first of its siblings joins into the row ON the page above it — its parent
+    # `Backspace` at offset zero is claimed as `merge` at the start of ANY
+    # line, and `merging` used to refuse a first child outright — the dead
+    # key the review of #493 met on the row the expanded-parent split makes.
+    # The head is right there on screen; the join is the same join.
     When I click the title of "handles"
     And I put the caret at the start of the line
     And I press "Backspace"
+    Then the row being typed holds "install the cabinetschoose the handles"
+    # The caret lands on the SEAM — the length of what the parent said.
+    And the caret is at offset 20
+    And the node "hinges" is a child of "install"
+    And "house.olai" holds a node titled "install the cabinetschoose the handles"
+    And "house.olai" no longer holds the node "handles"
+    And the page has not reloaded
+
+  Scenario: The top of the page has nothing above it to merge into
+    When I click the title of "kitchen"
+    And I put the caret at the start of the line
+    And I press "Backspace"
     Then the refusal says "no row above it to merge into"
-    And the row being typed holds "choose the handles"
-    And "house.olai" holds a node titled "choose the handles"
+    And the row being typed holds "kitchen remodel #home"
+    And "house.olai" holds a node titled "kitchen remodel #home"
     # And the row goes on working, like every other refused key.
-    When I select all and type "choose the brass handles"
+    When I select all and type "the kitchen remodel"
     And I click away from the editor
-    Then "house.olai" holds a node titled "choose the brass handles"
+    Then "house.olai" holds a node titled "the kitchen remodel"
+
+  Scenario: Backspace at the start of the split's tail undoes the split AT ONCE
+    # The gesture a hand reaches for after an `Enter` it did not mean: the
+    # split left the caret at offset zero of the tail — the one place the key
+    # is `merge`, and the head it came off is the row directly above.
+    When I click the title of "install"
+    And I put the caret after "install"
+    And I press "Enter"
+    Then the row being typed holds " the cabinets"
+    And the caret is at offset 0
+    When I press "Backspace"
+    Then the row being typed holds "install the cabinets"
+    And the caret is at offset 7
+    And "house.olai" holds a node titled "install the cabinets"
+    And "house.olai" holds no node titled " the cabinets"
+    And the page has not reloaded
 
   Scenario: Backspace anywhere else is the field's own
     # The one position the key is claimed at is the one where it has nothing of
@@ -220,13 +278,40 @@ Feature: Splitting and merging a row
     Then "house.olai" holds a node titled "pick the hingesand the soft-close ones"
     And the caret is at offset 15
 
-  Scenario: Backspace at the start of an EMPTY draft still writes nothing
-    # The other half of the case above, and it is not a regression: an empty
-    # new row is not a node, so there is nothing to join — the key does what the
-    # field's own Backspace at offset zero always did there, which is nothing.
+  Scenario: Backspace at the start of an EMPTY draft deletes the draft and aims above
+    # The other half of the case above: an empty new row is not a node, so
+    # there is nothing to join — and an abandoned sketch is not parked. The
+    # key used to do NOTHING there (which is what the human reported on the
+    # #493 build); now it deletes the line and leaves the caret at the end of
+    # the line above, which is where a merge with words would have left it.
     When I click the title of "hinges"
     And I press "Enter"
     And I press "Backspace"
-    Then a new row is being typed
-    And the node "hinges" has the title "pick the hinges"
+    Then the row being typed holds "pick the hinges"
+    And the caret is at offset 15
     And the outline "house.olai" shows exactly the nodes "kitchen, demo, order, install, handles, hinges, knobs, kitchen-herbs"
+
+  Scenario: Erasing a title and Backspacing the empty line takes the row away
+    # The human's second report on the #493 build: click a row, erase its
+    # title to nothing, Backspace at what is now an empty line — the refusal
+    # "a node needs a title" answered a question that was not asked. The row
+    # was emptied ON PURPOSE: the merge it asked for joins what the row says
+    # NOW — nothing — and the record keeps its title in the archive, which
+    # is what ⌘Z puts back.
+    When I click the title of "handles"
+    And I select all and type ""
+    And I press "Backspace"
+    # `handles` is install's FIRST child: the row above it on the page is the
+    # PARENT, which is where the caret lands and why its title is untouched.
+    Then the row being typed holds "install the cabinets"
+    And the caret is at offset 20
+    And "house.olai" holds a node titled "install the cabinets"
+    And "house.olai" no longer holds the node "handles"
+    # A TRASH rather than a shredder, exactly as a merge with words: the
+    # record kept its title, its id — everything an undo needs.
+    And "_olai/Trash.olai" holds the node "handles"
+    When I click away from the editor
+    And I press "ControlOrMeta+z"
+    Then the node "handles" has the title "choose the handles"
+    And the node "handles" comes before "hinges"
+    And there should be no page errors

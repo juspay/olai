@@ -36,9 +36,14 @@ import { pressed } from "../support/settling.ts";
 import {
   APP_HEADER,
   attr,
+  CONNECTION,
   HYDRATION_TIMEOUT,
   PANE,
+  CHAT_TOGGLE,
+  PADI_PILL,
   PLUGINS_PANEL,
+  PLUGINS_REFUSED,
+  PLUGINS_STARTED,
   PLUGINS_TRIGGER,
   POLL_TIMEOUT,
   PREFS_CHOICE,
@@ -906,14 +911,276 @@ When("I open the plugins panel", async function (this: OlaiWorld) {
 Then(
   "the plugins panel says {string} is {string}",
   async function (this: OlaiWorld, plugin: string, said: string) {
-    const row = this.page
-      .locator(`${PLUGINS_PANEL} ${PREFS_ROW}${attr("data-pref", `plugin-${plugin}`)}`);
+    // WAITED FOR rather than read once, and that is the loader surface rather
+    // than flake-proofing: a flip is a press, a settle over every row and a
+    // republish, so the sentence a scenario is waiting for arrives some frames
+    // after the click. The reads this step made before were of a serve that had
+    // not moved since it booted; this one is asked across a change.
+    //
+    // The WAIT is a locator carrying the words, which is what auto-waits; the
+    // catch is what turns "timed out on a selector" back into the sentence the
+    // row actually says, which is the whole of what a reader of a failure needs.
+    const row = rowFor(this, plugin);
     await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const hint = (await row.locator(PREFS_HINT).innerText()).replaceAll("\n", " ");
+    try {
+      await row
+        .locator(`${PREFS_HINT}:has-text(${JSON.stringify(said)})`)
+        .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    } catch {
+      // ...AND THE SWITCH BESIDE IT, which is the half that turns "it says
+      // nothing" into a sentence somebody can act on: a row with no hint is a
+      // running row that carries nobody, and a reader of this failure needs to
+      // know whether the serve disagrees about the STATE or only about the
+      // words. There is a real failure behind that — a scenario waiting for a
+      // `waiting` row was told only that the row said `""`.
+      assert.fail(
+        `the row for ${JSON.stringify(plugin)} to say ${JSON.stringify(said)}, ` +
+          `and it says ${JSON.stringify(await hintOn(this, plugin))} ` +
+          `with its switch reading ${JSON.stringify(await switchOn(this, plugin))}`,
+      );
+    }
+  },
+);
+
+/**
+ * ...AND A ROW WITH NOTHING TO SAY SAYS NOTHING — the panel's ordinary state,
+ * asserted as an ABSENCE because that is the only way it can be.
+ *
+ * A running row that carries nobody draws no sentence at all: the switch
+ * already says On, and a paragraph repeating it is how a panel becomes the
+ * column of identical paragraphs this one was rewritten out of. That is a claim
+ * about what is NOT on screen, so no reading of the hint's words could hold it.
+ */
+Then(
+  "the plugins panel says nothing more about {string}",
+  async function (this: OlaiWorld, plugin: string) {
+    const row = rowFor(this, plugin);
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    // `detached` rather than a count read: this is asked after a flip, so the
+    // sentence that has to be gone may still be on screen for a frame — and a
+    // count read once would be asserting about whichever frame it landed in.
+    await row.locator(PREFS_HINT).waitFor({ state: "detached", timeout: POLL_TIMEOUT });
+  },
+);
+
+/**
+ * WHERE THIS SERVE WAS STARTED, said ONCE for the panel — the line that used to
+ * be repeated under every row.
+ *
+ * It is a separate step from the per-row one because it is a separate claim:
+ * the rows say what each plugin is doing, and this says what the process came up
+ * with and how long a press here lasts. A scenario that asserted it through a
+ * row would be asserting the arrangement this panel was rewritten to end.
+ */
+Then(
+  "the plugins panel was started {string}",
+  async function (this: OlaiWorld, said: string) {
+    const foot = this.page.locator(`${PLUGINS_PANEL} ${PLUGINS_STARTED}`);
+    await foot.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const line = (await foot.innerText()).replaceAll("\n", " ");
     assert.ok(
-      hint.includes(said),
-      `the row for ${JSON.stringify(plugin)} to say ${JSON.stringify(said)}, ` +
-        `and it says ${JSON.stringify(hint)}`,
+      line.includes(said),
+      `the panel's own line to say ${JSON.stringify(said)}, and it says ${JSON.stringify(line)}`,
+    );
+  },
+);
+
+/** ONE PLUGIN'S ROW on the plugins panel, by the word `--plugins` takes — which
+ *  is the label the row wears, so a scenario names it the way the operator who
+ *  caused this state did. */
+const rowFor = (world: OlaiWorld, plugin: string) =>
+  world.page.locator(`${PLUGINS_PANEL} ${PREFS_ROW}${attr("data-pref", `plugin-${plugin}`)}`);
+
+/** ...and its sentence, or the empty string where it has none. ABSENT IS NOT AN
+ *  ERROR here: a row with nothing to say draws no paragraph at all, so
+ *  `innerText` on a locator matching nothing would throw where the honest answer
+ *  is "it says nothing", and the caller's `includes` refuses it in words a
+ *  reader can act on. */
+const hintOn = async (world: OlaiWorld, plugin: string): Promise<string> => {
+  const row = rowFor(world, plugin);
+  await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const hint = row.locator(PREFS_HINT);
+  if ((await hint.count()) === 0) return "";
+  return (await hint.innerText()).replaceAll("\n", " ");
+};
+
+/**
+ * IS EVERY MEMBER THIS PAGE SUBSCRIBED TO STILL ARRIVING — the app's own
+ * liveness readout, which is the strongest assertion this feature has.
+ *
+ * ## Why this and not a face
+ *
+ * Every other check here asks whether one drawn thing is right, and a drawn
+ * thing can be right while the wire under it is dead: a chip that mounted off a
+ * roster frame draws whether or not the member it reads is still being served.
+ * This asks the question directly, about EVERY member at once, and it names the
+ * silent ones — so a plugin whose streams stopped is caught whether or not
+ * anybody wrote a scenario about that plugin.
+ *
+ * It is the reading behind the sentence a person sees on the connection chip:
+ * *connected, but nothing is arriving on … what is on screen is missing whatever
+ * those carry, and may be missing it silently.* `data-stopped` is empty on a
+ * healthy wire, which is what makes the assertion a plain one.
+ */
+Then(
+  "no member of this page has gone silent",
+  async function (this: OlaiWorld) {
+    const chip = this.page.locator(CONNECTION).first();
+    await chip.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const stopped = (await chip.getAttribute("data-stopped")) ?? "";
+    assert.equal(
+      stopped,
+      "",
+      `the page reports nothing arriving on ${JSON.stringify(stopped)} — what is ` +
+        "drawn is missing whatever those carry, and is missing it silently",
+    );
+    // ...AND THE WORD BESIDE IT, because the two are separate readings: a wire
+    // that dropped entirely is `reconnecting` with nothing stopped, which the
+    // line above would pass.
+    assert.equal(await chip.getAttribute("data-connection"), "live");
+  },
+);
+
+/**
+ * WHETHER THE APPLIANCE BEHIND A PLUGIN IS REACHED — the pill kolu hangs in the
+ * bar, by the word it draws.
+ *
+ * A row coming back is TWO facts and they fail separately: the fiber re-applies
+ * (its kinds return, its sibling is on the wire, its chunk mounts) and the
+ * standing connection its `apply` armed is dialled again. A scenario that only
+ * asked about the drawn face could not tell a plugin that came back with no link
+ * from one that came back whole — and the second is the one that reads as *the
+ * feature works* right up until somebody looks at the data.
+ *
+ * BY THE PLUGIN'S OWN ATTRIBUTE, which is a closed set the appliance publishes
+ * (`connected` / `absent` / `skew`), rather than by a sentence: this step is
+ * about whether a socket is up, and the words around it are kolu's to change.
+ */
+Then(
+  "the appliance link reads {word}",
+  async function (this: OlaiWorld, word: string) {
+    try {
+      await this.page
+        .locator(`${PADI_PILL}${attr("data-padi", word)}`)
+        .first()
+        .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    } catch {
+      // ...AND WHAT IT ACTUALLY READS, because the two ways this fails want two
+      // different next steps: a pill saying `absent` is a plugin that is drawing
+      // and cannot reach its appliance, and NO PILL AT ALL is a plugin whose
+      // face never came back. A timeout on the selector alone cannot tell them
+      // apart, and the difference is which half of a remount to go and look at.
+      const pill = this.page.locator(PADI_PILL).first();
+      const found = (await pill.count()) === 0
+        ? "no pill at all"
+        : await pill.getAttribute("data-padi");
+      assert.fail(
+        `the appliance link to read ${JSON.stringify(word)}, and it is ` +
+          `${JSON.stringify(found)}`,
+      );
+    }
+  },
+);
+
+/** WHICH WAY ONE ROW'S SWITCH IS READING — `on`, `off`, or `neither` for a
+ *  strip that is drawn but has no segment pressed, which is not a state the
+ *  panel has and is worth saying rather than guessing at. */
+const switchOn = async (world: OlaiWorld, plugin: string): Promise<string> => {
+  const pressed = rowFor(world, plugin).locator(
+    `${PREFS_CHOICE}${attr("aria-pressed", "true")}`,
+  );
+  return (await pressed.count()) === 0
+    ? "neither"
+    : (await pressed.first().getAttribute("data-value")) ?? "neither";
+};
+
+/**
+ * THE SWITCH — a person turning one plugin on or off on the running serve.
+ *
+ * `on`/`off` is WHERE THE SWITCH IS BEING PUT rather than which way to move it,
+ * all the way down: the segment carries the value it picks, the procedure takes
+ * `enabled`, and the loader is told a `disabled` — so a scenario, a browser and
+ * a serve all say the same thing about where this is aiming, and none of them
+ * has to have read the roster correctly first.
+ *
+ * IT RETURNS WHEN THE ROW SAYS SO, not when the click lands. The press freezes
+ * that row's strip while the bundle settles, so a scenario that carried on
+ * immediately would be asserting about a serve mid-flip — the exact frame the
+ * server holds its roster back for. Waiting for the segment to read the value
+ * asked for is waiting for the republish that ends the movement.
+ */
+/** HOW LONG A FLIP MAY TAKE before it is a hang — see the step below for the
+ *  four stages it is buying. Its own name rather than a literal, because it is
+ *  a claim about this product's slowest deliberate gesture and not a nudge
+ *  somebody tuned to make a suite pass. */
+const FLIP_STEP_TIMEOUT = 90_000;
+
+When(
+  "I switch the plugin {string} {word}",
+  // A LONGER STEP THAN THE ORDINARY ONE, and the number is the flip's own
+  // shape rather than slack: a press is a settle over every row in the bundle,
+  // a re-validation of the vault against the vocabulary that just moved, a
+  // roster republish, a redial, and the tab's whole tree built again. Under the
+  // 40s default the two `waitFor`s here can add up past it, and what a reader
+  // would then see is `function timed out` rather than which of the four
+  // stages did not happen.
+  { timeout: FLIP_STEP_TIMEOUT },
+  async function (this: OlaiWorld, plugin: string, pick: string) {
+    const row = rowFor(this, plugin);
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.press(row.locator(`${PREFS_CHOICE}${attr("data-value", pick)}`));
+    // THE PANEL SURVIVES THE REBUILD THE PRESS CAUSED, which is what makes this
+    // wait a wait for the flip rather than a wait for a control that has gone:
+    // a roster change is a redial and a redial rebuilds the tab's whole tree,
+    // so the row this is waiting on is a NEW element drawn by a panel that
+    // reopened itself (`@olai/web`'s `client/plugins/`).
+    await rowFor(this, plugin)
+      .locator(`${PREFS_CHOICE}${attr("data-value", pick)}${attr("aria-pressed", "true")}`)
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+/**
+ * IS THE CONVERSATION HERE AT ALL — the chat row's own chrome, by presence.
+ *
+ * The header's agent toggle is chat's, drawn by chat's browser half off a
+ * sibling surface chat's server half serves. So it is the one control on the
+ * page whose presence answers *did `surface/chat/` leave the wire and come
+ * back*, which is what a scenario about flipping that row wants and what no
+ * reading of the plugins panel could say — the panel is core's, and it would go
+ * on drawing a row for chat whether or not anything of chat was served.
+ *
+ * BY PRESENCE AND NOT BY A SENTENCE, because the claim is absence: a plugin
+ * that is off is not a disabled version of itself, it is gone, and the only
+ * assertion that can tell those apart is one about whether the element is
+ * there.
+ */
+Then(
+  "the conversation is {word} the header",
+  async function (this: OlaiWorld, presence: string) {
+    if (presence !== "in" && presence !== "gone-from") {
+      throw new Error(`the step says "in" or "gone-from", not "${presence}"`);
+    }
+    await this.page
+      .locator(CHAT_TOGGLE)
+      .waitFor({
+        state: presence === "in" ? "visible" : "detached",
+        timeout: POLL_TIMEOUT,
+      });
+  },
+);
+
+/** ...AND THE REFUSAL, when the serve would not take it. One place on the panel
+ *  rather than per row, because it is about the press just made. */
+Then(
+  "the plugins panel refuses with {string}",
+  async function (this: OlaiWorld, said: string) {
+    const refused = this.page.locator(`${PLUGINS_PANEL} ${PLUGINS_REFUSED}`);
+    await refused.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const line = await refused.innerText();
+    assert.ok(
+      line.includes(said),
+      `the panel to refuse with ${JSON.stringify(said)}, and it says ${JSON.stringify(line)}`,
     );
   },
 );

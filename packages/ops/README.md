@@ -1,6 +1,6 @@
 # @olai/ops — the only writer
 
-Semantic edits over a served directory: create an outline, add a node or a whole subtree, mark done, doing or todo, retitle, note, schedule, move, split one node into two, merge one into the sibling above it, copy one and everything under it, trash, set see references, place and retire mirrors, wire the `after` edges a node waits on. Everything that changes an outline goes through here, and everything an agent may READ of one comes out of here too.
+Semantic edits over a served directory: create an outline, add a node or a whole subtree, mark done, doing or todo, retitle, note, schedule, move, split one node into two, merge one into the row above it, copy one and everything under it, trash, set see references, place and retire mirrors, wire the `after` edges a node waits on. Everything that changes an outline goes through here, and everything an agent may READ of one comes out of here too.
 
 It sits between `@olai/format` (what a record is, and what is legal) and `@olai/store` (how bytes become durable). Neither of those knows what an EDIT is; this package is where "mark `order` done" lives, and it is what the web UI's procedures and the agent's MCP tools both call. Recording a write is a `Ledger` door this layer calls through; the git plugin stands behind it, or `commit` / `push` refuse in words.
 
@@ -100,14 +100,14 @@ It is also what keeps the two faces equal. The web's `Enter` mid-line and `Backs
 
 **`split`** takes two TITLES — what the node keeps and what comes off it — never a character offset. An offset is a range into a field, which nothing in this table names, and an offset re-planned against a newer snapshot would cut somebody else's retitle in half; two strings mean the same thing against any revision. The tail lands immediately after the head among its siblings and is born a BULLET: everything that described the node — children, note, mark, date, edges, `doc` — stays with the head, because the new row is one nobody has said anything about yet.
 
-**`merge`** takes one id and reads the sibling above it off the snapshot, for the reason `move_node` does not take "the row above" either. What survives is the decision:
+**`merge`** takes one id and reads THE ROW ABOVE IT off the snapshot, for the reason `move_node` does not take "the row above" either — the sibling above, or the PARENT when the node is first among its siblings, which is the line above it on the page either way. What survives is the decision:
 
 - **the titles run together**, with nothing between them. They were one line before somebody split them, and a separator invented here is text the caller did not type;
 - **the notes join a blank line apart**, and a node with none takes the other's. A note that vanished off the page would be a silent loss, and "it is in the archive" is not an answer for a row that is still on screen;
 - **the children move**, in order, to the end of the survivor's own. Nothing may be orphaned by a keystroke;
 - **the mark, the date, the attached `doc` and the edges go with the RECORD into the archive.** The format allows one of each per node and the survivor already has its own answer, so there is no merge of two — and nothing is destroyed, because the record keeps its id in `_olai/Trash.olai` and `untrash_node` brings it back. What the op owes is that this is never silent, which is what the reply's `nudge` is for: a `done` that has left the live outline is exactly the news a person is owed, and so is the file that was attached to it.
 
-Refused when the node is first among its siblings (nothing above it), when the row above is a MIRROR (a placement has no title to merge into) and, like every text op, on a placement's own id.
+Refused when there is no row above at all (the first of an outline's top-level rows), when the row above is a MIRROR (a placement has no title to merge into) and, like every text op, on a placement's own id.
 
 ## Duplicating, and what a copy is entitled to differ in
 

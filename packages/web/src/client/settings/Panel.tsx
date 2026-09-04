@@ -191,6 +191,7 @@ export function Panel(props: {
         />
       </Row>
 
+
       {/* One sentence for the whole panel, because it is one fact about every
           row on it and repeating it per row would be three copies of the
           doctrine. It is here at all because "where did this go" is exactly
@@ -226,8 +227,7 @@ export function Panel(props: {
  *
  * Drawn only while there is something for it to do — alerts on, and a browser
  * that has neither granted nor refused. A button offering to ask a question
- * that has been answered is a control with nothing to do, which is the same
- * argument the Resume button two rows down makes.
+ * that has been answered is a control with nothing to do.
  */
 function AllowNotify() {
   return (

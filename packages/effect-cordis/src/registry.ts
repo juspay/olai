@@ -56,6 +56,26 @@
  * are the same rule word for word wherever a `changed` is passed — which is the
  * asymmetry the roster's own header used to argue it would never need, and no
  * longer does.
+ *
+ * ## THE COPY A READ HANDS BACK IS MADE ONCE PER CHANGE, not once per read
+ *
+ * Both `read`s answer with a copy, and the reason is unchanged: a reader that
+ * could write into the table would be a second writer. What changed is when the
+ * copy is MADE. It used to be on every call, which was free while both tables
+ * were read a handful of times per revision — the siblings on a re-compose, the
+ * vocabulary once at boot.
+ *
+ * The vocabulary stopped being read once at boot. It follows the fibers now
+ * (`@olai/server`'s `propKinds.ts`), so `kinds()` is asked wherever a value is
+ * held to its declared kind — which is per property drawn, on the path a page
+ * is rendered from. A fresh `Map` per property is a real cost for a table that
+ * moves when somebody presses a switch.
+ *
+ * So the copy is cached and dropped whenever the table moves, which is every
+ * claim, every release and the delete on the way out of a refusal. Between two
+ * changes a reader gets the SAME value back, which is stronger than what was
+ * promised before and is what a downstream `equals` wants; across one it gets a
+ * new one, which is the whole of what the caching may not break.
  */
 
 import { Effect, Scope } from "effect"
@@ -69,7 +89,10 @@ export interface Roster<V> {
   /** Every entry held right now, in the order they were made. A COPY, which is
    *  what makes it safe to walk while a plugin unloading underneath removes one
    *  — and what a dispatch wants anyway, since what a dispatch is ABOUT is the
-   *  set of plugins that were mounted when it started. */
+   *  set of plugins that were mounted when it started. The copy is remade when
+   *  the table moves and not per read (see the header), which does not weaken
+   *  that: a walk that began before a change is still walking the list the
+   *  dispatch started on. */
   readonly read: () => ReadonlyArray<V>
 }
 
@@ -109,6 +132,8 @@ export interface Roster<V> {
  */
 export const roster = <V>(changed?: () => void): Roster<V> => {
   const held = new Map<symbol, V>()
+  // THE COPY, HELD UNTIL THE TABLE MOVES — see the header's last paragraph.
+  let copy: ReadonlyArray<V> | null = null
   return {
     hold: (value) =>
       Effect.acquireRelease(
@@ -118,10 +143,12 @@ export const roster = <V>(changed?: () => void): Roster<V> => {
         Effect.suspend(() => {
           const at = Symbol()
           held.set(at, value)
+          copy = null
           try {
             changed?.()
           } catch (refused) {
             held.delete(at)
+            copy = null
             return Effect.die(refused)
           }
           return Effect.succeed(at)
@@ -129,10 +156,11 @@ export const roster = <V>(changed?: () => void): Roster<V> => {
         (at) =>
           Effect.sync(() => {
             held.delete(at)
+            copy = null
             changed?.()
           }),
       ).pipe(Effect.asVoid),
-    read: () => [...held.values()],
+    read: () => copy ??= [...held.values()],
   }
 }
 
@@ -152,7 +180,9 @@ export interface Registry<K, V> {
     refuse: (held: V) => string,
   ) => Effect.Effect<void, never, Scope.Scope>
   /** Every entry held right now, in claim order. A COPY: a reader that could
-   *  write into the table would be a second writer. */
+   *  write into the table would be a second writer — and the SAME copy until
+   *  the table next moves, which is what makes reading it per property draw
+   *  affordable (see the header). */
   readonly read: () => ReadonlyMap<K, V>
 }
 
@@ -165,6 +195,10 @@ export interface Registry<K, V> {
  */
 export const registry = <K, V>(changed?: () => void): Registry<K, V> => {
   const table = new Map<K, V>()
+  // THE COPY, HELD UNTIL THE TABLE MOVES — see the header's last paragraph.
+  // This is the one the vocabulary is read out of, and the reason the caching
+  // exists at all.
+  let copy: ReadonlyMap<K, V> | null = null
   return {
     claim: (key, value, refuse) =>
       Effect.acquireRelease(
@@ -177,11 +211,13 @@ export const registry = <K, V>(changed?: () => void): Registry<K, V> => {
           const already = table.get(key)
           if (already !== undefined) return Effect.die(new Error(refuse(already)))
           table.set(key, value)
+          copy = null
           try {
             changed?.()
           } catch (refused) {
             // THE ENTRY GOES BEFORE THE FAILURE DOES — see the header.
             table.delete(key)
+            copy = null
             return Effect.die(refused)
           }
           return Effect.succeed(key)
@@ -189,9 +225,10 @@ export const registry = <K, V>(changed?: () => void): Registry<K, V> => {
         (key) =>
           Effect.sync(() => {
             table.delete(key)
+            copy = null
             changed?.()
           }),
       ).pipe(Effect.asVoid),
-    read: () => new Map(table),
+    read: () => copy ??= new Map(table),
   }
 }

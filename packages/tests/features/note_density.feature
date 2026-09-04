@@ -91,11 +91,13 @@ Feature: A row is its title, and the pilcrow opens the rest
     And the description of "order" does not render as markdown blocks
     And the description of "order" is under its title
     And the description of "order" is clamped to one line
-    # The clamped line is a second door to the same state, so a reader whose
-    # eye is already on the note does not travel back to the mark.
+    # The clamped line is a second door — a click in the words you were
+    # reading puts the caret in the note AT them, one click rather than the
+    # pilcrow and a second click into what it opened. The pilcrow's open is
+    # still what it is (above).
     When I click the note of "order"
-    Then the row "order" is open
-    And the description of "order" renders bold text "walnut"
+    Then the note of "order" is being typed
+    And the note being typed holds the source of "order"
 
   Scenario: Open starts every row open
     When I read the outline with Notes on "open"

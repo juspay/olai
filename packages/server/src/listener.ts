@@ -61,18 +61,44 @@ import { resyncRoute } from "./resync.ts"
 import type { Bound } from "./runtime.ts"
 
 export interface ListenOptions {
-  /** What is served on the wire. The lifetime is NOT this file's: `serve.ts`
-   *  built the runtime and closes it, so only the two fields a transport
-   *  actually needs are asked for here. */
+  /**
+   * What is served on the wire. The lifetime is NOT this file's: `serve.ts`
+   * built the runtime and closes it, so only the two fields a transport
+   * actually needs are asked for here.
+   *
+   * IT IS HANDED ON AS ACCESSORS rather than read here, and that is the whole
+   * of the loader surface's transport half. `Bound`'s `group` and `handlers`
+   * are getters over a runtime whose served set MOVES — a plugin switched off
+   * drops its sibling, one switched on mounts a new one — and reading them here
+   * would hand the listener the composition as it stood when the port bound.
+   * That is what it used to do, and a re-mounted sibling's tags then resolved
+   * to the RETIRED mount's refusing handler for the life of the process, on
+   * every socket afterwards including a reloaded page's.
+   */
   readonly bound: Pick<Bound, "group" | "handlers">
-  /** WHAT A TAB MAY CALL, as the composition root minted it — `./runtime.ts`'s
-   *  `bind` returns the browser face beside the group it describes, because a
-   *  face and a group that disagree about which plugins are composed is a boot
-   *  refusal (`restrictHandlers` compares the two as a set equality). It used
-   *  to be read straight off `./faces.ts` here, which was safe only while the
-   *  surface was one fixed thing; it is a composition now, so the exposure
-   *  travels WITH the group rather than being looked up beside it. */
-  readonly expose: FaceExposure
+  /**
+   * WHAT A TAB MAY CALL, as the composition root minted it — `./runtime.ts`'s
+   * `bind` returns the browser face beside the group it describes, because a
+   * face and a group that disagree about which plugins are composed is a
+   * refusal (`restrictHandlers` compares the two as a set equality). It used to
+   * be read straight off `./faces.ts` here, which was safe only while the
+   * surface was one fixed thing; it is a composition now, so the exposure
+   * travels WITH the group rather than being looked up beside it.
+   *
+   * A THUNK for the same reason `bound`'s fields are accessors, and it is the
+   * field that makes the pairing load-bearing: a face is a default-deny
+   * allowlist DERIVED from the sibling set, so a roster that moved and a gate
+   * that did not is exactly the set inequality that refusal exists to raise.
+   * The two have to move together or the listener refuses every socket the
+   * moment a plugin arrives.
+   *
+   * NOT OMITTABLE, even though upstream allows it: an absent exposure serves
+   * the whole surface, and that default is exactly what this listener must
+   * never fall back to. The surface carries the ops request vocabulary, and a
+   * browser must not speak it — `ops.*` is not on the browser face, so a tab
+   * that calls one is refused per request rather than finding a member missing.
+   */
+  readonly expose: () => FaceExposure
   /** The built browser bundle. */
   readonly clientDist: string
   /** The directory being served — where `/media/*` reads its pictures from. */
@@ -144,18 +170,22 @@ export const listen = (
  *  other. */
 const app = (options: Omit<ListenOptions, "port">, port: number, say: Emit) =>
   serveSurfaceApp({
-    group: options.bound.group,
-    handlers: options.bound.handlers,
-    // WHAT A TAB MAY CALL, and the reason this argument exists at all: the
-    // surface carries the ops request vocabulary now, and a browser must not
-    // speak it (`./faces.ts`). Everything a page draws or presses is named
-    // there; `ops.*` is not, and a tab that calls one is refused per request
-    // with `SurfaceMemberNotExposed` rather than finding a member missing.
+    // THE GENERATION, READ AT EACH ACCEPT AND NEVER HERE — one `live`, which is
+    // what a `ServedGenerationSource` is: a caller with a fixed surface passes
+    // the triple itself, and one whose served set MOVES passes a function that
+    // names the triple that is current then.
     //
-    // Not an omission-able option here even though upstream allows one: an
-    // absent `expose` serves the whole surface, and that default is exactly
-    // what this listener must never fall back to.
-    expose: options.expose,
+    // ONE FUNCTION RATHER THAN THREE, and the shape is what makes the rule
+    // keepable: the group, the handler record and the gate are one generation,
+    // and two of them re-read with the third stale is the set inequality
+    // `restrictHandlers` refuses on — a socket terminated, not a member denied.
+    // Three separate accessors leave that to the caller to remember; one leaves
+    // nothing to remember.
+    live: () => ({
+      group: options.bound.group,
+      handlers: options.bound.handlers,
+      expose: options.expose(),
+    }),
     clientDist: options.clientDist,
     // The same spelling the build took — `@olai/surface`'s ASSET_PREFIX, so a
     // vault file under `assets/` is a page rather than a miss under the

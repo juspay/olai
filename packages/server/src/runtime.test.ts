@@ -44,6 +44,9 @@ import {
 } from "@olai/plugin-api/services"
 import type { CollectionDeltasMsg } from "@kolu/surface/define"
 import { defineSurface } from "@kolu/surface/define"
+import { restrictHandlers } from "@kolu/surface/expose"
+import { facesOf } from "./faces.ts"
+import { inMemoryStore } from "@kolu/surface/server"
 import { NO_KINDS } from "@olai/format"
 import * as Store from "@olai/store"
 import { NodeServices } from "@effect/platform-node"
@@ -78,7 +81,7 @@ const STARTED = "2026-08-29T09:31:00.000Z"
 const withRuntime = <A>(
   files: Readonly<Record<string, string>>,
   use: (bound: {
-    readonly wired: { readonly bound: Bound }
+    readonly wired: { readonly bound: Bound; readonly faces: ReturnType<typeof facesOf> }
     readonly ops: Ops
     readonly store: OutlineStore
     /** The directory this runtime is serving, for the one test that rewrites a
@@ -173,7 +176,18 @@ const withRuntime = <A>(
         // about them — but the reading underneath it takes the ids it is given,
         // and asking it here is what makes these cases exercise the same
         // derivation a real boot does rather than a hand-made map.
-        report: yield* rowReport(mounted.host, (extra.plugins ?? []).map((one) => one.name)),
+        report: yield* Effect.map(
+          rowReport(mounted.host, (extra.plugins ?? []).map((one) => one.name)),
+          (read) => () => read,
+        ),
+        // THESE DOUBLES ARE NOT LOADER ROWS, so there is nothing to name and
+        // nothing to flip. The join that reads `names()` answers "carries
+        // nobody" for every row, which is what these cases are about anyway; the
+        // flip is benched where the loader is (`@olai/bundle`'s `flip.test.ts`)
+        // and end to end, because what it is FOR is a real bundle settling.
+        names: () => new Map(),
+        set: () => Effect.succeed(false),
+        switched: () => new Set(),
       },
     })
     const runtime = yield* watchFault(wired.bound)
@@ -675,7 +689,15 @@ const offering = (
   onChange: { run: () => {} },
   built: PLUGIN_NAMES,
   pinned,
-  report,
+  report: () => report,
+  // NOTHING NAMES ANYTHING in these cases, so no row carries another — which is
+  // the state every row of a real bundle but the chat row is in. The `carrying`
+  // sentence has its own case below, where both halves of the join are supplied.
+  names: () => new Map(),
+  set: () => Effect.succeed(false),
+  // NOBODY PRESSED ANYTHING in these cases, which is the state every serve is
+  // in until somebody does. The word a press produces has its own case below.
+  switched: () => new Set(),
 })
 
 /**
@@ -935,6 +957,142 @@ test("no wake declarations is no sentence, and every row is still there", () => 
 })
 
 /**
+ * WHAT STOPS IF THIS ROW STOPS — the join, and the one thing on the roster that
+ * is about a press nobody has made yet.
+ *
+ * Two live readings meet here and neither is a list anybody keeps: who stands
+ * behind which door (core's offers table, taken by a plugin's own `offer` and
+ * released by its scope) and which doors each running row is standing on (the
+ * `inject` the runtime derived from that plugin's `needs`). The panel draws the
+ * answer under the switch, so a person about to turn the chat row off is told
+ * the engines and the tenants go with it.
+ *
+ * IT IS SPELLED WITH THE BUILD'S OWN NAMES because the roster is, and this file
+ * names no plugin: the first row offers a toy door and the next two name it,
+ * which is the chat row's shape with the nouns taken out.
+ */
+test("a running row that offers a door names the rows that would stop with it", () => {
+  const [first, second, third] = PLUGIN_NAMES
+  if (first === undefined || second === undefined || third === undefined) {
+    throw new Error("this claim needs a build with three rows")
+  }
+  const carrying = (offers: ReadonlyMap<string, string>, names: ReadonlyMap<string, ReadonlyArray<string>>) =>
+    rosterOf(
+      { ...offering(null, mounted(PLUGIN_NAMES)), names: () => names },
+      new Map(),
+      offers,
+    )
+
+  const roster = carrying(
+    new Map([["aDoor", first]]),
+    new Map([[second, ["aDoor"]], [third, ["aDoor"]]]),
+  )
+  expect(roster.built.find((row) => row.name === first)?.carrying).toEqual([second, third])
+  // ...AND ABSENT ON EVERY OTHER ROW, which is the ordinary state and is why the
+  // field is optional rather than an empty array: a row that carries nobody says
+  // nothing, where an empty list would be each of them claiming to carry no one.
+  expect(roster.built.filter((row) => row.carrying !== undefined).map((row) => row.name))
+    .toEqual([first])
+
+  // IN BUNDLE ORDER, not in the order the registry answered. The registry's
+  // order is the order two dynamic imports came back in, which is a fact about
+  // the filesystem on the day; a list that reshuffles between boots is a list
+  // nobody can read twice.
+  const shuffled = carrying(
+    new Map([["aDoor", first]]),
+    new Map([[third, ["aDoor"]], [second, ["aDoor"]]]),
+  )
+  expect(shuffled.built.find((row) => row.name === first)?.carrying).toEqual([second, third])
+
+  // A ROW IS NOT IN ITS OWN ANSWER. Nothing forbids a plugin naming a door it
+  // also offers, and it does not stop when it stops — otherwise every offering
+  // row would name itself among its own casualties.
+  const itself = carrying(
+    new Map([["aDoor", first]]),
+    new Map([[first, ["aDoor"]], [second, ["aDoor"]]]),
+  )
+  expect(itself.built.find((row) => row.name === first)?.carrying).toEqual([second])
+})
+
+/**
+ * A ROW A PERSON TURNED OFF SAYS SO, rather than blaming the build — the third
+ * author of "absent", and the one the panel used to attribute to the wrong one.
+ *
+ * ## The failure this is written from
+ *
+ * Under no flag at all, switching a row off at the panel made its row read
+ * *"Off by default — `--plugins=kolu` starts it at boot"*. Every clause of that
+ * is false about the row a person is looking at: this build does not ship kolu
+ * off, nobody needs a flag to start it, and the reason it is absent is the press
+ * they made a second ago. `stateOf` answered `optIn` for any absent row under no
+ * flag, which was exact while absence had two authors and the flag told them
+ * apart.
+ *
+ * The press is the third, and it WINS: the flag somebody typed an hour ago and
+ * the default the build ships are both still true and neither is why this row is
+ * absent now.
+ */
+test("a row a person switched off is not the build's default", () => {
+  const [first] = PLUGIN_NAMES
+  if (first === undefined) throw new Error("this claim needs a build with a row")
+  const absent = new Map([[first, { state: "off" as const }]])
+
+  // NOBODY PRESSED ANYTHING and no flag was given: the build's own default,
+  // which is the reading this case is distinguishing itself from.
+  expect(rosterOf(offering(null, absent)).built.find((row) => row.name === first)?.state)
+    .toBe("optIn")
+
+  // ...and the same row, same flag, after a press.
+  const pressed = rosterOf({ ...offering(null, absent), switched: () => new Set([first]) })
+  expect(pressed.built.find((row) => row.name === first)?.state).toBe("switched")
+  expect(pressed.built.find((row) => row.name === first)?.running).toBe(false)
+
+  // IT WINS OVER THE FLAG TOO, which is the other half: a serve started
+  // `--plugins=<this row>` and then switched off is not a row the operator
+  // declined to ask for.
+  const underAFlag = rosterOf({
+    ...offering([first], absent),
+    switched: () => new Set([first]),
+  })
+  expect(underAFlag.built.find((row) => row.name === first)?.state).toBe("switched")
+
+  // ...AND IT IS ONLY ABOUT AN ABSENT ROW. A row switched off and then on again
+  // is simply running, which is why the set is cleared on the way back rather
+  // than kept as a log of presses — but a set that had not been cleared must not
+  // be able to say `switched` about a fiber that is up.
+  const back = rosterOf({
+    ...offering(null, mounted([first])),
+    switched: () => new Set([first]),
+  })
+  expect(back.built.find((row) => row.name === first)?.state).toBe("running")
+})
+
+/**
+ * ...AND A ROW THAT IS NOT RUNNING CARRIES NOBODY, whatever the tables say.
+ *
+ * It has already stopped: what it stood behind is revoked, and every row that
+ * named it is already `waiting` and already says which door. A sentence here
+ * would be a switch offering to tell a person what turning something off would
+ * cost, about a thing that is off.
+ */
+test("a row that is not running carries nobody", () => {
+  const [first, second] = PLUGIN_NAMES
+  if (first === undefined || second === undefined) {
+    throw new Error("this claim needs a build with two rows")
+  }
+  const roster = rosterOf(
+    {
+      ...offering([second], new Map([[first, { state: "off" }], [second, { state: "running" }]])),
+      names: () => new Map([[second, ["aDoor"]]]),
+    },
+    new Map(),
+    new Map([["aDoor", first]]),
+  )
+  expect(roster.built.find((row) => row.name === first)?.running).toBe(false)
+  expect(roster.built.find((row) => row.name === first)?.carrying).toBeUndefined()
+})
+
+/**
  * A PLUGIN THAT COMPOSES NO SIBLING IS STILL `running` — which is what an
  * ENGINE is, and what the word had stopped covering.
  *
@@ -1087,6 +1245,133 @@ test("a sibling the rooted bundle refuses takes only its own fiber down, and the
     { plugins: [] },
   ))
 
+
+/**
+ * THE GATE AND THE GROUP ARE ONE GENERATION — the pairing the listener now
+ * rests on at every accept, rather than once at bind.
+ *
+ * ## Why this became a claim
+ *
+ * `serveSurfaceApp` reads the served `{group, handlers, expose}` together at
+ * each accept and `restrictHandlers` THROWS on any set inequality between them
+ * — a socket terminated, not a member refused. Before that it was read once, at
+ * a moment when the two were equal by construction, so nothing had to hold.
+ *
+ * The two are derived from different tables and they are not the same table.
+ * `siblings()` is the sibling REGISTRY: a plugin's `apply` registered, so it is
+ * in there the instant the fiber applies. The group is what is MOUNTED. This
+ * file's own `leaving` map is what pulls them apart — a row switched off and on
+ * again before the previous generation's drop has settled is registered and not
+ * yet mounted — and a gate read off the registry then names tags the group does
+ * not carry, on every socket accepted until the deferred mount lands.
+ *
+ * So the gate is derived from what is SERVED rather than from what is
+ * registered, and with that there is no window: a deferred row is on neither
+ * side.
+ *
+ * ## WHAT THIS CASE DOES AND DOES NOT REACH, said plainly
+ *
+ * It asserts that the gate FITS the group — through `restrictHandlers`, the
+ * same call the transport makes at every accept — at rest, after a sibling
+ * arrives and after it leaves. It does NOT reach the deferred window itself,
+ * and that was measured rather than assumed: disposing a toy sibling and
+ * re-mounting it in the same breath finds the drop already settled, so the
+ * mount is never deferred and the case would be asserting about a state it
+ * had not produced. Reaching it needs a sibling whose sources take a real
+ * moment to finalize, which is a plugin with an appliance behind it.
+ *
+ * The window is therefore held END TO END (`the_plugin_switch.feature`), and
+ * what is held here is the derivation's other consequence, which is the half
+ * that was silently untrue and that no scenario would ever have caught.
+ *
+ * ## ...AND THE IDENTITY, which is what "one generation" MEANS
+ *
+ * The `toBe` assertions are not about cost. They are how "one gate belongs to
+ * one group" is stated in a test at all: a gate that is a fresh object per read
+ * is a gate nobody can say is the same gate, and the only way to assert that a
+ * value moves exactly when its generation moves — and not otherwise — is by
+ * identity.
+ *
+ * It also happens to be what a memo would need, and for one revision upstream
+ * had one, keyed on the triple. The refactor that landed dropped it: the
+ * restriction is walked at every accept now, so an accept's cost is upstream's
+ * and no assertion here should pretend this consumer can move it.
+ */
+test("the browser gate names exactly what the group serves, and is one value per generation", () =>
+  withRuntime(
+    { "a.olai": OUTLINE },
+    ({ plugins, wired }) =>
+      Effect.gen(function*() {
+        if (plugins === null) throw new Error("this case needs the plugin runtime")
+
+        /**
+         * DOES THE GATE FIT THE GROUP — asked through the function that
+         * enforces it rather than by reading either side.
+         *
+         * `restrictHandlers` is what `serveSurfaceApp` runs at every accept, and
+         * it THROWS on any set inequality between the exposure and the group it
+         * gates. So this is not a proxy for the property, it is the property, on
+         * the same call the transport makes — and it says nothing about how a
+         * `FaceExposure` is shaped, which is not this case's business and would
+         * be a second thing to keep in step if it were.
+         */
+        const gateFits = (): void => {
+          restrictHandlers(wired.bound.group, wired.bound.handlers, wired.faces.browser)
+        }
+        /** ...and whether the group carries a sibling's tags at all, which is
+         *  what makes the fit above a claim about something rather than about an
+         *  empty set. `surface/<sibling>/<member>/<verb>` is how they compose. */
+        const groupCarries = (key: string): boolean =>
+          [...wired.bound.group.requests.keys()].some((tag) => tag.startsWith(`surface/${key}/`))
+
+        // AT REST, with no sibling at all.
+        const first = wired.faces.browser
+        expect(gateFits).not.toThrow()
+        expect(groupCarries("gated")).toBe(false)
+
+        // ...AND THE SAME OBJECT while nothing has moved, which is how "one
+        // gate for one group" is sayable in a test at all: a gate that is a
+        // fresh object per read is a gate nobody can say is the same gate.
+        expect(wired.faces.browser).toBe(first)
+
+        // A SIBLING ARRIVES through the real `recompose`.
+        const gatedDouble = definePlugin({
+          name: "gated",
+          needs: [Surfaces],
+          apply: Effect.gen(function*() {
+            yield* (yield* Surfaces).register({
+              surface: defineSurface({
+                cells: { seen: { schema: Schema.String, default: "", verbs: ["get"] } },
+              }),
+              faces: { browser: { seen: "resource" } },
+              deps: { cells: { seen: { store: inMemoryStore("") } } },
+            })
+          }),
+        })
+        const mounted = yield* mountPlugin(plugins.host, gatedDouble)
+
+        // THE GATE MOVED WITH IT — a new value, naming the sibling the group
+        // now carries. Both halves matter: a gate that did not move would refuse
+        // the member, and one that moved without the group would refuse the
+        // whole socket.
+        expect(wired.faces.browser).not.toBe(first)
+        expect(gateFits).not.toThrow()
+        expect(groupCarries("gated")).toBe(true)
+
+        // ...and it is one value again until the next re-compose.
+        const second = wired.faces.browser
+        expect(wired.faces.browser).toBe(second)
+
+        // AND IT LEAVES WITH IT. A gate that kept naming a departed sibling
+        // would name tags the group no longer carries, which is the same set
+        // inequality from the other side and refuses the socket just as hard.
+        yield* mounted.dispose
+        expect(gateFits).not.toThrow()
+        expect(groupCarries("gated")).toBe(false)
+
+      }),
+    { plugins: [] },
+  ))
 
 // ── the doubles every case above mounts ────────────────────────────────
 

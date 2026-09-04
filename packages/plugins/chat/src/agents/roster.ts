@@ -65,25 +65,46 @@
  * Both are core's because both are about the SERVE rather than about one engine:
  * whether there is a panel at all, and where this process may look.
  *
- * ## READ ONCE, at boot, and that is a phase boundary
+ * ## TWO HALVES, AND ONLY ONE OF THEM WAS EVER MEANT TO HOLD STILL
  *
- * TWO THINGS ARE READ ONCE HERE and they are worth telling apart. The MACHINE's
- * half — which agents are installed — is a deliberate refusal to re-decide: the
- * roster is what decides whether the panel has an agent at all, and re-deciding
- * it under a reader would flip the panel's whole face, from a conversation to
- * install instructions and back, because somebody's `$HOME/.local/bin` was being
+ * This section said both were read once at boot and named the second as a phase
+ * boundary: *the day something can turn a row off, this is one of the places
+ * that has to learn to move, beside `@olai/server`'s `propKinds.ts` … and its
+ * `runtime.ts`*. The loader surface is that day. The vocabulary moved, the row
+ * report moved, and this is the third — and the one that reaches a PERSON, since
+ * what it decides is which agents a picker offers.
+ *
+ * The MACHINE's half stays exactly as it was, and that is a deliberate refusal
+ * rather than the same defect left in place: which agents are INSTALLED is what
+ * decides whether the panel has an agent at all, and re-deciding it under a
+ * reader would flip the panel's whole face — from a conversation to install
+ * instructions and back — because somebody's `$HOME/.local/bin` was being
  * written to. An agent installed while olai runs is offered by the next start,
  * which is the same bargain `OLAI_ACP_AGENT` has always made.
  *
- * The BUILD's half is the phase boundary. The engines this function is handed
- * are read off the plugin registry once, in `@olai/server`'s `serve.ts`, before
- * the store opens — so an engine plugin that unloads mid-serve leaves its row in
- * the picker until the next boot, and one that arrives is not offered. Nothing
- * in this phase can do either (the bundle is mounted before the chat is built
- * and nothing turns a row off afterwards), and the day something can — the
- * preferences toggle — this is one of the places that has to learn to move,
- * beside `@olai/server`'s `propKinds.ts`, which says the same of the vocabulary,
- * and its `runtime.ts`, which says it of the row a person reads.
+ * The BUILD's half moves. Which engine PLUGINS are mounted is a fact about the
+ * fibers, and a fiber can be turned off at the panel now — so a row that leaves
+ * leaves the picker and a row that arrives enters it, with no restart.
+ *
+ * ## {@link detecting} IS WHAT LETS BOTH BE TRUE AT ONCE
+ *
+ * A live reading over an unchanged probe. The detector holds what each engine id
+ * answered the first time it was asked and never asks that id again, so
+ * recomputing the list when the table moves costs a walk over a map rather than
+ * a walk over `PATH` — and the machine's half is frozen by construction rather
+ * than by everybody remembering not to re-probe.
+ *
+ * THE CACHE IS SAFE FOR THE REASON THE REFUSAL ABOVE IS, and this is worth
+ * saying rather than leaving to be re-derived: a binary appearing or vanishing
+ * mid-serve is explicitly NOT a thing this phase re-decides, so a cached `null`
+ * for an engine that was not installed at first ask is the answer olai has
+ * always given until the next start. What the cache must not do is outlive the
+ * PROCESS, and it cannot — it is closed over by the detector the composition
+ * root builds once.
+ *
+ * A plugin that unloads and comes back is asked NOTHING on the way back: its
+ * answer is the one it gave, which is right, because what changed was the fiber
+ * and not the disk.
  */
 
 import { AGENT_ENV, type Adapter, type Engine, type Leg, type PromptChannel, type Where } from "@olai/acp/engine"
@@ -153,23 +174,39 @@ export type Roster =
  * a lecture about `--plugins`. Below it, no engine at all outranks nothing
  * installed for the plainer reason that nothing was ever asked.
  */
-export const rosterOf = (where: Where, engines: ReadonlyArray<Engine>): Roster => {
+export const rosterOf = (
+  where: Where,
+  engines: ReadonlyArray<Engine>,
+  /**
+   * HOW ONE ENGINE IS DETECTED, or `null` for one this machine has not got —
+   * a seam, defaulting to asking the engine itself.
+   *
+   * It exists for exactly one caller ({@link detecting}, which answers from a
+   * table it keeps) and it is a PARAMETER rather than that caller reimplementing
+   * this loop, because the loop is where the ORDER, the off switch and the three
+   * `none` arms are decided and none of those is a thing to have twice. The
+   * default is the behaviour every existing caller had; nothing about a one-shot
+   * reading changed.
+   */
+  detected: (engine: Engine) => Installed | null = (engine) => {
+    const adapter = engine.at(where)
+    return adapter === null ? null : {
+      id: engine.id,
+      name: engine.name,
+      adapter,
+      leg: engine.leg,
+      prompt: engine.prompt,
+    }
+  },
+): Roster => {
   // The explicit off switch, and it is the WHOLE panel rather than one row —
   // see the header. Read before anything is probed, so a machine with an agent
   // installed still gets the "off" a person asked for.
   if (where.env[AGENT_ENV] === "") return { kind: "none", because: { kind: "switched-off" } }
   const found: Array<Installed> = []
   for (const engine of engines) {
-    const adapter = engine.at(where)
-    if (adapter !== null) {
-      found.push({
-        id: engine.id,
-        name: engine.name,
-        adapter,
-        leg: engine.leg,
-        prompt: engine.prompt,
-      })
-    }
+    const one = detected(engine)
+    if (one !== null) found.push(one)
   }
   if (found.length > 0) return { kind: "here", installed: found }
   // NOTHING, and the two ways of getting here are not the same sentence: an
@@ -200,6 +237,62 @@ export const roster = (
   engines: ReadonlyArray<Engine>,
 ): Roster =>
   rosterOf({ env: vars, cwd, found: (name) => onPath(name, searchPath(vars)) }, engines)
+
+/**
+ * ...AND THE SAME READING, ASKABLE AGAIN — the door a serve whose engine rows
+ * can be switched off holds, and the one this package's live half is built on.
+ *
+ * {@link roster} above is the one-shot: hand it a list, get an answer. This is
+ * the same answer over a list that MOVES, which is what an engine plugin being
+ * turned on or off at the panel makes of it. The caller keeps the detector and
+ * asks it whenever the table changes; what comes back is a fresh {@link Roster}
+ * over the engines mounted at that moment.
+ *
+ * ## What it remembers, and what it refuses to
+ *
+ * WHAT EACH ENGINE ID ANSWERED, once, for the life of the process — see the
+ * header's last section for why that is the refusal rather than the shortcut.
+ * The consequence worth naming here is the one a reader would otherwise have to
+ * work out: asking twice with the same id in the list does no work at all, so a
+ * flip costs a map walk. Asking with an id never seen before probes once, which
+ * is a plugin arriving.
+ *
+ * IT REMEMBERS THE ABSENCES TOO — `null` for an engine that was asked and is not
+ * installed — because "not installed" is an answer and re-asking it would be the
+ * re-probing this whole arrangement exists to avoid. `has` rather than a
+ * truthiness check on the value, so a cached absence is a hit.
+ *
+ * ## The off switch is NOT cached, and could not be
+ *
+ * `OLAI_ACP_AGENT=` is read per call, inside {@link rosterOf}. It is one map
+ * lookup, and it is the whole panel rather than one row — so caching it would
+ * save nothing and would make the one answer a PERSON set the one answer this
+ * function could not re-read.
+ */
+export const detecting = (
+  vars: Record<string, string | undefined>,
+  cwd: string,
+): (engines: ReadonlyArray<Engine>) => Roster => {
+  const asked = new Map<string, Installed | null>()
+  const where: Where = { env: vars, cwd, found: (name) => onPath(name, searchPath(vars)) }
+  return (engines) =>
+    rosterOf(where, engines, (engine) => {
+      if (!asked.has(engine.id)) {
+        const adapter = engine.at(where)
+        asked.set(
+          engine.id,
+          adapter === null ? null : {
+            id: engine.id,
+            name: engine.name,
+            adapter,
+            leg: engine.leg,
+            prompt: engine.prompt,
+          },
+        )
+      }
+      return asked.get(engine.id) ?? null
+    })
+}
 
 /** Where the probes look: {@link AGENT_PATH_ENV} when it is set — including
  *  when it is set to the empty string, which is "nowhere" — and `PATH`

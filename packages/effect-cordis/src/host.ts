@@ -180,7 +180,15 @@ export const mountPlugin = (host: Host, plugin: Plugin): Effect.Effect<Mounted> 
     // what {@link rowReport} quotes.
     await fiber.await().catch(() => undefined)
     return {
-      report: Effect.promise(() => reportOf(fiber)),
+      // THE SAME TWO STEPS {@link rowReport} TAKES, for one fiber: the state
+      // synchronously, and the plugin's own words only where there are some to
+      // ask for. One row cannot be inconsistent with itself, so the split here
+      // buys nothing but the shared reading — which is the point, since the
+      // alternative is two spellings of what a fiber's state means.
+      report: Effect.suspend(() => {
+        const said = reportOf(fiber)
+        return said.state === "failed" ? Effect.promise(() => faulted(fiber)) : Effect.succeed(said)
+      }),
       dispose: Effect.promise(() => fiber.dispose()),
     }
   })
@@ -296,6 +304,54 @@ export const settled = (host: Host, ids: ReadonlyArray<string>): Effect.Effect<v
   )
 
 /**
+ * WHICH SERVICES EACH NAMED ROW IS STANDING ON — every key its `needs` declared,
+ * whether or not somebody is behind it.
+ *
+ * ## What it is for, and why it is not a field on {@link RowReport}
+ *
+ * The panel wants to tell a person what turning a row OFF would cost: chat
+ * stands behind four doors, so the row that offers them has to name the rows
+ * that would go `waiting` without it. That join has two halves and this is the
+ * one the runtime holds — WHO NAMES WHAT. The other half, who stands behind
+ * what, is core's own offers table, and the composition root is where they meet
+ * (`@olai/server`'s `runtime.ts`).
+ *
+ * It is not on the report because the report is about one row's STATE, and this
+ * is a fact about a row that is perfectly healthy. `RowReport.missing` is the
+ * same vocabulary narrowed to the one arm where it is a complaint; this is the
+ * whole declaration, on every arm, and folding it in would put a field on three
+ * states that have no use for it.
+ *
+ * ## A ROW WITH NO FIBER IS ABSENT, and that is the honest reading
+ *
+ * `needs` is declared on the plugin and the plugin is inside the module, so a
+ * row nobody imported has no readable declaration at all — and it cannot be
+ * carried by anything anyway, because it is already off. What the join wants is
+ * exactly the rows that would MOVE, which is exactly the rows that have fibers.
+ *
+ * `fiber.inject` is the pin's public field and this package only ever produces
+ * REQUIRED injects (`needs.map(key => key.cordis)`, one list), so every key here
+ * is one the row genuinely stands on.
+ *
+ * ## NOT AN EFFECT, and it is the only verb on this door that is not
+ *
+ * Its three neighbours are Effects because each of them genuinely does
+ * something: `rowReport` awaits a failed fiber's private error, `settled` waits
+ * out a transition, `provide` acquires and releases. This walks a map. Wrapping
+ * it would make the one caller — a roster built synchronously from inside a
+ * re-compose a registry change drove — spend an `Effect.runSync` at the
+ * composition root to get a value back out, which is a wrapper and its own
+ * unwrapping written for the shape of the file rather than for anything true.
+ */
+export const namedBy = (
+  host: Host,
+  ids: ReadonlyArray<string>,
+): ReadonlyMap<string, ReadonlyArray<string>> =>
+  new Map(
+    [...fibersOf(host, ids)].map(([id, fiber]) => [id, Object.keys(fiber.inject)] as const),
+  )
+
+/**
  * WHAT BECAME OF ONE ROW — deliberately four states rather than the runtime's
  * six.
  *
@@ -346,6 +402,27 @@ export type RowReport =
  *
  * A row that never loaded is ABSENT from the registry, and that absence IS the
  * `off` arm rather than a missing case.
+ *
+ * ## ONE MOMENT, and it used to be one moment per row
+ *
+ * The loop was `for (const id of ids) table.set(id, await reportOf(fiber))`,
+ * which reads exactly right and is not: `await` yields a microtask whether or
+ * not there was anything to wait for, so a report taken while the bundle is
+ * moving read each row at a slightly different instant. Nothing could move a row
+ * mid-serve, so nothing showed it.
+ *
+ * The switch showed it in the first hour. With the chat row turned off, one
+ * tenant's row said *waiting for session-start* and its neighbour's said
+ * *waiting for deliveries, session-start* — about a fiber that names both, on a
+ * serve where nobody was behind either. Both fibers read the same reflect store
+ * and cannot really disagree; the earlier row was simply read a beat before
+ * `deliveries` was revoked. A panel drawn from that sends a person to compose a
+ * row that fixes half of what is missing.
+ *
+ * So the STATES are taken in one synchronous pass and the awaits come after.
+ * What is deferred is only a FAULT — a plugin's own words, which are a fact
+ * about a fiber that has already stopped and cannot become stale between two
+ * reads. Every word and every `missing` on the answer is about the same instant.
  */
 export const rowReport = (
   host: Host,
@@ -353,20 +430,32 @@ export const rowReport = (
 ): Effect.Effect<ReadonlyMap<string, RowReport>> =>
   Effect.promise(async () => {
     const fibers = fibersOf(host, ids)
+    // THE PASS THAT MUST NOT YIELD. Nothing in it awaits, so no revocation, no
+    // mount and no unload can land between the first row and the last.
+    const read = ids.map((id) => [id, fibers.get(id)] as const)
+      .map(([id, fiber]) => [id, fiber, fiber === undefined ? OFF : reportOf(fiber)] as const)
     const table = new Map<string, RowReport>()
-    for (const id of ids) {
-      const fiber = fibers.get(id)
-      table.set(id, fiber === undefined ? { state: "off" } : await reportOf(fiber))
+    for (const [id, fiber, said] of read) {
+      // ...AND THE ONE THING THAT DOES YIELD, after all of them have been read.
+      table.set(
+        id,
+        said.state === "failed" && fiber !== undefined ? await faulted(fiber) : said,
+      )
     }
     return table
   })
 
-/** One fiber's state, as a row's word.
+/** A row the registry has nothing to say about — one value rather than a fresh
+ *  object per absent row, since it carries nothing to tell them apart by. */
+const OFF: RowReport = { state: "off" }
+
+/** One fiber's state, as a row's word — SYNCHRONOUS, which is what lets a whole
+ *  report be about one instant ({@link rowReport}).
  *
- *  ASYNC because a fault is only readable by asking for it: Cordis keeps a
- *  failed fiber's error private and re-throws it from `await()`, which for a
- *  settled fiber is one already-rejected promise. Every other state answers
- *  synchronously.
+ *  `failed` comes back here without its `fault`, because that is the one thing
+ *  only an await can produce: Cordis keeps a failed fiber's error private and
+ *  re-throws it from `await()`. {@link faulted} is that step, taken after every
+ *  row has been read.
  *
  *  THE TWO HALVES OF `waiting` ARE ONE WORD AND TWO ANSWERS. `PENDING` is a
  *  fiber short of something it names, and it can say WHAT; `LOADING` is a fiber
@@ -375,7 +464,7 @@ export const rowReport = (
  *  on nothing at all", which is a different and untrue sentence. They folded
  *  into one word before a service could arrive from a ROW, when nothing at a
  *  serve could produce the first of them. */
-const reportOf = async (fiber: Fiber): Promise<RowReport> => {
+const reportOf = (fiber: Fiber): RowReport => {
   switch (fiber.state) {
     case FiberState.ACTIVE:
       return { state: "running" }
@@ -383,13 +472,19 @@ const reportOf = async (fiber: Fiber): Promise<RowReport> => {
       return { state: "waiting", missing: missingOf(fiber) }
     case FiberState.LOADING:
       return { state: "waiting" }
-    case FiberState.FAILED: {
-      const fault = await fiber.await().then(() => undefined, faultOf)
-      return fault === undefined ? { state: "failed" } : { state: "failed", fault }
-    }
+    case FiberState.FAILED:
+      return { state: "failed" }
     default:
-      return { state: "off" }
+      return OFF
   }
+}
+
+/** ...and the plugin's own words for a fiber that has already stopped. Safe to
+ *  ask late for the reason the header gives: a fault is a fact about a fiber
+ *  that is not going to move again. */
+const faulted = async (fiber: Fiber): Promise<RowReport> => {
+  const fault = await fiber.await().then(() => undefined, faultOf)
+  return fault === undefined ? { state: "failed" } : { state: "failed", fault }
 }
 
 /** WHICH OF A PENDING FIBER'S NAMED SERVICES NOBODY HAS PROVIDED.

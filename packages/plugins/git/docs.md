@@ -6,18 +6,22 @@ What git *does* has its own page: [git.md](../git.md) is the feature. This page 
 
 ## What turns it on
 
-Nothing. It is on by default, like chat and the appliances, and `--plugins` is the only thing that takes it away:
+Nothing. It is on by default, like chat and the appliances. Two things take it away, and they answer two different questions.
+
+`--plugins` decides what a serve **comes up with**:
 
 ```
 olai web ~/outlines                                  # the pill, as always
 olai web ~/outlines --plugins=chat,kolu,odu          # writes land, recorded by nobody
 ```
 
-**Naming no git leaves an outliner whose writes wait for nobody.** There is no pill, no `surface/git/` on the wire, and `ops.commit` refuses in words — not a disabled version of any of them, an absent one.
+The plugins panel — `⧉` in the header — turns it off and on **while the serve runs**, and that lasts as long as the process: a restart comes back to the flag. Switched off at the panel, the pill leaves while you are watching, and `ops.commit` refuses in words.
+
+**Either way you are left with an outliner whose writes wait for nobody.** There is no pill, no `surface/git/` on the wire, and nobody to record a write — not a disabled version of any of them, an absent one.
 
 ## The pin
 
-`--commit` and `--push` are this row's policy, not a mode of core. They are the same flags they were: omitted is the built-in default (`manual` / `off`); a given flag is named under the preferences row. Turning the plugin off is a different fact from `--commit=off`: off is "no provider mounted", so there is no pill and no tool; `--commit=off` with the row on is a mounted ledger that has been told not to record.
+`--commit` and `--push` are this row's policy, not a mode of core. They are the same flags they were: omitted is the built-in default (`manual` / `off`); a given flag is named on the git cell. Turning the plugin off is a different fact from `--commit=off`: off is "no provider mounted", so there is no pill and no tool; `--commit=off` with the row on is a mounted ledger that has been told not to record.
 
 See [running.md](../running.md#the-git-policy).
 

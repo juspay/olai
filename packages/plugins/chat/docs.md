@@ -6,7 +6,9 @@ What the panel *does* has its own page: [chat.md](../chat.md) is the feature, an
 
 ## What turns it on
 
-Nothing. It is on by default, like the appliances and the engines, and `--plugins` is the only thing that takes it away:
+Nothing. It is on by default, like the appliances and the engines. Two things take it away, and they answer two different questions.
+
+`--plugins` decides what a serve **comes up with**:
 
 ```
 olai web ~/outlines                                  # the panel, as always
@@ -14,7 +16,9 @@ olai web ~/outlines --plugins=kolu,odu               # the outliner alone
 olai web ~/outlines --plugins=chat,claude            # a conversation and one engine
 ```
 
-**Naming no chat leaves an outliner**, and that is the flag doing exactly what it says. There is no panel, no `surface/chat/` on the wire, no `>` in the palette, no agents section and no door on any row — not a disabled version of any of them, an absent one.
+The plugins panel — `⧉` in the header — turns it off and on **while the serve runs**, and that lasts as long as the process: a restart comes back to the flag, the nix option, or the row's own default. It is the switch to reach for when the answer is *not on this machine right now*; the flag is a deployment's word.
+
+**Either way you are left with an outliner**, and it is an absence rather than a disabled version of anything. There is no panel, no `surface/chat/` on the wire, no `>` in the palette, no agents section and no door on any row. Switched off at the panel, that absence arrives while you are watching: the members leave the wire, the tab redials, and the outliner is what is left.
 
 ## What waits on it
 
@@ -92,7 +96,7 @@ surface/chat/conversation/send         …and the fourteen verbs
 
 Two switches, two meanings:
 
-- `--plugins=` without `chat` is **this instance has no conversation**. The panel is not built, the members are not served, and the tab draws an outliner.
-- `OLAI_ACP_AGENT=""` is **not this time**. The row is there, the panel draws, and it says the agent is switched off — which is what you want when the answer is *not right now* rather than *not on this machine*.
+- **Turning the row off** — `--plugins` without `chat` at boot, or the switch on the plugins panel while it runs — is **this instance has no conversation**. The panel is not built, the members are not served, and the tab draws an outliner. The two doors differ only in how long the answer lasts: the flag survives a restart and the panel's switch does not.
+- `OLAI_ACP_AGENT=""` is **not this time**. The row is there, the panel draws, and it says the agent is switched off — which is what you want when the answer is *not right now* rather than *no conversation here*.
 
-The second is the one to reach for by habit. The first is a deployment's word.
+The second is the one to reach for by habit. The first is a deployment's word, or a person deciding this serve should stop being a chat for a while.
