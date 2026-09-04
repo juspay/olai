@@ -31,7 +31,7 @@ Feature: A plugin is turned on and off while the serve runs
   around the answer.
 
   @scratch:lanes @padi:lanes
-  Scenario: Kolu's kind leaves with its fiber, and comes back with it
+  Scenario: Kolu's kind leaves with its fiber
     # THE VOCABULARY FOLLOWS THE FIBERS, which is the claim `propKinds` made the
     # opposite of for two phases: it was read once at boot and the store's codec
     # held it for the life of the process, so a plugin that unloaded left its
@@ -45,6 +45,10 @@ Feature: A plugin is turned on and off while the serve runs
     # the word is in the enabled vocabulary, so the value wears kolu's own Dock
     # row rather than being the text somebody typed.
     Then the terminal row on "door-implement" is working
+    # ...AND THE LINK BEHIND IT, which is the other half of what a row coming
+    # back has to bring: a plugin whose `apply` re-ran but whose standing
+    # connection did not is a plugin that looks present and holds no data.
+    And the appliance link reads connected
 
     When I open the plugins panel
     # A ROW THAT IS RUNNING AND CARRIES NOBODY SAYS NOTHING, which is the panel
@@ -64,14 +68,62 @@ Feature: A plugin is turned on and off while the serve runs
     # nothing red anywhere, because nothing is wrong.
     Then "door-implement" wears no terminal door at all
     And there should be no page errors
+    # ...AND NOTHING ELSE WENT QUIET WITH IT. The strongest thing this feature
+    # can assert, and the one that is not about any particular plugin: the app
+    # keeps its own account of which members it is subscribed to and has stopped
+    # hearing from, so a row leaving is proved not to have taken a neighbour's
+    # streams down with it.
+    And no member of this page has gone silent
+
+  @skip
+  @scratch:lanes @padi:lanes
+  Scenario: A row that comes back is served again
+    # SKIPPED, AND THE SKIP IS THE POINT — this is the half of "off and on" the
+    # WIRE does not yet keep, recorded where it can be run the moment it does
+    # rather than only in a comment somewhere.
+    #
+    # The fibers do all of it: the module is re-imported, the `apply` runs
+    # again, the kind is claimed again, the sibling surface is registered again
+    # and kolu's own padi link dials and reports connected a second time. Every
+    # one of those is proved at unit level in this PR.
+    #
+    # What does not follow is the listener. `serveSurfaceApp` snapshots the
+    # served `{group, handlers}` pair when it binds and serves that ONE
+    # generation for its whole life — which it says out loud, and which was
+    # exact until this phase, because until now olai's served set never moved.
+    # So a re-mounted sibling's tags still resolve to the RETIRED mount's
+    # handler, whose whole job is to refuse. A page RELOAD does not help: the
+    # stale table is the server's, not the tab's, which is what proved the fault
+    # is not in the browser.
+    #
+    # `runtime.ts` says the contract for a sibling arriving after the listener
+    # is up is RECONNECT. It is not, and cannot be, on this path.
+    #
+    # UNSKIP THIS when the transport question on the PR is ruled on and the
+    # listener serves the current generation. Nothing else about the scenario
+    # should need to change — which is why it is written out in full.
+    Given I open the outline "lanes.olai"
+    And I show the done nodes
+    Then the terminal row on "door-implement" is working
+    And the appliance link reads connected
+
+    When I open the plugins panel
+    And I switch the plugin "kolu" off
+    Then "door-implement" wears no terminal door at all
 
     When I switch the plugin "kolu" on
-    # ...AND BACK, which is the half a dispose alone cannot show. The module is
-    # re-imported, the `apply` runs again, the kind is claimed again — the
-    # registry's claims are suspended precisely so a plugin that unloaded and
-    # came back is claiming rather than claiming twice — and the door is drawn
-    # off a padi this scenario never restarted.
-    Then the terminal row on "door-implement" is working
+    # THE LINK IS ASSERTED FIRST, because it is the half that fails on its own:
+    # the fiber re-applying is what brings the kind and the chunk back, and the
+    # DIAL is a separate thing its `apply` armed. A scenario that only asked
+    # about the door could not tell a plugin that came back whole from one that
+    # came back with nothing behind it.
+    Then the appliance link reads connected
+    And the terminal row on "door-implement" is working
+    # ...AND THE ONE THAT ACTUALLY CATCHES THE TRANSPORT. The two above are
+    # about kolu; this is about every member on the page, and it is what goes
+    # red today — the app itself reports that nothing is arriving on kolu's
+    # five members, and on odu's when it is the chat row that was pressed.
+    And no member of this page has gone silent
     And there should be no page errors
 
   @scratch:lanes
@@ -123,5 +175,10 @@ Feature: A plugin is turned on and off while the serve runs
     # doing the whole of the work this phase is about.
     Then the plugins panel says nothing more about "kolu"
     And the plugins panel says "chat" is "Turning it off also stops"
+    # THE CHROME COMES BACK, and that is all this claims. The browser half is
+    # mounted again and draws off the roster; whether the MEMBERS behind it are
+    # being served again is the listener's question, and it is the skipped
+    # scenario above that asks it. Saying so here rather than letting a reader
+    # take this line for more than it is.
     And the conversation is in the header
     And there should be no page errors

@@ -47,6 +47,16 @@
  * What a browser sees in the gap is `CHAT_OFF`, which is the value a tab that
  * has not heard yet holds anyway — and the first frame after the build fills it.
  *
+ * ## ...AND THE ORDER IS NO LONGER THE WHOLE STORY
+ *
+ * That sequence is about the BUILD, and it still holds exactly as written. What
+ * it used to also settle — WHICH ENGINES THERE ARE — it does not, because an
+ * engine is a plugin and a plugin can be turned off at the panel while this
+ * process runs. So the engines table is READ WHEN ASKED rather than captured at
+ * (3), and `enginesMoved` beside the offer is what tells the panel to look
+ * again. The order above is what makes the FIRST reading complete; the live
+ * reading is what keeps every one after it true.
+ *
  * ## THE FENCE, and what this half may reach
  *
  * `./wire.ts` is what every listener statically pulls in and may carry no UI
@@ -94,7 +104,7 @@ import { type Cadence, cadence } from "./cadence.ts"
 import type { Change } from "./transcript.ts"
 import * as Chat from "./scoped.ts"
 import { whyNoAgent } from "./adapter.ts"
-import { roster as agentRoster } from "./agents/roster.ts"
+import { detecting } from "./agents/roster.ts"
 import { forDirectory as scopesIn } from "./scopes.ts"
 import { forDirectory as sessionsIn } from "./sessions.ts"
 import { kinds } from "./kinds.ts"
@@ -195,6 +205,35 @@ export default definePlugin({
      * `failed` with its siblings untouched.
      */
     const engines = new Map<string, Engine>()
+    /**
+     * ...AND WHO IS TOLD WHEN IT MOVES, which is the half that was missing.
+     *
+     * The table was always live — the release below has always deleted the row —
+     * but what READ it was a boot snapshot taken once, when the serve came up,
+     * and handed to the panel as two arrays. So switching the claude row off
+     * removed claude from this map and changed nothing a person could see: the
+     * picker went on offering it, and picking it went on WORKING, because the id
+     * was resolved against the same frozen list.
+     *
+     * The reading is live now ({@link ../chat.ts}'s `PanelOptions.roster`), and
+     * a live reading nobody re-reads is a snapshot with extra steps — the picker
+     * is a published value, so something has to say when to publish it again.
+     * This is that something, and it is HERE because the acquire and the release
+     * are already the two moments it is true at; a second place that noticed
+     * would be a second place to keep in step.
+     *
+     * THROUGH THE DETACHED SEAM, because `enginesMoved` is an Effect (it stops a
+     * subprocess) and this runs inside a fiber's teardown, which is not one. A
+     * failure there is contained and named with this plugin's word, like every
+     * other detached edge in this row.
+     *
+     * NOTHING BEFORE THE CHAT IS BUILT: `chat` is null until the serve is up,
+     * and an engine that registered before then is simply in the table the build
+     * reads. There is no lost signal to catch up on.
+     */
+    const enginesMoved = (): void => {
+      if (chat !== null) ring(chat.enginesMoved)
+    }
     yield* offers.offer(AgentsDoor, (who) => ({
       register: (engine: Registering) =>
         Effect.acquireRelease(
@@ -206,8 +245,13 @@ export default definePlugin({
               )
             }
             engines.set(who, { ...engine, id: who })
+            enginesMoved()
           }),
-          () => Effect.sync(() => void engines.delete(who)),
+          () =>
+            Effect.sync(() => {
+              engines.delete(who)
+              enginesMoved()
+            }),
         ).pipe(Effect.asVoid),
     }))
 
@@ -296,7 +340,14 @@ export default definePlugin({
     let chat: Chat.Chat | null = null
     /** ...and WHY there is none, where there is none — the value the log line
      *  and the panel's opening sentence are both made from, so a screen and a
-     *  journal cannot disagree about one boot. */
+     *  journal cannot disagree about one boot.
+     *
+     *  ABOUT THE BOOT AND ONLY THE BOOT. It records the decision not to BUILD a
+     *  chat, which is still made once and still made here. A panel that was
+     *  built and then watched its last engine row get switched off reaches the
+     *  same face by a different road — the panel's own, through
+     *  `enginesMoved` — so this staying `null` for the life of such a process is
+     *  correct rather than stale. */
     let noAgent: ChatState["off"] = null
     /** This sibling's own write face, the moment the runtime has minted it. */
     let mine: Ctx | null = null
@@ -651,8 +702,26 @@ export default definePlugin({
       // THE ONE SIGNAL THAT THE SERVE IS UP, and the reason the roster is read
       // here rather than at the top of `apply` — see the header.
       const address = yield* tools.server
-      const offered = inBundleOrder(engines.values(), (one) => one.id, bundle.rank)
-      const found = agentRoster(env.vars, vault.served, offered)
+      /**
+       * THE ENGINES MOUNTED RIGHT NOW, in the build's order — asked, not
+       * captured.
+       *
+       * `inBundleOrder` because registration order is the order two dynamic
+       * imports came back in, which is a fact about the filesystem on the day;
+       * a person reads this list, and one that reshuffles between boots is a
+       * list nobody can read twice. The sort is cheap and this is asked when the
+       * table moves rather than per frame.
+       */
+      const mounted = () => inBundleOrder(engines.values(), (one) => one.id, bundle.rank)
+      /**
+       * ...AND WHICH OF THEM THIS MACHINE HAS, over the same moving list.
+       *
+       * ONE DETECTOR for the life of the process, so the machine's half is asked
+       * once per engine and never again while the build's half follows the
+       * fibers ({@link ./agents/roster.ts}'s `detecting` argues both).
+       */
+      const detect = detecting(env.vars, vault.served)
+      const found = detect(mounted())
       const installed = found.kind === "here" ? found.installed : []
       noAgent = found.kind === "none" ? found.because : null
       if (noAgent !== null) {
@@ -662,8 +731,21 @@ export default definePlugin({
       }
 
       chat = yield* Chat.make({
-        roster: installed,
-        engines: offered.map((one) => one.id),
+        // BOTH HALVES OF THE TABLE, READ WHEN ASKED. What this hands over is the
+        // reading rather than an answer, so a row switched off at the panel
+        // leaves the picker and one switched on enters it — see
+        // `../chat.ts`'s `PanelOptions.roster`, and `enginesMoved` above for
+        // what tells the panel to look again.
+        //
+        // THE EMPTY ANSWER IS LEGAL HERE and was not: the guard above is what
+        // refuses to BUILD a panel that never had an agent, and it still does.
+        // What is new is that a panel which had one can watch its last engine
+        // leave, and the state machine has the face for it.
+        roster: () => {
+          const now = detect(mounted())
+          return now.kind === "here" ? now.installed : []
+        },
+        engines: () => mounted().map((one) => one.id),
         cwd: vault.served,
         tools: () => address,
         // WHATEVER ELSE THIS HOST IS RUNNING, asked once per conversation — the

@@ -228,8 +228,8 @@ describe("a message that queues behind a running turn", () => {
     }
     const chat = await run(
       makeChat({
-        roster: [row],
-        engines: [],
+        roster: () => [row],
+        engines: () => [],
         cwd,
         tools: () => null,
         onState: () => {},
@@ -295,8 +295,8 @@ describe("a message that queues behind a running turn", () => {
       prompt: { kind: "first-turn" },
     }
     const chat = await Effect.runPromise(makeChat({
-      roster: [row],
-      engines: [],
+      roster: () => [row],
+      engines: () => [],
       cwd,
       tools: () => null,
       onState: () => {},

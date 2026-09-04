@@ -33,7 +33,7 @@ import { tmpdir } from "node:os"
 import { delimiter, join } from "node:path"
 
 import { AGENT_ENV, AGENT_PATH_ENV } from "../adapter.ts"
-import { type Installed, onPath, type Roster, rosterOf } from "./roster.ts"
+import { detecting, type Installed, onPath, type Roster, rosterOf } from "./roster.ts"
 
 const CWD = "/vault"
 
@@ -203,5 +203,84 @@ describe("where the probes look", () => {
     // olai's PATH is not your shell's — a home-manager unit inherits neither.
     // The name is asserted because it is a thing a person types into a config.
     expect(AGENT_PATH_ENV).toBe("OLAI_AGENT_PATH")
+  })
+})
+
+/**
+ * THE LIVE READING — the same answer over a list that MOVES, which is what an
+ * engine plugin being switched on or off at the plugins panel makes of it.
+ *
+ * These are about {@link detecting}, and what makes it worth being its own door
+ * rather than calling {@link roster} again is the two halves it keeps apart: the
+ * BUILD's half follows the fibers, and the MACHINE's half deliberately does not.
+ */
+describe("a table that moves", () => {
+  test("an engine that leaves the list leaves the roster, and one that arrives enters it", () => {
+    const detect = detecting({}, CWD)
+    expect(rowsIn(detect([here("one"), here("two")])).map((row) => row.id)).toEqual(["one", "two"])
+    expect(rowsIn(detect([here("two")])).map((row) => row.id)).toEqual(["two"])
+    // BOTH DIRECTIONS: a reading that only ever shrank would pass the first two
+    // lines and be exactly wrong for somebody turning a plugin back on.
+    expect(rowsIn(detect([here("one"), here("two")])).map((row) => row.id)).toEqual(["one", "two"])
+  })
+
+  test("the last engine leaving is `no-engine`, the same word a build with none gives", () => {
+    // The invariant the loader surface rests on, at this end: a row somebody
+    // switched off and a row the flag never named are ONE state, so they are one
+    // word — and the panel draws one face for both.
+    const detect = detecting({}, CWD)
+    expect(detect([here("one")]).kind).toBe("here")
+    expect(detect([])).toEqual({ kind: "none", because: { kind: "no-engine" } })
+  })
+
+  test("each engine's own probe is asked once, however often the list moves", () => {
+    // THE MACHINE'S HALF IS FROZEN ON PURPOSE — which agents are INSTALLED is
+    // not re-decided under a reader, because re-deciding it would flip the
+    // panel's whole face because somebody's `$HOME/.local/bin` was written to.
+    // The count is what makes that a fact rather than an intention: the list is
+    // asked four times, in three shapes, and each engine answered once.
+    const asked: Array<string> = []
+    const counting = (id: string): Engine =>
+      engine(id, () => {
+        asked.push(id)
+        return { command: `/bin/${id}`, args: [] }
+      })
+    const one = counting("one")
+    const two = counting("two")
+    const detect = detecting({}, CWD)
+    detect([one, two])
+    detect([two])
+    detect([one, two])
+    detect([one, two])
+    expect(asked).toEqual(["one", "two"])
+  })
+
+  test("...including an engine that was NOT installed, which is an answer too", () => {
+    // Re-asking an absence is the re-probing this whole arrangement exists to
+    // avoid, and it is the easy half to get wrong: a cache keyed on a truthy
+    // value would ask the missing engine again on every flip, which on a machine
+    // with three engines installed and one not is a `PATH` walk per press.
+    let asked = 0
+    const missing = engine("gone", () => {
+      asked += 1
+      return null
+    })
+    const detect = detecting({}, CWD)
+    detect([missing])
+    detect([missing])
+    detect([missing])
+    expect(asked).toBe(1)
+  })
+
+  test("the off switch is read every time, because it is a person's and not the disk's", () => {
+    // `OLAI_ACP_AGENT=` is the whole panel rather than one row, and it is one map
+    // lookup — so it is not cached, and a detector built against an environment
+    // that has it set says so on every ask rather than only the first.
+    const detect = detecting({ [AGENT_ENV]: "" }, CWD)
+    expect(detect([here("one")])).toEqual({ kind: "none", because: { kind: "switched-off" } })
+    expect(detect([here("one"), here("two")])).toEqual({
+      kind: "none",
+      because: { kind: "switched-off" },
+    })
   })
 })

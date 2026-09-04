@@ -36,9 +36,11 @@ import { pressed } from "../support/settling.ts";
 import {
   APP_HEADER,
   attr,
+  CONNECTION,
   HYDRATION_TIMEOUT,
   PANE,
   CHAT_TOGGLE,
+  PADI_PILL,
   PLUGINS_PANEL,
   PLUGINS_REFUSED,
   PLUGINS_STARTED,
@@ -1045,6 +1047,84 @@ const hintOn = async (world: OlaiWorld, plugin: string): Promise<string> => {
   if ((await hint.count()) === 0) return "";
   return (await hint.innerText()).replaceAll("\n", " ");
 };
+
+/**
+ * IS EVERY MEMBER THIS PAGE SUBSCRIBED TO STILL ARRIVING — the app's own
+ * liveness readout, which is the strongest assertion this feature has.
+ *
+ * ## Why this and not a face
+ *
+ * Every other check here asks whether one drawn thing is right, and a drawn
+ * thing can be right while the wire under it is dead: a chip that mounted off a
+ * roster frame draws whether or not the member it reads is still being served.
+ * This asks the question directly, about EVERY member at once, and it names the
+ * silent ones — so a plugin whose streams stopped is caught whether or not
+ * anybody wrote a scenario about that plugin.
+ *
+ * It is the reading behind the sentence a person sees on the connection chip:
+ * *connected, but nothing is arriving on … what is on screen is missing whatever
+ * those carry, and may be missing it silently.* `data-stopped` is empty on a
+ * healthy wire, which is what makes the assertion a plain one.
+ */
+Then(
+  "no member of this page has gone silent",
+  async function (this: OlaiWorld) {
+    const chip = this.page.locator(CONNECTION).first();
+    await chip.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const stopped = (await chip.getAttribute("data-stopped")) ?? "";
+    assert.equal(
+      stopped,
+      "",
+      `the page reports nothing arriving on ${JSON.stringify(stopped)} — what is ` +
+        "drawn is missing whatever those carry, and is missing it silently",
+    );
+    // ...AND THE WORD BESIDE IT, because the two are separate readings: a wire
+    // that dropped entirely is `reconnecting` with nothing stopped, which the
+    // line above would pass.
+    assert.equal(await chip.getAttribute("data-connection"), "live");
+  },
+);
+
+/**
+ * WHETHER THE APPLIANCE BEHIND A PLUGIN IS REACHED — the pill kolu hangs in the
+ * bar, by the word it draws.
+ *
+ * A row coming back is TWO facts and they fail separately: the fiber re-applies
+ * (its kinds return, its sibling is on the wire, its chunk mounts) and the
+ * standing connection its `apply` armed is dialled again. A scenario that only
+ * asked about the drawn face could not tell a plugin that came back with no link
+ * from one that came back whole — and the second is the one that reads as *the
+ * feature works* right up until somebody looks at the data.
+ *
+ * BY THE PLUGIN'S OWN ATTRIBUTE, which is a closed set the appliance publishes
+ * (`connected` / `absent` / `skew`), rather than by a sentence: this step is
+ * about whether a socket is up, and the words around it are kolu's to change.
+ */
+Then(
+  "the appliance link reads {word}",
+  async function (this: OlaiWorld, word: string) {
+    try {
+      await this.page
+        .locator(`${PADI_PILL}${attr("data-padi", word)}`)
+        .first()
+        .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    } catch {
+      // ...AND WHAT IT ACTUALLY READS, because the two ways this fails want two
+      // different next steps: a pill saying `absent` is a plugin that is drawing
+      // and cannot reach its appliance, and NO PILL AT ALL is a plugin whose
+      // face never came back. A timeout on the selector alone cannot tell them
+      // apart, and the difference is which half of a remount to go and look at.
+      const pill = this.page.locator(PADI_PILL).first();
+      const found = (await pill.count()) === 0
+        ? "no pill at all"
+        : await pill.getAttribute("data-padi");
+      assert.fail(
+        `the appliance link to read ${JSON.stringify(word)}, and it is ` +
+          `${JSON.stringify(found)}`,
+      );
+    }
+  },
+);
 
 /** WHICH WAY ONE ROW'S SWITCH IS READING — `on`, `off`, or `neither` for a
  *  strip that is drawn but has no segment pressed, which is not a state the

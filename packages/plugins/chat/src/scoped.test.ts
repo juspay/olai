@@ -62,8 +62,8 @@ test("two node scopes work together, then an idle one is reaped and woken in pla
   ]
   const released: Array<string> = []
   const chat = await run(make({
-    roster: [installed("alpha"), installed("beta")],
-    engines: ["alpha", "beta"],
+    roster: () => [installed("alpha"), installed("beta")],
+    engines: () => ["alpha", "beta"],
     cwd,
     tools: () => null,
     nodeAt: (id) => nodes.find((node) => node.id === id) ?? null,
@@ -150,8 +150,8 @@ test("boot routes a remembered node session before spawning any panel", async ()
     ),
   )
   const chat = await logged(make({
-    roster: [installed("alpha")],
-    engines: ["alpha"],
+    roster: () => [installed("alpha")],
+    engines: () => ["alpha"],
     cwd,
     memory,
     tools: () => null,
@@ -191,8 +191,8 @@ test("boot moves a newly identified node session into its scope", async () => {
   }
   const released: Array<string> = []
   const chat = await run(make({
-    roster: [installed("alpha")],
-    engines: ["alpha"],
+    roster: () => [installed("alpha")],
+    engines: () => ["alpha"],
     cwd,
     tools: () => null,
     nodeAt: (id) => id === node.id ? node : null,
@@ -224,8 +224,8 @@ test("the cap reaps an idle scope, refuses a busy one, and holds its one-shot wa
   ]
   const released: Array<string> = []
   const chat = await run(make({
-    roster: [installed("alpha"), installed("beta")],
-    engines: ["alpha", "beta"],
+    roster: () => [installed("alpha"), installed("beta")],
+    engines: () => ["alpha", "beta"],
     cwd,
     tools: () => null,
     nodeAt: (id) => nodes.find((node) => node.id === id) ?? null,
