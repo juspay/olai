@@ -43,11 +43,12 @@
  *
  * olai never writes that row for anybody — a tool that edited somebody's
  * declarations file to keep its own feature working would be the vault's
- * judgement being overruled by a release. What olai does instead is SAY SO: the
- * store's validator names the row when it meets a bare `agent-session` value
- * with no declaration behind it ({@link kinds}' `wasCalled`, spent by
- * `@olai/format`'s `reportLegacyKeys`), and `docs/plugins/chat.md` and
- * `docs/running.md` carry it in words.
+ * judgement being overruled by a release. What olai does instead is SAY SO, and
+ * it says it in ITS OWN column: the agents section draws the row to paste when
+ * this board holds bindings under the bare key and nothing declares it
+ * ({@link ./server/agents.ts}'s `migrationOwed`), and `docs/plugins/chat.md` and
+ * `docs/running.md` carry it in words. It was a validator finding and is not any
+ * more — {@link ./wire/agents.ts}'s `Migration` argues what that cost.
  *
  * THIS REPOSITORY HAS NO BOARD OF ITS OWN — the orchestrator's vault lives
  * elsewhere — so what gained the row in this lane is the two vaults the repo
@@ -89,23 +90,18 @@ import { SESSION_KIND, SESSION_TYPE } from "./binding.ts"
  * so a column somebody else calls `agent-session` is untouchable by a flag on
  * the machine.
  *
- * `wasCalled` IS THE OTHER HALF OF THAT SAME SENTENCE, and it is the one field
- * on this row the migration needs. It is the key this kind used to be spelled as
- * while chat was core, and it is emphatically NOT a second claim: a bare
- * `agent-session` is a word any vault might be using for something of its own,
- * so olai declares it for nobody and SAYS SO instead — `@olai/format`'s
- * `reportLegacyKeys` meets a value under that key that no declaration judges,
- * and names the one row in `_olai/Properties.olai` that ends it, quoting the
- * composed word off this very table. The finding sits on the declarations file
- * rather than on every record, so a vault mid-migration is not darkened row by
- * row, and it stops the moment the vault has spoken — including by declaring the
- * key `text`, which is a board saying the column is prose.
+ * THE MIGRATION IS THIS PLUGIN'S TO SAY, and it is said nowhere near this
+ * table. \`SESSION_KIND\` — the key this kind was spelled as while chat was core —
+ * is emphatically not a second claim: a bare \`agent-session\` is a word any vault
+ * might be using for something of its own, so olai declares it for nobody and
+ * SAYS SO instead, in the agents section, off a reading of this plugin's own
+ * ({@link ./server/agents.ts}'s \`migrationOwed\`, and {@link ./wire/agents.ts}'s
+ * \`Migration\` for why the validator no longer files it).
  */
 export const kinds = [{
   kind: SESSION_KIND,
   takes: `\`${SESSION_TYPE}\` (an engine, optionally \`:\` and a session id)`,
   admits: (value: string) => sessionIn(value) !== null,
-  wasCalled: SESSION_KIND,
 }] as const
 
 /**
@@ -123,8 +119,8 @@ export const kinds = [{
  *
  * THE MAP IS KEYED BY THE COMPOSED WORD and each row carries it as its `kind`
  * and its `claims`, which is what the registry does off the registering fiber.
- * `wasCalled` rides along unchanged, so the reading a bench drives and the
- * reading a serve drives are owed the same migration sentence.
+ * The rows ride along unchanged, so the reading a bench drives and the reading a
+ * serve drives fold the claim the same way.
  */
 const OWN = new Map(
   kinds.map((one) => [SESSION_TYPE, { ...one, kind: SESSION_TYPE, claims: SESSION_TYPE }]),

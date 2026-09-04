@@ -304,38 +304,6 @@ export interface ContributedKind {
    * word a vault is expected to hang wherever it likes.
    */
   readonly claims?: string
-  /**
-   * THE KEY THIS KIND USED TO BE SPELLED AS, before it was a kind at all.
-   *
-   * A word core owned outright and a plugin now teaches — chat's `agent-session`
-   * is the first — leaves every existing vault holding records under the OLD
-   * key with nothing declaring it. Those values go on being plain text, which
-   * is safe and is also silent: the face is gone, the fence is gone, and
-   * nothing in the vault says why.
-   *
-   * **IT IS NOT A SECOND {@link ContributedKind.claims}, AND IT MAY NOT BE
-   * ONE.** A claim is set by the registry equal to the composed word
-   * (`@olai/plugin-api`'s `Kinds` service, off the registering fiber's own
-   * name), so an enabled plugin can only ever declare a key CARRYING ITS OWN
-   * NAME — which is exactly what makes a built-in declaration safe, since a
-   * column somebody else calls `agent-session` is then untouchable by a flag on
-   * the machine. A legacy key is a bare word any vault might be using for
-   * something of its own, so olai declares it for nobody. What it does instead
-   * is SAY SO: {@link ./rules.ts}'s `reportLegacyKeys` meets a value under this
-   * key that no declaration judges, and names the one row that ends it. The
-   * person writes the row, or declares the key `text` and takes the sentence
-   * away; nothing ever writes anybody's vault either way.
-   *
-   * DATA, LIKE EVERY OTHER FACT ABOUT A CONTRIBUTED KIND. This package spells
-   * no plugin's word — a rule here that grepped for `agent-session` would be
-   * the name-matching the whole `PropKind` arrangement exists to end — so the
-   * old spelling rides the kind's own row and arrives as a string on a table
-   * handed down, beside the word it became.
-   *
-   * Absent is a kind with no history, which is every kind that was a kind from
-   * the day it was written.
-   */
-  readonly wasCalled?: string
 }
 
 /**

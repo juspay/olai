@@ -627,3 +627,45 @@ Feature: A node with an `agent-session` property IS an agent
     Then the panel refuses, saying "a turn is running"
     When the agent is released
     Then the agent is idle
+
+  @scratch:lanes
+  Scenario: A board that predates the rename is told the row, in its own column
+    # THE MIGRATION EVERY EXISTING VAULT IS OWED, and where it is said.
+    #
+    # `agent-session` was a key core owned outright. It is chat's kind
+    # `chat-agent-session` now, and a plugin may only ever declare a key
+    # carrying its own name — which is what makes enabling a plugin unable to
+    # take over a column somebody has been using for something of their own —
+    # so olai declares this one for nobody and says so instead.
+    #
+    # IT IS THE PLUGIN THAT SAYS IT, and that is the whole of this scenario. It
+    # was a validator finding for a revision, and a finding BREAKS the file it
+    # is filed on: the only honest file for this one is the declarations page,
+    # so the notice put that page into errors-only and refused every other write
+    # to it until somebody pasted the row. A notice that darkens the page it is
+    # asking you to edit costs more than the thing it is about.
+    Given I open the outline "lanes.olai"
+    When the vault has not declared the binding key yet
+    # THE AGENTS ARE GONE, which is the state the sentence is about — the roster
+    # is the query over the DECLARED key, so there is nothing to list.
+    Then the agents roster holds 0 agents
+    # ...and the section draws anyway, for this alone. A person who came looking
+    # for an agent that stopped appearing finds the reason where they looked.
+    And the agents section says "This board has"
+    And the agents section says "holding"
+    And the agents section says "agent-session"
+    And the agents section says "chat-agent-session"
+    # THE ROW ITSELF, asserted apart from the prose so a reworded sentence
+    # cannot quietly change the JSON a person is about to paste.
+    And the agents section offers the row:
+      """
+      {"id":"prop-agent-session","ord":"a0","title":"agent-session","custom":{"type":"chat-agent-session"}}
+      """
+    # ...AND THE OTHER ANSWER is offered too, because it is a real one: a board
+    # that never meant these as bindings says so and stops hearing about it.
+    And the agents section says "Declaring it"
+    # THE FIX, taken the way a person takes it — and both halves land together,
+    # because the notice and the roster are one reading of one declaration.
+    When I paste that row into the declarations
+    Then the agents roster lists "door-live"
+    And the door on "door-live" reads "claude"

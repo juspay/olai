@@ -32,6 +32,9 @@ import { PLUGIN_TESTID } from "@olai/bundle/testids";
 
 import { attr } from "../support/selectors.ts";
 import { answering } from "../support/shortlist.ts";
+import fs from "node:fs";
+import path from "node:path";
+
 import { POLL_TIMEOUT } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
@@ -580,3 +583,74 @@ Then(
     );
   },
 );
+
+// ── the migration a board that predates the rename is owed ─────────────
+//
+// `agent-session` was a key core owned outright; it is chat's kind
+// `chat-agent-session` now, and a plugin may only ever declare a key carrying
+// its own name — so a vault already using the bare word keeps values nothing
+// declares, and loses its agents with nothing saying why.
+//
+// The notice is the PLUGIN'S and it is drawn in the agents section, which is
+// empty exactly then. It was a validator finding for a revision, and the cost
+// of that is what these steps exist to keep away from: a finding breaks the
+// file it is filed on, the only honest file for this one is the declarations
+// page, so the notice put that page into errors-only and refused every other
+// write to it until somebody pasted the row.
+
+/** The state every existing vault is in on the release that renames the key:
+ *  the records still carry the bare word, and no declaration judges it. Written
+ *  into the served copy the way a person's own vault already is. */
+When(
+  "the vault has not declared the binding key yet",
+  async function (this: OlaiWorld) {
+    const kept = fs
+      .readFileSync(path.join(this.scratch(), "_olai/Properties.olai"), "utf8")
+      .split("\n")
+      .filter((line) => line.trim() !== "" && !line.includes("chat-agent-session"))
+      .join("\n");
+    this.writeServed("_olai/Properties.olai", `${kept}\n`);
+  },
+);
+
+/** What the section says about it — the sentence, by a phrase of it. */
+Then(
+  "the agents section says {string}",
+  async function (this: OlaiWorld, said: string) {
+    await this.showSidebar();
+    const notice = this.page.locator(selector(PLUGIN_TESTID.agentMigration));
+    await notice.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const words = (await notice.innerText()).replaceAll("\n", " ");
+    assert.ok(
+      words.includes(said),
+      `the agents section to say ${JSON.stringify(said)}, and it says ` +
+        JSON.stringify(words),
+    );
+  },
+);
+
+/** ...and the row itself, which is the half a person acts on. Asserted apart
+ *  from the prose so a reworded sentence cannot quietly change the JSON. */
+Then(
+  "the agents section offers the row:",
+  // A DOCSTRING and not a `{string}`: the row is JSON, and a cucumber
+  // expression reads `{` as the start of a parameter — so the one thing this
+  // claim is about cannot be written inline.
+  async function (this: OlaiWorld, row: string) {
+    const at = this.page.locator(selector(PLUGIN_TESTID.agentMigrationRow));
+    await at.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual((await at.innerText()).trim(), row);
+  },
+);
+
+/** THE ROW PASTED, which is the whole of the fix — written the way a person
+ *  writes it, into the file the notice named. */
+When("I paste that row into the declarations", async function (this: OlaiWorld) {
+  const at = this.page.locator(selector(PLUGIN_TESTID.agentMigrationRow));
+  await at.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const row = (await at.innerText()).trim();
+  const kept = fs
+    .readFileSync(path.join(this.scratch(), "_olai/Properties.olai"), "utf8")
+    .trimEnd();
+  this.writeServed("_olai/Properties.olai", [kept, row].join("\n"));
+});

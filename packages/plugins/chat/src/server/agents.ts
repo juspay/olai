@@ -62,19 +62,103 @@
 import type { Conversing, LiveSession, Overheard } from "olai-plugin-chat"
 import {
   agentsIn,
+  customText,
   declarationsOf,
   type Derived,
+  isPutAway,
+  isRegular,
+  declaredFor,
   keysDeclaredAs,
+  mintedInto,
   nearestAtOrAbove,
-  seatableIn,
   NO_AGENTS,
   type NodeAgent,
   type NodeAgents,
+  PROPERTIES,
+  type PropDeclarations,
+  propertiesIn,
+  seatableIn,
 } from "@olai/format"
-import { type Agents, NO_AGENT_ROSTER } from "olai-plugin-chat/wire"
+import {
+  type Agents,
+  type Migration,
+  NAMED_AT_MOST,
+  NO_AGENT_ROSTER,
+} from "olai-plugin-chat/wire"
 
-import { ownKinds, SESSION_TYPE } from "../kinds.ts"
+import { ownKinds, SESSION_KIND, SESSION_TYPE } from "../kinds.ts"
 
+
+/**
+ * WHAT THIS VAULT IS OWED to get its node agents back, or `null`.
+ *
+ * ## The reading, in one line
+ *
+ * A board is owed this when it holds bindings under the RETIRED spelling and
+ * nothing declares that key. Both halves matter and both are cheap: the
+ * declarations are the same fold the rows come off, and the walk is guarded by
+ * it — a vault that has declared the key (which is every vault after the row is
+ * pasted, and every vault that never used the old word) pays one map read.
+ *
+ * ## Why this lives here rather than in the validator
+ *
+ * `@olai/format` used to file this as a `legacy-key` finding, and the cost was
+ * the objection: a finding BREAKS the file it sits on, the only honest file for
+ * this one is the declarations page, so the notice put that page into
+ * errors-only and refused every other write to it until somebody pasted the
+ * row. The one file every declared kind depends on, darkened to deliver a
+ * notice about one plugin's key.
+ *
+ * Nothing about it was ever general either. `ContributedKind.wasCalled` had one
+ * writer and one reader in the whole tree, both of them about this key — so the
+ * mechanism was a plugin's migration wearing core's clothes. The kind is ours,
+ * the retired spelling is ours, and the composed word to paste is ours; the
+ * sentence is ours as well, and saying it costs the vault nothing.
+ *
+ * ## FIRST SPELLING WINS, and the count is of RECORDS
+ *
+ * A hand-edited node carrying two cases of one key is one thing to fix, and the
+ * number in the sentence is a number a person counts against their own board.
+ * `customText` is asked under the exact retired spelling rather than folded,
+ * because what a person greps for is what is written down.
+ */
+const migrationOwed = (
+  derived: Derived,
+  declarations: PropDeclarations,
+): Migration | null => {
+  // ASKED OF THE DECLARATIONS FIRST, which is what makes this free for every
+  // board that owes nothing — nearly every board, and one map read for the rest.
+  //
+  // ANY DECLARATION ENDS IT, not only one naming this kind, and that is the
+  // rule rather than a looseness: a row declaring the key `text` is a board
+  // saying the column is prose, which is a whole answer to the question, and a
+  // reading that went on nagging past it would be arguing with the person. The
+  // fold is the shared one (`/format`'s `withClaims`, the one place
+  // precedence lives), so a vault's own row wins here exactly as it does
+  // everywhere else.
+  if (declaredFor(declarations, SESSION_KIND) !== undefined) return null
+  const holding: Array<string> = []
+  let more = 0
+  for (const located of derived.nodes) {
+    if (isPutAway(located.file)) continue
+    if (!isRegular(located)) continue
+    if (customText(located.node, SESSION_KIND)?.trim() === undefined) continue
+    if (holding.length < NAMED_AT_MOST) holding.push(located.node.id)
+    else more += 1
+  }
+  if (holding.length === 0) return null
+  return {
+    key: SESSION_KIND,
+    kind: SESSION_TYPE,
+    // THE FILE THE ROW GOES IN: the one this vault already declares in, or the
+    // one it would mint. Found by name like every other convention, so a
+    // directory keeping its declarations somewhere of its own is told to edit
+    // the file it has.
+    at: propertiesIn(derived.byFile.keys()) ?? mintedInto(PROPERTIES),
+    holding,
+    more,
+  }
+}
 export interface Roster {
   /**
    * A published revision arrived — re-read the vault's half.
@@ -124,6 +208,10 @@ export interface Roster {
    * (`@olai/format`'s `seatableIn`, which argues the three tests).
    */
   readonly seatableAt: (node: string) => boolean
+  /** WHAT THIS VAULT IS OWED to get its node agents back, or `null` — the
+   *  reading above ({@link migrationOwed}), off the same fold the rows and the
+   *  keys come from, so a revision cannot answer the three from two readings. */
+  readonly migration: () => Migration | null
   /** Every durable row, including sleeping agents with no acquired scope. */
   readonly nodes: () => NodeAgents
   /**
@@ -180,6 +268,9 @@ export const roster = (): Roster => {
   // breath as the rows and off the same fold. The claimed word is what a store
   // that has never loaded answers with — see {@link Roster.keys}.
   let keys: ReadonlyArray<string> = [SESSION_TYPE]
+  // ...and what this board is owed, off the same fold. `null` for a store that
+  // has never loaded, which is what it is for every board that owes nothing.
+  let owed: Migration | null = null
   const nearest = (node: string, candidates: ReadonlySet<string>): string | null =>
     reading === null ? null : nearestAtOrAbove(reading, node, candidates)
   return {
@@ -188,6 +279,7 @@ export const roster = (): Roster => {
       if (derived === null) {
         held = NO_AGENTS
         keys = [SESSION_TYPE]
+        owed = null
         return
       }
       // ONE FOLD, read twice. `declarationsOf` is a memo on the derivation, so
@@ -198,11 +290,13 @@ export const roster = (): Roster => {
       held = agentsIn(derived, declarations, SESSION_TYPE)
       const declared = keysDeclaredAs(declarations, SESSION_TYPE)
       keys = declared.length === 0 ? [SESSION_TYPE] : declared
+      owed = migrationOwed(derived, declarations)
     },
     agentAt: (to) =>
       held.find((one) => one.engine === to.agent && one.session === to.session) ?? null,
     nodeAt: (node) => held.find((one) => one.id === node) ?? null,
     seatableAt: (node) => reading !== null && seatableIn(reading, node),
+    migration: () => owed,
     nodes: () => held,
     key: () => keys[0] ?? SESSION_TYPE,
     keys: () => keys,

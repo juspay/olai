@@ -52,7 +52,9 @@ Before this became a plugin, the key was `agent-session` — a bare word core ow
 {"title":"agent-session","custom":{"type":"chat-agent-session"}}
 ```
 
-olai never writes that row for you. A tool that edited your declarations file to keep its own feature working would be your vault's judgement overruled by a release — so what olai does instead is say so: the store's validator names the row when it meets a bare `agent-session` value with no declaration behind it, and that finding is filed on the declarations file rather than on every record, so a vault mid-migration is not darkened row by row.
+olai never writes that row for you. A tool that edited your declarations file to keep its own feature working would be your vault's judgement overruled by a release — so what olai does instead is say so, in its own column: while your board holds bindings under the bare key and nothing declares it, the **Agents** section draws the row to paste. That is exactly when the section has nothing else to draw, because the roster is the query over the declared key — so an agent that has stopped appearing explains itself in the place you went looking for it.
+
+It is not a validator finding, and that is deliberate: a finding breaks the file it is filed on, the only honest file for this one is your declarations page, and a notice that darkened the page it was asking you to edit — refusing every other write to it until you pasted the row — cost more than the thing it was about. Declaring the key `text` instead says the column is prose, and stops it being said.
 
 You can also simply rename the key to `chat-agent-session`, which needs no declaration at all — a kind claims the key equal to its own composed word.
 

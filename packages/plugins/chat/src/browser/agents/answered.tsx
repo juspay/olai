@@ -99,7 +99,15 @@ import {
   useContext,
 } from "solid-js"
 
-import { type AgentChoice, agentIn, type Listed, NO_AGENT_ROSTER, type SessionInfo, type Unreachable } from "olai-plugin-chat/wire"
+import {
+  type AgentChoice,
+  agentIn,
+  type Listed,
+  type Migration,
+  NO_AGENT_ROSTER,
+  type SessionInfo,
+  type Unreachable,
+} from "olai-plugin-chat/wire"
 import { createChatState } from "../chat/state.ts"
 import { run } from "@olai/web/client/run.ts"
 import { olai } from "@olai/web/client/wire.ts"
@@ -147,6 +155,10 @@ export interface Roster {
    *  that went — as opposed to one agent that could not be asked, which is a
    *  row of the answer above. `null` when the last ask landed. */
   readonly chatsRefusal: Accessor<string | null>
+  /** WHAT THIS VAULT IS OWED to get its node agents back, or `null` — which is
+   *  what every board that has said the word answers, and every board that
+   *  never used the old one ({ ../../wire/agents.ts}'s `Migration`). */
+  readonly migration: Accessor<Migration | null>
   /** WHICH CONVERSATION THE PANEL IS IN, as the pair that names one — `null`
    *  when it is in none. Off the chat cell this provider already holds, so a
    *  list that marks the row a reader is already looking at costs no second
@@ -171,6 +183,12 @@ export function AgentsProvider(props: { readonly children: JSX.Element }) {
   // panel's whole cost for the panel's chrome.
   const chat = createChatState()
   const rows = createMemo(() => cell.value() ?? NO_AGENT_ROSTER)
+  // WHAT THE BOARD IS OWED, on the same terms as the roster and beside it: it
+  // is the sentence the EMPTY roster needs, so a reader that has one has both.
+  // Its own cell, because it moves only when a declarations file does
+  // (`../../wire/agents.ts`).
+  const owed = chatWire().cells.migration.use()
+  const migration = createMemo(() => owed.value() ?? null)
   const byNode = createMemo(() => new Map(rows().map((row) => [row.id, row])))
   // OFF THE SAME FRAME, and a memo rather than a read at each asker so that a
   // chat frame which moved a dot does not re-run the menu's catalog: the list
@@ -326,6 +344,7 @@ export function AgentsProvider(props: { readonly children: JSX.Element }) {
         unreachable,
         openChat,
         chatsRefusal,
+        migration,
         askChats,
       }}
     >

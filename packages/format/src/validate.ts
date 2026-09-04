@@ -99,7 +99,6 @@ import {
   reportDeclarations,
   reportDocs,
   reportDuplicateIds,
-  reportLegacyKeys,
   reportMirrorCycles,
   reportOf,
   reportParentCycles,
@@ -406,13 +405,6 @@ const wholly = (
   reportDocs(all, known, errors)
   reportDeclarations(derived, kinds, errors)
   reportPropValues(all, typed, errors)
-  // …and the key a contributed kind USED TO BE SPELLED AS, which is a question
-  // about the same records and the same declarations map and is therefore asked
-  // beside them ({@link ./rules.ts}'s `reportLegacyKeys`). It is asked LAST of
-  // the three because it is the only one of them that is not about a value
-  // being wrong: the values are legal, and what is missing is the row that
-  // would give them a face again.
-  reportLegacyKeys(all, typed, errors)
   return { errors, known, typing: declarations }
 }
 

@@ -100,6 +100,28 @@ export const TESTID = {
   chatNode: "chat-node",
 
   // ── migration: the chats no node claims ──────────────────────────────
+  /**
+   * THE MIGRATION NOTICE, at the head of the section — drawn only where a board
+   * holds bindings under the retired key and nothing declares it, which is a
+   * state every vault leaves and none returns to.
+   *
+   * HERE and not on the validator, which is the whole of the change it came
+   * from: a finding breaks the file it is filed on, the only honest file for
+   * this one is the declarations page, and a notice that darkens the page it is
+   * asking you to edit costs more than the thing it is about
+   * ({@link ./wire/agents.ts}'s `Migration` argues it at length).
+   *
+   * The SECTION draws for this alone, which is what makes the placement right
+   * rather than convenient: the roster is the query over the declared key, so it
+   * is EMPTY exactly when this is owed — and a person who came looking for an
+   * agent that has stopped appearing finds the reason where they looked.
+   */
+  agentMigration: "agent-migration",
+  /** ... and the row itself, ready to paste. Its own id because that is the half
+   *  a person acts on, and a claim about the JSON should not have to match the
+   *  prose around it. */
+  agentMigrationRow: "agent-migration-row",
+
   /** The roster's LAST row: every conversation in this directory that no node
    *  agent claims, with how many. Drawn only where there is one — a directory
    *  whose chats are all assigned ends the section at its agents, and one with

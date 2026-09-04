@@ -40,7 +40,13 @@
 import { defineSurface } from "@kolu/surface/define"
 import { Schema } from "effect"
 
-import { Agents, NO_AGENT_ROSTER, sameAgentRoster } from "./wire/agents.ts"
+import {
+  Agents,
+  Migration,
+  NO_AGENT_ROSTER,
+  NO_MIGRATION,
+  sameAgentRoster,
+} from "./wire/agents.ts"
 import {
   AskAnswer,
   AttachChunk,
@@ -104,6 +110,26 @@ export const surface = defineSurface({
        *  the roster by this same id (`agents/Agents.tsx`), so a rename moves
        *  the row it renames. */
       arrayKey: "id",
+    },
+    /**
+     * WHAT THIS VAULT IS OWED TO GET ITS AGENTS BACK, or nothing — see
+     * {@link ./wire/agents.ts}'s `Migration`, which argues why this sentence is
+     * the plugin's and not the validator's.
+     *
+     * ITS OWN CELL rather than a field on the roster beside it, and the reason
+     * is what the two are: the roster is a LIST that moves on every frame a
+     * conversation produces, and this is one small answer that moves only when
+     * a declarations file does. Carried on the roster it would ride every
+     * token report to every open tab, and `sameAgentRoster` — which is what
+     * keeps those frames off the wire — would have to be true of it too.
+     *
+     * `null` is the ordinary answer and the one every vault reaches: a board
+     * that has pasted the row, and a board that never used the old word.
+     */
+    migration: {
+      schema: Schema.NullOr(Migration),
+      default: NO_MIGRATION,
+      verbs: ["get"],
     },
   },
   collections: {
@@ -487,6 +513,9 @@ export const faces = {
   browser: {
     state: "resource",
     agents: "resource",
+    // ...AND WHAT THE BOARD IS OWED to get those agents back, which is the
+    // sentence the empty roster needs beside it (`./wire/agents.ts`).
+    migration: "resource",
     transcript: "resource",
     saying: "resource",
     "conversation.send": "tool",

@@ -228,3 +228,116 @@ test("a board that declares the claimed key something else keeps no node agents"
   carrier.seen(said)
   expect(carrier.nodes()).toEqual([])
 })
+
+// ── what a board that has not migrated is owed ─────────────────────────
+//
+// A word core owned outright became this plugin's, the kind composes to a new
+// one, and every vault already using the OLD key keeps values nothing declares.
+// The plugin may not claim that key back — a claim is the composed word, which
+// is what makes enabling a plugin unable to take over a column somebody has
+// been using for something of their own — so olai names the row instead.
+//
+// IT IS THIS PLUGIN'S SENTENCE AND NOT THE VALIDATOR'S, which is what these
+// cases are for as much as the reading: a finding breaks the file it is filed
+// on, the only honest file for this one is the declarations page, and the
+// notice therefore put that page into errors-only until somebody pasted the
+// row — on the one file every declared kind depends on.
+
+test("a board holding the retired key with nothing declaring it is owed the row", () => {
+  const owing = derive(recordsOf(setOf({
+    "lanes.olai": `{"id":"one","ord":"a0","title":"One","custom":{"agent-session":"claude:s-1"}}\n`
+      + `{"id":"two","ord":"a1","title":"Two","custom":{"agent-session":"claude"}}`,
+  })))
+  const carrier = roster()
+  carrier.seen(owing)
+  const owed = carrier.migration()
+  // THE ROSTER IS EMPTY, which is the state the sentence is about: the rows are
+  // the query over the DECLARED key, so a board whose key nothing declares has
+  // no node agents — which is exactly why the notice is drawn where the rows
+  // would have been.
+  expect(carrier.nodes()).toEqual([])
+  expect(owed?.key).toBe("agent-session")
+  expect(owed?.kind).toBe(SESSION_TYPE)
+  // BOTH RECORDS, because the number is one a person counts against their own
+  // board — and a record with the engine and no session is holding the key just
+  // as much as one with a whole binding.
+  expect(owed?.holding).toEqual(["one", "two"])
+  expect(owed?.more).toBe(0)
+  // A VAULT WITH NO DECLARATIONS FILE is told where one would be minted, which
+  // is the same convention every other reader of that file keeps.
+  expect(owed?.at).toBe("_olai/Properties.olai")
+})
+
+test("...and the file named is the one this vault already declares in", () => {
+  const elsewhere = derive(recordsOf(setOf({
+    "_olai/Properties.olai": `{"id":"prop-x","ord":"a0","title":"x","custom":{"type":"text"}}`,
+    "lanes.olai": `{"id":"one","ord":"a0","title":"One","custom":{"agent-session":"claude:s-1"}}`,
+  })))
+  const carrier = roster()
+  carrier.seen(elsewhere)
+  expect(carrier.migration()?.at).toBe("_olai/Properties.olai")
+})
+
+test("a board that has pasted the row is owed nothing, and has its agents", () => {
+  // THE WHOLE POINT, in one case: the row ends the sentence AND brings the
+  // agents back, because both are the same reading of the same declaration.
+  const migrated = derive(recordsOf(setOf({
+    "_olai/Properties.olai":
+      `{"id":"prop-session","ord":"a0","title":"agent-session","custom":{"type":"chat-agent-session"}}`,
+    "lanes.olai": `{"id":"one","ord":"a0","title":"One","custom":{"agent-session":"claude:s-1"}}`,
+  })))
+  const carrier = roster()
+  carrier.seen(migrated)
+  expect(carrier.migration()).toBeNull()
+  expect(carrier.nodes().map((one) => one.id)).toEqual(["one"])
+})
+
+test("a board declaring the retired key text is owed nothing either", () => {
+  // The escape hatch, and it is a board saying what it means rather than a way
+  // of silencing olai: the column is prose, so there is no migration to do.
+  const prose = derive(recordsOf(setOf({
+    "_olai/Properties.olai":
+      `{"id":"prop-session","ord":"a0","title":"agent-session","custom":{"type":"text"}}`,
+    "lanes.olai": `{"id":"one","ord":"a0","title":"One","custom":{"agent-session":"claude:s-1"}}`,
+  })))
+  const carrier = roster()
+  carrier.seen(prose)
+  expect(carrier.migration()).toBeNull()
+})
+
+test("a board that never used the old word is owed nothing", () => {
+  // Which is every vault written after the rename, and the reason this reading
+  // costs a board nothing: the walk is guarded by the declarations.
+  const fresh = derive(recordsOf(setOf({
+    "lanes.olai":
+      `{"id":"one","ord":"a0","title":"One","custom":{"chat-agent-session":"claude:s-1"}}`,
+  })))
+  const carrier = roster()
+  carrier.seen(fresh)
+  expect(carrier.migration()).toBeNull()
+  expect(carrier.nodes().map((one) => one.id)).toEqual(["one"])
+})
+
+test("the records named are capped, and the rest are counted", () => {
+  // A vault with two hundred would otherwise put its whole node list in one
+  // sentence, which is the failure the cap exists for — and a truncation a
+  // reader cannot see is a count they will not trust against their own board.
+  const many = derive(recordsOf(setOf({
+    "lanes.olai": Array.from(
+      { length: 8 },
+      (_, at) =>
+        `{"id":"n${at}","ord":"a${at}","title":"N${at}","custom":{"agent-session":"claude:s"}}`,
+    ).join("\n"),
+  })))
+  const carrier = roster()
+  carrier.seen(many)
+  const owed = carrier.migration()
+  expect(owed?.holding).toEqual(["n0", "n1", "n2", "n3", "n4"])
+  expect(owed?.more).toBe(3)
+})
+
+test("a store that has never loaded is owed nothing", () => {
+  const carrier = roster()
+  carrier.seen(null)
+  expect(carrier.migration()).toBeNull()
+})

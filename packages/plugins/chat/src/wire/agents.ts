@@ -95,3 +95,58 @@ export const NO_AGENT_ROSTER: Agents = []
  *  simply not be compared. */
 export const sameAgentRoster: (a: Agents, b: Agents) => boolean = Schema
   .toEquivalence(Agents)
+
+/**
+ * THE MIGRATION THIS VAULT IS OWED, or `null` — the sentence a board that
+ * carries bindings under the bare key is told, and the row that ends it.
+ *
+ * ## Why this is the PLUGIN's and not the validator's
+ *
+ * It was a validator finding (`@olai/format`'s `legacy-key`), and the cost of
+ * that was the whole of the objection: by the error model a finding BREAKS the
+ * file it is filed on, and the only honest file for this one is the
+ * declarations page — so a release that shipped the notice put every vault
+ * carrying a pre-migration binding into errors-only ON THE ONE FILE every
+ * declared kind depends on, and refused every other write to it until somebody
+ * pasted the row. A notice that darkens the page it is asking you to edit is a
+ * notice that costs more than the thing it is about.
+ *
+ * The kind is this plugin's, the retired spelling is this plugin's, and the
+ * word to paste is this plugin's composed claim. So the sentence is this
+ * plugin's too, and saying it here costs the vault nothing: no finding, no
+ * broken file, no refused write.
+ *
+ * ## WHERE IT IS DRAWN is the reason it needs no alarm
+ *
+ * The agents section, which is EMPTY exactly when this is owed — the roster is
+ * the query over the declared key, so a vault whose key nothing declares has no
+ * node agents to list. A person who went looking for an agent that has stopped
+ * appearing finds this in the place they went looking, which is what the
+ * validator's sentence was for and the only part of it worth keeping.
+ */
+export const Migration = Schema.Struct({
+  /** The retired spelling the records actually carry — what to search for. */
+  key: Schema.String,
+  /** ...and the word it is now: this plugin's composed claim, quoted rather
+   *  than spelled, so a rename cannot leave the sentence naming a kind nobody
+   *  registers. */
+  kind: Schema.String,
+  /** The declarations file the row goes in: the one this vault already declares
+   *  in, or the one it would mint. */
+  at: Schema.String,
+  /** The records holding it, capped — a vault with two hundred would otherwise
+   *  put its whole node list in one sentence. */
+  holding: Schema.Array(Schema.String),
+  /** How many more there are beyond {@link holding}, so the cap is a cap a
+   *  reader can see rather than a silent truncation. */
+  more: Schema.Int,
+})
+export type Migration = typeof Migration.Type
+
+/** Nothing owed — every vault that has said the word, and every vault that
+ *  never used the old one. */
+export const NO_MIGRATION = null
+
+/** At most this many records are named in one sentence, the idiom a refusal
+ *  over a roster already keeps. */
+export const NAMED_AT_MOST = 5

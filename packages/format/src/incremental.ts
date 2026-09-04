@@ -109,7 +109,6 @@ import {
   reportAfterCycles,
   reportDeclarations,
   reportDocs,
-  reportLegacyKeys,
   reportMirrorCycles,
   reportParentCycles,
   reportParents,
@@ -326,13 +325,6 @@ export const incrementally = (
   // two readings of one vault, free to disagree about what a key is declared as.
   const typed: Typed = { declarations: typing, derived, documents: known, kinds }
   reportPropValues(walkingProps ? derived.nodes : fresh, typed, errors)
-  // …and the retired-spelling rule over THE SAME SET, which is what keeps the
-  // two arms from naming different records in one sentence
-  // ({@link ./rules.ts}'s `reportLegacyKeys` argues why that set is exact
-  // here: fact 2 means an untouched offender would have been in the verdict
-  // this run narrowed from, and the only other way one appears is the
-  // declaration leaving, which moves `typing` and opens this very gate).
-  reportLegacyKeys(walkingProps ? derived.nodes : fresh, typed, errors)
 
   return { ledger: { errors, known, typing }, walked: moving || walking || walkingProps }
 }

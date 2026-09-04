@@ -160,36 +160,6 @@ const CATALOGUE = {
    */
   "bad-prop": "set-per-finding",
   /**
-   * A KEY A CONTRIBUTED KIND USED TO BE SPELLED AS is still held by records
-   * and no declaration judges it ({@link ./typing.ts}'s
-   * `ContributedKind.wasCalled`, and {@link ./rules.ts}'s `reportLegacyKeys`).
-   *
-   * NOT `bad-prop`, and the reason is geometry rather than taxonomy. Every
-   * `bad-prop` is filed ON THE RECORD holding the offending value and names the
-   * declaration as its ground; this one is filed ON THE DECLARATIONS FILE and
-   * names the records as ITS ground — the same two places, swapped. One code
-   * whose site is the record for half its instances and the declarations file
-   * for the other half makes "where do I look" unanswerable for every reader
-   * that groups by code, which is the drift {@link Related}'s own doc says a
-   * per-code table would be. The second reason is one level up: `bad-prop` is
-   * `set-per-finding` because two of the kinds it judges resolve a bare id, and
-   * every instance of it therefore has to answer {@link OutlineError.across}.
-   * This rule resolves nothing — it reads the vocabulary, the declarations map
-   * and the keys records wrote — so it is plainly `set`, and folding it into a
-   * per-finding code would widen the one category that exists to narrow one.
-   *
-   * IT IS A MIGRATION AND NOT A FAULT, which is why the message is a row a
-   * person can paste rather than a refusal. The values are legal and stay
-   * exactly where they are; what is missing is the declaration that would give
-   * them a face again, and a plugin may not write that one for a vault
-   * ({@link ./typing.ts}'s `wasCalled` argues why).
-   *
-   * `set`, because a key's declaration and the records holding it are read off
-   * the whole set — and never a guess: a file that did not parse can hide such
-   * a record but cannot invent one.
-   */
-  "legacy-key": "set",
-  /**
    * The DIRECTORY could not be read — not a record in it. EACCES on a folder,
    * a mount that went away, a disk with no room to answer a stat.
    *
@@ -423,13 +393,9 @@ const filesOf = (
 export const isCrossFile = (error: OutlineError): boolean => blamedOn(error).length > 1
 
 /** A `line` of 0 means there is no record to point at — the site is the path
- *  itself. Three codes have that: `unreadable-directory`, about a DIRECTORY;
- *  `unreadable-file`, about one FILE that will not open; and `legacy-key`,
- *  which is about a row `_olai/Properties.olai` DOES NOT HOLD YET — the third
- *  is the newest and the one that stretches the sentence, because the path it
- *  names may not be in the set at all. It is the same fact all the same: there
- *  is no record to point at, and a made-up 1 would point at somebody's first
- *  declaration. The rule lives here rather than in whichever renderer noticed
+ *  itself. Two codes have that: `unreadable-directory`, about a DIRECTORY, and
+ *  `unreadable-file`, about one FILE that will not open. A made-up 1 would
+ *  point at somebody's first record. The rule lives here rather than in whichever renderer noticed
  *  first, which is the same argument {@link errorLine} makes: the browser's
  *  rows and an agent's one-liner must not disagree about whether `plan.olai:0`
  *  is a line number somebody could go and look for.

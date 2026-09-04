@@ -56,5 +56,4 @@ test("the contribution names the bare word, and its clause names the composed on
   // ...and the retired spelling is the BARE word, never the composed one: it is
   // the key this kind used to be before chat was a plugin, and it is what
   // `@olai/format`'s `reportLegacyKeys` looks for in a vault written back then.
-  expect(one.wasCalled).toBe(SESSION_KIND)
 })

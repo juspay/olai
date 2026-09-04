@@ -91,9 +91,12 @@
  * `{"title":"agent-session","custom":{"type":"chat-agent-session"}}` — and olai
  * writes it for nobody, because a tool that edited somebody's declarations file
  * to keep its own feature working would be that vault's judgement overruled by a
- * release. What olai does instead is SAY SO, and that too is data rather than a
- * literal: {@link ./typing.ts}'s `ContributedKind.wasCalled` rides the plugin's
- * own row and {@link ./rules.ts}'s `reportLegacyKeys` quotes the line to paste.
+ * release. What olai does instead is SAY SO, and it is the PLUGIN that says it:
+ * the kind is chat's, the retired spelling is chat's and the word to paste is
+ * chat's composed claim, so the sentence is drawn in chat's own column
+ * (`olai-plugin-chat`'s `server/agents.ts`). This package spells none of it, and
+ * the validator files no finding for it — one used to, and darkened the
+ * declarations page it was asking a person to edit.
  */
 import { Schema } from "effect"
 
