@@ -197,9 +197,15 @@ export function DescEditor(props: {
   readonly onInput: (text: string) => void
   readonly onKey: (event: KeyboardEvent) => void
   readonly onBlur: (left: boolean) => void
+  /** Where the caret goes when this editor OPENS, when the draft has an
+   *  answer — {@link takeCaret}'s contract; a click measured in the note's
+   *  clamped line is the one call that has one ({@link ../NodeBody.tsx}).
+   *  Absent is the end, which is where a note's text always ends up being
+   *  continued. */
+  readonly caret?: number
 }) {
   let element!: HTMLTextAreaElement
-  takeCaret(() => element, { then: () => grow(element) })
+  takeCaret(() => element, { at: () => props.caret, then: () => grow(element) })
 
   return (
     <textarea

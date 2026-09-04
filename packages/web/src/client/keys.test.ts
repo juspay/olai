@@ -308,6 +308,29 @@ test("a selection splits around what it covers, and one spanning an end does not
   expect(editKey(key("Enter"), "line", at(3, LINE, 11))).toBe("add")
 })
 
+test("the horizontal arrows cross at a line's edge and never mid-word", () => {
+  // `Backspace`'s boundary rule, one key over: an edge-press is the only one
+  // this matcher claims — a caret walking through a word is the platform's
+  // own movement, and no outliner's hands expect ← mid-word to take them to
+  // another row.
+  expect(editKey(key("ArrowLeft"), "line", at(0, LINE))).toBe("left")
+  expect(editKey(key("ArrowRight"), "line", at(LINE.length, LINE))).toBe("right")
+  expect(editKey(key("ArrowLeft"), "line", at(5, LINE))).toBeNull()
+  expect(editKey(key("ArrowRight"), "line", at(5, LINE))).toBeNull()
+  // A SELECTION sitting on the edge is not an edge press: ← collapses it and
+  // → extends it, both the platform's.
+  expect(editKey(key("ArrowLeft"), "line", at(0, LINE, 4))).toBeNull()
+  expect(editKey(key("ArrowRight"), "line", at(0, LINE, 4))).toBeNull()
+  // An absent caret is the safe side, as `split`'s is.
+  expect(editKey(key("ArrowLeft"), "line")).toBeNull()
+  expect(editKey(key("ArrowRight"), "line")).toBeNull()
+  // A modifier makes it the platform's word-jump or the OS's — never the
+  // row's; and a note is prose, the row's keys are the row's.
+  expect(editKey(key("ArrowLeft", { alt: true }), "line", at(0, LINE))).toBeNull()
+  expect(editKey(key("ArrowRight", { meta: true }), "line", at(LINE.length, LINE))).toBeNull()
+  expect(editKey(key("ArrowLeft"), "block", at(0, LINE))).toBeNull()
+})
+
 test("Backspace merges at offset zero, with nothing selected, and nowhere else", () => {
   expect(editKey(key("Backspace"), "line", at(0, LINE))).toBe("merge")
   // Anywhere else it is the field's own — there is a character to delete.
@@ -418,6 +441,8 @@ test("every editing key is written down for a person", () => {
     "note",
     "prev",
     "next",
+    "left",
+    "right",
     "cancel",
     "selectUp",
     "selectDown",
@@ -428,6 +453,7 @@ test("every editing key is written down for a person", () => {
   // covered rather than each name.
   const pairs: Partial<Record<EditAction, EditAction>> = {
     next: "prev",
+    right: "left",
     selectDown: "selectUp",
   }
   const covered = actions.filter((action) => {

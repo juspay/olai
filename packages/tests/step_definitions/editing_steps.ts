@@ -395,6 +395,20 @@ Then(
   },
 );
 
+/** An open editor is not yet a TYPING one: a keys' write can redraw the row
+ *  out from under the input it opened, and the browser's answer to a removed
+ *  focus is `<body>` — silent unless somebody looks. */
+Then("the row being typed has the focus", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () =>
+      this.page.evaluate(
+        (sel) => document.activeElement?.matches(sel) ?? false,
+        TITLE_EDITOR,
+      ),
+    "the caret to be in the row being typed",
+  );
+});
+
 /** Where a line's text starts, on screen. What "the same depth" means to a
  *  person reading the outline: two lines whose text begins at the same x. */
 const textLeftOf = async (world: OlaiWorld, locator: Locator): Promise<number> => {
@@ -443,6 +457,23 @@ Then(
     assert.ok(
       text.includes("**walnut**"),
       `the note editor holds ${JSON.stringify(text)}, which is not the markdown the file holds`,
+    );
+  },
+);
+
+Then(
+  "the note's caret is at offset {int}",
+  async function (this: OlaiWorld, offset: number) {
+    // The same promise as the title's `the caret is at offset` — the click
+    // measured the place under the finger, and the caret is expected AT it,
+    // not at the end of the source.
+    const editor = this.page.locator(DESC_EDITOR).first();
+    await this.waitUntil(
+      async () =>
+        (await editor.evaluate(
+          (element) => (element as HTMLTextAreaElement).selectionStart,
+        )) === offset,
+      `the note's caret to be at offset ${offset}`,
     );
   },
 );
@@ -571,8 +602,18 @@ const idTitled = async (world: OlaiWorld, title: string): Promise<string | null>
   const n = await rows.count();
   for (let i = 0; i < n; i++) {
     const row = rows.nth(i);
-    const text = (await row.locator(NODE_TITLE).first().textContent()) ?? "";
-    if (text.includes(title)) return row.getAttribute("data-node-id");
+    // A row holding its caret draws the title as the EDITOR, not the span.
+    const shown = row.locator(NODE_TITLE);
+    if ((await shown.count()) > 0) {
+      const text = (await shown.first().textContent()) ?? "";
+      if (text.includes(title)) return row.getAttribute("data-node-id");
+      continue;
+    }
+    const typing = row.locator(TITLE_EDITOR);
+    if ((await typing.count()) > 0) {
+      const text = (await typing.first().inputValue()) ?? "";
+      if (text.includes(title)) return row.getAttribute("data-node-id");
+    }
   }
   return null;
 };
@@ -588,13 +629,12 @@ Then(
     const title = this.nodeTitle(id);
     await title.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await this.waitUntil(async () => {
-      const editor = this.page.locator(TITLE_EDITOR).first();
+      // The LIVE ghost — the one with the caret in it. Parked ones are
+      // inputs too, so the unadorned selector finds all of them: picking
+      // `.first()` answered with a PARKED line the day a scenario drew two.
+      const editor = this.page.locator(`${NEW_ROW}:focus-within`).first();
       if ((await editor.count()) === 0) return false;
-      const draft = editor.locator(
-        `xpath=ancestor::*[@data-testid='${TESTID.newRow}'][1]`,
-      );
-      if ((await draft.count()) === 0) return false;
-      const above = await draft.boundingBox();
+      const above = await editor.boundingBox();
       const of = await title.boundingBox();
       if (above === null || of === null) return false;
       // Adjacent and above: one row's padding, not a layout assertion. The
@@ -603,6 +643,56 @@ Then(
       const gap = of.y - (above.y + above.height);
       return gap >= -2 && gap < 40;
     }, `the draft to sit immediately above the title of "${id}", not below its subtree`);
+  },
+);
+
+/** HOW DEEP on the page the new row sits: measured at its own box against the
+ *  row named. The first child of a folded-out branch is drawn indented past
+ *  the row it was made against, which is what one precision of the page's
+ *  "child" is: any WIDER game about its indent is the rail's own width, which
+ *  does not move. */
+Then(
+  "the row being typed is drawn at the child depth of {string}",
+  async function (this: OlaiWorld, id: string) {
+    const row = this.node(id);
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.waitUntil(async () => {
+      // The LIVE ghost — parked ones hold inputs too, and `.first()` draws // one of them out of a cluster, not the line being typed.
+      const draft = this.page.locator(`${NEW_ROW}:focus-within`).first();
+      if ((await draft.count()) === 0) return false;
+      const box = await draft.boundingBox();
+      const li = await row.boundingBox();
+      if (box === null || li === null) return false;
+      // The LI of the row spans the whole branch beneath it; the blank's box
+      // starts INSIDE, past the indent strip beside the branch.
+      return box.x > li.x + 4 && box.y > li.y + 4;
+    }, `the new row to be drawn at a child depth of "${id}"`);
+  },
+);
+
+/** How TALL a line of the outline is, asked of the page. Two consecutive
+ *  sibling rows give the outline's own line pitch; the blank that Enter
+ *  opened must sit one whole pitch below the row that opened it — the bug
+ *  this pins was the blank lacking the row's `my-0.5`/`py-1`, standing 12px
+ *  shorter than every neighbour. */
+Then(
+  "the row being typed stands the same line below {string} as that row stands below {string}",
+  async function (this: OlaiWorld, below: string, above: string) {
+    const belowTitle = this.nodeTitle(below);
+    const aboveTitle = this.nodeTitle(above);
+    await belowTitle.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await aboveTitle.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.waitUntil(async () => {
+      const editor = this.page.locator(TITLE_EDITOR).first();
+      if ((await editor.count()) === 0) return false;
+      const b = await belowTitle.boundingBox();
+      const a = await aboveTitle.boundingBox();
+      const g = await editor.boundingBox();
+      if (a === null || b === null || g === null) return false;
+      const rhythm = b.y - a.y;
+      const stood = g.y - b.y;
+      return Math.abs(stood - rhythm) <= 2;
+    }, `the draft to stand one line below "${below}" — the spacing a row keeps`);
   },
 );
 

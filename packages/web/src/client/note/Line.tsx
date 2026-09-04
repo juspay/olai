@@ -14,10 +14,16 @@
  * nothing fails over — a clamp or a tone changed in one and not the other,
  * invisible from either file.
  *
- * IT IS A BUTTON, and pressing it opens the note. A clamped line is not
- * something anybody can type into, so the caret belongs to the click after this
- * one; the press STOPS, because the cell above it is the title's click-to-edit
- * target (../NodeLine.tsx).
+ * IT IS A BUTTON, and pressing it opens where the finger named. A clamped
+ * line is not something anybody can type into, but it IS the note's own words
+ * drawn one to a character, so the click is measured against them the way the
+ * title's click has been since #475 (../edit/point.ts) and the number rides
+ * the gesture — where the line's words are not what was read (an excerpt's
+ * are: the button fills its pane), the measurement in the caller's hands says
+ * go to the end, the door's old answer. The POINTERLESS press — the click a
+ * keyboard's Enter synthesizes — has no coordinate to measure, so it is that
+ * old gesture outright: the caller's `undefined`. The press STOPS, because
+ * the cell above it is the title's click-to-edit target (../NodeLine.tsx).
  *
  * SOLID ELEMENTS, not `innerHTML`, which is why a note's hit is cheaper to draw
  * than a title's: a title reaches the page as an HTML string and every
@@ -28,6 +34,7 @@
 
 import { Index } from "solid-js"
 
+import { offsetAt, widthIn } from "../edit/point.ts"
 import { HIT_CLASS, type Run } from "../filter/lit.ts"
 import { TESTID } from "../testids.ts"
 import { ROW_NOTE } from "../touch.ts"
@@ -43,8 +50,11 @@ export function NoteLine(props: {
    *  two different things for a scenario to ask. */
   readonly hit?: boolean
   /** Open the note — the pilcrow's gesture, from the other end of it. Absent
-   *  wherever the row draws no open state. */
-  readonly onOpen?: () => void
+   *  wherever the row draws no open state. `at` is the click measured in the
+   *  line's own characters (`../edit/point.ts`'s arithmetic); past the drawn
+   *  words it is `undefined`, which is the caller's old gesture — the same
+   *  answer the title's click made of its filler. */
+  readonly onOpen?: (at: number | undefined) => void
 }) {
   return (
     <button
@@ -53,10 +63,27 @@ export function NoteLine(props: {
       data-testid={props.hit === true ? TESTID.descHit : TESTID.desc}
       data-preview="true"
       data-open="false"
-      title="show the full note"
+      title="edit the note"
       onClick={(event) => {
         event.stopPropagation()
-        props.onOpen?.()
+        // Keyboard and screen-reader activation has no x to measure: the
+        // synthesized click arrives with detail 0 and clientX 0, which
+        // would measure as offset 0 and land a keyboard reader at the head
+        // of a textarea instead of in the note they asked for. Their door
+        // stays the old gesture — the caller's `undefined` answer.
+        if (event.detail === 0) {
+          props.onOpen?.(undefined)
+          return
+        }
+        const host = event.currentTarget
+        const rect = host.getBoundingClientRect()
+        const at = offsetAt(
+          props.runs.map((run) => run.text).join(""),
+          { left: rect.left, width: rect.width },
+          event.clientX,
+          widthIn(host),
+        )
+        props.onOpen?.(at)
       }}
     >
       {/* `Index` rather than `For`: the runs are a fresh array of fresh objects
