@@ -164,7 +164,6 @@
         "@olai/ops": "workspace:*",
         "@olai/plugin-api": "workspace:*",
         "@olai/plugin-kit": "workspace:*",
-        "@olai/state": "workspace:*",
         "@olai/surface": "workspace:*",
         "@olai/web": "workspace:*",
         "@solid-primitives/keyed": "^1.5.3",

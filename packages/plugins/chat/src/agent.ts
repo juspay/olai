@@ -112,7 +112,7 @@ import { modelPickerIn, type Picker, pickerValueFor, sameModel } from "./agents/
 import { Calls } from "./calls.ts"
 import { sameDirectory } from "./directory.ts"
 import type { AgentEvent, Command, Stored } from "./events.ts"
-import type { Held, Memory, MemoryFailure } from "./memory.ts"
+import type { MemorySnapshot, Memory, MemoryFailure } from "./memory.ts"
 import { streamOver } from "./pipes.ts"
 import { handedIn, missingIn, type Probe, probed, type StdioServer } from "./probes.ts"
 import * as Questions from "./questions.ts"
@@ -1409,7 +1409,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         }))
 
     /** What this panel was last in and on, and `null` when nothing says. */
-    const recalled: Effect.Effect<Held | null> = said(
+    const recalled: Effect.Effect<MemorySnapshot | null> = said(
       options.memory.recall,
       (why) =>
         `the conversation this directory was last in could not be read (${why}) — ` +
@@ -1425,7 +1425,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * conversation it moved in. Re-reading the file for each would be two disk
      * reads answering a question this closure is holding the answer to.
      */
-    let held: Held | null = null
+    let held: MemorySnapshot | null = null
 
     /**
      * The remembered model for THIS conversation, and `null` for every other.
@@ -1455,7 +1455,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *  say — a lost conversation and a lost model are different sentences to
      *  the person who will meet the consequence — and everything else about
      *  remembering is the same either way. */
-    const note = (next: Held, cost: (why: string) => string): Effect.Effect<void> =>
+    const note = (next: MemorySnapshot, cost: (why: string) => string): Effect.Effect<void> =>
       Effect.gen(function*() {
         held = next
         // ONE AT A TIME: entering a conversation and the model under it moving

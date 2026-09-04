@@ -102,9 +102,9 @@
  * a second kept record rather than a second kind of problem.
  */
 
-import { canonical, fileFor, readLocal, writeLocal } from "@olai/state"
 import { Effect, Semaphore } from "effect"
 
+import type { ChatLocalState } from "./local.ts"
 import { MemoryFailure, word } from "./memory.ts"
 
 /** The `kind` these files live under in the state home — the second
@@ -430,31 +430,17 @@ const picks = (held: Record<string, unknown>): ReadonlyArray<Scoped> => {
 const capped = (rows: ReadonlyArray<Scoped>): ReadonlyArray<Scoped> =>
   rows.length <= ROWS ? rows : rows.slice(rows.length - ROWS)
 
-export const forDirectory = (spelling: string): Effect.Effect<Scopes> =>
+export const forLocalState = (local: ChatLocalState): Effect.Effect<Scopes> =>
   Effect.gen(function*() {
-    // ONE spelling from here down, and it is `@olai/state`'s — the same
-    // resolution {@link ./memory.ts} names its own file by, so a vault reached
-    // through a symlink is one directory to both of this package's records.
-    const cwd = canonical(spelling)
-    const at = fileFor(WAKE, cwd)
-    /** See the header: `@olai/state`'s staging file is per PROCESS, so two
-     *  overlapping writes in this one would race through it. */
     const writing = yield* Semaphore.make(1)
 
     // AN EMPTY MIRROR AND ONE WARNING, never a refusal to serve: nobody is
     // standing at the screen when a boot reads this, and a directory whose
     // doorbells cannot be read is a directory whose doorbells are off until
     // somebody picks again. The write is the opposite case and refuses.
-    const read = yield* Effect.result(readLocal(at, cwd))
+    const read = local.load(WAKE)
     let rows: ReadonlyArray<Scoped> = []
-    if (read._tag === "Failure") {
-      yield* Effect.logWarning(
-        `the doorbells this directory had on could not be read (${read.failure.why}) — ` +
-          `they are off until somebody picks again`,
-      )
-    } else if (read.success !== null) {
-      rows = picks(read.success)
-    }
+    if (read !== null) rows = picks(read)
 
     return {
       rows: () => rows,
@@ -493,10 +479,7 @@ export const forDirectory = (spelling: string): Effect.Effect<Scopes> =>
           // interleaving unobservable. The permit does keep two WRITES apart;
           // what it cannot do is take back a value a failed write left behind,
           // and the caller is told `failed` either way.
-          yield* Effect.mapError(
-            writeLocal(at, { cwd, scopes: next }),
-            (failure) => new MemoryFailure(failure),
-          )
+          yield* local.save(WAKE, { scopes: next })
           rows = next
           // ... AND WHO LEFT THE TABLE, so the caller can take back what those
           // rows' doorbells were holding. A clear and a re-point are the rows
@@ -575,10 +558,7 @@ export const forDirectory = (spelling: string): Effect.Effect<Scopes> =>
           // failed write would have the fault marked in memory and not on disk,
           // so the sentence would go out now AND again after the next restart.
           // Failing whole leaves the same edge for the next revision to find.
-          yield* Effect.mapError(
-            writeLocal(at, { cwd, scopes: next }),
-            (failure) => new MemoryFailure(failure),
-          )
+          yield* local.save(WAKE, { scopes: next })
           rows = next
           return fell
         })),

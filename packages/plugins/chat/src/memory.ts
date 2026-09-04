@@ -96,8 +96,9 @@
  * knowing it is a conversation.
  */
 
-import { canonical, fileFor, readLocal, writeLocal } from "@olai/state"
 import { Data, Effect } from "effect"
+
+import type { ChatLocalState } from "./local.ts"
 
 /** Remembering, or reading back, went wrong. Reported to a person and never
  *  fatal — see the header. */
@@ -117,7 +118,7 @@ export class MemoryFailure extends Data.TaggedError("MemoryFailure")<{
  * ever meaningful ABOUT a conversation: re-asserting the model of a session the
  * panel is no longer in would put somebody else's conversation on it.
  */
-export interface Held {
+export interface MemorySnapshot {
   /** Which agent the conversation is with ({@link ./agents/roster.ts}). */
   readonly agent: string
   readonly session: string
@@ -139,11 +140,11 @@ export interface Held {
 export interface Memory {
   /** What this directory's panel was last in and on, or `null` when nothing
    *  has been written down yet. */
-  readonly recall: Effect.Effect<Held | null, MemoryFailure>
+  readonly recall: Effect.Effect<MemorySnapshot | null, MemoryFailure>
   /** ... and writing it down. Called whenever the panel enters a conversation
    *  or learns that the model under it has moved, which are the only two
    *  moments the answer changes. */
-  readonly remember: (held: Held) => Effect.Effect<void, MemoryFailure>
+  readonly remember: (held: MemorySnapshot) => Effect.Effect<void, MemoryFailure>
 }
 
 // ── what one of these files IS ─────────────────────────────────────────
@@ -157,9 +158,8 @@ export interface Memory {
 // being short. WHERE it is written, that it is written atomically, and that a
 // file about some other directory is not this panel's are `@olai/state`'s.
 
-/** The `kind` this package's files live under in the state home — one
- *  subdirectory beside the git policy's. */
-const CHAT = "chat"
+/** This state machine's section in chat's one machine-local document. */
+const CHAT = "memory"
 
 /** What is written down. The `model` is optional ON DISK: a file written before
  *  olai remembered one says nothing about it, which is what `null` means
@@ -189,7 +189,7 @@ const parsed = (
   at: string,
   held: Record<string, unknown>,
   before: string,
-): Effect.Effect<Held, MemoryFailure> => {
+): Effect.Effect<MemorySnapshot, MemoryFailure> => {
   const written = held as Partial<Written>
   if (typeof written.session !== "string" || written.session === "") {
     return Effect.fail(new MemoryFailure({ why: `\`${at}\` names no conversation` }))
@@ -238,35 +238,22 @@ export const word = (value: unknown): string | null =>
  * — which is a build that never wrote one, since the note predates the roster
  * and the roster predates every engine but the first.
  */
-export const forDirectory = (spelling: string, before: string): Memory => {
-  // ONE spelling from here down — the name of the file and what a read is
-  // checked against — and it is `@olai/state`'s, which is the same answer the
-  // one-brain lock is named by. It resolves symlinks, where this package's own
-  // `normalDirectory` only strips a trailing slash: a vault reached two ways is
-  // one lock and should be one memory. (A stored session's `cwd` is still
-  // matched with `sameDirectory`, which is a question about what an AGENT
-  // reported rather than about where olai keeps a file.)
-  const cwd = canonical(spelling)
-  const at = fileFor(CHAT, cwd)
+export const forLocalState = (local: ChatLocalState, before: string): Memory => {
+  const recall: Effect.Effect<MemorySnapshot | null, MemoryFailure> = Effect.suspend(() => {
+    const remembered = local.load(CHAT)
+    return remembered === null
+      ? Effect.succeed(null)
+      : parsed("chat's machine-local memory", remembered, before)
+  })
 
-  const recall: Effect.Effect<Held | null, MemoryFailure> = Effect.flatMap(
-    Effect.mapError(readLocal(at, cwd), (failure) => new MemoryFailure(failure)),
-    (held) => held === null ? Effect.succeed(null) : parsed(at, held, before),
-  )
-
-  const remember = (held: Held): Effect.Effect<void, MemoryFailure> =>
+  const remember = (held: MemorySnapshot): Effect.Effect<void, MemoryFailure> =>
     Effect.mapError(
-      // `undefined` is how `JSON.stringify` spells a field that is not there,
-      // which is what a model nothing has said about IS on disk. The AGENT is
-      // always written: a note this olai wrote knows which agent it was talking
-      // to, and an absent one means something else entirely on the way back in.
-      writeLocal(at, {
-        cwd,
+      local.save(CHAT, {
         agent: held.agent,
         session: held.session,
         model: held.model ?? undefined,
       }),
-      (failure) => new MemoryFailure(failure),
+      (failure) => new MemoryFailure({ why: String(failure) }),
     )
 
   return { recall, remember }

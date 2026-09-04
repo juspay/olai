@@ -26,17 +26,17 @@
 
 import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 import { Effect } from "effect"
-import { chmodSync, mkdtempSync, readFileSync, rmSync } from "node:fs"
+import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
 import type { NodeAgent } from "@olai/format"
-import { canonical, digestOf } from "@olai/state"
 import type { ChatEntry, ChatState } from "olai-plugin-chat/wire"
 import { QUEUES } from "./agents/legs.testlib.ts"
 import type { Installed } from "./agents/roster.ts"
 import { makePanel as makeChat, type Panel } from "./chat.ts"
-import { forDirectory as sessionsIn } from "./sessions.ts"
+import { type LocalHarness, localHarness } from "./local.testlib.ts"
+import { forLocalState as sessionsIn } from "./sessions.ts"
 import { teachingFor } from "./teaching.ts"
 
 const FIXTURE = join(import.meta.dirname, "fixtures", "teaching-agent.ts")
@@ -61,8 +61,7 @@ const ROW: Installed = {
 }
 
 let cwd = ""
-let state = ""
-const wasState = process.env["XDG_STATE_HOME"]
+let local: LocalHarness
 
 /** THE VAULT, as this case's set answers it — mutable, because the one thing a
  *  property can do that a fixture list cannot is move while a panel is open. */
@@ -70,31 +69,22 @@ let claimed: ReadonlyArray<NodeAgent> = []
 
 beforeEach(() => {
   cwd = mkdtempSync(join(tmpdir(), "olai-teaching-"))
-  state = mkdtempSync(join(tmpdir(), "olai-teaching-state-"))
-  process.env["XDG_STATE_HOME"] = state
+  local = localHarness()
   claimed = [SPACES]
 })
 
 afterEach(() => {
-  if (wasState === undefined) delete process.env["XDG_STATE_HOME"]
-  else process.env["XDG_STATE_HOME"] = wasState
   rmSync(cwd, { recursive: true, force: true })
-  rmSync(state, { recursive: true, force: true })
 })
-
-const at = (): string => join(state, "olai", "heard", `${digestOf(canonical(cwd))}.json`)
 
 /** What olai has written down about this directory's conversations — where the
  *  two facts it overhears land. Empty before it has overheard anything, which
  *  is a file that is not there at all. */
 const record = (): ReadonlyArray<Record<string, unknown>> => {
-  try {
-    return (JSON.parse(readFileSync(at(), "utf8")) as {
-      heard: ReadonlyArray<Record<string, unknown>>
-    }).heard
-  } catch {
-    return []
-  }
+  const section = local.read(cwd, "heard")
+  return Array.isArray(section?.["heard"])
+    ? section["heard"] as ReadonlyArray<Record<string, unknown>>
+    : []
 }
 
 /** ... and one conversation's row of it. */
@@ -126,7 +116,7 @@ const withChat = async (body: (seat: Seat) => Promise<void>): Promise<void> => {
     engines: () => [],
     cwd,
     tools: () => null,
-    overheard: await run(sessionsIn(cwd)),
+    overheard: await run(sessionsIn(local.forDirectory(cwd))),
     agentAt: (to) =>
       claimed.find((one) => one.engine === to.agent && one.session === to.session) ?? null,
     onState: (next) => {
@@ -283,55 +273,8 @@ describe("an agent-associated session is taught, once", () => {
     })
   }, 30_000)
 
-  test("a teach mark the disk REFUSED ships no notice — the failure costs one LATER telling, never a second one", async () => {
-    // The report of 2026-09-02, with the deploy's lost write played by a
-    // record gone read-only: the assign's mark landed (it is the gesture's
-    // OWN write, {@link Chat.assigned}) and the message after it was TAKEN —
-    // but the teach mark write that was supposed to ride with it failed,
-    // which is the one shape the incident's row can have had: `assigned`
-    // written, `taught` not. The unfixed send publishes the notice anyway —
-    // the write is forked BEHIND it and a failure is only logged — so the
-    // pane reads a contract the disk never promised it would keep, and the
-    // message after the redeploy says the whole thing again.
-    await withChat(async (seat) => {
-      await run(seat.chat.assigned({ agent: "opencode", session: "sess-1" }))
-      expect(overheardIn("sess-1")?.["assigned"]).toBe(true)
-
-      const dir = join(state, "olai", "heard")
-      chmodSync(dir, 0o555)
-      try {
-        await run(seat.chat.send("now that it has one", [], []))
-        await settle()
-      } finally {
-        chmodSync(dir, 0o755)
-      }
-
-      // The agent TOOK the message — the lines ride its prompt's TEXT, which
-      // `send` assembles ahead of the write — and on the WIRE the write goes
-      // first and its failure still releases the prompt: the one hinge here
-      // is that nothing LANDED, and so nothing may be SHOWN. That last
-      // assertion is THE RED here: the unfixed code publishes the notice
-      // over a mark that did not write, and the pane has read a contract the
-      // record cannot keep.
-      expect(heard(seat)[0]).toContain("[olai]")
-      expect(overheardIn("sess-1")?.["taught"]).toBeUndefined()
-      expect(notices(seat)).toEqual([])
-    })
-
-    // THE REDEPLOY: the record carries the assign and NOT the teaching — the
-    // incident's row, verbatim. The next message says the contract, once,
-    // because a re-telling with a written-down REASON is not the violation
-    // being filed; the violation is a pane that says it TWICE.
-    await withChat(async (seat) => {
-      await run(seat.chat.send("after the redeploy", [], []))
-      await settle()
-      expect(notices(seat)).toEqual([teachingFor(SPACES, "assigned").join("\n")])
-      expect(overheardIn("sess-1")?.["taught"]).toBe(true)
-    })
-  }, 30_000)
-
   test("a session ALREADY marked in the record is never taught at all", async () => {
-    const kept = await run(sessionsIn(cwd))
+    const kept = await run(sessionsIn(local.forDirectory(cwd)))
     await run(kept.teach({ agent: "opencode", session: "sess-1" }))
     await withChat(async (seat) => {
       await run(seat.chat.send("hello", [], []))

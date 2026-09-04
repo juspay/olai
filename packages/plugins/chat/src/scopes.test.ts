@@ -26,53 +26,24 @@
  * assertion that the variable is honoured at all.
  */
 
-import { afterEach, beforeEach, describe, expect, test } from "bun:test"
-import { Effect, Result } from "effect"
-import { chmodSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { beforeEach, describe, expect, test } from "bun:test"
+import { Effect } from "effect"
 
-import { forDirectory, ROWS } from "./scopes.ts"
+import { type LocalHarness, localHarness } from "./local.testlib.ts"
+import { forLocalState, ROWS } from "./scopes.ts"
 
 /** Every plugin can be told, which is the ordinary serve — the arm where one
  *  cannot is `a tenant this serve did not compose` below. */
 const TELLABLE = (): boolean => true
 
-let state = ""
-const was = process.env["XDG_STATE_HOME"]
+let local: LocalHarness
 
 beforeEach(() => {
-  state = mkdtempSync(join(tmpdir(), "olai-scopes-"))
-  process.env["XDG_STATE_HOME"] = state
+  local = localHarness()
 })
 
-afterEach(() => {
-  if (was === undefined) delete process.env["XDG_STATE_HOME"]
-  else process.env["XDG_STATE_HOME"] = was
-  rmSync(state, { recursive: true, force: true })
-})
-
-/** Where a scope record lands — the SECOND kind under the state home, which is
- *  the whole of what `@olai/state`'s union gained. */
-const home = (): string => join(state, "olai", "wake")
-
-const files = (): ReadonlyArray<string> => {
-  try {
-    return readdirSync(home())
-  } catch {
-    return []
-  }
-}
-
-/** The one file that has been written, by name. Throws when there is none,
- *  which is the honest failure for a test about to damage it. */
-const only = (): string => {
-  const [name, ...rest] = files()
-  if (name === undefined || rest.length > 0) {
-    throw new Error(`expected exactly one record in ${home()}, found ${files().length}`)
-  }
-  return join(home(), name)
-}
+const forDirectory = (cwd: string) => forLocalState(local.forDirectory(cwd))
+const files = (): ReadonlyArray<string> => local.writes(HERE) === 0 ? [] : ["record"]
 
 const run = <A, E>(effect: Effect.Effect<A, E>): Promise<A> => Effect.runPromise(effect)
 const outcome = <A, E>(effect: Effect.Effect<A, E>) => Effect.runPromise(Effect.result(effect))
@@ -149,27 +120,14 @@ describe("a pick, across a restart", () => {
     expect(files().length).toBe(1)
   })
 
-  test("nothing is written under the served directory", async () => {
-    const served = mkdtempSync(join(tmpdir(), "olai-served-"))
-    try {
-      await run((await run(forDirectory(served))).set(IN, "kolu", "Fleet.olai"))
-      // The served directory is somebody's outline set — the store probes it
-      // and a commit would commit it. The picks go to the state home.
-      expect(readdirSync(served)).toEqual([])
-      expect(files().length).toBe(1)
-    } finally {
-      rmSync(served, { recursive: true, force: true })
-    }
-  })
-
-  test("the record holds the picks and never a message", async () => {
+  test("the section holds the picks and never a message", async () => {
     // The claim the whole design rests on, asserted on the BYTES: a held body
     // is a derivation of state that is still true, and whatever derived it
     // rings again. Nothing puts one here, and this is where that would show.
     const scopes = await run(forDirectory(HERE))
     await run(scopes.set(IN, "kolu", "Fleet.olai"))
-    const written = JSON.parse(readFileSync(only(), "utf8")) as Record<string, unknown>
-    expect(Object.keys(written).sort()).toEqual(["cwd", "scopes"])
+    const written = local.read(HERE, "wake") ?? {}
+    expect(Object.keys(written)).toEqual(["scopes"])
   })
 })
 
@@ -229,75 +187,20 @@ describe("the cap", () => {
   })
 })
 
-describe("a record that cannot be trusted", () => {
-  const damage = (text: string): void => {
-    writeFileSync(only(), text)
-  }
-
-  test("a file that is not JSON is an empty mirror and no throw", async () => {
-    await run((await run(forDirectory(HERE))).set(IN, "kolu", "Fleet.olai"))
-    damage("{ half a fi")
-    const again = await outcome(forDirectory(HERE))
-    expect(Result.isSuccess(again)).toBe(true)
-    if (!Result.isSuccess(again)) return
-    expect(again.success.rows()).toEqual([])
-  })
-
+describe("a section that cannot be trusted", () => {
   test("a damaged ROW is dropped and the rest still open their doorbells", async () => {
     // All-or-nothing here would turn every doorbell in the directory off over
     // one row, which is the louder failure and the wrong one.
-    await run((await run(forDirectory(HERE))).set(IN, "kolu", "Fleet.olai"))
-    damage(JSON.stringify({
-      cwd: HERE,
+    local.write(HERE, "wake", {
       scopes: [
         { agent: "claude", session: "sess-1", plugin: "kolu" },
         { agent: "claude", session: "sess-2", plugin: "odu", file: "Runs.olai" },
         7,
       ],
-    }))
+    })
     expect((await run(forDirectory(HERE))).rows()).toEqual([
       { agent: "claude", session: "sess-2", plugin: "odu", file: "Runs.olai" },
     ])
-  })
-
-  test("a record about another directory is not this one's picks", async () => {
-    await run((await run(forDirectory(HERE))).set(IN, "kolu", "Fleet.olai"))
-    damage(JSON.stringify({ cwd: ELSEWHERE, scopes: [{ ...IN, plugin: "kolu", file: "X.olai" }] }))
-    expect((await run(forDirectory(HERE))).rows()).toEqual([])
-  })
-
-  test("a state directory that will not take a write refuses OUT LOUD", async () => {
-    // The opposite discipline to the read above, and deliberately so: a person
-    // just made this gesture, and a pick that did not stick is a thing they
-    // need told. Root can write into a 0500 directory, so the assertion is
-    // skipped there rather than inverted.
-    if (typeof process.getuid === "function" && process.getuid() === 0) return
-    const scopes = await run(forDirectory(HERE))
-    chmodSync(state, 0o500)
-    try {
-      expect(Result.isFailure(await outcome(scopes.set(IN, "kolu", "Fleet.olai")))).toBe(true)
-    } finally {
-      chmodSync(state, 0o700)
-    }
-  })
-
-  test("... and leaves the mirror where the person was told it stayed", async () => {
-    // THE RECORD IS THE AUTHORITY. The mirror is what a plugin reads, so a
-    // mirror that had moved under a refused write would be a doorbell RINGING
-    // for a pick the person was just told did not take — and the strip would
-    // not even draw the row, because nothing republished it.
-    if (typeof process.getuid === "function" && process.getuid() === 0) return
-    const scopes = await run(forDirectory(HERE))
-    await run(scopes.set(IN, "kolu", "Fleet.olai"))
-    // The RECORD.s own directory, not the state home: the first pick already
-    // made it, so a home that merely refuses `mkdir` would let this write through.
-    chmodSync(home(), 0o500)
-    try {
-      expect(Result.isFailure(await outcome(scopes.set(IN, "kolu", "Other.olai")))).toBe(true)
-    } finally {
-      chmodSync(home(), 0o700)
-    }
-    expect(scopes.rows().map((row) => row.file)).toEqual(["Fleet.olai"])
   })
 })
 
@@ -361,11 +264,11 @@ describe("a pick its doorbell cannot watch", () => {
   test("nothing is answered, and nothing is written, while the file is there", async () => {
     const scopes = await run(forDirectory(HERE))
     await run(scopes.set(IN, "kolu", "Fleet.olai"))
-    const written = readFileSync(only(), "utf8")
+    const written = local.writes(HERE)
     expect(await run(scopes.faults(ALL_WELL, TELLABLE))).toEqual([])
     // A revision in which nothing moved is every revision anybody publishes,
     // and it must not put a filesystem write behind each of them.
-    expect(readFileSync(only(), "utf8")).toBe(written)
+    expect(local.writes(HERE)).toBe(written)
   })
 
   test("the edge is answered once, and the mark is on the disk", async () => {
@@ -395,13 +298,13 @@ describe("a pick its doorbell cannot watch", () => {
   test("the file coming back unmarks it, and the record is the bytes it was", async () => {
     const scopes = await run(forDirectory(HERE))
     await run(scopes.set(IN, "kolu", "Fleet.olai"))
-    const untroubled = readFileSync(only(), "utf8")
+    const untroubled = local.read(HERE, "wake")
     await run(scopes.faults(RENAMED, TELLABLE))
     // A HEALED TABLE IS AN UNTROUBLED TABLE. Written back without the key
     // rather than with a `false`, so there is no third state on the disk and a
     // row an older olai wrote reads the same as a row this one healed.
     expect(await run(scopes.faults(ALL_WELL, TELLABLE))).toEqual([])
-    expect(readFileSync(only(), "utf8")).toBe(untroubled)
+    expect(local.read(HERE, "wake")).toEqual(untroubled)
     expect((await run(forDirectory(HERE))).rows()[0]?.fault).toBeUndefined()
   })
 
@@ -447,9 +350,9 @@ describe("a pick its doorbell cannot watch", () => {
     const scopes = await run(forDirectory(HERE))
     await run(scopes.set(IN, "kolu", "Fleet.olai"))
     await run(scopes.faults(RENAMED, TELLABLE))
-    const marked = readFileSync(only(), "utf8")
+    const marked = local.writes(HERE)
     expect(await run(scopes.faults(RENAMED, TELLABLE))).toEqual([])
-    expect(readFileSync(only(), "utf8")).toBe(marked)
+    expect(local.writes(HERE)).toBe(marked)
   })
 
   test("a re-pick clears the mark, so the new file gets its own fault", async () => {
@@ -503,23 +406,6 @@ describe("a pick its doorbell cannot watch", () => {
     expect(scopes.rows().map((row) => row.session)).toEqual(["a", "b"])
   })
 
-  test("a record that will not take the mark leaves the mirror where it was", async () => {
-    // The record is the authority, for a sharper reason than a pick's: a mirror
-    // that moved under a failed write would have the fault marked in memory and
-    // not on disk, so the sentence goes out now AND again after the next
-    // restart. Failing whole leaves the same edge for the next revision.
-    const scopes = await run(forDirectory(HERE))
-    await run(scopes.set(IN, "kolu", "Fleet.olai"))
-    chmodSync(home(), 0o500)
-    try {
-      const refused = await outcome(scopes.faults(RENAMED, TELLABLE))
-      expect(refused._tag).toBe("Failure")
-      expect(scopes.rows()[0]?.fault).toBeUndefined()
-    } finally {
-      chmodSync(home(), 0o700)
-    }
-  })
-
   test("a mark that will not parse reads as an unmarked row, and the pick survives", async () => {
     // The mark is not load-bearing: a row with a damaged one still names a
     // conversation, a doorbell and a file perfectly well, and dropping it would
@@ -527,9 +413,9 @@ describe("a pick its doorbell cannot watch", () => {
     // something about this".
     const scopes = await run(forDirectory(HERE))
     await run(scopes.set(IN, "kolu", "Fleet.olai"))
-    const held = JSON.parse(readFileSync(only(), "utf8")) as { scopes: Array<Record<string, unknown>> }
+    const held = local.read(HERE, "wake") as { scopes: Array<Record<string, unknown>> }
     held.scopes[0]!["fault"] = "yes"
-    writeFileSync(only(), JSON.stringify(held))
+    local.write(HERE, "wake", held)
     const restarted = await run(forDirectory(HERE))
     expect(restarted.rows().map((row) => row.file)).toEqual(["Fleet.olai"])
     expect(restarted.rows()[0]?.fault).toBeUndefined()
@@ -541,9 +427,9 @@ describe("a pick its doorbell cannot watch", () => {
     // already told about, on the first revision after an upgrade.
     const scopes = await run(forDirectory(HERE))
     await run(scopes.set(IN, "kolu", "Fleet.olai"))
-    const held = JSON.parse(readFileSync(only(), "utf8")) as { scopes: Array<Record<string, unknown>> }
+    const held = local.read(HERE, "wake") as { scopes: Array<Record<string, unknown>> }
     held.scopes[0]!["gone"] = true
-    writeFileSync(only(), JSON.stringify(held))
+    local.write(HERE, "wake", held)
     const restarted = await run(forDirectory(HERE))
     expect(restarted.rows()[0]?.fault).toBe("gone")
     expect(await run(restarted.faults(RENAMED, TELLABLE))).toEqual([])

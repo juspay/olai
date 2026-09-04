@@ -17,7 +17,8 @@ import { join } from "node:path"
 
 import { QUEUES } from "./agents/legs.testlib.ts"
 import type { Installed } from "./agents/roster.ts"
-import { forDirectory } from "./memory.ts"
+import { ephemeralLocalState } from "./local.ts"
+import { forLocalState } from "./memory.ts"
 import { make } from "./scoped.ts"
 
 const FIXTURE = join(import.meta.dirname, "fixtures", "doorbell-agent.ts")
@@ -139,7 +140,7 @@ test("boot routes a remembered node session before spawning any panel", async ()
   // seeded between construction and start, and the scheduler must read that
   // live value when it routes remembered memory.
   let nodes: ReadonlyArray<NodeAgent> = []
-  const memory = forDirectory(cwd, "alpha")
+  const memory = forLocalState(ephemeralLocalState(), "alpha")
   await run(memory.remember({ agent: "alpha", session: "remembered", model: null }))
 
   const { layer, said } = collector()
