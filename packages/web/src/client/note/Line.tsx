@@ -20,8 +20,10 @@
  * title's click has been since #475 (../edit/point.ts) and the number rides
  * the gesture — where the line's words are not what was read (an excerpt's
  * are: the button fills its pane), the measurement in the caller's hands says
- * go to the end, the door's old answer. The press STOPS, because the cell
- * above it is the title's click-to-edit target (../NodeLine.tsx).
+ * go to the end, the door's old answer. The POINTERLESS press — the click a
+ * keyboard's Enter synthesizes — has no coordinate to measure, so it is that
+ * old gesture outright: the caller's `undefined`. The press STOPS, because
+ * the cell above it is the title's click-to-edit target (../NodeLine.tsx).
  *
  * SOLID ELEMENTS, not `innerHTML`, which is why a note's hit is cheaper to draw
  * than a title's: a title reaches the page as an HTML string and every
@@ -61,9 +63,18 @@ export function NoteLine(props: {
       data-testid={props.hit === true ? TESTID.descHit : TESTID.desc}
       data-preview="true"
       data-open="false"
-      title="show the full note"
+      title="edit the note"
       onClick={(event) => {
         event.stopPropagation()
+        // Keyboard and screen-reader activation has no x to measure: the
+        // synthesized click arrives with detail 0 and clientX 0, which
+        // would measure as offset 0 and land a keyboard reader at the head
+        // of a textarea instead of in the note they asked for. Their door
+        // stays the old gesture — the caller's `undefined` answer.
+        if (event.detail === 0) {
+          props.onOpen?.(undefined)
+          return
+        }
         const host = event.currentTarget
         const rect = host.getBoundingClientRect()
         const at = offsetAt(

@@ -344,7 +344,7 @@ export const Edit = Schema.Union([
    * is. Where the tail lands otherwise is the ops layer's (immediately after
    * the head), so nothing is resolved behind this verb.
    */
-   Schema.Struct({
+  Schema.Struct({
     verb: Schema.Literal("split"),
     id: Id,
     /** What the row KEEPS — everything before the caret, verbatim. */

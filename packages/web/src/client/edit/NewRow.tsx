@@ -14,11 +14,15 @@
  * affordances of a node, and there is no node here until this has a title and
  * gets committed.
  *
- * The hollow bullet says which of the two it is. A reader who looks away and
- * back should be able to tell an empty row that exists from one that is only
- * an editor, and the difference between a filled dot and an outline is exactly
- * that — nothing is claiming a record is there. Both spellings of the dot are
- * `marks.tsx`'s, so there is one place a bullet's size is decided.
+ * The bullet has two faces, and they answer the one question a reader who
+ * looks away and back asks — where is the caret: the line the caret is IN
+ * draws the FILLED dot, the bullet of the row it is becoming — Tab,
+ * Shift+Tab and Alt+Shift+↑/↓ already answer under it, so that line is a
+ * row, not a hint — while a PARKED one holds the outline: the sketch left
+ * standing on the page, an answer at a glance rather than an area of
+ * editing. Neither says a record exists — there is none until a title
+ * commits one — so both spellings of the dot are `marks.tsx`'s: one place
+ * a bullet's size is decided.
  */
 
 import { DOT } from "../marks.tsx"

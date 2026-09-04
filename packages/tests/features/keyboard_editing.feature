@@ -218,10 +218,10 @@ Feature: Keyboard editing
 
   Scenario: the Tab seat of a CHILDLESS row is drawn, not air
     # The seat the first Tab gives a blank under a childless row must be ON
-    # THE PAGE — an editor nobody can see, minted fresh by the Tab, is the
-    # bug ~/493-bug.mov showed. Since a parked blank drawn under a row and a
-    # live one at its ABSENT seat are told apart purely by geometry, the
-    # depth is measured by the box, on the page, e2e.
+    # THE PAGE — an editor nobody can see, minted fresh by the Tab, was the
+    # bug. Since a parked blank drawn under a row and a live one at its
+    # ABSENT seat are told apart purely by geometry, the depth is measured
+    # by the box, on the page, e2e.
     When I click the title of "knobs"
     And I press "Enter"
     And I press "Tab"
