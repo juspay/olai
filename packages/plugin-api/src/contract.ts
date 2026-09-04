@@ -926,8 +926,15 @@ export const NOWHERE_TO_WRITE: Refusal & { readonly reason: string } = {
 }
 
 /** ...AND WHAT A CREDENTIAL IS where there is no MCP face to narrow — the bench
- *  and headless arm of {@link ../services.ts}'s `Tools.ticket`. The bearer is
- *  empty rather than absent so the type stays one shape: a caller that must not
- *  seat a session unfenced tests the string, and the one caller in this tree
- *  does. */
+ *  and headless arm of {@link ../services.ts}'s `Tools.ticket`.
+ *
+ *  THE BEARER IS EMPTY RATHER THAN ABSENT so the type stays one shape, and the
+ *  empty string is a value a caller must TEST: handed to a tool door it is a
+ *  session the door cannot place, so the subtree write fence is off for it —
+ *  seated, and unfenced, which is the one thing a seat may not be.
+ *
+ *  The one caller in this tree tests it (`olai-plugin-chat`'s `scoped.ts`, which
+ *  hands no MCP face at all rather than an unfenced one). It said so here for a
+ *  while when that caller did not, which is how a sentence about a fence stops
+ *  being a fence. */
 export const NO_TICKET: MintedTicket = { bearer: "", release: () => {} }

@@ -276,9 +276,26 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         const panel = yield* Effect.acquireRelease(
           makePanel({
             ...panelOptions,
+            // THE MCP FACE, NARROWED BY THIS SEAT'S OWN CREDENTIAL — and NO
+            // FACE AT ALL where there is no credential to narrow it with.
+            //
+            // An empty bearer is what `@olai/plugin-api`'s `NO_TICKET` is: the
+            // bench and headless arm, a serve with no MCP face to mint against.
+            // Handed on, it reached the tool door as a session carrying no
+            // bearer — which is a session the door cannot place, so the subtree
+            // write fence is simply off for it. That is the one thing a seat
+            // must not be able to be: seated, and unfenced.
+            //
+            // `null` rather than a refusal to acquire, because the scope is not
+            // the thing at fault and a node agent with no tools is a state this
+            // panel already draws. A serve WITH an MCP face always mints
+            // (`@olai/server`'s `serve.ts` hands `ticketFor` in the same breath
+            // it hands the server), so this arm is the composition it says it
+            // is and never a real one.
             tools: () => {
               const server = panelOptions.tools()
-              return server === null ? null : { ...server, token: ticket.bearer }
+              if (server === null || ticket.bearer === "") return null
+              return { ...server, token: ticket.bearer }
             },
             onState: (state) => {
               slot.state = state

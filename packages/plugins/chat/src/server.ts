@@ -70,7 +70,6 @@ import {
   Clock,
   definePlugin,
   Env,
-  Held,
   Kinds,
   Offers,
   Ops,
@@ -106,7 +105,12 @@ import { inBundleOrder } from "./server/order.ts"
 import { contextFor } from "./server/context.ts"
 import type { ChatEntry, ChatState } from "./wire/members.ts"
 import { CHAT_OFF } from "./wire/members.ts"
-import { type Agents, NO_AGENT_ROSTER } from "./wire/agents.ts"
+import {
+  type Agents,
+  type Migration,
+  NO_AGENT_ROSTER,
+  NO_MIGRATION,
+} from "./wire/agents.ts"
 import { faces, name, surface } from "./wire.ts"
 
 /** The kinds this plugin teaches a vault — see {@link ./kinds.ts} for the word
@@ -557,6 +561,10 @@ export default definePlugin({
           // of the three ways of being off.
           state: { store: inMemoryStore<ChatState>(CHAT_OFF) },
           agents: { store: inMemoryStore<Agents>(NO_AGENT_ROSTER) },
+          // WHAT THIS VAULT IS OWED to get those agents back, or nothing — and
+          // nothing is what every board reaches (`./wire/agents.ts` argues why
+          // this is a cell of ours rather than a finding of the validator's).
+          migration: { store: inMemoryStore<Migration | null>(NO_MIGRATION) },
         },
         collections: {
           // Server-authored, one writer: `readAll` reads the transcript itself,
@@ -598,6 +606,12 @@ export default definePlugin({
     yield* vault.revision((revision: VaultRevision) =>
       Effect.sync(() => {
         nodeAgents.seen(revision.value.derived)
+        // ...AND WHAT THE BOARD IS OWED, in the same breath and off the same
+        // reading. It is published HERE rather than from {@link republishAgents}
+        // because it moves for one reason only — a declarations file — and
+        // that reason is a revision. Hanging it off every chat frame would be
+        // a second answer to a question no conversation can change.
+        mine?.cells.migration.set(nodeAgents.migration())
         // WHICH NODE AGENT THE OPEN CONVERSATION BELONGS TO is a PROPERTY, so a
         // revision can change it. Without this the panel would go on saying it
         // belonged to nobody until the next time a session opened.
@@ -608,6 +622,7 @@ export default definePlugin({
     )
     yield* vault.unloaded(Effect.sync(() => {
       nodeAgents.seen(null)
+      mine?.cells.migration.set(NO_MIGRATION)
       republishAgents()
     }))
 
