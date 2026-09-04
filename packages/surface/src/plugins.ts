@@ -39,10 +39,22 @@
  * rebuilt page unless something says the two rosters are one. {@link
  * sameRoster} carries the whole of that argument.
  *
- * Read-only on the wire because `--plugins` is CLI/nix ONLY — no settings file,
- * no browser toggle, the git policy's shape one setting over. What a browser
- * does with it is draw a row per plugin, frozen, naming where it is changed
- * (`@olai/web`'s `client/plugins/Panel.tsx`).
+ * ## STILL READ-ONLY, and the panel is no longer frozen
+ *
+ * Those two used to be one sentence — *read-only on the wire because `--plugins`
+ * is CLI/nix ONLY, no settings file, no browser toggle* — and the loader surface
+ * separated them. There IS a browser verb now (`plugins.set`, on the root spec),
+ * and this cell still carries no write verb, because the two are about different
+ * things: a flip is an ACT with a subject and a refusal, and what comes back
+ * from it is this cell moving. A `set` on the cell would be "make the roster say
+ * this", which is a browser telling a serve what its own fibers are doing.
+ *
+ * That is the arrangement `git` already has one member over — a cell that says
+ * what git is doing, and procedures that ask it to do something — and it is why
+ * the two names collide on purpose.
+ *
+ * WHAT A BROWSER DOES WITH IT is draw a row per plugin, with a switch, naming
+ * what is in force and for how long (`@olai/web`'s `client/plugins/Panel.tsx`).
  *
  * ## NOTHING HERE SPELLS A PLUGIN'S NAME
  *
@@ -135,6 +147,39 @@ export const BuiltPlugin = Schema.Struct({
    * claiming to wait on no one.
    */
   missing: Schema.optionalKey(Schema.Array(Schema.String)),
+  /**
+   * WHICH ROWS GO `waiting` IF THIS ONE IS TURNED OFF — the other end of
+   * {@link missing}, and the one thing a switch owes a person BEFORE it is
+   * pressed.
+   *
+   * `missing` is a row saying what it is short of, after the fact. This is the
+   * row that HAS what somebody else is short of, saying so while there is still
+   * a decision to make: turning the chat row off takes the four doors it stands
+   * behind with it, and every engine and both tenants name one. A panel that
+   * drew a switch and let a person find that out afterwards would be a control
+   * that hides its own blast radius.
+   *
+   * ## NAMES ROWS, where its counterpart names KEYS, and the asymmetry is exact
+   *
+   * `missing` may not name a plugin: which row WOULD provide a key is the
+   * bundle's business, and a general package holding that answer would be
+   * holding a list that can disagree with the fibers. This one names rows
+   * because it is not answering that question — it is reporting a JOIN the
+   * composition root made between two live readings, who stands behind what and
+   * who names what, neither of which anybody keeps by hand.
+   *
+   * ## ONLY ON A RUNNING ROW, and ABSENT rather than empty
+   *
+   * A row that is off carries nobody: what it stood behind is already revoked,
+   * and every row that named it is already `waiting` and already says so. And a
+   * running row that nothing names sends nothing at all — an empty list would
+   * be a row claiming to carry no one, which is a sentence, where absence is the
+   * ordinary state of every plugin in this build but one.
+   *
+   * OPTIONAL, for {@link state}'s two reasons: a serve too old to send it, and a
+   * roster whose decode may not fail, because every plugin's mount hangs off it.
+   */
+  carrying: Schema.optionalKey(Schema.Array(Schema.String)),
   /**
    * THE DOORBELL'S SENTENCE, when this plugin can wake a conversation — the
    * plugin's own words, travelling as data.

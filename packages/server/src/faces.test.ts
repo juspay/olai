@@ -332,6 +332,16 @@ test("the agent's face is what it can SEE plus the doors its tools land through"
   // And the human's session is the human's, on this face as on the MCP one.
   expect(Object.keys(AGENT)).not.toContain("chat")
   expect(Object.keys(AGENT)).not.toContain("transcript")
+  // ...AND SO IS THE SWITCH, which is the sharpest of the lot and the reason the
+  // exact-set assertion above is worth having. An agent that could turn a plugin
+  // off could turn off the row that seats it, the row that watches its writes,
+  // or the row whose tools it is holding — and could not turn any of them back
+  // on, because the face it was calling through went with them. The READOUT is
+  // not on this face either, for the reason `./faces.ts` gives: an agent learns
+  // that kolu is not running by there being no `surface/kolu/` to call.
+  expect(Object.keys(BROWSER)).toContain("plugins.set")
+  expect(Object.keys(AGENT)).not.toContain("plugins.set")
+  expect(Object.keys(AGENT)).not.toContain("plugins")
 })
 
 // ── The property, over a real browser socket ────────────────────────────
