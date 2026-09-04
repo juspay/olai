@@ -140,21 +140,14 @@ typecheck: install
 # one commit having minted none — and it is gone with the loop: the quiet window
 # is the server's now (`@olai/ops`' `loop.ts`), so what used to need a browser
 # resolution is an ordinary unit test one package down.
+#
+# Odu may split this leaf across SIX Linux slots. Bun has no native shard flag,
+# so the script partitions the tracked test files deterministically; without
+# Odu's shard variables it retains the ordinary discovery-based `just test`
+# behaviour (including untracked tests during development).
+[metadata("odu:shard=6")]
 test: install
-    {{ nix_shell }} bun test
-    {{ nix_shell }} bun test --conditions browser \
-      ./packages/web/src/client/settled.browsertest.ts \
-      ./packages/web/src/client/fold/refiling.browsertest.ts \
-      ./packages/web/src/client/names.browsertest.ts \
-      ./packages/web/src/client/doors.browsertest.ts \
-      ./packages/web/src/client/licences.browsertest.ts \
-      ./packages/web/src/client/Tree.browsertest.ts \
-      ./packages/web/src/client/directory.browsertest.ts \
-      ./packages/plugins/chat/src/browser/chat/last.browsertest.ts \
-      ./packages/plugins/chat/src/browser/chat/attention/asked.browsertest.ts \
-      ./packages/plugins/chat/src/browser/chat/attention/elsewhere.browsertest.ts \
-      ./packages/web/src/client/declared.browsertest.ts \
-      ./packages/plugins/kolu/src/appliance/props/held.browsertest.ts
+    {{ nix_shell }} bash scripts/test-shard.sh
 
 # The same suite, TO A LOG — for an agent, or for anyone who wants to read the
 # failures more than once.
