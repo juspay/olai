@@ -98,6 +98,33 @@ describe("binding a built module to the host's own copies", () => {
     if (bound.ok) return
     expect(bound.why).toContain("could not bind")
   })
+
+  test("a re-export's `from` is the keyword, not a word in a string", () => {
+    const bound = bind(`export const said = "from over there";`, SERVER_MODULES)
+    expect(bound.ok).toBe(true)
+  })
+
+  /**
+   * THE SHAPE THAT WAS QUADRATIC, benched by the clock rather than argued.
+   *
+   * `bind` read a whole statement with one regular expression, and it held a
+   * `\s+` in front of a lazy class that also admitted whitespace — so for
+   * `import` followed by a long run of spaces and no `from`, the engine tried
+   * every split of the run. CodeQL named it (`js/polynomial-redos`), and the
+   * input here is a person's: the compiled form of source somebody wrote into a
+   * vault.
+   *
+   * THE ASSERTION IS THAT THIS TEST RETURNS. At a hundred thousand spaces the
+   * old shape is minutes of matching, so the bench is bun's own timeout; the
+   * `expect` below is about the ANSWER being the honest one — a shape that is
+   * not an import statement is left where it is and refused by name.
+   */
+  test("a long run of whitespace after `import` is refused rather than chewed on", () => {
+    const bound = bind(`import ${" ".repeat(100_000)}`, SERVER_MODULES)
+    expect(bound.ok).toBe(false)
+    if (bound.ok) return
+    expect(bound.why).toContain("could not bind")
+  })
 })
 
 describe("a built half is a module that runs", () => {
