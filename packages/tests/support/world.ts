@@ -900,6 +900,8 @@ export const FAULT_HOME = selector(TESTID.faultHome);
  */
 export const PREFS_TRIGGER = selector(TESTID.prefsTrigger);
 export const PREFS_PANEL = selector(TESTID.prefsPanel);
+export const PLUGINS_TRIGGER = selector(TESTID.pluginsTrigger);
+export const PLUGINS_PANEL = selector(TESTID.pluginsPanel);
 export const PREFS_ROW = selector(TESTID.prefsRow);
 export const PREFS_HINT = selector(TESTID.prefsHint);
 export const PREFS_CHOICE = selector(TESTID.prefsChoice);
