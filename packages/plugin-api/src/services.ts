@@ -904,26 +904,11 @@ export interface Plugins {
   /** What each ringing plugin declared, keyed by its name. A name with no entry
    *  is a plugin that wakes nobody, which is a whole plugin. */
   readonly declared: () => ReadonlyMap<string, Wake>
-  /** EVERY ENGINE OFFERED RIGHT NOW, in registration order — what the chat's
-   *  roster is detected from and what the panel's install face is drawn from.
-   *
-   *  IN REGISTRATION ORDER, which a caller may not read as meaningful: a
-   *  plugin's `apply` runs when the loader's `import()` for its row comes back,
-   *  and two rows race. What a person SEES is ordered by the composition root
-   *  against the build's own list of rows, the same way the session-start
-   *  thunks are (`@olai/server`'s `probes.ts` argues it, and that argument has
-   *  an e2e failure behind it). */
-  readonly engines: () => ReadonlyArray<Engine>
   /** TELL EVERY PLUGIN A REVISION LANDED, and wait for each of them — see
    *  {@link Vault}. */
   readonly published: (snapshot: unknown) => Effect.Effect<void>
   /** ...and that the store has none. */
   readonly quiet: Effect.Effect<void>
-  /** One conversation event to every subscriber, in subscription order. */
-  readonly saw: (event: ConversationSeen) => Effect.Effect<void>
-  /** WHAT TO ASK THIS HOST when a conversation opens, read afresh per opening —
-   *  see {@link SessionStart} and {@link Asked}. */
-  readonly sessionStart: Effect.Effect<ReadonlyArray<Asked>>
   /** ONE REFUSED WRITE to every subscriber, in subscription order — see
    *  {@link Ops.refused}. Rung by whoever owns the write gate, which is the
    *  composition root; nothing on this page can refuse a write. */
@@ -942,38 +927,30 @@ export interface Plugins {
  * own view of a service is; this interface is the price of that, and the price
  * is a field count.
  *
- * ## The two late ones are {@link ./runtime.ts}'s `Provision`, spelled
+ * ## The late one is {@link ./runtime.ts}'s `Provision`, spelled
  *
- * `doorFor` and `heldFor` are `(plugin: string) => X`, which is the bridge's own
- * name for exactly that. They are typed with it rather than re-described, so a
- * reader who has met the shape once meets it once.
+ * `heldFor` is `(plugin: string) => X`, which is the bridge's own name for
+ * exactly that. It is typed with it rather than re-described, so a reader who has
+ * met the shape once meets it once.
  *
- * ## ...AND THERE ARE TWO ANSWERS HERE TO "NOT READY YET", which is deliberate
+ * ## ONE ANSWER TO "NOT READY YET", and this file no longer holds a second
  *
  * `./browser.ts` answers it with a SECOND PROVIDE — `App.furnish` provides the
  * chrome services later, and a half that beat the call simply sits `waiting` on
- * the runtime's own PENDING mechanism. This file answers it with a LOOKUP ASKED
- * PER CALL, so `Deliveries` is always present and answers `[]` and a no-op where
- * there is no chat.
+ * the runtime.s own PENDING mechanism. This file used to answer it a second way,
+ * with a LOOKUP ASKED PER CALL, so `deliveries` was always present and answered
+ * `[]` and a no-op where there was no chat.
  *
- * The difference is not an oversight and the two are not interchangeable: a
- * machine with no ACP agent never builds a chat AT ALL, so a late `provide`
- * would leave kolu and odu PENDING for ever rather than running against a door
- * that honestly says there is nowhere to deliver. Where the service does
- * eventually arrive, PENDING is the better answer and the browser takes it.
+ * The fear behind that was a provider that might never exist: a machine with no
+ * ACP agent builds no chat, and kolu and odu would sit PENDING for ever. What
+ * answered it is that a chat is a ROW: the row always mounts, and the emptiness
+ * moved inside the door — `scopes()` is the empty list and `deliver` is a no-op,
+ * which is the same honest machine-without-the-tool answer, one closure further
+ * in. A serve composed with no chat row is a different thing and is a RULING
+ * rather than a defect: kolu sits `waiting`, and its row says on whose account.
  *
- * ## ...AND {@link Offers} IS THE ANSWER TO THAT, NOT A THIRD RIVAL
- *
- * The paragraph above is right about the shapes and its FEAR is answered rather
- * than overturned. What it is afraid of is a provider that might never exist; a
- * chat that is a ROW always mounts and therefore always exists, and the emptiness
- * moves inside the door — `scopes()` is the empty list and `deliver` is a no-op,
- * which is the same honest machine-without-the-tool answer this lookup gives, one
- * closure further in. A serve with no chat ROW is a different thing and is a
- * ruling rather than a defect: kolu sits `waiting`, and its row says so.
- *
- * So {@link doorFor} is scaffolding with a date on it, and the note beside
- * `stand` in `openPlugins` says which phase carries it out.
+ * So the lookup is gone, and with it the field that fed it. PENDING is the
+ * answer on both faces now.
  */
 export interface PluginsConfig {
   /** The variables, as the process was started with them. */
@@ -982,10 +959,6 @@ export interface PluginsConfig {
   readonly now: () => string
   /** The directory this serve is about, resolved. */
   readonly served: string
-  /** The chat's own door for one plugin, or `null` where there is no chat —
-   *  asked PER CALL rather than captured, because the chat is built after the
-   *  fibers are mounted. See the header on why this one is not a late provide. */
-  readonly doorFor?: Provision<DeliveryDoor | null>
   /** One plugin's machine-local record, by name — minted ONCE per plugin, which
    *  is what orders its writes. Where a machine keeps olai's own files is not a
    *  plugin's business. */
@@ -1101,73 +1074,26 @@ export const openPlugins = (
       unloaded: (handler) => quieted.listen(plugin)(() => handler),
     }))
 
-    /**
-     * ...AND THE FOUR THAT CORE IS ONLY STANDING IN FOR, each on a scope of its
-     * own so that it can STEP ASIDE.
-     *
-     * ## What this is, and the date it stops being anything
-     *
-     * All four of {@link OFFERABLE} are on their way OUT of this function and
-     * into the chat's own row, which is the one thing in this build that can
-     * honestly keep any of these promises. Until that row exists, core keeps
-     * standing behind them — a serve where nothing provides `deliveries` is a
-     * serve where kolu and odu sit PENDING for ever, which is the state this
-     * arrangement was written to prevent.
-     *
-     * So for one phase there are two candidates for one key, and cordis has an
-     * opinion about that: a second `provide` throws. The choice is REPLACE or
-     * REFUSE, and it is replace, one way and at most once:
-     *
-     *   - REFUSE would mean `offer` cannot succeed at all while these four lines
-     *     stand, so the mechanism the next phase depends on would land unproven
-     *     and every bench for it would have to be a bench for the refusal.
-     *   - REPLACE is what the next phase's state already is. A row that offers
-     *     takes the door, core's standing-in ends, and core does NOT come back
-     *     when that row unloads: the key goes unprovided and its dependents sit
-     *     PENDING, which is exactly what they will do when these lines are gone.
-     *     The stand-in is scaffolding, and scaffolding that comes back would be a
-     *     behaviour this build has to keep explaining.
-     *
-     * WHAT THE NEXT PHASE DELETES is this helper, the map, the four `stand` calls
-     * and {@link PluginsConfig.doorFor} — and `offer` loses its one branch, which
-     * is the branch below that finds something to close.
-     *
-     * THE CHURN IS REAL AND IT IS UNREACHABLE. Revoking a service unloads every
-     * fiber that named it and the offering plugin's own `provide` re-applies
-     * them, so a hand-over costs one unload/re-apply of the dependents. Nothing
-     * in this build offers anything yet, and nothing will while these lines
-     * stand at the same time as something that does — so the cost is paid in the
-     * seam between two phases and in no serve.
-     *
-     * A CHILD SCOPE rather than a revoke handle, because `provide` hands back no
-     * handle and should not: it is an `acquireRelease` on the CALLER's scope, and
-     * "revocable by exactly one other party" is spelled by giving that provision
-     * a scope of its own hanging off this one. Closing this function's scope
-     * still takes all four down, in order, as it did when they were four plain
-     * statements.
-     */
-    const standIn = new Map<string, Scope.Closeable>()
-    const mine = yield* Scope.Scope
-    const stand = <Shape>(
-      key: ServiceKey<Shape>,
-      provision: Provision<Shape>,
-    ): Effect.Effect<void> =>
-      Effect.gen(function*() {
-        const own = yield* Scope.fork(mine)
-        yield* Scope.provide(provide(host, key, provision), own)
-        standIn.set(key.cordis, own)
-      })
 
-    yield* stand(Deliveries, (plugin) => ({
-      scopes: () => config.doorFor?.(plugin)?.scopes() ?? [],
-      ringing: (file, node) => config.doorFor?.(plugin)?.ringing(file, node) ?? [],
-      // ASKED PER CALL and not captured — the chat is built after the plugins
-      // are mounted, and a machine with no ACP agent never builds one at all.
-      // What comes back is the chat's OWN Effect, straight through: there is no
-      // bridge here, because both ends of this are Effects.
-      deliver: (...args) =>
-        Effect.suspend(() => config.doorFor?.(plugin)?.deliver(...args) ?? Effect.void),
-    }))
+    /**
+     * ...AND THE FOUR THAT CORE DOES NOT PROVIDE AT ALL, which is the whole of
+     * this phase and reads here as an absence.
+     *
+     * Every one of {@link OFFERABLE} is the chat row's to keep, offered from its
+     * own `apply` ({@link Offers}). Core standing behind them was scaffolding
+     * with a date on it: a stand-in whose door was `undefined` answered every
+     * question with nothing — no scopes, no doorbells, and a delivery that
+     * resolved into `Effect.void` — so a serve composed without a chat looked to
+     * kolu and odu exactly like a serve with one that never rang. That is the
+     * silence this arrangement was meant to prevent, wearing the shape of the
+     * thing it prevented.
+     *
+     * WHAT IS TRUE INSTEAD is what the fibers already say: a plugin that names
+     * `deliveries` with no row behind it is `waiting`, the reading names the tag
+     * it is waiting on, and the preferences panel says on whose account. Under
+     * `--plugins=kolu` alone, kolu is waiting — the paper's rule, and its
+     * accepted cost.
+     */
 
     const kinds = registry<string, ComposedKind>()
     yield* provide(host, Kinds, (plugin) => ({
@@ -1226,31 +1152,6 @@ export const openPlugins = (
       declared: Effect.sync(wakes.read),
     }))
 
-    // KEYED BY THE PLUGIN AND REFUSED LIKE ITS THREE NEIGHBOURS — the id an
-    // engine is offered under is the word the fiber was bound under and is
-    // stamped here, so `Registering` has no field a caller could put one in.
-    const engines = registry<string, Engine>()
-    yield* stand(Agents, (plugin) => ({
-      register: (engine) =>
-        engines.claim(
-          plugin,
-          { ...engine, id: plugin },
-          () =>
-            `plugins: "${plugin}" offered a second ACP engine — a plugin is one engine `
-              + "under one id, and the second would silently replace the first.",
-        ),
-    }))
-
-    yield* stand(Watching, (plugin) => ({ subscribe: seen.listen(plugin) }))
-
-    // WHAT EACH PLUGIN WOULD ASK THIS HOST, keyed by the plugin that registered
-    // it — a `roster` rather than a `registry` because a plugin may legitimately
-    // register more than one probe, and because there is no key here to collide
-    // on: the stamp is the answer, not the address.
-    const asking = roster<Asked>()
-    yield* stand(SessionStart, (plugin) => ({
-      ask: (probe) => asking.hold({ name: plugin, ask: probe }),
-    }))
 
     // WHO STANDS BEHIND WHAT, keyed by the door and refused like its neighbours.
     // Cordis refuses a second provide on its own — but its sentence is `service
@@ -1286,15 +1187,6 @@ export const openPlugins = (
                 + "service stands behind one row, and the second would leave every "
                 + "plugin that named it holding whichever was mounted last.",
           ).pipe(
-            // ...AND CORE STEPS ASIDE, at most once and for good. See the
-            // paragraph on `stand` above: this branch is the whole of the
-            // coexistence, and it is what the next phase deletes.
-            Effect.flatMap(() => {
-              const inPlace = standIn.get(key.cordis)
-              if (inPlace === undefined) return Effect.void
-              standIn.delete(key.cordis)
-              return Scope.close(inPlace, Exit.void)
-            }),
             // ...AND THE PROVIDE, on the CALLING plugin's scope: the acquire
             // hangs the service on the host's root fiber and the release revokes
             // it, which unloads every fiber that named it — the same finalizer
@@ -1371,14 +1263,8 @@ export const openPlugins = (
       kinds: kinds.read,
       composed: () => [...siblings.read().values()],
       declared: wakes.read,
-      engines: () => [...engines.read().values()],
       published: revisions.tell,
       quiet: quieted.tell(undefined),
-      saw: seen.tell,
-      // READ AFRESH PER OPENING, which is what makes a plugin that unloaded
-      // between conversations contribute nothing to the next one without
-      // anybody keeping a second list.
-      sessionStart: Effect.sync(asking.read),
       refused: refusals.tell,
     }
   })

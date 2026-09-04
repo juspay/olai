@@ -200,7 +200,6 @@ test("a kind refused for collision leaves the first plugin's word standing and a
     ])
   })))
 })
-
 /**
  * WHAT A PLUGIN REGISTERS IS ON THE LIST, AND IT IS STAMPED WITH ITS NAME —
  * the `chat/session-start` contract, held where it can be false.
@@ -219,10 +218,45 @@ test("a kind refused for collision leaves the first plugin's word standing and a
  * door reads the word off the fiber. It cannot: the door takes an Effect and
  * nothing else, and the name below is the one the runtime bound each plugin
  * under.
+ *
+ * ## THE LIST IS THE OFFERING ROW'S, which is what makes this a claim about core
+ *
+ * `session-start` is one of the four a row offers, and core provides none of
+ * them — so the collecting end below is a plugin, exactly as the chat row is,
+ * and what is on trial here is the only part that is still core's: the STAMP.
+ * The provision is called once per NAMING plugin with the word the loader bound
+ * that fiber under, so `ask` has no parameter to sign and none of these plugins
+ * could sign one. It reads its own list back because there is nowhere else the
+ * list could be.
  */
+const collecting = (asked: Array<{ readonly name: string }>) =>
+  definePlugin({
+    name: "chat",
+    needs: [Offers],
+    apply: Effect.gen(function*() {
+      yield* (yield* Offers).offer(SessionStart, (plugin) => ({
+        // THE ONLY THING THE CALLER GIVES IS THE PROBE. The name is this
+        // provision's argument, which is the fiber's own word.
+        ask: () =>
+          Effect.acquireRelease(
+            Effect.sync(() => {
+              asked.push({ name: plugin })
+            }),
+            () =>
+              Effect.sync(() => {
+                const at = asked.findIndex((one) => one.name === plugin)
+                if (at >= 0) asked.splice(at, 1)
+              }),
+          ),
+      }))
+    }),
+  })
+
 test("what a plugin asks is on the list, under the name its fiber was bound with", async () => {
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const plugins = yield* runtime()
+    const asked: Array<{ readonly name: string }> = []
+    yield* mountPlugin(plugins.host, collecting(asked))
     const order: Array<string> = []
     const asking = (name: string, slow: boolean) =>
       definePlugin({
@@ -240,18 +274,19 @@ test("what a plugin asks is on the list, under the name its fiber was bound with
     yield* mountPlugin(plugins.host, asking("prompt", false))
     yield* mountPlugin(plugins.host, asking("slow", true))
 
-    const asked = yield* plugins.sessionStart
     expect(asked.map((one) => one.name)).toEqual(["prompt", "slow"])
     expect(order).toEqual(["prompt", "slow"])
   })))
 })
 
 /** ...and a plugin that has unloaded contributes nothing to the next session,
- *  which is the whole reason the list is READ per session open rather than once
- *  at boot. */
+ *  which is the whole reason the registration is a finalizer on its own scope
+ *  rather than an entry somebody remembers to remove. */
 test("an unloaded plugin is off the next session's list", async () => {
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const plugins = yield* runtime()
+    const asked: Array<{ readonly name: string }> = []
+    yield* mountPlugin(plugins.host, collecting(asked))
     const mounted = yield* mountPlugin(
       plugins.host,
       definePlugin({
@@ -262,9 +297,9 @@ test("an unloaded plugin is off the next session's list", async () => {
         }),
       }),
     )
-    expect((yield* plugins.sessionStart).map((one) => one.name)).toEqual(["kolu"])
+    expect(asked.map((one) => one.name)).toEqual(["kolu"])
     yield* mounted.dispose
-    expect(yield* plugins.sessionStart).toEqual([])
+    expect(asked).toEqual([])
   })))
 })
 
@@ -399,20 +434,33 @@ test("a vault listener goes when its plugin does", async () => {
  * most: a plugin's doorbell reaches conversations somebody scoped to THAT
  * plugin, and there is no argument on either verb by which one could name
  * another.
+ *
+ * THROUGH THE ROW THAT OFFERS IT, because that is the only way `deliveries`
+ * exists — core provides none of the four. So the provision under test is a
+ * plugin's, and what is core's is the thing being asserted: it is called once
+ * per NAMING plugin, with the word the loader bound that fiber under.
  */
 test("the doorbell's door is keyed by the plugin, with no way to spell another's", async () => {
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const asked: Array<string> = []
-    const plugins = yield* runtime({
-      doorFor: (plugin) => {
-        asked.push(plugin)
-        return {
-          scopes: () => [{ agent: "a", session: "s", file: `${plugin}.olai` }],
-          ringing: (file) => [{ agent: "a", session: "s", file }],
-          deliver: () => Effect.void,
-        }
-      },
-    })
+    const plugins = yield* runtime()
+    yield* mountPlugin(
+      plugins.host,
+      definePlugin({
+        name: "chat",
+        needs: [Offers],
+        apply: Effect.gen(function*() {
+          yield* (yield* Offers).offer(Deliveries, (plugin) => {
+            asked.push(plugin)
+            return {
+              scopes: () => [{ agent: "a", session: "s", file: `${plugin}.olai` }],
+              ringing: (file) => [{ agent: "a", session: "s", file }],
+              deliver: () => Effect.void,
+            }
+          })
+        }),
+      }),
+    )
     const seen: Array<string> = []
     const looking = (name: string) =>
       definePlugin({
@@ -720,24 +768,15 @@ test("two plugins standing behind one door: the second is refused, naming both a
  * mechanism worth anything — and, for exactly one phase, the half that says core
  * has STEPPED ASIDE rather than won the race.
  *
- * Core stands behind `deliveries` until the chat is a row (`openPlugins`' own
- * paragraph on `stand` says which phase carries those four lines out). A serve
- * where both were live would be a serve where a plugin reads whichever provision
- * happened to be registered last, silently. So the offer hands the key over, once
- * and for good, and this case reads the door on the other side to say which one
- * answered.
+ * Core provides `deliveries` nowhere, so there is exactly one candidate and the
+ * question is whether the HAND-OVER keeps the keying: the offering row writes
+ * one provision, and every consumer must be handed its own view of it, stamped
+ * with its own word. This case reads the door on the far side to say so.
  */
 test("the door a plugin stands behind is the door its dependents are handed", async () => {
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const seen: Array<string> = []
-    const plugins = yield* runtime({
-      // CORE'S ANSWER, which nothing should read once a row has offered.
-      doorFor: () => ({
-        scopes: () => [{ agent: "a", session: "s", file: "core.olai" }],
-        ringing: () => [],
-        deliver: () => Effect.void,
-      }),
-    })
+    const plugins = yield* runtime()
     yield* mountPlugin(
       plugins.host,
       definePlugin({
