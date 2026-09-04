@@ -1,0 +1,85 @@
+# Build every flake output on linux + darwin and push the closures to
+# https://cache.nixos.asia/oss. The flake already lists this cache as a
+# substituter, so a green run here warms `nix build` / `nix develop` on
+# both platforms (odu lanes included).
+name: nix-cache
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nix-cache-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-push:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      # pull_request's default ref is the synthetic merge commit; warm the
+      # branch head (what `nix run github:juspay/olai/<branch>` builds).
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
+        with:
+          nix_conf: |
+            extra-substituters = https://cache.nixos.asia/oss
+            extra-trusted-public-keys = oss:KO872wNJkCDgmGN3xy9dT89WAhvv13EiKncTtHDItVU=
+            accept-flake-config = true
+
+      - name: Install attic and log in
+        env:
+          ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
+        run: |
+          nix profile add "$(jq -r .pins.nixpkgs.url npins/sources.json)#attic-client"
+          attic login --set-default oss https://cache.nixos.asia "$ATTIC_TOKEN"
+
+      - name: Build and push every flake output
+        shell: bash
+        run: |
+          set -euo pipefail
+          system=$(nix eval --impure --raw --expr builtins.currentSystem)
+          installables=()
+          for kind in packages checks devShells; do
+            names=$(nix eval --raw ".#$kind.$system" --apply 'attrs: builtins.concatStringsSep "\n" (builtins.attrNames attrs)')
+            count=0
+            while IFS= read -r name; do
+              [ -n "$name" ] || continue
+              installables+=(".#$kind.$system.$name")
+              count=$((count + 1))
+            done <<< "$names"
+            if [ "$count" -eq 0 ]; then
+              echo "::error::flake exposed no $kind outputs for $system"
+              exit 1
+            fi
+          done
+          echo "::group::nix build"
+          paths=$(nix build -L --no-link --print-out-paths "${installables[@]}")
+          printf '%s\n' "$paths"
+          echo "::endgroup::"
+          if [ -z "$paths" ]; then
+            echo "::error::nix build produced no output paths"
+            exit 1
+          fi
+          # Runtime closures of the outputs, plus each output's realized
+          # build-time inputs (bun-pkg FODs a rebuild still needs). attic's
+          # upstream filter drops anything already on cache.nixos.org.
+          {
+            printf '%s\n' "$paths"
+            while IFS= read -r p; do
+              drv=$(nix-store -q --deriver "$p")
+              [ -n "$drv" ] && [ "$drv" != unknown-deriver ] || continue
+              nix-store -qR --include-outputs "$drv"
+            done <<< "$paths"
+          } | awk 'NF && !seen[$0]++' | attic push --stdin oss

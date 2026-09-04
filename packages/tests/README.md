@@ -68,13 +68,14 @@ packages/tests/
 ## Running
 
 ```bash
-just e2e                      # the whole suite against the nix-built binary
-just e2e-fast-remote          # shard it over odu's configured Linux hosts
+odu run                       # full CI; E2E borrows up to six execution slots
+just e2e                      # the whole E2E suite on this machine
+just e2e-fast-remote          # only E2E through this tree's pinned Odu
 ```
 
 `just e2e` is the leg `just check` runs. It is parallel by default, sized to the machine — see `CUCUMBER_PARALLEL` below. To iterate faster, run the suite yourself inside the e2e dev shell (which is the default shell plus Playwright's browsers):
 
-`e2e-fast-remote` reads the `x86_64-linux` pool from `$ODU_HOSTS`, or from `~/.config/odu/hosts.json` when that variable is unset. It copies the current Git worktree — including modified and untracked non-ignored files — to a fresh directory on every host, initialises the copy as a Git worktree (so later ignored `node_modules` do not enter the flake source), and gives each host one of Cucumber's native scenario shards. Each shard still uses the suite's ordinary four local workers. Every configured host must answer SSH and have a working Nix store; the target refuses to run a partial suite, and removes its remote worktrees when it finishes. Nothing else is required on the remote image: the copied repository's pinned Nix shells provide Git, `just`, Bun and Playwright.
+`odu run` is the one full-CI command: it expands `just check`, fans the platform legs out to the configured SSH/Nix machines, posts the stable logical contexts to GitHub, and opportunistically borrows up to six free slots for `e2e`. Six is a ceiling, not a fleet reservation. If only three slots are available, Odu tells Cucumber to run three complete, non-overlapping slices; a one-slot run is the whole suite. Every leased lane immediately dispatches its own `install` and `nix` prerequisites in parallel; Odu reports the burst copies as nodes such as `e2e[2-of-3]::install`, so a slow shard start is visible instead of being charged to E2E. The logical E2E duration is the slowest slice's execution time. The ordinary platform lease remains held for the CI run, while each extra E2E lease is released as its slice finishes. `just e2e-fast-remote` is only a thin pinned-Odu spelling of `odu run e2e --platform x86_64-linux`; it contains no SSH scheduler of its own. It has a 10-minute wall-clock backstop (`ODU_E2E_REMOTE_TIMEOUT` to override) and interrupts Odu cleanly before forcing termination.
 
 ```bash
 export OLAI_BIN="$(nix build .#olai --no-link --print-out-paths)/bin/olai"
@@ -114,7 +115,7 @@ Which server the suite drives is two decisions, not one — **who owns the proce
 | `CUCUMBER_TAGS` | Replaces the default tag filter (`not @skip`). `CUCUMBER_TAGS='@corpus:tangled'` runs only the tangled-corpus scenarios. |
 | `CUCUMBER_PARALLEL` | Worker count. Unset, the suite sizes itself to the machine (`os.availableParallelism() - 1`, floored at 1, capped at 4) so a laptop and a CI box both run parallel by default without a flag. Set it to override, including `=1` for a serial run. |
 | `CUCUMBER_RETRY` | Scenario retry budget. Default 0 — a local run should show a real failure the first time. |
-| `CUCUMBER_SHARD` | Cucumber's native `<index>/<total>` scenario shard. `just e2e-fast-remote` sets this once per host; ordinary local runs leave it unset. |
+| `CUCUMBER_SHARD` | Cucumber's native one-based `<index>/<total>` scenario shard. The `e2e` recipe derives it from Odu's zero-based `ODU_SHARD_INDEX` and actual `ODU_SHARD_TOTAL`; ordinary `just e2e` runs leave it unset. |
 
 Playwright's browsers come from the Nix store via `PLAYWRIGHT_BROWSERS_PATH`, which `.#e2e` sets. The npm `playwright` version is pinned to the Nix `playwright-driver`'s (1.61.1) because the driver refuses a browser build it was not compiled against; the two move together or not at all.
 
