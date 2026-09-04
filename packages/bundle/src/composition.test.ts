@@ -64,8 +64,19 @@ import { describe, expect, test } from "bun:test"
 
 import { exposeMapsOf, surfacesOf } from "@olai/plugin-api"
 
-import { BUNDLE_NAMES } from "./rows.ts"
-import { composing, type ServerHalf, serverHalves } from "./tree.testlib.ts"
+import { BUNDLE_NAMES, ROWS } from "./rows.ts"
+import {
+  composing,
+  doorsOf,
+  manifestAt,
+  MEMBER_OF_PACKAGE,
+  PACKAGES,
+  packageOf,
+  type ServerHalf,
+  serverHalves,
+} from "./tree.testlib.ts"
+import * as fs from "node:fs"
+import * as path from "node:path"
 
 /** The real roster, LOADED — no door in this package imports a plugin
  *  statically any more, so a test that wants their values does what the runtime
@@ -311,6 +322,69 @@ describe("a plugin answers to the name its row binds it under", () => {
     // OVER EVERY HALF, not only the composing ones: the stamp is what a fiber
     // is bound under, and an engine's fiber is bound exactly as a tenant's is.
     expect([...HALVES.map((half) => half.name)].sort()).toEqual([...BUNDLE_NAMES].sort())
+  })
+
+  /**
+   * ...AND A PLUGIN WITH MEMBERS SAYS SO ON BOTH DOORS.
+   *
+   * ## The bug this is written against, and it went all the way to a browser
+   *
+   * The tab builds its sibling map out of what each BROWSER half exports
+   * (`@olai/web`'s `client/wire.ts`): a half carrying a `surface` is dialled and
+   * handed its own client, and a half carrying none is read as an ENGINE — a
+   * plugin that composes no sibling, because what it contributes to a tab
+   * travels on somebody else's cell — and is mounted without being dialled.
+   *
+   * Both are real states, which is why `BrowserHalf.surface` is optional and has
+   * to stay so. What was NOT a state is the third thing: a plugin whose SERVER
+   * half registers a sibling and whose BROWSER half forgot to re-export it. The
+   * server serves every member; the tab never dials them; `Wired.client()`
+   * answers `null` because this wire does not carry that plugin; and the first
+   * face to read one throws inside a render, which the app draws as a fault
+   * card. Every scenario in the e2e suite failed on `Cannot read properties of
+   * null (reading 'cells')` — one omitted `export` in a door with nothing else
+   * in it.
+   *
+   * Nothing could have caught it: the two doors are two modules, the field is
+   * optional in both, and every other claim in this file reads one door or the
+   * other. So the claim is the EQUALITY BETWEEN THEM — a plugin composes a
+   * sibling or it does not, and both halves have to be telling the same story
+   * about which.
+   *
+   * ## READ, not imported, and the reason is the graph
+   *
+   * A browser half is a `.tsx` reaching a UI runtime; importing one here dies on
+   * `react/jsx-dev-runtime` before it can be asked anything, which is the exact
+   * hazard that keeps this package mounting none of them and `BROWSER_ROWS` a
+   * table of thunks. So the door is RESOLVED the way a consumer resolves it —
+   * off the package's own `exports` map — and its source is read for the one
+   * word. A path spelled here instead would be a claim about a file rather than
+   * about the door.
+   */
+  test("a plugin that composes a sibling exports it from BOTH doors", () => {
+    const serving = new Set(WIRES.map((wire) => wire.name))
+    const exporting = ROWS.map((row) => {
+      const member = MEMBER_OF_PACKAGE.get(packageOf(row.name))
+      if (member === undefined) throw new Error(`composition: no member for ${row.name}`)
+      const dir = path.join(PACKAGES, member)
+      const manifest = manifestAt(dir)
+      const door = manifest === undefined ? undefined : doorsOf(manifest)["./browser"]
+      if (door === undefined) {
+        throw new Error(`composition: "${row.id}" opens no ./browser door`)
+      }
+      const text = fs.readFileSync(path.join(dir, door), "utf8")
+      // The word in an EXPORT, not anywhere in the file: every browser half
+      // imports its own `name` beside it, and half of them mention the surface
+      // in prose.
+      return { id: row.id, exports: /\bexport\s*\{[^}]*\bsurface\b[^}]*\}/.test(text) }
+    })
+    expect(exporting.filter((one) => serving.has(one.id) !== one.exports).map((one) => one.id))
+      .toEqual([])
+    // ...and the sweep is not vacuous in either direction: this build has halves
+    // of both kinds, so a comparison that had stopped seeing one of them would
+    // be a claim nobody is making.
+    expect(exporting.some((one) => one.exports)).toBe(true)
+    expect(exporting.some((one) => !one.exports)).toBe(true)
   })
 
   test("every face a plugin names is a face it wrote a map for", () => {

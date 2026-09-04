@@ -2442,7 +2442,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   }
 
   // WHAT THE AGENT RECEIVED, asserted by the agent itself. A node armed on a
-  // row reaches a prompt as one line naming its id (`@olai/chat`'s
+  // row reaches a prompt as one line naming its id (`olai-plugin-chat`'s
   // `context.ts`), and the whole claim of that design is that the id is the
   // handle olai's own tools take — so this reads the line, calls `read_node`
   // with what it found, and says the TITLE that came back. A scenario that
@@ -2565,7 +2565,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   // that the bytes the browser sent are the bytes at the path the agent was
   // given, whatever kind of file they are.
   //
-  // The label is `@olai/chat`'s (`promptWith`), and it says FILE because the
+  // The label is `olai-plugin-chat`'s (`promptWith`), and it says FILE because the
   // line carries text and PDFs as well as pictures.
   const attached = [...text.matchAll(/^Attached file: (.+)$/gm)].map((match) => match[1] ?? "")
   if (attached.length > 0) {

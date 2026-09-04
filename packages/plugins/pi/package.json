@@ -18,7 +18,7 @@
     "typecheck": "tsc --noEmit"
   },
   "//": "THE PI ENGINE — the leg that reads pi-acp's wire, the pair of halves that make a pi row (a pinned adapter olai ships, an agent the machine has), and the mark it wears. `acp/` beside this manifest is the adapter's own pin and the patch it carries, which travelled here with the phase: the pin and the patches of an engine live in that engine's directory.",
-  "//dependencies": "`@olai/acp/engine` is the shape both ends spell — the leg, the adapter, the registration — and it is a floor package under both this plugin and `@olai/chat`, which is what lets neither import the other. `@olai/plugin-api` is the door: the `Agents` tag its `./server` registers into, and the slot service its `./browser` hangs a mark in. `effect` because a plugin's `apply` is one. `solid-js` because the mark is a component. NO protocol SDK, not even in the bench: this leg's own signatures name none of its types and its bench stages payloads rather than permission options.",
+  "//dependencies": "`@olai/acp/engine` is the shape both ends spell — the leg, the adapter, the registration — and it is a floor package under both this plugin and `olai-plugin-chat`, which is what lets neither import the other. `@olai/plugin-api` is the door: the `Agents` tag its `./server` registers into, and the slot service its `./browser` hangs a mark in. `effect` because a plugin's `apply` is one. `solid-js` because the mark is a component. NO protocol SDK, not even in the bench: this leg's own signatures name none of its types and its bench stages payloads rather than permission options.",
   "dependencies": {
     "@olai/acp": "workspace:*",
     "@olai/plugin-api": "workspace:*",

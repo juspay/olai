@@ -42,15 +42,27 @@ import {
   type OutlineError,
   type Related,
 } from "./errors.ts"
-import { isMirror, isRegular, type Located, propertiesIn, type Site } from "./node.ts"
+import {
+  isMirror,
+  isRegular,
+  type Located,
+  type LocatedRegular,
+  mintedInto,
+  PROPERTIES,
+  propertiesIn,
+  type Site,
+} from "./node.ts"
 import { byPath } from "./paths.ts"
 import { markdownIn, type OutlineSet } from "./set.ts"
 import { didYouMeanDeclared } from "./suggest.ts"
 import {
+  type ContributedKind,
   declaredFor,
   heldCustoms,
   keyOf,
   type KindVocabulary,
+  listed,
+  NAMED_AT_MOST,
   resolvesId,
   type Typed,
   wrongDeclaration,

@@ -37,6 +37,13 @@ import {
   serviceTag,
   standing,
 } from "@olai/plugin-api/services"
+// THE TWO VERBS THE PLUGIN DOOR WITHHOLDS, spent here because the last case
+// below is about a row standing BEHIND a key rather than in front of one, and
+// there is no way to stage that with what a plugin may spell. `provide` is the
+// capability `@olai/plugin-api` hands out on a caller's behalf and `settled` is
+// the composition root's; a bench that mounts plugins by hand is already
+// standing where both of those are spent for real (`./bundle.ts`).
+import { provide, settled } from "@olai/effect-cordis"
 import { expect, test } from "bun:test"
 import { Effect, Scope } from "effect"
 
@@ -54,11 +61,22 @@ if (FIRST === undefined || SECOND === undefined) {
  *  because the point is the STATE and not which olai service is missing. */
 const NOBODY_PROVIDES = serviceTag<{ readonly nothing: true }>("nothingProvidesThis")
 
+/** ...and one a SIBLING ROW provides, which is a different morning entirely: the
+ *  same fiber, held on the same kind of key, with a plugin rather than a
+ *  composition root behind it. */
+const A_SIBLING_PROVIDES = serviceTag<{ readonly something: true }>("aSiblingProvidesThis")
+
 /** One runtime per case, with the plugins this case wants on it. The rows'
  *  reports come back as a plain map, which is what every case reads. */
 const mounted = async (
   plugins: ReadonlyArray<Parameters<typeof mountPlugin>[1]>,
-): Promise<ReadonlyMap<string, { readonly state: string; readonly fault?: string }>> => {
+): Promise<
+  ReadonlyMap<string, {
+    readonly state: string
+    readonly fault?: string
+    readonly missing?: ReadonlyArray<string>
+  }>
+> => {
   const run = standing()
   const opened = await run(openPlugins({ vars: {}, now: () => "", served: "/" }))
   for (const plugin of plugins) await run(mountPlugin(opened.host, plugin))
@@ -132,15 +150,17 @@ test("a row that mounted reads as running", async () => {
 })
 
 /**
- * A ROW SHORT OF SOMETHING IT NAMES IS `waiting`, WHICH IS NOT `off`.
+ * A ROW SHORT OF SOMETHING IT NAMES IS `waiting`, WHICH IS NOT `off` — AND IT
+ * SAYS WHAT IT IS SHORT OF.
  *
  * It was asked for and it did load; what it is missing is a service that has not
- * arrived. Nothing in this phase can produce that state at a serve — every
- * service a plugin names is provided before the bundle is mounted — and the
- * runtime that CAN produce it is the one already running, so the word exists
- * rather than the state being unrepresentable the day something does.
+ * arrived. The KEY comes with the word because the two facts a person needs are
+ * on two different rows — this one is waiting, and the one that would have
+ * provided is off or failed two lines up — and joining them is a reader's job
+ * rather than a general package's. Which row WOULD provide it is the bundle's
+ * business and is deliberately not in the answer.
  */
-test("a row waiting on a service it names is waiting, not off", async () => {
+test("a row waiting on a service it names is waiting, not off, and names the key", async () => {
   const report = await mounted([
     definePlugin({
       name: FIRST,
@@ -150,5 +170,46 @@ test("a row waiting on a service it names is waiting, not off", async () => {
       }),
     }),
   ])
-  expect(report.get(FIRST)).toEqual({ state: "waiting" })
+  expect(report.get(FIRST)).toEqual({ state: "waiting", missing: ["nothingProvidesThis"] })
+})
+
+/**
+ * ...AND A ROW WAITING ON A SIBLING IS `running` ONCE THE SIBLING HAS PROVIDED.
+ *
+ * The other half of the state above, and the one the report is about to be asked
+ * for a build where a row stands behind a door. The reading has to survive the
+ * fiber having gone `PENDING` and come back — the epoch it was held at is a
+ * different one from the epoch it runs at — and the mount of the PROVIDER does
+ * not cover the dependent's own apply, which is why the settle is between them
+ * rather than folded into either.
+ */
+test("a row whose sibling provides what it names reads as running", async () => {
+  const run = standing()
+  const opened = await run(openPlugins({ vars: {}, now: () => "", served: "/" }))
+  await run(mountPlugin(
+    opened.host,
+    definePlugin({
+      name: SECOND,
+      needs: [A_SIBLING_PROVIDES],
+      // THE SLEEP IS THE SUBJECT: an apply that finishes inside the mount's own
+      // microtask chain is read correctly by accident, and every apply in this
+      // build did until a row stood behind a door.
+      apply: Effect.gen(function*() {
+        yield* A_SIBLING_PROVIDES
+        yield* Effect.sleep("5 millis")
+      }),
+    }),
+  ))
+  await run(mountPlugin(
+    opened.host,
+    definePlugin({
+      name: FIRST,
+      needs: [],
+      apply: provide(opened.host, A_SIBLING_PROVIDES, () => ({ something: true as const })),
+    }),
+  ))
+  await run(settled(opened.host, BUNDLE_NAMES))
+  const report = await run(reportBundle(opened.host))
+  expect(report.get(FIRST)).toEqual({ state: "running" })
+  expect(report.get(SECOND)).toEqual({ state: "running" })
 })

@@ -48,10 +48,21 @@
 
 import type { Host, PropKind, RowReport } from "@olai/plugin-api"
 import { kindWordOf, rowReport } from "@olai/plugin-api"
-// THE ONE REACH PAST `@olai/plugin-api`, and the only one in the tree: the
-// loader carries `node:url`, `node:fs` and a YAML parser, so it cannot be
-// re-exported through a package a TAB imports. Everything else this file spends
-// of the bridge comes through the door above.
+// THE TWO REACHES PAST `@olai/plugin-api`, and the only ones in the tree, for
+// two different reasons.
+//
+// `mountRows` is a GRAPH: the loader carries `node:url`, `node:fs` and a YAML
+// parser, so it cannot be re-exported through a package a TAB imports.
+//
+// `settled` is a CAPABILITY, and it is withheld from the plugin door on the same
+// grounds `openHost` and `provide` are. It waits on a list of ROWS — a plugin
+// holding it could block its own `apply` until its siblings stopped moving,
+// which is a fiber waiting on the runtime that is waiting on it. A plugin's
+// answer to "is the thing I need here yet" is `needs`, and the runtime's answer
+// is `PENDING`; this is the composition root's verb for the one question a
+// plugin cannot be asking. Everything else this file spends of the bridge comes
+// through the door above.
+import { settled } from "@olai/effect-cordis"
 import { mountRows } from "@olai/effect-cordis/loader"
 import { Effect } from "effect"
 
@@ -166,22 +177,55 @@ export const reportBundle = (host: Host): Effect.Effect<ReadonlyMap<string, RowR
 /**
  * MOUNT THE BUNDLE ON `host` — the rows, patched by the flag, as fibers.
  *
- * Returns once every row that is going to load has loaded, so a caller can read
- * the kind and surface registries straight afterwards and get the whole build.
+ * Returns once every row that is going to load has loaded AND APPLIED, so a
+ * caller can read the kind and surface registries straight afterwards and get
+ * the whole build.
  *
- * A ROW THAT FAILS DOES NOT TAKE THE BOOT DOWN. A plugin whose Effect dies lands
- * in `failed`, having installed nothing — every registration is a finalizer, and
- * the ones it had made are unwound — with its siblings running. So a plugin
- * whose serve dies on a socket that is not there is one absent plugin rather
- * than a server that will not start.
+ * ## Why that is two calls now
+ *
+ * It was one, and the sentence above was true by accident. `mountRows` awaits
+ * the include's entries being CREATED — the module imported, the fiber
+ * constructed — and the loader's own `await()` walks a tree the include's rows
+ * were never linked into (`@olai/effect-cordis`'s `host.ts` records that fact for
+ * its own reason: `rowReport` reads the REGISTRY, and the paragraph above it says
+ * why). An `apply` that finished inside the microtask chain of the mount was
+ * covered; one that awaited anything at all was not, and neither was a row woken
+ * by a service a SIBLING ROW provides — that one is a whole turn later.
+ *
+ * That second case is what a bundle whose rows stand behind doors creates: one
+ * row provides, and every row that named its key leaves `PENDING` and applies a
+ * turn after the mount returned. Without the settle, `@olai/server`'s vocabulary
+ * read two statements down would miss a tenant's kind FOR THE LIFE OF THE
+ * PROCESS — the store's codec holds its answer — and {@link reportBundle} above
+ * would call a running row `waiting` until the next start. Both silently, which
+ * is the shape of failure worth spending a call to make impossible.
+ *
+ * KEPT INSIDE THIS FUNCTION rather than taught to every caller: the sentence
+ * this doc opens with is the promise `mountBundle` has always made, and a second
+ * step in a composition root is that promise moved out of the place a reader
+ * looks for it.
+ *
+ * A ROW THAT FAILS DOES NOT TAKE THE BOOT DOWN, unchanged. A plugin whose Effect
+ * dies lands in `failed`, having installed nothing — every registration is a
+ * finalizer, and the ones it had made are unwound — with its siblings running.
+ * So a plugin whose serve dies on a socket that is not there is one absent
+ * plugin rather than a server that will not start; the settle waits for its
+ * fiber to stop moving and asks nothing about where it stopped.
  */
 export const mountBundle = (
   host: Host,
   names: ReadonlyArray<string> | null,
 ): Effect.Effect<void> =>
-  mountRows(host, {
-    baseUrl: BASE_URL,
-    path: BUNDLE,
-    patches: pluginsPatch(names),
-    resolve: importByName,
-  })
+  Effect.flatMap(
+    mountRows(host, {
+      baseUrl: BASE_URL,
+      path: BUNDLE,
+      patches: pluginsPatch(names),
+      resolve: importByName,
+    }),
+    // EVERY ROW THIS BUILD HAS, and not only the ones the flag left on: a row
+    // the patch disabled never entered the registry, so it holds no inertia and
+    // costs the walk one `has` — while a list narrowed to the enabled ones would
+    // be a second reading of the flag beside {@link pluginsPatch}'s.
+    () => settled(host, BUNDLE_NAMES),
+  )

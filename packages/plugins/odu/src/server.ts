@@ -413,7 +413,7 @@ export default definePlugin({
      *
      *  WHAT IS REGISTERED IS THE ASKING and not an answer: the list is read
      *  afresh per session open, so a plugin that unloaded between conversations
-     *  contributes nothing to the next one, and the asking is `@olai/chat`'s to
+     *  contributes nothing to the next one, and the asking is `olai-plugin-chat`'s to
      *  schedule under its own bounded concurrency ({@link Probed}'s two halves
      *  still come off ONE reading, which is the invariant the old `probe()`
      *  field existed to hold). THE PLUGIN'S NAME IS NOT WRITTEN HERE — the door
@@ -423,5 +423,30 @@ export default definePlugin({
      *  would answer a different question than the one a session's spawn will
      *  ask. */
     yield* opening.ask(Effect.promise(() => probe(env.vars)))
+
+    /**
+     * AND NO FINALIZER OF ITS OWN, which is a reading of this half rather than
+     * an omission — the asymmetry with `olai-plugin-kolu`'s `server.ts`, which
+     * ends with one, and the reason it is written down here.
+     *
+     * kolu's half arms a `setInterval` inside `koluHalf`, at APPLY time, so its
+     * plugin owes the scope a `stop`: an interval nothing unwinds outlives the
+     * fiber that armed it. `oduHalf` arms nothing. `makeWatch` returns three
+     * maps and an Effect; every socket, every hold's fiber and the sweep's own
+     * cadence are acquired INSIDE `watch.run`, which is `Effect.scoped` over a
+     * repeat and which the framework starts at the `ci` cell's `connect`. A half
+     * that was built and never bound holds a `wanted` map and nothing else, and
+     * a half that WAS bound holds its sockets on the connector's fiber — which
+     * this scope has no handle on and could not stop if it had one, because
+     * unloading this plugin drops the sibling and the composition root re-serves
+     * without it, taking that fiber with the runtime it ran under.
+     *
+     * So there is nothing here for a finalizer to undo, and a `stop` on the half
+     * that closed over nothing would be worse than no door at all: it would read
+     * as a promise that this plugin's teardown reaches odu's sockets, which is a
+     * claim only the connector's interruption can keep. The day this half arms
+     * something at construction — a poll of its own, a cached dial — this is the
+     * paragraph that gets rewritten and kolu's finalizer is the shape to copy.
+     */
   }),
 })

@@ -47,12 +47,17 @@ const roster = (
  * helpers keep that reading honest: nothing here quietly starts sending a state
  * to the cases that are about not having one.
  */
-const row = (state: string, fault?: string): PluginRoster => ({
+const row = (
+  state: string,
+  fault?: string,
+  missing?: ReadonlyArray<string>,
+): PluginRoster => ({
   built: [{
     name: "alpha",
     running: state === "running",
     state,
     ...(fault === undefined ? {} : { fault }),
+    ...(missing === undefined ? {} : { missing }),
   }],
   pinned: null,
 })
@@ -273,4 +278,47 @@ test("a plugin row is found by prefix, and cannot collide with a fixed row", () 
   expect(pluginPref("alpha")).toBe("plugin-alpha")
   expect(pluginPref("done").startsWith(PLUGIN_PREF)).toBe(true)
   expect(pluginPref("done")).not.toBe("done")
+})
+
+/**
+ * A WAIT NAMES WHAT IT IS WAITING FOR, which is the half of `waiting` a person
+ * can act on.
+ *
+ * The reading has had it all along — a PENDING fiber knows which tags nobody is
+ * behind (`@olai/effect-cordis`'s `rowReport`) — and every wall between there
+ * and here dropped it, so the panel said *waiting for something it needs* about
+ * a serve whose whole answer was one word. It matters most in exactly the serve
+ * the ruling created: `--plugins=kolu` composes no chat row, so `deliveries` has
+ * nobody behind it, and what a person needs told is that word and not that
+ * something is wrong.
+ *
+ * NAMING THE DOOR IS NAMING THE PLUGIN, one step removed: a service is offered
+ * by a row, so "waiting for deliveries" is "compose the row that offers it".
+ * That step is a person's to take, and this line is what lets them.
+ */
+test("a waiting row names the services nobody is behind", () => {
+  const waiting = only(row("waiting", undefined, ["deliveries"]))
+  expect(pluginHint(waiting)).toContain("deliveries")
+  // ONE OR SEVERAL, because the sentence has to read either way: a row that
+  // named two doors is short of two, and `it` would be wrong about both.
+  const two = only(row("waiting", undefined, ["deliveries", "watching"]))
+  expect(pluginHint(two)).toContain("deliveries, watching")
+  expect(pluginHint(two)).toContain("them")
+  expect(pluginHint(waiting)).toContain("it")
+})
+
+/**
+ * ...AND A WAIT THAT NAMES NOTHING STILL SAYS SO, which is not the same as
+ * saying nothing.
+ *
+ * A fiber can be PENDING with no tag named yet — a settle still in flight — and
+ * the honest line there is the old one. An empty list is that case and not a
+ * row waiting on nobody, so it must not compose a sentence with a hole where
+ * the names go.
+ */
+test("a wait with nothing named yet keeps the sentence it always had", () => {
+  expect(pluginHint(only(row("waiting")))).toContain("waiting for something it needs")
+  expect(pluginHint(only(row("waiting", undefined, [])))).toContain(
+    "waiting for something it needs",
+  )
 })

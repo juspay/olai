@@ -33,8 +33,7 @@
 import { expect, test } from "bun:test"
 import { Effect, Result } from "effect"
 
-import { BusyFailure, isOpFailure } from "@olai/surface"
-
+import { BusyFailure, isOpFailure } from "@olai/format"
 import { runAsync } from "./run.ts"
 
 /** A DECLARED FAILURE is data — the arm that already worked, held so a fix to

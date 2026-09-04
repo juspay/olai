@@ -38,8 +38,8 @@
  * committed to the node a mirror stands for.
  */
 
-import type { Anchor, Edit, OpFailure } from "@olai/surface"
-
+import type { Anchor, Edit } from "@olai/surface"
+import type { OpFailure } from "@olai/format"
 /**
  * How long a person stops typing before what they typed is written — the third
  * of the three commit moments, and the only one that is a duration.

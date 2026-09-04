@@ -121,6 +121,7 @@ import {
   type KindVocabulary,
   type PropDeclarations,
   sameTyping,
+  type Typed,
 } from "./typing.ts"
 
 /**
@@ -319,12 +320,11 @@ export const incrementally = (
   // those can turn a bad value good and none of them can turn a good one bad,
   // so none of them is here.
   const walkingProps = !sameTyping(ledger.typing, typing) || walking || shrank(gone, derived)
-  reportPropValues(walkingProps ? derived.nodes : fresh, {
-    declarations: typing,
-    derived,
-    documents: known,
-    kinds,
-  }, errors)
+  // BOUND ONCE and handed to both value rules below, which is the same argument
+  // the full arm's `wholly` makes about the records: two literals here would be
+  // two readings of one vault, free to disagree about what a key is declared as.
+  const typed: Typed = { declarations: typing, derived, documents: known, kinds }
+  reportPropValues(walkingProps ? derived.nodes : fresh, typed, errors)
 
   return { ledger: { errors, known, typing }, walked: moving || walking || walkingProps }
 }

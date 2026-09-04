@@ -116,7 +116,7 @@ export default definePlugin({
     // delivered into somebody's conversation. It is contributed from the tenant
     // that owns it because core may know this plugin's NAME as data and nothing
     // else; the panel looks it up by the word it already stamped on the row.
-    yield* slots.register("chat.speaker.mark", OduMark)
+    yield* slots.register("delivery.mark", OduMark)
     // THE TAB'S CI HALF — one subscription however many chips draw. An outline
     // can carry a `worktree` on a dozen rows and every one of them wants to know
     // whether its checkout is mid-run, so the subscription is here, once per tab,

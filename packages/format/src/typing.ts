@@ -1041,6 +1041,55 @@ export const declaresKind = (
 }
 
 /**
+ * WHICH KEYS THIS VAULT DECLARES OF THIS KIND — the names, where
+ * {@link declaresKind} is the yes/no and {@link textDeclaredAs} is one record's
+ * value.
+ *
+ * ## Why a reading in this direction exists at all
+ *
+ * Every other consult here points from a RECORD to a value: a walk has a node
+ * and wants what it says. This one points the other way, and it is what a
+ * plugin that WRITES its own kind needs — chat's *start an agent session* has a
+ * node and a value and must decide which key to put it under, and the fence
+ * around a seated conversation has to name every key a write could reach the
+ * binding through. Neither question has a record to ask about yet, so neither
+ * can go through {@link textDeclaredAs}.
+ *
+ * ## THE VAULT'S OWN ROW COMES FIRST, and that is this function's one rule
+ *
+ * A kind can be declared twice over: by a row in `_olai/Properties.olai` and by
+ * the key it CLAIMS ({@link withClaims}), and a vault mid-migration legitimately
+ * has both — a row moving the kind onto the bare word it used to be spelled as,
+ * beside the claimed key nobody has written yet. Both are keys of the kind, so
+ * both are answered; what a WRITER needs on top of that is which one to use, and
+ * the answer is the vault's, for the reason `withClaims` gives about the other
+ * direction: a claim is a default and a row is a person saying what they mean.
+ *
+ * A claimed row is told apart by `at`, which {@link withClaims} leaves EMPTY
+ * because there is no node to point at — the same field a finding reads to
+ * decide whether it has a "declared here" to name. Among two rows of a vault's
+ * own the first declared wins, which is {@link declarationsOf}'s rule for a
+ * duplicate key arrived at one question later.
+ *
+ * IN ORDER, so a caller that wants one key takes the first and a caller that
+ * wants all of them takes the array — rather than two functions that could come
+ * to disagree about which key is the writing one.
+ */
+export const keysDeclaredAs = (
+  declarations: PropDeclarations,
+  word: string,
+): ReadonlyArray<string> => {
+  const vault: Array<string> = []
+  const claimed: Array<string> = []
+  for (const [key, declared] of declarations) {
+    if (declared.type.kind !== "contributed" || declared.type.word !== word) continue
+    if (declared.at === "") claimed.push(key)
+    else vault.push(key)
+  }
+  return vault.length === 0 ? claimed : [...vault, ...claimed]
+}
+
+/**
  * WHAT THIS RECORD SAYS UNDER A KEY OF THIS KIND — the value, found by the
  * DECLARATION rather than by the key's name.
  *
@@ -1444,13 +1493,26 @@ const wrongRef = (
  * Eight, because the enums this is really for have two to four members and the
  * cap should never fire on one — a refusal that says "and 0 more" would be a
  * cap that had started deciding things.
+ *
+ * EXPORTED BESIDE {@link listed} and for its reason: a finding that names
+ * records in its sentence AND as related sites has to cap both at one number,
+ * or the sentence says eight and the error view draws two hundred rows.
  */
-const NAMED_AT_MOST = 8
+export const NAMED_AT_MOST = 8
 
 /** The variants a refusal shows, capped — the first few and a count, never a
  *  wall. `join`ed with the separator the sentence is built around, since a sum
- *  reads as `a | b` and a roster as a list. */
-const listed = (all: ReadonlyArray<string>, between: string): string =>
+ *  reads as `a | b` and a roster as a list.
+ *
+ *  EXPORTED FOR ONE OTHER SENTENCE, and it is the same sentence-shaped problem
+ *  rather than a general-purpose helper escaping: {@link ./rules.ts}'s
+ *  `reportLegacyKeys` names the records still holding a retired key, and a
+ *  vault with two hundred of them would put its whole node list in one finding
+ *  — the very failure the cap above was added for. One cap, one wording, one
+ *  place to move them both. It is NOT on the package's surface
+ *  ({@link ./index.ts} lists what leaves), because a caller outside the
+ *  validator wording a refusal of its own is not a thing this idiom is for. */
+export const listed = (all: ReadonlyArray<string>, between: string): string =>
   all.slice(0, NAMED_AT_MOST).map((one) => `\`${one}\``).join(between) +
   (all.length > NAMED_AT_MOST ? `, and ${all.length - NAMED_AT_MOST} more` : "")
 

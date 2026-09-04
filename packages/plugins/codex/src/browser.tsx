@@ -13,7 +13,7 @@ export default definePlugin({
   needs: [Slots],
   apply: Effect.gen(function*() {
     const slots = yield* Slots
-    yield* slots.register("chat.speaker.mark", CodexMark)
-    yield* slots.register("chat.agent.install", INSTALL)
+    yield* slots.register("delivery.mark", CodexMark)
+    yield* slots.register("engine.install", INSTALL)
   }),
 })

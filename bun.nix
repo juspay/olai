@@ -350,7 +350,6 @@
   };
   "@olai/acp" = copyPathToStore ./packages/acp;
   "@olai/bundle" = copyPathToStore ./packages/bundle;
-  "@olai/chat" = copyPathToStore ./packages/chat;
   "@olai/child" = copyPathToStore ./packages/child;
   "@olai/effect-cordis" = copyPathToStore ./packages/effect-cordis;
   "@olai/fonts" = copyPathToStore ./packages/fonts;
@@ -1585,6 +1584,7 @@
     url = "https://registry.npmjs.org/object-inspect/-/object-inspect-1.13.4.tgz";
     hash = "sha512-W67iLl4J2EXEGTbfeHCffrjDfitvLANg0UlX3wFUUSTx92KXRFegMHUVgSqE+wvhAbi4WqjGg9czysTV2Epbew==";
   };
+  "olai-plugin-chat" = copyPathToStore ./packages/plugins/chat;
   "olai-plugin-claude" = copyPathToStore ./packages/plugins/claude;
   "olai-plugin-codex" = copyPathToStore ./packages/plugins/codex;
   "olai-plugin-kolu" = copyPathToStore ./packages/plugins/kolu;

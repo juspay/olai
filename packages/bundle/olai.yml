@@ -28,6 +28,26 @@
 # what an operator said and what the build has stay two readable things, and
 # `--dump-config` can later show both. Omitting the flag writes no patch at all,
 # which is how a row's own `disabled` survives being the built-in default.
+# THE CHAT, FIRST — because everything else on this list names one of its doors.
+#
+# One row, and it is the row that made this file's grammar honest: chat was
+# CORE until phase 7, so `--plugins=` served an outliner that still carried a
+# panel, a roster, fourteen procedures and four services nobody could turn off.
+# It is a plugin now, with both halves, and a serve that does not name it has no
+# `surface/chat/` on the wire, no panel in the tab and no conversation anywhere.
+#
+# IT IS FIRST BECAUSE IT OFFERS. `Agents`, `Deliveries`, `Watching` and
+# `chat/session-start` are doors this row stands behind (`@olai/plugin-api`'s
+# `Offers`), and every engine and every tenant below NAMES one of them — so a
+# serve without this row leaves all of them `waiting`, which the preferences
+# panel says out loud, per row, on whose account. That is the paper's rule and
+# the ruling that took this phase accepted its cost.
+#
+# The order is not what makes any of that work — the runtime is reactive, and a
+# row that mounts late is picked up when its `apply` provides — but this file is
+# read by people, and the thing everything else waits on reads first.
+- id: chat
+  name: olai-plugin-chat/server
 # THE ENGINES, FIRST AND IN THE ORDER THE PICKER DRAWS THEM.
 #
 # One row per ACP agent olai can seat, and ORDER IS LOAD-BEARING HERE in a way

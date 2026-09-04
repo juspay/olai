@@ -4,7 +4,7 @@
  * ## Why this entry exists
  *
  * The sixth sitting's fence has ZERO exceptions: product-tier `@kolu/*` lives
- * in this package and in `olai-plugin-kolu`, its tenant, and nowhere else. `@olai/chat` reached
+ * in this package and in `olai-plugin-kolu`, its tenant, and nowhere else. `olai-plugin-chat` reached
  * `@kolu/detect` directly — the one app package importing a kolu product
  * package over this receptacle's head — and the human ruled Option B: the
  * import moves behind a door here, and the checkmate grep is absolute rather
@@ -15,9 +15,9 @@
  * a reviewer has to remember, which is weaker than a wall — "discipline dressed
  * as physics", in the seat that proposed it and then retracted it.
  *
- * WHO COMES THROUGH THIS DOOR IS `olai-plugin-kolu` NOW, not `@olai/chat`:
+ * WHO COMES THROUGH THIS DOOR IS `olai-plugin-kolu` NOW, not `olai-plugin-chat`:
  * the plugin wall moved the judgement below into the package whose whole
- * subject is kolu, and `@olai/chat` no longer names this appliance in any line
+ * subject is kolu, and `olai-plugin-chat` no longer names this appliance in any line
  * of code or on its manifest. The door is unchanged and its argument is
  * stronger for the move — a plugin reaching a product package through this
  * receptacle is the same wall holding one tenant instead of two.

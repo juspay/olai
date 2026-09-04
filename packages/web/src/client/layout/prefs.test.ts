@@ -2,16 +2,16 @@ import { expect, test } from "bun:test"
 
 import {
   CHAT_DEFAULT_PX,
-  CHAT_MAX_PX,
-  CHAT_MIN_PX,
-  CHAT_WIDTH_KEY,
+  PANEL_MAX_PX,
+  PANEL_MIN_PX,
+  PANEL_WIDTH_KEY,
   clamp,
   fitWidths,
   MIN_MAIN_PX,
   parsePx,
   parseSnap,
   RAIL_WIDTH_PX,
-  setChatWidth,
+  setPanelWidth,
   setSidebarWidth,
   SIDEBAR_DEFAULT_PX,
   SIDEBAR_MAX_PX,
@@ -60,26 +60,26 @@ test("the width setters forward persist: false, so a pointermove writes nothing"
   // none, and `readPreference` reads that absence as null either way.
   remembering((store) => {
     setSidebarWidth(300, { persist: false })
-    setChatWidth(300, { persist: false })
+    setPanelWidth(300, { persist: false })
     expect(store.size).toBe(0)
     setSidebarWidth(301)
-    setChatWidth(302)
+    setPanelWidth(302)
     expect(store.get(SIDEBAR_WIDTH_KEY)).toBe("301")
-    expect(store.get(CHAT_WIDTH_KEY)).toBe("302")
+    expect(store.get(PANEL_WIDTH_KEY)).toBe("302")
   })
 })
 
 test("fitWidths keeps a main pane on a 1024px laptop at max stored widths", () => {
   const { side, chat } = fitWidths(
     SIDEBAR_MAX_PX,
-    CHAT_MAX_PX,
+    PANEL_MAX_PX,
     true,
     true,
     1024,
   )
   expect(side + chat + MIN_MAIN_PX).toBeLessThanOrEqual(1024)
   expect(side).toBeGreaterThanOrEqual(SIDEBAR_MIN_PX)
-  expect(chat).toBeGreaterThanOrEqual(CHAT_MIN_PX)
+  expect(chat).toBeGreaterThanOrEqual(PANEL_MIN_PX)
 })
 
 test("fitWidths leaves defaults alone on a wide screen", () => {
@@ -95,6 +95,6 @@ test("fitWidths leaves defaults alone on a wide screen", () => {
 })
 
 test("fitWidths with chat only leaves room for the rail", () => {
-  const { chat } = fitWidths(SIDEBAR_DEFAULT_PX, CHAT_MAX_PX, false, true, 600)
+  const { chat } = fitWidths(SIDEBAR_DEFAULT_PX, PANEL_MAX_PX, false, true, 600)
   expect(chat + RAIL_WIDTH_PX + MIN_MAIN_PX).toBeLessThanOrEqual(600)
 })

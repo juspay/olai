@@ -115,6 +115,27 @@ export const BuiltPlugin = Schema.Struct({
    */
   fault: Schema.optionalKey(Schema.String),
   /**
+   * WHAT A `waiting` ROW IS SHORT OF — the service tags nobody is behind, by
+   * the words this tree spells them with.
+   *
+   * The half of `waiting` that is worth reading. A row waits because it named a
+   * service and no row offers it; a panel that says only *waiting for something
+   * it needs* is telling a person that something is wrong and nothing about
+   * what, on the one screen whose whole job is to say what to do next. Under
+   * `--plugins=kolu` the answer is `deliveries`, and the answer to THAT is
+   * "compose the chat row" — which is a sentence somebody can act on.
+   *
+   * CORE'S OWN VOCABULARY, unlike {@link fault}, which is why core names these
+   * and composes no clause of that one: a tag is a key in this tree's table
+   * rather than anybody's prose.
+   *
+   * OPTIONAL, for {@link state}'s two reasons: a serve too old to send it, and
+   * a fiber PENDING with nothing named yet — a settle still in flight, where
+   * naming nothing is the honest answer and an empty list would be a row
+   * claiming to wait on no one.
+   */
+  missing: Schema.optionalKey(Schema.Array(Schema.String)),
+  /**
    * THE DOORBELL'S SENTENCE, when this plugin can wake a conversation — the
    * plugin's own words, travelling as data.
    *
@@ -298,7 +319,7 @@ export type PluginRoster = typeof PluginRoster.Type
  * feature inverts: the browser asks it to decide what the picker OFFERS
  * (`@olai/web`'s `chat/scopable.ts`), and the serve asks it per revision to
  * decide whether a STORED pick is a fault (`@olai/server`'s `runtime.ts`, over
- * `@olai/chat`'s `Chat.faults`). Spelled twice, the day they drift is the day
+ * `olai-plugin-chat`'s `Chat.faults`). Spelled twice, the day they drift is the day
  * the picker offers a file the serve faults on the instant somebody presses it
  * — a control that hands out its own error. Neither of those packages can
  * import the other; this is the member they share, so the reading lives beside

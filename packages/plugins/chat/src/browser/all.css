@@ -1,0 +1,30 @@
+/* THIS PLUGIN'S SHEET — a `@source` at every face this row draws.
+ *
+ * THE FAILURE IS SILENT, which is why this file exists rather than a note in a
+ * README. `@olai/web`'s `styles.css` carries `@source "./"` — the APP's own tree
+ * — and Tailwind emits ONLY the utilities it can SEE. The panel, the transcript,
+ * the composer, the wake strip, the agents roster and the door on a row spell
+ * several hundred utilities between them; the day they left `client/chat/` and
+ * `client/agents/` for this package, nothing pointed at them any more. Not a
+ * missing style: a panel with no box, a transcript with no type scale, and no
+ * compiler saying a word about it.
+ *
+ * ## ONE `@source` AND NO CHAIN, which is the difference from the tenants
+ *
+ * `olai-plugin-kolu`'s sheet chains its appliance's, because that appliance is a
+ * separate tree with its own scan path and its own prerequisites — and `@source`
+ * is RELATIVE to the file it is written in, so a single sheet naming somebody
+ * else's directory would be a sheet holding facts about their layout. This
+ * plugin has no appliance: every face it draws is under this directory, so one
+ * scan path covers all of them and there is nothing to chain.
+ *
+ * ## AND THE BYTES ARE THE BUILD'S, not the serve's
+ *
+ * A serve run with `--plugins=` still ships these utilities, because a
+ * stylesheet is built once for the bundle and `--plugins` is a decision the
+ * SERVE makes. That is the honest cost of compiled-in plugins and it is the same
+ * one the wire already pays. What a serve leaves out is the CHUNK — the browser
+ * fetches a plugin's code only for a name the roster gave it — so the panel is
+ * not evaluated, not mounted and not drawn; what survives is the CSS that would
+ * have styled it. */
+@source "./";

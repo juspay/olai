@@ -21,13 +21,14 @@
   "dependencies": {
     "@olai/effect-cordis": "workspace:*",
     "@olai/plugin-api": "workspace:*",
+    "effect": "4.0.0-rc.112",
+    "olai-plugin-chat": "workspace:*",
     "olai-plugin-claude": "workspace:*",
     "olai-plugin-codex": "workspace:*",
     "olai-plugin-kolu": "workspace:*",
     "olai-plugin-odu": "workspace:*",
     "olai-plugin-opencode": "workspace:*",
     "olai-plugin-pi": "workspace:*",
-    "olai-plugin-xyne-spaces": "workspace:*",
-    "effect": "4.0.0-rc.112"
+    "olai-plugin-xyne-spaces": "workspace:*"
   }
 }

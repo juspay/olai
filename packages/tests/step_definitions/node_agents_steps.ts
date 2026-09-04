@@ -8,7 +8,7 @@
  *
  * Everything is addressed by the NODE'S OWN ID, on both faces, which is what
  * makes that possible: `data-agent` is the node id on the roster row and on the
- * door alike (`@olai/web`'s `agents/`), so one scenario names one thing twice
+ * door alike (`olai-plugin-chat`'s `browser/agents/`), so one scenario names one thing twice
  * and never a title that two faces might spell differently.
  *
  * The STANDING is read off `data-standing` rather than off the words, on this
@@ -22,20 +22,29 @@
 import assert from "node:assert/strict";
 import { Then, When } from "@cucumber/cucumber";
 
-import { selector, TESTID } from "@olai/web/testlib";
+import { selector } from "@olai/web/testlib";
+// ...and the ids themselves from the PLUGIN that draws them. The roster, the
+// door and the panel are `olai-plugin-chat`'s faces since chat became a
+// plugin, so their names are its `./testids` door, merged for this suite by the
+// registry — the same route the padi pill's ids take (`support/world.ts`
+// argues it where the import sits).
+import { PLUGIN_TESTID } from "@olai/bundle/testids";
 
 import { attr } from "../support/selectors.ts";
 import { answering } from "../support/shortlist.ts";
+import fs from "node:fs";
+import path from "node:path";
+
 import { POLL_TIMEOUT } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
-const ROSTER = selector(TESTID.agentRoster);
-const ROW = selector(TESTID.agentRow);
-const DOOR = selector(TESTID.agentDoor);
-const SAID = selector(TESTID.agentSaid);
-const REFUSED = selector(TESTID.agentRefused);
-const CHAT_SESSIONS = selector(TESTID.chatSessions);
-const CHAT_INPUT = selector(TESTID.chatInput);
+const ROSTER = selector(PLUGIN_TESTID.agentRoster);
+const ROW = selector(PLUGIN_TESTID.agentRow);
+const DOOR = selector(PLUGIN_TESTID.agentDoor);
+const SAID = selector(PLUGIN_TESTID.agentSaid);
+const REFUSED = selector(PLUGIN_TESTID.agentRefused);
+const CHAT_SESSIONS = selector(PLUGIN_TESTID.chatSessions);
+const CHAT_INPUT = selector(PLUGIN_TESTID.chatInput);
 
 /** One roster row, by the node it is about. */
 const rowFor = (world: OlaiWorld, node: string) =>
@@ -179,7 +188,7 @@ When("I press the agent {string}", async function (this: OlaiWorld, node: string
 
 /** ... and the one claim that gesture may only make by NOT drawing: a press
  *  that could not do something says so on the roster's own refused line
- *  (`TESTID.agentRefused`), so an unbound row — pressed the way it is
+ *  (`PLUGIN_TESTID.agentRefused`), so an unbound row — pressed the way it is
  *  SUPPOSED to be pressed — leaves exactly nothing there. Read after the
  *  press's other halves have settled: a refusal worth reading about would
  *  have arrived before the route moved. */
@@ -206,7 +215,7 @@ When("I press the door on {string}", async function (this: OlaiWorld, node: stri
  *
  * TWO OF THEM since migration, because there are two contracts — one for a
  * session olai OPENED for a node and one for a chat somebody ASSIGNED to it
- * (`@olai/chat`'s `teaching.ts`) — and "how many times was this session told
+ * (`olai-plugin-chat`'s `teaching.ts`) — and "how many times was this session told
  * what it is" is one question about both. WHICH of the two went out is asserted
  * by the steps under this one, where the words are the claim.
  */
@@ -298,19 +307,19 @@ Then(
 // chat by the TITLE its agent stored it under, a node by its own id — so a
 // scenario names the same thing the property does.
 
-const UNASSIGNED = selector(TESTID.agentUnassigned);
-const UNASSIGNED_COUNT = selector(TESTID.agentUnassignedCount);
-const LIST = selector(TESTID.unassignedPanel);
-const CHAT = selector(TESTID.unassignedChat);
-const ASSIGN = selector(TESTID.unassignedAssign);
-const DONE = selector(TESTID.unassignedDone);
-const EMPTY = selector(TESTID.unassignedEmpty);
-const ASSIGN_SEARCH = selector(TESTID.assignSearch);
-const ASSIGN_HIT = selector(TESTID.assignHit);
-const ASSIGN_REFUSED = selector(TESTID.assignRefused);
-const PAST = selector(TESTID.chatPastSessions);
-const PAST_SESSION = selector(TESTID.chatPastSession);
-const FRESH = selector(TESTID.chatFreshSession);
+const UNASSIGNED = selector(PLUGIN_TESTID.agentUnassigned);
+const UNASSIGNED_COUNT = selector(PLUGIN_TESTID.agentUnassignedCount);
+const LIST = selector(PLUGIN_TESTID.unassignedPanel);
+const CHAT = selector(PLUGIN_TESTID.unassignedChat);
+const ASSIGN = selector(PLUGIN_TESTID.unassignedAssign);
+const DONE = selector(PLUGIN_TESTID.unassignedDone);
+const EMPTY = selector(PLUGIN_TESTID.unassignedEmpty);
+const ASSIGN_SEARCH = selector(PLUGIN_TESTID.assignSearch);
+const ASSIGN_HIT = selector(PLUGIN_TESTID.assignHit);
+const ASSIGN_REFUSED = selector(PLUGIN_TESTID.assignRefused);
+const PAST = selector(PLUGIN_TESTID.chatPastSessions);
+const PAST_SESSION = selector(PLUGIN_TESTID.chatPastSession);
+const FRESH = selector(PLUGIN_TESTID.chatFreshSession);
 
 /** HOW MANY the row says, waited for rather than read once: the count is a
  *  difference between an answer from the agents and a cell that moves on every
@@ -502,6 +511,19 @@ Then(
   },
 );
 
+/** PRESS THE FRESH SESSION — the one gesture that re-points a node's property,
+ *  wherever the panel is drawing it.
+ *
+ *  It has two homes and this step names neither: the session picker in the
+ *  header, and the refusal body drawn when the engine would not open the
+ *  conversation the node names. The second is the one the trap needs, and a step
+ *  that spelled a location would have to be two steps for one act. */
+When("I start a fresh session", async function (this: OlaiWorld) {
+  const fresh = this.page.locator(FRESH);
+  await fresh.first().waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await fresh.first().click();
+});
+
 /** A conversation no node claims has no sessions control at all — the header
  *  offers its own history only where there IS one, and the way to every other
  *  stored conversation is the sidebar. Waited for rather than read once: the
@@ -529,7 +551,7 @@ Then("the unassigned list is not drawn", async function (this: OlaiWorld) {
 Then(
   "the panel refuses, saying {string}",
   async function (this: OlaiWorld, words: string) {
-    const line = this.page.locator(selector(TESTID.chatRefused));
+    const line = this.page.locator(selector(PLUGIN_TESTID.chatRefused));
     await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     assert.ok(
       (await line.innerText()).replaceAll("\n", " ").includes(words),
@@ -538,3 +560,97 @@ Then(
     );
   },
 );
+
+/** WHOSE CONVERSATION THE PANEL IS IN, off the header's own line
+ *  (`PLUGIN_TESTID.chatNode`) — the node agent, by the title a person reads it
+ *  under rather than by its id.
+ *
+ *  Its own step because of the one place it is asserted from: a REFUSED open,
+ *  where the panel has no conversation at all and used to have no node either.
+ *  The node is what draws that agent's session control, which is the only way
+ *  out of a conversation the engine has lost — so "the header still names the
+ *  agent" is the claim the way out stands on, and it is worth making before
+ *  pressing anything. */
+Then(
+  "the panel header names the node agent {string}",
+  async function (this: OlaiWorld, title: string) {
+    const line = this.page.locator(selector(PLUGIN_TESTID.chatNode));
+    await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.ok(
+      (await line.innerText()).replaceAll("\n", " ").includes(title),
+      `the panel header to name the node agent ${JSON.stringify(title)}, and it says ` +
+        JSON.stringify((await line.innerText()).replaceAll("\n", " ")),
+    );
+  },
+);
+
+// ── the migration a board that predates the rename is owed ─────────────
+//
+// `agent-session` was a key core owned outright; it is chat's kind
+// `chat-agent-session` now, and a plugin may only ever declare a key carrying
+// its own name — so a vault already using the bare word keeps values nothing
+// declares, and loses its agents with nothing saying why.
+//
+// The notice is the PLUGIN'S and it is drawn in the agents section, which is
+// empty exactly then. It was a validator finding for a revision, and the cost
+// of that is what these steps exist to keep away from: a finding breaks the
+// file it is filed on, the only honest file for this one is the declarations
+// page, so the notice put that page into errors-only and refused every other
+// write to it until somebody pasted the row.
+
+/** The state every existing vault is in on the release that renames the key:
+ *  the records still carry the bare word, and no declaration judges it. Written
+ *  into the served copy the way a person's own vault already is. */
+When(
+  "the vault has not declared the binding key yet",
+  async function (this: OlaiWorld) {
+    const kept = fs
+      .readFileSync(path.join(this.scratch(), "_olai/Properties.olai"), "utf8")
+      .split("\n")
+      .filter((line) => line.trim() !== "" && !line.includes("chat-agent-session"))
+      .join("\n");
+    this.writeServed("_olai/Properties.olai", `${kept}\n`);
+  },
+);
+
+/** What the section says about it — the sentence, by a phrase of it. */
+Then(
+  "the agents section says {string}",
+  async function (this: OlaiWorld, said: string) {
+    await this.showSidebar();
+    const notice = this.page.locator(selector(PLUGIN_TESTID.agentMigration));
+    await notice.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const words = (await notice.innerText()).replaceAll("\n", " ");
+    assert.ok(
+      words.includes(said),
+      `the agents section to say ${JSON.stringify(said)}, and it says ` +
+        JSON.stringify(words),
+    );
+  },
+);
+
+/** ...and the row itself, which is the half a person acts on. Asserted apart
+ *  from the prose so a reworded sentence cannot quietly change the JSON. */
+Then(
+  "the agents section offers the row:",
+  // A DOCSTRING and not a `{string}`: the row is JSON, and a cucumber
+  // expression reads `{` as the start of a parameter — so the one thing this
+  // claim is about cannot be written inline.
+  async function (this: OlaiWorld, row: string) {
+    const at = this.page.locator(selector(PLUGIN_TESTID.agentMigrationRow));
+    await at.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual((await at.innerText()).trim(), row);
+  },
+);
+
+/** THE ROW PASTED, which is the whole of the fix — written the way a person
+ *  writes it, into the file the notice named. */
+When("I paste that row into the declarations", async function (this: OlaiWorld) {
+  const at = this.page.locator(selector(PLUGIN_TESTID.agentMigrationRow));
+  await at.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const row = (await at.innerText()).trim();
+  const kept = fs
+    .readFileSync(path.join(this.scratch(), "_olai/Properties.olai"), "utf8")
+    .trimEnd();
+  this.writeServed("_olai/Properties.olai", [kept, row].join("\n"));
+});

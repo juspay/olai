@@ -28,7 +28,8 @@
  * believing their outline had gone back and reading one that had not.
  */
 
-import type { Applied, Edit, OpFailure } from "@olai/surface"
+import type { Applied, Edit } from "@olai/surface"
+import type { OpFailure } from "@olai/format"
 import { type Accessor, createContext, createSignal, useContext } from "solid-js"
 import { Result } from "effect"
 

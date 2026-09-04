@@ -12,18 +12,18 @@ The [Agent Client Protocol](https://agentclientprotocol.com)'s vocabulary as ola
 | `usage.ts` | the protocol's `usage_update`, read as data: how full the conversation's context is, and how big the window is. Here rather than in one of the engines' legs because it is ACP's own update kind — any agent may send one — and the cost it also carries is deliberately not read |
 | `leg.ts` + `engine.ts` | what one AGENT means by what it sends, and what it takes to seat one on a host: the `Leg` interface (a `_meta` one adapter writes, a tool-naming convention one CLI uses, a permission mode one has and another refuses), the `Adapter` to spawn, the `Where` a probe is given, the sentence for a machine that has none, and the channel a standing prompt rides. On its own `./engine` subpath — see below |
 
-Everything is a pure function over a payload. Nothing here waits, spawns, or knows a subprocess exists — the subprocess that speaks these words is `@olai/chat`'s, and stays there.
+Everything is a pure function over a payload. Nothing here waits, spawns, or knows a subprocess exists — the subprocess that speaks these words is `olai-plugin-chat`'s, and stays there.
 
 ## The seam, and the manifest
 
-This is a LEAF that speaks ACP and nothing of olai: no `@olai/*` import. So the domain's refusal word (`UsageFailure`) does not appear here — a payload this vocabulary cannot say comes back as this package's own one word, `Refused`, and `@olai/chat` translates it at the seam it consumes this from (`questions.ts`), once.
+This is a LEAF that speaks ACP and nothing of olai: no `@olai/*` import. So the domain's refusal word (`UsageFailure`) does not appear here — a payload this vocabulary cannot say comes back as this package's own one word, `Refused`, and `olai-plugin-chat` translates it at the seam it consumes this from (`questions.ts`), once.
 
 What may cross the boundary is machine-checked rather than agreed by comment: `src/manifest.test.ts` enumerates the package's imports (only `effect` and the SDK's types), its closed export list, where the SDK may be imported at all, and who may open which of the three doors.
 
 ## Why an ENGINE'S shape lives here
 
-`./engine` is the third door and it has the most readers, which is what it is for. An ACP engine is a PLUGIN — `olai-plugin-claude`, `olai-plugin-opencode`, `olai-plugin-pi`, one directory and one row each — and the shape it registers is spelled by two ends that are forbidden each other: a plugin may not import `@olai/chat` (chat sits a floor BELOW the plugin system: it is handed a list, and `@olai/server` is what meets a plugin), and `@olai/chat` may not import a plugin (that is the fence). The shape they both spell therefore has to be under both of them.
+`./engine` is the third door and it has the most readers, which is what it is for. An ACP engine is a PLUGIN — `olai-plugin-claude`, `olai-plugin-opencode`, `olai-plugin-pi`, one directory and one row each — and the shape it registers is spelled by two ends that are forbidden each other: a plugin may not import `olai-plugin-chat` (chat sits a floor BELOW the plugin system: it is handed a list, and `@olai/server` is what meets a plugin), and `olai-plugin-chat` may not import a plugin (that is the fence). The shape they both spell therefore has to be under both of them.
 
 This package is where it belongs on merit rather than by elimination: an engine is *an ACP agent and how to reach one*, and the protocol is the language rather than an integration. A `Leg` is a reading of one speaker's spelling of that language, which is the same kind of thing `asks.ts` and `diffs.ts` are one degree less specifically.
 
-What is deliberately NOT on that door: the standing prompt's TEXT (one core module, versioned with the binary — only the CHANNEL is the engine's), and the SPAWN, which is `@olai/chat`'s because that is the package that speaks the protocol out loud.
+What is deliberately NOT on that door: the standing prompt's TEXT (one core module, versioned with the binary — only the CHANNEL is the engine's), and the SPAWN, which is `olai-plugin-chat`'s because that is the package that speaks the protocol out loud.

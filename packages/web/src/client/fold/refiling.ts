@@ -88,8 +88,7 @@ import { Result } from "effect"
 import { createEffect } from "solid-js"
 
 import type { HomesAnswer, HomesRequest } from "@olai/format"
-import type { OpFailure } from "@olai/surface"
-
+import type { OpFailure } from "@olai/format"
 import { askingOf, folded, homesOf, type Memory, refiled } from "./memory.ts"
 
 /**

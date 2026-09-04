@@ -5,7 +5,7 @@
  * longer fetches, so the throw is the face.
  */
 
-import { BusyFailure } from "@olai/surface"
+import { BusyFailure } from "@olai/format"
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 

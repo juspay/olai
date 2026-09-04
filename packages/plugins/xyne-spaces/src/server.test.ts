@@ -24,7 +24,16 @@ import { join } from "node:path"
 import { readingOf, setOf } from "@olai/format/testlib"
 import type { ConversationSeen, Deliveries, PluginHeld } from "@olai/plugin-api"
 import type { SpacesLink } from "./wire.ts"
-import { mountPlugin, openPlugins, type Registered, standing } from "@olai/plugin-api/services"
+import {
+  definePlugin,
+  Deliveries as DeliveriesDoor,
+  mountPlugin,
+  Offers,
+  openPlugins,
+  type Registered,
+  standing,
+  Watching,
+} from "@olai/plugin-api/services"
 import { expect, test } from "bun:test"
 import { Effect, Scope } from "effect"
 
@@ -92,13 +101,46 @@ const mounted = async (doubles: Doubles) => {
     now: doubles.now,
     served: doubles.served,
     dials: { "xyne-spaces": doubles.dial },
-    doorFor: () => ({
-      scopes: () => [],
-      ringing: () => [],
-      deliver: doubles.deliver ?? (() => Effect.void),
-    }),
     heldFor: () => held,
   }))
+  // A STAND-IN CHAT ROW, because that is what a serve HAS. `deliveries` and
+  // `watching` are the chat plugin's to keep and core provides neither, so a
+  // plugin that names one is `waiting` until a row offers it. This harness used
+  // to be handed both by `openPlugins` through a config field no serve ever
+  // passed, which meant the bench composed a shape that does not exist. It
+  // offers them the way the real row does instead, and the two ends these cases
+  // drive — the deliveries double, and the conversation bus — hang off that
+  // offer. MOUNTED FIRST for the same reason: spaces names them, so it is
+  // PENDING until they are there and has composed no sibling to read.
+  const watchers: Array<(event: ConversationSeen) => Effect.Effect<void>> = []
+  await run(mountPlugin(
+    plugins.host,
+    definePlugin({
+      name: "chat",
+      needs: [Offers],
+      apply: Effect.gen(function*() {
+        const offers = yield* Offers
+        yield* offers.offer(DeliveriesDoor, () => ({
+          scopes: () => [],
+          ringing: () => [],
+          deliver: doubles.deliver ?? (() => Effect.void),
+        }))
+        yield* offers.offer(Watching, () => ({
+          subscribe: (handler) =>
+            Effect.acquireRelease(
+              Effect.sync(() => {
+                watchers.push(handler)
+              }),
+              () =>
+                Effect.sync(() => {
+                  const at = watchers.indexOf(handler)
+                  if (at >= 0) watchers.splice(at, 1)
+                }),
+            ),
+        }))
+      }),
+    }),
+  ))
   const plugin = await run(mountPlugin(plugins.host, spaces))
   const sibling = (): Registered => {
     const one = plugins.composed()[0]
@@ -121,7 +163,7 @@ const mounted = async (doubles: Doubles) => {
       if (snapshot !== undefined) return run(plugins.published(snapshot))
       const reading = readingOf(setOf({
         "board.olai": rec("orch", {
-          "agent-session": "claude:s-1",
+          "chat-agent-session": "claude:s-1",
           "xyne-channel": "ch-team",
         }),
       }))
@@ -131,8 +173,11 @@ const mounted = async (doubles: Doubles) => {
         removed: [],
       }))
     },
-    /** ...and one conversation event, the way it pushes one. */
-    emit: (event: ConversationSeen): Promise<void> => run(plugins.saw(event)),
+    /** ...and one conversation event, the way the row that owns the bus pushes
+     *  one — awaiting every subscriber, which is what makes a case that emits
+     *  and then asserts read the settled mirror rather than a race. */
+    emit: (event: ConversationSeen): Promise<void> =>
+      run(Effect.forEach(watchers, (handler) => handler(event), { discard: true })),
     /** ...and the plugin going away, which is what every case ends with: the
      *  mirrors stop, the subscription comes off the bus, and the sibling leaves
      *  the table. */

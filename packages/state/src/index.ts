@@ -18,9 +18,9 @@
  *     clears it.
  *   - the STATE home is for something that SHOULD survive a restart and means
  *     nothing to anybody else — which conversation the chat panel was in
- *     (`@olai/chat`'s `memory.ts`), which doorbell each conversation picked
- *     (`@olai/chat`'s `scopes.ts`), what olai overheard a conversation do
- *     (`@olai/chat`'s `heard.ts`), and a plugin's hold (threads, a queue)
+ *     (`olai-plugin-chat`'s `memory.ts`), which doorbell each conversation picked
+ *     (`olai-plugin-chat`'s `scopes.ts`), what olai overheard a conversation do
+ *     (`olai-plugin-chat`'s `heard.ts`), and a plugin's hold (threads, a queue)
  *     handed through core as `PluginServices.held`. After git left this
  *     package the state home has three {@link Kind}s plus a per-plugin hold —
  *     {@link Kind} says why the split is by what each record survives.
@@ -50,11 +50,11 @@
  * runtime home and digest, and the chat panel's state home and digest. A git
  * policy used to live here too and no longer does — chat, what a conversation
  * overheard, and a plugin's hold are the remaining tenants, the hold reached
- * through core so this leaf stays out of every plugin. `@olai/chat`'s `memory.ts` named this module before it existed
+ * through core so this leaf stays out of every plugin. `olai-plugin-chat`'s `memory.ts` named this module before it existed
  * ("not a receptacle for where this machine keeps olai's state, though that is
  * what it would be at population two") and it is a LEAF for the same reason
  * `@olai/git` is: it knows about a filesystem and nothing about outlines, git,
- * a wire or a writer. `@olai/chat` sits beside `@olai/server` rather than under
+ * a wire or a writer. `olai-plugin-chat` sits beside `@olai/server` rather than under
  * it, so a home they could both reach had to be below both.
  *
  * ## What it does with a failure
@@ -340,7 +340,7 @@ let staging = 0
  * another call's.
  *
  * IT USED TO BE `<file>.<pid>.tmp`, one name per destination per process, and
- * the hazard was patched TWICE ABOVE before it was closed here: `@olai/chat`'s
+ * the hazard was patched TWICE ABOVE before it was closed here: `olai-plugin-chat`'s
  * `agent.ts` put a semaphore around the one writer of its memory note, and
  * `scopes.ts` took a second one on the strength of the same reading. A leaf
  * that is only correct while every tenant remembers to queue is a leaf that is

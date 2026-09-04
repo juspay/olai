@@ -28,7 +28,7 @@ const key = (
 test("on Apple, Meta bindings fire and bare Ctrl does not", () => {
   expect(matchKey(key("k", { meta: true }), "MacIntel")?.action).toBe("palette")
   expect(matchKey(key("k", { ctrl: true }), "MacIntel")).toBeNull()
-  expect(matchKey(key("j", { meta: true }), "MacIntel")?.action).toBe("chat")
+  expect(matchKey(key("j", { meta: true }), "MacIntel")?.action).toBe("panel")
   expect(matchKey(key("\\", { meta: true }), "MacIntel")?.action).toBe("sidebar")
 })
 
@@ -37,7 +37,7 @@ test("elsewhere, Ctrl bindings fire and bare Meta does not", () => {
     "palette",
   )
   expect(matchKey(key("k", { meta: true }), "Linux x86_64")).toBeNull()
-  expect(matchKey(key("j", { ctrl: true }), "Linux x86_64")?.action).toBe("chat")
+  expect(matchKey(key("j", { ctrl: true }), "Linux x86_64")?.action).toBe("panel")
 })
 
 test("shifted and bare keys are ignored", () => {

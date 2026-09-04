@@ -194,7 +194,7 @@ export const PI: Leg = {
   // Nothing is read off a frame — the name corners this adapter writes are
   // its terminal bookkeeping, and `title` on this wire is display text — so
   // nothing about a call is remembered either: the name is in the key the
-  // question arrives under (`@olai/chat`'s `calls.ts`).
+  // question arrives under (`olai-plugin-chat`'s `calls.ts`).
   toolNameIn: () => null,
   toolNameOf,
   allowedWithoutAsking,

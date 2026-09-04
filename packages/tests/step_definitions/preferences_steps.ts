@@ -38,6 +38,8 @@ import {
   attr,
   HYDRATION_TIMEOUT,
   PANE,
+  PLUGINS_PANEL,
+  PLUGINS_TRIGGER,
   POLL_TIMEOUT,
   PREFS_CHOICE,
   PREFS_HINT,
@@ -916,6 +918,46 @@ Then(
     assert.ok(
       !hint.includes(unwanted),
       `the Git commit row still says "${hint}", which claims ${JSON.stringify(unwanted)}`,
+    );
+  },
+);
+
+// ── the PLUGINS panel: what this build has, and what each row is doing ──
+//
+// A control of its own beside preferences, drawing the same four-part row
+// (`web/src/client/plugins/Panel.tsx`), so the reads below are the preferences
+// reads scoped to the other panel — which is exactly how the two are told
+// apart, and why `prefsRow` is one name across both.
+
+/** Open it unless it is open, on `showPreferences`'s terms and for its
+ *  reason. */
+When("I open the plugins panel", async function (this: OlaiWorld) {
+  if ((await this.page.locator(PLUGINS_PANEL).count()) > 0) return;
+  await this.press(this.page.locator(PLUGINS_TRIGGER));
+  await this.page
+    .locator(PLUGINS_PANEL)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+/**
+ * WHAT ONE PLUGIN'S ROW SAYS IT IS DOING — the hint, which is the half of the
+ * row a person can act on.
+ *
+ * By the plugin's NAME, which is the word `--plugins` takes and the label the
+ * row wears, so a scenario names the row the same way the operator who caused
+ * this state did.
+ */
+Then(
+  "the plugins panel says {string} is {string}",
+  async function (this: OlaiWorld, plugin: string, said: string) {
+    const row = this.page
+      .locator(`${PLUGINS_PANEL} ${PREFS_ROW}${attr("data-pref", `plugin-${plugin}`)}`);
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const hint = (await row.locator(PREFS_HINT).innerText()).replaceAll("\n", " ");
+    assert.ok(
+      hint.includes(said),
+      `the row for ${JSON.stringify(plugin)} to say ${JSON.stringify(said)}, ` +
+        `and it says ${JSON.stringify(hint)}`,
     );
   },
 );

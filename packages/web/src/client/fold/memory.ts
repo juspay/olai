@@ -132,7 +132,7 @@ export const withFolds = (
  * ONE MAP with three states rather than three fields, and the third state is
  * the one worth naming: an id ABSENT from it is one nothing can be concluded
  * about — either nobody asked (the reader folded it while the question was
- * out), or its file is one the set never read and so cannot testify about. It is the shape `chat/declared.ts` reads its own batch through, for
+ * out), or its file is one the set never read and so cannot testify about. It is the shape `../declared.ts` reads its own batch through, for
  * the same reason: three answers about one id, told apart without a fourth
  * value.
  *

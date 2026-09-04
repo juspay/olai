@@ -22,7 +22,7 @@
  *
  * They live together and not beside any one caller: the same rendering was a
  * private helper in `serve.ts` while `listener.ts`, one file away, hand-rolled
- * the short one — and `@olai/chat` had a third copy under a fourth name. That
+ * the short one — and `olai-plugin-chat` had a third copy under a fourth name. That
  * is the whole argument for a receptacle, in six lines.
  */
 
@@ -57,7 +57,7 @@ export const reasonOf = (cause: unknown): string =>
  * elsewhere, an `ECONNREFUSED` on a rendezvous socket is the answer "nobody is
  * home". Here for the reason the two above are: the same cast had grown a
  * private copy in `@olai/server`'s listener, another in its socket, and a third
- * in `@olai/chat` — and a hand-rolled one that reads `.code` off a `Cause`
+ * in `olai-plugin-chat` — and a hand-rolled one that reads `.code` off a `Cause`
  * rather than off the error inside it answers `undefined` to every question,
  * silently, which is the failure mode that makes this a receptacle rather than
  * a convenience.

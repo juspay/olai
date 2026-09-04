@@ -162,9 +162,12 @@ const BUILT_BY_HAND =
  *
  * All four sit inside a `page.evaluate` callback, which is serialised and run
  * in the browser where nothing importable exists to be called — and all four
- * interpolate a value from a CLOSED TABLE, a `TestId` or a diff line's
- * `add`/`remove`/`same`, so there is no value with a quote in it for them to
- * meet. Listed by the TEXT they match rather than by line, so the list survives
+ * interpolate a value from a CLOSED TABLE, a `PluginTestId` (the panel's ids
+ * are `olai-plugin-chat`'s since chat became a row; they were `TestId`s while
+ * the panel was `@olai/web`'s, and the property that matters here — a closed
+ * union of kebab-case literals — is the same either side of that move) or a
+ * diff line's `add`/`remove`/`same`, so there is no value with a quote in it
+ * for them to meet. Listed by the TEXT they match rather than by line, so the list survives
  * an edit above them and still names exactly four things.
  */
 const BY_HAND: ReadonlyArray<string> = [

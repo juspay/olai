@@ -71,7 +71,7 @@ export default definePlugin({
     // once.
     const app: SpacesApp = { desktop: bar.desktop, pill: bar.pill }
     yield* slots.register("app.header", () => <Spaces app={app} />)
-    yield* slots.register("chat.speaker.mark", SpacesMark)
+    yield* slots.register("delivery.mark", SpacesMark)
     yield* slots.register("app.mount", (props) => (
       // INSIDE the component: `use()` opens a subscription and wants an owner.
       // The cast is the one narrowing at the one edge — the value came from the

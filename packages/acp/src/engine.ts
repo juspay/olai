@@ -4,7 +4,7 @@
  *
  * ## Why this is a module and not a table
  *
- * It was a table: `KINDS` in `@olai/chat`'s `agents/roster.ts`, three rows deep,
+ * It was a table: `KINDS` in `olai-plugin-chat`'s `agents/roster.ts`, three rows deep,
  * each naming a leg, an id and a probe, with `@olai/surface`'s `AGENTS` beside
  * it as a closed union so that a fourth engine was a core PR in two packages.
  * The engines are PLUGINS now — one directory each, one row each in
@@ -15,8 +15,8 @@
  * ## Why it lives in `@olai/acp`
  *
  * Because both ends of it are forbidden the other's package. A plugin may not
- * import `@olai/chat` (chat sits a floor BELOW the plugin system: it is handed a
- * list, and `@olai/server` is what meets a plugin), and `@olai/chat` may not
+ * import `olai-plugin-chat` (chat sits a floor BELOW the plugin system: it is handed a
+ * list, and `@olai/server` is what meets a plugin), and `olai-plugin-chat` may not
  * import a plugin (that is the fence). The shape they both spell therefore has
  * to be under both of them — and `@olai/acp` is where it belongs on merit
  * rather than by elimination: an engine is *an ACP agent and how to reach it*,
@@ -28,13 +28,13 @@
  * The standing prompt's TEXT ({@link PromptChannel} carries only the channel it
  * rides), because that is one instruction versioned with the binary and not a
  * thing four engines should be free to say four ways. And the SPAWN: what to
- * do with an {@link Adapter} once you have one is `@olai/chat`'s, which is the
+ * do with an {@link Adapter} once you have one is `olai-plugin-chat`'s, which is the
  * package that speaks the protocol out loud.
  *
  * AND HOW TO GET THE ENGINE, which is the one that was here and went. A
  * `missing: NotHere` rode this registration for a revision, so an engine handed
  * over its install sentence twice: once here and once as the face its browser
- * half hangs in `chat.agent.install`. Only the face was ever read — no serve, no
+ * half hangs in `engine.install`. Only the face was ever read — no serve, no
  * log line and no cell ever touched the field — so what it bought was a second
  * authored copy of one sentence and a `null` arm whose documented behaviour ("a
  * row with none is drawn nowhere") could not be observed, because the non-null
@@ -63,7 +63,7 @@ export * from "./leg.ts"
  *   - **`olai-plugin-claude` reads it as ITS ADAPTER.** Point it at something
  *     else and you are still telling olai to read that thing the way it reads
  *     Claude Code, which is what the override has always meant.
- *   - **`@olai/chat` reads the EMPTY STRING as the whole off switch** — not
+ *   - **`olai-plugin-chat` reads the EMPTY STRING as the whole off switch** — not
  *     "no Claude row", but no roster at all, nothing probed, the panel off. The
  *     empty value survives the wrapper's `${OLAI_ACP_AGENT-…}` (an empty value
  *     is still a value), which is what makes it the explicit way to say no.
@@ -126,7 +126,7 @@ export interface Where {
  * WHERE A STANDING PROMPT GOES on this engine's wire.
  *
  * olai teaches a node agent's session one standing instruction, once
- * (`@olai/chat`'s `teaching.ts`, which argues both the words and the channel).
+ * (`olai-plugin-chat`'s `teaching.ts`, which argues both the words and the channel).
  * The TEXT of it is core's and is versioned with the binary — one contract, one
  * spelling, and a reader comparing two agents' first turns sees one law. WHICH
  * CHANNEL it rides is not: it is a fact about the engine, so the engine's own
@@ -142,7 +142,7 @@ export interface Where {
  * session.
  *
  * A SECOND ARM IS A `tsc` ERROR UNTIL CORE HANDLES IT, which is the whole point
- * of the field being data rather than an assumption: `@olai/chat` switches on
+ * of the field being data rather than an assumption: `olai-plugin-chat` switches on
  * this exhaustively, so an engine that grows a real system-prompt slot adds an
  * arm here and the compiler names every place that has to learn it — instead of
  * core growing a branch on an engine's id.
