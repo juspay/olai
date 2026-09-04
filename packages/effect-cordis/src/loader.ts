@@ -204,7 +204,35 @@ const entriesOf = (host: Host): ReadonlyArray<Entry> =>
  * `@olai/plugin-api`'s `Held` is keyed by NAME for, and the case
  * `./registry.ts`'s claims are suspended for.
  *
- * NEITHER DIRECTION WAITS for the rest of the bundle to stop moving. That is
+ * ## IT WAITS OUT ITS OWN ROW, and `entry.update` does not
+ *
+ * `Entry.update`'s disable arm is `this.fiber?.dispose(); return` — the dispose
+ * is FIRED AND NOT AWAITED, so the `await` on `entry.update` returns while the
+ * plugin's scope is still unwinding. That is invisible from outside and cost the
+ * whole feature its meaning: Cordis takes the fiber out of the registry FIRST
+ * and closes the Effect scope after, so `./host.ts`'s `settled` — which waits on
+ * the inertia of fibers it can find — has nothing to wait on and returns at once.
+ *
+ * WHAT THAT LOOKED LIKE, measured rather than reasoned: switch the chat row off
+ * and read the offers table, and three of the four doors it stands behind are
+ * still claimed. Finalizers run LIFO, so the last door offered is the first
+ * released, and the read lands after exactly that one. Fifty milliseconds later
+ * the table is empty and every dependent row is `waiting` naming the right tags.
+ * A panel drawn from the first read says the engines are running on a serve with
+ * no chat in it.
+ *
+ * So the fiber is caught BEFORE the update takes it away, and its `inertia` — the
+ * promise Cordis holds across a transition, and the same field `settled` reads —
+ * is waited out afterwards. A LOOP because finishing one transition can start
+ * another (revoking a door unloads the rows that named it), and {@link PASSES}
+ * for the reason `settled` is bounded: the termination argument is a claim about
+ * a pin, and a revision that left a resolved promise on the field would turn this
+ * into a hang at every press.
+ *
+ * ONLY ON THE WAY OUT. Coming back, the fiber is IN the registry and `settled`
+ * can see it, which is where waiting for a row to finish applying belongs.
+ *
+ * NEITHER DIRECTION WAITS for the REST of the bundle to stop moving. That is
  * `./host.ts`'s `settled`, and `@olai/bundle` is where the two are one call —
  * exactly as they are for the mount.
  */
@@ -212,7 +240,19 @@ export const flipRow = (host: Host, id: string, disabled: boolean): Effect.Effec
   Effect.promise(async () => {
     const entry = entriesOf(host).find((one) => one.options.id === id)
     if (entry === undefined) return false
+    // CAUGHT BEFORE THE UPDATE, because the update is what disposes it and a
+    // disposed row is one nothing else can hand back.
+    const going = disabled ? entry.fiber : undefined
     await entry.update({ disabled })
+    for (let pass = 0; pass < PASSES && going?.inertia !== undefined; pass += 1) {
+      await going.inertia
+    }
     return true
   })
+
+/** How many transitions this waits out before it stops waiting — `./host.ts`'s
+ *  `PASSES` for the same reason, spelled here because the two are bounding
+ *  different loops over the same pinned field and a shared constant would read
+ *  as one rule rather than two applications of one argument. */
+const PASSES = 100
 

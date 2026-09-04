@@ -151,6 +151,53 @@ test("turning a row off unloads the rows that named its door, naming the door", 
 })
 
 /**
+ * ...AND IT HAS ALREADY HAPPENED WHEN THE FLIP RETURNS, with no settle at all.
+ *
+ * ## The gap this is written from
+ *
+ * `Entry.update`'s disable arm is `this.fiber?.dispose(); return` — fired and
+ * not awaited — so the `await` on it returns while the plugin's scope is still
+ * unwinding. And Cordis takes the fiber out of the REGISTRY before it closes
+ * that scope, so `settled` has nothing left to find and returns at once too.
+ * Between them, a flip used to hand its caller a bundle mid-unwind and call it
+ * settled.
+ *
+ * What that came to on the real bundle, measured: switch the chat row off, read
+ * the offers table, and three of the four doors it stands behind are still
+ * claimed — finalizers run LIFO, so the door offered LAST is released first and
+ * the read lands after exactly that one. Fifty milliseconds later the table is
+ * empty. Everything downstream believed the first reading: the engines drew
+ * `running` on a serve with no chat in it, and the panel said one tenant was
+ * waiting on one door when it was about to be waiting on two.
+ *
+ * ## Why the assertion is deliberately BEFORE the settle
+ *
+ * Because a settle would hide it. Every other case here calls `settled` after
+ * the flip, which is what `setRow` does and is right; this one asks whether the
+ * flip ALONE is honest about the row it just took away — which is the property
+ * the settle cannot supply, since the fiber it would wait on is already gone.
+ *
+ * The consumer's state is the observable and not the provider's: a revoke awaits
+ * the fibers that named the key, so `DOWNSTAIRS` being `waiting` is the whole
+ * cascade having run rather than merely having started.
+ */
+test("the flip alone has finished unwinding the row it turned off", async () => {
+  await inADirectory(async (dir) => {
+    const said: Array<string> = []
+    const { run, host } = await booted(dir, said)
+
+    await run(flipRow(host, UPSTAIRS, true))
+
+    // NO SETTLE HERE. This is the flip's own promise, kept.
+    const report = await run(rowReport(host, [UPSTAIRS, DOWNSTAIRS]))
+    expect(report.get(DOWNSTAIRS)).toEqual({
+      state: "waiting",
+      missing: ["aRowStandsBehindThis"],
+    })
+  })
+})
+
+/**
  * ...AND BACK, which is the half a dispose alone does not give.
  *
  * The SECOND LINE is the claim. Both rows reading `running` again would hold
