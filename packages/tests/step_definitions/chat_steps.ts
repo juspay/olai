@@ -3800,3 +3800,14 @@ Then("the strip lists no agent still out", async function (this: OlaiWorld) {
     HYDRATION_TIMEOUT,
   );
 });
+
+/** ... and its opposite, which is a claim in its own right rather than the
+ *  absence of one: the panel has three bodies with no composer in them — no
+ *  agent, a dead one, and a conversation the agent would not open — so "there
+ *  is somewhere to type" is how a scenario says the panel is IN a conversation
+ *  without naming which. */
+Then("there is somewhere to type into", async function (this: OlaiWorld) {
+  await this.page
+    .locator(CHAT_INPUT)
+    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+});

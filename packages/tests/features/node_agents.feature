@@ -129,6 +129,41 @@ Feature: A node with an `agent-session` property IS an agent
     And the door on "door-implement" reads "claude"
     And the door on "door-implement" does not read "no session bound"
 
+  @scratch:lanes
+  Scenario: ... and the conversation is opened in the node's own scope, not moved into it
+    # THE BUG A SCRIPTED AGENT ALMOST CANNOT SHOW, and what it cost: against the
+    # adapter olai SHIPS this gesture did not work at all.
+    #
+    # A bare node is on no roster — the roster is the query over the binding
+    # property, and this gesture is what WRITES one — so the scheduler read
+    # "not a node agent" as "not a node", opened the conversation in the
+    # unscoped panel, wrote the property, and then MOVED the conversation into
+    # the node's scope. Moving one is `session/load`, and no engine has written
+    # a session it has only just minted and nobody has spoken into: the load
+    # came back `Resource not found`, and the node was left naming a
+    # conversation nothing could open.
+    #
+    # This agent loads any id it is handed, so the shape is unreachable head-on.
+    # Told to REFUSE a load it becomes reachable exactly: a gesture that opens
+    # its conversation where it belongs never asks for a load at all, and one
+    # that has to move it asks for the one thing this agent will not do. The
+    # refusal is armed BEFORE the press, so it is the relocation's own load that
+    # meets it and not some later verb's.
+    Given I open the outline "lanes.olai"
+    And the agent panel is open
+    When the agent refuses to load a conversation
+    And I open the node menu of "lane-fresh"
+    And I choose "Start an agent session" from the node menu
+    # The two acts in their order, unchanged: the conversation, then the
+    # property that names it.
+    Then the node "lane-fresh" shows the property "agent-session" holding "claude:fake-session-1"
+    And the agent "lane-fresh" stands "idle"
+    # THE CLAIM. Nothing was re-opened, so nothing was refused — and the panel
+    # is in a conversation rather than on the third body explaining why it is
+    # not.
+    And the panel shows no such refusal
+    And there is somewhere to type into
+
   @corpus:lanes
   Scenario: A node agent that already has a session is not offered a new one
     # The fence read from the other side. `door-live`'s property names a

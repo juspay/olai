@@ -251,7 +251,7 @@ await p.locator(selector("chat-fresh-session")).click()
 // id for ever, so a node re-pointed by a fresh session names the conversation
 // it already named. A real adapter mints a new one, and the property MOVING is
 // the whole of what this gesture does.
-const moved = await p.waitForFunction(
+const reopened = await p.waitForFunction(
   (was: string) => {
     const el = document.querySelector('[data-testid="chat-node"]')
     return el !== null && was !== ""
@@ -259,7 +259,7 @@ const moved = await p.waitForFunction(
   first ?? "",
   { timeout: 120_000 },
 ).then(() => true).catch(() => false)
-ok("the panel comes back to a conversation", moved)
+ok("the panel comes back to a conversation", reopened)
 const second = await until(bindingOnDisk, (held) => held !== first)
 ok(
   "...and the node names a DIFFERENT one — the property moved",
@@ -281,18 +281,23 @@ ok("the session list shuts", await gone("chat-session-list", 30_000))
 // minted, so `session/load` answers for itself. What is asserted is that the
 // panel reads that as a LIVE agent saying no — its third body — and that the
 // way out is on the screen a person is stuck on.
-await pointAt("claude:00000000-0000-4000-8000-000000000000")
-ok(
-  "the roster follows the property",
-  await p.waitForFunction(
-    () => document.querySelectorAll('[data-testid="agent-door"]').length > 0,
-    { timeout: 30_000 },
-  ).then(() => true).catch(() => false),
-)
-await p.locator(rowOf(NODE)).click()
+const STRANGER = "claude:00000000-0000-4000-8000-000000000000"
+await pointAt(STRANGER)
+// PRESSED UNTIL IT TAKES, and that is the honest shape rather than a settle: a
+// file written under a running server reaches the roster on the next published
+// revision, and nothing on the row changes when it does — the door was there
+// before the re-point and is there after, and the standing is `idle` either
+// way. So there is no state to wait for, only the press to repeat, which is
+// what a person does. What proves the roster followed is the refusal NAMING the
+// stranger's id, which is the claim below.
+for (let press = 0; press < 5; press += 1) {
+  await p.locator(rowOf(NODE)).click()
+  if (await p.locator(selector("chat-unopened")).count() > 0) break
+  await p.waitForTimeout(2_000)
+}
 const why = await drawn("chat-unopened-why", 120_000)
 ok("a conversation the engine has not got is REFUSED, not a dead agent", await drawn("chat-unopened"))
-ok("...in the agent's own words", why)
+ok("...in the agent's own words, naming the stranger the vault points at", why)
 ok("...and *try again* is offered", await drawn("chat-reopen"))
 // THE FIX, and the reason this section is the last one: the header goes on
 // naming the node agent whose conversation it could not open, which is what
@@ -304,7 +309,7 @@ await p.locator(selector("chat-sessions")).click()
 await drawn("chat-fresh-session")
 await p.locator(selector("chat-fresh-session")).click()
 ok("...and taking it opens a conversation", await gone("chat-unopened", 120_000))
-const third = await bindingOnDisk()
+const third = await until(bindingOnDisk, (held) => held !== STRANGER)
 ok(
   "...leaving the node on one the engine HAS",
   third !== null && !third.includes("00000000"),
