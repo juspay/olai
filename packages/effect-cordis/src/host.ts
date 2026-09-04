@@ -34,8 +34,9 @@
 
 import { Context as CordisContext, FiberState } from "cordis"
 import type { Fiber } from "cordis"
-import { Context, Effect, Scope } from "effect"
+import { Context, Effect, Queue, Scope, Stream } from "effect"
 
+import { hostActivations, interrupt } from "./lifecycle.ts"
 import type { Plugin } from "./plugin.ts"
 import type { Provision, ServiceKey } from "./service.ts"
 
@@ -87,38 +88,59 @@ export const ctxOf = (host: Host): CordisContext => host as unknown as CordisCon
 /**
  * OPEN A HOST, under the services of the fiber that opens it.
  *
- * ## NOT SCOPED — and what that does and does not leave undone
- *
- * A host has no close. What it holds is a registry and the Effect services in
- * force where it was opened; neither is a resource, and both go with the
- * process.
- *
- * ITS PLUGINS DO COME DOWN, and by the reactive half rather than by anything
- * here. {@link provide} is an `acquireRelease` on the CALLER's scope, so a
- * composition root that closes that scope on the way out revokes every service
- * it provided, and revoking one unloads every fiber that named it — which
- * closes each plugin's own scope and runs its finalizers, in reverse. That is
- * the shutdown path in this tree: `@olai/server`'s `main.ts` runs the whole
- * command under `Effect.scoped`, and `runMain` interrupts it on SIGINT and
- * SIGTERM, so the unwind is the ordinary one. `plugin.test.ts`'s replaced-
- * provider bench is the same mechanism, two lines apart.
- *
- * WHAT IS LEFT is a plugin whose `needs` is EMPTY: it depends on nothing that
- * can be revoked, so nothing unloads it but the disposer its mount handed back.
- * There is no such plugin in this tree — every half, in both processes, names at
- * least one service — and the bench beside that one pins the shape so the claim
- * is checkable rather than remembered. A host that closed its own fibers would
- * close that gap and would also be a behaviour change on every shutdown path,
- * which is the loader surface's to make when it owns one.
+ * The enclosing scope closes the host, including plugins with empty needs.
+ * Explicit close is idempotent and awaits asynchronous plugin cleanup.
  */
-export const openHost: Effect.Effect<Host> = Effect.map(
+export const openHost: Effect.Effect<Host, never, Scope.Scope> = Effect.flatMap(
   Effect.context<never>(),
   (services) => {
     const host = new CordisContext() as unknown as { [HELD]: Context.Context<never> }
     host[HELD] = services
-    return host as unknown as Host
+    const ctx = host as unknown as CordisContext
+    // Dispose emits before waiting for apply, including loader-owned disposal.
+    ctx.on("internal/plugin", (fiber) => { if (fiber.uid === null) interrupt(fiber) })
+    ctx.on("internal/service", (name) => {
+      ctx.registry.forEach((runtime) => {
+        for (const fiber of runtime.fibers) {
+          if (name in fiber.inject && fiber.ctx.reflect.get(name) === undefined) interrupt(fiber)
+        }
+      })
+    })
+    return Effect.as(Effect.addFinalizer(() => closeHost(host as unknown as Host)), host as unknown as Host)
   },
 )
+
+/** An initial notification and status transitions, including completion of an asynchronous initializer.
+ * The subscriber owns the listener; one queued notification is enough to
+ * re-read the current registry, so bursts cannot grow an unbounded queue.
+ */
+export const hostChanges = (host: Host): Stream.Stream<void> => Stream.callback<void>((queue) =>
+  Effect.acquireRelease(
+    Effect.sync(() => {
+      const release = ctxOf(host).on("internal/status", () => { Queue.offerUnsafe(queue, undefined) })
+      Queue.offerUnsafe(queue, undefined)
+      return release
+    }),
+    (release) => Effect.promise(async () => { await release() }),
+  ), { bufferSize: 1, strategy: "sliding" })
+
+const closing = new WeakMap<Host, Promise<void>>()
+
+/** Stop every mounted fiber and join cleanup, even while initialization waits. */
+export const closeHost = (host: Host): Effect.Effect<void> => Effect.promise(() => {
+  let task = closing.get(host)
+  if (task === undefined) {
+    const ctx = ctxOf(host)
+    task = Promise.resolve().then(async () => {
+      const active = hostActivations(ctx)
+      for (const activation of active) activation.interrupt()
+      await ctx.fiber.dispose()
+      await Promise.all(active.map((activation) => activation.drained))
+    })
+    closing.set(host, task)
+  }
+  return task
+})
 
 /**
  * PUT A SERVICE BEHIND A KEY, for as long as the enclosing scope is open.
@@ -139,7 +161,7 @@ export const openHost: Effect.Effect<Host> = Effect.map(
  * and the ledger does not stamp.
  */
 export const offered = <Shape>(host: Host, key: ServiceKey<Shape>): Shape | undefined => {
-  const value = (ctxOf(host) as unknown as Record<string, unknown>)[key.cordis]
+  const value = ctxOf(host).reflect.get(key.cordis)
   if (typeof value !== "function") return undefined
   return (value as Provision<Shape>)("core")
 }
@@ -169,16 +191,22 @@ export interface Mounted {
  * It RETURNS once the fiber has settled, so a caller can read whatever the
  * plugin registered on the next line. A plugin held `PENDING` on a service
  * nobody has provided settles immediately in that state; it is not an error and
- * there is nothing to wait for.
+ * there is nothing to wait for. Pass `wait: false` to obtain the stop handle
+ * while initialization is still running (the dynamic-plugin path).
  */
-export const mountPlugin = (host: Host, plugin: Plugin): Effect.Effect<Mounted> =>
+export const mountPlugin = (
+  host: Host,
+  plugin: Plugin,
+  options: { readonly wait?: boolean } = {},
+): Effect.Effect<Mounted> =>
   Effect.promise(async () => {
+    if (closing.has(host)) throw new Error("effect-cordis: cannot mount on a closed host")
     const fiber: Fiber = (ctxOf(host).plugin as (plugin: Plugin) => Fiber)(plugin)
     // SWALLOWED, and it is the containment claim rather than a shrug: a plugin
     // whose `apply` failed lands in `FAILED` having installed nothing, and its
     // siblings — and the boot — are untouched. What it threw is not lost; it is
     // what {@link rowReport} quotes.
-    await fiber.await().catch(() => undefined)
+    if (options.wait !== false) await fiber.await().catch(() => undefined)
     return {
       // THE SAME TWO STEPS {@link rowReport} TAKES, for one fiber: the state
       // synchronously, and the plugin's own words only where there are some to
@@ -189,7 +217,10 @@ export const mountPlugin = (host: Host, plugin: Plugin): Effect.Effect<Mounted> 
         const said = reportOf(fiber)
         return said.state === "failed" ? Effect.promise(() => faulted(fiber)) : Effect.succeed(said)
       }),
-      dispose: Effect.promise(() => fiber.dispose()),
+      dispose: Effect.promise(() => {
+        interrupt(fiber)
+        return fiber.dispose().then(() => fiber.await().then(() => undefined, () => undefined))
+      }),
     }
   })
 
@@ -356,7 +387,7 @@ export const namedBy = (
  * six.
  *
  * `off` is a row the loader declined to load and a fiber on its way out alike:
- * both have unwound every registration they made, and a reader has no use for
+ * cleanup is awaited by disposal, not proved by this state word. A reader has no use for
  * the difference. `waiting` is one WORD over `PENDING` (a service it names is not
  * there) and `LOADING` (it has not finished starting), because a row that has not
  * started has not started — the two are told apart by what {@link RowReport}

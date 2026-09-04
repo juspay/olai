@@ -2350,6 +2350,21 @@ export const bind = (
       if (!moving) republishPlugins()
     }
 
+    /** Reconcile an explicit change or an initializer settling. The report
+     * must precede composition because the roster reads it synchronously.
+     */
+    const refreshPlugins = Effect.gen(function*() {
+      pendingStatus = false
+      yield* offered?.reread ?? Effect.void
+      recompose()
+      // Kinds are live, but published validation and ops views are cached.
+      // Revalidate even when no file moved: a switch can remove vocabulary,
+      // and an initializer can register it after its mount already returned.
+      // The store reports failed reads on its own errors channel; a read failure
+      // must not turn a successful plugin change into a refused switch.
+      yield* Effect.ignore(wiring.store.refresh("verified"))
+    })
+
     /**
      * ...AND THE HOLDER THE DYNAMIC HALF REACHES IT THROUGH, filled here
      * because this is the first statement at which there is something to fill it
@@ -2378,41 +2393,8 @@ export const bind = (
           Effect.andThen(Effect.sync(() => { moving = true }), run),
           Effect.sync(() => { moving = false }),
         )
-        if (!changed) return false
-        // THE REPORT, BEFORE THE ROSTER IS DRAWN FROM IT. A definition that
-        // mounted, was disposed or was replaced moved a fiber on this host, and
-        // the holder the roster reads is the composition root's — so it is taken
-        // again here for exactly the reason a flip takes it again on its way
-        // out ({@link PluginRuntime.reread}).
-        yield* offered?.reread ?? Effect.void
-        recompose()
-        // ...AND THE VAULT'S VERDICT IS RE-TAKEN, because NOTHING ON DISK
-        // MOVED and a fiber just took some words with it or brought some.
-        //
-        // A plugin's kind words are a live reading now (`./propKinds.ts`), so
-        // the vocabulary is right the instant the fiber is. What is NOT right
-        // is everything already derived from it: the published reading was
-        // validated a revision ago, and `@olai/ops`'s standing views hand back
-        // the answer they cached against that very reading. So without this
-        // line a vault goes on drawing `kolu-terminal` values as terminals
-        // after kolu was switched off, and — the same hole from the other side,
-        // and this one was measured — an approved definition's kind is claimed,
-        // its values ARE held to it, and the page's licence table still says
-        // nothing about it, so the plugin's own chip does not draw until the
-        // next keystroke anywhere in the vault.
-        //
-        // `verified` is the class: the stamps are forgotten, so a look that
-        // would otherwise find nothing moved re-reads and re-validates the set.
-        // The cost is one pass over the corpus per fiber that moved, which is a
-        // person's gesture or an agent's call and not a loop.
-        //
-        // A FAILED LOOK IS NOT THIS CALL'S TO REPORT. A directory that cannot
-        // be read is published on the store's own errors channel, where every
-        // reader of it already looks; failing here would tell a person their
-        // switch did not work, which is untrue — it worked, and the vault is
-        // unreadable, which is a bigger and separate piece of news.
-        yield* Effect.ignore(wiring.store.refresh("verified"))
-        return true
+        if (changed || pendingStatus) yield* refreshPlugins
+        return changed
       })
 
     /**
@@ -2527,6 +2509,9 @@ export const bind = (
      * two tabs pressing at once are two calls the surface runs in turn.
      */
     let moving = false
+    // An unrelated initializer can finish during a batch that changes nothing.
+    // Remember its notification until the batch releases the publication gate.
+    let pendingStatus = false
 
     /**
      * THE FIRST COMPOSITION, and every one after it.
@@ -2543,7 +2528,20 @@ export const bind = (
      * register, and the thing to call does not exist until here.
      */
     recompose()
-    if (offered !== null) offered.onChange.run = recompose
+    if (offered !== null) {
+      offered.onChange.run = recompose
+      // A dynamic mount returns while apply is still LOADING. Read eventual
+      // readiness or failure even when the plugin registers no sibling surface.
+      // Explicit changes already reconcile after their batch; their intermediate
+      // status notifications must not publish or refresh a half-settled bundle.
+      yield* Stream.runForEach(offered.plugins.changes, () =>
+        Effect.suspend(() => {
+          if (!moving) return refreshPlugins
+          pendingStatus = true
+          return Effect.void
+        }),
+      ).pipe(Effect.forkScoped)
+    }
 
     return {
       /**

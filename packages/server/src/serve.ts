@@ -506,6 +506,9 @@ export const serve = (options: ServeOptions) =>
     // it: finalizers run in reverse, and every serving stack the listener
     // drains is answered by this runtime while it drains.
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
+    // Drain plugin scopes while the store and bound surface still exist.
+    // The listener is acquired next, so it stops accepting calls first.
+    yield* Effect.addFinalizer(() => plugins.close)
 
     // The agent's face onto this process: the same surface the browser reads,
     // plus the ops layer's tools, over the Streamable HTTP transport the route

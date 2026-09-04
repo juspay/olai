@@ -23,7 +23,7 @@ import {
 import { REGISTRY, SERVER_MODULES } from "@olai/plugin-build/shared"
 import type { BuiltPlugin } from "@olai/surface"
 import { describe, expect, test } from "bun:test"
-import { Effect } from "effect"
+import { Effect, Option, Stream } from "effect"
 
 import { openDynamic } from "./runtime.ts"
 import { ALWAYS, versionOf } from "./source.ts"
@@ -32,7 +32,7 @@ import { ALWAYS, versionOf } from "./source.ts"
  *  and the shape a `plugins.inspect` answer tells an agent to write. */
 const SERVER = [
   `import { definePlugin } from "@olai/plugin-api"`,
-  `import { Effect } from "effect"`,
+  `import { Effect, Option, Stream } from "effect"`,
   `export default definePlugin({`,
   `  name: "swatch",`,
   `  needs: [],`,
@@ -106,7 +106,15 @@ const bench = <A>(
       const dynamic = openDynamic(plugins.host, [])
       return yield* use(
         dynamic,
-        () => Effect.map(rowReport(plugins.host, dynamic.names()), dynamic.rows),
+        () => plugins.changes.pipe(
+          Stream.mapEffect(() => rowReport(plugins.host, dynamic.names())),
+          // Follow returns a stop handle during initialization. These assertions
+          // read once that work settles; missing dependencies remain waiting.
+          Stream.filter((report) => ![...report.values()].some((row) => row.state === "waiting" && row.missing === undefined)),
+          Stream.take(1),
+          Stream.runHead,
+          Effect.map((report) => dynamic.rows(Option.getOrThrow(report))),
+        ),
         plugins.host,
       )
     })),
@@ -195,7 +203,7 @@ describe("a row's word follows its fiber, not the mount", () => {
    *  waits, which is a legitimate resting state and not a fault. */
   const NEEDS_A_DOOR = [
     `import { Agents, definePlugin } from "@olai/plugin-api"`,
-    `import { Effect } from "effect"`,
+    `import { Effect, Option, Stream } from "effect"`,
     `export default definePlugin({`,
     `  name: "swatch",`,
     `  needs: [Agents],`,
@@ -433,4 +441,21 @@ describe("a definition that goes away takes its fiber with it", () => {
     )
     expect(rows).toEqual([])
   })
+})
+
+test("a dynamic initializer that waits forever can be stopped", async () => {
+  const server = [
+    `import { definePlugin, Kinds } from "@olai/plugin-api"`,
+    `import { Effect } from "effect"`,
+    `export default definePlugin({ name: "swatch", needs: [Kinds], apply: Effect.gen(function*() {`,
+    `  yield* (yield* Kinds).register({ kind: "held", takes: "text", admits: () => true })`,
+    `  yield* Effect.never`,
+    `}) })`,
+  ].join("\n")
+  const state = await bench((dynamic, now) => Effect.gen(function*() {
+    yield* dynamic.follow(vault({ server, approved: ALWAYS }))
+    expect(yield* dynamic.set("swatch", false)).toBe(true)
+    return (yield* now())[0]?.state
+  }))
+  expect(state).toBe("switched")
 })

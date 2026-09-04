@@ -30,6 +30,7 @@ import { Cause, Effect, Logger, Schema, Scope } from "effect"
 
 import { definePlugin, detached, PluginName } from "./plugin.ts"
 import { mountPlugin, openHost, provide, settled } from "./host.ts"
+import { offer } from "./lifecycle.ts"
 import { serviceTag } from "./service.ts"
 
 /** A TOY SERVICE, and it is keyed by the calling plugin so the stamp claim has
@@ -156,22 +157,12 @@ test("a replaced provider unloads the plugin and applies it again", async () => 
   })))
 })
 
-/**
- * ...AND THE ONE SHAPE THAT REVOCATION CANNOT REACH, which is the residue in
- * `openHost`'s "not scoped" paragraph made checkable.
- *
- * A composition root's provisions are scoped, so the shutdown above unwinds
- * every plugin that NAMES one — that is the reactive half doing its job, and it
- * is what makes "the process owns its plugins for its life" a statement about a
- * host rather than about its plugins. A plugin with an empty `needs` depends on
- * nothing that can be revoked, so nothing brings it down but the disposer the
- * mount handed back.
- */
-test("a plugin that names no service is nobody's to revoke", async () => {
+/** Empty needs still has a lifetime: the host's enclosing scope. */
+test("host scope closes a plugin that names no service", async () => {
   const lines: Array<string> = []
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const host = yield* openHost
-    const mounted = yield* mountPlugin(
+    yield* mountPlugin(
       host,
       definePlugin({
         name: "hermit",
@@ -188,9 +179,8 @@ test("a plugin that names no service is nobody's to revoke", async () => {
     yield* Effect.scoped(provide(host, Ledger, ledgerOf(lines)))
     yield* Effect.sleep("10 millis")
     expect(lines).toEqual(["hermit: up"])
-    yield* mounted.dispose
-    expect(lines).toEqual(["hermit: up", "hermit: down"])
   })))
+  expect(lines).toEqual(["hermit: up", "hermit: down"])
 })
 
 test("a plugin whose Effect dies lands failed, having installed nothing", async () => {
@@ -379,7 +369,7 @@ test("a plugin behind a key another names is running once the mounts have settle
         apply: Effect.gen(function*() {
           const ledger = yield* Ledger
           yield* Effect.sleep("5 millis")
-          yield* provide(host, Counter, () => ({ bump: ledger.write("bumped") }))
+          yield* offer(Counter, () => ({ bump: ledger.write("bumped") }))
         }),
       }),
     )
@@ -423,7 +413,7 @@ test("a provider that unloads takes its dependents with it, and brings them back
       needs: [Ledger],
       apply: Effect.gen(function*() {
         const ledger = yield* Ledger
-        yield* provide(host, Counter, () => ({ bump: ledger.write("bumped") }))
+        yield* offer(Counter, () => ({ bump: ledger.write("bumped") }))
       }),
     })
     const dependent = definePlugin({

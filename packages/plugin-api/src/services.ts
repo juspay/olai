@@ -83,6 +83,10 @@ import {
   broadcast,
   type Host,
   openHost,
+  hostChanges,
+  closeHost,
+  offer,
+  OfferConflict,
   provide,
   type Provision,
   registry,
@@ -90,7 +94,7 @@ import {
   serviceTag,
   type ServiceKey,
 } from "@olai/effect-cordis"
-import { Deferred, Effect, Exit, Schema, Scope, Semaphore } from "effect"
+import { Deferred, Effect, Exit, Schema, Scope, Semaphore, type Stream } from "effect"
 
 import {
   type ConversationSeen,
@@ -781,16 +785,12 @@ export const OFFERABLE = [Agents, Deliveries, SessionStart, Watching, Ledger] as
  *     shadowed, replaced or raced by a row.
  *   - THERE IS NO HOST. It is closed over in `openPlugins`, in the package the
  *     ruling names as the one that spends the capability.
- *   - IT IS REFUSABLE, IN OLAI'S WORDS. Cordis refuses a second provide on its
- *     own, and its sentence is `service "deliveries" has been registered at
- *     <root>` — which names neither author and points at a fiber no person has
- *     heard of. The claim is taken here FIRST, so a refused offer never reaches
- *     cordis and what a person reads names both rows and the key.
+ *   - CORDIS REFUSES A SECOND PROVIDER. The bridge identifies that refusal;
+ *     this door supplies the sentence naming both rows and the contested key.
  *   - IT IS IN `needs`. A plugin that stands behind a door SAYS SO in the one
  *     list a reader, the fence and `@olai/bundle`'s table all read — and the
- *     standing unwinds with the plugin, because `provide` is an `acquireRelease`
- *     on the CALLING fiber's scope and inside an `apply` that scope is the
- *     plugin's.
+ *     standing belongs to the calling activation. The bridge revokes offers and
+ *     joins dependent cleanup before closing the plugin's resource scope.
  *
  * ## Why FIVE OVERLOADS and not one generic
  *
@@ -995,6 +995,10 @@ export interface Plugins {
   /** Where the fibers hang — handed to `@olai/bundle` to mount the rows on, and
    *  opaque to everybody. */
   readonly host: Host
+  /** Runtime transitions, including asynchronous initialization completing. */
+  readonly changes: Stream.Stream<void>
+  /** Drain plugins before the composition root releases their host resources. */
+  readonly close: Effect.Effect<void>
   /** Every word registered right now, composed. */
   readonly kinds: () => ReadonlyMap<string, ComposedKind>
   /** Every sibling composed right now, in registration order. */
@@ -1294,14 +1298,8 @@ export const openPlugins = (
     }))
 
 
-    // WHO STANDS BEHIND WHAT, keyed by the door and refused like its neighbours.
-    // Cordis refuses a second provide on its own — but its sentence is `service
-    // "deliveries" has been registered at <root>`, which names neither author,
-    // and what a person reads on a preferences row is supposed to be this tree's.
-    // So the claim is taken FIRST and the provide below it can no longer be the
-    // thing that throws; a refused offer never reaches cordis at all, and a
-    // revoke takes the claim and the standing down together.
-    const offered = registry<string, string>()
+    // This table reports ownership; Cordis itself refuses duplicate providers.
+    const offered = new Map<string, { readonly plugin: string }>()
     yield* provide(host, Offers, (plugin) => ({
       offer: (key: AnyKey, door: Provision<never>) =>
         Effect.suspend(() => {
@@ -1320,19 +1318,19 @@ export const openPlugins = (
               ),
             )
           }
-          return offered.claim(
-            key.cordis,
-            plugin,
-            (already) =>
-              `plugins: "${already}" and "${plugin}" both offer "${key.cordis}" — a `
-                + "service stands behind one row, and the second would leave every "
-                + "plugin that named it holding whichever was mounted last.",
-          ).pipe(
-            // ...AND THE PROVIDE, on the CALLING plugin's scope: the acquire
-            // hangs the service on the host's root fiber and the release revokes
-            // it, which unloads every fiber that named it — the same finalizer
-            // discipline that takes a kind word out of the vocabulary.
-            Effect.flatMap(() => provide(host, key as ServiceKey<never>, door)),
+          const owner = { plugin }
+          return offer(key as ServiceKey<never>, door).pipe(
+            Effect.catchDefect((defect) => {
+              return Effect.die(!(defect instanceof OfferConflict) ? defect : new Error(
+                `plugins: "${defect.owner}" and "${plugin}" both offer "${key.cordis}" — a `
+                  + "service stands behind one row, and the second would leave every "
+                  + "plugin that named it holding whichever was mounted last.",
+              ))
+            }),
+            Effect.andThen(Effect.acquireRelease(
+              Effect.sync(() => { offered.set(key.cordis, owner) }),
+              () => Effect.sync(() => { if (offered.get(key.cordis) === owner) offered.delete(key.cordis) }),
+            )),
           )
         }),
       // THE CAST IS WHAT AN OVERLOAD SET IS. `Offers.offer` declares five call
@@ -1571,7 +1569,9 @@ export const openPlugins = (
       kinds: kinds.read,
       composed: () => [...siblings.read().values()],
       declared: wakes.read,
-      offers: offered.read,
+      offers: () => new Map([...offered].map(([key, owner]) => [key, owner.plugin])),
+      changes: hostChanges(host),
+      close: closeHost(host),
       published: revisions.tell,
       quiet: quieted.tell(undefined),
       refused: refusals.tell,
