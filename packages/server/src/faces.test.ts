@@ -269,8 +269,25 @@ test("the agent's face is what it can SEE plus the doors its tools land through"
       "search.nodes",
       "git.commit",
       "git.push",
+      // PHASE 12's THREE, and they are the agent as AUTHOR rather than as
+      // reader: what may I name, what became of what I wrote, stop the one I
+      // wrote. Every one of them is about a plugin the VAULT defines; none of
+      // them can define one (a definition is two notes, written with the
+      // ordinary write door) and none of them can approve one.
+      "plugins.inspect",
+      "plugins.run",
+      "plugins.stop",
     ].sort(),
   )
+  // ...AND THE TWO THAT ARE A PERSON'S, asserted here because this face is
+  // pinned as an exact set and an absence is only proved by the pinning. An
+  // agent that could approve a plugin could approve the plugin it just wrote,
+  // which is the whole boundary phase 12 has; one that could flip a row could
+  // turn off the row that seats it and then not reach the face to turn it back
+  // on.
+  expect(Object.keys(AGENT)).not.toContain("plugins.approve")
+  expect(Object.keys(AGENT)).not.toContain("plugins.set")
+  expect(Object.keys(BROWSER)).toContain("plugins.approve")
   // `git.commit` and `search.nodes` are SHARED with the browser and not twinned:
   // once the writer stopped travelling with a call, an agent's commit and a
   // person's are the same act through the same member, and only the face they

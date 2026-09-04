@@ -48,6 +48,8 @@ import { resolve } from "node:path"
 
 import { heldFor } from "./held.ts"
 import { openDirectory } from "./directory.ts"
+import { openDynamic } from "./dynamic/runtime.ts"
+import { pluginChunks } from "./dynamic/route.ts"
 import { propKinds } from "./propKinds.ts"
 import { watchFault } from "./fault.ts"
 import { hostname } from "./hostname.ts"
@@ -408,6 +410,16 @@ export const serve = (options: ServeOptions) =>
     // is that number. Minted here, once, so every `app.get` of this serve
     // answers the same instant.
     const startedAt = new Date(Date.now() - process.uptime() * 1000).toISOString()
+    /**
+     * THE PLUGINS THIS VAULT ITSELF DEFINES — phase 12, opened before the
+     * runtime because two things downstream want it: the runtime reads its rows
+     * onto the roster and drives it from every revision, and the listener serves
+     * the browser halves it builds.
+     *
+     * It mounts NOTHING until a revision has been followed and a person has
+     * approved a version, so opening it here costs a map.
+     */
+    const dynamic = openDynamic(plugins.host, BUNDLE_NAMES)
     const wired = yield* bind({
       store,
       ops,
@@ -442,6 +454,16 @@ export const serve = (options: ServeOptions) =>
         names: () => rowsNaming(plugins.host),
         set: flipped,
         switched: () => switched,
+        // ...AND THE PLUGINS THIS VAULT ITSELF DEFINES (phase 12). It is opened
+        // HERE because this is where the host is: mounting a plugin nobody
+        // compiled in is `mountPlugin` on the same registry the rows are on, and
+        // the capability to do that is the composition root's — a plugin
+        // holding a host could mount a fiber under any word it liked
+        // (`@olai/plugin-api`'s `runtime.ts` argues that at length).
+        //
+        // `BUNDLE_NAMES` is what it may NOT take: a definition claiming a word
+        // this build already has is a fault rather than an override.
+        dynamic,
       },
     })
 
@@ -564,6 +586,11 @@ export const serve = (options: ServeOptions) =>
         // calls it. It is for the case the watcher cannot see, which is a
         // change made where no inotify reaches.
         resync: Effect.andThen(ops.idle, store.refresh("verified")),
+        // `GET /_olai/plugins/<name>-<version>.js` — the browser half of a
+        // plugin this vault defines, compiled by this serve. The tab loads it
+        // exactly as it loads a compiled-in plugin's chunk; what differs is that
+        // its source did not exist when the bundle was built.
+        plugins: dynamic,
       }),
       () => runtime.stopped,
     )

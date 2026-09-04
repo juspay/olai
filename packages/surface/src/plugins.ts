@@ -89,13 +89,15 @@ export const BuiltPlugin = Schema.Struct({
    *  `false` is total absence rather than a degraded arm. */
   running: Schema.Boolean,
   /**
-   * WHY, IN ONE WORD — the six states {@link pluginState} narrows to, and the
+   * WHY, IN ONE WORD — the seven states {@link pluginState} narrows to, and the
    * one thing `running` cannot say.
    *
-   * A plugin is a fiber now, and `false` covers five different mornings:
+   * A plugin is a fiber now, and `false` covers six different mornings:
    * the operator's flag left it out, the BUILD leaves it out until somebody
-   * asks, a PERSON turned it off at the panel, its `apply` DIED, or it is still
-   * waiting on a service that has not arrived. Those want five different
+   * asks, a PERSON turned it off at the panel, its `apply` DIED, it is still
+   * waiting on a service that has not arrived, or — for a plugin the VAULT
+   * defines — nobody has yet approved the version that is written down. Those
+   * want six different
    * sentences under the row, and one of them wants an alarm — so the word
    * travels rather than being guessed at the far end from a boolean that has
    * already thrown the distinction away.
@@ -103,13 +105,13 @@ export const BuiltPlugin = Schema.Struct({
    * `running` STAYS, and is not redundant: it is the boolean the tab follows
    * its roster by — which plugins to load a chunk for, dial, and mount a fiber
    * for (`@olai/web`'s `client/wire.ts`) — and that reading must not have to
-   * know six words to answer one question. The two cannot disagree: the
+   * know seven words to answer one question. The two cannot disagree: the
    * composition root writes `running` from what actually registered a sibling
    * and derives this from the same reading.
    *
    * A PLAIN STRING, and OPTIONAL, for the two reasons `wake` is: a tab left
    * open across a downgrade is talking to a serve that declares none, and a
-   * serve may one day name a sixth word this build has never heard of. Neither
+   * serve may one day name an eighth word this build has never heard of. Neither
    * may fail the roster's DECODE, because the roster is what every plugin's
    * mount hangs off. {@link pluginState} is the one reading, and it answers an
    * absent or unknown word out of `running` — which is exactly what this field
@@ -245,11 +247,71 @@ export const BuiltPlugin = Schema.Struct({
      */
     kinds: Schema.optionalKey(Schema.Array(Schema.String)),
   })),
+  /**
+   * WHERE THIS ROW CAME FROM, when it came from the VAULT rather than the build
+   * — the whole of what a dynamic plugin adds to this member.
+   *
+   * ABSENT on every compiled-in row, and its presence IS the distinction: a row
+   * with a source is one somebody wrote into the directory this serve is about,
+   * and the four things that are true only of such a row all hang off it.
+   *
+   * `server` and `browser` are the SOURCE ITSELF, and they travel because
+   * approving a plugin is reading it. That is the one gesture in this product
+   * where a person is deciding about code rather than about a setting, and a
+   * panel that asked them to say yes to a content hash would be asking them to
+   * approve something they cannot see. It is the one member on this spec whose
+   * size is a person's own writing rather than a bound olai keeps — which is the
+   * honest reading of the cost rule (`@olai/server`'s `faces.ts`) rather than an
+   * exemption from it: what is on the wire is what somebody put in their vault
+   * for the express purpose of being read here.
+   *
+   * `approved` is whether THIS VERSION is the one a person said yes to — the
+   * derived answer, so a browser never re-implements what `always` means or how
+   * a hash is compared.
+   *
+   * `chunk` is where the browser half is served from, and it is present only on
+   * a row that is RUNNING with a face: it is the URL the tab loads instead of
+   * the compiled-in chunk a built row has (`@olai/bundle`'s `rows.ts`). The
+   * version is in the path, so a re-approved edit is a different URL and no
+   * cache can hand back the code somebody approved before it.
+   *
+   * OPTIONAL, like every other addition to this row and for the reasons `state`
+   * gives: a tab left open across a downgrade must not fail the roster's decode,
+   * because every plugin's mount hangs off it.
+   */
+  source: Schema.optionalKey(Schema.Struct({
+    /** The node the definition hangs off, and the outline it is in — what the
+     *  panel links to, so a person can go and read it where it lives. */
+    node: Schema.String,
+    file: Schema.String,
+    /** The content hash of both halves — what an approval names. */
+    version: Schema.String,
+    /** Whether {@link version} is the version a person approved. */
+    approved: Schema.Boolean,
+    /** The two halves, verbatim. `browser` is absent for a plugin with no
+     *  face. */
+    server: Schema.String,
+    browser: Schema.optionalKey(Schema.String),
+    /** Where the built browser half is served — only while it is running. */
+    chunk: Schema.optionalKey(Schema.String),
+  })),
 })
 export type BuiltPlugin = typeof BuiltPlugin.Type
 
 /**
- * THE SIX WORDS A ROW CAN BE IN, and each is a different morning.
+ * WHERE A DYNAMIC PLUGIN'S BROWSER HALF IS SERVED FROM — the prefix both ends
+ * spell, and neither invents.
+ *
+ * The same arrangement `ASSET_PREFIX` has one member over: the server answers
+ * under it and the tab imports from it, so a rename is one constant rather than
+ * two strings that agree until they do not. Under `/_olai/` with the hashed
+ * assets, because it is the same kind of thing — code this server built, named
+ * by its content, and immutable at the name it is served under.
+ */
+export const PLUGIN_CHUNK_PREFIX = "/_olai/plugins/"
+
+/**
+ * THE SEVEN WORDS A ROW CAN BE IN, and each is a different morning.
  *
  *   - `running`  composed: members on the wire, faces drawn, probe run, kinds
  *                held. The ordinary state and the only one that is good news.
@@ -273,6 +335,16 @@ export type BuiltPlugin = typeof BuiltPlugin.Type
  *   - `failed`   its `apply` DIED, which the registry records as a throw out of
  *                the mount. The one word that is a FAULT: it was asked
  *                for, it is absent, and nothing else on screen says so.
+ *   - `pending`  A PERSON HAS NOT DECIDED. Only ever a row the VAULT defines
+ *                ({@link BuiltPlugin.source}): the source is written, this
+ *                version is not the one anybody approved, and nothing of it has
+ *                been imported, compiled or run. The fifth absence and the only
+ *                one that is a QUESTION rather than an answer — the other four
+ *                are states somebody or something already settled, and this one
+ *                is waiting on a reader. It is the state phase 12 exists to
+ *                draw: the panel shows the source under it and the verb beside
+ *                it, which is the one place in this product where a person
+ *                approves code rather than changes a setting.
  *   - `waiting`  the plugin is waiting on a service that has not arrived. Not
  *                reachable while every service a plugin NAMES is provided before
  *                the bundle is, and declared here because the runtime that can
@@ -289,13 +361,13 @@ export type BuiltPlugin = typeof BuiltPlugin.Type
  *
  * That is the exact failure the narrowing exists to prevent, arriving through
  * the narrowing's own vocabulary. One `as const` array, the type read off it,
- * and a sixth word is one edit that cannot be half-made.
+ * and a seventh word is one edit that cannot be half-made.
  */
-const STATES = ["running", "off", "optIn", "failed", "waiting", "switched"] as const
+const STATES = ["running", "off", "optIn", "failed", "waiting", "switched", "pending"] as const
 
 export type PluginState = (typeof STATES)[number]
 
-/** The six, as a set — what {@link pluginState} asks. */
+/** The seven, as a set — what {@link pluginState} asks. */
 const KNOWN: ReadonlySet<string> = new Set<string>(STATES)
 
 /**

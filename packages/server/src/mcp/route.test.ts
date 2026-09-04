@@ -143,6 +143,9 @@ const withRoute = <A>(
       identity: DEFAULT_IDENTITY_CONFIG,
       mcp: { transport, token: TOKEN, identity: DEFAULT_IDENTITY_CONFIG },
       resync: Effect.void,
+      // No vault-defined plugins in this bench: the route binds and answers 404,
+      // which is the same thing it does on a serve that has none.
+      plugins: null,
     }))
 
     const url = `${base}${MCP_PATH}`

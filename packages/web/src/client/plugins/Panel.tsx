@@ -134,7 +134,7 @@
 
 import { createSignal, For, Show } from "solid-js"
 
-import { NO_ROSTER, type PluginRoster } from "@olai/surface"
+import { type BuiltPlugin, NO_ROSTER, type PluginRoster, pluginState } from "@olai/surface"
 
 import { type Anchor, styleOf } from "../anchor.ts"
 import { PANEL_BOX } from "../readout.ts"
@@ -215,6 +215,39 @@ export function Panel(props: {
     )
   }
 
+  /** WHOSE APPROVAL IS IN THE AIR — {@link flipping} for the other verb, and a
+   *  second signal rather than a shared one because the two controls sit on the
+   *  same row and a person may press the switch of one plugin while another's
+   *  approval is still landing. */
+  const [approving, setApproving] = createSignal<string | null>(null)
+
+  /**
+   * SAY YES TO A PLUGIN THE VAULT DEFINES.
+   *
+   * The VERSION goes with the press — the one this panel drew, off the roster it
+   * is looking at — so a serve whose reading has moved on refuses rather than
+   * approving source nobody has read. That refusal lands in the same place every
+   * other one does, which is what makes "it changed while you were reading"
+   * something a person is told rather than something that quietly works.
+   *
+   * NOTHING COMES BACK. What a person is owed is the row moving from `pending`
+   * to `running`, and that arrives on the roster once the write has published a
+   * revision and the definition has been followed.
+   */
+  const approve = (name: string, version: string, forever: boolean): void => {
+    if (approving() !== null) return
+    setApproving(name)
+    setRefused(null)
+    run(
+      olai.procedures.plugins.approve({ name, version, forever }),
+      (failure) => {
+        setApproving(null)
+        setRefused(failure.message)
+      },
+      () => setApproving(null),
+    )
+  }
+
   return (
     <section
       ref={props.inside}
@@ -251,6 +284,19 @@ export function Panel(props: {
             </Row>
           )
         }}
+      </For>
+
+      {/* THE DEFINITIONS, WITH THEIR SOURCE — a block per plugin this VAULT
+          defines, under the rows.
+
+          It is a second walk rather than a slot inside the row above, and the
+          reason is what a row IS: a label, a control, and at most a sentence.
+          What a definition needs beside it is the two halves of its source, in
+          full, because approving one is READING it — which is a paragraph of
+          code and not a hint. The rows stay one line each and this hangs under
+          them. */}
+      <For each={rows().filter((one) => one.source !== undefined)}>
+        {(plugin) => <Defined plugin={plugin} approving={approving} approve={approve} />}
       </For>
 
       {/* A BUILD WITH NO PLUGINS SAYS SO, where on the preferences panel it
@@ -294,3 +340,96 @@ export function Panel(props: {
     </section>
   )
 }
+
+/**
+ * ONE PLUGIN THE VAULT DEFINES — its source, and the verb that says yes to it.
+ *
+ * ## Why the source is drawn at all, and why it is drawn WHOLE
+ *
+ * This is the one place in this product where a person is deciding about CODE
+ * rather than about a setting, and the code will run with the server's own
+ * authority — there is no sandbox and this phase does not pretend to build one.
+ * So the decision has to be made in front of the thing being decided about. A
+ * panel that asked somebody to approve a content hash would be asking them to
+ * approve something they cannot see, which is a consent dialog and not a
+ * decision.
+ *
+ * It is a `<details>` rather than always-open because a serve with three
+ * approved definitions would otherwise draw three files' worth of code every
+ * time somebody opened this panel to flip a row — and it is OPEN by default on a
+ * row that is `pending`, which is exactly the row whose whole point is being
+ * read.
+ *
+ * ## The two verbs, and why the second one exists
+ *
+ * *`approved: <content hash>` for one version, `approved: always` for every
+ * later one* (the human, 2026-09-05). One version is the careful answer and the
+ * default reading of the button on the left; `always` is for a plugin somebody
+ * is iterating on with an agent, where re-approving every edit is a gesture that
+ * stops being read after the third time — which is the failure mode a
+ * per-version prompt has, rather than a safety property it keeps.
+ *
+ * Both write a property on the plugin's own node through the ordinary write
+ * door, so the decision travels with the vault and is in the ledger like the
+ * source it is about.
+ */
+function Defined(props: {
+  readonly plugin: BuiltPlugin
+  readonly approving: () => string | null
+  readonly approve: (name: string, version: string, forever: boolean) => void
+}) {
+  const source = () => props.plugin.source
+  const pending = () => pluginState(props.plugin) === "pending"
+  const frozen = () => props.approving() !== null
+  return (
+    <Show when={source()}>
+      {(said) => (
+        <details
+          open={pending()}
+          class="rounded border border-line/60 p-2 text-xs"
+          data-testid={TESTID.pluginsSource}
+          data-plugin={props.plugin.name}
+        >
+          <summary class="cursor-pointer text-muted">
+            {props.plugin.name} — {said().file}, version {said().version}
+            {said().approved ? "" : " (not approved)"}
+          </summary>
+          <pre class="mt-2 max-h-64 overflow-auto wrap-anywhere whitespace-pre-wrap">
+            {`// ${SERVER_HALF}\n${said().server}${
+              said().browser === undefined ? "" : `\n\n// ${BROWSER_HALF}\n${said().browser}`
+            }`}
+          </pre>
+          <Show when={pending()}>
+            <div class="mt-2 flex gap-2">
+              <button
+                type="button"
+                class="rounded border border-line px-2 py-1"
+                disabled={frozen()}
+                data-testid={TESTID.pluginsApprove}
+                onClick={() => props.approve(props.plugin.name, said().version, false)}
+              >
+                Approve this version
+              </button>
+              <button
+                type="button"
+                class="rounded border border-line px-2 py-1"
+                disabled={frozen()}
+                data-testid={TESTID.pluginsApproveAlways}
+                onClick={() => props.approve(props.plugin.name, said().version, true)}
+              >
+                Approve always
+              </button>
+            </div>
+          </Show>
+        </details>
+      )}
+    </Show>
+  )
+}
+
+/** The two headings the drawn source is split by — the titles the child nodes
+ *  wear, so what is on screen reads as the two files a plugin is. Spelled here
+ *  rather than imported from the serve: they are a LABEL in this panel, and the
+ *  serve's copy is a lookup key in a vault. */
+const SERVER_HALF = "server.ts"
+const BROWSER_HALF = "browser.tsx"

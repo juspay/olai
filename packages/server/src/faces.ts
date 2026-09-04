@@ -308,6 +308,16 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   // absent from it is asserted rather than trusted to the fact that nobody
   // typed it.
   "plugins.set": "tool",
+  // ...AND THE ONE VERB THAT SAYS YES TO CODE, on this face for the sharpest
+  // version of the same reason.
+  //
+  // A plugin the vault defines is source somebody — usually an agent — wrote
+  // into the directory this serve is about, and mounting it runs that source
+  // with the process's authority. The boundary is a PERSON, at a panel, having
+  // read the two halves the row carries. An agent on the face below can write a
+  // definition and can ask what became of it; the one thing it cannot do is be
+  // the reader.
+  "plugins.approve": "tool",
   // A PLUGIN'S MEMBERS ARE NOT IN THIS MAP, and the eight that were are the
   // whole reason this file stopped being where the decision lived for them.
   // A daemon link, a fleet, a watcher pulse, a mute list, an events ring, a
@@ -414,6 +424,29 @@ export const AGENT: ExposeMap<typeof surface.spec> = {
   "ops.document": "tool",
   "search.nodes": "tool",
   "git.push": "tool",
+  // THE THREE VERBS OF PHASE 12 THAT ARE AN AGENT'S, and they are here because
+  // the agent is the author.
+  //
+  // `plugins.inspect` is a READ of what a plugin may name — the modules, the
+  // services, the slots, the words already taken — asked before the code is
+  // written. `plugins.run` asks olai to look at a definition and answers what
+  // became of it, which for anything nobody has approved is `pending`.
+  // `plugins.stop` unmounts one, and is narrowed to definitions so an agent
+  // cannot turn off the row that seats it.
+  //
+  // WHAT IS NOT HERE is `plugins.approve` and `plugins.set`, and the pair is the
+  // whole boundary: an agent may write a plugin and may ask about it, and a
+  // person is the one who says yes. `./faces.test.ts` pins this face as an EXACT
+  // SET, so that absence is asserted rather than trusted to nobody having typed
+  // it.
+  //
+  // WRITING the definition is not on this list and needs nothing added to it: a
+  // plugin is a node with two child notes, so an agent writes one with
+  // `add_node`, `set_desc` and `set_prop` — the ordinary write door, under the
+  // ordinary subtree fence, recorded by the ordinary ledger commit.
+  "plugins.inspect": "tool",
+  "plugins.run": "tool",
+  "plugins.stop": "tool",
 }
 
 /** The name each face is known by in a plugin's own `faces` record — the key

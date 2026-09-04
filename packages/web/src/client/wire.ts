@@ -169,7 +169,28 @@ const [redialing, setRedialing] = createSignal(false)
  * so a separator changed in one place and not the other leaves the loop either
  * spinning (never equal) or wedged (always equal). Neither fails loudly.
  */
-const signatureOf = (names: ReadonlyArray<string>): string => names.join("\n")
+const signatureOf = (names: ReadonlyArray<Named>): string =>
+  names.map((one) => one.chunk === null ? one.id : `${one.id}\t${one.chunk}`).join("\n")
+
+/**
+ * ONE PLUGIN THE ROSTER NAMES, and where its browser half comes from.
+ *
+ * `chunk` is `null` for every plugin this build compiled in: its half is a chunk
+ * of the bundle, named by a literal `import()` in a generated row, and the table
+ * that holds those thunks is the one thing the tab may know about plugins ahead
+ * of time (`@olai/bundle`'s `rows.ts`).
+ *
+ * It is a URL for a plugin the VAULT defines, which the serve compiled out of a
+ * note and answers under `/_olai/plugins/<name>-<version>.js`. THE VERSION IS IN
+ * THE PATH, which is why it rides the signature above: an edit somebody approved
+ * is a different URL, so the comparison that decides whether to redial sees the
+ * change — where a signature of names alone would call the new code the same
+ * roster and leave the old module mounted.
+ */
+interface Named {
+  readonly id: string
+  readonly chunk: string | null
+}
 
 /** THE PLUGINS THIS WIRE CARRIES, as that signature. */
 let composed = ""
@@ -199,7 +220,7 @@ let composed = ""
  * rather than the page being stuck holding a wire it thinks is newer than it
  * is.
  */
-const rerost = async (want: ReadonlyArray<string>): Promise<void> => {
+const rerost = async (want: ReadonlyArray<Named>): Promise<void> => {
   const signature = signatureOf(want)
   // ONE AT A TIME, and it is the roster's own shape that makes this reachable
   // rather than theoretical. `composed` is only written on SUCCESS — which is
@@ -252,14 +273,23 @@ export const useBrowserRows = (built: ReadonlyArray<BrowserRow>): void => {
 
 let inFlight: Promise<void> = Promise.resolve()
 
-const rerostNow = async (want: ReadonlyArray<string>, signature: string): Promise<void> => {
+const rerostNow = async (want: ReadonlyArray<Named>, signature: string): Promise<void> => {
   // ...and once it is our turn, the answer may already be the one on the wire:
   // the frame ahead of us in the queue may have been for the same roster.
   if (signature === composed) return
   setRedialing(true)
   try {
     const halves = await Promise.all(
-      rows.filter((row) => want.includes(row.id)).map((row) => row.load()),
+      want.flatMap((one) => {
+        // A PLUGIN THE VAULT DEFINES is fetched from the serve that compiled
+        // it; everything else is a chunk of this bundle, and a name with
+        // neither is skipped rather than thrown on — a serve running a plugin
+        // this build does not have is a tab talking to a newer server, and the
+        // honest answer is that its faces are absent.
+        if (one.chunk !== null) return [chunkAt(one.chunk)]
+        const row = rows.find((each) => each.id === one.id)
+        return row === undefined ? [] : [row.load()]
+      }),
     )
     // The cast is what a tab that follows the roster costs at the type level,
     // and it is worth naming rather than hiding. The old arrangement recovered
@@ -284,6 +314,26 @@ const rerostNow = async (want: ReadonlyArray<string>, signature: string): Promis
   }
   setGeneration((at) => at + 1)
 }
+
+/**
+ * A BROWSER HALF FETCHED AT RUNTIME — the one `import()` in this app whose
+ * specifier is not a literal, and it is deliberately not one.
+ *
+ * A bundler splits on a literal and resolves nothing else, which is exactly what
+ * is wanted here: the URL is a fact the ROSTER carries, about a plugin whose
+ * source did not exist when this bundle was built, so there is nothing for the
+ * build to have split out. `bun build` leaves a computed `import()` as a runtime
+ * import for the same reason it cannot split it.
+ *
+ * ITS THREE IMPORTS ARE ALREADY BOUND. The serve compiled the half with
+ * `@olai/plugin-api`, `effect` and `solid-js` rewritten to reads of
+ * `./plugins/shared.ts`'s table — so what arrives is a module with no imports at
+ * all, holding THIS app's Solid and THIS app's service tags. That is the whole
+ * reason a face an agent wrote can sit inside a provider a shipped plugin
+ * registered.
+ */
+const chunkAt = (url: string): Promise<BrowserHalf> =>
+  import(/* @vite-ignore */ url) as Promise<BrowserHalf>
 
 /** The halves' surfaces, keyed by name — the shape every composition door
  *  takes. Built here rather than through `@olai/plugin-api`'s `surfacesOf`
@@ -371,7 +421,14 @@ createRoot(() => {
       // nothing about which plugins are running, and dialling none of them
       // because of it would be this page inventing a policy.
       if (value === undefined) return
-      const want = value.built.filter((row) => row.running).map((row) => row.name)
+      // WHAT TO LOAD, per running row — the word, and for a plugin the VAULT
+      // defines the URL its browser half is served from. A built row has no
+      // `source`, so `chunk` is `null` and the compiled-in table below is what
+      // answers for it; a definition has no entry in that table and could not,
+      // because its source did not exist when this bundle was built.
+      const want = value.built
+        .filter((row) => row.running)
+        .map((row) => ({ id: row.name, chunk: row.source?.chunk ?? null }))
       if (signatureOf(want) === composed) {
         settle()
         return

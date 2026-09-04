@@ -607,6 +607,15 @@ export const TESTID = {
    *  to flip: the empty-build sentence is a different fact and would not want
    *  this under it. */
   pluginsStarted: "plugins-started",
+  /** THE SOURCE OF A PLUGIN THE VAULT DEFINES, under its row — the two halves
+   *  as they are written, which is the thing a person is being asked to read
+   *  before they approve it. Present on a definition's row and on no other. */
+  pluginsSource: "plugins-source",
+  /** ...and the verb that says yes to it. Two buttons under a `pending` row —
+   *  this version, or every later one — and neither is drawn anywhere else in
+   *  the app. */
+  pluginsApprove: "plugins-approve",
+  pluginsApproveAlways: "plugins-approve-always",
   /** One row on EITHER panel; `data-pref` is which. On preferences: `theme`,
    *  `font`, `size`, `density`, `done`, `git-commit`, `git-push`. On plugins:
    *  one `plugin-<name>` per plugin this build has ({@link pluginPref}, which

@@ -241,6 +241,13 @@ export const pluginHint = (plugin: BuiltPlugin): string | null => {
       // built-in default is ON and this one's is OFF, so a panel-wide sentence
       // could only ever name one of them.
       return `Off by default — --plugins=${plugin.name} starts it at boot.`
+    case "pending":
+      // A PERSON HAS NOT DECIDED, and this is the one absence whose answer is
+      // on this very panel: the source is drawn under the rows and the verb is
+      // beside it. So the line says what is being asked rather than where to go
+      // — the other absences all send a reader somewhere else, and this one is
+      // waiting on them here.
+      return `Waiting for you: read the source below and approve it, or leave it.`
     case "switched":
       // THE PRESS A PERSON JUST MADE, and the one absence that undoes itself.
       // The other three all send a reader somewhere else — a flag to type, a

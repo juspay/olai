@@ -97,7 +97,7 @@ import type {
   PushResult,
   Writer,
 } from "@olai/format"
-import { type Applied, type CorePageReading, type Edit, GIT_OFF, type GitState, LOADED, type Manifest, NO_ROSTER, type PluginRoster, type PluginState, surface, watchable, type Who } from "@olai/surface"
+import { type Applied, type BuiltPlugin, type CorePageReading, type Edit, GIT_OFF, type GitState, LOADED, type Manifest, NO_ROSTER, type PluginRoster, type PluginState, surface, watchable, type Who } from "@olai/surface"
 import { type OpFailure } from "@olai/format"
 import {
   customText,
@@ -142,11 +142,27 @@ import { Duration, Effect, Result, type Scope, Stream, SubscriptionRef } from "e
  * environment, the clock and the two log channels are reached for.
  */
 import type { ConversationSeen, Plugins, Registered, Wake } from "@olai/plugin-api/services"
+// THE TWO CATALOGS `plugins.inspect` ANSWERS WITH, read off the tables that
+// enforce them rather than described here — see `@olai/plugin-api`'s `SERVICES`
+// on why a second copy in this file would be the worst kind of wrong list.
+import { SERVICE_KEYS, SLOTS } from "@olai/plugin-api/services"
+// ...and the third, which is the compiler's: the bare module names a plugin's
+// source may import.
+import { WRITABLE_MODULES } from "@olai/plugin-build"
 import type { RowReport } from "@olai/bundle/bundle"
 
 
 import { type Emit, emitter } from "@olai/log"
 import * as Bodies from "./bodies.ts"
+import type { DynamicRuntime } from "./dynamic/runtime.ts"
+import {
+  ALWAYS,
+  APPROVED_KEY,
+  BROWSER_NODE,
+  isApproved,
+  PLUGIN_KEY,
+  SERVER_NODE,
+} from "./dynamic/source.ts"
 import { inverseOf, reresolves, requestFor } from "./edit.ts"
 import { runResolved } from "./resolving.ts"
 import {
@@ -388,6 +404,17 @@ export interface PluginRuntime {
    * then on again is simply running. It is per PROCESS, like the flip itself.
    */
   readonly switched: () => ReadonlySet<string>
+  /**
+   * THE PLUGINS THIS VAULT DEFINES — phase 12, and the one field on this
+   * interface that is about rows nobody compiled in.
+   *
+   * `null` is a runtime with no vault behind it, which is every headless face:
+   * a definition is a node, so a process that serves no directory has none to
+   * read. It is a whole door rather than four fields for the reason every other
+   * field here is one verb: what crosses is a runtime this file drives and does
+   * not look inside (`./dynamic/runtime.ts`).
+   */
+  readonly dynamic?: DynamicRuntime | null
 }
 export interface Wiring {
   /** THE SERVED word: the machine this process runs on, minted ONCE per
@@ -657,6 +684,25 @@ export const rosterOf = (
    * carrying nobody is the state every plugin in this build but one is in.
    */
   offers: ReadonlyMap<string, string> = new Map(),
+  /**
+   * ...AND THE ROWS THE VAULT DEFINES, already shaped — phase 12's whole
+   * addition to this reading.
+   *
+   * They arrive SHAPED rather than as definitions this function reads, because
+   * nothing about them is a join over the two tables above: a dynamic row's
+   * word, state and fault are decided where its fiber is (`./dynamic/runtime.ts`
+   * says why four of its five absences are not fiber states at all), and this
+   * function's job is the built rows.
+   *
+   * AFTER the built ones, always, which is the same argument the bundle's own
+   * order makes: a person reads this list, the built rows are the ones that are
+   * the same on every machine, and a row that appeared because somebody wrote it
+   * into this directory belongs under them rather than shuffled among them.
+   *
+   * A DEFAULT OF NOTHING, like its two neighbours: every caller that only wants
+   * the roster's shape has no vault to be about.
+   */
+  defined: ReadonlyArray<BuiltPlugin> = [],
 ): PluginRoster =>
   offered === null ? NO_ROSTER : ((
     // ONE REGISTRY WALK for the whole roster rather than one per row: every
@@ -665,7 +711,7 @@ export const rosterOf = (
     // re-compose — which is every register and every dispose.
     names: ReadonlyMap<string, ReadonlyArray<string>>,
   ) => ({
-    built: offered.built.map((name) => {
+    built: [...offered.built.map((name) => {
       // A row the report has nothing to say about never loaded, and that
       // absence IS `off` rather than a missing case (`@olai/effect-cordis`'s
       // `rowReport`).
@@ -720,7 +766,7 @@ export const rosterOf = (
           },
         }),
       }
-    }),
+    }), ...defined],
     pinned: offered.pinned,
   }))(offered.names())
 
@@ -1293,7 +1339,49 @@ export const bind = (
      * and the cell is republished ({@link republishPlugins}).
      */
     const roster = (): PluginRoster =>
-      rosterOf(offered, rings(), plugins?.offers() ?? new Map())
+      rosterOf(offered, rings(), plugins?.offers() ?? new Map(), dynamic?.rows() ?? [])
+
+    /** THE PLUGINS THIS VAULT DEFINES, or `null` for a runtime that has none —
+     *  every headless face, and every test that composes no plugin slot. */
+    const dynamic = offered?.dynamic ?? null
+
+    /**
+     * FOLLOW THE VAULT'S OWN PLUGINS, and re-compose if anything moved.
+     *
+     * ONE HELPER for the three moments that can move a definition — a revision
+     * landed, a person approved, a switch was pressed — because all three end
+     * the same way and the ending is not obvious: a dynamic plugin that mounts
+     * may register a SIBLING SURFACE, which reaches the wire only through the
+     * re-compose, and its row reaches an open tab only through the roster the
+     * re-compose republishes.
+     *
+     * `moving` is held for the same reason the flip holds it: mounting a plugin
+     * fans out into several registry changes, and each of them would otherwise
+     * publish a roster about a bundle that is halfway there.
+     *
+     * IT REACHES BOTH THROUGH A HOLDER, and that is not shyness about a forward
+     * reference — it is a TDZ, and it was measured: the manifest connector runs
+     * INSIDE `implementRootedSurfaces`, on a store that already has a snapshot,
+     * which is long before `moving` and `recompose` are declared. Naming either
+     * directly here is `ReferenceError: Cannot access 'moving' before
+     * initialization`, taking the whole surface runtime down at boot.
+     *
+     * THE NO-OP DEFAULT IS THE HONEST BOOT ARM rather than a hole. Before the
+     * re-compose exists nothing has been composed, so there is nothing to
+     * suppress and nothing to re-compose: a definition that mounts on that first
+     * revision registers its sibling into the same tables every plugin's `apply`
+     * registers into, and the `recompose()` that runs at the end of this
+     * function picks it up with the rest of the bundle.
+     */
+    const followed = (read: Reading | null): Effect.Effect<void> =>
+      dynamic === null || read === null
+        ? Effect.void
+        : Effect.asVoid(settling(dynamic.follow(read.derived)))
+
+    /** ...and the holder itself, filled in the moment {@link recompose} exists —
+     *  see above for what the default arm is. It ANSWERS what it was told, so a
+     *  caller that has to know whether the word was one of its own still does. */
+    let settling: (run: Effect.Effect<boolean>) => Effect.Effect<boolean> = (run) => run
 
     /**
      * EVERY CONNECTOR BELOW READS `store.reads`, and every frame on it is a
@@ -1580,6 +1668,13 @@ export const bind = (
                   // and zero frames, and the sockets are the sweeps' business
                   // on their own clocks.
                   if (plugins !== null) yield* plugins.published(snapshot)
+                  // ...AND THE PLUGINS THE VAULT ITSELF DEFINES, on the same
+                  // statement and for the same reason: a revision is exactly
+                  // when a definition can have arrived, changed, been approved
+                  // or gone away. Phase 12's whole loop is this line — an agent
+                  // writes two notes through the ordinary write door, the write
+                  // publishes a revision, and the definition is read here.
+                  yield* followed(snapshot.value)
                   // Written last, which is NOT the order they arrive in: a cell
                   // publishes on this stack while the collection's frame is
                   // coalesced into one delta on a microtask, so the manifest
@@ -1961,8 +2056,149 @@ export const bind = (
          * same: there is no such plugin here.
          */
         plugins: {
+          /**
+           * A PERSON SAYS YES TO CODE — phase 12's one browser verb, and the
+           * only place in this product where that sentence is true.
+           *
+           * ## The version in the input is the whole of the safety
+           *
+           * The panel drew the source the roster carried and sends back the
+           * version it drew. If the definition has moved since — the agent wrote
+           * another line while the panel was open — this refuses naming the
+           * change, rather than approving code nobody read. An approval that
+           * named only the plugin could not tell the two apart.
+           *
+           * ## The write is the ORDINARY one
+           *
+           * `{op: "prop"}` through the same gate a keystroke goes through, under
+           * the writer this runtime was composed with and NO fence: this is a
+           * person's decision, arriving on the browser face, and the subtree
+           * fence is about what an agent may reach. So the approval is a
+           * property on the plugin's own node, planned, validated and committed
+           * like any other write — which is the ruling: it travels with the
+           * vault and is versioned by the ledger like the source it is about.
+           *
+           * WHAT MOUNTS IT is not this call: the write publishes a revision, the
+           * revision is followed, and the definition mounts there
+           * ({@link followed}). One path, whether an approval or an edit is what
+           * moved.
+           */
+          approve: ({ input }) =>
+            Effect.gen(function*() {
+              const one = dynamic?.defined(input.name) ?? null
+              if (one === null) {
+                return yield* Effect.fail(
+                  new NotFoundFailure({
+                    reason: `this vault defines no plugin called "${input.name}"`,
+                    named: input.name,
+                  }),
+                )
+              }
+              if (one.version !== input.version) {
+                return yield* Effect.fail(
+                  new NotFoundFailure({
+                    reason:
+                      `"${input.name}" has been edited since this page drew it, so approving `
+                      + `it now would approve source nobody has read. Look again, read what `
+                      + `it says, and approve that.`,
+                    named: input.name,
+                  }),
+                )
+              }
+              yield* writing(wiring.ops, { writer: wiring.writer, fence: null }).ops.run({
+                op: "prop",
+                id: one.node,
+                key: APPROVED_KEY,
+                value: input.forever ? ALWAYS : one.version,
+              })
+              return {}
+            }),
+          /**
+           * ...AND THE AGENT'S THREE, which between them can define nothing and
+           * approve nothing.
+           *
+           * `run` asks olai to look at a definition and answers what became of
+           * it — `pending` where nobody has approved this version, which is the
+           * whole of the boundary said back to the caller that wrote the code.
+           * It re-reads rather than trusting the last revision, so an agent that
+           * has just written its two notes is answered about what it wrote.
+           */
+          run: ({ input }) =>
+            Effect.gen(function*() {
+              yield* followed(
+                yield* Effect.catch(wiring.ops.read, () => Effect.succeed(null)),
+              )
+              const one = dynamic?.defined(input.name) ?? null
+              if (one === null) {
+                return yield* Effect.fail(
+                  new NotFoundFailure({
+                    reason: `this vault defines no plugin called "${input.name}". A definition `
+                      + `is a node with a \`${PLUGIN_KEY}\` property naming the word, and a child `
+                      + `titled \`${SERVER_NODE}\` whose note is the half.`,
+                    named: input.name,
+                  }),
+                )
+              }
+              const row = (dynamic?.rows() ?? []).find((one) => one.name === input.name)
+              return {
+                name: one.name,
+                version: one.version,
+                state: row?.state ?? "off",
+                approved: isApproved(one),
+                ...(row?.fault === undefined ? {} : { fault: row.fault }),
+              }
+            }),
+          /** ...and stopping one, which is the panel's switch narrowed to the
+           *  rows an agent is allowed to touch: `dynamic.set` knows only about
+           *  definitions, so a name that is a BUILT row is simply not found
+           *  here. That narrowing is the reason this is a second verb rather
+           *  than `plugins.set` on a second face. */
+          stop: ({ input }) =>
+            Effect.gen(function*() {
+              const stopped = dynamic === null
+                ? false
+                : yield* settling(dynamic.set(input.name, false))
+              if (!stopped) {
+                return yield* Effect.fail(
+                  new NotFoundFailure({
+                    reason: `this vault defines no plugin called "${input.name}", and a plugin `
+                      + `this build compiled in is not an agent's to stop`,
+                    named: input.name,
+                  }),
+                )
+              }
+              return {}
+            }),
+          /** WHAT A PLUGIN MAY NAME, read off the tables that enforce it —
+           *  `@olai/plugin-build`'s module list, `@olai/plugin-api`'s services
+           *  and slots, and this serve's own roster. Nothing here is described
+           *  beside the thing it describes. */
+          inspect: () =>
+            Effect.sync(() => ({
+              modules: WRITABLE_MODULES,
+              services: SERVICE_KEYS,
+              slots: Object.entries(SLOTS).map(([name, one]) => ({
+                name,
+                keyedBy: one.keyedBy,
+              })),
+              layout: {
+                property: PLUGIN_KEY,
+                approved: APPROVED_KEY,
+                server: SERVER_NODE,
+                browser: BROWSER_NODE,
+              },
+              taken: roster().built.map((row) => row.name),
+            })),
           set: ({ input }) =>
             Effect.gen(function*() {
+              // A DEFINITION IS A ROW TOO, and the switch reaches it: the panel
+              // draws one strip per row and does not know which kind it is
+              // looking at. The dynamic half answers whether the word was one of
+              // its own, so a name that is neither lands on the same refusal a
+              // stale tab has always had.
+              if (dynamic !== null && (yield* settling(dynamic.set(input.name, input.enabled)))) {
+                return {}
+              }
               const flipped = offered === null ? false : yield* Effect.ensuring(
                 Effect.andThen(
                   Effect.sync(() => {
@@ -2274,6 +2510,27 @@ export const bind = (
       gates = gatesFor()
       if (!moving) republishPlugins()
     }
+
+    /**
+     * ...AND THE HOLDER THE DYNAMIC HALF REACHES IT THROUGH, filled here
+     * because this is the first statement at which there is something to fill it
+     * with — see {@link followed} for why the reference cannot be direct.
+     *
+     * IT IS THE FLIP'S OWN SEQUENCE, spelled once for the other thing that moves
+     * a fiber: hold the roster still, do the thing, let it go, and re-compose
+     * only if something actually moved. `ensuring` and not a `finally`, for
+     * {@link Deps.plugins.set}'s reason: an interrupt that left the flag set
+     * would leave this runtime silently never publishing a roster again.
+     */
+    settling = (run) =>
+      Effect.gen(function*() {
+        const changed = yield* Effect.ensuring(
+          Effect.andThen(Effect.sync(() => { moving = true }), run),
+          Effect.sync(() => { moving = false }),
+        )
+        if (changed) recompose()
+        return changed
+      })
 
     /**
      * THE TWO FACE GATES, AS ONE VALUE PER GENERATION — held rather than

@@ -54,6 +54,7 @@ import { Effect, Layer, type Scope } from "effect"
 
 import { CurrentWho, whoOf, whoRoute } from "./identity.ts"
 import { manifestOf } from "./manifest.ts"
+import { pluginChunks } from "./dynamic/route.ts"
 import { mcpRoute } from "./mcp/route.ts"
 import { mediaLayer } from "./media.ts"
 import { report } from "./report.ts"
@@ -121,7 +122,10 @@ export interface ListenOptions {
   /** `POST /olai/resync` — look at the disk now, ignoring mtime+size stamps.
    *  See {@link ./resync.ts}. */
   readonly resync: Parameters<typeof resyncRoute>[0]
-
+  /** `GET /_olai/plugins/*` — the browser half of a plugin this VAULT defines,
+   *  compiled by this serve. `null` for a serve with no vault behind it. See
+   *  {@link ./dynamic/route.ts}. */
+  readonly plugins: Parameters<typeof pluginChunks>[0]
 }
 
 /** Binds, and registers its own teardown on the enclosing scope — so a caller
@@ -219,10 +223,11 @@ const app = (options: Omit<ListenOptions, "port">, port: number, say: Emit) =>
     // the chat's attention alerts (`packages/web/src/client/chat/attention/`)
     // have nowhere else to go.
     serviceWorker: "notify",
-    // olai's own FOUR routes: the one that answers with bytes from the SERVED
+    // olai's own FIVE routes: the one that answers with bytes from the SERVED
     // directory rather than from the bundle, the one an agent speaks to, the
-    // one that forces a re-read of the disk (`POST /olai/resync`), and the one
-    // that says who this request is (`GET /olai/who`).
+    // one that forces a re-read of the disk (`POST /olai/resync`), the one
+    // that says who this request is (`GET /olai/who`), and the one that answers
+    // with a plugin this SERVE compiled out of somebody's vault.
     //
     // There were five. `POST /capture` was a bespoke door for ONE verb, built
     // because `/mcp`'s per-process bearer left a terminal no way in; `capture`
@@ -236,6 +241,11 @@ const app = (options: Omit<ListenOptions, "port">, port: number, say: Emit) =>
       mediaLayer(options.root),
       resyncRoute(options.resync),
       whoRoute(options.identity),
+      // ...and the fifth, which is the only one that answers with something
+      // this SERVE compiled: the browser half of a plugin the vault defines
+      // (`./dynamic/route.ts`). It is a route rather than a chunk in the
+      // bundle because its source did not exist when the bundle was built.
+      pluginChunks(options.plugins),
     ),
     host: options.host,
     port,

@@ -26,6 +26,11 @@ import { trackVisibleViewport } from "./viewport.ts"
 import { provideFurniture } from "./plugins/furniture.tsx"
 import { connectionReadout, firstRoster, olai, useBrowserRows, wireGeneration } from "./wire.ts"
 import { useBundleOrder } from "./plugins/runtime.ts"
+// FOR ITS SIDE EFFECT, and above the first render: this app's Solid, Effect and
+// plugin interface, put where a plugin the SERVE compiled out of somebody's
+// vault can reach them (`./plugins/shared.ts` argues why a second copy of any of
+// the three is the app swallowing itself).
+import "./plugins/shared.ts"
 // THE ONE PLACE IN THIS PACKAGE THAT MAY NAME THE REGISTRY.
 //
 // `@olai/bundle` names every plugin, and a plugin's browser half imports this
