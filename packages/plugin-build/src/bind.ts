@@ -35,14 +35,15 @@
  *
  * ## THE POST-CONDITION IS THE REAL GUARANTEE
  *
- * A regex over emitted JavaScript is a regex over emitted JavaScript, and the
- * failure it can have is silent: a form it does not match survives as a real
- * `import` in a module that is about to be evaluated, and the plugin dies on a
- * resolution error naming a package the author was told they could use. So
- * {@link bind} does not trust its own match — it asserts afterwards that no
- * module syntax is LEFT, and refuses in words naming the line if any is. A shape
- * this does not handle is then a refusal at define time rather than a mystery at
- * mount time.
+ * A reader of emitted JavaScript that is not a parser is a reader that can be
+ * wrong, and the failure it can have is silent: a form it does not understand
+ * survives as a real `import` in a module that is about to be evaluated, and the
+ * plugin dies on a resolution error naming a package the author was told they
+ * could use. So {@link bind} does not trust its own reading — it asserts
+ * afterwards that no module syntax is LEFT, and refuses in words naming the line
+ * if any is. A shape this does not handle is then a refusal at define time
+ * rather than a mystery at mount time, which is also what lets {@link
+ * statementAt} answer `null` for anything unfamiliar rather than guess.
  */
 
 import { REGISTRY } from "./shared.ts"
