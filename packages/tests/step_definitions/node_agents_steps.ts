@@ -557,3 +557,26 @@ Then(
     );
   },
 );
+
+/** WHOSE CONVERSATION THE PANEL IS IN, off the header's own line
+ *  (`PLUGIN_TESTID.chatNode`) — the node agent, by the title a person reads it
+ *  under rather than by its id.
+ *
+ *  Its own step because of the one place it is asserted from: a REFUSED open,
+ *  where the panel has no conversation at all and used to have no node either.
+ *  The node is what draws that agent's session control, which is the only way
+ *  out of a conversation the engine has lost — so "the header still names the
+ *  agent" is the claim the way out stands on, and it is worth making before
+ *  pressing anything. */
+Then(
+  "the panel header names the node agent {string}",
+  async function (this: OlaiWorld, title: string) {
+    const line = this.page.locator(selector(PLUGIN_TESTID.chatNode));
+    await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.ok(
+      (await line.innerText()).replaceAll("\n", " ").includes(title),
+      `the panel header to name the node agent ${JSON.stringify(title)}, and it says ` +
+        JSON.stringify((await line.innerText()).replaceAll("\n", " ")),
+    );
+  },
+);

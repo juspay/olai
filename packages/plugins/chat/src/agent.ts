@@ -1565,6 +1565,12 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
 
     const fresh = (at: Live): Effect.Effect<void, AgentGone> =>
       Effect.gen(function*() {
+        // WHAT IS BEING OPENED, before it is asked for — `null` because a fresh
+        // conversation picks its own and belongs to nobody until it exists.
+        // Said even so: what this clears is the LAST attempt's subject, and a
+        // refused `session/new` wearing the node of a load refused before it
+        // would be the one wrong thing the face can say.
+        emit({ _tag: "opening", id: null })
         const made = (yield* ask(at.connection, methods.agent.session.new, {
           cwd: options.cwd,
           mcpServers: [...(yield* servers)],
@@ -1592,6 +1598,11 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       wanted: string | null,
     ): Effect.Effect<void, AgentGone> =>
       Effect.gen(function*() {
+        // WHICH CONVERSATION THIS OPEN IS FOR, before the request that can be
+        // refused ({@link ./events.ts}'s `opening`). It is the only line the
+        // BOOT's adopted conversation is named on: nothing above this call ever
+        // told the panel which one a boot chose.
+        emit({ _tag: "opening", id })
         // Before the flag below, because a detection is not a replay.
         const mcpServers = [...(yield* servers)]
         // THIS conversation is the one we are coming back to. Leftover frames

@@ -234,6 +234,30 @@ export type AgentEvent =
   /** Which stored conversation this now is. `title` is `null` until the agent
    *  has written one. */
   | { readonly _tag: "session"; readonly id: string; readonly title: string | null }
+  /**
+   * AN OPEN IS UNDER WAY, and this is the conversation it is FOR — said BEFORE
+   * the request goes out, so a refusal has a subject.
+   *
+   * `null` for an open that picks its own, which is a fresh conversation: it
+   * belongs to nobody until it exists.
+   *
+   * ONE READER AND ONE USE ({@link ./chat.ts}'s `refusedOpen`): what a refused
+   * open says it was about, and — off the same id — which node agent that
+   * conversation belongs to. Both used to be unaskable at the moment they were
+   * needed. A conversation is not ENTERED until the agent has agreed to it
+   * ({@link ./agent.ts}'s `load` argues why), so at a refusal the module is in
+   * no conversation and the panel had nothing to name: the face said only that
+   * *a* conversation could not be opened, and the header — which draws a node
+   * agent's own way out of exactly this, its *fresh session* — did not know
+   * there was a node. The two rules were each right and closed on a person
+   * together: *try again* asked for the same lost conversation for ever.
+   *
+   * SAID BY THE VERB rather than passed beside it, which is what makes the two
+   * open paths one story: a picker's load names the id it was given, and a BOOT
+   * — which adopts its own and is reached by no click — names the one it
+   * adopted, through the same line.
+   */
+  | { readonly _tag: "opening"; readonly id: string | null }
   /** The agent named the conversation. */
   | { readonly _tag: "sessionTitled"; readonly title: string }
   /**

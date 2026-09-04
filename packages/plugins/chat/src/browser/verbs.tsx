@@ -101,10 +101,15 @@ export const rowVerbs = (node: string): ReadonlyArray<RowAction> => {
    * WHICH ENGINES THIS ROW MAY BE STARTED ON — three answers, and the third is
    * the one a flat list of every engine gets wrong.
    *
-   * A row ALREADY TALKING through a conversation is offered none: *one agent,
-   * one current session* is the whole rule, and the server refuses this gesture
-   * on such a node anyway — an entry whose only outcome is that refusal teaches
-   * nobody anything. A row that NAMES an engine and has no session yet is
+   * A row ALREADY TALKING through a conversation is offered none, and NOT
+   * because the server would refuse it: `startAgentSession` on a bound node is
+   * exactly the *fresh session* gesture ({@link ../wire.ts}) and lands. It is
+   * withheld because of what it COSTS — the transcript becomes history — and a
+   * menu line is not where that sentence fits. The panel's own session picker
+   * is where it is offered, under the words that make it safe to press
+   * ({@link ./chat/NodeSessions.tsx}), and the panel draws that picker wherever
+   * it knows the node — a refused open included, which is the one place a
+   * person can be stuck. A row that NAMES an engine and has no session yet is
    * offered that engine and no other, because the choice was already made and
    * re-asking it is a way to point a node at two. A BARE row is offered every
    * engine this machine has, which is the ordinary case and the one that

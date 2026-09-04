@@ -378,7 +378,7 @@ Feature: A node with an `agent-session` property IS an agent
     Then the panel offers a fresh session, saying "memory is the subtree"
     And the panel offers a fresh session, saying "the transcript becomes history"
 
-  @scratch:lanes
+  @agent-stored @scratch:lanes
   Scenario: A node agent whose conversation the engine has lost can still be got out of
     # THE TRAP, and it is a trap rather than a refusal: every part of it is
     # working as designed and the person cannot move.
@@ -399,24 +399,35 @@ Feature: A node with an `agent-session` property IS an agent
     #
     # So the two rules that are each correct alone close on a person together.
     # This scenario is the trap and its way out.
+    #
+    # `@agent-stored` is what puts the panel somewhere ELSE first: boot adopts a
+    # stored conversation, so pressing the agent is a real `session/load` of the
+    # one its property names rather than a press on the conversation already
+    # open. That is also how a person arrives — a tab that was reading something
+    # else, and an agent whose conversation is gone.
     Given I open the outline "lanes.olai"
     And the agent panel is open
     When the agent refuses to load a conversation
     And I press the agent "door-live"
     Then the panel says the conversation could not be opened
     And the refusal is in the agent's own words, "no such conversation"
-    # THE WAY OUT, in the body that is drawing the refusal — beside *try again*
-    # rather than instead of it, because an engine that has merely lost its
-    # store for a moment is a real case and re-asking is the cheaper answer.
-    # It says what it MEANS for the same reason the picker's does: the memory is
-    # the subtree, so nothing a person wrote is being thrown away.
-    And the panel offers a fresh session, saying "memory is the subtree"
-    # ...and pressing it moves. The agent will open a NEW conversation — it only
-    # refused the old one — so the node ends up bound to that instead, and the
-    # panel is a conversation again.
-    When the agent will load a conversation again
-    And I start a fresh session
-    Then the agent "door-live" stands "idle"
+    # THE FIRST CLAIM, and the whole of the trap: the panel knows WHOSE
+    # conversation it could not open. The header goes on naming the node agent,
+    # which is what draws that agent's own session control — a refused open used
+    # to drop the binding along with the conversation, and the control with it.
+    And the panel header names the node agent "watch the connector"
+    # THE WAY OUT, under the words that make it safe to press. It is the picker's
+    # own fresh session, unmoved: the memory is the subtree, so nothing a person
+    # wrote is being thrown away, and *try again* is still there beside it for an
+    # engine that had merely lost its store for a moment.
+    When I open the session picker
+    Then the panel offers a fresh session, saying "memory is the subtree"
+    # ...and pressing it moves. A fresh conversation is `session/new`, which this
+    # agent never refused — it said no to the old one — so the node comes back to
+    # a conversation and the refusal is off the screen.
+    When I start a fresh session
+    Then the panel shows no such refusal
+    And the agent "door-live" stands "idle"
     And the node "door-live" shows the property "agent-session" holding "claude:fake-session-1"
 
   @agent-stored @scratch:lanes

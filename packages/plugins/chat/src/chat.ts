@@ -706,6 +706,11 @@ const EVIDENCE: { readonly [K in AgentEvent["_tag"]]: "shown" | "arrived" | "nei
   servers: "neither",
   model: "neither",
   session: "neither",
+  // OLAI'S OWN, and said before the request that could be answered at all: it
+  // is this end announcing what it is about to ask for, so it is evidence of
+  // nothing — not that words were drawn, and not that anything is alive down
+  // the pipe.
+  opening: "neither",
   sessionTitled: "neither",
   sessionOver: "neither",
   gone: "neither",
@@ -1548,6 +1553,12 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           // and the only one that is safe.
           return
         }
+        case "opening":
+          // NOTHING IS PUBLISHED. This is the subject a refusal will need and
+          // no face reads it: the panel is already `booting`, and an open that
+          // lands names its conversation a moment later on the arm above.
+          attempting = event.id
+          return
         case "sessionTitled":
           if (state.session === null) return
           move({ session: { ...state.session, title: event.title } })
@@ -1812,11 +1823,8 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
     const openWith = (
       id: string,
       use: (agent: AcpAgent.Agent) => Effect.Effect<void, AcpAgent.AgentGone>,
-      /** WHICH conversation, for the sentence a refusal draws — `null` for a
-       *  verb that opens whichever the agent picks. */
-      named: string | null = null,
     ): Effect.Effect<void, OpFailure> =>
-      withRow(id, (row) => changeSession(Effect.flatMap(using(row), use), named))
+      withRow(id, (row) => changeSession(Effect.flatMap(using(row), use)))
 
     /**
      * What every installed agent has stored here — the question, answerable.
@@ -2878,16 +2886,33 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      */
     let unopened: { readonly again: Effect.Effect<void, AcpAgent.AgentGone> } | null = null
 
+    /**
+     * WHICH CONVERSATION THE OPEN IN FLIGHT IS FOR, as the verb doing it said
+     * ({@link ./events.ts}'s `opening`) — `null` for one that picks its own.
+     *
+     * Held rather than passed, because the two open paths could not both pass
+     * it: a picker's load is given an id, and a BOOT adopts one nobody named.
+     * This is the same line under both, so a refusal is answered the same way
+     * however it was reached.
+     */
+    let attempting: string | null = null
+
     /** The agent said no to opening a conversation. The panel says so, with
      *  the agent's own words and the offer to try again — and stays IDLE,
      *  because the agent answered and is therefore running ({@link
      *  ../../surface/src/chat.ts}'s `Unopened`). */
     const refusedOpen = (
       failure: AcpAgent.AgentGone,
-      what: string | null,
       again: Effect.Effect<void, AcpAgent.AgentGone>,
     ): void => {
       unopened = { again }
+      // WHAT WAS REFUSED, as an address — which is the whole of the second
+      // claim below. `talking` is the agent that answered: an open that never
+      // reached one fails `unreachable` and is not this face at all.
+      const at = talking
+      const what = at === null || attempting === null
+        ? null
+        : { agent: at.row.id, session: attempting }
       // `trouble` is left alone deliberately: it is drawn inside the transcript
       // and cleared by the next turn, and there is neither a transcript to draw
       // it in nor a next turn to clear it. The face is what says this.
@@ -2900,7 +2925,23 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // means "there is no conversation" on this member
       // ({@link ../../surface/src/chat.ts}), and this is one of the two faces
       // where that is true.
-      move({ status: "idle", unopened: { why: failure.message, what }, servers: [] })
+      move({
+        status: "idle",
+        unopened: { why: failure.message, what: attempting },
+        // ... AND WHOSE CONVERSATION IT WAS, which is the way OUT of this face
+        // and used to be dropped exactly here. A node agent's *fresh session*
+        // is drawn only where the header knows the node
+        // ({@link ./browser/chat/NodeSessions.tsx}), the node is `bound`, and
+        // `bound` was written only where a conversation OPENED — so the one
+        // face that needs the way out was the one face with no node on it. The
+        // gesture is unchanged and so is its warning: what changes is that it
+        // is on screen when a person is stuck.
+        //
+        // A conversation no node claims answers `null` here, which is what it
+        // answered before and what nearly every conversation is.
+        bound: boundTo(what),
+        servers: [],
+      })
     }
 
     /** ... and a conversation is open, so neither half of that is true any
@@ -2948,9 +2989,6 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      */
     const changeSession = (
       what: Effect.Effect<void, AcpAgent.AgentGone>,
-      /** WHICH conversation, for the sentence a refusal draws. `null` for a
-       *  fresh one, which is nobody's by name. */
-      named: string | null = null,
     ): Effect.Effect<void, OpFailure> =>
       switching.withPermit(
         Effect.gen(function*() {
@@ -2974,7 +3012,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
             // than reporting a dead process, and holds what it would take to
             // ask again.
             if (outcome.failure.gone === "refused") {
-              refusedOpen(outcome.failure, named, what)
+              refusedOpen(outcome.failure, what)
             } else {
               wentAway(outcome.failure.message)
             }
@@ -3041,10 +3079,6 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // {@link Panel.chooseAgent}. `boot` is idempotent and picks its own, which
       // is why it is also what a refused one is retried with.
       chooseAgent: (id: string) => openWith(id, (agent) => agent.boot),
-      // NAMED by the id the browser pressed, which is the only thing this end
-      // has before the load answers — a title would be the picker's word for a
-      // conversation, and the picker is exactly what this refusal takes off the
-      // screen. The agent's own reason sits beside it either way.
       // WITH the agent whose conversation it is, because the list spans all of
       // them now: a row picked out of it may belong to the agent this panel is
       // not talking to, and opening it is a change of agent as well as of
@@ -3052,7 +3086,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // through, so the switch, the stale-tab refusal and the permit are the
       // same ones — the only thing that differs is what is opened at the end.
       loadSession: (agentId: string, id: string) =>
-        openWith(agentId, (agent) => agent.loadSession(id), id),
+        openWith(agentId, (agent) => agent.loadSession(id)),
       /**
        * The refused OPEN, tried again — whichever it was.
        *
@@ -3086,7 +3120,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           )
         }
         unopened = null
-        return changeSession(waiting.again, state.unopened?.what ?? null)
+        return changeSession(waiting.again)
       }),
       // ... WEARING THE SUPERSESSIONS OLAI ITSELF MADE ({@link
       // ./succession.ts}). The overlay is here, at the one door every reader of
@@ -3288,11 +3322,15 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
             // The same distinction the session verbs make, at the other place
             // a conversation is opened: an agent that ANSWERED the open with
             // a no is running, and a boot that never reached one is not.
-            // What a boot was trying to open is nobody's by name — it adopts
-            // its own — so the face names no conversation, and trying again
-            // is the boot itself, which is idempotent and re-opens.
+            // WHAT IT WAS TRYING TO OPEN IS ON THE FACE HERE TOO, and this is
+            // the arm that could never say it: a boot adopts its own
+            // conversation, so nothing at this end was ever handed one to name.
+            // The verb says it instead ({@link ./events.ts}'s `opening`), which
+            // is why a boot's refusal now names the conversation AND the node
+            // agent it belongs to — the trap this arm used to be the whole of.
+            // Trying again is the boot itself, which is idempotent and re-opens.
             if (outcome.failure.gone === "refused") {
-              refusedOpen(outcome.failure, null, Effect.flatMap(using(chosen), (a) => a.boot))
+              refusedOpen(outcome.failure, Effect.flatMap(using(chosen), (a) => a.boot))
             } else {
               wentAway(outcome.failure.message)
             }
