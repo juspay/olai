@@ -290,7 +290,7 @@ const start = (host: Host, one: Defined): Effect.Effect<Started> =>
           + `says "${one.name}". The node's \`plugin\` property is the name; make the half agree with it.`,
       )
     }
-    const mounted = yield* mountPlugin(host, plugin)
+    const mounted = yield* mountPlugin(host, plugin, { wait: false })
     return {
       up: true,
       version: one.version,

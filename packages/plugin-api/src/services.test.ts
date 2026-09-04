@@ -736,17 +736,8 @@ test("a plugin that offers a door core keeps is refused, and only that plugin fa
   })))
 })
 
-/**
- * TWO ROWS MAY NOT STAND BEHIND ONE DOOR, and the refusal NAMES BOTH — which is
- * the entire reason the claim is taken here rather than left to the runtime.
- *
- * Cordis refuses the second `provide` on its own, and its sentence is `service
- * "watching" has been registered at <root>`: it names neither author, and
- * `<root>` is a fiber no person has ever heard of. What a person reads on a
- * preferences row has to be this tree's, so the claim goes first and cordis is
- * never reached.
- */
-test("two plugins standing behind one door: the second is refused, naming both and the key", async () => {
+/** Cordis refuses the duplicate; olai names both rows and preserves ownership. */
+test("two plugins standing behind one door: refusal names both rows and the key", async () => {
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const plugins = yield* runtime()
     const offering = (name: string) =>
@@ -763,9 +754,20 @@ test("two plugins standing behind one door: the second is refused, naming both a
     expect((yield* first.report).state).toBe("running")
     const [state, fault] = yield* rowOf(second)
     expect(state).toBe("failed")
-    expect(fault).toContain("\"chat\"")
-    expect(fault).toContain("\"mirror\"")
-    expect(fault).toContain("\"watching\"")
+    expect(fault).toBe(
+      'plugins: "chat" and "mirror" both offer "watching" — a '
+        + "service stands behind one row, and the second would leave every "
+        + "plugin that named it holding whichever was mounted last.",
+    )
+    expect([...plugins.offers()]).toEqual([["watching", "chat"]])
+    yield* second.dispose
+    expect([...plugins.offers()]).toEqual([["watching", "chat"]])
+
+    yield* first.dispose
+    expect([...plugins.offers()]).toEqual([])
+    const replacement = yield* mountPlugin(plugins.host, offering("mirror"))
+    expect((yield* replacement.report).state).toBe("running")
+    expect([...plugins.offers()]).toEqual([["watching", "mirror"]])
   })))
 })
 
@@ -899,5 +901,26 @@ test("a plugin that comes back stands behind its door again", async () => {
       }),
     )
     expect((yield* mirror.report).state).toBe("running")
+  })))
+})
+
+
+test("offer preserves a lifecycle defect when the service already has an owner", async () => {
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const plugins = yield* runtime()
+    let escaped: Effect.Effect<void, never, Scope.Scope> = Effect.void
+    yield* mountPlugin(plugins.host, definePlugin({ name: "owner", needs: [Offers], apply: Effect.gen(function*() {
+      const offers = yield* Offers
+      escaped = offers.offer(Watching, () => ({ subscribe: () => Effect.void }))
+      yield* escaped
+    }) }))
+    // The same capability used outside the activation is a lifecycle error,
+    // even though its first offer still owns the key.
+    const fault = yield* escaped.pipe(
+      Effect.as("unexpected success"),
+      Effect.catchCause((cause) => Effect.succeed(String(Cause.squash(cause)))),
+    )
+    expect(fault).toBe("Error: effect-cordis: offer requires a plugin activation")
+    expect([...plugins.offers()]).toEqual([["watching", "owner"]])
   })))
 })

@@ -286,6 +286,19 @@ you set by hand on the command line is a policy you set once and forget:
 
 **Turning a row off takes its dependants with it, and the panel says so.** The chat row stands behind four doors ([plugins/chat.md](plugins/chat.md)), so switching it off leaves every engine, every doorbell and the mirror `waiting` — each row naming the door it is short of. Switch chat back on and they re-start themselves; nothing has to be pressed twice, and a plugin that comes back is holding the same machine-local record it left.
 
+A service can have only one provider. If two plugins offer the same service,
+the second fails with a sentence naming both plugins and the service; the
+existing provider keeps running.
+
+**Stopping also reaches a plugin that is still starting.** The runtime
+interrupts its Effect initialization, waits for dependent cleanup while the
+provider's resources are still available, then releases its resources. A
+required service disappearing leaves the plugin `waiting` with that service
+named; when it returns the plugin starts again. Shutdown closes every plugin,
+including one that declares no dependencies. Cancellation is cooperative:
+synchronous JavaScript and uninterruptible Effect work must finish themselves.
+
+
 ### Machine-local state
 
 Plugins have one machine-local door, `LocalState`. Core stores its opaque document outside the vault at `$XDG_STATE_HOME/olai/<plugin>/<hash>.json` (normally `~/.local/state/olai/<plugin>/<hash>.json`), where `hash` names the served directory's real path. A plugin never opens that path itself. Core keys the door with the plugin's own name and keeps one ordered write chain across plugin flips. A save completes when its file lands; a failed save is both logged and returned to the plugin so the gesture that caused it can say what did not stick without taking the serve down.
@@ -298,7 +311,7 @@ An upgrade reads the previous paths once. The first save migrates `hold/<hash>.<
 
 **A serve with an integration off is not a degraded serve**, and the word is literal: the connection indicator stays green. Nothing is parked and nothing is half-wired — the integration's members are not on the wire at all, its tab half is never mounted so nothing subscribes to them, it hangs no chip in the bar, it probes for nothing, and the kinds it teaches the vault validate as ordinary text ([live-properties.md](live-properties.md)). The outline it would have owned is an ordinary outline. That is exactly the state a machine that never had the tool is already in, which is why it costs nothing to be true — and it is the state `olai surface` and every headless face already run in.
 
-**And it is the same nothing whichever door turned it off.** A row the flag never named and a row somebody switched off at the panel a minute ago are one state, not two: the plugin's registrations are undone as it goes — the words it taught, the doorbell it declared, the members it served, the seats it filled — so what is left behind is absence rather than a disabled copy of anything. The vocabulary in particular follows the fibers rather than the boot: a kind whose plugin you just switched off stops being a kind on the running serve, and its values are read as the plain text any undeclared key already is.
+**And it is the same nothing whichever door turned it off.** A row the flag never named and a row somebody switched off at the panel a minute ago are one state, not two: the plugin's registrations are undone as it goes — the words it taught, the doorbell it declared, the members it served, the seats it filled — so once teardown has finished what is left behind is absence rather than a disabled copy of anything. The vocabulary in particular follows the fibers rather than the boot: a kind whose plugin you just switched off stops being a kind on the running serve, and its values are read as the plain text any undeclared key already is.
 
 **The panel's row says which of seven states a plugin is in**, not just on or off. Running is the ordinary one, and it draws no sentence at all — the switch has already said it. The other six are all total absence and they differ in *why*: it was not asked for; this build ships it off until you name it (which is what `xyne-spaces` is, and the row names the flag value that turns it on); **you switched it off here**, which is the one that undoes itself and the only one a restart alone would clear; it was asked for and its **start failed** — in which case the row quotes what the plugin said, verbatim; it was asked for and is still waiting on something it needs; or — for a plugin the VAULT defines — it is waiting on YOU, which is the one absence whose answer is on this very panel (the source is drawn under the rows and the verb is beside it). Only the failure is a fault, and it is the one nothing else on screen would tell you about: an integration whose start failed draws nothing at all, exactly like one you turned off on purpose. The switch stays drawn on a row that failed, so a plugin whose start died on something you have since fixed can be told to try again.
 

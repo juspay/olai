@@ -161,3 +161,21 @@ Run it from a package that depends on `@olai/plugin-build` (`packages/server` do
 - **Not a report of what the FACE did.** A half whose `apply` throws lands the row on `failed` with its own sentence, on the server. A face that throws while it is being *drawn* does not: the tab's fault boundary contains it the way it contains a shipped plugin's, the console says which plugin it was, and the row goes on saying `running` — because on the server it is. That is the same gap every built plugin has, and closing it wants a field on the roster row's browser reading rather than a console line, so it is written down here rather than built in this lane.
 - **Not persisted enablement.** A `plugins.stop`, or the panel's switch on a definition, lasts as long as the process. What survives a restart is the definition and its approval, which are in the vault.
 - **Not a package.** There is no `olai plugin add`, no npins pin and no out-of-tree build. A definition is two notes in a directory olai is already serving.
+
+## Initialization and stopping
+
+A server half stays `waiting` while its `apply` initializes. Services it offers
+become available to consumers only after initialization succeeds. If it fails,
+its acquired registrations and resources are unwound and the row shows its fault.
+
+The panel's switch and `plugins.stop` can stop a half that is still initializing.
+Stopping interrupts its Effect work, waits for background work and cleanup, and
+then leaves it switched off. Losing a required service also interrupts
+initialization, but leaves the row `waiting`, naming the missing service; when
+that service returns, initialization runs again. Host shutdown closes every
+plugin, including one with no declared needs. Dependent cleanup finishes before
+the provider releases the resources those dependents use.
+
+Cancellation is cooperative: synchronous JavaScript cannot be preempted in this
+process, and uninterruptible acquisitions and finalizers must finish themselves.
+There is no per-plugin initialization timeout.
