@@ -1,12 +1,15 @@
 /**
  * THE MIRROR'S SNAPSHOT — threads, queue, overflow count.
  *
- * Core owns the file (`PluginServices.held`). This module is the parse: a
+ * Core owns the file behind `LocalState`. This module is the parse: a
  * missing or unreadable record is a fresh map, a single malformed row is
  * skipped rather than the file.
  */
 
-import type { HeldSnapshot, Outbound, Thread } from "./mirror.ts"
+import type { LocalState, Refusal } from "@olai/plugin-api/services"
+import { Effect, Semaphore } from "effect"
+
+import type { MirrorSnapshot, Outbound, Thread } from "./mirror.ts"
 
 const isThread = (value: unknown): value is Thread => {
   if (value === null || typeof value !== "object") return false
@@ -33,7 +36,7 @@ const isOutbound = (value: unknown): value is Outbound => {
 
 export const snapshotOf = (
   raw: Record<string, unknown> | null,
-): HeldSnapshot | undefined => {
+): MirrorSnapshot | undefined => {
   if (raw === null) return undefined
   if (typeof raw.channel !== "string" || typeof raw.lastLane !== "string") return undefined
   const threads: Array<readonly [string, Thread]> = []
@@ -58,12 +61,12 @@ export const snapshotOf = (
   return { channel: raw.channel, lastLane: raw.lastLane, threads, queue, droppedTotal }
 }
 
-export const recordOf = (held: HeldSnapshot): Record<string, unknown> => ({
-  channel: held.channel,
-  lastLane: held.lastLane,
-  threads: held.threads,
-  queue: held.queue,
-  droppedTotal: held.droppedTotal,
+export const recordOf = (snapshot: MirrorSnapshot): Record<string, unknown> => ({
+  channel: snapshot.channel,
+  lastLane: snapshot.lastLane,
+  threads: snapshot.threads,
+  queue: snapshot.queue,
+  droppedTotal: snapshot.droppedTotal,
 })
 
 /** Every channel's snapshot, so two node agents naming two channels
@@ -71,8 +74,8 @@ export const recordOf = (held: HeldSnapshot): Record<string, unknown> => ({
  *  one-channel shape is one entry. */
 export const snapshotsOf = (
   raw: Record<string, unknown> | null,
-): Map<string, HeldSnapshot> => {
-  const map = new Map<string, HeldSnapshot>()
+): Map<string, MirrorSnapshot> => {
+  const map = new Map<string, MirrorSnapshot>()
   if (raw === null) return map
   if (Array.isArray(raw.mirrors)) {
     for (const row of raw.mirrors) {
@@ -87,6 +90,28 @@ export const snapshotsOf = (
   return map
 }
 
-export const recordAll = (held: ReadonlyMap<string, HeldSnapshot>): Record<string, unknown> => ({
-  mirrors: [...held.values()].map(recordOf),
+const recordAll = (snapshots: ReadonlyMap<string, MirrorSnapshot>): Record<string, unknown> => ({
+  mirrors: [...snapshots.values()].map(recordOf),
 })
+
+export interface MirrorLocalState {
+  readonly load: (channel: string) => MirrorSnapshot | undefined
+  readonly save: (snapshot: MirrorSnapshot) => Effect.Effect<void, Refusal>
+}
+
+/** Open Xyne's document once and keep its channels behind one write permit. */
+export const openLocalState = (door: LocalState): Effect.Effect<MirrorLocalState> =>
+  Effect.gen(function*() {
+    let snapshots = snapshotsOf(yield* door.load)
+    const writing = yield* Semaphore.make(1)
+    return {
+      load: (channel) => snapshots.get(channel),
+      save: (snapshot) =>
+        writing.withPermit(Effect.gen(function*() {
+          const next = new Map(snapshots)
+          next.set(snapshot.channel, snapshot)
+          yield* door.save(recordAll(next))
+          snapshots = next
+        })),
+    }
+  })

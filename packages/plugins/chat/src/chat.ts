@@ -106,6 +106,7 @@ import type { AgentEvent } from "./events.ts"
 import { lastSaid } from "./heard.ts"
 import * as Listings from "./listings.ts"
 import * as Memory from "./memory.ts"
+import { ephemeralLocalState } from "./local.ts"
 import { annotated } from "./prompt.ts"
 import type { Probe } from "./probes.ts"
 import type { Fault, Faulted, Scopes } from "./scopes.ts"
@@ -890,7 +891,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
     // build with no engine rows is a note that resolves to nothing, which is a
     // chat that was never built.
     const memory = options.memory
-      ?? Memory.forDirectory(options.cwd, options.engines()[0] ?? "")
+      ?? Memory.forLocalState(ephemeralLocalState(), options.engines()[0] ?? "")
     const tell = yield* Effect.annotateLogs(emitter, { surface: "chat" })
 
     /** One agent, built from the roster row that named it. The handler is

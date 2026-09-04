@@ -15,6 +15,7 @@ import { Duration, Effect, Exit, Fiber, Scope, Semaphore } from "effect"
 import type { Panel, PanelOptions, WakeScope } from "./chat.ts"
 import { makePanel } from "./chat.ts"
 import * as Memory from "./memory.ts"
+import { ephemeralLocalState } from "./local.ts"
 import type { Conversing } from "./sessions.ts"
 import type { Change } from "./transcript.ts"
 
@@ -109,7 +110,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       ...givenPanelOptions
     } = options
     const memory = givenPanelOptions.memory
-      ?? Memory.forDirectory(givenPanelOptions.cwd, givenPanelOptions.engines()[0] ?? "")
+      ?? Memory.forLocalState(ephemeralLocalState(), givenPanelOptions.engines()[0] ?? "")
     const panelOptions: PanelOptions = { ...givenPanelOptions, memory }
     const gate = yield* Semaphore.make(1)
     const nodes = new Map<string, NodeSlot>()

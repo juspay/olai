@@ -17,19 +17,14 @@
  *     made it — the one-brain lock (`@olai/server`'s `lock.ts`). The machine
  *     clears it.
  *   - the STATE home is for something that SHOULD survive a restart and means
- *     nothing to anybody else — which conversation the chat panel was in
- *     (`olai-plugin-chat`'s `memory.ts`), which doorbell each conversation picked
- *     (`olai-plugin-chat`'s `scopes.ts`), what olai overheard a conversation do
- *     (`olai-plugin-chat`'s `heard.ts`), and a plugin's hold (threads, a queue)
- *     handed through core as `PluginServices.held`. After git left this
- *     package the state home has three {@link Kind}s plus a per-plugin hold —
- *     {@link Kind} says why the split is by what each record survives.
+ *     nothing to anybody else — one document per plugin and served directory,
+ *     handed to that plugin through core's `LocalState` service.
  *
  * ONE FILE PER SERVED DIRECTORY under either, named by a DIGEST of the path
  * rather than by the path itself: an encoded path is a filename that can
  * outgrow the 255 bytes a component gets, and a single index shared by every
  * directory is a read-modify-write two olai servers can lose an update through.
- * The path is written INSIDE the file ({@link Held.cwd}), which is what makes
+ * The path is written INSIDE the file ({@link LocalRecord.cwd}), which is what makes
  * these directories readable by the person whose state it is and is read back
  * as a guard: a file that is about some other directory is not this one's.
  *
@@ -47,15 +42,10 @@
  * ## Why this is a package
  *
  * It was written more than once before it was one, which is the bar: the lock's
- * runtime home and digest, and the chat panel's state home and digest. A git
- * policy used to live here too and no longer does — chat, what a conversation
- * overheard, and a plugin's hold are the remaining tenants, the hold reached
- * through core so this leaf stays out of every plugin. `olai-plugin-chat`'s `memory.ts` named this module before it existed
- * ("not a receptacle for where this machine keeps olai's state, though that is
- * what it would be at population two") and it is a LEAF for the same reason
- * `@olai/git` is: it knows about a filesystem and nothing about outlines, git,
- * a wire or a writer. `olai-plugin-chat` sits beside `@olai/server` rather than under
- * it, so a home they could both reach had to be below both.
+ * runtime home and digest, and persistent plugin records. It is a LEAF for the
+ * same reason `@olai/git` is: it knows about a filesystem and nothing about
+ * outlines, git, a wire, a plugin package or a writer. Core is its only
+ * state-home consumer; plugins receive an opaque door instead.
  *
  * ## What it does with a failure
  *
@@ -185,61 +175,23 @@ export class StateFailure extends Data.TaggedError("StateFailure")<{
 }
 
 /**
- * WHAT THIS MACHINE KEEPS, as a closed list.
- *
- * A union rather than a free string, and that is the containment the header
- * claims: `join(stateHome(), "../../somewhere")` escapes a home a caller was
- * told it could not reach, and nothing but a type can say so. It also makes
- * "what does olai keep about a directory" answerable by reading one line.
- *
- * Three kinds named here, and a fourth named by {@link fileForHold}. The split
- * between them is what each SURVIVES rather than what each is about. `chat`
- * is the panel's last conversation — one record, rewritten whenever the panel
- * opens one. `wake` is which conversations a person pointed a plugin's
- * doorbell at, and on which file; it holds the picks and never the messages,
- * because a held message is a derivation of state that is still true and is
- * rung again by whatever derives it. `heard` is what olai OVERHEARD one
- * conversation do: that this session has been told its node agent's contract,
- * and the last line its agent said while olai was watching. A plugin's hold
- * is a small record that plugin keeps about this serve — one file per plugin
- * per vault — and it is reached through core, not by the plugin naming this
- * package. A plugin that imported this leaf would become the sole reacher and
- * this package would silently join that tenant's exemption set.
- *
- * `heard` is BOOKKEEPING and that is why it is here rather than in the vault,
- * where the human's 2026-09-02 ruling put all config: nothing configures these
- * two, nothing else can reconstruct them, and a board written to on every turn
- * would be a board committed on every turn. Which node agent a session belongs
- * to is the config half, and it is a property on the node
- * (`@olai/format`'s `agents.ts`).
- */
-export type Kind = "chat" | "wake" | "heard"
-
-/** Where one kind of remembered thing lives for one served directory — a
- *  subdirectory of the state home, and the digest under it. Takes the
- *  CANONICAL path, which is the one every caller has already resolved because
- *  it goes inside the file too. */
-export const fileFor = (kind: Kind, cwd: string): string =>
-  join(stateHome(), kind, `${digestOf(cwd)}.json`)
-
-/**
- * Where one plugin's hold lives for one served directory.
+ * Where one plugin's machine-local document lives for one served directory.
  *
  * THE PLUGIN'S NAME IS A FILENAME, not a path: a slash or a `..` would
- * escape the hold directory. Refused here rather than sanitised, because a
+ * escape the plugin directory. Refused here rather than sanitised, because a
  * name that is not a filename is a registry bug, not a spelling to tidy.
  * This leaf does not name any plugin.
  */
-export const fileForHold = (plugin: string, cwd: string): string => {
+export const fileForLocal = (plugin: string, cwd: string): string => {
   if (plugin.length === 0 || /[^\w.-]/.test(plugin)) {
-    throw new Error(`hold: plugin name ${JSON.stringify(plugin)} is not a filename`)
+    throw new Error(`local state: plugin name ${JSON.stringify(plugin)} is not a filename`)
   }
-  return join(stateHome(), "hold", `${digestOf(cwd)}.${plugin}.json`)
+  return join(stateHome(), plugin, `${digestOf(cwd)}.json`)
 }
 
 /** What every record here carries beside its own fields — see the header for
  *  why the path is written inside the file it is named after. */
-export interface Held {
+export interface LocalRecord {
   readonly cwd: string
 }
 
@@ -258,7 +210,7 @@ export interface Held {
  * strange field means differs per record — the caller knows which of its own
  * halves it can do without.
  */
-export const readHeld = (
+export const readLocal = (
   at: string,
   cwd: string,
 ): Effect.Effect<Record<string, unknown> | null, StateFailure> =>
@@ -287,15 +239,15 @@ export const readHeld = (
             }),
         }),
         (value) => {
-          const held = value as (Partial<Held> & Record<string, unknown>) | null
-          return held?.cwd === cwd ? held : null
+          const local = value as (Partial<LocalRecord> & Record<string, unknown>) | null
+          return local?.cwd === cwd ? local : null
         },
       ),
   )
 
 /** How many records this process has staged — the tail of a staged file's
  *  name, so two overlapping writes to one destination stage through two files
- *  and only one of them is ever renamed away. See {@link writeHeld}: it has to
+ *  and only one of them is ever renamed away. See {@link writeLocal}: it has to
  *  differ from the other names in the air right now, and nothing more. */
 let staging = 0
 
@@ -351,16 +303,16 @@ let staging = 0
  * an in-memory mirror and would lose a pick without one, and `agent.ts` orders
  * two writes that must land in the order they were made.
  */
-export const writeHeld = (
+export const writeLocal = (
   at: string,
-  held: Held & Record<string, unknown>,
+  local: LocalRecord & Record<string, unknown>,
 ): Effect.Effect<void, StateFailure> =>
   Effect.tryPromise({
     try: async () => {
       await mkdir(dirname(at), { recursive: true, mode: 0o700 })
       const staged = `${at}.${process.pid}.${++staging}.tmp`
       try {
-        await writeFile(staged, `${JSON.stringify(held)}\n`, { mode: 0o600 })
+        await writeFile(staged, `${JSON.stringify(local)}\n`, { mode: 0o600 })
         await rename(staged, at)
       } catch (cause) {
         await rm(staged, { force: true })

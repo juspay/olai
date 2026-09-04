@@ -123,7 +123,7 @@ export const recoveredBody = (count: number, channel: string, at: string): strin
 export const overflowBody = (dropped: number, cap: number, at: string): string =>
   `mirroring dropped ${dropped} queued digest${dropped === 1 ? "" : "s"} at ${at} — the queue is full (${cap}), oldest first. Written by olai's spaces mirror, not by a person.`
 
-export interface HeldSnapshot {
+export interface MirrorSnapshot {
   readonly channel: string
   readonly lastLane: string
   readonly threads: ReadonlyArray<readonly [string, Thread]>
@@ -138,8 +138,8 @@ export interface MirrorDeps {
   readonly deliverFault: (body: string, coalesce: "fault" | "recovered" | "overflow") => void
   readonly onRecovered: () => void
   readonly hold?: {
-    readonly load: () => HeldSnapshot | undefined
-    readonly save: (held: HeldSnapshot) => void
+    readonly load: () => MirrorSnapshot | undefined
+    readonly save: (snapshot: MirrorSnapshot) => void
   }
   /** How long to wait before retrying a stuck queue. Tests pass a short beat. */
   readonly retryMs?: number
