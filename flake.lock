@@ -8,17 +8,17 @@
         "treefmt-nix": "treefmt-nix"
       },
       "locked": {
-        "lastModified": 1784665499,
-        "narHash": "sha256-9BMxlTxCCDAeoNLtb1a/st7udtTIJep+wpUzquA29VU=",
-        "owner": "nix-community",
+        "lastModified": 1785027216,
+        "narHash": "sha256-m7edNgG9CDiQ6ykudWTN3LdHH3DsR+99x+yNP2neMoY=",
+        "owner": "synapdeck",
         "repo": "bun2nix",
-        "rev": "0f2a1f0b6f42cebe3b149bf62d38754c5e0e9729",
+        "rev": "3489482505adf9eafd4498c8e53015b5da980e13",
         "type": "github"
       },
       "original": {
-        "owner": "nix-community",
-        "ref": "2.1.2",
+        "owner": "synapdeck",
         "repo": "bun2nix",
+        "rev": "3489482505adf9eafd4498c8e53015b5da980e13",
         "type": "github"
       }
     },

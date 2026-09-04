@@ -18,8 +18,12 @@
 # is why this stays the only input. Forced only when `packages.*` is
 # evaluated, so `nix develop` cold eval is unchanged.
 {
-  # Pin a release tag; do not float on master.
-  inputs.bun2nix.url = "github:nix-community/bun2nix/2.1.2";
+  # Pin a commit, not master. 2.1.2's cache has tarballs and no npm
+  # manifests, so bun 1.4.1 `bun install --offline` dies with "no cached
+  # manifest" (juspay/olai#503). nix-community/bun2nix#103 synthesizes those
+  # manifests from bun.lock; it is unreleased, so this is the PR head
+  # (synapdeck/bun2nix@34894825) until it lands and we retag.
+  inputs.bun2nix.url = "github:synapdeck/bun2nix/3489482505adf9eafd4498c8e53015b5da980e13";
 
   # Juspay's shared OSS cache, so `nix run .#bun2nix` and the kolu sources come
   # down prebuilt instead of being compiled on every lane.
