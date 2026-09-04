@@ -195,9 +195,10 @@ onto the plugin's own scope (so work in flight when it unloads goes with it). It
 is the boundary made visible rather than an escape hatch copied per plugin.
 
 `--plugins`, the bundle's rows and the browser slots are **phase 2** of a longer
-plan (the Cordis proposal's §6); the Effect API above is **phase 4**. What is
-deliberately NOT here: HMR (no Bun cache bust exists), interception on the vault,
-and node-agent scopes.
+plan (the Cordis proposal's §6); the Effect API above is **phase 4**; node agents
+as scopes are **phase 6**, the chat row is **phase 7**, and the panel's switch —
+§7 below — is **phase 8**. What is deliberately NOT here: HMR (no Bun cache bust
+exists), interception on the vault, and out-of-tree plugins.
 
 
 ## 4. Vocabulary
@@ -706,14 +707,74 @@ and in both the flag still says yes while the wire carries no `surface/<name>/` 
 all. The roster reports what is composed, and the cell is republished whenever
 that changes.
 
-**Omitting is not the same as listing everything.** Preferences draws a row per
-built plugin and says either *the flag you gave* or *the built-in default* — a
+**Omitting is not the same as listing everything.** The plugins panel draws a row
+per built plugin and says either *the flag you gave* or *the built-in default* — a
 value that had already expanded "nobody said" into the full list could not tell a
-reader which of the two they were looking at. It is the git policy's shape, one
-setting over.
+reader which of the two they were looking at.
 
 An unknown name is refused **once**, at startup, with the legal words beside it. A
 typo is never a silently disabled integration.
+
+### The switch
+
+RUNNING moves after the boot, and one verb moves it: `plugins.set({ name,
+enabled })` on core's surface, drawn as a switch on each row of the plugins panel.
+
+**It is the loader's own field, written by a second hand.** The server half flips
+the entry's `disabled` — the same field the row carries in `olai.yml` and the same
+one `--plugins` patches — and re-settles the bundle. So there is no second
+mechanism for "off" and no state that only a flip can produce: a row somebody
+switched off and a row the flag never named are the same fiber-shaped absence,
+which is what makes the confluence argument the runtime rests on still hold.
+
+**Off is the fiber unwinding, which is the whole of the phase.** Every
+registration a plugin made is an `acquireRelease` on its own `Scope`, so turning
+it off takes back its kinds, its wake, its sibling surface, its slots and any door
+it stood behind, in reverse. The sibling leaves the wire, the `plugins` cell
+moves, the tab redials, and every plugin that named a door this one offered goes
+`waiting` naming the tag. On is the reverse, and the dependants re-apply
+themselves — the reactive half of the paper is exactly what makes this one verb
+rather than a restart. `Held` is keyed by NAME rather than by fiber, so a plugin
+that comes back writes the record it left.
+
+**The vocabulary follows the fibers.** `propKinds` was read once at boot and the
+store's codec held it for the life of the process — a phase boundary written down
+in that file as one of the two places that would have to learn to move. It is a
+live reading now: a row that leaves takes its words out of `enabled` and a row
+that arrives brings them in, and the vault is re-judged against the vocabulary
+that is actually up. A value under a kind whose plugin is off is plain text, which
+is what any undeclared key already is, and there is no finding about it. BUILT is
+untouched — it is read off every row's module including the disabled ones, so a
+declaration stays legal whichever way the switch is thrown, and the table below
+still answers which vocabulary judges what.
+
+**The panel says what a flip will cost before it is pressed.** A running row that
+stands behind a door names the rows that would go `waiting` without it —
+`BuiltPlugin.carrying`, the other end of `missing`. It is a JOIN of two live
+readings and not a list anybody keeps: who stands behind which door is core's
+offers table, taken by a plugin's own `offer` and released by its scope, and which
+doors each running row is standing on is the `inject` the runtime derived from
+that plugin's `needs`. The composition root is the one place both are in hand,
+which is what makes it the one place the join can be made. A declaration beside
+`needs` saying "I carry these" would be the same list free to be wrong, about the
+one sentence a person reads before turning something off.
+
+**The roster is a description of a bundle that has stopped moving.** A flip fans
+out into several registry changes — the fiber's finalizers, then every dependant's
+— and each of them drives the re-compose. The siblings are mounted and dropped as
+they move, which is live and must be; what is held back is the `plugins` cell,
+published once when the settle is done. Without that the tab would redial onto a
+wire still coming apart, asking for members that had already left. It is the same
+promise `mountBundle` makes at the boot, kept for a press.
+
+**It writes nothing and it is the browser's alone.** A flip lasts as long as the
+process: no settings file, no edit to `olai.yml`, nothing in the state home, and a
+restart comes back to the flag, the nix option and the rows' own defaults (the
+human, 2026-09-04 — with `--dump-config` dropped in the same ruling, because the
+panel is the table, and no CLI verb against a running serve, because the flag is
+the boot-time way). `faces.ts` names the member on BROWSER and nowhere else, and
+`faces.test.ts` pins the agent face as an exact set, so an agent cannot turn a
+plugin off — the same physics that kept `chat.scope` off it.
 
 ### Which vocabulary answers which question
 
@@ -733,6 +794,13 @@ asymmetry to tidy: BUILT is read off every ROW's module — including the rows t
 serve disabled, because a disabled row never mounts and its words have to be
 reachable some other way — and RUNNING is the live `Kinds` registry, which holds
 exactly what the plugins that mounted registered.
+
+**RUNNING is live in the strong sense now.** It used to be read once and held by
+the store's codec for the process's life, which was exact while nothing could
+unload a plugin; the switch can, so the codec asks the registry instead and the
+vault is re-judged when a row moves. BUILT does not move at all — every row's
+module is read whether or not it mounted — so the top line of the table is
+unaffected by anything a person presses.
 
 ---
 
