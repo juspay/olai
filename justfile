@@ -726,6 +726,13 @@ dev-bin:
 # nix-built binary, which is what a user actually runs. `nix` is a dependency
 # as well as the shell so the binary is an already-realised lookup here rather
 # than a Nix build racing the one that leg is doing.
+#
+# Odu may borrow up to SIX free execution slots for this leaf. Six is a ceiling,
+# not a reservation: Odu tells every slice the total it actually obtained, and
+# Cucumber's native sharder therefore still covers the whole suite when fewer
+# slots are free. Odu numbers slices from zero; Cucumber numbers them from one.
+# The conditional keeps `just e2e` the ordinary unsharded local command.
+[metadata("odu:shard=6")]
 e2e: install nix
     #!/usr/bin/env bash
     set -euo pipefail
@@ -734,16 +741,41 @@ e2e: install nix
     # `cd` rather than `bun --cwd`: with --cwd, bun swallows the script name and
     # prints its own help with status 0, which reads as a passing leg that ran
     # no tests at all.
+    if [[ -n "${ODU_SHARD_TOTAL:-}" ]]; then
+      export CUCUMBER_SHARD="$((ODU_SHARD_INDEX + 1))/$ODU_SHARD_TOTAL"
+    fi
     OLAI_BIN="$bin" {{ nix_shell_e2e }} bun run test
 
-# The same browser suite, spread over every x86_64-linux host in odu's
-# inventory. The script copies THIS worktree — committed, modified and
-# untracked non-ignored files — because this is an iteration recipe: requiring
-# a pushed SHA would make it test the last push rather than the edit in hand.
-# Each host enters this repository's own Nix shells, so SSH and Nix are the
-# remote contract; ambient just, bun and Playwright are not.
+# The browser-only spelling of the same Odu pipeline. This is a thin convenience
+# target, not another scheduler: it builds this tree's pinned Odu and selects
+# the `e2e` leaf on Linux. A bare `odu run` remains the full CI UX, including
+# the same shared E2E leaf and GitHub posting. Ten minutes is a wall-clock
+# backstop, not a scheduler policy; SIGINT lets Odu finalize statuses and free
+# every lease before coreutils escalates. Override only for a deliberate cold
+# provisioning experiment (`ODU_E2E_REMOTE_TIMEOUT=20m`).
 e2e-fast-remote:
-    {{ nix_shell }} bash scripts/e2e-fast-remote.sh
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ nix_shell }} bash -c '
+      odu="$(nix build .#odu-bin --no-link --print-out-paths --accept-flake-config)/bin/odu"
+      exec timeout --foreground --signal=INT --kill-after=30s \
+        "${ODU_E2E_REMOTE_TIMEOUT:-10m}" \
+        "$odu" run e2e --platform x86_64-linux
+    '
+
+# Full CI on the Linux fleet, through this tree's pinned Odu. This deliberately
+# keeps Odu's strict defaults: it snapshots clean, pushed HEAD and posts the
+# stable logical recipe contexts to GitHub. Shard workers and their duplicated
+# prerequisites remain visible in Odu without becoming GitHub contexts.
+ci:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ nix_shell }} bash -c '
+      odu="$(nix build .#odu-bin --no-link --print-out-paths --accept-flake-config)/bin/odu"
+      exec timeout --foreground --signal=INT --kill-after=30s \
+        "${ODU_CI_TIMEOUT:-15m}" \
+        "$odu" run --platform x86_64-linux
+    '
 
 # Format the *.nix files
 fmt:
