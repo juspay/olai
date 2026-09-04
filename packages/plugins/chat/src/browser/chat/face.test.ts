@@ -150,12 +150,14 @@ describe("the question about which agent", () => {
     expect(drawn({ ...CHAT_OFF, talking: { kind: "asking" } })).toEqual({ kind: "no-agent", off: null })
   })
 
-  test("a refusal outranks it — that one is about a live agent", () => {
-    // The agent answered and said no, which is a sentence with a retry under
-    // it. Asking which agent over the top of that would take the reason away.
+  test("it outranks a refusal, which is about a conversation there is not", () => {
+    // The same rule as the case below, and it arrived with it: a question says
+    // there is NO conversation, so a sentence about one — a refusal, a death —
+    // has nothing to say over the top of it. The refusal is not lost; it is
+    // what the panel comes back to if the question is cancelled.
     expect(drawn({ ...ASKING, unopened: REFUSED })).toEqual({
-      kind: "unopened",
-      unopened: REFUSED,
+      kind: "choose",
+      asked: "server",
     })
   })
 
@@ -211,8 +213,18 @@ describe("the two bodies this tab decides", () => {
       .toEqual({ kind: "choose", asked: "server" })
   })
 
-  test("a refusal outranks this tab's question — that one is about a live agent", () => {
+  test("...and it outranks a refusal, which is what makes `+ new` a way out", () => {
+    // THE BUG THIS INVERTED (the human, on a serve whose codex was not logged
+    // in): the panel drew *the agent would not open a conversation*, `+ new`
+    // is offered there on purpose — the header calls it the way out of a panel
+    // with no conversation in it — and on a machine with more than one engine
+    // pressing it set this tab asking and drew nothing at all. The click did
+    // nothing, visibly, on the one screen where it is the only way forward.
+    //
+    // With ONE engine installed it was invisible: `+ new` opens at once there
+    // and never raises the question, so the dead control needed two engines and
+    // a refused open to meet.
     expect(drawn({ ...LIVE, unopened: REFUSED }, { unassigned: false, asking: true }))
-      .toEqual({ kind: "unopened", unopened: REFUSED })
+      .toEqual({ kind: "choose", asked: "tab" })
   })
 })

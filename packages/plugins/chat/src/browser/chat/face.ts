@@ -106,13 +106,22 @@ export type Face =
  * refusal still on it, and what a person is owed there is the thing they just
  * pressed still saying what it was about. Nothing has changed yet.
  *
- * AND THE QUESTION OUTRANKS THE CONVERSATION, but nothing else. `choosing` says
- * *there are several agents and nobody has said which this conversation is
- * with*, which is only ever true when there is no conversation — so it sits
- * under both statuses above and under a refusal, and above the empty transcript
- * it would otherwise be drawn as. The empty transcript is the face this
- * replaces, and it is exactly the wrong one: a box you can type into, over a
+ * AND THE QUESTION OUTRANKS THE CONVERSATION AND THE REFUSAL BOTH. `choosing`
+ * says *there are several agents and nobody has said which this conversation is
+ * with*, which is only ever true when there is NO conversation — so it sits
+ * under the two statuses above and over everything else, including the empty
+ * transcript it would otherwise be drawn as. The empty transcript is the face it
+ * replaces and is exactly the wrong one: a box you can type into, over a
  * conversation nobody has opened, for an agent nobody has named.
+ *
+ * IT USED TO SIT UNDER A REFUSAL, and that made `+ new` a dead control on the
+ * one screen it is most needed. The header offers it there deliberately — it is
+ * the way OUT of a panel with no conversation in it — and pressing it on a
+ * machine with more than one engine set this tab asking, which the face then
+ * declined to draw: the click did nothing, visibly and for ever, over a refusal
+ * that could not be got past. The rule is the one this file already keeps for a
+ * DEAD agent one paragraph down, and for the same reason: a question is about
+ * there being no conversation, so nothing said about a conversation outranks it.
  *
  * ## WHERE THIS TAB'S OWN TWO SIT ({@link Showing})
  *
@@ -133,10 +142,11 @@ export type Face =
 export const faceOf = (state: ChatState, showing: Showing): Face => {
   if (state.status === "off") return { kind: "no-agent", off: state.off }
   if (showing.unassigned) return { kind: "unassigned" }
+  if (state.talking?.kind === "asking") return { kind: "choose", asked: "server" }
+  if (showing.asking) return { kind: "choose", asked: "tab" }
   const unopened = state.unopened
   if (unopened !== null && state.status !== "gone") return { kind: "unopened", unopened }
-  if (state.talking?.kind === "asking") return { kind: "choose", asked: "server" }
-  return showing.asking ? { kind: "choose", asked: "tab" } : { kind: "conversation" }
+  return { kind: "conversation" }
 }
 
 /** What a panel showing neither of this tab's own bodies is looking at — the
