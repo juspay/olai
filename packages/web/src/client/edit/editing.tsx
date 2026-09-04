@@ -90,7 +90,8 @@ import {
   stillAt,
   typed,
 } from "./draft.ts"
-import { flatten, reanchored, refound, wired } from "./order.ts"
+import { flatten, reanchored, refound, seated } from "./order.ts"
+import type { Standing } from "./order.ts"
 import { serial } from "./queue.ts"
 import { redraws, rekeys } from "./redraws.ts"
 import { useUndo } from "./undoing.ts"
@@ -362,6 +363,12 @@ export const createEditor = (
     where().field === null ? NO_ROWS : flatten(page.rows(), page.collapsed())
   )
 
+  /** Every blank ON THE PAGE — the parked ones, and the live draft when it is
+   *  one. What the wire is drawn from, so the three keys that walk it
+   *  ({@link step}, {@link merge}, {@link resketching}) see the same lines. */
+  const blanks = (held: Draft | null): ReadonlyArray<Pending> =>
+    held?.kind === "new" ? [...ghosts(), held] : ghosts()
+
   /**
    * Whether a REDRAW of the row the caret is in is still expected.
    *
@@ -516,7 +523,7 @@ export const createEditor = (
   ): void => {
     const sketch = emptyPendingOf(draft())
     if (sketch !== null) {
-      const next = reanchored(page.rows(), page.collapsed(), sketch.at, how, ghosts())
+      const next = reanchored(page.rows(), page.collapsed(), sketch, how, ghosts())
       if (next === undefined) return
       // The seat is a drawing address — if the branch that holds it reads
       // COLLAPSED, the key lifts the fold first: the ghost must be ON the
@@ -772,13 +779,11 @@ export const createEditor = (
     if (before.kind === "row" && before.field !== "title") return
     const sketch = emptyPendingOf(before)
     if (sketch !== null) {
-      const list = wired(page.rows(), page.collapsed(), [...ghosts(), sketch])
-      const above =
-        list[
-          list.findIndex((one) =>
-            one.kind === "draft" && one.pending.slot === sketch.slot
-          ) - 1
-        ]
+      const { walk, at } = seated(page.rows(), page.collapsed(), blanks(sketch), {
+        kind: "draft",
+        slot: sketch.slot,
+      })
+      const above = walk[at - 1]
       if (above === undefined) return
       if (above.kind === "draft") {
         // The line above is another parked sketch: `take` resumes it, and
@@ -1149,17 +1154,16 @@ export const createEditor = (
   const step = async (by: 1 | -1, column?: number): Promise<void> => {
     const held = draft()
     if (held === null) return
-    const list = wired(
-      page.rows(),
-      page.collapsed(),
-      held.kind === "new" ? [...ghosts(), held] : ghosts(),
-    )
-    const here = held.kind === "new"
-      ? list.findIndex((one) => one.kind === "draft" && one.pending.slot === held.slot)
+    // A row a frame away from being drawn has no place to step FROM, which is
+    // what `follow` fills in a moment later.
+    const standing: Standing | null = held.kind === "new"
+      ? { kind: "draft", slot: held.slot }
       : held.place === null
-      ? -1
-      : list.findIndex((one) => one.kind === "row" && one.row.key === held.place)
-    const target = here === -1 ? undefined : list[here + by]
+      ? null
+      : { kind: "row", place: held.place }
+    if (standing === null) return
+    const { walk, at } = seated(page.rows(), page.collapsed(), blanks(held), standing)
+    const target = at === -1 ? undefined : walk[at + by]
     if (target === undefined) return
     // Landing on a ghost is the same answer as clicking its row: the blank is
     // resumed, not made again, and a wordless draft is parked rather than

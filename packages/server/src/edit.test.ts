@@ -1068,6 +1068,32 @@ test("an `under` split is taken back the same way — the first child merges int
   ).toEqual([{ verb: "merge", id: "n1" }])
 })
 
+test("an `under` split's ⌘Z ⌘⇧Z is a round trip — the tail comes back FIRST", () => {
+  // The two links pinned as the chain they are. `handles` stands in for the
+  // tail a mid-line `Enter` on an expanded parent mints: it is `install`'s
+  // first child, exactly where an `under` split puts what came off.
+  //
+  // ⌘Z is the merge that arm answers with; ⌘⇧Z is that merge's own inverse,
+  // and the slot it names is `after: null` — the top of the list. An earlier
+  // spelling took the split back with `remove`, whose way out of the trash
+  // lands LAST, so undo-then-redo moved the half a person had just cut to the
+  // bottom of the branch. Nothing composes those two facts but a round trip,
+  // which is why this test is the round trip rather than a third assertion
+  // about either half.
+  const undo = inverse(
+    { verb: "split", id: "install", title: "install", rest: " them", under: true },
+    "handles",
+  )
+  expect(undo).toEqual([{ verb: "merge", id: "handles" }])
+  const redo = inverse({ verb: "merge", id: "handles" })
+  expect(redo.find((edit) => edit.verb === "place")).toEqual({
+    verb: "place",
+    id: "handles",
+    parent: "install",
+    after: null,
+  })
+})
+
 test("a merge is taken back by a whole sequence, and every step is already a verb", () => {
   // `install` merges into `order`, which is `doing`, dated, and carries a note.
   // None of those is copied anywhere by the merge — they are on the two records

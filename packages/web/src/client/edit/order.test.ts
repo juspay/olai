@@ -1,8 +1,9 @@
 import type { Row } from "@olai/format"
+import type { Anchor } from "@olai/surface"
 import { expect, test } from "bun:test"
 
 import { emptyPending } from "./draft.ts"
-import { flatten, neighbour, reanchored, wired } from "./order.ts"
+import { flatten, neighbour, reanchored, seated, wired } from "./order.ts"
 import type { Wire } from "./order.ts"
 
 /** A row, as far as this walk is concerned: the place it sits in, the node it
@@ -153,13 +154,17 @@ test("no drafts is the flattening itself, and the same values it answers", () =>
 
 // ── the structure keys over a blank ───────────────────────────────────
 
+/** The key pressed on a blank sitting at `at`, with `drafts` the other blanks
+ *  already parked on the page. The sketch is a real `Pending` because that is
+ *  what the editor holds — `reanchored` finds itself on the wire by the slot
+ *  every other reader of that wire uses. */
 const seat = (
   rows: ReadonlyArray<Row> = tree,
   collapsed: ReadonlySet<string> = new Set(),
-  at: Parameters<typeof reanchored>[2],
+  at: Anchor,
   way: Parameters<typeof reanchored>[3],
   drafts: Parameters<typeof reanchored>[4] = [],
-) => reanchored(rows, collapsed, at, way, drafts)
+) => reanchored(rows, collapsed, emptyPending(at, "seat"), way, drafts)
 
 test("Tab seats the blank as the previous sibling's LAST child, one level in", () => {
   // The seat `after:a` is the floor of a's subtree: the row above AT THE
@@ -195,6 +200,20 @@ test("Tab is ONE level, however deep the trailing subtree", () => {
   // ...and the way back is a round trip, not an after:a1x half-way.
   expect(seat(chain, new Set(), { kind: "after", id: "a1" }, "out"))
     .toEqual({ at: { kind: "after", id: "a" } })
+})
+
+test("Tab under a childless MIRROR names the node it shows", () => {
+  // A placement is not a parent — `@olai/ops`' `notANode` refuses one — so a
+  // seat naming the mirror's own record would draw, take a title, and be
+  // refused on the `Enter` that committed it. The server resolves the same
+  // mirror the same way for a written row's `Tab`, and one key may not have
+  // two answers about where "under a mirror" is.
+  const mirrored: ReadonlyArray<Row> = [
+    { ...row("m", "/m"), kind: "mirror", shows: { file: "house.olai", node: { id: "target" } } },
+    row("b", "/b"),
+  ] as unknown as ReadonlyArray<Row>
+  expect(seat(mirrored, new Set(), { kind: "after", id: "m" }, "in"))
+    .toEqual({ at: { kind: "under", id: "target" } })
 })
 
 test("Tab into a FOLDED branch names the fold to lift", () => {
@@ -244,24 +263,44 @@ test("Alt+Shift walks the blank one slot within its sibling list", () => {
   expect(seat(tree, new Set(), { kind: "after", id: "b" }, "down")).toBeUndefined()
 })
 
-test("a parked blank at the seat's depth is a WALL the move keys may not cross", () => {
-  // The wire is the same one the plain arrows read — three blanks at one
-  // anchor are three lines and `↑` steps onto each. A move key may NOT step
-  // over one though: an anchor cannot name a blank, so nothing here can
-  // spell "between d1 and d2" — one press that crosses it is a three-line
-  // jump, which was the other half of the review's finding. The ordering of
-  // blanks at one seat is the PR's stated deferral.
-  const cluster = [emptyPending({ kind: "after", id: "a2" }, "d1"), emptyPending({ kind: "after", id: "a2" }, "d2")]
-  expect(seat(tree, new Set(), { kind: "after", id: "a2" }, "up", cluster)).toBeUndefined()
+test("the structure keys step PAST a parked blank — an anchor names records", () => {
+  // Enter Enter Enter stacks three blanks at one anchor, and the plain arrows
+  // stop on each of them. The four structure keys do not: what they answer
+  // with is an ANCHOR, anchors name records, and "between d1 and d2" is a
+  // place no anchor can spell. So a sketch is stepped over and the nearest
+  // real row is the answer — the same rule in all four directions, where `in`
+  // stepped past and `up` refused, which was two keys reading two pages.
+  const cluster = [
+    emptyPending({ kind: "after", id: "a2" }, "d1"),
+    emptyPending({ kind: "after", id: "a2" }, "d2"),
+  ]
+  expect(seat(tree, new Set(), { kind: "after", id: "a2" }, "up", cluster))
+    .toEqual({ at: { kind: "after", id: "a1" } })
   expect(seat(tree, new Set(), { kind: "after", id: "a2" }, "down", cluster))
     .toEqual({ at: { kind: "after", id: "a3" } })
-  // The same wall one anchor over — below this time.
+  expect(seat(tree, new Set(), { kind: "after", id: "a2" }, "in", cluster))
+    .toEqual({ at: { kind: "under", id: "a2" } })
+  expect(seat(tree, new Set(), { kind: "after", id: "a2" }, "out", cluster))
+    .toEqual({ at: { kind: "after", id: "a" } })
+  // A parked line at a DEEPER seat is stepped over for the OTHER reason —
+  // it rides its row's flight, exactly as any child of it does.
   expect(
-    seat(tree, new Set(), { kind: "after", id: "a2" }, "down", [emptyPending({ kind: "before", id: "a3" }, "d1")]),
-  ).toBeUndefined()
-  // What is NOT a wall: a parked line at a DEEPER seat, riding a row's flight
-  // — the same as any child of the row the press is crossing.
-  expect(
-    seat(tree, new Set(), { kind: "after", id: "a2" }, "up", [emptyPending({ kind: "after", id: "a1x" }, "d1")]),
+    seat(tree, new Set(), { kind: "after", id: "a2" }, "up", [
+      emptyPending({ kind: "after", id: "a1x" }, "d1"),
+    ]),
   ).toEqual({ at: { kind: "after", id: "a1" } })
+})
+
+test("one wire answers where every key stands on it", () => {
+  // The primitive the arrows, `Backspace` on a blank and the four structure
+  // keys share. A row by its PLACE, a blank by its SLOT, and `-1` for a name
+  // the page is not drawing — which is what tells a caret with nowhere to
+  // step from one that has simply reached the end.
+  const drafts = [emptyPending({ kind: "after", id: "a1" }, "d1")]
+  expect(seated(tree, new Set(), drafts, { kind: "row", place: "/a/a2" }).at).toBe(4)
+  expect(seated(tree, new Set(), drafts, { kind: "draft", slot: "d1" }).at).toBe(3)
+  expect(seated(tree, new Set(), drafts, { kind: "draft", slot: "gone" }).at).toBe(-1)
+  expect(seated(tree, new Set(), drafts, { kind: "row", place: "/nowhere" }).at).toBe(-1)
+  // A row folded away is not a place to stand, which is the same `-1`.
+  expect(seated(tree, new Set(["a1"]), [], { kind: "row", place: "/a/a1/a1x" }).at).toBe(-1)
 })

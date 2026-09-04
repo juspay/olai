@@ -603,19 +603,24 @@ export const SplitRequest = Schema.Struct({
 })
 
 /**
- * Two nodes, into one — this node's title appended to the sibling above it,
- * which then adopts everything that hung under this one.
+ * Two nodes, into one — this node's title appended to THE ROW ABOVE IT, which
+ * then adopts everything that hung under this one.
  *
  * `split` read backwards, and one op for the same reason: the merge is a
  * retitle, a note, N reparentings and a trash, and a sequence of those can
  * stop in the middle with the outline saying something nobody wrote. One plan,
  * one validation, one rename.
  *
- * THE SIBLING ABOVE IS NOT A FIELD, for the reason `move_node`'s `parent` is
- * one and this is not: "the row above" is a fact about the set, so it is read
- * off the snapshot this write is judged against — which is also what makes the
- * request re-plannable when the store moves under it. A node that is first
- * among its siblings has nothing above it and the call is refused saying so.
+ * THE ROW ABOVE IS NOT A FIELD, for the reason `move_node`'s `parent` is one
+ * and this is not: "the row above" is a fact about the set, so it is read off
+ * the snapshot this write is judged against — which is also what makes the
+ * request re-plannable when the store moves under it.
+ *
+ * WHICH row that is has two answers and they are one rule — the row a reader's
+ * eye is on. The SIBLING above, ordinarily; the PARENT for a node that is
+ * first among its siblings, because on the page the parent IS the line above a
+ * first child. Refused only where there is neither: a node first among the
+ * top-level rows of its outline has no row above it at all.
  *
  * WHAT SURVIVES, and it is the whole of the semantics:
  *
@@ -641,7 +646,7 @@ export const MergeRequest = Schema.Struct({
   op: Schema.Literal("merge"),
   id: Schema.String.annotate({
     description:
-      "The `id` of the node to merge INTO THE SIBLING ABOVE IT. Its title is appended to that sibling's, its note joined to that sibling's, its children moved under it — and its own record goes to `_olai/Trash.olai`, keeping its id, mark, date and edges.",
+      "The `id` of the node to merge INTO THE ROW ABOVE IT — the sibling above, or its PARENT when it is first among its siblings, which is the line above it on the page either way. Its title is appended to that row's, its note joined to that row's, its children moved under it — and its own record goes to `_olai/Trash.olai`, keeping its id, mark, date and edges. Refused for a node with neither: the first of an outline's top-level rows.",
   }),
   title: Schema.optional(Schema.String).annotate({
     description:

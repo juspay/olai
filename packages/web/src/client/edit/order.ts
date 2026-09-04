@@ -17,12 +17,12 @@
  * mirrors of one node fold together and are two different rows to stand in.
  */
 
+import { shownRecord } from "@olai/format"
 import type { Row } from "@olai/format"
 import type { Anchor } from "@olai/surface"
 
 import { foldIdOf, foldOf } from "../fold/rows.ts"
 import type { Fold } from "../fold/rows.ts"
-import { emptyPending } from "./draft.ts"
 import type { Pending } from "./draft.ts"
 
 /** Every row on screen, in the order they are painted.
@@ -180,6 +180,45 @@ export const wired = (
 }
 
 /**
+ * WHERE A CARET STANDS on the wire: a blank by its slot, or a row by the place
+ * it is drawn at. Two spellings because the two id spaces are two — a draft has
+ * no `Row.key` until it has committed, and a row has no slot ever.
+ */
+export type Standing =
+  | { readonly kind: "draft"; readonly slot: string }
+  | { readonly kind: "row"; readonly place: string }
+
+/**
+ * The wire, and the index the caret stands at — `-1` when what it names is not
+ * drawn (a row inside a fold, a draft whose anchor has gone).
+ *
+ * ONE walk and ONE search, because four keys ask the same question of it and
+ * their answers may not differ: the arrows step one along ({@link Wire} either
+ * side), `Backspace` on a blank reads the line above, and the four structure
+ * keys measure the seat's own sibling list from here ({@link reanchored}). Each
+ * of those spelled its own `findIndex` once, and one of them minted a fake
+ * draft with a magic slot to find itself — three walks that could come to
+ * disagree about which line is above, in a module whose whole job is that
+ * nothing disagrees about it.
+ */
+export const seated = (
+  rows: ReadonlyArray<Row>,
+  collapsed: ReadonlySet<string>,
+  drafts: ReadonlyArray<Pending>,
+  standing: Standing,
+): { readonly walk: ReadonlyArray<Wire>; readonly at: number } => {
+  const walk = wired(rows, collapsed, drafts)
+  return {
+    walk,
+    at: walk.findIndex((step) =>
+      step.kind === "draft"
+        ? standing.kind === "draft" && step.pending.slot === standing.slot
+        : standing.kind === "row" && step.row.key === standing.place
+    ),
+  }
+}
+
+/**
  * Where a BLANK's seat goes when the structure keys hit it.
  *
  * `at` is the anchor the key writes — the blank's drawing address — and
@@ -199,142 +238,144 @@ export interface Reseating {
 }
 
 /**
+ * THE SEAT'S OWN SIBLING LIST, as the page draws it: the rows at the seat's
+ * depth on either side of it, nearest first, and the row that ENDS the list
+ * going up — which is the parent, and the one row `out` is about.
+ *
+ * The walk steps over two things and each is a rule the four keys share:
+ *
+ *   - a DEEPER row is a sibling's own flight and belongs to that sibling. An
+ *     `after:X` seat sits at the FLOOR of X's subtree, so what trails directly
+ *     above it may be X's last descendant three levels in.
+ *   - a BLANK is not a record. Anchors name records, so no answer here can
+ *     spell "between two sketches" — a parked blank is a line the arrows stop
+ *     on and a line these keys step past, which is the honest half of a
+ *     deferral rather than a disagreement (the ordering BETWEEN blanks at one
+ *     seat is what is deferred).
+ */
+const flanking = (
+  walk: ReadonlyArray<Wire>,
+  at: number,
+  depth: number,
+): {
+  readonly above: ReadonlyArray<Row>
+  readonly below: ReadonlyArray<Row>
+  readonly parent: Row | undefined
+} => {
+  const above: Array<Row> = []
+  let parent: Row | undefined
+  for (let i = at - 1; i >= 0; i--) {
+    const step = walk[i]
+    if (step === undefined || step.kind !== "row" || step.depth > depth) continue
+    if (step.depth < depth) {
+      parent = step.row
+      break
+    }
+    above.push(step.row)
+  }
+  const below: Array<Row> = []
+  for (let i = at + 1; i < walk.length; i++) {
+    const step = walk[i]
+    if (step === undefined || step.kind !== "row" || step.depth > depth) continue
+    if (step.depth < depth) break
+    below.push(step.row)
+  }
+  return { above, below, parent }
+}
+
+/**
+ * `Tab`'s answer for one row: become its LAST CHILD.
+ *
+ * The server's own `move in` ({@link ../../../../server/src/edit.ts}), spelled
+ * as an anchor — last child by name, or the `under` seat when the row has none.
+ *
+ * THE NODE IT SHOWS, never the row's own record, which is the one place this
+ * walk stops reading placements: a childless MIRROR named as a parent is
+ * `@olai/ops`' `notANode` — "that id is a placement, name the node" — so the
+ * seat would draw, take a title, and be refused on the `Enter` that committed
+ * it. The server resolves the same mirror the same way for a written row's
+ * `Tab`, and the two faces of one key may not disagree about where under a
+ * mirror is.
+ *
+ * A branch that reads CLOSED hands back the fold to lift with it: the seat has
+ * to be ON the page it says it is at, or the ghost draws nowhere and the first
+ * `Enter` writes into a fold nobody can see the result in. Asked of the FOLD
+ * and not of the children, because a row that has lost its last child keeps the
+ * memory of being folded — and the seat's own commit is what gives it one back.
+ */
+const asLastChild = (row: Row, collapsed: ReadonlySet<string>): Reseating => {
+  const last = row.children[row.children.length - 1]
+  return {
+    at: last === undefined
+      ? { kind: "under", id: shownRecord(row).node.id }
+      : { kind: "after", id: last.at.node.id },
+    ...(collapsed.has(foldIdOf(row)) ? { open: foldOf(row) } : {}),
+  }
+}
+
+/**
  * Where a BLANK's anchor goes when the structure keys hit it: Tab (`in`),
  * Shift+Tab (`out`), Alt+Shift+↑/↓ (`up` / `down`), all LOCAL. Nothing here is
  * a write — a sketch is re-arranged as a sketch, on screen, and the ONE write
  * it eventually makes holds the shape the person arrived at.
  *
- * Measured on the WIRE — the same list the eye and the arrows read — because
- * "the row above the blank" is a drawing question, not a tree one:
+ * ONE WALK ({@link flanking}) and four rules over what it found, because the
+ * four keys are four readings of one list and not four searches. Each of them
+ * was its own loop once, and each loop re-decided what a deeper row and a
+ * parked blank meant — which is how `in` came to indent three levels on one
+ * press while `up` refused to cross a sketch at all (the review of #493 caught
+ * both halves).
  *
- *   - `in`: ONE LEVEL, always — the server's own `move in`: "become a child
- *     of the row above AT THE SEAT'S OWN DEPTH, last among its new siblings".
- *     The row above at the seat's depth is the previous sibling — an
- *     `after:X` seat's floor may trail X's subtree for levels — so the walk
- *     skips that flight and names X: last child by anchor, or the `under`
- *     seat when X has none. An older spelling answered after the last DRAWN
- *     row of the flight: three levels on one keystroke in a three-deep tree,
- *     and Shift+Tab did not put the blank back — the review of #493 probed
- *     both, and the same blank typed+Tabbed answered a THIRD way on disk. A
- *     row SHALLOWER than the seat first: the seat IS that side's first
- *     child, and the key has nothing to say.
+ *   - `in`: the row above at the seat's OWN depth is the previous sibling, and
+ *     the seat becomes its last child — one level, the same one `move in`
+ *     gives a written row. No such row means the seat is already that side's
+ *     first child, and the key has nothing to say.
+ *   - `out`: the row that ended the list is the parent, and the seat takes its
+ *     after-slot — drawn right below that whole branch, as the row Shift+Tab
+ *     makes of a bullet.
+ *   - `up`: one slot over the rows above. `before` the nearest when the seat
+ *     was second in the list (the first-child's seat, written in a row's own
+ *     name), `after` the one TWO up otherwise, so the blank lands between the
+ *     two.
+ *   - `down`: one slot over the rows below — `after` the nearest.
  *
- *   - `out`: the blank slips out of the sibling list it sits in, into the
- *     parent's own after-slot — drawn right below that whole branch, as the
- *     row Shift+Tab makes of a bullet.
+ * Both ends of the list are where a key has nothing to say: a blank does not
+ * wrap round any more than a row does ({@link neighbour}).
  *
- *   - `up` / `down`: one slot within the seat's own sibling list. A PARKED
- *     blank at the seat's depth in the way is a WALL: anchors name records,
- *     and "between d1 and d2" is a place no anchor can spell — one press
- *     that crossed it would jump a whole sketch the arrows stop on line by
- *     line, two keys reading two pages (the review's other half). The
- *     ordering between blanks at one seat is the PR's stated deferral, and
- *     a parked line at a DEEPER seat rides its row's flight like any child
- *     of it. The first slot is the `under` seat (a `first` at a bare page)
- *     and the last is `after` the last drawn child, and both ends are where
- *     the key has nothing to say ({@link neighbour}).
- *
- * `drafts` are the other parked blanks, so this wire is the one the arrows
- * read — one page, not two measuring sticks.
+ * `others` are the page's remaining parked blanks, so this wire is the one the
+ * arrows read — one page, not two measuring sticks.
  */
 export const reanchored = (
   rows: ReadonlyArray<Row>,
   collapsed: ReadonlySet<string>,
-  at: Anchor,
+  sketch: Pending,
   way: "in" | "out" | "up" | "down",
-  drafts: ReadonlyArray<Pending> = [],
+  others: ReadonlyArray<Pending> = [],
 ): Reseating | undefined => {
-  const walk = wired(rows, collapsed, [...drafts, emptyPending(at, "sizing")])
-  const me = walk.findIndex((step) => step.kind === "draft" && step.pending.slot === "sizing")
-  const theSeat = walk[me]
-  if (theSeat === undefined) return undefined
+  const { walk, at } = seated(rows, collapsed, [...others, sketch], {
+    kind: "draft",
+    slot: sketch.slot,
+  })
+  const seat = walk[at]
+  if (seat === undefined) return undefined
+  const { above, below, parent } = flanking(walk, at, seat.depth)
+  const after = (row: Row | undefined): Reseating | undefined =>
+    row === undefined ? undefined : { at: { kind: "after", id: row.at.node.id } }
+  const [nearest, over] = above
 
-  if (way === "in") {
-    for (let i = me - 1; i >= 0; i--) {
-      const step = walk[i]
-      if (step === undefined || step.kind !== "row") continue
-      // The flight trails the sibling this seat floors; keep walking.
-      if (step.depth > theSeat.depth) continue
-      if (step.depth < theSeat.depth) return undefined
-      const last = step.row.children[step.row.children.length - 1]
-      return last === undefined
-        ? { at: { kind: "under", id: step.row.at.node.id } }
-        : {
-          at: { kind: "after", id: last.at.node.id },
-          ...(collapsed.has(foldIdOf(step.row)) ? { open: foldOf(step.row) } : {}),
-        }
-    }
-    return undefined
+  switch (way) {
+    case "in":
+      return nearest === undefined ? undefined : asLastChild(nearest, collapsed)
+    case "out":
+      return after(parent)
+    // One slot up: `after` the sibling TWO above, so the blank lands between
+    // the two — or `before` the nearest when there is no second, which is the
+    // first-child's seat written in a row's own name.
+    case "up":
+      return nearest === undefined ? undefined : over === undefined
+        ? { at: { kind: "before", id: nearest.at.node.id } }
+        : after(over)
+    case "down":
+      return after(below[0])
   }
-  if (way === "out") {
-    for (let i = me - 1; i >= 0; i--) {
-      const step = rowAt(walk, i)
-      if (step !== undefined && step.depth < theSeat.depth) {
-        return { at: { kind: "after", id: step.row.at.node.id } }
-      }
-    }
-    return undefined
-  }
-
-  // The siblings: everything at the seat's depth between one parent boundary
-  // and the next. `up` slips the blank one slot over the rows ABOVE it; `down`
-  // over the ones below. Either end of the list is undrawable territory. The
-  // two arms are separate loops — each holds the wall rule for ITS direction,
-  // and a draft in the OTHER direction is none of this key's business.
-  if (way === "up") {
-    const above: Array<Row> = []
-    for (let i = me - 1; i >= 0; i--) {
-      const step = walk[i]
-      if (step === undefined) continue
-      if (step.kind === "draft") {
-        if (step.depth === theSeat.depth) return undefined
-        continue
-      }
-      if (step.depth < theSeat.depth) break
-      if (step.depth === theSeat.depth) above.push(step.row)
-    }
-    // `above` is collected walking BACKWARD: above[0] is the row directly
-    // above the seat, above[1] the sibling two up, above[last] the one at
-    // the list's top. One slot up: the seat's floor becomes the row ONE
-    // further above — `before` the nearest when the seat was second in the
-    // list (the first-child's seat, written in a row's own name), `after`
-    // the one TWO up otherwise, so the blank lands between the two. The
-    // one-press-two-slots answer `above[last]` made is the one grok's
-    // review of #493 caught: every test tree that pinned this sat the
-    // blank at most two slots in, where the two spellings coincide.
-    const top = above[0]
-    if (top === undefined) return undefined
-    const over = above[1]
-    return over === undefined
-      ? { at: { kind: "before", id: top.at.node.id } }
-      : { at: { kind: "after", id: over.at.node.id } }
-  }
-  if (way === "down") {
-    const below: Array<Row> = []
-    for (let i = me + 1; i < walk.length; i++) {
-      const step = walk[i]
-      if (step === undefined) continue
-      if (step.kind === "draft") {
-        if (step.depth === theSeat.depth) return undefined
-        continue
-      }
-      if (step.depth < theSeat.depth) break
-      if (step.depth === theSeat.depth) below.push(step.row)
-    }
-    const next = below[0]
-    if (next === undefined) return undefined
-    return { at: { kind: "after", id: next.at.node.id } }
-  }
-  return undefined
-}
-
-/** The ROW-side entry at a wire index, or nothing for a draft — the walk and
- *  the skim both name it, so `findIndex` was a hole the type system knew
- *  nothing about. */
-const rowAt = (
-  walk: ReadonlyArray<Wire>,
-  at: number,
-): Extract<Wire, { kind: "row" }> | undefined => {
-  const step = walk[at]
-  return step?.kind === "row" ? step : undefined
 }
