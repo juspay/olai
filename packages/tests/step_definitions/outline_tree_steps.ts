@@ -780,6 +780,31 @@ When(
   },
 );
 
+/** One door, one measured end of it: what the clamp's "at the word the finger
+ *  name" comes down to in a pointer. `position` is the press's own answer to
+ *  "where IN the element" — the title's "near its start" holds the same
+ *  arithmetic. */
+When(
+  "I click the note of {string} near its start",
+  async function (this: OlaiWorld, id: string) {
+    const control = noteControl(this, id);
+    await control.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await control.click({ position: { x: 4, y: 3 } });
+  },
+);
+
+When(
+  "I click the note of {string} near its end",
+  async function (this: OlaiWorld, id: string) {
+    const control = noteControl(this, id);
+    await control.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await control.scrollIntoViewIfNeeded();
+    const box = await control.boundingBox();
+    if (box === null) throw new Error(`the note line of ${JSON.stringify(id)} has no box`);
+    await control.click({ position: { x: box.width - 4, y: box.height - 3 } });
+  },
+);
+
 When(
   "I tap the note of {string}",
   async function (this: OlaiWorld, id: string) {

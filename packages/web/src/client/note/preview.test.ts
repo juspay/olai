@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { plainLine } from "./preview.ts"
+import { measuredAt, plainLine } from "./preview.ts"
 
 test("the first line is the first line with anything on it", () => {
   expect(plainLine("\n\n  Two ways to go:\n\n- more\n")).toBe("Two ways to go:")
@@ -58,4 +58,46 @@ test("a long run of spaces that does not close a heading is answered at once", (
 test("an empty note previews as nothing", () => {
   expect(plainLine("")).toBe("")
   expect(plainLine("\n \n")).toBe("")
+})
+
+// measuredAt: a click speaks the clamped line's characters; the caret is
+// answered in the note's. The line is the note's first non-blank one, with
+// the marks stripped, so the map skips the marks and otherwise goes home.
+test("a measured word lands where the word came from", () => {
+  const desc = "Two ways to go:\n\n- **walnut** — six week lead time"
+  // "Two ways to go:" spells itself — no marks on the first line.
+  expect(measuredAt(desc, 0)).toBe(0)
+  expect(measuredAt(desc, 4)).toBe(4)
+  expect(measuredAt(desc, 15)).toBe(15)
+  // Past the line's end is the line's end, not the next line's start: the
+  // caret belongs to the words the finger saw, and a click on the clamp with
+  // the note's later lines folded away must not land inside them.
+  expect(measuredAt(desc, 200)).toBe(15)
+})
+
+test("leading blank lines and spaces stay where the note keeps them", () => {
+  const desc = "\n\n  Two ways to go:\n\n- more\n"
+  expect(measuredAt(desc, 0)).toBe("\n\n  ".length)
+})
+
+test("the marks a bold word carries are skipped, both sides of it", () => {
+  const desc = "*tap* the **valve** twice"
+  // view: "tap the valve twice" — a leading mark is never the caret's land.
+  expect(measuredAt(desc, 0)).toBe(1)
+  // Between the word and the space after it is where the closing mark lives;
+  // the caret goes past it, which is where the finger saw the gap.
+  expect(measuredAt(desc, 3)).toBe(5)
+  // "valve" spans view 8..12: the last letter's name in the source.
+  expect(measuredAt(desc, 12)).toBe(16)
+  // Past the drawn words is the end of the note, whatever the clamp showed.
+  expect(measuredAt(desc, 50)).toBe(25)
+})
+
+test("a list's bullet mark is not a character of the note-tap", () => {
+  const desc = "- walnut — six week lead time"
+  expect(measuredAt(desc, 0)).toBe(2)
+})
+
+test("an all-blank note has only the start", () => {
+  expect(measuredAt("\n \n", 3)).toBe(0)
 })

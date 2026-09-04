@@ -594,29 +594,42 @@ export const SplitRequest = Schema.Struct({
   }),
   rest: Schema.String.annotate({
     description:
-      "What comes OFF it — the second half, verbatim, written as a brand-new node placed immediately after this one among its siblings. It is born a bullet: no mark, no note, no date, nothing under it.",
+      "What comes OFF it — the second half, verbatim, written as a brand-new node placed immediately after this one among its siblings (or as its FIRST CHILD with `under`). It is born a bullet: no mark, no note, no date, nothing under it.",
+  }),
+  under: Schema.optional(Schema.Boolean).annotate({
+    description:
+      "`true` makes the tail the head's FIRST CHILD instead of its next sibling — the reading a browser asks for when the head's children are on screen, so the line that comes off lands on the very next line a reader sees rather than below the whole subtree. Absent is the sibling.",
   }),
 })
 
 /**
- * Two nodes, into one — this node's title appended to the sibling above it,
- * which then adopts everything that hung under this one.
+ * Two nodes, into one — this node's title appended to THE ROW ABOVE IT, which
+ * then adopts everything that hung under this one.
  *
  * `split` read backwards, and one op for the same reason: the merge is a
  * retitle, a note, N reparentings and a trash, and a sequence of those can
  * stop in the middle with the outline saying something nobody wrote. One plan,
  * one validation, one rename.
  *
- * THE SIBLING ABOVE IS NOT A FIELD, for the reason `move_node`'s `parent` is
- * one and this is not: "the row above" is a fact about the set, so it is read
- * off the snapshot this write is judged against — which is also what makes the
- * request re-plannable when the store moves under it. A node that is first
- * among its siblings has nothing above it and the call is refused saying so.
+ * THE ROW ABOVE IS NOT A FIELD, for the reason `move_node`'s `parent` is one
+ * and this is not: "the row above" is a fact about the set, so it is read off
+ * the snapshot this write is judged against — which is also what makes the
+ * request re-plannable when the store moves under it.
+ *
+ * WHICH row that is has two answers and they are one rule — the row a reader's
+ * eye is on. The SIBLING above, ordinarily; the PARENT for a node that is
+ * first among its siblings, because on the page the parent IS the line above a
+ * first child. Refused only where there is neither: a node first among the
+ * top-level rows of its outline has no row above it at all.
  *
  * WHAT SURVIVES, and it is the whole of the semantics:
  *
  *   - the TITLES are concatenated, in reading order, with nothing put between
- *     them (Workflowy's own join — the two halves were one line);
+ *     them (Workflowy's own join — the two halves were one line) — unless the
+ *     caller CARRIES what this node says now: an editor whose title was just
+ *     erased to nothing joins that nothing, and the survivor's title stands
+ *     untouched. The record's own title is never lost either way — it is on
+ *     the record, in the archive;
  *   - the NOTES are concatenated too, one blank line apart, and a node with
  *     none simply takes the other's. A note that vanished from the page would
  *     be the silent loss this codebase refuses, and the trash is not where
@@ -633,7 +646,11 @@ export const MergeRequest = Schema.Struct({
   op: Schema.Literal("merge"),
   id: Schema.String.annotate({
     description:
-      "The `id` of the node to merge INTO THE SIBLING ABOVE IT. Its title is appended to that sibling's, its note joined to that sibling's, its children moved under it — and its own record goes to `_olai/Trash.olai`, keeping its id, mark, date and edges.",
+      "The `id` of the node to merge INTO THE ROW ABOVE IT — the sibling above, or its PARENT when it is first among its siblings, which is the line above it on the page either way. Its title is appended to that row's, its note joined to that row's, its children moved under it — and its own record goes to `_olai/Trash.olai`, keeping its id, mark, date and edges. Refused for a node with neither: the first of an outline's top-level rows.",
+  }),
+  title: Schema.optional(Schema.String).annotate({
+    description:
+      "What this node CONTRIBUTES to the join, verbatim — carried when what the caller is looking at is not the record's title: a title erased to nothing in the editor joins nothing, and the survivor's title stands. Absent is the record's own title — the reading every other caller keeps.",
   }),
 })
 

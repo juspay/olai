@@ -307,10 +307,15 @@ export const before = (draft: Editing): Anchor => ({ kind: "before", id: draft.r
 /** A pending draft drawn against a row on screen — `after` or `before` it.
  *  `under` and `first` have no row to sit next to; those are a page's start
  *  line. One shape, so a consumer cannot hold both sides at once. */
-export type Beside = { readonly kind: "after" | "before"; readonly id: string }
+/** Which ROW'S furniture a blank draws beside: a row AROUND another — before,
+ *  after, or under the one it heads — but a PAGE's start is nobody's row,
+ *  which is why `first` has no Beside. */
+export type Beside = { readonly kind: "after" | "before" | "under"; readonly id: string }
 
 export const besideOf = (at: Anchor): Beside | null =>
-  at.kind === "after" || at.kind === "before" ? { kind: at.kind, id: at.id } : null
+  at.kind === "after" || at.kind === "before" || at.kind === "under"
+    ? { kind: at.kind, id: at.id }
+    : null
 
 /**
  * WHICH EDITOR a draft is drawn in: the row, and which of the three things it
