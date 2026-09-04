@@ -286,6 +286,10 @@ you set by hand on the command line is a policy you set once and forget:
 
 **Turning a row off takes its dependants with it, and the panel says so.** The chat row stands behind four doors ([plugins/chat.md](plugins/chat.md)), so switching it off leaves every engine, every doorbell and the mirror `waiting` — each row naming the door it is short of. Switch chat back on and they re-start themselves; nothing has to be pressed twice, and a plugin that comes back is holding the same machine-local record it left.
 
+A service can have only one provider. If two plugins offer the same service,
+the second fails with a sentence naming both plugins and the service; the
+existing provider keeps running.
+
 **Stopping also reaches a plugin that is still starting.** The runtime
 interrupts its Effect initialization, waits for dependent cleanup while the
 provider's resources are still available, then releases its resources. A

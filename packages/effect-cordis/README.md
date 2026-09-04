@@ -57,7 +57,9 @@ JavaScript, and waits for uninterruptible acquisition and finalizers.
 **`offer(key, provision)`** provides on the calling plugin's fiber, carried in
 its Effect environment. Consumers cannot see the provision until the provider
 is ACTIVE; failed initialization activates none. Cordis owns duplicate refusal
-and identifies the existing provider. The bridge revokes every offer and joins
+and identifies the existing provider. The bridge recognizes the pinned
+runtime's duplicate error as `OfferConflict`, so the API supplies its own
+sentence without relabeling unrelated lifecycle defects. The bridge revokes every offer and joins
 dependent cleanup **before** closing any of the provider's resource finalizers,
 including finalizers registered after the offer. During host shutdown it also
 joins departing activations already removed from Cordis's registry.
@@ -67,11 +69,16 @@ removes `ctx.provide`'s disposer from the fiber's `_disposables` and becomes its
 only caller. Leaving it in that set would run revocation concurrently with scope
 close; calling its guarded wrapper twice cannot join the first revocation. The
 ordering tests use the provider's resource from asynchronous dependent cleanup,
-not just the fibers' state words.
+not just the fibers' state words. A checked disposer handoff fails immediately
+if the pin stops registering that disposer in the expected set. The activation
+handle owns this ordering and cancellation; plugin configuration and service
+resolution cannot mutate its lifecycle bookkeeping.
 
 **`openHost` / `closeHost(host)`** own the whole registry. Opening is scoped;
 closing is idempotent and waits for loading initializers, background work and
-asynchronous cleanup, including plugins with empty `needs`. The server and tab
+asynchronous cleanup, including plugins with empty `needs`. Cordis implements
+root disposal as a restart, leaving an empty ACTIVE root; the bridge remembers
+closure and refuses subsequent mounts. The server and tab
 inherit this lifetime through `openPlugins` and `openApp`. Direct mounting
 normally waits for initialization; `mountPlugin(host, plugin, { wait: false })`
 returns the stop handle immediately. Dynamic plugins use that form so a hung

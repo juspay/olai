@@ -190,3 +190,17 @@ test("host close interrupts active background work before resource release", () 
   yield* closeHost(host)
   expect(order).toEqual(["background stopped", "resource released"])
 })))
+
+test("offer transfers its Cordis disposer out of the concurrent disposer set", () => run(Effect.gen(function*() {
+  const { ctxOf } = yield* Effect.promise(() => import("./host.ts"))
+  const { activate, Offering } = yield* Effect.promise(() => import("./lifecycle.ts"))
+  const host = yield* openHost
+  const ctx = ctxOf(host)
+  const activation = activate(ctx, yield* Effect.context<never>())
+  const before = [...ctx.fiber._disposables]
+  yield* offer(Resource, () => ({ use: () => {} })).pipe(Effect.provideService(Offering, activation))
+  expect([...ctx.fiber._disposables]).toEqual(before)
+  expect(offered(host, Resource)).toBeDefined()
+  yield* Effect.promise(() => activation.close(Exit.void))
+  expect(offered(host, Resource)).toBeUndefined()
+})))

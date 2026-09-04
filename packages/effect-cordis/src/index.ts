@@ -64,4 +64,4 @@ export { type Detach, definePlugin, detached, type Plugin } from "./plugin.ts"
 export { type AnyKey, type Provision, serviceTag, type ServiceKey } from "./service.ts"
 export { type Chain, type Dispatch, type Middleware, waterfall, type Waterfall } from "./waterfall.ts"
 
-export { offer } from "./lifecycle.ts"
+export { offer, OfferConflict } from "./lifecycle.ts"

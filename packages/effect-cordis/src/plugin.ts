@@ -12,8 +12,9 @@
  * `Effect.addFinalizer`, with the same LIFO discipline and a great deal more
  * said about interruption. So {@link definePlugin} opens ONE `Scope` when the
  * fiber activates, runs the plugin's Effect inside it, and hands Cordis a
- * disposer that closes it. Every registration a plugin makes is a finalizer on
- * that scope; the plugin author never calls `ctx.effect`, never sees a
+ * disposer that closes it. Resource registrations are finalizers on that
+ * scope; service offers are revoked first, with dependent cleanup joined before
+ * the resource scope closes. The plugin author never calls `ctx.effect`, never sees a
  * disposer, and never learns that Cordis is under any of it.
  *
  * ## `inject` and the requirement channel are one declaration
@@ -40,7 +41,7 @@ import { Cause, Context, Effect, Exit, Fiber, FiberSet, Schema, Scope } from "ef
 
 import { failed } from "./broadcast.ts"
 import { held } from "./host.ts"
-import { Offering, track, untrack, drainDependents, type Activation } from "./lifecycle.ts"
+import { Offering, activate } from "./lifecycle.ts"
 import type { AnyKey } from "./service.ts"
 
 /**
@@ -222,44 +223,9 @@ export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>, Config = 
     // THE STAMP, READ ONCE, off the registry binding — never off anything the
     // plugin supplied. Every keyed service below is minted from it.
     const who = ctx.fiber.name
-    const scope = Scope.makeUnsafe()
-    const drained = Promise.withResolvers<void>()
-    let interrupted = false
-    const activation: Activation = {
-      ctx, revokes: [], drained: drained.promise, closing: false,
-      dependencies: new Set(Object.values(ctx.fiber.store ?? {}).map((impl) => impl.fiber)),
-      interrupt: () => { interrupted = true },
-    }
-    let closing: Promise<void> | undefined
-    const close = (exit: Exit.Exit<void, never>): Promise<void> => closing ??= (async () => {
-      activation.closing = true
-      try {
-        for (const revoke of activation.revokes.reverse()) await revoke()
-        await drainDependents(activation)
-      } finally {
-        try {
-          await Effect.runPromiseWith(opened)(Scope.close(scope, exit))
-        } finally {
-          untrack(activation)
-          drained.resolve()
-        }
-      }
-    })()
-    // THE TWO AMBIENT ONES KEEP THEIR TYPES, because both are known here: the
-    // context that comes out of this says it carries a plugin name and a scope,
-    // and nothing is asserted to get there.
-    //
-    // The LOOP is where the tracking genuinely ends — a provision is resolved by
-    // a runtime string off a Cordis context, so what a key is a key FOR is not a
-    // thing the compiler can follow — and that is the one place the assertion
-    // belongs. It was written four times, once after each `merge` and `add`,
-    // which made a reader check three identical casts to find the one that meant
-    // something.
-    let services = Context.add(
-      Context.add(Context.merge(opened, Context.make(PluginName, who)), Offering, activation),
-      Scope.Scope,
-      scope,
-    ) as Context.Context<never>
+    // Runtime string lookup is the one point where the key's shape is erased.
+    // Resolve it here; lifetime ownership has no opinion about service shapes.
+    let services = Context.merge(opened, Context.make(PluginName, who)) as Context.Context<never>
     for (const key of spec.needs) {
       const provision = (ctx as unknown as Record<string, unknown>)[key.cordis]
       if (typeof provision !== "function") {
@@ -275,15 +241,13 @@ export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>, Config = 
         (provision as (plugin: string) => unknown)(who),
       ) as Context.Context<never>
     }
-    track(activation)
+    const activation = activate(ctx, opened)
+    services = Context.add(Context.add(services, Offering, activation), Scope.Scope, activation.scope) as Context.Context<never>
     const work = Effect.suspend(() => Effect.isEffect(spec.apply)
       ? spec.apply
       : spec.apply((config ?? {}) as Config))
     const running = Effect.runForkWith(services)(work as Effect.Effect<void>)
-    activation.interrupt = () => { Effect.runFork(Fiber.interrupt(running)) }
-    if (interrupted || ctx.fiber.uid === null || spec.needs.some((key) => ctx.reflect.get(key.cordis) === undefined)) {
-      activation.interrupt()
-    }
+    activation.bind(running)
     const exit = await Effect.runPromise(Fiber.await(running))
     if (Exit.isFailure(exit)) {
       // EVERY FINALIZER IT HAD ALREADY INSTALLED, before the throw goes out —
@@ -299,7 +263,7 @@ export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>, Config = 
       // then read on the preferences row, was the CLEANUP's defect rather than
       // the plugin's. The plugin's failure is the subject of this whole arm; it
       // wins, and a finalizer that died on the way out is said beside it.
-      const unwound = await Effect.runPromiseExit(Effect.promise(() => close(exit)))
+      const unwound = await Effect.runPromiseExit(Effect.promise(() => activation.close(exit)))
       if (Exit.isFailure(unwound)) {
         await Effect.runPromiseWith(opened)(
           failed(who, "unwinding after a failed start", unwound.cause),
@@ -307,6 +271,6 @@ export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>, Config = 
       }
       if (!Cause.hasInterruptsOnly(exit.cause)) throw Cause.squash(exit.cause)
     }
-    return () => close(Exit.void)
+    return () => activation.close(Exit.void)
   },
 })

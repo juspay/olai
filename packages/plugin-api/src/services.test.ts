@@ -736,8 +736,8 @@ test("a plugin that offers a door core keeps is refused, and only that plugin fa
   })))
 })
 
-/** Cordis owns duplicate refusal and identifies the existing provider. */
-test("two plugins standing behind one door: Cordis refuses the second with the owner and key", async () => {
+/** Cordis refuses the duplicate; olai names both rows and preserves ownership. */
+test("two plugins standing behind one door: refusal names both rows and the key", async () => {
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const plugins = yield* runtime()
     const offering = (name: string) =>
@@ -754,8 +754,20 @@ test("two plugins standing behind one door: Cordis refuses the second with the o
     expect((yield* first.report).state).toBe("running")
     const [state, fault] = yield* rowOf(second)
     expect(state).toBe("failed")
-    expect(fault).toContain("<chat>")
-    expect(fault).toContain("\"watching\"")
+    expect(fault).toBe(
+      'plugins: "chat" and "mirror" both offer "watching" — a '
+        + "service stands behind one row, and the second would leave every "
+        + "plugin that named it holding whichever was mounted last.",
+    )
+    expect([...plugins.offers()]).toEqual([["watching", "chat"]])
+    yield* second.dispose
+    expect([...plugins.offers()]).toEqual([["watching", "chat"]])
+
+    yield* first.dispose
+    expect([...plugins.offers()]).toEqual([])
+    const replacement = yield* mountPlugin(plugins.host, offering("mirror"))
+    expect((yield* replacement.report).state).toBe("running")
+    expect([...plugins.offers()]).toEqual([["watching", "mirror"]])
   })))
 })
 
@@ -889,5 +901,26 @@ test("a plugin that comes back stands behind its door again", async () => {
       }),
     )
     expect((yield* mirror.report).state).toBe("running")
+  })))
+})
+
+
+test("offer preserves a lifecycle defect when the service already has an owner", async () => {
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const plugins = yield* runtime()
+    let escaped: Effect.Effect<void, never, Scope.Scope> = Effect.void
+    yield* mountPlugin(plugins.host, definePlugin({ name: "owner", needs: [Offers], apply: Effect.gen(function*() {
+      const offers = yield* Offers
+      escaped = offers.offer(Watching, () => ({ subscribe: () => Effect.void }))
+      yield* escaped
+    }) }))
+    // The same capability used outside the activation is a lifecycle error,
+    // even though its first offer still owns the key.
+    const fault = yield* escaped.pipe(
+      Effect.as("unexpected success"),
+      Effect.catchCause((cause) => Effect.succeed(String(Cause.squash(cause)))),
+    )
+    expect(fault).toBe("Error: effect-cordis: offer requires a plugin activation")
+    expect([...plugins.offers()]).toEqual([["watching", "owner"]])
   })))
 })

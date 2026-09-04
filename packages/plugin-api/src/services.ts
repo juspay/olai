@@ -86,6 +86,7 @@ import {
   hostChanges,
   closeHost,
   offer,
+  OfferConflict,
   provide,
   type Provision,
   registry,
@@ -723,13 +724,12 @@ export const OFFERABLE = [Agents, Deliveries, SessionStart, Watching, Ledger] as
  *     shadowed, replaced or raced by a row.
  *   - THERE IS NO HOST. It is closed over in `openPlugins`, in the package the
  *     ruling names as the one that spends the capability.
- *   - CORDIS REFUSES A SECOND PROVIDER. Provision belongs to the offering
- *     fiber, so the runtime's refusal names that owner rather than the root.
+ *   - CORDIS REFUSES A SECOND PROVIDER. The bridge identifies that refusal;
+ *     this door supplies the sentence naming both rows and the contested key.
  *   - IT IS IN `needs`. A plugin that stands behind a door SAYS SO in the one
  *     list a reader, the fence and `@olai/bundle`'s table all read — and the
- *     standing unwinds with the plugin, because `provide` is an `acquireRelease`
- *     on the calling activation. The bridge revokes offers and joins dependent
- *     cleanup before closing the plugin's resource scope.
+ *     standing belongs to the calling activation. The bridge revokes offers and
+ *     joins dependent cleanup before closing the plugin's resource scope.
  *
  * ## Why FIVE OVERLOADS and not one generic
  *
@@ -1235,6 +1235,13 @@ export const openPlugins = (
           }
           const owner = { plugin }
           return offer(key as ServiceKey<never>, door).pipe(
+            Effect.catchDefect((defect) => {
+              return Effect.die(!(defect instanceof OfferConflict) ? defect : new Error(
+                `plugins: "${defect.owner}" and "${plugin}" both offer "${key.cordis}" — a `
+                  + "service stands behind one row, and the second would leave every "
+                  + "plugin that named it holding whichever was mounted last.",
+              ))
+            }),
             Effect.andThen(Effect.acquireRelease(
               Effect.sync(() => { offered.set(key.cordis, owner) }),
               () => Effect.sync(() => { if (offered.get(key.cordis) === owner) offered.delete(key.cordis) }),
