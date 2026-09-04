@@ -21,9 +21,11 @@
  * a value this browser owns; these are read off the same value the instance
  * line is read off, and splitting them would let a row name a flag nobody gave.
  * What is NOT here is the doctrine those lines end with — that the row is the
- * instance's and this browser cannot change it — because the plugin rows
- * (`./plugins.ts`) say the same thing about a different flag. One copy, in
- * `./instance.ts`.
+ * instance's and this browser cannot change it. It was shared with the plugin
+ * rows, which have since grown a switch and stopped meaning it
+ * (`../plugins/rows.ts`); it stays in `./instance.ts` rather than moving back
+ * in here, because it is a claim about frozen instance rows and not a claim
+ * about git, and the day a third one arrives it takes the same words.
  */
 
 import type { CommitMode, GitState, PushMode } from "@olai/format"

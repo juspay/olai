@@ -1058,6 +1058,42 @@ test("a split is taken back by merging the half it made", () => {
     .toEqual([{ verb: "merge", id: "n1" }])
 })
 
+test("an `under` split is taken back the same way — the first child merges into its parent", () => {
+  // The tail went UNDER the head — it is the head's first child, so the
+  // merge that takes it back is the parent join `merging` now answers. One
+  // edit either way, and no two-step window in which the joined title and
+  // the still-standing tail read as the same words twice (review of #493).
+  expect(
+    inverse({ verb: "split", id: "order", title: "order ", rest: "the cabinets", under: true }, "n1"),
+  ).toEqual([{ verb: "merge", id: "n1" }])
+})
+
+test("an `under` split's ⌘Z ⌘⇧Z is a round trip — the tail comes back FIRST", () => {
+  // The two links pinned as the chain they are. `handles` stands in for the
+  // tail a mid-line `Enter` on an expanded parent mints: it is `install`'s
+  // first child, exactly where an `under` split puts what came off.
+  //
+  // ⌘Z is the merge that arm answers with; ⌘⇧Z is that merge's own inverse,
+  // and the slot it names is `after: null` — the top of the list. An earlier
+  // spelling took the split back with `remove`, whose way out of the trash
+  // lands LAST, so undo-then-redo moved the half a person had just cut to the
+  // bottom of the branch. Nothing composes those two facts but a round trip,
+  // which is why this test is the round trip rather than a third assertion
+  // about either half.
+  const undo = inverse(
+    { verb: "split", id: "install", title: "install", rest: " them", under: true },
+    "handles",
+  )
+  expect(undo).toEqual([{ verb: "merge", id: "handles" }])
+  const redo = inverse({ verb: "merge", id: "handles" })
+  expect(redo.find((edit) => edit.verb === "place")).toEqual({
+    verb: "place",
+    id: "handles",
+    parent: "install",
+    after: null,
+  })
+})
+
 test("a merge is taken back by a whole sequence, and every step is already a verb", () => {
   // `install` merges into `order`, which is `doing`, dated, and carries a note.
   // None of those is copied anywhere by the merge — they are on the two records
@@ -1074,6 +1110,28 @@ test("a merge is taken back by a whole sequence, and every step is already a ver
       title: "order the cabinets",
       was: "order the cabinetsinstall them",
     },
+  ])
+})
+
+test("a merge that carried NOTHING leaves the survivor's title alone — and says so by editing nothing", () => {
+  // The erased-title Backspace (the human's report on #493): the join added
+  // nothing to `order`, so there is no text write to take back — the same
+  // rule the note arm one test down states for a note nothing moved. The
+  // record comes back with the title it always had, because the archive
+  // never let go of it.
+  expect(inverse({ verb: "merge", id: "install", title: "" })).toEqual([
+    { verb: "untrash", id: "install", parent: "kitchen" },
+    { verb: "place", id: "install", parent: "kitchen", after: "order" },
+    { verb: "place", id: "handles", parent: "install", after: null },
+  ])
+})
+
+test("an erased FIRST CHILD's merge is taken back to the top of its old list", () => {
+  // `handles` is install's first child: the untrash lands it LAST, the place
+  // then names the top of the list — `after: null` — the parent-join slot.
+  expect(inverse({ verb: "merge", id: "handles", title: "" })).toEqual([
+    { verb: "untrash", id: "handles", parent: "install" },
+    { verb: "place", id: "handles", parent: "install", after: null },
   ])
 })
 
@@ -1096,10 +1154,25 @@ test("a merge that MOVED the note puts the note back too, and one that did not s
     .toBe(false)
 })
 
-test("a merge the op is about to refuse has nothing to take back", () => {
-  // The first of its siblings, and a placement — the two refusals `merge`
-  // answers with. There is no write, so there is no inverse.
-  expect(inverse({ verb: "merge", id: "demo" })).toEqual([])
+test("a parent merge is taken back with the child put back FIRST under it", () => {
+  // `demo` is `kitchen`'s first child: the unarchive lands it LAST, so the
+  // place that follows must name the top of the list — `after: null` — never
+  // `after: kitchen`, which is the survivor's own id and no slot in its list.
+  expect(inverse({ verb: "merge", id: "demo" })).toEqual([
+    { verb: "untrash", id: "demo", parent: "kitchen" },
+    { verb: "place", id: "demo", parent: "kitchen", after: null },
+    {
+      verb: "title",
+      id: "kitchen",
+      title: "Kitchen remodel",
+      was: "Kitchen remodeldemolition",
+    },
+  ])
+})
+
+test("a merge that would refuse has nothing to take back", () => {
+  // A placement: the one refusal `merge` answers with. There is no write,
+  // so there is no inverse.
   expect(inverse({ verb: "merge", id: "echo" })).toEqual([])
 })
 

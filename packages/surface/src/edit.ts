@@ -352,14 +352,22 @@ export const Edit = Schema.Union([
     /** What comes OFF it — everything after the caret, verbatim, as the new
      *  sibling's whole title. */
     rest: Schema.String,
+    /** The tail's PLACE: `true` is the head's FIRST CHILD rather than its next
+     *  sibling — the one placement the browser asks for, when the head's
+     *  children are drawn (an expanded parent's next line is its first child,
+     *  not the sibling the fold hides behind it). Absent is the sibling, the
+     *  reading every other caller keeps. */
+    under: Schema.optional(Schema.Boolean),
   }),
   /**
    * `Backspace` AT THE START OF A LINE: this row joins the one above it.
    *
    * The inverse gesture, and the inverse op — `split` read backwards. It
-   * carries no text at all, because nothing about it is a draft: the titles
-   * being joined are the two the set holds, the sibling above is a fact about
-   * the set, and both are read where the write is judged
+   * carries text only in the one case the text IS the point: a title the
+   * person JUST erased — the draft says nothing, committing nothing is the
+   * refusal this key must not die on, and the record's own title must not
+   * be what gets joined (the human's report on #493). Every other merge
+   * joins the two titles the SET holds, read where the write is judged
    * ({@link ../../ops/src/plan.ts}'s `merge`). What the browser decides is
    * only WHEN — a caret at offset zero with nothing selected, which is the one
    * position where `Backspace` has nothing of its own to delete.
@@ -376,7 +384,13 @@ export const Edit = Schema.Union([
    * merged row's mark, date and edges is that verb's documented answer, said
    * out loud on the way past as a `nudge`.
    */
-  Schema.Struct({ verb: Schema.Literal("merge"), id: Id }),
+  Schema.Struct({
+    verb: Schema.Literal("merge"),
+    id: Id,
+    /** What the row CONTRIBUTES to the join — carried only by the erased-title
+     *  Backspace, where it is the empty string the erased title already says. */
+    title: Schema.optional(Schema.String),
+  }),
   Schema.Struct({
     verb: Schema.Literal("title"),
     id: Id,

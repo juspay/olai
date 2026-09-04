@@ -3167,7 +3167,8 @@ const containing = (scope: Scope, id: string, parent: string): string | null => 
 // ── split and merge ────────────────────────────────────────────────────
 
 /**
- * One node into two: the head it keeps, and the tail as the sibling after it.
+ * One node into two: the head it keeps, and the tail beside it — as the
+ * sibling after it, or, with `under`, as its FIRST CHILD.
  *
  * ONE PLAN, and that is the reason this is an op rather than a `set_title`
  * followed by an `add`. Those are two writes at two revisions, and both ways of
@@ -3183,6 +3184,15 @@ const containing = (scope: Scope, id: string, parent: string): string | null => 
  * and what came off it is a new line that has not been said anything about yet.
  * The alternative — carrying the mark or the note across — would be this op
  * inventing a claim about a node nobody has described.
+ *
+ * THE TWO PLACEMENTS, and which one is a fact about the CALLER. The sibling is
+ * the op's own default, exactly as it always was — an MCP `split_node` asks for
+ * no other. `under` is the browser's, sent when the head's children are on
+ * screen: the first line under an expanded head IS its first child, and the
+ * sibling lands below the whole subtree — the teleport a mid-line `Enter` on a
+ * parent used to be. The fold itself never leaves the browser; what crosses
+ * the wire is the answer it produced, one boolean the ops layer need not
+ * second-guess.
  */
 const planSplit = (
   scope: Scope,
@@ -3215,17 +3225,24 @@ const planSplit = (
   }
 
   const id = freshId(scope, new Set())
+  const under = request.under === true
+  // The head's children, as they sit — what an `under` tail is placed FIRST
+  // among. Read off the same derived tree the sibling case reads from, so the
+  // two arms are one snapshot's two answers.
+  const children = under ? scope.derived.children.get(node.id) ?? [] : []
   const ords = placed(
-    siblingsOf(scope.derived, file, node.parent),
+    siblingsOf(scope.derived, file, under ? node.id : node.parent),
     id,
-    { after: node.id },
+    under
+      ? (children.length === 0 ? {} : { before: (children[0] as Located).node.id })
+      : { after: node.id },
   )
   if (Result.isFailure(ords)) return Result.fail(ords.failure)
 
   const head: RegularNode = { ...node, title: request.title }
   const tail: RegularNode = {
     id,
-    ...(node.parent === undefined ? {} : { parent: node.parent }),
+    ...(under ? { parent: node.id } : node.parent === undefined ? {} : { parent: node.parent }),
     ord: ordFor(ords.success, id),
     title: request.rest,
     // A node coming into being, so it is CREATED rather than changed — the same
@@ -3238,9 +3255,11 @@ const planSplit = (
   // retitle, then the tail as a new root (typeless, so the bootstrap
   // names it). Asked here so a split cannot mint a vocabulary the next
   // load will refuse, with a generic write-gate sentence instead of the
-  // offenders.
-  const bent = declarationRefused(scope, file, head)
-    ?? declarationRefused(scope, file, tail)
+  // offenders. An `under` tail is not a root, so only the head is asked;
+  // what it may be a variant OF is the load's own fence, the same one every
+  // `add` under the head meets.
+  const bent = declarationRefused(scope, file, head) ??
+    (under ? undefined : declarationRefused(scope, file, tail))
   if (bent !== undefined) return Result.fail(bent)
 
   return Result.succeed({
@@ -3262,8 +3281,10 @@ const planSplit = (
 }
 
 /**
- * Two nodes into one: this node's title appended to the sibling above it, which
- * adopts what hung under it — and its own record into the trash.
+ * Two nodes into one: this node's title appended to the row above it ON THE
+ * PAGE — the sibling above, or its PARENT when it is the first of its
+ * siblings — which adopts what hung under it. Its own record goes to the
+ * trash. The top of a file has no row above it at all: refused there.
  *
  * {@link planSplit} backwards, and one plan for the same reason, with more at
  * stake: a merge is a retitle, a note, N reparentings and an archive, and a
@@ -3318,7 +3339,7 @@ const planMerge = (
   const mayArchive = writable(scope, archive)
   if (Result.isFailure(mayArchive)) return Result.fail(mayArchive.failure)
 
-  const joined = merging(scope.derived, target.success)
+  const joined = merging(scope.derived, target.success, request.title)
   if (Result.isFailure(joined)) return Result.fail(joined.failure)
   const { into, adopted, title, desc } = joined.success
 
@@ -3380,7 +3401,8 @@ const planMerge = (
 /** What merging a node would produce: the row it joins, and the two texts that
  *  row ends up carrying. */
 export interface Merging {
-  /** The sibling above — the record that survives. */
+  /** The row above — the sibling, or the PARENT for a first child, whose own
+   *  title is the seam — the record that survives. */
   readonly into: RegularNode
   /** Its title with the merged node's run onto the end. */
   readonly title: string
@@ -3408,7 +3430,10 @@ export interface Merging {
  *
  * The joins themselves are the semantics. The titles run together with nothing
  * between them: they were one line before somebody split them, and any
- * separator invented here is text the caller did not type. The notes take a
+ * separator invented here is text the caller did not type — and the one caller
+ * that carries a `title` says what the row says NOW, which a CARRIED nothing
+ * joins as nothing: the survivor's title stands (the erased-title Backspace,
+ * the human's report on #493). The notes take a
  * blank line, because they are markdown blocks and running two paragraphs
  * together would change what they say — and a node with no note simply takes
  * the other's, which is the case that matters most.
@@ -3421,10 +3446,27 @@ export interface Merging {
 export const merging = (
   derived: Derived,
   at: LocatedRegular,
+  /**
+   * What the node CONTRIBUTES to the join, when the caller says it is not
+   * the record's title: the browser's erased-title Backspace carries the
+   * nothing it is looking at (the human's report on #493). Absent — and for
+   * every other caller — it is the record's own title.
+   */
+  carried?: string,
 ): Result.Result<Merging, OpFailure> => {
   const row = siblingsOf(derived, at.file, at.node.parent)
   const above = row[row.findIndex((sibling) => sibling.node.id === at.node.id) - 1]
-  if (above === undefined) {
+  // The FIRST of its siblings has no sibling above it — but it is still not
+  // alone on the page: its PARENT is the row directly above it there, and the
+  // join is the same join, at the seam of its title. Without this, Backspace
+  // at offset zero was dead on the row a mid-line `Enter` just made (the tail
+  // of a split under an expanded parent IS a first child), which the human's
+  // review of #493 named "the most reversible key in the editor".
+  const parent: Located | undefined = above === undefined && at.node.parent !== undefined
+    ? derived.byId.get(at.node.parent)
+    : undefined
+  const over = above ?? parent
+  if (over === undefined) {
     return Result.fail(
       new UsageFailure({
         reason: `\`${at.node.title}\` is the first of its siblings, so there is no row ` +
@@ -3436,19 +3478,19 @@ export const merging = (
   // nothing there for a merge to land in — the ops layer's own rule about
   // mirrors, in the sentence the row above earns rather than the one the id
   // named by the caller would get.
-  if (isMirror(above.node)) {
+  if (isMirror(over.node)) {
     return Result.fail(
       new UsageFailure({
         reason: `the row above \`${at.node.title}\` is a mirror — a second placement of ` +
-          `\`${above.node.mirror}\`, with no title of its own — so there is nothing ` +
+          `\`${over.node.mirror}\`, with no title of its own — so there is nothing ` +
           `there to merge into`,
       }),
     )
   }
-  const into = above.node
+  const into = over.node
   return Result.succeed({
     into,
-    title: into.title + at.node.title,
+    title: into.title + (carried ?? at.node.title),
     desc: into.desc === undefined
       ? at.node.desc
       : at.node.desc === undefined

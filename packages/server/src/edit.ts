@@ -223,9 +223,16 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
         id: edit.id,
         title: edit.title,
         rest: edit.rest,
+        ...(edit.under === true ? { under: true } : {}),
       })
     case "merge":
-      return Result.succeed({ op: "merge", id: edit.id })
+      // The one caller that carries a title is the browser's erased-title
+      // Backspace; the carry is the op's to read, not here to judge.
+      return Result.succeed({
+        op: "merge",
+        id: edit.id,
+        ...(edit.title === undefined ? {} : { title: edit.title }),
+      })
     case "unmirror":
       return Result.succeed({ op: "unmirror", id: edit.id })
     case "mirror":
@@ -969,6 +976,15 @@ export const inverseOf = (
     // rather than refusing. Closing it means guarding `merge` itself — on both
     // faces, so an agent's `merge_node` gets the same field — which is a change
     // to the op rather than to this arm.
+    //
+    // The `under` reading the browser asks for (the tail is the head's FIRST
+    // CHILD) rides the same answer: a first child's merge is the parent join
+    // (`@olai/ops`' `merging`), the inverse of which puts the child back
+    // first under it. A two-step `title` + `remove` pair was the stand-in
+    // while a merge of a first child refused, and it had the failure this
+    // does not: `title` landed, `remove` refused ⇒ the sentence on screen
+    // twice. One verb, no window (the review of #493 asked which half to
+    // rather lose; the answer is neither, now that this arm exists).
     case "split":
       return [{ verb: "merge", id: applied }]
     // A merge is the one write here whose inverse is a SEQUENCE, and it is a
@@ -976,7 +992,7 @@ export const inverseOf = (
     // opposite for — `split` cannot mint a node that already exists in the
     // trash carrying its own mark, note and edges.
     case "merge":
-      return unmergeOf(at.derived, edit.id)
+      return unmergeOf(at.derived, edit.id, edit.title)
     // BOTH removals answer with the way back out of the trash, now that there
     // is one (`parity-unarchive`): `unarchive`, carrying where the row SITS as
     // this reading stands — its parent, or its file at top level — because
@@ -1162,9 +1178,10 @@ const unarchiveOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
  * sequence, and every step of it is a verb this surface already has.
  *
  * The merge is about to do four things to the outline: put this row's title and
- * note onto the row above, hand that row everything hanging under this one, and
- * put this record into the archive. So the way back is those four undone, in the
- * order that makes each one possible:
+ * note onto the row above it on the PAGE — the sibling, or its PARENT when it
+ * is the first of its siblings — hand that row everything hanging under this
+ * one, and put this record into the archive. So the way back is those four
+ * undone, in the order that makes each one possible:
  *
  *   1. `unarchive` the record — which is where its mark, its date and its edges
  *      have been all along, because the merge never copied them anywhere. It
@@ -1190,7 +1207,7 @@ const unarchiveOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
  * for a row with nothing above it: those are the merge's own refusals, so there
  * is no write to take back.
  */
-const unmergeOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
+const unmergeOf = (derived: Derived, id: string, carried?: string): ReadonlyArray<Edit> => {
   const located = derived.byId.get(id)
   if (located === undefined || isMirror(located.node)) return []
   // EVERY fact about the merge is the ops layer's — which row it joins, what
@@ -1198,15 +1215,23 @@ const unmergeOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
   // answer the write is about to be planned from. Re-derived here they would be
   // a second scan of the sibling row, a second spelling of the join and a second
   // reading of the branch, and each would be wrong in exactly the case an undo
-  // is for.
-  const joined = merging(derived, located as LocatedRegular)
+  // is for. The CARRIED title goes with it: it is what the join joined.
+  const joined = merging(derived, located as LocatedRegular, carried)
   if (Result.isFailure(joined)) return []
   const { into, adopted, title, desc } = joined.success
   return [
     // Where the row goes back to is `archive`'s own inverse, which already
     // knows the parent-or-file pair and reads it off this same snapshot.
     ...unarchiveOf(derived, id),
-    { verb: "place", id, parent: located.node.parent ?? null, after: into.id },
+    // FIRST OF ITS SIBLINGS, the row had joined its PARENT: the unarchive
+    // lands it last under the same parent, and the survivor's own id is no
+    // slot in its own list — the slot that says "first again" is `null`.
+    {
+      verb: "place",
+      id,
+      parent: located.node.parent ?? null,
+      after: into.id === located.node.parent ? null : into.id,
+    },
     ...adopted.map((child, index): Edit => ({
       verb: "place",
       id: child.node.id,
@@ -1216,7 +1241,11 @@ const unmergeOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
     // The two texts, put back the way EVERY text undo is put back — `textOf`
     // carries the `was` convention and the "an absent note is `null`" rule, and
     // a second copy of them here would be a second place to keep those true.
-    ...textOf(derived, { verb: "title", id: into.id, title }),
+    // Only when the merge MOVED the title, though — the note's rule one block
+    // down, one field up: a merge that carried NOTHING left it alone, and a
+    // retype of what is already there is a write that says `was` about a
+    // field nothing changed (the erased-title Backspace, the human's #493).
+    ...(title === into.title ? [] : textOf(derived, { verb: "title", id: into.id, title })),
     // Only when the merge MOVED it. A row whose note is untouched — because the
     // row below had none — needs no second write, and one that said `was` for a
     // note it did not change would be refused by nothing and mean nothing.

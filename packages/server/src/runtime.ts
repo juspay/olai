@@ -103,6 +103,7 @@ import {
   customText,
   isRegular,
   type Located,
+  NotFoundFailure,
   type Reading,
   UsageFailure,
 } from "@olai/format"
@@ -310,31 +311,83 @@ export interface PluginRuntime {
    */
   readonly pinned: ReadonlyArray<string> | null
   /**
-   * WHAT BECAME OF EACH ROW, as the loader left it — the word a preferences row
-   * wears when `running` is `false`, and the plugin's own words when its start
-   * threw.
+   * WHAT BECAME OF EACH ROW — the word a panel row wears, and the plugin's own
+   * words when its start threw.
    *
-   * ## A BOOT SNAPSHOT, and that is a phase boundary rather than a shortcut
+   * ## A THUNK, and it used to be a value
    *
-   * `running` is read LIVE, off what has registered a sibling surface, and this
-   * is not: it is taken once, after `mountBundle` settles, because a fiber's
-   * error is private and reachable only by awaiting it, and the roster is
-   * republished synchronously from a re-compose. The two cannot disagree
-   * because {@link rosterOf} lets the live reading WIN — a name that is
-   * composed says `running` whatever the snapshot remembers, and the snapshot
-   * is spent only on the rows that are absent.
-   *
-   * Nothing in this phase mounts or fails a plugin after the boot: the bundle
-   * is mounted before the store opens and nothing turns a row off afterwards.
-   * The day something can (the preferences toggle, phase 6) this is the second
+   * The paragraph here said it was a BOOT SNAPSHOT, and named the day that
+   * would have to change: *nothing in this phase mounts or fails a plugin after
+   * the boot… the day something can (the preferences toggle) this is the second
    * of the two places that has to learn to move — `./propKinds.ts` names the
-   * first, and for the same reason.
+   * first.* Both places moved in the same lane, and this is the second.
+   *
+   * It is a THUNK rather than a live call because the reading is asynchronous —
+   * a failed fiber's error is private and reachable only by awaiting it — and
+   * the roster is republished SYNCHRONOUSLY, from inside a re-compose that a
+   * Cordis registry change drove. So the composition root re-reads after every
+   * flip and this answers what it last read. The two cannot drift, because a
+   * flip is the only thing that moves a row and the flip is what re-reads.
+   *
+   * WHAT THE THUNK IS NOT is a live read that this file could take itself:
+   * `running` and the word come off ONE reading here (`{@link rosterOf}`), and
+   * a second clock for the boolean is exactly the arrangement that used to
+   * report a row `off` while it was serving.
    *
    * EMPTY IS LEGAL and is what every caller that does not care passes: a row it
    * has nothing to say about is `off`, which is what `running: false` has always
    * meant on its own.
    */
-  readonly report: ReadonlyMap<string, RowReport>
+  readonly report: () => ReadonlyMap<string, RowReport>
+  /**
+   * WHICH DOORS EACH ROW NAMES — the live `inject` of every row that has a
+   * fiber, read off the registry.
+   *
+   * Half of the join {@link BuiltPlugin.carrying} is: this says who NAMES what,
+   * `offers()` on the doors service says who STANDS BEHIND what, and neither is
+   * a list anybody keeps. The composition root is the one place both are in
+   * hand, which is what makes it the one place the join can be made — the same
+   * sentence `./propKinds.ts` opens with, one registry over.
+   */
+  readonly names: () => ReadonlyMap<string, ReadonlyArray<string>>
+  /**
+   * TURN ONE ROW ON OR OFF while this serve runs — the loader surface's verb,
+   * as this file spends it.
+   *
+   * Answers whether there WAS such a row. It RETURNS ONCE THE BUNDLE HAS
+   * STOPPED MOVING — the flip, and then the settle over every row, because what
+   * a flip is for is the rows around it — and it re-reads {@link report} on the
+   * way out, so the roster this file publishes next is about the bundle the
+   * press produced rather than the one it started from.
+   *
+   * It is here rather than built from `@olai/bundle` at the call site for the
+   * reason every other field on this interface is: this file has never heard of
+   * Cordis, a loader, or a row's module. What crosses is a verb.
+   */
+  readonly set: (id: string, enabled: boolean) => Effect.Effect<boolean>
+  /**
+   * WHICH ROWS A PERSON HAS TURNED OFF HERE, and not turned back on.
+   *
+   * ## The third author of "absent"
+   *
+   * A row that is not running is absent for one of a small number of reasons,
+   * and until the switch there were two: the operator's flag left it out, or
+   * this build ships it off until somebody asks. {@link Wiring.plugins.pinned}
+   * tells those apart, because the row's own `disabled` and the flag's patch are
+   * the same field and only *whether a flag was given* survives downstream of it.
+   *
+   * The switch writes that same field, which is what makes a flip and a flag one
+   * mechanism — and it is why nothing downstream could tell a press from the
+   * built-in default. So under no flag, a person who had just switched kolu off
+   * was told by the panel that *this build ships it off by default*, and given a
+   * flag to type. The composition root is the only place that knows better,
+   * because it is the place the press arrived.
+   *
+   * KEPT AS THE SET OF ROWS TURNED OFF rather than a log of presses: what a row
+   * needs to say is about its state now, and a row somebody switched off and
+   * then on again is simply running. It is per PROCESS, like the flip itself.
+   */
+  readonly switched: () => ReadonlySet<string>
 }
 export interface Wiring {
   /** THE SERVED word: the machine this process runs on, minted ONCE per
@@ -573,12 +626,12 @@ const writing = (ops: Ops, caller: Caller) => ({
  * papering over (a row `running` in the report and absent from the live table
  * used to be reported `off`).
  *
- * WHAT IT COSTS is stated where it is owed: the report is a BOOT SNAPSHOT
- * (`@olai/bundle`'s `reportBundle` says so at its own door), so a fiber that
- * unloads mid-serve keeps its row until the next start. Nothing unloads a
- * server half mid-serve today, and the day something can — the preferences
- * toggle — that door and this reading move together, which is the arrangement
- * `reportBundle`'s header already names itself as one half of.
+ * WHAT IT COSTS was stated where it was owed: *the report is a boot snapshot, so
+ * a fiber that unloads mid-serve keeps its row until the next start — and the
+ * day something can unload one, that door and this reading move together.* They
+ * did. {@link PluginRuntime.report} is a thunk the flip re-reads, and the flip
+ * settles the whole bundle before it does, so what this reads is never a bundle
+ * in motion.
  */
 export const rosterOf = (
   offered: Wiring["plugins"],
@@ -594,16 +647,33 @@ export const rosterOf = (
    * is not mounted has no registration in this table either.
    */
   wakes: ReadonlyMap<string, Wake> = new Map(),
+  /**
+   * ...and WHO STANDS BEHIND WHICH DOOR — the offers table, keyed by the service
+   * tag. Joined here with {@link PluginRuntime.names} to answer the one thing a
+   * switch owes a person before it is pressed: which rows stop if this one does.
+   *
+   * A DEFAULT OF NOTHING, like the wakes beside it, because every caller that
+   * only wants the roster's shape has no doors to be about — and because a row
+   * carrying nobody is the state every plugin in this build but one is in.
+   */
+  offers: ReadonlyMap<string, string> = new Map(),
 ): PluginRoster =>
-  offered === null ? NO_ROSTER : {
+  offered === null ? NO_ROSTER : ((
+    // ONE REGISTRY WALK for the whole roster rather than one per row: every
+    // row's `carrying` is a join over the SAME two tables, and asking `names()`
+    // inside the map would walk the Cordis registry once per plugin on every
+    // re-compose — which is every register and every dispose.
+    names: ReadonlyMap<string, ReadonlyArray<string>>,
+  ) => ({
     built: offered.built.map((name) => {
       // A row the report has nothing to say about never loaded, and that
       // absence IS `off` rather than a missing case (`@olai/effect-cordis`'s
       // `rowReport`).
-      const report = offered.report.get(name) ?? { state: "off" as const }
-      const said = stateOf(offered, report)
+      const report = offered.report().get(name) ?? { state: "off" as const }
+      const said = stateOf(offered, name, report)
       const live = said.state === "running"
       const wake = live ? wakes.get(name) : undefined
+      const carrying = live ? carriedBy(name, offered.built, names, offers) : []
       return {
         name,
         running: live,
@@ -624,6 +694,14 @@ export const rosterOf = (
         // what turns "waiting for something" into a sentence somebody can act
         // on.
         ...(said.missing === undefined ? {} : { missing: said.missing }),
+        // ...and, on a row that is RUNNING, which rows stop if it does. The
+        // other end of `missing` exactly: that one is a row saying what it is
+        // short of after the fact, and this is the row that HAS it saying so
+        // while there is still a decision to make. ABSENT rather than empty,
+        // which is the ordinary case — every row in this build but the chat row
+        // carries nobody, and an empty list would be each of them claiming to
+        // carry no one.
+        ...(carrying.length === 0 ? {} : { carrying }),
         // WHAT THE PICKER IS MADE OF, named one at a time rather than spread
         // whole — and the omission is the point. The three strings the strip
         // draws, plus the KINDS the picker may offer, because that is the one
@@ -644,7 +722,54 @@ export const rosterOf = (
       }
     }),
     pinned: offered.pinned,
-  }
+  }))(offered.names())
+
+/**
+ * WHICH ROWS WOULD GO `waiting` IF `name` WERE TURNED OFF — the join, and the
+ * one thing on the roster that is about a press nobody has made yet.
+ *
+ * ## Two live readings and no list
+ *
+ * `offers` is who stands behind which door; `names()` is which doors each
+ * running row is standing on. Neither is written down anywhere — the first is
+ * taken by a plugin's own `offer` and released by its scope, the second is the
+ * `inject` the runtime derived from that plugin's `needs` — so a row added to
+ * this build reaches this sentence with nothing here moving, and the answer
+ * cannot disagree with the fibers because it IS the fibers.
+ *
+ * The alternative, and the reason it was not taken: a `carries` declaration
+ * beside `needs`. That is the same list `RowReport.missing` refuses to carry,
+ * for the same reason — a second declaration is free to be wrong, and the one it
+ * would be wrong about is the sentence a person reads before turning something
+ * off.
+ *
+ * ## The row itself is not in its own answer
+ *
+ * A plugin may name a door it also offers (nothing forbids it, and the chat row
+ * is one blip from being one). It does not stop when it stops, so it is dropped
+ * — otherwise every offering row would name itself among its own casualties.
+ *
+ * IN BUNDLE ORDER, because a person reads it — and it is the bundle's order for
+ * free rather than by sorting: this walks {@link PluginRuntime.built}, which IS
+ * the row list, where walking `names()` would take the Cordis registry's order,
+ * which is the order two dynamic imports came back in. A list that reshuffles
+ * between boots is a list nobody can read twice, and there is an e2e failure
+ * behind that sentence (`@olai/bundle`'s `inBundleOrder`).
+ */
+const carriedBy = (
+  name: string,
+  built: ReadonlyArray<string>,
+  names: ReadonlyMap<string, ReadonlyArray<string>>,
+  offers: ReadonlyMap<string, string>,
+): ReadonlyArray<string> => {
+  const held = new Set(
+    [...offers].flatMap(([door, by]) => by === name ? [door] : []),
+  )
+  if (held.size === 0) return []
+  return built.filter((row) =>
+    row !== name && (names.get(row) ?? []).some((door) => held.has(door))
+  )
+}
 
 /**
  * WHICH OF THE FIVE WORDS ONE ROW IS IN — the live reading and the boot
@@ -668,8 +793,42 @@ export const rosterOf = (
  * this). A person who went looking for a chip is owed that difference: one of
  * them names a flag they typed, and the other names one they have not.
  */
+/**
+ * WHO AUTHORED THIS ROW'S ABSENCE — the one question with three answers, and
+ * the only thing `off`, `optIn` and `switched` differ by.
+ *
+ * The loader declined to load the row and the `disabled` it declined on is ONE
+ * FIELD with three possible authors, which is exactly what makes a flip and a
+ * flag one mechanism and exactly why nothing downstream of the patch can tell
+ * them apart. What can is whether the press came through this process
+ * ({@link PluginRuntime.switched}) and whether a flag was given at all
+ * (`pinned`), both of which the composition root holds.
+ *
+ * ## The order is the answer, not an accident
+ *
+ * A person who switched a row off a moment ago is owed a sentence about THAT,
+ * not about the flag they typed an hour ago or the default the build ships —
+ * both of which are still true and neither of which is why this row is absent
+ * now. So the press wins, and the flag beats the build for the same reason one
+ * step down.
+ *
+ * ITS OWN FUNCTION rather than a ternary in the arm it serves, because it is a
+ * different question from the one {@link stateOf} is answering. That one asks
+ * which of six words a row is in; this asks who put it there, and only for the
+ * rows that are absent. Written inline the two read as one nested condition,
+ * and a reader has to hold both to check either.
+ */
+const whoTurnedItOff = (
+  offered: NonNullable<Wiring["plugins"]>,
+  name: string,
+): PluginState => {
+  if (offered.switched().has(name)) return "switched"
+  return offered.pinned === null ? "optIn" : "off"
+}
+
 const stateOf = (
   offered: NonNullable<Wiring["plugins"]>,
+  name: string,
   report: RowReport,
 ): {
   readonly state: PluginState
@@ -693,9 +852,14 @@ const stateOf = (
         ? { state: "waiting" }
         : { state: "waiting", missing: report.missing }
     case "off":
-      // THE LOADER DECLINED TO LOAD IT, and `pinned` is the only thing left
-      // that can say who wrote the `disabled` it declined on.
-      return { state: offered.pinned === null ? "optIn" : "off" }
+      // THE LOADER DECLINED TO LOAD IT, and the `disabled` it declined on has
+      // three possible authors: a person at the panel, the operator's flag, and
+      // the build. They are ONE FIELD by design, so nothing downstream of the
+      // patch can tell them apart — what can is whether the press came through
+      // this process ({@link PluginRuntime.switched}) and whether a flag was
+      // given at all (`pinned`), both of which are here.
+      //
+      return { state: whoTurnedItOff(offered, name) }
     case "running":
       return { state: "running" }
   }
@@ -1129,7 +1293,7 @@ export const bind = (
      * and the cell is republished ({@link republishPlugins}).
      */
     const roster = (): PluginRoster =>
-      rosterOf(offered, rings())
+      rosterOf(offered, rings(), plugins?.offers() ?? new Map())
 
     /**
      * EVERY CONNECTOR BELOW READS `store.reads`, and every frame on it is a
@@ -1749,6 +1913,81 @@ export const bind = (
           resume: () => Effect.as(wiring.git.resume, {}),
         },
         /**
+         * THE PANEL'S SWITCH — the loader surface's one verb, and the only
+         * procedure in this build that moves a fiber.
+         *
+         * ## The order is the whole implementation
+         *
+         * `moving` first, so the several registry changes a dispose fans out
+         * into do not each publish a roster about a bundle that is still coming
+         * apart (see it, one wall down). Then the flip, which settles the whole
+         * bundle and re-reads every row's state — that is
+         * {@link PluginRuntime.set}, and it is where the two calls live because
+         * this file has never heard of a loader. Then the re-compose, which
+         * mounts and drops the siblings that moved and publishes the roster
+         * ONCE, which is what tells every open tab to redial.
+         *
+         * `ensuring` and not a `finally`: the flag has to be cleared on an
+         * interrupt too, or a caller that walked away would leave this runtime
+         * silently never publishing a roster again.
+         *
+         * ## ...AND THEN THE VAULT'S VERDICT IS RE-TAKEN
+         *
+         * A plugin's kind words leave with its fiber (`./propKinds.ts` — the
+         * vocabulary is a live reading now), and NOTHING ON DISK MOVED, so
+         * nothing else in this process would ever re-judge the files that used
+         * to be typed by them. Without this line a vault would go on drawing
+         * `kolu-terminal` values as terminals after kolu was switched off, until
+         * the next write to that file or the next boot.
+         *
+         * `verified` is the class: the stamps are forgotten, so a look that
+         * would otherwise find nothing moved re-reads and re-validates the set.
+         * The cost is one pass over the corpus per press, which is a person's
+         * gesture and not a loop.
+         *
+         * A FAILED LOOK IS NOT THIS CALL'S TO REPORT. A directory that cannot be
+         * read is published on the store's own errors channel, which is where
+         * every other reader of it already looks; failing the flip here would
+         * tell a person their switch did not work, which is untrue — it worked,
+         * and the vault is unreadable, which is a bigger and separate piece of
+         * news.
+         *
+         * ## The refusal, and the one way to reach it
+         *
+         * A name this build does not have. The panel walks the roster, so it can
+         * only name a row this build has — which leaves a tab that outlived the
+         * build it was drawn from, and a runtime with no plugin slot at all
+         * (`olai surface`, the headless faces), where the honest answer is the
+         * same: there is no such plugin here.
+         */
+        plugins: {
+          set: ({ input }) =>
+            Effect.gen(function*() {
+              const flipped = offered === null ? false : yield* Effect.ensuring(
+                Effect.andThen(
+                  Effect.sync(() => {
+                    moving = true
+                  }),
+                  offered.set(input.name, input.enabled),
+                ),
+                Effect.sync(() => {
+                  moving = false
+                }),
+              )
+              if (!flipped) {
+                return yield* Effect.fail(
+                  new NotFoundFailure({
+                    reason: `this build has no plugin named "${input.name}"`,
+                    named: input.name,
+                  }),
+                )
+              }
+              recompose()
+              yield* Effect.ignore(wiring.store.refresh("verified"))
+              return {}
+            }),
+        },
+        /**
          * Who is looking on THIS connection. The value is the per-connection
          * `CurrentWho` the listener's `services` layer provides from the
          * upgrade headers — so a tab that is already connected does not GET
@@ -1878,25 +2117,94 @@ export const bind = (
      * producer nobody drives any more.
      *
      * A MOUNT reaches this runtime's `group` and `handlers`, which are live
-     * reads, and does NOT reach a listener that has already bound: `serveSurfaceApp`
-     * takes the pair at the moment it listens and builds each accepted socket's
-     * `RpcServer` over what it was handed. So the contract for a sibling
-     * ARRIVING after the listener is up is RECONNECT — the roster cell moving is
-     * what tells a browser to, and `SurfacesConnection.redial(surfaces)` is what
-     * a browser that boots off that cell CALLS — `@olai/web`'s `client/wire.ts`,
-     * which dials the root with no siblings at all, reads the `plugins` cell off
-     * it, loads a chunk per plugin the roster names and redials with their
-     * surfaces. That was written here as a later phase's work, on the grounds
-     * that the tab's sibling map was compiled in; the map stopped being compiled
-     * in when the browser's rows became a dynamic `import()` per row, and the
-     * consumer landed with them. Nothing in
-     * this phase mounts a plugin after the listener is up: the bundle is mounted
-     * before the store opens.
+     * reads. What it reaches on the WIRE is a question about the listener, and
+     * the answer this paragraph used to give was wrong.
+     *
+     * ## THE RECONNECT CONTRACT, WITHDRAWN
+     *
+     * It said: *a mount does not reach a listener that has already bound, so the
+     * contract for a sibling ARRIVING after the listener is up is RECONNECT — the
+     * roster cell moving is what tells a browser to.* The first clause was exact
+     * and the conclusion did not follow. `serveSurfaceApp` snapshotted the served
+     * pair when it bound and served that ONE generation for its whole life, so a
+     * RECONNECTING browser was handed the same superseded table: a re-mounted
+     * sibling's tags still resolved to the retired mount's refusing handler, and
+     * a page RELOAD did not help either, because the stale table was the
+     * server's. Reconnect was the escape and there was no escape.
+     *
+     * Measured rather than reasoned, on a flip of the kolu row: the fiber
+     * re-applied, its sibling re-registered, its connectors re-ran and its
+     * appliance link reported connected a second time — while the tab's own
+     * liveness readout named five of its members as silent, and went on naming
+     * them across a reload. Flipping the CHAT row took a neighbour's members
+     * down the same way, because the rows that name its doors unload with it and
+     * re-mount after it.
+     *
+     * THE FIX IS UPSTREAM and is sub-phase 8a: `serveSurfaceApp` takes the
+     * served set as accessors read at each accept, so a socket accepted after a
+     * flip is built over the current generation. The ruling took that over both
+     * alternatives — a façade over the handlers reaches neither the group a
+     * per-connection `RpcServer` is built from nor the face gate, and restricting
+     * the switch to rows that were running at boot is the boot-time snapshot this
+     * phase exists to remove, moved one layer down and written into a rule.
+     *
+     * ## WHAT IS TRUE ONCE IT LANDS
+     *
+     * A connection accepted BEFORE a flip is served the old generation until it
+     * redials, and the roster cell moving is what makes it redial — which is
+     * `@olai/web`'s `client/wire.ts`, dialing the root with no siblings, reading
+     * the `plugins` cell off it, loading a chunk per plugin the roster names and
+     * redialing with their surfaces. No server-side close of the old sockets is
+     * needed or wanted: the drop has already bound their tags to refusing
+     * handlers, and the tab's redial is the CLIENT half of the same revert.
+     *
+     * ## AND A PLUGIN IS MOUNTED AFTER THE LISTENER IS UP NOW
+     *
+     * An earlier sentence here ended "nothing in this phase mounts a plugin
+     * after the listener is up", and {@link Deps.plugins.set} is what ended it.
+     * An arriving sibling is mounted, a departing one is dropped live, and the
+     * flip is that path taken deliberately rather than at boot.
+     *
+     * What it did need is {@link moving}, one wall down, and {@link leaving} —
+     * because a key can now be mounted a SECOND time, and the framework refuses
+     * that over a generation that has not finished coming down.
      */
     const recompose = (): void => {
       const wanted = new Map(siblings().map((one) => [one.name, one] as const))
       for (const [key, one] of wanted) {
         if (mounted.has(key)) continue
+        /**
+         * A KEY WHOSE PREVIOUS GENERATION IS STILL LEAVING waits for it, and
+         * the wait is a CONTINUATION rather than a block.
+         *
+         * `implementRootedSurfaces` refuses a mount over an unsettled drop, and
+         * says why in the refusal: the old generation's sources are still
+         * supervised, so its teardown fault is still this runtime's, and nothing
+         * in the roster would say why. It also names the fix — *`await drop()`
+         * is the whole fix at the call site* — which this file declined to take,
+         * with an argument that was exact until this phase: a re-compose that
+         * waited for a teardown would hold up the fiber that triggered it, and
+         * nothing could ever mount a key twice.
+         *
+         * The switch mounts a key twice. So the drop is remembered, and a mount
+         * that lands on one is deferred behind it rather than thrown into the
+         * registry callback that asked for it. Nothing blocks: the arriving
+         * sibling is mounted from the drop's own continuation, and the roster is
+         * republished then — which is a frame later than the rest of the
+         * re-compose and is the honest one, because until that mount the wire
+         * genuinely does not carry this sibling.
+         */
+        const settling = leaving.get(key)
+        if (settling !== undefined) {
+          void settling.then(() => {
+            // ...AND NOTHING IF THE WORLD MOVED AGAIN. A row switched off, on
+            // and off again while a teardown was in flight arrives here wanting
+            // the middle state; asking the registry afresh is what makes the
+            // last press the one that stands.
+            if (!mounted.has(key)) recompose()
+          })
+          continue
+        }
         const mount = runtime.mount(
           key,
           // The two casts are the honest spelling rather than a gap, and they
@@ -1925,6 +2233,10 @@ export const bind = (
         // is about to publish. So there is nothing here to AWAIT — a re-compose
         // that waited for a teardown would hold up the fiber that triggered it.
         //
+        // WHAT IS REMEMBERED INSTEAD is the promise, because a key can now be
+        // mounted a second time and the framework refuses that until this has
+        // settled (the arrival path above says what it refuses with, and why).
+        //
         // There IS something to catch. The framework says a teardown fault
         // reaches `runtime.done`, the one owned-fault channel, exactly as a
         // finalizer faulting during `close()` does; what it does not say is that
@@ -1934,16 +2246,147 @@ export const bind = (
         // thing this file can honestly do with it is say WHICH sibling failed to
         // leave — on the OWNER's channel, because a sibling still holding a
         // source after it has left the roster is a thing a person can act on.
-        void mount.drop().catch((thrown: unknown) => {
+        //
+        // A FAILED TEARDOWN STILL CLEARS THE WAIT, which is why the catch is
+        // inside the promise this remembers rather than beside it: the mount
+        // that is queued behind it would otherwise wait for ever on a drop that
+        // has already finished going wrong, and the framework's own refusal —
+        // said at the mount, naming the key — is a better place for that to be
+        // decided than a queue nobody can see.
+        const settling = mount.drop().catch((thrown: unknown) => {
           ring(
             Effect.logWarning(
               `plugins: "${key}" left the wire and its teardown failed — ${String(thrown)}`,
             ),
           )
         })
+        leaving.set(key, settling)
+        void settling.then(() => {
+          // ...and the key stops being one that is leaving, unless a LATER drop
+          // has already claimed it — which is a row switched off, on and off
+          // again faster than a teardown settles.
+          if (leaving.get(key) === settling) leaving.delete(key)
+        })
       }
-      republishPlugins()
+      // THE GATE, RE-DERIVED WITH THE GENERATION IT GATES — before the roster
+      // moves, because the roster moving is what sends every tab back to accept
+      // a socket against it.
+      gates = gatesFor()
+      if (!moving) republishPlugins()
     }
+
+    /**
+     * THE TWO FACE GATES, AS ONE VALUE PER GENERATION — held rather than
+     * computed per read, and derived from what is SERVED rather than from what
+     * is REGISTERED.
+     *
+     * ## The two tables are not the same table, and they used to be
+     *
+     * `siblings()` is the sibling REGISTRY: a plugin's `apply` registered, so it
+     * is in there. `runtime.roster` is what this bundle is SERVING: mounted, and
+     * not a generation still coming down. Before the listener read the served set
+     * per accept those two were equal wherever anybody looked, because the gate
+     * and the group were read together once at bind, when nothing could have
+     * moved between them.
+     *
+     * They are not equal in the window {@link leaving} creates. A row switched
+     * off and on again before the previous generation's drop has settled is
+     * REGISTERED — its `apply` ran — and its mount is deferred behind that drop.
+     * A gate read off the registry then names `surface/<row>/…` tags the group
+     * does not carry, and `restrictHandlers` runs at every accept now and throws
+     * on exactly that set inequality: the socket is terminated and a
+     * `SocketError` reported, on the one gesture a person makes on purpose, until
+     * the deferred mount lands and the tab reconnects. Self-healing and still
+     * wrong, and the deferral it rides on is this file's own.
+     *
+     * Derived from `runtime.roster` there is no window: a deferred row is on
+     * neither side, so the gate and the group are one generation BY
+     * CONSTRUCTION rather than by two readings happening to agree.
+     *
+     * ## HELD FOR CORRECTNESS, and the cost of an accept is not this file's
+     *
+     * The value is held per generation because ONE GATE BELONGS TO ONE GROUP,
+     * which is the paragraph above — not to save work. `restrictServedGeneration`
+     * walks every tag at every accept, unconditionally, so what an accept costs
+     * is upstream's and there is nothing this consumer can do about it from
+     * here.
+     *
+     * That is worth stating because it was briefly otherwise. The revision this
+     * lane was proved against memoized the restricted record by the identity of
+     * the triple it was handed, and a getter that minted a fresh exposure per
+     * read defeated that silently — which made "hold one value per re-compose"
+     * look like a performance fix as well as a correctness one. The upstream
+     * refactor that landed folded the three options into one
+     * `ServedGenerationSource` and dropped the memo with them. Only the
+     * correctness half survives, and it was always the half that mattered.
+     *
+     * IF THAT WALK EVER SHOWS UP IN A PROFILE it is a one-line ask upstream,
+     * keyed on `ServedGeneration` — and this holder is already what would make
+     * such a memo hit, which is the one thing worth remembering about it.
+     */
+    let gates = facesOf([])
+    /** ...and the derivation, spelled once. `roster` is the framework's own
+     *  answer to what is served, which is what makes this the gate for the group
+     *  rather than a second opinion about it. */
+    const gatesFor = (): ReturnType<typeof facesOf> => {
+      const served = new Set(runtime.roster)
+      return facesOf(siblings().filter((one) => served.has(one.name)))
+    }
+
+    /**
+     * WHICH KEYS ARE STILL COMING DOWN, and the promise that says when each one
+     * has — the bookkeeping a key that can be mounted TWICE needs.
+     *
+     * `implementRootedSurfaces` keys a mount's channels by GENERATION rather
+     * than by name precisely because a key can be recycled, and refuses a mount
+     * over a generation whose teardown has not settled. Until the switch,
+     * nothing in this tree could recycle one: the bundle mounted once, before
+     * the store opened, and a sibling that left never came back. So the drop was
+     * floated and the refusal was unreachable.
+     *
+     * It is reachable now, and reachable in the one shape a person makes on
+     * purpose — off, then on. What that cost, before this: the row came back as
+     * a FIBER (its kinds, its wake, its browser chunk all returned) and its
+     * SIBLING did not, so the tab dialled a plugin whose members were not on the
+     * wire and a collection nothing fills read empty for the life of the process.
+     * Nothing said so anywhere.
+     */
+    const leaving = new Map<string, Promise<void>>()
+
+    /**
+     * IS THE BUNDLE MID-FLIP — the one thing that holds a republish back, and
+     * the only state this file keeps about the loader surface.
+     *
+     * ## The frame it exists to not draw
+     *
+     * A flip is one press and several movements. Disposing the chat row runs its
+     * finalizers, and each of them is a registry change that calls this
+     * re-compose — so between the press and the settle there are frames in which
+     * the sibling has left the wire and the ROW has not been re-read yet, and a
+     * roster published there says a plugin is `running` whose surface is already
+     * gone. The tab acts on that: a roster change is a redial, and it would
+     * redial asking for `surface/chat/` on a wire that no longer has it, then
+     * redial again a beat later when the truth arrived.
+     *
+     * ## Why suppressing is honest and not a hack
+     *
+     * Because the roster is a description of a SETTLED bundle, and always has
+     * been. `mountBundle` makes exactly this promise at the boot — it returns
+     * once every row that is going to load has loaded and applied — and nobody
+     * reads a roster during it. A flip is the same movement with the process
+     * already serving, so it gets the same answer: the siblings are mounted and
+     * dropped as they move, which is live and must be, and the SENTENCE about
+     * them is said once, when there is a true one to say.
+     *
+     * ## What it is not
+     *
+     * Not a lock. The re-compose still runs on every registry change while it is
+     * set, so the wire is exactly as live as it was; what is deferred is one
+     * cell's publish. And it is set and cleared inside one Effect on one fiber
+     * ({@link Deps.plugins.set}), so there is no second flip to interleave with —
+     * two tabs pressing at once are two calls the surface runs in turn.
+     */
+    let moving = false
 
     /**
      * THE FIRST COMPOSITION, and every one after it.
@@ -2021,16 +2464,17 @@ export const bind = (
         close: runtime.close,
       },
       /**
-       * ...and the two face gates, over the SAME registry the composition reads.
+       * ...and the two face gates, over the generation this runtime is SERVING.
        *
        * A getter for `bound`'s reason: a face is a default-deny allowlist
        * derived from the sibling set, so a roster that moved and a gate that did
        * not is a serve refusing members it composes or naming members it does
-       * not. Whoever reads this after a change gets the gate for the roster that
-       * is up.
+       * not. Whoever reads this after a change gets the gate for the set that is
+       * up. What it is derived FROM is {@link gates}, and reading that paragraph
+       * is the difference between the two tables this used to conflate.
        */
       get faces() {
-        return facesOf(siblings())
+        return gates
       },
     }
   })

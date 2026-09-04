@@ -36,6 +36,12 @@
  *     otherwise somebody who opened this, tabbed in and pressed Escape lands on
  *     `<body>`. That is `./popover.ts`, shared with the Commit panel, and this
  *     is the third consumer of it rather than a third implementation.
+ *   - WHERE THE OPEN STATE LIVES, which is a per-door answer and is the one
+ *     thing a caller may override ({@link BarDoor.held}). One door in this app
+ *     holds a control that rebuilds the tree it is drawn in, so its own state
+ *     has to sit above that rebuild; the rest keep theirs here and forget it on
+ *     a reload, which is right for them. `./plugins/opened.ts` carries the
+ *     argument.
  *
  * ## What it does NOT own
  *
@@ -50,7 +56,7 @@ import { Portal } from "solid-js/web"
 
 import type { Anchor } from "./anchor.ts"
 import { ENTRY_SHAPE, ROW_GAP } from "./layout/entry.ts"
-import { createPopover } from "./popover.ts"
+import { createPopover, type HeldOpen } from "./popover.ts"
 import { ICON_BUTTON } from "./readout.ts"
 
 export function BarDoor(props: {
@@ -73,10 +79,19 @@ export function BarDoor(props: {
    *  created inside the `Show` — built eagerly it would exist (and subscribe)
    *  while the door is shut. */
   readonly panel: (at: Anchor, inside: (el: HTMLElement | undefined) => void) => JSX.Element
+  /** WHERE "IS IT UP" LIVES, for the one door whose own contents can rebuild
+   *  the tree under it (`./plugins/opened.ts`). Absent on every other, and
+   *  absent is a fresh signal disposed with this component — which is what a
+   *  door in this bar has always been, and what makes a reload forget it. */
+  readonly held?: HeldOpen
 }) {
   // Whether it is up, where it goes, and the three ways it shuts —
   // `./popover.ts`, shared with the Commit panel along the bar.
-  const popover = createPopover()
+  //
+  // `held` READ ONCE rather than reactively: a door does not change which
+  // state it is holding halfway through its life, and a popover rebuilt around
+  // a new one would be the open state this prop exists to preserve, lost.
+  const popover = createPopover(props.held === undefined ? {} : { held: props.held })
   const open = popover.open
   const closet = () => props.where === "closet"
 

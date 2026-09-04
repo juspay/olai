@@ -376,12 +376,12 @@ function Branch(props: {
     const held = editor.draft()
     return held?.kind === "new" ? held : undefined
   }
-  const live = (kind: "after" | "before") => {
+  const live = (kind: "after" | "before" | "under") => {
     const at = editor.where().pending
     if (at?.kind !== kind || at.id !== props.row.at.node.id) return undefined
     return pending()
   }
-  const parked = (kind: "after" | "before") =>
+  const parked = (kind: "after" | "before" | "under") =>
     editor.ghosts().filter((g) => g.at.kind === kind && g.at.id === props.row.at.node.id)
   /** Is the caret in THIS row? What the row draws to say so, and what a
    *  scenario asks. A blinking text cursor at the end of a title was the whole
@@ -820,7 +820,15 @@ function Branch(props: {
                   // preference, arriving as the one thing it means here.
                   preview={showsPreview(density())}
                   onToggle={note.toggle}
-                  onEdit={() => editor.open(props.row, "desc")}
+                  // The caret, where the clamp's words were clicked; a press
+                  // in the rendered body's pane has none, which is the end.
+                  onEdit={(caret) =>
+                    editor.open(
+                      props.row,
+                      "desc",
+                      caret === undefined ? undefined : { caret },
+                    )}
+
                   // The `×` on a `see` link the expanded note draws — one op,
                   // `set_see`'s own removal, through the row's own edge editing
                   // so a refusal lands in the same line the panel's writes use.
@@ -845,6 +853,7 @@ function Branch(props: {
               {(draft) => (
                 <DescEditor
                   text={draft().text}
+                  caret={draft().caret}
                   onInput={editor.type}
                   onKey={keyHandler("block", editor.press)}
                   onBlur={(left) => editor.blur({ row: props.row.at.node.id, field: "desc" }, left)}
@@ -864,11 +873,22 @@ function Branch(props: {
         )}
       </Show>
 
-      <Show when={!collapsed() && props.row.children.length > 0}>
+      {/* The first-child's seat is drawn too — a sketch the Tab slid under
+          this row sits where the child it will become would sit. The `under`
+          ghosts ride the same `<ul>` as soon as it exists and head it when it
+          does not; the "./edit/draft.ts" anchor is the row's own, so the seat
+          is the first tuple of the children it passes through. */}
+      <Show
+        when={parked("under").length > 0 || live("under") !== undefined ||
+          (!collapsed() && props.row.children.length > 0)}
+      >
         <ul class={CHILD_INDENT} data-sweep="">
-          <Key each={props.row.children} by="key">
-            {(child) => <Branch row={child()} depth={props.depth + 1} />}
-          </Key>
+          <Ghosts parked={parked("under")} live={live("under")} />
+          <Show when={!collapsed()}>
+            <Key each={props.row.children} by="key">
+              {(child) => <Branch row={child()} depth={props.depth + 1} />}
+            </Key>
+          </Show>
         </ul>
       </Show>
 

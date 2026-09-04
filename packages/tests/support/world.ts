@@ -902,6 +902,13 @@ export const PREFS_TRIGGER = selector(TESTID.prefsTrigger);
 export const PREFS_PANEL = selector(TESTID.prefsPanel);
 export const PLUGINS_TRIGGER = selector(TESTID.pluginsTrigger);
 export const PLUGINS_PANEL = selector(TESTID.pluginsPanel);
+/** WHERE THIS SERVE WAS STARTED, said once at the foot of the plugins panel —
+ *  and how long a press there lasts. Its own name because it is the panel's
+ *  line and not a row's: it used to be repeated under every row, which is the
+ *  arrangement the loader surface ended. */
+export const PLUGINS_STARTED = selector(TESTID.pluginsStarted);
+/** ...and what the serve would not take, when a press is refused. */
+export const PLUGINS_REFUSED = selector(TESTID.pluginsRefused);
 export const PREFS_ROW = selector(TESTID.prefsRow);
 export const PREFS_HINT = selector(TESTID.prefsHint);
 export const PREFS_CHOICE = selector(TESTID.prefsChoice);

@@ -90,7 +90,8 @@ import {
   stillAt,
   typed,
 } from "./draft.ts"
-import { flatten, neighbour, refound } from "./order.ts"
+import { flatten, reanchored, refound, seated } from "./order.ts"
+import type { Standing } from "./order.ts"
 import { serial } from "./queue.ts"
 import { redraws, rekeys } from "./redraws.ts"
 import { useUndo } from "./undoing.ts"
@@ -362,6 +363,12 @@ export const createEditor = (
     where().field === null ? NO_ROWS : flatten(page.rows(), page.collapsed())
   )
 
+  /** Every blank ON THE PAGE — the parked ones, and the live draft when it is
+   *  one. What the wire is drawn from, so the three keys that walk it
+   *  ({@link step}, {@link merge}, {@link resketching}) see the same lines. */
+  const blanks = (held: Draft | null): ReadonlyArray<Pending> =>
+    held?.kind === "new" ? [...ghosts(), held] : ghosts()
+
   /**
    * Whether a REDRAW of the row the caret is in is still expected.
    *
@@ -492,6 +499,50 @@ export const createEditor = (
       setGhosts((list) => reaimed(list, current.at, done.id))
     }
     return true
+  }
+
+  /**
+   * A structure key on a BLANK, before it goes anywhere near the queue.
+   *
+   * The two lives of one key: a row that EXISTS is moved by the ops layer — a
+   * write, the queue, the redraw, the caret-follow and all — but a sketch is
+   * alive before any of that: it moves by its ANCHOR alone, and the whole key
+   * is the local one — no write, no round trip, nothing on disk. A refusal the
+   * ops layer would otherwise have harangued about never exists, because the
+   * row it would have pinned hasn't been asked for — and the one thing a key
+   * CAN still say no to is a seat with no side to slip on.
+   *
+   * Computed on the WIRE the blank is drawn by ({@link ./order.ts}’s
+   * `reanchored`) — where the anchor points the same way the eye walks. One
+   * rule with the commit the sketch becomes: this walks the same anchors.
+   */
+  const resketching = (
+    how: "in" | "out" | "up" | "down",
+    name: (draft: RowDraft) => Edit,
+    at?: Caret,
+  ): void => {
+    const sketch = emptyPendingOf(draft())
+    if (sketch !== null) {
+      const next = reanchored(page.rows(), page.collapsed(), sketch, how, ghosts())
+      if (next === undefined) return
+      // The seat is a drawing address — if the branch that holds it reads
+      // COLLAPSED, the key lifts the fold first: the ghost must be ON the
+      // page it says it is at, and the row `Enter` commits may not land in
+      // a fold (Workflowy's own answer, the review of #493's demand).
+      if (next.open !== undefined) setFolded([next.open], false)
+      idle.clear()
+      // A NEW SLOT for the new seat. The anchor IS a drawing address, so the
+      // blank jumps somewhere else on the page and the input remounts there —
+      // and the blur from the ONE going belongs to that address: it arrives
+      // with the slot of this sketch's past self, and `sameSlot`'s whole
+      // "the row it opened is not this one's to close" then holds as written,
+      // because the old element and the new one genuinely hold different
+      // addresses now. Keeping one slot made the remount's blur park the very
+      // draft the key was rearranging.
+      setDraft({ ...sketch, at: next.at, slot: mintSlot() })
+      return
+    }
+    enqueue(() => structural(name, at))
   }
 
   /** The idle commit. Scheduled by every keystroke and cancelled by every
@@ -663,7 +714,20 @@ export const createEditor = (
     const title = held.text.slice(0, at.start)
     const rest = held.text.slice(at.end)
     idle.clear()
-    const done = await redrawing({ verb: "split", id: held.row, title, rest }, slotOf(held))
+    // WHERE THE TAIL LANDS is this browser's one addition to what the key
+    // has always sent — and it is a fact about what is ON SCREEN, which is
+    // why it is read here and never on the server: an expanded head's next
+    // line is its first CHILD, so a tail placed as the next sibling would
+    // land below the whole subtree and carry the caret a page away. A folded
+    // or childless head keeps the sibling, which on those pages IS the next
+    // line.
+    const underRow = row()
+    const under = underRow !== undefined && underRow.children.length > 0 &&
+      !page.collapsed().has(foldIdOf(underRow))
+    const done = await redrawing(
+      { verb: "split", id: held.row, title, rest, ...(under ? { under: true } : {}) },
+      slotOf(held),
+    )
     if (done === null) return
     setDraft(opening(done, 0))
     setCaret((n) => n + 1)
@@ -672,25 +736,38 @@ export const createEditor = (
   /**
    * `Backspace` AT THE START OF A LINE: this row joins the one above it.
    *
-   * The commit comes FIRST here — for a row that exists AND for one that does
-   * not — and the asymmetry with a split is the ops layer's: a merge joins the
-   * two titles THE SET HOLDS and carries no text at all, so a half-typed line
-   * has to be on disk before it can be joined onto anything. That is the same
-   * order every other structural key follows, and for the same reason.
+   * AN EMPTY BLANK is the ordinary abandon — but an abandon WITH AN AIM,
+   * which is the one thing Escape is not: the sketch dies — it is NOT
+   * parked — and the caret lands on the line above it, the line the ↑ key
+   * would have walked to, at the END of its text — the seam a merge with
+   * words would have left. A PARKED blank above is a line the eye stops on
+   * too (the arrows say so), so a skeleton of blanks is deleted up one line
+   * at a time. There is nothing to commit and nothing to refuse: an empty
+   * new row is not a node, no write goes out, and "a node needs a title"
+   * answered a question this key never asks (the human's report on #493).
+   * Nothing above it — the start line is such a page — is where the key has
+   * nothing to say, as at the end of any walk.
    *
-   * A ROW THAT DOES NOT EXIST YET is the case that makes it matter, and it is
-   * the ordinary "I meant this on the previous line" gesture: `Enter`, type,
-   * `Home`, `Backspace`. The key is claimed here, so it is this function's to
-   * answer — and answering it means writing the line first, which is exactly
-   * what a blur or an idle tick would have done a moment later. A draft with
-   * NOTHING in it writes nothing, `commit` says so, and the merge stops at the
-   * guard below: the field's own `Backspace` at offset zero already did nothing
-   * there, and Escape is still what abandons.
+   * FOR A ROW THAT EXISTS, the commit comes FIRST — and the asymmetry with
+   * a split is the ops layer's: a merge joins the two titles THE SET HOLDS
+   * and carries no text at all, so a half-typed line has to be on disk
+   * before it can be joined onto anything. That is the ordinary "I meant
+   * this on the previous line" gesture: `Enter`, type, `Home`, `Backspace`.
    *
-   * The caret lands on the SEAM, which is the length of the joined title minus
-   * the length of what was joined onto it. Both numbers come from the write:
-   * the row's own text is what this tab was typing in, and what the row above
-   * says now is the answer's ({@link ../../../../surface/src/edit.ts}'s
+   * The ONE case the commit would die on is the case the text is the point:
+   * a title ERASED to nothing — select-all, Backspace, then the joining
+   * Backspace on what is now an empty line. The erase was the intent; the
+   * refusal "a node needs a title" that used to meet it answered a question
+   * nobody asked (the human's report on #493). So nothing is committed:
+   * the merge CARRIES what the row says now — nothing — the survivor's
+   * title stands untouched, and the record keeps its title in the archive,
+   * which is what ⌘Z puts back. It is the blank's answer one layer up, to
+   * the same key.
+   *
+   * The caret lands on the SEAM, which is the length of what the row above
+   * says now minus the length of what was joined onto it. Both numbers come
+   * from the write: the row's own text is what this tab was typing in, and
+   * what the row above says is the answer's ({@link ../../../../surface/src/edit.ts}'s
    * `Applied.title`) — never this tab's reading of a tree it drew.
    */
   const merge = async () => {
@@ -700,6 +777,43 @@ export const createEditor = (
     // says the same thing one layer up — this is the guard for a caller that
     // is not the matcher.)
     if (before.kind === "row" && before.field !== "title") return
+    const sketch = emptyPendingOf(before)
+    if (sketch !== null) {
+      const { walk, at } = seated(page.rows(), page.collapsed(), blanks(sketch), {
+        kind: "draft",
+        slot: sketch.slot,
+      })
+      const above = walk[at - 1]
+      if (above === undefined) return
+      if (above.kind === "draft") {
+        // The line above is another parked sketch: `take` resumes it, and
+        // the one this key was pressed in just ceases — nothing parks it.
+        take(above.pending.slot)
+        return
+      }
+      const title = above.row.kind === "node" || above.row.kind === "mirror"
+        ? above.row.shows.node.title
+        : undefined
+      // A dangling row has no title to land in: as good a place to stop as
+      // the end of any walk is.
+      if (title === undefined) return
+      setDraft(opened(above.row, "title", { caret: title.length }))
+      return
+    }
+    // An ERASED title: what the row says NOW is the nothing it was emptied
+    // to — commit would refuse it, and the record's title must not be what
+    // joins. The merge carries it (the docstring above), and the caret is
+    // where any merge's seam is.
+    if (before.kind === "row" && before.text.trim() === "") {
+      const done = await redrawing(
+        { verb: "merge", id: before.row, title: before.text },
+        slotOf(before),
+      )
+      if (done === null) return
+      setDraft(opening(done, done.title.length - before.text.length))
+      setCaret((n) => n + 1)
+      return
+    }
     if (!(await commit())) return
     const held = draft()
     if (held === null || held.kind !== "row") return
@@ -787,8 +901,13 @@ export const createEditor = (
     },
     merge: () => enqueue(merge),
     note: () => enqueue(note),
-    prev: () => enqueue(() => step(-1)),
-    next: () => enqueue(() => step(1)),
+    // The vertical pair carry the caret's column with them; the horizontal
+    // pair is claimed only AT an edge (../keys.ts), and the edge they arrive
+    // from is the offset the new line opens with.
+    prev: (at) => enqueue(() => step(-1, at?.start)),
+    next: (at) => enqueue(() => step(1, at?.start)),
+    left: () => enqueue(() => step(-1, Number.POSITIVE_INFINITY)),
+    right: () => enqueue(() => step(1, 0)),
     // The MARK is a fact about the node a row SHOWS — which is what the
     // checkbox beside it draws — so a mirror ticks off its target. All three
     // mark keys name that id, and none of them says where the write goes: the
@@ -841,14 +960,15 @@ export const createEditor = (
     // give the row a new parent read it — which is `./redraws.ts`'s `rekeys`,
     // not a decision made here. An indent draws the row in a branch that did
     // not exist; a reorder leaves it in the one it was in.
-    in: (at) =>
-      enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "in" }), at)),
-    out: (at) =>
-      enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "out" }), at)),
-    up: (at) =>
-      enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "up" }), at)),
-    down: (at) =>
-      enqueue(() => structural((held) => ({ verb: "move", id: held.row, how: "down" }), at)),
+    //
+    // The BLANK takes the four first: a sketch is re-shaped as a sketch —
+    // only its anchor moves, nothing is written — and the key is already
+    // right under the finger it was laid out with. `resketching` holds the
+    // drawing rule.
+    in: (at) => resketching("in", (held) => ({ verb: "move", id: held.row, how: "in" }), at),
+    out: (at) => resketching("out", (held) => ({ verb: "move", id: held.row, how: "out" }), at),
+    up: (at) => resketching("up", (held) => ({ verb: "move", id: held.row, how: "up" }), at),
+    down: (at) => resketching("down", (held) => ({ verb: "move", id: held.row, how: "down" }), at),
     // The BULLET's page, from the key rather than the pointer — and the row
     // being zoomed INTO is the one being typed in, which is why this is
     // `picking`'s three steps exactly: commit, leave the caret, then let the
@@ -1014,11 +1134,49 @@ export const createEditor = (
     act()
   }
 
-  /** The arrows: the next row the eye would reach, folds and all. */
-  const step = async (by: 1 | -1): Promise<void> => {
+  /**
+   * The arrows: the next LINE the eye would reach — a row that is written,
+   * or a blank still being laid out — and where in its text the caret lands.
+   *
+   * `neighbour` walked rows alone, which was true to the keys while the only
+   * way DOWN was a row: `wire` threads the drafts through the same walk the
+   * ghosts are drawn by, so the caret steps ONTO a blank rather than over it,
+   * and lands BACK on the same one walking up — the eye skips nothing. `Wire`
+   * is walked fresh here rather than memoised: this is the one reader's key
+   * handler that asks, asked once per press, and a walk cached against three
+   * signals that move on every keystroke is a cost, not a saving.
+   *
+   * `column` is the offset the key wants carried over: ↑/↓ hand in the caret's
+   * own column, clamped by a shorter line; ← arriving from the row after hands
+   * in the END of the one it enters, → the start — the two ways a person reads
+   * a sentence off the end of a line. Absent is an editor opened the old way.
+   */
+  const step = async (by: 1 | -1, column?: number): Promise<void> => {
     const held = draft()
-    if (held === null || held.kind !== "row" || held.place === null) return
-    await move(neighbour(drawn(), held.place, by))
+    if (held === null) return
+    // A row a frame away from being drawn has no place to step FROM, which is
+    // what `follow` fills in a moment later.
+    const standing: Standing | null = held.kind === "new"
+      ? { kind: "draft", slot: held.slot }
+      : held.place === null
+      ? null
+      : { kind: "row", place: held.place }
+    if (standing === null) return
+    const { walk, at } = seated(page.rows(), page.collapsed(), blanks(held), standing)
+    const target = at === -1 ? undefined : walk[at + by]
+    if (target === undefined) return
+    // Landing on a ghost is the same answer as clicking its row: the blank is
+    // resumed, not made again, and a wordless draft is parked rather than
+    // dropped if the step walks further.
+    if (target.kind === "draft") {
+      resume(target.pending.slot)
+      return
+    }
+    parkIfEmpty(held)
+    if (!(await commit())) return
+    setDraft(
+      opened(target.row, "title", column === undefined ? undefined : { caret: column }),
+    )
   }
 
   const take = (slot: string): void => {
@@ -1120,10 +1278,25 @@ export const createEditor = (
         // the answer was "somebody else is typing" about the same caret with
         // the same words in it, so the click-away wrote the line and left the
         // caret in it.
+        //
+        // The `isConnected` read that made this a click (`left`) is not the
+        // whole truth either: the browser answers a redraw taking the row out
+        // from under a focused input with the same blur, and when the just
+        // born line is the one being moved, it answers with the element STILL
+        // attached. What says the two apart is what changed since: a redraw
+        // MOVED the row (the place the caret is now is not the place the blur
+        // came from) — a click did not.
         // An empty pending is parked: click-away is not Escape, and a
         // skeleton of blanks should survive leaving the last one.
         setDraft((held) => {
           if (held === null || !stillAt(held, from) || held.text !== before.text) {
+            return held
+          }
+          if (
+            held.kind === "row" &&
+            before.kind === "row" &&
+            held.place !== before.place
+          ) {
             return held
           }
           parkIfEmpty(held)

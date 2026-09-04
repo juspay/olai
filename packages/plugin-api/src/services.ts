@@ -912,6 +912,26 @@ export interface Plugins {
   /** What each ringing plugin declared, keyed by its name. A name with no entry
    *  is a plugin that wakes nobody, which is a whole plugin. */
   readonly declared: () => ReadonlyMap<string, Wake>
+  /**
+   * WHO STANDS BEHIND WHICH DOOR — the offers table, keyed by the service tag
+   * and answering the plugin's name.
+   *
+   * Read by the composition root and by nothing else, for one question: which
+   * rows would go `waiting` if this row were turned off. That is a JOIN of two
+   * live readings — this one, and which keys each running fiber names — and it
+   * is the sentence the panel's switch owes a person before they press it
+   * (`@olai/surface`'s `BuiltPlugin.carrying`).
+   *
+   * KEYED BY THE DOOR because that is what the table IS: a door stands behind
+   * one row, which is the claim {@link Offers.offer} refuses a second of. The
+   * inverse — a plugin and the doors it holds — would be the same fact with the
+   * uniqueness rule no longer visible in the shape.
+   *
+   * ONLY THE FOUR OFFERABLE ONES ever appear: core's own services are provided
+   * before any row is mounted and are nobody's to hold, so a row can never be
+   * carrying another on `vault` or `clock`.
+   */
+  readonly offers: () => ReadonlyMap<string, string>
   /** TELL EVERY PLUGIN A REVISION LANDED, and wait for each of them — see
    *  {@link Vault}. */
   readonly published: (snapshot: unknown) => Effect.Effect<void>
@@ -1272,6 +1292,7 @@ export const openPlugins = (
       kinds: kinds.read,
       composed: () => [...siblings.read().values()],
       declared: wakes.read,
+      offers: offered.read,
       published: revisions.tell,
       quiet: quieted.tell(undefined),
       refused: refusals.tell,

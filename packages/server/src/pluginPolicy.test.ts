@@ -58,8 +58,11 @@ test("the sentence names every plugin this build has", () => {
   const said = pluginsSaid()
   for (const name of PLUGIN_NAMES) expect(said).toContain(name)
   expect(said).toContain(`the default is ${DEFAULT_BUNDLE_NAMES.join(", ")}`)
-  // The read-only clause is the half a person acts on: it is the sentence that
-  // tells somebody looking at a greyed-out preferences row where the decision
-  // actually lives.
-  expect(said).toContain("read-only")
+  // THE LASTING-ANSWER CLAUSE is the half a person acts on, and it replaced a
+  // `read-only` one. That word was exact while the panel's rows were frozen and
+  // the flag was the only way to move them; the loader surface put a switch on
+  // the panel, so what somebody at a `--help` page now needs to know is not that
+  // they cannot change it — they can — but that what they change there goes with
+  // the process, and this flag is what a restart comes back to.
+  expect(said).toContain("restart comes back to this flag")
 })

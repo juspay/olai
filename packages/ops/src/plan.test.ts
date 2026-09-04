@@ -3534,6 +3534,29 @@ describe("split", () => {
     expect(result.summary).toBe("split: order the cabinets")
   })
 
+  test("an `under` split lands the tail as the head's FIRST CHILD", () => {
+    // The browser's ask when the head's children are on screen: the very next
+    // line under an expanded row IS its first child, and the next sibling is a
+    // scroll away. `kitchen` already has children in this house — the new node
+    // front of them, not after the subtree.
+    const nodes = fileOf(
+      planned(house(), { op: "split", id: "kitchen", title: "Kit", rest: "chen", under: true }),
+      "house.olai",
+    )
+    expect(record(nodes, "kitchen").title).toBe("Kit")
+    expect(record(nodes, "n1").parent).toBe("kitchen")
+    expect(childOrder(nodes, "kitchen")).toEqual(["n1", "demo", "order", "install"])
+  })
+
+  test("an `under` split of a childless head makes the tail its only child", () => {
+    const nodes = fileOf(
+      planned(house(), { op: "split", id: "loose", title: "a node", rest: " of no use", under: true }),
+      "house.olai",
+    )
+    expect(record(nodes, "n1").parent).toBe("loose")
+    expect(childOrder(nodes, "loose")).toEqual(["n1"])
+  })
+
   test("everything that DESCRIBED the node stays with the head", () => {
     const set = setOf({
       "house.olai": [
@@ -3623,6 +3646,20 @@ describe("merge", () => {
     expect(result.nudge).toBeUndefined()
   })
 
+  test("a CARRIED title joins instead of the record's own", () => {
+    // The keystroke that erased the row first — select-all, Backspace, the
+    // joining Backspace (the human's report on #493): the words are gone, so
+    // the survivor stays exactly what it said, while the RECORD holds its
+    // title still — it is in the archive, and that is what ⌘Z puts back.
+    const result = planned(house(), { op: "merge", id: "install", title: "" })
+    expect(record(fileOf(result, "house.olai"), "order").title)
+      .toBe("order the cabinets")
+    expect(record(fileOf(result, "_olai/Trash.olai"), "install").title)
+      .toBe("install them")
+    expect(result.id).toBe("order")
+    expect(result.title).toBe("order the cabinets")
+  })
+
   test("the children move, in order, to the end of the survivor's own", () => {
     const set = setOf({
       "house.olai": [
@@ -3698,8 +3735,18 @@ describe("merge", () => {
       .toContain("kept its document `finishes.md`")
   })
 
-  test("the first of its siblings has nothing above it", () => {
-    expect(refused(house(), { op: "merge", id: "demo" }).message)
+  test("the first of its siblings joins into the row ON the page above it — its parent", () => {
+    // Backspace at offset zero of a first child: the head is right there,
+    // and the join is the same join (review of #493).
+    const result = planned(house(), { op: "merge", id: "demo" })
+    expect(record(fileOf(result, "house.olai"), "kitchen").title)
+      .toBe("Kitchen remodeldemolition")
+    expect(record(fileOf(result, "_olai/Trash.olai"), "demo").title).toBe("demolition")
+    expect(fileOf(result, "house.olai").some((node) => node.id === "demo")).toBe(false)
+  })
+
+  test("the top of the page has nothing above it to merge into", () => {
+    expect(refused(house(), { op: "merge", id: "kitchen" }).message)
       .toContain("no row above it to merge into")
   })
 

@@ -769,10 +769,14 @@ export const surface = defineSurface({
      * must not do any of that, and it is not a rare case — a reconnect
      * republishes. {@link sameRoster} argues it in full.
      *
-     * Wire-read-only, and here that is more than the usual: `--plugins` is
-     * CLI/nix ONLY, so there is no verb a browser could call and no settings
-     * file for one to write. The panel draws the rows FROZEN and names the
-     * flag, which is the arrangement the two git rows already live under.
+     * Wire-read-only, and the paragraph that used to stand here said it was
+     * more than the usual: *`--plugins` is CLI/nix ONLY, so there is no verb a
+     * browser could call*. There is one now — {@link plugins.set}, one group
+     * down — and this cell is read-only for the ORDINARY reason instead: the
+     * server is the only thing that knows what its fibers are doing, a flip is
+     * an act with a refusal rather than an assignment, and what comes back from
+     * pressing the switch is this cell moving. `git` is the same pairing one
+     * member over, which is why the names collide on purpose.
      *
      * CORE'S OWN MEMBER, about plugins, which is not the contradiction it
      * looks like: a plugin that is off composes no surface at all, so the
@@ -1159,6 +1163,56 @@ export const surface = defineSurface({
         // to see is that the loop is running again, which is the chip going
         // from `paused` to `armed` on the same republish — in this tab and in
         // every other one, which a return value could never have done.
+        output: Schema.Struct({}),
+        error: OpFailure,
+      },
+    },
+    /**
+     * TURN ONE PLUGIN ON OR OFF ON THE RUNNING SERVE — the panel's switch, and
+     * the one verb this build has that moves a fiber after the boot.
+     *
+     * A PROCEDURE beside the cell of the same name, exactly as `git` is: the
+     * cell says what is running and this says *make it so*, and the answer to
+     * the second is the first moving. Nothing comes back but the acknowledgement
+     * — what a person is owed is the roster, which the serve republishes once
+     * the bundle has stopped moving, and a return value would be that same fact
+     * arriving on a second clock.
+     *
+     * ## IT WRITES NOTHING, and that is a ruling rather than an omission
+     *
+     * The flip is the INSTANCE's, for as long as this process runs. `olai.yml`,
+     * `--plugins` and the nix module are the boot-time way and stay the only
+     * way; a restart comes back to what they say. So there is no settings file
+     * to write and no CLI verb against a running serve, and `docs/running.md`
+     * says both out loud (the human, 2026-09-04).
+     *
+     * ## THE BROWSER'S ALONE
+     *
+     * `@olai/server`'s `faces.ts` names it on that face and no other, and its
+     * suite pins the agent face as an exact set — the same physics `chat.scope`
+     * has. An agent that could turn a plugin off could turn off the plugin that
+     * is watching it, which is not a thing a tool call may decide; a person at
+     * the panel is who this is for.
+     *
+     * ## What a REFUSAL is
+     *
+     * One thing only: no such row. The panel walks the roster, so it can only
+     * name a plugin this build has — which makes the failure arm reachable
+     * exactly for a tab that outlived the build it was drawn from, and
+     * `NotFoundFailure` is the vocabulary that already says so.
+     */
+    plugins: {
+      set: {
+        input: Schema.Struct({
+          /** The plugin's `name` — the row's own word, walked out of the
+           *  `plugins` cell. Never a label, never an index: {@link BuiltPlugin}
+           *  argues why the name is the identity. */
+          name: Schema.String,
+          /** WHERE THE SWITCH IS BEING PUT, not which way to move it. A toggle
+           *  that said "flip" would be two tabs racing to the state neither of
+           *  them asked for. */
+          enabled: Schema.Boolean,
+        }),
         output: Schema.Struct({}),
         error: OpFailure,
       },

@@ -5,16 +5,24 @@
  * the one it was opened above, or on the start line of a page with no rows —
  * with the same gutter arithmetic every
  * other row uses (`../touch.ts`), so the line a person is typing on sits
- * exactly where the line they are making it will sit. What it deliberately
+ * exactly where the line they are making it will sit. The vertical rhythm is
+ * that same ruling: `my-0.5` around the whole thing and `py-1` on the line
+ * are the `li` and row-line classes from `../Tree.tsx`, and without them an
+ * empty line stood 12px shorter than its neighbours — spacing that wobbled
+ * wherever a draft was parked. What it deliberately
  * does NOT have is a glyph that goes anywhere or says a mark: those are
  * affordances of a node, and there is no node here until this has a title and
  * gets committed.
  *
- * The hollow bullet says which of the two it is. A reader who looks away and
- * back should be able to tell an empty row that exists from one that is only
- * an editor, and the difference between a filled dot and an outline is exactly
- * that — nothing is claiming a record is there. Both spellings of the dot are
- * `marks.tsx`'s, so there is one place a bullet's size is decided.
+ * The bullet has two faces, and they answer the one question a reader who
+ * looks away and back asks — where is the caret: the line the caret is IN
+ * draws the FILLED dot, the bullet of the row it is becoming — Tab,
+ * Shift+Tab and Alt+Shift+↑/↓ already answer under it, so that line is a
+ * row, not a hint — while a PARKED one holds the outline: the sketch left
+ * standing on the page, an answer at a glance rather than an area of
+ * editing. Neither says a record exists — there is none until a title
+ * commits one — so both spellings of the dot are `marks.tsx`'s: one place
+ * a bullet's size is decided.
  */
 
 import { DOT } from "../marks.tsx"
@@ -36,8 +44,8 @@ export function NewRow(props: {
   readonly onActivate?: () => void
 }) {
   return (
-    <div>
-      <div class={`flex items-center ${GUTTER_GAP}`} data-testid={TESTID.newRow}>
+    <div class="my-0.5">
+      <div class={`flex items-center py-1 ${GUTTER_GAP}`} data-testid={TESTID.newRow}>
         {/* The hover strip's PLACE, cell for cell: a row reserves the `•••`
             (pointer devices only, `hidden md:` exactly as the menu hides
             itself) and the collapse triangle, and a draft that reserved one
@@ -49,8 +57,16 @@ export function NewRow(props: {
           <span class={`${HOVER_CELL} hidden md:inline-flex`} aria-hidden="true" />
           <span class={HOVER_CELL} aria-hidden="true" />
         </span>
+        {/* The two faces of the same dot: the line the caret is IN draws the
+            bullet of the row it will become — Tab, Shift+Tab and
+            Alt+Shift+↑/↓ already answer under it, and a place the keys claim
+            is a row, not a placeholder — while a PARKED one stays the outline:
+            the sketch left standing on the page (the comment above).
+            `active` is exactly that line. */}
         <span class={CONTROL} aria-hidden="true">
-          <span class={`${DOT} border-[1.5px] border-muted`} />
+          <span
+            class={props.active === false ? `${DOT} border-[1.5px] border-muted` : `${DOT} bg-current`}
+          />
         </span>
         <TitleEditor
           text={props.draft.text}

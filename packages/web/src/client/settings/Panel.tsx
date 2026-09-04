@@ -259,6 +259,11 @@ export function Panel(props: {
         pref="git-commit"
         hint={commitHint(git())}
         setBy={commitSetBy(git())}
+        // SAID IN A WORD, where it used to fall out of `setBy` being present.
+        // The two came apart when the plugins panel grew rows that carry a
+        // source line AND a live switch (`../settings/Row.tsx` argues it); these
+        // two are still the server's alone, so they still say so.
+        frozen
         under={
           /* THE ONE GESTURE THAT STARTS THE LOOP AGAIN. A refused commit or
              push stops the quiet window and nothing clears that on olai's own
@@ -301,6 +306,7 @@ export function Panel(props: {
         pref="git-push"
         hint={pushHint(git())}
         setBy={pushSetBy(git())}
+        frozen
       >
         <Segmented
           choices={PUSH_CHOICES}

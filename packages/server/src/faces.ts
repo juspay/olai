@@ -294,6 +294,20 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   // render-shaped one cannot draw a row out of an absence, which is exactly
   // the asymmetry the `heads`, `pins` and `inbox` paragraphs above are about.
   plugins: "resource",
+  // ...AND THE SWITCH BESIDE THE READOUT, on this face and no other.
+  //
+  // The reason is the one `chat.scope` had, and it is the sharper case: a plugin
+  // that is off composes nothing, so an agent that could call this could turn
+  // off the row that seats it, the row that watches its writes, or the row whose
+  // tools it is holding — and then not be able to turn any of them back on,
+  // because the face it was calling through went with them. Enablement is the
+  // INSTANCE's, and the instance is a person at a panel.
+  //
+  // {@link AGENT} below is derived from {@link MCP} plus a written list, and
+  // `./faces.test.ts` pins that face as an EXACT SET — so this member being
+  // absent from it is asserted rather than trusted to the fact that nobody
+  // typed it.
+  "plugins.set": "tool",
   // A PLUGIN'S MEMBERS ARE NOT IN THIS MAP, and the eight that were are the
   // whole reason this file stopped being where the decision lived for them.
   // A daemon link, a fleet, a watcher pulse, a mute list, an events ring, a
