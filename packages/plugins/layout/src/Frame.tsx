@@ -67,7 +67,6 @@ import { runAsync } from "@olai/web/client/run.ts"
 import { ServedProvider } from "@olai/web/client/served.tsx"
 import { PluginsMounted } from "@olai/web/client/plugins/Mounted.tsx"
 import { PluginPanel } from "@olai/web/client/plugins/Seats.tsx"
-import { Plugins } from "@olai/web/client/plugins/Plugins.tsx"
 import { pageFileOf } from "@olai/web/client/settings/done.ts"
 import { Tools } from "./Tools.tsx"
 import { TodayProvider } from "@olai/web/client/today.tsx"
@@ -405,7 +404,6 @@ export default function Frame(props: { readonly slots: RendererSlots }) {
                           desktop() ? undefined : (
                             <>
                               <Tools slots={props.slots} where="closet" />
-                              <Plugins where="closet" />
                             </>
                           )
                         }

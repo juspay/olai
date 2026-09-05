@@ -3,7 +3,6 @@ import { definePlugin, Offers, serviceTag, Slots, Wired, locations, location, sl
 import { Effect } from "effect"
 import { app, browserReports, composeTo as compose } from "./runtime.ts"
 
-import { browserHint } from "./rows.ts"
 
 const renderer = { default: definePlugin({ name: "ui-renderer", needs: [Offers], apply: Effect.gen(function*() {
   const store = yield* locations()
@@ -18,7 +17,11 @@ const renderer = { default: definePlugin({ name: "ui-renderer", needs: [Offers],
 }) }) }
 const composeTo: typeof compose = (halves, client) => compose(halves.length ? [renderer, ...halves] : [], client)
 
-const hint = (plugin: string) => browserHint(plugin, browserReports())
+const hint = (plugin: string) => {
+  const pending = [...browserReports()].filter(([name, report]) =>
+    (name === plugin || name.startsWith(plugin + "/")) && (report.state === "waiting" || report.state === "failed"))
+  return pending.length ? JSON.stringify(pending) : null
+}
 const client = () => null
 const Value = serviceTag<{ version: string }>("source.value")
 afterEach(() => composeTo([], client))
@@ -39,7 +42,7 @@ test("a browser component reports its missing key while its parent keeps its fac
     yield* (yield* Offers).own("value", () => ({ version }))
   }) }) })
   await composeTo([consumer], client)
-  expect(hint("reader")).toBe("Browser detail: waiting for source.value.")
+  expect(browserReports().get("reader/detail")).toEqual({ state: "waiting", missing: ["source.value"] })
   expect(app.only("app.viewer")?.face()).toBe("surviving parent")
   await composeTo([consumer, source("first")], client)
   expect<string | null>(reading).toBe("first")

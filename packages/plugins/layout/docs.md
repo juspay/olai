@@ -36,3 +36,7 @@ still belong to the frame until those providers are extracted.
 `layout.tools` accepts controls with explicit desktop and mobile ordering. The
 preferences row contributes there, so the frame and header no longer import its
 implementation. Tools may opt into the mobile header when there is no sidebar.
+
+Both preferences and the inspector now contribute through `layout.tools`;
+layout imports neither implementation. Entries supply their header/drawer order
+and decide whether to appear on mobile pages without a sidebar.

@@ -1306,3 +1306,11 @@ component consumes that service and registers a location integration. Disabling
 preferences leaves theme's provider running. Disabling theme drains its controls
 before closing state and observers. This is the provider/integration pattern for
 feature settings; the preferences UI never owns another feature's state.
+
+The browser host supplies `browser-management` through an explicit scoped
+capability. The inspector consumes roster/report readings and management
+operations, never the notebook client. Its activation owns source-reading
+history independently of its `layout.tools` contribution, so a shell remount
+cannot silently acknowledge a changed definition. The host imports no inspector
+implementation or contract. Dynamic-source approval policy remains a pending
+`vault-plugins` extraction.

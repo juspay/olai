@@ -12,6 +12,7 @@
 
 import {
   type Host,
+  type ServiceKey,
   hostChanges,
   openHost,
   offer,
@@ -652,6 +653,8 @@ export interface App extends Faces {
    * and starts when it arrives, which is the runtime's own guarantee rather than
    * something an ordering has to be careful about.
    */
+  /** Install an explicitly supplied host capability in the caller's scope. */
+  readonly supply: <T>(key: ServiceKey<T>, value: T) => Effect.Effect<void, never, Scope.Scope>
   readonly furnish: (
     furniture: { readonly clocks: Clocks; readonly bar: Bar; readonly links: Links },
   ) => Effect.Effect<void, never, Scope.Scope>
@@ -732,6 +735,7 @@ export const openApp = (config: AppConfig = {}): Effect.Effect<App, never, Scope
       attach: (element) => provide(host, BrowserMount, () => ({
         element, changed: config.changed, reading: config.reading,
       })),
+      supply: (key, value) => provide(host, key, () => value),
       host,
       changes: hostChanges(host),
       furnish: (furniture) =>

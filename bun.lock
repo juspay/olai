@@ -60,6 +60,7 @@
         "olai-plugin-odu": "workspace:*",
         "olai-plugin-opencode": "workspace:*",
         "olai-plugin-pi": "workspace:*",
+        "olai-plugin-plugin-inspector": "workspace:*",
         "olai-plugin-preferences": "workspace:*",
         "olai-plugin-search": "workspace:*",
         "olai-plugin-sidebar": "workspace:*",
@@ -334,6 +335,20 @@
         "solid-js": "^1.9.0",
       },
     },
+    "packages/plugins/plugin-inspector": {
+      "name": "olai-plugin-plugin-inspector",
+      "version": "0.1.0",
+      "dependencies": {
+        "@olai/format": "workspace:*",
+        "@olai/plugin-api": "workspace:*",
+        "@olai/surface": "workspace:*",
+        "@olai/web": "workspace:*",
+        "effect": "4.0.0-rc.112",
+        "olai-plugin-layout": "workspace:*",
+        "olai-plugin-ui-renderer": "workspace:*",
+        "solid-js": "^1.9.0",
+      },
+    },
     "packages/plugins/preferences": {
       "name": "olai-plugin-preferences",
       "version": "0.1.0",
@@ -509,6 +524,7 @@
       "dependencies": {
         "@olai/acp": "workspace:*",
         "@olai/format": "workspace:*",
+        "@olai/plugin-api": "workspace:*",
         "effect": "4.0.0-rc.112",
       },
     },
@@ -1384,6 +1400,8 @@
     "olai-plugin-opencode": ["olai-plugin-opencode@workspace:packages/plugins/opencode"],
 
     "olai-plugin-pi": ["olai-plugin-pi@workspace:packages/plugins/pi"],
+
+    "olai-plugin-plugin-inspector": ["olai-plugin-plugin-inspector@workspace:packages/plugins/plugin-inspector"],
 
     "olai-plugin-preferences": ["olai-plugin-preferences@workspace:packages/plugins/preferences"],
 

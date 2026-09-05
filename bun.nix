@@ -7638,6 +7638,7 @@
   "olai-plugin-odu" = copyPathToStore ./packages/plugins/odu;
   "olai-plugin-opencode" = copyPathToStore ./packages/plugins/opencode;
   "olai-plugin-pi" = copyPathToStore ./packages/plugins/pi;
+  "olai-plugin-plugin-inspector" = copyPathToStore ./packages/plugins/plugin-inspector;
   "olai-plugin-preferences" = copyPathToStore ./packages/plugins/preferences;
   "olai-plugin-search" = copyPathToStore ./packages/plugins/search;
   "olai-plugin-sidebar" = copyPathToStore ./packages/plugins/sidebar;

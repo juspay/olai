@@ -1283,7 +1283,7 @@ Before(
     // word and `--plugins=` has none — the one place the two grammars differ.
     this.pluginPin = scenario.pickle.tags.flatMap((tag) => {
       const asked = PLUGINS_TAG.exec(tag.name);
-      return asked === null ? [] : [asked[1] === "none" ? "" : [...new Set([...asked[1]!.split(","), "ws", "web-app", "mcp", "ui-renderer", "layout", "sidebar", "preferences", "theme"])].join(",")];
+      return asked === null ? [] : [asked[1] === "none" ? "" : [...new Set([...asked[1]!.split(","), "ws", "web-app", "mcp", "ui-renderer", "layout", "sidebar", "preferences", "theme", "plugin-inspector"])].join(",")];
     })[0];
     this.extraPluginPin = scenario.pickle.tags.flatMap((tag) => {
       const asked = EXTRA_PLUGINS_TAG.exec(tag.name);

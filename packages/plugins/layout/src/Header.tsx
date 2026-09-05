@@ -108,7 +108,6 @@ import { PluginHeaders } from "@olai/web/client/plugins/Chrome.tsx"
 import { LAYER } from "@olai/web/client/layer.ts"
 import { desktop } from "@olai/web/client/layout/media.ts"
 import { connectionReadout } from "@olai/web/client/wire.ts"
-import { Plugins } from "@olai/web/client/plugins/Plugins.tsx"
 import { Tools } from "./Tools.tsx"
 import type { RendererSlots } from "olai-plugin-ui-renderer/contract"
 import { TESTID } from "@olai/web/client/testids.ts"
@@ -233,7 +232,6 @@ export function Header(props: {
               before `Preferences` rather than after because the two are read as
               a pair and preferences is the one a reader reaches for by habit:
               the habitual door stays where the hand already goes. */}
-          <Plugins />
           <Tools slots={props.slots} where="header" />
         </Show>
         {/* Phone screens with no directory drawer (the error report, the

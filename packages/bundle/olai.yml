@@ -148,3 +148,5 @@
   name: olai-plugin-preferences
 - id: theme
   name: olai-plugin-theme
+- id: plugin-inspector
+  name: olai-plugin-plugin-inspector

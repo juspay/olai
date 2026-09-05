@@ -128,14 +128,14 @@ import {
   pluginState,
 } from "@olai/surface"
 
-import { type Anchor, styleOf } from "../anchor.ts"
-import { PANEL_BOX } from "../readout.ts"
-import { run } from "../run.ts"
-import { Segmented } from "../settings/Segmented.tsx"
-import { Row } from "../settings/Row.tsx"
-import { pluginPref, TESTID } from "../testids.ts"
-import { browserReports } from "./runtime.ts"
-import { olai, retryBrowser, rosterChanging } from "../wire.ts"
+import { type Anchor, styleOf } from "@olai/web/client/anchor.ts"
+import { PANEL_BOX } from "@olai/web/client/readout.ts"
+import { run } from "@olai/web/client/run.ts"
+import { Segmented } from "@olai/web/client/settings/Segmented.tsx"
+import { Row } from "@olai/web/client/settings/Row.tsx"
+import { pluginPref, TESTID } from "@olai/web/client/testids.ts"
+import type { BrowserManagement } from "@olai/surface/management"
+import type { InspectorState } from "./state.ts"
 
 import {
   type PluginPick,
@@ -156,44 +156,9 @@ const PLUGIN_CHOICES = [
   { value: "on", label: "On" },
 ] as const
 
-/**
- * WHICH VERSION OF EACH DEFINITION THIS READER HAS BEEN SHOWN — a fact about the
- * PERSON AND THE DOCUMENT, and so held for as long as the document is.
- *
- * See {@link Defined}'s `moved` for what it is for. The short of it: a live
- * roster swaps the source under a reader, and a verb that stayed armed across
- * that swap approves what is there now rather than what was read.
- *
- * ## MODULE SCOPE, and it was measured twice getting there
- *
- * Inside `Defined` it resets on every publish, because the rows come off the
- * roster and `For` rebuilds the components under a fresh array. So it moved up
- * into {@link Panel} — and that was still not high enough, which is the part
- * that is not obvious and that the feature file's third scenario is about.
- *
- * A plugin arriving or leaving CHANGES THE WIRE. The roster names the chunks a
- * tab must load, the tab redials, and the whole tree is rebuilt keyed on the
- * generation (`../wire.ts`). An edit to a definition takes its fiber down, which
- * is exactly such a change — so the panel itself is remade on the very frame
- * this is meant to survive, and a signal inside it re-pinned the reader to the
- * source that had just arrived. Held here, the remade panel finds what the
- * reader was shown still sitting there, and disarms.
- *
- * NOTHING EVICTS. A word this document has seen the source of stays seen: a
- * definition deleted and written again at a version this reader has already
- * read has, in fact, already been read, and the table is bounded by how many
- * plugins one vault defines.
- */
-const [read, setRead] = createSignal<ReadonlyMap<string, string>>(new Map())
-
-/** ...and the one way it is written: the reader has now been shown this version
- *  of this word. Idempotent by construction — {@link Defined} records on first
- *  draw and on the press that says so, and nothing else. */
-const nowRead = (name: string, version: string): void => {
-  setRead((was) => new Map(was).set(name, version))
-}
-
 export function Panel(props: {
+  readonly state: InspectorState
+  readonly management: BrowserManagement
   /** Where to sit, in viewport pixels — see `../anchor.ts` for why this is not
    *  a matter of CSS alone. */
   readonly at: Anchor
@@ -209,8 +174,8 @@ export function Panel(props: {
    *  Before the first frame the cell is empty (`@olai/surface`'s `NO_ROSTER`),
    *  so the panel draws no rows at all rather than a set of rows claiming
    *  everything is off — which is the same reason that value exists at all. */
-  const roster = olai.cells.plugins.use()
-  const plugins = (): PluginRoster => roster.value() ?? NO_ROSTER
+  const roster = props.management.roster()
+  const plugins = (): PluginRoster => roster() ?? NO_ROSTER
   const rows = () => pluginRows(plugins())
 
   /** WHOSE PRESS IS STILL IN THE AIR — the row's name, or `null`.
@@ -236,11 +201,11 @@ export function Panel(props: {
    *  aiming, and a "flip" verb read against a roster either of them might have
    *  been drawn from could land on the state neither asked for. */
   const set = (name: string, pick: PluginPick): void => {
-    if (flipping() !== null || rosterChanging()) return
+    if (flipping() !== null || props.management.changing()) return
     setFlipping(name)
     setRefused(null)
     run(
-      olai.procedures.plugins.set({ name, enabled: pick === "on" }),
+      props.management.set(name, pick === "on"),
       (failure) => {
         setFlipping(null)
         setRefused(failure.message)
@@ -277,7 +242,7 @@ export function Panel(props: {
     setApproving(name)
     setRefused(null)
     run(
-      olai.procedures.plugins.approve({ name, version, forever }),
+      props.management.approve(name, version, forever),
       (failure) => {
         setApproving(null)
         setRefused(failure.message)
@@ -302,7 +267,7 @@ export function Panel(props: {
     >
       <For each={rows()}>
         {(plugin) => {
-          const strip = () => pluginSwitch(plugin, flipping() === plugin.name || rosterChanging())
+          const strip = () => pluginSwitch(plugin, flipping() === plugin.name || props.management.changing())
           return (
             <Row
               label={plugin.name}
@@ -311,12 +276,12 @@ export function Panel(props: {
               // and NO `setBy` on any of them: where this serve was started is
               // one fact for the panel and is at the foot. Neither prop being
               // passed is why these rows are a name and a switch on one line.
-              hint={[pluginHint(plugin, plugins()), plugin.running ? browserHint(plugin.name, browserReports(), plugin.browserOnly) : null].filter(Boolean).join(" ") || null}
+              hint={[pluginHint(plugin, plugins(), props.management.switchHint(plugin.name)), plugin.running ? browserHint(plugin.name, props.management.reports(), plugin.browserOnly) : null].filter(Boolean).join(" ") || null}
               under={<>
                 <Config values={pluginConfig(plugin)} />
-                <Show when={plugin.running && [...browserReports()].some(([name, report]) =>
+                <Show when={plugin.running && [...props.management.reports()].some(([name, report]) =>
                   (name === plugin.name || name.startsWith(plugin.name + "/")) && report.state === "failed") }>
-                  <button type="button" disabled={rosterChanging()} onClick={() => { void retryBrowser() }}>
+                  <button type="button" disabled={props.management.changing()} onClick={() => { void props.management.retry() }}>
                     Retry browser activation
                   </button>
                 </Show>
@@ -348,8 +313,8 @@ export function Panel(props: {
             plugin={plugin}
             approving={approving}
             approve={approve}
-            read={read().get(plugin.name)}
-            onRead={nowRead}
+            read={props.state.read().get(plugin.name)}
+            onRead={props.state.nowRead}
           />
         )}
       </For>
@@ -458,7 +423,7 @@ function Defined(props: {
   readonly approving: () => string | null
   readonly approve: (name: string, version: string, forever: boolean) => void
   /** WHICH VERSION OF THIS DEFINITION THE READER HAS BEEN SHOWN — see the
-   *  module-scope `read` above, which argues why it is held that far up. */
+   *  activation-owned reading history, which survives shell remounts. */
   readonly read: string | undefined
   readonly onRead: (name: string, version: string) => void
 }) {

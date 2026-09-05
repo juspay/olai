@@ -38,7 +38,7 @@ import {
   pluginsStarted,
   pluginSwitch,
 } from "./rows.ts"
-import { pluginPref, PLUGIN_PREF } from "../testids.ts"
+import { pluginPref, PLUGIN_PREF } from "@olai/web/client/testids.ts"
 
 /** A build with two plugins, and whichever of them this case is about running.
  *  `pin` defaults to omitted, which is the ordinary serve. */

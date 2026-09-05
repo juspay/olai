@@ -931,3 +931,9 @@ Theme/font/size state is initialized by the theme provider, which owns storage
 listeners and palette cleanup independently of the preferences UI. Static
 appearance definitions and the no-flash boot script remain shared pending their
 build-boundary extraction.
+
+The plugins panel and its pure row readings now live in
+`packages/plugins/plugin-inspector`. `client/plugins/management.ts` supplies a
+narrow host capability; the inspector no longer imports `wire.ts` or the bundle.
+Panel visibility and acknowledged source versions follow the inspector activation
+rather than permanent module signals.

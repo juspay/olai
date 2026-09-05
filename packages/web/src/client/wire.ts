@@ -5,6 +5,7 @@
  * publishes plugin registrations after the new siblings are available.
  */
 
+import { supplyManagement } from "./plugins/management.ts"
 import { connectSocket } from "./connection/socket.ts"
 import { bootstrapSelected } from "./plugins/bootstrap.ts"
 import { loadRows, retryableModule } from "./plugins/loading.ts"
@@ -386,3 +387,12 @@ export const connectionReadout = live.readout
 
 /** Re-fetch per-connection answers after an establishment; never remount UI. */
 export const connectionEpoch = live.connectionEpoch
+
+await supplyManagement({
+  roster: () => olai.cells.plugins.use().value,
+  reports: browserReports,
+  changing: rosterChanging,
+  set: (name, enabled) => olai.procedures.plugins.set({ name, enabled }),
+  approve: (name, version, forever) => olai.procedures.plugins.approve({ name, version, forever }),
+  retry: retryBrowser,
+})

@@ -44,6 +44,7 @@
     "olai-plugin-layout": "workspace:*",
     "olai-plugin-sidebar": "workspace:*",
     "olai-plugin-preferences": "workspace:*",
-    "olai-plugin-theme": "workspace:*"
+    "olai-plugin-theme": "workspace:*",
+    "olai-plugin-plugin-inspector": "workspace:*"
   }
 }

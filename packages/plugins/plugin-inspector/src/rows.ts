@@ -105,7 +105,6 @@
 import type { RowReport } from "@olai/plugin-api"
 import { pluginPinOf } from "@olai/format"
 import type { BuiltPlugin, PluginRoster } from "@olai/surface"
-import { ROWS } from "@olai/bundle"
 import { pluginState } from "@olai/surface"
 
 /** The rows to draw, in the order the build lists its plugins. A build with no
@@ -237,17 +236,17 @@ export const pluginConfig = (
  * and a true one — where a cap would be this panel deciding which of somebody's
  * plugins was worth telling them about.
  */
-const switchHints = new Map(ROWS.map((row) => [row.id, row.switchHint]))
 
 export const pluginHint = (
   plugin: BuiltPlugin,
   roster: PluginRoster = { built: [], pinned: null },
+  switchHint?: string,
 ): string | null => {
   const pin = pluginPinOf(roster)
   switch (pluginState(plugin)) {
     case "running": {
       if (plugin.browserOnly) return "Selected by the host; runs only in the browser."
-      const hint = switchHints.get(plugin.name)
+      const hint = switchHint
       // NOTHING, on the ordinary row: the switch reads On and there is no
       // second thing to know. A row that carries others has one, and it is
       // about the press rather than about the state. `--extra-plugins`

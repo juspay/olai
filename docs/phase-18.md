@@ -52,7 +52,7 @@ be complete before this PR is ready to merge.
   URLs and detach listeners on withdrawal; reread storage on reactivation.
 - [ ] `theme`: finish ownership of shared appearance build assets and early boot
   code.
-- [ ] `plugin-inspector`: extract switches, dependency/failure reports and retry
+- [x] `plugin-inspector`: extract switches, dependency/failure reports and retry
   UI behind host-management services; scope panel and approval-reading state.
 
 ## Content and feature plugins
@@ -92,8 +92,7 @@ be complete before this PR is ready to merge.
   caret and saved draft.
 - [x] Cover theme/preferences independent lifetimes and cross-tab storage updates
   in e2e; test listener, metadata and icon cleanup and failed initialization.
-- [ ] Validate appearance storage updates with layout or renderer absent.
-  Scenarios are implemented; the current CI run is validating them.
+- [x] Validate appearance storage updates with layout or renderer absent.
 - [ ] Prove outlines with Markdown disabled, and Markdown with outlines disabled,
   in both browser and headless profiles.
 - [ ] Maintain an alternate-layout fixture using unchanged content plugins.
@@ -103,6 +102,7 @@ be complete before this PR is ready to merge.
   feature flips, with fresh state for re-enabled departed capabilities.
 - [ ] Prove property links and file handlers appear/retract with their providers.
 - [ ] Prove authorized non-UI host management remains usable with inspector off.
+  Removal/restoration and shell-replacement scenarios are implemented, pending CI.
 - [ ] Prove dynamic-plugin version checks, approval, scope ownership and write
   fences survive extraction; unloading their owner retracts contributions
   without undoing emitted vault writes.
