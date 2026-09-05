@@ -3,7 +3,7 @@
 # `b2n` is upstream bun2nix's package (`packages.<system>.default`): the CLI
 # derivation, with `hook` and `fetchBunDeps` on passthru. Required — everything
 # here is backed by `base`, which needs it.
-{ pkgs ? import ./nix/nixpkgs.nix { }, b2n, rev ? "dev" }:
+{ pkgs ? import ./nix/ekapkgs.nix { }, b2n, rev ? "dev" }:
 let
   kolu = import ./nix/kolu.nix { inherit pkgs; };
   odu = import ./nix/odu.nix { inherit pkgs b2n; };
