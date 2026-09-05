@@ -99,7 +99,7 @@ import {
 } from "@olai/plugin-api/services"
 import type { Engine, Registering } from "@olai/acp/engine"
 import type { ConversationSeen, Probed, Wake } from "@olai/plugin-api/services"
-import { Deferred, Effect } from "effect"
+import { Deferred, Duration, Effect } from "effect"
 
 import { type Cadence, cadence } from "./cadence.ts"
 import type { Change } from "./transcript.ts"
@@ -722,6 +722,11 @@ export default definePlugin({
       // THE ONE SIGNAL THAT THE SERVE IS UP, and the reason the roster is read
       // here rather than at the top of `apply` — see the header.
       const address = yield* tools.server
+      // The listener can settle before the first revision reaches this
+      // subscriber. Seed routing from the current reading used by writes so a
+      // remembered node session starts with its final MCP credential.
+      const initialReading = (yield* ops.reading) as Reading | null
+      if (initialReading !== null) nodeAgents.seen(initialReading.derived)
       /**
        * THE ENGINES MOUNTED RIGHT NOW, in the build's order — asked, not
        * captured.
@@ -741,19 +746,28 @@ export default definePlugin({
        * fibers ({@link ./agents/roster.ts}'s `detecting` argues both).
        */
       const detect = detecting(env.vars, vault.served)
-      let found = detect(mounted())
+      let [discoveryDuration, found] = yield* Effect.timed(Effect.sync(() => detect(mounted())))
       while (found.kind === "none") {
         // Arm before publishing or yielding, so an arriving engine cannot be
         // lost between the empty reading and the wait. This fiber is scoped:
         // turning chat off also cancels a build waiting for its first engine.
         engineChange = yield* Deferred.make<void>()
         mine?.cells.state.set({ ...CHAT_OFF, off: found.because })
-        yield* Effect.logInfo(whyNoAgent(found.because))
+        yield* Effect.annotateLogs(Effect.logInfo(whyNoAgent(found.because)), {
+          duration: Math.round(Duration.toMillis(discoveryDuration)) + "ms",
+        })
         yield* Deferred.await(engineChange)
-        found = detect(mounted())
+        const next = yield* Effect.timed(Effect.sync(() => detect(mounted())))
+        discoveryDuration = next[0]
+        found = next[1]
       }
       engineChange = null
       const installed = found.installed
+
+      yield* Effect.annotateLogs(Effect.logInfo("chat agents detected"), {
+        agents: installed.map((row) => row.id).join(", "),
+        duration: Math.round(Duration.toMillis(discoveryDuration)) + "ms",
+      })
 
       chat = yield* Chat.make({
         // BOTH HALVES OF THE TABLE, READ WHEN ASKED. What this hands over is the
@@ -822,9 +836,6 @@ export default definePlugin({
       yield* Effect.annotateLogs(Effect.logDebug("chat agent commands"), {
         agents: installed.map((row) => `${row.id}=${row.adapter.command}`).join(" "),
         mcp: address.url,
-      })
-      yield* Effect.annotateLogs(Effect.logInfo("chat agents detected"), {
-        agents: installed.map((row) => row.id).join(", "),
       })
     }))
 

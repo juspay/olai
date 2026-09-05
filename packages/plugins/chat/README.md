@@ -294,6 +294,21 @@ The header also exposes the advertised model options as a picker. It sends `conv
 
 Model reconciliation returns the confirmed value to remember, with observations and explicit choices distinguished at that boundary. The observer enqueues its note; a selection awaits one write. Restoration and selection share only the ACP request/response exchange, keeping best-effort restore recovery separate from a user gesture's refusal.
 
+### Startup timing
+
+Successful startup operations carry a rounded millisecond `duration`, measured with Effect v4's monotonic clock:
+
+| event | measured interval | level |
+|---|---|---|
+| `chat agents detected` (or the no-agent result) | initial engine detection only; logged before chat startup | info |
+| `chat agent ready` | subprocess startup through the ACP initialization handshake | info |
+| `conversation opened` | new/load attempt, including tool probes and the ACP reply/replay; excludes process startup, later memory writes, model restoration and permission setup | info |
+| tool probe result | that probe's own request, including a missing or not-running result | debug |
+
+Concurrent probe durations overlap; do not add them together. These are operation durations, not server uptime or a total time-to-interactive metric. Failed opens keep their existing failure logs and do not emit successful completion events.
+
+After `tools.server` settles, `server.ts` seeds the node roster from `Ops.reading` before building chat. HTTP readiness can precede delivery of the initial vault revision; routing against the empty subscriber roster would load a remembered node session at root, then repeat initialization, probes and replay during a node scope handoff. Subsequent revisions continue to update the roster. A null reading retains the existing unbound startup path, including recovery when a later revision identifies the node.
+
 ## ACP session controls and progress
 
 `agents/settings.ts` normalizes advertised select and boolean options; the panel serializes setting requests against session changes and prompting. Responses and config updates replace the available options. `plan` notifications replace the session plan, which is cleared on session departure.

@@ -9,6 +9,14 @@ Full-suite validation uses `just ci` or `just e2e-fast-remote`. Targeted browser
 runs use the worktree's dev server. Real-harness exploration uses Claude/Sonnet
 in a disposable vault; deterministic ACP fixtures make regressions repeatable in CI.
 
+At the September 5 status review against master `4b90ba9f6`, this PR adds
+258 scenario declarations across 87 new feature files (89 feature files changed),
+including 41 node-agent scenarios. These counts are not a coverage percentage:
+all 27 domains below still have open audit work. An exhaustive action-by-action
+matrix of normal, refusal, cancellation and recovery paths remains unfinished.
+Full CI at `a737c07b` passed all 49 jobs; the subsequent `89975e1c` run was
+incomplete after losing the `kolu-ci-3` worker lease.
+
 | Domain | User actions and edge paths to audit | Existing feature families | Audit status |
 | --- | --- | --- | --- |
 | Launch and vault selection | Ordinary, empty, nested, malformed and corrected vault; absent optional services; startup failures | `serve_a_directory`, `see_the_outline`, `error_view`, `empty_vault` | Three `empty_vault` scenarios start with no served files: create/write/reload the first outline or document, and discover/edit an external first outline then create again after removal. Three `first_outline_recovery` scenarios cover the only outline having invalid JSON or an unknown parent, live correction followed by editing, and creation of healthy content beside the only broken file. Broader startup and vault-selection review open |
