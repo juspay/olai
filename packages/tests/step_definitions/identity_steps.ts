@@ -35,7 +35,7 @@ import {
 import { PLUGIN_TESTID } from "@olai/bundle/testids";
 import { selector } from "@olai/web/testlib";
 
-import { POLL_TIMEOUT } from "../support/world.ts";
+import { APP_CHROME, APP_HEADER, POLL_TIMEOUT } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
 const IDENTITY = selector(PLUGIN_TESTID.identity);
@@ -140,6 +140,33 @@ Then(
     );
   },
 );
+
+/**
+ * NO ROW, NO CHIP — and the distinction this step exists to hold is that it
+ * is not `anonymous`.
+ *
+ * A serve that mounted the identity row and got no login draws the silhouette
+ * and says so (`the header shows anonymous`). A serve that did not mount the
+ * row draws NOTHING in that seat: the plugin's chunk was never fetched, its
+ * fiber never mounted, and the face never registered. The scenario injects a
+ * real login to make the difference visible — the header a full serve reads as
+ * Ada is the header nobody here is reading.
+ *
+ * It waits for the chrome first, so an empty seat is an answer rather than a
+ * page that has not drawn its bar yet.
+ */
+Then("the header has no identity chip", async function (this: OlaiWorld) {
+  await this.waitForFrame();
+  const header = this.page.locator(APP_HEADER);
+  await header
+    .locator(APP_CHROME)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.equal(
+    await header.locator(IDENTITY).count(),
+    0,
+    "the identity chip is still in the header of a serve that did not mount the row",
+  );
+});
 
 Then("the header shows anonymous", async function (this: OlaiWorld) {
   const slot = this.page.locator(IDENTITY);
