@@ -6,8 +6,9 @@ Core supplies `VaultSettings` after reading the bundle’s declared vocabulary.
 
 The row lives in `packages/bundle/olai.yml`, with `config: { format: olai }`.
 Every default server profile selects it. An explicit `--plugins` list selects
-only the plugins named: include `vault` to serve files. `--plugins=` starts the
-control plane without a directory; reads and writes report that absence.
+only the plugins named: include `vault` to serve files. `--plugins=` opens no listener.
+An exact `--plugins=ws,web-app,mcp` set keeps the control plane available without
+a directory; reads and writes report that absence.
 
 The plugins panel explains that switching this row off clears served files and
 stops dependent plugins. Accepted writes finish before the watcher and lock are

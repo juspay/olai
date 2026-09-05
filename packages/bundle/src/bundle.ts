@@ -115,13 +115,12 @@ export type { RowReport, RowState } from "@olai/plugin-api"
  * row is drawn from it, and a patch that had already expanded `null` could not
  * tell a reader which of the two they were looking at.
  *
- * A flag that WAS given writes a `disabled` onto every integration row, set from whether the
+ * A flag that WAS given writes a `disabled` onto every row, set from whether the
  * flag named it. Both directions, deliberately: a name the flag gives turns a
  * row ON even where the file left it off, which is the whole of how an opt-in
  * plugin is opted into, and a name the flag omits turns a row off even where the
  * file left it on. `--plugins=` — somebody saying NONE out loud — is that with an
- * empty list, and disables every integration row. Rows marked `selection: profile`
- * keep the profile’s transport availability, including with an empty flag.
+ * empty list, and disables every row.
  *
  * That is exactly the shape the include's own patch algorithm takes: `{ id,
  * …overrides }` copied onto the matching row. The flag refuses an unknown name
@@ -132,7 +131,7 @@ export type { RowReport, RowState } from "@olai/plugin-api"
 export const pluginsPatch = (
   names: ReadonlyArray<string> | null,
 ): ReadonlyArray<{ readonly id: string; readonly disabled?: boolean }> =>
-  names === null ? [] : ROWS.filter((row) => row.selection !== "profile").map((row) => ({ id: row.id, disabled: !names.includes(row.id) }))
+  names === null ? [] : ROWS.map((row) => ({ id: row.id, disabled: !names.includes(row.id) }))
 
 /**
  * WHAT EVERY BUILT PLUGIN TEACHES THE VAULT, running or not — the declarations a
@@ -335,8 +334,7 @@ export const mountBundle = (
   )
 
 /** Profiles disable rows from the catalogue; they never insert a second list.
- * Explicit integration selection overrides those defaults, while rows marked
- * selection: profile keep the profile's transport availability. */
+ * An explicit --plugins selection overrides those defaults for every row. */
 export const profilePatch = (profile: string) => profile === "web" ? [] : ROWS.map((row) => ({
   id: row.id,
   disabled: row.disabled === true || !row.profiles?.includes(profile),

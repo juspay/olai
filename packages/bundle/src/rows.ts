@@ -42,7 +42,8 @@
  * NOT FETCHED. The bundle ships every built plugin's code, in its own chunk, and
  * the tab loads only the chunks the ROSTER names — so a plugin this serve did
  * not compose is not merely undrawn, it is never evaluated, registers nothing
- * and costs one entry in this array. That is the browser's exact twin of *no
+ * and costs one entry in this array. A server-only package has no browser
+ * export and no entry in this table at all. That is the browser's exact twin of *no
  * fiber, no surface, no handler*, and it is what retired the two mount licences
  * `@olai/web` used to carry: a licence is only needed for something you are
  * holding, and the tab is no longer holding it.
@@ -128,7 +129,6 @@ export interface BundleRow {
   readonly name: string
   readonly disabled?: boolean
   /** Extra default profiles that select this row; web uses the built default. */
-  readonly selection?: "profile"
   readonly profiles?: ReadonlyArray<string>
   /** The plugin’s explanation of what stopping its row costs. */
   readonly switchHint?: string

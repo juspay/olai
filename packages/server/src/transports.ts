@@ -16,7 +16,6 @@
  * ordinary panel toggle disconnect the very request asking for it.
  */
 import { Effect, Exit, Scope, Semaphore } from "effect"
-import type { TransportRow } from "@olai/plugin-api/transport"
 import { listen, type ListenOptions } from "./listener.ts"
 
 /**
@@ -32,8 +31,14 @@ import { listen, type ListenOptions } from "./listener.ts"
  * state; shape describes the scope that successfully acquired a port, so a
  * failed acquisition cannot claim that its desired shape is already serving.
  */
-export const transportListener = (options: ListenOptions) => Effect.gen(function*() {
-  const rows = new Set<TransportRow>()
+export const transportListener = (options: Omit<ListenOptions, "clientDist"> & {
+  readonly clientDist?: string | Effect.Effect<string>
+}) => Effect.gen(function*() {
+  // Tokens belong to acquisitions, never to caller-supplied plugin names.
+  let clientDist: string | undefined
+  const sockets = new Set<symbol>()
+  const assets = new Set<symbol>()
+  const protocols = new Set<symbol>()
   const lock = Semaphore.makeUnsafe(1)
   let active = false
   let scope: Scope.Closeable | undefined
@@ -52,14 +57,14 @@ export const transportListener = (options: ListenOptions) => Effect.gen(function
   })
   const refresh = lock.withPermit(Effect.gen(function*() {
     if (!active) return
-    if (!rows.has("ws") && !rows.has("mcp")) {
+    if (sockets.size === 0 && protocols.size === 0) {
       yield* close
       yield* Effect.logInfo("no transport rows enabled")
       return
     }
     // MCP is deliberately absent: its live source below answers 404 when the
     // registration leaves, while a websocket caller can still turn it back on.
-    const wanted = `${rows.has("ws")}/${rows.has("web-app")}`
+    const wanted = `${(sockets.size > 0)}/${(assets.size > 0)}`
     if (scope && shape === wanted) return
     yield* close
     const next = yield* Scope.make()
@@ -67,9 +72,9 @@ export const transportListener = (options: ListenOptions) => Effect.gen(function
     url = yield* listen({
       ...options,
       port,
-      websocket: rows.has("ws"),
-      clientDist: rows.has("web-app") ? options.clientDist : undefined,
-      mcp: () => rows.has("mcp")
+      websocket: (sockets.size > 0),
+      clientDist: (assets.size > 0) ? clientDist : undefined,
+      mcp: () => (protocols.size > 0)
         ? (typeof options.mcp === "function" ? options.mcp() : options.mcp)
         : undefined,
     }).pipe(Scope.provide(next), Effect.orDie)
@@ -85,16 +90,29 @@ export const transportListener = (options: ListenOptions) => Effect.gen(function
     yield* close
   }))
   yield* Effect.addFinalizer(() => stop)
+  // Install the release before refresh can fail, so a failed bind cannot
+  // leave desired state with no owner. Each acquisition gets its own token.
+  const register = (owners: Set<symbol>) => Effect.acquireRelease(
+    Effect.sync(() => {
+      const token = Symbol()
+      owners.add(token)
+      return token
+    }),
+    (token) => Effect.gen(function*() {
+      owners.delete(token)
+      yield* refresh
+    }),
+  ).pipe(Effect.andThen(refresh))
   return {
-    // Install the release before refresh can fail. Otherwise a failed bind
-    // during acquisition would leave a row in the desired set with no owner.
-    register: (row: TransportRow) => Effect.acquireRelease(
-      Effect.sync(() => { rows.add(row) }),
-      () => Effect.gen(function*() {
-        rows.delete(row)
-        yield* refresh
-      }),
-    ).pipe(Effect.andThen(refresh)),
+    websocket: () => register(sockets),
+    assets: () => Effect.gen(function*() {
+      // Resolve and validate the build only for an asset provider. An exact
+      // headless selection must not need a browser build, even in web profile.
+      clientDist = typeof options.clientDist === "string" || options.clientDist === undefined
+        ? options.clientDist : yield* options.clientDist
+      yield* register(assets)
+    }),
+    protocol: () => register(protocols),
     start: Effect.gen(function*() {
       active = true
       yield* refresh

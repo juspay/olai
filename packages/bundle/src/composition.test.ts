@@ -363,7 +363,7 @@ describe("a plugin answers to the name its row binds it under", () => {
       const manifest = manifestAt(dir)
       const door = manifest === undefined ? undefined : doorsOf(manifest)["./browser"]
       if (door === undefined) {
-        throw new Error(`composition: "${row.id}" opens no ./browser door`)
+        return { id: row.id, exports: false }
       }
       const text = fs.readFileSync(path.join(dir, door), "utf8")
       // The word in an EXPORT, not anywhere in the file: every browser half

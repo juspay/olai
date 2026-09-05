@@ -9,7 +9,7 @@ import type { TransportSurface } from "@olai/plugin-api/transport"
 import { Effect, type Scope } from "effect"
 
 export const endpoint = (surface: TransportSurface) => Effect.gen(function*() {
-  const options = yield* surface.mcp
+  const options = yield* surface.prepareProtocol
   yield* serveFace(options)
 })
 

@@ -120,7 +120,7 @@ const web = Command.make("web", {
       host,
       pin: gitPin(commits, noCommit, pushes),
       plugins: pluginsPin(plugins),
-      clientDist: profile === "web" ? yield* clientDist : "",
+      clientDist: clientDist.pipe(Effect.provide(NodeServices.layer), Effect.orDie),
       allowedOrigins: allowedOrigins(),
     })
     // Wait to be interrupted — or for the surface runtime to fault, which is

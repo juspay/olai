@@ -54,7 +54,7 @@ test("the surface profile serves MCP reads and writes without browser routes or 
 })
 
 test("MCP can be disabled and re-enabled twice without losing the browser control socket", async () => {
-  await withServing({ root: served(), plugins: ["vault"] }, async (url) => {
+  await withServing({ root: served(), plugins: ["vault", "ws", "mcp", "web-app"] }, async (url) => {
     for (let i = 0; i < 2; i++) {
       expect((await request(url)).status).toBe(200)
       await flip(url, "mcp", false)
@@ -105,7 +105,7 @@ test("an MCP-only profile falls back when its requested port is busy", async () 
 }, 15000)
 
 test("switching ws off through its own socket leaves MCP serving on the same port", async () => {
-  await withServing({ root: served(), plugins: ["vault"] }, async (url) => {
+  await withServing({ root: served(), plugins: ["vault", "ws", "mcp", "web-app"] }, async (url) => {
     // The request's connection is deliberately withdrawn by the switch. Its
     // response may be lost, but teardown must finish and the other face stay up.
     await flip(url, "ws", false).catch(() => {})
@@ -115,7 +115,7 @@ test("switching ws off through its own socket leaves MCP serving on the same por
 }, 10000)
 
 test("vault withdrawal refuses MCP writes and resync, then a new activation reads disk", async () => {
-  await withServing({ root: served(), plugins: ["vault"] }, async (url) => {
+  await withServing({ root: served(), plugins: ["vault", "ws", "mcp", "web-app"] }, async (url) => {
     for (let i = 0; i < 2; i++) {
       await flip(url, "vault", false)
       const refused = await request(url, "tools/call", { name: "set_title", arguments: { id: "a", title: "must not land" } })
@@ -132,8 +132,8 @@ test("vault withdrawal refuses MCP writes and resync, then a new activation read
   })
 })
 
-test("an empty plugin selection keeps the control plane but serves no directory until enabled", async () => {
-  await withServing({ root: served(), plugins: [] }, async (url) => {
+test("an explicit transport-only selection keeps the control plane but serves no directory until enabled", async () => {
+  await withServing({ root: served(), plugins: ["ws", "mcp", "web-app"] }, async (url) => {
     const refused = await request(url, "tools/call", { name: "set_title", arguments: { id: "a", title: "must not land" } })
     expect(JSON.stringify(await refused.json())).toContain("serving no directory")
     expect((await fetch(url + "/olai/resync", { method: "POST" })).status).toBe(500)
@@ -142,3 +142,32 @@ test("an empty plugin selection keeps the control plane but serves no directory 
     expect((await read.json()).result.isError).not.toBe(true)
   })
 })
+
+
+test("an exact empty selection overrides every profile and opens no listener", async () => {
+  for (const profile of ["web", "surface", "test-minimal"] as const) {
+    await withServe({ root: served(), profile, plugins: [] }, async (said) => {
+      expect(findSaid(said, "no transport rows enabled")).toBeDefined()
+      expect(findSaid(said, "serving")).toBeUndefined()
+    })
+  }
+})
+
+test("an exact MCP selection can override the profile's transports", async () => {
+  await withServing({ root: served(), profile: "test-minimal", plugins: ["vault", "mcp"] }, async (url) => {
+    expect((await request(url)).status).toBe(200)
+    expect((await fetch(url + "/olai/who")).status).toBe(404)
+  })
+})
+
+
+test("an exact MCP CLI selection does not require a browser build in web profile", async () => {
+  const child = startWeb({ root: served(), extra: ["--plugins=vault,mcp"], env: { OLAI_DIST_DIR: "/no-browser-build" } })
+  try {
+    const url = await child.address()
+    expect((await request(url)).status).toBe(200)
+    expect((await fetch(url)).status).toBe(404)
+  } finally {
+    expect(await child.stop()).toBe(130)
+  }
+}, 15000)

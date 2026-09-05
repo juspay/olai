@@ -6,12 +6,15 @@ import type { BespokeTool, ClientOrConnection } from "@kolu/surface-mcp"
 import type { ExposeMap } from "@kolu/surface/expose"
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js"
 
-export type TransportRow = "ws" | "mcp" | "web-app"
 export interface TransportSurface {
-  readonly register: (row: TransportRow) => Effect.Effect<void, never, Scope.Scope>
+  /** Every call owns an independent registration; releasing one provider does
+   * not withdraw another provider of the same capability. */
+  readonly websocket: () => Effect.Effect<void, never, Scope.Scope>
+  readonly assets: () => Effect.Effect<void, never, Scope.Scope>
+  readonly protocol: () => Effect.Effect<void, never, Scope.Scope>
   /** Prepares a fresh ticket table on the caller's scope; the plugin acquires
    * its protocol server over these options before registering HTTP presence. */
-  readonly mcp: Effect.Effect<{
+  readonly prepareProtocol: Effect.Effect<{
     readonly client: () => ClientOrConnection
     readonly tools: Record<string, BespokeTool>
     readonly transport: Transport

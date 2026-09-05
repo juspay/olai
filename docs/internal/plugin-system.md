@@ -1062,11 +1062,13 @@ that matters.
    register comes back out when your plugin unloads, and you write no teardown
    for any of it — unless you hold something the runtime cannot see, which is an
    `Effect.addFinalizer` and is what `xyne-spaces` does for its mirrors.
-3. **`packages/plugins/<name>/src/browser.tsx`** — the browser half, the same
+3. **`packages/plugins/<name>/src/browser.tsx`**, if the plugin draws UI — the browser half, the same
    shape: a `name` and a `surface` re-exported off `./wire.ts`, and a `default`
    `definePlugin` whose Effect registers your faces into `Slots`. Browser graph,
    and its own chunk. An ENGINE re-exports only its `name` and registers TWO
-   faces: its mark and its install sentence (step 6).
+   faces: its mark and its install sentence (step 6). A server-only plugin
+   omits `./browser` and `./all.css` from its package exports; no empty modules
+   are needed, and the generator emits neither a chunk nor a stylesheet import.
 4. **`packages/plugins/<name>/docs.md`** — the user page, plus a
    symlink at `docs/plugins/<name>.md` and a line in `docs/index.md`.
    `packages/tests/plugin_docs.test.ts` fails if you skip either.
@@ -1171,8 +1173,6 @@ names the file.
 
 Browser row actions (`outline.row.action`) may return a refusal sentence from `run(node)`. The menu displays it beside the originating row; successful actions return nothing. This lets plugin procedures explain expected failures, such as a full node-agent pool, without depending on core’s presentation types.
 
-Infrastructure rows (`ws`, `mcp`, `web-app`) are inserted into the same loader tree by the composition root. Their modules live in `@olai/server`, not the tenant bundle, so the dependency direction stays downward. They wait for the composed `transport-surface` service, appear in the same panel report, and release their registrations when their scopes close. See [architecture.md](../architecture.md) for shared-listener ownership and [running.md](../running.md) for profiles.
-
 ### Plugin-owned service keys (12b)
 
 `Offers.own(word, provision)` composes `<fiber name>.<word>` inside the keyed
@@ -1240,6 +1240,6 @@ The vault switch remains available and explains its cost. Disabling it clears se
 
 ### Transport plugins and profiles
 
-`ws`, `mcp` and `web-app` are packages under `packages/plugins/`, with the same server, browser, style and documentation doors as the other rows. Their browser halves add no UI: the existing plugins panel controls them. `@olai/plugin-api/transport` defines the host-provided `TransportSurface` service; the rows stay pending until the root has bound the composed surface. Each registration belongs to its plugin’s Effect scope. The MCP package also owns protocol acquisition and cleanup; the host prepares the writer-bound client, tools and scoped ticket mint.
+`ws`, `mcp` and `web-app` are packages under `packages/plugins/`, with server and documentation doors. Like the vault, they export no browser half or stylesheet: the existing plugins panel controls them. `@olai/plugin-api/transport` defines the host-provided `TransportSurface` service; the rows stay pending until the root has bound the composed surface. The door offers `websocket()`, `assets()` and `protocol()` capabilities, never a caller-supplied plugin name. Each call owns an independent scoped token; another provider of the same capability survives its withdrawal. The MCP package also owns protocol acquisition and cleanup; the host prepares the writer-bound client, tools and scoped ticket mint.
 
-`mountBundle` resolves only the modules in `olai.yml`. Profiles cannot insert rows or supply a special resolver. The default `web` profile preserves the catalogue defaults, while `surface` and `test-minimal` disable rows without their `profiles` membership. A row marked `selection: profile` keeps that profile’s selection when `--plugins` patches the other rows. This preserves browser control for `--plugins=`; panel switches still apply to every row. Generated browser rows and `BUNDLE_NAMES` include every transport, and dynamic definitions cannot replace those reserved names.
+`mountBundle` resolves only the modules in `olai.yml`. Profiles cannot insert rows or supply a special resolver. The default `web` profile preserves the catalogue defaults, while `surface` and `test-minimal` disable rows without their `profiles` membership. An explicit `--plugins` list overrides the profile for every row, including transports: `--plugins=` mounts nothing and opens no listener. The browser test harness explicitly composes its socket, assets and MCP carrier for nonempty test tags. `BUNDLE_NAMES` includes every transport, so dynamic definitions cannot replace those reserved names. The generator reads package exports: only a declared `./browser` gets a browser-table entry and chunk, and only a declared `./all.css` enters the style chain. Server-only packages require neither stub.

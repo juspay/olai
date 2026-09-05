@@ -79,8 +79,9 @@ export interface ServeOptions {
   readonly port: number
   readonly host: string
   /** The built browser bundle. A nix-built binary is pointed at the bundle
-   *  derivation; the dev loop points at the tree it just built. */
-  readonly clientDist: string
+   *  derivation; the dev loop points at the tree it just built. A deferred
+   *  lookup runs only when an asset provider activates. */
+  readonly clientDist: string | Effect.Effect<string>
   /** Browser origins allowed to open the websocket, beyond same-origin. */
   readonly allowedOrigins: ReadonlyArray<string>
   /**
@@ -477,8 +478,10 @@ export const serve = (options: ServeOptions) =>
      * by disposing its own server. transports.ts owns that reconciliation.
      */
     yield* provide(plugins.host, TransportSurface, () => ({
-      register: transports.register,
-      mcp: mcp.prepare({
+      websocket: transports.websocket,
+      assets: transports.assets,
+      protocol: transports.protocol,
+      prepareProtocol: mcp.prepare({
         bound: wired.bound,
         face: wired.faces.agent,
         ops,

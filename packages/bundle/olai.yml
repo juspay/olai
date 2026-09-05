@@ -23,8 +23,6 @@
 #   disabled  OFF UNLESS THE FLAG NAMES IT. Absent is the ordinary case and
 #             means on; `true` is a plugin that is opt-in.
 #   profiles  Additional default profiles selecting this row (web uses defaults).
-#   selection profile: --plugins leaves this row’s profile selection intact.
-#             The panel can still switch it like any other row.
 #   config    THE PLUGIN'S OWN SETTINGS. Absent is the ordinary case. Validated
 #             inside activation against the plugin’s `Config` schema before
 #             `apply`; an invalid value fails the row with a sentence.
@@ -130,14 +128,11 @@
 - id: xyne-spaces
   name: olai-plugin-xyne-spaces/server
   disabled: true
-# TRANSPORTS — ordinary plugins; profile selection survives --plugins patches.
+# TRANSPORTS — ordinary plugins, selected by profiles or an exact --plugins set.
 - id: ws
   name: olai-plugin-ws/server
-  selection: profile
 - id: mcp
   name: olai-plugin-mcp/server
-  selection: profile
   profiles: [surface]
 - id: web-app
   name: olai-plugin-web-app/server
-  selection: profile

@@ -50,7 +50,7 @@
  *      is a legal tag segment because it becomes one. The framework would
  *      catch a collision at boot with a duplicate-tag throw; here it is a test,
  *      in a process that has not started yet.
- *   4. **The browser's door names every plugin and imports none, and each
+ *   4. **The browser's door names every browser export and imports none, and each
  *      plugin's own chunk stays a browser chunk.** It was one claim about one
  *      door — *the wire door stays a wire door*, `@olai/bundle/wire` being what
  *      every listener pulled in statically, forbidden a UI runtime because a
@@ -363,10 +363,15 @@ const BROWSER_DOOR = graphFrom(path.join(PACKAGES, REGISTRY, "src", "rows.ts"))
  * `./browser`, which is the chunk a roster fetches. What it may carry is
  * genuinely different from what `./wire` could, and the list below says how.
  */
-const BROWSER_DOORS: ReadonlyArray<{ readonly name: string; readonly door: Door }> = TENANTS_OF
+const BROWSER_TENANTS = TENANTS_OF.flatMap((tenant) => {
+  const manifest = manifestAt(path.join(PACKAGES, tenant.dir))
+  const target = manifest === undefined ? undefined : doorsOf(manifest)["./browser"]
+  return target === undefined ? [] : [{ ...tenant, target }]
+})
+const BROWSER_DOORS: ReadonlyArray<{ readonly name: string; readonly door: Door }> = BROWSER_TENANTS
   .map((tenant) => ({
     name: tenant.name,
-    door: graphFrom(path.join(PACKAGES, tenant.dir, "src", "browser.tsx")),
+    door: graphFrom(path.join(PACKAGES, tenant.dir, tenant.target)),
   }))
 
 /** One walked door, as the two claims below read it. */
@@ -457,10 +462,10 @@ const SERVER_DOOR = ((): ReturnType<typeof graphFrom> => {
  * SPELL every plugin, which is the property that makes the emptiness a design
  * rather than a mistake, and it is asserted first.
  */
-describe("the browser's door names every plugin and imports none", () => {
+describe("the browser's door names every browser export and imports none", () => {
   const reached = BROWSER_DOOR.reached
 
-  test("it spells every plugin, in a specifier a bundler can split on", () => {
+  test("it spells exactly the browser exports, in specifiers a bundler can split on", () => {
     // THE FLOOR, and the one that matters here. A generated table that had
     // dropped a row, or spelled a package that does not exist, would satisfy
     // every bound below by naming nothing — so what is asserted is the
@@ -471,7 +476,7 @@ describe("the browser's door names every plugin and imports none", () => {
     // file and leaves this one as a name. That IS the split: a literal the
     // bundler can see, and a module nothing pulls until the roster asks.
     const named = new Set(reached.filter((one) => namesAPlugin(one.spec)).map((one) => one.spec))
-    expect([...named].sort()).toEqual(PLUGIN_PACKAGES.map((pkg) => `${pkg}/browser`).sort())
+    expect([...named].sort()).toEqual(BROWSER_TENANTS.map((tenant) => `${tenant.pkg}/browser`).sort())
   })
 
   test("...and the walk did NOT cross into any of them", () => {
@@ -519,8 +524,8 @@ describe("a plugin's browser chunk stays a browser chunk", () => {
     // NOT VACUOUS, in both directions at once: a resolver that answered nothing
     // would walk one file per tenant and satisfy the list below by being empty,
     // and an entry that does not exist would do the same more quietly. Every
-    // tenant has a browser half — it is what its row's chunk IS — so an absent
-    // one is a defect rather than a plugin that happens to draw nothing.
+    // declared browser export must exist. Server-only rows are absent from
+    // BROWSER_TENANTS, derived independently from the manifest exports.
     for (const { name, door } of BROWSER_DOORS) {
       expect([name, door.unresolved]).toEqual([name, []])
       expect([name, door.files.length > 1]).toEqual([name, true])
@@ -1690,9 +1695,6 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
      * shared listener and writer faces; none of these files resolves modules.
      * web-app also occurs in the browser install metadata. Exact file equality
      * keeps every new spelling reviewable, as for vault and search below. */
-    "ws": [
-      "server/src/transports.ts",
-    ],
     "mcp": [
       "format/src/committing.ts",
       "plugins/chat/src/agent.ts",
@@ -1716,7 +1718,6 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
       "server/src/transports.ts",
     ],
     "web-app": [
-      "server/src/transports.ts",
       "web/src/client/theme/chrome.ts",
     ],
 
@@ -1966,4 +1967,17 @@ test("the composition root imports no plugin definition factory", () => {
     !/\.(test|testlib|bench)\./.test(source.file)
     && /\b(?:import|export)\s*\{[^}]*\bdefinePlugin\b/.test(readFileSync(path.join(PACKAGES, source.file), "utf8")))
   expect(definitions.map((source) => source.file)).toEqual([])
+})
+
+
+test("the generated style chain contains exactly the declared stylesheet exports", () => {
+  const expected = TENANTS_OF.flatMap((tenant) => {
+    const manifest = manifestAt(path.join(PACKAGES, tenant.dir))
+    return manifest !== undefined && doorsOf(manifest)["./all.css"] !== undefined
+      ? [`${tenant.pkg}/all.css`] : []
+  })
+  const actual = cssImportsOf(readFileSync(path.join(PACKAGES, "bundle/src/all.generated.css"), "utf8"))
+  expect([...actual].sort()).toEqual(expected.sort())
+  expect(BROWSER_TENANTS.length).toBeGreaterThan(0)
+  expect(BROWSER_TENANTS.length).toBeLessThan(TENANTS_OF.length)
 })
