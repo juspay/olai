@@ -88,6 +88,14 @@ Then("the file {string} has not been created", function (this: OlaiWorld, file: 
   assert.strictEqual(fs.existsSync(path.join(this.scratch(), file)), false);
 });
 
+Then("the file {string} has been created", async function (this: OlaiWorld, file: string) {
+  await this.waitUntil(async () => fs.existsSync(path.join(this.scratch(), file)), `${file} to exist`);
+});
+
+When("I follow the outline {string} while updates are delayed", async function (this: OlaiWorld, file: string) {
+  await this.outlineLink(file).click();
+});
+
 Then("the new {word} box is ready", async function (this: OlaiWorld, kind: string) {
   await this.expectAttribute(selector(making(kind).testids.path), "aria-busy", "false", `new ${kind} box`);
 });

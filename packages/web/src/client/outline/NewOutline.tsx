@@ -42,12 +42,13 @@ export function NewOutline() {
     <NewFile
       making={MAKING_OUTLINE}
       create={async (file) => {
+        const started = router.workspace()
         const outcome = await applied({ verb: "outlineNew", file }, undo.record)
         if (Result.isFailure(outcome)) return outcome.failure.message
         // WHERE it landed is the ANSWER's, not the box's: the ops layer says
         // which file the write produced, and reading it back off what was typed
         // would be a second spelling of a path (`../document/minted.ts`'s rule).
-        router.go(atFile(outcome.success.file))
+        if (router.workspace() === started) router.go(atFile(outcome.success.file))
         return null
       }}
     />

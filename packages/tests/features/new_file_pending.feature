@@ -1,5 +1,64 @@
 @scratch:good
 Feature: New-file forms keep the next filename while an earlier write is pending
+  Scenario: A document created after leaving opens for reading on a later visit
+    Given incoming updates to this browser tab can be held
+    And I open the outline "house.olai"
+    When I open the new document box
+    And I fill the new document box with "created.md"
+    And I hold incoming updates to the original browser tab
+    And I submit the new document box while updates are delayed
+    And I follow the outline "garden.olai" while updates are delayed
+    And I release incoming updates to the original browser tab
+    Then the new document box is gone
+    And the address is "/garden.olai"
+    When I click the document "created.md"
+    Then the document open is "created.md"
+    And the document editor is gone
+    When I start editing the document
+    Then the document editor is open
+    And there should be no page errors
+
+  Scenario Outline: A late creation response does not take the newly focused pane
+    Given incoming updates to this browser tab can be held
+    And I open the address "/s/house.olai/garden.olai"
+    When I focus pane 0
+    And I open the new <kind> box
+    And I fill the new <kind> box with "created.<suffix>"
+    And I hold incoming updates to the original browser tab
+    And I submit the new <kind> box while updates are delayed
+    And I focus pane 1
+    And I release incoming updates to the original browser tab
+    Then the new <kind> box is gone
+    And pane 1 is focused
+    And pane 0 is showing "/house.olai"
+    And pane 1 is showing "/garden.olai"
+    And the file "created.<suffix>" has been created
+    And there should be no page errors
+
+    Examples:
+      | kind     | suffix |
+      | outline  | olai   |
+      | document | md     |
+
+  Scenario Outline: A late creation response does not replace explicit navigation
+    Given incoming updates to this browser tab can be held
+    And I open the outline "house.olai"
+    When I open the new <kind> box
+    And I fill the new <kind> box with "created.<suffix>"
+    And I hold incoming updates to the original browser tab
+    And I submit the new <kind> box while updates are delayed
+    And I follow the outline "garden.olai" while updates are delayed
+    And I release incoming updates to the original browser tab
+    Then the new <kind> box is gone
+    And the address is "/garden.olai"
+    And the file "created.<suffix>" has been created
+    And there should be no page errors
+
+    Examples:
+      | kind     | suffix |
+      | outline  | olai   |
+      | document | md     |
+
   Scenario Outline: A late refusal does not annotate the corrected filename
     Given incoming updates to this browser tab can be held
     And I open the outline "house.olai"
