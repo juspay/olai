@@ -142,6 +142,25 @@ Feature: New-file forms keep the next filename while an earlier write is pending
       | outline  | olai   |
       | document | md     |
 
+  Scenario: An arriving document body leaves the reopened filename box focused
+    Given incoming updates to this browser tab can be held
+    And I open the outline "house.olai"
+    When I open the new document box
+    And I fill the new document box with "first.md"
+    And I hold incoming updates to the original browser tab
+    And I submit the new document box while updates are delayed
+    And I press "Escape" without waiting
+    Then the new document box is gone
+    When I open the new document box
+    And I fill the new document box with "second.md"
+    And I release incoming updates to the original browser tab
+    Then the new document box is ready
+    And the arriving document editor leaves the new document box focused
+    When I press "Enter" without waiting
+    Then the address is "/second.md"
+    And the new document box is gone
+    And there should be no page errors
+
   Scenario Outline: Pending creation cannot submit or discard the next filename
     Given incoming updates to this browser tab can be held
     And I open the outline "house.olai"

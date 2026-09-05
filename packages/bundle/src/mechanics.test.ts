@@ -132,13 +132,14 @@ const SOURCES: ReadonlyArray<{ file: string; code: string }> = MEMBERS
   .filter((one) => one.file !== SELF)
 
 /**
- * THE TWO SITES THAT MAY STILL DIAL RAW, and the reason they are not the seam
+ * THE SITES THAT MAY STILL DIAL RAW, and the reason they are not the seam
  * coming back.
  *
- * Both are NODE-side benches that stand a real olai server up and speak to it
+ * These are NODE-side benches that stand a real olai server up and speak to it
  * over a real websocket, which is the whole of what they are for: one asks what
  * the browser FACE refuses as deployed, the other what the upgrade's identity
- * headers reach. The turnkey seam is `@kolu/surface-app/solid` — it mints memos
+ * headers reach; the profile bench tests transport removal and recovery.
+ * The turnkey seam is `@kolu/surface-app/solid` — it mints memos
  * and wants a reactive owner — so it is not a thing a bun test running under
  * node resolution can call, and routing these through it would replace the
  * subject (a socket at a listener) with a different one (a Solid client bundle).
@@ -151,6 +152,7 @@ const SOURCES: ReadonlyArray<{ file: string; code: string }> = MEMBERS
 const HARNESSES: ReadonlyArray<string> = [
   "createSurfaceSocket @ server/src/faces.test.ts",
   "createSurfaceSocket @ server/src/identity.test.ts",
+  "createSurfaceSocket @ server/src/profiles.test.ts",
 ]
 
 // A LIST, not a boolean, and one test rather than six: what a reader of a
