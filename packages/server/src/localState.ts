@@ -37,16 +37,15 @@ export const localStateFor = (
   let loaded = false
   let record: Record<string, unknown> | null = null
 
-  const read = (from: string): Effect.Effect<Record<string, unknown> | null | undefined> =>
-    Effect.match(readLocal(from, cwd), {
-      onFailure: (failure) => {
-        warn(`plugin ${plugin}: ${failure.why}`)
-        return undefined
-      },
-      onSuccess: (value) => value,
-    })
-
-  const readOnce = Effect.map(read(at), (value) => value ?? null)
+  // There is one current path. Missing and unreadable both load as absence;
+  // the warning distinguishes a failed read without adding a cache state.
+  const readOnce = Effect.match(readLocal(at, cwd), {
+    onFailure: (failure) => {
+      warn(`plugin ${plugin}: ${failure.why}`)
+      return null
+    },
+    onSuccess: (value) => value,
+  })
 
   const loadOnce: Effect.Effect<Record<string, unknown> | null> = Effect.suspend(() =>
     loaded ? Effect.succeed(record) : Effect.map(readOnce, (value) => {
@@ -68,7 +67,6 @@ export const localStateFor = (
               warn(`plugin ${plugin}: local state could not be written (${failure.why})`)),
         )
         record = local
-
       })),
   }
 }

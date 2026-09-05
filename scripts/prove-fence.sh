@@ -406,7 +406,7 @@ run 4 "a plugin imports ANOTHER plugin" \
   append "$plugin_a/src/browser.tsx" "import \"$name_b/server\""
 
 run 18 "a plugin DECLARES another plugin in its manifest" \
-  'plugins consume services and never import another plugin' \
+  'no package outside the registry declares a plugin in its manifest' \
   declare_dep "$plugin_a" "$name_b"
 
 # MUTATIONS 5 AND 6 WERE ONE DOOR AND ARE NOW TWO, and the split is the whole

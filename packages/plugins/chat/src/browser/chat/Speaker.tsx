@@ -15,8 +15,8 @@
  *     ladder — the proxy's IdP avatar, the operator's template, the gravatar of
  *     a real email claim, and the silhouette when no rung had one. It is the
  *     same answer the header chip draws, through the same single ask
- *     (`@olai/web/client/who/index.ts`, core viewer furniture and the one
- *     edge from this plugin to another), because a header saying one thing
+ *     (`@olai/web/client/who/index.ts`, core viewer furniture shared
+ *     by both faces), because a header saying one thing
  *     about who is looking and a transcript saying another would be two answers
  *     to one question. There is no default picture anywhere in this file:
  *     `null` from the ladder is the silhouette, which is a rung and not a

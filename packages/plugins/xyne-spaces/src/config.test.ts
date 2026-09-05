@@ -1,84 +1,60 @@
 /**
- * The vault half: `xyne-channel` on a node agent, joined to the binding.
- *
- * The records below carry the key chat's kind CLAIMS, which is what a vault
- * that has declared nothing at all carries — turning chat on is the whole of
- * putting that column there. A board carrying the older bare key, and the one
- * row that keeps it working, are `olai-plugin-chat`'s `server/agents.test.ts`:
- * the fold is the same one, and asserting it twice would be this package
- * reporting on a decision that is not its own.
+ * Spaces' channel policy consumes seating answers, not chat's storage grammar.
+ * These nodes carry only channel properties; the service's answers are explicit
+ * so changing how chat persists a seat cannot change what this test is asking.
+ * Chat's declaration fold is covered in its own tests, and the real provider's
+ * arrival and withdrawal are covered by cross_plugin_doors.feature.
  */
-
 import { readingOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
+import { bindOf, DEFAULT_TRIM, spacesConfigIn, type Seats } from "./config.ts"
 
-import { bindOf, CHANNEL_PROP, DEFAULT_TRIM, spacesConfigIn } from "./config.ts"
+const seat = (id: string, session: string | null = "s-1"): Seats[number] => ({
+  id, file: "board.olai", title: id, engine: "claude", session,
+})
 
-import { SESSION_TYPE, seatingIn } from "./seating.testlib.ts"
-
-const rec = (id: string, title: string, fields: Record<string, string>): string =>
-  `{"id":${JSON.stringify(id)},"ord":"a0","title":${JSON.stringify(title)},"custom":${
-    JSON.stringify(fields)
-  }}`
-
-const reading = (files: Record<string, string>) => {
-  const derived = readingOf(setOf(files)).derived
-  return spacesConfigIn(derived, seatingIn(derived))
+const reading = (channels: Record<string, string>, seats: Seats) => {
+  const board = Object.entries(channels).map(([id, channel]) => JSON.stringify({
+    id, ord: "a0", title: id, custom: { "xyne-channel": channel },
+  })).join("\n")
+  return spacesConfigIn(readingOf(setOf({ "board.olai": board })).derived, seats)
 }
 
-test("a node agent with xyne-channel and a session is bound", () => {
-  const got = reading({
-    "board.olai": rec("orch", "orchestrator", {
-      [SESSION_TYPE]: "claude:s-1",
-      [CHANNEL_PROP]: "ch-team",
-    }),
-  })
+test("a seated conversation with a channel is bound", () => {
+  const got = reading({ orch: "ch-team" }, [seat("orch")])
   expect(got.binds).toEqual([{
-    node: "orch",
-    file: "board.olai",
-    title: "orchestrator",
-    channel: "ch-team",
-    engine: "claude",
-    session: "s-1",
+    node: "orch", file: "board.olai", title: "orch", channel: "ch-team",
+    engine: "claude", session: "s-1",
   }])
   expect(bindOf(got, "claude", "s-1")?.channel).toBe("ch-team")
   expect(bindOf(got, "claude", "other")).toBeUndefined()
   expect(got.trim).toBe(DEFAULT_TRIM)
 })
 
-test("a node agent with xyne-channel and no session is named, and posts nothing", () => {
-  const got = reading({
-    "board.olai": rec("orch", "orchestrator", {
-      [SESSION_TYPE]: "claude",
-      [CHANNEL_PROP]: "ch-team",
-    }),
-  })
+test("a seat without a session is named intent and posts nothing", () => {
+  const got = reading({ orch: "ch-team" }, [seat("orch", null)])
   expect(got.named).toEqual([{ node: "orch", file: "board.olai" }])
   expect(got.binds).toEqual([])
 })
 
-test("xyne-channel on a node that is not a node agent is ignored", () => {
-  const got = reading({
-    "board.olai": rec("note", "a note", { [CHANNEL_PROP]: "ch-team" }),
-  })
+test("a channel without a seat is ignored", () => {
+  const got = reading({ note: "ch-team" }, [])
   expect(got.named).toEqual([])
   expect(got.binds).toEqual([])
 })
 
-test("a node agent without xyne-channel is not bound", () => {
-  const got = reading({
-    "board.olai": rec("orch", "orchestrator", { [SESSION_TYPE]: "claude:s-1" }),
-  })
+test("a seat without a channel is not bound", () => {
+  const got = reading({}, [seat("orch")])
   expect(got.binds).toEqual([])
   expect(bindOf(got, "claude", "s-1")).toBeUndefined()
 })
 
-test("the first node wins where two name one session", () => {
-  const got = reading({
-    "board.olai": [
-      rec("a", "first", { [SESSION_TYPE]: "claude:s-1", [CHANNEL_PROP]: "ch-a" }),
-      rec("b", "second", { [SESSION_TYPE]: "claude:s-1", [CHANNEL_PROP]: "ch-b" }),
-    ].join("\n"),
-  })
+test("the first channel-bearing seat wins for one conversation", () => {
+  const got = reading({ a: "ch-a", b: "ch-b" }, [seat("a"), seat("b")])
   expect(got.binds.map((bind) => bind.channel)).toEqual(["ch-a"])
+})
+
+test("channel-less seats do not claim a conversation and whitespace is trimmed", () => {
+  const got = reading({ a: "  ", b: " ch-b " }, [seat("a"), seat("b")])
+  expect(got.binds.map((bind) => bind.channel)).toEqual(["ch-b"])
 })

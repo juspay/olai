@@ -41,12 +41,10 @@
  *      because a fence that only forbade would pass on a tree where the
  *      services door had quietly stopped being reachable.
  *
- *      **"No plugin imports another plugin" is NOT among these any more.**
- *      The Cordis proposal overturns it: `needs` is the dependency arm and it
- *      is reactive, so the half-wired state the ban feared is `waiting`. What
- *      the ban protected is claim 6's: an appliance's TIER stays inside its
- *      tenant, so a plugin reaching into another's `./server` drags that
- *      appliance's client onto its own graph and goes red there.
+ *      **Plugins consume declared services, not other plugin packages.**
+ *      `needs` follows a provider's lifetime; an import does not. The source
+ *      claim forbids cross-plugin imports, and the manifest claim requires
+ *      zero plugin dependencies, with no exceptions table for tenants.
  *   3. **A plugin is a SIBLING, and core computes none of its addresses.**
  *      Each plugin composes under its own name, no two share one, and a name
  *      is a legal tag segment because it becomes one. The framework would
@@ -770,7 +768,6 @@ describe("only the registry knows a plugin's name", () => {
         source.plugins.filter((spec) => packageOf(spec) !== `olai-plugin-${name}`)
           .map((spec) => `${source.file}: ${spec}`)) ?? []
       expect(other, dir).toEqual([])
-      expect(declaredBy(dir), dir).toEqual([])
     }
   })
 

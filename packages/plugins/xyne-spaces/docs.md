@@ -65,3 +65,5 @@ A refused post, and a bind whose process has no Spaces app, are said **once** in
 - **No inbound.** A message in the Spaces channel, an @mention, a DM, a slash command or a button click does not reach this olai. That is phase 2.
 - **No live test in CI.** The suite pins request shapes against a fake Spaces. Deploying against the real instance is the human's, before merge.
 - **No picker.** The prototypes showed a channel picker on the chat strip; this slice ships the `xyne-channel` property on the node agent.
+
+The seating service supplies node, file, title, engine and session; roster-only details such as memory counts are outside the mirror’s contract. Channel policy tests supply those answers directly, while chat’s own tests cover how vault declarations become seats.

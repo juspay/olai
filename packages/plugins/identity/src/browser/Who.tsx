@@ -18,11 +18,10 @@
  * stands in, and the person is still `yes` (they have a login, and now
  * often a name).
  *
- * THE ASK IS THE TAB'S rather than this chip's ({@link ./mine.ts}). It used
+ * THE ASK IS THE TAB'S rather than this chip's (`@olai/web/client/who`). It used
  * to be `createWho()` called here, which was right while the header was the
  * only reader; the transcript names the person over each run of their
- * messages too (`olai-plugin-chat`'s `Speaker.tsx`, through this row's
- * `./person` door), and a resource per face would be one `who.get` per run
+ * messages too (through core’s shared viewer kit), and a resource per face would be one `who.get` per run
  * of a conversation for an answer that does not move for the life of the
  * socket.
  *
