@@ -2500,7 +2500,9 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
          * talking goes unremarked (nothing is claimed), and a turn that drew
          * something is never accused of silence. Several turns at once is the
          * ordinary shape now — a message typed while the agent works is one —
-         * and this errs towards saying nothing about all of them.
+         * and this errs towards saying nothing about all of them. An explicit
+         * refusal while this ticket is still behind an older turn is stronger
+         * evidence, handled below: that queued prompt was never taken up.
          */
         const quiet = (): boolean => shown === quietSince
 
@@ -2540,6 +2542,13 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
             // Left the set HERE rather than in the `ensuring` below, because
             // every line under this one is asking whether anything is still
             // running and the answer has to already be true.
+            // Read before removing the ticket. A prompt explicitly refused
+            // while an older turn still heads the queue has not been taken
+            // up, even if that older turn streamed between send and refusal.
+            // `quiet()` cannot distinguish those frames: they name a session,
+            // not a prompt. Queue order supplies the missing evidence here.
+            const refusedWhileQueued = turns.head !== ticket
+              && outcome._tag === "Failure" && outcome.failure.gone === "refused"
             const current = turns.leave(ticket)
             // ... and so is the SETTLE, for `begins`' reason read from the
             // other end: a turn that ends while another is still running must
@@ -2604,7 +2613,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
               // that undelivered would contradict the answer sitting above it.
               // What has changed is that "did it arrive" is now answerable —
               // by the turn's own silence, and by `Gone` where it is not.
-              if (quiet()) markUndelivered(key, prompt, outcome.failure.gone)
+              if (quiet() || refusedWhileQueued) markUndelivered(key, prompt, outcome.failure.gone)
               // WHETHER THERE IS STILL AN AGENT, which is a different question
               // from whether the turn ran and is answered by the same value: a
               // turn the agent REFUSED is a turn that ended — the process is

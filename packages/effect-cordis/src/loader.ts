@@ -106,6 +106,8 @@ export const mountRows = (host: Host, options: {
    *  `{ id, config }` copied onto the matching row. An empty list is nobody
    *  having said anything, and the rows' own defaults stand. */
   readonly patches: ReadonlyArray<Partial<Row> & { readonly id: string }>
+  /** Composition-root rows inserted into the same loader tree. */
+  readonly rows?: ReadonlyArray<Row & { readonly name: string }>
   /** How a row's module specifier becomes a module — see the header. */
   readonly resolve: (specifier: string) => Promise<unknown>
 }): Effect.Effect<void> =>
@@ -125,7 +127,10 @@ export const mountRows = (host: Host, options: {
     const rows: Array<Entry> = []
     ctx.on("loader/entry-init", (entry: Entry) => void rows.push(entry))
     ;(ctx as unknown as Record<symbol, Array<Entry>>)[ROWS] = rows
-    await ctx.plugin(Include, { path: options.path, patches: [...options.patches] })
+    await ctx.plugin(Include, {
+      path: options.path,
+      patches: [...options.patches, ...(options.rows?.length ? [{ insert: [...options.rows] }] : [])],
+    })
     await ctx.loader.await()
   })
 

@@ -267,6 +267,8 @@ Then("the header has no search box", async function (this: OlaiWorld) {
   await header
     .locator(APP_CHROME)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  // The server acknowledges the switch before browser composition completes.
+  await header.locator(HEADER_SEARCH).waitFor({ state: "detached", timeout: POLL_TIMEOUT });
   assert.equal(
     await header.locator(HEADER_SEARCH).count(),
     0,

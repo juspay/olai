@@ -12,7 +12,7 @@
  * person meant to make. A replayed inverse either fits the outline in front of
  * them or is refused naming what moved.
  *
- * **The stack is one PAGE's, and one SESSION's.** It survives plugin-driven app rebuilds
+ * **The stack is one PAGE's, and one SESSION's.** It belongs to App, above the plugin providers,
  * and is cleared when the reader opens another outline, because the entries
  * name rows in it — and it holds only what this tab wrote, because "undo my
  * last op" is a promise about the person's own hands. An agent's write is not

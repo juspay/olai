@@ -90,12 +90,17 @@ export function PluginsMounted(props: { readonly children: JSX.Element }): JSX.E
   // the roster. `Show` runs its children untracked, which is the same guarantee
   // a component body has and the one the old module-scope fold got for free;
   // `keyed` is what rebuilds the subtree exactly when a plugin's mount arrives
-  // or leaves, since `hung` hands back a fresh array only on a real change.
+  // or leaves, with equality checked against the provider identities below.
   //
   // `props.children` is read through the props each time rather than captured,
   // so Solid's own laziness over the tree is untouched — a mount that never
   // draws its children costs nothing below it.
-  const mounts = createMemo(() => hung("app.mount"))
+  const mounts = createMemo(() => hung("app.mount"), undefined, {
+    // Other slots can change without changing the contexts around this page.
+    equals: (before, after) => before.length === after.length
+      && before.every((one, index) => one.plugin === after[index]?.plugin
+        && one.face === after[index]?.face),
+  })
   return (
     <Show when={mounts()} keyed>
       {(faces) => chainOver(faces, () => props.children)()}

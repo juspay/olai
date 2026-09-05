@@ -612,27 +612,18 @@ Then(
   },
 );
 
-const idTitled = async (world: OlaiWorld, title: string): Promise<string | null> => {
-  const rows = world.page.locator(NODE);
-  const n = await rows.count();
-  for (let i = 0; i < n; i++) {
-    const row = rows.nth(i);
-    // A row holding its caret draws the title as the EDITOR, not the span.
-    const shown = row.locator(NODE_TITLE);
-    if ((await shown.count()) > 0) {
-      const text = (await shown.first().textContent()) ?? "";
-      if (text.includes(title)) return row.getAttribute("data-node-id");
-      continue;
+const idTitled = async (world: OlaiWorld, title: string): Promise<string | null> =>
+  world.page.locator(NODE).evaluateAll((rows, selectors) => {
+    // Read one DOM snapshot. Between separate count/textContent awaits, an
+    // idle save can swap the title span for its editor and strand the locator.
+    for (const row of rows) {
+      const shown = row.querySelector(selectors.shown);
+      const typing = row.querySelector<HTMLTextAreaElement>(selectors.typing);
+      const text = shown === null ? typing?.value : shown.textContent;
+      if (text?.includes(selectors.title)) return row.getAttribute("data-node-id");
     }
-    const typing = row.locator(TITLE_EDITOR);
-    if ((await typing.count()) > 0) {
-      const text = (await typing.first().inputValue()) ?? "";
-      if (text.includes(title)) return row.getAttribute("data-node-id");
-    }
-  }
-  return null;
-};
-
+    return null;
+  }, { shown: NODE_TITLE, typing: TITLE_EDITOR, title });
 /** WHERE a draft opened at column 0 is drawn — above the title you were in,
  *  not after that row's whole subtree. Asked of boxes on the page: a new row
  *  is not a node (nothing has been written), so document order of `[data-node-id]`

@@ -45,7 +45,10 @@
  *     and nothing else, and `serve.ts` closes what it made.
  */
 
-import { serveSurfaceApp, type SurfaceAppListenFailed } from "@kolu/surface-app/serve"
+import { serveSurfaceApp, SurfaceAppListenFailed } from "@kolu/surface-app/serve"
+import { NodeHttpServer } from "@effect/platform-node"
+import { createServer } from "node:http"
+import { HttpRouter, HttpServer } from "effect/unstable/http"
 import type { FaceExposure } from "@kolu/surface/expose"
 import { codeOf, type Emit, emitter } from "@olai/log"
 import { ASSET_PREFIX } from "@olai/surface"
@@ -100,7 +103,9 @@ export interface ListenOptions {
    */
   readonly expose: () => FaceExposure
   /** The built browser bundle. */
-  readonly clientDist: string
+  readonly clientDist?: string
+  /** Absent preserves the web listener used by existing callers. */
+  readonly websocket?: boolean
   /** The directory being served — where `/media/*` reads its pictures from. */
   readonly root: string
   /** The machine this server says it runs on, ALREADY MINTED — the
@@ -156,7 +161,7 @@ export interface ListenOptions {
   /** The internal MCP server, mounted beside the static routes — see
    *  {@link ./mcp/route.ts} for why it rides this listener rather than a
    *  transport of its own. */
-  readonly mcp: Parameters<typeof mcpRoute>[0]
+  readonly mcp?: Parameters<typeof mcpRoute>[0]
   /** `POST /olai/resync` — look at the disk now, ignoring mtime+size stamps.
    *  See {@link ./resync.ts}. */
   readonly resync: Parameters<typeof resyncRoute>[0]
@@ -211,7 +216,7 @@ export const listen = (
  *  scope here would be a field that is right at one call site and wrong at the
  *  other. */
 const app = (options: Omit<ListenOptions, "port">, port: number, say: Emit) =>
-  serveSurfaceApp({
+  options.websocket === false ? httpApp(options, port) : serveSurfaceApp({
     // THE GENERATION, READ AT EACH ACCEPT AND NEVER HERE — one `live`, which is
     // what a `ServedGenerationSource` is: a caller with a fixed surface passes
     // the triple itself, and one whose served set MOVES passes a function that
@@ -275,7 +280,7 @@ const app = (options: Omit<ListenOptions, "port">, port: number, say: Emit) =>
     // `HttpRouter` ranks by specificity, so each of those beats the shell's
     // catch-all whichever went in first.
     routes: Layer.mergeAll(
-      mcpRoute(options.mcp),
+      options.mcp ? mcpRoute(options.mcp) : Layer.empty,
       mediaLayer(options.root),
       resyncRoute(options.resync),
       whoRoute(options.who),
@@ -305,9 +310,22 @@ const app = (options: Omit<ListenOptions, "port">, port: number, say: Emit) =>
     onEvent: (event) => report(event, say),
   })
 
+/** MCP-only profiles use the platform HTTP server without a surface socket
+ * or browser routes. Its scope owns the port and all in-flight requests. */
+const httpApp = (options: Omit<ListenOptions, "port">, port: number) =>
+  Effect.gen(function*() {
+    const server = yield* NodeHttpServer.make(createServer, {
+      host: options.host,
+      port,
+      gracefulShutdownTimeout: "1 second",
+    }).pipe(Effect.mapError((failure) => new SurfaceAppListenFailed({ host: options.host, port, cause: failure.cause })))
+    const handler = yield* HttpRouter.toHttpEffect(options.mcp ? mcpRoute(options.mcp) : Layer.empty)
+    yield* server.serve(handler)
+    return HttpServer.formatAddress(server.address)
+  })
+
 /** What the OS reports for a port that is already listening. */
 const IN_USE = "EADDRINUSE"
 
 /** Ask the OS for a port. Not a magic number: `0` IS the request. */
 const ANY_PORT = 0
-

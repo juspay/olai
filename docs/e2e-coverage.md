@@ -1,5 +1,30 @@
 # Browser coverage audit
 
+Kolu PR #2228 removes the wire-driven app rebuild. The existing document lifecycle
+case checks that an unrelated journal toggle retains the actual editor DOM
+element, followed by a successful save. Cleanup, caret restoration and undo
+cases toggle chat to exercise a real provider removal. The router and undo stack
+now live in App; the remount snapshot/restore store and undo hoist are removed.
+Other pane and conversation stores still serve navigation and provider changes.
+
+The identity lifecycle scenario changes proxy headers before a journal surface
+change and again before a socket reconnect. Kolu’s connection-epoch accessor
+refreshes identity after both establishments. The identity switch-on
+scenario from #528 is also retained: when the plugin roster changes without a
+surface-map change, Olai refreshes the socket so its upgrade can retain the
+newly allowed headers.
+The first-activation scenario also requires no browser errors, and dynamic plugin
+approval requires a live connection with no silent members. These assertions
+cover waiting for socket refresh before mounting newly arriving providers.
+
+The journal lifecycle cases also cover a route-equality bug exposed by the
+stable app lifetime: a removed plugin printed the home URL, so the page memo
+mistook it for core home and suppressed the new request. A unit regression
+checks route-kind and provider identity; existing browser cases verify recovery
+and document isolation. Phone flows explicitly close the retained sidebar before
+using the page. The parked-row ordering helper reads a single DOM snapshot to
+avoid racing a title/editor swap during idle save.
+
 This audit tracks user workflows during the Cordis migration. A passing suite is
 necessary, but does not establish that an untested workflow works. A row remains
 open until its UI actions and relevant failure/persistence paths have been
@@ -8,6 +33,25 @@ reviewed, exercised, and backed by assertions that observe their outcome.
 Full-suite validation uses `just ci` or `just e2e-fast-remote`. Targeted browser
 runs use the worktree's dev server. Real-harness exploration uses Claude/Sonnet
 in a disposable vault; deterministic ACP fixtures make regressions repeatable in CI.
+
+The Phase 16 CI follow-up reproduced a delayed document body stealing focus
+from a reopened filename box. `new_file_pending` now waits for that editor,
+checks that the box retains focus, and submits the next filename with the
+keyboard. The regression fails before the focus fix. Busy-refusal scenarios
+also wait for the fixture's acknowledgement before checking idle, so the
+initial idle state cannot satisfy setup before the requested mode is active.
+They also wait for the held turn's own "working on it" response: the browser's
+optimistic working state alone does not prove the fixture is already inside
+the turn that must refuse a concurrent prompt.
+The fixture now emits output from that earlier turn immediately before refusing
+the queued prompt. This reproduces a delivery bug deterministically: the shared
+output counter hid the refused row's retry action. Queue order now preserves
+the refusal and attachment retry even while the older turn continues streaming.
+
+The post-merge CI follow-up also makes the node-mutation setup wait for a new
+session id and idle state before sending its first message. The phone Git
+lifecycle scenario explicitly closes the plugins panel before dismissing the
+directory drawer, so a surviving panel cannot intercept the commit banner.
 
 The post-merge [redundancy audit](e2e-economy.md) consolidates four scenario
 executions while preserving their workflow assertions, and removes unnecessary
@@ -74,3 +118,8 @@ a new prompt. Its real `read_node` call returned the node's title; an attempted
 `set_title` on sibling `reap-foreground` was refused by the subtree boundary,
 and the served file retained the sibling's original title. No browser errors
 were recorded. The disposable server was stopped afterward. This manual runtime evidence complements `node_agent_idle_lifecycle`, whose three automated browser scenarios now cover those protections with the production timer. The private-scratch `@node-idle-fast` tag sets `OLAI_CHAT_IDLE_MS=2000`; ordinary scenarios clear the override. Assertions observe the selected node, unanswered question or watcher continuously across two deadlines, then verify eligible background eviction and durable restoration. No fake clock or test-only server route is used. These cases do not establish completion of the broader node or cross-domain audit.
+
+Transport coverage: `transports_are_rows.feature` flips MCP twice through the plugins panel and checks endpoint removal and recovery without browser errors. `server/src/profiles.test.ts` covers MCP-only CLI startup without a browser build, real MCP reads and writes, absent browser routes and websocket refusal, empty-profile reporting, repeated MCP flips, and port release on process shutdown. Existing headless and surface CLI scenarios continue to exercise the default web profile.
+`server/src/transports.test.ts` additionally withdraws browser-build and websocket registrations, checks that MCP remains reachable on the same port, restores the browser, and proves that releasing the last transport closes the port. The MCP-only busy-port case uses two real CLI processes.
+
+The transport lifecycle bench also checks the MCP ticket mint before activation, after withdrawal and after restart: each activation has a fresh ticket table, while the listener keeps the serve's address.

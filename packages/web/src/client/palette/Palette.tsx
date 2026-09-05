@@ -143,7 +143,7 @@ const PALETTE_ROW: RowTestids = {
   prop: TESTID.paletteItemProp,
 }
 
-// The open/question state already outlives a wire rebuild. Keep its input
+// The open/question state already outlives a plugin provider change. Keep its input
 // and pending responses with it; subscriptions, focus and cursors are rebuilt.
 const memory = {
   query: createSignal(""),

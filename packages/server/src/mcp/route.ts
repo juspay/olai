@@ -262,13 +262,15 @@ export const mcpTransport = (): RouteTransport => new RouteTransport()
  * `HttpRouter` ranks by specificity, so this beats the SPA catch-all whatever
  * order the layers are merged in.
  */
-export const mcpRoute = (options: Options): Layer.Layer<never, never, HttpRouter.HttpRouter> =>
+export const mcpRoute = (source: Options | (() => Options | undefined)): Layer.Layer<never, never, HttpRouter.HttpRouter> =>
   Layer.merge(
     HttpRouter.add(
       "POST",
       MCP_PATH,
       (request: HttpServerRequest.HttpServerRequest) =>
         Effect.gen(function*() {
+          const options = typeof source === "function" ? source() : source
+          if (!options) return HttpServerResponse.empty({ status: 404 })
           if (!mcpAllowed(request.remoteAddress, request.headers["authorization"], options.token)) {
             return HttpServerResponse.text("unauthorized", { status: 401 })
           }
@@ -317,6 +319,8 @@ export const mcpRoute = (options: Options): Layer.Layer<never, never, HttpRouter
     HttpRouter.add(
       "GET",
       MCP_PATH,
-      HttpServerResponse.text("this MCP server pushes nothing", { status: 405 }),
+      Effect.sync(() => typeof source === "function" && !source()
+        ? HttpServerResponse.empty({ status: 404 })
+        : HttpServerResponse.text("this MCP server pushes nothing", { status: 405 })),
     ),
   )

@@ -92,7 +92,13 @@ export function DocEditor(props: {
   }
 
   let editor: HTMLTextAreaElement | undefined
-  onMount(() => editor?.focus())
+  onMount(() => {
+    // The body arrives independently of navigation. By then the user may
+    // already be typing the next filename (or another field); mounting this
+    // editor must not redirect their next key into the document instead.
+    if (document.activeElement?.matches("input, textarea, [contenteditable=true]")) return
+    editor?.focus()
+  })
 
   return (
     <div class="flex flex-col gap-2">

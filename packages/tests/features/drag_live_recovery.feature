@@ -87,10 +87,10 @@ Feature: Held drags remain safe when their source or destination disappears
     Then the drop line would put it under "drag-parent"
     When I open another browser tab
     And I open the plugins panel
-    And I switch the plugin "journal" off
+    And I switch the plugin "chat" off
     And I close the plugins panel
     And I use the original browser tab
-    Then the journal chrome is absent
+    Then the conversation is gone-from the header
     When I let go
     Then the node "drag-source" is not a child of "drag-parent"
     And the outline "drag-recovery.olai" shows exactly the nodes "drag-source, drag-parent, drag-anchor"

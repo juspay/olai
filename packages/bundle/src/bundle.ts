@@ -67,7 +67,7 @@ import { kindWordOf, rowReport } from "@olai/plugin-api"
 // Everything else this file spends of the bridge comes through the door above.
 import { namedBy, offered, settled } from "@olai/effect-cordis"
 
-export { offered }
+export { offered, provide, settled } from "@olai/effect-cordis"
 import { flipRow, mountRows, rowConfigs } from "@olai/effect-cordis/loader"
 import { Effect } from "effect"
 
@@ -218,8 +218,8 @@ export const reportBundle = (
  * a row nobody imported has no declaration to read, and it cannot be carried by
  * anything anyway, because it is already off.
  */
-export const rowsNaming = (host: Host): ReadonlyMap<string, ReadonlyArray<string>> =>
-  namedBy(host, BUNDLE_NAMES)
+export const rowsNaming = (host: Host, also: ReadonlyArray<string> = []): ReadonlyMap<string, ReadonlyArray<string>> =>
+  namedBy(host, [...BUNDLE_NAMES, ...also])
 
 /**
  * EACH ROW'S CONFIG, off the live entries — what a roster draws under the
@@ -317,17 +317,24 @@ export const mountBundle = (
   host: Host,
   names: ReadonlyArray<string> | null,
   configs: ReadonlyArray<{ readonly id: string; readonly config: unknown }> = [],
+  extra?: {
+    readonly rows: ReadonlyArray<{ readonly id: string; readonly name: string; readonly disabled?: boolean }>
+    readonly resolve: (name: string) => Promise<unknown>
+  },
 ): Effect.Effect<void> =>
   Effect.flatMap(
     mountRows(host, {
       baseUrl: BASE_URL,
       path: BUNDLE,
       patches: [...pluginsPatch(names), ...configs],
-      resolve: importByName,
+      rows: extra?.rows,
+      resolve: (name) => extra?.rows.some((row) => row.name === name)
+        ? extra.resolve(name)
+        : importByName(name),
     }),
     // EVERY ROW THIS BUILD HAS, and not only the ones the flag left on: a row
     // the patch disabled never entered the registry, so it holds no inertia and
     // costs the walk one `has` — while a list narrowed to the enabled ones would
     // be a second reading of the flag beside {@link pluginsPatch}'s.
-    () => settled(host, BUNDLE_NAMES),
+    () => settled(host, [...BUNDLE_NAMES, ...(extra?.rows.map((row) => row.id) ?? [])]),
   )

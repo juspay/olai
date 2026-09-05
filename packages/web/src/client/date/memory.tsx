@@ -1,4 +1,4 @@
-/** Unsubmitted row forms belong to a tree pane, across wire rebuilds and
+/** Unsubmitted row forms belong to a tree pane, across plugin provider changes and
  * phone tab switches. Leaving that route or removing the row discards them. */
 import { edgeMemory } from "../edges/memory.ts"
 import { printAddress } from "@olai/format"

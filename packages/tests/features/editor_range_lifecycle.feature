@@ -7,10 +7,10 @@ Feature: A rebuilt editor preserves the selected text before a structural key
     And I select "the" in the line
     And I open another browser tab
     And I open the plugins panel
-    And I switch the plugin "journal" off
+    And I switch the plugin "chat" off
     And I close the plugins panel
     And I use the original browser tab
-    Then the journal chrome is absent
+    Then the conversation is gone-from the header
     And the selected text in the line is "the"
     When I press "Enter"
     Then "house.olai" holds a node titled "choose "
@@ -25,10 +25,10 @@ Feature: A rebuilt editor preserves the selected text before a structural key
     And I select "the" in the line
     And I open another browser tab
     And I open the plugins panel
-    And I switch the plugin "journal" off
+    And I switch the plugin "chat" off
     And I close the plugins panel
     And I use the original browser tab
-    Then the journal chrome is absent
+    Then the conversation is gone-from the header
     And the selected text in the line is "the"
     When I type "brass"
     And I click away from the editor
@@ -68,10 +68,10 @@ Feature: A rebuilt editor preserves the selected text before a structural key
     And I select "the" backwards in the note
     And I open another browser tab
     And I open the plugins panel
-    And I switch the plugin "journal" off
+    And I switch the plugin "chat" off
     And I close the plugins panel
     And I use the original browser tab
-    Then the journal chrome is absent
+    Then the conversation is gone-from the header
     And the note retains the backward selection "the"
     When I type "brass"
     And I click away from the editor
@@ -97,10 +97,10 @@ Feature: A rebuilt editor preserves the selected text before a structural key
     And I press "ArrowLeft"
     And I open another browser tab
     And I open the plugins panel
-    And I switch the plugin "journal" off
+    And I switch the plugin "chat" off
     And I close the plugins panel
     And I use the original browser tab
-    Then the journal chrome is absent
+    Then the conversation is gone-from the header
     When I type "even "
     And I click away from the editor
     Then "note-caret.olai" holds a node whose note ends "choose the handles and even more"

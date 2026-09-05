@@ -1,94 +1,15 @@
 /**
- * The one connection — olai's own surface as the ROOT, and every plugin the
- * SERVE IS RUNNING beside it as a SIBLING, over ONE wire.
- *
- * TOP-LEVEL AWAIT, deliberately: the dial is an Effect and building the
- * protocol's fibers cannot be run synchronously. Awaiting it here, once, keeps
- * every consumer's import synchronous-looking. It does NOT block on the socket
- * opening — the link constructs the socket and retries on its own fiber — and
- * it does NOT block on the roster either, which is the property the next
- * section is entirely about.
- *
- * This is the only file in the client that knows a websocket exists.
- *
- * ## THE TAB FOLLOWS THE ROSTER, and that is the change
- *
- * It used to dial every plugin the BUILD has, and the paragraph arguing that
- * was honest about why: the enabled set is a fact about the SERVE, this module
- * runs at import time with no answer from that process yet, and each of the
- * three ways to get one cost either a member that could only be read after the
- * wire it would have shaped was built, or a round trip before the app could
- * mount anything.
- *
- * The way out is neither of those. **Dial the ROOT first, with no siblings at
- * all** — which the framework has allowed since a rooted bundle grew a `core`
- * slot, because a wire that carries only its root is an ordinary wire. Read the
- * `plugins` cell off it like any other member. Then bring in the siblings it
- * names through `conn.redial(surfaces)`, which is `@kolu/surface-app`'s own
- * door for exactly this (juspay/kolu#2223) and owns the ORDER: the replacement
- * is dialled first and this connection released only once that has resolved, so
- * a dial that throws leaves the working wire alone.
- *
- * THE FIRST PAINT WAITS FOR THE FIRST ROSTER, bounded — see {@link firstRoster}.
- * It did not, and every ordinary boot therefore drew the page twice: render with
- * no siblings, roster arrives, redial, rebuild. That is the rare-case cost of a
- * redial paid on every load on every machine, and the deadline is what keeps a
- * roster that never answers from turning the wait into a white screen.
- *
- * ## WHAT A REDIAL COSTS, said out loud
- *
- * Everything the superseded connection handed out is dead: `clients`, `core`,
- * `transport`, `readout`, `health`. So every standing subscription in the app
- * has to be reopened, which means the page's tree is rebuilt — `./main.tsx`
- * keys the app on {@link wireGeneration} for that reason, and local UI state
- * (an open pane, a scroll position, a half-typed editor) does not survive it.
- *
- * That is not a cost this file chose; it is what a new wire IS. What it buys is
- * the thing the old arrangement could not have at any price: a plugin turned
- * off on the server leaves the tab without a reload, and one turned on arrives
- * the same way. The cost is bounded by the roster's own `equals` — a serve
- * republishing an identical roster (a reconnect does) moves nothing — and by
- * the first render WAITING for the first roster, so the ordinary boot redials
- * before it has drawn anything at all.
- *
- * ## ...AND A REDIAL IS NOT A RETIREMENT
- *
- * A superseded connection's `readout` reads `retired`, which is right for the
- * case the framework added it for (an indicator still bound to the old
- * accessor would otherwise paint green over a closed wire) and would be a LIE
- * here: `retired` carries `needsReload`, and the reload screen rides it. So
- * {@link connectionReadout} reports `reconnecting` for as long as a redial is
- * in flight, which is what the page is actually doing — between wires, on its
- * way to another one, with nothing for a reader to do about it.
- *
- * ## WHAT IS LEFT HERE, and why each line is a decision rather than a mechanic
- *
- *   - **`retired`** — what happens to this tab when the server replaces itself.
- *     Required by the seam with no default, so a wire that compiles has been
- *     asked.
- *   - **the word `"olai"`** — what a degraded readout calls this app's own
- *     floor. The framework has no name for an app's floor and does not invent
- *     one.
- *   - **the ROSTER LOOP** — which plugins this page dials, and when it changes
- *     its mind.
- *   - **`olai`'s indirection** — one live view onto whichever wire is current,
- *     argued where it is spelled.
- *
- * The stale-tab handshake is not wired here at all: the socket probes the
- * reserved `system/identity` member on every open and echoes the server's
- * process id back as `?pid` on the next dial. That the ROOT is what those
- * reserved round-trips address is the whole reason a sibling set that varies
- * per serve is safe: core is on every serve this page can reach, which is what
- * makes it the root.
+ * One rooted connection follows the server's plugin roster in place.
+ * Kolu retains the core, surviving sibling clients and standing subscriptions
+ * across redial. Olai loads browser halves, serializes roster changes and
+ * publishes plugin registrations after the new siblings are available.
  */
 
 import { connectSurfaces } from "@kolu/surface-app/solid"
 import type { Surface, SurfaceSpec } from "@kolu/surface/define"
 import type { BrowserHalf, BrowserRow } from "@olai/bundle"
 import { surface } from "@olai/surface"
-import { createEffect, createRoot, createSignal } from "solid-js"
-
-import { BETWEEN_WIRES, type SurfaceReadout } from "./connection/status.ts"
+import { createEffect, createRoot } from "solid-js"
 
 import { composeTo } from "./plugins/runtime.ts"
 
@@ -119,7 +40,7 @@ const CORE = "olai"
  * carries a ROOT — the empty-map refusal shrank to "nothing at all was passed"
  * when the `core` slot landed, and core is always here.
  */
-let live = await connectSurfaces({
+const live = await connectSurfaces({
   // OLAI'S OWN SURFACE AS THE ROOT — unprefixed, so its tags are unchanged and
   // the two reserved round-trips address them. That is what makes them
   // trustworthy on a wire whose SIBLING set varies per serve, and now varies
@@ -140,20 +61,6 @@ let live = await connectSurfaces({
       "olai: the server retired this tab — it was replaced by a newer process, so this page will not update again until it is reloaded",
     ),
 })
-
-/** WHICH WIRE THIS IS — bumped once per redial, and the one thing the app's
- *  tree is keyed on. See the header: everything the superseded connection
- *  handed out is dead, so the subtree that was reading it has to be built
- *  again.
- *
- *  IT STARTS AT ONE and not at zero, which is not a detail: `./main.tsx` keys
- *  the app on it through a `Show`, and `0` is falsy — a tab whose first wire
- *  had never been replaced would draw the fallback, which is no app at all. */
-const [generation, setGeneration] = createSignal(1)
-
-/** ...and whether a replacement is in flight, which is the difference between
- *  a wire that is being swapped and one that has been retired. */
-const [redialing, setRedialing] = createSignal(false)
 
 /**
  * A SET OF PLUGIN NAMES AS ONE VALUE — what {@link composed} holds and what the
@@ -277,7 +184,6 @@ const rerostNow = async (want: ReadonlyArray<Named>, signature: string): Promise
   // ...and once it is our turn, the answer may already be the one on the wire:
   // the frame ahead of us in the queue may have been for the same roster.
   if (signature === composed) return
-  setRedialing(true)
   try {
     const halves = await Promise.all(
       want.flatMap((one) => {
@@ -300,7 +206,33 @@ const rerostNow = async (want: ReadonlyArray<Named>, signature: string): Promise
     // — core cannot type a plugin's client without learning its members — and
     // every plugin narrows it once, at its own edge, against a shape it
     // declares itself.
-    live = await live.redial(surfaceMapOf(halves))
+    const established = live.connectionEpoch()
+    await live.redial(surfaceMapOf(halves))
+    // Kolu skips an unchanged surface map, but a changed plugin roster can
+    // also change the upgrade-header policy (a plugin need not own a surface).
+    // Refresh an unchanged, open socket so its next accept reads that policy.
+    // A replacement still connecting already reads it on its own next open.
+    if (live.connectionEpoch() === established && live.link.wire.status() === "open") {
+      // forceReconnect only initiates a close. An arriving provider (identity
+      // in particular) may ask immediately when composed, so do not mount it
+      // against the closing socket. Bound the wait so an unreachable server
+      // cannot hold the roster queue forever.
+      let detach = () => {}
+      let deadline: ReturnType<typeof setTimeout> | undefined
+      try {
+        await new Promise<void>((resolve, reject) => {
+          deadline = setTimeout(() => reject(new Error("plugin roster socket refresh timed out")), 10_000)
+          detach = live.link.wire.onStatus((status) => {
+            if (status === "open") resolve()
+            else if (status === "retired") reject(new Error("plugin roster socket retired during refresh"))
+          })
+          live.link.wire.forceReconnect()
+        })
+      } finally {
+        detach()
+        clearTimeout(deadline)
+      }
+    }
     await composeTo(halves, (plugin) => (live.clients as Record<string, unknown>)[plugin])
     composed = signature
   } catch (refused) {
@@ -309,10 +241,7 @@ const rerostNow = async (want: ReadonlyArray<Named>, signature: string): Promise
       refused,
     )
     return
-  } finally {
-    setRedialing(false)
   }
-  setGeneration((at) => at + 1)
 }
 
 /**
@@ -357,51 +286,8 @@ const surfaceMapOf = (
     ),
   )
 
-/**
- * THE LOOP — read the roster off whichever wire is current, and follow it.
- *
- * `createRoot` because this is module scope and a subscription needs an owner;
- * it is never disposed, which is correct — it lives exactly as long as the
- * document does, like the listeners `./main.tsx` starts beside it.
- *
- * The OUTER effect reads {@link generation}, which is what re-subscribes after
- * a redial: the old connection's members are dead, so the standing read has to
- * be reopened on the new one. That re-read answers the same roster and the
- * signature comparison makes it a no-op, which is what stops the loop from
- * chasing its own tail.
- */
-/**
- * THE FIRST PAINT WAITS FOR THE FIRST ROSTER — bounded, and only the first.
- *
- * ## What it costs not to
- *
- * The boot sequence is: dial the root with no siblings, render, the roster
- * arrives, redial, and the tree rebuilds keyed on {@link wireGeneration}. So
- * EVERY ORDINARY PAGE LOAD drew the outline twice and opened core's
- * subscriptions twice — not the rare case the rebuild was argued for (somebody
- * turning a plugin on or off), but every load on every machine.
- *
- * The header used to argue that away: the first paint lands on the same frame
- * as `heads` and `page`, so a reader sees one paint. That is true of what a
- * READER sees and not of what the page DOES, and the second half is the one
- * that costs — a second full render and a second set of subscriptions, thrown
- * away, on the critical path of every boot.
- *
- * ## Why it is bounded, and what the deadline is FOR
- *
- * A page that waits on a cell waits forever when the cell never answers — a
- * server too old to declare the member, a roster that fails to decode, a socket
- * that never opens. Blanking the app for any of those would trade a double
- * paint for a white screen, which is much worse: the freeze overlay and the
- * connection readout are INSIDE the tree, so a tab that cannot reach its server
- * would have no way to say so.
- *
- * So the deadline is not a guess at how long a roster takes; it is the promise
- * that a broken roster costs a flicker rather than the product. On the ordinary
- * path it never fires — the roster rides the first frame off the same socket as
- * `heads` — and when it does fire the page renders exactly as it did before
- * this existed, with the redial arriving later as an ordinary generation bump.
- */
+/** Wait for initial plugin providers to avoid drawing the shell before they
+ * arrive. The deadline lets an unreachable server still draw its readout. */
 const FIRST_ROSTER_MS = 1500
 
 /** Resolved by whichever comes first: the roster settling, or the deadline. */
@@ -412,97 +298,34 @@ export const firstRoster: Promise<void> = new Promise<void>((resolve) => {
 })
 
 createRoot(() => {
+  const roster = live.core.cells.plugins.use()
   createEffect(() => {
-    generation()
-    const roster = live.core.cells.plugins.use()
-    createEffect(() => {
-      const value = roster.value()
-      // PENDING is not the empty roster. A cell that has not answered says
-      // nothing about which plugins are running, and dialling none of them
-      // because of it would be this page inventing a policy.
-      if (value === undefined) return
-      // WHAT TO LOAD, per running row — the word, and for a plugin the VAULT
-      // defines the URL its browser half is served from. A built row has no
-      // `source`, so `chunk` is `null` and the compiled-in table below is what
-      // answers for it; a definition has no entry in that table and could not,
-      // because its source did not exist when this bundle was built.
-      const want = value.built
-        .filter((row) => row.running)
-        .map((row) => ({ id: row.name, chunk: row.source?.chunk ?? null }))
-      if (signatureOf(want) === composed) {
-        settle()
-        return
-      }
-      void rerost(want).then(settle)
-    })
+    const value = roster.value()
+    // PENDING is not the empty roster. A cell that has not answered says
+    // nothing about which plugins are running, and dialling none of them
+    // because of it would be this page inventing a policy.
+    if (value === undefined) return
+    // WHAT TO LOAD, per running row — the word, and for a plugin the VAULT
+    // defines the URL its browser half is served from. A built row has no
+    // `source`, so `chunk` is `null` and the compiled-in table below is what
+    // answers for it; a definition has no entry in that table and could not,
+    // because its source did not exist when this bundle was built.
+    const want = value.built
+      .filter((row) => row.running)
+      .map((row) => ({ id: row.name, chunk: row.source?.chunk ?? null }))
+    if (signatureOf(want) === composed) {
+      settle()
+      return
+    }
+    void rerost(want).then(settle)
   })
 })
 
+/** Core and its standing subscriptions retain their identity across rosters. */
+export const olai = live.core
 
-/**
- * OLAI'S OWN CLIENT, unprefixed — the members every page reads.
- *
- * ## A live view, and why it is not simply the value
- *
- * `wire.core` was a constant for as long as there was one wire. A redial builds
- * a new one and kills the old, so a module-scope constant would be a handle
- * onto a dead connection from the first roster frame onwards — and thirty
- * modules import this name at module scope.
- *
- * So it is a VIEW: every read resolves against whichever connection is current.
- * That is not a way of keeping stale subscriptions alive and does not pretend
- * to be — `cells.x.use()` still binds to the client it was called on, and a
- * subscription opened on a superseded wire is dead however it was reached. What
- * the view buys is that the NEXT call lands on the live wire, which is all it
- * has to do: the tree is rebuilt on {@link wireGeneration}, so every `use()` in
- * the app is called again, and each of them reads through here at that moment.
- *
- * The alternative was a context — the connection carried down the tree and read
- * by a hook — and it is the better shape in the abstract. It is also thirty
- * files of churn for a property this one object already has, and a context read
- * is only available inside a component, where several of these readers are
- * module-scope by design (`./named.ts` is asked from `./main.tsx`, outside any
- * tree). Recorded as the shape to take if a second wire ever exists.
- *
- * Functions are bound to the client they came off, so a method that reads
- * `this` cannot be handed a proxy for a receiver.
- */
-export const olai: typeof live.core = new Proxy({} as typeof live.core, {
-  get: (_target, key) => {
-    const value = Reflect.get(live.core as object, key) as unknown
-    return typeof value === "function" ? value.bind(live.core) : value
-  },
-  has: (_target, key) => Reflect.has(live.core as object, key),
-})
+/** Kolu owns reconnecting, degraded and terminal retirement state. */
+export const connectionReadout = live.readout
 
-/** WHICH WIRE THIS IS. `./main.tsx` keys the whole app on it, because a redial
- *  killed every standing subscription the previous tree was holding — see the
- *  header on what that costs and what it buys. */
-export const wireGeneration = generation
-
-/**
- * What the connection is doing — `connecting` / `live` / `degraded` /
- * `reconnecting` / `retired`, with `needsReload` and, when degraded, the names
- * of the subscriptions that stopped. Read it: an indicator nobody renders is
- * the bug this module had. `./connection/status.ts` says what each of the five
- * looks like, and nothing else about them.
- *
- * The fold is the seam's, over the wire's status and every client's
- * subscriptions — the SIBLINGS and the root, the latter under {@link CORE}.
- * Core being in it is the point: a fold over the plugins alone would leave
- * every one of olai's own subscriptions outside the fact, and a dead `manifest`
- * cell under a green light is the precise lie this readout was introduced to
- * prevent.
- *
- * TWO things are read here that the framework's own accessor cannot know. The
- * GENERATION, so a reader re-subscribes to the current wire's memo rather than
- * to a disposed one; and whether a REDIAL is in flight, because a superseded
- * connection reads `retired` — correct for a wire that is gone, and a lie about
- * a page that is on its way to another one. `needsReload` rides `retired`, and
- * the reload screen rides `needsReload`.
- */
-export const connectionReadout = (): SurfaceReadout => {
-  generation()
-  return redialing() ? BETWEEN_WIRES : live.readout()
-}
-
+/** Re-fetch per-connection answers after an establishment; never remount UI. */
+export const connectionEpoch = live.connectionEpoch

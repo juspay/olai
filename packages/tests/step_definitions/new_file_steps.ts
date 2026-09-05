@@ -28,6 +28,7 @@ import {
   MAKING_DOCUMENT,
   MAKING_OUTLINE,
   selector,
+  TESTID,
 } from "@olai/web/testlib";
 
 import { saysThat } from "../support/said.ts";
@@ -98,6 +99,13 @@ When("I follow the outline {string} while updates are delayed", async function (
 
 Then("the new {word} box is ready", async function (this: OlaiWorld, kind: string) {
   await this.expectAttribute(selector(making(kind).testids.path), "aria-busy", "false", `new ${kind} box`);
+});
+
+Then("the arriving document editor leaves the new document box focused", async function (this: OlaiWorld) {
+  await this.page.locator(selector(TESTID.documentEditor)).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.strictEqual(await this.page.locator(selector(MAKING_DOCUMENT.testids.path)).evaluate(
+    (box) => document.activeElement === box,
+  ), true, "a delayed document body must not take focus from the next filename");
 });
 
 Then("the new {word} box has no refusal", async function (this: OlaiWorld, kind: string) {
