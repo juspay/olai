@@ -344,6 +344,19 @@ When("I submit the drafted commit", async function (this: OlaiWorld) {
   await this.page.locator(COMMIT_NOW).click();
 });
 
+Given("git signing cannot run in this repository", function (this: OlaiWorld) {
+  this.git("config", "commit.gpgsign", "true");
+  this.git("config", "gpg.program", `${this.scratch()}/no-such-signing-program`);
+});
+
+When("I turn off signing in this repository", function (this: OlaiWorld) {
+  this.git("config", "commit.gpgsign", "false");
+});
+
+When("I tick {string}", async function (this: OlaiWorld, file: string) {
+  await this.page.locator(`${COMMIT_TICK}${attr("data-path", file)}`).check({ timeout: POLL_TIMEOUT });
+});
+
 // ── what ended up in the repository ────────────────────────────────────
 
 Then(
