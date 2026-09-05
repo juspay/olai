@@ -561,7 +561,7 @@ export default definePlugin({
       attach: ({ input }: { input: Parameters<Chat.Chat["attach"]>[0] }) =>
         withChat((open) => open.attach(input)),
       resend: ({ input }: { input: { id: string } }) => withChat((open) => open.resend(input.id)),
-      cancel: () => withChat((open) => open.cancel),
+      cancel: ({ input }: { input: { scope: string | null } }) => withChat((open) => open.cancelAt(input.scope)),
       setModel: ({ input }: { input: { agent: string; session: string; value: string } }) =>
         withChat((open) => open.setModel(input.agent, input.session, input.value)),
       newSession: ({ input }: { input: { agent: string } }) =>

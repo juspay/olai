@@ -454,7 +454,7 @@ export const createChat = (): Chat => {
       }),
     resend: (id) => verb(chatWire().procedures.conversation.resend({ id })),
     setModel: (agent, session, value, done) => verb(chatWire().procedures.conversation.setModel({ agent, session, value }), done),
-    cancel: () => verb(chatWire().procedures.conversation.cancel()),
+    cancel: () => verb(chatWire().procedures.conversation.cancel({ scope: state().uploadScope })),
     // The three doors that OPEN a conversation, and the fourth that reopens
     // a refused one. Each says so from the click ({@link opens}).
     newSession: (agent) => opens(chatWire().procedures.conversation.newSession({ agent })),

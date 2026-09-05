@@ -262,9 +262,13 @@ export const surface = defineSurface({
         output: Attached,
         error: ChatFailure,
       },
-      /** Stop the turn in flight. Legal while the agent is still booting — the
-       *  cancel is remembered and sent with the prompt. */
-      cancel: { error: ChatFailure },
+      /** Stop the turn in the live conversation this control was drawn for.
+       *  Legal while the agent is still booting — the cancel is remembered
+       *  and sent with the prompt. An outdated tab cannot cancel another node. */
+      cancel: {
+        input: Schema.Struct({ scope: Schema.NullOr(Schema.String) }),
+        error: ChatFailure,
+      },
       setModel: {
         input: Schema.Struct({ agent: Schema.String, session: Schema.String, value: Schema.String }),
         error: ChatFailure,

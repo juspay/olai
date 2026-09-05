@@ -41,6 +41,8 @@ export interface LiveSession {
 /** The public chat is the scheduler over panels, with every acquired node
  * scope exposed for the server's roster projection. */
 export interface Chat extends Panel {
+  /** Cancel only the live conversation the browser's control was drawn for. */
+  readonly cancelAt: (scope: string | null) => Effect.Effect<void, OpFailure>
   readonly live: () => ReadonlyMap<string, LiveSession>
   /** Mark an existing conversation assigned and move the foreground process
    * into the scope of the node that now owns it. */
@@ -604,6 +606,11 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       attach: (chunk) => foreground((panel) => panel.attach(chunk)),
       resend: (id) => foreground((panel) => panel.resend(id)),
       cancel: foreground((panel) => panel.cancel),
+      cancelAt: (scope) => foreground((panel) =>
+        scope === panel.state().uploadScope
+          ? panel.cancel
+          : Effect.fail(new UsageFailure({ reason: "the conversation changed; this cancel was not applied" }))
+      ),
       setModel: (agent, session, value) => foreground((panel) => panel.setModel(agent, session, value)),
       newSession: (agent) => foreground((panel) => panel.newSession(agent)),
       /**
