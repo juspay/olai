@@ -1006,7 +1006,7 @@ start.
 
 And the degenerate case is the same code as every other: a runtime with **no**
 plugins mounts no sibling on the rooted bundle, which leaves core's own surface
-byte for byte what it was. The `surface` server profile selects the shared vault/kinds base and the `mcp` infrastructure row, with no tenant rows enabled by default. `test-minimal` selects no transports. Both use the same plugin host and composition as the web profile; `olai surface` itself remains a client of the running server.
+byte for byte what it was. The `surface` server profile selects the `vault` row over the host kind registry and the `mcp` infrastructure row, with no tenant rows enabled by default. `test-minimal` selects no transports. Both use the same plugin host and composition as the web profile; `olai surface` itself remains a client of the running server.
 
 ---
 
@@ -1224,3 +1224,11 @@ through `Deliveries` — with the key appearing on and disappearing from
 `plugins.inspect` as the journal moves. The worked example it is a near-copy of
 is in [plugins the vault defines](../dynamic-plugins.md#a-worked-example-the-morning-agenda),
 compiled from the page itself by `@olai/server`'s `dynamic/worked.test.ts`.
+
+### Vault provider
+
+Every profile inserts `olai:vault` before the first row report. It waits on `VaultSettings`, supplied after the bundle’s declared vocabulary is available, and acquires the one-brain lock before the store. The row owns its watcher and revision publisher and offers `Vault` and `Directory`; `Kinds` remains core-provided. Late revision subscribers receive the current snapshot. Tenants naming `Vault` wait while it is absent and reactivate when it returns.
+
+Core reads `Directory` per call. The root-owned write gate takes a store thunk and captures the current store for each operation; absence is `NO_DIRECTORY`, the same UsageFailure sentence as the plugin door’s `NOWHERE_TO_WRITE`. Teardown withdraws offers, drains dependents and accepted writes, then releases the watcher and lock. The core `Ops` door remains available and refuses without a directory. This is the root-gate alternative from the Phase 17 brief.
+
+The vault switch remains available and explains its cost. Disabling it clears served collections and removes vault-defined plugins, while the transports remain available. A lock conflict or non-directory root lands as a failed row, including its own failure sentence, so the panel can retry it after the cause is resolved. `runtime.test.ts` now opens the test-minimal profile and reads its store through `Directory`.

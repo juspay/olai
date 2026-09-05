@@ -1,3 +1,4 @@
+import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 /**
  * A ROW TURNED OFF AND BACK ON WHILE THE PROCESS RUNS — the loader surface's
  * one mechanism, benched where its two halves meet.
@@ -49,7 +50,7 @@ import { flipRow, mountRows } from "@olai/effect-cordis/loader"
 import {
   definePlugin,
   type Host,
-  openPlugins,
+
   type Plugin,
   rowReport,
   serviceTag,

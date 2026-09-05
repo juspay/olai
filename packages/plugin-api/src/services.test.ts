@@ -1,3 +1,4 @@
+import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 /**
  * THE SERVICES' OWN BENCH — what a registration does to the table it writes
  * into, and what it does when the composition root refuses it.
@@ -9,7 +10,7 @@
  *
  * ## The plugins here are Effects, which is what makes half of this readable
  *
- * A case builds the runtime with {@link openPlugins}, mounts a plugin written
+ * A case builds the runtime with {@link }, mounts a plugin written
  * exactly as a real one is, and reads the doors. What it does NOT do is reach
  * for a Cordis context: there is none to reach for, in this package or in any
  * other but one.
@@ -28,7 +29,7 @@ import {
   type Mounted,
   mountPlugin,
   Offers,
-  openPlugins,
+
   Ops,
   type PluginsConfig,
   SessionStart,

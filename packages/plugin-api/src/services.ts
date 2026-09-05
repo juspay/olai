@@ -245,6 +245,37 @@ export interface Vault {
 }
 export const Vault = serviceTag<Vault>("vault")
 
+/** Core's directory seam. The composition root checks the store's concrete
+ * type against the floor; the plugin API does not import the vault grammar. */
+export interface Directory {
+  readonly root: string
+  readonly store: unknown
+}
+export const Directory = serviceTag<Directory>("directory")
+
+/** A provider owns both buses. Registration replays its current reading so a
+ * tenant activated after the first disk read still receives the vault. */
+export const vaultEvents = (served: string, current?: Effect.Effect<unknown | null>) => {
+  const revisions = broadcast<unknown>("a vault revision")
+  const quieted = broadcast<void>("the vault going quiet")
+  return {
+    door: (plugin: string): Vault => ({
+      served,
+      revision: ((handler: (snapshot: unknown) => Effect.Effect<void>) => Effect.gen(function*() {
+        yield* revisions.listen(plugin)(handler)
+        if (current) {
+          const snapshot = yield* current
+          if (snapshot !== null) yield* Effect.catchCause(handler(snapshot), (cause) =>
+            Effect.logWarning(`plugins: "${plugin}" failed on a vault revision`, cause))
+        }
+      })) as Vault["revision"],
+      unloaded: (handler) => quieted.listen(plugin)(() => handler),
+    }),
+    published: revisions.tell,
+    quiet: quieted.tell(undefined),
+  }
+}
+
 /**
  * THE DOORBELL'S DOOR — which conversations opted into the CALLING plugin's
  * wakes, and the one write-only verb that reaches them.
@@ -820,6 +851,8 @@ export const Identity = serviceTag<Identity>("identity")
  * Plugins contribute new keys through Offers.own, under their own namespace.
  */
 export const OFFERABLE = [
+  Vault,
+  Directory,
   Agents,
   Deliveries,
   SessionStart,
@@ -856,6 +889,8 @@ export interface Offers {
   readonly own: <Shape>(word: string, door: Provision<Shape>) => Effect.Effect<void, never, Scope.Scope>
   /** Stand behind one door, for as long as the calling plugin is loaded. */
   readonly offer: {
+    (key: typeof Vault, door: Provision<Vault>): Effect.Effect<void, never, Scope.Scope>
+    (key: typeof Directory, door: Provision<Directory>): Effect.Effect<void, never, Scope.Scope>
     (key: typeof Agents, door: Provision<Agents>): Effect.Effect<void, never, Scope.Scope>
     (
       key: typeof Deliveries,
@@ -1086,11 +1121,6 @@ export interface Plugins {
    * plugin-owned keys. Ownership also tracks internal core doors, which this
    * catalog deliberately does not expose. */
   readonly serviceKeys: () => ReadonlyArray<string>
-  /** TELL EVERY PLUGIN A REVISION LANDED, and wait for each of them — see
-   *  {@link Vault}. */
-  readonly published: (snapshot: unknown) => Effect.Effect<void>
-  /** ...and that the store has none. */
-  readonly quiet: Effect.Effect<void>
   /** ONE REFUSED WRITE to every subscriber, in subscription order — see
    *  {@link Ops.refused}. Rung by whoever owns the write gate, which is the
    *  composition root; nothing on this page can refuse a write. */
@@ -1235,27 +1265,6 @@ export const openPlugins = (
     // registering plugin's word, and AWAITS all of them when it is rung —
     // containment as a property of the bus rather than a discipline every plugin
     // is asked to keep, and one sentence rather than three.
-    const revisions = broadcast<unknown>("a vault revision")
-    const quieted = broadcast<void>("the vault going quiet")
-    const seen = broadcast<ConversationSeen>("a conversation event")
-
-    yield* provide(host, Vault, (plugin) => ({
-      served: config.served,
-      // THE ONE ASSERTION, and it used to be three — one in each plugin, each
-      // under a paragraph saying the compiler had checked it. The bus carries a
-      // whole published snapshot; what a half names is the part of it that half
-      // touches, and that narrowing is inferred from the handler it hands over.
-      //
-      // THIS IS WHERE THE UNSOUNDNESS LIVES, and the interface says so above it
-      // rather than leaving a reader to find this line: `A` is the caller's to
-      // pick, so a half's parameter type is a claim about what the root rings
-      // and this `as` is what lets the two meet.
-      revision: revisions.listen(plugin) as Vault["revision"],
-      // The other door takes no value, so a plugin hands over the Effect itself
-      // rather than a function of nothing.
-      unloaded: (handler) => quieted.listen(plugin)(() => handler),
-    }))
-
     /**
      * ...AND THE SEVEN THAT CORE DOES NOT PROVIDE AT ALL, which is the whole
      * of this phase and reads here as an absence.
@@ -1446,8 +1455,6 @@ export const openPlugins = (
       serviceKeys: () => [...SERVICE_KEYS, ...[...offered.keys()].filter((key) => key.includes("."))].sort(),
       changes: hostChanges(host),
       close: closeHost(host),
-      published: revisions.tell,
-      quiet: quieted.tell(undefined),
       refused: refusals.tell,
     }
   })

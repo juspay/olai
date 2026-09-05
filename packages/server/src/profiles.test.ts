@@ -113,3 +113,21 @@ test("switching ws off through its own socket leaves MCP serving on the same por
     expect((await fetch(url + "/olai/who")).status).toBe(404)
   })
 }, 10000)
+
+test("vault withdrawal refuses MCP writes and resync, then a new activation reads disk", async () => {
+  await withServing({ root: served(), plugins: [] }, async (url) => {
+    for (let i = 0; i < 2; i++) {
+      await flip(url, "vault", false)
+      const refused = await request(url, "tools/call", { name: "set_title", arguments: { id: "a", title: "must not land" } })
+      const result = (await refused.json()).result
+      expect(result.isError).toBe(true)
+      expect(JSON.stringify(result)).toContain("serving no directory")
+      expect((await fetch(url + "/olai/resync", { method: "POST" })).status).toBe(500)
+      await flip(url, "vault", true)
+      const wrote = await request(url, "tools/call", { name: "set_title", arguments: { id: "a", title: `activation ${i}` } })
+      expect((await wrote.json()).result.isError).not.toBe(true)
+      const read = await request(url, "tools/call", { name: "read_node", arguments: { id: "a" } })
+      expect(JSON.stringify(await read.json())).toContain(`activation ${i}`)
+    }
+  })
+})

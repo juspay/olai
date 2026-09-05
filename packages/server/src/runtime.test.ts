@@ -1,3 +1,8 @@
+import { mountBundle, offered as door, provide, settled } from "@olai/bundle/bundle"
+import { openPlugins as openHostPlugins, Directory } from "@olai/plugin-api/services"
+import { profileRows } from "./profiles.ts"
+import { vaultModule, VaultSettings } from "./vault.ts"
+import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 /**
  * One runtime, several faces, several writers — the rebinding, as a fence.
  *
@@ -36,7 +41,7 @@ import {
   definePlugin,
   mountPlugin,
   Offers,
-  openPlugins,
+
   rowReport,
   standing,
   Surfaces,
@@ -126,31 +131,28 @@ const withRuntime = <A>(
   const reads: Array<string> = []
 
   return Effect.gen(function*() {
-    const opened: OutlineStore = yield* Store.make({
-      root,
-      codec,
-      watch: false,
-      settle: "10 millis",
+    const onChange = { run: (): void => {} }
+    const mounted = yield* openHostPlugins({ vars: {}, now: () => STARTED, served: root, changed: () => onChange.run() })
+    yield* mountBundle(mounted.host, [], [], {
+      rows: profileRows("test-minimal"),
+      resolve: async (name) => name === "olai:vault" ? vaultModule : undefined,
     })
+    let ops: Ops | undefined
+    yield* provide(mounted.host, VaultSettings, () => ({ root, kinds: NO_KINDS, idle: Effect.suspend(() => ops?.idle ?? Effect.void) }))
+    yield* settled(mounted.host, ["vault"])
+    const directory = door(mounted.host, Directory) as { readonly store: OutlineStore } | undefined
+    if (!directory) throw new Error("test-minimal did not open its vault row")
+    const opened = directory.store
     const store: OutlineStore = {
       ...opened,
-      body: (path) => {
-        reads.push(path)
-        return opened.body(path)
-      },
+      body: (path) => { reads.push(path); return opened.body(path) },
     }
-    const ops = makeOps({ store, root })
-    /** The re-compose holder `bind` fills in — one per boot, as `./serve.ts`
-     *  makes one per serve. */
-    const onChange = { run: (): void => {} }
-    /** The plugin context this boot was handed, held so the body can reach it —
-     *  see the `plugins` field the harness yields. */
-    const mounted = extra.plugins === undefined
-      ? null
-      : yield* mounting(extra.plugins ?? [], onChange)
+    const gate = makeOps({ store, root })
+    ops = gate
+    for (const one of extra.plugins ?? []) yield* mountPlugin(mounted.host, one.plugin)
     const wired = yield* bind({
       store,
-      ops,
+      ops: gate,
       writer: "web",
       hostname: hostname(),
       startedAt: STARTED,
@@ -165,10 +167,10 @@ const withRuntime = <A>(
       // The doorbell's cases DO take the slot, and they still dial nothing:
       // what stands behind their names is a double with no appliance under it
       // ({@link doubleCalled}).
-      plugins: mounted === null ? null : {
+      plugins: {
         plugins: mounted,
         onChange,
-        built: (extra.plugins ?? []).map((one) => one.name),
+        built: extra.plugins === undefined ? ["vault"] : extra.plugins.map((one) => one.name),
         pinned: null,
         // THE DOUBLES' OWN FIBERS, asked the way a serve asks the bundle's.
         // These runtimes mount doubles directly rather than through the loader,
@@ -177,7 +179,7 @@ const withRuntime = <A>(
         // and asking it here is what makes these cases exercise the same
         // derivation a real boot does rather than a hand-made map.
         report: yield* Effect.map(
-          rowReport(mounted.host, (extra.plugins ?? []).map((one) => one.name)),
+          rowReport(mounted.host, extra.plugins === undefined ? ["vault"] : extra.plugins.map((one) => one.name)),
           (read) => () => read,
         ),
         // THESE DOUBLES ARE NOT LOADER ROWS, so there is nothing to name and
@@ -197,7 +199,7 @@ const withRuntime = <A>(
     const runtime = yield* watchFault(wired.bound)
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
     yield* Effect.addFinalizer(() => runtime.stopped)
-    return yield* use({ wired, ops, store, reads, root, plugins: mounted })
+    return yield* use({ wired, ops: gate, store, reads, root, plugins: mounted })
   }).pipe(Effect.scoped, Effect.provide(NodeServices.layer), Effect.runPromise)
 }
 
@@ -1162,7 +1164,7 @@ test("the roster is served on the plugins cell", () =>
       const get = wired.bound.handlers["surface/plugins/get"]
       if (get === undefined) throw new Error("the plugins cell has no `get`")
       const open = yield* watching(get({}) as Stream.Stream<PluginRoster>)
-      expect(yield* open.take).toEqual(NO_ROSTER)
+      expect((yield* open.take).built.map((row) => [row.name, row.state])).toEqual([["vault", "running"]])
       yield* Fiber.interrupt(open.reader)
     })))
 

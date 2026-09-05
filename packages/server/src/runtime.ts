@@ -247,25 +247,7 @@ const apply = <T>(
  * `kinds()` is read one floor up, in `./serve.ts`, because the store validates
  * through it and the store opens first.
  *
- * ## ...and the three doors it drives
- *
- * `published(snapshot)` on every published revision, `quiet` when the store has
- * never published, and `saw(event)` for every conversation event. All three are
- * EFFECTS, and the first two are awaited where they are rung: the statements
- * after them write a world every plugin has already re-derived.
- *
- * They are DOORS rather than events for a reason an earlier header had
- * backwards: it said "both are EMITS, so a listener that throws is one
- * listener's problem — the dispatcher contains it", and Cordis's `emit` is a
- * bare `Reflect.apply` loop with no `try`, so it contained nothing. One plugin
- * throwing on a revision took every LATER plugin's reading of it down, and the
- * owned fiber that published it. The door wraps each handler once instead, so
- * the sentence that header always wanted to say is now true.
- *
- * Neither of the first two is a teardown hook (`@olai/plugin-api`'s `Vault`
- * argues why the second one's name matters).
- *
- * ## AND THIS FILE HAS NEVER HEARD OF CORDIS
+ * The vault row drives revisions; this binding projects Directory onto the wire.
  *
  * It held a `Context` and reached `ctx.surfaces`, `ctx.wakes`, `ctx.vault` and
  * `ctx.watching` off it — which meant the composition root was the second
@@ -437,7 +419,7 @@ export interface Wiring {
    *  The client's uptime chip ticks from this; the wire never sends a
    *  duration. */
   readonly startedAt: string
-  readonly store: Store
+  readonly store: Store | (() => Store | undefined)
   /**
    * THE PLUGIN RUNTIME, or `null` for a runtime that is to have none.
    *
@@ -920,6 +902,14 @@ export const bind = (
     // Seeded empty and filled by `connect`: `SubscriptionRef.changes` delivers
     // the current value before any update, so peeking at the ref here as well
     // would be the same read twice with a window between them.
+    const currentStore = () => typeof wiring.store === "function" ? wiring.store() : wiring.store
+    const stores = typeof wiring.store === "function"
+      ? Stream.changes(Stream.map(wiring.plugins?.plugins.changes ?? Stream.succeed(undefined), currentStore))
+      : Stream.succeed(wiring.store)
+    const reads = typeof wiring.store !== "function" ? wiring.store.reads : Stream.switchMap(stores, (store): Stream.Stream<{ readonly snapshot: VaultRevision | null }> =>
+      store ? store.reads : Stream.succeed({ snapshot: null }))
+    const storeErrors = typeof wiring.store !== "function" ? SubscriptionRef.changes(wiring.store.errors) : Stream.switchMap(stores, (store) =>
+      store ? SubscriptionRef.changes(store.errors) : Stream.succeed(null))
     const errors = inMemoryStore<Verdict>(NOTHING_WRONG)
     /** This runtime's own log line, for the one place below that reports from
      *  outside an Effect — a stream's re-read, which the framework calls on a
@@ -1010,7 +1000,7 @@ export const bind = (
      * have it open at that moment and stops the instant the last one goes.
      */
     const bodies = yield* Bodies.make({
-      read: wiring.store.body,
+      read: (path) => Effect.suspend(() => currentStore()?.body(path) ?? Effect.succeed(null)),
       publish: (path, body) => {
         const entry = held?.documents.entries.get(path)
         if (entry === undefined) return
@@ -1313,7 +1303,7 @@ export const bind = (
           store: errors,
           connect: (cell) =>
             Stream.runForEach(
-              SubscriptionRef.changes(wiring.store.errors),
+              storeErrors,
               (next) => Effect.sync(() => cell.set(next ?? NOTHING_WRONG)),
             ),
         },
@@ -1375,7 +1365,7 @@ export const bind = (
           store: inMemoryStore<Shelf>(NO_PINS),
           connect: (cell) =>
             Stream.runForEach(
-              wiring.store.reads,
+              reads,
               ({ snapshot }) =>
                 Effect.sync(() => {
                   if (snapshot === null) return cell.set(NO_PINS)
@@ -1406,7 +1396,7 @@ export const bind = (
           store: inMemoryStore<InboxHeld>(NO_INBOX),
           connect: (cell) =>
             Stream.runForEach(
-              wiring.store.reads,
+              reads,
               ({ snapshot }) =>
                 Effect.sync(() => {
                   if (snapshot === null) return cell.set(NO_INBOX)
@@ -1425,26 +1415,16 @@ export const bind = (
           store: inMemoryStore<Manifest>(null),
           connect: (cell) =>
             Stream.runForEach(
-              wiring.store.reads,
+              reads,
               ({ snapshot }) =>
-                // AN `Effect.gen` AND NOT AN `Effect.sync`, because two of the
-                // statements below are Effects: telling every plugin a revision
-                // landed, and telling them the store has none. Both are AWAITED
-                // here, and what the await buys is the statements that come
-                // AFTER the ring — `faulted`, and the cell write that puts this
-                // manifest on the wire — seeing a world every plugin has already
-                // re-derived. The collections and the heads are written above
-                // it, in the order master had them; nothing about that moved.
                 Effect.gen(function*() {
                   if (snapshot === null) {
-                    // No published set at all: every plugin's reading OF THE
-                    // VAULT goes out with the canvas. What each of them makes
-                    // of that is its own — a wrench onto the watch's config, a
-                    // set of worktrees the next sweep acts on — and this
-                    // file neither knows nor composes it; what it knows is that
-                    // a claim derived from a directory the store can no longer
-                    // see is a claim nobody may vouch for.
-                    if (plugins !== null) yield* plugins.quiet
+                    // Withdrawal clears every cached collection, including bodies.
+                    for (const key of held?.outlines.entries.keys() ?? []) published?.collections.outlines.remove(key)
+                    for (const key of held?.documents.entries.keys() ?? []) published?.collections.documents.remove(key)
+                    for (const key of held?.heads.entries.keys() ?? []) published?.collections.heads.remove(key)
+                    held = null
+                    if (dynamic) yield* dynamic.follow(null)
                     return cell.set(null)
                   }
                   // THE PROJECTION CONSUMES WHAT IT IS HANDED, so these two
@@ -1495,18 +1475,6 @@ export const bind = (
                   // walk the whole derivation because the question it asks
                   // includes what the vault DECLARES. Each narrows the argument
                   // in its own signature — a claim that half makes about what
-                  // this line rings and not one the compiler holds it to (the
-                  // vault door's `revision` says why, and where the one `as`
-                  // lives); a hook per plugin here would be this file knowing
-                  // what each of them reads.
-                  //
-                  // IT COSTS ALMOST NOTHING ON ALMOST EVERY REVISION, and that
-                  // is the plugins' own arrangement rather than a promise made
-                  // here: each of these walks compares before it publishes, so
-                  // a keystroke that landed in a note costs one walk per plugin
-                  // and zero frames, and the sockets are the sweeps' business
-                  // on their own clocks.
-                  if (plugins !== null) yield* plugins.published(snapshot)
                   // ...AND THE PLUGINS THE VAULT ITSELF DEFINES, on the same
                   // statement and for the same reason: a revision is exactly
                   // when a definition can have arrived, changed, been approved
@@ -2348,7 +2316,7 @@ export const bind = (
       // and an initializer can register it after its mount already returned.
       // The store reports failed reads on its own errors channel; a read failure
       // must not turn a successful plugin change into a refused switch.
-      yield* Effect.ignore(wiring.store.refresh("verified"))
+      yield* Effect.ignore(currentStore()?.refresh("verified") ?? Effect.void)
     })
 
     /**

@@ -2,7 +2,7 @@
  * One brain per vault, as two processes.
  *
  * The claim is not a property of a function, it is a property of the MACHINE:
- * a second olai over a directory another olai is already serving must not boot.
+ * a second olai over a directory another olai is already serving must not open a second store.
  * So every test here is two real processes over one real directory, spawned the
  * way a person's shell spawns them — there is nothing an in-process test could
  * say about this, because the thing being excluded is another process.
@@ -17,7 +17,7 @@
  * What the tests are, and each is one property of the refusal:
  *
  *   1. REFUSE THE SECOND. A second olai over a directory another is serving
- *      does not boot — it never binds a port and never opens a store.
+ *      serves a failed vault row and never opens a store.
  *   2. NAME THE HOLDER. In olai's own words, with the pid, because a raw
  *      `EWOULDBLOCK` tells a person nothing about what to do next.
  *   3. THE SPELLING IS NOT THE VAULT. A symlink to a directory is that
@@ -97,19 +97,23 @@ if (ours === undefined || !ours.includes("olai-test-run-")) {
 }
 const env: NodeJS.ProcessEnv = { XDG_RUNTIME_DIR: ours }
 
-test("a second olai over one directory refuses to boot", async () => {
+test("a second olai serves its panel while the vault row refuses the held directory", async () => {
   const root = served()
   const first = startWeb({ root, env })
   try {
     await first.address()
 
     const second = startWeb({ root, env })
-    const code = await second.exited()
+    await second.address()
+    const response = await fetch(`${await second.address()}/mcp`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "set_title", arguments: { id: "a", title: "must not land" } } }),
+    })
+    expect(JSON.stringify(await response.json())).toContain("serving no directory")
+    await second.stop()
 
-    // Refused, and refused BEFORE it could do anything: it never bound a port
-    // and never opened a store over files it does not own.
-    expect(code).not.toBe(0)
-    expect(findLogfmt(second.said(), "serving")).toBeUndefined()
+    // The control plane remains available, but no store was opened.
+    expect(findLogfmt(second.said(), "serving")).toBeDefined()
   } finally {
     first.kill()
   }
@@ -127,7 +131,8 @@ test("the refusal names the olai that holds the vault", async () => {
     await first.address()
 
     const second = startWeb({ root, env })
-    await second.exited()
+    await second.address()
+    await second.stop()
     expect(second.said()).toContain(
       `another olai is serving this directory (pid ${first.pid})`,
     )
@@ -157,7 +162,8 @@ test("a stale pid in the note frees nothing, and is not read out as fact", async
     fs.writeFileSync(lockFor(root), `pid=${IMPOSSIBLE_PID}\n`, { mode: 0o600 })
 
     const second = startWeb({ root, env })
-    expect(await second.exited()).not.toBe(0)
+    await second.address()
+    await second.stop()
     expect(second.said()).toContain("another olai is serving this directory")
     expect(second.said()).not.toContain(String(IMPOSSIBLE_PID))
   } finally {
@@ -186,7 +192,8 @@ test("a symlinked spelling of the vault is the same vault", async () => {
     await first.address()
 
     const second = startWeb({ root: link, env })
-    expect(await second.exited()).not.toBe(0)
+    await second.address()
+    await second.stop()
     expect(second.said()).toContain(
       `another olai is serving this directory (pid ${first.pid})`,
     )
@@ -266,15 +273,15 @@ test("the lock is the directory's, however the directory was spelled", () => {
  * The OTHER refusal, which had no test: the machine will not answer the
  * question at all.
  *
- * `LockUnavailable` is a hard boot refusal with no escape, so what it costs to
+ * `LockUnavailable` is a vault-row failure, so what it costs to
  * be wrong is a person unable to serve their notes — which makes it the branch
  * most worth pinning, not the least. Both cases below are reachable by hand,
  * and both are reached the way somebody would reach them by accident: a
  * runtime directory that is not a directory, and one left open to other users
  * (`/tmp/olai-$UID` is a fixed path, so who made it first is not always us).
  *
- * What each asserts is the same three things: it exits non-zero, it says
- * `cannot take the one-brain lock` in olai's own words, and it NEVER serves —
+ * What each asserts is the same three things: its vault row fails, it says
+ * `cannot take the one-brain lock` in olai's own words, and it never opens a store —
  * because the failure mode that would matter is a server that shrugged and
  * came up unprotected.
  */
@@ -284,9 +291,10 @@ const refusedWithNoLock = async (runtimeDir: string): Promise<void> => {
     env: { XDG_RUNTIME_DIR: runtimeDir },
   })
   try {
-    expect(await child.exited()).not.toBe(0)
+    await child.address()
+    await child.stop()
     expect(child.said()).toContain("cannot take the one-brain lock")
-    expect(findLogfmt(child.said(), "serving")).toBeUndefined()
+    expect(findLogfmt(child.said(), "serving")).toBeDefined()
   } finally {
     child.kill()
   }

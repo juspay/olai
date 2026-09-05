@@ -1,23 +1,18 @@
 /**
- * One directory, read and served: the composition root's argument is its order.
+ * The composition root's argument is its order. Mount the bundle, including
+ * olai:vault, before the first report so every infrastructure row is visible.
+ * VaultSettings is supplied after declared kinds are read: the vault row then
+ * acquires its directory and offers Vault and Directory, waking its tenants.
+ * Kinds stays a host registry and its live vocabulary follows those tenants.
  *
- * The tenant runtime opens before the store because it supplies the vocabulary
- * the first disk read validates against. The store and write gate stand before
- * the composed surface; the surface stands before a transport may expose it.
- * Only after a listener has bound can a session be told where its tools are.
- * These are dependencies between owners, so they belong here even when the
- * acquisitions themselves live behind a smaller module's door.
+ * The write gate remains one root-owned gate over a Directory lookup. Each
+ * operation captures its store; vault teardown withdraws the doors and waits
+ * for accepted writes before releasing the watcher and lock. bind follows
+ * Directory changes, while the transports wait only for TransportSurface.
+ * A failed vault therefore leaves the panel and MCP available for diagnosis.
  *
- * Profiles change which rows are present, not this sequence. Infrastructure
- * rows mount beside tenants on the same host and wait for TransportSurface.
- * Providing that door after bind lets the existing needs/activation mechanism
- * express the dependency. The store and kinds are still this shared base;
- * making the store acquisition a row is Phase 17, not a special headless path.
- *
- * Logging is inherited through Effect: the root annotation must be established
- * before openPlugins captures the environment and before the store forks its
- * watcher. A row started later then says which directory it belongs to under
- * the same log settings as everything that booted eagerly.
+ * Logging is annotated before openPlugins captures the environment. Readiness
+ * follows transport activation; only then may a session learn its tool URL.
  */
 // The upgrade seam owns header-name grammar; boot validates its initial list.
 import { checkUpgradeHeaders } from "@kolu/surface-app/upgrade-headers"
@@ -44,6 +39,7 @@ import {
 import { bundleRank } from "@olai/bundle"
 import { emitter } from "@olai/log"
 import {
+  Directory,
   Identity,
   Ledger,
   NOWHERE_TO_WRITE,
@@ -57,13 +53,14 @@ import { randomBytes } from "node:crypto"
 import { resolve } from "node:path"
 
 import { localStateFor } from "./localState.ts"
-import { openDirectory } from "./directory.ts"
+import type { Directory as OpenDirectory } from "./directory.ts"
+import { vaultModule, VaultSettings } from "./vault.ts"
 import { openDynamic } from "./dynamic/runtime.ts"
 import { propKinds } from "./propKinds.ts"
 import { watchFault } from "./fault.ts"
 import { hostname } from "./hostname.ts"
 import { NOBODY, readingOf } from "./who.ts"
-import { PROFILES, profileRows, TRANSPORT_ROWS, type Profile } from "./profiles.ts"
+import { PROFILES, profileRows, INFRASTRUCTURE_ROWS, type Profile } from "./profiles.ts"
 import { transportListener, transportModules, TransportSurface } from "./transports.ts"
 import { mcpEndpoint } from "./mcp/endpoint.ts"
 import { gitConfigPatch } from "./gitPolicy.ts"
@@ -127,7 +124,7 @@ export const serve = (options: ServeOptions) =>
   Effect.gen(function*() {
 
     const profile = options.profile ?? "web"
-    const built = [...BUNDLE_NAMES, ...TRANSPORT_ROWS]
+    const built = [...BUNDLE_NAMES, ...INFRASTRUCTURE_ROWS]
     /** The re-compose, filled in by `bind` — `./runtime.ts`'s `PluginRuntime`
      *  argues why it is a holder rather than a callback passed here. */
     const onChange = { run: (): void => {} }
@@ -289,7 +286,7 @@ export const serve = (options: ServeOptions) =>
     })
     yield* mountBundle(plugins.host, options.plugins ?? (PROFILES[profile].tenants ? null : []), gitConfigPatch(options.pin), {
       rows: profileRows(profile),
-      resolve: async (name) => transportModules[name],
+      resolve: async (name) => name === "olai:vault" ? vaultModule : transportModules[name],
     })
 
     /**
@@ -321,7 +318,7 @@ export const serve = (options: ServeOptions) =>
      * synchronously by the roster, so a Ref would buy nothing but two more
      * `yield*` on a path that has no concurrency to protect against.
      */
-    let report = yield* reportBundle(plugins.host, [...TRANSPORT_ROWS, ...dynamic.names()])
+    let report = yield* reportBundle(plugins.host, [...INFRASTRUCTURE_ROWS, ...dynamic.names()])
 
     /**
      * WHICH ROWS A PERSON HAS TURNED OFF HERE — the third author of a row's
@@ -347,7 +344,7 @@ export const serve = (options: ServeOptions) =>
       Effect.gen(function*() {
         const found = yield* setRow(plugins.host, id, enabled)
         yield* settled(plugins.host, built)
-        report = yield* reportBundle(plugins.host, [...TRANSPORT_ROWS, ...dynamic.names()])
+        report = yield* reportBundle(plugins.host, [...INFRASTRUCTURE_ROWS, ...dynamic.names()])
         if (found) {
           if (enabled) switched.delete(id)
           else switched.add(id)
@@ -355,7 +352,9 @@ export const serve = (options: ServeOptions) =>
         return found
       })
     const kinds = yield* propKinds(plugins)
-    const { root, store } = yield* openDirectory(served, kinds)
+    const root = served
+    const currentDirectory = (): OpenDirectory | undefined =>
+      offered(plugins.host, Directory) as OpenDirectory | undefined
 
     /** The write gate outlives any provider row. Each operation reads the
      * current ledger offer, so stopping git also stops recording for callers
@@ -434,7 +433,7 @@ export const serve = (options: ServeOptions) =>
     const who = readingOf(currentIdentity)
 
     const ops: Ops = makeOps({
-      store,
+      store: () => currentDirectory()?.store,
       root,
       ledger,
       search,
@@ -445,6 +444,9 @@ export const serve = (options: ServeOptions) =>
       onRefusal: (request, failure) => plugins.refused({ op: request.op, failure }),
     })
     opsLayer = ops
+    yield* provide(plugins.host, VaultSettings, () => ({ root, kinds, idle: ops.idle }))
+    yield* settled(plugins.host, built)
+    report = yield* reportBundle(plugins.host, [...INFRASTRUCTURE_ROWS, ...dynamic.names()])
     /** Minted once for the serve: app.get and the install manifest must name
      * the same machine even if the host is renamed underneath us. The start
      * instant is process start rather than this function's return, so the
@@ -457,7 +459,7 @@ export const serve = (options: ServeOptions) =>
      * this same binding; their maps decide which vocabulary each may reach.
      * The root chooses writers: web for a button, mcp for MCP below. */
     const wired = yield* bind({
-      store,
+      store: () => currentDirectory()?.store,
       ops,
       writer: "web",
       hostname: theMachine,
@@ -468,11 +470,11 @@ export const serve = (options: ServeOptions) =>
         built,
         pinned: options.plugins,
         report: () => report,
-        names: () => rowsNaming(plugins.host, TRANSPORT_ROWS),
+        names: () => rowsNaming(plugins.host, INFRASTRUCTURE_ROWS),
         configs: () => configsOf(plugins.host),
         set: flipped,
         reread: Effect.gen(function*() {
-          report = yield* reportBundle(plugins.host, [...TRANSPORT_ROWS, ...dynamic.names()])
+          report = yield* reportBundle(plugins.host, [...INFRASTRUCTURE_ROWS, ...dynamic.names()])
         }),
         switched: () => switched,
         dynamic,
@@ -512,7 +514,8 @@ export const serve = (options: ServeOptions) =>
       upgradeHeaders: () => currentIdentity().headers,
       who,
       mcp: mcp.route(who),
-      resync: Effect.andThen(ops.idle, store.refresh("verified")),
+      resync: Effect.andThen(ops.idle, Effect.suspend<void, import("@olai/store").PlatformFailure | { readonly reason: string }, never>(() =>
+        currentDirectory()?.store.refresh("verified") ?? Effect.fail(NOWHERE_TO_WRITE))),
       plugins: dynamic,
     })
     /**
@@ -542,7 +545,12 @@ export const serve = (options: ServeOptions) =>
         // also reread and republish every file on every tool read. A verified
         // read checks stamps; it cannot detect a rewrite that preserved both
         // length and mtime. /olai/resync is the explicit stronger operation.
-        vintage: Effect.map(store.read("verified"), (aged) => aged.vintage),
+        vintage: Effect.suspend(() => {
+          const directory = currentDirectory()
+          return directory
+            ? Effect.map(directory.store.read("verified"), (aged) => aged.vintage)
+            : Effect.succeed(undefined)
+        }),
       }),
     }))
     yield* Effect.addFinalizer(() => transports.stop)
@@ -550,7 +558,7 @@ export const serve = (options: ServeOptions) =>
     // readiness. Binding earlier could hand a newly spawned session a port
     // whose mcp row was still loading.
     yield* settled(plugins.host, built)
-    report = yield* reportBundle(plugins.host, [...TRANSPORT_ROWS, ...dynamic.names()])
+    report = yield* reportBundle(plugins.host, [...INFRASTRUCTURE_ROWS, ...dynamic.names()])
     onChange.run()
     /*
      * WHAT THIS SERVE CAME UP WITH MUST BE SERVABLE — the one thing the bind

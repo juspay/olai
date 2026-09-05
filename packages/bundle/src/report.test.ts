@@ -1,3 +1,4 @@
+import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 /**
  * WHAT BECAME OF EACH ROW, held as claims — the reading a preferences row's word
  * is made of, and the one place a plugin's own failure sentence is picked up off
@@ -33,7 +34,7 @@
 import {
   definePlugin,
   mountPlugin,
-  openPlugins,
+
   serviceTag,
   standing,
 } from "@olai/plugin-api/services"

@@ -36,6 +36,7 @@ export type { Store } from "./deps.ts"
 export { type Caller, type Fence, type Outside, outsideFence } from "./fenced.ts"
 export {
   make,
+  NO_DIRECTORY,
   NO_LEDGER,
   NO_SEARCH,
   type Ledger,

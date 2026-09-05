@@ -171,7 +171,7 @@ export const NO_LEDGER: Ledger = {
 }
 
 export interface Options {
-  readonly store: Store
+  readonly store: Store | (() => Store | undefined)
   /** Absolute path of the served directory — kept because every call site
    *  already has it, and the write gate's fence reads paths against it. */
   readonly root: string
@@ -467,7 +467,14 @@ const aboutFiles = (findings: ReadonlyArray<OutlineError>): ReadonlyArray<string
     ),
   ].sort(byPath)
 
+/** A directory provider is absent; reads and writes share one refusal. */
+export const NO_DIRECTORY = new UsageFailure({ reason: "this process is serving no directory, so there is nothing to write to" })
+
 export const make = (options: Options): Ops => {
+  const currentStore = Effect.suspend(() => {
+    const store = typeof options.store === "function" ? options.store() : options.store
+    return store ? Effect.succeed(store) : Effect.fail(NO_DIRECTORY)
+  })
   const kinds = options.kinds ?? NO_KINDS
   const context: Context = options.context ?? {
     mint: () => Math.random().toString(36).slice(2, 10),
@@ -500,9 +507,10 @@ export const make = (options: Options): Ops => {
   const search = options.search ?? NO_SEARCH
 
   const read: Effect.Effect<Reading, OpFailure> = Effect.gen(function*() {
-    const { snapshot } = yield* options.store.read("cheap")
+    const store = yield* currentStore
+    const { snapshot } = yield* store.read("cheap")
     if (snapshot === null) {
-      const errors = yield* SubscriptionRef.get(options.store.errors)
+      const errors = yield* SubscriptionRef.get(store.errors)
       return yield* new ValidationFailure({
         reason: "the served directory has never loaded, so there is nothing to read",
         verdict: errors ?? NOTHING_WRONG,
@@ -519,6 +527,7 @@ export const make = (options: Options): Ops => {
     fence?: Fence,
   ): Effect.Effect<Applied, OpFailure> =>
     Effect.gen(function*() {
+      const store = yield* currentStore
       let repairs = REPAIRS
       /**
        * THE ONE ALTERNATIVE EXPLANATION, ruled out before either refusal arm
@@ -569,13 +578,13 @@ export const make = (options: Options): Ops => {
       const repair = (files: ReadonlyArray<string>): Effect.Effect<boolean> =>
         Effect.gen(function*() {
           if (repairs === 0 || files.length === 0) return false
-          const drift = yield* Effect.result(options.store.drifted(files))
+          const drift = yield* Effect.result(store.drifted(files))
           if (!Result.isSuccess(drift) || drift.success.length === 0) return false
           // Drift is proof, so the budget is spent before the look is taken:
           // the LOOK failing answers the refusal with the repair accounted
           // for, and no second resync is owed however the round goes on.
           repairs -= 1
-          const resynced = yield* Effect.result(options.store.refresh("verified"))
+          const resynced = yield* Effect.result(store.refresh("verified"))
           return Result.isSuccess(resynced)
         })
       for (let races = 0; races < ROUNDS;) {
@@ -584,9 +593,9 @@ export const make = (options: Options): Ops => {
         // the gate, which probes on its way in. A tree that moved under the
         // plan comes back `StaleWrite` and the round runs again — the drift
         // this read cannot see is the drift the gate is there to catch.
-        const { snapshot } = yield* options.store.read("cheap")
+        const { snapshot } = yield* store.read("cheap")
         if (snapshot === null) {
-          const errors = yield* SubscriptionRef.get(options.store.errors)
+          const errors = yield* SubscriptionRef.get(store.errors)
           return yield* new ValidationFailure({
             reason:
               "the served directory has never loaded, so there is nothing to write to",
@@ -669,7 +678,7 @@ export const make = (options: Options): Ops => {
           ...removed.map((path) => ({ path, contents: null })),
         ]
         const outcome = yield* Effect.result(
-          options.store.commit({ baseRev: snapshot.rev, changes }),
+          store.commit({ baseRev: snapshot.rev, changes }),
         )
 
         if (Result.isFailure(outcome)) {
@@ -722,7 +731,7 @@ export const make = (options: Options): Ops => {
            * disagree about one write.
            */
           const alreadyBroken =
-            (yield* SubscriptionRef.get(options.store.errors)) !== null
+            (yield* SubscriptionRef.get(store.errors)) !== null
           const blocker = blockerOf(written.failure, paths, alreadyBroken)
           return yield* new ValidationFailure({
             reason: blocker !== undefined
@@ -773,7 +782,7 @@ export const make = (options: Options): Ops => {
         // write left behind is dirty there exactly as any other write's is.
         ledger.wrote(writer)
         for (const document of documents) {
-          const held = yield* Effect.result(options.store.body(document.file))
+          const held = yield* Effect.result(store.body(document.file))
           if (Result.isFailure(held)) {
             return yield* new ValidationFailure({
               reason:

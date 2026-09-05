@@ -1,3 +1,4 @@
+import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 /**
  * THE KIND VOCABULARY, ASSEMBLED — the composition, the two halves, and the
  * collision that must not be silent.
@@ -26,7 +27,7 @@
  */
 
 import { KIND_SEPARATOR, kindWordOf, type PropKind } from "@olai/plugin-api"
-import { definePlugin, Kinds, mountPlugin, openPlugins, standing } from "@olai/plugin-api/services"
+import { definePlugin, Kinds, mountPlugin, standing } from "@olai/plugin-api/services"
 import { expect, test } from "bun:test"
 import { Effect, Scope } from "effect"
 
