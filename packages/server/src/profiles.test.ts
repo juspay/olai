@@ -103,3 +103,13 @@ test("an MCP-only profile falls back when its requested port is busy", async () 
     await first.stop()
   }
 }, 15000)
+
+test("switching ws off through its own socket leaves MCP serving on the same port", async () => {
+  await withServing({ root: served(), plugins: [] }, async (url) => {
+    // The request's connection is deliberately withdrawn by the switch. Its
+    // response may be lost, but teardown must finish and the other face stay up.
+    await flip(url, "ws", false).catch(() => {})
+    expect((await request(url)).status).toBe(200)
+    expect((await fetch(url + "/olai/who")).status).toBe(404)
+  })
+}, 10000)
