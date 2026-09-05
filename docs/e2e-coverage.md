@@ -1,0 +1,44 @@
+# Browser coverage audit
+
+This audit tracks user workflows during the Cordis migration. A passing suite is
+necessary, but does not establish that an untested workflow works. A row remains
+open until its UI actions and relevant failure/persistence paths have been
+reviewed, exercised, and backed by assertions that observe their outcome.
+
+Full-suite validation uses `just ci` or `just e2e-fast-remote`. Targeted browser
+runs use the worktree's dev server. Real-harness exploration uses Claude/Sonnet
+in a disposable vault; deterministic ACP fixtures make regressions repeatable in CI.
+
+| Domain | User actions and edge paths to audit | Existing feature families | Audit status |
+| --- | --- | --- | --- |
+| Launch and vault selection | Ordinary, empty, nested, malformed and corrected vault; absent optional services; startup failures | `serve_a_directory`, `see_the_outline`, `error_view` | Open |
+| Navigation | Outline/document links, node zoom, breadcrumbs, back/forward, deep links, missing targets, scroll restoration | `zoom_and_navigate`, `panels`, `documents` | Open |
+| Search and filtering | Palette queries and navigation, filtered edits, tag and property filters, no matches, changed/deleted results, query persistence | `filter_in_place`, `filter_everywhere`, `a_shortlist_says_its_total` | Open; post-plugin-removal edit/search scenario added |
+| Outline text editing | Create, rename, multiline paste, notes, blur/Enter/Escape, IME, rapid input and refused writes | `keyboard_editing`, `native_timing`, `title_markdown`, `note_density` | Open |
+| Outline structure | Add, split, merge, indent/outdent, reorder, duplicate, move between files, multi-selection, drag/drop | `split_and_merge`, `duplicate_subtree`, `move_to_picker`, `dragdrop_multiselect`, `drag_across_panes` | Open |
+| Undo and redo | Text, structure, marks, dates, trash, cross-pane edits, unrelated external changes, refused/stale inverses | `undo`, `cancelled_mark`, `a_stale_enter_spends_nothing` | Open |
+| Marks and trash | Todo/doing/done, parent completion refusal, hide/show, trash/restore/delete, archived links and filters | `done_over_open_work`, `trash`, `archived_only_in_trash` | Open |
+| Properties and relationships | Add/edit/remove properties, schema errors, typed values, references, prerequisites, mirrors and backlinks | `properties`, `typed_properties`, `edge_editing`, `backlinks` | Open |
+| Dates and journal | Set/clear date and recurrence, complete repeating work, day/agenda navigation and filtering, daily-note creation and edits | `setting_a_date`, `recurring_dates`, `journal_and_calendar`, `agenda`, `daily_notes` | Open; journal first activation and route recovery scenarios added |
+| Documents and media | Create/edit/rename documents, headings and links, markdown, HTML isolation, pictures/PDF/CSV, preview failure and file removal | `documents`, `document_editing`, `html_previews`, `pdf_csv_and_pictures` | Open |
+| Capture and file creation | Capture from each entry point, empty/refused input, dates, new outline/document, name collision | `quick_capture`, `new_outline`, `document_editing` | Open |
+| Panes and sidebar | Open/close second pane, independent navigation and focus, pin/unpin, folds, drawer behavior, resize | `second_pane`, `pin_to_sidebar`, `folds_are_remembered`, `the_sidebar_sticks` | Open |
+| Chat startup and harness choice | No harness, first activation, harness selection, startup failure, choice during boot, plugin teardown while waiting | `choosing_an_agent`, `chat_plugin_lifecycle` | Lifecycle cases added; broader review open |
+| Chat turns and tool results | Send, streaming, follow-up, formatted output, tool details/diffs, refused writes, silent/error turns, subagent output | `the_agent`, `an_answer_leaves_the_rows_standing` | Real Claude/Sonnet read and reply exercised; audit open |
+| Chat interruption | Queue, steer, cancel, failure while messages wait, background tasks, shutdown during a running turn | `the_agent`, `choosing_an_agent`, `chat_plugin_lifecycle` | Running-plugin teardown scenario added; audit open |
+| Chat drafts and context | Text and @ completion, node chips, refusal recovery, drawer/session changes, stale/deleted context, reload boundaries | `chat_at_completion`, `chat_at_nodes`, `node_context`, `chat_plugin_lifecycle` | Remount draft loss fixed and covered; remaining edges open |
+| Chat attachments | Picker, paste, drop, camera, multiple/unsupported/large files, remove/send/retry, uploads during navigation and reconnect | `the_agent`, `chat_attachments_lifetime` | Live browser found drawer attachment loss; fix and lifecycle scenarios in progress |
+| Chat questions and permissions | Allow/deny, choices and free text, subagent attribution, plan approval, cancellation, drafts, reload and second-tab answers | `the_agent`, `the_agent_waits_on_you` | Open |
+| Conversation history | List, choose, title, new/clear/compact, restore after reload/restart, unavailable or deleted stored session | `the_agent`, `choosing_an_agent`, `node_agents` | Draft isolation scenario added; audit open |
+| Node agents | Start/assign/open/new session, navigate to node, history, concurrent sessions, subtree fence, deletion/move, stopped harness and reaping | `node_agents`, `node_context`, `node_agent_sessions`, `node_agent_fresh_sessions` | Fixed lost history navigation and history stranded behind unused fresh sessions; seven scenarios cover history, fresh chats, other-node navigation, reload and restart. Mutation, concurrency, reaping and remaining edges open |
+| Plugin lifecycle and dynamic code | Enable/disable/re-enable, waiting/failed states, dependent consumers, first mount, source edits, approval/version changes, rollback | `the_plugin_switch`, `a_plugin_the_vault_defines`, `chat_plugin_lifecycle`, `plugin_navigation_lifecycle` | Eleven lifecycle/workflow scenarios added; remaining edges open |
+| Git | Dirty/clean states, selected commits, auto-commit/pause, external commits, refusals, push policy, absent/restored provider | `committing`, `git_state`, `pinned_git_policy`, `pinned_git_pause` | Provider recovery and committing intervening edits covered; audit open |
+| Terminal and CI integrations | Property doors, opening terminals/runs, unavailable services, reconnect, wake scope, delivery while idle/busy/absent | `terminal_door`, `the_doorbell_rings`, `the_conversations_servers`, `the_feed_opens_its_config` | Open |
+| Connectivity and freshness | Offline/reconnect, reload mid-operation, server restart, external writes/deletes, invalid intermediate files, stale controls | `the_connection`, `it_stays_live`, `a_frame_leaves_it_standing` | Open |
+| Multiple tabs | Concurrent edits, shared conversation focus, responses and permissions, plugin changes initiated elsewhere, per-tab drafts and settings | Cross-feature cases | Open |
+| Phone and keyboard access | Touch navigation, drawer and chat, scrolling/long-press/drag, viewport changes, focus, shortcuts and dismissal order | `on_a_phone`, `the_missing_chords`, `dismiss_stack`, `input_widgets` | Open |
+| Preferences and identity | Theme/font/density, hidden rows, alerts, persistence across reload, identity presence/absence, layout after changes | `preferences`, `theming`, `fonts`, `who_you_are`, `the_chrome_holds_still` | Open |
+
+The PR's single bug/fix/test table records confirmed defects and new coverage.
+This inventory must retain unresolved rows rather than treating the number of
+passing scenarios as evidence that those rows are complete.
