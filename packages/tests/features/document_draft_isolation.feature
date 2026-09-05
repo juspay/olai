@@ -1,5 +1,24 @@
 @scratch:good
 Feature: Document drafts stay with their reader through a plugin rebuild
+  Scenario: Navigating another phone tab preserves the inactive document draft
+    Given I open the address "/s/finishes.md/finishes.md"
+    When I shrink the window to a phone
+    And I start editing the document
+    And I retype the document as:
+      """
+      left draft while the other tab navigates
+      """
+    And I tap pane tab 1
+    And I click the outline "house.olai"
+    And I tap pane tab 0
+    Then the document editor holds text containing "left draft while the other tab navigates"
+    When I cancel the document editor
+    And I tap pane tab 1
+    And I click the outline "garden.olai"
+    And I tap pane tab 0
+    Then the document editor is gone
+    And there should be no page errors
+
   Scenario: Phone tabs showing the same document keep separate editor lifetimes
     Given I open the address "/s/finishes.md/finishes.md"
     When I shrink the window to a phone

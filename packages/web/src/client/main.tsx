@@ -160,24 +160,11 @@ render(
           superseded one handed out dead — `clients`, `core`, `transport`,
           `readout`, `health` — so every standing subscription in the tree
           below has to be opened again, which means the tree has to be built
-          again. Local UI state does not survive it (an open pane, a scroll
-          position, a half-typed editor), and `./wire.ts` argues what that buys
-          and how rarely it happens: once on an ordinary boot, on a page that
-          has nothing in it yet, and thereafter only when somebody actually
-          turns a plugin on or off.
-
-          THAT LAST CLAUSE STOPPED BEING HYPOTHETICAL, and one piece of state
-          had to be moved out from under this. Turning a plugin on or off is a
-          control in the product now (`./plugins/Panel.tsx`), and it lives
-          INSIDE a panel — so the press rebuilt the tree that held "the plugins
-          panel is open" and the panel vanished at the moment it was used. The
-          cost above is the right trade for state a reader did not aim at the
-          thing that destroyed it; it is not a trade at all for a control that
-          destroys itself every time. So that one door's open state is kept
-          above this line (`./plugins/opened.ts`), and the rebuilt tree finds it
-          already set. Nothing else was hoisted, and the sentence above is still
-          exactly true of everything else — including the two panels beside it,
-          which hold no control that can cause a redial.
+          again. State that belongs to the ongoing workflow survives outside
+          that tree: plugin-panel visibility, conversation drafts and uploads,
+          document drafts, outline drafts and the workspace route identities
+          that keep inactive panes associated with those drafts. Subscriptions
+          and DOM listeners are recreated against the new wire.
 
           `keyed`, so the rebuild happens exactly when the wire moves and never
           when a signal inside it does. */}

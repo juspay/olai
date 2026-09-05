@@ -4,6 +4,7 @@
 import { createSignal } from "solid-js"
 import type { Draft, Pending } from "./draft.ts"
 import { serial } from "./queue.ts"
+import type { Route } from "../routes.ts"
 
 export const editorMemory = () => {
   const [draft, setDraft] = createSignal<Draft | null>(null)
@@ -18,16 +19,20 @@ export const editorMemory = () => {
 }
 export type EditorMemory = ReturnType<typeof editorMemory>
 
-const saved = new Map<string, EditorMemory>()
-const key = (pane: number, page: string) => JSON.stringify([history.state?.key ?? location.href, pane, page])
+const saved = new WeakMap<Route, Map<string, EditorMemory>>()
+const key = (pane: number, page: string) => JSON.stringify([pane, page])
 
-export const takeEditor = (pane: number, page: string): EditorMemory => {
+export const takeEditor = (pane: number, page: string, route: Route | undefined): EditorMemory => {
   const at = key(pane, page)
-  const memory = saved.get(at) ?? editorMemory()
-  saved.delete(at)
+  const entries = route === undefined ? undefined : saved.get(route)
+  const memory = entries?.get(at) ?? editorMemory()
+  entries?.delete(at)
   return memory
 }
 
-export const keepEditor = (pane: number, page: string, memory: EditorMemory): void => {
-  if (memory.draft() !== null || memory.ghosts().length > 0) saved.set(key(pane, page), memory)
+export const keepEditor = (pane: number, page: string, route: Route, memory: EditorMemory): void => {
+  if (memory.draft() === null && memory.ghosts().length === 0) return
+  const entries = saved.get(route) ?? new Map<string, EditorMemory>()
+  entries.set(key(pane, page), memory)
+  saved.set(route, entries)
 }

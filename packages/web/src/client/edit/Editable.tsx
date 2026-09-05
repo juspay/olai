@@ -58,7 +58,7 @@
  * the chat composer or in the palette's own input.
  */
 
-import type { Row } from "@olai/format"
+import { printAddress, type Row } from "@olai/format"
 import { type Accessor, createMemo, type JSX, onCleanup, onMount, Show } from "solid-js"
 
 import { createFoldReading } from "../fold/reading.ts"
@@ -113,11 +113,13 @@ function EditablePage(props: EditableProps) {
   const router = useRouter()
   const route = panesOf(router.workspace())[pane]?.route
   const identity = JSON.stringify([props.file, props.within])
-  const memory = takeEditor(pane, identity)
+  const memory = takeEditor(pane, identity, route)
   onCleanup(() => {
     const now = panesOf(router.workspace())[pane]?.route
-    if (now?.kind === "at" && route?.kind === "at" && now.address === route.address) {
-      keepEditor(pane, identity, memory)
+    if (now?.kind === "at" && route?.kind === "at"
+      && (now.address === null ? null : printAddress(now.address))
+        === (route.address === null ? null : printAddress(route.address))) {
+      keepEditor(pane, identity, now, memory)
     }
   })
   const page = {

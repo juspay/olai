@@ -148,14 +148,15 @@ function OneDocument(props: { readonly file: string; readonly custom: Custom }) 
   const pane = useHere()()
   const router = useRouter()
   const route = panesOf(router.workspace())[pane]?.route
-  const editor = takeDraft(props.file, pane)
+  const editor = takeDraft(props.file, pane, route)
   const editing = editor.editing
   if (consumeMinted(props.file)) editor.open()
   onCleanup(() => {
     // Navigation discards the departing editor as before. Rebuilding this
     // same pane keeps its draft, including when another tab changed plugins.
-    if (panesOf(router.workspace())[pane]?.route === route) {
-      keepDraft(props.file, pane, editor)
+    const now = panesOf(router.workspace())[pane]?.route
+    if (now?.kind === "at" && now.address !== null && "path" in now.address && now.address.path === props.file) {
+      keepDraft(props.file, pane, now, editor)
     }
   })
 
