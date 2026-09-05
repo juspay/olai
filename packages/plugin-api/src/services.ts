@@ -77,7 +77,6 @@
  * it arrives with node-agent scopes.
  */
 
-import { ownService } from "./owned.ts"
 import type { Engine, Registering } from "@olai/acp/engine"
 import {
   broadcast,
@@ -96,6 +95,7 @@ import {
 } from "@olai/effect-cordis"
 import { Deferred, Effect, Exit, Scope, type Stream } from "effect"
 
+import { ownService } from "./owned.ts"
 import {
   type ConversationSeen,
   type Deliveries as DeliveryDoor,

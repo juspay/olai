@@ -33,3 +33,18 @@ Feature: Browser plugins depend on plugin-owned services
     And the page has not reloaded
     And there should be no page errors
     And no member of this page has gone silent
+
+  Scenario: An already running browser provider serves a consumer that arrives later
+    Given I open the outline "colours.olai"
+    And I mark the page
+    When I open the plugins panel
+    And I approve the plugin "palette"
+    Then no row wears a swatch
+    When I approve the plugin "swatch"
+    Then the browser palette face is "first"
+    When I switch the plugin "swatch" off
+    Then no row wears a swatch
+    When I switch the plugin "swatch" on
+    Then the browser palette face is "first"
+    And the page has not reloaded
+    And there should be no page errors

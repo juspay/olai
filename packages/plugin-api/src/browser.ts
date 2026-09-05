@@ -160,7 +160,6 @@
  * `fence.test.ts` walks.
  */
 
-import { ownService, type OwnServices } from "./owned.ts"
 import {
   type Host,
   openHost,
@@ -175,6 +174,7 @@ import {
 } from "@olai/effect-cordis"
 import { Effect, Scope } from "effect"
 
+import { ownService, type OwnServices } from "./owned.ts"
 import { kindWordOf, type NotHere } from "./contract.ts"
 import { SLOTS, type SlotKey } from "./slots.ts"
 import type {

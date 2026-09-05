@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test"
-import { Effect } from "effect"
+import { Effect, type Scope } from "effect"
 import { definePlugin, mountPlugin, Offers, openApp, serviceTag, Slots } from "./browser.ts"
 
 const Reading = serviceTag<{ read: () => string }>("source.reading")
-const run = (body: Effect.Effect<void, never, import("effect").Scope.Scope>) =>
+const run = (body: Effect.Effect<void, never, Scope.Scope>) =>
   Effect.runPromise(Effect.scoped(body))
 
 test("browser consumers wait, release faces before provider resources, and restart with fresh services", () => run(Effect.gen(function*() {
@@ -39,9 +39,9 @@ test("browser consumers wait, release faces before provider resources, and resta
   yield* first.dispose
   expect((yield* consumer.report).state).toBe("waiting")
   expect(seen).toEqual(["v1:reader", "release:v1:reader", "closed:v1"])
-  const second = yield* mountPlugin(app.host, provider("v2"))
+  yield* mountPlugin(app.host, provider("v2"))
   expect(app.only("app.viewer")?.face()).toBe("v2:reader")
-  yield* second.dispose
+  // The enclosing host scope now checks the same cleanup ordering on shutdown.
 })))
 
 for (const word of ["", "other.reading", "Reading", "../slots"]) {
@@ -98,4 +98,18 @@ test("a local word cannot shadow browser furniture or another namespace", () => 
     expect((yield* row.report).state).toBe("running")
   }
   expect(app.hung("app.header").length).toBe(2)
+})))
+
+test("browser-owned keys do not cross host boundaries", () => run(Effect.gen(function*() {
+  const first = yield* openApp()
+  const second = yield* openApp()
+  yield* mountPlugin(first.host, definePlugin({
+    name: "source", needs: [Offers], apply: Effect.gen(function*() {
+      yield* (yield* Offers).own("reading", () => ({ read: () => "first tab" }))
+    }),
+  }))
+  const reader = yield* mountPlugin(second.host, definePlugin({
+    name: "reader", needs: [Reading], apply: Effect.void,
+  }))
+  expect((yield* reader.report).state).toBe("waiting")
 })))
