@@ -420,6 +420,10 @@ Then("the row being typed has the focus", async function (this: OlaiWorld) {
   );
 });
 
+When("I return to the row being typed", async function (this: OlaiWorld) {
+  await this.press(this.page.locator(TITLE_EDITOR).first());
+});
+
 /** Where a line's text starts, on screen. What "the same depth" means to a
  *  person reading the outline: two lines whose text begins at the same x. */
 const textLeftOf = async (world: OlaiWorld, locator: Locator): Promise<number> => {

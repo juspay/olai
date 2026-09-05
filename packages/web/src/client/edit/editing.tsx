@@ -51,7 +51,6 @@ import {
   createContext,
   createEffect,
   createMemo,
-  createSignal,
   type JSX,
   untrack,
   useContext,
@@ -92,7 +91,7 @@ import {
 } from "./draft.ts"
 import { flatten, reanchored, refound, seated } from "./order.ts"
 import type { Standing } from "./order.ts"
-import { serial } from "./queue.ts"
+import { editorMemory, type EditorMemory } from "./memory.ts"
 import { redraws, rekeys } from "./redraws.ts"
 import { useUndo } from "./undoing.ts"
 
@@ -280,12 +279,9 @@ export const createEditor = (
    * where that goes is an address, and addresses are the page's.
    */
   zooming: Zooming,
+  memory: EditorMemory = editorMemory(),
 ): Editor => {
-  const [draft, setDraft] = createSignal<Draft | null>(null)
-  const [ghosts, setGhosts] = createSignal<ReadonlyArray<Pending>>([])
-  const [caret, setCaret] = createSignal(0)
-  let slots = 0
-  const mintSlot = (): string => `d${++slots}`
+  const { draft, setDraft, ghosts, setGhosts, caret, setCaret, mintSlot, enqueue } = memory
   /** Leave an empty pending on screen without it holding the caret. Same
    *  slot is a no-op, so parking twice cannot duplicate a ghost. A titled
    *  draft, or nothing, is left alone — parking is not how a write happens. */
@@ -324,7 +320,6 @@ export const createEditor = (
    * What is NOT queued is what a person must never wait for: typing
    * ({@link Editor.type} is a signal write) and `Escape`, which abandons.
    */
-  const enqueue = serial()
 
   /** The caret's own three facts, memoised so typing does not move them. */
   const where = createMemo<Where>(() => {
@@ -551,6 +546,7 @@ export const createEditor = (
    *  commit, so a person who keeps typing causes one write rather than one per
    *  pause. */
   const idle = debounce(() => enqueue(commit), IDLE_COMMIT)
+  if (draft() !== null) idle()
 
   /** The row the caret is in, as the page is drawing it now. */
   const row = (): Row | undefined => {

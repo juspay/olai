@@ -99,6 +99,8 @@ The arrows and the shape keys read the page slightly differently, and it is the 
 
 Typing into a parked blank while the previous row is still saving keeps those characters with the clicked blank. They enter its draft when activation finishes, without changing the row whose save is pending.
 
+An unrelated plugin change keeps the outline's unfinished rows and any refused edit on the page. They can still be filled in, corrected or discarded after the rebuild. Each pane keeps its own drafts, including phone tabs showing the same outline; leaving for another page discards that page's parked rows.
+
 At the END of a line the key is what it always was, because there is nothing after the caret to split off: a draft after this row, after the whole subtree. At the HEAD of one it inserts a blank draft *above*, and the words you were on stay where they were. That draft is still local — a node needs a title ([format.md](format.md)), so nothing is written until it has one. Cutting where one side would be nothing but spaces is the same thing as an end-of-line press, and reads the same way.
 
 **Backspace at the START of a line joins it onto the row above** — its sibling, or its PARENT when it is the first of its siblings: the row your eye is on either way. The two titles run together with nothing between them, because that is what they were before somebody cut them; the caret lands on the seam. Anywhere else in the line, Backspace is the ordinary one and deletes a character; it means this only in the one place it has nothing of its own to do.
