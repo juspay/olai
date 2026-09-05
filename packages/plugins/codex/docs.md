@@ -12,6 +12,10 @@ The adapter itself wraps the Codex app server. The plugin's `acp/` directory own
 
 Turning this row off is also possible through the plugin roster: `olai web --plugins=claude,opencode,pi` mounts no Codex server half, performs no probe and loads no Codex browser chunk.
 
+### Model requires a newer Codex version
+
+Olai pins `codex-acp` 1.10.0 with Codex CLI 0.153.3. This updates the bundled 0.152.0 CLI, which could list `gpt-6-astra` but fail on the first prompt with a missing-model-metadata warning and “requires a newer version of Codex”. Update olai and restart the server to use the new bundle; upgrading a separate `codex` on PATH does not update the executable olai ships. If you override `OLAI_ACP_CODEX` or `CODEX_PATH`, update that installation too.
+
 ## What is only true of this wire
 
 - **Codex supports interruption.** The adapter advertises `_session/steering`; the composer offers the gesture only when that positive advertisement is present. Both `injected` and `startedNewTurn` mean the adapter consumed the message, so neither is sent a second time as an ordinary prompt.
