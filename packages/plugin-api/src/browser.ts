@@ -162,6 +162,7 @@
 
 import {
   type Host,
+  hostChanges,
   openHost,
   offer,
   OfferConflict,
@@ -172,7 +173,7 @@ import {
   type Roster,
   serviceTag,
 } from "@olai/effect-cordis"
-import { Effect, Scope } from "effect"
+import { Effect, Scope, type Stream } from "effect"
 
 import { ownService, type OwnServices } from "./owned.ts"
 import { kindWordOf, type NotHere } from "./contract.ts"
@@ -774,6 +775,8 @@ export const Wired = serviceTag<Wired>("wired")
  * {@link Faces.hung}, with the read it is about.
  */
 export interface App extends Faces {
+  /** State changes even when a waiting component registered no faces. */
+  readonly changes: Stream.Stream<void>
   /** Where the plugins hang — handed to `mountPlugin` and opaque to everybody. */
   readonly host: Host
   /**
@@ -981,6 +984,7 @@ export const openApp = (config: AppConfig = {}): Effect.Effect<App, never, Scope
     return {
       ...faces,
       host,
+      changes: hostChanges(host),
       furnish: (furniture) =>
         Effect.gen(function*() {
           yield* provide(host, Clocks, () => furniture.clocks)

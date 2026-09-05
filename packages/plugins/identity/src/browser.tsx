@@ -30,9 +30,11 @@
  * on `asking`.
  */
 
-import { definePlugin, Slots } from "@olai/plugin-api"
+import { definePlugin, Offers, Slots } from "@olai/plugin-api"
 import { Effect } from "effect"
 
+import { openViewer } from "./browser/viewer/index.ts"
+import { browserServices } from "./index.ts"
 import { Who } from "./browser/Who.tsx"
 import { name } from "./index.ts"
 
@@ -40,13 +42,15 @@ export { name }
 
 export default definePlugin({
   name,
-  needs: [Slots],
+  needs: [Slots, Offers],
   apply: Effect.gen(function*() {
     const slots = yield* Slots
+    const viewer = yield* openViewer
+    yield* (yield* Offers).own(browserServices[0], () => viewer)
     // ONE FACE IN THE WHOLE APP, keyed by the slot rather than by this
     // plugin: two chips answering "who am I" in one bar is not an answer,
     // so a second row claiming this seat is refused by name at the moment
     // it registers.
-    yield* slots.register("app.viewer", Who)
+    yield* slots.register("app.viewer", () => <Who viewer={viewer} />)
   }),
 })

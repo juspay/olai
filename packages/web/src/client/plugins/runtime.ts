@@ -36,8 +36,8 @@
  * Core services are provided before plugins. Browser Offers lets a plugin
  * publish its own keys; consumers name those keys in needs and remain waiting
  * until a provider arrives. Withdrawal removes their faces and reactivation
- * reinstalls them. The preferences panel still reports server state, so a
- * waiting browser half can belong to a server row that is running.
+ * reinstalls them. The panel shows each browser component’s waiting or failed
+ * state beside the server state, with the missing key or fault.
  *
  * ## THE RE-READ IS SOLID'S AND THE TABLE IS THE RUNTIME'S
  *
@@ -61,6 +61,7 @@ import {
   type KindSlot,
   type ListSlot,
   type Mounted,
+  type RowReport,
   mountPlugin,
   openApp,
   type PluginSlot,
@@ -68,6 +69,7 @@ import {
   type SlotFaces,
   standing,
 } from "@olai/plugin-api"
+import { Effect, Stream } from "effect"
 import { createSignal } from "solid-js"
 
 /** WHEN A FACE ARRIVED OR LEFT — the one signal every slot read is tracked
@@ -191,6 +193,34 @@ export const app: App = await run(
  *  agrees with the real one until the day it does not. */
 const mounted = new Map<string, Mounted>()
 
+/** State belongs to this tab, not the server roster. Preserve a failed
+ * activation's report after disposing its fiber, until the next retry. */
+const failures = new Map<string, RowReport>()
+const [reports, setReports] = createSignal<ReadonlyMap<string, RowReport>>(new Map())
+let reporting = 0
+const refreshReports = async (): Promise<void> => {
+  const generation = ++reporting
+  const snapshot = await Promise.all([...mounted].map(async ([name, row]) => [name, await run(row.report)] as const))
+  if (generation === reporting) setReports(new Map([...snapshot, ...failures]))
+}
+
+/** A running server row can have a waiting browser component. Keep the
+ * server's switch semantics and name that component and its missing keys. */
+export const browserHint = (plugin: string): string | null => {
+  const lines: string[] = []
+  for (const [name, report] of reports()) {
+    if (name !== plugin && !name.startsWith(plugin + "/")) continue
+    const label = name === plugin ? "Browser" : `Browser ${name.slice(plugin.length + 1)}`
+    if (report.state === "waiting") lines.push(`${label}: waiting for ${report.missing?.join(", ") || "initialization"}.`)
+    if (report.state === "failed") lines.push(`${label}: failed to start. ${report.fault ?? "It gave no message."}`)
+  }
+  return lines.length ? lines.join(" ") : null
+}
+
+await run(Effect.forkScoped(Stream.runForEach(app.changes, () =>
+  Effect.promise(async () => { if (composing === 0) await refreshReports() }),
+)))
+
 /**
  * MOUNT EXACTLY THESE, and drop everything else.
  *
@@ -240,6 +270,7 @@ export const composeTo = async (
     await recompose(halves)
   } finally {
     composing -= 1
+    await refreshReports()
     // ONE NOTIFICATION for the whole movement, and only if there was one: a
     // redial whose roster named exactly what was already mounted moved no
     // table, and a page rebuilt for that would be this module inventing work
@@ -254,7 +285,15 @@ export const composeTo = async (
 /** The movement itself — {@link composeTo} is this, with the page told once at
  *  the end rather than once per registration. */
 const recompose = async (halves: ReadonlyArray<BrowserHalf>): Promise<void> => {
-  const wanted = new Map(halves.map((half) => [half.default.name, half] as const))
+  const wanted = new Map(halves.flatMap((half) => [
+    [half.default.name, half.default] as const,
+    ...Object.entries(half.components ?? {}).map(([local, component]) => {
+      if (!/^[a-z][a-z0-9-]*$/.test(local)) throw new Error(`Invalid browser component name: ${local}`)
+      const name = `${half.default.name}/${local}`
+      return [name, { ...component, name }] as const
+    }),
+  ]))
+  for (const name of failures.keys()) if (!wanted.has(name)) failures.delete(name)
   // OUT FIRST, so a plugin that left has unwound its registrations before a
   // plugin that arrived can claim a key it was holding. The two orders differ
   // only for a kind word two plugins could both claim, which the loader already
@@ -270,8 +309,9 @@ const recompose = async (halves: ReadonlyArray<BrowserHalf>): Promise<void> => {
     // that failed has already been contained by the runtime, so what is awaited
     // here is only "it has finished trying" and the page can draw whatever did
     // start.
-    const plugin = await run(mountPlugin(app.host, half.default))
+    const plugin = await run(mountPlugin(app.host, half))
     mounted.set(name, plugin)
+    failures.delete(name)
     const report = await run(plugin.report)
     if (report.state === "failed") {
       // A FAILED HALF DOES NOT STAY MOUNTED. `mounted` is what the guard four
@@ -292,22 +332,9 @@ const recompose = async (halves: ReadonlyArray<BrowserHalf>): Promise<void> => {
       // being true of that name.
       await run(plugin.dispose)
       mounted.delete(name)
-      // ...AND IT SAYS SO. The containment is right and the SILENCE was not: a
-      // half whose `apply` died registers no faces, so the plugin is simply
-      // absent from the page — while the panel two chips over reads the SERVER's
-      // answer and says `running`, because on the server it is. Two ends, two
-      // truths, and nothing on screen or in the console reconciling them.
-      //
-      // This is the one place that knows, so this is where it is said, with the
-      // plugin's NAME on it. An `error` rather than a `warn`: a plugin the
-      // roster asked for and that did not start is a fault, which is the same
-      // reading `rows.ts` gives the server-side `failed`.
-      //
-      // WHAT IS STILL OWED is the panel's half — a tab-side failure drawn
-      // beside the server-side state, since they are genuinely two facts and a
-      // reader with the console shut has only one of them. That wants a field
-      // on the roster row's browser reading rather than a console line, and it
-      // is not this phase's.
+      failures.set(name, report)
+      // The panel retains this fault after disposal, and the console carries
+      // it for diagnostics too. The next composition retries the activation.
       console.error(
         `olai: the plugin "${name}" is running on the server, but its browser half failed to start — its faces are absent from this page`,
         report.fault,

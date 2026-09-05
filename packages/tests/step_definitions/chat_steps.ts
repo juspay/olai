@@ -3915,3 +3915,9 @@ Then("my transcript speaker is {string}", async function (this: OlaiWorld, name:
   await this.waitUntil(async () => await speaker.getAttribute("data-speaker-name") === name,
     `the human speaker to be ${name}`);
 });
+
+Then("my transcript speaker wears an anonymous silhouette", async function (this: OlaiWorld) {
+  const speaker = this.page.locator(`${selector(PLUGIN_TESTID.chatSpeaker)}[data-speaker="human"]`).first();
+  await speaker.locator("svg").waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.strictEqual(await speaker.locator("img").count(), 0);
+});

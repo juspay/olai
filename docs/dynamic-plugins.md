@@ -288,7 +288,7 @@ Run it from a package that depends on `@olai/plugin-build` (`packages/server` do
 
 - **Not sandboxed.** See above. Approval is the boundary.
 - **Not a lock, and the fence has a shape.** olai refuses a session's write of the `approved` property at its own door — that is a real refusal, with a sentence, and it is what stops an agent approving the plugin it just wrote *through olai*. It is not a claim about the file. `approved` is an ordinary property in a `.olai` in the served directory, the store watches that directory, and an approval that simply *appears* there is an ordinary revision. The agents this is about are processes on the same host with their own file and shell tools. The vault is the owner's directory: treating it as an attack surface leads somewhere silly, and olai does not pretend to police what it does not serve. What the fence covers is writes through olai's door (ruled, 2026-09-04).
-- **Not a report of what the FACE did.** A half whose `apply` throws lands the row on `failed` with its own sentence, on the server. A face that throws while it is being *drawn* does not: the tab's fault boundary contains it the way it contains a shipped plugin's, the console says which plugin it was, and the row goes on saying `running` — because on the server it is. That is the same gap every built plugin has, and closing it wants a field on the roster row's browser reading rather than a console line, so it is written down here rather than built in this lane.
+- **Not a report of what the FACE did.** A half whose `apply` throws lands the row on `failed` with its own sentence, on the server. A face that throws while it is being *drawn* does not: the tab's fault boundary contains it the way it contains a shipped plugin's, the console says which plugin it was, and the row goes on saying `running` — because on the server it is. Initialization failures and missing browser dependencies are reported beside the server state in the plugins panel. Render-time faults remain the drawing boundary’s responsibility.
 - **Not persisted enablement.** A `plugins.stop`, or the panel's switch on a definition, lasts as long as the process. What survives a restart is the definition and its approval, which are in the vault.
 - **Not a package.** There is no `olai plugin add`, no npins pin and no out-of-tree build. A definition is two notes in a directory olai is already serving.
 
@@ -360,12 +360,30 @@ or hyphens; the provider name comes from the fiber.
 
 Browser `Offers` has only `own`: plugins cannot replace `Slots`, `Wired`, or
 the shell furniture. Keys live in the tab host, independently of identically
-named server keys, and do not appear in the server service catalog. Providers
+named server keys. Providers
 publish only after successful initialization. A missing provider keeps the
 consumer waiting with no faces; withdrawal releases those faces before the
 provider resources, and reactivation receives a fresh service. The plugins
-panel currently reports server state, so it can say running while a browser
-consumer waits. Shapes remain a contract between the two authors.
+panel shows browser waiting and failed states beside the server's state,
+including the missing service key and the component's name. Shapes remain a
+contract between the two authors.
 
-The viewer kit remains in the shell until Phase 18 moves its faces; this phase
-provides the browser dependency mechanism that move requires.
+To make a browser key discoverable, the server half names `Offers` in `needs`
+and calls `yield* (yield* Offers).browser(["palette"])`. These local words
+use the same namespace grammar and fiber stamp as `own`, and their declarations
+leave when the server provider unloads. This call does not provide a server
+service or execute browser code on the server.
+
+`plugins.inspect` returns service records with `key`, `half` (`server` or
+`browser`) and `availability`: `core` for core server vocabulary, `provided`
+for server-owned keys, and `declared` for browser contracts. A browser declaration
+can be discovered without a connected tab; the panel reports whether this tab
+actually activated the provider. In a built plugin, keep the local word list in
+the shared definition and use it in both `Offers.browser` and `Offers.own`.
+
+Identity offers `identity.viewer`, including the resource over `who.get`,
+`saying` and `UserIcon`. Chat exports a `components` record containing its
+speaker's plugin definition. Each browser component gets a separate dependency
+lifecycle, a name stamped as `parent/component`, and is removed with its parent
+row. A waiting speaker leaves chat's anonymous face available. Components have
+no host access and cannot offer a different row's keys.

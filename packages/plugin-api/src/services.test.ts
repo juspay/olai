@@ -1056,3 +1056,38 @@ test("discovery follows plugin-owned offers without publishing internal core doo
     expect(plugins.serviceKeys()).toEqual([...SERVICE_KEYS].sort())
   })))
 })
+
+test("browser declarations are scoped discovery, not server provisions", async () => {
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const plugins = yield* runtime()
+    const Viewer = serviceTag<{}>("source.viewer")
+    const consumer = yield* mountPlugin(plugins.host, definePlugin({
+      name: "consumer", needs: [Viewer], apply: Effect.void,
+    }))
+    const provider = yield* mountPlugin(plugins.host, definePlugin({
+      name: "source", needs: [Offers], apply: Effect.gen(function*() {
+        yield* (yield* Offers).browser(["viewer"])
+      }),
+    }))
+    expect(plugins.browserKeys()).toEqual(["source.viewer"])
+    expect(plugins.serviceKeys()).not.toContain("source.viewer")
+    expect((yield* consumer.report).state).toBe("waiting")
+    yield* provider.dispose
+    expect(plugins.browserKeys()).toEqual([])
+  })))
+})
+
+for (const words of [["viewer", "viewer"], ["viewer", "other.viewer"]]) {
+  test(`invalid browser declarations roll back: ${words.join(", ")}`, async () => {
+    await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+      const plugins = yield* runtime()
+      const row = yield* mountPlugin(plugins.host, definePlugin({
+        name: "source", needs: [Offers], apply: Effect.gen(function*() {
+          yield* (yield* Offers).browser(words)
+        }),
+      }))
+      expect((yield* row.report).state).toBe("failed")
+      expect(plugins.browserKeys()).toEqual([])
+    })))
+  })
+}

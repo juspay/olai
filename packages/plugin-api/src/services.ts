@@ -852,6 +852,9 @@ export const OFFERABLE = [
  * provider must explicitly name in needs.
  */
 export interface Offers {
+  /** Advertise local browser service words. This is an author declaration,
+   * not evidence that a particular tab has activated its provider. */
+  readonly browser: (words: ReadonlyArray<string>) => Effect.Effect<void, never, Scope.Scope>
   /** Offer `<this plugin>.<word>`, stamped with the calling fiber's name.
    * Consumers name `serviceTag<Shape>("provider.word")` in their needs. */
   readonly own: <Shape>(word: string, door: Provision<Shape>) => Effect.Effect<void, never, Scope.Scope>
@@ -1087,6 +1090,8 @@ export interface Plugins {
    * plugin-owned keys. Ownership also tracks internal core doors, which this
    * catalog deliberately does not expose. */
   readonly serviceKeys: () => ReadonlyArray<string>
+  /** Browser declarations owned by running server providers. */
+  readonly browserKeys: () => ReadonlyArray<string>
   /** TELL EVERY PLUGIN A REVISION LANDED, and wait for each of them — see
    *  {@link Vault}. */
   readonly published: (snapshot: unknown) => Effect.Effect<void>
@@ -1340,6 +1345,7 @@ export const openPlugins = (
 
     // This table reports ownership; Cordis itself refuses duplicate providers.
     const offered = new Map<string, { readonly plugin: string }>()
+    const browserKeys = registry<string, string>()
     yield* provide(host, Offers, (plugin) => {
       const stand = <Shape>(key: ServiceKey<Shape>, door: Provision<Shape>) =>
         Effect.suspend(() => {
@@ -1360,6 +1366,12 @@ export const openPlugins = (
         })
       return {
         own: ownService(plugin, stand),
+        browser: (words) => Effect.forEach(words, (word) =>
+          ownService(plugin, (key) => browserKeys.claim(key.cordis, plugin, () =>
+            `plugins: "${plugin}" declared browser service "${key.cordis}" twice`,
+          ))(word, () => ({})),
+          { discard: true },
+        ),
         offer: <Shape>(key: ServiceKey<Shape>, door: Provision<Shape>) => Effect.suspend(() => {
           if (!OFFERABLE.some((one) => one.cordis === key.cordis)) {
             return Effect.die(new Error(
@@ -1437,6 +1449,7 @@ export const openPlugins = (
       declared: wakes.read,
       offers: () => new Map([...offered].map(([key, owner]) => [key, owner.plugin])),
       serviceKeys: () => [...SERVICE_KEYS, ...[...offered.keys()].filter((key) => key.includes("."))].sort(),
+      browserKeys: () => [...browserKeys.read().keys()].sort(),
       changes: hostChanges(host),
       close: closeHost(host),
       published: revisions.tell,

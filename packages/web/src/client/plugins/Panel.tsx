@@ -131,6 +131,7 @@ import { run } from "../run.ts"
 import { Segmented } from "../settings/Segmented.tsx"
 import { Row } from "../settings/Row.tsx"
 import { pluginPref, TESTID } from "../testids.ts"
+import { browserHint } from "./runtime.ts"
 import { olai } from "../wire.ts"
 
 import {
@@ -306,7 +307,7 @@ export function Panel(props: {
               // and NO `setBy` on any of them: where this serve was started is
               // one fact for the panel and is at the foot. Neither prop being
               // passed is why these rows are a name and a switch on one line.
-              hint={pluginHint(plugin)}
+              hint={[pluginHint(plugin), plugin.running ? browserHint(plugin.name) : null].filter(Boolean).join(" ") || null}
               under={<Config values={pluginConfig(plugin)} />}
             >
               <Segmented

@@ -427,6 +427,9 @@
     Browser plugins can share their own services too: dependent faces disappear
     when their provider stops and return when it restarts. Browser keys are
     separate from server keys; the shell’s core browser services stay host-owned.
+    The plugins panel names missing browser dependencies, and agents can discover
+    browser service declarations alongside server keys. Identity’s viewer reading
+    is shared this way with chat; chat stays usable when identity is off.
     Core server service providers can be replaced by other plugins, one at a time.
     <a href="https://github.com/juspay/olai/blob/master/docs/dynamic-plugins.md#sharing-a-plugin-owned-service">Write a plugin that shares a service</a>.</p>
     <p>The agenda is one of them. The journal offers its reading of a day —

@@ -2004,7 +2004,15 @@ export const bind = (
           inspect: () =>
             Effect.sync(() => ({
               modules: WRITABLE_MODULES,
-              services: plugins?.serviceKeys() ?? SERVICE_KEYS,
+              services: [
+                ...(plugins?.serviceKeys() ?? SERVICE_KEYS).map((key) => ({
+                  key, half: "server" as const,
+                  availability: key.includes(".") ? "provided" as const : "core" as const,
+                })),
+                ...(plugins?.browserKeys() ?? []).map((key) => ({
+                  key, half: "browser" as const, availability: "declared" as const,
+                })),
+              ],
               slots: Object.entries(SLOTS).map(([name, one]) => ({
                 name,
                 keyedBy: one.keyedBy,

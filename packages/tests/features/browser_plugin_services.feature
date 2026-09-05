@@ -8,15 +8,16 @@ Feature: Browser plugins depend on plugin-owned services
     And I mark the page
     When I open the plugins panel
     And I approve the plugin "swatch"
-    Then the plugins panel says nothing more about "swatch"
+    Then the plugins panel says "swatch" is "palette.colours"
     And no row wears a swatch
     When I approve the plugin "palette"
     Then the row "amber" wears a swatch for "#ff8800"
     And the browser palette face is "first"
     And the agent service catalog excludes "palette.colours"
+    And the browser service catalog includes "palette.colours"
     When I switch the plugin "palette" off
     Then no row wears a swatch
-    And the plugins panel says nothing more about "swatch"
+    And the plugins panel says "swatch" is "palette.colours"
     When I switch the plugin "palette" on
     Then the row "amber" wears a swatch for "#ff8800"
     When the browser palette provider is replaced

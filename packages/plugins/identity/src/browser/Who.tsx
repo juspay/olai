@@ -36,15 +36,15 @@ import { LAYER } from "@olai/web/client/layer.ts"
 import { ICON_BUTTON } from "@olai/web/client/readout.ts"
 import { TESTID } from "../testids.ts"
 import { Tip } from "@olai/web/client/Tip.tsx"
-import type { Who as Person } from "@olai/web/client/who/asking.ts"
-import { whoAmI, saying, UserIcon } from "@olai/web/client/who/index.ts"
+import type { Who as Person } from "./viewer/asking.ts"
+import { type Viewer, saying, UserIcon } from "./viewer/index.ts"
 
 /** The four faces the slot can draw. Closed so a typo is a missing
  *  `Match` rather than a chip that draws nothing. */
 export type Face = "asking" | "none" | "yes" | "error"
 
-export function Who() {
-  const asking = whoAmI()
+export function Who(props: { readonly viewer: Viewer }) {
+  const asking = props.viewer
   const person = () => asking.who()
   const face = (): Face => {
     if (!asking.heard()) return "asking"

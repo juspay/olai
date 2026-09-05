@@ -15,8 +15,7 @@
  *     ladder — the proxy's IdP avatar, the operator's template, the gravatar of
  *     a real email claim, and the silhouette when no rung had one. It is the
  *     same answer the header chip draws, through the same single ask
- *     (`@olai/web/client/who/index.ts`, core viewer furniture shared
- *     by both faces), because a header saying one thing
+ *     (the `identity.viewer` service shared by both faces), because a header saying one thing
  *     about who is looking and a transcript saying another would be two answers
  *     to one question. There is no default picture anywhere in this file:
  *     `null` from the ladder is the silhouette, which is a rung and not a
@@ -59,12 +58,9 @@ import { Match, Show, Switch } from "solid-js"
 
 import type { AgentChoice } from "olai-plugin-chat/wire"
 import { TESTID } from "../../testids.ts"
-import {
-  saying,
-  UserIcon,
-  whoAmI,
-  type Who as Person,
-} from "@olai/web/client/who/index.ts"
+import type { Who as Person } from "@olai/surface"
+import { Dynamic } from "solid-js/web"
+import { viewer } from "../viewer.ts"
 import { AgentMark, MARK } from "./AgentMark.tsx"
 import { PluginMark } from "./PluginMark.tsx"
 import { onTheRight, type Speaker as Party } from "./speakers.ts"
@@ -74,6 +70,16 @@ import { onTheRight, type Speaker as Party } from "./speakers.ts"
  *  invented for the occasion, because that is what is true: these are the words
  *  the reader typed, and the row is already drawn on their side. */
 const ANONYMOUS = "you"
+
+/** Chat's anonymous mark also exists while its identity component is waiting. */
+const AnonymousIcon = (props: { readonly class: string }) => (
+  <svg class={props.class} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+    <circle cx="12" cy="8" r="3" />
+    <path d="M5 21v-2a7 7 0 0 1 14 0v2" />
+  </svg>
+)
+const UserIcon = (props: { readonly class: string }) =>
+  <Dynamic component={viewer()?.UserIcon ?? AnonymousIcon} {...props} />
 
 /** What the AGENT slot says before a conversation has bound one. It is drawn
  *  vanishingly rarely — a row is attributed to the agent, so there is one — but
@@ -102,13 +108,12 @@ export interface Faced {
 }
 
 export function Speaker(props: Faced) {
-  const who = whoAmI()
   /** The person on this connection, or `null`/`undefined` — the resource's own
    *  three answers, kept apart the way {@link ../who/Who.tsx} keeps them: a
    *  failed door is not the same as nobody. Both draw {@link ANONYMOUS} here,
    *  because a transcript is not the place to report on an identity door — the
    *  header chip is, and it does. */
-  const person = () => who.who()
+  const person = () => viewer()?.who()
   /** What to CALL the speaker. The person's display name, else their login,
    *  else `you`; the agent's roster name; a plugin's own name, which is the
    *  string core stamped on the row. */
@@ -184,4 +189,4 @@ export function Speaker(props: Faced) {
  *  when there is nobody to say it of. Its own function so the `<span>` above
  *  reads as one line rather than as a nested conditional. */
 const personTitle = (one: Person | null | undefined): string | undefined =>
-  one == null ? undefined : saying(one)
+  one == null ? undefined : viewer()?.saying(one)
