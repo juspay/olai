@@ -10,11 +10,25 @@
 # hand-unzipped one-platform derivation.
 #
 # Drop `nix/bun.nix` when ekapkgs' default bun is >= 1.4.1.
+#
+# corepkgs `fetch-cargo-vendor` still does
+# `charset-normalizer.override { withMypyc = false; }` (bootstrap of
+# requests). python-pkgs' charset-normalizer does not take that argument, so
+# `buildNpmPackage` / `prefetch-npm-deps` fail to eval (corepkgs#172). Drop
+# this python overlay when that override is gone or the package accepts
+# `withMypyc`.
 let
   sources = import ../npins;
   ekapkgs = import sources.ekapkgs;
   olaiOverlay = import ./overlay.nix;
+  charsetNormalizerOverride = pyfinal: pyprev: {
+    charset-normalizer = pyprev.charset-normalizer // {
+      override = extra:
+        pyprev.charset-normalizer.override (builtins.removeAttrs extra [ "withMypyc" ]);
+    };
+  };
 in
 args: ekapkgs (args // {
   overlays = (args.overlays or [ ]) ++ [ olaiOverlay ];
+  modules = (args.modules or [ ]) ++ [{ overlays.python = [ charsetNormalizerOverride ]; }];
 })
