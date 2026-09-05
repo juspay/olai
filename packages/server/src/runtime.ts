@@ -1981,7 +1981,7 @@ export const bind = (
           inspect: () =>
             Effect.sync(() => ({
               modules: WRITABLE_MODULES,
-              services: [...new Set([...SERVICE_KEYS, ...(plugins?.offers().keys() ?? [])])].sort(),
+              services: plugins?.serviceKeys() ?? SERVICE_KEYS,
               slots: Object.entries(SLOTS).map(([name, one]) => ({
                 name,
                 keyedBy: one.keyedBy,

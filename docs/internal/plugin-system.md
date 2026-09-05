@@ -1153,8 +1153,10 @@ supplied in either segment, so one plugin cannot spell another's namespace.
 
 The bridge owns readiness, rollback and dependent-before-provider cleanup for
 both kinds of offers. `Plugins.offers()` tracks ownership for cascade reporting
-and `plugins.inspect` unions its keys with the static core catalog. Core's seven
-row-provided keys remain reserved to their designated rows. Browser services
-are unchanged; these are server-half dependencies. See
+and `Plugins.serviceKeys()` adds only plugin-owned keys to the public catalog
+for `plugins.inspect`. Internal core offers remain ownership facts, not additions
+to that catalog. Core's seven row-provided keys form a closed set, but any row may provide one when it is
+free. Cordis refuses simultaneous providers; core never names the provider.
+Browser services are unchanged; these are server-half dependencies. See
 [the authoring contract](../dynamic-plugins.md#sharing-a-plugin-owned-service)
 and the two-definition lifecycle scenario in `a_plugin_the_vault_defines.feature`.

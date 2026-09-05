@@ -116,6 +116,10 @@ Feature: A plugin the vault defines
     Then the row "amber" wears a swatch for "#ff8800"
     And the agent service catalog includes "palette.colours"
 
+    And the palette accepts the colour "#0088ff"
+    And the row "amber" wears a swatch for "#0088ff"
+    And the palette accepts the colour "#ff8800"
+
     When I switch the plugin "palette" off
     Then the plugins panel says "swatch" is "palette.colours"
     And no row wears a swatch
@@ -134,5 +138,9 @@ Feature: A plugin the vault defines
     And I approve the plugin "palette"
     Then the row "amber" wears a swatch for "#ff8800"
     And the agent service catalog includes "palette.colours"
+    And the palette rejects the colour "#0088ff"
+    And the row "amber" wears a swatch for "#ff8800"
+    And the palette accepts the colour "#00ff00"
+    And the row "amber" wears a swatch for "#00ff00"
     And there should be no page errors
     And no member of this page has gone silent

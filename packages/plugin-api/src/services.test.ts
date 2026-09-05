@@ -21,6 +21,8 @@ import { Cause, Effect, Layer, Logger, type Scope } from "effect"
 import {
   Deliveries,
   LocalState,
+  Ledger,
+  SERVICE_KEYS,
   definePlugin,
   Kinds,
   type Mounted,
@@ -724,37 +726,47 @@ test("a plugin that offers a door core keeps is refused, and only that plugin fa
 })
 
 /** Cordis refuses the duplicate; olai names both rows and preserves ownership. */
-test("duplicate providers for a reserved door preserve its owner", async () => {
+test("core doors accept alternative providers, refuse collisions and permit replacement", async () => {
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const plugins = yield* runtime()
+    const seen: Array<string> = []
+    const consumer = yield* mountPlugin(plugins.host, definePlugin({
+      name: "observer", needs: [Watching], apply: Effect.gen(function*() {
+        yield* (yield* Watching).subscribe(() => Effect.void)
+      }),
+    }))
+    expect((yield* consumer.report).state).toBe("waiting")
     const offering = (name: string) =>
       definePlugin({
         name,
         needs: [Offers],
         apply: Effect.gen(function*() {
-          yield* (yield* Offers).offer(Watching, () => ({ subscribe: () => Effect.void }))
+          yield* (yield* Offers).offer(Watching, () => ({ subscribe: () => Effect.sync(() => { seen.push(name) }) }))
         }),
       })
-    const first = yield* mountPlugin(plugins.host, offering("chat"))
-    const second = yield* mountPlugin(plugins.host, offering("chat"))
+    const first = yield* mountPlugin(plugins.host, offering("first-provider"))
+    const second = yield* mountPlugin(plugins.host, offering("replacement-provider"))
 
     expect((yield* first.report).state).toBe("running")
     const [state, fault] = yield* rowOf(second)
     expect(state).toBe("failed")
     expect(fault).toBe(
-      'plugins: "chat" and "chat" both offer "watching" — a '
+      'plugins: "first-provider" and "replacement-provider" both offer "watching" — a '
         + "service stands behind one row, and the second would leave every "
         + "plugin that named it holding whichever was mounted last.",
     )
-    expect([...plugins.offers()]).toEqual([["watching", "chat"]])
+    expect([...plugins.offers()]).toEqual([["watching", "first-provider"]])
     yield* second.dispose
-    expect([...plugins.offers()]).toEqual([["watching", "chat"]])
+    expect([...plugins.offers()]).toEqual([["watching", "first-provider"]])
 
     yield* first.dispose
+    expect((yield* consumer.report).state).toBe("waiting")
     expect([...plugins.offers()]).toEqual([])
-    const replacement = yield* mountPlugin(plugins.host, offering("chat"))
+    const replacement = yield* mountPlugin(plugins.host, offering("replacement-provider"))
     expect((yield* replacement.report).state).toBe("running")
-    expect([...plugins.offers()]).toEqual([["watching", "chat"]])
+    expect([...plugins.offers()]).toEqual([["watching", "replacement-provider"]])
+    expect((yield* consumer.report).state).toBe("running")
+    expect(seen).toEqual(["first-provider", "replacement-provider"])
   })))
 })
 
@@ -966,19 +978,6 @@ for (const [name, word] of [["source", ""], ["source", "other.fleet"], ["source.
   })
 }
 
-test("reserved row doors cannot be taken even while their owner is absent", async () => {
-  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
-    const plugins = yield* runtime()
-    const row = yield* mountPlugin(plugins.host, definePlugin({
-      name: "mirror", needs: [Offers], apply: Effect.gen(function*() {
-        yield* (yield* Offers).offer(Watching, () => ({ subscribe: () => Effect.void }))
-      }),
-    }))
-    expect((yield* row.report).state).toBe("failed")
-    expect([...plugins.offers()]).toEqual([])
-  })))
-})
-
 test("a failed plugin-owned offer never activates its consumer and releases its claim", async () => {
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const plugins = yield* runtime()
@@ -1033,5 +1032,27 @@ test("equal local words in different plugins stay distinct and cannot shadow cor
     }))
     expect((yield* reader.report).state).toBe("running")
     expect([...plugins.offers()]).toEqual([["one.vault", "one"], ["two.vault", "two"]])
+  })))
+})
+
+test("discovery follows plugin-owned offers without publishing internal core doors", async () => {
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const plugins = yield* runtime()
+    expect(plugins.serviceKeys()).toEqual([...SERVICE_KEYS].sort())
+    const provider = yield* mountPlugin(plugins.host, definePlugin({
+      name: "alternative", needs: [Offers], apply: Effect.gen(function*() {
+        const offers = yield* Offers
+        yield* offers.offer(Ledger, () => ({
+          wrote: () => {}, whyWaiting: () => Effect.succeed(""),
+          record: () => Effect.void, push: Effect.void, resume: Effect.void,
+        }))
+        yield* offers.own("history", () => ({}))
+      }),
+    }))
+    expect((yield* provider.report).state).toBe("running")
+    expect([...plugins.offers()]).toEqual([["ledger", "alternative"], ["alternative.history", "alternative"]])
+    expect(plugins.serviceKeys()).toEqual([...SERVICE_KEYS, "alternative.history"].sort())
+    yield* provider.dispose
+    expect(plugins.serviceKeys()).toEqual([...SERVICE_KEYS].sort())
   })))
 })

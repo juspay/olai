@@ -811,27 +811,40 @@ export const Identity = serviceTag<Identity>("identity")
  * doorbell may deliver, what a plugin may be told a conversation did, and what
  * to ask this host when one opens. The fifth is the git row's ledger, the sixth
  * is the search row's matcher, and the seventh is the identity row's reading of
- * who is looking. These core keys are reserved to their designated rows.
+ * who is looking. The set of core keys is closed; their providers are replaceable.
  * Plugins contribute new keys through Offers.own, under their own namespace.
  */
-const CORE_OFFERS = [
-  [Agents, "chat"],
-  [Deliveries, "chat"],
-  [SessionStart, "chat"],
-  [Watching, "chat"],
-  [Ledger, "git"],
-  [Search, "search"],
-  [Identity, "identity"],
+export const OFFERABLE = [
+  Agents,
+  Deliveries,
+  SessionStart,
+  Watching,
+  Ledger,
+  Search,
+  Identity,
 ] as const
 
-export const OFFERABLE = CORE_OFFERS.map(([key]) => key)
-const CORE_SERVICE_OWNERS = new Map<string, string>(
-  CORE_OFFERS.map(([key, owner]) => [key.cordis, owner]),
-)
-
-/** Scoped provisions. Core doors belong to their designated rows; `own`
- * stamps a local word with the calling fiber's name. Both paths use the
- * bridge's readiness and dependent-before-provider teardown ordering. */
+/**
+ * PROVIDING A SERVICE WITHOUT HANDING OVER THE HOST.
+ *
+ * A plugin gets Offers, never provide or openHost. A host would let it mount
+ * a fiber under another name, forging the identity that keyed services use
+ * for registrations. The bridge reads that identity from the calling fiber;
+ * this door exposes neither a host nor a provider-name argument.
+ *
+ * Two independent choices meet here: offer selects a core-defined key from
+ * OFFERABLE; own composes a new key from the fiber name and a local word.
+ * Any row may provide a core door. Cordis refuses a second provider, and
+ * both paths share the same activation, conflict reporting and scoped undo.
+ * The bridge withholds provisions until initialization succeeds and awaits
+ * dependent cleanup before releasing the provider resources.
+ *
+ * serviceTag is deliberately part of the plugin vocabulary: a consumer
+ * names a plugin-owned key and its shape once, then uses that tag in needs
+ * and yields it in apply. Minting a tag only names a dependency; it grants
+ * no provision or host access. Offering remains a stamped capability the
+ * provider must explicitly name in needs.
+ */
 export interface Offers {
   /** Offer `<this plugin>.<word>`, stamped with the calling fiber's name.
    * Consumers name `serviceTag<Shape>("provider.word")` in their needs. */
@@ -1060,6 +1073,10 @@ export interface Plugins {
    * carrying another on `vault` or `clock`.
    */
   readonly offers: () => ReadonlyMap<string, string>
+  /** Public discovery: the stable authoring catalog plus currently offered
+   * plugin-owned keys. Ownership also tracks internal core doors, which this
+   * catalog deliberately does not expose. */
+  readonly serviceKeys: () => ReadonlyArray<string>
   /** TELL EVERY PLUGIN A REVISION LANDED, and wait for each of them — see
    *  {@link Vault}. */
   readonly published: (snapshot: unknown) => Effect.Effect<void>
@@ -1341,12 +1358,11 @@ export const openPlugins = (
           return stand(serviceTag<Shape>(`${plugin}.${word}`), door)
         }),
         offer: <Shape>(key: ServiceKey<Shape>, door: Provision<Shape>) => Effect.suspend(() => {
-          const owner = CORE_SERVICE_OWNERS.get(key.cordis)
-          if (owner !== plugin) {
+          if (!OFFERABLE.some((one) => one.cordis === key.cordis)) {
             return Effect.die(new Error(
               `plugins: "${plugin}" offered to stand behind "${key.cordis}", which is `
-                + "not one of the doors a row may hold"
-                + (owner === undefined ? ". Core owns this key." : ` unless its name is "${owner}".`),
+                + "not one of the doors a row may hold. Use own for a plugin-owned key; "
+                + "host services cannot be replaced by a plugin.",
             ))
           }
           return stand(key, door)
@@ -1417,6 +1433,7 @@ export const openPlugins = (
       composed: () => [...siblings.read().values()],
       declared: wakes.read,
       offers: () => new Map([...offered].map(([key, owner]) => [key, owner.plugin])),
+      serviceKeys: () => [...SERVICE_KEYS, ...[...offered.keys()].filter((key) => key.includes("."))].sort(),
       changes: hostChanges(host),
       close: closeHost(host),
       published: revisions.tell,

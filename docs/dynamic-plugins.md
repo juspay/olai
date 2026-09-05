@@ -192,7 +192,9 @@ letters, digits or hyphens; dots are reserved for the separator.
 
 A consumer defines `const Fleet = serviceTag<FleetShape>("fleet-source.fleet")`
 using `serviceTag` from `@olai/plugin-api`, includes `Fleet` in `needs`, and reads
-it with `yield* Fleet`. Providers and consumers must agree on the shape; the
+it with `yield* Fleet`. Minting a tag names a dependency; it does not grant
+permission to provide that key or access the runtime host. Providers and
+consumers must agree on the shape; the
 string key does not validate arbitrary dynamic code's types at runtime.
 
 The consumer waits until the provider finishes initialization. Removing or
@@ -204,8 +206,9 @@ offering activation and unwind its registrations.
 `plugins.inspect` includes currently offered plugin-owned keys beside the core
 catalog. A stopped or removed provider's keys disappear; consumers can still name
 a missing key and wait for it. This is discovery of keys, not a schema registry.
-`Offers.offer` remains for the reserved core doors: chat owns `agents`,
-`deliveries`, `session-start` and `watching`; git owns `ledger`; search owns
-`search`; identity owns `identity`. Other rows cannot claim those keys, even
-while the owner is disabled. `own("vault", ...)` means `your-plugin.vault` and
-cannot replace core's `vault`.
+`Offers.offer` accepts only the core-defined `OFFERABLE` keys. Any row may
+stand behind one, one at a time; Cordis refuses a second provider and names
+both rows and the contested key. Once the first leaves, a differently named
+provider can take its place without a core edit. Other host services remain
+closed: `own("vault", ...)` means `your-plugin.vault` and cannot replace
+core's `vault`.
