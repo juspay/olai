@@ -6237,11 +6237,12 @@ test("a pin rename precondition is rechecked when the row leaves the active shel
   const request = { op: "title", id: "pin", title: "[Renamed](/#order)", was: pin.title, pinned: true } as const
   const initial = setOf({ "_olai/Pins.olai": JSON.stringify(pin) })
   expect(record(fileOf(planned(initial, request), "_olai/Pins.olai"), "pin").title).toBe(request.title)
-  for (const files of [
+  const moved: ReadonlyArray<Record<string, string>> = [
     { "_olai/Pins.olai": "", "_olai/Trash.olai": JSON.stringify(pin) },
     { "_olai/Pins.olai": JSON.stringify({ id: "folder", ord: "a0", title: "folder" }) + "\n" + JSON.stringify({ ...pin, parent: "folder" }) },
     { "_olai/Pins.olai": JSON.stringify(pin), "Pins.olai": JSON.stringify({ id: "other", ord: "a0", title: "/garden.olai" }) },
-  ]) {
+  ]
+  for (const files of moved) {
     expect(refused(setOf(files), request).message).toContain("no longer pinned")
   }
 })
