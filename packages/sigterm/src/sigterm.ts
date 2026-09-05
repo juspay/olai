@@ -492,7 +492,7 @@ const installSigtermGuardOnce = async (): Promise<void> => {
     armed = true
     drainForever(guard)
     process.stderr.write(
-      `olai web: SIGTERM guard armed: only the supervisor (pid ${process.ppid}), the kernel, or this process's own pid can stop it; a TERM from any other sender is refused and named\n`,
+      `olai web: SIGTERM guard armed: supervisor=${process.ppid}\n`,
     )
   } catch (cause) {
     // Disarm FIRST: a catcher whose pipeline failed would otherwise eat

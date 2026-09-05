@@ -807,9 +807,12 @@ export default definePlugin({
       })
       yield* Effect.addFinalizer(() => chat === null ? Effect.void : chat.stop)
       yield* chat.start
-      yield* Effect.annotateLogs(Effect.logInfo("chat agents detected"), {
+      yield* Effect.annotateLogs(Effect.logDebug("chat agent commands"), {
         agents: installed.map((row) => `${row.id}=${row.adapter.command}`).join(" "),
         mcp: address.url,
+      })
+      yield* Effect.annotateLogs(Effect.logInfo("chat agents detected"), {
+        agents: installed.map((row) => row.id).join(", "),
       })
     }))
 

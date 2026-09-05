@@ -668,6 +668,6 @@ export const serve = (options: ServeOptions) =>
     yield* Deferred.succeed(toolsReady, address)
 
     return runtime.faulted
-  }).pipe(Effect.withLogSpan("serve"))
+  })
 
 const LOOPBACK: ReadonlySet<string> = new Set(["127.0.0.1", "localhost", "::1"])

@@ -126,6 +126,8 @@ That rule covers **every name still in force, including the ones you did not con
 
 It says what it is doing on stdout, one line per event, quietly: the address it bound, the agents it detected, the chat's lifecycle (a conversation opened, a prompt sent, a turn that ended or failed, the agent process itself coming and going), and anything that went wrong.
 
+Terminal output is compact: inline fields, no fiber IDs, short session UUIDs, and a root path on directory changes and warnings/errors. Errors keep their full causes on indented lines. Piped logfmt retains full root/session annotations. Agent discovery lists names; command paths, arguments and successful tool probes are available at `debug`. The SIGTERM guard emits a short readiness marker on stderr.
+
 Two knobs, both environment variables, both facts of the running instance rather than of a browser:
 
 | variable | what it picks | default |
