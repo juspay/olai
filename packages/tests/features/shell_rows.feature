@@ -102,14 +102,14 @@ Feature: The renderer and layout are browser rows
     Given a static dependency of the browser module for "sidebar" cannot be fetched
     When I open the address "/house.olai"
     And I mark the page
-    And I mark the screen
+    And I mark every element of the row "handles"
     And I open the plugins panel
     Then the plugins panel says "sidebar" is "Module load failed"
     When the static dependency can be fetched again
     And I retry the failed browser activation
     Then browser recovery offers a reload for the cached dependency failure
     And the page has not reloaded
-    And the node "handles" was never taken away
+    And the row "handles" kept every element it had
     When I reload using browser recovery
     And I open the plugins panel
     Then the plugins panel says "sidebar" is "Browser: running."

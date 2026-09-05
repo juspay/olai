@@ -401,6 +401,7 @@ export const createEditor = (
    * suppress every later blur in the session).
    */
   let settling = false
+  let takingDraft = false
 
   /** The caret is settled on the frame that redraws the row, and again when
    *  the write answers — because the two arrive in either order. The server
@@ -1200,12 +1201,22 @@ export const createEditor = (
       if (resuming() === slot) setResuming(null)
       return
     }
-    batch(() => {
-      setGhosts((list) => list.filter((g) => g.slot !== slot))
-      setDraft(found)
-      setResuming(null)
-      setCaret((n) => n + 1)
-    })
+    // Reordering the keyed input can emit blur even though this gesture is
+    // taking its caret. That DOM blur must not enqueue a later close of the
+    // newly active draft (which would leave typed text parked and unsaved).
+    takingDraft = true
+    try {
+      batch(() => {
+        setGhosts((list) => list.filter((g) => g.slot !== slot))
+        setDraft(found)
+        setResuming(null)
+        setCaret((n) => n + 1)
+      })
+    } finally {
+      // A surrounding Solid update may flush the DOM after this nested batch
+      // returns. Release after that flush, before the next browser gesture.
+      queueMicrotask(() => { takingDraft = false })
+    }
     if (found.text.trim() !== "") idle()
   }
 
@@ -1297,7 +1308,7 @@ export const createEditor = (
     },
     blur: (from, left) => {
       // A blur we caused ourselves — see `settling`.
-      if (settling) return
+      if (settling || takingDraft) return
       // A blur nobody caused on purpose: the editor's element is not in the
       // document any more, so it was REMOVED by a re-render rather than left
       // by a person. The commit below is still right (what was typed should be
@@ -1305,7 +1316,10 @@ export const createEditor = (
       // anywhere — the row they are in is being redrawn around them, by an
       // agent's write or another tab's, at a moment nothing here chose.
       if (!left) {
-        enqueue(commit)
+        enqueue(() => {
+          const held = draft()
+          return held !== null && stillAt(held, from) ? commit() : undefined
+        })
         return
       }
       const before = draft()
