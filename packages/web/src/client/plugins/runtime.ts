@@ -165,9 +165,15 @@ const run = standing()
  * reaches a component — which is what keeps this module a `.ts` on a graph with
  * no JSX on it.
  */
+/** Activation names identify independent fibers; owners identify plugin
+ * capabilities. Keep that binding explicit instead of teaching every service
+ * how to split a component's display name. */
+const owners = new Map<string, string>()
+
 export const app: App = await run(
   openApp({
     changed: told,
+    ownerFor: (fiber) => owners.get(fiber) ?? fiber,
     // ...AND HOW A READ IS TRACKED, which is the same signal from the other
     // side. The walks below read it themselves, and could go on doing so alone
     // — what could not is a PLUGIN's read: `Faces` hands the chat panel the
@@ -193,28 +199,32 @@ export const app: App = await run(
  *  agrees with the real one until the day it does not. */
 const mounted = new Map<string, Mounted>()
 
-/** State belongs to this tab, not the server roster. Preserve a failed
- * activation's report after disposing its fiber, until the next retry. */
-const failures = new Map<string, RowReport>()
-const [reports, setReports] = createSignal<ReadonlyMap<string, RowReport>>(new Map())
+/**
+ * A FAULT'S DISPLAY LIFETIME IS LONGER THAN ITS FIBER'S.
+ *
+ * Retaining a failed fiber would retain a registry entry and make the next
+ * composition mistake it for a survivor. Dropping both fiber and report would
+ * leave a running server row with absent browser faces and no explanation.
+ * Keep only the fault data after disposal: it owns no scope, subscription or
+ * client. A successful retry replaces it; removing the row forgets it. This is
+ * the current activation's explanation, not persistent error history.
+ *
+ * The separate report snapshot also includes live waiting components, even
+ * when they registered no slots. Host transitions, not face rendering, drive
+ * that reading. The panel's wording is in rows.ts so changing a sentence cannot
+ * change when a fiber is mounted, retried or released.
+ */
+const failures = new Map<string, Extract<RowReport, { readonly state: "failed" }>>()
+const [browserReports, setReports] = createSignal<ReadonlyMap<string, RowReport>>(new Map())
+/** Reading a fault can await the runtime's error promise. A later host change
+ * may finish its snapshot first; the generation keeps an older read from
+ * overwriting it. Composition publishes its own final snapshot after the
+ * movement, so the panel is not asked to interpret a half-reconciled roster. */
 let reporting = 0
 const refreshReports = async (): Promise<void> => {
   const generation = ++reporting
   const snapshot = await Promise.all([...mounted].map(async ([name, row]) => [name, await run(row.report)] as const))
   if (generation === reporting) setReports(new Map([...snapshot, ...failures]))
-}
-
-/** A running server row can have a waiting browser component. Keep the
- * server's switch semantics and name that component and its missing keys. */
-export const browserHint = (plugin: string): string | null => {
-  const lines: string[] = []
-  for (const [name, report] of reports()) {
-    if (name !== plugin && !name.startsWith(plugin + "/")) continue
-    const label = name === plugin ? "Browser" : `Browser ${name.slice(plugin.length + 1)}`
-    if (report.state === "waiting") lines.push(`${label}: waiting for ${report.missing?.join(", ") || "initialization"}.`)
-    if (report.state === "failed") lines.push(`${label}: failed to start. ${report.fault ?? "It gave no message."}`)
-  }
-  return lines.length ? lines.join(" ") : null
 }
 
 await run(Effect.forkScoped(Stream.runForEach(app.changes, () =>
@@ -282,18 +292,35 @@ export const composeTo = async (
   }
 }
 
-/** The movement itself — {@link composeTo} is this, with the page told once at
- *  the end rather than once per registration. */
+/**
+ * COMPONENTS ARE INDEPENDENT FIBERS OWNED BY ONE ROW.
+ *
+ * A row is the unit the server enables; a component is a smaller dependency
+ * lifetime inside its browser half. Flattening both into this wanted set makes
+ * row withdrawal remove every component, while each needs list still controls
+ * only its own resources. A missing optional enrichment cannot withdraw its
+ * parent's useful faces. No plugin receives a host or a mount capability.
+ *
+ * The record key supplies the component's local identity. Its exported
+ * Plugin.name cannot select another row's authority: the root stamps both the
+ * parent/component activation name and the owning row. Those are distinct
+ * facts. The first keys reports and independent disposal; the second selects
+ * Wired's sibling, Slots' owner and Offers' namespace. Parsing the activation
+ * name inside those services would braid that policy into three capabilities.
+ */
 const recompose = async (halves: ReadonlyArray<BrowserHalf>): Promise<void> => {
   const wanted = new Map(halves.flatMap((half) => [
-    [half.default.name, half.default] as const,
+    [half.default.name, { plugin: half.default, owner: half.default.name }] as const,
     ...Object.entries(half.components ?? {}).map(([local, component]) => {
       if (!/^[a-z][a-z0-9-]*$/.test(local)) throw new Error(`Invalid browser component name: ${local}`)
       const name = `${half.default.name}/${local}`
-      return [name, { ...component, name }] as const
+      return [name, { plugin: { ...component, name }, owner: half.default.name }] as const
     }),
   ]))
-  for (const name of failures.keys()) if (!wanted.has(name)) failures.delete(name)
+  for (const name of failures.keys()) if (!wanted.has(name)) {
+    failures.delete(name)
+    owners.delete(name)
+  }
   // OUT FIRST, so a plugin that left has unwound its registrations before a
   // plugin that arrived can claim a key it was holding. The two orders differ
   // only for a kind word two plugins could both claim, which the loader already
@@ -302,8 +329,9 @@ const recompose = async (halves: ReadonlyArray<BrowserHalf>): Promise<void> => {
     if (wanted.has(name)) continue
     mounted.delete(name)
     await run(plugin.dispose)
+    owners.delete(name)
   }
-  for (const [name, half] of wanted) {
+  for (const [name, { plugin: half, owner }] of wanted) {
     const existing = mounted.get(name)
     if (existing !== undefined) {
       // A consumer can fail later, when its missing provider first arrives.
@@ -318,6 +346,7 @@ const recompose = async (halves: ReadonlyArray<BrowserHalf>): Promise<void> => {
     // that failed has already been contained by the runtime, so what is awaited
     // here is only "it has finished trying" and the page can draw whatever did
     // start.
+    owners.set(name, owner)
     const plugin = await run(mountPlugin(app.host, half))
     mounted.set(name, plugin)
     failures.delete(name)
@@ -450,3 +479,5 @@ export const only = <S extends SingleSlot>(slot: S): Hung<SlotFaces[S]> | null =
  */
 export const furnish = (furniture: Parameters<App["furnish"]>[0]): Promise<void> =>
   run(app.furnish(furniture))
+
+export { browserReports }

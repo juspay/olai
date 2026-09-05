@@ -30,4 +30,5 @@
 export const name = "identity"
 
 /** Local browser service words, shared by publication and discovery. */
-export const browserServices = ["viewer"] as const
+export const viewerService = "viewer"
+export const browserServices = [viewerService] as const

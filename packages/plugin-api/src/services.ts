@@ -95,7 +95,7 @@ import {
 } from "@olai/effect-cordis"
 import { Deferred, Effect, Exit, Scope, type Stream } from "effect"
 
-import { ownService } from "./owned.ts"
+import { ownedKey, ownService, type OwnServices } from "./owned.ts"
 import {
   type ConversationSeen,
   type Deliveries as DeliveryDoor,
@@ -851,13 +851,21 @@ export const OFFERABLE = [
  * no provision or host access. Offering remains a stamped capability the
  * provider must explicitly name in needs.
  */
-export interface Offers {
-  /** Advertise local browser service words. This is an author declaration,
-   * not evidence that a particular tab has activated its provider. */
+export interface Offers extends OwnServices {
+  /**
+   * A browser contract discoverable without running browser code on the server.
+   * The declaration promises that this plugin authors these local words; the
+   * same namespace grammar and owner stamp apply as for own. It does not
+   * provide a server dependency, validate the browser implementation's shape,
+   * or prove that any tab loaded or activated that implementation.
+   *
+   * This is why inspect says `declared`, not `provided`. Browser activation
+   * belongs to each tab's host and its panel; discovery belongs to the server
+   * an agent can ask without opening a tab. Unloading the declaring scope
+   * withdraws its entries, so discovery does not retain a stopped author's
+   * claims. Built plugins share their word constants between both halves.
+   */
   readonly browser: (words: ReadonlyArray<string>) => Effect.Effect<void, never, Scope.Scope>
-  /** Offer `<this plugin>.<word>`, stamped with the calling fiber's name.
-   * Consumers name `serviceTag<Shape>("provider.word")` in their needs. */
-  readonly own: <Shape>(word: string, door: Provision<Shape>) => Effect.Effect<void, never, Scope.Scope>
   /** Stand behind one door, for as long as the calling plugin is loaded. */
   readonly offer: {
     (key: typeof Agents, door: Provision<Agents>): Effect.Effect<void, never, Scope.Scope>
@@ -1367,9 +1375,9 @@ export const openPlugins = (
       return {
         own: ownService(plugin, stand),
         browser: (words) => Effect.forEach(words, (word) =>
-          ownService(plugin, (key) => browserKeys.claim(key.cordis, plugin, () =>
-            `plugins: "${plugin}" declared browser service "${key.cordis}" twice`,
-          ))(word, () => ({})),
+          Effect.flatMap(ownedKey(plugin, word), (key) => browserKeys.claim(key, plugin, () =>
+            `plugins: "${plugin}" declared browser service "${key}" twice`,
+          )),
           { discard: true },
         ),
         offer: <Shape>(key: ServiceKey<Shape>, door: Provision<Shape>) => Effect.suspend(() => {

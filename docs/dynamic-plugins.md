@@ -361,7 +361,7 @@ Browser halves import `Offers` from `@olai/plugin-api` and publish with
 consumer declares `serviceTag<Shape>("provider.palette")` in `needs` and
 yields that tag in `apply`, just like a server consumer. Each local segment
 must start with a lowercase letter and contain only lowercase letters, digits
-or hyphens; the provider name comes from the fiber.
+or hyphens; the provider name comes from the owning plugin’s binding.
 
 Browser `Offers` has only `own`: plugins cannot replace `Slots`, `Wired`, or
 the shell furniture. Keys live in the tab host, independently of identically
@@ -390,5 +390,9 @@ Identity offers `identity.viewer`, including the resource over `who.get`,
 `saying` and `UserIcon`. Chat exports a `components` record containing its
 speaker's plugin definition. Each browser component gets a separate dependency
 lifecycle, a name stamped as `parent/component`, and is removed with its parent
-row. A waiting speaker leaves chat's anonymous face available. Components have
-no host access and cannot offer a different row's keys.
+row. The activation name is separate from the owning plugin: components share
+the row’s service namespace, sibling client and slot ownership, while each
+registration still closes with its component. A service factory receives the
+consuming plugin’s owner name, including when that consumer is a component.
+A waiting speaker leaves chat's anonymous face available. Components have no
+host access and cannot offer a different row's keys.
