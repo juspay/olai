@@ -65,8 +65,9 @@ export type Provision<Shape> = (plugin: string) => Shape
  *
  * The tag's own string identity is namespaced, because an Effect context is a
  * flat map keyed by that string and two unrelated services sharing one would
- * occupy one slot. The Cordis key stays the bare word, because that is what a
- * fiber's `inject` and a `ctx.<key>` read are spelled with.
+ * occupy one slot. The Cordis key stays exactly as supplied, including any
+ * plugin namespace: it is the key the fiber's inject names. Minting this tag
+ * names a dependency; it does not install a provision.
  */
 export const serviceTag = <Shape>(cordis: string): ServiceKey<Shape> =>
   Object.assign(Context.Service<Shape>(`effect-cordis/${cordis}`), { cordis })

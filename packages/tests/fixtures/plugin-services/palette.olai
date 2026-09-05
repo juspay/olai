@@ -1,0 +1,3 @@
+{"id":"palette","ord":"a0","title":"Shared palette","custom":{"plugin":"palette"}}
+{"id":"palette-server","parent":"palette","ord":"a0","title":"server.ts","desc":"import { definePlugin, Offers } from \"@olai/plugin-api\"\nimport { Effect } from \"effect\"\nexport default definePlugin({ name: \"palette\", needs: [Offers], apply: Effect.gen(function*() {\n  yield* (yield* Offers).own(\"colours\", () => ({ accepts: (value: string) => /^#[0-9a-f]{6}$/i.test(value) }))\n}) })"}
+{"id":"palette-browser","parent":"palette","ord":"a1","title":"browser.tsx","desc":"import { definePlugin } from \"@olai/plugin-api\"\nimport { Effect } from \"effect\"\nexport default definePlugin({ name: \"palette\", needs: [], apply: Effect.void })"}

@@ -79,7 +79,6 @@
 
 import type { Engine, Registering } from "@olai/acp/engine"
 import {
-  type AnyKey,
   broadcast,
   type Host,
   openHost,
@@ -812,10 +811,8 @@ export const Identity = serviceTag<Identity>("identity")
  * doorbell may deliver, what a plugin may be told a conversation did, and what
  * to ask this host when one opens. The fifth is the git row's ledger, the sixth
  * is the search row's matcher, and the seventh is the identity row's reading of
- * who is looking. Every other service on this page is a fact about the process,
- * the vault or the machine, which core knows before any row is mounted — so
- * there is nothing a row could offer that core is not already a better answer
- * for, and everything to lose by letting one try.
+ * who is looking. The set of core keys is closed; their providers are replaceable.
+ * Plugins contribute new keys through Offers.own, under their own namespace.
  */
 export const OFFERABLE = [
   Agents,
@@ -828,45 +825,30 @@ export const OFFERABLE = [
 ] as const
 
 /**
- * THE ONE CAPABILITY A PLUGIN MAY NAME — standing behind a service key that OTHER
- * plugins name, for as long as the offering plugin is loaded.
+ * PROVIDING A SERVICE WITHOUT HANDING OVER THE HOST.
  *
- * ## Against a written ruling, and narrower than the thing it was written about
+ * A plugin gets Offers, never provide or openHost. A host would let it mount
+ * a fiber under another name, forging the identity that keyed services use
+ * for registrations. The bridge reads that identity from the calling fiber;
+ * this door exposes neither a host nor a provider-name argument.
  *
- * {@link ./runtime.ts} withholds `openHost` and `provide`, and the argument there
- * is sharper than "a plugin could provide itself what it names": `mountPlugin` IS
- * on that door and its first argument is a `Host`, while the per-plugin stamp is
- * `ctx.fiber.name` read once with no parameter anywhere. A plugin holding a host
- * could mount `{ name: "kolu", … }` and every keyed service in this file would
- * stamp its registrations `kolu`. The forgery the whole keying design exists to
- * prevent is one export away, and is unreachable today only because no plugin can
- * obtain a host.
+ * Two independent choices meet here: offer selects a core-defined key from
+ * OFFERABLE; own composes a new key from the fiber name and a local word.
+ * Any row may provide a core door. Cordis refuses a second provider, and
+ * both paths share the same activation, conflict reporting and scoped undo.
+ * The bridge withholds provisions until initialization succeeds and awaits
+ * dependent cleanup before releasing the provider resources.
  *
- * So a plugin gets `offer`, never `provide`, and it is narrower in four ways:
- *
- *   - THE KEY SET IS CLOSED ({@link OFFERABLE}). Core's own tags can never be
- *     shadowed, replaced or raced by a row.
- *   - THERE IS NO HOST. It is closed over in `openPlugins`, in the package the
- *     ruling names as the one that spends the capability.
- *   - CORDIS REFUSES A SECOND PROVIDER. The bridge identifies that refusal;
- *     this door supplies the sentence naming both rows and the contested key.
- *   - IT IS IN `needs`. A plugin that stands behind a door SAYS SO in the one
- *     list a reader, the fence and `@olai/bundle`'s table all read — and the
- *     standing belongs to the calling activation. The bridge revokes offers and
- *     joins dependent cleanup before closing the plugin's resource scope.
- *
- * ## Why SEVEN OVERLOADS and not one generic
- *
- * Because `ServiceKey` and `Provision` are NOT on a plugin's door, and this is
- * the door that would have put them there. A generic `offer<S>(key:
- * ServiceKey<S>, door: Provision<S>)` is spellable only by a caller who can name
- * both, so every offering plugin would import the bridge's own type vocabulary to
- * write one line — which is the arrow {@link ./runtime.ts} exists to be the only
- * one of. Seven overloads land the same cast at the provision and let a plugin
- * write `(who) => ({ … })` and nothing else. It is `./browser.ts`'s `Slots`
- * shape, one level up.
+ * serviceTag is deliberately part of the plugin vocabulary: a consumer
+ * names a plugin-owned key and its shape once, then uses that tag in needs
+ * and yields it in apply. Minting a tag only names a dependency; it grants
+ * no provision or host access. Offering remains a stamped capability the
+ * provider must explicitly name in needs.
  */
 export interface Offers {
+  /** Offer `<this plugin>.<word>`, stamped with the calling fiber's name.
+   * Consumers name `serviceTag<Shape>("provider.word")` in their needs. */
+  readonly own: <Shape>(word: string, door: Provision<Shape>) => Effect.Effect<void, never, Scope.Scope>
   /** Stand behind one door, for as long as the calling plugin is loaded. */
   readonly offer: {
     (key: typeof Agents, door: Provision<Agents>): Effect.Effect<void, never, Scope.Scope>
@@ -1086,11 +1068,15 @@ export interface Plugins {
    * inverse — a plugin and the doors it holds — would be the same fact with the
    * uniqueness rule no longer visible in the shape.
    *
-   * ONLY THE SEVEN OFFERABLE ONES ever appear: core's own services are provided
-   * before any row is mounted and are nobody's to hold, so a row can never be
+   * Core row offers and plugin-owned keys appear here. Host services are
+   * provided before any row is mounted and are nobody's to hold, so a row can never be
    * carrying another on `vault` or `clock`.
    */
   readonly offers: () => ReadonlyMap<string, string>
+  /** Public discovery: the stable authoring catalog plus currently offered
+   * plugin-owned keys. Ownership also tracks internal core doors, which this
+   * catalog deliberately does not expose. */
+  readonly serviceKeys: () => ReadonlyArray<string>
   /** TELL EVERY PLUGIN A REVISION LANDED, and wait for each of them — see
    *  {@link Vault}. */
   readonly published: (snapshot: unknown) => Effect.Effect<void>
@@ -1343,26 +1329,11 @@ export const openPlugins = (
 
     // This table reports ownership; Cordis itself refuses duplicate providers.
     const offered = new Map<string, { readonly plugin: string }>()
-    yield* provide(host, Offers, (plugin) => ({
-      offer: (key: AnyKey, door: Provision<never>) =>
+    yield* provide(host, Offers, (plugin) => {
+      const stand = <Shape>(key: ServiceKey<Shape>, door: Provision<Shape>) =>
         Effect.suspend(() => {
-          // THE TABLE IS CLOSED AND THE REFUSAL IS A DEATH, not a failure
-          // channel: a plugin that offered a key nobody may offer is a mistake in
-          // that plugin, and it lands that fiber `failed` having installed
-          // nothing while its siblings keep running — the same shape a duplicate
-          // kind word gets two registries up.
-          if (!OFFERABLE.some((one) => one.cordis === key.cordis)) {
-            return Effect.die(
-              new Error(
-                `plugins: "${plugin}" offered to stand behind "${key.cordis}", which is `
-                  + "not one of the doors a row may hold. Core provides every other "
-                  + "service before any row is mounted, and a plugin that could stand "
-                  + "behind one could stand behind the services it is meant to name.",
-              ),
-            )
-          }
           const owner = { plugin }
-          return offer(key as ServiceKey<never>, door).pipe(
+          return offer(key, door).pipe(
             Effect.catchDefect((defect) => {
               return Effect.die(!(defect instanceof OfferConflict) ? defect : new Error(
                 `plugins: "${defect.owner}" and "${plugin}" both offer "${key.cordis}" — a `
@@ -1375,16 +1346,29 @@ export const openPlugins = (
               () => Effect.sync(() => { if (offered.get(key.cordis) === owner) offered.delete(key.cordis) }),
             )),
           )
+        })
+      return {
+        own: <Shape>(word: string, door: Provision<Shape>) => Effect.suspend(() => {
+          if (![plugin, word].every((part) => /^[a-z][a-z0-9-]*$/.test(part))) {
+            return Effect.die(new Error(
+              `plugins: "${plugin}" cannot offer local service word "${word}"; `
+                + "each segment must start with a lowercase letter and contain only lowercase letters, digits or hyphens.",
+            ))
+          }
+          return stand(serviceTag<Shape>(`${plugin}.${word}`), door)
         }),
-      // THE CAST IS WHAT AN OVERLOAD SET IS. `Offers.offer` declares seven call
-      // signatures and no implementation signature — because a plugin must never
-      // be able to spell an eighth — and the body underneath an overload set is
-      // always one wider function that the declarations narrow. TypeScript will
-      // not check the two against each other here (the widening runs through
-      // `never`, which overlaps nothing), so this is the same unchecked step a
-      // `function` declaration with six overloads takes, written where the
-      // reader can see it.
-    } as unknown as Offers))
+        offer: <Shape>(key: ServiceKey<Shape>, door: Provision<Shape>) => Effect.suspend(() => {
+          if (!OFFERABLE.some((one) => one.cordis === key.cordis)) {
+            return Effect.die(new Error(
+              `plugins: "${plugin}" offered to stand behind "${key.cordis}", which is `
+                + "not one of the doors a row may hold. Use own for a plugin-owned key; "
+                + "host services cannot be replaced by a plugin.",
+            ))
+          }
+          return stand(key, door)
+        }),
+      }
+    })
 
     yield* provide(host, Tools, () => ({
       // NEVER, and not a null: a root with no listener has no address, and a
@@ -1449,6 +1433,7 @@ export const openPlugins = (
       composed: () => [...siblings.read().values()],
       declared: wakes.read,
       offers: () => new Map([...offered].map(([key, owner]) => [key, owner.plugin])),
+      serviceKeys: () => [...SERVICE_KEYS, ...[...offered.keys()].filter((key) => key.includes("."))].sort(),
       changes: hostChanges(host),
       close: closeHost(host),
       published: revisions.tell,

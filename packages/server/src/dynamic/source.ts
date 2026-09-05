@@ -52,7 +52,7 @@
  * revision and is benched as one.
  */
 
-import { customText, type Derived, isRegular, type RegularNode } from "@olai/format"
+import { customText, type Derived, isPutAway, isRegular, type RegularNode } from "@olai/format"
 import { PLUGIN_BROWSER_NODE as BROWSER_NODE, PLUGIN_SERVER_NODE as SERVER_NODE } from "@olai/surface"
 
 /** THE TWO HALVES, by the titles their child nodes wear — `@olai/surface`'s,
@@ -117,6 +117,12 @@ export const isApproved = (one: Defined): boolean =>
  * word, and a vault that could rename a compiled-in plugin out of existence
  * would be the vault deciding what the host runs, which is the one thing every
  * ruling in this lane refuses.
+ *
+ * WHAT IS LEFT OUT is a node whose file was put away. A trashed definition is
+ * a regular node in `_olai/Trash.olai`, and without this skip the panel draws
+ * it as a vault-defined plugin with the trash as its file. The rest of the
+ * tree treats the trash as absent (`isPutAway`); this reader does too, so
+ * `trash_node` is the retraction the doc already names.
  */
 export const definedIn = (
   derived: Derived,
@@ -126,6 +132,11 @@ export const definedIn = (
   const read: Array<Defined> = []
   for (const at of derived.nodes) {
     if (!isRegular(at)) continue
+    // THE TRASH IS ABSENT, asked the way every live reading here asks it:
+    // once per file, of the one predicate (`isPutAway`) rather than of a
+    // basename. A leftover `Archive.olai` is the other half of that predicate
+    // and is skipped for the same reason — it is not a live definition either.
+    if (isPutAway(at.file)) continue
     const word = (customText(at.node, PLUGIN_KEY) ?? "").trim()
     if (word === "") continue
     claims.set(word, (claims.get(word) ?? 0) + 1)
