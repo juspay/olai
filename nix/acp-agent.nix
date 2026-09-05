@@ -153,7 +153,7 @@ buildNpmPackage {
           bin = "claude-agent-acp";
           # Node is pinned and so is the CLI the SDK drives (the adapter reads
           # CLAUDE_CODE_EXECUTABLE before it goes looking); nothing here
-          # resolves off PATH. The rest is what nixpkgs' claude-code sets: no
+          # resolves off PATH. The rest is what the packaged claude-code sets: no
           # self-update (this closure is immutable), and the ripgrep buried in
           # the bun archive cannot be patched, so hand it the one from the
           # store.

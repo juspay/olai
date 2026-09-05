@@ -15,7 +15,7 @@ just run            # the one brain: this repo's docs, on an OS-assigned port
 just serve docs     # the same, plus a client-bundler watch for the edit loop
 ```
 
-The flake lists [cache.nixos.asia/oss](https://cache.nixos.asia/oss) as a substituter, and a GitHub Actions job on every push builds every flake output on linux and darwin and pushes the closures there. `nix run github:juspay/olai` and a clone's `nix build` / `nix develop` should download rather than compile; if they compile, that commit has not been warmed yet.
+The flake lists two substituters: [cache.nixos.asia/oss](https://cache.nixos.asia/oss) for olai's own outputs, and [ekala-corepkgs.cachix.org](https://ekala-corepkgs.cachix.org) for the ekapkgs package set. A GitHub Actions job on every push builds every flake output on linux and darwin and pushes the closures to the oss cache. `nix run github:juspay/olai` and a clone's `nix build` / `nix develop` should download rather than compile; if they compile, that commit has not been warmed yet.
 
 In a clean, pushed development checkout, `just ci` builds the checkout's pinned Odu and runs the complete `check` graph on the Linux host pool. Odu owns the fan-out, E2E sharding, live progress, and GitHub status posting; `ODU_CI_TIMEOUT` overrides the 15-minute wall-clock backstop.
 

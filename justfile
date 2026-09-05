@@ -806,11 +806,11 @@ bun-nix-fresh:
       exit 1
     }
 
-# Update the kolu / nixpkgs pins. npins rewrites npins/default.nix in its
+# Update the kolu / ekapkgs pins. npins rewrites npins/default.nix in its
 # own formatter's style, so normalize it here — same rule as bun.nix, and
 # the reason fmt-check needs no exception list. `just check` then names
 # anything the new kolu revision expects that this repo has not moved with
 # it. bun 1.4.1 is overlaid from `nix/bun.nix`, not a pin; drop that overlay
-# when NixOS/nixpkgs#556047 reaches nixpkgs-unstable — bun-nixpkgs-catchup.
+# when the ekapkgs pin's default bun is >= 1.4.1.
 update-pins:
     {{ nix_shell }} sh -c 'npins update && nixpkgs-fmt npins/default.nix'

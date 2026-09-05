@@ -19,7 +19,7 @@
  * Fira Code and it speaks Fira Code, chrome included.
  *
  * What a row names is a FAMILY, never a file. The files those families need
- * are `./hosted.ts` — from nixpkgs, converted to woff2 once by this package's
+ * are `./hosted.ts` — from the package set, converted to woff2 once by this package's
  * own `default.nix` — and they are a table apart because nothing that draws a
  * picker has any use for them. Generics download nothing. No CDN, no font
  * binary in the repo.

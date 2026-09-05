@@ -13,6 +13,19 @@
       "url": "https://github.com/cordiverse/cordis/archive/00278924a984fedfaffb4bc3d5eb7d8e76215643.tar.gz",
       "hash": "sha256-tCoHVKDAs8e3+BpHI0JV0x+hNPjrvwAHvACQsiZCkZA="
     },
+    "ekapkgs": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "ekala-project",
+        "repo": "ekapkgs"
+      },
+      "branch": "master",
+      "submodules": false,
+      "revision": "de94572e4c0f9e095dc3ca3f302485efb12302a6",
+      "url": "https://github.com/ekala-project/ekapkgs/archive/de94572e4c0f9e095dc3ca3f302485efb12302a6.tar.gz",
+      "hash": "sha256-jsnfIwsxqibje6Co71cnde4UpQSg5XjQ2M0+mtJxCXI="
+    },
     "kolu": {
       "type": "Git",
       "repository": {
@@ -26,18 +39,19 @@
       "url": "https://github.com/juspay/kolu/archive/e6c362aebffa427780672fac3dc88d810e4a86f3.tar.gz",
       "hash": "sha256-jeI0hafn7QyCJI4cXmO23rGpUHgw9hPA4Ngem8FzvJQ="
     },
-    "nixpkgs": {
+
+    "npins": {
       "type": "Git",
       "repository": {
         "type": "GitHub",
-        "owner": "nixos",
-        "repo": "nixpkgs"
+        "owner": "andir",
+        "repo": "npins"
       },
-      "branch": "nixpkgs-unstable",
+      "branch": "master",
       "submodules": false,
-      "revision": "afb4584a80bbf779ce0f691509ff902d188c2b3d",
-      "url": "https://github.com/nixos/nixpkgs/archive/afb4584a80bbf779ce0f691509ff902d188c2b3d.tar.gz",
-      "hash": "sha256-shi1tjDhCGGd0kIgVPNY03V8NBWSTzhMSFDb7IqSoec="
+      "revision": "e818ca8833f1d92fda553fe91b2f02999ff9a511",
+      "url": "https://github.com/andir/npins/archive/e818ca8833f1d92fda553fe91b2f02999ff9a511.tar.gz",
+      "hash": "sha256-PRdGQlxpv8qXdQ6KwlP2Ky2HBHDY83lGTSiD6yljUxE="
     },
     "odu": {
       "type": "Git",

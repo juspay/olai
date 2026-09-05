@@ -1,5 +1,5 @@
 # Dev shell — shared by `nix develop` (via flake.nix) and `nix-shell`.
-{ pkgs ? import ./nix/nixpkgs.nix { } }:
+{ pkgs ? import ./nix/ekapkgs.nix { } }:
 let
   kolu = import ./nix/kolu.nix { inherit pkgs; };
   odu = import ./nix/odu.nix { inherit pkgs; };
@@ -71,7 +71,7 @@ pkgs.mkShell {
     # path is a LOUD failure naming this variable.
     OSS_OLAI_VAULT = "${pins.oss-olai}";
 
-    # The browsers come from nixpkgs, in the `e2e` shell only (flake.nix) — so
+    # The browsers come from the pin, in the `e2e` shell only (flake.nix) — so
     # the npm package must never try to fetch its own. This is set HERE, in the
     # shell that runs `bun install`, rather than there, in the shell that runs
     # the tests.

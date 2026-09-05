@@ -1,12 +1,12 @@
 # IMPORTANT: this flake has ZERO inputs *except* `bun2nix` (the kolu
-# convention). nixpkgs and the kolu source are pinned by npins
+# convention). ekapkgs and the kolu source are pinned by npins
 # (npins/sources.json) and imported via fetchTarball, which keeps `nix
 # develop` cold eval near a second instead of the several the flake input
 # system costs per input. Add a pin, not an input. bun 1.4.1 is overlaid
 # from the official prebuilt zip (`nix/bun.nix`); drop that overlay when
-# NixOS/nixpkgs#556047 reaches the nixpkgs-unstable pin (bun-nixpkgs-catchup).
+# the ekapkgs pin's default bun is >= 1.4.1.
 #
-# `bun2nix` is the ONE documented exception: nixpkgs has no fetchBunDeps /
+# `bun2nix` is the ONE documented exception: ekapkgs has no fetchBunDeps /
 # buildBunPackage. Upstream (nix-community/bun2nix) is flake-parts-shaped
 # internally, but its consumer API is the package itself:
 # `packages.<system>.default` carries `hook`, `fetchBunDeps`, `mkDerivation`,
@@ -27,8 +27,8 @@
   # Juspay's shared OSS cache, so `nix run .#bun2nix` and the kolu sources come
   # down prebuilt instead of being compiled on every lane.
   nixConfig = {
-    extra-substituters = "https://cache.nixos.asia/oss";
-    extra-trusted-public-keys = "oss:KO872wNJkCDgmGN3xy9dT89WAhvv13EiKncTtHDItVU=";
+    extra-substituters = "https://cache.nixos.asia/oss https://ekala-corepkgs.cachix.org";
+    extra-trusted-public-keys = "oss:KO872wNJkCDgmGN3xy9dT89WAhvv13EiKncTtHDItVU= ekala-corepkgs.cachix.org-1:DcZV+vegWoEzacbSdXFXU4S7728C0eS9RfGpKeyHd6w=";
   };
 
   outputs = { self, bun2nix, ... }:
@@ -45,7 +45,7 @@
       # fetchBunDeps live on its passthru.
       perSystem = builtins.listToAttrs (map
         (system:
-          let pkgs = import ./nix/nixpkgs.nix { inherit system; };
+          let pkgs = import ./nix/ekapkgs.nix { inherit system; };
           in {
             name = system;
             value = { inherit pkgs; b2n = bun2nix.packages.${system}.default; };
