@@ -1,4 +1,4 @@
-@corpus:good @plugins:chat,claude,git
+@scratch:good @plugins:chat,claude,git
 Feature: Who is looking is a plugin
   Identity is a row. A serve that does not name it has no chip in the bar and
   no reading behind the door: the proxy still injects its headers, and nobody
