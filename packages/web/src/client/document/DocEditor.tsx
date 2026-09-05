@@ -54,12 +54,6 @@ export function DocEditor(props: {
    *  sends, and the baseline drift is measured against. */
   const draft = props.draft
   const { base, text, setText, said, setSaid, busy, setBusy } = draft
-  /** The refusal, verbatim, or `null`. One mood and not two: a document write
-   *  has no rollup to remark on, so there is nothing an `aside` would say here
-   *  that leaving the editor does not already show. */
-  /** One write in flight at a time: Save pressed twice is one write, not a
-   *  race between two. */
-
   /** The disk has moved since this editor read it: the live half of the
    *  conflict story, said while there is still time to read it calmly. */
   const drifted = createMemo(() => props.served !== base)

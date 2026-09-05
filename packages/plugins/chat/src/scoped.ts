@@ -19,6 +19,7 @@ import { ephemeralLocalState } from "./local.ts"
 import type { Conversing } from "./sessions.ts"
 import type { Change } from "./transcript.ts"
 import { pastOf } from "./lineage.ts"
+import type { Listed } from "./listings.ts"
 
 /** Long enough not to churn an ordinary working set, finite so sleeping agents
  * do not become a process pool. Tests inject a shorter duration. */
@@ -355,10 +356,20 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       session: string,
     ): NodeAgent | null => panelOptions.agentAt?.({ agent, session }) ?? null
 
+    let lastListed: Listed | null = null
+    const listSessions = Effect.tap(Effect.suspend(() => root.sessions), (listed) => Effect.sync(() => {
+      lastListed = listed
+    }))
+
     const locate = (to: Conversing) => Effect.gen(function*() {
       const current = nodeFor(to.agent, to.session)
       if (current !== null) return { node: current, history: false }
-      const listed = yield* root.sessions
+      // Some harnesses serialize session/list behind the running prompt.
+      // A navigation press must reach the busy refusal immediately, rather
+      // than waiting for that turn to finish and switching after it. The
+      // picker already read the lineage; reuse it while root is working.
+      const listed = root.state().status === "thinking" ? lastListed : yield* listSessions
+      if (listed === null) return null
       const node = nodesAt().find((candidate) =>
         candidate.engine === to.agent && candidate.session !== null
         && pastOf(listed.sessions, to.agent, candidate.session).some((past) => past.id === to.session)
@@ -654,7 +665,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         )
       }),
       reopen: foreground((panel) => panel.reopen),
-      sessions: Effect.suspend(() => root.sessions),
+      sessions: listSessions,
       answer: (id, answers) => foreground((panel) => panel.answer(id, answers)),
       doorFor: scopedDoor,
       scope: (to, plugin, file) => {
