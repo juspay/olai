@@ -243,6 +243,7 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   page: "resource",
   narrowing: "resource",
   searchResults: "resource",
+  tagCompletions: "resource",
   moving: "resource",
   heads: "resource",
   pins: "resource",

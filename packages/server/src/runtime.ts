@@ -1746,6 +1746,11 @@ export const bind = (
           install: (_input, onEvent) => revisions.consume({ onEvent, onError: NEVER }),
           isEqual: (before, after) => JSON.stringify(before) === JSON.stringify(after),
         },
+        tagCompletions: {
+          read: (input) => Effect.runPromise(wiring.ops.tags(input)),
+          install: (_input, onEvent) => revisions.consume({ onEvent, onError: NEVER }),
+          isEqual: (before, after) => JSON.stringify(before) === JSON.stringify(after),
+        },
         /** The move picker's preview, on the same three legs — standing rather
          *  than asked once, because a panel left open while an agent writes has
          *  to judge against where the row has actually got to. */

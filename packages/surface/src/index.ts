@@ -844,6 +844,11 @@ export const surface = defineSurface({
       inputSchema: SearchRequest,
       outputSchema: SearchAnswer,
     },
+    /** An open tag completion follows changes to the vault's vocabulary. */
+    tagCompletions: {
+      inputSchema: TagsRequest,
+      outputSchema: TagsAnswer,
+    },
     /**
      * WHETHER A ROW CAN GO WHERE SOMEBODY IS POINTING — the move-to picker's
      * preview of the planner's verdict, for the destinations its search just
