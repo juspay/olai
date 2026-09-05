@@ -22,7 +22,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        # xlarge is the ARM box (aarch64-darwin). macos-latest-large is Intel
+        # and would warm x86_64-darwin instead.
+        os: [ubuntu-latest, macos-latest-xlarge]
     runs-on: ${{ matrix.os }}
     steps:
       # pull_request's default ref is the synthetic merge commit; warm the
