@@ -259,9 +259,21 @@ export function AgentsProvider(props: { readonly children: JSX.Element }) {
         }),
     )
   }
-  // ONCE, on the frame this provider mounts: what it buys is the count on a
+  // On the frame this provider mounts: what it buys is the count on a
   // row nobody has pressed yet — see the header.
   askChats()
+
+  // A sibling tab can replace a node session without running a turn. Wait
+  // for the server's completed history write, not the earlier roster update.
+  const sessionsRevision = chatWire().cells.sessionsRevision.use()
+  let lastSessionsRevision: number | undefined
+  createEffect(() => {
+    const revision = sessionsRevision.value()
+    if (revision === undefined) return
+    const previous = lastSessionsRevision
+    lastSessionsRevision = revision
+    if (previous !== undefined && previous !== revision) askChats()
+  })
 
   // ... AND THE OTHER EVENT THAT CAN MAKE THAT ANSWER STALE. A conversation
   // this tab (or a sibling — the cell is the server's, so every tab sees the

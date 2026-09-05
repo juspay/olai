@@ -743,3 +743,8 @@ Then("the fresh-session control refuses {string} and allows retry", async functi
   await this.waitUntil(async () => (await refusal.innerText()).includes(text), "the fresh-session refusal to explain the failed request");
   await this.waitUntil(async () => !(await this.page.locator(FRESH).first().isDisabled()), "the fresh-session button to allow retry");
 });
+
+Then("the node session control counts {int} conversations", async function (this: OlaiWorld, count: number) {
+  const button = this.page.locator(CHAT_SESSIONS);
+  await this.waitUntil(async () => (await button.innerText()).trim() === `sessions (${count})`, "the node's session count to reflect its current history");
+});

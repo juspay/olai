@@ -77,6 +77,8 @@ export const name = "chat"
  */
 export const surface = defineSurface({
   cells: {
+    /** Completed node-session replacements invalidate every tab's history. */
+    sessionsRevision: { schema: Schema.Number, default: 0, verbs: ["get"] },
     state: {
       schema: ChatState,
       default: CHAT_OFF,
@@ -527,6 +529,7 @@ export const surface = defineSurface({
  */
 export const faces = {
   browser: {
+    sessionsRevision: "resource",
     state: "resource",
     agents: "resource",
     // ...AND WHAT THE BOARD IS OWED to get those agents back, which is the

@@ -53,11 +53,12 @@
  * navigation story rather than an omission: a chat that is nobody's has no
  * history of its own, and its siblings are in the sidebar.
  *
- * ## The listing is the TAB'S, asked once
+ * ## The listing is shared by the tab
  *
  * The lineage is read off `chat.sessions`, and this popover does not ask for
  * itself: it reads the answer the roster provider holds and asks it to refresh
- * on open (`../agents/answered.tsx`). One asker per tab rather than one per
+ * on open (`../agents/answered.tsx`). Completed node-session replacements
+ * refresh that shared answer in every tab. One asker per tab rather than one per
  * face — the two lists would otherwise be two answers about one disk, and the
  * one a person met second would be the one that looked wrong.
  *
@@ -143,12 +144,7 @@ export function NodeSessions(props: { readonly chat: Chat; readonly agent: Row }
       },
       () => {
         setStarting(false)
-        // ASKED AGAIN, on the frame the re-point lands. The roster cell moves
-        // at once — the property is written — so without this the pill walks a
-        // listing taken before the new session existed: `past()` finds no link
-        // to it, and `sessions (3)` reads `sessions (1)` over a history that is
-        // still there, self-correcting only when somebody next opens this.
-        askChats()
+        // The completed history revision refreshes this tab and its siblings.
         picker.shut()
       },
     )

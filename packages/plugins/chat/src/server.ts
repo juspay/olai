@@ -358,6 +358,7 @@ export default definePlugin({
     let chat: Chat.Chat | null = null
     /** This sibling's own write face, the moment the runtime has minted it. */
     let mine: Ctx | null = null
+    let sessionsRevision = 0
 
     /** THE VAULT'S HALF OF THE AGENTS ROSTER, held across revisions: which node
      *  carries a session property, what it is called, how big its subtree is. */
@@ -572,7 +573,10 @@ export default definePlugin({
       // THE TWO GESTURES THAT ARE TWO ACTS, and the only ones here that are —
       // {@link ./server/binding.ts} argues both orders and the refusal.
       startAgentSession: ({ input }: { input: { node: string; agent: string } }) =>
-        withChat((open) => startAgentSession(open, binding, input)),
+        withChat((open) => startAgentSession(open, binding, input)).pipe(
+          // Publish after both the binding and its history link are written.
+          Effect.tap(() => Effect.sync(() => mine?.cells.sessionsRevision.set(++sessionsRevision))),
+        ),
       assignSession: (
         { input }: { input: { node: string; agent: string; session: string } },
       ) => withChat((open) => assignSession(open, binding, input)),
@@ -624,6 +628,7 @@ export default definePlugin({
           // `CHAT_OFF` itself, whose `off` is `null` — "not told" rather than any
           // of the three ways of being off.
           state: { store: inMemoryStore<ChatState>(CHAT_OFF) },
+          sessionsRevision: { store: inMemoryStore<number>(0) },
           agents: { store: inMemoryStore<Agents>(NO_AGENT_ROSTER) },
           // WHAT THIS VAULT IS OWED to get those agents back, or nothing — and
           // nothing is what every board reaches (`./wire/agents.ts` argues why
