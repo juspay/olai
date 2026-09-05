@@ -54,6 +54,7 @@ import { resolve } from "node:path"
 
 import { localStateFor } from "./localState.ts"
 import type { Directory as OpenDirectory } from "./directory.ts"
+import { liveStore } from "./store-source.ts"
 import { vaultModule, VaultSettings } from "./vault.ts"
 import { openDynamic } from "./dynamic/runtime.ts"
 import { propKinds } from "./propKinds.ts"
@@ -401,7 +402,7 @@ export const serve = (options: ServeOptions) =>
      * this same binding; their maps decide which vocabulary each may reach.
      * The root chooses writers: web for a button, mcp for MCP below. */
     const wired = yield* bind({
-      store: () => currentDirectory()?.store,
+      store: liveStore(() => currentDirectory()?.store, plugins.changes),
       ops,
       writer: "web",
       hostname: theMachine,

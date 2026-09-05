@@ -1119,3 +1119,14 @@ for (const words of [["viewer", "viewer"], ["viewer", "other.viewer"]]) {
     })))
   })
 }
+
+test("a synchronous replay failure cannot prevent later subscribers or publications", () =>
+  Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const events = vaultEvents("/tmp")
+    yield* events.published("first")
+    yield* events.door("thrower").revision(() => { throw new Error("nope") })
+    const seen: string[] = []
+    yield* events.door("neighbour").revision((value: string) => Effect.sync(() => { seen.push(value) }))
+    yield* events.published("second")
+    expect(seen).toEqual(["first", "second"])
+  }))))

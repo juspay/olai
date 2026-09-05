@@ -1,3 +1,4 @@
+import { fixedStore } from "./store-source.ts"
 import { expect, test } from "bun:test"
 import { Effect, Exit, Scope } from "effect"
 import * as fs from "node:fs"
@@ -20,7 +21,7 @@ test("transport registrations release and restore browser assets, sockets and th
     await Effect.gen(function*() {
       const store = yield* Store.make({ root, codec: codecFor(NO_KINDS), watch: false })
       const ops = makeOps({ store, root })
-      const wired = yield* bind({ store, ops, plugins: null, writer: "web", hostname: "test", startedAt: new Date().toISOString() })
+      const wired = yield* bind({ store: fixedStore(store), ops, plugins: null, writer: "web", hostname: "test", startedAt: new Date().toISOString() })
       const fault = yield* watchFault(wired.bound)
       yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))
       yield* Effect.addFinalizer(() => fault.stopped)

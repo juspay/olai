@@ -41,11 +41,12 @@
  */
 import { definePlugin, serviceTag } from "@olai/plugin-api"
 import { Directory, Kinds, Offers, Ops, opsEvents, Vault, vaultEvents } from "@olai/plugin-api/services"
-import type { KindVocabulary, PageRequest } from "@olai/format"
+import type { KindVocabulary } from "@olai/format"
 import { make as makeOps, type Ledger, type Search } from "@olai/ops"
 import { NodeServices } from "@effect/platform-node"
 import { Deferred, Effect, Stream } from "effect"
 import { stat } from "node:fs/promises"
+import { opsDoor } from "./ops-door.ts"
 import { openDirectory } from "./directory.ts"
 import { codecs, Config } from "./vault-format.ts"
 
@@ -88,14 +89,7 @@ export const vaultModule = definePlugin({
       Effect.andThen(snapshot === null ? events.quiet : events.published(snapshot), Deferred.succeed(first, undefined))))
     yield* Deferred.await(first)
     yield* offers.offer(Directory, () => directory)
-    yield* offers.offer(Ops, (plugin) => ({
-      gate,
-      reading: Effect.catch(gate.read, () => Effect.succeed(null)),
-      page: (request) => gate.page(request as PageRequest),
-      prop: (write) => Effect.asVoid(gate.run({ op: "prop", id: write.node, key: write.key, value: write.value }, "web")),
-      document: (file) => Effect.asVoid(gate.run({ op: "create-doc", file }, "web")),
-      refused: refusals.listen(plugin),
-    }))
+    yield* offers.offer(Ops, (plugin) => opsDoor(gate, refusals.listen(plugin)))
     yield* offers.offer(Vault, events.door)
   }).pipe(Effect.provide(NodeServices.layer), Effect.tapCause((cause) => Effect.logError("vault failed to start", cause)), Effect.orDie),
 })

@@ -67,6 +67,7 @@
  * the wire.
  */
 
+import type { StoreSource } from "./store-source.ts"
 import {
   type Convention,
   conventionRecorded,
@@ -86,7 +87,7 @@ import {
   shelfIn,
   type Verdict,
 } from "@olai/format"
-import { type Caller, type Ops, type Request, type Store } from "@olai/ops"
+import { type Caller, type Ops, type Request } from "@olai/ops"
 import type { Writer } from "@olai/format"
 import { type Applied, type BuiltPlugin, type CorePageReading, type Edit, LOADED, type Manifest, NO_ROSTER, type PluginRoster, type PluginState, surface, watchable, type Who } from "@olai/surface"
 import { type OpFailure } from "@olai/format"
@@ -99,7 +100,6 @@ import {
   type Reading,
   UsageFailure,
 } from "@olai/format"
-import type { Snapshot } from "@olai/store"
 import { type SurfaceSpec, surfaceTag } from "@kolu/surface/define"
 import {
   emptyHandlers,
@@ -113,7 +113,7 @@ import {
   type SurfaceHandlers,
   type SurfaceRuntime,
 } from "@kolu/surface/server"
-import { Effect, Result, type Scope, Stream, SubscriptionRef } from "effect"
+import { Effect, Result, type Scope, Stream } from "effect"
 
 /**
  * THE ONLY PLACE THIS FILE MEETS AN APPLIANCE, and it meets none of them by
@@ -179,25 +179,6 @@ import { readFailed } from "./report.ts"
  * paragraph on the return.
  */
 export type Bound = Omit<SurfaceRuntime<typeof surface.spec>, "ctx">
-
-/**
- * ONE PUBLISHED REVISION, as a plugin's server half is handed it — the store's
- * own snapshot, whole.
- *
- * Named here because this is where the two vocabularies meet: `@olai/plugin-api`
- * types its revision hook PARAMETRICALLY and never names a vault record (its
- * manifest declines `@olai/format` on purpose — the format is downstairs, and a
- * floor package that imported it would be the plugin interface learning what an
- * outline is), so the concrete reading is pinned at the composition root, which
- * is the only place it exists.
- *
- * THE RICHER of what the tenants ask for, deliberately: each narrows it in its
- * own signature to the part it reads, which is a claim the compiler checks —
- * and the annotation on {@link bind}'s plugin list is what proves every built
- * plugin can be driven by this reading, so a plugin that asked for something the
- * store does not publish fails here, naming the list.
- */
-type VaultRevision = Snapshot<Reading>
 
 /** The channel's required error choice, for a pulse that carries nothing: there
  *  is no failure to report on a publish of `void`, and the one thing that CAN
@@ -419,7 +400,7 @@ export interface Wiring {
    *  The client's uptime chip ticks from this; the wire never sends a
    *  duration. */
   readonly startedAt: string
-  readonly store: Store | (() => Store | undefined)
+  readonly store: StoreSource
   /**
    * THE PLUGIN RUNTIME, or `null` for a runtime that is to have none.
    *
@@ -902,14 +883,7 @@ export const bind = (
     // Seeded empty and filled by `connect`: `SubscriptionRef.changes` delivers
     // the current value before any update, so peeking at the ref here as well
     // would be the same read twice with a window between them.
-    const currentStore = () => typeof wiring.store === "function" ? wiring.store() : wiring.store
-    const stores = typeof wiring.store === "function"
-      ? Stream.changes(Stream.map(wiring.plugins?.plugins.changes ?? Stream.succeed(undefined), currentStore))
-      : Stream.succeed(wiring.store)
-    const reads = typeof wiring.store !== "function" ? wiring.store.reads : Stream.switchMap(stores, (store): Stream.Stream<{ readonly snapshot: VaultRevision | null }> =>
-      store ? store.reads : Stream.succeed({ snapshot: null }))
-    const storeErrors = typeof wiring.store !== "function" ? SubscriptionRef.changes(wiring.store.errors) : Stream.switchMap(stores, (store) =>
-      store ? SubscriptionRef.changes(store.errors) : Stream.succeed(null))
+    const { current: currentStore, reads, errors: storeErrors } = wiring.store
     const errors = inMemoryStore<Verdict>(NOTHING_WRONG)
     /** This runtime's own log line, for the one place below that reports from
      *  outside an Effect — a stream's re-read, which the framework calls on a
@@ -1460,23 +1434,7 @@ export const bind = (
                   // so a reader who subscribed before the file existed is
                   // handed the body the announce frame above could not carry.
                   bodies.unread(revision.unread)
-                  // EVERY PLUGIN'S READING OF THE VAULT, re-derived on the same
-                  // statement, and this file does not know what any of them
-                  // reads. A revision is exactly when a reading of the SET can
-                  // have moved — who claims which terminal, which nodes name a
-                  // worktree, whatever the third one asks — and deriving one
-                  // anywhere else would be a second answer to what the vault
-                  // says.
-                  //
-                  // WHAT IS HANDED OVER IS THE WHOLE PUBLISHED SNAPSHOT, which
-                  // is the richer of what the two tenants ask for and is not a
-                  // convenience: one hands its own walk the node list and the
-                  // served file its own convention names, the other hands its
-                  // walk the whole derivation because the question it asks
-                  // includes what the vault DECLARES. Each narrows the argument
-                  // in its own signature — a claim that half makes about what
-                  // ...AND THE PLUGINS THE VAULT ITSELF DEFINES, on the same
-                  // statement and for the same reason: a revision is exactly
+                  // The plugins the vault itself defines follow a revision: exactly
                   // when a definition can have arrived, changed, been approved
                   // or gone away. Phase 12's whole loop is this line — an agent
                   // writes two notes through the ordinary write door, the write

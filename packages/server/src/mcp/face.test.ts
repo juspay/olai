@@ -26,6 +26,7 @@
  * subscription test is a sequence and not a race.
  */
 
+import { fixedStore } from "../store-source.ts"
 import { codecFor, make as makeOps } from "@olai/ops"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
@@ -98,8 +99,7 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
     // bound to it too and this face exposes none of them, so what they cost
     // here is a binding nobody can reach.
     const ops = makeOps({ store, root })
-    const wired = yield* bind({
-      store,
+    const wired = yield* bind({ store: fixedStore(store),
       ops,
       writer: "mcp",
       hostname: hostname(),

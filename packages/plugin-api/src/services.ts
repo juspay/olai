@@ -80,6 +80,7 @@
 import type { Engine, Registering } from "@olai/acp/engine"
 import {
   broadcast,
+  contained,
   type Host,
   openHost,
   hostChanges,
@@ -267,8 +268,7 @@ export const vaultEvents = (served: string) => {
       revision: ((handler: (snapshot: unknown) => Effect.Effect<void>) => delivery.withPermit(Effect.gen(function*() {
         yield* revisions.listen(plugin)(handler)
         if (latest !== null) {
-          yield* Effect.catchCause(handler(latest), (cause) =>
-            Effect.logWarning(`plugins: "${plugin}" failed on a vault revision`, cause))
+          yield* contained(plugin, "a vault revision", Effect.suspend(() => handler(latest)))
         }
       }))) as Vault["revision"],
       unloaded: (handler) => quieted.listen(plugin)(() => handler),

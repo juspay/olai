@@ -169,9 +169,9 @@ type NeedsOf<Keys extends ReadonlyArray<AnyKey>> =
  * `id`, which is also the sibling key, the docs slug and the stamp every keyed
  * service reads.
  *
- * `config` is the schema a row's `config:` is validated against at load.
- * Defaults live on the fields; an invalid value fails the load with a
- * sentence. The decoded value is handed to `apply`.
+ * `config` is decoded inside the activation before user `apply`. Defaults
+ * live on the fields; an invalid value fails the row with a sentence through
+ * the same contained failure path as initialization.
  */
 export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>, Config = unknown>(
   spec: {

@@ -1,3 +1,4 @@
+import { fixedStore } from "./store-source.ts"
 import { mountBundle, offered as door, provide, settled } from "@olai/bundle/bundle"
 import { openPlugins as openHostPlugins, Directory, Ops as OpsDoor } from "@olai/plugin-api/services"
 import { profileRows } from "./profiles.ts"
@@ -126,8 +127,7 @@ const withRuntime = <A>(
     const gate = door(mounted.host, OpsDoor)?.gate as Ops | undefined
     if (!gate) throw new Error("test-minimal did not offer its gate")
     for (const one of extra.plugins ?? []) yield* mountPlugin(mounted.host, one.plugin)
-    const wired = yield* bind({
-      store,
+    const wired = yield* bind({ store: fixedStore(store),
       ops: gate,
       writer: "web",
       hostname: hostname(),

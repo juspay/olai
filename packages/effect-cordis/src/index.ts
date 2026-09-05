@@ -38,11 +38,9 @@
  * other consistent answer and is not taken.
  */
 
-/** `failed` is deliberately NOT here. It is the sentence a contained plugin
- *  failure is said with, shared by this package's three fire-and-forget edges so
- *  that what a reader is told cannot drift between them — and a rule one package
- *  owns stops being owned the moment a fourth caller outside it can spell it. */
-export { type Bus, broadcast, type Listen } from "./broadcast.ts"
+/** A manually replayed reading uses the same containment as a broadcast.
+ * The reporting sentence remains private; callers share recovery with it. */
+export { type Bus, broadcast, contained, type Listen } from "./broadcast.ts"
 export { registry, type Registry, roster, type Roster } from "./registry.ts"
 export {
   type Host,

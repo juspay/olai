@@ -24,14 +24,17 @@ test("every handler is told, in subscription order, and the caller waits", async
   expect(said).toEqual(["one:x", "other:x"])
 })
 
-test("a handler that dies is contained, and the ones after it still hear", async () => {
+for (const mode of ["effect", "throw"] as const) test(`a handler that fails by ${mode} is contained, and the ones after it still hear`, async () => {
   const said: Array<string> = []
   const lines: Array<string> = []
   const bus = broadcast<string>("a toy occasion")
   const run = standing()
   // THE FAILING ONE FIRST: the failure this pins is a loop that stops, so a case
   // with it last would pass over a bus that contains nothing at all.
-  await run(bus.listen("thrower")(() => Effect.die(new Error("nope"))))
+  await run(bus.listen("thrower")(() => {
+    if (mode === "throw") throw new Error("nope")
+    return Effect.die(new Error("nope"))
+  }))
   await run(bus.listen("neighbour")(() => Effect.sync(() => void said.push("neighbour"))))
   const logger = Logger.make<unknown, void>(({ cause, message }) => {
     const words = (Array.isArray(message) ? message : [message]).map(String)

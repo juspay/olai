@@ -26,6 +26,7 @@
  * the unit-level fence under them.
  */
 
+import { fixedStore } from "../store-source.ts"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import {
@@ -163,8 +164,7 @@ const withTools = <A>(
         }),
     })
 
-    const wired = yield* bind({
-      store,
+    const wired = yield* bind({ store: fixedStore(store),
       ops,
       writer: "mcp",
       hostname: hostname(),
