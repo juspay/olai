@@ -25,7 +25,7 @@ export default definePlugin({
     const wired = yield* Wired
     holdGitWire(() => wired.client() as GitClient)
 
-    yield* slots.register("app.header", () => <Commit />)
+    yield* slots.register("app.header", { place: "cluster", body: () => <Commit /> })
     // The phone's news belongs below the header, before the page content.
     yield* slots.register("app.banner", () => (
       <Show when={!desktop()}>

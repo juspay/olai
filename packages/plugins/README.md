@@ -11,14 +11,24 @@ for the packages that ARE olai; a plugin is olai's judgement about somebody
 else's software, which is the closest thing in this tree to a plugin written
 outside it, so it is named the way one would be.
 
-The population today is SIX, in two kinds, and nothing in the system tells them
-apart — same shape, same doors, same five states in the preferences panel, same
-`--plugins` word:
+The population today is ELEVEN, in three kinds, and nothing in the system tells
+them apart — same shape, same doors, same five states in the preferences panel,
+same `--plugins` word:
 
 - **TENANTS** — olai's judgement about an appliance: `kolu`, `odu`,
   `xyne-spaces`. Each composes a sibling surface and draws faces on rows.
-- **ENGINES** — an ACP agent the chat panel can seat: `claude`, `opencode`,
-  `pi`. Each hands over a `Leg` (how to read that agent's wire), a probe that
+- **CORE ROWS** — a part of olai that used to be the composition root's and is a
+  row now: `chat`, `git`, `journal`, `search`. Each is a plugin over olai's OWN
+  floor rather than over somebody else's vendored client, which is why none of
+  them has a tenant tier to confine. Three of them stand behind a door core
+  DEFINES and does not fill (`chat` behind four, `git` behind the `Ledger`,
+  `search` behind the `Search` matcher) so a serve that leaves the row out
+  refuses in words rather than going quiet; the fourth, `journal`, is routes and
+  readings that simply are not there. They are the promotion track of
+  [the Cordis plan](https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/cordis-for-olai.md),
+  and the point of each is the same: what a serve HAS is a row list.
+- **ENGINES** — an ACP agent the chat panel can seat: `claude`, `codex`,
+  `opencode`, `pi`. Each hands over a `Leg` (how to read that agent's wire), a probe that
   finds it on this host, and the channel its standing prompt rides — and, on its
   browser half, the mark it wears and the whole sentence for a machine that has
   not installed it. It composes NO surface: what it
@@ -28,6 +38,8 @@ apart — same shape, same doors, same five states in the preferences panel, sam
   `--plugins` then enables them one at a time.
 
 **A TENANT HAS A `README.md` AND AN ENGINE DOES NOT**, which is a ruling rather than an omission. A tenant's README is olai's account of somebody else's appliance — five ways a padi can fail, which vault file is kolu's by convention — and there is nowhere else for that to live. An engine's account of itself is two things that already exist: its `docs.md` (the user page, symlinked into `docs/plugins/`), and [`@olai/acp`](../acp/README.md)'s `./engine` door, which is where the shape every engine fills in is argued once for all of them. A third telling per engine would be the same paragraph three times, drifting.
+
+A CORE ROW takes whichever of the two its subject already had: `search` kept `@olai/index`'s README, because the trigram table's design is a thing with libraries surveyed and an algorithm to explain and that account travelled with the code; the other three have a `docs.md` and no more.
 
 What does NOT go in it: the interface those tenants are written against. That is
 [`@olai/plugin-api`](../plugin-api/README.md), one directory over, with the registry that lists them in [`@olai/bundle`](../bundle/README.md) beside it, and the

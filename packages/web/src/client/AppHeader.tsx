@@ -28,12 +28,13 @@
  * 390pt phone in every connection state longer than `live`. That squeeze is why
  * the pills left the phone bar rather than learning a fifth give-way rule.
  *
- * On DESKTOP the SEARCH BOX is the one control here that may shrink to nothing
- * before any pill loses a character — an input narrowed to a slot is still an
- * input, which is what its `min-w-0` and its cap are for. The last commit's AGE
- * (`commit/Commit.tsx`'s `· 3m ago`) is `sm` and up only. On a phone the same
- * search door is a 44px magnifier that opens the ⌘K palette
- * (`search/HeaderSearch.tsx` argues both halves).
+ * On DESKTOP whatever sits in the LEAD SEAT is the one control here that may
+ * shrink to nothing before any pill loses a character — an input narrowed to a
+ * slot is still an input, which is what its `min-w-0` and its cap are for. That
+ * seat is the search row's (`olai-plugin-search`), which is also why it is the
+ * one seat drawn outside the desktop gate: on a phone the same door is a 44px
+ * magnifier that opens the ⌘K palette. The last commit's AGE
+ * (`commit/Commit.tsx`'s `· 3m ago`) is `sm` and up only.
  *
  * The wordmark and the burger never give way at all: they are the app's
  * identity and the way back to the directory — and the wordmark is the
@@ -106,8 +107,6 @@ import { Indicator } from "./connection/Indicator.tsx"
 import { PluginHeaders } from "./plugins/Chrome.tsx"
 import { LAYER } from "./layer.ts"
 import { desktop } from "./layout/media.ts"
-import type { Route } from "./routes.ts"
-import { HeaderSearch } from "./search/HeaderSearch.tsx"
 import { connectionReadout } from "./wire.ts"
 import { Plugins } from "./plugins/Plugins.tsx"
 import { Preferences } from "./settings/Preferences.tsx"
@@ -126,13 +125,11 @@ export function AppHeader(props: {
   /** Whether a directory column is present. The e2e settle probe keys on this
    *  (`data-layout="docked"`) so a phone can settle without opening the sheet. */
   readonly docked?: boolean
-  /**
-   * How to go where a search result points. Absent on the screens with no
-   * router under them — the error report and the waiting page — where the bar
-   * still draws its pills and simply has no search box: a door that could not
-   * open anywhere is worse than no door.
-   */
-  readonly go?: (route: Route) => void
+  // `go` USED TO BE HERE — how to go where a search result points, absent on the
+  // screens with no router under them so the box was simply not drawn. The box
+  // is a row's face now and has no props to be handed one through, so it asks
+  // for the same absence itself (`./router.tsx`'s `useMaybeGo`) and this bar
+  // holds no fact about search at all.
 }) {
   return (
     <>
@@ -196,14 +193,17 @@ export function AppHeader(props: {
         class="flex min-w-0 flex-1 flex-nowrap items-center justify-end gap-1 sm:gap-2"
         data-testid={TESTID.appChrome}
       >
-        {/* FIRST in the cluster, and the one control here that may shrink to
-            nothing: it takes what is left after the pills have their floors,
-            so nothing a reader came for gives way to it. On a phone it is the
-            magnifier instead, which opens the palette — see
-            `search/HeaderSearch.tsx` for both arguments. */}
-        <Show when={props.go}>
-          {(go) => <HeaderSearch go={go()} />}
-        </Show>
+        {/* THE LEAD SEAT — first in the cluster, and whatever is in it is the
+            one control here that may shrink to nothing: it takes what is left
+            after the pills have their floors, so nothing a reader came for
+            gives way to it. It is also the one seat drawn OUTSIDE the desktop
+            gate below, because the face in it is expected to have a phone arm.
+
+            The search box was spelled out here, handed a `go` this file read
+            for it. It is `olai-plugin-search`'s face now and this bar names no
+            row: what a `place` word means is still the bar's decision and it is
+            these two lines (`./plugins/Chrome.tsx`). */}
+        <PluginHeaders place="lead" />
         <Show when={desktop()}>
           <Indicator readout={connectionReadout()} />
           {/* THE PLUGINS' READOUTS, after "still reading" and before "what is
@@ -216,7 +216,7 @@ export function AppHeader(props: {
               line; WHAT it says is the plugin's, read from its own half. Today
               exactly one plugin hangs one, which is why the seat reads as it
               always did: whether this olai can see kolu's terminals. */}
-          <PluginHeaders />
+          <PluginHeaders place="cluster" />
           {/* Furniture, last of the standing cluster: how long THIS process
               has been the one answering. Beside the committed pill because
               it is the same register — a quiet chip about the app, not a

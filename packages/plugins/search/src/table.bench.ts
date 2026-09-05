@@ -74,7 +74,7 @@ import {
 } from "@olai/format/testlib"
 import { Result } from "effect"
 
-import { lookupable, open } from "./index.ts"
+import { lookupable, open } from "./table.ts"
 
 const FILES = Number(process.env["OLAI_BENCH_FILES"] ?? 1000)
 const RECORDS = Number(process.env["OLAI_BENCH_RECORDS"] ?? 21)

@@ -1327,6 +1327,7 @@ describe("an appliance's product tier stays inside its tenant", () => {
       odu: ["plugins/odu"],
       opencode: ["plugins/opencode"],
       pi: ["plugins/pi"],
+      search: ["plugins/search"],
       "xyne-spaces": ["plugins/xyne-spaces"],
     })
     // ...and each APPLIANCE tenant has a TIER, which is the other way this
@@ -1356,6 +1357,10 @@ describe("an appliance's product tier stays inside its tenant", () => {
       odu: true,
       opencode: false,
       pi: false,
+      // SEARCH HYDRATES NOTHING for chat's reason exactly: it is a plugin over
+      // olai's own floor — a table on `bun:sqlite` and a walk over the format's
+      // matcher — rather than over somebody else's vendored client.
+      search: false,
       "xyne-spaces": false,
     })
   })
@@ -1784,6 +1789,66 @@ describe("only the registry knows a plugin's name in CODE, too", () => {
     /** The server's expiring migration table maps the old unkeyed `mirror/`
      * record to the tenant that wrote it. Remove with that migration row. */
     "xyne-spaces": ["server/src/localState.ts"],
+    /**
+     * `search` IS THE VERB, and it is the widest collision in this table by a
+     * long way — which is a fact about the word rather than about the row.
+     *
+     * The row is `olai-plugin-search`: a trigram table, a walk over it, and the
+     * header's box. What core keeps, and spells everywhere, is everything the
+     * row is asked THROUGH — one grammar (`@olai/format`'s `filter.ts`,
+     * `searching.ts`: `SearchRequest`, `SearchHit`, `SearchAnswer`,
+     * `DEFAULT_SEARCH_LIMIT`), one member on three faces (`search.nodes`, and
+     * the `search_nodes` tool it lands through), one door
+     * (`@olai/ops`' `Search` / `NO_SEARCH`), and the four browser doors that
+     * ask it — the ⌘K palette, the composer's `@` list, the edges panel and the
+     * move picker, whose shortlist kit is core furniture by the scope ruling
+     * that took this phase. None of those is the plugin's name; every one of
+     * them is the English word for what a person is doing.
+     *
+     * RECORDED AS AN EQUALITY rather than excused with a pattern, exactly as
+     * `git` and `chat` below and above are: a forty-first file is red, and the
+     * day one of these stops spelling it this entry is red until it is trimmed.
+     */
+    search: [
+      "format/src/address.ts",
+      "format/src/documents.ts",
+      "format/src/filter.ts",
+      "format/src/index.ts",
+      "format/src/searching.ts",
+      "ops/src/ops.ts",
+      "ops/src/query.ts",
+      "ops/src/refusals.ts",
+      "ops/src/tools.ts",
+      "plugin-api/src/services.ts",
+      "plugin-build/src/bind.ts",
+      "plugins/chat/src/agents/roster.ts",
+      "plugins/chat/src/browser/chat/completion.ts",
+      "plugins/chat/src/testids.ts",
+      "plugins/journal/src/browser.tsx",
+      "server/src/faces.ts",
+      "server/src/main.ts",
+      "server/src/mcp/face.ts",
+      "server/src/mcp/tools.ts",
+      "server/src/runtime.ts",
+      "server/src/serve.ts",
+      "surface/src/index.ts",
+      "surface/src/media.ts",
+      "surface/src/search.ts",
+      "web/src/client/complete/trigger.ts",
+      "web/src/client/edges/relation.ts",
+      "web/src/client/keys.ts",
+      "web/src/client/move/MovePicker.tsx",
+      "web/src/client/palette/Palette.tsx",
+      "web/src/client/palette/items.ts",
+      "web/src/client/palette/ops.ts",
+      "web/src/client/pins/palette.ts",
+      "web/src/client/router.tsx",
+      "web/src/client/routes.ts",
+      "web/src/client/search/Count.tsx",
+      "web/src/client/search/nodes.ts",
+      "web/src/client/testids.ts",
+      "web/src/client/workspace.ts",
+    ],
     /**
      * `git` IS THE COMMAND, and `GitState` / `GIT_OFF` / `gitPolicy` are the
      * floor's names for a repository reading that stays in core: a write still

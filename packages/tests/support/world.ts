@@ -838,8 +838,8 @@ export const APP_CHROME_CONTROLS: ReadonlyArray<string> = [
   // second answer about git — the Commit pill is still the only control in it
   // that reports on the repository, which is the whole of what the fence
   // below guards.
-  TESTID.headerSearch,
-  TESTID.headerSearchOpen,
+  PLUGIN_TESTID.headerSearch,
+  PLUGIN_TESTID.headerSearchOpen,
   TESTID.connection,
   // The padi link, between the two promises it sits with: whether this page is
   // still READING (the connection, before it) and whether what is written to it
@@ -1002,9 +1002,9 @@ export const SHORTCUTS = selector(TESTID.shortcuts);
 /** The header box's panel of results, and the shelf of pins in the sidebar —
  *  here rather than spelled at a step file, which is where the rest of the
  *  suite's selectors live. */
-export const HEADER_SEARCH = selector(TESTID.headerSearch);
-export const HEADER_SEARCH_OPEN = selector(TESTID.headerSearchOpen);
-export const HEADER_SEARCH_RESULTS = selector(TESTID.headerSearchResults);
+export const HEADER_SEARCH = selector(PLUGIN_TESTID.headerSearch);
+export const HEADER_SEARCH_OPEN = selector(PLUGIN_TESTID.headerSearchOpen);
+export const HEADER_SEARCH_RESULTS = selector(PLUGIN_TESTID.headerSearchResults);
 export const PIN_SHELF = selector(TESTID.pinShelf);
 
 export const CHAT_TITLE = selector(PLUGIN_TESTID.chatTitle);

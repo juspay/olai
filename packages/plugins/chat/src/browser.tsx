@@ -112,7 +112,7 @@ export default definePlugin({
     // itself in what it was given.
     yield* slots.register("app.panel", Panel)
     // ...and the control in the bar that opens and shuts it.
-    yield* slots.register("app.header", Toggle)
+    yield* slots.register("app.header", { place: "cluster", body: Toggle })
     // THE ROSTER SECTION, under the app's own sidebar regions.
     yield* slots.register("sidebar.section", { said: SECTION, body: Agents })
     // THE DOOR ON A ROW — drawn on every row and answering nothing on nearly

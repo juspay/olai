@@ -708,6 +708,57 @@ export interface Person {
 }
 
 /**
+ * THE MATCHER — this query, over this reading, answered.
+ *
+ * Core defines the door and does not stand behind it. The search row offers it;
+ * `search.nodes` and the `search_nodes` tool are one member and one table entry
+ * that call through it, and refuse in words when nobody is mounted — which is
+ * the state a serve minus this row is in, at all five doors at once.
+ *
+ * ## Why the payloads are opaque, and what checks them instead
+ *
+ * Everything a search says is `@olai/format`'s — a `Reading`, a `SearchRequest`,
+ * a `KindVocabulary`, a `SearchAnswer` — and this package does not import the
+ * floor, for the reason its manifest gives and {@link Vault.revision} argues at
+ * length: the vocabulary travels as DATA, and a floor package that imported it
+ * would be the format learning what a terminal is. Naming the fields
+ * structurally would buy nothing either, because `derived: unknown` is not
+ * assignable to `derived: Derived` and both ends would be back to a cast.
+ *
+ * So the four are `unknown` here and TYPED AT BOTH ENDS: `@olai/ops` spells the
+ * door with the floor's own types (`Search` there), the row's `apply` satisfies
+ * that spelling, and the composition root is the one file holding both — which
+ * makes a drift between them a type error in one place rather than a field that
+ * type-checks clean and arrives `undefined`. It is the {@link Ledger}
+ * arrangement with a wider vocabulary, and the same single `as`.
+ *
+ * ## One call, and the reading comes IN
+ *
+ * A door that read the vault for itself would answer a revision of its own
+ * choosing — and search's whole correctness argument is that the candidates and
+ * the records they are resolved against are one snapshot (`olai-plugin-search`'s
+ * `table.ts`: *it follows the reading at the door*). So the caller hands over
+ * the very reading the answer is about, the clock it is asking at, and the
+ * kind vocabulary this serve runs, and gets an answer about that reading.
+ */
+export interface Search {
+  readonly nodes: (ask: {
+    /** The `Reading` this answer is about — both halves, because a query
+     *  answers with records and documents. */
+    readonly at: unknown
+    /** The `SearchRequest`: the query text, the scope, the cap, the arm. */
+    readonly query: unknown
+    /** When it is being asked, as the format's own stamp — what the grammar's
+     *  relative words count from (`date:yesterday`). */
+    readonly now: string
+    /** The `KindVocabulary` this serve runs, because `prop:` reads what a key
+     *  is declared as to decide between a span and an equality. */
+    readonly kinds: unknown
+  }) => Effect.Effect<unknown>
+}
+export const Search = serviceTag<Search>("search")
+
+/**
  * IDENTITY — who is this request, from the headers it arrived with.
  *
  * Core defines the door and does not stand behind it. The identity row offers
@@ -754,17 +805,17 @@ export interface Identity {
 export const Identity = serviceTag<Identity>("identity")
 
 /**
- * THE SIX DOORS A ROW MAY STAND BEHIND — a CLOSED table, and the closedness is
+ * THE SEVEN DOORS A ROW MAY STAND BEHIND — a CLOSED table, and the closedness is
  * most of the safety.
  *
  * Four of them are the chat row's: what engines this build seats, where a
  * doorbell may deliver, what a plugin may be told a conversation did, and what
- * to ask this host when one opens. The fifth is the git row's ledger, and the
- * sixth is the identity row's reading of who is looking. Every other service on
- * this page is a fact about the process, the vault or the machine, which core
- * knows before any row is mounted — so there is nothing a row could offer that
- * core is not already a better answer for, and everything to lose by letting
- * one try.
+ * to ask this host when one opens. The fifth is the git row's ledger, the sixth
+ * is the search row's matcher, and the seventh is the identity row's reading of
+ * who is looking. Every other service on this page is a fact about the process,
+ * the vault or the machine, which core knows before any row is mounted — so
+ * there is nothing a row could offer that core is not already a better answer
+ * for, and everything to lose by letting one try.
  */
 export const OFFERABLE = [
   Agents,
@@ -772,6 +823,7 @@ export const OFFERABLE = [
   SessionStart,
   Watching,
   Ledger,
+  Search,
   Identity,
 ] as const
 
@@ -803,14 +855,14 @@ export const OFFERABLE = [
  *     standing belongs to the calling activation. The bridge revokes offers and
  *     joins dependent cleanup before closing the plugin's resource scope.
  *
- * ## Why SIX OVERLOADS and not one generic
+ * ## Why SEVEN OVERLOADS and not one generic
  *
  * Because `ServiceKey` and `Provision` are NOT on a plugin's door, and this is
  * the door that would have put them there. A generic `offer<S>(key:
  * ServiceKey<S>, door: Provision<S>)` is spellable only by a caller who can name
  * both, so every offering plugin would import the bridge's own type vocabulary to
  * write one line — which is the arrow {@link ./runtime.ts} exists to be the only
- * one of. Six overloads land the same cast at the provision and let a plugin
+ * one of. Seven overloads land the same cast at the provision and let a plugin
  * write `(who) => ({ … })` and nothing else. It is `./browser.ts`'s `Slots`
  * shape, one level up.
  */
@@ -828,6 +880,7 @@ export interface Offers {
     ): Effect.Effect<void, never, Scope.Scope>
     (key: typeof Watching, door: Provision<Watching>): Effect.Effect<void, never, Scope.Scope>
     (key: typeof Ledger, door: Provision<Ledger>): Effect.Effect<void, never, Scope.Scope>
+    (key: typeof Search, door: Provision<Search>): Effect.Effect<void, never, Scope.Scope>
     (key: typeof Identity, door: Provision<Identity>): Effect.Effect<void, never, Scope.Scope>
   }
 }
@@ -1033,7 +1086,7 @@ export interface Plugins {
    * inverse — a plugin and the doors it holds — would be the same fact with the
    * uniqueness rule no longer visible in the shape.
    *
-   * ONLY THE FOUR OFFERABLE ONES ever appear: core's own services are provided
+   * ONLY THE SEVEN OFFERABLE ONES ever appear: core's own services are provided
    * before any row is mounted and are nobody's to hold, so a row can never be
    * carrying another on `vault` or `clock`.
    */
@@ -1208,11 +1261,12 @@ export const openPlugins = (
     }))
 
     /**
-     * ...AND THE SIX THAT CORE DOES NOT PROVIDE AT ALL, which is the whole of
-     * this phase and reads here as an absence.
+     * ...AND THE SEVEN THAT CORE DOES NOT PROVIDE AT ALL, which is the whole
+     * of this phase and reads here as an absence.
      *
      * Four of {@link OFFERABLE} are the chat row's to keep; {@link Ledger} is
-     * the git row's and {@link Identity} the identity row's. Offered from the
+     * the git row's, {@link Search} the search row's and {@link Identity} the
+     * identity row's. Offered from the
      * offering plugin's own `apply`
      * ({@link Offers}). Core standing behind them was scaffolding
      * with a date on it: a stand-in whose door was `undefined` answered every
@@ -1322,9 +1376,9 @@ export const openPlugins = (
             )),
           )
         }),
-      // THE CAST IS WHAT AN OVERLOAD SET IS. `Offers.offer` declares six call
+      // THE CAST IS WHAT AN OVERLOAD SET IS. `Offers.offer` declares seven call
       // signatures and no implementation signature — because a plugin must never
-      // be able to spell a seventh — and the body underneath an overload set is
+      // be able to spell an eighth — and the body underneath an overload set is
       // always one wider function that the declarations narrow. TypeScript will
       // not check the two against each other here (the widening runs through
       // `never`, which overlaps nothing), so this is the same unchecked step a

@@ -446,6 +446,28 @@ export const useGo = (): ((route: Route) => void) => {
   return (route) => router.goIn(here(), route)
 }
 
+/**
+ * {@link useGo}, or `null` where there is no router under this component.
+ *
+ * TWO screens draw the bar with no router beneath it — the error report and
+ * the waiting page — and a face hung in `app.header` is mounted on both. While
+ * the search box was core's, `AppHeader` carried that fact as an optional `go`
+ * and simply did not draw the box; a slot face has no props to be handed one
+ * through, so the absence is asked for here instead. The sentence is the one
+ * that prop's own comment carried: a door that could not open anywhere is worse
+ * than no door.
+ *
+ * `useContext` rather than {@link useRouter}, because the whole point is to
+ * ANSWER instead of throwing — and a plugin's face throwing out of its own
+ * mount is a cascade the shell should not be able to be handed.
+ */
+export const useMaybeGo = (): ((route: Route) => void) | null => {
+  const router = useContext(RouterContext)
+  const pane = usePane()
+  if (router === undefined) return null
+  return (route) => router.goIn(pane?.index ?? router.workspace().focus, route)
+}
+
 export interface LinkProps {
   readonly route: Route
   readonly class?: string

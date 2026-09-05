@@ -248,12 +248,15 @@ Almost everything olai does beyond reading and writing your outlines is a plugin
 
 **The JOURNAL is one** ([plugins/journal.md](plugins/journal.md)) — the calendar, `/today`, day pages, Agenda and its owed badge. It is also on by default. Leaving `journal` out removes those routes and faces while leaving the `date` and `repeat` fields in your files untouched.
 
+**The MATCHER is one** ([plugins/search.md](plugins/search.md)) — the index the server keeps, the walk that ranks and caps a query's hits, and the search box in the header. It is on by default. Leaving `search` out keeps the grammar, the `search_nodes` tool and every box a person types into, and answers every one of them with no hits and the reason, in words. The filter that narrows the page in front of you is not on this row and goes on working.
+
 Beside them are the APPLIANCES — kolu ([plugins/kolu.md](plugins/kolu.md)), odu ([plugins/odu.md](plugins/odu.md)), Xyne Spaces ([plugins/xyne-spaces.md](plugins/xyne-spaces.md)) — and the ACP ENGINES the panel can seat: Claude Code ([plugins/claude.md](plugins/claude.md)), Codex ([plugins/codex.md](plugins/codex.md)), opencode ([plugins/opencode.md](plugins/opencode.md)) and pi ([plugins/pi.md](plugins/pi.md)).
 
 ```
 olai web ~/outlines --plugins=odu                        # odu only — and no panel at all
 olai web ~/outlines --plugins=chat,claude,kolu,odu       # a conversation, one engine, the usual appliances — and no pill
-olai web ~/outlines --plugins=journal,chat,claude,kolu,odu # journal, a conversation, one engine and the appliances
+olai web ~/outlines --plugins=journal,chat,claude,kolu,odu # journal, a conversation, one engine and the appliances — and nothing searching
+olai web ~/outlines --plugins=search,chat,claude          # a matcher, a conversation, one engine
 olai web ~/outlines --plugins=chat,codex,opencode,pi     # no Claude row, no probe for one
 olai web ~/outlines --plugins=                          # none
 ```

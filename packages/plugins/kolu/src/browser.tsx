@@ -90,7 +90,7 @@ export default definePlugin({
     yield* slots.register("outline.row.block", TERMINAL_KIND, TerminalBlock)
     // THE PADI PILL, in the app's chrome row. Where it sits in the cluster is the
     // app's decision and always was; what a plugin gets is a seat.
-    yield* slots.register("app.header", () => <Padi app={app} />)
+    yield* slots.register("app.header", { place: "cluster", body: () => <Padi app={app} /> })
     // KOLU'S FACE IN A TRANSCRIPT — the mark over a sentence its doorbell
     // delivered into somebody's conversation.
     yield* slots.register("delivery.mark", KoluMark)

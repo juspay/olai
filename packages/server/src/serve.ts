@@ -25,7 +25,15 @@
 
 import { surface } from "@olai/surface"
 import { type GitPin, type PageRequest } from "@olai/format"
-import { make as makeOps, NO_LEDGER, type Ledger as OpsLedger, type Ops, TOOLS } from "@olai/ops"
+import {
+  make as makeOps,
+  NO_LEDGER,
+  NO_SEARCH,
+  type Ledger as OpsLedger,
+  type Ops,
+  type Search as OpsSearch,
+  TOOLS,
+} from "@olai/ops"
 import {
   BUNDLE_NAMES,
   configsOf,
@@ -43,6 +51,7 @@ import {
   NOWHERE_TO_WRITE,
   openPlugins,
   type PropWrite,
+  Search,
   type ToolServer,
 } from "@olai/plugin-api/services"
 import { Deferred, Effect } from "effect"
@@ -408,6 +417,37 @@ export const serve = (options: ServeOptions) =>
       (offered(plugins.host, Ledger) as OpsLedger | undefined) ?? NO_LEDGER
 
     /**
+     * THE MATCHER, ASKED PER QUERY — the ledger's arrangement one door over, and
+     * for the same reason: an `Ops` is built once and a row is mounted, unmounted
+     * and mounted again while it lives. So this is a thin door that reads the
+     * offer table at the moment of the ask; a serve whose `search` row is off,
+     * or has not mounted yet, answers with {@link NO_SEARCH} — no hits and the
+     * reason, in words, at all five doors onto search at once.
+     *
+     * THE CAST IS THE SEAM, and this is the one file that holds both spellings:
+     * the tag's payloads are `unknown` because `@olai/plugin-api` may not import
+     * the floor, and `@olai/ops`' `Search` is the same door with the floor's own
+     * types on it. A drift between them is a type error here.
+     *
+     * THE THREE OF THESE ARE NOT FACTORED INTO ONE, and that is a decision
+     * rather than an oversight — the volatility lens asks for it and the
+     * decomposition lens refuses. What they share is a SHAPE, not a concept:
+     * each reads a different key, falls back to a different sentence, and — the
+     * part a helper would eat — spends its own cast between a tag whose payloads
+     * are `unknown` and the typed twin the layer that consumes it declares.
+     * That cast is checked here, per door, against a type only this file has
+     * both halves of; a `standing(key, nobody)` generic over the fallback erases
+     * exactly the check and leaves three `as never`s where three checked casts
+     * were. Similar is not complected, and three lines that a compiler will
+     * point at one by one are cheaper than an abstraction that stops it looking.
+     */
+    const search: OpsSearch = {
+      nodes: (ask) => currentSearch().nodes(ask),
+    }
+    const currentSearch = (): OpsSearch =>
+      (offered(plugins.host, Search) as OpsSearch | undefined) ?? NO_SEARCH
+
+    /**
      * WHO IS LOOKING, asked of the roster as it stands — the identity row's
      * reading, or {@link NOBODY}.
      *
@@ -436,6 +476,7 @@ export const serve = (options: ServeOptions) =>
       store,
       root,
       ledger,
+      search,
       // THE SAME TABLE THE STORE VALIDATES WITH, so a value a page draws, a
       // value the validator reports and a value `set_prop` refuses are one
       // question asked three times. Two tables here would be the bug family

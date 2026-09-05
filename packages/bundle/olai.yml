@@ -60,6 +60,13 @@
 # the tenants).
 - id: git
   name: olai-plugin-git/server
+# THE MATCHER — search as a row. Off is "no provider mounted": `search_nodes`
+# and the four boxes a person types into are answered with no hits and the
+# reason, in words. It carries the trigram table with it, so a serve without it
+# has no index to keep up to date either. The FILTER over the page in front of
+# somebody is not on this row: it is a reading of one page and it stays core.
+- id: search
+  name: olai-plugin-search/server
 # WHO IS LOOKING — the login a reverse proxy injected, or nobody. Its server
 # half stands behind the `Identity` door core reads at the websocket upgrade, at
 # `GET /olai/who` and at `/mcp`; its browser half is the chip in the bar's last
