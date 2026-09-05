@@ -343,7 +343,7 @@ Both are facts about the node a row SHOWS, so choosing one at a mirror writes th
 
 **⌘Z takes back the last edit you made on this outline** — and it is not a restore. When a key moves a row, ticks something off, or commits what you retyped, the server records what would REVERSE it (the parent and neighbour the row had, the mark it replaced, the words it replaced) and ⌘Z sends that, through the same gate, judged against the outline as it is now.
 
-Which is what makes it safe to share an outline. An undo cannot quietly take back what the agent, another tab or a `git pull` did in the meantime; one that no longer fits — the row moved, somebody filed work under it, somebody retyped the line — says so instead of guessing, in the words the write gate would use. It is your own edits, on the outline in front of you: a hundred of them, this session, this tab. Open another outline and it starts again.
+Which is what makes it safe to share an outline. An undo cannot quietly take back what the agent, another tab or a `git pull` did in the meantime; one that no longer fits — the row moved, somebody filed work under it, somebody retyped the line — says so instead of guessing, in the words the write gate would use. It is your own edits, on the outline in front of you: a hundred of them, this session, this tab. Changing plugins preserves both undo and redo history, including the checks against other writers’ changes. Open another outline and it starts again.
 
 While you are still typing, ⌘Z is the text box's own, exactly as it is anywhere else. The outline's undo starts once the line is committed, which is the moment it became something anybody else can see.
 

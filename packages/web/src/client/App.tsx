@@ -73,6 +73,11 @@ import { TodayProvider } from "./today.tsx"
 import { connectionReadout, olai } from "./wire.ts"
 import { isLone } from "./workspace.ts"
 
+// This tab's committed edits outlive a plugin-driven App rebuild. The wire
+// facade resolves the current connection when an inverse is sent; readers and
+// keyboard listeners still belong to App. Opening another file clears it below.
+const undo = createUndo((edit) => runAsync(olai.procedures.edit.apply(edit)))
+
 export default function App() {
   /** THE DIRECTORY — every served file's path, title and breakage, and nothing
    *  else about the vault (`./directory.ts`). What this replaced was a
@@ -201,8 +206,6 @@ export default function App() {
     const node = only(shows, "node")
     return node === undefined ? undefined : only(node.zoomed, "node")
   })
-
-  const undo = createUndo((edit) => runAsync(olai.procedures.edit.apply(edit)))
 
   /**
    * THE OPEN FILE — the sidebar entry that lights up, and the outline undo's
