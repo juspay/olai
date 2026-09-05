@@ -87,7 +87,6 @@ buildNpmPackage {
     let
       # npm's own platform naming: linux-x64, darwin-arm64, …
       nodeArch = "${stdenv.hostPlatform.node.platform}-${stdenv.hostPlatform.node.arch}";
-      mods = "$out/lib/node_modules/olai-acp/node_modules";
 
       # THE OTHER HALF OF PI'S PATCH: the extension pi loads and the vocabulary
       # module it shares with the pin's test rig. Installed one directory up
@@ -104,7 +103,9 @@ buildNpmPackage {
       # drops the knot of relative-URL discipline (the bundled-embedded loader
       # can't trace node_modules trees), so the bridge answers with ONE
       # self-contained file.
-      mcpBridgeDir = "${mods}/olai-pi-mcp-bridge";
+      #
+      # `$mods` is a builder variable: nixpkgs' npmInstallHook uses package.json
+      # `name` (`olai-acp`); ekapkgs copies to `$out/lib/node_modules/${pname}`.
       bridge = ../packages/plugins/pi/acp/mcp-bridge;
 
       # EVERY `.patch` IN THAT PLUGIN'S OWN DIRECTORY, in name order — read
@@ -158,7 +159,7 @@ buildNpmPackage {
           # the bun archive cannot be patched, so hand it the one from the
           # store.
           env = [
-            ''--set-default CLAUDE_CODE_EXECUTABLE "${mods}/@anthropic-ai/claude-agent-sdk-${nodeArch}/claude"''
+            ''--set-default CLAUDE_CODE_EXECUTABLE "$mods/@anthropic-ai/claude-agent-sdk-${nodeArch}/claude"''
             "--set DISABLE_AUTOUPDATER 1"
             "--set DISABLE_INSTALLATION_CHECKS 1"
             "--set USE_BUILTIN_RIPGREP 0"
@@ -180,7 +181,7 @@ buildNpmPackage {
           # No `pi` baked in: the agent it drives is a per-machine find, so the
           # ROW names it at spawn time (`PI_ACP_PI_COMMAND`, set by
           # `olai-plugin-pi`'s probe) rather than it being fixed here.
-          env = [ ''--set PI_ACP_MCP_EXTENSION "${mcpBridgeDir}/extension.bundle.mjs"'' ];
+          env = [ ''--set PI_ACP_MCP_EXTENSION "$mods/olai-pi-mcp-bridge/extension.bundle.mjs"'' ];
         }
       ];
 
@@ -195,7 +196,7 @@ buildNpmPackage {
       # exists to catch. Each engine's `patches/README.md` says what each one is
       # and what olai added.
       install = engine: ''
-        adapter="${mods}/${engine.package}"
+        adapter="$mods/${engine.package}"
         entry="$adapter/${engine.entry}"
         test -f "$entry"
         ${lib.concatMapStringsSep "\n" (patch: ''patch -p1 -F0 -d "$adapter" < ${patch}'') (patchesFor engine.plugin)}
@@ -205,19 +206,31 @@ buildNpmPackage {
       '';
     in
     ''
+      # nixpkgs: package.json name. ekapkgs: derivation pname.
+      if [ -d "$out/lib/node_modules/olai-acp/node_modules/@modelcontextprotocol/sdk" ]; then
+        mods="$out/lib/node_modules/olai-acp/node_modules"
+      elif [ -d "$out/lib/node_modules/$pname/node_modules/@modelcontextprotocol/sdk" ]; then
+        mods="$out/lib/node_modules/$pname/node_modules"
+      else
+        echo "acp-agent: node_modules layout not found under olai-acp or $pname" >&2
+        ls -la "$out/lib/node_modules" >&2 || true
+        exit 1
+      fi
+      mcpBridgeDir="$mods/olai-pi-mcp-bridge"
+
       # THE PI BRIDGE, installed before the row that arms it — its own half of
       # `pi-mcp-servers.patch`, which is why it is here rather than in a row's
       # `patches` list: a patch is a diff and this is a file the patched code
       # goes looking for.
-      mkdir -p "${mcpBridgeDir}"
-      cp ${bridge}/extension.mjs "${mcpBridgeDir}/extension.mjs"
-      cp ${bridge}/naming.js "${mcpBridgeDir}/naming.js"
-      cp ${bridge}/wire.mjs "${mcpBridgeDir}/wire.mjs"
-      ${esbuild}/bin/esbuild "${mcpBridgeDir}/extension.mjs" \
+      mkdir -p "$mcpBridgeDir"
+      cp ${bridge}/extension.mjs "$mcpBridgeDir/extension.mjs"
+      cp ${bridge}/naming.js "$mcpBridgeDir/naming.js"
+      cp ${bridge}/wire.mjs "$mcpBridgeDir/wire.mjs"
+      ${esbuild}/bin/esbuild "$mcpBridgeDir/extension.mjs" \
         --bundle --platform=node --format=esm --log-level=warning \
-        --outfile="${mcpBridgeDir}/extension.bundle.mjs"
+        --outfile="$mcpBridgeDir/extension.bundle.mjs"
 
-      claude="${mods}/@anthropic-ai/claude-agent-sdk-${nodeArch}/claude"
+      claude="$mods/@anthropic-ai/claude-agent-sdk-${nodeArch}/claude"
       test -x "$claude"
     '' + lib.optionalString stdenv.hostPlatform.isLinux ''
       patchelf --set-interpreter \
