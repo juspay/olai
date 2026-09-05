@@ -132,7 +132,7 @@ Feature: A plugin is turned on and off while the serve runs
     And no member of this page has gone silent
     And there should be no page errors
 
-  @scratch:lanes @plugins:kolu,odu
+  @scratch:lanes @plugins:vault,kolu,odu
   Scenario: A row the flag left out is switched on, and is served
     # THE DIRECTION NOBODY WOULD GUESS IS AVAILABLE, and the one the transport
     # could not have done at all before sub-phase 8a — not by an oversight but

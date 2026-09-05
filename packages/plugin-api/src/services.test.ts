@@ -1,3 +1,4 @@
+import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 /**
  * THE SERVICES' OWN BENCH — what a registration does to the table it writes
  * into, and what it does when the composition root refuses it.
@@ -16,7 +17,7 @@
  */
 
 import { expect, test } from "bun:test"
-import { Cause, Effect, Layer, Logger, type Scope } from "effect"
+import { Cause, Deferred, Effect, Fiber, Layer, Logger, type Scope } from "effect"
 
 import {
   Deliveries,
@@ -28,13 +29,14 @@ import {
   type Mounted,
   mountPlugin,
   Offers,
-  openPlugins,
+
   Ops,
   type PluginsConfig,
   SessionStart,
   serviceTag,
   Surfaces,
   Vault,
+  vaultEvents,
   Wakes,
   Watching,
 } from "./services.ts"
@@ -1057,6 +1059,32 @@ test("discovery follows plugin-owned offers without publishing internal core doo
   })))
 })
 
+test("a late vault subscriber replays the published reading before receiving the next one", () =>
+  Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const events = vaultEvents("/tmp")
+    yield* events.published("first")
+    const replaying = yield* Deferred.make<void>()
+    const continueReplay = yield* Deferred.make<void>()
+    const seen: string[] = []
+    const listener = yield* Effect.forkScoped(events.door("late").revision((value: string) =>
+      Effect.gen(function*() {
+        seen.push(value)
+        if (value === "first") {
+          yield* Deferred.succeed(replaying, undefined)
+          yield* Deferred.await(continueReplay)
+        }
+        seen.push(`${value} done`)
+      })))
+    yield* Deferred.await(replaying)
+    const publish = yield* Effect.forkScoped(events.published("second"))
+    yield* Effect.yieldNow
+    expect(seen).toEqual(["first"])
+    yield* Deferred.succeed(continueReplay, undefined)
+    yield* Fiber.join(listener)
+    yield* Fiber.join(publish)
+    expect(seen).toEqual(["first", "first done", "second", "second done"])
+  }))))
+
 test("browser declarations are scoped discovery, not server provisions", async () => {
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const plugins = yield* runtime()
@@ -1091,3 +1119,14 @@ for (const words of [["viewer", "viewer"], ["viewer", "other.viewer"]]) {
     })))
   })
 }
+
+test("a synchronous replay failure cannot prevent later subscribers or publications", () =>
+  Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const events = vaultEvents("/tmp")
+    yield* events.published("first")
+    yield* events.door("thrower").revision(() => { throw new Error("nope") })
+    const seen: string[] = []
+    yield* events.door("neighbour").revision((value: string) => Effect.sync(() => { seen.push(value) }))
+    yield* events.published("second")
+    expect(seen).toEqual(["first", "second"])
+  }))))

@@ -146,51 +146,21 @@ export const detached: Effect.Effect<Detach, never, Scope.Scope> = Effect.gen(fu
  * loader's own contract is "a function, or an object with an `apply`". Nothing
  * about it is this package's to make ceremonious.
  *
- * `Config` is the row's `config:` validated at load, Standard Schema so the
- * loader refuses an invalid value with a sentence before `apply` runs. Absent
- * when the plugin has no config.
+ * Config decoding belongs to the bridge activation, before user apply.
+ * Native Cordis constructor validation bypasses that lifetime: the pinned
+ * loader can leave a constructor failure pending and reject an unobserved
+ * promise. Running the schema here gives invalid config the same failed-row
+ * reporting and cleanup as every other initialization failure.
  */
 export interface Plugin {
   readonly name: string
   readonly inject: ReadonlyArray<string>
-  /** Standard Schema, so Cordis validates the row's `config:` at load. */
-  readonly Config?: {
-    readonly "~standard": {
-      readonly version: 1
-      readonly vendor: string
-      readonly validate: (
-        value: unknown,
-      ) => { readonly value: unknown } | { readonly issues: ReadonlyArray<{ readonly message: string }> }
-    }
-  }
   readonly apply: (ctx: CordisContext, config?: unknown) => Promise<() => Promise<void>>
 }
 
 type NeedsOf<Keys extends ReadonlyArray<AnyKey>> =
   | Scope.Scope
   | Context.Service.Identifier<Keys[number]>
-
-/** Wrap an Effect schema as the Standard Schema Cordis validates at load.
- *  Absent / null config becomes `{}`, so a row with no `config:` still
- *  decodes to the schema's defaults; an invalid value fails with a sentence. */
-const standardOf = (schema: Schema.Schema<unknown>): NonNullable<Plugin["Config"]> => ({
-  "~standard": {
-    version: 1,
-    vendor: "effect-cordis",
-    validate: (value: unknown) => {
-      try {
-        const decode = Schema.decodeUnknownSync as (
-          schema: Schema.Schema<unknown>,
-        ) => (value: unknown) => unknown
-        return { value: decode(schema)(value ?? {}) }
-      } catch (error) {
-        return {
-          issues: [{ message: error instanceof Error ? error.message : String(error) }],
-        }
-      }
-    },
-  },
-})
 
 /**
  * DEFINE ONE.
@@ -199,9 +169,9 @@ const standardOf = (schema: Schema.Schema<unknown>): NonNullable<Plugin["Config"
  * `id`, which is also the sibling key, the docs slug and the stamp every keyed
  * service reads.
  *
- * `config` is the schema a row's `config:` is validated against at load.
- * Defaults live on the fields; an invalid value fails the load with a
- * sentence. The decoded value is handed to `apply`.
+ * `config` is decoded inside the activation before user `apply`. Defaults
+ * live on the fields; an invalid value fails the row with a sentence through
+ * the same contained failure path as initialization.
  */
 export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>, Config = unknown>(
   spec: {
@@ -215,7 +185,6 @@ export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>, Config = 
 ): Plugin => ({
   name: spec.name,
   inject: spec.needs.map((key) => key.cordis),
-  ...(spec.config === undefined ? {} : { Config: standardOf(spec.config as Schema.Schema<unknown>) }),
   apply: async (ctx: CordisContext, config?: unknown) => {
     const opened = held(ctx)
     // Disposal can win before Cordis reaches its deferred apply call.
@@ -243,9 +212,14 @@ export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>, Config = 
     }
     const activation = activate(ctx, opened)
     services = Context.add(Context.add(services, Offering, activation), Scope.Scope, activation.scope) as Context.Context<never>
-    const work = Effect.suspend(() => Effect.isEffect(spec.apply)
-      ? spec.apply
-      : spec.apply((config ?? {}) as Config))
+    const work = Effect.suspend(() => {
+      // The schema has no external services (the same restriction as the old
+      // Standard Schema adapter). A decode failure is a defect inside this
+      // activation, so the row fails before its apply acquires any resources.
+      const decode = Schema.decodeUnknownSync as (schema: Schema.Schema<Config>) => (input: unknown) => Config
+      const value = spec.config === undefined ? (config ?? {}) as Config : decode(spec.config)(config ?? {})
+      return Effect.isEffect(spec.apply) ? spec.apply : spec.apply(value)
+    })
     const running = Effect.runForkWith(services)(work as Effect.Effect<void>)
     activation.bind(running)
     const exit = await Effect.runPromise(Fiber.await(running))

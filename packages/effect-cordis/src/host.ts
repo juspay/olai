@@ -197,11 +197,11 @@ export interface Mounted {
 export const mountPlugin = (
   host: Host,
   plugin: Plugin,
-  options: { readonly wait?: boolean } = {},
+  options: { readonly wait?: boolean; readonly config?: unknown } = {},
 ): Effect.Effect<Mounted> =>
   Effect.promise(async () => {
     if (closing.has(host)) throw new Error("effect-cordis: cannot mount on a closed host")
-    const fiber: Fiber = (ctxOf(host).plugin as (plugin: Plugin) => Fiber)(plugin)
+    const fiber: Fiber = (ctxOf(host).plugin as (plugin: Plugin, config?: unknown) => Fiber)(plugin, options.config)
     // SWALLOWED, and it is the containment claim rather than a shrug: a plugin
     // whose `apply` failed lands in `FAILED` having installed nothing, and its
     // siblings — and the boot — are untouched. What it threw is not lost; it is

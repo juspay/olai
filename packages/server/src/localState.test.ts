@@ -1,3 +1,4 @@
+import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 /**
  * Core's local-state door: the last snapshot handed over is the one that lands,
  * a missing file is a fresh map, and an unreadable file is a warn.
@@ -10,7 +11,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 
 import { canonical, digestOf, fileForLocal, stateHome, StateFailure, writeLocal } from "@olai/state"
-import { definePlugin, LocalState, mountPlugin, openPlugins } from "@olai/plugin-api/services"
+import { definePlugin, LocalState, mountPlugin, } from "@olai/plugin-api/services"
 
 import { localStateFor } from "./localState.ts"
 

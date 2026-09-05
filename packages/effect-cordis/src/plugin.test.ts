@@ -461,9 +461,15 @@ test("a plugin with Config is handed the decoded value, and invalid config fails
   })))
   expect(seen).toEqual({})
 
-  const standard = (plugin.Config as {
-    readonly "~standard": { readonly validate: (value: unknown) => { readonly issues?: unknown } }
-  })["~standard"]
-  expect(standard.validate({ commit: "auto" }).issues).toBeUndefined()
-  expect(standard.validate({ commit: "nope" }).issues).toBeDefined()
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const host = yield* openHost
+    const valid = yield* mountPlugin(host, plugin, { config: { commit: "auto" } })
+    expect(seen).toEqual({ commit: "auto" })
+    yield* valid.dispose
+    const invalid = yield* mountPlugin(host, plugin, { config: { commit: "nope" } })
+    const report = yield* invalid.report
+    expect(report.state).toBe("failed")
+    expect(report.state === "failed" ? report.fault : undefined).toContain("auto")
+    expect(seen).toEqual({ commit: "auto" })
+  })))
 })

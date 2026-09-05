@@ -35,6 +35,7 @@
     "@olai/child": "workspace:*",
     "@types/node": "^22.0.0",
     "olai-plugin-git": "workspace:*",
-    "olai-plugin-identity": "workspace:*"
+    "olai-plugin-identity": "workspace:*",
+    "olai-plugin-vault": "workspace:*"
   }
 }

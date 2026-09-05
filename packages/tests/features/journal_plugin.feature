@@ -1,4 +1,4 @@
-@scratch:good @plugins:chat
+@scratch:good @plugins:vault,chat
 Feature: The journal is one optional plugin
   Scenario: A serve without journal is an outliner with no journal faces
     Given I open the outline "house.olai"

@@ -23,7 +23,7 @@ Feature: Plugin changes preserve working navigation and editing
     And the page has not reloaded
     And there should be no page errors
 
-  @scratch:agenda @plugins:chat
+  @scratch:agenda @plugins:vault,chat
   Scenario: A journal enabled for the first time serves its agenda
     Given I open the app
     And I mark the page

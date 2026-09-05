@@ -43,7 +43,7 @@ export const mcpEndpoint = (token: string) => {
       readonly root: string
       readonly writer: Writer
       /** The root chooses the store's observation class; MCP only projects it. */
-      readonly vintage: Effect.Effect<Vintage>
+      readonly vintage: Effect.Effect<Vintage | undefined>
     }) => Effect.gen(function*() {
       const { bound, face, ops, root, writer, vintage } = options
       // This client has no connection to close. Make it once per activation,

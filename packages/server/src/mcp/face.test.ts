@@ -26,7 +26,12 @@
  * subscription test is a sequence and not a race.
  */
 
-import { make as makeOps } from "@olai/ops"
+import { runtimePaths } from "../runtime-paths.ts"
+import { fixedStore } from "../store-source.ts"
+import { type Store, type Ops, NO_LEDGER, NO_SEARCH } from "@olai/ops"
+import { NO_KINDS } from "@olai/format"
+import { mountBundle, provide, offered, settled } from "@olai/bundle/bundle"
+import { openPlugins, Directory, Ops as OpsDoor, VaultSettings } from "@olai/plugin-api/services"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import { ResourceUpdatedNotificationSchema } from "@modelcontextprotocol/sdk/types.js"
@@ -36,8 +41,6 @@ import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
-import { openDirectory } from "../directory.ts"
-import { propKinds } from "../propKinds.ts"
 import { watchFault } from "../fault.ts"
 import { hostname } from "../hostname.ts"
 import { bind, writerAt } from "../runtime.ts"
@@ -92,14 +95,17 @@ interface Face {
 const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
   Effect.gen(function*() {
     const root = served()
-    const { store } = yield* openDirectory(root, yield* propKinds(null))
+    const plugins = yield* openPlugins({ vars: {}, now: () => "" })
+    yield* mountBundle(plugins.host, ["vault"])
+    yield* provide(plugins.host, VaultSettings, () => ({ root, runtime: runtimePaths, kinds: NO_KINDS, ledger: NO_LEDGER, search: NO_SEARCH }))
+    yield* settled(plugins.host, ["vault"])
+    const store = offered(plugins.host, Directory)!.store as Store
     // A real ops layer with commits OFF: this face is about READING, and `off`
     // is the one mode that asks git nothing at all. The edit procedures are
     // bound to it too and this face exposes none of them, so what they cost
     // here is a binding nobody can reach.
-    const ops = makeOps({ store, root })
-    const wired = yield* bind({
-      store,
+    const ops = offered(plugins.host, OpsDoor)!.gate as Ops
+    const wired = yield* bind({ store: fixedStore(store),
       ops,
       writer: "mcp",
       hostname: hostname(),

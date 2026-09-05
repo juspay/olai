@@ -100,7 +100,7 @@ import type { Scope } from "effect"
 import * as fs from "node:fs"
 import { dirname, join } from "node:path"
 
-import { canonical, digestOf, pruneGone, runtimeHome } from "@olai/state"
+import type { RuntimePaths } from "@olai/ops"
 
 import { lockExclusive } from "./flock.ts"
 
@@ -152,8 +152,8 @@ export class LockUnavailable extends Data.TaggedError("LockUnavailable")<{
  * in the chat panel's memory — and two answers to "which file is this vault's"
  * is exactly the drift that would make one of them read somebody else's.
  */
-export const lockFor = (root: string): string =>
-  join(runtimeHome(), `${digestOf(canonical(root))}.lock`)
+export const lockFor = (root: string, paths: RuntimePaths): string =>
+  join(paths.home(), `${paths.digest(paths.canonical(root))}.lock`)
 
 /**
  * Drop leftover files in the runtime directory.
@@ -175,8 +175,8 @@ export const lockFor = (root: string): string =>
  *
  * Returns how many names it removed, so a boot can say so.
  */
-export const sweepRuntime = (): number => {
-  const home = runtimeHome()
+export const sweepRuntime = (paths: RuntimePaths): number => {
+  const home = paths.home()
   let entries: ReadonlyArray<fs.Dirent>
   try {
     if (!isPrivateOwnedDir(home)) return 0
@@ -312,9 +312,10 @@ const alive = (pid: number): boolean => {
  */
 export const holdVault = (
   root: string,
+  paths: RuntimePaths,
 ): Effect.Effect<void, VaultInUse | LockUnavailable, Scope.Scope> =>
   Effect.gen(function*() {
-    const swept = sweepRuntime()
+    const swept = sweepRuntime(paths)
     if (swept > 0) {
       yield* Effect.annotateLogs(Effect.logInfo("swept leftover runtime files"), {
         count: swept,
@@ -322,7 +323,7 @@ export const holdVault = (
     }
     yield* Effect.acquireRelease(
       Effect.suspend((): Effect.Effect<Held, VaultInUse | LockUnavailable> => {
-        const path = lockFor(root)
+        const path = lockFor(root, paths)
         const opened = openLock(path)
         if (typeof opened !== "number") return Effect.fail(opened)
 
@@ -346,7 +347,7 @@ export const holdVault = (
         // whoever holds the lock.
         try {
           fs.ftruncateSync(opened, 0)
-          fs.writeSync(opened, `pid=${process.pid}\nroot=${canonical(root)}\n`, 0)
+          fs.writeSync(opened, `pid=${process.pid}\nroot=${paths.canonical(root)}\n`, 0)
         } catch {
           // The claim is the lock, not the note. A runtime directory that will
           // not take these few bytes costs the NEXT olai a pid in its refusal and
@@ -369,24 +370,6 @@ export const holdVault = (
             // process is about to lose anyway.
           }
         }),
-    )
-    // The state home's half of the same hygiene: a chat memory or a doorbell
-    // pick outlives a /tmp vault forever, and nothing was ever asking after
-    // it. One sweep per SERVING boot — below the claim, because a boot this
-    // claim will refuse owes no sweep, and forked, because the walk is
-    // unbounded (one read+stat per record) and a stat on a network path that
-    // will not answer must never stand between the person and the bind they
-    // are waiting on. `@olai/state` owns the ruling of what may go.
-    yield* Effect.forkScoped(
-      Effect.suspend(() => {
-        const pruned = pruneGone()
-        return pruned > 0
-          ? Effect.annotateLogs(
-            Effect.logInfo("pruned state records for directories that are gone"),
-            { count: pruned },
-          )
-          : Effect.void
-      }),
     )
   })
 
