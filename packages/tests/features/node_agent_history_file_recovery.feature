@@ -5,6 +5,7 @@ Feature: A restored node recovers its complete conversation history
     And I rewrite "history-recovery.olai" as:
       """
       {"id":"history-recovery","ord":"a0","title":"History recovery agent"}
+      {"id":"outside-recovery","ord":"a1","title":"Outside the recovered agent"}
       """
     And I open the outline "history-recovery.olai"
     When I open the node menu of "history-recovery"
@@ -39,6 +40,10 @@ Feature: A restored node recovers its complete conversation history
     And the panel is in the remembered conversation "historical"
     When I ask the agent "history continued after restoration"
     Then the agent has answered "history continued after restoration" exactly once
+    When I ask the agent "done outside-recovery"
+    Then the agent is idle
+    And the chat shows a refusal
+    And node "outside-recovery" is not done
     When I open the session picker
     And I return to the node agent's current session
     Then the panel is in the remembered conversation "current"
