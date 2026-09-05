@@ -131,7 +131,7 @@ in
       # journal, which is the right place for it.
       type = lib.types.nullOr (lib.types.listOf lib.types.str);
       default = null;
-      example = lib.literalExpression ''[ "odu" ]'';
+      example = lib.literalExpression ''[ "vault" "odu" ]'';
       description = ''
         Which of the built-in integrations this instance runs, as this
         instance's POLICY — the same shape `commit` and `push` above have, and
@@ -151,13 +151,18 @@ in
         probe, no chrome pill, and every property that would have worn a live
         face drawing as the text it always was.
 
+        The exact set must name `vault` to serve files. extraPlugins and
+        withoutPlugins never touch it: they only move the rows they name, so
+        the vault stays unless you list it there. `[ "odu" ]` is a control
+        plane with no directory.
+
         THE ACP ENGINES ARE ROWS TOO (`claude`, `codex`, `opencode`, `pi`), and
         all four are on by default — so a list that names none of them is an
         instance whose chat panel has no agent. The flag doing what it says
-        rather than a trap, but worth knowing before you write `[ "odu" ]` and
-        wonder where the agent went: the panel draws and names that cause
-        rather than guessing at one. Name the engines you want beside the
-        appliances.
+        rather than a trap, but worth knowing before you write
+        `[ "vault" "odu" ]` and wonder where the agent went: the panel draws
+        and names that cause rather than guessing at one. Name the engines you
+        want beside the appliances.
 
         Run `olai web --help` for the names this build has.
 
