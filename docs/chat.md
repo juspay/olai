@@ -668,6 +668,10 @@ does not rewrite that property or replace the node's current conversation.
 
 What it costs is what the contract has been saying all along: nothing that was written into the subtree, and everything that was only ever in the transcript. **The conversation it replaces is not orphaned** — olai writes down what replaced it, so it becomes one of that agent's past sessions rather than reappearing under *Unassigned* as a chat nobody claims. That note is this machine's, like the rest of what olai overheard.
 
+Starting fresh again before sending a message also keeps earlier history. An
+unused session has no transcript to list; Olai follows its recorded replacement
+to the next session instead of losing the conversations before it.
+
 ### The header lists a node agent's sessions, and nothing else
 
 **`sessions (n)` is drawn only where the conversation belongs to a node agent**, and it holds that agent's own history and its fresh session. The `chats` button that used to stand there — every stored conversation in the directory — is **retired**: the sidebar is that list twice over (an agent's conversation by pressing the agent, everything else under Unassigned), and the last thing keeping it was that it was the only face that named an agent whose disk could not be read. Unassigned names those now, which is what made the retirement safe rather than merely tidy. `+ new` stays where it was: which agent a fresh conversation is with is not a question about a node agent's history.

@@ -683,3 +683,34 @@ When("I return to the node agent's current session", async function (this: OlaiW
       && await panel.getAttribute("data-status") === "idle";
   }, "the node's current conversation to be ready");
 });
+
+const notedSessions = new WeakMap<OlaiWorld, Map<string, string>>();
+When("I remember this conversation as {string}", async function (this: OlaiWorld, name: string) {
+  const panel = this.page.locator(selector(PLUGIN_TESTID.chatPanel));
+  await this.waitUntil(async () => await panel.getAttribute("data-status") === "idle", "the conversation to be ready");
+  const id = await panel.getAttribute("data-session-id");
+  assert.ok(id);
+  const sessions = notedSessions.get(this) ?? new Map<string, string>();
+  sessions.set(name, id);
+  notedSessions.set(this, sessions);
+});
+
+Then("the panel is in the remembered conversation {string}", async function (this: OlaiWorld, name: string) {
+  const id = notedSessions.get(this)?.get(name);
+  assert.ok(id, `no conversation remembered as ${name}`);
+  await this.waitUntil(async () => {
+    const panel = this.page.locator(selector(PLUGIN_TESTID.chatPanel));
+    return await panel.getAttribute("data-session-id") === id
+      && await panel.getAttribute("data-status") === "idle";
+  }, `the panel to open ${name}`);
+});
+
+Then("the panel has a different conversation from {string}", async function (this: OlaiWorld, name: string) {
+  const id = notedSessions.get(this)?.get(name);
+  assert.ok(id, `no conversation remembered as ${name}`);
+  await this.waitUntil(async () => {
+    const panel = this.page.locator(selector(PLUGIN_TESTID.chatPanel));
+    const current = await panel.getAttribute("data-session-id");
+    return current !== null && current !== id && await panel.getAttribute("data-status") === "idle";
+  }, `a fresh conversation replacing ${name}`);
+});

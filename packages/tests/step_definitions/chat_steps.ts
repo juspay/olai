@@ -34,9 +34,14 @@ import { completingIn, NEAR } from "olai-plugin-chat/testlib";
 
 import { retypedAndTaken } from "../support/atonce.ts";
 import { MARKER } from "../support/scripted.ts";
+import { SESSION_STORE_MARKER } from "../agent/session-store.ts";
 import { keysSettled } from "../support/settling.ts";
 import { saysThat } from "../support/said.ts";
 import { answered } from "../support/shortlist.ts";
+
+Given("the harness keeps distinct sessions on disk", function (this: OlaiWorld) {
+  fs.mkdirSync(path.join(this.scratch(), SESSION_STORE_MARKER), { recursive: true });
+});
 
 import {
   attr,

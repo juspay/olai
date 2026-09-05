@@ -200,6 +200,7 @@ import { basename, join } from "node:path"
 
 import { readMessages } from "../support/ndjson.ts"
 import { emitter, MARKER, RELEASE, released as releasedIn, speaking } from "../support/scripted.ts"
+import { sessionStore } from "./session-store.ts"
 
 const OUT = process.stdout
 
@@ -209,7 +210,15 @@ const OUT = process.stdout
  *  ids and the option order are this file's own, which is the whole reason two
  *  fakes are worth having. */
 const emit = emitter(OUT)
-const { notify, refuse, request, respond, take, withdraw } = speaking(emit, "agent")
+const { notify: sendNotification, refuse, request, respond, take, withdraw } = speaking(emit, "agent")
+const notify = (method: string, params: unknown): void => {
+  if (method === "session/update" && typeof params === "object" && params !== null
+    && "sessionId" in params && typeof params.sessionId === "string"
+    && "update" in params && typeof params.update === "object" && params.update !== null) {
+    sessionStore(cwd).update(params.sessionId, params.update as Record<string, unknown>)
+  }
+  sendNotification(method, params)
+}
 
 /**
  * Prompts this agent has READ and not yet started on — its queue, made
@@ -394,6 +403,7 @@ const minted = new Map<string, Minted>()
  *  minted — each shape pruned its own way, and the static ids winning any
  *  overlap so their pinned words and stamps never move. */
 const listedSessions = () => {
+  if (sessionStore(cwd).enabled) return sessionStore(cwd).list()
   const staticRows = stored() ? storedSessions() : []
   const staticIds = new Set(staticRows.map((row) => row.sessionId))
   return [
@@ -2836,7 +2846,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
         return
       }
       openSession(params)
-      sessionId = "fake-session-1"
+      sessionId = sessionStore(cwd).enabled ? sessionStore(cwd).newId() : "fake-session-1"
       // A fresh conversation is on whatever the picker says it is picking, and
       // what it is picking is the pin.
       currentModel = pinnedModel()
@@ -2869,9 +2879,21 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       // on the wire has opened nothing, and what a scenario looks at in that
       // window is a client that is between conversations.
       if (holdsLoad()) await released()
+      {
+        const directory = typeof params["cwd"] === "string" ? params["cwd"] : cwd
+        const disk = sessionStore(directory)
+        if (disk.enabled && disk.read(String(params["sessionId"])) === null) {
+          refuse(id, -32603, `no such conversation: ${String(params["sessionId"])}`)
+          return
+        }
+      }
       openSession(params)
       sessionId = String(params["sessionId"] ?? sessionId)
-      replay()
+      if (sessionStore(cwd).enabled) {
+        for (const update of sessionStore(cwd).read(sessionId)?.updates ?? []) {
+          sendNotification("session/update", { sessionId, update })
+        }
+      } else replay()
       // THE PIN, ASSERTED OVER THE CONVERSATION'S OWN MODEL — which is the bug
       // `chat-model-reverts-on-restart` is about, and what the real adapter
       // does on every resume when `settings.json` names a model. Whatever this
@@ -2892,7 +2914,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
         sessionId,
         update: {
           sessionUpdate: "session_info_update",
-          title: STORED_TITLES[sessionId] ?? "a loaded conversation",
+          title: sessionStore(cwd).read(sessionId)?.title ?? STORED_TITLES[sessionId] ?? "a loaded conversation",
         },
       })
       return
@@ -2925,6 +2947,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
 
     case "session/prompt": {
       const text = promptTextOf(params)
+      sessionStore(cwd).prompt(sessionId, text)
       // It is not waiting any more: this is the turn now.
       waiting.delete(id)
       // ... and the conversation it landed in EXISTS from here on: a transcript
