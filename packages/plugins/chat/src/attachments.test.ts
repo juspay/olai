@@ -9,6 +9,7 @@
  */
 
 import { expect, test } from "bun:test"
+import type { AttachChunk } from "olai-plugin-chat/wire"
 import { Effect, Result } from "effect"
 import {
   existsSync,
@@ -33,11 +34,7 @@ import { make, promptWith, safeName } from "./attachments.ts"
  *  the one serving every socket). */
 const outcome = <A, E>(effect: Effect.Effect<A, E>) => Effect.runPromise(Effect.result(effect))
 
-const receive = (files: ReturnType<typeof make>, chunk: {
-  name: string
-  data: string
-  appendTo?: string
-}) => outcome(files.receive(chunk))
+const receive = (files: ReturnType<typeof make>, chunk: AttachChunk) => outcome(files.receive(chunk))
 
 const bytes = (size: number) =>
   Buffer.from(Array.from({ length: size }, (_, at) => (at * 31) % 256))
