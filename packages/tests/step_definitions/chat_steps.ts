@@ -152,6 +152,7 @@ import {
 import type { OlaiWorld } from "../support/world.ts";
 
 Given("the agent panel is open", async function (this: OlaiWorld) {
+  const toggle = this.page.locator(CHAT_TOGGLE);
   const panel = this.page.locator(CHAT_PANEL);
   // Desktop: the toggle is always in the header (pressed while open). Phone:
   // the thumb strip is the door. Open-ness is remembered in localStorage, so
