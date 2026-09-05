@@ -69,7 +69,7 @@
  */
 
 import { bodyKind, type Custom } from "@olai/format"
-import { createSignal, Show } from "solid-js"
+import { onCleanup, Show } from "solid-js"
 import { Dynamic } from "solid-js/web"
 
 import { DeleteFile } from "../file/DeleteFile.tsx"
@@ -81,6 +81,9 @@ import { Referrers } from "./Referrers.tsx"
 import { isServed, useDocument } from "./documents.tsx"
 import { FACES } from "./faces.tsx"
 import { consumeMinted } from "./minted.ts"
+import { keepDraft, takeDraft } from "./drafts.ts"
+import { useHere, useRouter } from "../router.tsx"
+import { panesOf } from "../workspace.ts"
 
 /**
  * A document page is a page OF A FILE, and this is what makes that true.
@@ -136,10 +139,19 @@ function OneDocument(props: { readonly file: string; readonly custom: Custom }) 
   // HTTP. That is what a `.html` preview costs this tab: nothing
   // (./documents.tsx, and ./faces.tsx's `edits`).
   const served = useDocument(() => (face().edits ? props.file : undefined))
-  // Fresh per page mount — and a page is one FILE (see above), so navigating
-  // anywhere else, another document included, closes the editor and the draft
-  // goes with it: a draft is an editor's, never a file's.
-  const [editing, setEditing] = createSignal(consumeMinted(props.file))
+  const here = useHere()
+  const router = useRouter()
+  const route = panesOf(router.workspace())[here()]?.route
+  const editor = takeDraft(props.file, here())
+  const editing = editor.editing
+  if (consumeMinted(props.file)) editor.open()
+  onCleanup(() => {
+    // Navigation discards the departing editor as before. Rebuilding this
+    // same pane keeps its draft, including when another tab changed plugins.
+    if (panesOf(router.workspace())[here()]?.route === route) {
+      keepDraft(props.file, here(), editor)
+    }
+  })
 
   return (
     <section data-testid={TESTID.documentPage} data-file={props.file}>
@@ -163,7 +175,7 @@ function OneDocument(props: { readonly file: string; readonly custom: Custom }) 
                 type="button"
                 class="cursor-pointer rounded border border-rule bg-transparent px-2 py-0.5 text-[0.8125rem] text-muted hover:bg-rule/60 hover:text-ink"
                 data-testid={TESTID.documentEdit}
-                onClick={() => setEditing(true)}
+                onClick={editor.open}
               >
                 Edit
               </button>
@@ -202,7 +214,8 @@ function OneDocument(props: { readonly file: string; readonly custom: Custom }) 
           <DocEditor
             file={props.file}
             served={body().text ?? ""}
-            onDone={() => setEditing(false)}
+            draft={editor.draft(body().text ?? "")}
+            onDone={editor.close}
           />
         )}
       </Show>

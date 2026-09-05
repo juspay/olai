@@ -32,12 +32,13 @@
  * so save-time is never the first anyone hears of a conflict.
  */
 
-import { createMemo, createSignal, onMount, Show } from "solid-js"
+import { createMemo, onMount, Show } from "solid-js"
 
 import { useUndo } from "../edit/undoing.ts"
 import { Refused } from "../Refused.tsx"
 import { TESTID } from "../testids.ts"
 import { applying } from "../writes.ts"
+import type { DocumentDraft } from "./drafts.ts"
 
 export function DocEditor(props: {
   readonly file: string
@@ -45,20 +46,19 @@ export function DocEditor(props: {
    *  which is how this editor can see the disk move underneath it. */
   readonly served: string
   /** Leave the editor, whichever door: a commit that landed, or a Cancel. */
-  readonly onDone: () => void
+  readonly onDone: (draft: DocumentDraft) => void
+  readonly draft: DocumentDraft
 }) {
   const undo = useUndo()
   /** What this editor READ when it opened — the `was` every guarded commit
    *  sends, and the baseline drift is measured against. */
-  const base = props.served
-  const [text, setText] = createSignal(base)
+  const draft = props.draft
+  const { base, text, setText, said, setSaid, busy, setBusy } = draft
   /** The refusal, verbatim, or `null`. One mood and not two: a document write
    *  has no rollup to remark on, so there is nothing an `aside` would say here
    *  that leaving the editor does not already show. */
-  const [said, setSaid] = createSignal<string | null>(null)
   /** One write in flight at a time: Save pressed twice is one write, not a
    *  race between two. */
-  const [busy, setBusy] = createSignal(false)
 
   /** The disk has moved since this editor read it: the live half of the
    *  conflict story, said while there is still time to read it calmly. */
@@ -69,7 +69,7 @@ export function DocEditor(props: {
     // Nothing changed: leaving is the whole of what Save means, and a write
     // that would change nothing sends nothing — the draft rule, at file size.
     if (guarded && text() === base) {
-      props.onDone()
+      props.onDone(draft)
       return
     }
     setBusy(true)
@@ -91,7 +91,7 @@ export function DocEditor(props: {
       }
       // Landed. A document write has no rollup to remark, so there is nothing
       // an `aside` would say that leaving does not show.
-      props.onDone()
+      props.onDone(draft)
     } finally {
       setBusy(false)
     }
@@ -134,7 +134,7 @@ export function DocEditor(props: {
           }
           if (event.key === "Escape") {
             event.preventDefault()
-            props.onDone()
+            props.onDone(draft)
           }
         }}
       />
@@ -154,7 +154,7 @@ export function DocEditor(props: {
           type="button"
           class="cursor-pointer rounded border-0 bg-transparent px-2 py-1 text-[0.8125rem] text-muted hover:text-ink"
           data-testid={TESTID.documentCancel}
-          onClick={() => props.onDone()}
+          onClick={() => props.onDone(draft)}
         >
           Cancel
         </button>
